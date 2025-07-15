@@ -107,7 +107,7 @@ func (c *ClusterTaintPolicyController) Reconcile(ctx context.Context, req contro
 
 		msg := fmt.Sprintf("Update Cluster(%s) with taints(%v) succeed", req.Name,
 			utilhelper.GenerateTaintsMessage(clusterCopyObj.Spec.Taints))
-		klog.InfoS(msg)
+klog.InfoS("Successfully updated cluster taints", "cluster", req.Name, "taints", clusterCopyObj.Spec.Taints)
 		c.EventRecorder.Event(clusterCopyObj, corev1.EventTypeNormal, events.EventReasonTaintClusterSucceed, msg)
 		return controllerruntime.Result{}, nil
 	}
