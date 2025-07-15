@@ -58,18 +58,18 @@ type ClusterTaintPolicyController struct {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *ClusterTaintPolicyController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling Cluster %s.", req.Name)
+	klog.V(4).InfoS("Reconciling Cluster", "cluster", req.Name)
 
 	clusterObj := &clusterv1alpha1.Cluster{}
 	if err := c.Client.Get(ctx, req.NamespacedName, clusterObj); err != nil {
-		klog.Errorf("Failed to get Cluster(%s), error: %v", req.Name, err)
+		klog.ErrorS(err, "Failed to get Cluster", "cluster", req.Name)
 		return controllerruntime.Result{}, client.IgnoreNotFound(err)
 	}
 
 	clusterTaintPolicyList := &policyv1alpha1.ClusterTaintPolicyList{}
 	listOption := &client.ListOptions{UnsafeDisableDeepCopy: ptr.To(true)}
 	if err := c.Client.List(ctx, clusterTaintPolicyList, listOption); err != nil {
-		klog.Errorf("Failed to list ClusterTaintPolicy, error: %v", err)
+		klog.ErrorS(err, "Failed to list ClusterTaintPolicy")
 		return controllerruntime.Result{}, err
 	}
 
@@ -99,18 +99,18 @@ func (c *ClusterTaintPolicyController) Reconcile(ctx context.Context, req contro
 		objPatch := client.MergeFrom(clusterObj)
 		err := c.Client.Patch(ctx, clusterCopyObj, objPatch)
 		if err != nil {
-			klog.Errorf("Failed to patch Cluster(%s), error: %v", req.Name, err)
+			klog.ErrorS(err, "Failed to patch Cluster", "cluster", req.Name)
 			c.EventRecorder.Event(clusterCopyObj, corev1.EventTypeWarning, events.EventReasonTaintClusterFailed, err.Error())
 			return controllerruntime.Result{}, err
 		}
 
 		msg := fmt.Sprintf("Update Cluster(%s) with taints(%v) succeed", req.Name,
 			utilhelper.GenerateTaintsMessage(clusterCopyObj.Spec.Taints))
-		klog.Info(msg)
+		klog.InfoS("Successfully updated cluster taints", "cluster", req.Name, "taints", clusterCopyObj.Spec.Taints)
 		c.EventRecorder.Event(clusterCopyObj, corev1.EventTypeNormal, events.EventReasonTaintClusterSucceed, msg)
 		return controllerruntime.Result{}, nil
 	}
-	klog.V(4).Infof("Cluster(%s) taints are up to date.", req.Name)
+	klog.V(4).InfoS("Cluster taints are up to date.", "cluster", req.Name)
 	return controllerruntime.Result{}, nil
 }
 
@@ -147,7 +147,8 @@ func conditionMatches(conditions []metav1.Condition, matchConditions []policyv1a
 					}
 				}
 			default:
-				klog.Errorf("Unsupported MatchCondition operator: %s", matchCondition.Operator)
+				err := fmt.Errorf("unsupported MatchCondition operator")
+				klog.ErrorS(err, "operator", matchCondition.Operator)
 				return false
 			}
 		}
@@ -235,7 +236,7 @@ func (c *ClusterTaintPolicyController) SetupWithManager(mgr controllerruntime.Ma
 			clusterList := &clusterv1alpha1.ClusterList{}
 			listOption := &client.ListOptions{UnsafeDisableDeepCopy: ptr.To(true)}
 			if err := c.Client.List(ctx, clusterList, listOption); err != nil {
-				klog.Errorf("Failed to list Cluster, error: %v", err)
+				klog.ErrorS(err, "Failed to list Cluster")
 				return nil
 			}
 
