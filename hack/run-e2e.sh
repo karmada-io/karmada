@@ -52,9 +52,25 @@ REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 export KUBECONFIG=${KARMADA_APISERVER_KUBECONFIG}
 export PULL_BASED_CLUSTERS=${PULL_BASED_CLUSTERS}
 
+TEST_RESULT="PASS"
+
 set +e
 ginkgo -v --race --trace --fail-fast -p --randomize-all ./test/e2e/suites/base -- --karmada-context=karmada-apiserver
 TESTING_RESULT=$?
+
+if [ $TESTING_RESULT -eq 0 ]; then
+  echo "E2E run successfully."
+  echo "Checking if karmada-controller-manager has restarted..."
+  POD_NAME=$(kubectl --context="${KARMADA_HOST_CLUSTER_NAME}" get pod -n karmada-system -l app=karmada-controller-manager -o=jsonpath='{.items[0].metadata.name}')
+  RESTART_COUNT=$(kubectl --context="${KARMADA_HOST_CLUSTER_NAME}" get pod -n karmada-system -l app=karmada-controller-manager -o=jsonpath='{.items[0].status.containerStatuses[0].restartCount}')
+  if [ "$RESTART_COUNT" -gt 0 ]; then
+    echo "WARNING: karmada-controller-manager has restarted $RESTART_COUNT times."
+    TEST_RESULT="FAIL"
+  fi
+else
+  echo "E2E run failed."
+  TEST_RESULT="FAIL"
+fi
 
 # Collect logs
 echo "Collect logs to $ARTIFACTS_PATH..."
@@ -76,4 +92,8 @@ ls -al "$ARTIFACTS_PATH"
 # Post run e2e for delete extra components
 "${REPO_ROOT}"/hack/post-run-e2e.sh
 
-exit $TESTING_RESULT
+if [ "$TEST_RESULT" == "FAIL" ]; then
+    exit 1
+else
+    exit 0
+fi
