@@ -31,6 +31,8 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
+            - name: KUBE_CACHE_MUTATION_DETECTOR
+              value: "{{KUBE_CACHE_MUTATION_DETECTOR}}"
           command:
             - /bin/karmada-controller-manager
             - --kubeconfig=/etc/karmada/config/karmada.config

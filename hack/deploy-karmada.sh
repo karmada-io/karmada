@@ -19,6 +19,9 @@ set -o nounset
 # This script deploy karmada control plane to any cluster you want.	REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 # This script depends on utils in: ${REPO_ROOT}/hack/util.sh
 
+# Do not run the mutation detector by default on the local karmada instance.
+KUBE_CACHE_MUTATION_DETECTOR="${KUBE_CACHE_MUTATION_DETECTOR:-false}"
+
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 CERT_DIR=${CERT_DIR:-"${HOME}/.karmada"}
 mkdir -p "${CERT_DIR}" &>/dev/null ||  mkdir -p "${CERT_DIR}"
@@ -183,6 +186,19 @@ function installCRDs() {
     kubectl --context="${context_name}" apply -f "${REPO_ROOT}/artifacts/deploy/namespace.yaml"
 
     kubectl --context="${context_name}" apply -k "${crd_path}"/_crds
+}
+
+function deploy_karmada_component() {
+  local component_name=$1
+  local temp_dir=$2
+  local wait_label=$3
+  
+  local component_yaml_tmp="${temp_dir}/${component_name}.yaml"
+  cp "${REPO_ROOT}/artifacts/deploy/${component_name}.yaml" "${component_yaml_tmp}"
+  sed -i'' -e "s/{{KUBE_CACHE_MUTATION_DETECTOR}}/${KUBE_CACHE_MUTATION_DETECTOR}/g" "${component_yaml_tmp}"
+  kubectl --context="${HOST_CLUSTER_NAME}" apply -f "${component_yaml_tmp}"
+  
+  util::wait_pod_ready "${HOST_CLUSTER_NAME}" "${wait_label}" "${KARMADA_SYSTEM_NAMESPACE}"
 }
 
 # Use x.x.x.8 IP address, which is the same CIDR with the node address of the Kind cluster,
@@ -376,15 +392,14 @@ util::append_client_kubeconfig "${HOST_CLUSTER_KUBECONFIG}" "${ROOT_CA_FILE}" "$
 cp "${REPO_ROOT}"/artifacts/deploy/kube-controller-manager.yaml "${TEMP_PATH_APISERVER}"/kube-controller-manager.yaml
 sed -i'' -e "s/{{karmada_apiserver_version}}/${KARMADA_APISERVER_VERSION}/g" "${TEMP_PATH_APISERVER}"/kube-controller-manager.yaml
 kubectl --context="${HOST_CLUSTER_NAME}" apply -f "${TEMP_PATH_APISERVER}"/kube-controller-manager.yaml
+util::wait_pod_ready "${HOST_CLUSTER_NAME}" "${KUBE_CONTROLLER_POD_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
 # deploy aggregated-apiserver on host cluster
 kubectl --context="${HOST_CLUSTER_NAME}" apply -f "${REPO_ROOT}/artifacts/deploy/karmada-aggregated-apiserver.yaml"
 util::wait_pod_ready "${HOST_CLUSTER_NAME}" "${KARMADA_AGGREGATION_APISERVER_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
-# deploy karmada-search on host cluster
-kubectl --context="${HOST_CLUSTER_NAME}" apply -f "${REPO_ROOT}/artifacts/deploy/karmada-search.yaml"
-util::wait_pod_ready "${HOST_CLUSTER_NAME}" "${KARMADA_SEARCH_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
-# deploy karmada-metrics-adapter on host cluster
-kubectl --context="${HOST_CLUSTER_NAME}" apply -f "${REPO_ROOT}/artifacts/deploy/karmada-metrics-adapter.yaml"
-util::wait_pod_ready "${HOST_CLUSTER_NAME}" "${KARMADA_METRICS_ADAPTER_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
+
+# Deploy components that need to wait for readiness
+deploy_karmada_component "karmada-search" "${TEMP_PATH_APISERVER}" "${KARMADA_SEARCH_LABEL}"
+deploy_karmada_component "karmada-metrics-adapter" "${TEMP_PATH_APISERVER}" "${KARMADA_METRICS_ADAPTER_LABEL}"
 
 # install CRD APIs on karmada apiserver.
 if ! kubectl config get-contexts "karmada-apiserver" > /dev/null 2>&1;
@@ -449,17 +464,10 @@ sed -i'' -e "s/{{ca_crt}}/${karmada_ca}/g" "${TEMP_PATH_BOOTSTRAP}"/bootstrap-to
 sed -i'' -e "s|{{apiserver_address}}|${karmada_apiserver_address}|g" "${TEMP_PATH_BOOTSTRAP}"/bootstrap-token-configuration-tmp.yaml
 kubectl --context="karmada-apiserver" apply -f "${TEMP_PATH_BOOTSTRAP}"/bootstrap-token-configuration-tmp.yaml
 
-# deploy controller-manager on host cluster
-kubectl --context="${HOST_CLUSTER_NAME}" apply -f "${REPO_ROOT}/artifacts/deploy/karmada-controller-manager.yaml"
-# deploy scheduler on host cluster
-kubectl --context="${HOST_CLUSTER_NAME}" apply -f "${REPO_ROOT}/artifacts/deploy/karmada-scheduler.yaml"
-# deploy descheduler on host cluster
-kubectl --context="${HOST_CLUSTER_NAME}" apply -f "${REPO_ROOT}/artifacts/deploy/karmada-descheduler.yaml"
+deploy_karmada_component "karmada-controller-manager" "${TEMP_PATH_BOOTSTRAP}" "${KARMADA_CONTROLLER_LABEL}"
+deploy_karmada_component "karmada-scheduler" "${TEMP_PATH_BOOTSTRAP}" "${KARMADA_SCHEDULER_LABEL}"
+deploy_karmada_component "karmada-descheduler" "${TEMP_PATH_BOOTSTRAP}" "${KARMADA_DESCHEDULER_LABEL}"
+
 # deploy webhook on host cluster
 kubectl --context="${HOST_CLUSTER_NAME}" apply -f "${REPO_ROOT}/artifacts/deploy/karmada-webhook.yaml"
-
-# make sure all karmada control plane components are ready
-util::wait_pod_ready "${HOST_CLUSTER_NAME}" "${KARMADA_CONTROLLER_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
-util::wait_pod_ready "${HOST_CLUSTER_NAME}" "${KARMADA_SCHEDULER_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
-util::wait_pod_ready "${HOST_CLUSTER_NAME}" "${KUBE_CONTROLLER_POD_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
 util::wait_pod_ready "${HOST_CLUSTER_NAME}" "${KARMADA_WEBHOOK_LABEL}" "${KARMADA_SYSTEM_NAMESPACE}"
