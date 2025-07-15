@@ -2,9 +2,9 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.15.0-alpha.1](#v1150-alpha1)
-  - [Downloads for v1.15.0-alpha.1](#downloads-for-v1150-alpha1)
-  - [Changelog since v1.14.0](#changelog-since-v1140)
+- [v1.15.0-alpha.2](#v1150-alpha2)
+  - [Downloads for v1.15.0-alpha.2](#downloads-for-v1150-alpha2)
+  - [Changelog since v1.15.0-alpha.1](#changelog-since-v1150-alpha1)
   - [Urgent Update Notes](#urgent-update-notes)
   - [Changes by Kind](#changes-by-kind)
     - [API Changes](#api-changes)
@@ -16,8 +16,64 @@
     - [Dependencies](#dependencies)
     - [Helm Charts](#helm-charts)
     - [Instrumentation](#instrumentation)
+    - [Performance](#performance)
+- [v1.15.0-alpha.1](#v1150-alpha1)
+  - [Downloads for v1.15.0-alpha.1](#downloads-for-v1150-alpha1)
+  - [Changelog since v1.14.0](#changelog-since-v1140)
+  - [Urgent Update Notes](#urgent-update-notes-1)
+  - [Changes by Kind](#changes-by-kind-1)
+    - [API Changes](#api-changes-1)
+    - [Features & Enhancements](#features--enhancements-1)
+    - [Deprecation](#deprecation-1)
+    - [Bug Fixes](#bug-fixes-1)
+    - [Security](#security-1)
+  - [Other](#other-1)
+    - [Dependencies](#dependencies-1)
+    - [Helm Charts](#helm-charts-1)
+    - [Instrumentation](#instrumentation-1)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.15.0-alpha.2
+## Downloads for v1.15.0-alpha.2
+
+Download v1.15.0-alpha.2 in the [v1.15.0-alpha.2 release page](https://github.com/karmada-io/karmada/releases/tag/v1.15.0-alpha.2).
+
+## Changelog since v1.15.0-alpha.1
+
+## Urgent Update Notes
+None.
+
+## Changes by Kind
+
+### API Changes
+None.
+
+### Features & Enhancements
+- `karmada-controller-manager`: Enhanced ServiceAccount retention logic to also preserve `imagePullSecrets`, preventing their continuous regeneration in member clusters. ([#6532](https://github.com/karmada-io/karmada/pull/6532), @whitewindmills)
+- `karmada-aggregated-apiserver`: Introduced `--logging-format` flag which can be set to `json` to enable JSON logging. ([#6507](https://github.com/karmada-io/karmada/pull/6507), @ritzdevp)
+
+### Deprecation
+None.
+
+### Bug Fixes
+- `karmada-controller-manager`: Fixed the issue that resources will be recreated after being deleted on the cluster when resource is suspended for dispatching. ([#6525](https://github.com/karmada-io/karmada/pull/6525), @XiShanYongYe-Chang)
+
+### Security
+None.
+
+## Other
+### Dependencies
+- Kubernetes dependencies have been updated to v1.33.2. ([#6498](https://github.com/karmada-io/karmada/pull/6498), @RainbowMango)
+
+### Helm Charts
+- `karmada-search`: karmada-search helm chart template now references the resources from `search.resources`. ([#6517](https://github.com/karmada-io/karmada/pull/6517), @seanlaii)
+
+### Instrumentation
+None.
+
+### Performance
+None.
 
 # v1.15.0-alpha.1
 ## Downloads for v1.15.0-alpha.1
