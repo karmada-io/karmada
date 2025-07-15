@@ -75,8 +75,8 @@ func ensureWork(
 			if resourceInterpreter.HookEnabled(clonedWorkload.GroupVersionKind(), configv1alpha1.InterpreterOperationReviseReplica) {
 				clonedWorkload, err = resourceInterpreter.ReviseReplica(clonedWorkload, int64(targetCluster.Replicas))
 				if err != nil {
-					klog.Errorf("Failed to revise replica for %s/%s/%s in cluster %s, err is: %v",
-						workload.GetKind(), workload.GetNamespace(), workload.GetName(), targetCluster.Name, err)
+					klog.ErrorS(err, "Failed to revise replica for workload in cluster.", "workloadKind", workload.GetKind(),
+						"workloadNamespace", workload.GetNamespace(), "workloadName", workload.GetName(), "cluster", targetCluster.Name)
 					errs = append(errs, err)
 					continue
 				}
@@ -93,8 +93,9 @@ func ensureWork(
 			// setting this field as well.
 			// Refer to: https://kubernetes.io/docs/concepts/workloads/controllers/job/#parallel-jobs.
 			if err = helper.ApplyReplica(clonedWorkload, int64(jobCompletions[i].Replicas), util.CompletionsField); err != nil {
-				klog.Errorf("Failed to apply Completions for %s/%s/%s in cluster %s, err is: %v",
-					clonedWorkload.GetKind(), clonedWorkload.GetNamespace(), clonedWorkload.GetName(), targetCluster.Name, err)
+				klog.ErrorS(err, "Failed to apply Completions for workload in cluster.",
+					"workloadKind", clonedWorkload.GetKind(), "workloadNamespace", clonedWorkload.GetNamespace(),
+					"workloadName", clonedWorkload.GetName(), "cluster", targetCluster.Name)
 				errs = append(errs, err)
 				continue
 			}
@@ -103,8 +104,9 @@ func ensureWork(
 		// We should call ApplyOverridePolicies last, as override rules have the highest priority
 		cops, ops, err := overrideManager.ApplyOverridePolicies(clonedWorkload, targetCluster.Name)
 		if err != nil {
-			klog.Errorf("Failed to apply overrides for %s/%s/%s in cluster %s, err is: %v",
-				clonedWorkload.GetKind(), clonedWorkload.GetNamespace(), clonedWorkload.GetName(), targetCluster.Name, err)
+			klog.ErrorS(err, "Failed to apply overrides for workload in cluster.",
+				"workloadKind", clonedWorkload.GetKind(), "workloadNamespace", clonedWorkload.GetNamespace(),
+				"workloadName", clonedWorkload.GetName(), "cluster", targetCluster.Name)
 			errs = append(errs, err)
 			continue
 		}
@@ -114,7 +116,7 @@ func ensureWork(
 		annotations = mergeConflictResolution(clonedWorkload, bindingSpec.ConflictResolution, annotations)
 		annotations, err = RecordAppliedOverrides(cops, ops, annotations)
 		if err != nil {
-			klog.Errorf("Failed to record appliedOverrides in cluster %s, Error: %v", targetCluster.Name, err)
+			klog.ErrorS(err, "Failed to record appliedOverrides in cluster.", "cluster", targetCluster.Name)
 			errs = append(errs, err)
 			continue
 		}
