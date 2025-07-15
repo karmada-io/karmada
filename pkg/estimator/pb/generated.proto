@@ -86,6 +86,33 @@ message ObjectReference {
   optional string name = 4;
 }
 
+// PreemptionRequest represents the request that sent by gRPC client to get a list of preemtable victim resourceBindings.
+message PreemptionRequest {
+  // Cluster represents the cluster name.
+  // +required
+  optional string cluster = 1;
+
+  // ReplicaRequirements represents the requirements required by each replica.
+  // +required
+  optional ReplicaRequirements replicaRequirements = 2;
+
+  // NumReplicas represent the number of required replica of a workload
+  // +required
+  optional int32 numReplicas = 3;
+
+  // Preemptor represent the ObjectReference of Preemptor resourcebinding
+  // +optional
+  optional ObjectReference preemptor = 4;
+}
+
+// PreemptionResponse represents the response sent by gRPC server to get a list of preemtable victim resourceBindings.
+message PreemptionResponse {
+  // VictimResourceBindings returns the the minimum list of victim resourceBindings that needs to be preempted to schedule the preemptor
+  // If not enough resources can be released via preemption, an empty list is returned.
+  // +required
+  repeated ObjectReference victimResourceBindings = 1;
+}
+
 // ReplicaRequirements represents the requirements required by each replica.
 message ReplicaRequirements {
   // NodeClaim represents the NodeAffinity, NodeSelector and Tolerations required by each replica.
@@ -106,6 +133,10 @@ message ReplicaRequirements {
   // ResourceQuota have an associated set of scopes, one of them is priority class
   // +optional
   optional string priorityClassName = 4;
+
+  // Priority represents the integer value of this priority class.
+  // +optional
+  optional int32 priority = 5;
 }
 
 // UnschedulableReplicasRequest represents the request that sent by gRPC client to calculate unschedulable replicas.

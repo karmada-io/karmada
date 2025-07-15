@@ -32,6 +32,22 @@ type MaxAvailableReplicasRequest struct {
 	ReplicaRequirements ReplicaRequirements `json:"replicaRequirements" protobuf:"bytes,2,opt,name=replicaRequirements"`
 }
 
+// PreemptionRequest represents the request that sent by gRPC client to get a list of preemtable victim resourceBindings.
+type PreemptionRequest struct {
+	// Cluster represents the cluster name.
+	// +required
+	Cluster string `json:"cluster" protobuf:"bytes,1,opt,name=cluster"`
+	// ReplicaRequirements represents the requirements required by each replica.
+	// +required
+	ReplicaRequirements ReplicaRequirements `json:"replicaRequirements" protobuf:"bytes,2,opt,name=replicaRequirements"`
+	// NumReplicas represent the number of required replica of a workload
+	// +required
+	NumReplicas int32 `json:"numReplicas" protobuf:"bytes,3,opt,name=numReplicas"`
+	// Preemptor represent the ObjectReference of Preemptor resourcebinding
+	// +optional
+	Preemptor ObjectReference `json:"preemptor,omitempty" protobuf:"bytes,4,opt,name=preemptor"`
+}
+
 // NodeClaim represents the NodeAffinity, NodeSelector and Tolerations required by each replica.
 type NodeClaim struct {
 	// A node selector represents the union of the results of one or more label queries over a set of
@@ -66,6 +82,9 @@ type ReplicaRequirements struct {
 	// ResourceQuota have an associated set of scopes, one of them is priority class
 	// +optional
 	PriorityClassName string `json:"priorityClassName,omitempty" protobuf:"bytes,4,opt,name=priorityClassName"`
+	// Priority represents the integer value of this priority class.
+	// +optional
+	Priority int32 `json:"priority,omitempty" protobuf:"bytes,5,opt,name=priority"`
 }
 
 // MaxAvailableReplicasResponse represents the response that sent by gRPC server to calculate max available replicas.
@@ -73,6 +92,14 @@ type MaxAvailableReplicasResponse struct {
 	// MaxReplicas represents the max replica that the cluster can produce.
 	// +required
 	MaxReplicas int32 `json:"maxReplicas" protobuf:"varint,1,opt,name=maxReplicas"`
+}
+
+// PreemptionResponse represents the response sent by gRPC server to get a list of preemtable victim resourceBindings.
+type PreemptionResponse struct {
+	// VictimResourceBindings returns the the minimum list of victim resourceBindings that needs to be preempted to schedule the preemptor
+	// If not enough resources can be released via preemption, an empty list is returned.
+	// +required
+	VictimResourceBindings []ObjectReference `json:"victimResourceBindings" protobuf:"bytes,1,rep,name=victimResourceBindings"`
 }
 
 // UnschedulableReplicasRequest represents the request that sent by gRPC client to calculate unschedulable replicas.
