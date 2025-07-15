@@ -191,11 +191,12 @@ func TestRetainClusterIPInServiceFields(t *testing.T) {
 
 func TestRetainServiceAccountFields(t *testing.T) {
 	tests := []struct {
-		name                 string
-		desiredObj           *unstructured.Unstructured
-		observedObj          *unstructured.Unstructured
-		expectedErr          bool
-		expectedSecretsValue []interface{}
+		name                          string
+		desiredObj                    *unstructured.Unstructured
+		observedObj                   *unstructured.Unstructured
+		expectedErr                   bool
+		expectedSecretsValue          []interface{}
+		expectedImagePullSecretsValue []interface{}
 	}{
 		{
 			name: "neither desired or observed service account has the secrets field",
@@ -234,6 +235,7 @@ func TestRetainServiceAccountFields(t *testing.T) {
 					"name": "test",
 				},
 			},
+			expectedImagePullSecretsValue: nil,
 		},
 		{
 			name: "desired and observed service account have the different secrets field",
@@ -267,6 +269,44 @@ func TestRetainServiceAccountFields(t *testing.T) {
 					"name": "test-token",
 				},
 			},
+			expectedImagePullSecretsValue: nil,
+		},
+		{
+			name: "observed service account has the imagePullSecrets field but the desired not",
+			desiredObj: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"secrets": []interface{}{
+						map[string]interface{}{
+							"name": "test",
+						},
+					},
+				},
+			},
+			observedObj: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"secrets": []interface{}{
+						map[string]interface{}{
+							"name": "test",
+						},
+					},
+					"imagePullSecrets": []interface{}{
+						map[string]interface{}{
+							"name": "foo",
+						},
+					},
+				},
+			},
+			expectedErr: false,
+			expectedSecretsValue: []interface{}{
+				map[string]interface{}{
+					"name": "test",
+				},
+			},
+			expectedImagePullSecretsValue: []interface{}{
+				map[string]interface{}{
+					"name": "foo",
+				},
+			},
 		},
 	}
 	for _, test := range tests {
@@ -277,15 +317,26 @@ func TestRetainServiceAccountFields(t *testing.T) {
 			}
 
 			if err == nil {
-				currentSecretValue, ok, err := unstructured.NestedSlice(desiredObj.Object, SecretsField)
-				if err != nil {
-					t.Fatalf("failed to get the secrets field from the serviceaccount, err is: %v", err)
+				table := []struct {
+					name          string
+					field         string
+					expectedValue []interface{}
+				}{
+					{name: "secrets", field: SecretsField, expectedValue: test.expectedSecretsValue},
+					{name: "imagePullSecrets", field: ImagePullSecretsField, expectedValue: test.expectedImagePullSecretsValue},
 				}
-				if !ok && test.expectedSecretsValue != nil {
-					t.Fatalf("expect specified secrets %s but not found", test.expectedSecretsValue)
-				}
-				if ok && !reflect.DeepEqual(test.expectedSecretsValue, currentSecretValue) {
-					t.Fatalf("expect specified secrets %s but get %s", test.expectedSecretsValue, currentSecretValue)
+
+				for _, entry := range table {
+					currentValue, ok, err := unstructured.NestedSlice(desiredObj.Object, entry.field)
+					if err != nil {
+						t.Fatalf("failed to get %q field from serviceaccount: %v", entry.name, err)
+					}
+					if !ok && entry.expectedValue != nil {
+						t.Fatalf("expected %q %v but not found", entry.name, entry.expectedValue)
+					}
+					if ok && !reflect.DeepEqual(entry.expectedValue, currentValue) {
+						t.Fatalf("unexpected %q: got %v, want %v", entry.name, currentValue, entry.expectedValue)
+					}
 				}
 			}
 		})
