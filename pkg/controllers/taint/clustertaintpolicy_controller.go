@@ -148,7 +148,7 @@ func conditionMatches(conditions []metav1.Condition, matchConditions []policyv1a
 					}
 				}
 			default:
-				klog.ErrorS(errors.New("Unsupported MatchCondition operator"), "operator", matchCondition.Operator)
+				klog.ErrorS(errors.New("unsupported MatchCondition operator"), "operator", matchCondition.Operator)
 				return false
 			}
 		}
