@@ -289,14 +289,37 @@ const (
 	// at the same time. During a failover, it is crucial to ensure that the old
 	// application is removed before creating a new one to avoid duplicate
 	// processing and maintaining state consistency.
+	// Deprecated: This value conflicts with GracePeriodSeconds semantics and
+	// will be replaced by PurgeModeDirectly. It will be removed after the
+	// PropagationPolicy API upgrade, and it will be not remove from v1alpha1
+	// for backward compatibility, use PurgeModeDirectly instead.
 	Immediately PurgeMode = "Immediately"
 	// Graciously represents that Karmada will wait for the application to
 	// come back to healthy on the new cluster or after a timeout is reached
 	// before evicting the application.
+	//
+	// Deprecated: This value is being replaced by PurgeModeGracefully for better
+	// semantic accuracy. It will be removed after the PropagationPolicy API upgrade,
+	// and it will be not remove from v1alpha1 for backward compatibility, use
+	// PurgeModeDirectly instead.
 	Graciously PurgeMode = "Graciously"
 	// Never represents that Karmada will not evict the application and
 	// users manually confirms how to clean up redundant copies.
 	Never PurgeMode = "Never"
+
+	// PurgeModeDirectly represents that Karmada will directly evict the legacy
+	// application. This is useful in scenarios where an application can not
+	// tolerate two instances running simultaneously.
+	// For example, the Flink application supports exactly-once state consistency,
+	// which means it requires that no two instances of the application are running
+	// at the same time. During a failover, it is crucial to ensure that the old
+	// application is removed before creating a new one to avoid duplicate
+	// processing and maintaining state consistency.
+	PurgeModeDirectly PurgeMode = "Directly"
+	// PurgeModeGracefully represents that Karmada will wait for the application to
+	// come back to healthy on the new cluster or after a timeout is reached
+	// before evicting the application.
+	PurgeModeGracefully PurgeMode = "Gracefully"
 )
 
 // FailoverBehavior indicates failover behaviors in case of an application or
@@ -326,10 +349,10 @@ type ApplicationFailoverBehavior struct {
 
 	// PurgeMode represents how to deal with the legacy applications on the
 	// cluster from which the application is migrated.
-	// Valid options are "Immediately", "Graciously" and "Never".
-	// Defaults to "Graciously".
-	// +kubebuilder:validation:Enum=Immediately;Graciously;Never
-	// +kubebuilder:default=Graciously
+	// Valid options are "Immediately", "Directly", "Graciously", "Gracefully" and "Never".
+	// Defaults to "Gracefully".
+	// +kubebuilder:validation:Enum=Immediately;Directly;Graciously;Gracefully;Never
+	// +kubebuilder:default=Gracefully
 	// +optional
 	PurgeMode PurgeMode `json:"purgeMode,omitempty"`
 
