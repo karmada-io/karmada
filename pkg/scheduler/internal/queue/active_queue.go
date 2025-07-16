@@ -39,7 +39,7 @@ type ActiveQueue interface {
 // NewActiveQueue builds a instance of ActiveQueue.
 func NewActiveQueue(metricRecorder metrics.MetricRecorder) ActiveQueue {
 	q := &activequeue{
-		activeBindings:     heap.NewWithRecorder[*QueuedBindingInfo](BindingKeyFunc, Less, metricRecorder),
+		activeBindings:     heap.NewWithRecorder[*QueuedBindingInfo](BindingKeyFunc, LessPriority, metricRecorder),
 		dirtyBindings:      sets.Set[string]{},
 		processingBindings: sets.Set[string]{},
 		cond:               sync.NewCond(&sync.Mutex{}),
