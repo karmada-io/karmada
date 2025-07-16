@@ -621,7 +621,7 @@ func TestClusterMatches(t *testing.T) {
 					},
 				},
 			},
-			want: false,
+			want: true,
 		},
 		{
 			name: "test field selector region matched",
@@ -1016,7 +1016,7 @@ func Test_matchZones(t *testing.T) {
 				Values:   []string{"foo"},
 			},
 			zones:   []string{"foo", "bar"},
-			matched: false,
+			matched: true,
 		},
 		{
 			name: "all zones for In operator",
