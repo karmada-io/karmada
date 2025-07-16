@@ -39,4 +39,3 @@ spec:
         configMap:
           name: {{ .Release.Name }}-post-manifests
 {{- end -}}
-
