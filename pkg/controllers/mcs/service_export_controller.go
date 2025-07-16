@@ -190,6 +190,12 @@ func (c *ServiceExportController) enqueueReportedEpsServiceExport() {
 			continue
 		}
 
+		err = c.waitEpsSyncedOnCluster(context.TODO(), clusterName, 1*time.Second)
+		if err != nil {
+			// never reach here
+			continue
+		}
+
 		key := keys.FederatedKey{
 			Cluster: clusterName,
 			ClusterWideKey: keys.ClusterWideKey{
@@ -202,6 +208,17 @@ func (c *ServiceExportController) enqueueReportedEpsServiceExport() {
 		}
 		c.worker.Add(key)
 	}
+}
+
+func (c *ServiceExportController) waitEpsSyncedOnCluster(ctx context.Context, cluster string, interval time.Duration) error {
+	return wait.PollUntilContextCancel(ctx, interval, true,
+		func(_ context.Context) (done bool, err error) {
+			synced := c.InformerManager.WaitForCacheSync(cluster)
+			if synced == nil || !synced[endpointSliceGVR] {
+				return false, nil
+			}
+			return true, nil
+		})
 }
 
 func (c *ServiceExportController) syncServiceExportOrEndpointSlice(key util.QueueKey) error {
@@ -435,6 +452,8 @@ func (c *ServiceExportController) removeOrphanWork(ctx context.Context, endpoint
 		workName := names.GenerateWorkName(endpointSlice.GetKind(), endpointSlice.GetName(), endpointSlice.GetNamespace())
 		willReportWorks.Insert(workName)
 	}
+	klog.V(5).Infof("Will remove endpointslice(%s/%s) doesn't under namespace %s",
+		serviceExportKey.Namespace, serviceExportKey.Name, names.GenerateExecutionSpaceName(serviceExportKey.Cluster))
 
 	collectedEpsWorkList := &workv1alpha1.WorkList{}
 	if err := c.List(ctx, collectedEpsWorkList, &client.ListOptions{
@@ -614,6 +633,7 @@ func cleanEndpointSliceWork(ctx context.Context, c client.Client, work *workv1al
 			klog.Errorf("Failed to update work(%s/%s): %v", work.Namespace, work.Name, err)
 			return err
 		}
+		klog.Infof("Successfully updated work(%s/%s)", work.Namespace, work.Name)
 		return nil
 	}
 
@@ -621,6 +641,7 @@ func cleanEndpointSliceWork(ctx context.Context, c client.Client, work *workv1al
 		klog.Errorf("Failed to delete work(%s/%s), Error: %v", work.Namespace, work.Name, err)
 		return err
 	}
+	klog.Infof("Successfully deleted work(%s/%s)", work.Namespace, work.Name)
 
 	return nil
 }
