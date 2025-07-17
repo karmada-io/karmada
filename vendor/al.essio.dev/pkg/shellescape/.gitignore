@@ -26,3 +26,7 @@ _testmain.go
 .idea/
 
 escargs
+
+config.hcl
+
+.DS_Store

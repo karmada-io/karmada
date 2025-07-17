@@ -57,7 +57,7 @@ require (
 	sigs.k8s.io/cluster-api v1.7.1
 	sigs.k8s.io/controller-runtime v0.21.0
 	sigs.k8s.io/custom-metrics-apiserver v1.33.0
-	sigs.k8s.io/kind v0.25.0
+	sigs.k8s.io/kind v0.29.0
 	sigs.k8s.io/mcs-api v0.1.0
 	sigs.k8s.io/metrics-server v0.7.1-0.20250620093659-55b4961bc1ec
 	sigs.k8s.io/structured-merge-diff/v4 v4.6.0
@@ -65,12 +65,12 @@ require (
 )
 
 require (
+	al.essio.dev/pkg/shellescape v1.5.1 // indirect
 	cel.dev/expr v0.20.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
 	github.com/BurntSushi/toml v1.4.0 // indirect
 	github.com/MakeNowJust/heredoc v1.0.0 // indirect
 	github.com/NYTimes/gziphandler v1.1.1 // indirect
-	github.com/alessio/shellescape v1.4.2 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
@@ -101,7 +101,6 @@ require (
 	github.com/google/cel-go v0.23.2 // indirect
 	github.com/google/gnostic-models v0.6.9 // indirect
 	github.com/google/pprof v0.0.0-20250403155104-27863c87afa6 // indirect
-	github.com/google/safetext v0.0.0-20220905092116-b49f7bc46da2 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674 // indirect
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
