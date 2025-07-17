@@ -27,7 +27,7 @@ export PATH=$PATH:$GOPATH/bin
 GO111MODULE=on go install golang.org/x/tools/cmd/goimports
 GO111MODULE=on go install k8s.io/code-generator/cmd/go-to-protobuf
 GO111MODULE=on go install github.com/gogo/protobuf/protoc-gen-gogo
-GO111MODULE=on go install github.com/vektra/mockery/v2
+GO111MODULE=on go install github.com/vektra/mockery/v3
 
 # Make dummy GOPATH for go-to-protobuf to generate the files to repo root.
 # It is useful for case that karmada repo not in the real GOPATH.
