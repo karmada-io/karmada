@@ -334,7 +334,7 @@ github.com/onsi/ginkgo/v2/internal/parallel_support
 github.com/onsi/ginkgo/v2/internal/testingtproxy
 github.com/onsi/ginkgo/v2/reporters
 github.com/onsi/ginkgo/v2/types
-# github.com/onsi/gomega v1.36.3
+# github.com/onsi/gomega v1.37.0
 ## explicit; go 1.23.0
 github.com/onsi/gomega
 github.com/onsi/gomega/format
@@ -391,7 +391,7 @@ github.com/prometheus/client_golang/prometheus/testutil/promlint/validations
 # github.com/prometheus/client_model v0.6.2
 ## explicit; go 1.22.0
 github.com/prometheus/client_model/go
-# github.com/prometheus/common v0.64.0
+# github.com/prometheus/common v0.65.0
 ## explicit; go 1.23.0
 github.com/prometheus/common/expfmt
 github.com/prometheus/common/model
@@ -1988,7 +1988,7 @@ sigs.k8s.io/kustomize/kyaml/yaml/walk
 # sigs.k8s.io/mcs-api v0.1.0
 ## explicit; go 1.14
 sigs.k8s.io/mcs-api/pkg/apis/v1alpha1
-# sigs.k8s.io/metrics-server v0.7.1-0.20250620093659-55b4961bc1ec
+# sigs.k8s.io/metrics-server v0.8.0
 ## explicit; go 1.24.4
 sigs.k8s.io/metrics-server/pkg/api
 # sigs.k8s.io/randfill v1.0.0
