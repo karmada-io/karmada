@@ -768,6 +768,7 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 			return nil, err
 		}
 		propagationBinding.Spec.Replicas = replicas
+		propagationBinding.Spec.IsWorkloadWithReplicas = true
 		propagationBinding.Spec.ReplicaRequirements = replicaRequirements
 	}
 
@@ -842,6 +843,7 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 			return nil, err
 		}
 		binding.Spec.Replicas = replicas
+		binding.Spec.IsWorkloadWithReplicas = true
 		binding.Spec.ReplicaRequirements = replicaRequirements
 	}
 
