@@ -388,6 +388,7 @@ data:
       {{- print "webhook_in_resourcebindings.yaml: " | nindent 6 }} |-
         {{- include "karmada.crd.patch.webhook.resourcebinding" . | nindent 8 }}
 
+{{- if or .Release.IsInstall (and .Values.certs.rotateWhenUpgrade .Release.IsUpgrade) }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -397,7 +398,7 @@ metadata:
   annotations:
     # This is what defines this resource as a hook. Without this line, the
     # job is considered part of the release.
-    "helm.sh/hook": pre-install
+    "helm.sh/hook": pre-install,pre-upgrade
     "helm.sh/hook-weight": "3"
     "helm.sh/hook-delete-policy": {{ .Values.preInstallJob.hookDeletePolicy }}
   {{- if "karmada.preInstallJob.labels" }}
@@ -484,7 +485,7 @@ spec:
         - |
           bash <<'EOF'
           set -ex
-          kubectl apply --server-side -f /opt/configs/
+          kubectl apply --server-side --force-conflicts -f /opt/configs/
           EOF
         volumeMounts:
         - name: mount
@@ -498,5 +499,6 @@ spec:
       - name: configs
         emptyDir: {}
 ---
+{{- end }}
 {{- end }}
 {{- end }}
