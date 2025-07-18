@@ -47,6 +47,8 @@ jobs:
         uses: syntaqx/setup-kustomize@v1
         with:
           kustomize-version: ${{ env.KUSTOMIZE_VERSION }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
 
       - name: Run chart-testing (template)
         run: |
