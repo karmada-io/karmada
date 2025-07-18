@@ -71,7 +71,7 @@ type Controller struct {
 	EventRecorder      record.EventRecorder
 	RESTMapper         meta.RESTMapper
 	ObjectWatcher      objectwatcher.ObjectWatcher
-	PredicateFunc      predicate.Predicate
+	WorkPredicateFunc  predicate.Predicate
 	InformerManager    genericmanager.MultiClusterInformerManager
 	RateLimiterOptions ratelimiterflag.Options
 }
@@ -133,14 +133,19 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
-	return controllerruntime.NewControllerManagedBy(mgr).
-		Named(ControllerName).
-		For(&workv1alpha1.Work{}, builder.WithPredicates(c.PredicateFunc)).
+	ctrlBuilder := controllerruntime.NewControllerManagedBy(mgr).Named(ControllerName).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		WithOptions(controller.Options{
 			RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RateLimiterOptions),
-		}).
-		Complete(c)
+		})
+
+	if c.WorkPredicateFunc != nil {
+		ctrlBuilder.For(&workv1alpha1.Work{}, builder.WithPredicates(c.WorkPredicateFunc))
+	} else {
+		ctrlBuilder.For(&workv1alpha1.Work{})
+	}
+
+	return ctrlBuilder.Complete(c)
 }
 
 func (c *Controller) syncWork(ctx context.Context, clusterName string, work *workv1alpha1.Work) (controllerruntime.Result, error) {

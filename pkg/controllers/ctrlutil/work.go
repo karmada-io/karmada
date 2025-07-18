@@ -76,10 +76,7 @@ func CreateOrUpdateWork(ctx context.Context, c client.Client, workMeta metav1.Ob
 
 			// Do the same thing as the mutating webhook does, add the permanent ID to workload if not exist,
 			// This is to avoid unnecessary updates to the Work object, especially when controller starts.
-			//nolint:staticcheck // SA1019 ignore deprecated util.PropagationInstruction
-			if runtimeObject.Labels[util.PropagationInstruction] != util.PropagationInstructionSuppressed {
-				util.SetLabelsAndAnnotationsForWorkload(resource, runtimeObject)
-			}
+			util.SetLabelsAndAnnotationsForWorkload(resource, runtimeObject)
 			workloadJSON, err := json.Marshal(resource)
 			if err != nil {
 				klog.Errorf("Failed to marshal workload(%s/%s), error: %v", resource.GetNamespace(), resource.GetName(), err)
