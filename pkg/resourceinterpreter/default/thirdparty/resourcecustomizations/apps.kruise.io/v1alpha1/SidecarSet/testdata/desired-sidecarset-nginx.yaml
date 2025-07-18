@@ -1,0 +1,35 @@
+apiVersion: apps.kruise.io/v1alpha1
+kind: SidecarSet
+metadata:
+  labels:
+    app: sample
+  name: sample-sidecarset
+  namespace: test-sidecarset
+  generation: 1
+spec:
+  selector:
+    matchLabels:
+      app: sample
+      test: sidecarset
+  containers:
+    - name: sidecar
+      image: busybox:latest
+      env:
+        - name: CONFIG_DATA
+          valueFrom:
+            configMapKeyRef:
+              name: sidecar-config
+              key: config
+        - name: SECRET_DATA
+          valueFrom:
+            secretKeyRef:
+              name: sidecar-secret
+              key: secret
+  injectionStrategy: BeforeAppContainer
+  volumes:
+    - name: configmap
+      configMap:
+        name: sidecar-config
+    - name: secret
+      secret:
+        secretName: sidecar-secret 
