@@ -48,14 +48,14 @@ import (
         "fmt"
         "os"
 
-        "gopkg.in/alessio/shellescape.v1"
+        "al.essio.dev/pkg/shellescape"
 )
 
 func main() {
         fmt.Printf("ls -l %s\n", shellescape.Quote(os.Args[1]))
 }
 ```
-_[See in Go Playground](https://play.golang.org/p/HJ_CXgSrmp)_
+_[See in Go Playground](https://go.dev/play/p/GeguukpSUTk)_
 
 ## The escargs utility
 __escargs__ reads lines from the standard input and prints shell-escaped versions. Unlinke __xargs__, blank lines on the standard input are not discarded.

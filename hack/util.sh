@@ -41,6 +41,13 @@ MIN_GO_VERSION="go$(go list -m -f {{.GoVersion}})"
 
 DEFAULT_CLUSTER_VERSION="kindest/node:v1.31.2"
 
+# KIND_VERSION defines the version of Kind (Kubernetes IN Docker) tool to be used
+# across all scripts in the project. This version is referenced by:
+# - setup-dev-base.sh
+# - cli-testing-environment.sh
+# - cli-testing-init-with-config.sh
+KIND_VERSION=$(grep 'sigs.k8s.io/kind ' $(dirname "${BASH_SOURCE[0]}")/../go.mod | awk '{print $2}')
+
 KARMADA_TARGET_SOURCE=(
   karmada-aggregated-apiserver=cmd/aggregated-apiserver
   karmada-controller-manager=cmd/controller-manager

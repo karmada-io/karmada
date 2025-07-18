@@ -60,13 +60,13 @@ util::verify_go_version
 util::cmd_must_exist "docker"
 
 # install kind and kubectl
-kind_version=v0.25.0
 echo -n "Preparing: 'kind' existence check - "
 if util::cmd_exist kind; then
   echo "passed"
 else
   echo "not pass"
-  util::install_tools "sigs.k8s.io/kind" $kind_version
+  # Install kind using the version defined in util.sh
+  util::install_tools "sigs.k8s.io/kind" "${KIND_VERSION}"
 fi
 
 # get arch name and os name in bootstrap
