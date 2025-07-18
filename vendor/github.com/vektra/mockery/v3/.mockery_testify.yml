@@ -1,0 +1,120 @@
+_anchors:
+  foo: bar
+template: "testify"
+force-file-write: true
+formatter: "goimports"
+all: True
+dir: "{{.InterfaceDirRelative}}"
+structname: "{{.Mock}}{{.InterfaceName}}"
+pkgname: "{{.SrcPackageName}}"
+filename: "mocks_{{.Template}}_{{.SrcPackageName}}_test.go"
+template-data:
+  boilerplate-file: "./.boilerplate.txt"
+packages:
+  github.com/vektra/mockery/v3/internal/cmd:
+  github.com/vektra/mockery/v3:
+    config:
+      dir: .
+  github.com/vektra/mockery/v3/internal/fixtures/unexported:
+  github.com/vektra/mockery/v3/internal/fixtures/buildtag/comment:
+  github.com/vektra/mockery/v3/internal/fixtures/example_project/replace_type:
+    config:
+      recursive: True
+    interfaces:
+      RType:
+        configs:
+          - {}
+          - structname: RTypeReplaced1
+            replace-type:
+              github.com/vektra/mockery/v3/internal/fixtures/example_project/replace_type/rti/rt1:
+                RType1:
+                  pkg-path: github.com/vektra/mockery/v3/internal/fixtures/example_project/replace_type/rti/rt2
+                  type-name: RType2
+  github.com/vektra/mockery/v3/internal/fixtures:
+    interfaces:
+      VariadicWithNoReturns:
+        config:
+          template-data:
+            unroll-variadic: true   
+      VariadicWithMultipleReturns:
+        configs:
+          - structname: MockVariadicWithMultipleReturnsUnrollVariadic
+            template-data:
+              unroll-variadic: true
+          - structname: MockVariadicWithMultipleReturns
+            template-data:
+              unroll-variadic: false
+      RequesterVariadic:
+        configs:
+          - structname: MockRequesterVariadicOneArgument
+            template-data:
+              unroll-variadic: False
+          - structname: MockRequesterVariadic
+            template-data:
+              unroll-variadic: True
+      Expecter:
+        configs:
+          - structname: MockExpecterAndRolledVariadic
+            template-data:
+              unroll-variadic: False
+          - structname: MockExpecter
+            template-data:
+              unroll-variadic: True
+      VariadicNoReturnInterface:
+        config:
+          template-data:
+            unroll-variadic: False
+  github.com/vektra/mockery/v3/internal/fixtures/recursive_generation:
+    config:
+      recursive: True
+  github.com/vektra/mockery/v3/internal/fixtures/recursive_generation_with_subpkg_exclude:
+    config:
+      recursive: True
+      filename: mocks.go
+      exclude-subpkg-regex:
+      - subpkg2
+  github.com/vektra/mockery/v3/internal/fixtures/empty_return:
+  github.com/vektra/mockery/v3/internal/fixtures/method_args/same_name_arg_and_type:
+  github.com/vektra/mockery/v3/internal/fixtures/iface_typed_param:
+  github.com/vektra/mockery/v3/internal/fixtures/iface_typed_param_lowercase:
+  github.com/vektra/mockery/v3/internal/fixtures/example_project:
+  github.com/vektra/mockery/v3/internal/fixtures/index_list_expr:
+  github.com/vektra/mockery/v3/internal/fixtures/iface_new_type:
+  github.com/vektra/mockery/v3/internal/fixtures/auto_generated_skip:
+  github.com/vektra/mockery/v3/internal/fixtures/type_alias:
+  io:
+    config:
+      all: True
+      dir: internal/fixtures/
+      pkgname: test
+      filename: mocks_io_test.go
+  net/http:
+    config:
+      all: false
+      dir: internal/fixtures/
+      pkgname: test
+      filename: mocks_net_http_test.go
+    interfaces:
+      ResponseWriter:
+  github.com/vektra/mockery/v3/internal/fixtures/inpackage:
+    config:
+      dir: "{{.InterfaceDirRelative}}/subpkg"
+      inpackage: true
+      template-data:
+        # Set a build tag that won't be picked up by tests. The generated
+        # mock file is going to be invalid due to the inpackage: true 
+        # config.
+        mock-build-tags: nobuild
+  github.com/vektra/mockery/v3/internal/fixtures/include_auto_generated:
+    config:
+      include-auto-generated: true
+  github.com/vektra/mockery/v3/internal/fixtures/multi_template:
+    config:
+      template: testify
+    interfaces:
+      Foo:
+        configs:
+          - structname: MockTestifyFoo
+            template: testify
+          - structname: MockMatryerFoo
+            template: matryer

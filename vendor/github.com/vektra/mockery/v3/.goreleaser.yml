@@ -1,0 +1,87 @@
+---
+project_name: mockery
+before:
+    hooks:
+      - go mod download
+builds:
+  - main: ./main.go
+    binary: mockery
+    ldflags:
+      - -s -w -X github.com/vektra/mockery/v3/internal/logging.SemVer=v{{.Version}}
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+archives:
+  - name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+    files:
+      - README.md
+      - LICENSE
+checksum:
+    name_template: "checksum.txt"
+snapshot:
+    name_template: "{{ .Tag }}-next"
+changelog:
+    sort: asc
+    use: github-native
+dockers:
+  - image_templates: ["vektra/mockery:{{ .Tag }}-amd64"]
+    goarch: amd64
+    dockerfile: Dockerfile
+    use: buildx
+    build_flag_templates:
+      - "--pull"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.name={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--label=org.opencontainers.image.source={{.GitURL}}"
+      - "--platform=linux/amd64"
+  - image_templates: ["vektra/mockery:{{ .Tag }}-arm64"]
+    goarch: arm64
+    dockerfile: Dockerfile
+    use: buildx
+    build_flag_templates:
+      - "--pull"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.name={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--label=org.opencontainers.image.source={{.GitURL}}"
+      - "--platform=linux/arm64"
+docker_manifests:
+  - name_template: vektra/mockery:{{ .Tag }}
+    image_templates:
+      - vektra/mockery:{{ .Tag }}-amd64
+      - vektra/mockery:{{ .Tag }}-arm64
+  - name_template: vektra/mockery:{{ .Major }}
+    image_templates:
+      - vektra/mockery:{{ .Tag }}-amd64
+      - vektra/mockery:{{ .Tag }}-arm64
+  - name_template: vektra/mockery:{{ .Major }}.{{ .Minor }}
+    image_templates:
+      - vektra/mockery:{{ .Tag }}-amd64
+      - vektra/mockery:{{ .Tag }}-arm64
+  - name_template: vektra/mockery:latest
+    image_templates:
+      - vektra/mockery:{{ .Tag }}-amd64
+      - vektra/mockery:{{ .Tag }}-arm64
+
+release:
+  prerelease: false
+  make_latest: true
+
+git:
+  ignore_tags:
+    - v2
+    - v3
+  prerelease_suffix: "-"

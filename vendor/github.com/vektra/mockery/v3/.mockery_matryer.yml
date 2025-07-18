@@ -1,0 +1,42 @@
+template: matryer
+structname: "Moq{{.InterfaceName}}"
+filename: "mocks_matryer_{{.SrcPackageName}}_test.go"
+
+all: true
+template-data:
+  skip-ensure: False
+  stub-impl: True
+  with-resets: True
+  boilerplate-file: "./.boilerplate.txt"
+packages:
+  github.com/vektra/mockery/v3/internal/fixtures:
+    config:
+      all: false
+      include-interface-regex: '.*'
+      exclude-interface-regex: 'RequesterGenerics'
+    interfaces:
+      Requester:
+        configs:
+          - structname: "Moq{{.InterfaceName}}SkipEnsure"
+            template-data:
+              skip-ensure: True
+          - {}
+          - structname: StubMatyer{{.InterfaceName}}
+            template-data:
+              stub-impl: True
+  github.com/vektra/mockery/v3/internal/fixtures/empty_return:
+    interfaces:
+      EmptyReturn:
+        configs:
+          - structname: StubMatyer{{.InterfaceName}}
+            template-data:
+              stub-impl: True
+  github.com/vektra/mockery/v3/internal/fixtures/output_dir:
+    interfaces:
+      OutputDirWithDifferentPkgName:
+        config:
+          dir: "{{.InterfaceDir}}/mock"
+          pkgname: "mock"
+      OutputDirWithSamePkgNameAsSrc:
+        config:
+          dir: "{{.InterfaceDir}}/output_dir"
