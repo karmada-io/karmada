@@ -141,8 +141,11 @@ func run(ctx context.Context, o *options.Options, registryOptions ...Option) err
 		return nil
 	})
 
+	karmadaSharedInformerFactoryCacheSynced := make(chan struct{})
 	server.GenericAPIServer.AddPostStartHookOrDie("start-karmada-informers", func(context genericapiserver.PostStartHookContext) error {
 		config.ExtraConfig.KarmadaSharedInformerFactory.Start(context.Done())
+		config.ExtraConfig.KarmadaSharedInformerFactory.WaitForCacheSync(context.Done())
+		close(karmadaSharedInformerFactoryCacheSynced)
 		return nil
 	})
 
@@ -151,6 +154,7 @@ func run(ctx context.Context, o *options.Options, registryOptions ...Option) err
 	if config.ExtraConfig.Controller != nil {
 		server.GenericAPIServer.AddPostStartHookOrDie("start-karmada-search-controller", func(context genericapiserver.PostStartHookContext) error {
 			// start ResourceRegistry controller
+			<-karmadaSharedInformerFactoryCacheSynced
 			config.ExtraConfig.Controller.Start(context)
 			return nil
 		})

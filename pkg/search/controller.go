@@ -134,8 +134,6 @@ func (c *Controller) Start(ctx context.Context) {
 
 	defer runtime.HandleCrash()
 
-	c.informerFactory.WaitForCacheSync(ctx.Done())
-
 	go wait.Until(c.worker, time.Second, ctx.Done())
 
 	go func() {
