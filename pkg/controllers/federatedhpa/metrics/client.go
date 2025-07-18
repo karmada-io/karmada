@@ -128,7 +128,7 @@ func getPodMetrics(rawMetrics []metricsapi.PodMetrics, resource corev1.ResourceN
 			resValue, found := c.Usage[resource]
 			if !found {
 				missing = true
-				klog.V(2).Infof("missing resource metric %v for %s/%s", resource, m.Namespace, m.Name)
+				klog.V(2).InfoS("missing resource metric", "resource", resource, "namespace", m.Namespace, "name", m.Name)
 				break
 			}
 			podSum += resValue.MilliValue()
