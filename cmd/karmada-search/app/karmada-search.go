@@ -144,7 +144,7 @@ func run(ctx context.Context, o *options.Options, registryOptions ...Option) err
 	karmadaSharedInformerFactoryCacheSynced := make(chan struct{})
 	server.GenericAPIServer.AddPostStartHookOrDie("start-karmada-informers", func(context genericapiserver.PostStartHookContext) error {
 		config.ExtraConfig.KarmadaSharedInformerFactory.Start(context.Done())
-		config.ExtraConfig.KarmadaSharedInformerFactory.WaitForCacheSync(ctx.Done())
+		config.ExtraConfig.KarmadaSharedInformerFactory.WaitForCacheSync(context.Done())
 		close(karmadaSharedInformerFactoryCacheSynced)
 		return nil
 	})
