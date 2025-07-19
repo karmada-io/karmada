@@ -52,7 +52,7 @@ type CRBGracefulEvictionController struct {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *CRBGracefulEvictionController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling ClusterResourceBinding %s.", req.NamespacedName.String())
+	klog.V(4).InfoS("Reconciling ClusterResourceBinding", "name", req.NamespacedName.String())
 
 	binding := &workv1alpha2.ClusterResourceBinding{}
 	if err := c.Client.Get(ctx, req.NamespacedName, binding); err != nil {
@@ -71,7 +71,7 @@ func (c *CRBGracefulEvictionController) Reconcile(ctx context.Context, req contr
 		return controllerruntime.Result{}, err
 	}
 	if retryDuration > 0 {
-		klog.V(4).Infof("Retry to evict task after %v minutes.", retryDuration.Minutes())
+		klog.V(4).InfoS("Retry to evict task after minutes", "retryAfterMinutes", retryDuration.Minutes())
 		return controllerruntime.Result{RequeueAfter: retryDuration}, nil
 	}
 	return controllerruntime.Result{}, nil
@@ -97,8 +97,8 @@ func (c *CRBGracefulEvictionController) syncBinding(ctx context.Context, binding
 	}
 
 	for _, cluster := range evictedClusters {
-		klog.V(2).Infof("Success to evict Cluster(%s) from ClusterResourceBinding(%s) gracefulEvictionTasks",
-			cluster, binding.Name)
+		klog.V(2).InfoS("Evicted cluster from ClusterResourceBinding gracefulEvictionTasks",
+			"cluster", cluster, "name", binding.Name)
 		helper.EmitClusterEvictionEventForClusterResourceBinding(binding, cluster, c.EventRecorder, err)
 	}
 	return nextRetry(keptTask, c.GracefulEvictionTimeout, metav1.Now().Time), nil
