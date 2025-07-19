@@ -289,14 +289,30 @@ const (
 	// at the same time. During a failover, it is crucial to ensure that the old
 	// application is removed before creating a new one to avoid duplicate
 	// processing and maintaining state consistency.
+	// Deprecated: in favor of PurgeModeDirectly.
 	Immediately PurgeMode = "Immediately"
 	// Graciously represents that Karmada will wait for the application to
 	// come back to healthy on the new cluster or after a timeout is reached
 	// before evicting the application.
+	// Deprecated: in favor of PurgeModeGracefully.
 	Graciously PurgeMode = "Graciously"
 	// Never represents that Karmada will not evict the application and
 	// users manually confirms how to clean up redundant copies.
 	Never PurgeMode = "Never"
+
+	// PurgeModeDirectly represents that Karmada will directly evict the legacy
+	// application. This is useful in scenarios where an application can not
+	// tolerate two instances running simultaneously.
+	// For example, the Flink application supports exactly-once state consistency,
+	// which means it requires that no two instances of the application are running
+	// at the same time. During a failover, it is crucial to ensure that the old
+	// application is removed before creating a new one to avoid duplicate
+	// processing and maintaining state consistency.
+	PurgeModeDirectly PurgeMode = "Directly"
+	// PurgeModeGracefully represents that Karmada will wait for the application to
+	// come back to healthy on the new cluster or after a timeout is reached
+	// before evicting the application.
+	PurgeModeGracefully PurgeMode = "Gracefully"
 )
 
 // FailoverBehavior indicates failover behaviors in case of an application or
@@ -309,10 +325,16 @@ type FailoverBehavior struct {
 	// +optional
 	Application *ApplicationFailoverBehavior `json:"application,omitempty"`
 
-	// Cluster indicates failover behaviors in case of cluster failure.
-	// If this value is nil, failover is disabled.
+	// Cluster indicates failover behaviors in case of partial cluster failure.
+	// The partial cluster failure here refers to the clusters with taint
+	// whose effect is PreferNoExecute.
+	//
+	// PreferNoExecute taints do not need to consider the setting of
+	// Placement.ClusterTolerations.
+	//
+	// If this value is nil, failover triggered by PreferNoExecute is disabled.
 	// +optional
-	// Cluster *ClusterFailoverBehavior `json:"cluster,omitempty"`
+	Cluster *ClusterFailoverBehavior `json:"cluster,omitempty"`
 }
 
 // ApplicationFailoverBehavior indicates application failover behaviors.
@@ -380,6 +402,26 @@ type StatePreservation struct {
 	// to the new cluster.
 	// +required
 	Rules []StatePreservationRule `json:"rules"`
+}
+
+// ClusterFailoverBehavior indicates cluster failover behaviors.
+type ClusterFailoverBehavior struct {
+	// PurgeMode represents how to deal with the legacy applications on the
+	// cluster from which the application is migrated.
+	// Valid options are "Directly" and "Gracefully".
+	// Defaults to "Gracefully".
+	// +kubebuilder:validation:Enum=Directly;Gracefully
+	// +kubebuilder:default=Gracefully
+	// +optional
+	PurgeMode PurgeMode `json:"purgeMode,omitempty"`
+
+	// TolerationSeconds represents the time system should wait for
+	// performing failover process after the PreferNoExecute
+	// taint occurs on the cluster.
+	// Defaults to 300.
+	// +kubebuilder:default=300
+	// +optional
+	TolerationSeconds *int32 `json:"tolerationSeconds,omitempty"`
 }
 
 // StatePreservationRule defines a single rule for state preservation.
