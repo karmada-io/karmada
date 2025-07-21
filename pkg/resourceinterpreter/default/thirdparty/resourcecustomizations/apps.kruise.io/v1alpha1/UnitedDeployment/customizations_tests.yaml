@@ -1,0 +1,15 @@
+tests:
+  - desiredInputPath: testdata/desired-uniteddeployment.yaml
+    statusInputPath: testdata/status-file.yaml
+    operation: AggregateStatus
+  - desiredInputPath: testdata/desired-uniteddeployment.yaml
+    operation: InterpretDependency
+  - observedInputPath: testdata/observed-uniteddeployment.yaml
+    operation: InterpretReplica
+  - observedInputPath: testdata/observed-uniteddeployment.yaml
+    operation: ReviseReplica
+    desiredReplicas: 1
+  - observedInputPath: testdata/observed-uniteddeployment.yaml
+    operation: InterpretHealth
+  - observedInputPath: testdata/observed-uniteddeployment.yaml
+    operation: InterpretStatus

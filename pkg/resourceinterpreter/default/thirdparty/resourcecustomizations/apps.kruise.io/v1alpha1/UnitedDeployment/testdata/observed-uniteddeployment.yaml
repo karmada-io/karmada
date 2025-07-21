@@ -1,0 +1,60 @@
+apiVersion: apps.kruise.io/v1alpha1
+kind: UnitedDeployment
+metadata:
+  name: sample-uniteddeployment
+  namespace: test-namespace
+  generation: 1
+  resourceVersion: "12345"
+  uid: "a1b2c3d4-5678-90ef-ghij-klmnopqrstuv"
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: sample
+  template:
+    metadata:
+      labels:
+        app: sample
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:latest
+          env:
+            - name: CONFIG_DATA
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: config
+            - name: SECRET_DATA
+              valueFrom:
+                secretKeyRef:
+                  name: app-secret
+                  key: token
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/config
+      volumes:
+        - name: config-volume
+          configMap:
+            name: app-config
+  topologySpread:
+    - topologyKey: kubernetes.io/hostname
+      maxSkew: 1
+status:
+  replicas: 3
+  readyReplicas: 3
+  updatedReplicas: 3
+  availableReplicas: 3
+  collisionCount: 0
+  observedGeneration: 1
+  conditions:
+    - type: Available
+      status: "True"
+      lastTransitionTime: "2023-01-01T00:00:00Z"
+      reason: MinimumReplicasAvailable
+      message: Deployment has minimum availability.
+    - type: Progressing
+      status: "True"
+      lastTransitionTime: "2023-01-01T00:00:00Z"
+      reason: NewReplicaSetAvailable
+      message: ReplicaSet has successfully progressed.

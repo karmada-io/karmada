@@ -1,0 +1,171 @@
+apiVersion: config.karmada.io/v1alpha1
+kind: ResourceInterpreterCustomization
+metadata:
+  name: declarative-configuration-uniteddeployment
+spec:
+  target:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: UnitedDeployment
+  customizations:
+    replicaResource:
+      luaScript: >
+        local kube = require("kube")
+        function GetReplicas(obj)
+          local replica = obj.spec.replicas
+          local requirement = kube.accuratePodRequirements(obj.spec.template)
+          return replica, requirement
+        end
+    replicaRevision:
+      luaScript: >
+        function ReviseReplica(obj, desiredReplica)
+          obj.spec.replicas = desiredReplica
+          return obj
+        end
+    statusAggregation:
+      luaScript: >
+        function AggregateStatus(desiredObj, statusItems)
+          if desiredObj.status == nil then
+            desiredObj.status = {}
+          end
+          if desiredObj.metadata.generation == nil then
+            desiredObj.metadata.generation = 0
+          end
+          if desiredObj.status.observedGeneration == nil then
+            desiredObj.status.observedGeneration = 0
+          end
+
+          -- Initialize status fields if status does not exist
+          -- If the UnitedDeployment is not spread to any cluster,
+          -- its status also should be aggregated
+          if statusItems == nil then
+            desiredObj.status.observedGeneration = desiredObj.metadata.generation
+            desiredObj.status.replicas = 0
+            desiredObj.status.readyReplicas = 0
+            desiredObj.status.updatedReplicas = 0
+            desiredObj.status.availableReplicas = 0
+            desiredObj.status.unavailableReplicas = 0
+            return desiredObj
+          end
+
+          local generation = desiredObj.metadata.generation
+          local observedGeneration = desiredObj.status.observedGeneration
+          local replicas = 0
+          local updatedReplicas = 0
+          local readyReplicas = 0
+          local availableReplicas = 0
+          local unavailableReplicas = 0
+
+          -- Use a map to merge conditions by type
+          local conditionsMap = {}
+
+          -- Count all members that their status is updated to the latest generation
+          local observedResourceTemplateGenerationCount = 0
+
+          for i = 1, #statusItems do
+            local itemStatus = statusItems[i].status
+            if itemStatus ~= nil then
+              replicas = replicas + (itemStatus.replicas or 0)
+              updatedReplicas = updatedReplicas + (itemStatus.updatedReplicas or 0)
+              readyReplicas = readyReplicas + (itemStatus.readyReplicas or 0)
+              availableReplicas = availableReplicas + (itemStatus.availableReplicas or 0)
+              unavailableReplicas = unavailableReplicas + (itemStatus.unavailableReplicas or 0)
+
+              -- Merge conditions from all clusters using a map
+              if itemStatus.conditions ~= nil then
+                for _, condition in ipairs(itemStatus.conditions) do
+                  conditionsMap[condition.type] = condition
+                end
+              end
+
+              -- Check if the member's status is updated to the latest generation
+              local resourceTemplateGeneration = itemStatus.resourceTemplateGeneration or 0
+              local memberGeneration = itemStatus.generation or 0
+              local memberObservedGeneration = itemStatus.observedGeneration or 0
+              if resourceTemplateGeneration == generation and memberGeneration == memberObservedGeneration then
+                observedResourceTemplateGenerationCount = observedResourceTemplateGenerationCount + 1
+              end
+            end
+          end
+
+          -- Convert conditionsMap back to a list
+          local conditions = {}
+          for _, condition in pairs(conditionsMap) do
+            table.insert(conditions, condition)
+          end
+
+          -- Update the observed generation based on the observedResourceTemplateGenerationCount
+          if observedResourceTemplateGenerationCount == #statusItems then
+            desiredObj.status.observedGeneration = generation
+          else
+            desiredObj.status.observedGeneration = observedGeneration
+          end
+
+          desiredObj.status.replicas = replicas
+          desiredObj.status.updatedReplicas = updatedReplicas
+          desiredObj.status.readyReplicas = readyReplicas
+          desiredObj.status.availableReplicas = availableReplicas
+          desiredObj.status.unavailableReplicas = unavailableReplicas
+
+          if #conditions > 0 then
+            desiredObj.status.conditions = conditions
+          end
+
+          return desiredObj
+        end
+    statusReflection:
+      luaScript: >
+        function ReflectStatus(observedObj)
+          local status = {}
+          if observedObj == nil or observedObj.status == nil then
+            return status
+          end
+
+          status.replicas = observedObj.status.replicas
+          status.updatedReplicas = observedObj.status.updatedReplicas
+          status.readyReplicas = observedObj.status.readyReplicas
+          status.availableReplicas = observedObj.status.availableReplicas
+          status.unavailableReplicas = observedObj.status.unavailableReplicas
+          status.observedGeneration = observedObj.status.observedGeneration
+          status.conditions = observedObj.status.conditions
+
+          -- handle member resource generation report
+          if observedObj.metadata ~= nil then
+            status.generation = observedObj.metadata.generation
+
+            -- handle resource template generation report
+            if observedObj.metadata.annotations ~= nil then
+              local resourceTemplateGeneration = tonumber(observedObj.metadata.annotations["resourcetemplate.karmada.io/generation"])
+              if resourceTemplateGeneration ~= nil then
+                status.resourceTemplateGeneration = resourceTemplateGeneration
+              end
+            end
+          end
+
+          return status
+        end
+    healthInterpretation:
+      luaScript: >
+        function InterpretHealth(observedObj)
+          if observedObj == nil or observedObj.status == nil or observedObj.metadata == nil or observedObj.spec == nil then
+            return false
+          end
+          if observedObj.status.observedGeneration ~= observedObj.metadata.generation then
+            return false
+          end
+          if observedObj.spec.replicas ~= nil then
+            if observedObj.status.updatedReplicas < observedObj.spec.replicas then
+              return false
+            end
+          end
+          if observedObj.status.availableReplicas < observedObj.status.updatedReplicas then
+            return false
+          end
+          return true
+        end
+    dependencyInterpretation:
+      luaScript: >
+        local kube = require("kube")
+        function GetDependencies(desiredObj)
+          local refs = kube.getPodDependencies(desiredObj.spec.template, desiredObj.metadata.namespace)
+          return refs
+        end
