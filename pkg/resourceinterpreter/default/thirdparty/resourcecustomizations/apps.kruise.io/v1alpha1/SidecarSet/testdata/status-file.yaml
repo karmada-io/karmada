@@ -1,0 +1,21 @@
+apiVersion: apps.kruise.io/v1alpha1
+kind: SidecarSet
+metadata:
+  name: sample-sidecarset
+  namespace: test-sidecarset
+  clusterName: member1
+status:
+  matchedPods: 2
+  updatedPods: 2
+  readyPods: 2
+---
+apiVersion: apps.kruise.io/v1alpha1
+kind: SidecarSet
+metadata:
+  name: sample-sidecarset
+  namespace: test-sidecarset
+  clusterName: member2
+status:
+  matchedPods: 1
+  updatedPods: 1
+  readyPods: 1 

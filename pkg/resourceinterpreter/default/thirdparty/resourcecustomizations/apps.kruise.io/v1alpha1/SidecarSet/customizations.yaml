@@ -1,0 +1,156 @@
+apiVersion: config.karmada.io/v1alpha1
+kind: ResourceInterpreterCustomization
+metadata:
+  name: declarative-configuration-sidecarset
+spec:
+  target:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: SidecarSet
+  customizations:
+    statusReflection:
+      luaScript: |
+        function ReflectStatus(observedObj)
+          if observedObj.status == nil then
+            return {}
+          end
+          return {
+            matchedPods = observedObj.status.matchedPods or 0,
+            updatedPods = observedObj.status.updatedPods or 0,
+            readyPods = observedObj.status.readyPods or 0
+          }
+        end
+    replicaResource:
+      luaScript: |
+        function GetReplicas(obj)
+          -- SidecarSet doesn't manage replicas directly, return 0
+          return 0
+        end
+    statusAggregation:
+      luaScript: |
+        function AggregateStatus(desiredObj, statusItems)
+          local matchedPods = 0
+          local updatedPods = 0
+          local readyPods = 0
+          
+          for i = 1, #statusItems do
+            local status = statusItems[i].status or {}
+            matchedPods = matchedPods + (status.matchedPods or 0)
+            updatedPods = updatedPods + (status.updatedPods or 0)
+            readyPods = readyPods + (status.readyPods or 0)
+          end
+            
+          return {
+            apiVersion = "apps.kruise.io/v1alpha1",
+            kind = "SidecarSet",
+            metadata = desiredObj.metadata,
+            status = {
+              matchedPods = matchedPods,
+              updatedPods = updatedPods,
+              readyPods = readyPods
+            }
+          }
+        end
+    retention:
+      luaScript: |
+        function Retain(desiredObj, observedObj)
+          -- No specific retention logic needed as Karmada handles status preservation
+          return desiredObj
+        end
+    healthInterpretation:
+      luaScript: |
+        function InterpretHealth(observedObj)
+          if observedObj.status == nil then
+            return false
+          end
+          local matchedPods = observedObj.status.matchedPods or 0
+          local updatedPods = observedObj.status.updatedPods or 0
+          -- If no pods are matched, consider it healthy (nothing to update)
+          if matchedPods == 0 then
+            return true
+          end
+          -- A SidecarSet is healthy if all matched pods have been updated
+          return updatedPods == matchedPods
+        end
+    dependencyInterpretation:
+      luaScript: |
+        function GetDependencies(desiredObj)
+          local dependencies = {}
+          if not desiredObj.spec then
+            return dependencies
+          end
+
+          -- Helper function to add a dependency
+          local function addDependency(kind, name, namespace)
+            table.insert(dependencies, {
+              apiVersion = "v1",
+              kind = kind,
+              name = name,
+              namespace = namespace or (desiredObj.metadata and desiredObj.metadata.namespace)
+            })
+          end
+
+          -- Check for references in containers
+          if desiredObj.spec.containers then
+            for i = 1, #desiredObj.spec.containers do
+              local container = desiredObj.spec.containers[i]
+              
+              -- Check environment variables
+              if container.env then
+                for j = 1, #container.env do
+                  local env = container.env[j]
+                  if env.valueFrom then
+                    if env.valueFrom.configMapKeyRef then
+                      addDependency("ConfigMap", env.valueFrom.configMapKeyRef.name)
+                    end
+                    if env.valueFrom.secretKeyRef then
+                      addDependency("Secret", env.valueFrom.secretKeyRef.name)
+                    end
+                  end
+                end
+              end
+              
+              -- Check envFrom
+              if container.envFrom then
+                for j = 1, #container.envFrom do
+                  local envFrom = container.envFrom[j]
+                  if envFrom.configMapRef then
+                    addDependency("ConfigMap", envFrom.configMapRef.name)
+                  end
+                  if envFrom.secretRef then
+                    addDependency("Secret", envFrom.secretRef.name)
+                  end
+                end
+              end
+            end
+          end
+
+          -- Check for volume references
+          if desiredObj.spec.volumes then
+            for i = 1, #desiredObj.spec.volumes do
+              local volume = desiredObj.spec.volumes[i]
+              
+              -- Standard volume types
+              if volume.configMap then
+                addDependency("ConfigMap", volume.configMap.name)
+              end
+              if volume.secret then
+                addDependency("Secret", volume.secret.secretName)
+              end
+              
+              -- Projected volumes
+              if volume.projected and volume.projected.sources then
+                for j = 1, #volume.projected.sources do
+                  local source = volume.projected.sources[j]
+                  if source.configMap then
+                    addDependency("ConfigMap", source.configMap.name)
+                  end
+                  if source.secret then
+                    addDependency("Secret", source.secret.name)
+                  end
+                end
+              end
+            end
+          end
+          
+          return dependencies
+        end 
