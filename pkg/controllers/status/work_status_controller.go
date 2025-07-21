@@ -70,7 +70,7 @@ type WorkStatusController struct {
 	// ConcurrentWorkStatusSyncs is the number of Work status that are allowed to sync concurrently.
 	ConcurrentWorkStatusSyncs   int
 	ObjectWatcher               objectwatcher.ObjectWatcher
-	PredicateFunc               predicate.Predicate
+	WorkPredicateFunc           predicate.Predicate
 	ClusterDynamicClientSetFunc util.NewClusterDynamicClientSetFunc
 	ClusterClientOption         *util.ClientOption
 	ClusterCacheSyncTimeout     metav1.Duration
@@ -293,11 +293,6 @@ func (c *WorkStatusController) handleDeleteEvent(ctx context.Context, key keys.F
 
 	// skip processing as the work object is suspended for dispatching.
 	if util.IsWorkSuspendDispatching(work) {
-		return nil
-	}
-
-	//nolint:staticcheck // SA1019 ignore deprecated util.PropagationInstruction
-	if util.GetLabelValue(work.Labels, util.PropagationInstruction) == util.PropagationInstructionSuppressed {
 		return nil
 	}
 
@@ -548,12 +543,18 @@ func (c *WorkStatusController) getSingleClusterManager(cluster *clusterv1alpha1.
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *WorkStatusController) SetupWithManager(mgr controllerruntime.Manager) error {
-	return controllerruntime.NewControllerManagedBy(mgr).
-		Named(WorkStatusControllerName).
-		For(&workv1alpha1.Work{}, builder.WithPredicates(c.PredicateFunc)).
+	ctrlBuilder := controllerruntime.NewControllerManagedBy(mgr).Named(WorkStatusControllerName).
 		WithOptions(controller.Options{
 			RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RateLimiterOptions),
-		}).Complete(c)
+		})
+
+	if c.WorkPredicateFunc != nil {
+		ctrlBuilder.For(&workv1alpha1.Work{}, builder.WithPredicates(c.WorkPredicateFunc))
+	} else {
+		ctrlBuilder.For(&workv1alpha1.Work{})
+	}
+
+	return ctrlBuilder.Complete(c)
 }
 
 func (c *WorkStatusController) eventf(object *unstructured.Unstructured, eventType, reason, messageFmt string, args ...interface{}) {

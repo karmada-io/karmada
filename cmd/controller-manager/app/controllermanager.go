@@ -454,7 +454,7 @@ func startExecutionController(ctx controllerscontext.Context) (enabled bool, err
 		EventRecorder:      ctx.Mgr.GetEventRecorderFor(execution.ControllerName),
 		RESTMapper:         ctx.Mgr.GetRESTMapper(),
 		ObjectWatcher:      ctx.ObjectWatcher,
-		PredicateFunc:      helper.NewExecutionPredicate(ctx.Mgr),
+		WorkPredicateFunc:  helper.WorkWithinPushClusterPredicate(ctx.Mgr),
 		InformerManager:    genericmanager.GetInstance(),
 		RateLimiterOptions: ctx.Opts.RateLimiterOptions,
 	}
@@ -473,7 +473,7 @@ func startWorkStatusController(ctx controllerscontext.Context) (enabled bool, er
 		InformerManager:             genericmanager.GetInstance(),
 		Context:                     ctx.Context,
 		ObjectWatcher:               ctx.ObjectWatcher,
-		PredicateFunc:               helper.NewExecutionPredicate(ctx.Mgr),
+		WorkPredicateFunc:           helper.WorkWithinPushClusterPredicate(ctx.Mgr),
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSet,
 		ClusterClientOption:         ctx.ClusterClientOption,
 		ClusterCacheSyncTimeout:     opts.ClusterCacheSyncTimeout,

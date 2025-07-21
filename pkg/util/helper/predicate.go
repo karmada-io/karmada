@@ -29,20 +29,13 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
-// NewExecutionPredicate generates the event filter function to skip events that the controllers are uninterested.
+// WorkWithinPushClusterPredicate generates the event filter function to skip events that the controllers are uninterested.
 // Used by controllers:
 // - execution controller working in karmada-controller-manager
 // - work status controller working in karmada-controller-manager
-func NewExecutionPredicate(mgr controllerruntime.Manager) predicate.Funcs {
-	predFunc := func(eventType string, object client.Object) bool {
+func WorkWithinPushClusterPredicate(mgr controllerruntime.Manager) predicate.Funcs {
+	predFunc := func(object client.Object) bool {
 		obj := object.(*workv1alpha1.Work)
-
-		// Ignore the object that has been suppressed.
-		//nolint:staticcheck // SA1019 ignore deprecated util.PropagationInstruction
-		if util.GetLabelValue(obj.Labels, util.PropagationInstruction) == util.PropagationInstructionSuppressed {
-			klog.V(5).Infof("Ignored Work(%s/%s) %s event as propagation instruction is suppressed.", obj.Namespace, obj.Name, eventType)
-			return false
-		}
 
 		clusterName, err := names.GetClusterName(obj.Namespace)
 		if err != nil {
@@ -61,13 +54,13 @@ func NewExecutionPredicate(mgr controllerruntime.Manager) predicate.Funcs {
 
 	return predicate.Funcs{
 		CreateFunc: func(createEvent event.CreateEvent) bool {
-			return predFunc("create", createEvent.Object)
+			return predFunc(createEvent.Object)
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-			return predFunc("update", updateEvent.ObjectNew) || predFunc("update", updateEvent.ObjectOld)
+			return predFunc(updateEvent.ObjectNew) || predFunc(updateEvent.ObjectOld)
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-			return predFunc("delete", deleteEvent.Object)
+			return predFunc(deleteEvent.Object)
 		},
 		GenericFunc: func(event.GenericEvent) bool {
 			return false
@@ -79,12 +72,6 @@ func NewExecutionPredicate(mgr controllerruntime.Manager) predicate.Funcs {
 func NewPredicateForServiceExportController(mgr controllerruntime.Manager) predicate.Funcs {
 	predFunc := func(eventType string, object client.Object) bool {
 		obj := object.(*workv1alpha1.Work)
-
-		//nolint:staticcheck // SA1019 ignore deprecated util.PropagationInstruction
-		if util.GetLabelValue(obj.Labels, util.PropagationInstruction) == util.PropagationInstructionSuppressed {
-			klog.V(5).Infof("Ignored Work(%s/%s) %s event as propagation instruction is suppressed.", obj.Namespace, obj.Name, eventType)
-			return false
-		}
 
 		if util.IsWorkSuspendDispatching(obj) {
 			klog.V(5).Infof("Ignored Work(%s/%s) %s event as dispatching is suspended.", obj.Namespace, obj.Name, eventType)
@@ -178,12 +165,6 @@ func NewPredicateForServiceExportControllerOnAgent(curClusterName string) predic
 	predFunc := func(eventType string, object client.Object) bool {
 		obj := object.(*workv1alpha1.Work)
 
-		//nolint:staticcheck // SA1019 ignore deprecated util.PropagationInstruction
-		if util.GetLabelValue(obj.Labels, util.PropagationInstruction) == util.PropagationInstructionSuppressed {
-			klog.V(5).Infof("Ignored Work(%s/%s) %s event as propagation instruction is suppressed.", obj.Namespace, obj.Name, eventType)
-			return false
-		}
-
 		if util.IsWorkSuspendDispatching(obj) {
 			klog.V(5).Infof("Ignored Work(%s/%s) %s event as dispatching is suspended.", obj.Namespace, obj.Name, eventType)
 			return false
@@ -223,40 +204,6 @@ func NewPredicateForEndpointSliceCollectControllerOnAgent(curClusterName string)
 			return false
 		}
 		return clusterName == curClusterName
-	}
-
-	return predicate.Funcs{
-		CreateFunc: func(createEvent event.CreateEvent) bool {
-			return predFunc("create", createEvent.Object)
-		},
-		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-			return predFunc("update", updateEvent.ObjectNew) || predFunc("update", updateEvent.ObjectOld)
-		},
-		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-			return predFunc("delete", deleteEvent.Object)
-		},
-		GenericFunc: func(event.GenericEvent) bool {
-			return false
-		},
-	}
-}
-
-// NewExecutionPredicateOnAgent generates the event filter function to skip events that the controllers are uninterested.
-// Used by controllers:
-// - execution controller working in agent
-// - work status controller working in agent
-func NewExecutionPredicateOnAgent() predicate.Funcs {
-	predFunc := func(eventType string, object client.Object) bool {
-		obj := object.(*workv1alpha1.Work)
-
-		// Ignore the object that has been suppressed.
-		//nolint:staticcheck // SA1019 ignore deprecated util.PropagationInstruction
-		if util.GetLabelValue(obj.Labels, util.PropagationInstruction) == util.PropagationInstructionSuppressed {
-			klog.V(5).Infof("Ignored Work(%s/%s) %s event as propagation instruction is suppressed.", obj.Namespace, obj.Name, eventType)
-			return false
-		}
-
-		return true
 	}
 
 	return predicate.Funcs{
