@@ -42,7 +42,7 @@ jobs:
         with:
           go-version-file: go.mod
       - name: Install Cosign
-        uses: sigstore/cosign-installer@v3.9.1
+        uses: sigstore/cosign-installer@v3.9.2
         with:
           cosign-release: 'v2.2.3'
       - name: install QEMU
