@@ -75,8 +75,7 @@ var predicateFunc = predicate.Funcs{
 			klog.ErrorS(fmt.Errorf("spec.replicas is nil in either old or new deployment object"),
 				"spec.replicas field unexpectedly become nil",
 				"oldReplicas", oldObj.Spec.Replicas, "newReplicas", newObj.Spec.Replicas,
-				"oldObjNamespace", oldObj.Namespace, "oldObjName", oldObj.Name,
-				"newObjNamespace", newObj.Namespace, "newObjName", newObj.Name)
+				"namespace", oldObj.Namespace, "name", oldObj.Name)
 			return false
 		}
 
@@ -169,8 +168,7 @@ func isDeploymentStatusCollected(deployment *appsv1.Deployment, binding *workv1a
 	if deployment.Spec.Replicas == nil || *deployment.Spec.Replicas != binding.Spec.Replicas {
 		klog.V(4).InfoS("wait until binding replicas are equal to deployment replicas",
 			"bindingReplicas", binding.Spec.Replicas, "deploymentReplicas", *deployment.Spec.Replicas,
-			"deploymentNamespace", deployment.Namespace, "deploymentName", deployment.Name,
-			"bindingNamespace", binding.Namespace, "bindingName", binding.Name)
+			"namespace", deployment.Namespace, "deploymentName", deployment.Name, "bindingName", binding.Name)
 		return false
 	}
 
@@ -217,8 +215,7 @@ func isDeploymentStatusCollected(deployment *appsv1.Deployment, binding *workv1a
 	if deployment.Status.Replicas != bindingStatusSumReplicas {
 		klog.V(4).InfoS("wait until deployment status replicas are equal to binding status replicas",
 			"deploymentStatusReplicas", deployment.Status.Replicas, "bindingStatusReplicas", bindingStatusSumReplicas,
-			"bindingNamespace", binding.Namespace, "bindingName", binding.Name,
-			"deploymentNamespace", deployment.Namespace, "deploymentName", deployment.Name)
+			"namespace", binding.Namespace, "bindingName", binding.Name, "deploymentName", deployment.Name)
 		return false
 	}
 
