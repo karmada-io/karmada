@@ -19,6 +19,7 @@ package deploymentreplicassyncer
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -71,7 +72,10 @@ var predicateFunc = predicate.Funcs{
 		}
 
 		if oldObj.Spec.Replicas == nil || newObj.Spec.Replicas == nil {
-			klog.Errorf("spec.replicas field unexpectedly become nil: %+v, %+v", oldObj.Spec.Replicas, newObj.Spec.Replicas)
+			klog.ErrorS(fmt.Errorf("spec.replicas is nil in either old or new deployment object"),
+				"spec.replicas field unexpectedly become nil",
+				"oldReplicas", oldObj.Spec.Replicas, "newReplicas", newObj.Spec.Replicas,
+				"namespace", oldObj.Namespace, "name", oldObj.Name)
 			return false
 		}
 
@@ -99,7 +103,7 @@ func (r *DeploymentReplicasSyncer) SetupWithManager(mgr controllerruntime.Manage
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *DeploymentReplicasSyncer) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling for Deployment %s/%s", req.Namespace, req.Name)
+	klog.V(4).InfoS("Reconciling for Deployment", "namespace", req.Namespace, "name", req.Name)
 
 	deployment := &appsv1.Deployment{}
 	binding := &workv1alpha2.ResourceBinding{}
@@ -108,7 +112,8 @@ func (r *DeploymentReplicasSyncer) Reconcile(ctx context.Context, req controller
 	// 1. get latest binding
 	if err := r.Client.Get(ctx, client.ObjectKey{Namespace: req.Namespace, Name: bindingName}, binding); err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Infof("no need to update deployment replicas for binding not found")
+			klog.InfoS("no need to update deployment replicas as binding was not found",
+				"namespace", req.Namespace, "name", bindingName)
 			return controllerruntime.Result{}, nil
 		}
 		return controllerruntime.Result{}, err
@@ -122,7 +127,8 @@ func (r *DeploymentReplicasSyncer) Reconcile(ctx context.Context, req controller
 	// 3. get latest deployment
 	if err := r.Client.Get(ctx, req.NamespacedName, deployment); err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Infof("no need to update deployment replicas for deployment not found")
+			klog.InfoS("no need to update deployment replicas as deployment was not found",
+				"namespace", req.Namespace, "name", req.Name)
 			return controllerruntime.Result{}, nil
 		}
 		return controllerruntime.Result{}, err
@@ -130,7 +136,9 @@ func (r *DeploymentReplicasSyncer) Reconcile(ctx context.Context, req controller
 
 	// 4. if replicas in spec already the same as in status, no need to update replicas
 	if deployment.Spec.Replicas != nil && *deployment.Spec.Replicas == deployment.Status.Replicas {
-		klog.Infof("replicas in spec field (%d) already equal to in status field (%d)", *deployment.Spec.Replicas, deployment.Status.Replicas)
+		klog.InfoS("replicas in spec field are already equal to those in status field",
+			"specReplicas", *deployment.Spec.Replicas, "statusReplicas", deployment.Status.Replicas,
+			"namespace", deployment.Namespace, "name", deployment.Name)
 		return controllerruntime.Result{}, nil
 	}
 
@@ -143,12 +151,13 @@ func (r *DeploymentReplicasSyncer) Reconcile(ctx context.Context, req controller
 	oldReplicas := *deployment.Spec.Replicas
 	deployment.Spec.Replicas = &deployment.Status.Replicas
 	if err := r.Client.Update(ctx, deployment); err != nil {
-		klog.Errorf("failed to update deployment (%s/%s) replicas: %+v", deployment.Namespace, deployment.Name, err)
+		klog.ErrorS(err, "failed to update deployment replicas", "namespace", deployment.Namespace, "name", deployment.Name)
 		return controllerruntime.Result{}, err
 	}
 
-	klog.Infof("successfully update deployment (%s/%s) replicas from %d to %d", deployment.Namespace,
-		deployment.Name, oldReplicas, deployment.Status.Replicas)
+	klog.InfoS("successfully update deployment replicas",
+		"namespace", deployment.Namespace, "name", deployment.Name,
+		"oldReplicas", oldReplicas, "newReplicas", deployment.Status.Replicas)
 
 	return controllerruntime.Result{}, nil
 }
@@ -157,22 +166,25 @@ func (r *DeploymentReplicasSyncer) Reconcile(ctx context.Context, req controller
 func isDeploymentStatusCollected(deployment *appsv1.Deployment, binding *workv1alpha2.ResourceBinding) bool {
 	// make sure the replicas change in deployment.spec can sync to binding.spec, otherwise retry
 	if deployment.Spec.Replicas == nil || *deployment.Spec.Replicas != binding.Spec.Replicas {
-		klog.V(4).Infof("wait until replicas of binding (%d) equal to replicas of deployment (%d)",
-			binding.Spec.Replicas, *deployment.Spec.Replicas)
+		klog.V(4).InfoS("wait until binding replicas are equal to deployment replicas",
+			"bindingReplicas", binding.Spec.Replicas, "deploymentReplicas", *deployment.Spec.Replicas,
+			"namespace", deployment.Namespace, "deploymentName", deployment.Name, "bindingName", binding.Name)
 		return false
 	}
 
 	// make sure the scheduler observed generation equal to generation in binding, otherwise retry
 	if binding.Generation != binding.Status.SchedulerObservedGeneration {
-		klog.V(4).Infof("wait until scheduler observed generation (%d) equal to generation in binding (%d)",
-			binding.Status.SchedulerObservedGeneration, binding.Generation)
+		klog.V(4).InfoS("wait until scheduler observed generation is equal to generation in binding",
+			"schedulerObservedGeneration", binding.Status.SchedulerObservedGeneration, "generation", binding.Generation,
+			"namespace", binding.Namespace, "name", binding.Name)
 		return false
 	}
 
 	// make sure the number of aggregated status in binding is as expected.
 	if len(binding.Status.AggregatedStatus) != len(binding.Spec.Clusters) {
-		klog.V(4).Infof("wait until all clusters status collected, got: %d, expected: %d",
-			len(binding.Status.AggregatedStatus), len(binding.Spec.Clusters))
+		klog.V(4).InfoS("wait until all clusters' statuses are collected",
+			"got", len(binding.Status.AggregatedStatus), "expected", len(binding.Spec.Clusters),
+			"namespace", binding.Namespace, "name", binding.Name)
 		return false
 	}
 
@@ -180,18 +192,18 @@ func isDeploymentStatusCollected(deployment *appsv1.Deployment, binding *workv1a
 	bindingStatusSumReplicas := int32(0)
 	for _, status := range binding.Status.AggregatedStatus {
 		if status.Status == nil {
-			klog.V(4).Infof("wait until aggregated status of cluster %s collected", status.ClusterName)
+			klog.V(4).InfoS("wait until aggregated status of cluster is collected", "cluster", status.ClusterName)
 			return false
 		}
 		itemStatus := &appsv1.DeploymentStatus{}
 		if err := json.Unmarshal(status.Status.Raw, itemStatus); err != nil {
-			klog.Errorf("unmarshal status.raw of cluster %s in binding failed: %+v", status.ClusterName, err)
+			klog.ErrorS(err, "unmarshal status.raw of cluster in binding failed", "cluster", status.ClusterName)
 			return false
 		}
 		// if member cluster deployment is controlled by hpa, its status.replicas must > 0 (since hpa.minReplicas > 0),
 		// so, if its status replicas is 0, means the status haven't been collected from member cluster, and needs waiting.
 		if itemStatus.Replicas <= 0 {
-			klog.V(4).Infof("wait until aggregated status replicas of cluster %s collected", status.ClusterName)
+			klog.V(4).InfoS("wait until aggregated status replicas of cluster are collected", "cluster", status.ClusterName)
 			return false
 		}
 		bindingStatusSumReplicas += itemStatus.Replicas
@@ -201,8 +213,9 @@ func isDeploymentStatusCollected(deployment *appsv1.Deployment, binding *workv1a
 	// e.g: user set deployment.spec.replicas = 2, then sum replicas in binding.status becomes 2, however, if now
 	// deployment.status.replicas is still 1, we shouldn't update spec.replicas to 1 until status.replicas becomes 2.
 	if deployment.Status.Replicas != bindingStatusSumReplicas {
-		klog.V(4).Infof("wait until deployment status replicas (%d) equal to binding status replicas (%d)",
-			deployment.Status.Replicas, bindingStatusSumReplicas)
+		klog.V(4).InfoS("wait until deployment status replicas are equal to binding status replicas",
+			"deploymentStatusReplicas", deployment.Status.Replicas, "bindingStatusReplicas", bindingStatusSumReplicas,
+			"namespace", binding.Namespace, "bindingName", binding.Name, "deploymentName", deployment.Name)
 		return false
 	}
 
