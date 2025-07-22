@@ -139,13 +139,13 @@ func (c *FHPAController) SetupWithManager(mgr controllerruntime.Manager) error {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *FHPAController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling FederatedHPA %s.", req.NamespacedName.String())
+	klog.V(4).InfoS("Reconciling FederatedHPA", "namespacedName", req.NamespacedName.String())
 
 	hpa := &autoscalingv1alpha1.FederatedHPA{}
 	key := req.NamespacedName.String()
 	if err := c.Client.Get(ctx, req.NamespacedName, hpa); err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Infof("FederatedHPA %s has been deleted in %s", req.Name, req.Namespace)
+			klog.InfoS("FederatedHPA has been deleted in namespace", "hpaName", req.Name, "namespace", req.Namespace)
 			c.recommendationsLock.Lock()
 			delete(c.recommendations, key)
 			c.recommendationsLock.Unlock()
@@ -344,7 +344,7 @@ func (c *FHPAController) reconcileAutoscaler(ctx context.Context, hpa *autoscali
 			retErr = err
 		}
 
-		klog.V(4).Infof("proposing %v desired replicas (based on %s from %s) for %s", metricDesiredReplicas, metricName, metricTimestamp, reference)
+		klog.V(4).InfoS("proposing desired replicas for resource", "desiredReplicas", metricDesiredReplicas, "metricName", metricName, "metricTimestamp", metricTimestamp, "resource", reference)
 
 		rescaleMetric := ""
 		if metricDesiredReplicas > desiredReplicas {
@@ -382,8 +382,8 @@ func (c *FHPAController) reconcileAutoscaler(ctx context.Context, hpa *autoscali
 		setCondition(hpa, autoscalingv2.AbleToScale, corev1.ConditionTrue, "SucceededRescale", "the HPA controller was able to update the target scale to %d", desiredReplicas)
 		c.EventRecorder.Eventf(hpa, corev1.EventTypeNormal, "SuccessfulRescale", "New size: %d; reason: %s", desiredReplicas, rescaleReason)
 		c.storeScaleEvent(hpa.Spec.Behavior, key, currentReplicas, desiredReplicas)
-		klog.Infof("Successful rescale of %s, old size: %d, new size: %d, reason: %s",
-			hpa.Name, currentReplicas, desiredReplicas, rescaleReason)
+		klog.InfoS("Successfully rescaled FederatedHPA",
+			"hpaName", hpa.Name, "currentReplicas", currentReplicas, "desiredReplicas", desiredReplicas, "rescaleReason", rescaleReason)
 
 		if desiredReplicas > currentReplicas {
 			actionLabel = monitor.ActionLabelScaleUp
@@ -391,7 +391,7 @@ func (c *FHPAController) reconcileAutoscaler(ctx context.Context, hpa *autoscali
 			actionLabel = monitor.ActionLabelScaleDown
 		}
 	} else {
-		klog.V(4).Infof("decided not to scale %s to %v (last scale time was %s)", reference, desiredReplicas, hpa.Status.LastScaleTime)
+		klog.V(4).InfoS("decided not to scale resource", "resource", reference, "desiredReplicas", desiredReplicas, "hpaLastScaleTime", hpa.Status.LastScaleTime)
 		desiredReplicas = currentReplicas
 	}
 
@@ -484,19 +484,19 @@ func (c *FHPAController) scaleForTargetCluster(ctx context.Context, clusters []s
 	for _, cluster := range clusters {
 		clusterClient, err := c.ClusterScaleClientSetFunc(cluster, c.Client)
 		if err != nil {
-			klog.Errorf("Failed to get cluster client of cluster %s.", cluster)
+			klog.ErrorS(err, "Failed to get cluster client of cluster", "cluster", cluster)
 			continue
 		}
 
 		clusterInformerManager, err := c.buildPodInformerForCluster(clusterClient)
 		if err != nil {
-			klog.Errorf("Failed to get or create informer for cluster %s. Error: %v.", cluster, err)
+			klog.ErrorS(err, "Failed to get or create informer for cluster", "cluster", cluster)
 			continue
 		}
 
 		scale, err := clusterClient.ScaleClient.Scales(hpa.Namespace).Get(ctx, targetGR, hpa.Spec.ScaleTargetRef.Name, metav1.GetOptions{})
 		if err != nil {
-			klog.Errorf("Failed to get scale subResource of resource %s in cluster %s.", hpa.Spec.ScaleTargetRef.Name, cluster)
+			klog.ErrorS(err, "Failed to get scale subResource of resource in cluster", "resource", hpa.Spec.ScaleTargetRef.Name, "cluster", cluster)
 			continue
 		}
 
@@ -523,19 +523,19 @@ func (c *FHPAController) scaleForTargetCluster(ctx context.Context, clusters []s
 
 		podInterface, err := clusterInformerManager.Lister(podGVR)
 		if err != nil {
-			klog.Errorf("Failed to get podInterface for cluster %s.", cluster)
+			klog.ErrorS(err, "Failed to get podInterface for cluster", "cluster", cluster)
 			continue
 		}
 
 		podLister, ok := podInterface.(listcorev1.PodLister)
 		if !ok {
-			klog.Errorf("Failed to convert interface to PodLister for cluster %s.", cluster)
+			klog.ErrorS(nil, "Failed to convert interface to PodLister for cluster", "cluster", cluster)
 			continue
 		}
 
 		podList, err := podLister.Pods(hpa.Namespace).List(selector)
 		if err != nil {
-			klog.Errorf("Failed to get podList for cluster %s.", cluster)
+			klog.ErrorS(err, "Failed to get podList for cluster", "cluster", cluster)
 			continue
 		}
 
@@ -561,7 +561,7 @@ func (c *FHPAController) buildPodInformerForCluster(clusterScaleClient *util.Clu
 	}
 
 	if _, err := singleClusterInformerManager.Lister(podGVR); err != nil {
-		klog.Errorf("Failed to get the lister for pods: %v", err)
+		klog.ErrorS(err, "Failed to get the lister for pods")
 	}
 
 	c.TypedInformerManager.Start(clusterScaleClient.ClusterName)
@@ -576,7 +576,7 @@ func (c *FHPAController) buildPodInformerForCluster(clusterScaleClient *util.Clu
 		}
 		return nil
 	}(); err != nil {
-		klog.Errorf("Failed to sync cache for cluster: %s, error: %v", clusterScaleClient.ClusterName, err)
+		klog.ErrorS(err, "Failed to sync cache for cluster", "cluster", clusterScaleClient.ClusterName)
 		c.TypedInformerManager.Stop(clusterScaleClient.ClusterName)
 		return nil, err
 	}
@@ -1377,7 +1377,7 @@ func (c *FHPAController) updateStatus(ctx context.Context, hpa *autoscalingv1alp
 		c.EventRecorder.Event(hpa, corev1.EventTypeWarning, "FailedUpdateStatus", err.Error())
 		return fmt.Errorf("failed to update status for %s: %v", hpa.Name, err)
 	}
-	klog.V(2).Infof("Successfully updated status for %s", hpa.Name)
+	klog.V(2).InfoS("Successfully updated status for hpa", "hpaName", hpa.Name)
 	return nil
 }
 
