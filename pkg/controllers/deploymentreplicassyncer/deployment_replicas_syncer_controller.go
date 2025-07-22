@@ -73,7 +73,7 @@ var predicateFunc = predicate.Funcs{
 
 		if oldObj.Spec.Replicas == nil || newObj.Spec.Replicas == nil {
 			klog.ErrorS(fmt.Errorf("spec.replicas is nil in either old or new deployment object"),
-				"spec.replicas field unexpectedly become nil",
+				"Unexpected nil spec.replicas",
 				"oldReplicas", oldObj.Spec.Replicas, "newReplicas", newObj.Spec.Replicas,
 				"namespace", oldObj.Namespace, "name", oldObj.Name)
 			return false
@@ -197,7 +197,7 @@ func isDeploymentStatusCollected(deployment *appsv1.Deployment, binding *workv1a
 		}
 		itemStatus := &appsv1.DeploymentStatus{}
 		if err := json.Unmarshal(status.Status.Raw, itemStatus); err != nil {
-			klog.ErrorS(err, "unmarshal status.raw of cluster in binding failed", "cluster", status.ClusterName)
+			klog.ErrorS(err, "Failed to unmarshal aggregated status", "cluster", status.ClusterName)
 			return false
 		}
 		// if member cluster deployment is controlled by hpa, its status.replicas must > 0 (since hpa.minReplicas > 0),
