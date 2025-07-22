@@ -80,7 +80,7 @@ func validateETCD(etcd *operatorv1alpha1.Etcd, karmadaName string, fldPath *fiel
 		replicas := *etcd.Local.CommonSettings.Replicas
 
 		if (replicas % 2) == 0 {
-			klog.InfoS("Invalid etcd replicas, expected an odd number", "replicas", replicas)
+			klog.InfoS("Using an even number of etcd replicas is not recommended", "replicas", replicas)
 		}
 	}
 
