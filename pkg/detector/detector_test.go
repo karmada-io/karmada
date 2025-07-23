@@ -926,7 +926,7 @@ func TestApplyClusterPolicy(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			scheme := setupTestScheme()
-			fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+			fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(tt.object).Build()
 			fakeRecorder := record.NewFakeRecorder(10)
 			fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme)
 
