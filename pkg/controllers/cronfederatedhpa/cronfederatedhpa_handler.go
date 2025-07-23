@@ -142,8 +142,7 @@ func (c *CronHandler) CreateCronJobForExecutor(cronFHPA *autoscalingv1alpha1.Cro
 		timeZone, err = time.LoadLocation(*rule.TimeZone)
 		if err != nil {
 			// This should not happen because there is validation in webhook
-			klog.Errorf("Invalid CronFederatedHPA(%s/%s) rule(%s) time zone(%s):%v",
-				cronFHPA.Namespace, cronFHPA.Namespace, rule.Name, *rule.TimeZone, err)
+			klog.ErrorS(err, "Invalid CronFederatedHPA rule time zone", "namespace", cronFHPA.Namespace, "name", cronFHPA.Name, "rule", rule.Name, "timeZone", *rule.TimeZone)
 			return err
 		}
 	}
@@ -151,8 +150,7 @@ func (c *CronHandler) CreateCronJobForExecutor(cronFHPA *autoscalingv1alpha1.Cro
 	scheduler := gocron.NewScheduler(timeZone)
 	cronJob := NewCronFederatedHPAJob(c.client, c.eventRecorder, scheduler, cronFHPA, rule)
 	if _, err := scheduler.Cron(rule.Schedule).Do(RunCronFederatedHPARule, cronJob); err != nil {
-		klog.Errorf("Create cron job for CronFederatedHPA(%s/%s) rule(%s) error:%v",
-			cronFHPA.Namespace, cronFHPA.Name, rule.Name, err)
+		klog.ErrorS(err, "Create cron job for CronFederatedHPA rule error", "namespace", cronFHPA.Namespace, "name", cronFHPA.Name, "rule", rule.Name)
 		return err
 	}
 	scheduler.StartAsync()
