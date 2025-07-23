@@ -21,7 +21,9 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"fmt"
 	"math/big"
+	"net"
 	"time"
 )
 
@@ -68,4 +70,38 @@ func GenerateTestCACertificate() (string, string, error) {
 	privKeyPEMData := pem.EncodeToMemory(privKeyPEM)
 
 	return string(certPEMData), string(privKeyPEMData), nil
+}
+
+// GetFreePorts attempts to find n available TCP ports on the specified host. It
+// returns a slice of allocated port numbers or an error if it fails to acquire
+// them.
+func GetFreePorts(host string, n int) ([]int, error) {
+	ports := make([]int, 0, n)
+	listeners := make([]net.Listener, 0, n)
+
+	// Make sure we close all listeners if there's an error.
+	defer func() {
+		for _, l := range listeners {
+			l.Close()
+		}
+	}()
+
+	for i := 0; i < n; i++ {
+		listener, err := net.Listen("tcp", fmt.Sprintf("%s:0", host))
+		if err != nil {
+			return nil, err
+		}
+		listeners = append(listeners, listener)
+		tcpAddr, ok := listener.Addr().(*net.TCPAddr)
+		if !ok {
+			return nil, fmt.Errorf("listener address is not a *net.TCPAddr")
+		}
+		ports = append(ports, tcpAddr.Port)
+	}
+
+	// At this point we have all ports, so we can close the listeners.
+	for _, l := range listeners {
+		l.Close()
+	}
+	return ports, nil
 }
