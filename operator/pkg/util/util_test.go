@@ -18,22 +18,19 @@ package util
 
 import (
 	"archive/tar"
-	"bytes"
 	"compress/gzip"
 	"errors"
 	"fmt"
+	"github.com/stretchr/testify/assert"
 	"io"
+	"k8s.io/utils/ptr"
 	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
+	"sigs.k8s.io/yaml"
 	"strings"
 	"testing"
-	"time"
-
-	"github.com/stretchr/testify/assert"
-	"k8s.io/utils/ptr"
-	"sigs.k8s.io/yaml"
 )
 
 // mockReader is a simple io.Reader that returns an error after being called.
@@ -149,12 +146,6 @@ func TestDownloadFile(t *testing.T) {
 			name: "DownloadFile_UrlIsNotFound_FailedToGetResponse",
 			url:  "not-found-url",
 			prep: func(url, _ string) error {
-				httpClient = http.Client{
-					Transport: &mockRoundTripper{
-						err: fmt.Errorf("failed to get url %s, url is not found", url),
-					},
-					Timeout: time.Second,
-				}
 				return nil
 			},
 			verify:  func(string) error { return nil },
@@ -165,14 +156,6 @@ func TestDownloadFile(t *testing.T) {
 			name: "DownloadFile_ServiceIsUnavailable_FailedToReachTheService",
 			url:  "https://www.example.com/test-file",
 			prep: func(_, _ string) error {
-				httpClient = http.Client{
-					Transport: &mockRoundTripper{
-						response: &http.Response{
-							StatusCode: http.StatusServiceUnavailable,
-						},
-					},
-					Timeout: time.Second,
-				}
 				return nil
 			},
 			verify:  func(string) error { return nil },
@@ -190,19 +173,6 @@ func TestDownloadFile(t *testing.T) {
 					return fmt.Errorf("failed to create temp download file: %w", err)
 				}
 				defer tempFile.Close()
-
-				// Create HTTP client.
-				httpClient = http.Client{
-					Transport: &mockRoundTripper{
-						response: &http.Response{
-							StatusCode:    http.StatusOK,
-							Body:          io.NopCloser(bytes.NewReader([]byte("Hello, World!"))),
-							ContentLength: int64(len("Hello, World!")),
-						},
-					},
-					Timeout: time.Second,
-				}
-
 				return nil
 			},
 			verify: func(filePath string) error {
@@ -232,7 +202,7 @@ func TestDownloadFile(t *testing.T) {
 			if err := test.prep(test.url, test.filePath); err != nil {
 				t.Fatalf("failed to prep before downloading the file, got: %v", err)
 			}
-			err := DownloadFile(test.url, test.filePath)
+			err := DownloadFile(test.url, test.filePath, nil)
 			if err == nil && test.wantErr {
 				t.Fatal("expected an error, but got none")
 			}

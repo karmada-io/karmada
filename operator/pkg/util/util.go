@@ -33,6 +33,7 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
+	urlpkg "net/url"
 	"sigs.k8s.io/yaml"
 
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
@@ -75,13 +76,29 @@ func (d *Downloader) Read(p []byte) (n int, err error) {
 	return
 }
 
-var httpClient = http.Client{
-	Timeout: 60 * time.Second,
-}
+// DownloadFile downloads files via URL, optionally using a proxy if provided.
+func DownloadFile(url, filePath string, proxyURL *string) error {
+	httpClientTimeout := 60 * time.Second
+	var client *http.Client
+	if proxyURL != nil {
+		parsedProxyURL, err := urlpkg.Parse(*proxyURL)
+		if err != nil {
+			return fmt.Errorf("invalid proxy URL: %w", err)
+		}
 
-// DownloadFile Download files via URL
-func DownloadFile(url, filePath string) error {
-	resp, err := httpClient.Get(url)
+		client = &http.Client{
+			Transport: &http.Transport{
+				Proxy: http.ProxyURL(parsedProxyURL),
+			},
+			Timeout: httpClientTimeout,
+		}
+	} else {
+		client = &http.Client{
+			Timeout: httpClientTimeout,
+		}
+	}
+
+	resp, err := client.Get(url)
 	if err != nil {
 		return err
 	}
@@ -105,7 +122,6 @@ func DownloadFile(url, filePath string) error {
 	if _, err := io.Copy(file, downloader); err != nil {
 		return err
 	}
-
 	return nil
 }
 

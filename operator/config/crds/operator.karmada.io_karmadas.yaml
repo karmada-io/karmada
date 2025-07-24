@@ -5208,6 +5208,11 @@ spec:
                     description: HTTPSource specifies how to download the CRD tarball
                       via either HTTP or HTTPS protocol.
                     properties:
+                      proxy:
+                        description: |-
+                          Proxy specifies the HTTP/HTTPS proxy server to use when downloading the CRD tarball.
+                          The format should be a valid URL, e.g., "http://proxy.example.com:8080".
+                        type: string
                       url:
                         description: URL specifies the URL of the CRD tarball resource.
                         type: string
