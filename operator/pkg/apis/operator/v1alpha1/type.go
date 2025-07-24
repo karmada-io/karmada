@@ -58,7 +58,24 @@ const (
 // HTTPSource specifies how to download the CRD tarball via either HTTP or HTTPS protocol.
 type HTTPSource struct {
 	// URL specifies the URL of the CRD tarball resource.
+	// +required
 	URL string `json:"url,omitempty"`
+
+	// Proxy specifies the configuration of a proxy server to use when downloading the CRD tarball.
+	// When set, the operator will use the configuration to determine how to establish a connection to the proxy to fetch the tarball from the URL specified above.
+	// This is useful in environments where direct access to the server hosting the CRD tarball is restricted and a proxy must be used to reach that server.
+	// If a proxy configuration is not set, the operator will attempt to download the tarball directly from the URL specified above without using a proxy.
+	// +optional
+	Proxy *ProxyConfig `json:"proxy,omitempty"`
+}
+
+// ProxyConfig defines the configuration for a proxy server to use when downloading a CRD tarball.
+type ProxyConfig struct {
+	// ProxyURL specifies the HTTP/HTTPS proxy server URL to use when downloading the CRD tarball.
+	// This is useful in environments where direct access to the server hosting the CRD tarball is restricted and a proxy must be used to reach that server.
+	// The format should be a valid URL, e.g., "http://proxy.example.com:8080".
+	// +required
+	ProxyURL string `json:"proxyURL"`
 }
 
 // CRDTarball specifies the source from which the Karmada CRD tarball should be downloaded, along with the download policy to use.
