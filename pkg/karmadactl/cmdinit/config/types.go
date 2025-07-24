@@ -275,6 +275,12 @@ type CommonSettings struct {
 	// Affinity defines pod affinity rules
 	// +optional
 	Affinity *corev1.Affinity `json:"affinity,omitempty" yaml:"affinity,omitempty"`
+
+	// ExtraArgs are additional command line for the Component pods.
+	// An argument name in this list is the flag name as it appears on the command line except without
+	// leading dash(es). Extra arguments will override existing default arguments. Duplicate extra arguments are allowed.
+	// +optional
+	ExtraArgs []Arg `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
 }
 
 // Image defines image information
@@ -350,4 +356,14 @@ func (i *Image) GetImage() string {
 		return ""
 	}
 	return i.Repository + ":" + i.Tag
+}
+
+// Arg represents an argument with a name and a value.
+type Arg struct {
+	// Name is the flag name as it appears on the command line except without leading dash(es).
+	// +required
+	Name string `json:"name,omitempty" yaml:"name,omitempty"`
+	// Value is the value associated with the argument.
+	// +optional
+	Value string `json:"value,omitempty" yaml:"value,omitempty"`
 }
