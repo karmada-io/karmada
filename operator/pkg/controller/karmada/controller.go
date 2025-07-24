@@ -97,7 +97,7 @@ func (ctrl *Controller) Reconcile(ctx context.Context, req controllerruntime.Req
 	}
 
 	if err := ctrl.validateKarmada(ctx, karmada); err != nil {
-		klog.Errorf("Validation failed for karmada: %+v", err)
+		klog.ErrorS(err, "Validation failed for karmada", "name", karmada.Name)
 		return controllerruntime.Result{}, nil
 	}
 
