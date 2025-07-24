@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 
 	globaloptions "github.com/karmada-io/karmada/pkg/karmadactl/options"
@@ -184,6 +185,7 @@ func (i *CommandInitOption) makeKarmadaAPIServerDeployment() *appsv1.Deployment 
 	}
 
 	// PodTemplateSpec
+	// pod的元数据和规格
 	podTemplateSpec := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      karmadaAPIServerDeploymentAndServiceName,
@@ -202,6 +204,32 @@ func (i *CommandInitOption) makeKarmadaAPIServerDeployment() *appsv1.Deployment 
 		},
 	}
 	return apiServer
+}
+
+// defaultArgs
+func (i *CommandInitOption) karmadaKubeControllerManagerContainerCommand() []string {
+	return []string{
+		"kube-controller-manager",
+		"--allocate-node-cidrs=true",
+		fmt.Sprintf("--kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
+		fmt.Sprintf("--authentication-kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
+		fmt.Sprintf("--authorization-kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
+		"--bind-address=0.0.0.0",
+		fmt.Sprintf("--client-ca-file=%s/%s.crt", karmadaCertsVolumeMountPath, globaloptions.CaCertAndKeyName),
+		"--cluster-cidr=10.244.0.0/16",
+		fmt.Sprintf("--cluster-name=%s", options.ClusterName),
+		fmt.Sprintf("--cluster-signing-cert-file=%s/%s.crt", karmadaCertsVolumeMountPath, globaloptions.CaCertAndKeyName),
+		fmt.Sprintf("--cluster-signing-key-file=%s/%s.key", karmadaCertsVolumeMountPath, globaloptions.CaCertAndKeyName),
+		"--controllers=namespace,garbagecollector,serviceaccount-token,ttl-after-finished,bootstrapsigner,tokencleaner,csrcleaner,csrsigning,clusterrole-aggregation",
+		"--leader-elect=true",
+		fmt.Sprintf("--leader-elect-resource-namespace=%s", i.Namespace),
+		"--node-cidr-mask-size=24",
+		fmt.Sprintf("--root-ca-file=%s/%s.crt", karmadaCertsVolumeMountPath, globaloptions.CaCertAndKeyName),
+		fmt.Sprintf("--service-account-private-key-file=%s/%s.key", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
+		fmt.Sprintf("--service-cluster-ip-range=%s", serviceClusterIP),
+		"--use-service-account-credentials=true",
+		"--v=4",
+	}
 }
 
 func (i *CommandInitOption) makeKarmadaKubeControllerManagerDeployment() *appsv1.Deployment {
@@ -327,6 +355,22 @@ func (i *CommandInitOption) makeKarmadaKubeControllerManagerDeployment() *appsv1
 	}
 
 	return kubeControllerManager
+}
+
+func (i *CommandInitOption) karmadaSchedulerContainerCommand() []string {
+	return []string{
+		"/bin/karmada-scheduler",
+		fmt.Sprintf("--kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
+		"--metrics-bind-address=$(POD_IP):8080",
+		"--health-probe-bind-address=$(POD_IP):10351",
+		"--enable-scheduler-estimator=true",
+		"--leader-elect=true",
+		"--scheduler-estimator-ca-file=/etc/karmada/pki/ca.crt",
+		"--scheduler-estimator-cert-file=/etc/karmada/pki/karmada.crt",
+		"--scheduler-estimator-key-file=/etc/karmada/pki/karmada.key",
+		fmt.Sprintf("--leader-elect-resource-namespace=%s", i.Namespace),
+		"--v=4",
+	}
 }
 
 func (i *CommandInitOption) makeKarmadaSchedulerDeployment() *appsv1.Deployment {
@@ -467,6 +511,18 @@ func (i *CommandInitOption) makeKarmadaSchedulerDeployment() *appsv1.Deployment 
 	return scheduler
 }
 
+func (i *CommandInitOption) karmadaControllerMangerContainerCommand() []string {
+	return []string{
+		"/bin/karmada-controller-manager",
+		fmt.Sprintf("--kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
+		"--metrics-bind-address=$(POD_IP):8080",
+		"--health-probe-bind-address=$(POD_IP):10357",
+		"--cluster-status-update-frequency=10s",
+		fmt.Sprintf("--leader-elect-resource-namespace=%s", i.Namespace),
+		"--v=4",
+	}
+}
+
 func (i *CommandInitOption) makeKarmadaControllerManagerDeployment() *appsv1.Deployment {
 	karmadaControllerManager := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
@@ -593,6 +649,19 @@ func (i *CommandInitOption) makeKarmadaControllerManagerDeployment() *appsv1.Dep
 	}
 
 	return karmadaControllerManager
+}
+
+func (i *CommandInitOption) karmadaWebhookContainerCommand() []string {
+	return []string{
+		"/bin/karmada-webhook",
+		fmt.Sprintf("--kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
+		"--bind-address=$(POD_IP)",
+		"--metrics-bind-address=$(POD_IP):8080",
+		"--health-probe-bind-address=$(POD_IP):8000",
+		fmt.Sprintf("--secure-port=%v", webhookTargetPort),
+		fmt.Sprintf("--cert-dir=%s", webhookCertVolumeMountPath),
+		"--v=4",
+	}
 }
 
 func (i *CommandInitOption) makeKarmadaWebhookDeployment() *appsv1.Deployment {
@@ -731,6 +800,35 @@ func (i *CommandInitOption) makeKarmadaWebhookDeployment() *appsv1.Deployment {
 	}
 
 	return webhook
+}
+
+func (i *CommandInitOption) karmadaAggregatedAPIServerContainerCommand() []string {
+	var etcdServers string
+	if etcdServers = i.ExternalEtcdServers; etcdServers == "" {
+		etcdServers = strings.TrimRight(i.etcdServers(), ",")
+	}
+	command := []string{
+		"/bin/karmada-aggregated-apiserver",
+		fmt.Sprintf("--kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
+		fmt.Sprintf("--authentication-kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
+		fmt.Sprintf("--authorization-kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
+		fmt.Sprintf("--etcd-servers=%s", etcdServers),
+		fmt.Sprintf("--etcd-cafile=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdCaCertAndKeyName),
+		fmt.Sprintf("--etcd-certfile=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName),
+		fmt.Sprintf("--etcd-keyfile=%s/%s.key", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName),
+		fmt.Sprintf("--tls-cert-file=%s/%s.crt", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
+		fmt.Sprintf("--tls-private-key-file=%s/%s.key", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
+		"--tls-min-version=VersionTLS13",
+		"--audit-log-path=-",
+		"--audit-log-maxage=0",
+		"--audit-log-maxbackup=0",
+		"--bind-address=$(POD_IP)",
+	}
+	if i.ExternalEtcdKeyPrefix != "" {
+		command = append(command, fmt.Sprintf("--etcd-prefix=%s", i.ExternalEtcdKeyPrefix))
+	}
+
+	return command
 }
 
 func (i *CommandInitOption) makeKarmadaAggregatedAPIServerDeployment() *appsv1.Deployment {

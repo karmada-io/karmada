@@ -29,6 +29,8 @@ import (
 
 // LoadInitConfiguration loads the InitConfiguration from the specified file path.
 // It delegates the actual loading to the loadInitConfigurationFromFile function.
+// LoadInitConfiguration 从指定的文件路径加载 InitConfiguration。
+// 它将实际加载委托给 loadInitConfigurationFromFile 函数。
 func LoadInitConfiguration(cfgPath string) (*KarmadaInitConfig, error) {
 	var config *KarmadaInitConfig
 	var err error
@@ -57,6 +59,8 @@ func loadInitConfigurationFromFile(cfgPath string) (*KarmadaInitConfig, error) {
 
 // ParseGVKYamlMap parses a single YAML document into a map of GroupVersionKind to byte slices.
 // This function is a simplified version that handles only a single YAML document.
+// ParseGVKYamlMap 函数将单个 YAML 文档解析为 GroupVersionKind 到字节切片的映射。
+// 这个函数是一个简化版本，只处理单个 YAML 文档。
 func ParseGVKYamlMap(yamlBytes []byte) (map[schema.GroupVersionKind][]byte, error) {
 	gvkmap := make(map[schema.GroupVersionKind][]byte)
 
@@ -74,6 +78,8 @@ func ParseGVKYamlMap(yamlBytes []byte) (map[schema.GroupVersionKind][]byte, erro
 
 // documentMapToInitConfiguration processes a map of GroupVersionKind to byte slices to extract the InitConfiguration.
 // It iterates over the map, checking for the "InitConfiguration" kind, group, and version, and unmarshals its content into an InitConfiguration object.
+// documentMapToInitConfiguration 处理 GroupVersionKind 到字节切片的映射，以提取 InitConfiguration。
+// 它迭代映射，检查 "InitConfiguration" 的 kind、group 和 version，并将其内容解码为 InitConfiguration 对象。
 func documentMapToInitConfiguration(gvkmap map[schema.GroupVersionKind][]byte) (*KarmadaInitConfig, error) {
 	var initcfg *KarmadaInitConfig
 

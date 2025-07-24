@@ -137,6 +137,7 @@ func init() {
 }
 
 // CommandInitOption holds all flags options for init.
+// CommandInitOption 持有所有初始化的标志选项。
 type CommandInitOption struct {
 	ImageRegistry          string
 	ImagePullPolicy        string
@@ -229,6 +230,15 @@ type CommandInitOption struct {
 	CaCertFile                string
 	CaKeyFile                 string
 	KarmadaInitFilePath       string
+
+	// extraArgs
+	EtcdExtraArgs                       []string
+	KarmadaAPIServerExtraArgs           []string
+	KarmadaSchedulerExtraArgs           []string
+	KubeControllerManagerExtraArgs      []string
+	KarmadaControllerManagerExtraArgs   []string
+	KarmadaWebhookExtraArgs             []string
+	KarmadaAggregatedAPIServerExtraArgs []string
 }
 
 func (i *CommandInitOption) validateLocalEtcd(parentCommand string) error {
@@ -303,6 +313,7 @@ func (i *CommandInitOption) validateCommandLineArgs() error {
 }
 
 // Validate Check that there are enough flags to run the command.
+// 检查是否有足够的标志来运行命令。
 func (i *CommandInitOption) Validate(parentCommand string) error {
 	// validate command line args
 	err := i.validateCommandLineArgs()
@@ -343,6 +354,7 @@ func (i *CommandInitOption) Validate(parentCommand string) error {
 }
 
 // Complete Initialize k8s client
+// 初始化k8s客户端
 func (i *CommandInitOption) Complete() error {
 	restConfig, err := apiclient.RestConfig(i.Context, i.KubeConfig)
 	if err != nil {
