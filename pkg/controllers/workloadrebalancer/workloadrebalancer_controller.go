@@ -296,6 +296,6 @@ func timeLeft(r *appsv1alpha1.WorkloadRebalancer) time.Duration {
 	expireAt := r.Status.FinishTime.Add(time.Duration(*r.Spec.TTLSecondsAfterFinished) * time.Second)
 	remainingTTL := time.Until(expireAt)
 
-	klog.V(4).InfoS(fmt.Sprintf("Found Rebalancer(%s) finished at: %+v, remainingTTL: %+v", r.Name, r.Status.FinishTime.UTC(), remainingTTL))
+	klog.V(4).InfoS("Check remaining TTL", "workloadRebalancer", r.Name, "FinishTime", r.Status.FinishTime.UTC(), "remainingTTL", remainingTTL)
 	return remainingTTL
 }
