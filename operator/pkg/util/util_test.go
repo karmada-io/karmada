@@ -206,7 +206,7 @@ func TestDownloadFile(t *testing.T) {
 			if err := test.prep(test.url, test.filePath); err != nil {
 				t.Fatalf("failed to prep before downloading the file, got: %v", err)
 			}
-			err := DownloadFile(test.url, test.filePath, nil)
+			err := DownloadFile(test.url, test.filePath, test.proxy)
 			if err == nil && test.wantErr {
 				t.Fatal("expected an error, but got none")
 			}
