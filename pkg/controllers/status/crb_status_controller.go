@@ -58,7 +58,7 @@ type CRBStatusController struct {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *CRBStatusController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling ClusterResourceBinding %s.", req.NamespacedName.String())
+	klog.V(4).InfoS("Reconciling ClusterResourceBinding", "name", req.NamespacedName.Name)
 
 	binding := &workv1alpha2.ClusterResourceBinding{}
 	if err := c.Client.Get(ctx, req.NamespacedName, binding); err != nil {
@@ -112,7 +112,7 @@ func (c *CRBStatusController) SetupWithManager(mgr controllerruntime.Manager) er
 func (c *CRBStatusController) syncBindingStatus(ctx context.Context, binding *workv1alpha2.ClusterResourceBinding) error {
 	err := helper.AggregateClusterResourceBindingWorkStatus(ctx, c.Client, binding, c.EventRecorder)
 	if err != nil {
-		klog.ErrorS(err, "Failed to aggregate workStatues to clusterResourceBinding", "clusterResourceBinding", klog.KObj(binding))
+		klog.ErrorS(err, "Failed to aggregate workStatues to clusterResourceBinding", "name", binding.Name)
 		return err
 	}
 
