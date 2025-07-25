@@ -78,23 +78,16 @@ func (d *Downloader) Read(p []byte) (n int, err error) {
 
 // DownloadFile downloads files via URL, optionally using a proxy if provided.
 func DownloadFile(url, filePath string, proxyURL *string) error {
-	httpClientTimeout := 60 * time.Second
-	var client *http.Client
+	client := &http.Client{
+		Timeout: 60 * time.Second,
+	}
 	if proxyURL != nil {
 		parsedProxyURL, err := urlpkg.Parse(*proxyURL)
 		if err != nil {
 			return fmt.Errorf("invalid proxy URL: %w", err)
 		}
-
-		client = &http.Client{
-			Transport: &http.Transport{
-				Proxy: http.ProxyURL(parsedProxyURL),
-			},
-			Timeout: httpClientTimeout,
-		}
-	} else {
-		client = &http.Client{
-			Timeout: httpClientTimeout,
+		client.Transport = &http.Transport{
+			Proxy: http.ProxyURL(parsedProxyURL),
 		}
 	}
 

@@ -43,7 +43,7 @@ func validateCRDTarball(crdTarball *operatorv1alpha1.CRDTarball, fldPath *field.
 
 	if crdTarball.HTTPSource.Proxy != nil {
 		if _, err := url.Parse(*crdTarball.HTTPSource.Proxy); err != nil {
-			errs = append(errs, field.Invalid(fldPath.Child("httpSource").Child("proxy"), crdTarball.HTTPSource.URL, "invalid CRDs proxy URL"))
+			errs = append(errs, field.Invalid(fldPath.Child("httpSource").Child("proxy"), *crdTarball.HTTPSource.Proxy, "invalid CRDs proxy URL"))
 		}
 	}
 

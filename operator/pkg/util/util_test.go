@@ -136,6 +136,7 @@ func TestDownloadFile(t *testing.T) {
 	tests := []struct {
 		name     string
 		url      string
+		proxy    *string
 		filePath string
 		prep     func(url, filePath string) error
 		verify   func(filePath string) error
@@ -143,8 +144,9 @@ func TestDownloadFile(t *testing.T) {
 		errMsg   string
 	}{
 		{
-			name: "DownloadFile_UrlIsNotFound_FailedToGetResponse",
-			url:  "not-found-url",
+			name:  "DownloadFile_UrlIsNotFound_FailedToGetResponse",
+			url:   "not-found-url",
+			proxy: nil,
 			prep: func(url, _ string) error {
 				return nil
 			},
@@ -153,8 +155,9 @@ func TestDownloadFile(t *testing.T) {
 			errMsg:  "failed to get url not-found-url, url is not found",
 		},
 		{
-			name: "DownloadFile_ServiceIsUnavailable_FailedToReachTheService",
-			url:  "https://www.example.com/test-file",
+			name:  "DownloadFile_ServiceIsUnavailable_FailedToReachTheService",
+			url:   "https://www.example.com/test-file",
+			proxy: ptr.To("http://www.proxy.com"),
 			prep: func(_, _ string) error {
 				return nil
 			},
@@ -165,6 +168,7 @@ func TestDownloadFile(t *testing.T) {
 		{
 			name:     "DownloadFile_FileDownloaded_",
 			url:      "https://www.example.com/test-file",
+			proxy:    nil,
 			filePath: filepath.Join(os.TempDir(), "temp-download-file.txt"),
 			prep: func(_, filePath string) error {
 				// Create temp download filepath.
