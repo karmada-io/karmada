@@ -21,16 +21,16 @@ import (
 	"compress/gzip"
 	"errors"
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"io"
-	"k8s.io/utils/ptr"
-	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
-	"sigs.k8s.io/yaml"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"k8s.io/utils/ptr"
+	"sigs.k8s.io/yaml"
 )
 
 // mockReader is a simple io.Reader that returns an error after being called.
@@ -46,18 +46,6 @@ func (m *mockReader) Read(p []byte) (n int, err error) {
 	n = copy(p, m.data)
 	m.data = m.data[n:]
 	return n, m.err
-}
-
-type mockRoundTripper struct {
-	response *http.Response
-	err      error
-}
-
-func (m *mockRoundTripper) RoundTrip(*http.Request) (*http.Response, error) {
-	if m.err != nil {
-		return nil, m.err
-	}
-	return m.response, nil
 }
 
 func TestRead(t *testing.T) {
@@ -147,7 +135,7 @@ func TestDownloadFile(t *testing.T) {
 			name:  "DownloadFile_UrlIsNotFound_FailedToGetResponse",
 			url:   "not-found-url",
 			proxy: nil,
-			prep: func(url, _ string) error {
+			prep: func(_, _ string) error {
 				return nil
 			},
 			verify:  func(string) error { return nil },
