@@ -112,8 +112,7 @@ func (c *CRBStatusController) SetupWithManager(mgr controllerruntime.Manager) er
 func (c *CRBStatusController) syncBindingStatus(ctx context.Context, binding *workv1alpha2.ClusterResourceBinding) error {
 	err := helper.AggregateClusterResourceBindingWorkStatus(ctx, c.Client, binding, c.EventRecorder)
 	if err != nil {
-		klog.Errorf("Failed to aggregate workStatues to clusterResourceBinding(%s), Error: %v",
-			binding.Name, err)
+		klog.ErrorS(err, "Failed to aggregate workStatues to clusterResourceBinding", "clusterResourceBinding", klog.KObj(binding))
 		return err
 	}
 
