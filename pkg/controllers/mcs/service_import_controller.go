@@ -49,7 +49,7 @@ type ServiceImportController struct {
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
 func (c *ServiceImportController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling ServiceImport %s.", req.NamespacedName.String())
+	klog.V(4).InfoS("Reconciling ServiceImport", "name", req.NamespacedName.String())
 
 	svcImport := &mcsv1alpha1.ServiceImport{}
 	if err := c.Client.Get(ctx, req.NamespacedName, svcImport); err != nil {
@@ -98,7 +98,7 @@ func (c *ServiceImportController) deleteDerivedService(ctx context.Context, svcI
 
 	err = c.Client.Delete(ctx, derivedSvc)
 	if err != nil && !apierrors.IsNotFound(err) {
-		klog.Errorf("Delete derived service(%s) failed, Error: %v", derivedSvcNamespacedName, err)
+		klog.ErrorS(err, "Delete derived service failed", "name", derivedSvcNamespacedName)
 		return controllerruntime.Result{}, err
 	}
 
@@ -125,7 +125,7 @@ func (c *ServiceImportController) deriveServiceFromServiceImport(ctx context.Con
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			if err = c.Client.Create(ctx, newDerivedService); err != nil {
-				klog.Errorf("Create derived service(%s/%s) failed, Error: %v", newDerivedService.Namespace, newDerivedService.Name, err)
+				klog.ErrorS(err, "Create derived service failed", "namespace", newDerivedService.Namespace, "name", newDerivedService.Name)
 				return err
 			}
 
@@ -140,7 +140,7 @@ func (c *ServiceImportController) deriveServiceFromServiceImport(ctx context.Con
 
 	err = c.Client.Update(ctx, newDerivedService)
 	if err != nil {
-		klog.Errorf("Update derived service(%s/%s) failed, Error: %v", newDerivedService.Namespace, newDerivedService.Name, err)
+		klog.ErrorS(err, "Update derived service failed", "namespace", newDerivedService.Namespace, "name", newDerivedService.Name)
 		return err
 	}
 
@@ -169,7 +169,7 @@ func (c *ServiceImportController) updateServiceStatus(ctx context.Context, svcIm
 	})
 
 	if err != nil {
-		klog.Errorf("Update derived service(%s/%s) status failed, Error: %v", derivedService.Namespace, derivedService.Name, err)
+		klog.ErrorS(err, "Update derived service status failed", "namespace", derivedService.Namespace, "name", derivedService.Name)
 		return err
 	}
 	return nil
