@@ -76,13 +76,13 @@ func (c *RebalancerController) SetupWithManager(mgr controllerruntime.Manager) e
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *RebalancerController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling for WorkloadRebalancer %s", req.Name)
+	klog.V(4).InfoS("Reconciling for WorkloadRebalancer %s", req.Name)
 
 	// 1. get latest WorkloadRebalancer
 	rebalancer := &appsv1alpha1.WorkloadRebalancer{}
 	if err := c.Client.Get(ctx, req.NamespacedName, rebalancer); err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Infof("no need to reconcile WorkloadRebalancer for it not found")
+			klog.InfoS("no need to reconcile WorkloadRebalancer for it not found")
 			return controllerruntime.Result{}, nil
 		}
 		return controllerruntime.Result{}, err
@@ -203,7 +203,7 @@ func (c *RebalancerController) triggerReschedule(ctx context.Context, metadata m
 		if resource.Workload.Namespace != "" {
 			binding := &workv1alpha2.ResourceBinding{}
 			if err := c.Client.Get(ctx, client.ObjectKey{Namespace: resource.Workload.Namespace, Name: bindingName}, binding); err != nil {
-				klog.Errorf("get binding for resource %+v failed: %+v", resource.Workload, err)
+				klog.ErrorS(err, "get binding for resource failed", "resource", resource.Workload)
 				c.recordAndCountRebalancerFailed(&newStatus.ObservedWorkloads[i], &retryNum, err)
 				continue
 			}
@@ -212,7 +212,7 @@ func (c *RebalancerController) triggerReschedule(ctx context.Context, metadata m
 				binding.Spec.RescheduleTriggeredAt = &metadata.CreationTimestamp
 
 				if err := c.Client.Update(ctx, binding); err != nil {
-					klog.Errorf("update binding for resource %+v failed: %+v", resource.Workload, err)
+					klog.ErrorS(err, "update binding for resource failed", "resource", resource.Workload)
 					c.recordAndCountRebalancerFailed(&newStatus.ObservedWorkloads[i], &retryNum, err)
 					continue
 				}
@@ -221,7 +221,7 @@ func (c *RebalancerController) triggerReschedule(ctx context.Context, metadata m
 		} else {
 			clusterbinding := &workv1alpha2.ClusterResourceBinding{}
 			if err := c.Client.Get(ctx, client.ObjectKey{Name: bindingName}, clusterbinding); err != nil {
-				klog.Errorf("get cluster binding for resource %+v failed: %+v", resource.Workload, err)
+				klog.ErrorS(err, "get cluster binding for resource failed", "resource", resource.Workload)
 				c.recordAndCountRebalancerFailed(&newStatus.ObservedWorkloads[i], &retryNum, err)
 				continue
 			}
@@ -230,7 +230,7 @@ func (c *RebalancerController) triggerReschedule(ctx context.Context, metadata m
 				clusterbinding.Spec.RescheduleTriggeredAt = &metadata.CreationTimestamp
 
 				if err := c.Client.Update(ctx, clusterbinding); err != nil {
-					klog.Errorf("update cluster binding for resource %+v failed: %+v", resource.Workload, err)
+					klog.ErrorS(err, "update cluster binding for resource failed", "resource", resource.Workload)
 					c.recordAndCountRebalancerFailed(&newStatus.ObservedWorkloads[i], &retryNum, err)
 					continue
 				}
@@ -239,8 +239,8 @@ func (c *RebalancerController) triggerReschedule(ctx context.Context, metadata m
 		}
 	}
 
-	klog.V(4).Infof("Finish handling WorkloadRebalancer (%s), %d/%d resource success in all, while %d resource need retry",
-		metadata.Name, successNum, len(newStatus.ObservedWorkloads), retryNum)
+	klog.V(4).InfoS(fmt.Sprintf("Finish handling WorkloadRebalancer, %d/%d resource success in all, while %d resource need retry",
+		successNum, len(newStatus.ObservedWorkloads), retryNum), "workloadRebalancer", metadata.Name, "successNum", successNum, "totalNum", len(newStatus.ObservedWorkloads), "retryNum", retryNum)
 	return newStatus, retryNum
 }
 
@@ -269,26 +269,26 @@ func (c *RebalancerController) updateWorkloadRebalancerStatus(ctx context.Contex
 	modifiedRebalancer.Status = *newStatus
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-		klog.V(4).Infof("Start to patch WorkloadRebalancer(%s) status", rebalancer.Name)
+		klog.V(4).InfoS("Start to patch WorkloadRebalancer status", "workloadRebalancer", rebalancer.Name)
 		if err = c.Client.Status().Patch(ctx, modifiedRebalancer, client.MergeFrom(rebalancer)); err != nil {
-			klog.Errorf("Failed to patch WorkloadRebalancer (%s) status, err: %+v", rebalancer.Name, err)
+			klog.ErrorS(err, "Failed to patch WorkloadRebalancer status", "workloadRebalancer", rebalancer.Name)
 			return err
 		}
-		klog.V(4).Infof("Patch WorkloadRebalancer(%s) successful", rebalancer.Name)
+		klog.V(4).InfoS("Patch WorkloadRebalancer successful", "workloadRebalancer", rebalancer.Name)
 		return nil
 	})
 }
 
 func (c *RebalancerController) deleteWorkloadRebalancer(ctx context.Context, rebalancer *appsv1alpha1.WorkloadRebalancer) error {
-	klog.V(4).Infof("Start to clean up WorkloadRebalancer(%s)", rebalancer.Name)
+	klog.V(4).InfoS("Start to clean up WorkloadRebalancer", "workloadRebalancer", rebalancer.Name)
 
 	options := &client.DeleteOptions{Preconditions: &metav1.Preconditions{ResourceVersion: &rebalancer.ResourceVersion}}
 	if err := c.Client.Delete(ctx, rebalancer, options); err != nil {
-		klog.Errorf("Cleaning up WorkloadRebalancer(%s) failed: %+v.", rebalancer.Name, err)
+		klog.ErrorS(err, "Cleaning up WorkloadRebalancer failed", "workloadRebalancer", rebalancer.Name)
 		return err
 	}
 
-	klog.V(4).Infof("Cleaning up WorkloadRebalancer(%s) successful", rebalancer.Name)
+	klog.V(4).InfoS("Cleaning up WorkloadRebalancer successful", "workloadRebalancer", rebalancer.Name)
 	return nil
 }
 
@@ -296,6 +296,6 @@ func timeLeft(r *appsv1alpha1.WorkloadRebalancer) time.Duration {
 	expireAt := r.Status.FinishTime.Add(time.Duration(*r.Spec.TTLSecondsAfterFinished) * time.Second)
 	remainingTTL := time.Until(expireAt)
 
-	klog.V(4).Infof("Found Rebalancer(%s) finished at: %+v, remainingTTL: %+v", r.Name, r.Status.FinishTime.UTC(), remainingTTL)
+	klog.V(4).InfoS("Check remaining TTL", "workloadRebalancer", r.Name, "FinishTime", r.Status.FinishTime.UTC(), "remainingTTL", remainingTTL)
 	return remainingTTL
 }
