@@ -58,7 +58,7 @@ type RBStatusController struct {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *RBStatusController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling ResourceBinding %s.", req.NamespacedName.String())
+	klog.V(4).InfoS("Reconciling ResourceBinding", "namespace", req.Namespace, "name", req.Name)
 
 	binding := &workv1alpha2.ResourceBinding{}
 	if err := c.Client.Get(ctx, req.NamespacedName, binding); err != nil {
@@ -114,8 +114,7 @@ func (c *RBStatusController) SetupWithManager(mgr controllerruntime.Manager) err
 func (c *RBStatusController) syncBindingStatus(ctx context.Context, binding *workv1alpha2.ResourceBinding) error {
 	err := helper.AggregateResourceBindingWorkStatus(ctx, c.Client, binding, c.EventRecorder)
 	if err != nil {
-		klog.Errorf("Failed to aggregate workStatus to resourceBinding(%s/%s), Error: %v",
-			binding.Namespace, binding.Name, err)
+		klog.ErrorS(err, "Failed to aggregate workStatues to ResourceBinding", "namespace", binding.Namespace, "name", binding.Name)
 		return err
 	}
 
