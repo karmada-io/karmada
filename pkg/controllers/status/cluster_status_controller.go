@@ -125,7 +125,7 @@ type ClusterStatusController struct {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will requeue the reconcile key after the duration.
 func (c *ClusterStatusController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Syncing cluster status: %s", req.NamespacedName.Name)
+	klog.V(4).InfoS("Syncing cluster status", "cluster", req.NamespacedName.Name)
 
 	cluster := &clusterv1alpha1.Cluster{}
 	if err := c.Client.Get(ctx, req.NamespacedName, cluster); err != nil {
@@ -151,9 +151,9 @@ func (c *ClusterStatusController) Reconcile(ctx context.Context, req controllerr
 	}
 
 	// start syncing status only when the finalizer is present on the given Cluster to
-	// avoid conflict with cluster controller.
+	// avoid conflict with the cluster controller.
 	if !controllerutil.ContainsFinalizer(cluster, util.ClusterControllerFinalizer) {
-		klog.V(2).Infof("Waiting finalizer present for member cluster: %s", cluster.Name)
+		klog.V(2).InfoS("Waiting finalizer present for member cluster", "cluster", cluster.Name)
 		return controllerruntime.Result{Requeue: true}, nil
 	}
 
@@ -190,7 +190,7 @@ func (c *ClusterStatusController) syncClusterStatus(ctx context.Context, cluster
 	// create a ClusterClient for the given member cluster
 	clusterClient, err := c.ClusterClientSetFunc(cluster.Name, c.Client, c.ClusterClientOption)
 	if err != nil {
-		klog.Errorf("Failed to create a ClusterClient for the given member cluster: %v, err is : %v", cluster.Name, err)
+		klog.ErrorS(err, "Failed to create a ClusterClient for the given member cluster", "cluster", cluster.Name)
 		return setStatusCollectionFailedCondition(ctx, c.Client, cluster, fmt.Sprintf("failed to create a ClusterClient: %v", err))
 	}
 
@@ -200,8 +200,8 @@ func (c *ClusterStatusController) syncClusterStatus(ctx context.Context, cluster
 
 	// cluster is offline after retry timeout, update cluster status immediately and return.
 	if !online && readyCondition.Status != metav1.ConditionTrue {
-		klog.V(2).Infof("Cluster(%s) still offline after %s, ensuring offline is set.",
-			cluster.Name, c.ClusterFailureThreshold.Duration)
+		klog.V(2).InfoS("Cluster still offline after ensuring offline is set",
+			"cluster", cluster.Name, "duration", c.ClusterFailureThreshold.Duration)
 		return updateStatusCondition(ctx, c.Client, cluster, *readyCondition)
 	}
 
@@ -235,7 +235,7 @@ func (c *ClusterStatusController) setCurrentClusterStatus(clusterClient *util.Cl
 	var conditions []metav1.Condition
 	clusterVersion, err := getKubernetesVersion(clusterClient)
 	if err != nil {
-		klog.Errorf("Failed to get Kubernetes version for Cluster %s. Error: %v.", cluster.GetName(), err)
+		klog.ErrorS(err, "Failed to get Kubernetes version for Cluster", "cluster", cluster.GetName())
 	}
 	currentClusterStatus.KubernetesVersion = clusterVersion
 
@@ -245,11 +245,11 @@ func (c *ClusterStatusController) setCurrentClusterStatus(clusterClient *util.Cl
 	if len(apiEnables) == 0 {
 		apiEnablementCondition = util.NewCondition(clusterv1alpha1.ClusterConditionCompleteAPIEnablements,
 			apiEnablementEmptyAPIEnablements, "collected empty APIEnablements from the cluster", metav1.ConditionFalse)
-		klog.Errorf("Failed to get any APIs installed in Cluster %s. Error: %v.", cluster.GetName(), err)
+		klog.ErrorS(err, "Failed to get any APIs installed in Cluster", "cluster", cluster.GetName())
 	} else if err != nil {
 		apiEnablementCondition = util.NewCondition(clusterv1alpha1.ClusterConditionCompleteAPIEnablements,
 			apiEnablementPartialAPIEnablements, fmt.Sprintf("might collect partial APIEnablements(%d) from the cluster", len(apiEnables)), metav1.ConditionFalse)
-		klog.Warningf("Maybe get partial(%d) APIs installed in Cluster %s. Error: %v.", len(apiEnables), cluster.GetName(), err)
+		klog.ErrorS(err, "Collected partial number of APIs installed in Cluster", "numApiEnablements", len(apiEnables), "cluster", cluster.GetName())
 	} else {
 		apiEnablementCondition = util.NewCondition(clusterv1alpha1.ClusterConditionCompleteAPIEnablements,
 			apiEnablementsComplete, "collected complete APIEnablements from the cluster", metav1.ConditionTrue)
@@ -261,19 +261,19 @@ func (c *ClusterStatusController) setCurrentClusterStatus(clusterClient *util.Cl
 		// get or create informer for pods and nodes in member cluster
 		clusterInformerManager, err := c.buildInformerForCluster(clusterClient)
 		if err != nil {
-			klog.Errorf("Failed to get or create informer for Cluster %s. Error: %v.", cluster.GetName(), err)
+			klog.ErrorS(err, "Failed to get or create informer for Cluster", "cluster", cluster.GetName())
 			// in large-scale clusters, the timeout may occur.
 			// if clusterInformerManager fails to be built, should be returned, otherwise, it may cause a nil pointer
 			return nil, err
 		}
 		nodes, err := listNodes(clusterInformerManager)
 		if err != nil {
-			klog.Errorf("Failed to list nodes for Cluster %s. Error: %v.", cluster.GetName(), err)
+			klog.ErrorS(err, "Failed to list nodes for Cluster", "cluster", cluster.GetName())
 		}
 
 		pods, err := listPods(clusterInformerManager)
 		if err != nil {
-			klog.Errorf("Failed to list pods for Cluster %s. Error: %v.", cluster.GetName(), err)
+			klog.ErrorS(err, "Failed to list pods for Cluster", "cluster", cluster.GetName())
 		}
 		currentClusterStatus.NodeSummary = getNodeSummary(nodes)
 		currentClusterStatus.ResourceSummary = getResourceSummary(nodes, pods)
@@ -296,7 +296,7 @@ func (c *ClusterStatusController) updateStatusIfNeeded(ctx context.Context, clus
 		meta.SetStatusCondition(&currentClusterStatus.Conditions, condition)
 	}
 	if !equality.Semantic.DeepEqual(cluster.Status, currentClusterStatus) {
-		klog.V(4).Infof("Start to update cluster status: %s", cluster.Name)
+		klog.V(4).InfoS("Start to update cluster status", "cluster", cluster.Name)
 		err := retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
 			_, err = helper.UpdateStatus(ctx, c.Client, cluster, func() error {
 				cluster.Status.KubernetesVersion = currentClusterStatus.KubernetesVersion
@@ -311,7 +311,7 @@ func (c *ClusterStatusController) updateStatusIfNeeded(ctx context.Context, clus
 			return err
 		})
 		if err != nil {
-			klog.Errorf("Failed to update health status of the member cluster: %v, err is : %v", cluster.Name, err)
+			klog.ErrorS(err, "Failed to update health status of the member cluster", "cluster", cluster.Name)
 			return err
 		}
 	}
@@ -320,7 +320,7 @@ func (c *ClusterStatusController) updateStatusIfNeeded(ctx context.Context, clus
 }
 
 func updateStatusCondition(ctx context.Context, c client.Client, cluster *clusterv1alpha1.Cluster, conditions ...metav1.Condition) error {
-	klog.V(4).Infof("Start to update cluster(%s) status condition", cluster.Name)
+	klog.V(4).InfoS("Start to update cluster status condition", "cluster", cluster.Name)
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
 		_, err = helper.UpdateStatus(ctx, c, cluster, func() error {
 			for _, condition := range conditions {
@@ -331,7 +331,7 @@ func updateStatusCondition(ctx context.Context, c client.Client, cluster *cluste
 		return err
 	})
 	if err != nil {
-		klog.Errorf("Failed to update status condition of the member cluster: %v, err is : %v", cluster.Name, err)
+		klog.ErrorS(err, "Failed to update status condition of the member cluster", "cluster", cluster.Name)
 		return err
 	}
 	return nil
@@ -344,7 +344,7 @@ func (c *ClusterStatusController) initializeGenericInformerManagerForCluster(clu
 
 	dynamicClient, err := c.ClusterDynamicClientSetFunc(clusterClient.ClusterName, c.Client, c.ClusterClientOption)
 	if err != nil {
-		klog.Errorf("Failed to build dynamic cluster client for cluster %s.", clusterClient.ClusterName)
+		klog.ErrorS(err, "Failed to build dynamic cluster client", "cluster", clusterClient.ClusterName)
 		return
 	}
 	c.GenericInformerManager.ForCluster(clusterClient.ClusterName, dynamicClient.DynamicClientSet, 0)
@@ -366,7 +366,7 @@ func (c *ClusterStatusController) buildInformerForCluster(clusterClient *util.Cl
 		if !singleClusterInformerManager.IsInformerSynced(gvr) {
 			allSynced = false
 			if _, err := singleClusterInformerManager.Lister(gvr); err != nil {
-				klog.Errorf("Failed to get the lister for gvr %s: %v", gvr.String(), err)
+				klog.ErrorS(err, "Failed to get the lister for gvr", "gvr", gvr.String())
 			}
 		}
 	}
@@ -389,7 +389,7 @@ func (c *ClusterStatusController) buildInformerForCluster(clusterClient *util.Cl
 		}
 		return nil
 	}(); err != nil {
-		klog.Errorf("Failed to sync cache for cluster: %s, error: %v", clusterClient.ClusterName, err)
+		klog.ErrorS(err, "Failed to sync cache for cluster", "cluster", clusterClient.ClusterName)
 		c.TypedInformerManager.Stop(clusterClient.ClusterName)
 		return nil, err
 	}
@@ -422,12 +422,12 @@ func (c *ClusterStatusController) initLeaseController(cluster *clusterv1alpha1.C
 
 	// start syncing lease
 	go func() {
-		klog.Infof("Starting syncing lease for cluster: %s", cluster.Name)
+		klog.InfoS("Starting syncing lease for cluster", "cluster", cluster.Name)
 
 		// lease controller will keep running until the stop channel is closed(context is canceled)
 		clusterLeaseController.Run(ctx)
 
-		klog.Infof("Stop syncing lease for cluster: %s", cluster.Name)
+		klog.InfoS("Stop syncing lease for cluster", "cluster", cluster.Name)
 		c.ClusterLeaseControllers.Delete(cluster.Name) // ensure the cache is clean
 	}()
 }
@@ -440,12 +440,12 @@ func getClusterHealthStatus(clusterClient *util.ClusterClient) (online, healthy 
 	}
 
 	if err != nil {
-		klog.Errorf("Failed to do cluster health check for cluster %v, err is : %v ", clusterClient.ClusterName, err)
+		klog.ErrorS(err, "Failed to do cluster health check for cluster", "cluster", clusterClient.ClusterName)
 		return false, false
 	}
 
 	if healthStatus != http.StatusOK {
-		klog.Infof("Member cluster %v isn't healthy", clusterClient.ClusterName)
+		klog.InfoS("Member cluster isn't healthy", "cluster", clusterClient.ClusterName)
 		return true, false
 	}
 
@@ -627,7 +627,8 @@ func getNodeAvailable(allocatable corev1.ResourceList, podResources *util.Resour
 	// When too many pods have been created, scheduling will fail so that the allocating pods number may be huge.
 	// If allowedPodNumber is less than or equal to 0, we don't allow more pods to be created.
 	if allowedPodNumber <= 0 {
-		klog.Warningf("The number of schedulable Pods on the node is less than or equal to 0, we won't add the node to cluster resource models.")
+		klog.InfoS("The number of schedulable Pods on the node is less than or equal to 0, " +
+			"we won't add the node to cluster resource models.")
 		return nil
 	}
 
@@ -647,7 +648,7 @@ func getAllocatableModelings(cluster *clusterv1alpha1.Cluster, nodes []*corev1.N
 	}
 	modelingSummary, err := modeling.InitSummary(cluster.Spec.ResourceModels)
 	if err != nil {
-		klog.Errorf("Failed to init cluster summary from cluster resource models for Cluster %s. Error: %v.", cluster.GetName(), err)
+		klog.ErrorS(err, "Failed to init cluster summary from cluster resource models for Cluster", "cluster", cluster.GetName())
 		return nil
 	}
 
