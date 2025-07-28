@@ -126,29 +126,22 @@ func TestDownloadFile(t *testing.T) {
 		url      string
 		proxy    *string
 		filePath string
-		prep     func(url, filePath string) error
 		verify   func(filePath string) error
 		wantErr  bool
 		errMsg   string
 	}{
 		{
-			name:  "DownloadFile_UrlIsNotFound_FailedToGetResponse",
-			url:   "not-found-url",
-			proxy: nil,
-			prep: func(_, _ string) error {
-				return nil
-			},
+			name:    "DownloadFile_UrlIsNotFound_FailedToGetResponse",
+			url:     "not-found-url",
+			proxy:   nil,
 			verify:  func(string) error { return nil },
 			wantErr: true,
 			errMsg:  "failed to get url not-found-url, url is not found",
 		},
 		{
-			name:  "DownloadFile_ServiceIsUnavailable_FailedToReachTheService",
-			url:   "https://www.example.com/test-file",
-			proxy: ptr.To("http://www.proxy.com"),
-			prep: func(_, _ string) error {
-				return nil
-			},
+			name:    "DownloadFile_ServiceIsUnavailable_FailedToReachTheService",
+			url:     "https://www.example.com/test-file",
+			proxy:   ptr.To("http://www.proxy.com"),
 			verify:  func(string) error { return nil },
 			wantErr: true,
 			errMsg:  "failed to download file",
@@ -158,15 +151,6 @@ func TestDownloadFile(t *testing.T) {
 			url:      "https://www.example.com",
 			proxy:    nil,
 			filePath: filepath.Join(os.TempDir(), "temp-download-file.txt"),
-			prep: func(_, filePath string) error {
-				// Create temp download filepath.
-				tempFile, err := os.Create(filePath)
-				if err != nil {
-					return fmt.Errorf("failed to create temp download file: %w", err)
-				}
-				defer tempFile.Close()
-				return nil
-			},
 			verify: func(filePath string) error {
 				// Read the content of the downloaded file.
 				content, err := os.ReadFile(filePath)
@@ -190,9 +174,6 @@ func TestDownloadFile(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if err := test.prep(test.url, test.filePath); err != nil {
-				t.Fatalf("failed to prep before downloading the file, got: %v", err)
-			}
 			err := DownloadFile(test.url, test.filePath, test.proxy)
 			if err == nil && test.wantErr {
 				t.Fatal("expected an error, but got none")
