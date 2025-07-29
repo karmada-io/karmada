@@ -210,11 +210,13 @@ func buildTaskOptions(failoverBehavior *policyv1alpha1.ApplicationFailoverBehavi
 	}
 
 	switch failoverBehavior.PurgeMode {
-	case policyv1alpha1.Graciously:
+	//nolint:staticcheck
+	// disable `deprecation` check for backward compatibility.
+	case policyv1alpha1.Graciously, policyv1alpha1.PurgeModeGracefully:
 		if features.FeatureGate.Enabled(features.GracefulEviction) {
 			taskOpts = append(taskOpts, workv1alpha2.WithGracePeriodSeconds(failoverBehavior.GracePeriodSeconds))
 		} else {
-			err := fmt.Errorf("GracefulEviction featureGate must be enabled when purgeMode is %s", policyv1alpha1.Graciously)
+			err := fmt.Errorf("GracefulEviction featureGate must be enabled when purgeMode is %s", failoverBehavior.PurgeMode)
 			klog.Error(err)
 			return nil, err
 		}
