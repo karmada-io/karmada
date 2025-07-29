@@ -533,6 +533,16 @@ function util::get_docker_host_ip_port(){
   docker inspect --format='{{range $key, $value := index .NetworkSettings.Ports "6443/tcp"}}{{if eq $key 0}}{{$value.HostIp}}:{{$value.HostPort}}{{end}}{{end}}' "${container_name}"
 }
 
+# util::is_wsl2 checks if the current environment is WSL2.
+# Returns:
+#   0 if running in WSL2, 1 otherwise.
+# Usage:
+#   util::is_wsl2 && echo "WSL2 detected" || echo "Not WSL2"
+function util::is_wsl2(){
+  # /proc/sys/fs/binfmt_misc/WSLInterop exists only in WSL2 environments
+  [[ -f /proc/sys/fs/binfmt_misc/WSLInterop ]] || \
+    ( [[ -f /proc/version ]] && grep -q "WSL2" /proc/version )
+}
 # util::check_clusters_ready checks if a cluster is ready, if not, wait until timeout
 function util::check_clusters_ready() {
   local kubeconfig_path=${1}
@@ -548,7 +558,13 @@ function util::check_clusters_ready() {
   os_name=$(go env GOOS)
   local container_ip_port
   case $os_name in
-    linux) container_ip_port=$(util::get_docker_native_ipaddress "${context_name}-control-plane")":6443"
+    linux)
+      if util::is_wsl2; then
+        # WSL2 uses a different method to get the container IP address
+        container_ip_port=$(util::get_docker_host_ip_port "${context_name}-control-plane")
+      else # normal linux environment
+        container_ip_port=$(util::get_docker_native_ipaddress "${context_name}-control-plane")":6443"
+      fi
     ;;
     darwin) container_ip_port=$(util::get_docker_host_ip_port "${context_name}-control-plane")
     ;;
@@ -681,6 +697,16 @@ function util::add_routes() {
     done
   done
   unset IFS
+}
+
+# util::get_wsl2_ipaddress will get ip address on wsl2, store to 'WSL2_HOST_IP_ADDRESS' if available
+WSL2_HOST_IP_ADDRESS=''
+function util::get_wsl2_ipaddress() {
+  echo "====================================================" 
+  echo "= Detected that you are installing Karmada on WSL2 =" 
+  echo "====================================================" 
+  WSL2_HOST_IP_ADDRESS=$(hostname -I | awk '{print $1}')
+  util::verify_ip_address "${WSL2_HOST_IP_ADDRESS}"
 }
 
 # util::get_macos_ipaddress will get ip address on macos interactively, store to 'MAC_NIC_IPADDRESS' if available
