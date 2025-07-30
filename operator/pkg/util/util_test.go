@@ -141,7 +141,7 @@ func TestDownloadFile(t *testing.T) {
 		{
 			name:    "DownloadFile_ServiceIsUnavailable_FailedToReachTheService",
 			url:     "https://www.example.com/test-file",
-			proxy:   ptr.To("http://www.proxy.com"),
+			proxy:   ptr.To("http://www.dummy-proxy.com"),
 			verify:  func(string) error { return nil },
 			wantErr: true,
 			errMsg:  "failed to download file",
