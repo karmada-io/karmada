@@ -683,6 +683,14 @@ type CommonSettings struct {
 	// +kubebuilder:default="system-node-critical"
 	// +optional
 	PriorityClassName string `json:"priorityClassName,omitempty"`
+
+	// Tolerations to apply to the pods for this component.
+	// +optional
+	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
+
+	// Affinity to apply to the pods for this component.
+	// +optional
+	Affinity *corev1.Affinity `json:"affinity,omitempty"`
 }
 
 // Image allows to customize the image used for components.
