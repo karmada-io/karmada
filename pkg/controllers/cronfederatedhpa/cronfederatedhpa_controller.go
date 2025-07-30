@@ -56,17 +56,17 @@ type CronFHPAController struct {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *CronFHPAController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).InfoS("Reconciling CronFederatedHPA", "cronFederatedHPA", req.NamespacedName)
+	klog.V(4).InfoS("Reconciling CronFederatedHPA", "namespace", req.Namespace, "name", req.Name)
 
 	cronFHPA := &autoscalingv1alpha1.CronFederatedHPA{}
 	if err := c.Client.Get(ctx, req.NamespacedName, cronFHPA); err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.V(4).InfoS("Begin to cleanup the cron jobs for CronFederatedHPA", "cronFederatedHPA", req.NamespacedName)
+			klog.V(4).InfoS("Begin to cleanup the cron jobs for CronFederatedHPA", "namespace", req.Namespace, "name", req.Name)
 			c.CronHandler.StopCronFHPAExecutor(req.NamespacedName.String())
 			return controllerruntime.Result{}, nil
 		}
 
-		klog.ErrorS(err, "Fail to get CronFederatedHPA", "cronFederatedHPA", req.NamespacedName)
+		klog.ErrorS(err, "Fail to get CronFederatedHPA", "namespace", req.Namespace, "name", req.Name)
 		return controllerruntime.Result{}, err
 	}
 

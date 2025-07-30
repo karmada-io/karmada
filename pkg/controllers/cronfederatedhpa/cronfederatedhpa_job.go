@@ -153,14 +153,14 @@ func (c *ScalingJob) ScaleFHPA(cronFHPA *autoscalingv1alpha1.CronFederatedHPA) e
 	if update {
 		err := c.client.Update(context.TODO(), fhpa)
 		if err != nil {
-			klog.ErrorS(err, "CronFederatedHPA updates FederatedHPA failed", "cronFederatedHPA", c.namespaceName, "federatedHPA", types.NamespacedName{Namespace: fhpa.Namespace, Name: fhpa.Name})
+			klog.ErrorS(err, "CronFederatedHPA updates FederatedHPA failed", "namespace", c.namespaceName.Namespace, "cronFederatedHPA", c.namespaceName.Name, "federatedHPA", fhpa.Name)
 			return err
 		}
-		klog.V(4).InfoS("CronFederatedHPA scales FederatedHPA successfully", "cronFederatedHPA", c.namespaceName, "federatedHPA", types.NamespacedName{Namespace: fhpa.Namespace, Name: fhpa.Name})
+		klog.V(4).InfoS("CronFederatedHPA scales FederatedHPA successfully", "namespace", c.namespaceName.Namespace, "cronFederatedHPA", c.namespaceName.Name, "federatedHPA", fhpa.Name)
 		return nil
 	}
 
-	klog.V(4).InfoS("CronFederatedHPA find nothing updated for FederatedHPA, skip it", "cronFederatedHPA", c.namespaceName, "federatedHPA", types.NamespacedName{Namespace: fhpa.Namespace, Name: fhpa.Name})
+	klog.V(4).InfoS("CronFederatedHPA find nothing updated for FederatedHPA, skip it", "namespace", c.namespaceName.Namespace, "cronFederatedHPA", c.namespaceName.Name, "federatedHPA", fhpa.Name)
 	return nil
 }
 
