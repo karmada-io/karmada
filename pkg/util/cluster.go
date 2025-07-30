@@ -22,6 +22,7 @@ import (
 	"reflect"
 
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -35,6 +36,7 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 const (
@@ -47,6 +49,29 @@ const (
 	// None is means don't report any secrets.
 	None = "None"
 )
+
+var (
+	clusterResourceKind = clusterv1alpha1.SchemeGroupVersion.WithKind("Cluster")
+
+	// Policy rules allowing full access to resources in the cluster or namespace.
+	namespacedPolicyRules = []rbacv1.PolicyRule{
+		{
+			Verbs:     []string{rbacv1.VerbAll},
+			APIGroups: []string{rbacv1.APIGroupAll},
+			Resources: []string{rbacv1.ResourceAll},
+		},
+	}
+	// ClusterPolicyRules represents cluster policy rules
+	ClusterPolicyRules = []rbacv1.PolicyRule{
+		namespacedPolicyRules[0],
+		{
+			NonResourceURLs: []string{rbacv1.NonResourceAll},
+			Verbs:           []string{"get"},
+		},
+	}
+)
+
+type generateClusterInControllerPlaneFunc func(opts ClusterRegisterOption) (*clusterv1alpha1.Cluster, error)
 
 // ClusterRegisterOption represents the option for RegistryCluster.
 type ClusterRegisterOption struct {
@@ -63,8 +88,241 @@ type ClusterRegisterOption struct {
 
 	ControlPlaneConfig *rest.Config
 	ClusterConfig      *rest.Config
-	Secret             corev1.Secret
-	ImpersonatorSecret corev1.Secret
+	Secret             *corev1.Secret
+	ImpersonatorSecret *corev1.Secret
+
+	ControlPlaneKubeClient kubernetes.Interface
+	ClusterKubeClient      kubernetes.Interface
+	KarmadaClient          karmadaclientset.Interface
+}
+
+// Complete takes the command arguments and infers any remaining options.
+func (r *ClusterRegisterOption) Complete() error {
+	var err error
+
+	if r.ControlPlaneKubeClient == nil {
+		r.ControlPlaneKubeClient = kubernetes.NewForConfigOrDie(r.ControlPlaneConfig)
+	}
+	if r.ClusterKubeClient == nil {
+		r.ClusterKubeClient = kubernetes.NewForConfigOrDie(r.ClusterConfig)
+	}
+	if r.KarmadaClient == nil {
+		r.KarmadaClient = karmadaclientset.NewForConfigOrDie(r.ControlPlaneConfig)
+	}
+
+	r.ClusterID, err = ObtainClusterID(r.ClusterKubeClient)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Validate validates the cluster register option, including clusterID, cluster name and so on.
+func (r *ClusterRegisterOption) Validate(isAgent bool) error {
+	clusterList, err := r.KarmadaClient.ClusterV1alpha1().Clusters().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	clusterIDUsed, clusterNameUsed, sameCluster := r.validateCluster(clusterList)
+	if isAgent && sameCluster {
+		return nil
+	}
+
+	if clusterIDUsed || clusterNameUsed {
+		return fmt.Errorf("the cluster ID %s or the cluster name %s has been registered", r.ClusterID, r.ClusterName)
+	}
+
+	return nil
+}
+
+// RunRegister runs the cluster registration process.
+func (r *ClusterRegisterOption) RunRegister(generateClusterInControllerPlane generateClusterInControllerPlaneFunc) error {
+	if r.DryRun {
+		return nil
+	}
+
+	if r.IsKubeImpersonatorEnabled() || r.IsKubeCredentialsEnabled() {
+		if err := r.EnsureCredentialNamespaceExist(); err != nil {
+			return err
+		}
+	}
+
+	if r.IsKubeImpersonatorEnabled() {
+		if err := r.EnsureKubeImpersonatorExist(); err != nil {
+			return err
+		}
+	}
+
+	if r.IsKubeCredentialsEnabled() {
+		if err := r.EnsureKubeCredentialsExist(); err != nil {
+			return err
+		}
+	}
+
+	cluster, err := generateClusterInControllerPlane(*r)
+	if err != nil {
+		return err
+	}
+
+	// Since OwnerReferences requires the UID of the cluster, patching should be done after creating the cluster object.
+	patchSecretBody := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			OwnerReferences: []metav1.OwnerReference{
+				*metav1.NewControllerRef(cluster, clusterResourceKind),
+			},
+		},
+	}
+	if r.IsKubeImpersonatorEnabled() {
+		err = PatchSecret(r.ControlPlaneKubeClient, r.ImpersonatorSecret.Namespace, r.ImpersonatorSecret.Name, types.MergePatchType, patchSecretBody)
+		if err != nil {
+			return fmt.Errorf("failed to patch impersonator secret %s/%s, error: %v", r.ImpersonatorSecret.Namespace, r.ImpersonatorSecret.Name, err)
+		}
+	}
+
+	if r.IsKubeCredentialsEnabled() {
+		err = PatchSecret(r.ControlPlaneKubeClient, r.Secret.Namespace, r.Secret.Name, types.MergePatchType, patchSecretBody)
+		if err != nil {
+			return fmt.Errorf("failed to patch secret %s/%s, error: %v", r.Secret.Namespace, r.Secret.Name, err)
+		}
+	}
+
+	return nil
+}
+
+// EnsureCredentialNamespaceExist ensures that the namespace for storing cluster credentials exists in both the cluster and control plane.
+func (r *ClusterRegisterOption) EnsureCredentialNamespaceExist() error {
+	// It's necessary to set the label of namespace to make sure that the namespace is created by Karmada.
+	labels := map[string]string{
+		KarmadaSystemLabel: KarmadaSystemLabelValue,
+	}
+	// ensure namespace where the karmada control plane credential be stored exists in cluster.
+	_, err := EnsureNamespaceExistWithLabels(r.ClusterKubeClient, r.ClusterNamespace, r.DryRun, labels)
+	if err != nil {
+		return err
+	}
+
+	// ensure namespace where the cluster object be stored exists in control plane.
+	_, err = EnsureNamespaceExistWithLabels(r.ControlPlaneKubeClient, r.ClusterNamespace, r.DryRun, labels)
+	return err
+}
+
+// EnsureKubeImpersonatorExist ensures that the kube impersonator secret exists in the cluster and control plane.
+func (r *ClusterRegisterOption) EnsureKubeImpersonatorExist() error {
+	var impersonationSA *corev1.ServiceAccount
+	var impersonatorSecret *corev1.Secret
+	var err error
+
+	// It's necessary to set the label of namespace to make sure that the namespace is created by Karmada.
+	labels := map[string]string{
+		KarmadaSystemLabel: KarmadaSystemLabelValue,
+	}
+
+	impersonationSA = &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: r.ClusterNamespace,
+			Name:      names.GenerateServiceAccountName("impersonator"),
+			Labels:    labels,
+		},
+	}
+	if impersonationSA, err = EnsureServiceAccountExist(r.ClusterKubeClient, impersonationSA, r.DryRun); err != nil {
+		return err
+	}
+
+	impersonatorSecret, err = WaitForServiceAccountSecretCreation(r.ClusterKubeClient, impersonationSA)
+	if err != nil {
+		return fmt.Errorf("failed to get serviceAccount secret for impersonation from cluster(%s), error: %v", r.ClusterName, err)
+	}
+	// create secret to store impersonation info in control plane
+	impersonatorSecretInControlPlane := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: r.ClusterNamespace,
+			Name:      names.GenerateImpersonationSecretName(r.ClusterName),
+			Labels:    labels,
+		},
+		Data: map[string][]byte{
+			clusterv1alpha1.SecretTokenKey: impersonatorSecret.Data[clusterv1alpha1.SecretTokenKey],
+		},
+	}
+	impersonatorSecretInControlPlane, err = CreateSecret(r.ControlPlaneKubeClient, impersonatorSecretInControlPlane)
+	if err != nil {
+		return fmt.Errorf("failed to create impersonator secret in control plane. error: %v", err)
+	}
+
+	r.ImpersonatorSecret = impersonatorSecretInControlPlane
+	return nil
+}
+
+// EnsureKubeCredentialsExist ensures the kube credentials exist in the cluster and control plane.
+func (r *ClusterRegisterOption) EnsureKubeCredentialsExist() error {
+	var clusterSecret *corev1.Secret
+	var err error
+
+	// It's necessary to set the label of namespace to make sure that the namespace is created by Karmada.
+	labels := map[string]string{
+		KarmadaSystemLabel: KarmadaSystemLabelValue,
+	}
+
+	// create a ServiceAccount in cluster.
+	serviceAccountObj := &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: r.ClusterNamespace,
+			Name:      names.GenerateServiceAccountName(r.ClusterName),
+			Labels:    labels,
+		},
+	}
+	if serviceAccountObj, err = EnsureServiceAccountExist(r.ClusterKubeClient, serviceAccountObj, r.DryRun); err != nil {
+		return err
+	}
+
+	// create a ClusterRole in cluster.
+	clusterRole := &rbacv1.ClusterRole{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   names.GenerateRoleName(serviceAccountObj.Name),
+			Labels: labels,
+		},
+		Rules: ClusterPolicyRules,
+	}
+	if _, err = EnsureClusterRoleExist(r.ClusterKubeClient, clusterRole, r.DryRun); err != nil {
+		return err
+	}
+
+	// create a ClusterRoleBinding in cluster.
+	clusterRoleBinding := &rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   clusterRole.Name,
+			Labels: labels,
+		},
+		Subjects: BuildRoleBindingSubjects(serviceAccountObj.Name, serviceAccountObj.Namespace),
+		RoleRef:  BuildClusterRoleReference(clusterRole.Name),
+	}
+	if _, err = EnsureClusterRoleBindingExist(r.ClusterKubeClient, clusterRoleBinding, r.DryRun); err != nil {
+		return err
+	}
+	clusterSecret, err = WaitForServiceAccountSecretCreation(r.ClusterKubeClient, serviceAccountObj)
+	if err != nil {
+		return fmt.Errorf("failed to get serviceAccount secret from cluster(%s), error: %v", r.ClusterName, err)
+	}
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: r.ClusterNamespace,
+			Name:      r.ClusterName,
+			Labels:    labels,
+		},
+		Data: map[string][]byte{
+			clusterv1alpha1.SecretCADataKey: clusterSecret.Data["ca.crt"],
+			clusterv1alpha1.SecretTokenKey:  clusterSecret.Data[clusterv1alpha1.SecretTokenKey],
+		},
+	}
+
+	secret, err = CreateSecret(r.ControlPlaneKubeClient, secret)
+	if err != nil {
+		return fmt.Errorf("failed to create secret in control plane. error: %v", err)
+	}
+
+	r.Secret = secret
+	return nil
 }
 
 // IsKubeCredentialsEnabled represents whether report secret
@@ -85,24 +343,6 @@ func (r *ClusterRegisterOption) IsKubeImpersonatorEnabled() bool {
 		}
 	}
 	return false
-}
-
-// Validate validates the cluster register option, including clusterID, cluster name and so on.
-func (r *ClusterRegisterOption) Validate(karmadaClient karmadaclientset.Interface, isAgent bool) error {
-	clusterList, err := karmadaClient.ClusterV1alpha1().Clusters().List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-	clusterIDUsed, clusterNameUsed, sameCluster := r.validateCluster(clusterList)
-	if isAgent && sameCluster {
-		return nil
-	}
-
-	if clusterIDUsed || clusterNameUsed {
-		return fmt.Errorf("the cluster ID %s or the cluster name %s has been registered", r.ClusterID, r.ClusterName)
-	}
-
-	return nil
 }
 
 // validateCluster validates the cluster register option whether the cluster name and cluster ID are unique.
@@ -238,7 +478,7 @@ func updateCluster(controlPlaneClient karmadaclientset.Interface, cluster *clust
 	return newCluster, nil
 }
 
-// ObtainClusterID returns the cluster ID property with clusterKubeClient
+// ObtainClusterID returns the cluster ID property with ClusterKubeClient
 func ObtainClusterID(clusterKubeClient kubernetes.Interface) (string, error) {
 	ns, err := clusterKubeClient.CoreV1().Namespaces().Get(context.TODO(), metav1.NamespaceSystem, metav1.GetOptions{})
 	if err != nil {
