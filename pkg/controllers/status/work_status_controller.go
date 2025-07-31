@@ -82,7 +82,7 @@ type WorkStatusController struct {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *WorkStatusController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling status of Work %s.", req.NamespacedName.String())
+	klog.V(4).InfoS("Reconciling status of Work.", "namespace", req.Namespace, "name", req.Name)
 
 	work := &workv1alpha1.Work{}
 	if err := c.Client.Get(ctx, req.NamespacedName, work); err != nil {
@@ -104,19 +104,20 @@ func (c *WorkStatusController) Reconcile(ctx context.Context, req controllerrunt
 
 	clusterName, err := names.GetClusterName(work.GetNamespace())
 	if err != nil {
-		klog.Errorf("Failed to get member cluster name by %s. Error: %v.", work.GetNamespace(), err)
+		klog.ErrorS(err, "Failed to get member cluster name from Work.", "namespace", work.GetNamespace())
 		return controllerruntime.Result{}, err
 	}
 
 	cluster, err := util.GetCluster(c.Client, clusterName)
 	if err != nil {
-		klog.Errorf("Failed to the get given member cluster %s", clusterName)
+		klog.ErrorS(err, "Failed to get the given member cluster", "cluster", clusterName)
 		return controllerruntime.Result{}, err
 	}
 
 	if !util.IsClusterReady(&cluster.Status) {
-		klog.Errorf("Stop syncing the Work(%s/%s) to the cluster(%s) as not ready.", work.Namespace, work.Name, cluster.Name)
-		return controllerruntime.Result{}, fmt.Errorf("cluster(%s) not ready", cluster.Name)
+		err := fmt.Errorf("cluster(%s) not ready", cluster.Name)
+		klog.ErrorS(err, "Stop syncing the Work to the cluster as not ready.", "namespace", work.Namespace, "name", work.Name, "cluster", cluster.Name)
+		return controllerruntime.Result{}, err
 	}
 
 	return c.buildResourceInformers(cluster, work)
@@ -127,7 +128,7 @@ func (c *WorkStatusController) Reconcile(ctx context.Context, req controllerrunt
 func (c *WorkStatusController) buildResourceInformers(cluster *clusterv1alpha1.Cluster, work *workv1alpha1.Work) (controllerruntime.Result, error) {
 	err := c.registerInformersAndStart(cluster, work)
 	if err != nil {
-		klog.Errorf("Failed to register informer for Work %s/%s. Error: %v.", work.GetNamespace(), work.GetName(), err)
+		klog.ErrorS(err, "Failed to register informer for Work.", "namespace", work.GetNamespace(), "name", work.GetName())
 		return controllerruntime.Result{}, err
 	}
 	return controllerruntime.Result{}, nil
@@ -171,13 +172,13 @@ func generateKey(obj interface{}) (util.QueueKey, error) {
 func getClusterNameFromAnnotation(resource *unstructured.Unstructured) (string, error) {
 	workNamespace, exist := resource.GetAnnotations()[workv1alpha2.WorkNamespaceAnnotation]
 	if !exist {
-		klog.V(5).Infof("Ignore resource(kind=%s, %s/%s) which is not managed by Karmada.", resource.GetKind(), resource.GetNamespace(), resource.GetName())
+		klog.V(5).InfoS("Ignore resource which is not managed by Karmada.", "kind", resource.GetKind(), "namespace", resource.GetNamespace(), "name", resource.GetName())
 		return "", nil
 	}
 
 	cluster, err := names.GetClusterName(workNamespace)
 	if err != nil {
-		klog.Errorf("Failed to get cluster name from work namespace: %s, error: %v.", workNamespace, err)
+		klog.ErrorS(err, "Failed to get cluster name from Work.", "namespace", workNamespace)
 		return "", err
 	}
 	return cluster, nil
@@ -188,8 +189,9 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 	ctx := context.Background()
 	fedKey, ok := key.(keys.FederatedKey)
 	if !ok {
-		klog.Errorf("Failed to sync status as invalid key: %v", key)
-		return fmt.Errorf("invalid key")
+		err := fmt.Errorf("invalid key")
+		klog.ErrorS(err, "Failed to sync status", "key", key)
+		return err
 	}
 
 	observedObj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, fedKey)
@@ -204,7 +206,7 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 	workNamespace, nsExist := observedAnnotations[workv1alpha2.WorkNamespaceAnnotation]
 	workName, nameExist := observedAnnotations[workv1alpha2.WorkNameAnnotation]
 	if !nsExist || !nameExist {
-		klog.Infof("Ignore object(%s) which not managed by Karmada.", fedKey.String())
+		klog.InfoS("Ignoring object which is not managed by Karmada.", "object", fedKey.String())
 		return nil
 	}
 
@@ -215,7 +217,7 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 			return nil
 		}
 
-		klog.Errorf("Failed to get Work(%s/%s) from cache: %v", workNamespace, workName, err)
+		klog.ErrorS(err, "Failed to get Work from cache", "namespace", workNamespace, "name", workName)
 		return err
 	}
 
@@ -228,7 +230,7 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 		return err
 	}
 
-	klog.Infof("Reflecting the resource(kind=%s, %s/%s) status to the Work(%s/%s).", observedObj.GetKind(), observedObj.GetNamespace(), observedObj.GetName(), workNamespace, workName)
+	klog.InfoS("Reflecting resource status to Work.", "kind", observedObj.GetKind(), "resource", observedObj.GetNamespace()+"/"+observedObj.GetName(), "namespace", workNamespace, "name", workName)
 	return c.reflectStatus(ctx, workObject, observedObj)
 }
 
@@ -244,7 +246,7 @@ func (c *WorkStatusController) updateResource(ctx context.Context, observedObj *
 
 	clusterName, err := names.GetClusterName(workObject.Namespace)
 	if err != nil {
-		klog.Errorf("Failed to get member cluster name: %v", err)
+		klog.ErrorS(err, "Failed to get member cluster name", "cluster", workObject.Namespace)
 		return err
 	}
 
@@ -255,7 +257,7 @@ func (c *WorkStatusController) updateResource(ctx context.Context, observedObj *
 		operationResult, updateErr := c.ObjectWatcher.Update(ctx, clusterName, desiredObj, observedObj)
 		metrics.CountUpdateResourceToCluster(updateErr, desiredObj.GetAPIVersion(), desiredObj.GetKind(), clusterName, string(operationResult))
 		if updateErr != nil {
-			klog.Errorf("Updating %s failed: %v", fedKey.String(), updateErr)
+			klog.ErrorS(updateErr, "Updating resource failed", "resource", fedKey.String())
 			return updateErr
 		}
 		// We can't return even after a success updates, because that might lose the chance to collect status.
@@ -282,7 +284,7 @@ func (c *WorkStatusController) handleDeleteEvent(ctx context.Context, key keys.F
 			return nil
 		}
 
-		klog.Errorf("Failed to get Work from cache: %v", err)
+		klog.ErrorS(err, "Failed to get Work from cache")
 		return err
 	}
 
@@ -316,7 +318,7 @@ func (c *WorkStatusController) recreateResourceIfNeeded(ctx context.Context, wor
 		if reflect.DeepEqual(desiredGVK, workloadKey.GroupVersionKind()) &&
 			manifest.GetNamespace() == workloadKey.Namespace &&
 			manifest.GetName() == workloadKey.Name {
-			klog.Infof("Recreating resource(%s).", workloadKey.String())
+			klog.InfoS("Recreating resource.", "resource", workloadKey.String())
 			err := c.ObjectWatcher.Create(ctx, workloadKey.Cluster, manifest)
 			metrics.CountCreateResourceToCluster(err, workloadKey.GroupVersion().String(), workloadKey.Kind, workloadKey.Cluster, true)
 			if err != nil {
@@ -349,7 +351,7 @@ func (c *WorkStatusController) updateAppliedCondition(ctx context.Context, work 
 	})
 
 	if err != nil {
-		klog.Errorf("Failed to update condition of work %s/%s: %s", work.Namespace, work.Name, err.Error())
+		klog.ErrorS(err, "Failed to update condition of work.", "namespace", work.Namespace, "name", work.Name)
 	}
 }
 
@@ -357,8 +359,7 @@ func (c *WorkStatusController) updateAppliedCondition(ctx context.Context, work 
 func (c *WorkStatusController) reflectStatus(ctx context.Context, work *workv1alpha1.Work, clusterObj *unstructured.Unstructured) error {
 	statusRaw, err := c.ResourceInterpreter.ReflectStatus(clusterObj)
 	if err != nil {
-		klog.Errorf("Failed to reflect status for object(%s/%s/%s) with resourceInterpreter, err: %v",
-			clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), err)
+		klog.ErrorS(err, "Failed to reflect status for object with resourceInterpreter", "kind", clusterObj.GetKind(), "resource", clusterObj.GetNamespace()+"/"+clusterObj.GetName())
 		c.EventRecorder.Eventf(work, corev1.EventTypeWarning, events.EventReasonReflectStatusFailed, "Reflect status for object(%s/%s/%s) failed, err: %s.", clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), err.Error())
 		return err
 	}
@@ -389,7 +390,7 @@ func (c *WorkStatusController) reflectStatus(ctx context.Context, work *workv1al
 func (c *WorkStatusController) interpretHealth(clusterObj *unstructured.Unstructured, work *workv1alpha1.Work) workv1alpha1.ResourceHealth {
 	// For kind that doesn't have health check, we treat it as healthy.
 	if !c.ResourceInterpreter.HookEnabled(clusterObj.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretHealth) {
-		klog.V(5).Infof("skipping health assessment for object: %v %s/%s as missing customization and will treat it as healthy.", clusterObj.GroupVersionKind(), clusterObj.GetNamespace(), clusterObj.GetName())
+		klog.V(5).InfoS("skipping health assessment for object as customization missing; will treat it as healthy.", "kind", clusterObj.GroupVersionKind(), "resource", clusterObj.GetNamespace()+"/"+clusterObj.GetName())
 		return workv1alpha1.ResourceHealthy
 	}
 
@@ -496,7 +497,7 @@ func (c *WorkStatusController) registerInformersAndStart(cluster *clusterv1alpha
 		}
 		return nil
 	}(); err != nil {
-		klog.Errorf("Failed to sync cache for cluster: %s, error: %v", cluster.Name, err)
+		klog.ErrorS(err, "Failed to sync cache for cluster", "cluster", cluster.Name)
 		c.InformerManager.Stop(cluster.Name)
 		return err
 	}
@@ -511,12 +512,12 @@ func (c *WorkStatusController) getGVRsFromWork(work *workv1alpha1.Work) (map[sch
 		workload := &unstructured.Unstructured{}
 		err := workload.UnmarshalJSON(manifest.Raw)
 		if err != nil {
-			klog.Errorf("Failed to unmarshal workload. Error: %v.", err)
+			klog.ErrorS(err, "Failed to unmarshal workload.")
 			return nil, err
 		}
 		gvr, err := restmapper.GetGroupVersionResource(c.RESTMapper, workload.GroupVersionKind())
 		if err != nil {
-			klog.Errorf("Failed to get GVR from GVK for resource %s/%s. Error: %v.", workload.GetNamespace(), workload.GetName(), err)
+			klog.ErrorS(err, "Failed to get GVR from GVK for resource.", "namespace", workload.GetNamespace(), "name", workload.GetName())
 			return nil, err
 		}
 		gvrTargets[gvr] = true
@@ -533,7 +534,7 @@ func (c *WorkStatusController) getSingleClusterManager(cluster *clusterv1alpha1.
 	if singleClusterInformerManager == nil {
 		dynamicClusterClient, err := c.ClusterDynamicClientSetFunc(cluster.Name, c.Client, c.ClusterClientOption)
 		if err != nil {
-			klog.Errorf("Failed to build dynamic cluster client for cluster %s.", cluster.Name)
+			klog.ErrorS(err, "Failed to build dynamic cluster client for cluster.", "cluster", cluster.Name)
 			return nil, err
 		}
 		singleClusterInformerManager = c.InformerManager.ForCluster(dynamicClusterClient.ClusterName, dynamicClusterClient.DynamicClientSet, 0)
@@ -560,7 +561,7 @@ func (c *WorkStatusController) SetupWithManager(mgr controllerruntime.Manager) e
 func (c *WorkStatusController) eventf(object *unstructured.Unstructured, eventType, reason, messageFmt string, args ...interface{}) {
 	ref, err := util.GenEventRef(object)
 	if err != nil {
-		klog.Errorf("Ignore event(%s) as failing to build event reference for: kind=%s, %s due to %v", reason, object.GetKind(), klog.KObj(object), err)
+		klog.ErrorS(err, "Ignoring event. Failed to build event reference.", "reason", reason, "kind", object.GetKind(), "reference", klog.KObj(object))
 		return
 	}
 	c.EventRecorder.Eventf(ref, eventType, reason, messageFmt, args...)
