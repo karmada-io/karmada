@@ -2,9 +2,9 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.15.0-alpha.2](#v1150-alpha2)
-  - [Downloads for v1.15.0-alpha.2](#downloads-for-v1150-alpha2)
-  - [Changelog since v1.15.0-alpha.1](#changelog-since-v1150-alpha1)
+- [v1.15.0-beta.0](#v1150-beta0)
+  - [Downloads for v1.15.0-beta.0](#downloads-for-v1150-beta0)
+  - [Changelog since v1.15.0-alpha.2](#changelog-since-v1150-alpha2)
   - [Urgent Update Notes](#urgent-update-notes)
   - [Changes by Kind](#changes-by-kind)
     - [API Changes](#api-changes)
@@ -17,9 +17,9 @@
     - [Helm Charts](#helm-charts)
     - [Instrumentation](#instrumentation)
     - [Performance](#performance)
-- [v1.15.0-alpha.1](#v1150-alpha1)
-  - [Downloads for v1.15.0-alpha.1](#downloads-for-v1150-alpha1)
-  - [Changelog since v1.14.0](#changelog-since-v1140)
+- [v1.15.0-alpha.2](#v1150-alpha2)
+  - [Downloads for v1.15.0-alpha.2](#downloads-for-v1150-alpha2)
+  - [Changelog since v1.15.0-alpha.1](#changelog-since-v1150-alpha1)
   - [Urgent Update Notes](#urgent-update-notes-1)
   - [Changes by Kind](#changes-by-kind-1)
     - [API Changes](#api-changes-1)
@@ -31,8 +31,67 @@
     - [Dependencies](#dependencies-1)
     - [Helm Charts](#helm-charts-1)
     - [Instrumentation](#instrumentation-1)
+    - [Performance](#performance-1)
+- [v1.15.0-alpha.1](#v1150-alpha1)
+  - [Downloads for v1.15.0-alpha.1](#downloads-for-v1150-alpha1)
+  - [Changelog since v1.14.0](#changelog-since-v1140)
+  - [Urgent Update Notes](#urgent-update-notes-2)
+  - [Changes by Kind](#changes-by-kind-2)
+    - [API Changes](#api-changes-2)
+    - [Features & Enhancements](#features--enhancements-2)
+    - [Deprecation](#deprecation-2)
+    - [Bug Fixes](#bug-fixes-2)
+    - [Security](#security-2)
+  - [Other](#other-2)
+    - [Dependencies](#dependencies-2)
+    - [Helm Charts](#helm-charts-2)
+    - [Instrumentation](#instrumentation-2)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.15.0-beta.0
+## Downloads for v1.15.0-beta.0
+
+Download v1.15.0-beta.0 in the [v1.15.0-beta.0 release page](https://github.com/karmada-io/karmada/releases/tag/v1.15.0-beta.0).
+
+## Changelog since v1.15.0-alpha.2
+
+## Urgent Update Notes
+None.
+
+## Changes by Kind
+
+### API Changes
+None.
+
+### Features & Enhancements
+- `karmada-controller-manager`: Added resource interpreter support for OpenKruise SidecarSet. Karmada can now interpret and manage OpenKruise SidecarSet resources across clusters, including multi-cluster status aggregation, health checks, dependency resolution for ConfigMaps and Secrets, and comprehensive test coverage. ([#6524](https://github.com/karmada-io/karmada/pull/6524), @abhi0324)
+- `karmada-controller-manager`: Added resource interpreter support for OpenKruise UnitedDeployment. Karmada can now interpret and manage OpenKruise UnitedDeployment resources across clusters, including multi-cluster status aggregation, health checks, dependency resolution for ConfigMaps and Secrets, and comprehensive test coverage. ([#6533](https://github.com/karmada-io/karmada/pull/6533), @abhi0324)
+
+### Deprecation
+- The deprecated label `propagation.karmada.io/instruction`, which was designed to suspend Work propagation, has now been removed. ([#6512](https://github.com/karmada-io/karmada/pull/6512), @XiShanYongYe-Chang)
+
+### Bug Fixes
+- `karmada-controller-manager`: Fixed the issue that EndpointSlice are deleted unexpectedly due to the EndpointSlice informer cache not being synced. ([#6434](https://github.com/karmada-io/karmada/pull/6434), @XiShanYongYe-Chang)
+
+### Security
+- Bump go version to 1.24.5 for addressing CVE-2025-4674 concern. ([#6557](https://github.com/karmada-io/karmada/pull/6557), @seanlaii)
+
+## Other
+### Dependencies
+- Upgraded sigs.k8s.io/metrics-server to v0.8.0. ([#6548](https://github.com/karmada-io/karmada/pull/6548), @seanlaii)
+- Upgraded sigs.k8s.io/kind to v0.29.0. ([#6549](https://github.com/karmada-io/karmada/pull/6549), @seanlaii)
+- Upgraded vektra/mockery to v3.5.1, switching to a configuration-driven approach via mockery.yaml and removing deprecated v2 flags like --inpackage and --name. ([#6550](https://github.com/karmada-io/karmada/pull/6550), @liaolecheng)
+- Upgraded controller-gen to v0.18.0. ([#6558](https://github.com/karmada-io/karmada/pull/6558), @seanlaii)
+
+### Helm Charts
+None.
+
+### Instrumentation
+None.
+
+### Performance
+None.
 
 # v1.15.0-alpha.2
 ## Downloads for v1.15.0-alpha.2
