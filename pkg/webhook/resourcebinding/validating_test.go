@@ -405,10 +405,7 @@ func TestValidatingAdmission_Handle(t *testing.T) {
 			decoder:            &fakeDecoder{decodeObj: rbCreateExceeds},
 			clientObjects:      []client.Object{frqForCreateExceeds},
 			featureGateEnabled: true,
-			wantResponse: admission.Denied(
-				fmt.Sprintf("Quota exceeded for FederatedResourceQuota %s/%s. ResourceBinding %s/%s will be denied.",
-					frqForCreateExceeds.Namespace, frqForCreateExceeds.Name, rbCreateExceeds.Namespace, rbCreateExceeds.Name),
-			),
+			wantResponse:       admission.Denied("FederatedResourceQuota(quota-ns/frq-create-exceeds) exceeded for resource cpu: requested sum 200m, limit 150m."),
 		},
 		{
 			name: "update passes quota (allowed response, non-dryrun)",
@@ -449,10 +446,7 @@ func TestValidatingAdmission_Handle(t *testing.T) {
 			decoder:            &fakeDecoder{decodeObj: rbUpdateFailNew, rawDecodedObj: rbUpdateFailOld},
 			clientObjects:      []client.Object{frqForUpdateFail},
 			featureGateEnabled: true,
-			wantResponse: admission.Denied(
-				fmt.Sprintf("Quota exceeded for FederatedResourceQuota %s/%s. ResourceBinding %s/%s will be denied.",
-					frqForUpdateFail.Namespace, frqForUpdateFail.Name, rbUpdateFailNew.Namespace, rbUpdateFailNew.Name),
-			),
+			wantResponse:       admission.Denied("FederatedResourceQuota(quota-ns/frq-update-fail) exceeded for resource cpu: requested sum 110m, limit 100m."),
 		},
 	}
 

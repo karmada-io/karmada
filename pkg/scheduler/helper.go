@@ -19,8 +19,10 @@ package scheduler
 import (
 	"encoding/json"
 	"errors"
+	"net/http"
 	"reflect"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/klog/v2"
@@ -125,12 +127,18 @@ func getConditionByError(err error) (metav1.Condition, bool) {
 	if fitErrMatcher(err) {
 		return util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonNoClusterFit, err.Error(), metav1.ConditionFalse), true
 	}
+
 	var aggregatedErr utilerrors.Aggregate
 	if errors.As(err, &aggregatedErr) {
 		for _, ae := range aggregatedErr.Errors() {
 			if fitErrMatcher(ae) {
 				// if aggregated NoClusterFit error got, we do not ignore error but retry scheduling.
 				return util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonNoClusterFit, err.Error(), metav1.ConditionFalse), false
+			}
+			// ResourceBinding validation webhook will return error with "FederatedResourceQuota" if quota exceeded
+			var statusErr *apierrors.StatusError
+			if errors.As(ae, &statusErr) && statusErr.Status().Code == http.StatusForbidden && statusErr.Status().Reason == util.QuotaExceededReason {
+				return util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonQuotaExceeded, ae.Error(), metav1.ConditionFalse), false
 			}
 		}
 	}
