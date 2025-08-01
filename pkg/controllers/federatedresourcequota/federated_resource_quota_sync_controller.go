@@ -63,14 +63,14 @@ type SyncController struct {
 // The SyncController will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *SyncController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("FederatedResourceQuota sync controller reconciling %s", req.NamespacedName.String())
+	klog.V(4).InfoS("FederatedResourceQuota sync controller reconciling", "namespacedName", req.NamespacedName.String())
 
 	quota := &policyv1alpha1.FederatedResourceQuota{}
 	if err := c.Client.Get(ctx, req.NamespacedName, quota); err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.V(4).Infof("Begin to cleanup works created by federatedResourceQuota(%s)", req.NamespacedName.String())
+			klog.V(4).InfoS("Begin to cleanup works created by federatedResourceQuota", "namespacedName", req.NamespacedName.String())
 			if err = c.cleanUpWorks(ctx, req.Namespace, req.Name); err != nil {
-				klog.Errorf("Failed to cleanup works created by federatedResourceQuota(%s)", req.NamespacedName.String())
+				klog.ErrorS(err, "Failed to cleanup works created by federatedResourceQuota", "namespacedName", req.NamespacedName.String())
 				return controllerruntime.Result{}, err
 			}
 			return controllerruntime.Result{}, nil
@@ -79,18 +79,18 @@ func (c *SyncController) Reconcile(ctx context.Context, req controllerruntime.Re
 	}
 
 	if err := c.cleanUpOrphanWorks(ctx, quota); err != nil {
-		klog.Errorf("Failed to cleanup orphan works for federatedResourceQuota(%s), error: %v", req.NamespacedName.String(), err)
+		klog.ErrorS(err, "Failed to cleanup orphan works for federatedResourceQuota", "namespacedName", req.NamespacedName.String())
 		return controllerruntime.Result{}, err
 	}
 
 	clusterList := &clusterv1alpha1.ClusterList{}
 	if err := c.Client.List(ctx, clusterList); err != nil {
-		klog.Errorf("Failed to list clusters, error: %v", err)
+		klog.ErrorS(err, "Failed to list clusters")
 		return controllerruntime.Result{}, err
 	}
 
 	if err := c.buildWorks(ctx, quota, clusterList.Items); err != nil {
-		klog.Errorf("Failed to build works for federatedResourceQuota(%s), error: %v", req.NamespacedName.String(), err)
+		klog.ErrorS(err, "Failed to build works for federatedResourceQuota", "namespacedName", req.NamespacedName.String())
 		c.EventRecorder.Eventf(quota, corev1.EventTypeWarning, events.EventReasonSyncFederatedResourceQuotaFailed, err.Error())
 		return controllerruntime.Result{}, err
 	}
@@ -114,7 +114,7 @@ func (c *SyncController) SetupWithManager(mgr controllerruntime.Manager) error {
 
 			FederatedResourceQuotaList := &policyv1alpha1.FederatedResourceQuotaList{}
 			if err := c.Client.List(ctx, FederatedResourceQuotaList); err != nil {
-				klog.Errorf("Failed to list FederatedResourceQuota, error: %v", err)
+				klog.ErrorS(err, "Failed to list FederatedResourceQuota")
 			}
 
 			for _, federatedResourceQuota := range FederatedResourceQuotaList.Items {
@@ -189,14 +189,14 @@ func (c *SyncController) cleanUpWorks(ctx context.Context, namespace, name strin
 		util.FederatedResourceQuotaNamespaceLabel: namespace,
 		util.FederatedResourceQuotaNameLabel:      name,
 	}); err != nil {
-		klog.Errorf("Failed to list works, err: %v", err)
+		klog.ErrorS(err, "Failed to list works")
 		return err
 	}
 
 	for index := range workList.Items {
 		work := &workList.Items[index]
 		if err := c.Delete(ctx, work); err != nil && !apierrors.IsNotFound(err) {
-			klog.Errorf("Failed to delete work(%s): %v", klog.KObj(work).String(), err)
+			klog.ErrorS(err, "Failed to delete work", "work", klog.KObj(work).String())
 			errs = append(errs, err)
 		}
 	}
@@ -211,7 +211,7 @@ func (c *SyncController) cleanUpOrphanWorks(ctx context.Context, quota *policyv1
 		util.FederatedResourceQuotaNamespaceLabel: quota.GetNamespace(),
 		util.FederatedResourceQuotaNameLabel:      quota.GetName(),
 	}); err != nil {
-		klog.Errorf("Failed to list works, err: %v", err)
+		klog.ErrorS(err, "Failed to list works")
 		return err
 	}
 
@@ -221,7 +221,7 @@ func (c *SyncController) cleanUpOrphanWorks(ctx context.Context, quota *policyv1
 			continue
 		}
 		if err := c.Delete(ctx, work); err != nil && !apierrors.IsNotFound(err) {
-			klog.Errorf("Failed to delete work(%s): %v", klog.KObj(work).String(), err)
+			klog.ErrorS(err, "Failed to delete work", "work", klog.KObj(work).String())
 			errs = append(errs, err)
 		}
 	}
@@ -246,7 +246,7 @@ func (c *SyncController) buildWorks(ctx context.Context, quota *policyv1alpha1.F
 
 		resourceQuotaObj, err := helper.ToUnstructured(resourceQuota)
 		if err != nil {
-			klog.Errorf("Failed to transform resourceQuota(%s), error: %v", klog.KObj(resourceQuota).String(), err)
+			klog.ErrorS(err, "Failed to transform resourceQuota", "resourceQuota", klog.KObj(resourceQuota).String())
 			errs = append(errs, err)
 			continue
 		}
