@@ -19,6 +19,9 @@ set -o nounset
 # This script deploy karmada control plane to any cluster you want.	REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 # This script depends on utils in: ${REPO_ROOT}/hack/util.sh
 
+# Do not run the mutation detector by default on the local karmada instance.
+KUBE_CACHE_MUTATION_DETECTOR="${KUBE_CACHE_MUTATION_DETECTOR:-false}"
+
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 CERT_DIR=${CERT_DIR:-"${HOME}/.karmada"}
 mkdir -p "${CERT_DIR}" &>/dev/null ||  mkdir -p "${CERT_DIR}"
@@ -449,8 +452,13 @@ sed -i'' -e "s/{{ca_crt}}/${karmada_ca}/g" "${TEMP_PATH_BOOTSTRAP}"/bootstrap-to
 sed -i'' -e "s|{{apiserver_address}}|${karmada_apiserver_address}|g" "${TEMP_PATH_BOOTSTRAP}"/bootstrap-token-configuration-tmp.yaml
 kubectl --context="karmada-apiserver" apply -f "${TEMP_PATH_BOOTSTRAP}"/bootstrap-token-configuration-tmp.yaml
 
+# render the KUBE_CACHE_MUTATION_DETECTOR in the karmada-controller-manager
+CONTROLLER_MANAGER_YAML_TMP="${TEMP_PATH_BOOTSTRAP}/karmada-controller-manager.yaml"
+cp "${REPO_ROOT}/artifacts/deploy/karmada-controller-manager.yaml" "${CONTROLLER_MANAGER_YAML_TMP}"
+sed -i'' -e "s/{{KUBE_CACHE_MUTATION_DETECTOR}}/${KUBE_CACHE_MUTATION_DETECTOR}/g" "${CONTROLLER_MANAGER_YAML_TMP}"
 # deploy controller-manager on host cluster
-kubectl --context="${HOST_CLUSTER_NAME}" apply -f "${REPO_ROOT}/artifacts/deploy/karmada-controller-manager.yaml"
+kubectl --context="${HOST_CLUSTER_NAME}" apply -f "${CONTROLLER_MANAGER_YAML_TMP}"
+
 # deploy scheduler on host cluster
 kubectl --context="${HOST_CLUSTER_NAME}" apply -f "${REPO_ROOT}/artifacts/deploy/karmada-scheduler.yaml"
 # deploy descheduler on host cluster
