@@ -83,10 +83,15 @@ else
 fi
 
 #step1. create host cluster and member clusters in parallel
-# host IP address: script parameter ahead of macOS IP
+# host IP address: script parameter ahead of WSL2 or macOS IP
 if [[ -z "${HOST_IPADDRESS}" ]]; then
-  util::get_macos_ipaddress # Adapt for macOS
-  HOST_IPADDRESS=${MAC_NIC_IPADDRESS:-}
+  if util::is_wsl2; then
+    util::get_wsl2_ipaddress # adapt for WSL2
+    HOST_IPADDRESS=${WSL2_HOST_IP_ADDRESS:-}
+  else
+    util::get_macos_ipaddress # Adapt for macOS
+    HOST_IPADDRESS=${MAC_NIC_IPADDRESS:-}
+  fi
 fi
 #prepare for kindClusterConfig
 TEMP_PATH=$(mktemp -d)
