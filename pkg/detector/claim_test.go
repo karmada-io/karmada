@@ -208,3 +208,178 @@ func TestNeedCleanupClaimMetadata(t *testing.T) {
 		})
 	}
 }
+
+func TestNeedClaimTargetPolicy(t *testing.T) {
+	tests := []struct {
+		name         string
+		object       *unstructured.Unstructured
+		targetPolicy string
+		expected     bool
+	}{
+		{
+			name: "object already claimed by target PP policy - should return false",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"labels": map[string]interface{}{
+							policyv1alpha1.PropagationPolicyPermanentIDLabel: "target-policy-id",
+						},
+					},
+				},
+			},
+			targetPolicy: "target-policy-id",
+			expected:     false,
+		},
+		{
+			name: "object claimed by different PP policy - should return true",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"labels": map[string]interface{}{
+							policyv1alpha1.PropagationPolicyPermanentIDLabel: "different-policy-id",
+						},
+					},
+				},
+			},
+			targetPolicy: "target-policy-id",
+			expected:     true,
+		},
+		{
+			name: "object claimed by CPP policy - should return true",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"labels": map[string]interface{}{
+							policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "cpp-policy-id",
+						},
+					},
+				},
+			},
+			targetPolicy: "target-policy-id",
+			expected:     true,
+		},
+		{
+			name: "object claimed by both CPP and PP policies - should return true",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"labels": map[string]interface{}{
+							policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "cpp-policy-id",
+							policyv1alpha1.PropagationPolicyPermanentIDLabel:        "target-policy-id",
+						},
+					},
+				},
+			},
+			targetPolicy: "target-policy-id",
+			expected:     true,
+		},
+		{
+			name: "object not claimed by any policy - should return true",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"labels": map[string]interface{}{},
+					},
+				},
+			},
+			targetPolicy: "target-policy-id",
+			expected:     true,
+		},
+		{
+			name: "object with no labels - should return true",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"metadata": map[string]interface{}{},
+				},
+			},
+			targetPolicy: "target-policy-id",
+			expected:     true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := NeedClaimTargetPolicy(tt.object, tt.targetPolicy)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestNeedClaimTargetClusterPolicy(t *testing.T) {
+	tests := []struct {
+		name         string
+		object       *unstructured.Unstructured
+		targetPolicy string
+		expected     bool
+	}{
+		{
+			name: "object already claimed by target CPP policy - should return false",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"labels": map[string]interface{}{
+							policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "target-cpp-policy-id",
+						},
+					},
+				},
+			},
+			targetPolicy: "target-cpp-policy-id",
+			expected:     false,
+		},
+		{
+			name: "object claimed by different CPP policy - should return true",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"labels": map[string]interface{}{
+							policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "different-cpp-policy-id",
+						},
+					},
+				},
+			},
+			targetPolicy: "target-cpp-policy-id",
+			expected:     true,
+		},
+		{
+			name: "object not claimed by any policy - should return true",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"labels": map[string]interface{}{},
+					},
+				},
+			},
+			targetPolicy: "target-cpp-policy-id",
+			expected:     true,
+		},
+		{
+			name: "object with no labels - should return true",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"metadata": map[string]interface{}{},
+				},
+			},
+			targetPolicy: "target-cpp-policy-id",
+			expected:     true,
+		},
+		{
+			name: "object with nil labels - should return true",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"labels": nil,
+					},
+				},
+			},
+			targetPolicy: "target-cpp-policy-id",
+			expected:     true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := NeedClaimTargetClusterPolicy(tt.object, tt.targetPolicy)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}

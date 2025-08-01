@@ -433,7 +433,8 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 		}
 	}()
 
-	policyID, err := d.ClaimPolicyForObject(object, policy)
+	// Update the object with the returned content from ClaimPolicyForObject, ensuring that the object used when generating the binding is the latest.
+	object, policyID, err := d.ClaimPolicyForObject(object, policy)
 	if err != nil {
 		klog.Errorf("Failed to claim policy(%s/%s) for object: %s", policy.Namespace, policy.Name, object)
 		return err
@@ -525,7 +526,8 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 		}
 	}()
 
-	policyID, err := d.ClaimClusterPolicyForObject(object, policy)
+	// Update the object with the returned content from ClaimClusterPolicyForObject, ensuring that the object used when generating the binding is the latest.
+	object, policyID, err := d.ClaimClusterPolicyForObject(object, policy)
 	if err != nil {
 		klog.Errorf("Failed to claim cluster policy(%s) for object: %s", policy.Name, object)
 		return err
@@ -693,36 +695,36 @@ func (d *ResourceDetector) GetUnstructuredObject(objectKey keys.ClusterWideKey) 
 }
 
 // ClaimPolicyForObject set policy identifier which the object associated with.
-// It will add policy labels and annotations to the object, and update the obj with the content returned by the Server, ensuring that the obj used when generating the binding is the latest.
-func (d *ResourceDetector) ClaimPolicyForObject(object *unstructured.Unstructured, policy *policyv1alpha1.PropagationPolicy) (string, error) {
+// It will add policy labels and annotations to the deep copy of the object and return the updated object.
+func (d *ResourceDetector) ClaimPolicyForObject(object *unstructured.Unstructured, policy *policyv1alpha1.PropagationPolicy) (*unstructured.Unstructured, string, error) {
 	policyID := policy.Labels[policyv1alpha1.PropagationPolicyPermanentIDLabel]
 
-	objLabels := object.GetLabels()
-	if len(objLabels) > 0 {
-		// object has been claimed, don't need to claim again
-		if !excludeClusterPolicy(object) &&
-			objLabels[policyv1alpha1.PropagationPolicyPermanentIDLabel] == policyID {
-			return policyID, nil
-		}
+	// object has been claimed by the target policy, don't need to claim again
+	if !NeedClaimTargetPolicy(object, policyID) {
+		return object, policyID, nil
 	}
 
-	AddPPClaimMetadata(object, policyID, policy.ObjectMeta)
-	return policyID, d.Client.Update(context.TODO(), object)
+	objectCopy := object.DeepCopy()
+	CleanupCPPClaimMetadata(objectCopy)
+	AddPPClaimMetadata(objectCopy, policyID, policy.ObjectMeta)
+	err := d.Client.Update(context.TODO(), objectCopy)
+	return objectCopy, policyID, err
 }
 
 // ClaimClusterPolicyForObject set cluster identifier which the object associated with.
-// It will add policy labels and annotations to the object, and update the obj with the content returned by the Server, ensuring that the obj used when generating the binding is the latest.
-func (d *ResourceDetector) ClaimClusterPolicyForObject(object *unstructured.Unstructured, policy *policyv1alpha1.ClusterPropagationPolicy) (string, error) {
+// It will add policy labels and annotations to the deep copy of the object and return the updated object.
+func (d *ResourceDetector) ClaimClusterPolicyForObject(object *unstructured.Unstructured, policy *policyv1alpha1.ClusterPropagationPolicy) (*unstructured.Unstructured, string, error) {
 	policyID := policy.Labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel]
 
-	claimedID := util.GetLabelValue(object.GetLabels(), policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel)
-	// object has been claimed, don't need to claim again
-	if claimedID == policyID {
-		return policyID, nil
+	// object has been claimed by the target cluster policy, don't need to claim again
+	if !NeedClaimTargetClusterPolicy(object, policyID) {
+		return object, policyID, nil
 	}
 
-	AddCPPClaimMetadata(object, policyID, policy.ObjectMeta)
-	return policyID, d.Client.Update(context.TODO(), object)
+	objectCopy := object.DeepCopy()
+	AddCPPClaimMetadata(objectCopy, policyID, policy.ObjectMeta)
+	err := d.Client.Update(context.TODO(), objectCopy)
+	return objectCopy, policyID, err
 }
 
 // BuildResourceBinding builds a desired ResourceBinding for object.

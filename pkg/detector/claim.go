@@ -18,6 +18,7 @@ package detector
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -87,5 +88,36 @@ func NeedCleanupClaimMetadata(obj metav1.Object, targetClaimMetadata map[string]
 			return false
 		}
 	}
+	return true
+}
+
+// NeedClaimTargetPolicy determines whether an object needs to be claimed by the target policy.
+// It checks the object's labels to see if it's already claimed by the target policy.
+func NeedClaimTargetPolicy(object *unstructured.Unstructured, targetPolicy string) bool {
+	objLabels := object.GetLabels()
+
+	_, isClaimedByCPP := objLabels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel]
+	claimedID, isClaimedByPP := objLabels[policyv1alpha1.PropagationPolicyPermanentIDLabel]
+	// object has been claimed by the target policy, don't need to claim again
+	// In the case pp preempts cpp, it is necessary to first clear the cpp metadata.
+	if !isClaimedByCPP && isClaimedByPP && claimedID == targetPolicy {
+		return false
+	}
+
+	return true
+}
+
+// NeedClaimTargetClusterPolicy determines whether an object needs to be claimed by the target cluster policy.
+// It checks the object's labels to see if it's already claimed by the target cluster policy.
+// Since ClusterPropagationPolicy cannot preempt PropagationPolicy, there's no need to clean up PP's claim metadata first.
+func NeedClaimTargetClusterPolicy(object *unstructured.Unstructured, targetPolicy string) bool {
+	objLabels := object.GetLabels()
+
+	claimedID, isClaimedByCPP := objLabels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel]
+	// object has been claimed by the target cluster policy, don't need to claim again
+	if isClaimedByCPP && claimedID == targetPolicy {
+		return false
+	}
+
 	return true
 }
