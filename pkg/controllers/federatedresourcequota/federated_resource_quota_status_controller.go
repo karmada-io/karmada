@@ -172,7 +172,7 @@ func (c *StatusController) collectQuotaStatus(ctx context.Context, quota *policy
 	}
 
 	if reflect.DeepEqual(quota.Status, *quotaStatus) {
-		klog.V(4).InfoS("New quotaStatus are equal with old federatedResourceQuota status, no update required.", "quotaStatus", klog.KObj(quota).String())
+		klog.V(4).InfoS("New quotaStatus is equal with old federatedResourceQuota status, no update required.", "federatedResourceQuota", klog.KObj(quota).String())
 		return nil
 	}
 

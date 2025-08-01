@@ -18,7 +18,6 @@ package federatedresourcequota
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"reflect"
 	"time"
@@ -100,7 +99,7 @@ func (c *QuotaEnforcementController) SetupWithManager(mgr controllerruntime.Mana
 		func(ctx context.Context, obj client.Object) []reconcile.Request {
 			rb, ok := obj.(*workv1alpha2.ResourceBinding)
 			if !ok {
-				klog.ErrorS(errors.New("ResourceBinding conversion error"), "Failed to convert object to ResourceBinding", "object", obj)
+				klog.ErrorS(fmt.Errorf("unexpected type: %T", obj), "Failed to convert object to ResourceBinding", "object", obj)
 				return []reconcile.Request{}
 			}
 
@@ -252,7 +251,7 @@ func (c *QuotaEnforcementController) collectQuotaStatus(quota *policyv1alpha1.Fe
 	quotaStatus.OverallUsed = calculateUsedWithResourceBinding(bindingList.Items, quota.Spec.Overall)
 
 	if reflect.DeepEqual(quota.Status, *quotaStatus) {
-		klog.V(4).InfoS("New quotaStatus is equal with old federatedResourceQuota status, no update required.", "quotaStatus", klog.KObj(quota).String())
+		klog.V(4).InfoS("New quotaStatus is equal with old federatedResourceQuota status, no update required.", "federatedResourceQuota", klog.KObj(quota).String())
 		return nil
 	}
 
