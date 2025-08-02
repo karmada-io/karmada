@@ -83,6 +83,10 @@ type ServiceExportController struct {
 	// worker process resources periodic from rateLimitingQueue.
 	worker             util.AsyncWorker
 	RateLimiterOptions ratelimiterflag.Options
+
+	// epsWorkListFunc is used to mock the work list provider to return a specific work list,
+	// it will be overridden by the test.
+	epsWorkListFunc workListProvider
 }
 
 var (
@@ -139,6 +143,8 @@ func (c *ServiceExportController) Reconcile(ctx context.Context, req controllerr
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *ServiceExportController) SetupWithManager(mgr controllerruntime.Manager) error {
+	// Set the default work list provider, it will be overridden by the test.
+	c.epsWorkListFunc = c.collectedEpsWorkListProvider
 	return controllerruntime.NewControllerManagedBy(mgr).Named(ServiceExportControllerName).For(&workv1alpha1.Work{}, builder.WithPredicates(c.PredicateFunc)).
 		WithOptions(controller.Options{
 			RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RateLimiterOptions),
@@ -434,14 +440,11 @@ func (c *ServiceExportController) reportEndpointSliceWithServiceExportCreate(ctx
 	return utilerrors.NewAggregate(errs)
 }
 
-func (c *ServiceExportController) removeOrphanWork(ctx context.Context, endpointSliceObjects []runtime.Object, serviceExportKey keys.FederatedKey) error {
-	willReportWorks := sets.NewString()
-	for index := range endpointSliceObjects {
-		endpointSlice := endpointSliceObjects[index].(*unstructured.Unstructured)
-		workName := names.GenerateWorkName(endpointSlice.GetKind(), endpointSlice.GetName(), endpointSlice.GetNamespace())
-		willReportWorks.Insert(workName)
-	}
+// workListProvider defines a function type for listing works
+type workListProvider func(ctx context.Context, serviceExportKey keys.FederatedKey) (*workv1alpha1.WorkList, error)
 
+// collectedEpsWorkListProvider provides the default implementation for listing works
+func (c *ServiceExportController) collectedEpsWorkListProvider(ctx context.Context, serviceExportKey keys.FederatedKey) (*workv1alpha1.WorkList, error) {
 	collectedEpsWorkList := &workv1alpha1.WorkList{}
 	if err := c.List(ctx, collectedEpsWorkList, &client.ListOptions{
 		Namespace: names.GenerateExecutionSpaceName(serviceExportKey.Cluster),
@@ -454,6 +457,21 @@ func (c *ServiceExportController) removeOrphanWork(ctx context.Context, endpoint
 		klog.ErrorS(err, "Failed to list workList reported by ServiceExport in executionSpace",
 			"namespace", serviceExportKey.Namespace, "name", serviceExportKey.Name, "executionSpace",
 			names.GenerateExecutionSpaceName(serviceExportKey.Cluster))
+		return nil, err
+	}
+	return collectedEpsWorkList, nil
+}
+
+func (c *ServiceExportController) removeOrphanWork(ctx context.Context, endpointSliceObjects []runtime.Object, serviceExportKey keys.FederatedKey) error {
+	willReportWorks := sets.NewString()
+	for index := range endpointSliceObjects {
+		endpointSlice := endpointSliceObjects[index].(*unstructured.Unstructured)
+		workName := names.GenerateWorkName(endpointSlice.GetKind(), endpointSlice.GetName(), endpointSlice.GetNamespace())
+		willReportWorks.Insert(workName)
+	}
+
+	collectedEpsWorkList, err := c.epsWorkListFunc(ctx, serviceExportKey)
+	if err != nil {
 		return err
 	}
 
@@ -530,7 +548,7 @@ func reportEndpointSlice(ctx context.Context, c client.Client, endpointSlice *un
 	return nil
 }
 
-func getEndpointSliceWorkMeta(ctx context.Context, c client.Client, ns string, workName string, endpointSlice *unstructured.Unstructured) (metav1.ObjectMeta, error) {
+func getEndpointSliceWorkMeta(ctx context.Context, c client.Client, ns, workName string, endpointSlice *unstructured.Unstructured) (metav1.ObjectMeta, error) {
 	existWork := &workv1alpha1.Work{}
 	var err error
 	if err = c.Get(ctx, types.NamespacedName{
