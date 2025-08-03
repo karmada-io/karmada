@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"time"
 
-	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/scheduler/core/spreadconstraint"
@@ -30,7 +29,7 @@ import (
 
 // SelectClusters selects clusters based on the placement and resource binding spec.
 func SelectClusters(clustersScore framework.ClusterScoreList,
-	placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec) ([]*clusterv1alpha1.Cluster, error) {
+	placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec) ([]spreadconstraint.ClusterDetailInfo, error) {
 	startTime := time.Now()
 	defer metrics.ScheduleStep(metrics.ScheduleStepSelect, startTime)
 
@@ -40,7 +39,7 @@ func SelectClusters(clustersScore framework.ClusterScoreList,
 
 // AssignReplicas assigns replicas to clusters based on the placement and resource binding spec.
 func AssignReplicas(
-	clusters []*clusterv1alpha1.Cluster,
+	clusters []spreadconstraint.ClusterDetailInfo,
 	spec *workv1alpha2.ResourceBindingSpec,
 	status *workv1alpha2.ResourceBindingStatus,
 ) ([]workv1alpha2.TargetCluster, error) {
@@ -69,7 +68,7 @@ func AssignReplicas(
 	// If not workload, assign all clusters without considering replicas.
 	targetClusters := make([]workv1alpha2.TargetCluster, len(clusters))
 	for i, cluster := range clusters {
-		targetClusters[i] = workv1alpha2.TargetCluster{Name: cluster.Name}
+		targetClusters[i] = workv1alpha2.TargetCluster{Name: cluster.Cluster.Name}
 	}
 	return targetClusters, nil
 }

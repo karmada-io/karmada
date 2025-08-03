@@ -21,14 +21,13 @@ import (
 
 	"k8s.io/utils/ptr"
 
-	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 )
 
 func selectBestClustersByRegion(spreadConstraintMap map[policyv1alpha1.SpreadFieldValue]policyv1alpha1.SpreadConstraint,
-	groupClustersInfo *GroupClustersInfo) ([]*clusterv1alpha1.Cluster, error) {
-	var clusters []*clusterv1alpha1.Cluster
+	groupClustersInfo *GroupClustersInfo) ([]ClusterDetailInfo, error) {
 	var candidateClusters []ClusterDetailInfo
+	var selectedClusters []ClusterDetailInfo
 
 	if len(groupClustersInfo.Regions) < spreadConstraintMap[policyv1alpha1.SpreadByFieldRegion].MinGroups {
 		return nil, fmt.Errorf("the number of feasible region is less than spreadConstraint.MinGroups")
@@ -43,17 +42,17 @@ func selectBestClustersByRegion(spreadConstraintMap map[policyv1alpha1.SpreadFie
 
 	// secondly, select the clusters with the highest score in per region,
 	for i := range regions {
-		clusters = append(clusters, regions[i].Clusters[0].Cluster)
+		selectedClusters = append(selectedClusters, regions[i].Clusters[0])
 		candidateClusters = append(candidateClusters, regions[i].Clusters[1:]...)
 	}
 
-	needCnt := len(candidateClusters) + len(clusters)
+	needCnt := len(candidateClusters) + len(selectedClusters)
 	if needCnt > spreadConstraintMap[policyv1alpha1.SpreadByFieldCluster].MaxGroups {
 		needCnt = spreadConstraintMap[policyv1alpha1.SpreadByFieldCluster].MaxGroups
 	}
 
 	// thirdly, select the remaining Clusters based cluster.Score
-	restCnt := needCnt - len(clusters)
+	restCnt := needCnt - len(selectedClusters)
 	if restCnt > 0 {
 		sortClusters(candidateClusters, func(i *ClusterDetailInfo, j *ClusterDetailInfo) *bool {
 			if i.AvailableReplicas != j.AvailableReplicas {
@@ -62,11 +61,11 @@ func selectBestClustersByRegion(spreadConstraintMap map[policyv1alpha1.SpreadFie
 			return nil
 		})
 		for i := 0; i < restCnt; i++ {
-			clusters = append(clusters, candidateClusters[i].Cluster)
+			selectedClusters = append(selectedClusters, candidateClusters[i])
 		}
 	}
 
-	return clusters, nil
+	return selectedClusters, nil
 }
 
 // selectRegions is an implementation of the region selection algorithm, the purpose of

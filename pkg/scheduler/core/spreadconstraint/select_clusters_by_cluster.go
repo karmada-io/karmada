@@ -19,12 +19,11 @@ package spreadconstraint
 import (
 	"fmt"
 
-	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 )
 
 func selectBestClustersByCluster(spreadConstraint policyv1alpha1.SpreadConstraint, groupClustersInfo *GroupClustersInfo,
-	needReplicas int32) ([]*clusterv1alpha1.Cluster, error) {
+	needReplicas int32) ([]ClusterDetailInfo, error) {
 	totalClusterCnt := len(groupClustersInfo.Clusters)
 	if totalClusterCnt < spreadConstraint.MinGroups {
 		return nil, fmt.Errorf("the number of feasible clusters is less than spreadConstraint.MinGroups")
@@ -34,24 +33,17 @@ func selectBestClustersByCluster(spreadConstraint policyv1alpha1.SpreadConstrain
 	if totalClusterCnt < spreadConstraint.MaxGroups {
 		needCnt = totalClusterCnt
 	}
-
-	var clusterInfos []ClusterDetailInfo
+	var selectedClusters []ClusterDetailInfo
 
 	if needReplicas == InvalidReplicas {
-		clusterInfos = groupClustersInfo.Clusters[:needCnt]
+		selectedClusters = groupClustersInfo.Clusters[:needCnt]
 	} else {
-		clusterInfos = selectClustersByAvailableResource(groupClustersInfo.Clusters, int32(needCnt), needReplicas) // #nosec G115: integer overflow conversion int -> int32
-		if len(clusterInfos) == 0 {
+		selectedClusters = selectClustersByAvailableResource(groupClustersInfo.Clusters, int32(needCnt), needReplicas) // #nosec G115: integer overflow conversion int -> int32
+		if len(selectedClusters) == 0 {
 			return nil, fmt.Errorf("no enough resource when selecting %d clusters", needCnt)
 		}
 	}
-
-	var clusters []*clusterv1alpha1.Cluster
-	for i := range clusterInfos {
-		clusters = append(clusters, clusterInfos[i].Cluster)
-	}
-
-	return clusters, nil
+	return selectedClusters, nil
 }
 
 // if needClusterCount = 2, needReplicas = 80, member1 and member3 will be selected finally.
