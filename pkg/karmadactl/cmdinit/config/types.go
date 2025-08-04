@@ -29,7 +29,7 @@ const GroupName = "config.karmada.io"
 var SchemeGroupVersion = schema.GroupVersion{Group: GroupName, Version: "v1alpha1"}
 
 // KarmadaInitConfig defines the configuration for initializing Karmada
-type KarmadaInitConfig struct {
+type KarmadaInitConfig struct { //todo
 	metav1.TypeMeta `json:",inline" yaml:",inline"`
 
 	// Spec defines the desired state for initializing Karmada
@@ -45,7 +45,7 @@ type KarmadaInitSpec struct {
 
 	// Etcd configures the information of the Etcd cluster
 	// +optional
-	Etcd Etcd `json:"etcd,omitempty" yaml:"etcd,omitempty"`
+	Etcd Etcd `json:"etcd,omitempty" yaml:"etcd,omitempty"` //todo
 
 	// HostCluster configures the information of the host cluster
 	// +optional
@@ -57,7 +57,7 @@ type KarmadaInitSpec struct {
 
 	// Components configures information about Karmada components
 	// +optional
-	Components KarmadaComponents `json:"components,omitempty" yaml:"components,omitempty"`
+	Components KarmadaComponents `json:"components,omitempty" yaml:"components,omitempty"` // todo
 
 	// KarmadaCRDs configures the Karmada CRDs to be installed
 	// +optional
@@ -138,6 +138,10 @@ type LocalEtcd struct {
 	// StorageClassesName is the name of the storage class for the Etcd PVC
 	// +optional
 	StorageClassesName string `json:"storageClassesName,omitempty" yaml:"storageClassesName,omitempty"`
+
+	// ExtraArgs are additional arguments for the Etcd pods
+	// +optional
+	ExtraArgs []string `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
 }
 
 // ExternalEtcd defines the configuration of an external Etcd cluster
@@ -217,7 +221,7 @@ type Images struct {
 type KarmadaComponents struct {
 	// KarmadaAPIServer is the configuration for the Karmada API Server
 	// +optional
-	KarmadaAPIServer *KarmadaAPIServer `json:"karmadaAPIServer,omitempty" yaml:"karmadaAPIServer,omitempty"`
+	KarmadaAPIServer *KarmadaAPIServer `json:"karmadaAPIServer,omitempty" yaml:"karmadaAPIServer,omitempty"` //todo
 
 	// KarmadaAggregatedAPIServer is the configuration for the Karmada Aggregated API Server
 	// +optional
@@ -303,31 +307,55 @@ type KarmadaAPIServer struct {
 	// ServiceAnnotations are annotations added to the API server service
 	// +optional
 	ServiceAnnotations map[string]string `json:"serviceAnnotations,omitempty" yaml:"serviceAnnotations,omitempty"`
+
+	// ExtraArgs are additional arguments for the Etcd pods
+	// +optional
+	ExtraArgs []string `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
 }
 
 // KarmadaAggregatedAPIServer defines the configuration for the Karmada Aggregated API Server
 type KarmadaAggregatedAPIServer struct {
 	CommonSettings `json:",inline" yaml:",inline"`
+
+	// ExtraArgs are additional arguments for the Etcd pods
+	// +optional
+	ExtraArgs []string `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
 }
 
 // KubeControllerManager defines the configuration for the Kube Controller Manager
 type KubeControllerManager struct {
 	CommonSettings `json:",inline" yaml:",inline"`
+
+	// ExtraArgs are additional arguments for the Etcd pods
+	// +optional
+	ExtraArgs []string `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
 }
 
 // KarmadaControllerManager defines the configuration for the Karmada Controller Manager
 type KarmadaControllerManager struct {
 	CommonSettings `json:",inline" yaml:",inline"`
+
+	// ExtraArgs are additional arguments for the Etcd pods
+	// +optional
+	ExtraArgs []string `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
 }
 
 // KarmadaScheduler defines the configuration for the Karmada Scheduler
 type KarmadaScheduler struct {
 	CommonSettings `json:",inline" yaml:",inline"`
+
+	// ExtraArgs are additional arguments for the Etcd pods
+	// +optional
+	ExtraArgs []string `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
 }
 
 // KarmadaWebhook defines the configuration for the Karmada Webhook
 type KarmadaWebhook struct {
 	CommonSettings `json:",inline" yaml:",inline"`
+
+	// ExtraArgs are additional arguments for the Etcd pods
+	// +optional
+	ExtraArgs []string `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
 }
 
 // LocalSecretReference is a reference to a secret within the same namespace

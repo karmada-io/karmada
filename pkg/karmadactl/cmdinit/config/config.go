@@ -42,6 +42,8 @@ func LoadInitConfiguration(cfgPath string) (*KarmadaInitConfig, error) {
 
 // loadInitConfigurationFromFile reads the file at the specified path and converts it into an InitConfiguration.
 // It reads the file contents and then converts the bytes to an InitConfiguration.
+// loadInitConfigurationFromFile 从指定路径读取文件，并将其转换为 InitConfiguration。
+// 它读取文件内容，然后将字节转换为 InitConfiguration。
 func loadInitConfigurationFromFile(cfgPath string) (*KarmadaInitConfig, error) {
 	klog.V(1).Infof("loading configuration from %q", cfgPath)
 
