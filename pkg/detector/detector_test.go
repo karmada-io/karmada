@@ -1048,8 +1048,8 @@ func (m *mockResourceInterpreter) Start(_ context.Context) error {
 	return nil
 }
 
-func (m *mockResourceInterpreter) HookEnabled(_ schema.GroupVersionKind, _ configv1alpha1.InterpreterOperation) bool {
-	return false
+func (m *mockResourceInterpreter) HookEnabled(_ schema.GroupVersionKind, _ configv1alpha1.InterpreterOperation) (bool, error) {
+	return false, nil
 }
 
 func (m *mockResourceInterpreter) GetReplicas(_ *unstructured.Unstructured) (int32, *workv1alpha2.ReplicaRequirements, error) {

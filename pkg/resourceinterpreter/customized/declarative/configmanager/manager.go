@@ -49,6 +49,7 @@ type ConfigManager interface {
 // interpreterConfigManager collects the resource interpreter customization.
 type interpreterConfigManager struct {
 	initialSynced atomic.Bool
+	informer      genericmanager.SingleClusterInformerManager
 	lister        cache.GenericLister
 	configuration atomic.Value
 }
@@ -64,7 +65,17 @@ func (configManager *interpreterConfigManager) HasSynced() bool {
 		return true
 	}
 
-	if configuration, err := configManager.lister.List(labels.Everything()); err == nil && len(configuration) == 0 {
+	if !configManager.informer.IsInformerSynced(resourceInterpreterCustomizationsGVR) {
+		return false
+	}
+
+	configurations, err := configManager.lister.List(labels.Everything())
+	if err != nil {
+		utilruntime.HandleError(fmt.Errorf("error listing configuration: %v", err))
+		return false
+	}
+
+	if len(configurations) == 0 {
 		// the empty list we initially stored is valid to use.
 		// Setting initialSynced to true, so subsequent checks
 		// would be able to take the fast path on the atomic boolean in a
@@ -73,7 +84,19 @@ func (configManager *interpreterConfigManager) HasSynced() bool {
 		// the informer has synced, and we don't have any items
 		return true
 	}
-	return false
+
+	configs := make([]*configv1alpha1.ResourceInterpreterCustomization, len(configurations))
+	for index, c := range configurations {
+		config := &configv1alpha1.ResourceInterpreterCustomization{}
+		if err = helper.ConvertToTypedObject(c, config); err != nil {
+			klog.Errorf("Failed to transform ResourceInterpreterCustomization: %v", err)
+			return false
+		}
+		configs[index] = config
+	}
+
+	configManager.LoadConfig(configs)
+	return true
 }
 
 // NewInterpreterConfigManager watches ResourceInterpreterCustomization and organizes
@@ -84,6 +107,7 @@ func NewInterpreterConfigManager(informer genericmanager.SingleClusterInformerMa
 
 	// In interpret command, rules are not loaded from server, so we don't start informer for it.
 	if informer != nil {
+		manager.informer = informer
 		manager.lister = informer.Lister(resourceInterpreterCustomizationsGVR)
 		configHandlers := fedinformer.NewHandlerOnEvents(
 			func(_ interface{}) { manager.updateConfiguration() },
@@ -96,6 +120,11 @@ func NewInterpreterConfigManager(informer genericmanager.SingleClusterInformerMa
 }
 
 func (configManager *interpreterConfigManager) updateConfiguration() {
+	if !configManager.informer.IsInformerSynced(resourceInterpreterCustomizationsGVR) {
+		klog.Info("ResourceInterpreterCustomization informer not synced")
+		return
+	}
+
 	configurations, err := configManager.lister.List(labels.Everything())
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("error updating configuration: %v", err))

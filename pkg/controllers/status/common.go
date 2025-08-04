@@ -161,7 +161,12 @@ func updateResourceStatus(
 	}
 
 	gvk := schema.GroupVersionKind{Group: gvr.Group, Version: gvr.Version, Kind: objRef.Kind}
-	if !interpreter.HookEnabled(gvk, configv1alpha1.InterpreterOperationAggregateStatus) {
+	enable, err := interpreter.HookEnabled(gvk, configv1alpha1.InterpreterOperationAggregateStatus)
+	if err != nil {
+		klog.Errorf("Failed to check hook enabled for gvk(%s), Error: %v", gvk, err)
+		return err
+	}
+	if !enable {
 		return nil
 	}
 

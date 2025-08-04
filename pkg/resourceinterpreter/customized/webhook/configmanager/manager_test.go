@@ -86,14 +86,14 @@ func TestHasSynced(t *testing.T) {
 			expectedSynced: true,
 		},
 		{
-			name:          "not synced with items",
+			name:          "synced with items",
 			initialSynced: false,
 			listResult: []runtime.Object{
 				&configv1alpha1.ResourceInterpreterWebhookConfiguration{
 					ObjectMeta: metav1.ObjectMeta{Name: "test"},
 				},
 			},
-			expectedSynced: false,
+			expectedSynced: true,
 		},
 		{
 			name:           "list error",
@@ -110,68 +110,10 @@ func TestHasSynced(t *testing.T) {
 					err:   tt.listErr,
 					items: tt.listResult,
 				},
+				informer: &mockInformerManager{},
 			}
 			manager.initialSynced.Store(tt.initialSynced)
 			assert.Equal(t, tt.expectedSynced, manager.HasSynced())
-		})
-	}
-}
-
-func TestMergeResourceExploreWebhookConfigurations(t *testing.T) {
-	tests := []struct {
-		name           string
-		configurations []*configv1alpha1.ResourceInterpreterWebhookConfiguration
-		expectedLen    int
-	}{
-		{
-			name:           "empty configurations",
-			configurations: []*configv1alpha1.ResourceInterpreterWebhookConfiguration{},
-			expectedLen:    0,
-		},
-		{
-			name: "single configuration with one webhook",
-			configurations: []*configv1alpha1.ResourceInterpreterWebhookConfiguration{
-				{
-					ObjectMeta: metav1.ObjectMeta{Name: "config1"},
-					Webhooks: []configv1alpha1.ResourceInterpreterWebhook{
-						{Name: "webhook1"},
-					},
-				},
-			},
-			expectedLen: 1,
-		},
-		{
-			name: "multiple configurations with multiple webhooks",
-			configurations: []*configv1alpha1.ResourceInterpreterWebhookConfiguration{
-				{
-					ObjectMeta: metav1.ObjectMeta{Name: "config1"},
-					Webhooks: []configv1alpha1.ResourceInterpreterWebhook{
-						{Name: "webhook1"},
-						{Name: "webhook2"},
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{Name: "config2"},
-					Webhooks: []configv1alpha1.ResourceInterpreterWebhook{
-						{Name: "webhook3"},
-					},
-				},
-			},
-			expectedLen: 3,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := mergeResourceExploreWebhookConfigurations(tt.configurations)
-			assert.Equal(t, tt.expectedLen, len(result))
-
-			if len(result) > 1 {
-				for i := 1; i < len(result); i++ {
-					assert.True(t, result[i-1].GetUID() <= result[i].GetUID(),
-						"Webhooks should be sorted by UID")
-				}
-			}
 		})
 	}
 }
@@ -223,6 +165,7 @@ func TestUpdateConfiguration(t *testing.T) {
 					items: tt.configs,
 					err:   tt.listErr,
 				},
+				informer: &mockInformerManager{},
 			}
 			manager.configuration.Store([]WebhookAccessor{})
 			manager.initialSynced.Store(false)
@@ -232,6 +175,86 @@ func TestUpdateConfiguration(t *testing.T) {
 			accessors := manager.HookAccessors()
 			assert.Equal(t, tt.expectedCount, len(accessors))
 			assert.Equal(t, tt.wantSynced, manager.HasSynced())
+		})
+	}
+}
+
+func TestInterpreterConfigManager_LoadConfig(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         []*configv1alpha1.ResourceInterpreterWebhookConfiguration
+		wantAccessors []string // The expected list of UIDs, and the order should be the order of UIDs generated after sorting by Name
+		wantSynced    bool
+	}{
+		{
+			name:          "Empty configuration",
+			input:         []*configv1alpha1.ResourceInterpreterWebhookConfiguration{},
+			wantAccessors: []string{},
+			wantSynced:    true,
+		},
+		{
+			name: "Single configuration with a single hook",
+			input: []*configv1alpha1.ResourceInterpreterWebhookConfiguration{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "configA"},
+					Webhooks: []configv1alpha1.ResourceInterpreterWebhook{
+						{Name: "hook1"},
+					},
+				},
+			},
+			wantAccessors: []string{"configA/hook1"},
+			wantSynced:    true,
+		},
+		{
+			name: "Multiple configurations and multiple hooks, testing sorting and UID generation",
+			input: []*configv1alpha1.ResourceInterpreterWebhookConfiguration{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "configB"},
+					Webhooks: []configv1alpha1.ResourceInterpreterWebhook{
+						{Name: "hook2"},
+						{Name: "hook1"},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "configA"},
+					Webhooks: []configv1alpha1.ResourceInterpreterWebhook{
+						{Name: "hook3"},
+					},
+				},
+			},
+			wantAccessors: []string{
+				"configA/hook3", // configA is ranked ahead of configB
+				"configB/hook2",
+				"configB/hook1",
+			},
+			wantSynced: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := &interpreterConfigManager{}
+			m.LoadConfig(tt.input)
+
+			gotSynced := m.initialSynced.Load()
+			if gotSynced != tt.wantSynced {
+				t.Errorf("initialSynced = %v, want %v", gotSynced, tt.wantSynced)
+			}
+
+			gotAccessors, ok := m.configuration.Load().([]WebhookAccessor)
+			if !ok {
+				t.Fatalf("configuration	type assertion failed")
+			}
+
+			if len(gotAccessors) != len(tt.wantAccessors) {
+				t.Fatalf("accessors length = %d, want %d", len(gotAccessors), len(tt.wantAccessors))
+			}
+
+			for i, wantUID := range tt.wantAccessors {
+				if gotAccessors[i].GetUID() != wantUID {
+					t.Errorf("accessors[%d].UID() = %q, want %q", i, gotAccessors[i].GetUID(), wantUID)
+				}
+			}
 		})
 	}
 }
@@ -268,4 +291,8 @@ func (m *mockInformerManager) Lister(_ schema.GroupVersionResource) cache.Generi
 }
 
 func (m *mockInformerManager) ForResource(_ schema.GroupVersionResource, _ cache.ResourceEventHandler) {
+}
+
+func (m *mockInformerManager) IsInformerSynced(_ schema.GroupVersionResource) bool {
+	return true
 }

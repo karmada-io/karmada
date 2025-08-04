@@ -168,7 +168,12 @@ func (o *objectWatcherImpl) Update(ctx context.Context, clusterName string, desi
 	}
 
 	desireObj = o.retainClusterFields(desireObj, clusterObj)
-	if o.resourceInterpreter.HookEnabled(desireObj.GroupVersionKind(), configv1alpha1.InterpreterOperationRetain) {
+	enable, err := o.resourceInterpreter.HookEnabled(desireObj.GroupVersionKind(), configv1alpha1.InterpreterOperationRetain)
+	if err != nil {
+		klog.Errorf("Failed to check if the retain hook is enabled for resource(kind=%s, %s/%s) in cluster %s: %v", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName, err)
+		return OperationResultNone, err
+	}
+	if enable {
 		desireObj, err = o.resourceInterpreter.Retain(desireObj, clusterObj)
 		if err != nil {
 			klog.Errorf("Failed to retain fields for resource(kind=%s, %s/%s) in cluster %s: %v", clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), clusterName, err)

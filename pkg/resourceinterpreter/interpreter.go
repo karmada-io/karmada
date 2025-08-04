@@ -40,8 +40,9 @@ type ResourceInterpreter interface {
 	// Start starts running the component and will never stop running until the context is closed or an error occurs.
 	Start(ctx context.Context) (err error)
 
-	// HookEnabled tells if any hook exist for specific resource type and operation.
-	HookEnabled(objGVK schema.GroupVersionKind, operationType configv1alpha1.InterpreterOperation) bool
+	// HookEnabled tells if any hook exist for specific resource type and operation, return an error means resourceInterpreter
+	// is not ready and con not yet provide interpreting services.
+	HookEnabled(objGVK schema.GroupVersionKind, operationType configv1alpha1.InterpreterOperation) (bool, error)
 
 	// GetReplicas returns the desired replicas of the object as well as the requirements of each replica.
 	GetReplicas(object *unstructured.Unstructured) (replica int32, replicaRequires *workv1alpha2.ReplicaRequirements, err error)
@@ -106,11 +107,23 @@ func (i *customResourceInterpreterImpl) Start(ctx context.Context) (err error) {
 }
 
 // HookEnabled tells if any hook exist for specific resource type and operation.
-func (i *customResourceInterpreterImpl) HookEnabled(objGVK schema.GroupVersionKind, operation configv1alpha1.InterpreterOperation) bool {
-	return i.defaultInterpreter.HookEnabled(objGVK, operation) ||
-		i.thirdpartyInterpreter.HookEnabled(objGVK, operation) ||
-		i.configurableInterpreter.HookEnabled(objGVK, operation) ||
-		i.customizedInterpreter.HookEnabled(objGVK, operation)
+func (i *customResourceInterpreterImpl) HookEnabled(objGVK schema.GroupVersionKind, operation configv1alpha1.InterpreterOperation) (bool, error) {
+	hookEnabled, err := i.defaultInterpreter.HookEnabled(objGVK, operation)
+	if err != nil || hookEnabled {
+		return hookEnabled, err
+	}
+
+	hookEnabled, err = i.thirdpartyInterpreter.HookEnabled(objGVK, operation)
+	if err != nil || hookEnabled {
+		return hookEnabled, err
+	}
+
+	hookEnabled, err = i.configurableInterpreter.HookEnabled(objGVK, operation)
+	if err != nil || hookEnabled {
+		return hookEnabled, err
+	}
+
+	return i.customizedInterpreter.HookEnabled(objGVK, operation)
 }
 
 // GetReplicas returns the desired replicas of the object as well as the requirements of each replica.

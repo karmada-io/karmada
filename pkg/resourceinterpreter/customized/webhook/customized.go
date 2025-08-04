@@ -18,6 +18,7 @@ package webhook
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"sync"
@@ -78,17 +79,18 @@ func NewCustomizedInterpreter(informer genericmanager.SingleClusterInformerManag
 }
 
 // HookEnabled tells if any hook exist for specific resource gvk and operation type.
-func (e *CustomizedInterpreter) HookEnabled(objGVK schema.GroupVersionKind, operation configv1alpha1.InterpreterOperation) bool {
+func (e *CustomizedInterpreter) HookEnabled(objGVK schema.GroupVersionKind, operation configv1alpha1.InterpreterOperation) (bool, error) {
 	if !e.hookManager.HasSynced() {
-		klog.Errorf("not yet ready to handle request")
-		return false
+		err := errors.New("not yet ready to handle request")
+		klog.Errorf("HookEnabled failed: %v", err)
+		return false, err
 	}
 
 	hook := e.getFirstRelevantHook(objGVK, operation)
 	if hook == nil {
 		klog.V(4).Infof("Hook interpreter is not enabled for kind %q with operation %q.", objGVK, operation)
 	}
-	return hook != nil
+	return hook != nil, nil
 }
 
 // GetReplicas returns the desired replicas of the object as well as the requirements of each replica.

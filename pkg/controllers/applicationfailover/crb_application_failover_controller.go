@@ -70,7 +70,11 @@ func (c *CRBApplicationFailoverController) Reconcile(ctx context.Context, req co
 		return controllerruntime.Result{}, err
 	}
 
-	if !c.clusterResourceBindingFilter(binding) {
+	filter, err := c.clusterResourceBindingFilter(binding)
+	if err != nil {
+		return controllerruntime.Result{}, err
+	}
+	if !filter {
 		c.workloadUnhealthyMap.delete(req.NamespacedName)
 		return controllerruntime.Result{}, nil
 	}
@@ -213,25 +217,26 @@ func (c *CRBApplicationFailoverController) SetupWithManager(mgr controllerruntim
 		Complete(c)
 }
 
-func (c *CRBApplicationFailoverController) clusterResourceBindingFilter(crb *workv1alpha2.ClusterResourceBinding) bool {
+func (c *CRBApplicationFailoverController) clusterResourceBindingFilter(crb *workv1alpha2.ClusterResourceBinding) (bool, error) {
 	if crb.Spec.Failover == nil || crb.Spec.Failover.Application == nil {
-		return false
+		return false, nil
 	}
 
 	if len(crb.Status.AggregatedStatus) == 0 {
-		return false
+		return false, nil
 	}
 
 	resourceKey, err := helper.ConstructClusterWideKey(crb.Spec.Resource)
 	if err != nil {
 		// Never reach
 		klog.Errorf("Failed to construct clusterWideKey from clusterResourceBinding(%s)", crb.Name)
-		return false
+		return false, nil
 	}
 
-	if !c.ResourceInterpreter.HookEnabled(resourceKey.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretHealth) {
-		return false
+	enabled, err := c.ResourceInterpreter.HookEnabled(resourceKey.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretHealth)
+	if err != nil {
+		klog.Errorf("HookEnabled failed, err: %v", err)
+		return false, err
 	}
-
-	return true
+	return enabled, nil
 }
