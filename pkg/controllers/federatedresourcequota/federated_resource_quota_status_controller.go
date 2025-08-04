@@ -66,7 +66,7 @@ type StatusController struct {
 // The SyncController will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *StatusController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("FederatedResourceQuota status controller reconciling %s", req.NamespacedName.String())
+	klog.V(4).InfoS("FederatedResourceQuota status controller reconciling", "namespacedName", req.NamespacedName.String())
 
 	quota := &policyv1alpha1.FederatedResourceQuota{}
 	if err := c.Get(ctx, req.NamespacedName, quota); err != nil {
@@ -82,7 +82,7 @@ func (c *StatusController) Reconcile(ctx context.Context, req controllerruntime.
 	}
 
 	if err := c.collectQuotaStatus(ctx, quota); err != nil {
-		klog.Errorf("Failed to collect status from works to federatedResourceQuota(%s), error: %v", req.NamespacedName.String(), err)
+		klog.ErrorS(err, "Failed to collect status from works to federatedResourceQuota", "federatedResourceQuota", req.NamespacedName.String())
 		c.EventRecorder.Eventf(quota, corev1.EventTypeWarning, events.EventReasonCollectFederatedResourceQuotaStatusFailed, err.Error())
 		return controllerruntime.Result{}, err
 	}
@@ -154,7 +154,7 @@ func (c *StatusController) collectQuotaStatus(ctx context.Context, quota *policy
 		util.FederatedResourceQuotaNameLabel:      quota.Name,
 	})
 	if err != nil {
-		klog.Errorf("Failed to list workList created by federatedResourceQuota(%s), error: %v", klog.KObj(quota).String(), err)
+		klog.ErrorS(err, "Failed to list workList created by federatedResourceQuota", "federatedResourceQuota", klog.KObj(quota).String())
 		return err
 	}
 
@@ -172,7 +172,7 @@ func (c *StatusController) collectQuotaStatus(ctx context.Context, quota *policy
 	}
 
 	if reflect.DeepEqual(quota.Status, *quotaStatus) {
-		klog.V(4).Infof("New quotaStatus are equal with old federatedResourceQuota(%s) status, no update required.", klog.KObj(quota).String())
+		klog.V(4).InfoS("New quotaStatus is equal with old federatedResourceQuota status, no update required.", "federatedResourceQuota", klog.KObj(quota).String())
 		return nil
 	}
 
@@ -214,13 +214,13 @@ func aggregatedStatusFormWorks(works []workv1alpha1.Work) ([]policyv1alpha1.Clus
 
 		clusterName, err := names.GetClusterName(work.Namespace)
 		if err != nil {
-			klog.Errorf("Failed to get clusterName from work namespace %s. Error: %v.", work.Namespace, err)
+			klog.ErrorS(err, "Failed to get clusterName from work namespace.", "workNamespace", work.Namespace)
 			return nil, err
 		}
 
 		status := &corev1.ResourceQuotaStatus{}
 		if err := json.Unmarshal(work.Status.ManifestStatuses[0].Status.Raw, status); err != nil {
-			klog.Errorf("Failed to unmarshal work(%s) status to ResourceQuotaStatus", klog.KObj(&work).String())
+			klog.ErrorS(err, "Failed to unmarshal work status to ResourceQuotaStatus", "work", klog.KObj(&work).String())
 			return nil, err
 		}
 
