@@ -56,17 +56,17 @@ type CronFHPAController struct {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *CronFHPAController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling CronFederatedHPA %s", req.NamespacedName)
+	klog.V(4).InfoS("Reconciling CronFederatedHPA", "namespace", req.Namespace, "name", req.Name)
 
 	cronFHPA := &autoscalingv1alpha1.CronFederatedHPA{}
 	if err := c.Client.Get(ctx, req.NamespacedName, cronFHPA); err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.V(4).Infof("Begin to cleanup the cron jobs for CronFederatedHPA:%s", req.NamespacedName)
+			klog.V(4).InfoS("Begin to cleanup the cron jobs for CronFederatedHPA", "namespace", req.Namespace, "name", req.Name)
 			c.CronHandler.StopCronFHPAExecutor(req.NamespacedName.String())
 			return controllerruntime.Result{}, nil
 		}
 
-		klog.Errorf("Fail to get CronFederatedHPA(%s):%v", req.NamespacedName, err)
+		klog.ErrorS(err, "Fail to get CronFederatedHPA", "namespace", req.Namespace, "name", req.Name)
 		return controllerruntime.Result{}, err
 	}
 
@@ -140,7 +140,7 @@ func (c *CronFHPAController) processCronRule(ctx context.Context, cronFHPA *auto
 	if !helper.IsCronFederatedHPARuleSuspend(rule) {
 		if err := c.CronHandler.CreateCronJobForExecutor(cronFHPA, rule); err != nil {
 			c.EventRecorder.Event(cronFHPA, corev1.EventTypeWarning, "StartRuleFailed", err.Error())
-			klog.Errorf("Fail to start cron for CronFederatedHPA(%s) rule(%s):%v", cronFHPAKey, rule.Name, err)
+			klog.ErrorS(err, "Fail to start cron for CronFederatedHPA rule", "cronFederatedHPA", cronFHPAKey, "rule", rule.Name)
 			return err
 		}
 	}
@@ -159,8 +159,7 @@ func (c *CronFHPAController) updateRuleHistory(ctx context.Context, cronFHPA *au
 		// If rule is not suspended, we should set the nextExecutionTime filed, or the nextExecutionTime will be nil
 		next, err := c.CronHandler.GetRuleNextExecuteTime(cronFHPA, rule.Name)
 		if err != nil {
-			klog.Errorf("Fail to get next execution time for CronFederatedHPA(%s/%s) rule(%s):%v",
-				cronFHPA.Namespace, cronFHPA.Name, rule.Name, err)
+			klog.ErrorS(err, "Fail to get next execution time for CronFederatedHPA rule", "namespace", cronFHPA.Namespace, "name", cronFHPA.Name, "rule", rule.Name)
 			return err
 		}
 		nextExecutionTime = &metav1.Time{Time: next}
@@ -185,8 +184,7 @@ func (c *CronFHPAController) updateRuleHistory(ctx context.Context, cronFHPA *au
 	}
 
 	if err := c.Client.Status().Update(ctx, cronFHPA); err != nil {
-		klog.Errorf("Fail to update CronFederatedHPA(%s/%s) rule(%s)'s next execution time:%v",
-			cronFHPA.Namespace, cronFHPA.Name, rule.Name, err)
+		klog.ErrorS(err, "Fail to update CronFederatedHPA rule's next execution time", "namespace", cronFHPA.Namespace, "name", cronFHPA.Name, "rule", rule.Name)
 		return err
 	}
 
@@ -210,7 +208,7 @@ func (c *CronFHPAController) removeCronFHPAHistory(ctx context.Context, cronFHPA
 	}
 	if err := c.Client.Status().Update(ctx, cronFHPA); err != nil {
 		c.EventRecorder.Event(cronFHPA, corev1.EventTypeWarning, "UpdateCronFederatedHPAFailed", err.Error())
-		klog.Errorf("Fail to remove CronFederatedHPA(%s/%s) rule(%s) history:%v", cronFHPA.Namespace, cronFHPA.Name, ruleName, err)
+		klog.ErrorS(err, "Fail to remove CronFederatedHPA rule history", "namespace", cronFHPA.Namespace, "name", cronFHPA.Name, "rule", ruleName)
 		return err
 	}
 

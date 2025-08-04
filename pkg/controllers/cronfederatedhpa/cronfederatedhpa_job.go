@@ -76,18 +76,18 @@ func RunCronFederatedHPARule(c *ScalingJob) {
 	err = c.client.Get(context.TODO(), c.namespaceName, cronFHPA)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Infof("CronFederatedHPA(%s) not found", c.namespaceName)
+			klog.InfoS("CronFederatedHPA not found", "cronFederatedHPA", c.namespaceName)
 		} else {
 			// TODO: This may happen when the the network is down, we should do something here
 			// But we are not sure what to do(retry not solve the problem)
-			klog.Errorf("Get CronFederatedHPA(%s) failed: %v", c.namespaceName, err)
+			klog.ErrorS(err, "Get CronFederatedHPA failed", "cronFederatedHPA", c.namespaceName)
 		}
 		return
 	}
 
 	if helper.IsCronFederatedHPARuleSuspend(c.rule) {
 		// If the rule is suspended, this job will be stopped soon
-		klog.V(4).Infof("CronFederatedHPA(%s) Rule(%s) is suspended, skip it", c.namespaceName, c.rule.Name)
+		klog.V(4).InfoS("CronFederatedHPA rule is suspended, skip it", "cronFederatedHPA", c.namespaceName, "rule", c.rule.Name)
 		return
 	}
 
@@ -153,17 +153,14 @@ func (c *ScalingJob) ScaleFHPA(cronFHPA *autoscalingv1alpha1.CronFederatedHPA) e
 	if update {
 		err := c.client.Update(context.TODO(), fhpa)
 		if err != nil {
-			klog.Errorf("CronFederatedHPA(%s) updates FederatedHPA(%s/%s) failed: %v",
-				c.namespaceName, fhpa.Namespace, fhpa.Name, err)
+			klog.ErrorS(err, "CronFederatedHPA updates FederatedHPA failed", "namespace", c.namespaceName.Namespace, "cronFederatedHPA", c.namespaceName.Name, "federatedHPA", fhpa.Name)
 			return err
 		}
-		klog.V(4).Infof("CronFederatedHPA(%s) scales FederatedHPA(%s/%s) successfully",
-			c.namespaceName, fhpa.Namespace, fhpa.Name)
+		klog.V(4).InfoS("CronFederatedHPA scales FederatedHPA successfully", "namespace", c.namespaceName.Namespace, "cronFederatedHPA", c.namespaceName.Name, "federatedHPA", fhpa.Name)
 		return nil
 	}
 
-	klog.V(4).Infof("CronFederatedHPA(%s) find nothing updated for FederatedHPA(%s/%s), skip it",
-		c.namespaceName, fhpa.Namespace, fhpa.Name)
+	klog.V(4).InfoS("CronFederatedHPA find nothing updated for FederatedHPA, skip it", "namespace", c.namespaceName.Namespace, "cronFederatedHPA", c.namespaceName.Name, "federatedHPA", fhpa.Name)
 	return nil
 }
 
@@ -175,8 +172,7 @@ func (c *ScalingJob) ScaleWorkloads(cronFHPA *autoscalingv1alpha1.CronFederatedH
 
 	targetGV, err := schema.ParseGroupVersion(cronFHPA.Spec.ScaleTargetRef.APIVersion)
 	if err != nil {
-		klog.Errorf("CronFederatedHPA(%s) parses GroupVersion(%s) failed: %v",
-			c.namespaceName, cronFHPA.Spec.ScaleTargetRef.APIVersion, err)
+		klog.ErrorS(err, "CronFederatedHPA parses GroupVersion failed", "cronFederatedHPA", c.namespaceName, "groupVersion", cronFHPA.Spec.ScaleTargetRef.APIVersion)
 		return err
 	}
 	targetGVK := schema.GroupVersionKind{
@@ -188,37 +184,35 @@ func (c *ScalingJob) ScaleWorkloads(cronFHPA *autoscalingv1alpha1.CronFederatedH
 	targetResource.SetGroupVersionKind(targetGVK)
 	err = c.client.Get(ctx, types.NamespacedName{Namespace: cronFHPA.Namespace, Name: cronFHPA.Spec.ScaleTargetRef.Name}, targetResource)
 	if err != nil {
-		klog.Errorf("Get Resource(%s/%s) failed: %v", cronFHPA.Namespace, cronFHPA.Spec.ScaleTargetRef.Name, err)
+		klog.ErrorS(err, "Get resource failed", "namespace", cronFHPA.Namespace, "name", cronFHPA.Spec.ScaleTargetRef.Name)
 		return err
 	}
 
 	scaleObj := &unstructured.Unstructured{}
 	err = scaleClient.Get(ctx, targetResource, scaleObj)
 	if err != nil {
-		klog.Errorf("Get Scale for resource(%s/%s) failed: %v", cronFHPA.Namespace, cronFHPA.Spec.ScaleTargetRef.Name, err)
+		klog.ErrorS(err, "Get Scale for resource failed", "namespace", cronFHPA.Namespace, "name", cronFHPA.Spec.ScaleTargetRef.Name)
 		return err
 	}
 
 	scale := &autoscalingv1.Scale{}
 	err = helper.ConvertToTypedObject(scaleObj, scale)
 	if err != nil {
-		klog.Errorf("Convert Scale failed: %v", err)
+		klog.ErrorS(err, "Convert Scale failed", "namespace", cronFHPA.Namespace, "name", cronFHPA.Spec.ScaleTargetRef.Name)
 		return err
 	}
 
 	if scale.Spec.Replicas != *c.rule.TargetReplicas {
 		if err := helper.ApplyReplica(scaleObj, int64(*c.rule.TargetReplicas), util.ReplicasField); err != nil {
-			klog.Errorf("CronFederatedHPA(%s) applies Replicas for %s/%s failed: %v",
-				c.namespaceName, cronFHPA.Namespace, cronFHPA.Spec.ScaleTargetRef.Name, err)
+			klog.ErrorS(err, "CronFederatedHPA applies Replicas failed", "cronFederatedHPA", c.namespaceName, "namespace", cronFHPA.Namespace, "name", cronFHPA.Spec.ScaleTargetRef.Name)
 			return err
 		}
 		err := scaleClient.Update(ctx, targetResource, client.WithSubResourceBody(scaleObj))
 		if err != nil {
-			klog.Errorf("CronFederatedHPA(%s) updates scale resource failed: %v", c.namespaceName, err)
+			klog.ErrorS(err, "CronFederatedHPA updates scale resource failed", "cronFederatedHPA", c.namespaceName, "namespace", cronFHPA.Namespace, "name", cronFHPA.Spec.ScaleTargetRef.Name)
 			return err
 		}
-		klog.V(4).Infof("CronFederatedHPA(%s) scales resource(%s/%s) successfully",
-			c.namespaceName, cronFHPA.Namespace, cronFHPA.Spec.ScaleTargetRef.Name)
+		klog.V(4).InfoS("CronFederatedHPA scales resource successfully", "cronFederatedHPA", c.namespaceName, "namespace", cronFHPA.Namespace, "name", cronFHPA.Spec.ScaleTargetRef.Name)
 		return nil
 	}
 	return nil
@@ -258,12 +252,12 @@ func (c *ScalingJob) addFailedExecutionHistory(
 		})
 		return err
 	}); err != nil {
-		klog.Errorf("Failed to add failed history record to CronFederatedHPA(%s/%s): %v", cronFHPA.Namespace, cronFHPA.Name, err)
+		klog.ErrorS(err, "Failed to add failed history record to CronFederatedHPA", "namespace", cronFHPA.Namespace, "name", cronFHPA.Name)
 		return err
 	}
 
 	if operationResult == controllerutil.OperationResultUpdatedStatusOnly {
-		klog.V(4).Infof("CronFederatedHPA(%s/%s) status has been updated successfully", cronFHPA.Namespace, cronFHPA.Name)
+		klog.V(4).InfoS("CronFederatedHPA status has been updated successfully", "namespace", cronFHPA.Namespace, "name", cronFHPA.Name)
 	}
 
 	return nil
@@ -316,12 +310,12 @@ func (c *ScalingJob) addSuccessExecutionHistory(
 		})
 		return err
 	}); err != nil {
-		klog.Errorf("Failed to add success history record to CronFederatedHPA(%s/%s): %v", cronFHPA.Namespace, cronFHPA.Name, err)
+		klog.ErrorS(err, "Failed to add success history record to CronFederatedHPA", "namespace", cronFHPA.Namespace, "name", cronFHPA.Name)
 		return err
 	}
 
 	if operationResult == controllerutil.OperationResultUpdatedStatusOnly {
-		klog.V(4).Infof("CronFederatedHPA(%s/%s) status has been updated successfully", cronFHPA.Namespace, cronFHPA.Name)
+		klog.V(4).InfoS("CronFederatedHPA status has been updated successfully", "namespace", cronFHPA.Namespace, "name", cronFHPA.Name)
 	}
 
 	return nil
