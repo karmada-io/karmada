@@ -1,6 +1,5 @@
 {{- define "karmada.apiservice" -}}
 {{- $name := include "karmada.name" . -}}
-{{- $systemNamespace := .Values.systemNamespace -}}
 {{- if eq .Values.installMode "host" }}
 ---
 apiVersion: apiregistration.k8s.io/v1
@@ -17,7 +16,7 @@ spec:
   groupPriorityMinimum: 2000
   service:
     name: {{ $name }}-aggregated-apiserver
-    namespace: {{ $systemNamespace }}
+    namespace: {{ include "karmada.namespace" . }}
   version: v1alpha1
   versionPriority: 10
 ---
@@ -25,7 +24,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ $name }}-aggregated-apiserver
-  namespace: {{ $systemNamespace }}
+  namespace: {{ include "karmada.namespace" . }}
   labels:
     app: {{ $name }}-aggregated-apiserver
     {{- include "karmada.commonLabels" . | nindent 4 }}
@@ -48,7 +47,7 @@ spec:
   groupPriorityMinimum: 100
   service:
     name: {{ $name }}-metrics-adapter
-    namespace: {{ $systemNamespace }}
+    namespace: {{ include "karmada.namespace" . }}
   version: v1beta1
   versionPriority: 200
 ---
@@ -65,7 +64,7 @@ spec:
   groupPriorityMinimum: 100
   service:
     name: {{ $name }}-metrics-adapter
-    namespace: {{ $systemNamespace }}
+    namespace: {{ include "karmada.namespace" . }}
   version: v1beta2
   versionPriority: 200
 ---
@@ -82,7 +81,7 @@ spec:
   groupPriorityMinimum: 100
   service:
     name: {{ $name }}-metrics-adapter
-    namespace: {{ $systemNamespace }}
+    namespace: {{ include "karmada.namespace" . }}
   version: v1beta1
   versionPriority: 200
 ---
@@ -90,7 +89,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ $name }}-metrics-adapter
-  namespace: {{ $systemNamespace }}
+  namespace: {{ include "karmada.namespace" . }}
 spec:
   type: ExternalName
   externalName: {{ $name }}-metrics-adapter.{{ include "karmada.namespace" . }}.svc.{{ .Values.clusterDomain }}
@@ -111,7 +110,7 @@ spec:
   groupPriorityMinimum: 2000
   service:
     name: {{ $name }}-search
-    namespace: {{ $systemNamespace }}
+    namespace: {{ include "karmada.namespace" . }}
   version: v1alpha1
   versionPriority: 10
 ---
@@ -119,7 +118,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ $name }}-search
-  namespace: {{ $systemNamespace }}
+  namespace: {{ include "karmada.namespace" . }}
   labels:
     app: {{ $name }}-search
     {{- include "karmada.commonLabels" . | nindent 4 }}
