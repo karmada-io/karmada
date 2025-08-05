@@ -17,6 +17,7 @@ limitations under the License.
 package declarative
 
 import (
+	"errors"
 	"sort"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -51,15 +52,15 @@ func NewConfigurableInterpreter(informer genericmanager.SingleClusterInformerMan
 }
 
 // HookEnabled tells if any hook exist for specific resource gvk and operation type.
-func (c *ConfigurableInterpreter) HookEnabled(kind schema.GroupVersionKind, operationType configv1alpha1.InterpreterOperation) bool {
-	accessor, exist := c.getCustomAccessor(kind)
-	if !exist {
-		return exist
+func (c *ConfigurableInterpreter) HookEnabled(kind schema.GroupVersionKind, operationType configv1alpha1.InterpreterOperation) (bool, error) {
+	accessor, exist, err := c.getCustomAccessor(kind)
+	if err != nil || !exist {
+		return exist, err
 	}
 
 	if operationType == configv1alpha1.InterpreterOperationInterpretDependency {
 		scripts := accessor.GetDependencyInterpretationLuaScripts()
-		return scripts != nil
+		return scripts != nil, nil
 	}
 
 	var script string
@@ -77,14 +78,17 @@ func (c *ConfigurableInterpreter) HookEnabled(kind schema.GroupVersionKind, oper
 	case configv1alpha1.InterpreterOperationReviseReplica:
 		script = accessor.GetReplicaRevisionLuaScript()
 	}
-	return len(script) > 0
+	return len(script) > 0, nil
 }
 
 // GetReplicas returns the desired replicas of the object as well as the requirements of each replica.
 func (c *ConfigurableInterpreter) GetReplicas(object *unstructured.Unstructured) (replicas int32, requires *workv1alpha2.ReplicaRequirements, enabled bool, err error) {
 	klog.V(4).Infof("Get replicas for object: %v %s/%s with configurable interpreter.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
 
-	accessor, enabled := c.getCustomAccessor(object.GroupVersionKind())
+	accessor, enabled, err := c.getCustomAccessor(object.GroupVersionKind())
+	if err != nil {
+		return
+	}
 	if !enabled {
 		return
 	}
@@ -103,8 +107,8 @@ func (c *ConfigurableInterpreter) GetReplicas(object *unstructured.Unstructured)
 func (c *ConfigurableInterpreter) ReviseReplica(object *unstructured.Unstructured, replica int64) (revised *unstructured.Unstructured, enabled bool, err error) {
 	klog.V(4).Infof("Revise replicas for object: %v %s/%s with configurable interpreter.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
 
-	accessor, enabled := c.getCustomAccessor(object.GroupVersionKind())
-	if !enabled {
+	accessor, enabled, err := c.getCustomAccessor(object.GroupVersionKind())
+	if err != nil || !enabled {
 		return
 	}
 
@@ -122,7 +126,10 @@ func (c *ConfigurableInterpreter) ReviseReplica(object *unstructured.Unstructure
 func (c *ConfigurableInterpreter) Retain(desired *unstructured.Unstructured, observed *unstructured.Unstructured) (retained *unstructured.Unstructured, enabled bool, err error) {
 	klog.V(4).Infof("Retain object: %v %s/%s with configurable interpreter.", desired.GroupVersionKind(), desired.GetNamespace(), desired.GetName())
 
-	accessor, enabled := c.getCustomAccessor(desired.GroupVersionKind())
+	accessor, enabled, err := c.getCustomAccessor(desired.GroupVersionKind())
+	if err != nil {
+		return
+	}
 	if !enabled {
 		return
 	}
@@ -140,7 +147,10 @@ func (c *ConfigurableInterpreter) Retain(desired *unstructured.Unstructured, obs
 // AggregateStatus returns the objects that based on the 'object' but with status aggregated.
 func (c *ConfigurableInterpreter) AggregateStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (status *unstructured.Unstructured, enabled bool, err error) {
 	klog.V(4).Infof("Aggregate status of object: %v %s/%s with configurable interpreter.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
-	accessor, enabled := c.getCustomAccessor(object.GroupVersionKind())
+	accessor, enabled, err := c.getCustomAccessor(object.GroupVersionKind())
+	if err != nil {
+		return
+	}
 	if !enabled {
 		return
 	}
@@ -159,7 +169,10 @@ func (c *ConfigurableInterpreter) AggregateStatus(object *unstructured.Unstructu
 func (c *ConfigurableInterpreter) GetDependencies(object *unstructured.Unstructured) (dependencies []configv1alpha1.DependentObjectReference, enabled bool, err error) {
 	klog.V(4).Infof("Get dependencies of object: %v %s/%s with configurable interpreter.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
 
-	accessor, enabled := c.getCustomAccessor(object.GroupVersionKind())
+	accessor, enabled, err := c.getCustomAccessor(object.GroupVersionKind())
+	if err != nil {
+		return
+	}
 	if !enabled {
 		return
 	}
@@ -207,7 +220,10 @@ func (c *ConfigurableInterpreter) GetDependencies(object *unstructured.Unstructu
 func (c *ConfigurableInterpreter) ReflectStatus(object *unstructured.Unstructured) (status *runtime.RawExtension, enabled bool, err error) {
 	klog.V(4).Infof("Reflect status of object: %v %s/%s with configurable interpreter.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
 
-	accessor, enabled := c.getCustomAccessor(object.GroupVersionKind())
+	accessor, enabled, err := c.getCustomAccessor(object.GroupVersionKind())
+	if err != nil {
+		return
+	}
 	if !enabled {
 		return
 	}
@@ -226,8 +242,8 @@ func (c *ConfigurableInterpreter) ReflectStatus(object *unstructured.Unstructure
 func (c *ConfigurableInterpreter) InterpretHealth(object *unstructured.Unstructured) (health bool, enabled bool, err error) {
 	klog.V(4).Infof("Get health status of object: %v %s/%s with configurable interpreter.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
 
-	accessor, enabled := c.getCustomAccessor(object.GroupVersionKind())
-	if !enabled {
+	accessor, enabled, err := c.getCustomAccessor(object.GroupVersionKind())
+	if err != nil || !enabled {
 		return
 	}
 
@@ -241,14 +257,15 @@ func (c *ConfigurableInterpreter) InterpretHealth(object *unstructured.Unstructu
 	return
 }
 
-func (c *ConfigurableInterpreter) getCustomAccessor(kind schema.GroupVersionKind) (configmanager.CustomAccessor, bool) {
+func (c *ConfigurableInterpreter) getCustomAccessor(kind schema.GroupVersionKind) (configmanager.CustomAccessor, bool, error) {
 	if !c.configManager.HasSynced() {
-		klog.Errorf("not yet ready to handle request")
-		return nil, false
+		err := errors.New("not yet ready to handle request")
+		klog.Errorf("getCustomAccessor failed: %v", err)
+		return nil, false, err
 	}
 
 	accessor, exist := c.configManager.CustomAccessors()[kind]
-	return accessor, exist
+	return accessor, exist, nil
 }
 
 // LoadConfig loads and stores rules from customizations

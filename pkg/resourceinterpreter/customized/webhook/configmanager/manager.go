@@ -48,6 +48,7 @@ type ConfigManager interface {
 // interpreterConfigManager collect the resource interpreter webhook configuration.
 type interpreterConfigManager struct {
 	configuration atomic.Value
+	informer      genericmanager.SingleClusterInformerManager
 	lister        cache.GenericLister
 	initialSynced atomic.Bool
 }
@@ -63,7 +64,17 @@ func (m *interpreterConfigManager) HasSynced() bool {
 		return true
 	}
 
-	if configuration, err := m.lister.List(labels.Everything()); err == nil && len(configuration) == 0 {
+	if !m.informer.IsInformerSynced(resourceExploringWebhookConfigurationsGVR) {
+		return false
+	}
+
+	configurations, err := m.lister.List(labels.Everything())
+	if err != nil {
+		utilruntime.HandleError(fmt.Errorf("error listing configuration: %v", err))
+		return false
+	}
+
+	if len(configurations) == 0 {
 		// the empty list we initially stored is valid to use.
 		// Setting initialSynced to true, so subsequent checks
 		// would be able to take the fast path on the atomic boolean in a
@@ -72,13 +83,33 @@ func (m *interpreterConfigManager) HasSynced() bool {
 		// the informer has synced, and we don't have any items
 		return true
 	}
-	return false
+
+	configs := make([]*configv1alpha1.ResourceInterpreterWebhookConfiguration, len(configurations))
+	for index, c := range configurations {
+		unstructuredConfig, err := helper.ToUnstructured(c)
+		if err != nil {
+			klog.Errorf("Failed to transform ResourceInterpreterWebhookConfiguration: %v", err)
+			return false
+		}
+
+		config := &configv1alpha1.ResourceInterpreterWebhookConfiguration{}
+		err = helper.ConvertToTypedObject(unstructuredConfig, config)
+		if err != nil {
+			klog.Errorf("Failed to transform ResourceInterpreterWebhookConfiguration: err: %v", err)
+			return false
+		}
+		configs[index] = config
+	}
+
+	m.LoadConfig(configs)
+	return true
 }
 
 // NewExploreConfigManager return a new interpreterConfigManager with resourceinterpreterwebhookconfigurations handlers.
-func NewExploreConfigManager(inform genericmanager.SingleClusterInformerManager) ConfigManager {
+func NewExploreConfigManager(informer genericmanager.SingleClusterInformerManager) ConfigManager {
 	manager := &interpreterConfigManager{
-		lister: inform.Lister(resourceExploringWebhookConfigurationsGVR),
+		informer: informer,
+		lister:   informer.Lister(resourceExploringWebhookConfigurationsGVR),
 	}
 
 	manager.configuration.Store([]WebhookAccessor{})
@@ -87,20 +118,25 @@ func NewExploreConfigManager(inform genericmanager.SingleClusterInformerManager)
 		func(_ interface{}) { manager.updateConfiguration() },
 		func(_, _ interface{}) { manager.updateConfiguration() },
 		func(_ interface{}) { manager.updateConfiguration() })
-	inform.ForResource(resourceExploringWebhookConfigurationsGVR, configHandlers)
+	informer.ForResource(resourceExploringWebhookConfigurationsGVR, configHandlers)
 
 	return manager
 }
 
 func (m *interpreterConfigManager) updateConfiguration() {
+	if !m.informer.IsInformerSynced(resourceExploringWebhookConfigurationsGVR) {
+		klog.Info("ResourceInterpreterWebhookConfiguration informer not synced")
+		return
+	}
+
 	configurations, err := m.lister.List(labels.Everything())
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("error updating configuration: %v", err))
 		return
 	}
 
-	configs := make([]*configv1alpha1.ResourceInterpreterWebhookConfiguration, 0)
-	for _, c := range configurations {
+	configs := make([]*configv1alpha1.ResourceInterpreterWebhookConfiguration, len(configurations))
+	for index, c := range configurations {
 		unstructuredConfig, err := helper.ToUnstructured(c)
 		if err != nil {
 			klog.Errorf("Failed to transform ResourceInterpreterWebhookConfiguration: %v", err)
@@ -110,18 +146,16 @@ func (m *interpreterConfigManager) updateConfiguration() {
 		config := &configv1alpha1.ResourceInterpreterWebhookConfiguration{}
 		err = helper.ConvertToTypedObject(unstructuredConfig, config)
 		if err != nil {
-			gvk := unstructuredConfig.GroupVersionKind().String()
-			klog.Errorf("Failed to convert object(%s), err: %v", gvk, err)
+			klog.Errorf("Failed to transform ResourceInterpreterWebhookConfiguration: err: %v", err)
 			return
 		}
-		configs = append(configs, config)
+		configs[index] = config
 	}
 
-	m.configuration.Store(mergeResourceExploreWebhookConfigurations(configs))
-	m.initialSynced.Store(true)
+	m.LoadConfig(configs)
 }
 
-func mergeResourceExploreWebhookConfigurations(configurations []*configv1alpha1.ResourceInterpreterWebhookConfiguration) []WebhookAccessor {
+func (m *interpreterConfigManager) LoadConfig(configurations []*configv1alpha1.ResourceInterpreterWebhookConfiguration) {
 	sort.SliceStable(configurations, func(i, j int) bool {
 		return configurations[i].Name < configurations[j].Name
 	})
@@ -133,5 +167,7 @@ func mergeResourceExploreWebhookConfigurations(configurations []*configv1alpha1.
 			accessors = append(accessors, NewResourceExploringAccessor(uid, config.Name, &configurations[ci].Webhooks[hi]))
 		}
 	}
-	return accessors
+
+	m.configuration.Store(accessors)
+	m.initialSynced.Store(true)
 }

@@ -39,14 +39,14 @@ type ConfigurableInterpreter struct {
 }
 
 // HookEnabled tells if any hook exist for specific resource gvk and operation type.
-func (p *ConfigurableInterpreter) HookEnabled(kind schema.GroupVersionKind, operationType configv1alpha1.InterpreterOperation) bool {
+func (p *ConfigurableInterpreter) HookEnabled(kind schema.GroupVersionKind, operationType configv1alpha1.InterpreterOperation) (bool, error) {
 	customAccessor, exist := p.getCustomAccessor(kind)
 	if !exist {
-		return exist
+		return exist, nil
 	}
 	if operationType == configv1alpha1.InterpreterOperationInterpretDependency {
 		scripts := customAccessor.GetDependencyInterpretationLuaScripts()
-		return scripts != nil
+		return scripts != nil, nil
 	}
 	var script string
 	switch operationType {
@@ -63,7 +63,7 @@ func (p *ConfigurableInterpreter) HookEnabled(kind schema.GroupVersionKind, oper
 	case configv1alpha1.InterpreterOperationReviseReplica:
 		script = customAccessor.GetReplicaRevisionLuaScript()
 	}
-	return len(script) > 0
+	return len(script) > 0, nil
 }
 
 // GetReplicas returns the desired replicas of the object as well as the requirements of each replica.

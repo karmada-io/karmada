@@ -389,7 +389,13 @@ func (c *WorkStatusController) reflectStatus(ctx context.Context, work *workv1al
 
 func (c *WorkStatusController) interpretHealth(clusterObj *unstructured.Unstructured, work *workv1alpha1.Work) workv1alpha1.ResourceHealth {
 	// For kind that doesn't have health check, we treat it as healthy.
-	if !c.ResourceInterpreter.HookEnabled(clusterObj.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretHealth) {
+	enable, err := c.ResourceInterpreter.HookEnabled(clusterObj.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretHealth)
+	if err != nil {
+		klog.Errorf("Failed to check if the interpret health hook is enabled for resource(kind=%s, %s/%s): %v",
+			clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), err)
+		return workv1alpha1.ResourceUnknown
+	}
+	if !enable {
 		klog.V(5).InfoS("skipping health assessment for object as customization missing; will treat it as healthy.", "kind", clusterObj.GroupVersionKind(), "resource", clusterObj.GetNamespace()+"/"+clusterObj.GetName())
 		return workv1alpha1.ResourceHealthy
 	}

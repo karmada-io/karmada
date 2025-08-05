@@ -761,7 +761,13 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 
 	claimFunc(propagationBinding, policyID, policyMeta)
 
-	if d.ResourceInterpreter.HookEnabled(object.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretReplica) {
+	enable, err := d.ResourceInterpreter.HookEnabled(object.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretReplica)
+	if err != nil {
+		klog.Errorf("Failed to check if the interpret replica hook is enabled for resource(kind=%s, %s/%s): %v",
+			object.GetKind(), object.GetNamespace(), object.GetName(), err)
+		return nil, err
+	}
+	if enable {
 		replicas, replicaRequirements, err := d.ResourceInterpreter.GetReplicas(object)
 		if err != nil {
 			klog.Errorf("Failed to customize replicas for %s(%s), %v", object.GroupVersionKind(), object.GetName(), err)
@@ -835,7 +841,13 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 
 	AddCPPClaimMetadata(binding, policyID, policyMeta)
 
-	if d.ResourceInterpreter.HookEnabled(object.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretReplica) {
+	enable, err := d.ResourceInterpreter.HookEnabled(object.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretReplica)
+	if err != nil {
+		klog.Errorf("Failed to check if the interpret replica hook is enabled for resource(kind=%s, %s/%s): %v",
+			object.GetKind(), object.GetNamespace(), object.GetName(), err)
+		return nil, err
+	}
+	if enable {
 		replicas, replicaRequirements, err := d.ResourceInterpreter.GetReplicas(object)
 		if err != nil {
 			klog.Errorf("Failed to customize replicas for %s(%s), %v", object.GroupVersionKind(), object.GetName(), err)

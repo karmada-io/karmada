@@ -274,7 +274,13 @@ func (d *DependenciesDistributor) Reconcile(ctx context.Context, request reconci
 		return reconcile.Result{}, err
 	}
 
-	if !d.ResourceInterpreter.HookEnabled(workload.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretDependency) {
+	enable, err := d.ResourceInterpreter.HookEnabled(workload.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretDependency)
+	if err != nil {
+		klog.Errorf("Failed to check if the interpret dependency hook is enabled for resource(kind=%s, %s/%s): %v",
+			workload.GetKind(), workload.GetNamespace(), workload.GetName(), err)
+		return reconcile.Result{}, err
+	}
+	if !enable {
 		return reconcile.Result{}, nil
 	}
 

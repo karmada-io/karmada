@@ -386,7 +386,8 @@ func TestCRBApplicationFailoverController_clusterResourceBindingFilter(t *testin
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := generateCRBApplicationFailoverController()
-			res := c.clusterResourceBindingFilter(tt.binding)
+			res, err := c.clusterResourceBindingFilter(tt.binding)
+			assert.NoError(t, err)
 			assert.Equal(t, tt.expectRes, res)
 		})
 	}

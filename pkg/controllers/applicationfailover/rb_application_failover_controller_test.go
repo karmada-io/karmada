@@ -367,7 +367,8 @@ func TestRBApplicationFailoverController_clusterResourceBindingFilter(t *testing
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := generateRBApplicationFailoverController()
-			res := c.bindingFilter(tt.binding)
+			res, err := c.bindingFilter(tt.binding)
+			assert.NoError(t, err)
 			assert.Equal(t, tt.expectRes, res)
 		})
 	}
