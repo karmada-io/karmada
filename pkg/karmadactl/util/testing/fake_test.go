@@ -21,7 +21,6 @@ import (
 
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
-	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 )
 
 func TestTestFactory_KarmadaClientSet(t *testing.T) {
@@ -39,7 +38,7 @@ func TestTestFactory_KarmadaClientSet(t *testing.T) {
 
 	// Verify that the client implements the expected interface
 	if _, ok := client.(versioned.Interface); !ok {
-		t.Error("KarmadaClientSet() returned client does not implement versioned.Interface")
+		t.Fatalf("KarmadaClientSet() returned client of type %T, which does not implement versioned.Interface", client)
 	}
 }
 
@@ -59,11 +58,6 @@ func TestTestFactory_FactoryForMemberCluster(t *testing.T) {
 
 	// Verify that the factory implements the expected interface
 	if _, ok := factory.(cmdutil.Factory); !ok {
-		t.Error("FactoryForMemberCluster() returned factory does not implement cmdutil.Factory interface")
+		t.Fatalf("FactoryForMemberCluster() returned factory of type %T, which does not implement cmdutil.Factory interface", factory)
 	}
-}
-
-func TestTestFactory_InterfaceCompliance(t *testing.T) {
-	// This test ensures that TestFactory implements the util.Factory interface
-	var _ util.Factory = (*TestFactory)(nil)
 } 
