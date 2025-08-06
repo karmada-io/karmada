@@ -59,7 +59,7 @@ type RBApplicationFailoverController struct {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *RBApplicationFailoverController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling ResourceBinding %s.", req.NamespacedName.String())
+	klog.V(4).InfoS("Reconciling ResourceBinding", "namespace", req.Namespace, "name", req.Name)
 
 	binding := &workv1alpha2.ResourceBinding{}
 	if err := c.Client.Get(ctx, req.NamespacedName, binding); err != nil {
@@ -80,7 +80,7 @@ func (c *RBApplicationFailoverController) Reconcile(ctx context.Context, req con
 		return controllerruntime.Result{}, err
 	}
 	if retryDuration > 0 {
-		klog.V(4).Infof("Retry to check health status of the workload after %v seconds.", retryDuration.Seconds())
+		klog.V(4).InfoS("Retry to check health status of the workload", "afterSeconds", retryDuration.Seconds())
 		return controllerruntime.Result{RequeueAfter: retryDuration}, nil
 	}
 	return controllerruntime.Result{}, nil
@@ -132,7 +132,7 @@ func (c *RBApplicationFailoverController) syncBinding(ctx context.Context, bindi
 
 	err := c.evictBinding(binding, needEvictClusters)
 	if err != nil {
-		klog.Errorf("Failed to evict binding(%s/%s), err: %v.", binding.Namespace, binding.Name, err)
+		klog.ErrorS(err, "Failed to evict binding", "namespace", binding.Namespace, "name", binding.Name)
 		return 0, err
 	}
 
@@ -153,7 +153,10 @@ func (c *RBApplicationFailoverController) evictBinding(binding *workv1alpha2.Res
 	for _, cluster := range clusters {
 		taskOpts, err := buildTaskOptions(binding.Spec.Failover.Application, binding.Status.AggregatedStatus, cluster, RBApplicationFailoverControllerName, clustersBeforeFailover)
 		if err != nil {
-			klog.Errorf("failed to build TaskOptions for ResourceBinding(%s/%s) under Cluster(%s): %v", binding.Namespace, binding.Name, cluster, err)
+			klog.ErrorS(err, "Failed to build TaskOptions for ResourceBinding under Cluster",
+				"namespace", binding.Namespace,
+				"name", binding.Name,
+				"cluster", cluster)
 			return err
 		}
 		binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(taskOpts...))
@@ -225,7 +228,7 @@ func (c *RBApplicationFailoverController) bindingFilter(rb *workv1alpha2.Resourc
 	resourceKey, err := helper.ConstructClusterWideKey(rb.Spec.Resource)
 	if err != nil {
 		// Never reach
-		klog.Errorf("Failed to construct clusterWideKey from binding(%s/%s)", rb.Namespace, rb.Name)
+		klog.ErrorS(err, "Failed to construct clusterWideKey from binding", "namespace", rb.Namespace, "name", rb.Name)
 		return false
 	}
 
