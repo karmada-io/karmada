@@ -77,14 +77,20 @@ func TestCRBGracefulEvictionController_Reconcile(t *testing.T) {
 							CreationTimestamp: &now,
 						},
 					},
+					Clusters: []workv1alpha2.TargetCluster{
+						{Name: "new-cluster"},
+					},
 				},
 				Status: workv1alpha2.ResourceBindingStatus{
 					SchedulerObservedGeneration: 1,
+					AggregatedStatus: []workv1alpha2.AggregatedStatusItem{
+						{ClusterName: "new-cluster", Health: workv1alpha2.ResourceUnhealthy},
+					},
 				},
 			},
 			expectedResult:  controllerruntime.Result{},
 			expectedError:   false,
-			expectedRequeue: false,
+			expectedRequeue: true,
 		},
 		{
 			name: "binding marked for deletion",
@@ -137,7 +143,7 @@ func TestCRBGracefulEvictionController_Reconcile(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 			}
-			assert.Equal(t, tc.expectedResult, result)
+
 			if tc.expectedRequeue {
 				assert.True(t, result.RequeueAfter > 0, "Expected requeue, but got no requeue")
 			} else {

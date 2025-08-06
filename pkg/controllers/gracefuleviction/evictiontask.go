@@ -88,6 +88,10 @@ func assessSingleTask(task workv1alpha2.GracefulEvictionTask, opt assessmentOpti
 }
 
 func allScheduledResourceInHealthyState(opt assessmentOption) bool {
+	if len(opt.scheduleResult) == 0 {
+		return false
+	}
+
 	for _, targetCluster := range opt.scheduleResult {
 		var statusItem *workv1alpha2.AggregatedStatusItem
 
