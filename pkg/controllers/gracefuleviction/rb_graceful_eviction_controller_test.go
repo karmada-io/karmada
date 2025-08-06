@@ -263,7 +263,7 @@ func TestRBGracefulEvictionController_syncBinding(t *testing.T) {
 			}
 
 			if tc.expectedRequeue {
-				assert.True(t, retryAfter > 0)
+				assert.Greater(t, retryAfter, time.Millisecond)
 			} else {
 				assert.Zero(t, retryAfter)
 			}
