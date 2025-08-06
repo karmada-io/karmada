@@ -97,8 +97,17 @@ func (wh *Webhook) writeResponse(w io.Writer, response Response) {
 // writeResourceInterpreterResponse writes ar to w.
 func (wh *Webhook) writeResourceInterpreterResponse(w io.Writer, interpreterContext configv1alpha1.ResourceInterpreterContext) {
 	if err := json.NewEncoder(w).Encode(interpreterContext); err != nil {
-		klog.Errorf("unable to encode the response: %v", err)
-		wh.writeResponse(w, Errored(http.StatusInternalServerError, err))
+		klog.Errorf("unable to encode and write the response: %v", err)
+		// Since the `ar configv1alpha1.ResourceInterpreterContext` is a clear and legal object,
+		// it should not have problem to be marshalled into bytes.
+		// The error here is probably caused by the abnormal HTTP connection,
+		// e.g., broken pipe, so we can only write the error response once,
+		// to avoid endless circular calling.
+		// More info: https://github.com/kubernetes-sigs/controller-runtime/pull/1930
+		serverError := Errored(http.StatusInternalServerError, err)
+		if err = json.NewEncoder(w).Encode(configv1alpha1.ResourceInterpreterContext{Response: &serverError.ResourceInterpreterResponse}); err != nil {
+			klog.Errorf("still unable to encode and write the InternalServerError response: %v", err)
+		}
 	} else {
 		response := interpreterContext.Response
 		if response.Successful {

@@ -299,7 +299,7 @@ func TestWriteResourceInterpreterResponse(t *testing.T) {
 			res: configv1alpha1.ResourceInterpreterContext{
 				Response: &configv1alpha1.ResourceInterpreterResponse{},
 			},
-			rec: &limitedBadResponseWriter{maxFailures: 3},
+			rec: &limitedBadResponseWriter{maxFailures: 1},
 			verify: func(writer io.Writer, _ *configv1alpha1.ResourceInterpreterResponse) error {
 				data, ok := writer.(*limitedBadResponseWriter)
 				if !ok {
