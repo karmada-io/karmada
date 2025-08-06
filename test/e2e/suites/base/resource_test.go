@@ -193,13 +193,6 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 					latestSvc, err := kubeClient.CoreV1().Services(serviceNamespace).Get(context.TODO(), serviceName, metav1.GetOptions{})
 					g.Expect(err).NotTo(gomega.HaveOccurred())
 
-					// TODO:  Once karmada-apiserver v1.30 deploy by default,delete the following five lines, see https://github.com/karmada-io/karmada/pull/5141
-					for i := range latestSvc.Status.LoadBalancer.Ingress {
-						if latestSvc.Status.LoadBalancer.Ingress[i].IPMode != nil {
-							latestSvc.Status.LoadBalancer.Ingress[i].IPMode = nil
-						}
-					}
-					klog.Infof("the latest serviceStatus loadBalancer: %v", latestSvc.Status.LoadBalancer)
 					return reflect.DeepEqual(latestSvc.Status.LoadBalancer.Ingress, svcLoadBalancer.Ingress), nil
 				}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 			})
