@@ -30,6 +30,7 @@ import (
 
 	"github.com/karmada-io/karmada/cmd/controller-manager/app/options"
 	federatehpaconfig "github.com/karmada-io/karmada/pkg/controllers/federatedhpa/config"
+	plugins "github.com/karmada-io/karmada/pkg/controllers/gracefuleviction/evictplugins"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -114,6 +115,7 @@ type Context struct {
 	ControlPlaneInformerManager genericmanager.SingleClusterInformerManager
 	ResourceInterpreter         resourceinterpreter.ResourceInterpreter
 	ClusterClientOption         *util.ClientOption
+	PluginManager               *plugins.Manager
 }
 
 // IsControllerEnabled check if a specified controller enabled or not.

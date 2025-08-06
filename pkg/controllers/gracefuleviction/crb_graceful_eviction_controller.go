@@ -33,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	plugins "github.com/karmada-io/karmada/pkg/controllers/gracefuleviction/evictplugins"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
@@ -46,6 +47,7 @@ type CRBGracefulEvictionController struct {
 	EventRecorder           record.EventRecorder
 	RateLimiterOptions      ratelimiterflag.Options
 	GracefulEvictionTimeout time.Duration
+	PluginManager           *plugins.Manager
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -78,12 +80,14 @@ func (c *CRBGracefulEvictionController) Reconcile(ctx context.Context, req contr
 }
 
 func (c *CRBGracefulEvictionController) syncBinding(ctx context.Context, binding *workv1alpha2.ClusterResourceBinding) (time.Duration, error) {
-	keptTask, evictedClusters := assessEvictionTasks(binding.Spec.GracefulEvictionTasks, metav1.Now(), assessmentOption{
-		timeout:        c.GracefulEvictionTimeout,
-		scheduleResult: binding.Spec.Clusters,
-		observedStatus: binding.Status.AggregatedStatus,
-		hasScheduled:   binding.Status.SchedulerObservedGeneration == binding.Generation,
-	})
+	option := assessmentOptionCRB{
+		binding:   binding,
+		pluginMgr: c.PluginManager,
+		timeout:   c.GracefulEvictionTimeout,
+	}
+
+	keptTask, evictedClusters := assessEvictionTasksForCRB(option, metav1.Now())
+
 	if reflect.DeepEqual(binding.Spec.GracefulEvictionTasks, keptTask) {
 		return nextRetry(keptTask, c.GracefulEvictionTimeout, metav1.Now().Time), nil
 	}
@@ -93,13 +97,14 @@ func (c *CRBGracefulEvictionController) syncBinding(ctx context.Context, binding
 	modifiedObj.Spec.GracefulEvictionTasks = keptTask
 	err := c.Client.Patch(ctx, modifiedObj, objPatch)
 	if err != nil {
+		helper.EmitClusterEvictionEventForClusterResourceBinding(binding, "", c.EventRecorder, err)
 		return 0, err
 	}
 
 	for _, cluster := range evictedClusters {
 		klog.V(2).Infof("Success to evict Cluster(%s) from ClusterResourceBinding(%s) gracefulEvictionTasks",
 			cluster, binding.Name)
-		helper.EmitClusterEvictionEventForClusterResourceBinding(binding, cluster, c.EventRecorder, err)
+		helper.EmitClusterEvictionEventForClusterResourceBinding(binding, cluster, c.EventRecorder, nil)
 	}
 	return nextRetry(keptTask, c.GracefulEvictionTimeout, metav1.Now().Time), nil
 }

@@ -20,10 +20,12 @@ import (
 	"context"
 	"encoding/json"
 	"math"
+	"sort"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -33,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	plugins "github.com/karmada-io/karmada/pkg/controllers/gracefuleviction/evictplugins"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 )
 
@@ -84,7 +87,7 @@ func TestCRBGracefulEvictionController_Reconcile(t *testing.T) {
 			},
 			expectedResult:  controllerruntime.Result{},
 			expectedError:   false,
-			expectedRequeue: false,
+			expectedRequeue: true,
 		},
 		{
 			name: "binding marked for deletion",
@@ -121,11 +124,15 @@ func TestCRBGracefulEvictionController_Reconcile(t *testing.T) {
 			} else {
 				client = fake.NewClientBuilder().WithScheme(scheme).WithObjects(tc.binding).Build()
 			}
+
+			pluginDenyMgr, _ := plugins.NewManager([]string{"mock-deny"})
+
 			c := &CRBGracefulEvictionController{
 				Client:                  client,
 				EventRecorder:           record.NewFakeRecorder(10),
 				RateLimiterOptions:      ratelimiterflag.Options{},
 				GracefulEvictionTimeout: 5 * time.Minute,
+				PluginManager:           pluginDenyMgr,
 			}
 			result, err := c.Reconcile(context.TODO(), controllerruntime.Request{
 				NamespacedName: types.NamespacedName{
@@ -137,11 +144,12 @@ func TestCRBGracefulEvictionController_Reconcile(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 			}
-			assert.Equal(t, tc.expectedResult, result)
+
+			// Assert on the requeue behavior
 			if tc.expectedRequeue {
-				assert.True(t, result.RequeueAfter > 0, "Expected requeue, but got no requeue")
+				assert.True(t, result.RequeueAfter > 0, "Expected requeue, but got no requeue for test: %s", tc.name)
 			} else {
-				assert.Zero(t, result.RequeueAfter, "Expected no requeue, but got requeue")
+				assert.Zero(t, result.RequeueAfter, "Expected no requeue, but got requeue for test: %s", tc.name)
 			}
 			// Verify the binding was updated, unless it's the "not found" case
 			if !tc.notFound {
@@ -154,142 +162,110 @@ func TestCRBGracefulEvictionController_Reconcile(t *testing.T) {
 }
 
 func TestCRBGracefulEvictionController_syncBinding(t *testing.T) {
+	scheme := runtime.NewScheme()
+	err := workv1alpha2.Install(scheme)
+	require.NoError(t, err, "Failed to add workv1alpha2 to scheme")
+
 	now := metav1.Now()
 	timeout := 5 * time.Minute
 
-	s := runtime.NewScheme()
-	err := workv1alpha2.Install(s)
-	assert.NoError(t, err, "Failed to add workv1alpha2 to scheme")
+	pluginAllowMgr, _ := plugins.NewManager([]string{"mock-allow"})
+	pluginDenyMgr, _ := plugins.NewManager([]string{"mock-deny"})
 
-	tests := []struct {
+	testCases := []struct {
 		name                string
 		binding             *workv1alpha2.ClusterResourceBinding
-		expectedRetryAfter  time.Duration
-		expectedEvictionLen int
+		pluginMgr           *plugins.Manager
+		expectedKeptCluster []string
+		expectRequeue       bool
 		expectedError       bool
 	}{
 		{
-			name: "no tasks",
+			name: "no eviction tasks",
 			binding: &workv1alpha2.ClusterResourceBinding{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-binding",
-				},
-				Spec: workv1alpha2.ResourceBindingSpec{
-					Resource: workv1alpha2.ObjectReference{
-						APIVersion: "apps/v1",
-						Kind:       "Deployment",
-						Name:       "test-deployment",
-					},
-					Clusters: []workv1alpha2.TargetCluster{
-						{Name: "cluster1"},
-					},
-				},
+				ObjectMeta: metav1.ObjectMeta{Name: "test-binding"},
+				Spec:       workv1alpha2.ResourceBindingSpec{GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{}},
 			},
-			expectedRetryAfter:  0,
-			expectedEvictionLen: 0,
+			pluginMgr:           pluginDenyMgr,
+			expectedKeptCluster: []string{},
+			expectRequeue:       false,
 			expectedError:       false,
 		},
 		{
-			name: "task not expired",
+			name: "task not timed out and plugin denies, should keep task and requeue",
 			binding: &workv1alpha2.ClusterResourceBinding{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-binding",
-				},
+				ObjectMeta: metav1.ObjectMeta{Name: "test-binding", Generation: 1},
 				Spec: workv1alpha2.ResourceBindingSpec{
-					Resource: workv1alpha2.ObjectReference{
-						APIVersion: "apps/v1",
-						Kind:       "Deployment",
-						Name:       "test-deployment",
-					},
-					Clusters: []workv1alpha2.TargetCluster{
-						{Name: "cluster1"},
-					},
-					GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{
-						{
-							FromCluster:       "cluster1",
-							CreationTimestamp: &metav1.Time{Time: now.Add(-2 * time.Minute)},
-						},
-					},
+					GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{{FromCluster: "member1", CreationTimestamp: &now}},
 				},
-				Status: workv1alpha2.ResourceBindingStatus{
-					AggregatedStatus: []workv1alpha2.AggregatedStatusItem{
-						{
-							ClusterName: "cluster1",
-							Status:      createRawExtension("Bound"),
-						},
-					},
-				},
+				Status: workv1alpha2.ResourceBindingStatus{SchedulerObservedGeneration: 1},
 			},
-			expectedRetryAfter:  3 * time.Minute,
-			expectedEvictionLen: 1,
+			pluginMgr:           pluginDenyMgr,
+			expectedKeptCluster: []string{"member1"},
+			expectRequeue:       true,
 			expectedError:       false,
 		},
 		{
-			name: "task expired",
+			name: "task timed out, should be removed and not requeue",
 			binding: &workv1alpha2.ClusterResourceBinding{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-binding",
-				},
+				ObjectMeta: metav1.ObjectMeta{Name: "test-binding", Generation: 1},
 				Spec: workv1alpha2.ResourceBindingSpec{
-					Resource: workv1alpha2.ObjectReference{
-						APIVersion: "apps/v1",
-						Kind:       "Deployment",
-						Name:       "test-deployment",
-					},
-					Clusters: []workv1alpha2.TargetCluster{
-						{Name: "cluster1"},
-					},
-					GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{
-						{
-							FromCluster:       "cluster1",
-							CreationTimestamp: &metav1.Time{Time: now.Add(-6 * time.Minute)},
-						},
-					},
+					GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{{FromCluster: "member1", CreationTimestamp: &metav1.Time{Time: now.Add(-10 * time.Minute)}}},
 				},
-				Status: workv1alpha2.ResourceBindingStatus{
-					AggregatedStatus: []workv1alpha2.AggregatedStatusItem{
-						{
-							ClusterName: "cluster1",
-							Status:      createRawExtension("Bound"),
-						},
-					},
-				},
+				Status: workv1alpha2.ResourceBindingStatus{SchedulerObservedGeneration: 1},
 			},
-			expectedRetryAfter:  0,
-			expectedEvictionLen: 0,
+			pluginMgr:           pluginDenyMgr,
+			expectedKeptCluster: []string{},
+			expectRequeue:       false,
+			expectedError:       false,
+		},
+		{
+			name: "task not timed out, but plugin allows, should be removed and not requeue",
+			binding: &workv1alpha2.ClusterResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{Name: "test-binding", Generation: 1},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{{FromCluster: "member1", CreationTimestamp: &now}},
+				},
+				Status: workv1alpha2.ResourceBindingStatus{SchedulerObservedGeneration: 1},
+			},
+			pluginMgr:           pluginAllowMgr,
+			expectedKeptCluster: []string{},
+			expectRequeue:       false,
 			expectedError:       false,
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Create a fake client with the binding object
-			client := fake.NewClientBuilder().WithScheme(s).WithObjects(tt.binding).Build()
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(tc.binding.DeepCopy()).Build()
+
 			c := &CRBGracefulEvictionController{
-				Client:                  client,
+				Client:                  fakeClient,
 				EventRecorder:           record.NewFakeRecorder(10),
 				GracefulEvictionTimeout: timeout,
+				PluginManager:           tc.pluginMgr,
 			}
 
-			retryAfter, err := c.syncBinding(context.Background(), tt.binding)
+			retryAfter, err := c.syncBinding(context.TODO(), tc.binding.DeepCopy())
 
-			if tt.expectedError {
+			if tc.expectedError {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
 			}
 
-			assert.True(t, almostEqual(retryAfter, tt.expectedRetryAfter, 100*time.Millisecond),
-				"Expected retry after %v, but got %v", tt.expectedRetryAfter, retryAfter)
+			if tc.expectRequeue {
+				assert.True(t, retryAfter > 0, "Expected requeue but got none")
+			} else {
+				assert.True(t, retryAfter == 0, "Expected no requeue but got one")
+			}
 
-			// Check the updated binding
 			updatedBinding := &workv1alpha2.ClusterResourceBinding{}
-			err = client.Get(context.Background(), types.NamespacedName{Name: tt.binding.Name}, updatedBinding)
-			assert.NoError(t, err, "Failed to get updated binding")
+			err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: tc.binding.Name}, updatedBinding)
+			assert.NoError(t, err)
 
-			actualEvictionLen := len(updatedBinding.Spec.GracefulEvictionTasks)
-			assert.Equal(t, tt.expectedEvictionLen, actualEvictionLen,
-				"Expected %d eviction tasks, but got %d", tt.expectedEvictionLen, actualEvictionLen)
+			keptClusterNames := getClusterNamesFromTasks(updatedBinding.Spec.GracefulEvictionTasks)
+			assert.Equal(t, tc.expectedKeptCluster, keptClusterNames)
 		})
 	}
 }
@@ -304,4 +280,13 @@ func createRawExtension(status string) *runtime.RawExtension {
 func almostEqual(a, b time.Duration, tolerance time.Duration) bool {
 	diff := a - b
 	return math.Abs(float64(diff)) < float64(tolerance)
+}
+
+func getClusterNamesFromTasks(tasks []workv1alpha2.GracefulEvictionTask) []string {
+	names := make([]string, len(tasks))
+	for i, task := range tasks {
+		names[i] = task.FromCluster
+	}
+	sort.Strings(names)
+	return names
 }

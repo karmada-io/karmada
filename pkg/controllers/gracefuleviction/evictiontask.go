@@ -17,100 +17,111 @@ limitations under the License.
 package gracefuleviction
 
 import (
+	"context"
 	"math"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	plugins "github.com/karmada-io/karmada/pkg/controllers/gracefuleviction/evictplugins"
 )
 
-type assessmentOption struct {
-	timeout        time.Duration
-	scheduleResult []workv1alpha2.TargetCluster
-	observedStatus []workv1alpha2.AggregatedStatusItem
-	hasScheduled   bool
+type assessmentOptionRB struct {
+	binding   *workv1alpha2.ResourceBinding
+	pluginMgr *plugins.Manager
+	timeout   time.Duration
 }
 
-// assessEvictionTasks assesses each task according to graceful eviction rules and
-// returns the tasks that should be kept.
-// The now time is used as the input parameter to facilitate the unit test.
-func assessEvictionTasks(tasks []workv1alpha2.GracefulEvictionTask, now metav1.Time, opt assessmentOption) ([]workv1alpha2.GracefulEvictionTask, []string) {
+type assessmentOptionCRB struct {
+	binding   *workv1alpha2.ClusterResourceBinding
+	pluginMgr *plugins.Manager
+	timeout   time.Duration
+}
+
+func assessEvictionTasksForRB(opt assessmentOptionRB, now metav1.Time) ([]workv1alpha2.GracefulEvictionTask, []string) {
 	var keptTasks []workv1alpha2.GracefulEvictionTask
-	var evictedClusters []string
+	evictedClusters := make([]string, 0)
 
-	for _, task := range tasks {
-		// set creation timestamp for new task
-		if task.CreationTimestamp.IsZero() {
-			task.CreationTimestamp = &now
-			keptTasks = append(keptTasks, task)
-			continue
+	for _, task := range opt.binding.Spec.GracefulEvictionTasks {
+		taskCopy := task.DeepCopy() // Work on a copy to avoid side effects.
+		if taskCopy.CreationTimestamp.IsZero() {
+			taskCopy.CreationTimestamp = &now
 		}
 
-		if task.GracePeriodSeconds != nil {
-			opt.timeout = time.Duration(*task.GracePeriodSeconds) * time.Second
+		// Create a task-specific option copy to handle per-task timeout overrides.
+		taskOpt := opt
+		if taskCopy.GracePeriodSeconds != nil {
+			taskOpt.timeout = time.Duration(*taskCopy.GracePeriodSeconds) * time.Second
 		}
 
-		// assess task according to observed status
-		kt := assessSingleTask(task, opt)
-		if kt != nil {
-			keptTasks = append(keptTasks, *kt)
+		if !isTaskFinishedForRB(context.TODO(), taskCopy, taskOpt) {
+			keptTasks = append(keptTasks, *taskCopy)
 		} else {
-			evictedClusters = append(evictedClusters, task.FromCluster)
+			evictedClusters = append(evictedClusters, taskCopy.FromCluster)
 		}
 	}
 	return keptTasks, evictedClusters
 }
 
-func assessSingleTask(task workv1alpha2.GracefulEvictionTask, opt assessmentOption) *workv1alpha2.GracefulEvictionTask {
+func isTaskFinishedForRB(ctx context.Context, task *workv1alpha2.GracefulEvictionTask, opt assessmentOptionRB) bool {
 	if task.SuppressDeletion != nil {
-		if *task.SuppressDeletion {
-			return &task
-		}
-		// If *task.SuppressDeletion is equal to false,
-		// it means users have confirmed that they want to delete the redundant copy.
-		// In that case, we will delete the task immediately.
-		return nil
+		return !*task.SuppressDeletion // If SuppressDeletion is true, keep the task. If false, finish it.
 	}
 
-	// task exceeds timeout
+	// Check for timeout.
 	if metav1.Now().After(task.CreationTimestamp.Add(opt.timeout)) {
-		return nil
+		return true
 	}
 
-	// Only when the binding object has been scheduled can further judgment be made.
-	// Otherwise, the binding status may be the old, which will affect the correctness of the judgment.
-	if opt.hasScheduled && allScheduledResourceInHealthyState(opt) {
-		return nil
+	// Check with plugins only when the binding has been scheduled.
+	hasScheduled := opt.binding.Status.SchedulerObservedGeneration == opt.binding.GetGeneration()
+	if hasScheduled && opt.pluginMgr.CanBeCleanedRB(ctx, task, opt.binding) {
+		return true
 	}
 
-	return &task
+	return false
 }
 
-func allScheduledResourceInHealthyState(opt assessmentOption) bool {
-	for _, targetCluster := range opt.scheduleResult {
-		var statusItem *workv1alpha2.AggregatedStatusItem
+func assessEvictionTasksForCRB(opt assessmentOptionCRB, now metav1.Time) ([]workv1alpha2.GracefulEvictionTask, []string) {
+	var keptTasks []workv1alpha2.GracefulEvictionTask
+	evictedClusters := make([]string, 0)
 
-		// find the observed status of targetCluster
-		for index, aggregatedStatus := range opt.observedStatus {
-			if aggregatedStatus.ClusterName == targetCluster.Name {
-				statusItem = &opt.observedStatus[index]
-				break
-			}
+	for _, task := range opt.binding.Spec.GracefulEvictionTasks {
+		taskCopy := task.DeepCopy()
+		if taskCopy.CreationTimestamp.IsZero() {
+			taskCopy.CreationTimestamp = &now
 		}
 
-		// no observed status found, maybe the resource hasn't been applied
-		if statusItem == nil {
-			return false
+		taskOpt := opt
+		if taskCopy.GracePeriodSeconds != nil {
+			taskOpt.timeout = time.Duration(*taskCopy.GracePeriodSeconds) * time.Second
 		}
 
-		// resource not in healthy state
-		if statusItem.Health != workv1alpha2.ResourceHealthy {
-			return false
+		if !isTaskFinishedForCRB(context.TODO(), taskCopy, taskOpt) {
+			keptTasks = append(keptTasks, *taskCopy)
+		} else {
+			evictedClusters = append(evictedClusters, taskCopy.FromCluster)
 		}
 	}
+	return keptTasks, evictedClusters
+}
 
-	return true
+func isTaskFinishedForCRB(ctx context.Context, task *workv1alpha2.GracefulEvictionTask, opt assessmentOptionCRB) bool {
+	if task.SuppressDeletion != nil {
+		return !*task.SuppressDeletion
+	}
+
+	if metav1.Now().After(task.CreationTimestamp.Add(opt.timeout)) {
+		return true
+	}
+
+	hasScheduled := opt.binding.Status.SchedulerObservedGeneration == opt.binding.GetGeneration()
+	if hasScheduled && opt.pluginMgr.CanBeCleanedCRB(ctx, task, opt.binding) {
+		return true
+	}
+
+	return false
 }
 
 func nextRetry(tasks []workv1alpha2.GracefulEvictionTask, gracefulTimeout time.Duration, timeNow time.Time) time.Duration {

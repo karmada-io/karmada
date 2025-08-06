@@ -64,6 +64,8 @@ import (
 	metricsclient "github.com/karmada-io/karmada/pkg/controllers/federatedhpa/metrics"
 	"github.com/karmada-io/karmada/pkg/controllers/federatedresourcequota"
 	"github.com/karmada-io/karmada/pkg/controllers/gracefuleviction"
+	plugins "github.com/karmada-io/karmada/pkg/controllers/gracefuleviction/evictplugins"
+	_ "github.com/karmada-io/karmada/pkg/controllers/gracefuleviction/evictplugins/resourcehealth"
 	"github.com/karmada-io/karmada/pkg/controllers/hpascaletargetmarker"
 	"github.com/karmada-io/karmada/pkg/controllers/mcs"
 	"github.com/karmada-io/karmada/pkg/controllers/multiclusterservice"
@@ -653,6 +655,7 @@ func startGracefulEvictionController(ctx controllerscontext.Context) (enabled bo
 		EventRecorder:           ctx.Mgr.GetEventRecorderFor(gracefuleviction.RBGracefulEvictionControllerName),
 		RateLimiterOptions:      ctx.Opts.RateLimiterOptions,
 		GracefulEvictionTimeout: ctx.Opts.GracefulEvictionTimeout.Duration,
+		PluginManager:           ctx.PluginManager,
 	}
 	if err := rbGracefulEvictionController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
@@ -663,6 +666,7 @@ func startGracefulEvictionController(ctx controllerscontext.Context) (enabled bo
 		EventRecorder:           ctx.Mgr.GetEventRecorderFor(gracefuleviction.CRBGracefulEvictionControllerName),
 		RateLimiterOptions:      ctx.Opts.RateLimiterOptions,
 		GracefulEvictionTimeout: ctx.Opts.GracefulEvictionTimeout.Duration,
+		PluginManager:           ctx.PluginManager,
 	}
 	if err := crbGracefulEvictionController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
@@ -898,6 +902,11 @@ func setupControllers(ctx context.Context, mgr controllerruntime.Manager, opts *
 			klog.Fatalf("Failed to setup dependencies distributor: %v", err)
 		}
 	}
+
+	pluginManager, err := plugins.NewManager(opts.FailoverOptions.EvictionPlugins)
+	if err != nil {
+		klog.Fatalf("Failed to create eviction plugin manager: %v", err)
+	}
 	setupClusterAPIClusterDetector(ctx, mgr, opts)
 	controllerContext := controllerscontext.Context{
 		Mgr:           mgr,
@@ -930,6 +939,7 @@ func setupControllers(ctx context.Context, mgr controllerruntime.Manager, opts *
 		ControlPlaneInformerManager: controlPlaneInformerManager,
 		ResourceInterpreter:         resourceInterpreter,
 		ClusterClientOption:         clusterClientOption,
+		PluginManager:               pluginManager,
 	}
 
 	if err := controllers.StartControllers(controllerContext, controllersDisabledByDefault); err != nil {
