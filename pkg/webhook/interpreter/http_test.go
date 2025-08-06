@@ -59,24 +59,13 @@ func (m *mockBody) Close() error {
 	return nil
 }
 
-// limitedBadResponseWriter is a custom io.Writer implementation that simulates
-// write errors for a specified number of attempts. After a certain number of failures,
-// it allows the write operation to succeed.
-type limitedBadResponseWriter struct {
-	failCount   int
-	maxFailures int
+// brokenWriter implements the io.Writer interface.
+type brokenWriter struct {
+	http.ResponseWriter
 }
 
-// Write simulates writing data to the writer. It forces an error response for
-// a limited number of attempts, specified by maxFailures. Once failCount reaches
-// maxFailures, it allows the write to succeed.
-func (b *limitedBadResponseWriter) Write(p []byte) (n int, err error) {
-	if b.failCount < b.maxFailures {
-		b.failCount++
-		return 0, errors.New("forced write error")
-	}
-	// After reaching maxFailures, allow the write to succeed to stop the infinite loop.
-	return len(p), nil
+func (bw *brokenWriter) Write(_ []byte) (int, error) {
+	return 0, fmt.Errorf("mock: write: broken pipe")
 }
 
 func TestServeHTTP(t *testing.T) {
@@ -294,20 +283,14 @@ func TestWriteResourceInterpreterResponse(t *testing.T) {
 			},
 		},
 		{
-			name:        "WriteResourceInterpreterResponse_FailedToWrite_WriterReachedMaxFailures",
+			name:        "should never run into circular calling if the writer has broken",
 			mockHandler: &HTTPMockHandler{},
 			res: configv1alpha1.ResourceInterpreterContext{
 				Response: &configv1alpha1.ResourceInterpreterResponse{},
 			},
-			rec: &limitedBadResponseWriter{maxFailures: 3},
-			verify: func(writer io.Writer, _ *configv1alpha1.ResourceInterpreterResponse) error {
-				data, ok := writer.(*limitedBadResponseWriter)
-				if !ok {
-					return fmt.Errorf("expected writer of type limitedBadResponseWriter but got %T", writer)
-				}
-				if data.failCount != data.maxFailures {
-					return fmt.Errorf("expected %d write failures, got %d", data.maxFailures, data.failCount)
-				}
+			rec: &brokenWriter{},
+			verify: func(_ io.Writer, _ *configv1alpha1.ResourceInterpreterResponse) error {
+				// reaching here means not running into circular calling
 				return nil
 			},
 		},
