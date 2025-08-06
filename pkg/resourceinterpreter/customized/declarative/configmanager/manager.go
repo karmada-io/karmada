@@ -17,13 +17,12 @@ limitations under the License.
 package configmanager
 
 import (
-	"fmt"
+	"errors"
 	"sort"
 	"sync/atomic"
 
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
@@ -49,6 +48,7 @@ type ConfigManager interface {
 // interpreterConfigManager collects the resource interpreter customization.
 type interpreterConfigManager struct {
 	initialSynced atomic.Bool
+	informer      genericmanager.SingleClusterInformerManager
 	lister        cache.GenericLister
 	configuration atomic.Value
 }
@@ -64,16 +64,12 @@ func (configManager *interpreterConfigManager) HasSynced() bool {
 		return true
 	}
 
-	if configuration, err := configManager.lister.List(labels.Everything()); err == nil && len(configuration) == 0 {
-		// the empty list we initially stored is valid to use.
-		// Setting initialSynced to true, so subsequent checks
-		// would be able to take the fast path on the atomic boolean in a
-		// cluster without any customization configured.
-		configManager.initialSynced.Store(true)
-		// the informer has synced, and we don't have any items
-		return true
+	err := configManager.updateConfiguration()
+	if err != nil {
+		klog.ErrorS(err, "error updating configuration")
+		return false
 	}
-	return false
+	return true
 }
 
 // NewInterpreterConfigManager watches ResourceInterpreterCustomization and organizes
@@ -84,35 +80,48 @@ func NewInterpreterConfigManager(informer genericmanager.SingleClusterInformerMa
 
 	// In interpret command, rules are not loaded from server, so we don't start informer for it.
 	if informer != nil {
+		manager.informer = informer
 		manager.lister = informer.Lister(resourceInterpreterCustomizationsGVR)
 		configHandlers := fedinformer.NewHandlerOnEvents(
-			func(_ interface{}) { manager.updateConfiguration() },
-			func(_, _ interface{}) { manager.updateConfiguration() },
-			func(_ interface{}) { manager.updateConfiguration() })
+			func(_ interface{}) { _ = manager.updateConfiguration() },
+			func(_, _ interface{}) { _ = manager.updateConfiguration() },
+			func(_ interface{}) { _ = manager.updateConfiguration() })
 		informer.ForResource(resourceInterpreterCustomizationsGVR, configHandlers)
 	}
 
 	return manager
 }
 
-func (configManager *interpreterConfigManager) updateConfiguration() {
+// updateConfiguration is used as the event handler for the ResourceInterpreterCustomization resource.
+// Any changes (add, update, delete) to these resources will trigger this method, which loads all
+// ResourceInterpreterCustomization resources and refreshes the internal cache accordingly.
+// Note: During startup, some events may be missed if the informer has not yet synced. If all events
+// are missed during startup, updateConfiguration will be called when HasSynced() is invoked for the
+// first time, ensuring the cache is updated on first use.
+func (configManager *interpreterConfigManager) updateConfiguration() error {
+	if configManager.informer == nil {
+		return errors.New("informer manager is not configured")
+	}
+	if !configManager.informer.IsInformerSynced(resourceInterpreterCustomizationsGVR) {
+		return errors.New("informer of ResourceInterpreterCustomization not synced")
+	}
+
 	configurations, err := configManager.lister.List(labels.Everything())
 	if err != nil {
-		utilruntime.HandleError(fmt.Errorf("error updating configuration: %v", err))
-		return
+		return err
 	}
 
 	configs := make([]*configv1alpha1.ResourceInterpreterCustomization, len(configurations))
 	for index, c := range configurations {
 		config := &configv1alpha1.ResourceInterpreterCustomization{}
 		if err = helper.ConvertToTypedObject(c, config); err != nil {
-			klog.Errorf("Failed to transform ResourceInterpreterCustomization: %v", err)
-			return
+			return err
 		}
 		configs[index] = config
 	}
 
 	configManager.LoadConfig(configs)
+	return nil
 }
 
 func (configManager *interpreterConfigManager) LoadConfig(configs []*configv1alpha1.ResourceInterpreterCustomization) {
