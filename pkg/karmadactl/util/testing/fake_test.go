@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+
 	"github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 )
 
@@ -36,10 +37,9 @@ func TestTestFactory_KarmadaClientSet(t *testing.T) {
 		t.Fatal("KarmadaClientSet() returned nil client")
 	}
 
-	// Verify that the client implements the expected interface
-	if _, ok := client.(versioned.Interface); !ok {
-		t.Fatalf("KarmadaClientSet() returned client of type %T, which does not implement versioned.Interface", client)
-	}
+	// Verify that the client is not nil and implements the expected interface
+	// The type assertion is not needed since the method already returns versioned.Interface
+	_ = client
 }
 
 func TestTestFactory_FactoryForMemberCluster(t *testing.T) {
@@ -56,8 +56,7 @@ func TestTestFactory_FactoryForMemberCluster(t *testing.T) {
 		t.Fatal("FactoryForMemberCluster() returned nil factory")
 	}
 
-	// Verify that the factory implements the expected interface
-	if _, ok := factory.(cmdutil.Factory); !ok {
-		t.Fatalf("FactoryForMemberCluster() returned factory of type %T, which does not implement cmdutil.Factory interface", factory)
-	}
-} 
+	// Verify that the factory is not nil and implements the expected interface
+	// The type assertion is not needed since the method already returns cmdutil.Factory
+	_ = factory
+}
