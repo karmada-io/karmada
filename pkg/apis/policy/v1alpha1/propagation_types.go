@@ -336,9 +336,13 @@ type FailoverBehavior struct {
 	Application *ApplicationFailoverBehavior `json:"application,omitempty"`
 
 	// Cluster indicates failover behaviors in case of cluster failure.
-	// If this value is nil, failover is disabled.
+	// If this value is nil, the failover behavior in case of cluster failure
+	// will be controlled by the controller's no-execute-taint-eviction-purge-mode
+	// parameter.
+	// If set, the failover behavior in case of cluster failure will be defined
+	// by this value.
 	// +optional
-	// Cluster *ClusterFailoverBehavior `json:"cluster,omitempty"`
+	Cluster *ClusterFailoverBehavior `json:"cluster,omitempty"`
 }
 
 // ApplicationFailoverBehavior indicates application failover behaviors.
@@ -368,6 +372,35 @@ type ApplicationFailoverBehavior struct {
 	// Value must be positive integer.
 	// +optional
 	GracePeriodSeconds *int32 `json:"gracePeriodSeconds,omitempty"`
+
+	// StatePreservation defines the policy for preserving and restoring state data
+	// during failover events for stateful applications.
+	//
+	// When an application fails over from one cluster to another, this policy enables
+	// the extraction of critical data from the original resource configuration.
+	// Upon successful migration, the extracted data is then re-injected into the new
+	// resource, ensuring that the application can resume operation with its previous
+	// state intact.
+	// This is particularly useful for stateful applications where maintaining data
+	// consistency across failover events is crucial.
+	// If not specified, means no state data will be preserved.
+	//
+	// Note: This requires the StatefulFailoverInjection feature gate to be enabled,
+	// which is alpha.
+	// +optional
+	StatePreservation *StatePreservation `json:"statePreservation,omitempty"`
+}
+
+// ClusterFailoverBehavior indicates cluster failover behaviors.
+type ClusterFailoverBehavior struct {
+	// PurgeMode represents how to deal with the legacy applications on the
+	// cluster from which the application is migrated.
+	// Valid options are "Directly", "Gracefully".
+	// Defaults to "Gracefully".
+	// +kubebuilder:validation:Enum=Directly;Gracefully
+	// +kubebuilder:default=Gracefully
+	// +optional
+	PurgeMode PurgeMode `json:"purgeMode,omitempty"`
 
 	// StatePreservation defines the policy for preserving and restoring state data
 	// during failover events for stateful applications.
