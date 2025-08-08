@@ -142,22 +142,34 @@ func (c *ExternalMetricsProvider) ListAllExternalMetrics() []provider.ExternalMe
 	return result
 }
 
+// getDiscoveryClient gets or sets up a discovery client for a given cluster.
+func (c *ExternalMetricsProvider) getDiscoveryClient(clusterName string) (*discovery.DiscoveryClient, error) {
+	discoveryClient := c.multiClusterDiscovery.Get(clusterName)
+	if discoveryClient != nil {
+		return discoveryClient, nil
+	}
+
+	// Try to set up the client if it doesn't exist
+	if err := c.multiClusterDiscovery.Set(clusterName); err != nil {
+		return nil, fmt.Errorf("failed to set up discovery client for cluster %s: %v", clusterName, err)
+	}
+
+	discoveryClient = c.multiClusterDiscovery.Get(clusterName)
+	if discoveryClient == nil {
+		return nil, fmt.Errorf("failed to get discovery client for cluster %s", clusterName)
+	}
+	return discoveryClient, nil
+}
+
 // getExternalMetric queries external metrics from a specific cluster
 func (c *ExternalMetricsProvider) getExternalMetric(ctx context.Context, clusterName, namespace, metricName string, selector labels.Selector) (*external_metrics.ExternalMetricValueList, error) {
-	discoveryClient := c.multiClusterDiscovery.Get(clusterName)
-	if discoveryClient == nil {
-		// Try to set up the client if it doesn't exist
-		if err := c.multiClusterDiscovery.Set(clusterName); err != nil {
-			return nil, fmt.Errorf("failed to set up discovery client for cluster %s: %v", clusterName, err)
-		}
-		discoveryClient = c.multiClusterDiscovery.Get(clusterName)
-		if discoveryClient == nil {
-			return nil, fmt.Errorf("failed to get discovery client for cluster %s", clusterName)
-		}
+	discoveryClient, err := c.getDiscoveryClient(clusterName)
+	if err != nil {
+		return nil, err
 	}
 
 	// Check if external metrics API is available
-	_, err := c.getPreferredVersion(discoveryClient)
+	_, err = c.getPreferredVersion(discoveryClient)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get preferred version for cluster %s: %v", clusterName, err)
 	}
@@ -198,34 +210,70 @@ func (c *ExternalMetricsProvider) getExternalMetric(ctx context.Context, cluster
 
 // listExternalMetrics lists all available external metrics from a cluster
 func (c *ExternalMetricsProvider) listExternalMetrics(clusterName string) ([]provider.ExternalMetricInfo, error) {
-	discoveryClient := c.multiClusterDiscovery.Get(clusterName)
-	if discoveryClient == nil {
-		// Try to set up the client if it doesn't exist
-		if err := c.multiClusterDiscovery.Set(clusterName); err != nil {
-			return nil, fmt.Errorf("failed to set up discovery client for cluster %s: %v", clusterName, err)
-		}
-		discoveryClient = c.multiClusterDiscovery.Get(clusterName)
-		if discoveryClient == nil {
-			return nil, fmt.Errorf("failed to get discovery client for cluster %s", clusterName)
-		}
+	discoveryClient, err := c.getDiscoveryClient(clusterName)
+	if err != nil {
+		return nil, err
 	}
 
 	// Check if external metrics API is available
-	_, err := c.getPreferredVersion(discoveryClient)
+	_, err = c.getPreferredVersion(discoveryClient)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get preferred version for cluster %s: %v", clusterName, err)
 	}
 
-	// For now, return a basic set of external metrics
-	// In a real implementation, you would query the actual available metrics from the cluster
-	// This is a placeholder implementation
-	metrics := []provider.ExternalMetricInfo{
-		{
-			Metric: "queue_length",
-		},
-		{
-			Metric: "requests_per_second",
-		},
+	// Create external metrics client for the cluster
+	clusterConfig, err := c.getClusterConfig(clusterName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get cluster config for cluster %s: %v", clusterName, err)
+	}
+
+	externalClient, err := externalclient.NewForConfig(clusterConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create external metrics client for cluster %s: %v", clusterName, err)
+	}
+
+	// Try to discover available metrics by querying the external metrics API
+	// This is a more dynamic approach than hardcoded metrics
+	metrics := []provider.ExternalMetricInfo{}
+	
+	// Common external metrics that are typically available
+	commonMetrics := []string{
+		"queue_length",
+		"requests_per_second",
+		"db_connections",
+		"message_queue_length",
+		"api_response_time",
+		"error_rate",
+		"throughput",
+		"latency",
+		"cpu_usage",
+		"memory_usage",
+		"disk_usage",
+		"network_io",
+		"active_connections",
+		"cache_hit_rate",
+		"job_queue_size",
+	}
+
+	// Try to discover which metrics are actually available
+	for _, metricName := range commonMetrics {
+		// Try to query the metric to see if it exists
+		_, err := externalClient.NamespacedMetrics("default").List(metricName, labels.Everything())
+		if err == nil {
+			// Metric exists, add it to the list
+			metrics = append(metrics, provider.ExternalMetricInfo{
+				Metric: metricName,
+			})
+		}
+		// If metric doesn't exist, just continue to the next one
+		// We don't log errors here as it's expected that not all metrics will be available
+	}
+
+	// If no common metrics are found, try to query the API for available metrics
+	// This would require the external metrics API to support listing available metrics
+	// For now, we'll return the discovered metrics or an empty list
+	if len(metrics) == 0 {
+		klog.V(4).Infof("No external metrics discovered from cluster %s", clusterName)
 	}
 
 	return metrics, nil
