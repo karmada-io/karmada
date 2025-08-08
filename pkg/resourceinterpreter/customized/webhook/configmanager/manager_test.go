@@ -17,14 +17,17 @@ limitations under the License.
 package configmanager
 
 import (
+	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/cache"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
@@ -62,6 +65,10 @@ func TestNewExploreConfigManager(t *testing.T) {
 
 			assert.NotNil(t, manager, "Manager should not be nil")
 			assert.NotNil(t, manager.HookAccessors(), "Accessors should be initialized")
+
+			internalManager, ok := manager.(*interpreterConfigManager)
+			assert.True(t, ok)
+			assert.Equal(t, informerManager, internalManager.informer)
 		})
 	}
 }
@@ -70,6 +77,7 @@ func TestHasSynced(t *testing.T) {
 	tests := []struct {
 		name           string
 		initialSynced  bool
+		informer       genericmanager.SingleClusterInformerManager
 		listErr        error
 		listResult     []runtime.Object
 		expectedSynced bool
@@ -80,24 +88,47 @@ func TestHasSynced(t *testing.T) {
 			expectedSynced: true,
 		},
 		{
-			name:           "not synced but empty list",
+			name:           "informer not configured",
 			initialSynced:  false,
+			informer:       nil,
+			expectedSynced: false,
+		},
+		{
+			name:          "informer not synced",
+			initialSynced: false,
+			informer: &mockSingleClusterInformerManager{
+				isSynced: false,
+			},
+			expectedSynced: false,
+		},
+		{
+			name:          "sync with empty list",
+			initialSynced: false,
+			informer: &mockSingleClusterInformerManager{
+				isSynced: true,
+			},
 			listResult:     []runtime.Object{},
 			expectedSynced: true,
 		},
 		{
-			name:          "not synced with items",
+			name:          "sync with items",
 			initialSynced: false,
+			informer: &mockSingleClusterInformerManager{
+				isSynced: true,
+			},
 			listResult: []runtime.Object{
 				&configv1alpha1.ResourceInterpreterWebhookConfiguration{
 					ObjectMeta: metav1.ObjectMeta{Name: "test"},
 				},
 			},
-			expectedSynced: false,
+			expectedSynced: true,
 		},
 		{
-			name:           "list error",
-			initialSynced:  false,
+			name:          "list error",
+			initialSynced: false,
+			informer: &mockSingleClusterInformerManager{
+				isSynced: true,
+			},
 			listErr:        fmt.Errorf("test error"),
 			expectedSynced: false,
 		},
@@ -106,6 +137,7 @@ func TestHasSynced(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			manager := &interpreterConfigManager{
+				informer: tt.informer,
 				lister: &mockLister{
 					err:   tt.listErr,
 					items: tt.listResult,
@@ -181,12 +213,30 @@ func TestUpdateConfiguration(t *testing.T) {
 		name          string
 		configs       []runtime.Object
 		listErr       error
+		informer      genericmanager.SingleClusterInformerManager
 		expectedCount int
 		wantSynced    bool
 	}{
 		{
-			name:          "empty configuration",
-			configs:       []runtime.Object{},
+			name:          "informer not configured",
+			informer:      nil,
+			expectedCount: 0,
+			wantSynced:    false,
+		},
+		{
+			name: "informer not synced",
+			informer: &mockSingleClusterInformerManager{
+				isSynced: false,
+			},
+			expectedCount: 0,
+			wantSynced:    false,
+		},
+		{
+			name:    "empty configuration",
+			configs: []runtime.Object{},
+			informer: &mockSingleClusterInformerManager{
+				isSynced: true,
+			},
 			expectedCount: 0,
 			wantSynced:    true,
 		},
@@ -204,13 +254,19 @@ func TestUpdateConfiguration(t *testing.T) {
 					},
 				},
 			},
+			informer: &mockSingleClusterInformerManager{
+				isSynced: true,
+			},
 			expectedCount: 1,
 			wantSynced:    true,
 		},
 		{
-			name:          "list error",
-			configs:       []runtime.Object{},
-			listErr:       fmt.Errorf("test error"),
+			name:    "list error",
+			configs: []runtime.Object{},
+			listErr: fmt.Errorf("test error"),
+			informer: &mockSingleClusterInformerManager{
+				isSynced: true,
+			},
 			expectedCount: 0,
 			wantSynced:    false,
 		},
@@ -223,20 +279,62 @@ func TestUpdateConfiguration(t *testing.T) {
 					items: tt.configs,
 					err:   tt.listErr,
 				},
+				informer: tt.informer,
 			}
 			manager.configuration.Store([]WebhookAccessor{})
 			manager.initialSynced.Store(false)
 
-			manager.updateConfiguration()
+			synced := manager.HasSynced()
+			assert.Equal(t, tt.wantSynced, synced)
 
 			accessors := manager.HookAccessors()
 			assert.Equal(t, tt.expectedCount, len(accessors))
-			assert.Equal(t, tt.wantSynced, manager.HasSynced())
 		})
 	}
 }
 
 // Mock Implementations
+
+type mockSingleClusterInformerManager struct {
+	isSynced bool
+}
+
+func (m *mockSingleClusterInformerManager) IsInformerSynced(_ schema.GroupVersionResource) bool {
+	return m.isSynced
+}
+
+func (m *mockSingleClusterInformerManager) Lister(_ schema.GroupVersionResource) cache.GenericLister {
+	return nil
+}
+
+func (m *mockSingleClusterInformerManager) ForResource(_ schema.GroupVersionResource, _ cache.ResourceEventHandler) {
+}
+
+func (m *mockSingleClusterInformerManager) Start() {
+}
+
+func (m *mockSingleClusterInformerManager) Stop() {
+}
+
+func (m *mockSingleClusterInformerManager) WaitForCacheSync() map[schema.GroupVersionResource]bool {
+	return nil
+}
+
+func (m *mockSingleClusterInformerManager) WaitForCacheSyncWithTimeout(_ time.Duration) map[schema.GroupVersionResource]bool {
+	return nil
+}
+
+func (m *mockSingleClusterInformerManager) Context() context.Context {
+	return context.Background()
+}
+
+func (m *mockSingleClusterInformerManager) GetClient() dynamic.Interface {
+	return nil
+}
+
+func (m *mockSingleClusterInformerManager) IsHandlerExist(_ schema.GroupVersionResource, _ cache.ResourceEventHandler) bool {
+	return false
+}
 
 type mockLister struct {
 	items []runtime.Object
