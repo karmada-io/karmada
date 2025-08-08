@@ -56,21 +56,70 @@ type frqProcessOutcome struct {
 
 // Handle implements admission.Handler interface.
 func (v *ValidatingAdmission) Handle(ctx context.Context, req admission.Request) admission.Response {
+	rb, oldRB, decodeResp := v.decodeRBs(req)
+	if decodeResp != nil {
+		return *decodeResp
+	}
+	klog.V(2).Infof("Processing ResourceBinding(%s/%s) for request: %s (%s)", rb.Namespace, rb.Name, req.Operation, req.UID)
+
+	var validationMessages []string
+
+	// The response will be nil if validation passes or is skipped.
+	// On failure, it will be a denial or an error response.
+	if resp := v.validateFederatedResourceQuota(ctx, req, rb, oldRB); resp != nil {
+		if !resp.Allowed {
+			// If a validator denies the request or returns an error, return immediately.
+			return *resp
+		}
+		// For allowed responses, aggregate their messages and continue validation.
+		if resp.Result != nil && resp.Result.Message != "" {
+			validationMessages = append(validationMessages, resp.Result.Message)
+		}
+	}
+
+	// Future validators can be added here, following the same pattern. For example:
+	// if resp := v.validateAnotherFeature(ctx, req, rb, oldRB); resp != nil {
+	//     if !resp.Allowed {
+	//         return *resp
+	//     }
+	//     if resp.Result != nil && resp.Result.Message != "" {
+	//         validationMessages = append(validationMessages, resp.Result.Message)
+	//     }
+	// }
+
+	if len(validationMessages) == 0 {
+		return admission.Allowed("")
+	}
+	return admission.Allowed(strings.Join(validationMessages, " "))
+}
+
+// validateFederatedResourceQuota checks the FederatedResourceQuota for the ResourceBinding.
+// It returns nil if the validation is passed or skipped, otherwise it returns an admission response.
+func (v *ValidatingAdmission) validateFederatedResourceQuota(ctx context.Context, req admission.Request, rb, oldRB *workv1alpha2.ResourceBinding) *admission.Response {
 	if !features.FeatureGate.Enabled(features.FederatedQuotaEnforcement) {
 		klog.V(5).Infof("FederatedQuotaEnforcement feature gate is disabled, skipping validation for ResourceBinding %s/%s", req.Namespace, req.Name)
-		return admission.Allowed("")
+		return nil // Returning nil to allow other validators to run
+	}
+
+	if req.Operation == admissionv1.Create && len(rb.Spec.Clusters) == 0 {
+		klog.V(4).Infof("ResourceBinding %s/%s is being created but not yet scheduled, skipping quota validation.", rb.Namespace, rb.Name)
+		resp := admission.Allowed("ResourceBinding not yet scheduled for Create operation.")
+		return &resp
+	}
+
+	if req.Operation == admissionv1.Update {
+		if !isQuotaRelevantFieldChanged(oldRB, rb) {
+			klog.V(4).Infof("ResourceBinding %s/%s updated, but no quota relevant fields changed, skipping quota validation.", rb.Namespace, rb.Name)
+			resp := admission.Allowed("No quota relevant fields changed.")
+			return &resp
+		}
 	}
 
 	isDryRun := req.DryRun != nil && *req.DryRun
 
-	rb, oldRB, extractResp := v.decodeAndValidateRBs(req)
-	if extractResp != nil {
-		return *extractResp
-	}
-
 	newRbTotalUsage, oldRbTotalUsage, respCalc := v.calculateRBUsages(rb, oldRB)
 	if respCalc != nil {
-		return *respCalc
+		return respCalc
 	}
 
 	totalRbDelta := calculateDelta(newRbTotalUsage, oldRbTotalUsage)
@@ -78,12 +127,14 @@ func (v *ValidatingAdmission) Handle(ctx context.Context, req admission.Request)
 
 	if len(totalRbDelta) == 0 {
 		klog.V(2).Infof("No effective resource quantity delta for ResourceBinding %s/%s. Skipping quota validation.", rb.Namespace, rb.Name)
-		return admission.Allowed("No effective resource quantity delta for ResourceBinding, skipping quota validation.")
+		resp := admission.Allowed("No effective resource quantity delta for ResourceBinding, skipping quota validation.")
+		return &resp
 	}
 
 	frqOutcome := v.processFRQsWithRetries(ctx, rb, totalRbDelta, isDryRun)
 
-	return v.finalizeResponse(rb, frqOutcome)
+	resp := v.finalizeResponse(rb, frqOutcome)
+	return &resp
 }
 
 func (v *ValidatingAdmission) processFRQsWithRetries(ctx context.Context, rb *workv1alpha2.ResourceBinding, totalRbDelta corev1.ResourceList, isDryRun bool) frqProcessOutcome {
@@ -217,12 +268,11 @@ func (v *ValidatingAdmission) updateFRQStatusesWithRetrySignal(ctx context.Conte
 	return nil
 }
 
-// decodeAndValidateRBs decodes current and old (for updates) ResourceBindings,
-// performs essential preliminary checks, and checks for relevant changes in update operations.
-// Returns the RBs or an admission response for early exit.
-func (v *ValidatingAdmission) decodeAndValidateRBs(req admission.Request) (
+// decodeRBs decodes current and old (for updates) ResourceBindings.
+// Returns the RBs or an admission response for early exit on decoding failure.
+func (v *ValidatingAdmission) decodeRBs(req admission.Request) (
 	currentRB *workv1alpha2.ResourceBinding,
-	oldRB *workv1alpha2.ResourceBinding, // Will be nil if not an update or if not applicable
+	oldRB *workv1alpha2.ResourceBinding, // Will be nil if not an update
 	earlyExitResp *admission.Response,
 ) {
 	decodedRB := &workv1alpha2.ResourceBinding{}
@@ -231,30 +281,18 @@ func (v *ValidatingAdmission) decodeAndValidateRBs(req admission.Request) (
 		resp := admission.Errored(http.StatusBadRequest, err)
 		return nil, nil, &resp
 	}
-	klog.V(2).Infof("Processing ResourceBinding(%s/%s) for request: %s (%s)", decodedRB.Namespace, decodedRB.Name, req.Operation, req.UID)
 
-	if req.Operation == admissionv1.Create && len(decodedRB.Spec.Clusters) == 0 {
-		klog.V(4).Infof("ResourceBinding %s/%s is being created but not yet scheduled, skipping quota validation.", decodedRB.Namespace, decodedRB.Name)
-		resp := admission.Allowed("ResourceBinding not yet scheduled for Create operation.")
-		return decodedRB, nil, &resp
+	if req.Operation != admissionv1.Update {
+		return decodedRB, nil, nil
 	}
 
-	var decodedOldRB *workv1alpha2.ResourceBinding
-	if req.Operation == admissionv1.Update {
-		tempOldRB := &workv1alpha2.ResourceBinding{}
-		if err := v.Decoder.DecodeRaw(req.OldObject, tempOldRB); err != nil {
-			klog.Errorf("Failed to decode old ResourceBinding %s/%s: %v", req.Namespace, req.Name, err)
-			resp := admission.Errored(http.StatusBadRequest, err)
-			return decodedRB, nil, &resp
-		}
-		decodedOldRB = tempOldRB
-
-		if !isQuotaRelevantFieldChanged(decodedOldRB, decodedRB) {
-			klog.V(4).Infof("ResourceBinding %s/%s updated, but no quota relevant fields changed, skipping quota validation.", decodedRB.Namespace, decodedRB.Name)
-			resp := admission.Allowed("No quota relevant fields changed.")
-			return decodedRB, decodedOldRB, &resp
-		}
+	decodedOldRB := &workv1alpha2.ResourceBinding{}
+	if err := v.Decoder.DecodeRaw(req.OldObject, decodedOldRB); err != nil {
+		klog.Errorf("Failed to decode old ResourceBinding %s/%s: %v", req.Namespace, req.Name, err)
+		resp := admission.Errored(http.StatusBadRequest, err)
+		return nil, nil, &resp
 	}
+
 	return decodedRB, decodedOldRB, nil
 }
 
