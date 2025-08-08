@@ -19,6 +19,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"github.com/karmada-io/karmada/pkg/scheduler/core/spreadconstraint"
 	"math"
 
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -105,14 +106,15 @@ func calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha
 
 // attachZeroReplicasCluster  attach cluster in clusters into targetCluster
 // The purpose is to avoid workload not appeared in rb's spec.clusters field
-func attachZeroReplicasCluster(clusters []*clusterv1alpha1.Cluster, targetClusters []workv1alpha2.TargetCluster) []workv1alpha2.TargetCluster {
+func attachZeroReplicasCluster(clusters []spreadconstraint.ClusterAvailableReplicas,
+	targetClusters []workv1alpha2.TargetCluster) []workv1alpha2.TargetCluster {
 	targetClusterSet := sets.NewString()
 	for i := range targetClusters {
 		targetClusterSet.Insert(targetClusters[i].Name)
 	}
 	for i := range clusters {
-		if !targetClusterSet.Has(clusters[i].Name) {
-			targetClusters = append(targetClusters, workv1alpha2.TargetCluster{Name: clusters[i].Name, Replicas: 0})
+		if !targetClusterSet.Has(clusters[i].Cluster.Name) {
+			targetClusters = append(targetClusters, workv1alpha2.TargetCluster{Name: clusters[i].Cluster.Name, Replicas: 0})
 		}
 	}
 	return targetClusters

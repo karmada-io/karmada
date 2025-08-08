@@ -19,6 +19,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"github.com/karmada-io/karmada/pkg/scheduler/core/spreadconstraint"
 	"time"
 
 	"k8s.io/klog/v2"
@@ -94,20 +95,20 @@ func (g *genericScheduler) Schedule(
 	}
 	klog.V(4).Infof("Feasible clusters scores: %v", clustersScore)
 
-	clusters, err := g.selectClusters(clustersScore, spec.Placement, spec)
+	availableClusters, err := g.selectClusters(clustersScore, spec.Placement, spec)
 	if err != nil {
 		return result, fmt.Errorf("failed to select clusters: %w", err)
 	}
-	klog.V(4).Infof("Selected clusters: %v", clusters)
+	klog.V(4).Infof("Selected clusters: %v", availableClusters)
 
-	clustersWithReplicas, err := g.assignReplicas(clusters, spec, status)
+	clustersWithReplicas, err := g.assignReplicas(availableClusters, spec, status)
 	if err != nil {
 		return result, fmt.Errorf("failed to assign replicas: %w", err)
 	}
 	klog.V(4).Infof("Assigned Replicas: %v", clustersWithReplicas)
 
 	if scheduleAlgorithmOption.EnableEmptyWorkloadPropagation {
-		clustersWithReplicas = attachZeroReplicasCluster(clusters, clustersWithReplicas)
+		clustersWithReplicas = attachZeroReplicasCluster(availableClusters, clustersWithReplicas)
 	}
 	result.SuggestedClusters = clustersWithReplicas
 
@@ -182,11 +183,11 @@ func (g *genericScheduler) prioritizeClusters(
 }
 
 func (g *genericScheduler) selectClusters(clustersScore framework.ClusterScoreList,
-	placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec) ([]*clusterv1alpha1.Cluster, error) {
+	placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec) ([]spreadconstraint.ClusterAvailableReplicas, error) {
 	return SelectClusters(clustersScore, placement, spec)
 }
 
-func (g *genericScheduler) assignReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec,
+func (g *genericScheduler) assignReplicas(clusters []spreadconstraint.ClusterAvailableReplicas, spec *workv1alpha2.ResourceBindingSpec,
 	status *workv1alpha2.ResourceBindingStatus) ([]workv1alpha2.TargetCluster, error) {
 	return AssignReplicas(clusters, spec, status)
 }
