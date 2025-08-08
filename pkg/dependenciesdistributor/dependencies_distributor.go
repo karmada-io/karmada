@@ -362,12 +362,12 @@ func (d *DependenciesDistributor) handleDependentResource(
 		if selector, err = metav1.LabelSelectorAsSelector(dependent.LabelSelector); err != nil {
 			return err
 		}
-		rawObjects, err := helper.FetchResourceTemplatesByLabelSelector(d.DynamicClient, d.InformerManager, d.RESTMapper, objRef, selector)
+		readOnlyObjects, err := helper.FetchReadOnlyResourceTemplatesByLabelSelector(d.DynamicClient, d.InformerManager, d.RESTMapper, objRef, selector)
 		if err != nil {
 			return err
 		}
-		for _, rawObject := range rawObjects {
-			attachedBinding := buildAttachedBinding(independentBinding, rawObject)
+		for _, readOnlyObject := range readOnlyObjects {
+			attachedBinding := buildAttachedBinding(independentBinding, readOnlyObject)
 			if err := d.createOrUpdateAttachedBinding(attachedBinding); err != nil {
 				return err
 			}
@@ -694,7 +694,7 @@ func generateDependencyKey(kind, apiVersion, namespace string) string {
 	return kind + "-" + apiVersion + "-" + namespace
 }
 
-func buildAttachedBinding(independentBinding *workv1alpha2.ResourceBinding, object *unstructured.Unstructured) *workv1alpha2.ResourceBinding {
+func buildAttachedBinding(independentBinding *workv1alpha2.ResourceBinding, readOnlyObject *unstructured.Unstructured) *workv1alpha2.ResourceBinding {
 	dependedLabels := generateBindingDependedLabels(independentBinding.Labels[workv1alpha2.ResourceBindingPermanentIDLabel],
 		independentBinding.Namespace, independentBinding.Name)
 
@@ -707,21 +707,21 @@ func buildAttachedBinding(independentBinding *workv1alpha2.ResourceBinding, obje
 
 	return &workv1alpha2.ResourceBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      names.GenerateBindingName(object.GetKind(), object.GetName()),
+			Name:      names.GenerateBindingName(readOnlyObject.GetKind(), readOnlyObject.GetName()),
 			Namespace: independentBinding.GetNamespace(),
 			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(object, object.GroupVersionKind()),
+				*metav1.NewControllerRef(readOnlyObject, readOnlyObject.GroupVersionKind()),
 			},
 			Labels:     dependedLabels,
 			Finalizers: []string{util.BindingControllerFinalizer},
 		},
 		Spec: workv1alpha2.ResourceBindingSpec{
 			Resource: workv1alpha2.ObjectReference{
-				APIVersion:      object.GetAPIVersion(),
-				Kind:            object.GetKind(),
-				Namespace:       object.GetNamespace(),
-				Name:            object.GetName(),
-				ResourceVersion: object.GetResourceVersion(),
+				APIVersion:      readOnlyObject.GetAPIVersion(),
+				Kind:            readOnlyObject.GetKind(),
+				Namespace:       readOnlyObject.GetNamespace(),
+				Name:            readOnlyObject.GetName(),
+				ResourceVersion: readOnlyObject.GetResourceVersion(),
 			},
 			RequiredBy:                  result,
 			PreserveResourcesOnDeletion: independentBinding.Spec.PreserveResourcesOnDeletion,

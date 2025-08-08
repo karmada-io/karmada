@@ -238,9 +238,6 @@ func RemoveOrphanWorks(ctx context.Context, c client.Client, works []workv1alpha
 }
 
 // FetchResourceTemplate fetches the resource template to be propagated.
-// Any updates to this resource template are not recommended as it may come from the informer cache.
-// We should abide by the principle of making a deep copy first and then modifying it.
-// See issue: https://github.com/karmada-io/karmada/issues/3878.
 func FetchResourceTemplate(
 	ctx context.Context,
 	dynamicClient dynamic.Interface,
@@ -254,40 +251,41 @@ func FetchResourceTemplate(
 		return nil, err
 	}
 
-	var object runtime.Object
+	var objectReadOnly runtime.Object
 
 	if len(resource.Namespace) == 0 {
 		// cluster-scoped resource
-		object, err = informerManager.Lister(gvr).Get(resource.Name)
+		objectReadOnly, err = informerManager.Lister(gvr).Get(resource.Name)
 	} else {
-		object, err = informerManager.Lister(gvr).ByNamespace(resource.Namespace).Get(resource.Name)
+		objectReadOnly, err = informerManager.Lister(gvr).ByNamespace(resource.Namespace).Get(resource.Name)
 	}
 	if err != nil {
 		// fall back to call api server in case the cache has not been synchronized yet
 		klog.Warningf("Failed to get resource template (%s/%s/%s) from cache, Error: %v. Fall back to call api server.",
 			resource.Kind, resource.Namespace, resource.Name, err)
-		object, err = dynamicClient.Resource(gvr).Namespace(resource.Namespace).Get(ctx, resource.Name, metav1.GetOptions{})
+		object, err := dynamicClient.Resource(gvr).Namespace(resource.Namespace).Get(ctx, resource.Name, metav1.GetOptions{})
 		if err != nil {
 			klog.Errorf("Failed to get resource template (%s/%s/%s) from api server, Error: %v",
 				resource.Kind, resource.Namespace, resource.Name, err)
 			return nil, err
 		}
+		return object, nil
 	}
 
-	unstructuredObj, err := ToUnstructured(object)
+	unstructuredObj, err := ToUnstructured(objectReadOnly)
 	if err != nil {
 		klog.Errorf("Failed to transform object(%s/%s), Error: %v", resource.Namespace, resource.Name, err)
 		return nil, err
 	}
 
-	return unstructuredObj, nil
+	return unstructuredObj.DeepCopy(), nil
 }
 
-// FetchResourceTemplatesByLabelSelector fetches the resource templates by label selector to be propagated.
+// FetchReadOnlyResourceTemplatesByLabelSelector fetches the resource templates by label selector to be propagated.
 // Any updates to this resource template are not recommended as it may come from the informer cache.
 // We should abide by the principle of making a deep copy first and then modifying it.
 // See issue: https://github.com/karmada-io/karmada/issues/3878.
-func FetchResourceTemplatesByLabelSelector(
+func FetchReadOnlyResourceTemplatesByLabelSelector(
 	dynamicClient dynamic.Interface,
 	informerManager genericmanager.SingleClusterInformerManager,
 	restMapper meta.RESTMapper,
