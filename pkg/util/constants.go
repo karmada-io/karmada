@@ -20,6 +20,7 @@ import (
 	"time"
 
 	discoveryv1 "k8s.io/api/discovery/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
@@ -214,6 +215,11 @@ const (
 	ParallelismField = "parallelism"
 	// CompletionsField indicates the 'completions' field of a job
 	CompletionsField = "completions"
+)
+
+const (
+	// QuotaExceededReason is a unique reason to describe QuotaExceeded events
+	QuotaExceededReason metav1.StatusReason = "QuotaExceeded"
 )
 
 // ContextKey is the key of context.
