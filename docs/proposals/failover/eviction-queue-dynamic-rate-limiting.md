@@ -176,7 +176,7 @@ This proposal adds the following metrics for the eviction queue, following Karma
 - `eviction_total`: Number of elements in the queue, with labels:
   - `queue_name`: Identifies the queue name, facilitating distinction between different queues
 - `evict_kind_total`: Number of different types of elements in the queue, with labels:
-  - `cluster_name`: Identifies the cluster name to which the queue belongs, facilitating distinction between queues of different clusters
+  - `cluster_name`: Identifies the cluster from which the resource is being evicted.
   - `resource_kind`: Marks the type of enqueued resources, concatenated from the resource's APIVersion and Kind
 - `eviction_processing_latency_seconds`: Time interval from enqueueing to processing of resources, with labels:
   - `queue_name`: Identifies the queue name, facilitating distinction between different queues
