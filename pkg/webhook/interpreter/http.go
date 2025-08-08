@@ -98,7 +98,8 @@ func (wh *Webhook) writeResponse(w io.Writer, response Response) {
 func (wh *Webhook) writeResourceInterpreterResponse(w io.Writer, interpreterContext configv1alpha1.ResourceInterpreterContext) {
 	if err := json.NewEncoder(w).Encode(interpreterContext); err != nil {
 		klog.Errorf("unable to encode the response: %v", err)
-		wh.writeResponse(w, Errored(http.StatusInternalServerError, err))
+		// If we fail to write a response, we can't write a failure response.
+		// This prevents an infinite recursion if the connection is closed.
 	} else {
 		response := interpreterContext.Response
 		if response.Successful {
