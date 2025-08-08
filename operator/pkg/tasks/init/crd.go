@@ -136,7 +136,7 @@ func runCrdsDownload(r workflow.RunData) error {
 	}
 
 	crdTarball := data.CrdTarball()
-	if err := util.DownloadFile(crdTarball.HTTPSource.URL, crdsTarPath); err != nil {
+	if err := util.DownloadFile(crdTarball.HTTPSource.URL, crdsTarPath, crdTarball.HTTPSource.Proxy); err != nil {
 		return fmt.Errorf("failed to download CRD tar, err: %w", err)
 	}
 
