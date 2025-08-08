@@ -18,10 +18,6 @@ package testing
 
 import (
 	"testing"
-
-	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-
-	"github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 )
 
 func TestTestFactory_KarmadaClientSet(t *testing.T) {
@@ -38,7 +34,7 @@ func TestTestFactory_KarmadaClientSet(t *testing.T) {
 	}
 
 	// Verify that the client is not nil and implements the expected interface
-	// The type assertion is not needed since the method already returns versioned.Interface
+	// The method returns a versioned.Interface which is verified by the non-nil check
 	_ = client
 }
 
@@ -57,6 +53,6 @@ func TestTestFactory_FactoryForMemberCluster(t *testing.T) {
 	}
 
 	// Verify that the factory is not nil and implements the expected interface
-	// The type assertion is not needed since the method already returns cmdutil.Factory
+	// The method returns a cmdutil.Factory which is verified by the non-nil check
 	_ = factory
 }
