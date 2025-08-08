@@ -58,7 +58,31 @@ operator:
     ##   - myRegistryKeySecretName
     ##
     pullSecrets: []
-  ## @param.resources
+
+  ## @param operator.env List of environment variables to inject
+  ##
+  ## - Each entry must be a valid Kubernetes EnvVar object.
+  ## - Supports both literal values and valueFrom references (ConfigMap, Secret, fieldRef, etc.).
+  ## - If omitted or set to an empty array (`[]`), no env stanza will be included.
+  ##
+  ## A sample stanza is shown below.
+  ##
+#  env:
+#    - name: http_proxy
+#      value: "http://best-awesome-proxy.com:8080"
+#    - name: https_proxy
+#      value: "http://best-awesome-proxy.com:8080"
+#    - name: no_proxy
+#      value: "localhost,127.0.0.1,*.svc,*.cluster.local"
+
+  ## @param operator.extraArgs List of extra arguments for the operator binary
+  ##
+  ## A sample stanza is shown below.
+  ##
+#  extraArgs:
+#    - --arg1=val1
+#    - --arg2
+
   resources: {}
     # If you do want to specify resources, uncomment the following
     # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
