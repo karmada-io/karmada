@@ -9,7 +9,7 @@ creation-date: 2025-08-08
 
 ## Summary
 
-This proposal introduces a dynamic rate limiting mechanism for Karmada's cluster fault migration functionality. By implementing dynamic rate control for eviction queues, the system can automatically adjust resource eviction rates based on the overall health status of clusters, preventing cascading failures during large-scale cluster failures. This feature is part of the "Optimize Cluster Failover" major proposal, aimed at improving the stability and controllability of fault migration in multi-cluster environments.
+This proposal introduces a dynamic rate limiting mechanism for Karmada's cluster-level fault migration functionality. By implementing dynamic rate control for eviction queues, the system can automatically adjust resource eviction rates based on the overall health status of clusters, preventing cascading failures during large-scale cluster failures. This feature is part of the "Optimize Cluster Failover" major proposal, aimed at improving the stability and controllability of cluster-level fault migration in multi-cluster environments.
 
 ## Motivation
 
@@ -25,18 +25,15 @@ In the current version of Karmada, the cluster fault migration functionality has
 
 ### Goals
 
-- Implement a dynamic rate-limited eviction queue based on cluster health status
+- Implement a dynamic rate-limited eviction queue based on cluster health status for cluster-level fault migration functionality
 - Provide multi-level rate configuration, supporting automatic adjustment of eviction rates based on the proportion of failed clusters
 - Enhance system observability, providing monitoring metrics for eviction queues and cluster health status
-- Ensure compatibility with existing taint-manager architecture
 - Support configuration of eviction rates and health thresholds through command-line parameters
 
 ### Non-Goals
 
-- Redesigning the entire taint-manager architecture
-- Implementing advanced resource scheduling algorithms
-- Providing a graphical monitoring interface for eviction queues
-- Supporting rate limiting strategies beyond cluster health status
+- Handling application-level failover (e.g., pod-level restarts, application crashes, workload-specific remediation)
+- Supporting rate limiting strategies beyond cluster health status (e.g., time-based rate limiting, user-defined rate limiting, resource-type-specific rate limiting)
 
 ## Proposal
 
@@ -50,17 +47,33 @@ As a cluster administrator, I want to ensure that when multiple clusters experie
 
 #### Story 2: Monitoring Eviction Performance
 
-As a cluster administrator, I want to monitor the performance of the eviction queue, including the number of pending evictions, processing latency, and success/failure rates. This information helps me understand the system's behavior during failure scenarios and tune the configuration accordingly.
+As a cluster administrator, I want to monitor the situation of the eviction queue, including the number of pending evictions, processing latency, and success/failure rates. This information helps me understand the system's behavior during failure scenarios and tune the configuration accordingly.
 
-#### Story 3: Configuring Eviction Behavior for Different Environments
+#### Story 3: Configuring Eviction Behavior for Different Production Environments
 
-As a cluster administrator, I want to configure the eviction behavior based on my environment's characteristics. For example, in a production environment with many critical workloads, I might want to be more conservative with evictions, while in a development environment, I might prioritize quick recovery.
+As a cluster administrator, I want to configure the eviction behavior based on my production environment's characteristics. For example, in a production environment with many critical workloads and strict SLA requirements, I might want to be more conservative with evictions to ensure stability, while in a production environment with high availability requirements, I might prioritize quick recovery and faster eviction rates.
 
-### Design Details
+## Workflow
+
+![Eviction Queue Architecture](statics/eviction-queue-architecture.png)
+
+1. **Cluster Failure Detection**: The system continuously monitors cluster health status through the InformerManager
+2. **Resource Identification**: When a cluster becomes unhealthy, the TaintManager identifies all resources that need to be evicted from that cluster
+3. **Queue Enqueue**: Resources are added to the appropriate eviction queue (ResourceBinding or ClusterResourceBinding) based on their type
+4. **Rate Calculation**: The DynamicRateLimiter calculates the appropriate processing rate based on the current cluster health ratio
+5. **Resource Processing**: Resources are processed from the queue at the calculated rate, ensuring smooth operation
+6. **Metrics Collection**: Throughout the process, comprehensive metrics are collected and exposed to Prometheus for monitoring
+
+**Rate Adjustment Triggers:**
+- **Health Improvement**: When cluster health improves, the rate limiter automatically increases the processing rate
+- **Health Deterioration**: When more clusters fail, the rate limiter reduces or pauses processing to prevent cascading failures
+- **Threshold Crossing**: Rate adjustments are triggered when crossing predefined health thresholds
+
+## Design Details
 
 The implementation consists of several components:
 
-#### 1. EvictionQueueOptions
+### 1. EvictionQueueOptions
 
 A configuration structure that controls the behavior of the eviction queue:
 
@@ -71,25 +84,38 @@ A configuration structure that controls the behavior of the eviction queue:
 
 These options can be configured through command-line flags.
 
-#### 2. EvictionWorker
+### 2. EvictionQueue
 
-An enhanced version of the AsyncWorker that adds dynamic rate limiting and metrics collection:
+The eviction queue is designed with the following principles to ensure smooth operation:
 
-- Embeds the AsyncWorker interface to maintain compatibility
-- Uses a dynamic rate limiter that adjusts based on cluster health
-- Collects metrics on queue depth, processing latency, and success/failure rates
-- Supports tracking metrics by resource kind
+- **Smooth Processing**: Resources are processed at a controlled rate to prevent overwhelming the system
+- **Priority-based Ordering**: Resources are processed in FIFO order with respect to their enqueue time
+- **Graceful Degradation**: When system pressure is high, the queue automatically slows down processing
+- **Resource Separation**: Different types of resources  (ResourceBinding and ClusterResourceBinding) are placed in different eviction queues
 
 #### 3. DynamicRateLimiter
 
-A rate limiter that adjusts its rate based on cluster health status:
+A dynamic rate limiter that dynamically adjusts eviction rates based on cluster health status. The DynamicRateLimiter consists of several interconnected modules:
 
-- Monitors the health status of all clusters using the InformerManager
-- Calculates the appropriate rate based on the percentage of unhealthy clusters
-- Reduces the rate or pauses evictions when the system is unhealthy
-- Updates metrics on cluster health status
+1. **Health Monitor**
+   - Continuously monitors cluster health status through InformerManager
+   - Tracks cluster states (Ready/NotReady) and health metrics
+   - Maintains a real-time health ratio calculation
+   - Provides health status events to other modules
 
-#### 4. Metrics Collection
+2. **Rate Calculator**
+   - Implements the rate calculation algorithm based on cluster health ratio
+   - Supports multiple rate levels (normal, secondary, paused)
+   - Handles threshold-based rate transitions
+   - Provides rate recommendations to the processing module
+
+3. **Processing Controller**
+   - Manages the actual rate limiting implementation
+   - Controls resource processing frequency
+   - Handles rate transitions and smoothing
+   - Ensures rate limits are respected across all eviction workers
+
+### 4. Metrics Collection
 
 A set of metrics for monitoring the eviction queue and cluster health:
 
@@ -99,64 +125,14 @@ A set of metrics for monitoring the eviction queue and cluster health:
 - Success/failure metrics
 - Cluster health metrics
 
-#### Component Interactions
+### Component Interactions
 
 1. The controller manager initializes the TaintManager with EvictionQueueOptions
-2. The TaintManager creates two EvictionWorker instances, one for ResourceBinding and one for ClusterResourceBinding
-3. Each EvictionWorker uses a DynamicRateLimiter that monitors cluster health
+2. The TaintManager creates two EvictionQueue instances, one for ResourceBinding and one for ClusterResourceBinding
+3. Each EvictionQueue uses a DynamicRateLimiter that monitors cluster health
 4. When resources need to be evicted, they are added to the appropriate queue
 5. The DynamicRateLimiter adjusts the processing rate based on cluster health
-6. Metrics are collected throughout the process and exposed to Prometheus
-
-### Implementation Details
-
-#### New Files
-
-1. **pkg/controllers/cluster/evictionqueue_config/evictionoption.go**
-   - Defines the EvictionQueueOptions structure and methods to register command-line flags
-
-2. **pkg/controllers/cluster/eviction_worker.go**
-   - Implements the EvictionWorker interface and concrete evictionWorker type
-   - Provides methods for adding items to the queue and processing them
-   - Integrates with metrics collection
-
-3. **pkg/controllers/cluster/dynamic_rate_limiter.go**
-   - Implements the DynamicRateLimiter type
-   - Provides methods for calculating the appropriate rate based on cluster health
-   - Updates cluster health metrics
-
-#### Modifications to Existing Files
-
-1. **pkg/controllers/cluster/taint_manager.go**
-   - Add EvictionQueueOptions and InformerManager fields to NoExecuteTaintManager
-   - Modify the Start method to create and start eviction workers
-   - Add getResourceKindFromKey method to extract cluster name and resource kind
-   - Update syncCluster, syncBindingEviction, and syncClusterBindingEviction methods
-
-2. **pkg/metrics/cluster.go**
-   - Add metrics for eviction queue depth, processing latency, and success/failure rates
-   - Add metrics for cluster health status
-   - Add methods for recording metrics
-
-3. **cmd/controller-manager/app/options/options.go**
-   - Add EvictionQueueOptions field to Options structure
-   - Register command-line flags for eviction queue options
-
-4. **cmd/controller-manager/app/controllermanager.go**
-   - Pass EvictionQueueOptions to TaintManager when creating it
-   - Pass EvictionQueueOptions to controller context
-
-5. **pkg/controllers/context/context.go**
-   - Add EvictionQueueOptions field to Options structure
-
-### Workflow
-
-1. When a cluster becomes unhealthy, the taint manager identifies resources that need to be evicted
-2. These resources are added to the appropriate eviction queue (ResourceBinding or ClusterResourceBinding)
-3. The dynamic rate limiter calculates the appropriate processing rate based on cluster health
-4. Resources are processed from the queue at the calculated rate
-5. Metrics are collected and exposed to Prometheus for monitoring
-6. If the cluster health improves or deteriorates, the rate limiter adjusts the processing rate accordingly
+6. Metrics are collected throughout the process and exposed to Prometheus for monitoring
 
 ## Multi-Rate Configuration
 
@@ -235,6 +211,69 @@ cluster_failure_rate
 
 This design pattern is consistent with other metrics in the Karmada project, providing raw data through basic counters and histograms, allowing users to flexibly calculate required derived metrics through PromQL.
 
+## Implementation Details
+
+### New Files
+
+1. **pkg/controllers/cluster/evictionqueue_config/evictionoption.go**
+   - Defines the EvictionQueueOptions structure and methods to register command-line flags
+
+2. **pkg/controllers/cluster/eviction_queue.go**
+   - Implements the EvictionQueue interface and concrete evictionQueue type
+   - Provides methods for adding items to the queue and processing them
+   - Integrates with metrics collection
+
+3. **pkg/controllers/cluster/dynamic_rate_limiter.go**
+   - Implements the DynamicRateLimiter type
+   - Provides methods for calculating the appropriate rate based on cluster health
+   - Updates cluster health metrics
+
+### Modifications to Existing Files
+
+1. **pkg/controllers/cluster/taint_manager.go**
+   - Add EvictionQueueOptions and InformerManager fields to NoExecuteTaintManager
+   - Modify the Start method to create and start eviction workers
+   - Add getResourceKindFromKey method to extract cluster name and resource kind
+   - Update syncCluster, syncBindingEviction, and syncClusterBindingEviction methods
+
+2. **pkg/metrics/cluster.go**
+   - Add metrics for eviction queue depth, processing latency, and success/failure rates
+   - Add metrics for cluster health status
+   - Add methods for recording metrics
+
+3. **cmd/controller-manager/app/options/options.go**
+   - Add EvictionQueueOptions field to Options structure
+   - Register command-line flags for eviction queue options
+
+4. **cmd/controller-manager/app/controllermanager.go**
+   - Pass EvictionQueueOptions to TaintManager when creating it
+   - Pass EvictionQueueOptions to controller context
+
+5. **pkg/controllers/context/context.go**
+   - Add EvictionQueueOptions field to Options structure
+
+## Test Plan
+
+### Unit Tests
+
+1. **EvictionQueue Tests**
+   - Test queue enqueue/dequeue operations
+   - Test rate limiting functionality
+   - Test metrics collection
+   - Test error handling and recovery
+
+2. **DynamicRateLimiter Tests**
+   - Test rate calculation algorithms
+   - Test threshold evaluation logic
+   - Test rate adjustment mechanisms
+   - Test cluster health monitoring
+
+3. **Configuration Tests**
+   - Test command-line flag parsing
+   - Test default value handling
+   - Test validation logic
+
+
 ## Implementation Plan
 
 1. Implement EvictionQueueOptions structure and command-line flags
@@ -242,6 +281,7 @@ This design pattern is consistent with other metrics in the Karmada project, pro
 3. Implement EvictionWorker
 4. Add metrics collection
 5. Modify TaintManager to use the eviction queue
+
 
 ## Open Issues
 
