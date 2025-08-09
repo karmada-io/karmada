@@ -44,6 +44,13 @@ spec:
         - /bin/karmada-operator
         - --leader-elect-resource-namespace={{ .Release.Namespace }}
         - --v=2
+        {{- range .Values.operator.extraArgs }}
+        - {{ . }}
+        {{- end }}
+        {{- with .Values.operator.env }}
+        env:
+        {{- toYaml . | nindent 10 }}
+        {{- end }}
         {{- if .Values.operator.resources }}
         resources: {{- toYaml .Values.operator.resources | nindent 12 }}
         {{- end }}

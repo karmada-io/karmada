@@ -59,7 +59,7 @@ type CRBApplicationFailoverController struct {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *CRBApplicationFailoverController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling ClusterResourceBinding %s.", req.Name)
+	klog.V(4).InfoS("Reconciling ClusterResourceBinding", "name", req.Name)
 
 	binding := &workv1alpha2.ClusterResourceBinding{}
 	if err := c.Client.Get(ctx, req.NamespacedName, binding); err != nil {
@@ -80,7 +80,7 @@ func (c *CRBApplicationFailoverController) Reconcile(ctx context.Context, req co
 		return controllerruntime.Result{}, err
 	}
 	if retryDuration > 0 {
-		klog.V(4).Infof("Retry to check health status of the workload after %v seconds.", retryDuration.Seconds())
+		klog.V(4).InfoS("Retry to check health status of the workload", "afterSeconds", retryDuration.Seconds())
 		return controllerruntime.Result{RequeueAfter: retryDuration}, nil
 	}
 	return controllerruntime.Result{}, nil
@@ -132,7 +132,7 @@ func (c *CRBApplicationFailoverController) syncBinding(ctx context.Context, bind
 
 	err := c.evictBinding(binding, needEvictClusters)
 	if err != nil {
-		klog.Errorf("Failed to evict binding(%s), err: %v.", binding.Name, err)
+		klog.ErrorS(err, "Failed to evict binding", "name", binding.Name)
 		return 0, err
 	}
 
@@ -153,7 +153,9 @@ func (c *CRBApplicationFailoverController) evictBinding(binding *workv1alpha2.Cl
 	for _, cluster := range clusters {
 		taskOpts, err := buildTaskOptions(binding.Spec.Failover.Application, binding.Status.AggregatedStatus, cluster, CRBApplicationFailoverControllerName, clustersBeforeFailover)
 		if err != nil {
-			klog.Errorf("failed to build TaskOptions for ClusterResourceBinding(%s) under Cluster(%s): %v", binding.Name, cluster, err)
+			klog.ErrorS(err, "Failed to build TaskOptions for ClusterResourceBinding under Cluster",
+				"name", binding.Name,
+				"cluster", cluster)
 			return err
 		}
 		binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(taskOpts...))
@@ -225,7 +227,7 @@ func (c *CRBApplicationFailoverController) clusterResourceBindingFilter(crb *wor
 	resourceKey, err := helper.ConstructClusterWideKey(crb.Spec.Resource)
 	if err != nil {
 		// Never reach
-		klog.Errorf("Failed to construct clusterWideKey from clusterResourceBinding(%s)", crb.Name)
+		klog.ErrorS(err, "Failed to construct clusterWideKey from clusterResourceBinding", "name", crb.Name)
 		return false
 	}
 

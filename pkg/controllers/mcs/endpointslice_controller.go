@@ -54,7 +54,7 @@ type EndpointSliceController struct {
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
 func (c *EndpointSliceController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling Work %s.", req.NamespacedName.String())
+	klog.V(4).InfoS("Reconciling Work", "namespace", req.NamespacedName.Namespace, "name", req.NamespacedName.Name)
 
 	work := &workv1alpha1.Work{}
 	if err := c.Client.Get(ctx, req.NamespacedName, work); err != nil {
@@ -69,7 +69,8 @@ func (c *EndpointSliceController) Reconcile(ctx context.Context, req controllerr
 		if err := helper.DeleteEndpointSlice(ctx, c.Client, labels.Set{
 			workv1alpha2.WorkPermanentIDLabel: work.Labels[workv1alpha2.WorkPermanentIDLabel],
 		}); err != nil {
-			klog.Errorf("Failed to delete endpointslice of the work(%s/%s) when deleting the work, err is %v", work.Namespace, work.Name, err)
+			klog.ErrorS(err, "Failed to delete endpointslice when deleting work", "namespace",
+				work.Namespace, "workName", work.Name)
 			return controllerruntime.Result{}, err
 		}
 		return controllerruntime.Result{}, c.removeFinalizer(ctx, work.DeepCopy())
@@ -83,7 +84,7 @@ func (c *EndpointSliceController) Reconcile(ctx context.Context, req controllerr
 			workv1alpha2.WorkPermanentIDLabel: work.Labels[workv1alpha2.WorkPermanentIDLabel],
 		})
 		if err != nil {
-			klog.Errorf("Failed to delete endpointslice of the work(%s/%s) when the serviceexport is deleted, err is %v", work.Namespace, work.Name, err)
+			klog.ErrorS(err, "Failed to delete endpointslice when serviceexport is deleted", "namespace", work.Namespace, "workName", work.Name)
 			return controllerruntime.Result{}, err
 		}
 		return controllerruntime.Result{}, c.removeFinalizer(ctx, work.DeepCopy())
@@ -130,21 +131,21 @@ func (c *EndpointSliceController) SetupWithManager(mgr controllerruntime.Manager
 func (c *EndpointSliceController) collectEndpointSliceFromWork(ctx context.Context, work *workv1alpha1.Work) error {
 	clusterName, err := names.GetClusterName(work.Namespace)
 	if err != nil {
-		klog.Errorf("Failed to get cluster name for work %s/%s", work.Namespace, work.Name)
+		klog.ErrorS(err, "Failed to get cluster name for work", "namespace", work.Namespace, "workName", work.Name)
 		return err
 	}
 
 	for _, manifest := range work.Spec.Workload.Manifests {
 		unstructObj := &unstructured.Unstructured{}
 		if err := unstructObj.UnmarshalJSON(manifest.Raw); err != nil {
-			klog.Errorf("Failed to unmarshal workload, error is: %v", err)
+			klog.ErrorS(err, "Failed to unmarshal workload")
 			return err
 		}
 
 		endpointSlice := &discoveryv1.EndpointSlice{}
 		err = helper.ConvertToTypedObject(unstructObj, endpointSlice)
 		if err != nil {
-			klog.Errorf("Failed to convert unstructured to typed object: %v", err)
+			klog.ErrorS(err, "Failed to convert unstructured to typed object")
 			return err
 		}
 
@@ -159,6 +160,7 @@ func (c *EndpointSliceController) collectEndpointSliceFromWork(ctx context.Conte
 		})
 
 		if err = helper.CreateOrUpdateEndpointSlice(ctx, c.Client, desiredEndpointSlice); err != nil {
+			klog.ErrorS(err, "Failed to create or update endpointslice", "namespace", desiredEndpointSlice.Namespace, "name", desiredEndpointSlice.Name)
 			return err
 		}
 	}

@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	urlpkg "net/url"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -75,13 +76,22 @@ func (d *Downloader) Read(p []byte) (n int, err error) {
 	return
 }
 
-var httpClient = http.Client{
-	Timeout: 60 * time.Second,
-}
+// DownloadFile downloads files via URL, optionally using a proxy if provided.
+func DownloadFile(url, filePath string, proxyConfig *operatorv1alpha1.ProxyConfig) error {
+	client := &http.Client{
+		Timeout: 60 * time.Second,
+	}
+	if proxyConfig != nil {
+		parsedProxyURL, err := urlpkg.ParseRequestURI(proxyConfig.ProxyURL)
+		if err != nil {
+			return fmt.Errorf("invalid proxy URL: %w", err)
+		}
+		client.Transport = &http.Transport{
+			Proxy: http.ProxyURL(parsedProxyURL),
+		}
+	}
 
-// DownloadFile Download files via URL
-func DownloadFile(url, filePath string) error {
-	resp, err := httpClient.Get(url)
+	resp, err := client.Get(url)
 	if err != nil {
 		return err
 	}
@@ -105,7 +115,6 @@ func DownloadFile(url, filePath string) error {
 	if _, err := io.Copy(file, downloader); err != nil {
 		return err
 	}
-
 	return nil
 }
 

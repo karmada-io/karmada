@@ -33,12 +33,22 @@ import (
 )
 
 func validateCRDTarball(crdTarball *operatorv1alpha1.CRDTarball, fldPath *field.Path) (errs field.ErrorList) {
+	// A custom CRD tarball download config is optional, and given that an HTTP source is the only possible option, we
+	// only have to validate the config if an HTTP source is set.
 	if crdTarball == nil || crdTarball.HTTPSource == nil {
 		return nil
 	}
 
+	// Since the server URL is required when an HTTP source is set, we'll verify that the URL is valid.
 	if _, err := url.ParseRequestURI(crdTarball.HTTPSource.URL); err != nil {
 		errs = append(errs, field.Invalid(fldPath.Child("httpSource").Child("url"), crdTarball.HTTPSource.URL, "invalid CRDs remote URL"))
+	}
+
+	// Since the Proxy URL is required when a proxy config is set, we'll verify that the URL is valid.
+	if crdTarball.HTTPSource.Proxy != nil {
+		if _, err := url.ParseRequestURI(crdTarball.HTTPSource.Proxy.ProxyURL); err != nil {
+			errs = append(errs, field.Invalid(fldPath.Child("httpSource").Child("proxy").Child("proxyURL"), crdTarball.HTTPSource.Proxy.ProxyURL, "invalid CRDs proxy URL"))
+		}
 	}
 
 	return errs

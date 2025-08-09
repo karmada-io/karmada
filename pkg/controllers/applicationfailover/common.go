@@ -131,8 +131,9 @@ func buildPreservedLabelState(statePreservation *policyv1alpha1.StatePreservatio
 	for _, rule := range statePreservation.Rules {
 		value, err := parseJSONValue(rawStatus, rule.JSONPath)
 		if err != nil {
-			klog.Errorf("Failed to parse value with jsonPath(%s) from status(%v), error: %v",
-				rule.JSONPath, string(rawStatus), err)
+			klog.ErrorS(err, "Failed to parse value with jsonPath from status",
+				"jsonPath", rule.JSONPath,
+				"status", string(rawStatus))
 			return nil, err
 		}
 		results[rule.AliasLabelName] = value

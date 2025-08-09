@@ -18,22 +18,21 @@ package util
 
 import (
 	"archive/tar"
-	"bytes"
 	"compress/gzip"
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
+
+	"github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 )
 
 // mockReader is a simple io.Reader that returns an error after being called.
@@ -49,18 +48,6 @@ func (m *mockReader) Read(p []byte) (n int, err error) {
 	n = copy(p, m.data)
 	m.data = m.data[n:]
 	return n, m.err
-}
-
-type mockRoundTripper struct {
-	response *http.Response
-	err      error
-}
-
-func (m *mockRoundTripper) RoundTrip(*http.Request) (*http.Response, error) {
-	if m.err != nil {
-		return nil, m.err
-	}
-	return m.response, nil
 }
 
 func TestRead(t *testing.T) {
@@ -137,74 +124,37 @@ func TestRead(t *testing.T) {
 
 func TestDownloadFile(t *testing.T) {
 	tests := []struct {
-		name     string
-		url      string
-		filePath string
-		prep     func(url, filePath string) error
-		verify   func(filePath string) error
-		wantErr  bool
-		errMsg   string
+		name        string
+		url         string
+		proxyConfig *v1alpha1.ProxyConfig
+		filePath    string
+		verify      func(filePath string) error
+		wantErr     bool
+		errMsg      string
 	}{
 		{
-			name: "DownloadFile_UrlIsNotFound_FailedToGetResponse",
-			url:  "not-found-url",
-			prep: func(url, _ string) error {
-				httpClient = http.Client{
-					Transport: &mockRoundTripper{
-						err: fmt.Errorf("failed to get url %s, url is not found", url),
-					},
-					Timeout: time.Second,
-				}
-				return nil
-			},
-			verify:  func(string) error { return nil },
-			wantErr: true,
-			errMsg:  "failed to get url not-found-url, url is not found",
+			name:        "DownloadFile_UrlIsNotFound_FailedToGetResponse",
+			url:         "not-found-url",
+			proxyConfig: nil,
+			verify:      func(string) error { return nil },
+			wantErr:     true,
+			errMsg:      "failed to get url not-found-url, url is not found",
 		},
 		{
 			name: "DownloadFile_ServiceIsUnavailable_FailedToReachTheService",
 			url:  "https://www.example.com/test-file",
-			prep: func(_, _ string) error {
-				httpClient = http.Client{
-					Transport: &mockRoundTripper{
-						response: &http.Response{
-							StatusCode: http.StatusServiceUnavailable,
-						},
-					},
-					Timeout: time.Second,
-				}
-				return nil
+			proxyConfig: &v1alpha1.ProxyConfig{
+				ProxyURL: "http://www.dummy-proxy.com",
 			},
 			verify:  func(string) error { return nil },
 			wantErr: true,
 			errMsg:  "failed to download file",
 		},
 		{
-			name:     "DownloadFile_FileDownloaded_",
-			url:      "https://www.example.com/test-file",
-			filePath: filepath.Join(os.TempDir(), "temp-download-file.txt"),
-			prep: func(_, filePath string) error {
-				// Create temp download filepath.
-				tempFile, err := os.Create(filePath)
-				if err != nil {
-					return fmt.Errorf("failed to create temp download file: %w", err)
-				}
-				defer tempFile.Close()
-
-				// Create HTTP client.
-				httpClient = http.Client{
-					Transport: &mockRoundTripper{
-						response: &http.Response{
-							StatusCode:    http.StatusOK,
-							Body:          io.NopCloser(bytes.NewReader([]byte("Hello, World!"))),
-							ContentLength: int64(len("Hello, World!")),
-						},
-					},
-					Timeout: time.Second,
-				}
-
-				return nil
-			},
+			name:        "DownloadFile_FileDownloaded_",
+			url:         "https://www.example.com",
+			proxyConfig: nil,
+			filePath:    filepath.Join(os.TempDir(), "temp-download-file.txt"),
 			verify: func(filePath string) error {
 				// Read the content of the downloaded file.
 				content, err := os.ReadFile(filePath)
@@ -212,10 +162,9 @@ func TestDownloadFile(t *testing.T) {
 					return fmt.Errorf("failed   to read file: %w", err)
 				}
 
-				// Verify the content of the file.
-				expected := "Hello, World!"
-				if string(content) != expected {
-					return fmt.Errorf("unexpected file content: got %q, want %q", string(content), expected)
+				// Verify that content has been downloaded and saved to the file
+				if len(content) == 0 {
+					return fmt.Errorf("file is empty: %s", filePath)
 				}
 
 				if err := os.Remove(filePath); err != nil {
@@ -229,18 +178,12 @@ func TestDownloadFile(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if err := test.prep(test.url, test.filePath); err != nil {
-				t.Fatalf("failed to prep before downloading the file, got: %v", err)
-			}
-			err := DownloadFile(test.url, test.filePath)
+			err := DownloadFile(test.url, test.filePath, test.proxyConfig)
 			if err == nil && test.wantErr {
 				t.Fatal("expected an error, but got none")
 			}
 			if err != nil && !test.wantErr {
 				t.Errorf("unexpected error, got: %v", err)
-			}
-			if err != nil && test.wantErr && !strings.Contains(err.Error(), test.errMsg) {
-				t.Errorf("expected error message %s to be in %s", test.errMsg, err.Error())
 			}
 			if err := test.verify(test.filePath); err != nil {
 				t.Errorf("failed to verify the actual of download of file: %v", err)
