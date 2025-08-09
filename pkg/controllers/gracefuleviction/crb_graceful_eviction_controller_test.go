@@ -87,7 +87,7 @@ func TestCRBGracefulEvictionController_Reconcile(t *testing.T) {
 			},
 			expectedResult:  controllerruntime.Result{},
 			expectedError:   false,
-			expectedRequeue: true,
+			expectedRequeue: false,
 		},
 		{
 			name: "binding marked for deletion",
@@ -196,6 +196,9 @@ func TestCRBGracefulEvictionController_syncBinding(t *testing.T) {
 			binding: &workv1alpha2.ClusterResourceBinding{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-binding", Generation: 1},
 				Spec: workv1alpha2.ResourceBindingSpec{
+					Clusters: []workv1alpha2.TargetCluster{
+						{Name: "member2"},
+					},
 					GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{{FromCluster: "member1", CreationTimestamp: &now}},
 				},
 				Status: workv1alpha2.ResourceBindingStatus{SchedulerObservedGeneration: 1},
@@ -224,6 +227,9 @@ func TestCRBGracefulEvictionController_syncBinding(t *testing.T) {
 			binding: &workv1alpha2.ClusterResourceBinding{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-binding", Generation: 1},
 				Spec: workv1alpha2.ResourceBindingSpec{
+					Clusters: []workv1alpha2.TargetCluster{
+						{Name: "member2"},
+					},
 					GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{{FromCluster: "member1", CreationTimestamp: &now}},
 				},
 				Status: workv1alpha2.ResourceBindingStatus{SchedulerObservedGeneration: 1},

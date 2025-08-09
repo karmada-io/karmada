@@ -33,7 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	"github.com/karmada-io/karmada/pkg/controllers/gracefuleviction/evictplugins"
+	plugins "github.com/karmada-io/karmada/pkg/controllers/gracefuleviction/evictplugins"
 	_ "github.com/karmada-io/karmada/pkg/controllers/gracefuleviction/evictplugins/resourcehealth"
 )
 
@@ -89,7 +89,7 @@ func TestRBGracefulEvictionController_Reconcile(t *testing.T) {
 			},
 			expectedResult:  controllerruntime.Result{},
 			expectedError:   false,
-			expectedRequeue: true,
+			expectedRequeue: false,
 		},
 		{
 			name: "binding marked for deletion",
@@ -203,6 +203,9 @@ func TestRBGracefulEvictionController_syncBinding(t *testing.T) {
 			binding: &workv1alpha2.ResourceBinding{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-binding", Namespace: "default", Generation: 1},
 				Spec: workv1alpha2.ResourceBindingSpec{
+					Clusters: []workv1alpha2.TargetCluster{
+						{Name: "member2"}, // Scheduled to a different cluster
+					},
 					GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{{FromCluster: "member1", CreationTimestamp: &now}},
 				},
 				Status: workv1alpha2.ResourceBindingStatus{SchedulerObservedGeneration: 1},
@@ -229,6 +232,9 @@ func TestRBGracefulEvictionController_syncBinding(t *testing.T) {
 			binding: &workv1alpha2.ResourceBinding{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-binding", Namespace: "default", Generation: 1},
 				Spec: workv1alpha2.ResourceBindingSpec{
+					Clusters: []workv1alpha2.TargetCluster{
+						{Name: "member2"},
+					},
 					GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{{FromCluster: "member1", CreationTimestamp: &now}},
 				},
 				Status: workv1alpha2.ResourceBindingStatus{SchedulerObservedGeneration: 1},

@@ -66,7 +66,7 @@ func assessEvictionTasksForRB(opt assessmentOptionRB, now metav1.Time) ([]workv1
 
 func isTaskFinishedForRB(ctx context.Context, task *workv1alpha2.GracefulEvictionTask, opt assessmentOptionRB) bool {
 	if task.SuppressDeletion != nil {
-		return !*task.SuppressDeletion // If SuppressDeletion is true, keep the task. If false, finish it.
+		return !*task.SuppressDeletion
 	}
 
 	// Check for timeout.
@@ -76,8 +76,15 @@ func isTaskFinishedForRB(ctx context.Context, task *workv1alpha2.GracefulEvictio
 
 	// Check with plugins only when the binding has been scheduled.
 	hasScheduled := opt.binding.Status.SchedulerObservedGeneration == opt.binding.GetGeneration()
-	if hasScheduled && opt.pluginMgr.CanBeCleanedRB(ctx, task, opt.binding) {
-		return true
+	if hasScheduled {
+		if opt.pluginMgr != nil && len(opt.binding.Spec.Clusters) == 0 {
+			return true
+		}
+
+		// If clusters were found, check with plugins to see if eviction is allowed.
+		if opt.pluginMgr != nil && opt.pluginMgr.CanBeCleanedRB(ctx, task, opt.binding) {
+			return true
+		}
 	}
 
 	return false
@@ -117,8 +124,15 @@ func isTaskFinishedForCRB(ctx context.Context, task *workv1alpha2.GracefulEvicti
 	}
 
 	hasScheduled := opt.binding.Status.SchedulerObservedGeneration == opt.binding.GetGeneration()
-	if hasScheduled && opt.pluginMgr.CanBeCleanedCRB(ctx, task, opt.binding) {
-		return true
+	if hasScheduled {
+		if opt.pluginMgr != nil && len(opt.binding.Spec.Clusters) == 0 {
+			return true
+		}
+
+		// If clusters were found, check with plugins to see if eviction is allowed.
+		if opt.pluginMgr != nil && opt.pluginMgr.CanBeCleanedCRB(ctx, task, opt.binding) {
+			return true
+		}
 	}
 
 	return false

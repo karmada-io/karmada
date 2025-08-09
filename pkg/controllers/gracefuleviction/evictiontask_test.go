@@ -31,7 +31,7 @@ import (
 	"k8s.io/utils/ptr"
 
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	"github.com/karmada-io/karmada/pkg/controllers/gracefuleviction/evictplugins"
+	plugins "github.com/karmada-io/karmada/pkg/controllers/gracefuleviction/evictplugins"
 )
 
 // mockEvictorPlugin is a mock implementation of EvictorPlugin for testing.
@@ -118,7 +118,15 @@ func Test_isTaskFinishedForRB(t *testing.T) {
 			task: &workv1alpha2.GracefulEvictionTask{CreationTimestamp: &timeNow},
 			opt: assessmentOptionRB{
 				// Generation and observed generation match, so hasScheduled is true.
-				binding:   &workv1alpha2.ResourceBinding{ObjectMeta: metav1.ObjectMeta{Generation: 2}, Status: workv1alpha2.ResourceBindingStatus{SchedulerObservedGeneration: 2}},
+				binding: &workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{Generation: 2},
+					Spec: workv1alpha2.ResourceBindingSpec{
+						Clusters: []workv1alpha2.TargetCluster{
+							{Name: "member2"}, // Scheduled to a different cluster
+						},
+					},
+					Status: workv1alpha2.ResourceBindingStatus{SchedulerObservedGeneration: 2},
+				},
 				pluginMgr: pluginDenyMgr, // Using the manager that will deny.
 				timeout:   timeout,
 			},
@@ -129,11 +137,54 @@ func Test_isTaskFinishedForRB(t *testing.T) {
 			task: &workv1alpha2.GracefulEvictionTask{CreationTimestamp: &timeNow},
 			opt: assessmentOptionRB{
 				// Generation and observed generation match, so hasScheduled is true.
-				binding:   &workv1alpha2.ResourceBinding{ObjectMeta: metav1.ObjectMeta{Generation: 2}, Status: workv1alpha2.ResourceBindingStatus{SchedulerObservedGeneration: 2}},
+				binding: &workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{Generation: 2},
+					Spec: workv1alpha2.ResourceBindingSpec{
+						Clusters: []workv1alpha2.TargetCluster{
+							{Name: "member2"}, // Scheduled to a different cluster
+						},
+					},
+					Status: workv1alpha2.ResourceBindingStatus{SchedulerObservedGeneration: 2},
+				},
 				pluginMgr: pluginAllowMgr, // Using the manager that will allow.
 				timeout:   timeout,
 			},
 			expected: true,
+		},
+		// 添加原始测试中的资源健康状态检查场景
+		{
+			name: "binding scheduled but no clusters found (fast-fail), should be finished",
+			task: &workv1alpha2.GracefulEvictionTask{CreationTimestamp: &timeNow},
+			opt: assessmentOptionRB{
+				binding: &workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{Generation: 2},
+					Spec: workv1alpha2.ResourceBindingSpec{
+						Clusters: []workv1alpha2.TargetCluster{}, // 没有找到合适的集群
+					},
+					Status: workv1alpha2.ResourceBindingStatus{SchedulerObservedGeneration: 2},
+				},
+				pluginMgr: pluginDenyMgr,
+				timeout:   timeout,
+			},
+			expected: true, // 快速失败，应该完成
+		},
+		{
+			name: "binding scheduled but no plugin manager, should not be finished",
+			task: &workv1alpha2.GracefulEvictionTask{CreationTimestamp: &timeNow},
+			opt: assessmentOptionRB{
+				binding: &workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{Generation: 2},
+					Spec: workv1alpha2.ResourceBindingSpec{
+						Clusters: []workv1alpha2.TargetCluster{
+							{Name: "member2"},
+						},
+					},
+					Status: workv1alpha2.ResourceBindingStatus{SchedulerObservedGeneration: 2},
+				},
+				pluginMgr: nil, // 没有插件管理器
+				timeout:   timeout,
+			},
+			expected: false, // 没有插件管理器，不能完成
 		},
 	}
 
@@ -186,6 +237,8 @@ func Test_assessEvictionTasksForRB(t *testing.T) {
 			name: "a new task should be kept and have its timestamp set",
 			opt: assessmentOptionRB{
 				binding: &workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{Generation: 1},                                   // Set generation > 0
+					Status:     workv1alpha2.ResourceBindingStatus{SchedulerObservedGeneration: 0}, // Not yet scheduled
 					Spec: workv1alpha2.ResourceBindingSpec{
 						GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{
 							{FromCluster: "member1"}, // A new task with zero CreationTimestamp
@@ -205,6 +258,9 @@ func Test_assessEvictionTasksForRB(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{Generation: 1},
 					Status:     workv1alpha2.ResourceBindingStatus{SchedulerObservedGeneration: 1},
 					Spec: workv1alpha2.ResourceBindingSpec{
+						Clusters: []workv1alpha2.TargetCluster{
+							{Name: "member3"}, // Scheduled to a different cluster
+						},
 						GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{
 							{FromCluster: "member1", CreationTimestamp: &metav1.Time{Time: timeNow.Add(-1 * time.Minute)}}, // Should be kept
 							{FromCluster: "member2", CreationTimestamp: &metav1.Time{Time: timeNow.Add(-5 * time.Minute)}}, // Should be evicted
@@ -224,6 +280,9 @@ func Test_assessEvictionTasksForRB(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{Generation: 1},
 					Status:     workv1alpha2.ResourceBindingStatus{SchedulerObservedGeneration: 1}, // hasScheduled is true
 					Spec: workv1alpha2.ResourceBindingSpec{
+						Clusters: []workv1alpha2.TargetCluster{
+							{Name: "member3"}, // Scheduled to a different cluster
+						},
 						GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{
 							{FromCluster: "member1", CreationTimestamp: &timeNow}, // Not timed out, but plugin will allow
 						},
@@ -242,6 +301,9 @@ func Test_assessEvictionTasksForRB(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{Generation: 1},
 					Status:     workv1alpha2.ResourceBindingStatus{SchedulerObservedGeneration: 1},
 					Spec: workv1alpha2.ResourceBindingSpec{
+						Clusters: []workv1alpha2.TargetCluster{
+							{Name: "member3"}, // Scheduled to a different cluster
+						},
 						GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{
 							// This task was created 2 minutes ago, default timeout is 3 minutes (not expired).
 							// But its custom grace period is 1 minute (60s), so it is expired.
@@ -337,7 +399,15 @@ func Test_isTaskFinishedForCRB(t *testing.T) {
 			name: "binding scheduled but plugin denies, should not be finished",
 			task: &workv1alpha2.GracefulEvictionTask{CreationTimestamp: &timeNow},
 			opt: assessmentOptionCRB{
-				binding:   &workv1alpha2.ClusterResourceBinding{ObjectMeta: metav1.ObjectMeta{Generation: 2}, Status: workv1alpha2.ResourceBindingStatus{SchedulerObservedGeneration: 2}},
+				binding: &workv1alpha2.ClusterResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{Generation: 2},
+					Spec: workv1alpha2.ResourceBindingSpec{
+						Clusters: []workv1alpha2.TargetCluster{
+							{Name: "member2"}, // Scheduled to a different cluster
+						},
+					},
+					Status: workv1alpha2.ResourceBindingStatus{SchedulerObservedGeneration: 2},
+				},
 				pluginMgr: pluginDenyMgr,
 				timeout:   timeout,
 			},
@@ -347,11 +417,54 @@ func Test_isTaskFinishedForCRB(t *testing.T) {
 			name: "binding scheduled and plugin allows, should be finished",
 			task: &workv1alpha2.GracefulEvictionTask{CreationTimestamp: &timeNow},
 			opt: assessmentOptionCRB{
-				binding:   &workv1alpha2.ClusterResourceBinding{ObjectMeta: metav1.ObjectMeta{Generation: 2}, Status: workv1alpha2.ResourceBindingStatus{SchedulerObservedGeneration: 2}},
+				binding: &workv1alpha2.ClusterResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{Generation: 2},
+					Spec: workv1alpha2.ResourceBindingSpec{
+						Clusters: []workv1alpha2.TargetCluster{
+							{Name: "member2"}, // Scheduled to a different cluster
+						},
+					},
+					Status: workv1alpha2.ResourceBindingStatus{SchedulerObservedGeneration: 2},
+				},
 				pluginMgr: pluginAllowMgr,
 				timeout:   timeout,
 			},
 			expected: true,
+		},
+		// 添加原始测试中的资源健康状态检查场景
+		{
+			name: "binding scheduled but no clusters found (fast-fail), should be finished",
+			task: &workv1alpha2.GracefulEvictionTask{CreationTimestamp: &timeNow},
+			opt: assessmentOptionCRB{
+				binding: &workv1alpha2.ClusterResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{Generation: 2},
+					Spec: workv1alpha2.ResourceBindingSpec{
+						Clusters: []workv1alpha2.TargetCluster{}, // 没有找到合适的集群
+					},
+					Status: workv1alpha2.ResourceBindingStatus{SchedulerObservedGeneration: 2},
+				},
+				pluginMgr: pluginDenyMgr,
+				timeout:   timeout,
+			},
+			expected: true, // 快速失败，应该完成
+		},
+		{
+			name: "binding scheduled but no plugin manager, should not be finished",
+			task: &workv1alpha2.GracefulEvictionTask{CreationTimestamp: &timeNow},
+			opt: assessmentOptionCRB{
+				binding: &workv1alpha2.ClusterResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{Generation: 2},
+					Spec: workv1alpha2.ResourceBindingSpec{
+						Clusters: []workv1alpha2.TargetCluster{
+							{Name: "member2"},
+						},
+					},
+					Status: workv1alpha2.ResourceBindingStatus{SchedulerObservedGeneration: 2},
+				},
+				pluginMgr: nil, // 没有插件管理器
+				timeout:   timeout,
+			},
+			expected: false, // 没有插件管理器，不能完成
 		},
 	}
 
@@ -406,6 +519,9 @@ func Test_assessEvictionTasksForCRB(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{Generation: 1},
 					Status:     workv1alpha2.ResourceBindingStatus{SchedulerObservedGeneration: 1},
 					Spec: workv1alpha2.ResourceBindingSpec{
+						Clusters: []workv1alpha2.TargetCluster{
+							{Name: "member3"}, // Scheduled to a different cluster
+						},
 						GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{
 							{FromCluster: "member1", CreationTimestamp: &metav1.Time{Time: timeNow.Add(-1 * time.Minute)}}, // Should be kept
 							{FromCluster: "member2", CreationTimestamp: &metav1.Time{Time: timeNow.Add(-5 * time.Minute)}}, // Should be evicted
@@ -425,6 +541,9 @@ func Test_assessEvictionTasksForCRB(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{Generation: 1},
 					Status:     workv1alpha2.ResourceBindingStatus{SchedulerObservedGeneration: 1}, // hasScheduled is true
 					Spec: workv1alpha2.ResourceBindingSpec{
+						Clusters: []workv1alpha2.TargetCluster{
+							{Name: "member3"}, // Scheduled to a different cluster
+						},
 						GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{
 							{FromCluster: "member1", CreationTimestamp: &timeNow}, // Not timed out, but plugin will allow
 						},
