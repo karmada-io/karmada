@@ -142,3 +142,13 @@ func DedupeAndMergeFinalizers(existFinalizers, newFinalizers []string) []string 
 	}
 	return mergedFinalizers
 }
+
+// CopySuspension copy the new spec.suspension to exist spec.suspension field.
+func CopySuspension(existBindingSpec, newBindingSpec *workv1alpha2.ResourceBindingSpec) {
+	if newBindingSpec.Suspension != nil {
+		if existBindingSpec.Suspension == nil {
+			existBindingSpec.Suspension = &workv1alpha2.Suspension{}
+		}
+		existBindingSpec.Suspension.Suspension = newBindingSpec.Suspension.Suspension
+	}
+}
