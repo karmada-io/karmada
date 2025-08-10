@@ -22,8 +22,8 @@ import (
 
 	"k8s.io/klog/v2"
 
+	"github.com/karmada-io/karmada/operator/pkg/constants"
 	"github.com/karmada-io/karmada/operator/pkg/controlplane/etcd"
-	"github.com/karmada-io/karmada/operator/pkg/util/apiclient"
 	"github.com/karmada-io/karmada/operator/pkg/workflow"
 )
 
@@ -40,7 +40,9 @@ func NewEtcdTask() workflow.Task {
 			},
 			{
 				Name: "wait-etcd",
-				Run:  runWaitEtcd,
+				Run: runWaitControlPlaneSubTask(constants.Etcd, etcdLabels, func(data InitData) int32 {
+					return *data.Components().Etcd.Local.Replicas
+				}),
 			},
 		},
 	}
@@ -74,23 +76,5 @@ func runDeployEtcd(r workflow.RunData) error {
 	}
 
 	klog.V(2).InfoS("[deploy-etcd] Successfully installed etcd component", "karmada", klog.KObj(data))
-	return nil
-}
-
-func runWaitEtcd(r workflow.RunData) error {
-	data, ok := r.(InitData)
-	if !ok {
-		return errors.New("wait-etcd task invoked with an invalid data struct")
-	}
-
-	waiter := apiclient.NewKarmadaWaiter(data.ControlplaneConfig(), data.RemoteClient(), componentBeReadyTimeout)
-
-	// wait etcd, karmada apiserver and aggregated apiserver to ready
-	// as long as a replica of pod is ready, we consider the service available.
-	if err := waiter.WaitForSomePods(etcdLabels.String(), data.GetNamespace(), 1); err != nil {
-		return fmt.Errorf("waiting for karmada-etcd to ready timeout, err: %w", err)
-	}
-
-	klog.V(2).InfoS("[wait-etcd] the etcd pods is ready", "karmada", klog.KObj(data))
 	return nil
 }

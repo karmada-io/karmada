@@ -152,6 +152,9 @@ func (w *KarmadaWaiter) WaitForPods(label, namespace string) error {
 // WaitForSomePods lookup pods with the given label and wait until desired number of pods
 // reporting status as running.
 func (w *KarmadaWaiter) WaitForSomePods(label, namespace string, podNum int32) error {
+	if podNum == 0 {
+		return nil
+	}
 	return wait.PollUntilContextTimeout(context.TODO(), APICallRetryInterval, w.timeout, true, func(ctx context.Context) (bool, error) {
 		listOpts := metav1.ListOptions{LabelSelector: label}
 		pods, err := w.client.CoreV1().Pods(namespace).List(ctx, listOpts)
