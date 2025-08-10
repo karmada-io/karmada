@@ -202,6 +202,10 @@ func (s *Scheduler) onResourceBindingUpdate(old, cur interface{}) {
 
 func (s *Scheduler) onResourceBindingRequeue(binding *workv1alpha2.ResourceBinding, event string) {
 	klog.Infof("Requeue ResourceBinding(%s/%s) due to event(%s).", binding.Namespace, binding.Name, event)
+	if binding.Spec.IsWorkloadWithReplicas && binding.Spec.Replicas == 0 {
+		klog.Infof("Skip requeue ResourceBinding(%s) due to event(%s) as workload replicas is 0", binding.Name, event)
+		return
+	}
 	if features.FeatureGate.Enabled(features.PriorityBasedScheduling) {
 		s.priorityQueue.Push(&internalqueue.QueuedBindingInfo{
 			NamespacedKey: cache.ObjectName{Namespace: binding.Namespace, Name: binding.Name}.String(),
@@ -221,6 +225,10 @@ func (s *Scheduler) onResourceBindingRequeue(binding *workv1alpha2.ResourceBindi
 
 func (s *Scheduler) onClusterResourceBindingRequeue(clusterResourceBinding *workv1alpha2.ClusterResourceBinding, event string) {
 	klog.Infof("Requeue ClusterResourceBinding(%s) due to event(%s).", clusterResourceBinding.Name, event)
+	if clusterResourceBinding.Spec.IsWorkloadWithReplicas && clusterResourceBinding.Spec.Replicas == 0 {
+		klog.Infof("Skip requeue ClusterResourceBinding(%s) due to event(%s) as workload replicas is 0", clusterResourceBinding.Name, event)
+		return
+	}
 	if features.FeatureGate.Enabled(features.PriorityBasedScheduling) {
 		s.priorityQueue.Push(&internalqueue.QueuedBindingInfo{
 			NamespacedKey: clusterResourceBinding.Name,

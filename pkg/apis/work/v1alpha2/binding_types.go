@@ -86,6 +86,9 @@ type ResourceBindingSpec struct {
 	// +optional
 	Replicas int32 `json:"replicas,omitempty"`
 
+	// IsWorkloadWithReplicas indicates if the resource is a workload with replicas.
+	IsWorkloadWithReplicas bool `json:"isWorkloadWithReplicas,omitempty"`
+
 	// Clusters represents target member clusters where the resource to be deployed.
 	// +optional
 	Clusters []TargetCluster `json:"clusters,omitempty"`
