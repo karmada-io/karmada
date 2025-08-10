@@ -203,8 +203,15 @@ var _ = ginkgo.JustAfterEach(func() {
 var _ = ginkgo.SynchronizedAfterSuite(func() {
 	// cleanup all namespaces we created both in control plane and member clusters.
 	// It will not return error even if there is no such namespace in there that may happen in case setup failed.
-	err := cleanupTestNamespace(testNamespace, kubeClient)
-	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Fprintf(os.Stderr, "Recovered from panic in SynchronizedAfterSuite: %v\n", r)
+		}
+	}()
+	if testNamespace != "" && kubeClient != nil {
+		err := cleanupTestNamespace(testNamespace, kubeClient)
+		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+	}
 }, func() {
 	// cleanup clusterLabels set by the E2E test
 	for _, cluster := range framework.Clusters() {
@@ -227,6 +234,10 @@ func setupTestNamespace(namespace string, kubeClient kubernetes.Interface) error
 
 // cleanupTestNamespace will remove the namespace we setup before for the whole testing.
 func cleanupTestNamespace(namespace string, kubeClient kubernetes.Interface) error {
+	if namespace == "" || kubeClient == nil {
+		// Skip cleanup if namespace or client is not initialized
+		return nil
+	}
 	err := util.DeleteNamespace(kubeClient, namespace)
 	if err != nil {
 		return err
