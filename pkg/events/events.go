@@ -122,6 +122,10 @@ const (
 	EventReasonGetDependenciesSucceed = "GetDependenciesSucceed"
 	// EventReasonGetDependenciesFailed indicates get dependencies of resource template failed.
 	EventReasonGetDependenciesFailed = "GetDependenciesFailed"
+	// EventReasonGetReplicasSucceed indicates get replicas of resource template succeed.
+	EventReasonGetReplicasSucceed = "GetReplicasSucceed"
+	// EventReasonGetReplicasFailed indicates get replicas of resource template failed.
+	EventReasonGetReplicasFailed = "GetReplicasFailed"
 	// EventReasonPreemptPolicySucceed indicates policy preemption of resource template succeed.
 	EventReasonPreemptPolicySucceed = "PreemptPolicySucceed"
 	// EventReasonPreemptPolicyFailed indicates policy preemption of resource template failed.
