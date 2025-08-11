@@ -432,6 +432,11 @@ const (
 	// BindingReasonUnschedulable reason in Scheduled condition means that the scheduler can't schedule
 	// the binding right now, for example due to insufficient resources in the clusters.
 	BindingReasonUnschedulable = "Unschedulable"
+
+	// BindingReasonQuotaExceeded reason in Scheduled condition means that the scheduler can't schedule
+	// the binding because the resource requirement exceeds one or more of the FederatedResourceQuotas
+	// defined in the namespace.
+	BindingReasonQuotaExceeded = "QuotaExceeded"
 )
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
