@@ -88,7 +88,7 @@ func CreateOrUpdateWork(ctx context.Context, client client.Client, workMeta meta
 			runtimeObject.Spec = work.Spec
 			runtimeObject.Labels = util.DedupeAndMergeLabels(runtimeObject.Labels, work.Labels)
 			runtimeObject.Annotations = util.DedupeAndMergeAnnotations(runtimeObject.Annotations, work.Annotations)
-			runtimeObject.Finalizers = work.Finalizers
+			runtimeObject.Finalizers = util.MergeFinalizers(runtimeObject.Finalizers, work.Finalizers)
 			return nil
 		})
 		return err
