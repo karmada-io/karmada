@@ -32,6 +32,7 @@ import (
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 func TestNewExploreConfigManager(t *testing.T) {
@@ -136,11 +137,23 @@ func TestHasSynced(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Convert typed objects to unstructured objects for proper testing
+			unstructuredItems := make([]runtime.Object, len(tt.listResult))
+			for i, config := range tt.listResult {
+				if config != nil {
+					unstructuredObj, err := helper.ToUnstructured(config)
+					assert.NoError(t, err)
+					unstructuredItems[i] = unstructuredObj
+				} else {
+					unstructuredItems[i] = config
+				}
+			}
+
 			manager := &interpreterConfigManager{
 				informer: tt.informer,
 				lister: &mockLister{
 					err:   tt.listErr,
-					items: tt.listResult,
+					items: unstructuredItems,
 				},
 			}
 			manager.initialSynced.Store(tt.initialSynced)
@@ -274,9 +287,21 @@ func TestUpdateConfiguration(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Convert typed objects to unstructured objects for proper testing
+			unstructuredItems := make([]runtime.Object, len(tt.configs))
+			for i, config := range tt.configs {
+				if config != nil {
+					unstructuredObj, err := helper.ToUnstructured(config)
+					assert.NoError(t, err)
+					unstructuredItems[i] = unstructuredObj
+				} else {
+					unstructuredItems[i] = config
+				}
+			}
+
 			manager := &interpreterConfigManager{
 				lister: &mockLister{
-					items: tt.configs,
+					items: unstructuredItems,
 					err:   tt.listErr,
 				},
 				informer: tt.informer,

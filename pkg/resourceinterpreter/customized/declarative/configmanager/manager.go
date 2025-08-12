@@ -27,21 +27,21 @@ import (
 	"k8s.io/klog/v2"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
-var resourceInterpreterCustomizationsGVR = schema.GroupVersionResource{
-	Group:    configv1alpha1.GroupVersion.Group,
-	Version:  configv1alpha1.GroupVersion.Version,
-	Resource: "resourceinterpretercustomizations",
-}
-
 // ConfigManager can list custom resource interpreter.
 type ConfigManager interface {
 	CustomAccessors() map[schema.GroupVersionKind]CustomAccessor
 	HasSynced() bool
+	// LoadConfig is used to load ResourceInterpreterCustomization into the cache,
+	// it requires the provided customizations to be a full list of objects.
+	// It is recommended to be called during startup. After called, HasSynced() will always
+	// return true, and CustomAccessors() will return a map of CustomAccessor containing
+	// all ResourceInterpreterCustomization configurations.
 	LoadConfig(customizations []*configv1alpha1.ResourceInterpreterCustomization)
 }
 
@@ -81,12 +81,12 @@ func NewInterpreterConfigManager(informer genericmanager.SingleClusterInformerMa
 	// In interpret command, rules are not loaded from server, so we don't start informer for it.
 	if informer != nil {
 		manager.informer = informer
-		manager.lister = informer.Lister(resourceInterpreterCustomizationsGVR)
+		manager.lister = informer.Lister(util.ResourceInterpreterCustomizationsGVR)
 		configHandlers := fedinformer.NewHandlerOnEvents(
 			func(_ interface{}) { _ = manager.updateConfiguration() },
 			func(_, _ interface{}) { _ = manager.updateConfiguration() },
 			func(_ interface{}) { _ = manager.updateConfiguration() })
-		informer.ForResource(resourceInterpreterCustomizationsGVR, configHandlers)
+		informer.ForResource(util.ResourceInterpreterCustomizationsGVR, configHandlers)
 	}
 
 	return manager
@@ -102,7 +102,7 @@ func (configManager *interpreterConfigManager) updateConfiguration() error {
 	if configManager.informer == nil {
 		return errors.New("informer manager is not configured")
 	}
-	if !configManager.informer.IsInformerSynced(resourceInterpreterCustomizationsGVR) {
+	if !configManager.informer.IsInformerSynced(util.ResourceInterpreterCustomizationsGVR) {
 		return errors.New("informer of ResourceInterpreterCustomization not synced")
 	}
 
