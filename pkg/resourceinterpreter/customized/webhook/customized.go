@@ -355,3 +355,8 @@ func (e *CustomizedInterpreter) InterpretHealth(ctx context.Context, attributes 
 
 	return response.Healthy, matched, nil
 }
+
+// LoadConfig loads the webhook configurations.
+func (e *CustomizedInterpreter) LoadConfig(webhookConfigurations []*configv1alpha1.ResourceInterpreterWebhookConfiguration) {
+	e.hookManager.LoadConfig(webhookConfigurations)
+}

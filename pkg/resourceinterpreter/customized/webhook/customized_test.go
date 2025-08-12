@@ -1085,6 +1085,12 @@ func (m *mockConfigManager) HookAccessors() []configmanager.WebhookAccessor {
 	return m.hooks
 }
 
+func (m *mockConfigManager) LoadConfig(_ []*configv1alpha1.ResourceInterpreterWebhookConfiguration) {
+	// Mock implementation: in a real test, we might want to process the configurations
+	// and update the hooks accordingly. For now, this is a no-op implementation.
+	// This allows the mock to satisfy the ConfigManager interface.
+}
+
 // mockWebhookAccessor implements configmanager.WebhookAccessor interface for testing
 type mockWebhookAccessor struct {
 	uid             string
