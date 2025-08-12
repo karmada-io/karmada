@@ -541,10 +541,14 @@ func getEndpointSliceWorkMeta(ctx context.Context, c client.Client, ns string, w
 		return metav1.ObjectMeta{}, err
 	}
 
+	existFinalizers := existWork.GetFinalizers()
+	finalizersToAdd := []string{util.EndpointSliceControllerFinalizer}
+	newFinalizers := util.MergeFinalizers(existFinalizers, finalizersToAdd)
+
 	workMeta := metav1.ObjectMeta{
 		Name:       workName,
 		Namespace:  ns,
-		Finalizers: []string{util.EndpointSliceControllerFinalizer},
+		Finalizers: newFinalizers,
 		Labels: map[string]string{
 			util.ServiceNamespaceLabel:           endpointSlice.GetNamespace(),
 			util.ServiceNameLabel:                endpointSlice.GetLabels()[discoveryv1.LabelServiceName],
