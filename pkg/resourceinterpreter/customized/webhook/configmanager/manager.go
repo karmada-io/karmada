@@ -23,26 +23,26 @@ import (
 	"sync/atomic"
 
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
-var resourceExploringWebhookConfigurationsGVR = schema.GroupVersionResource{
-	Group:    configv1alpha1.GroupVersion.Group,
-	Version:  configv1alpha1.GroupVersion.Version,
-	Resource: "resourceinterpreterwebhookconfigurations",
-}
-
 // ConfigManager can list dynamic webhooks.
 type ConfigManager interface {
 	HookAccessors() []WebhookAccessor
 	HasSynced() bool
+	// LoadConfig is used to load ResourceInterpreterWebhookConfiguration into the cache,
+	// it requires the provided webhookConfigurations to be a full list of objects.
+	// It is recommended to be called during startup. After called, HasSynced() will always
+	// return true, and HookAccessors() will return a list of WebhookAccessor containing
+	// all ResourceInterpreterWebhookConfiguration configurations.
+	LoadConfig(webhookConfigurations []*configv1alpha1.ResourceInterpreterWebhookConfiguration)
 }
 
 // interpreterConfigManager collect the resource interpreter webhook configuration.
@@ -75,7 +75,7 @@ func (m *interpreterConfigManager) HasSynced() bool {
 // NewExploreConfigManager return a new interpreterConfigManager with resourceinterpreterwebhookconfigurations handlers.
 func NewExploreConfigManager(inform genericmanager.SingleClusterInformerManager) ConfigManager {
 	manager := &interpreterConfigManager{
-		lister: inform.Lister(resourceExploringWebhookConfigurationsGVR),
+		lister: inform.Lister(util.ResourceInterpreterWebhookConfigurationsGVR),
 	}
 
 	manager.configuration.Store([]WebhookAccessor{})
@@ -85,7 +85,7 @@ func NewExploreConfigManager(inform genericmanager.SingleClusterInformerManager)
 		func(_ interface{}) { _ = manager.updateConfiguration() },
 		func(_, _ interface{}) { _ = manager.updateConfiguration() },
 		func(_ interface{}) { _ = manager.updateConfiguration() })
-	inform.ForResource(resourceExploringWebhookConfigurationsGVR, configHandlers)
+	inform.ForResource(util.ResourceInterpreterWebhookConfigurationsGVR, configHandlers)
 
 	return manager
 }
@@ -100,7 +100,7 @@ func (m *interpreterConfigManager) updateConfiguration() error {
 	if m.informer == nil {
 		return errors.New("informer manager is not configured")
 	}
-	if !m.informer.IsInformerSynced(resourceExploringWebhookConfigurationsGVR) {
+	if !m.informer.IsInformerSynced(util.ResourceInterpreterWebhookConfigurationsGVR) {
 		return errors.New("informer of ResourceInterpreterWebhookConfiguration not synced")
 	}
 
@@ -109,24 +109,24 @@ func (m *interpreterConfigManager) updateConfiguration() error {
 		return err
 	}
 
-	configs := make([]*configv1alpha1.ResourceInterpreterWebhookConfiguration, 0)
-	for _, c := range configurations {
-		unstructuredConfig, err := helper.ToUnstructured(c)
-		if err != nil {
-			return err
-		}
-
+	configs := make([]*configv1alpha1.ResourceInterpreterWebhookConfiguration, len(configurations))
+	for index, c := range configurations {
 		config := &configv1alpha1.ResourceInterpreterWebhookConfiguration{}
-		err = helper.ConvertToTypedObject(unstructuredConfig, config)
+		err = helper.ConvertToTypedObject(c, config)
 		if err != nil {
 			return err
 		}
-		configs = append(configs, config)
+		configs[index] = config
 	}
 
-	m.configuration.Store(mergeResourceExploreWebhookConfigurations(configs))
-	m.initialSynced.Store(true)
+	m.LoadConfig(configs)
 	return nil
+}
+
+// LoadConfig loads the webhook configurations and updates the initialSynced flag to true.
+func (m *interpreterConfigManager) LoadConfig(webhookConfigurations []*configv1alpha1.ResourceInterpreterWebhookConfiguration) {
+	m.configuration.Store(mergeResourceExploreWebhookConfigurations(webhookConfigurations))
+	m.initialSynced.Store(true)
 }
 
 func mergeResourceExploreWebhookConfigurations(configurations []*configv1alpha1.ResourceInterpreterWebhookConfiguration) []WebhookAccessor {
