@@ -72,7 +72,14 @@ func ensureWork(
 		// Failing to do so could allow workloads to bypass the quota checks performed by the scheduler
 		// (especially during scale-up operations) or skip queue validation when scheduling is suspended.
 		if needReviseReplicas(bindingSpec.Replicas) {
-			if resourceInterpreter.HookEnabled(clonedWorkload.GroupVersionKind(), configv1alpha1.InterpreterOperationReviseReplica) {
+			enable, err := resourceInterpreter.HookEnabled(clonedWorkload.GroupVersionKind(), configv1alpha1.InterpreterOperationReviseReplica)
+			if err != nil {
+				klog.Errorf("Failed to check if the revise replica hook is enabled for resource(kind=%s, %s/%s): %v",
+					clonedWorkload.GetKind(), clonedWorkload.GetNamespace(), clonedWorkload.GetName(), err)
+				errs = append(errs, err)
+				continue
+			}
+			if enable {
 				clonedWorkload, err = resourceInterpreter.ReviseReplica(clonedWorkload, int64(targetCluster.Replicas))
 				if err != nil {
 					klog.ErrorS(err, "Failed to revise replica for workload in cluster.", "workloadKind", workload.GetKind(),

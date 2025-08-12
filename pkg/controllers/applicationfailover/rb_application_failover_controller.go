@@ -70,7 +70,11 @@ func (c *RBApplicationFailoverController) Reconcile(ctx context.Context, req con
 		return controllerruntime.Result{}, err
 	}
 
-	if !c.bindingFilter(binding) {
+	filter, err := c.bindingFilter(binding)
+	if err != nil {
+		return controllerruntime.Result{}, err
+	}
+	if !filter {
 		c.workloadUnhealthyMap.delete(req.NamespacedName)
 		return controllerruntime.Result{}, nil
 	}
@@ -216,28 +220,34 @@ func (c *RBApplicationFailoverController) SetupWithManager(mgr controllerruntime
 		Complete(c)
 }
 
-func (c *RBApplicationFailoverController) bindingFilter(rb *workv1alpha2.ResourceBinding) bool {
+func (c *RBApplicationFailoverController) bindingFilter(rb *workv1alpha2.ResourceBinding) (bool, error) {
 	if rb.Spec.Failover == nil || rb.Spec.Failover.Application == nil {
-		return false
+		return false, nil
 	}
 
 	if len(rb.Status.AggregatedStatus) == 0 {
-		return false
+		return false, nil
 	}
 
 	resourceKey, err := helper.ConstructClusterWideKey(rb.Spec.Resource)
 	if err != nil {
 		// Never reach
 		klog.ErrorS(err, "Failed to construct clusterWideKey from binding", "namespace", rb.Namespace, "name", rb.Name)
-		return false
+		return false, err
 	}
 
-	if !c.ResourceInterpreter.HookEnabled(resourceKey.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretHealth) {
-		return false
+	enabled, err := c.ResourceInterpreter.HookEnabled(resourceKey.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretHealth)
+	if err != nil {
+		klog.Errorf("Failed to check if the interpret health hook is enabled for resource(kind=%s, %s/%s): %v",
+			resourceKey.GroupVersionKind().Kind, resourceKey.Namespace, resourceKey.Name, err)
+		return false, err
+	}
+	if !enabled {
+		return false, nil
 	}
 
 	if !rb.Spec.PropagateDeps {
-		return false
+		return false, nil
 	}
-	return true
+	return true, nil
 }
