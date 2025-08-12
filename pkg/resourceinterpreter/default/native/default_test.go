@@ -117,7 +117,10 @@ func TestHookEnabled(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := e.HookEnabled(tt.kind, tt.operationType)
+			got, err := e.HookEnabled(tt.kind, tt.operationType)
+			if err != nil {
+				t.Errorf("HookEnabled() err = %v", err)
+			}
 			if got != tt.want {
 				t.Errorf("HookEnabled() = %v, want %v", got, tt.want)
 			}

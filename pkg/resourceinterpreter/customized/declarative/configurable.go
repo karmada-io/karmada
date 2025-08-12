@@ -17,6 +17,7 @@ limitations under the License.
 package declarative
 
 import (
+	"errors"
 	"sort"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -51,15 +52,15 @@ func NewConfigurableInterpreter(informer genericmanager.SingleClusterInformerMan
 }
 
 // HookEnabled tells if any hook exist for specific resource gvk and operation type.
-func (c *ConfigurableInterpreter) HookEnabled(kind schema.GroupVersionKind, operationType configv1alpha1.InterpreterOperation) bool {
-	accessor, exist := c.getCustomAccessor(kind)
-	if !exist {
-		return exist
+func (c *ConfigurableInterpreter) HookEnabled(kind schema.GroupVersionKind, operationType configv1alpha1.InterpreterOperation) (bool, error) {
+	accessor, enabled, err := c.getCustomAccessor(kind)
+	if err != nil || !enabled {
+		return enabled, err
 	}
 
 	if operationType == configv1alpha1.InterpreterOperationInterpretDependency {
 		scripts := accessor.GetDependencyInterpretationLuaScripts()
-		return scripts != nil
+		return scripts != nil, nil
 	}
 
 	var script string
@@ -77,111 +78,132 @@ func (c *ConfigurableInterpreter) HookEnabled(kind schema.GroupVersionKind, oper
 	case configv1alpha1.InterpreterOperationReviseReplica:
 		script = accessor.GetReplicaRevisionLuaScript()
 	}
-	return len(script) > 0
+	return len(script) > 0, nil
 }
 
 // GetReplicas returns the desired replicas of the object as well as the requirements of each replica.
 func (c *ConfigurableInterpreter) GetReplicas(object *unstructured.Unstructured) (replicas int32, requires *workv1alpha2.ReplicaRequirements, enabled bool, err error) {
 	klog.V(4).Infof("Get replicas for object: %v %s/%s with configurable interpreter.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
 
-	accessor, enabled := c.getCustomAccessor(object.GroupVersionKind())
+	accessor, enabled, err := c.getCustomAccessor(object.GroupVersionKind())
+	if err != nil {
+		return 0, nil, false, err
+	}
 	if !enabled {
-		return
+		return 0, nil, false, nil
 	}
 
 	script := accessor.GetReplicaResourceLuaScript()
 	if len(script) == 0 {
-		enabled = false
-		return
+		return 0, nil, false, nil
 	}
 
 	replicas, requires, err = c.luaVM.GetReplicas(object, script)
-	return
+	if err != nil {
+		return 0, nil, true, err
+	}
+	return replicas, requires, true, nil
 }
 
 // ReviseReplica revises the replica of the given object.
 func (c *ConfigurableInterpreter) ReviseReplica(object *unstructured.Unstructured, replica int64) (revised *unstructured.Unstructured, enabled bool, err error) {
 	klog.V(4).Infof("Revise replicas for object: %v %s/%s with configurable interpreter.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
 
-	accessor, enabled := c.getCustomAccessor(object.GroupVersionKind())
+	accessor, enabled, err := c.getCustomAccessor(object.GroupVersionKind())
+	if err != nil {
+		return nil, false, err
+	}
 	if !enabled {
-		return
+		return nil, false, nil
 	}
 
 	script := accessor.GetReplicaRevisionLuaScript()
 	if len(script) == 0 {
-		enabled = false
-		return
+		return nil, false, nil
 	}
 
 	revised, err = c.luaVM.ReviseReplica(object, replica, script)
-	return
+	if err != nil {
+		return nil, true, err
+	}
+	return revised, true, nil
 }
 
 // Retain returns the objects that based on the "desired" object but with values retained from the "observed" object.
 func (c *ConfigurableInterpreter) Retain(desired *unstructured.Unstructured, observed *unstructured.Unstructured) (retained *unstructured.Unstructured, enabled bool, err error) {
 	klog.V(4).Infof("Retain object: %v %s/%s with configurable interpreter.", desired.GroupVersionKind(), desired.GetNamespace(), desired.GetName())
 
-	accessor, enabled := c.getCustomAccessor(desired.GroupVersionKind())
+	accessor, enabled, err := c.getCustomAccessor(desired.GroupVersionKind())
+	if err != nil {
+		return nil, false, err
+	}
 	if !enabled {
-		return
+		return nil, false, nil
 	}
 
 	script := accessor.GetRetentionLuaScript()
 	if len(script) == 0 {
-		enabled = false
-		return
+		return nil, false, nil
 	}
 
 	retained, err = c.luaVM.Retain(desired, observed, script)
-	return
+	if err != nil {
+		return nil, true, err
+	}
+	return retained, true, nil
 }
 
 // AggregateStatus returns the objects that based on the 'object' but with status aggregated.
 func (c *ConfigurableInterpreter) AggregateStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (status *unstructured.Unstructured, enabled bool, err error) {
 	klog.V(4).Infof("Aggregate status of object: %v %s/%s with configurable interpreter.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
-	accessor, enabled := c.getCustomAccessor(object.GroupVersionKind())
+	accessor, enabled, err := c.getCustomAccessor(object.GroupVersionKind())
+	if err != nil {
+		return nil, false, err
+	}
 	if !enabled {
-		return
+		return nil, false, nil
 	}
 
 	script := accessor.GetStatusAggregationLuaScript()
 	if len(script) == 0 {
-		enabled = false
-		return
+		return nil, false, nil
 	}
 
 	status, err = c.luaVM.AggregateStatus(object, aggregatedStatusItems, script)
-	return
+	if err != nil {
+		return nil, true, err
+	}
+	return status, true, nil
 }
 
 // GetDependencies returns the dependent resources of the given object.
 func (c *ConfigurableInterpreter) GetDependencies(object *unstructured.Unstructured) (dependencies []configv1alpha1.DependentObjectReference, enabled bool, err error) {
 	klog.V(4).Infof("Get dependencies of object: %v %s/%s with configurable interpreter.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
 
-	accessor, enabled := c.getCustomAccessor(object.GroupVersionKind())
+	accessor, enabled, err := c.getCustomAccessor(object.GroupVersionKind())
+	if err != nil {
+		return nil, false, err
+	}
 	if !enabled {
-		return
+		return nil, false, nil
 	}
 
 	scripts := accessor.GetDependencyInterpretationLuaScripts()
 	if scripts == nil {
-		enabled = false
-		return
+		return nil, false, nil
 	}
 
 	refs := sets.New[configv1alpha1.DependentObjectReference]()
 	for _, luaScript := range scripts {
-		var references []configv1alpha1.DependentObjectReference
-		references, err = c.luaVM.GetDependencies(object, luaScript)
+		references, err := c.luaVM.GetDependencies(object, luaScript)
 		if err != nil {
 			klog.Errorf("Failed to get DependentObjectReferences from object: %v %s/%s, error: %v",
 				object.GroupVersionKind(), object.GetNamespace(), object.GetName(), err)
-			return
+			return nil, true, err
 		}
 		err = validation.VerifyDependencies(references)
 		if err != nil {
-			return
+			return nil, true, err
 		}
 		refs.Insert(references...)
 	}
@@ -200,55 +222,66 @@ func (c *ConfigurableInterpreter) GetDependencies(object *unstructured.Unstructu
 		}
 		return dependencies[i].Name < dependencies[j].Name
 	})
-	return
+	return dependencies, true, nil
 }
 
 // ReflectStatus returns the status of the object.
 func (c *ConfigurableInterpreter) ReflectStatus(object *unstructured.Unstructured) (status *runtime.RawExtension, enabled bool, err error) {
 	klog.V(4).Infof("Reflect status of object: %v %s/%s with configurable interpreter.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
 
-	accessor, enabled := c.getCustomAccessor(object.GroupVersionKind())
+	accessor, enabled, err := c.getCustomAccessor(object.GroupVersionKind())
+	if err != nil {
+		return nil, false, err
+	}
 	if !enabled {
-		return
+		return nil, false, nil
 	}
 
 	script := accessor.GetStatusReflectionLuaScript()
 	if len(script) == 0 {
-		enabled = false
-		return
+		return nil, false, nil
 	}
 
 	status, err = c.luaVM.ReflectStatus(object, script)
-	return
+	if err != nil {
+		return nil, true, err
+	}
+	return status, true, nil
 }
 
 // InterpretHealth returns the health state of the object.
 func (c *ConfigurableInterpreter) InterpretHealth(object *unstructured.Unstructured) (health bool, enabled bool, err error) {
 	klog.V(4).Infof("Get health status of object: %v %s/%s with configurable interpreter.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
 
-	accessor, enabled := c.getCustomAccessor(object.GroupVersionKind())
+	accessor, enabled, err := c.getCustomAccessor(object.GroupVersionKind())
+	if err != nil {
+		return false, false, err
+	}
 	if !enabled {
-		return
+		return false, false, nil
 	}
 
 	script := accessor.GetHealthInterpretationLuaScript()
 	if len(script) == 0 {
-		enabled = false
-		return
+		return false, false, nil
 	}
 
 	health, err = c.luaVM.InterpretHealth(object, script)
-	return
+	if err != nil {
+		return false, true, err
+	}
+	return health, true, nil
 }
 
-func (c *ConfigurableInterpreter) getCustomAccessor(kind schema.GroupVersionKind) (configmanager.CustomAccessor, bool) {
+func (c *ConfigurableInterpreter) getCustomAccessor(kind schema.GroupVersionKind) (configmanager.CustomAccessor, bool, error) {
 	if !c.configManager.HasSynced() {
-		klog.Errorf("not yet ready to handle request")
-		return nil, false
+		err := errors.New("not yet ready to handle request")
+		klog.Errorf("getCustomAccessor failed: %v", err)
+		return nil, false, err
 	}
 
 	accessor, exist := c.configManager.CustomAccessors()[kind]
-	return accessor, exist
+	return accessor, exist, nil
 }
 
 // LoadConfig loads and stores rules from customizations

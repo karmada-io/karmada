@@ -1082,7 +1082,8 @@ func TestWorkStatusController_interpretHealth(t *testing.T) {
 			obj, err := helper.ToUnstructured(tt.clusterObj)
 			assert.NoError(t, err)
 
-			resourceHealth := c.interpretHealth(obj, work)
+			resourceHealth, err := c.interpretHealth(obj, work)
+			assert.NoError(t, err)
 			assert.Equalf(t, tt.expectedResourceHealth, resourceHealth, "expected resource health %v, got %v", tt.expectedResourceHealth, resourceHealth)
 
 			eventRecorder := c.EventRecorder.(*record.FakeRecorder)

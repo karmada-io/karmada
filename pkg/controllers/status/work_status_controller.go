@@ -357,6 +357,17 @@ func (c *WorkStatusController) updateAppliedCondition(ctx context.Context, work 
 
 // reflectStatus grabs cluster object's running status then updates to its owner object(Work).
 func (c *WorkStatusController) reflectStatus(ctx context.Context, work *workv1alpha1.Work, clusterObj *unstructured.Unstructured) error {
+	enable, err := c.ResourceInterpreter.HookEnabled(clusterObj.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretStatus)
+	if err != nil {
+		klog.Errorf("Failed to check if the interpret status hook is enabled for resource(kind=%s, %s/%s): %v",
+			clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), err)
+		return err
+	}
+	if !enable {
+		klog.V(4).InfoS("Skipping status reflection for object because no customization found.", "kind", clusterObj.GroupVersionKind(), "resource", klog.KObj(clusterObj))
+		return nil
+	}
+
 	statusRaw, err := c.ResourceInterpreter.ReflectStatus(clusterObj)
 	if err != nil {
 		klog.ErrorS(err, "Failed to reflect status for object with resourceInterpreter", "kind", clusterObj.GetKind(), "resource", clusterObj.GetNamespace()+"/"+clusterObj.GetName())
@@ -365,7 +376,10 @@ func (c *WorkStatusController) reflectStatus(ctx context.Context, work *workv1al
 	}
 	c.EventRecorder.Eventf(work, corev1.EventTypeNormal, events.EventReasonReflectStatusSucceed, "Reflect status for object(%s/%s/%s) succeed.", clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName())
 
-	resourceHealth := c.interpretHealth(clusterObj, work)
+	resourceHealth, err := c.interpretHealth(clusterObj, work)
+	if err != nil {
+		return err
+	}
 
 	identifier, err := c.buildStatusIdentifier(work, clusterObj)
 	if err != nil {
@@ -387,11 +401,17 @@ func (c *WorkStatusController) reflectStatus(ctx context.Context, work *workv1al
 	})
 }
 
-func (c *WorkStatusController) interpretHealth(clusterObj *unstructured.Unstructured, work *workv1alpha1.Work) workv1alpha1.ResourceHealth {
+func (c *WorkStatusController) interpretHealth(clusterObj *unstructured.Unstructured, work *workv1alpha1.Work) (workv1alpha1.ResourceHealth, error) {
 	// For kind that doesn't have health check, we treat it as healthy.
-	if !c.ResourceInterpreter.HookEnabled(clusterObj.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretHealth) {
+	enable, err := c.ResourceInterpreter.HookEnabled(clusterObj.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretHealth)
+	if err != nil {
+		klog.Errorf("Failed to check if the interpret health hook is enabled for resource(kind=%s, %s/%s): %v",
+			clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), err)
+		return workv1alpha1.ResourceUnknown, err
+	}
+	if !enable {
 		klog.V(5).InfoS("skipping health assessment for object as customization missing; will treat it as healthy.", "kind", clusterObj.GroupVersionKind(), "resource", clusterObj.GetNamespace()+"/"+clusterObj.GetName())
-		return workv1alpha1.ResourceHealthy
+		return workv1alpha1.ResourceHealthy, nil
 	}
 
 	var resourceHealth workv1alpha1.ResourceHealth
@@ -406,7 +426,7 @@ func (c *WorkStatusController) interpretHealth(clusterObj *unstructured.Unstruct
 		resourceHealth = workv1alpha1.ResourceUnhealthy
 		c.EventRecorder.Eventf(work, corev1.EventTypeNormal, events.EventReasonInterpretHealthSucceed, "Interpret health of object(%s/%s/%s) as unhealthy.", clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName())
 	}
-	return resourceHealth
+	return resourceHealth, nil
 }
 
 func (c *WorkStatusController) buildStatusIdentifier(work *workv1alpha1.Work, clusterObj *unstructured.Unstructured) (*workv1alpha1.ResourceIdentifier, error) {

@@ -157,7 +157,12 @@ func TestHookEnabled(t *testing.T) {
 				},
 			}
 
-			got := interpreter.HookEnabled(tt.gvk, tt.operation)
+			got, err := interpreter.HookEnabled(tt.gvk, tt.operation)
+			if tt.hasSynced {
+				assert.NoError(t, err)
+			} else {
+				assert.Error(t, err)
+			}
 			assert.Equal(t, tt.want, got)
 		})
 	}
