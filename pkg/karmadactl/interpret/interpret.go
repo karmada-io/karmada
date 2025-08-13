@@ -54,7 +54,7 @@ var (
 	`)
 
 	interpretExample = templates.Examples(`
-        # Check the customizations in file
+        # Check the customizations in file (only YAML and JSON formats are supported)
         %[1]s interpret -f customization.json --check
 
 		# Execute the retention rule
@@ -129,7 +129,7 @@ func NewCmdInterpret(f util.Factory, parentCommand string, streams genericioopti
 	flags.StringVar(&o.ObservedFile, "observed-file", o.ObservedFile, "Filename, directory, or URL to files identifying the resource to use as observedObj argument in rule script.")
 	flags.StringVar(&o.StatusFile, "status-file", o.StatusFile, "Filename, directory, or URL to files identifying the resource to use as statusItems argument in rule script.")
 	flags.Int32Var(&o.DesiredReplica, "desired-replica", o.DesiredReplica, "The desiredReplica argument in rule script.")
-	cmdutil.AddJsonFilenameFlag(flags, &o.FilenameOptions.Filenames, "Filename, directory, or URL to files containing the customizations")
+	cmdutil.AddJsonFilenameFlag(flags, &o.FilenameOptions.Filenames, "Filename, directory, or URL to files containing the customizations. Files need to be in either YAML or JSON format.")
 	flags.BoolVarP(&o.FilenameOptions.Recursive, "recursive", "R", false, "Process the directory used in -f, --filename recursively. Useful when you want to manage related manifests organized within the same directory.")
 
 	utilcomp.RegisterCompletionFuncForKarmadaContextFlag(cmd)
