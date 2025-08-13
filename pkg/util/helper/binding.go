@@ -238,9 +238,6 @@ func RemoveOrphanWorks(ctx context.Context, c client.Client, works []workv1alpha
 }
 
 // FetchResourceTemplate fetches the resource template to be propagated.
-// Any updates to this resource template are not recommended as it may come from the informer cache.
-// We should abide by the principle of making a deep copy first and then modifying it.
-// See issue: https://github.com/karmada-io/karmada/issues/3878.
 func FetchResourceTemplate(
 	ctx context.Context,
 	dynamicClient dynamic.Interface,
@@ -266,12 +263,13 @@ func FetchResourceTemplate(
 		// fall back to call api server in case the cache has not been synchronized yet
 		klog.Warningf("Failed to get resource template (%s/%s/%s) from cache, Error: %v. Fall back to call api server.",
 			resource.Kind, resource.Namespace, resource.Name, err)
-		object, err = dynamicClient.Resource(gvr).Namespace(resource.Namespace).Get(ctx, resource.Name, metav1.GetOptions{})
+		objectFromAPIServer, err := dynamicClient.Resource(gvr).Namespace(resource.Namespace).Get(ctx, resource.Name, metav1.GetOptions{})
 		if err != nil {
 			klog.Errorf("Failed to get resource template (%s/%s/%s) from api server, Error: %v",
 				resource.Kind, resource.Namespace, resource.Name, err)
 			return nil, err
 		}
+		return objectFromAPIServer, nil
 	}
 
 	unstructuredObj, err := ToUnstructured(object)
@@ -280,7 +278,7 @@ func FetchResourceTemplate(
 		return nil, err
 	}
 
-	return unstructuredObj, nil
+	return unstructuredObj.DeepCopy(), nil
 }
 
 // FetchResourceTemplatesByLabelSelector fetches the resource templates by label selector to be propagated.
