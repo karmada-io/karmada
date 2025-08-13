@@ -637,9 +637,6 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 }
 
 // GetUnstructuredObject retrieves object by key and returned its unstructured.
-// Any updates to this resource template are not recommended as it may come from the informer cache.
-// We should abide by the principle of making a deep copy first and then modifying it.
-// See issue: https://github.com/karmada-io/karmada/issues/3878.
 func (d *ResourceDetector) GetUnstructuredObject(objectKey keys.ClusterWideKey) (*unstructured.Unstructured, error) {
 	objectGVR, err := restmapper.GetGroupVersionResource(d.RESTMapper, objectKey.GroupVersionKind())
 	if err != nil {
@@ -669,7 +666,8 @@ func (d *ResourceDetector) GetUnstructuredObject(objectKey keys.ClusterWideKey) 
 		return nil, err
 	}
 
-	return unstructuredObj, nil
+	// perform a deep copy to avoid modifying the cached object from informer
+	return unstructuredObj.DeepCopy(), nil
 }
 
 // ClaimPolicyForObject set policy identifier which the object associated with.
