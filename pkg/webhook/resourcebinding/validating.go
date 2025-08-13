@@ -26,7 +26,6 @@ import (
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -50,28 +49,58 @@ var _ admission.Handler = &ValidatingAdmission{}
 type frqProcessOutcome struct {
 	validationMessages []string
 	updatedFRQCount    int
-	noFRQsFound        bool                // True if this attempt found no FRQs
-	earlyExitResponse  *admission.Response // Response if this attempt decided to exit early (denial, permanent error)
-	ProcessError       error               // Error for RetryOnConflict (e.g., conflict error or nil for success/final decision)
+	noFRQsFound        bool  // True if this attempt found no FRQs
+	earlyExitError     error // Response if this attempt decided to exit early (denial, permanent error)
+	ProcessError       error // Error for RetryOnConflict (e.g., conflict error or nil for success/final decision)
 }
 
 // Handle implements admission.Handler interface.
 func (v *ValidatingAdmission) Handle(ctx context.Context, req admission.Request) admission.Response {
+	rb, oldRB, err := v.decodeRBs(req)
+	if err != nil {
+		return admission.Errored(http.StatusBadRequest, err)
+	}
+	klog.V(2).Infof("Processing ResourceBinding(%s/%s) for request: %s (%s)", rb.Namespace, rb.Name, req.Operation, req.UID)
+
+	if err := v.validateFederatedResourceQuota(ctx, req, rb, oldRB); err != nil {
+		if apierrors.IsInternalError(err) {
+			klog.Errorf("Internal error while processing ResourceBinding %s/%s: %v", rb.Namespace, rb.Name, err)
+			return admission.Errored(http.StatusInternalServerError, err)
+		}
+		klog.Errorf("Admission denied for ResourceBinding %s/%s: %v", rb.Namespace, rb.Name, err)
+		return admission.Denied(err.Error())
+	}
+
+	// further validation can be added here if needed
+
+	return admission.Allowed("")
+}
+
+// validateFederatedResourceQuota checks the FederatedResourceQuota for the ResourceBinding.
+// It returns a list of errors if validation fails, or nil if it passes.
+func (v *ValidatingAdmission) validateFederatedResourceQuota(ctx context.Context, req admission.Request, rb, oldRB *workv1alpha2.ResourceBinding) error {
 	if !features.FeatureGate.Enabled(features.FederatedQuotaEnforcement) {
 		klog.V(5).Infof("FederatedQuotaEnforcement feature gate is disabled, skipping validation for ResourceBinding %s/%s", req.Namespace, req.Name)
-		return admission.Allowed("")
+		return nil
+	}
+
+	if req.Operation == admissionv1.Create && len(rb.Spec.Clusters) == 0 {
+		klog.V(4).Infof("ResourceBinding %s/%s is being created but not yet scheduled, skipping quota validation.", rb.Namespace, rb.Name)
+		return nil
+	}
+
+	if req.Operation == admissionv1.Update {
+		if !isQuotaRelevantFieldChanged(oldRB, rb) {
+			klog.V(4).Infof("ResourceBinding %s/%s updated, but no quota relevant fields changed, skipping quota validation.", rb.Namespace, rb.Name)
+			return nil
+		}
 	}
 
 	isDryRun := req.DryRun != nil && *req.DryRun
 
-	rb, oldRB, extractResp := v.decodeAndValidateRBs(req)
-	if extractResp != nil {
-		return *extractResp
-	}
-
-	newRbTotalUsage, oldRbTotalUsage, respCalc := v.calculateRBUsages(rb, oldRB)
-	if respCalc != nil {
-		return *respCalc
+	newRbTotalUsage, oldRbTotalUsage, err := v.calculateRBUsages(rb, oldRB)
+	if err != nil {
+		return err
 	}
 
 	totalRbDelta := calculateDelta(newRbTotalUsage, oldRbTotalUsage)
@@ -79,12 +108,11 @@ func (v *ValidatingAdmission) Handle(ctx context.Context, req admission.Request)
 
 	if len(totalRbDelta) == 0 {
 		klog.V(2).Infof("No effective resource quantity delta for ResourceBinding %s/%s. Skipping quota validation.", rb.Namespace, rb.Name)
-		return admission.Allowed("No effective resource quantity delta for ResourceBinding, skipping quota validation.")
+		return nil
 	}
 
-	frqOutcome := v.processFRQsWithRetries(ctx, rb, totalRbDelta, isDryRun)
-
-	return v.finalizeResponse(rb, frqOutcome)
+	outcome := v.processFRQsWithRetries(ctx, rb, totalRbDelta, isDryRun)
+	return v.handleFRQOutcome(rb, outcome)
 }
 
 func (v *ValidatingAdmission) processFRQsWithRetries(ctx context.Context, rb *workv1alpha2.ResourceBinding, totalRbDelta corev1.ResourceList, isDryRun bool) frqProcessOutcome {
@@ -108,9 +136,9 @@ func (v *ValidatingAdmission) executeFRQProcessingAttempt(ctx context.Context, r
 	var currentFrqsToUpdateStatus []*policyv1alpha1.FederatedResourceQuota
 	var currentValidationMessages []string
 
-	frqList, listResp := v.listFRQs(ctx, rb.Namespace)
-	if listResp != nil {
-		outcome.earlyExitResponse = listResp
+	frqList, listError := v.listFRQs(ctx, rb.Namespace)
+	if listError != nil {
+		outcome.earlyExitError = listError
 		return outcome // attemptError is nil, signaling non-retryable handled error
 	}
 
@@ -121,9 +149,9 @@ func (v *ValidatingAdmission) executeFRQProcessingAttempt(ctx context.Context, r
 	}
 
 	for _, frqItem := range frqList.Items {
-		newStatus, msg, denialResp := v.processSingleFRQ(frqItem, rb.Namespace, rb.Name, totalRbDelta)
-		if denialResp != nil {
-			outcome.earlyExitResponse = denialResp
+		newStatus, msg, denialError := v.processSingleFRQ(&frqItem, rb.Namespace, rb.Name, totalRbDelta)
+		if denialError != nil {
+			outcome.earlyExitError = denialError
 			return outcome // attemptError is nil, request denied
 		}
 		if newStatus != nil {
@@ -145,8 +173,7 @@ func (v *ValidatingAdmission) executeFRQProcessingAttempt(ctx context.Context, r
 		}
 		errMsg := fmt.Sprintf("permanent error updating FRQ statuses for RB %s/%s: %v", rb.Namespace, rb.Name, updateErr)
 		klog.Error(errMsg)
-		resp := admission.Errored(http.StatusInternalServerError, errors.New(errMsg))
-		outcome.earlyExitResponse = &resp
+		outcome.earlyExitError = apierrors.NewInternalError(errors.New(errMsg))
 		return outcome // attemptError is nil, non-retryable handled error
 	}
 
@@ -155,20 +182,20 @@ func (v *ValidatingAdmission) executeFRQProcessingAttempt(ctx context.Context, r
 	return outcome // attemptError is nil, successful attempt
 }
 
-func (v *ValidatingAdmission) finalizeResponse(rb *workv1alpha2.ResourceBinding, outcome frqProcessOutcome) admission.Response {
+func (v *ValidatingAdmission) handleFRQOutcome(rb *workv1alpha2.ResourceBinding, outcome frqProcessOutcome) error {
 	if outcome.ProcessError != nil {
 		errMsg := fmt.Sprintf("failed to apply FederatedResourceQuota updates after multiple retries for RB %s/%s: %v", rb.Namespace, rb.Name, outcome.ProcessError)
 		klog.Error(errMsg)
-		return admission.Errored(http.StatusInternalServerError, errors.New(errMsg))
+		return apierrors.NewInternalError(errors.New(errMsg))
 	}
 
-	if outcome.earlyExitResponse != nil {
-		return *outcome.earlyExitResponse
+	if outcome.earlyExitError != nil {
+		return outcome.earlyExitError
 	}
 
 	if outcome.noFRQsFound {
 		klog.V(2).Infof("No FederatedResourceQuotas found in namespace %s for ResourceBinding %s. Allowing operation.", rb.Namespace, rb.Name)
-		return admission.Allowed("No FederatedResourceQuotas found in the namespace, skipping quota check.")
+		return nil
 	}
 
 	finalMessage := fmt.Sprintf("All relevant FederatedResourceQuota checks passed for ResourceBinding %s/%s.", rb.Namespace, rb.Name)
@@ -181,7 +208,7 @@ func (v *ValidatingAdmission) finalizeResponse(rb *workv1alpha2.ResourceBinding,
 		finalMessage = fmt.Sprintf("%s No FRQs required update.", finalMessage)
 	}
 	klog.V(2).Infof("Admission allowed for ResourceBinding %s/%s: %s", rb.Namespace, rb.Name, finalMessage)
-	return admission.Allowed(finalMessage)
+	return nil
 }
 
 // updateFRQStatusesWithRetrySignal attempts to update FRQ statuses.
@@ -218,53 +245,37 @@ func (v *ValidatingAdmission) updateFRQStatusesWithRetrySignal(ctx context.Conte
 	return nil
 }
 
-// decodeAndValidateRBs decodes current and old (for updates) ResourceBindings,
-// performs essential preliminary checks, and checks for relevant changes in update operations.
-// Returns the RBs or an admission response for early exit.
-func (v *ValidatingAdmission) decodeAndValidateRBs(req admission.Request) (
+// decodeRBs decodes current and old (for updates) ResourceBindings.
+// Returns the RBs or an admission response for early exit on decoding failure.
+func (v *ValidatingAdmission) decodeRBs(req admission.Request) (
 	currentRB *workv1alpha2.ResourceBinding,
-	oldRB *workv1alpha2.ResourceBinding, // Will be nil if not an update or if not applicable
-	earlyExitResp *admission.Response,
+	oldRB *workv1alpha2.ResourceBinding, // Will be nil if not an update
+	earlyExitResp error,
 ) {
 	decodedRB := &workv1alpha2.ResourceBinding{}
 	if err := v.Decoder.Decode(req, decodedRB); err != nil {
 		klog.Errorf("Failed to decode ResourceBinding %s/%s: %v", req.Namespace, req.Name, err)
-		resp := admission.Errored(http.StatusBadRequest, err)
-		return nil, nil, &resp
-	}
-	klog.V(2).Infof("Processing ResourceBinding(%s/%s) for request: %s (%s)", decodedRB.Namespace, decodedRB.Name, req.Operation, req.UID)
-
-	if req.Operation == admissionv1.Create && len(decodedRB.Spec.Clusters) == 0 {
-		klog.V(4).Infof("ResourceBinding %s/%s is being created but not yet scheduled, skipping quota validation.", decodedRB.Namespace, decodedRB.Name)
-		resp := admission.Allowed("ResourceBinding not yet scheduled for Create operation.")
-		return decodedRB, nil, &resp
+		return nil, nil, err
 	}
 
-	var decodedOldRB *workv1alpha2.ResourceBinding
-	if req.Operation == admissionv1.Update {
-		tempOldRB := &workv1alpha2.ResourceBinding{}
-		if err := v.Decoder.DecodeRaw(req.OldObject, tempOldRB); err != nil {
-			klog.Errorf("Failed to decode old ResourceBinding %s/%s: %v", req.Namespace, req.Name, err)
-			resp := admission.Errored(http.StatusBadRequest, err)
-			return decodedRB, nil, &resp
-		}
-		decodedOldRB = tempOldRB
-
-		if !isQuotaRelevantFieldChanged(decodedOldRB, decodedRB) {
-			klog.V(4).Infof("ResourceBinding %s/%s updated, but no quota relevant fields changed, skipping quota validation.", decodedRB.Namespace, decodedRB.Name)
-			resp := admission.Allowed("No quota relevant fields changed.")
-			return decodedRB, decodedOldRB, &resp
-		}
+	if req.Operation != admissionv1.Update {
+		return decodedRB, nil, nil
 	}
+
+	decodedOldRB := &workv1alpha2.ResourceBinding{}
+	if err := v.Decoder.DecodeRaw(req.OldObject, decodedOldRB); err != nil {
+		klog.Errorf("Failed to decode old ResourceBinding %s/%s: %v", req.Namespace, req.Name, err)
+		return nil, nil, err
+	}
+
 	return decodedRB, decodedOldRB, nil
 }
 
-func (v *ValidatingAdmission) calculateRBUsages(rb, oldRB *workv1alpha2.ResourceBinding) (corev1.ResourceList, corev1.ResourceList, *admission.Response) {
+func (v *ValidatingAdmission) calculateRBUsages(rb, oldRB *workv1alpha2.ResourceBinding) (corev1.ResourceList, corev1.ResourceList, error) {
 	newRbTotalUsage, err := calculateResourceUsage(rb)
 	if err != nil {
 		klog.Errorf("Error calculating resource usage for new ResourceBinding %s/%s: %v", rb.Namespace, rb.Name, err)
-		resp := admission.Errored(http.StatusInternalServerError, err)
-		return nil, nil, &resp
+		return nil, nil, apierrors.NewInternalError(err)
 	}
 	klog.V(4).Infof("Calculated total usage for incoming RB %s/%s: %v", rb.Namespace, rb.Name, newRbTotalUsage)
 
@@ -273,26 +284,24 @@ func (v *ValidatingAdmission) calculateRBUsages(rb, oldRB *workv1alpha2.Resource
 		oldRbTotalUsage, err = calculateResourceUsage(oldRB)
 		if err != nil {
 			klog.Errorf("Error calculating resource usage for old ResourceBinding %s/%s: %v", oldRB.Namespace, oldRB.Name, err)
-			resp := admission.Errored(http.StatusInternalServerError, err)
-			return nil, nil, &resp
+			return nil, nil, apierrors.NewInternalError(err)
 		}
 		klog.V(4).Infof("Calculated total usage for old RB %s/%s: %v", oldRB.Namespace, oldRB.Name, oldRbTotalUsage)
 	}
 	return newRbTotalUsage, oldRbTotalUsage, nil
 }
 
-func (v *ValidatingAdmission) listFRQs(ctx context.Context, namespace string) (*policyv1alpha1.FederatedResourceQuotaList, *admission.Response) {
+func (v *ValidatingAdmission) listFRQs(ctx context.Context, namespace string) (*policyv1alpha1.FederatedResourceQuotaList, error) {
 	frqList := &policyv1alpha1.FederatedResourceQuotaList{}
 	if err := v.Client.List(ctx, frqList, client.InNamespace(namespace)); err != nil {
 		klog.Errorf("Failed to list FederatedResourceQuotas in namespace %s: %v", namespace, err)
-		resp := admission.Errored(http.StatusInternalServerError, fmt.Errorf("failed to list FederatedResourceQuotas: %w", err))
-		return nil, &resp
+		return nil, apierrors.NewInternalError(fmt.Errorf("failed to list FederatedResourceQuotas: %w", err))
 	}
 	klog.V(2).Infof("Found %d FederatedResourceQuotas in namespace %s to evaluate.", len(frqList.Items), namespace)
 	return frqList, nil
 }
 
-func (v *ValidatingAdmission) processSingleFRQ(frqItem policyv1alpha1.FederatedResourceQuota, rbNamespace, rbName string, totalRbDelta corev1.ResourceList) (newStatusToSet corev1.ResourceList, validationMsg string, denialResp *admission.Response) {
+func (v *ValidatingAdmission) processSingleFRQ(frqItem *policyv1alpha1.FederatedResourceQuota, rbNamespace, rbName string, totalRbDelta corev1.ResourceList) (newStatusToSet corev1.ResourceList, validationMsg string, err error) {
 	klog.V(4).Infof("Evaluating FRQ %s/%s for RB %s/%s", frqItem.Namespace, frqItem.Name, rbNamespace, rbName)
 	if frqItem.Spec.Overall == nil {
 		klog.V(4).Infof("FRQ %s/%s has no spec.overall defined, skipping its evaluation.", frqItem.Namespace, frqItem.Name)
@@ -312,29 +321,14 @@ func (v *ValidatingAdmission) processSingleFRQ(frqItem policyv1alpha1.FederatedR
 
 	isAllowed, errMsg := isAllowed(potentialNewOverallUsedForThisFRQ, frqItem)
 	if !isAllowed {
-		klog.Warningf("Quota exceeded for FederatedResourceQuota %s/%s. ResourceBinding %s/%s will be denied.",
-			frqItem.Namespace, frqItem.Name, rbNamespace, rbName)
-		resp := buildDenyResponse(errMsg)
-		return nil, "", resp
+		klog.Warningf("Quota exceeded for FederatedResourceQuota %s/%s. ResourceBinding %s/%s will be denied. %s",
+			frqItem.Namespace, frqItem.Name, rbNamespace, rbName, errMsg)
+		return nil, "", errors.New(errMsg)
 	}
 
 	msg := fmt.Sprintf("Quota check passed for FRQ %s/%s.", frqItem.Namespace, frqItem.Name)
 	klog.V(3).Infof("FRQ %s/%s will be updated. New OverallUsed: %v", frqItem.Namespace, frqItem.Name, potentialNewOverallUsedForThisFRQ)
 	return potentialNewOverallUsedForThisFRQ, msg, nil
-}
-
-func buildDenyResponse(errMsg string) *admission.Response {
-	resp := admission.Response{
-		AdmissionResponse: admissionv1.AdmissionResponse{
-			Allowed: false,
-			Result: &metav1.Status{
-				Message: errMsg,
-				Reason:  util.QuotaExceededReason,
-				Code:    int32(http.StatusForbidden),
-			},
-		},
-	}
-	return &resp
 }
 
 func calculateResourceUsage(rb *workv1alpha2.ResourceBinding) (corev1.ResourceList, error) {
@@ -452,7 +446,7 @@ func addResourceLists(list1, list2 corev1.ResourceList) corev1.ResourceList {
 	return result
 }
 
-func isAllowed(requested corev1.ResourceList, frqItem policyv1alpha1.FederatedResourceQuota) (bool, string) {
+func isAllowed(requested corev1.ResourceList, frqItem *policyv1alpha1.FederatedResourceQuota) (bool, string) {
 	allowedLimits := frqItem.Spec.Overall
 	if allowedLimits == nil {
 		return true, ""

@@ -363,7 +363,7 @@ func TestValidatingAdmission_Handle(t *testing.T) {
 			decoder:            &fakeDecoder{decodeObj: rbUnscheduledCreate},
 			clientObjects:      []client.Object{frqForUnscheduledCreate},
 			featureGateEnabled: true,
-			wantResponse:       admission.Allowed("ResourceBinding not yet scheduled for Create operation."),
+			wantResponse:       admission.Allowed(""),
 		},
 		{
 			name: "update operation with no relevant field change should be allowed",
@@ -374,7 +374,7 @@ func TestValidatingAdmission_Handle(t *testing.T) {
 			decoder:            &fakeDecoder{decodeObj: rbForNoChange, rawDecodedObj: rbForNoChange},
 			clientObjects:      []client.Object{frqForNoChange},
 			featureGateEnabled: true,
-			wantResponse:       admission.Allowed("No quota relevant fields changed."),
+			wantResponse:       admission.Allowed(""),
 		},
 		{
 			name: "total RB delta is zero should be allowed (update with identical states)",
@@ -385,7 +385,7 @@ func TestValidatingAdmission_Handle(t *testing.T) {
 			decoder:            &fakeDecoder{decodeObj: rbForDeltaZeroNew, rawDecodedObj: rbForDeltaZeroOld},
 			clientObjects:      []client.Object{frqForDeltaZero},
 			featureGateEnabled: true,
-			wantResponse:       admission.Allowed("No effective resource quantity delta for ResourceBinding, skipping quota validation."),
+			wantResponse:       admission.Allowed(""),
 		},
 		{
 			name: "no FRQs found should be allowed",
@@ -395,7 +395,7 @@ func TestValidatingAdmission_Handle(t *testing.T) {
 			decoder:            &fakeDecoder{decodeObj: rbForNoFRQ},
 			clientObjects:      []client.Object{},
 			featureGateEnabled: true,
-			wantResponse:       admission.Allowed("No FederatedResourceQuotas found in the namespace, skipping quota check."),
+			wantResponse:       admission.Allowed(""),
 		},
 		{
 			name: "create quota exceeded should deny",
@@ -417,10 +417,7 @@ func TestValidatingAdmission_Handle(t *testing.T) {
 			decoder:            &fakeDecoder{decodeObj: commonRBUpdatePassNew, rawDecodedObj: commonRBUpdatePassOld},
 			clientObjects:      []client.Object{frqForUpdatePassNonDryRun},
 			featureGateEnabled: true,
-			wantResponse: admission.Allowed(
-				fmt.Sprintf("All relevant FederatedResourceQuota checks passed for ResourceBinding %s/%s. Quota check passed for FRQ %s/%s. 1 FRQ(s) updated.",
-					commonRBUpdatePassNew.Namespace, commonRBUpdatePassNew.Name, frqForUpdatePassNonDryRun.Namespace, frqForUpdatePassNonDryRun.Name),
-			),
+			wantResponse:       admission.Allowed(""),
 		},
 		{
 			name: "update passes quota (allowed response, dry run)",
@@ -432,10 +429,7 @@ func TestValidatingAdmission_Handle(t *testing.T) {
 			decoder:            &fakeDecoder{decodeObj: commonRBUpdatePassNew, rawDecodedObj: commonRBUpdatePassOld},
 			clientObjects:      []client.Object{frqForUpdatePassDryRun},
 			featureGateEnabled: true,
-			wantResponse: admission.Allowed(
-				fmt.Sprintf("All relevant FederatedResourceQuota checks passed for ResourceBinding %s/%s. Quota check passed for FRQ %s/%s. 1 FRQ(s) updated.",
-					commonRBUpdatePassNew.Namespace, commonRBUpdatePassNew.Name, frqForUpdatePassDryRun.Namespace, frqForUpdatePassDryRun.Name),
-			),
+			wantResponse:       admission.Allowed(""),
 		},
 		{
 			name: "update fails quota (denied response)",
