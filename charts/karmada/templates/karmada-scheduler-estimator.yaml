@@ -55,9 +55,14 @@ spec:
             - --grpc-client-ca-file=/etc/karmada/pki/server-ca.crt
             - --metrics-bind-address=$(POD_IP):8080
             - --health-probe-bind-address=$(POD_IP):10351
-            {{- with (include "karmada.schedulerEstimator.featureGates" (dict "featureGatesArg" $.Values.schedulerEstimator.featureGates)) }}
+            {{- /*
+            We use '$' to refer to the root context.
+            Inside this 'range' loop, '.' refers to the current item from '.Values.schedulerEstimator.memberClusters'.
+            Using '$' ensures that we can access the top-level '.Values.schedulerEstimator.featureGates'.
+            */}}
+            {{- with (include "karmada.schedulerEstimator.featureGates" $) }}
             - {{ . }}
-            {{- end}}
+            {{- end }}
           livenessProbe:
             httpGet:
               path: /healthz

@@ -61,6 +61,9 @@ spec:
             {{- if .Values.scheduler.enableSchedulerEstimator }}
             - --enable-scheduler-estimator=true
             {{- end }}
+            {{- with (include "karmada.scheduler.featureGates" .) }}
+            - {{ . }}
+            {{- end }}
           livenessProbe:
             httpGet:
               path: /healthz
