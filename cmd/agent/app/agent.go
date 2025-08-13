@@ -271,10 +271,9 @@ func setupControllers(ctx context.Context, mgr controllerruntime.Manager, opts *
 	sharedFactory.WaitForCacheSync(ctx.Done())
 
 	resourceInterpreter := resourceinterpreter.NewResourceInterpreter(controlPlaneInformerManager, serviceLister)
-	if err := mgr.Add(resourceInterpreter); err != nil {
-		return fmt.Errorf("failed to setup custom resource interpreter: %w", err)
+	if err := resourceInterpreter.Start(ctx); err != nil {
+		return fmt.Errorf("failed to start resource interpreter: %w", err)
 	}
-
 	rateLimiterGetter := util.GetClusterRateLimiterGetter().SetDefaultLimits(opts.ClusterAPIQPS, opts.ClusterAPIBurst)
 	clusterClientOption := &util.ClientOption{RateLimiterGetter: rateLimiterGetter.GetRateLimiter}
 
