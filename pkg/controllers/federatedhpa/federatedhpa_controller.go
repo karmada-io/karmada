@@ -577,7 +577,6 @@ func (c *FHPAController) buildPodInformerForCluster(clusterScaleClient *util.Clu
 		return nil
 	}(); err != nil {
 		klog.Errorf("Failed to sync cache for cluster: %s, error: %v", clusterScaleClient.ClusterName, err)
-		c.TypedInformerManager.Stop(clusterScaleClient.ClusterName)
 		return nil, err
 	}
 
