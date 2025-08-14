@@ -17,37 +17,38 @@ limitations under the License.
 package configmanager
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"sync/atomic"
 
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
-var resourceExploringWebhookConfigurationsGVR = schema.GroupVersionResource{
-	Group:    configv1alpha1.GroupVersion.Group,
-	Version:  configv1alpha1.GroupVersion.Version,
-	Resource: "resourceinterpreterwebhookconfigurations",
-}
-
 // ConfigManager can list dynamic webhooks.
 type ConfigManager interface {
 	HookAccessors() []WebhookAccessor
 	HasSynced() bool
+	// LoadConfig is used to load ResourceInterpreterWebhookConfiguration into the cache,
+	// it requires the provided webhookConfigurations to be a full list of objects.
+	// It is recommended to be called during startup. After called, HasSynced() will always
+	// return true, and HookAccessors() will return a list of WebhookAccessor containing
+	// all ResourceInterpreterWebhookConfiguration configurations.
+	LoadConfig(webhookConfigurations []*configv1alpha1.ResourceInterpreterWebhookConfiguration)
 }
 
 // interpreterConfigManager collect the resource interpreter webhook configuration.
 type interpreterConfigManager struct {
 	configuration atomic.Value
+	informer      genericmanager.SingleClusterInformerManager
 	lister        cache.GenericLister
 	initialSynced atomic.Bool
 }
@@ -63,61 +64,68 @@ func (m *interpreterConfigManager) HasSynced() bool {
 		return true
 	}
 
-	if configuration, err := m.lister.List(labels.Everything()); err == nil && len(configuration) == 0 {
-		// the empty list we initially stored is valid to use.
-		// Setting initialSynced to true, so subsequent checks
-		// would be able to take the fast path on the atomic boolean in a
-		// cluster without any webhooks configured.
-		m.initialSynced.Store(true)
-		// the informer has synced, and we don't have any items
-		return true
+	err := m.updateConfiguration()
+	if err != nil {
+		klog.ErrorS(err, "error updating configuration")
+		return false
 	}
-	return false
+	return true
 }
 
 // NewExploreConfigManager return a new interpreterConfigManager with resourceinterpreterwebhookconfigurations handlers.
 func NewExploreConfigManager(inform genericmanager.SingleClusterInformerManager) ConfigManager {
 	manager := &interpreterConfigManager{
-		lister: inform.Lister(resourceExploringWebhookConfigurationsGVR),
+		lister: inform.Lister(util.ResourceInterpreterWebhookConfigurationsGVR),
 	}
 
 	manager.configuration.Store([]WebhookAccessor{})
 
+	manager.informer = inform
 	configHandlers := fedinformer.NewHandlerOnEvents(
-		func(_ interface{}) { manager.updateConfiguration() },
-		func(_, _ interface{}) { manager.updateConfiguration() },
-		func(_ interface{}) { manager.updateConfiguration() })
-	inform.ForResource(resourceExploringWebhookConfigurationsGVR, configHandlers)
+		func(_ interface{}) { _ = manager.updateConfiguration() },
+		func(_, _ interface{}) { _ = manager.updateConfiguration() },
+		func(_ interface{}) { _ = manager.updateConfiguration() })
+	inform.ForResource(util.ResourceInterpreterWebhookConfigurationsGVR, configHandlers)
 
 	return manager
 }
 
-func (m *interpreterConfigManager) updateConfiguration() {
+// updateConfiguration is used as the event handler for the ResourceInterpreterWebhookConfiguration resource.
+// Any changes (add, update, delete) to these resources will trigger this method, which loads all
+// ResourceInterpreterWebhookConfiguration resources and refreshes the internal cache accordingly.
+// Note: During startup, some events may be missed if the informer has not yet synced. If all events
+// are missed during startup, updateConfiguration will be called when HasSynced() is invoked for the
+// first time, ensuring the cache is updated on first use.
+func (m *interpreterConfigManager) updateConfiguration() error {
+	if m.informer == nil {
+		return errors.New("informer manager is not configured")
+	}
+	if !m.informer.IsInformerSynced(util.ResourceInterpreterWebhookConfigurationsGVR) {
+		return errors.New("informer of ResourceInterpreterWebhookConfiguration not synced")
+	}
+
 	configurations, err := m.lister.List(labels.Everything())
 	if err != nil {
-		utilruntime.HandleError(fmt.Errorf("error updating configuration: %v", err))
-		return
+		return err
 	}
 
-	configs := make([]*configv1alpha1.ResourceInterpreterWebhookConfiguration, 0)
-	for _, c := range configurations {
-		unstructuredConfig, err := helper.ToUnstructured(c)
-		if err != nil {
-			klog.Errorf("Failed to transform ResourceInterpreterWebhookConfiguration: %v", err)
-			return
-		}
-
+	configs := make([]*configv1alpha1.ResourceInterpreterWebhookConfiguration, len(configurations))
+	for index, c := range configurations {
 		config := &configv1alpha1.ResourceInterpreterWebhookConfiguration{}
-		err = helper.ConvertToTypedObject(unstructuredConfig, config)
+		err = helper.ConvertToTypedObject(c, config)
 		if err != nil {
-			gvk := unstructuredConfig.GroupVersionKind().String()
-			klog.Errorf("Failed to convert object(%s), err: %v", gvk, err)
-			return
+			return err
 		}
-		configs = append(configs, config)
+		configs[index] = config
 	}
 
-	m.configuration.Store(mergeResourceExploreWebhookConfigurations(configs))
+	m.LoadConfig(configs)
+	return nil
+}
+
+// LoadConfig loads the webhook configurations and updates the initialSynced flag to true.
+func (m *interpreterConfigManager) LoadConfig(webhookConfigurations []*configv1alpha1.ResourceInterpreterWebhookConfiguration) {
+	m.configuration.Store(mergeResourceExploreWebhookConfigurations(webhookConfigurations))
 	m.initialSynced.Store(true)
 }
 
