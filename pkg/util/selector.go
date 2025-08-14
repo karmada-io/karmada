@@ -21,6 +21,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/strings/slices"
 
@@ -238,4 +239,20 @@ func matchZones(zoneMatchExpression *corev1.NodeSelectorRequirement, zones []str
 		klog.V(5).Infof("Unsupported %q operator for zones requirement", zoneMatchExpression.Operator)
 		return false
 	}
+}
+
+// ExtractGVKListFromSelector extracts unique GroupVersionKind values from a list of ResourceSelectors.
+// It returns a deduplicated slice of schema.GroupVersionKind based on the APIVersion and Kind
+// fields from each ResourceSelector in the input slice.
+func ExtractGVKListFromSelector(selectors []policyv1alpha1.ResourceSelector) []schema.GroupVersionKind {
+	var gvks []schema.GroupVersionKind
+	handled := make(map[string]bool)
+	for _, selector := range selectors {
+		gvk := schema.FromAPIVersionAndKind(selector.APIVersion, selector.Kind)
+		if !handled[gvk.String()] {
+			gvks = append(gvks, gvk)
+			handled[gvk.String()] = true
+		}
+	}
+	return gvks
 }

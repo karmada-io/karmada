@@ -59,6 +59,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 	"github.com/karmada-io/karmada/pkg/util/helper"
+	"github.com/karmada-io/karmada/pkg/util/indexregistry"
 	"github.com/karmada-io/karmada/pkg/util/lifted"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
@@ -180,6 +181,11 @@ var (
 	_ manager.LeaderElectionRunnable = &ResourceDetector{}
 )
 
+var resourceTemplateIndexByLabelPolicyIDIndexFunc = cache.Indexers{
+	indexregistry.ResourceTemplateIndexByLabelPolicyID:        indexregistry.GenLabelInformerIndexerFunc(policyv1alpha1.PropagationPolicyPermanentIDLabel),
+	indexregistry.ResourceTemplateIndexByLabelClusterPolicyID: indexregistry.GenLabelInformerIndexerFunc(policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel),
+}
+
 func (d *ResourceDetector) discoverResources(ctx context.Context, period time.Duration) {
 	wait.Until(func() {
 		newResources := lifted.GetDeletableResources(d.DiscoveryClientSet)
@@ -188,7 +194,7 @@ func (d *ResourceDetector) discoverResources(ctx context.Context, period time.Du
 				continue
 			}
 			klog.Infof("Setup informer for %s", r.String())
-			d.InformerManager.ForResource(r, d.EventHandler)
+			d.InformerManager.ForResource(r, d.EventHandler, resourceTemplateIndexByLabelPolicyIDIndexFunc)
 		}
 		d.InformerManager.Start()
 	}, period, ctx.Done())
@@ -952,7 +958,7 @@ func (d *ResourceDetector) ReconcilePropagationPolicy(key util.QueueKey) error {
 
 	if !propagationObject.DeletionTimestamp.IsZero() {
 		klog.Infof("PropagationPolicy(%s) is being deleted.", nkey.NamespaceKey())
-		if err = d.HandlePropagationPolicyDeletion(propagationObject.Labels[policyv1alpha1.PropagationPolicyPermanentIDLabel]); err != nil {
+		if err = d.HandlePropagationPolicyDeletion(propagationObject.Labels[policyv1alpha1.PropagationPolicyPermanentIDLabel], propagationObject.Spec.ResourceSelectors); err != nil {
 			return err
 		}
 		if controllerutil.RemoveFinalizer(propagationObject, util.PropagationPolicyControllerFinalizer) {
@@ -1024,7 +1030,7 @@ func (d *ResourceDetector) ReconcileClusterPropagationPolicy(key util.QueueKey) 
 
 	if !propagationObject.DeletionTimestamp.IsZero() {
 		klog.Infof("ClusterPropagationPolicy(%s) is being deleted.", nkey.NamespaceKey())
-		if err = d.HandleClusterPropagationPolicyDeletion(propagationObject.Labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel]); err != nil {
+		if err = d.HandleClusterPropagationPolicyDeletion(propagationObject.Labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel], propagationObject.Spec.ResourceSelectors); err != nil {
 			return err
 		}
 		if controllerutil.RemoveFinalizer(propagationObject, util.ClusterPropagationPolicyControllerFinalizer) {
@@ -1045,27 +1051,25 @@ func (d *ResourceDetector) ReconcileClusterPropagationPolicy(key util.QueueKey) 
 // the resource template a change to match another policy).
 //
 // Note: The relevant ResourceBinding will continue to exist until the resource template is gone.
-func (d *ResourceDetector) HandlePropagationPolicyDeletion(policyID string) error {
+func (d *ResourceDetector) HandlePropagationPolicyDeletion(policyID string, resourceSelector []policyv1alpha1.ResourceSelector) error {
+	var errs []error
+
 	claimMetadata := labels.Set{policyv1alpha1.PropagationPolicyPermanentIDLabel: policyID}
-	rbs, err := helper.GetResourceBindings(d.Client, claimMetadata)
+	for _, gvk := range util.ExtractGVKListFromSelector(resourceSelector) {
+		if err := d.CleanupResourceTemplateClaimMetadata(policyID, indexregistry.ResourceTemplateIndexByLabelPolicyID, gvk, claimMetadata, CleanupPPClaimMetadata); err != nil {
+			klog.Errorf("Failed to clean up claim metadata from resource template(%s) when propagationPolicy removed, error: %v",
+				gvk.String(), err)
+			errs = append(errs, err)
+		}
+	}
+
+	rbs, err := helper.GetResourceBindingsByIndex(d.Client, indexregistry.ResourceBindingIndexByLabelPolicyID, policyID)
 	if err != nil {
 		klog.Errorf("Failed to list propagation bindings with policy permanentID(%s): %v", policyID, err)
 		return err
 	}
 
-	var errs []error
 	for index, binding := range rbs.Items {
-		// Must remove the claim metadata, such as labels and annotations, from the resource template ahead of ResourceBinding,
-		// otherwise might lose the chance to do that in a retry loop (in particular, the claim metadata was successfully removed
-		// from ResourceBinding, but resource template not), since the ResourceBinding will not be listed again.
-		if err := d.CleanupResourceTemplateClaimMetadata(binding.Spec.Resource, claimMetadata, CleanupPPClaimMetadata); err != nil {
-			klog.Errorf("Failed to clean up claim metadata from resource(%s-%s/%s) when propagationPolicy removed, error: %v",
-				binding.Spec.Resource.Kind, binding.Spec.Resource.Namespace, binding.Spec.Resource.Name, err)
-			errs = append(errs, err)
-			// Skip cleaning up policy labels and annotations from ResourceBinding, give a chance to do that in a retry loop.
-			continue
-		}
-
 		// Clean up the claim metadata from the reference binding so that the karmada scheduler won't reschedule the binding.
 		if err := d.CleanupResourceBindingClaimMetadata(&rbs.Items[index], claimMetadata, CleanupPPClaimMetadata); err != nil {
 			klog.Errorf("Failed to clean up claim metadata from resource binding(%s/%s) when propagationPolicy removed, error: %v",
@@ -1081,32 +1085,29 @@ func (d *ResourceDetector) HandlePropagationPolicyDeletion(policyID string) erro
 // the resource template a change to match another policy).
 //
 // Note: The relevant ClusterResourceBinding or ResourceBinding will continue to exist until the resource template is gone.
-func (d *ResourceDetector) HandleClusterPropagationPolicyDeletion(policyID string) error {
+func (d *ResourceDetector) HandleClusterPropagationPolicyDeletion(policyID string, resourceSelector []policyv1alpha1.ResourceSelector) error {
 	var errs []error
+
 	labelSet := labels.Set{
 		policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: policyID,
 	}
+	for _, gvk := range util.ExtractGVKListFromSelector(resourceSelector) {
+		if err := d.CleanupResourceTemplateClaimMetadata(policyID, indexregistry.ResourceTemplateIndexByLabelClusterPolicyID, gvk, labelSet, CleanupCPPClaimMetadata); err != nil {
+			klog.Errorf("Failed to clean up claim metadata from resource template(%s) when clusterpropagationPolicy removed, error: %v",
+				gvk.String(), err)
+			errs = append(errs, err)
+		}
+	}
 
 	// load the ClusterResourceBindings which labeled with current policy
-	crbs, err := helper.GetClusterResourceBindings(d.Client, labelSet)
+	crbs, err := helper.GetClusterResourceBindingsByIndex(d.Client, indexregistry.ClusterResourceBindingIndexByLabelClusterPolicyID, policyID)
 	if err != nil {
 		klog.Errorf("Failed to list clusterResourceBindings with clusterPropagationPolicy permanentID(%s), error: %v", policyID, err)
 		errs = append(errs, err)
 	} else if len(crbs.Items) > 0 {
 		for index, binding := range crbs.Items {
-			// Must remove the claim metadata, such as labels and annotations, from the resource template ahead of
-			// ClusterResourceBinding, otherwise might lose the chance to do that in a retry loop (in particular, the
-			// claim metadata was successfully removed from ClusterResourceBinding, but resource template not), since the
-			// ClusterResourceBinding will not be listed again.
-			if err := d.CleanupResourceTemplateClaimMetadata(binding.Spec.Resource, labelSet, CleanupCPPClaimMetadata); err != nil {
-				klog.Errorf("Failed to clean up claim metadata from resource(%s-%s) when clusterPropagationPolicy removed, error: %v",
-					binding.Spec.Resource.Kind, binding.Spec.Resource.Name, err)
-				// Skip cleaning up policy labels and annotations from ClusterResourceBinding, give a chance to do that in a retry loop.
-				continue
-			}
-
 			// Clean up the claim metadata from the reference binding so that the Karmada scheduler won't reschedule the binding.
-			if err := d.CleanupClusterResourceBindingClaimMetadata(&crbs.Items[index], labelSet); err != nil {
+			if err = d.CleanupClusterResourceBindingClaimMetadata(&crbs.Items[index], labelSet); err != nil {
 				klog.Errorf("Failed to clean up claim metadata from clusterResourceBinding(%s) when clusterPropagationPolicy removed, error: %v",
 					binding.Name, err)
 				errs = append(errs, err)
@@ -1115,23 +1116,12 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyDeletion(policyID strin
 	}
 
 	// load the ResourceBindings which labeled with current policy
-	rbs, err := helper.GetResourceBindings(d.Client, labelSet)
+	rbs, err := helper.GetResourceBindingsByIndex(d.Client, indexregistry.ResourceBindingIndexByLabelClusterPolicyID, policyID)
 	if err != nil {
 		klog.Errorf("Failed to list resourceBindings with clusterPropagationPolicy permanentID(%s), error: %v", policyID, err)
 		errs = append(errs, err)
 	} else if len(rbs.Items) > 0 {
 		for index, binding := range rbs.Items {
-			// Must remove the claim metadata, such as labels and annotations, from the resource template ahead of ResourceBinding,
-			// otherwise might lose the chance to do that in a retry loop (in particular, the label was successfully
-			// removed from ResourceBinding, but resource template not), since the ResourceBinding will not be listed again.
-			if err := d.CleanupResourceTemplateClaimMetadata(binding.Spec.Resource, labelSet, CleanupCPPClaimMetadata); err != nil {
-				klog.Errorf("Failed to clean up claim metadata from resource(%s-%s/%s) when clusterPropagationPolicy removed, error: %v",
-					binding.Spec.Resource.Kind, binding.Spec.Resource.Namespace, binding.Spec.Resource.Name, err)
-				errs = append(errs, err)
-				// Skip cleaning up policy labels and annotations from ResourceBinding, give a chance to do that in a retry loop.
-				continue
-			}
-
 			// Clean up the claim metadata from the reference binding so that the Karmada scheduler won't reschedule the binding.
 			if err := d.CleanupResourceBindingClaimMetadata(&rbs.Items[index], labelSet, CleanupCPPClaimMetadata); err != nil {
 				klog.Errorf("Failed to clean up claim metadata from resourceBinding(%s/%s) when clusterPropagationPolicy removed, error: %v",
@@ -1275,24 +1265,38 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyCreationOrUpdate(policy
 }
 
 // CleanupResourceTemplateClaimMetadata removes claim metadata, such as labels and annotations, from object referencing by objRef.
-func (d *ResourceDetector) CleanupResourceTemplateClaimMetadata(objRef workv1alpha2.ObjectReference, targetClaimMetadata map[string]string, cleanupFunc func(obj metav1.Object)) error {
-	gvr, err := restmapper.GetGroupVersionResource(d.RESTMapper, schema.FromAPIVersionAndKind(objRef.APIVersion, objRef.Kind))
+func (d *ResourceDetector) CleanupResourceTemplateClaimMetadata(policyID string, indexKey string, gvk schema.GroupVersionKind, targetClaimMetadata map[string]string, cleanupFunc func(obj metav1.Object)) error {
+	gvr, err := restmapper.GetGroupVersionResource(d.RESTMapper, gvk)
 	if err != nil {
-		klog.Errorf("Failed to convert GVR from GVK(%s/%s), err: %v", objRef.APIVersion, objRef.Kind, err)
+		klog.Errorf("Failed to convert GVR from GVK(%s), err: %v", gvk.String(), err)
 		return err
 	}
 
-	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-		workload, err := d.DynamicClient.Resource(gvr).Namespace(objRef.Namespace).Get(context.TODO(), objRef.Name, metav1.GetOptions{})
-		if err != nil {
-			// do nothing if resource template not exist, it might have been removed.
-			if apierrors.IsNotFound(err) {
-				return nil
-			}
-			klog.Errorf("Failed to fetch resource(kind=%s, %s/%s): err is %v", objRef.Kind, objRef.Namespace, objRef.Name, err)
-			return err
-		}
+	informer := d.InformerManager.GetInformer(gvr)
+	if informer == nil {
+		return fmt.Errorf("informer not found for GVR: %s", gvr.String())
+	}
 
+	objs, err := informer.Informer().GetIndexer().ByIndex(indexKey, policyID)
+	if err != nil {
+		klog.Errorf("Failed to get objects by index 'bylabel' with value '%s' for GVR %s: %v", policyID, gvr.String(), err)
+		return err
+	}
+
+	var errs []error
+	for _, obj := range objs {
+		workload := obj.(*unstructured.Unstructured)
+		if err = d.cleanupResourceTemplateClaimMetadata(gvr, workload, targetClaimMetadata, cleanupFunc); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	return errors.NewAggregate(errs)
+}
+
+func (d *ResourceDetector) cleanupResourceTemplateClaimMetadata(gvr schema.GroupVersionResource, obj *unstructured.Unstructured, targetClaimMetadata map[string]string, cleanupFunc func(obj metav1.Object)) error {
+	workload := obj.DeepCopy()
+	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
 		if !NeedCleanupClaimMetadata(workload, targetClaimMetadata) {
 			klog.Infof("No need to clean up the claim metadata on resource(kind=%s, %s/%s) since they have changed", workload.GetKind(), workload.GetNamespace(), workload.GetName())
 			return nil
@@ -1303,6 +1307,17 @@ func (d *ResourceDetector) CleanupResourceTemplateClaimMetadata(objRef workv1alp
 		_, err = d.DynamicClient.Resource(gvr).Namespace(workload.GetNamespace()).Update(context.TODO(), workload, metav1.UpdateOptions{})
 		if err != nil {
 			klog.Errorf("Failed to update resource(kind=%s, %s/%s): err is %v", workload.GetKind(), workload.GetNamespace(), workload.GetName(), err)
+			if apierrors.IsConflict(err) {
+				newWorkload, getErr := d.DynamicClient.Resource(gvr).Namespace(workload.GetNamespace()).Get(context.TODO(), workload.GetName(), metav1.GetOptions{})
+				if getErr != nil {
+					// do nothing if resource template not exist, it might have been removed.
+					if apierrors.IsNotFound(getErr) {
+						return nil
+					}
+					return getErr
+				}
+				workload = newWorkload
+			}
 			return err
 		}
 		klog.V(2).Infof("Updated resource template(kind=%s, %s/%s) successfully", workload.GetKind(), workload.GetNamespace(), workload.GetName())

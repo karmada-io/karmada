@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
@@ -332,7 +333,7 @@ func (m *mockSingleClusterInformerManager) Lister(_ schema.GroupVersionResource)
 	return nil
 }
 
-func (m *mockSingleClusterInformerManager) ForResource(_ schema.GroupVersionResource, _ cache.ResourceEventHandler) {
+func (m *mockSingleClusterInformerManager) ForResource(_ schema.GroupVersionResource, _ cache.ResourceEventHandler, _ ...cache.Indexers) {
 }
 
 func (m *mockSingleClusterInformerManager) Start() {
@@ -359,6 +360,10 @@ func (m *mockSingleClusterInformerManager) GetClient() dynamic.Interface {
 
 func (m *mockSingleClusterInformerManager) IsHandlerExist(_ schema.GroupVersionResource, _ cache.ResourceEventHandler) bool {
 	return false
+}
+
+func (m *mockSingleClusterInformerManager) GetInformer(_ schema.GroupVersionResource) informers.GenericInformer {
+	return nil
 }
 
 type mockLister struct {
@@ -390,5 +395,9 @@ func (m *mockInformerManager) Lister(_ schema.GroupVersionResource) cache.Generi
 	return m.lister
 }
 
-func (m *mockInformerManager) ForResource(_ schema.GroupVersionResource, _ cache.ResourceEventHandler) {
+func (m *mockInformerManager) ForResource(_ schema.GroupVersionResource, _ cache.ResourceEventHandler, _ ...cache.Indexers) {
+}
+
+func (m *mockInformerManager) GetInformer(_ schema.GroupVersionResource) informers.GenericInformer {
+	return nil
 }

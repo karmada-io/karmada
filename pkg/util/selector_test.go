@@ -24,6 +24,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -1083,6 +1084,161 @@ func Test_matchZones(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := matchZones(tt.zoneMatchExpression, tt.zones); got != tt.matched {
 				t.Errorf("matchZones() got %v, but expected %v", got, tt.matched)
+			}
+		})
+	}
+}
+func TestGetGVKListFromSelector(t *testing.T) {
+	tests := []struct {
+		name      string
+		selectors []policyv1alpha1.ResourceSelector
+		want      []schema.GroupVersionKind
+	}{
+		{
+			name:      "empty selectors",
+			selectors: nil,
+			want:      nil,
+		},
+		{
+			name: "single selector",
+			selectors: []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: "v1",
+					Kind:       "Pod",
+				},
+			},
+			want: []schema.GroupVersionKind{
+				{
+					Group:   "",
+					Version: "v1",
+					Kind:    "Pod",
+				},
+			},
+		},
+		{
+			name: "multiple different selectors",
+			selectors: []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: "v1",
+					Kind:       "Pod",
+				},
+				{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+				},
+				{
+					APIVersion: "v1",
+					Kind:       "Service",
+				},
+			},
+			want: []schema.GroupVersionKind{
+				{
+					Group:   "",
+					Version: "v1",
+					Kind:    "Pod",
+				},
+				{
+					Group:   "apps",
+					Version: "v1",
+					Kind:    "Deployment",
+				},
+				{
+					Group:   "",
+					Version: "v1",
+					Kind:    "Service",
+				},
+			},
+		},
+		{
+			name: "duplicate selectors should be deduplicated",
+			selectors: []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: "v1",
+					Kind:       "Pod",
+				},
+				{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+				},
+				{
+					APIVersion: "v1",
+					Kind:       "Pod", // duplicate
+				},
+				{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment", // duplicate
+				},
+			},
+			want: []schema.GroupVersionKind{
+				{
+					Group:   "",
+					Version: "v1",
+					Kind:    "Pod",
+				},
+				{
+					Group:   "apps",
+					Version: "v1",
+					Kind:    "Deployment",
+				},
+			},
+		},
+		{
+			name: "selectors with same kind but different API versions",
+			selectors: []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: "extensions/v1beta1",
+					Kind:       "Deployment",
+				},
+				{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+				},
+			},
+			want: []schema.GroupVersionKind{
+				{
+					Group:   "extensions",
+					Version: "v1beta1",
+					Kind:    "Deployment",
+				},
+				{
+					Group:   "apps",
+					Version: "v1",
+					Kind:    "Deployment",
+				},
+			},
+		},
+		{
+			name: "selectors with custom resources",
+			selectors: []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: "custom.io/v1alpha1",
+					Kind:       "CustomResource",
+				},
+				{
+					APIVersion: "example.com/v1beta1",
+					Kind:       "ExampleResource",
+				},
+			},
+			want: []schema.GroupVersionKind{
+				{
+					Group:   "custom.io",
+					Version: "v1alpha1",
+					Kind:    "CustomResource",
+				},
+				{
+					Group:   "example.com",
+					Version: "v1beta1",
+					Kind:    "ExampleResource",
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ExtractGVKListFromSelector(tt.selectors)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ExtractGVKListFromSelector() = %v, want %v", got, tt.want)
 			}
 		})
 	}

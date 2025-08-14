@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
+	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 )
@@ -33,8 +34,8 @@ import (
 type SingleClusterInformerManager interface {
 	// ForResource builds a dynamic shared informer for 'resource' then set event handler.
 	// If the informer already exist, the event handler will be appended to the informer.
-	// The handler should not be nil.
-	ForResource(resource schema.GroupVersionResource, handler cache.ResourceEventHandler)
+	// The handler should not be nil. Optional indexers can be provided to add custom indexing.
+	ForResource(resource schema.GroupVersionResource, handler cache.ResourceEventHandler, indexers ...cache.Indexers)
 
 	// IsInformerSynced checks if the resource's informer is synced.
 	// An informer is synced means:
@@ -69,6 +70,9 @@ type SingleClusterInformerManager interface {
 
 	// GetClient returns the dynamic client.
 	GetClient() dynamic.Interface
+
+	// GetInformer returns the informer for the given resource.
+	GetInformer(resource schema.GroupVersionResource) informers.GenericInformer
 }
 
 // NewSingleClusterInformerManager constructs a new instance of singleClusterInformerManagerImpl.
@@ -100,7 +104,7 @@ type singleClusterInformerManagerImpl struct {
 	lock sync.RWMutex
 }
 
-func (s *singleClusterInformerManagerImpl) ForResource(resource schema.GroupVersionResource, handler cache.ResourceEventHandler) {
+func (s *singleClusterInformerManagerImpl) ForResource(resource schema.GroupVersionResource, handler cache.ResourceEventHandler, indexers ...cache.Indexers) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -109,7 +113,17 @@ func (s *singleClusterInformerManagerImpl) ForResource(resource schema.GroupVers
 		return
 	}
 
-	_, err := s.informerFactory.ForResource(resource).Informer().AddEventHandler(handler)
+	informer := s.informerFactory.ForResource(resource).Informer()
+
+	// Add indexers if provided
+	for _, indexer := range indexers {
+		if err := informer.AddIndexers(indexer); err != nil {
+			klog.Errorf("Failed to add indexers for resource(%s): %v", resource.String(), err)
+			return
+		}
+	}
+
+	_, err := informer.AddEventHandler(handler)
 	if err != nil {
 		klog.Errorf("Failed to add handler for resource(%s): %v", resource.String(), err)
 		return
@@ -197,4 +211,8 @@ func (s *singleClusterInformerManagerImpl) Context() context.Context {
 
 func (s *singleClusterInformerManagerImpl) GetClient() dynamic.Interface {
 	return s.client
+}
+
+func (s *singleClusterInformerManagerImpl) GetInformer(resource schema.GroupVersionResource) informers.GenericInformer {
+	return s.informerFactory.ForResource(resource)
 }
