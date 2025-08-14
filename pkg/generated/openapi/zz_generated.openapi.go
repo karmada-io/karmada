@@ -62,6 +62,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.ResourceModel":                              schema_pkg_apis_cluster_v1alpha1_ResourceModel(ref),
 		"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.ResourceModelRange":                         schema_pkg_apis_cluster_v1alpha1_ResourceModelRange(ref),
 		"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.ResourceSummary":                            schema_pkg_apis_cluster_v1alpha1_ResourceSummary(ref),
+		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ComponentResourceRequirement":                schema_pkg_apis_config_v1alpha1_ComponentResourceRequirement(ref),
 		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.CustomizationRules":                          schema_pkg_apis_config_v1alpha1_CustomizationRules(ref),
 		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.CustomizationTarget":                         schema_pkg_apis_config_v1alpha1_CustomizationTarget(ref),
 		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.DependencyInterpretation":                    schema_pkg_apis_config_v1alpha1_DependencyInterpretation(ref),
@@ -2066,6 +2067,28 @@ func schema_pkg_apis_cluster_v1alpha1_ResourceSummary(ref common.ReferenceCallba
 	}
 }
 
+func schema_pkg_apis_config_v1alpha1_ComponentResourceRequirement(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ComponentResourceRequirement holds the scripts for extracting the desired replica count and resource requirements for each component within a resource. This is particularly useful for resources that define multiple components (such as CRDs with multiple pod templates), but can also be used for single-component resources.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"luaScript": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LuaScript holds the Lua script that is used to extract the desired replica count and resource requirements for each component of the resource.\n\nThe script should implement a function as follows:\n\n```\n  luaScript: >\n      function GetComponents(desiredObj)\n          local components = {}\n\n          local jobManagerComponent = {\n              name = \"jobmanager\"\n              replicas = desiredObj.spec.jobManager.replicas\n          }\n          table.insert(components, jobManagerComponent)\n\n          local taskManagerComponent = {\n              name = \"taskmanager\"\n              replicas = desiredObj.spec.taskManager.replicas\n          }\n          table.insert(components, taskManagerComponent)\n\n          return components\n      end\n```\n\nThe content of the LuaScript needs to be a whole function including both declaration and implementation.\n\nThe parameters will be supplied by the system:\n  - desiredObj: the object represents the configuration to be applied\n      to the member cluster.\n\nThe function expects one return value:\n  - components: the resource requirements for each component.\nThe returned value will be set into a ResourceBinding or ClusterResourceBinding.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"luaScript"},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_config_v1alpha1_CustomizationRules(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -2083,6 +2106,12 @@ func schema_pkg_apis_config_v1alpha1_CustomizationRules(ref common.ReferenceCall
 						SchemaProps: spec.SchemaProps{
 							Description: "ReplicaResource describes the rules for Karmada to discover the resource's replica as well as resource requirements. It would be useful for those CRD resources that declare workload types like Deployment. It is usually not needed for Kubernetes native resources(Deployment, Job) as Karmada knows how to discover info from them. But if it is set, the built-in discovery rules will be ignored.",
 							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ReplicaResourceRequirement"),
+						},
+					},
+					"componentResource": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ComponentResource describes the rules for Karmada to discover the resource requirements for multiple components from the given object. This is designed for CRDs with multiple components (e.g., FlinkDeployment), but can also be used for single-component resources like Deployment. If implemented, the controller will use this to obtain per-component replica and resource requirements, and will not call ReplicaResource. If not implemented, the controller will fall back to ReplicaResource for backward compatibility. This will only be used when the feature gate 'MultiplePodTemplatesScheduling' is enabled.",
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ComponentResourceRequirement"),
 						},
 					},
 					"replicaRevision": {
@@ -2119,7 +2148,7 @@ func schema_pkg_apis_config_v1alpha1_CustomizationRules(ref common.ReferenceCall
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.DependencyInterpretation", "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.HealthInterpretation", "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.LocalValueRetention", "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ReplicaResourceRequirement", "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ReplicaRevision", "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.StatusAggregation", "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.StatusReflection"},
+			"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ComponentResourceRequirement", "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.DependencyInterpretation", "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.HealthInterpretation", "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.LocalValueRetention", "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ReplicaResourceRequirement", "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ReplicaRevision", "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.StatusAggregation", "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.StatusReflection"},
 	}
 }
 
