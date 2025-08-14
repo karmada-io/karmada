@@ -67,7 +67,7 @@ func NewCmdExplain(f util.Factory, parentCommand string, streams genericiooption
 		Use:                   "explain TYPE [--recursive=FALSE|TRUE] [--api-version=api-version-group] [--output=plaintext|plaintext-openapiv2] ",
 		DisableFlagsInUseLine: true,
 		Short:                 "Get documentation for a resource",
-		Long:                  fmt.Sprintf(explainLong, parentCommand),
+		Long:                  explainLong,
 		Example:               fmt.Sprintf(explainExamples, parentCommand),
 		Run: func(_ *cobra.Command, args []string) {
 			cmdutil.CheckErr(o.Complete(f, parentCommand, args))
