@@ -213,8 +213,9 @@ func (c *EndpointSliceCollectController) registerInformersAndStart(cluster *clus
 		}
 		return nil
 	}(); err != nil {
-		klog.Errorf("Failed to sync cache for cluster: %s, error: %v", cluster.Name, err)
-		c.InformerManager.Stop(cluster.Name)
+
+		klog.ErrorS(err, "Failed to sync cache for cluster", "cluster", cluster.Name)
+
 		return err
 	}
 
