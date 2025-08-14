@@ -29,7 +29,7 @@ const GroupName = "config.karmada.io"
 var SchemeGroupVersion = schema.GroupVersion{Group: GroupName, Version: "v1alpha1"}
 
 // KarmadaInitConfig defines the configuration for initializing Karmada
-type KarmadaInitConfig struct { //todo
+type KarmadaInitConfig struct {
 	metav1.TypeMeta `json:",inline" yaml:",inline"`
 
 	// Spec defines the desired state for initializing Karmada
@@ -45,7 +45,7 @@ type KarmadaInitSpec struct {
 
 	// Etcd configures the information of the Etcd cluster
 	// +optional
-	Etcd Etcd `json:"etcd,omitempty" yaml:"etcd,omitempty"` //todo
+	Etcd Etcd `json:"etcd,omitempty" yaml:"etcd,omitempty"`
 
 	// HostCluster configures the information of the host cluster
 	// +optional
@@ -57,7 +57,7 @@ type KarmadaInitSpec struct {
 
 	// Components configures information about Karmada components
 	// +optional
-	Components KarmadaComponents `json:"components,omitempty" yaml:"components,omitempty"` // todo
+	Components KarmadaComponents `json:"components,omitempty" yaml:"components,omitempty"`
 
 	// KarmadaCRDs configures the Karmada CRDs to be installed
 	// +optional
@@ -221,7 +221,7 @@ type Images struct {
 type KarmadaComponents struct {
 	// KarmadaAPIServer is the configuration for the Karmada API Server
 	// +optional
-	KarmadaAPIServer *KarmadaAPIServer `json:"karmadaAPIServer,omitempty" yaml:"karmadaAPIServer,omitempty"` //todo
+	KarmadaAPIServer *KarmadaAPIServer `json:"karmadaAPIServer,omitempty" yaml:"karmadaAPIServer,omitempty"`
 
 	// KarmadaAggregatedAPIServer is the configuration for the Karmada Aggregated API Server
 	// +optional
@@ -308,7 +308,7 @@ type KarmadaAPIServer struct {
 	// +optional
 	ServiceAnnotations map[string]string `json:"serviceAnnotations,omitempty" yaml:"serviceAnnotations,omitempty"`
 
-	// ExtraArgs are additional arguments for the Etcd pods
+	// ExtraArgs are additional arguments for the Karmada API Server pods
 	// +optional
 	ExtraArgs []string `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
 }
@@ -317,7 +317,7 @@ type KarmadaAPIServer struct {
 type KarmadaAggregatedAPIServer struct {
 	CommonSettings `json:",inline" yaml:",inline"`
 
-	// ExtraArgs are additional arguments for the Etcd pods
+	// ExtraArgs are additional arguments for the Karmada Aggregated API Server pods
 	// +optional
 	ExtraArgs []string `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
 }
@@ -326,7 +326,7 @@ type KarmadaAggregatedAPIServer struct {
 type KubeControllerManager struct {
 	CommonSettings `json:",inline" yaml:",inline"`
 
-	// ExtraArgs are additional arguments for the Etcd pods
+	// ExtraArgs are additional arguments for the Kube Controller Manager pods
 	// +optional
 	ExtraArgs []string `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
 }
@@ -335,7 +335,7 @@ type KubeControllerManager struct {
 type KarmadaControllerManager struct {
 	CommonSettings `json:",inline" yaml:",inline"`
 
-	// ExtraArgs are additional arguments for the Etcd pods
+	// ExtraArgs are additional arguments for the Karmada Controller Manager pods
 	// +optional
 	ExtraArgs []string `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
 }
@@ -344,7 +344,7 @@ type KarmadaControllerManager struct {
 type KarmadaScheduler struct {
 	CommonSettings `json:",inline" yaml:",inline"`
 
-	// ExtraArgs are additional arguments for the Etcd pods
+	// ExtraArgs are additional arguments for the Karmada Scheduler pods
 	// +optional
 	ExtraArgs []string `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
 }
@@ -353,7 +353,7 @@ type KarmadaScheduler struct {
 type KarmadaWebhook struct {
 	CommonSettings `json:",inline" yaml:",inline"`
 
-	// ExtraArgs are additional arguments for the Etcd pods
+	// ExtraArgs are additional arguments for the Karmada Webhook pods
 	// +optional
 	ExtraArgs []string `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
 }

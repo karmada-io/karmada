@@ -227,7 +227,6 @@ func NewCmdInit(parentCommand string) *cobra.Command {
 	flags.StringSliceVar(&opts.KarmadaAggregatedAPIServerExtraArgs, "karmada-aggregated-apiserver-extra-args", nil, "Additional command line arguments to pass to the karmada-aggregated-apiserver component. Can be specified multiple times or as comma-separated values (e.g., '--v=4,--enable-pprof')")
 
 	// extraArgs
-	// etcd todo  usage format
 	flags.StringSliceVar(&opts.EtcdExtraArgs, "etcd-extra-args", nil, "Extra arguments for etcd")
 	flags.StringSliceVar(&opts.KarmadaAPIServerExtraArgs, "karmada-apiserver-extra-args", nil, "Extra arguments for karmada-apiserver")
 	flags.StringSliceVar(&opts.KarmadaSchedulerExtraArgs, "karmada-scheduler-extra-args", nil, "Extra arguments for karmada-scheduler")

@@ -207,7 +207,7 @@ func (i *CommandInitOption) makeKarmadaAPIServerDeployment() *appsv1.Deployment 
 }
 
 // defaultArgs
-func (i *CommandInitOption) karmadaKubeControllerManagerContainerCommand() []string {
+func (i *CommandInitOption) defaultKarmadaKubeControllerManagerContainerCommand() []string {
 	return []string{
 		"kube-controller-manager",
 		"--allocate-node-cidrs=true",
@@ -357,7 +357,7 @@ func (i *CommandInitOption) makeKarmadaKubeControllerManagerDeployment() *appsv1
 	return kubeControllerManager
 }
 
-func (i *CommandInitOption) karmadaSchedulerContainerCommand() []string {
+func (i *CommandInitOption) defaultKarmadaSchedulerContainerCommand() []string {
 	return []string{
 		"/bin/karmada-scheduler",
 		fmt.Sprintf("--kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
@@ -511,7 +511,7 @@ func (i *CommandInitOption) makeKarmadaSchedulerDeployment() *appsv1.Deployment 
 	return scheduler
 }
 
-func (i *CommandInitOption) karmadaControllerMangerContainerCommand() []string {
+func (i *CommandInitOption) defaultKarmadaControllerManagerContainerCommand() []string {
 	return []string{
 		"/bin/karmada-controller-manager",
 		fmt.Sprintf("--kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
@@ -651,7 +651,7 @@ func (i *CommandInitOption) makeKarmadaControllerManagerDeployment() *appsv1.Dep
 	return karmadaControllerManager
 }
 
-func (i *CommandInitOption) karmadaWebhookContainerCommand() []string {
+func (i *CommandInitOption) defaultKarmadaWebhookContainerCommand() []string {
 	return []string{
 		"/bin/karmada-webhook",
 		fmt.Sprintf("--kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
@@ -802,7 +802,7 @@ func (i *CommandInitOption) makeKarmadaWebhookDeployment() *appsv1.Deployment {
 	return webhook
 }
 
-func (i *CommandInitOption) karmadaAggregatedAPIServerContainerCommand() []string {
+func (i *CommandInitOption) defaultKarmadaAggregatedAPIServerContainerCommand() []string {
 	var etcdServers string
 	if etcdServers = i.ExternalEtcdServers; etcdServers == "" {
 		etcdServers = strings.TrimRight(i.etcdServers(), ",")
