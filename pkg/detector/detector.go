@@ -782,7 +782,7 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 			}
 			bindingSchedulePriority = &workv1alpha2.SchedulePriority{
 				Priority: kubePriorityClass.Value,
-				// TODO add preemptionpolicy
+				// TODO: Add preemptionpolicy
 				// PreemptionPolicy: kubePriorityClass.PreemptionPolicy,
 			}
 		case policyv1alpha1.PodPriorityClass:
