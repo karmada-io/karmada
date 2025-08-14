@@ -147,10 +147,11 @@ func TestGetEndpointSliceWorkMeta(t *testing.T) {
 					util.PropagationInstruction:            util.PropagationInstructionSuppressed,
 					util.EndpointSliceWorkManagedByLabel:   util.MultiClusterServiceKind,
 				},
+				Finalizers: []string{util.MCSEndpointSliceDispatchControllerFinalizer},
 			},
 		},
 		{
-			name:          "Existing work for EndpointSlice",
+			name:          "Existing work for EndpointSlice without finalizers",
 			existingWork:  createExistingWork("endpointslice-test-eps-default", "test-cluster", "ExistingController"),
 			endpointSlice: createEndpointSliceForTest("test-eps", "default", "test-service", false),
 			expectedMeta: metav1.ObjectMeta{
@@ -163,6 +164,54 @@ func TestGetEndpointSliceWorkMeta(t *testing.T) {
 					util.EndpointSliceWorkManagedByLabel:   "ExistingController.MultiClusterService",
 				},
 				Finalizers: []string{util.MCSEndpointSliceDispatchControllerFinalizer},
+			},
+		},
+		{
+			name:          "Existing work with existing finalizers",
+			existingWork:  createExistingWorkWithFinalizers("endpointslice-test-eps-default", "test-cluster", "ExistingController", []string{"existing.finalizer", "another.finalizer"}),
+			endpointSlice: createEndpointSliceForTest("test-eps", "default", "test-service", false),
+			expectedMeta: metav1.ObjectMeta{
+				Name:      "endpointslice-test-eps-default",
+				Namespace: "test-cluster",
+				Labels: map[string]string{
+					util.MultiClusterServiceNamespaceLabel: "default",
+					util.MultiClusterServiceNameLabel:      "test-service",
+					util.PropagationInstruction:            util.PropagationInstructionSuppressed,
+					util.EndpointSliceWorkManagedByLabel:   "ExistingController.MultiClusterService",
+				},
+				Finalizers: []string{"another.finalizer", "existing.finalizer", util.MCSEndpointSliceDispatchControllerFinalizer},
+			},
+		},
+		{
+			name:          "Existing work with duplicate finalizer",
+			existingWork:  createExistingWorkWithFinalizers("endpointslice-test-eps-default", "test-cluster", "ExistingController", []string{util.MCSEndpointSliceDispatchControllerFinalizer, "another.finalizer"}),
+			endpointSlice: createEndpointSliceForTest("test-eps", "default", "test-service", false),
+			expectedMeta: metav1.ObjectMeta{
+				Name:      "endpointslice-test-eps-default",
+				Namespace: "test-cluster",
+				Labels: map[string]string{
+					util.MultiClusterServiceNamespaceLabel: "default",
+					util.MultiClusterServiceNameLabel:      "test-service",
+					util.PropagationInstruction:            util.PropagationInstructionSuppressed,
+					util.EndpointSliceWorkManagedByLabel:   "ExistingController.MultiClusterService",
+				},
+				Finalizers: []string{"another.finalizer", util.MCSEndpointSliceDispatchControllerFinalizer},
+			},
+		},
+		{
+			name:          "Existing work without labels",
+			existingWork:  createExistingWorkWithoutLabels("endpointslice-test-eps-default", "test-cluster", []string{"existing.finalizer"}),
+			endpointSlice: createEndpointSliceForTest("test-eps", "default", "test-service", false),
+			expectedMeta: metav1.ObjectMeta{
+				Name:      "endpointslice-test-eps-default",
+				Namespace: "test-cluster",
+				Labels: map[string]string{
+					util.MultiClusterServiceNamespaceLabel: "default",
+					util.MultiClusterServiceNameLabel:      "test-service",
+					util.PropagationInstruction:            util.PropagationInstructionSuppressed,
+					util.EndpointSliceWorkManagedByLabel:   util.MultiClusterServiceKind,
+				},
+				Finalizers: []string{"existing.finalizer", util.MCSEndpointSliceDispatchControllerFinalizer},
 			},
 		},
 		{
@@ -188,7 +237,10 @@ func TestGetEndpointSliceWorkMeta(t *testing.T) {
 				require.NoError(t, err)
 				assert.Equal(t, tc.expectedMeta.Name, meta.Name)
 				assert.Equal(t, tc.expectedMeta.Namespace, meta.Namespace)
-				assert.Equal(t, tc.expectedMeta.Finalizers, meta.Finalizers)
+
+				assert.Equal(t, tc.expectedMeta.Finalizers, meta.Finalizers,
+					"Finalizers do not match. Expected: %v, Got: %v", tc.expectedMeta.Finalizers, meta.Finalizers)
+
 				assert.True(t, compareLabels(meta.Labels, tc.expectedMeta.Labels),
 					"Labels do not match. Expected: %v, Got: %v", tc.expectedMeta.Labels, meta.Labels)
 			}
@@ -323,6 +375,31 @@ func createExistingWork(name, namespace, managedBy string) *workv1alpha1.Work {
 			Labels: map[string]string{
 				util.EndpointSliceWorkManagedByLabel: managedBy,
 			},
+		},
+	}
+}
+
+// Helper function to create an existing Work resource for testing with specific finalizers
+func createExistingWorkWithFinalizers(name, namespace, managedBy string, finalizers []string) *workv1alpha1.Work {
+	return &workv1alpha1.Work{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+			Labels: map[string]string{
+				util.EndpointSliceWorkManagedByLabel: managedBy,
+			},
+			Finalizers: finalizers,
+		},
+	}
+}
+
+// Helper function to create an existing Work resource for testing without labels
+func createExistingWorkWithoutLabels(name, namespace string, finalizers []string) *workv1alpha1.Work {
+	return &workv1alpha1.Work{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       name,
+			Namespace:  namespace,
+			Finalizers: finalizers,
 		},
 	}
 }
