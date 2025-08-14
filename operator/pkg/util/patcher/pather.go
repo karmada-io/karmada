@@ -31,6 +31,8 @@ import (
 
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	"github.com/karmada-io/karmada/operator/pkg/constants"
+	"github.com/karmada-io/karmada/pkg/features"
+	rbacv1 "k8s.io/api/rbac/v1"
 )
 
 // Patcher defines multiple variables that need to be patched.
@@ -180,6 +182,42 @@ func (p *Patcher) ForStatefulSet(sts *appsv1.StatefulSet) {
 		baseArguments := sts.Spec.Template.Spec.Containers[0].Command
 		argsMap := parseArgumentListToMap(baseArguments)
 		sts.Spec.Template.Spec.Containers[0].Command = buildArgumentListFromMap(argsMap, p.extraArgs)
+	}
+}
+
+// ForService patches the service manifest.
+func (p *Patcher) ForService(service *corev1.Service) {
+	p.ForGenericResource(service)
+}
+
+// ForSecret patches the secret manifest.
+func (p *Patcher) ForSecret(secret *corev1.Secret) {
+	p.ForGenericResource(secret)
+}
+
+// ForClusterRole patches the clusterrole manifest.
+func (p *Patcher) ForClusterRole(role *rbacv1.ClusterRole) {
+	p.ForGenericResource(role)
+}
+
+// ForClusterRoleBinding patches the clusterrolebinding manifest.
+func (p *Patcher) ForClusterRoleBinding(roleBinding *rbacv1.ClusterRoleBinding) {
+	p.ForGenericResource(roleBinding)
+}
+
+// ForGenericResource patches any Kubernetes resource with labels and annotations.
+func (p *Patcher) ForGenericResource(obj metav1.Object) {
+	// Check if LabelPropagation feature is enabled
+	if !features.FeatureGate.Enabled(features.LabelPropagation) {
+		klog.V(4).Infof("LabelPropagation feature is disabled, skipping generic resource patching.")
+		return
+	}
+
+	if p.labels != nil {
+		obj.SetLabels(labels.Merge(obj.GetLabels(), p.labels))
+	}
+	if p.annotations != nil {
+		obj.SetAnnotations(labels.Merge(obj.GetAnnotations(), p.annotations))
 	}
 }
 

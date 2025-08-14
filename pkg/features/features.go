@@ -103,6 +103,14 @@ const (
 	// owner: @jabellard
 	// beta: v1.15
 	ContextualLogging = logsv1.ContextualLogging
+
+	// LabelPropagation controls whether labels specified in Karmada components 
+	// should be propagated to all managed resources (Service, Secret, RBAC, etc.)
+	// instead of only Deployment resources.
+	//
+	// owner: @baiyutang
+	// alpha: v1.15
+	LabelPropagation featuregate.Feature = "LabelPropagation"
 )
 
 var (
@@ -128,6 +136,7 @@ var (
 		LoggingAlphaOptions:               {Default: false, PreRelease: featuregate.Alpha},
 		LoggingBetaOptions:                {Default: true, PreRelease: featuregate.Beta},
 		ContextualLogging:                 {Default: true, PreRelease: featuregate.Beta},
+		LabelPropagation:                  {Default: false, PreRelease: featuregate.Alpha},
 	}
 )
 

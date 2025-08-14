@@ -28,7 +28,15 @@ import (
 
 	"github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	"github.com/karmada-io/karmada/operator/pkg/constants"
+	rbacv1 "k8s.io/api/rbac/v1"
+
+	"github.com/karmada-io/karmada/pkg/features"
 )
+
+func init() {
+	// Enable LabelPropagation feature for testing
+	features.FeatureGate.Set("LabelPropagation=true")
+}
 
 func TestPatchForDeployment(t *testing.T) {
 	tests := []struct {
@@ -517,5 +525,374 @@ func TestPatchForStatefulSet(t *testing.T) {
 				t.Errorf("unexpected err, expected statefulset %v but got %v", test.statefulSet, test.want)
 			}
 		})
+	}
+}
+
+func TestPatcherForService(t *testing.T) {
+	tests := []struct {
+		name    string
+		patcher *Patcher
+		service *corev1.Service
+		want    *corev1.Service
+	}{
+		{
+			name: "PatchForService_WithLabelsAndAnnotations_Patched",
+			patcher: &Patcher{
+				labels: map[string]string{
+					"test": "value",
+				},
+				annotations: map[string]string{
+					"test-annotation": "test-value",
+				},
+			},
+			service: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-service",
+					Namespace: "test",
+					Labels: map[string]string{
+						"existing": "label",
+					},
+				},
+			},
+			want: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-service",
+					Namespace: "test",
+					Labels: map[string]string{
+						"existing": "label",
+						"test":     "value",
+					},
+					Annotations: map[string]string{
+						"test-annotation": "test-value",
+					},
+				},
+			},
+		},
+		{
+			name: "PatchForService_WithNilLabels_NoChange",
+			patcher: &Patcher{
+				labels: nil,
+			},
+			service: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-service",
+					Namespace: "test",
+					Labels: map[string]string{
+						"existing": "label",
+					},
+				},
+			},
+			want: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-service",
+					Namespace: "test",
+					Labels: map[string]string{
+						"existing": "label",
+					},
+				},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			test.patcher.ForService(test.service)
+			if !reflect.DeepEqual(test.service, test.want) {
+				t.Errorf("unexpected result, expected service %v but got %v", test.want, test.service)
+			}
+		})
+	}
+}
+
+func TestPatcherForSecret(t *testing.T) {
+	tests := []struct {
+		name    string
+		patcher *Patcher
+		secret  *corev1.Secret
+		want    *corev1.Secret
+	}{
+		{
+			name: "PatchForSecret_WithLabels_Patched",
+			patcher: &Patcher{
+				labels: map[string]string{
+					"test": "value",
+				},
+			},
+			secret: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-secret",
+					Namespace: "test",
+					Labels: map[string]string{
+						"existing": "label",
+					},
+				},
+			},
+			want: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-secret",
+					Namespace: "test",
+					Labels: map[string]string{
+						"existing": "label",
+						"test":     "value",
+					},
+				},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			test.patcher.ForSecret(test.secret)
+			if !reflect.DeepEqual(test.secret, test.want) {
+				t.Errorf("unexpected result, expected secret %v but got %v", test.want, test.secret)
+			}
+		})
+	}
+}
+
+func TestPatcherForClusterRole(t *testing.T) {
+	tests := []struct {
+		name    string
+		patcher *Patcher
+		role    *rbacv1.ClusterRole
+		want    *rbacv1.ClusterRole
+	}{
+		{
+			name: "PatchForClusterRole_WithLabels_Patched",
+			patcher: &Patcher{
+				labels: map[string]string{
+					"test": "value",
+				},
+			},
+			role: &rbacv1.ClusterRole{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-role",
+					Labels: map[string]string{
+						"existing": "label",
+					},
+				},
+			},
+			want: &rbacv1.ClusterRole{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-role",
+					Labels: map[string]string{
+						"existing": "label",
+						"test":     "value",
+					},
+				},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			test.patcher.ForClusterRole(test.role)
+			if !reflect.DeepEqual(test.role, test.want) {
+				t.Errorf("unexpected result, expected role %v but got %v", test.want, test.role)
+			}
+		})
+	}
+}
+
+func TestPatcherForClusterRoleBinding(t *testing.T) {
+	tests := []struct {
+		name        string
+		patcher     *Patcher
+		roleBinding *rbacv1.ClusterRoleBinding
+		want        *rbacv1.ClusterRoleBinding
+	}{
+		{
+			name: "PatchForClusterRoleBinding_WithLabels_Patched",
+			patcher: &Patcher{
+				labels: map[string]string{
+					"test": "value",
+				},
+			},
+			roleBinding: &rbacv1.ClusterRoleBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-rolebinding",
+					Labels: map[string]string{
+						"existing": "label",
+					},
+				},
+			},
+			want: &rbacv1.ClusterRoleBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-rolebinding",
+					Labels: map[string]string{
+						"existing": "label",
+						"test":     "value",
+					},
+				},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			test.patcher.ForClusterRoleBinding(test.roleBinding)
+			if !reflect.DeepEqual(test.roleBinding, test.want) {
+				t.Errorf("unexpected result, expected roleBinding %v but got %v", test.want, test.roleBinding)
+			}
+		})
+	}
+}
+
+func TestPatcherForGenericResource(t *testing.T) {
+	tests := []struct {
+		name    string
+		patcher *Patcher
+		obj     metav1.Object
+		want    metav1.Object
+	}{
+		{
+			name: "PatchForGenericResource_WithLabels_Patched",
+			patcher: &Patcher{
+				labels: map[string]string{
+					"test": "value",
+				},
+			},
+			obj: &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-configmap",
+					Namespace: "test",
+					Labels: map[string]string{
+						"existing": "label",
+					},
+				},
+			},
+			want: &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-configmap",
+					Namespace: "test",
+					Labels: map[string]string{
+						"existing": "label",
+						"test":     "value",
+					},
+				},
+			},
+		},
+		{
+			name: "PatchForGenericResource_WithAnnotations_Patched",
+			patcher: &Patcher{
+				annotations: map[string]string{
+					"test-annotation": "test-value",
+				},
+			},
+			obj: &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-configmap",
+					Namespace: "test",
+					Annotations: map[string]string{
+						"existing": "annotation",
+					},
+				},
+			},
+			want: &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-configmap",
+					Namespace: "test",
+					Annotations: map[string]string{
+						"existing":        "annotation",
+						"test-annotation": "test-value",
+					},
+				},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			test.patcher.ForGenericResource(test.obj)
+			if !reflect.DeepEqual(test.obj, test.want) {
+				t.Errorf("unexpected result, expected object %v but got %v", test.want, test.obj)
+			}
+		})
+	}
+}
+
+func TestPatcherWithNilValues(t *testing.T) {
+	tests := []struct {
+		name    string
+		patcher *Patcher
+		obj     metav1.Object
+		want    metav1.Object
+	}{
+		{
+			name: "PatchWithNilLabels_NoChange",
+			patcher: &Patcher{
+				labels: nil,
+			},
+			obj: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-service",
+					Namespace: "test",
+					Labels: map[string]string{
+						"existing": "label",
+					},
+				},
+			},
+			want: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-service",
+					Namespace: "test",
+					Labels: map[string]string{
+						"existing": "label",
+					},
+				},
+			},
+		},
+		{
+			name: "PatchWithNilAnnotations_NoChange",
+			patcher: &Patcher{
+				annotations: nil,
+			},
+			obj: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-service",
+					Namespace: "test",
+					Annotations: map[string]string{
+						"existing": "annotation",
+					},
+				},
+			},
+			want: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-service",
+					Namespace: "test",
+					Annotations: map[string]string{
+						"existing": "annotation",
+					},
+				},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			test.patcher.ForGenericResource(test.obj)
+			if !reflect.DeepEqual(test.obj, test.want) {
+				t.Errorf("unexpected result, expected object %v but got %v", test.want, test.obj)
+			}
+		})
+	}
+}
+
+// Simple test to verify basic functionality
+func TestBasicPatcherFunctionality(t *testing.T) {
+	patcher := NewPatcher()
+	
+	// Test WithLabels
+	labels := map[string]string{"test": "value"}
+	patcher = patcher.WithLabels(labels)
+	if patcher.labels["test"] != "value" {
+		t.Errorf("expected label 'test' to be 'value', got %s", patcher.labels["test"])
+	}
+	
+	// Test WithAnnotations
+	annotations := map[string]string{"test-annotation": "test-value"}
+	patcher = patcher.WithAnnotations(annotations)
+	if patcher.annotations["test-annotation"] != "test-value" {
+		t.Errorf("expected annotation 'test-annotation' to be 'test-value', got %s", patcher.annotations["test-annotation"])
 	}
 }
