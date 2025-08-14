@@ -71,7 +71,7 @@ func CreateOrUpdateWork(ctx context.Context, c client.Client, workMeta metav1.Ob
 
 			runtimeObject.Labels = util.DedupeAndMergeLabels(runtimeObject.Labels, work.Labels)
 			runtimeObject.Annotations = util.DedupeAndMergeAnnotations(runtimeObject.Annotations, work.Annotations)
-			runtimeObject.Finalizers = work.Finalizers
+			runtimeObject.Finalizers = util.MergeFinalizers(runtimeObject.Finalizers, work.Finalizers)
 			runtimeObject.Spec = work.Spec
 
 			// Do the same thing as the mutating webhook does, add the permanent ID to workload if not exist,
