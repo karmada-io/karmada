@@ -22,20 +22,19 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
 	"github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	"github.com/karmada-io/karmada/operator/pkg/constants"
-	rbacv1 "k8s.io/api/rbac/v1"
-
 	"github.com/karmada-io/karmada/pkg/features"
 )
 
 func init() {
 	// Enable LabelPropagation feature for testing
-	features.FeatureGate.Set("LabelPropagation=true")
+	_ = features.FeatureGate.Set("LabelPropagation=true")
 }
 
 func TestPatchForDeployment(t *testing.T) {
@@ -881,14 +880,14 @@ func TestPatcherWithNilValues(t *testing.T) {
 // Simple test to verify basic functionality
 func TestBasicPatcherFunctionality(t *testing.T) {
 	patcher := NewPatcher()
-	
+
 	// Test WithLabels
 	labels := map[string]string{"test": "value"}
 	patcher = patcher.WithLabels(labels)
 	if patcher.labels["test"] != "value" {
 		t.Errorf("expected label 'test' to be 'value', got %s", patcher.labels["test"])
 	}
-	
+
 	// Test WithAnnotations
 	annotations := map[string]string{"test-annotation": "test-value"}
 	patcher = patcher.WithAnnotations(annotations)
