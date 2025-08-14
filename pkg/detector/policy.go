@@ -281,7 +281,6 @@ func (d *ResourceDetector) removeResourceClaimMetadataIfNotMatched(objectReferen
 		return false, nil
 	}
 
-	object = object.DeepCopy()
 	util.RemoveLabels(object, labels...)
 	util.RemoveAnnotations(object, annotations...)
 
