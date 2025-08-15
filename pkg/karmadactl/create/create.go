@@ -49,7 +49,7 @@ var (
 // NewCmdCreate returns new initialized instance of create sub command
 func NewCmdCreate(f util.Factory, parentCommand string, ioStreams genericiooptions.IOStreams) *cobra.Command {
 	cmd := kubectlcreate.NewCmdCreate(f, ioStreams)
-	cmd.Long = fmt.Sprintf(createLong, parentCommand)
+	cmd.Long = createLong
 	cmd.Example = fmt.Sprintf(createExample, parentCommand)
 	cmd.Annotations = map[string]string{
 		util.TagCommandGroup: util.GroupBasic,
