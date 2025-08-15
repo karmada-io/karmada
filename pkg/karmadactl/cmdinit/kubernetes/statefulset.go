@@ -149,7 +149,7 @@ func (i *CommandInitOption) defaultEtcdInitContainerCommand() []string {
 		fmt.Sprintf("--data-dir=%s", etcdContainerDataVolumeMountPath),
 		"--snapshot-count=10000",
 		fmt.Sprintf("--cipher-suites=%s", etcdCipherSuites),
-		// 基于原有代码增加的
+		// Added based on the original code.
 		"--initial-cluster-token=etcd-cluster",
 		fmt.Sprintf("--initial-advertise-peer-urls=http://$(%s):%v", etcdEnvPodIP, etcdContainerServerPort),
 		"--peer-client-cert-auth=false",
@@ -333,8 +333,5 @@ func (i *CommandInitOption) makeETCDStatefulSet() *appsv1.StatefulSet {
 // They are obtained by the return value of the function CipherSuites() under the go/src/crypto/tls/cipher_suites.go package.
 // Consistent with the Preferred values of k8s’s default cipher suites.
 func genEtcdCipherSuites() string {
-	//cipherSuites := strings.Join(flag.PreferredTLSCipherNames(), "\",\"")
-	//cipherSuites = "[\"" + cipherSuites + "\"]"
-	//return cipherSuites
 	return strings.Join(flag.PreferredTLSCipherNames(), ",")
 }

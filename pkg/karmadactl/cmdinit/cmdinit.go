@@ -79,7 +79,42 @@ var (
 		%[1]s init --cert-external-ip 10.235.1.2 --cert-external-dns www.karmada.io
 
 		# Install Karmada using a configuration file
-		%[1]s init --config /path/to/your/config/file.yaml`)
+		%[1]s init --config /path/to/your/config/file.yaml
+		
+		# Pass extra arguments to Local Etcd. (Parameters are separated by commas)
+		%[1]s init --etcd-extra-args="--snapshot-count=5000,--heartbeat-interval=100"
+		# Or write them separately.
+		%[1]s init --etcd-extra-args="--snapshot-count=5000" --etcd-extra-args="--heartbeat-interval=100"
+
+		# Pass extra arguments to Karmada API Server. (Parameters are separated by commas)
+		%[1]s init --karmada-apiserver-extra-args="--tls-min-version=VersionTLS12,--audit-log-path=-"
+		# Or write them separately.
+		%[1]s init --karmada-apiserver-extra-args="--tls-min-version=VersionTLS12" --karmada-apiserver-extra-args="--audit-log-path=-"
+
+		# Pass extra arguments to Karmada Scheduler. (Parameters are separated by commas)
+		%[1]s init --karmada-scheduler-extra-args="--scheduler-name=test-scheduler,--enable-pprof"
+		# Or write them separately.
+		%[1]s init --karmada-scheduler-extra-args="--scheduler-name=test-scheduler" --karmada-scheduler-extra-args="--enable-pprof"
+
+		# Pass extra arguments to Kube Controller Manager. (Parameters are separated by commas)
+		%[1]s init --kube-controller-manager-extra-args="--node-monitor-grace-period=50s,--node-monitor-period=5s"
+		# Or write them separately.
+		%[1]s init --kube-controller-manager-extra-args="--node-monitor-grace-period=50s" --kube-controller-manager-extra-args="--node-monitor-period=5s"
+		
+		# Pass extra arguments to Karmada Controller Manager. (Parameters are separated by commas)
+		%[1]s init --karmada-controller-manager-extra-args="--v=2,--enable-pprof"
+		# Or write them separately.
+		%[1]s init --karmada-controller-manager-extra-args="--v=2" --karmada-controller-manager-extra-args="--enable-pprof"
+
+		# Pass extra arguments to Karmada Webhook. (Parameters are separated by commas)
+		%[1]s init --karmada-webhook-extra-args="--v=2,--enable-pprof"
+		# Or write them separately.
+		%[1]s init --karmada-webhook-extra-args="--v=2" --karmada-webhook-extra-args="--enable-pprof"
+
+		# Pass extra arguments to Karmada Aggregated API Server. (Parameters are separated by commas)
+		%[1]s init --karmada-aggregated-apiserver-extra-args="--v=4,--enable-pprof"
+		# Or write them separately.
+		%[1]s init --karmada-aggregated-apiserver-extra-args="--v=4" --karmada-aggregated-apiserver-extra-args="--enable-pprof"`)
 )
 
 // NewCmdInit install Karmada on Kubernetes

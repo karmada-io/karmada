@@ -137,7 +137,6 @@ func init() {
 }
 
 // CommandInitOption holds all flags options for init.
-// CommandInitOption 持有所有初始化的标志选项。
 type CommandInitOption struct {
 	ImageRegistry          string
 	ImagePullPolicy        string
@@ -851,8 +850,8 @@ func (i *CommandInitOption) parseInitConfig(cfg *initConfig.KarmadaInitConfig) e
 
 	i.parseGeneralConfig(spec)
 	i.parseCertificateConfig(spec.Certificates)
-	i.parseEtcdConfig(spec.Etcd)               // todo
-	i.parseControlPlaneConfig(spec.Components) //todo
+	i.parseEtcdConfig(spec.Etcd)
+	i.parseControlPlaneConfig(spec.Components)
 
 	setIfNotEmpty(&i.KarmadaDataPath, spec.KarmadaDataPath)
 	setIfNotEmpty(&i.KarmadaPkiPath, spec.KarmadaPKIPath)
