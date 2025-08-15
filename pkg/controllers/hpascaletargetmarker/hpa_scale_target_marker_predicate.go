@@ -34,7 +34,7 @@ func (r *HpaScaleTargetMarker) Create(e event.CreateEvent) bool {
 	hpa, ok := e.Object.(*autoscalingv2.HorizontalPodAutoscaler)
 	if !ok {
 		err := errors.New("object is not HPA type")
-		klog.ErrorS(err, "create predicates in hpa controller failed")
+		klog.ErrorS(err, "create predicate in hpa controller failed on type assertion")
 		return false
 	}
 
@@ -51,14 +51,14 @@ func (r *HpaScaleTargetMarker) Update(e event.UpdateEvent) bool {
 	oldHPA, ok := e.ObjectOld.(*autoscalingv2.HorizontalPodAutoscaler)
 	if !ok {
 		err := errors.New("old object is not HPA type")
-		klog.ErrorS(err, "update predicates in hpa controller failed")
+		klog.ErrorS(err, "update predicate in hpa controller failed on type assertion")
 		return false
 	}
 
 	newHPA, ok := e.ObjectNew.(*autoscalingv2.HorizontalPodAutoscaler)
 	if !ok {
 		err := errors.New("new object is not HPA type")
-		klog.ErrorS(err, "update predicates in hpa controller failed")
+		klog.ErrorS(err, "update predicate in hpa controller failed on type assertion")
 		return false
 	}
 
@@ -81,7 +81,7 @@ func (r *HpaScaleTargetMarker) Delete(e event.DeleteEvent) bool {
 	hpa, ok := e.Object.(*autoscalingv2.HorizontalPodAutoscaler)
 	if !ok {
 		err := errors.New("object is not HPA type")
-		klog.ErrorS(err, "delete predicates in hpa controller failed")
+		klog.ErrorS(err, "delete predicate in hpa controller failed on type assertion")
 		return false
 	}
 

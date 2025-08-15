@@ -50,7 +50,7 @@ func (r *HpaScaleTargetMarker) reconcileScaleRef(key util.QueueKey) (err error) 
 	event, ok := key.(labelEvent)
 	if !ok {
 		err = errors.New("invalid key")
-		klog.ErrorS(err, "reconcile hpa scale ref failed", "key", key)
+		klog.ErrorS(err, "reconcile hpa scale ref failed on type assertion", "key", key)
 		return err
 	}
 
@@ -60,7 +60,7 @@ func (r *HpaScaleTargetMarker) reconcileScaleRef(key util.QueueKey) (err error) 
 	case deleteLabelEvent:
 		err = r.deleteHPALabelFromScaleRef(context.TODO(), event.hpa)
 	default:
-		err = errors.New("invalid key")
+		err = errors.New("invalid label event")
 		klog.ErrorS(err, "reconcile hpa scale ref failed", "key", key)
 		return err
 	}
