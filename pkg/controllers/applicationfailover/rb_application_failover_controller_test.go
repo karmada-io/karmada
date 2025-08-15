@@ -295,6 +295,7 @@ func TestRBApplicationFailoverController_clusterResourceBindingFilter(t *testing
 		name      string
 		binding   *workv1alpha2.ResourceBinding
 		expectRes bool
+		expectErr bool
 	}{
 		{
 			name: "crb.Spec.Failover and crb.Spec.Failover.Application is nil",
@@ -313,6 +314,7 @@ func TestRBApplicationFailoverController_clusterResourceBindingFilter(t *testing
 				},
 			},
 			expectRes: false,
+			expectErr: false,
 		},
 		{
 			name: "crb.Status.AggregatedStatus is 0",
@@ -334,6 +336,7 @@ func TestRBApplicationFailoverController_clusterResourceBindingFilter(t *testing
 				},
 			},
 			expectRes: false,
+			expectErr: false,
 		},
 		{
 			name: "error occurs in ConstructClusterWideKey",
@@ -361,13 +364,19 @@ func TestRBApplicationFailoverController_clusterResourceBindingFilter(t *testing
 				},
 			},
 			expectRes: false,
+			expectErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := generateRBApplicationFailoverController()
-			res := c.bindingFilter(tt.binding)
+			res, err := c.bindingFilter(tt.binding)
+			if tt.expectErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
 			assert.Equal(t, tt.expectRes, res)
 		})
 	}

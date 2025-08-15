@@ -55,39 +55,39 @@ func NewDefaultInterpreter() *DefaultInterpreter {
 }
 
 // HookEnabled tells if any hook exist for specific resource type and operation type.
-func (e *DefaultInterpreter) HookEnabled(kind schema.GroupVersionKind, operationType configv1alpha1.InterpreterOperation) bool {
+func (e *DefaultInterpreter) HookEnabled(kind schema.GroupVersionKind, operationType configv1alpha1.InterpreterOperation) (bool, error) {
 	switch operationType {
 	case configv1alpha1.InterpreterOperationInterpretReplica:
 		if _, exist := e.replicaHandlers[kind]; exist {
-			return true
+			return true, nil
 		}
 	case configv1alpha1.InterpreterOperationReviseReplica:
 		if _, exist := e.reviseReplicaHandlers[kind]; exist {
-			return true
+			return true, nil
 		}
 	case configv1alpha1.InterpreterOperationRetain:
 		if _, exist := e.retentionHandlers[kind]; exist {
-			return true
+			return true, nil
 		}
 	case configv1alpha1.InterpreterOperationAggregateStatus:
 		if _, exist := e.aggregateStatusHandlers[kind]; exist {
-			return true
+			return true, nil
 		}
 	case configv1alpha1.InterpreterOperationInterpretDependency:
 		if _, exist := e.dependenciesHandlers[kind]; exist {
-			return true
+			return true, nil
 		}
 	case configv1alpha1.InterpreterOperationInterpretStatus:
-		return true
+		return true, nil
 	case configv1alpha1.InterpreterOperationInterpretHealth:
 		if _, exist := e.healthHandlers[kind]; exist {
-			return true
+			return true, nil
 		}
 		// TODO(RainbowMango): more cases should be added here
 	}
 
 	klog.V(4).Infof("Default interpreter is not enabled for kind %q with operation %q.", kind, operationType)
-	return false
+	return false, nil
 }
 
 // GetReplicas returns the desired replicas of the object as well as the requirements of each replica.

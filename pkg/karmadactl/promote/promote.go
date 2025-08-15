@@ -476,10 +476,11 @@ func (o *CommandPromoteOption) promoteDeps(memberClusterFactory cmdutil.Factory,
 	}
 
 	// check if the resource interpreter supports to interpret dependencies
-	if !defaultInterpreter.HookEnabled(obj.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretDependency) &&
-		!thirdpartyInterpreter.HookEnabled(obj.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretDependency) &&
-		!configurableInterpreter.HookEnabled(obj.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretDependency) &&
-		!customizedInterpreter.HookEnabled(obj.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretDependency) {
+	enable, err := supportInterpretDependencies(obj.GroupVersionKind(), defaultInterpreter, thirdpartyInterpreter, configurableInterpreter, customizedInterpreter)
+	if err != nil {
+		return err
+	}
+	if !enable {
 		// if there is no interpreter configured, abort this dependency promotion but continue to promote the resource
 		klog.Warning("there is no interpreter configured support to interpret dependencies")
 		return nil
@@ -529,6 +530,27 @@ func (o *CommandPromoteOption) promoteDeps(memberClusterFactory cmdutil.Factory,
 	fmt.Println("use default interpreter")
 	err = o.doPromoteDeps(memberClusterFactory, dependencies, mapper, config)
 	return err
+}
+
+func supportInterpretDependencies(gvk schema.GroupVersionKind, defaultInterpreter *native.DefaultInterpreter,
+	thirdpartyInterpreter *thirdparty.ConfigurableInterpreter, configurableInterpreter *declarative.ConfigurableInterpreter,
+	customizedInterpreter *webhook.CustomizedInterpreter) (bool, error) {
+	enable, err := defaultInterpreter.HookEnabled(gvk, configv1alpha1.InterpreterOperationInterpretDependency)
+	if err != nil || enable {
+		return enable, err
+	}
+
+	enable, err = thirdpartyInterpreter.HookEnabled(gvk, configv1alpha1.InterpreterOperationInterpretDependency)
+	if err != nil || enable {
+		return enable, err
+	}
+
+	enable, err = configurableInterpreter.HookEnabled(gvk, configv1alpha1.InterpreterOperationInterpretDependency)
+	if err != nil || enable {
+		return enable, err
+	}
+
+	return customizedInterpreter.HookEnabled(gvk, configv1alpha1.InterpreterOperationInterpretDependency)
 }
 
 func (o *CommandPromoteOption) promote(controlPlaneRestConfig *rest.Config, obj *unstructured.Unstructured, gvr schema.GroupVersionResource) error {
