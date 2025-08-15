@@ -137,6 +137,7 @@ func init() {
 }
 
 // CommandInitOption holds all flags options for init.
+// CommandInitOption 持有所有初始化的标志选项。
 type CommandInitOption struct {
 	ImageRegistry          string
 	ImagePullPolicy        string
@@ -214,6 +215,15 @@ type CommandInitOption struct {
 	CaCertFile                string
 	CaKeyFile                 string
 	KarmadaInitFilePath       string
+
+	// extraArgs
+	EtcdExtraArgs                       []string
+	KarmadaAPIServerExtraArgs           []string
+	KarmadaSchedulerExtraArgs           []string
+	KubeControllerManagerExtraArgs      []string
+	KarmadaControllerManagerExtraArgs   []string
+	KarmadaWebhookExtraArgs             []string
+	KarmadaAggregatedAPIServerExtraArgs []string
 }
 
 func (i *CommandInitOption) validateLocalEtcd(parentCommand string) error {
@@ -258,6 +268,7 @@ func (i *CommandInitOption) isExternalEtcdProvided() bool {
 }
 
 // Validate Check that there are enough flags to run the command.
+// 检查是否有足够的标志来运行命令。
 func (i *CommandInitOption) Validate(parentCommand string) error {
 	if i.KarmadaInitFilePath != "" {
 		cfg, err := initConfig.LoadInitConfiguration(i.KarmadaInitFilePath)
@@ -292,6 +303,7 @@ func (i *CommandInitOption) Validate(parentCommand string) error {
 }
 
 // Complete Initialize k8s client
+// 初始化k8s客户端
 func (i *CommandInitOption) Complete() error {
 	restConfig, err := apiclient.RestConfig(i.Context, i.KubeConfig)
 	if err != nil {
@@ -832,13 +844,15 @@ func (i *CommandInitOption) parseEtcdNodeSelectorLabelsMap() error {
 // parseInitConfig parses fields from KarmadaInitConfig into CommandInitOption.
 // It is responsible for delegating the parsing of various configuration sections,
 // such as certificates, etcd, and control plane components.
+// parseInitConfig 从 KarmadaInitConfig 中解析字段并转换为 CommandInitOption。
+// 它负责委托解析各个配置部分，如证书、etcd 和控制平面组件。
 func (i *CommandInitOption) parseInitConfig(cfg *initConfig.KarmadaInitConfig) error {
 	spec := cfg.Spec
 
 	i.parseGeneralConfig(spec)
 	i.parseCertificateConfig(spec.Certificates)
-	i.parseEtcdConfig(spec.Etcd)
-	i.parseControlPlaneConfig(spec.Components)
+	i.parseEtcdConfig(spec.Etcd)               // todo
+	i.parseControlPlaneConfig(spec.Components) //todo
 
 	setIfNotEmpty(&i.KarmadaDataPath, spec.KarmadaDataPath)
 	setIfNotEmpty(&i.KarmadaPkiPath, spec.KarmadaPKIPath)
@@ -890,7 +904,7 @@ func (i *CommandInitOption) parseCertificateConfig(certificates initConfig.Certi
 // parseEtcdConfig handles the parsing of both local and external Etcd configurations.
 func (i *CommandInitOption) parseEtcdConfig(etcd initConfig.Etcd) {
 	if etcd.Local != nil {
-		i.parseLocalEtcdConfig(etcd.Local)
+		i.parseLocalEtcdConfig(etcd.Local) // todo
 	} else if etcd.External != nil {
 		i.parseExternalEtcdConfig(etcd.External)
 	}
@@ -911,6 +925,10 @@ func (i *CommandInitOption) parseLocalEtcdConfig(localEtcd *initConfig.LocalEtcd
 	setIfNotEmpty(&i.EtcdStorageMode, localEtcd.StorageMode)
 	setIfNotEmpty(&i.StorageClassesName, localEtcd.StorageClassesName)
 	setIfNotZeroInt32(&i.EtcdReplicas, localEtcd.Replicas)
+
+	if len(localEtcd.ExtraArgs) != 0 {
+		i.EtcdExtraArgs = localEtcd.ExtraArgs
+	}
 }
 
 // parseExternalEtcdConfig parses the external Etcd configuration, including CA file,
@@ -946,6 +964,10 @@ func (i *CommandInitOption) parseKarmadaAPIServerConfig(apiServer *initConfig.Ka
 		setIfNotEmpty(&i.KarmadaAPIServerImage, apiServer.CommonSettings.Image.GetImage())
 		setIfNotZeroInt32(&i.KarmadaAPIServerReplicas, apiServer.CommonSettings.Replicas)
 		setIfNotEmpty(&i.KarmadaAPIServerAdvertiseAddress, apiServer.AdvertiseAddress)
+
+		if len(apiServer.ExtraArgs) != 0 {
+			i.KarmadaAPIServerExtraArgs = apiServer.ExtraArgs
+		}
 	}
 }
 
@@ -955,6 +977,10 @@ func (i *CommandInitOption) parseKarmadaControllerManagerConfig(manager *initCon
 	if manager != nil {
 		setIfNotEmpty(&i.KarmadaControllerManagerImage, manager.CommonSettings.Image.GetImage())
 		setIfNotZeroInt32(&i.KarmadaControllerManagerReplicas, manager.CommonSettings.Replicas)
+
+		if len(manager.ExtraArgs) != 0 {
+			i.KarmadaControllerManagerExtraArgs = manager.ExtraArgs
+		}
 	}
 }
 
@@ -964,6 +990,10 @@ func (i *CommandInitOption) parseKarmadaSchedulerConfig(scheduler *initConfig.Ka
 	if scheduler != nil {
 		setIfNotEmpty(&i.KarmadaSchedulerImage, scheduler.CommonSettings.Image.GetImage())
 		setIfNotZeroInt32(&i.KarmadaSchedulerReplicas, scheduler.CommonSettings.Replicas)
+
+		if len(scheduler.ExtraArgs) != 0 {
+			i.KarmadaSchedulerExtraArgs = scheduler.ExtraArgs
+		}
 	}
 }
 
@@ -973,6 +1003,10 @@ func (i *CommandInitOption) parseKarmadaWebhookConfig(webhook *initConfig.Karmad
 	if webhook != nil {
 		setIfNotEmpty(&i.KarmadaWebhookImage, webhook.CommonSettings.Image.GetImage())
 		setIfNotZeroInt32(&i.KarmadaWebhookReplicas, webhook.CommonSettings.Replicas)
+
+		if len(webhook.ExtraArgs) != 0 {
+			i.KarmadaWebhookExtraArgs = webhook.ExtraArgs
+		}
 	}
 }
 
@@ -982,6 +1016,10 @@ func (i *CommandInitOption) parseKarmadaAggregatedAPIServerConfig(aggregatedAPIS
 	if aggregatedAPIServer != nil {
 		setIfNotEmpty(&i.KarmadaAggregatedAPIServerImage, aggregatedAPIServer.CommonSettings.Image.GetImage())
 		setIfNotZeroInt32(&i.KarmadaAggregatedAPIServerReplicas, aggregatedAPIServer.CommonSettings.Replicas)
+
+		if len(aggregatedAPIServer.ExtraArgs) != 0 {
+			i.KarmadaAggregatedAPIServerExtraArgs = aggregatedAPIServer.ExtraArgs
+		}
 	}
 }
 
@@ -991,6 +1029,10 @@ func (i *CommandInitOption) parseKubeControllerManagerConfig(manager *initConfig
 	if manager != nil {
 		setIfNotEmpty(&i.KubeControllerManagerImage, manager.CommonSettings.Image.GetImage())
 		setIfNotZeroInt32(&i.KubeControllerManagerReplicas, manager.CommonSettings.Replicas)
+
+		if len(manager.ExtraArgs) != 0 {
+			i.KubeControllerManagerExtraArgs = manager.ExtraArgs
+		}
 	}
 }
 
