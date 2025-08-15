@@ -47,7 +47,7 @@ func WaitKarmadaReady(client operator.Interface, namespace, name string, lastTra
 				}
 			}
 			return false
-		}, framework.PollTimeout, framework.PollInterval).Should(gomega.Equal(true)) // todo CI失败
+		}, framework.PollTimeout, framework.PollInterval).Should(gomega.Equal(true))
 	})
 }
 

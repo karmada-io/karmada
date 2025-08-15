@@ -1,5 +1,5 @@
 /*
-Copyright 2023 The Karmada Authors.
+Copyright 2025 The Karmada Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -26,37 +26,45 @@ import (
 )
 
 // KarmadaComponentCommand merges default parameters with user-provided parameters.
-func KarmadaComponentCommand(defaultArgs, extraArgs []string) []string {
+func KarmadaComponentCommand(defaultArgs, extraArgs []string) ([]string, error) {
 	// Return directly without parameters.
 	if len(extraArgs) == 0 {
-		return defaultArgs
+		return defaultArgs, nil
 	}
 
 	// Parameter preprocessing
-	preprocessArgs := preProcessArgs(extraArgs)
+	preprocessArgs, err := preProcessArgs(extraArgs)
+	if err != nil {
+		return defaultArgs, err
+	}
 
 	// Verification parameters
 	args, err := validateArgs(preprocessArgs)
 	if err != nil {
 		klog.Errorf("%v", err)
-		return nil
+		return defaultArgs, err
 	}
 
 	// merge Parameters
-	return mergeCommandArgs(defaultArgs, args)
+	return mergeCommandArgs(defaultArgs, args), nil
 }
 
-// Parameter preprocessing  // has --key=v1,v2,v3.
-func preProcessArgs(args []string) []string {
+// preProcessArgs Merge the parameters passed in like this --ke=v1,v2,v3.
+func preProcessArgs(args []string) ([]string, error) {
 	if len(args) == 0 {
-		return args
+		return args, nil
 	}
 
 	// Pre-create a slice with capacity.
 	merged := make([]string, 0, len(args))
 	var last string
 
-	for _, arg := range args {
+	for _, raw := range args {
+		arg := strings.TrimSpace(raw)
+		if arg != raw {
+			klog.Warningf("argument %q contains leading/trailing whitespace, cleaned to %q", raw, arg)
+		}
+
 		if strings.HasPrefix(arg, "--") {
 			if last != "" {
 				merged = append(merged, last)
@@ -64,9 +72,11 @@ func preProcessArgs(args []string) []string {
 			last = arg
 		} else {
 			if last == "" {
-				// The explanation is the first parameter, at this time skip and warn.
-				klog.Warningf("argument %q ignored: no preceding --key found", arg)
-				continue
+				// This indicates that this is the first argument passed in from the command line,
+				// but it does not have the prefix "--".
+				// It could be either a user input error or the user intends to specify the binary file for executing a command.
+				// Since it is unclear which one it is, an error is returned directly.
+				return nil, fmt.Errorf("argument %q ignored: no preceding --key found", arg)
 			}
 			last += "," + arg
 		}
@@ -75,14 +85,14 @@ func preProcessArgs(args []string) []string {
 	if last != "" {
 		merged = append(merged, last)
 	}
-	return merged
+	return merged, nil
 }
 
 // Regular expression validation of user-provided parameters.
 // format: --key=value or --key
 func validateArgs(args []string) ([]string, error) {
 	// Modified regex to allow flags without values (e.g., --enable-pprof)
-	argPattern := regexp.MustCompile(`^--[a-zA-Z0-9\-]+(=.*)?$`)
+	argPattern := regexp.MustCompile(`^--[a-zA-Z][a-zA-Z0-9_-]*(=.*)?$`)
 	for _, arg := range args {
 		if !argPattern.MatchString(arg) {
 			return nil, fmt.Errorf("invalid argument: %s", arg)
@@ -94,7 +104,7 @@ func validateArgs(args []string) ([]string, error) {
 // mergeCommandArgs merges defaultArgs with extraArgs, with extraArgs overriding defaults.
 // It assumes extraArgs are already pre-processed and validated.
 func mergeCommandArgs(defaultArgs, extraArgs []string) []string {
-	extraArgsMap := make(map[string]string)
+	extraArgsMap := make(map[string]string, len(extraArgs))
 	for _, arg := range extraArgs {
 		// Assuming extraArgs are already validated to start with "--" and be in --key=value or --key format
 		// SplitN with limit 2 handles cases like --key=value1=value2 correctly, taking only the first '=' as delimiter
@@ -102,7 +112,7 @@ func mergeCommandArgs(defaultArgs, extraArgs []string) []string {
 		key := parts[0]
 		extraArgsMap[key] = arg // Store the full argument string
 	}
-	var finalArgs []string
+	finalArgs := make([]string, 0, len(defaultArgs)+len(extraArgs))
 
 	// First, add the command name if defaultArgs is not empty.
 	if len(defaultArgs) > 0 {
@@ -119,7 +129,7 @@ func mergeCommandArgs(defaultArgs, extraArgs []string) []string {
 	}
 
 	// Add all extra arguments. To ensure deterministic output for tests, sort them.
-	var sortedExtraArgs []string
+	sortedExtraArgs := make([]string, 0, len(extraArgs))
 	for _, arg := range extraArgsMap {
 		sortedExtraArgs = append(sortedExtraArgs, arg)
 	}

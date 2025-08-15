@@ -138,10 +138,6 @@ type LocalEtcd struct {
 	// StorageClassesName is the name of the storage class for the Etcd PVC
 	// +optional
 	StorageClassesName string `json:"storageClassesName,omitempty" yaml:"storageClassesName,omitempty"`
-
-	// ExtraArgs are additional arguments for the Etcd pods
-	// +optional
-	ExtraArgs []string `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
 }
 
 // ExternalEtcd defines the configuration of an external Etcd cluster
@@ -307,55 +303,31 @@ type KarmadaAPIServer struct {
 	// ServiceAnnotations are annotations added to the API server service
 	// +optional
 	ServiceAnnotations map[string]string `json:"serviceAnnotations,omitempty" yaml:"serviceAnnotations,omitempty"`
-
-	// ExtraArgs are additional arguments for the Karmada API Server pods
-	// +optional
-	ExtraArgs []string `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
 }
 
 // KarmadaAggregatedAPIServer defines the configuration for the Karmada Aggregated API Server
 type KarmadaAggregatedAPIServer struct {
 	CommonSettings `json:",inline" yaml:",inline"`
-
-	// ExtraArgs are additional arguments for the Karmada Aggregated API Server pods
-	// +optional
-	ExtraArgs []string `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
 }
 
 // KubeControllerManager defines the configuration for the Kube Controller Manager
 type KubeControllerManager struct {
 	CommonSettings `json:",inline" yaml:",inline"`
-
-	// ExtraArgs are additional arguments for the Kube Controller Manager pods
-	// +optional
-	ExtraArgs []string `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
 }
 
 // KarmadaControllerManager defines the configuration for the Karmada Controller Manager
 type KarmadaControllerManager struct {
 	CommonSettings `json:",inline" yaml:",inline"`
-
-	// ExtraArgs are additional arguments for the Karmada Controller Manager pods
-	// +optional
-	ExtraArgs []string `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
 }
 
 // KarmadaScheduler defines the configuration for the Karmada Scheduler
 type KarmadaScheduler struct {
 	CommonSettings `json:",inline" yaml:",inline"`
-
-	// ExtraArgs are additional arguments for the Karmada Scheduler pods
-	// +optional
-	ExtraArgs []string `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
 }
 
 // KarmadaWebhook defines the configuration for the Karmada Webhook
 type KarmadaWebhook struct {
 	CommonSettings `json:",inline" yaml:",inline"`
-
-	// ExtraArgs are additional arguments for the Karmada Webhook pods
-	// +optional
-	ExtraArgs []string `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
 }
 
 // LocalSecretReference is a reference to a secret within the same namespace
