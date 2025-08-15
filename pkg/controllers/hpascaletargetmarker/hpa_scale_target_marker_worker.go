@@ -18,6 +18,7 @@ package hpascaletargetmarker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
@@ -48,8 +49,9 @@ type labelEvent struct {
 func (r *HpaScaleTargetMarker) reconcileScaleRef(key util.QueueKey) (err error) {
 	event, ok := key.(labelEvent)
 	if !ok {
-		klog.Errorf("Found invalid key when reconciling hpa scale ref: %+v", key)
-		return nil
+		err = errors.New("invalid key")
+		klog.ErrorS(err, "reconcile hpa scale ref failed", "key", key)
+		return err
 	}
 
 	switch event.kind {
@@ -58,12 +60,13 @@ func (r *HpaScaleTargetMarker) reconcileScaleRef(key util.QueueKey) (err error) 
 	case deleteLabelEvent:
 		err = r.deleteHPALabelFromScaleRef(context.TODO(), event.hpa)
 	default:
-		klog.Errorf("Found invalid key when reconciling hpa scale ref: %+v", key)
-		return nil
+		err = errors.New("invalid key")
+		klog.ErrorS(err, "reconcile hpa scale ref failed", "key", key)
+		return err
 	}
 
 	if err != nil {
-		klog.Errorf("reconcile scale ref failed: %+v", err)
+		klog.ErrorS(err, "reconcile hpa scale ref failed")
 	}
 	return err
 }
@@ -78,7 +81,7 @@ func (r *HpaScaleTargetMarker) addHPALabelToScaleRef(ctx context.Context, hpa *a
 	scaleRef, err := r.DynamicClient.Resource(mapping.Resource).Namespace(hpa.Namespace).Get(ctx, hpa.Spec.ScaleTargetRef.Name, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Infof("scale ref resource is not found (%s/%v), skip processing", hpa.Namespace, hpa.Spec.ScaleTargetRef)
+			klog.InfoS("scale ref resource is not found, skip processing", "namespace", hpa.Namespace, "scaleTargetRef", hpa.Spec.ScaleTargetRef)
 			return nil
 		}
 		return fmt.Errorf("failed to find scale ref resource (%s/%v), err: %+v", hpa.Namespace, hpa.Spec.ScaleTargetRef, err)
@@ -92,7 +95,7 @@ func (r *HpaScaleTargetMarker) addHPALabelToScaleRef(ctx context.Context, hpa *a
 		return fmt.Errorf("failed to gen merge patch (%s/%v), err: %+v", hpa.Namespace, hpa.Spec.ScaleTargetRef, err)
 	}
 	if len(patchBytes) == 0 {
-		klog.Infof("hpa labels already exist, skip adding (%s/%v)", hpa.Namespace, hpa.Spec.ScaleTargetRef)
+		klog.InfoS("hpa labels already exist, skip adding", "namespace", hpa.Namespace, "scaleTargetRef", hpa.Spec.ScaleTargetRef)
 		return nil
 	}
 
@@ -100,13 +103,13 @@ func (r *HpaScaleTargetMarker) addHPALabelToScaleRef(ctx context.Context, hpa *a
 		Patch(ctx, newScaleRef.GetName(), types.MergePatchType, patchBytes, metav1.PatchOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Infof("scale ref resource is not found (%s/%v), skip processing", hpa.Namespace, hpa.Spec.ScaleTargetRef)
+			klog.InfoS("scale ref resource is not found, skip processing", "namespace", hpa.Namespace, "scaleTargetRef", hpa.Spec.ScaleTargetRef)
 			return nil
 		}
 		return fmt.Errorf("failed to patch scale ref resource (%s/%v), err: %+v", hpa.Namespace, hpa.Spec.ScaleTargetRef, err)
 	}
 
-	klog.Infof("add hpa labels to %s/%v success", hpa.Namespace, hpa.Spec.ScaleTargetRef)
+	klog.InfoS("add hpa labels to scale ref success", "namespace", hpa.Namespace, "scaleTargetRef", hpa.Spec.ScaleTargetRef)
 	return nil
 }
 
@@ -120,7 +123,7 @@ func (r *HpaScaleTargetMarker) deleteHPALabelFromScaleRef(ctx context.Context, h
 	scaleRef, err := r.DynamicClient.Resource(mapping.Resource).Namespace(hpa.Namespace).Get(ctx, hpa.Spec.ScaleTargetRef.Name, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Infof("scale ref resource is not found (%s/%v), skip processing", hpa.Namespace, hpa.Spec.ScaleTargetRef)
+			klog.InfoS("scale ref resource is not found, skip processing", "namespace", hpa.Namespace, "scaleTargetRef", hpa.Spec.ScaleTargetRef)
 			return nil
 		}
 		return fmt.Errorf("failed to find scale ref resource (%s/%v), err: %+v", hpa.Namespace, hpa.Spec.ScaleTargetRef, err)
@@ -134,7 +137,7 @@ func (r *HpaScaleTargetMarker) deleteHPALabelFromScaleRef(ctx context.Context, h
 		return fmt.Errorf("failed to gen merge patch (%s/%v), err: %+v", hpa.Namespace, hpa.Spec.ScaleTargetRef, err)
 	}
 	if len(patchBytes) == 0 {
-		klog.Infof("hpa labels not exist, skip deleting (%s/%v)", hpa.Namespace, hpa.Spec.ScaleTargetRef)
+		klog.InfoS("hpa labels not exist, skip deleting", "namespace", hpa.Namespace, "scaleTargetRef", hpa.Spec.ScaleTargetRef)
 		return nil
 	}
 
@@ -142,12 +145,12 @@ func (r *HpaScaleTargetMarker) deleteHPALabelFromScaleRef(ctx context.Context, h
 		Patch(ctx, newScaleRef.GetName(), types.MergePatchType, patchBytes, metav1.PatchOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Infof("scale ref resource is not found (%s/%v), skip processing", hpa.Namespace, hpa.Spec.ScaleTargetRef)
+			klog.InfoS("scale ref resource is not found, skip processing", "namespace", hpa.Namespace, "scaleTargetRef", hpa.Spec.ScaleTargetRef)
 			return nil
 		}
 		return fmt.Errorf("failed to patch scale ref resource (%s/%v), err: %+v", hpa.Namespace, hpa.Spec.ScaleTargetRef, err)
 	}
 
-	klog.Infof("delete hpa labels from %s/%+v success", hpa.Namespace, hpa.Spec.ScaleTargetRef)
+	klog.InfoS("delete hpa labels from scale ref success", "namespace", hpa.Namespace, "scaleTargetRef", hpa.Spec.ScaleTargetRef)
 	return nil
 }
