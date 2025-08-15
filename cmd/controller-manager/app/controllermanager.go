@@ -751,8 +751,8 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	sharedFactory.WaitForCacheSync(stopChan)
 
 	resourceInterpreter := resourceinterpreter.NewResourceInterpreter(controlPlaneInformerManager, serviceLister)
-	if err := mgr.Add(resourceInterpreter); err != nil {
-		klog.Fatalf("Failed to setup custom resource interpreter: %v", err)
+	if err := resourceInterpreter.Start(context.Background()); err != nil {
+		klog.Fatalf("Failed to start resource interpreter: %v", err)
 	}
 
 	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSet, resourceInterpreter)
