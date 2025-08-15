@@ -28,7 +28,6 @@ import (
 
 const (
 	// NamespaceKarmadaSystem is reserved namespace
-	//
 	NamespaceKarmadaSystem = "karmada-system"
 	// NamespaceKarmadaCluster is reserved namespace
 	NamespaceKarmadaCluster = "karmada-cluster"
@@ -39,12 +38,8 @@ const (
 // The following constants define standard names for various Karmada components.
 // These names are used consistently across the project to ensure uniformity and clarity.
 // Using these constants helps avoid typos and ensures that all components are referenced with the correct names.
-// 以下常量定义了各种 Karmada 组件的标准名称。
-// 这些名称在整个项目中一致使用，以确保统一性和清晰性。
-// 使用这些常量有助于避免拼写错误，并确保所有组件都以正确的名称进行引用。
 const (
 	// KarmadaDeschedulerComponentName is the name of the Karmada Descheduler component.
-
 	KarmadaDeschedulerComponentName = "karmada-descheduler"
 
 	// KarmadaSchedulerEstimatorComponentName is the name of the Karmada Scheduler Estimator component.
