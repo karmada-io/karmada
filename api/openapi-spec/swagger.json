@@ -21176,6 +21176,29 @@
         }
       ]
     },
+    "com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.ComponentRequirements": {
+      "description": "ComponentRequirements represents the requirements for a specific component.",
+      "type": "object",
+      "required": [
+        "replicas"
+      ],
+      "properties": {
+        "name": {
+          "description": "Name of this component. It is required when the resource contains multiple components to ensure proper identification, and must also be unique within the same resource.",
+          "type": "string"
+        },
+        "replicaRequirements": {
+          "description": "ReplicaRequirements represents the requirements required by each replica for this component.",
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.ReplicaRequirements"
+        },
+        "replicas": {
+          "description": "Replicas represents the replica number of the resource's component.",
+          "type": "integer",
+          "format": "int32",
+          "default": 0
+        }
+      }
+    },
     "com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.GracefulEvictionTask": {
       "description": "GracefulEvictionTask represents a graceful eviction task.",
       "type": "object",
@@ -21420,6 +21443,14 @@
           "items": {
             "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.TargetCluster"
+          }
+        },
+        "components": {
+          "description": "Components represents the requirements of multiple pod templates of the referencing resource. It is designed to support workloads that consist of multiple pod templates, such as distributed training jobs (e.g., PyTorch, TensorFlow) and big data workloads (e.g., FlinkDeployment), where each workload is composed of more than one pod template. It is also capable of representing single-component workloads, such as Deployment.\n\nNote: This field is intended to replace the legacy ReplicaRequirements and Replicas fields above. It is only populated when the MultiplePodTemplatesScheduling feature gate is enabled.",
+          "type": "array",
+          "items": {
+            "default": {},
+            "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.ComponentRequirements"
           }
         },
         "conflictResolution": {
