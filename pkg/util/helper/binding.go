@@ -27,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -339,11 +340,27 @@ func GetClusterResourceBindings(c client.Client, ls labels.Set) (*workv1alpha2.C
 	return bindings, c.List(context.TODO(), bindings, listOpt)
 }
 
+// GetClusterResourceBindingsByIndex returns a ClusterResourceBindingList by index.
+func GetClusterResourceBindingsByIndex(c client.Client, indexKey, indexValue string) (*workv1alpha2.ClusterResourceBindingList, error) {
+	bindings := &workv1alpha2.ClusterResourceBindingList{}
+	fieldSelector := fields.OneTermEqualSelector(indexKey, indexValue)
+	listOpt := &client.ListOptions{FieldSelector: fieldSelector}
+	return bindings, c.List(context.TODO(), bindings, listOpt)
+}
+
 // GetResourceBindings returns a ResourceBindingList by labels
 func GetResourceBindings(c client.Client, ls labels.Set) (*workv1alpha2.ResourceBindingList, error) {
 	bindings := &workv1alpha2.ResourceBindingList{}
 	listOpt := &client.ListOptions{LabelSelector: labels.SelectorFromSet(ls)}
 
+	return bindings, c.List(context.TODO(), bindings, listOpt)
+}
+
+// GetResourceBindingsByIndex returns a ResourceBindingList by index.
+func GetResourceBindingsByIndex(c client.Client, indexKey, indexValue string) (*workv1alpha2.ResourceBindingList, error) {
+	bindings := &workv1alpha2.ResourceBindingList{}
+	fieldSelector := fields.OneTermEqualSelector(indexKey, indexValue)
+	listOpt := &client.ListOptions{FieldSelector: fieldSelector}
 	return bindings, c.List(context.TODO(), bindings, listOpt)
 }
 

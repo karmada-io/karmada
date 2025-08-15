@@ -20,10 +20,14 @@ import (
 	"context"
 	"sync"
 
+	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -53,6 +57,31 @@ const (
 	// The index is constructed from the cluster names listed in the `spec.clusters` field of each ClusterResourceBindings,
 	// enabling efficient lookups of ClusterResourceBindings targeting particular clusters.
 	ClusterResourceBindingIndexByFieldCluster = "ClusterResourceBindingIndexByFieldCluster"
+
+	// ResourceTemplateIndexByLabelPolicyID is the index name for ResourceTemplates associated with a PropagationPolicy ID.
+	// This index allows efficient lookup of ResourceTemplates by their `metadata.labels.<PropagationPolicyPermanentIDLabel>`,
+	// which references the ID of the bound PropagationPolicy object.
+	ResourceTemplateIndexByLabelPolicyID = "ResourceTemplateIndexByLabelPolicyID"
+
+	// ResourceTemplateIndexByLabelClusterPolicyID is the index name for ResourceTemplates associated with a ClusterPropagationPolicy ID.
+	// This index allows efficient lookup of ResourceTemplates by their `metadata.labels.<ClusterPropagationPolicyPermanentIDLabel>`,
+	// which references the ID of the bound ClusterPropagationPolicy object.
+	ResourceTemplateIndexByLabelClusterPolicyID = "ResourceTemplateIndexByLabelClusterPolicyID"
+
+	// ResourceBindingIndexByLabelPolicyID is the index name for ResourceBindings associated with a PropagationPolicy ID.
+	// This index allows efficient lookup of ResourceBindings by their `metadata.labels.<PropagationPolicyPermanentIDLabel>`,
+	// which references the ID of the bound PropagationPolicy object.
+	ResourceBindingIndexByLabelPolicyID = "ResourceBindingIndexByLabelPolicyID"
+
+	// ResourceBindingIndexByLabelClusterPolicyID is the index name for ResourceBindings associated with a ClusterPropagationPolicy ID.
+	// This index allows efficient lookup of ResourceBindings by their `metadata.labels.<ClusterPropagationPolicyPermanentIDLabel>`,
+	// which references the ID of the bound ClusterPropagationPolicy object.
+	ResourceBindingIndexByLabelClusterPolicyID = "ResourceBindingIndexByLabelClusterPolicyID"
+
+	// ClusterResourceBindingIndexByLabelClusterPolicyID is the index name for ClusterResourceBindings associated with a ClusterPropagationPolicy ID.
+	// This index allows efficient lookup of ClusterResourceBindings by their `metadata.labels.<ClusterPropagationPolicyPermanentIDLabel>`,
+	// which references the ID of the bound ClusterPropagationPolicy object.
+	ClusterResourceBindingIndexByLabelClusterPolicyID = "ClusterResourceBindingIndexByLabelClusterPolicyID"
 )
 
 var (
@@ -61,6 +90,9 @@ var (
 	registerWorkIndexByFieldSuspendDispatchingOnce       sync.Once
 	registerRBIndexByFieldClusterOnce                    sync.Once
 	registerCRBIndexByFieldClusterOnce                   sync.Once
+	registerRBIndexByLabelPolicyIDOnce                   sync.Once
+	registerRBIndexByLabelClusterPolicyIDOnce            sync.Once
+	registerCRBIndexByLabelClusterPolicyIDOnce           sync.Once
 )
 
 // RegisterWorkIndexByLabelResourceBindingID registers index for Work object based on the referencing ResourceBinding ID.
@@ -145,6 +177,42 @@ func RegisterClusterResourceBindingIndexByFieldCluster(ctx context.Context, mgr 
 	return err
 }
 
+// RegisterResourceBindingIndexByLabel registers indexes for ResourceBinding objects based on policy labels.
+// This function registers both PropagationPolicy and ClusterPropagationPolicy permanent ID label indexes.
+func RegisterResourceBindingIndexByLabel(ctx context.Context, mgr controllerruntime.Manager) error {
+	var errs []error
+	registerRBIndexByLabelPolicyIDOnce.Do(func() {
+		err := mgr.GetFieldIndexer().IndexField(ctx, &workv1alpha2.ResourceBinding{}, ResourceBindingIndexByLabelPolicyID, GenLabelIndexerFunc(policyv1alpha1.PropagationPolicyPermanentIDLabel))
+		if err != nil {
+			klog.Errorf("failed to create ResourceBinding index by label PolicyPermanentID, err: %v", err)
+			errs = append(errs, err)
+		}
+	})
+	registerRBIndexByLabelClusterPolicyIDOnce.Do(func() {
+		err := mgr.GetFieldIndexer().IndexField(ctx, &workv1alpha2.ResourceBinding{}, ResourceBindingIndexByLabelClusterPolicyID, GenLabelIndexerFunc(policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel))
+		if err != nil {
+			klog.Errorf("failed to create ResourceBinding index by label ClusterPolicyPermanentID, err: %v", err)
+			errs = append(errs, err)
+		}
+	})
+
+	return errors.NewAggregate(errs)
+}
+
+// RegisterClusterResourceBindingIndexByLabel registers index for ClusterResourceBinding objects based on ClusterPropagationPolicy label.
+// This function registers the ClusterPropagationPolicy permanent ID label index for ClusterResourceBindings.
+func RegisterClusterResourceBindingIndexByLabel(ctx context.Context, mgr controllerruntime.Manager) error {
+	var err error
+	registerCRBIndexByLabelClusterPolicyIDOnce.Do(func() {
+		err = mgr.GetFieldIndexer().IndexField(ctx, &workv1alpha2.ClusterResourceBinding{}, ClusterResourceBindingIndexByLabelClusterPolicyID, GenLabelIndexerFunc(policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel))
+		if err != nil {
+			klog.Errorf("failed to create ClusterResourceBinding index by label ClusterPolicyPermanentID, err: %v", err)
+		}
+	})
+
+	return err
+}
+
 // GenLabelIndexerFunc returns an IndexerFunc used to index resource with the given label key.
 func GenLabelIndexerFunc(labelKey string) client.IndexerFunc {
 	return func(obj client.Object) []string {
@@ -153,5 +221,20 @@ func GenLabelIndexerFunc(labelKey string) client.IndexerFunc {
 			return nil
 		}
 		return []string{labelValue}
+	}
+}
+
+// GenLabelInformerIndexerFunc returns a cache.IndexFunc used to index resource with the given label key for informer-based indexing.
+// This function is similar to GenLabelIndexerFunc but returns a cache.IndexFunc for use with client-go informers.
+func GenLabelInformerIndexerFunc(labelKey string) cache.IndexFunc {
+	return func(obj interface{}) ([]string, error) {
+		object, err := meta.Accessor(obj)
+		if err != nil {
+			return nil, nil
+		}
+		if val, ok := object.GetLabels()[labelKey]; ok {
+			return []string{val}, nil
+		}
+		return nil, nil
 	}
 }

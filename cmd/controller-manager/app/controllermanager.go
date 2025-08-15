@@ -863,6 +863,12 @@ func setupControllers(ctx context.Context, mgr controllerruntime.Manager, opts *
 	clusterClientOption := &util.ClientOption{RateLimiterGetter: rateLimiterGetter.GetRateLimiter}
 	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSet, clusterClientOption, resourceInterpreter)
 
+	if err := indexregistry.RegisterResourceBindingIndexByLabel(ctx, mgr); err != nil {
+		klog.Fatalf("Failed to create ResourceBinding index: %v", err)
+	}
+	if err := indexregistry.RegisterClusterResourceBindingIndexByLabel(ctx, mgr); err != nil {
+		klog.Fatalf("Failed to create ClusterResourceBinding index: %v", err)
+	}
 	resourceDetector := &detector.ResourceDetector{
 		DiscoveryClientSet:                      discoverClientSet,
 		Client:                                  mgr.GetClient(),
