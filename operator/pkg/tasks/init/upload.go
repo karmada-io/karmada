@@ -31,6 +31,7 @@ import (
 	"github.com/karmada-io/karmada/operator/pkg/constants"
 	"github.com/karmada-io/karmada/operator/pkg/util"
 	"github.com/karmada-io/karmada/operator/pkg/util/apiclient"
+	"github.com/karmada-io/karmada/operator/pkg/util/patcher"
 	"github.com/karmada-io/karmada/operator/pkg/workflow"
 )
 
@@ -269,14 +270,21 @@ func runUploadKarmadaCert(r workflow.RunData) error {
 		certsData[c.CertName()] = c.CertData()
 	}
 
-	err := apiclient.CreateOrUpdateSecret(data.RemoteClient(), &corev1.Secret{
+	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      util.KarmadaCertSecretName(data.GetName()),
 			Namespace: data.GetNamespace(),
 			Labels:    constants.KarmadaOperatorLabel,
 		},
 		Data: certsData,
-	})
+	}
+
+	// Apply labels from configuration if available
+	if data.Components() != nil && data.Components().KarmadaAPIServer != nil {
+		patcher.NewPatcher().WithLabels(data.Components().KarmadaAPIServer.Labels).ForSecret(secret)
+	}
+
+	err := apiclient.CreateOrUpdateSecret(data.RemoteClient(), secret)
 	if err != nil {
 		return fmt.Errorf("failed to upload karmada cert to secret, err: %w", err)
 	}
@@ -295,7 +303,7 @@ func runUploadEtcdCert(r workflow.RunData) error {
 	server := data.GetCert(constants.EtcdServerCertAndKeyName)
 	client := data.GetCert(constants.EtcdClientCertAndKeyName)
 
-	err := apiclient.CreateOrUpdateSecret(data.RemoteClient(), &corev1.Secret{
+	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: data.GetNamespace(),
 			Name:      util.EtcdCertSecretName(data.GetName()),
@@ -310,7 +318,14 @@ func runUploadEtcdCert(r workflow.RunData) error {
 			client.CertName(): client.CertData(),
 			client.KeyName():  client.KeyData(),
 		},
-	})
+	}
+
+	// Apply labels from configuration if available
+	if data.Components() != nil && data.Components().KarmadaAPIServer != nil {
+		patcher.NewPatcher().WithLabels(data.Components().KarmadaAPIServer.Labels).ForSecret(secret)
+	}
+
+	err := apiclient.CreateOrUpdateSecret(data.RemoteClient(), secret)
 	if err != nil {
 		return fmt.Errorf("failed to upload etcd certs to secret, err: %w", err)
 	}
@@ -326,7 +341,7 @@ func runUploadWebHookCert(r workflow.RunData) error {
 	}
 
 	cert := data.GetCert(constants.KarmadaCertAndKeyName)
-	err := apiclient.CreateOrUpdateSecret(data.RemoteClient(), &corev1.Secret{
+	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      util.WebhookCertSecretName(data.GetName()),
 			Namespace: data.GetNamespace(),
@@ -337,7 +352,14 @@ func runUploadWebHookCert(r workflow.RunData) error {
 			"tls.key": cert.KeyData(),
 			"tls.crt": cert.CertData(),
 		},
-	})
+	}
+
+	// Apply labels from configuration if available
+	if data.Components() != nil && data.Components().KarmadaAPIServer != nil {
+		patcher.NewPatcher().WithLabels(data.Components().KarmadaAPIServer.Labels).ForSecret(secret)
+	}
+
+	err := apiclient.CreateOrUpdateSecret(data.RemoteClient(), secret)
 	if err != nil {
 		return fmt.Errorf("failed to upload webhook certs to secret, err: %w", err)
 	}
