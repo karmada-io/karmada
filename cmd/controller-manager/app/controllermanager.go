@@ -163,7 +163,8 @@ func Run(ctx context.Context, opts *options.Options) error {
 
 	controlPlaneRestConfig, err := controllerruntime.GetConfig()
 	if err != nil {
-		panic(err)
+		klog.Errorf("Failed to get kubernetes config: %v", err)
+		return fmt.Errorf("failed to get kubernetes config: %w", err)
 	}
 	controlPlaneRestConfig.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(opts.KubeAPIQPS, opts.KubeAPIBurst)
 	controllerManager, err := controllerruntime.NewManager(controlPlaneRestConfig, controllerruntime.Options{

@@ -181,7 +181,8 @@ func assembleWorkStatus(works []workv1alpha1.Work, objRef workv1alpha2.ObjectRef
 				applied = false
 				appliedMsg = cond.Message
 			default: // should not happen unless the condition api changed.
-				panic("unexpected status")
+				klog.Errorf("Unexpected condition status: %v", cond.Status)
+				return nil, fmt.Errorf("unexpected condition status: %v", cond.Status)
 			}
 		}
 		if !applied {
