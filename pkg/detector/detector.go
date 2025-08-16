@@ -955,6 +955,12 @@ func (d *ResourceDetector) ReconcilePropagationPolicy(key util.QueueKey) error {
 		if err = d.HandlePropagationPolicyDeletion(propagationObject.Labels[policyv1alpha1.PropagationPolicyPermanentIDLabel]); err != nil {
 			return err
 		}
+		if util.IsLazyActivationEnabled(propagationObject.Spec.ActivationPreference) {
+			claimMetadata := labels.Set{policyv1alpha1.PropagationPolicyPermanentIDLabel: propagationObject.Labels[policyv1alpha1.PropagationPolicyPermanentIDLabel]}
+			if err = d.cleanupResidualResourceTemplateClaimMetadata(claimMetadata, propagationObject.Spec.ResourceSelectors, CleanupPPClaimMetadata); err != nil {
+				return err
+			}
+		}
 		if controllerutil.RemoveFinalizer(propagationObject, util.PropagationPolicyControllerFinalizer) {
 			if err = d.Client.Update(context.TODO(), propagationObject); err != nil {
 				klog.Errorf("Failed to remove finalizer for PropagationPolicy(%s), err: %v", nkey.NamespaceKey(), err)
@@ -1026,6 +1032,12 @@ func (d *ResourceDetector) ReconcileClusterPropagationPolicy(key util.QueueKey) 
 		klog.Infof("ClusterPropagationPolicy(%s) is being deleted.", nkey.NamespaceKey())
 		if err = d.HandleClusterPropagationPolicyDeletion(propagationObject.Labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel]); err != nil {
 			return err
+		}
+		if util.IsLazyActivationEnabled(propagationObject.Spec.ActivationPreference) {
+			claimMetadata := labels.Set{policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: propagationObject.Labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel]}
+			if err = d.cleanupResidualResourceTemplateClaimMetadata(claimMetadata, propagationObject.Spec.ResourceSelectors, CleanupCPPClaimMetadata); err != nil {
+				return err
+			}
 		}
 		if controllerutil.RemoveFinalizer(propagationObject, util.ClusterPropagationPolicyControllerFinalizer) {
 			if err = d.Client.Update(context.TODO(), propagationObject); err != nil {
@@ -1141,6 +1153,64 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyDeletion(policyID strin
 		}
 	}
 	return errors.NewAggregate(errs)
+}
+
+func (d *ResourceDetector) cleanupResidualResourceTemplateClaimMetadata(targetClaimMetadata labels.Set, resourceSelector []policyv1alpha1.ResourceSelector, cleanupFunc func(obj metav1.Object)) error {
+	var errs []error
+	for _, resource := range resourceSelector {
+		gvr, err := restmapper.GetGroupVersionResource(d.RESTMapper, schema.FromAPIVersionAndKind(resource.APIVersion, resource.Kind))
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+
+		workloads, err := d.DynamicClient.Resource(gvr).Namespace(resource.Namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: targetClaimMetadata.String()})
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+
+		for _, workload := range workloads.Items {
+			if err := d.cleanupResourceTemplateClaimMetadata(gvr, &workload, targetClaimMetadata, cleanupFunc); err != nil {
+				klog.Errorf("Failed to clean up claim metadata from resource(%s-%s/%s) when policy removed, error: %v",
+					workload.GetKind(), workload.GetNamespace(), workload.GetName(), err)
+				errs = append(errs, err)
+			}
+		}
+	}
+
+	return errors.NewAggregate(errs)
+}
+
+func (d *ResourceDetector) cleanupResourceTemplateClaimMetadata(gvr schema.GroupVersionResource, obj *unstructured.Unstructured, targetClaimMetadata map[string]string, cleanupFunc func(obj metav1.Object)) error {
+	workload := obj.DeepCopy()
+	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+		if !NeedCleanupClaimMetadata(workload, targetClaimMetadata) {
+			klog.Infof("No need to clean up the claim metadata on resource(kind=%s, %s/%s) since they have changed", workload.GetKind(), workload.GetNamespace(), workload.GetName())
+			return nil
+		}
+
+		cleanupFunc(workload)
+
+		_, err = d.DynamicClient.Resource(gvr).Namespace(workload.GetNamespace()).Update(context.TODO(), workload, metav1.UpdateOptions{})
+		if err != nil {
+			klog.Errorf("Failed to update resource(kind=%s, %s/%s): err is %v", workload.GetKind(), workload.GetNamespace(), workload.GetName(), err)
+			if apierrors.IsConflict(err) {
+				newWorkload, getErr := d.DynamicClient.Resource(gvr).Namespace(workload.GetNamespace()).Get(context.TODO(), workload.GetName(), metav1.GetOptions{})
+				if getErr != nil {
+					// do nothing if resource template not exist, it might have been removed.
+					if apierrors.IsNotFound(getErr) {
+						return nil
+					}
+					return getErr
+				}
+				workload = newWorkload
+			}
+			return err
+		}
+		klog.V(2).Infof("Updated resource template(kind=%s, %s/%s) successfully", workload.GetKind(), workload.GetNamespace(), workload.GetName())
+		return nil
+	})
 }
 
 // HandlePropagationPolicyCreationOrUpdate handles PropagationPolicy add and update event.
