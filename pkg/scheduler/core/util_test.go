@@ -17,6 +17,7 @@ limitations under the License.
 package core
 
 import (
+	"github.com/karmada-io/karmada/pkg/scheduler/core/spreadconstraint"
 	"reflect"
 	"testing"
 
@@ -27,8 +28,9 @@ import (
 
 func Test_attachZeroReplicasCluster(t *testing.T) {
 	type args struct {
-		clusters       []*clusterv1alpha1.Cluster
-		targetClusters []workv1alpha2.TargetCluster
+		clusters                 []*clusterv1alpha1.Cluster
+		clusterAvailableReplicas []spreadconstraint.ClusterAvailableReplicas
+		targetClusters           []workv1alpha2.TargetCluster
 	}
 	tests := []struct {
 		name string
@@ -42,6 +44,11 @@ func Test_attachZeroReplicasCluster(t *testing.T) {
 					helper.NewCluster(ClusterMember1),
 					helper.NewCluster(ClusterMember2),
 					helper.NewCluster(ClusterMember3),
+				},
+				clusterAvailableReplicas: []spreadconstraint.ClusterAvailableReplicas{
+					{Cluster: helper.NewCluster(ClusterMember1)},
+					{Cluster: helper.NewCluster(ClusterMember2)},
+					{Cluster: helper.NewCluster(ClusterMember3)},
 				},
 				targetClusters: []workv1alpha2.TargetCluster{
 					{
@@ -72,7 +79,7 @@ func Test_attachZeroReplicasCluster(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := attachZeroReplicasCluster(tt.args.clusters, tt.args.targetClusters); !reflect.DeepEqual(got, tt.want) {
+			if got := attachZeroReplicasCluster(tt.args.clusterAvailableReplicas, tt.args.targetClusters); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("attachZeroReplicasCluster() = %v, want %v", got, tt.want)
 			}
 		})

@@ -17,6 +17,7 @@ limitations under the License.
 package core
 
 import (
+	"github.com/karmada-io/karmada/pkg/scheduler/core/spreadconstraint"
 	"reflect"
 	"testing"
 
@@ -296,11 +297,12 @@ func Test_assignByStaticWeightStrategy(t *testing.T) {
 
 func Test_dynamicScale(t *testing.T) {
 	tests := []struct {
-		name       string
-		candidates []*clusterv1alpha1.Cluster
-		object     *workv1alpha2.ResourceBindingSpec
-		want       []workv1alpha2.TargetCluster
-		wantErr    bool
+		name                     string
+		candidates               []*clusterv1alpha1.Cluster
+		clusterAvailableReplicas []spreadconstraint.ClusterAvailableReplicas
+		object                   *workv1alpha2.ResourceBindingSpec
+		want                     []workv1alpha2.TargetCluster
+		wantErr                  bool
 	}{
 		{
 			name: "replica 12 -> 6, dynamic weighted 1:1:1",
@@ -314,6 +316,17 @@ func Test_dynamicScale(t *testing.T) {
 				helper.NewClusterWithResource(ClusterMember3, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(1, resource.DecimalSI),
 				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
+			},
+			clusterAvailableReplicas: []spreadconstraint.ClusterAvailableReplicas{
+				{Cluster: helper.NewClusterWithResource(ClusterMember1, corev1.ResourceList{
+					corev1.ResourcePods: *resource.NewQuantity(1, resource.DecimalSI),
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList())},
+				{Cluster: helper.NewClusterWithResource(ClusterMember2, corev1.ResourceList{
+					corev1.ResourcePods: *resource.NewQuantity(1, resource.DecimalSI),
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList())},
+				{Cluster: helper.NewClusterWithResource(ClusterMember3, corev1.ResourceList{
+					corev1.ResourcePods: *resource.NewQuantity(1, resource.DecimalSI),
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList())},
 			},
 			object: &workv1alpha2.ResourceBindingSpec{
 				ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
@@ -587,7 +600,7 @@ func Test_dynamicScale(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			state := newAssignState(tt.candidates, tt.object, &workv1alpha2.ResourceBindingStatus{})
+			state := newAssignState(tt.clusterAvailableReplicas, tt.object, &workv1alpha2.ResourceBindingStatus{})
 			got, err := assignByDynamicStrategy(state)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("assignByDynamicStrategy() error = %v, wantErr %v", err, tt.wantErr)
@@ -602,9 +615,10 @@ func Test_dynamicScale(t *testing.T) {
 
 func Test_dynamicScaleUp(t *testing.T) {
 	tests := []struct {
-		name       string
-		candidates []*clusterv1alpha1.Cluster
-		object     *workv1alpha2.ResourceBindingSpec
+		name                     string
+		candidates               []*clusterv1alpha1.Cluster
+		clusterAvailableReplicas []spreadconstraint.ClusterAvailableReplicas
+		object                   *workv1alpha2.ResourceBindingSpec
 		// wants specifies multi possible desired result, any one got is expected
 		wants   [][]workv1alpha2.TargetCluster
 		wantErr bool
@@ -817,7 +831,7 @@ func Test_dynamicScaleUp(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			state := newAssignState(tt.candidates, tt.object, &workv1alpha2.ResourceBindingStatus{})
+			state := newAssignState(tt.clusterAvailableReplicas, tt.object, &workv1alpha2.ResourceBindingStatus{})
 			state.buildScheduledClusters()
 			got, err := dynamicScaleUp(state)
 			if (err != nil) != tt.wantErr {

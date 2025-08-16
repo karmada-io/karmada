@@ -17,6 +17,7 @@ limitations under the License.
 package core
 
 import (
+	"github.com/karmada-io/karmada/pkg/scheduler/core/spreadconstraint"
 	"strconv"
 	"strings"
 	"testing"
@@ -30,6 +31,7 @@ import (
 type testcase struct {
 	name                      string
 	clusters                  []*clusterv1alpha1.Cluster
+	clusterAvailableReplicas  []spreadconstraint.ClusterAvailableReplicas
 	object                    workv1alpha2.ResourceBindingSpec
 	previousResultToNewResult map[string][]string
 	wantErr                   bool
@@ -511,7 +513,7 @@ func Test_EvenDistributionOfReplicas(t *testing.T) {
 				}
 
 				// 2. schedule basing on previous schedule result
-				got, err := g.assignReplicas(tt.clusters, &obj, &workv1alpha2.ResourceBindingStatus{})
+				got, err := g.assignReplicas(tt.clusterAvailableReplicas, &obj, &workv1alpha2.ResourceBindingStatus{})
 				if (err != nil) != tt.wantErr {
 					t.Errorf("AssignReplicas() error = %v, wantErr %v", err, tt.wantErr)
 					return

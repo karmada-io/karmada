@@ -26,11 +26,11 @@ import (
 )
 
 // SelectBestClusters selects the cluster set based the GroupClustersInfo and placement
-func SelectBestClusters(placement *policyv1alpha1.Placement, groupClustersInfo *GroupClustersInfo, needReplicas int32) ([]*clusterv1alpha1.Cluster, error) {
+func SelectBestClusters(placement *policyv1alpha1.Placement, groupClustersInfo *GroupClustersInfo, needReplicas int32) ([]ClusterAvailableReplicas, error) {
 	if len(placement.SpreadConstraints) == 0 || shouldIgnoreSpreadConstraint(placement) {
-		var clusters []*clusterv1alpha1.Cluster
+		var clusters []ClusterAvailableReplicas
 		for _, cluster := range groupClustersInfo.Clusters {
-			clusters = append(clusters, cluster.Cluster)
+			clusters = append(clusters, cluster.ClusterAvailableReplicas)
 		}
 		klog.V(4).Infof("Select all clusters")
 		return clusters, nil
@@ -40,7 +40,22 @@ func SelectBestClusters(placement *policyv1alpha1.Placement, groupClustersInfo *
 		needReplicas = InvalidReplicas
 	}
 
-	return selectBestClustersBySpreadConstraints(placement.SpreadConstraints, groupClustersInfo, needReplicas)
+	clusterList, err := selectBestClustersBySpreadConstraints(placement.SpreadConstraints, groupClustersInfo, needReplicas)
+	if err != nil {
+		return nil, fmt.Errorf("failed to select clusters by spread constraints: %w", err)
+	}
+	clusterMap := make(map[string]ClusterAvailableReplicas)
+	for _, cluster := range groupClustersInfo.Clusters {
+		clusterMap[cluster.Name] = cluster.ClusterAvailableReplicas
+	}
+	var clusters []ClusterAvailableReplicas
+	for _, cluster := range clusterList {
+		if item, exist := clusterMap[cluster.Name]; exist {
+			clusters = append(clusters, item)
+		}
+	}
+
+	return clusters, nil
 }
 
 func selectBestClustersBySpreadConstraints(spreadConstraints []policyv1alpha1.SpreadConstraint,

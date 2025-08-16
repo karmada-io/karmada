@@ -119,8 +119,14 @@ func dynamicScaleDown(state *assignState) ([]workv1alpha2.TargetCluster, error) 
 func dynamicScaleUp(state *assignState) ([]workv1alpha2.TargetCluster, error) {
 	// Target is the extra ones.
 	state.targetReplicas = state.spec.Replicas - state.assignedReplicas
-	state.buildAvailableClusters(func(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster {
-		clusterAvailableReplicas := calAvailableReplicas(clusters, spec)
+	state.buildAvailableClusters(func(_ []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster {
+		clusterAvailableReplicas := make([]workv1alpha2.TargetCluster, len(state.availableClusterReplicas))
+		for i, cluster := range state.availableClusterReplicas {
+			clusterAvailableReplicas[i] = workv1alpha2.TargetCluster{
+				Name:     cluster.Cluster.Name,
+				Replicas: int32(cluster.Replicas),
+			}
+		}
 		sort.Sort(TargetClustersList(clusterAvailableReplicas))
 		return clusterAvailableReplicas
 	})
@@ -132,7 +138,13 @@ func dynamicFreshScale(state *assignState) ([]workv1alpha2.TargetCluster, error)
 	// 1. targetReplicas is set to desired replicas
 	state.targetReplicas = state.spec.Replicas
 	state.buildAvailableClusters(func(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster {
-		clusterAvailableReplicas := calAvailableReplicas(clusters, spec)
+		clusterAvailableReplicas := make([]workv1alpha2.TargetCluster, len(state.availableClusterReplicas))
+		for i, cluster := range state.availableClusterReplicas {
+			clusterAvailableReplicas[i] = workv1alpha2.TargetCluster{
+				Name:     cluster.Cluster.Name,
+				Replicas: int32(cluster.Replicas),
+			}
+		}
 		// 2. clusterAvailableReplicas should take into account the replicas already allocated
 		for _, scheduledCluster := range state.scheduledClusters {
 			for i, availableCluster := range clusterAvailableReplicas {
