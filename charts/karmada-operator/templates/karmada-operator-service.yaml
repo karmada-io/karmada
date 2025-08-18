@@ -1,0 +1,21 @@
+{{- if and $.Values.service $.Values.serviceMonitor.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "karmada.operator.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels: {{- include "common.labels.standard" . | nindent 4 }}
+  {{- if .Values.commonAnnotations }}
+  annotations: {{- include "common.tplvalues.render" ( dict "value" .Values.commonAnnotations "context" $ ) | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: metrics
+      protocol: TCP
+      name: {{ .Values.service.name }}
+  selector:
+    {{- include "common.labels.matchLabels" . | nindent 4 }}
+    app: {{ include "karmada.operator.fullname" . }}
+{{- end }}
