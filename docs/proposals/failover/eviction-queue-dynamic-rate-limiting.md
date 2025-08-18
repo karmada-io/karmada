@@ -56,9 +56,9 @@ As a cluster administrator, I want to configure the eviction behavior based on m
 ## Workflow
 
 ![Eviction Queue Architecture](statics/eviction-queue-architecture.png)
-
+ 
 1. **Cluster Failure Detection**: The system continuously monitors cluster health status through the InformerManager
-2. **Resource Identification**: When a cluster becomes unhealthy, the TaintManager identifies all resources that need to be evicted from that cluster
+2. **Resource Identification**: When a cluster becomes unhealthy, the TaintManager identifies resources that need to be evicted from that cluster
 3. **Queue Enqueue**: Resources are added to the appropriate eviction queue (ResourceBinding or ClusterResourceBinding) based on their type
 4. **Rate Calculation**: The DynamicRateLimiter calculates the appropriate processing rate based on the current cluster health ratio
 5. **Resource Processing**: Resources are processed from the queue at the calculated rate, ensuring smooth operation
@@ -77,11 +77,20 @@ The implementation consists of several components:
 
 A configuration structure that controls the behavior of the eviction queue:
 
-- `ResourceEvictionRate`: The default eviction rate (per second) when the system is healthy
-- `SecondaryResourceEvictionRate`: The reduced eviction rate when the system is unhealthy
-- `UnhealthyClusterThreshold`: The threshold above which the system is considered unhealthy
-- `LargeClusterNumThreshold`: The threshold that determines whether to reduce or pause evictions
+* **`--resource-eviction-rate`**: Corresponds to the `ResourceEvictionRate` field. It defines the number of resources to be evicted per second when the system is healthy.
+    * **Default**: `0.5` (one resource is evicted every 2 seconds).
 
+* **`--secondary-resource-eviction-rate`**: Corresponds to the `SecondaryResourceEvictionRate` field. When the system becomes unhealthy due to too many cluster failures, the resource eviction rate will be reduced to this secondary level.
+    * **Default**: `0.1`.
+
+* **`--unhealthy-cluster-threshold`**: Corresponds to the `UnhealthyClusterThreshold` field. This is the threshold above which the system is considered unhealthy.
+    * **Default**: `0.55` (the system is considered unhealthy when the cluster failure rate exceeds 55%).
+
+* **`--large-cluster-num-threshold`**: Corresponds to the `LargeClusterNumThreshold` field. This threshold determines whether the Karmada instance is considered a large-scale federation. The behavior of rate limiting differs based on the scale.
+    * **Default**: `10`.
+    * **Logic**: When the cluster failure rate exceeds `--unhealthy-cluster-threshold`:
+        * For **large-scale** federations (total clusters > 10), the eviction rate is reduced to `--secondary-resource-eviction-rate`.
+        * For **small-scale** federations (total clusters <= 10), the eviction rate is reduced to `0` (i.e., eviction is stopped).
 These options can be configured through command-line flags.
 
 ### 2. EvictionQueue
@@ -95,25 +104,24 @@ The eviction queue is designed with the following principles to ensure smooth op
 
 #### 3. DynamicRateLimiter
 
-A dynamic rate limiter that dynamically adjusts eviction rates based on cluster health status. The DynamicRateLimiter consists of several interconnected modules:
+A dynamic rate limiter that implements the standard `client-go/workqueue.TypedRateLimiter` interface. Instead of using a fixed rate, it calculates the processing delay for each item based on the real-time health status of the entire cluster fleet. This pragmatic approach ensures the system automatically slows down during large-scale failures without the complexity of multiple interconnected components.
 
-1. **Health Monitor**
-   - Continuously monitors cluster health status through InformerManager
-   - Tracks cluster states (Ready/NotReady) and health metrics
-   - Maintains a real-time health ratio calculation
-   - Provides health status events to other modules
+**Working Principle:**
 
-2. **Rate Calculator**
-   - Implements the rate calculation algorithm based on cluster health ratio
-   - Supports multiple rate levels (normal, secondary, paused)
-   - Handles threshold-based rate transitions
-   - Provides rate recommendations to the processing module
+The limiter's logic is straightforward and integrates directly with the `workqueue`'s processing cycle:
 
-3. **Processing Controller**
-   - Manages the actual rate limiting implementation
-   - Controls resource processing frequency
-   - Handles rate transitions and smoothing
-   - Ensures rate limits are respected across all eviction workers
+1.  **Integration:** The `DynamicRateLimiter` is passed to the `workqueue` during its initialization. The `workqueue` itself acts as the "Processing Controller", managing the overall flow.
+
+2.  **Invocation:** For every item that the `workqueue` is about to process, it calls the `DynamicRateLimiter`'s `When()` method to ask, "How long should I wait for this item?".
+
+3.  **On-Demand Health Assessment:** The `When()` method performs an immediate health assessment. It does this by listing all `Cluster` objects directly from the **informer's local cache**. This is a highly efficient, in-memory operation with no direct network calls to the API server.
+
+4.  **Rate Calculation & Delay Return:**
+    * It calculates the real-time ratio of unhealthy clusters.
+    * Based on the `unhealthy-cluster-threshold` and `large-cluster-num-threshold` parameters, it instantly determines the appropriate eviction rate: the default rate, the secondary (slower) rate, or zero (pausing evictions).
+    * Finally, it converts this rate into a `time.Duration` (e.g., a rate of 0.5/s becomes a 2-second delay) and returns it to the `workqueue`.
+
+5.  **Enforcement:** The `workqueue` receives this duration and enforces the delay before releasing the item to be processed by an eviction worker.
 
 ### 4. Metrics Collection
 
@@ -213,44 +221,44 @@ This design pattern is consistent with other metrics in the Karmada project, pro
 
 ## Implementation Details
 
-### New Files
+This section details the implementation plan by linking the specific file changes to the steps outlined in the **Component Interactions** section.
 
-1. **pkg/controllers/cluster/evictionqueue_config/evictionoption.go**
-   - Defines the EvictionQueueOptions structure and methods to register command-line flags
+#### 1. Controller Manager Initialization and Configuration Passing
+This corresponds to step 1 of the component interactions, where `EvictionQueueOptions` are initialized and passed down to the `TaintManager`.
 
-2. **pkg/controllers/cluster/eviction_queue.go**
-   - Implements the EvictionQueue interface and concrete evictionQueue type
-   - Provides methods for adding items to the queue and processing them
-   - Integrates with metrics collection
+* **Define Options Structure (`New File`)**:
+    * `pkg/controllers/cluster/evictionqueue_config/evictionoption.go`: A new file to define the `EvictionQueueOptions` structure and the methods to register its associated command-line flags.
+* **Register and Pass Options (`Modifications`)**:
+    * `cmd/controller-manager/app/options/options.go`: Add the `EvictionQueueOptions` field to the main `Options` struct.
+    * `cmd/controller-manager/app/controllermanager.go`: During the controller manager's setup, pass the parsed `EvictionQueueOptions` to the `TaintManager` upon its creation.
+    * `pkg/controllers/context/context.go`: Add `EvictionQueueOptions` to the controller context to make it accessible.
 
-3. **pkg/controllers/cluster/dynamic_rate_limiter.go**
-   - Implements the DynamicRateLimiter type
-   - Provides methods for calculating the appropriate rate based on cluster health
-   - Updates cluster health metrics
+#### 2. TaintManager Creates and Starts Eviction Workers
+This corresponds to steps 2 and 3, where the `TaintManager` sets up the core components for eviction.
 
-### Modifications to Existing Files
+* **Implement Dynamic Rate Limiter (`New File`)**:
+    * `pkg/controllers/cluster/dynamic_rate_limiter.go`: A new file to implement the `DynamicRateLimiter`. It will use the `InformerManager` to monitor cluster health and calculate the appropriate processing rate.
+* **Implement Eviction Queue (`New File`)**:
+    * `pkg/controllers/cluster/eviction_queue.go`: A new file to implement the `EvictionQueue` interface and its concrete type. It will integrate the `DynamicRateLimiter` and manage adding/processing eviction tasks.
+* **Integrate into TaintManager (`Modifications`)**:
+    * `pkg/controllers/cluster/taint_manager.go`:
+        * Add `EvictionQueueOptions` and `InformerManager` fields to the `NoExecuteTaintManager` struct.
+        * Modify its `Start` method to create two `EvictionQueue` instances (for ResourceBinding and ClusterResourceBinding) and start their respective processing workers.
 
-1. **pkg/controllers/cluster/taint_manager.go**
-   - Add EvictionQueueOptions and InformerManager fields to NoExecuteTaintManager
-   - Modify the Start method to create and start eviction workers
-   - Add getResourceKindFromKey method to extract cluster name and resource kind
-   - Update syncCluster, syncBindingEviction, and syncClusterBindingEviction methods
+#### 3. Resources are Enqueued and Processed
+This corresponds to steps 4 and 5, covering the runtime logic when a cluster failure is detected.
 
-2. **pkg/metrics/cluster.go**
-   - Add metrics for eviction queue depth, processing latency, and success/failure rates
-   - Add metrics for cluster health status
-   - Add methods for recording metrics
+* **Update TaintManager Logic (`Modifications`)**:
+    * `pkg/controllers/cluster/taint_manager.go`: Modify the `syncCluster`, `syncBindingEviction`, and `syncClusterBindingEviction` methods. Instead of processing evictions directly, these methods will now add the identified resources as tasks to the appropriate `EvictionQueue`. The queue itself will handle the rate-limited execution.
 
-3. **cmd/controller-manager/app/options/options.go**
-   - Add EvictionQueueOptions field to Options structure
-   - Register command-line flags for eviction queue options
+#### 4. Metrics are Collected and Exposed
+This corresponds to step 6, ensuring the entire process is observable.
 
-4. **cmd/controller-manager/app/controllermanager.go**
-   - Pass EvictionQueueOptions to TaintManager when creating it
-   - Pass EvictionQueueOptions to controller context
-
-5. **pkg/controllers/context/context.go**
-   - Add EvictionQueueOptions field to Options structure
+* **Add New Metrics (`Modifications`)**:
+    * `pkg/metrics/cluster.go`: Add new Prometheus metrics for queue depth, processing latency, success/failure rates, and overall cluster health status.
+* **Record Metrics in Components (`Modifications`)**:
+    * The newly implemented `pkg/controllers/cluster/eviction_queue.go` will be responsible for updating queue-related metrics (depth, latency, results) as tasks are added and processed.
+    * The `pkg/controllers/cluster/dynamic_rate_limiter.go` will update the cluster health metrics.
 
 ## Test Plan
 
