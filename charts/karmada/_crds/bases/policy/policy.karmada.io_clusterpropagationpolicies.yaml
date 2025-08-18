@@ -223,6 +223,38 @@ spec:
                     required:
                     - decisionConditions
                     type: object
+                  cluster:
+                    description: |-
+                      Cluster indicates failover behaviors in case of partial cluster failure.
+                      The partial cluster failure here refers to the clusters with taint
+                      whose effect is PreferNoExecute.
+
+                      PreferNoExecute taints do not need to consider the setting of
+                      Placement.ClusterTolerations.
+
+                      If this value is nil, failover triggered by PreferNoExecute is disabled.
+                    properties:
+                      purgeMode:
+                        default: Gracefully
+                        description: |-
+                          PurgeMode represents how to deal with the legacy applications on the
+                          cluster from which the application is migrated.
+                          Valid options are "Directly" and "Gracefully".
+                          Defaults to "Gracefully".
+                        enum:
+                        - Directly
+                        - Gracefully
+                        type: string
+                      tolerationSeconds:
+                        default: 300
+                        description: |-
+                          TolerationSeconds represents the time system should wait for
+                          performing failover process after the PreferNoExecute
+                          taint occurs on the cluster.
+                          Defaults to 300.
+                        format: int32
+                        type: integer
+                    type: object
                 type: object
               placement:
                 description: Placement represents the rule for select clusters to
