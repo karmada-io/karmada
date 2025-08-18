@@ -174,15 +174,6 @@ func runDeployMetricAdapter(r workflow.RunData) error {
 
 	klog.V(2).InfoS("[DeployMetricAdapter] Successfully applied karmada-metrics-adapter component", "karmada", klog.KObj(data))
 
-	if *cfg.KarmadaMetricsAdapter.Replicas != 0 {
-		waiter := apiclient.NewKarmadaWaiter(data.ControlplaneConfig(), data.RemoteClient(), time.Second*30)
-		if err = waiter.WaitForSomePods(karmadaMetricAdapterLabels.String(), data.GetNamespace(), 1); err != nil {
-			return fmt.Errorf("waiting for karmada-metrics-adapter to ready timeout, err: %w", err)
-		}
-
-		klog.V(2).InfoS("[DeployMetricAdapter] the karmada-metrics-adapter is ready", "karmada", klog.KObj(data))
-	}
-
 	return nil
 }
 
