@@ -103,6 +103,16 @@ const (
 	// owner: @jabellard
 	// beta: v1.15
 	ContextualLogging = logsv1.ContextualLogging
+
+	// MultiplePodTemplatesScheduling enables enhanced, resource-aware scheduling for workloads with multiple pod templates.
+	// When enabled, the scheduler and resource interpreter will use the new 'GetComponentReplicas' hook and 'components' field
+	// to support accurate resource estimation and scheduling for complex CRDs (e.g., FlinkDeployments, RayJob, VolcanoJob) that consist of
+	// multiple components with different resource requirements. This allows for more precise FederatedResourceQuota
+	// calculations and better placement decisions.
+	//
+	// owner: @mszacillo, @Dyex719, @RainbowMango, @XiShanYongYe-Chang, @zhzhuang-zju, @seanlaii
+	// alpha: v1.15
+	MultiplePodTemplatesScheduling featuregate.Feature = "MultiplePodTemplatesScheduling"
 )
 
 var (
@@ -128,6 +138,7 @@ var (
 		LoggingAlphaOptions:               {Default: false, PreRelease: featuregate.Alpha},
 		LoggingBetaOptions:                {Default: true, PreRelease: featuregate.Beta},
 		ContextualLogging:                 {Default: true, PreRelease: featuregate.Beta},
+		MultiplePodTemplatesScheduling:    {Default: false, PreRelease: featuregate.Alpha},
 	}
 )
 
