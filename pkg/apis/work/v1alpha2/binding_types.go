@@ -86,6 +86,17 @@ type ResourceBindingSpec struct {
 	// +optional
 	Replicas int32 `json:"replicas,omitempty"`
 
+	// Components represents the requirements of multiple pod templates of the referencing resource.
+	// It is designed to support workloads that consist of multiple pod templates,
+	// such as distributed training jobs (e.g., PyTorch, TensorFlow) and big data workloads (e.g., FlinkDeployment),
+	// where each workload is composed of more than one pod template. It is also capable of representing
+	// single-component workloads, such as Deployment.
+	//
+	// Note: This field is intended to replace the legacy ReplicaRequirements and Replicas fields above.
+	// It is only populated when the MultiplePodTemplatesScheduling feature gate is enabled.
+	// +optional
+	Components []ComponentRequirements `json:"components,omitempty"`
+
 	// Clusters represents target member clusters where the resource to be deployed.
 	// +optional
 	Clusters []TargetCluster `json:"clusters,omitempty"`
@@ -210,6 +221,24 @@ type ReplicaRequirements struct {
 	// PriorityClassName represents the resources priorityClassName
 	// +optional
 	PriorityClassName string `json:"priorityClassName,omitempty"`
+}
+
+// ComponentRequirements represents the requirements for a specific component.
+type ComponentRequirements struct {
+	// Name of this component.
+	// It is required when the resource contains multiple components to ensure proper identification,
+	// and must also be unique within the same resource.
+	// +kubebuilder:validation:MaxLength=32
+	// +optional
+	Name string `json:"name,omitempty"`
+
+	// Replicas represents the replica number of the resource's component.
+	// +required
+	Replicas int32 `json:"replicas"`
+
+	// ReplicaRequirements represents the requirements required by each replica for this component.
+	// +optional
+	ReplicaRequirements *ReplicaRequirements `json:"replicaRequirements,omitempty"`
 }
 
 // NodeClaim represents the node claim HardNodeAffinity, NodeSelector and Tolerations required by each replica.

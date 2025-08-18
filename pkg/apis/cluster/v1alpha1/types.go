@@ -71,7 +71,7 @@ type ClusterSpec struct {
 	// - compose the DNS name of multi-cluster services.
 	//
 	// +optional
-	// +kubebuilder:validation:Maxlength=128000
+	// +kubebuilder:validation:MaxLength=128000
 	ID string `json:"id,omitempty"`
 
 	// SyncMode describes how a cluster syncs resources from karmada control plane.
