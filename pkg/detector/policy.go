@@ -74,7 +74,7 @@ func (d *ResourceDetector) propagateResource(object *unstructured.Unstructured,
 		}
 		d.RemoveWaiting(objectKey)
 		metrics.ObserveFindMatchedPolicyLatency(start)
-		return d.ApplyPolicy(object, objectKey, resourceChangeByKarmada, propagationPolicy)
+		return d.ApplyPolicy(object, objectKey, false, propagationPolicy)
 	}
 
 	// 4. reaching here means there is no appropriate PropagationPolicy, attempt to match a ClusterPropagationPolicy.
@@ -91,7 +91,7 @@ func (d *ResourceDetector) propagateResource(object *unstructured.Unstructured,
 		}
 		d.RemoveWaiting(objectKey)
 		metrics.ObserveFindMatchedPolicyLatency(start)
-		return d.ApplyClusterPolicy(object, objectKey, resourceChangeByKarmada, clusterPolicy)
+		return d.ApplyClusterPolicy(object, objectKey, false, clusterPolicy)
 	}
 
 	if d.isWaiting(objectKey) {
