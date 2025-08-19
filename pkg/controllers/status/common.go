@@ -186,8 +186,10 @@ func updateResourceStatus(
 		newObj, err := interpreter.AggregateStatus(resource, bindingStatus.AggregatedStatus)
 		if err != nil {
 			klog.Errorf("Failed to aggregate status for resource template(%s/%s/%s), Error: %v", gvr, resource.GetNamespace(), resource.GetName(), err)
+			eventRecorder.Event(resource, corev1.EventTypeWarning, events.EventReasonAggregateStatusFailed, err.Error())
 			return err
 		}
+		eventRecorder.Event(resource, corev1.EventTypeNormal, events.EventReasonAggregateStatusSucceed, "Aggregated status to object successfully.")
 
 		oldStatus, _, _ := unstructured.NestedFieldNoCopy(resource.Object, "status")
 		newStatus, _, _ := unstructured.NestedFieldNoCopy(newObj.Object, "status")
@@ -201,14 +203,9 @@ func updateResourceStatus(
 			return err
 		}
 
-		eventRecorder.Event(resource, corev1.EventTypeNormal, events.EventReasonAggregateStatusSucceed, "Update Resource with AggregatedStatus successfully.")
 		klog.V(3).Infof("Update resource(%s/%s/%s) status successfully.", gvr, resource.GetNamespace(), resource.GetName())
-
 		return nil
 	}); err != nil {
-		if resource != nil {
-			eventRecorder.Event(resource, corev1.EventTypeWarning, events.EventReasonAggregateStatusFailed, err.Error())
-		}
 		return err
 	}
 

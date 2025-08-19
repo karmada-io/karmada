@@ -763,8 +763,10 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 		replicas, replicaRequirements, err := d.ResourceInterpreter.GetReplicas(object)
 		if err != nil {
 			klog.Errorf("Failed to customize replicas for %s(%s), %v", object.GroupVersionKind(), object.GetName(), err)
+			d.EventRecorder.Event(object, corev1.EventTypeWarning, events.EventReasonGetReplicasFailed, err.Error())
 			return nil, err
 		}
+		d.EventRecorder.Event(object, corev1.EventTypeNormal, events.EventReasonGetReplicasSucceed, "Get replicas of resource template successfully.")
 		propagationBinding.Spec.Replicas = replicas
 		propagationBinding.Spec.ReplicaRequirements = replicaRequirements
 	}
@@ -837,8 +839,10 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 		replicas, replicaRequirements, err := d.ResourceInterpreter.GetReplicas(object)
 		if err != nil {
 			klog.Errorf("Failed to customize replicas for %s(%s), %v", object.GroupVersionKind(), object.GetName(), err)
+			d.EventRecorder.Event(object, corev1.EventTypeWarning, events.EventReasonGetReplicasFailed, err.Error())
 			return nil, err
 		}
+		d.EventRecorder.Event(object, corev1.EventTypeNormal, events.EventReasonGetReplicasSucceed, "Get replicas of resource template successfully.")
 		binding.Spec.Replicas = replicas
 		binding.Spec.ReplicaRequirements = replicaRequirements
 	}
