@@ -97,6 +97,17 @@ type CustomizationRules struct {
 	// +optional
 	ReplicaResource *ReplicaResourceRequirement `json:"replicaResource,omitempty"`
 
+	// ComponentResource describes the rules for Karmada to discover the resource requirements
+	// for multiple components from the given object.
+	// This is designed for CRDs with multiple components (e.g., FlinkDeployment), but
+	// can also be used for single-component resources like Deployment.
+	// If implemented, the controller will use this to obtain per-component replica and resource
+	// requirements, and will not call ReplicaResource.
+	// If not implemented, the controller will fall back to ReplicaResource for backward compatibility.
+	// This will only be used when the feature gate 'MultiplePodTemplatesScheduling' is enabled.
+	// +optional
+	ComponentResource *ComponentResourceRequirement `json:"componentResource,omitempty"`
+
 	// ReplicaRevision describes the rules for Karmada to revise the resource's replica.
 	// It would be useful for those CRD resources that declare workload types like
 	// Deployment.
@@ -199,6 +210,51 @@ type ReplicaResourceRequirement struct {
 	//   - requirement: the resource required by each replica expressed with a
 	//       ResourceBindingSpec.ReplicaRequirements.
 	// The returned values will be set into a ResourceBinding or ClusterResourceBinding.
+	// +required
+	LuaScript string `json:"luaScript"`
+}
+
+// ComponentResourceRequirement holds the scripts for extracting the desired replica count
+// and resource requirements for each component within a resource. This is particularly useful for
+// resources that define multiple components (such as CRDs with multiple pod templates), but can also
+// be used for single-component resources.
+type ComponentResourceRequirement struct {
+	// LuaScript holds the Lua script that is used to extract the desired replica count and resource
+	// requirements for each component of the resource.
+	//
+	// The script should implement a function as follows:
+	//
+	// ```
+	//   luaScript: >
+	//       function GetComponents(desiredObj)
+	//           local components = {}
+	//
+	//           local jobManagerComponent = {
+	//               name = "jobmanager"
+	//               replicas = desiredObj.spec.jobManager.replicas
+	//           }
+	//           table.insert(components, jobManagerComponent)
+	//
+	//           local taskManagerComponent = {
+	//               name = "taskmanager"
+	//               replicas = desiredObj.spec.taskManager.replicas
+	//           }
+	//           table.insert(components, taskManagerComponent)
+	//
+	//           return components
+	//       end
+	// ```
+	//
+	// The content of the LuaScript needs to be a whole function including both
+	// declaration and implementation.
+	//
+	// The parameters will be supplied by the system:
+	//   - desiredObj: the object represents the configuration to be applied
+	//       to the member cluster.
+	//
+	// The function expects one return value:
+	//   - components: the resource requirements for each component.
+	// The returned value will be set into a ResourceBinding or ClusterResourceBinding.
 	// +required
 	LuaScript string `json:"luaScript"`
 }

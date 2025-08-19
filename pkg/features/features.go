@@ -105,7 +105,7 @@ const (
 	ContextualLogging = logsv1.ContextualLogging
 
 	// MultiplePodTemplatesScheduling enables enhanced, resource-aware scheduling for workloads with multiple pod templates.
-	// When enabled, the scheduler and resource interpreter will use the new 'GetComponentReplicas' hook and 'components' field
+	// When enabled, the scheduler and resource interpreter will use the new 'GetComponents' hook and 'components' field
 	// to support accurate resource estimation and scheduling for complex CRDs (e.g., FlinkDeployments, RayJob, VolcanoJob) that consist of
 	// multiple components with different resource requirements. This allows for more precise FederatedResourceQuota
 	// calculations and better placement decisions.

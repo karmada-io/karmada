@@ -17,6 +17,7 @@ limitations under the License.
 package native
 
 import (
+	"errors"
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -108,6 +109,11 @@ func (e *DefaultInterpreter) ReviseReplica(object *unstructured.Unstructured, re
 		return nil, fmt.Errorf("default %s interpreter for %q not found", configv1alpha1.InterpreterOperationReviseReplica, object.GroupVersionKind())
 	}
 	return handler(object, replica)
+}
+
+// GetComponents returns the resource requirements for multiple components from the given object.
+func (e *DefaultInterpreter) GetComponents(_ *unstructured.Unstructured) ([]workv1alpha2.ComponentRequirements, error) {
+	return nil, errors.New("no plan to implement this method yet")
 }
 
 // Retain returns the objects that based on the "desired" object but with values retained from the "observed" object.
