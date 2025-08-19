@@ -3519,7 +3519,7 @@ func schema_pkg_apis_policy_v1alpha1_ApplicationFailoverBehavior(ref common.Refe
 					},
 					"purgeMode": {
 						SchemaProps: spec.SchemaProps{
-							Description: "PurgeMode represents how to deal with the legacy applications on the cluster from which the application is migrated. Valid options are \"Immediately\", \"Graciously\" and \"Never\". Defaults to \"Graciously\".",
+							Description: "PurgeMode represents how to deal with the legacy applications on the cluster from which the application is migrated. Valid options are \"Directly\", \"Gracefully\", \"Never\", \"Immediately\"(deprecated), and \"Graciously\"(deprecated). Defaults to \"Gracefully\".",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -7239,7 +7239,7 @@ func schema_pkg_apis_work_v1alpha2_GracefulEvictionTask(ref common.ReferenceCall
 					},
 					"purgeMode": {
 						SchemaProps: spec.SchemaProps{
-							Description: "PurgeMode represents how to deal with the legacy applications on the cluster from which the application is migrated. Valid options are \"Immediately\", \"Graciously\" and \"Never\".",
+							Description: "PurgeMode represents how to deal with the legacy applications on the cluster from which the application is migrated. Valid options are \"Immediately\", \"Directly\", \"Graciously\", \"Gracefully\" and \"Never\".",
 							Type:        []string{"string"},
 							Format:      "",
 						},
