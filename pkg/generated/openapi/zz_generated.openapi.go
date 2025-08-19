@@ -98,6 +98,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ApplicationFailoverBehavior":                 schema_pkg_apis_policy_v1alpha1_ApplicationFailoverBehavior(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinity":                             schema_pkg_apis_policy_v1alpha1_ClusterAffinity(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinityTerm":                         schema_pkg_apis_policy_v1alpha1_ClusterAffinityTerm(ref),
+		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterFailoverBehavior":                     schema_pkg_apis_policy_v1alpha1_ClusterFailoverBehavior(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterOverridePolicy":                       schema_pkg_apis_policy_v1alpha1_ClusterOverridePolicy(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterOverridePolicyList":                   schema_pkg_apis_policy_v1alpha1_ClusterOverridePolicyList(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterPreferences":                          schema_pkg_apis_policy_v1alpha1_ClusterPreferences(ref),
@@ -3698,6 +3699,34 @@ func schema_pkg_apis_policy_v1alpha1_ClusterAffinityTerm(ref common.ReferenceCal
 	}
 }
 
+func schema_pkg_apis_policy_v1alpha1_ClusterFailoverBehavior(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ClusterFailoverBehavior indicates cluster failover behaviors.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"purgeMode": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PurgeMode represents how to deal with the legacy applications on the cluster from which the application is migrated. Valid options are \"Directly\", \"Gracefully\". Defaults to \"Gracefully\".",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"statePreservation": {
+						SchemaProps: spec.SchemaProps{
+							Description: "StatePreservation defines the policy for preserving and restoring state data during failover events for stateful applications.\n\nWhen an application fails over from one cluster to another, this policy enables the extraction of critical data from the original resource configuration. Upon successful migration, the extracted data is then re-injected into the new resource, ensuring that the application can resume operation with its previous state intact. This is particularly useful for stateful applications where maintaining data consistency across failover events is crucial. If not specified, means no state data will be preserved.\n\nNote: This requires the StatefulFailoverInjection feature gate to be enabled, which is alpha.",
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.StatePreservation"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.StatePreservation"},
+	}
+}
+
 func schema_pkg_apis_policy_v1alpha1_ClusterOverridePolicy(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -4205,11 +4234,17 @@ func schema_pkg_apis_policy_v1alpha1_FailoverBehavior(ref common.ReferenceCallba
 							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ApplicationFailoverBehavior"),
 						},
 					},
+					"cluster": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Cluster indicates failover behaviors in case of cluster failure. If this value is nil, the failover behavior in case of cluster failure will be controlled by the controller's no-execute-taint-eviction-purge-mode parameter. If set, the failover behavior in case of cluster failure will be defined by this value.",
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterFailoverBehavior"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ApplicationFailoverBehavior"},
+			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ApplicationFailoverBehavior", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterFailoverBehavior"},
 	}
 }
 
