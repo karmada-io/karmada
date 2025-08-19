@@ -22,8 +22,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -834,6 +836,163 @@ func TestNoExecuteTaintManager_needEviction(t *testing.T) {
 				if tolerationTime != tt.expectedTolerationTime {
 					t.Errorf("needEviction() tolerationTime = %v, want %v", tolerationTime, tt.expectedTolerationTime)
 				}
+			}
+		})
+	}
+}
+
+func Test_getPurgeMode(t *testing.T) {
+	tests := []struct {
+		name         string
+		taintManager *NoExecuteTaintManager
+		failover     *policyv1alpha1.FailoverBehavior
+		expected     policyv1alpha1.PurgeMode
+	}{
+		{
+			name:         "failover spec is nil, global config is empty, should default to Gracefully",
+			taintManager: &NoExecuteTaintManager{NoExecuteTaintEvictionPurgeMode: ""},
+			failover:     nil,
+			expected:     policyv1alpha1.PurgeModeGracefully,
+		},
+		{
+			name:         "failover spec is nil, global config is Directly",
+			taintManager: &NoExecuteTaintManager{NoExecuteTaintEvictionPurgeMode: string(policyv1alpha1.PurgeModeDirectly)},
+			failover:     nil,
+			expected:     policyv1alpha1.PurgeModeDirectly,
+		},
+		{
+			name:         "failover spec is nil, global config is Gracefully",
+			taintManager: &NoExecuteTaintManager{NoExecuteTaintEvictionPurgeMode: string(policyv1alpha1.PurgeModeGracefully)},
+			failover:     nil,
+			expected:     policyv1alpha1.PurgeModeGracefully,
+		},
+		{
+			name:         "failover spec is present, but cluster is nil, should fallback to global config",
+			taintManager: &NoExecuteTaintManager{NoExecuteTaintEvictionPurgeMode: string(policyv1alpha1.PurgeModeDirectly)},
+			failover:     &policyv1alpha1.FailoverBehavior{},
+			expected:     policyv1alpha1.PurgeModeDirectly,
+		},
+		{
+			name:         "failover spec is present, PurgeMode is empty, should be Gracefully",
+			taintManager: &NoExecuteTaintManager{NoExecuteTaintEvictionPurgeMode: string(policyv1alpha1.PurgeModeDirectly)},
+			failover: &policyv1alpha1.FailoverBehavior{
+				Cluster: &policyv1alpha1.ClusterFailoverBehavior{
+					PurgeMode: "",
+				},
+			},
+			expected: policyv1alpha1.PurgeModeGracefully,
+		},
+		{
+			name:         "failover spec is present, PurgeMode is Directly",
+			taintManager: &NoExecuteTaintManager{NoExecuteTaintEvictionPurgeMode: string(policyv1alpha1.PurgeModeGracefully)},
+			failover: &policyv1alpha1.FailoverBehavior{
+				Cluster: &policyv1alpha1.ClusterFailoverBehavior{
+					PurgeMode: policyv1alpha1.PurgeModeDirectly,
+				},
+			},
+			expected: policyv1alpha1.PurgeModeDirectly,
+		},
+		{
+			name:         "failover spec is present, PurgeMode is Gracefully",
+			taintManager: &NoExecuteTaintManager{NoExecuteTaintEvictionPurgeMode: string(policyv1alpha1.PurgeModeDirectly)},
+			failover: &policyv1alpha1.FailoverBehavior{
+				Cluster: &policyv1alpha1.ClusterFailoverBehavior{
+					PurgeMode: policyv1alpha1.PurgeModeGracefully,
+				},
+			},
+			expected: policyv1alpha1.PurgeModeGracefully,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.taintManager.getPurgeMode(tt.failover); got != tt.expected {
+				t.Errorf("getPurgeMode() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func Test_extractStateForEviction(t *testing.T) {
+	statusJSON := []byte(`{
+        "metadata": {
+            "labels": {
+                "foo": "bar"
+            }
+        }
+    }`)
+
+	clusterFailoverBehavior := &policyv1alpha1.ClusterFailoverBehavior{
+		StatePreservation: &policyv1alpha1.StatePreservation{
+			Rules: []policyv1alpha1.StatePreservationRule{
+				{
+					AliasLabelName: "foo",
+					JSONPath:       "{ .metadata.labels.foo }",
+				},
+			},
+		},
+	}
+
+	tests := []struct {
+		name             string
+		cluster          string
+		clusterBehavior  *policyv1alpha1.ClusterFailoverBehavior
+		aggregatedStatus []workv1alpha2.AggregatedStatusItem
+		expectedState    map[string]string
+		expectErr        bool
+		expectedErrMsg   string
+	}{
+		{
+			name:            "aggregated status list does not contain the target cluster, should return error",
+			cluster:         "member1",
+			clusterBehavior: clusterFailoverBehavior,
+			aggregatedStatus: []workv1alpha2.AggregatedStatusItem{
+				{ClusterName: "member2", Status: &runtime.RawExtension{Raw: statusJSON}},
+			},
+			expectedState:  nil,
+			expectErr:      true,
+			expectedErrMsg: "the application status has not yet been collected from Cluster(member1)",
+		},
+		{
+			name:            "aggregated status exists for target cluster but its raw status is nil, should return error",
+			cluster:         "member1",
+			clusterBehavior: clusterFailoverBehavior,
+			aggregatedStatus: []workv1alpha2.AggregatedStatusItem{
+				{ClusterName: "member1", Status: nil},
+			},
+			expectedState:  nil,
+			expectErr:      true,
+			expectedErrMsg: "the application status has not yet been collected from Cluster(member1)",
+		},
+		{
+			name:            "successfully extract state",
+			cluster:         "member1",
+			clusterBehavior: clusterFailoverBehavior,
+			aggregatedStatus: []workv1alpha2.AggregatedStatusItem{
+				{
+					ClusterName: "member1",
+					Status: &runtime.RawExtension{
+						Raw: statusJSON,
+					},
+				},
+			},
+			expectedState: map[string]string{
+				"foo": "bar",
+			},
+			expectErr:      false,
+			expectedErrMsg: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			preservedState, err := extractStateForEviction(tt.clusterBehavior, tt.aggregatedStatus, tt.cluster)
+			if tt.expectErr {
+				assert.Error(t, err)
+				assert.Equal(t, tt.expectedErrMsg, err.Error())
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedState, preservedState)
 			}
 		})
 	}

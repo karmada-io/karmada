@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/dynamic"
@@ -1396,6 +1397,74 @@ func TestAggregateComponentResources(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := aggregateComponentResources(tt.components)
 			compareResourceLists(t, tt.expected, result)
+		})
+	}
+}
+
+func TestFindTargetStatusItemByCluster(t *testing.T) {
+	tests := []struct {
+		name             string
+		aggregatedStatus []workv1alpha2.AggregatedStatusItem
+		cluster          string
+		expectedItem     workv1alpha2.AggregatedStatusItem
+		expectedFound    bool
+	}{
+		{
+			name:             "empty aggregated status list",
+			aggregatedStatus: []workv1alpha2.AggregatedStatusItem{},
+			cluster:          "member1",
+			expectedItem:     workv1alpha2.AggregatedStatusItem{},
+			expectedFound:    false,
+		},
+		{
+			name: "cluster not found in aggregated status list",
+			aggregatedStatus: []workv1alpha2.AggregatedStatusItem{
+				{ClusterName: "member2"},
+				{ClusterName: "member3"},
+			},
+			cluster:       "member1",
+			expectedItem:  workv1alpha2.AggregatedStatusItem{},
+			expectedFound: false,
+		},
+		{
+			name: "cluster found in aggregated status list",
+			aggregatedStatus: []workv1alpha2.AggregatedStatusItem{
+				{ClusterName: "member1", Status: &runtime.RawExtension{Raw: []byte(`{"key": "value"}`)}},
+				{ClusterName: "member2"},
+			},
+			cluster: "member1",
+			expectedItem: workv1alpha2.AggregatedStatusItem{
+				ClusterName: "member1",
+				Status:      &runtime.RawExtension{Raw: []byte(`{"key": "value"}`)},
+			},
+			expectedFound: true,
+		},
+		{
+			name: "multiple clusters with the same name, return the first match",
+			aggregatedStatus: []workv1alpha2.AggregatedStatusItem{
+				{ClusterName: "member1", Status: &runtime.RawExtension{Raw: []byte(`{"key1": "value1"}`)}},
+				{ClusterName: "member1", Status: &runtime.RawExtension{Raw: []byte(`{"key2": "value2"}`)}},
+			},
+			cluster: "member1",
+			expectedItem: workv1alpha2.AggregatedStatusItem{
+				ClusterName: "member1",
+				Status:      &runtime.RawExtension{Raw: []byte(`{"key1": "value1"}`)},
+			},
+			expectedFound: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			item, found := FindTargetStatusItemByCluster(tt.aggregatedStatus, tt.cluster)
+			assert.Equal(t, tt.expectedFound, found)
+			assert.Equal(t, tt.expectedItem.ClusterName, item.ClusterName)
+			if tt.expectedItem.Status != nil && item.Status != nil {
+				assert.Equal(t, tt.expectedItem.Status.Raw, item.Status.Raw)
+			} else {
+				assert.Nil(t, item.Status)
+				assert.Nil(t, tt.expectedItem.Status)
+			}
 		})
 	}
 }
