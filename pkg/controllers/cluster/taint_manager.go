@@ -174,12 +174,13 @@ func (tc *NoExecuteTaintManager) syncBindingEviction(key util.QueueKey) error {
 	}
 
 	var purgeMode policyv1alpha1.PurgeMode
+	var preservedLabelState map[string]string
 	if needEviction {
-		switch tc.NoExecuteTaintEvictionPurgeMode {
-		case string(policyv1alpha1.PurgeModeGracefully):
-			purgeMode = policyv1alpha1.PurgeModeGracefully
-		case string(policyv1alpha1.PurgeModeDirectly):
-			purgeMode = policyv1alpha1.PurgeModeDirectly
+		purgeMode = tc.getPurgeMode(binding.Spec.Failover)
+		preservedLabelState, err = extractStateForEviction(cluster, &binding.Spec, &binding.Status)
+		if err != nil {
+			klog.ErrorS(err, "Failed to extract preserved label state for eviction", "binding", binding.Name, "cluster", cluster)
+			return err
 		}
 	}
 
@@ -191,7 +192,9 @@ func (tc *NoExecuteTaintManager) syncBindingEviction(key util.QueueKey) error {
 		binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(
 			workv1alpha2.WithPurgeMode(purgeMode),
 			workv1alpha2.WithProducer(workv1alpha2.EvictionProducerTaintManager),
-			workv1alpha2.WithReason(workv1alpha2.EvictionReasonTaintUntolerated)))
+			workv1alpha2.WithReason(workv1alpha2.EvictionReasonTaintUntolerated),
+			workv1alpha2.WithPreservedLabelState(preservedLabelState)))
+
 		if err = tc.Update(context.TODO(), binding); err != nil {
 			helper.EmitClusterEvictionEventForResourceBinding(binding, cluster, tc.EventRecorder, err)
 			klog.ErrorS(err, "Failed to update binding", "binding", klog.KObj(binding))
@@ -235,15 +238,15 @@ func (tc *NoExecuteTaintManager) syncClusterBindingEviction(key util.QueueKey) e
 	}
 
 	var purgeMode policyv1alpha1.PurgeMode
+	var preservedLabelState map[string]string
 	if needEviction {
-		switch tc.NoExecuteTaintEvictionPurgeMode {
-		case string(policyv1alpha1.PurgeModeGracefully):
-			purgeMode = policyv1alpha1.PurgeModeGracefully
-		case string(policyv1alpha1.PurgeModeDirectly):
-			purgeMode = policyv1alpha1.PurgeModeDirectly
+		purgeMode = tc.getPurgeMode(binding.Spec.Failover)
+		preservedLabelState, err = extractStateForEviction(cluster, &binding.Spec, &binding.Status)
+		if err != nil {
+			klog.ErrorS(err, "Failed to extract preserved label state for eviction", "binding", binding.Name, "cluster", cluster)
+			return err
 		}
 	}
-
 	// Case 1: Need eviction now.
 	// Case 2: Need eviction after toleration time. If time is up, do eviction right now.
 	// Case 3: Tolerate forever, we do nothing.
@@ -252,7 +255,8 @@ func (tc *NoExecuteTaintManager) syncClusterBindingEviction(key util.QueueKey) e
 		binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(
 			workv1alpha2.WithPurgeMode(purgeMode),
 			workv1alpha2.WithProducer(workv1alpha2.EvictionProducerTaintManager),
-			workv1alpha2.WithReason(workv1alpha2.EvictionReasonTaintUntolerated)))
+			workv1alpha2.WithReason(workv1alpha2.EvictionReasonTaintUntolerated),
+			workv1alpha2.WithPreservedLabelState(preservedLabelState)))
 		if err = tc.Update(context.TODO(), binding); err != nil {
 			helper.EmitClusterEvictionEventForClusterResourceBinding(binding, cluster, tc.EventRecorder, err)
 			klog.ErrorS(err, "Failed to update cluster binding", "binding", binding.Name)
@@ -265,6 +269,26 @@ func (tc *NoExecuteTaintManager) syncClusterBindingEviction(key util.QueueKey) e
 	}
 
 	return nil
+}
+
+// getPurgeMode determines the purge mode based on the binding's failover spec and the taint manager's global config.
+func (tc *NoExecuteTaintManager) getPurgeMode(failover *policyv1alpha1.FailoverBehavior) policyv1alpha1.PurgeMode {
+	if failover != nil && failover.Cluster != nil {
+		switch failover.Cluster.PurgeMode {
+		case policyv1alpha1.PurgeModeDirectly:
+			return policyv1alpha1.PurgeModeDirectly
+		case policyv1alpha1.PurgeModeGracefully:
+			return policyv1alpha1.PurgeModeGracefully
+		}
+	}
+
+	switch tc.NoExecuteTaintEvictionPurgeMode {
+	case string(policyv1alpha1.PurgeModeDirectly):
+		return policyv1alpha1.PurgeModeDirectly
+	case string(policyv1alpha1.PurgeModeGracefully):
+		return policyv1alpha1.PurgeModeGracefully
+	}
+	return policyv1alpha1.PurgeModeGracefully
 }
 
 // needEviction returns whether the binding should be evicted from target cluster right now.
@@ -303,6 +327,40 @@ func (tc *NoExecuteTaintManager) needEviction(clusterName string, annotations ma
 	}
 
 	return false, helper.GetMinTolerationTime(taints, usedTolerations), nil
+}
+
+// extractStateForEviction extracts preserved label state from ResourceBinding
+// for the target cluster using state preservation rules.
+func extractStateForEviction(cluster string, bindingSpec *workv1alpha2.ResourceBindingSpec, bindingStatus *workv1alpha2.ResourceBindingStatus) (map[string]string, error) {
+	// Check if state preservation is configured
+	if bindingSpec.Failover == nil ||
+		bindingSpec.Failover.Cluster == nil ||
+		bindingSpec.Failover.Cluster.StatePreservation == nil {
+		return nil, nil
+	}
+
+	// Find the aggregated status for the target cluster
+	var workloadStatus []byte
+	for _, aggregatedStatus := range bindingStatus.AggregatedStatus {
+		if aggregatedStatus.ClusterName == cluster {
+			if aggregatedStatus.Status != nil && aggregatedStatus.Status.Raw != nil {
+				workloadStatus = aggregatedStatus.Status.Raw
+				break
+			}
+		}
+	}
+
+	if workloadStatus == nil {
+		return nil, nil
+	}
+
+	// Build preserved label state using the existing function
+	preservedLabelState, err := helper.BuildPreservedLabelState(bindingSpec.Failover.Cluster.StatePreservation, workloadStatus)
+	if err != nil {
+		return nil, err
+	}
+
+	return preservedLabelState, nil
 }
 
 // SetupWithManager creates a controller and register to controller manager.

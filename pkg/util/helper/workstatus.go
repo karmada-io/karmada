@@ -17,6 +17,7 @@ limitations under the License.
 package helper
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -30,11 +31,13 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/jsonpath"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/events"
@@ -307,4 +310,39 @@ func BuildStatusRawExtension(status interface{}) (*runtime.RawExtension, error) 
 	return &runtime.RawExtension{
 		Raw: statusJSON,
 	}, nil
+}
+
+// BuildPreservedLabelState builds preserved label state from the state preservation rules and raw status.
+func BuildPreservedLabelState(statePreservation *policyv1alpha1.StatePreservation, rawStatus []byte) (map[string]string, error) {
+	results := make(map[string]string, len(statePreservation.Rules))
+	for _, rule := range statePreservation.Rules {
+		value, err := ParseJSONValue(rawStatus, rule.JSONPath)
+		if err != nil {
+			klog.ErrorS(err, "Failed to parse value with jsonPath from status",
+				"jsonPath", rule.JSONPath,
+				"status", string(rawStatus))
+			return nil, err
+		}
+		results[rule.AliasLabelName] = value
+	}
+
+	return results, nil
+}
+
+// ParseJSONValue parses a value from raw status using the provided JSONPath.
+func ParseJSONValue(rawStatus []byte, jsonPath string) (string, error) {
+	j := jsonpath.New(jsonPath)
+	j.AllowMissingKeys(false)
+	if err := j.Parse(jsonPath); err != nil {
+		return "", err
+	}
+	var unmarshalled interface{}
+	if err := json.Unmarshal(rawStatus, &unmarshalled); err != nil {
+		return "", fmt.Errorf("failed to unmarshal rawStatus: %w", err)
+	}
+	buf := new(bytes.Buffer)
+	if err := j.Execute(buf, unmarshalled); err != nil {
+		return "", fmt.Errorf("failed to execute jsonpath %q: %w", jsonPath, err)
+	}
+	return buf.String(), nil
 }
