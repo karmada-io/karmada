@@ -200,6 +200,20 @@ func ObtainBindingSpecExistingClusters(bindingSpec workv1alpha2.ResourceBindingS
 	return clusterNames
 }
 
+// ObtainClustersWithPurgeModeDirectly will obtain the cluster slice whose eviction tasks are with PurgeModeDirectly.
+func ObtainClustersWithPurgeModeDirectly(bindingSpec workv1alpha2.ResourceBindingSpec) sets.Set[string] {
+	clusterNames := sets.New[string]()
+	for _, task := range bindingSpec.GracefulEvictionTasks {
+		//nolint:staticcheck
+		// disable `deprecation` check for backward compatibility.
+		if task.PurgeMode == policyv1alpha1.PurgeModeDirectly ||
+			task.PurgeMode == policyv1alpha1.Immediately {
+			clusterNames.Insert(task.FromCluster)
+		}
+	}
+	return clusterNames
+}
+
 // FindOrphanWorks retrieves all works that labeled with current binding(ResourceBinding or ClusterResourceBinding) objects,
 // then pick the works that not meet current binding declaration.
 func FindOrphanWorks(ctx context.Context, c client.Client, bindingNamespace, bindingName, bindingID string, expectClusters sets.Set[string]) ([]workv1alpha1.Work, error) {
@@ -239,6 +253,29 @@ func RemoveOrphanWorks(ctx context.Context, c client.Client, works []workv1alpha
 		klog.Infof("Delete orphan work %s/%s successfully.", work.GetNamespace(), work.GetName())
 	}
 	return errors.NewAggregate(errs)
+}
+
+// FindWorksInClusters retrieves works that belong to the specified clusters.
+func FindWorksInClusters(ctx context.Context, c client.Client, bindingNamespace, bindingName, bindingID string, targetClusters sets.Set[string]) ([]workv1alpha1.Work, error) {
+	workList, err := GetWorksByBindingID(ctx, c, bindingID, bindingNamespace != "")
+	if err != nil {
+		klog.Errorf("Failed to get works by binding object (%s/%s): %v", bindingNamespace, bindingName, err)
+		return nil, err
+	}
+
+	var filteredWorks []workv1alpha1.Work
+	for _, work := range workList.Items {
+		workTargetCluster, err := names.GetClusterName(work.GetNamespace())
+		if err != nil {
+			klog.Errorf("Failed to get cluster name for Work %s/%s. Error: %v", work.GetNamespace(), work.GetName(), err)
+			return nil, err
+		}
+		if targetClusters.Has(workTargetCluster) {
+			filteredWorks = append(filteredWorks, work)
+		}
+	}
+
+	return filteredWorks, nil
 }
 
 // FetchResourceTemplate fetches the resource template to be propagated.
