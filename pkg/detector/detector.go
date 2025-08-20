@@ -759,14 +759,8 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 
 	claimFunc(propagationBinding, policyID, policyMeta)
 
-	if d.ResourceInterpreter.HookEnabled(object.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretReplica) {
-		replicas, replicaRequirements, err := d.ResourceInterpreter.GetReplicas(object)
-		if err != nil {
-			klog.Errorf("Failed to customize replicas for %s(%s), %v", object.GroupVersionKind(), object.GetName(), err)
-			return nil, err
-		}
-		propagationBinding.Spec.Replicas = replicas
-		propagationBinding.Spec.ReplicaRequirements = replicaRequirements
+	if err := d.applyReplicaInterpretation(object, &propagationBinding.Spec); err != nil {
+		return nil, err
 	}
 
 	if features.FeatureGate.Enabled(features.PriorityBasedScheduling) && policySpec.SchedulePriority != nil {
@@ -833,14 +827,8 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 
 	AddCPPClaimMetadata(binding, policyID, policyMeta)
 
-	if d.ResourceInterpreter.HookEnabled(object.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretReplica) {
-		replicas, replicaRequirements, err := d.ResourceInterpreter.GetReplicas(object)
-		if err != nil {
-			klog.Errorf("Failed to customize replicas for %s(%s), %v", object.GroupVersionKind(), object.GetName(), err)
-			return nil, err
-		}
-		binding.Spec.Replicas = replicas
-		binding.Spec.ReplicaRequirements = replicaRequirements
+	if err := d.applyReplicaInterpretation(object, &binding.Spec); err != nil {
+		return nil, err
 	}
 
 	return binding, nil
@@ -1350,8 +1338,38 @@ func (d *ResourceDetector) CleanupClusterResourceBindingClaimMetadata(crb *workv
 		if err = d.Client.Get(context.TODO(), client.ObjectKey{Name: crb.GetName()}, updated); err == nil {
 			crb = updated.DeepCopy()
 		} else {
-			klog.Errorf("Failed to get updated ClusterResourceBinding(%s):: %v", crb.GetName(), err)
+			klog.Errorf("Failed to get updated ClusterResourceBinding(%s): %v", crb.GetName(), err)
 		}
 		return updateErr
 	})
+}
+
+// applyReplicaInterpretation handles the logic for interpreting replicas or components from an object.
+func (d *ResourceDetector) applyReplicaInterpretation(object *unstructured.Unstructured, spec *workv1alpha2.ResourceBindingSpec) error {
+	gvk := object.GroupVersionKind()
+	name := object.GetName()
+
+	// Prioritize component interpretation if the feature and GetComponents are enabled.
+	if features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) && d.ResourceInterpreter.HookEnabled(gvk, configv1alpha1.InterpreterOperationInterpretComponent) {
+		components, err := d.ResourceInterpreter.GetComponents(object)
+		if err != nil {
+			klog.Errorf("Failed to get components for %s(%s): %v", gvk, name, err)
+			return err
+		}
+		spec.Components = components
+		return nil
+	}
+
+	// GetReplicas is executed if the MultiplePodTemplatesScheduling feature gate is disabled, or if GetComponents is not implemented.
+	if d.ResourceInterpreter.HookEnabled(gvk, configv1alpha1.InterpreterOperationInterpretReplica) {
+		replicas, replicaRequirements, err := d.ResourceInterpreter.GetReplicas(object)
+		if err != nil {
+			klog.Errorf("Failed to customize replicas for %s(%s): %v", gvk, name, err)
+			return err
+		}
+		spec.Replicas = replicas
+		spec.ReplicaRequirements = replicaRequirements
+	}
+
+	return nil
 }
