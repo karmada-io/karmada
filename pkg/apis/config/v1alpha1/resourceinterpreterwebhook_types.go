@@ -124,6 +124,14 @@ const (
 	// Only necessary for those resource types that have replica declaration, like Deployment or similar custom resources.
 	InterpreterOperationInterpretReplica InterpreterOperation = "InterpretReplica"
 
+	// InterpreterOperationInterpretComponent indicates that karmada wants to figure out
+	// resource requirements for multiple components from a given object.
+	// This operation is designed for CRDs with multiple components (e.g., FlinkDeployment),
+	// but can also be used for single-component resources.
+	// If an interpreter supports this operation, 'InterpretReplica' will not be called.
+	// This operation is only used when the feature gate 'MultiplePodTemplatesScheduling' is enabled.
+	InterpreterOperationInterpretComponent InterpreterOperation = "InterpretComponent"
+
 	// InterpreterOperationReviseReplica indicates that karmada request webhook to modify the replica.
 	InterpreterOperationReviseReplica InterpreterOperation = "ReviseReplica"
 
