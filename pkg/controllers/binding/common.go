@@ -164,6 +164,13 @@ func getBindingSpec(binding metav1.Object, scope apiextensionsv1.ResourceScope) 
 	return bindingSpec
 }
 
+func getPurgeMode(bindingSpec workv1alpha2.ResourceBindingSpec) policyv1alpha1.PurgeMode {
+	if bindingSpec.Failover == nil || bindingSpec.Failover.Cluster == nil {
+		return ""
+	}
+	return bindingSpec.Failover.Cluster.PurgeMode
+}
+
 // injectReservedLabelState injects the reservedLabelState in to the failover to cluster.
 // We have the following restrictions on whether to perform injection operations:
 //  1. Only the scenario where an application is deployed in one cluster and migrated to

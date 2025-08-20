@@ -109,8 +109,14 @@ func (c *ResourceBindingController) removeFinalizer(ctx context.Context, rb *wor
 
 // syncBinding will sync resourceBinding to Works.
 func (c *ResourceBindingController) syncBinding(ctx context.Context, binding *workv1alpha2.ResourceBinding) (controllerruntime.Result, error) {
-	if err := c.removeOrphanWorks(ctx, binding); err != nil {
+	exist, err := c.removeOrphanWorks(ctx, binding)
+	if err != nil {
 		return controllerruntime.Result{}, err
+	}
+	if exist && getPurgeMode(binding.Spec) == policyv1alpha1.PurgeModeDirectly {
+		// We should wait for the orphan works are completely removed when the PurgeMode is 'Directly'.
+		// So, just requeue the binding and wait for next reconciliation.
+		return controllerruntime.Result{Requeue: true}, nil
 	}
 
 	workload, err := helper.FetchResourceTemplate(ctx, c.DynamicClient, c.InformerManager, c.RESTMapper, binding.Spec.Resource)
@@ -141,23 +147,31 @@ func (c *ResourceBindingController) syncBinding(ctx context.Context, binding *wo
 	return controllerruntime.Result{}, nil
 }
 
-func (c *ResourceBindingController) removeOrphanWorks(ctx context.Context, binding *workv1alpha2.ResourceBinding) error {
+// removeOrphanWorks removes orphan works that are not in the existing clusters of the ResourceBinding.
+// It returns true if there are orphan works removed, otherwise false.
+func (c *ResourceBindingController) removeOrphanWorks(ctx context.Context, binding *workv1alpha2.ResourceBinding) (bool, error) {
+	// In 'Directly' purge mode, the source cluster of a GracefulEvictionTask is considered an orphan.
+	// In 'Graceful' purge mode, it is not.
 	works, err := helper.FindOrphanWorks(ctx, c.Client, binding.Namespace, binding.Name,
 		binding.Labels[workv1alpha2.ResourceBindingPermanentIDLabel], helper.ObtainBindingSpecExistingClusters(binding.Spec))
 	if err != nil {
 		klog.ErrorS(err, "Failed to find orphaned works by ResourceBinding", "namespace", binding.GetNamespace(), "binding", binding.GetName())
 		c.EventRecorder.Event(binding, corev1.EventTypeWarning, events.EventReasonCleanupWorkFailed, err.Error())
-		return err
+		return false, err
+	}
+
+	if len(works) == 0 {
+		return false, nil
 	}
 
 	err = helper.RemoveOrphanWorks(ctx, c.Client, works)
 	if err != nil {
 		klog.ErrorS(err, "Failed to remove orphaned works by ResourceBinding", "namespace", binding.GetNamespace(), "binding", binding.GetName())
 		c.EventRecorder.Event(binding, corev1.EventTypeWarning, events.EventReasonCleanupWorkFailed, err.Error())
-		return err
+		return false, err
 	}
 
-	return nil
+	return true, nil
 }
 
 // SetupWithManager creates a controller and register to controller manager.
