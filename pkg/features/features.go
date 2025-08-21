@@ -113,6 +113,20 @@ const (
 	// owner: @mszacillo, @Dyex719, @RainbowMango, @XiShanYongYe-Chang, @zhzhuang-zju, @seanlaii
 	// alpha: v1.15
 	MultiplePodTemplatesScheduling featuregate.Feature = "MultiplePodTemplatesScheduling"
+
+	// ControllerPriorityQueue controls whether the controller-runtime Priority Queue for controllers is enabled.
+	// When enabled, during the startup phase of karmada-controller-manager and karmada-agent,
+	// controllers implemented with controller-runtime will prioritize processing recent cluster changes first,
+	// while deferring items without recent updates that still need to be processed to the end of the queue.
+	// This helps the system quickly catch up with the latest state and reduces the perceived
+	// backlog from external users.
+	// However, enabling this feature may increase the overall number of reconciliations. This is
+	// because newer events spend less time in the queue, which reduces the chance of them being
+	// deduplicated before processing.
+	//
+	// owner: @zach593
+	// alpha: v1.15
+	ControllerPriorityQueue featuregate.Feature = "ControllerPriorityQueue"
 )
 
 var (
@@ -139,6 +153,7 @@ var (
 		LoggingBetaOptions:                {Default: true, PreRelease: featuregate.Beta},
 		ContextualLogging:                 {Default: true, PreRelease: featuregate.Beta},
 		MultiplePodTemplatesScheduling:    {Default: false, PreRelease: featuregate.Alpha},
+		ControllerPriorityQueue:           {Default: false, PreRelease: featuregate.Alpha},
 	}
 )
 
