@@ -211,6 +211,7 @@ func ValidateFailover(failoverBehavior *policyv1alpha1.FailoverBehavior, fldPath
 	}
 
 	allErrs = append(allErrs, ValidateApplicationFailover(failoverBehavior.Application, fldPath.Child("application"))...)
+	allErrs = append(allErrs, validateClusterFailover(failoverBehavior.Cluster, fldPath.Child("cluster"))...)
 	return allErrs
 }
 
@@ -246,7 +247,43 @@ func ValidateApplicationFailover(applicationFailoverBehavior *policyv1alpha1.App
 		allErrs = append(allErrs, field.Invalid(fldPath.Child("gracePeriodSeconds"), *applicationFailoverBehavior.GracePeriodSeconds, "must be greater than 0"))
 	}
 
+	if applicationFailoverBehavior.StatePreservation != nil {
+		allErrs = append(allErrs, validateStatePreservation(applicationFailoverBehavior.StatePreservation, fldPath.Child("statePreservation"))...)
+	}
+
 	return allErrs
+}
+
+func validateClusterFailover(clusterFailoverBehavior *policyv1alpha1.ClusterFailoverBehavior, fldPath *field.Path) field.ErrorList {
+	var allErrs field.ErrorList
+
+	if clusterFailoverBehavior == nil {
+		return nil
+	}
+
+	if clusterFailoverBehavior.StatePreservation != nil {
+		allErrs = append(allErrs, validateStatePreservation(clusterFailoverBehavior.StatePreservation, fldPath.Child("statePreservation"))...)
+	}
+
+	return allErrs
+}
+
+func validateStatePreservation(statePreservation *policyv1alpha1.StatePreservation, fldPath *field.Path) field.ErrorList {
+	var allErrs field.ErrorList
+
+	if statePreservation == nil {
+		return nil
+	}
+
+	for index, rule := range statePreservation.Rules {
+		allErrs = append(allErrs, validateStatePreservationRule(rule, fldPath.Child("rules").Index(index))...)
+	}
+
+	return allErrs
+}
+
+func validateStatePreservationRule(rule policyv1alpha1.StatePreservationRule, fldPath *field.Path) field.ErrorList {
+	return metav1validation.ValidateLabelName(rule.AliasLabelName, fldPath.Child("aliasLabelName"))
 }
 
 // ValidateOverrideSpec validates that the overrider specification is correctly defined.

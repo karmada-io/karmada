@@ -707,10 +707,226 @@ func TestValidateApplicationFailover(t *testing.T) {
 			},
 			expectedErr: "",
 		},
+		{
+			name: "statePreservation is nil",
+			applicationFailoverBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
+				DecisionConditions: policyv1alpha1.DecisionConditions{
+					TolerationSeconds: ptr.To[int32](100),
+				},
+				StatePreservation: nil,
+			},
+			expectedErr: "",
+		},
+		{
+			name: "statePreservation with valid rules",
+			applicationFailoverBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
+				DecisionConditions: policyv1alpha1.DecisionConditions{
+					TolerationSeconds: ptr.To[int32](100),
+				},
+				StatePreservation: &policyv1alpha1.StatePreservation{
+					Rules: []policyv1alpha1.StatePreservationRule{
+						{
+							AliasLabelName: "valid-label-name",
+							JSONPath:       "{.availableReplicas}",
+						},
+						{
+							AliasLabelName: "example.com/state-key",
+							JSONPath:       "{.readyReplicas}",
+						},
+					},
+				},
+			},
+			expectedErr: "",
+		},
+		{
+			name: "statePreservation with invalid aliasLabelName - starts with dash",
+			applicationFailoverBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
+				DecisionConditions: policyv1alpha1.DecisionConditions{
+					TolerationSeconds: ptr.To[int32](100),
+				},
+				StatePreservation: &policyv1alpha1.StatePreservation{
+					Rules: []policyv1alpha1.StatePreservationRule{
+						{
+							AliasLabelName: "-invalid-label",
+							JSONPath:       "{.availableReplicas}",
+						},
+					},
+				},
+			},
+			expectedErr: "spec.failover.application.statePreservation.rules[0].aliasLabelName: Invalid value: \"-invalid-label\": name part must consist of alphanumeric characters, '-', '_' or '.', and must start and end with an alphanumeric character (e.g. 'MyName',  or 'my.name',  or '123-abc', regex used for validation is '([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9]')",
+		},
+		{
+			name: "statePreservation with invalid aliasLabelName - ends with dash",
+			applicationFailoverBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
+				DecisionConditions: policyv1alpha1.DecisionConditions{
+					TolerationSeconds: ptr.To[int32](100),
+				},
+				StatePreservation: &policyv1alpha1.StatePreservation{
+					Rules: []policyv1alpha1.StatePreservationRule{
+						{
+							AliasLabelName: "invalid-label-",
+							JSONPath:       "{.availableReplicas}",
+						},
+					},
+				},
+			},
+			expectedErr: "spec.failover.application.statePreservation.rules[0].aliasLabelName: Invalid value: \"invalid-label-\": name part must consist of alphanumeric characters, '-', '_' or '.', and must start and end with an alphanumeric character (e.g. 'MyName',  or 'my.name',  or '123-abc', regex used for validation is '([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9]')",
+		},
+		{
+			name: "statePreservation with invalid aliasLabelName - contains invalid characters",
+			applicationFailoverBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
+				DecisionConditions: policyv1alpha1.DecisionConditions{
+					TolerationSeconds: ptr.To[int32](100),
+				},
+				StatePreservation: &policyv1alpha1.StatePreservation{
+					Rules: []policyv1alpha1.StatePreservationRule{
+						{
+							AliasLabelName: "invalid@label",
+							JSONPath:       "{.availableReplicas}",
+						},
+					},
+				},
+			},
+			expectedErr: "spec.failover.application.statePreservation.rules[0].aliasLabelName: Invalid value: \"invalid@label\": name part must consist of alphanumeric characters, '-', '_' or '.', and must start and end with an alphanumeric character (e.g. 'MyName',  or 'my.name',  or '123-abc', regex used for validation is '([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9]')",
+		},
+		{
+			name: "statePreservation with too long aliasLabelName",
+			applicationFailoverBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
+				DecisionConditions: policyv1alpha1.DecisionConditions{
+					TolerationSeconds: ptr.To[int32](100),
+				},
+				StatePreservation: &policyv1alpha1.StatePreservation{
+					Rules: []policyv1alpha1.StatePreservationRule{
+						{
+							AliasLabelName: strings.Repeat("a", 64),
+							JSONPath:       "{.availableReplicas}",
+						},
+					},
+				},
+			},
+			expectedErr: "spec.failover.application.statePreservation.rules[0].aliasLabelName: Invalid value: \"" + strings.Repeat("a", 64) + "\": name part must be no more than 63 characters",
+		},
+		{
+			name: "statePreservation with multiple invalid rules",
+			applicationFailoverBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
+				DecisionConditions: policyv1alpha1.DecisionConditions{
+					TolerationSeconds: ptr.To[int32](100),
+				},
+				StatePreservation: &policyv1alpha1.StatePreservation{
+					Rules: []policyv1alpha1.StatePreservationRule{
+						{
+							AliasLabelName: "-invalid1",
+							JSONPath:       "{.availableReplicas}",
+						},
+						{
+							AliasLabelName: "invalid2@",
+							JSONPath:       "{.readyReplicas}",
+						},
+					},
+				},
+			},
+			expectedErr: "[spec.failover.application.statePreservation.rules[0].aliasLabelName: Invalid value: \"-invalid1\": name part must consist of alphanumeric characters, '-', '_' or '.', and must start and end with an alphanumeric character (e.g. 'MyName',  or 'my.name',  or '123-abc', regex used for validation is '([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9]'), spec.failover.application.statePreservation.rules[1].aliasLabelName: Invalid value: \"invalid2@\": name part must consist of alphanumeric characters, '-', '_' or '.', and must start and end with an alphanumeric character (e.g. 'MyName',  or 'my.name',  or '123-abc', regex used for validation is '([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9]')]",
+		},
+		{
+			name: "statePreservation with valid prefix in aliasLabelName",
+			applicationFailoverBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
+				DecisionConditions: policyv1alpha1.DecisionConditions{
+					TolerationSeconds: ptr.To[int32](100),
+				},
+				StatePreservation: &policyv1alpha1.StatePreservation{
+					Rules: []policyv1alpha1.StatePreservationRule{
+						{
+							AliasLabelName: "example.com/my-state",
+							JSONPath:       "{.availableReplicas}",
+						},
+					},
+				},
+			},
+			expectedErr: "",
+		},
+		{
+			name: "statePreservation with invalid prefix in aliasLabelName",
+			applicationFailoverBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
+				DecisionConditions: policyv1alpha1.DecisionConditions{
+					TolerationSeconds: ptr.To[int32](100),
+				},
+				StatePreservation: &policyv1alpha1.StatePreservation{
+					Rules: []policyv1alpha1.StatePreservationRule{
+						{
+							AliasLabelName: "INVALID.COM/my-state",
+							JSONPath:       "{.availableReplicas}",
+						},
+					},
+				},
+			},
+			expectedErr: "spec.failover.application.statePreservation.rules[0].aliasLabelName: Invalid value: \"INVALID.COM/my-state\": prefix part a lowercase RFC 1123 subdomain must consist of lower case alphanumeric characters, '-' or '.', and must start and end with an alphanumeric character (e.g. 'example.com', regex used for validation is '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*')",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			errs := ValidateApplicationFailover(tt.applicationFailoverBehavior, field.NewPath("spec").Child("failover").Child("application"))
+			err := errs.ToAggregate()
+			if err != nil && err.Error() != tt.expectedErr {
+				t.Errorf("expected error:\n  %s, but got:\n  %s", tt.expectedErr, err.Error())
+			} else if err == nil && tt.expectedErr != "" {
+				t.Errorf("expected error:\n  %s, but got no error\n", tt.expectedErr)
+			}
+		})
+	}
+}
+
+func TestValidateClusterFailover(t *testing.T) {
+	tests := []struct {
+		name                    string
+		clusterFailoverBehavior *policyv1alpha1.ClusterFailoverBehavior
+		expectedErr             string
+	}{
+		{
+			name:                    "cluster failover is nil",
+			clusterFailoverBehavior: nil,
+			expectedErr:             "",
+		},
+		{
+			name: "cluster failover with valid statePreservation",
+			clusterFailoverBehavior: &policyv1alpha1.ClusterFailoverBehavior{
+				PurgeMode: policyv1alpha1.PurgeModeGracefully,
+				StatePreservation: &policyv1alpha1.StatePreservation{
+					Rules: []policyv1alpha1.StatePreservationRule{
+						{
+							AliasLabelName: "cluster-state",
+							JSONPath:       "{.status.nodeCount}",
+						},
+					},
+				},
+			},
+			expectedErr: "",
+		},
+		{
+			name: "cluster failover with invalid statePreservation",
+			clusterFailoverBehavior: &policyv1alpha1.ClusterFailoverBehavior{
+				PurgeMode: policyv1alpha1.PurgeModeDirectly,
+				StatePreservation: &policyv1alpha1.StatePreservation{
+					Rules: []policyv1alpha1.StatePreservationRule{
+						{
+							AliasLabelName: "-invalid-cluster-label",
+							JSONPath:       "{.status.nodeCount}",
+						},
+					},
+				},
+			},
+			expectedErr: "spec.failover.cluster.statePreservation.rules[0].aliasLabelName: Invalid value: \"-invalid-cluster-label\": name part must consist of alphanumeric characters, '-', '_' or '.', and must start and end with an alphanumeric character (e.g. 'MyName',  or 'my.name',  or '123-abc', regex used for validation is '([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9]')",
+		},
+		{
+			name: "cluster failover without statePreservation",
+			clusterFailoverBehavior: &policyv1alpha1.ClusterFailoverBehavior{
+				PurgeMode: policyv1alpha1.PurgeModeGracefully,
+			},
+			expectedErr: "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := validateClusterFailover(tt.clusterFailoverBehavior, field.NewPath("spec").Child("failover").Child("cluster"))
 			err := errs.ToAggregate()
 			if err != nil && err.Error() != tt.expectedErr {
 				t.Errorf("expected error:\n  %s, but got:\n  %s", tt.expectedErr, err.Error())
