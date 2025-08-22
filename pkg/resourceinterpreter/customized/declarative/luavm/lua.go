@@ -154,6 +154,33 @@ func (vm *VM) GetReplicas(obj *unstructured.Unstructured, script string) (replic
 	return
 }
 
+// GetComponents returns the desired components of the object by executing a Lua script.
+func (vm *VM) GetComponents(obj *unstructured.Unstructured, script string) ([]workv1alpha2.ComponentRequirements, error) {
+	results, err := vm.RunScript(script, "GetComponents", 1, obj)
+	if err != nil {
+		return nil, fmt.Errorf("failed to run 'GetComponents' script: %w", err)
+	}
+
+	componentsResult := results[0]
+	var components []workv1alpha2.ComponentRequirements
+
+	switch componentsResult.Type() {
+	case lua.LTTable:
+		if err := ConvertLuaResultInto(componentsResult.(*lua.LTable), &components); err != nil {
+			klog.Errorf("Failed to convert Lua result for GetComponents: %v", err)
+			return nil, fmt.Errorf("failed to convert lua table for components: %w", err)
+		}
+	case lua.LTNil:
+		// This is a valid case where the script returns no components.
+		// The 'components' slice is already nil, so we do nothing.
+	default:
+		// Handle unexpected return types.
+		return nil, fmt.Errorf("expected result type 'table' or 'nil' from GetComponents, but got '%s'", componentsResult.Type())
+	}
+
+	return components, nil
+}
+
 // ReviseReplica revises the replica of the given object by lua.
 func (vm *VM) ReviseReplica(object *unstructured.Unstructured, replica int64, script string) (*unstructured.Unstructured, error) {
 	results, err := vm.RunScript(script, "ReviseReplica", 1, object, replica)
