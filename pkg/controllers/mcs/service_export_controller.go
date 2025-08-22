@@ -64,6 +64,9 @@ import (
 const ServiceExportControllerName = "service-export-controller"
 
 // ServiceExportController is to sync ServiceExport and report EndpointSlices of exported service to control-plane.
+// It creates Informers for clusters where ServiceExport resources have been propagated,
+// registers EventHandlers for ServiceExport and EndpointSlice in those clusters,
+// and then asynchronously processes ServiceExport and EndpointSlice events.
 type ServiceExportController struct {
 	client.Client
 	EventRecorder               record.EventRecorder
@@ -112,6 +115,7 @@ func (c *ServiceExportController) Reconcile(ctx context.Context, req controllerr
 		return controllerruntime.Result{}, nil
 	}
 
+	// Controller should only handle ServiceExport Works, reduces noise and prevents unnecessary processing.
 	if !util.IsWorkContains(work.Spec.Workload.Manifests, serviceExportGVK) {
 		return controllerruntime.Result{}, nil
 	}
@@ -139,7 +143,9 @@ func (c *ServiceExportController) Reconcile(ctx context.Context, req controllerr
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *ServiceExportController) SetupWithManager(mgr controllerruntime.Manager) error {
-	return controllerruntime.NewControllerManagedBy(mgr).Named(ServiceExportControllerName).For(&workv1alpha1.Work{}, builder.WithPredicates(c.PredicateFunc)).
+	return controllerruntime.NewControllerManagedBy(mgr).
+		Named(ServiceExportControllerName).
+		For(&workv1alpha1.Work{}, builder.WithPredicates(c.PredicateFunc)).
 		WithOptions(controller.Options{
 			RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RateLimiterOptions),
 		}).
@@ -156,6 +162,8 @@ func (c *ServiceExportController) RunWorkQueue() {
 	c.worker = util.NewAsyncWorker(workerOptions)
 	c.worker.Run(c.Context, c.WorkerNumber)
 
+	// TODO(@XiShanYongYe-Chang): Need to re-examine whether this call is necessary.
+	// If it is necessary, clarify the reason; otherwise, delete this call.
 	go c.enqueueReportedEpsServiceExport()
 }
 
@@ -241,8 +249,8 @@ func (c *ServiceExportController) buildResourceInformers(cluster *clusterv1alpha
 	return nil
 }
 
-// registerInformersAndStart builds informer manager for cluster if it doesn't exist, then constructs informers for gvr
-// and start it.
+// registerInformersAndStart builds informer manager for cluster if it doesn't exist, then
+// constructs informers for gvr and start it.
 func (c *ServiceExportController) registerInformersAndStart(cluster *clusterv1alpha1.Cluster) error {
 	singleClusterInformerManager := c.InformerManager.GetSingleClusterManager(cluster.Name)
 	if singleClusterInformerManager == nil {
@@ -273,6 +281,7 @@ func (c *ServiceExportController) registerInformersAndStart(cluster *clusterv1al
 	c.InformerManager.Start(cluster.Name)
 
 	if err := func() error {
+		// this call is necessary; otherwise, `IsInformerSynced` will always return false.
 		synced := c.InformerManager.WaitForCacheSyncWithTimeout(cluster.Name, c.ClusterCacheSyncTimeout.Duration)
 		if synced == nil {
 			return fmt.Errorf("no informerFactory for cluster %s exist", cluster.Name)
@@ -362,8 +371,9 @@ func (c *ServiceExportController) handleServiceExportEvent(ctx context.Context, 
 
 	// Even though the EndpointSlice will be synced when dealing with EndpointSlice events, thus the 'report' here may
 	// be redundant, but it helps to avoid a corner case:
-	// If skip report here, after ServiceExport deletion and re-creation, if no EndpointSlice changes, we didn't get a
-	// change to sync.
+	// When ServiceExport is created after Service in member cluster, and EndpointSlice events have been processed,
+	// if we don't handle the ServiceExport event, the EndpointSlice will not be collected to the control plane,
+	// unless a new EndpointSlice event is received.
 	if err = c.reportEndpointSliceWithServiceExportCreate(ctx, serviceExportKey); err != nil {
 		klog.ErrorS(err, "Failed to handle ServiceExport event", "namespace", serviceExportKey.Namespace, "name", serviceExportKey.Name)
 		return err
@@ -393,6 +403,8 @@ func (c *ServiceExportController) handleEndpointSliceEvent(ctx context.Context, 
 }
 
 // reportEndpointSliceWithServiceExportCreate reports the referencing service's EndpointSlice.
+// The informer for EndpointSlice is created dynamically in Reconcile() when ServiceExport Works are detected.
+// If informer isn't synced yet, we return error to trigger retry.
 func (c *ServiceExportController) reportEndpointSliceWithServiceExportCreate(ctx context.Context, serviceExportKey keys.FederatedKey) error {
 	var (
 		endpointSliceObjects []runtime.Object
@@ -402,6 +414,8 @@ func (c *ServiceExportController) reportEndpointSliceWithServiceExportCreate(ctx
 
 	singleClusterManager := c.InformerManager.GetSingleClusterManager(serviceExportKey.Cluster)
 	if singleClusterManager == nil {
+		// No informer manager for this cluster yet - this shouldn't happen
+		// if Reconcile() has run, but handle gracefully
 		return nil
 	}
 
@@ -433,6 +447,7 @@ func (c *ServiceExportController) reportEndpointSliceWithServiceExportCreate(ctx
 	return utilerrors.NewAggregate(errs)
 }
 
+// removeOrphanWork cleans up Work resources for EndpointSlices that no longer exist.
 func (c *ServiceExportController) removeOrphanWork(ctx context.Context, endpointSliceObjects []runtime.Object, serviceExportKey keys.FederatedKey) error {
 	willReportWorks := sets.NewString()
 	for index := range endpointSliceObjects {
@@ -481,6 +496,8 @@ func (c *ServiceExportController) removeOrphanWork(ctx context.Context, endpoint
 }
 
 // reportEndpointSliceWithEndpointSliceCreateOrUpdate reports the EndpointSlice when referencing service has been exported.
+// The informer for ServiceExport is created dynamically in Reconcile() when ServiceExport Works are detected.
+// If informer isn't synced yet, we return error to trigger retry.
 func (c *ServiceExportController) reportEndpointSliceWithEndpointSliceCreateOrUpdate(ctx context.Context, clusterName string, endpointSlice *unstructured.Unstructured) error {
 	relatedServiceName := endpointSlice.GetLabels()[discoveryv1.LabelServiceName]
 
