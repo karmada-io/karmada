@@ -389,9 +389,7 @@ func (c *ClusterStatusController) buildInformerForCluster(clusterClient *util.Cl
 		}
 		return nil
 	}(); err != nil {
-
 		klog.ErrorS(err, "Failed to sync cache for cluster", "cluster", clusterClient.ClusterName)
-
 		return nil, err
 	}
 
