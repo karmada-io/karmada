@@ -82,7 +82,7 @@ func NewEvictionWorker(opts EvictionWorkerOptions) EvictionWorker {
 		keyFunc:          opts.KeyFunc,
 		reconcileFunc:    opts.ReconcileFunc,
 		resourceKindFunc: opts.ResourceKindFunc,
-		queue: workqueue.NewRateLimitingQueueWithConfig(rateLimiter, workqueue.RateLimitingQueueConfig{
+		queue: workqueue.NewTypedRateLimitingQueueWithConfig[any](rateLimiter, workqueue.TypedRateLimitingQueueConfig[any]{
 			Name: opts.Name,
 		}),
 	}
@@ -145,7 +145,7 @@ func (w *evictionWorker) worker(ctx context.Context) {
 
 // processNextWorkItem handles a single item from the queue with metrics tracking.
 // Returns false when the queue is shutting down, true otherwise.
-func (w *evictionWorker) processNextWorkItem(ctx context.Context) bool {
+func (w *evictionWorker) processNextWorkItem(_ context.Context) bool {
 	key, quit := w.queue.Get()
 	if quit {
 		return false

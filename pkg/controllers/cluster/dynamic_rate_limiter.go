@@ -57,7 +57,7 @@ func NewDynamicRateLimiter[T comparable](informerManager genericmanager.SingleCl
 
 // When determines how long to wait before processing an item.
 // Returns a longer delay when the system is unhealthy.
-func (d *DynamicRateLimiter[T]) When(item T) time.Duration {
+func (d *DynamicRateLimiter[T]) When(_ T) time.Duration {
 	currentRate := d.getCurrentRate()
 	if currentRate == 0 {
 		return maxEvictionDelay
@@ -122,12 +122,12 @@ func (d *DynamicRateLimiter[T]) getCurrentRate() float32 {
 }
 
 // Forget is a no-op as this rate limiter doesn't track individual items.
-func (d *DynamicRateLimiter[T]) Forget(item T) {
+func (d *DynamicRateLimiter[T]) Forget(_ T) {
 	// No-op
 }
 
 // NumRequeues always returns 0 as this rate limiter doesn't track retries.
-func (d *DynamicRateLimiter[T]) NumRequeues(item T) int {
+func (d *DynamicRateLimiter[T]) NumRequeues(_ T) int {
 	return 0
 }
 
@@ -138,7 +138,6 @@ func NewGracefulEvictionRateLimiter[T comparable](
 	informerManager genericmanager.SingleClusterInformerManager,
 	evictionOpts config.EvictionQueueOptions,
 	rateLimiterOpts ratelimiterflag.Options) workqueue.TypedRateLimiter[T] {
-
 	dynamicLimiter := NewDynamicRateLimiter[T](informerManager, evictionOpts)
 	defaultLimiter := ratelimiterflag.DefaultControllerRateLimiter[T](rateLimiterOpts)
 	return workqueue.NewTypedMaxOfRateLimiter[T](dynamicLimiter, defaultLimiter)
