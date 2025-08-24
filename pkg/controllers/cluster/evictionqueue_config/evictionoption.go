@@ -46,6 +46,6 @@ func (o *EvictionQueueOptions) AddFlags(fs *pflag.FlagSet) {
 	}
 	fs.Float32Var(&o.ResourceEvictionRate, "resource-eviction-rate", 0.5, "The number of resources to be evicted per second.")
 	fs.Float32Var(&o.SecondaryResourceEvictionRate, "secondary-resource-eviction-rate", 0.1, "The secondary resource eviction rate when the Karmada instance is unhealthy.")
-	fs.Float32Var(&o.UnhealthyClusterThreshold, "unhealthy-cluster-threshold", 0.55, "The unhealthy threshold of the cluster, if the ratio of unhealthy clusters to total clusters exceeds thisthreshold, the Karmada instance is considered unhealthy.")
-	fs.IntVar(&o.LargeClusterNumThreshold, "large-cluster-num-threshold", 10, "The large-scale threshold of the Karmada instance. When the number of clusters in a large-scale federation exceedsthis threshold and the federation is unhealthy, the resource eviction rate will be reduced; otherwise, the eviction will be stopped.")
+	fs.Float32Var(&o.UnhealthyClusterThreshold, "unhealthy-cluster-threshold", 0.55, "The unhealthy threshold of the cluster, if the ratio of unhealthy clusters to total clusters exceeds this threshold, the Karmada instance is considered unhealthy.")
+	fs.IntVar(&o.LargeClusterNumThreshold, "large-cluster-num-threshold", 10, "The large-scale threshold of the Karmada instance. When the number of clusters in a large-scale federation exceeds this threshold and the federation is unhealthy, the resource eviction rate will be reduced; otherwise, the eviction will be stopped.")
 }
