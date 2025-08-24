@@ -18,8 +18,6 @@ package options
 
 import (
 	"fmt"
-	evictionQueueconfig "github.com/karmada-io/karmada/pkg/controllers/cluster/evictionqueue_config"
-
 	"regexp"
 	"strings"
 	"time"
@@ -29,6 +27,7 @@ import (
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	componentbaseconfig "k8s.io/component-base/config"
 
+	evictionQueueconfig "github.com/karmada-io/karmada/pkg/controllers/cluster/evictionqueue_config"
 	"github.com/karmada-io/karmada/pkg/controllers/federatedhpa/config"
 	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
