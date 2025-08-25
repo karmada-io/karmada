@@ -216,6 +216,14 @@ func (i *customResourceInterpreterImpl) GetComponents(object *unstructured.Unstr
 		return components, nil
 	}
 
+	components, hookEnabled, err = i.thirdpartyInterpreter.GetComponents(object)
+	if err != nil {
+		return nil, err
+	}
+	if hookEnabled {
+		return components, nil
+	}
+
 	// TODO(@RainbowMango): Implement GetComponents for extracting per-component replica and resource requirements.
 	// Follow up tracked by: https://github.com/karmada-io/karmada/issues/6641
 	return nil, errors.New("interface GetComponents not implemented yet")
