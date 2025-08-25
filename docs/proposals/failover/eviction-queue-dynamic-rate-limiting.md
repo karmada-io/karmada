@@ -13,7 +13,7 @@ This proposal introduces a dynamic rate limiting mechanism for Karmada's cluster
 
 ## Motivation
 
-In the current version of Karmada, the cluster fault migration functionality has been significantly improved: it no longer automatically triggers migration after cluster failures, but instead allows users to explicitly control whether to enable cluster fault migration through the Failover FeatureGate. However, when the failover functionality is enabled, if multiple clusters fail simultaneously or the proportion of failed clusters is high, the system may still face the following challenges:
+In the current version of Karmada, the cluster fault migration functionality has been significantly improved: it no longer automatically triggers migration after cluster failures, but instead allows users to explicitly control whether to enable cluster fault migration through the dedicated controller-manager flags. However, when the failover functionality is enabled, if multiple clusters fail simultaneously or the proportion of failed clusters is high, the system may still face the following challenges:
 
 1. **Cascading Failure Risk**: When many clusters fail simultaneously, the system will evict a large number of resources to the remaining healthy clusters, potentially causing overload of healthy clusters and triggering cascading failures.
 
