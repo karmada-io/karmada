@@ -110,11 +110,19 @@ func (d *ResourceDetector) getAndApplyPolicy(object *unstructured.Unstructured, 
 	resourceChangeByKarmada bool, policyNamespace, policyName, claimedID string) error {
 	matchedPropagationPolicy := &policyv1alpha1.PropagationPolicy{}
 	err := d.Client.Get(context.TODO(), client.ObjectKey{Namespace: policyNamespace, Name: policyName}, matchedPropagationPolicy)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			klog.V(4).Infof("PropagationPolicy(%s/%s) has been removed.", policyNamespace, policyName)
-			return d.HandlePropagationPolicyDeletion(claimedID)
+	if apierrors.IsNotFound(err) || (err == nil && !matchedPropagationPolicy.DeletionTimestamp.IsZero()) {
+		// Policy not found or being deleted, clean up metadata
+		klog.V(4).Infof("PropagationPolicy(%s/%s) has been removed.", policyNamespace, policyName)
+		claimMetadata := labels.Set{policyv1alpha1.PropagationPolicyPermanentIDLabel: claimedID}
+		objRef := workv1alpha2.ObjectReference{
+			APIVersion: object.GetAPIVersion(),
+			Kind:       object.GetKind(),
+			Namespace:  object.GetNamespace(),
+			Name:       object.GetName(),
 		}
+		return d.handleResourceTemplateAndBindingCleanup(object, objRef, claimMetadata, CleanupPPClaimMetadata)
+	}
+	if err != nil {
 		klog.Errorf("Failed to get claimed policy(%s/%s),: %v", policyNamespace, policyName, err)
 		return err
 	}
@@ -142,12 +150,19 @@ func (d *ResourceDetector) getAndApplyClusterPolicy(object *unstructured.Unstruc
 	resourceChangeByKarmada bool, policyName, policyID string) error {
 	matchedClusterPropagationPolicy := &policyv1alpha1.ClusterPropagationPolicy{}
 	err := d.Client.Get(context.TODO(), client.ObjectKey{Name: policyName}, matchedClusterPropagationPolicy)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			klog.V(4).Infof("ClusterPropagationPolicy(%s) has been removed.", policyName)
-			return d.HandleClusterPropagationPolicyDeletion(policyID)
+	if apierrors.IsNotFound(err) || (err == nil && !matchedClusterPropagationPolicy.DeletionTimestamp.IsZero()) {
+		// cluster Policy not found or being deleted, clean up metadata
+		klog.V(4).Infof("ClusterPropagationPolicy(%s) has been removed.", policyName)
+		claimMetadata := labels.Set{policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: policyID}
+		objRef := workv1alpha2.ObjectReference{
+			APIVersion: object.GetAPIVersion(),
+			Kind:       object.GetKind(),
+			Namespace:  object.GetNamespace(),
+			Name:       object.GetName(),
 		}
-
+		return d.handleResourceTemplateAndBindingCleanup(object, objRef, claimMetadata, CleanupCPPClaimMetadata)
+	}
+	if err != nil {
 		klog.Errorf("Failed to get claimed policy(%s),: %v", policyName, err)
 		return err
 	}
