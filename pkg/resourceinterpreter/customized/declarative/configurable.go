@@ -70,6 +70,8 @@ func (c *ConfigurableInterpreter) HookEnabled(kind schema.GroupVersionKind, oper
 		script = accessor.GetHealthInterpretationLuaScript()
 	case configv1alpha1.InterpreterOperationInterpretReplica:
 		script = accessor.GetReplicaResourceLuaScript()
+	case configv1alpha1.InterpreterOperationInterpretComponent:
+		script = accessor.GetComponentResourceLuaScript()
 	case configv1alpha1.InterpreterOperationInterpretStatus:
 		script = accessor.GetStatusReflectionLuaScript()
 	case configv1alpha1.InterpreterOperationRetain:
@@ -96,6 +98,25 @@ func (c *ConfigurableInterpreter) GetReplicas(object *unstructured.Unstructured)
 	}
 
 	replicas, requires, err = c.luaVM.GetReplicas(object, script)
+	return
+}
+
+// GetComponents returns the desired components of the object.
+func (c *ConfigurableInterpreter) GetComponents(object *unstructured.Unstructured) (components []workv1alpha2.ComponentRequirements, enabled bool, err error) {
+	klog.V(4).Infof("Get components for object: %v %s/%s with configurable interpreter.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
+
+	accessor, enabled := c.getCustomAccessor(object.GroupVersionKind())
+	if !enabled {
+		return
+	}
+
+	script := accessor.GetComponentResourceLuaScript()
+	if len(script) == 0 {
+		enabled = false
+		return
+	}
+
+	components, err = c.luaVM.GetComponents(object, script)
 	return
 }
 

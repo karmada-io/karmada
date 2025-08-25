@@ -31,6 +31,7 @@ type LuaScriptAccessor interface {
 
 	GetRetentionLuaScript() string
 	GetReplicaResourceLuaScript() string
+	GetComponentResourceLuaScript() string
 	GetReplicaRevisionLuaScript() string
 	GetStatusReflectionLuaScript() string
 	GetStatusAggregationLuaScript() string
@@ -46,6 +47,7 @@ type CustomAccessor interface {
 type resourceCustomAccessor struct {
 	retention                 *configv1alpha1.LocalValueRetention
 	replicaResource           *configv1alpha1.ReplicaResourceRequirement
+	componentResource         *configv1alpha1.ComponentResourceRequirement
 	replicaRevision           *configv1alpha1.ReplicaRevision
 	statusReflection          *configv1alpha1.StatusReflection
 	statusAggregation         *configv1alpha1.StatusAggregation
@@ -65,6 +67,9 @@ func (a *resourceCustomAccessor) Merge(rules configv1alpha1.CustomizationRules) 
 	}
 	if rules.ReplicaResource != nil {
 		a.setReplicaResource(rules.ReplicaResource)
+	}
+	if rules.ComponentResource != nil {
+		a.setComponentResource(rules.ComponentResource)
 	}
 	if rules.ReplicaRevision != nil {
 		a.setReplicaRevision(rules.ReplicaRevision)
@@ -95,6 +100,13 @@ func (a *resourceCustomAccessor) GetReplicaResourceLuaScript() string {
 		return ""
 	}
 	return a.replicaResource.LuaScript
+}
+
+func (a *resourceCustomAccessor) GetComponentResourceLuaScript() string {
+	if a.componentResource == nil {
+		return ""
+	}
+	return a.componentResource.LuaScript
 }
 
 func (a *resourceCustomAccessor) GetReplicaRevisionLuaScript() string {
@@ -158,6 +170,17 @@ func (a *resourceCustomAccessor) setReplicaResource(replicaResource *configv1alp
 
 	if replicaResource.LuaScript != "" && a.replicaResource.LuaScript == "" {
 		a.replicaResource.LuaScript = replicaResource.LuaScript
+	}
+}
+
+func (a *resourceCustomAccessor) setComponentResource(componentResource *configv1alpha1.ComponentResourceRequirement) {
+	if a.componentResource == nil {
+		a.componentResource = componentResource
+		return
+	}
+
+	if componentResource.LuaScript != "" && a.componentResource.LuaScript == "" {
+		a.componentResource.LuaScript = componentResource.LuaScript
 	}
 }
 
