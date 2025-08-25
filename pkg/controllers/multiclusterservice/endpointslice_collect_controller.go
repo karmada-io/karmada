@@ -299,7 +299,8 @@ func (c *EndpointSliceCollectController) handleEndpointSliceEvent(ctx context.Co
 		return err
 	}
 
-	if util.GetLabelValue(endpointSliceObj.GetLabels(), discoveryv1.LabelManagedBy) == util.EndpointSliceDispatchControllerLabelValue {
+	// Exclude EndpointSlice resources that are managed by Karmada system to avoid duplicate reporting.
+	if helper.IsEndpointSliceManagedByKarmada(endpointSliceObj.GetLabels()) {
 		return nil
 	}
 
@@ -358,7 +359,8 @@ func (c *EndpointSliceCollectController) collectTargetEndpointSlice(ctx context.
 			klog.ErrorS(err, "Failed to convert object to EndpointSlice")
 			return err
 		}
-		if util.GetLabelValue(eps.GetLabels(), discoveryv1.LabelManagedBy) == util.EndpointSliceDispatchControllerLabelValue {
+		// Exclude EndpointSlice resources that are managed by Karmada system to avoid duplicate reporting.
+		if helper.IsEndpointSliceManagedByKarmada(eps.GetLabels()) {
 			continue
 		}
 		epsUnstructured, err := helper.ToUnstructured(eps)
