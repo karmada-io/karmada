@@ -21,9 +21,9 @@ import (
 
 	"k8s.io/apimachinery/pkg/util/sets"
 
-	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/scheduler/core/spreadconstraint"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
@@ -67,7 +67,7 @@ const (
 
 // assignState is a wrapper of the input for assigning function.
 type assignState struct {
-	candidates []*clusterv1alpha1.Cluster
+	candidates []spreadconstraint.ClusterDetailInfo
 	strategy   *policyv1alpha1.ReplicaSchedulingStrategy
 	spec       *workv1alpha2.ResourceBindingSpec
 
@@ -86,7 +86,7 @@ type assignState struct {
 	targetReplicas int32
 }
 
-func newAssignState(candidates []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec,
+func newAssignState(candidates []spreadconstraint.ClusterDetailInfo, spec *workv1alpha2.ResourceBindingSpec,
 	status *workv1alpha2.ResourceBindingStatus) *assignState {
 	var strategyType string
 

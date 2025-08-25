@@ -25,7 +25,9 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/scheduler/core/spreadconstraint"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
+	"github.com/karmada-io/karmada/test/helper"
 )
 
 func TestSelectClusters(t *testing.T) {
@@ -112,7 +114,7 @@ func TestSelectClusters(t *testing.T) {
 
 				actualNames := make([]string, len(result))
 				for i, cluster := range result {
-					actualNames[i] = cluster.Name
+					actualNames[i] = cluster.Cluster.Name
 				}
 
 				assert.ElementsMatch(t, expectedNames, actualNames)
@@ -124,7 +126,7 @@ func TestSelectClusters(t *testing.T) {
 func TestAssignReplicas(t *testing.T) {
 	tests := []struct {
 		name           string
-		clusters       []*clusterv1alpha1.Cluster
+		clusters       []spreadconstraint.ClusterDetailInfo
 		spec           *workv1alpha2.ResourceBindingSpec
 		status         *workv1alpha2.ResourceBindingStatus
 		expectedResult []workv1alpha2.TargetCluster
@@ -133,8 +135,8 @@ func TestAssignReplicas(t *testing.T) {
 	}{
 		{
 			name: "Assign replicas to single cluster",
-			clusters: []*clusterv1alpha1.Cluster{
-				{ObjectMeta: metav1.ObjectMeta{Name: "cluster1"}},
+			clusters: []spreadconstraint.ClusterDetailInfo{
+				{Name: ClusterMember1, Cluster: helper.NewCluster(ClusterMember1)},
 			},
 			spec: &workv1alpha2.ResourceBindingSpec{
 				Replicas: 3,
@@ -146,12 +148,12 @@ func TestAssignReplicas(t *testing.T) {
 				},
 			},
 			status:         &workv1alpha2.ResourceBindingStatus{},
-			expectedResult: []workv1alpha2.TargetCluster{{Name: "cluster1", Replicas: 3}},
+			expectedResult: []workv1alpha2.TargetCluster{{Name: ClusterMember1, Replicas: 3}},
 			expectedError:  false,
 		},
 		{
 			name:           "No clusters available",
-			clusters:       []*clusterv1alpha1.Cluster{},
+			clusters:       []spreadconstraint.ClusterDetailInfo{},
 			spec:           &workv1alpha2.ResourceBindingSpec{Replicas: 1},
 			status:         &workv1alpha2.ResourceBindingStatus{},
 			expectedResult: nil,
@@ -160,21 +162,21 @@ func TestAssignReplicas(t *testing.T) {
 		},
 		{
 			name: "Non-workload scenario (zero replicas)",
-			clusters: []*clusterv1alpha1.Cluster{
-				{ObjectMeta: metav1.ObjectMeta{Name: "cluster1"}},
-				{ObjectMeta: metav1.ObjectMeta{Name: "cluster2"}},
+			clusters: []spreadconstraint.ClusterDetailInfo{
+				{Name: ClusterMember1, Cluster: helper.NewCluster(ClusterMember1)},
+				{Name: ClusterMember2, Cluster: helper.NewCluster(ClusterMember2)},
 			},
 			spec: &workv1alpha2.ResourceBindingSpec{
 				Replicas: 0,
 			},
 			status:         &workv1alpha2.ResourceBindingStatus{},
-			expectedResult: []workv1alpha2.TargetCluster{{Name: "cluster1"}, {Name: "cluster2"}},
+			expectedResult: []workv1alpha2.TargetCluster{{Name: ClusterMember1}, {Name: ClusterMember2}},
 			expectedError:  false,
 		},
 		{
 			name: "Unsupported replica scheduling strategy",
-			clusters: []*clusterv1alpha1.Cluster{
-				{Spec: clusterv1alpha1.ClusterSpec{ID: "cluster1"}},
+			clusters: []spreadconstraint.ClusterDetailInfo{
+				{Name: ClusterMember1, Cluster: helper.NewCluster(ClusterMember1)},
 			},
 			spec: &workv1alpha2.ResourceBindingSpec{
 				Replicas: 3,

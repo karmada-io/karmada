@@ -22,11 +22,10 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/scheduler/core/spreadconstraint"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/test/helper"
 )
@@ -48,7 +47,7 @@ var (
 func Test_assignByStaticWeightStrategy(t *testing.T) {
 	tests := []struct {
 		name             string
-		clusters         []*clusterv1alpha1.Cluster
+		clusters         []spreadconstraint.ClusterDetailInfo
 		weightPreference *policyv1alpha1.ClusterPreferences
 		replicas         int32
 		want             []workv1alpha2.TargetCluster
@@ -56,10 +55,10 @@ func Test_assignByStaticWeightStrategy(t *testing.T) {
 	}{
 		{
 			name: "replica 12, weight 3:2:1",
-			clusters: []*clusterv1alpha1.Cluster{
-				helper.NewCluster(ClusterMember1),
-				helper.NewCluster(ClusterMember2),
-				helper.NewCluster(ClusterMember3),
+			clusters: []spreadconstraint.ClusterDetailInfo{
+				{Name: ClusterMember1, Cluster: helper.NewCluster(ClusterMember1)},
+				{Name: ClusterMember2, Cluster: helper.NewCluster(ClusterMember2)},
+				{Name: ClusterMember3, Cluster: helper.NewCluster(ClusterMember3)},
 			},
 			weightPreference: &policyv1alpha1.ClusterPreferences{
 				StaticWeightList: []policyv1alpha1.StaticClusterWeight{
@@ -102,10 +101,10 @@ func Test_assignByStaticWeightStrategy(t *testing.T) {
 		},
 		{
 			name: "replica 12, default weight",
-			clusters: []*clusterv1alpha1.Cluster{
-				helper.NewCluster(ClusterMember1),
-				helper.NewCluster(ClusterMember2),
-				helper.NewCluster(ClusterMember3),
+			clusters: []spreadconstraint.ClusterDetailInfo{
+				{Name: ClusterMember1, Cluster: helper.NewCluster(ClusterMember1)},
+				{Name: ClusterMember2, Cluster: helper.NewCluster(ClusterMember2)},
+				{Name: ClusterMember3, Cluster: helper.NewCluster(ClusterMember3)},
 			},
 			replicas: 12,
 			want: []workv1alpha2.TargetCluster{
@@ -126,10 +125,10 @@ func Test_assignByStaticWeightStrategy(t *testing.T) {
 		},
 		{
 			name: "replica 14, weight 3:2:1",
-			clusters: []*clusterv1alpha1.Cluster{
-				helper.NewCluster(ClusterMember1),
-				helper.NewCluster(ClusterMember2),
-				helper.NewCluster(ClusterMember3),
+			clusters: []spreadconstraint.ClusterDetailInfo{
+				{Name: ClusterMember1, Cluster: helper.NewCluster(ClusterMember1)},
+				{Name: ClusterMember2, Cluster: helper.NewCluster(ClusterMember2)},
+				{Name: ClusterMember3, Cluster: helper.NewCluster(ClusterMember3)},
 			},
 			weightPreference: &policyv1alpha1.ClusterPreferences{
 				StaticWeightList: []policyv1alpha1.StaticClusterWeight{
@@ -172,9 +171,9 @@ func Test_assignByStaticWeightStrategy(t *testing.T) {
 		},
 		{
 			name: "insufficient replica assignment should get 0 replica",
-			clusters: []*clusterv1alpha1.Cluster{
-				helper.NewCluster(ClusterMember1),
-				helper.NewCluster(ClusterMember2),
+			clusters: []spreadconstraint.ClusterDetailInfo{
+				{Name: ClusterMember1, Cluster: helper.NewCluster(ClusterMember1)},
+				{Name: ClusterMember2, Cluster: helper.NewCluster(ClusterMember2)},
 			},
 			weightPreference: &policyv1alpha1.ClusterPreferences{
 				StaticWeightList: []policyv1alpha1.StaticClusterWeight{
@@ -207,9 +206,9 @@ func Test_assignByStaticWeightStrategy(t *testing.T) {
 		},
 		{
 			name: "selected cluster without weight should be ignored",
-			clusters: []*clusterv1alpha1.Cluster{
-				helper.NewCluster(ClusterMember1),
-				helper.NewCluster(ClusterMember2),
+			clusters: []spreadconstraint.ClusterDetailInfo{
+				{Name: ClusterMember1, Cluster: helper.NewCluster(ClusterMember1)},
+				{Name: ClusterMember2, Cluster: helper.NewCluster(ClusterMember2)},
 			},
 			weightPreference: &policyv1alpha1.ClusterPreferences{
 				StaticWeightList: []policyv1alpha1.StaticClusterWeight{
@@ -232,9 +231,9 @@ func Test_assignByStaticWeightStrategy(t *testing.T) {
 		},
 		{
 			name: "cluster with multiple weights",
-			clusters: []*clusterv1alpha1.Cluster{
-				helper.NewCluster(ClusterMember1),
-				helper.NewCluster(ClusterMember2),
+			clusters: []spreadconstraint.ClusterDetailInfo{
+				{Name: ClusterMember1, Cluster: helper.NewCluster(ClusterMember1)},
+				{Name: ClusterMember2, Cluster: helper.NewCluster(ClusterMember2)},
 			},
 			weightPreference: &policyv1alpha1.ClusterPreferences{
 				StaticWeightList: []policyv1alpha1.StaticClusterWeight{
@@ -297,23 +296,24 @@ func Test_assignByStaticWeightStrategy(t *testing.T) {
 func Test_dynamicScale(t *testing.T) {
 	tests := []struct {
 		name       string
-		candidates []*clusterv1alpha1.Cluster
+		candidates []spreadconstraint.ClusterDetailInfo
 		object     *workv1alpha2.ResourceBindingSpec
 		want       []workv1alpha2.TargetCluster
 		wantErr    bool
 	}{
 		{
 			name: "replica 12 -> 6, dynamic weighted 1:1:1",
-			candidates: []*clusterv1alpha1.Cluster{
-				helper.NewClusterWithResource(ClusterMember1, corev1.ResourceList{
+
+			candidates: []spreadconstraint.ClusterDetailInfo{
+				{Name: ClusterMember1, Cluster: helper.NewClusterWithResource(ClusterMember1, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(1, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
-				helper.NewClusterWithResource(ClusterMember2, corev1.ResourceList{
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 1},
+				{Name: ClusterMember2, Cluster: helper.NewClusterWithResource(ClusterMember2, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(1, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
-				helper.NewClusterWithResource(ClusterMember3, corev1.ResourceList{
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 1},
+				{Name: ClusterMember3, Cluster: helper.NewClusterWithResource(ClusterMember3, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(1, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 1},
 			},
 			object: &workv1alpha2.ResourceBindingSpec{
 				ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
@@ -338,16 +338,16 @@ func Test_dynamicScale(t *testing.T) {
 		},
 		{
 			name: "replica 12 -> 24, dynamic weighted 10:10:10",
-			candidates: []*clusterv1alpha1.Cluster{
-				helper.NewClusterWithResource(ClusterMember1, corev1.ResourceList{
+			candidates: []spreadconstraint.ClusterDetailInfo{
+				{Name: ClusterMember1, Cluster: helper.NewClusterWithResource(ClusterMember1, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(10, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
-				helper.NewClusterWithResource(ClusterMember2, corev1.ResourceList{
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 10},
+				{Name: ClusterMember2, Cluster: helper.NewClusterWithResource(ClusterMember2, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(10, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
-				helper.NewClusterWithResource(ClusterMember3, corev1.ResourceList{
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 10},
+				{Name: ClusterMember3, Cluster: helper.NewClusterWithResource(ClusterMember3, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(10, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 10},
 			},
 			object: &workv1alpha2.ResourceBindingSpec{
 				ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
@@ -372,16 +372,16 @@ func Test_dynamicScale(t *testing.T) {
 		},
 		{
 			name: "replica 12 -> 24, dynamic weighted 1:1:1",
-			candidates: []*clusterv1alpha1.Cluster{
-				helper.NewClusterWithResource(ClusterMember1, corev1.ResourceList{
+			candidates: []spreadconstraint.ClusterDetailInfo{
+				{Name: ClusterMember1, Cluster: helper.NewClusterWithResource(ClusterMember1, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(1, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
-				helper.NewClusterWithResource(ClusterMember2, corev1.ResourceList{
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 1},
+				{Name: ClusterMember2, Cluster: helper.NewClusterWithResource(ClusterMember2, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(1, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
-				helper.NewClusterWithResource(ClusterMember3, corev1.ResourceList{
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 1},
+				{Name: ClusterMember3, Cluster: helper.NewClusterWithResource(ClusterMember3, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(1, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 1},
 			},
 			object: &workv1alpha2.ResourceBindingSpec{
 				ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
@@ -401,16 +401,16 @@ func Test_dynamicScale(t *testing.T) {
 		},
 		{
 			name: "replica 12 -> 6, aggregated 1:1:1",
-			candidates: []*clusterv1alpha1.Cluster{
-				helper.NewClusterWithResource(ClusterMember1, corev1.ResourceList{
+			candidates: []spreadconstraint.ClusterDetailInfo{
+				{Name: ClusterMember1, Cluster: helper.NewClusterWithResource(ClusterMember1, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(1, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
-				helper.NewClusterWithResource(ClusterMember2, corev1.ResourceList{
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 1},
+				{Name: ClusterMember2, Cluster: helper.NewClusterWithResource(ClusterMember2, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(1, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
-				helper.NewClusterWithResource(ClusterMember3, corev1.ResourceList{
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 1},
+				{Name: ClusterMember3, Cluster: helper.NewClusterWithResource(ClusterMember3, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(1, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 1},
 			},
 			object: &workv1alpha2.ResourceBindingSpec{
 				ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
@@ -432,13 +432,13 @@ func Test_dynamicScale(t *testing.T) {
 		},
 		{
 			name: "replica 12 -> 8, aggregated 100:100",
-			candidates: []*clusterv1alpha1.Cluster{
-				helper.NewClusterWithResource(ClusterMember1, corev1.ResourceList{
+			candidates: []spreadconstraint.ClusterDetailInfo{
+				{Name: ClusterMember1, Cluster: helper.NewClusterWithResource(ClusterMember1, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(100, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
-				helper.NewClusterWithResource(ClusterMember2, corev1.ResourceList{
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 100},
+				{Name: ClusterMember2, Cluster: helper.NewClusterWithResource(ClusterMember2, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(100, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 100},
 			},
 			object: &workv1alpha2.ResourceBindingSpec{
 				ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
@@ -460,16 +460,16 @@ func Test_dynamicScale(t *testing.T) {
 		},
 		{
 			name: "replica 12 -> 24, aggregated 4:6:8",
-			candidates: []*clusterv1alpha1.Cluster{
-				helper.NewClusterWithResource(ClusterMember1, corev1.ResourceList{
+			candidates: []spreadconstraint.ClusterDetailInfo{
+				{Name: ClusterMember1, Cluster: helper.NewClusterWithResource(ClusterMember1, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(4, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
-				helper.NewClusterWithResource(ClusterMember2, corev1.ResourceList{
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 4},
+				{Name: ClusterMember2, Cluster: helper.NewClusterWithResource(ClusterMember2, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(6, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
-				helper.NewClusterWithResource(ClusterMember3, corev1.ResourceList{
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 6},
+				{Name: ClusterMember3, Cluster: helper.NewClusterWithResource(ClusterMember3, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(8, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 8},
 			},
 			object: &workv1alpha2.ResourceBindingSpec{
 				ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
@@ -493,16 +493,16 @@ func Test_dynamicScale(t *testing.T) {
 		},
 		{
 			name: "replica 12 -> 24, aggregated 6:6:20",
-			candidates: []*clusterv1alpha1.Cluster{
-				helper.NewClusterWithResource(ClusterMember1, corev1.ResourceList{
+			candidates: []spreadconstraint.ClusterDetailInfo{
+				{Name: ClusterMember1, Cluster: helper.NewClusterWithResource(ClusterMember1, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(6, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
-				helper.NewClusterWithResource(ClusterMember2, corev1.ResourceList{
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 6},
+				{Name: ClusterMember2, Cluster: helper.NewClusterWithResource(ClusterMember2, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(6, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
-				helper.NewClusterWithResource(ClusterMember3, corev1.ResourceList{
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 6},
+				{Name: ClusterMember3, Cluster: helper.NewClusterWithResource(ClusterMember3, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(20, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 20},
 			},
 			object: &workv1alpha2.ResourceBindingSpec{
 				ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
@@ -525,16 +525,16 @@ func Test_dynamicScale(t *testing.T) {
 		},
 		{
 			name: "replica 12 -> 24, aggregated 1:1:1",
-			candidates: []*clusterv1alpha1.Cluster{
-				helper.NewClusterWithResource(ClusterMember1, corev1.ResourceList{
+			candidates: []spreadconstraint.ClusterDetailInfo{
+				{Name: ClusterMember1, Cluster: helper.NewClusterWithResource(ClusterMember1, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(1, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
-				helper.NewClusterWithResource(ClusterMember2, corev1.ResourceList{
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 1},
+				{Name: ClusterMember2, Cluster: helper.NewClusterWithResource(ClusterMember2, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(1, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
-				helper.NewClusterWithResource(ClusterMember3, corev1.ResourceList{
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 1},
+				{Name: ClusterMember3, Cluster: helper.NewClusterWithResource(ClusterMember3, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(1, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 1},
 			},
 			object: &workv1alpha2.ResourceBindingSpec{
 				ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
@@ -553,16 +553,16 @@ func Test_dynamicScale(t *testing.T) {
 		},
 		{
 			name: "replica 12 -> 24, aggregated 4:8:12, with cluster2 disappeared and cluster4 appeared",
-			candidates: []*clusterv1alpha1.Cluster{
-				helper.NewClusterWithResource(ClusterMember1, corev1.ResourceList{
+			candidates: []spreadconstraint.ClusterDetailInfo{
+				{Name: ClusterMember1, Cluster: helper.NewClusterWithResource(ClusterMember1, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(4, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
-				helper.NewClusterWithResource(ClusterMember3, corev1.ResourceList{
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 4},
+				{Name: ClusterMember3, Cluster: helper.NewClusterWithResource(ClusterMember3, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(8, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
-				helper.NewClusterWithResource(ClusterMember4, corev1.ResourceList{
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 8},
+				{Name: ClusterMember4, Cluster: helper.NewClusterWithResource(ClusterMember4, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(12, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 12},
 			},
 			object: &workv1alpha2.ResourceBindingSpec{
 				ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
@@ -603,7 +603,7 @@ func Test_dynamicScale(t *testing.T) {
 func Test_dynamicScaleUp(t *testing.T) {
 	tests := []struct {
 		name       string
-		candidates []*clusterv1alpha1.Cluster
+		candidates []spreadconstraint.ClusterDetailInfo
 		object     *workv1alpha2.ResourceBindingSpec
 		// wants specifies multi possible desired result, any one got is expected
 		wants   [][]workv1alpha2.TargetCluster
@@ -611,16 +611,16 @@ func Test_dynamicScaleUp(t *testing.T) {
 	}{
 		{
 			name: "replica 12, dynamic weight 6:8:10",
-			candidates: []*clusterv1alpha1.Cluster{
-				helper.NewClusterWithResource(ClusterMember1, corev1.ResourceList{
+			candidates: []spreadconstraint.ClusterDetailInfo{
+				{Name: ClusterMember1, Cluster: helper.NewClusterWithResource(ClusterMember1, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(6, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
-				helper.NewClusterWithResource(ClusterMember2, corev1.ResourceList{
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 6},
+				{Name: ClusterMember2, Cluster: helper.NewClusterWithResource(ClusterMember2, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(8, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
-				helper.NewClusterWithResource(ClusterMember3, corev1.ResourceList{
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 8},
+				{Name: ClusterMember3, Cluster: helper.NewClusterWithResource(ClusterMember3, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(10, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 10},
 			},
 			object: &workv1alpha2.ResourceBindingSpec{
 				ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
@@ -642,16 +642,16 @@ func Test_dynamicScaleUp(t *testing.T) {
 		},
 		{
 			name: "replica 12, dynamic weight 8:8:10",
-			candidates: []*clusterv1alpha1.Cluster{
-				helper.NewClusterWithResource(ClusterMember1, corev1.ResourceList{
+			candidates: []spreadconstraint.ClusterDetailInfo{
+				{Name: ClusterMember1, Cluster: helper.NewClusterWithResource(ClusterMember1, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(8, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
-				helper.NewClusterWithResource(ClusterMember2, corev1.ResourceList{
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 8},
+				{Name: ClusterMember2, Cluster: helper.NewClusterWithResource(ClusterMember2, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(8, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
-				helper.NewClusterWithResource(ClusterMember3, corev1.ResourceList{
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 8},
+				{Name: ClusterMember3, Cluster: helper.NewClusterWithResource(ClusterMember3, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(10, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 10},
 			},
 			object: &workv1alpha2.ResourceBindingSpec{
 				ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
@@ -678,16 +678,16 @@ func Test_dynamicScaleUp(t *testing.T) {
 		},
 		{
 			name: "replica 12, dynamic weight 3:3:3",
-			candidates: []*clusterv1alpha1.Cluster{
-				helper.NewClusterWithResource(ClusterMember1, corev1.ResourceList{
+			candidates: []spreadconstraint.ClusterDetailInfo{
+				{Name: ClusterMember1, Cluster: helper.NewClusterWithResource(ClusterMember1, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(3, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
-				helper.NewClusterWithResource(ClusterMember2, corev1.ResourceList{
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 3},
+				{Name: ClusterMember2, Cluster: helper.NewClusterWithResource(ClusterMember2, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(3, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
-				helper.NewClusterWithResource(ClusterMember3, corev1.ResourceList{
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 3},
+				{Name: ClusterMember3, Cluster: helper.NewClusterWithResource(ClusterMember3, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(3, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 3},
 			},
 			object: &workv1alpha2.ResourceBindingSpec{
 				ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
@@ -702,16 +702,16 @@ func Test_dynamicScaleUp(t *testing.T) {
 		},
 		{
 			name: "replica 12, aggregated 6:8:10",
-			candidates: []*clusterv1alpha1.Cluster{
-				helper.NewClusterWithResource(ClusterMember1, corev1.ResourceList{
+			candidates: []spreadconstraint.ClusterDetailInfo{
+				{Name: ClusterMember1, Cluster: helper.NewClusterWithResource(ClusterMember1, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(6, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
-				helper.NewClusterWithResource(ClusterMember2, corev1.ResourceList{
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 6},
+				{Name: ClusterMember2, Cluster: helper.NewClusterWithResource(ClusterMember2, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(8, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
-				helper.NewClusterWithResource(ClusterMember3, corev1.ResourceList{
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 8},
+				{Name: ClusterMember3, Cluster: helper.NewClusterWithResource(ClusterMember3, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(10, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 10},
 			},
 			object: &workv1alpha2.ResourceBindingSpec{
 				ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
@@ -732,16 +732,16 @@ func Test_dynamicScaleUp(t *testing.T) {
 		},
 		{
 			name: "replica 12, aggregated 12:8:10",
-			candidates: []*clusterv1alpha1.Cluster{
-				helper.NewClusterWithResource(ClusterMember1, corev1.ResourceList{
+			candidates: []spreadconstraint.ClusterDetailInfo{
+				{Name: ClusterMember1, Cluster: helper.NewClusterWithResource(ClusterMember1, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(12, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
-				helper.NewClusterWithResource(ClusterMember2, corev1.ResourceList{
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 12},
+				{Name: ClusterMember2, Cluster: helper.NewClusterWithResource(ClusterMember2, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(8, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
-				helper.NewClusterWithResource(ClusterMember3, corev1.ResourceList{
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 8},
+				{Name: ClusterMember3, Cluster: helper.NewClusterWithResource(ClusterMember3, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(10, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 10},
 			},
 			object: &workv1alpha2.ResourceBindingSpec{
 				ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
@@ -761,16 +761,16 @@ func Test_dynamicScaleUp(t *testing.T) {
 		},
 		{
 			name: "replica 12, aggregated 3:3:3",
-			candidates: []*clusterv1alpha1.Cluster{
-				helper.NewClusterWithResource(ClusterMember1, corev1.ResourceList{
+			candidates: []spreadconstraint.ClusterDetailInfo{
+				{Name: ClusterMember1, Cluster: helper.NewClusterWithResource(ClusterMember1, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(3, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
-				helper.NewClusterWithResource(ClusterMember2, corev1.ResourceList{
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 3},
+				{Name: ClusterMember2, Cluster: helper.NewClusterWithResource(ClusterMember2, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(3, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
-				helper.NewClusterWithResource(ClusterMember3, corev1.ResourceList{
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 3},
+				{Name: ClusterMember3, Cluster: helper.NewClusterWithResource(ClusterMember3, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(3, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 3},
 			},
 			object: &workv1alpha2.ResourceBindingSpec{
 				ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
@@ -785,13 +785,13 @@ func Test_dynamicScaleUp(t *testing.T) {
 		},
 		{
 			name: "replica 12, dynamic weight 3:3, with cluster3 disappeared and cluster2 appeared",
-			candidates: []*clusterv1alpha1.Cluster{
-				helper.NewClusterWithResource(ClusterMember1, corev1.ResourceList{
+			candidates: []spreadconstraint.ClusterDetailInfo{
+				{Name: ClusterMember1, Cluster: helper.NewClusterWithResource(ClusterMember1, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(3, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
-				helper.NewClusterWithResource(ClusterMember2, corev1.ResourceList{
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 3},
+				{Name: ClusterMember2, Cluster: helper.NewClusterWithResource(ClusterMember2, corev1.ResourceList{
 					corev1.ResourcePods: *resource.NewQuantity(3, resource.DecimalSI),
-				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()),
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 3},
 			},
 			object: &workv1alpha2.ResourceBindingSpec{
 				ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
@@ -847,26 +847,22 @@ func Test_assignByDuplicatedStrategy(t *testing.T) {
 		{
 			name: "test with multiple cluster",
 			state: &assignState{
-				candidates: []*clusterv1alpha1.Cluster{
-					{
-						ObjectMeta: metav1.ObjectMeta{Name: "cluster1"},
-					},
-					{
-						ObjectMeta: metav1.ObjectMeta{Name: "cluster2"},
-					},
+				candidates: []spreadconstraint.ClusterDetailInfo{
+					{Name: ClusterMember1, Cluster: helper.NewCluster(ClusterMember1)},
+					{Name: ClusterMember2, Cluster: helper.NewCluster(ClusterMember2)},
 				},
 				spec: &workv1alpha2.ResourceBindingSpec{Replicas: 2},
 			},
 			want: []workv1alpha2.TargetCluster{
-				{Name: "cluster1", Replicas: 2},
-				{Name: "cluster2", Replicas: 2},
+				{Name: ClusterMember1, Replicas: 2},
+				{Name: ClusterMember2, Replicas: 2},
 			},
 			wantErr: false,
 		},
 		{
 			name: "the target cluster is null",
 			state: &assignState{
-				candidates: []*clusterv1alpha1.Cluster{},
+				candidates: []spreadconstraint.ClusterDetailInfo{},
 				spec:       &workv1alpha2.ResourceBindingSpec{Replicas: 2},
 			},
 			want:    []workv1alpha2.TargetCluster{},
@@ -875,19 +871,15 @@ func Test_assignByDuplicatedStrategy(t *testing.T) {
 		{
 			name: "replicas is null",
 			state: &assignState{
-				candidates: []*clusterv1alpha1.Cluster{
-					{
-						ObjectMeta: metav1.ObjectMeta{Name: "cluster1"},
-					},
-					{
-						ObjectMeta: metav1.ObjectMeta{Name: "cluster2"},
-					},
+				candidates: []spreadconstraint.ClusterDetailInfo{
+					{Name: ClusterMember1, Cluster: helper.NewCluster(ClusterMember1)},
+					{Name: ClusterMember2, Cluster: helper.NewCluster(ClusterMember2)},
 				},
 				spec: &workv1alpha2.ResourceBindingSpec{},
 			},
 			want: []workv1alpha2.TargetCluster{
-				{Name: "cluster1", Replicas: 0},
-				{Name: "cluster2", Replicas: 0},
+				{Name: ClusterMember1, Replicas: 0},
+				{Name: ClusterMember2, Replicas: 0},
 			},
 			wantErr: false,
 		},

@@ -20,9 +20,9 @@ import (
 	"fmt"
 	"sort"
 
-	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/scheduler/core/spreadconstraint"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -35,14 +35,14 @@ func (a TargetClustersList) Len() int           { return len(a) }
 func (a TargetClustersList) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a TargetClustersList) Less(i, j int) bool { return a[i].Replicas > a[j].Replicas }
 
-func getStaticWeightInfoList(clusters []*clusterv1alpha1.Cluster, weightList []policyv1alpha1.StaticClusterWeight,
+func getStaticWeightInfoList(clusters []spreadconstraint.ClusterDetailInfo, weightList []policyv1alpha1.StaticClusterWeight,
 	lastTargetClusters []workv1alpha2.TargetCluster) helper.ClusterWeightInfoList {
 	list := make(helper.ClusterWeightInfoList, 0)
 	for _, cluster := range clusters {
 		var weight int64
 		var lastReplicas int32
 		for _, staticWeightRule := range weightList {
-			if util.ClusterMatches(cluster, staticWeightRule.TargetCluster) {
+			if util.ClusterMatches(cluster.Cluster, staticWeightRule.TargetCluster) {
 				weight = util.MaxInt64(weight, staticWeightRule.Weight)
 			}
 		}
@@ -107,7 +107,7 @@ func dynamicScaleDown(state *assignState) ([]workv1alpha2.TargetCluster, error) 
 	// 3. scheduledClusters and assignedReplicas are not set, which implicates we consider this action as a first schedule.
 	state.targetReplicas = state.spec.Replicas
 	state.scheduledClusters = nil
-	state.buildAvailableClusters(func(_ []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster {
+	state.buildAvailableClusters(func(_ []spreadconstraint.ClusterDetailInfo, spec *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster {
 		availableClusters := make(TargetClustersList, len(spec.Clusters))
 		copy(availableClusters, spec.Clusters)
 		sort.Sort(availableClusters)
@@ -119,8 +119,14 @@ func dynamicScaleDown(state *assignState) ([]workv1alpha2.TargetCluster, error) 
 func dynamicScaleUp(state *assignState) ([]workv1alpha2.TargetCluster, error) {
 	// Target is the extra ones.
 	state.targetReplicas = state.spec.Replicas - state.assignedReplicas
-	state.buildAvailableClusters(func(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster {
-		clusterAvailableReplicas := calAvailableReplicas(clusters, spec)
+	state.buildAvailableClusters(func(clusters []spreadconstraint.ClusterDetailInfo, _ *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster {
+		clusterAvailableReplicas := make([]workv1alpha2.TargetCluster, len(clusters))
+		for i, cluster := range clusters {
+			clusterAvailableReplicas[i] = workv1alpha2.TargetCluster{
+				Name:     cluster.Name,
+				Replicas: cluster.AllocatableReplicas,
+			}
+		}
 		sort.Sort(TargetClustersList(clusterAvailableReplicas))
 		return clusterAvailableReplicas
 	})
@@ -131,8 +137,14 @@ func dynamicScaleUp(state *assignState) ([]workv1alpha2.TargetCluster, error) {
 func dynamicFreshScale(state *assignState) ([]workv1alpha2.TargetCluster, error) {
 	// 1. targetReplicas is set to desired replicas
 	state.targetReplicas = state.spec.Replicas
-	state.buildAvailableClusters(func(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster {
-		clusterAvailableReplicas := calAvailableReplicas(clusters, spec)
+	state.buildAvailableClusters(func(clusters []spreadconstraint.ClusterDetailInfo, _ *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster {
+		clusterAvailableReplicas := make([]workv1alpha2.TargetCluster, len(clusters))
+		for i, cluster := range clusters {
+			clusterAvailableReplicas[i] = workv1alpha2.TargetCluster{
+				Name:     cluster.Name,
+				Replicas: cluster.AllocatableReplicas,
+			}
+		}
 		// 2. clusterAvailableReplicas should take into account the replicas already allocated
 		for _, scheduledCluster := range state.scheduledClusters {
 			for i, availableCluster := range clusterAvailableReplicas {
