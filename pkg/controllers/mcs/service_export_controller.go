@@ -272,7 +272,6 @@ func (c *ServiceExportController) registerInformersAndStart(cluster *clusterv1al
 		return nil
 	}(); err != nil {
 		klog.Errorf("Failed to sync cache for cluster: %s, error: %v", cluster.Name, err)
-		c.InformerManager.Stop(cluster.Name)
 		return err
 	}
 
