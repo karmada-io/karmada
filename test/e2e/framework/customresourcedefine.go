@@ -73,7 +73,8 @@ func WaitCRDPresentOnClusters(client karmada.Interface, clusters []string, crdAP
 			gomega.Eventually(func(g gomega.Gomega) (bool, error) {
 				cluster, err := FetchCluster(client, clusterName)
 				g.Expect(err).NotTo(gomega.HaveOccurred())
-				return helper.IsAPIEnabled(cluster.Status.APIEnablements, crdAPIVersion, crdKind), nil
+				enabled, _ := cluster.IsAPIEnabledAndTrusted(schema.FromAPIVersionAndKind(crdAPIVersion, crdKind))
+				return enabled, nil
 			}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 		}
 	})
