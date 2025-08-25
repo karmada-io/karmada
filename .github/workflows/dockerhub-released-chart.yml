@@ -15,7 +15,7 @@ jobs:
     if: ${{ github.repository == 'karmada-io/karmada' }}
     steps:
       - name: checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           # fetch-depth:
           # 0 indicates all history for all branches and tags.
