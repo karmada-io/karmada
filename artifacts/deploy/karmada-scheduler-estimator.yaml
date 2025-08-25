@@ -31,6 +31,8 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
+            - name: KUBE_CACHE_MUTATION_DETECTOR
+              value: "{{KUBE_CACHE_MUTATION_DETECTOR}}"
           command:
             - /bin/karmada-scheduler-estimator
             - --kubeconfig=/etc/{{member_cluster_name}}-kubeconfig
