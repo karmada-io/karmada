@@ -48,7 +48,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
-	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
 
@@ -406,25 +405,32 @@ func (c *Controller) doCacheCluster(cluster string) error {
 	}
 
 	sci := c.InformerManager.GetSingleClusterManager(cluster)
+	c.startInformerForCluster(sci, cr, cls, handler)
+	return nil
+}
+
+func (c *Controller) startInformerForCluster(sci genericmanager.SingleClusterInformerManager, cr *clusterRegistry, cluster *clusterv1alpha1.Cluster, handler cache.ResourceEventHandler) {
 	for gvr := range cr.resources {
 		gvk, err := c.restMapper.KindFor(gvr)
 		if err != nil {
 			klog.Errorf("Failed to get gvk: %v", err)
 			continue
 		}
-		if !helper.IsAPIEnabled(cls.Status.APIEnablements, gvk.GroupVersion().String(), gvk.Kind) {
-			klog.Warningf("Resource %s is not enabled for cluster %s", gvr.String(), cluster)
+		enabled, trusted := cluster.IsAPIEnabledAndTrusted(gvk)
+		if !enabled && trusted {
+			klog.Warningf("Resource %s is not enabled for cluster %s", gvr.String(), cluster.Name)
 			continue
 		}
-		klog.Infof("Add informer for %s, %v", cluster, gvr)
+		if !enabled && !trusted {
+			klog.Warningf("Resource %s may not be enabled for cluster %s, but we still try to add informer", gvr.String(), cluster.Name)
+		}
+		klog.Infof("Add informer for %s, %v", cluster.Name, gvr)
 		sci.ForResource(gvr, handler)
 	}
-	klog.Infof("Start informer for %s", cluster)
+	klog.Infof("Start informer for %s", cluster.Name)
 	sci.Start()
 	_ = sci.WaitForCacheSync()
-	klog.Infof("Start informer for %s done", cluster)
-
-	return nil
+	klog.Infof("Start informer for %s done", cluster.Name)
 }
 
 // addResourceRegistry parse the resourceRegistry object and add Cluster to the queue

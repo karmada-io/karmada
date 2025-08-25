@@ -50,7 +50,6 @@ import (
 	pluginruntime "github.com/karmada-io/karmada/pkg/search/proxy/framework/runtime"
 	"github.com/karmada-io/karmada/pkg/search/proxy/store"
 	"github.com/karmada-io/karmada/pkg/util"
-	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/lifted"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
@@ -246,9 +245,13 @@ func (ctl *Controller) mergeResourcesByClusters(resourcesByClusters map[string]m
 			klog.Errorf("Failed to get gvk: %v", err)
 			continue
 		}
-		if !helper.IsAPIEnabled(cluster.Status.APIEnablements, gvk.GroupVersion().String(), gvk.Kind) {
+		enabled, trusted := cluster.IsAPIEnabledAndTrusted(gvk)
+		if !enabled && trusted {
 			klog.Warningf("Resource %s is not enabled for cluster %s", resource.String(), cluster)
 			continue
+		}
+		if !enabled && !trusted {
+			klog.Warningf("Resource %s may not be enabled for cluster %s, but we still try to cache it", resource.String(), cluster)
 		}
 		if ns, exist := resourcesByClusters[cluster.Name][resource]; !exist {
 			resourcesByClusters[cluster.Name][resource] = multiNS

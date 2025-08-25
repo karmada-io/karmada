@@ -288,9 +288,16 @@ func (c *MCSController) propagateMultiClusterService(ctx context.Context, mcs *n
 				"Provider cluster %s is not ready, skip to propagate MultiClusterService", clusterName)
 			continue
 		}
-		if !helper.IsAPIEnabled(clusterObj.Status.APIEnablements, util.EndpointSliceGVK.GroupVersion().String(), util.EndpointSliceGVK.Kind) {
+		enabled, trusted := clusterObj.IsAPIEnabledAndTrusted(util.EndpointSliceGVK)
+		if !enabled && trusted {
 			c.EventRecorder.Eventf(mcs, corev1.EventTypeWarning, events.EventReasonAPIIncompatible, "Provider cluster %s does not support EndpointSlice", clusterName)
 			continue
+		}
+
+		if !enabled && !trusted {
+			klog.V(4).InfoS("Provider cluster may not support EndpointSlice, but we still try to propagate it", "cluster", clusterName)
+			c.EventRecorder.Eventf(mcs, corev1.EventTypeWarning, events.EventReasonAPIIncompatible,
+				"Provider cluster %s may not support EndpointSlice, but we still try to propagate it", clusterName)
 		}
 
 		workMeta := metav1.ObjectMeta{
