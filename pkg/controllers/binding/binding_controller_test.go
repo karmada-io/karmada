@@ -252,7 +252,7 @@ func TestResourceBindingController_removeOrphanWorks(t *testing.T) {
 				t.Errorf("makeFakeRBCByResource %v", makeErr)
 				return
 			}
-			if err := c.removeOrphanWorks(context.TODO(), tt.rb); (err != nil) != tt.wantErr {
+			if _, err := c.removeOrphanWorks(context.TODO(), tt.rb); (err != nil) != tt.wantErr {
 				t.Errorf("removeOrphanWorks() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
