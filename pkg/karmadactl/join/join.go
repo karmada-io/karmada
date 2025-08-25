@@ -210,45 +210,32 @@ var clusterKubeClientBuilder = func(clusterConfig *rest.Config) kubeclient.Inter
 
 // RunJoinCluster join the cluster into karmada.
 func (j *CommandJoinOption) RunJoinCluster(controlPlaneRestConfig, clusterConfig *rest.Config) (err error) {
-	controlPlaneKubeClient := controlPlaneKubeClientBuilder(controlPlaneRestConfig)
-	karmadaClient := karmadaClientBuilder(controlPlaneRestConfig)
-	clusterKubeClient := clusterKubeClientBuilder(clusterConfig)
-
 	klog.V(1).Infof("Joining cluster config. endpoint: %s", clusterConfig.Host)
 
 	registerOption := util.ClusterRegisterOption{
-		ClusterNamespace:   j.ClusterNamespace,
-		ClusterName:        j.ClusterName,
-		ReportSecrets:      []string{util.KubeCredentials, util.KubeImpersonator},
-		ClusterProvider:    j.ClusterProvider,
-		ClusterRegion:      j.ClusterRegion,
-		ClusterZones:       j.ClusterZones,
-		DryRun:             j.DryRun,
-		ControlPlaneConfig: controlPlaneRestConfig,
-		ClusterConfig:      clusterConfig,
+		ClusterNamespace:       j.ClusterNamespace,
+		ClusterName:            j.ClusterName,
+		ReportSecrets:          []string{util.KubeCredentials, util.KubeImpersonator},
+		ClusterProvider:        j.ClusterProvider,
+		ClusterRegion:          j.ClusterRegion,
+		ClusterZones:           j.ClusterZones,
+		DryRun:                 j.DryRun,
+		ControlPlaneConfig:     controlPlaneRestConfig,
+		ClusterConfig:          clusterConfig,
+		ClusterKubeClient:      clusterKubeClientBuilder(clusterConfig),
+		KarmadaClient:          karmadaClientBuilder(controlPlaneRestConfig),
+		ControlPlaneKubeClient: controlPlaneKubeClientBuilder(controlPlaneRestConfig),
 	}
 
-	registerOption.ClusterID, err = util.ObtainClusterID(clusterKubeClient)
-	if err != nil {
+	if err = registerOption.Complete(); err != nil {
 		return err
 	}
 
-	if err = registerOption.Validate(karmadaClient, false); err != nil {
+	if err = registerOption.Validate(false); err != nil {
 		return err
 	}
 
-	clusterSecret, impersonatorSecret, err := util.ObtainCredentialsFromMemberCluster(clusterKubeClient, registerOption)
-	if err != nil {
-		return err
-	}
-
-	if j.DryRun {
-		return nil
-	}
-	registerOption.Secret = *clusterSecret
-	registerOption.ImpersonatorSecret = *impersonatorSecret
-	err = util.RegisterClusterInControllerPlane(registerOption, controlPlaneKubeClient, generateClusterInControllerPlane)
-	if err != nil {
+	if err = registerOption.RunRegister(generateClusterInControllerPlane); err != nil {
 		return err
 	}
 
