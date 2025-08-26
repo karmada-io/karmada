@@ -31,6 +31,7 @@ import (
 var AllResourceInterpreterCustomizationRules = []Rule{
 	&retentionRule{},
 	&replicaResourceRule{},
+	&componentResourceRule{},
 	&replicaRevisionRule{},
 	&statusReflectionRule{},
 	&statusAggregationRule{},
@@ -102,12 +103,13 @@ func (r *replicaResourceRule) Document() string {
 	return `This rule is used to discover the resource's replica as well as resource requirements.
 The script should implement a function as follows:
 function GetReplicas(desiredObj)
-  replica = desiredObj.spec.replicas
-  nodeClaim = {}
-  nodeClaim.hardNodeAffinity = {}
-  nodeClaim.nodeSelector = {}
-  nodeClaim.tolerations = {}
-  return replica, nodeClaim
+  local replica = desiredObj.spec.replicas
+  local requirement = {}
+  requirement.nodeClaim = {}
+  requirement.nodeClaim.nodeSelector = desiredObj.spec.template.spec.nodeSelector
+  requirement.nodeClaim.tolerations = desiredObj.spec.template.spec.tolerations
+  requirement.resourceRequest = desiredObj.spec.template.spec.containers[1].resources.limits
+  return replica, requirement
 end`
 }
 
@@ -143,6 +145,66 @@ func (r *replicaResourceRule) Run(interpreter *declarative.ConfigurableInterpret
 		return newRuleResultWithError(fmt.Errorf("rule is not enabled"))
 	}
 	return newRuleResult().add("replica", replica).add("requires", requires)
+}
+
+type componentResourceRule struct {
+}
+
+func (r *componentResourceRule) Name() string {
+	return string(configv1alpha1.InterpreterOperationInterpretComponent)
+}
+
+func (r *componentResourceRule) Document() string {
+	return `This rule is used to discover the resource's components.
+The script should implement a function as follows:
+function GetComponents(desiredObj)
+  local components = {}
+  local jobManagerComponent = {
+	name = "jobmanager",
+	replicas = desiredObj.spec.jobManager.replicas
+  }
+  table.insert(components, jobManagerComponent)
+  local taskManagerComponent = {
+	name = "taskmanager",
+	replicas = desiredObj.spec.taskManager.replicas
+  }
+  table.insert(components, taskManagerComponent)
+  return components
+end`
+}
+
+func (r *componentResourceRule) GetScript(c *configv1alpha1.ResourceInterpreterCustomization) string {
+	if c.Spec.Customizations.ComponentResource != nil {
+		return c.Spec.Customizations.ComponentResource.LuaScript
+	}
+	return ""
+}
+
+func (r *componentResourceRule) SetScript(c *configv1alpha1.ResourceInterpreterCustomization, script string) {
+	if script == "" {
+		c.Spec.Customizations.ComponentResource = nil
+		return
+	}
+
+	if c.Spec.Customizations.ComponentResource == nil {
+		c.Spec.Customizations.ComponentResource = &configv1alpha1.ComponentResourceRequirement{}
+	}
+	c.Spec.Customizations.ComponentResource.LuaScript = script
+}
+
+func (r *componentResourceRule) Run(interpreter *declarative.ConfigurableInterpreter, args RuleArgs) *RuleResult {
+	obj, err := args.getObjectOrError()
+	if err != nil {
+		return newRuleResultWithError(err)
+	}
+	components, enabled, err := interpreter.GetComponents(obj)
+	if err != nil {
+		return newRuleResultWithError(err)
+	}
+	if !enabled {
+		return newRuleResultWithError(fmt.Errorf("rule is not enabled"))
+	}
+	return newRuleResult().add("components", components)
 }
 
 type replicaRevisionRule struct {

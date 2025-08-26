@@ -84,6 +84,23 @@ resourceRequest:
 `,
 		},
 		{
+			name: "execute interpretComponent",
+			options: &Options{
+				FilenameOptions: resource.FilenameOptions{Filenames: []string{"./testdata/customization.yml"}},
+				Operation:       "interpretComponent",
+				ObservedFile:    "./testdata/observed.yml",
+				Rules:           interpreter.AllResourceInterpreterCustomizationRules,
+			},
+			want: `---
+# [1/1] components:
+- name: master
+  replicaRequirements:
+    resourceRequest:
+        cpu: 100m
+  replicas: 3
+`,
+		},
+		{
 			name: "execute reviseReplica",
 			options: &Options{
 				FilenameOptions: resource.FilenameOptions{Filenames: []string{"./testdata/customization.yml"}},

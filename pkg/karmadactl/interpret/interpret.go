@@ -63,6 +63,9 @@ var (
 		# Execute the replicaResource rule
         %[1]s interpret -f customization.yml --operation interpretReplica --observed-file observed.yml
 
+		# Execute the componentResource rule
+        %[1]s interpret -f customization.yml --operation interpretComponent --observed-file observed.yml
+
 		# Execute the replicaRevision rule
         %[1]s interpret -f customization.yml --operation reviseReplica --observed-file observed.yml --desired-replica 2
 
