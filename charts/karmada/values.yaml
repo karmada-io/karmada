@@ -245,6 +245,8 @@ scheduler:
   priorityClassName: "system-node-critical"
   ## @param scheduler.enableSchedulerEstimator enable scheduler estimator
   enableSchedulerEstimator: false
+  ## @param scheduler.featureGates A set of key=value pairs that describe feature gates for karmada-scheduler
+  featureGates: {}
 
 ## webhook config
 webhook:
@@ -299,11 +301,11 @@ webhook:
     rollingUpdate:
       maxUnavailable: 0
       maxSurge: 50%
-  ## @param apiServer.podDisruptionBudget
+  ## @param webhook.podDisruptionBudget
   podDisruptionBudget: *podDisruptionBudget
   ## @param webhook.priorityClassName the priority class name for the karmada-webhook
   priorityClassName: "system-node-critical"
-  ## @param featureGate to webhook
+  ## @param webhook.featureGates A set of key=value pairs that describe feature gates for karmada-webhook
   featureGates: {}
 
 ## controller manager config

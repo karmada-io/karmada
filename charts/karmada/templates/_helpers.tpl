@@ -556,18 +556,22 @@ Return the proper Docker Image Registry Secret Names
 {{ include "common.images.pullSecrets" (dict "images" (list .Values.cfssl.image .Values.kubectl.image .Values.etcd.internal.image .Values.agent.image .Values.apiServer.image .Values.controllerManager.image .Values.descheduler.image .Values.schedulerEstimator.image .Values.scheduler.image .Values.webhook.image .Values.aggregatedApiServer.image .Values.metricsAdapter.image .Values.search.image .Values.kubeControllerManager.image) "global" .Values.global) }}
 {{- end -}}
 
+{{- /* 
+Generate the --feature-gates command line argument for karmada-controllerManager.
+Iterates over .Values.controllerManager.featureGates and constructs a comma-separated key=value list.
+If any feature gates are set, outputs: --feature-gates=Foo=true,Bar=false
+If none are set, outputs nothing.
+*/ -}}
 {{- define "karmada.controllerManager.featureGates" -}}
-     {{- if (not (empty .Values.controllerManager.featureGates)) }}
-          {{- $featureGatesFlag := "" -}}
+     {{- if .Values.controllerManager.featureGates -}}
+          {{- $featureGates := list -}}
           {{- range $key, $value := .Values.controllerManager.featureGates -}}
-               {{- if not (empty (toString $value)) }}
-                    {{- $featureGatesFlag = cat $featureGatesFlag $key "=" $value ","  -}}
+               {{- if not (empty (toString $value)) -}}
+                    {{- $featureGates = append $featureGates (printf "%s=%s" $key (toString $value)) -}}
                {{- end -}}
           {{- end -}}
-
-          {{- if gt (len $featureGatesFlag) 0 }}
-               {{- $featureGatesFlag := trimSuffix "," $featureGatesFlag  | nospace -}}
-               {{- printf "%s=%s" "--feature-gates" $featureGatesFlag -}}
+          {{- if $featureGates -}}
+               {{- printf "--feature-gates=%s" (join "," $featureGates) | nospace -}}
           {{- end -}}
      {{- end -}}
 {{- end -}}
@@ -579,34 +583,55 @@ If any feature gates are set, outputs: --feature-gates=Foo=true,Bar=false
 If none are set, outputs nothing.
 */ -}}
 {{- define "karmada.webhook.featureGates" -}}
-     {{- if (not (empty .Values.webhook.featureGates)) }}
-          {{- $featureGatesFlag := "" -}}
+     {{- if .Values.webhook.featureGates -}}
+          {{- $featureGates := list -}}
           {{- range $key, $value := .Values.webhook.featureGates -}}
-               {{- if not (empty (toString $value)) }}
-                    {{- $featureGatesFlag = cat $featureGatesFlag $key "=" $value ","  -}}
+               {{- if not (empty (toString $value)) -}}
+                    {{- $featureGates = append $featureGates (printf "%s=%s" $key (toString $value)) -}}
                {{- end -}}
           {{- end -}}
-
-          {{- if gt (len $featureGatesFlag) 0 }}
-               {{- $featureGatesFlag := trimSuffix "," $featureGatesFlag  | nospace -}}
-               {{- printf "%s=%s" "--feature-gates" $featureGatesFlag -}}
+          {{- if $featureGates -}}
+               {{- printf "--feature-gates=%s" (join "," $featureGates) | nospace -}}
           {{- end -}}
      {{- end -}}
 {{- end -}}
 
-{{- define "karmada.schedulerEstimator.featureGates" -}}
-     {{- $featureGatesArg := index . "featureGatesArg" -}}
-     {{- if (not (empty $featureGatesArg)) }}
-          {{- $featureGatesFlag := "" -}}
-          {{- range $key, $value := $featureGatesArg -}}
-               {{- if not (empty (toString $value)) }}
-                    {{- $featureGatesFlag = cat $featureGatesFlag $key "=" $value ","  -}}
+{{- /* 
+Generate the --feature-gates command line argument for karmada-scheduler.
+Iterates over .Values.scheduler.featureGates and constructs a comma-separated key=value list.
+If any feature gates are set, outputs: --feature-gates=Foo=true,Bar=false
+If none are set, outputs nothing.
+*/ -}}
+{{- define "karmada.scheduler.featureGates" -}}
+     {{- if .Values.scheduler.featureGates -}}
+          {{- $featureGates := list -}}
+          {{- range $key, $value := .Values.scheduler.featureGates -}}
+               {{- if not (empty (toString $value)) -}}
+                    {{- $featureGates = append $featureGates (printf "%s=%s" $key (toString $value)) -}}
                {{- end -}}
           {{- end -}}
+          {{- if $featureGates -}}
+               {{- printf "--feature-gates=%s" (join "," $featureGates) | nospace -}}
+          {{- end -}}
+     {{- end -}}
+{{- end -}}
 
-          {{- if gt (len $featureGatesFlag) 0 }}
-               {{- $featureGatesFlag := trimSuffix "," $featureGatesFlag  | nospace -}}
-               {{- printf "%s=%s" "--feature-gates" $featureGatesFlag -}}
+{{- /* 
+Generate the --feature-gates command line argument for karmada-schedulerEstimator.
+Iterates over .Values.schedulerEstimator.featureGates and constructs a comma-separated key=value list.
+If any feature gates are set, outputs: --feature-gates=Foo=true,Bar=false
+If none are set, outputs nothing.
+*/ -}}
+{{- define "karmada.schedulerEstimator.featureGates" -}}
+     {{- if .Values.schedulerEstimator.featureGates -}}
+          {{- $featureGates := list -}}
+          {{- range $key, $value := .Values.schedulerEstimator.featureGates -}}
+               {{- if not (empty (toString $value)) -}}
+                    {{- $featureGates = append $featureGates (printf "%s=%s" $key (toString $value)) -}}
+               {{- end -}}
+          {{- end -}}
+          {{- if $featureGates -}}
+               {{- printf "--feature-gates=%s" (join "," $featureGates) | nospace -}}
           {{- end -}}
      {{- end -}}
 {{- end -}}
