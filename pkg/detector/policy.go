@@ -110,14 +110,33 @@ func (d *ResourceDetector) getAndApplyPolicy(object *unstructured.Unstructured, 
 	resourceChangeByKarmada bool, policyNamespace, policyName, claimedID string) error {
 	matchedPropagationPolicy := &policyv1alpha1.PropagationPolicy{}
 	err := d.Client.Get(context.TODO(), client.ObjectKey{Namespace: policyNamespace, Name: policyName}, matchedPropagationPolicy)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			klog.V(4).Infof("PropagationPolicy(%s/%s) has been removed.", policyNamespace, policyName)
-			return d.HandlePropagationPolicyDeletion(claimedID)
+	if apierrors.IsNotFound(err) {
+		// The expected PropagationPolicy has been removed, indicating the cleanup process has completed.
+		// However, if the claimed data still exists in the resource template, it likely means the cleanup
+		// for the resource template was missed. This can happen if the claimed data was added to the resource
+		// template and then the PropagationPolicy was removed very shortly after.
+		// When cleaning up resource templates based on PropagationPolicy deletion, the cache may not have received
+		// the resource template update in time, resulting in a missed cleanup.
+		klog.V(4).Infof("PropagationPolicy(%s/%s) has been removed.", policyNamespace, policyName)
+		claimMetadata := labels.Set{policyv1alpha1.PropagationPolicyPermanentIDLabel: claimedID}
+		objRef := workv1alpha2.ObjectReference{
+			APIVersion: object.GetAPIVersion(),
+			Kind:       object.GetKind(),
+			Namespace:  object.GetNamespace(),
+			Name:       object.GetName(),
 		}
+		return d.handleResourceTemplateAndBindingCleanup(object, objRef, claimMetadata, CleanupPPClaimMetadata)
+	}
+	if err != nil {
 		klog.Errorf("Failed to get claimed policy(%s/%s),: %v", policyNamespace, policyName, err)
 		return err
 	}
+
+	// If the policy is being deleted, we should not apply it. Instead, waiting for the next reconcile to clean up metadata.
+	if !matchedPropagationPolicy.DeletionTimestamp.IsZero() {
+		return fmt.Errorf("policy(%s/%s) is being deleted", policyNamespace, policyName)
+	}
+
 	// Some resources are available in more than one group in the same kubernetes version.
 	// Therefore, the following scenarios occurs:
 	// In v1.21 kubernetes cluster, Ingress are available in both networking.k8s.io and extensions groups.
@@ -142,15 +161,33 @@ func (d *ResourceDetector) getAndApplyClusterPolicy(object *unstructured.Unstruc
 	resourceChangeByKarmada bool, policyName, policyID string) error {
 	matchedClusterPropagationPolicy := &policyv1alpha1.ClusterPropagationPolicy{}
 	err := d.Client.Get(context.TODO(), client.ObjectKey{Name: policyName}, matchedClusterPropagationPolicy)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			klog.V(4).Infof("ClusterPropagationPolicy(%s) has been removed.", policyName)
-			return d.HandleClusterPropagationPolicyDeletion(policyID)
+	if apierrors.IsNotFound(err) {
+		// The expected ClusterPropagationPolicy has been removed, indicating the cleanup process has completed.
+		// However, if the claimed data still exists in the resource template, it likely means the cleanup
+		// for the resource template was missed. This can happen if the claimed data was added to the resource
+		// template and then the ClusterPropagationPolicy was removed very shortly after.
+		// When cleaning up resource templates based on ClusterPropagationPolicy deletion, the cache may not have received
+		// the resource template update in time, resulting in a missed cleanup.
+		klog.V(4).Infof("ClusterPropagationPolicy(%s) has been removed.", policyName)
+		claimMetadata := labels.Set{policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: policyID}
+		objRef := workv1alpha2.ObjectReference{
+			APIVersion: object.GetAPIVersion(),
+			Kind:       object.GetKind(),
+			Namespace:  object.GetNamespace(),
+			Name:       object.GetName(),
 		}
-
+		return d.handleResourceTemplateAndBindingCleanup(object, objRef, claimMetadata, CleanupCPPClaimMetadata)
+	}
+	if err != nil {
 		klog.Errorf("Failed to get claimed policy(%s),: %v", policyName, err)
 		return err
 	}
+
+	if !matchedClusterPropagationPolicy.DeletionTimestamp.IsZero() {
+		// If the cluster policy is being deleted, we should not apply it. Instead, waiting for the next reconcile to clean up metadata.
+		return fmt.Errorf("cluster policy(%s) is being deleted", policyName)
+	}
+
 	// Some resources are available in more than one group in the same kubernetes version.
 	// Therefore, the following scenarios occurs:
 	// In v1.21 kubernetes cluster, Ingress are available in both networking.k8s.io and extensions groups.
