@@ -18,6 +18,7 @@ package luavm
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -28,6 +29,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/utils/ptr"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
@@ -180,6 +182,224 @@ end`,
 			requires.ResourceRequest, tt.wantRequires.ResourceRequest = nil, nil
 			if !reflect.DeepEqual(requires, tt.wantRequires) {
 				t.Errorf("GetReplicas() got = %v, want %v", requires, tt.wantRequires)
+			}
+		})
+	}
+}
+
+// MockMultiPodTemplateWorkload simulates a CRD with multiple pod templates,
+// mirroring the structure of a real-world Kubernetes object.
+type MockMultiPodTemplateWorkload struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+	Spec              MockWorkloadSpec `json:"spec,omitempty"`
+}
+
+// MockWorkloadSpec contains the different components, each with its own PodSpec.
+type MockWorkloadSpec struct {
+	Master MockComponentSpec `json:"master"`
+	Worker MockComponentSpec `json:"worker"`
+}
+
+// MockComponentSpec now includes Replicas and directly embeds a PodSpec
+// to perfectly simulate a pod template.
+type MockComponentSpec struct {
+	Replicas int32          `json:"replicas"`
+	Spec     corev1.PodSpec `json:"spec"`
+}
+
+// DeepCopyObject implements the runtime.Object interface.
+func (in *MockMultiPodTemplateWorkload) DeepCopyObject() runtime.Object {
+	out := new(MockMultiPodTemplateWorkload)
+	bytes, err := json.Marshal(in)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to marshal mock object in DeepCopy: %v", err))
+	}
+	if err := json.Unmarshal(bytes, out); err != nil {
+		panic(fmt.Sprintf("Failed to unmarshal mock object in DeepCopy: %v", err))
+	}
+	return out
+}
+
+func TestGetComponents(t *testing.T) {
+	vm := New(true, 1)
+
+	mockWorkload := &MockMultiPodTemplateWorkload{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "testing.karmada.io/v1alpha1",
+			Kind:       "MockMultiPodTemplateWorkload",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "default",
+			Name:      "my-mock-app",
+		},
+		Spec: MockWorkloadSpec{
+			Master: MockComponentSpec{
+				Replicas: 1,
+				Spec: corev1.PodSpec{
+					NodeSelector: map[string]string{"foo": "foo1"},
+					Tolerations:  []corev1.Toleration{{Key: "bar", Operator: corev1.TolerationOpExists}},
+					Containers: []corev1.Container{
+						{
+							Name: "master",
+							Resources: corev1.ResourceRequirements{
+								Requests: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("1"),
+									corev1.ResourceMemory: resource.MustParse("1Gi"),
+								},
+							},
+						},
+					},
+				},
+			},
+			Worker: MockComponentSpec{
+				Replicas: 3,
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name: "worker",
+							Resources: corev1.ResourceRequirements{
+								Requests: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("500m"),
+									corev1.ResourceMemory: resource.MustParse("2Gi"),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	mockWorkload.GetObjectKind().SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   "testing.karmada.io",
+		Version: "v1alpha1",
+		Kind:    "MockMultiPodTemplateWorkload",
+	})
+
+	tests := []struct {
+		name           string
+		object         runtime.Object
+		luaScript      string
+		wantErr        bool
+		wantComponents []workv1alpha2.ComponentRequirements
+	}{
+		{
+			name:   "Successfully parse multiple PodSpec templates from a mock workload",
+			object: mockWorkload,
+			// This Lua script now navigates a real PodSpec and uses the 'kube' helper library.
+			luaScript: `
+function GetComponents(obj)
+    local kube = require("kube")
+    local components = {}
+
+    -- Parse the Master component's PodSpec
+    table.insert(components, {
+        name = "master",
+        replicas = obj.spec.master.replicas,
+        replicaRequirements = kube.accuratePodRequirements(obj.spec.master)
+    })
+
+    -- Parse the Worker component's PodSpec
+    table.insert(components, {
+        name = "worker",
+        replicas = obj.spec.worker.replicas,
+        replicaRequirements = kube.accuratePodRequirements(obj.spec.worker)
+    })
+
+    return components
+end
+`,
+			wantErr: false,
+			wantComponents: []workv1alpha2.ComponentRequirements{
+				{
+					Name:     "master",
+					Replicas: 1,
+					ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
+						NodeClaim: &workv1alpha2.NodeClaim{
+							NodeSelector: map[string]string{"foo": "foo1"},
+							Tolerations:  []corev1.Toleration{{Key: "bar", Operator: corev1.TolerationOpExists}},
+						},
+						ResourceRequest: map[corev1.ResourceName]resource.Quantity{
+							corev1.ResourceCPU:    resource.MustParse("1"),
+							corev1.ResourceMemory: resource.MustParse("1Gi"),
+						},
+					},
+				},
+				{
+					Name:     "worker",
+					Replicas: 3,
+					ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
+						ResourceRequest: map[corev1.ResourceName]resource.Quantity{
+							corev1.ResourceCPU:    resource.MustParse("500m"),
+							corev1.ResourceMemory: resource.MustParse("2Gi"),
+						},
+					},
+				},
+			},
+		},
+		{
+			name:   "Script successfully returns nil for no components",
+			object: mockWorkload,
+			luaScript: `
+function GetComponents(obj)
+    return nil
+end
+`,
+			wantErr:        false,
+			wantComponents: nil,
+		},
+		{
+			name:   "Script returns an invalid type (string) and should error",
+			object: mockWorkload,
+			luaScript: `
+function GetComponents(obj)
+    return "this is not a table"
+end
+`,
+			wantErr:        true,
+			wantComponents: nil,
+		},
+		{
+			name:   "Script has a syntax error and should error",
+			object: mockWorkload,
+			luaScript: `
+function GetComponents(obj)
+    local x = {
+    return x -- syntax error: unbalanced brackets
+end
+`,
+			wantErr:        true,
+			wantComponents: nil,
+		},
+		{
+			name:   "Script is missing the GetComponents function and should error",
+			object: mockWorkload,
+			luaScript: `
+-- This script is valid but does not define the required function.
+function GetReplicas(obj)
+    return 1
+end
+`,
+			wantErr:        true,
+			wantComponents: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			objUnstructured, err := helper.ToUnstructured(tt.object)
+			if err != nil {
+				t.Fatalf("Failed to convert object to unstructured: %v", err)
+			}
+
+			components, err := vm.GetComponents(objUnstructured, tt.luaScript)
+
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("GetComponents() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			if !tt.wantErr && !reflect.DeepEqual(components, tt.wantComponents) {
+				t.Errorf("GetComponents() = \n%#v, \nwant \n%#v", components, tt.wantComponents)
 			}
 		})
 	}

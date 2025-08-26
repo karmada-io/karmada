@@ -261,6 +261,201 @@ spec:
                   - name
                   type: object
                 type: array
+              components:
+                description: |-
+                  Components represents the requirements of multiple pod templates of the referencing resource.
+                  It is designed to support workloads that consist of multiple pod templates,
+                  such as distributed training jobs (e.g., PyTorch, TensorFlow) and big data workloads (e.g., FlinkDeployment),
+                  where each workload is composed of more than one pod template. It is also capable of representing
+                  single-component workloads, such as Deployment.
+
+                  Note: This field is intended to replace the legacy ReplicaRequirements and Replicas fields above.
+                  It is only populated when the MultiplePodTemplatesScheduling feature gate is enabled.
+                items:
+                  description: ComponentRequirements represents the requirements for
+                    a specific component.
+                  properties:
+                    name:
+                      description: |-
+                        Name of this component.
+                        It is required when the resource contains multiple components to ensure proper identification,
+                        and must also be unique within the same resource.
+                      maxLength: 32
+                      type: string
+                    replicaRequirements:
+                      description: ReplicaRequirements represents the requirements
+                        required by each replica for this component.
+                      properties:
+                        namespace:
+                          description: Namespace represents the resources namespaces
+                          type: string
+                        nodeClaim:
+                          description: NodeClaim represents the node claim HardNodeAffinity,
+                            NodeSelector and Tolerations required by each replica.
+                          properties:
+                            hardNodeAffinity:
+                              description: |-
+                                A node selector represents the union of the results of one or more label queries over a set of
+                                nodes; that is, it represents the OR of the selectors represented by the node selector terms.
+                                Note that only PodSpec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution
+                                is included here because it has a hard limit on pod scheduling.
+                              properties:
+                                nodeSelectorTerms:
+                                  description: Required. A list of node selector terms.
+                                    The terms are ORed.
+                                  items:
+                                    description: |-
+                                      A null or empty node selector term matches no objects. The requirements of
+                                      them are ANDed.
+                                      The TopologySelectorTerm type implements a subset of the NodeSelectorTerm.
+                                    properties:
+                                      matchExpressions:
+                                        description: A list of node selector requirements
+                                          by node's labels.
+                                        items:
+                                          description: |-
+                                            A node selector requirement is a selector that contains values, a key, and an operator
+                                            that relates the key and values.
+                                          properties:
+                                            key:
+                                              description: The label key that the
+                                                selector applies to.
+                                              type: string
+                                            operator:
+                                              description: |-
+                                                Represents a key's relationship to a set of values.
+                                                Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+                                              type: string
+                                            values:
+                                              description: |-
+                                                An array of string values. If the operator is In or NotIn,
+                                                the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                                                the values array must be empty. If the operator is Gt or Lt, the values
+                                                array must have a single element, which will be interpreted as an integer.
+                                                This array is replaced during a strategic merge patch.
+                                              items:
+                                                type: string
+                                              type: array
+                                              x-kubernetes-list-type: atomic
+                                          required:
+                                          - key
+                                          - operator
+                                          type: object
+                                        type: array
+                                        x-kubernetes-list-type: atomic
+                                      matchFields:
+                                        description: A list of node selector requirements
+                                          by node's fields.
+                                        items:
+                                          description: |-
+                                            A node selector requirement is a selector that contains values, a key, and an operator
+                                            that relates the key and values.
+                                          properties:
+                                            key:
+                                              description: The label key that the
+                                                selector applies to.
+                                              type: string
+                                            operator:
+                                              description: |-
+                                                Represents a key's relationship to a set of values.
+                                                Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+                                              type: string
+                                            values:
+                                              description: |-
+                                                An array of string values. If the operator is In or NotIn,
+                                                the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                                                the values array must be empty. If the operator is Gt or Lt, the values
+                                                array must have a single element, which will be interpreted as an integer.
+                                                This array is replaced during a strategic merge patch.
+                                              items:
+                                                type: string
+                                              type: array
+                                              x-kubernetes-list-type: atomic
+                                          required:
+                                          - key
+                                          - operator
+                                          type: object
+                                        type: array
+                                        x-kubernetes-list-type: atomic
+                                    type: object
+                                    x-kubernetes-map-type: atomic
+                                  type: array
+                                  x-kubernetes-list-type: atomic
+                              required:
+                              - nodeSelectorTerms
+                              type: object
+                              x-kubernetes-map-type: atomic
+                            nodeSelector:
+                              additionalProperties:
+                                type: string
+                              description: |-
+                                NodeSelector is a selector which must be true for the pod to fit on a node.
+                                Selector which must match a node's labels for the pod to be scheduled on that node.
+                              type: object
+                            tolerations:
+                              description: If specified, the pod's tolerations.
+                              items:
+                                description: |-
+                                  The pod this Toleration is attached to tolerates any taint that matches
+                                  the triple <key,value,effect> using the matching operator <operator>.
+                                properties:
+                                  effect:
+                                    description: |-
+                                      Effect indicates the taint effect to match. Empty means match all taint effects.
+                                      When specified, allowed values are NoSchedule, PreferNoSchedule and NoExecute.
+                                    type: string
+                                  key:
+                                    description: |-
+                                      Key is the taint key that the toleration applies to. Empty means match all taint keys.
+                                      If the key is empty, operator must be Exists; this combination means to match all values and all keys.
+                                    type: string
+                                  operator:
+                                    description: |-
+                                      Operator represents a key's relationship to the value.
+                                      Valid operators are Exists and Equal. Defaults to Equal.
+                                      Exists is equivalent to wildcard for value, so that a pod can
+                                      tolerate all taints of a particular category.
+                                    type: string
+                                  tolerationSeconds:
+                                    description: |-
+                                      TolerationSeconds represents the period of time the toleration (which must be
+                                      of effect NoExecute, otherwise this field is ignored) tolerates the taint. By default,
+                                      it is not set, which means tolerate the taint forever (do not evict). Zero and
+                                      negative values will be treated as 0 (evict immediately) by the system.
+                                    format: int64
+                                    type: integer
+                                  value:
+                                    description: |-
+                                      Value is the taint value the toleration matches to.
+                                      If the operator is Exists, the value should be empty, otherwise just a regular string.
+                                    type: string
+                                type: object
+                              type: array
+                          type: object
+                        priorityClassName:
+                          description: PriorityClassName represents the resources
+                            priorityClassName
+                          type: string
+                        resourceRequest:
+                          additionalProperties:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
+                          description: ResourceRequest represents the resources required
+                            by each replica.
+                          type: object
+                      type: object
+                    replicas:
+                      description: Replicas represents the replica number of the resource's
+                        component.
+                      format: int32
+                      type: integer
+                  required:
+                  - replicas
+                  type: object
+                type: array
               conflictResolution:
                 default: Abort
                 description: |-
@@ -315,16 +510,19 @@ spec:
                         format: int32
                         type: integer
                       purgeMode:
-                        default: Graciously
+                        default: Gracefully
                         description: |-
                           PurgeMode represents how to deal with the legacy applications on the
                           cluster from which the application is migrated.
-                          Valid options are "Immediately", "Graciously" and "Never".
-                          Defaults to "Graciously".
+                          Valid options are "Directly", "Gracefully", "Never", "Immediately"(deprecated),
+                          and "Graciously"(deprecated).
+                          Defaults to "Gracefully".
                         enum:
+                        - Directly
+                        - Gracefully
+                        - Never
                         - Immediately
                         - Graciously
-                        - Never
                         type: string
                       statePreservation:
                         description: |-
@@ -384,6 +582,83 @@ spec:
                         type: object
                     required:
                     - decisionConditions
+                    type: object
+                  cluster:
+                    description: |-
+                      Cluster indicates failover behaviors in case of cluster failure.
+                      If this value is nil, the failover behavior in case of cluster failure
+                      will be controlled by the controller's no-execute-taint-eviction-purge-mode
+                      parameter.
+                      If set, the failover behavior in case of cluster failure will be defined
+                      by this value.
+                    properties:
+                      purgeMode:
+                        default: Gracefully
+                        description: |-
+                          PurgeMode represents how to deal with the legacy applications on the
+                          cluster from which the application is migrated.
+                          Valid options are "Directly", "Gracefully".
+                          Defaults to "Gracefully".
+                        enum:
+                        - Directly
+                        - Gracefully
+                        type: string
+                      statePreservation:
+                        description: |-
+                          StatePreservation defines the policy for preserving and restoring state data
+                          during failover events for stateful applications.
+
+                          When an application fails over from one cluster to another, this policy enables
+                          the extraction of critical data from the original resource configuration.
+                          Upon successful migration, the extracted data is then re-injected into the new
+                          resource, ensuring that the application can resume operation with its previous
+                          state intact.
+                          This is particularly useful for stateful applications where maintaining data
+                          consistency across failover events is crucial.
+                          If not specified, means no state data will be preserved.
+
+                          Note: This requires the StatefulFailoverInjection feature gate to be enabled,
+                          which is alpha.
+                        properties:
+                          rules:
+                            description: |-
+                              Rules contains a list of StatePreservationRule configurations.
+                              Each rule specifies a JSONPath expression targeting specific pieces of
+                              state data to be preserved during failover events. An AliasLabelName is associated
+                              with each rule, serving as a label key when the preserved data is passed
+                              to the new cluster.
+                            items:
+                              description: |-
+                                StatePreservationRule defines a single rule for state preservation.
+                                It includes a JSONPath expression and an alias name that will be used
+                                as a label key when passing state information to the new cluster.
+                              properties:
+                                aliasLabelName:
+                                  description: |-
+                                    AliasLabelName is the name that will be used as a label key when the preserved
+                                    data is passed to the new cluster. This facilitates the injection of the
+                                    preserved state back into the application resources during recovery.
+                                  type: string
+                                jsonPath:
+                                  description: |-
+                                    JSONPath is the JSONPath template used to identify the state data
+                                    to be preserved from the original resource configuration.
+                                    The JSONPath syntax follows the Kubernetes specification:
+                                    https://kubernetes.io/docs/reference/kubectl/jsonpath/
+
+                                    Note: The JSONPath expression will start searching from the "status" field of
+                                    the API resource object by default. For example, to extract the "availableReplicas"
+                                    from a Deployment, the JSONPath expression should be "{.availableReplicas}", not
+                                    "{.status.availableReplicas}".
+                                  type: string
+                              required:
+                              - aliasLabelName
+                              - jsonPath
+                              type: object
+                            type: array
+                        required:
+                        - rules
+                        type: object
                     type: object
                 type: object
               gracefulEvictionTasks:
@@ -454,10 +729,12 @@ spec:
                       description: |-
                         PurgeMode represents how to deal with the legacy applications on the
                         cluster from which the application is migrated.
-                        Valid options are "Immediately", "Graciously" and "Never".
+                        Valid options are "Immediately", "Directly", "Graciously", "Gracefully" and "Never".
                       enum:
                       - Immediately
+                      - Directly
                       - Graciously
+                      - Gracefully
                       - Never
                       type: string
                     reason:

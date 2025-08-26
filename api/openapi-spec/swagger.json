@@ -18469,10 +18469,28 @@
         }
       }
     },
+    "com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.ComponentResourceRequirement": {
+      "description": "ComponentResourceRequirement holds the scripts for extracting the desired replica count and resource requirements for each component within a resource. This is particularly useful for resources that define multiple components (such as CRDs with multiple pod templates), but can also be used for single-component resources.",
+      "type": "object",
+      "required": [
+        "luaScript"
+      ],
+      "properties": {
+        "luaScript": {
+          "description": "LuaScript holds the Lua script that is used to extract the desired replica count and resource requirements for each component of the resource.\n\nThe script should implement a function as follows:\n\n```\n  luaScript: \u003e\n      function GetComponents(desiredObj)\n          local components = {}\n\n          local jobManagerComponent = {\n              name = \"jobmanager\"\n              replicas = desiredObj.spec.jobManager.replicas\n          }\n          table.insert(components, jobManagerComponent)\n\n          local taskManagerComponent = {\n              name = \"taskmanager\"\n              replicas = desiredObj.spec.taskManager.replicas\n          }\n          table.insert(components, taskManagerComponent)\n\n          return components\n      end\n```\n\nThe content of the LuaScript needs to be a whole function including both declaration and implementation.\n\nThe parameters will be supplied by the system:\n  - desiredObj: the object represents the configuration to be applied\n      to the member cluster.\n\nThe function expects one return value:\n  - components: the resource requirements for each component.\nThe returned value will be set into a ResourceBinding or ClusterResourceBinding.",
+          "type": "string",
+          "default": ""
+        }
+      }
+    },
     "com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.CustomizationRules": {
       "description": "CustomizationRules describes the interpretation rules.",
       "type": "object",
       "properties": {
+        "componentResource": {
+          "description": "ComponentResource describes the rules for Karmada to discover the resource requirements for multiple components from the given object. This is designed for CRDs with multiple components (e.g., FlinkDeployment), but can also be used for single-component resources like Deployment. If implemented, the controller will use this to obtain per-component replica and resource requirements, and will not call ReplicaResource. If not implemented, the controller will fall back to ReplicaResource for backward compatibility. This will only be used when the feature gate 'MultiplePodTemplatesScheduling' is enabled.",
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.ComponentResourceRequirement"
+        },
         "dependencyInterpretation": {
           "description": "DependencyInterpretation describes the rules for Karmada to analyze the dependent resources. Karmada provides built-in rules for several standard Kubernetes types, see: https://karmada.io/docs/userguide/globalview/customizing-resource-interpreter/#interpretdependency If DependencyInterpretation is set, the built-in rules will be ignored.",
           "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.DependencyInterpretation"
@@ -19187,7 +19205,7 @@
           "format": "int32"
         },
         "purgeMode": {
-          "description": "PurgeMode represents how to deal with the legacy applications on the cluster from which the application is migrated. Valid options are \"Immediately\", \"Graciously\" and \"Never\". Defaults to \"Graciously\".",
+          "description": "PurgeMode represents how to deal with the legacy applications on the cluster from which the application is migrated. Valid options are \"Directly\", \"Gracefully\", \"Never\", \"Immediately\"(deprecated), and \"Graciously\"(deprecated). Defaults to \"Gracefully\".",
           "type": "string"
         },
         "statePreservation": {
@@ -19261,6 +19279,20 @@
         "labelSelector": {
           "description": "LabelSelector is a filter to select member clusters by labels. If non-nil and non-empty, only the clusters match this filter will be selected.",
           "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.LabelSelector"
+        }
+      }
+    },
+    "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ClusterFailoverBehavior": {
+      "description": "ClusterFailoverBehavior indicates cluster failover behaviors.",
+      "type": "object",
+      "properties": {
+        "purgeMode": {
+          "description": "PurgeMode represents how to deal with the legacy applications on the cluster from which the application is migrated. Valid options are \"Directly\", \"Gracefully\". Defaults to \"Gracefully\".",
+          "type": "string"
+        },
+        "statePreservation": {
+          "description": "StatePreservation defines the policy for preserving and restoring state data during failover events for stateful applications.\n\nWhen an application fails over from one cluster to another, this policy enables the extraction of critical data from the original resource configuration. Upon successful migration, the extracted data is then re-injected into the new resource, ensuring that the application can resume operation with its previous state intact. This is particularly useful for stateful applications where maintaining data consistency across failover events is crucial. If not specified, means no state data will be preserved.\n\nNote: This requires the StatefulFailoverInjection feature gate to be enabled, which is alpha.",
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.StatePreservation"
         }
       }
     },
@@ -19598,6 +19630,10 @@
         "application": {
           "description": "Application indicates failover behaviors in case of application failure. If this value is nil, failover is disabled. If set, the PropagateDeps should be true so that the dependencies could be migrated along with the application.",
           "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ApplicationFailoverBehavior"
+        },
+        "cluster": {
+          "description": "Cluster indicates failover behaviors in case of cluster failure. If this value is nil, the failover behavior in case of cluster failure will be controlled by the controller's no-execute-taint-eviction-purge-mode parameter. If set, the failover behavior in case of cluster failure will be defined by this value.",
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ClusterFailoverBehavior"
         }
       }
     },
@@ -21176,6 +21212,29 @@
         }
       ]
     },
+    "com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.ComponentRequirements": {
+      "description": "ComponentRequirements represents the requirements for a specific component.",
+      "type": "object",
+      "required": [
+        "replicas"
+      ],
+      "properties": {
+        "name": {
+          "description": "Name of this component. It is required when the resource contains multiple components to ensure proper identification, and must also be unique within the same resource.",
+          "type": "string"
+        },
+        "replicaRequirements": {
+          "description": "ReplicaRequirements represents the requirements required by each replica for this component.",
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.ReplicaRequirements"
+        },
+        "replicas": {
+          "description": "Replicas represents the replica number of the resource's component.",
+          "type": "integer",
+          "format": "int32",
+          "default": 0
+        }
+      }
+    },
     "com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.GracefulEvictionTask": {
       "description": "GracefulEvictionTask represents a graceful eviction task.",
       "type": "object",
@@ -21225,7 +21284,7 @@
           "default": ""
         },
         "purgeMode": {
-          "description": "PurgeMode represents how to deal with the legacy applications on the cluster from which the application is migrated. Valid options are \"Immediately\", \"Graciously\" and \"Never\".",
+          "description": "PurgeMode represents how to deal with the legacy applications on the cluster from which the application is migrated. Valid options are \"Immediately\", \"Directly\", \"Graciously\", \"Gracefully\" and \"Never\".",
           "type": "string"
         },
         "reason": {
@@ -21420,6 +21479,14 @@
           "items": {
             "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.TargetCluster"
+          }
+        },
+        "components": {
+          "description": "Components represents the requirements of multiple pod templates of the referencing resource. It is designed to support workloads that consist of multiple pod templates, such as distributed training jobs (e.g., PyTorch, TensorFlow) and big data workloads (e.g., FlinkDeployment), where each workload is composed of more than one pod template. It is also capable of representing single-component workloads, such as Deployment.\n\nNote: This field is intended to replace the legacy ReplicaRequirements and Replicas fields above. It is only populated when the MultiplePodTemplatesScheduling feature gate is enabled.",
+          "type": "array",
+          "items": {
+            "default": {},
+            "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.ComponentRequirements"
           }
         },
         "conflictResolution": {

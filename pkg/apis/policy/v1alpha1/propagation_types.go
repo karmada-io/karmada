@@ -289,14 +289,40 @@ const (
 	// at the same time. During a failover, it is crucial to ensure that the old
 	// application is removed before creating a new one to avoid duplicate
 	// processing and maintaining state consistency.
+	//
+	// Deprecated: The term `Immediately` may be confusing when used alongside
+	// `GracePeriodSeconds`, which specifies that resources are removed after
+	// a grace period rather than at once.
+	// `Immediately` is replaced by `Directly` for clarity. This term remains
+	// functional in the current API version for backward compatibility and will
+	// be removed when PropagationPolicy advances to alpha2 or beta.
 	Immediately PurgeMode = "Immediately"
 	// Graciously represents that Karmada will wait for the application to
 	// come back to healthy on the new cluster or after a timeout is reached
 	// before evicting the application.
+	//
+	// Deprecated: The term `Graciously` is replaced by `Gracefully` for correct
+	// English usage. This term remains functional in the current API version for
+	// backward compatibility and will be removed when PropagationPolicy advances
+	// to alpha2 or beta.
 	Graciously PurgeMode = "Graciously"
 	// Never represents that Karmada will not evict the application and
 	// users manually confirms how to clean up redundant copies.
 	Never PurgeMode = "Never"
+
+	// PurgeModeDirectly represents that Karmada will directly evict the legacy
+	// application. This is useful in scenarios where an application can not
+	// tolerate two instances running simultaneously.
+	// For example, the Flink application supports exactly-once state consistency,
+	// which means it requires that no two instances of the application are running
+	// at the same time. During a failover, it is crucial to ensure that the old
+	// application is removed before creating a new one to avoid duplicate
+	// processing and maintaining state consistency.
+	PurgeModeDirectly PurgeMode = "Directly"
+	// PurgeModeGracefully represents that Karmada will wait for the application to
+	// come back to healthy on the new cluster or after a timeout is reached
+	// before evicting the application.
+	PurgeModeGracefully PurgeMode = "Gracefully"
 )
 
 // FailoverBehavior indicates failover behaviors in case of an application or
@@ -310,9 +336,13 @@ type FailoverBehavior struct {
 	Application *ApplicationFailoverBehavior `json:"application,omitempty"`
 
 	// Cluster indicates failover behaviors in case of cluster failure.
-	// If this value is nil, failover is disabled.
+	// If this value is nil, the failover behavior in case of cluster failure
+	// will be controlled by the controller's no-execute-taint-eviction-purge-mode
+	// parameter.
+	// If set, the failover behavior in case of cluster failure will be defined
+	// by this value.
 	// +optional
-	// Cluster *ClusterFailoverBehavior `json:"cluster,omitempty"`
+	Cluster *ClusterFailoverBehavior `json:"cluster,omitempty"`
 }
 
 // ApplicationFailoverBehavior indicates application failover behaviors.
@@ -326,10 +356,11 @@ type ApplicationFailoverBehavior struct {
 
 	// PurgeMode represents how to deal with the legacy applications on the
 	// cluster from which the application is migrated.
-	// Valid options are "Immediately", "Graciously" and "Never".
-	// Defaults to "Graciously".
-	// +kubebuilder:validation:Enum=Immediately;Graciously;Never
-	// +kubebuilder:default=Graciously
+	// Valid options are "Directly", "Gracefully", "Never", "Immediately"(deprecated),
+	// and "Graciously"(deprecated).
+	// Defaults to "Gracefully".
+	// +kubebuilder:validation:Enum=Directly;Gracefully;Never;Immediately;Graciously
+	// +kubebuilder:default=Gracefully
 	// +optional
 	PurgeMode PurgeMode `json:"purgeMode,omitempty"`
 
@@ -341,6 +372,35 @@ type ApplicationFailoverBehavior struct {
 	// Value must be positive integer.
 	// +optional
 	GracePeriodSeconds *int32 `json:"gracePeriodSeconds,omitempty"`
+
+	// StatePreservation defines the policy for preserving and restoring state data
+	// during failover events for stateful applications.
+	//
+	// When an application fails over from one cluster to another, this policy enables
+	// the extraction of critical data from the original resource configuration.
+	// Upon successful migration, the extracted data is then re-injected into the new
+	// resource, ensuring that the application can resume operation with its previous
+	// state intact.
+	// This is particularly useful for stateful applications where maintaining data
+	// consistency across failover events is crucial.
+	// If not specified, means no state data will be preserved.
+	//
+	// Note: This requires the StatefulFailoverInjection feature gate to be enabled,
+	// which is alpha.
+	// +optional
+	StatePreservation *StatePreservation `json:"statePreservation,omitempty"`
+}
+
+// ClusterFailoverBehavior indicates cluster failover behaviors.
+type ClusterFailoverBehavior struct {
+	// PurgeMode represents how to deal with the legacy applications on the
+	// cluster from which the application is migrated.
+	// Valid options are "Directly", "Gracefully".
+	// Defaults to "Gracefully".
+	// +kubebuilder:validation:Enum=Directly;Gracefully
+	// +kubebuilder:default=Gracefully
+	// +optional
+	PurgeMode PurgeMode `json:"purgeMode,omitempty"`
 
 	// StatePreservation defines the policy for preserving and restoring state data
 	// during failover events for stateful applications.

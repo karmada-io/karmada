@@ -23,7 +23,7 @@ jobs:
           - amd64
           - arm64
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
@@ -84,7 +84,7 @@ jobs:
       hashes: ${{ steps.hash.outputs.hashes }}
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Rename the crds directory
       run: |
         mv ./charts/karmada/_crds ./charts/karmada/crds
@@ -126,7 +126,7 @@ jobs:
       hashes: ${{ steps.hash.outputs.hashes }}
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Making helm charts
       env:
         VERSION: ${{ github.ref_name }}
@@ -165,7 +165,7 @@ jobs:
       hashes: ${{ steps.sbom-hash.outputs.hashes}}
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Generate sbom for karmada file system
       uses: aquasecurity/trivy-action@0.32.0
       with:
@@ -220,7 +220,7 @@ jobs:
         echo "Got the latest tag:$LATEST_TAG"
         echo "event.tag:"${{ github.event.release.tag_name }}
         echo "latestTag=$LATEST_TAG" >> "$GITHUB_OUTPUT"
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       if: steps.get-latest-tag.outputs.latestTag == github.event.release.tag_name
     - name: Update new version in krew-index
       if: steps.get-latest-tag.outputs.latestTag == github.event.release.tag_name

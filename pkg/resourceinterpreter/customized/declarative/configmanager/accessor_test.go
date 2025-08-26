@@ -85,6 +85,34 @@ func TestGetReplicaResourceLuaScript(t *testing.T) {
 	}
 }
 
+func TestGetComponentResourceLuaScript(t *testing.T) {
+	tests := []struct {
+		name     string
+		accessor *resourceCustomAccessor
+		want     string
+	}{
+		{
+			name:     "nil component resource",
+			accessor: &resourceCustomAccessor{},
+			want:     "",
+		},
+		{
+			name: "with script",
+			accessor: &resourceCustomAccessor{
+				componentResource: &configv1alpha1.ComponentResourceRequirement{LuaScript: "test-script"},
+			},
+			want: "test-script",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.accessor.GetComponentResourceLuaScript()
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
 func TestGetReplicaRevisionLuaScript(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -461,6 +489,45 @@ func TestSetReplicaResource(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.initial.setReplicaResource(tt.input)
 			assert.Equal(t, tt.want, tt.initial.GetReplicaResourceLuaScript())
+		})
+	}
+}
+
+func TestSetComponentResource(t *testing.T) {
+	tests := []struct {
+		name    string
+		initial *resourceCustomAccessor
+		input   *configv1alpha1.ComponentResourceRequirement
+		want    string
+	}{
+		{
+			name:    "set on nil field",
+			initial: &resourceCustomAccessor{},
+			input:   &configv1alpha1.ComponentResourceRequirement{LuaScript: "script1"},
+			want:    "script1",
+		},
+		{
+			name: "set on empty script",
+			initial: &resourceCustomAccessor{
+				componentResource: &configv1alpha1.ComponentResourceRequirement{LuaScript: ""},
+			},
+			input: &configv1alpha1.ComponentResourceRequirement{LuaScript: "script1"},
+			want:  "script1",
+		},
+		{
+			name: "set on non-empty script",
+			initial: &resourceCustomAccessor{
+				componentResource: &configv1alpha1.ComponentResourceRequirement{LuaScript: "existing"},
+			},
+			input: &configv1alpha1.ComponentResourceRequirement{LuaScript: "script1"},
+			want:  "existing",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.initial.setComponentResource(tt.input)
+			assert.Equal(t, tt.want, tt.initial.GetComponentResourceLuaScript())
 		})
 	}
 }

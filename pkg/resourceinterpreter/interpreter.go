@@ -18,6 +18,7 @@ package resourceinterpreter
 
 import (
 	"context"
+	"errors"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
@@ -51,6 +52,15 @@ type ResourceInterpreter interface {
 
 	// ReviseReplica revises the replica of the given object.
 	ReviseReplica(object *unstructured.Unstructured, replica int64) (*unstructured.Unstructured, error)
+
+	// GetComponents extracts the resource requirements for multiple components from the given object.
+	// This hook is designed for CRDs with multiple components (e.g., FlinkDeployment), but can
+	// also be used for single-component resources like Deployment.
+	// If implemented, the controller will use this hook to obtain per-component replica and resource
+	// requirements, and will not call GetReplicas.
+	// If not implemented, the controller will fall back to GetReplicas for backward compatibility.
+	// This hook will only be called when the feature gate 'MultiplePodTemplatesScheduling' is enabled.
+	GetComponents(object *unstructured.Unstructured) (components []workv1alpha2.ComponentRequirements, err error)
 
 	// Retain returns the objects that based on the "desired" object but with values retained from the "observed" object.
 	Retain(desired *unstructured.Unstructured, observed *unstructured.Unstructured) (retained *unstructured.Unstructured, err error)
@@ -188,6 +198,27 @@ func (i *customResourceInterpreterImpl) ReviseReplica(object *unstructured.Unstr
 	}
 
 	return i.defaultInterpreter.ReviseReplica(object, replica)
+}
+
+// GetComponents returns the requirements for each component of the given object.
+// This method is intended to extract per-component replica and resource requirements,
+// especially for resources that define multiple components (e.g., CRDs with multiple pod templates).
+func (i *customResourceInterpreterImpl) GetComponents(object *unstructured.Unstructured) ([]workv1alpha2.ComponentRequirements, error) {
+	if object == nil {
+		return nil, errors.New("nil object")
+	}
+
+	components, hookEnabled, err := i.configurableInterpreter.GetComponents(object)
+	if err != nil {
+		return nil, err
+	}
+	if hookEnabled {
+		return components, nil
+	}
+
+	// TODO(@RainbowMango): Implement GetComponents for extracting per-component replica and resource requirements.
+	// Follow up tracked by: https://github.com/karmada-io/karmada/issues/6641
+	return nil, errors.New("interface GetComponents not implemented yet")
 }
 
 // Retain returns the objects that based on the "desired" object but with values retained from the "observed" object.

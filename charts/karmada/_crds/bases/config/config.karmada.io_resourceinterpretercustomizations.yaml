@@ -60,6 +60,59 @@ spec:
               customizations:
                 description: Customizations describe the interpretation rules.
                 properties:
+                  componentResource:
+                    description: |-
+                      ComponentResource describes the rules for Karmada to discover the resource requirements
+                      for multiple components from the given object.
+                      This is designed for CRDs with multiple components (e.g., FlinkDeployment), but
+                      can also be used for single-component resources like Deployment.
+                      If implemented, the controller will use this to obtain per-component replica and resource
+                      requirements, and will not call ReplicaResource.
+                      If not implemented, the controller will fall back to ReplicaResource for backward compatibility.
+                      This will only be used when the feature gate 'MultiplePodTemplatesScheduling' is enabled.
+                    properties:
+                      luaScript:
+                        description: |-
+                          LuaScript holds the Lua script that is used to extract the desired replica count and resource
+                          requirements for each component of the resource.
+
+                          The script should implement a function as follows:
+
+                          ```
+                            luaScript: >
+                                function GetComponents(desiredObj)
+                                    local components = {}
+
+                                    local jobManagerComponent = {
+                                        name = "jobmanager"
+                                        replicas = desiredObj.spec.jobManager.replicas
+                                    }
+                                    table.insert(components, jobManagerComponent)
+
+                                    local taskManagerComponent = {
+                                        name = "taskmanager"
+                                        replicas = desiredObj.spec.taskManager.replicas
+                                    }
+                                    table.insert(components, taskManagerComponent)
+
+                                    return components
+                                end
+                          ```
+
+                          The content of the LuaScript needs to be a whole function including both
+                          declaration and implementation.
+
+                          The parameters will be supplied by the system:
+                            - desiredObj: the object represents the configuration to be applied
+                                to the member cluster.
+
+                          The function expects one return value:
+                            - components: the resource requirements for each component.
+                          The returned value will be set into a ResourceBinding or ClusterResourceBinding.
+                        type: string
+                    required:
+                    - luaScript
+                    type: object
                   dependencyInterpretation:
                     description: |-
                       DependencyInterpretation describes the rules for Karmada to analyze the
