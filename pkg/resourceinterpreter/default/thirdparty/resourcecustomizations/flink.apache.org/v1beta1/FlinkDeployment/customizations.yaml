@@ -32,6 +32,110 @@ spec:
           end
           return observedObj.status.error ~= nil
         end
+    componentResource:
+      luaScript: >
+        local kube = require("kube")
+
+        local function isempty(s)
+          return s == nil or s == ''
+        end
+
+        local function qty(v)
+          if v == nil then return nil end
+          return kube.getResourceQuantity(v)
+        end
+
+        -- Safe fetch of deeply nested table fields.
+        local function get(obj, path)
+          local cur = obj
+          for i = 1, #path do
+            if cur == nil then return nil end
+            cur = cur[path[i]]
+          end
+          return cur
+        end
+
+        -- Normalize possibly-string numbers with a default.
+        local function to_num(v, default)
+          if v == nil or v == '' then return default end
+          local n = tonumber(v)
+          return n ~= nil and n or default
+        end
+
+        local function apply_pod_template(pt_spec, requires)
+          if pt_spec == nil then return end
+
+          local nodeSelector = pt_spec.nodeSelector
+          local tolerations  = pt_spec.tolerations
+          local priority     = pt_spec.priorityClassName
+
+          -- Only create nodeClaim if there’s content
+          if nodeSelector ~= nil or tolerations ~= nil then
+            requires.nodeClaim = requires.nodeClaim or {}
+            requires.nodeClaim.nodeSelector = nodeSelector
+            requires.nodeClaim.tolerations  = tolerations
+          end
+
+          if not isempty(priority) then
+            requires.priorityClassName = priority
+          end
+        end
+
+        function GetComponents(observedObj)
+          local components = {}
+          local pt_spec = get(observedObj, {"spec","podTemplate","spec"})
+
+          -- ===== JobManager =====
+          local jm_replicas = to_num(get(observedObj, {"spec","jobManager","replicas"}), 1)
+
+          local jm_requires = {
+            resourceRequest = {},
+          }
+
+          local jm_cpu    = get(observedObj, {"spec","jobManager","resource","cpu"})
+          local jm_memory = get(observedObj, {"spec","jobManager","resource","memory"})
+          jm_requires.resourceRequest.cpu    = qty(jm_cpu)
+          jm_requires.resourceRequest.memory = qty(jm_memory)
+          apply_pod_template(pt_spec, jm_requires)
+
+          local jobManagerComponent = {
+            name = "jobmanager",
+            replicas = jm_replicas,
+            replicaRequirements = jm_requires,
+          }
+          table.insert(components, jobManagerComponent)
+
+          -- ===== TaskManager =====
+          local tm_replicas = to_num(get(observedObj, {"spec","taskManager","replicas"}), nil)
+          if tm_replicas == nil then
+            local parallelism = to_num(get(observedObj, {"spec","job","parallelism"}), nil)
+            local task_slots  = to_num(get(observedObj, {"spec","flinkConfiguration","taskmanager.numberOfTaskSlots"}), nil)
+            if parallelism == nil or task_slots == nil or task_slots == 0 then
+              tm_replicas = 1
+            else
+              tm_replicas = math.ceil(parallelism / task_slots)
+            end
+          end
+
+          local tm_requires = {
+            resourceRequest = {},
+          }
+
+          local tm_cpu    = get(observedObj, {"spec","taskManager","resource","cpu"})
+          local tm_memory = get(observedObj, {"spec","taskManager","resource","memory"})
+          tm_requires.resourceRequest.cpu    = qty(tm_cpu)
+          tm_requires.resourceRequest.memory = qty(tm_memory)
+          apply_pod_template(pt_spec, tm_requires)
+
+          local taskManagerComponent = {
+            name = "taskmanager",
+            replicas = tm_replicas,
+            replicaRequirements = tm_requires,
+          }
+          table.insert(components, taskManagerComponent)
+
+          return components
+        end
     replicaResource:
       luaScript: >
         local kube = require("kube")
