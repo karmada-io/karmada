@@ -7260,6 +7260,7 @@ func schema_pkg_apis_work_v1alpha2_Component(ref common.ReferenceCallback) commo
 					"name": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Name of this component. It is required when the resource contains multiple components to ensure proper identification, and must also be unique within the same resource.",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -7279,7 +7280,7 @@ func schema_pkg_apis_work_v1alpha2_Component(ref common.ReferenceCallback) commo
 						},
 					},
 				},
-				Required: []string{"replicas"},
+				Required: []string{"name", "replicas"},
 			},
 		},
 		Dependencies: []string{
