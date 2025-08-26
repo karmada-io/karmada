@@ -20,6 +20,7 @@ import (
 	"context"
 	"reflect"
 	"testing"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -532,6 +533,306 @@ func TestNoExecuteTaintManager_syncClusterBindingEviction(t *testing.T) {
 
 				if !reflect.DeepEqual(tt.wcrb.Spec, gCRB.Spec) {
 					t.Errorf("ResourceBinding get %+v, want %+v", gCRB.Spec, tt.wcrb.Spec)
+				}
+			}
+		})
+	}
+}
+
+func TestNoExecuteTaintManager_needEviction(t *testing.T) {
+	now := time.Now()
+	oneSecondAgo := metav1.Time{Time: now.Add(-1 * time.Second)}
+	oneSecondLater := metav1.Time{Time: now.Add(1 * time.Second)}
+
+	// Test cases
+	tests := []struct {
+		name                         string
+		clusterName                  string
+		annotations                  map[string]string
+		cluster                      *clusterv1alpha1.Cluster
+		enableNoExecuteTaintEviction bool
+		expectedNeedEviction         bool
+		expectedTolerationTime       time.Duration
+		wantErr                      bool
+	}{
+		{
+			name:        "placement annotation not exist",
+			clusterName: "test-cluster",
+			annotations: map[string]string{},
+			wantErr:     true,
+		},
+		{
+			name:        "placement annotation is invalid JSON",
+			clusterName: "test-cluster",
+			annotations: map[string]string{
+				"policy.karmada.io/applied-placement": "invalid-json",
+			},
+			wantErr: true,
+		},
+		{
+			name:        "placement is nil",
+			clusterName: "test-cluster",
+			annotations: map[string]string{
+				"policy.karmada.io/applied-placement": "",
+			},
+			wantErr: true,
+		},
+		{
+			name:        "cluster not found",
+			clusterName: "non-existent-cluster",
+			annotations: map[string]string{
+				"policy.karmada.io/applied-placement": `{"clusterAffinity":{"clusterNames":["test-cluster"]}}`,
+			},
+			expectedNeedEviction:   false,
+			expectedTolerationTime: -1,
+			wantErr:                false,
+		},
+		{
+			name:        "no execute taint eviction disabled",
+			clusterName: "test-cluster",
+			annotations: map[string]string{
+				"policy.karmada.io/applied-placement": `{"clusterAffinity":{"clusterNames":["test-cluster"]}}`,
+			},
+			cluster: &clusterv1alpha1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-cluster",
+				},
+				Spec: clusterv1alpha1.ClusterSpec{
+					Taints: []corev1.Taint{
+						{
+							Key:    "test-key",
+							Effect: corev1.TaintEffectNoExecute,
+						},
+					},
+				},
+			},
+			enableNoExecuteTaintEviction: false,
+			expectedNeedEviction:         false,
+			expectedTolerationTime:       -1,
+			wantErr:                      false,
+		},
+		{
+			name:        "cluster has no NoExecute taints",
+			clusterName: "test-cluster",
+			annotations: map[string]string{
+				"policy.karmada.io/applied-placement": `{"clusterAffinity":{"clusterNames":["test-cluster"]}}`,
+			},
+			cluster: &clusterv1alpha1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-cluster",
+				},
+				Spec: clusterv1alpha1.ClusterSpec{
+					Taints: []corev1.Taint{
+						{
+							Key:    "test-key",
+							Effect: corev1.TaintEffectNoSchedule,
+						},
+					},
+				},
+			},
+			enableNoExecuteTaintEviction: true,
+			expectedNeedEviction:         false,
+			expectedTolerationTime:       -1,
+			wantErr:                      false,
+		},
+		{
+			name:        "taint not tolerated - immediate eviction",
+			clusterName: "test-cluster",
+			annotations: map[string]string{
+				"policy.karmada.io/applied-placement": `{"clusterAffinity":{"clusterNames":["test-cluster"]},"clusterTolerations":[]}`,
+			},
+			cluster: &clusterv1alpha1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-cluster",
+				},
+				Spec: clusterv1alpha1.ClusterSpec{
+					Taints: []corev1.Taint{
+						{
+							Key:       "test-key",
+							Effect:    corev1.TaintEffectNoExecute,
+							TimeAdded: &oneSecondAgo,
+						},
+					},
+				},
+			},
+			enableNoExecuteTaintEviction: true,
+			expectedNeedEviction:         true,
+			expectedTolerationTime:       0,
+			wantErr:                      false,
+		},
+		{
+			name:        "taint tolerated with zero toleration seconds - immediate eviction",
+			clusterName: "test-cluster",
+			annotations: map[string]string{
+				"policy.karmada.io/applied-placement": `{"clusterAffinity":{"clusterNames":["test-cluster"]},"clusterTolerations":[{"key":"test-key","operator":"Exists","effect":"NoExecute","tolerationSeconds":0}]}`,
+			},
+			cluster: &clusterv1alpha1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-cluster",
+				},
+				Spec: clusterv1alpha1.ClusterSpec{
+					Taints: []corev1.Taint{
+						{
+							Key:       "test-key",
+							Effect:    corev1.TaintEffectNoExecute,
+							TimeAdded: &oneSecondAgo,
+						},
+					},
+				},
+			},
+			enableNoExecuteTaintEviction: true,
+			expectedNeedEviction:         true,
+			expectedTolerationTime:       0,
+			wantErr:                      false,
+		},
+		{
+			name:        "taint tolerated with positive toleration seconds - wait for toleration time",
+			clusterName: "test-cluster",
+			annotations: map[string]string{
+				"policy.karmada.io/applied-placement": `{"clusterAffinity":{"clusterNames":["test-cluster"]},"clusterTolerations":[{"key":"test-key","operator":"Exists","effect":"NoExecute","tolerationSeconds":60}]}`,
+			},
+			cluster: &clusterv1alpha1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-cluster",
+				},
+				Spec: clusterv1alpha1.ClusterSpec{
+					Taints: []corev1.Taint{
+						{
+							Key:       "test-key",
+							Effect:    corev1.TaintEffectNoExecute,
+							TimeAdded: &oneSecondAgo,
+						},
+					},
+				},
+			},
+			enableNoExecuteTaintEviction: true,
+			expectedNeedEviction:         false,
+			expectedTolerationTime:       59 * time.Second,
+			wantErr:                      false,
+		},
+		{
+			name:        "taint tolerated forever - no eviction",
+			clusterName: "test-cluster",
+			annotations: map[string]string{
+				"policy.karmada.io/applied-placement": `{"clusterAffinity":{"clusterNames":["test-cluster"]},"clusterTolerations":[{"key":"test-key","operator":"Exists","effect":"NoExecute"}]}`,
+			},
+			cluster: &clusterv1alpha1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-cluster",
+				},
+				Spec: clusterv1alpha1.ClusterSpec{
+					Taints: []corev1.Taint{
+						{
+							Key:       "test-key",
+							Effect:    corev1.TaintEffectNoExecute,
+							TimeAdded: &oneSecondAgo,
+						},
+					},
+				},
+			},
+			enableNoExecuteTaintEviction: true,
+			expectedNeedEviction:         false,
+			expectedTolerationTime:       -1,
+			wantErr:                      false,
+		},
+		{
+			name:        "multiple taints with mixed tolerations",
+			clusterName: "test-cluster",
+			annotations: map[string]string{
+				"policy.karmada.io/applied-placement": `{"clusterAffinity":{"clusterNames":["test-cluster"]},"clusterTolerations":[{"key":"tolerated-key","operator":"Exists","effect":"NoExecute","tolerationSeconds":30}]}`,
+			},
+			cluster: &clusterv1alpha1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-cluster",
+				},
+				Spec: clusterv1alpha1.ClusterSpec{
+					Taints: []corev1.Taint{
+						{
+							Key:       "tolerated-key",
+							Effect:    corev1.TaintEffectNoExecute,
+							TimeAdded: &oneSecondLater,
+						},
+						{
+							Key:       "not-tolerated-key",
+							Effect:    corev1.TaintEffectNoExecute,
+							TimeAdded: &oneSecondAgo,
+						},
+					},
+				},
+			},
+			enableNoExecuteTaintEviction: true,
+			expectedNeedEviction:         true,
+			expectedTolerationTime:       0,
+			wantErr:                      false,
+		},
+		{
+			name:        "toleration time expired - immediate eviction",
+			clusterName: "test-cluster",
+			annotations: map[string]string{
+				"policy.karmada.io/applied-placement": `{"clusterAffinity":{"clusterNames":["test-cluster"]},"clusterTolerations":[{"key":"test-key","operator":"Exists","effect":"NoExecute","tolerationSeconds":1}]}`,
+			},
+			cluster: &clusterv1alpha1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-cluster",
+				},
+				Spec: clusterv1alpha1.ClusterSpec{
+					Taints: []corev1.Taint{
+						{
+							Key:       "test-key",
+							Effect:    corev1.TaintEffectNoExecute,
+							TimeAdded: &metav1.Time{Time: now.Add(-2 * time.Second)}, // 2 seconds ago, tolerance is 1 second
+						},
+					},
+				},
+			},
+			enableNoExecuteTaintEviction: true,
+			expectedNeedEviction:         true,
+			expectedTolerationTime:       0,
+			wantErr:                      false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tc := newNoExecuteTaintManager()
+			tc.EnableNoExecuteTaintEviction = tt.enableNoExecuteTaintEviction
+
+			// Create cluster if provided
+			if tt.cluster != nil {
+				if err := tc.Client.Create(context.Background(), tt.cluster); err != nil {
+					t.Fatalf("failed to create cluster: %v", err)
+				}
+			}
+
+			needEviction, tolerationTime, err := tc.needEviction(tt.clusterName, tt.annotations)
+
+			// Check error expectation
+			if (err != nil) != tt.wantErr {
+				t.Errorf("needEviction() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			// If we expect an error, don't check other results
+			if tt.wantErr {
+				return
+			}
+
+			// Check needEviction result
+			if needEviction != tt.expectedNeedEviction {
+				t.Errorf("needEviction() needEviction = %v, want %v", needEviction, tt.expectedNeedEviction)
+			}
+
+			// Check tolerationTime result with tolerance for time-based tests
+			if tt.expectedTolerationTime >= 0 && tolerationTime >= 0 {
+				// For positive time values, allow 1 second tolerance
+				tolerance := 1 * time.Second
+				if tolerationTime < tt.expectedTolerationTime-tolerance || tolerationTime > tt.expectedTolerationTime+tolerance {
+					t.Errorf("needEviction() tolerationTime = %v, want %v (±%v)", tolerationTime, tt.expectedTolerationTime, tolerance)
+				}
+			} else {
+				// For negative values or zero, check exact match
+				if tolerationTime != tt.expectedTolerationTime {
+					t.Errorf("needEviction() tolerationTime = %v, want %v", tolerationTime, tt.expectedTolerationTime)
 				}
 			}
 		})

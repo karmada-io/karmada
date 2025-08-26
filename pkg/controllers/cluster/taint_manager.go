@@ -173,20 +173,18 @@ func (tc *NoExecuteTaintManager) syncBindingEviction(key util.QueueKey) error {
 		return err
 	}
 
-	var purgeMode policyv1alpha1.PurgeMode
+	// Case 1: Need eviction right now.
+	// Case 2: Need eviction after toleration time.
+	// Case 3: Tolerate forever, we do nothing.
 	if needEviction {
+		var purgeMode policyv1alpha1.PurgeMode
 		switch tc.NoExecuteTaintEvictionPurgeMode {
 		case "Gracefully":
 			purgeMode = policyv1alpha1.Graciously
 		case "Directly":
 			purgeMode = policyv1alpha1.Immediately
 		}
-	}
 
-	// Case 1: Need eviction now.
-	// Case 2: Need eviction after toleration time. If time is up, do eviction right now.
-	// Case 3: Tolerate forever, we do nothing.
-	if needEviction || tolerationTime == 0 {
 		// update final result to evict the target cluster
 		binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(
 			workv1alpha2.WithPurgeMode(purgeMode),
@@ -236,20 +234,18 @@ func (tc *NoExecuteTaintManager) syncClusterBindingEviction(key util.QueueKey) e
 		return err
 	}
 
-	var purgeMode policyv1alpha1.PurgeMode
+	// Case 1: Need eviction now.
+	// Case 2: Need eviction after toleration time.
+	// Case 3: Tolerate forever, we do nothing.
 	if needEviction {
+		var purgeMode policyv1alpha1.PurgeMode
 		switch tc.NoExecuteTaintEvictionPurgeMode {
 		case "Gracefully":
 			purgeMode = policyv1alpha1.Graciously
 		case "Directly":
 			purgeMode = policyv1alpha1.Immediately
 		}
-	}
 
-	// Case 1: Need eviction now.
-	// Case 2: Need eviction after toleration time. If time is up, do eviction right now.
-	// Case 3: Tolerate forever, we do nothing.
-	if needEviction || tolerationTime == 0 {
 		// update final result to evict the target cluster
 		binding.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(
 			workv1alpha2.WithPurgeMode(purgeMode),
@@ -270,9 +266,13 @@ func (tc *NoExecuteTaintManager) syncClusterBindingEviction(key util.QueueKey) e
 	return nil
 }
 
-// needEviction returns whether the binding should be evicted from target cluster right now.
-// If a toleration time is found, we return false along with a minimum toleration time as the
-// second return value.
+// needEviction determines if a binding should be evicted from the specified cluster based on taints and tolerations.
+// Returns:
+//   - needEviction: true if the binding should be evicted (when to evict is indicated by the second return value).
+//   - tolerationTime: if needEviction is true, this is the duration to wait before eviction (0 means evict immediately,
+//     >0 means evict after this duration).
+//     If needEviction is false, a value < 0 indicates the binding should be tolerated indefinitely (no eviction).
+//   - error: any error encountered during evaluation.
 func (tc *NoExecuteTaintManager) needEviction(clusterName string, annotations map[string]string) (bool, time.Duration, error) {
 	placement, err := helper.GetAppliedPlacement(annotations)
 	if err != nil {
@@ -305,7 +305,12 @@ func (tc *NoExecuteTaintManager) needEviction(clusterName string, annotations ma
 		return true, 0, nil
 	}
 
-	return false, helper.GetMinTolerationTime(taints, usedTolerations), nil
+	minTolerationTime := helper.GetMinTolerationTime(taints, usedTolerations)
+	if minTolerationTime == 0 {
+		return true, 0, nil
+	}
+
+	return false, minTolerationTime, nil
 }
 
 // SetupWithManager creates a controller and register to controller manager.
