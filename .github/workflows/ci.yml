@@ -144,6 +144,7 @@ jobs:
       - name: setup e2e test environment
         run: |
           export CLUSTER_VERSION=kindest/node:${{ matrix.k8s }}
+          export KUBE_CACHE_MUTATION_DETECTOR=true
           hack/local-up-karmada.sh
       - name: run e2e
         run: |
