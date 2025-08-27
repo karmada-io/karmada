@@ -106,6 +106,12 @@ func WithReplicaRequirements(reqs corev1.ResourceList) RBOption {
 	}
 }
 
+func WithComponents(components []workv1alpha2.ComponentRequirements) RBOption {
+	return func(rb *workv1alpha2.ResourceBinding) {
+		rb.Spec.Components = components
+	}
+}
+
 func WithResourceRef(ref workv1alpha2.ObjectReference) RBOption {
 	return func(rb *workv1alpha2.ResourceBinding) {
 		rb.Spec.Resource = ref
@@ -329,6 +335,68 @@ func TestValidatingAdmission_Handle(t *testing.T) {
 		WithOverallUsed(corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("0m")}),
 	)
 
+	makeTestComponent := func(name string, replicas int32, cpu string) workv1alpha2.ComponentRequirements {
+		return workv1alpha2.ComponentRequirements{
+			Name:     name,
+			Replicas: replicas,
+			ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
+				ResourceRequest: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse(cpu)},
+			},
+		}
+	}
+	rbWithComponents := makeTestRB("quota-ns", "rb-with-components",
+		WithClusters([]workv1alpha2.TargetCluster{{Name: "m1"}, {Name: "m2"}}),
+		WithComponents([]workv1alpha2.ComponentRequirements{
+			makeTestComponent("comp1", 2, "25m"),
+			makeTestComponent("comp2", 1, "30m"),
+		}),
+	)
+	// For: "create with components and sufficient quota (allowed response)"
+	frqForComponentsSufficient := makeTestFRQ("quota-ns", "frq-components-sufficient",
+		WithOverallLimits(corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("200m")}),
+		WithOverallUsed(corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("0m")}),
+	)
+	// For: "create with components and exceeded quota (denied response)"
+	frqForComponentsExceeded := makeTestFRQ("quota-ns", "frq-components-exceeded",
+		WithOverallLimits(corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("150m")}),
+		WithOverallUsed(corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("0m")}),
+	)
+	// For: "update components passes quota (allowed response)"
+	rbComponentsPassOld := makeTestRB("quota-ns", "rb-components-pass",
+		WithClusters([]workv1alpha2.TargetCluster{{Name: "m1"}}),
+		WithComponents([]workv1alpha2.ComponentRequirements{
+			makeTestComponent("comp-old", 1, "50m"),
+		}),
+	)
+	rbComponentsPassNew := makeTestRB("quota-ns", "rb-components-pass",
+		WithClusters([]workv1alpha2.TargetCluster{{Name: "m1"}}),
+		WithComponents([]workv1alpha2.ComponentRequirements{
+			makeTestComponent("comp-new", 2, "40m"),
+		}),
+	)
+	frqForComponentsPass := makeTestFRQ("quota-ns", "frq-components-pass",
+		WithOverallLimits(corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("200m")}),
+		WithOverallUsed(corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("100m")}),
+	)
+
+	// For: "update components fails quota (denied response)"
+	rbComponentsFailOld := makeTestRB("quota-ns", "rb-components-fail",
+		WithClusters([]workv1alpha2.TargetCluster{{Name: "m1"}}),
+		WithComponents([]workv1alpha2.ComponentRequirements{
+			makeTestComponent("comp-old", 1, "50m"),
+		}),
+	)
+	rbComponentsFailNew := makeTestRB("quota-ns", "rb-components-fail",
+		WithClusters([]workv1alpha2.TargetCluster{{Name: "m1"}}),
+		WithComponents([]workv1alpha2.ComponentRequirements{
+			makeTestComponent("comp-new", 2, "80m"),
+		}),
+	)
+	frqForComponentsFail := makeTestFRQ("quota-ns", "frq-components-fail",
+		WithOverallLimits(corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("100m")}),
+		WithOverallUsed(corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("0m")}),
+	)
+
 	tests := []struct {
 		name               string
 		req                admission.Request
@@ -441,6 +509,48 @@ func TestValidatingAdmission_Handle(t *testing.T) {
 			clientObjects:      []client.Object{frqForUpdateFail},
 			featureGateEnabled: true,
 			wantResponse:       admission.Denied("FederatedResourceQuota(quota-ns/frq-update-fail) exceeded for resource cpu: requested sum 110m, limit 100m."),
+		},
+		{
+			name: "create with components and sufficient quota (allowed)",
+			req: newAdmissionRequestBuilder(t, admissionv1.Create, rbWithComponents.Namespace, rbWithComponents.Name, "create-components-sufficient").
+				WithObject(rbWithComponents).
+				Build(),
+			decoder:            &fakeDecoder{decodeObj: rbWithComponents},
+			clientObjects:      []client.Object{frqForComponentsSufficient},
+			featureGateEnabled: true,
+			wantResponse:       admission.Allowed(""),
+		},
+		{
+			name: "create with components and exceeded quota (denied)",
+			req: newAdmissionRequestBuilder(t, admissionv1.Create, rbWithComponents.Namespace, rbWithComponents.Name, "create-components-exceeded").
+				WithObject(rbWithComponents).
+				Build(),
+			decoder:            &fakeDecoder{decodeObj: rbWithComponents},
+			clientObjects:      []client.Object{frqForComponentsExceeded},
+			featureGateEnabled: true,
+			wantResponse:       admission.Denied("FederatedResourceQuota(quota-ns/frq-components-exceeded) exceeded for resource cpu: requested sum 160m, limit 150m."),
+		},
+		{
+			name: "update components passes quota (allowed response)",
+			req: newAdmissionRequestBuilder(t, admissionv1.Update, rbComponentsPassNew.Namespace, rbComponentsPassNew.Name, "update-components-pass").
+				WithObject(rbComponentsPassNew).
+				WithOldObject(rbComponentsPassOld).
+				Build(),
+			decoder:            &fakeDecoder{decodeObj: rbComponentsPassNew, rawDecodedObj: rbComponentsPassOld},
+			clientObjects:      []client.Object{frqForComponentsPass},
+			featureGateEnabled: true,
+			wantResponse:       admission.Allowed(""),
+		},
+		{
+			name: "update components fails quota (denied response)",
+			req: newAdmissionRequestBuilder(t, admissionv1.Update, rbComponentsFailNew.Namespace, rbComponentsFailNew.Name, "update-components-fail").
+				WithObject(rbComponentsFailNew).
+				WithOldObject(rbComponentsFailOld).
+				Build(),
+			decoder:            &fakeDecoder{decodeObj: rbComponentsFailNew, rawDecodedObj: rbComponentsFailOld},
+			clientObjects:      []client.Object{frqForComponentsFail},
+			featureGateEnabled: true,
+			wantResponse:       admission.Denied("FederatedResourceQuota(quota-ns/frq-components-fail) exceeded for resource cpu: requested sum 110m, limit 100m."),
 		},
 	}
 

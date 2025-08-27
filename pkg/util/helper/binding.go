@@ -488,3 +488,94 @@ func ConstructObjectReference(rs policyv1alpha1.ResourceSelector) workv1alpha2.O
 		Name:       rs.Name,
 	}
 }
+
+// CalculateResourceUsage calculates the total resource usage based on the ResourceBinding.
+func CalculateResourceUsage(rb *workv1alpha2.ResourceBinding) corev1.ResourceList {
+	if rb == nil {
+		return corev1.ResourceList{}
+	}
+
+	usage := corev1.ResourceList{}
+
+	// if Components is set, calculate the resource usage based on Components.
+	if len(rb.Spec.Components) > 0 {
+		clusterCount := int64(len(rb.Spec.Clusters))
+		if clusterCount == 0 {
+			return corev1.ResourceList{}
+		}
+
+		resourceRequestPerSet := aggregateComponentResources(rb.Spec.Components)
+
+		for resourceName, quantityPerCluster := range resourceRequestPerSet {
+			if quantityPerCluster.IsZero() {
+				continue
+			}
+
+			totalQuantity := quantityPerCluster.DeepCopy()
+			totalQuantity.Mul(clusterCount)
+
+			usage[resourceName] = totalQuantity
+		}
+
+		return usage
+	}
+
+	// if Components is not set, calculate the resource usage based on ReplicaRequirements.
+	if rb.Spec.ReplicaRequirements != nil && len(rb.Spec.ReplicaRequirements.ResourceRequest) > 0 {
+		totalReplicas := int32(0)
+		for _, cluster := range rb.Spec.Clusters {
+			totalReplicas += cluster.Replicas
+		}
+		if totalReplicas == 0 {
+			return corev1.ResourceList{}
+		}
+		replicaCount := int64(totalReplicas)
+
+		for resourceName, quantityPerReplica := range rb.Spec.ReplicaRequirements.ResourceRequest {
+			if quantityPerReplica.IsZero() {
+				continue
+			}
+
+			totalQuantity := quantityPerReplica.DeepCopy()
+			totalQuantity.Mul(replicaCount)
+
+			usage[resourceName] = totalQuantity
+		}
+
+		return usage
+	}
+
+	return usage
+}
+
+func aggregateComponentResources(components []workv1alpha2.ComponentRequirements) corev1.ResourceList {
+	aggregatedResources := corev1.ResourceList{}
+	for _, component := range components {
+		if component.ReplicaRequirements == nil || len(component.ReplicaRequirements.ResourceRequest) == 0 {
+			continue
+		}
+
+		componentReplicas := component.Replicas
+		if componentReplicas == 0 {
+			continue
+		}
+
+		for resourceName, quantity := range component.ReplicaRequirements.ResourceRequest {
+			if quantity.IsZero() {
+				continue
+			}
+
+			totalComponentQuantity := quantity.DeepCopy()
+			totalComponentQuantity.Mul(int64(componentReplicas))
+
+			existing, found := aggregatedResources[resourceName]
+			if found {
+				existing.Add(totalComponentQuantity)
+				aggregatedResources[resourceName] = existing
+			} else {
+				aggregatedResources[resourceName] = totalComponentQuantity
+			}
+		}
+	}
+	return aggregatedResources
+}
