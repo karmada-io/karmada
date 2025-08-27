@@ -67,7 +67,7 @@ type Controller struct {
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
 func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling cluster %s", req.NamespacedName.String())
+	klog.V(4).InfoS("Reconciling cluster", "cluster", req.Name)
 
 	cluster := &clusterv1alpha1.Cluster{}
 	if err := c.Client.Get(ctx, req.NamespacedName, cluster); err != nil {
@@ -86,13 +86,13 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 	}
 
 	if cluster.Spec.ImpersonatorSecretRef == nil {
-		klog.Infof("Unified auth is disabled on cluster %s as it does not have an impersonator secret", cluster.Name)
+		klog.InfoS("Unified auth is disabled: no impersonator secret", "cluster", cluster.Name)
 		return controllerruntime.Result{}, nil
 	}
 
 	err := c.syncImpersonationConfig(ctx, cluster)
 	if err != nil {
-		klog.Errorf("Failed to sync impersonation config for cluster %s. Error: %v.", cluster.Name, err)
+		klog.ErrorS(err, "Failed to sync impersonation config", "cluster", cluster.Name)
 		c.EventRecorder.Eventf(cluster, corev1.EventTypeWarning, events.EventReasonSyncImpersonationConfigFailed, err.Error())
 		return controllerruntime.Result{}, err
 	}
@@ -113,13 +113,13 @@ func (c *Controller) syncImpersonationConfig(ctx context.Context, cluster *clust
 
 	// step3: sync ClusterRole to cluster for impersonation
 	if err := c.buildImpersonationClusterRole(ctx, cluster, rules); err != nil {
-		klog.Errorf("Failed to sync impersonate ClusterRole to cluster(%s): %v", cluster.Name, err)
+		klog.ErrorS(err, "Failed to sync impersonate ClusterRole to cluster", "cluster", cluster.Name)
 		return err
 	}
 
 	// step4: sync ClusterRoleBinding to cluster for impersonation
 	if err := c.buildImpersonationClusterRoleBinding(ctx, cluster); err != nil {
-		klog.Errorf("Failed to sync impersonate ClusterRoleBinding to cluster(%s): %v", cluster.Name, err)
+		klog.ErrorS(err, "Failed to sync impersonate ClusterRoleBinding to cluster", "cluster", cluster.Name)
 		return err
 	}
 
@@ -129,7 +129,7 @@ func (c *Controller) syncImpersonationConfig(ctx context.Context, cluster *clust
 func findRBACSubjectsWithCluster(ctx context.Context, c client.Client, cluster string) ([]rbacv1.Subject, error) {
 	clusterRoleList := &rbacv1.ClusterRoleList{}
 	if err := c.List(ctx, clusterRoleList); err != nil {
-		klog.Errorf("Failed to list ClusterRoles, error: %v", err)
+		klog.ErrorS(err, "Failed to list ClusterRoles", "cluster", cluster)
 		return nil, err
 	}
 
@@ -158,7 +158,7 @@ func findRBACSubjectsWithCluster(ctx context.Context, c client.Client, cluster s
 
 	clusterRoleBindings := &rbacv1.ClusterRoleBindingList{}
 	if err := c.List(ctx, clusterRoleBindings); err != nil {
-		klog.Errorf("Failed to list ClusterRoleBindings, error: %v", err)
+		klog.ErrorS(err, "Failed to list ClusterRoleBindings", "cluster", cluster)
 		return nil, err
 	}
 
@@ -189,7 +189,7 @@ func (c *Controller) buildImpersonationClusterRole(ctx context.Context, cluster 
 
 	clusterRoleObj, err := helper.ToUnstructured(impersonationClusterRole)
 	if err != nil {
-		klog.Errorf("Failed to transform ClusterRole %s. Error: %v", impersonationClusterRole.GetName(), err)
+		klog.ErrorS(err, "Failed to transform ClusterRole", "name", impersonationClusterRole.GetName(), "cluster", cluster.Name)
 		return err
 	}
 
@@ -224,7 +224,7 @@ func (c *Controller) buildImpersonationClusterRoleBinding(ctx context.Context, c
 
 	clusterRoleBindingObj, err := helper.ToUnstructured(impersonatorClusterRoleBinding)
 	if err != nil {
-		klog.Errorf("Failed to transform ClusterRoleBinding %s. Error: %v", impersonatorClusterRoleBinding.GetName(), err)
+		klog.ErrorS(err, "Failed to transform ClusterRoleBinding", "name", impersonatorClusterRoleBinding.GetName(), "cluster", cluster.Name)
 		return err
 	}
 
@@ -283,7 +283,7 @@ func (c *Controller) newClusterRoleBindingMapFunc() handler.MapFunc {
 
 		clusterRole := &rbacv1.ClusterRole{}
 		if err := c.Client.Get(ctx, types.NamespacedName{Name: clusterRoleBinding.RoleRef.Name}, clusterRole); err != nil {
-			klog.Errorf("Failed to get reference ClusterRole, error: %v", err)
+			klog.ErrorS(err, "Failed to get reference ClusterRole", "name", clusterRoleBinding.RoleRef.Name)
 			return nil
 		}
 		return c.generateRequestsFromClusterRole(ctx, clusterRole)
@@ -294,7 +294,7 @@ func (c *Controller) newClusterRoleBindingMapFunc() handler.MapFunc {
 func (c *Controller) generateRequestsFromClusterRole(ctx context.Context, clusterRole *rbacv1.ClusterRole) []reconcile.Request {
 	clusterList := &clusterv1alpha1.ClusterList{}
 	if err := c.Client.List(ctx, clusterList); err != nil {
-		klog.Errorf("Failed to list existing clusters, error: %v", err)
+		klog.ErrorS(err, "Failed to list existing clusters")
 		return nil
 	}
 
