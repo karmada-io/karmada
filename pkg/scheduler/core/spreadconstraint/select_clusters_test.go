@@ -78,7 +78,7 @@ func TestSelectBestClusters(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    []*clusterv1alpha1.Cluster
+		want    []ClusterDetailInfo
 		wantErr error
 	}{
 		{
@@ -98,9 +98,9 @@ func TestSelectBestClusters(t *testing.T) {
 				},
 				needReplicas: 100,
 			},
-			want: []*clusterv1alpha1.Cluster{
-				clusterInfos[0].Cluster,
-				clusterInfos[1].Cluster,
+			want: []ClusterDetailInfo{
+				clusterInfos[0],
+				clusterInfos[1],
 			},
 		},
 		{
@@ -123,9 +123,9 @@ func TestSelectBestClusters(t *testing.T) {
 				},
 				needReplicas: 120,
 			},
-			want: []*clusterv1alpha1.Cluster{
-				clusterInfos[0].Cluster,
-				clusterInfos[1].Cluster,
+			want: []ClusterDetailInfo{
+				clusterInfos[0],
+				clusterInfos[1],
 			},
 		},
 		{
@@ -159,11 +159,11 @@ func TestSelectBestClusters(t *testing.T) {
 				},
 				needReplicas: 120,
 			},
-			want: []*clusterv1alpha1.Cluster{
-				clusterInfos[0].Cluster,
-				clusterInfos[1].Cluster,
-				clusterInfos[2].Cluster,
-				clusterInfos[3].Cluster,
+			want: []ClusterDetailInfo{
+				clusterInfos[0],
+				clusterInfos[1],
+				clusterInfos[2],
+				clusterInfos[3],
 			},
 		},
 		{
@@ -186,9 +186,9 @@ func TestSelectBestClusters(t *testing.T) {
 				},
 				needReplicas: 120,
 			},
-			want: []*clusterv1alpha1.Cluster{
-				clusterInfos[0].Cluster,
-				clusterInfos[2].Cluster,
+			want: []ClusterDetailInfo{
+				clusterInfos[0],
+				clusterInfos[2],
 			},
 		},
 		{

@@ -21,15 +21,15 @@ import (
 	"strings"
 	"testing"
 
-	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/scheduler/core/spreadconstraint"
 	"github.com/karmada-io/karmada/test/helper"
 )
 
 type testcase struct {
 	name                      string
-	clusters                  []*clusterv1alpha1.Cluster
+	clusters                  []spreadconstraint.ClusterDetailInfo
 	object                    workv1alpha2.ResourceBindingSpec
 	previousResultToNewResult map[string][]string
 	wantErr                   bool
@@ -67,9 +67,9 @@ func Test_EvenDistributionOfReplicas(t *testing.T) {
 		// 2. check two member cluster replicas, should be 2:1 or 1:2
 		{
 			name: "replica 3, static weighted 1:1",
-			clusters: []*clusterv1alpha1.Cluster{
-				helper.NewCluster(ClusterMember1),
-				helper.NewCluster(ClusterMember2),
+			clusters: []spreadconstraint.ClusterDetailInfo{
+				{Name: ClusterMember1, Cluster: helper.NewCluster(ClusterMember1)},
+				{Name: ClusterMember2, Cluster: helper.NewCluster(ClusterMember2)},
 			},
 			object: workv1alpha2.ResourceBindingSpec{
 				Replicas: 3,
@@ -98,10 +98,10 @@ func Test_EvenDistributionOfReplicas(t *testing.T) {
 		// 4. check three member cluster replicas, should be 2:2:1 or 2:1:2 or 1:2:2
 		{
 			name: "replica 3, static weighted 1:1:1, change replicas from 3 to 5, before change",
-			clusters: []*clusterv1alpha1.Cluster{
-				helper.NewCluster(ClusterMember1),
-				helper.NewCluster(ClusterMember2),
-				helper.NewCluster(ClusterMember3),
+			clusters: []spreadconstraint.ClusterDetailInfo{
+				{Name: ClusterMember1, Cluster: helper.NewCluster(ClusterMember1)},
+				{Name: ClusterMember2, Cluster: helper.NewCluster(ClusterMember2)},
+				{Name: ClusterMember3, Cluster: helper.NewCluster(ClusterMember3)},
 			},
 			object: workv1alpha2.ResourceBindingSpec{
 				Replicas: 3,
@@ -126,10 +126,10 @@ func Test_EvenDistributionOfReplicas(t *testing.T) {
 		},
 		{
 			name: "replica 3, static weighted 1:1:1, change replicas from 3 to 5, after change",
-			clusters: []*clusterv1alpha1.Cluster{
-				helper.NewCluster(ClusterMember1),
-				helper.NewCluster(ClusterMember2),
-				helper.NewCluster(ClusterMember3),
+			clusters: []spreadconstraint.ClusterDetailInfo{
+				{Name: ClusterMember1, Cluster: helper.NewCluster(ClusterMember1)},
+				{Name: ClusterMember2, Cluster: helper.NewCluster(ClusterMember2)},
+				{Name: ClusterMember3, Cluster: helper.NewCluster(ClusterMember3)},
 			},
 			object: workv1alpha2.ResourceBindingSpec{
 				Replicas: 5, // change replicas from 3 to 5
@@ -162,11 +162,11 @@ func Test_EvenDistributionOfReplicas(t *testing.T) {
 		//    * 3:1:1:2 --> 4:1:1:2
 		{
 			name: "replica 7, static weighted 2:1:1:1, change replicas from 7 to 8, before change",
-			clusters: []*clusterv1alpha1.Cluster{
-				helper.NewCluster(ClusterMember1),
-				helper.NewCluster(ClusterMember2),
-				helper.NewCluster(ClusterMember3),
-				helper.NewCluster(ClusterMember4),
+			clusters: []spreadconstraint.ClusterDetailInfo{
+				{Name: ClusterMember1, Cluster: helper.NewCluster(ClusterMember1)},
+				{Name: ClusterMember2, Cluster: helper.NewCluster(ClusterMember2)},
+				{Name: ClusterMember3, Cluster: helper.NewCluster(ClusterMember3)},
+				{Name: ClusterMember4, Cluster: helper.NewCluster(ClusterMember4)},
 			},
 			object: workv1alpha2.ResourceBindingSpec{
 				Replicas: 7,
@@ -192,11 +192,11 @@ func Test_EvenDistributionOfReplicas(t *testing.T) {
 		},
 		{
 			name: "replica 7, static weighted 2:1:1:1, change replicas from 7 to 8, after change",
-			clusters: []*clusterv1alpha1.Cluster{
-				helper.NewCluster(ClusterMember1),
-				helper.NewCluster(ClusterMember2),
-				helper.NewCluster(ClusterMember3),
-				helper.NewCluster(ClusterMember4),
+			clusters: []spreadconstraint.ClusterDetailInfo{
+				{Name: ClusterMember1, Cluster: helper.NewCluster(ClusterMember1)},
+				{Name: ClusterMember2, Cluster: helper.NewCluster(ClusterMember2)},
+				{Name: ClusterMember3, Cluster: helper.NewCluster(ClusterMember3)},
+				{Name: ClusterMember4, Cluster: helper.NewCluster(ClusterMember4)},
 			},
 			object: workv1alpha2.ResourceBindingSpec{
 				Replicas: 8, // change replicas from 7 to 8
@@ -232,11 +232,11 @@ func Test_EvenDistributionOfReplicas(t *testing.T) {
 		//    * 4:2:1:2 --> 4:1:1:2 or 4:2:1:1
 		{
 			name: "replica 9, static weighted 2:1:1:1, change replicas from 9 to 8, before change",
-			clusters: []*clusterv1alpha1.Cluster{
-				helper.NewCluster(ClusterMember1),
-				helper.NewCluster(ClusterMember2),
-				helper.NewCluster(ClusterMember3),
-				helper.NewCluster(ClusterMember4),
+			clusters: []spreadconstraint.ClusterDetailInfo{
+				{Name: ClusterMember1, Cluster: helper.NewCluster(ClusterMember1)},
+				{Name: ClusterMember2, Cluster: helper.NewCluster(ClusterMember2)},
+				{Name: ClusterMember3, Cluster: helper.NewCluster(ClusterMember3)},
+				{Name: ClusterMember4, Cluster: helper.NewCluster(ClusterMember4)},
 			},
 			object: workv1alpha2.ResourceBindingSpec{
 				Replicas: 9,
@@ -262,11 +262,11 @@ func Test_EvenDistributionOfReplicas(t *testing.T) {
 		},
 		{
 			name: "replica 9, static weighted 2:1:1:1, change replicas from 9 to 8, after change",
-			clusters: []*clusterv1alpha1.Cluster{
-				helper.NewCluster(ClusterMember1),
-				helper.NewCluster(ClusterMember2),
-				helper.NewCluster(ClusterMember3),
-				helper.NewCluster(ClusterMember4),
+			clusters: []spreadconstraint.ClusterDetailInfo{
+				{Name: ClusterMember1, Cluster: helper.NewCluster(ClusterMember1)},
+				{Name: ClusterMember2, Cluster: helper.NewCluster(ClusterMember2)},
+				{Name: ClusterMember3, Cluster: helper.NewCluster(ClusterMember3)},
+				{Name: ClusterMember4, Cluster: helper.NewCluster(ClusterMember4)},
 			},
 			object: workv1alpha2.ResourceBindingSpec{
 				Replicas: 8,
@@ -299,11 +299,11 @@ func Test_EvenDistributionOfReplicas(t *testing.T) {
 		// 4. check four member cluster replicas, the result should be 3:1:1:1
 		{
 			name: "replica 6, static weighted 1:1:1:1, change static weighted from 1:1:1:1 to 2:1:1:1, before change",
-			clusters: []*clusterv1alpha1.Cluster{
-				helper.NewCluster(ClusterMember1),
-				helper.NewCluster(ClusterMember2),
-				helper.NewCluster(ClusterMember3),
-				helper.NewCluster(ClusterMember4),
+			clusters: []spreadconstraint.ClusterDetailInfo{
+				{Name: ClusterMember1, Cluster: helper.NewCluster(ClusterMember1)},
+				{Name: ClusterMember2, Cluster: helper.NewCluster(ClusterMember2)},
+				{Name: ClusterMember3, Cluster: helper.NewCluster(ClusterMember3)},
+				{Name: ClusterMember4, Cluster: helper.NewCluster(ClusterMember4)},
 			},
 			object: workv1alpha2.ResourceBindingSpec{
 				Replicas: 6,
@@ -329,11 +329,11 @@ func Test_EvenDistributionOfReplicas(t *testing.T) {
 		},
 		{
 			name: "replica 6, static weighted 1:1:1:1, change static weighted from 1:1:1:1 to 2:1:1:1, after change",
-			clusters: []*clusterv1alpha1.Cluster{
-				helper.NewCluster(ClusterMember1),
-				helper.NewCluster(ClusterMember2),
-				helper.NewCluster(ClusterMember3),
-				helper.NewCluster(ClusterMember4),
+			clusters: []spreadconstraint.ClusterDetailInfo{
+				{Name: ClusterMember1, Cluster: helper.NewCluster(ClusterMember1)},
+				{Name: ClusterMember2, Cluster: helper.NewCluster(ClusterMember2)},
+				{Name: ClusterMember3, Cluster: helper.NewCluster(ClusterMember3)},
+				{Name: ClusterMember4, Cluster: helper.NewCluster(ClusterMember4)},
 			},
 			object: workv1alpha2.ResourceBindingSpec{
 				Replicas: 6,
@@ -372,10 +372,10 @@ func Test_EvenDistributionOfReplicas(t *testing.T) {
 		//    * 1:2:2 --> 1:1:2:1 or 1:2:1:1
 		{
 			name: "replica 5, static weighted 1:1:1, add a new cluster and change static weight to 1:1:1:1, before change",
-			clusters: []*clusterv1alpha1.Cluster{
-				helper.NewCluster(ClusterMember1),
-				helper.NewCluster(ClusterMember2),
-				helper.NewCluster(ClusterMember3),
+			clusters: []spreadconstraint.ClusterDetailInfo{
+				{Name: ClusterMember1, Cluster: helper.NewCluster(ClusterMember1)},
+				{Name: ClusterMember2, Cluster: helper.NewCluster(ClusterMember2)},
+				{Name: ClusterMember3, Cluster: helper.NewCluster(ClusterMember3)},
 			},
 			object: workv1alpha2.ResourceBindingSpec{
 				Replicas: 5,
@@ -400,11 +400,11 @@ func Test_EvenDistributionOfReplicas(t *testing.T) {
 		},
 		{
 			name: "replica 5, static weighted 1:1:1, add a new cluster and change static weight to 1:1:1:1, after change",
-			clusters: []*clusterv1alpha1.Cluster{
-				helper.NewCluster(ClusterMember1),
-				helper.NewCluster(ClusterMember2),
-				helper.NewCluster(ClusterMember3),
-				helper.NewCluster(ClusterMember4),
+			clusters: []spreadconstraint.ClusterDetailInfo{
+				{Name: ClusterMember1, Cluster: helper.NewCluster(ClusterMember1)},
+				{Name: ClusterMember2, Cluster: helper.NewCluster(ClusterMember2)},
+				{Name: ClusterMember3, Cluster: helper.NewCluster(ClusterMember3)},
+				{Name: ClusterMember4, Cluster: helper.NewCluster(ClusterMember4)},
 			},
 			object: workv1alpha2.ResourceBindingSpec{
 				Replicas: 5,
@@ -440,11 +440,11 @@ func Test_EvenDistributionOfReplicas(t *testing.T) {
 		//    * 1:2:2:1 --> 2:2:2
 		{
 			name: "replica 6, static weighted 1:1:1:1, remove a cluster and change static weight to 1:1:1, before change",
-			clusters: []*clusterv1alpha1.Cluster{
-				helper.NewCluster(ClusterMember1),
-				helper.NewCluster(ClusterMember2),
-				helper.NewCluster(ClusterMember3),
-				helper.NewCluster(ClusterMember4),
+			clusters: []spreadconstraint.ClusterDetailInfo{
+				{Name: ClusterMember1, Cluster: helper.NewCluster(ClusterMember1)},
+				{Name: ClusterMember2, Cluster: helper.NewCluster(ClusterMember2)},
+				{Name: ClusterMember3, Cluster: helper.NewCluster(ClusterMember3)},
+				{Name: ClusterMember4, Cluster: helper.NewCluster(ClusterMember4)},
 			},
 			object: workv1alpha2.ResourceBindingSpec{
 				Replicas: 6,
@@ -470,10 +470,10 @@ func Test_EvenDistributionOfReplicas(t *testing.T) {
 		},
 		{
 			name: "replica 6, static weighted 1:1:1:1, remove a cluster and change static weight to 1:1:1, after change",
-			clusters: []*clusterv1alpha1.Cluster{
-				helper.NewCluster(ClusterMember1),
-				helper.NewCluster(ClusterMember2),
-				helper.NewCluster(ClusterMember3),
+			clusters: []spreadconstraint.ClusterDetailInfo{
+				{Name: ClusterMember1, Cluster: helper.NewCluster(ClusterMember1)},
+				{Name: ClusterMember2, Cluster: helper.NewCluster(ClusterMember2)},
+				{Name: ClusterMember3, Cluster: helper.NewCluster(ClusterMember3)},
 			},
 			object: workv1alpha2.ResourceBindingSpec{
 				Replicas: 6,

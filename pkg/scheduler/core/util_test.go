@@ -20,14 +20,14 @@ import (
 	"reflect"
 	"testing"
 
-	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/scheduler/core/spreadconstraint"
 	"github.com/karmada-io/karmada/test/helper"
 )
 
 func Test_attachZeroReplicasCluster(t *testing.T) {
 	type args struct {
-		clusters       []*clusterv1alpha1.Cluster
+		clusters       []spreadconstraint.ClusterDetailInfo
 		targetClusters []workv1alpha2.TargetCluster
 	}
 	tests := []struct {
@@ -38,10 +38,10 @@ func Test_attachZeroReplicasCluster(t *testing.T) {
 		{
 			name: "clusters: member1,member2,member3, targetClusters:member1,member2",
 			args: args{
-				clusters: []*clusterv1alpha1.Cluster{
-					helper.NewCluster(ClusterMember1),
-					helper.NewCluster(ClusterMember2),
-					helper.NewCluster(ClusterMember3),
+				clusters: []spreadconstraint.ClusterDetailInfo{
+					{Name: ClusterMember1, Cluster: helper.NewCluster(ClusterMember1)},
+					{Name: ClusterMember2, Cluster: helper.NewCluster(ClusterMember2)},
+					{Name: ClusterMember3, Cluster: helper.NewCluster(ClusterMember3)},
 				},
 				targetClusters: []workv1alpha2.TargetCluster{
 					{

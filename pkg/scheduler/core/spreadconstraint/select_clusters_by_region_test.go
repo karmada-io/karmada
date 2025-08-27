@@ -571,8 +571,12 @@ func Test_selectBestClustersByRegion(t *testing.T) {
 				t.Errorf("selectBestClustersByRegion() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("selectBestClustersByRegion() = %v, want %v", got, tt.want)
+			var ret []*clusterv1alpha1.Cluster
+			for i := range got {
+				ret = append(ret, got[i].Cluster)
+			}
+			if !reflect.DeepEqual(ret, tt.want) {
+				t.Errorf("selectBestClustersByRegion() = %v, want %v", ret, tt.want)
 			}
 		})
 	}
