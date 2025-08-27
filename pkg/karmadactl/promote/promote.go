@@ -460,12 +460,9 @@ func (o *CommandPromoteOption) promoteDeps(memberClusterFactory cmdutil.Factory,
 	controlPlaneKubeClientSet := kubeClientBuilder(config)
 	sharedFactory := informers.NewSharedInformerFactory(controlPlaneKubeClientSet, 0)
 	serviceLister := sharedFactory.Core().V1().Services().Lister()
+
 	sharedFactory.Start(stopCh)
 	sharedFactory.WaitForCacheSync(stopCh)
-	controlPlaneInformerManager.Start()
-	if sync := controlPlaneInformerManager.WaitForCacheSync(); sync == nil {
-		return errors.New("informer factory for cluster does not exist")
-	}
 
 	defaultInterpreter := native.NewDefaultInterpreter()
 	thirdpartyInterpreter := thirdparty.NewConfigurableInterpreter()
@@ -473,6 +470,11 @@ func (o *CommandPromoteOption) promoteDeps(memberClusterFactory cmdutil.Factory,
 	customizedInterpreter, err := webhook.NewCustomizedInterpreter(controlPlaneInformerManager, serviceLister)
 	if err != nil {
 		return fmt.Errorf("failed to create customized interpreter: %v", err)
+	}
+
+	controlPlaneInformerManager.Start()
+	if syncs := controlPlaneInformerManager.WaitForCacheSync(); len(syncs) == 0 {
+		return errors.New("no informers registered in the informer factory")
 	}
 
 	// check if the resource interpreter supports to interpret dependencies
