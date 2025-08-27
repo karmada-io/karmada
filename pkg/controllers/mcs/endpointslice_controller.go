@@ -152,6 +152,7 @@ func (c *EndpointSliceController) collectEndpointSliceFromWork(ctx context.Conte
 		desiredEndpointSlice.Labels = util.DedupeAndMergeLabels(desiredEndpointSlice.Labels, map[string]string{
 			workv1alpha2.WorkPermanentIDLabel: work.Labels[workv1alpha2.WorkPermanentIDLabel],
 			discoveryv1.LabelServiceName:      names.GenerateDerivedServiceName(work.Labels[util.ServiceNameLabel]),
+			discoveryv1.LabelManagedBy:        util.EndpointSliceControllerLabelValue,
 		})
 		desiredEndpointSlice.Annotations = util.DedupeAndMergeAnnotations(desiredEndpointSlice.Annotations, map[string]string{
 			workv1alpha2.WorkNamespaceAnnotation: work.Namespace,
