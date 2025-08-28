@@ -284,6 +284,7 @@ func TestPropagateMultiClusterService(t *testing.T) {
 					Status: clusterv1alpha1.ClusterStatus{
 						Conditions: []metav1.Condition{
 							{Type: clusterv1alpha1.ClusterConditionReady, Status: metav1.ConditionTrue},
+							{Type: clusterv1alpha1.ClusterConditionCompleteAPIEnablements, Status: metav1.ConditionTrue},
 						},
 						APIEnablements: []clusterv1alpha1.APIEnablement{
 							{
@@ -340,6 +341,7 @@ func TestPropagateMultiClusterService(t *testing.T) {
 					Status: clusterv1alpha1.ClusterStatus{
 						Conditions: []metav1.Condition{
 							{Type: clusterv1alpha1.ClusterConditionReady, Status: metav1.ConditionTrue},
+							{Type: clusterv1alpha1.ClusterConditionCompleteAPIEnablements, Status: metav1.ConditionTrue},
 						},
 						APIEnablements: []clusterv1alpha1.APIEnablement{
 							{
@@ -376,6 +378,7 @@ func TestPropagateMultiClusterService(t *testing.T) {
 					Status: clusterv1alpha1.ClusterStatus{
 						Conditions: []metav1.Condition{
 							{Type: clusterv1alpha1.ClusterConditionReady, Status: metav1.ConditionTrue},
+							{Type: clusterv1alpha1.ClusterConditionCompleteAPIEnablements, Status: metav1.ConditionTrue},
 						},
 						APIEnablements: []clusterv1alpha1.APIEnablement{
 							{
@@ -392,6 +395,7 @@ func TestPropagateMultiClusterService(t *testing.T) {
 					Status: clusterv1alpha1.ClusterStatus{
 						Conditions: []metav1.Condition{
 							{Type: clusterv1alpha1.ClusterConditionReady, Status: metav1.ConditionTrue},
+							{Type: clusterv1alpha1.ClusterConditionCompleteAPIEnablements, Status: metav1.ConditionTrue},
 						},
 						APIEnablements: []clusterv1alpha1.APIEnablement{
 							{
@@ -428,6 +432,7 @@ func TestPropagateMultiClusterService(t *testing.T) {
 					Status: clusterv1alpha1.ClusterStatus{
 						Conditions: []metav1.Condition{
 							{Type: clusterv1alpha1.ClusterConditionReady, Status: metav1.ConditionTrue},
+							{Type: clusterv1alpha1.ClusterConditionCompleteAPIEnablements, Status: metav1.ConditionTrue},
 						},
 						APIEnablements: []clusterv1alpha1.APIEnablement{
 							{
@@ -452,6 +457,7 @@ func TestPropagateMultiClusterService(t *testing.T) {
 					Status: clusterv1alpha1.ClusterStatus{
 						Conditions: []metav1.Condition{
 							{Type: clusterv1alpha1.ClusterConditionReady, Status: metav1.ConditionTrue},
+							{Type: clusterv1alpha1.ClusterConditionCompleteAPIEnablements, Status: metav1.ConditionTrue},
 						},
 						APIEnablements: []clusterv1alpha1.APIEnablement{
 							{

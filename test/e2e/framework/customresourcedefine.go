@@ -29,6 +29,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
 
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	karmada "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
@@ -73,7 +74,7 @@ func WaitCRDPresentOnClusters(client karmada.Interface, clusters []string, crdAP
 			gomega.Eventually(func(g gomega.Gomega) (bool, error) {
 				cluster, err := FetchCluster(client, clusterName)
 				g.Expect(err).NotTo(gomega.HaveOccurred())
-				return helper.IsAPIEnabled(cluster.Status.APIEnablements, crdAPIVersion, crdKind), nil
+				return cluster.APIEnablement(schema.FromAPIVersionAndKind(crdAPIVersion, crdKind)) == clusterv1alpha1.APIEnabled, nil
 			}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 		}
 	})

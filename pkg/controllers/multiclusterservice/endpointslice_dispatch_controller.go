@@ -338,7 +338,8 @@ func (c *EndpointsliceDispatchController) dispatchEndpointSlice(ctx context.Cont
 				"Consumer cluster %s is not ready, skip to propagate EndpointSlice", clusterName)
 			continue
 		}
-		if !helper.IsAPIEnabled(clusterObj.Status.APIEnablements, util.EndpointSliceGVK.GroupVersion().String(), util.EndpointSliceGVK.Kind) {
+
+		if clusterObj.APIEnablement(util.EndpointSliceGVK) == clusterv1alpha1.APIDisabled {
 			c.EventRecorder.Eventf(mcs, corev1.EventTypeWarning, events.EventReasonAPIIncompatible, "Consumer cluster %s does not support EndpointSlice", clusterName)
 			continue
 		}
