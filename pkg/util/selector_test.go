@@ -1087,3 +1087,149 @@ func Test_matchZones(t *testing.T) {
 		})
 	}
 }
+
+func TestExtractUniqueNamespacedSelectors(t *testing.T) {
+	tests := []struct {
+		name      string
+		selectors []policyv1alpha1.ResourceSelector
+		want      []policyv1alpha1.ResourceSelector
+	}{
+		{
+			name:      "empty selectors",
+			selectors: nil,
+			want:      nil,
+		},
+		{
+			name: "single selector",
+			selectors: []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: "v1",
+					Kind:       "Pod",
+				},
+			},
+			want: []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: "v1",
+					Kind:       "Pod",
+				},
+			},
+		},
+		{
+			name: "multiple different selectors",
+			selectors: []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: "v1",
+					Kind:       "Pod",
+				},
+				{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+				},
+				{
+					APIVersion: "v1",
+					Kind:       "Service",
+				},
+			},
+			want: []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: "v1",
+					Kind:       "Pod",
+				},
+				{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+				},
+				{
+					APIVersion: "v1",
+					Kind:       "Service",
+				},
+			},
+		},
+		{
+			name: "duplicate selectors should be deduplicated",
+			selectors: []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: "v1",
+					Kind:       "Pod",
+				},
+				{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+				},
+				{
+					APIVersion: "v1",
+					Kind:       "Pod", // duplicate
+				},
+				{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment", // duplicate
+				},
+			},
+			want: []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: "v1",
+					Kind:       "Pod",
+				},
+				{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+				},
+			},
+		},
+		{
+			name: "selectors with same kind but different API versions",
+			selectors: []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: "extensions/v1beta1",
+					Kind:       "Deployment",
+				},
+				{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+				},
+			},
+			want: []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: "extensions/v1beta1",
+					Kind:       "Deployment",
+				},
+				{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+				},
+			},
+		},
+		{
+			name: "selectors with custom resources",
+			selectors: []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: "custom.io/v1alpha1",
+					Kind:       "CustomResource",
+				},
+				{
+					APIVersion: "example.com/v1beta1",
+					Kind:       "ExampleResource",
+				},
+			},
+			want: []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: "custom.io/v1alpha1",
+					Kind:       "CustomResource",
+				},
+				{
+					APIVersion: "example.com/v1beta1",
+					Kind:       "ExampleResource",
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ExtractUniqueNamespacedSelectors(tt.selectors)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ExtractUniqueNamespacedSelectors() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
