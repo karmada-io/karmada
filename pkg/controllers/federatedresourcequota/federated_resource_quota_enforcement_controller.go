@@ -266,7 +266,7 @@ func (c *QuotaEnforcementController) collectQuotaStatus(quota *policyv1alpha1.Fe
 func calculateUsedWithResourceBinding(resourceBindings []workv1alpha2.ResourceBinding, overall corev1.ResourceList) corev1.ResourceList {
 	overallUsed := corev1.ResourceList{}
 	for _, binding := range resourceBindings {
-		usage := calculateResourceUsage(&binding)
+		usage := helper.CalculateResourceUsage(&binding)
 		for name, quantity := range usage {
 			existing, found := overallUsed[name]
 			if found {
@@ -278,38 +278,6 @@ func calculateUsedWithResourceBinding(resourceBindings []workv1alpha2.ResourceBi
 		}
 	}
 	return filterResourceListByOverall(overallUsed, overall)
-}
-
-// calculateResourceUsage calculates the total resource usage based on the ResourceBinding.
-func calculateResourceUsage(rb *workv1alpha2.ResourceBinding) corev1.ResourceList {
-	if rb == nil || rb.Spec.ReplicaRequirements == nil || len(rb.Spec.ReplicaRequirements.ResourceRequest) == 0 || len(rb.Spec.Clusters) == 0 {
-		return corev1.ResourceList{}
-	}
-
-	totalReplicas := int32(0)
-	for _, cluster := range rb.Spec.Clusters {
-		totalReplicas += cluster.Replicas
-	}
-
-	if totalReplicas == 0 {
-		return corev1.ResourceList{}
-	}
-
-	usage := corev1.ResourceList{}
-	replicaCount := int64(totalReplicas)
-
-	for resourceName, quantityPerReplica := range rb.Spec.ReplicaRequirements.ResourceRequest {
-		if quantityPerReplica.IsZero() {
-			continue
-		}
-
-		totalQuantity := quantityPerReplica.DeepCopy()
-		totalQuantity.Mul(replicaCount)
-
-		usage[resourceName] = totalQuantity
-	}
-
-	return usage
 }
 
 // Filters source ResourceList using the keys provided by reference

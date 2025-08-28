@@ -22,6 +22,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -1254,6 +1255,147 @@ func TestConstructClusterWideKey(t *testing.T) {
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ConstructClusterWideKey() got = %v, want %v", got, tt.want)
 			}
+		})
+	}
+}
+
+func compareResourceLists(t *testing.T, expected, actual corev1.ResourceList) {
+	for resourceName, expectedQuantity := range expected {
+		actualQuantity, exists := actual[resourceName]
+		assert.True(t, exists, "Resource %s is missing in actual result", resourceName)
+		assert.Equal(t, expectedQuantity.Value(), actualQuantity.Value(), "Resource %s value mismatch", resourceName)
+		assert.Equal(t, expectedQuantity.Format, actualQuantity.Format, "Resource %s format mismatch", resourceName)
+	}
+	assert.Equal(t, len(expected), len(actual), "Resource list length mismatch")
+}
+
+func TestCalculateResourceUsage(t *testing.T) {
+	tests := []struct {
+		name     string
+		rb       *workv1alpha2.ResourceBinding
+		expected corev1.ResourceList
+	}{
+		{
+			name: "Calculate usage with components",
+			rb: &workv1alpha2.ResourceBinding{
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Clusters: []workv1alpha2.TargetCluster{
+						{Name: "cluster1"},
+						{Name: "cluster2"},
+					},
+					Components: []workv1alpha2.ComponentRequirements{
+						{
+							Replicas: 2,
+							ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
+								ResourceRequest: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("500m"),
+									corev1.ResourceMemory: resource.MustParse("1Gi"),
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("2"),
+				corev1.ResourceMemory: resource.MustParse("4Gi"),
+			},
+		},
+		{
+			name: "Calculate usage with replica requirements",
+			rb: &workv1alpha2.ResourceBinding{
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Clusters: []workv1alpha2.TargetCluster{
+						{Name: "cluster1", Replicas: 3},
+						{Name: "cluster2", Replicas: 2},
+					},
+					ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
+						ResourceRequest: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("1"),
+							corev1.ResourceMemory: resource.MustParse("2Gi"),
+						},
+					},
+				},
+			},
+			expected: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("5"),
+				corev1.ResourceMemory: resource.MustParse("10Gi"),
+			},
+		},
+		{
+			name:     "Nil ResourceBinding",
+			rb:       nil,
+			expected: corev1.ResourceList{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := CalculateResourceUsage(tt.rb)
+			compareResourceLists(t, tt.expected, result)
+		})
+	}
+}
+
+func TestAggregateComponentResources(t *testing.T) {
+	tests := []struct {
+		name       string
+		components []workv1alpha2.ComponentRequirements
+		expected   corev1.ResourceList
+	}{
+		{
+			name: "Aggregate resources from components",
+			components: []workv1alpha2.ComponentRequirements{
+				{
+					Replicas: 2,
+					ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
+						ResourceRequest: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("500m"),
+							corev1.ResourceMemory: resource.MustParse("1Gi"),
+						},
+					},
+				},
+				{
+					Replicas: 3,
+					ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
+						ResourceRequest: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("1"),
+							corev1.ResourceMemory: resource.MustParse("2Gi"),
+						},
+					},
+				},
+			},
+			expected: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("4"),
+				corev1.ResourceMemory: resource.MustParse("8Gi"),
+			},
+		},
+		{
+			name: "No components",
+			components: []workv1alpha2.ComponentRequirements{
+				{
+					Replicas: 0,
+					ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
+						ResourceRequest: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("500m"),
+							corev1.ResourceMemory: resource.MustParse("1Gi"),
+						},
+					},
+				},
+			},
+			expected: corev1.ResourceList{},
+		},
+		{
+			name:       "Empty components",
+			components: []workv1alpha2.ComponentRequirements{},
+			expected:   corev1.ResourceList{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := aggregateComponentResources(tt.components)
+			compareResourceLists(t, tt.expected, result)
 		})
 	}
 }
