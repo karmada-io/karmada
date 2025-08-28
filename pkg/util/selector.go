@@ -239,3 +239,24 @@ func matchZones(zoneMatchExpression *corev1.NodeSelectorRequirement, zones []str
 		return false
 	}
 }
+
+// ExtractUniqueNamespacedSelectors returns a new slice of ResourceSelector deduplicated by
+// APIVersion, Kind and Namespace. The returned selectors only contain APIVersion, Kind and Namespace;
+// other fields (e.g. Name, LabelSelector) are intentionally discarded.
+func ExtractUniqueNamespacedSelectors(selectors []policyv1alpha1.ResourceSelector) []policyv1alpha1.ResourceSelector {
+	var results []policyv1alpha1.ResourceSelector
+	handled := make(map[string]bool)
+	for _, selector := range selectors {
+		key := selector.APIVersion + "|" + selector.Kind + "|" + selector.Namespace
+		if handled[key] {
+			continue
+		}
+		results = append(results, policyv1alpha1.ResourceSelector{
+			APIVersion: selector.APIVersion,
+			Kind:       selector.Kind,
+			Namespace:  selector.Namespace,
+		})
+		handled[key] = true
+	}
+	return results
+}
