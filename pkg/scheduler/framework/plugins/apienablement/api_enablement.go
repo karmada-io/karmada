@@ -19,12 +19,12 @@ package apienablement
 import (
 	"context"
 
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog/v2"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
-	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 const (
@@ -68,7 +68,7 @@ func (p *APIEnablement) Filter(
 	// we enforce strict checks to maintain consistency. This may occasionally
 	// exclude clusters prematurely. Users requiring a specific number of target
 	// clusters should use SpreadConstraints(in PropagationPolicy) to meet their requirements.
-	if helper.IsAPIEnabled(cluster.Status.APIEnablements, bindingSpec.Resource.APIVersion, bindingSpec.Resource.Kind) {
+	if cluster.APIEnablement(schema.FromAPIVersionAndKind(bindingSpec.Resource.APIVersion, bindingSpec.Resource.Kind)) == clusterv1alpha1.APIEnabled {
 		return framework.NewResult(framework.Success)
 	}
 

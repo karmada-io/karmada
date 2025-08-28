@@ -48,7 +48,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
-	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
 
@@ -412,7 +411,7 @@ func (c *Controller) doCacheCluster(cluster string) error {
 			klog.Errorf("Failed to get gvk: %v", err)
 			continue
 		}
-		if !helper.IsAPIEnabled(cls.Status.APIEnablements, gvk.GroupVersion().String(), gvk.Kind) {
+		if cls.APIEnablement(gvk) == clusterv1alpha1.APIDisabled {
 			klog.Warningf("Resource %s is not enabled for cluster %s", gvr.String(), cluster)
 			continue
 		}
