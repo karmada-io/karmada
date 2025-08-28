@@ -60,7 +60,7 @@ type ResourceInterpreter interface {
 	// requirements, and will not call GetReplicas.
 	// If not implemented, the controller will fall back to GetReplicas for backward compatibility.
 	// This hook will only be called when the feature gate 'MultiplePodTemplatesScheduling' is enabled.
-	GetComponents(object *unstructured.Unstructured) (components []workv1alpha2.ComponentRequirements, err error)
+	GetComponents(object *unstructured.Unstructured) (components []workv1alpha2.Component, err error)
 
 	// Retain returns the objects that based on the "desired" object but with values retained from the "observed" object.
 	Retain(desired *unstructured.Unstructured, observed *unstructured.Unstructured) (retained *unstructured.Unstructured, err error)
@@ -203,7 +203,7 @@ func (i *customResourceInterpreterImpl) ReviseReplica(object *unstructured.Unstr
 // GetComponents returns the requirements for each component of the given object.
 // This method is intended to extract per-component replica and resource requirements,
 // especially for resources that define multiple components (e.g., CRDs with multiple pod templates).
-func (i *customResourceInterpreterImpl) GetComponents(object *unstructured.Unstructured) ([]workv1alpha2.ComponentRequirements, error) {
+func (i *customResourceInterpreterImpl) GetComponents(object *unstructured.Unstructured) ([]workv1alpha2.Component, error) {
 	if object == nil {
 		return nil, errors.New("nil object")
 	}

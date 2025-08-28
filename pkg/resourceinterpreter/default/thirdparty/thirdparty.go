@@ -88,7 +88,7 @@ func (p *ConfigurableInterpreter) GetReplicas(object *unstructured.Unstructured)
 }
 
 // GetComponents returns the desired components of the object.
-func (p *ConfigurableInterpreter) GetComponents(object *unstructured.Unstructured) (components []workv1alpha2.ComponentRequirements, enabled bool, err error) {
+func (p *ConfigurableInterpreter) GetComponents(object *unstructured.Unstructured) (components []workv1alpha2.Component, enabled bool, err error) {
 	klog.V(4).Infof("Get components for object: %v %s/%s with thirdparty configurable interpreter.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
 
 	customAccessor, enabled := p.getCustomAccessor(object.GroupVersionKind())

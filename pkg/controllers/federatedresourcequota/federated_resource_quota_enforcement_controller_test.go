@@ -151,7 +151,7 @@ func TestCalculateUsedWithResourceBinding(t *testing.T) {
 						{Name: "cluster2", Replicas: 7},
 						{Name: "cluster3", Replicas: 7},
 					},
-					[]workv1alpha2.ComponentRequirements{
+					[]workv1alpha2.Component{
 						makeComponentWithReplicas(2, "100m", "128Mi"),
 						makeComponentWithReplicas(0, "50m", "64Mi"),
 						makeComponentWithReplicas(3, "25m", ""),
@@ -200,7 +200,7 @@ func makeBinding(cpu string, memory string, clusters []workv1alpha2.TargetCluste
 	}
 }
 
-func makeBindingWithComponents(clusters []workv1alpha2.TargetCluster, components []workv1alpha2.ComponentRequirements) workv1alpha2.ResourceBinding {
+func makeBindingWithComponents(clusters []workv1alpha2.TargetCluster, components []workv1alpha2.Component) workv1alpha2.ResourceBinding {
 	return workv1alpha2.ResourceBinding{
 		Spec: workv1alpha2.ResourceBindingSpec{
 			Clusters:   clusters,
@@ -209,10 +209,10 @@ func makeBindingWithComponents(clusters []workv1alpha2.TargetCluster, components
 	}
 }
 
-func makeComponentWithReplicas(replicas int32, cpu, memory string) workv1alpha2.ComponentRequirements {
-	return workv1alpha2.ComponentRequirements{
+func makeComponentWithReplicas(replicas int32, cpu, memory string) workv1alpha2.Component {
+	return workv1alpha2.Component{
 		Replicas: replicas,
-		ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
+		ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
 			ResourceRequest: makeResourceRequest(cpu, memory),
 		},
 	}

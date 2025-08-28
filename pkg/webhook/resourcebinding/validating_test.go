@@ -106,7 +106,7 @@ func WithReplicaRequirements(reqs corev1.ResourceList) RBOption {
 	}
 }
 
-func WithComponents(components []workv1alpha2.ComponentRequirements) RBOption {
+func WithComponents(components []workv1alpha2.Component) RBOption {
 	return func(rb *workv1alpha2.ResourceBinding) {
 		rb.Spec.Components = components
 	}
@@ -335,18 +335,18 @@ func TestValidatingAdmission_Handle(t *testing.T) {
 		WithOverallUsed(corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("0m")}),
 	)
 
-	makeTestComponent := func(name string, replicas int32, cpu string) workv1alpha2.ComponentRequirements {
-		return workv1alpha2.ComponentRequirements{
+	makeTestComponent := func(name string, replicas int32, cpu string) workv1alpha2.Component {
+		return workv1alpha2.Component{
 			Name:     name,
 			Replicas: replicas,
-			ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
+			ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
 				ResourceRequest: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse(cpu)},
 			},
 		}
 	}
 	rbWithComponents := makeTestRB("quota-ns", "rb-with-components",
 		WithClusters([]workv1alpha2.TargetCluster{{Name: "m1"}, {Name: "m2"}}),
-		WithComponents([]workv1alpha2.ComponentRequirements{
+		WithComponents([]workv1alpha2.Component{
 			makeTestComponent("comp1", 2, "25m"),
 			makeTestComponent("comp2", 1, "30m"),
 		}),
@@ -364,13 +364,13 @@ func TestValidatingAdmission_Handle(t *testing.T) {
 	// For: "update components passes quota (allowed response)"
 	rbComponentsPassOld := makeTestRB("quota-ns", "rb-components-pass",
 		WithClusters([]workv1alpha2.TargetCluster{{Name: "m1"}}),
-		WithComponents([]workv1alpha2.ComponentRequirements{
+		WithComponents([]workv1alpha2.Component{
 			makeTestComponent("comp-old", 1, "50m"),
 		}),
 	)
 	rbComponentsPassNew := makeTestRB("quota-ns", "rb-components-pass",
 		WithClusters([]workv1alpha2.TargetCluster{{Name: "m1"}}),
-		WithComponents([]workv1alpha2.ComponentRequirements{
+		WithComponents([]workv1alpha2.Component{
 			makeTestComponent("comp-new", 2, "40m"),
 		}),
 	)
@@ -382,13 +382,13 @@ func TestValidatingAdmission_Handle(t *testing.T) {
 	// For: "update components fails quota (denied response)"
 	rbComponentsFailOld := makeTestRB("quota-ns", "rb-components-fail",
 		WithClusters([]workv1alpha2.TargetCluster{{Name: "m1"}}),
-		WithComponents([]workv1alpha2.ComponentRequirements{
+		WithComponents([]workv1alpha2.Component{
 			makeTestComponent("comp-old", 1, "50m"),
 		}),
 	)
 	rbComponentsFailNew := makeTestRB("quota-ns", "rb-components-fail",
 		WithClusters([]workv1alpha2.TargetCluster{{Name: "m1"}}),
-		WithComponents([]workv1alpha2.ComponentRequirements{
+		WithComponents([]workv1alpha2.Component{
 			makeTestComponent("comp-new", 2, "80m"),
 		}),
 	)

@@ -155,14 +155,14 @@ func (vm *VM) GetReplicas(obj *unstructured.Unstructured, script string) (replic
 }
 
 // GetComponents returns the desired components of the object by executing a Lua script.
-func (vm *VM) GetComponents(obj *unstructured.Unstructured, script string) ([]workv1alpha2.ComponentRequirements, error) {
+func (vm *VM) GetComponents(obj *unstructured.Unstructured, script string) ([]workv1alpha2.Component, error) {
 	results, err := vm.RunScript(script, "GetComponents", 1, obj)
 	if err != nil {
 		return nil, fmt.Errorf("failed to run 'GetComponents' script: %w", err)
 	}
 
 	componentsResult := results[0]
-	var components []workv1alpha2.ComponentRequirements
+	var components []workv1alpha2.Component
 
 	switch componentsResult.Type() {
 	case lua.LTTable:

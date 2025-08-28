@@ -281,7 +281,7 @@ func TestGetComponents(t *testing.T) {
 		object         runtime.Object
 		luaScript      string
 		wantErr        bool
-		wantComponents []workv1alpha2.ComponentRequirements
+		wantComponents []workv1alpha2.Component
 	}{
 		{
 			name:   "Successfully parse multiple PodSpec templates from a mock workload",
@@ -310,11 +310,11 @@ function GetComponents(obj)
 end
 `,
 			wantErr: false,
-			wantComponents: []workv1alpha2.ComponentRequirements{
+			wantComponents: []workv1alpha2.Component{
 				{
 					Name:     "master",
 					Replicas: 1,
-					ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
+					ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
 						NodeClaim: &workv1alpha2.NodeClaim{
 							NodeSelector: map[string]string{"foo": "foo1"},
 							Tolerations:  []corev1.Toleration{{Key: "bar", Operator: corev1.TolerationOpExists}},
@@ -328,7 +328,7 @@ end
 				{
 					Name:     "worker",
 					Replicas: 3,
-					ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
+					ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
 						ResourceRequest: map[corev1.ResourceName]resource.Quantity{
 							corev1.ResourceCPU:    resource.MustParse("500m"),
 							corev1.ResourceMemory: resource.MustParse("2Gi"),

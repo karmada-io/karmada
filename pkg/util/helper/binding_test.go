@@ -1283,10 +1283,10 @@ func TestCalculateResourceUsage(t *testing.T) {
 						{Name: "cluster1"},
 						{Name: "cluster2"},
 					},
-					Components: []workv1alpha2.ComponentRequirements{
+					Components: []workv1alpha2.Component{
 						{
 							Replicas: 2,
-							ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
+							ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
 								ResourceRequest: corev1.ResourceList{
 									corev1.ResourceCPU:    resource.MustParse("500m"),
 									corev1.ResourceMemory: resource.MustParse("1Gi"),
@@ -1340,15 +1340,15 @@ func TestCalculateResourceUsage(t *testing.T) {
 func TestAggregateComponentResources(t *testing.T) {
 	tests := []struct {
 		name       string
-		components []workv1alpha2.ComponentRequirements
+		components []workv1alpha2.Component
 		expected   corev1.ResourceList
 	}{
 		{
 			name: "Aggregate resources from components",
-			components: []workv1alpha2.ComponentRequirements{
+			components: []workv1alpha2.Component{
 				{
 					Replicas: 2,
-					ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
+					ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
 						ResourceRequest: corev1.ResourceList{
 							corev1.ResourceCPU:    resource.MustParse("500m"),
 							corev1.ResourceMemory: resource.MustParse("1Gi"),
@@ -1357,7 +1357,7 @@ func TestAggregateComponentResources(t *testing.T) {
 				},
 				{
 					Replicas: 3,
-					ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
+					ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
 						ResourceRequest: corev1.ResourceList{
 							corev1.ResourceCPU:    resource.MustParse("1"),
 							corev1.ResourceMemory: resource.MustParse("2Gi"),
@@ -1372,10 +1372,10 @@ func TestAggregateComponentResources(t *testing.T) {
 		},
 		{
 			name: "No components",
-			components: []workv1alpha2.ComponentRequirements{
+			components: []workv1alpha2.Component{
 				{
 					Replicas: 0,
-					ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
+					ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
 						ResourceRequest: corev1.ResourceList{
 							corev1.ResourceCPU:    resource.MustParse("500m"),
 							corev1.ResourceMemory: resource.MustParse("1Gi"),
@@ -1387,7 +1387,7 @@ func TestAggregateComponentResources(t *testing.T) {
 		},
 		{
 			name:       "Empty components",
-			components: []workv1alpha2.ComponentRequirements{},
+			components: []workv1alpha2.Component{},
 			expected:   corev1.ResourceList{},
 		},
 	}
