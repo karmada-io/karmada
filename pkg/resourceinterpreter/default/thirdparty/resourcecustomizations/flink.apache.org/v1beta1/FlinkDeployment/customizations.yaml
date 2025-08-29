@@ -33,23 +33,20 @@ spec:
           return observedObj.status.error ~= nil
         end
     componentResource:
-      luaScript: >
+      luaScript: |
         local kube = require("kube")
 
         local function isempty(s)
           return s == nil or s == ''
         end
 
-        local function qty(v)
-          if v == nil then return nil end
-          return kube.getResourceQuantity(v)
-        end
-
         -- Safe fetch of deeply nested table fields.
         local function get(obj, path)
           local cur = obj
           for i = 1, #path do
-            if cur == nil then return nil end
+            if cur == nil then
+              return nil
+            end
             cur = cur[path[i]]
           end
           return cur
@@ -57,19 +54,50 @@ spec:
 
         -- Normalize possibly-string numbers with a default.
         local function to_num(v, default)
-          if v == nil or v == '' then return default end
+          if v == nil or v == '' then
+            return default
+          end
           local n = tonumber(v)
-          return n ~= nil and n or default
+          if n ~= nil then
+            return n
+          end
+          return default
+        end
+
+        -- JSON-safe deep clone: strings/numbers/booleans/tables. Needed to prevent shared table references.
+        local function clone_plain(val, seen)
+          local tv = type(val)
+          if tv ~= "table" then
+            if tv == "string" or tv == "number" or tv == "boolean" or tv == "nil" then
+              return val
+            end
+            return nil
+          end
+          seen = seen or {}
+          if seen[val] then return nil end
+          seen[val] = true
+          local out = {}
+          for k, v in pairs(val) do
+            local tk = type(k)
+            if tk == "string" or tk == "number" then
+              local cv = clone_plain(v, seen)
+              if cv ~= nil then out[k] = cv end
+            end
+          end
+          seen[val] = nil
+          return out
         end
 
         local function apply_pod_template(pt_spec, requires)
-          if pt_spec == nil then return end
+          if pt_spec == nil then
+            return
+          end
 
-          local nodeSelector = pt_spec.nodeSelector
-          local tolerations  = pt_spec.tolerations
+          local nodeSelector = clone_plain(pt_spec.nodeSelector)
+          local tolerations  = clone_plain(pt_spec.tolerations)
           local priority     = pt_spec.priorityClassName
 
-          -- Only create nodeClaim if there’s content
+          -- Only create nodeClaim if there is content
           if nodeSelector ~= nil or tolerations ~= nil then
             requires.nodeClaim = requires.nodeClaim or {}
             requires.nodeClaim.nodeSelector = nodeSelector
@@ -85,27 +113,29 @@ spec:
           local components = {}
           local pt_spec = get(observedObj, {"spec","podTemplate","spec"})
 
-          -- ===== JobManager =====
+          -- JobManager
+
           local jm_replicas = to_num(get(observedObj, {"spec","jobManager","replicas"}), 1)
 
           local jm_requires = {
-            resourceRequest = {},
+            resourceRequest = {}
           }
 
           local jm_cpu    = get(observedObj, {"spec","jobManager","resource","cpu"})
           local jm_memory = get(observedObj, {"spec","jobManager","resource","memory"})
-          jm_requires.resourceRequest.cpu    = qty(jm_cpu)
-          jm_requires.resourceRequest.memory = qty(jm_memory)
+          jm_requires.resourceRequest.cpu    = jm_cpu
+          jm_requires.resourceRequest.memory = kube.getResourceQuantity(jm_memory)
           apply_pod_template(pt_spec, jm_requires)
 
           local jobManagerComponent = {
             name = "jobmanager",
             replicas = jm_replicas,
-            replicaRequirements = jm_requires,
+            replicaRequirements = jm_requires
           }
           table.insert(components, jobManagerComponent)
 
-          -- ===== TaskManager =====
+          -- TaskManager
+
           local tm_replicas = to_num(get(observedObj, {"spec","taskManager","replicas"}), nil)
           if tm_replicas == nil then
             local parallelism = to_num(get(observedObj, {"spec","job","parallelism"}), nil)
@@ -118,19 +148,19 @@ spec:
           end
 
           local tm_requires = {
-            resourceRequest = {},
+            resourceRequest = {}
           }
 
           local tm_cpu    = get(observedObj, {"spec","taskManager","resource","cpu"})
           local tm_memory = get(observedObj, {"spec","taskManager","resource","memory"})
-          tm_requires.resourceRequest.cpu    = qty(tm_cpu)
-          tm_requires.resourceRequest.memory = qty(tm_memory)
+          tm_requires.resourceRequest.cpu    = tm_cpu
+          tm_requires.resourceRequest.memory = kube.getResourceQuantity(tm_memory)
           apply_pod_template(pt_spec, tm_requires)
 
           local taskManagerComponent = {
             name = "taskmanager",
             replicas = tm_replicas,
-            replicaRequirements = tm_requires,
+            replicaRequirements = tm_requires
           }
           table.insert(components, taskManagerComponent)
 
