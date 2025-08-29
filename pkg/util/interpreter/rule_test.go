@@ -152,12 +152,13 @@ func TestReplicaResourceRule_Document(t *testing.T) {
 	expected := `This rule is used to discover the resource's replica as well as resource requirements.
 The script should implement a function as follows:
 function GetReplicas(desiredObj)
-  replica = desiredObj.spec.replicas
-  nodeClaim = {}
-  nodeClaim.hardNodeAffinity = {}
-  nodeClaim.nodeSelector = {}
-  nodeClaim.tolerations = {}
-  return replica, nodeClaim
+  local replica = desiredObj.spec.replicas
+  local requirement = {}
+  requirement.nodeClaim = {}
+  requirement.nodeClaim.nodeSelector = desiredObj.spec.template.spec.nodeSelector
+  requirement.nodeClaim.tolerations = desiredObj.spec.template.spec.tolerations
+  requirement.resourceRequest = desiredObj.spec.template.spec.containers[1].resources.limits
+  return replica, requirement
 end`
 	assert.Equal(t, expected, rule.Document())
 }
@@ -200,16 +201,16 @@ func TestReplicaResourceRule_GetScript(t *testing.T) {
 }
 
 func TestReplicaResourceRule_SetScript(t *testing.T) {
-	c := &configv1alpha1.ResourceInterpreterCustomization{
-		Spec: configv1alpha1.ResourceInterpreterCustomizationSpec{
-			Customizations: configv1alpha1.CustomizationRules{
-				ReplicaResource: &configv1alpha1.ReplicaResourceRequirement{},
-			},
-		},
-	}
 	r := &replicaResourceRule{}
 
 	t.Run("Empty Script", func(t *testing.T) {
+		c := &configv1alpha1.ResourceInterpreterCustomization{
+			Spec: configv1alpha1.ResourceInterpreterCustomizationSpec{
+				Customizations: configv1alpha1.CustomizationRules{
+					ReplicaResource: &configv1alpha1.ReplicaResourceRequirement{},
+				},
+			},
+		}
 		r.SetScript(c, "")
 		if c.Spec.Customizations.ReplicaResource != nil {
 			t.Errorf("Expected ReplicaResource to be nil, but got %v", c.Spec.Customizations.ReplicaResource)
@@ -217,7 +218,11 @@ func TestReplicaResourceRule_SetScript(t *testing.T) {
 	})
 
 	t.Run("Non-Empty Script", func(t *testing.T) {
-		c.Spec.Customizations.ReplicaResource = nil
+		c := &configv1alpha1.ResourceInterpreterCustomization{
+			Spec: configv1alpha1.ResourceInterpreterCustomizationSpec{
+				Customizations: configv1alpha1.CustomizationRules{},
+			},
+		}
 		script := "test script"
 		r.SetScript(c, script)
 		if c.Spec.Customizations.ReplicaResource == nil {
@@ -225,6 +230,105 @@ func TestReplicaResourceRule_SetScript(t *testing.T) {
 		}
 		if c.Spec.Customizations.ReplicaResource.LuaScript != "test script" {
 			t.Errorf("Expected ReplicaResource.LuaScript to be %s, but got %s", script, c.Spec.Customizations.ReplicaResource.LuaScript)
+		}
+	})
+}
+
+func TestComponentResourceRule_Name(t *testing.T) {
+	r := &componentResourceRule{}
+	expected := string(configv1alpha1.InterpreterOperationInterpretComponent)
+	actual := r.Name()
+	assert.Equal(t, expected, actual, "Name should return %v", expected)
+}
+
+func TestComponentResourceRule_Document(t *testing.T) {
+	rule := &componentResourceRule{}
+	expected := `This rule is used to discover the resource's components.
+The script should implement a function as follows:
+function GetComponents(desiredObj)
+  local components = {}
+  local jobManagerComponent = {
+	name = "jobmanager",
+	replicas = desiredObj.spec.jobManager.replicas
+  }
+  table.insert(components, jobManagerComponent)
+  local taskManagerComponent = {
+	name = "taskmanager",
+	replicas = desiredObj.spec.taskManager.replicas
+  }
+  table.insert(components, taskManagerComponent)
+  return components
+end`
+	assert.Equal(t, expected, rule.Document())
+}
+
+func TestComponentResourceRule_GetScript(t *testing.T) {
+	t.Run("WithScript", func(t *testing.T) {
+		c := &configv1alpha1.ResourceInterpreterCustomization{
+			Spec: configv1alpha1.ResourceInterpreterCustomizationSpec{
+				Customizations: configv1alpha1.CustomizationRules{
+					ComponentResource: &configv1alpha1.ComponentResourceRequirement{
+						LuaScript: "return 'test script'",
+					},
+				},
+			},
+		}
+		r := &componentResourceRule{}
+		script := r.GetScript(c)
+		expectedScript := c.Spec.Customizations.ComponentResource.LuaScript
+		if script != expectedScript {
+			t.Errorf("GetScript() returned %q, expected %q", script, expectedScript)
+		}
+	})
+
+	t.Run("WithoutScript", func(t *testing.T) {
+		c := &configv1alpha1.ResourceInterpreterCustomization{
+			Spec: configv1alpha1.ResourceInterpreterCustomizationSpec{
+				Customizations: configv1alpha1.CustomizationRules{
+					ComponentResource: nil,
+				},
+			},
+		}
+
+		rule := &componentResourceRule{}
+		script := rule.GetScript(c)
+
+		if script != "" {
+			t.Errorf("GetScript() returned %q, expected an empty string", script)
+		}
+	})
+}
+
+func TestComponentResourceRule_SetScript(t *testing.T) {
+	r := &componentResourceRule{}
+
+	t.Run("Empty Script", func(t *testing.T) {
+		c := &configv1alpha1.ResourceInterpreterCustomization{
+			Spec: configv1alpha1.ResourceInterpreterCustomizationSpec{
+				Customizations: configv1alpha1.CustomizationRules{
+					ComponentResource: &configv1alpha1.ComponentResourceRequirement{},
+				},
+			},
+		}
+		r.SetScript(c, "")
+		if c.Spec.Customizations.ComponentResource != nil {
+			t.Errorf("Expected ComponentResource to be nil, but got %v", c.Spec.Customizations.ComponentResource)
+		}
+	})
+
+	t.Run("Non-Empty Script", func(t *testing.T) {
+		c := &configv1alpha1.ResourceInterpreterCustomization{
+			Spec: configv1alpha1.ResourceInterpreterCustomizationSpec{
+				Customizations: configv1alpha1.CustomizationRules{},
+			},
+		}
+		script := "test script"
+		r.SetScript(c, script)
+		if c.Spec.Customizations.ComponentResource == nil {
+			t.Errorf("Expected ComponentResource to be non-nil, but got nil")
+		}
+		if c.Spec.Customizations.ComponentResource.LuaScript != "test script" {
+			t.Errorf("Expected ComponentResource.LuaScript to be %s, but got %s", script, c.Spec.Customizations.ComponentResource.LuaScript)
 		}
 	})
 }

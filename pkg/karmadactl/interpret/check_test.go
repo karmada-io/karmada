@@ -66,6 +66,7 @@ TARGET: apps/v1 Deployment
 RULERS:
     Retain:                  PASS
     InterpretReplica:        ERROR: <string> line:1(column:10) near 'format':   parse error   
+    InterpretComponent:      UNSET
     ReviseReplica:           UNSET
     InterpretStatus:         UNSET
     AggregateStatus:         UNSET
@@ -87,6 +88,7 @@ TARGET: apps/v1 Deployment
 RULERS:
     Retain:                  PASS
     InterpretReplica:        PASS
+    InterpretComponent:      PASS
     ReviseReplica:           PASS
     InterpretStatus:         PASS
     AggregateStatus:         PASS

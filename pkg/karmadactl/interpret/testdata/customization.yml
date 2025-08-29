@@ -26,6 +26,25 @@ spec:
           }
           return replica, requirement
         end
+    componentResource:
+      luaScript: >
+        function GetComponents(obj)
+          local components = {}
+          local replica = obj.spec.replicas
+          local requirement = {
+            resourceRequest = obj.spec.template.spec.containers[1].resources.limits,
+            nodeClaim = {
+              nodeSelector = obj.spec.template.spec.nodeSelector,
+              tolerations = obj.spec.template.spec.tolerations
+            }
+          }
+          table.insert(components, {
+            name = "master",
+            replicas = replica,
+            replicaRequirements = requirement
+          })
+          return components
+        end
     replicaRevision:
       luaScript: >
         function ReviseReplica(obj, desiredReplica)
