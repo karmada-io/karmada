@@ -579,3 +579,18 @@ func aggregateComponentResources(components []workv1alpha2.ComponentRequirements
 	}
 	return aggregatedResources
 }
+
+// FindTargetStatusItemByCluster finds the AggregatedStatusItem by cluster name.
+func FindTargetStatusItemByCluster(aggregatedStatusItems []workv1alpha2.AggregatedStatusItem, cluster string) (workv1alpha2.AggregatedStatusItem, bool) {
+	if len(aggregatedStatusItems) == 0 {
+		return workv1alpha2.AggregatedStatusItem{}, false
+	}
+
+	for index, statusItem := range aggregatedStatusItems {
+		if statusItem.ClusterName == cluster {
+			return aggregatedStatusItems[index], true
+		}
+	}
+
+	return workv1alpha2.AggregatedStatusItem{}, false
+}

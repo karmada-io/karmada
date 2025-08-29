@@ -17,21 +17,19 @@ limitations under the License.
 package applicationfailover
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"sync"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/client-go/util/jsonpath"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/features"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 type workloadUnhealthyMap struct {
@@ -126,55 +124,6 @@ func distinguishUnhealthyClustersWithOthers(aggregatedStatusItems []workv1alpha2
 	return unhealthyClusters, others
 }
 
-func buildPreservedLabelState(statePreservation *policyv1alpha1.StatePreservation, rawStatus []byte) (map[string]string, error) {
-	results := make(map[string]string, len(statePreservation.Rules))
-	for _, rule := range statePreservation.Rules {
-		value, err := parseJSONValue(rawStatus, rule.JSONPath)
-		if err != nil {
-			klog.ErrorS(err, "Failed to parse value with jsonPath from status",
-				"jsonPath", rule.JSONPath,
-				"status", string(rawStatus))
-			return nil, err
-		}
-		results[rule.AliasLabelName] = value
-	}
-
-	return results, nil
-}
-
-func parseJSONValue(rawStatus []byte, jsonPath string) (string, error) {
-	template := jsonPath
-	j := jsonpath.New(jsonPath)
-	j.AllowMissingKeys(false)
-	err := j.Parse(template)
-	if err != nil {
-		return "", err
-	}
-
-	buf := new(bytes.Buffer)
-	unmarshalled := make(map[string]interface{})
-	_ = json.Unmarshal(rawStatus, &unmarshalled)
-	err = j.Execute(buf, unmarshalled)
-	if err != nil {
-		return "", err
-	}
-	return buf.String(), nil
-}
-
-func findTargetStatusItemByCluster(aggregatedStatusItems []workv1alpha2.AggregatedStatusItem, cluster string) (workv1alpha2.AggregatedStatusItem, bool) {
-	if len(aggregatedStatusItems) == 0 {
-		return workv1alpha2.AggregatedStatusItem{}, false
-	}
-
-	for index, statusItem := range aggregatedStatusItems {
-		if statusItem.ClusterName == cluster {
-			return aggregatedStatusItems[index], true
-		}
-	}
-
-	return workv1alpha2.AggregatedStatusItem{}, false
-}
-
 func getClusterNamesFromTargetClusters(targetClusters []workv1alpha2.TargetCluster) []string {
 	if targetClusters == nil {
 		return nil
@@ -195,11 +144,11 @@ func buildTaskOptions(failoverBehavior *policyv1alpha1.ApplicationFailoverBehavi
 
 	if features.FeatureGate.Enabled(features.StatefulFailoverInjection) {
 		if failoverBehavior.StatePreservation != nil && len(failoverBehavior.StatePreservation.Rules) != 0 {
-			targetStatusItem, exist := findTargetStatusItemByCluster(aggregatedStatus, cluster)
+			targetStatusItem, exist := helper.FindTargetStatusItemByCluster(aggregatedStatus, cluster)
 			if !exist || targetStatusItem.Status == nil || targetStatusItem.Status.Raw == nil {
 				return nil, fmt.Errorf("the application status has not yet been collected from Cluster(%s)", cluster)
 			}
-			preservedLabelState, err := buildPreservedLabelState(failoverBehavior.StatePreservation, targetStatusItem.Status.Raw)
+			preservedLabelState, err := helper.BuildPreservedLabelState(failoverBehavior.StatePreservation, targetStatusItem.Status.Raw)
 			if err != nil {
 				return nil, err
 			}
