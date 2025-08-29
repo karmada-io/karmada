@@ -611,6 +611,196 @@ func TestFindOrphanWorks(t *testing.T) {
 	}
 }
 
+func TestFindWorksInClusters(t *testing.T) {
+	type args struct {
+		c                client.Client
+		bindingNamespace string
+		bindingName      string
+		bindingID        string
+		targetClusters   sets.Set[string]
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    []workv1alpha1.Work
+		wantErr bool
+	}{
+		{
+			name: "namespace scope: no works in target clusters",
+			args: args{
+				c: fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(
+					&workv1alpha1.Work{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:            "work1",
+							Namespace:       names.ExecutionSpacePrefix + "cluster1",
+							ResourceVersion: "999",
+							Labels: map[string]string{
+								workv1alpha2.ResourceBindingPermanentIDLabel: "binding-id",
+							},
+						},
+					},
+					&workv1alpha1.Work{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:            "work2",
+							Namespace:       names.ExecutionSpacePrefix + "cluster2",
+							ResourceVersion: "999",
+							Labels: map[string]string{
+								workv1alpha2.ResourceBindingPermanentIDLabel: "binding-id",
+							},
+						},
+					},
+				).WithIndex(
+					&workv1alpha1.Work{},
+					indexregistry.WorkIndexByLabelResourceBindingID,
+					indexregistry.GenLabelIndexerFunc(workv1alpha2.ResourceBindingPermanentIDLabel),
+				).Build(),
+				bindingNamespace: "default",
+				bindingName:      "test-binding",
+				bindingID:        "binding-id",
+				targetClusters:   sets.New("cluster3"),
+			},
+			want:    nil,
+			wantErr: false,
+		},
+		{
+			name: "namespace scope: some works in target clusters",
+			args: args{
+				c: fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(
+					&workv1alpha1.Work{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:            "work1",
+							Namespace:       names.ExecutionSpacePrefix + "cluster1",
+							ResourceVersion: "999",
+							Labels: map[string]string{
+								workv1alpha2.ResourceBindingPermanentIDLabel: "binding-id",
+							},
+						},
+					},
+					&workv1alpha1.Work{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:            "work2",
+							Namespace:       names.ExecutionSpacePrefix + "cluster2",
+							ResourceVersion: "999",
+							Labels: map[string]string{
+								workv1alpha2.ResourceBindingPermanentIDLabel: "binding-id",
+							},
+						},
+					},
+				).WithIndex(
+					&workv1alpha1.Work{},
+					indexregistry.WorkIndexByLabelResourceBindingID,
+					indexregistry.GenLabelIndexerFunc(workv1alpha2.ResourceBindingPermanentIDLabel),
+				).Build(),
+				bindingNamespace: "default",
+				bindingName:      "test-binding",
+				bindingID:        "binding-id",
+				targetClusters:   sets.New("cluster1"),
+			},
+			want: []workv1alpha1.Work{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "work1",
+						Namespace:       names.ExecutionSpacePrefix + "cluster1",
+						ResourceVersion: "999",
+						Labels: map[string]string{
+							workv1alpha2.ResourceBindingPermanentIDLabel: "binding-id",
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "namespace scope: error getting cluster name",
+			args: args{
+				c: fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(
+					&workv1alpha1.Work{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:            "work1",
+							Namespace:       "invalid-namespace",
+							ResourceVersion: "999",
+							Labels: map[string]string{
+								workv1alpha2.ResourceBindingPermanentIDLabel: "binding-id",
+							},
+						},
+					},
+				).WithIndex(
+					&workv1alpha1.Work{},
+					indexregistry.WorkIndexByLabelResourceBindingID,
+					indexregistry.GenLabelIndexerFunc(workv1alpha2.ResourceBindingPermanentIDLabel),
+				).Build(),
+				bindingNamespace: "default",
+				bindingName:      "test-binding",
+				bindingID:        "binding-id",
+				targetClusters:   sets.New("cluster1"),
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "cluster scope: some works in target clusters",
+			args: args{
+				c: fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(
+					&workv1alpha1.Work{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:            "work3",
+							Namespace:       names.ExecutionSpacePrefix + "clusterA",
+							ResourceVersion: "999",
+							Labels: map[string]string{
+								workv1alpha2.ClusterResourceBindingPermanentIDLabel: "cluster-binding-id",
+							},
+						},
+					},
+					&workv1alpha1.Work{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:            "work4",
+							Namespace:       names.ExecutionSpacePrefix + "clusterB",
+							ResourceVersion: "999",
+							Labels: map[string]string{
+								workv1alpha2.ClusterResourceBindingPermanentIDLabel: "cluster-binding-id",
+							},
+						},
+					},
+				).WithIndex(
+					&workv1alpha1.Work{},
+					indexregistry.WorkIndexByLabelClusterResourceBindingID,
+					indexregistry.GenLabelIndexerFunc(workv1alpha2.ClusterResourceBindingPermanentIDLabel),
+				).Build(),
+				bindingNamespace: "",
+				bindingName:      "cluster-binding",
+				bindingID:        "cluster-binding-id",
+				targetClusters:   sets.New("clusterA"),
+			},
+			want: []workv1alpha1.Work{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "work3",
+						Namespace:       names.ExecutionSpacePrefix + "clusterA",
+						ResourceVersion: "999",
+						Labels: map[string]string{
+							workv1alpha2.ClusterResourceBindingPermanentIDLabel: "cluster-binding-id",
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := FindWorksInClusters(context.TODO(), tt.args.c, tt.args.bindingNamespace, tt.args.bindingName, tt.args.bindingID, tt.args.targetClusters)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("FindWorksInClusters() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("FindWorksInClusters() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestRemoveOrphanWorks(t *testing.T) {
 	makeWork := func(name string) *workv1alpha1.Work {
 		return &workv1alpha1.Work{
@@ -1464,6 +1654,51 @@ func TestFindTargetStatusItemByCluster(t *testing.T) {
 			} else {
 				assert.Nil(t, item.Status)
 				assert.Nil(t, tt.expectedItem.Status)
+			}
+		})
+	}
+}
+
+func TestObtainClustersWithPurgeModeDirectly(t *testing.T) {
+	tests := []struct {
+		name         string
+		bindingSpec  workv1alpha2.ResourceBindingSpec
+		wantClusters sets.Set[string]
+	}{
+		{
+			name: "Multiple clusters with different PurgeModes",
+			bindingSpec: workv1alpha2.ResourceBindingSpec{
+				GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{
+					{
+						FromCluster: "cluster1",
+						PurgeMode:   policyv1alpha1.PurgeModeDirectly,
+					},
+					{
+						FromCluster: "cluster2",
+						PurgeMode:   policyv1alpha1.PurgeModeDirectly,
+					},
+					{
+						FromCluster: "cluster3",
+						PurgeMode:   policyv1alpha1.PurgeModeGracefully,
+					},
+				},
+			},
+			wantClusters: sets.New("cluster1", "cluster2"),
+		},
+		{
+			name: "Empty GracefulEvictionTasks",
+			bindingSpec: workv1alpha2.ResourceBindingSpec{
+				GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{},
+			},
+			wantClusters: sets.New[string](),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotClusters := ObtainClustersWithPurgeModeDirectly(tt.bindingSpec)
+			if !gotClusters.Equal(tt.wantClusters) {
+				t.Errorf("ObtainClustersWithPurgeModeDirectly() = %v, want %v", gotClusters.UnsortedList(), tt.wantClusters.UnsortedList())
 			}
 		})
 	}

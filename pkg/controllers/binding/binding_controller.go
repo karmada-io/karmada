@@ -113,6 +113,17 @@ func (c *ResourceBindingController) syncBinding(ctx context.Context, binding *wo
 		return controllerruntime.Result{}, err
 	}
 
+	needWaitForCleanup, err := c.checkDirectPurgeOrphanWorks(ctx, binding)
+	if err != nil {
+		return controllerruntime.Result{}, err
+	}
+	if needWaitForCleanup {
+		msg := fmt.Sprintf("There are works in clusters with PurgeMode 'Directly' not deleted for ResourceBinding(%s/%s), skip syncing works",
+			binding.Namespace, binding.Name)
+		klog.V(4).InfoS(msg, "namespace", binding.GetNamespace(), "binding", binding.GetName())
+		return controllerruntime.Result{RequeueAfter: requeueIntervalForDirectlyPurge}, nil
+	}
+
 	workload, err := helper.FetchResourceTemplate(ctx, c.DynamicClient, c.InformerManager, c.RESTMapper, binding.Spec.Resource)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -158,6 +169,18 @@ func (c *ResourceBindingController) removeOrphanWorks(ctx context.Context, bindi
 	}
 
 	return nil
+}
+
+// checkDirectPurgeOrphanWorks checks whether there are orphan works in clusters with PurgeMode 'Directly'.
+func (c *ResourceBindingController) checkDirectPurgeOrphanWorks(ctx context.Context, binding *workv1alpha2.ResourceBinding) (bool, error) {
+	works, err := helper.FindWorksInClusters(ctx, c.Client, binding.Namespace, binding.Name,
+		binding.Labels[workv1alpha2.ResourceBindingPermanentIDLabel], helper.ObtainClustersWithPurgeModeDirectly(binding.Spec))
+	if err != nil {
+		klog.ErrorS(err, "Failed to find orphaned works in clusters with PurgeMode 'Directly'", "namespace", binding.GetNamespace(), "binding", binding.GetName())
+		return false, err
+	}
+
+	return len(works) > 0, nil
 }
 
 // SetupWithManager creates a controller and register to controller manager.
