@@ -548,7 +548,7 @@ func CalculateResourceUsage(rb *workv1alpha2.ResourceBinding) corev1.ResourceLis
 	return usage
 }
 
-func aggregateComponentResources(components []workv1alpha2.ComponentRequirements) corev1.ResourceList {
+func aggregateComponentResources(components []workv1alpha2.Component) corev1.ResourceList {
 	aggregatedResources := corev1.ResourceList{}
 	for _, component := range components {
 		if component.ReplicaRequirements == nil || len(component.ReplicaRequirements.ResourceRequest) == 0 {

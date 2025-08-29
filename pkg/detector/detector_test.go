@@ -1105,7 +1105,7 @@ func (m *mockRESTMapper) ResourceSingularizer(resource string) (string, error) {
 // mockResourceInterpreter is a mock implementation of the ResourceInterpreter interface
 type mockResourceInterpreter struct{}
 
-func (m *mockResourceInterpreter) GetComponents(_ *unstructured.Unstructured) ([]workv1alpha2.ComponentRequirements, error) {
+func (m *mockResourceInterpreter) GetComponents(_ *unstructured.Unstructured) ([]workv1alpha2.Component, error) {
 	return nil, nil
 }
 

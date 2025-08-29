@@ -272,8 +272,8 @@ spec:
                   Note: This field is intended to replace the legacy ReplicaRequirements and Replicas fields above.
                   It is only populated when the MultiplePodTemplatesScheduling feature gate is enabled.
                 items:
-                  description: ComponentRequirements represents the requirements for
-                    a specific component.
+                  description: Component represents the requirements for a specific
+                    component.
                   properties:
                     name:
                       description: |-
@@ -286,9 +286,6 @@ spec:
                       description: ReplicaRequirements represents the requirements
                         required by each replica for this component.
                       properties:
-                        namespace:
-                          description: Namespace represents the resources namespaces
-                          type: string
                         nodeClaim:
                           description: NodeClaim represents the node claim HardNodeAffinity,
                             NodeSelector and Tolerations required by each replica.

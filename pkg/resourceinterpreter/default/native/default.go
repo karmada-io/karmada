@@ -112,7 +112,7 @@ func (e *DefaultInterpreter) ReviseReplica(object *unstructured.Unstructured, re
 }
 
 // GetComponents returns the resource requirements for multiple components from the given object.
-func (e *DefaultInterpreter) GetComponents(_ *unstructured.Unstructured) ([]workv1alpha2.ComponentRequirements, error) {
+func (e *DefaultInterpreter) GetComponents(_ *unstructured.Unstructured) ([]workv1alpha2.Component, error) {
 	return nil, errors.New("no plan to implement this method yet")
 }
 

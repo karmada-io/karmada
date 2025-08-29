@@ -95,7 +95,7 @@ type ResourceBindingSpec struct {
 	// Note: This field is intended to replace the legacy ReplicaRequirements and Replicas fields above.
 	// It is only populated when the MultiplePodTemplatesScheduling feature gate is enabled.
 	// +optional
-	Components []ComponentRequirements `json:"components,omitempty"`
+	Components []Component `json:"components,omitempty"`
 
 	// Clusters represents target member clusters where the resource to be deployed.
 	// +optional
@@ -223,8 +223,8 @@ type ReplicaRequirements struct {
 	PriorityClassName string `json:"priorityClassName,omitempty"`
 }
 
-// ComponentRequirements represents the requirements for a specific component.
-type ComponentRequirements struct {
+// Component represents the requirements for a specific component.
+type Component struct {
 	// Name of this component.
 	// It is required when the resource contains multiple components to ensure proper identification,
 	// and must also be unique within the same resource.
@@ -238,7 +238,22 @@ type ComponentRequirements struct {
 
 	// ReplicaRequirements represents the requirements required by each replica for this component.
 	// +optional
-	ReplicaRequirements *ReplicaRequirements `json:"replicaRequirements,omitempty"`
+	ReplicaRequirements *ComponentReplicaRequirements `json:"replicaRequirements,omitempty"`
+}
+
+// ComponentReplicaRequirements represents the requirements required by each replica.
+type ComponentReplicaRequirements struct {
+	// NodeClaim represents the node claim HardNodeAffinity, NodeSelector and Tolerations required by each replica.
+	// +optional
+	NodeClaim *NodeClaim `json:"nodeClaim,omitempty"`
+
+	// ResourceRequest represents the resources required by each replica.
+	// +optional
+	ResourceRequest corev1.ResourceList `json:"resourceRequest,omitempty"`
+
+	// PriorityClassName represents the resources priorityClassName
+	// +optional
+	PriorityClassName string `json:"priorityClassName,omitempty"`
 }
 
 // NodeClaim represents the node claim HardNodeAffinity, NodeSelector and Tolerations required by each replica.
