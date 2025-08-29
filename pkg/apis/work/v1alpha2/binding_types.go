@@ -229,8 +229,8 @@ type Component struct {
 	// It is required when the resource contains multiple components to ensure proper identification,
 	// and must also be unique within the same resource.
 	// +kubebuilder:validation:MaxLength=32
-	// +optional
-	Name string `json:"name,omitempty"`
+	// +required
+	Name string `json:"name"`
 
 	// Replicas represents the replica number of the resource's component.
 	// +required

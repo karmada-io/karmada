@@ -21216,12 +21216,14 @@
       "description": "Component represents the requirements for a specific component.",
       "type": "object",
       "required": [
+        "name",
         "replicas"
       ],
       "properties": {
         "name": {
           "description": "Name of this component. It is required when the resource contains multiple components to ensure proper identification, and must also be unique within the same resource.",
-          "type": "string"
+          "type": "string",
+          "default": ""
         },
         "replicaRequirements": {
           "description": "ReplicaRequirements represents the requirements required by each replica for this component.",

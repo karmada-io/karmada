@@ -26,6 +26,7 @@ import (
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -72,7 +73,12 @@ func (v *ValidatingAdmission) Handle(ctx context.Context, req admission.Request)
 		return admission.Denied(err.Error())
 	}
 
-	// further validation can be added here if needed
+	if features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) {
+		if err := v.validateComponents(rb.Spec.Components, field.NewPath("spec").Child("components")); err != nil {
+			klog.Errorf("Admission denied for ResourceBinding %s/%s: %v", rb.Namespace, rb.Name, err)
+			return admission.Denied(err.Error())
+		}
+	}
 
 	return admission.Allowed("")
 }
@@ -322,6 +328,22 @@ func (v *ValidatingAdmission) processSingleFRQ(frqItem *policyv1alpha1.Federated
 	msg := fmt.Sprintf("Quota check passed for FRQ %s/%s.", frqItem.Namespace, frqItem.Name)
 	klog.V(3).Infof("FRQ %s/%s will be updated. New OverallUsed: %v", frqItem.Namespace, frqItem.Name, potentialNewOverallUsedForThisFRQ)
 	return potentialNewOverallUsedForThisFRQ, msg, nil
+}
+
+// validateComponents checks the validity of the Components field in the ResourceBinding.
+func (v *ValidatingAdmission) validateComponents(components []workv1alpha2.Component, fldPath *field.Path) error {
+	var allErrs field.ErrorList
+	componentNames := make(map[string]struct{})
+	for index, component := range components {
+		if len(component.Name) == 0 {
+			allErrs = append(allErrs, field.Invalid(fldPath.Index(index).Child("name"), component.Name, "component names must be non-empty"))
+		} else if _, exists := componentNames[component.Name]; exists {
+			allErrs = append(allErrs, field.Invalid(fldPath.Index(index).Child("name"), component.Name, "component names must be unique"))
+		} else {
+			componentNames[component.Name] = struct{}{}
+		}
+	}
+	return allErrs.ToAggregate()
 }
 
 func isQuotaRelevantFieldChanged(oldRB, newRB *workv1alpha2.ResourceBinding) bool {
