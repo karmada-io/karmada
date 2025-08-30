@@ -478,12 +478,7 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 			bindingCopy.Spec.ConflictResolution = binding.Spec.ConflictResolution
 			bindingCopy.Spec.PreserveResourcesOnDeletion = binding.Spec.PreserveResourcesOnDeletion
 			bindingCopy.Spec.SchedulePriority = binding.Spec.SchedulePriority
-			if binding.Spec.Suspension != nil {
-				if bindingCopy.Spec.Suspension == nil {
-					bindingCopy.Spec.Suspension = &workv1alpha2.Suspension{}
-				}
-				bindingCopy.Spec.Suspension.Suspension = binding.Spec.Suspension.Suspension
-			}
+			bindingCopy.Spec.Suspension = util.MergePolicySuspension(bindingCopy.Spec.Suspension, policy.Spec.Suspension)
 			excludeClusterPolicy(bindingCopy)
 			return nil
 		})
@@ -574,12 +569,7 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 				bindingCopy.Spec.ConflictResolution = binding.Spec.ConflictResolution
 				bindingCopy.Spec.PreserveResourcesOnDeletion = binding.Spec.PreserveResourcesOnDeletion
 				bindingCopy.Spec.SchedulePriority = binding.Spec.SchedulePriority
-				if binding.Spec.Suspension != nil {
-					if bindingCopy.Spec.Suspension == nil {
-						bindingCopy.Spec.Suspension = &workv1alpha2.Suspension{}
-					}
-					bindingCopy.Spec.Suspension.Suspension = binding.Spec.Suspension.Suspension
-				}
+				bindingCopy.Spec.Suspension = util.MergePolicySuspension(bindingCopy.Spec.Suspension, policy.Spec.Suspension)
 				return nil
 			})
 			return err
@@ -627,12 +617,7 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 				bindingCopy.Spec.Failover = binding.Spec.Failover
 				bindingCopy.Spec.ConflictResolution = binding.Spec.ConflictResolution
 				bindingCopy.Spec.PreserveResourcesOnDeletion = binding.Spec.PreserveResourcesOnDeletion
-				if binding.Spec.Suspension != nil {
-					if bindingCopy.Spec.Suspension == nil {
-						bindingCopy.Spec.Suspension = &workv1alpha2.Suspension{}
-					}
-					bindingCopy.Spec.Suspension.Suspension = binding.Spec.Suspension.Suspension
-				}
+				bindingCopy.Spec.Suspension = util.MergePolicySuspension(bindingCopy.Spec.Suspension, policy.Spec.Suspension)
 				return nil
 			})
 			return err
