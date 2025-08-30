@@ -373,6 +373,51 @@ func (d *ResourceDetector) listCPPDerivedCRBs(policyID, policyName string) (*wor
 	return bindings, nil
 }
 
+func (d *ResourceDetector) isClaimedByLazyPolicy(obj *unstructured.Unstructured) (bool, error) {
+	policyAnnotations := obj.GetAnnotations()
+	policyLabels := obj.GetLabels()
+	policyNamespace := util.GetAnnotationValue(policyAnnotations, policyv1alpha1.PropagationPolicyNamespaceAnnotation)
+	policyName := util.GetAnnotationValue(policyAnnotations, policyv1alpha1.PropagationPolicyNameAnnotation)
+	claimedID := util.GetLabelValue(policyLabels, policyv1alpha1.PropagationPolicyPermanentIDLabel)
+	if policyNamespace != "" && policyName != "" && claimedID != "" {
+		policyObject, err := d.propagationPolicyLister.ByNamespace(policyNamespace).Get(policyName)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				return false, nil
+			}
+
+			return false, err
+		}
+		matchedPropagationPolicy := &policyv1alpha1.PropagationPolicy{}
+		if err = helper.ConvertToTypedObject(policyObject, matchedPropagationPolicy); err != nil {
+			return false, err
+		}
+
+		return util.IsLazyActivationEnabled(matchedPropagationPolicy.Spec.ActivationPreference), nil
+	}
+
+	policyName = util.GetAnnotationValue(policyAnnotations, policyv1alpha1.ClusterPropagationPolicyAnnotation)
+	claimedID = util.GetLabelValue(policyLabels, policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel)
+	if policyName != "" && claimedID != "" {
+		policyObject, err := d.clusterPropagationPolicyLister.Get(policyName)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				return false, nil
+			}
+
+			return false, err
+		}
+		matchedClusterPropagationPolicy := &policyv1alpha1.ClusterPropagationPolicy{}
+		if err = helper.ConvertToTypedObject(policyObject, matchedClusterPropagationPolicy); err != nil {
+			return false, err
+		}
+
+		return util.IsLazyActivationEnabled(matchedClusterPropagationPolicy.Spec.ActivationPreference), nil
+	}
+
+	return false, nil
+}
+
 // excludeClusterPolicy excludes cluster propagation policy.
 // If propagation policy was claimed, cluster propagation policy should not exist.
 func excludeClusterPolicy(obj metav1.Object) (hasClaimedClusterPolicy bool) {

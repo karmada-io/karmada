@@ -431,7 +431,6 @@ func TestOnUpdate(t *testing.T) {
 		oldObj                    interface{}
 		newObj                    interface{}
 		expectedEnqueue           bool
-		expectedChangeByKarmada   bool
 		expectToUnstructuredError bool
 	}{
 		{
@@ -462,8 +461,7 @@ func TestOnUpdate(t *testing.T) {
 					},
 				},
 			},
-			expectedEnqueue:         true,
-			expectedChangeByKarmada: false,
+			expectedEnqueue: true,
 		},
 		{
 			name: "update without changes",
@@ -526,8 +524,7 @@ func TestOnUpdate(t *testing.T) {
 					},
 				},
 			},
-			expectedEnqueue:         true,
-			expectedChangeByKarmada: true,
+			expectedEnqueue: true,
 		},
 		{
 			name: "core v1 object",
@@ -575,7 +572,6 @@ func TestOnUpdate(t *testing.T) {
 				assert.IsType(t, ResourceItem{}, mockProcessor.lastEnqueued, "Enqueued item should be of type ResourceItem")
 				enqueued := mockProcessor.lastEnqueued.(ResourceItem)
 				assert.Equal(t, tt.newObj, enqueued.Obj, "Enqueued object should match the new object")
-				assert.Equal(t, tt.expectedChangeByKarmada, enqueued.ResourceChangeByKarmada, "ResourceChangeByKarmada flag should match expected value")
 			} else {
 				assert.Equal(t, 0, mockProcessor.enqueueCount, "Object should not be enqueued")
 			}
@@ -969,6 +965,71 @@ func TestApplyClusterPolicy(t *testing.T) {
 					assert.Equal(t, tt.object.GetName(), binding.Spec.Resource.Name)
 				}
 			}
+		})
+	}
+}
+
+func TestEnqueueResourceKeyWithActivationPref(t *testing.T) {
+	testClusterWideKey := keys.ClusterWideKey{
+		Group:     "foo",
+		Version:   "foo",
+		Kind:      "foo",
+		Namespace: "foo",
+		Name:      "foo",
+	}
+	tests := []struct {
+		name string
+		key  keys.ClusterWideKey
+		pref policyv1alpha1.ActivationPreference
+		want keys.ClusterWideKeyWithConfig
+	}{
+		{
+			name: "lazy pp and resourceChangeByKarmada is true",
+			key:  testClusterWideKey,
+			pref: policyv1alpha1.LazyActivation,
+			want: keys.ClusterWideKeyWithConfig{
+				ClusterWideKey:          testClusterWideKey,
+				ResourceChangeByKarmada: true,
+			},
+		},
+		{
+			name: "non-lazy ignores ResourceChangeByKarmada",
+			key:  testClusterWideKey,
+			pref: "",
+			want: keys.ClusterWideKeyWithConfig{
+				ClusterWideKey:          testClusterWideKey,
+				ResourceChangeByKarmada: false,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			detector := ResourceDetector{
+				Processor: util.NewAsyncWorker(util.Options{
+					Name:    "resource detector",
+					KeyFunc: ResourceItemKeyFunc,
+					ReconcileFunc: func(key util.QueueKey) (err error) {
+						defer cancel()
+						defer func() {
+							assert.NoError(t, err)
+						}()
+						clusterWideKeyWithConfig, ok := key.(keys.ClusterWideKeyWithConfig)
+						if !ok {
+							err = fmt.Errorf("invalid key")
+							return err
+						}
+						if clusterWideKeyWithConfig != tt.want {
+							err = fmt.Errorf("unexpected key. want:%+v, got:%+v", tt.want, clusterWideKeyWithConfig)
+							return err
+						}
+						return nil
+					},
+				}),
+			}
+			detector.Processor.Run(1, ctx.Done())
+			detector.enqueueResourceTemplateForPolicyChange(tt.key, tt.pref)
+			<-ctx.Done()
 		})
 	}
 }
