@@ -90,6 +90,35 @@ func TestEnsureKarmadaWebhook(t *testing.T) {
 
 	if pdbCount != 1 {
 		t.Errorf("expected 1 PDB action, but got %d", pdbCount)
+	// We now create deployment, service, and PDB, so expect 3 actions
+	if len(actions) != 3 {
+		t.Fatalf("expected 3 actions, but got %d", len(actions))
+	}
+
+	// Check that we have deployment, service, and PDB
+	deploymentCount := 0
+	serviceCount := 0
+	pdbCount := 0
+	for _, action := range actions {
+		if action.GetResource().Resource == "deployments" {
+			deploymentCount++
+		} else if action.GetResource().Resource == "services" {
+			serviceCount++
+		} else if action.GetResource().Resource == "poddisruptionbudgets" {
+			pdbCount++
+		}
+	}
+
+	if deploymentCount != 1 {
+		t.Errorf("expected 1 deployment action, but got %d", deploymentCount)
+	}
+
+	if serviceCount != 1 {
+		t.Errorf("expected 1 service action, but got %d", serviceCount)
+	}
+
+	if pdbCount != 1 {
+		t.Errorf("expected 1 PDB action, but got %d", pdbCount)
 	}
 }
 
@@ -183,12 +212,12 @@ func TestCreateKarmadaWebhookService(t *testing.T) {
 }
 
 // verifyDeploymentCreation validates the details of a Deployment against the expected parameters.
-func verifyDeploymentCreation(client *fakeclientset.Clientset) (*appsv1.Deployment, error) {
+func verifyDeploymentCreation(client *fakeclientset.Clientset, replicas int32, imagePullPolicy corev1.PullPolicy, featureGates map[string]bool, extraArgs map[string]string, name, namespace, image, imageTag, priorityClassName string) error {
 	// Assert that a Deployment and PDB were created.
 	actions := client.Actions()
 	// We now create both deployment and PDB, so expect 2 actions
 	if len(actions) != 2 {
-		return nil, fmt.Errorf("expected exactly 2 actions (deployment + PDB), but got %d actions", len(actions))
+		return fmt.Errorf("expected exactly 2 actions (deployment + PDB), but got %d actions", len(actions))
 	}
 
 	// Find the deployment action
@@ -197,7 +226,7 @@ func verifyDeploymentCreation(client *fakeclientset.Clientset) (*appsv1.Deployme
 		if action.GetResource().Resource == "deployments" {
 			createAction, ok := action.(coretesting.CreateAction)
 			if !ok {
-				return nil, fmt.Errorf("expected a CreateAction for deployment, but got %T", action)
+				return fmt.Errorf("expected a CreateAction for deployment, but got %T", action)
 			}
 			deployment = createAction.GetObject().(*appsv1.Deployment)
 			break
@@ -205,10 +234,58 @@ func verifyDeploymentCreation(client *fakeclientset.Clientset) (*appsv1.Deployme
 	}
 
 	if deployment == nil {
-		return nil, fmt.Errorf("expected deployment action, but none found")
+		return fmt.Errorf("expected deployment action, but none found")
 	}
 
-	return deployment, nil
+	// Validate the deployment details
+	if deployment.Name != util.KarmadaWebhookName(name) {
+		return fmt.Errorf("expected deployment name '%s', but got '%s'", util.KarmadaWebhookName(name), deployment.Name)
+	}
+
+	if deployment.Namespace != namespace {
+		return fmt.Errorf("expected deployment namespace '%s', but got '%s'", namespace, deployment.Namespace)
+	}
+
+	if deployment.Spec.Template.Spec.PriorityClassName != priorityClassName {
+		return fmt.Errorf("expected priorityClassName to be set to %s, but got %s", priorityClassName, deployment.Spec.Template.Spec.PriorityClassName)
+	}
+
+	if deployment.Spec.Replicas == nil || *deployment.Spec.Replicas != replicas {
+		return fmt.Errorf("expected replicas to be %d, but got %d", replicas, deployment.Spec.Replicas)
+	}
+
+	containers := deployment.Spec.Template.Spec.Containers
+	if len(containers) != 1 {
+		return fmt.Errorf("expected exactly 1 container, but got %d", len(containers))
+	}
+
+	expectedImage := fmt.Sprintf("%s:%s", image, imageTag)
+	container := containers[0]
+	if container.Image != expectedImage {
+		return fmt.Errorf("expected container image '%s', but got '%s'", expectedImage, container.Image)
+	}
+
+	if container.ImagePullPolicy != imagePullPolicy {
+		return fmt.Errorf("expected image pull policy '%s', but got '%s'", imagePullPolicy, container.ImagePullPolicy)
+	}
+
+	// Validate feature gates
+	for key, value := range featureGates {
+		expectedArg := fmt.Sprintf("--feature-gates=%s=%t", key, value)
+		if !contains(container.Command, expectedArg) {
+			return fmt.Errorf("expected container commands to include '%s', but it was missing", expectedArg)
+		}
+	}
+
+	// Validate extra args
+	for key, value := range extraArgs {
+		expectedArg := fmt.Sprintf("--%s=%s", key, value)
+		if !contains(container.Command, expectedArg) {
+			return fmt.Errorf("expected container commands to include '%s', but it was missing", expectedArg)
+		}
+	}
+
+	return nil
 }
 
 // verifyDeploymentDetails validates the details of a Deployment against the expected parameters.
