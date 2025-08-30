@@ -26,7 +26,9 @@ import (
 	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
 
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
+	"github.com/karmada-io/karmada/operator/pkg/constants"
 	"github.com/karmada-io/karmada/operator/pkg/controlplane/etcd"
+	"github.com/karmada-io/karmada/operator/pkg/controlplane/pdb"
 	"github.com/karmada-io/karmada/operator/pkg/util"
 	"github.com/karmada-io/karmada/operator/pkg/util/apiclient"
 	"github.com/karmada-io/karmada/operator/pkg/util/patcher"
@@ -77,6 +79,12 @@ func installKarmadaSearch(client clientset.Interface, cfg *operatorv1alpha1.Karm
 	if err := apiclient.CreateOrUpdateDeployment(client, searchDeployment); err != nil {
 		return fmt.Errorf("error when creating deployment for %s, err: %w", searchDeployment.Name, err)
 	}
+
+	// Ensure PDB for the search component if configured
+	if err := pdb.EnsurePodDisruptionBudget(constants.KarmadaSearch, name, namespace, &cfg.CommonSettings, client); err != nil {
+		return fmt.Errorf("failed to ensure PDB for search component, err: %w", err)
+	}
+
 	return nil
 }
 
