@@ -445,7 +445,7 @@ func TestMergePolicySuspension(t *testing.T) {
 			},
 		},
 		{
-			name: "binding suspension only preserves scheduling when policy suspension nil",
+			name: "cleanup of binding suspension preserves scheduling field",
 			bindingSuspension: &workv1alpha2.Suspension{
 				Suspension: policyv1alpha1.Suspension{
 					Dispatching: ptr.To(true),
@@ -499,7 +499,7 @@ func TestMergePolicySuspension(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := MergePolicySuspension(tt.bindingSuspension, tt.policySuspension)
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("UpdateBindingSuspension() got = %v, want %v", got, tt.want)
+				t.Errorf("MergePolicySuspension() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
