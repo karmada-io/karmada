@@ -1161,7 +1161,7 @@ var _ = ginkgo.Describe("[AdvancedCase] PropagationPolicy testing", func() {
 	})
 })
 
-var _ = ginkgo.Describe("[Suspension] PropagationPolicy testing", func() {
+var _ = ginkgo.Describe("Suspension: PropagationPolicy testing", func() {
 	var policy *policyv1alpha1.PropagationPolicy
 	var deployment *appsv1.Deployment
 	var targetMember string
@@ -1190,6 +1190,12 @@ var _ = ginkgo.Describe("[Suspension] PropagationPolicy testing", func() {
 			func(*appsv1.Deployment) bool {
 				return true
 			})
+		ginkgo.By("update the pp suspension dispatching to true", func() {
+			policy.Spec.Suspension = &policyv1alpha1.Suspension{
+				Dispatching: ptr.To(true),
+			}
+			framework.UpdatePropagationPolicyWithSpec(karmadaClient, policy.Namespace, policy.Name, policy.Spec)
+		})
 		ginkgo.DeferCleanup(func() {
 			framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 			framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
@@ -1197,13 +1203,6 @@ var _ = ginkgo.Describe("[Suspension] PropagationPolicy testing", func() {
 	})
 
 	ginkgo.It("suspend the PP dispatching", func() {
-		ginkgo.By("update the pp suspension dispatching to true", func() {
-			policy.Spec.Suspension = &policyv1alpha1.Suspension{
-				Dispatching: ptr.To(true),
-			}
-			framework.UpdatePropagationPolicyWithSpec(karmadaClient, policy.Namespace, policy.Name, policy.Spec)
-		})
-
 		ginkgo.By("check RB suspension spec", func() {
 			framework.WaitResourceBindingFitWith(karmadaClient, deployment.Namespace, names.GenerateBindingName(deployment.Kind, deployment.Name),
 				func(binding *workv1alpha2.ResourceBinding) bool {
@@ -1246,13 +1245,31 @@ var _ = ginkgo.Describe("[Suspension] PropagationPolicy testing", func() {
 		})
 	})
 
-	ginkgo.It("suspension resume", func() {
+	ginkgo.It("suspension resume by setting policy suspension to a empty structure", func() {
 		ginkgo.By("update deployment replicas", func() {
 			framework.UpdateDeploymentReplicas(kubeClient, deployment, updateDeploymentReplicas)
 		})
 
 		ginkgo.By("resume the propagationPolicy", func() {
 			policy.Spec.Suspension = &policyv1alpha1.Suspension{}
+			framework.UpdatePropagationPolicyWithSpec(karmadaClient, policy.Namespace, policy.Name, policy.Spec)
+		})
+
+		ginkgo.By("check deployment replicas", func() {
+			framework.WaitDeploymentPresentOnClusterFitWith(targetMember, deployment.Namespace, deployment.Name,
+				func(d *appsv1.Deployment) bool {
+					return *d.Spec.Replicas == updateDeploymentReplicas
+				})
+		})
+	})
+
+	ginkgo.It("suspension resume by setting policy suspension to nil", func() {
+		ginkgo.By("update deployment replicas", func() {
+			framework.UpdateDeploymentReplicas(kubeClient, deployment, updateDeploymentReplicas)
+		})
+
+		ginkgo.By("resume the propagationPolicy", func() {
+			policy.Spec.Suspension = nil
 			framework.UpdatePropagationPolicyWithSpec(karmadaClient, policy.Namespace, policy.Name, policy.Spec)
 		})
 

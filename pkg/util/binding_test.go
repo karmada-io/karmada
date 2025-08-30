@@ -23,6 +23,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/utils/ptr"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -415,6 +416,90 @@ func TestRescheduleRequired(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := RescheduleRequired(tt.rescheduleTriggeredAt, tt.lastScheduledTime); got != tt.want {
 				t.Errorf("RescheduleRequired() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMergePolicySuspension(t *testing.T) {
+	tests := []struct {
+		name              string
+		bindingSuspension *workv1alpha2.Suspension
+		policySuspension  *policyv1alpha1.Suspension
+		want              *workv1alpha2.Suspension
+	}{
+		{
+			name:              "both nil returns nil",
+			bindingSuspension: nil,
+			policySuspension:  nil,
+			want:              nil,
+		},
+		{
+			name: "binding suspension only preserves scheduling when policy suspension nil",
+			bindingSuspension: &workv1alpha2.Suspension{
+				Scheduling: ptr.To(true),
+			},
+			policySuspension: nil,
+			want: &workv1alpha2.Suspension{
+				Scheduling: ptr.To(true),
+			},
+		},
+		{
+			name: "binding suspension only preserves scheduling when policy suspension nil",
+			bindingSuspension: &workv1alpha2.Suspension{
+				Suspension: policyv1alpha1.Suspension{
+					Dispatching: ptr.To(true),
+				},
+				Scheduling: ptr.To(true),
+			},
+			policySuspension: nil,
+			want: &workv1alpha2.Suspension{
+				Scheduling: ptr.To(true),
+			},
+		},
+		{
+			name: "if the scheduling not set and policy suspension nil, will return nil",
+			bindingSuspension: &workv1alpha2.Suspension{
+				Suspension: policyv1alpha1.Suspension{
+					Dispatching: ptr.To(true),
+				},
+			},
+			policySuspension: nil,
+			want:             nil,
+		},
+		{
+			name:              "policy suspension set and no existing binding creates new suspension from policy",
+			bindingSuspension: nil,
+			policySuspension: &policyv1alpha1.Suspension{
+				Dispatching: ptr.To(true),
+			},
+			want: &workv1alpha2.Suspension{
+				Suspension: policyv1alpha1.Suspension{
+					Dispatching: ptr.To(true),
+				},
+			},
+		},
+		{
+			name: "should merge policy suspension and binding suspension",
+			bindingSuspension: &workv1alpha2.Suspension{
+				Scheduling: ptr.To(true),
+			},
+			policySuspension: &policyv1alpha1.Suspension{
+				Dispatching: ptr.To(true),
+			},
+			want: &workv1alpha2.Suspension{
+				Suspension: policyv1alpha1.Suspension{
+					Dispatching: ptr.To(true),
+				},
+				Scheduling: ptr.To(true),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := MergePolicySuspension(tt.bindingSuspension, tt.policySuspension)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("UpdateBindingSuspension() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
