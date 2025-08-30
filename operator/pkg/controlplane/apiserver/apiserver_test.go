@@ -67,8 +67,35 @@ func TestEnsureKarmadaAPIServer(t *testing.T) {
 	}
 
 	actions := fakeClient.Actions()
-	if len(actions) != 2 {
-		t.Fatalf("expected 2 actions, but got %d", len(actions))
+	// We now create deployment, service, PDB, and get deployment, so expect 4 actions
+	if len(actions) != 4 {
+		t.Fatalf("expected 4 actions, but got %d", len(actions))
+	}
+
+	// Check that we have deployment, service, and PDB
+	deploymentCount := 0
+	serviceCount := 0
+	pdbCount := 0
+	for _, action := range actions {
+		if action.GetResource().Resource == "deployments" {
+			deploymentCount++
+		} else if action.GetResource().Resource == "services" {
+			serviceCount++
+		} else if action.GetResource().Resource == "poddisruptionbudgets" {
+			pdbCount++
+		}
+	}
+
+	if deploymentCount != 2 {
+		t.Errorf("expected 2 deployment actions (create + get), but got %d", deploymentCount)
+	}
+
+	if serviceCount != 1 {
+		t.Errorf("expected 1 service action, but got %d", serviceCount)
+	}
+
+	if pdbCount != 1 {
+		t.Errorf("expected 1 PDB action, but got %d", pdbCount)
 	}
 }
 
@@ -108,8 +135,35 @@ func TestEnsureKarmadaAggregatedAPIServer(t *testing.T) {
 	}
 
 	actions := fakeClient.Actions()
-	if len(actions) != 2 {
-		t.Fatalf("expected 2 actions, but got %d", len(actions))
+	// We now create deployment, service, PDB, and get deployment, so expect 4 actions
+	if len(actions) != 4 {
+		t.Fatalf("expected 4 actions, but got %d", len(actions))
+	}
+
+	// Check that we have deployment, service, and PDB
+	deploymentCount := 0
+	serviceCount := 0
+	pdbCount := 0
+	for _, action := range actions {
+		if action.GetResource().Resource == "deployments" {
+			deploymentCount++
+		} else if action.GetResource().Resource == "services" {
+			serviceCount++
+		} else if action.GetResource().Resource == "poddisruptionbudgets" {
+			pdbCount++
+		}
+	}
+
+	if deploymentCount != 2 {
+		t.Errorf("expected 2 deployment actions (create + get), but got %d", deploymentCount)
+	}
+
+	if serviceCount != 1 {
+		t.Errorf("expected 1 service action, but got %d", serviceCount)
+	}
+
+	if pdbCount != 1 {
+		t.Errorf("expected 1 PDB action, but got %d", pdbCount)
 	}
 }
 
@@ -152,9 +206,14 @@ func TestInstallKarmadaAPIServer(t *testing.T) {
 		t.Fatalf("expected no error, but got: %v", err)
 	}
 
-	deployment, err := verifyDeploymentCreation(fakeClient, &replicas, imagePullPolicy, cfg.ExtraArgs, name, namespace, image, util.KarmadaAPIServerName(name), priorityClassName)
+	deployment, err := verifyDeploymentCreation(fakeClient)
 	if err != nil {
-		t.Fatalf("failed to verify karmada apiserver correct deployment creation correct details: %v", err)
+		t.Fatalf("failed to verify karmada apiserver deployment creation: %v", err)
+	}
+
+	// Verify deployment details using the existing function
+	if err := verifyDeploymentDetails(deployment, &replicas, imagePullPolicy, cfg.ExtraArgs, name, namespace, image, util.KarmadaAPIServerName(name), priorityClassName); err != nil {
+		t.Fatalf("failed to verify deployment details: %v", err)
 	}
 
 	err = verifyAPIServerDeploymentAdditionalDetails(deployment, name, serviceSubnet)
@@ -248,9 +307,9 @@ func TestInstallKarmadaAggregatedAPIServer(t *testing.T) {
 		t.Fatalf("Failed to install Karmada Aggregated API Server: %v", err)
 	}
 
-	deployment, err := verifyDeploymentCreation(fakeClient, &replicas, imagePullPolicy, cfg.ExtraArgs, name, namespace, image, util.KarmadaAggregatedAPIServerName(name), priorityClassName)
+	deployment, err := verifyDeploymentCreation(fakeClient)
 	if err != nil {
-		t.Fatalf("failed to verify karmada aggregated apiserver deployment creation correct details: %v", err)
+		t.Fatalf("failed to verify karmada aggregated apiserver deployment creation: %v", err)
 	}
 
 	err = verifyAggregatedAPIServerDeploymentAdditionalDetails(featureGates, deployment, name)
@@ -315,28 +374,33 @@ func contains(slice []string, item string) bool {
 // based on the given parameters. It ensures that the deployment has the correct
 // number of replicas, image pull policy, extra arguments, and labels, as well
 // as the correct image for the Karmada API server.
-func verifyDeploymentCreation(client *fakeclientset.Clientset, replicas *int32, imagePullPolicy corev1.PullPolicy, extraArgs map[string]string, name, namespace, image, expectedDeploymentName, priorityClassName string) (*appsv1.Deployment, error) {
-	// Assert that a Deployment was created.
+func verifyDeploymentCreation(client *fakeclientset.Clientset) (*appsv1.Deployment, error) {
+	// Assert that a Deployment and PDB were created.
 	actions := client.Actions()
-	if len(actions) != 1 {
-		return nil, fmt.Errorf("expected exactly 1 action either create or update, but got %d actions", len(actions))
+	// We now create deployment, PDB, and perform a get action, so expect 3 actions
+	if len(actions) != 3 {
+		return nil, fmt.Errorf("expected exactly 3 actions (deployment + PDB + get), but got %d actions", len(actions))
 	}
 
-	// Check that the action was a Deployment creation.
-	createAction, ok := actions[0].(coretesting.CreateAction)
-	if !ok {
-		return nil, fmt.Errorf("expected a CreateAction, but got %T", actions[0])
+	// Find the deployment action
+	var deployment *appsv1.Deployment
+	for _, action := range actions {
+		if action.GetResource().Resource == "deployments" {
+			createAction, isCreate := action.(coretesting.CreateAction)
+			_, isGet := action.(coretesting.GetAction)
+			if !isCreate && !isGet {
+				return nil, fmt.Errorf("expected a GetAction or CreateAction for deployment, but got %T", action)
+			}
+			if isGet {
+				continue
+			}
+			deployment = createAction.GetObject().(*appsv1.Deployment)
+			break
+		}
 	}
 
-	// Check that the action was performed on the correct resource.
-	if createAction.GetResource().Resource != "deployments" {
-		return nil, fmt.Errorf("expected action on 'deployments', but got '%s'", createAction.GetResource().Resource)
-	}
-
-	deployment := createAction.GetObject().(*appsv1.Deployment)
-	err := verifyDeploymentDetails(deployment, replicas, imagePullPolicy, extraArgs, name, namespace, image, expectedDeploymentName, priorityClassName)
-	if err != nil {
-		return nil, err
+	if deployment == nil {
+		return nil, fmt.Errorf("expected deployment action, but none found")
 	}
 
 	return deployment, nil

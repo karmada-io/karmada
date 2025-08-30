@@ -20,7 +20,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	fakeclientset "k8s.io/client-go/kubernetes/fake"
-	coretesting "k8s.io/client-go/testing"
 	"k8s.io/utils/ptr"
 
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
@@ -111,19 +110,31 @@ func TestEnsureAllControlPlaneComponents(t *testing.T) {
 	}
 
 	actions := fakeClient.Actions()
-	if len(actions) != len(components) {
-		t.Fatalf("expected %d actions, but got %d", len(components), len(actions))
+	// We now create both deployments and PDBs,include get the deployment. so expect 3 actions per component
+	expectedActions := len(components) * 3
+	if len(actions) != expectedActions {
+		t.Fatalf("expected %d actions, but got %d", expectedActions, len(actions))
 	}
 
+	// Check that we have both deployments and PDBs
+	deploymentCount := 0
+	pdbCount := 0
 	for _, action := range actions {
-		createAction, ok := action.(coretesting.CreateAction)
-		if !ok {
-			t.Errorf("expected CreateAction, but got %T", action)
+		if action.GetResource().Resource == "deployments" {
+			deploymentCount++
+		} else if action.GetResource().Resource == "poddisruptionbudgets" {
+			pdbCount++
 		}
+	}
 
-		if createAction.GetResource().Resource != "deployments" {
-			t.Errorf("expected action on 'deployments', but got '%s'", createAction.GetResource().Resource)
-		}
+	// Each component has 2 deployment actions (create + get) and 1 PDB action
+	expectedDeployments := len(components) * 2
+	if deploymentCount != expectedDeployments {
+		t.Errorf("expected %d deployment actions (create + get for each component), but got %d", expectedDeployments, deploymentCount)
+	}
+
+	if pdbCount != len(components) {
+		t.Errorf("expected %d PDB actions, but got %d", len(components), pdbCount)
 	}
 }
 

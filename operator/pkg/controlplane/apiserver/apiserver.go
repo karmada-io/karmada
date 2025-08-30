@@ -17,17 +17,21 @@ limitations under the License.
 package apiserver
 
 import (
+	"context"
 	"fmt"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	kuberuntime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	clientset "k8s.io/client-go/kubernetes"
 	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
 
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	"github.com/karmada-io/karmada/operator/pkg/controlplane/etcd"
+	"github.com/karmada-io/karmada/operator/pkg/controlplane/pdb"
 	"github.com/karmada-io/karmada/operator/pkg/util"
 	"github.com/karmada-io/karmada/operator/pkg/util/apiclient"
 	"github.com/karmada-io/karmada/operator/pkg/util/patcher"
@@ -87,6 +91,18 @@ func installKarmadaAPIServer(client clientset.Interface, cfg *operatorv1alpha1.K
 	if err := apiclient.CreateOrUpdateDeployment(client, apiserverDeployment); err != nil {
 		return fmt.Errorf("error when creating deployment for %s, err: %w", apiserverDeployment.Name, err)
 	}
+
+	// Fetch persisted Deployment to get real UID
+	persisted, err := client.AppsV1().Deployments(namespace).Get(context.TODO(), apiserverDeployment.GetName(), metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to fetch Deployment %s/%s for PDB owner, err: %w", namespace, apiserverDeployment.GetName(), err)
+	}
+	gvk := schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Deployment"}
+	ownerRef := *metav1.NewControllerRef(persisted, gvk)
+	if err := pdb.EnsurePodDisruptionBudget(client, util.KarmadaAPIServerName(name), namespace, cfg.CommonSettings.PodDisruptionBudgetConfig, apiserverDeployment.Spec.Template.Labels, []metav1.OwnerReference{ownerRef}); err != nil {
+		return fmt.Errorf("failed to ensure PDB for apiserver component %s, err: %w", util.KarmadaAPIServerName(name), err)
+	}
+
 	return nil
 }
 
@@ -158,6 +174,18 @@ func installKarmadaAggregatedAPIServer(client clientset.Interface, cfg *operator
 	if err := apiclient.CreateOrUpdateDeployment(client, aggregatedAPIServerDeployment); err != nil {
 		return fmt.Errorf("error when creating deployment for %s, err: %w", aggregatedAPIServerDeployment.Name, err)
 	}
+
+	// Fetch persisted Deployment to get real UID
+	persistedAgg, err := client.AppsV1().Deployments(namespace).Get(context.TODO(), aggregatedAPIServerDeployment.GetName(), metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to fetch Deployment %s/%s for PDB owner, err: %w", namespace, aggregatedAPIServerDeployment.GetName(), err)
+	}
+	gvk2 := schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Deployment"}
+	ownerRef2 := *metav1.NewControllerRef(persistedAgg, gvk2)
+	if err := pdb.EnsurePodDisruptionBudget(client, util.KarmadaAggregatedAPIServerName(name), namespace, cfg.CommonSettings.PodDisruptionBudgetConfig, aggregatedAPIServerDeployment.Spec.Template.Labels, []metav1.OwnerReference{ownerRef2}); err != nil {
+		return fmt.Errorf("failed to ensure PDB for aggregated apiserver component %s, err: %w", util.KarmadaAggregatedAPIServerName(name), err)
+	}
+
 	return nil
 }
 

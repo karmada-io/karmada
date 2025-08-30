@@ -17,16 +17,20 @@ limitations under the License.
 package controlplane
 
 import (
+	"context"
 	"fmt"
 
 	appsv1 "k8s.io/api/apps/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kuberuntime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	clientset "k8s.io/client-go/kubernetes"
 	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
 
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	"github.com/karmada-io/karmada/operator/pkg/constants"
+	"github.com/karmada-io/karmada/operator/pkg/controlplane/pdb"
 	"github.com/karmada-io/karmada/operator/pkg/util"
 	"github.com/karmada-io/karmada/operator/pkg/util/apiclient"
 	"github.com/karmada-io/karmada/operator/pkg/util/patcher"
@@ -48,6 +52,50 @@ func EnsureControlPlaneComponent(component, name, namespace string, featureGates
 	if err := apiclient.CreateOrUpdateDeployment(client, deployment); err != nil {
 		return fmt.Errorf("failed to create deployment resource for component %s, err: %w", component, err)
 	}
+
+	// Ensure PDB for the component if configured
+	// Map PascalCase component constants to naming functions for PDB
+	var (
+		commonSettings *operatorv1alpha1.CommonSettings
+		pdbName        string
+	)
+	switch component {
+	case constants.KarmadaControllerManagerComponent:
+		if cfg.KarmadaControllerManager != nil {
+			commonSettings = &cfg.KarmadaControllerManager.CommonSettings
+			pdbName = util.KarmadaControllerManagerName(name)
+		}
+	case constants.KubeControllerManagerComponent:
+		if cfg.KubeControllerManager != nil {
+			commonSettings = &cfg.KubeControllerManager.CommonSettings
+			pdbName = util.KubeControllerManagerName(name)
+		}
+	case constants.KarmadaSchedulerComponent:
+		if cfg.KarmadaScheduler != nil {
+			commonSettings = &cfg.KarmadaScheduler.CommonSettings
+			pdbName = util.KarmadaSchedulerName(name)
+		}
+	case constants.KarmadaDeschedulerComponent:
+		if cfg.KarmadaDescheduler != nil {
+			commonSettings = &cfg.KarmadaDescheduler.CommonSettings
+			pdbName = util.KarmadaDeschedulerName(name)
+		}
+	}
+
+	if commonSettings != nil {
+		// Fetch the persisted Deployment to ensure UID is populated
+		persisted, err := client.AppsV1().Deployments(namespace).Get(context.TODO(), deployment.GetName(), metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to fetch Deployment %s/%s for PDB owner, err: %w", namespace, deployment.GetName(), err)
+		}
+		// Build OwnerReference for controller with real UID
+		gvk := schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Deployment"}
+		ownerRef := *metav1.NewControllerRef(persisted, gvk)
+		if err := pdb.EnsurePodDisruptionBudget(client, pdbName, namespace, commonSettings.PodDisruptionBudgetConfig, deployment.Spec.Template.Labels, []metav1.OwnerReference{ownerRef}); err != nil {
+			return fmt.Errorf("failed to ensure PDB for component %s (instance: %s), err: %w", component, pdbName, err)
+		}
+	}
+
 	return nil
 }
 
