@@ -67,8 +67,35 @@ func TestEnsureKarmadaAPIServer(t *testing.T) {
 	}
 
 	actions := fakeClient.Actions()
-	if len(actions) != 2 {
-		t.Fatalf("expected 2 actions, but got %d", len(actions))
+	// We now create deployment, service, and PDB, so expect 3 actions
+	if len(actions) != 3 {
+		t.Fatalf("expected 3 actions, but got %d", len(actions))
+	}
+
+	// Check that we have deployment, service, and PDB
+	deploymentCount := 0
+	serviceCount := 0
+	pdbCount := 0
+	for _, action := range actions {
+		if action.GetResource().Resource == "deployments" {
+			deploymentCount++
+		} else if action.GetResource().Resource == "services" {
+			serviceCount++
+		} else if action.GetResource().Resource == "poddisruptionbudgets" {
+			pdbCount++
+		}
+	}
+
+	if deploymentCount != 1 {
+		t.Errorf("expected 1 deployment action, but got %d", deploymentCount)
+	}
+
+	if serviceCount != 1 {
+		t.Errorf("expected 1 service action, but got %d", serviceCount)
+	}
+
+	if pdbCount != 1 {
+		t.Errorf("expected 1 PDB action, but got %d", pdbCount)
 	}
 }
 
@@ -108,8 +135,35 @@ func TestEnsureKarmadaAggregatedAPIServer(t *testing.T) {
 	}
 
 	actions := fakeClient.Actions()
-	if len(actions) != 2 {
-		t.Fatalf("expected 2 actions, but got %d", len(actions))
+	// We now create deployment, service, and PDB, so expect 3 actions
+	if len(actions) != 3 {
+		t.Fatalf("expected 3 actions, but got %d", len(actions))
+	}
+
+	// Check that we have deployment, service, and PDB
+	deploymentCount := 0
+	serviceCount := 0
+	pdbCount := 0
+	for _, action := range actions {
+		if action.GetResource().Resource == "deployments" {
+			deploymentCount++
+		} else if action.GetResource().Resource == "services" {
+			serviceCount++
+		} else if action.GetResource().Resource == "poddisruptionbudgets" {
+			pdbCount++
+		}
+	}
+
+	if deploymentCount != 1 {
+		t.Errorf("expected 1 deployment action, but got %d", deploymentCount)
+	}
+
+	if serviceCount != 1 {
+		t.Errorf("expected 1 service action, but got %d", serviceCount)
+	}
+
+	if pdbCount != 1 {
+		t.Errorf("expected 1 PDB action, but got %d", pdbCount)
 	}
 }
 
@@ -316,24 +370,30 @@ func contains(slice []string, item string) bool {
 // number of replicas, image pull policy, extra arguments, and labels, as well
 // as the correct image for the Karmada API server.
 func verifyDeploymentCreation(client *fakeclientset.Clientset, replicas *int32, imagePullPolicy corev1.PullPolicy, extraArgs map[string]string, name, namespace, image, expectedDeploymentName, priorityClassName string) (*appsv1.Deployment, error) {
-	// Assert that a Deployment was created.
+	// Assert that a Deployment and PDB were created.
 	actions := client.Actions()
-	if len(actions) != 1 {
-		return nil, fmt.Errorf("expected exactly 1 action either create or update, but got %d actions", len(actions))
+	// We now create both deployment and PDB, so expect 2 actions
+	if len(actions) != 2 {
+		return nil, fmt.Errorf("expected exactly 2 actions (deployment + PDB), but got %d actions", len(actions))
 	}
 
-	// Check that the action was a Deployment creation.
-	createAction, ok := actions[0].(coretesting.CreateAction)
-	if !ok {
-		return nil, fmt.Errorf("expected a CreateAction, but got %T", actions[0])
+	// Find the deployment action
+	var deployment *appsv1.Deployment
+	for _, action := range actions {
+		if action.GetResource().Resource == "deployments" {
+			createAction, ok := action.(coretesting.CreateAction)
+			if !ok {
+				return nil, fmt.Errorf("expected a CreateAction for deployment, but got %T", action)
+			}
+			deployment = createAction.GetObject().(*appsv1.Deployment)
+			break
+		}
 	}
 
-	// Check that the action was performed on the correct resource.
-	if createAction.GetResource().Resource != "deployments" {
-		return nil, fmt.Errorf("expected action on 'deployments', but got '%s'", createAction.GetResource().Resource)
+	if deployment == nil {
+		return nil, fmt.Errorf("expected deployment action, but none found")
 	}
 
-	deployment := createAction.GetObject().(*appsv1.Deployment)
 	err := verifyDeploymentDetails(deployment, replicas, imagePullPolicy, extraArgs, name, namespace, image, expectedDeploymentName, priorityClassName)
 	if err != nil {
 		return nil, err

@@ -26,6 +26,8 @@ import (
 	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
 
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
+	"github.com/karmada-io/karmada/operator/pkg/constants"
+	"github.com/karmada-io/karmada/operator/pkg/controlplane/pdb"
 	"github.com/karmada-io/karmada/operator/pkg/util"
 	"github.com/karmada-io/karmada/operator/pkg/util/apiclient"
 	"github.com/karmada-io/karmada/operator/pkg/util/patcher"
@@ -70,6 +72,12 @@ func installKarmadaMetricAdapter(client clientset.Interface, cfg *operatorv1alph
 	if err := apiclient.CreateOrUpdateDeployment(client, metricAdapter); err != nil {
 		return fmt.Errorf("error when creating deployment for %s, err: %w", metricAdapter.Name, err)
 	}
+
+	// Ensure PDB for the metrics adapter component if configured
+	if err := pdb.EnsurePodDisruptionBudget(constants.KarmadaMetricsAdapter, name, namespace, &cfg.CommonSettings, client); err != nil {
+		return fmt.Errorf("failed to ensure PDB for metrics adapter component, err: %w", err)
+	}
+
 	return nil
 }
 

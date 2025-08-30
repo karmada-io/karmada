@@ -116,6 +116,16 @@ const (
 	// KarmadaMetricsAdapterComponent defines the name of the karmada-metrics-adapter component
 	KarmadaMetricsAdapterComponent = "KarmadaMetricsAdapter"
 
+	// Component Label Values - Used for actual Kubernetes labels
+	// These values match the app.kubernetes.io/name labels used in deployment templates
+	KarmadaControllerManager   = "karmada-controller-manager"
+	KarmadaScheduler           = "karmada-scheduler"
+	KarmadaWebhook             = "karmada-webhook"
+	KarmadaSearch              = "karmada-search"
+	KarmadaDescheduler         = "karmada-descheduler"
+	KarmadaMetricsAdapter      = "karmada-metrics-adapter"
+	KarmadaAggregatedAPIServer = "karmada-aggregated-apiserver"
+
 	// KarmadaOperatorLabelKeyName defines a label key used by all resources created by karmada operator
 	KarmadaOperatorLabelKeyName = "app.kubernetes.io/managed-by"
 
