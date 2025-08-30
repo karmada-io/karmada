@@ -30,6 +30,7 @@ import (
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	"github.com/karmada-io/karmada/operator/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/lifted"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func validateCRDTarball(crdTarball *operatorv1alpha1.CRDTarball, fldPath *field.Path) (errs field.ErrorList) {
@@ -97,6 +98,42 @@ func validateETCD(etcd *operatorv1alpha1.Etcd, karmadaName string, fldPath *fiel
 	return errs
 }
 
+// validateCommonSettings validates the common settings of a component, including PDB configuration
+func validateCommonSettings(commonSettings *operatorv1alpha1.CommonSettings, fldPath *field.Path) (errs field.ErrorList) {
+	if commonSettings == nil {
+		return nil
+	}
+
+	if commonSettings.PodDisruptionBudgetConfig != nil {
+		pdbConfig := commonSettings.PodDisruptionBudgetConfig
+		pdbPath := fldPath.Child("podDisruptionBudgetConfig")
+
+		// Check if both minAvailable and maxUnavailable are set (mutually exclusive)
+		if pdbConfig.MinAvailable != nil && pdbConfig.MaxUnavailable != nil {
+			errs = append(errs, field.Invalid(pdbPath, pdbConfig, "minAvailable and maxUnavailable are mutually exclusive, only one can be set"))
+		}
+
+		// Check if at least one of minAvailable or maxUnavailable is set
+		if pdbConfig.MinAvailable == nil && pdbConfig.MaxUnavailable == nil {
+			errs = append(errs, field.Invalid(pdbPath, pdbConfig, "either minAvailable or maxUnavailable must be set"))
+		}
+
+		// Validate minAvailable against replicas if replicas is set
+		if pdbConfig.MinAvailable != nil && commonSettings.Replicas != nil {
+			replicas := *commonSettings.Replicas
+			if pdbConfig.MinAvailable.Type == intstr.Int {
+				minAvailable := int32(pdbConfig.MinAvailable.IntValue())
+				if minAvailable > replicas {
+					errs = append(errs, field.Invalid(pdbPath.Child("minAvailable"), pdbConfig.MinAvailable,
+						fmt.Sprintf("minAvailable (%d) cannot be greater than replicas (%d)", minAvailable, replicas)))
+				}
+			}
+		}
+	}
+
+	return errs
+}
+
 func validate(karmada *operatorv1alpha1.Karmada) error {
 	var errs field.ErrorList
 
@@ -107,6 +144,32 @@ func validate(karmada *operatorv1alpha1.Karmada) error {
 
 		errs = append(errs, validateKarmadaAPIServer(components.KarmadaAPIServer, karmada.Spec.HostCluster, fldPath.Child("karmadaAPIServer"))...)
 		errs = append(errs, validateETCD(components.Etcd, karmada.Name, fldPath.Child("etcd"))...)
+
+		// Validate PDB configurations for all components
+		if components.KarmadaAPIServer != nil {
+			errs = append(errs, validateCommonSettings(&components.KarmadaAPIServer.CommonSettings, fldPath.Child("karmadaAPIServer"))...)
+		}
+		if components.KarmadaControllerManager != nil {
+			errs = append(errs, validateCommonSettings(&components.KarmadaControllerManager.CommonSettings, fldPath.Child("karmadaControllerManager"))...)
+		}
+		if components.KarmadaScheduler != nil {
+			errs = append(errs, validateCommonSettings(&components.KarmadaScheduler.CommonSettings, fldPath.Child("karmadaScheduler"))...)
+		}
+		if components.KarmadaWebhook != nil {
+			errs = append(errs, validateCommonSettings(&components.KarmadaWebhook.CommonSettings, fldPath.Child("karmadaWebhook"))...)
+		}
+		if components.KarmadaDescheduler != nil {
+			errs = append(errs, validateCommonSettings(&components.KarmadaDescheduler.CommonSettings, fldPath.Child("karmadaDescheduler"))...)
+		}
+		if components.KarmadaSearch != nil {
+			errs = append(errs, validateCommonSettings(&components.KarmadaSearch.CommonSettings, fldPath.Child("karmadaSearch"))...)
+		}
+		if components.KarmadaMetricsAdapter != nil {
+			errs = append(errs, validateCommonSettings(&components.KarmadaMetricsAdapter.CommonSettings, fldPath.Child("karmadaMetricsAdapter"))...)
+		}
+		if components.Etcd != nil && components.Etcd.Local != nil {
+			errs = append(errs, validateCommonSettings(&components.Etcd.Local.CommonSettings, fldPath.Child("etcd").Child("local"))...)
+		}
 	}
 
 	if len(errs) > 0 {
