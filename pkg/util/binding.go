@@ -110,3 +110,23 @@ func RescheduleRequired(rescheduleTriggeredAt, lastScheduledTime *metav1.Time) b
 	}
 	return rescheduleTriggeredAt.After(lastScheduledTime.Time)
 }
+
+// MergePolicySuspension merges the suspension configuration from policy to binding suspension.
+func MergePolicySuspension(bindingSuspension *workv1alpha2.Suspension, policySuspension *policyv1alpha1.Suspension) *workv1alpha2.Suspension {
+	if policySuspension != nil {
+		if bindingSuspension == nil {
+			bindingSuspension = &workv1alpha2.Suspension{}
+		}
+		bindingSuspension.Suspension = *policySuspension
+		return bindingSuspension
+	}
+	// policySuspension is nil, clean up binding's suspension part.
+	if bindingSuspension == nil {
+		return nil
+	}
+	bindingSuspension.Suspension = policyv1alpha1.Suspension{}
+	if bindingSuspension.Scheduling == nil {
+		return nil
+	}
+	return bindingSuspension
+}
