@@ -28,6 +28,7 @@ import (
 	"k8s.io/client-go/rest"
 	fakerest "k8s.io/client-go/rest/fake"
 
+	"github.com/karmada-io/karmada/operator/pkg/constants"
 	"github.com/karmada-io/karmada/operator/pkg/util"
 	"github.com/karmada-io/karmada/operator/pkg/util/apiclient"
 	"github.com/karmada-io/karmada/operator/pkg/workflow"
@@ -150,10 +151,36 @@ func TestNewWaitControlPlaneTask(t *testing.T) {
 				Run:         runWaitControlPlane,
 				RunSubTasks: true,
 				Tasks: []workflow.Task{
-					newWaitControlPlaneSubTask("KubeControllerManager", kubeControllerManagerLabels),
-					newWaitControlPlaneSubTask("KarmadaControllerManager", karmadaControllerManagerLabels),
-					newWaitControlPlaneSubTask("KarmadaScheduler", karmadaSchedulerLabels),
-					newWaitControlPlaneSubTask("KarmadaWebhook", karmadaWebhookLabels),
+					newWaitControlPlaneSubTask(constants.KubeControllerManagerComponent, kubeControllerManagerLabels, func(data InitData) int32 {
+						return *data.Components().KubeControllerManager.Replicas
+					}),
+					newWaitControlPlaneSubTask(constants.KarmadaControllerManagerComponent, karmadaControllerManagerLabels, func(data InitData) int32 {
+						return *data.Components().KarmadaControllerManager.Replicas
+					}),
+					newWaitControlPlaneSubTask(constants.KarmadaSchedulerComponent, karmadaSchedulerLabels, func(data InitData) int32 {
+						return *data.Components().KarmadaScheduler.Replicas
+					}),
+					newWaitControlPlaneSubTask(constants.KarmadaWebhookComponent, karmadaWebhookLabels, func(data InitData) int32 {
+						return *data.Components().KarmadaWebhook.Replicas
+					}),
+					newWaitControlPlaneSubTask(constants.KarmadaDeschedulerComponent, karmadaDeschedulerLabels, func(data InitData) int32 {
+						if data.Components().KarmadaDescheduler == nil {
+							return 0
+						}
+						return *data.Components().KarmadaDescheduler.Replicas
+					}),
+					newWaitControlPlaneSubTask(constants.KarmadaMetricsAdapterComponent, karmadaMetricAdapterLabels, func(data InitData) int32 {
+						if data.Components().KarmadaMetricsAdapter == nil {
+							return 0
+						}
+						return *data.Components().KarmadaMetricsAdapter.Replicas
+					}),
+					newWaitControlPlaneSubTask(constants.KarmadaSearchComponent, karmadaSearchLabels, func(data InitData) int32 {
+						if data.Components().KarmadaSearch == nil {
+							return 0
+						}
+						return *data.Components().KarmadaSearch.Replicas
+					}),
 				},
 			},
 		},
@@ -266,7 +293,9 @@ func TestRunWaitControlPlaneSubTask(t *testing.T) {
 				t.Errorf("failed to prep waiting for Karmada Controller Manager: %v", err)
 			}
 			karmadaControllerManagerName := getKarmadaControllerManagerName(test.runData)
-			waitForKarmadaControllerManager := runWaitControlPlaneSubTask(karmadaControllerManagerName, karmadaControllerManagerLabels)
+			waitForKarmadaControllerManager := runWaitControlPlaneSubTask(karmadaControllerManagerName, karmadaControllerManagerLabels, func(InitData) int32 {
+				return int32(1)
+			})
 			err := waitForKarmadaControllerManager(test.runData)
 			if err == nil && test.wantErr {
 				t.Errorf("expected error, but got none")
