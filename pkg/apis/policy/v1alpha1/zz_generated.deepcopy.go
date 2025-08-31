@@ -363,12 +363,22 @@ func (in *ClusterTaintPolicySpec) DeepCopyInto(out *ClusterTaintPolicySpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.AddOnSeconds != nil {
+		in, out := &in.AddOnSeconds, &out.AddOnSeconds
+		*out = new(int32)
+		**out = **in
+	}
 	if in.RemoveOnConditions != nil {
 		in, out := &in.RemoveOnConditions, &out.RemoveOnConditions
 		*out = make([]MatchCondition, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
+	}
+	if in.RemoveOnSeconds != nil {
+		in, out := &in.RemoveOnSeconds, &out.RemoveOnSeconds
+		*out = new(int32)
+		**out = **in
 	}
 	if in.Taints != nil {
 		in, out := &in.Taints, &out.Taints
