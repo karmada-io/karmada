@@ -24,13 +24,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/klog/v2"
 
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	"github.com/karmada-io/karmada/operator/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/lifted"
-	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func validateCRDTarball(crdTarball *operatorv1alpha1.CRDTarball, fldPath *field.Path) (errs field.ErrorList) {
@@ -122,10 +122,10 @@ func validateCommonSettings(commonSettings *operatorv1alpha1.CommonSettings, fld
 		if pdbConfig.MinAvailable != nil && commonSettings.Replicas != nil {
 			replicas := *commonSettings.Replicas
 			if pdbConfig.MinAvailable.Type == intstr.Int {
-				minAvailable := int32(pdbConfig.MinAvailable.IntValue())
-				if minAvailable > replicas {
+				minAvailableInt := pdbConfig.MinAvailable.IntValue()
+				if minAvailableInt > int(replicas) {
 					errs = append(errs, field.Invalid(pdbPath.Child("minAvailable"), pdbConfig.MinAvailable,
-						fmt.Sprintf("minAvailable (%d) cannot be greater than replicas (%d)", minAvailable, replicas)))
+						fmt.Sprintf("minAvailable (%d) cannot be greater than replicas (%d)", minAvailableInt, replicas)))
 				}
 			}
 		}
