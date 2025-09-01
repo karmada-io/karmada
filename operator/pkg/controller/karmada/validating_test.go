@@ -22,7 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	"github.com/karmada-io/karmada/operator/pkg/util"
@@ -226,14 +226,14 @@ func TestValidateCommonSettings(t *testing.T) {
 		{
 			name: "nil PDB config",
 			commonSettings: &operatorv1alpha1.CommonSettings{
-				Replicas: pointer.Int32(3),
+				Replicas: ptr.To[int32](3),
 			},
 			expectedErrs: 0,
 		},
 		{
 			name: "valid minAvailable config",
 			commonSettings: &operatorv1alpha1.CommonSettings{
-				Replicas: pointer.Int32(3),
+				Replicas: ptr.To[int32](3),
 				PodDisruptionBudgetConfig: &operatorv1alpha1.PodDisruptionBudgetConfig{
 					MinAvailable: &intstr.IntOrString{Type: intstr.Int, IntVal: 2},
 				},
@@ -243,7 +243,7 @@ func TestValidateCommonSettings(t *testing.T) {
 		{
 			name: "valid maxUnavailable config",
 			commonSettings: &operatorv1alpha1.CommonSettings{
-				Replicas: pointer.Int32(3),
+				Replicas: ptr.To[int32](3),
 				PodDisruptionBudgetConfig: &operatorv1alpha1.PodDisruptionBudgetConfig{
 					MaxUnavailable: &intstr.IntOrString{Type: intstr.Int, IntVal: 1},
 				},
@@ -253,7 +253,7 @@ func TestValidateCommonSettings(t *testing.T) {
 		{
 			name: "valid percentage minAvailable config",
 			commonSettings: &operatorv1alpha1.CommonSettings{
-				Replicas: pointer.Int32(3),
+				Replicas: ptr.To[int32](3),
 				PodDisruptionBudgetConfig: &operatorv1alpha1.PodDisruptionBudgetConfig{
 					MinAvailable: &intstr.IntOrString{Type: intstr.String, StrVal: "50%"},
 				},
@@ -263,7 +263,7 @@ func TestValidateCommonSettings(t *testing.T) {
 		{
 			name: "both minAvailable and maxUnavailable set",
 			commonSettings: &operatorv1alpha1.CommonSettings{
-				Replicas: pointer.Int32(3),
+				Replicas: ptr.To[int32](3),
 				PodDisruptionBudgetConfig: &operatorv1alpha1.PodDisruptionBudgetConfig{
 					MinAvailable:   &intstr.IntOrString{Type: intstr.Int, IntVal: 2},
 					MaxUnavailable: &intstr.IntOrString{Type: intstr.Int, IntVal: 1},
@@ -274,7 +274,7 @@ func TestValidateCommonSettings(t *testing.T) {
 		{
 			name: "neither minAvailable nor maxUnavailable set",
 			commonSettings: &operatorv1alpha1.CommonSettings{
-				Replicas:                  pointer.Int32(3),
+				Replicas:                  ptr.To[int32](3),
 				PodDisruptionBudgetConfig: &operatorv1alpha1.PodDisruptionBudgetConfig{},
 			},
 			expectedErrs: 1,
@@ -282,7 +282,7 @@ func TestValidateCommonSettings(t *testing.T) {
 		{
 			name: "minAvailable greater than replicas",
 			commonSettings: &operatorv1alpha1.CommonSettings{
-				Replicas: pointer.Int32(3),
+				Replicas: ptr.To[int32](3),
 				PodDisruptionBudgetConfig: &operatorv1alpha1.PodDisruptionBudgetConfig{
 					MinAvailable: &intstr.IntOrString{Type: intstr.Int, IntVal: 4},
 				},
@@ -292,7 +292,7 @@ func TestValidateCommonSettings(t *testing.T) {
 		{
 			name: "minAvailable equal to replicas",
 			commonSettings: &operatorv1alpha1.CommonSettings{
-				Replicas: pointer.Int32(3),
+				Replicas: ptr.To[int32](3),
 				PodDisruptionBudgetConfig: &operatorv1alpha1.PodDisruptionBudgetConfig{
 					MinAvailable: &intstr.IntOrString{Type: intstr.Int, IntVal: 3},
 				},
