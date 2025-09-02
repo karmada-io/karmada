@@ -32,6 +32,7 @@ PULL_MODE_CLUSTER_NAME=${PULL_MODE_CLUSTER_NAME:-"member3"}
 
 KUBECONFIG_PATH=${KUBECONFIG_PATH:-"${HOME}/.kube"}
 KARMADA_APISERVER_KUBECONFIG=${KARMADA_APISERVER_KUBECONFIG:-"$KUBECONFIG_PATH/karmada.config"}
+MEMBER_KUBECONFIG=${MEMBER_KUBECONFIG:-"${KUBECONFIG_PATH}/members.config"}
 PULL_BASED_CLUSTERS=${PULL_BASED_CLUSTERS:-"${PULL_MODE_CLUSTER_NAME}:$KUBECONFIG_PATH/members.config"}
 
 # KARMADA_RUNNING_ON_KIND indicates if current testing against on karmada that installed on a kind cluster.
@@ -54,7 +55,7 @@ REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 # Run e2e
 export KUBECONFIG=${KARMADA_APISERVER_KUBECONFIG}
 export PULL_BASED_CLUSTERS=${PULL_BASED_CLUSTERS}
-
+export MEMBER_KUBECONFIG=${MEMBER_KUBECONFIG}
 set +e
 ginkgo -v --race --trace --fail-fast -p --randomize-all ./test/e2e/suites/base -- --karmada-context=karmada-apiserver
 TESTING_RESULT=$?
