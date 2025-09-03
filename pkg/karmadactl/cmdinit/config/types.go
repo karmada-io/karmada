@@ -141,7 +141,7 @@ type LocalEtcd struct {
 
 	// ExtraArgs are additional arguments for the Etcd pods
 	// +optional
-	ExtraArgs []string `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
+	ExtraArgs []Arg `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
 }
 
 // ExternalEtcd defines the configuration of an external Etcd cluster
@@ -310,7 +310,7 @@ type KarmadaAPIServer struct {
 
 	// ExtraArgs are additional arguments for the Karmada API Server pods
 	// +optional
-	ExtraArgs []string `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
+	ExtraArgs []Arg `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
 }
 
 // KarmadaAggregatedAPIServer defines the configuration for the Karmada Aggregated API Server
@@ -319,7 +319,7 @@ type KarmadaAggregatedAPIServer struct {
 
 	// ExtraArgs are additional arguments for the Karmada Aggregated API Server pods
 	// +optional
-	ExtraArgs []string `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
+	ExtraArgs []Arg `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
 }
 
 // KubeControllerManager defines the configuration for the Kube Controller Manager
@@ -328,7 +328,7 @@ type KubeControllerManager struct {
 
 	// ExtraArgs are additional arguments for the Kube Controller Manager pods
 	// +optional
-	ExtraArgs []string `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
+	ExtraArgs []Arg `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
 }
 
 // KarmadaControllerManager defines the configuration for the Karmada Controller Manager
@@ -337,7 +337,7 @@ type KarmadaControllerManager struct {
 
 	// ExtraArgs are additional arguments for the Karmada Controller Manager pods
 	// +optional
-	ExtraArgs []string `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
+	ExtraArgs []Arg `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
 }
 
 // KarmadaScheduler defines the configuration for the Karmada Scheduler
@@ -346,7 +346,7 @@ type KarmadaScheduler struct {
 
 	// ExtraArgs are additional arguments for the Karmada Scheduler pods
 	// +optional
-	ExtraArgs []string `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
+	ExtraArgs []Arg `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
 }
 
 // KarmadaWebhook defines the configuration for the Karmada Webhook
@@ -355,7 +355,7 @@ type KarmadaWebhook struct {
 
 	// ExtraArgs are additional arguments for the Karmada Webhook pods
 	// +optional
-	ExtraArgs []string `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
+	ExtraArgs []Arg `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
 }
 
 // LocalSecretReference is a reference to a secret within the same namespace
@@ -378,4 +378,10 @@ func (i *Image) GetImage() string {
 		return ""
 	}
 	return i.Repository + ":" + i.Tag
+}
+
+// Arg represents an argument with a name and a value.
+type Arg struct {
+	Name  string `json:"name,omitempty" yaml:"name"`
+	Value string `json:"value,omitempty" yaml:"value"`
 }

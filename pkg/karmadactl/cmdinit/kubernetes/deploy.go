@@ -267,7 +267,6 @@ func (i *CommandInitOption) isExternalEtcdProvided() bool {
 }
 
 // Validate Check that there are enough flags to run the command.
-// 检查是否有足够的标志来运行命令。
 func (i *CommandInitOption) Validate(parentCommand string) error {
 	if i.KarmadaInitFilePath != "" {
 		cfg, err := initConfig.LoadInitConfiguration(i.KarmadaInitFilePath)
@@ -302,7 +301,6 @@ func (i *CommandInitOption) Validate(parentCommand string) error {
 }
 
 // Complete Initialize k8s client
-// 初始化k8s客户端
 func (i *CommandInitOption) Complete() error {
 	restConfig, err := apiclient.RestConfig(i.Context, i.KubeConfig)
 	if err != nil {
@@ -843,8 +841,6 @@ func (i *CommandInitOption) parseEtcdNodeSelectorLabelsMap() error {
 // parseInitConfig parses fields from KarmadaInitConfig into CommandInitOption.
 // It is responsible for delegating the parsing of various configuration sections,
 // such as certificates, etcd, and control plane components.
-// parseInitConfig 从 KarmadaInitConfig 中解析字段并转换为 CommandInitOption。
-// 它负责委托解析各个配置部分，如证书、etcd 和控制平面组件。
 func (i *CommandInitOption) parseInitConfig(cfg *initConfig.KarmadaInitConfig) error {
 	spec := cfg.Spec
 
@@ -926,7 +922,7 @@ func (i *CommandInitOption) parseLocalEtcdConfig(localEtcd *initConfig.LocalEtcd
 	setIfNotZeroInt32(&i.EtcdReplicas, localEtcd.Replicas)
 
 	if len(localEtcd.ExtraArgs) != 0 {
-		i.EtcdExtraArgs = localEtcd.ExtraArgs
+		i.EtcdExtraArgs = preProcessArgs(validateExtraArgs(localEtcd.ExtraArgs))
 	}
 }
 
@@ -965,7 +961,7 @@ func (i *CommandInitOption) parseKarmadaAPIServerConfig(apiServer *initConfig.Ka
 		setIfNotEmpty(&i.KarmadaAPIServerAdvertiseAddress, apiServer.AdvertiseAddress)
 
 		if len(apiServer.ExtraArgs) != 0 {
-			i.KarmadaAPIServerExtraArgs = apiServer.ExtraArgs
+			i.KarmadaAPIServerExtraArgs = preProcessArgs(validateExtraArgs(apiServer.ExtraArgs))
 		}
 	}
 }
@@ -978,7 +974,7 @@ func (i *CommandInitOption) parseKarmadaControllerManagerConfig(manager *initCon
 		setIfNotZeroInt32(&i.KarmadaControllerManagerReplicas, manager.CommonSettings.Replicas)
 
 		if len(manager.ExtraArgs) != 0 {
-			i.KarmadaControllerManagerExtraArgs = manager.ExtraArgs
+			i.KarmadaControllerManagerExtraArgs = preProcessArgs(validateExtraArgs(manager.ExtraArgs))
 		}
 	}
 }
@@ -991,7 +987,7 @@ func (i *CommandInitOption) parseKarmadaSchedulerConfig(scheduler *initConfig.Ka
 		setIfNotZeroInt32(&i.KarmadaSchedulerReplicas, scheduler.CommonSettings.Replicas)
 
 		if len(scheduler.ExtraArgs) != 0 {
-			i.KarmadaSchedulerExtraArgs = scheduler.ExtraArgs
+			i.KarmadaSchedulerExtraArgs = preProcessArgs(validateExtraArgs(scheduler.ExtraArgs))
 		}
 	}
 }
@@ -1004,7 +1000,7 @@ func (i *CommandInitOption) parseKarmadaWebhookConfig(webhook *initConfig.Karmad
 		setIfNotZeroInt32(&i.KarmadaWebhookReplicas, webhook.CommonSettings.Replicas)
 
 		if len(webhook.ExtraArgs) != 0 {
-			i.KarmadaWebhookExtraArgs = webhook.ExtraArgs
+			i.KarmadaWebhookExtraArgs = preProcessArgs(validateExtraArgs(webhook.ExtraArgs))
 		}
 	}
 }
@@ -1017,7 +1013,7 @@ func (i *CommandInitOption) parseKarmadaAggregatedAPIServerConfig(aggregatedAPIS
 		setIfNotZeroInt32(&i.KarmadaAggregatedAPIServerReplicas, aggregatedAPIServer.CommonSettings.Replicas)
 
 		if len(aggregatedAPIServer.ExtraArgs) != 0 {
-			i.KarmadaAggregatedAPIServerExtraArgs = aggregatedAPIServer.ExtraArgs
+			i.KarmadaAggregatedAPIServerExtraArgs = preProcessArgs(validateExtraArgs(aggregatedAPIServer.ExtraArgs))
 		}
 	}
 }
@@ -1030,7 +1026,7 @@ func (i *CommandInitOption) parseKubeControllerManagerConfig(manager *initConfig
 		setIfNotZeroInt32(&i.KubeControllerManagerReplicas, manager.CommonSettings.Replicas)
 
 		if len(manager.ExtraArgs) != 0 {
-			i.KubeControllerManagerExtraArgs = manager.ExtraArgs
+			i.KubeControllerManagerExtraArgs = preProcessArgs(validateExtraArgs(manager.ExtraArgs))
 		}
 	}
 }
@@ -1071,4 +1067,34 @@ func setIfNotZeroInt32(dest *int32, src int32) {
 // joinStringSlice joins a slice of strings into a single string separated by commas.
 func joinStringSlice(slice []string) string {
 	return strings.Join(slice, ",")
+}
+
+// 验证并过滤额外参数
+func validateExtraArgs(args []initConfig.Arg) []initConfig.Arg {
+	validArgs := make([]initConfig.Arg, 0, len(args))
+	for id, arg := range args {
+		if len(arg.Name) == 0 {
+			klog.Warningf("The extra args[%d] name is empty, skip it", id)
+			continue
+		}
+		validArgs = append(validArgs, arg)
+	}
+	return validArgs
+}
+
+// 预处理参数成为  --key=value
+func preProcessArgs(args []initConfig.Arg) []string {
+	if len(args) == 0 {
+		return nil
+	}
+
+	res := make([]string, 0, len(args))
+	for _, arg := range args {
+		if arg.Value != "" {
+			res = append(res, fmt.Sprintf("--%s=%s", arg.Name, arg.Value))
+		} else {
+			res = append(res, fmt.Sprintf("--%s", arg.Name))
+		}
+	}
+	return res
 }
