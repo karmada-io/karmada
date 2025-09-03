@@ -229,7 +229,6 @@ func (i *CommandInitOption) makeKarmadaAPIServerDeployment() *appsv1.Deployment 
 	}
 
 	// PodTemplateSpec
-	// pod的元数据和规格
 	podTemplateSpec := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      karmadaAPIServerDeploymentAndServiceName,

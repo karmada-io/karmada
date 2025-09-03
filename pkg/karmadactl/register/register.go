@@ -991,7 +991,7 @@ func (o *CommandRegisterOption) createSecretAndRBACInMemberCluster(karmadaAgentC
 	return nil
 }
 
-// makeKarmadaAgentDeployment generate karmada-agent Deployment //todo
+// makeKarmadaAgentDeployment generate karmada-agent Deployment
 func (o *CommandRegisterOption) makeKarmadaAgentDeployment() *appsv1.Deployment {
 	karmadaAgent := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{

@@ -28,7 +28,6 @@ import (
 
 const (
 	// NamespaceKarmadaSystem is reserved namespace
-	//
 	NamespaceKarmadaSystem = "karmada-system"
 	// NamespaceKarmadaCluster is reserved namespace
 	NamespaceKarmadaCluster = "karmada-cluster"
@@ -41,7 +40,6 @@ const (
 // Using these constants helps avoid typos and ensures that all components are referenced with the correct names.
 const (
 	// KarmadaDeschedulerComponentName is the name of the Karmada Descheduler component.
-
 	KarmadaDeschedulerComponentName = "karmada-descheduler"
 
 	// KarmadaSchedulerEstimatorComponentName is the name of the Karmada Scheduler Estimator component.
