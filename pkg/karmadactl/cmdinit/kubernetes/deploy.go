@@ -899,7 +899,7 @@ func (i *CommandInitOption) parseCertificateConfig(certificates initConfig.Certi
 // parseEtcdConfig handles the parsing of both local and external Etcd configurations.
 func (i *CommandInitOption) parseEtcdConfig(etcd initConfig.Etcd) {
 	if etcd.Local != nil {
-		i.parseLocalEtcdConfig(etcd.Local) // todo
+		i.parseLocalEtcdConfig(etcd.Local)
 	} else if etcd.External != nil {
 		i.parseExternalEtcdConfig(etcd.External)
 	}
@@ -1069,7 +1069,7 @@ func joinStringSlice(slice []string) string {
 	return strings.Join(slice, ",")
 }
 
-// 验证并过滤额外参数
+// validateExtraArgs validates and filters extra arguments.
 func validateExtraArgs(args []initConfig.Arg) []initConfig.Arg {
 	validArgs := make([]initConfig.Arg, 0, len(args))
 	for id, arg := range args {
@@ -1082,7 +1082,7 @@ func validateExtraArgs(args []initConfig.Arg) []initConfig.Arg {
 	return validArgs
 }
 
-// 预处理参数成为  --key=value
+// preProcessArgs formats the arguments into --key=value.
 func preProcessArgs(args []initConfig.Arg) []string {
 	if len(args) == 0 {
 		return nil

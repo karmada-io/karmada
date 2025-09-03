@@ -398,7 +398,7 @@ func TestKarmadaComponentCommand(t *testing.T) {
 	t.Run("ErrCase", testErrCase)
 }
 
-// 性能测试
+// Benchmark test
 func BenchmarkKarmadaComponentCommand(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		KarmadaComponentCommand(defaultArgs, commonCases[0].extraArgs)

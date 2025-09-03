@@ -382,6 +382,6 @@ func (i *Image) GetImage() string {
 
 // Arg represents an argument with a name and a value.
 type Arg struct {
-	Name  string `json:"name,omitempty" yaml:"name"`
-	Value string `json:"value,omitempty" yaml:"value"`
+	Name  string `json:"name,omitempty" yaml:"name,omitempty"`
+	Value string `json:"value,omitempty" yaml:"value,omitempty"`
 }
