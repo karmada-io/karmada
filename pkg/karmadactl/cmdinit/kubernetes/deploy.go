@@ -1094,7 +1094,7 @@ func joinStringSlice(slice []string) string {
 	return strings.Join(slice, ",")
 }
 
-// 验证并过滤额外参数
+// validateExtraArgs validates and filters extra arguments.
 func validateExtraArgs(args []initConfig.Arg) []initConfig.Arg {
 	validArgs := make([]initConfig.Arg, 0, len(args))
 	for id, arg := range args {
@@ -1107,7 +1107,7 @@ func validateExtraArgs(args []initConfig.Arg) []initConfig.Arg {
 	return validArgs
 }
 
-// 预处理参数成为  --key=value
+// preProcessArgs formats the arguments into --key=value.
 func preProcessArgs(args []initConfig.Arg) []string {
 	if len(args) == 0 {
 		return nil
