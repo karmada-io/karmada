@@ -1093,3 +1093,33 @@ func setIfNotZeroInt32(dest *int32, src int32) {
 func joinStringSlice(slice []string) string {
 	return strings.Join(slice, ",")
 }
+
+// 验证并过滤额外参数
+func validateExtraArgs(args []initConfig.Arg) []initConfig.Arg {
+	validArgs := make([]initConfig.Arg, 0, len(args))
+	for id, arg := range args {
+		if len(arg.Name) == 0 {
+			klog.Warningf("The extra args[%d] name is empty, skip it", id)
+			continue
+		}
+		validArgs = append(validArgs, arg)
+	}
+	return validArgs
+}
+
+// 预处理参数成为  --key=value
+func preProcessArgs(args []initConfig.Arg) []string {
+	if len(args) == 0 {
+		return nil
+	}
+
+	res := make([]string, 0, len(args))
+	for _, arg := range args {
+		if arg.Value != "" {
+			res = append(res, fmt.Sprintf("--%s=%s", arg.Name, arg.Value))
+		} else {
+			res = append(res, fmt.Sprintf("--%s", arg.Name))
+		}
+	}
+	return res
+}
