@@ -11,6 +11,14 @@ global:
   ##   - myRegistryKeySecretName
   imagePullSecrets: []
 
+## @karmadaOperatorImageVersion the image version of karmada operator
+## "latest" is a default value for local installation.
+## If update this anchors("&karmadaOperatorImageVersion"), also update hack/package-helm-chart.sh.
+## See https://yaml.org/spec/1.2/spec.html#id2765878 and
+## https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_advanced_syntax.html#yaml-anchors-and-aliases-sharing-variable-values
+## for more details about yaml anchors and aliases.
+karmadaOperatorImageVersion: &karmadaOperatorImageVersion latest
+
 ## @param installCRDs define flag whether to install CRD resources
 ##
 installCRDs: true
@@ -46,9 +54,8 @@ operator:
   image:
     registry: docker.io
     repository: karmada/karmada-operator
-    tag: latest
+    tag: *karmadaOperatorImageVersion
     ## Specify a imagePullPolicy
-    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
     ##
     pullPolicy: IfNotPresent
     ## Optionally specify an array of imagePullSecrets.
