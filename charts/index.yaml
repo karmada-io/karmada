@@ -2,7 +2,7 @@ apiVersion: v1
 entries:
   karmada:
   - apiVersion: v2
-    appVersion: v1.1.0
+    appVersion: v1.15.0
     created: "2025-09-02T14:58:41.89834698+08:00"
     dependencies:
     - name: common
@@ -22,7 +22,7 @@ entries:
     - https://github.com/karmada-io/karmada/releases/download/v1.15.0/karmada-chart-v1.15.0.tgz
     version: v1.15.0
   - apiVersion: v2
-    appVersion: v1.1.0
+    appVersion: v1.14.0
     created: "2025-06-13T16:23:17.081220385+08:00"
     dependencies:
     - name: common
@@ -42,7 +42,7 @@ entries:
     - https://github.com/karmada-io/karmada/releases/download/v1.14.0/karmada-chart-v1.14.0.tgz
     version: v1.14.0
   - apiVersion: v2
-    appVersion: v1.1.0
+    appVersion: v1.13.0
     created: "2025-03-10T11:24:11.714162019+08:00"
     dependencies:
     - name: common
@@ -62,7 +62,7 @@ entries:
     - https://github.com/karmada-io/karmada/releases/download/v1.13.0/karmada-chart-v1.13.0.tgz
     version: v1.13.0
   - apiVersion: v2
-    appVersion: v1.1.0
+    appVersion: v1.12.0
     created: "2024-12-09T12:16:02.111955134+08:00"
     dependencies:
     - name: common
@@ -82,7 +82,7 @@ entries:
     - https://github.com/karmada-io/karmada/releases/download/v1.12.0/karmada-chart-v1.12.0.tgz
     version: v1.12.0
   - apiVersion: v2
-    appVersion: v1.1.0
+    appVersion: v1.11.0
     created: "2024-09-21T12:09:38.421759709+08:00"
     dependencies:
     - name: common
@@ -102,7 +102,7 @@ entries:
     - https://github.com/karmada-io/karmada/releases/download/v1.11.0/karmada-chart-v1.11.0.tgz
     version: v1.11.0
   - apiVersion: v2
-    appVersion: v1.1.0
+    appVersion: v1.10.0
     created: "2024-09-21T12:04:45.631679376+08:00"
     dependencies:
     - name: common
@@ -122,7 +122,7 @@ entries:
     - https://github.com/karmada-io/karmada/releases/download/v1.10.0/karmada-chart-v1.10.0.tgz
     version: v1.10.0
   - apiVersion: v2
-    appVersion: v1.1.0
+    appVersion: v1.9.0
     created: "2024-02-29T16:55:17.965911-05:00"
     dependencies:
     - name: common
@@ -144,7 +144,7 @@ entries:
     - https://github.com/karmada-io/karmada/releases/download/v1.9.0/karmada-chart-v1.9.0.tgz
     version: v1.9.0
   - apiVersion: v2
-    appVersion: v1.1.0
+    appVersion: v1.8.0
     created: "2023-11-30T11:46:45.584645-08:00"
     dependencies:
     - name: common
@@ -166,7 +166,7 @@ entries:
     - https://github.com/karmada-io/karmada/releases/download/v1.8.0/karmada-chart-v1.8.0.tgz
     version: v1.8.0
   - apiVersion: v2
-    appVersion: v1.1.0
+    appVersion: v1.7.1
     created: "2023-10-25T16:55:42.896904-04:00"
     dependencies:
     - name: common
@@ -188,7 +188,7 @@ entries:
     - https://github.com/karmada-io/karmada/releases/download/v1.7.1/karmada-chart-v1.7.1.tgz
     version: v1.7.1
   - apiVersion: v2
-    appVersion: v1.1.0
+    appVersion: v1.7.0
     created: "2023-09-14T18:29:27.744549-04:00"
     dependencies:
     - name: common
@@ -210,7 +210,7 @@ entries:
     - https://github.com/karmada-io/karmada/releases/download/v1.7.0/karmada-chart-v1.7.0.tgz
     version: v1.7.0
   - apiVersion: v2
-    appVersion: v1.1.0
+    appVersion: v1.6.2
     created: "2023-08-03T16:11:27.3481878+08:00"
     dependencies:
     - name: common
@@ -232,7 +232,7 @@ entries:
     - https://github.com/karmada-io/karmada/releases/download/v1.6.2/karmada-chart-v1.6.2.tgz
     version: v1.6.2
   - apiVersion: v2
-    appVersion: v1.1.0
+    appVersion: v1.6.1
     created: "2023-07-06T11:15:13.5384293+08:00"
     dependencies:
     - name: common
@@ -254,7 +254,7 @@ entries:
     - https://github.com/karmada-io/karmada/releases/download/v1.6.1/karmada-chart-v1.6.1.tgz
     version: v1.6.1
   - apiVersion: v2
-    appVersion: v1.1.0
+    appVersion: v1.6.0
     created: "2023-06-06T10:49:47.546469168+08:00"
     dependencies:
     - name: common
@@ -276,7 +276,7 @@ entries:
     - https://github.com/karmada-io/karmada/releases/download/v1.6.0/karmada-chart-v1.6.0.tgz
     version: v1.6.0
   - apiVersion: v2
-    appVersion: v1.1.0
+    appVersion: v1.5.0
     created: "2023-03-01T09:49:02.285032963+08:00"
     dependencies:
     - name: common
@@ -298,7 +298,7 @@ entries:
     - https://github.com/karmada-io/karmada/releases/download/v1.5.0/karmada-chart-v1.5.0.tgz
     version: v1.5.0
   - apiVersion: v2
-    appVersion: v1.1.0
+    appVersion: v1.4.0
     created: "2022-12-05T15:51:42.955792838+08:00"
     dependencies:
     - name: common
@@ -318,7 +318,7 @@ entries:
     - https://github.com/karmada-io/karmada/releases/download/v1.4.0/karmada-chart-v1.4.0.tgz
     version: v1.4.0
   - apiVersion: v2
-    appVersion: v1.1.0
+    appVersion: v1.3.0
     created: "2022-09-01T00:01:49.111981+08:00"
     description: A Helm chart for karmada
     digest: 77be5718adc58c0858205bfdcacc7462dec2d553fb1af65d4516e2d405ffec4e
@@ -329,7 +329,7 @@ entries:
     - https://github.com/karmada-io/karmada/releases/download/v1.3.0/karmada-chart-v1.3.0.tgz
     version: v1.3.0
   - apiVersion: v2
-    appVersion: v1.1.0
+    appVersion: v1.2.2
     created: "2022-09-08T09:43:02.368944862+08:00"
     description: A Helm chart for karmada
     digest: b0b6b9ac31a80de5f4d8dfbc9eea45071f5a9356faadedc35d46ea7bdc0b7608
@@ -340,7 +340,7 @@ entries:
     - https://github.com/karmada-io/karmada/releases/download/v1.2.2/karmada-chart-v1.2.2.tgz
     version: v1.2.2
   - apiVersion: v2
-    appVersion: v1.1.0
+    appVersion: v1.2.1
     created: "2022-09-08T09:41:58.829736088+08:00"
     description: A Helm chart for karmada
     digest: 123206216e77bd53d1471778e883c8e3639a0af3623a9172534b40f1b3c8a5a2
@@ -351,7 +351,7 @@ entries:
     - https://github.com/karmada-io/karmada/releases/download/v1.2.1/karmada-chart-v1.2.1.tgz
     version: v1.2.1
   - apiVersion: v2
-    appVersion: v1.1.0
+    appVersion: v1.2.0
     created: "2022-05-30T15:00:42.216255031+08:00"
     description: A Helm chart for karmada
     digest: 054340c4f2e428f4f51ec30652f40ba827d0bfe397ea10f06db387c88a32aa6d
@@ -363,7 +363,7 @@ entries:
     version: v1.2.0
   karmada-operator:
   - apiVersion: v2
-    appVersion: v1.1.0
+    appVersion: v1.15.0
     created: "2025-09-04T10:56:59.380849785+08:00"
     dependencies:
     - name: common
@@ -385,7 +385,7 @@ entries:
     - https://github.com/karmada-io/karmada/releases/download/v1.15.0/karmada-operator-chart-v1.15.0.tgz
     version: v1.15.0
   - apiVersion: v2
-    appVersion: v1.1.0
+    appVersion: v1.14.0
     created: "2025-09-04T10:56:59.377176943+08:00"
     dependencies:
     - name: common
@@ -407,7 +407,7 @@ entries:
     - https://github.com/karmada-io/karmada/releases/download/v1.14.0/karmada-operator-chart-v1.14.0.tgz
     version: v1.14.0
   - apiVersion: v2
-    appVersion: v1.1.0
+    appVersion: v1.13.0
     created: "2025-09-04T10:56:59.372220015+08:00"
     dependencies:
     - name: common
@@ -429,7 +429,7 @@ entries:
     - https://github.com/karmada-io/karmada/releases/download/v1.13.0/karmada-operator-chart-v1.13.0.tgz
     version: v1.13.0
   - apiVersion: v2
-    appVersion: v1.1.0
+    appVersion: v1.12.0
     created: "2024-12-09T12:16:03.781914346+08:00"
     dependencies:
     - name: common
@@ -451,7 +451,7 @@ entries:
     - https://github.com/karmada-io/karmada/releases/download/v1.12.0/karmada-operator-chart-v1.12.0.tgz
     version: v1.12.0
   - apiVersion: v2
-    appVersion: v1.1.0
+    appVersion: v1.11.0
     created: "2024-09-21T15:01:05.712207268+08:00"
     dependencies:
     - name: common
@@ -473,7 +473,7 @@ entries:
     - https://github.com/karmada-io/karmada/releases/download/v1.11.0/karmada-operator-chart-v1.11.0.tgz
     version: v1.11.0
   - apiVersion: v2
-    appVersion: v1.1.0
+    appVersion: v1.10.0
     created: "2024-09-21T14:59:09.729691529+08:00"
     dependencies:
     - name: common
@@ -495,7 +495,7 @@ entries:
     - https://github.com/karmada-io/karmada/releases/download/v1.10.0/karmada-operator-chart-v1.10.0.tgz
     version: v1.10.0
   - apiVersion: v2
-    appVersion: v1.1.0
+    appVersion: v1.9.0
     created: "2024-09-21T14:56:28.687039261+08:00"
     dependencies:
     - name: common
@@ -513,7 +513,7 @@ entries:
     - https://github.com/karmada-io/karmada/releases/download/v1.9.0/karmada-operator-chart-v1.9.0.tgz
     version: v1.9.0
   - apiVersion: v2
-    appVersion: v1.1.0
+    appVersion: v1.8.0
     created: "2023-11-30T11:47:32.390757-08:00"
     dependencies:
     - name: common
