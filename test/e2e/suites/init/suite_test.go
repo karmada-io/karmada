@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,7 +13,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-
 package init
 
 import (
@@ -77,32 +76,36 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() []byte { return nil }, func([]byte
 	kubeconfig = os.Getenv("KUBECONFIG")
 	gomega.Expect(kubeconfig).ShouldNot(gomega.BeEmpty())
 
-	crdsPath := os.Getenv("CRDs_PATH")
+	crdsPath = os.Getenv("CRDs_PATH")
 	gomega.Expect(crdsPath).ShouldNot(gomega.BeEmpty())
 
-	karmadactlPath := os.Getenv("BUILD_PATH")
+	karmadactlPath = os.Getenv("KARMADACTL_PATH")
 	gomega.Expect(karmadactlPath).ShouldNot(gomega.BeEmpty())
 
 	clusterProvider = cluster.NewProvider()
 
-	restConfig, err := framework.LoadRESTClientConfig(kubeconfig, hostContext)
+	var err error
+	restConfig, err = framework.LoadRESTClientConfig(kubeconfig, hostContext)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	kubeClient, err = kubernetes.NewForConfig(restConfig)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	testNamespace = fmt.Sprintf("initTest-%s", rand.String(RandomStrLength))
+	testNamespace = fmt.Sprintf("init-test-%s", rand.String(RandomStrLength))
 	err = setupTestNamespace(testNamespace, kubeClient)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	framework.WaitNamespacePresentOnClusters(framework.ClusterNames(), testNamespace)
+
 })
 
 var _ = ginkgo.SynchronizedAfterSuite(func() {
 	// cleanup all namespaces we created both in control plane and member clusters.
 	// It will not return error even if there is no such namespace in there that may happen in case setup failed.
-	err := cleanupTestNamespace(testNamespace, kubeClient)
-	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+	if testNamespace != "" && kubeClient != nil {
+		err := cleanupTestNamespace(testNamespace, kubeClient)
+		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+	}
 }, func() {})
 
 // setupTestNamespace will create a namespace in control plane and all member clusters, most of cases will run against it.
@@ -122,6 +125,5 @@ func cleanupTestNamespace(namespace string, kubeClient kubernetes.Interface) err
 	if err != nil {
 		return err
 	}
-
 	return nil
 }

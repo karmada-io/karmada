@@ -25,8 +25,10 @@ set -o pipefail
 # Example 1: hack/run-e2e-init.sh (run init e2e with default config)
 # Example 2: export HOST_CLUSTER_KUBECONFIG=<KUBECONFIG PATH> hack/run-e2e-init.sh (run init e2e with your KUBECONFIG)
 
+
 KUBECONFIG_PATH=${KUBECONFIG_PATH:-"${HOME}/.kube"}
 HOST_CLUSTER_KUBECONFIG=${HOST_CLUSTER_KUBECONFIG:-"$KUBECONFIG_PATH/karmada-host.config"}
+BUILD_PATH=${BUILD_PATH:-"${HOME}/work/karmada/karmada/_output/bin/linux/amd64"}
 
 # KARMADA_RUNNING_ON_KIND indicates if current testing against on karmada that installed on a kind cluster.
 # Defaults to true.
@@ -43,6 +45,8 @@ GO111MODULE=on go install github.com/onsi/ginkgo/v2/ginkgo
 
 # Run init e2e
 export KUBECONFIG=${HOST_CLUSTER_KUBECONFIG}
+export CRDs_PATH=${CRDs_PATH:-"${HOME}/work/karmada/karmada/crds.tar.gz"}
+export KARMADACTL_PATH=${KARMADACTL_PATH:-${BUILD_PATH}/karmadactl}
 set +e
 ginkgo -v --race --trace --fail-fast -p --randomize-all ./test/e2e/suites/init -- --host-context=${KARMADA_HOST_CLUSTER_NAME}
 TESTING_RESULT=$?

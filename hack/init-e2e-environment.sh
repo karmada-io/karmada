@@ -45,11 +45,11 @@ REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 source "${REPO_ROOT}"/hack/util.sh
 
 # variable define
-export KUBECONFIG_PATH=${KUBECONFIG_PATH:-"${HOME}/.kube"}
-export HOST_CLUSTER_NAME=${HOST_CLUSTER_NAME:-"karmada-host"}
-export KUBECONFIG="${KUBECONFIG_PATH}/${HOST_CLUSTER_NAME}.config"
-export CLUSTER_VERSION=${CLUSTER_VERSION:-"${DEFAULT_CLUSTER_VERSION}"}
-export BUILD_PATH=${BUILD_PATH:-"_output/bin/linux/amd64"}
+KUBECONFIG_PATH=${KUBECONFIG_PATH:-"${HOME}/.kube"}
+HOST_CLUSTER_NAME=${HOST_CLUSTER_NAME:-"karmada-host"}
+KUBECONFIG="${KUBECONFIG_PATH}/${HOST_CLUSTER_NAME}.config"
+CLUSTER_VERSION=${CLUSTER_VERSION:-"${DEFAULT_CLUSTER_VERSION}"}
+BUILD_PATH=${BUILD_PATH:-"${HOME}/karmada/_output/bin/linux/amd64"}
 
 # install kind and kubectl
 echo -n "Preparing: 'kind' existence check - "
@@ -77,24 +77,27 @@ fi
 
 # prepare the newest crds for karmadactl init
 echo "Prepare the newest crds for karmadactl init"
-cd  ${REPO_ROOT}/charts/karmada/
+cd  charts/karmada/
 cp -r _crds crds
 tar -zcvf ../../crds.tar.gz crds
 cd -
 
 # Verify CRDs package is created successfully
-if [ ! -f "${REPO_ROOT}/crds.tar.gz" ]; then
-  echo "ERROR: Failed to create CRDs package at ${REPO_ROOT}/crds.tar.gz"
+if [ ! -f "./crds.tar.gz" ]; then
+  echo "ERROR: Failed to create CRDs package at ./crds.tar.gz"
   exit 1
 fi
-echo "CRDs package created successfully: ${REPO_ROOT}/crds.tar.gz"
-
-# set CRDs_PATH
-export CRDs_PATH=${CRDs_PATH:-"${REPO_ROOT}/crds.tar.gz"}
+echo "CRDs package created successfully: ./crds.tar.gz"
 
 # make karmadactl binary
 echo "Building karmadactl binary..."
 make karmadactl
+echo "the route of karmadactl"
+realpath _output/bin/linux/amd64/karmadactl
+
+
+
+
 
 # create host cluster
 echo "Start create host cluster..."
@@ -106,11 +109,5 @@ util::wait_file_exist ${KUBECONFIG_PATH}/${HOST_CLUSTER_NAME}.config 300
 util::wait_context_exist ${HOST_CLUSTER_NAME} ${KUBECONFIG_PATH}/${HOST_CLUSTER_NAME}.config 300
 kubectl wait --for=condition=Ready nodes --all --timeout=800s --kubeconfig=${KUBECONFIG_PATH}/${HOST_CLUSTER_NAME}.config
 util::wait_nodes_taint_disappear 800 ${KUBECONFIG_PATH}/${HOST_CLUSTER_NAME}.config
-
-
-echo "Host cluster is ready for karmadactl init e2e testing."
-echo "Host cluster config: ${KUBECONFIG_PATH}/${HOST_CLUSTER_NAME}.config"
-echo "karmadactl binary: ${BUILD_PATH}/karmadactl"
-echo "CRDs package: ${REPO_ROOT}/crds.tar.gz"
 
 echo "Environment is ready for running karmadactl init e2e tests."
