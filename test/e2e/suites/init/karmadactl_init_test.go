@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package base
+package init
 
 import (
 	"context"
@@ -29,19 +29,17 @@ import (
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/rand"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
-	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	"github.com/karmada-io/karmada/test/helper"
 )
 
 const (
 	KarmadactlInitTimeOut = time.Minute * 10
+	karmadaHost           = "karmada-host"
 )
 
 // ComponentType defines the type of Kubernetes resource
@@ -169,72 +167,58 @@ func (kc *KarmadaComponents) GetAllExtraArgs() []string {
 
 // KarmadaTestContext holds the test context
 type KarmadaTestContext struct {
-	MemberKubeconfig string
-	Components       *KarmadaComponents
+	hostKubeconfig string
+	Components     *KarmadaComponents
 }
 
 // NewKarmadaTestContext creates a new test context
 func NewKarmadaTestContext() *KarmadaTestContext {
-	memberKubeconfig := os.Getenv("MEMBER_KUBECONFIG") // Set as an environment variable.
-	if memberKubeconfig == "" {
-		memberKubeconfig = "/root/.kube/members.config"
-		klog.Infof("The environment variable MEMBER_KUBECONFIG is not set, using the default path: %s", memberKubeconfig)
-	} else {
-		klog.Infof("Use the environment variable MEMBER_KUBECONFIG: %s", memberKubeconfig)
-	}
-
 	// Verify if the kubeconfig file exists.
-	if _, err := os.Stat(memberKubeconfig); os.IsNotExist(err) {
-		klog.Warningf("The kubeconfig file does not exist: %s", memberKubeconfig)
+	if _, err := os.Stat(kubeconfig); os.IsNotExist(err) {
+		klog.Warningf("The kubeconfig file does not exist: %s", kubeconfig)
 	} else {
-		klog.Infof("The kubeconfig file exists: %s", memberKubeconfig)
+		klog.Infof("The kubeconfig file exists: %s", kubeconfig)
 	}
 
 	return &KarmadaTestContext{
-		MemberKubeconfig: memberKubeconfig,
-		Components:       NewKarmadaComponents(),
+		hostKubeconfig: kubeconfig,
+		Components:     NewKarmadaComponents(),
 	}
 }
 
 var _ = ginkgo.Describe("Karmadactl Init Testing", func() {
 	var (
-		testCtx       *KarmadaTestContext
-		member1       string
-		member1Client kubernetes.Interface
+		testCtx *KarmadaTestContext
 	)
 
 	ginkgo.BeforeEach(func() {
 		testCtx = NewKarmadaTestContext()
 
 		// Verify whether all cluster contexts exist.
-		availableContexts := testCtx.getAvailableContexts()
+		availableContexts := getAvailableContexts(kubeconfig)
 		klog.Infof("Available context: %v", availableContexts)
 
-		member1 = framework.ClusterNames()[0]
-		klog.Infof("Select member cluster: %s", member1)
-		if !contains(availableContexts, member1) {
-			ginkgo.Fail(fmt.Sprintf("The context for cluster %s does not exist in the kubeconfig.", member1))
+		klog.Infof("Select cluster: %s", karmadaHost)
+		if !contains(availableContexts, karmadaHost) {
+			ginkgo.Fail(fmt.Sprintf("The context for cluster %s does not exist in the kubeconfig.", karmadaHost))
 		}
 
-		klog.Infof("Successfully selected member cluster: %s", member1)
-
-		member1Client = framework.GetClusterClient(member1)
-		defaultConfigFlags := genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag().WithDiscoveryBurst(300).WithDiscoveryQPS(50.0)
-		defaultConfigFlags.Context = &karmadaContext
+		klog.Infof("Successfully selected member cluster: %s", karmadaHost)
 	})
 
 	ginkgo.Context("Test Karmadactl init Custom Control Plane", func() {
 		var namespace string
 		var tempData string
 		var tempPki string
+
 		ginkgo.BeforeEach(func() {
-			namespace = fmt.Sprintf("karmadatest-%s", rand.String(RandomStrLength))
-			tempData = filepath.Join(os.TempDir(), "karmadatest-"+rand.String(RandomStrLength))
+			namespace = fmt.Sprintf("%s%s", KarmadaInstanceNamePrefix, rand.String(RandomStrLength))
+			tempData = filepath.Join(os.TempDir(), KarmadaInstanceNamePrefix+rand.String(RandomStrLength))
 			tempPki = filepath.Join(tempData, "pki")
 		})
 
 		ginkgo.AfterEach(func() {
-			testCtx.cleanup(member1Client, namespace)
+			testCtx.cleanup(kubeClient, namespace)
 			err := os.RemoveAll(tempPki)
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred(), "Failed to remove temp pki")
 			err = os.RemoveAll(tempData)
@@ -243,42 +227,33 @@ var _ = ginkgo.Describe("Karmadactl Init Testing", func() {
 
 		ginkgo.It("Test Custom Control Plane —— All Component", func() {
 			// step1 Create a namespace in the member1 cluster.
-			ginkgo.By(fmt.Sprintf("Creating namespace %s in member cluster %s", member1, namespace), func() {
+			ginkgo.By(fmt.Sprintf("Creating namespace %s in cluster %s", namespace, karmadaHost), func() {
 				namespaceObj := helper.NewNamespace(namespace)
-				framework.CreateNamespace(member1Client, namespaceObj)
+				framework.CreateNamespace(kubeClient, namespaceObj)
 			})
 
 			// step2 Execute command
-			testCtx.execKarmadactlInit(member1, namespace, tempData, tempPki, testCtx.Components.GetAllExtraArgs()...)
+			testCtx.execKarmadactlInit(karmadaHost, namespace, tempData, tempPki, testCtx.Components.GetAllExtraArgs()...)
 
 			// step3 Check startup parameters.
-			testCtx.checkAllComponentStatus(member1Client, namespace)
+			testCtx.checkAllComponentStatus(kubeClient, namespace)
 
 			// step4 Waiting for components to be ready.
-			testCtx.waitForAllComponents(member1Client, namespace)
+			testCtx.waitForAllComponents(kubeClient, namespace)
 		})
 	})
 })
 
 // cleanup handles the test cleanup
 func (ctx *KarmadaTestContext) cleanup(client kubernetes.Interface, namespace string) {
-	namespaceGVK := schema.GroupVersionKind{
-		Group:   "",
-		Version: "v1",
-		Kind:    "Namespace",
-	}
-
-	cppName := names.GeneratePolicyName("", namespace, namespaceGVK.String())
-
 	framework.RemoveNamespace(client, namespace)
-	framework.RemoveClusterPropagationPolicy(karmadaClient, cppName)
 }
 
 // execKarmadactlInit Execute the command karmadactl init.
 func (ctx *KarmadaTestContext) execKarmadactlInit(clusterName, namespace, tempData, tempPki string, args ...string) {
 	ginkgo.By("Execute the command karmadactl init.", func() {
 		// Switch the specified cluster context
-		contextManager := NewContextManager(ctx.MemberKubeconfig)
+		contextManager := NewContextManager(ctx.hostKubeconfig)
 		defer contextManager.Restore()
 
 		contextManager.SwitchTo(clusterName)
@@ -287,11 +262,16 @@ func (ctx *KarmadaTestContext) execKarmadactlInit(clusterName, namespace, tempDa
 			"--namespace", namespace,
 			"--karmada-data", tempData,
 			"--karmada-pki", tempPki,
+			"--crds", crdsPath,
+			"--karmada-aggregated-apiserver-image", karmadaAggregatedAPIServerImage,
+			"--karmada-controller-manager-image", karmadaControllerManagerImage,
+			"--karmada-scheduler-image", karmadaSchedulerImage,
+			"--karmada-webhook-image", karmadaWebhookImage,
 		}
 		allArgs := append(baseArgs, args...)
 
 		cmd := framework.NewKarmadactlCommand(
-			ctx.MemberKubeconfig,
+			ctx.hostKubeconfig,
 			"",
 			karmadactlPath,
 			"",
@@ -512,11 +492,6 @@ func (cm *ContextManager) Restore() {
 		return
 	}
 
-	if cm.originalContext == "karmada-host" || cm.originalContext == "karmada-apiserver" {
-		klog.Infof("No need to restore as the context in the kubeconfig has not been modified.")
-		return
-	}
-
 	currentContext := getCurrentContext(cm.kubeconfig)
 	if currentContext == cm.originalContext {
 		klog.Infof("The current context is already the original context, no need to restore it. %s", cm.originalContext)
@@ -552,10 +527,10 @@ func getCurrentContext(kubeconfig string) string {
 }
 
 // getAvailableContexts Get all available contexts.
-func (ctx *KarmadaTestContext) getAvailableContexts() []string {
+func getAvailableContexts(kubeconfig string) []string {
 	// #nosec G204
 	cmd := exec.Command("kubectl", "config", "get-contexts", "-o", "name",
-		"--kubeconfig="+ctx.MemberKubeconfig)
+		"--kubeconfig="+kubeconfig)
 
 	output, err := cmd.Output()
 	if err != nil {
@@ -586,7 +561,7 @@ func wrapArgs(flag string, args ...string) []string {
 
 	out := make([]string, len(args))
 	for i, arg := range args {
-		out[i] = flag + "=" + arg
+		out[i] = flag + "=" + "\"" + arg + "\""
 	}
 	return out
 }
