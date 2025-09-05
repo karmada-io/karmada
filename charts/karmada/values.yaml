@@ -149,6 +149,8 @@ certs:
     ]
     ## @param certs.auto.rsaSize rsa key size of the certificate
     rsaSize: 3072
+    ## @param rotateWhenUpgrade Whether to rotate certificate during helm upgrade. When set to true, new CA will be generated and all Karmada components (Deployment/StatefulSet) will be forcefully restarted during upgrade.
+    rotateWhenUpgrade: false
   custom:
     ## @param certs.custom.caCrt ca of the certificate
     caCrt: |
