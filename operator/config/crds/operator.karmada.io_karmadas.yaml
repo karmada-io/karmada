@@ -153,6 +153,30 @@ spec:
                             items:
                               type: string
                             type: array
+                          podDisruptionBudgetConfig:
+                            description: |-
+                              PodDisruptionBudgetConfig specifies the PodDisruptionBudget configuration
+                              for this component's pods. If not set, no PDB will be created.
+                            properties:
+                              maxUnavailable:
+                                anyOf:
+                                - type: integer
+                                - type: string
+                                description: |-
+                                  MaxUnavailable specifies the maximum number or percentage of pods
+                                  that can be unavailable after evictions.
+                                  Mutually exclusive with MinAvailable.
+                                x-kubernetes-int-or-string: true
+                              minAvailable:
+                                anyOf:
+                                - type: integer
+                                - type: string
+                                description: |-
+                                  MinAvailable specifies the minimum number or percentage of pods
+                                  that must remain available after evictions.
+                                  Mutually exclusive with MaxUnavailable.
+                                x-kubernetes-int-or-string: true
+                            type: object
                           priorityClassName:
                             default: system-node-critical
                             description: |-
@@ -2504,6 +2528,30 @@ spec:
                           "internal-vip" or "example.com/internal-vip".
                           More info: https://kubernetes.io/docs/concepts/services-networking/service/#load-balancer-class
                         type: string
+                      podDisruptionBudgetConfig:
+                        description: |-
+                          PodDisruptionBudgetConfig specifies the PodDisruptionBudget configuration
+                          for this component's pods. If not set, no PDB will be created.
+                        properties:
+                          maxUnavailable:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: |-
+                              MaxUnavailable specifies the maximum number or percentage of pods
+                              that can be unavailable after evictions.
+                              Mutually exclusive with MinAvailable.
+                            x-kubernetes-int-or-string: true
+                          minAvailable:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: |-
+                              MinAvailable specifies the minimum number or percentage of pods
+                              that must remain available after evictions.
+                              Mutually exclusive with MaxUnavailable.
+                            x-kubernetes-int-or-string: true
+                        type: object
                       priorityClassName:
                         default: system-node-critical
                         description: |-
@@ -4117,6 +4165,30 @@ spec:
                           and services.
                           More info: http://kubernetes.io/docs/user-guide/labels
                         type: object
+                      podDisruptionBudgetConfig:
+                        description: |-
+                          PodDisruptionBudgetConfig specifies the PodDisruptionBudget configuration
+                          for this component's pods. If not set, no PDB will be created.
+                        properties:
+                          maxUnavailable:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: |-
+                              MaxUnavailable specifies the maximum number or percentage of pods
+                              that can be unavailable after evictions.
+                              Mutually exclusive with MinAvailable.
+                            x-kubernetes-int-or-string: true
+                          minAvailable:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: |-
+                              MinAvailable specifies the minimum number or percentage of pods
+                              that must remain available after evictions.
+                              Mutually exclusive with MaxUnavailable.
+                            x-kubernetes-int-or-string: true
+                        type: object
                       priorityClassName:
                         default: system-node-critical
                         description: |-
@@ -4274,6 +4346,30 @@ spec:
                           and services.
                           More info: http://kubernetes.io/docs/user-guide/labels
                         type: object
+                      podDisruptionBudgetConfig:
+                        description: |-
+                          PodDisruptionBudgetConfig specifies the PodDisruptionBudget configuration
+                          for this component's pods. If not set, no PDB will be created.
+                        properties:
+                          maxUnavailable:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: |-
+                              MaxUnavailable specifies the maximum number or percentage of pods
+                              that can be unavailable after evictions.
+                              Mutually exclusive with MinAvailable.
+                            x-kubernetes-int-or-string: true
+                          minAvailable:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: |-
+                              MinAvailable specifies the minimum number or percentage of pods
+                              that must remain available after evictions.
+                              Mutually exclusive with MaxUnavailable.
+                            x-kubernetes-int-or-string: true
+                        type: object
                       priorityClassName:
                         default: system-node-critical
                         description: |-
@@ -4404,6 +4500,30 @@ spec:
                           and services.
                           More info: http://kubernetes.io/docs/user-guide/labels
                         type: object
+                      podDisruptionBudgetConfig:
+                        description: |-
+                          PodDisruptionBudgetConfig specifies the PodDisruptionBudget configuration
+                          for this component's pods. If not set, no PDB will be created.
+                        properties:
+                          maxUnavailable:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: |-
+                              MaxUnavailable specifies the maximum number or percentage of pods
+                              that can be unavailable after evictions.
+                              Mutually exclusive with MinAvailable.
+                            x-kubernetes-int-or-string: true
+                          minAvailable:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: |-
+                              MinAvailable specifies the minimum number or percentage of pods
+                              that must remain available after evictions.
+                              Mutually exclusive with MaxUnavailable.
+                            x-kubernetes-int-or-string: true
+                        type: object
                       priorityClassName:
                         default: system-node-critical
                         description: |-
@@ -4533,6 +4653,30 @@ spec:
                           (scope and select) objects. May match selectors of replication controllers
                           and services.
                           More info: http://kubernetes.io/docs/user-guide/labels
+                        type: object
+                      podDisruptionBudgetConfig:
+                        description: |-
+                          PodDisruptionBudgetConfig specifies the PodDisruptionBudget configuration
+                          for this component's pods. If not set, no PDB will be created.
+                        properties:
+                          maxUnavailable:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: |-
+                              MaxUnavailable specifies the maximum number or percentage of pods
+                              that can be unavailable after evictions.
+                              Mutually exclusive with MinAvailable.
+                            x-kubernetes-int-or-string: true
+                          minAvailable:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: |-
+                              MinAvailable specifies the minimum number or percentage of pods
+                              that must remain available after evictions.
+                              Mutually exclusive with MaxUnavailable.
+                            x-kubernetes-int-or-string: true
                         type: object
                       priorityClassName:
                         default: system-node-critical
@@ -4672,6 +4816,30 @@ spec:
                           and services.
                           More info: http://kubernetes.io/docs/user-guide/labels
                         type: object
+                      podDisruptionBudgetConfig:
+                        description: |-
+                          PodDisruptionBudgetConfig specifies the PodDisruptionBudget configuration
+                          for this component's pods. If not set, no PDB will be created.
+                        properties:
+                          maxUnavailable:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: |-
+                              MaxUnavailable specifies the maximum number or percentage of pods
+                              that can be unavailable after evictions.
+                              Mutually exclusive with MinAvailable.
+                            x-kubernetes-int-or-string: true
+                          minAvailable:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: |-
+                              MinAvailable specifies the minimum number or percentage of pods
+                              that must remain available after evictions.
+                              Mutually exclusive with MaxUnavailable.
+                            x-kubernetes-int-or-string: true
+                        type: object
                       priorityClassName:
                         default: system-node-critical
                         description: |-
@@ -4802,6 +4970,30 @@ spec:
                           and services.
                           More info: http://kubernetes.io/docs/user-guide/labels
                         type: object
+                      podDisruptionBudgetConfig:
+                        description: |-
+                          PodDisruptionBudgetConfig specifies the PodDisruptionBudget configuration
+                          for this component's pods. If not set, no PDB will be created.
+                        properties:
+                          maxUnavailable:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: |-
+                              MaxUnavailable specifies the maximum number or percentage of pods
+                              that can be unavailable after evictions.
+                              Mutually exclusive with MinAvailable.
+                            x-kubernetes-int-or-string: true
+                          minAvailable:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: |-
+                              MinAvailable specifies the minimum number or percentage of pods
+                              that must remain available after evictions.
+                              Mutually exclusive with MaxUnavailable.
+                            x-kubernetes-int-or-string: true
+                        type: object
                       priorityClassName:
                         default: system-node-critical
                         description: |-
@@ -4931,6 +5123,30 @@ spec:
                           (scope and select) objects. May match selectors of replication controllers
                           and services.
                           More info: http://kubernetes.io/docs/user-guide/labels
+                        type: object
+                      podDisruptionBudgetConfig:
+                        description: |-
+                          PodDisruptionBudgetConfig specifies the PodDisruptionBudget configuration
+                          for this component's pods. If not set, no PDB will be created.
+                        properties:
+                          maxUnavailable:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: |-
+                              MaxUnavailable specifies the maximum number or percentage of pods
+                              that can be unavailable after evictions.
+                              Mutually exclusive with MinAvailable.
+                            x-kubernetes-int-or-string: true
+                          minAvailable:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: |-
+                              MinAvailable specifies the minimum number or percentage of pods
+                              that must remain available after evictions.
+                              Mutually exclusive with MaxUnavailable.
+                            x-kubernetes-int-or-string: true
                         type: object
                       priorityClassName:
                         default: system-node-critical
@@ -5107,6 +5323,30 @@ spec:
                           (scope and select) objects. May match selectors of replication controllers
                           and services.
                           More info: http://kubernetes.io/docs/user-guide/labels
+                        type: object
+                      podDisruptionBudgetConfig:
+                        description: |-
+                          PodDisruptionBudgetConfig specifies the PodDisruptionBudget configuration
+                          for this component's pods. If not set, no PDB will be created.
+                        properties:
+                          maxUnavailable:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: |-
+                              MaxUnavailable specifies the maximum number or percentage of pods
+                              that can be unavailable after evictions.
+                              Mutually exclusive with MinAvailable.
+                            x-kubernetes-int-or-string: true
+                          minAvailable:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: |-
+                              MinAvailable specifies the minimum number or percentage of pods
+                              that must remain available after evictions.
+                              Mutually exclusive with MaxUnavailable.
+                            x-kubernetes-int-or-string: true
                         type: object
                       priorityClassName:
                         default: system-node-critical
