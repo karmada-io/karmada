@@ -47,7 +47,7 @@ func EnsureKarmadaAggregatedAPIServer(client clientset.Interface, cfg *operatorv
 	if err := installKarmadaAggregatedAPIServer(client, cfg.KarmadaAggregatedAPIServer, cfg.Etcd, name, namespace, featureGates); err != nil {
 		return err
 	}
-	return createKarmadaAggregatedAPIServerService(client, name, namespace)
+	return createKarmadaAggregatedAPIServerService(client, cfg, name, namespace)
 }
 
 func installKarmadaAPIServer(client clientset.Interface, cfg *operatorv1alpha1.KarmadaAPIServer, etcdCfg *operatorv1alpha1.Etcd, name, namespace string, _ map[string]bool) error {
@@ -116,6 +116,9 @@ func createKarmadaAPIServerService(client clientset.Interface, cfg *operatorv1al
 		karmadaApiserverService.Spec.LoadBalancerClass = cfg.LoadBalancerClass
 	}
 
+	// Apply labels and annotations using patcher
+	patcher.NewPatcher().WithLabels(cfg.Labels).WithAnnotations(cfg.Annotations).ForService(karmadaApiserverService)
+
 	if err := apiclient.CreateOrUpdateService(client, karmadaApiserverService); err != nil {
 		return fmt.Errorf("err when creating service for %s, err: %w", karmadaApiserverService.Name, err)
 	}
@@ -161,7 +164,7 @@ func installKarmadaAggregatedAPIServer(client clientset.Interface, cfg *operator
 	return nil
 }
 
-func createKarmadaAggregatedAPIServerService(client clientset.Interface, name, namespace string) error {
+func createKarmadaAggregatedAPIServerService(client clientset.Interface, cfg *operatorv1alpha1.KarmadaComponents, name, namespace string) error {
 	aggregatedAPIServerServiceBytes, err := util.ParseTemplate(KarmadaAggregatedAPIServerService, struct {
 		KarmadaInstanceName, ServiceName, Namespace string
 	}{
@@ -176,6 +179,11 @@ func createKarmadaAggregatedAPIServerService(client clientset.Interface, name, n
 	aggregatedAPIServerService := &corev1.Service{}
 	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), aggregatedAPIServerServiceBytes, aggregatedAPIServerService); err != nil {
 		return fmt.Errorf("err when decoding karmadaAggregatedAPIServer serive: %w", err)
+	}
+
+	// Apply labels and annotations using patcher if configuration is available
+	if cfg != nil && cfg.KarmadaAggregatedAPIServer != nil {
+		patcher.NewPatcher().WithLabels(cfg.KarmadaAggregatedAPIServer.Labels).WithAnnotations(cfg.KarmadaAggregatedAPIServer.Annotations).ForService(aggregatedAPIServerService)
 	}
 
 	if err := apiclient.CreateOrUpdateService(client, aggregatedAPIServerService); err != nil {
