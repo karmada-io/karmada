@@ -28,6 +28,7 @@ import (
 	"k8s.io/utils/ptr"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
+	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 )
 
 const (
@@ -127,60 +128,35 @@ func (i *CommandInitOption) etcdVolume() (*[]corev1.Volume, *corev1.PersistentVo
 	}
 }
 
-func (i *CommandInitOption) etcdInitContainerCommand() []string {
+func (i *CommandInitOption) defaultEtcdInitContainerCommand() []string {
 	etcdClusterConfig := ""
 	for v := int32(0); v < i.EtcdReplicas; v++ {
 		etcdClusterConfig += fmt.Sprintf("%s-%v=http://%s-%v.%s.%s.svc.%s:%v", etcdStatefulSetAndServiceName, v, etcdStatefulSetAndServiceName, v, etcdStatefulSetAndServiceName, i.Namespace, i.HostClusterDomain, etcdContainerServerPort) + ","
 	}
 
 	command := []string{
-		"sh",
-		"-c",
-		fmt.Sprintf(
-			`set -ex
-cat <<EOF | tee %s/%s
-name: ${%s}
-client-transport-security:
-  client-cert-auth: true
-  trusted-ca-file: %s/%s.crt
-  key-file: %s/%s.key
-  cert-file: %s/%s.crt
-peer-transport-security:
-  client-cert-auth: false
-  trusted-ca-file: %s/%s.crt
-  key-file: %s/%s.key
-  cert-file: %s/%s.crt
-initial-cluster-state: new
-initial-cluster-token: etcd-cluster
-initial-cluster: %s
-listen-peer-urls: http://${%s}:%v
-listen-client-urls: https://${%s}:%v,http://127.0.0.1:%v
-initial-advertise-peer-urls: http://${%s}:%v
-advertise-client-urls: https://${%s}.%s.%s.svc.%s:%v
-data-dir: %s
-cipher-suites: %s
-
-`,
-			etcdContainerConfigDataMountPath, etcdConfigName,
-			etcdEnvPodName,
-			karmadaCertsVolumeMountPath, options.EtcdCaCertAndKeyName,
-			karmadaCertsVolumeMountPath, options.EtcdServerCertAndKeyName,
-			karmadaCertsVolumeMountPath, options.EtcdServerCertAndKeyName,
-			karmadaCertsVolumeMountPath, options.EtcdCaCertAndKeyName,
-			karmadaCertsVolumeMountPath, options.EtcdServerCertAndKeyName,
-			karmadaCertsVolumeMountPath, options.EtcdServerCertAndKeyName,
-			strings.TrimRight(etcdClusterConfig, ","),
-			etcdEnvPodIP, etcdContainerServerPort,
-			etcdEnvPodIP, etcdContainerClientPort, etcdContainerClientPort,
-			etcdEnvPodIP, etcdContainerServerPort,
-			etcdEnvPodName, etcdStatefulSetAndServiceName,
-			i.Namespace, i.HostClusterDomain,
-			etcdContainerClientPort,
-			etcdContainerDataVolumeMountPath,
-			etcdCipherSuites,
-		),
+		"/usr/local/bin/etcd",
+		fmt.Sprintf("--name=$(%s)", etcdEnvPodName),
+		fmt.Sprintf("--listen-peer-urls=http://$(%s):%v", etcdEnvPodIP, etcdContainerServerPort),
+		fmt.Sprintf("--listen-client-urls=https://$(%s):%v,http://127.0.0.1:%v", etcdEnvPodIP, etcdContainerClientPort, etcdContainerClientPort),
+		fmt.Sprintf("--advertise-client-urls=https://$(%s).%s.%s.svc.%s:%v", etcdEnvPodName, etcdStatefulSetAndServiceName, i.Namespace, i.HostClusterDomain, etcdContainerClientPort),
+		fmt.Sprintf("--initial-cluster=%s", strings.TrimRight(etcdClusterConfig, ",")),
+		"--initial-cluster-state=new",
+		"--client-cert-auth=true",
+		fmt.Sprintf("--cert-file=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdServerCertAndKeyName),
+		fmt.Sprintf("--key-file=%s/%s.key", karmadaCertsVolumeMountPath, options.EtcdServerCertAndKeyName),
+		fmt.Sprintf("--trusted-ca-file=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdCaCertAndKeyName),
+		fmt.Sprintf("--data-dir=%s", etcdContainerDataVolumeMountPath),
+		"--snapshot-count=10000",
+		fmt.Sprintf("--cipher-suites=%s", etcdCipherSuites),
+		// Added based on the original code.
+		"--initial-cluster-token=etcd-cluster",
+		fmt.Sprintf("--initial-advertise-peer-urls=http://$(%s):%v", etcdEnvPodIP, etcdContainerServerPort),
+		"--peer-client-cert-auth=false",
+		fmt.Sprintf("--peer-trusted-ca-file=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdCaCertAndKeyName),
+		fmt.Sprintf("--peer-key-file=%s/%s.key", karmadaCertsVolumeMountPath, options.EtcdServerCertAndKeyName),
+		fmt.Sprintf("--peer-cert-file=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdServerCertAndKeyName),
 	}
-
 	return command
 }
 
@@ -258,12 +234,9 @@ func (i *CommandInitOption) makeETCDStatefulSet() *appsv1.StatefulSet {
 		AutomountServiceAccountToken: ptr.To[bool](false),
 		Containers: []corev1.Container{
 			{
-				Name:  etcdStatefulSetAndServiceName,
-				Image: i.etcdImage(),
-				Command: []string{
-					"/usr/local/bin/etcd",
-					fmt.Sprintf("--config-file=%s/%s", etcdContainerConfigDataMountPath, etcdConfigName),
-				},
+				Name:    etcdStatefulSetAndServiceName,
+				Image:   i.etcdImage(),
+				Command: utils.KarmadaComponentCommand(i.defaultEtcdInitContainerCommand(), i.EtcdExtraArgs),
 				Ports: []corev1.ContainerPort{
 					{
 						Name:          etcdContainerClientPortName,
@@ -295,6 +268,24 @@ func (i *CommandInitOption) makeETCDStatefulSet() *appsv1.StatefulSet {
 				},
 				LivenessProbe: livenesProbe,
 				//ReadinessProbe: readinesProbe,
+				Env: []corev1.EnvVar{
+					{
+						Name: etcdEnvPodName,
+						ValueFrom: &corev1.EnvVarSource{
+							FieldRef: &corev1.ObjectFieldSelector{
+								FieldPath: "metadata.name",
+							},
+						},
+					},
+					{
+						Name: etcdEnvPodIP,
+						ValueFrom: &corev1.EnvVarSource{
+							FieldRef: &corev1.ObjectFieldSelector{
+								FieldPath: "status.podIP",
+							},
+						},
+					},
+				},
 			},
 		},
 		Volumes: *Volumes,
@@ -306,40 +297,6 @@ func (i *CommandInitOption) makeETCDStatefulSet() *appsv1.StatefulSet {
 		} else {
 			podSpec.NodeSelector = map[string]string{"karmada.io/etcd": ""}
 		}
-	}
-
-	// InitContainers
-	podSpec.InitContainers = []corev1.Container{
-		{
-			Name:    "etcd-init-conf",
-			Image:   i.etcdInitImage(),
-			Command: i.etcdInitContainerCommand(),
-			VolumeMounts: []corev1.VolumeMount{
-				{
-					Name:      etcdContainerConfigVolumeMountName,
-					ReadOnly:  false,
-					MountPath: etcdContainerConfigDataMountPath,
-				},
-			},
-			Env: []corev1.EnvVar{
-				{
-					Name: etcdEnvPodName,
-					ValueFrom: &corev1.EnvVarSource{
-						FieldRef: &corev1.ObjectFieldSelector{
-							FieldPath: "metadata.name",
-						},
-					},
-				},
-				{
-					Name: etcdEnvPodIP,
-					ValueFrom: &corev1.EnvVarSource{
-						FieldRef: &corev1.ObjectFieldSelector{
-							FieldPath: "status.podIP",
-						},
-					},
-				},
-			},
-		},
 	}
 
 	// PodTemplateSpec
@@ -376,7 +333,5 @@ func (i *CommandInitOption) makeETCDStatefulSet() *appsv1.StatefulSet {
 // They are obtained by the return value of the function CipherSuites() under the go/src/crypto/tls/cipher_suites.go package.
 // Consistent with the Preferred values of k8s’s default cipher suites.
 func genEtcdCipherSuites() string {
-	cipherSuites := strings.Join(flag.PreferredTLSCipherNames(), "\",\"")
-	cipherSuites = "[\"" + cipherSuites + "\"]"
-	return cipherSuites
+	return strings.Join(flag.PreferredTLSCipherNames(), ",")
 }
