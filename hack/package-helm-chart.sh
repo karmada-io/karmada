@@ -47,7 +47,7 @@ do
 
     tar_file="${chart}-chart-${version}.tgz"
     echo "Starting to package into a ${chart} chart archive"
-    helm package ./charts/"${chart}" --version "${version}" -d "${output_dir}" -u
+    helm package ./charts/"${chart}" --version "${version}" --app-version "${version}" -d "${output_dir}" -u
 
     echo "Rename ${chart}-${version}.tgz to ${tar_file}"
     mv "${output_dir}/${chart}-${version}.tgz" "${output_dir}/${tar_file}"
