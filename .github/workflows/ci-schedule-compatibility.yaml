@@ -45,7 +45,7 @@ jobs:
           fetch-depth: 0
           ref: ${{ matrix.karmada-version }}
       - name: install Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
       - name: setup e2e test environment

@@ -23,7 +23,7 @@ jobs:
           # for `git describe --tags` in Makefile.
           fetch-depth: 0
       - name: install Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
       - name: login to DockerHub

@@ -37,7 +37,7 @@ jobs:
           # 0 indicates all history for all branches and tags.
           fetch-depth: 0
       - name: install Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
       - name: Build an image from Dockerfile
