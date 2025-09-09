@@ -408,6 +408,13 @@ func (in *ResourceInterpreterResponse) DeepCopyInto(out *ResourceInterpreterResp
 		*out = new(int32)
 		**out = **in
 	}
+	if in.Components != nil {
+		in, out := &in.Components, &out.Components
+		*out = make([]v1alpha2.Component, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	if in.Dependencies != nil {
 		in, out := &in.Dependencies, &out.Dependencies
 		*out = make([]DependentObjectReference, len(*in))
