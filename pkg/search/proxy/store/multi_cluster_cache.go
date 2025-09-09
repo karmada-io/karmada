@@ -269,14 +269,16 @@ func (c *MultiClusterCache) List(ctx context.Context, gvr schema.GroupVersionRes
 		for _, cluster := range clusters {
 			_, _, err := listFunc(cluster)
 			if err != nil {
-				return nil, err
+				klog.Errorf("Fail to list %s from %s: %v", gvr, cluster, err)
+				continue
 			}
 		}
 	} else {
 		for clusterIdx, cluster := range clusters {
 			n, cont, err := listFunc(cluster)
 			if err != nil {
-				return nil, err
+				klog.Errorf("Fail to list %s from %s: %v", gvr, cluster, err)
+				continue
 			}
 
 			options.Limit -= int64(n)
@@ -412,7 +414,8 @@ func (c *MultiClusterCache) getResourceFromCache(ctx context.Context, gvr schema
 			continue
 		}
 		if err != nil {
-			return nil, "", nil, fmt.Errorf("fail to get %v %v from %v: %v", namespace, name, clusterName, err)
+			klog.Errorf("Fail to get %v %v from %v: %v", namespace, name, clusterName, err)
+			continue
 		}
 		findObjects = append(findObjects, obj)
 		findCaches = append(findCaches, cache)
