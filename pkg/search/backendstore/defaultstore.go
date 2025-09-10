@@ -51,6 +51,13 @@ func NewDefaultBackend(cluster string) *Default {
 					cluster, us.GroupVersionKind().String(), us.GetNamespace(), us.GetName())
 			},
 			DeleteFunc: func(obj interface{}) {
+				if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+					obj = tombstone.Obj
+					if obj == nil {
+						klog.Warningf("Failed to get object(%s) from tombstone", tombstone.Key)
+						return
+					}
+				}
 				us, ok := obj.(*unstructured.Unstructured)
 				if !ok {
 					klog.Errorf("unexpected type %T", obj)
