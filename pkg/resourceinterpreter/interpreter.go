@@ -216,6 +216,17 @@ func (i *customResourceInterpreterImpl) GetComponents(object *unstructured.Unstr
 		return components, nil
 	}
 
+	components, hookEnabled, err = i.customizedInterpreter.GetComponents(context.TODO(), &request.Attributes{
+		Operation: configv1alpha1.InterpreterOperationInterpretComponent,
+		Object:    object,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if hookEnabled {
+		return components, nil
+	}
+
 	components, hookEnabled, err = i.thirdpartyInterpreter.GetComponents(object)
 	if err != nil {
 		return nil, err
