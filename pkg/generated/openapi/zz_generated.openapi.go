@@ -2679,6 +2679,20 @@ func schema_pkg_apis_config_v1alpha1_ResourceInterpreterResponse(ref common.Refe
 							Format:      "int32",
 						},
 					},
+					"components": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Components represents the requirements of multiple pod templates of the referencing resource. It is designed to support workloads that consist of multiple pod templates, such as distributed training jobs (e.g., PyTorch, TensorFlow) and big data workloads (e.g., FlinkDeployment), where each workload is composed of more than one pod template. It is also capable of representing single-component workloads, such as Deployment.\n\nRequired if InterpreterOperation is InterpreterOperationInterpretComponent.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.Component"),
+									},
+								},
+							},
+						},
+					},
 					"dependencies": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Dependencies represents the reference of dependencies object. Required if InterpreterOperation is InterpreterOperationInterpretDependency.",
@@ -2711,7 +2725,7 @@ func schema_pkg_apis_config_v1alpha1_ResourceInterpreterResponse(ref common.Refe
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.DependentObjectReference", "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.RequestStatus", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ReplicaRequirements", "k8s.io/apimachinery/pkg/runtime.RawExtension"},
+			"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.DependentObjectReference", "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.RequestStatus", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.Component", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ReplicaRequirements", "k8s.io/apimachinery/pkg/runtime.RawExtension"},
 	}
 }
 
