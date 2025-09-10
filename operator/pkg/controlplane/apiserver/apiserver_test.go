@@ -268,7 +268,7 @@ func TestCreateKarmadaAggregatedAPIServerService(t *testing.T) {
 	namespace := "test-namespace"
 
 	// Call the function under test.
-	err := createKarmadaAggregatedAPIServerService(client, name, namespace)
+	err := createKarmadaAggregatedAPIServerService(client, nil, name, namespace)
 	if err != nil {
 		t.Fatalf("expected no error, but got: %v", err)
 	}
