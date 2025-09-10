@@ -147,6 +147,13 @@ func (os *OpenSearch) ResourceEventHandlerFuncs() cache.ResourceEventHandler {
 			os.upsert(curObj)
 		},
 		DeleteFunc: func(obj interface{}) {
+			if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+				obj = tombstone.Obj
+				if obj == nil {
+					klog.Warningf("Failed to get object(%s) from tombstone", tombstone.Key)
+					return
+				}
+			}
 			os.delete(obj)
 		},
 	}

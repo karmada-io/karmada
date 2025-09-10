@@ -112,6 +112,13 @@ func (d *ClusterDetector) OnUpdate(_, newObj interface{}) {
 
 // OnDelete handles object delete event and push the object to queue.
 func (d *ClusterDetector) OnDelete(obj interface{}) {
+	if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+		obj = tombstone.Obj
+		if obj == nil {
+			klog.Warningf("Failed to get object(%s) from tombstone", tombstone.Key)
+			return
+		}
+	}
 	d.OnAdd(obj)
 }
 
