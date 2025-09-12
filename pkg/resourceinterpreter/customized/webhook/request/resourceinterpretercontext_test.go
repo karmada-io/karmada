@@ -28,6 +28,7 @@ import (
 	"k8s.io/utils/ptr"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
 
 func TestCreateResourceInterpreterContext(t *testing.T) {
@@ -324,6 +325,17 @@ func TestVerifyResourceInterpreterContextByOperation(t *testing.T) {
 		invalidOpType  = "invalid-operation"
 	)
 
+	testComponents := []workv1alpha2.Component{
+		{
+			Name:     "test-component1",
+			Replicas: int32(1),
+		},
+		{
+			Name:     "test-component2",
+			Replicas: int32(2),
+		},
+	}
+
 	tests := []struct {
 		name          string
 		operation     configv1alpha1.InterpreterOperation
@@ -353,6 +365,29 @@ func TestVerifyResourceInterpreterContextByOperation(t *testing.T) {
 			},
 			wantError:     true,
 			errorContains: "nil response.replicas",
+		},
+		{
+			name:      "interpret component with valid response",
+			operation: configv1alpha1.InterpreterOperationInterpretComponent,
+			response: &configv1alpha1.ResourceInterpreterResponse{
+				UID:        types.UID(testUID),
+				Successful: true,
+				Components: testComponents,
+			},
+			checkFunc: func(t *testing.T, attr *ResponseAttributes) {
+				assert.Equal(t, testComponents, attr.Components)
+			},
+		},
+		{
+			name:      "interpret component with nil components",
+			operation: configv1alpha1.InterpreterOperationInterpretComponent,
+			response: &configv1alpha1.ResourceInterpreterResponse{
+				UID:        types.UID(testUID),
+				Successful: true,
+			},
+			checkFunc: func(t *testing.T, attr *ResponseAttributes) {
+				assert.Nil(t, attr.Components)
+			},
 		},
 		{
 			name:      "interpret dependency with valid response",
