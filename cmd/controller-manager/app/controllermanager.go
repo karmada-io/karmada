@@ -119,9 +119,9 @@ func NewControllerManagerCommand(ctx context.Context) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use: names.KarmadaControllerManagerComponentName,
-		Long: `The karmada-controller-manager runs various controllers.
-		The controllers watch Karmada objects and then talk to the underlying
-		clusters' API servers to create regular Kubernetes resources.`,
+		Long: "The karmada-controller-manager runs various controllers.\n" +
+			"The controllers watch Karmada objects and then talk to the underlying\n" +
+			"clusters' API servers to create regular Kubernetes resources.",
 
 		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
 			if err := logsv1.ValidateAndApply(logConfig, features.FeatureGate); err != nil {
