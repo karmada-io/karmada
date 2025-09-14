@@ -49,11 +49,11 @@ func TestWorkloadInterpreter_responseWithExploreReplica(t *testing.T) {
 			expected: 3,
 		},
 		{
-			name: "Workload without replicas",
+			name: "Workload with default replicas",
 			workload: &workloadv1alpha1.Workload{
 				Spec: workloadv1alpha1.WorkloadSpec{},
 			},
-			expected: 0,
+			expected: 1,
 		},
 	}
 
