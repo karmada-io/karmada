@@ -677,3 +677,465 @@ func TestValidatingAdmission_Handle(t *testing.T) {
 		})
 	}
 }
+
+func TestIsQuotaRelevantFieldChanged(t *testing.T) {
+	tests := []struct {
+		name   string
+		oldRB  *workv1alpha2.ResourceBinding
+		newRB  *workv1alpha2.ResourceBinding
+		expect bool
+	}{
+		{
+			name:   "nil old RB should return true",
+			oldRB:  nil,
+			newRB:  makeTestRB("default", "test"),
+			expect: true,
+		},
+		{
+			name:   "nil new RB should return true",
+			oldRB:  makeTestRB("default", "test"),
+			newRB:  nil,
+			expect: true,
+		},
+		{
+			name:   "both nil should return true",
+			oldRB:  nil,
+			newRB:  nil,
+			expect: true,
+		},
+		{
+			name: "no changes should return false",
+			oldRB: makeTestRB("default", "test",
+				WithClusters([]workv1alpha2.TargetCluster{{Name: "c1", Replicas: 2}}),
+				WithReplicaRequirements(corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("100m")}),
+			),
+			newRB: makeTestRB("default", "test",
+				WithClusters([]workv1alpha2.TargetCluster{{Name: "c1", Replicas: 2}}),
+				WithReplicaRequirements(corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("100m")}),
+			),
+			expect: false,
+		},
+		{
+			name: "resource request changed should return true",
+			oldRB: makeTestRB("default", "test",
+				WithReplicaRequirements(corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("100m")}),
+			),
+			newRB: makeTestRB("default", "test",
+				WithReplicaRequirements(corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("200m")}),
+			),
+			expect: true,
+		},
+		{
+			name: "scheduled replicas changed should return true",
+			oldRB: makeTestRB("default", "test",
+				WithClusters([]workv1alpha2.TargetCluster{{Name: "c1", Replicas: 1}}),
+			),
+			newRB: makeTestRB("default", "test",
+				WithClusters([]workv1alpha2.TargetCluster{{Name: "c1", Replicas: 2}}),
+			),
+			expect: true,
+		},
+		{
+			name: "components changed should return true",
+			oldRB: makeTestRB("default", "test",
+				WithComponents([]workv1alpha2.Component{{Name: "comp1", Replicas: 1}}),
+			),
+			newRB: makeTestRB("default", "test",
+				WithComponents([]workv1alpha2.Component{{Name: "comp1", Replicas: 2}}),
+			),
+			expect: true,
+		},
+		{
+			name: "non-quota relevant field changed should return false",
+			oldRB: makeTestRB("default", "test",
+				WithResourceRef(workv1alpha2.ObjectReference{APIVersion: "v1", Kind: "Pod", Name: "old-pod"}),
+			),
+			newRB: makeTestRB("default", "test",
+				WithResourceRef(workv1alpha2.ObjectReference{APIVersion: "v1", Kind: "Pod", Name: "new-pod"}),
+			),
+			expect: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isQuotaRelevantFieldChanged(tt.oldRB, tt.newRB)
+			if got != tt.expect {
+				t.Errorf("isQuotaRelevantFieldChanged() = %v, want %v", got, tt.expect)
+			}
+		})
+	}
+}
+
+func TestIsResourceRequestChanged(t *testing.T) {
+	tests := []struct {
+		name   string
+		oldRB  *workv1alpha2.ResourceBinding
+		newRB  *workv1alpha2.ResourceBinding
+		expect bool
+	}{
+		{
+			name: "no replica requirements in both should return false",
+			oldRB: makeTestRB("default", "test",
+				WithReplicaRequirements(nil),
+			),
+			newRB: makeTestRB("default", "test",
+				WithReplicaRequirements(nil),
+			),
+			expect: false,
+		},
+		{
+			name: "old has no replica requirements, new has some should return true",
+			oldRB: makeTestRB("default", "test",
+				WithReplicaRequirements(nil),
+			),
+			newRB: makeTestRB("default", "test",
+				WithReplicaRequirements(corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("100m")}),
+			),
+			expect: true,
+		},
+		{
+			name: "old has replica requirements, new has none should return true",
+			oldRB: makeTestRB("default", "test",
+				WithReplicaRequirements(corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("100m")}),
+			),
+			newRB: makeTestRB("default", "test",
+				WithReplicaRequirements(nil),
+			),
+			expect: true,
+		},
+		{
+			name: "same resource requests should return false",
+			oldRB: makeTestRB("default", "test",
+				WithReplicaRequirements(corev1.ResourceList{
+					corev1.ResourceCPU:    resource.MustParse("100m"),
+					corev1.ResourceMemory: resource.MustParse("128Mi"),
+				}),
+			),
+			newRB: makeTestRB("default", "test",
+				WithReplicaRequirements(corev1.ResourceList{
+					corev1.ResourceCPU:    resource.MustParse("100m"),
+					corev1.ResourceMemory: resource.MustParse("128Mi"),
+				}),
+			),
+			expect: false,
+		},
+		{
+			name: "different resource requests should return true",
+			oldRB: makeTestRB("default", "test",
+				WithReplicaRequirements(corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("100m")}),
+			),
+			newRB: makeTestRB("default", "test",
+				WithReplicaRequirements(corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("200m")}),
+			),
+			expect: true,
+		},
+		{
+			name: "different resource types should return true",
+			oldRB: makeTestRB("default", "test",
+				WithReplicaRequirements(corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("100m")}),
+			),
+			newRB: makeTestRB("default", "test",
+				WithReplicaRequirements(corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("128Mi")}),
+			),
+			expect: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isResourceRequestChanged(tt.oldRB, tt.newRB)
+			if got != tt.expect {
+				t.Errorf("isResourceRequestChanged() = %v, want %v", got, tt.expect)
+			}
+		})
+	}
+}
+
+func TestIsScheduledReplicasChanged(t *testing.T) {
+	tests := []struct {
+		name   string
+		oldRB  *workv1alpha2.ResourceBinding
+		newRB  *workv1alpha2.ResourceBinding
+		expect bool
+	}{
+		{
+			name: "no clusters in both should return false",
+			oldRB: makeTestRB("default", "test",
+				WithClusters(nil),
+			),
+			newRB: makeTestRB("default", "test",
+				WithClusters(nil),
+			),
+			expect: false,
+		},
+		{
+			name: "same total replicas should return false",
+			oldRB: makeTestRB("default", "test",
+				WithClusters([]workv1alpha2.TargetCluster{
+					{Name: "c1", Replicas: 2},
+					{Name: "c2", Replicas: 3},
+				}),
+			),
+			newRB: makeTestRB("default", "test",
+				WithClusters([]workv1alpha2.TargetCluster{
+					{Name: "c1", Replicas: 1},
+					{Name: "c2", Replicas: 4},
+				}),
+			),
+			expect: false,
+		},
+		{
+			name: "different total replicas should return true",
+			oldRB: makeTestRB("default", "test",
+				WithClusters([]workv1alpha2.TargetCluster{
+					{Name: "c1", Replicas: 2},
+				}),
+			),
+			newRB: makeTestRB("default", "test",
+				WithClusters([]workv1alpha2.TargetCluster{
+					{Name: "c1", Replicas: 3},
+				}),
+			),
+			expect: true,
+		},
+		{
+			name: "old has no clusters, new has clusters should return true",
+			oldRB: makeTestRB("default", "test",
+				WithClusters(nil),
+			),
+			newRB: makeTestRB("default", "test",
+				WithClusters([]workv1alpha2.TargetCluster{{Name: "c1", Replicas: 1}}),
+			),
+			expect: true,
+		},
+		{
+			name: "old has clusters, new has no clusters should return true",
+			oldRB: makeTestRB("default", "test",
+				WithClusters([]workv1alpha2.TargetCluster{{Name: "c1", Replicas: 1}}),
+			),
+			newRB: makeTestRB("default", "test",
+				WithClusters(nil),
+			),
+			expect: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isScheduledReplicasChanged(tt.oldRB, tt.newRB)
+			if got != tt.expect {
+				t.Errorf("isScheduledReplicasChanged() = %v, want %v", got, tt.expect)
+			}
+		})
+	}
+}
+
+func TestIsComponentsChanged(t *testing.T) {
+	makeComponent := func(name string, replicas int32, cpu string) workv1alpha2.Component {
+		comp := workv1alpha2.Component{
+			Name:     name,
+			Replicas: replicas,
+		}
+		if cpu != "" {
+			comp.ReplicaRequirements = &workv1alpha2.ComponentReplicaRequirements{
+				ResourceRequest: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse(cpu)},
+			}
+		}
+		return comp
+	}
+
+	tests := []struct {
+		name   string
+		oldRB  *workv1alpha2.ResourceBinding
+		newRB  *workv1alpha2.ResourceBinding
+		expect bool
+	}{
+		{
+			name: "no components in both should return false",
+			oldRB: makeTestRB("default", "test",
+				WithComponents(nil),
+			),
+			newRB: makeTestRB("default", "test",
+				WithComponents(nil),
+			),
+			expect: false,
+		},
+		{
+			name: "same components should return false",
+			oldRB: makeTestRB("default", "test",
+				WithComponents([]workv1alpha2.Component{
+					makeComponent("comp1", 2, "100m"),
+					makeComponent("comp2", 1, "50m"),
+				}),
+			),
+			newRB: makeTestRB("default", "test",
+				WithComponents([]workv1alpha2.Component{
+					makeComponent("comp1", 2, "100m"),
+					makeComponent("comp2", 1, "50m"),
+				}),
+			),
+			expect: false,
+		},
+		{
+			name: "different number of components should return true",
+			oldRB: makeTestRB("default", "test",
+				WithComponents([]workv1alpha2.Component{
+					makeComponent("comp1", 1, "100m"),
+				}),
+			),
+			newRB: makeTestRB("default", "test",
+				WithComponents([]workv1alpha2.Component{
+					makeComponent("comp1", 1, "100m"),
+					makeComponent("comp2", 1, "50m"),
+				}),
+			),
+			expect: true,
+		},
+		{
+			name: "different replicas should return true",
+			oldRB: makeTestRB("default", "test",
+				WithComponents([]workv1alpha2.Component{
+					makeComponent("comp1", 1, "100m"),
+				}),
+			),
+			newRB: makeTestRB("default", "test",
+				WithComponents([]workv1alpha2.Component{
+					makeComponent("comp1", 2, "100m"),
+				}),
+			),
+			expect: true,
+		},
+		{
+			name: "old has replica requirements, new doesn't should return true",
+			oldRB: makeTestRB("default", "test",
+				WithComponents([]workv1alpha2.Component{
+					makeComponent("comp1", 1, "100m"),
+				}),
+			),
+			newRB: makeTestRB("default", "test",
+				WithComponents([]workv1alpha2.Component{
+					makeComponent("comp1", 1, ""),
+				}),
+			),
+			expect: true,
+		},
+		{
+			name: "old doesn't have replica requirements, new does should return true",
+			oldRB: makeTestRB("default", "test",
+				WithComponents([]workv1alpha2.Component{
+					makeComponent("comp1", 1, ""),
+				}),
+			),
+			newRB: makeTestRB("default", "test",
+				WithComponents([]workv1alpha2.Component{
+					makeComponent("comp1", 1, "100m"),
+				}),
+			),
+			expect: true,
+		},
+		{
+			name: "different resource requests should return true",
+			oldRB: makeTestRB("default", "test",
+				WithComponents([]workv1alpha2.Component{
+					makeComponent("comp1", 1, "100m"),
+				}),
+			),
+			newRB: makeTestRB("default", "test",
+				WithComponents([]workv1alpha2.Component{
+					makeComponent("comp1", 1, "200m"),
+				}),
+			),
+			expect: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isComponentsChanged(tt.oldRB, tt.newRB)
+			if got != tt.expect {
+				t.Errorf("isComponentsChanged() = %v, want %v", got, tt.expect)
+			}
+		})
+	}
+}
+
+func TestAreResourceListsEqual(t *testing.T) {
+	tests := []struct {
+		name   string
+		a      corev1.ResourceList
+		b      corev1.ResourceList
+		expect bool
+	}{
+		{
+			name:   "both nil should return true",
+			a:      nil,
+			b:      nil,
+			expect: true,
+		},
+		{
+			name:   "both empty should return true",
+			a:      corev1.ResourceList{},
+			b:      corev1.ResourceList{},
+			expect: true,
+		},
+		{
+			name: "same resources should return true",
+			a: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("100m"),
+				corev1.ResourceMemory: resource.MustParse("128Mi"),
+			},
+			b: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("100m"),
+				corev1.ResourceMemory: resource.MustParse("128Mi"),
+			},
+			expect: true,
+		},
+		{
+			name: "different lengths should return false",
+			a: corev1.ResourceList{
+				corev1.ResourceCPU: resource.MustParse("100m"),
+			},
+			b: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("100m"),
+				corev1.ResourceMemory: resource.MustParse("128Mi"),
+			},
+			expect: false,
+		},
+		{
+			name: "different keys should return false",
+			a: corev1.ResourceList{
+				corev1.ResourceCPU: resource.MustParse("100m"),
+			},
+			b: corev1.ResourceList{
+				corev1.ResourceMemory: resource.MustParse("128Mi"),
+			},
+			expect: false,
+		},
+		{
+			name: "different values should return false",
+			a: corev1.ResourceList{
+				corev1.ResourceCPU: resource.MustParse("100m"),
+			},
+			b: corev1.ResourceList{
+				corev1.ResourceCPU: resource.MustParse("200m"),
+			},
+			expect: false,
+		},
+		{
+			name:   "one nil, one empty should return true",
+			a:      nil,
+			b:      corev1.ResourceList{},
+			expect: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := areResourceListsEqual(tt.a, tt.b)
+			if got != tt.expect {
+				t.Errorf("areResourceListsEqual() = %v, want %v", got, tt.expect)
+			}
+		})
+	}
+}
