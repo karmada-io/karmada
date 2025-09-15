@@ -244,6 +244,85 @@ func TestGetReplicas(t *testing.T) {
 	}
 }
 
+func TestGetComponents(t *testing.T) {
+	tests := []struct {
+		name           string
+		hasSynced      bool
+		hooks          []configmanager.WebhookAccessor
+		attributes     *request.Attributes
+		wantComponents []workv1alpha2.Component
+		wantMatched    bool
+		wantErr        bool
+		errorContains  string
+	}{
+		{
+			name:      "not synced",
+			hasSynced: false,
+			attributes: &request.Attributes{
+				Object: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "apps/v1",
+						"kind":       "Deployment",
+						"metadata": map[string]interface{}{
+							"name":      "test-deployment",
+							"namespace": "test-ns",
+						},
+					},
+				},
+				Operation: configv1alpha1.InterpreterOperationInterpretComponent,
+			},
+			wantErr:       true,
+			errorContains: "not yet ready to handle request",
+		},
+		{
+			name:      "no matching hooks",
+			hasSynced: true,
+			hooks:     []configmanager.WebhookAccessor{},
+			attributes: &request.Attributes{
+				Object: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "apps/v1",
+						"kind":       "Deployment",
+						"metadata": map[string]interface{}{
+							"name":      "test-deployment",
+							"namespace": "test-ns",
+						},
+					},
+				},
+				Operation: configv1alpha1.InterpreterOperationInterpretComponent,
+			},
+			wantMatched: false,
+			wantErr:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			interpreter := &CustomizedInterpreter{
+				hookManager: &mockConfigManager{
+					hasSynced: tt.hasSynced,
+					hooks:     tt.hooks,
+				},
+			}
+
+			components, matched, err := interpreter.GetComponents(context.Background(), tt.attributes)
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.errorContains != "" {
+					assert.Contains(t, err.Error(), tt.errorContains)
+				}
+				return
+			}
+
+			assert.NoError(t, err)
+			assert.Equal(t, tt.wantMatched, matched)
+			if matched {
+				assert.Equal(t, tt.wantComponents, components)
+			}
+		})
+	}
+}
+
 func TestPatch(t *testing.T) {
 	tests := []struct {
 		name          string

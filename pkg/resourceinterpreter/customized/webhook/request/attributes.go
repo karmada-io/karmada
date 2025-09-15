@@ -44,4 +44,5 @@ type ResponseAttributes struct {
 	PatchType           configv1alpha1.PatchType
 	RawStatus           runtime.RawExtension
 	Healthy             bool
+	Components          []workv1alpha2.Component
 }
