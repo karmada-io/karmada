@@ -3083,6 +3083,7 @@ func schema_pkg_apis_networking_v1alpha1_ClusterSelector(ref common.ReferenceCal
 					"name": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Name is the name of the cluster to be selected.",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
