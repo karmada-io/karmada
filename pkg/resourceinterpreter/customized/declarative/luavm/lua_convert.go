@@ -161,7 +161,7 @@ func traverseToFindEmptyField(root gjson.Result, fieldPath []string) (sets.Set[s
 		// the first element is key=0, value={"ruleName":[]}
 		// however, we expected to record the `ruleName` field path as `rules.ruleName`, rather than `rules.0.ruleName`.
 		if rootIsNotArray {
-			curFieldPath = append(fieldPath, key.String())
+			curFieldPath = append(fieldPath, escapeJSONPathDotAndColon(key.String()))
 		}
 		curFieldStr := strings.Join(curFieldPath, ".")
 
@@ -179,6 +179,16 @@ func traverseToFindEmptyField(root gjson.Result, fieldPath []string) (sets.Set[s
 	})
 
 	return fieldOfEmptySlice, fieldOfEmptyStruct
+}
+
+// escapeJSONPathDotAndColon escape the dot and colon characters in json path key.
+// sjson package use '.' and '.:' to split the json path, so if a json key contains these characters,
+// we need to escape them by '\' first.
+// More details can refer to https://pkg.go.dev/github.com/tidwall/sjson#readme-path-syntax.
+func escapeJSONPathDotAndColon(field string) string {
+	field = strings.ReplaceAll(field, ".", `\.`)
+	field = strings.ReplaceAll(field, ":", `\:`)
+	return field
 }
 
 // traverseToFindEmptyFieldNeededModify find the field with empty values which needed to be modified by traverse a gjson.Result
@@ -208,9 +218,9 @@ func traverseToFindEmptyFieldNeededModify(root gjson.Result, fieldPath, fieldPat
 		// the first element is key=0, value={"ruleName":[]}
 		// we record `rules.ruleName` into curFieldPath, and record `rules.0.ruleName` into curFieldPathWithArrayIndex.
 		if rootIsNotArray {
-			curFieldPath = append(fieldPath, key.String())
+			curFieldPath = append(fieldPath, escapeJSONPathDotAndColon(key.String()))
 		}
-		curFieldPathWithArrayIndex := append(fieldPathWithArrayIndex, key.String())
+		curFieldPathWithArrayIndex := append(fieldPathWithArrayIndex, escapeJSONPathDotAndColon(key.String()))
 
 		if value.IsArray() && len(value.Array()) == 0 {
 			curFieldPathStr := strings.Join(curFieldPath, ".")
