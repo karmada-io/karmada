@@ -128,7 +128,7 @@ if [[ "${BUILD_FROM_SOURCE}" == "true" ]]; then
   #clean up dangling images
   docker image prune --force --filter "label=image.karmada.io=${KARMADA_IMAGE_LABEL_VALUE}"
 fi
-GO111MODULE=on go install "github.com/karmada-io/karmada/cmd/karmadactl"
+GO111MODULE=on go install "github.com/karmada-io/karmada/cmd/karmadactl@latest"
 
 #step3. wait until clusters ready
 echo "Waiting for the clusters to be ready..."
