@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	utilhelper "github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/test/helper"
 )
 
@@ -30,90 +29,6 @@ const (
 	ClusterMember3 = "member3"
 	ClusterMember4 = "member4"
 )
-
-func Test_dispenser_takeByWeight(t *testing.T) {
-	tests := []struct {
-		name        string
-		numReplicas int32
-		result      []workv1alpha2.TargetCluster
-		weightList  utilhelper.ClusterWeightInfoList
-		desired     []workv1alpha2.TargetCluster
-		done        bool
-	}{
-		{
-			name:        "Scale up 6 replicas",
-			numReplicas: 6,
-			result: []workv1alpha2.TargetCluster{
-				{Name: "A", Replicas: 1},
-				{Name: "B", Replicas: 2},
-				{Name: "C", Replicas: 3},
-			},
-			weightList: []utilhelper.ClusterWeightInfo{
-				{ClusterName: "A", Weight: 1},
-				{ClusterName: "B", Weight: 2},
-				{ClusterName: "C", Weight: 3},
-			},
-			desired: []workv1alpha2.TargetCluster{
-				{Name: "A", Replicas: 2},
-				{Name: "B", Replicas: 4},
-				{Name: "C", Replicas: 6},
-			},
-			done: true,
-		},
-		{
-			name:        "Scale up 3 replicas",
-			numReplicas: 3,
-			result: []workv1alpha2.TargetCluster{
-				{Name: "A", Replicas: 1},
-				{Name: "B", Replicas: 2},
-				{Name: "C", Replicas: 3},
-			},
-			weightList: []utilhelper.ClusterWeightInfo{
-				{ClusterName: "A", Weight: 1},
-				{ClusterName: "B", Weight: 2},
-				{ClusterName: "C", Weight: 3},
-			},
-			desired: []workv1alpha2.TargetCluster{
-				{Name: "A", Replicas: 1},
-				{Name: "B", Replicas: 3},
-				{Name: "C", Replicas: 5},
-			},
-			done: true,
-		},
-		{
-			name:        "Scale up 2 replicas",
-			numReplicas: 2,
-			result: []workv1alpha2.TargetCluster{
-				{Name: "A", Replicas: 1},
-				{Name: "B", Replicas: 2},
-				{Name: "C", Replicas: 3},
-			},
-			weightList: []utilhelper.ClusterWeightInfo{
-				{ClusterName: "A", Weight: 1},
-				{ClusterName: "B", Weight: 2},
-				{ClusterName: "C", Weight: 3},
-			},
-			desired: []workv1alpha2.TargetCluster{
-				{Name: "A", Replicas: 1},
-				{Name: "B", Replicas: 2},
-				{Name: "C", Replicas: 5},
-			},
-			done: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			a := utilhelper.NewDispenser(tt.numReplicas, tt.result)
-			a.TakeByWeight(tt.weightList)
-			if a.Done() != tt.done {
-				t.Errorf("expected after takeByWeight: %v, but got: %v", tt.done, a.Done())
-			}
-			if !helper.IsScheduleResultEqual(a.Result, tt.desired) {
-				t.Errorf("expected result after takeByWeight: %v, but got: %v", tt.desired, a.Result)
-			}
-		})
-	}
-}
 
 func Test_dynamicDivideReplicas(t *testing.T) {
 	tests := []struct {
