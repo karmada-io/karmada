@@ -148,7 +148,7 @@ type LabelAnnotationOverrider struct {
 	// Items in Value which match in annotations/labels will be deleted when Operator is 'remove'.
 	// Items in Value which match in annotations/labels will be replaced when Operator is 'replace'.
 	// +required
-	Value map[string]string `json:"value,omitempty"`
+	Value map[string]string `json:"value"`
 }
 
 // ImageOverrider represents the rules dedicated to handling image overrides.

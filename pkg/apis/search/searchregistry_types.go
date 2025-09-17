@@ -92,7 +92,7 @@ type OpenSearchConfig struct {
 	// - secret.data.userName
 	// - secret.data.password
 	// +required
-	SecretRef clusterv1alpha1.LocalSecretReference `json:"secretRef,omitempty"`
+	SecretRef clusterv1alpha1.LocalSecretReference `json:"secretRef"`
 
 	// More configurations such as transport, index should be added from here.
 }

@@ -59,7 +59,7 @@ const (
 type HTTPSource struct {
 	// URL specifies the URL of the CRD tarball resource.
 	// +required
-	URL string `json:"url,omitempty"`
+	URL string `json:"url"`
 
 	// Proxy specifies the configuration of a proxy server to use when downloading the CRD tarball.
 	// When set, the operator will use the configuration to determine how to establish a connection to the proxy to fetch the tarball from the URL specified above.
@@ -179,7 +179,7 @@ type ImageRegistry struct {
 type KarmadaComponents struct {
 	// Etcd holds configuration for etcd.
 	// +required
-	Etcd *Etcd `json:"etcd,omitempty"`
+	Etcd *Etcd `json:"etcd"`
 
 	// KarmadaAPIServer holds settings to kube-apiserver component. Currently, kube-apiserver
 	// is used as the apiserver of karmada. we had the same experience as k8s apiserver.

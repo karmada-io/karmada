@@ -112,7 +112,7 @@ type MultiClusterServiceSpec struct {
 type ClusterSelector struct {
 	// Name is the name of the cluster to be selected.
 	// +required
-	Name string `json:"name,omitempty"`
+	Name string `json:"name"`
 }
 
 // ExposureType describes how to expose the service.

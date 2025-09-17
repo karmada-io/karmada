@@ -18894,7 +18894,8 @@
       "properties": {
         "name": {
           "description": "Name is the name of the cluster to be selected.",
-          "type": "string"
+          "type": "string",
+          "default": ""
         }
       }
     },
