@@ -189,6 +189,26 @@ func (g *TemplateGenerator) format(src []byte) ([]byte, error) {
 	return nil, fmt.Errorf("unknown formatter type: %s", g.formatter)
 }
 
+func getTypePath(t types.Type) (paramPkgPath string, paramObjName string) {
+	switch t := t.(type) {
+	case *types.Named:
+		pkg := t.Obj().Pkg()
+		if pkg != nil {
+			paramPkgPath = pkg.Path()
+		}
+		paramObjName = t.Obj().Name()
+	case *types.Alias:
+		pkg := t.Obj().Pkg()
+		if pkg != nil {
+			paramPkgPath = pkg.Path()
+		}
+		paramObjName = t.Obj().Name()
+	case *types.Pointer:
+		paramPkgPath, paramObjName = getTypePath(t.Elem())
+	}
+	return paramPkgPath, paramObjName
+}
+
 func (g *TemplateGenerator) methodData(ctx context.Context, method *types.Func, ifaceConfig *config.Config) (template.Method, error) {
 	log := zerolog.Ctx(ctx)
 
@@ -204,22 +224,8 @@ func (g *TemplateGenerator) methodData(ctx context.Context, method *types.Func, 
 			log.Debug().Str("import", imprt.Path()).Str("import-qualifier", imprt.Qualifier()).Msg("existing imports")
 		}
 
-		var paramPkgPath string
-		var paramObjName string
-		switch t := param.Type().(type) {
-		case *types.Named:
-			pkg := t.Obj().Pkg()
-			if pkg != nil {
-				paramPkgPath = pkg.Path()
-			}
-			paramObjName = t.Obj().Name()
-		case *types.Alias:
-			pkg := t.Obj().Pkg()
-			if pkg != nil {
-				paramPkgPath = pkg.Path()
-			}
-			paramObjName = t.Obj().Name()
-		}
+		paramPkgPath, paramObjName := getTypePath(param.Type())
+
 		replacement := ifaceConfig.GetReplacement(paramPkgPath, paramObjName)
 		if replacement != nil {
 			log.Debug().Str("replace-to-pkg-path", replacement.PkgPath).Str("replace-to-type-name", replacement.TypeName).Msg("found replacement")
@@ -244,24 +250,14 @@ func (g *TemplateGenerator) methodData(ctx context.Context, method *types.Func, 
 		paramCtx := paramLog.WithContext(ctx)
 		paramLog.Debug().Msg("found return")
 
-		var paramPkgPath string
-		var paramObjName string
-		switch t := param.Type().(type) {
-		case *types.Named:
-			pkg := t.Obj().Pkg()
-			if pkg != nil {
-				paramPkgPath = pkg.Path()
-			}
-			paramObjName = t.Obj().Name()
-		case *types.Alias:
-			pkg := t.Obj().Pkg()
-			if pkg != nil {
-				paramPkgPath = pkg.Path()
-			}
-			paramObjName = t.Obj().Name()
-		}
+		paramPkgPath, paramObjName := getTypePath(param.Type())
 
 		replacement := ifaceConfig.GetReplacement(paramPkgPath, paramObjName)
+		if replacement != nil {
+			log.Debug().Str("replace-to-pkg-path", replacement.PkgPath).Str("replace-to-type-name", replacement.TypeName).Msg("found replacement")
+		} else {
+			log.Debug().Str("param-pkg-path", paramPkgPath).Msg("replacement not found")
+		}
 		v, err := methodScope.AddVar(paramCtx, param, "", replacement)
 		if err != nil {
 			return template.Method{}, err

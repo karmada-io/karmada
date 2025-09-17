@@ -174,9 +174,20 @@ func (m *MethodScope) AddVar(ctx context.Context, vr *types.Var, prefix string, 
 			objectPkg.Types,
 			imports,
 		)
+
+		// Check to see if the original type is a pointer. If so, the replacement type
+		// should also be a pointer. At some point we may want to provide configuration
+		// overrides for this behavior, but this auto-detection should be good enough
+		// for now.
+		objectType := object.Type()
+		switch vr.Type().(type) {
+		case *types.Pointer:
+			objectType = types.NewPointer(objectType)
+		}
+
 		v = Var{
 			vr:      vr,
-			typ:     object.Type(),
+			typ:     objectType,
 			imports: imports,
 			pkgPath: m.pkgPath,
 		}
