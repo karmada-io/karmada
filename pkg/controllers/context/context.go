@@ -29,7 +29,6 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 
 	"github.com/karmada-io/karmada/cmd/controller-manager/app/options"
-	evictionqueueconfig "github.com/karmada-io/karmada/pkg/controllers/cluster/evictionqueue_config"
 	federatehpaconfig "github.com/karmada-io/karmada/pkg/controllers/federatedhpa/config"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
@@ -102,7 +101,6 @@ type Options struct {
 	// FailoverConfiguration is the config of failover function.
 	FailoverConfiguration options.FailoverOptions
 	// EvictionQueueOptions is the config of eviction queue.
-	EvictionQueueOptions evictionqueueconfig.EvictionQueueOptions
 }
 
 // Context defines the context object for controller.
