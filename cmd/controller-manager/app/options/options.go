@@ -27,7 +27,6 @@ import (
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	componentbaseconfig "k8s.io/component-base/config"
 
-	evictionQueueconfig "github.com/karmada-io/karmada/pkg/controllers/cluster/evictionqueue_config"
 	"github.com/karmada-io/karmada/pkg/controllers/federatedhpa/config"
 	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
@@ -149,8 +148,6 @@ type Options struct {
 	FederatedResourceQuotaOptions FederatedResourceQuotaOptions
 	// FailoverOptions holds the Failover configurations.
 	FailoverOptions FailoverOptions
-	// EvictionQueueOptions holds the GracefulEviction
-	EvictionQueueOptions evictionQueueconfig.EvictionQueueOptions
 }
 
 // NewOptions builds an empty options.
@@ -237,7 +234,6 @@ func (o *Options) AddFlags(flags *pflag.FlagSet, allControllers, disabledByDefau
 	o.HPAControllerConfiguration.AddFlags(flags)
 	o.FederatedResourceQuotaOptions.AddFlags(flags)
 	o.FailoverOptions.AddFlags(flags)
-	o.EvictionQueueOptions.AddFlags(flags)
 	features.FeatureGate.AddFlag(flags)
 }
 
