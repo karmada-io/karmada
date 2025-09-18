@@ -21,7 +21,7 @@ examples/customresourceinterpreter/
 ├── karmada-interpreter-webhook-example.yaml     # component deployment configuration file
 ├── README.md                                    # README file
 ├── webhook-configuration.yaml                   # ResourceInterpreterWebhookConfiguration configuration file
-├── workload.yaml                                # `Workload` resource example
+├── workload-sample.yaml                         # `Workload` resource example
 └── workload-propagationpolicy.yaml              # `PropagationPolicy` resource example to propagate `Workload` resource
 ```
 
@@ -81,7 +81,7 @@ EOF
 Install `Workload` CRD in `karmada-apiserver` by running the following command:
 
 ```bash
-kubectl --kubeconfig $HOME/.kube/karmada.config --context karmada-apiserver apply -f examples/customresourceinterpreter/apis/workload.example.io_workloads.yaml
+kubectl --kubeconfig $HOME/.kube/karmada.config --context karmada-apiserver apply --server-side -f examples/customresourceinterpreter/apis/workload.example.io_workloads.yaml
 ```
 
 And then, create a `ClusterPropagationPolicy` resource object to propagate `Workload` CRD to all member clusters:
@@ -179,18 +179,61 @@ In the example of this article, you can directly run the following script to dep
 
 ```bash
 #!/usr/bin/env bash
+set -euo pipefail
 
-export ca_string=$(cat ${HOME}/.karmada/ca.crt | base64 | tr "\n" " "|sed s/[[:space:]]//g)
-export temp_path=$(mktemp -d)
-export interpreter_webhook_example_service_external_ip_address=$(kubectl config view --template='{{range $_, $value := .clusters }}{{if eq $value.name "karmada-apiserver"}}{{$value.cluster.server}}{{end}}{{end}}' | \
-  awk -F/ '{print $3}' | \
-  sed 's/:.*//' | \
-  awk -F. '{printf "%s.%s.%s.8",$1,$2,$3}')
+CA_FILE="${HOME}/.karmada/ca.crt"
+KUBECONFIG="${HOME}/.kube/karmada.config"
+TEMPLATE="examples/customresourceinterpreter/webhook-configuration.yaml"
 
-cp -rf "examples/customresourceinterpreter/webhook-configuration.yaml" "${temp_path}/temp.yaml"
-sed -i'' -e "s/{{caBundle}}/${ca_string}/g" -e "s/{{karmada-interpreter-webhook-example-svc-address}}/${interpreter_webhook_example_service_external_ip_address}/g" "${temp_path}/temp.yaml"
-kubectl --kubeconfig $HOME/.kube/karmada.config --context karmada-apiserver apply -f "${temp_path}/temp.yaml"
-rm -rf "${temp_path}"
+# basic checks
+if [[ ! -f "$CA_FILE" ]]; then
+  echo "ERROR: CA file not found: $CA_FILE" >&2
+  exit 2
+fi
+if [[ ! -f "$TEMPLATE" ]]; then
+  echo "ERROR: Template not found: $TEMPLATE" >&2
+  exit 2
+fi
+if ! command -v kubectl >/dev/null 2>&1; then
+  echo "ERROR: kubectl not found in PATH" >&2
+  exit 2
+fi
+
+TMPFILE="$(mktemp /tmp/interpreter-webhook-config-sample-XXX.yaml)"
+trap 'rm -f "$TMPFILE" "${TMPFILE}.bak"' EXIT
+
+# single-line base64 (portable)
+CA_B64=$(base64 < "$CA_FILE" | tr -d '\n')
+
+# read karmada-apiserver server from kubeconfig (remove port)
+CLUSTER_SERVER=$(kubectl --kubeconfig "$KUBECONFIG" config view --template='{{range $_, $value := .clusters }}{{if eq $value.name "karmada-apiserver"}}{{$value.cluster.server}}{{end}}{{end}}' 2>/dev/null || true)
+if [[ -z "${CLUSTER_SERVER:-}" ]]; then
+  echo "ERROR: cannot find karmada-apiserver.cluster.server in kubeconfig" >&2
+  exit 3
+fi
+HOST=$(printf "%s" "$CLUSTER_SERVER" | awk -F/ '{print $3}' | sed 's/:.*$//')
+
+# if HOST looks like IPv4, change last octet to 8; otherwise keep host as-is
+if [[ "$HOST" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+  WEBHOOK_IP=$(printf "%s" "$HOST" | awk -F. '{printf "%s.%s.%s.8",$1,$2,$3}')
+else
+  WEBHOOK_IP="$HOST"
+fi
+
+# prepare and replace. use '|' delimiter to avoid '/' conflict with base64.
+cp "$TEMPLATE" "$TMPFILE"
+sed -i.bak \
+  -e "s|{{caBundle}}|${CA_B64}|g" \
+  -e "s|{{karmada-interpreter-webhook-example-svc-address}}|${WEBHOOK_IP}|g" \
+  "$TMPFILE"
+rm -f "${TMPFILE}.bak"
+
+echo "----- YAML content begin -----"
+cat "$TMPFILE"
+echo "----- YAML content end -----"
+# apply
+kubectl --kubeconfig "$KUBECONFIG" --context karmada-apiserver apply -f "$TMPFILE"
+echo "Applied $TMPFILE"
 ```
 
 </details>
@@ -235,7 +278,7 @@ Please set the correct certificate and add the domain address to the CN field of
 
 In the testing environment of Karmada, this is controlled in script `hack/deploy-karmada.sh`:
 
-https://github.com/karmada-io/karmada/blob/303f2cd24bf5d750c2391bb6699ac89d78b3c43f/hack/deploy-karmada.sh#L155
+https://github.com/karmada-io/karmada/blob/ed1b8f86de6c4e901d0128d5609ded8599916fe5/hack/deploy-karmada.sh#L215
 
 We recommend that you deploy the interpreter webhook component and Karmada control plane components in the same namespace. If you need to deploy them in different namespaces, please plan ahead when generating certificates.
 
@@ -245,69 +288,16 @@ At this point, you have successfully installed the `karmada-interpreter-webhook-
 
 ### Usage
 
-Create a `Workload` resource and propagate it to the member clusters:
+Propagate the `Workload` resource to the member clusters and verify the interpretation:
 
-<details>
-
-<summary>workload-interpret-test.yaml</summary>
-
-```yaml
-apiVersion: workload.example.io/v1alpha1
-kind: Workload
-metadata:
-  name: nginx
-  labels:
-    app: nginx
-spec:
-  replicas: 3
-  paused: false
-  template:
-    metadata:
-      labels:
-        app: nginx
-    spec:
-      containers:
-      - image: nginx
-        name: nginx
----
-apiVersion: policy.karmada.io/v1alpha1
-kind: PropagationPolicy
-metadata:
-  name: nginx-workload-propagation
-spec:
-  resourceSelectors:
-    - apiVersion: workload.example.io/v1alpha1
-      kind: Workload
-      name: nginx
-  placement:
-    clusterAffinity:
-      clusterNames:
-        - member1
-        - member2
-        - member3
-    replicaScheduling:
-      replicaDivisionPreference: Weighted
-      replicaSchedulingType: Divided
-      weightPreference:
-        staticWeightList:
-          - targetCluster:
-              clusterNames:
-                - member1
-            weight: 1
-          - targetCluster:
-              clusterNames:
-                - member2
-            weight: 1
-          - targetCluster:
-              clusterNames:
-                - member3
-            weight: 1
+Create the `Workload` CR:
+```bash
+kubectl --kubeconfig $HOME/.kube/karmada.config --context karmada-apiserver apply -f examples/customresourceinterpreter/workload-sample.yaml
 ```
 
-</details>
-
+Create the `PropagationPolicy` to propagate the workload:
 ```bash
-kubectl --kubeconfig $HOME/.kube/karmada.config --context karmada-apiserver apply -f workload-interpret-test.yaml
+kubectl --kubeconfig $HOME/.kube/karmada.config --context karmada-apiserver apply -f examples/customresourceinterpreter/workload-propagationpolicy.yaml
 ```
 
 #### InterpretReplica
@@ -376,3 +366,33 @@ kubectl get workload nginx --kubeconfig $HOME/.kube/karmada.config --context kar
 ```
 
 > Note: If you want to use `Retain`/`InterpretStatus`/`InterpretHealth` function in Pull mode cluster, you need to deploy karmada-interpreter-webhook-example in the Pull mode cluster.
+
+#### InterpretComponent
+
+To test the `InterpretComponent` operation, first ensure the `MultiplePodTemplatesScheduling` feature gate is enabled for the `karmada-controller-manager`.
+
+Next, update the `ResourceInterpreterWebhookConfiguration` to include the `InterpretComponent` operation. You can do this by editing the resource directly:
+
+```bash
+kubectl --kubeconfig $HOME/.kube/karmada.config --context karmada-apiserver edit resourceinterpreterwebhookconfiguration examples
+```
+
+Ensure the `operations` array in the webhook rule includes `InterpretComponent`:
+
+```yaml
+- operations: [ "InterpretReplica", "InterpretComponent", "ReviseReplica", "Retain", "AggregateStatus", "InterpretHealth", "InterpretStatus", "InterpretDependency" ]
+```
+
+After updating the webhook configuration, you need to trigger a reconciliation for the `Workload` resource to ensure the `components` field is populated. You can do this by modifying a field in the `Workload` specification, such as `spec.replicas`:
+
+```bash
+kubectl --kubeconfig $HOME/.kube/karmada.config --context karmada-apiserver patch workload nginx --type='json' -p='[{"op": "replace", "path": "/spec/replicas", "value":5}]'
+```
+
+Once the resource is reconciled, Karmada will call the webhook for the `InterpretComponent` operation. You can verify that the `components` field in the `ResourceBinding` is interpreted correctly by inspecting the resource:
+
+```bash
+kubectl --kubeconfig $HOME/.kube/karmada.config --context karmada-apiserver get rb nginx-workload -o yaml
+```
+
+> **Note:** When `InterpretComponent` is defined for a resource, it takes precedence over `InterpretReplica`. As a result, the `replicas` and `replicaRequirements` fields will not be interpreted by the `InterpretReplica` operation.

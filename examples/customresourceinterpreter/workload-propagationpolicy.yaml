@@ -12,6 +12,7 @@ spec:
       clusterNames:
         - member1
         - member2
+        - member3
     replicaScheduling:
       replicaDivisionPreference: Weighted
       replicaSchedulingType: Divided
@@ -20,8 +21,12 @@ spec:
           - targetCluster:
               clusterNames:
                 - member1
-            weight: 2
+            weight: 1
           - targetCluster:
               clusterNames:
                 - member2
+            weight: 1
+          - targetCluster:
+              clusterNames:
+                - member3
             weight: 1
