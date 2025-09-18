@@ -23,7 +23,6 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
-	config "github.com/karmada-io/karmada/pkg/controllers/cluster/evictionqueue_config"
 	"github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -35,6 +34,24 @@ import (
 // based on cluster health status.
 type EvictionWorker interface {
 	util.AsyncWorker
+}
+
+type EvictionQueueOptions struct {
+	// ResourceEvictionRate is the number of resources to be evicted per second.
+	// This is the default rate when the system is considered healthy.
+	ResourceEvictionRate float32
+	// SecondaryResourceEvictionRate is the secondary resource eviction rate.
+	// When the number of cluster failures in the Karmada instance exceeds the unhealthy-cluster-threshold,
+	// the resource eviction rate will be reduced to this secondary level.
+	SecondaryResourceEvictionRate float32
+	// UnhealthyClusterThreshold is the threshold of unhealthy clusters.
+	// If the ratio of unhealthy clusters to total clusters exceeds this threshold, the Karmada instance is considered unhealthy,
+	// and the eviction rate will be downgraded to the secondary rate.
+	UnhealthyClusterThreshold float32
+	// LargeClusterNumThreshold is the threshold for a large-scale Karmada instance.
+	// When the number of clusters in the instance exceeds this threshold and the instance is unhealthy,
+	// the eviction rate is downgraded. For smaller instances that are unhealthy, eviction might be halted completely.
+	LargeClusterNumThreshold int
 }
 
 type evictionWorker struct {
@@ -63,7 +80,7 @@ type EvictionWorkerOptions struct {
 	InformerManager genericmanager.SingleClusterInformerManager
 
 	// EvictionQueueOptions configures dynamic rate limiting behavior
-	EvictionQueueOptions config.EvictionQueueOptions
+	EvictionQueueOptions EvictionQueueOptions
 
 	// RateLimiterOptions configures general rate limiter behavior
 	RateLimiterOptions ratelimiterflag.Options

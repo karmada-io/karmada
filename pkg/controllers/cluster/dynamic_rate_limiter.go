@@ -24,7 +24,6 @@ import (
 	"k8s.io/klog/v2"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
-	config "github.com/karmada-io/karmada/pkg/controllers/cluster/evictionqueue_config"
 	"github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -45,7 +44,7 @@ type DynamicRateLimiter[T comparable] struct {
 }
 
 // NewDynamicRateLimiter creates a new DynamicRateLimiter with the given options.
-func NewDynamicRateLimiter[T comparable](informerManager genericmanager.SingleClusterInformerManager, opts config.EvictionQueueOptions) workqueue.TypedRateLimiter[T] {
+func NewDynamicRateLimiter[T comparable](informerManager genericmanager.SingleClusterInformerManager, opts EvictionQueueOptions) workqueue.TypedRateLimiter[T] {
 	return &DynamicRateLimiter[T]{
 		resourceEvictionRate:          opts.ResourceEvictionRate,
 		secondaryResourceEvictionRate: opts.SecondaryResourceEvictionRate,
@@ -136,7 +135,7 @@ func (d *DynamicRateLimiter[T]) NumRequeues(_ T) int {
 // both cluster health and retry backoff are considered.
 func NewGracefulEvictionRateLimiter[T comparable](
 	informerManager genericmanager.SingleClusterInformerManager,
-	evictionOpts config.EvictionQueueOptions,
+	evictionOpts EvictionQueueOptions,
 	rateLimiterOpts ratelimiterflag.Options) workqueue.TypedRateLimiter[T] {
 	dynamicLimiter := NewDynamicRateLimiter[T](informerManager, evictionOpts)
 	defaultLimiter := ratelimiterflag.DefaultControllerRateLimiter[T](rateLimiterOpts)
