@@ -36,6 +36,7 @@ type EvictionWorker interface {
 	util.AsyncWorker
 }
 
+// EvictionQueueOptions holds the options that control the behavior of the graceful eviction queue based on the overall health of the clusters.
 type EvictionQueueOptions struct {
 	// ResourceEvictionRate is the number of resources to be evicted per second.
 	// This is the default rate when the system is considered healthy.
