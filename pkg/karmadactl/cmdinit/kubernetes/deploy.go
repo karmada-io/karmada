@@ -214,6 +214,15 @@ type CommandInitOption struct {
 	CaCertFile                string
 	CaKeyFile                 string
 	KarmadaInitFilePath       string
+
+	// extraArgs
+	EtcdExtraArgs                       []string
+	KarmadaAPIServerExtraArgs           []string
+	KarmadaSchedulerExtraArgs           []string
+	KubeControllerManagerExtraArgs      []string
+	KarmadaControllerManagerExtraArgs   []string
+	KarmadaWebhookExtraArgs             []string
+	KarmadaAggregatedAPIServerExtraArgs []string
 }
 
 func (i *CommandInitOption) validateLocalEtcd(parentCommand string) error {
@@ -911,6 +920,10 @@ func (i *CommandInitOption) parseLocalEtcdConfig(localEtcd *initConfig.LocalEtcd
 	setIfNotEmpty(&i.EtcdStorageMode, localEtcd.StorageMode)
 	setIfNotEmpty(&i.StorageClassesName, localEtcd.StorageClassesName)
 	setIfNotZeroInt32(&i.EtcdReplicas, localEtcd.Replicas)
+
+	if len(localEtcd.ExtraArgs) != 0 {
+		i.EtcdExtraArgs = preProcessArgs(validateExtraArgs(localEtcd.ExtraArgs))
+	}
 }
 
 // parseExternalEtcdConfig parses the external Etcd configuration, including CA file,
@@ -946,6 +959,10 @@ func (i *CommandInitOption) parseKarmadaAPIServerConfig(apiServer *initConfig.Ka
 		setIfNotEmpty(&i.KarmadaAPIServerImage, apiServer.CommonSettings.Image.GetImage())
 		setIfNotZeroInt32(&i.KarmadaAPIServerReplicas, apiServer.CommonSettings.Replicas)
 		setIfNotEmpty(&i.KarmadaAPIServerAdvertiseAddress, apiServer.AdvertiseAddress)
+
+		if len(apiServer.ExtraArgs) != 0 {
+			i.KarmadaAPIServerExtraArgs = preProcessArgs(validateExtraArgs(apiServer.ExtraArgs))
+		}
 	}
 }
 
@@ -955,6 +972,10 @@ func (i *CommandInitOption) parseKarmadaControllerManagerConfig(manager *initCon
 	if manager != nil {
 		setIfNotEmpty(&i.KarmadaControllerManagerImage, manager.CommonSettings.Image.GetImage())
 		setIfNotZeroInt32(&i.KarmadaControllerManagerReplicas, manager.CommonSettings.Replicas)
+
+		if len(manager.ExtraArgs) != 0 {
+			i.KarmadaControllerManagerExtraArgs = preProcessArgs(validateExtraArgs(manager.ExtraArgs))
+		}
 	}
 }
 
@@ -964,6 +985,10 @@ func (i *CommandInitOption) parseKarmadaSchedulerConfig(scheduler *initConfig.Ka
 	if scheduler != nil {
 		setIfNotEmpty(&i.KarmadaSchedulerImage, scheduler.CommonSettings.Image.GetImage())
 		setIfNotZeroInt32(&i.KarmadaSchedulerReplicas, scheduler.CommonSettings.Replicas)
+
+		if len(scheduler.ExtraArgs) != 0 {
+			i.KarmadaSchedulerExtraArgs = preProcessArgs(validateExtraArgs(scheduler.ExtraArgs))
+		}
 	}
 }
 
@@ -973,6 +998,10 @@ func (i *CommandInitOption) parseKarmadaWebhookConfig(webhook *initConfig.Karmad
 	if webhook != nil {
 		setIfNotEmpty(&i.KarmadaWebhookImage, webhook.CommonSettings.Image.GetImage())
 		setIfNotZeroInt32(&i.KarmadaWebhookReplicas, webhook.CommonSettings.Replicas)
+
+		if len(webhook.ExtraArgs) != 0 {
+			i.KarmadaWebhookExtraArgs = preProcessArgs(validateExtraArgs(webhook.ExtraArgs))
+		}
 	}
 }
 
@@ -982,6 +1011,10 @@ func (i *CommandInitOption) parseKarmadaAggregatedAPIServerConfig(aggregatedAPIS
 	if aggregatedAPIServer != nil {
 		setIfNotEmpty(&i.KarmadaAggregatedAPIServerImage, aggregatedAPIServer.CommonSettings.Image.GetImage())
 		setIfNotZeroInt32(&i.KarmadaAggregatedAPIServerReplicas, aggregatedAPIServer.CommonSettings.Replicas)
+
+		if len(aggregatedAPIServer.ExtraArgs) != 0 {
+			i.KarmadaAggregatedAPIServerExtraArgs = preProcessArgs(validateExtraArgs(aggregatedAPIServer.ExtraArgs))
+		}
 	}
 }
 
@@ -991,6 +1024,10 @@ func (i *CommandInitOption) parseKubeControllerManagerConfig(manager *initConfig
 	if manager != nil {
 		setIfNotEmpty(&i.KubeControllerManagerImage, manager.CommonSettings.Image.GetImage())
 		setIfNotZeroInt32(&i.KubeControllerManagerReplicas, manager.CommonSettings.Replicas)
+
+		if len(manager.ExtraArgs) != 0 {
+			i.KubeControllerManagerExtraArgs = preProcessArgs(validateExtraArgs(manager.ExtraArgs))
+		}
 	}
 }
 
@@ -1030,4 +1067,34 @@ func setIfNotZeroInt32(dest *int32, src int32) {
 // joinStringSlice joins a slice of strings into a single string separated by commas.
 func joinStringSlice(slice []string) string {
 	return strings.Join(slice, ",")
+}
+
+// validateExtraArgs validates and filters extra arguments.
+func validateExtraArgs(args []initConfig.Arg) []initConfig.Arg {
+	validArgs := make([]initConfig.Arg, 0, len(args))
+	for id, arg := range args {
+		if len(arg.Name) == 0 {
+			klog.Warningf("The extra args[%d] name is empty, skip it", id)
+			continue
+		}
+		validArgs = append(validArgs, arg)
+	}
+	return validArgs
+}
+
+// preProcessArgs formats the arguments into --key=value.
+func preProcessArgs(args []initConfig.Arg) []string {
+	if len(args) == 0 {
+		return nil
+	}
+
+	res := make([]string, 0, len(args))
+	for _, arg := range args {
+		if arg.Value != "" {
+			res = append(res, fmt.Sprintf("--%s=%s", arg.Name, arg.Value))
+		} else {
+			res = append(res, fmt.Sprintf("--%s", arg.Name))
+		}
+	}
+	return res
 }
