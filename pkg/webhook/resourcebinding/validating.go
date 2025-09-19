@@ -350,6 +350,16 @@ func isQuotaRelevantFieldChanged(oldRB, newRB *workv1alpha2.ResourceBinding) boo
 	if oldRB == nil || newRB == nil {
 		return true
 	}
+	if isResourceRequestChanged(oldRB, newRB) {
+		return true
+	}
+	if isScheduledReplicasChanged(oldRB, newRB) {
+		return true
+	}
+	return isComponentsChanged(oldRB, newRB)
+}
+
+func isResourceRequestChanged(oldRB, newRB *workv1alpha2.ResourceBinding) bool {
 	oldReq := corev1.ResourceList{}
 	if oldRB.Spec.ReplicaRequirements != nil {
 		oldReq = oldRB.Spec.ReplicaRequirements.ResourceRequest
@@ -358,9 +368,10 @@ func isQuotaRelevantFieldChanged(oldRB, newRB *workv1alpha2.ResourceBinding) boo
 	if newRB.Spec.ReplicaRequirements != nil {
 		newReq = newRB.Spec.ReplicaRequirements.ResourceRequest
 	}
-	if !areResourceListsEqual(oldReq, newReq) {
-		return true
-	}
+	return !areResourceListsEqual(oldReq, newReq)
+}
+
+func isScheduledReplicasChanged(oldRB, newRB *workv1alpha2.ResourceBinding) bool {
 	oldScheduledReplicas := int32(0)
 	for _, c := range oldRB.Spec.Clusters {
 		oldScheduledReplicas += c.Replicas
@@ -369,9 +380,10 @@ func isQuotaRelevantFieldChanged(oldRB, newRB *workv1alpha2.ResourceBinding) boo
 	for _, c := range newRB.Spec.Clusters {
 		newScheduledReplicas += c.Replicas
 	}
-	if oldScheduledReplicas != newScheduledReplicas {
-		return true
-	}
+	return oldScheduledReplicas != newScheduledReplicas
+}
+
+func isComponentsChanged(oldRB, newRB *workv1alpha2.ResourceBinding) bool {
 	if len(oldRB.Spec.Components) != len(newRB.Spec.Components) {
 		return true
 	}
@@ -381,7 +393,12 @@ func isQuotaRelevantFieldChanged(oldRB, newRB *workv1alpha2.ResourceBinding) boo
 		if oldComponent.Replicas != newComponent.Replicas {
 			return true
 		}
-		if !areResourceListsEqual(oldComponent.ReplicaRequirements.ResourceRequest, newComponent.ReplicaRequirements.ResourceRequest) {
+
+		if (oldComponent.ReplicaRequirements == nil) != (newComponent.ReplicaRequirements == nil) {
+			return true
+		}
+
+		if oldComponent.ReplicaRequirements != nil && newComponent.ReplicaRequirements != nil && !areResourceListsEqual(oldComponent.ReplicaRequirements.ResourceRequest, newComponent.ReplicaRequirements.ResourceRequest) {
 			return true
 		}
 	}
