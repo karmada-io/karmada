@@ -69,13 +69,6 @@ func TestCommandInitIOption_etcdVolume(t *testing.T) {
 	}
 }
 
-func TestCommandInitIOption_etcdInitContainerCommand(t *testing.T) {
-	opt := CommandInitOption{Namespace: "karmada", EtcdReplicas: 1}
-	if got := opt.etcdInitContainerCommand(); len(got) == 0 {
-		t.Errorf("CommandInitOption.etcdInitContainerCommand() returns empty")
-	}
-}
-
 func TestCommandInitIOption_makeETCDStatefulSet(t *testing.T) {
 	tests := []struct {
 		name          string
