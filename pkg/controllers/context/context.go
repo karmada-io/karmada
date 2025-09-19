@@ -100,7 +100,6 @@ type Options struct {
 	FederatedResourceQuotaOptions options.FederatedResourceQuotaOptions
 	// FailoverConfiguration is the config of failover function.
 	FailoverConfiguration options.FailoverOptions
-	// EvictionQueueOptions is the config of eviction queue.
 }
 
 // Context defines the context object for controller.
