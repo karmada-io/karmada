@@ -299,6 +299,12 @@ func startClusterController(ctx controllerscontext.Context) (enabled bool, err e
 			RateLimiterOptions:                 ctx.Opts.RateLimiterOptions,
 			EnableNoExecuteTaintEviction:       ctx.Opts.FailoverConfiguration.EnableNoExecuteTaintEviction,
 			NoExecuteTaintEvictionPurgeMode:    ctx.Opts.FailoverConfiguration.NoExecuteTaintEvictionPurgeMode,
+			EvictionQueueOptions: cluster.EvictionQueueOptions{
+				ResourceEvictionRate:          ctx.Opts.FailoverConfiguration.ResourceEvictionRate,
+				SecondaryResourceEvictionRate: ctx.Opts.FailoverConfiguration.SecondaryResourceEvictionRate,
+				UnhealthyClusterThreshold:     ctx.Opts.FailoverConfiguration.UnhealthyClusterThreshold,
+				LargeClusterNumThreshold:      ctx.Opts.FailoverConfiguration.LargeClusterNumThreshold,
+			},
 		}
 		if err := taintManager.SetupWithManager(mgr); err != nil {
 			return false, err
