@@ -118,3 +118,13 @@ packages:
             template: testify
           - structname: MockMatryerFoo
             template: matryer
+  github.com/vektra/mockery/v3/internal/fixtures/replace_type_pointers:
+    interfaces:
+      InterfaceWithPointers:
+        config:
+          replace-type:
+            github.com/vektra/mockery/v3/internal/fixtures/replace_type_pointers:
+              Foo:
+                pkg-path: github.com/vektra/mockery/v3/internal/fixtures/replace_type_pointers
+                type-name: Bar
+             
