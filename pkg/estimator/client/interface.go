@@ -34,9 +34,19 @@ var (
 	unschedulableReplicaEstimators = map[string]UnschedulableReplicaEstimator{}
 )
 
-// ReplicaEstimator is an estimator which estimates the maximum replicas that can be applied to the target cluster.
+// ReplicaEstimator estimates how many replicas a workload can run on each target cluster,
+// based on resource availability and node constraints.
 type ReplicaEstimator interface {
+	// MaxAvailableReplicas returns the maximum number of replicas of a single-component workload that each cluster can host.
 	MaxAvailableReplicas(ctx context.Context, clusters []*clusterv1alpha1.Cluster, replicaRequirements *workv1alpha2.ReplicaRequirements) ([]workv1alpha2.TargetCluster, error)
+}
+
+// ComponentSetEstimator extends ReplicaEstimator to handle multi-component workloads,
+// where all components in a set must be scheduled together.
+type ComponentSetEstimator interface {
+	ReplicaEstimator
+	// MaxAvailableComponentSets returns the maximum number of complete multi-component sets (in terms of replicas) that each cluster can host.
+	MaxAvailableComponentSets(ctx context.Context, clusters []*clusterv1alpha1.Cluster, components []*workv1alpha2.Component) ([]workv1alpha2.TargetCluster, error)
 }
 
 // UnschedulableReplicaEstimator is an estimator which estimates the unschedulable replicas which belong to a specified workload.
