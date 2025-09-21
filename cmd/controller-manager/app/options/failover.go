@@ -39,11 +39,11 @@ type FailoverOptions struct {
 	// This is the default rate when the system is considered healthy.
 	ResourceEvictionRate float32
 	// SecondaryResourceEvictionRate is the secondary resource eviction rate.
-	// When the number of cluster failures in the Karmada instance exceeds the unhealthy-cluster-threshold,
+	// When the number of cluster failures in the Karmada instance exceeds the UnhealthyClusterThreshold,
 	// the resource eviction rate will be reduced to this secondary level.
 	SecondaryResourceEvictionRate float32
 	// UnhealthyClusterThreshold is the threshold of unhealthy clusters.
-	// If the ratio of unhealthy clusters to total clusters exceeds this threshold, the Karmada instance is considered unhealthy,
+	// If the ratio of unhealthy clusters to total clusters exceeds this threshold, there are too many cluster failures in the Karmada instance
 	// and the eviction rate will be downgraded to the secondary rate.
 	UnhealthyClusterThreshold float32
 	// LargeClusterNumThreshold is the threshold for a large-scale Karmada instance.
