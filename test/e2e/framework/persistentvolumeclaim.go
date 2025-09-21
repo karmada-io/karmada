@@ -63,6 +63,7 @@ func WaitPVCPresentOnClusterFitWith(cluster, namespace, name string, fit func(pv
 	gomega.Eventually(func() bool {
 		pvc, err := clusterClient.CoreV1().PersistentVolumeClaims(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
+			klog.Errorf("Failed to get PersistentVolumeClaim(%s/%s) on cluster(%s), err: %v", namespace, name, cluster, err)
 			return false
 		}
 		return fit(pvc)
