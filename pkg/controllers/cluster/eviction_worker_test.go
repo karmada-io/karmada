@@ -34,8 +34,8 @@ func TestEvictionWorker_Add_Enqueue_AddAfter(t *testing.T) {
 	w := &evictionWorker{
 		name:             "test-queue",
 		keyFunc:          util.KeyFunc(func(obj interface{}) (util.QueueKey, error) { return obj, nil }),
-		reconcileFunc:    util.ReconcileFunc(func(key util.QueueKey) error { added.Add(1); return nil }),
-		resourceKindFunc: func(key interface{}) (string, string) { return "cluster-a", "Pod" },
+		reconcileFunc:    util.ReconcileFunc(func(_ util.QueueKey) error { added.Add(1); return nil }),
+		resourceKindFunc: func(_ interface{}) (string, string) { return "cluster-a", "Pod" },
 		queue: workqueue.NewTypedRateLimitingQueueWithConfig[any](
 			ratelimiterflag.DefaultControllerRateLimiter[any](ratelimiterflag.Options{RateLimiterBaseDelay: time.Millisecond, RateLimiterMaxDelay: time.Millisecond, RateLimiterQPS: 1000, RateLimiterBucketSize: 1000}),
 			workqueue.TypedRateLimitingQueueConfig[any]{Name: "test-queue"},
@@ -68,7 +68,7 @@ func TestEvictionWorker_Reconcile_Error_Requeues(t *testing.T) {
 	w := &evictionWorker{
 		name:    "err-queue",
 		keyFunc: util.KeyFunc(func(obj interface{}) (util.QueueKey, error) { return obj, nil }),
-		reconcileFunc: util.ReconcileFunc(func(key util.QueueKey) error {
+		reconcileFunc: util.ReconcileFunc(func(_ util.QueueKey) error {
 			// Fail first time, succeed second time
 			if attempts.Add(1) == 1 {
 				return errors.New("boom")
@@ -97,10 +97,11 @@ func TestEvictionWorker_Reconcile_Error_Requeues(t *testing.T) {
 }
 
 func TestEvictionWorker_Run_Shutdown(t *testing.T) {
+	t.Helper()
 	w := &evictionWorker{
 		name:          "shutdown-queue",
 		keyFunc:       util.KeyFunc(func(obj interface{}) (util.QueueKey, error) { return obj, nil }),
-		reconcileFunc: util.ReconcileFunc(func(key util.QueueKey) error { return nil }),
+		reconcileFunc: util.ReconcileFunc(func(_ util.QueueKey) error { return nil }),
 		queue: workqueue.NewTypedRateLimitingQueueWithConfig[any](
 			ratelimiterflag.DefaultControllerRateLimiter[any](ratelimiterflag.Options{RateLimiterBaseDelay: time.Millisecond, RateLimiterMaxDelay: time.Millisecond, RateLimiterQPS: 1000, RateLimiterBucketSize: 1000}),
 			workqueue.TypedRateLimitingQueueConfig[any]{Name: "shutdown-queue"},
