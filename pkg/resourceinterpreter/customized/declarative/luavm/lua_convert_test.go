@@ -325,6 +325,25 @@ func Test_traverseToFindEmptyField(t *testing.T) {
 				fieldOfEmptyStruct: sets.New[string]("spec.aa", "spec.dd.ee"),
 			},
 		},
+		{
+			name: "traverse to find empty field with special characters in keys",
+			args: args{
+				root: gjson.Parse(`{
+					"spec": {
+						"replicas": 3,
+						":colons": {},
+						".dots": {},
+						":.colonAndDot": {},
+						".:dotAndColon": {}
+					}
+				}`),
+				fieldPath: nil,
+			},
+			wants: wants{
+				fieldOfEmptySlice:  sets.New[string](),
+				fieldOfEmptyStruct: sets.New[string](`spec.\:colons`, `spec.\.dots`, `spec.\:\.colonAndDot`, `spec.\.\:dotAndColon`),
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -372,6 +391,32 @@ func Test_traverseToFindEmptyFieldNeededModify(t *testing.T) {
 			wants: wants{
 				fieldOfEmptySliceToStruct: sets.New[string]("spec.0.aa", "spec.0.dd.ee"),
 				fieldOfEmptySliceToDelete: sets.New[string]("spec.0.dd.ff"),
+			},
+		},
+		{
+			name: "traverse to find empty field needed modify with special characters in keys",
+			args: args{
+				root: gjson.Parse(`{
+					"spec": {
+						"replicas": 3,
+						":colons": [],
+						".dots": [],
+						":.colonAndDot": [],
+						".:dotAndColon": []
+					}
+				}`),
+				fieldPath:               nil,
+				fieldPathWithArrayIndex: nil,
+				fieldOfEmptySlice:       sets.New[string](`spec.\.dots`),
+				fieldOfEmptyStruct:      sets.New[string](`spec.\:colons`, `spec.\:\.colonAndDot`, `spec.\.\:dotAndColon`),
+			},
+			wants: wants{
+				fieldOfEmptySliceToStruct: sets.New[string](
+					`spec.\:colons`,
+					`spec.\:\.colonAndDot`,
+					`spec.\.\:dotAndColon`,
+				),
+				fieldOfEmptySliceToDelete: sets.New[string](),
 			},
 		},
 	}
@@ -434,6 +479,34 @@ func Test_convertEmptyObjectBackToEmptySlice(t *testing.T) {
 			},
 			wantErr: false,
 			want:    []byte(`[]`),
+		},
+		{
+			name: "convert empty object back to empty slice with special characters in keys",
+			args: args{
+				objBytes: []byte(`{"spec": {"replicas": 3, ":colons": [], ".dots": [], ":.colonAndDot": [], ".:dotAndColon": []}}`),
+				isStruct: true,
+				references: func() []*unstructured.Unstructured {
+					desired := &unstructured.Unstructured{}
+					observed := &unstructured.Unstructured{}
+					_ = json.Unmarshal([]byte(`{
+						"spec": {
+							"replicas": 3,
+							":colons": {},
+							":.colonAndDot": {},
+							".:dotAndColon": {}
+						}
+					}`), desired)
+					_ = json.Unmarshal([]byte(`{
+						"spec": {
+							"replicas": 3,
+							".dots": []
+						}
+					}`), observed)
+					return []*unstructured.Unstructured{desired, observed}
+				}(),
+			},
+			wantErr: false,
+			want:    []byte(`{"spec": {"replicas": 3, ":colons": {}, ".dots": [], ":.colonAndDot": {}, ".:dotAndColon": {}}}`),
 		},
 	}
 	for _, tt := range tests {
