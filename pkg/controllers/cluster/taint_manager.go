@@ -302,6 +302,18 @@ func (tc *NoExecuteTaintManager) getPurgeMode(failover *policyv1alpha1.FailoverB
 //     If needEviction is false, a value < 0 indicates the binding should be tolerated indefinitely (no eviction).
 //   - error: any error encountered during evaluation.
 func (tc *NoExecuteTaintManager) needEviction(clusterName string, annotations map[string]string) (bool, time.Duration, error) {
+	return tc.needEvictionWithCurrentTime(clusterName, annotations, time.Now())
+}
+
+// needEvictionWithCurrentTime determines if a binding should be evicted from the specified cluster based on taints and tolerations.
+// This function accepts a currentTime parameter to enable deterministic testing.
+// Returns:
+//   - needEviction: true if the binding should be evicted (when to evict is indicated by the second return value).
+//   - tolerationTime: if needEviction is true, this is the duration to wait before eviction (0 means evict immediately,
+//     >0 means evict after this duration).
+//     If needEviction is false, a value < 0 indicates the binding should be tolerated indefinitely (no eviction).
+//   - error: any error encountered during evaluation.
+func (tc *NoExecuteTaintManager) needEvictionWithCurrentTime(clusterName string, annotations map[string]string, currentTime time.Time) (bool, time.Duration, error) {
 	placement, err := helper.GetAppliedPlacement(annotations)
 	if err != nil {
 		return false, -1, err
@@ -333,7 +345,7 @@ func (tc *NoExecuteTaintManager) needEviction(clusterName string, annotations ma
 		return true, 0, nil
 	}
 
-	minTolerationTime := helper.GetMinTolerationTime(taints, usedTolerations)
+	minTolerationTime := helper.GetMinTolerationTimeWithCurrentTime(taints, usedTolerations, currentTime)
 	if minTolerationTime == 0 {
 		return true, 0, nil
 	}

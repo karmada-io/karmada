@@ -541,10 +541,11 @@ func TestNoExecuteTaintManager_syncClusterBindingEviction(t *testing.T) {
 	}
 }
 
-func TestNoExecuteTaintManager_needEviction(t *testing.T) {
-	now := time.Now()
-	oneSecondAgo := metav1.Time{Time: now.Add(-1 * time.Second)}
-	oneSecondLater := metav1.Time{Time: now.Add(1 * time.Second)}
+func TestNoExecuteTaintManager_needEvictionWithCurrentTime(t *testing.T) {
+	// Use fixed time for deterministic testing
+	fixedTime := time.Date(2025, 9, 23, 12, 0, 0, 0, time.UTC)
+	oneSecondAgo := metav1.Time{Time: fixedTime.Add(-1 * time.Second)}
+	oneSecondLater := metav1.Time{Time: fixedTime.Add(1 * time.Second)}
 
 	// Test cases
 	tests := []struct {
@@ -782,7 +783,7 @@ func TestNoExecuteTaintManager_needEviction(t *testing.T) {
 						{
 							Key:       "test-key",
 							Effect:    corev1.TaintEffectNoExecute,
-							TimeAdded: &metav1.Time{Time: now.Add(-2 * time.Second)}, // 2 seconds ago, tolerance is 1 second
+							TimeAdded: &metav1.Time{Time: fixedTime.Add(-2 * time.Second)}, // 2 seconds ago, tolerance is 1 second
 						},
 					},
 				},
@@ -806,7 +807,7 @@ func TestNoExecuteTaintManager_needEviction(t *testing.T) {
 				}
 			}
 
-			needEviction, tolerationTime, err := tc.needEviction(tt.clusterName, tt.annotations)
+			needEviction, tolerationTime, err := tc.needEvictionWithCurrentTime(tt.clusterName, tt.annotations, fixedTime)
 
 			// Check error expectation
 			if (err != nil) != tt.wantErr {
@@ -824,18 +825,9 @@ func TestNoExecuteTaintManager_needEviction(t *testing.T) {
 				t.Errorf("needEviction() needEviction = %v, want %v", needEviction, tt.expectedNeedEviction)
 			}
 
-			// Check tolerationTime result with tolerance for time-based tests
-			if tt.expectedTolerationTime >= 0 && tolerationTime >= 0 {
-				// For positive time values, allow 1 second tolerance
-				tolerance := 1 * time.Second
-				if tolerationTime < tt.expectedTolerationTime-tolerance || tolerationTime > tt.expectedTolerationTime+tolerance {
-					t.Errorf("needEviction() tolerationTime = %v, want %v (±%v)", tolerationTime, tt.expectedTolerationTime, tolerance)
-				}
-			} else {
-				// For negative values or zero, check exact match
-				if tolerationTime != tt.expectedTolerationTime {
-					t.Errorf("needEviction() tolerationTime = %v, want %v", tolerationTime, tt.expectedTolerationTime)
-				}
+			// Check tolerationTime result - now we can do exact comparison since we use fixed time
+			if tolerationTime != tt.expectedTolerationTime {
+				t.Errorf("needEviction() tolerationTime = %v, want %v", tolerationTime, tt.expectedTolerationTime)
 			}
 		})
 	}
