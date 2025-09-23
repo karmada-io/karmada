@@ -209,7 +209,6 @@ func CreateOrUpdateAPIService(apiRegistrationClient aggregator.Interface, apiser
 
 // ApplyCRD applies the CRD to the Karmada API server
 func ApplyCRD(client *crdsclient.Clientset, obj *apiextensionsv1.CustomResourceDefinition) error {
-
 	data, err := json.Marshal(obj)
 	if err != nil {
 		klog.V(5).ErrorS(err, "Failed to marshall CRD data", "crd", obj.Name)
