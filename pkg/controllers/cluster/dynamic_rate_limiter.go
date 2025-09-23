@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
@@ -69,7 +70,11 @@ func (d *DynamicRateLimiter[T]) When(_ T) time.Duration {
 // - Secondary rate when system is unhealthy but large-scale
 // - Zero (halt evictions) when system is unhealthy and small-scale
 func (d *DynamicRateLimiter[T]) getCurrentRate() float32 {
-	clusterGVR := clusterv1alpha1.SchemeGroupVersion.WithResource("clusters")
+	clusterGVR := schema.GroupVersionResource{
+		Group:    clusterv1alpha1.GroupName,
+		Version:  "v1alpha1",
+		Resource: "clusters",
+	}
 
 	var lister = d.informerManager.Lister(clusterGVR)
 	if lister == nil {
