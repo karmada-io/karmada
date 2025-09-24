@@ -163,6 +163,7 @@ func (tc *NoExecuteTaintManager) Start(ctx context.Context) error {
 		Name:                 "binding-eviction",
 		KeyFunc:              nil,
 		ReconcileFunc:        tc.syncBindingEviction,
+		ResourceKindFunc:     tc.getResourceKindFromKey,
 		EvictionQueueOptions: tc.EvictionQueueOptions,
 		RateLimiterOptions:   tc.RateLimiterOptions,
 	})
@@ -174,6 +175,7 @@ func (tc *NoExecuteTaintManager) Start(ctx context.Context) error {
 		Name:                 "cluster-binding-eviction",
 		KeyFunc:              nil,
 		ReconcileFunc:        tc.syncClusterBindingEviction,
+		ResourceKindFunc:     tc.getResourceKindFromKey,
 		EvictionQueueOptions: tc.EvictionQueueOptions,
 		RateLimiterOptions:   tc.RateLimiterOptions,
 	})
@@ -181,6 +183,27 @@ func (tc *NoExecuteTaintManager) Start(ctx context.Context) error {
 
 	<-ctx.Done()
 	return nil
+}
+
+// getResourceKindFromKey extracts cluster name and resource kind from a queue key
+// for eviction metrics collection.
+func (tc *NoExecuteTaintManager) getResourceKindFromKey(key interface{}) (clusterName, resourceKind string) {
+	fedKey, ok := key.(keys.FederatedKey)
+	if !ok {
+		return "", ""
+	}
+
+	// Extract cluster name from the key
+	clusterName = fedKey.Cluster
+
+	// Determine resource kind based on the worker that processes this key
+	if fedKey.Namespace != "" {
+		resourceKind = "ResourceBinding"
+	} else {
+		resourceKind = "ClusterResourceBinding"
+	}
+
+	return clusterName, resourceKind
 }
 
 func (tc *NoExecuteTaintManager) syncBindingEviction(key util.QueueKey) error {

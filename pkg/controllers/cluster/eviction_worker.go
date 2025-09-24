@@ -23,6 +23,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
+	"github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/util"
 )
 
@@ -83,6 +84,13 @@ func (w *evictionWorker) Add(item interface{}) {
 	}
 
 	w.queue.Add(item)
+	metrics.RecordEvictionQueueMetrics(w.name, float64(w.queue.Len()))
+
+	// Update resource kind metrics if possible
+	if w.resourceKindFunc != nil {
+		clusterName, resourceKind := w.resourceKindFunc(item)
+		metrics.RecordEvictionKindMetrics(clusterName, resourceKind, true)
+	}
 }
 
 // AddAfter adds an item to the queue after a delay and updates metrics.
@@ -93,6 +101,13 @@ func (w *evictionWorker) AddAfter(item interface{}, duration time.Duration) {
 	}
 
 	w.queue.AddAfter(item, duration)
+	metrics.RecordEvictionQueueMetrics(w.name, float64(w.queue.Len()))
+
+	// Update resource kind metrics if possible
+	if w.resourceKindFunc != nil {
+		clusterName, resourceKind := w.resourceKindFunc(item)
+		metrics.RecordEvictionKindMetrics(clusterName, resourceKind, true)
+	}
 }
 
 // worker processes items from the queue until the context is canceled.
@@ -110,7 +125,19 @@ func (w *evictionWorker) processNextWorkItem(ctx context.Context) bool {
 	}
 	defer w.queue.Done(key)
 
+	// Update queue metrics
+	metrics.RecordEvictionQueueMetrics(w.name, float64(w.queue.Len()))
+
+	// Get resource metadata for metrics
+	var clusterName, resourceKind string
+	if w.resourceKindFunc != nil {
+		clusterName, resourceKind = w.resourceKindFunc(key)
+	}
+
+	// Process the item and measure latency
+	startTime := time.Now()
 	err := w.reconcileFunc(key)
+	metrics.RecordEvictionProcessingMetrics(w.name, err, startTime)
 
 	if err != nil {
 		// Requeue with rate limiting on error
@@ -121,6 +148,9 @@ func (w *evictionWorker) processNextWorkItem(ctx context.Context) bool {
 
 	// Successfully processed
 	w.queue.Forget(key)
+
+	// Decrease resource kind count only after successful processing
+	metrics.RecordEvictionKindMetrics(clusterName, resourceKind, false)
 
 	// Apply pacing between items to enforce overall throughput, based on the
 	// combined limiter (dynamic health-aware + default backoff/bucket).
