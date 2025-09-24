@@ -67,9 +67,9 @@ type NoExecuteTaintManager struct {
 	EvictionQueueOptions EvictionQueueOptions
 
 	//bindingEvictionWorker handles ResourceBinding resources
-	bindingEvictionWorker EvictionWorker
+	bindingEvictionWorker util.AsyncWorker
 	//clusterBindingEvictionWorker handles the ClusterResourceBinding resource
-	clusterBindingEvictionWorker EvictionWorker
+	clusterBindingEvictionWorker util.AsyncWorker
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.

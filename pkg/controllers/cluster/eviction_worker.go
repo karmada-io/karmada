@@ -29,13 +29,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 )
 
-// EvictionWorker enhances AsyncWorker with dynamic rate limiting and metrics
-// for eviction operations. It provides a queue that adjusts its processing rate
-// based on cluster health status.
-type EvictionWorker interface {
-	util.AsyncWorker
-}
-
 // EvictionQueueOptions holds the options that control the behavior of the graceful eviction queue based on the overall health of the clusters.
 type EvictionQueueOptions struct {
 	// ResourceEvictionRate is the number of resources to be evicted per second.
@@ -88,7 +81,7 @@ type EvictionWorkerOptions struct {
 }
 
 // NewEvictionWorker creates a new EvictionWorker with dynamic rate limiting.
-func NewEvictionWorker(opts EvictionWorkerOptions) EvictionWorker {
+func NewEvictionWorker(opts EvictionWorkerOptions) util.AsyncWorker {
 	rateLimiter := NewGracefulEvictionRateLimiter[interface{}](
 		opts.InformerManager,
 		opts.EvictionQueueOptions,
