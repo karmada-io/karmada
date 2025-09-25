@@ -84,8 +84,8 @@ var (
 
 // NewCmdInit install Karmada on Kubernetes
 func NewCmdInit(parentCommand string) *cobra.Command {
-	opts := kubernetes.CommandInitOption{}
-	cmd := &cobra.Command{
+    opts := kubernetes.CommandInitOption{}
+    cmd := &cobra.Command{
 		Use:                   "init",
 		Short:                 "Install the Karmada control plane in a Kubernetes cluster",
 		Long:                  initLong,
@@ -115,9 +115,11 @@ func NewCmdInit(parentCommand string) *cobra.Command {
 		Annotations: map[string]string{
 			util.TagCommandGroup: util.GroupClusterRegistration,
 		},
-	}
-	flags := cmd.Flags()
-	flags.StringVarP(&opts.ImageRegistry, "private-image-registry", "", "", "Private image registry where pull images from. If set, all required images will be downloaded from it, it would be useful in offline installation scenarios.  In addition, you still can use --kube-image-registry to specify the registry for Kubernetes's images.")
+    }
+    flags := cmd.Flags()
+    // layout of secrets mounted into pods
+    flags.StringVarP(&opts.SecretLayout, "secret-layout", "", "legacy", "Secret layout mode for generated cert secrets: 'legacy' (single aggregated secret) or 'split' (per-component TLS secrets). Defaults to 'legacy'.")
+    flags.StringVarP(&opts.ImageRegistry, "private-image-registry", "", "", "Private image registry where pull images from. If set, all required images will be downloaded from it, it would be useful in offline installation scenarios.  In addition, you still can use --kube-image-registry to specify the registry for Kubernetes's images.")
 	flags.StringVarP(&opts.ImagePullPolicy, "image-pull-policy", "", string(corev1.PullIfNotPresent), "The image pull policy for all Karmada components container. One of Always, Never, IfNotPresent. Defaults to IfNotPresent.")
 	flags.StringSliceVar(&opts.PullSecrets, "image-pull-secrets", nil, "Image pull secrets are used to pull images from the private registry, could be secret list separated by comma (e.g '--image-pull-secrets PullSecret1,PullSecret2', the secrets should be pre-settled in the namespace declared by '--namespace')")
 	// kube image registry
