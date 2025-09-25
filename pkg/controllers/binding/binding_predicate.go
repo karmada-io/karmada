@@ -17,13 +17,13 @@ limitations under the License.
 package binding
 
 import (
-	"reflect"
+    "reflect"
 
-	"k8s.io/klog/v2"
-	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
+    "k8s.io/klog/v2"
+    "sigs.k8s.io/controller-runtime/pkg/event"
+    "sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+    workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
 
 // ResourceBindingPredicate implements a custom predicate for ResourceBinding and ClusterResourceBinding
@@ -41,7 +41,7 @@ type ResourceBindingPredicate struct{}
 var _ predicate.Predicate = &ResourceBindingPredicate{}
 
 // Create implements CreateEvent filter
-func (r *ResourceBindingPredicate) Create(e event.CreateEvent) bool {
+func (r *ResourceBindingPredicate) Create(_ event.CreateEvent) bool {
 	// Always process create events for new ResourceBinding/ClusterResourceBinding objects
 	return true
 }
@@ -63,14 +63,14 @@ func (r *ResourceBindingPredicate) Update(e event.UpdateEvent) bool {
 }
 
 // Delete implements DeleteEvent filter
-func (r *ResourceBindingPredicate) Delete(e event.DeleteEvent) bool {
+func (r *ResourceBindingPredicate) Delete(_ event.DeleteEvent) bool {
 	// Ignore delete events - garbage collection and owner references handle cleanup
 	// The controller still reconciles properly using create/update and finalizer logic
 	return false
 }
 
 // Generic implements GenericEvent filter
-func (r *ResourceBindingPredicate) Generic(e event.GenericEvent) bool {
+func (r *ResourceBindingPredicate) Generic(_ event.GenericEvent) bool {
 	// Process generic events (rarely used)
 	return true
 }
