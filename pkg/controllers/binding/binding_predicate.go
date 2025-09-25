@@ -26,57 +26,8 @@ import (
     workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
 
-// ResourceBindingPredicate implements a custom predicate for ResourceBinding and ClusterResourceBinding
-// to optimize event filtering and reduce unnecessary reconciliations.
-//
-// Optimization strategy:
-// 1. Ignore Delete events - garbage collection and owner references handle cleanup
-// 2. Always process Create events - new bindings must trigger reconciliation
-// 3. Process Update events only when:
-//    - Generation changes (normal behavior)
-//    - DeletionTimestamp is set (for finalizer cleanup)
-//    - Critical spec fields change: requiredBy, clusters, gracefulEvictionTasks, resource, suspension, preserveResourcesOnDeletion, conflictResolution
-type ResourceBindingPredicate struct{}
-
-var _ predicate.Predicate = &ResourceBindingPredicate{}
-
-// Create implements CreateEvent filter
-func (r *ResourceBindingPredicate) Create(_ event.CreateEvent) bool {
-	// Always process create events for new ResourceBinding/ClusterResourceBinding objects
-	return true
-}
-
-// Update implements UpdateEvent filter
-func (r *ResourceBindingPredicate) Update(e event.UpdateEvent) bool {
-	// Check if generation changed (normal behavior)
-	if e.ObjectOld.GetGeneration() != e.ObjectNew.GetGeneration() {
-		return true
-	}
-
-	// Check if deletion timestamp is set (for finalizer cleanup)
-	if e.ObjectOld.GetDeletionTimestamp() == nil && e.ObjectNew.GetDeletionTimestamp() != nil {
-		return true
-	}
-
-	// Check if critical spec fields changed
-	return r.hasCriticalSpecFieldChanged(e.ObjectOld, e.ObjectNew)
-}
-
-// Delete implements DeleteEvent filter
-func (r *ResourceBindingPredicate) Delete(_ event.DeleteEvent) bool {
-	// Ignore delete events - garbage collection and owner references handle cleanup
-	// The controller still reconciles properly using create/update and finalizer logic
-	return false
-}
-
-// Generic implements GenericEvent filter
-func (r *ResourceBindingPredicate) Generic(_ event.GenericEvent) bool {
-	// Process generic events (rarely used)
-	return true
-}
-
 // hasCriticalSpecFieldChanged checks if any critical spec fields have changed
-func (r *ResourceBindingPredicate) hasCriticalSpecFieldChanged(oldObj, newObj interface{}) bool {
+func hasCriticalSpecFieldChanged(oldObj, newObj interface{}) bool {
 	var oldSpec, newSpec workv1alpha2.ResourceBindingSpec
 
 	switch oldBinding := oldObj.(type) {
@@ -85,7 +36,7 @@ func (r *ResourceBindingPredicate) hasCriticalSpecFieldChanged(oldObj, newObj in
 	case *workv1alpha2.ClusterResourceBinding:
 		oldSpec = oldBinding.Spec
 	default:
-		klog.V(4).InfoS("Unknown object type in predicate", "type", reflect.TypeOf(oldObj))
+        klog.V(4).InfoS("Unknown object type in predicate", "type", reflect.TypeOf(oldObj))
 		return false
 	}
 
@@ -95,7 +46,7 @@ func (r *ResourceBindingPredicate) hasCriticalSpecFieldChanged(oldObj, newObj in
 	case *workv1alpha2.ClusterResourceBinding:
 		newSpec = newBinding.Spec
 	default:
-		klog.V(4).InfoS("Unknown object type in predicate", "type", reflect.TypeOf(newObj))
+        klog.V(4).InfoS("Unknown object type in predicate", "type", reflect.TypeOf(newObj))
 		return false
 	}
 
@@ -109,7 +60,39 @@ func (r *ResourceBindingPredicate) hasCriticalSpecFieldChanged(oldObj, newObj in
 		oldSpec.ConflictResolution != newSpec.ConflictResolution
 }
 
-// NewResourceBindingPredicate creates a new ResourceBindingPredicate instance
-func NewResourceBindingPredicate() *ResourceBindingPredicate {
-	return &ResourceBindingPredicate{}
+// NewResourceBindingPredicate returns an inline predicate for ResourceBinding and ClusterResourceBinding
+// to optimize event filtering and reduce unnecessary reconciliations.
+//
+// Optimization strategy:
+// 1. Ignore Delete events
+// 2. Always process Create events
+// 3. Process Update events only when:
+//    - Generation changes (includes graceful deletion which bumps generation)
+//    - Critical spec fields change: requiredBy, clusters, gracefulEvictionTasks, resource, suspension, preserveResourcesOnDeletion, conflictResolution
+func NewResourceBindingPredicate() predicate.Predicate {
+    return predicate.Funcs{
+        CreateFunc: func(event.CreateEvent) bool {
+            return true
+        },
+        UpdateFunc: func(e event.UpdateEvent) bool {
+            if e.ObjectOld.GetGeneration() != e.ObjectNew.GetGeneration() {
+                return true
+            }
+            // Also trigger on the start of deletion to ensure timely finalizer/cleanup reconciliation,
+            // even if a generation bump isn't observed yet by informers.
+            if e.ObjectOld.GetDeletionTimestamp() == nil && e.ObjectNew.GetDeletionTimestamp() != nil {
+                return true
+            }
+            return hasCriticalSpecFieldChanged(e.ObjectOld, e.ObjectNew)
+        },
+        DeleteFunc: func(event.DeleteEvent) bool {
+            // Ignore delete events; reconciliation is driven by generation bump and finalizers.
+            // Cleanup is handled by controller logic (e.g., work deletion).
+            return false
+        },
+        GenericFunc: func(event.GenericEvent) bool {
+            // Process generic events (rarely used)
+            return true
+        },
+    }
 }
