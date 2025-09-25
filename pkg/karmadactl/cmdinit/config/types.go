@@ -74,6 +74,13 @@ type KarmadaInitSpec struct {
 	// WaitComponentReadyTimeout configures the timeout (in seconds) for waiting for components to be ready
 	// +optional
 	WaitComponentReadyTimeout int `json:"waitComponentReadyTimeout,omitempty" yaml:"waitComponentReadyTimeout,omitempty"`
+
+	// SecretLayout controls how certificate secrets are organized and mounted during init.
+	// One of:
+	//  - "legacy": use a single aggregated secret (default behavior prior to split-layout)
+	//  - "split":  create per-component TLS secrets (apiserver, etcd client/server, front-proxy, kcm CA/SA, webhook, etc.)
+	// +optional
+	SecretLayout string `json:"secretLayout,omitempty" yaml:"secretLayout,omitempty"`
 }
 
 // Certificates defines the configuration related to certificates
