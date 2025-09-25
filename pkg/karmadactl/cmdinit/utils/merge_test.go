@@ -1,5 +1,5 @@
 /*
-Copyright 2023 The Karmada Authors.
+Copyright 2025 The Karmada Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ limitations under the License.
 package utils
 
 import (
+	"errors"
 	"reflect"
 	"strings"
 	"testing"
@@ -35,6 +36,7 @@ type componentCommandCase struct {
 	name      string
 	extraArgs []string
 	finalArgs []string
+	err       error
 }
 
 // User normal input
@@ -49,6 +51,7 @@ var commonCases = []componentCommandCase{
 			"--authorization-mode=Node,RBAC",
 			"--v=2",
 		},
+		err: nil,
 	},
 
 	// 2. --key= format (replace existing parameters with empty values)
@@ -61,6 +64,7 @@ var commonCases = []componentCommandCase{
 			"--authorization-mode=Node,RBAC",
 			"--runtime-config=",
 		},
+		err: nil,
 	},
 
 	// 3. --key format (Boolean flag, new parameter)
@@ -74,6 +78,7 @@ var commonCases = []componentCommandCase{
 			"--authorization-mode=Node,RBAC",
 			"--enable-pprof",
 		},
+		err: nil,
 	},
 
 	// 4. --key=v1,v2 format (merging multiple values through preprocessing)
@@ -87,6 +92,7 @@ var commonCases = []componentCommandCase{
 			"--authorization-mode=Node,RBAC",
 			"--new-option=value1,value2,value3",
 		},
+		err: nil,
 	},
 
 	// 5. Mixing multiple formats
@@ -105,6 +111,7 @@ var commonCases = []componentCommandCase{
 			"--ports=8080,443",
 			"--v=4",
 		},
+		err: nil,
 	},
 
 	// 6. Replace multiple existing parameters
@@ -120,6 +127,7 @@ var commonCases = []componentCommandCase{
 			"--authorization-mode=RBAC",
 			"--v=8",
 		},
+		err: nil,
 	},
 
 	// 7. Empty input
@@ -132,6 +140,7 @@ var commonCases = []componentCommandCase{
 			"--runtime-config=",
 			"--authorization-mode=Node,RBAC",
 		},
+		err: nil,
 	},
 	// 8. Includes equal sign
 	{
@@ -144,6 +153,7 @@ var commonCases = []componentCommandCase{
 			"--authorization-mode=Node,RBAC",
 			"--key=name=value", // This is legal because SplitN(arg, "=", 2) only splits at the first "=".
 		},
+		err: nil,
 	},
 	{
 		name:      "multiple equals signs",
@@ -155,6 +165,7 @@ var commonCases = []componentCommandCase{
 			"--authorization-mode=Node,RBAC",
 			"--config=key1=value1=extra", // It's valid because it's only split at the first = sign.
 		},
+		err: nil,
 	},
 	// 9. Underscore
 	{
@@ -167,6 +178,7 @@ var commonCases = []componentCommandCase{
 			"--authorization-mode=Node,RBAC",
 			"--key123_test_value=123",
 		},
+		err: nil,
 	},
 }
 
@@ -182,6 +194,7 @@ var errCase = []componentCommandCase{
 			"--runtime-config=",
 			"--authorization-mode=Node,RBAC",
 		},
+		err: errors.New("want error"),
 	},
 	{
 		name:      "single dash prefix",
@@ -192,6 +205,7 @@ var errCase = []componentCommandCase{
 			"--runtime-config=",
 			"--authorization-mode=Node,RBAC",
 		},
+		err: errors.New("want error"),
 	},
 
 	// 2. Chinese comma issue
@@ -205,6 +219,7 @@ var errCase = []componentCommandCase{
 			"--authorization-mode=Node,RBAC",
 			"--ports=8080，443",
 		},
+		err: nil,
 	},
 	{
 		// --test-extra-args="--modes=read,write，execute"
@@ -217,6 +232,7 @@ var errCase = []componentCommandCase{
 			"--authorization-mode=Node,RBAC",
 			"--modes=read,write，execute",
 		},
+		err: nil,
 	},
 
 	// 3. Special characters and format errors
@@ -229,6 +245,7 @@ var errCase = []componentCommandCase{
 			"--runtime-config=",
 			"--authorization-mode=Node,RBAC",
 		},
+		err: errors.New("want error"),
 	},
 
 	// 4. Null values and special cases
@@ -241,6 +258,7 @@ var errCase = []componentCommandCase{
 			"--runtime-config=",
 			"--authorization-mode=Node,RBAC",
 		},
+		err: errors.New("want error"), // This is because the first parameter is an empty string, which will return an error when checking the prefix.
 	},
 	{
 		name:      "only dashes",
@@ -251,6 +269,7 @@ var errCase = []componentCommandCase{
 			"--runtime-config=",
 			"--authorization-mode=Node,RBAC",
 		},
+		err: errors.New("want error"),
 	},
 
 	// 5. Illegal key naming
@@ -263,6 +282,7 @@ var errCase = []componentCommandCase{
 			"--runtime-config=",
 			"--authorization-mode=Node,RBAC",
 		},
+		err: errors.New("want error"),
 	},
 	{
 		name:      "key with special characters",
@@ -273,6 +293,7 @@ var errCase = []componentCommandCase{
 			"--runtime-config=",
 			"--authorization-mode=Node,RBAC",
 		}, // The "@" symbol is not allowed.
+		err: errors.New("want error"),
 	},
 
 	// 6. Unicode and encoding issues
@@ -285,6 +306,7 @@ var errCase = []componentCommandCase{
 			"--runtime-config=",
 			"--authorization-mode=Node,RBAC",
 		},
+		err: errors.New("want error"),
 	},
 	{
 		name:      "emoji in value",
@@ -296,6 +318,7 @@ var errCase = []componentCommandCase{
 			"--authorization-mode=Node,RBAC",
 			"--status=running😊", // Special characters in values are usually allowed.
 		},
+		err: nil,
 	},
 
 	// 7. Isolated value (without a corresponding key)
@@ -306,9 +329,9 @@ var errCase = []componentCommandCase{
 			"test",
 			"--v=6",
 			"--runtime-config=",
-			"--authorization-mode=Node,RBAC",
-			"--key=value", // preProcessArgs will warn and ignore isolated values.
+			"--authorization-mode=Node,RBAC", // preProcessArgs will return default args.
 		},
+		err: errors.New("want error"),
 	},
 	{
 		name:      "multiple orphaned values",
@@ -317,9 +340,9 @@ var errCase = []componentCommandCase{
 			"test",
 			"--v=6",
 			"--runtime-config=",
-			"--authorization-mode=Node,RBAC",
-			"--key=value",
+			"--authorization-mode=Node,RBAC", // preProcessArgs will return default args.
 		},
+		err: errors.New("want error"),
 	},
 
 	// 8. Space and tab issues
@@ -333,6 +356,7 @@ var errCase = []componentCommandCase{
 			"--authorization-mode=Node,RBAC",
 			"--key=value",
 		},
+		err: nil,
 	},
 	{
 		name:      "tab characters",
@@ -344,6 +368,7 @@ var errCase = []componentCommandCase{
 			"--authorization-mode=Node,RBAC",
 			"--key=value",
 		},
+		err: nil,
 	},
 
 	// 9. Repeated equal signs
@@ -357,6 +382,7 @@ var errCase = []componentCommandCase{
 			"--authorization-mode=Node,RBAC",
 			"--key==value", // The first letter of this value is "=".
 		},
+		err: nil,
 	},
 
 	// 10. Extreme Length Test
@@ -370,13 +396,23 @@ var errCase = []componentCommandCase{
 			"--authorization-mode=Node,RBAC",
 			"--" + strings.Repeat("a", 1000) + "=value",
 		},
+		err: nil,
 	},
 }
 
 // Abstract a function that runs multiple test cases.
 func testCase(cases []componentCommandCase, t *testing.T) {
 	for _, c := range cases {
-		got := KarmadaComponentCommand(defaultArgs, c.extraArgs)
+		got, err := KarmadaComponentCommand(defaultArgs, c.extraArgs)
+		if err != nil {
+			if c.err == nil {
+				t.Errorf("test case [%s] failed, want: %v, got: %v", c.name, c.err, err)
+			}
+		} else {
+			if c.err != nil {
+				t.Errorf("test case [%s] failed, want: %v, got: %v", c.name, c.err, err)
+			}
+		}
 		if !reflect.DeepEqual(got, c.finalArgs) {
 			t.Errorf("test case [%s] failed, want: %v, got: %v", c.name, c.finalArgs, got)
 		}
@@ -401,6 +437,6 @@ func TestKarmadaComponentCommand(t *testing.T) {
 // Benchmark test
 func BenchmarkKarmadaComponentCommand(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		KarmadaComponentCommand(defaultArgs, commonCases[0].extraArgs)
+		_, _ = KarmadaComponentCommand(defaultArgs, commonCases[0].extraArgs)
 	}
 }

@@ -1,5 +1,5 @@
 /*
-Copyright 2023 The Karmada Authors.
+Copyright 2025 The Karmada Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -26,30 +26,33 @@ import (
 )
 
 // KarmadaComponentCommand merges default parameters with user-provided parameters.
-func KarmadaComponentCommand(defaultArgs, extraArgs []string) []string {
+func KarmadaComponentCommand(defaultArgs, extraArgs []string) ([]string, error) {
 	// Return directly without parameters.
 	if len(extraArgs) == 0 {
-		return defaultArgs
+		return defaultArgs, nil
 	}
 
 	// Parameter preprocessing
-	preprocessArgs := preProcessArgs(extraArgs)
+	preprocessArgs, err := preProcessArgs(extraArgs)
+	if err != nil {
+		return defaultArgs, err
+	}
 
 	// Verification parameters
 	args, err := validateArgs(preprocessArgs)
 	if err != nil {
 		klog.Errorf("%v", err)
-		return defaultArgs
+		return defaultArgs, err
 	}
 
 	// merge Parameters
-	return mergeCommandArgs(defaultArgs, args)
+	return mergeCommandArgs(defaultArgs, args), nil
 }
 
-// Parameter preprocessing  // has --key=v1,v2,v3.
-func preProcessArgs(args []string) []string {
+// preProcessArgs Merge the parameters passed in like this --ke=v1,v2,v3.
+func preProcessArgs(args []string) ([]string, error) {
 	if len(args) == 0 {
-		return args
+		return args, nil
 	}
 
 	// Pre-create a slice with capacity.
@@ -69,9 +72,11 @@ func preProcessArgs(args []string) []string {
 			last = arg
 		} else {
 			if last == "" {
-				// The explanation is the first parameter, at this time skip and warn.
-				klog.Warningf("argument %q ignored: no preceding --key found", arg)
-				continue
+				// This indicates that this is the first argument passed in from the command line,
+				// but it does not have the prefix "--".
+				// It could be either a user input error or the user intends to specify the binary file for executing a command.
+				// Since it is unclear which one it is, an error is returned directly.
+				return nil, fmt.Errorf("argument %q ignored: no preceding --key found", arg)
 			}
 			last += "," + arg
 		}
@@ -80,7 +85,7 @@ func preProcessArgs(args []string) []string {
 	if last != "" {
 		merged = append(merged, last)
 	}
-	return merged
+	return merged, nil
 }
 
 // Regular expression validation of user-provided parameters.

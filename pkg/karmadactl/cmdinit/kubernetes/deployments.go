@@ -29,7 +29,6 @@ import (
 	"k8s.io/utils/ptr"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
-	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 	globaloptions "github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
@@ -190,7 +189,7 @@ func (i *CommandInitOption) makeKarmadaAPIServerDeployment() *appsv1.Deployment 
 			{
 				Name:    karmadaAPIServerDeploymentAndServiceName,
 				Image:   i.kubeAPIServerImage(),
-				Command: utils.KarmadaComponentCommand(i.defaultKarmadaAPIServerContainerCommand(), i.KarmadaAPIServerExtraArgs),
+				Command: i.KarmadaAPIServerContainerCmd,
 				Ports: []corev1.ContainerPort{
 					{
 						Name:          portName,
@@ -249,7 +248,7 @@ func (i *CommandInitOption) makeKarmadaAPIServerDeployment() *appsv1.Deployment 
 	return apiServer
 }
 
-// defaultArgs
+// default command line arguments for kube-controller-manager
 func (i *CommandInitOption) defaultKarmadaKubeControllerManagerContainerCommand() []string {
 	return []string{
 		"kube-controller-manager",
@@ -331,7 +330,7 @@ func (i *CommandInitOption) makeKarmadaKubeControllerManagerDeployment() *appsv1
 			{
 				Name:          kubeControllerManagerClusterRoleAndDeploymentAndServiceName,
 				Image:         i.kubeControllerManagerImage(),
-				Command:       utils.KarmadaComponentCommand(i.defaultKarmadaKubeControllerManagerContainerCommand(), i.KubeControllerManagerExtraArgs),
+				Command:       i.KubeControllerManagerContainerCmd,
 				LivenessProbe: livenessProbe,
 				Ports: []corev1.ContainerPort{
 					{
@@ -482,7 +481,7 @@ func (i *CommandInitOption) makeKarmadaSchedulerDeployment() *appsv1.Deployment 
 						},
 					},
 				},
-				Command:       utils.KarmadaComponentCommand(i.defaultKarmadaSchedulerContainerCommand(), i.KarmadaSchedulerExtraArgs),
+				Command:       i.KarmadaSchedulerContainerCmd,
 				LivenessProbe: livenessProbe,
 				Ports: []corev1.ContainerPort{
 					{
@@ -631,7 +630,7 @@ func (i *CommandInitOption) makeKarmadaControllerManagerDeployment() *appsv1.Dep
 						},
 					},
 				},
-				Command:       utils.KarmadaComponentCommand(i.defaultKarmadaControllerManagerContainerCommand(), i.KarmadaControllerManagerExtraArgs),
+				Command:       i.KarmadaControllerManagerContainerCmd,
 				LivenessProbe: livenessProbe,
 				Ports: []corev1.ContainerPort{
 					{
@@ -770,7 +769,7 @@ func (i *CommandInitOption) makeKarmadaWebhookDeployment() *appsv1.Deployment {
 						},
 					},
 				},
-				Command: utils.KarmadaComponentCommand(i.defaultKarmadaWebhookContainerCommand(), i.KarmadaWebhookExtraArgs),
+				Command: i.KarmadaWebhookContainerCmd,
 				Ports: []corev1.ContainerPort{
 					{
 						Name:          webhookPortName,
@@ -954,7 +953,7 @@ func (i *CommandInitOption) makeKarmadaAggregatedAPIServerDeployment() *appsv1.D
 						},
 					},
 				},
-				Command:        utils.KarmadaComponentCommand(i.defaultKarmadaAggregatedAPIServerContainerCommand(), i.KarmadaAggregatedAPIServerExtraArgs),
+				Command:        i.KarmadaAggregatedAPIServerContainerCmd,
 				ReadinessProbe: readinesProbe,
 				LivenessProbe:  livenesProbe,
 				Resources: corev1.ResourceRequirements{

@@ -154,6 +154,8 @@ type CommandInitOption struct {
 	EtcdNodeSelectorLabelsMap map[string]string
 	EtcdPersistentVolumeSize  string
 	EtcdPriorityClass         string
+	EtcdExtraArgs             []string
+	EtcdContainerCmd          []string // The command for containers in a Pod.
 
 	// external etcd
 	ExternalEtcdCACertPath     string
@@ -169,30 +171,43 @@ type CommandInitOption struct {
 	KarmadaAPIServerNodePort         int32
 	KarmadaAPIServerIP               []net.IP
 	KarmadaAPIServerPriorityClass    string
+	KarmadaAPIServerExtraArgs        []string
+	KarmadaAPIServerContainerCmd     []string
 
 	// karmada-scheduler
 	KarmadaSchedulerImage         string
 	KarmadaSchedulerReplicas      int32
 	KarmadaSchedulerPriorityClass string
+	KarmadaSchedulerExtraArgs     []string
+	KarmadaSchedulerContainerCmd  []string
 
 	// kube-controller-manager
 	KubeControllerManagerImage         string
 	KubeControllerManagerReplicas      int32
 	KubeControllerManagerPriorityClass string
+	KubeControllerManagerExtraArgs     []string
+	KubeControllerManagerContainerCmd  []string
 
 	// karmada-controller-manager
 	KarmadaControllerManagerImage         string
 	KarmadaControllerManagerReplicas      int32
 	KarmadaControllerManagerPriorityClass string
+	KarmadaControllerManagerExtraArgs     []string
+	KarmadaControllerManagerContainerCmd  []string
 
+	// karmada-webhook
 	KarmadaWebhookImage         string
 	KarmadaWebhookReplicas      int32
 	KarmadaWebhookPriorityClass string
+	KarmadaWebhookExtraArgs     []string
+	KarmadaWebhookContainerCmd  []string
 
 	// karamda-aggregated-apiserver
 	KarmadaAggregatedAPIServerImage         string
 	KarmadaAggregatedAPIServerReplicas      int32
 	KarmadaAggregatedAPIServerPriorityClass string
+	KarmadaAggregatedAPIServerExtraArgs     []string
+	KarmadaAggregatedAPIServerContainerCmd  []string
 
 	Namespace          string
 	KubeConfig         string
@@ -214,15 +229,6 @@ type CommandInitOption struct {
 	CaCertFile                string
 	CaKeyFile                 string
 	KarmadaInitFilePath       string
-
-	// extraArgs
-	EtcdExtraArgs                       []string
-	KarmadaAPIServerExtraArgs           []string
-	KarmadaSchedulerExtraArgs           []string
-	KubeControllerManagerExtraArgs      []string
-	KarmadaControllerManagerExtraArgs   []string
-	KarmadaWebhookExtraArgs             []string
-	KarmadaAggregatedAPIServerExtraArgs []string
 }
 
 func (i *CommandInitOption) validateLocalEtcd(parentCommand string) error {
@@ -266,6 +272,42 @@ func (i *CommandInitOption) isExternalEtcdProvided() bool {
 	return i.ExternalEtcdServers != ""
 }
 
+func (i *CommandInitOption) validateCommandLineArgs() error {
+	type validateCommandLine struct {
+		name                string
+		commandLine         *[]string       // final
+		defaultCommandLine  func() []string // default
+		additionCommandLine *[]string       // addition
+	}
+
+	validateCommandLines := []validateCommandLine{
+		{names.KarmadaEtcdComponentName, &i.EtcdContainerCmd, i.defaultEtcdContainerCommand, &i.EtcdExtraArgs},
+		{names.KarmadaAPIServerComponentName, &i.KarmadaAPIServerContainerCmd, i.defaultKarmadaAPIServerContainerCommand, &i.KarmadaAPIServerExtraArgs},
+		{names.KarmadaSchedulerComponentName, &i.KarmadaSchedulerContainerCmd, i.defaultKarmadaSchedulerContainerCommand, &i.KarmadaSchedulerExtraArgs},
+		{names.KubeControllerManagerComponentName, &i.KubeControllerManagerContainerCmd, i.defaultKarmadaKubeControllerManagerContainerCommand, &i.KubeControllerManagerExtraArgs},
+		{names.KarmadaControllerManagerComponentName, &i.KarmadaControllerManagerContainerCmd, i.defaultKarmadaControllerManagerContainerCommand, &i.KarmadaControllerManagerExtraArgs},
+		{names.KarmadaWebhookComponentName, &i.KarmadaWebhookContainerCmd, i.defaultKarmadaWebhookContainerCommand, &i.KarmadaWebhookExtraArgs},
+		{names.KarmadaAggregatedAPIServerComponentName, &i.KarmadaAggregatedAPIServerContainerCmd, i.defaultKarmadaAggregatedAPIServerContainerCommand, &i.KarmadaAggregatedAPIServerExtraArgs},
+	}
+	for _, validate := range validateCommandLines {
+		if *validate.additionCommandLine != nil {
+			var err error
+			*validate.commandLine, err = i.validateExtraArgs(validate.defaultCommandLine(), *validate.additionCommandLine)
+			if err != nil {
+				klog.Errorf("validate %s extra args failed: %v", validate.name, err)
+				return err
+			}
+		} else {
+			*validate.commandLine = validate.defaultCommandLine()
+		}
+	}
+	return nil
+}
+
+func (i *CommandInitOption) validateExtraArgs(defaultArgs, extraArgs []string) ([]string, error) {
+	return utils.KarmadaComponentCommand(defaultArgs, extraArgs)
+}
+
 // Validate Check that there are enough flags to run the command.
 func (i *CommandInitOption) Validate(parentCommand string) error {
 	if i.KarmadaInitFilePath != "" {
@@ -295,9 +337,20 @@ func (i *CommandInitOption) Validate(parentCommand string) error {
 	}
 
 	if i.isExternalEtcdProvided() {
-		return i.validateExternalEtcd(parentCommand)
+		if err := i.validateExternalEtcd(parentCommand); err != nil {
+			return err
+		}
+	} else {
+		if err := i.validateLocalEtcd(parentCommand); err != nil {
+			return err
+		}
 	}
-	return i.validateLocalEtcd(parentCommand)
+	// validate command line args
+	err := i.validateCommandLineArgs()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // Complete Initialize k8s client
@@ -920,10 +973,6 @@ func (i *CommandInitOption) parseLocalEtcdConfig(localEtcd *initConfig.LocalEtcd
 	setIfNotEmpty(&i.EtcdStorageMode, localEtcd.StorageMode)
 	setIfNotEmpty(&i.StorageClassesName, localEtcd.StorageClassesName)
 	setIfNotZeroInt32(&i.EtcdReplicas, localEtcd.Replicas)
-
-	if len(localEtcd.ExtraArgs) != 0 {
-		i.EtcdExtraArgs = preProcessArgs(validateExtraArgs(localEtcd.ExtraArgs))
-	}
 }
 
 // parseExternalEtcdConfig parses the external Etcd configuration, including CA file,
@@ -959,10 +1008,6 @@ func (i *CommandInitOption) parseKarmadaAPIServerConfig(apiServer *initConfig.Ka
 		setIfNotEmpty(&i.KarmadaAPIServerImage, apiServer.CommonSettings.Image.GetImage())
 		setIfNotZeroInt32(&i.KarmadaAPIServerReplicas, apiServer.CommonSettings.Replicas)
 		setIfNotEmpty(&i.KarmadaAPIServerAdvertiseAddress, apiServer.AdvertiseAddress)
-
-		if len(apiServer.ExtraArgs) != 0 {
-			i.KarmadaAPIServerExtraArgs = preProcessArgs(validateExtraArgs(apiServer.ExtraArgs))
-		}
 	}
 }
 
@@ -972,10 +1017,6 @@ func (i *CommandInitOption) parseKarmadaControllerManagerConfig(manager *initCon
 	if manager != nil {
 		setIfNotEmpty(&i.KarmadaControllerManagerImage, manager.CommonSettings.Image.GetImage())
 		setIfNotZeroInt32(&i.KarmadaControllerManagerReplicas, manager.CommonSettings.Replicas)
-
-		if len(manager.ExtraArgs) != 0 {
-			i.KarmadaControllerManagerExtraArgs = preProcessArgs(validateExtraArgs(manager.ExtraArgs))
-		}
 	}
 }
 
@@ -985,10 +1026,6 @@ func (i *CommandInitOption) parseKarmadaSchedulerConfig(scheduler *initConfig.Ka
 	if scheduler != nil {
 		setIfNotEmpty(&i.KarmadaSchedulerImage, scheduler.CommonSettings.Image.GetImage())
 		setIfNotZeroInt32(&i.KarmadaSchedulerReplicas, scheduler.CommonSettings.Replicas)
-
-		if len(scheduler.ExtraArgs) != 0 {
-			i.KarmadaSchedulerExtraArgs = preProcessArgs(validateExtraArgs(scheduler.ExtraArgs))
-		}
 	}
 }
 
@@ -998,10 +1035,6 @@ func (i *CommandInitOption) parseKarmadaWebhookConfig(webhook *initConfig.Karmad
 	if webhook != nil {
 		setIfNotEmpty(&i.KarmadaWebhookImage, webhook.CommonSettings.Image.GetImage())
 		setIfNotZeroInt32(&i.KarmadaWebhookReplicas, webhook.CommonSettings.Replicas)
-
-		if len(webhook.ExtraArgs) != 0 {
-			i.KarmadaWebhookExtraArgs = preProcessArgs(validateExtraArgs(webhook.ExtraArgs))
-		}
 	}
 }
 
@@ -1011,10 +1044,6 @@ func (i *CommandInitOption) parseKarmadaAggregatedAPIServerConfig(aggregatedAPIS
 	if aggregatedAPIServer != nil {
 		setIfNotEmpty(&i.KarmadaAggregatedAPIServerImage, aggregatedAPIServer.CommonSettings.Image.GetImage())
 		setIfNotZeroInt32(&i.KarmadaAggregatedAPIServerReplicas, aggregatedAPIServer.CommonSettings.Replicas)
-
-		if len(aggregatedAPIServer.ExtraArgs) != 0 {
-			i.KarmadaAggregatedAPIServerExtraArgs = preProcessArgs(validateExtraArgs(aggregatedAPIServer.ExtraArgs))
-		}
 	}
 }
 
@@ -1024,10 +1053,6 @@ func (i *CommandInitOption) parseKubeControllerManagerConfig(manager *initConfig
 	if manager != nil {
 		setIfNotEmpty(&i.KubeControllerManagerImage, manager.CommonSettings.Image.GetImage())
 		setIfNotZeroInt32(&i.KubeControllerManagerReplicas, manager.CommonSettings.Replicas)
-
-		if len(manager.ExtraArgs) != 0 {
-			i.KubeControllerManagerExtraArgs = preProcessArgs(validateExtraArgs(manager.ExtraArgs))
-		}
 	}
 }
 
@@ -1067,34 +1092,4 @@ func setIfNotZeroInt32(dest *int32, src int32) {
 // joinStringSlice joins a slice of strings into a single string separated by commas.
 func joinStringSlice(slice []string) string {
 	return strings.Join(slice, ",")
-}
-
-// validateExtraArgs validates and filters extra arguments.
-func validateExtraArgs(args []initConfig.Arg) []initConfig.Arg {
-	validArgs := make([]initConfig.Arg, 0, len(args))
-	for id, arg := range args {
-		if len(arg.Name) == 0 {
-			klog.Warningf("The extra args[%d] name is empty, skip it", id)
-			continue
-		}
-		validArgs = append(validArgs, arg)
-	}
-	return validArgs
-}
-
-// preProcessArgs formats the arguments into --key=value.
-func preProcessArgs(args []initConfig.Arg) []string {
-	if len(args) == 0 {
-		return nil
-	}
-
-	res := make([]string, 0, len(args))
-	for _, arg := range args {
-		if arg.Value != "" {
-			res = append(res, fmt.Sprintf("--%s=%s", arg.Name, arg.Value))
-		} else {
-			res = append(res, fmt.Sprintf("--%s", arg.Name))
-		}
-	}
-	return res
 }

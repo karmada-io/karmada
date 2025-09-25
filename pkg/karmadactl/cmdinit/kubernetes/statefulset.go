@@ -28,7 +28,6 @@ import (
 	"k8s.io/utils/ptr"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
-	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 )
 
 const (
@@ -128,7 +127,7 @@ func (i *CommandInitOption) etcdVolume() (*[]corev1.Volume, *corev1.PersistentVo
 	}
 }
 
-func (i *CommandInitOption) defaultEtcdInitContainerCommand() []string {
+func (i *CommandInitOption) defaultEtcdContainerCommand() []string {
 	etcdClusterConfig := ""
 	for v := int32(0); v < i.EtcdReplicas; v++ {
 		etcdClusterConfig += fmt.Sprintf("%s-%v=http://%s-%v.%s.%s.svc.%s:%v", etcdStatefulSetAndServiceName, v, etcdStatefulSetAndServiceName, v, etcdStatefulSetAndServiceName, i.Namespace, i.HostClusterDomain, etcdContainerServerPort) + ","
@@ -147,9 +146,7 @@ func (i *CommandInitOption) defaultEtcdInitContainerCommand() []string {
 		fmt.Sprintf("--key-file=%s/%s.key", karmadaCertsVolumeMountPath, options.EtcdServerCertAndKeyName),
 		fmt.Sprintf("--trusted-ca-file=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdCaCertAndKeyName),
 		fmt.Sprintf("--data-dir=%s", etcdContainerDataVolumeMountPath),
-		"--snapshot-count=10000",
 		fmt.Sprintf("--cipher-suites=%s", etcdCipherSuites),
-		// Added based on the original code.
 		"--initial-cluster-token=etcd-cluster",
 		fmt.Sprintf("--initial-advertise-peer-urls=http://$(%s):%v", etcdEnvPodIP, etcdContainerServerPort),
 		"--peer-client-cert-auth=false",
@@ -236,7 +233,7 @@ func (i *CommandInitOption) makeETCDStatefulSet() *appsv1.StatefulSet {
 			{
 				Name:    etcdStatefulSetAndServiceName,
 				Image:   i.etcdImage(),
-				Command: utils.KarmadaComponentCommand(i.defaultEtcdInitContainerCommand(), i.EtcdExtraArgs),
+				Command: i.EtcdContainerCmd,
 				Ports: []corev1.ContainerPort{
 					{
 						Name:          etcdContainerClientPortName,
