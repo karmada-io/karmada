@@ -18,6 +18,7 @@ package binding
 
 import (
 	"context"
+	"reflect"
 	"strconv"
 	"time"
 
@@ -353,4 +354,39 @@ func shouldSuspendDispatching(suspension *workv1alpha2.Suspension, targetCluster
 		}
 	}
 	return suspendDispatching
+}
+
+type bindingSpecDigest struct {
+	Resource                    workv1alpha2.ObjectReference
+	Clusters                    []workv1alpha2.TargetCluster
+	GracefulEvictionTasks       []workv1alpha2.GracefulEvictionTask
+	RequiredBy                  []workv1alpha2.BindingSnapshot
+	ConflictResolution          policyv1alpha1.ConflictResolution
+	Suspension                  *workv1alpha2.Suspension
+	PreserveResourcesOnDeletion *bool
+}
+
+// careBindingSpecChanged checks whether the fields in bindingSpec that the binding controller cares about have changed.
+// This helps avoid triggering the binding controller to resync when irrelevant fields are modified.
+func careBindingSpecChanged(oldBindingSpec, newBindingSpec workv1alpha2.ResourceBindingSpec) bool {
+	oldDigest := bindingSpecDigest{
+		Resource:                    oldBindingSpec.Resource,
+		Clusters:                    oldBindingSpec.Clusters,
+		GracefulEvictionTasks:       oldBindingSpec.GracefulEvictionTasks,
+		RequiredBy:                  oldBindingSpec.RequiredBy,
+		ConflictResolution:          oldBindingSpec.ConflictResolution,
+		Suspension:                  oldBindingSpec.Suspension,
+		PreserveResourcesOnDeletion: oldBindingSpec.PreserveResourcesOnDeletion,
+	}
+	newDigest := bindingSpecDigest{
+		Resource:                    newBindingSpec.Resource,
+		Clusters:                    newBindingSpec.Clusters,
+		GracefulEvictionTasks:       newBindingSpec.GracefulEvictionTasks,
+		RequiredBy:                  newBindingSpec.RequiredBy,
+		ConflictResolution:          newBindingSpec.ConflictResolution,
+		Suspension:                  newBindingSpec.Suspension,
+		PreserveResourcesOnDeletion: newBindingSpec.PreserveResourcesOnDeletion,
+	}
+
+	return !reflect.DeepEqual(oldDigest, newDigest)
 }
