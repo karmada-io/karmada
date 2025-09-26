@@ -190,7 +190,7 @@ func TestGracefulEvictionRateLimiter_ExponentialBackoff(t *testing.T) {
 		attemptTimes []time.Time
 	)
 
-	reconcileFunc := util.ReconcileFunc(func(key util.QueueKey) error {
+	reconcileFunc := util.ReconcileFunc(func(_ util.QueueKey) error {
 		mu.Lock()
 		attemptTimes = append(attemptTimes, time.Now())
 		mu.Unlock()

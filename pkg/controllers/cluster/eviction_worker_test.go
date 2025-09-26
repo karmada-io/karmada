@@ -161,7 +161,7 @@ func TestEvictionWorker_Reconcile_Scenarios(t *testing.T) {
 		},
 		{
 			name:    "Key function fails",
-			keyFunc: func(obj interface{}) (util.QueueKey, error) { return nil, errors.New("key func error") },
+			keyFunc: func(_ interface{}) (util.QueueKey, error) { return nil, errors.New("key func error") },
 			reconcileFuncFactory: func() (util.ReconcileFunc, *atomic.Int32) {
 				var attempts atomic.Int32
 				return func(_ util.QueueKey) error {
@@ -176,7 +176,7 @@ func TestEvictionWorker_Reconcile_Scenarios(t *testing.T) {
 		},
 		{
 			name:    "Key function returns nil key",
-			keyFunc: func(obj interface{}) (util.QueueKey, error) { return nil, nil },
+			keyFunc: func(_ interface{}) (util.QueueKey, error) { return nil, nil },
 			reconcileFuncFactory: func() (util.ReconcileFunc, *atomic.Int32) {
 				var attempts atomic.Int32
 				return func(_ util.QueueKey) error {
@@ -245,7 +245,7 @@ func TestEvictionWorker_Reconcile_Scenarios(t *testing.T) {
 	}
 }
 
-func TestEvictionWorker_Run_Shutdown(t *testing.T) {
+func TestEvictionWorker_Run_Shutdown(_ *testing.T) {
 	w := &evictionWorker{
 		name:          "shutdown-queue",
 		keyFunc:       util.KeyFunc(func(obj interface{}) (util.QueueKey, error) { return obj, nil }),
@@ -335,7 +335,7 @@ func TestEvictionWorker_ThroughputWithDynamicRateLimiter(t *testing.T) {
 			opts := EvictionWorkerOptions{
 				Name:                 fmt.Sprintf("throughput-test-%s", tt.name),
 				KeyFunc:              func(obj interface{}) (util.QueueKey, error) { return obj, nil },
-				ReconcileFunc:        func(key util.QueueKey) error { processedCount.Add(1); return nil },
+				ReconcileFunc:        func(_ util.QueueKey) error { processedCount.Add(1); return nil },
 				InformerManager:      mockMgr,
 				EvictionQueueOptions: tt.evictionOpts,
 				RateLimiterOptions:   ratelimiterflag.Options{},
