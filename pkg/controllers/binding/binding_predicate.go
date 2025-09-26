@@ -19,9 +19,9 @@ package binding
 import (
     "reflect"
 
-    "sigs.k8s.io/controller-runtime/pkg/event"
-    "sigs.k8s.io/controller-runtime/pkg/predicate"
     "k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
     workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
