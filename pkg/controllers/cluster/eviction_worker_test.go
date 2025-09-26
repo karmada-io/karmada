@@ -24,16 +24,16 @@ import (
 	"testing"
 	"time"
 
-	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
-	gmtesting "github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager/testing"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
+	gmtesting "github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager/testing"
 )
 
 // mockQueue is a wrapper around a real workqueue that allows us to track calls to the Forget method.
