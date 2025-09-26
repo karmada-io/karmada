@@ -74,10 +74,8 @@ func (o *FailoverOptions) Validate() field.ErrorList {
 	if o.EnableNoExecuteTaintEviction &&
 		o.NoExecuteTaintEvictionPurgeMode != "Gracefully" &&
 		o.NoExecuteTaintEvictionPurgeMode != "Directly" {
-		errs = append(errs,
-			field.NotSupported(rootPath.Child("NoExecuteTaintEvictionPurgeMode"),
-				o.NoExecuteTaintEvictionPurgeMode,
-				[]string{"Gracefully", "Directly"}))
+		errs = append(errs, field.Invalid(rootPath.Child("NoExecuteTaintEvictionPurgeMode"),
+			o.NoExecuteTaintEvictionPurgeMode, "Invalid mode"))
 	}
 
 	if o.ResourceEvictionRate < 0 {
