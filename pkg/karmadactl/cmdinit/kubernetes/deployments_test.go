@@ -29,9 +29,9 @@ func TestCommandInitOption_etcdServers(t *testing.T) {
 
 func TestCommandInitOption_karmadaAPIServerContainerCommand(t *testing.T) {
 	cmdOpt := CommandInitOption{EtcdReplicas: 1, Namespace: "karmada"}
-	flags := cmdOpt.karmadaAPIServerContainerCommand()
+	flags := cmdOpt.defaultKarmadaAPIServerContainerCommand()
 	if len(flags) == 0 {
-		t.Errorf("CommandInitOption.karmadaAPIServerContainerCommand() returns empty")
+		t.Errorf("CommandInitOption.defaultKarmadaAPIServerContainerCommand() returns empty")
 	}
 }
 
