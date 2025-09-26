@@ -185,7 +185,7 @@ func (c *ClusterResourceBindingController) checkDirectPurgeOrphanWorks(ctx conte
 func (c *ClusterResourceBindingController) SetupWithManager(mgr controllerruntime.Manager) error {
 	return controllerruntime.NewControllerManagedBy(mgr).
 		Named(ClusterResourceBindingControllerName).
-        For(&workv1alpha2.ClusterResourceBinding{}, builder.WithPredicates(NewResourceBindingPredicate())).
+		For(&workv1alpha2.ClusterResourceBinding{}, builder.WithPredicates(NewResourceBindingPredicate())).
 		Watches(&policyv1alpha1.ClusterOverridePolicy{}, handler.EnqueueRequestsFromMapFunc(c.newOverridePolicyFunc())).
 		WithEventFilter(NewResourceBindingPredicate()).
 		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RateLimiterOptions)}).
