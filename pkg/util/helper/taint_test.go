@@ -389,7 +389,10 @@ func TestGetNoExecuteTaints(t *testing.T) {
 	}
 }
 
-func TestGetMinTolerationTime(t *testing.T) {
+func TestGetMinTolerationTimeWithCurrentTime(t *testing.T) {
+	// Use fixed time for deterministic testing
+	fixedTime := time.Date(2025, 9, 23, 12, 0, 0, 0, time.UTC)
+
 	tests := []struct {
 		name            string
 		noExecuteTaints []corev1.Taint
@@ -416,7 +419,7 @@ func TestGetMinTolerationTime(t *testing.T) {
 					Key:       "key",
 					Value:     "value",
 					Effect:    corev1.TaintEffectNoExecute,
-					TimeAdded: &metav1.Time{Time: time.Now()},
+					TimeAdded: &metav1.Time{Time: fixedTime},
 				},
 			},
 			usedTolerantion: []corev1.Toleration{},
@@ -429,7 +432,7 @@ func TestGetMinTolerationTime(t *testing.T) {
 					Key:       "key",
 					Value:     "value",
 					Effect:    corev1.TaintEffectNoExecute,
-					TimeAdded: &metav1.Time{Time: time.Now()},
+					TimeAdded: &metav1.Time{Time: fixedTime},
 				},
 			},
 			usedTolerantion: []corev1.Toleration{
@@ -449,7 +452,7 @@ func TestGetMinTolerationTime(t *testing.T) {
 					Key:       "key",
 					Value:     "value",
 					Effect:    corev1.TaintEffectNoExecute,
-					TimeAdded: &metav1.Time{Time: time.Now()},
+					TimeAdded: &metav1.Time{Time: fixedTime},
 				},
 			},
 			usedTolerantion: []corev1.Toleration{
@@ -489,13 +492,13 @@ func TestGetMinTolerationTime(t *testing.T) {
 					Key:       "key1",
 					Value:     "value1",
 					Effect:    corev1.TaintEffectNoExecute,
-					TimeAdded: &metav1.Time{Time: time.Now()},
+					TimeAdded: &metav1.Time{Time: fixedTime},
 				},
 				{
 					Key:       "key2",
 					Value:     "value2",
 					Effect:    corev1.TaintEffectNoExecute,
-					TimeAdded: &metav1.Time{Time: time.Now()},
+					TimeAdded: &metav1.Time{Time: fixedTime},
 				},
 			},
 			usedTolerantion: []corev1.Toleration{
@@ -522,7 +525,7 @@ func TestGetMinTolerationTime(t *testing.T) {
 					Value:  "value",
 					Effect: corev1.TaintEffectNoExecute,
 					TimeAdded: &metav1.Time{
-						Time: time.Now().Add(-time.Hour),
+						Time: time.Date(2025, 9, 23, 11, 58, 0, 0, time.UTC), // 2 minutes before fixedTime
 					},
 				},
 			},
@@ -531,21 +534,27 @@ func TestGetMinTolerationTime(t *testing.T) {
 					Key:               "key",
 					Operator:          corev1.TolerationOpExists,
 					Effect:            corev1.TaintEffectNoExecute,
-					TolerationSeconds: &[]int64{60}[0],
+					TolerationSeconds: &[]int64{60}[0], // 60 seconds tolerance
 				},
 			},
 			wantResult: 0,
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := GetMinTolerationTime(tt.noExecuteTaints, tt.usedTolerantion)
-			if result > 0 {
-				if result > (tt.wantResult+1)*time.Second || result < (tt.wantResult-1)*time.Second {
-					t.Errorf("GetMinTolerationTime() = %v, want %v", result, tt.wantResult)
-				}
-			} else if result != tt.wantResult {
-				t.Errorf("GetMinTolerationTime() = %v, want %v", result, tt.wantResult)
+			result := GetMinTolerationTimeWithCurrentTime(tt.noExecuteTaints, tt.usedTolerantion, fixedTime)
+
+			// Convert expected duration from seconds to time.Duration for comparison
+			var expectedDuration time.Duration
+			if tt.wantResult > 0 {
+				expectedDuration = tt.wantResult * time.Second
+			} else {
+				expectedDuration = tt.wantResult
+			}
+
+			if result != expectedDuration {
+				t.Errorf("GetMinTolerationTimeWithCurrentTime() = %v, want %v", result, expectedDuration)
 			}
 		})
 	}
