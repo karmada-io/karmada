@@ -59,7 +59,8 @@ func hasCriticalSpecFieldChanged(oldObj, newObj interface{}) bool {
 		!reflect.DeepEqual(oldSpec.PreserveResourcesOnDeletion, newSpec.PreserveResourcesOnDeletion) ||
 		oldSpec.ConflictResolution != newSpec.ConflictResolution
 }
-
+// NewResourceBindingPredicate returns an inline predicate for ResourceBinding and ClusterResourceBinding
+// to optimize event filtering and reduce unnecessary reconciliations
 func NewResourceBindingPredicate() predicate.Predicate {
     return predicate.Funcs{
         CreateFunc: func(event.CreateEvent) bool {
