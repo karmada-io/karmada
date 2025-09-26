@@ -36,7 +36,7 @@ func hasCriticalSpecFieldChanged(oldObj, newObj interface{}) bool {
 	case *workv1alpha2.ClusterResourceBinding:
 		oldSpec = oldBinding.Spec
 	default:
-        klog.V(4).InfoS("Unknown object type in predicate", "type", reflect.TypeOf(oldObj))
+		klog.V(4).InfoS("Unknown object type in predicate", "type", reflect.TypeOf(oldObj))
 		return false
 	}
 
@@ -46,7 +46,7 @@ func hasCriticalSpecFieldChanged(oldObj, newObj interface{}) bool {
 	case *workv1alpha2.ClusterResourceBinding:
 		newSpec = newBinding.Spec
 	default:
-        klog.V(4).InfoS("Unknown object type in predicate", "type", reflect.TypeOf(newObj))
+		klog.V(4).InfoS("Unknown object type in predicate", "type", reflect.TypeOf(newObj))
 		return false
 	}
 
@@ -59,32 +59,33 @@ func hasCriticalSpecFieldChanged(oldObj, newObj interface{}) bool {
 		!reflect.DeepEqual(oldSpec.PreserveResourcesOnDeletion, newSpec.PreserveResourcesOnDeletion) ||
 		oldSpec.ConflictResolution != newSpec.ConflictResolution
 }
+
 // NewResourceBindingPredicate returns an inline predicate for ResourceBinding and ClusterResourceBinding
 // to optimize event filtering and reduce unnecessary reconciliations
 func NewResourceBindingPredicate() predicate.Predicate {
-    return predicate.Funcs{
-        CreateFunc: func(event.CreateEvent) bool {
-            return true
-        },
-        UpdateFunc: func(e event.UpdateEvent) bool {
-            if e.ObjectOld.GetGeneration() != e.ObjectNew.GetGeneration() {
-                return true
-            }
-            // Also trigger on the start of deletion to ensure timely finalizer/cleanup reconciliation,
-            // even if a generation bump isn't observed yet by informers.
-            if e.ObjectOld.GetDeletionTimestamp() == nil && e.ObjectNew.GetDeletionTimestamp() != nil {
-                return true
-            }
-            return hasCriticalSpecFieldChanged(e.ObjectOld, e.ObjectNew)
-        },
-        DeleteFunc: func(event.DeleteEvent) bool {
-            // Ignore delete events; reconciliation is driven by generation bump and finalizers.
-            // Cleanup is handled by controller logic (e.g., work deletion).
-            return false
-        },
-        GenericFunc: func(event.GenericEvent) bool {
-            // Process generic events (rarely used)
-            return true
-        },
-    }
+	return predicate.Funcs{
+		CreateFunc: func(event.CreateEvent) bool {
+			return true
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			if e.ObjectOld.GetGeneration() != e.ObjectNew.GetGeneration() {
+				return true
+			}
+			// Also trigger on the start of deletion to ensure timely finalizer/cleanup reconciliation,
+			// even if a generation bump isn't observed yet by informers.
+			if e.ObjectOld.GetDeletionTimestamp() == nil && e.ObjectNew.GetDeletionTimestamp() != nil {
+				return true
+			}
+			return hasCriticalSpecFieldChanged(e.ObjectOld, e.ObjectNew)
+		},
+		DeleteFunc: func(event.DeleteEvent) bool {
+			// Ignore delete events; reconciliation is driven by generation bump and finalizers.
+			// Cleanup is handled by controller logic (e.g., work deletion).
+			return false
+		},
+		GenericFunc: func(event.GenericEvent) bool {
+			// Process generic events (rarely used)
+			return true
+		},
+	}
 }
