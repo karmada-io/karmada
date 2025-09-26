@@ -31,9 +31,11 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -183,9 +185,29 @@ func (c *ClusterResourceBindingController) checkDirectPurgeOrphanWorks(ctx conte
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *ClusterResourceBindingController) SetupWithManager(mgr controllerruntime.Manager) error {
+	bindingPredicateFn := predicate.Funcs{
+		CreateFunc: func(_ event.CreateEvent) bool {
+			return true
+		},
+		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
+			oldBinding := updateEvent.ObjectOld.(*workv1alpha2.ClusterResourceBinding)
+			newBinding := updateEvent.ObjectNew.(*workv1alpha2.ClusterResourceBinding)
+			if oldBinding.DeletionTimestamp != newBinding.DeletionTimestamp {
+				return true
+			}
+			return careBindingSpecChanged(oldBinding.Spec, newBinding.Spec)
+		},
+		DeleteFunc: func(_ event.DeleteEvent) bool {
+			// The binding object has a finalizer. When the deletion timestamp is not nil,
+			// it means the object is being deleted and the controller will handle the
+			// deletion process, so the delete event can be ignored.
+			return false
+		},
+		GenericFunc: func(_ event.GenericEvent) bool { return false },
+	}
 	return controllerruntime.NewControllerManagedBy(mgr).
 		Named(ClusterResourceBindingControllerName).
-		For(&workv1alpha2.ClusterResourceBinding{}).
+		For(&workv1alpha2.ClusterResourceBinding{}, builder.WithPredicates(bindingPredicateFn)).
 		Watches(&policyv1alpha1.ClusterOverridePolicy{}, handler.EnqueueRequestsFromMapFunc(c.newOverridePolicyFunc())).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RateLimiterOptions)}).
