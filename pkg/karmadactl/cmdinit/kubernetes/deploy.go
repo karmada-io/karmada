@@ -273,10 +273,7 @@ func (i *CommandInitOption) isExternalEtcdProvided() bool {
 // Validate Check that there are enough flags to run the command.
 func (i *CommandInitOption) Validate(parentCommand string) error {
 	// validate secret layout
-	switch strings.ToLower(i.SecretLayout) {
-	case secretLayoutLegacy, secretLayoutSplit:
-		// ok
-	default:
+	if i.SecretLayout != secretLayoutSplit {
 		i.SecretLayout = secretLayoutLegacy
 	}
 	if i.KarmadaInitFilePath != "" {
@@ -556,76 +553,16 @@ func (i *CommandInitOption) createSplitCertsSecrets() error {
 	etcdClientCrt := string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.EtcdClientCertAndKeyName)])
 	etcdClientKey := string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.EtcdClientCertAndKeyName)])
 
-	// helper to create TLS secret with optional ca.crt
-	createTLS := func(name string, ca, crt, key string) error {
-		data := map[string]string{certconst.KeyTLSCrt: crt, certconst.KeyTLSKey: key}
-		if ca != "" {
-			data[certconst.KeyCACrt] = ca
-		}
-		sec := i.SecretFromSpec(name, corev1.SecretTypeTLS, data)
-		return util.CreateOrUpdateSecret(i.KubeClientSet, sec)
-	}
-
-	// apiserver secrets
-	if err := createTLS(certconst.SecretApiserverServer, caCrt, apiserverCrt, apiserverKey); err != nil {
-		return err
-	}
-	if err := createTLS(certconst.SecretApiserverEtcdClient, etcdCaCrt, etcdClientCrt, etcdClientKey); err != nil {
-		return err
-	}
-	if err := createTLS(certconst.SecretApiserverFrontProxyClient, frontProxyCaCrt, frontProxyClientCrt, frontProxyClientKey); err != nil {
-		return err
-	}
-
-	// service-account key pair for apiserver & kcm (generate fresh key pair)
 	saPriv, saPub, err := generateServiceAccountKeyPairPEM()
 	if err != nil {
 		return fmt.Errorf("generate service account key pair failed: %v", err)
 	}
-	saSec := i.SecretFromSpec(certconst.SecretApiserverServiceAccountKeys, corev1.SecretTypeOpaque, map[string]string{certconst.KeySAPrivate: string(saPriv), certconst.KeySAPublic: string(saPub)})
-	if err := util.CreateOrUpdateSecret(i.KubeClientSet, saSec); err != nil {
-		return err
-	}
+	saPrivStr := string(saPriv)
+	saPubStr := string(saPub)
 
-	// aggregated apiserver
-	if err := createTLS(certconst.SecretAggregatedAPIServerServer, caCrt, karmadaCrt, karmadaKey); err != nil {
-		return err
-	}
-	if err := createTLS(certconst.SecretAggregatedAPIServerEtcdClient, etcdCaCrt, etcdClientCrt, etcdClientKey); err != nil {
-		return err
-	}
-
-	// etcd server & etcd-client (for internal usage like probes/clients)
-	if !i.isExternalEtcdProvided() {
-		if err := createTLS(certconst.SecretEtcdServer, etcdCaCrt, etcdServerCrt, etcdServerKey); err != nil {
-			return err
-		}
-		if err := createTLS(certconst.SecretEtcdClient, etcdCaCrt, etcdClientCrt, etcdClientKey); err != nil {
-			return err
-		}
-	}
-
-	// kube-controller-manager: CA and SA key pair
-	kcmCA := i.SecretFromSpec(certconst.SecretKubeControllerManagerCA, corev1.SecretTypeTLS, map[string]string{certconst.KeyTLSCrt: caCrt, certconst.KeyTLSKey: caKey})
-	if err := util.CreateOrUpdateSecret(i.KubeClientSet, kcmCA); err != nil {
-		return err
-	}
-	kcmSA := i.SecretFromSpec(certconst.SecretKubeControllerManagerSAKeys, corev1.SecretTypeOpaque, map[string]string{certconst.KeySAPrivate: string(saPriv), certconst.KeySAPublic: string(saPub)})
-	if err := util.CreateOrUpdateSecret(i.KubeClientSet, kcmSA); err != nil {
-		return err
-	}
-
-	// webhook
-	if err := createTLS(certconst.SecretWebhook, caCrt, karmadaCrt, karmadaKey); err != nil {
-		return err
-	}
-
-	// scheduler estimator client (use dedicated tls signed by root ca using 'karmada' cert initially)
-	if err := createTLS(certconst.SecretSchedulerEstimatorClient, caCrt, karmadaCrt, karmadaKey); err != nil {
-		return err
-	}
-	// descheduler estimator client (optional, pre-create for convenience)
-	if err := createTLS(certconst.SecretDeschedulerEstimatorClient, caCrt, karmadaCrt, karmadaKey); err != nil {
+	err = i.createSecret(caCrt, caKey, karmadaCrt, karmadaKey, apiserverCrt, apiserverKey,
+		frontProxyCaCrt, frontProxyClientCrt, frontProxyClientKey, etcdCaCrt, etcdServerCrt, etcdServerKey, etcdClientCrt, etcdClientKey, saPrivStr, saPubStr)
+	if err != nil {
 		return err
 	}
 
@@ -636,6 +573,127 @@ func (i *CommandInitOption) createSplitCertsSecrets() error {
 	}
 
 	return nil
+}
+
+func (i *CommandInitOption) createSecret(caCrt, caKey, karmadaCrt, karmadaKey, apiserverCrt, apiserverKey,
+	frontProxyCaCrt, frontProxyClientCrt, frontProxyClientKey, etcdCaCrt, etcdServerCrt, etcdServerKey, etcdClientCrt, etcdClientKey, saPriv, saPub string) error {
+	// Delegate secret creation to helper functions
+	if err := i.createApiServerSecret(caCrt, apiserverCrt, apiserverKey, etcdCaCrt, etcdClientCrt, etcdClientKey, frontProxyCaCrt, frontProxyClientCrt, frontProxyClientKey, saPriv, saPub); err != nil {
+		return err
+	}
+	if err := i.createAggregatedApiServerSecret(caCrt, karmadaCrt, karmadaKey, etcdCaCrt, etcdClientCrt, etcdClientKey); err != nil {
+		return err
+	}
+	if err := i.createEtcdSecret(etcdCaCrt, etcdServerCrt, etcdServerKey, etcdClientCrt, etcdClientKey); err != nil {
+		return err
+	}
+	if err := i.createKubeControllerManagerSecret(caCrt, caKey, saPriv, saPub); err != nil {
+		return err
+	}
+	if err := i.createKarmadaWebhookSecret(caCrt, karmadaCrt, karmadaKey); err != nil {
+		return err
+	}
+	if err := i.createKarmadaSchedulerEstimatorSecret(caCrt, karmadaCrt, karmadaKey); err != nil {
+		return err
+	}
+	if err := i.createKarmadaDeschedulerEstimatorSecret(caCrt, karmadaCrt, karmadaKey); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (i *CommandInitOption) createApiServerSecret(caCrt, apiserverCrt, apiserverKey, etcdCaCrt,
+	etcdClientCrt, etcdClientKey, frontProxyCaCrt, frontProxyClientCrt, frontProxyClientKey, saPriv, saPub string) error {
+	if err := i.createTLSSecret(certconst.SecretApiserverServer, caCrt, apiserverCrt, apiserverKey); err != nil {
+		return err
+	}
+	if err := i.createTLSSecret(certconst.SecretApiserverEtcdClient, etcdCaCrt, etcdClientCrt, etcdClientKey); err != nil {
+		return err
+	}
+	if err := i.createTLSSecret(certconst.SecretApiserverFrontProxyClient, frontProxyCaCrt, frontProxyClientCrt, frontProxyClientKey); err != nil {
+		return err
+	}
+	saSec := i.SecretFromSpec(certconst.SecretApiserverServiceAccountKeys, corev1.SecretTypeOpaque, map[string]string{certconst.KeySAPrivate: saPriv, certconst.KeySAPublic: saPub})
+	if err := util.CreateOrUpdateSecret(i.KubeClientSet, saSec); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (i *CommandInitOption) createAggregatedApiServerSecret(caCrt, karmadaCrt, karmadaKey, etcdCaCrt,
+	etcdClientCrt, etcdClientKey string) error {
+	if err := i.createTLSSecret(certconst.SecretAggregatedAPIServerServer, caCrt, karmadaCrt, karmadaKey); err != nil {
+		return err
+	}
+	if err := i.createTLSSecret(certconst.SecretAggregatedAPIServerEtcdClient, etcdCaCrt, etcdClientCrt, etcdClientKey); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (i *CommandInitOption) createEtcdSecret(etcdCaCrt, etcdServerCrt, etcdServerKey,
+	etcdClientCrt, etcdClientKey string) error {
+	// etcd server & etcd-client (for internal usage like probes/clients)
+	if !i.isExternalEtcdProvided() {
+		if err := i.createTLSSecret(certconst.SecretEtcdServer, etcdCaCrt, etcdServerCrt, etcdServerKey); err != nil {
+			return err
+		}
+		if err := i.createTLSSecret(certconst.SecretEtcdClient, etcdCaCrt, etcdClientCrt, etcdClientKey); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (i *CommandInitOption) createKubeControllerManagerSecret(caCrt, caKey, saPriv, saPub string) error {
+	kcmCA := i.SecretFromSpec(certconst.SecretKubeControllerManagerCA, corev1.SecretTypeTLS, map[string]string{certconst.KeyTLSCrt: caCrt, certconst.KeyTLSKey: caKey})
+	if err := util.CreateOrUpdateSecret(i.KubeClientSet, kcmCA); err != nil {
+		return err
+	}
+	kcmSA := i.SecretFromSpec(certconst.SecretKubeControllerManagerSAKeys, corev1.SecretTypeOpaque, map[string]string{certconst.KeySAPrivate: string(saPriv), certconst.KeySAPublic: string(saPub)})
+	if err := util.CreateOrUpdateSecret(i.KubeClientSet, kcmSA); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (i *CommandInitOption) createKarmadaWebhookSecret(caCrt, karmadaCrt, karmadaKey string) error {
+	if err := i.createTLSSecret(certconst.SecretWebhook, caCrt, karmadaCrt, karmadaKey); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (i *CommandInitOption) createKarmadaSchedulerEstimatorSecret(caCrt, karmadaCrt, karmadaKey string) error {
+	if err := i.createTLSSecret(certconst.SecretSchedulerEstimatorClient, caCrt, karmadaCrt, karmadaKey); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (i *CommandInitOption) createKarmadaDeschedulerEstimatorSecret(caCrt, karmadaCrt, karmadaKey string) error {
+	if err := i.createTLSSecret(certconst.SecretDeschedulerEstimatorClient, caCrt, karmadaCrt, karmadaKey); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// helper to create TLS secret with optional ca.crt
+func (i *CommandInitOption) createTLSSecret(name string, ca, crt, key string) error {
+	data := map[string]string{certconst.KeyTLSCrt: crt, certconst.KeyTLSKey: key}
+	if ca != "" {
+		data[certconst.KeyCACrt] = ca
+	}
+	sec := i.SecretFromSpec(name, corev1.SecretTypeTLS, data)
+	return util.CreateOrUpdateSecret(i.KubeClientSet, sec)
 }
 
 // generateServiceAccountKeyPairPEM returns PEM encoded RSA private key and public key

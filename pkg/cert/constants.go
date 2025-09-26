@@ -20,6 +20,7 @@ package cert
 // so they can be shared by cmdinit and future operator implementations.
 
 // Secret names for split-layout TLS materials
+// nolint:gosec // These are Kubernetes Secret resource names, not credentials.
 const (
 	// apiserver
 	SecretApiserverServer             = "karmada-apiserver-cert"

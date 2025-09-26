@@ -230,18 +230,19 @@ func TestCreateSplitCertsSecrets_CreatesExpectedSecrets(t *testing.T) {
 		if err != nil {
 			t.Fatalf("expected secret %q to exist: %v", n, err)
 		}
-		if n == globalopt.KarmadaCertsName {
+		switch n {
+		case globalopt.KarmadaCertsName:
 			if _, ok := s.StringData[certconst.KeyCACrt]; !ok {
 				t.Fatalf("compat secret %q missing %q", n, certconst.KeyCACrt)
 			}
-		} else if n == certconst.SecretApiserverServiceAccountKeys || n == certconst.SecretKubeControllerManagerSAKeys {
+		case certconst.SecretApiserverServiceAccountKeys, certconst.SecretKubeControllerManagerSAKeys:
 			if _, ok := s.StringData[certconst.KeySAPrivate]; !ok {
 				t.Fatalf("secret %q missing %q", n, certconst.KeySAPrivate)
 			}
 			if _, ok := s.StringData[certconst.KeySAPublic]; !ok {
 				t.Fatalf("secret %q missing %q", n, certconst.KeySAPublic)
 			}
-		} else {
+		default:
 			if _, ok := s.StringData[certconst.KeyTLSCrt]; !ok {
 				t.Fatalf("secret %q missing %q", n, certconst.KeyTLSCrt)
 			}
