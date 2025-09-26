@@ -1,5 +1,5 @@
 /*
-Copyright 2024 The Karmada Authors.
+Copyright 2025 The Karmada Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -60,15 +60,6 @@ func hasCriticalSpecFieldChanged(oldObj, newObj interface{}) bool {
 		oldSpec.ConflictResolution != newSpec.ConflictResolution
 }
 
-// NewResourceBindingPredicate returns an inline predicate for ResourceBinding and ClusterResourceBinding
-// to optimize event filtering and reduce unnecessary reconciliations.
-//
-// Optimization strategy:
-// 1. Ignore Delete events
-// 2. Always process Create events
-// 3. Process Update events only when:
-//    - Generation changes (includes graceful deletion which bumps generation)
-//    - Critical spec fields change: requiredBy, clusters, gracefulEvictionTasks, resource, suspension, preserveResourcesOnDeletion, conflictResolution
 func NewResourceBindingPredicate() predicate.Predicate {
     return predicate.Funcs{
         CreateFunc: func(event.CreateEvent) bool {
