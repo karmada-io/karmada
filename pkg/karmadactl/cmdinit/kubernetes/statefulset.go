@@ -142,65 +142,16 @@ func (i *CommandInitOption) etcdInitContainerCommand() []string {
 		etcdClusterConfig += fmt.Sprintf("%s-%v=http://%s-%v.%s.%s.svc.%s:%v", etcdStatefulSetAndServiceName, v, etcdStatefulSetAndServiceName, v, etcdStatefulSetAndServiceName, i.Namespace, i.HostClusterDomain, etcdContainerServerPort) + ","
 	}
 
-	command := []string{
-		"sh",
-		"-c",
-		fmt.Sprintf(
-			`set -ex
-cat <<EOF | tee %s/%s
-name: ${%s}
-client-transport-security:
-  client-cert-auth: true
-  trusted-ca-file: %s/%s.crt
-  key-file: %s/%s.key
-  cert-file: %s/%s.crt
-peer-transport-security:
-  client-cert-auth: false
-  trusted-ca-file: %s/%s.crt
-  key-file: %s/%s.key
-  cert-file: %s/%s.crt
-initial-cluster-state: new
-initial-cluster-token: etcd-cluster
-initial-cluster: %s
-listen-peer-urls: http://${%s}:%v
-listen-client-urls: https://${%s}:%v,http://127.0.0.1:%v
-initial-advertise-peer-urls: http://${%s}:%v
-advertise-client-urls: https://${%s}.%s.%s.svc.%s:%v
-data-dir: %s
-cipher-suites: %s
-
-`,
-			etcdContainerConfigDataMountPath, etcdConfigName,
-			etcdEnvPodName,
-			karmadaCertsVolumeMountPath, options.EtcdCaCertAndKeyName,
-			karmadaCertsVolumeMountPath, options.EtcdServerCertAndKeyName,
-			karmadaCertsVolumeMountPath, options.EtcdServerCertAndKeyName,
-			karmadaCertsVolumeMountPath, options.EtcdCaCertAndKeyName,
-			karmadaCertsVolumeMountPath, options.EtcdServerCertAndKeyName,
-			karmadaCertsVolumeMountPath, options.EtcdServerCertAndKeyName,
-			strings.TrimRight(etcdClusterConfig, ","),
-			etcdEnvPodIP, etcdContainerServerPort,
-			etcdEnvPodIP, etcdContainerClientPort, etcdContainerClientPort,
-			etcdEnvPodIP, etcdContainerServerPort,
-			etcdEnvPodName, etcdStatefulSetAndServiceName,
-			i.Namespace, i.HostClusterDomain,
-			etcdContainerClientPort,
-			etcdContainerDataVolumeMountPath,
-			etcdCipherSuites,
-		),
-	}
+	var command []string
 
 	if strings.ToLower(i.SecretLayout) != secretLayoutSplit {
-		return command
-	}
-
-	// Split layout: reuse legacy YAML structure and command style,
-	// only swap certificate paths to split-mounted locations.
-	command = []string{
-		"sh",
-		"-c",
-		fmt.Sprintf(
-			`set -ex
+		// Split layout: reuse legacy YAML structure and command style,
+		// only swap certificate paths to split-mounted locations.
+		command = []string{
+			"sh",
+			"-c",
+			fmt.Sprintf(
+				`set -ex
 cat <<EOF | tee %s/%s
 name: ${%s}
 client-transport-security:
@@ -224,25 +175,75 @@ data-dir: %s
 cipher-suites: %s
 
 `,
-			etcdContainerConfigDataMountPath, etcdConfigName,
-			etcdEnvPodName,
-			etcdClientCertVolumeMountPath,
-			serverCertVolumeMountPath,
-			serverCertVolumeMountPath,
-			etcdClientCertVolumeMountPath,
-			serverCertVolumeMountPath,
-			serverCertVolumeMountPath,
-			strings.TrimRight(etcdClusterConfig, ","),
-			etcdEnvPodIP, etcdContainerServerPort,
-			etcdEnvPodIP, etcdContainerClientPort, etcdContainerClientPort,
-			etcdEnvPodIP, etcdContainerServerPort,
-			etcdEnvPodName, etcdStatefulSetAndServiceName,
-			i.Namespace, i.HostClusterDomain,
-			etcdContainerClientPort,
-			etcdContainerDataVolumeMountPath,
-			etcdCipherSuites,
-		),
+				etcdContainerConfigDataMountPath, etcdConfigName,
+				etcdEnvPodName,
+				etcdClientCertVolumeMountPath,
+				serverCertVolumeMountPath,
+				serverCertVolumeMountPath,
+				etcdClientCertVolumeMountPath,
+				serverCertVolumeMountPath,
+				serverCertVolumeMountPath,
+				strings.TrimRight(etcdClusterConfig, ","),
+				etcdEnvPodIP, etcdContainerServerPort,
+				etcdEnvPodIP, etcdContainerClientPort, etcdContainerClientPort,
+				etcdEnvPodIP, etcdContainerServerPort,
+				etcdEnvPodName, etcdStatefulSetAndServiceName,
+				i.Namespace, i.HostClusterDomain,
+				etcdContainerClientPort,
+				etcdContainerDataVolumeMountPath,
+				etcdCipherSuites,
+			),
+		}
+	} else {
+		command = []string{
+			"sh",
+			"-c",
+			fmt.Sprintf(
+				`set -ex
+cat <<EOF | tee %s/%s
+name: ${%s}
+client-transport-security:
+  client-cert-auth: true
+  trusted-ca-file: %s/%s.crt
+  key-file: %s/%s.key
+  cert-file: %s/%s.crt
+peer-transport-security:
+  client-cert-auth: false
+  trusted-ca-file: %s/%s.crt
+  key-file: %s/%s.key
+  cert-file: %s/%s.crt
+initial-cluster-state: new
+initial-cluster-token: etcd-cluster
+initial-cluster: %s
+listen-peer-urls: http://${%s}:%v
+listen-client-urls: https://${%s}:%v,http://127.0.0.1:%v
+initial-advertise-peer-urls: http://${%s}:%v
+advertise-client-urls: https://${%s}.%s.%s.svc.%s:%v
+data-dir: %s
+cipher-suites: %s
+
+`,
+				etcdContainerConfigDataMountPath, etcdConfigName,
+				etcdEnvPodName,
+				karmadaCertsVolumeMountPath, options.EtcdCaCertAndKeyName,
+				karmadaCertsVolumeMountPath, options.EtcdServerCertAndKeyName,
+				karmadaCertsVolumeMountPath, options.EtcdServerCertAndKeyName,
+				karmadaCertsVolumeMountPath, options.EtcdCaCertAndKeyName,
+				karmadaCertsVolumeMountPath, options.EtcdServerCertAndKeyName,
+				karmadaCertsVolumeMountPath, options.EtcdServerCertAndKeyName,
+				strings.TrimRight(etcdClusterConfig, ","),
+				etcdEnvPodIP, etcdContainerServerPort,
+				etcdEnvPodIP, etcdContainerClientPort, etcdContainerClientPort,
+				etcdEnvPodIP, etcdContainerServerPort,
+				etcdEnvPodName, etcdStatefulSetAndServiceName,
+				i.Namespace, i.HostClusterDomain,
+				etcdContainerClientPort,
+				etcdContainerDataVolumeMountPath,
+				etcdCipherSuites,
+			),
+		}
 	}
+
 	return command
 }
 

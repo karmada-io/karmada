@@ -69,7 +69,6 @@ var (
 	saKeyPairVolumeMountPath                    = "/etc/karmada/pki/service-account-key-pair"
 	caCertVolumeMountPath                       = "/etc/karmada/pki/ca"
 	schedulerEstimatorClientCertVolumeMountPath = "/etc/karmada/pki/scheduler-estimator-client"
-	
 	// Volume names for split-layout mounts
 	serverCertVolumeName                   = "server-cert"
 	etcdClientCertVolumeName               = "etcd-client-cert"
@@ -362,29 +361,19 @@ func (i *CommandInitOption) makeKarmadaKubeControllerManagerDeployment() *appsv1
 				Name:  kubeControllerManagerClusterRoleAndDeploymentAndServiceName,
 				Image: i.kubeControllerManagerImage(),
 				Command: func() []string {
+					var clientCAFile, clusterSigningCertFile, clusterSigningKeyFile, rootCAFile, saPrivKeyFile string
 					if strings.ToLower(i.SecretLayout) == secretLayoutSplit {
-						return []string{
-							"kube-controller-manager",
-							"--allocate-node-cidrs=true",
-							fmt.Sprintf("--kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
-							fmt.Sprintf("--authentication-kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
-							fmt.Sprintf("--authorization-kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
-							"--bind-address=0.0.0.0",
-							fmt.Sprintf("--client-ca-file=%s/tls.crt", caCertVolumeMountPath),
-							"--cluster-cidr=10.244.0.0/16",
-							fmt.Sprintf("--cluster-name=%s", options.ClusterName),
-							fmt.Sprintf("--cluster-signing-cert-file=%s/tls.crt", caCertVolumeMountPath),
-							fmt.Sprintf("--cluster-signing-key-file=%s/tls.key", caCertVolumeMountPath),
-							"--controllers=namespace,garbagecollector,serviceaccount-token,ttl-after-finished,bootstrapsigner,tokencleaner,csrcleaner,csrsigning,clusterrole-aggregation",
-							"--leader-elect=true",
-							fmt.Sprintf("--leader-elect-resource-namespace=%s", i.Namespace),
-							"--node-cidr-mask-size=24",
-							fmt.Sprintf("--root-ca-file=%s/tls.crt", caCertVolumeMountPath),
-							fmt.Sprintf("--service-account-private-key-file=%s/sa.key", saKeyPairVolumeMountPath),
-							fmt.Sprintf("--service-cluster-ip-range=%s", serviceClusterIP),
-							"--use-service-account-credentials=true",
-							"--v=4",
-						}
+						clientCAFile = fmt.Sprintf("%s/tls.crt", caCertVolumeMountPath)
+						clusterSigningCertFile = fmt.Sprintf("%s/tls.crt", caCertVolumeMountPath)
+						clusterSigningKeyFile = fmt.Sprintf("%s/tls.key", caCertVolumeMountPath)
+						rootCAFile = fmt.Sprintf("%s/tls.crt", caCertVolumeMountPath)
+						saPrivKeyFile = fmt.Sprintf("%s/sa.key", saKeyPairVolumeMountPath)
+					} else {
+						clientCAFile = fmt.Sprintf("%s/%s.crt", karmadaCertsVolumeMountPath, globaloptions.CaCertAndKeyName)
+						clusterSigningCertFile = fmt.Sprintf("%s/%s.crt", karmadaCertsVolumeMountPath, globaloptions.CaCertAndKeyName)
+						clusterSigningKeyFile = fmt.Sprintf("%s/%s.key", karmadaCertsVolumeMountPath, globaloptions.CaCertAndKeyName)
+						rootCAFile = fmt.Sprintf("%s/%s.crt", karmadaCertsVolumeMountPath, globaloptions.CaCertAndKeyName)
+						saPrivKeyFile = fmt.Sprintf("%s/%s.key", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName)
 					}
 					return []string{
 						"kube-controller-manager",
@@ -393,17 +382,17 @@ func (i *CommandInitOption) makeKarmadaKubeControllerManagerDeployment() *appsv1
 						fmt.Sprintf("--authentication-kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
 						fmt.Sprintf("--authorization-kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
 						"--bind-address=0.0.0.0",
-						fmt.Sprintf("--client-ca-file=%s/%s.crt", karmadaCertsVolumeMountPath, globaloptions.CaCertAndKeyName),
+						fmt.Sprintf("--client-ca-file=%s", clientCAFile),
 						"--cluster-cidr=10.244.0.0/16",
 						fmt.Sprintf("--cluster-name=%s", options.ClusterName),
-						fmt.Sprintf("--cluster-signing-cert-file=%s/%s.crt", karmadaCertsVolumeMountPath, globaloptions.CaCertAndKeyName),
-						fmt.Sprintf("--cluster-signing-key-file=%s/%s.key", karmadaCertsVolumeMountPath, globaloptions.CaCertAndKeyName),
+						fmt.Sprintf("--cluster-signing-cert-file=%s", clusterSigningCertFile),
+						fmt.Sprintf("--cluster-signing-key-file=%s", clusterSigningKeyFile),
 						"--controllers=namespace,garbagecollector,serviceaccount-token,ttl-after-finished,bootstrapsigner,tokencleaner,csrcleaner,csrsigning,clusterrole-aggregation",
 						"--leader-elect=true",
 						fmt.Sprintf("--leader-elect-resource-namespace=%s", i.Namespace),
 						"--node-cidr-mask-size=24",
-						fmt.Sprintf("--root-ca-file=%s/%s.crt", karmadaCertsVolumeMountPath, globaloptions.CaCertAndKeyName),
-						fmt.Sprintf("--service-account-private-key-file=%s/%s.key", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
+						fmt.Sprintf("--root-ca-file=%s", rootCAFile),
+						fmt.Sprintf("--service-account-private-key-file=%s", saPrivKeyFile),
 						fmt.Sprintf("--service-cluster-ip-range=%s", serviceClusterIP),
 						"--use-service-account-credentials=true",
 						"--v=4",
@@ -540,20 +529,15 @@ func (i *CommandInitOption) makeKarmadaSchedulerDeployment() *appsv1.Deployment 
 					},
 				},
 				Command: func() []string {
+					var estCAFile, estCertFile, estKeyFile string
 					if strings.ToLower(i.SecretLayout) == secretLayoutSplit {
-						return []string{
-							"/bin/karmada-scheduler",
-							fmt.Sprintf("--kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
-							"--metrics-bind-address=$(POD_IP):8080",
-							"--health-probe-bind-address=$(POD_IP):10351",
-							"--enable-scheduler-estimator=true",
-							"--leader-elect=true",
-							fmt.Sprintf("--scheduler-estimator-ca-file=%s/ca.crt", schedulerEstimatorClientCertVolumeMountPath),
-							fmt.Sprintf("--scheduler-estimator-cert-file=%s/tls.crt", schedulerEstimatorClientCertVolumeMountPath),
-							fmt.Sprintf("--scheduler-estimator-key-file=%s/tls.key", schedulerEstimatorClientCertVolumeMountPath),
-							fmt.Sprintf("--leader-elect-resource-namespace=%s", i.Namespace),
-							"--v=4",
-						}
+						estCAFile = fmt.Sprintf("%s/ca.crt", schedulerEstimatorClientCertVolumeMountPath)
+						estCertFile = fmt.Sprintf("%s/tls.crt", schedulerEstimatorClientCertVolumeMountPath)
+						estKeyFile = fmt.Sprintf("%s/tls.key", schedulerEstimatorClientCertVolumeMountPath)
+					} else {
+						estCAFile = "/etc/karmada/pki/ca.crt"
+						estCertFile = "/etc/karmada/pki/karmada.crt"
+						estKeyFile = "/etc/karmada/pki/karmada.key"
 					}
 					return []string{
 						"/bin/karmada-scheduler",
@@ -562,9 +546,9 @@ func (i *CommandInitOption) makeKarmadaSchedulerDeployment() *appsv1.Deployment 
 						"--health-probe-bind-address=$(POD_IP):10351",
 						"--enable-scheduler-estimator=true",
 						"--leader-elect=true",
-						"--scheduler-estimator-ca-file=/etc/karmada/pki/ca.crt",
-						"--scheduler-estimator-cert-file=/etc/karmada/pki/karmada.crt",
-						"--scheduler-estimator-key-file=/etc/karmada/pki/karmada.key",
+						fmt.Sprintf("--scheduler-estimator-ca-file=%s", estCAFile),
+						fmt.Sprintf("--scheduler-estimator-cert-file=%s", estCertFile),
+						fmt.Sprintf("--scheduler-estimator-key-file=%s", estKeyFile),
 						fmt.Sprintf("--leader-elect-resource-namespace=%s", i.Namespace),
 						"--v=4",
 					}
@@ -834,17 +818,11 @@ func (i *CommandInitOption) makeKarmadaWebhookDeployment() *appsv1.Deployment {
 					},
 				},
 				Command: func() []string {
+					var certDir string
 					if strings.ToLower(i.SecretLayout) == secretLayoutSplit {
-						return []string{
-							"/bin/karmada-webhook",
-							fmt.Sprintf("--kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
-							"--bind-address=$(POD_IP)",
-							"--metrics-bind-address=$(POD_IP):8080",
-							"--health-probe-bind-address=$(POD_IP):8000",
-							fmt.Sprintf("--secure-port=%v", webhookTargetPort),
-							fmt.Sprintf("--cert-dir=%s", serverCertVolumeMountPath),
-							"--v=4",
-						}
+						certDir = serverCertVolumeMountPath
+					} else {
+						certDir = webhookCertVolumeMountPath
 					}
 					return []string{
 						"/bin/karmada-webhook",
@@ -853,7 +831,7 @@ func (i *CommandInitOption) makeKarmadaWebhookDeployment() *appsv1.Deployment {
 						"--metrics-bind-address=$(POD_IP):8080",
 						"--health-probe-bind-address=$(POD_IP):8000",
 						fmt.Sprintf("--secure-port=%v", webhookTargetPort),
-						fmt.Sprintf("--cert-dir=%s", webhookCertVolumeMountPath),
+						fmt.Sprintf("--cert-dir=%s", certDir),
 						"--v=4",
 					}
 				}(),

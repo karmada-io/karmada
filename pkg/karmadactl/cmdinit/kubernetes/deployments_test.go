@@ -215,7 +215,7 @@ func TestCreateSplitCertsSecrets_CreatesExpectedSecrets(t *testing.T) {
 	}
 
 	// pick representative secrets to assert
-	secertNames := []string{
+	secretNames := []string{
 		certconst.SecretApiserverServer,
 		certconst.SecretApiserverEtcdClient,
 		certconst.SecretAggregatedAPIServerServer,
@@ -225,7 +225,7 @@ func TestCreateSplitCertsSecrets_CreatesExpectedSecrets(t *testing.T) {
 		certconst.SecretSchedulerEstimatorClient,
 		globalopt.KarmadaCertsName, // CA-only compat
 	}
-	for _, n := range secertNames {
+	for _, n := range secretNames {
 		s, err := opt.KubeClientSet.CoreV1().Secrets(opt.Namespace).Get(context.Background(), n, metav1.GetOptions{})
 		if err != nil {
 			t.Fatalf("expected secret %q to exist: %v", n, err)
