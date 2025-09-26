@@ -60,7 +60,7 @@ func (o *FailoverOptions) AddFlags(flags *pflag.FlagSet) {
 
 	flags.BoolVar(&o.EnableNoExecuteTaintEviction, "enable-no-execute-taint-eviction", false, "Enables controller response to NoExecute taints on clusters, which triggers eviction of workloads without explicit tolerations. Given the impact of eviction caused by NoExecute Taint, this parameter is designed to remain disabled by default and requires careful evaluation by administrators before being enabled.\n")
 	flags.StringVar(&o.NoExecuteTaintEvictionPurgeMode, "no-execute-taint-eviction-purge-mode", "Gracefully", "Controls resource cleanup behavior for NoExecute-triggered evictions (only active when --enable-no-execute-taint-eviction=true). Supported values are \"Directly\", and \"Gracefully\". \"Directly\" mode directly evicts workloads first (risking temporary service interruption) and then triggers rescheduling to other clusters, while \"Gracefully\" mode first schedules workloads to new clusters and then cleans up original workloads after successful startup elsewhere to ensure service continuity.")
-	flags.Float32Var(&o.ResourceEvictionRate, "resource-eviction-rate", 0.5, "The number of resources to be evicted per second.")
+	flags.Float32Var(&o.ResourceEvictionRate, "resource-eviction-rate", 0.5, "The number of resources to be evicted per second.This is the default rate when the system is considered healthy.")
 	flags.Float32Var(&o.SecondaryResourceEvictionRate, "secondary-resource-eviction-rate", 0.1, "The secondary resource eviction rate when the Karmada instance is unhealthy.")
 	flags.Float32Var(&o.UnhealthyClusterThreshold, "unhealthy-cluster-threshold", 0.55, "The unhealthy threshold of the cluster, if the ratio of unhealthy clusters to total clusters exceeds this threshold, the Karmada instance is considered unhealthy.")
 	flags.IntVar(&o.LargeClusterNumThreshold, "large-cluster-num-threshold", 10, "The large-scale threshold of the Karmada instance. When the number of clusters in a large-scale federation exceeds this threshold and the federation is unhealthy, the resource eviction rate will be reduced; otherwise, the eviction will be stopped.")
@@ -69,11 +69,40 @@ func (o *FailoverOptions) AddFlags(flags *pflag.FlagSet) {
 // Validate checks FailoverOptions and return a slice of found errs.
 func (o *FailoverOptions) Validate() field.ErrorList {
 	errs := field.ErrorList{}
+	rootPath := field.NewPath("FailoverOptions")
+
 	if o.EnableNoExecuteTaintEviction &&
 		o.NoExecuteTaintEvictionPurgeMode != "Gracefully" &&
 		o.NoExecuteTaintEvictionPurgeMode != "Directly" {
-		errs = append(errs, field.Invalid(field.NewPath("FailoverOptions").Child("NoExecuteTaintEvictionPurgeMode"),
-			o.NoExecuteTaintEvictionPurgeMode, "Invalid mode"))
+		errs = append(errs,
+			field.NotSupported(rootPath.Child("NoExecuteTaintEvictionPurgeMode"),
+				o.NoExecuteTaintEvictionPurgeMode,
+				[]string{"Gracefully", "Directly"}))
+	}
+
+	if o.ResourceEvictionRate < 0 {
+		errs = append(errs,
+			field.Invalid(rootPath.Child("ResourceEvictionRate"),
+				o.ResourceEvictionRate,
+				"must be non-negative"))
+	}
+	if o.SecondaryResourceEvictionRate < 0 {
+		errs = append(errs,
+			field.Invalid(rootPath.Child("SecondaryResourceEvictionRate"),
+				o.SecondaryResourceEvictionRate,
+				"must be non-negative"))
+	}
+	if o.UnhealthyClusterThreshold < 0.0 || o.UnhealthyClusterThreshold > 1.0 {
+		errs = append(errs,
+			field.Invalid(rootPath.Child("UnhealthyClusterThreshold"),
+				o.UnhealthyClusterThreshold,
+				"must be within [0.0, 1.0]"))
+	}
+	if o.LargeClusterNumThreshold < 0 {
+		errs = append(errs,
+			field.Invalid(rootPath.Child("LargeClusterNumThreshold"),
+				o.LargeClusterNumThreshold,
+				"must be non-negative"))
 	}
 	return errs
 }
