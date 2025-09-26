@@ -54,6 +54,13 @@ type evictionWorker struct {
 	reconcileFunc    util.ReconcileFunc
 	resourceKindFunc func(key interface{}) (clusterName, resourceKind string)
 	queue            workqueue.TypedRateLimitingInterface[any]
+	// pacer is the combined limiter (dynamic + default) used to throttle the
+	// processing throughput between items even when initial enqueues are immediate.
+	// It ensures overall throughput follows the dynamic rate under healthy/unhealthy states.
+	pacer workqueue.TypedRateLimiter[any]
+	// pacerKey is a sentinel key used for pacing. We call When/Forget on this key
+	// for each successfully processed item to avoid exponential backoff accumulation.
+	pacerKey any
 }
 
 // EvictionWorkerOptions configures a new EvictionWorker instance.
@@ -82,7 +89,7 @@ type EvictionWorkerOptions struct {
 
 // NewEvictionWorker creates a new EvictionWorker with dynamic rate limiting.
 func NewEvictionWorker(opts EvictionWorkerOptions) util.AsyncWorker {
-	rateLimiter := NewGracefulEvictionRateLimiter[interface{}](
+	rateLimiter := NewGracefulEvictionRateLimiter[any](
 		opts.InformerManager,
 		opts.EvictionQueueOptions,
 		opts.RateLimiterOptions,
@@ -96,6 +103,8 @@ func NewEvictionWorker(opts EvictionWorkerOptions) util.AsyncWorker {
 		queue: workqueue.NewTypedRateLimitingQueueWithConfig[any](rateLimiter, workqueue.TypedRateLimitingQueueConfig[any]{
 			Name: opts.Name,
 		}),
+		pacer:    rateLimiter,
+		pacerKey: struct{}{},
 	}
 }
 
@@ -189,6 +198,15 @@ func (w *evictionWorker) processNextWorkItem(_ context.Context) bool {
 
 	// Decrease resource kind count only after successful processing
 	metrics.RecordEvictionKindMetrics(clusterName, resourceKind, false)
+
+	// Apply pacing between items to enforce overall throughput, based on the
+	// combined limiter (dynamic health-aware + default backoff/bucket).
+	if w.pacer != nil {
+		if delay := w.pacer.When(w.pacerKey); delay > 0 {
+			time.Sleep(delay)
+		}
+		w.pacer.Forget(w.pacerKey)
+	}
 
 	return true
 }

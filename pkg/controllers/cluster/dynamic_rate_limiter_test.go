@@ -17,7 +17,10 @@ limitations under the License.
 package cluster
 
 import (
+	"context"
 	"errors"
+	"math"
+	"sync"
 	"testing"
 	"time"
 
@@ -26,8 +29,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/workqueue"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
+	"github.com/karmada-io/karmada/pkg/util"
 	gmtesting "github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager/testing"
 )
 
@@ -57,9 +63,8 @@ func makeCluster(name string, ready bool) *clusterv1alpha1.Cluster {
 		ObjectMeta: metav1.ObjectMeta{Name: name},
 		Status: clusterv1alpha1.ClusterStatus{
 			Conditions: []metav1.Condition{{
-				Type:               string(clusterv1alpha1.ClusterConditionReady),
-				Status:             condStatus,
-				LastTransitionTime: metav1.Now(),
+				Type:   clusterv1alpha1.ClusterConditionReady,
+				Status: condStatus,
 			}},
 		},
 	}
@@ -101,7 +106,6 @@ func TestDynamicRateLimiter_When_Scenarios(t *testing.T) {
 			name: "unhealthy large-scale => secondary rate",
 			objs: func() []runtime.Object {
 				var out []runtime.Object
-				// 11 clusters total (> threshold 10), 5 unhealthy -> failureRate ~0.45 > 0.3
 				for i := 0; i < 6; i++ {
 					out = append(out, makeCluster("h"+string(rune('a'+i)), true))
 				}
@@ -116,7 +120,7 @@ func TestDynamicRateLimiter_When_Scenarios(t *testing.T) {
 		},
 		{
 			name:     "unhealthy small-scale => halt (max delay)",
-			objs:     []runtime.Object{makeCluster("c1", false), makeCluster("c2", true)}, // 1/2 unhealthy -> 0.5 > 0.3, total=2 <= threshold
+			objs:     []runtime.Object{makeCluster("c1", false), makeCluster("c2", true)},
 			listErr:  nil,
 			opts:     EvictionQueueOptions{ResourceEvictionRate: 10, SecondaryResourceEvictionRate: 1, UnhealthyClusterThreshold: 0.3, LargeClusterNumThreshold: 10},
 			expected: maxEvictionDelay,
@@ -132,6 +136,7 @@ func TestDynamicRateLimiter_When_Scenarios(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Logf("Testing scenario: %s", tt.name)
 			mgr := gmtesting.NewFakeSingleClusterManager(true, true, func(gvr schema.GroupVersionResource) cache.GenericLister {
 				if gvr != clusterGVR {
 					return nil
@@ -140,9 +145,112 @@ func TestDynamicRateLimiter_When_Scenarios(t *testing.T) {
 			})
 			limiter := NewDynamicRateLimiter[any](mgr, tt.opts)
 			d := limiter.When(struct{}{})
+			t.Logf("Got delay: %v, Expected delay: %v", d, tt.expected)
 			if d != tt.expected {
 				t.Fatalf("unexpected duration: got %v, want %v", d, tt.expected)
 			}
 		})
+	}
+}
+
+// TestGracefulEvictionRateLimiter_ExponentialBackoff Validation When a task continues to fail,
+// The combined rate limiter correctly exhibits exponential avoidance behavior.
+func TestGracefulEvictionRateLimiter_ExponentialBackoff(t *testing.T) {
+	rateLimiterOpts := ratelimiterflag.Options{}
+	const defaultBaseDelay = 5 * time.Millisecond
+	const defaultMaxDelay = 1000 * time.Second
+
+	evictionOpts := EvictionQueueOptions{
+		ResourceEvictionRate:          50, // 20ms dynamic delay
+		SecondaryResourceEvictionRate: 0.1,
+		UnhealthyClusterThreshold:     0.55,
+		LargeClusterNumThreshold:      10,
+	}
+
+	t.Logf("Testing with default exponential backoff options: BaseDelay=%v, MaxDelay=%v", defaultBaseDelay, defaultMaxDelay)
+	expectedDynamicDelay := time.Second / time.Duration(evictionOpts.ResourceEvictionRate)
+	t.Logf("Dynamic limiter is in healthy mode, providing a base delay of: %v (overridden for test)", expectedDynamicDelay)
+
+	healthyClusters := []runtime.Object{makeCluster("c1", true), makeCluster("c2", true)}
+	clusterGVR := clusterv1alpha1.SchemeGroupVersion.WithResource("clusters")
+	mgr := gmtesting.NewFakeSingleClusterManager(true, true, func(gvr schema.GroupVersionResource) cache.GenericLister {
+		if gvr != clusterGVR {
+			return nil
+		}
+		return &fakeGenericLister{objects: healthyClusters, err: nil}
+	})
+
+	limiter := NewGracefulEvictionRateLimiter[any](mgr, evictionOpts, rateLimiterOpts)
+	queue := workqueue.NewTypedRateLimitingQueueWithConfig[any](limiter, workqueue.TypedRateLimitingQueueConfig[any]{
+		Name: "backoff-test-final",
+	})
+
+	var (
+		mu           sync.Mutex
+		attemptTimes []time.Time
+	)
+
+	reconcileFunc := util.ReconcileFunc(func(key util.QueueKey) error {
+		mu.Lock()
+		attemptTimes = append(attemptTimes, time.Now())
+		mu.Unlock()
+		return errors.New("always fail to trigger backoff")
+	})
+
+	worker := &evictionWorker{
+		name:          "backoff-worker",
+		keyFunc:       func(obj interface{}) (util.QueueKey, error) { return obj, nil },
+		reconcileFunc: reconcileFunc,
+		queue:         queue,
+	}
+
+	testDuration := 3 * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), testDuration)
+	defer cancel()
+	worker.Run(ctx, 1)
+	worker.Add("test-item")
+	<-ctx.Done()
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	t.Logf("Total attempts in %v: %d", testDuration, len(attemptTimes))
+	if len(attemptTimes) < 5 {
+		t.Fatalf("Expected at least 5 attempts to observe backoff, but got %d", len(attemptTimes))
+	}
+
+	t.Log("--- Analyzing delays between attempts ---")
+	var lastObservedDelay time.Duration
+	for i := 1; i < len(attemptTimes); i++ {
+		observedDelay := attemptTimes[i].Sub(attemptTimes[i-1])
+
+		numRequeues := i - 1
+		expectedBackoffNs := float64(defaultBaseDelay.Nanoseconds()) * math.Pow(2, float64(numRequeues))
+		if expectedBackoffNs > float64(defaultMaxDelay.Nanoseconds()) {
+			expectedBackoffNs = float64(defaultMaxDelay.Nanoseconds())
+		}
+		expectedBackoffDelay := time.Duration(expectedBackoffNs)
+
+		var expectedFinalDelay time.Duration
+		if expectedBackoffDelay > expectedDynamicDelay {
+			expectedFinalDelay = expectedBackoffDelay
+		} else {
+			expectedFinalDelay = expectedDynamicDelay
+		}
+
+		t.Logf("Attempt %2d: Observed Delay=%-18v | Expected Backoff Delay=%-18v | Effective Expected Delay >= %-18v",
+			i+1, observedDelay, expectedBackoffDelay, expectedFinalDelay)
+
+		if i > 1 {
+			// Only check for a strict increase if the backoff delay is larger than the dynamic delay.
+			if expectedBackoffDelay > expectedDynamicDelay && observedDelay < lastObservedDelay {
+				t.Errorf("Attempt %d: Delay did not increase as expected after backoff became dominant. Previous: %v, Current: %v", i+1, lastObservedDelay, observedDelay)
+			}
+		}
+
+		if observedDelay < expectedFinalDelay*9/10 {
+			t.Errorf("Attempt %d: Observed delay %v is significantly less than the effective expected delay %v", i+1, observedDelay, expectedFinalDelay)
+		}
+		lastObservedDelay = observedDelay
 	}
 }
