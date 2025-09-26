@@ -1,0 +1,129 @@
+apiVersion: config.karmada.io/v1alpha1
+kind: ResourceInterpreterCustomization
+metadata:
+  name: declarative-configuration-raycluster
+spec:
+  target:
+    apiVersion: ray.io/v1
+    kind: RayCluster
+  customizations:
+    replicaResource:
+      luaScript: >
+        local kube = require("kube")
+
+        local function isempty(s)
+          return s == nil or s == ''
+        end
+
+        function GetReplicas(desiredObj)
+          -- Head pod is always 1 for RayCluster
+          local totalReplicas = 1
+          local requires = {
+            resourceRequest = {},
+            nodeClaim = {},
+          }
+          
+          -- Initialize with head group resources
+          -- Until multiple podTemplates are supported, interpreter will only take affinity, toleration, and priorityclass input from head group to common podTemplate
+          requires.resourceRequest.cpu = desiredObj.spec.headGroupSpec.template.spec.containers[1].resources.limits.cpu
+          requires.resourceRequest.memory = desiredObj.spec.headGroupSpec.template.spec.containers[1].resources.limits.memory
+          if not isempty(desiredObj.spec.headGroupSpec.template.spec.nodeSelector) then
+            requires.nodeClaim.nodeSelector = desiredObj.spec.headGroupSpec.template.spec.nodeSelector
+          end
+          if not isempty(desiredObj.spec.headGroupSpec.template.spec.tolerations) then
+            requires.nodeClaim.tolerations = desiredObj.spec.headGroupSpec.template.spec.tolerations
+          end
+          if not isempty(desiredObj.spec.headGroupSpec.template.spec.priorityClassName) then
+            requires.priorityClassName = desiredObj.spec.headGroupSpec.template.spec.priorityClassName
+          end
+          
+          -- Convert to numeric for comparison
+          local max_memory_value = kube.getResourceQuantity(requires.resourceRequest.memory)
+          
+          -- Add replicas from all worker group specs 
+          -- Until multiple podTemplates are supported in replicaRequirements, take max of cpu + memory values as requirement
+          if desiredObj.spec.workerGroupSpecs then
+            for i, workerGroup in ipairs(desiredObj.spec.workerGroupSpecs) do
+              if workerGroup.replicas then
+                totalReplicas = totalReplicas + workerGroup.replicas
+              end
+              if not isempty(workerGroup.template.spec.containers.resources.limits.cpu) then
+                requires.resourceRequest.cpu = math.max(requires.resourceRequest.cpu, workerGroup.template.spec.containers.resources.limits.cpu)
+              end
+              if not isempty(workerGroup.template.spec.containers.resources.limits.memory) then
+                local memory_value = kube.getResourceQuantity(workerGroup.template.spec.containers.resources.limits.memory)
+                if memory_value > max_memory_value then
+                  max_memory_value = memory_value
+                  requires.resourceRequest.memory = workerGroup.template.spec.containers.resources.limits.memory
+                end
+              end
+            end
+          end
+          
+          return totalReplicas, requires
+        end
+    healthInterpretation:
+      luaScript: >
+        function InterpretHealth(observedObj)
+          if observedObj.status == nil or observedObj.status.state == nil then
+            return false
+          end
+          return observedObj.status.state == 'ready'
+        end
+    statusAggregation:
+      luaScript: >
+        function AggregateStatus(desiredObj, statusItems)
+          if desiredObj.status == nil then
+            desiredObj.status = {}
+          end
+
+          for i = 1, #statusItems do
+            currentStatus = statusItems[i].status
+            if currentStatus ~= nil then
+              desiredObj.status.state = currentStatus.state
+              desiredObj.status.stateTransitionTimes = currentStatus.stateTransitionTimes
+              desiredObj.status.conditions = currentStatus.conditions
+              desiredObj.status.desiredCPU = currentStatus.desiredCPU
+              desiredObj.status.desiredGPU = currentStatus.desiredGPU
+              desiredObj.status.desiredMemory = currentStatus.desiredMemory
+              desiredObj.status.desiredTPU = currentStatus.desiredTPU
+              desiredObj.status.endpoints = currentStatus.endpoints
+              desiredObj.status.head = currentStatus.head
+              desiredObj.status.lastUpdateTime = currentStatus.lastUpdateTime
+              desiredObj.status.maxWorkerReplicas = currentStatus.maxWorkerReplicas
+              desiredObj.status.minWorkerReplicas = currentStatus.minWorkerReplicas
+              desiredObj.status.observedGeneration = currentStatus.observedGeneration
+              desiredObj.status.readyWorkerReplicas = currentStatus.readyWorkerReplicas
+              desiredObj.status.state = currentStatus.state
+              desiredObj.status.stateTransitionTimes = currentStatus.stateTransitionTimes
+            end
+          end
+
+          return desiredObj
+        end
+    statusReflection:
+      luaScript: >
+        function ReflectStatus(observedObj)
+          status = {}
+          if observedObj == nil or observedObj.status == nil then
+            return status
+          end
+          status.state = observedObj.status.state
+          status.stateTransitionTimes = observedObj.status.stateTransitionTimes
+          status.conditions = observedObj.status.conditions
+          status.desiredCPU = observedObj.status.desiredCPU
+          status.desiredGPU = observedObj.status.desiredGPU
+          status.desiredMemory = observedObj.status.desiredMemory
+          status.desiredTPU = observedObj.status.desiredTPU
+          status.desiredWorkerReplicas = observedObj.status.desiredWorkerReplicas
+          status.endpoints = observedObj.status.endpoints
+          status.head = observedObj.status.head
+          status.lastUpdateTime = observedObj.status.lastUpdateTime
+          status.maxWorkerReplicas = observedObj.status.maxWorkerReplicas
+          status.minWorkerReplicas = observedObj.status.minWorkerReplicas
+          status.observedGeneration = observedObj.status.observedGeneration
+          status.readyWorkerReplicas = observedObj.status.readyWorkerReplicas
+          status.state = observedObj.status.state
+          status.stateTransitionTimes = observedObj.status.stateTransitionTimes
+          return status
+        end

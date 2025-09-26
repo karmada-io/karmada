@@ -1,0 +1,3 @@
+tests:
+  - observedInputPath: testdata/observed-raycluster.yaml
+    operation: InterpretHealth
