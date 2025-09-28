@@ -294,6 +294,7 @@ func startClusterController(ctx controllerscontext.Context) (enabled bool, err e
 		taintManager := &cluster.NoExecuteTaintManager{
 			Client:                             mgr.GetClient(),
 			EventRecorder:                      mgr.GetEventRecorderFor(cluster.TaintManagerName),
+			InformerManager:                    ctx.ControlPlaneInformerManager,
 			ClusterTaintEvictionRetryFrequency: 10 * time.Second,
 			ConcurrentReconciles:               3,
 			RateLimiterOptions:                 ctx.Opts.RateLimiterOptions,
