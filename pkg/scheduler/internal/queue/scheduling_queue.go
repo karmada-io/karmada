@@ -206,7 +206,7 @@ func (bq *prioritySchedulingQueue) flushBackoffQCompleted() {
 		}
 		_, err := bq.backoffQ.Pop()
 		if err != nil {
-			klog.Error(err, "Unable to pop binding from backoff queue despite backoff completion", "binding", bInfo.NamespacedKey)
+			klog.ErrorS(err, "Unable to pop binding from backoff queue despite backoff completion", "binding", bInfo.NamespacedKey)
 			break
 		}
 		bq.moveToActiveQ(bInfo)
@@ -289,7 +289,7 @@ func (bq *prioritySchedulingQueue) PushUnschedulableIfNotPresent(bindingInfo *Qu
 	}
 
 	bq.unschedulableBindings.addOrUpdate(bindingInfo)
-	klog.V(4).Info("Binding moved to an internal scheduling queue", "binding", bindingInfo.NamespacedKey, "queue", unschedulableBindings)
+	klog.V(4).InfoS("Binding moved to an internal scheduling queue", "binding", bindingInfo.NamespacedKey, "queue", unschedulableBindings)
 }
 
 func (bq *prioritySchedulingQueue) PushBackoffIfNotPresent(bindingInfo *QueuedBindingInfo) {
@@ -301,7 +301,7 @@ func (bq *prioritySchedulingQueue) PushBackoffIfNotPresent(bindingInfo *QueuedBi
 	}
 
 	bq.backoffQ.AddOrUpdate(bindingInfo)
-	klog.V(4).Info("Binding moved to an internal scheduling queue", "binding", bindingInfo.NamespacedKey, "queue", backoffQ)
+	klog.V(4).InfoS("Binding moved to an internal scheduling queue", "binding", bindingInfo.NamespacedKey, "queue", backoffQ)
 }
 
 // Done must be called for binding returned by Pop. This allows the queue to
@@ -326,7 +326,7 @@ func (bq *prioritySchedulingQueue) moveToActiveQ(bindingInfo *QueuedBindingInfo)
 	bq.activeQ.Push(bindingInfo)
 	_ = bq.backoffQ.Delete(bindingInfo) // just ignore this not-found error
 	bq.unschedulableBindings.delete(bindingInfo.NamespacedKey)
-	klog.V(4).Info("Binding moved to an internal scheduling queue", "binding", bindingInfo.NamespacedKey, "queue", activeQ)
+	klog.V(4).InfoS("Binding moved to an internal scheduling queue", "binding", bindingInfo.NamespacedKey, "queue", activeQ)
 }
 
 // UnschedulableBindings holds bindings that cannot be scheduled. This data structure
