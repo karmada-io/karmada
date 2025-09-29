@@ -124,6 +124,52 @@ func Test_assignByStaticWeightStrategy(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "replica 13, weight 3:2:1",
+			clusters: []spreadconstraint.ClusterDetailInfo{
+				{Name: ClusterMember1, Cluster: helper.NewCluster(ClusterMember1)},
+				{Name: ClusterMember2, Cluster: helper.NewCluster(ClusterMember2)},
+				{Name: ClusterMember3, Cluster: helper.NewCluster(ClusterMember3)},
+			},
+			weightPreference: &policyv1alpha1.ClusterPreferences{
+				StaticWeightList: []policyv1alpha1.StaticClusterWeight{
+					{
+						TargetCluster: policyv1alpha1.ClusterAffinity{
+							ClusterNames: []string{ClusterMember1},
+						},
+						Weight: 3,
+					},
+					{
+						TargetCluster: policyv1alpha1.ClusterAffinity{
+							ClusterNames: []string{ClusterMember2},
+						},
+						Weight: 2,
+					},
+					{
+						TargetCluster: policyv1alpha1.ClusterAffinity{
+							ClusterNames: []string{ClusterMember3},
+						},
+						Weight: 1,
+					},
+				},
+			},
+			replicas: 13,
+			want: []workv1alpha2.TargetCluster{
+				{
+					Name:     ClusterMember1,
+					Replicas: 7,
+				},
+				{
+					Name:     ClusterMember2,
+					Replicas: 4,
+				},
+				{
+					Name:     ClusterMember3,
+					Replicas: 2,
+				},
+			},
+			wantErr: false,
+		},
+		{
 			name: "replica 14, weight 3:2:1",
 			clusters: []spreadconstraint.ClusterDetailInfo{
 				{Name: ClusterMember1, Cluster: helper.NewCluster(ClusterMember1)},
@@ -156,11 +202,11 @@ func Test_assignByStaticWeightStrategy(t *testing.T) {
 			want: []workv1alpha2.TargetCluster{
 				{
 					Name:     ClusterMember1,
-					Replicas: 8,
+					Replicas: 7,
 				},
 				{
 					Name:     ClusterMember2,
-					Replicas: 4,
+					Replicas: 5,
 				},
 				{
 					Name:     ClusterMember3,

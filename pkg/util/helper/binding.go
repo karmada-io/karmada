@@ -19,6 +19,7 @@ package helper
 import (
 	"context"
 	"crypto/rand"
+	"hash/fnv"
 	"math/big"
 	"sort"
 
@@ -30,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/dynamic"
@@ -65,6 +67,8 @@ func (p ClusterWeightInfoList) Less(i, j int) bool {
 	if p[i].Weight != p[j].Weight {
 		return p[i].Weight > p[j].Weight
 	}
+
+	// TODO(@zhzhuang-zju): remove this part after we remove the legacy TakeByWeight method.
 	// when weights is equal, sort by last scheduling replicas result,
 	// more last scheduling replicas means the remainders of the last scheduling were randomized to such clusters,
 	// so in order to keep the inertia in this scheduling, such clusters should also be prioritized
@@ -94,13 +98,16 @@ type Dispenser struct {
 	NumReplicas int32
 	// Final result.
 	Result []workv1alpha2.TargetCluster
+	// TieBreaker is used to break the tie.
+	TieBreaker func(a, b Party) bool
 }
 
 // NewDispenser will construct a dispenser with target replicas and a prescribed initial result.
-func NewDispenser(numReplicas int32, init []workv1alpha2.TargetCluster) *Dispenser {
+// uuid is used to generate a random but stable tiebreaker function, which is used to break the tie when the parties have the same priority.
+func NewDispenser(numReplicas int32, init []workv1alpha2.TargetCluster, uuid types.UID) *Dispenser {
 	cp := make([]workv1alpha2.TargetCluster, len(init))
 	copy(cp, init)
-	return &Dispenser{NumReplicas: numReplicas, Result: cp}
+	return &Dispenser{NumReplicas: numReplicas, Result: cp, TieBreaker: tieBreakerByUID(uuid)}
 }
 
 // Done indicates whether finish dispensing.
@@ -108,7 +115,11 @@ func (a *Dispenser) Done() bool {
 	return a.NumReplicas == 0 && len(a.Result) != 0
 }
 
-// TakeByWeight divide replicas by a weight list and merge the result into previous result.
+// TakeByWeight divides replicas according to a weight list and merges the result into the previous result.
+// Legacy method; will be removed in the future. This algorithm suffers from the Alabama Paradox,
+// where increasing the total number of replicas can cause some clusters to receive fewer replicas.
+// For details, see: https://github.com/karmada-io/karmada/issues/6735.
+// TODO(@zhzhuang-zju): remove this method and use AllocateByWeight instead.
 func (a *Dispenser) TakeByWeight(w ClusterWeightInfoList) {
 	if a.Done() {
 		return
@@ -143,6 +154,70 @@ func (a *Dispenser) TakeByWeight(w ClusterWeightInfoList) {
 	a.Result = util.MergeTargetClusters(a.Result, result)
 }
 
+// AllocateByWeight divides replicas by Webster method.
+func (a *Dispenser) AllocateByWeight(w ClusterWeightInfoList) {
+	if a.Done() {
+		return
+	}
+	sum := w.GetWeightSum()
+	if sum == 0 {
+		return
+	}
+
+	var initialAssignments = make(map[string]int32, len(a.Result))
+	for _, cluster := range a.Result {
+		initialAssignments[cluster.Name] = cluster.Replicas
+	}
+
+	partyVotes := make(map[string]int64, len(w))
+	for _, info := range w {
+		partyVotes[info.ClusterName] = info.Weight
+	}
+
+	a.Result = convertPartiesToTargetClusters(AllocateWebsterSeats(a.NumReplicas, partyVotes, initialAssignments, a.TieBreaker))
+	a.NumReplicas = 0
+}
+
+func tieBreakerByUID(uid types.UID) func(a, b Party) bool {
+	// sortNameDescending gives higher priority to parties with lexicographically larger names in case of a tie.
+	sortNameDescending := func(a, b Party) bool {
+		// The party with fewer seats wins the tie.
+		if a.Seats != b.Seats {
+			return a.Seats < b.Seats
+		}
+		return a.Name > b.Name
+	}
+	// sortNameAscending gives higher priority to parties with lexicographically smaller names in case of a tie.
+	sortNameAscending := func(a, b Party) bool {
+		// The party with fewer seats wins the tie.
+		if a.Seats != b.Seats {
+			return a.Seats < b.Seats
+		}
+		return a.Name < b.Name
+	}
+	if len(uid) == 0 {
+		return sortNameAscending
+	}
+
+	h := fnv.New32a()
+	h.Write([]byte(uid))
+	if h.Sum32()&1 == 1 {
+		return sortNameDescending
+	}
+	return sortNameAscending
+}
+
+func convertPartiesToTargetClusters(parties []Party) []workv1alpha2.TargetCluster {
+	result := make([]workv1alpha2.TargetCluster, 0, len(parties))
+	for _, party := range parties {
+		result = append(result, workv1alpha2.TargetCluster{
+			Name:     party.Name,
+			Replicas: party.Seats,
+		})
+	}
+	return result
+}
+
 // GetStaticWeightInfoListByTargetClusters constructs a weight list by target cluster slice.
 func GetStaticWeightInfoListByTargetClusters(tcs, scheduled []workv1alpha2.TargetCluster) ClusterWeightInfoList {
 	weightList := make(ClusterWeightInfoList, 0, len(tcs))
@@ -166,7 +241,7 @@ func GetStaticWeightInfoListByTargetClusters(tcs, scheduled []workv1alpha2.Targe
 // SpreadReplicasByTargetClusters divides replicas by the weight of a target cluster list.
 func SpreadReplicasByTargetClusters(numReplicas int32, tcs, init []workv1alpha2.TargetCluster) []workv1alpha2.TargetCluster {
 	weightList := GetStaticWeightInfoListByTargetClusters(tcs, init)
-	disp := NewDispenser(numReplicas, init)
+	disp := NewDispenser(numReplicas, init, "")
 	disp.TakeByWeight(weightList)
 	return disp.Result
 }
