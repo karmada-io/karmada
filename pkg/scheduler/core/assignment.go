@@ -199,8 +199,8 @@ func assignByStaticWeightStrategy(state *assignState) ([]workv1alpha2.TargetClus
 	}
 	weightList := getStaticWeightInfoList(state.candidates, state.strategy.WeightPreference.StaticWeightList, state.spec.Clusters)
 
-	disp := helper.NewDispenser(state.spec.Replicas, nil)
-	disp.TakeByWeight(weightList)
+	disp := helper.NewDispenser(state.spec.Replicas, nil, state.spec.Resource.UID)
+	disp.AllocateByWeight(weightList)
 
 	return disp.Result, nil
 }
