@@ -53,6 +53,15 @@ func (ge *GeneralEstimator) MaxAvailableReplicas(_ context.Context, clusters []*
 	return availableTargetClusters, nil
 }
 
+// MaxAvailableComponentSets returns the maximum number of complete multi-component sets (in terms of replicas) that each cluster can host.
+func (ge *GeneralEstimator) MaxAvailableComponentSets(
+	_ context.Context,
+	_ *ComponentSetEstimationRequest) ([]ComponentSetEstimationResponse, error) {
+	// Dummy implementation: return nothing for now
+	// TODO: Implement as part of #6734
+	return nil, nil
+}
+
 func (ge *GeneralEstimator) maxAvailableReplicas(cluster *clusterv1alpha1.Cluster, replicaRequirements *workv1alpha2.ReplicaRequirements) int32 {
 	//Note: resourceSummary must be deep-copied before using in the function to avoid modifying the original data structure.
 	resourceSummary := cluster.Status.ResourceSummary.DeepCopy()

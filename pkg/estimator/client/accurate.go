@@ -67,6 +67,15 @@ func (se *SchedulerEstimator) MaxAvailableReplicas(
 	})
 }
 
+// MaxAvailableComponentSets returns the maximum number of complete multi-component sets (in terms of replicas) that each cluster can host.
+func (se *SchedulerEstimator) MaxAvailableComponentSets(
+	_ context.Context,
+	_ *ComponentSetEstimationRequest) ([]ComponentSetEstimationResponse, error) {
+	// Dummy implementation: return nothing for now
+	// TODO: Implement as part of #6734
+	return nil, nil
+}
+
 // GetUnschedulableReplicas gets the unschedulable replicas which belong to a specified workload by calling karmada-scheduler-estimator.
 func (se *SchedulerEstimator) GetUnschedulableReplicas(
 	parentCtx context.Context,
