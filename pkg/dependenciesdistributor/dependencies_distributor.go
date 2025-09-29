@@ -2,16 +2,16 @@
 Copyright 2022 The Karmada Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
 
     http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
 */
 
 package dependenciesdistributor
@@ -51,6 +51,7 @@ import (
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/dependenciesdistributor/metrics"
 	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
@@ -577,6 +578,8 @@ func (d *DependenciesDistributor) removeScheduleResultFromAttachedBindings(bindi
 				errs = append(errs, aggErr)
 				continue
 			}
+			metrics.DependencyParentsCount.WithLabelValues(binding.Namespace).Observe(float64(len(updatedSnapshot)))
+			klog.V(3).Infof("[dep-agg] re-agg RB %s/%s parents=%d agg{cr=%s,preserve=%v} details=[%s]", binding.Namespace, binding.Name, len(updatedSnapshot), aggCR, ptr.Deref(aggPreserve, false), details)
 			// Update only when changed to avoid churn.
 			needUpdate := false
 			if binding.Spec.ConflictResolution != aggCR {
@@ -588,8 +591,10 @@ func (d *DependenciesDistributor) removeScheduleResultFromAttachedBindings(bindi
 				needUpdate = true
 			}
 			if hasConflict {
+				metrics.DependencyPolicyConflictsTotal.WithLabelValues(binding.Namespace).Inc()
 				d.EventRecorder.Eventf(binding, corev1.EventTypeWarning, events.EventReasonDependencyPolicyConflict,
 					"Dependency policies conflict among parents after removal: %s", details)
+				klog.V(2).Infof("[dep-agg] conflict detected after removal on %s/%s: %s", binding.Namespace, binding.Name, details)
 			}
 			if !needUpdate {
 				continue
@@ -640,6 +645,10 @@ func (d *DependenciesDistributor) createOrUpdateAttachedBinding(attachedBinding 
 				klog.Errorf("Failed to aggregate dependency policies for %s: %v", bindingKey, aggErr)
 				return aggErr
 			}
+			// Metrics: parents count
+			metrics.DependencyParentsCount.WithLabelValues(existBinding.Namespace).Observe(float64(len(existBinding.Spec.RequiredBy)))
+			// Logs: detailed summary
+			klog.V(3).Infof("[dep-agg] RB %s/%s parents=%d agg{cr=%s,preserve=%v} details=[%s]", existBinding.Namespace, existBinding.Name, len(existBinding.Spec.RequiredBy), aggCR, ptr.Deref(aggPreserve, false), details)
 			// When multi-parent is allowed but detected, emit a warning for observability.
 			if len(existBinding.Spec.RequiredBy) > 1 && !features.FeatureGate.Enabled(features.ForbidMultiDepPropagation) {
 				d.EventRecorder.Eventf(existBinding, corev1.EventTypeWarning, events.EventReasonDependencyMultiParentDetected,
@@ -655,8 +664,10 @@ func (d *DependenciesDistributor) createOrUpdateAttachedBinding(attachedBinding 
 				needUpdate = true
 			}
 			if hasConflict {
+				metrics.DependencyPolicyConflictsTotal.WithLabelValues(existBinding.Namespace).Inc()
 				d.EventRecorder.Eventf(existBinding, corev1.EventTypeWarning, events.EventReasonDependencyPolicyConflict,
 					"Dependency policies conflict among parents: %s", details)
+				klog.V(2).Infof("[dep-agg] conflict detected on %s/%s: %s", existBinding.Namespace, existBinding.Name, details)
 			}
 			if needUpdate {
 				if err := d.Client.Update(context.TODO(), existBinding); err != nil {
@@ -666,6 +677,7 @@ func (d *DependenciesDistributor) createOrUpdateAttachedBinding(attachedBinding 
 				// Inform that aggregation has been applied.
 				d.EventRecorder.Eventf(existBinding, corev1.EventTypeNormal, events.EventReasonDependencyPolicyAggregated,
 					"Aggregated dependency policies applied: cr=%s, preserve=%v", aggCR, ptr.Deref(aggPreserve, false))
+				klog.V(3).Infof("[dep-agg] applied to %s/%s: cr=%s preserve=%v", existBinding.Namespace, existBinding.Name, aggCR, ptr.Deref(aggPreserve, false))
 			}
 			return nil
 		}
@@ -707,6 +719,9 @@ func (d *DependenciesDistributor) createOrUpdateAttachedBinding(attachedBinding 
 	}
 	attachedBinding.Spec.ConflictResolution = aggCR
 	attachedBinding.Spec.PreserveResourcesOnDeletion = aggPreserve
+	// Metrics: parents count for new binding
+	metrics.DependencyParentsCount.WithLabelValues(attachedBinding.Namespace).Observe(float64(len(attachedBinding.Spec.RequiredBy)))
+	klog.V(3).Infof("[dep-agg] new RB %s/%s parents=%d agg{cr=%s,preserve=%v} details=[%s]", attachedBinding.Namespace, attachedBinding.Name, len(attachedBinding.Spec.RequiredBy), aggCR, ptr.Deref(aggPreserve, false), details)
 
 	if err := d.Client.Create(context.TODO(), attachedBinding); err != nil {
 		return err
@@ -717,11 +732,14 @@ func (d *DependenciesDistributor) createOrUpdateAttachedBinding(attachedBinding 
 			"Dependency-generated binding has %d parents; consider merging policies or removing extra dependencies.", len(attachedBinding.Spec.RequiredBy))
 	}
 	if hasConflict {
+		metrics.DependencyPolicyConflictsTotal.WithLabelValues(attachedBinding.Namespace).Inc()
 		d.EventRecorder.Eventf(attachedBinding, corev1.EventTypeWarning, events.EventReasonDependencyPolicyConflict,
 			"Dependency policies conflict among parents: %s", details)
+		klog.V(2).Infof("[dep-agg] conflict detected on %s/%s: %s", attachedBinding.Namespace, attachedBinding.Name, details)
 	}
 	d.EventRecorder.Eventf(attachedBinding, corev1.EventTypeNormal, events.EventReasonDependencyPolicyAggregated,
 		"Aggregated dependency policies applied: cr=%s, preserve=%v", aggCR, ptr.Deref(aggPreserve, false))
+	klog.V(3).Infof("[dep-agg] applied to %s/%s: cr=%s preserve=%v", attachedBinding.Namespace, attachedBinding.Name, aggCR, ptr.Deref(aggPreserve, false))
 	return nil
 }
 
