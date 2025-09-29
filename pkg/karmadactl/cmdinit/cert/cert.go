@@ -72,9 +72,9 @@ func GeneratePrivateKey(keyType x509.PublicKeyAlgorithm) (crypto.Signer, error) 
 
 // CertsConfig is a wrapper around certutil.Config extending it with PublicKeyAlgorithm.
 type CertsConfig struct {
-	certutil.Config
-	NotAfter           *time.Time
-	PublicKeyAlgorithm x509.PublicKeyAlgorithm
+    certutil.Config
+    NotAfter           *time.Time
+    PublicKeyAlgorithm x509.PublicKeyAlgorithm
 }
 
 // EncodeCertPEM returns PEM-encoded certificate data
@@ -257,15 +257,94 @@ func WriteCertAndKey(pkiPath, pkiName string, ca *x509.Certificate, key *crypto.
 
 // NewCertConfig create new CertConfig
 func NewCertConfig(cn string, org []string, altNames certutil.AltNames, notAfter *time.Time) *CertsConfig {
-	return &CertsConfig{
-		Config: certutil.Config{
-			CommonName:   cn,
-			Organization: org,
-			Usages:       []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
-			AltNames:     altNames,
-		},
-		NotAfter: notAfter,
-	}
+    return &CertsConfig{
+        Config: certutil.Config{
+            CommonName:   cn,
+            Organization: org,
+            Usages:       []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
+            AltNames:     altNames,
+        },
+        NotAfter: notAfter,
+    }
+}
+
+// NewGenCerts generates a full set of certificates driven by certConfigMap and
+// writes them to pkiPath. It always ensures three CAs exist:
+// - Main CA (karmada CA)
+// - Front-proxy CA
+// - Etcd CA
+// Certificates are signed by CA chosen by their names:
+// - etcd server/client and etcd-client variants -> etcd-ca
+// - front-proxy-client -> front-proxy-ca
+// - others -> main CA
+func NewGenCerts(pkiPath, caCertFile, caKeyFile string, certConfigMap map[string]*CertsConfig) error {
+    // Main CA (karmada CA)
+    caCert, caKey, err := getCACertAndKey(caCertFile, caKeyFile)
+    if err != nil {
+        return err
+    }
+    if err = WriteCertAndKey(pkiPath, globaloptions.CaCertAndKeyName, caCert, caKey); err != nil {
+        return err
+    }
+
+    // Front-proxy CA
+    frontProxyCaCert, frontProxyCaKey, err := NewCACertAndKey(options.FrontProxyCaCertAndKeyName)
+    if err != nil {
+        return err
+    }
+    if err = WriteCertAndKey(pkiPath, options.FrontProxyCaCertAndKeyName, frontProxyCaCert, frontProxyCaKey); err != nil {
+        return err
+    }
+
+    // Etcd CA
+    etcdCaCert, etcdCaKey, err := NewCACertAndKey(options.EtcdCaCertAndKeyName)
+    if err != nil {
+        return err
+    }
+    if err = WriteCertAndKey(pkiPath, options.EtcdCaCertAndKeyName, etcdCaCert, etcdCaKey); err != nil {
+        return err
+    }
+
+    // Choose signing CA by cert name
+    for certName, certConfig := range certConfigMap {
+        if certConfig == nil {
+            continue
+        }
+
+        var signerCACert *x509.Certificate
+        var signerCAKey crypto.Signer
+
+        switch certName {
+        // etcd server/client and all etcd-client variants should be signed by etcd-ca
+        case options.EtcdServerCertAndKeyName,
+            options.EtcdClientCertAndKeyName,
+            options.KarmadaApiServerEtcdClientCertAndKeyName,
+            options.KarmadaAggregatedApiServerEtcdClientCertAndKeyName,
+            options.KarmadaSearchEtcdClientCertAndKeyName:
+            signerCACert = etcdCaCert
+            signerCAKey = *etcdCaKey
+
+        // front-proxy client should be signed by front-proxy-ca
+        case options.FrontProxyClientCertAndKeyName:
+            signerCACert = frontProxyCaCert
+            signerCAKey = *frontProxyCaKey
+
+        // default: signed by main karmada CA
+        default:
+            signerCACert = caCert
+            signerCAKey = *caKey
+        }
+
+        cert, key, err := NewCertAndKey(signerCACert, signerCAKey, certConfig)
+        if err != nil {
+            return err
+        }
+        if err = WriteCertAndKey(pkiPath, certName, cert, &key); err != nil {
+            return err
+        }
+    }
+
+    return nil
 }
 
 // GenCerts Create CA certificate and sign etcd karmada certificate.

@@ -60,16 +60,62 @@ var (
 		"cn":     "registry.cn-hangzhou.aliyuncs.com/google_containers",
 	}
 
-	certList = []string{
-		globaloptions.CaCertAndKeyName,
-		options.EtcdCaCertAndKeyName,
-		options.EtcdServerCertAndKeyName,
-		options.EtcdClientCertAndKeyName,
-		options.KarmadaCertAndKeyName,
-		options.ApiserverCertAndKeyName,
-		options.FrontProxyCaCertAndKeyName,
-		options.FrontProxyClientCertAndKeyName,
-	}
+    // Legacy minimal certificate set (old layout)
+    certListLegacy = []string{
+        globaloptions.CaCertAndKeyName,
+        options.EtcdCaCertAndKeyName,
+        options.EtcdServerCertAndKeyName,
+        options.EtcdClientCertAndKeyName,
+        options.KarmadaCertAndKeyName,
+        options.ApiserverCertAndKeyName,
+        options.FrontProxyCaCertAndKeyName,
+        options.FrontProxyClientCertAndKeyName,
+    }
+
+    // Full certificate set for split layout (independent CN per component)
+    certListSplit = []string{
+        // CAs
+        globaloptions.CaCertAndKeyName,
+        options.EtcdCaCertAndKeyName,
+        options.FrontProxyCaCertAndKeyName,
+
+        // Servers
+        options.KarmadaApiServerCertAndKeyName,
+        options.KarmadaAggregatedApiServerCertAndKeyName,
+        options.KarmadaWebhookCertAndKeyName,
+        options.KarmadaSearchCertAndKeyName,
+        options.KarmadaMetricsAdapterCertAndKeyName,
+        options.KarmadaSchedulerEstimatorCertAndKeyName,
+        options.EtcdServerCertAndKeyName,
+
+        // Clients
+        options.KarmadaApiServerClientCertAndKeyName,
+        options.KarmadaAggregatedApiServerClientCertAndKeyName,
+        options.KarmadaWebhookClientCertAndKeyName,
+        options.KarmadaSearchClientCertAndKeyName,
+        options.KarmadaMetricsAdapterClientCertAndKeyName,
+        options.KarmadaSchedulerEstimatorClientCertAndKeyName,
+        options.KarmadaControllerManagerClientCertAndKeyName,
+        options.KubeControllerManagerClientCertAndKeyName,
+        options.KarmadaSchedulerClientCertAndKeyName,
+        options.KarmadaDeschedulerClientCertAndKeyName,
+
+        // ETCD clients
+        options.KarmadaApiServerEtcdClientCertAndKeyName,
+        options.KarmadaAggregatedApiServerEtcdClientCertAndKeyName,
+        options.KarmadaSearchEtcdClientCertAndKeyName,
+        options.EtcdClientCertAndKeyName,
+
+        // GRPC clients
+        options.KarmadaSchedulerGrpcCertAndKeyName,
+        options.KarmadaDeschedulerGrpcCertAndKeyName,
+
+        // front proxy
+        options.FrontProxyClientCertAndKeyName,
+
+        // Admin kubeconfig client
+        options.KarmadaCertAndKeyName,
+    }
 
 	karmadaConfigList = []string{
 		util.KarmadaConfigName(names.KarmadaAggregatedAPIServerComponentName),
@@ -83,23 +129,45 @@ var (
 	}
 
 	emptyByteSlice                 = make([]byte, 0)
-	externalEtcdCertSpecialization = map[string]func(*CommandInitOption) ([]byte, []byte, error){
-		options.EtcdCaCertAndKeyName: func(option *CommandInitOption) (cert, key []byte, err error) {
-			cert, err = os.ReadFile(option.ExternalEtcdCACertPath)
-			key = emptyByteSlice
-			return
-		},
-		options.EtcdServerCertAndKeyName: func(_ *CommandInitOption) ([]byte, []byte, error) {
-			return emptyByteSlice, emptyByteSlice, nil
-		},
-		options.EtcdClientCertAndKeyName: func(option *CommandInitOption) (cert, key []byte, err error) {
-			if cert, err = os.ReadFile(option.ExternalEtcdClientCertPath); err != nil {
-				return
-			}
-			key, err = os.ReadFile(option.ExternalEtcdClientKeyPath)
-			return
-		},
-	}
+    externalEtcdCertSpecialization = map[string]func(*CommandInitOption) ([]byte, []byte, error){
+        options.EtcdCaCertAndKeyName: func(option *CommandInitOption) (cert, key []byte, err error) {
+            cert, err = os.ReadFile(option.ExternalEtcdCACertPath)
+            key = emptyByteSlice
+            return
+        },
+        options.EtcdServerCertAndKeyName: func(_ *CommandInitOption) ([]byte, []byte, error) {
+            return emptyByteSlice, emptyByteSlice, nil
+        },
+        options.EtcdClientCertAndKeyName: func(option *CommandInitOption) (cert, key []byte, err error) {
+            if cert, err = os.ReadFile(option.ExternalEtcdClientCertPath); err != nil {
+                return
+            }
+            key, err = os.ReadFile(option.ExternalEtcdClientKeyPath)
+            return
+        },
+        // map split-layout etcd client variants to external etcd client credentials
+        options.KarmadaApiServerEtcdClientCertAndKeyName: func(option *CommandInitOption) (cert, key []byte, err error) {
+            if cert, err = os.ReadFile(option.ExternalEtcdClientCertPath); err != nil {
+                return
+            }
+            key, err = os.ReadFile(option.ExternalEtcdClientKeyPath)
+            return
+        },
+        options.KarmadaAggregatedApiServerEtcdClientCertAndKeyName: func(option *CommandInitOption) (cert, key []byte, err error) {
+            if cert, err = os.ReadFile(option.ExternalEtcdClientCertPath); err != nil {
+                return
+            }
+            key, err = os.ReadFile(option.ExternalEtcdClientKeyPath)
+            return
+        },
+        options.KarmadaSearchEtcdClientCertAndKeyName: func(option *CommandInitOption) (cert, key []byte, err error) {
+            if cert, err = os.ReadFile(option.ExternalEtcdClientCertPath); err != nil {
+                return
+            }
+            key, err = os.ReadFile(option.ExternalEtcdClientKeyPath)
+            return
+        },
+    }
 
 	karmadaRelease string
 
@@ -434,6 +502,112 @@ func (i *CommandInitOption) genCerts() error {
 	return nil
 }
 
+// buildDefaultAltNames builds a standard AltNames set for in-cluster service endpoints
+// of a given component, plus localhost and optional external DNS/IPs.
+func (i *CommandInitOption) buildDefaultAltNames(componentName string) certutil.AltNames {
+    defaultDNS := []string{
+        fmt.Sprintf("%s.karmada-system.svc", componentName),
+        fmt.Sprintf("%s.karmada-system.svc.cluster.local", componentName),
+        fmt.Sprintf("%s.%s.svc.%s", componentName, i.Namespace, i.HostClusterDomain),
+        "localhost",
+    }
+    defaultDNS = append(defaultDNS, utils.FlagsDNS(i.ExternalDNS)...)
+
+    defaultIPs := []net.IP{utils.StringToNetIP("127.0.0.1")}
+    defaultIPs = append(
+        defaultIPs,
+        utils.FlagsIP(i.ExternalIP)...,
+    )
+    defaultIPs = append(defaultIPs, i.KarmadaAPIServerIP...)
+    if ip, err := utils.InternetIP(); err == nil {
+        defaultIPs = append(defaultIPs, ip)
+    } else {
+        klog.Warningln("Failed to obtain internet IP. ", err)
+    }
+
+    return certutil.AltNames{DNSNames: defaultDNS, IPs: defaultIPs}
+}
+
+// buildSchedulerEstimatorAltNames returns AltNames for scheduler-estimator server
+// covering wildcard services in karmada-system and namespace-scoped services.
+func (i *CommandInitOption) buildSchedulerEstimatorAltNames() certutil.AltNames {
+    dns := []string{
+        "*.karmada-system.svc.cluster.local",
+        "*.karmada-system.svc",
+        fmt.Sprintf("*.%s.svc.%s", i.Namespace, i.HostClusterDomain),
+        "localhost",
+    }
+    ips := []net.IP{utils.StringToNetIP("127.0.0.1")}
+    dns = append(dns, utils.FlagsDNS(i.ExternalDNS)...)
+    ips = append(ips, utils.FlagsIP(i.ExternalIP)...)
+    ips = append(ips, i.KarmadaAPIServerIP...)
+    if ip, err := utils.InternetIP(); err == nil {
+        ips = append(ips, ip)
+    } else {
+        klog.Warningln("Failed to obtain internet IP. ", err)
+    }
+    return certutil.AltNames{DNSNames: dns, IPs: ips}
+}
+
+// genCertsSplitFull builds full set of component certificates (independent CN + SAN)
+// and generates them using cert.NewGenCerts with proper CA selection.
+func (i *CommandInitOption) genCertsSplitFull() error {
+    notAfter := time.Now().Add(i.CertValidity).UTC()
+
+    cfg := map[string]*cert.CertsConfig{}
+
+    // Admin kubeconfig client (for users)
+    adminAlt := i.buildDefaultAltNames("karmada-apiserver")
+    cfg[options.KarmadaCertAndKeyName] = cert.NewCertConfig("system:admin", []string{"system:masters"}, adminAlt, &notAfter)
+
+    // Servers
+    cfg[options.KarmadaApiServerCertAndKeyName] = cert.NewCertConfig(options.KarmadaApiServerCN, []string{}, i.buildDefaultAltNames("karmada-apiserver"), &notAfter)
+    cfg[options.KarmadaAggregatedApiServerCertAndKeyName] = cert.NewCertConfig(options.KarmadaAggregatedApiServerCN, []string{}, i.buildDefaultAltNames("karmada-aggregated-apiserver"), &notAfter)
+    cfg[options.KarmadaWebhookCertAndKeyName] = cert.NewCertConfig(options.KarmadaWebhookCN, []string{}, i.buildDefaultAltNames("karmada-webhook"), &notAfter)
+    cfg[options.KarmadaSearchCertAndKeyName] = cert.NewCertConfig(options.KarmadaSearchCN, []string{}, i.buildDefaultAltNames(names.KarmadaSearchComponentName), &notAfter)
+    cfg[options.KarmadaMetricsAdapterCertAndKeyName] = cert.NewCertConfig(options.KarmadaMetricsAdapterCN, []string{}, i.buildDefaultAltNames(names.KarmadaMetricsAdapterComponentName), &notAfter)
+    cfg[options.KarmadaSchedulerEstimatorCertAndKeyName] = cert.NewCertConfig(options.KarmadaSchedulerEstimatorCN, []string{}, i.buildSchedulerEstimatorAltNames(), &notAfter)
+
+    if !i.isExternalEtcdProvided() {
+        // etcd server
+        etcdDNS := []string{"localhost"}
+        for number := int32(0); number < i.EtcdReplicas; number++ {
+            etcdDNS = append(etcdDNS, fmt.Sprintf("%s-%v.%s.%s.svc.%s", etcdStatefulSetAndServiceName, number, etcdStatefulSetAndServiceName, i.Namespace, i.HostClusterDomain))
+        }
+        cfg[options.EtcdServerCertAndKeyName] = cert.NewCertConfig(options.KarmadaEtcdServerCN, []string{}, certutil.AltNames{DNSNames: etcdDNS, IPs: []net.IP{utils.StringToNetIP("127.0.0.1")}}, &notAfter)
+    }
+
+    // Clients (Org: system:masters)
+    cfg[options.KarmadaApiServerClientCertAndKeyName] = cert.NewCertConfig(options.KarmadaApiServerCN, []string{"system:masters"}, certutil.AltNames{}, &notAfter)
+    cfg[options.KarmadaAggregatedApiServerClientCertAndKeyName] = cert.NewCertConfig(options.KarmadaAggregatedApiServerCN, []string{"system:masters"}, certutil.AltNames{}, &notAfter)
+    cfg[options.KarmadaWebhookClientCertAndKeyName] = cert.NewCertConfig(options.KarmadaWebhookCN, []string{"system:masters"}, certutil.AltNames{}, &notAfter)
+    cfg[options.KarmadaSearchClientCertAndKeyName] = cert.NewCertConfig(options.KarmadaSearchCN, []string{"system:masters"}, certutil.AltNames{}, &notAfter)
+    cfg[options.KarmadaMetricsAdapterClientCertAndKeyName] = cert.NewCertConfig(options.KarmadaMetricsAdapterCN, []string{"system:masters"}, certutil.AltNames{}, &notAfter)
+    cfg[options.KarmadaSchedulerEstimatorClientCertAndKeyName] = cert.NewCertConfig(options.KarmadaSchedulerEstimatorCN, []string{"system:masters"}, certutil.AltNames{}, &notAfter)
+    cfg[options.KarmadaControllerManagerClientCertAndKeyName] = cert.NewCertConfig(options.KarmadaControllerManagerCN, []string{"system:masters"}, certutil.AltNames{}, &notAfter)
+    cfg[options.KubeControllerManagerClientCertAndKeyName] = cert.NewCertConfig(options.KubeControllerManagerCN, []string{"system:masters"}, certutil.AltNames{}, &notAfter)
+    cfg[options.KarmadaSchedulerClientCertAndKeyName] = cert.NewCertConfig(options.KarmadaSchedulerCN, []string{"system:masters"}, certutil.AltNames{}, &notAfter)
+    cfg[options.KarmadaDeschedulerClientCertAndKeyName] = cert.NewCertConfig(options.KarmadaDeschedulerCN, []string{"system:masters"}, certutil.AltNames{}, &notAfter)
+
+    // ETCD clients
+    cfg[options.KarmadaApiServerEtcdClientCertAndKeyName] = cert.NewCertConfig(options.KarmadaApiServerEtcdClientCN, []string{"system:masters"}, certutil.AltNames{}, &notAfter)
+    cfg[options.KarmadaAggregatedApiServerEtcdClientCertAndKeyName] = cert.NewCertConfig(options.KarmadaAggregatedApiServerEtcdClientCN, []string{"system:masters"}, certutil.AltNames{}, &notAfter)
+    cfg[options.KarmadaSearchEtcdClientCertAndKeyName] = cert.NewCertConfig(options.KarmadaSearchEtcdClientCN, []string{"system:masters"}, certutil.AltNames{}, &notAfter)
+    cfg[options.EtcdClientCertAndKeyName] = cert.NewCertConfig(options.KarmadaEtcdClientCN, []string{""}, certutil.AltNames{}, &notAfter)
+
+    // GRPC clients
+    cfg[options.KarmadaSchedulerGrpcCertAndKeyName] = cert.NewCertConfig(options.KarmadaSchedulerGrpcCN, []string{"system:masters"}, certutil.AltNames{}, &notAfter)
+    cfg[options.KarmadaDeschedulerGrpcCertAndKeyName] = cert.NewCertConfig(options.KarmadaDeschedulerGrpcCN, []string{"system:masters"}, certutil.AltNames{}, &notAfter)
+
+    // front-proxy client
+    cfg[options.FrontProxyClientCertAndKeyName] = cert.NewCertConfig(options.KarmadaFrontProxyClientCN, []string{}, certutil.AltNames{}, &notAfter)
+
+    if err := cert.NewGenCerts(i.KarmadaPkiPath, i.CaCertFile, i.CaKeyFile, cfg); err != nil {
+        return err
+    }
+    return nil
+}
+
 // prepareCRD download or unzip `crds.tar.gz` to `options.DataPath`
 func (i *CommandInitOption) prepareCRD() error {
 	var filename string
@@ -467,9 +641,9 @@ func (i *CommandInitOption) prepareCRD() error {
 }
 
 func (i *CommandInitOption) createCertsSecrets() error {
-	if strings.ToLower(i.SecretLayout) == secretLayoutSplit {
-		return i.createSplitCertsSecrets()
-	}
+    if strings.ToLower(i.SecretLayout) == secretLayoutSplit {
+        return i.createSplitCertsSecrets()
+    }
 	// Create karmada-config Secret
 	karmadaServerURL := fmt.Sprintf("https://%s.%s.svc.%s:%v", karmadaAPIServerDeploymentAndServiceName, i.Namespace, i.HostClusterDomain, karmadaAPIServerContainerPort)
 	config := utils.CreateWithCerts(karmadaServerURL, options.UserName, options.UserName, i.CertAndKeyFileData[fmt.Sprintf("%s.crt", globaloptions.CaCertAndKeyName)],
@@ -499,10 +673,10 @@ func (i *CommandInitOption) createCertsSecrets() error {
 	}
 
 	karmadaCert := map[string]string{}
-	for _, v := range certList {
-		karmadaCert[fmt.Sprintf("%s.crt", v)] = string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", v)])
-		karmadaCert[fmt.Sprintf("%s.key", v)] = string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", v)])
-	}
+    for _, v := range certListLegacy {
+        karmadaCert[fmt.Sprintf("%s.crt", v)] = string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", v)])
+        karmadaCert[fmt.Sprintf("%s.key", v)] = string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", v)])
+    }
 	karmadaSecret := i.SecretFromSpec(globaloptions.KarmadaCertsName, corev1.SecretTypeOpaque, karmadaCert)
 	if err := util.CreateOrUpdateSecret(i.KubeClientSet, karmadaSecret); err != nil {
 		return err
@@ -522,28 +696,53 @@ func (i *CommandInitOption) createCertsSecrets() error {
 
 // createSplitCertsSecrets creates per-component TLS secrets following the deploy-karmada.sh layout
 func (i *CommandInitOption) createSplitCertsSecrets() error {
-	// Kubeconfig for components (unchanged)
-	karmadaServerURL := fmt.Sprintf("https://%s.%s.svc.%s:%v", karmadaAPIServerDeploymentAndServiceName, i.Namespace, i.HostClusterDomain, karmadaAPIServerContainerPort)
-	config := utils.CreateWithCerts(karmadaServerURL, options.UserName, options.UserName, i.CertAndKeyFileData[fmt.Sprintf("%s.crt", globaloptions.CaCertAndKeyName)],
-		i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.KarmadaCertAndKeyName)], i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.KarmadaCertAndKeyName)])
-	configBytes, err := clientcmd.Write(*config)
-	if err != nil {
-		return fmt.Errorf("failure while serializing admin kubeConfig. %v", err)
-	}
+    // Kubeconfig for components (each uses its own client cert)
+    karmadaServerURL := fmt.Sprintf("https://%s.%s.svc.%s:%v", "karmada-apiserver", i.Namespace, i.HostClusterDomain, karmadaAPIServerContainerPort)
 
-	for _, karmadaConfigSecretName := range karmadaConfigList {
-		karmadaConfigSecret := i.SecretFromSpec(karmadaConfigSecretName, corev1.SecretTypeOpaque, map[string]string{util.KarmadaConfigFieldName: string(configBytes)})
-		if err = util.CreateOrUpdateSecret(i.KubeClientSet, karmadaConfigSecret); err != nil {
-			return err
-		}
-	}
+    // helper to create kubeconfig secret by client cert name
+    createCfg := func(secretName, clientCertName string) error {
+        cfg := utils.CreateWithCerts(
+            karmadaServerURL,
+            options.UserName,
+            options.UserName,
+            i.CertAndKeyFileData[fmt.Sprintf("%s.crt", globaloptions.CaCertAndKeyName)],
+            i.CertAndKeyFileData[fmt.Sprintf("%s.key", clientCertName)],
+            i.CertAndKeyFileData[fmt.Sprintf("%s.crt", clientCertName)],
+        )
+        b, err := clientcmd.Write(*cfg)
+        if err != nil {
+            return fmt.Errorf("failure while serializing component kubeConfig for %s: %v", secretName, err)
+        }
+        sec := i.SecretFromSpec(secretName, corev1.SecretTypeOpaque, map[string]string{util.KarmadaConfigFieldName: string(b)})
+        return util.CreateOrUpdateSecret(i.KubeClientSet, sec)
+    }
 
-	caCrt := string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", globaloptions.CaCertAndKeyName)])
-	caKey := string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", globaloptions.CaCertAndKeyName)])
-	karmadaCrt := string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.KarmadaCertAndKeyName)])
-	karmadaKey := string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.KarmadaCertAndKeyName)])
-	apiserverCrt := string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.ApiserverCertAndKeyName)])
-	apiserverKey := string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.ApiserverCertAndKeyName)])
+    // mapping from component config secret to its client cert name
+    cfgMapping := map[string]string{
+        util.KarmadaConfigName(names.KarmadaAggregatedAPIServerComponentName): options.KarmadaAggregatedApiServerClientCertAndKeyName,
+        util.KarmadaConfigName(names.KarmadaControllerManagerComponentName):   options.KarmadaControllerManagerClientCertAndKeyName,
+        util.KarmadaConfigName(names.KubeControllerManagerComponentName):      options.KubeControllerManagerClientCertAndKeyName,
+        util.KarmadaConfigName(names.KarmadaSchedulerComponentName):           options.KarmadaSchedulerClientCertAndKeyName,
+        util.KarmadaConfigName(names.KarmadaDeschedulerComponentName):         options.KarmadaDeschedulerClientCertAndKeyName,
+        util.KarmadaConfigName(names.KarmadaMetricsAdapterComponentName):      options.KarmadaMetricsAdapterClientCertAndKeyName,
+        util.KarmadaConfigName(names.KarmadaSearchComponentName):              options.KarmadaSearchClientCertAndKeyName,
+        util.KarmadaConfigName(names.KarmadaWebhookComponentName):             options.KarmadaWebhookClientCertAndKeyName,
+    }
+
+    for secretName, client := range cfgMapping {
+        if err := createCfg(secretName, client); err != nil {
+            return err
+        }
+    }
+
+    caCrt := string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", globaloptions.CaCertAndKeyName)])
+    caKey := string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", globaloptions.CaCertAndKeyName)])
+    apiserverCrt := string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.ApiserverCertAndKeyName)])
+    apiserverKey := string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.ApiserverCertAndKeyName)])
+    aggregatedCrt := string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.KarmadaAggregatedApiServerCertAndKeyName)])
+    aggregatedKey := string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.KarmadaAggregatedApiServerCertAndKeyName)])
+    webhookServerCrt := string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.KarmadaWebhookCertAndKeyName)])
+    webhookServerKey := string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.KarmadaWebhookCertAndKeyName)])
 	frontProxyCaCrt := string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.FrontProxyCaCertAndKeyName)])
 	frontProxyClientCrt := string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.FrontProxyClientCertAndKeyName)])
 	frontProxyClientKey := string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.FrontProxyClientCertAndKeyName)])
@@ -553,18 +752,23 @@ func (i *CommandInitOption) createSplitCertsSecrets() error {
 	etcdClientCrt := string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.EtcdClientCertAndKeyName)])
 	etcdClientKey := string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.EtcdClientCertAndKeyName)])
 
-	saPriv, saPub, err := generateServiceAccountKeyPairPEM()
+    saPriv, saPub, err := generateServiceAccountKeyPairPEM()
 	if err != nil {
 		return fmt.Errorf("generate service account key pair failed: %v", err)
 	}
 	saPrivStr := string(saPriv)
 	saPubStr := string(saPub)
 
-	err = i.createSecret(caCrt, caKey, karmadaCrt, karmadaKey, apiserverCrt, apiserverKey,
-		frontProxyCaCrt, frontProxyClientCrt, frontProxyClientKey, etcdCaCrt, etcdServerCrt, etcdServerKey, etcdClientCrt, etcdClientKey, saPrivStr, saPubStr)
-	if err != nil {
-		return err
-	}
+    err = i.createSecret(caCrt, caKey,
+        aggregatedCrt, aggregatedKey,
+        apiserverCrt, apiserverKey,
+        frontProxyCaCrt, frontProxyClientCrt, frontProxyClientKey,
+        etcdCaCrt, etcdServerCrt, etcdServerKey, etcdClientCrt, etcdClientKey,
+        saPrivStr, saPubStr,
+        webhookServerCrt, webhookServerKey)
+    if err != nil {
+        return err
+    }
 
 	// CA-only compatibility secret for addons to read CABundle
 	compat := i.SecretFromSpec(globaloptions.KarmadaCertsName, corev1.SecretTypeOpaque, map[string]string{certconst.KeyCACrt: caCrt})
@@ -572,33 +776,44 @@ func (i *CommandInitOption) createSplitCertsSecrets() error {
 		return err
 	}
 
-	return nil
+    return nil
 }
 
-func (i *CommandInitOption) createSecret(caCrt, caKey, karmadaCrt, karmadaKey, apiserverCrt, apiserverKey,
-	frontProxyCaCrt, frontProxyClientCrt, frontProxyClientKey, etcdCaCrt, etcdServerCrt, etcdServerKey, etcdClientCrt, etcdClientKey, saPriv, saPub string) error {
-	// Delegate secret creation to helper functions
-	if err := i.createAPIServerSecret(caCrt, apiserverCrt, apiserverKey, etcdCaCrt, etcdClientCrt, etcdClientKey, frontProxyCaCrt, frontProxyClientCrt, frontProxyClientKey, saPriv, saPub); err != nil {
-		return err
-	}
-	if err := i.createAggregatedAPIServerSecret(caCrt, karmadaCrt, karmadaKey, etcdCaCrt, etcdClientCrt, etcdClientKey); err != nil {
-		return err
-	}
-	if err := i.createEtcdSecret(etcdCaCrt, etcdServerCrt, etcdServerKey, etcdClientCrt, etcdClientKey); err != nil {
-		return err
-	}
-	if err := i.createKubeControllerManagerSecret(caCrt, caKey, saPriv, saPub); err != nil {
-		return err
-	}
-	if err := i.createKarmadaWebhookSecret(caCrt, karmadaCrt, karmadaKey); err != nil {
-		return err
-	}
-	if err := i.createKarmadaSchedulerEstimatorSecret(caCrt, karmadaCrt, karmadaKey); err != nil {
-		return err
-	}
-	if err := i.createKarmadaDeschedulerEstimatorSecret(caCrt, karmadaCrt, karmadaKey); err != nil {
-		return err
-	}
+func (i *CommandInitOption) createSecret(caCrt, caKey string,
+    aggregatedCrt, aggregatedKey string,
+    apiserverCrt, apiserverKey string,
+    frontProxyCaCrt, frontProxyClientCrt, frontProxyClientKey string,
+    etcdCaCrt, etcdServerCrt, etcdServerKey, etcdClientCrt, etcdClientKey string,
+    saPriv, saPub string,
+    webhookServerCrt, webhookServerKey string) error {
+    // Delegate secret creation to helper functions
+    if err := i.createAPIServerSecret(caCrt, apiserverCrt, apiserverKey, etcdCaCrt, etcdClientCrt, etcdClientKey, frontProxyCaCrt, frontProxyClientCrt, frontProxyClientKey, saPriv, saPub); err != nil {
+        return err
+    }
+    if err := i.createAggregatedAPIServerSecret(caCrt, aggregatedCrt, aggregatedKey, etcdCaCrt, etcdClientCrt, etcdClientKey); err != nil {
+        return err
+    }
+    if err := i.createEtcdSecret(etcdCaCrt, etcdServerCrt, etcdServerKey, etcdClientCrt, etcdClientKey); err != nil {
+        return err
+    }
+    if err := i.createKubeControllerManagerSecret(caCrt, caKey, saPriv, saPub); err != nil {
+        return err
+    }
+    if err := i.createKarmadaWebhookSecret(caCrt, webhookServerCrt, webhookServerKey); err != nil {
+        return err
+    }
+    // scheduler estimator client
+    schedEstCrt := string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.KarmadaSchedulerEstimatorClientCertAndKeyName)])
+    schedEstKey := string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.KarmadaSchedulerEstimatorClientCertAndKeyName)])
+    if err := i.createKarmadaSchedulerEstimatorSecret(caCrt, schedEstCrt, schedEstKey); err != nil {
+        return err
+    }
+    // descheduler estimator client (reuse descheduler client cert)
+    deschedEstCrt := string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.KarmadaDeschedulerClientCertAndKeyName)])
+    deschedEstKey := string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.KarmadaDeschedulerClientCertAndKeyName)])
+    if err := i.createKarmadaDeschedulerEstimatorSecret(caCrt, deschedEstCrt, deschedEstKey); err != nil {
+        return err
+    }
 
 	return nil
 }
@@ -812,19 +1027,29 @@ func (i *CommandInitOption) readExternalEtcdCert(name string) (isExternalEtcdCer
 
 // RunInit Deploy karmada in kubernetes
 func (i *CommandInitOption) RunInit(parentCommand string) error {
-	// generate certificate
-	if err := i.genCerts(); err != nil {
-		return fmt.Errorf("certificate generation failed.%v", err)
-	}
+    // generate certificates
+    if strings.ToLower(i.SecretLayout) == secretLayoutSplit {
+        if err := i.genCertsSplitFull(); err != nil {
+            return fmt.Errorf("certificate generation failed.%v", err)
+        }
+    } else {
+        if err := i.genCerts(); err != nil {
+            return fmt.Errorf("certificate generation failed.%v", err)
+        }
+    }
 
-	i.CertAndKeyFileData = map[string][]byte{}
+    i.CertAndKeyFileData = map[string][]byte{}
 
-	for _, v := range certList {
-		if isExternalEtcdCert, err := i.readExternalEtcdCert(v); err != nil {
-			return fmt.Errorf("read external etcd certificate failed, %s. %v", v, err)
-		} else if isExternalEtcdCert {
-			continue
-		}
+    list := certListLegacy
+    if strings.ToLower(i.SecretLayout) == secretLayoutSplit {
+        list = certListSplit
+    }
+    for _, v := range list {
+        if isExternalEtcdCert, err := i.readExternalEtcdCert(v); err != nil {
+            return fmt.Errorf("read external etcd certificate failed, %s. %v", v, err)
+        } else if isExternalEtcdCert {
+            continue
+        }
 		certs, err := utils.FileToBytes(i.KarmadaPkiPath, fmt.Sprintf("%s.crt", v))
 		if err != nil {
 			return fmt.Errorf("'%s.crt' conversion failed. %v", v, err)

@@ -17,20 +17,24 @@ limitations under the License.
 package cert
 
 import (
-	"crypto/sha256"
-	"fmt"
-	"io"
-	"net"
-	"os"
-	"path/filepath"
-	"testing"
-	"time"
+    "crypto/sha256"
+    "crypto/x509"
+    "encoding/pem"
+    "fmt"
+    "io"
+    "net"
+    "os"
+    "path/filepath"
+    "testing"
+    "time"
 
-	certutil "k8s.io/client-go/util/cert"
-	"k8s.io/klog/v2"
+    certutil "k8s.io/client-go/util/cert"
+    "k8s.io/klog/v2"
 
-	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
-	"github.com/karmada-io/karmada/pkg/util/names"
+    initopt "github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
+    globalopt "github.com/karmada-io/karmada/pkg/karmadactl/options"
+    "github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
+    "github.com/karmada-io/karmada/pkg/util/names"
 )
 
 const (
@@ -185,7 +189,67 @@ func compareFiles(file1, file2 string) (bool, error) {
 
 // compareCertFilesInDirs compares specific files in two directories to check if they are the same
 func compareCertFilesInDirs(dir1, dir2, filename string) (bool, error) {
-	file1 := filepath.Join(dir1, filename)
-	file2 := filepath.Join(dir2, filename)
-	return compareFiles(file1, file2)
+    file1 := filepath.Join(dir1, filename)
+    file2 := filepath.Join(dir2, filename)
+    return compareFiles(file1, file2)
+}
+
+// helper: read certificate from dir/name.{crt}
+func readCertFromPath(t *testing.T, dir, name string) *x509.Certificate {
+    t.Helper()
+    b, err := os.ReadFile(filepath.Join(dir, fmt.Sprintf("%s.crt", name)))
+    if err != nil {
+        t.Fatalf("failed reading cert %s: %v", name, err)
+    }
+    blk, _ := pem.Decode(b)
+    if blk == nil {
+        t.Fatalf("failed decoding PEM for %s", name)
+    }
+    crt, err := x509.ParseCertificate(blk.Bytes)
+    if err != nil {
+        t.Fatalf("failed parsing x509 for %s: %v", name, err)
+    }
+    return crt
+}
+
+// TestNewGenCerts_CASelection verifies certificates are signed by the expected CA
+// according to their names: etcd-* by etcd-ca, front-proxy-client by front-proxy-ca,
+// others by main CA.
+func TestNewGenCerts_CASelection(t *testing.T) {
+    dir := t.TempDir()
+    notAfter := time.Now().Add(Duration365d).UTC()
+
+    cfg := map[string]*CertsConfig{
+        // main CA signer
+        initopt.KarmadaApiServerCertAndKeyName: NewCertConfig(initopt.KarmadaApiServerCN, nil, certutil.AltNames{DNSNames: []string{"localhost"}, IPs: []net.IP{utils.StringToNetIP("127.0.0.1")}}, &notAfter),
+        // front-proxy CA signer
+        initopt.FrontProxyClientCertAndKeyName: NewCertConfig(initopt.KarmadaFrontProxyClientCN, nil, certutil.AltNames{}, &notAfter),
+        // etcd CA signer
+        initopt.KarmadaApiServerEtcdClientCertAndKeyName: NewCertConfig(initopt.KarmadaApiServerEtcdClientCN, nil, certutil.AltNames{}, &notAfter),
+    }
+
+    if err := NewGenCerts(dir, "", "", cfg); err != nil {
+        t.Fatalf("NewGenCerts error: %v", err)
+    }
+
+    // load CA certs
+    ca := readCertFromPath(t, dir, globalopt.CaCertAndKeyName)
+    etcdCA := readCertFromPath(t, dir, initopt.EtcdCaCertAndKeyName)
+    fpCA := readCertFromPath(t, dir, initopt.FrontProxyCaCertAndKeyName)
+
+    cases := []struct{
+        name     string
+        expected string
+    }{
+        {initopt.KarmadaApiServerCertAndKeyName, ca.Subject.CommonName},
+        {initopt.FrontProxyClientCertAndKeyName, fpCA.Subject.CommonName},
+        {initopt.KarmadaApiServerEtcdClientCertAndKeyName, etcdCA.Subject.CommonName},
+    }
+
+    for _, tc := range cases {
+        crt := readCertFromPath(t, dir, tc.name)
+        if got := crt.Issuer.CommonName; got != tc.expected {
+            t.Fatalf("%s issuer CN = %q, want %q", tc.name, got, tc.expected)
+        }
+    }
 }
