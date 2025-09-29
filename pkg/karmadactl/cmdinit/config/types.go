@@ -139,7 +139,7 @@ type LocalEtcd struct {
 	// +optional
 	StorageClassesName string `json:"storageClassesName,omitempty" yaml:"storageClassesName,omitempty"`
 
-	// ExtraArgs are additional arguments for the Etcd pods
+	// ExtraArgs are additional command line for the Etcd pods
 	// +optional
 	ExtraArgs []Arg `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
 }
@@ -308,7 +308,7 @@ type KarmadaAPIServer struct {
 	// +optional
 	ServiceAnnotations map[string]string `json:"serviceAnnotations,omitempty" yaml:"serviceAnnotations,omitempty"`
 
-	// ExtraArgs are additional arguments for the Karmada API Server pods
+	// ExtraArgs are additional command line for the Karmada API Server pods
 	// +optional
 	ExtraArgs []Arg `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
 }
@@ -317,7 +317,7 @@ type KarmadaAPIServer struct {
 type KarmadaAggregatedAPIServer struct {
 	CommonSettings `json:",inline" yaml:",inline"`
 
-	// ExtraArgs are additional arguments for the Karmada Aggregated API Server pods
+	// ExtraArgs are additional command line for the Karmada Aggregated API Server pods
 	// +optional
 	ExtraArgs []Arg `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
 }
@@ -326,7 +326,7 @@ type KarmadaAggregatedAPIServer struct {
 type KubeControllerManager struct {
 	CommonSettings `json:",inline" yaml:",inline"`
 
-	// ExtraArgs are additional arguments for the Kube Controller Manager pods
+	// ExtraArgs are additional command line for the Kube Controller Manager pods
 	// +optional
 	ExtraArgs []Arg `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
 }
@@ -335,7 +335,7 @@ type KubeControllerManager struct {
 type KarmadaControllerManager struct {
 	CommonSettings `json:",inline" yaml:",inline"`
 
-	// ExtraArgs are additional arguments for the Karmada Controller Manager pods
+	// ExtraArgs are additional command line for the Karmada Controller Manager pods
 	// +optional
 	ExtraArgs []Arg `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
 }
@@ -344,7 +344,7 @@ type KarmadaControllerManager struct {
 type KarmadaScheduler struct {
 	CommonSettings `json:",inline" yaml:",inline"`
 
-	// ExtraArgs are additional arguments for the Karmada Scheduler pods
+	// ExtraArgs are additional command line for the Karmada Scheduler pods
 	// +optional
 	ExtraArgs []Arg `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
 }
@@ -353,7 +353,7 @@ type KarmadaScheduler struct {
 type KarmadaWebhook struct {
 	CommonSettings `json:",inline" yaml:",inline"`
 
-	// ExtraArgs are additional arguments for the Karmada Webhook pods
+	// ExtraArgs are additional command line for the Karmada Webhook pods
 	// +optional
 	ExtraArgs []Arg `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
 }

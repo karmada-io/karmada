@@ -404,7 +404,6 @@ var errCase = []componentCommandCase{
 // Abstract a function that runs multiple test cases.
 func testCase(cases []componentCommandCase, t *testing.T) {
 	for _, c := range cases {
-
 		got, err := KarmadaComponentCommand(defaultArgs, c.extraArgs)
 		if err != nil {
 			if c.err == nil {
