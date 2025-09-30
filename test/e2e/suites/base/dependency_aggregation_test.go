@@ -1,4 +1,3 @@
-// filepath: /Users/tangkexin/Desktop/karmada/test/e2e/suites/base/dependency_aggregation_test.go
 package base
 
 import (
@@ -44,6 +43,7 @@ var _ = ginkgo.Describe("[DependenciesDistributor][Aggregation] multi-parent dep
 			framework.RemoveDeployment(kubeClient, depB.Namespace, depB.Name)
 		})
 
+		// create PropagationPolicies with PropagateDeps enabled
 		// create PropagationPolicies with PropagateDeps enabled
 		ppA := testhelper.NewPropagationPolicy(testNamespace, depAName, []policyv1alpha1.ResourceSelector{{
 			APIVersion: depA.APIVersion, Kind: depA.Kind, Name: depA.Name,
