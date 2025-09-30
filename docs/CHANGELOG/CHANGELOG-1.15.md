@@ -1,6 +1,7 @@
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
-**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
+
+**Table of Contents** _generated with [DocToc](https://github.com/thlorenz/doctoc)_
 
 - [v1.15.1](#v1151)
   - [Downloads for v1.15.1](#downloads-for-v1151)
@@ -102,11 +103,13 @@ Download v1.15.1 in the [v1.15.1 release page](https://github.com/karmada-io/kar
 - `karmada-operator`: Fixed the issue that CRDs can not be updated during upgrades of the Karmada instance. ([#6802](https://github.com/karmada-io/karmada/pull/6802), @RainbowMango)
 
 # v1.15.0
+
 ## Downloads for v1.15.0
 
 Download v1.15.0 in the [v1.15.0 release page](https://github.com/karmada-io/karmada/releases/tag/v1.15.0).
 
 ## Urgent Update Notes
+
 None.
 
 ## What's New
@@ -118,6 +121,7 @@ Previously, Karmada uses the `GetReplicas` interface to obtain workload replica 
 This release adds support for precise resource calculation of multi-component workloads through the new `GetComponents` interface. Karmada can now retrieve replica and resource requests for each component within a workload, enabling accurate resource accounting for Multi-Component Workloads.
 
 This can be especially useful if:
+
 - You need to track resource consumption and limits of Multi-Component Workloads.
 - You would like to prevent unnecessary scheduling of Multi-Component Workloads by verifying quota resource limits.
 
@@ -163,7 +167,9 @@ For the detailed progress and test report, please refer to [Issue: [Performance]
 (Performance contributors: @zach593, @LivingCcj, @CharlesQQ, @zhzhuang-zju, @XiShanYongYe-Chang)
 
 ## Other Notable Changes
+
 ### API Changes
+
 - Introduced `Components` field to `ResourceBinding`/`ClusterResourceBinding` API to represent the requirements of multiple pod templates. ([#6649](https://github.com/karmada-io/karmada/pull/6649), @RainbowMango)
 - Introduced `ComponentResource` field to `ResourceInterpreterCustomization` API to hold rules for discovering the resource requirements of workloads consisting of multiple components. ([#6659](https://github.com/karmada-io/karmada/pull/6659), @RainbowMango)
 - Introduced `spec.crdTarball.httpSource.proxy` field to `Karmada` API to optionally set a proxy for downloading CRD tarballs from an HTTP source. ([#6577](https://github.com/karmada-io/karmada/pull/6577), @jabellard)
@@ -171,6 +177,7 @@ For the detailed progress and test report, please refer to [Issue: [Performance]
 - The failover purge modes `Immediately`/`Graciously` have been deprecated and replaced by `Directly`/`Gracefully` respectively. ([#6387](https://github.com/karmada-io/karmada/pull/6387), @XiShanYongYe-Chang)
 
 ### Features & Enhancements
+
 - `karmada-controller-manager`: Enhanced ServiceAccount retention logic to also preserve `imagePullSecrets`, preventing their continuous regeneration in member clusters. ([#6532](https://github.com/karmada-io/karmada/pull/6532), @whitewindmills)
 - `karmada-controller-manager`: Added resource interpreter support for OpenKruise SidecarSet. Karmada can now interpret and manage OpenKruise SidecarSet resources across clusters, including multi-cluster status aggregation, health checks, dependency resolution for ConfigMaps and Secrets, and comprehensive test coverage. ([#6524](https://github.com/karmada-io/karmada/pull/6524), @abhi0324)
 - `karmada-controller-manager`: Added resource interpreter support for OpenKruise UnitedDeployment. Karmada can now interpret and manage OpenKruise UnitedDeployment resources across clusters, including multi-cluster status aggregation, health checks, dependency resolution for ConfigMaps and Secrets, and comprehensive test coverage. ([#6533](https://github.com/karmada-io/karmada/pull/6533), @abhi0324)
@@ -189,13 +196,16 @@ For the detailed progress and test report, please refer to [Issue: [Performance]
 - `ResourceInterpreter`: Implement the method `GetComponents` for `thirdpartyInterpreter`. ([#6687](https://github.com/karmada-io/karmada/pull/6687), @seanlaii)
 - `ResourceInterpreter`: Implement the method `GetComponents` for `FlinkDeployment` custom interpreter. ([#6697](https://github.com/karmada-io/karmada/pull/6697), @mszacillo)
 - `karmadactl`: Introduced `interpretComponent` operation in `karmadactl interpret`. ([#6696](https://github.com/karmada-io/karmada/pull/6696), @seanlaii)
+- `karmada-controller-manager`: Improved dependency distribution stability with policy aggregation across multiple parents, explicit-policy precedence, optional governance (FeatureGate `ForbidMultiDepPropagation`), and enhanced observability via events/metrics/logs. No CRD changes; default behavior remains backward-compatible. (PR: TBD)
 
 ### Deprecation
+
 - `karmada-controller-manager`/`karmada-agent`: The deprecated label `propagation.karmada.io/instruction`, which was designed to suspend Work propagation, has now been removed. ([#6512](https://github.com/karmada-io/karmada/pull/6512), @XiShanYongYe-Chang)
 - `karmada-controller-manager`: The flag `--failover-eviction-timeout` has been deprecated in release-1.14, now has been removed. ([#6450](https://github.com/karmada-io/karmada/pull/6450), @XiShanYongYe-Chang)
 - `karmada-webhook`: The `--default-not-ready-toleration-seconds` and `--default-unreachable-toleration-seconds` flags which were deprecated in release-1.14, now has been removed. ([#6444](https://github.com/karmada-io/karmada/pull/6444), @XiShanYongYe-Chang)
 
 ### Bug Fixes
+
 - `karmada-controller-manager`/`karmada-agent`: Fixed the issue that informer cache sync failures for specific resources incorrectly shut down all informers for that cluster, affecting resource distribution and work status synchronization. ([#6647](https://github.com/karmada-io/karmada/pull/6647), @zhzhuang-zju)
 - `karmada-controller-manager`: Fixed the issue that the informer cache gets unexpectedly modified during usage. ([#6544](https://github.com/karmada-io/karmada/pull/6544), @zhzhuang-zju)
 - `karmada-controller-manager`: Fixed an issue where the ConfigurableInterpreter could report as synced before its underlying informer cache was fully synchronized, preventing potential out-of-sync errors during startup. ([#6602](https://github.com/karmada-io/karmada/pull/6602), @XiShanYongYe-Chang)
@@ -220,10 +230,13 @@ For the detailed progress and test report, please refer to [Issue: [Performance]
 - `helm`: Fixed the issue where `helm upgrade` failed to update Karmada's static resources properly. ([#6395](https://github.com/karmada-io/karmada/pull/6395), @deefreak)
 
 ### Security
+
 - Bump go version to 1.24.5 for addressing CVE-2025-4674 concern. ([#6557](https://github.com/karmada-io/karmada/pull/6557), @seanlaii)
 
 ## Other
+
 ### Dependencies
+
 - Kubernetes dependencies have been updated to v1.33.2. ([#6498](https://github.com/karmada-io/karmada/pull/6498), @RainbowMango)
 - Upgraded sigs.k8s.io/metrics-server to v0.8.0. ([#6548](https://github.com/karmada-io/karmada/pull/6548), @seanlaii)
 - Upgraded sigs.k8s.io/kind to v0.29.0. ([#6549](https://github.com/karmada-io/karmada/pull/6549), @seanlaii)
@@ -233,6 +246,7 @@ For the detailed progress and test report, please refer to [Issue: [Performance]
 - The base image `alpine` now has been promoted from 3.21.3 to 3.22.1. ([#6560](https://github.com/karmada-io/karmada/pull/6560))
 
 ### Helm Charts
+
 - `Chart`: Introduced parameter `certs.auto.rootCAExpiryDays` for root CA certification expiry customization. ([#6447](https://github.com/karmada-io/karmada/pull/6447), @ryanwuer)
 - `karmada-search`: karmada-search helm chart template now references the resources from `search.resources`. ([#6517](https://github.com/karmada-io/karmada/pull/6517), @seanlaii)
 - `Helm chart`: The Karmada Operator chart now allows setting environment variables and extra arguments for the Karmada operator deployment. ([#6596](https://github.com/karmada-io/karmada/pull/6596), @jabellard)
@@ -241,6 +255,7 @@ For the detailed progress and test report, please refer to [Issue: [Performance]
 ### Instrumentation
 
 ### Performance
+
 - `karmada-controller-manager`/`karmada-agent`: Introduced a feature gate `ControllerPriorityQueue` that allows controllers to prioritize recent events, improving responsiveness during startup but potentially increasing the overall reconciliation frequency. ([#6662](https://github.com/karmada-io/karmada/pull/6662), @zach593)
 - `karmada-scheduler`: Optimized the scheduler step, invoking calculate `availableReplicas` is reduced to once, improving the performance. ([#6597](https://github.com/karmada-io/karmada/pull/6597), @LivingCcj)
 
@@ -284,6 +299,7 @@ Users whose commits are in this release (alphabetically by username)
 - zzklachlan
 
 # v1.15.0-rc.0
+
 ## Downloads for v1.15.0-rc.0
 
 Download v1.15.0-rc.0 in the [v1.15.0-rc.0 release page](https://github.com/karmada-io/karmada/releases/tag/v1.15.0-rc.0).
@@ -291,20 +307,25 @@ Download v1.15.0-rc.0 in the [v1.15.0-rc.0 release page](https://github.com/karm
 ## Changelog since v1.15.0-beta.0
 
 ## Urgent Update Notes
+
 None.
 
 ## Changes by Kind
 
 ### API Changes
+
 - `karmada-operator`: Introduced `spec.crdTarball.httpSource.proxy` field in `Karmada` API to optionally set a proxy for downloading CRD tarballs from an HTTP source. ([#6577](https://github.com/karmada-io/karmada/pull/6577), @jabellard)
 
 ### Features & Enhancements
+
 - `karmada-scheduler`: Added `QuotaExceeded` as the reason for the legacy `Scheduled` condition on ResourceBinding when scheduling fails due to FederatedResourceQuota limits. ([#6481](https://github.com/karmada-io/karmada/pull/6481), @mszacillo)
 
 ### Deprecation
+
 None.
 
 ### Bug Fixes
+
 - `karmada-controller-manager`: Fixed the issue that the informer cache gets unexpectedly modified during usage. ([#6544](https://github.com/karmada-io/karmada/pull/6544), @zhzhuang-zju)
 - `karmada-controller-manager`: Fixed an issue where the ConfigurableInterpreter could report as synced before its underlying informer cache was fully synchronized, preventing potential out-of-sync errors during startup. ([#6602](https://github.com/karmada-io/karmada/pull/6602), @XiShanYongYe-Chang)
 - `karmada-controller-manager`: Fixed the issue that resources are deleted unexpectedly due to the resourceInterpreter not properly handling the error and cache not being synced. ([#6612](https://github.com/karmada-io/karmada/pull/6612), @liaolecheng)
@@ -313,23 +334,30 @@ None.
 - `karmada-search`: Ensure the effective execution of informerfactory.WaitForCacheSync. ([#6554](https://github.com/karmada-io/karmada/pull/6554), @NickYadance)
 
 ### Security
+
 None.
 
 ## Other
+
 ### Dependencies
+
 - Karmada is now built with Golang v1.24.6. ([#6630](https://github.com/karmada-io/karmada/pull/6630), @liaolecheng)
 - The base image `alpine` now has been promoted from 3.22.0 to 3.22.1. ([#6560](https://github.com/karmada-io/karmada/pull/6560))
 
 ### Helm Charts
+
 - `Helm chart`: Karmada Operator chart now possible to set environment variables and extra arguments for the Karmada operator deployment. ([#6596](https://github.com/karmada-io/karmada/pull/6596), @jabellard)
 
 ### Instrumentation
+
 None.
 
 ### Performance
+
 None.
 
 # v1.15.0-beta.0
+
 ## Downloads for v1.15.0-beta.0
 
 Download v1.15.0-beta.0 in the [v1.15.0-beta.0 release page](https://github.com/karmada-io/karmada/releases/tag/v1.15.0-beta.0).
@@ -337,43 +365,55 @@ Download v1.15.0-beta.0 in the [v1.15.0-beta.0 release page](https://github.com/
 ## Changelog since v1.15.0-alpha.2
 
 ## Urgent Update Notes
+
 None.
 
 ## Changes by Kind
 
 ### API Changes
+
 None.
 
 ### Features & Enhancements
+
 - `karmada-controller-manager`: Added resource interpreter support for OpenKruise SidecarSet. Karmada can now interpret and manage OpenKruise SidecarSet resources across clusters, including multi-cluster status aggregation, health checks, dependency resolution for ConfigMaps and Secrets, and comprehensive test coverage. ([#6524](https://github.com/karmada-io/karmada/pull/6524), @abhi0324)
 - `karmada-controller-manager`: Added resource interpreter support for OpenKruise UnitedDeployment. Karmada can now interpret and manage OpenKruise UnitedDeployment resources across clusters, including multi-cluster status aggregation, health checks, dependency resolution for ConfigMaps and Secrets, and comprehensive test coverage. ([#6533](https://github.com/karmada-io/karmada/pull/6533), @abhi0324)
 
 ### Deprecation
+
 - The deprecated label `propagation.karmada.io/instruction`, which was designed to suspend Work propagation, has now been removed. ([#6512](https://github.com/karmada-io/karmada/pull/6512), @XiShanYongYe-Chang)
 
 ### Bug Fixes
+
 - `karmada-controller-manager`: Fixed the issue that EndpointSlice are deleted unexpectedly due to the EndpointSlice informer cache not being synced. ([#6434](https://github.com/karmada-io/karmada/pull/6434), @XiShanYongYe-Chang)
 
 ### Security
+
 - Bump go version to 1.24.5 for addressing CVE-2025-4674 concern. ([#6557](https://github.com/karmada-io/karmada/pull/6557), @seanlaii)
 
 ## Other
+
 ### Dependencies
+
 - Upgraded sigs.k8s.io/metrics-server to v0.8.0. ([#6548](https://github.com/karmada-io/karmada/pull/6548), @seanlaii)
 - Upgraded sigs.k8s.io/kind to v0.29.0. ([#6549](https://github.com/karmada-io/karmada/pull/6549), @seanlaii)
 - Upgraded vektra/mockery to v3.5.1, switching to a configuration-driven approach via mockery.yaml and removing deprecated v2 flags like --inpackage and --name. ([#6550](https://github.com/karmada-io/karmada/pull/6550), @liaolecheng)
 - Upgraded controller-gen to v0.18.0. ([#6558](https://github.com/karmada-io/karmada/pull/6558), @seanlaii)
 
 ### Helm Charts
+
 None.
 
 ### Instrumentation
+
 None.
 
 ### Performance
+
 None.
 
 # v1.15.0-alpha.2
+
 ## Downloads for v1.15.0-alpha.2
 
 Download v1.15.0-alpha.2 in the [v1.15.0-alpha.2 release page](https://github.com/karmada-io/karmada/releases/tag/v1.15.0-alpha.2).
@@ -381,40 +421,52 @@ Download v1.15.0-alpha.2 in the [v1.15.0-alpha.2 release page](https://github.co
 ## Changelog since v1.15.0-alpha.1
 
 ## Urgent Update Notes
+
 None.
 
 ## Changes by Kind
 
 ### API Changes
+
 None.
 
 ### Features & Enhancements
+
 - `karmada-controller-manager`: Enhanced ServiceAccount retention logic to also preserve `imagePullSecrets`, preventing their continuous regeneration in member clusters. ([#6532](https://github.com/karmada-io/karmada/pull/6532), @whitewindmills)
 - `karmada-aggregated-apiserver`: Introduced `--logging-format` flag which can be set to `json` to enable JSON logging. ([#6507](https://github.com/karmada-io/karmada/pull/6507), @ritzdevp)
 
 ### Deprecation
+
 None.
 
 ### Bug Fixes
+
 - `karmada-controller-manager`: Fixed the issue that resources will be recreated after being deleted on the cluster when resource is suspended for dispatching. ([#6525](https://github.com/karmada-io/karmada/pull/6525), @XiShanYongYe-Chang)
 
 ### Security
+
 None.
 
 ## Other
+
 ### Dependencies
+
 - Kubernetes dependencies have been updated to v1.33.2. ([#6498](https://github.com/karmada-io/karmada/pull/6498), @RainbowMango)
 
 ### Helm Charts
+
 - `karmada-search`: karmada-search helm chart template now references the resources from `search.resources`. ([#6517](https://github.com/karmada-io/karmada/pull/6517), @seanlaii)
 
 ### Instrumentation
+
 None.
 
 ### Performance
+
 None.
 
 # v1.15.0-alpha.1
+
 ## Downloads for v1.15.0-alpha.1
 
 Download v1.15.0-alpha.1 in the [v1.15.0-alpha.1 release page](https://github.com/karmada-io/karmada/releases/tag/v1.15.0-alpha.1).
@@ -426,9 +478,11 @@ Download v1.15.0-alpha.1 in the [v1.15.0-alpha.1 release page](https://github.co
 ## Changes by Kind
 
 ### API Changes
+
 None.
 
 ### Features & Enhancements
+
 - `karmada-webhook`: Introduced `--logging-format` flag which can be set to `json` to enable JSON logging. ([#6430](https://github.com/karmada-io/karmada/pull/6430), @seanlaii)
 - `karmada-scheduler-estimator`: Introduced `--logging-format` flag which can be set to `json` to enable JSON logging. ([#6457](https://github.com/karmada-io/karmada/pull/6457), @linyao22)
 - `karmada-scheduler`: Introduced `--logging-format` flag, which can be set to `json` to enable JSON logging. ([#6473](https://github.com/karmada-io/karmada/pull/6473), @zzklachlan)
@@ -438,26 +492,33 @@ None.
 - `karmada-operator`: Introduced `--logging-format` flag which can be set to `json` to enable JSON logging. ([#6496](https://github.com/karmada-io/karmada/pull/6496), @LeonZh0u)
 
 ### Deprecation
+
 - `karmada-webhook`: The `--default-not-ready-toleration-seconds` and `--default-unreachable-toleration-seconds` flags which were deprecated in release-1.14, now has been removed. ([#6444](https://github.com/karmada-io/karmada/pull/6444), @XiShanYongYe-Chang)
 - `karmaa-controller-manager`: The flag `--failover-eviction-timeout` has been deprecated in release-1.14, now has been removed. ([#6450](https://github.com/karmada-io/karmada/pull/6450), @XiShanYongYe-Chang)
 
 ### Bug Fixes
+
 - `karmada-controller-manager`: Fixed the issue that a workload propagated with `duplicated mode` can bypass quota checks during scale up. ([#6474](https://github.com/karmada-io/karmada/pull/6474), @zhzhuang-zju)
 - `karmada-controller-manager`: Fixed the issue where the federated-resource-quota-enforcement-controller miscalculates quota usage. ([#6477](https://github.com/karmada-io/karmada/pull/6477), @zhzhuang-zju)
 - `karmada-controller-manager`: Fixed the bug that cluster can not be unjoined in case of the `--enable-taint-manager=false` or the feature gate `Failover` is disabled. ([#6446](https://github.com/karmada-io/karmada/pull/6446), @XiShanYongYe-Chang)
 - `karmada-controller-manager`: Fixed the issue that `taint-maanger` didn't honour`--no-execute-taint-eviction-purge-mode` when evicting `ClusterResourceBinding`. ([#6491](https://github.com/karmada-io/karmada/pull/6491), @XiShanYongYe-Chang)
-- `helm`:  Fixed the issue where `helm upgrade` failed to update Karmada's static resources properly. ([#6395](https://github.com/karmada-io/karmada/pull/6395), @deefreak)
+- `helm`: Fixed the issue where `helm upgrade` failed to update Karmada's static resources properly. ([#6395](https://github.com/karmada-io/karmada/pull/6395), @deefreak)
 
 ### Security
+
 None.
 
 ## Other
+
 ### Dependencies
+
 - The base image `alpine` now has been promoted from 3.21.3 to 3.22.0. ([#6419](https://github.com/karmada-io/karmada/pull/6419))
 - Bump go version to 1.24.4. ([#6490](https://github.com/karmada-io/karmada/pull/6490), @seanlaii)
 
 ### Helm Charts
+
 - `Chart`: Introduced parameter `certs.auto.rootCAExpiryDays` for root ca certification expiry customization. ([#6447](https://github.com/karmada-io/karmada/pull/6447), @ryanwuer)
 
 ### Instrumentation
+
 None.
