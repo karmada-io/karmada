@@ -569,13 +569,13 @@ func (s *Scheduler) scheduleResourceBinding(rb *workv1alpha2.ResourceBinding) (e
 }
 
 func (s *Scheduler) scheduleResourceBindingWithClusterAffinity(rb *workv1alpha2.ResourceBinding) error {
-	klog.V(4).InfoS("Begin scheduling resource binding with ClusterAffinity", "resourceBinding", klog.KObj(rb))
-	defer klog.V(4).InfoS("End scheduling resource binding with ClusterAffinity", "resourceBinding", klog.KObj(rb))
+	klog.V(4).InfoS("Begin scheduling ResourceBinding with ClusterAffinity", "ResourceBinding", klog.KObj(rb))
+	defer klog.V(4).InfoS("End scheduling ResourceBinding with ClusterAffinity", "ResourceBinding", klog.KObj(rb))
 
 	placementBytes, err := json.Marshal(*rb.Spec.Placement)
 	if err != nil {
-		klog.V(4).ErrorS(err, "Failed to marshal binding placement", "resourceBinding", klog.KObj(rb))
-		return err
+		klog.ErrorS(err, "Failed to marshal placement", "ResourceBinding", klog.KObj(rb))
+		return fmt.Errorf("failed to marshal placement of ResourceBinding %s: %w", rb.GetName(), err)
 	}
 
 	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &rb.Spec, &rb.Status, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
@@ -597,13 +597,13 @@ func (s *Scheduler) scheduleResourceBindingWithClusterAffinity(rb *workv1alpha2.
 }
 
 func (s *Scheduler) scheduleResourceBindingWithClusterAffinities(rb *workv1alpha2.ResourceBinding) error {
-	klog.V(4).InfoS("Begin scheduling resourceBinding with ClusterAffinities", "resourceBinding", klog.KObj(rb))
-	defer klog.V(4).InfoS("End scheduling resourceBinding with ClusterAffinities", "resourceBinding", klog.KObj(rb))
+	klog.V(4).InfoS("Begin scheduling ResourceBinding with ClusterAffinities", "ResourceBinding", klog.KObj(rb))
+	defer klog.V(4).InfoS("End scheduling ResourceBinding with ClusterAffinities", "ResourceBinding", klog.KObj(rb))
 
 	placementBytes, err := json.Marshal(*rb.Spec.Placement)
 	if err != nil {
-		klog.V(4).ErrorS(err, "Failed to marshal binding placement", "resourceBinding", klog.KObj(rb))
-		return err
+		klog.ErrorS(err, "Failed to marshal placement", "ResourceBinding", klog.KObj(rb))
+		return fmt.Errorf("failed to marshal placement of ResourceBinding %s: %w", rb.GetName(), err)
 	}
 
 	var (
@@ -707,13 +707,13 @@ func (s *Scheduler) scheduleClusterResourceBinding(crb *workv1alpha2.ClusterReso
 }
 
 func (s *Scheduler) scheduleClusterResourceBindingWithClusterAffinity(crb *workv1alpha2.ClusterResourceBinding) error {
-	klog.V(4).InfoS("Begin scheduling clusterResourceBinding with ClusterAffinity", "clusterResourceBinding", klog.KObj(crb))
-	defer klog.V(4).InfoS("End scheduling clusterResourceBinding with ClusterAffinity", "clusterResourceBinding", klog.KObj(crb))
+	klog.V(4).InfoS("Begin scheduling ClusterResourceBinding with ClusterAffinity", "ClusterResourceBinding", klog.KObj(crb))
+	defer klog.V(4).InfoS("End scheduling ClusterResourceBinding with ClusterAffinity", "ClusterResourceBinding", klog.KObj(crb))
 
 	placementBytes, err := json.Marshal(*crb.Spec.Placement)
 	if err != nil {
-		klog.V(4).ErrorS(err, "Failed to marshal binding placement", "clusterResourceBinding", klog.KObj(crb))
-		return err
+		klog.ErrorS(err, "Failed to marshal placement", "ClusterResourceBinding", klog.KObj(crb))
+		return fmt.Errorf("failed to marshal placement of ClusterResourceBinding %s: %w", crb.GetName(), err)
 	}
 
 	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &crb.Spec, &crb.Status, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
@@ -735,13 +735,13 @@ func (s *Scheduler) scheduleClusterResourceBindingWithClusterAffinity(crb *workv
 }
 
 func (s *Scheduler) scheduleClusterResourceBindingWithClusterAffinities(crb *workv1alpha2.ClusterResourceBinding) error {
-	klog.V(4).InfoS("Begin scheduling clusterResourceBinding with ClusterAffinities", "clusterResourceBinding", klog.KObj(crb))
-	defer klog.V(4).InfoS("End scheduling clusterResourceBinding with ClusterAffinities", "clusterResourceBinding", klog.KObj(crb))
+	klog.V(4).InfoS("Begin scheduling ClusterResourceBinding with ClusterAffinities", "ClusterResourceBinding", klog.KObj(crb))
+	defer klog.V(4).InfoS("End scheduling ClusterResourceBinding with ClusterAffinities", "ClusterResourceBinding", klog.KObj(crb))
 
 	placementBytes, err := json.Marshal(*crb.Spec.Placement)
 	if err != nil {
-		klog.V(4).ErrorS(err, "Failed to marshal binding placement", "clusterResourceBinding", klog.KObj(crb))
-		return err
+		klog.ErrorS(err, "Failed to marshal placement", "ClusterResourceBinding", klog.KObj(crb))
+		return fmt.Errorf("failed to marshal placement of ClusterResourceBinding %s: %w", crb.GetName(), err)
 	}
 
 	var (
