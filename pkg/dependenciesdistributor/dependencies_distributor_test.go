@@ -18,11 +18,13 @@ package dependenciesdistributor
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"testing"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,6 +36,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/util/workqueue"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -42,6 +45,7 @@ import (
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
@@ -3428,6 +3432,209 @@ func Test_deleteBindingFromSnapshot(t *testing.T) {
 			gotExistSnapshot := deleteBindingFromSnapshot(tt.bindingNamespace, tt.bindingName, tt.existSnapshot)
 			if !reflect.DeepEqual(gotExistSnapshot, tt.expectExistSnapshot) {
 				t.Errorf("deleteBindingFromSnapshot() = %v, want %v", gotExistSnapshot, tt.expectExistSnapshot)
+			}
+		})
+	}
+}
+
+// LabelsKeyString is the object key which is a unique identifier under a cluster, across all resources.
+// labels field is the serialized labels string; the reason for this is that map is an incomparable type in golang
+// thus, the queue's add method cannot deduplicate
+type LabelsKeyString struct {
+	keys.ClusterWideKey
+	// Labels is the labels string of the referencing object.
+	Labels string
+}
+
+func Test_LabelsKey(t *testing.T) {
+	rateLimit := ratelimiterflag.Options{
+		RateLimiterBaseDelay:  time.Millisecond,
+		RateLimiterMaxDelay:   10 * time.Millisecond,
+		RateLimiterQPS:        5000,
+		RateLimiterBucketSize: 100,
+	}
+	tests := []struct {
+		name     string
+		keyFunc  util.KeyFunc
+		oldObj   *appsv1.Deployment
+		newObj   *appsv1.Deployment
+		wantSize int
+	}{
+		{
+			name: "keyFunc is LabelsKey",
+			keyFunc: func(obj interface{}) (util.QueueKey, error) {
+				key, err := keys.ClusterWideKeyFunc(obj)
+				if err != nil {
+					return nil, err
+				}
+				metaInfo, err := meta.Accessor(obj)
+				if err != nil { // should not happen
+					return nil, fmt.Errorf("object has no meta: %v", err)
+				}
+				return &LabelsKey{
+					ClusterWideKey: key,
+					Labels:         metaInfo.GetLabels(),
+				}, nil
+			},
+			oldObj: &appsv1.Deployment{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "bar",
+					Namespace: "foo",
+					Labels: map[string]string{
+						"key1": "value1",
+					},
+				},
+			},
+			newObj: &appsv1.Deployment{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "bar",
+					Namespace: "foo",
+					Labels: map[string]string{
+						"key1": "value1",
+					},
+				},
+			},
+			wantSize: 2,
+		},
+		{
+			name: "keyFunc is ClusterWideKey",
+			keyFunc: func(obj interface{}) (util.QueueKey, error) {
+				return keys.ClusterWideKeyFunc(obj)
+			},
+			oldObj: &appsv1.Deployment{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "bar",
+					Namespace: "foo",
+					Labels: map[string]string{
+						"key1": "value1",
+					},
+				},
+			},
+			newObj: &appsv1.Deployment{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "bar",
+					Namespace: "foo",
+					Labels: map[string]string{
+						"key1": "value1",
+					},
+				},
+			},
+			wantSize: 1,
+		},
+		{
+			name: "keyFunc is newFunc",
+			keyFunc: func(obj interface{}) (util.QueueKey, error) {
+				key, err := keys.ClusterWideKeyFunc(obj)
+				if err != nil {
+					return nil, err
+				}
+				metaInfo, err := meta.Accessor(obj)
+				if err != nil { // should not happen
+					return nil, fmt.Errorf("object has no meta: %v", err)
+				}
+				labelsByte, _ := json.Marshal(metaInfo.GetLabels())
+				return LabelsKeyString{
+					ClusterWideKey: key,
+					Labels:         string(labelsByte),
+				}, nil
+			},
+			oldObj: &appsv1.Deployment{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "bar",
+					Namespace: "foo",
+					Labels: map[string]string{
+						"key1": "value1",
+						"key2": "value2",
+					},
+				},
+			},
+			newObj: &appsv1.Deployment{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "bar",
+					Namespace: "foo",
+					Labels: map[string]string{
+						"key2": "value2",
+						"key1": "value1",
+					},
+				},
+			},
+			wantSize: 1,
+		},
+		{
+			name: "keyFunc is newFunc, but no labels",
+			keyFunc: func(obj interface{}) (util.QueueKey, error) {
+				key, err := keys.ClusterWideKeyFunc(obj)
+				if err != nil {
+					return nil, err
+				}
+				metaInfo, err := meta.Accessor(obj)
+				if err != nil { // should not happen
+					return nil, fmt.Errorf("object has no meta: %v", err)
+				}
+				labelsByte, _ := json.Marshal(metaInfo.GetLabels())
+				return LabelsKeyString{
+					ClusterWideKey: key,
+					Labels:         string(labelsByte),
+				}, nil
+			},
+			oldObj: &appsv1.Deployment{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "bar",
+					Namespace: "foo",
+				},
+			},
+			newObj: &appsv1.Deployment{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "bar",
+					Namespace: "foo",
+				},
+			},
+			wantSize: 1,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			queue := workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiterflag.DefaultControllerRateLimiter[any](rateLimit), workqueue.TypedRateLimitingQueueConfig[any]{
+				Name: tt.name,
+			})
+			oldKey, _ := tt.keyFunc(tt.oldObj)
+			newKey, _ := tt.keyFunc(tt.newObj)
+			queue.Add(oldKey)
+			queue.Add(newKey)
+			if queue.Len() != tt.wantSize {
+				t.Errorf("queue size = %v, want %v", queue.Len(), tt.wantSize)
 			}
 		})
 	}
