@@ -45,6 +45,8 @@ type Patcher struct {
 	featureGates      map[string]bool
 	volume            *operatorv1alpha1.VolumeData
 	resources         corev1.ResourceRequirements
+	tolerations       []corev1.Toleration
+	affinity          *corev1.Affinity
 }
 
 // NewPatcher returns a patcher.
@@ -112,6 +114,18 @@ func (p *Patcher) WithResources(resources corev1.ResourceRequirements) *Patcher 
 	return p
 }
 
+// WithTolerations sets tolerations to the patcher.
+func (p *Patcher) WithTolerations(tolerations []corev1.Toleration) *Patcher {
+	p.tolerations = tolerations
+	return p
+}
+
+// WithAffinity sets affinity to the patcher.
+func (p *Patcher) WithAffinity(affinity *corev1.Affinity) *Patcher {
+	p.affinity = affinity
+	return p
+}
+
 // ForDeployment patches the deployment manifest.
 func (p *Patcher) ForDeployment(deployment *appsv1.Deployment) {
 	deployment.Labels = labels.Merge(deployment.Labels, p.labels)
@@ -120,6 +134,13 @@ func (p *Patcher) ForDeployment(deployment *appsv1.Deployment) {
 	deployment.Annotations = labels.Merge(deployment.Annotations, p.annotations)
 	deployment.Spec.Template.Annotations = labels.Merge(deployment.Spec.Template.Annotations, p.annotations)
 	deployment.Spec.Template.Spec.PriorityClassName = p.priorityClassName
+
+	if p.affinity != nil {
+		deployment.Spec.Template.Spec.Affinity = p.affinity
+	}
+	if len(p.tolerations) > 0 {
+		deployment.Spec.Template.Spec.Tolerations = p.tolerations
+	}
 
 	if p.resources.Size() > 0 {
 		// It's considered the first container is the karmada component by default.
@@ -166,6 +187,13 @@ func (p *Patcher) ForStatefulSet(sts *appsv1.StatefulSet) {
 	sts.Annotations = labels.Merge(sts.Annotations, p.annotations)
 	sts.Spec.Template.Annotations = labels.Merge(sts.Spec.Template.Annotations, p.annotations)
 	sts.Spec.Template.Spec.PriorityClassName = p.priorityClassName
+
+	if p.affinity != nil {
+		sts.Spec.Template.Spec.Affinity = p.affinity
+	}
+	if len(p.tolerations) > 0 {
+		sts.Spec.Template.Spec.Tolerations = p.tolerations
+	}
 
 	if p.volume != nil {
 		patchVolumeForStatefulSet(sts, p.volume)
