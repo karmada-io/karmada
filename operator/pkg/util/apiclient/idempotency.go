@@ -18,6 +18,7 @@ package apiclient
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -37,6 +38,7 @@ import (
 	"k8s.io/klog/v2"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	aggregator "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset"
+	"k8s.io/utils/ptr"
 
 	"github.com/karmada-io/karmada/operator/pkg/constants"
 )
@@ -205,19 +207,31 @@ func CreateOrUpdateAPIService(apiRegistrationClient aggregator.Interface, apiser
 	return nil
 }
 
-// CreateCustomResourceDefinitionIfNeed creates a CustomResourceDefinition if the target resource doesn't exist. If the resource exists already, this function will update the resource instead.
-func CreateCustomResourceDefinitionIfNeed(client *crdsclient.Clientset, obj *apiextensionsv1.CustomResourceDefinition) error {
-	crdClient := client.ApiextensionsV1().CustomResourceDefinitions()
-	if _, err := crdClient.Create(context.TODO(), obj, metav1.CreateOptions{}); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return err
-		}
-
-		klog.V(5).InfoS("Skip already exist crd", "crd", obj.Name)
-		return nil
+// ApplyCRD applies the CRD to the Karmada API server
+func ApplyCRD(client *crdsclient.Clientset, obj *apiextensionsv1.CustomResourceDefinition) error {
+	data, err := json.Marshal(obj)
+	if err != nil {
+		klog.V(5).ErrorS(err, "Failed to marshall CRD data", "crd", obj.Name)
+		return err
 	}
 
-	klog.V(5).InfoS("Successfully created crd", "crd", obj.Name)
+	crdClient := client.ApiextensionsV1().CustomResourceDefinitions()
+	_, err = crdClient.Patch(
+		context.TODO(),
+		obj.Name,
+		types.ApplyPatchType,
+		data,
+		metav1.PatchOptions{
+			FieldManager: "karmada-operator",
+			Force:        ptr.To(true),
+		},
+	)
+	if err != nil {
+		klog.V(5).ErrorS(err, "Failed to apply CRD", "crd", obj.Name)
+		return err
+	}
+
+	klog.V(5).InfoS("Successfully applied CRD", "crd", obj.Name)
 	return nil
 }
 
