@@ -2,27 +2,32 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
+- [v1.14.5](#v1145)
+  - [Downloads for v1.14.5](#downloads-for-v1145)
+  - [Changelog since v1.14.4](#changelog-since-v1144)
+    - [Changes by Kind](#changes-by-kind)
+      - [Bug Fixes](#bug-fixes)
 - [v1.14.4](#v1144)
   - [Downloads for v1.14.4](#downloads-for-v1144)
   - [Changelog since v1.14.3](#changelog-since-v1143)
-    - [Changes by Kind](#changes-by-kind)
-      - [Bug Fixes](#bug-fixes)
+    - [Changes by Kind](#changes-by-kind-1)
+      - [Bug Fixes](#bug-fixes-1)
 - [v1.14.3](#v1143)
   - [Downloads for v1.14.3](#downloads-for-v1143)
   - [Changelog since v1.14.2](#changelog-since-v1142)
-    - [Changes by Kind](#changes-by-kind-1)
-      - [Bug Fixes](#bug-fixes-1)
+    - [Changes by Kind](#changes-by-kind-2)
+      - [Bug Fixes](#bug-fixes-2)
 - [v1.14.2](#v1142)
   - [Downloads for v1.14.2](#downloads-for-v1142)
   - [Changelog since v1.14.1](#changelog-since-v1141)
-    - [Changes by Kind](#changes-by-kind-2)
-      - [Bug Fixes](#bug-fixes-2)
+    - [Changes by Kind](#changes-by-kind-3)
+      - [Bug Fixes](#bug-fixes-3)
       - [Others](#others)
 - [v1.14.1](#v1141)
   - [Downloads for v1.14.1](#downloads-for-v1141)
   - [Changelog since v1.14.0](#changelog-since-v1140)
-    - [Changes by Kind](#changes-by-kind-3)
-      - [Bug Fixes](#bug-fixes-3)
+    - [Changes by Kind](#changes-by-kind-4)
+      - [Bug Fixes](#bug-fixes-4)
       - [Others](#others-1)
 - [v1.14.0](#v1140)
   - [Downloads for v1.14.0](#downloads-for-v1140)
@@ -35,7 +40,7 @@
   - [Other Notable Changes](#other-notable-changes)
     - [API Changes](#api-changes)
     - [Deprecation](#deprecation)
-    - [Bug Fixes](#bug-fixes-4)
+    - [Bug Fixes](#bug-fixes-5)
     - [Security](#security)
     - [Features & Enhancements](#features--enhancements)
   - [Other](#other)
@@ -47,11 +52,11 @@
   - [Downloads for v1.14.0-rc.0](#downloads-for-v1140-rc0)
   - [Changelog since v1.14.0-beta.0](#changelog-since-v1140-beta0)
   - [Urgent Update Notes](#urgent-update-notes-1)
-  - [Changes by Kind](#changes-by-kind-4)
+  - [Changes by Kind](#changes-by-kind-5)
     - [API Changes](#api-changes-1)
     - [Features & Enhancements](#features--enhancements-1)
     - [Deprecation](#deprecation-1)
-    - [Bug Fixes](#bug-fixes-5)
+    - [Bug Fixes](#bug-fixes-6)
     - [Security](#security-1)
   - [Other](#other-1)
     - [Dependencies](#dependencies-1)
@@ -62,11 +67,11 @@
   - [Downloads for v1.14.0-beta.0](#downloads-for-v1140-beta0)
   - [Changelog since v1.14.0-alpha.2](#changelog-since-v1140-alpha2)
   - [Urgent Update Notes](#urgent-update-notes-2)
-  - [Changes by Kind](#changes-by-kind-5)
+  - [Changes by Kind](#changes-by-kind-6)
     - [API Changes](#api-changes-2)
     - [Features & Enhancements](#features--enhancements-2)
     - [Deprecation](#deprecation-2)
-    - [Bug Fixes](#bug-fixes-6)
+    - [Bug Fixes](#bug-fixes-7)
     - [Security](#security-2)
   - [Other](#other-2)
     - [Dependencies](#dependencies-2)
@@ -77,11 +82,11 @@
   - [Downloads for v1.14.0-alpha.2](#downloads-for-v1140-alpha2)
   - [Changelog since v1.14.0-alpha.1](#changelog-since-v1140-alpha1)
   - [Urgent Update Notes](#urgent-update-notes-3)
-  - [Changes by Kind](#changes-by-kind-6)
+  - [Changes by Kind](#changes-by-kind-7)
     - [API Changes](#api-changes-3)
     - [Features & Enhancements](#features--enhancements-3)
     - [Deprecation](#deprecation-3)
-    - [Bug Fixes](#bug-fixes-7)
+    - [Bug Fixes](#bug-fixes-8)
     - [Security](#security-3)
   - [Other](#other-3)
     - [Dependencies](#dependencies-3)
@@ -92,11 +97,11 @@
   - [Downloads for v1.14.0-alpha.1](#downloads-for-v1140-alpha1)
   - [Changelog since v1.13.0](#changelog-since-v1130)
   - [Urgent Update Notes](#urgent-update-notes-4)
-  - [Changes by Kind](#changes-by-kind-7)
+  - [Changes by Kind](#changes-by-kind-8)
     - [API Changes](#api-changes-4)
     - [Features & Enhancements](#features--enhancements-4)
     - [Deprecation](#deprecation-4)
-    - [Bug Fixes](#bug-fixes-8)
+    - [Bug Fixes](#bug-fixes-9)
     - [Security](#security-4)
   - [Other](#other-4)
     - [Dependencies](#dependencies-4)
@@ -104,6 +109,17 @@
     - [Instrumentation](#instrumentation-4)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.14.5
+## Downloads for v1.14.5
+
+Download v1.14.5 in the [v1.14.5 release page](https://github.com/karmada-io/karmada/releases/tag/v1.14.5).
+
+## Changelog since v1.14.4
+### Changes by Kind
+#### Bug Fixes
+- `ResourceInterpreter`: Fixed the issue that when an object API field name contains dots or colons, it would cause the resource interpreter to fail. ([#6768](https://github.com/karmada-io/karmada/pull/6768), @rohan-019)
+- `karmada-operator`: Fixed the issue that CRDs can not be updated during upgrades of the Karmada instance. ([#6801](https://github.com/karmada-io/karmada/pull/6801), @RainbowMango)
 
 # v1.14.4
 ## Downloads for v1.14.4
