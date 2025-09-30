@@ -1,0 +1,8 @@
+tests:
+  - desiredInputPath: testdata/desired-notebook.yaml
+    statusInputPath: testdata/status-file.yaml
+    operation: AggregateStatus
+  - observedInputPath: testdata/observed-notebook.yaml
+    operation: InterpretHealth
+  - observedInputPath: testdata/observed-notebook.yaml
+    operation: InterpretStatus
