@@ -1,0 +1,98 @@
+apiVersion: config.karmada.io/v1alpha1
+kind: ResourceInterpreterCustomization
+metadata:
+  name: declarative-configuration-notebook
+spec:
+  target:
+    apiVersion: kubeflow.org/v1
+    kind: Notebook
+  customizations:
+    replicaResource:
+      luaScript: >
+        local kube = require("kube")
+        function GetReplicas(obj)
+          local replica = 1
+          local requirement = kube.accuratePodRequirements(obj.spec.template)
+          return replica, requirement
+        end
+    healthInterpretation:
+      luaScript: >
+        function InterpretHealth(observedObj)
+          if observedObj.status == nil or observedObj.status.containerState == nil then
+            return false
+          end
+
+          local state = observedObj.status.containerState
+          if state.running ~= nil then
+            return true
+          end
+
+          if state.waiting ~= nil then
+            return true
+          end
+
+          if state.terminated ~= nil then
+            local reason = state.terminated.reason or ""
+            local exitCode = state.terminated.exitCode or 0
+
+            if reason == "Error" or reason == "OOMKilled" or reason == "ContainerCannotRun" or exitCode ~= 0 then
+              return false
+            end
+
+            return true
+          end
+
+          return false
+        end
+    statusAggregation:
+      luaScript: >
+        function AggregateStatus(desiredObj, statusItems)
+          if statusItems == nil then
+            return desiredObj
+          end
+
+          local status = {
+            readyReplicas = 0,
+            containerState = {},
+            conditions = {}
+          }
+
+          for i = 1, #statusItems do
+            local s = statusItems[i]
+            if s ~= nil and s.status ~= nil then
+              local st = s.status
+              status.readyReplicas = status.readyReplicas + (st.readyReplicas or 0)
+              status.containerState = st.containerState or {}
+
+              if st.conditions ~= nil then
+                for _, c in ipairs(st.conditions) do
+                  table.insert(status.conditions, c)
+                end
+              end
+            end
+          end
+
+          desiredObj.status = status
+          return desiredObj
+        end
+    statusReflection:
+      luaScript: >
+        function ReflectStatus(observedObj)
+          if observedObj.status == nil then
+            return {}
+          end
+          local status = {
+            readyReplicas = 0,
+            containerState = {},
+            conditions = {}
+          }
+
+          local s = observedObj.status
+          status.readyReplicas = s.readyReplicas or 0
+          status.containerState = s.containerState or {}
+          if type(s.conditions) == "table" then
+            status.conditions = s.conditions
+          end
+
+          return status
+        end
