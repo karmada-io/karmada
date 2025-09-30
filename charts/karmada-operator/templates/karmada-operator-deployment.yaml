@@ -37,12 +37,18 @@ spec:
         image: {{ template "karmada.operator.image" . }}
         imagePullPolicy: {{ .Values.operator.image.pullPolicy }}
         ports:
-        - containerPort: 8080
+        - containerPort: {{ .Values.service.port }}
           name: metrics
           protocol: TCP
+        env:
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
         command:
         - /bin/karmada-operator
         - --leader-elect-resource-namespace={{ .Release.Namespace }}
+        - --metrics-bind-address=$(POD_IP):{{ .Values.service.port }}
         - --v=2
         {{- range .Values.operator.extraArgs }}
         - {{ . }}
