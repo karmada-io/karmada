@@ -17,22 +17,22 @@ limitations under the License.
 package kubernetes
 
 import (
-    "context"
-    "net"
-    "os"
-    "path/filepath"
-    "reflect"
-    "testing"
-    "time"
+	"context"
+	"net"
+	"os"
+	"path/filepath"
+	"reflect"
+	"testing"
+	"time"
 
-    "github.com/stretchr/testify/assert"
-    corev1 "k8s.io/api/core/v1"
-    metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-    "k8s.io/client-go/kubernetes/fake"
+	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/fake"
 
-    initopt "github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
-    "github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/config"
-    "github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
+	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/config"
+	initopt "github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
+	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 )
 
 func Test_initializeDirectory(t *testing.T) {
@@ -842,10 +842,10 @@ func TestGenCertsSplitFull_GeneratesExpectedSubset(t *testing.T) {
     subset := []string{
         initopt.EtcdCaCertAndKeyName,
         initopt.FrontProxyCaCertAndKeyName,
-        initopt.KarmadaApiServerCertAndKeyName,
-        initopt.KarmadaAggregatedApiServerCertAndKeyName,
-        initopt.KarmadaApiServerClientCertAndKeyName,
-        initopt.KarmadaAggregatedApiServerEtcdClientCertAndKeyName,
+        initopt.KarmadaAPIServerCertAndKeyName,
+        initopt.KarmadaAggregatedAPIServerCertAndKeyName,
+        initopt.KarmadaAPIServerClientCertAndKeyName,
+        initopt.KarmadaAggregatedAPIServerEtcdClientCertAndKeyName,
         initopt.EtcdClientCertAndKeyName,
         initopt.FrontProxyClientCertAndKeyName,
         initopt.EtcdServerCertAndKeyName,
@@ -875,8 +875,8 @@ func TestReadExternalEtcdCert_SplitVariants(t *testing.T) {
 
     names := []string{
         initopt.EtcdClientCertAndKeyName,
-        initopt.KarmadaApiServerEtcdClientCertAndKeyName,
-        initopt.KarmadaAggregatedApiServerEtcdClientCertAndKeyName,
+        initopt.KarmadaAPIServerEtcdClientCertAndKeyName,
+        initopt.KarmadaAggregatedAPIServerEtcdClientCertAndKeyName,
         initopt.KarmadaSearchEtcdClientCertAndKeyName,
     }
     for _, n := range names {
