@@ -53,7 +53,6 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/dependenciesdistributor/metrics"
 	"github.com/karmada-io/karmada/pkg/events"
-	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -627,17 +626,6 @@ func (d *DependenciesDistributor) createOrUpdateAttachedBinding(attachedBinding 
 		existBinding.Labels = util.DedupeAndMergeLabels(existBinding.Labels, attachedBinding.Labels)
 		existBinding.Spec.Resource = attachedBinding.Spec.Resource
 
-		// Governance: forbid multi-parent when feature gate is enabled and this is dependency-generated RB (nil Placement).
-		if existBinding.Spec.Placement == nil && features.FeatureGate.Enabled(features.ForbidMultiDepPropagation) {
-			if len(existBinding.Spec.RequiredBy) > 1 {
-				msg := fmt.Sprintf("Dependency binding %s/%s has multiple parents (%d). FeatureGate ForbidMultiDepPropagation is enabled. "+
-					"To proceed, merge parent policies into a single PropagationPolicy/ClusterPropagationPolicy or remove extra dependency relationships.", existBinding.Namespace, existBinding.Name, len(existBinding.Spec.RequiredBy))
-				klog.Warning(msg)
-				d.EventRecorder.Eventf(existBinding, corev1.EventTypeWarning, events.EventReasonDependencyMultiParentBlocked, msg)
-				return fmt.Errorf("%s", msg)
-			}
-		}
-
 		if existBinding.Spec.Placement == nil {
 			// dependency-generated RB: compute aggregated values based on all parents.
 			aggCR, aggPreserve, hasConflict, details, aggErr := d.aggregatePolicyForAttachedBinding(context.TODO(), existBinding.Spec.RequiredBy)
@@ -649,11 +637,6 @@ func (d *DependenciesDistributor) createOrUpdateAttachedBinding(attachedBinding 
 			metrics.DependencyParentsCount.WithLabelValues(existBinding.Namespace).Observe(float64(len(existBinding.Spec.RequiredBy)))
 			// Logs: detailed summary
 			klog.V(3).Infof("[dep-agg] RB %s/%s parents=%d agg{cr=%s,preserve=%v} details=[%s]", existBinding.Namespace, existBinding.Name, len(existBinding.Spec.RequiredBy), aggCR, ptr.Deref(aggPreserve, false), details)
-			// When multi-parent is allowed but detected, emit a warning for observability.
-			if len(existBinding.Spec.RequiredBy) > 1 && !features.FeatureGate.Enabled(features.ForbidMultiDepPropagation) {
-				d.EventRecorder.Eventf(existBinding, corev1.EventTypeWarning, events.EventReasonDependencyMultiParentDetected,
-					"Dependency-generated binding has %d parents; consider merging policies or removing extra dependencies.", len(existBinding.Spec.RequiredBy))
-			}
 			needUpdate := false
 			if existBinding.Spec.ConflictResolution != aggCR {
 				existBinding.Spec.ConflictResolution = aggCR
@@ -702,17 +685,6 @@ func (d *DependenciesDistributor) createOrUpdateAttachedBinding(attachedBinding 
 	}
 
 	// New attached binding: pre-compute aggregated values from its initial parent set.
-	// Governance: check multi-parent for new dependency-generated RB when feature gate is enabled.
-	if features.FeatureGate.Enabled(features.ForbidMultiDepPropagation) {
-		if len(attachedBinding.Spec.RequiredBy) > 1 {
-			msg := fmt.Sprintf("Dependency binding %s/%s has multiple parents (%d). FeatureGate ForbidMultiDepPropagation is enabled. "+
-				"To proceed, merge parent policies into a single PropagationPolicy/ClusterPropagationPolicy or remove extra dependency relationships.", attachedBinding.Namespace, attachedBinding.Name, len(attachedBinding.Spec.RequiredBy))
-			klog.Warning(msg)
-			d.EventRecorder.Eventf(attachedBinding, corev1.EventTypeWarning, events.EventReasonDependencyMultiParentBlocked, msg)
-			return fmt.Errorf("%s", msg)
-		}
-	}
-
 	aggCR, aggPreserve, hasConflict, details, aggErr := d.aggregatePolicyForAttachedBinding(context.TODO(), attachedBinding.Spec.RequiredBy)
 	if aggErr != nil {
 		return aggErr
@@ -725,11 +697,6 @@ func (d *DependenciesDistributor) createOrUpdateAttachedBinding(attachedBinding 
 
 	if err := d.Client.Create(context.TODO(), attachedBinding); err != nil {
 		return err
-	}
-	// When multi-parent is allowed but detected, emit a warning for observability.
-	if len(attachedBinding.Spec.RequiredBy) > 1 && !features.FeatureGate.Enabled(features.ForbidMultiDepPropagation) {
-		d.EventRecorder.Eventf(attachedBinding, corev1.EventTypeWarning, events.EventReasonDependencyMultiParentDetected,
-			"Dependency-generated binding has %d parents; consider merging policies or removing extra dependencies.", len(attachedBinding.Spec.RequiredBy))
 	}
 	if hasConflict {
 		metrics.DependencyPolicyConflictsTotal.WithLabelValues(attachedBinding.Namespace).Inc()

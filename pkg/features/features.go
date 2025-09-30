@@ -127,16 +127,6 @@ const (
 	// owner: @zach593
 	// alpha: v1.15
 	ControllerPriorityQueue featuregate.Feature = "ControllerPriorityQueue"
-
-	// ForbidMultiDepPropagation controls whether DependenciesDistributor forbids creating
-	// multi-parent relationships for dependency-generated ResourceBindings. When enabled,
-	// attempts to attach an additional parent to an existing attached binding will be blocked
-	// with clear events and errors suggesting to merge policies or remove extra dependencies.
-	// When disabled, such multi-parent relationships are allowed but warnings will be emitted.
-	//
-	// owner: @your-github-id
-	// alpha: v1.15
-	ForbidMultiDepPropagation featuregate.Feature = "ForbidMultiDepPropagation"
 )
 
 var (
@@ -164,7 +154,6 @@ var (
 		ContextualLogging:                 {Default: true, PreRelease: featuregate.Beta},
 		MultiplePodTemplatesScheduling:    {Default: false, PreRelease: featuregate.Alpha},
 		ControllerPriorityQueue:           {Default: false, PreRelease: featuregate.Alpha},
-		ForbidMultiDepPropagation:         {Default: false, PreRelease: featuregate.Alpha},
 	}
 )
 
