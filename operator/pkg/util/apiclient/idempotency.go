@@ -97,7 +97,7 @@ func CreateOrUpdateService(client clientset.Interface, service *corev1.Service) 
 			// Ignore if the Service is invalid with this error message:
 			// Service "apiserver" is invalid: provided Port is already allocated.
 			if apierrors.IsInvalid(err) && strings.Contains(err.Error(), errAllocated.Error()) {
-				klog.V(2).ErrorS(err, "failed to create or update service", "service", klog.KObj(service))
+				klog.ErrorS(err, "failed to create or update service", "service", klog.KObj(service))
 				return nil
 			}
 			return fmt.Errorf("unable to create Service: %v", err)
@@ -211,8 +211,8 @@ func CreateOrUpdateAPIService(apiRegistrationClient aggregator.Interface, apiser
 func ApplyCRD(client *crdsclient.Clientset, obj *apiextensionsv1.CustomResourceDefinition) error {
 	data, err := json.Marshal(obj)
 	if err != nil {
-		klog.V(5).ErrorS(err, "Failed to marshall CRD data", "crd", obj.Name)
-		return err
+		klog.ErrorS(err, "Failed to marshall CRD data", "crd", obj.Name)
+		return fmt.Errorf("failed to marshall CRD %s: %w", obj.Name, err)
 	}
 
 	crdClient := client.ApiextensionsV1().CustomResourceDefinitions()
@@ -227,8 +227,8 @@ func ApplyCRD(client *crdsclient.Clientset, obj *apiextensionsv1.CustomResourceD
 		},
 	)
 	if err != nil {
-		klog.V(5).ErrorS(err, "Failed to apply CRD", "crd", obj.Name)
-		return err
+		klog.ErrorS(err, "Failed to apply CRD", "crd", obj.Name)
+		return fmt.Errorf("failed to apply CRD %s: %w", obj.Name, err)
 	}
 
 	klog.V(5).InfoS("Successfully applied CRD", "crd", obj.Name)
