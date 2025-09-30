@@ -344,7 +344,13 @@ data:
         clusters:
           - cluster:
               certificate-authority-data: {{ print "{{ ca_crt }}" }}
+              {{- if and (.Values.apiServer.hostIP) (eq .Values.apiServer.serviceType "NodePort") (.Values.apiServer.nodePort) }}
+              server: https://{{ .Values.apiServer.hostIP }}:{{ .Values.apiServer.nodePort }}
+              {{- else if .Values.apiServer.hostIP }}
+              server: https://{{ .Values.apiServer.hostIP }}:5443
+              {{- else }}
               server: https://{{ $name }}-apiserver.{{ $namespace }}.svc.{{ .Values.clusterDomain }}:5443
+              {{- end }}
             name: {{ $name }}-apiserver
         users:
           - user:
@@ -443,9 +449,13 @@ spec:
           openssl req -x509 -sha256 -new -nodes -days {{ .Values.certs.auto.rootCAExpiryDays }} -newkey rsa:{{ .Values.certs.auto.rsaSize }} -keyout "/opt/certs/server-ca.key" -out "/opt/certs/server-ca.crt" -subj "/C=xx/ST=x/L=x/O=x/OU=x/CN=ca/emailAddress=x/"
           openssl req -x509 -sha256 -new -nodes -days {{ .Values.certs.auto.rootCAExpiryDays }} -newkey rsa:{{ .Values.certs.auto.rsaSize }} -keyout "/opt/certs/front-proxy-ca.key" -out "/opt/certs/front-proxy-ca.crt" -subj "/C=xx/ST=x/L=x/O=x/OU=x/CN=ca/emailAddress=x/"
           echo '{"signing":{"default":{"expiry":{{ printf `"%s"` .Values.certs.auto.expiry }},"usages":["signing","key encipherment","client auth","server auth"]}}}' > "/opt/certs/server-ca-config.json"
-          echo '{"CN":"system:admin","hosts":{{ tpl (toJson .Values.certs.auto.hosts) . }},"names":[{"O":"system:masters"}],"key":{"algo":"rsa","size":{{ .Values.certs.auto.rsaSize }}}}' | cfssl gencert -ca=/opt/certs/server-ca.crt -ca-key=/opt/certs/server-ca.key -config=/opt/certs/server-ca-config.json - | cfssljson -bare /opt/certs/karmada
+          {{- $hosts := .Values.certs.auto.hosts }}
+          {{- if .Values.apiServer.hostIP }}
+          {{- $hosts = append $hosts .Values.apiServer.hostIP }}
+          {{- end }}
+          echo '{"CN":"system:admin","hosts":{{ tpl (toJson $hosts) . }},"names":[{"O":"system:masters"}],"key":{"algo":"rsa","size":{{ .Values.certs.auto.rsaSize }}}}' | cfssl gencert -ca=/opt/certs/server-ca.crt -ca-key=/opt/certs/server-ca.key -config=/opt/certs/server-ca-config.json - | cfssljson -bare /opt/certs/karmada
           echo '{"signing":{"default":{"expiry":{{ printf `"%s"` .Values.certs.auto.expiry }},"usages":["signing","key encipherment","client auth","server auth"]}}}' > "/opt/certs/front-proxy-ca-config.json"
-          echo '{"CN":"front-proxy-client","hosts":{{ tpl (toJson .Values.certs.auto.hosts) . }},"names":[{"O":"system:masters"}],"key":{"algo":"rsa","size":{{ .Values.certs.auto.rsaSize }}}}' | cfssl gencert -ca=/opt/certs/front-proxy-ca.crt -ca-key=/opt/certs/front-proxy-ca.key -config=/opt/certs/front-proxy-ca-config.json - | cfssljson -bare /opt/certs/front-proxy-client
+          echo '{"CN":"front-proxy-client","hosts":{{ tpl (toJson $hosts) . }},"names":[{"O":"system:masters"}],"key":{"algo":"rsa","size":{{ .Values.certs.auto.rsaSize }}}}' | cfssl gencert -ca=/opt/certs/front-proxy-ca.crt -ca-key=/opt/certs/front-proxy-ca.key -config=/opt/certs/front-proxy-ca-config.json - | cfssljson -bare /opt/certs/front-proxy-client
           karmada_ca=$(base64 /opt/certs/server-ca.crt | tr -d '\r\n')
           karmada_ca_key=$(base64 /opt/certs/server-ca.key | tr -d '\r\n')
           karmada_crt=$(base64 /opt/certs/karmada.pem | tr -d '\r\n')
