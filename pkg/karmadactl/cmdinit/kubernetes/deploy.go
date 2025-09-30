@@ -154,6 +154,8 @@ type CommandInitOption struct {
 	EtcdNodeSelectorLabelsMap map[string]string
 	EtcdPersistentVolumeSize  string
 	EtcdPriorityClass         string
+	EtcdExtraArgs             []string
+	EtcdContainerCmd          []string // The command for containers in a Pod.
 
 	// external etcd
 	ExternalEtcdCACertPath     string
@@ -169,30 +171,43 @@ type CommandInitOption struct {
 	KarmadaAPIServerNodePort         int32
 	KarmadaAPIServerIP               []net.IP
 	KarmadaAPIServerPriorityClass    string
+	KarmadaAPIServerExtraArgs        []string
+	KarmadaAPIServerContainerCmd     []string
 
 	// karmada-scheduler
 	KarmadaSchedulerImage         string
 	KarmadaSchedulerReplicas      int32
 	KarmadaSchedulerPriorityClass string
+	KarmadaSchedulerExtraArgs     []string
+	KarmadaSchedulerContainerCmd  []string
 
 	// kube-controller-manager
 	KubeControllerManagerImage         string
 	KubeControllerManagerReplicas      int32
 	KubeControllerManagerPriorityClass string
+	KubeControllerManagerExtraArgs     []string
+	KubeControllerManagerContainerCmd  []string
 
 	// karmada-controller-manager
 	KarmadaControllerManagerImage         string
 	KarmadaControllerManagerReplicas      int32
 	KarmadaControllerManagerPriorityClass string
+	KarmadaControllerManagerExtraArgs     []string
+	KarmadaControllerManagerContainerCmd  []string
 
+	// karmada-webhook
 	KarmadaWebhookImage         string
 	KarmadaWebhookReplicas      int32
 	KarmadaWebhookPriorityClass string
+	KarmadaWebhookExtraArgs     []string
+	KarmadaWebhookContainerCmd  []string
 
 	// karamda-aggregated-apiserver
 	KarmadaAggregatedAPIServerImage         string
 	KarmadaAggregatedAPIServerReplicas      int32
 	KarmadaAggregatedAPIServerPriorityClass string
+	KarmadaAggregatedAPIServerExtraArgs     []string
+	KarmadaAggregatedAPIServerContainerCmd  []string
 
 	Namespace          string
 	KubeConfig         string
@@ -257,6 +272,42 @@ func (i *CommandInitOption) isExternalEtcdProvided() bool {
 	return i.ExternalEtcdServers != ""
 }
 
+func (i *CommandInitOption) validateCommandLineArgs() error {
+	type validateCommandLine struct {
+		name                string
+		commandLine         *[]string       // final
+		defaultCommandLine  func() []string // default
+		additionCommandLine *[]string       // addition
+	}
+
+	validateCommandLines := []validateCommandLine{
+		{names.KarmadaEtcdComponentName, &i.EtcdContainerCmd, i.defaultEtcdContainerCommand, &i.EtcdExtraArgs},
+		{names.KarmadaAPIServerComponentName, &i.KarmadaAPIServerContainerCmd, i.defaultKarmadaAPIServerContainerCommand, &i.KarmadaAPIServerExtraArgs},
+		{names.KarmadaSchedulerComponentName, &i.KarmadaSchedulerContainerCmd, i.defaultKarmadaSchedulerContainerCommand, &i.KarmadaSchedulerExtraArgs},
+		{names.KubeControllerManagerComponentName, &i.KubeControllerManagerContainerCmd, i.defaultKarmadaKubeControllerManagerContainerCommand, &i.KubeControllerManagerExtraArgs},
+		{names.KarmadaControllerManagerComponentName, &i.KarmadaControllerManagerContainerCmd, i.defaultKarmadaControllerManagerContainerCommand, &i.KarmadaControllerManagerExtraArgs},
+		{names.KarmadaWebhookComponentName, &i.KarmadaWebhookContainerCmd, i.defaultKarmadaWebhookContainerCommand, &i.KarmadaWebhookExtraArgs},
+		{names.KarmadaAggregatedAPIServerComponentName, &i.KarmadaAggregatedAPIServerContainerCmd, i.defaultKarmadaAggregatedAPIServerContainerCommand, &i.KarmadaAggregatedAPIServerExtraArgs},
+	}
+	for _, validate := range validateCommandLines {
+		if *validate.additionCommandLine != nil {
+			var err error
+			*validate.commandLine, err = i.validateExtraArgs(validate.defaultCommandLine(), *validate.additionCommandLine)
+			if err != nil {
+				klog.Errorf("validate %s extra args failed: %v", validate.name, err)
+				return err
+			}
+		} else {
+			*validate.commandLine = validate.defaultCommandLine()
+		}
+	}
+	return nil
+}
+
+func (i *CommandInitOption) validateExtraArgs(defaultArgs, extraArgs []string) ([]string, error) {
+	return utils.KarmadaComponentCommand(defaultArgs, extraArgs)
+}
+
 // Validate Check that there are enough flags to run the command.
 func (i *CommandInitOption) Validate(parentCommand string) error {
 	if i.KarmadaInitFilePath != "" {
@@ -286,9 +337,20 @@ func (i *CommandInitOption) Validate(parentCommand string) error {
 	}
 
 	if i.isExternalEtcdProvided() {
-		return i.validateExternalEtcd(parentCommand)
+		if err := i.validateExternalEtcd(parentCommand); err != nil {
+			return err
+		}
+	} else {
+		if err := i.validateLocalEtcd(parentCommand); err != nil {
+			return err
+		}
 	}
-	return i.validateLocalEtcd(parentCommand)
+	// validate command line args
+	err := i.validateCommandLineArgs()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // Complete Initialize k8s client
