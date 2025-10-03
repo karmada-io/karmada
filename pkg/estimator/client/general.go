@@ -53,15 +53,6 @@ func (ge *GeneralEstimator) MaxAvailableReplicas(_ context.Context, clusters []*
 	return availableTargetClusters, nil
 }
 
-// MaxAvailableComponentSets returns the maximum number of complete multi-component sets (in terms of replicas) that each cluster can host.
-func (ge *GeneralEstimator) MaxAvailableComponentSets(
-	_ context.Context,
-	_ *ComponentSetEstimationRequest) ([]ComponentSetEstimationResponse, error) {
-	// Dummy implementation: return nothing for now
-	// TODO: Implement as part of #6734
-	return nil, nil
-}
-
 func (ge *GeneralEstimator) maxAvailableReplicas(cluster *clusterv1alpha1.Cluster, replicaRequirements *workv1alpha2.ReplicaRequirements) int32 {
 	//Note: resourceSummary must be deep-copied before using in the function to avoid modifying the original data structure.
 	resourceSummary := cluster.Status.ResourceSummary.DeepCopy()
@@ -100,6 +91,132 @@ func (ge *GeneralEstimator) maxAvailableReplicas(cluster *clusterv1alpha1.Cluste
 	}
 
 	return int32(maximumReplicas) // #nosec G115: integer overflow conversion int64 -> int32
+}
+
+// MaxAvailableComponentSets (generic estimator) – resourceSummary only.
+func (ge *GeneralEstimator) MaxAvailableComponentSets(
+	ctx context.Context,
+	req *ComponentSetEstimationRequest,
+) ([]ComponentSetEstimationResponse, error) {
+	responses := make([]ComponentSetEstimationResponse, len(req.Clusters))
+	for i, cluster := range req.Clusters {
+		maxComponentSets := ge.maxAvailableComponentSets(cluster, req.Components)
+		responses[i] = ComponentSetEstimationResponse{Name: cluster.Name, Sets: maxComponentSets}
+	}
+	return responses, nil
+}
+
+func (ge *GeneralEstimator) maxAvailableComponentSets(cluster *clusterv1alpha1.Cluster, components []*workv1alpha2.Component) int32 {
+	// Compute per-set aggregate requirement (e.g. CPU, Memory)
+	setCPU, setMem := perSetRequirement(components)
+	resourceSummary := cluster.Status.ResourceSummary.DeepCopy()
+	if resourceSummary == nil {
+		return 0
+	}
+
+	// Upper bound by pods
+	maxSets := getAllowedPodNumber(resourceSummary)
+	if maxSets <= 0 {
+		return 0
+	}
+
+	// Fallback to allowedPodNumber if there is no resourceRequirement
+	if setCPU == 0 && setMem == 0 {
+		return int32(maxSets)
+	}
+
+	// Upper bound by aggregate CPU/Memory
+	num := getMaximumSetsBasedOnClusterSummary(resourceSummary, setCPU, setMem)
+	if num < maxSets {
+		maxSets = num
+	}
+
+	// Optional refinement with ResourceModels (if feature gate enabled)
+	if features.FeatureGate.Enabled(features.CustomizedClusterResourceModeling) &&
+		len(cluster.Status.ResourceSummary.AllocatableModelings) > 0 {
+
+		num, err := getMaximumSetsBasedOnResourceModels(cluster, components)
+		if err == nil && num < maxSets {
+			maxSets = num
+		}
+	}
+
+	return int32(maxSets)
+}
+
+// perSetRequirement computes aggregate CPU/Memory demand of one set of components.
+func perSetRequirement(components []*workv1alpha2.Component) (cpuMilli int64, memBytes int64) {
+	for _, c := range components {
+		if c.ReplicaRequirements == nil || c.ReplicaRequirements.ResourceRequest == nil {
+			continue
+		}
+		replicas := int64(c.Replicas)
+		reqs := c.ReplicaRequirements.ResourceRequest
+
+		if cpuQty, ok := reqs[corev1.ResourceCPU]; ok {
+			cpuMilli += replicas * cpuQty.MilliValue()
+		}
+		if memQty, ok := reqs[corev1.ResourceMemory]; ok {
+			memBytes += replicas * memQty.Value()
+		}
+	}
+	return
+}
+
+// getMaximumSetsBasedOnClusterSummary checks aggregate resource limits.
+func getMaximumSetsBasedOnClusterSummary(resourceSummary *clusterv1alpha1.ResourceSummary, setCPU, setMem int64) int64 {
+	availCPU := availableQuantity(resourceSummary, corev1.ResourceCPU)
+	availMem := availableQuantity(resourceSummary, corev1.ResourceMemory)
+
+	if availCPU <= 0 || availMem <= 0 {
+		return 0
+	}
+
+	switch {
+	case setCPU > 0 && setMem > 0:
+		return min64(availCPU/setCPU, availMem/setMem)
+	case setCPU > 0:
+		return availCPU / setCPU
+	case setMem > 0:
+		return availMem / setMem
+	default:
+		return math.MaxInt64
+	}
+}
+
+// getMaximumSetsBasedOnResourceModels is a placeholder for future implementation.
+// It should refine the maximum sets based on cluster resource models, similar
+// to getMaximumReplicasBasedOnResourceModels but adapted to full component sets.
+func getMaximumSetsBasedOnResourceModels(_ *clusterv1alpha1.Cluster, _ []*workv1alpha2.Component) (int64, error) {
+	// TODO: implement logic based on cluster.Spec.ResourceModels
+	// For now, just return MaxInt64 so it never reduces the upper bound.
+	return math.MaxInt64, nil
+}
+
+// availableQuantity = allocatable - allocated - allocating
+// Returns CPU in millicores, Memory in bytes.
+func availableQuantity(rs *clusterv1alpha1.ResourceSummary, key corev1.ResourceName) int64 {
+	allocatable, ok := rs.Allocatable[key]
+	if !ok {
+		return 0
+	}
+	allocated := rs.Allocated[key]
+	allocating := rs.Allocating[key]
+
+	allocatable.Sub(allocated)
+	allocatable.Sub(allocating)
+
+	if key == corev1.ResourceCPU {
+		return allocatable.MilliValue() // millicores
+	}
+	return allocatable.Value() // bytes for memory, count for pods, etc.
+}
+
+func min64(a, b int64) int64 {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func getAllowedPodNumber(resourceSummary *clusterv1alpha1.ResourceSummary) int64 {
