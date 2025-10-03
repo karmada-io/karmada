@@ -800,3 +800,209 @@ func TestMinimumModelIndex(t *testing.T) {
 		})
 	}
 }
+
+func TestGetMaxAvailableComponentSetsGeneral(t *testing.T) {
+	tests := []struct {
+		name       string
+		cluster    *clusterv1alpha1.Cluster
+		components []*workv1alpha2.Component
+		expected   int32
+	}{
+		{
+			name: "nil resource summary",
+			cluster: &clusterv1alpha1.Cluster{
+				Status: clusterv1alpha1.ClusterStatus{},
+			},
+			expected: 0,
+		},
+		{
+			name: "no allowed pods",
+			cluster: &clusterv1alpha1.Cluster{
+				Status: clusterv1alpha1.ClusterStatus{
+					ResourceSummary: &clusterv1alpha1.ResourceSummary{
+						Allocatable: corev1.ResourceList{
+							corev1.ResourcePods: resource.MustParse("10"),
+						},
+						Allocated: corev1.ResourceList{
+							corev1.ResourcePods: resource.MustParse("10"),
+						},
+					},
+				},
+			},
+			expected: 0,
+		},
+		{
+			name: "empty component list should return max pod allowance",
+			cluster: &clusterv1alpha1.Cluster{
+				Status: clusterv1alpha1.ClusterStatus{
+					ResourceSummary: &clusterv1alpha1.ResourceSummary{
+						Allocatable: corev1.ResourceList{
+							corev1.ResourcePods: resource.MustParse("10"),
+						},
+					},
+				},
+			},
+			expected: 10,
+		},
+		{
+			name: "basic resource estimation",
+			cluster: &clusterv1alpha1.Cluster{
+				Status: clusterv1alpha1.ClusterStatus{
+					ResourceSummary: &clusterv1alpha1.ResourceSummary{
+						Allocatable: corev1.ResourceList{
+							corev1.ResourcePods:   resource.MustParse("100"),
+							corev1.ResourceCPU:    resource.MustParse("10"),
+							corev1.ResourceMemory: resource.MustParse("8Gi"),
+						},
+						Allocated: corev1.ResourceList{
+							corev1.ResourcePods:   resource.MustParse("20"),
+							corev1.ResourceCPU:    resource.MustParse("0"),
+							corev1.ResourceMemory: resource.MustParse("2Gi"),
+						},
+					},
+				},
+			},
+			components: []*workv1alpha2.Component{
+				{
+					Name:     "jobmanager",
+					Replicas: 1,
+					ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+						ResourceRequest: corev1.ResourceList{
+							corev1.ResourceCPU: resource.MustParse("1"),
+						},
+					},
+				},
+				{
+					Name:     "taskmanager",
+					Replicas: 2,
+					ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+						ResourceRequest: corev1.ResourceList{
+							corev1.ResourceCPU: resource.MustParse("1.5"),
+						},
+					},
+				},
+			},
+			expected: 2,
+		},
+		{
+			name: "resource estimation with mixed components",
+			cluster: &clusterv1alpha1.Cluster{
+				Status: clusterv1alpha1.ClusterStatus{
+					ResourceSummary: &clusterv1alpha1.ResourceSummary{
+						Allocatable: corev1.ResourceList{
+							corev1.ResourcePods:   resource.MustParse("100"),
+							corev1.ResourceCPU:    resource.MustParse("10"),
+							corev1.ResourceMemory: resource.MustParse("8Gi"),
+						},
+						Allocated: corev1.ResourceList{
+							corev1.ResourcePods:   resource.MustParse("20"),
+							corev1.ResourceCPU:    resource.MustParse("0"),
+							corev1.ResourceMemory: resource.MustParse("2Gi"),
+						},
+					},
+				},
+			},
+			components: []*workv1alpha2.Component{
+				{
+					Name:     "jobmanager",
+					Replicas: 1,
+					ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+						ResourceRequest: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("1"),
+							corev1.ResourceMemory: resource.MustParse("2Gi"),
+						},
+					},
+				},
+				{
+					Name:     "taskmanager",
+					Replicas: 2,
+					ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+						ResourceRequest: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("2000m"),
+							corev1.ResourceMemory: resource.MustParse("2Gi"),
+						},
+					},
+				},
+			},
+			// Per-set demand: 2 replicas × (2 CPU, 2Gi) + 1 replica x (1 CPU, 2Gi) = (5 CPU, 6Gi)
+			// Cluster allocatable: 10 CPU, 6Gi
+			// 10/5 = 2 sets (CPU), 6Gi/6 = 1 set (Mem)
+			// min(2,1) = 1 set total
+			expected: 1,
+		},
+		{
+			name: "estimation limited by pod count",
+			cluster: &clusterv1alpha1.Cluster{
+				Status: clusterv1alpha1.ClusterStatus{
+					ResourceSummary: &clusterv1alpha1.ResourceSummary{
+						Allocatable: corev1.ResourceList{
+							corev1.ResourcePods:   resource.MustParse("3"),
+							corev1.ResourceCPU:    resource.MustParse("100"),
+							corev1.ResourceMemory: resource.MustParse("1Ti"),
+						},
+					},
+				},
+			},
+			components: []*workv1alpha2.Component{
+				{
+					Name:     "small-component",
+					Replicas: 3,
+					ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+						ResourceRequest: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("10m"),
+							corev1.ResourceMemory: resource.MustParse("1Mi"),
+						},
+					},
+				},
+			},
+			expected: 1, // limited by pods
+		},
+		{
+			name: "custom resource estimation with GPUs",
+			cluster: &clusterv1alpha1.Cluster{
+				Status: clusterv1alpha1.ClusterStatus{
+					ResourceSummary: &clusterv1alpha1.ResourceSummary{
+						Allocatable: corev1.ResourceList{
+							corev1.ResourcePods:   resource.MustParse("20"),
+							corev1.ResourceCPU:    resource.MustParse("40"),
+							corev1.ResourceMemory: resource.MustParse("64Gi"),
+							"nvidia.com/gpu":      resource.MustParse("8"),
+						},
+						Allocated: corev1.ResourceList{
+							corev1.ResourcePods:   resource.MustParse("0"),
+							corev1.ResourceCPU:    resource.MustParse("0"),
+							corev1.ResourceMemory: resource.MustParse("0Gi"),
+							"nvidia.com/gpu":      resource.MustParse("0"),
+						},
+					},
+				},
+			},
+			components: []*workv1alpha2.Component{
+				{
+					Name:     "gpu-worker",
+					Replicas: 2,
+					ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+						ResourceRequest: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("4"),
+							corev1.ResourceMemory: resource.MustParse("8Gi"),
+							"nvidia.com/gpu":      resource.MustParse("1"),
+						},
+					},
+				},
+			},
+			// Per-set demand: 2 replicas × (4 CPU, 8Gi, 1 GPU) = (8 CPU, 16Gi, 2 GPUs)
+			// Cluster allocatable: 40 CPU, 64Gi, 8 GPUs
+			// 40/8 = 5 sets (CPU), 64/16 = 4 sets (Mem), 8/2 = 4 sets (GPU)
+			// min(5, 4, 4) = 4 sets total
+			expected: 4,
+		},
+	}
+
+	estimator := NewGeneralEstimator()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := estimator.maxAvailableComponentSets(tt.cluster, tt.components)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
