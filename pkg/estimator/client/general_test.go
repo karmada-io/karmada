@@ -800,3 +800,169 @@ func TestMinimumModelIndex(t *testing.T) {
 		})
 	}
 }
+
+func TestGetMaxAvailableComponentSetsGeneral(t *testing.T) {
+	tests := []struct {
+		name       string
+		cluster    *clusterv1alpha1.Cluster
+		components []*workv1alpha2.Component
+		expected   int32
+	}{
+		{
+			name: "nil resource summary",
+			cluster: &clusterv1alpha1.Cluster{
+				Status: clusterv1alpha1.ClusterStatus{},
+			},
+			expected: 0,
+		},
+		{
+			name: "no allowed pods",
+			cluster: &clusterv1alpha1.Cluster{
+				Status: clusterv1alpha1.ClusterStatus{
+					ResourceSummary: &clusterv1alpha1.ResourceSummary{
+						Allocatable: corev1.ResourceList{
+							corev1.ResourcePods: resource.MustParse("10"),
+						},
+						Allocated: corev1.ResourceList{
+							corev1.ResourcePods: resource.MustParse("10"),
+						},
+					},
+				},
+			},
+			expected: 0,
+		},
+		{
+			name: "empty component list",
+			cluster: &clusterv1alpha1.Cluster{
+				Status: clusterv1alpha1.ClusterStatus{
+					ResourceSummary: &clusterv1alpha1.ResourceSummary{
+						Allocatable: corev1.ResourceList{
+							corev1.ResourcePods: resource.MustParse("10"),
+						},
+					},
+				},
+			},
+			expected: 10,
+		},
+		{
+			name: "basic resource estimation",
+			cluster: &clusterv1alpha1.Cluster{
+				Status: clusterv1alpha1.ClusterStatus{
+					ResourceSummary: &clusterv1alpha1.ResourceSummary{
+						Allocatable: corev1.ResourceList{
+							corev1.ResourcePods:   resource.MustParse("100"),
+							corev1.ResourceCPU:    resource.MustParse("10"),
+							corev1.ResourceMemory: resource.MustParse("8Gi"),
+						},
+						Allocated: corev1.ResourceList{
+							corev1.ResourcePods:   resource.MustParse("20"),
+							corev1.ResourceCPU:    resource.MustParse("0"),
+							corev1.ResourceMemory: resource.MustParse("2Gi"),
+						},
+					},
+				},
+			},
+			components: []*workv1alpha2.Component{
+				{
+					Name:     "jobmanager",
+					Replicas: 1,
+					ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+						ResourceRequest: corev1.ResourceList{
+							corev1.ResourceCPU: resource.MustParse("1"),
+						},
+					},
+				},
+				{
+					Name:     "taskmanager",
+					Replicas: 2,
+					ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+						ResourceRequest: corev1.ResourceList{
+							corev1.ResourceCPU: resource.MustParse("1.5"),
+						},
+					},
+				},
+			},
+			expected: 2,
+		},
+		{
+			name: "resource estimation with mixed components",
+			cluster: &clusterv1alpha1.Cluster{
+				Status: clusterv1alpha1.ClusterStatus{
+					ResourceSummary: &clusterv1alpha1.ResourceSummary{
+						Allocatable: corev1.ResourceList{
+							corev1.ResourcePods:   resource.MustParse("100"),
+							corev1.ResourceCPU:    resource.MustParse("10"),
+							corev1.ResourceMemory: resource.MustParse("8Gi"),
+						},
+						Allocated: corev1.ResourceList{
+							corev1.ResourcePods:   resource.MustParse("20"),
+							corev1.ResourceCPU:    resource.MustParse("0"),
+							corev1.ResourceMemory: resource.MustParse("2Gi"),
+						},
+					},
+				},
+			},
+			components: []*workv1alpha2.Component{
+				{
+					Name:     "jobmanager",
+					Replicas: 1,
+					ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+						ResourceRequest: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("1"),
+							corev1.ResourceMemory: resource.MustParse("2Gi"),
+						},
+					},
+				},
+				{
+					Name:     "taskmanager",
+					Replicas: 2,
+					ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+						ResourceRequest: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("2000m"),
+							corev1.ResourceMemory: resource.MustParse("2Gi"),
+						},
+					},
+				},
+			},
+			// CPU set total    = 5, estimation 10 / 5 = 2
+			// Memory set total = 6Gi, estimation 6Gi / 6 = 1
+			// min*(2,1) = 1 set
+			expected: 1,
+		},
+		{
+			name: "estimation limited by pod count",
+			cluster: &clusterv1alpha1.Cluster{
+				Status: clusterv1alpha1.ClusterStatus{
+					ResourceSummary: &clusterv1alpha1.ResourceSummary{
+						Allocatable: corev1.ResourceList{
+							corev1.ResourcePods:   resource.MustParse("3"),
+							corev1.ResourceCPU:    resource.MustParse("100"),
+							corev1.ResourceMemory: resource.MustParse("1Ti"),
+						},
+					},
+				},
+			},
+			components: []*workv1alpha2.Component{
+				{
+					Name:     "small-component",
+					Replicas: 1,
+					ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+						ResourceRequest: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("10m"),
+							corev1.ResourceMemory: resource.MustParse("1Mi"),
+						},
+					},
+				},
+			},
+			expected: 3, // limited by pods
+		},
+	}
+
+	estimator := NewGeneralEstimator()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := estimator.maxAvailableComponentSets(tt.cluster, tt.components)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
