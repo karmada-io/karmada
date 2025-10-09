@@ -543,18 +543,13 @@ func (c *WorkStatusController) getSingleClusterManager(cluster *clusterv1alpha1.
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *WorkStatusController) SetupWithManager(mgr controllerruntime.Manager) error {
-	ctrlBuilder := controllerruntime.NewControllerManagedBy(mgr).Named(WorkStatusControllerName).
+	return controllerruntime.NewControllerManagedBy(mgr).
+		Named(WorkStatusControllerName).
+		For(&workv1alpha1.Work{}, builder.WithPredicates(c.WorkPredicateFunc)).
 		WithOptions(controller.Options{
 			RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RateLimiterOptions),
-		})
-
-	if c.WorkPredicateFunc != nil {
-		ctrlBuilder.For(&workv1alpha1.Work{}, builder.WithPredicates(c.WorkPredicateFunc))
-	} else {
-		ctrlBuilder.For(&workv1alpha1.Work{})
-	}
-
-	return ctrlBuilder.Complete(c)
+		}).
+		Complete(c)
 }
 
 func (c *WorkStatusController) eventf(object *unstructured.Unstructured, eventType, reason, messageFmt string, args ...interface{}) {
