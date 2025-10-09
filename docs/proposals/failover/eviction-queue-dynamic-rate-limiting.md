@@ -13,15 +13,20 @@ This proposal introduces a dynamic rate limiting mechanism for Karmada's cluster
 
 ## Motivation
 
-In the current version of Karmada, the cluster fault migration functionality has been significantly improved: it no longer automatically triggers migration after cluster failures, but instead allows users to explicitly control whether to enable cluster fault migration through the dedicated controller-manager flags. However, when the failover functionality is enabled, if multiple clusters fail simultaneously or the proportion of failed clusters is high, the system may still face the following challenges:
+Before diving into the specific implementation plan, it is necessary to carefully analyze the core problems this project aims to solve.  
+Karmada’s failover mechanism has become increasingly mature in its design, allowing users to explicitly control whether to enable the feature through specific parameters in the controller-manager. However, when this feature is activated—especially in a large-scale federation managing dozens or even hundreds of clusters—it may face several challenges once a network partition or partial cloud provider outage causes multiple clusters to be marked as “unhealthy”:
 
-1. **Cascading Failure Risk**: When many clusters fail simultaneously, the system will evict a large number of resources to the remaining healthy clusters, potentially causing overload of healthy clusters and triggering cascading failures.
+1. **Cascading Failure Risk**:  
+   When a large number of clusters fail simultaneously, Karmada’s `taint-manager` attempts to quickly evict all workloads (represented as `ResourceBinding` or `ClusterResourceBinding`) from these failed clusters, and the scheduler then redistributes them to the remaining healthy clusters. This sudden surge of eviction and scheduling operations puts tremendous resource pressure on the remaining clusters, potentially causing them to slow down or crash due to overload—thus triggering an “avalanche effect,” or cascading failure.
 
-2. **Control Plane Pressure**: Large numbers of concurrent eviction operations can put enormous pressure on the Karmada control plane, affecting overall system stability.
+2. **Control Plane Pressure**:  
+   The massive number of concurrent eviction operations not only impacts the member clusters but also places enormous stress on Karmada’s core control plane. The `karmada-apiserver` and `karmada-controller-manager` must handle tens of thousands of resource updates and scheduling requests, which can lead to increased response latency, resource consumption spikes, and, in extreme cases, jeopardize the overall stability of the multi-cluster federation.
 
-3. **Lack of Adaptive Capability**: The current system lacks the ability to dynamically adjust eviction rates based on the overall health status of clusters, and cannot automatically slow down or pause evictions when system pressure is high.
+3. **Lack of Adaptive Capability**:  
+   The current failover logic relies on a global rate limiter from `controller-runtime` to control the eviction rate uniformly. This mechanism lacks elasticity—it cannot dynamically adjust its behavior based on the system’s actual health condition (for example, the proportion of clusters currently failing). Whether one cluster fails or fifty clusters fail, the eviction rate may remain the same, which is clearly unreasonable. The system needs a “braking” mechanism that can automatically slow down or even pause evictions when large-scale failures are detected.
 
-4. **Insufficient Observability**: Lack of effective monitoring metrics for eviction queue status and system health, making it difficult for administrators to understand system behavior during failure scenarios.
+4. **Insufficient Observability**:  
+   At present, the eviction process is almost a “black box” to cluster administrators. There is a lack of effective monitoring metrics to gain insight into the real-time status of eviction tasks—for instance, how many resources are currently waiting for eviction, how long each eviction task takes on average, and what the success and failure rates are. This lack of observability makes it difficult for administrators to quickly locate and diagnose problems when issues arise.
 
 ### Goals
 
