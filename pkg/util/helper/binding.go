@@ -21,7 +21,6 @@ import (
 	"crypto/rand"
 	"hash/fnv"
 	"math/big"
-	"sort"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -115,45 +114,6 @@ func (a *Dispenser) Done() bool {
 	return a.NumReplicas == 0 && len(a.Result) != 0
 }
 
-// TakeByWeight divides replicas according to a weight list and merges the result into the previous result.
-// Legacy method; will be removed in the future. This algorithm suffers from the Alabama Paradox,
-// where increasing the total number of replicas can cause some clusters to receive fewer replicas.
-// For details, see: https://github.com/karmada-io/karmada/issues/6735.
-// TODO(@zhzhuang-zju): remove this method and use AllocateByWeight instead.
-func (a *Dispenser) TakeByWeight(w ClusterWeightInfoList) {
-	if a.Done() {
-		return
-	}
-	sum := w.GetWeightSum()
-	if sum == 0 {
-		return
-	}
-
-	sort.Sort(w)
-
-	result := make([]workv1alpha2.TargetCluster, 0, w.Len())
-	remain := a.NumReplicas
-	for _, info := range w {
-		replicas := int32(info.Weight * int64(a.NumReplicas) / sum) // #nosec G115: integer overflow conversion int64 -> int32
-		result = append(result, workv1alpha2.TargetCluster{
-			Name:     info.ClusterName,
-			Replicas: replicas,
-		})
-		remain -= replicas
-	}
-	// TODO(Garrybest): take rest replicas by fraction part
-	for i := range result {
-		if remain == 0 {
-			break
-		}
-		result[i].Replicas++
-		remain--
-	}
-
-	a.NumReplicas = remain
-	a.Result = util.MergeTargetClusters(a.Result, result)
-}
-
 // AllocateByWeight divides replicas by Webster method.
 func (a *Dispenser) AllocateByWeight(w ClusterWeightInfoList) {
 	if a.Done() {
@@ -239,10 +199,10 @@ func GetStaticWeightInfoListByTargetClusters(tcs, scheduled []workv1alpha2.Targe
 }
 
 // SpreadReplicasByTargetClusters divides replicas by the weight of a target cluster list.
-func SpreadReplicasByTargetClusters(numReplicas int32, tcs, init []workv1alpha2.TargetCluster) []workv1alpha2.TargetCluster {
+func SpreadReplicasByTargetClusters(numReplicas int32, tcs, init []workv1alpha2.TargetCluster, uuid types.UID) []workv1alpha2.TargetCluster {
 	weightList := GetStaticWeightInfoListByTargetClusters(tcs, init)
-	disp := NewDispenser(numReplicas, init, "")
-	disp.TakeByWeight(weightList)
+	disp := NewDispenser(numReplicas, init, uuid)
+	disp.AllocateByWeight(weightList)
 	return disp.Result
 }
 
