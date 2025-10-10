@@ -117,3 +117,39 @@ type UnschedulableReplicasResponse struct {
 	// +required
 	UnschedulableReplicas int32 `json:"unschedulableReplicas" protobuf:"varint,1,opt,name=unschedulableReplicas"`
 }
+
+// MaxAvailableComponentSetsRequest is the gRPC request message used to estimate
+// how many complete sets of components can be scheduled on a cluster.
+type MaxAvailableComponentSetsRequest struct {
+	// Cluster is the target cluster where the scheduling estimation is performed.
+	// +required
+	Cluster string `json:"cluster" protobuf:"bytes,1,opt,name=cluster"`
+	// Components lists the component types that form one full workload set,
+	// along with their resource and replica requirements.
+	// +required
+	Components []Component `json:"components" protobuf:"bytes,2,rep,name=components"`
+}
+
+// Component defines the scheduling and resource requirements for a single
+// workload component (e.g., JobManager, TaskManager).
+type Component struct {
+	// Name is the identifier of the component within the workload set.
+	// +required
+	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
+	// ReplicaRequirements specifies the per-replica resource requirements
+	// (CPU, memory, etc.) and scheduling constraints.
+	// +required
+	ReplicaRequirements ReplicaRequirements `json:"replicaRequirements" protobuf:"bytes,2,opt,name=replicaRequirements"`
+	// Replicas is the number of replicas of this component required in a single workload set.
+	// +required
+	Replicas int32 `json:"replicas" protobuf:"varint,3,opt,name=replicas"`
+}
+
+// MaxAvailableComponentSetsResponse is the gRPC response message containing the
+// maximum number of complete component sets that can be scheduled.
+type MaxAvailableComponentSetsResponse struct {
+	// MaxSets is the maximum number of workload sets (i.e., all required components together)
+	// that the target cluster can accommodate given the resource constraints.
+	// +required
+	MaxSets int32 `json:"maxSets" protobuf:"varint,1,opt,name=maxSets"`
+}
