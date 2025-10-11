@@ -59,6 +59,7 @@ func NewDynamicRateLimiter[T comparable](informerManager genericmanager.SingleCl
 // Returns a longer delay when the system is unhealthy.
 func (d *DynamicRateLimiter[T]) When(_ T) time.Duration {
 	currentRate := d.getCurrentRate()
+	klog.V(4).Infof("⏱️ DynamicRateLimiter: Current rate: %.2f/s", currentRate)
 	if currentRate == 0 {
 		return maxEvictionDelay
 	}

@@ -27,25 +27,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 )
 
-// EvictionQueueOptions holds the options that control the behavior of the graceful eviction queue based on the overall health of the clusters.
-type EvictionQueueOptions struct {
-	// ResourceEvictionRate is the number of resources to be evicted per second.
-	// This is the default rate when the system is considered healthy.
-	ResourceEvictionRate float32
-	// SecondaryResourceEvictionRate is the secondary resource eviction rate.
-	// When the number of cluster failures in the Karmada instance exceeds the UnhealthyClusterThreshold,
-	// the resource eviction rate will be reduced to this secondary level.
-	SecondaryResourceEvictionRate float32
-	// UnhealthyClusterThreshold is the threshold of unhealthy clusters.
-	// If the ratio of unhealthy clusters to total clusters exceeds this threshold, there are too many cluster failures in the Karmada instance
-	// and the eviction rate will be downgraded to the secondary rate.
-	UnhealthyClusterThreshold float32
-	// LargeClusterNumThreshold is the threshold for a large-scale Karmada instance.
-	// When the number of clusters in the instance exceeds this threshold and the instance is unhealthy,
-	// the eviction rate is downgraded. For smaller instances that are unhealthy, eviction might be halted completely.
-	LargeClusterNumThreshold int
-}
-
 type evictionWorker struct {
 	name             string
 	keyFunc          util.KeyFunc
