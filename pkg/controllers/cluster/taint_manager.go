@@ -86,7 +86,7 @@ type EvictionWorkerOptions struct {
 	// ResourceKindFunc returns resource metadata for metrics collection
 	ResourceKindFunc func(key interface{}) (clusterName, resourceKind string)
 
-	// ControlPlaneInformerManager provides cluster information for dynamic rate limiting
+	// ControlPlaneInformerManager provide cluster information for dynamic rate limiting
 	ControlPlaneInformerManager genericmanager.SingleClusterInformerManager
 
 	// EvictionQueueOptions configures dynamic rate limiting behavior
