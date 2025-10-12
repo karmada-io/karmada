@@ -166,7 +166,5 @@ spec:
           status.minWorkerReplicas = observedObj.status.minWorkerReplicas
           status.observedGeneration = observedObj.status.observedGeneration
           status.readyWorkerReplicas = observedObj.status.readyWorkerReplicas
-          status.state = observedObj.status.state
-          status.stateTransitionTimes = observedObj.status.stateTransitionTimes
           return status
         end
