@@ -104,6 +104,14 @@ const (
 	// beta: v1.15
 	ContextualLogging = logsv1.ContextualLogging
 
+	// LabelPropagation controls whether labels specified in Karmada components
+	// should be propagated to all managed resources (Service, Secret, RBAC, etc.)
+	// instead of only Deployment resources.
+	//
+	// owner: @baiyutang
+	// alpha: v1.15
+	LabelPropagation featuregate.Feature = "LabelPropagation"
+
 	// MultiplePodTemplatesScheduling enables enhanced, resource-aware scheduling for workloads with multiple pod templates.
 	// When enabled, the scheduler and resource interpreter will use the new 'GetComponents' hook and 'components' field
 	// to support accurate resource estimation and scheduling for complex CRDs (e.g., FlinkDeployments, RayJob, VolcanoJob) that consist of
@@ -127,6 +135,7 @@ const (
 	// owner: @zach593
 	// alpha: v1.15
 	ControllerPriorityQueue featuregate.Feature = "ControllerPriorityQueue"
+
 )
 
 var (
@@ -152,6 +161,7 @@ var (
 		LoggingAlphaOptions:               {Default: false, PreRelease: featuregate.Alpha},
 		LoggingBetaOptions:                {Default: true, PreRelease: featuregate.Beta},
 		ContextualLogging:                 {Default: true, PreRelease: featuregate.Beta},
+		LabelPropagation:                  {Default: false, PreRelease: featuregate.Alpha},
 		MultiplePodTemplatesScheduling:    {Default: false, PreRelease: featuregate.Alpha},
 		ControllerPriorityQueue:           {Default: false, PreRelease: featuregate.Alpha},
 	}

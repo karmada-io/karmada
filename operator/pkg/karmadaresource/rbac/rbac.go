@@ -24,27 +24,35 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
 
+	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	"github.com/karmada-io/karmada/operator/pkg/util/apiclient"
+	"github.com/karmada-io/karmada/operator/pkg/util/patcher"
 	"github.com/karmada-io/karmada/pkg/util"
 )
 
 // EnsureKarmadaRBAC create karmada resource view and edit clusterrole
-func EnsureKarmadaRBAC(client clientset.Interface) error {
-	if err := grantClusterProxyAdminRBAC(client); err != nil {
+func EnsureKarmadaRBAC(client clientset.Interface, cfg *operatorv1alpha1.KarmadaComponents) error {
+	if err := grantClusterProxyAdminRBAC(client, cfg); err != nil {
 		return err
 	}
-	if err := grantKarmadaResourceViewClusterRole(client); err != nil {
+	if err := grantKarmadaResourceViewClusterRole(client, cfg); err != nil {
 		return err
 	}
-	return grantKarmadaResourceEditClusterRole(client)
+	return grantKarmadaResourceEditClusterRole(client, cfg)
 }
 
-func grantClusterProxyAdminRBAC(client clientset.Interface) error {
+func grantClusterProxyAdminRBAC(client clientset.Interface, cfg *operatorv1alpha1.KarmadaComponents) error {
 	role := &rbacv1.ClusterRole{}
 	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), []byte(ClusterProxyAdminClusterRole), role); err != nil {
 		return fmt.Errorf("err when decoding ClusterProxyAdmin ClusterRole: %w", err)
 	}
 	util.MergeLabel(role, util.KarmadaSystemLabel, util.KarmadaSystemLabelValue)
+
+	// Apply labels from configuration if available
+	if cfg != nil && cfg.KarmadaAPIServer != nil {
+		patcher.NewPatcher().WithLabels(cfg.KarmadaAPIServer.Labels).ForClusterRole(role)
+	}
+
 	if err := apiclient.CreateOrUpdateClusterRole(client, role); err != nil {
 		return fmt.Errorf("failed to create or update ClusterRole: %w", err)
 	}
@@ -53,24 +61,42 @@ func grantClusterProxyAdminRBAC(client clientset.Interface) error {
 	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), []byte(ClusterProxyAdminClusterRoleBinding), roleBinding); err != nil {
 		return fmt.Errorf("err when decoding ClusterProxyAdmin ClusterRoleBinding: %w", err)
 	}
-	util.MergeLabel(role, util.KarmadaSystemLabel, util.KarmadaSystemLabelValue)
+	util.MergeLabel(roleBinding, util.KarmadaSystemLabel, util.KarmadaSystemLabelValue)
+
+	// Apply labels from configuration if available
+	if cfg != nil && cfg.KarmadaAPIServer != nil {
+		patcher.NewPatcher().WithLabels(cfg.KarmadaAPIServer.Labels).ForClusterRoleBinding(roleBinding)
+	}
+
 	return apiclient.CreateOrUpdateClusterRoleBinding(client, roleBinding)
 }
 
-func grantKarmadaResourceViewClusterRole(client clientset.Interface) error {
+func grantKarmadaResourceViewClusterRole(client clientset.Interface, cfg *operatorv1alpha1.KarmadaComponents) error {
 	role := &rbacv1.ClusterRole{}
 	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), []byte(KarmadaResourceViewClusterRole), role); err != nil {
 		return fmt.Errorf("err when decoding Karmada view ClusterRole: %w", err)
 	}
 	util.MergeLabel(role, util.KarmadaSystemLabel, util.KarmadaSystemLabelValue)
+
+	// Apply labels from configuration if available
+	if cfg != nil && cfg.KarmadaAPIServer != nil {
+		patcher.NewPatcher().WithLabels(cfg.KarmadaAPIServer.Labels).ForClusterRole(role)
+	}
+
 	return apiclient.CreateOrUpdateClusterRole(client, role)
 }
 
-func grantKarmadaResourceEditClusterRole(client clientset.Interface) error {
+func grantKarmadaResourceEditClusterRole(client clientset.Interface, cfg *operatorv1alpha1.KarmadaComponents) error {
 	role := &rbacv1.ClusterRole{}
 	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), []byte(KarmadaResourceEditClusterRole), role); err != nil {
 		return fmt.Errorf("err when decoding Karmada edit ClusterRole: %w", err)
 	}
 	util.MergeLabel(role, util.KarmadaSystemLabel, util.KarmadaSystemLabelValue)
+
+	// Apply labels from configuration if available
+	if cfg != nil && cfg.KarmadaAPIServer != nil {
+		patcher.NewPatcher().WithLabels(cfg.KarmadaAPIServer.Labels).ForClusterRole(role)
+	}
+
 	return apiclient.CreateOrUpdateClusterRole(client, role)
 }
