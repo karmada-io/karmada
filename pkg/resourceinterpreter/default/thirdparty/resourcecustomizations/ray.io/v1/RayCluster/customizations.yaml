@@ -139,8 +139,6 @@ spec:
               desiredObj.status.minWorkerReplicas = currentStatus.minWorkerReplicas
               desiredObj.status.observedGeneration = currentStatus.observedGeneration
               desiredObj.status.readyWorkerReplicas = currentStatus.readyWorkerReplicas
-              desiredObj.status.state = currentStatus.state
-              desiredObj.status.stateTransitionTimes = currentStatus.stateTransitionTimes
             end
           end
 
