@@ -60,14 +60,14 @@ kind load docker-image "${REGISTRY}/karmada-operator:${VERSION}" --name="${CONTE
 # create namespace `karmada-system`
 kubectl --kubeconfig="${KUBECONFIG}" --context="${CONTEXT_NAME}" apply -f "${REPO_ROOT}/artifacts/deploy/namespace.yaml"
 
-# install Karmada operator crds
-kubectl --kubeconfig="${KUBECONFIG}" --context="${CONTEXT_NAME}" apply -f operator/config/crds/
+# deploy karmada-operator using Helm
+echo "Installing Karmada operator using Helm"
+cd "${REPO_ROOT}/charts/karmada-operator"
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm dependency build
+helm --kubeconfig "${KUBECONFIG}" --kube-context "${CONTEXT_NAME}" install --namespace ${KARMADA_SYSTEM_NAMESPACE} karmada-operator .
+cd -
 
-# deploy karmada-operator
-kubectl --kubeconfig="${KUBECONFIG}" --context="${CONTEXT_NAME}" apply -f "${REPO_ROOT}/operator/config/deploy/karmada-operator-clusterrole.yaml"
-kubectl --kubeconfig="${KUBECONFIG}" --context="${CONTEXT_NAME}" apply -f "${REPO_ROOT}/operator/config/deploy/karmada-operator-clusterrolebinding.yaml"
-kubectl --kubeconfig="${KUBECONFIG}" --context="${CONTEXT_NAME}" apply -f "${REPO_ROOT}/operator/config/deploy/karmada-operator-serviceaccount.yaml"
-kubectl --kubeconfig="${KUBECONFIG}" --context="${CONTEXT_NAME}" apply -f "${REPO_ROOT}/operator/config/deploy/karmada-operator-deployment.yaml"
-
-# wait karmada-operator ready
+# Await Karmada operator ready status
 kubectl --kubeconfig="${KUBECONFIG}" --context="${CONTEXT_NAME}" wait --for=condition=Ready --timeout=30s pods -l app.kubernetes.io/name=karmada-operator -n ${KARMADA_SYSTEM_NAMESPACE}
+echo "Successfully installed Karmada operator using Helm."

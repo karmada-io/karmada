@@ -17,13 +17,10 @@ limitations under the License.
 package karmada
 
 import (
-	"context"
 	"fmt"
 	"net/url"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/klog/v2"
 
@@ -97,7 +94,8 @@ func validateETCD(etcd *operatorv1alpha1.Etcd, karmadaName string, fldPath *fiel
 	return errs
 }
 
-func validate(karmada *operatorv1alpha1.Karmada) error {
+// Validate performs validation checks for a Karmada object
+func Validate(karmada *operatorv1alpha1.Karmada) error {
 	var errs field.ErrorList
 
 	errs = append(errs, validateCRDTarball(karmada.Spec.CRDTarball, field.NewPath("spec").Child("crdTarball"))...)
@@ -111,26 +109,6 @@ func validate(karmada *operatorv1alpha1.Karmada) error {
 
 	if len(errs) > 0 {
 		return fmt.Errorf("validation errors: %v", errs)
-	}
-	return nil
-}
-
-func (ctrl *Controller) validateKarmada(ctx context.Context, karmada *operatorv1alpha1.Karmada) error {
-	if err := validate(karmada); err != nil {
-		ctrl.EventRecorder.Event(karmada, corev1.EventTypeWarning, ValidationErrorReason, err.Error())
-
-		newCondition := metav1.Condition{
-			Type:               string(operatorv1alpha1.Ready),
-			Status:             metav1.ConditionFalse,
-			Reason:             ValidationErrorReason,
-			Message:            err.Error(),
-			LastTransitionTime: metav1.Now(),
-		}
-		meta.SetStatusCondition(&karmada.Status.Conditions, newCondition)
-		if updateErr := ctrl.Status().Update(ctx, karmada); updateErr != nil {
-			return fmt.Errorf("failed to update validate condition, validate error: %+v, update err: %+v", err, updateErr)
-		}
-		return err
 	}
 	return nil
 }

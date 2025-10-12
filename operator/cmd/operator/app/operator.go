@@ -38,6 +38,7 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/karmada-io/karmada/operator/cmd/operator/app/options"
+	"github.com/karmada-io/karmada/operator/internal/webhook/v1alpha1"
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	ctrlctx "github.com/karmada-io/karmada/operator/pkg/controller/context"
 	"github.com/karmada-io/karmada/operator/pkg/controller/karmada"
@@ -79,6 +80,13 @@ func NewOperatorCommand(ctx context.Context) *cobra.Command {
 				return err
 			}
 			logs.InitLogs()
+
+			// Starting from version 0.15.0, controller-runtime expects its consumers to set a logger through log.SetLogger.
+			// If SetLogger is not called within the first 30 seconds of a binaries lifetime, it will get
+			// set to a NullLogSink and report an error. Here's to silence the "log.SetLogger(...) was never called; logs will not be displayed" error
+			// by setting a logger through log.SetLogger.
+			// More info refer to: https://github.com/karmada-io/karmada/pull/4885.
+			controllerruntime.SetLogger(klog.Background())
 			return nil
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
@@ -113,6 +121,13 @@ func Run(ctx context.Context, o *options.Options) error {
 	manager, err := createControllerManager(ctx, o)
 	if err != nil {
 		klog.Errorf("Failed to build controller manager: %v", err)
+		return err
+	}
+
+	klog.Info("Registering admission webhooks with the controller manager")
+	err = v1alpha1.SetupKarmadaWebhookWithManager(manager)
+	if err != nil {
+		klog.Errorf("Failed to setup karmada-operator webhook: %v", err)
 		return err
 	}
 
