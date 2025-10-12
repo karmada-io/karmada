@@ -7,6 +7,51 @@ spec:
     apiVersion: ray.io/v1
     kind: RayCluster
   customizations:
+    componentResource:
+      luaScript: |
+        local kube = require("kube")
+
+        local function isempty(s)
+          return s == nil or s == ''
+        end
+
+        function GetComponents(desiredObj)
+          local components = {}
+
+          -- Head component (always 1 replica)
+          if desiredObj.spec ~= nil and desiredObj.spec.headGroupSpec ~= nil and desiredObj.spec.headGroupSpec.template ~= nil then
+            local headRequires = kube.accuratePodRequirements(desiredObj.spec.headGroupSpec.template)
+            local headComponent = {
+              name = "ray-head",
+              replicas = 1,
+              replicaRequirements = headRequires
+            }
+            table.insert(components, headComponent)
+          end
+
+          -- Worker group components
+          if desiredObj.spec ~= nil and desiredObj.spec.workerGroupSpecs ~= nil then
+            for i, workerGroup in ipairs(desiredObj.spec.workerGroupSpecs) do
+              local name = workerGroup.groupName
+              if isempty(name) then
+                name = "worker-" .. tostring(i)
+              end
+              local replicas = workerGroup.replicas or 0
+              local requires = nil
+              if workerGroup.template ~= nil then
+                requires = kube.accuratePodRequirements(workerGroup.template)
+              end
+              local wgComponent = {
+                name = name,
+                replicas = replicas,
+                replicaRequirements = requires
+              }
+              table.insert(components, wgComponent)
+            end
+          end
+
+          return components
+        end
     replicaResource:
       luaScript: >
         local kube = require("kube")
