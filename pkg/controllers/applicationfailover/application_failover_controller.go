@@ -35,7 +35,7 @@ func (r *ApplicationFailoverReconciler) migrateApplication(app *v1alpha1.Applica
 }
 
 // migrateApplicationAndRelated migrates the main application and all related applications
-func (r *ApplicationFailoverReconciler) migrateApplicationAndRelated(app *v1alpha1.Application) error {
+func (r *ApplicationFailoverReconciler) migrateApplicationAndRelated(ctx context.Context, app *v1alpha1.Application) error {
 	// Migrate the main application
 	err := r.migrateApplication(app)
 	if err != nil {
@@ -44,7 +44,7 @@ func (r *ApplicationFailoverReconciler) migrateApplicationAndRelated(app *v1alph
 
 	// Migrate related applications
 	for _, relatedAppName := range app.Spec.RelatedApplications {
-		relatedApp, err := r.getApplicationByName(relatedAppName, app.Namespace)
+		relatedApp, err := r.getApplicationByName(ctx, relatedAppName, app.Namespace)
 		if err != nil {
 			klog.ErrorS(err, "Failed to get related application", "name", relatedAppName, "namespace", app.Namespace)
 			continue
@@ -81,7 +81,7 @@ func (r *ApplicationFailoverReconciler) Reconcile(ctx context.Context, req ctrl.
 
 	if needsFailover {
 		// Perform failover by migrating the application and its related applications
-		err = r.migrateApplicationAndRelated(&app)
+		err = r.migrateApplicationAndRelated(ctx, &app)
 		if err != nil {
 			klog.ErrorS(err, "Failed to perform application failover", "name", app.Name, "namespace", app.Namespace)
 			return ctrl.Result{}, err
@@ -94,9 +94,9 @@ func (r *ApplicationFailoverReconciler) Reconcile(ctx context.Context, req ctrl.
 }
 
 // getApplicationByName retrieves an Application by name in the given namespace
-func (r *ApplicationFailoverReconciler) getApplicationByName(name, namespace string) (*v1alpha1.Application, error) {
+func (r *ApplicationFailoverReconciler) getApplicationByName(ctx context.Context, name, namespace string) (*v1alpha1.Application, error) {
 	var app v1alpha1.Application
-	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: namespace}, &app)
+	err := r.Client.Get(ctx, types.NamespacedName{Name: name, Namespace: namespace}, &app)
 	if err != nil {
 		return nil, err
 	}

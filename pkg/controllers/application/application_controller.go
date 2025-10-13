@@ -2,10 +2,12 @@ package application
 
 import (
 	"context"
+
 	"github.com/go-logr/logr"
-	"github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
+
+	"github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1"
 )
 
 type ApplicationReconciler struct {
