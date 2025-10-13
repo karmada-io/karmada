@@ -14,13 +14,13 @@ type ApplicationReconciler struct {
 	Log         logr.Logger
 }
 
-func (r *ApplicationReconciler) handleFailover(app *v1alpha1.Application) error {
+func (r *ApplicationReconciler) handleFailover(ctx context.Context, app *v1alpha1.Application) error {
 	// ...existing code for main application failover...
 
 	// Migrate related applications
 	for _, relatedAppName := range app.Spec.RelatedApplications {
 		relatedApp := &v1alpha1.Application{}
-		err := r.GetFunc(context.TODO(), types.NamespacedName{
+		err := r.GetFunc(ctx, types.NamespacedName{
 			Namespace: app.Namespace,
 			Name:      relatedAppName,
 		}, relatedApp)
