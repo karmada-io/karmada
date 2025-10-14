@@ -224,6 +224,7 @@ func (d *Descheduler) updateScheduleResult(h *core.SchedulingResultHelper) error
 	if unschedulableSum == 0 {
 		return nil
 	}
+	binding.Spec.Clusters = util.RemoveZeroReplicasCluster(binding.Spec.Clusters)
 	message += fmt.Sprintf(", %d total descheduled replica(s)", unschedulableSum)
 
 	var err error

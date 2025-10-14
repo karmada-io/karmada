@@ -455,13 +455,8 @@ func TestDescheduler_worker(t *testing.T) {
 				name:      "foo",
 				namespace: "default",
 			},
-			wantResponse: []workv1alpha2.TargetCluster{
-				{
-					Name:     "member1",
-					Replicas: 0,
-				},
-			},
-			wantErr: false,
+			wantResponse: []workv1alpha2.TargetCluster{},
+			wantErr:      false,
 		},
 		{
 			name: "1 cluster with 4 ready replicas and 2 unschedulable replicas",

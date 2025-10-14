@@ -504,3 +504,82 @@ func TestMergePolicySuspension(t *testing.T) {
 		})
 	}
 }
+
+func TestRemoveZeroReplicasCluster(t *testing.T) {
+	tests := []struct {
+		name          string
+		assignResults []workv1alpha2.TargetCluster
+		expected      []workv1alpha2.TargetCluster
+	}{
+		{
+			name:          "empty assign results",
+			assignResults: []workv1alpha2.TargetCluster{},
+			expected:      []workv1alpha2.TargetCluster{},
+		},
+		{
+			name: "all clusters with replicas greater than 0",
+			assignResults: []workv1alpha2.TargetCluster{
+				{
+					Name:     ClusterMember1,
+					Replicas: 1,
+				},
+				{
+					Name:     ClusterMember2,
+					Replicas: 2,
+				},
+			},
+			expected: []workv1alpha2.TargetCluster{
+				{
+					Name:     ClusterMember1,
+					Replicas: 1,
+				},
+				{
+					Name:     ClusterMember2,
+					Replicas: 2,
+				},
+			},
+		},
+		{
+			name: "some clusters with 0 replicas",
+			assignResults: []workv1alpha2.TargetCluster{
+				{
+					Name:     ClusterMember1,
+					Replicas: 1,
+				},
+				{
+					Name:     ClusterMember2,
+					Replicas: 0,
+				},
+			},
+			expected: []workv1alpha2.TargetCluster{
+				{
+					Name:     ClusterMember1,
+					Replicas: 1,
+				},
+			},
+		},
+		{
+			name: "all clusters with 0 replicas",
+			assignResults: []workv1alpha2.TargetCluster{
+				{
+					Name:     ClusterMember1,
+					Replicas: 0,
+				},
+				{
+					Name:     ClusterMember2,
+					Replicas: 0,
+				},
+			},
+			expected: []workv1alpha2.TargetCluster{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := RemoveZeroReplicasCluster(tt.assignResults)
+			if !reflect.DeepEqual(got, tt.expected) {
+				t.Errorf("RemoveZeroReplicasCluster() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
