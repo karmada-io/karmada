@@ -43,8 +43,12 @@ spec:
           local components = {}
           
           -- Master Component
-          local master_replicas = to_num(get(observedObj, {"spec", "pytorchReplicaSpecs", "Master", "replicas"}), 1)
-          local master_template = get(observedObj, {"spec", "pytorchReplicaSpecs", "Master", "template"})
+          local master_spec = get(observedObj, {"spec", "pytorchReplicaSpecs", "Master"})
+          if master_spec == nil then
+            return components
+          end
+          local master_replicas = to_num(master_spec.replicas, 1)
+          local master_template = master_spec.template
           
           local master_requires = {}
           if master_template ~= nil then
@@ -59,8 +63,12 @@ spec:
           table.insert(components, masterComponent)
           
           -- Worker Component
-          local worker_replicas = to_num(get(observedObj, {"spec", "pytorchReplicaSpecs", "Worker", "replicas"}), 1)
-          local worker_template = get(observedObj, {"spec", "pytorchReplicaSpecs", "Worker", "template"})
+          local worker_spec = get(observedObj, {"spec", "pytorchReplicaSpecs", "Worker"})
+          if worker_spec == nil then
+            return components
+          end
+          local worker_replicas = to_num(worker_spec.replicas, 1)
+          local worker_template = worker_spec.template
           
           local worker_requires = {}
           if worker_template ~= nil then
@@ -132,7 +140,6 @@ spec:
           local completionTime = nil
           local lastReconcileTime = nil
           local replicaStatuses = {}
-          local conditions = {}
           local aggregatedConditions = {}
           local successfulClustersNum = 0
           local failedClusters = {}
@@ -140,9 +147,6 @@ spec:
           -- Initialize Master and Worker status
           replicaStatuses.Master = { active = 0, failed = 0, succeeded = 0 }
           replicaStatuses.Worker = { active = 0, failed = 0, succeeded = 0 }
-        
-          -- Count the number of member clusters with latest status
-          local observedResourceTemplateGenerationCount = 0
         
           for i = 1, #statusItems do
             if statusItems[i].status ~= nil then
@@ -185,6 +189,8 @@ spec:
               local finishedType = ""
               if statusItems[i].status.conditions ~= nil then
                 for _, c in ipairs(statusItems[i].status.conditions) do
+                  -- Like kubernetes native Job, we do not merge conditions from member clusters, 
+                  -- but generate a new condition by PytorchJob finish state.
                   -- table.insert(aggregatedConditions, c)
                   if (c.type == "Succeeded" or c.type == "Failed") and c.status == "True" then
                     isFinished = true
