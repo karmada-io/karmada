@@ -68,6 +68,12 @@ const (
 
 	// KubeControllerManagerComponentName is the name of the Kube Controller Manager component.
 	KubeControllerManagerComponentName = "kube-controller-manager"
+
+	// KarmadaEtcdComponentName is the name of the Karmada Etcd component.
+	KarmadaEtcdComponentName = "karmada-etcd"
+
+	// KarmadaAPIServerComponentName is the name of the Karmada API Server component.
+	KarmadaAPIServerComponentName = "karmada-apiserver"
 )
 
 // ExecutionSpacePrefix is the prefix of execution space
