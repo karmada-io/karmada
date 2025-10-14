@@ -11,10 +11,6 @@ spec:
       luaScript: |
         local kube = require("kube")
         
-        local function isempty(s)
-          return s == nil or s == ''
-        end
-        
         -- Safe fetch of deeply nested table fields.
         local function get(obj, path)
           local cur = obj
