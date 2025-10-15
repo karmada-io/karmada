@@ -160,6 +160,26 @@ func NewClusterPredicateOnAgent(clusterName string) predicate.Funcs {
 	}
 }
 
+// NewClusterStatusControllerPredicateOnAgent generates an event filter function for ClusterStatusController running by karmada-agent.
+func NewClusterStatusControllerPredicateOnAgent(clusterName string) predicate.Funcs {
+	return predicate.Funcs{
+		CreateFunc: func(createEvent event.CreateEvent) bool {
+			return createEvent.Object.GetName() == clusterName
+		},
+		UpdateFunc: func(event.UpdateEvent) bool {
+			// cluster-status-controller will reconcile cluster status periodically,
+			// so we don't need to handle update events
+			return false
+		},
+		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
+			return deleteEvent.Object.GetName() == clusterName
+		},
+		GenericFunc: func(event.GenericEvent) bool {
+			return false
+		},
+	}
+}
+
 // NewPredicateForServiceExportControllerOnAgent generates an event filter function for ServiceExport controller running by karmada-agent.
 func NewPredicateForServiceExportControllerOnAgent(curClusterName string) predicate.Funcs {
 	predFunc := func(eventType string, object client.Object) bool {
