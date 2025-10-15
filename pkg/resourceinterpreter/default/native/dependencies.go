@@ -42,6 +42,7 @@ type dependenciesInterpreter func(object *unstructured.Unstructured) ([]configv1
 func getAllDefaultDependenciesInterpreter() map[schema.GroupVersionKind]dependenciesInterpreter {
 	s := make(map[schema.GroupVersionKind]dependenciesInterpreter)
 	s[appsv1.SchemeGroupVersion.WithKind(util.DeploymentKind)] = getDeploymentDependencies
+	s[appsv1.SchemeGroupVersion.WithKind(util.ReplicaSetKind)] = getReplicaSetDependencies
 	s[batchv1.SchemeGroupVersion.WithKind(util.JobKind)] = getJobDependencies
 	s[batchv1.SchemeGroupVersion.WithKind(util.CronJobKind)] = getCronJobDependencies
 	s[corev1.SchemeGroupVersion.WithKind(util.PodKind)] = getPodDependencies
@@ -59,6 +60,20 @@ func getDeploymentDependencies(object *unstructured.Unstructured) ([]configv1alp
 	}
 
 	podObj, err := lifted.GetPodFromTemplate(&deploymentObj.Spec.Template, deploymentObj, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return helper.GetDependenciesFromPodTemplate(podObj)
+}
+
+func getReplicaSetDependencies(object *unstructured.Unstructured) ([]configv1alpha1.DependentObjectReference, error) {
+	replicaSetObj := &appsv1.ReplicaSet{}
+	if err := helper.ConvertToTypedObject(object, replicaSetObj); err != nil {
+		return nil, fmt.Errorf("failed to convert ReplicaSet from unstructured object: %v", err)
+	}
+
+	podObj, err := lifted.GetPodFromTemplate(&replicaSetObj.Spec.Template, replicaSetObj, nil)
 	if err != nil {
 		return nil, err
 	}

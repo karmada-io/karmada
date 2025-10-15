@@ -36,6 +36,7 @@ type replicaInterpreter func(object *unstructured.Unstructured) (int32, *workv1a
 func getAllDefaultReplicaInterpreter() map[schema.GroupVersionKind]replicaInterpreter {
 	s := make(map[schema.GroupVersionKind]replicaInterpreter)
 	s[appsv1.SchemeGroupVersion.WithKind(util.DeploymentKind)] = deployReplica
+	s[appsv1.SchemeGroupVersion.WithKind(util.ReplicaSetKind)] = replicaSetReplica
 	s[appsv1.SchemeGroupVersion.WithKind(util.StatefulSetKind)] = statefulSetReplica
 	s[batchv1.SchemeGroupVersion.WithKind(util.JobKind)] = jobReplica
 	s[corev1.SchemeGroupVersion.WithKind(util.PodKind)] = podReplica
@@ -54,6 +55,22 @@ func deployReplica(object *unstructured.Unstructured) (int32, *workv1alpha2.Repl
 		replica = *deploy.Spec.Replicas
 	}
 	requirement := helper.GenerateReplicaRequirements(&deploy.Spec.Template)
+
+	return replica, requirement, nil
+}
+
+func replicaSetReplica(object *unstructured.Unstructured) (int32, *workv1alpha2.ReplicaRequirements, error) {
+	rs := &appsv1.ReplicaSet{}
+	if err := helper.ConvertToTypedObject(object, rs); err != nil {
+		klog.Errorf("Failed to convert object(%s), err %v", object.GroupVersionKind().String(), err)
+		return 0, nil, err
+	}
+
+	var replica int32
+	if rs.Spec.Replicas != nil {
+		replica = *rs.Spec.Replicas
+	}
+	requirement := helper.GenerateReplicaRequirements(&rs.Spec.Template)
 
 	return replica, requirement, nil
 }
