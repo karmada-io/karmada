@@ -322,7 +322,7 @@ func startClusterStatusController(ctx controllerscontext.Context) (bool, error) 
 		Client:                            ctx.Mgr.GetClient(),
 		KubeClient:                        kubeclientset.NewForConfigOrDie(ctx.Mgr.GetConfig()),
 		EventRecorder:                     ctx.Mgr.GetEventRecorderFor(status.ControllerName),
-		PredicateFunc:                     helper.NewClusterPredicateOnAgent(ctx.Opts.ClusterName),
+		PredicateFunc:                     helper.NewClusterStatusControllerPredicateOnAgent(ctx.Opts.ClusterName),
 		TypedInformerManager:              typedmanager.GetInstance(),
 		GenericInformerManager:            genericmanager.GetInstance(),
 		ClusterClientSetFunc:              util.NewClusterClientSetForAgent,

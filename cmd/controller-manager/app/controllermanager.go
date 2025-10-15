@@ -326,14 +326,10 @@ func startClusterStatusController(ctx controllerscontext.Context) (enabled bool,
 
 			return obj.Spec.SyncMode == clusterv1alpha1.Push
 		},
-		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-			obj := updateEvent.ObjectNew.(*clusterv1alpha1.Cluster)
-
-			if obj.Spec.SecretRef == nil {
-				return false
-			}
-
-			return obj.Spec.SyncMode == clusterv1alpha1.Push
+		UpdateFunc: func(event.UpdateEvent) bool {
+			// cluster-status-controller will reconcile cluster status periodically,
+			// so we don't need to handle update events
+			return false
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 			obj := deleteEvent.Object.(*clusterv1alpha1.Cluster)
