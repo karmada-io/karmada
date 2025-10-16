@@ -38,7 +38,8 @@ type Application struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec ApplicationSpec `json:"spec,omitempty"`
+	Spec   ApplicationSpec   `json:"spec,omitempty"`
+	Status ApplicationStatus `json:"status,omitempty"`
 }
 
 // ApplicationSpec defines the desired state of Application
@@ -48,6 +49,23 @@ type ApplicationSpec struct {
 	// +optional
 	// +listType=set
 	RelatedApplications []string `json:"relatedApplications,omitempty"`
+}
+
+// ApplicationStatus defines the observed state of Application
+type ApplicationStatus struct {
+	// Phase represents the current phase of the application
+	// +optional
+	Phase string `json:"phase,omitempty"`
+	
+	// Message provides additional information about the current phase
+	// +optional
+	Message string `json:"message,omitempty"`
+	
+	// Conditions represent the latest available observations of the application's state
+	// +optional
+	// +listType=map
+	// +listMapKey=type
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
 // ApplicationList contains a list of Application
