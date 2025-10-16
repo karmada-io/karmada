@@ -95,6 +95,9 @@ func GroupClustersWithScore(
 	calAvailableReplicasFunc func(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster,
 ) *GroupClustersInfo {
 	if isTopologyIgnored(placement) {
+		if shouldIgnoreCalculateAvailableResource(placement) {
+			return groupClustersIgnoringTopology(clustersScore, spec, nil)
+		}
 		return groupClustersIgnoringTopology(clustersScore, spec, calAvailableReplicasFunc)
 	}
 
@@ -343,11 +346,13 @@ func (info *GroupClustersInfo) generateClustersInfo(clustersScore framework.Clus
 		clusters = append(clusters, clusterScore.Cluster)
 	}
 
-	clustersReplicas := info.calAvailableReplicasFunc(clusters, rbSpec)
-	for i, clustersReplica := range clustersReplicas {
-		info.Clusters[i].AvailableReplicas = int64(clustersReplica.Replicas)
-		info.Clusters[i].AvailableReplicas += int64(rbSpec.AssignedReplicasForCluster(clustersReplica.Name))
-		info.Clusters[i].AllocatableReplicas = clustersReplica.Replicas
+	if info.calAvailableReplicasFunc != nil {
+		clustersReplicas := info.calAvailableReplicasFunc(clusters, rbSpec)
+		for i, clustersReplica := range clustersReplicas {
+			info.Clusters[i].AvailableReplicas = int64(clustersReplica.Replicas)
+			info.Clusters[i].AvailableReplicas += int64(rbSpec.AssignedReplicasForCluster(clustersReplica.Name))
+			info.Clusters[i].AllocatableReplicas = clustersReplica.Replicas
+		}
 	}
 
 	sortClusters(info.Clusters, func(i *ClusterDetailInfo, j *ClusterDetailInfo) *bool {

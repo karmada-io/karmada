@@ -78,3 +78,15 @@ func shouldIgnoreAvailableResource(placement *policyv1alpha1.Placement) bool {
 
 	return false
 }
+
+// when replica assignment strategy is "Duplicated" or "static weighted", no need to calculate the available resource
+func shouldIgnoreCalculateAvailableResource(placement *policyv1alpha1.Placement) bool {
+	strategy := placement.ReplicaSchedulingType()
+	if strategy == policyv1alpha1.ReplicaSchedulingTypeDuplicated {
+		return true
+	}
+	if strategy == policyv1alpha1.ReplicaSchedulingTypeDivided && placement.ReplicaScheduling.ReplicaDivisionPreference == policyv1alpha1.ReplicaDivisionPreferenceWeighted && (placement.ReplicaScheduling.WeightPreference == nil || len(placement.ReplicaScheduling.WeightPreference.DynamicWeight) == 0) {
+		return true
+	}
+	return false
+}
