@@ -47,8 +47,10 @@ func (d *DependenciesDistributor) resolveResourceBindingFromSnapshots(ctx contex
 	return rbs, nil
 }
 
-// conflictDetectedForConflictResolution checks if there is a conflict in ConflictResolution from referencing ResourceBindings.
-func (d *DependenciesDistributor) conflictDetectedForConflictResolution(rbs []*workv1alpha2.ResourceBinding) bool {
+// detectAndResolveConflictResolution computes the effective ConflictResolution across referenced ResourceBindings
+// and reports if there is a conflict (both Overwrite and Abort present).
+// Resolution rule: any Overwrite -> Overwrite; else Abort. Empty/zero value counts as Abort.
+func (d *DependenciesDistributor) detectAndResolveConflictResolution(rbs []*workv1alpha2.ResourceBinding) (conflicted bool, effective policyv1alpha1.ConflictResolution) {
 	hasOverwrite := false
 	hasAbort := false
 
@@ -59,16 +61,25 @@ func (d *DependenciesDistributor) conflictDetectedForConflictResolution(rbs []*w
 		} else {
 			hasAbort = true
 		}
+
 		if hasOverwrite && hasAbort {
-			return true
+			break
 		}
 	}
 
-	return hasOverwrite && hasAbort
+	conflicted = hasOverwrite && hasAbort
+	if hasOverwrite {
+		effective = policyv1alpha1.ConflictOverwrite
+	} else {
+		effective = policyv1alpha1.ConflictAbort
+	}
+	return conflicted, effective
 }
 
-// conflictDetectedForPreserveOnDeletion checks if there is a conflict in PreserveResourcesOnDeletion from referencing ResourceBindings.
-func (d *DependenciesDistributor) conflictDetectedForPreserveOnDeletion(rbs []*workv1alpha2.ResourceBinding) bool {
+// detectAndResolvePreserveOnDeletion computes the effective PreserveResourcesOnDeletion across referenced ResourceBindings
+// and reports if there is a conflict (both true and false present).
+// Resolution rule: any true -> true; else false. Empty(nil) counts as false.
+func (d *DependenciesDistributor) detectAndResolvePreserveOnDeletion(rbs []*workv1alpha2.ResourceBinding) (conflicted bool, effective bool) {
 	// seenTrue indicates at least one referencing ResourceBinding has PreserveResourcesOnDeletion set to true.
 	// seenFalse indicates at least one referencing ResourceBinding has PreserveResourcesOnDeletion set to false.
 	seenTrue := false
@@ -81,12 +92,15 @@ func (d *DependenciesDistributor) conflictDetectedForPreserveOnDeletion(rbs []*w
 		} else {
 			seenFalse = true
 		}
+
 		if seenTrue && seenFalse {
-			return true
+			break
 		}
 	}
 
-	return seenTrue && seenFalse
+	conflicted = seenTrue && seenFalse
+	effective = seenTrue
+	return conflicted, effective
 }
 
 // effectiveConflictResolution returns the effective ConflictResolution value,
