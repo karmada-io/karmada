@@ -223,6 +223,12 @@ func (es *AccurateSchedulerEstimatorServer) MaxAvailableReplicas(ctx context.Con
 	return &pb.MaxAvailableReplicasResponse{MaxReplicas: maxReplicas}, nil
 }
 
+// MaxAvailableComponentSets is the implementation of gRPC interface.
+// It returns the maximum number of complete multi-component sets (in terms of replicas) that each cluster can host.
+func (es *AccurateSchedulerEstimatorServer) MaxAvailableComponentSets(context.Context, *pb.MaxAvailableComponentSetsRequest) (*pb.MaxAvailableComponentSetsResponse, error) {
+	return &pb.MaxAvailableComponentSetsResponse{}, fmt.Errorf("not implemented yet")
+}
+
 // GetUnschedulableReplicas is the implementation of gRPC interface. It will return the
 // unschedulable replicas of a workload.
 func (es *AccurateSchedulerEstimatorServer) GetUnschedulableReplicas(ctx context.Context, request *pb.UnschedulableReplicasRequest) (response *pb.UnschedulableReplicasResponse, rerr error) {
