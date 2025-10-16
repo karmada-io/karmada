@@ -154,6 +154,8 @@ type CommandInitOption struct {
 	EtcdNodeSelectorLabelsMap map[string]string
 	EtcdPersistentVolumeSize  string
 	EtcdPriorityClass         string
+	EtcdExtraArgs             []string
+	EtcdContainerCmd          []string // The command for containers in a Pod.
 
 	// external etcd
 	ExternalEtcdCACertPath     string
@@ -169,30 +171,43 @@ type CommandInitOption struct {
 	KarmadaAPIServerNodePort         int32
 	KarmadaAPIServerIP               []net.IP
 	KarmadaAPIServerPriorityClass    string
+	KarmadaAPIServerExtraArgs        []string
+	KarmadaAPIServerContainerCmd     []string
 
 	// karmada-scheduler
 	KarmadaSchedulerImage         string
 	KarmadaSchedulerReplicas      int32
 	KarmadaSchedulerPriorityClass string
+	KarmadaSchedulerExtraArgs     []string
+	KarmadaSchedulerContainerCmd  []string
 
 	// kube-controller-manager
 	KubeControllerManagerImage         string
 	KubeControllerManagerReplicas      int32
 	KubeControllerManagerPriorityClass string
+	KubeControllerManagerExtraArgs     []string
+	KubeControllerManagerContainerCmd  []string
 
 	// karmada-controller-manager
 	KarmadaControllerManagerImage         string
 	KarmadaControllerManagerReplicas      int32
 	KarmadaControllerManagerPriorityClass string
+	KarmadaControllerManagerExtraArgs     []string
+	KarmadaControllerManagerContainerCmd  []string
 
+	// karmada-webhook
 	KarmadaWebhookImage         string
 	KarmadaWebhookReplicas      int32
 	KarmadaWebhookPriorityClass string
+	KarmadaWebhookExtraArgs     []string
+	KarmadaWebhookContainerCmd  []string
 
 	// karamda-aggregated-apiserver
 	KarmadaAggregatedAPIServerImage         string
 	KarmadaAggregatedAPIServerReplicas      int32
 	KarmadaAggregatedAPIServerPriorityClass string
+	KarmadaAggregatedAPIServerExtraArgs     []string
+	KarmadaAggregatedAPIServerContainerCmd  []string
 
 	Namespace          string
 	KubeConfig         string
@@ -257,8 +272,44 @@ func (i *CommandInitOption) isExternalEtcdProvided() bool {
 	return i.ExternalEtcdServers != ""
 }
 
+// validateCommandLineArgs The parameters that are successfully validated will be reassigned to the corresponding xxxExtraArgs.
+func (i *CommandInitOption) validateCommandLineArgs() error {
+	type validateCommandLine struct {
+		name                string
+		additionCommandLine *[]string // addition
+	}
+
+	validateCommandLines := []validateCommandLine{
+		{names.KarmadaEtcdComponentName, &i.EtcdExtraArgs},
+		{names.KarmadaAPIServerComponentName, &i.KarmadaAPIServerExtraArgs},
+		{names.KarmadaSchedulerComponentName, &i.KarmadaSchedulerExtraArgs},
+		{names.KubeControllerManagerComponentName, &i.KubeControllerManagerExtraArgs},
+		{names.KarmadaControllerManagerComponentName, &i.KarmadaControllerManagerExtraArgs},
+		{names.KarmadaWebhookComponentName, &i.KarmadaWebhookExtraArgs},
+		{names.KarmadaAggregatedAPIServerComponentName, &i.KarmadaAggregatedAPIServerExtraArgs},
+	}
+	// validate case -> vc
+	for _, vc := range validateCommandLines {
+		if *vc.additionCommandLine != nil {
+			var err error
+			*vc.additionCommandLine, err = utils.ValidateExtraArgs(*vc.additionCommandLine)
+			if err != nil {
+				klog.Errorf("validate %s extra args failed: %v", vc.name, err)
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 // Validate Check that there are enough flags to run the command.
 func (i *CommandInitOption) Validate(parentCommand string) error {
+	// validate command line args
+	err := i.validateCommandLineArgs()
+	if err != nil {
+		return err
+	}
+
 	if i.KarmadaInitFilePath != "" {
 		cfg, err := initConfig.LoadInitConfiguration(i.KarmadaInitFilePath)
 		if err != nil {
@@ -333,7 +384,38 @@ func (i *CommandInitOption) Complete() error {
 			}
 		}
 	}
+
+	i.initializeCommandLineArgs()
+
 	return initializeDirectory(i.KarmadaDataPath)
+}
+
+// initializeCommandLineArgs Merge default parameters and validated user parameters.
+func (i *CommandInitOption) initializeCommandLineArgs() {
+	type mergeCommandLine struct {
+		name                string
+		finalCommandLine    *[]string
+		defaultCommandLine  func() []string
+		additionCommandLine []string
+	}
+
+	mergeCommandLines := []mergeCommandLine{
+		{names.KarmadaEtcdComponentName, &i.EtcdContainerCmd, i.defaultEtcdContainerCommand, i.EtcdExtraArgs},
+		{names.KarmadaAPIServerComponentName, &i.KarmadaAPIServerContainerCmd, i.defaultKarmadaAPIServerContainerCommand, i.KarmadaAPIServerExtraArgs},
+		{names.KarmadaSchedulerComponentName, &i.KarmadaSchedulerContainerCmd, i.defaultKarmadaSchedulerContainerCommand, i.KarmadaSchedulerExtraArgs},
+		{names.KubeControllerManagerComponentName, &i.KubeControllerManagerContainerCmd, i.defaultKarmadaKubeControllerManagerContainerCommand, i.KubeControllerManagerExtraArgs},
+		{names.KarmadaControllerManagerComponentName, &i.KarmadaControllerManagerContainerCmd, i.defaultKarmadaControllerManagerContainerCommand, i.KarmadaControllerManagerExtraArgs},
+		{names.KarmadaWebhookComponentName, &i.KarmadaWebhookContainerCmd, i.defaultKarmadaWebhookContainerCommand, i.KarmadaWebhookExtraArgs},
+		{names.KarmadaAggregatedAPIServerComponentName, &i.KarmadaAggregatedAPIServerContainerCmd, i.defaultKarmadaAggregatedAPIServerContainerCommand, i.KarmadaAggregatedAPIServerExtraArgs},
+	}
+
+	for _, mc := range mergeCommandLines {
+		if mc.additionCommandLine != nil {
+			*mc.finalCommandLine = utils.MergeCommandArgs(mc.defaultCommandLine(), mc.additionCommandLine)
+		} else {
+			*mc.finalCommandLine = mc.defaultCommandLine()
+		}
+	}
 }
 
 // initializeDirectory initializes a directory and makes sure it's empty.
