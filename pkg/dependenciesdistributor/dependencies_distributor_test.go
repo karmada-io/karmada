@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -34,6 +35,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -42,6 +44,7 @@ import (
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
@@ -3430,5 +3433,119 @@ func Test_deleteBindingFromSnapshot(t *testing.T) {
 				t.Errorf("deleteBindingFromSnapshot() = %v, want %v", gotExistSnapshot, tt.expectExistSnapshot)
 			}
 		})
+	}
+}
+
+func TestCreateOrUpdateAttachedBinding_EmitsDependencyEvents(t *testing.T) {
+	testScheme := runtime.NewScheme()
+	utilruntime.Must(workv1alpha2.AddToScheme(testScheme))
+
+	dependentObj := &unstructured.Unstructured{}
+	dependentObj.SetAPIVersion("v1")
+	dependentObj.SetKind("ConfigMap")
+	dependentObj.SetNamespace("default")
+	dependentObj.SetName("app-config")
+	dependentObj.SetUID(types.UID("cm-uid"))
+
+	parentOne := &workv1alpha2.ResourceBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "workload-a",
+			Namespace: "default",
+			Labels: map[string]string{
+				workv1alpha2.ResourceBindingPermanentIDLabel: "rb-uid-a",
+			},
+		},
+		Spec: workv1alpha2.ResourceBindingSpec{
+			Clusters:                    []workv1alpha2.TargetCluster{{Name: "member1"}},
+			ConflictResolution:          policyv1alpha1.ConflictOverwrite,
+			PreserveResourcesOnDeletion: ptr.To(true),
+		},
+	}
+	attachedFromParentOne := buildAttachedBinding(parentOne, dependentObj)
+	// Simulate existing dependency binding already persisted in the cluster.
+	existing := attachedFromParentOne.DeepCopy()
+
+	fakeClient := fake.NewClientBuilder().WithScheme(testScheme).WithObjects(existing).Build()
+	recorder := record.NewFakeRecorder(10)
+	d := &DependenciesDistributor{
+		Client:        fakeClient,
+		EventRecorder: recorder,
+	}
+
+	parentTwo := &workv1alpha2.ResourceBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "workload-b",
+			Namespace: "default",
+			Labels: map[string]string{
+				workv1alpha2.ResourceBindingPermanentIDLabel: "rb-uid-b",
+			},
+		},
+		Spec: workv1alpha2.ResourceBindingSpec{
+			Clusters:                    []workv1alpha2.TargetCluster{{Name: "member2"}},
+			ConflictResolution:          policyv1alpha1.ConflictAbort,
+			PreserveResourcesOnDeletion: ptr.To(false),
+		},
+	}
+	attachedFromParentTwo := buildAttachedBinding(parentTwo, dependentObj)
+
+	if err := d.createOrUpdateAttachedBinding(attachedFromParentTwo); err != nil {
+		t.Fatalf("createOrUpdateAttachedBinding() error = %v", err)
+	}
+
+	updated := &workv1alpha2.ResourceBinding{}
+	if err := fakeClient.Get(context.TODO(), client.ObjectKeyFromObject(existing), updated); err != nil {
+		t.Fatalf("failed to fetch updated binding: %v", err)
+	}
+	if len(updated.Spec.RequiredBy) != 2 {
+		t.Fatalf("expected 2 parents after aggregation, got %d", len(updated.Spec.RequiredBy))
+	}
+
+	eventsReceived := make([]string, 0, 2)
+	for len(eventsReceived) < 2 {
+		select {
+		case evt := <-recorder.Events:
+			eventsReceived = append(eventsReceived, evt)
+		case <-time.After(time.Second):
+			t.Fatalf("timed out waiting for dependency aggregation events, got %v", eventsReceived)
+		}
+	}
+
+	var conflictEvent, aggregatedEvent string
+	for _, evt := range eventsReceived {
+		if strings.Contains(evt, events.EventReasonDependencyPolicyConflict) {
+			conflictEvent = evt
+		}
+		if strings.Contains(evt, events.EventReasonDependencyPolicyAggregated) {
+			aggregatedEvent = evt
+		}
+	}
+
+	if conflictEvent == "" {
+		t.Fatalf("expected conflict event in %v", eventsReceived)
+	}
+	if !strings.Contains(conflictEvent, "[dep-agg] conflict") {
+		t.Errorf("unexpected conflict event message: %s", conflictEvent)
+	}
+	if !strings.Contains(conflictEvent, "conflictResolution existing=Overwrite incoming=Abort") {
+		t.Errorf("conflict event missing conflictResolution details: %s", conflictEvent)
+	}
+	if !strings.Contains(conflictEvent, "preserveResourcesOnDeletion existing=true incoming=false") {
+		t.Errorf("conflict event missing preserveResourcesOnDeletion details: %s", conflictEvent)
+	}
+
+	if aggregatedEvent == "" {
+		t.Fatalf("expected aggregation event in %v", eventsReceived)
+	}
+	if !strings.Contains(aggregatedEvent, "[dep-agg] aggregated policy") {
+		t.Errorf("unexpected aggregation event message: %s", aggregatedEvent)
+	}
+	if !strings.Contains(aggregatedEvent, "conflictResolution=Abort") {
+		t.Errorf("aggregation event missing conflictResolution result: %s", aggregatedEvent)
+	}
+	if !strings.Contains(aggregatedEvent, "preserveResourcesOnDeletion=false") {
+		t.Errorf("aggregation event missing preserveResourcesOnDeletion result: %s", aggregatedEvent)
+	}
+	if !strings.Contains(aggregatedEvent, "default/workload-a") || !strings.Contains(aggregatedEvent, "default/workload-b") {
+		t.Errorf("aggregation event missing parent list: %s", aggregatedEvent)
 	}
 }
