@@ -91,7 +91,7 @@ func dynamicDivideReplicas(state *assignState) ([]workv1alpha2.TargetCluster, er
 	case DynamicWeightStrategy:
 		// Set the availableClusters as the weight, scheduledClusters as init result, target as the dispenser object.
 		// After dispensing, the target cluster will be the combination of init result and weighted result for target replicas.
-		return helper.SpreadReplicasByTargetClusters(state.targetReplicas, state.availableClusters, state.scheduledClusters), nil
+		return helper.SpreadReplicasByTargetClusters(state.targetReplicas, state.availableClusters, state.scheduledClusters, state.spec.Resource.UID), nil
 	default:
 		// should never happen
 		return nil, fmt.Errorf("undefined strategy type: %s", state.strategyType)
