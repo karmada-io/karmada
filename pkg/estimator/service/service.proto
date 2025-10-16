@@ -25,5 +25,6 @@ option go_package = "service";
 
 service Estimator {
   rpc MaxAvailableReplicas(pb.MaxAvailableReplicasRequest) returns (pb.MaxAvailableReplicasResponse) {}
+  rpc MaxAvailableComponentSets(pb.MaxAvailableComponentSetsRequest) returns (pb.MaxAvailableComponentSetsResponse) {}
   rpc GetUnschedulableReplicas(pb.UnschedulableReplicasRequest) returns (pb.UnschedulableReplicasResponse) {}
 }
