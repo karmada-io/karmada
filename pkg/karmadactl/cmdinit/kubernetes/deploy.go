@@ -18,7 +18,11 @@ package kubernetes
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/base64"
+	"encoding/pem"
 	"fmt"
 	"net"
 	"os"
@@ -36,6 +40,7 @@ import (
 	"k8s.io/klog/v2"
 	netutils "k8s.io/utils/net"
 
+	certconst "github.com/karmada-io/karmada/pkg/cert"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/cert"
 	initConfig "github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/config"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/karmada"
@@ -118,6 +123,10 @@ const (
 	etcdStorageModePVC      = "PVC"
 	etcdStorageModeEmptyDir = "emptyDir"
 	etcdStorageModeHostPath = "hostPath"
+
+	// secret layout values
+	secretLayoutLegacy = "legacy"
+	secretLayoutSplit  = "split"
 )
 
 func init() {
@@ -229,6 +238,10 @@ type CommandInitOption struct {
 	CaCertFile                string
 	CaKeyFile                 string
 	KarmadaInitFilePath       string
+
+	// SecretLayout controls how cert secrets are generated and mounted.
+	// One of: "legacy" (aggregate secret) or "split" (per-component TLS secrets)
+	SecretLayout string
 }
 
 func (i *CommandInitOption) validateLocalEtcd(parentCommand string) error {
@@ -310,6 +323,10 @@ func (i *CommandInitOption) Validate(parentCommand string) error {
 		return err
 	}
 
+	// validate secret layout
+	if i.SecretLayout != secretLayoutSplit {
+		i.SecretLayout = secretLayoutLegacy
+	}
 	if i.KarmadaInitFilePath != "" {
 		cfg, err := initConfig.LoadInitConfiguration(i.KarmadaInitFilePath)
 		if err != nil {
@@ -532,6 +549,9 @@ func (i *CommandInitOption) prepareCRD() error {
 }
 
 func (i *CommandInitOption) createCertsSecrets() error {
+	if strings.ToLower(i.SecretLayout) == secretLayoutSplit {
+		return i.createSplitCertsSecrets()
+	}
 	// Create karmada-config Secret
 	karmadaServerURL := fmt.Sprintf("https://%s.%s.svc.%s:%v", karmadaAPIServerDeploymentAndServiceName, i.Namespace, i.HostClusterDomain, karmadaAPIServerContainerPort)
 	config := utils.CreateWithCerts(karmadaServerURL, options.UserName, options.UserName, i.CertAndKeyFileData[fmt.Sprintf("%s.crt", globaloptions.CaCertAndKeyName)],
@@ -571,15 +591,210 @@ func (i *CommandInitOption) createCertsSecrets() error {
 	}
 
 	karmadaWebhookCert := map[string]string{
-		"tls.crt": string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.KarmadaCertAndKeyName)]),
-		"tls.key": string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.KarmadaCertAndKeyName)]),
+		certconst.KeyTLSCrt: string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.KarmadaCertAndKeyName)]),
+		certconst.KeyTLSKey: string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.KarmadaCertAndKeyName)]),
 	}
-	karmadaWebhookSecret := i.SecretFromSpec(webhookCertsName, corev1.SecretTypeOpaque, karmadaWebhookCert)
+	karmadaWebhookSecret := i.SecretFromSpec(certconst.SecretWebhook, corev1.SecretTypeOpaque, karmadaWebhookCert)
 	if err := util.CreateOrUpdateSecret(i.KubeClientSet, karmadaWebhookSecret); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+// createSplitCertsSecrets creates per-component TLS secrets following the deploy-karmada.sh layout
+func (i *CommandInitOption) createSplitCertsSecrets() error {
+	// Kubeconfig for components (unchanged)
+	karmadaServerURL := fmt.Sprintf("https://%s.%s.svc.%s:%v", karmadaAPIServerDeploymentAndServiceName, i.Namespace, i.HostClusterDomain, karmadaAPIServerContainerPort)
+	config := utils.CreateWithCerts(karmadaServerURL, options.UserName, options.UserName, i.CertAndKeyFileData[fmt.Sprintf("%s.crt", globaloptions.CaCertAndKeyName)],
+		i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.KarmadaCertAndKeyName)], i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.KarmadaCertAndKeyName)])
+	configBytes, err := clientcmd.Write(*config)
+	if err != nil {
+		return fmt.Errorf("failure while serializing admin kubeConfig. %v", err)
+	}
+
+	for _, karmadaConfigSecretName := range karmadaConfigList {
+		karmadaConfigSecret := i.SecretFromSpec(karmadaConfigSecretName, corev1.SecretTypeOpaque, map[string]string{util.KarmadaConfigFieldName: string(configBytes)})
+		if err = util.CreateOrUpdateSecret(i.KubeClientSet, karmadaConfigSecret); err != nil {
+			return err
+		}
+	}
+
+	caCrt := string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", globaloptions.CaCertAndKeyName)])
+	caKey := string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", globaloptions.CaCertAndKeyName)])
+	karmadaCrt := string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.KarmadaCertAndKeyName)])
+	karmadaKey := string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.KarmadaCertAndKeyName)])
+	apiserverCrt := string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.ApiserverCertAndKeyName)])
+	apiserverKey := string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.ApiserverCertAndKeyName)])
+	frontProxyCaCrt := string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.FrontProxyCaCertAndKeyName)])
+	frontProxyClientCrt := string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.FrontProxyClientCertAndKeyName)])
+	frontProxyClientKey := string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.FrontProxyClientCertAndKeyName)])
+	etcdCaCrt := string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.EtcdCaCertAndKeyName)])
+	etcdServerCrt := string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.EtcdServerCertAndKeyName)])
+	etcdServerKey := string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.EtcdServerCertAndKeyName)])
+	etcdClientCrt := string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.EtcdClientCertAndKeyName)])
+	etcdClientKey := string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.EtcdClientCertAndKeyName)])
+
+	saPriv, saPub, err := generateServiceAccountKeyPairPEM()
+	if err != nil {
+		return fmt.Errorf("generate service account key pair failed: %v", err)
+	}
+	saPrivStr := string(saPriv)
+	saPubStr := string(saPub)
+
+	err = i.createSecret(caCrt, caKey, karmadaCrt, karmadaKey, apiserverCrt, apiserverKey,
+		frontProxyCaCrt, frontProxyClientCrt, frontProxyClientKey, etcdCaCrt, etcdServerCrt, etcdServerKey, etcdClientCrt, etcdClientKey, saPrivStr, saPubStr)
+	if err != nil {
+		return err
+	}
+
+	// CA-only compatibility secret for addons to read CABundle
+	compat := i.SecretFromSpec(globaloptions.KarmadaCertsName, corev1.SecretTypeOpaque, map[string]string{certconst.KeyCACrt: caCrt})
+	if err := util.CreateOrUpdateSecret(i.KubeClientSet, compat); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (i *CommandInitOption) createSecret(caCrt, caKey, karmadaCrt, karmadaKey, apiserverCrt, apiserverKey,
+	frontProxyCaCrt, frontProxyClientCrt, frontProxyClientKey, etcdCaCrt, etcdServerCrt, etcdServerKey, etcdClientCrt, etcdClientKey, saPriv, saPub string) error {
+	// Delegate secret creation to helper functions
+	if err := i.createAPIServerSecret(caCrt, apiserverCrt, apiserverKey, etcdCaCrt, etcdClientCrt, etcdClientKey, frontProxyCaCrt, frontProxyClientCrt, frontProxyClientKey, saPriv, saPub); err != nil {
+		return err
+	}
+	if err := i.createAggregatedAPIServerSecret(caCrt, karmadaCrt, karmadaKey, etcdCaCrt, etcdClientCrt, etcdClientKey); err != nil {
+		return err
+	}
+	if err := i.createEtcdSecret(etcdCaCrt, etcdServerCrt, etcdServerKey, etcdClientCrt, etcdClientKey); err != nil {
+		return err
+	}
+	if err := i.createKubeControllerManagerSecret(caCrt, caKey, saPriv, saPub); err != nil {
+		return err
+	}
+	if err := i.createKarmadaWebhookSecret(caCrt, karmadaCrt, karmadaKey); err != nil {
+		return err
+	}
+	if err := i.createKarmadaSchedulerEstimatorSecret(caCrt, karmadaCrt, karmadaKey); err != nil {
+		return err
+	}
+	if err := i.createKarmadaDeschedulerEstimatorSecret(caCrt, karmadaCrt, karmadaKey); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (i *CommandInitOption) createAPIServerSecret(caCrt, apiserverCrt, apiserverKey, etcdCaCrt,
+	etcdClientCrt, etcdClientKey, frontProxyCaCrt, frontProxyClientCrt, frontProxyClientKey, saPriv, saPub string) error {
+	if err := i.createTLSSecret(certconst.SecretApiserverServer, caCrt, apiserverCrt, apiserverKey); err != nil {
+		return err
+	}
+	if err := i.createTLSSecret(certconst.SecretApiserverEtcdClient, etcdCaCrt, etcdClientCrt, etcdClientKey); err != nil {
+		return err
+	}
+	if err := i.createTLSSecret(certconst.SecretApiserverFrontProxyClient, frontProxyCaCrt, frontProxyClientCrt, frontProxyClientKey); err != nil {
+		return err
+	}
+	saSec := i.SecretFromSpec(certconst.SecretApiserverServiceAccountKeys, corev1.SecretTypeOpaque, map[string]string{certconst.KeySAPrivate: saPriv, certconst.KeySAPublic: saPub})
+	if err := util.CreateOrUpdateSecret(i.KubeClientSet, saSec); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (i *CommandInitOption) createAggregatedAPIServerSecret(caCrt, karmadaCrt, karmadaKey, etcdCaCrt,
+	etcdClientCrt, etcdClientKey string) error {
+	if err := i.createTLSSecret(certconst.SecretAggregatedAPIServerServer, caCrt, karmadaCrt, karmadaKey); err != nil {
+		return err
+	}
+	if err := i.createTLSSecret(certconst.SecretAggregatedAPIServerEtcdClient, etcdCaCrt, etcdClientCrt, etcdClientKey); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (i *CommandInitOption) createEtcdSecret(etcdCaCrt, etcdServerCrt, etcdServerKey,
+	etcdClientCrt, etcdClientKey string) error {
+	// etcd server & etcd-client (for internal usage like probes/clients)
+	if !i.isExternalEtcdProvided() {
+		if err := i.createTLSSecret(certconst.SecretEtcdServer, etcdCaCrt, etcdServerCrt, etcdServerKey); err != nil {
+			return err
+		}
+		if err := i.createTLSSecret(certconst.SecretEtcdClient, etcdCaCrt, etcdClientCrt, etcdClientKey); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (i *CommandInitOption) createKubeControllerManagerSecret(caCrt, caKey, saPriv, saPub string) error {
+	kcmCA := i.SecretFromSpec(certconst.SecretKubeControllerManagerCA, corev1.SecretTypeTLS, map[string]string{certconst.KeyTLSCrt: caCrt, certconst.KeyTLSKey: caKey})
+	if err := util.CreateOrUpdateSecret(i.KubeClientSet, kcmCA); err != nil {
+		return err
+	}
+	kcmSA := i.SecretFromSpec(certconst.SecretKubeControllerManagerSAKeys, corev1.SecretTypeOpaque, map[string]string{certconst.KeySAPrivate: string(saPriv), certconst.KeySAPublic: string(saPub)})
+	if err := util.CreateOrUpdateSecret(i.KubeClientSet, kcmSA); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (i *CommandInitOption) createKarmadaWebhookSecret(caCrt, karmadaCrt, karmadaKey string) error {
+	if err := i.createTLSSecret(certconst.SecretWebhook, caCrt, karmadaCrt, karmadaKey); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (i *CommandInitOption) createKarmadaSchedulerEstimatorSecret(caCrt, karmadaCrt, karmadaKey string) error {
+	if err := i.createTLSSecret(certconst.SecretSchedulerEstimatorClient, caCrt, karmadaCrt, karmadaKey); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (i *CommandInitOption) createKarmadaDeschedulerEstimatorSecret(caCrt, karmadaCrt, karmadaKey string) error {
+	if err := i.createTLSSecret(certconst.SecretDeschedulerEstimatorClient, caCrt, karmadaCrt, karmadaKey); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// helper to create TLS secret with optional ca.crt
+func (i *CommandInitOption) createTLSSecret(name string, ca, crt, key string) error {
+	data := map[string]string{certconst.KeyTLSCrt: crt, certconst.KeyTLSKey: key}
+	if ca != "" {
+		data[certconst.KeyCACrt] = ca
+	}
+	sec := i.SecretFromSpec(name, corev1.SecretTypeTLS, data)
+	return util.CreateOrUpdateSecret(i.KubeClientSet, sec)
+}
+
+// generateServiceAccountKeyPairPEM returns PEM encoded RSA private key and public key
+func generateServiceAccountKeyPairPEM() ([]byte, []byte, error) {
+	// 3072-bit RSA
+	priv, err := rsa.GenerateKey(rand.Reader, 3072)
+	if err != nil {
+		return nil, nil, err
+	}
+	// marshal private key
+	privDer := x509.MarshalPKCS1PrivateKey(priv)
+	privPem := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: privDer})
+	// marshal public key in PKIX
+	pubDer, err := x509.MarshalPKIXPublicKey(&priv.PublicKey)
+	if err != nil {
+		return nil, nil, err
+	}
+	pubPem := pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: pubDer})
+	return privPem, pubPem, nil
 }
 
 func (i *CommandInitOption) initKarmadaAPIServer() error {
@@ -948,6 +1163,7 @@ func (i *CommandInitOption) parseGeneralConfig(spec initConfig.KarmadaInitSpec) 
 		i.PullSecrets = spec.Images.ImagePullSecrets
 	}
 	setIfNotZero(&i.WaitComponentReadyTimeout, spec.WaitComponentReadyTimeout)
+	setIfNotEmpty(&i.SecretLayout, spec.SecretLayout)
 }
 
 // parseCertificateConfig parses certificate-related configuration, including CA files,
