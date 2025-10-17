@@ -2,9 +2,9 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.16.0-alpha.1](#v1160-alpha1)
-  - [Downloads for v1.16.0-alpha.1](#downloads-for-v1160-alpha1)
-  - [Changelog since v1.15.0](#changelog-since-v1150)
+- [v1.16.0-alpha.2](#v1160-alpha2)
+  - [Downloads for v1.16.0-alpha.2](#downloads-for-v1160-alpha2)
+  - [Changelog since v1.16.0-alpha.1](#changelog-since-v1160-alpha1)
   - [Urgent Update Notes](#urgent-update-notes)
   - [Changes by Kind](#changes-by-kind)
     - [API Changes](#api-changes)
@@ -16,8 +16,60 @@
     - [Dependencies](#dependencies)
     - [Helm Charts](#helm-charts)
     - [Instrumentation](#instrumentation)
+- [v1.16.0-alpha.1](#v1160-alpha1)
+  - [Downloads for v1.16.0-alpha.1](#downloads-for-v1160-alpha1)
+  - [Changelog since v1.15.0](#changelog-since-v1150)
+  - [Urgent Update Notes](#urgent-update-notes-1)
+  - [Changes by Kind](#changes-by-kind-1)
+    - [API Changes](#api-changes-1)
+    - [Features & Enhancements](#features--enhancements-1)
+    - [Deprecation](#deprecation-1)
+    - [Bug Fixes](#bug-fixes-1)
+    - [Security](#security-1)
+  - [Other](#other-1)
+    - [Dependencies](#dependencies-1)
+    - [Helm Charts](#helm-charts-1)
+    - [Instrumentation](#instrumentation-1)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.16.0-alpha.2
+## Downloads for v1.16.0-alpha.2
+
+Download v1.16.0-alpha.2 in the [v1.16.0-alpha.2 release page](https://github.com/karmada-io/karmada/releases/tag/v1.16.0-alpha.2).
+
+## Changelog since v1.16.0-alpha.1
+
+## Urgent Update Notes
+
+## Changes by Kind
+
+### API Changes
+None.
+
+### Features & Enhancements
+- `karmadactl`: The `init` command now supports customizing Karmada component command line flags. ([#6637](https://github.com/karmada-io/karmada/pull/6637), @luyb177)
+- `karmada-scheduler-estimator`: Introduce MaxAvailableComponentSetsRequest & MaxAvailableComponentSetsResponse for component scheduling. ([#6787](https://github.com/karmada-io/karmada/pull/6787), @seanlaii)
+- `karmada-scheduler`: Implemented `MaxAvailableComponentSets` interface for general estimator based on resource summary. ([#6812](https://github.com/karmada-io/karmada/pull/6812), @mszacillo)
+
+### Deprecation
+None.
+
+### Bug Fixes
+- `karmada-metrics-adapter`: Fixed a panic when querying node metrics by name caused by using the wrong GroupVersionResource (PodsGVR instead of NodesGVR) when creating a lister. ([#6838](https://github.com/karmada-io/karmada/pull/6838), @vie-serendipity)
+
+### Security
+None.
+
+## Other
+### Dependencies
+- The base image `alpine` now has been promoted from 3.22.1 to 3.22.2. ([#6822](https://github.com/karmada-io/karmada/pull/6822))
+
+### Helm Charts
+None.
+
+### Instrumentation
+None.
 
 # v1.16.0-alpha.1
 ## Downloads for v1.16.0-alpha.1
