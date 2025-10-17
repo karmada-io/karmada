@@ -66,6 +66,13 @@ const (
 	EventReasonSyncScheduleResultToDependenciesSucceed = "SyncScheduleResultToDependenciesSucceed"
 	// EventReasonSyncScheduleResultToDependenciesFailed indicates sync schedule result to attached bindings failed.
 	EventReasonSyncScheduleResultToDependenciesFailed = "SyncScheduleResultToDependenciesFailed"
+
+	// EventReasonDependencyPolicyConflict indicates multiple parents have divergent dependency policies.
+	EventReasonDependencyPolicyConflict = "DependencyPolicyConflict"
+	// EventReasonDependencyPolicyAggregated indicates aggregated dependency policies have been applied.
+	EventReasonDependencyPolicyAggregated = "DependencyPolicyAggregated"
+	// EventReasonDependencyOverriddenByExplicitPolicy indicates dependency path is overridden by explicit policy.
+	EventReasonDependencyOverriddenByExplicitPolicy = "DependencyOverriddenByExplicitPolicy"
 )
 
 // Define events for ResourceBinding, ClusterResourceBinding objects and their associated resources.
