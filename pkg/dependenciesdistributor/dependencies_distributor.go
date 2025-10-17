@@ -625,7 +625,7 @@ func (d *DependenciesDistributor) createOrUpdateAttachedBinding(attachedBinding 
 		existBinding.Spec.Resource = attachedBinding.Spec.Resource
 		existBinding.Spec.PreserveResourcesOnDeletion = attachedBinding.Spec.PreserveResourcesOnDeletion
 
-		if conflictDetected {
+		if conflictDetected && d.EventRecorder != nil {
 			message := fmt.Sprintf("[dep-agg] conflict on %s/%s from parents %s: %s",
 				existBinding.Namespace, existBinding.Name, strings.Join(parentsForEvent, ","), strings.Join(conflictDetails, "; "))
 			d.EventRecorder.Eventf(existBinding, corev1.EventTypeWarning, events.EventReasonDependencyPolicyConflict, message)
@@ -636,7 +636,7 @@ func (d *DependenciesDistributor) createOrUpdateAttachedBinding(attachedBinding 
 			return err
 		}
 
-		if shouldEmitAggregationEvent {
+		if shouldEmitAggregationEvent && d.EventRecorder != nil {
 			message := fmt.Sprintf("[dep-agg] aggregated policy for %s/%s from parents %s: conflictResolution=%s preserveResourcesOnDeletion=%t",
 				existBinding.Namespace, existBinding.Name, strings.Join(parentsForEvent, ","), finalConflictResolution, finalPreserve)
 			d.EventRecorder.Eventf(existBinding, corev1.EventTypeNormal, events.EventReasonDependencyPolicyAggregated, message)
