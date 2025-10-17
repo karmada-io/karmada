@@ -1294,6 +1294,7 @@ func Test_aggregateHorizontalPodAutoscalerStatus(t *testing.T) {
 func Test_getAllDefaultAggregateStatusInterpreter(t *testing.T) {
 	expectedKinds := []schema.GroupVersionKind{
 		{Group: "apps", Version: "v1", Kind: "Deployment"},
+		{Group: "apps", Version: "v1", Kind: "ReplicaSet"},
 		{Group: "apps", Version: "v1", Kind: "StatefulSet"},
 		{Group: "batch", Version: "v1", Kind: "Job"},
 		{Group: "", Version: "v1", Kind: "Pod"},

@@ -100,6 +100,82 @@ func TestReviseDeploymentReplica(t *testing.T) {
 	}
 }
 
+func TestReviseReplicaSetReplica(t *testing.T) {
+	tests := []struct {
+		name        string
+		object      *unstructured.Unstructured
+		replica     int64
+		expected    *unstructured.Unstructured
+		expectError bool
+	}{
+		{
+			name: "ReplicaSet .spec.replicas accessor error, expected int64",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "ReplicaSet",
+					"metadata": map[string]interface{}{
+						"name": "fake-replicaset",
+					},
+					"spec": map[string]interface{}{
+						"replicas": 1,
+					},
+				},
+			},
+			replica:     3,
+			expectError: true,
+		},
+		{
+			name: "revise replicaset replica",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "ReplicaSet",
+					"metadata": map[string]interface{}{
+						"name": "fake-replicaset",
+					},
+					"spec": map[string]interface{}{
+						"replicas": int64(1),
+					},
+				},
+			},
+			replica: 3,
+			expected: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "ReplicaSet",
+					"metadata": map[string]interface{}{
+						"name": "fake-replicaset",
+					},
+					"spec": map[string]interface{}{
+						"replicas": int64(3),
+					},
+				},
+			},
+			expectError: false,
+		},
+	}
+
+	for i := range tests {
+		tt := tests[i]
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			res, err := reviseReplicaSetReplica(tt.object, tt.replica)
+			if err == nil && tt.expectError == true {
+				t.Fatal("expect an error but got none")
+			}
+			if err != nil && tt.expectError != true {
+				t.Fatalf("expect no error but got: %v", err)
+			}
+			if err == nil && tt.expectError == false {
+				if !reflect.DeepEqual(res, tt.expected) {
+					t.Errorf("reviseReplicaSetReplica() = %v, want %v", res, tt.expected)
+				}
+			}
+		})
+	}
+}
+
 func TestReviseJobReplica(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -253,6 +329,7 @@ func TestReviseStatefulSetReplica(t *testing.T) {
 func TestGetAllDefaultReviseReplicaInterpreter(t *testing.T) {
 	expectedKinds := []schema.GroupVersionKind{
 		{Group: "apps", Version: "v1", Kind: "Deployment"},
+		{Group: "apps", Version: "v1", Kind: "ReplicaSet"},
 		{Group: "apps", Version: "v1", Kind: "StatefulSet"},
 		{Group: "batch", Version: "v1", Kind: "Job"},
 	}
