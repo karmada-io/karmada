@@ -1,0 +1,26 @@
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: karmada-operator-webhook-cert
+  namespace: {{ .Release.Namespace }}
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: karmada-operator-webhook-cert
+  namespace: {{ .Release.Namespace }}
+spec:
+  secretName: karmada-operator-webhook-cert
+  issuerRef:
+    kind: Issuer
+    name: karmada-operator-webhook-cert
+  dnsNames:
+    - karmada-operator-webhook
+    - karmada-operator-webhook.{{ .Release.Namespace }}
+    - karmada-operator-webhook.{{ .Release.Namespace }}.svc
+    - karmada-operator-webhook.{{ .Release.Namespace }}.svc.cluster.local
+
+
