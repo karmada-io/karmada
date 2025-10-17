@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -34,6 +35,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -42,6 +44,7 @@ import (
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
@@ -3430,5 +3433,198 @@ func Test_deleteBindingFromSnapshot(t *testing.T) {
 				t.Errorf("deleteBindingFromSnapshot() = %v, want %v", gotExistSnapshot, tt.expectExistSnapshot)
 			}
 		})
+	}
+}
+
+type dependencyPolicyTestEnv struct {
+	distributor *DependenciesDistributor
+	client      client.Client
+	recorder    *record.FakeRecorder
+	existing    *workv1alpha2.ResourceBinding
+	dependent   *unstructured.Unstructured
+}
+
+func newDependencyPolicyTestEnv(t *testing.T) *dependencyPolicyTestEnv {
+	t.Helper()
+
+	scheme := runtime.NewScheme()
+	utilruntime.Must(workv1alpha2.Install(scheme))
+
+	dependent := &unstructured.Unstructured{}
+	dependent.SetAPIVersion("v1")
+	dependent.SetKind("ConfigMap")
+	dependent.SetNamespace("default")
+	dependent.SetName("app-config")
+	dependent.SetUID(types.UID("cm-uid"))
+
+	parentOne := &workv1alpha2.ResourceBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "workload-a",
+			Namespace: "default",
+			Labels: map[string]string{
+				workv1alpha2.ResourceBindingPermanentIDLabel: "rb-uid-a",
+			},
+		},
+		Spec: workv1alpha2.ResourceBindingSpec{
+			Clusters:                    []workv1alpha2.TargetCluster{{Name: "member1"}},
+			ConflictResolution:          policyv1alpha1.ConflictOverwrite,
+			PreserveResourcesOnDeletion: ptr.To(true),
+		},
+	}
+
+	attachedFromParentOne := buildAttachedBinding(parentOne, dependent)
+	existing := attachedFromParentOne.DeepCopy()
+
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(existing).Build()
+	recorder := record.NewFakeRecorder(10)
+
+	distributor := &DependenciesDistributor{
+		Client:        fakeClient,
+		EventRecorder: recorder,
+	}
+
+	return &dependencyPolicyTestEnv{
+		distributor: distributor,
+		client:      fakeClient,
+		recorder:    recorder,
+		existing:    existing,
+		dependent:   dependent,
+	}
+}
+
+func waitForEvents(t *testing.T, recorder *record.FakeRecorder, want int, timeout time.Duration) []string {
+	t.Helper()
+
+	eventList := make([]string, 0, want)
+	timeoutCh := time.After(timeout)
+	for len(eventList) < want {
+		select {
+		case evt := <-recorder.Events:
+			eventList = append(eventList, evt)
+		case <-timeoutCh:
+			t.Fatalf("timed out waiting for %d events, got %v", want, eventList)
+		}
+	}
+	return eventList
+}
+
+func findEventByReason(t *testing.T, eventList []string, reason string) string {
+	t.Helper()
+
+	for _, evt := range eventList {
+		if strings.Contains(evt, reason) {
+			return evt
+		}
+	}
+	t.Fatalf("expected event reason %s in %v", reason, eventList)
+	return ""
+}
+
+func assertEventMessageContains(t *testing.T, event string, substrings ...string) {
+	t.Helper()
+
+	for _, substring := range substrings {
+		if !strings.Contains(event, substring) {
+			t.Errorf("event %q missing substring %q", event, substring)
+		}
+	}
+}
+
+func TestCreateOrUpdateAttachedBinding_RecordsConflictEvent(t *testing.T) {
+	env := newDependencyPolicyTestEnv(t)
+
+	parentTwo := &workv1alpha2.ResourceBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "workload-b",
+			Namespace: "default",
+			Labels: map[string]string{
+				workv1alpha2.ResourceBindingPermanentIDLabel: "rb-uid-b",
+			},
+		},
+		Spec: workv1alpha2.ResourceBindingSpec{
+			Clusters:                    []workv1alpha2.TargetCluster{{Name: "member2"}},
+			ConflictResolution:          policyv1alpha1.ConflictAbort,
+			PreserveResourcesOnDeletion: ptr.To(false),
+		},
+	}
+	attachedFromParentTwo := buildAttachedBinding(parentTwo, env.dependent)
+
+	if err := env.distributor.createOrUpdateAttachedBinding(attachedFromParentTwo); err != nil {
+		t.Fatalf("createOrUpdateAttachedBinding() error = %v", err)
+	}
+
+	updated := &workv1alpha2.ResourceBinding{}
+	if err := env.client.Get(context.TODO(), client.ObjectKeyFromObject(env.existing), updated); err != nil {
+		t.Fatalf("failed to fetch updated binding: %v", err)
+	}
+	if len(updated.Spec.RequiredBy) != 2 {
+		t.Fatalf("expected 2 parents after aggregation, got %d", len(updated.Spec.RequiredBy))
+	}
+
+	eventList := waitForEvents(t, env.recorder, 2, time.Second)
+
+	conflictEvent := findEventByReason(t, eventList, events.EventReasonDependencyPolicyConflict)
+	assertEventMessageContains(t, conflictEvent,
+		"[dep-agg] conflict",
+		"conflictResolution existing=Overwrite incoming=Abort",
+		"preserveResourcesOnDeletion existing=true incoming=false",
+	)
+
+	aggregatedEvent := findEventByReason(t, eventList, events.EventReasonDependencyPolicyAggregated)
+	assertEventMessageContains(t, aggregatedEvent,
+		"[dep-agg] aggregated policy",
+		"conflictResolution=Abort",
+		"preserveResourcesOnDeletion=false",
+		"default/workload-a",
+		"default/workload-b",
+	)
+}
+
+func TestCreateOrUpdateAttachedBinding_RecordsAggregationEvent(t *testing.T) {
+	env := newDependencyPolicyTestEnv(t)
+
+	parentTwo := &workv1alpha2.ResourceBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "workload-b",
+			Namespace: "default",
+			Labels: map[string]string{
+				workv1alpha2.ResourceBindingPermanentIDLabel: "rb-uid-b",
+			},
+		},
+		Spec: workv1alpha2.ResourceBindingSpec{
+			Clusters:                    []workv1alpha2.TargetCluster{{Name: "member2"}},
+			ConflictResolution:          policyv1alpha1.ConflictOverwrite,
+			PreserveResourcesOnDeletion: ptr.To(true),
+		},
+	}
+	attachedFromParentTwo := buildAttachedBinding(parentTwo, env.dependent)
+
+	if err := env.distributor.createOrUpdateAttachedBinding(attachedFromParentTwo); err != nil {
+		t.Fatalf("createOrUpdateAttachedBinding() error = %v", err)
+	}
+
+	updated := &workv1alpha2.ResourceBinding{}
+	if err := env.client.Get(context.TODO(), client.ObjectKeyFromObject(env.existing), updated); err != nil {
+		t.Fatalf("failed to fetch updated binding: %v", err)
+	}
+	if len(updated.Spec.RequiredBy) != 2 {
+		t.Fatalf("expected 2 parents after aggregation, got %d", len(updated.Spec.RequiredBy))
+	}
+
+	eventList := waitForEvents(t, env.recorder, 1, time.Second)
+
+	aggregatedEvent := findEventByReason(t, eventList, events.EventReasonDependencyPolicyAggregated)
+	assertEventMessageContains(t, aggregatedEvent,
+		"[dep-agg] aggregated policy",
+		"conflictResolution=Overwrite",
+		"preserveResourcesOnDeletion=true",
+		"default/workload-a",
+		"default/workload-b",
+	)
+
+	for _, evt := range eventList {
+		if strings.Contains(evt, events.EventReasonDependencyPolicyConflict) {
+			t.Fatalf("unexpected conflict event: %s", evt)
+		}
 	}
 }
