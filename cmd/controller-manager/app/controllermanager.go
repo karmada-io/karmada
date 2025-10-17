@@ -475,7 +475,7 @@ func startWorkStatusController(ctx controllerscontext.Context) (enabled bool, er
 		InformerManager:             genericmanager.GetInstance(),
 		Context:                     ctx.Context,
 		ObjectWatcher:               ctx.ObjectWatcher,
-		WorkPredicateFunc:           helper.WorkWithinPushClusterPredicate(ctx.Mgr),
+		WorkPredicateFunc:           helper.NewWorkStatusPredicate(ctx.Mgr),
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSet,
 		ClusterClientOption:         ctx.ClusterClientOption,
 		ClusterCacheSyncTimeout:     opts.ClusterCacheSyncTimeout,
