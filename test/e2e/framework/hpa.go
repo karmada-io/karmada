@@ -46,11 +46,14 @@ func RemoveHPA(client kubernetes.Interface, namespace, name string) {
 // UpdateHPAWithMinReplicas update HPA with replicas.
 func UpdateHPAWithMinReplicas(client kubernetes.Interface, namespace, name string, minReplicas int32) {
 	ginkgo.By(fmt.Sprintf("Updating HPA(%s/%s)", namespace, name), func() {
-		newHPA, err := client.AutoscalingV2().HorizontalPodAutoscalers(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-		newHPA.Spec.MinReplicas = &minReplicas
-		_, err = client.AutoscalingV2().HorizontalPodAutoscalers(namespace).Update(context.TODO(), newHPA, metav1.UpdateOptions{})
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		gomega.Eventually(func() error {
+			newHPA, err := client.AutoscalingV2().HorizontalPodAutoscalers(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+			newHPA.Spec.MinReplicas = &minReplicas
+			_, err = client.AutoscalingV2().HorizontalPodAutoscalers(namespace).Update(context.TODO(), newHPA, metav1.UpdateOptions{})
+			return err
+		}, PollTimeout, PollInterval).ShouldNot(gomega.HaveOccurred())
 	})
 }

@@ -67,12 +67,15 @@ func CreateKarmadaInstance(operatorClient operator.Interface, karmada *operatorv
 // UpdateKarmadaInstanceWithSpec updates karmada instance with spec.
 func UpdateKarmadaInstanceWithSpec(client operator.Interface, namespace, name string, karmadaSpec operatorv1alpha1.KarmadaSpec) {
 	ginkgo.By(fmt.Sprintf("Updating Karmada(%s/%s) spec", namespace, name), func() {
-		karmada, err := client.OperatorV1alpha1().Karmadas(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-		karmada.Spec = karmadaSpec
-		_, err = client.OperatorV1alpha1().Karmadas(namespace).Update(context.TODO(), karmada, metav1.UpdateOptions{})
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		gomega.Eventually(func() error {
+			karmada, err := client.OperatorV1alpha1().Karmadas(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+			karmada.Spec = karmadaSpec
+			_, err = client.OperatorV1alpha1().Karmadas(namespace).Update(context.TODO(), karmada, metav1.UpdateOptions{})
+			return err
+		}, framework.PollTimeout, framework.PollInterval).ShouldNot(gomega.HaveOccurred())
 	})
 }
 

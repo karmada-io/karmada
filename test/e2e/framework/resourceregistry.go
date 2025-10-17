@@ -47,7 +47,9 @@ func RemoveResourceRegistry(client karmada.Interface, name string) {
 // UpdateResourceRegistry patch ResourceRegistry with karmada client.
 func UpdateResourceRegistry(client karmada.Interface, rr *searchv1alpha1.ResourceRegistry) {
 	ginkgo.By(fmt.Sprintf("Update ResourceRegistry(%s)", rr.Name), func() {
-		_, err := client.SearchV1alpha1().ResourceRegistries().Update(context.TODO(), rr, metav1.UpdateOptions{})
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		gomega.Eventually(func() error {
+			_, err := client.SearchV1alpha1().ResourceRegistries().Update(context.TODO(), rr, metav1.UpdateOptions{})
+			return err
+		}, PollTimeout, PollInterval).ShouldNot(gomega.HaveOccurred())
 	})
 }
