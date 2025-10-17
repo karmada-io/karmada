@@ -134,6 +134,7 @@ function return_to_kansas {
 trap return_to_kansas EXIT
 
 SUBJECTS=()
+RELEASE_NOTES=()
 function make-a-pr() {
   local rel
   rel="$(basename "${BRANCH}")"
@@ -142,12 +143,17 @@ function make-a-pr() {
 
   local numandtitle
   numandtitle=$(printf '%s\n' "${SUBJECTS[@]}")
+  local release_notes
+  if ((${#RELEASE_NOTES[@]} > 0)); then
+    release_notes=$(printf '%s\n' "${RELEASE_NOTES[@]}")
+  fi
   prtext=$(
     cat <<EOF
 Cherry pick of ${PULLSUBJ} on ${rel}.
 ${numandtitle}
 For details on the cherry pick process, see the [cherry pick requests](https://karmada.io/docs/contributor/cherry-picks) page.
 \`\`\`release-note
+${release_notes}
 \`\`\`
 EOF
   )
@@ -195,6 +201,14 @@ for pull in "${PULLS[@]}"; do
   # set the subject
   subject=$(grep -m 1 "^Subject" "/tmp/${pull}.patch" | sed -e 's/Subject: \[PATCH//g' | sed 's/.*] //')
   SUBJECTS+=("#${pull}: ${subject}")
+
+  # get release note
+  echo "+++ Getting release note from PR ${pull}"
+  pr_body=$(gh pr view "${pull}" --json body --repo "${MAIN_REPO_ORG}/${MAIN_REPO_NAME}" -q '.body')
+  release_note=$(echo "${pr_body}" | sed -n '/```release-note/,/```/p' | sed '/^```/d' | awk 'NF')
+  if [[ -n "${release_note}" && "${release_note}" != "NONE" ]]; then
+    RELEASE_NOTES+=("${release_note}")
+  fi
 
   # remove the patch file from /tmp
   rm -f "/tmp/${pull}.patch"
