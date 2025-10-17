@@ -47,11 +47,14 @@ func RemoveCronFederatedHPA(client karmada.Interface, namespace, name string) {
 // UpdateCronFederatedHPAWithRule update CronFederatedHPA with karmada client.
 func UpdateCronFederatedHPAWithRule(client karmada.Interface, namespace, name string, rule []autoscalingv1alpha1.CronFederatedHPARule) {
 	ginkgo.By(fmt.Sprintf("Updating CronFederatedHPA(%s/%s)", namespace, name), func() {
-		newCronFederatedHPA, err := client.AutoscalingV1alpha1().CronFederatedHPAs(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-		newCronFederatedHPA.Spec.Rules = rule
-		_, err = client.AutoscalingV1alpha1().CronFederatedHPAs(namespace).Update(context.TODO(), newCronFederatedHPA, metav1.UpdateOptions{})
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		gomega.Eventually(func() error {
+			newCronFederatedHPA, err := client.AutoscalingV1alpha1().CronFederatedHPAs(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+			newCronFederatedHPA.Spec.Rules = rule
+			_, err = client.AutoscalingV1alpha1().CronFederatedHPAs(namespace).Update(context.TODO(), newCronFederatedHPA, metav1.UpdateOptions{})
+			return err
+		}, PollTimeout, PollInterval).ShouldNot(gomega.HaveOccurred())
 	})
 }
