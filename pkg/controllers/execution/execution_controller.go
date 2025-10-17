@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The Karmada Authors.
+Copyright 2025 The Karmada Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -134,18 +134,18 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
-    ctrlBuilder := controllerruntime.NewControllerManagedBy(mgr).Named(ControllerName).
-        WithOptions(controller.Options{
+	ctrlBuilder := controllerruntime.NewControllerManagedBy(mgr).Named(ControllerName).
+		WithOptions(controller.Options{
 			RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RateLimiterOptions),
 		})
 
-    // Build the default predicate: allow generation changes and nil->non-nil deletion timestamp transitions; ignore delete events.
-    defaultPred := buildWorkEventPredicate()
+	// Build the default predicate: allow generation changes and nil->non-nil deletion timestamp transitions; ignore delete events.
+	defaultPred := buildWorkEventPredicate()
 
 	if c.WorkPredicateFunc != nil {
-        ctrlBuilder.For(&workv1alpha1.Work{}, builder.WithPredicates(c.WorkPredicateFunc, defaultPred))
+		ctrlBuilder.For(&workv1alpha1.Work{}, builder.WithPredicates(c.WorkPredicateFunc, defaultPred))
 	} else {
-        ctrlBuilder.For(&workv1alpha1.Work{}, builder.WithPredicates(defaultPred))
+		ctrlBuilder.For(&workv1alpha1.Work{}, builder.WithPredicates(defaultPred))
 	}
 
 	return ctrlBuilder.Complete(c)
@@ -156,20 +156,20 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 // - Reconcile when deletion timestamp changes from nil to non-nil (finalizer path)
 // - Ignore delete events
 func buildWorkEventPredicate() predicate.Predicate {
-    return predicate.Funcs{
-        UpdateFunc: func(e event.UpdateEvent) bool {
-            if e.ObjectOld == nil || e.ObjectNew == nil {
-                return false
-            }
-            // Trigger when deletion timestamp transitions from nil to non-nil
-            if e.ObjectOld.GetDeletionTimestamp().IsZero() && !e.ObjectNew.GetDeletionTimestamp().IsZero() {
-                return true
-            }
-            // Trigger on generation change
-            return e.ObjectOld.GetGeneration() != e.ObjectNew.GetGeneration()
-        },
-        DeleteFunc: func(event.DeleteEvent) bool { return false },
-    }
+	return predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			if e.ObjectOld == nil || e.ObjectNew == nil {
+				return false
+			}
+			// Trigger when deletion timestamp transitions from nil to non-nil
+			if e.ObjectOld.GetDeletionTimestamp().IsZero() && !e.ObjectNew.GetDeletionTimestamp().IsZero() {
+				return true
+			}
+			// Trigger on generation change
+			return e.ObjectOld.GetGeneration() != e.ObjectNew.GetGeneration()
+		},
+		DeleteFunc: func(event.DeleteEvent) bool { return false },
+	}
 }
 
 func (c *Controller) syncWork(ctx context.Context, clusterName string, work *workv1alpha1.Work) (controllerruntime.Result, error) {
