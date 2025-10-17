@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -469,8 +470,8 @@ var _ = ginkgo.Describe("application failover testing", func() {
 						},
 					},
 				})
-				framework.CreateOverridePolicy(karmadaClient, overridePolicy)
 				beginTime = time.Now()
+				framework.CreateOverridePolicy(karmadaClient, overridePolicy)
 			})
 			defer framework.RemoveOverridePolicy(karmadaClient, policyNamespace, policyName)
 
@@ -488,8 +489,10 @@ var _ = ginkgo.Describe("application failover testing", func() {
 
 			ginkgo.By("check whether application failover with purgeMode gracefully when the GracePeriodSeconds is reach out", func() {
 				framework.WaitDeploymentDisappearOnClusters(disabledClusters, deploymentNamespace, deploymentName)
-				evictionTime := time.Now()
-				gomega.Expect(evictionTime.Sub(beginTime) > time.Duration(gracePeriodSeconds+tolerationSeconds)*time.Second).Should(gomega.BeTrue())
+				evictionTimeCost := time.Since(beginTime)
+				expectTimeCost := time.Second * time.Duration(gracePeriodSeconds+tolerationSeconds)
+				klog.Infof("application failover time cost: actual: %s, expect: %s", evictionTimeCost.String(), expectTimeCost.String())
+				gomega.Expect(evictionTimeCost >= expectTimeCost).Should(gomega.BeTrue())
 			})
 		})
 	})
