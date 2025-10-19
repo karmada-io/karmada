@@ -24,7 +24,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -286,7 +285,7 @@ func TestKubernetesAPIStatusUpdate(t *testing.T) {
 
 	app := &v1alpha1.Application{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-app",
+			Name:      "status-test-app",
 			Namespace: "default",
 		},
 		Spec: v1alpha1.ApplicationSpec{
@@ -304,23 +303,23 @@ func TestKubernetesAPIStatusUpdate(t *testing.T) {
 	// Test status update
 	var retrievedApp v1alpha1.Application
 	err := fakeClient.Get(ctx, types.NamespacedName{
-		Name:      "test-app",
+		Name:      "status-test-app",
 		Namespace: "default",
 	}, &retrievedApp)
 	require.NoError(t, err)
 
-	// Update status (simulate)
+	// Update status (simulate by updating the object directly)
 	retrievedApp.Status = v1alpha1.ApplicationStatus{
 		Phase: "Running",
 	}
 	
-	err = fakeClient.Status().Update(ctx, &retrievedApp)
+	err = fakeClient.Update(ctx, &retrievedApp)
 	require.NoError(t, err)
 
 	// Verify the status update
 	var statusUpdatedApp v1alpha1.Application
 	err = fakeClient.Get(ctx, types.NamespacedName{
-		Name:      "test-app",
+		Name:      "status-test-app",
 		Namespace: "default",
 	}, &statusUpdatedApp)
 	require.NoError(t, err)

@@ -23,15 +23,14 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1"
 )
 
-// TestApplicationFailoverPerformance benchmarks the performance of application failover
-func TestApplicationFailoverPerformance(b *testing.B) {
+// BenchmarkApplicationFailoverPerformance benchmarks the performance of application failover
+func BenchmarkApplicationFailoverPerformance(b *testing.B) {
 	mainApp := &v1alpha1.Application{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "main-app",
@@ -43,7 +42,7 @@ func TestApplicationFailoverPerformance(b *testing.B) {
 	}
 
 	// Mock functions
-	migrateFunc := func(ctx context.Context, app *v1alpha1.Application) error {
+	migrateFunc := func(app *v1alpha1.Application) error {
 		// Simulate migration work
 		time.Sleep(1 * time.Millisecond)
 		return nil
@@ -74,8 +73,8 @@ func TestApplicationFailoverPerformance(b *testing.B) {
 	})
 }
 
-// TestRelatedApplicationsMigrationPerformance benchmarks the performance of related applications migration
-func TestRelatedApplicationsMigrationPerformance(b *testing.B) {
+// BenchmarkRelatedApplicationsMigrationPerformance benchmarks the performance of related applications migration
+func BenchmarkRelatedApplicationsMigrationPerformance(b *testing.B) {
 	// Create a large number of related applications for performance testing
 	relatedApps := make([]string, 100)
 	for i := 0; i < 100; i++ {
@@ -93,7 +92,7 @@ func TestRelatedApplicationsMigrationPerformance(b *testing.B) {
 	}
 
 	// Mock functions
-	migrateFunc := func(ctx context.Context, app *v1alpha1.Application) error {
+	migrateFunc := func(app *v1alpha1.Application) error {
 		// Simulate migration work
 		time.Sleep(100 * time.Microsecond)
 		return nil
@@ -124,8 +123,8 @@ func TestRelatedApplicationsMigrationPerformance(b *testing.B) {
 	})
 }
 
-// TestControllerReconciliationPerformance benchmarks the performance of controller reconciliation
-func TestControllerReconciliationPerformance(b *testing.B) {
+// BenchmarkControllerReconciliationPerformance benchmarks the performance of controller reconciliation
+func BenchmarkControllerReconciliationPerformance(b *testing.B) {
 	mainApp := &v1alpha1.Application{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "main-app",
@@ -137,7 +136,7 @@ func TestControllerReconciliationPerformance(b *testing.B) {
 	}
 
 	// Mock functions with minimal overhead
-	migrateFunc := func(ctx context.Context, app *v1alpha1.Application) error {
+	migrateFunc := func(app *v1alpha1.Application) error {
 		return nil
 	}
 
@@ -166,8 +165,8 @@ func TestControllerReconciliationPerformance(b *testing.B) {
 	})
 }
 
-// TestMemoryUsage benchmarks memory usage during failover operations
-func TestMemoryUsage(b *testing.B) {
+// BenchmarkMemoryUsage benchmarks memory usage during failover operations
+func BenchmarkMemoryUsage(b *testing.B) {
 	mainApp := &v1alpha1.Application{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "main-app",
@@ -179,7 +178,7 @@ func TestMemoryUsage(b *testing.B) {
 	}
 
 	// Mock functions
-	migrateFunc := func(ctx context.Context, app *v1alpha1.Application) error {
+	migrateFunc := func(app *v1alpha1.Application) error {
 		// Simulate memory allocation
 		_ = make([]byte, 1024) // 1KB allocation
 		return nil
@@ -210,8 +209,8 @@ func TestMemoryUsage(b *testing.B) {
 	})
 }
 
-// TestConcurrentFailoverPerformance benchmarks concurrent failover operations
-func TestConcurrentFailoverPerformance(b *testing.B) {
+// BenchmarkConcurrentFailoverPerformance benchmarks concurrent failover operations
+func BenchmarkConcurrentFailoverPerformance(b *testing.B) {
 	mainApp := &v1alpha1.Application{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "main-app",
@@ -223,7 +222,7 @@ func TestConcurrentFailoverPerformance(b *testing.B) {
 	}
 
 	// Mock functions
-	migrateFunc := func(ctx context.Context, app *v1alpha1.Application) error {
+	migrateFunc := func(app *v1alpha1.Application) error {
 		time.Sleep(1 * time.Millisecond)
 		return nil
 	}

@@ -45,7 +45,7 @@ func TestEmptyRelatedApplications(t *testing.T) {
 
 	// Mock functions
 	migrated := make(map[string]bool)
-	migrateFunc := func(ctx context.Context, app *v1alpha1.Application) error {
+	migrateFunc := func(app *v1alpha1.Application) error {
 		migrated[app.Name] = true
 		return nil
 	}
@@ -85,7 +85,7 @@ func TestMaxRelatedApplications(t *testing.T) {
 
 	// Mock functions
 	migrated := make(map[string]bool)
-	migrateFunc := func(ctx context.Context, app *v1alpha1.Application) error {
+	migrateFunc := func(app *v1alpha1.Application) error {
 		migrated[app.Name] = true
 		return nil
 	}
@@ -132,7 +132,7 @@ func TestInvalidApplicationNames(t *testing.T) {
 
 	// Mock functions
 	migrated := make(map[string]bool)
-	migrateFunc := func(ctx context.Context, app *v1alpha1.Application) error {
+	migrateFunc := func(app *v1alpha1.Application) error {
 		migrated[app.Name] = true
 		return nil
 	}
@@ -178,7 +178,7 @@ func TestNamespaceBoundaryConditions(t *testing.T) {
 
 	// Mock functions
 	migrated := make(map[string]bool)
-	migrateFunc := func(ctx context.Context, app *v1alpha1.Application) error {
+	migrateFunc := func(app *v1alpha1.Application) error {
 		migrated[app.Name] = true
 		return nil
 	}
@@ -225,15 +225,11 @@ func TestContextTimeoutScenarios(t *testing.T) {
 
 	// Mock functions
 	migrated := make(map[string]bool)
-	migrateFunc := func(ctx context.Context, app *v1alpha1.Application) error {
-		// Simulate slow migration that might timeout
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(100 * time.Millisecond):
-			migrated[app.Name] = true
-			return nil
-		}
+	migrateFunc := func(app *v1alpha1.Application) error {
+		// Simulate slow migration that will timeout
+		time.Sleep(100 * time.Millisecond)
+		migrated[app.Name] = true
+		return nil
 	}
 
 	getFunc := func(ctx context.Context, key types.NamespacedName, obj interface{}) error {
@@ -275,9 +271,9 @@ func TestResourceQuotaExceeded(t *testing.T) {
 
 	// Mock functions
 	migrated := make(map[string]bool)
-	migrateFunc := func(ctx context.Context, app *v1alpha1.Application) error {
+	migrateFunc := func(app *v1alpha1.Application) error {
 		if app.Name == "related-app-1" {
-			return errors.NewResourceQuotaExceeded("resource quota exceeded")
+			return errors.NewTooManyRequests("resource quota exceeded", 0)
 		}
 		migrated[app.Name] = true
 		return nil
@@ -321,7 +317,7 @@ func TestConcurrentFailoverOperations(t *testing.T) {
 	// Mock functions with concurrency control
 	migrated := make(map[string]bool)
 	var mu sync.Mutex
-	migrateFunc := func(ctx context.Context, app *v1alpha1.Application) error {
+	migrateFunc := func(app *v1alpha1.Application) error {
 		mu.Lock()
 		defer mu.Unlock()
 		migrated[app.Name] = true

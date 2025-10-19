@@ -33,10 +33,29 @@ type ApplicationReconciler struct {
 }
 
 func (r *ApplicationReconciler) handleFailover(ctx context.Context, app *v1alpha1.Application) error {
-	// ...existing code for main application failover...
+	// Check context cancellation
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
+	// Migrate main application first
+	err := r.MigrateFunc(app)
+	if err != nil {
+		klog.Errorf("Failed to migrate main application %s: %v", app.Name, err)
+		return err
+	}
 
 	// Migrate related applications
 	for _, relatedAppName := range app.Spec.RelatedApplications {
+		// Check context cancellation before each related app
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
 		relatedApp := &v1alpha1.Application{}
 		err := r.GetFunc(ctx, types.NamespacedName{
 			Namespace: app.Namespace,
@@ -49,6 +68,7 @@ func (r *ApplicationReconciler) handleFailover(ctx context.Context, app *v1alpha
 		err = r.MigrateFunc(relatedApp)
 		if err != nil {
 			klog.Errorf("Failed to migrate related application %s: %v", relatedAppName, err)
+			return err
 		}
 	}
 	return nil
