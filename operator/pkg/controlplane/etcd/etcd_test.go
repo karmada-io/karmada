@@ -133,7 +133,6 @@ func TestInstallKarmadaEtcd(t *testing.T) {
 	}
 
 	statefulset, err := verifyStatefulSetCreation(fakeClient)
-	statefulset, err := verifyStatefulSetCreation(fakeClient)
 	if err != nil {
 		t.Fatalf("failed to verify statefulset creation: %v", err)
 	}
