@@ -90,35 +90,6 @@ func TestEnsureKarmadaWebhook(t *testing.T) {
 
 	if pdbCount != 1 {
 		t.Errorf("expected 1 PDB action, but got %d", pdbCount)
-	// We now create deployment, service, and PDB, so expect 3 actions
-	if len(actions) != 3 {
-		t.Fatalf("expected 3 actions, but got %d", len(actions))
-	}
-
-	// Check that we have deployment, service, and PDB
-	deploymentCount := 0
-	serviceCount := 0
-	pdbCount := 0
-	for _, action := range actions {
-		if action.GetResource().Resource == "deployments" {
-			deploymentCount++
-		} else if action.GetResource().Resource == "services" {
-			serviceCount++
-		} else if action.GetResource().Resource == "poddisruptionbudgets" {
-			pdbCount++
-		}
-	}
-
-	if deploymentCount != 1 {
-		t.Errorf("expected 1 deployment action, but got %d", deploymentCount)
-	}
-
-	if serviceCount != 1 {
-		t.Errorf("expected 1 service action, but got %d", serviceCount)
-	}
-
-	if pdbCount != 1 {
-		t.Errorf("expected 1 PDB action, but got %d", pdbCount)
 	}
 }
 
