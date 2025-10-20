@@ -326,7 +326,7 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 					Kind:       "ClusterRoleBinding",
 				},
 			}
-			framework.UpdateResourceRegistry(karmadaClient, rr)
+			framework.UpdateResourceRegistryWithSpec(karmadaClient, rr)
 			searchObject(pathAllClusterRoleBindings, existsClusterRoleBindingName, true)
 		})
 	})
