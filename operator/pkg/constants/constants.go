@@ -116,16 +116,10 @@ const (
 	// KarmadaMetricsAdapterComponent defines the name of the karmada-metrics-adapter component
 	KarmadaMetricsAdapterComponent = "KarmadaMetricsAdapter"
 
-	// KarmadaControllerManager defines the name of the karmada-controller-manager component
-	KarmadaControllerManager = "karmada-controller-manager"
-	// KarmadaScheduler defines the name of the karmada-scheduler component
-	KarmadaScheduler = "karmada-scheduler"
 	// KarmadaWebhook defines the name of the karmada-webhook component
 	KarmadaWebhook = "karmada-webhook"
 	// KarmadaSearch defines the name of the karmada-search component
 	KarmadaSearch = "karmada-search"
-	// KarmadaDescheduler defines the name of the karmada-descheduler component
-	KarmadaDescheduler = "karmada-descheduler"
 	// KarmadaMetricsAdapter defines the name of the karmada-metrics-adapter component
 	KarmadaMetricsAdapter = "karmada-metrics-adapter"
 	// KarmadaAggregatedAPIServer defines the name of the karmada-aggregated-apiserver component
