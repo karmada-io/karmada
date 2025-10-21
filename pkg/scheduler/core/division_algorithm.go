@@ -18,6 +18,7 @@ package core
 
 import (
 	"fmt"
+	"k8s.io/klog/v2"
 	"sort"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -124,6 +125,11 @@ func dynamicScaleUp(state *assignState) ([]workv1alpha2.TargetCluster, error) {
 	state.buildAvailableClusters(func(clusters []spreadconstraint.ClusterDetailInfo, _ *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster {
 		clusterAvailableReplicas := make([]workv1alpha2.TargetCluster, len(clusters))
 		for i, cluster := range clusters {
+			// set allocatable replicas for unhealthy cluster to zero when scale up.
+			if !cluster.Cluster.IsClusterReady() {
+				klog.Warningf("Cluster %s is not ready, skip it when scale up.", cluster.Name)
+				cluster.AllocatableReplicas = 0
+			}
 			clusterAvailableReplicas[i] = workv1alpha2.TargetCluster{
 				Name:     cluster.Name,
 				Replicas: cluster.AllocatableReplicas,
