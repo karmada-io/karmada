@@ -323,7 +323,7 @@ func divideReplicasByJobCompletions(workload *unstructured.Unstructured, cluster
 	}
 
 	if found {
-		targetClusters = helper.SpreadReplicasByTargetClusters(int32(completions), clusters, nil) // #nosec G115: integer overflow conversion int64 -> int32
+		targetClusters = helper.SpreadReplicasByTargetClusters(int32(completions), clusters, nil, workload.GetUID()) // #nosec G115: integer overflow conversion int64 -> int32
 	}
 
 	return targetClusters, nil
