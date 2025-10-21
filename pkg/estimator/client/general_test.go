@@ -805,7 +805,7 @@ func TestGetMaxAvailableComponentSetsGeneral(t *testing.T) {
 	tests := []struct {
 		name       string
 		cluster    *clusterv1alpha1.Cluster
-		components []*workv1alpha2.Component
+		components []workv1alpha2.Component
 		expected   int32
 	}{
 		{
@@ -862,7 +862,7 @@ func TestGetMaxAvailableComponentSetsGeneral(t *testing.T) {
 					},
 				},
 			},
-			components: []*workv1alpha2.Component{
+			components: []workv1alpha2.Component{
 				{
 					Name:     "jobmanager",
 					Replicas: 1,
@@ -902,7 +902,7 @@ func TestGetMaxAvailableComponentSetsGeneral(t *testing.T) {
 					},
 				},
 			},
-			components: []*workv1alpha2.Component{
+			components: []workv1alpha2.Component{
 				{
 					Name:     "jobmanager",
 					Replicas: 1,
@@ -943,7 +943,7 @@ func TestGetMaxAvailableComponentSetsGeneral(t *testing.T) {
 					},
 				},
 			},
-			components: []*workv1alpha2.Component{
+			components: []workv1alpha2.Component{
 				{
 					Name:     "small-component",
 					Replicas: 3,
@@ -977,7 +977,7 @@ func TestGetMaxAvailableComponentSetsGeneral(t *testing.T) {
 					},
 				},
 			},
-			components: []*workv1alpha2.Component{
+			components: []workv1alpha2.Component{
 				{
 					Name:     "gpu-worker",
 					Replicas: 2,
