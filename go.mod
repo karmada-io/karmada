@@ -36,22 +36,22 @@ require (
 	gomodules.xyz/jsonpatch/v2 v2.4.0
 	google.golang.org/grpc v1.72.0
 	gopkg.in/yaml.v3 v3.0.1
-	k8s.io/api v0.33.2
-	k8s.io/apiextensions-apiserver v0.33.2
-	k8s.io/apimachinery v0.33.2
-	k8s.io/apiserver v0.33.2
-	k8s.io/cli-runtime v0.33.2
-	k8s.io/client-go v0.33.2
-	k8s.io/cluster-bootstrap v0.33.2
-	k8s.io/code-generator v0.33.2
-	k8s.io/component-base v0.33.2
-	k8s.io/component-helpers v0.33.2
-	k8s.io/controller-manager v0.33.2
+	k8s.io/api v0.34.1
+	k8s.io/apiextensions-apiserver v0.34.1
+	k8s.io/apimachinery v0.34.1
+	k8s.io/apiserver v0.34.1
+	k8s.io/cli-runtime v0.34.1
+	k8s.io/client-go v0.34.1
+	k8s.io/cluster-bootstrap v0.34.1
+	k8s.io/code-generator v0.34.1
+	k8s.io/component-base v0.34.1
+	k8s.io/component-helpers v0.34.1
+	k8s.io/controller-manager v0.34.1
 	k8s.io/klog/v2 v2.130.1
-	k8s.io/kube-aggregator v0.33.2
+	k8s.io/kube-aggregator v0.34.1
 	k8s.io/kube-openapi v0.0.0-20250318190949-c8a335a9a2ff
-	k8s.io/kubectl v0.33.2
-	k8s.io/metrics v0.33.2
+	k8s.io/kubectl v0.34.1
+	k8s.io/metrics v0.34.1
 	k8s.io/utils v0.0.0-20241104100929-3ea5e8cea738
 	layeh.com/gopher-json v0.0.0-20201124131017-552bb3c4c3bf
 	sigs.k8s.io/cluster-api v1.7.1
