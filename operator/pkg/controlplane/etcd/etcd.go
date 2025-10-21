@@ -99,7 +99,7 @@ func installKarmadaEtcd(client clientset.Interface, name, namespace string, cfg 
 		return fmt.Errorf("error when creating Etcd statefulset, err: %w", err)
 	}
 
-	// Ensure PDB for the etcd component if configured
+	// Ensure PDB for the etcd component is configured
 	if err := pdb.EnsurePodDisruptionBudget(constants.Etcd, name, namespace, &cfg.CommonSettings, client); err != nil {
 		return fmt.Errorf("failed to ensure PDB for etcd component, err: %w", err)
 	}
