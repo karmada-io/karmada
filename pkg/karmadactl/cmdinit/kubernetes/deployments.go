@@ -18,6 +18,8 @@ package kubernetes
 
 import (
 	"fmt"
+	"path/filepath"
+	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -26,6 +28,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
 
+	certconst "github.com/karmada-io/karmada/pkg/cert"
+	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
 	globaloptions "github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
@@ -50,12 +54,28 @@ const (
 	controllerManagerDeploymentAndServiceName                   = names.KarmadaControllerManagerComponentName
 	controllerManagerSecurePort                                 = 10357
 	webhookDeploymentAndServiceAccountAndServiceName            = names.KarmadaWebhookComponentName
-	webhookCertsName                                            = "karmada-webhook-cert"
 	webhookCertVolumeMountPath                                  = "/var/serving-cert"
 	webhookPortName                                             = "webhook"
 	webhookTargetPort                                           = 8443
 	webhookPort                                                 = 443
 	karmadaAggregatedAPIServerDeploymentAndServiceName          = names.KarmadaAggregatedAPIServerComponentName
+)
+
+var (
+	// split-layout mount paths
+	serverCertVolumeMountPath                   = "/etc/karmada/pki/server"
+	etcdClientCertVolumeMountPath               = "/etc/karmada/pki/etcd-client"
+	frontProxyClientCertVolumeMountPath         = "/etc/karmada/pki/front-proxy-client"
+	saKeyPairVolumeMountPath                    = "/etc/karmada/pki/service-account-key-pair"
+	caCertVolumeMountPath                       = "/etc/karmada/pki/ca"
+	schedulerEstimatorClientCertVolumeMountPath = "/etc/karmada/pki/scheduler-estimator-client"
+	// Volume names for split-layout mounts
+	serverCertVolumeName                   = "server-cert"
+	etcdClientCertVolumeName               = "etcd-client-cert"
+	frontProxyClientCertVolumeName         = "front-proxy-client-cert"
+	saKeyPairVolumeName                    = "service-account-key-pair"
+	caCertVolumeName                       = "ca-cert"
+	schedulerEstimatorClientCertVolumeName = "scheduler-estimator-client-cert"
 )
 
 var (
@@ -73,6 +93,81 @@ func (i *CommandInitOption) etcdServers() string {
 		etcdClusterConfig += fmt.Sprintf("https://%s-%v.%s.%s.svc.%s:%v", etcdStatefulSetAndServiceName, v, etcdStatefulSetAndServiceName, i.Namespace, i.HostClusterDomain, etcdContainerClientPort) + ","
 	}
 	return etcdClusterConfig
+}
+
+func (i *CommandInitOption) karmadaAPIServerContainerCommand() []string {
+	var etcdServers string
+	if etcdServers = i.ExternalEtcdServers; etcdServers == "" {
+		etcdServers = strings.TrimRight(i.etcdServers(), ",")
+	}
+	var command []string
+	if strings.ToLower(i.SecretLayout) == secretLayoutSplit {
+		command = []string{
+			"kube-apiserver",
+			"--allow-privileged=true",
+			"--authorization-mode=Node,RBAC",
+			fmt.Sprintf("--client-ca-file=%s/ca.crt", serverCertVolumeMountPath),
+			"--enable-bootstrap-token-auth=true",
+			fmt.Sprintf("--etcd-cafile=%s/ca.crt", etcdClientCertVolumeMountPath),
+			fmt.Sprintf("--etcd-certfile=%s/tls.crt", etcdClientCertVolumeMountPath),
+			fmt.Sprintf("--etcd-keyfile=%s/tls.key", etcdClientCertVolumeMountPath),
+			fmt.Sprintf("--etcd-servers=%s", etcdServers),
+			"--bind-address=0.0.0.0",
+			"--disable-admission-plugins=StorageObjectInUseProtection,ServiceAccount",
+			"--runtime-config=",
+			fmt.Sprintf("--apiserver-count=%v", i.KarmadaAPIServerReplicas),
+			fmt.Sprintf("--secure-port=%v", karmadaAPIServerContainerPort),
+			fmt.Sprintf("--service-account-issuer=https://kubernetes.default.svc.%s", i.HostClusterDomain),
+			fmt.Sprintf("--service-account-key-file=%s/sa.pub", saKeyPairVolumeMountPath),
+			fmt.Sprintf("--service-account-signing-key-file=%s/sa.key", saKeyPairVolumeMountPath),
+			fmt.Sprintf("--service-cluster-ip-range=%s", serviceClusterIP),
+			fmt.Sprintf("--proxy-client-cert-file=%s/tls.crt", frontProxyClientCertVolumeMountPath),
+			fmt.Sprintf("--proxy-client-key-file=%s/tls.key", frontProxyClientCertVolumeMountPath),
+			"--requestheader-allowed-names=front-proxy-client",
+			fmt.Sprintf("--requestheader-client-ca-file=%s/ca.crt", frontProxyClientCertVolumeMountPath),
+			"--requestheader-extra-headers-prefix=X-Remote-Extra-",
+			"--requestheader-group-headers=X-Remote-Group",
+			"--requestheader-username-headers=X-Remote-User",
+			fmt.Sprintf("--tls-cert-file=%s/tls.crt", serverCertVolumeMountPath),
+			fmt.Sprintf("--tls-private-key-file=%s/tls.key", serverCertVolumeMountPath),
+			"--tls-min-version=VersionTLS13",
+		}
+	} else {
+		command = []string{
+			"kube-apiserver",
+			"--allow-privileged=true",
+			"--authorization-mode=Node,RBAC",
+			fmt.Sprintf("--client-ca-file=%s/%s.crt", karmadaCertsVolumeMountPath, globaloptions.CaCertAndKeyName),
+			"--enable-bootstrap-token-auth=true",
+			fmt.Sprintf("--etcd-cafile=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdCaCertAndKeyName),
+			fmt.Sprintf("--etcd-certfile=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName),
+			fmt.Sprintf("--etcd-keyfile=%s/%s.key", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName),
+			fmt.Sprintf("--etcd-servers=%s", etcdServers),
+			"--bind-address=0.0.0.0",
+			"--disable-admission-plugins=StorageObjectInUseProtection,ServiceAccount",
+			"--runtime-config=",
+			fmt.Sprintf("--apiserver-count=%v", i.KarmadaAPIServerReplicas),
+			fmt.Sprintf("--secure-port=%v", karmadaAPIServerContainerPort),
+			fmt.Sprintf("--service-account-issuer=https://kubernetes.default.svc.%s", i.HostClusterDomain),
+			fmt.Sprintf("--service-account-key-file=%s/%s.key", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
+			fmt.Sprintf("--service-account-signing-key-file=%s/%s.key", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
+			fmt.Sprintf("--service-cluster-ip-range=%s", serviceClusterIP),
+			fmt.Sprintf("--proxy-client-cert-file=%s/%s.crt", karmadaCertsVolumeMountPath, options.FrontProxyClientCertAndKeyName),
+			fmt.Sprintf("--proxy-client-key-file=%s/%s.key", karmadaCertsVolumeMountPath, options.FrontProxyClientCertAndKeyName),
+			"--requestheader-allowed-names=front-proxy-client",
+			fmt.Sprintf("--requestheader-client-ca-file=%s/%s.crt", karmadaCertsVolumeMountPath, options.FrontProxyCaCertAndKeyName),
+			"--requestheader-extra-headers-prefix=X-Remote-Extra-",
+			"--requestheader-group-headers=X-Remote-Group",
+			"--requestheader-username-headers=X-Remote-User",
+			fmt.Sprintf("--tls-cert-file=%s/%s.crt", karmadaCertsVolumeMountPath, options.ApiserverCertAndKeyName),
+			fmt.Sprintf("--tls-private-key-file=%s/%s.key", karmadaCertsVolumeMountPath, options.ApiserverCertAndKeyName),
+			"--tls-min-version=VersionTLS13",
+		}
+	}
+	if i.ExternalEtcdKeyPrefix != "" {
+		command = append(command, fmt.Sprintf("--etcd-prefix=%s", i.ExternalEtcdKeyPrefix))
+	}
+	return command
 }
 
 func (i *CommandInitOption) makeKarmadaAPIServerDeployment() *appsv1.Deployment {
@@ -153,27 +248,32 @@ func (i *CommandInitOption) makeKarmadaAPIServerDeployment() *appsv1.Deployment 
 						Protocol:      corev1.ProtocolTCP,
 					},
 				},
-				VolumeMounts: []corev1.VolumeMount{
-					{
-						Name:      globaloptions.KarmadaCertsName,
-						ReadOnly:  true,
-						MountPath: karmadaCertsVolumeMountPath,
-					},
-				},
+				VolumeMounts: func() []corev1.VolumeMount {
+					if strings.ToLower(i.SecretLayout) == secretLayoutSplit {
+						return []corev1.VolumeMount{
+							{Name: serverCertVolumeName, ReadOnly: true, MountPath: serverCertVolumeMountPath},
+							{Name: etcdClientCertVolumeName, ReadOnly: true, MountPath: etcdClientCertVolumeMountPath},
+							{Name: frontProxyClientCertVolumeName, ReadOnly: true, MountPath: frontProxyClientCertVolumeMountPath},
+							{Name: saKeyPairVolumeName, ReadOnly: true, MountPath: saKeyPairVolumeMountPath},
+						}
+					}
+					return []corev1.VolumeMount{{Name: globaloptions.KarmadaCertsName, ReadOnly: true, MountPath: karmadaCertsVolumeMountPath}}
+				}(),
 				LivenessProbe:  livenessProbe,
 				ReadinessProbe: readinessProbe,
 			},
 		},
-		Volumes: []corev1.Volume{
-			{
-				Name: globaloptions.KarmadaCertsName,
-				VolumeSource: corev1.VolumeSource{
-					Secret: &corev1.SecretVolumeSource{
-						SecretName: globaloptions.KarmadaCertsName,
-					},
-				},
-			},
-		},
+		Volumes: func() []corev1.Volume {
+			if strings.ToLower(i.SecretLayout) == secretLayoutSplit {
+				return []corev1.Volume{
+					{Name: serverCertVolumeName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: certconst.SecretApiserverServer}}},
+					{Name: etcdClientCertVolumeName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: certconst.SecretApiserverEtcdClient}}},
+					{Name: frontProxyClientCertVolumeName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: certconst.SecretApiserverFrontProxyClient}}},
+					{Name: saKeyPairVolumeName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: certconst.SecretApiserverServiceAccountKeys}}},
+				}
+			}
+			return []corev1.Volume{{Name: globaloptions.KarmadaCertsName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: globaloptions.KarmadaCertsName}}}}
+		}(),
 		//HostNetwork:  true,
 		Tolerations: []corev1.Toleration{
 			{
@@ -258,9 +358,46 @@ func (i *CommandInitOption) makeKarmadaKubeControllerManagerDeployment() *appsv1
 		AutomountServiceAccountToken: ptr.To[bool](false),
 		Containers: []corev1.Container{
 			{
-				Name:          kubeControllerManagerClusterRoleAndDeploymentAndServiceName,
-				Image:         i.kubeControllerManagerImage(),
-				Command:       i.KubeControllerManagerContainerCmd,
+				Name:  kubeControllerManagerClusterRoleAndDeploymentAndServiceName,
+				Image: i.kubeControllerManagerImage(),
+				Command: func() []string {
+					var clientCAFile, clusterSigningCertFile, clusterSigningKeyFile, rootCAFile, saPrivKeyFile string
+					if strings.ToLower(i.SecretLayout) == secretLayoutSplit {
+						clientCAFile = fmt.Sprintf("%s/tls.crt", caCertVolumeMountPath)
+						clusterSigningCertFile = fmt.Sprintf("%s/tls.crt", caCertVolumeMountPath)
+						clusterSigningKeyFile = fmt.Sprintf("%s/tls.key", caCertVolumeMountPath)
+						rootCAFile = fmt.Sprintf("%s/tls.crt", caCertVolumeMountPath)
+						saPrivKeyFile = fmt.Sprintf("%s/sa.key", saKeyPairVolumeMountPath)
+					} else {
+						clientCAFile = fmt.Sprintf("%s/%s.crt", karmadaCertsVolumeMountPath, globaloptions.CaCertAndKeyName)
+						clusterSigningCertFile = fmt.Sprintf("%s/%s.crt", karmadaCertsVolumeMountPath, globaloptions.CaCertAndKeyName)
+						clusterSigningKeyFile = fmt.Sprintf("%s/%s.key", karmadaCertsVolumeMountPath, globaloptions.CaCertAndKeyName)
+						rootCAFile = fmt.Sprintf("%s/%s.crt", karmadaCertsVolumeMountPath, globaloptions.CaCertAndKeyName)
+						saPrivKeyFile = fmt.Sprintf("%s/%s.key", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName)
+					}
+					return []string{
+						"kube-controller-manager",
+						"--allocate-node-cidrs=true",
+						fmt.Sprintf("--kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
+						fmt.Sprintf("--authentication-kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
+						fmt.Sprintf("--authorization-kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
+						"--bind-address=0.0.0.0",
+						fmt.Sprintf("--client-ca-file=%s", clientCAFile),
+						"--cluster-cidr=10.244.0.0/16",
+						fmt.Sprintf("--cluster-name=%s", options.ClusterName),
+						fmt.Sprintf("--cluster-signing-cert-file=%s", clusterSigningCertFile),
+						fmt.Sprintf("--cluster-signing-key-file=%s", clusterSigningKeyFile),
+						"--controllers=namespace,garbagecollector,serviceaccount-token,ttl-after-finished,bootstrapsigner,tokencleaner,csrcleaner,csrsigning,clusterrole-aggregation",
+						"--leader-elect=true",
+						fmt.Sprintf("--leader-elect-resource-namespace=%s", i.Namespace),
+						"--node-cidr-mask-size=24",
+						fmt.Sprintf("--root-ca-file=%s", rootCAFile),
+						fmt.Sprintf("--service-account-private-key-file=%s", saPrivKeyFile),
+						fmt.Sprintf("--service-cluster-ip-range=%s", serviceClusterIP),
+						"--use-service-account-credentials=true",
+						"--v=4",
+					}
+				}(),
 				LivenessProbe: livenessProbe,
 				Ports: []corev1.ContainerPort{
 					{
@@ -269,38 +406,34 @@ func (i *CommandInitOption) makeKarmadaKubeControllerManagerDeployment() *appsv1
 						Protocol:      corev1.ProtocolTCP,
 					},
 				},
-				VolumeMounts: []corev1.VolumeMount{
-					{
-						Name:      karmadaConfigVolumeName,
-						ReadOnly:  true,
-						MountPath: karmadaConfigVolumeMountPath,
-					},
-					{
-						Name:      globaloptions.KarmadaCertsName,
-						ReadOnly:  true,
-						MountPath: karmadaCertsVolumeMountPath,
-					},
-				},
+				VolumeMounts: func() []corev1.VolumeMount {
+					if strings.ToLower(i.SecretLayout) == secretLayoutSplit {
+						return []corev1.VolumeMount{
+							{Name: karmadaConfigVolumeName, ReadOnly: true, MountPath: karmadaConfigVolumeMountPath},
+							{Name: caCertVolumeName, ReadOnly: true, MountPath: caCertVolumeMountPath},
+							{Name: saKeyPairVolumeName, ReadOnly: true, MountPath: saKeyPairVolumeMountPath},
+						}
+					}
+					return []corev1.VolumeMount{
+						{Name: karmadaConfigVolumeName, ReadOnly: true, MountPath: karmadaConfigVolumeMountPath},
+						{Name: globaloptions.KarmadaCertsName, ReadOnly: true, MountPath: karmadaCertsVolumeMountPath},
+					}
+				}(),
 			},
 		},
-		Volumes: []corev1.Volume{
-			{
-				Name: karmadaConfigVolumeName,
-				VolumeSource: corev1.VolumeSource{
-					Secret: &corev1.SecretVolumeSource{
-						SecretName: util.KarmadaConfigName(names.KubeControllerManagerComponentName),
-					},
-				},
-			},
-			{
-				Name: globaloptions.KarmadaCertsName,
-				VolumeSource: corev1.VolumeSource{
-					Secret: &corev1.SecretVolumeSource{
-						SecretName: globaloptions.KarmadaCertsName,
-					},
-				},
-			},
-		},
+		Volumes: func() []corev1.Volume {
+			if strings.ToLower(i.SecretLayout) == secretLayoutSplit {
+				return []corev1.Volume{
+					{Name: karmadaConfigVolumeName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: util.KarmadaConfigName(names.KubeControllerManagerComponentName)}}},
+					{Name: caCertVolumeName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: certconst.SecretKubeControllerManagerCA}}},
+					{Name: saKeyPairVolumeName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: certconst.SecretKubeControllerManagerSAKeys}}},
+				}
+			}
+			return []corev1.Volume{
+				{Name: karmadaConfigVolumeName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: util.KarmadaConfigName(names.KubeControllerManagerComponentName)}}},
+				{Name: globaloptions.KarmadaCertsName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: globaloptions.KarmadaCertsName}}},
+			}
+		}(),
 		Tolerations: []corev1.Toleration{
 			{
 				Effect:   corev1.TaintEffectNoExecute,
@@ -395,7 +528,31 @@ func (i *CommandInitOption) makeKarmadaSchedulerDeployment() *appsv1.Deployment 
 						},
 					},
 				},
-				Command:       i.KarmadaSchedulerContainerCmd,
+				Command: func() []string {
+					var estCAFile, estCertFile, estKeyFile string
+					if strings.ToLower(i.SecretLayout) == secretLayoutSplit {
+						estCAFile = fmt.Sprintf("%s/ca.crt", schedulerEstimatorClientCertVolumeMountPath)
+						estCertFile = fmt.Sprintf("%s/tls.crt", schedulerEstimatorClientCertVolumeMountPath)
+						estKeyFile = fmt.Sprintf("%s/tls.key", schedulerEstimatorClientCertVolumeMountPath)
+					} else {
+						estCAFile = "/etc/karmada/pki/ca.crt"
+						estCertFile = "/etc/karmada/pki/karmada.crt"
+						estKeyFile = "/etc/karmada/pki/karmada.key"
+					}
+					return []string{
+						"/bin/karmada-scheduler",
+						fmt.Sprintf("--kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
+						"--metrics-bind-address=$(POD_IP):8080",
+						"--health-probe-bind-address=$(POD_IP):10351",
+						"--enable-scheduler-estimator=true",
+						"--leader-elect=true",
+						fmt.Sprintf("--scheduler-estimator-ca-file=%s", estCAFile),
+						fmt.Sprintf("--scheduler-estimator-cert-file=%s", estCertFile),
+						fmt.Sprintf("--scheduler-estimator-key-file=%s", estKeyFile),
+						fmt.Sprintf("--leader-elect-resource-namespace=%s", i.Namespace),
+						"--v=4",
+					}
+				}(),
 				LivenessProbe: livenessProbe,
 				Ports: []corev1.ContainerPort{
 					{
@@ -404,38 +561,32 @@ func (i *CommandInitOption) makeKarmadaSchedulerDeployment() *appsv1.Deployment 
 						Protocol:      corev1.ProtocolTCP,
 					},
 				},
-				VolumeMounts: []corev1.VolumeMount{
-					{
-						Name:      karmadaConfigVolumeName,
-						ReadOnly:  true,
-						MountPath: karmadaConfigVolumeMountPath,
-					},
-					{
-						Name:      globaloptions.KarmadaCertsName,
-						ReadOnly:  true,
-						MountPath: karmadaCertsVolumeMountPath,
-					},
-				},
+				VolumeMounts: func() []corev1.VolumeMount {
+					if strings.ToLower(i.SecretLayout) == secretLayoutSplit {
+						return []corev1.VolumeMount{
+							{Name: karmadaConfigVolumeName, ReadOnly: true, MountPath: karmadaConfigVolumeMountPath},
+							{Name: schedulerEstimatorClientCertVolumeName, ReadOnly: true, MountPath: schedulerEstimatorClientCertVolumeMountPath},
+						}
+					}
+					return []corev1.VolumeMount{
+						{Name: karmadaConfigVolumeName, ReadOnly: true, MountPath: karmadaConfigVolumeMountPath},
+						{Name: globaloptions.KarmadaCertsName, ReadOnly: true, MountPath: karmadaCertsVolumeMountPath},
+					}
+				}(),
 			},
 		},
-		Volumes: []corev1.Volume{
-			{
-				Name: karmadaConfigVolumeName,
-				VolumeSource: corev1.VolumeSource{
-					Secret: &corev1.SecretVolumeSource{
-						SecretName: util.KarmadaConfigName(names.KarmadaSchedulerComponentName),
-					},
-				},
-			},
-			{
-				Name: globaloptions.KarmadaCertsName,
-				VolumeSource: corev1.VolumeSource{
-					Secret: &corev1.SecretVolumeSource{
-						SecretName: globaloptions.KarmadaCertsName,
-					},
-				},
-			},
-		},
+		Volumes: func() []corev1.Volume {
+			if strings.ToLower(i.SecretLayout) == secretLayoutSplit {
+				return []corev1.Volume{
+					{Name: karmadaConfigVolumeName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: util.KarmadaConfigName(names.KarmadaSchedulerComponentName)}}},
+					{Name: schedulerEstimatorClientCertVolumeName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: certconst.SecretSchedulerEstimatorClient}}},
+				}
+			}
+			return []corev1.Volume{
+				{Name: karmadaConfigVolumeName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: util.KarmadaConfigName(names.KarmadaSchedulerComponentName)}}},
+				{Name: globaloptions.KarmadaCertsName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: globaloptions.KarmadaCertsName}}},
+			}
+		}(),
 		Tolerations: []corev1.Toleration{
 			{
 				Effect:   corev1.TaintEffectNoExecute,
@@ -658,7 +809,24 @@ func (i *CommandInitOption) makeKarmadaWebhookDeployment() *appsv1.Deployment {
 						},
 					},
 				},
-				Command: i.KarmadaWebhookContainerCmd,
+				Command: func() []string {
+					var certDir string
+					if strings.ToLower(i.SecretLayout) == secretLayoutSplit {
+						certDir = serverCertVolumeMountPath
+					} else {
+						certDir = webhookCertVolumeMountPath
+					}
+					return []string{
+						"/bin/karmada-webhook",
+						fmt.Sprintf("--kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
+						"--bind-address=$(POD_IP)",
+						"--metrics-bind-address=$(POD_IP):8080",
+						"--health-probe-bind-address=$(POD_IP):8000",
+						fmt.Sprintf("--secure-port=%v", webhookTargetPort),
+						fmt.Sprintf("--cert-dir=%s", certDir),
+						"--v=4",
+					}
+				}(),
 				Ports: []corev1.ContainerPort{
 					{
 						Name:          webhookPortName,
@@ -671,39 +839,33 @@ func (i *CommandInitOption) makeKarmadaWebhookDeployment() *appsv1.Deployment {
 						Protocol:      corev1.ProtocolTCP,
 					},
 				},
-				VolumeMounts: []corev1.VolumeMount{
-					{
-						Name:      karmadaConfigVolumeName,
-						ReadOnly:  true,
-						MountPath: karmadaConfigVolumeMountPath,
-					},
-					{
-						Name:      webhookCertsName,
-						ReadOnly:  true,
-						MountPath: webhookCertVolumeMountPath,
-					},
-				},
+				VolumeMounts: func() []corev1.VolumeMount {
+					if strings.ToLower(i.SecretLayout) == secretLayoutSplit {
+						return []corev1.VolumeMount{
+							{Name: karmadaConfigVolumeName, ReadOnly: true, MountPath: karmadaConfigVolumeMountPath},
+							{Name: serverCertVolumeName, ReadOnly: true, MountPath: serverCertVolumeMountPath},
+						}
+					}
+					return []corev1.VolumeMount{
+						{Name: karmadaConfigVolumeName, ReadOnly: true, MountPath: karmadaConfigVolumeMountPath},
+						{Name: certconst.SecretWebhook, ReadOnly: true, MountPath: webhookCertVolumeMountPath},
+					}
+				}(),
 				ReadinessProbe: readinesProbe,
 			},
 		},
-		Volumes: []corev1.Volume{
-			{
-				Name: karmadaConfigVolumeName,
-				VolumeSource: corev1.VolumeSource{
-					Secret: &corev1.SecretVolumeSource{
-						SecretName: util.KarmadaConfigName(names.KarmadaWebhookComponentName),
-					},
-				},
-			},
-			{
-				Name: webhookCertsName,
-				VolumeSource: corev1.VolumeSource{
-					Secret: &corev1.SecretVolumeSource{
-						SecretName: webhookCertsName,
-					},
-				},
-			},
-		},
+		Volumes: func() []corev1.Volume {
+			if strings.ToLower(i.SecretLayout) == secretLayoutSplit {
+				return []corev1.Volume{
+					{Name: karmadaConfigVolumeName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: util.KarmadaConfigName(names.KarmadaWebhookComponentName)}}},
+					{Name: serverCertVolumeName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: certconst.SecretWebhook}}},
+				}
+			}
+			return []corev1.Volume{
+				{Name: karmadaConfigVolumeName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: util.KarmadaConfigName(names.KarmadaWebhookComponentName)}}},
+				{Name: certconst.SecretWebhook, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: certconst.SecretWebhook}}},
+			}
+		}(),
 		Tolerations: []corev1.Toleration{
 			{
 				Effect:   corev1.TaintEffectNoExecute,
@@ -776,6 +938,51 @@ func (i *CommandInitOption) makeKarmadaAggregatedAPIServerDeployment() *appsv1.D
 		TimeoutSeconds:      15,
 	}
 
+	var etcdServers string
+	if etcdServers = i.ExternalEtcdServers; etcdServers == "" {
+		etcdServers = strings.TrimRight(i.etcdServers(), ",")
+	}
+	var command []string
+	if strings.ToLower(i.SecretLayout) == secretLayoutSplit {
+		command = []string{
+			"/bin/karmada-aggregated-apiserver",
+			fmt.Sprintf("--kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
+			fmt.Sprintf("--authentication-kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
+			fmt.Sprintf("--authorization-kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
+			fmt.Sprintf("--etcd-servers=%s", etcdServers),
+			fmt.Sprintf("--etcd-cafile=%s/ca.crt", etcdClientCertVolumeMountPath),
+			fmt.Sprintf("--etcd-certfile=%s/tls.crt", etcdClientCertVolumeMountPath),
+			fmt.Sprintf("--etcd-keyfile=%s/tls.key", etcdClientCertVolumeMountPath),
+			fmt.Sprintf("--tls-cert-file=%s/tls.crt", serverCertVolumeMountPath),
+			fmt.Sprintf("--tls-private-key-file=%s/tls.key", serverCertVolumeMountPath),
+			"--tls-min-version=VersionTLS13",
+			"--audit-log-path=-",
+			"--audit-log-maxage=0",
+			"--audit-log-maxbackup=0",
+			"--bind-address=$(POD_IP)",
+		}
+	} else {
+		command = []string{
+			"/bin/karmada-aggregated-apiserver",
+			fmt.Sprintf("--kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
+			fmt.Sprintf("--authentication-kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
+			fmt.Sprintf("--authorization-kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
+			fmt.Sprintf("--etcd-servers=%s", etcdServers),
+			fmt.Sprintf("--etcd-cafile=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdCaCertAndKeyName),
+			fmt.Sprintf("--etcd-certfile=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName),
+			fmt.Sprintf("--etcd-keyfile=%s/%s.key", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName),
+			fmt.Sprintf("--tls-cert-file=%s/%s.crt", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
+			fmt.Sprintf("--tls-private-key-file=%s/%s.key", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
+			"--tls-min-version=VersionTLS13",
+			"--audit-log-path=-",
+			"--audit-log-maxage=0",
+			"--audit-log-maxbackup=0",
+			"--bind-address=$(POD_IP)",
+		}
+	}
+	if i.ExternalEtcdKeyPrefix != "" {
+		command = append(command, fmt.Sprintf("--etcd-prefix=%s", i.ExternalEtcdKeyPrefix))
+	}
 	podSpec := corev1.PodSpec{
 		ImagePullSecrets:  i.getImagePullSecrets(),
 		PriorityClassName: i.KarmadaAggregatedAPIServerPriorityClass,
@@ -821,38 +1028,34 @@ func (i *CommandInitOption) makeKarmadaAggregatedAPIServerDeployment() *appsv1.D
 						corev1.ResourceCPU: resource.MustParse("100m"),
 					},
 				},
-				VolumeMounts: []corev1.VolumeMount{
-					{
-						Name:      karmadaConfigVolumeName,
-						ReadOnly:  true,
-						MountPath: karmadaConfigVolumeMountPath,
-					},
-					{
-						Name:      globaloptions.KarmadaCertsName,
-						ReadOnly:  true,
-						MountPath: karmadaCertsVolumeMountPath,
-					},
-				},
+				VolumeMounts: func() []corev1.VolumeMount {
+					if strings.ToLower(i.SecretLayout) == secretLayoutSplit {
+						return []corev1.VolumeMount{
+							{Name: karmadaConfigVolumeName, ReadOnly: true, MountPath: karmadaConfigVolumeMountPath},
+							{Name: serverCertVolumeName, ReadOnly: true, MountPath: serverCertVolumeMountPath},
+							{Name: etcdClientCertVolumeName, ReadOnly: true, MountPath: etcdClientCertVolumeMountPath},
+						}
+					}
+					return []corev1.VolumeMount{
+						{Name: karmadaConfigVolumeName, ReadOnly: true, MountPath: karmadaConfigVolumeMountPath},
+						{Name: globaloptions.KarmadaCertsName, ReadOnly: true, MountPath: karmadaCertsVolumeMountPath},
+					}
+				}(),
 			},
 		},
-		Volumes: []corev1.Volume{
-			{
-				Name: karmadaConfigVolumeName,
-				VolumeSource: corev1.VolumeSource{
-					Secret: &corev1.SecretVolumeSource{
-						SecretName: util.KarmadaConfigName(names.KarmadaAggregatedAPIServerComponentName),
-					},
-				},
-			},
-			{
-				Name: globaloptions.KarmadaCertsName,
-				VolumeSource: corev1.VolumeSource{
-					Secret: &corev1.SecretVolumeSource{
-						SecretName: globaloptions.KarmadaCertsName,
-					},
-				},
-			},
-		},
+		Volumes: func() []corev1.Volume {
+			if strings.ToLower(i.SecretLayout) == secretLayoutSplit {
+				return []corev1.Volume{
+					{Name: karmadaConfigVolumeName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: util.KarmadaConfigName(names.KarmadaAggregatedAPIServerComponentName)}}},
+					{Name: serverCertVolumeName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: certconst.SecretAggregatedAPIServerServer}}},
+					{Name: etcdClientCertVolumeName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: certconst.SecretAggregatedAPIServerEtcdClient}}},
+				}
+			}
+			return []corev1.Volume{
+				{Name: karmadaConfigVolumeName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: util.KarmadaConfigName(names.KarmadaAggregatedAPIServerComponentName)}}},
+				{Name: globaloptions.KarmadaCertsName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: globaloptions.KarmadaCertsName}}},
+			}
+		}(),
 		Tolerations: []corev1.Toleration{
 			{
 				Effect:   corev1.TaintEffectNoExecute,
