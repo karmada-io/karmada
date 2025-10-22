@@ -73,11 +73,9 @@ func NewCmdAPIResources(f util.Factory, parentCommand string, ioStreams generici
 
 	o.OperationScope = options.KarmadaControlPlane
 	options.AddKubeConfigFlags(cmd.Flags())
+	o.PrintFlags.AddFlags(cmd)
 	cmd.Flags().VarP(&o.OperationScope, "operation-scope", "s", "Used to control the operation scope of the command. The optional values are karmada and members. Defaults to karmada.")
 	cmd.Flags().StringVar(&o.Cluster, "cluster", "", "Used to specify a target member cluster and only takes effect when the command's operation scope is members, for example: --operation-scope=members --cluster=member1")
-	cmd.Flags().BoolVar(&o.NoHeaders, "no-headers", o.NoHeaders, "When using the default or custom-column output format, don't print headers (default print headers).")
-	cmd.Flags().StringVarP(&o.Output, "output", "o", o.Output, `Output format. One of: (wide, name).`)
-
 	cmd.Flags().StringVar(&o.APIGroup, "api-group", o.APIGroup, "Limit to resources in the specified API group.")
 	cmd.Flags().BoolVar(&o.Namespaced, "namespaced", o.Namespaced, "If false, non-namespaced resources will be returned, otherwise returning namespaced resources by default.")
 	cmd.Flags().StringSliceVar(&o.Verbs, "verbs", o.Verbs, "Limit to resources that support the specified verbs.")
