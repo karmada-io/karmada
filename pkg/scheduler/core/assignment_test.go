@@ -417,6 +417,40 @@ func Test_dynamicScale(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "replica 12 -> 24, dynamic weighted 10:10(unhealthy cluster):10",
+			candidates: []spreadconstraint.ClusterDetailInfo{
+				{Name: ClusterMember1, Cluster: helper.NewClusterWithResource(ClusterMember1, corev1.ResourceList{
+					corev1.ResourcePods: *resource.NewQuantity(10, resource.DecimalSI),
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 10},
+				{Name: ClusterMember2, Cluster: helper.NewClusterWithUnhealthyStatus(ClusterMember2, corev1.ResourceList{
+					corev1.ResourcePods: *resource.NewQuantity(10, resource.DecimalSI),
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 10},
+				{Name: ClusterMember3, Cluster: helper.NewClusterWithResource(ClusterMember3, corev1.ResourceList{
+					corev1.ResourcePods: *resource.NewQuantity(10, resource.DecimalSI),
+				}, util.EmptyResource().ResourceList(), util.EmptyResource().ResourceList()), AllocatableReplicas: 10},
+			},
+			object: &workv1alpha2.ResourceBindingSpec{
+				ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
+					ResourceRequest: util.EmptyResource().ResourceList(),
+				},
+				Replicas: 24,
+				Clusters: []workv1alpha2.TargetCluster{
+					{Name: ClusterMember1, Replicas: 2},
+					{Name: ClusterMember2, Replicas: 4},
+					{Name: ClusterMember3, Replicas: 6},
+				},
+				Placement: &policyv1alpha1.Placement{
+					ReplicaScheduling: dynamicWeightStrategy,
+				},
+			},
+			want: []workv1alpha2.TargetCluster{
+				{Name: ClusterMember1, Replicas: 8},
+				{Name: ClusterMember2, Replicas: 4},
+				{Name: ClusterMember3, Replicas: 12},
+			},
+			wantErr: false,
+		},
+		{
 			name: "replica 12 -> 24, dynamic weighted 1:1:1",
 			candidates: []spreadconstraint.ClusterDetailInfo{
 				{Name: ClusterMember1, Cluster: helper.NewClusterWithResource(ClusterMember1, corev1.ResourceList{
