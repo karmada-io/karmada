@@ -19,7 +19,6 @@ package helper
 import (
 	"context"
 	"reflect"
-	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -564,66 +563,6 @@ func TestObtainBindingSpecExistingClusters(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := ObtainBindingSpecExistingClusters(tt.bindingSpec); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ObtainBindingSpecExistingClusters() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-// sortClusterByWeight sort clusters by the weight
-func sortClusterByWeight(m map[string]int64) ClusterWeightInfoList {
-	p := make(ClusterWeightInfoList, len(m))
-	i := 0
-	for k, v := range m {
-		p[i] = ClusterWeightInfo{ClusterName: k, Weight: v}
-		i++
-	}
-	sort.Sort(p)
-	return p
-}
-
-func TestSortClusterByWeight(t *testing.T) {
-	type args struct {
-		m map[string]int64
-	}
-	tests := []struct {
-		name string
-		args args
-		want ClusterWeightInfoList
-	}{
-		{
-			name: "nil",
-			args: args{
-				m: nil,
-			},
-			want: []ClusterWeightInfo{},
-		},
-		{
-			name: "empty",
-			args: args{
-				m: map[string]int64{},
-			},
-			want: []ClusterWeightInfo{},
-		},
-		{
-			name: "sort",
-			args: args{
-				m: map[string]int64{
-					"cluster11": 1,
-					"cluster12": 2,
-					"cluster13": 3,
-				},
-			},
-			want: []ClusterWeightInfo{
-				{ClusterName: "cluster13", Weight: 3},
-				{ClusterName: "cluster12", Weight: 2},
-				{ClusterName: "cluster11", Weight: 1},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := sortClusterByWeight(tt.args.m); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("SortClusterByWeight() = %v, want %v", got, tt.want)
 			}
 		})
 	}

@@ -18,9 +18,7 @@ package helper
 
 import (
 	"context"
-	"crypto/rand"
 	"hash/fnv"
-	"math/big"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -57,30 +55,8 @@ type ClusterWeightInfo struct {
 	LastReplicas int32
 }
 
-// ClusterWeightInfoList is a slice of ClusterWeightInfo that implements sort.Interface to sort by Value.
+// ClusterWeightInfoList is a slice of ClusterWeightInfo.
 type ClusterWeightInfoList []ClusterWeightInfo
-
-func (p ClusterWeightInfoList) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
-func (p ClusterWeightInfoList) Len() int      { return len(p) }
-func (p ClusterWeightInfoList) Less(i, j int) bool {
-	if p[i].Weight != p[j].Weight {
-		return p[i].Weight > p[j].Weight
-	}
-
-	// TODO(@zhzhuang-zju): remove this part after we remove the legacy TakeByWeight method.
-	// when weights is equal, sort by last scheduling replicas result,
-	// more last scheduling replicas means the remainders of the last scheduling were randomized to such clusters,
-	// so in order to keep the inertia in this scheduling, such clusters should also be prioritized
-	if p[i].LastReplicas != p[j].LastReplicas {
-		return p[i].LastReplicas > p[j].LastReplicas
-	}
-	// when last scheduling replicas is also equal, sort by random,
-	// first generate a random number within [0, 100) range,
-	// then return < if the actual number is in [0, 50) range, return > if is in [50, 100) range
-	const maxRandomNum = 100
-	randomNum, err := rand.Int(rand.Reader, big.NewInt(maxRandomNum))
-	return err == nil && randomNum.Cmp(big.NewInt(maxRandomNum/2)) >= 0
-}
 
 // GetWeightSum returns the sum of the weight info.
 func (p ClusterWeightInfoList) GetWeightSum() int64 {
