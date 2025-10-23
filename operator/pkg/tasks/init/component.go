@@ -27,11 +27,14 @@ import (
 	"github.com/karmada-io/karmada/operator/pkg/constants"
 	"github.com/karmada-io/karmada/operator/pkg/controlplane"
 	"github.com/karmada-io/karmada/operator/pkg/controlplane/metricsadapter"
+	"github.com/karmada-io/karmada/operator/pkg/controlplane/pdb"
 	"github.com/karmada-io/karmada/operator/pkg/controlplane/search"
 	"github.com/karmada-io/karmada/operator/pkg/controlplane/webhook"
 	"github.com/karmada-io/karmada/operator/pkg/karmadaresource/apiservice"
 	"github.com/karmada-io/karmada/operator/pkg/util/apiclient"
 	"github.com/karmada-io/karmada/operator/pkg/workflow"
+
+	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 )
 
 // NewComponentTask init a components task
@@ -91,6 +94,33 @@ func runComponentSubTask(component string) func(r workflow.RunData) error {
 			return fmt.Errorf("failed to apply component %s, err: %w", component, err)
 		}
 
+		// Ensure PDB for the component is configured
+		var commonSettings *operatorv1alpha1.CommonSettings
+		switch component {
+		case constants.KarmadaControllerManagerComponent:
+			if data.Components().KarmadaControllerManager != nil {
+				commonSettings = &data.Components().KarmadaControllerManager.CommonSettings
+			}
+		case constants.KubeControllerManagerComponent:
+			if data.Components().KubeControllerManager != nil {
+				commonSettings = &data.Components().KubeControllerManager.CommonSettings
+			}
+		case constants.KarmadaSchedulerComponent:
+			if data.Components().KarmadaScheduler != nil {
+				commonSettings = &data.Components().KarmadaScheduler.CommonSettings
+			}
+		case constants.KarmadaDeschedulerComponent:
+			if data.Components().KarmadaDescheduler != nil {
+				commonSettings = &data.Components().KarmadaDescheduler.CommonSettings
+			}
+		}
+
+		if commonSettings != nil {
+			if err := pdb.EnsurePodDisruptionBudget(component, data.GetName(), data.GetNamespace(), commonSettings, data.RemoteClient()); err != nil {
+				return fmt.Errorf("failed to ensure PDB for component %s, err: %w", component, err)
+			}
+		}
+
 		klog.V(2).InfoS("[components] Successfully applied component", "component", component, "karmada", klog.KObj(data))
 		return nil
 	}
@@ -116,6 +146,11 @@ func runKarmadaWebhook(r workflow.RunData) error {
 	)
 	if err != nil {
 		return fmt.Errorf("failed to apply karmada webhook, err: %w", err)
+	}
+
+	// Ensure PDB for the webhook component if configured
+	if err := pdb.EnsurePodDisruptionBudget(constants.KarmadaWebhook, data.GetName(), data.GetNamespace(), &cfg.KarmadaWebhook.CommonSettings, data.RemoteClient()); err != nil {
+		return fmt.Errorf("failed to ensure PDB for webhook component, err: %w", err)
 	}
 
 	klog.V(2).InfoS("[KarmadaWebhook] Successfully applied karmada webhook component", "karmada", klog.KObj(data))
@@ -170,6 +205,12 @@ func runDeployMetricAdapter(r workflow.RunData) error {
 	)
 	if err != nil {
 		return fmt.Errorf("failed to apply karmada-metrics-adapter, err: %w", err)
+	}
+
+	// Ensure PDB for the metrics adapter component if configured
+	kmaCfg := cfg.KarmadaMetricsAdapter
+	if err := pdb.EnsurePodDisruptionBudget(constants.KarmadaMetricsAdapter, data.GetName(), data.GetNamespace(), &kmaCfg.CommonSettings, data.RemoteClient()); err != nil {
+		return fmt.Errorf("failed to ensure PDB for metrics adapter component, err: %w", err)
 	}
 
 	klog.V(2).InfoS("[DeployMetricAdapter] Successfully applied karmada-metrics-adapter component", "karmada", klog.KObj(data))
@@ -271,6 +312,11 @@ func runKarmadaSearch(r workflow.RunData) error {
 	)
 	if err != nil {
 		return fmt.Errorf("failed to apply karmada search, err: %w", err)
+	}
+
+	// Ensure PDB for the search component if configured
+	if err := pdb.EnsurePodDisruptionBudget(constants.KarmadaSearch, data.GetName(), data.GetNamespace(), &cfg.KarmadaSearch.CommonSettings, data.RemoteClient()); err != nil {
+		return fmt.Errorf("failed to ensure PDB for search component, err: %w", err)
 	}
 
 	klog.V(2).InfoS("[KarmadaSearch] Successfully applied karmada search component", "karmada", klog.KObj(data))

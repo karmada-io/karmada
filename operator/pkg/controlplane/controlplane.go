@@ -27,7 +27,6 @@ import (
 
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	"github.com/karmada-io/karmada/operator/pkg/constants"
-	"github.com/karmada-io/karmada/operator/pkg/controlplane/pdb"
 	"github.com/karmada-io/karmada/operator/pkg/util"
 	"github.com/karmada-io/karmada/operator/pkg/util/apiclient"
 	"github.com/karmada-io/karmada/operator/pkg/util/patcher"
@@ -48,33 +47,6 @@ func EnsureControlPlaneComponent(component, name, namespace string, featureGates
 
 	if err := apiclient.CreateOrUpdateDeployment(client, deployment); err != nil {
 		return fmt.Errorf("failed to create deployment resource for component %s, err: %w", component, err)
-	}
-
-	// Ensure PDB for the component if configured
-	var commonSettings *operatorv1alpha1.CommonSettings
-	switch component {
-	case constants.KarmadaControllerManagerComponent:
-		if cfg.KarmadaControllerManager != nil {
-			commonSettings = &cfg.KarmadaControllerManager.CommonSettings
-		}
-	case constants.KubeControllerManagerComponent:
-		if cfg.KubeControllerManager != nil {
-			commonSettings = &cfg.KubeControllerManager.CommonSettings
-		}
-	case constants.KarmadaSchedulerComponent:
-		if cfg.KarmadaScheduler != nil {
-			commonSettings = &cfg.KarmadaScheduler.CommonSettings
-		}
-	case constants.KarmadaDeschedulerComponent:
-		if cfg.KarmadaDescheduler != nil {
-			commonSettings = &cfg.KarmadaDescheduler.CommonSettings
-		}
-	}
-
-	if commonSettings != nil {
-		if err := pdb.EnsurePodDisruptionBudget(component, name, namespace, commonSettings, client); err != nil {
-			return fmt.Errorf("failed to ensure PDB for component %s, err: %w", component, err)
-		}
 	}
 
 	return nil
