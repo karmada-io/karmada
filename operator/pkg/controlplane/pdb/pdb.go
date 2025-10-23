@@ -91,39 +91,8 @@ func getPDBName(karmadaName, component string) string {
 // These labels must match the labels used in deployment templates
 func getComponentLabels(karmadaName, component string) map[string]string {
 	return map[string]string{
-		constants.AppNameLabel:     getComponentAppName(component),
+		constants.AppNameLabel:     component,
 		constants.AppInstanceLabel: karmadaName,
-	}
-}
-
-// getComponentAppName returns the app.kubernetes.io/name value for the component
-// This must match the labels used in deployment templates
-func getComponentAppName(component string) string {
-	switch component {
-	// Handle component type identifiers (used in controlplane.go)
-	case constants.KarmadaControllerManagerComponent:
-		return constants.KarmadaControllerManager
-	case constants.KarmadaSchedulerComponent:
-		return constants.KarmadaScheduler
-	case constants.KarmadaDeschedulerComponent:
-		return constants.KarmadaDescheduler
-	case constants.KubeControllerManagerComponent:
-		return constants.KubeControllerManager
-	// Handle direct component names (used in other component files)
-	case constants.KarmadaAPIServer:
-		return constants.KarmadaAPIServer
-	case constants.KarmadaAggregatedAPIServer:
-		return constants.KarmadaAggregatedAPIServer
-	case constants.KarmadaWebhook:
-		return constants.KarmadaWebhook
-	case constants.KarmadaSearch:
-		return constants.KarmadaSearch
-	case constants.KarmadaMetricsAdapter:
-		return constants.KarmadaMetricsAdapter
-	case constants.Etcd:
-		return constants.Etcd
-	default:
-		return component
 	}
 }
 
