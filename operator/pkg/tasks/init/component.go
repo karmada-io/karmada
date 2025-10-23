@@ -24,6 +24,7 @@ import (
 
 	"k8s.io/klog/v2"
 
+	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	"github.com/karmada-io/karmada/operator/pkg/constants"
 	"github.com/karmada-io/karmada/operator/pkg/controlplane"
 	"github.com/karmada-io/karmada/operator/pkg/controlplane/metricsadapter"
@@ -33,8 +34,6 @@ import (
 	"github.com/karmada-io/karmada/operator/pkg/karmadaresource/apiservice"
 	"github.com/karmada-io/karmada/operator/pkg/util/apiclient"
 	"github.com/karmada-io/karmada/operator/pkg/workflow"
-
-	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 )
 
 // NewComponentTask init a components task
