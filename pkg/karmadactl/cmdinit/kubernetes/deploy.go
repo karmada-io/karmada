@@ -919,8 +919,14 @@ func (i *CommandInitOption) parseInitConfig(cfg *initConfig.KarmadaInitConfig) e
 
 	i.parseGeneralConfig(spec)
 	i.parseCertificateConfig(spec.Certificates)
-	i.parseEtcdConfig(spec.Etcd)
-	i.parseControlPlaneConfig(spec.Components)
+	err := i.parseEtcdConfig(spec.Etcd)
+	if err != nil {
+		return err
+	}
+	err = i.parseControlPlaneConfig(spec.Components)
+	if err != nil {
+		return err
+	}
 
 	setIfNotEmpty(&i.KarmadaDataPath, spec.KarmadaDataPath)
 	setIfNotEmpty(&i.KarmadaPkiPath, spec.KarmadaPKIPath)
@@ -970,17 +976,19 @@ func (i *CommandInitOption) parseCertificateConfig(certificates initConfig.Certi
 }
 
 // parseEtcdConfig handles the parsing of both local and external Etcd configurations.
-func (i *CommandInitOption) parseEtcdConfig(etcd initConfig.Etcd) {
+func (i *CommandInitOption) parseEtcdConfig(etcd initConfig.Etcd) error {
 	if etcd.Local != nil {
-		i.parseLocalEtcdConfig(etcd.Local)
-	} else if etcd.External != nil {
+		return i.parseLocalEtcdConfig(etcd.Local)
+	}
+	if etcd.External != nil {
 		i.parseExternalEtcdConfig(etcd.External)
 	}
+	return nil
 }
 
 // parseLocalEtcdConfig parses the local Etcd settings, including image information,
 // data path, PVC size, and node selector labels.
-func (i *CommandInitOption) parseLocalEtcdConfig(localEtcd *initConfig.LocalEtcd) {
+func (i *CommandInitOption) parseLocalEtcdConfig(localEtcd *initConfig.LocalEtcd) error {
 	setIfNotEmpty(&i.EtcdImage, localEtcd.CommonSettings.Image.GetImage())
 	setIfNotEmpty(&i.EtcdInitImage, localEtcd.InitImage.GetImage())
 	setIfNotEmpty(&i.EtcdHostDataPath, localEtcd.DataPath)
@@ -993,6 +1001,13 @@ func (i *CommandInitOption) parseLocalEtcdConfig(localEtcd *initConfig.LocalEtcd
 	setIfNotEmpty(&i.EtcdStorageMode, localEtcd.StorageMode)
 	setIfNotEmpty(&i.StorageClassesName, localEtcd.StorageClassesName)
 	setIfNotZeroInt32(&i.EtcdReplicas, localEtcd.Replicas)
+
+	if localEtcd.ExtraArgs != nil {
+		var err error
+		i.EtcdExtraArgs, err = setComponentArgs(i.EtcdExtraArgs, localEtcd.ExtraArgs)
+		return err
+	}
+	return nil
 }
 
 // parseExternalEtcdConfig parses the external Etcd configuration, including CA file,
@@ -1010,70 +1025,120 @@ func (i *CommandInitOption) parseExternalEtcdConfig(externalEtcd *initConfig.Ext
 
 // parseControlPlaneConfig parses the configuration for various control plane components,
 // including API Server, Controller Manager, Scheduler, and Webhook.
-func (i *CommandInitOption) parseControlPlaneConfig(components initConfig.KarmadaComponents) {
-	i.parseKarmadaAPIServerConfig(components.KarmadaAPIServer)
-	i.parseKarmadaControllerManagerConfig(components.KarmadaControllerManager)
-	i.parseKarmadaSchedulerConfig(components.KarmadaScheduler)
-	i.parseKarmadaWebhookConfig(components.KarmadaWebhook)
-	i.parseKarmadaAggregatedAPIServerConfig(components.KarmadaAggregatedAPIServer)
-	i.parseKubeControllerManagerConfig(components.KubeControllerManager)
+func (i *CommandInitOption) parseControlPlaneConfig(components initConfig.KarmadaComponents) error {
+	steps := []func() error{
+		func() error { return i.parseKarmadaAPIServerConfig(components.KarmadaAPIServer) },
+		func() error { return i.parseKarmadaControllerManagerConfig(components.KarmadaControllerManager) },
+		func() error { return i.parseKarmadaSchedulerConfig(components.KarmadaScheduler) },
+		func() error { return i.parseKarmadaWebhookConfig(components.KarmadaWebhook) },
+		func() error { return i.parseKarmadaAggregatedAPIServerConfig(components.KarmadaAggregatedAPIServer) },
+		func() error { return i.parseKubeControllerManagerConfig(components.KubeControllerManager) },
+	}
+	for _, step := range steps {
+		if err := step(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // parseKarmadaAPIServerConfig parses the configuration for the Karmada API Server component,
 // including image and replica settings, as well as advertise address.
-func (i *CommandInitOption) parseKarmadaAPIServerConfig(apiServer *initConfig.KarmadaAPIServer) {
+func (i *CommandInitOption) parseKarmadaAPIServerConfig(apiServer *initConfig.KarmadaAPIServer) error {
 	if apiServer != nil {
 		setIfNotZeroInt32(&i.KarmadaAPIServerNodePort, apiServer.Networking.Port)
 		setIfNotEmpty(&i.Namespace, apiServer.Networking.Namespace)
 		setIfNotEmpty(&i.KarmadaAPIServerImage, apiServer.CommonSettings.Image.GetImage())
 		setIfNotZeroInt32(&i.KarmadaAPIServerReplicas, apiServer.CommonSettings.Replicas)
 		setIfNotEmpty(&i.KarmadaAPIServerAdvertiseAddress, apiServer.AdvertiseAddress)
+
+		if apiServer.ExtraArgs != nil {
+			var err error
+			i.KarmadaAPIServerExtraArgs, err = setComponentArgs(i.KarmadaAPIServerExtraArgs, apiServer.ExtraArgs)
+			return err
+		}
 	}
+	return nil
 }
 
 // parseKarmadaControllerManagerConfig parses the configuration for the Karmada Controller Manager,
 // including image and replica settings.
-func (i *CommandInitOption) parseKarmadaControllerManagerConfig(manager *initConfig.KarmadaControllerManager) {
+func (i *CommandInitOption) parseKarmadaControllerManagerConfig(manager *initConfig.KarmadaControllerManager) error {
 	if manager != nil {
 		setIfNotEmpty(&i.KarmadaControllerManagerImage, manager.CommonSettings.Image.GetImage())
 		setIfNotZeroInt32(&i.KarmadaControllerManagerReplicas, manager.CommonSettings.Replicas)
+
+		if manager.ExtraArgs != nil {
+			var err error
+			i.KarmadaControllerManagerExtraArgs, err = setComponentArgs(i.KarmadaControllerManagerExtraArgs, manager.ExtraArgs)
+			return err
+		}
 	}
+	return nil
 }
 
 // parseKarmadaSchedulerConfig parses the configuration for the Karmada Scheduler,
 // including image and replica settings.
-func (i *CommandInitOption) parseKarmadaSchedulerConfig(scheduler *initConfig.KarmadaScheduler) {
+func (i *CommandInitOption) parseKarmadaSchedulerConfig(scheduler *initConfig.KarmadaScheduler) error {
 	if scheduler != nil {
 		setIfNotEmpty(&i.KarmadaSchedulerImage, scheduler.CommonSettings.Image.GetImage())
 		setIfNotZeroInt32(&i.KarmadaSchedulerReplicas, scheduler.CommonSettings.Replicas)
+
+		if scheduler.ExtraArgs != nil {
+			var err error
+			i.KarmadaSchedulerExtraArgs, err = setComponentArgs(i.KarmadaSchedulerExtraArgs, scheduler.ExtraArgs)
+			return err
+		}
 	}
+	return nil
 }
 
 // parseKarmadaWebhookConfig parses the configuration for the Karmada Webhook,
 // including image and replica settings.
-func (i *CommandInitOption) parseKarmadaWebhookConfig(webhook *initConfig.KarmadaWebhook) {
+func (i *CommandInitOption) parseKarmadaWebhookConfig(webhook *initConfig.KarmadaWebhook) error {
 	if webhook != nil {
 		setIfNotEmpty(&i.KarmadaWebhookImage, webhook.CommonSettings.Image.GetImage())
 		setIfNotZeroInt32(&i.KarmadaWebhookReplicas, webhook.CommonSettings.Replicas)
+
+		if webhook.ExtraArgs != nil {
+			var err error
+			i.KarmadaWebhookExtraArgs, err = setComponentArgs(i.KarmadaWebhookExtraArgs, webhook.ExtraArgs)
+			return err
+		}
 	}
+	return nil
 }
 
 // parseKarmadaAggregatedAPIServerConfig parses the configuration for the Karmada Aggregated API Server,
 // including image and replica settings.
-func (i *CommandInitOption) parseKarmadaAggregatedAPIServerConfig(aggregatedAPIServer *initConfig.KarmadaAggregatedAPIServer) {
+func (i *CommandInitOption) parseKarmadaAggregatedAPIServerConfig(aggregatedAPIServer *initConfig.KarmadaAggregatedAPIServer) error {
 	if aggregatedAPIServer != nil {
 		setIfNotEmpty(&i.KarmadaAggregatedAPIServerImage, aggregatedAPIServer.CommonSettings.Image.GetImage())
 		setIfNotZeroInt32(&i.KarmadaAggregatedAPIServerReplicas, aggregatedAPIServer.CommonSettings.Replicas)
+
+		if aggregatedAPIServer.ExtraArgs != nil {
+			var err error
+			i.KarmadaAggregatedAPIServerExtraArgs, err = setComponentArgs(i.KarmadaAggregatedAPIServerExtraArgs, aggregatedAPIServer.ExtraArgs)
+			return err
+		}
 	}
+	return nil
 }
 
 // parseKubeControllerManagerConfig parses the configuration for the Kube Controller Manager,
 // including image and replica settings.
-func (i *CommandInitOption) parseKubeControllerManagerConfig(manager *initConfig.KubeControllerManager) {
+func (i *CommandInitOption) parseKubeControllerManagerConfig(manager *initConfig.KubeControllerManager) error {
 	if manager != nil {
 		setIfNotEmpty(&i.KubeControllerManagerImage, manager.CommonSettings.Image.GetImage())
 		setIfNotZeroInt32(&i.KubeControllerManagerReplicas, manager.CommonSettings.Replicas)
+
+		if manager.ExtraArgs != nil {
+			var err error
+			i.KubeControllerManagerExtraArgs, err = setComponentArgs(i.KubeControllerManagerExtraArgs, manager.ExtraArgs)
+			return err
+		}
 	}
+	return nil
 }
 
 // mapToString converts a map to a comma-separated key=value string.
