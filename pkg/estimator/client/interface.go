@@ -40,7 +40,7 @@ type ReplicaEstimator interface {
 	// MaxAvailableReplicas returns the maximum number of replicas of a single-component workload that each cluster can host.
 	MaxAvailableReplicas(ctx context.Context, clusters []*clusterv1alpha1.Cluster, replicaRequirements *workv1alpha2.ReplicaRequirements) ([]workv1alpha2.TargetCluster, error)
 	// MaxAvailableComponentSets returns the maximum number of complete multi-component sets (in terms of replicas) that each cluster can host.
-	MaxAvailableComponentSets(ctx context.Context, req *ComponentSetEstimationRequest) ([]ComponentSetEstimationResponse, error)
+	MaxAvailableComponentSets(ctx context.Context, req ComponentSetEstimationRequest) ([]ComponentSetEstimationResponse, error)
 }
 
 // ComponentSetEstimationRequest carries input parameters for estimating multi-component set availability per cluster.
@@ -49,7 +49,7 @@ type ComponentSetEstimationRequest struct {
 	// Clusters represents a list of feasible clusters to estimate against.
 	Clusters []*clusterv1alpha1.Cluster
 	// Components are the components that form a multi-component workload.
-	Components []*workv1alpha2.Component
+	Components []workv1alpha2.Component
 	// Namespace is the namespace of the workload being estimated.
 	// It is used by the accurate estimator to check the quota configurations
 	// in the target member cluster. This field is required for quota-aware estimation.

@@ -531,9 +531,9 @@ func Test_dynamicScale(t *testing.T) {
 				},
 			},
 			want: []workv1alpha2.TargetCluster{
-				{Name: ClusterMember1, Replicas: 6},
+				{Name: ClusterMember1, Replicas: 7},
 				{Name: ClusterMember2, Replicas: 12},
-				{Name: ClusterMember3, Replicas: 6},
+				{Name: ClusterMember3, Replicas: 5},
 			},
 			wantErr: false,
 		},
@@ -625,8 +625,8 @@ func Test_dynamicScale(t *testing.T) {
 			},
 			want: []workv1alpha2.TargetCluster{
 				{Name: ClusterMember1, Replicas: 7},
-				{Name: ClusterMember3, Replicas: 6},
-				{Name: ClusterMember4, Replicas: 11},
+				{Name: ClusterMember3, Replicas: 7},
+				{Name: ClusterMember4, Replicas: 10},
 			},
 			wantErr: false,
 		},
@@ -711,13 +711,8 @@ func Test_dynamicScaleUp(t *testing.T) {
 			wants: [][]workv1alpha2.TargetCluster{
 				{
 					{Name: ClusterMember1, Replicas: 4},
-					{Name: ClusterMember2, Replicas: 3},
-					{Name: ClusterMember3, Replicas: 5},
-				},
-				{
-					{Name: ClusterMember1, Replicas: 3},
 					{Name: ClusterMember2, Replicas: 4},
-					{Name: ClusterMember3, Replicas: 5},
+					{Name: ClusterMember3, Replicas: 4},
 				},
 			},
 			wantErr: false,

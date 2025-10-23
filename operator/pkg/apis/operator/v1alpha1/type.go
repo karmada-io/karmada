@@ -292,21 +292,6 @@ type ExternalEtcd struct {
 	// +required
 	Endpoints []string `json:"endpoints"`
 
-	// CAData is an SSL Certificate Authority file used to secure etcd communication.
-	// Required if using a TLS connection.
-	// Deprecated: This field is deprecated and will be removed in a future version. Use SecretRef for providing client connection credentials.
-	CAData []byte `json:"caData,omitempty"`
-
-	// CertData is an SSL certification file used to secure etcd communication.
-	// Required if using a TLS connection.
-	// Deprecated: This field is deprecated and will be removed in a future version. Use SecretRef for providing client connection credentials.
-	CertData []byte `json:"certData,omitempty"`
-
-	// KeyData is an SSL key file used to secure etcd communication.
-	// Required if using a TLS connection.
-	// Deprecated: This field is deprecated and will be removed in a future version. Use SecretRef for providing client connection credentials.
-	KeyData []byte `json:"keyData,omitempty"`
-
 	// SecretRef references a Kubernetes secret containing the etcd connection credentials.
 	// The secret must contain the following data keys:
 	// ca.crt: The Certificate Authority (CA) certificate data.

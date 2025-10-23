@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	initConfig "github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/config"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
 	globaloptions "github.com/karmada-io/karmada/pkg/karmadactl/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
@@ -190,4 +191,91 @@ func (i *CommandInitOption) defaultKarmadaAggregatedAPIServerContainerCommand() 
 		command = append(command, fmt.Sprintf("--etcd-prefix=%s", i.ExternalEtcdKeyPrefix))
 	}
 	return command
+}
+
+func setComponentArgs(cliExtraArgs []string, cfgArgs []initConfig.Arg) ([]string, error) {
+	// validate
+	if err := validateCfgExtraArgs(cfgArgs); err != nil {
+		return nil, err
+	}
+	// Check if there are command line arguments and whether merging is needed.
+	mergedArgs := cfgArgs
+	if cliExtraArgs != nil {
+		cliArgs := parseExtraArgs(cliExtraArgs)
+		mergedArgs = mergeArgs(cfgArgs, cliArgs)
+	}
+	return convertArgsToCmdLineFlags(mergedArgs), nil
+}
+
+// validateCfgExtraArgs validate cfg extra arguments.
+func validateCfgExtraArgs(args []initConfig.Arg) error {
+	for id, arg := range args {
+		if len(arg.Name) == 0 {
+			return fmt.Errorf("the extra args[%d] name is empty", id)
+		}
+	}
+	return nil
+}
+
+func parseExtraArgs(extraArgs []string) []initConfig.Arg {
+	if len(extraArgs) == 0 {
+		return nil
+	}
+
+	var result []initConfig.Arg
+	for _, arg := range extraArgs {
+		arg = strings.TrimPrefix(arg, "--")
+		part := strings.SplitN(arg, "=", 2)
+		if len(part) == 2 {
+			result = append(result, initConfig.Arg{
+				Name:  part[0],
+				Value: part[1],
+			})
+		} else {
+			result = append(result, initConfig.Arg{
+				Name:  part[0],
+				Value: "",
+			})
+		}
+	}
+	return result
+}
+
+func mergeArgs(cfgArgs []initConfig.Arg, cliArgs []initConfig.Arg) []initConfig.Arg {
+	merged := map[string]initConfig.Arg{}
+
+	// Cli parameters
+	for _, arg := range cliArgs {
+		merged[arg.Name] = arg
+	}
+
+	// Cover
+	for _, arg := range cfgArgs {
+		merged[arg.Name] = arg
+	}
+
+	result := make([]initConfig.Arg, 0, len(merged))
+
+	for _, arg := range merged {
+		result = append(result, arg)
+	}
+
+	return result
+}
+
+// convertArgsToCmdLineFlags formats the arguments into --key=value.
+func convertArgsToCmdLineFlags(args []initConfig.Arg) []string {
+	if len(args) == 0 {
+		return nil
+	}
+
+	res := make([]string, 0, len(args))
+	for _, arg := range args {
+		if arg.Value != "" {
+			res = append(res, fmt.Sprintf("--%s=%s", arg.Name, arg.Value))
+		} else {
+			res = append(res, fmt.Sprintf("--%s", arg.Name))
+		}
+	}
+	return res
 }

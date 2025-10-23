@@ -172,21 +172,6 @@ func (in *ExternalEtcd) DeepCopyInto(out *ExternalEtcd) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
-	if in.CAData != nil {
-		in, out := &in.CAData, &out.CAData
-		*out = make([]byte, len(*in))
-		copy(*out, *in)
-	}
-	if in.CertData != nil {
-		in, out := &in.CertData, &out.CertData
-		*out = make([]byte, len(*in))
-		copy(*out, *in)
-	}
-	if in.KeyData != nil {
-		in, out := &in.KeyData, &out.KeyData
-		*out = make([]byte, len(*in))
-		copy(*out, *in)
-	}
 	out.SecretRef = in.SecretRef
 	return
 }

@@ -61,32 +61,11 @@ spec:
                           External describes how to connect to an external etcd cluster
                           Local and External are mutually exclusive
                         properties:
-                          caData:
-                            description: |-
-                              CAData is an SSL Certificate Authority file used to secure etcd communication.
-                              Required if using a TLS connection.
-                              Deprecated: This field is deprecated and will be removed in a future version. Use SecretRef for providing client connection credentials.
-                            format: byte
-                            type: string
-                          certData:
-                            description: |-
-                              CertData is an SSL certification file used to secure etcd communication.
-                              Required if using a TLS connection.
-                              Deprecated: This field is deprecated and will be removed in a future version. Use SecretRef for providing client connection credentials.
-                            format: byte
-                            type: string
                           endpoints:
                             description: Endpoints of etcd members. Required for ExternalEtcd.
                             items:
                               type: string
                             type: array
-                          keyData:
-                            description: |-
-                              KeyData is an SSL key file used to secure etcd communication.
-                              Required if using a TLS connection.
-                              Deprecated: This field is deprecated and will be removed in a future version. Use SecretRef for providing client connection credentials.
-                            format: byte
-                            type: string
                           secretRef:
                             description: |-
                               SecretRef references a Kubernetes secret containing the etcd connection credentials.

@@ -94,7 +94,7 @@ func (ge *GeneralEstimator) maxAvailableReplicas(cluster *clusterv1alpha1.Cluste
 }
 
 // MaxAvailableComponentSets (generic estimator) – resourceSummary only.
-func (ge *GeneralEstimator) MaxAvailableComponentSets(_ context.Context, req *ComponentSetEstimationRequest) ([]ComponentSetEstimationResponse, error) {
+func (ge *GeneralEstimator) MaxAvailableComponentSets(_ context.Context, req ComponentSetEstimationRequest) ([]ComponentSetEstimationResponse, error) {
 	responses := make([]ComponentSetEstimationResponse, len(req.Clusters))
 	for i, cluster := range req.Clusters {
 		maxComponentSets := ge.maxAvailableComponentSets(cluster, req.Components)
@@ -103,7 +103,7 @@ func (ge *GeneralEstimator) MaxAvailableComponentSets(_ context.Context, req *Co
 	return responses, nil
 }
 
-func (ge *GeneralEstimator) maxAvailableComponentSets(cluster *clusterv1alpha1.Cluster, components []*workv1alpha2.Component) int32 {
+func (ge *GeneralEstimator) maxAvailableComponentSets(cluster *clusterv1alpha1.Cluster, components []workv1alpha2.Component) int32 {
 	resourceSummary := cluster.Status.ResourceSummary.DeepCopy()
 	if resourceSummary == nil {
 		return 0
@@ -163,14 +163,14 @@ func (ge *GeneralEstimator) maxAvailableComponentSets(cluster *clusterv1alpha1.C
 // getMaximumSetsBasedOnResourceModels is a placeholder for future implementation.
 // It should refine the maximum sets based on cluster resource models, similar
 // to getMaximumReplicasBasedOnResourceModels but adapted to full component sets.
-func getMaximumSetsBasedOnResourceModels(_ *clusterv1alpha1.Cluster, _ []*workv1alpha2.Component) (int64, error) {
+func getMaximumSetsBasedOnResourceModels(_ *clusterv1alpha1.Cluster, _ []workv1alpha2.Component) (int64, error) {
 	// TODO: implement logic based on cluster.Spec.ResourceModels
 	// For now, just return MaxInt64 so it never reduces the upper bound.
 	return math.MaxInt64, nil
 }
 
 // podsInSet computes the total number of pods in the CRD
-func podsInSet(components []*workv1alpha2.Component) int64 {
+func podsInSet(components []workv1alpha2.Component) int64 {
 	var sum int64
 	for _, c := range components {
 		sum += int64(c.Replicas)
@@ -179,7 +179,7 @@ func podsInSet(components []*workv1alpha2.Component) int64 {
 }
 
 // perSetRequirement computes the aggregate resource(such as CPU, Memory, GPU, etc) demand of one set of components.
-func perSetRequirement(components []*workv1alpha2.Component) map[corev1.ResourceName]int64 {
+func perSetRequirement(components []workv1alpha2.Component) map[corev1.ResourceName]int64 {
 	resourceRequirements := map[corev1.ResourceName]int64{}
 	for _, c := range components {
 		if c.ReplicaRequirements == nil || c.ReplicaRequirements.ResourceRequest == nil {
