@@ -28,6 +28,7 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	estimatorclient "github.com/karmada-io/karmada/pkg/estimator/client"
+	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/scheduler/core/spreadconstraint"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
@@ -75,19 +76,27 @@ func calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha
 	ctx := context.WithValue(context.TODO(), util.ContextKeyObject,
 		fmt.Sprintf("kind=%s, name=%s/%s", spec.Resource.Kind, spec.Resource.Namespace, spec.Resource.Name))
 	for name, estimator := range estimators {
-		res, err := estimator.MaxAvailableReplicas(ctx, clusters, spec.ReplicaRequirements)
-		if err != nil {
-			klog.Errorf("Max cluster available replicas error: %v", err)
-			continue
-		}
-		klog.V(4).Infof("Invoked MaxAvailableReplicas of estimator %s for workload(%s, kind=%s, %s): %v", name,
-			spec.Resource.APIVersion, spec.Resource.Kind, namespacedKey, res)
-		for i := range res {
-			if res[i].Replicas == estimatorclient.UnauthenticReplica {
+		if features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) && isMultiTemplateSchedulingApplicable(spec) {
+			var err error
+			availableTargetClusters, err = calculateMultiTemplateAvailableSets(ctx, estimator, name, clusters, spec, availableTargetClusters)
+			if err != nil {
 				continue
 			}
-			if availableTargetClusters[i].Name == res[i].Name && availableTargetClusters[i].Replicas > res[i].Replicas {
-				availableTargetClusters[i].Replicas = res[i].Replicas
+		} else {
+			res, err := estimator.MaxAvailableReplicas(ctx, clusters, spec.ReplicaRequirements)
+			if err != nil {
+				klog.Errorf("Max cluster available replicas error: %v", err)
+				continue
+			}
+			klog.V(4).Infof("Invoked MaxAvailableReplicas of estimator %s for workload(%s, kind=%s, %s): %v", name,
+				spec.Resource.APIVersion, spec.Resource.Kind, namespacedKey, res)
+			for i := range res {
+				if res[i].Replicas == estimatorclient.UnauthenticReplica {
+					continue
+				}
+				if availableTargetClusters[i].Name == res[i].Name && availableTargetClusters[i].Replicas > res[i].Replicas {
+					availableTargetClusters[i].Replicas = res[i].Replicas
+				}
 			}
 		}
 	}
