@@ -1,0 +1,45 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: karmada-mutating-webhook-configuration
+  annotations:
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/karmada-operator-webhook-cert
+webhooks:
+  - name: karmada-v1alpha1.kb.io
+    admissionReviewVersions: ["v1"]
+    clientConfig:
+      service:
+        name: karmada-operator-webhook
+        namespace: {{ .Release.Namespace }}
+        path: /mutate-operator-karmada-io-v1alpha1-karmada
+    failurePolicy: Fail
+    sideEffects: None
+    rules:
+      - apiGroups: ["operator.karmada.io"]
+        apiVersions: ["v1alpha1"]
+        operations: ["CREATE","UPDATE"]
+        resources: ["karmadas"]
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: karmada-validating-webhook-configuration
+  annotations:
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/karmada-operator-webhook-cert
+webhooks:
+  - name: karmada-v1alpha1.kb.io
+    admissionReviewVersions: ["v1"]
+    clientConfig:
+      service:
+        name: karmada-operator-webhook
+        namespace: {{ .Release.Namespace }}
+        path: /validate-operator-karmada-io-v1alpha1-karmada
+    failurePolicy: Fail
+    sideEffects: None
+    rules:
+      - apiGroups: ["operator.karmada.io"]
+        apiVersions: ["v1alpha1"]
+        operations: ["CREATE","UPDATE"]
+        resources: ["karmadas"]
+        
