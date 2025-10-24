@@ -122,6 +122,16 @@ check_component_restart() {
     if [ "$restart_count" -gt 0 ]; then
       echo "ERROR: ${component_name} pod $pod_name has restarted $restart_count times."
       echo "This indicates OOM or panic occurred and needs to be investigated."
+      
+      # Collect logs from the previous container instance
+      echo "Collecting logs from previous container instance for ${component_name} pod $pod_name..."
+      local log_file="$ARTIFACTS_PATH/${component_name}-${pod_name}-previous-logs.log"
+      if kubectl --context="${KARMADA_HOST_CLUSTER_NAME}" logs -p "$pod_name" -n karmada-system > "$log_file" 2>&1; then
+        echo "Previous container logs saved to: $log_file"
+      else
+        echo "Warning: Failed to collect previous container logs for pod $pod_name. See details in $log_file"
+      fi
+      
       return 1  # Return failure to stop checking
     else
       echo "${component_name} pod $pod_name: no restarts"
