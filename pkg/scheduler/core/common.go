@@ -25,6 +25,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/scheduler/core/spreadconstraint"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 	"github.com/karmada-io/karmada/pkg/scheduler/metrics"
+	"github.com/karmada-io/karmada/pkg/util"
 )
 
 // SelectClusters selects clusters based on the placement and resource binding spec.
@@ -62,7 +63,7 @@ func AssignReplicas(
 		if err != nil {
 			return nil, err
 		}
-		return removeZeroReplicasCluster(assignResults), nil
+		return util.RemoveZeroReplicasCluster(assignResults), nil
 	}
 
 	// If not workload, assign all clusters without considering replicas.
