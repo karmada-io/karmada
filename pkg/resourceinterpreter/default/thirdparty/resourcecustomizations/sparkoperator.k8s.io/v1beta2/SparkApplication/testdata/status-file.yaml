@@ -1,0 +1,20 @@
+applied: true
+clusterName: member1
+health: Healthy
+status:
+  applicationState:
+    state: COMPLETED
+  driverInfo:
+    podName: spark-pi-driver
+    webUIAddress: 10.11.254.226:4040
+    webUIPort: 4040
+    webUIServiceName: spark-pi-ui-svc
+  executionAttempts: 1
+  executorState:
+    spark-pi-b5777a99d8b732a7-exec-1: COMPLETED
+    spark-pi-b5777a99d8b732a7-exec-2: COMPLETED
+  lastSubmissionAttemptTime: "2025-10-12T13:57:17Z"
+  sparkApplicationId: spark-ff27607fd312454b92455e2feabdd343
+  submissionAttempts: 1
+  submissionID: 0df4a04b-620b-425e-997a-e4404010e26a
+  terminationTime: "2025-10-12T13:58:39Z"
