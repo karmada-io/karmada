@@ -29,6 +29,7 @@ import (
 
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	"github.com/karmada-io/karmada/operator/pkg/constants"
+	"github.com/karmada-io/karmada/operator/pkg/controlplane/pdb"
 	"github.com/karmada-io/karmada/operator/pkg/util"
 	"github.com/karmada-io/karmada/operator/pkg/util/apiclient"
 	"github.com/karmada-io/karmada/operator/pkg/util/patcher"
@@ -96,6 +97,11 @@ func installKarmadaEtcd(client clientset.Interface, name, namespace string, cfg 
 
 	if err := apiclient.CreateOrUpdateStatefulSet(client, etcdStatefulSet); err != nil {
 		return fmt.Errorf("error when creating Etcd statefulset, err: %w", err)
+	}
+
+	// Ensure PDB for the etcd component is configured
+	if err := pdb.EnsurePodDisruptionBudget(constants.Etcd, name, namespace, &cfg.CommonSettings, client); err != nil {
+		return fmt.Errorf("failed to ensure PDB for etcd component, err: %w", err)
 	}
 
 	return nil

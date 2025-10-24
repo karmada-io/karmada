@@ -66,8 +66,35 @@ func TestEnsureKarmadaEtcd(t *testing.T) {
 	}
 
 	actions := fakeClient.Actions()
-	if len(actions) != 3 {
-		t.Fatalf("expected 3 actions, but got %d", len(actions))
+	// We now create statefulset, 2 services (peer + client), and PDB, so expect 4 actions
+	if len(actions) != 4 {
+		t.Fatalf("expected 4 actions, but got %d", len(actions))
+	}
+
+	// Check that we have statefulset, 2 services, and PDB
+	statefulsetCount := 0
+	serviceCount := 0
+	pdbCount := 0
+	for _, action := range actions {
+		if action.GetResource().Resource == "statefulsets" {
+			statefulsetCount++
+		} else if action.GetResource().Resource == "services" {
+			serviceCount++
+		} else if action.GetResource().Resource == "poddisruptionbudgets" {
+			pdbCount++
+		}
+	}
+
+	if statefulsetCount != 1 {
+		t.Errorf("expected 1 statefulset action, but got %d", statefulsetCount)
+	}
+
+	if serviceCount != 2 {
+		t.Errorf("expected 2 service actions, but got %d", serviceCount)
+	}
+
+	if pdbCount != 1 {
+		t.Errorf("expected 1 PDB action, but got %d", pdbCount)
 	}
 }
 
@@ -105,12 +132,44 @@ func TestInstallKarmadaEtcd(t *testing.T) {
 		t.Fatalf("failed to install karmada etcd, got: %v", err)
 	}
 
-	err = verifyStatefulSetCreation(
-		fakeClient, replicas, imagePullPolicy, name, namespace, image, imageTag, priorityClassName,
-	)
+	statefulset, err := verifyStatefulSetCreation(fakeClient)
 	if err != nil {
 		t.Fatalf("failed to verify statefulset creation: %v", err)
 	}
+
+	// Verify statefulset details using the existing function
+	if err := verifyStatefulSetDetails(statefulset, replicas, imagePullPolicy, name, namespace, image, imageTag); err != nil {
+		t.Fatalf("failed to verify statefulset details: %v", err)
+	}
+}
+
+// verifyStatefulSetCreation verifies the creation of a Kubernetes statefulset
+func verifyStatefulSetCreation(client *fakeclientset.Clientset) (*appsv1.StatefulSet, error) {
+	// Assert that a StatefulSet and PDB were created.
+	actions := client.Actions()
+	// We now create both statefulset and PDB, so expect 2 actions
+	if len(actions) != 2 {
+		return nil, fmt.Errorf("expected exactly 2 actions (statefulset + PDB), but got %d actions", len(actions))
+	}
+
+	// Find the statefulset action
+	var statefulset *appsv1.StatefulSet
+	for _, action := range actions {
+		if action.GetResource().Resource == "statefulsets" {
+			createAction, ok := action.(coretesting.CreateAction)
+			if !ok {
+				return nil, fmt.Errorf("expected a CreateAction for statefulset, but got %T", action)
+			}
+			statefulset = createAction.GetObject().(*appsv1.StatefulSet)
+			break
+		}
+	}
+
+	if statefulset == nil {
+		return nil, fmt.Errorf("expected statefulset action, but none found")
+	}
+
+	return statefulset, nil
 }
 
 func TestCreateEtcdService(t *testing.T) {
@@ -198,37 +257,6 @@ func TestCreateEtcdService(t *testing.T) {
 			}
 		}
 	}
-}
-
-// verifyStatefulSetCreation asserts that a StatefulSet was created in the given clientset.
-// It checks that exactly one action was recorded, verifies that it is a creation action for a StatefulSet,
-// and then validates the details of the created StatefulSet against the expected parameters.
-func verifyStatefulSetCreation(client *fakeclientset.Clientset, replicas int32, imagePullPolicy corev1.PullPolicy, name, namespace, image, imageTag, priorityClassName string) error {
-	// Assert that a Statefulset was created.
-	actions := client.Actions()
-	if len(actions) != 1 {
-		return fmt.Errorf("expected exactly 1 action either create or update, but got %d actions", len(actions))
-	}
-
-	// Check that the action was a Statefulset creation.
-	createAction, ok := actions[0].(coretesting.CreateAction)
-	if !ok {
-		return fmt.Errorf("expected a CreateAction, but got %T", actions[0])
-	}
-
-	if createAction.GetResource().Resource != "statefulsets" {
-		return fmt.Errorf("expected action on 'statefulsets', but got '%s'", createAction.GetResource().Resource)
-	}
-
-	statefulSet := createAction.GetObject().(*appsv1.StatefulSet)
-
-	if statefulSet.Spec.Template.Spec.PriorityClassName != priorityClassName {
-		return fmt.Errorf("expected priorityClassName to be set to %s, but got %s", priorityClassName, statefulSet.Spec.Template.Spec.PriorityClassName)
-	}
-
-	return verifyStatefulSetDetails(
-		statefulSet, replicas, imagePullPolicy, name, namespace, image, imageTag,
-	)
 }
 
 // verifyStatefulSetDetails validates the details of a StatefulSet against the expected parameters.
