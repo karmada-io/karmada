@@ -66,6 +66,7 @@ func (c *Cluster) APIEnablement(gvk schema.GroupVersionKind) APIEnablementStatus
 	return APIUnknown
 }
 
+// IsClusterReady checks if the Cluster is ready.
 func (c *Cluster) IsClusterReady() bool {
 	return meta.IsStatusConditionPresentAndEqual(c.Status.Conditions, ClusterConditionReady, metav1.ConditionTrue)
 }

@@ -18,8 +18,9 @@ package core
 
 import (
 	"fmt"
-	"k8s.io/klog/v2"
 	"sort"
+
+	"k8s.io/klog/v2"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
