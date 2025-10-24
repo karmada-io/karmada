@@ -443,16 +443,12 @@ func TestAggregateStatus(t *testing.T) {
 				Object: map[string]interface{}{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
-						"creationTimestamp": nil,
-					},
+					"metadata":   map[string]interface{}{},
 					"spec": map[string]interface{}{
 						"selector": nil,
 						"strategy": map[string]interface{}{},
 						"template": map[string]interface{}{
-							"metadata": map[string]interface{}{
-								"creationTimestamp": nil,
-							},
+							"metadata": map[string]interface{}{},
 							"spec": map[string]interface{}{
 								"containers": nil,
 							},
