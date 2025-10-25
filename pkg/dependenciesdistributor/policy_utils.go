@@ -29,15 +29,22 @@ import (
 	"github.com/karmada-io/karmada/pkg/events"
 )
 
-// conflictDetectedForConflictResolution checks if there is a conflict in ConflictResolution from referencing ResourceBindings.
-func (d *DependenciesDistributor) conflictDetectedForConflictResolution(ctx context.Context, requiredBy []workv1alpha2.BindingSnapshot) (hasConflict bool, err error) {
+
+// AggregateAndDetectConflictResolution aggregates the ConflictResolution across referenced ResourceBindings
+// and reports if there is a conflict (both Overwrite and Abort present).
+// Aggregation rule: any Overwrite -> Overwrite; else Abort. Empty/zero value counts as Abort.
+func (d *DependenciesDistributor) AggregateAndDetectConflictResolution(ctx context.Context, requiredBy []workv1alpha2.BindingSnapshot) (agg policyv1alpha1.ConflictResolution, conflicted bool, err error) {
+	if len(requiredBy) == 0 {
+		return policyv1alpha1.ConflictAbort, false, nil
+	}
+
 	hasOverwrite := false
 	hasAbort := false
 
 	for _, snap := range requiredBy {
 		refRB := &workv1alpha2.ResourceBinding{}
 		if err := d.Client.Get(ctx, client.ObjectKey{Namespace: snap.Namespace, Name: snap.Name}, refRB); err != nil {
-			return false, err
+			return "", false, err
 		}
 
 		cr := effectiveConflictResolution(refRB.Spec.ConflictResolution)
@@ -46,14 +53,30 @@ func (d *DependenciesDistributor) conflictDetectedForConflictResolution(ctx cont
 		} else {
 			hasAbort = true
 		}
+
+		if hasOverwrite && hasAbort {
+			break
+		}
 	}
 
-	hasConflict = hasOverwrite && hasAbort
-	return hasConflict, nil
+	conflicted = hasOverwrite && hasAbort
+	if hasOverwrite {
+		agg = policyv1alpha1.ConflictOverwrite
+	} else {
+		agg = policyv1alpha1.ConflictAbort
+	}
+	return agg, conflicted, nil
 }
 
-// conflictDetectedForPreserveOnDeletion checks if there is a conflict in PreserveResourcesOnDeletion from referencing ResourceBindings.
-func (d *DependenciesDistributor) conflictDetectedForPreserveOnDeletion(ctx context.Context, requiredBy []workv1alpha2.BindingSnapshot) (hasConflict bool, err error) {
+
+// AggregateAndDetectPreserveOnDeletion aggregates the PreserveResourcesOnDeletion across referenced ResourceBindings
+// and reports if there is a conflict (both true and false present).
+// Aggregation rule: any true -> true; else false. Empty(nil) counts as false.
+func (d *DependenciesDistributor) AggregateAndDetectPreserveOnDeletion(ctx context.Context, requiredBy []workv1alpha2.BindingSnapshot) (agg bool, conflicted bool, err error) {
+	if len(requiredBy) == 0 {
+		return false, false, nil
+	}
+
 	// seenTrue indicates at least one referencing ResourceBinding has PreserveResourcesOnDeletion set to true.
 	// seenFalse indicates at least one referencing ResourceBinding has PreserveResourcesOnDeletion set to false.
 	seenTrue := false
@@ -62,7 +85,7 @@ func (d *DependenciesDistributor) conflictDetectedForPreserveOnDeletion(ctx cont
 	for _, snap := range requiredBy {
 		refRB := &workv1alpha2.ResourceBinding{}
 		if err := d.Client.Get(ctx, client.ObjectKey{Namespace: snap.Namespace, Name: snap.Name}, refRB); err != nil {
-			return false, err
+			return false, false, err
 		}
 
 		pres := ptr.Deref(refRB.Spec.PreserveResourcesOnDeletion, false)
@@ -71,17 +94,22 @@ func (d *DependenciesDistributor) conflictDetectedForPreserveOnDeletion(ctx cont
 		} else {
 			seenFalse = true
 		}
+
+		if seenTrue && seenFalse {
+			break
+		}
 	}
 
-	hasConflict = seenTrue && seenFalse
-	return hasConflict, nil
+	conflicted = seenTrue && seenFalse
+	agg = seenTrue
+	return agg, conflicted, nil
 }
 
+// effectiveConflictResolution returns Abort for empty values.
 func effectiveConflictResolution(value policyv1alpha1.ConflictResolution) policyv1alpha1.ConflictResolution {
 	if value == "" {
 		return policyv1alpha1.ConflictAbort
 	}
-
 	return value
 }
 
@@ -102,3 +130,4 @@ func (d *DependenciesDistributor) recordEventIfPolicyConflict(existBinding *work
 		d.EventRecorder.Eventf(existBinding, corev1.EventTypeWarning, events.EventReasonDependencyPolicyConflict, message, strings.Join(conflictReasons, "; "))
 	}
 }
+
