@@ -596,7 +596,7 @@ func (d *DependenciesDistributor) createOrUpdateAttachedBinding(attachedBinding 
 				return err
 			}
 
-			preserveConflictDetected, err := d.conflictDetectedForPreserveOnDeletion(context.TODO(),mergedRequiredBy)
+			preserveConflictDetected, err := d.conflictDetectedForPreserveOnDeletion(context.TODO(), mergedRequiredBy)
 			if err != nil {
 				klog.Errorf("Failed to check preserveOnDeletion conflict for resourceBinding(%s): %v", bindingKey, err)
 				return err

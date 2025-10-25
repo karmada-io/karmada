@@ -21,12 +21,12 @@ import (
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
-	"github.com/karmada-io/karmada/pkg/events"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/events"
 )
 
 // conflictDetectedForConflictResolution checks if there is a conflict in ConflictResolution from referencing ResourceBindings.
