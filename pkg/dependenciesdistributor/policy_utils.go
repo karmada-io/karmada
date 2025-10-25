@@ -18,7 +18,10 @@ package dependenciesdistributor
 
 import (
 	"context"
+	"strings"
 
+	corev1 "k8s.io/api/core/v1"
+	"github.com/karmada-io/karmada/pkg/events"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -27,13 +30,13 @@ import (
 )
 
 // conflictDetectedForConflictResolution checks if there is a conflict in ConflictResolution from referencing ResourceBindings.
-func (d *DependenciesDistributor) conflictDetectedForConflictResolution(requiredBy []workv1alpha2.BindingSnapshot) (hasConflict bool, err error) {
+func (d *DependenciesDistributor) conflictDetectedForConflictResolution(ctx context.Context, requiredBy []workv1alpha2.BindingSnapshot) (hasConflict bool, err error) {
 	hasOverwrite := false
 	hasAbort := false
 
 	for _, snap := range requiredBy {
 		refRB := &workv1alpha2.ResourceBinding{}
-		if err := d.Client.Get(context.TODO(), client.ObjectKey{Namespace: snap.Namespace, Name: snap.Name}, refRB); err != nil {
+		if err := d.Client.Get(ctx, client.ObjectKey{Namespace: snap.Namespace, Name: snap.Name}, refRB); err != nil {
 			return false, err
 		}
 
@@ -50,7 +53,7 @@ func (d *DependenciesDistributor) conflictDetectedForConflictResolution(required
 }
 
 // conflictDetectedForPreserveOnDeletion checks if there is a conflict in PreserveResourcesOnDeletion from referencing ResourceBindings.
-func (d *DependenciesDistributor) conflictDetectedForPreserveOnDeletion(requiredBy []workv1alpha2.BindingSnapshot) (hasConflict bool, err error) {
+func (d *DependenciesDistributor) conflictDetectedForPreserveOnDeletion(ctx context.Context, requiredBy []workv1alpha2.BindingSnapshot) (hasConflict bool, err error) {
 	// seenTrue indicates at least one referencing ResourceBinding has PreserveResourcesOnDeletion set to true.
 	// seenFalse indicates at least one referencing ResourceBinding has PreserveResourcesOnDeletion set to false.
 	seenTrue := false
@@ -58,7 +61,7 @@ func (d *DependenciesDistributor) conflictDetectedForPreserveOnDeletion(required
 
 	for _, snap := range requiredBy {
 		refRB := &workv1alpha2.ResourceBinding{}
-		if err := d.Client.Get(context.TODO(), client.ObjectKey{Namespace: snap.Namespace, Name: snap.Name}, refRB); err != nil {
+		if err := d.Client.Get(ctx, client.ObjectKey{Namespace: snap.Namespace, Name: snap.Name}, refRB); err != nil {
 			return false, err
 		}
 
@@ -72,4 +75,30 @@ func (d *DependenciesDistributor) conflictDetectedForPreserveOnDeletion(required
 
 	hasConflict = seenTrue && seenFalse
 	return hasConflict, nil
+}
+
+func effectiveConflictResolution(value policyv1alpha1.ConflictResolution) policyv1alpha1.ConflictResolution {
+	if value == "" {
+		return policyv1alpha1.ConflictAbort
+	}
+
+	return value
+}
+
+// recordEventIfPolicyConflict emits a warning event if any policy conflicts were detected.
+func (d *DependenciesDistributor) recordEventIfPolicyConflict(existBinding *workv1alpha2.ResourceBinding, crConflictDetected, preserveConflictDetected bool) {
+	var conflictReasons []string
+
+	if crConflictDetected {
+		conflictReasons = append(conflictReasons, "ConflictResolution mismatch (Overwrite vs Abort)")
+	}
+
+	if preserveConflictDetected {
+		conflictReasons = append(conflictReasons, "PreserveResourcesOnDeletion mismatch (true vs false)")
+	}
+
+	if len(conflictReasons) > 0 {
+		message := "Dependency policy conflict detected: %s."
+		d.EventRecorder.Eventf(existBinding, corev1.EventTypeWarning, events.EventReasonDependencyPolicyConflict, message, strings.Join(conflictReasons, "; "))
+	}
 }
