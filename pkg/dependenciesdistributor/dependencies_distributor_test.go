@@ -2966,7 +2966,7 @@ func Test_createOrUpdateAttachedBinding(t *testing.T) {
 			d := &DependenciesDistributor{
 				Client: tt.setupClient(),
 			}
-			err := d.createOrUpdateAttachedBinding(tt.attachedBinding)
+			err := d.createOrUpdateAttachedBinding(context.TODO(), tt.attachedBinding)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("createOrUpdateAttachedBinding() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -3044,7 +3044,7 @@ func Test_createOrUpdateAttachedBinding_emitsConflictEvent(t *testing.T) {
 		EventRecorder: fakeRec,
 	}
 
-	if err := d.createOrUpdateAttachedBinding(attached); err != nil {
+	if err := d.createOrUpdateAttachedBinding(context.TODO(), attached); err != nil {
 		t.Fatalf("createOrUpdateAttachedBinding() error = %v", err)
 	}
 
