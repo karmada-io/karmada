@@ -31,7 +31,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	listcorev1 "k8s.io/client-go/listers/core/v1"
 	restclient "k8s.io/client-go/rest"
-	"sigs.k8s.io/structured-merge-diff/v4/fieldpath"
+	"sigs.k8s.io/structured-merge-diff/v6/fieldpath"
 
 	clusterapis "github.com/karmada-io/karmada/pkg/apis/cluster"
 	"github.com/karmada-io/karmada/pkg/printers"

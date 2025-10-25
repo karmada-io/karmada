@@ -1475,7 +1475,7 @@ func TestPrintCoreV1(t *testing.T) {
 				rows[i].Object.Object = nil
 			}
 			if !reflect.DeepEqual(tc.expect, rows) {
-				t.Errorf("%d mismatch: %s", i, diff.ObjectReflectDiff(tc.expect, rows))
+				t.Errorf("%d mismatch: %s", i, diff.Diff(tc.expect, rows))
 			}
 		})
 	}

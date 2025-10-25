@@ -513,7 +513,7 @@ func (g *CommandGetOptions) getObjInfo(mux *sync.Mutex, f cmdutil.Factory,
 		// check if it is authorized to proxy this member cluster
 		request := restClient.Get().RequestURI(fmt.Sprintf(proxyURL, cluster) + "api")
 		if _, err := request.DoRaw(context.TODO()); err != nil {
-			*allErrs = append(*allErrs, fmt.Errorf("cluster(%s) is inaccessible, please check authorization or network", cluster))
+			*allErrs = append(*allErrs, fmt.Errorf("basic connection test to cluster(%s) failed, please check authorization or network: %v", cluster, err))
 			return
 		}
 	}
