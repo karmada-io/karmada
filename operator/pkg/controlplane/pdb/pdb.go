@@ -27,8 +27,8 @@ import (
 	"k8s.io/klog/v2"
 
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
+	"github.com/karmada-io/karmada/operator/pkg/constants"
 	"github.com/karmada-io/karmada/operator/pkg/util/apiclient"
-	pkgutil "github.com/karmada-io/karmada/pkg/util"
 )
 
 // EnsurePodDisruptionBudget ensures that a PodDisruptionBudget exists for the component
@@ -59,19 +59,20 @@ func EnsurePodDisruptionBudget(component, name, namespace string, commonSettings
 func createPodDisruptionBudget(karmadaName, namespace, component string, commonSettings *operatorv1alpha1.CommonSettings) (*policyv1.PodDisruptionBudget, error) {
 	pdbName := getPDBName(karmadaName, component)
 
+	componentLabels := map[string]string{
+		constants.AppNameLabel:     component,
+		constants.AppInstanceLabel: karmadaName,
+	}
+
 	pdb := &policyv1.PodDisruptionBudget{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       pkgutil.PodDisruptionBudgetKind,
-			APIVersion: policyv1.SchemeGroupVersion.String(),
-		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      pdbName,
 			Namespace: namespace,
-			Labels:    commonSettings.Labels,
+			Labels:    componentLabels,
 		},
 		Spec: policyv1.PodDisruptionBudgetSpec{
 			Selector: &metav1.LabelSelector{
-				MatchLabels: commonSettings.Labels,
+				MatchLabels: componentLabels,
 			},
 		},
 	}

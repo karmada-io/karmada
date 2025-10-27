@@ -411,7 +411,13 @@ func CreateOrUpdatePodDisruptionBudget(client clientset.Interface, pdb *policyv1
 			return err
 		}
 
-		_, err := client.PolicyV1().PodDisruptionBudgets(pdb.GetNamespace()).Update(context.TODO(), pdb, metav1.UpdateOptions{})
+		older, err := client.PolicyV1().PodDisruptionBudgets(pdb.GetNamespace()).Get(context.TODO(), pdb.GetName(), metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+
+		pdb.ResourceVersion = older.ResourceVersion
+		_, err = client.PolicyV1().PodDisruptionBudgets(pdb.GetNamespace()).Update(context.TODO(), pdb, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
