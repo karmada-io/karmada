@@ -52,7 +52,7 @@ jobs:
       hashes: ${{ steps.hash.outputs.hashes }}
     steps:
       - name: download cli
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           path: _output/release
           pattern: cli-*
