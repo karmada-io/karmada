@@ -27,8 +27,8 @@ import (
 	"k8s.io/klog/v2"
 
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
-	"github.com/karmada-io/karmada/operator/pkg/constants"
 	"github.com/karmada-io/karmada/operator/pkg/util/apiclient"
+	pkgutil "github.com/karmada-io/karmada/pkg/util"
 )
 
 // EnsurePodDisruptionBudget ensures that a PodDisruptionBudget exists for the component
@@ -42,7 +42,7 @@ func EnsurePodDisruptionBudget(component, name, namespace string, commonSettings
 		return nil
 	}
 
-	pdb, err := createPodDisruptionBudget(name, namespace, component, commonSettings.PodDisruptionBudgetConfig)
+	pdb, err := createPodDisruptionBudget(name, namespace, component, commonSettings)
 	if err != nil {
 		return fmt.Errorf("failed to create PDB manifest for component %s, err: %w", component, err)
 	}
@@ -56,23 +56,28 @@ func EnsurePodDisruptionBudget(component, name, namespace string, commonSettings
 }
 
 // createPodDisruptionBudget creates a PodDisruptionBudget manifest for the component
-func createPodDisruptionBudget(karmadaName, namespace, component string, pdbConfig *operatorv1alpha1.PodDisruptionBudgetConfig) (*policyv1.PodDisruptionBudget, error) {
+func createPodDisruptionBudget(karmadaName, namespace, component string, commonSettings *operatorv1alpha1.CommonSettings) (*policyv1.PodDisruptionBudget, error) {
 	pdbName := getPDBName(karmadaName, component)
 
 	pdb := &policyv1.PodDisruptionBudget{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       pkgutil.PodDisruptionBudgetKind,
+			APIVersion: policyv1.SchemeGroupVersion.String(),
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      pdbName,
 			Namespace: namespace,
-			Labels:    getComponentLabels(karmadaName, component),
+			Labels:    commonSettings.Labels,
 		},
 		Spec: policyv1.PodDisruptionBudgetSpec{
 			Selector: &metav1.LabelSelector{
-				MatchLabels: getComponentLabels(karmadaName, component),
+				MatchLabels: commonSettings.Labels,
 			},
 		},
 	}
 
 	// Set either minAvailable or maxUnavailable based on the configuration
+	pdbConfig := commonSettings.PodDisruptionBudgetConfig
 	if pdbConfig.MinAvailable != nil {
 		pdb.Spec.MinAvailable = pdbConfig.MinAvailable
 	} else if pdbConfig.MaxUnavailable != nil {
@@ -85,15 +90,6 @@ func createPodDisruptionBudget(karmadaName, namespace, component string, pdbConf
 // getPDBName returns the name for the PodDisruptionBudget resource
 func getPDBName(karmadaName, component string) string {
 	return fmt.Sprintf("%s-%s", karmadaName, component)
-}
-
-// getComponentLabels returns the labels for the component
-// These labels must match the labels used in deployment templates
-func getComponentLabels(karmadaName, component string) map[string]string {
-	return map[string]string{
-		constants.AppNameLabel:     component,
-		constants.AppInstanceLabel: karmadaName,
-	}
 }
 
 // deletePodDisruptionBudget deletes a PodDisruptionBudget if it exists
