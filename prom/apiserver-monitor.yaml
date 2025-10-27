@@ -1,0 +1,33 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: karmada-apiserver
+  namespace: monitoring
+  labels:
+    release: kps
+spec:
+  namespaceSelector:
+    matchNames:
+      - karmada-system
+  selector:
+    matchLabels:
+      app: karmada-apiserver
+  podMetricsEndpoints:
+    - port: https
+      scheme: https
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+      tlsConfig:
+        serverName: karmada-apiserver.karmada-system.svc
+        ca:
+          secret:
+            name: karmada-apiserver-scrape-tls
+            key: ca.crt
+        cert:
+          secret:
+            name: karmada-apiserver-scrape-tls
+            key: tls.crt
+        keySecret:
+          name: karmada-apiserver-scrape-tls
+          key: tls.key

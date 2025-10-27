@@ -63,6 +63,10 @@ spec:
           name: karmada-apiserver
           image: registry.k8s.io/kube-apiserver:{{karmada_apiserver_version}}
           imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5443
+              name: https
+              protocol: TCP
           livenessProbe:
             failureThreshold: 8
             httpGet:

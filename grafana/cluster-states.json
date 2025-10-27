@@ -1,0 +1,679 @@
+{
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": ">=9.0"
+    },
+    {
+      "type": "panel",
+      "id": "timeseries",
+      "name": "Time series",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "bargauge",
+      "name": "Bar gauge",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "stat",
+      "name": "Stat",
+      "version": ""
+    },
+    {
+      "type": "datasource",
+      "id": "prometheus",
+      "name": "Prometheus",
+      "version": ""
+    }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "iteration": 1758400957,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "type": "row",
+      "title": "Overview",
+      "id": 1,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Member cluster state",
+      "id": 2,
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by (cluster_name) (cluster_ready_state{job=\"monitoring/karmada-controller-manager\", cluster_name=~\"$cluster\"})",
+          "legendFormat": "{{cluster_name}}"
+        }
+      ],
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 1
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "textMode": "value_and_name"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "text": "\u2705 Ready"
+                },
+                "0": {
+                  "text": "\u274c Not ready"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red"
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "links": [
+            {
+              "title": "Open cluster details",
+              "url": "/d/karmada-clusters?var=cluster=${__series.name}",
+              "targetBlank": false
+            }
+          ]
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Member clusters",
+      "id": 4,
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "count(count by (cluster_name) (cluster_ready_state))"
+        }
+      ],
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 1
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Total nodes by cluster",
+      "id": 5,
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by (cluster_name) (cluster_node_number{job=\"monitoring/karmada-controller-manager\", cluster_name=~\"$cluster\"}) and on (cluster_name) max by (cluster_name) (cluster_ready_state == 1)",
+          "legendFormat": "{{cluster_name}}"
+        }
+      ],
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 7
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "textMode": "value_and_name"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "bargauge",
+      "title": "Ready nodes % by cluster",
+      "id": 3,
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * max by (cluster_name) (clamp_min(cluster_ready_node_number{job=\"monitoring/karmada-controller-manager\", cluster_name=~\"$cluster\"},0) / clamp_min(cluster_node_number{cluster_name=~\"$cluster\"},1)) and on (cluster_name) max by (cluster_name) (cluster_ready_state == 1)",
+          "legendFormat": "{{cluster_name}}"
+        }
+      ],
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 7
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "basic"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red"
+              },
+              {
+                "color": "yellow",
+                "value": 70
+              },
+              {
+                "color": "green",
+                "value": 90
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "row",
+      "title": "Capacity (Allocatable vs Allocated)",
+      "id": 10,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 13
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "CPU: allocatable vs allocated",
+      "id": 11,
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by (cluster_name) (cluster_cpu_allocatable_number{job=\"monitoring/karmada-controller-manager\", cluster_name=~\"$cluster\"}) and on (cluster_name) max by (cluster_name) (cluster_ready_state == 1)",
+          "legendFormat": "allocatable {{cluster_name}}"
+        },
+        {
+          "refId": "B",
+          "expr": "max by (cluster_name) (cluster_cpu_allocated_number{job=\"monitoring/karmada-controller-manager\", cluster_name=~\"$cluster\"}) and on (cluster_name) max by (cluster_name) (cluster_ready_state == 1)",
+          "legendFormat": "allocated {{cluster_name}}"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 14
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Memory: allocatable vs allocated",
+      "id": 12,
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by (cluster_name) (cluster_memory_allocatable_bytes{job=\"monitoring/karmada-controller-manager\", cluster_name=~\"$cluster\"}) and on (cluster_name) max by (cluster_name) (cluster_ready_state == 1)",
+          "legendFormat": "allocatable {{cluster_name}}"
+        },
+        {
+          "refId": "B",
+          "expr": "max by (cluster_name) (cluster_memory_allocated_bytes{job=\"monitoring/karmada-controller-manager\", cluster_name=~\"$cluster\"}) and on (cluster_name) max by (cluster_name) (cluster_ready_state == 1)",
+          "legendFormat": "allocated {{cluster_name}}"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 14
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Pods: allocatable vs allocated",
+      "id": 13,
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by (cluster_name) (cluster_pod_allocatable_number{job=\"monitoring/karmada-controller-manager\", cluster_name=~\"$cluster\"}) and on (cluster_name) max by (cluster_name) (cluster_ready_state == 1)",
+          "legendFormat": "allocatable {{cluster_name}}"
+        },
+        {
+          "refId": "B",
+          "expr": "max by (cluster_name) (cluster_pod_allocated_number{job=\"monitoring/karmada-controller-manager\", cluster_name=~\"$cluster\"}) and on (cluster_name) max by (cluster_name) (cluster_ready_state == 1)",
+          "legendFormat": "allocated {{cluster_name}}"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 22
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "Utilization % (Allocated / Allocatable)",
+      "id": 20,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 30
+      }
+    },
+    {
+      "type": "bargauge",
+      "title": "CPU utilization % by cluster",
+      "id": 21,
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(100 * max by (cluster_name) (cluster_cpu_allocated_number{job=\"monitoring/karmada-controller-manager\", cluster_name=~\"$cluster\"} / clamp_min(cluster_cpu_allocatable_number{cluster_name=~\"$cluster\"},1))) and on (cluster_name) max by (cluster_name) (cluster_ready_state == 1)",
+          "legendFormat": "{{cluster_name}}"
+        }
+      ],
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 0,
+        "y": 31
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "basic"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "yellow",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "bargauge",
+      "title": "Memory utilization % by cluster",
+      "id": 22,
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(100 * max by (cluster_name) (cluster_memory_allocated_bytes{job=\"monitoring/karmada-controller-manager\", cluster_name=~\"$cluster\"} / clamp_min(cluster_memory_allocatable_bytes{cluster_name=~\"$cluster\"},1))) and on (cluster_name) max by (cluster_name) (cluster_ready_state == 1)",
+          "legendFormat": "{{cluster_name}}"
+        }
+      ],
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 8,
+        "y": 31
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "basic"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "yellow",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "bargauge",
+      "title": "Pods utilization % by cluster",
+      "id": 23,
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(100 * max by (cluster_name) (cluster_pod_allocated_number{job=\"monitoring/karmada-controller-manager\", cluster_name=~\"$cluster\"} / clamp_min(cluster_pod_allocatable_number{cluster_name=~\"$cluster\"},1))) and on (cluster_name) max by (cluster_name) (cluster_ready_state == 1)",
+          "legendFormat": "{{cluster_name}}"
+        }
+      ],
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 16,
+        "y": 31
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "basic"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "yellow",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "row",
+      "title": "Cluster Sync Status (seconds)",
+      "id": 30,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 38
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Avg sync duration",
+      "id": 31,
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(sum by (cluster_name) (rate(cluster_sync_status_duration_seconds_sum{job=\"monitoring/karmada-controller-manager\", cluster_name=~\"$cluster\"}[5m])) / sum by (cluster_name) (rate(cluster_sync_status_duration_seconds_count{cluster_name=~\"$cluster\"}[5m]))) and on (cluster_name) max by (cluster_name) (cluster_ready_state == 1)",
+          "legendFormat": "avg {{cluster_name}}"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 39
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "p95 sync duration",
+      "id": 32,
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le, cluster_name) (rate(cluster_sync_status_duration_seconds_bucket{job=\"monitoring/karmada-controller-manager\", cluster_name=~\"$cluster\"}[5m]))) and on (cluster_name) max by (cluster_name) (cluster_ready_state == 1)",
+          "legendFormat": "p95 {{cluster_name}}"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 39
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "style": "dark",
+  "tags": [
+    "karmada"
+  ],
+  "templating": {
+    "list": [
+      {
+        "type": "datasource",
+        "name": "DS_PROMETHEUS",
+        "label": "Prometheus",
+        "query": "prometheus",
+        "hide": 0
+      },
+      {
+        "name": "cluster",
+        "label": "Cluster",
+        "type": "query",
+        "datasource": "$DS_PROMETHEUS",
+        "query": "label_values(cluster_ready_state, cluster_name)",
+        "refresh": 2,
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*",
+        "current": {
+          "selected": false,
+          "text": "All",
+          "value": "$__all"
+        }
+      }
+    ]
+  },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h"
+    ],
+    "time_options": [
+      "5m",
+      "15m",
+      "1h",
+      "6h",
+      "12h",
+      "24h",
+      "2d",
+      "7d",
+      "30d"
+    ]
+  },
+  "timezone": "browser",
+  "title": "Karmada Member Cluster Insights",
+  "uid": "karmada-member-cluster-insights",
+  "version": 7,
+  "weekStart": ""
+}

@@ -1,0 +1,4 @@
+server = "https://registry.k8s.io"
+[host."https://registry.k8s.io"]
+  capabilities = ["pull", "resolve"]
+  skip_verify = true
