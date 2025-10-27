@@ -59,6 +59,12 @@ func EnsurePodDisruptionBudget(component, name, namespace string, commonSettings
 func createPodDisruptionBudget(karmadaName, namespace, component string, commonSettings *operatorv1alpha1.CommonSettings) (*policyv1.PodDisruptionBudget, error) {
 	pdbName := getPDBName(karmadaName, component)
 
+	// Validate that at least one of MinAvailable or MaxUnavailable is set
+	pdbConfig := commonSettings.PodDisruptionBudgetConfig
+	if pdbConfig.MinAvailable == nil && pdbConfig.MaxUnavailable == nil {
+		return nil, fmt.Errorf("PodDisruptionBudgetConfig must specify either MinAvailable or MaxUnavailable")
+	}
+
 	componentLabels := map[string]string{
 		constants.AppNameLabel:     component,
 		constants.AppInstanceLabel: karmadaName,
@@ -78,7 +84,6 @@ func createPodDisruptionBudget(karmadaName, namespace, component string, commonS
 	}
 
 	// Set either minAvailable or maxUnavailable based on the configuration
-	pdbConfig := commonSettings.PodDisruptionBudgetConfig
 	if pdbConfig.MinAvailable != nil {
 		pdb.Spec.MinAvailable = pdbConfig.MinAvailable
 	} else if pdbConfig.MaxUnavailable != nil {
