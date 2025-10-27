@@ -70,13 +70,13 @@ jobs:
           kind export logs --name=karmada-host $ARTIFACTS_PATH/karmada-host
       - name: upload logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: karmada_operator_test_logs_${{ matrix.k8s }}
           path: ${{ github.workspace }}/karmada-operator-test-logs/${{ matrix.k8s }}/
       - name: upload kind logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: karmada_kind_log_${{ matrix.k8s }}
           path: /tmp/karmada/

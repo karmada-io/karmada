@@ -58,7 +58,7 @@ jobs:
           kind export logs --name=karmada-host $ARTIFACTS_PATH/karmada-host
       - name: upload logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: karmadactl_test_logs_${{ matrix.k8s }}
           path: ${{ github.workspace }}/karmadactl-test-logs/${{ matrix.k8s }}/
@@ -102,7 +102,7 @@ jobs:
           kind export logs --name=karmada-host $ARTIFACTS_PATH/karmada-host
       - name: upload config test logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: karmadactl_config_test_logs_${{ matrix.k8s }}
           path: ${{ github.workspace }}/karmadactl-test-logs/${{ matrix.k8s }}/config/
