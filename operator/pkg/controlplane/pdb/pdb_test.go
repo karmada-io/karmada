@@ -172,89 +172,90 @@ func TestCreatePodDisruptionBudget(t *testing.T) {
 	namespace := "test"
 	component := constants.KarmadaAPIServer
 
-	tests := []struct {
-		name           string
-		commonSettings *operatorv1alpha1.CommonSettings
-		validateFunc   func(*testing.T, *policyv1.PodDisruptionBudget)
-	}{
-		{
-			name: "Create PDB with MinAvailable",
-			commonSettings: &operatorv1alpha1.CommonSettings{
-				PodDisruptionBudgetConfig: &operatorv1alpha1.PodDisruptionBudgetConfig{
-					MinAvailable: &intstr.IntOrString{Type: intstr.Int, IntVal: 1},
-				},
-			},
-			validateFunc: func(t *testing.T, pdb *policyv1.PodDisruptionBudget) {
-				if pdb.Name != "karmada-demo-karmada-apiserver" {
-					t.Errorf("expected name 'karmada-demo-karmada-apiserver', got %s", pdb.Name)
-				}
-				if pdb.Namespace != namespace {
-					t.Errorf("expected namespace '%s', got %s", namespace, pdb.Namespace)
-				}
-				if pdb.Spec.MinAvailable == nil || pdb.Spec.MinAvailable.IntVal != 1 {
-					t.Errorf("expected MinAvailable=1, got %v", pdb.Spec.MinAvailable)
-				}
-				if pdb.Spec.MaxUnavailable != nil {
-					t.Errorf("expected MaxUnavailable to be nil, got %v", pdb.Spec.MaxUnavailable)
-				}
-			},
-		},
-		{
-			name: "Create PDB with MaxUnavailable",
-			commonSettings: &operatorv1alpha1.CommonSettings{
-				PodDisruptionBudgetConfig: &operatorv1alpha1.PodDisruptionBudgetConfig{
-					MaxUnavailable: &intstr.IntOrString{Type: intstr.String, StrVal: "50%"},
-				},
-			},
-			validateFunc: func(t *testing.T, pdb *policyv1.PodDisruptionBudget) {
-				if pdb.Spec.MaxUnavailable == nil || pdb.Spec.MaxUnavailable.StrVal != "50%" {
-					t.Errorf("expected MaxUnavailable='50%%', got %v", pdb.Spec.MaxUnavailable)
-				}
-				if pdb.Spec.MinAvailable != nil {
-					t.Errorf("expected MinAvailable to be nil, got %v", pdb.Spec.MinAvailable)
-				}
-			},
-		},
-		{
-			name: "Verify labels and selector",
-			commonSettings: &operatorv1alpha1.CommonSettings{
-				PodDisruptionBudgetConfig: &operatorv1alpha1.PodDisruptionBudgetConfig{
-					MinAvailable: &intstr.IntOrString{Type: intstr.Int, IntVal: 1},
-				},
-			},
-			validateFunc: func(t *testing.T, pdb *policyv1.PodDisruptionBudget) {
-				expectedLabels := map[string]string{
-					constants.AppNameLabel:     component,
-					constants.AppInstanceLabel: karmadaName,
-				}
+	t.Run("Create PDB with MinAvailable", func(t *testing.T) {
+		testCreatePDBWithMinAvailable(t, karmadaName, namespace, component)
+	})
 
-				for k, v := range expectedLabels {
-					if pdb.Labels[k] != v {
-						t.Errorf("expected label %s=%s, got %s", k, v, pdb.Labels[k])
-					}
-				}
+	t.Run("Create PDB with MaxUnavailable", func(t *testing.T) {
+		testCreatePDBWithMaxUnavailable(t, karmadaName, namespace, component)
+	})
 
-				if pdb.Spec.Selector == nil {
-					t.Fatal("expected selector to be set")
-				}
-				for k, v := range expectedLabels {
-					if pdb.Spec.Selector.MatchLabels[k] != v {
-						t.Errorf("expected selector %s=%s, got %s", k, v, pdb.Spec.Selector.MatchLabels[k])
-					}
-				}
-			},
+	t.Run("Verify labels and selector", func(t *testing.T) {
+		testPDBLabelsAndSelector(t, karmadaName, namespace, component)
+	})
+}
+
+func testCreatePDBWithMinAvailable(t *testing.T, karmadaName, namespace, component string) {
+	commonSettings := &operatorv1alpha1.CommonSettings{
+		PodDisruptionBudgetConfig: &operatorv1alpha1.PodDisruptionBudgetConfig{
+			MinAvailable: &intstr.IntOrString{Type: intstr.Int, IntVal: 1},
 		},
 	}
+	pdb, err := createPodDisruptionBudget(karmadaName, namespace, component, commonSettings)
+	if err != nil {
+		t.Fatalf("createPodDisruptionBudget() error = %v", err)
+	}
+	if pdb.Name != "karmada-demo-karmada-apiserver" {
+		t.Errorf("expected name 'karmada-demo-karmada-apiserver', got %s", pdb.Name)
+	}
+	if pdb.Namespace != namespace {
+		t.Errorf("expected namespace '%s', got %s", namespace, pdb.Namespace)
+	}
+	if pdb.Spec.MinAvailable == nil || pdb.Spec.MinAvailable.IntVal != 1 {
+		t.Errorf("expected MinAvailable=1, got %v", pdb.Spec.MinAvailable)
+	}
+	if pdb.Spec.MaxUnavailable != nil {
+		t.Errorf("expected MaxUnavailable to be nil, got %v", pdb.Spec.MaxUnavailable)
+	}
+}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			pdb, err := createPodDisruptionBudget(karmadaName, namespace, component, tt.commonSettings)
-			if err != nil {
-				t.Fatalf("createPodDisruptionBudget() error = %v", err)
-			}
+func testCreatePDBWithMaxUnavailable(t *testing.T, karmadaName, namespace, component string) {
+	commonSettings := &operatorv1alpha1.CommonSettings{
+		PodDisruptionBudgetConfig: &operatorv1alpha1.PodDisruptionBudgetConfig{
+			MaxUnavailable: &intstr.IntOrString{Type: intstr.String, StrVal: "50%"},
+		},
+	}
+	pdb, err := createPodDisruptionBudget(karmadaName, namespace, component, commonSettings)
+	if err != nil {
+		t.Fatalf("createPodDisruptionBudget() error = %v", err)
+	}
+	if pdb.Spec.MaxUnavailable == nil || pdb.Spec.MaxUnavailable.StrVal != "50%" {
+		t.Errorf("expected MaxUnavailable='50%%', got %v", pdb.Spec.MaxUnavailable)
+	}
+	if pdb.Spec.MinAvailable != nil {
+		t.Errorf("expected MinAvailable to be nil, got %v", pdb.Spec.MinAvailable)
+	}
+}
 
-			tt.validateFunc(t, pdb)
-		})
+func testPDBLabelsAndSelector(t *testing.T, karmadaName, namespace, component string) {
+	commonSettings := &operatorv1alpha1.CommonSettings{
+		PodDisruptionBudgetConfig: &operatorv1alpha1.PodDisruptionBudgetConfig{
+			MinAvailable: &intstr.IntOrString{Type: intstr.Int, IntVal: 1},
+		},
+	}
+	pdb, err := createPodDisruptionBudget(karmadaName, namespace, component, commonSettings)
+	if err != nil {
+		t.Fatalf("createPodDisruptionBudget() error = %v", err)
+	}
+
+	expectedLabels := map[string]string{
+		constants.AppNameLabel:     component,
+		constants.AppInstanceLabel: karmadaName,
+	}
+
+	for k, v := range expectedLabels {
+		if pdb.Labels[k] != v {
+			t.Errorf("expected label %s=%s, got %s", k, v, pdb.Labels[k])
+		}
+	}
+
+	if pdb.Spec.Selector == nil {
+		t.Fatal("expected selector to be set")
+	}
+	for k, v := range expectedLabels {
+		if pdb.Spec.Selector.MatchLabels[k] != v {
+			t.Errorf("expected selector %s=%s, got %s", k, v, pdb.Spec.Selector.MatchLabels[k])
+		}
 	}
 }
 
@@ -333,243 +334,261 @@ func TestDeletePodDisruptionBudget(t *testing.T) {
 	}
 }
 
-func TestEnsurePodDisruptionBudget_WithReactor(t *testing.T) {
+func TestEnsurePodDisruptionBudget_UpdateWithResourceVersion(t *testing.T) {
 	name := "karmada-demo"
 	namespace := "test"
 	component := constants.KarmadaAPIServer
 
-	t.Run("Handle update with ResourceVersion", func(t *testing.T) {
-		existingPDB := &policyv1.PodDisruptionBudget{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:            "karmada-demo-karmada-apiserver",
-				Namespace:       namespace,
-				ResourceVersion: "100",
-			},
-			Spec: policyv1.PodDisruptionBudgetSpec{
-				MinAvailable: &intstr.IntOrString{Type: intstr.Int, IntVal: 1},
-				Selector: &metav1.LabelSelector{
-					MatchLabels: map[string]string{
-						constants.AppNameLabel:     component,
-						constants.AppInstanceLabel: name,
-					},
+	existingPDB := &policyv1.PodDisruptionBudget{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "karmada-demo-karmada-apiserver",
+			Namespace:       namespace,
+			ResourceVersion: "100",
+		},
+		Spec: policyv1.PodDisruptionBudgetSpec{
+			MinAvailable: &intstr.IntOrString{Type: intstr.Int, IntVal: 1},
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					constants.AppNameLabel:     component,
+					constants.AppInstanceLabel: name,
 				},
 			},
+		},
+	}
+
+	fakeClient := fakeclientset.NewSimpleClientset(existingPDB)
+
+	fakeClient.PrependReactor("update", "poddisruptionbudgets", func(action coretesting.Action) (bool, runtime.Object, error) {
+		updateAction := action.(coretesting.UpdateAction)
+		pdb := updateAction.GetObject().(*policyv1.PodDisruptionBudget)
+
+		if pdb.ResourceVersion == "" {
+			t.Error("ResourceVersion should be set during update")
+		}
+		if pdb.ResourceVersion != "100" {
+			t.Errorf("expected ResourceVersion '100', got '%s'", pdb.ResourceVersion)
 		}
 
-		fakeClient := fakeclientset.NewSimpleClientset(existingPDB)
-
-		fakeClient.PrependReactor("update", "poddisruptionbudgets", func(action coretesting.Action) (bool, runtime.Object, error) {
-			updateAction := action.(coretesting.UpdateAction)
-			pdb := updateAction.GetObject().(*policyv1.PodDisruptionBudget)
-
-			if pdb.ResourceVersion == "" {
-				t.Error("ResourceVersion should be set during update")
-			}
-			if pdb.ResourceVersion != "100" {
-				t.Errorf("expected ResourceVersion '100', got '%s'", pdb.ResourceVersion)
-			}
-
-			return false, nil, nil
-		})
-
-		commonSettings := &operatorv1alpha1.CommonSettings{
-			PodDisruptionBudgetConfig: &operatorv1alpha1.PodDisruptionBudgetConfig{
-				MinAvailable: &intstr.IntOrString{Type: intstr.Int, IntVal: 2},
-			},
-		}
-
-		err := EnsurePodDisruptionBudget(component, name, namespace, commonSettings, fakeClient)
-		if err != nil {
-			t.Fatalf("EnsurePodDisruptionBudget() error = %v", err)
-		}
+		return false, nil, nil
 	})
 
-	t.Run("Simulate update failure without ResourceVersion", func(t *testing.T) {
-		existingPDB := &policyv1.PodDisruptionBudget{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:            "karmada-demo-karmada-apiserver",
-				Namespace:       namespace,
-				ResourceVersion: "100",
-			},
-			Spec: policyv1.PodDisruptionBudgetSpec{
-				MinAvailable: &intstr.IntOrString{Type: intstr.Int, IntVal: 1},
-			},
-		}
+	commonSettings := &operatorv1alpha1.CommonSettings{
+		PodDisruptionBudgetConfig: &operatorv1alpha1.PodDisruptionBudgetConfig{
+			MinAvailable: &intstr.IntOrString{Type: intstr.Int, IntVal: 2},
+		},
+	}
 
-		fakeClient := fakeclientset.NewSimpleClientset(existingPDB)
+	err := EnsurePodDisruptionBudget(component, name, namespace, commonSettings, fakeClient)
+	if err != nil {
+		t.Fatalf("EnsurePodDisruptionBudget() error = %v", err)
+	}
+}
 
-		// Simulate the old buggy behavior: update without ResourceVersion
-		updateCallCount := 0
-		fakeClient.PrependReactor("update", "poddisruptionbudgets", func(action coretesting.Action) (bool, runtime.Object, error) {
-			updateCallCount++
-			updateAction := action.(coretesting.UpdateAction)
-			pdb := updateAction.GetObject().(*policyv1.PodDisruptionBudget)
+func TestEnsurePodDisruptionBudget_UpdateWithoutResourceVersion(t *testing.T) {
+	name := "karmada-demo"
+	namespace := "test"
+	component := constants.KarmadaAPIServer
 
-			// If ResourceVersion is missing or wrong, return Conflict error (simulating the bug)
-			if pdb.ResourceVersion == "" || pdb.ResourceVersion != "100" {
-				return true, nil, apierrors.NewConflict(
-					policyv1.Resource("poddisruptionbudget"),
-					pdb.Name,
-					fmt.Errorf("the object has been modified; please apply your changes to the latest version"),
-				)
-			}
+	existingPDB := &policyv1.PodDisruptionBudget{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "karmada-demo-karmada-apiserver",
+			Namespace:       namespace,
+			ResourceVersion: "100",
+		},
+		Spec: policyv1.PodDisruptionBudgetSpec{
+			MinAvailable: &intstr.IntOrString{Type: intstr.Int, IntVal: 1},
+		},
+	}
 
-			return false, nil, nil
-		})
+	fakeClient := fakeclientset.NewSimpleClientset(existingPDB)
 
-		commonSettings := &operatorv1alpha1.CommonSettings{
-			PodDisruptionBudgetConfig: &operatorv1alpha1.PodDisruptionBudgetConfig{
-				MinAvailable: &intstr.IntOrString{Type: intstr.Int, IntVal: 2},
-			},
-		}
+	// Simulate the old buggy behavior: update without ResourceVersion
+	updateCallCount := 0
+	fakeClient.PrependReactor("update", "poddisruptionbudgets", func(action coretesting.Action) (bool, runtime.Object, error) {
+		updateCallCount++
+		updateAction := action.(coretesting.UpdateAction)
+		pdb := updateAction.GetObject().(*policyv1.PodDisruptionBudget)
 
-		// With the fix, this should succeed because we Get first and set ResourceVersion
-		err := EnsurePodDisruptionBudget(component, name, namespace, commonSettings, fakeClient)
-		if err != nil {
-			t.Errorf("EnsurePodDisruptionBudget() should succeed with fix, but got error: %v", err)
-		}
-
-		// Verify update was called (after the create attempt fails)
-		if updateCallCount == 0 {
-			t.Error("Expected update to be called but it wasn't")
-		}
-	})
-
-	t.Run("Simulate API server timeout on create", func(t *testing.T) {
-		fakeClient := fakeclientset.NewSimpleClientset()
-
-		// Simulate timeout error
-		fakeClient.PrependReactor("create", "poddisruptionbudgets", func(action coretesting.Action) (bool, runtime.Object, error) {
-			return true, nil, apierrors.NewTimeoutError("request timeout", 30)
-		})
-
-		commonSettings := &operatorv1alpha1.CommonSettings{
-			PodDisruptionBudgetConfig: &operatorv1alpha1.PodDisruptionBudgetConfig{
-				MinAvailable: &intstr.IntOrString{Type: intstr.Int, IntVal: 1},
-			},
-		}
-
-		err := EnsurePodDisruptionBudget(component, name, namespace, commonSettings, fakeClient)
-		if err == nil {
-			t.Error("Expected timeout error but got nil")
-		}
-		if !apierrors.IsTimeout(err) {
-			t.Errorf("Expected timeout error, got: %v", err)
-		}
-	})
-
-	t.Run("Simulate API server timeout on update", func(t *testing.T) {
-		existingPDB := &policyv1.PodDisruptionBudget{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:            "karmada-demo-karmada-apiserver",
-				Namespace:       namespace,
-				ResourceVersion: "100",
-			},
-			Spec: policyv1.PodDisruptionBudgetSpec{
-				MinAvailable: &intstr.IntOrString{Type: intstr.Int, IntVal: 1},
-			},
-		}
-
-		fakeClient := fakeclientset.NewSimpleClientset(existingPDB)
-
-		// Simulate timeout on update
-		fakeClient.PrependReactor("update", "poddisruptionbudgets", func(action coretesting.Action) (bool, runtime.Object, error) {
-			return true, nil, apierrors.NewTimeoutError("update timeout", 30)
-		})
-
-		commonSettings := &operatorv1alpha1.CommonSettings{
-			PodDisruptionBudgetConfig: &operatorv1alpha1.PodDisruptionBudgetConfig{
-				MinAvailable: &intstr.IntOrString{Type: intstr.Int, IntVal: 2},
-			},
-		}
-
-		err := EnsurePodDisruptionBudget(component, name, namespace, commonSettings, fakeClient)
-		if err == nil {
-			t.Error("Expected timeout error but got nil")
-		}
-		if !apierrors.IsTimeout(err) {
-			t.Errorf("Expected timeout error, got: %v", err)
-		}
-	})
-
-	t.Run("Simulate continuous conflict errors (infinite loop scenario)", func(t *testing.T) {
-		existingPDB := &policyv1.PodDisruptionBudget{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:            "karmada-demo-karmada-apiserver",
-				Namespace:       namespace,
-				ResourceVersion: "100",
-			},
-			Spec: policyv1.PodDisruptionBudgetSpec{
-				MinAvailable: &intstr.IntOrString{Type: intstr.Int, IntVal: 1},
-			},
-		}
-
-		fakeClient := fakeclientset.NewSimpleClientset(existingPDB)
-
-		updateAttempts := 0
-		// Simulate the scenario where update always fails with conflict
-		// This would cause timeout in real reconcile loop
-		fakeClient.PrependReactor("update", "poddisruptionbudgets", func(action coretesting.Action) (bool, runtime.Object, error) {
-			updateAttempts++
-			// Always return conflict error (simulating the bug without fix)
+		// If ResourceVersion is missing or wrong, return Conflict error (simulating the bug)
+		if pdb.ResourceVersion == "" || pdb.ResourceVersion != "100" {
 			return true, nil, apierrors.NewConflict(
 				policyv1.Resource("poddisruptionbudget"),
-				"karmada-demo-karmada-apiserver",
-				fmt.Errorf("persistent conflict"),
+				pdb.Name,
+				fmt.Errorf("the object has been modified; please apply your changes to the latest version"),
 			)
-		})
-
-		commonSettings := &operatorv1alpha1.CommonSettings{
-			PodDisruptionBudgetConfig: &operatorv1alpha1.PodDisruptionBudgetConfig{
-				MinAvailable: &intstr.IntOrString{Type: intstr.Int, IntVal: 2},
-			},
 		}
 
-		err := EnsurePodDisruptionBudget(component, name, namespace, commonSettings, fakeClient)
-		if err == nil {
-			t.Error("Expected conflict error but got nil")
-		}
-		if !apierrors.IsConflict(err) {
-			t.Errorf("Expected conflict error, got: %v", err)
-		}
-
-		// Verify that update was attempted
-		if updateAttempts == 0 {
-			t.Error("Expected at least one update attempt")
-		}
+		return false, nil, nil
 	})
 
-	t.Run("Simulate Get failure during update flow", func(t *testing.T) {
-		existingPDB := &policyv1.PodDisruptionBudget{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:            "karmada-demo-karmada-apiserver",
-				Namespace:       namespace,
-				ResourceVersion: "100",
-			},
-			Spec: policyv1.PodDisruptionBudgetSpec{
-				MinAvailable: &intstr.IntOrString{Type: intstr.Int, IntVal: 1},
-			},
-		}
+	commonSettings := &operatorv1alpha1.CommonSettings{
+		PodDisruptionBudgetConfig: &operatorv1alpha1.PodDisruptionBudgetConfig{
+			MinAvailable: &intstr.IntOrString{Type: intstr.Int, IntVal: 2},
+		},
+	}
 
-		fakeClient := fakeclientset.NewSimpleClientset(existingPDB)
+	// With the fix, this should succeed because we Get first and set ResourceVersion
+	err := EnsurePodDisruptionBudget(component, name, namespace, commonSettings, fakeClient)
+	if err != nil {
+		t.Errorf("EnsurePodDisruptionBudget() should succeed with fix, but got error: %v", err)
+	}
 
-		// Simulate Get failure (would happen after create fails)
-		fakeClient.PrependReactor("get", "poddisruptionbudgets", func(action coretesting.Action) (bool, runtime.Object, error) {
-			return true, nil, apierrors.NewInternalError(fmt.Errorf("etcd unavailable"))
-		})
+	// Verify update was called (after the create attempt fails)
+	if updateCallCount == 0 {
+		t.Error("Expected update to be called but it wasn't")
+	}
+}
 
-		commonSettings := &operatorv1alpha1.CommonSettings{
-			PodDisruptionBudgetConfig: &operatorv1alpha1.PodDisruptionBudgetConfig{
-				MinAvailable: &intstr.IntOrString{Type: intstr.Int, IntVal: 2},
-			},
-		}
+func TestEnsurePodDisruptionBudget_TimeoutOnCreate(t *testing.T) {
+	name := "karmada-demo"
+	namespace := "test"
+	component := constants.KarmadaAPIServer
 
-		err := EnsurePodDisruptionBudget(component, name, namespace, commonSettings, fakeClient)
-		if err == nil {
-			t.Error("Expected error but got nil")
-		}
-		if !apierrors.IsInternalError(err) {
-			t.Errorf("Expected internal error, got: %v", err)
-		}
+	fakeClient := fakeclientset.NewSimpleClientset()
+
+	// Simulate timeout error
+	fakeClient.PrependReactor("create", "poddisruptionbudgets", func(_ coretesting.Action) (bool, runtime.Object, error) {
+		return true, nil, apierrors.NewTimeoutError("request timeout", 30)
 	})
+
+	commonSettings := &operatorv1alpha1.CommonSettings{
+		PodDisruptionBudgetConfig: &operatorv1alpha1.PodDisruptionBudgetConfig{
+			MinAvailable: &intstr.IntOrString{Type: intstr.Int, IntVal: 1},
+		},
+	}
+
+	err := EnsurePodDisruptionBudget(component, name, namespace, commonSettings, fakeClient)
+	if err == nil {
+		t.Error("Expected timeout error but got nil")
+	}
+	if !apierrors.IsTimeout(err) {
+		t.Errorf("Expected timeout error, got: %v", err)
+	}
+}
+
+func TestEnsurePodDisruptionBudget_TimeoutOnUpdate(t *testing.T) {
+	name := "karmada-demo"
+	namespace := "test"
+	component := constants.KarmadaAPIServer
+
+	existingPDB := &policyv1.PodDisruptionBudget{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "karmada-demo-karmada-apiserver",
+			Namespace:       namespace,
+			ResourceVersion: "100",
+		},
+		Spec: policyv1.PodDisruptionBudgetSpec{
+			MinAvailable: &intstr.IntOrString{Type: intstr.Int, IntVal: 1},
+		},
+	}
+
+	fakeClient := fakeclientset.NewSimpleClientset(existingPDB)
+
+	// Simulate timeout on update
+	fakeClient.PrependReactor("update", "poddisruptionbudgets", func(_ coretesting.Action) (bool, runtime.Object, error) {
+		return true, nil, apierrors.NewTimeoutError("update timeout", 30)
+	})
+
+	commonSettings := &operatorv1alpha1.CommonSettings{
+		PodDisruptionBudgetConfig: &operatorv1alpha1.PodDisruptionBudgetConfig{
+			MinAvailable: &intstr.IntOrString{Type: intstr.Int, IntVal: 2},
+		},
+	}
+
+	err := EnsurePodDisruptionBudget(component, name, namespace, commonSettings, fakeClient)
+	if err == nil {
+		t.Error("Expected timeout error but got nil")
+	}
+	if !apierrors.IsTimeout(err) {
+		t.Errorf("Expected timeout error, got: %v", err)
+	}
+}
+
+func TestEnsurePodDisruptionBudget_ContinuousConflict(t *testing.T) {
+	name := "karmada-demo"
+	namespace := "test"
+	component := constants.KarmadaAPIServer
+
+	existingPDB := &policyv1.PodDisruptionBudget{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "karmada-demo-karmada-apiserver",
+			Namespace:       namespace,
+			ResourceVersion: "100",
+		},
+		Spec: policyv1.PodDisruptionBudgetSpec{
+			MinAvailable: &intstr.IntOrString{Type: intstr.Int, IntVal: 1},
+		},
+	}
+
+	fakeClient := fakeclientset.NewSimpleClientset(existingPDB)
+
+	updateAttempts := 0
+	// Simulate the scenario where update always fails with conflict
+	// This would cause timeout in real reconcile loop
+	fakeClient.PrependReactor("update", "poddisruptionbudgets", func(_ coretesting.Action) (bool, runtime.Object, error) {
+		updateAttempts++
+		// Always return conflict error (simulating the bug without fix)
+		return true, nil, apierrors.NewConflict(
+			policyv1.Resource("poddisruptionbudget"),
+			"karmada-demo-karmada-apiserver",
+			fmt.Errorf("persistent conflict"),
+		)
+	})
+
+	commonSettings := &operatorv1alpha1.CommonSettings{
+		PodDisruptionBudgetConfig: &operatorv1alpha1.PodDisruptionBudgetConfig{
+			MinAvailable: &intstr.IntOrString{Type: intstr.Int, IntVal: 2},
+		},
+	}
+
+	err := EnsurePodDisruptionBudget(component, name, namespace, commonSettings, fakeClient)
+	if err == nil {
+		t.Error("Expected conflict error but got nil")
+	}
+	if !apierrors.IsConflict(err) {
+		t.Errorf("Expected conflict error, got: %v", err)
+	}
+
+	// Verify that update was attempted
+	if updateAttempts == 0 {
+		t.Error("Expected at least one update attempt")
+	}
+}
+
+func TestEnsurePodDisruptionBudget_GetFailure(t *testing.T) {
+	name := "karmada-demo"
+	namespace := "test"
+	component := constants.KarmadaAPIServer
+
+	existingPDB := &policyv1.PodDisruptionBudget{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "karmada-demo-karmada-apiserver",
+			Namespace:       namespace,
+			ResourceVersion: "100",
+		},
+		Spec: policyv1.PodDisruptionBudgetSpec{
+			MinAvailable: &intstr.IntOrString{Type: intstr.Int, IntVal: 1},
+		},
+	}
+
+	fakeClient := fakeclientset.NewSimpleClientset(existingPDB)
+
+	// Simulate Get failure (would happen after create fails)
+	fakeClient.PrependReactor("get", "poddisruptionbudgets", func(_ coretesting.Action) (bool, runtime.Object, error) {
+		return true, nil, apierrors.NewInternalError(fmt.Errorf("etcd unavailable"))
+	})
+
+	commonSettings := &operatorv1alpha1.CommonSettings{
+		PodDisruptionBudgetConfig: &operatorv1alpha1.PodDisruptionBudgetConfig{
+			MinAvailable: &intstr.IntOrString{Type: intstr.Int, IntVal: 2},
+		},
+	}
+
+	err := EnsurePodDisruptionBudget(component, name, namespace, commonSettings, fakeClient)
+	if err == nil {
+		t.Error("Expected error but got nil")
+	}
+	if !apierrors.IsInternalError(err) {
+		t.Errorf("Expected internal error, got: %v", err)
+	}
 }
