@@ -24,6 +24,7 @@ import (
 
 	"github.com/karmada-io/karmada/operator/pkg/constants"
 	"github.com/karmada-io/karmada/operator/pkg/controlplane/apiserver"
+	"github.com/karmada-io/karmada/operator/pkg/controlplane/pdb"
 	"github.com/karmada-io/karmada/operator/pkg/util/apiclient"
 	"github.com/karmada-io/karmada/operator/pkg/workflow"
 )
@@ -109,6 +110,17 @@ func runKarmadaAPIServer(r workflow.RunData) error {
 		return fmt.Errorf("failed to install karmada apiserver component, err: %w", err)
 	}
 
+	err = pdb.EnsurePodDisruptionBudget(
+		constants.KarmadaAPIServer,
+		data.GetName(),
+		data.GetNamespace(),
+		&cfg.KarmadaAPIServer.CommonSettings,
+		data.RemoteClient(),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to ensure PDB for karmada apiserver component, err: %w", err)
+	}
+
 	klog.V(2).InfoS("[KarmadaApiserver] Successfully installed karmada-apiserver component", "karmada", klog.KObj(data))
 	return nil
 }
@@ -150,6 +162,17 @@ func runKarmadaAggregatedAPIServer(r workflow.RunData) error {
 		data.FeatureGates())
 	if err != nil {
 		return fmt.Errorf("failed to install karmada aggregated apiserver, err: %w", err)
+	}
+
+	err = pdb.EnsurePodDisruptionBudget(
+		constants.KarmadaAggregatedAPIServer,
+		data.GetName(),
+		data.GetNamespace(),
+		&cfg.KarmadaAggregatedAPIServer.CommonSettings,
+		data.RemoteClient(),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to ensure PDB for karmada aggregated apiserver component, err: %w", err)
 	}
 
 	klog.V(2).InfoS("[KarmadaAggregatedApiserver] Successfully installed karmada-aggregated-apiserver component", "karmada", klog.KObj(data))

@@ -22,7 +22,9 @@ import (
 
 	"k8s.io/klog/v2"
 
+	"github.com/karmada-io/karmada/operator/pkg/constants"
 	"github.com/karmada-io/karmada/operator/pkg/controlplane/etcd"
+	"github.com/karmada-io/karmada/operator/pkg/controlplane/pdb"
 	"github.com/karmada-io/karmada/operator/pkg/util/apiclient"
 	"github.com/karmada-io/karmada/operator/pkg/workflow"
 )
@@ -71,6 +73,17 @@ func runDeployEtcd(r workflow.RunData) error {
 	err := etcd.EnsureKarmadaEtcd(data.RemoteClient(), cfg.Etcd.Local, data.GetName(), data.GetNamespace())
 	if err != nil {
 		return fmt.Errorf("failed to install etcd component, err: %w", err)
+	}
+
+	err = pdb.EnsurePodDisruptionBudget(
+		constants.Etcd,
+		data.GetName(),
+		data.GetNamespace(),
+		&cfg.Etcd.Local.CommonSettings,
+		data.RemoteClient(),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to ensure PDB for etcd component, err: %w", err)
 	}
 
 	klog.V(2).InfoS("[deploy-etcd] Successfully installed etcd component", "karmada", klog.KObj(data))
