@@ -563,7 +563,28 @@ func (d *DependenciesDistributor) removeScheduleResultFromAttachedBindings(bindi
 		delete(attachedBindings[index].Labels, bindingLabelKey)
 		updatedSnapshot := deleteBindingFromSnapshot(bindingNamespace, bindingName, attachedBindings[index].Spec.RequiredBy)
 		attachedBindings[index].Spec.RequiredBy = updatedSnapshot
-		attachedBindings[index].Spec.PreserveResourcesOnDeletion = nil
+		// Only adjust strategy fields for dependency-generated bindings (Placement == nil).
+		if attachedBindings[index].Spec.Placement == nil {
+			// When no remaining referrers, clear strategy fields.
+			if len(updatedSnapshot) == 0 {
+				attachedBindings[index].Spec.ConflictResolution = ""
+				attachedBindings[index].Spec.PreserveResourcesOnDeletion = nil
+			} else {
+				// Recompute effective strategy from remaining RequiredBy.
+				rbs, err := d.resolveResourceBindingFromSnapshots(context.TODO(), updatedSnapshot)
+				if err != nil {
+					klog.Errorf("Failed to resolve for resourceBinding(%s/%s): %v", binding.Namespace, binding.Name, err)
+					errs = append(errs, err)
+					continue
+				}
+
+				_, effectiveCR := d.detectAndResolveConflictResolution(rbs)
+				attachedBindings[index].Spec.ConflictResolution = effectiveCR
+
+				_, effectivePreserve := d.detectAndResolvePreserveOnDeletion(rbs)
+				attachedBindings[index].Spec.PreserveResourcesOnDeletion = ptr.To(effectivePreserve)
+			}
+		}
 		if err := d.Client.Update(context.TODO(), attachedBindings[index]); err != nil {
 			klog.Errorf("Failed to update binding(%s/%s): %v", binding.Namespace, binding.Name, err)
 			errs = append(errs, err)
@@ -593,22 +614,25 @@ func (d *DependenciesDistributor) createOrUpdateAttachedBinding(ctx context.Cont
 			// Pre-fetch referencing ResourceBindings once and reuse for conflict checks.
 			rbs, err := d.resolveResourceBindingFromSnapshots(ctx, mergedRequiredBy)
 			if err != nil {
-				klog.Errorf("Failed to resolve referencing ResourceBindings for (%s): %v", bindingKey, err)
+				klog.Errorf("Failed to resolve referencing ResourceBindings for(%s): %v", bindingKey, err)
 				return err
 			}
 
-			crConflictDetected := d.conflictDetectedForConflictResolution(rbs)
-			preserveConflictDetected := d.conflictDetectedForPreserveOnDeletion(rbs)
+			// Compute effective policies from referencing ResourceBindings and detect conflicts.
+			crConflicted, effectiveCR := d.detectAndResolveConflictResolution(rbs)
+			preserveConflicted, effectivePreserve := d.detectAndResolvePreserveOnDeletion(rbs)
 
-			d.recordEventIfPolicyConflict(existBinding, crConflictDetected, preserveConflictDetected)
+			// Emit warning event if any conflict detected.
+			d.recordEventIfPolicyConflict(existBinding, crConflicted, preserveConflicted)
 
-			existBinding.Spec.ConflictResolution = attachedBinding.Spec.ConflictResolution
+			// Update with effective results.
+			existBinding.Spec.ConflictResolution = effectiveCR
+			existBinding.Spec.PreserveResourcesOnDeletion = ptr.To(effectivePreserve)
 		}
 
 		existBinding.Spec.RequiredBy = mergedRequiredBy
 		existBinding.Labels = util.DedupeAndMergeLabels(existBinding.Labels, attachedBinding.Labels)
 		existBinding.Spec.Resource = attachedBinding.Spec.Resource
-		existBinding.Spec.PreserveResourcesOnDeletion = attachedBinding.Spec.PreserveResourcesOnDeletion
 
 		if err := d.Client.Update(ctx, existBinding); err != nil {
 			klog.Errorf("Failed to update resourceBinding(%s): %v", bindingKey, err)
