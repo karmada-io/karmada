@@ -426,8 +426,8 @@ var _ = ginkgo.Describe("[DependenciesDistributor] automatically propagate relev
 			framework.CreatePropagationPolicy(karmadaClient, policyA)
 			framework.CreatePropagationPolicy(karmadaClient, policyB)
 			ginkgo.DeferCleanup(func() {
-				framework.RemovePropagationPolicy(karmadaClient, policyA.Namespace, policyA.Name)
-				framework.RemovePropagationPolicy(karmadaClient, policyB.Namespace, policyB.Name)
+				framework.RemovePropagationPolicyIfExist(karmadaClient, policyA.Namespace, policyA.Name)
+				framework.RemovePropagationPolicyIfExist(karmadaClient, policyB.Namespace, policyB.Name)
 				// Delete deployments but ignore NotFound if already removed by the test
 				if err := kubeClient.AppsV1().Deployments(deploymentA.Namespace).Delete(context.TODO(), deploymentA.Name, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
