@@ -85,6 +85,7 @@ type EstimateComponentsPlugin interface {
 type Handle interface {
 	ClientSet() clientset.Interface
 	SharedInformerFactory() informers.SharedInformerFactory
+	Parallelism() int
 }
 
 // Code is the Status code/type which is returned from plugins.
@@ -174,6 +175,11 @@ func (p PluginToResult) Merge() *Result {
 // IsSuccess returns true if and only if "Result" is nil or Code is "Success".
 func (s *Result) IsSuccess() bool {
 	return s == nil || s.code == Success
+}
+
+// IsFailed returns true if "Result" is not nil and Code is "Error".
+func (s *Result) IsFailed() bool {
+	return s != nil && s.code == Error
 }
 
 // IsUnschedulable returns true if "Result" is not nil and Code is "Unschedulable".

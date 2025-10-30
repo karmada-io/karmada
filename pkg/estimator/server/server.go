@@ -135,6 +135,7 @@ func NewEstimatorServer(
 	estimateFramework, err := frameworkruntime.NewFramework(registry,
 		frameworkruntime.WithClientSet(kubeClient),
 		frameworkruntime.WithInformerFactory(informerFactory),
+		frameworkruntime.WithParallelism(opts.Parallelism),
 	)
 	if err != nil {
 		return es, err
