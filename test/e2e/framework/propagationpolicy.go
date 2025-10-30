@@ -52,16 +52,10 @@ func RemovePropagationPolicy(client karmada.Interface, namespace, name string) {
 // RemovePropagationPolicyIfExist delete PropagationPolicy if it exists with karmada client.
 func RemovePropagationPolicyIfExist(client karmada.Interface, namespace, name string) {
 	ginkgo.By(fmt.Sprintf("Removing PropagationPolicy(%s/%s) if it exists", namespace, name), func() {
-		_, err := client.PolicyV1alpha1().PropagationPolicies(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-		if err != nil {
-			if apierrors.IsNotFound(err) {
-				return
-			}
+		err := client.PolicyV1alpha1().PropagationPolicies(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+		if err != nil && !apierrors.IsNotFound(err) {
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 		}
-
-		err = client.PolicyV1alpha1().PropagationPolicies(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	})
 }
 
