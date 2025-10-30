@@ -299,6 +299,9 @@ func startClusterController(ctx controllerscontext.Context) (enabled bool, err e
 			RateLimiterOptions:                 ctx.Opts.RateLimiterOptions,
 			EnableNoExecuteTaintEviction:       ctx.Opts.FailoverConfiguration.EnableNoExecuteTaintEviction,
 			NoExecuteTaintEvictionPurgeMode:    ctx.Opts.FailoverConfiguration.NoExecuteTaintEvictionPurgeMode,
+			EvictionQueueOptions: cluster.EvictionQueueOptions{
+				ResourceEvictionRate: ctx.Opts.FailoverConfiguration.ResourceEvictionRate,
+			},
 		}
 		if err := taintManager.SetupWithManager(mgr); err != nil {
 			return false, err
