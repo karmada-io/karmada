@@ -48,6 +48,7 @@ type frameworkImpl struct {
 	estimateComponentsPlugins []framework.EstimateComponentsPlugin
 	clientSet                 clientset.Interface
 	informerFactory           informers.SharedInformerFactory
+	parallelism               int
 }
 
 var _ framework.Framework = &frameworkImpl{}
@@ -55,6 +56,7 @@ var _ framework.Framework = &frameworkImpl{}
 type frameworkOptions struct {
 	clientSet       clientset.Interface
 	informerFactory informers.SharedInformerFactory
+	parallelism     int
 }
 
 // Option for the frameworkImpl.
@@ -75,6 +77,13 @@ func WithClientSet(clientSet clientset.Interface) Option {
 func WithInformerFactory(informerFactory informers.SharedInformerFactory) Option {
 	return func(o *frameworkOptions) {
 		o.informerFactory = informerFactory
+	}
+}
+
+// WithParallelism sets parallelism for the scheduling frameworkImpl.
+func WithParallelism(parallelism int) Option {
+	return func(o *frameworkOptions) {
+		o.parallelism = parallelism
 	}
 }
 
@@ -121,6 +130,11 @@ func (frw *frameworkImpl) SharedInformerFactory() informers.SharedInformerFactor
 	return frw.informerFactory
 }
 
+// Parallelism returns the amount of parallelism in algorithms for estimating.
+func (frw *frameworkImpl) Parallelism() int {
+	return frw.parallelism
+}
+
 // RunEstimateReplicasPlugins runs the set of configured EstimateReplicasPlugins
 // for estimating replicas based on the given replicaRequirements.
 // It returns an integer and an error.
@@ -139,6 +153,9 @@ func (frw *frameworkImpl) RunEstimateReplicasPlugins(ctx context.Context, snapsh
 		plReplica, ret := frw.runEstimateReplicasPlugins(ctx, pl, snapshot, replicaRequirements)
 		if (ret.IsSuccess() || ret.IsUnschedulable()) && plReplica < replica {
 			replica = plReplica
+		}
+		if ret.IsFailed() {
+			replica = 0
 		}
 		results[pl.Name()] = ret
 	}

@@ -100,7 +100,7 @@ func Test_frameworkImpl_RunEstimateReplicasPlugins(t *testing.T) {
 				},
 			},
 			expected: estimateReplicaResult{
-				replica: 1,
+				replica: 0,
 				ret:     framework.AsResult(fmt.Errorf("plugin 2 failed")),
 			},
 		},
