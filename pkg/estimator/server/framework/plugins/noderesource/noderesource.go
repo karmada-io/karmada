@@ -48,6 +48,7 @@ type nodeResourceEstimator struct {
 }
 
 var _ framework.EstimateReplicasPlugin = &nodeResourceEstimator{}
+var _ framework.EstimateComponentsPlugin = &nodeResourceEstimator{}
 
 // New initializes a new plugin and returns it.
 func New(fh framework.Handle) (framework.Plugin, error) {
@@ -104,4 +105,171 @@ func (pl *nodeResourceEstimator) nodeMaxAvailableReplica(node *schedulerframewor
 	// number manually which is the upper bound of this node available replicas.
 	rest.AllowedPodNumber = util.MaxInt64(rest.AllowedPodNumber-int64(len(node.Pods)), 0)
 	return int32(rest.MaxDivided(rl)) // #nosec G115: integer overflow conversion int64 -> int32
+}
+
+// EstimateComponents the sets allowed by the node resources for a given pb.Component.
+func (pl *nodeResourceEstimator) EstimateComponents(_ context.Context, snapshot *schedcache.Snapshot, components []pb.Component) (int32, *framework.Result) {
+	if !pl.enabled {
+		klog.V(5).Info("Estimator Plugin", "name", Name, "enabled", pl.enabled)
+		return math.MaxInt32, framework.NewResult(framework.Noopperation, fmt.Sprintf("%s is disabled", pl.Name()))
+	}
+
+	if len(components) == 0 {
+		return 0, framework.AsResult(fmt.Errorf("no components specified"))
+	}
+
+	nodes, err := getNodeRestResource(snapshot)
+	if err != nil {
+		return 0, framework.AsResult(err)
+	}
+
+	var sets int32
+	for canAssignOneComponentSets(newTasks(components), nodes) {
+		sets++
+	}
+
+	if sets == 0 {
+		return 0, framework.NewResult(framework.Unschedulable, "no enough resources")
+	}
+	return sets, framework.NewResult(framework.Success)
+}
+
+// getNodeRestResource calculates the remaining available resources for each node in the cluster.
+// It clones each node and subtracts the already requested resources and existing pod count
+// to determine how much capacity is left for new workloads.
+// Returns a slice of NodeInfo with updated allocatable resources representing available capacity.
+func getNodeRestResource(snapshot *schedcache.Snapshot) ([]*schedulerframework.NodeInfo, error) {
+	allNodes, err := snapshot.NodeInfos().List()
+	if err != nil {
+		return nil, err
+	}
+
+	rest := make([]*schedulerframework.NodeInfo, 0, len(allNodes))
+	for _, node := range allNodes {
+		n := node.Clone()
+		n.Allocatable.SubResource(n.Requested)
+		n.Allocatable.AllowedPodNumber = util.MaxInt64(n.Allocatable.AllowedPodNumber-int64(len(node.Pods)), 0)
+		rest = append(rest, n)
+	}
+
+	return rest, nil
+}
+
+// canAssignOneComponentSets attempts to schedule one complete set of components across the available nodes.
+// It returns true if all components in the set can be successfully scheduled, false otherwise.
+// The function modifies the node resources as it assigns replicas to simulate actual scheduling.
+func canAssignOneComponentSets(ts *tasks, allNodes []*schedulerframework.NodeInfo) bool {
+	for !ts.done() {
+		i, t := ts.getTask()
+		if i == -1 {
+			// No more tasks to schedule, but done() returned false - this shouldn't happen
+			return false
+		}
+
+		scheduled := false
+		for _, node := range allNodes {
+			if !matchNode(t, node) {
+				continue
+			}
+			needResource := util.NewResource(t.ResourceRequest)
+			needResource.AllowedPodNumber = 1
+			if node.Allocatable.Allocatable(needResource) {
+				// Assign one replica to this node.
+				node.Allocatable.SubResource(needResource)
+				ts.scheduleOne(i)
+				scheduled = true
+				break
+			}
+		}
+
+		if !scheduled {
+			// No node can fit this task, cannot complete the component set
+			return false
+		}
+	}
+
+	return ts.done()
+}
+
+// task represents a single component type with its scheduling requirements and remaining replicas.
+type task struct {
+	// replicaRequirements defines the resource and scheduling constraints for each replica
+	replicaRequirements pb.ReplicaRequirements
+	// toBeScheduled tracks how many replicas of this component still need to be scheduled
+	toBeScheduled int32
+}
+
+// tasks manages a collection of component tasks for scheduling estimation.
+// It tracks the remaining replicas for each component type that need to be scheduled.
+type tasks struct {
+	// items contains all component tasks to be scheduled
+	items []task
+}
+
+// newTasks creates a new task collection from the given components.
+// Each component is converted to a task with its replica requirements and count.
+func newTasks(components []pb.Component) *tasks {
+	ts := make([]task, 0, len(components))
+	for _, component := range components {
+		ts = append(ts, task{
+			replicaRequirements: component.ReplicaRequirements,
+			toBeScheduled:       component.Replicas,
+		})
+	}
+
+	return &tasks{
+		items: ts,
+	}
+}
+
+// getTask returns the index and replica requirements of the first task that still needs to be scheduled.
+// It scans through all tasks to find one with remaining replicas to schedule.
+// Returns (-1, empty ReplicaRequirements) if no unfinished tasks are found.
+func (t *tasks) getTask() (int, pb.ReplicaRequirements) {
+	for i := 0; i < len(t.items); i++ {
+		if t.items[i].toBeScheduled > 0 {
+			return i, t.items[i].replicaRequirements
+		}
+	}
+
+	return -1, pb.ReplicaRequirements{}
+}
+
+// done returns true if all tasks have been completely scheduled (no replicas remaining).
+// This indicates that a complete component set has been successfully allocated.
+func (t *tasks) done() bool {
+	for _, tk := range t.items {
+		if tk.toBeScheduled > 0 {
+			return false
+		}
+	}
+	return true
+}
+
+// scheduleOne decrements the replica count for the task at the specified index.
+// This should be called when a replica has been successfully scheduled on a node.
+func (t *tasks) scheduleOne(index int) {
+	if index < 0 || index >= len(t.items) {
+		// Invalid index - defensive programming
+		return
+	}
+	if t.items[index].toBeScheduled > 0 {
+		t.items[index].toBeScheduled--
+	}
+}
+
+// matchNode checks whether the node matches the replicaRequirements' node affinity and tolerations.
+func matchNode(replicaRequirements pb.ReplicaRequirements, node *schedulerframework.NodeInfo) bool {
+	affinity := nodeutil.GetRequiredNodeAffinity(replicaRequirements)
+	var tolerations []corev1.Toleration
+
+	if replicaRequirements.NodeClaim != nil {
+		tolerations = replicaRequirements.NodeClaim.Tolerations
+	}
+
+	if !nodeutil.IsNodeAffinityMatched(node.Node(), affinity) || !nodeutil.IsTolerationMatched(node.Node(), tolerations) {
+		return false
+	}
+
+	return true
 }
