@@ -130,3 +130,14 @@ func MergePolicySuspension(bindingSuspension *workv1alpha2.Suspension, policySus
 	}
 	return bindingSuspension
 }
+
+// RemoveZeroReplicasCluster remove the cluster with 0 replicas in assignResults
+func RemoveZeroReplicasCluster(assignResults []workv1alpha2.TargetCluster) []workv1alpha2.TargetCluster {
+	targetClusters := make([]workv1alpha2.TargetCluster, 0, len(assignResults))
+	for _, cluster := range assignResults {
+		if cluster.Replicas > 0 {
+			targetClusters = append(targetClusters, cluster)
+		}
+	}
+	return targetClusters
+}
