@@ -1,0 +1,35 @@
+status:
+  conditions:
+  - lastProbeTime: "2025-10-09T06:58:59Z"
+    lastTransitionTime: "2025-10-09T06:58:54Z"
+    status: "True"
+    type: Initialized
+  - lastProbeTime: "2025-10-09T06:58:59Z"
+    lastTransitionTime: "2025-10-09T06:58:59Z"
+    status: "True"
+    type: Ready
+  - lastProbeTime: "2025-10-09T06:58:59Z"
+    lastTransitionTime: "2025-10-09T06:58:59Z"
+    status: "True"
+    type: ContainersReady
+  - lastProbeTime: "2025-10-09T06:58:59Z"
+    lastTransitionTime: "2025-10-09T06:58:54Z"
+    status: "True"
+    type: PodScheduled
+  containerState:
+    running:
+      startedAt: "2025-10-09T06:58:58Z"
+  readyReplicas: 1
+---
+status:
+  conditions:
+  - lastProbeTime: "2025-10-24T07:56:35Z"
+    lastTransitionTime: "2025-10-24T07:56:35Z"
+    message: '0/6 nodes are available: 1 node(s) had untolerated taint {virtual-kubelet.io/provider:
+      leinao}, 5 node(s) were unschedulable. preemption: 0/6 nodes are available:
+      6 Preemption is not helpful for scheduling.'
+    reason: Unschedulable
+    status: "False"
+    type: PodScheduled
+  containerState: {}
+  readyReplicas: 0
