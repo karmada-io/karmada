@@ -118,7 +118,7 @@ func TestGetObjectFromCache(t *testing.T) {
 			},
 			want: &unstructured.Unstructured{Object: map[string]interface{}{
 				"apiVersion": "v1", "kind": "Pod",
-				"metadata": map[string]interface{}{"name": "pod", "namespace": "default", "creationTimestamp": nil},
+				"metadata": map[string]interface{}{"name": "pod", "namespace": "default"},
 				"spec":     map[string]interface{}{"containers": nil},
 				"status":   map[string]interface{}{},
 			}},
@@ -170,7 +170,7 @@ func TestGetObjectFromCache(t *testing.T) {
 			},
 			want: &unstructured.Unstructured{Object: map[string]interface{}{
 				"apiVersion": "v1", "kind": "Pod",
-				"metadata": map[string]interface{}{"name": "pod", "namespace": "default", "creationTimestamp": nil},
+				"metadata": map[string]interface{}{"name": "pod", "namespace": "default"},
 				"spec":     map[string]interface{}{"containers": nil},
 				"status":   map[string]interface{}{},
 			}},
@@ -250,7 +250,7 @@ func TestGetObjectFromSingleClusterCache(t *testing.T) {
 			},
 			want: &unstructured.Unstructured{Object: map[string]interface{}{
 				"apiVersion": "v1", "kind": "Pod",
-				"metadata": map[string]interface{}{"name": "pod", "namespace": "default", "creationTimestamp": nil},
+				"metadata": map[string]interface{}{"name": "pod", "namespace": "default"},
 				"spec":     map[string]interface{}{"containers": nil},
 				"status":   map[string]interface{}{},
 			}},
@@ -296,7 +296,7 @@ func TestGetObjectFromSingleClusterCache(t *testing.T) {
 			},
 			want: &unstructured.Unstructured{Object: map[string]interface{}{
 				"apiVersion": "v1", "kind": "Pod",
-				"metadata": map[string]interface{}{"name": "pod", "namespace": "default", "creationTimestamp": nil},
+				"metadata": map[string]interface{}{"name": "pod", "namespace": "default"},
 				"spec":     map[string]interface{}{"containers": nil},
 				"status":   map[string]interface{}{},
 			}},
