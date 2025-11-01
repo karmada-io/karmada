@@ -1,0 +1,22 @@
+repos:
+  - repo: local
+    hooks:
+      - id: go-fmt
+        name: go-fmt
+        entry: gofmt
+        language: system
+        args: [-w]
+        files: \.go$
+      
+      - id: go-vet
+        name: go-vet
+        entry: go vet
+        language: system
+        files: \.go$
+      
+      - id: go-test
+        name: go-test
+        entry: go test
+        language: system
+        args: [-v, ./...]
+        files: \.go$

@@ -1,0 +1,28 @@
+name: Comprehensive Test Suite - Go
+
+on:
+  push:
+    branches: [ main, feature/* ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+    
+    - name: Install dependencies
+      run: go mod download
+    
+    - name: Run tests
+      run: go test -v -cover ./...
+    
+    - name: Generate coverage report
+      run: go tool cover -html=coverage.out -o coverage.html

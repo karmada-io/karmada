@@ -1,0 +1,22 @@
+{
+  "summary": {
+    "project_type": "go",
+    "success_rate": 0.0,
+    "coverage_achieved": false,
+    "timestamp": "2025-10-18 21:00:49",
+    "total_execution_time": "04:00:49"
+  },
+  "test_coverage": {
+    "project_type": "go",
+    "status": "FAILED",
+    "coverage_achieved": false
+  },
+  "ci_cd": {
+    "status": "configured",
+    "project_type": "go"
+  },
+  "pre_commit_hooks": {
+    "status": "configured",
+    "project_type": "go"
+  }
+}
