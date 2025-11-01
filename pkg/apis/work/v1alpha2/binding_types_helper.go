@@ -213,3 +213,11 @@ func (s *ResourceBindingSpec) SchedulePriorityValue() int32 {
 	}
 	return s.SchedulePriority.Priority
 }
+
+// IsBindingWorkload checks whether the ResourceBinding is binding a workload.
+func (s *ResourceBindingSpec) IsBindingWorkload() bool {
+	if s.Replicas > 0 || s.ReplicaRequirements != nil || len(s.Components) > 0 {
+		return true
+	}
+	return false
+}

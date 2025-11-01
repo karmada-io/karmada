@@ -441,3 +441,34 @@ func TestResourceBindingSpec_SchedulingSuspended(t *testing.T) {
 		})
 	}
 }
+
+func TestResourceBindingSpec_IsBindingWorkload(t *testing.T) {
+	tests := []struct {
+		name string
+		spec *ResourceBindingSpec
+		want bool
+	}{
+		{
+			name: "binding a workload",
+			spec: &ResourceBindingSpec{
+				Replicas: 1,
+			},
+			want: true,
+		},
+		{
+			name: "not binding a workload when replicas is 0",
+			spec: &ResourceBindingSpec{
+				Replicas: 0,
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ret := tt.spec.IsBindingWorkload()
+			if ret != tt.want {
+				t.Fatalf("test case %s failed, want %v, got %v", tt.name, tt.want, ret)
+			}
+		})
+	}
+}
