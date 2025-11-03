@@ -696,7 +696,7 @@ func TestValidateApplicationFailover(t *testing.T) {
 				},
 				PurgeMode: policyv1alpha1.PurgeModeGracefully,
 			},
-			expectedErr: "spec.failover.application.gracePeriodSeconds: Invalid value: \"null\": should not be empty when purgeMode is gracefully",
+			expectedErr: "spec.failover.application.gracePeriodSeconds: Invalid value: null: should not be empty when purgeMode is gracefully",
 		},
 		{
 			name: "application behavior is correctly declared",
