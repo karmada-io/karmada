@@ -1,0 +1,32 @@
+apiVersion: kubeflow.org/v1
+kind: Notebook
+metadata:
+  name: notebook-sample-v1
+spec:
+  template:
+    spec:
+      containers:
+        - name: notebook-sample-v1
+          image: ghcr.io/kubeflow/kubeflow/notebook-servers/jupyter:latest
+status:
+  conditions:
+  - lastProbeTime: "2025-10-09T06:58:59Z"
+    lastTransitionTime: "2025-10-09T06:58:54Z"
+    status: "True"
+    type: Initialized
+  - lastProbeTime: "2025-10-09T06:58:59Z"
+    lastTransitionTime: "2025-10-09T06:58:59Z"
+    status: "True"
+    type: Ready
+  - lastProbeTime: "2025-10-09T06:58:59Z"
+    lastTransitionTime: "2025-10-09T06:58:59Z"
+    status: "True"
+    type: ContainersReady
+  - lastProbeTime: "2025-10-09T06:58:59Z"
+    lastTransitionTime: "2025-10-09T06:58:54Z"
+    status: "True"
+    type: PodScheduled
+  containerState:
+    running:
+      startedAt: "2025-10-09T06:58:58Z"
+  readyReplicas: 1
