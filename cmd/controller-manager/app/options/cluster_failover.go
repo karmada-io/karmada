@@ -19,10 +19,12 @@ package options
 import (
 	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 )
 
-// FailoverOptions holds the Failover configurations.
-type FailoverOptions struct {
+// ClusterFailoverOptions holds the Cluster Failover configurations.
+type ClusterFailoverOptions struct {
 	// EnableNoExecuteTaintEviction enables controller response to NoExecute taints on clusters,
 	// which triggers eviction of workloads without explicit tolerations.
 	EnableNoExecuteTaintEviction bool
@@ -39,25 +41,25 @@ type FailoverOptions struct {
 	ResourceEvictionRate float32
 }
 
-// AddFlags adds flags related to FailoverOptions for controller manager to the specified FlagSet.
-func (o *FailoverOptions) AddFlags(flags *pflag.FlagSet) {
+// AddFlags adds flags related to ClusterFailoverOptions for controller manager to the specified FlagSet.
+func (o *ClusterFailoverOptions) AddFlags(flags *pflag.FlagSet) {
 	if o == nil {
 		return
 	}
 
 	flags.BoolVar(&o.EnableNoExecuteTaintEviction, "enable-no-execute-taint-eviction", false, "Enables controller response to NoExecute taints on clusters, which triggers eviction of workloads without explicit tolerations. Given the impact of eviction caused by NoExecute Taint, this parameter is designed to remain disabled by default and requires careful evaluation by administrators before being enabled.\n")
-	flags.StringVar(&o.NoExecuteTaintEvictionPurgeMode, "no-execute-taint-eviction-purge-mode", "Gracefully", "Controls resource cleanup behavior for NoExecute-triggered evictions (only active when --enable-no-execute-taint-eviction=true). Supported values are \"Directly\", and \"Gracefully\". \"Directly\" mode directly evicts workloads first (risking temporary service interruption) and then triggers rescheduling to other clusters, while \"Gracefully\" mode first schedules workloads to new clusters and then cleans up original workloads after successful startup elsewhere to ensure service continuity.")
+	flags.StringVar(&o.NoExecuteTaintEvictionPurgeMode, "no-execute-taint-eviction-purge-mode", string(policyv1alpha1.PurgeModeGracefully), "Controls resource cleanup behavior for NoExecute-triggered evictions (only active when --enable-no-execute-taint-eviction=true). Supported values are \"Directly\", and \"Gracefully\". \"Directly\" mode directly evicts workloads first (risking temporary service interruption) and then triggers rescheduling to other clusters, while \"Gracefully\" mode first schedules workloads to new clusters and then cleans up original workloads after successful startup elsewhere to ensure service continuity.")
 	flags.Float32Var(&o.ResourceEvictionRate, "resource-eviction-rate", 0.5, "This is the number of resources to be evicted per second in a cluster failover scenario.")
 }
 
-// Validate checks FailoverOptions and return a slice of found errs.
-func (o *FailoverOptions) Validate() field.ErrorList {
+// Validate checks ClusterFailoverOptions and return a slice of found errs.
+func (o *ClusterFailoverOptions) Validate() field.ErrorList {
 	errs := field.ErrorList{}
-	rootPath := field.NewPath("FailoverOptions")
+	rootPath := field.NewPath("ClusterFailoverOptions")
 
 	if o.EnableNoExecuteTaintEviction &&
-		o.NoExecuteTaintEvictionPurgeMode != "Gracefully" &&
-		o.NoExecuteTaintEvictionPurgeMode != "Directly" {
+		o.NoExecuteTaintEvictionPurgeMode != string(policyv1alpha1.PurgeModeGracefully) &&
+		o.NoExecuteTaintEvictionPurgeMode != string(policyv1alpha1.PurgeModeDirectly) {
 		errs = append(errs, field.Invalid(rootPath.Child("NoExecuteTaintEvictionPurgeMode"),
 			o.NoExecuteTaintEvictionPurgeMode, "Invalid mode"))
 	}
