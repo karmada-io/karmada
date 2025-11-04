@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"time"
+	"strings"
 
 	"k8s.io/klog/v2"
 
@@ -99,8 +100,14 @@ func (g *genericScheduler) Schedule(
 	if err != nil {
 		return result, fmt.Errorf("failed to select clusters: %w", err)
 	}
-	klog.V(4).Infof("Selected clusters: %v", selectedClusters)
-
+	if klog.V(4).Enabled() {
+		var clusterSummaries []string
+		for _, c := range selectedClusters {
+			clusterSummaries = append(clusterSummaries,
+				fmt.Sprintf("%s(Score: %d, AvailableReplicas: %d)", c.Cluster.Name, c.Score, c.AvailableReplicas))
+		}
+		klog.Infof("Selected clusters: [%s]", strings.Join(clusterSummaries, ", "))
+	}
 	clustersWithReplicas, err := g.assignReplicas(selectedClusters, spec, status)
 	if err != nil {
 		return result, fmt.Errorf("failed to assign replicas: %w", err)
