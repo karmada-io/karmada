@@ -19,7 +19,9 @@ package client
 import (
 	"context"
 	"fmt"
+	"maps"
 	"math"
+	"sort"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -54,7 +56,7 @@ func (ge *GeneralEstimator) MaxAvailableReplicas(_ context.Context, clusters []*
 }
 
 func (ge *GeneralEstimator) maxAvailableReplicas(cluster *clusterv1alpha1.Cluster, replicaRequirements *workv1alpha2.ReplicaRequirements) int32 {
-	//Note: resourceSummary must be deep-copied before using in the function to avoid modifying the original data structure.
+	// Note: resourceSummary must be deep-copied before using in the function to avoid modifying the original data structure.
 	resourceSummary := cluster.Status.ResourceSummary.DeepCopy()
 	if resourceSummary == nil {
 		return 0
@@ -149,8 +151,7 @@ func (ge *GeneralEstimator) maxAvailableComponentSets(cluster *clusterv1alpha1.C
 	}
 
 	if features.FeatureGate.Enabled(features.CustomizedClusterResourceModeling) && len(cluster.Status.ResourceSummary.AllocatableModelings) > 0 {
-		num, err := getMaximumSetsBasedOnResourceModels(cluster, components)
-		if err != nil {
+		if num, err := getMaximumSetsBasedOnResourceModels(cluster, components, podBound); err != nil {
 			klog.Warningf("Failed to get maximum sets based on resource models, skipping: %v", err)
 		} else if num < maxSets {
 			maxSets = num
@@ -160,13 +161,254 @@ func (ge *GeneralEstimator) maxAvailableComponentSets(cluster *clusterv1alpha1.C
 	return int32(maxSets) // #nosec G115: integer overflow conversion int64 -> int32
 }
 
-// getMaximumSetsBasedOnResourceModels is a placeholder for future implementation.
-// It should refine the maximum sets based on cluster resource models, similar
-// to getMaximumReplicasBasedOnResourceModels but adapted to full component sets.
-func getMaximumSetsBasedOnResourceModels(_ *clusterv1alpha1.Cluster, _ []workv1alpha2.Component) (int64, error) {
-	// TODO: implement logic based on cluster.Spec.ResourceModels
-	// For now, just return MaxInt64 so it never reduces the upper bound.
-	return math.MaxInt64, nil
+// getMaximumSetsBasedOnResourceModels computes the maximum number of full sets that can be
+// placed on a cluster using the cluster's ResourceModels. It expands one set into
+// replica kinds (demand + count) and performs a first-fit-decreasing placement onto model-grade nodes.
+// `upperBound` caps the search. We can set this using the podBound (allowedPods / podsPerSet)
+func getMaximumSetsBasedOnResourceModels(
+	cluster *clusterv1alpha1.Cluster,
+	components []workv1alpha2.Component,
+	upperBound int64,
+) (int64, error) {
+	if upperBound <= 0 {
+		return 0, nil
+	}
+
+	// Compressed one-set: per-kind (identical replicas grouped)
+	oneSetKinds := expandKindsOneSet(components)
+	if len(oneSetKinds) == 0 {
+		// If there are no pods to schedule, just return upperBound
+		return upperBound, nil
+	}
+
+	// Use cluster "available" totals (allocatable - allocated - allocating) for normalized scoring
+	// This reflects what the cluster can actually accept now
+	totals := availableResourceMap(cluster.Status.ResourceSummary)
+
+	for i := range oneSetKinds {
+		oneSetKinds[i].score = demandScoreNormalized(oneSetKinds[i].dem, totals)
+	}
+	sort.Slice(oneSetKinds, func(i, j int) bool {
+		if oneSetKinds[i].score == oneSetKinds[j].score {
+			return demandSum(oneSetKinds[i].dem) > demandSum(oneSetKinds[j].dem)
+		}
+		return oneSetKinds[i].score > oneSetKinds[j].score
+	})
+
+	//Build model nodes from Spec.ResourceModels and Status.AllocatableModelings
+	nodes, err := buildModelNodes(cluster)
+	if err != nil {
+		return -1, err
+	}
+	if len(nodes) == 0 {
+		return 0, nil
+	}
+
+	var sets int64
+	for sets < upperBound {
+		if !placeOneSet(oneSetKinds, nodes) {
+			break
+		}
+		sets++
+	}
+	return sets, nil
+}
+
+// placeOneSet attempts to place exactly ONE full set (all kinds with their per-set replica counts)
+// onto the provided working node capacities (in-place)
+// Returns true if successful
+func placeOneSet(orderedKinds []replicaKind, work []modelNode) bool {
+	for _, k := range orderedKinds {
+		remaining := k.count
+		if remaining <= 0 {
+			continue
+		}
+		// first-fit across nodes
+		for n := range work {
+			if remaining <= 0 {
+				break
+			}
+			fit := maxFit(work[n].cap, k.dem)
+			if fit <= 0 {
+				continue
+			}
+			place := fit
+			if place > remaining {
+				place = remaining
+			}
+			consumeMul(work[n].cap, k.dem, place)
+			remaining -= place
+		}
+		if remaining > 0 {
+			return false
+		}
+	}
+	return true
+}
+
+// modelNode holds remaining capacity for a given node across all resource types
+type modelNode struct {
+	cap map[corev1.ResourceName]int64
+}
+
+// buildModelNodes constructs identical nodes for each model grade using its Min vector,
+// repeated AllocatableModelings[grade].Count times. Grades are indexed directly.
+func buildModelNodes(cluster *clusterv1alpha1.Cluster) ([]modelNode, error) {
+	if cluster == nil {
+		return nil, fmt.Errorf("nil cluster")
+	}
+	if cluster.Status.ResourceSummary == nil {
+		return nil, fmt.Errorf("resource summary is nil")
+	}
+	spec := cluster.Spec.ResourceModels
+	allocs := cluster.Status.ResourceSummary.AllocatableModelings
+	if len(spec) == 0 {
+		return nil, fmt.Errorf("no resource models defined")
+	}
+
+	// Build capacity template per grade
+	capsByGrade := make(map[uint]map[corev1.ResourceName]int64, len(spec))
+	for _, m := range spec {
+		tmpl := make(map[corev1.ResourceName]int64, len(m.Ranges))
+		for _, r := range m.Ranges {
+			tmpl[r.Name] = quantityAsInt64(r.Min)
+		}
+		capsByGrade[m.Grade] = tmpl
+	}
+
+	// Accumulate counts by grade
+	countByGrade := make(map[uint]int, len(allocs))
+	for _, a := range allocs {
+		if a.Count < 0 {
+			return nil, fmt.Errorf("negative node count for grade %d", a.Grade)
+		}
+		countByGrade[a.Grade] += a.Count
+	}
+
+	// Collect grades and sort, so that order of nodes is
+	grades := make([]int, 0, len(capsByGrade))
+	for g := range capsByGrade {
+		grades = append(grades, int(g)) // #nosec G115: integer overflow conversion uint -> int
+	}
+	sort.Ints(grades)
+
+	// Emit nodes for grades present in both spec & status.
+	var nodes []modelNode
+	for _, grade := range grades {
+		tmpl, cnt := capsByGrade[uint(grade)], countByGrade[uint(grade)] // #nosec G115: integer overflow conversion int -> uint
+		if tmpl == nil || cnt == 0 {
+			continue
+		}
+		for range cnt {
+			capCopy := maps.Clone(tmpl)
+			nodes = append(nodes, modelNode{cap: capCopy})
+		}
+	}
+	return nodes, nil
+}
+
+// replicaKind represents a single type of component, including replica demand and count
+type replicaKind struct {
+	dem   map[corev1.ResourceName]int64 // per-replica demand
+	count int64                         // how many replicas
+	score float64                       // ordering heuristic (higher first)
+}
+
+// expandKindsOneSet flattens components into a slice of unique replica kinds.
+// Each entry holds the per-replica demand and how many replicas of that kind a set needs.
+func expandKindsOneSet(components []workv1alpha2.Component) []replicaKind {
+	kinds := make([]replicaKind, 0, len(components))
+	for _, c := range components {
+		if c.ReplicaRequirements == nil || c.ReplicaRequirements.ResourceRequest == nil {
+			continue
+		}
+		// normalize per-replica demand
+		base := make(map[corev1.ResourceName]int64, len(c.ReplicaRequirements.ResourceRequest))
+		for name, qty := range c.ReplicaRequirements.ResourceRequest {
+			base[name] = quantityAsInt64(qty)
+		}
+		// skip zero-demand or non-positive replica count
+		if allZero(base) || c.Replicas <= 0 {
+			continue
+		}
+
+		k := replicaKind{
+			dem:   base,
+			count: int64(c.Replicas),
+			// score is filled later once we know cluster-wide totals
+		}
+		kinds = append(kinds, k)
+	}
+	return kinds
+}
+
+// demandScoreNormalized returns the "max utilization ratio" of a demand vector against total capacities
+// If a resource is missing/zero in total, treat it as maximally constrained
+func demandScoreNormalized(
+	demand map[corev1.ResourceName]int64,
+	total map[corev1.ResourceName]int64,
+) float64 {
+	var maxRatio float64
+	for res, req := range demand {
+		if req <= 0 {
+			continue
+		}
+		totalCap := float64(total[res])
+		if totalCap <= 0 {
+			return math.MaxFloat64
+		}
+		ratio := float64(req) / totalCap
+		if ratio > maxRatio {
+			maxRatio = ratio
+		}
+	}
+	return maxRatio
+}
+
+// demandSum is used as a tie-breaker when initial scores are equal
+func demandSum(m map[corev1.ResourceName]int64) int64 {
+	var s int64
+	for _, v := range m {
+		if v > 0 {
+			s += v
+		}
+	}
+	return s
+}
+
+// maxFit returns how many copies of `dem` fit in `cap` simultaneously
+func maxFit(capacity map[corev1.ResourceName]int64, dem map[corev1.ResourceName]int64) int64 {
+	var limit int64 = math.MaxInt64
+	for k, req := range dem {
+		if req <= 0 {
+			continue
+		}
+		avail := capacity[k]
+		if avail <= 0 {
+			return 0
+		}
+		bound := avail / req
+		if bound < limit {
+			limit = bound
+		}
+	}
+	if limit == math.MaxInt64 {
+		return 0
+	}
+	return limit
+}
+
+// consumeMul subtracts mult * dem from cap
+func consumeMul(capacity map[corev1.ResourceName]int64, dem map[corev1.ResourceName]int64, mult int64) {
+	if mult <= 0 {
+		return
+	}
+	for k, req := range dem {
+		if req <= 0 {
+			continue
+		}
+		capacity[k] -= req * mult
+	}
 }
 
 // podsInSet computes the total number of pods in the CRD
