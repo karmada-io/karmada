@@ -183,5 +183,17 @@ func (ctrl *Controller) onKarmadaUpdate(updateEvent event.UpdateEvent) bool {
 		return true
 	}
 
-	return !reflect.DeepEqual(newObj.Spec, oldObj.Spec)
+	// For updates that don't touch the spec (e.g. status updates), we can short-circuit.
+	if reflect.DeepEqual(newObj.Spec, oldObj.Spec) {
+		return false
+	}
+
+	// The spec has changed. We need to check if it's a semantic change or just defaulting.
+	// TODO(@zhzhuang-zju): If default values are set via an admission controller, the default() call below can be omitted.
+	newCopy := newObj.DeepCopy()
+	oldCopy := oldObj.DeepCopy()
+
+	operatorscheme.Scheme.Default(newCopy)
+	operatorscheme.Scheme.Default(oldCopy)
+	return !reflect.DeepEqual(newCopy.Spec, oldCopy.Spec)
 }
