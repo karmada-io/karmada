@@ -39,6 +39,9 @@ const (
 	Name = "NodeResourceEstimator"
 	// nodeResourceEstimator is enabled by default.
 	enabled = true
+
+	// noNodeConstraint represents the value when there is no node resource constraint.
+	noNodeConstraint = math.MaxInt32
 )
 
 // nodeResourceEstimator is to estimate how many replicas/sets allowed by the node resources for a given pb.ReplicaRequirements.
@@ -67,7 +70,7 @@ func (pl *nodeResourceEstimator) Name() string {
 func (pl *nodeResourceEstimator) Estimate(ctx context.Context, snapshot *schedcache.Snapshot, requirements *pb.ReplicaRequirements) (int32, *framework.Result) {
 	if !pl.enabled {
 		klog.V(5).Info("Estimator Plugin", "name", Name, "enabled", pl.enabled)
-		return math.MaxInt32, framework.NewResult(framework.Noopperation, fmt.Sprintf("%s is disabled", pl.Name()))
+		return noNodeConstraint, framework.NewResult(framework.Noopperation, fmt.Sprintf("%s is disabled", pl.Name()))
 	}
 
 	allNodes, err := snapshot.NodeInfos().List()
@@ -107,24 +110,27 @@ func (pl *nodeResourceEstimator) nodeMaxAvailableReplica(node *schedulerframewor
 	return int32(rest.MaxDivided(rl)) // #nosec G115: integer overflow conversion int64 -> int32
 }
 
-// EstimateComponents the sets allowed by the node resources for a given pb.Component.
+// EstimateComponents estimates the maximum number of complete component sets that can be scheduled.
+// It returns the number of sets that can fit on the available node resources.
 func (pl *nodeResourceEstimator) EstimateComponents(_ context.Context, snapshot *schedcache.Snapshot, components []pb.Component) (int32, *framework.Result) {
 	if !pl.enabled {
 		klog.V(5).Info("Estimator Plugin", "name", Name, "enabled", pl.enabled)
-		return math.MaxInt32, framework.NewResult(framework.Noopperation, fmt.Sprintf("%s is disabled", pl.Name()))
+		return noNodeConstraint, framework.NewResult(framework.Noopperation, fmt.Sprintf("%s is disabled", pl.Name()))
 	}
 
 	if len(components) == 0 {
-		return 0, framework.AsResult(fmt.Errorf("no components specified"))
+		klog.V(5).Infof("%s: received empty components list", pl.Name())
+		return noNodeConstraint, framework.NewResult(framework.Noopperation, fmt.Sprintf("%s received empty components list", pl.Name()))
 	}
 
-	nodes, err := getNodeRestResource(snapshot)
+	nodes, err := getNodesAvailableResources(snapshot)
 	if err != nil {
 		return 0, framework.AsResult(err)
 	}
 
 	var sets int32
-	for canAssignOneComponentSets(newTasks(components), nodes) {
+	// Keep scheduling full component sets until one fails to fit.
+	for scheduleComponentSet(components, nodes) {
 		sets++
 	}
 
@@ -134,11 +140,10 @@ func (pl *nodeResourceEstimator) EstimateComponents(_ context.Context, snapshot 
 	return sets, framework.NewResult(framework.Success)
 }
 
-// getNodeRestResource calculates the remaining available resources for each node in the cluster.
-// It clones each node and subtracts the already requested resources and existing pod count
-// to determine how much capacity is left for new workloads.
-// Returns a slice of NodeInfo with updated allocatable resources representing available capacity.
-func getNodeRestResource(snapshot *schedcache.Snapshot) ([]*schedulerframework.NodeInfo, error) {
+// getNodesAvailableResources retrieves and prepares the list of node information from the snapshot.
+// It clones each node's info and adjusts the allocatable resources by subtracting the requested resources.
+// So that the returned node infos reflect the actual available resources for scheduling.
+func getNodesAvailableResources(snapshot *schedcache.Snapshot) ([]*schedulerframework.NodeInfo, error) {
 	allNodes, err := snapshot.NodeInfos().List()
 	if err != nil {
 		return nil, err
@@ -155,116 +160,91 @@ func getNodeRestResource(snapshot *schedcache.Snapshot) ([]*schedulerframework.N
 	return rest, nil
 }
 
-// canAssignOneComponentSets attempts to schedule one complete set of components across the available nodes.
+// scheduleComponentSet attempts to schedule one complete set of components across the available nodes.
 // It returns true if all components in the set can be successfully scheduled, false otherwise.
 // The function modifies the node resources as it assigns replicas to simulate actual scheduling.
-func canAssignOneComponentSets(ts *tasks, allNodes []*schedulerframework.NodeInfo) bool {
-	for !ts.done() {
-		i, t := ts.getTask()
-		if i == -1 {
-			// No more tasks to schedule, but done() returned false - this shouldn't happen
-			return false
-		}
-
-		scheduled := false
-		for _, node := range allNodes {
-			if !matchNode(t, node) {
-				continue
-			}
-			needResource := util.NewResource(t.ResourceRequest)
-			needResource.AllowedPodNumber = 1
-			if node.Allocatable.Allocatable(needResource) {
-				// Assign one replica to this node.
-				node.Allocatable.SubResource(needResource)
-				ts.scheduleOne(i)
-				scheduled = true
-				break
-			}
-		}
-
-		if !scheduled {
-			// No node can fit this task, cannot complete the component set
+func scheduleComponentSet(components []pb.Component, allNodes []*schedulerframework.NodeInfo) bool {
+	for _, component := range components {
+		if !scheduleComponent(component, allNodes) {
 			return false
 		}
 	}
 
-	return ts.done()
+	return true
 }
 
-// task represents a single component type with its scheduling requirements and remaining replicas.
-type task struct {
-	// replicaRequirements defines the resource and scheduling constraints for each replica
-	replicaRequirements pb.ReplicaRequirements
+// scheduleComponent attempts to schedule all replicas of a single component across the available nodes.
+// It iterates through nodes to find suitable ones and schedules as many replicas as possible on each node.
+// Returns true if all replicas of the component can be successfully scheduled, false otherwise.
+func scheduleComponent(component pb.Component, allNodes []*schedulerframework.NodeInfo) bool {
+	t := newSchedulingTask(component)
+
+	for _, node := range allNodes {
+		if !matchNode(t.nodeClaim, node) {
+			continue
+		}
+
+		for node.Allocatable.Allocatable(t.requiredResourcePerReplica) {
+			// Assign one replica to this node.
+			t.scheduleOnePod(node)
+			if t.done() {
+				// short path
+				return true
+			}
+		}
+	}
+
+	return t.done()
+}
+
+// componentSchedulingTask represents a single component scheduling task with its requirements and state.
+type componentSchedulingTask struct {
+	// nodeClaim represents the NodeAffinity, NodeSelector and Tolerations required by this component.
+	nodeClaim *pb.NodeClaim
+	// requiredResourcePerReplica represents the resources required by a single replica of this component.
+	requiredResourcePerReplica *util.Resource
 	// toBeScheduled tracks how many replicas of this component still need to be scheduled
 	toBeScheduled int32
 }
 
-// tasks manages a collection of component tasks for scheduling estimation.
-// It tracks the remaining replicas for each component type that need to be scheduled.
-type tasks struct {
-	// items contains all component tasks to be scheduled
-	items []task
-}
-
-// newTasks creates a new task collection from the given components.
-// Each component is converted to a task with its replica requirements and count.
-func newTasks(components []pb.Component) *tasks {
-	ts := make([]task, 0, len(components))
-	for _, component := range components {
-		ts = append(ts, task{
-			replicaRequirements: component.ReplicaRequirements,
-			toBeScheduled:       component.Replicas,
-		})
-	}
-
-	return &tasks{
-		items: ts,
+// newSchedulingTask creates a new component scheduling task from the given component.
+// It initializes the task with the component's node claim, required resources per replica, and total replicas to be scheduled.
+func newSchedulingTask(component pb.Component) componentSchedulingTask {
+	needResource := util.NewResource(component.ReplicaRequirements.ResourceRequest)
+	needResource.AllowedPodNumber = 1
+	return componentSchedulingTask{
+		nodeClaim:                  component.ReplicaRequirements.NodeClaim,
+		requiredResourcePerReplica: needResource,
+		toBeScheduled:              component.Replicas,
 	}
 }
 
-// getTask returns the index and replica requirements of the first task that still needs to be scheduled.
-// It scans through all tasks to find one with remaining replicas to schedule.
-// Returns (-1, empty ReplicaRequirements) if no unfinished tasks are found.
-func (t *tasks) getTask() (int, pb.ReplicaRequirements) {
-	for i := 0; i < len(t.items); i++ {
-		if t.items[i].toBeScheduled > 0 {
-			return i, t.items[i].replicaRequirements
-		}
-	}
-
-	return -1, pb.ReplicaRequirements{}
+// done returns true if the task has been completely scheduled (no replicas remaining).
+// This indicates that a complete component has been successfully allocated.
+func (t *componentSchedulingTask) done() bool {
+	return t.toBeScheduled == 0
 }
 
-// done returns true if all tasks have been completely scheduled (no replicas remaining).
-// This indicates that a complete component set has been successfully allocated.
-func (t *tasks) done() bool {
-	for _, tk := range t.items {
-		if tk.toBeScheduled > 0 {
-			return false
-		}
-	}
-	return true
-}
-
-// scheduleOne decrements the replica count for the task at the specified index.
+// scheduleOnePod schedules one replica of this component on the specified node.
+// It decrements the remaining replica count and subtracts the required resources from the node.
 // This should be called when a replica has been successfully scheduled on a node.
-func (t *tasks) scheduleOne(index int) {
-	if index < 0 || index >= len(t.items) {
-		// Invalid index - defensive programming
+func (t *componentSchedulingTask) scheduleOnePod(node *schedulerframework.NodeInfo) {
+	if t.toBeScheduled <= 0 {
+		// No more replicas to schedule
 		return
 	}
-	if t.items[index].toBeScheduled > 0 {
-		t.items[index].toBeScheduled--
-	}
+
+	node.Allocatable.SubResource(t.requiredResourcePerReplica)
+	t.toBeScheduled--
 }
 
-// matchNode checks whether the node matches the replicaRequirements' node affinity and tolerations.
-func matchNode(replicaRequirements pb.ReplicaRequirements, node *schedulerframework.NodeInfo) bool {
-	affinity := nodeutil.GetRequiredNodeAffinity(replicaRequirements)
+// matchNode checks whether the node matches the scheduling constraints defined in the replica requirements.
+func matchNode(nodeClaim *pb.NodeClaim, node *schedulerframework.NodeInfo) bool {
+	affinity := nodeutil.GetRequiredNodeAffinity(pb.ReplicaRequirements{NodeClaim: nodeClaim})
 	var tolerations []corev1.Toleration
 
-	if replicaRequirements.NodeClaim != nil {
-		tolerations = replicaRequirements.NodeClaim.Tolerations
+	if nodeClaim != nil {
+		tolerations = nodeClaim.Tolerations
 	}
 
 	if !nodeutil.IsNodeAffinityMatched(node.Node(), affinity) || !nodeutil.IsTolerationMatched(node.Node(), tolerations) {
