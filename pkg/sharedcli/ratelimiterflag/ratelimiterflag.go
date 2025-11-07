@@ -47,21 +47,27 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	fs.IntVar(&o.RateLimiterBucketSize, "rate-limiter-bucket-size", 100, "The bucket size for rate limier.")
 }
 
+// SetDefaults sets the default values for Options.
+func (o *Options) SetDefaults() *Options {
+	// set defaults
+	if o.RateLimiterBaseDelay <= 0 {
+		o.RateLimiterBaseDelay = 5 * time.Millisecond
+	}
+	if o.RateLimiterMaxDelay <= 0 {
+		o.RateLimiterMaxDelay = 1000 * time.Second
+	}
+	if o.RateLimiterQPS <= 0 {
+		o.RateLimiterQPS = 10
+	}
+	if o.RateLimiterBucketSize <= 0 {
+		o.RateLimiterBucketSize = 100
+	}
+	return o
+}
+
 // DefaultControllerRateLimiter provide a default rate limiter for controller, and users can tune it by corresponding flags.
 func DefaultControllerRateLimiter[T comparable](opts Options) workqueue.TypedRateLimiter[T] {
-	// set defaults
-	if opts.RateLimiterBaseDelay <= 0 {
-		opts.RateLimiterBaseDelay = 5 * time.Millisecond
-	}
-	if opts.RateLimiterMaxDelay <= 0 {
-		opts.RateLimiterMaxDelay = 1000 * time.Second
-	}
-	if opts.RateLimiterQPS <= 0 {
-		opts.RateLimiterQPS = 10
-	}
-	if opts.RateLimiterBucketSize <= 0 {
-		opts.RateLimiterBucketSize = 100
-	}
+	opts.SetDefaults()
 
 	return workqueue.NewTypedMaxOfRateLimiter[T](
 		workqueue.NewTypedItemExponentialFailureRateLimiter[T](opts.RateLimiterBaseDelay, opts.RateLimiterMaxDelay),

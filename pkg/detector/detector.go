@@ -75,7 +75,7 @@ type ResourceDetector struct {
 	InformerManager              genericmanager.SingleClusterInformerManager
 	ControllerRuntimeCache       ctrlcache.Cache
 	EventHandler                 cache.ResourceEventHandler
-	Processor                    util.AsyncWorker
+	Processor                    util.AsyncPriorityWorker
 	SkippedResourceConfig        *util.SkippedResourceConfig
 	SkippedPropagatingNamespaces []*regexp.Regexp
 	// ResourceInterpreter knows the details of resource structure.
@@ -136,6 +136,7 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 		KeyFunc:            ResourceItemKeyFunc,
 		ReconcileFunc:      d.Reconcile,
 		RateLimiterOptions: d.RateLimiterOptions,
+		UsePriorityQueue:   features.FeatureGate.Enabled(features.ControllerPriorityQueue),
 	}
 	d.Processor = util.NewAsyncWorker(detectorWorkerOptions)
 	d.Processor.Run(ctx, d.ConcurrentResourceTemplateSyncs)
@@ -310,12 +311,17 @@ func (d *ResourceDetector) EventFilter(obj interface{}) bool {
 }
 
 // OnAdd handles object add event and push the object to queue.
-func (d *ResourceDetector) OnAdd(obj interface{}) {
+func (d *ResourceDetector) OnAdd(obj interface{}, isInitialList bool) {
 	runtimeObj, ok := obj.(runtime.Object)
 	if !ok {
 		return
 	}
-	d.Processor.Enqueue(ResourceItem{Obj: runtimeObj})
+
+	var priority *int
+	if isInitialList {
+		priority = ptr.To(util.LowPriority)
+	}
+	d.Processor.EnqueueWithOpts(util.AddOpts{Priority: priority}, ResourceItem{Obj: runtimeObj})
 }
 
 // OnUpdate handles object update event and push the object to queue.
@@ -375,7 +381,7 @@ func (d *ResourceDetector) OnDelete(obj interface{}) {
 			return
 		}
 	}
-	d.OnAdd(obj)
+	d.OnAdd(obj, false)
 }
 
 // LookForMatchedPolicy tries to find a policy for object referenced by object key.
@@ -1492,9 +1498,22 @@ func (d *ResourceDetector) applyReplicaInterpretation(object *unstructured.Unstr
 // Therefore, only set ResourceChangeByKarmada in lazy activation mode.
 // For more details, see: https://github.com/karmada-io/karmada/issues/5996.
 func (d *ResourceDetector) enqueueResourceTemplateForPolicyChange(key keys.ClusterWideKey, pref policyv1alpha1.ActivationPreference) {
-	if util.IsLazyActivationEnabled(pref) {
-		d.Processor.Add(keys.ClusterWideKeyWithConfig{ClusterWideKey: key, ResourceChangeByKarmada: true})
-		return
-	}
-	d.Processor.Add(keys.ClusterWideKeyWithConfig{ClusterWideKey: key})
+	enqueueKey := keys.ClusterWideKeyWithConfig{ClusterWideKey: key, ResourceChangeByKarmada: util.IsLazyActivationEnabled(pref)}
+	// Use of low priority here is based on the following reasons:
+	//
+	// 1. The purpose of using low priority is to ensure that user-triggered changes
+	//    are processed first when the controller restarts.
+	//    At startup, items are enqueued both in the Processor and here.
+	//    If low priority is applied only in the Processor, enqueueing here would
+	//    reset most already queued items’ priority back to 0.
+	//
+	// 2. The resourceTemplate is usually modified by users, while changes in pp/cpp
+	//    may come from administrators.
+	//    Since admin changes should not block user changes, otherwise users would
+	//    perceive controller blocking, they are processed later by assigning them
+	//    a lower priority.
+	//    In other words, when all resourceTemplates already need to be queued for processing,
+	//    this allows user-triggered modifications to resourceTemplates
+	//    to be prioritized for handling.
+	d.Processor.AddWithOpts(util.AddOpts{Priority: ptr.To(util.LowPriority)}, enqueueKey)
 }

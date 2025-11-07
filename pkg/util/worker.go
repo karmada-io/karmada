@@ -24,6 +24,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/controller/priorityqueue"
 
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 )
@@ -46,6 +47,35 @@ type AsyncWorker interface {
 	Run(ctx context.Context, workerNumber int)
 }
 
+// LowPriority is the priority value for low priority items.
+const LowPriority = -100
+
+// AsyncPriorityWorker is an extension of AsyncWorker with priority queue support.
+type AsyncPriorityWorker interface {
+	// EnqueueWithOpts generates the key of 'obj' according to a 'KeyFunc' then adds the key as an item to priority queue by 'AddWithOpts'.
+	EnqueueWithOpts(opts AddOpts, obj any)
+
+	// AddWithOpts adds items to the priority queue with options.
+	AddWithOpts(opts AddOpts, item ...any)
+
+	AsyncWorker
+}
+
+// AddOpts defines the options for adding items to priority queue.
+type AddOpts struct {
+	After       time.Duration
+	RateLimited bool
+	Priority    *int
+}
+
+func (o *AddOpts) toPriorityQueueAddOpts() priorityqueue.AddOpts {
+	return priorityqueue.AddOpts{
+		After:       o.After,
+		RateLimited: o.RateLimited,
+		Priority:    o.Priority,
+	}
+}
+
 // QueueKey is the item key that stores in queue.
 // The key could be arbitrary types.
 //
@@ -61,6 +91,7 @@ type KeyFunc func(obj interface{}) (QueueKey, error)
 type ReconcileFunc func(key QueueKey) error
 
 type asyncWorker struct {
+	name string
 	// keyFunc is the function that make keys for API objects.
 	keyFunc KeyFunc
 	// reconcileFunc is the function that process keys from the queue.
@@ -77,16 +108,28 @@ type Options struct {
 	KeyFunc            KeyFunc
 	ReconcileFunc      ReconcileFunc
 	RateLimiterOptions ratelimiterflag.Options
+	UsePriorityQueue   bool
 }
 
 // NewAsyncWorker returns a asyncWorker which can process resource periodic.
-func NewAsyncWorker(opt Options) AsyncWorker {
+func NewAsyncWorker(opt Options) AsyncPriorityWorker {
+	var queue workqueue.TypedRateLimitingInterface[any]
+	if opt.UsePriorityQueue {
+		rateLimiterOpts := opt.RateLimiterOptions.SetDefaults()
+		queue = priorityqueue.New[any](opt.Name, func(o *priorityqueue.Opts[any]) {
+			// change to controller-runtime priorityqueue default rateLimiter
+			o.RateLimiter = workqueue.NewTypedItemExponentialFailureRateLimiter[any](rateLimiterOpts.RateLimiterBaseDelay, rateLimiterOpts.RateLimiterMaxDelay)
+		})
+	} else {
+		queue = workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiterflag.DefaultControllerRateLimiter[any](opt.RateLimiterOptions), workqueue.TypedRateLimitingQueueConfig[any]{
+			Name: opt.Name,
+		})
+	}
 	return &asyncWorker{
+		name:          opt.Name,
 		keyFunc:       opt.KeyFunc,
 		reconcileFunc: opt.ReconcileFunc,
-		queue: workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiterflag.DefaultControllerRateLimiter[any](opt.RateLimiterOptions), workqueue.TypedRateLimitingQueueConfig[any]{
-			Name: opt.Name,
-		}),
+		queue:         queue,
 	}
 }
 
@@ -102,6 +145,20 @@ func (w *asyncWorker) Enqueue(obj interface{}) {
 	}
 
 	w.Add(key)
+}
+
+func (w *asyncWorker) EnqueueWithOpts(opts AddOpts, obj any) {
+	key, err := w.keyFunc(obj)
+	if err != nil {
+		klog.Errorf("Failed to generate key for obj: %+v, err: %v", obj, err)
+		return
+	}
+
+	if key == nil {
+		return
+	}
+
+	w.AddWithOpts(opts, key)
 }
 
 func (w *asyncWorker) Add(item interface{}) {
@@ -120,6 +177,24 @@ func (w *asyncWorker) AddAfter(item interface{}, duration time.Duration) {
 	}
 
 	w.queue.AddAfter(item, duration)
+}
+
+func (w *asyncWorker) AddWithOpts(opts AddOpts, item ...any) {
+	if item == nil {
+		klog.Warningf("Ignore nil item from queue")
+		return
+	}
+
+	pq, ok := w.queue.(priorityqueue.PriorityQueue[any])
+	if !ok {
+		klog.Warningf("queue is not priority queue, fallback to normal queue, queueName: %s", w.name)
+		for _, it := range item {
+			w.queue.Add(it)
+		}
+		return
+	}
+
+	pq.AddWithOpts(opts.toPriorityQueueAddOpts(), item...)
 }
 
 func (w *asyncWorker) worker() {
