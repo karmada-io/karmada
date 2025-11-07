@@ -70,7 +70,7 @@ var _ = ginkgo.Describe("Status testing", func() {
 				gomega.Expect(secretRef).ShouldNot(gomega.BeNil())
 				gomega.Expect(secretRef.Namespace).Should(gomega.Equal(karmadaObject.GetNamespace()))
 				gomega.Expect(secretRef.Name).Should(gomega.Equal(operatorutil.AdminKarmadaConfigSecretName(karmadaObject.GetName())))
-				_, err := kubeClient.CoreV1().Secrets(secretRef.Namespace).Get(context.TODO(), secretRef.Name, metav1.GetOptions{})
+				_, err := hostClient.CoreV1().Secrets(secretRef.Namespace).Get(context.Background(), secretRef.Name, metav1.GetOptions{})
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 
@@ -78,7 +78,7 @@ var _ = ginkgo.Describe("Status testing", func() {
 				apiServerService := karmadaObject.Status.APIServerService
 				gomega.Expect(apiServerService).ShouldNot(gomega.BeNil())
 				gomega.Expect(apiServerService.Name).Should(gomega.Equal(operatorutil.KarmadaAPIServerName(karmadaObject.GetName())))
-				_, err := kubeClient.CoreV1().Services(karmadaObject.GetNamespace()).Get(context.TODO(), apiServerService.Name, metav1.GetOptions{})
+				_, err := hostClient.CoreV1().Services(karmadaObject.GetNamespace()).Get(context.TODO(), apiServerService.Name, metav1.GetOptions{})
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 		})
