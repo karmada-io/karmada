@@ -42,6 +42,8 @@ GO111MODULE=on go install github.com/onsi/ginkgo/v2/ginkgo
 
 # Run e2e
 export KUBECONFIG=${HOST_KUBECONFIG}
+export PUSH_MODE_CLUSTER_NAME=${MEMBER_CLUSTER_1_NAME:-"member1"}
+export PUSH_MODE_KUBECONFIG_PATH=${PUSH_MODE_KUBECONFIG_PATH:-"$KUBECONFIG_PATH/members.config"}
 
 set +e
 ginkgo -v --race --trace --fail-fast -p --randomize-all ./test/e2e/suites/operator

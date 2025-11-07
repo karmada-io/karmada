@@ -47,12 +47,12 @@ var _ = ginkgo.Describe("PriorityClass configuration testing", func() {
 		ginkgo.It("Custom priorityClass configuration", func() {
 			ginkgo.By("Check if default value is system-node-critical", func() {
 				// take etcd as a representative of StatefulSet.
-				etcd, err := kubeClient.AppsV1().StatefulSets(testNamespace).Get(context.TODO(), karmadaName+"-etcd", metav1.GetOptions{})
+				etcd, err := hostClient.AppsV1().StatefulSets(testNamespace).Get(context.Background(), karmadaName+"-etcd", metav1.GetOptions{})
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 				gomega.Expect(etcd.Spec.Template.Spec.PriorityClassName).Should(gomega.Equal("system-node-critical"))
 
 				// take karmada-apiserver as a representative of Deployment.
-				karmadaApiserver, err := kubeClient.AppsV1().Deployments(testNamespace).Get(context.TODO(), karmadaName+"-apiserver", metav1.GetOptions{})
+				karmadaApiserver, err := hostClient.AppsV1().Deployments(testNamespace).Get(context.TODO(), karmadaName+"-apiserver", metav1.GetOptions{})
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 				gomega.Expect(karmadaApiserver.Spec.Template.Spec.PriorityClassName).Should(gomega.Equal("system-node-critical"))
 			})
@@ -68,12 +68,12 @@ var _ = ginkgo.Describe("PriorityClass configuration testing", func() {
 
 			ginkgo.By("Check if the PriorityClass is applied correctly", func() {
 				// take etcd as a representative of StatefulSet.
-				etcd, err := kubeClient.AppsV1().StatefulSets(testNamespace).Get(context.TODO(), karmadaName+"-etcd", metav1.GetOptions{ResourceVersion: "0"})
+				etcd, err := hostClient.AppsV1().StatefulSets(testNamespace).Get(context.TODO(), karmadaName+"-etcd", metav1.GetOptions{ResourceVersion: "0"})
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 				gomega.Expect(etcd.Spec.Template.Spec.PriorityClassName).Should(gomega.Equal("system-cluster-critical"))
 
 				// take karmada-apiserver as a representative of Deployment.
-				karmadaApiserver, err := kubeClient.AppsV1().Deployments(testNamespace).Get(context.TODO(), karmadaName+"-apiserver", metav1.GetOptions{ResourceVersion: "0"})
+				karmadaApiserver, err := hostClient.AppsV1().Deployments(testNamespace).Get(context.TODO(), karmadaName+"-apiserver", metav1.GetOptions{ResourceVersion: "0"})
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 				gomega.Expect(karmadaApiserver.Spec.Template.Spec.PriorityClassName).Should(gomega.Equal("system-cluster-critical"))
 			})

@@ -49,34 +49,23 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
-      - name: setup operator test environment
+      - name: setup operator e2e test environment
         run: |
           export CLUSTER_VERSION=kindest/node:${{ matrix.k8s }}
-          hack/local-up-karmada-by-operator.sh
-      - name: run operator test
+          hack/operator-e2e-environment.sh
+      - name: run e2e
         run: |
-          # run a single e2e
-          export KUBECONFIG=${HOME}/.kube/karmada.config
-          kubectl config use-context karmada-apiserver
-          GO111MODULE=on go install github.com/onsi/ginkgo/v2/ginkgo
-          ginkgo -v --race --trace -p  --focus="[BasicPropagation] propagation testing deployment propagation testing"  ./test/e2e/suites/base
-      - name: export logs
-        if: always()
-        run: |
-          export ARTIFACTS_PATH=${{ github.workspace }}/karmada-operator-test-logs/${{ matrix.k8s }}/
-          mkdir -p $ARTIFACTS_PATH
-
-          mkdir -p $ARTIFACTS_PATH/karmada-host
-          kind export logs --name=karmada-host $ARTIFACTS_PATH/karmada-host
+          export ARTIFACTS_PATH=${{ github.workspace }}/karmada-operator-e2e-logs/${{ matrix.k8s }}/
+          hack/run-e2e-operator.sh
       - name: upload logs
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: karmada_operator_test_logs_${{ matrix.k8s }}
-          path: ${{ github.workspace }}/karmada-operator-test-logs/${{ matrix.k8s }}/
+          name: karmada_operator_e2e_log_${{ matrix.k8s }}
+          path: ${{ github.workspace }}/karmada-operator-e2e-logs/${{ matrix.k8s }}/
       - name: upload kind logs
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: karmada_kind_log_${{ matrix.k8s }}
+          name: karmada_operator_kind_log_${{ matrix.k8s }}
           path: /tmp/karmada/
