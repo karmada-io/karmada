@@ -131,7 +131,7 @@ func storageWithCacher(gvr schema.GroupVersionResource, multiNS *MultiNamespace,
 		if err != nil {
 			return nil, nil, err
 		}
-		delegator := cacherstorage.NewCacheDelegator(cacher, s)
+		delegator := NewCacheDelegator(cacher, s)
 		var once sync.Once
 		destroyFunc := func() {
 			once.Do(func() {

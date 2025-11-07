@@ -196,7 +196,8 @@ func (s *store) Stats(context.Context) (storage.Stats, error) {
 
 // RequestWatchProgress implements storage.Interface.
 func (s *store) RequestWatchProgress(context.Context) error {
-	return fmt.Errorf("not implemented")
+	// Member cluster's APIServer done not support watch progress. So do nothing here.
+	return nil
 }
 
 // GetCurrentResourceVersion implements storage.Interface
