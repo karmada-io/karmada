@@ -35,6 +35,7 @@ import (
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/polymorphichelpers"
 	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/utils/ptr"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/get"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
@@ -256,7 +257,7 @@ func compGetResourceList(restClientGetter genericclioptions.RESTClientGetter, cm
 	}
 
 	// Get the list of resources
-	o.Output = "name"
+	o.PrintFlags.OutputFormat = ptr.To("name")
 	o.Cached = true
 	o.Verbs = []string{"get"}
 	// TODO:Should set --request-timeout=5s

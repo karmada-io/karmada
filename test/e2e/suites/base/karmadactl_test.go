@@ -931,7 +931,7 @@ var _ = ginkgo.Describe("Karmadactl get testing", func() {
 			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, namespace, karmadactlTimeout, "get", "pods", podName, "--operation-scope", "members", "-C", member1)
 			_, err := cmd.ExecOrDie()
 			gomega.Expect(err).Should(gomega.HaveOccurred())
-			gomega.Expect(strings.Contains(err.Error(), fmt.Sprintf("pods \"%s\" not found", podName))).Should(gomega.BeTrue())
+			gomega.Expect(strings.Contains(err.Error(), fmt.Sprintf("pods \"%s\" not found", podName))).Should(gomega.BeTrue(), "expected contains pods \"%s\" not found, but got: %v", podName, err)
 		})
 	})
 
@@ -947,7 +947,7 @@ var _ = ginkgo.Describe("Karmadactl get testing", func() {
 			cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, namespace, karmadactlTimeout, "get", "pods", podName, "--operation-scope", "members", "-C", member1)
 			_, err := cmd.ExecOrDie()
 			gomega.Expect(err).Should(gomega.HaveOccurred())
-			gomega.Expect(strings.Contains(err.Error(), fmt.Sprintf("namespaces \"%s\" not found", namespace))).Should(gomega.BeTrue())
+			gomega.Expect(strings.Contains(err.Error(), fmt.Sprintf("namespaces \"%s\" not found", namespace))).Should(gomega.BeTrue(), "expected contains namespaces \"%s\" not found, but got: %v", namespace, err)
 		})
 	})
 

@@ -189,14 +189,15 @@ func (s *store) GuaranteedUpdate(context.Context, string, runtime.Object, bool, 
 	return fmt.Errorf("guaranteedUpdate is not supported in proxy store")
 }
 
-// Count implements storage.Interface.
-func (s *store) Count(string) (int64, error) {
-	return 0, fmt.Errorf("count is not supported in proxy store")
+// Stats implements storage.Interface.
+func (s *store) Stats(context.Context) (storage.Stats, error) {
+	return storage.Stats{}, fmt.Errorf("unimplemented")
 }
 
 // RequestWatchProgress implements storage.Interface.
 func (s *store) RequestWatchProgress(context.Context) error {
-	return fmt.Errorf("not implemented")
+	// Member cluster's APIServer done not support watch progress. So do nothing here.
+	return nil
 }
 
 // GetCurrentResourceVersion implements storage.Interface
@@ -221,6 +222,16 @@ func (s *store) GetCurrentResourceVersion(ctx context.Context) (uint64, error) {
 		return 0, fmt.Errorf("the current resource version must be greater than 0")
 	}
 	return currentResourceVersion, nil
+}
+
+// SetKeysFunc implements storage.Interface.
+func (s *store) SetKeysFunc(storage.KeysFunc) {
+	// unimplemented
+}
+
+// CompactRevision implements storage.Interface.
+func (s *store) CompactRevision() int64 {
+	return 0
 }
 
 // ReadinessCheck checks if the storage is ready for accepting requests.

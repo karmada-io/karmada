@@ -262,7 +262,7 @@ func TestValidateWebhook(t *testing.T) {
 					},
 				},
 			},
-			expectedError: "service name is required",
+			expectedError: "webhooks.name: Required value",
 		},
 		{
 			name: "invalid interpreter context versions",

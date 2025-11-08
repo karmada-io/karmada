@@ -324,7 +324,7 @@ func TestValidatingAdmission_Handle(t *testing.T) {
 			req: admission.Request{},
 			want: TestResponse{
 				Type:    Denied,
-				Message: "spec.overrideRules[0].overriders.fieldOverrider[0].json[0].value: Invalid value: v1.JSON{Raw:[]uint8(nil)}: value is required for add or replace operation",
+				Message: "spec.overrideRules[0].overriders.fieldOverrider[0].json[0].value: Invalid value: null: value is required for add or replace operation",
 			},
 		},
 		{
@@ -355,7 +355,7 @@ func TestValidatingAdmission_Handle(t *testing.T) {
 			req: admission.Request{},
 			want: TestResponse{
 				Type:    Denied,
-				Message: "spec.overrideRules[0].overriders.fieldOverrider[0].json[0].value: Invalid value: v1.JSON{Raw:[]uint8(nil)}: value is required for add or replace operation",
+				Message: "spec.overrideRules[0].overriders.fieldOverrider[0].json[0].value: Invalid value: null: value is required for add or replace operation",
 			},
 		},
 		{
@@ -387,7 +387,7 @@ func TestValidatingAdmission_Handle(t *testing.T) {
 			req: admission.Request{},
 			want: TestResponse{
 				Type:    Denied,
-				Message: "spec.overrideRules[0].overriders.fieldOverrider[0].json[0].value: Invalid value: v1.JSON{Raw:[]uint8{0x7b, 0x22, 0x64, 0x62, 0x22, 0x3a, 0x20, 0x22, 0x6e, 0x65, 0x77, 0x22, 0x7d}}: value is not allowed for remove operation",
+				Message: `spec.overrideRules[0].overriders.fieldOverrider[0].json[0].value: Invalid value: {"db":"new"}: value is not allowed for remove operation`,
 			},
 		},
 	}

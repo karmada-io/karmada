@@ -1060,9 +1060,8 @@ func TestFetchWorkload(t *testing.T) {
 				"apiVersion": "v1",
 				"kind":       "Pod",
 				"metadata": map[string]interface{}{
-					"name":              "pod",
-					"namespace":         "default",
-					"creationTimestamp": nil,
+					"name":      "pod",
+					"namespace": "default",
 				},
 			}},
 			wantErr: false,
@@ -1096,9 +1095,8 @@ func TestFetchWorkload(t *testing.T) {
 				"apiVersion": "v1",
 				"kind":       "Pod",
 				"metadata": map[string]interface{}{
-					"name":              "pod",
-					"namespace":         "default",
-					"creationTimestamp": nil,
+					"name":      "pod",
+					"namespace": "default",
 				},
 			}},
 			wantErr: false,
@@ -1126,8 +1124,7 @@ func TestFetchWorkload(t *testing.T) {
 				"apiVersion": "v1",
 				"kind":       "Node",
 				"metadata": map[string]interface{}{
-					"name":              "node",
-					"creationTimestamp": nil,
+					"name": "node",
 				},
 			}},
 			wantErr: false,
@@ -1160,8 +1157,7 @@ func TestFetchWorkload(t *testing.T) {
 				"apiVersion": "v1",
 				"kind":       "Node",
 				"metadata": map[string]interface{}{
-					"name":              "node",
-					"creationTimestamp": nil,
+					"name": "node",
 				},
 			}},
 			wantErr: false,

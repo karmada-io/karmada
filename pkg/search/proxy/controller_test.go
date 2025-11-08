@@ -562,7 +562,7 @@ func TestController_Connect_Error(t *testing.T) {
 	wantBody := `{"kind":"Status","apiVersion":"get","metadata":{},"status":"Failure","message":"test","code":500}` + "\n"
 	gotBody := response.Body.String()
 	if wantBody != gotBody {
-		t.Errorf("got body: %v", diff.StringDiff(gotBody, wantBody))
+		t.Errorf("got body: %v", diff.Diff(gotBody, wantBody))
 	}
 }
 

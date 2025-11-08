@@ -85,7 +85,7 @@ func TestPrintCluster(t *testing.T) {
 			rows[i].Object.Object = nil
 		}
 		if !reflect.DeepEqual(tests[i].expect, rows) {
-			t.Errorf("%d mismatch: %s", i, diff.ObjectReflectDiff(tests[i].expect, rows))
+			t.Errorf("%d mismatch: %s", i, diff.Diff(tests[i].expect, rows))
 		}
 	}
 }
