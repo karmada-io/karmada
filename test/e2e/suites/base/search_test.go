@@ -548,7 +548,9 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 					deleteAnnotationAfterTest = func(c kubernetes.Interface, name string, anno string) {
 						data := []byte(`{"metadata": {"annotations": {"` + anno + `":null}}}`)
 						_, err := c.CoreV1().Nodes().Patch(context.TODO(), name, types.StrategicMergePatchType, data, metav1.PatchOptions{})
-						klog.Warningf("Clean node %v's annotation %v failed: %v", name, anno, err)
+						if err != nil {
+							klog.Warningf("Failed to clean annotation for node: %s, left annoation: %v, error: %v", name, anno, err)
+						}
 					}
 				)
 
