@@ -34,7 +34,7 @@ import (
 // SchedulingResultHelper is a helper to wrap the ResourceBinding and its target cluster result.
 type SchedulingResultHelper struct {
 	*workv1alpha2.ResourceBinding
-	TargetClusters []*TargetClusterWrapper
+	TargetClusterReplicaStatus []*ClusterReplicaStatus
 }
 
 // NewSchedulingResultHelper returns a new SchedulingResultHelper based on ResourceBinding.
@@ -43,22 +43,22 @@ func NewSchedulingResultHelper(binding *workv1alpha2.ResourceBinding) *Schedulin
 	readyReplicas := getReadyReplicas(binding)
 	for i := range binding.Spec.Clusters {
 		targetCluster := &binding.Spec.Clusters[i]
-		targetClusterHelper := &TargetClusterWrapper{
+		targetClusterReplicaStatus := &ClusterReplicaStatus{
 			ClusterName: targetCluster.Name,
 			Spec:        targetCluster.Replicas,
 		}
 		if ready, exist := readyReplicas[targetCluster.Name]; exist {
-			targetClusterHelper.Ready = ready
+			targetClusterReplicaStatus.Ready = ready
 		} else {
-			targetClusterHelper.Ready = estimatorclient.UnauthenticReplica
+			targetClusterReplicaStatus.Ready = estimatorclient.UnauthenticReplica
 		}
-		h.TargetClusters = append(h.TargetClusters, targetClusterHelper)
+		h.TargetClusterReplicaStatus = append(h.TargetClusterReplicaStatus, targetClusterReplicaStatus)
 	}
 	return h
 }
 
 // FillUnschedulableReplicas will detect the unschedulable replicas of member cluster by calling
-// unschedulable replica estimators and fill the unschedulable field of TargetClusterWrapper.
+// unschedulable replica estimators and fill the unschedulable field of ClusterReplicaStatus.
 func (h *SchedulingResultHelper) FillUnschedulableReplicas(unschedulableThreshold time.Duration) {
 	reference := &h.Spec.Resource
 	undesiredClusters, undesiredClusterNames := h.GetUndesiredClusters()
@@ -96,10 +96,10 @@ func (h *SchedulingResultHelper) FillUnschedulableReplicas(unschedulableThreshol
 }
 
 // GetUndesiredClusters returns the cluster which of ready replicas are not reach the ready ones.
-func (h *SchedulingResultHelper) GetUndesiredClusters() ([]*TargetClusterWrapper, []string) {
-	var clusters []*TargetClusterWrapper
+func (h *SchedulingResultHelper) GetUndesiredClusters() ([]*ClusterReplicaStatus, []string) {
+	var clusters []*ClusterReplicaStatus
 	var names []string
-	for _, cluster := range h.TargetClusters {
+	for _, cluster := range h.TargetClusterReplicaStatus {
 		if cluster.Ready < cluster.Spec {
 			clusters = append(clusters, cluster)
 			names = append(names, cluster.ClusterName)
@@ -108,12 +108,18 @@ func (h *SchedulingResultHelper) GetUndesiredClusters() ([]*TargetClusterWrapper
 	return clusters, names
 }
 
-// TargetClusterWrapper is a wrapper to wrap the target cluster name, spec replicas,
-// ready replicas and unschedulable replicas.
-type TargetClusterWrapper struct {
-	ClusterName   string
-	Spec          int32
-	Ready         int32
+// ClusterReplicaStatus represents the replicas status of a workload on a particular cluster.
+type ClusterReplicaStatus struct {
+	// ClusterName is the name of the member cluster targeted by ResourceBinding.
+	ClusterName string
+
+	// Spec is the desired replicas assigned to this cluster (from ResourceBinding.spec.clusters).
+	Spec int32
+
+	// Ready is the number of replicas currently reported as ready in this cluster.
+	Ready int32
+
+	// Unschedulable is the estimated count of replicas that cannot be scheduled in this cluster.
 	Unschedulable int32
 }
 
