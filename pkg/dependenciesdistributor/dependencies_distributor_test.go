@@ -3144,6 +3144,7 @@ func Test_buildAttachedBinding(t *testing.T) {
 						Kind:            "Deployment",
 						Namespace:       "fake-ns",
 						Name:            "demo-app",
+						UID:             "db56a4a6-0dff-465a-b046-2c1dea42a42b",
 						ResourceVersion: "22222",
 					},
 					RequiredBy: []workv1alpha2.BindingSnapshot{
