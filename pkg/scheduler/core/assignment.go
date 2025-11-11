@@ -86,8 +86,7 @@ type assignState struct {
 	targetReplicas int32
 }
 
-func newAssignState(candidates []spreadconstraint.ClusterDetailInfo, spec *workv1alpha2.ResourceBindingSpec,
-	status *workv1alpha2.ResourceBindingStatus) *assignState {
+func newAssignState(candidates []spreadconstraint.ClusterDetailInfo, spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus) *assignState {
 	var strategyType string
 
 	switch spec.Placement.ReplicaSchedulingType() {
