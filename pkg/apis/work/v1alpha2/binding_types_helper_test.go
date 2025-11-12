@@ -20,6 +20,8 @@ import (
 	"reflect"
 	"testing"
 
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/utils/ptr"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -442,30 +444,81 @@ func TestResourceBindingSpec_SchedulingSuspended(t *testing.T) {
 	}
 }
 
-func TestResourceBindingSpec_IsBindingWorkload(t *testing.T) {
+func TestResourceBindingSpec_IsSingleComponentsWorkload(t *testing.T) {
 	tests := []struct {
 		name string
 		spec *ResourceBindingSpec
 		want bool
 	}{
 		{
-			name: "binding a workload",
+			name: "binding a object with replicas",
 			spec: &ResourceBindingSpec{
 				Replicas: 1,
 			},
 			want: true,
 		},
 		{
-			name: "not binding a workload when replicas is 0",
+			name: "binding a object when replicas is 0",
 			spec: &ResourceBindingSpec{
 				Replicas: 0,
+			},
+			want: false,
+		},
+		{
+			name: "binding a object with ReplicaRequirement",
+			spec: &ResourceBindingSpec{
+				ReplicaRequirements: &ReplicaRequirements{
+					ResourceRequest: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("100m"),
+						corev1.ResourceMemory: resource.MustParse("200Mi"),
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "binding a object with no ReplicaRequirement",
+			spec: &ResourceBindingSpec{
+				ReplicaRequirements: nil,
+			},
+			want: false,
+		},
+		{
+			name: "binding a object with single component",
+			spec: &ResourceBindingSpec{
+				Replicas: 1,
+				Components: []Component{
+					{
+						Name:                "comp1",
+						Replicas:            1,
+						ReplicaRequirements: nil,
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "binding a object with multi component",
+			spec: &ResourceBindingSpec{
+				Components: []Component{
+					{
+						Name:                "comp1",
+						Replicas:            1,
+						ReplicaRequirements: nil,
+					},
+					{
+						Name:                "comp2",
+						Replicas:            1,
+						ReplicaRequirements: nil,
+					},
+				},
 			},
 			want: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ret := tt.spec.IsBindingWorkload()
+			ret := tt.spec.IsSingleComponentsWorkload()
 			if ret != tt.want {
 				t.Fatalf("test case %s failed, want %v, got %v", tt.name, tt.want, ret)
 			}

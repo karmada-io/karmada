@@ -214,9 +214,10 @@ func (s *ResourceBindingSpec) SchedulePriorityValue() int32 {
 	return s.SchedulePriority.Priority
 }
 
-// IsBindingWorkload checks whether the ResourceBinding is binding a workload.
-func (s *ResourceBindingSpec) IsBindingWorkload() bool {
-	if s.Replicas > 0 || s.ReplicaRequirements != nil || len(s.Components) > 0 {
+// IsSingleComponentsWorkload return true if the ResourceBinding represents a workload
+// (e.g., Deployment,StatefulSet) a single component that has replicas or replica requirements, false otherwise.
+func (s *ResourceBindingSpec) IsSingleComponentsWorkload() bool {
+	if (s.Replicas > 0 || (s.ReplicaRequirements != nil)) && len(s.Components) <= 1 {
 		return true
 	}
 	return false

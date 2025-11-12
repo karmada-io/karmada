@@ -67,10 +67,8 @@ func AssignReplicas(
 
 	// If not workload, assign all clusters without considering replicas.
 	var targetClusters []workv1alpha2.TargetCluster
-	if !spec.IsBindingWorkload() {
-		for _, cluster := range clusters {
-			targetClusters = append(targetClusters, workv1alpha2.TargetCluster{Name: cluster.Cluster.Name})
-		}
+	for _, cluster := range clusters {
+		targetClusters = append(targetClusters, workv1alpha2.TargetCluster{Name: cluster.Cluster.Name})
 	}
 
 	return targetClusters, nil
