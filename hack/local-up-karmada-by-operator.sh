@@ -17,11 +17,9 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-# This script is used in workflow to validate karmada installation by operator.
 # It starts a local karmada control plane based on current codebase via karmada-operator and with a certain number of clusters joined.
 # This script depends on utils in: ${REPO_ROOT}/hack/util.sh
 # 1. used by developer to setup develop environment quickly.
-# 2. used by e2e testing to test if the operator installs correctly.
 
 function usage() {
     echo "Usage:"
