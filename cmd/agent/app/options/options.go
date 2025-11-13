@@ -140,6 +140,10 @@ type Options struct {
 	CertRotationRemainingTimeThreshold float64
 	// KarmadaKubeconfigNamespace is the namespace of the secret containing karmada-agent certificate.
 	KarmadaKubeconfigNamespace string
+	// KarmadaKubeconfigName is the name of the secret containing karmada-agent certificate.
+	KarmadaKubeconfigName string
+	// KarmadaKubeconfigFeild is the subfield name of the Karmada config secret containing karmada-agent certificate.
+	KarmadaKubeconfigFeild string
 }
 
 // NewOptions builds an default scheduler options.
@@ -211,6 +215,8 @@ func (o *Options) AddFlags(fs *pflag.FlagSet, allControllers []string) {
 	fs.DurationVar(&o.CertRotationCheckingInterval, "cert-rotation-checking-interval", 5*time.Minute, "The interval of checking if the certificate need to be rotated. This is only applicable if cert rotation is enabled")
 	fs.Float64Var(&o.CertRotationRemainingTimeThreshold, "cert-rotation-remaining-time-threshold", 0.2, "The threshold of remaining time of the valid certificate. This is only applicable if cert rotation is enabled.")
 	fs.StringVar(&o.KarmadaKubeconfigNamespace, "karmada-kubeconfig-namespace", "karmada-system", "Namespace of the secret containing karmada-agent certificate. This is only applicable if cert rotation is enabled.")
+	fs.StringVar(&o.KarmadaKubeconfigName, "karmada-kubeconfig-name", "karmada-kubeconfig", "Name of the secret containing karmada-agent certificate. This is only applicable if cert rotation is enabled.")
+	fs.StringVar(&o.KarmadaKubeconfigFeild, "karmada-kubeconfig-field", "karmada-kubeconfig", "Field name of the karmada config secret containing karmada-agent certificate. This is only applicable if cert rotation is enabled.")
 	o.RateLimiterOpts.AddFlags(fs)
 	features.FeatureGate.AddFlag(fs)
 	o.ProfileOpts.AddFlags(fs)
