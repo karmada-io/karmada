@@ -21,6 +21,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/klog/v2"
 
 	"github.com/karmada-io/karmada/pkg/util"
 )
@@ -62,5 +63,12 @@ func ToUnstructured(obj interface{}) (*unstructured.Unstructured, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &unstructured.Unstructured{Object: uncastObj}, nil
+	unstructuredObj := &unstructured.Unstructured{Object: uncastObj}
+	if unstructuredObj.GetKind() == "" {
+		return nil, runtime.NewMissingKindErr(klog.KObj(unstructuredObj).String())
+	}
+	if unstructuredObj.GetAPIVersion() == "" {
+		return nil, runtime.NewMissingVersionErr(klog.KObj(unstructuredObj).String())
+	}
+	return unstructuredObj, nil
 }
