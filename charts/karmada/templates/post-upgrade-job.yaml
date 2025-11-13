@@ -1,0 +1,52 @@
+{{- $name := include "karmada.name" . -}}
+{{- $namespace := include "karmada.namespace" . -}}
+{{- if eq .Values.installMode "host" }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "{{ $name }}-post-upgrade"
+  namespace: {{ $namespace }}
+  labels:
+    app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+    app.kubernetes.io/instance: {{ $name | quote }}
+    helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+  annotations:
+    "helm.sh/hook": post-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": {{ .Values.postInstallJob.hookDeletePolicy }}
+spec:
+  parallelism: 1
+  completions: 1
+  template:
+    metadata:
+      name: {{ $name }}-post-upgrade
+      labels:
+        app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+        app.kubernetes.io/instance: {{ $name | quote }}
+        helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    spec:
+      {{- include "karmada.imagePullSecrets" . | nindent 6 }}
+      {{- with .Values.postInstallJob.tolerations}}
+      tolerations:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.postInstallJob.nodeSelector }}
+      nodeSelector:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ $name }}-hook-job
+      restartPolicy: Never
+      containers:
+      - name: post-upgrade
+        image: {{ template "karmada.kubectl.image" . }}
+        imagePullPolicy: {{ .Values.kubectl.image.pullPolicy }}
+        command:
+        - /bin/sh
+        - -c
+        - |
+          set -ex
+          {{- if .Values.certs.rotateWhenUpgrade }}
+          kubectl rollout restart statefulset --namespace {{ $namespace }} -l app.kubernetes.io/managed-by={{ .Release.Service | quote }}
+          kubectl rollout restart deployment --namespace {{ $namespace }} -l app.kubernetes.io/managed-by={{ .Release.Service | quote }}
+          {{- end }}
+{{- end }}
