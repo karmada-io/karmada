@@ -74,5 +74,6 @@ func AssignReplicas(clusters []spreadconstraint.ClusterDetailInfo, spec *workv1a
 	for i, cluster := range clusters {
 		targetClusters[i] = workv1alpha2.TargetCluster{Name: cluster.Cluster.Name}
 	}
+
 	return targetClusters, nil
 }
