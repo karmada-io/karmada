@@ -513,12 +513,12 @@ func TestResourceBindingSpec_IsSingleComponentsWorkload(t *testing.T) {
 					},
 				},
 			},
-			want: false,
+			want: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ret := tt.spec.IsSingleComponentsWorkload()
+			ret := tt.spec.IsWorkload()
 			if ret != tt.want {
 				t.Fatalf("test case %s failed, want %v, got %v", tt.name, tt.want, ret)
 			}

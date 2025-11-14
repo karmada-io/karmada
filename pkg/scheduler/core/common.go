@@ -68,7 +68,7 @@ func AssignReplicas(clusters []spreadconstraint.ClusterDetailInfo, spec *workv1a
 		}
 		return removeZeroReplicasCluster(assignResults), nil
 	}
-  
+
 	// For non-workloads (e.g., Service, Config) and multi-component workloads (e.g., FlinkDeployment), propagate to all candidate clusters.
 	targetClusters := make([]workv1alpha2.TargetCluster, len(clusters))
 	for i, cluster := range clusters {
