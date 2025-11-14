@@ -26,6 +26,7 @@ import (
 	"github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog/v2"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	karmada "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
@@ -86,6 +87,21 @@ func WaitFederatedResourceQuotaCollectStatus(client karmada.Interface, namespace
 			}
 
 			return true, nil
+		}, PollTimeout, PollInterval).Should(gomega.Equal(true))
+	})
+}
+
+// WaitFederatedResourceQuotaFitWith wait FederatedResourceQuota fit condition.
+func WaitFederatedResourceQuotaFitWith(client karmada.Interface, namespace, name string, fit func(frq *policyv1alpha1.FederatedResourceQuota) bool) {
+	ginkgo.By(fmt.Sprintf("Waiting for FederatedResourceQuota %s/%s to fit condition", namespace, name), func() {
+		gomega.Eventually(func() bool {
+			frq, err := client.PolicyV1alpha1().FederatedResourceQuotas(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+			if err != nil {
+				klog.Errorf("Failed to get FederatedResourceQuota(%s/%s), err: %v", namespace, name, err)
+				return false
+			}
+
+			return fit(frq)
 		}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 	})
 }

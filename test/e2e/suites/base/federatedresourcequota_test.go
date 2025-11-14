@@ -304,6 +304,11 @@ var _ = ginkgo.Describe("FederatedResourceQuota enforcement testing", func() {
 				}
 				federatedResourceQuota = helper.NewFederatedResourceQuotaWithOverall(frqNamespace, frqName, overall)
 				framework.CreateFederatedResourceQuota(karmadaClient, federatedResourceQuota)
+				framework.WaitFederatedResourceQuotaFitWith(karmadaClient, frqNamespace, frqName, func(frq *policyv1alpha1.FederatedResourceQuota) bool {
+					// To avoid race condition, ensure that OverallUsed is not nil first, and then deployment can be created.
+					// MoreInfo can refer to https://github.com/karmada-io/karmada/pull/6876#issuecomment-3455446833.
+					return frq.Status.Overall != nil
+				})
 				ginkgo.DeferCleanup(func() {
 					framework.RemoveFederatedResourceQuota(karmadaClient, frqNamespace, frqName)
 				})

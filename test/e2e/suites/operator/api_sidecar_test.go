@@ -66,7 +66,7 @@ var _ = ginkgo.Describe("API server sidecar configuration testing", func() {
 			})
 
 			ginkgo.By("Check if API server sidecar configuration works", func() {
-				apiserver, err = kubeClient.AppsV1().Deployments(testNamespace).Get(context.TODO(), karmadaName+"-apiserver", metav1.GetOptions{})
+				apiserver, err = hostClient.AppsV1().Deployments(testNamespace).Get(context.TODO(), karmadaName+"-apiserver", metav1.GetOptions{})
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 				containers := apiserver.Spec.Template.Spec.Containers
 				gomega.Expect(len(containers)).Should(gomega.Equal(2))

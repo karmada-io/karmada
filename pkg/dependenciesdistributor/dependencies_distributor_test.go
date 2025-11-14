@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -34,6 +35,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -42,6 +44,7 @@ import (
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
@@ -730,7 +733,8 @@ func Test_handleIndependentBindingDeletion(t *testing.T) {
 							},
 						},
 					}
-					return fake.NewClientBuilder().WithScheme(Scheme).WithObjects(rb).Build()
+					rbRef := &workv1alpha2.ResourceBinding{ObjectMeta: metav1.ObjectMeta{Name: "default-binding-1", Namespace: "default-1"}}
+					return fake.NewClientBuilder().WithScheme(Scheme).WithObjects(rb, rbRef).Build()
 				}(),
 			},
 			args: args{
@@ -757,6 +761,8 @@ func Test_handleIndependentBindingDeletion(t *testing.T) {
 								Name:            "demo-app",
 								ResourceVersion: "22222",
 							},
+							ConflictResolution:          policyv1alpha1.ConflictAbort,
+							PreserveResourcesOnDeletion: ptr.To(false),
 							RequiredBy: []workv1alpha2.BindingSnapshot{
 								{
 									Namespace: "default-1",
@@ -786,13 +792,13 @@ func Test_handleIndependentBindingDeletion(t *testing.T) {
 				t.Errorf("handleIndependentBindingDeletion() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
-			existBindings := &workv1alpha2.ResourceBindingList{}
-			err = d.Client.List(context.TODO(), existBindings)
+			existBinding := &workv1alpha2.ResourceBinding{}
+			err = d.Client.Get(context.TODO(), client.ObjectKey{Namespace: tt.args.namespace, Name: tt.args.name}, existBinding)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("handleIndependentBindingDeletion(), Client.List() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("handleIndependentBindingDeletion(), Client.Get() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			if !reflect.DeepEqual(existBindings, tt.wantBindings) {
-				t.Errorf("handleIndependentBindingDeletion(), Client.List() = %v, want %v", existBindings, tt.wantBindings)
+			if len(tt.wantBindings.Items) > 0 && !reflect.DeepEqual(existBinding, &tt.wantBindings.Items[0]) {
+				t.Errorf("handleIndependentBindingDeletion(), Client.Get() = %v, want %v", existBinding, &tt.wantBindings.Items[0])
 			}
 		})
 	}
@@ -2014,7 +2020,8 @@ func Test_listAttachedBindings(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			d := &DependenciesDistributor{
-				Client: tt.setupClient(),
+				Client:        tt.setupClient(),
+				EventRecorder: record.NewFakeRecorder(10),
 			}
 			gotBindings, err := d.listAttachedBindings(tt.bindingID, tt.bindingNamespace, tt.bindingName)
 			if (err != nil) != tt.wantErr {
@@ -2118,6 +2125,8 @@ func Test_removeScheduleResultFromAttachedBindings(t *testing.T) {
 								Name:            "demo-app",
 								ResourceVersion: "22222",
 							},
+							ConflictResolution:          policyv1alpha1.ConflictAbort,
+							PreserveResourcesOnDeletion: ptr.To(false),
 							RequiredBy: []workv1alpha2.BindingSnapshot{
 								{
 									Namespace: "default-1",
@@ -2187,7 +2196,13 @@ func Test_removeScheduleResultFromAttachedBindings(t *testing.T) {
 						},
 					},
 				}
-				return fake.NewClientBuilder().WithScheme(Scheme).WithObjects(rb).Build()
+				rbRef1 := &workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "default-binding-1",
+						Namespace: "default-1",
+					},
+				}
+				return fake.NewClientBuilder().WithScheme(Scheme).WithObjects(rb, rbRef1).Build()
 			},
 		},
 		{
@@ -2318,13 +2333,13 @@ func Test_removeScheduleResultFromAttachedBindings(t *testing.T) {
 			if (err != nil) != tt.wantErr {
 				t.Errorf("removeScheduleResultFromAttachedBindings() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			existBindings := &workv1alpha2.ResourceBindingList{}
-			err = d.Client.List(context.TODO(), existBindings)
+			existBinding := &workv1alpha2.ResourceBinding{}
+			err = d.Client.Get(context.TODO(), client.ObjectKey{Namespace: tt.bindingNamespace, Name: tt.bindingName}, existBinding)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("removeScheduleResultFromAttachedBindings(), Client.List() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("removeScheduleResultFromAttachedBindings(), Client.Get() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			if !reflect.DeepEqual(existBindings, tt.wantBindings) {
-				t.Errorf("removeScheduleResultFromAttachedBindings(), Client.List() = %v, want %v", existBindings, tt.wantBindings)
+			if len(tt.wantBindings.Items) > 0 && !reflect.DeepEqual(existBinding, &tt.wantBindings.Items[0]) {
+				t.Errorf("removeScheduleResultFromAttachedBindings(), Client.Get() = %v, want %v", existBinding, &tt.wantBindings.Items[0])
 			}
 		})
 	}
@@ -2420,6 +2435,8 @@ func Test_createOrUpdateAttachedBinding(t *testing.T) {
 						Name:            "demo-app",
 						ResourceVersion: "22222",
 					},
+					ConflictResolution:          policyv1alpha1.ConflictAbort,
+					PreserveResourcesOnDeletion: ptr.To(false),
 					RequiredBy: []workv1alpha2.BindingSnapshot{
 						{
 							Namespace: "default-1",
@@ -2523,7 +2540,15 @@ func Test_createOrUpdateAttachedBinding(t *testing.T) {
 						},
 					},
 				}
-				return fake.NewClientBuilder().WithScheme(Scheme).WithObjects(rb).Build()
+
+				// Add the referenced ResourceBindings that will be looked up during conflict checks.
+				ref1 := &workv1alpha2.ResourceBinding{ObjectMeta: metav1.ObjectMeta{Name: "default-binding-1", Namespace: "default-1"}}
+				ref2 := &workv1alpha2.ResourceBinding{ObjectMeta: metav1.ObjectMeta{Name: "default-binding-2", Namespace: "default-2"}}
+				ref3 := &workv1alpha2.ResourceBinding{ObjectMeta: metav1.ObjectMeta{Name: "default-binding-3", Namespace: "default-3"}}
+				ref4 := &workv1alpha2.ResourceBinding{ObjectMeta: metav1.ObjectMeta{Name: "test-binding-1", Namespace: "test-1"}}
+				ref5 := &workv1alpha2.ResourceBinding{ObjectMeta: metav1.ObjectMeta{Name: "test-binding-2", Namespace: "test-2"}}
+
+				return fake.NewClientBuilder().WithScheme(Scheme).WithObjects(rb, ref1, ref2, ref3, ref4, ref5).Build()
 			},
 		},
 		{
@@ -2774,7 +2799,8 @@ func Test_createOrUpdateAttachedBinding(t *testing.T) {
 							},
 						},
 					},
-					ConflictResolution: policyv1alpha1.ConflictOverwrite,
+					ConflictResolution:          policyv1alpha1.ConflictOverwrite,
+					PreserveResourcesOnDeletion: ptr.To(false),
 				},
 			},
 			setupClient: func() client.Client {
@@ -2826,7 +2852,15 @@ func Test_createOrUpdateAttachedBinding(t *testing.T) {
 						},
 					},
 				}
-				return fake.NewClientBuilder().WithScheme(Scheme).WithObjects(rb).Build()
+
+				// Referenced ResourceBindings for conflict checks
+				ref1 := &workv1alpha2.ResourceBinding{ObjectMeta: metav1.ObjectMeta{Name: "default-binding-1", Namespace: "default-1"}}
+				ref2 := &workv1alpha2.ResourceBinding{ObjectMeta: metav1.ObjectMeta{Name: "default-binding-2", Namespace: "default-2"}, Spec: workv1alpha2.ResourceBindingSpec{ConflictResolution: policyv1alpha1.ConflictOverwrite}}
+				ref3 := &workv1alpha2.ResourceBinding{ObjectMeta: metav1.ObjectMeta{Name: "default-binding-3", Namespace: "default-3"}}
+				ref4 := &workv1alpha2.ResourceBinding{ObjectMeta: metav1.ObjectMeta{Name: "test-binding-1", Namespace: "test-1"}}
+				ref5 := &workv1alpha2.ResourceBinding{ObjectMeta: metav1.ObjectMeta{Name: "test-binding-2", Namespace: "test-2"}}
+
+				return fake.NewClientBuilder().WithScheme(Scheme).WithObjects(rb, ref1, ref2, ref3, ref4, ref5).Build()
 			},
 		},
 		{
@@ -2933,16 +2967,22 @@ func Test_createOrUpdateAttachedBinding(t *testing.T) {
 						},
 					},
 				}
-				return fake.NewClientBuilder().WithScheme(Scheme).WithObjects(rb).Build()
+
+				// Referenced ResourceBindings for conflict checks
+				ref1 := &workv1alpha2.ResourceBinding{ObjectMeta: metav1.ObjectMeta{Name: "default-binding-1", Namespace: "default-1"}}
+				ref2 := &workv1alpha2.ResourceBinding{ObjectMeta: metav1.ObjectMeta{Name: "test-binding-1", Namespace: "test-1"}}
+
+				return fake.NewClientBuilder().WithScheme(Scheme).WithObjects(rb, ref1, ref2).Build()
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			d := &DependenciesDistributor{
-				Client: tt.setupClient(),
+				Client:        tt.setupClient(),
+				EventRecorder: record.NewFakeRecorder(100),
 			}
-			err := d.createOrUpdateAttachedBinding(tt.attachedBinding)
+			err := d.createOrUpdateAttachedBinding(context.TODO(), tt.attachedBinding)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("createOrUpdateAttachedBinding() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -2959,6 +2999,87 @@ func Test_createOrUpdateAttachedBinding(t *testing.T) {
 				t.Errorf("createOrUpdateAttachedBinding(), Client.Get() = %v, want %v", existBinding, tt.wantBinding)
 			}
 		})
+	}
+}
+
+func Test_createOrUpdateAttachedBinding_emitsConflictEvent(t *testing.T) {
+	Scheme := runtime.NewScheme()
+	utilruntime.Must(scheme.AddToScheme(Scheme))
+	utilruntime.Must(workv1alpha2.Install(Scheme))
+
+	// Existing attached binding to be updated (generated by dependency mechanism: Placement == nil)
+	exist := &workv1alpha2.ResourceBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "test-binding",
+			Namespace:       "test",
+			ResourceVersion: "1000",
+			OwnerReferences: []metav1.OwnerReference{{
+				UID:        "uid-1",
+				Controller: ptr.To[bool](true),
+			}},
+		},
+		Spec: workv1alpha2.ResourceBindingSpec{},
+	}
+
+	// Referenced ResourceBindings with conflicting policies
+	rb1 := &workv1alpha2.ResourceBinding{
+		ObjectMeta: metav1.ObjectMeta{Name: "rb-1", Namespace: "ns-a"},
+		Spec: workv1alpha2.ResourceBindingSpec{
+			PreserveResourcesOnDeletion: ptr.To(true),
+			ConflictResolution:          policyv1alpha1.ConflictOverwrite,
+		},
+	}
+	rb2 := &workv1alpha2.ResourceBinding{
+		ObjectMeta: metav1.ObjectMeta{Name: "rb-2", Namespace: "ns-b"},
+		Spec: workv1alpha2.ResourceBindingSpec{
+			PreserveResourcesOnDeletion: ptr.To(false),
+		},
+	}
+
+	attached := &workv1alpha2.ResourceBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-binding",
+			Namespace: "test",
+			OwnerReferences: []metav1.OwnerReference{{
+				UID:        "uid-1",
+				Controller: ptr.To[bool](true),
+			}},
+		},
+		Spec: workv1alpha2.ResourceBindingSpec{
+			Resource: workv1alpha2.ObjectReference{APIVersion: "apps/v1", Kind: "Deployment", Namespace: "fake-ns", Name: "demo-app", ResourceVersion: "1"},
+			RequiredBy: []workv1alpha2.BindingSnapshot{
+				{Namespace: "ns-a", Name: "rb-1"},
+				{Namespace: "ns-b", Name: "rb-2"},
+			},
+		},
+	}
+
+	fakeRec := record.NewFakeRecorder(10)
+	d := &DependenciesDistributor{
+		Client:        fake.NewClientBuilder().WithScheme(Scheme).WithObjects(exist, rb1, rb2).Build(),
+		EventRecorder: fakeRec,
+	}
+
+	if err := d.createOrUpdateAttachedBinding(context.TODO(), attached); err != nil {
+		t.Fatalf("createOrUpdateAttachedBinding() error = %v", err)
+	}
+
+	select {
+	case e := <-fakeRec.Events:
+		if !strings.Contains(e, corev1.EventTypeWarning) {
+			t.Fatalf("expected Warning event, got %q", e)
+		}
+		if !strings.Contains(e, events.EventReasonDependencyPolicyConflict) {
+			t.Fatalf("expected reason %q in event, got %q", events.EventReasonDependencyPolicyConflict, e)
+		}
+		if !strings.Contains(e, "ConflictResolution conflicted (Overwrite vs Abort)") {
+			t.Fatalf("expected ConflictResolution conflicted hint in event, got %q", e)
+		}
+		if !strings.Contains(e, "PreserveResourcesOnDeletion conflicted (true vs false)") {
+			t.Fatalf("expected PreserveResourcesOnDeletion conflicted hint in event, got %q", e)
+		}
+	case <-time.After(1 * time.Second):
+		t.Fatalf("expected dependency policy conflict event, but none received")
 	}
 }
 
@@ -3430,5 +3551,71 @@ func Test_deleteBindingFromSnapshot(t *testing.T) {
 				t.Errorf("deleteBindingFromSnapshot() = %v, want %v", gotExistSnapshot, tt.expectExistSnapshot)
 			}
 		})
+	}
+}
+
+func Test_resolveResourceBindingFromSnapshots_returnsBindings(t *testing.T) {
+	Scheme := runtime.NewScheme()
+	utilruntime.Must(scheme.AddToScheme(Scheme))
+	utilruntime.Must(workv1alpha2.Install(Scheme))
+
+	rb1 := &workv1alpha2.ResourceBinding{ObjectMeta: metav1.ObjectMeta{Name: "rb-1", Namespace: "ns-a"}}
+	rb2 := &workv1alpha2.ResourceBinding{ObjectMeta: metav1.ObjectMeta{Name: "rb-2", Namespace: "ns-b"}}
+
+	d := &DependenciesDistributor{
+		Client: fake.NewClientBuilder().WithScheme(Scheme).WithObjects(rb1, rb2).Build(),
+	}
+
+	snaps := []workv1alpha2.BindingSnapshot{
+		{Namespace: "ns-a", Name: "rb-1"},
+		{Namespace: "ns-b", Name: "rb-2"},
+	}
+
+	got, err := d.resolveResourceBindingFromSnapshots(context.TODO(), snaps)
+	if err != nil {
+		t.Fatalf("resolveResourceBindingFromSnapshots() error = %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("resolveResourceBindingFromSnapshots() len = %d, want 2", len(got))
+	}
+	if got[0].Name != "rb-1" || got[0].Namespace != "ns-a" {
+		t.Fatalf("resolveResourceBindingFromSnapshots()[0] = %s/%s, want ns-a/rb-1", got[0].Namespace, got[0].Name)
+	}
+	if got[1].Name != "rb-2" || got[1].Namespace != "ns-b" {
+		t.Fatalf("resolveResourceBindingFromSnapshots()[1] = %s/%s, want ns-b/rb-2", got[1].Namespace, got[1].Name)
+	}
+}
+
+func Test_detectAndResolveConflictResolution_DetectsAndResolvesConflict(t *testing.T) {
+	d := &DependenciesDistributor{}
+
+	rbs := []*workv1alpha2.ResourceBinding{
+		{Spec: workv1alpha2.ResourceBindingSpec{ConflictResolution: policyv1alpha1.ConflictOverwrite}},
+		{Spec: workv1alpha2.ResourceBindingSpec{}},
+	}
+
+	conflicted, effective := d.detectAndResolveConflictResolution(rbs)
+	if !conflicted {
+		t.Fatalf("detectAndResolveConflictResolution() conflicted = false, want true")
+	}
+	if effective != policyv1alpha1.ConflictOverwrite {
+		t.Fatalf("detectAndResolveConflictResolution() effective = %v, want %v", effective, policyv1alpha1.ConflictOverwrite)
+	}
+}
+
+func Test_detectAndResolvePreserveOnDeletion_DetectsAndResolvesConflict(t *testing.T) {
+	d := &DependenciesDistributor{}
+
+	rbs := []*workv1alpha2.ResourceBinding{
+		{Spec: workv1alpha2.ResourceBindingSpec{PreserveResourcesOnDeletion: ptr.To(true)}},
+		{Spec: workv1alpha2.ResourceBindingSpec{PreserveResourcesOnDeletion: ptr.To(false)}},
+	}
+
+	conflicted, effective := d.detectAndResolvePreserveOnDeletion(rbs)
+	if !conflicted {
+		t.Fatalf("detectAndResolvePreserveOnDeletion() conflicted = false, want true")
+	}
+	if !effective {
+		t.Fatalf("detectAndResolvePreserveOnDeletion() effective = false, want true")
 	}
 }

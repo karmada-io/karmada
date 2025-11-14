@@ -35,7 +35,8 @@ func NewKarmada(namespace string, name string) *operatorv1alpha1.Karmada {
 				HTTPSource: &operatorv1alpha1.HTTPSource{URL: "http://local"},
 			},
 			Components: &operatorv1alpha1.KarmadaComponents{
-				Etcd: &operatorv1alpha1.Etcd{},
+				Etcd:             &operatorv1alpha1.Etcd{},
+				KarmadaAPIServer: &operatorv1alpha1.KarmadaAPIServer{},
 				KarmadaAggregatedAPIServer: &operatorv1alpha1.KarmadaAggregatedAPIServer{
 					CommonSettings: operatorv1alpha1.CommonSettings{
 						Image: operatorv1alpha1.Image{

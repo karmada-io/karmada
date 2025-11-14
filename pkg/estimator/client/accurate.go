@@ -68,10 +68,13 @@ func (se *SchedulerEstimator) MaxAvailableReplicas(
 }
 
 // MaxAvailableComponentSets returns the maximum number of complete multi-component sets (in terms of replicas) that each cluster can host.
-func (se *SchedulerEstimator) MaxAvailableComponentSets(_ context.Context, _ ComponentSetEstimationRequest) ([]ComponentSetEstimationResponse, error) {
-	// Dummy implementation: return nothing for now
-	// TODO: Implement as part of #6734
-	return nil, nil
+func (se *SchedulerEstimator) MaxAvailableComponentSets(
+	parentCtx context.Context,
+	req ComponentSetEstimationRequest,
+) ([]ComponentSetEstimationResponse, error) {
+	return getClusterComponentSetsConcurrently(parentCtx, req.Clusters, se.timeout, func(ctx context.Context, cluster string) (int32, error) {
+		return se.maxAvailableComponentSets(ctx, cluster, req.Namespace, req.Components)
+	})
 }
 
 // GetUnschedulableReplicas gets the unschedulable replicas which belong to a specified workload by calling karmada-scheduler-estimator.
@@ -84,6 +87,62 @@ func (se *SchedulerEstimator) GetUnschedulableReplicas(
 	return getClusterReplicasConcurrently(parentCtx, clusters, se.timeout, func(ctx context.Context, cluster string) (int32, error) {
 		return se.maxUnscheduableReplicas(ctx, cluster, reference.DeepCopy(), unscheduableThreshold)
 	})
+}
+
+func (se *SchedulerEstimator) maxAvailableComponentSets(
+	ctx context.Context,
+	cluster string,
+	namespace string,
+	components []workv1alpha2.Component,
+) (int32, error) {
+	client, err := se.cache.GetClient(cluster)
+	if err != nil {
+		return 0, err
+	}
+
+	pbReq := &pb.MaxAvailableComponentSetsRequest{
+		Cluster:    cluster,
+		Components: make([]pb.Component, 0, len(components)),
+	}
+
+	for _, comp := range components {
+		// Deep-copy so that pointer is not shared between goroutines
+		var cr *workv1alpha2.ComponentReplicaRequirements
+		if comp.ReplicaRequirements != nil {
+			cr = comp.ReplicaRequirements.DeepCopy()
+		}
+
+		pbReq.Components = append(pbReq.Components, pb.Component{
+			Name:                comp.Name,
+			Replicas:            comp.Replicas,
+			ReplicaRequirements: toPBReplicaRequirements(cr, namespace),
+		})
+	}
+
+	res, err := client.MaxAvailableComponentSets(ctx, pbReq)
+	if err != nil {
+		return 0, fmt.Errorf("gRPC request cluster(%s) estimator error when calling MaxAvailableComponentSets: %v", cluster, err)
+	}
+	return res.MaxSets, nil
+}
+
+// toPBReplicaRequirements converts the API ComponentReplicaRequirements to the pb.ReplicaRequirements value.
+func toPBReplicaRequirements(cr *workv1alpha2.ComponentReplicaRequirements, namespace string) pb.ReplicaRequirements {
+	var out pb.ReplicaRequirements
+	out.Namespace = namespace
+	if cr == nil {
+		return out
+	}
+	out.ResourceRequest = cr.ResourceRequest
+	out.PriorityClassName = cr.PriorityClassName
+	if cr.NodeClaim != nil {
+		out.NodeClaim = &pb.NodeClaim{
+			NodeAffinity: cr.NodeClaim.HardNodeAffinity,
+			NodeSelector: cr.NodeClaim.NodeSelector,
+			Tolerations:  cr.NodeClaim.Tolerations,
+		}
+	}
+	return out
 }
 
 func (se *SchedulerEstimator) maxAvailableReplicas(ctx context.Context, cluster string, replicaRequirements *workv1alpha2.ReplicaRequirements) (int32, error) {
@@ -166,4 +225,33 @@ func getClusterReplicasConcurrently(parentCtx context.Context, clusters []string
 		}
 	}
 	return clusterReplicas, utilerrors.AggregateGoroutines(funcs...)
+}
+
+func getClusterComponentSetsConcurrently(
+	parentCtx context.Context,
+	clusters []*clusterv1alpha1.Cluster,
+	timeout time.Duration,
+	getClusterSetsEstimation func(ctx context.Context, cluster string) (int32, error),
+) ([]ComponentSetEstimationResponse, error) {
+	// add object info to gRPC metadata
+	if u, ok := parentCtx.Value(util.ContextKeyObject).(string); ok {
+		parentCtx = metadata.AppendToOutgoingContext(parentCtx, string(util.ContextKeyObject), u)
+	}
+	ctx, cancel := context.WithTimeout(parentCtx, timeout)
+	defer cancel()
+
+	results := make([]ComponentSetEstimationResponse, len(clusters))
+	funcs := make([]func() error, len(clusters))
+	for i, cluster := range clusters {
+		localIndex, localCluster := i, cluster
+		funcs[i] = func() error {
+			sets, err := getClusterSetsEstimation(ctx, localCluster.Name)
+			if err != nil {
+				return err
+			}
+			results[localIndex] = ComponentSetEstimationResponse{Name: localCluster.Name, Sets: sets}
+			return nil
+		}
+	}
+	return results, utilerrors.AggregateGoroutines(funcs...)
 }

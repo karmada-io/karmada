@@ -152,19 +152,19 @@ jobs:
           hack/run-e2e.sh
       - name: upload logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: karmada_e2e_log_${{ matrix.k8s }}
           path: ${{ github.workspace }}/karmada-e2e-logs/${{ matrix.k8s }}/
       - name: upload kind logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: karmada_kind_log_${{ matrix.k8s }}
           path: /tmp/karmada/
 
-  e2e-operator:
-    name: operator e2e test
+  e2e-init:
+    name: init e2e test
     needs: build
     runs-on: ubuntu-22.04
     strategy:
@@ -198,23 +198,25 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
-      - name: setup operator e2e test environment
+      - name: setup init e2e test environment
         run: |
           export CLUSTER_VERSION=kindest/node:${{ matrix.k8s }}
-          hack/operator-e2e-environment.sh
+          hack/init-e2e-environment.sh
       - name: run e2e
         run: |
-          export ARTIFACTS_PATH=${{ github.workspace }}/karmada-operator-e2e-logs/${{ matrix.k8s }}/
-          hack/run-e2e-operator.sh
+          export ARTIFACTS_PATH=${{ github.workspace }}/karmada-init-e2e-logs/${{ matrix.k8s }}/
+          export REGISTRY="docker.io/karmada"
+          export VERSION="latest"
+          hack/run-e2e-init.sh
       - name: upload logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
-          name: karmada_operator_e2e_log_${{ matrix.k8s }}
-          path: ${{ github.workspace }}/karmada-operator-e2e-logs/${{ matrix.k8s }}/
+          name: karmada_init_e2e_log_${{ matrix.k8s }}
+          path: ${{ github.workspace }}/karmada-init-e2e-logs/${{ matrix.k8s }}/
       - name: upload kind logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
-          name: karmada_operator_kind_log_${{ matrix.k8s }}
+          name: karmada_init_kind_log_${{ matrix.k8s }}
           path: /tmp/karmada/

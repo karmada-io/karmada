@@ -34,7 +34,7 @@ jobs:
         GOARCH: ${{ matrix.arch }}
       run: make release-${{ matrix.target }}
     - name: upload cli
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: cli-${{ matrix.target }}-${{ matrix.os }}-${{ matrix.arch }}.tgz
         path: _output/release/${{ matrix.target }}-${{ matrix.os }}-${{ matrix.arch }}.tgz
@@ -52,7 +52,7 @@ jobs:
       hashes: ${{ steps.hash.outputs.hashes }}
     steps:
       - name: download cli
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           path: _output/release
           pattern: cli-*
