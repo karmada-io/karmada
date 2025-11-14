@@ -1,0 +1,8 @@
+tests:
+  - desiredInputPath: testdata/desired-mpijob.yaml
+    statusInputPath: testdata/status-file.yaml
+    operation: AggregateStatus
+  - observedInputPath: testdata/observed-mpijob.yaml
+    operation: InterpretHealth
+  - observedInputPath: testdata/observed-mpijob.yaml
+    operation: InterpretStatus
