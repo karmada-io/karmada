@@ -1,0 +1,2 @@
+alias kcp='kubectl --kubeconfig ~/.kube/karmada.config --context karmada-apiserver'
+alias hc='kubectl --kubeconfig ~/.kube/karmada.config --context karmada-host'
