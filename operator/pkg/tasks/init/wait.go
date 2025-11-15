@@ -48,6 +48,8 @@ var (
 	karmadaSchedulerLabels           = labels.Set{constants.AppNameLabel: names.KarmadaSchedulerComponentName}
 	karmadaWebhookLabels             = labels.Set{constants.AppNameLabel: names.KarmadaWebhookComponentName}
 	karmadaMetricAdapterLabels       = labels.Set{constants.AppNameLabel: names.KarmadaMetricsAdapterComponentName}
+	karmadaSearchLabels              = labels.Set{constants.AppNameLabel: names.KarmadaSearchComponentName}
+	karmadaDeschedulerLabels         = labels.Set{constants.AppNameLabel: names.KarmadaDeschedulerComponentName}
 )
 
 // NewCheckApiserverHealthTask init wait-apiserver task
@@ -82,10 +84,36 @@ func NewWaitControlPlaneTask() workflow.Task {
 		Run:         runWaitControlPlane,
 		RunSubTasks: true,
 		Tasks: []workflow.Task{
-			newWaitControlPlaneSubTask("KubeControllerManager", kubeControllerManagerLabels),
-			newWaitControlPlaneSubTask("KarmadaControllerManager", karmadaControllerManagerLabels),
-			newWaitControlPlaneSubTask("KarmadaScheduler", karmadaSchedulerLabels),
-			newWaitControlPlaneSubTask("KarmadaWebhook", karmadaWebhookLabels),
+			newWaitControlPlaneSubTask(constants.KubeControllerManagerComponent, kubeControllerManagerLabels, func(data InitData) int32 {
+				return *data.Components().KubeControllerManager.Replicas
+			}),
+			newWaitControlPlaneSubTask(constants.KarmadaControllerManagerComponent, karmadaControllerManagerLabels, func(data InitData) int32 {
+				return *data.Components().KarmadaControllerManager.Replicas
+			}),
+			newWaitControlPlaneSubTask(constants.KarmadaSchedulerComponent, karmadaSchedulerLabels, func(data InitData) int32 {
+				return *data.Components().KarmadaScheduler.Replicas
+			}),
+			newWaitControlPlaneSubTask(constants.KarmadaWebhookComponent, karmadaWebhookLabels, func(data InitData) int32 {
+				return *data.Components().KarmadaWebhook.Replicas
+			}),
+			newWaitControlPlaneSubTask(constants.KarmadaDeschedulerComponent, karmadaDeschedulerLabels, func(data InitData) int32 {
+				if data.Components().KarmadaDescheduler == nil {
+					return 0
+				}
+				return *data.Components().KarmadaDescheduler.Replicas
+			}),
+			newWaitControlPlaneSubTask(constants.KarmadaMetricsAdapterComponent, karmadaMetricAdapterLabels, func(data InitData) int32 {
+				if data.Components().KarmadaMetricsAdapter == nil {
+					return 0
+				}
+				return *data.Components().KarmadaMetricsAdapter.Replicas
+			}),
+			newWaitControlPlaneSubTask(constants.KarmadaSearchComponent, karmadaSearchLabels, func(data InitData) int32 {
+				if data.Components().KarmadaSearch == nil {
+					return 0
+				}
+				return *data.Components().KarmadaSearch.Replicas
+			}),
 		},
 	}
 }
@@ -100,23 +128,23 @@ func runWaitControlPlane(r workflow.RunData) error {
 	return nil
 }
 
-func newWaitControlPlaneSubTask(component string, ls labels.Set) workflow.Task {
+func newWaitControlPlaneSubTask(component string, ls labels.Set, getPodNum func(data InitData) int32) workflow.Task {
 	return workflow.Task{
 		Name: component,
-		Run:  runWaitControlPlaneSubTask(component, ls),
+		Run:  runWaitControlPlaneSubTask(component, ls, getPodNum),
 	}
 }
 
-func runWaitControlPlaneSubTask(component string, ls labels.Set) func(r workflow.RunData) error {
+func runWaitControlPlaneSubTask(component string, ls labels.Set, getPodNum func(data InitData) int32) func(r workflow.RunData) error {
 	return func(r workflow.RunData) error {
 		data, ok := r.(InitData)
 		if !ok {
-			return errors.New("wait-controlPlane task invoked with an invalid data struct")
+			return fmt.Errorf("[%s] wait-controlPlane task invoked with an invalid data struct", component)
 		}
 
 		ls[constants.AppInstanceLabel] = data.GetName()
 		waiter := apiclient.NewKarmadaWaiter(nil, data.RemoteClient(), componentBeReadyTimeout)
-		if err := waiter.WaitForSomePods(ls.String(), data.GetNamespace(), 1); err != nil {
+		if err := waiter.WaitForSomePods(ls.String(), data.GetNamespace(), getPodNum(data)); err != nil {
 			return fmt.Errorf("waiting for %s to ready timeout, err: %w", component, err)
 		}
 
