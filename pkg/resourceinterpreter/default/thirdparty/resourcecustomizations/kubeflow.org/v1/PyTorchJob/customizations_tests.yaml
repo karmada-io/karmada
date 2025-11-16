@@ -8,4 +8,3 @@ tests:
     operation: InterpretStatus
   - observedInputPath: testdata/observed-pytorchjob.yaml
     operation: InterpretComponent
-    
