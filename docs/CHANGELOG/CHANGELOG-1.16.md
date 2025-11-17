@@ -2,9 +2,9 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.16.0-beta.0](#v1160-beta0)
-  - [Downloads for v1.16.0-beta.0](#downloads-for-v1160-beta0)
-  - [Changelog since v1.16.0-alpha.2](#changelog-since-v1160-alpha2)
+- [v1.16.0-rc.0](#v1160-rc0)
+  - [Downloads for v1.16.0-rc.0](#downloads-for-v1160-rc0)
+  - [Changelog since v1.16.0-beta.0](#changelog-since-v1160-beta0)
   - [Urgent Update Notes](#urgent-update-notes)
   - [Changes by Kind](#changes-by-kind)
     - [API Changes](#api-changes)
@@ -17,9 +17,9 @@
     - [Helm Charts](#helm-charts)
     - [Instrumentation](#instrumentation)
     - [Performance](#performance)
-- [v1.16.0-alpha.2](#v1160-alpha2)
-  - [Downloads for v1.16.0-alpha.2](#downloads-for-v1160-alpha2)
-  - [Changelog since v1.16.0-alpha.1](#changelog-since-v1160-alpha1)
+- [v1.16.0-beta.0](#v1160-beta0)
+  - [Downloads for v1.16.0-beta.0](#downloads-for-v1160-beta0)
+  - [Changelog since v1.16.0-alpha.2](#changelog-since-v1160-alpha2)
   - [Urgent Update Notes](#urgent-update-notes-1)
   - [Changes by Kind](#changes-by-kind-1)
     - [API Changes](#api-changes-1)
@@ -31,9 +31,10 @@
     - [Dependencies](#dependencies-1)
     - [Helm Charts](#helm-charts-1)
     - [Instrumentation](#instrumentation-1)
-- [v1.16.0-alpha.1](#v1160-alpha1)
-  - [Downloads for v1.16.0-alpha.1](#downloads-for-v1160-alpha1)
-  - [Changelog since v1.15.0](#changelog-since-v1150)
+    - [Performance](#performance-1)
+- [v1.16.0-alpha.2](#v1160-alpha2)
+  - [Downloads for v1.16.0-alpha.2](#downloads-for-v1160-alpha2)
+  - [Changelog since v1.16.0-alpha.1](#changelog-since-v1160-alpha1)
   - [Urgent Update Notes](#urgent-update-notes-2)
   - [Changes by Kind](#changes-by-kind-2)
     - [API Changes](#api-changes-2)
@@ -45,8 +46,61 @@
     - [Dependencies](#dependencies-2)
     - [Helm Charts](#helm-charts-2)
     - [Instrumentation](#instrumentation-2)
+- [v1.16.0-alpha.1](#v1160-alpha1)
+  - [Downloads for v1.16.0-alpha.1](#downloads-for-v1160-alpha1)
+  - [Changelog since v1.15.0](#changelog-since-v1150)
+  - [Urgent Update Notes](#urgent-update-notes-3)
+  - [Changes by Kind](#changes-by-kind-3)
+    - [API Changes](#api-changes-3)
+    - [Features & Enhancements](#features--enhancements-3)
+    - [Deprecation](#deprecation-3)
+    - [Bug Fixes](#bug-fixes-3)
+    - [Security](#security-3)
+  - [Other](#other-3)
+    - [Dependencies](#dependencies-3)
+    - [Helm Charts](#helm-charts-3)
+    - [Instrumentation](#instrumentation-3)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.16.0-rc.0
+## Downloads for v1.16.0-rc.0
+
+Download v1.16.0-rc.0 in the [v1.16.0-rc.0 release page](https://github.com/karmada-io/karmada/releases/tag/v1.16.0-rc.0).
+
+## Changelog since v1.16.0-beta.0
+
+## Urgent Update Notes
+
+## Changes by Kind
+
+### API Changes
+- `karmada-operator`: Introduced a `PodDisruptionBudget` field to the `CommonSettings` of `Karmada` API for supporting PodDisruptionBudgets (PDBs) for Karmada control plane components. ([#6895](https://github.com/karmada-io/karmada/pull/6895), @baiyutang)
+
+### Features & Enhancements
+- `karmada-controller-manager`: Introduced a built-in interpreter for Kubeflow Notebooks. ([#6814](https://github.com/karmada-io/karmada/pull/6814), @dekaihu)
+
+### Deprecation
+None.
+
+### Bug Fixes
+None.
+
+### Security
+None.
+
+## Other
+### Dependencies
+- Kubernetes dependencies have been updated to v1.34.1. ([#6868](https://github.com/karmada-io/karmada/pull/6868), @RainbowMango)
+
+### Helm Charts
+None.
+
+### Instrumentation
+None.
+
+### Performance
+None.
 
 # v1.16.0-beta.0
 ## Downloads for v1.16.0-beta.0
