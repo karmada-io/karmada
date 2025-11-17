@@ -178,13 +178,18 @@ func (d *DependenciesDistributor) reconcileResourceTemplate(key util.QueueKey) e
 		return err
 	}
 
+	var errs []error
 	for i := range bindingList.Items {
 		binding := &bindingList.Items[i]
 		if !binding.DeletionTimestamp.IsZero() {
 			continue
 		}
 
-		matched := matchesWithBindingDependencies(resourceTemplateKey, binding)
+		matched, err := matchesWithBindingDependencies(resourceTemplateKey, binding)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
 		if !matched {
 			continue
 		}
@@ -193,49 +198,53 @@ func (d *DependenciesDistributor) reconcileResourceTemplate(key util.QueueKey) e
 		d.genericEvent <- event.TypedGenericEvent[*workv1alpha2.ResourceBinding]{Object: binding}
 	}
 
-	return nil
+	return utilerrors.NewAggregate(errs)
 }
 
 // matchesWithBindingDependencies tells if the given object(resource template) is matched
 // with the dependencies of independent resourceBinding.
-func matchesWithBindingDependencies(resourceTemplateKey *LabelsKey, independentBinding *workv1alpha2.ResourceBinding) bool {
+func matchesWithBindingDependencies(resourceTemplateKey *LabelsKey, independentBinding *workv1alpha2.ResourceBinding) (bool, error) {
 	dependencies, exist := independentBinding.Annotations[dependenciesAnnotationKey]
 	if !exist {
-		return false
+		return false, nil
 	}
 
 	var dependenciesSlice []configv1alpha1.DependentObjectReference
 	err := json.Unmarshal([]byte(dependencies), &dependenciesSlice)
 	if err != nil {
-		// If unmarshal fails, retrying with an error return will not solve the problem.
-		// It will only increase the consumption by repeatedly listing the binding.
-		// Therefore, it is better to print this error and ignore it.
 		klog.Errorf("Failed to unmarshal binding(%s/%s) dependencies(%s): %v",
 			independentBinding.Namespace, independentBinding.Name, dependencies, err)
-		return false
+		return false, err
 	}
 
 	if len(dependenciesSlice) == 0 {
-		return false
+		return false, nil
 	}
 
+	var errs []error
 	for _, dependency := range dependenciesSlice {
 		if resourceTemplateKey.GroupVersion().String() == dependency.APIVersion &&
 			resourceTemplateKey.Kind == dependency.Kind &&
 			resourceTemplateKey.Namespace == dependency.Namespace {
 			if len(dependency.Name) != 0 {
-				return dependency.Name == resourceTemplateKey.Name
+				if dependency.Name == resourceTemplateKey.Name {
+					return true, nil
+				}
+				continue
 			}
 			var selector labels.Selector
 			if selector, err = metav1.LabelSelectorAsSelector(dependency.LabelSelector); err != nil {
-				klog.Errorf("Failed to converts the LabelSelector of binding(%s/%s) dependencies(%s): %v",
+				klog.Errorf("Failed to convert the LabelSelector of binding(%s/%s) dependencies(%s): %v",
 					independentBinding.Namespace, independentBinding.Name, dependencies, err)
-				return false
+				errs = append(errs, err)
+				continue
 			}
-			return selector.Matches(labels.Set(resourceTemplateKey.Labels))
+			if selector.Matches(labels.Set(resourceTemplateKey.Labels)) {
+				return true, nil
+			}
 		}
 	}
-	return false
+	return false, utilerrors.NewAggregate(errs)
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
