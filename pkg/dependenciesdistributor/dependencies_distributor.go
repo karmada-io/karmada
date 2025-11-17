@@ -235,15 +235,23 @@ func matchesWithBindingDependencies(resourceTemplateKey *LabelsKey, independentB
 			resourceTemplateKey.Kind == dependency.Kind &&
 			resourceTemplateKey.Namespace == dependency.Namespace {
 			if len(dependency.Name) != 0 {
-				return dependency.Name == resourceTemplateKey.Name
+				if dependency.Name == resourceTemplateKey.Name {
+					return true
+				}
+				continue
 			}
 			var selector labels.Selector
 			if selector, err = metav1.LabelSelectorAsSelector(dependency.LabelSelector); err != nil {
 				klog.Errorf("Failed to converts the LabelSelector of binding(%s/%s) dependencies(%s): %v",
 					independentBinding.Namespace, independentBinding.Name, dependencies, err)
-				return false
+				// If convert LabelSelector failed, retrying with an error return will not solve the problem.
+				// It will only increase the consumption by repeatedly listing the binding.
+				// Therefore, it is better to print this error and ignore it.
+				continue
 			}
-			return selector.Matches(labels.Set(resourceTemplateKey.Labels))
+			if selector != nil && selector.Matches(labels.Set(resourceTemplateKey.Labels)) {
+				return true
+			}
 		}
 	}
 	return false
