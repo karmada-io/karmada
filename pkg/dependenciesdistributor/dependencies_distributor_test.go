@@ -369,15 +369,16 @@ func Test_reconcileResourceTemplate(t *testing.T) {
 	}
 }
 
-func Test_dependentObjectReferenceMatches(t *testing.T) {
+func Test_matchesWithBindingDependencies(t *testing.T) {
 	type args struct {
 		objectKey        *LabelsKey
 		referenceBinding *workv1alpha2.ResourceBinding
 	}
 	tests := []struct {
-		name string
-		args args
-		want bool
+		name    string
+		args    args
+		want    bool
+		wantErr bool
 	}{
 		{
 			name: "test custom resource",
@@ -398,7 +399,8 @@ func Test_dependentObjectReferenceMatches(t *testing.T) {
 					}},
 				},
 			},
-			want: true,
+			want:    true,
+			wantErr: false,
 		},
 		{
 			name: "test configmap",
@@ -419,7 +421,8 @@ func Test_dependentObjectReferenceMatches(t *testing.T) {
 					}},
 				},
 			},
-			want: true,
+			want:    true,
+			wantErr: false,
 		},
 		{
 			name: "test labels",
@@ -441,12 +444,362 @@ func Test_dependentObjectReferenceMatches(t *testing.T) {
 					}},
 				},
 			},
-			want: true,
+			want:    true,
+			wantErr: false,
+		},
+		{
+			name: "binding without dependencies annotation",
+			args: args{
+				objectKey: &LabelsKey{
+					ClusterWideKey: keys.ClusterWideKey{
+						Group:     "",
+						Version:   "v1",
+						Kind:      "ConfigMap",
+						Namespace: "test",
+						Name:      "test-cm",
+					},
+					Labels: nil,
+				},
+				referenceBinding: &workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{},
+					},
+				},
+			},
+			want:    false,
+			wantErr: false,
+		},
+		{
+			name: "binding with invalid dependencies json",
+			args: args{
+				objectKey: &LabelsKey{
+					ClusterWideKey: keys.ClusterWideKey{
+						Group:     "",
+						Version:   "v1",
+						Kind:      "ConfigMap",
+						Namespace: "test",
+						Name:      "test-cm",
+					},
+					Labels: nil,
+				},
+				referenceBinding: &workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{
+							util.DependenciesAnnotationKey: "invalid-json-string",
+						},
+					},
+				},
+			},
+			want:    false,
+			wantErr: true,
+		},
+		{
+			name: "binding with empty dependencies array",
+			args: args{
+				objectKey: &LabelsKey{
+					ClusterWideKey: keys.ClusterWideKey{
+						Group:     "",
+						Version:   "v1",
+						Kind:      "ConfigMap",
+						Namespace: "test",
+						Name:      "test-cm",
+					},
+					Labels: nil,
+				},
+				referenceBinding: &workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{
+							util.DependenciesAnnotationKey: "[]",
+						},
+					},
+				},
+			},
+			want:    false,
+			wantErr: false,
+		},
+		{
+			name: "apiVersion mismatch",
+			args: args{
+				objectKey: &LabelsKey{
+					ClusterWideKey: keys.ClusterWideKey{
+						Group:     "",
+						Version:   "v1",
+						Kind:      "ConfigMap",
+						Namespace: "test",
+						Name:      "test-cm",
+					},
+					Labels: nil,
+				},
+				referenceBinding: &workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{
+							util.DependenciesAnnotationKey: "[{\"apiVersion\":\"v2\",\"kind\":\"ConfigMap\",\"namespace\":\"test\",\"name\":\"test-cm\"}]",
+						},
+					},
+				},
+			},
+			want:    false,
+			wantErr: false,
+		},
+		{
+			name: "kind mismatch",
+			args: args{
+				objectKey: &LabelsKey{
+					ClusterWideKey: keys.ClusterWideKey{
+						Group:     "",
+						Version:   "v1",
+						Kind:      "ConfigMap",
+						Namespace: "test",
+						Name:      "test-cm",
+					},
+					Labels: nil,
+				},
+				referenceBinding: &workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{
+							util.DependenciesAnnotationKey: "[{\"apiVersion\":\"v1\",\"kind\":\"Secret\",\"namespace\":\"test\",\"name\":\"test-cm\"}]",
+						},
+					},
+				},
+			},
+			want:    false,
+			wantErr: false,
+		},
+		{
+			name: "namespace mismatch",
+			args: args{
+				objectKey: &LabelsKey{
+					ClusterWideKey: keys.ClusterWideKey{
+						Group:     "",
+						Version:   "v1",
+						Kind:      "ConfigMap",
+						Namespace: "test",
+						Name:      "test-cm",
+					},
+					Labels: nil,
+				},
+				referenceBinding: &workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{
+							util.DependenciesAnnotationKey: "[{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"namespace\":\"other\",\"name\":\"test-cm\"}]",
+						},
+					},
+				},
+			},
+			want:    false,
+			wantErr: false,
+		},
+		{
+			name: "name mismatch",
+			args: args{
+				objectKey: &LabelsKey{
+					ClusterWideKey: keys.ClusterWideKey{
+						Group:     "",
+						Version:   "v1",
+						Kind:      "ConfigMap",
+						Namespace: "test",
+						Name:      "test-cm",
+					},
+					Labels: nil,
+				},
+				referenceBinding: &workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{
+							util.DependenciesAnnotationKey: "[{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"namespace\":\"test\",\"name\":\"other-cm\"}]",
+						},
+					},
+				},
+			},
+			want:    false,
+			wantErr: false,
+		},
+		{
+			name: "labelSelector does not match",
+			args: args{
+				objectKey: &LabelsKey{
+					ClusterWideKey: keys.ClusterWideKey{
+						Group:     "",
+						Version:   "v1",
+						Kind:      "ConfigMap",
+						Namespace: "test",
+						Name:      "test-cm",
+					},
+					Labels: map[string]string{
+						"app": "other",
+					},
+				},
+				referenceBinding: &workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{
+							util.DependenciesAnnotationKey: "[{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"namespace\":\"test\",\"labelSelector\":{\"matchLabels\":{\"app\":\"test\"}}}]",
+						},
+					},
+				},
+			},
+			want:    false,
+			wantErr: false,
+		},
+		{
+			name: "object has no labels but labelSelector requires labels",
+			args: args{
+				objectKey: &LabelsKey{
+					ClusterWideKey: keys.ClusterWideKey{
+						Group:     "",
+						Version:   "v1",
+						Kind:      "ConfigMap",
+						Namespace: "test",
+						Name:      "test-cm",
+					},
+					Labels: nil,
+				},
+				referenceBinding: &workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{
+							util.DependenciesAnnotationKey: "[{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"namespace\":\"test\",\"labelSelector\":{\"matchLabels\":{\"app\":\"test\"}}}]",
+						},
+					},
+				},
+			},
+			want:    false,
+			wantErr: false,
+		},
+		{
+			name: "invalid labelSelector format",
+			args: args{
+				objectKey: &LabelsKey{
+					ClusterWideKey: keys.ClusterWideKey{
+						Group:     "",
+						Version:   "v1",
+						Kind:      "ConfigMap",
+						Namespace: "test",
+						Name:      "test-cm",
+					},
+					Labels: map[string]string{
+						"app": "test",
+					},
+				},
+				referenceBinding: &workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{
+							util.DependenciesAnnotationKey: "[{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"namespace\":\"test\",\"labelSelector\":{\"matchExpressions\":[{\"key\":\"app\",\"operator\":\"InvalidOperator\",\"values\":[\"test\"]}]}}]",
+						},
+					},
+				},
+			},
+			want:    false,
+			wantErr: true,
+		},
+		{
+			name: "multiple dependencies with second one matching by name",
+			args: args{
+				objectKey: &LabelsKey{
+					ClusterWideKey: keys.ClusterWideKey{
+						Group:     "",
+						Version:   "v1",
+						Kind:      "Secret",
+						Namespace: "test",
+						Name:      "test-secret",
+					},
+					Labels: nil,
+				},
+				referenceBinding: &workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{
+							util.DependenciesAnnotationKey: "[{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"namespace\":\"test\",\"name\":\"test-cm\"},{\"apiVersion\":\"v1\",\"kind\":\"Secret\",\"namespace\":\"test\",\"name\":\"test-secret\"}]",
+						},
+					},
+				},
+			},
+			want:    true,
+			wantErr: false,
+		},
+		{
+			name: "multiple dependencies with second one matching by labelSelector",
+			args: args{
+				objectKey: &LabelsKey{
+					ClusterWideKey: keys.ClusterWideKey{
+						Group:     "",
+						Version:   "v1",
+						Kind:      "Secret",
+						Namespace: "test",
+						Name:      "test-secret",
+					},
+					Labels: map[string]string{
+						"env": "prod",
+					},
+				},
+				referenceBinding: &workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{
+							util.DependenciesAnnotationKey: "[{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"namespace\":\"test\",\"name\":\"test-cm\"},{\"apiVersion\":\"v1\",\"kind\":\"Secret\",\"namespace\":\"test\",\"labelSelector\":{\"matchLabels\":{\"env\":\"prod\"}}}]",
+						},
+					},
+				},
+			},
+			want:    true,
+			wantErr: false,
+		},
+		{
+			name: "labelSelector with matchLabels",
+			args: args{
+				objectKey: &LabelsKey{
+					ClusterWideKey: keys.ClusterWideKey{
+						Group:     "",
+						Version:   "v1",
+						Kind:      "ConfigMap",
+						Namespace: "test",
+						Name:      "test-cm",
+					},
+					Labels: map[string]string{
+						"app":  "test",
+						"tier": "frontend",
+					},
+				},
+				referenceBinding: &workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{
+							util.DependenciesAnnotationKey: "[{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"namespace\":\"test\",\"labelSelector\":{\"matchLabels\":{\"app\":\"test\"}}}]",
+						},
+					},
+				},
+			},
+			want:    true,
+			wantErr: false,
+		},
+		{
+			name: "empty labelSelector matches all",
+			args: args{
+				objectKey: &LabelsKey{
+					ClusterWideKey: keys.ClusterWideKey{
+						Group:     "",
+						Version:   "v1",
+						Kind:      "ConfigMap",
+						Namespace: "test",
+						Name:      "test-cm",
+					},
+					Labels: map[string]string{
+						"app": "test",
+					},
+				},
+				referenceBinding: &workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{
+							util.DependenciesAnnotationKey: "[{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"namespace\":\"test\",\"labelSelector\":{}}]",
+						},
+					},
+				},
+			},
+			want:    true,
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := matchesWithBindingDependencies(tt.args.objectKey, tt.args.referenceBinding)
+			got, err := matchesWithBindingDependencies(tt.args.objectKey, tt.args.referenceBinding)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("matchesWithBindingDependencies() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
 			if got != tt.want {
 				t.Errorf("matchesWithBindingDependencies() got = %v, want %v", got, tt.want)
 			}
