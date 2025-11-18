@@ -1,0 +1,62 @@
+applied: true
+clusterName: member1
+health: Healthy
+status:
+  applicationState:
+    state: COMPLETED
+  driverInfo:
+    podName: spark-pi-driver
+    webUIAddress: 10.11.254.226:4040
+    webUIPort: 4040
+    webUIServiceName: spark-pi-ui-svc
+  executionAttempts: 1
+  executorState:
+    spark-pi-b5777a99d8b732a7-exec-1: COMPLETED
+    spark-pi-b5777a99d8b732a7-exec-2: COMPLETED
+  lastSubmissionAttemptTime: "2025-10-12T13:57:17Z"
+  sparkApplicationId: spark-ff27607fd312454b92455e2feabdd343
+  submissionAttempts: 1
+  submissionID: 0df4a04b-620b-425e-997a-e4404010e26a
+  terminationTime: "2025-10-12T13:58:39Z"
+---
+applied: true
+clusterName: member2
+health: Healthy
+status:
+  applicationState:
+    state: RUNNING
+  driverInfo:
+    podName: spark-pi-driver
+    webUIAddress: 10.11.254.227:4040
+    webUIPort: 4040
+    webUIServiceName: spark-pi-ui-svc
+  executionAttempts: 2
+  executorState:
+    spark-pi-b5777a99d8b732a8-exec-1: RUNNING
+    spark-pi-b5777a99d8b732a8-exec-2: RUNNING
+  lastSubmissionAttemptTime: "2025-10-12T14:00:00Z"
+  sparkApplicationId: spark-ff27607fd312454b92455e2feabdd343
+  submissionAttempts: 1
+  submissionID: 1ab2c34d-5678-9abc-def0-1234567890ab
+  terminationTime: null
+---
+applied: true
+clusterName: member3
+health: Unhealthy
+status:
+  applicationState:
+    state: FAILED
+  driverInfo:
+    podName: spark-pi-driver
+    webUIAddress: 10.11.254.228:4040
+    webUIPort: 4040
+    webUIServiceName: spark-pi-ui-svc
+  executionAttempts: 3
+  executorState:
+    spark-pi-b5777a99d8b732a9-exec-1: FAILED
+    spark-pi-b5777a99d8b732a9-exec-2: FAILED
+  lastSubmissionAttemptTime: "2025-10-12T14:10:00Z"
+  sparkApplicationId: spark-ff27607fd312454b92455e2feabdd343
+  submissionAttempts: 2
+  submissionID: 2cd4e56f-789a-1234-bcde-567890abcdef
+  terminationTime: "2025-10-12T14:12:30Z"

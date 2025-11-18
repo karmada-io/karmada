@@ -1,0 +1,47 @@
+apiVersion: "sparkoperator.k8s.io/v1beta2"
+kind: SparkApplication
+metadata:
+  name: spark-pi
+  namespace: default
+spec:
+  type: Java
+  mode: cluster
+  image: "spark:3.5.0"
+  imagePullPolicy: Always
+  mainClass: org.apache.spark.examples.SparkPi
+  mainApplicationFile: "local:///opt/spark/examples/jars/spark-examples_2.12-3.5.0.jar"
+  sparkVersion: "3.5.0"
+  sparkUIOptions:
+    serviceLabels:
+      test-label/v1: 'true'
+  restartPolicy:
+    type: Never
+  volumes:
+    - name: "test-volume"
+      hostPath:
+        path: "/tmp"
+        type: Directory
+  driver:
+    cores: 2
+    memory: "512m"
+    labels:
+      version: 3.5.0
+    serviceAccount: spark-operator-spark
+    volumeMounts:
+      - name: "test-volume"
+        mountPath: "/tmp"
+  executor:
+    cores: 1
+    instances: 2
+    memory: "1g"
+    memoryOverhead: "512m"
+    labels:
+      version: 3.5.0
+    volumeMounts:
+      - name: "test-volume"
+        mountPath: "/tmp"
+  dynamicAllocation:
+    enabled: true
+    initialExecutors: 3
+    minExecutors: 3
+    maxExecutors: 10

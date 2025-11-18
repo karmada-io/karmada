@@ -1,0 +1,10 @@
+tests:
+  - desiredInputPath: testdata/desired-sparkapplication.yaml
+    statusInputPath: testdata/status-file.yaml
+    operation: AggregateStatus
+  - desiredInputPath: testdata/desired-sparkapplication.yaml
+    operation: InterpretComponent
+  - observedInputPath: testdata/observed-sparkapplication.yaml
+    operation: InterpretHealth
+  - observedInputPath: testdata/observed-sparkapplication.yaml
+    operation: InterpretStatus
