@@ -767,6 +767,7 @@ func buildAttachedBinding(independentBinding *workv1alpha2.ResourceBinding, obje
 				Kind:            object.GetKind(),
 				Namespace:       object.GetNamespace(),
 				Name:            object.GetName(),
+				UID:             object.GetUID(),
 				ResourceVersion: object.GetResourceVersion(),
 			},
 			RequiredBy:                  result,
