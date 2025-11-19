@@ -818,6 +818,11 @@ func (m *MockClient) List(ctx context.Context, list client.ObjectList, opts ...c
 	return args.Error(0)
 }
 
+func (m *MockClient) Apply(ctx context.Context, obj runtime.ApplyConfiguration, opts ...client.ApplyOption) error {
+	args := m.Called(ctx, obj, opts)
+	return args.Error(0)
+}
+
 func (m *MockClient) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
 	args := m.Called(ctx, obj, opts)
 	return args.Error(0)
