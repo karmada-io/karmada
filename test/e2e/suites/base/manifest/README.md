@@ -8,6 +8,17 @@ By vendoring the CRD files locally, we ensure that test execution is not impacte
 
 ## Files
 
+### batch.volcano.sh_jobs.yaml
+
+**Download Source:**
+```
+https://github.com/volcano-sh/volcano/blob/release-1.13/config/crd/volcano/bases/batch.volcano.sh_jobs.yaml
+```
+
+**Why We Need It:**
+
+Used to test Karmada's multi-template scheduling capability. The VolcanoJob resource contains multiple task templates, which is ideal for testing Karmada's support for resources with multiple pod templates across different task groups.
+
 ### flinkdeployment-cr.yaml
 
 **Description:**
@@ -28,4 +39,14 @@ https://raw.githubusercontent.com/apache/flink-kubernetes-operator/release-1.13/
 **Why We Need It:**
 
 Used to test Karmada's multi-template scheduling capability. The FlinkDeployment resource contains both jobManager and taskManager templates, which is ideal for testing Karmada's support for resources with multiple templates.
+
+### volcanojob-cr.yaml
+
+**Description:**
+
+This is a VolcanoJob custom resource (CR) template used for testing Karmada's multi-template scheduling capability.
+
+**Purpose:**
+
+This CR serves as the test workload for validating that Karmada can correctly schedule and manage resources with multiple task templates (job-nginx1 and job-nginx2), ensuring proper propagation and resource allocation across member clusters.
 
