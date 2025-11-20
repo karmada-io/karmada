@@ -37,11 +37,27 @@ message Component {
   // ReplicaRequirements specifies the per-replica resource requirements
   // (CPU, memory, etc.) and scheduling constraints.
   // +required
-  optional ReplicaRequirements replicaRequirements = 2;
+  optional ComponentReplicaRequirements replicaRequirements = 2;
 
   // Replicas is the number of replicas of this component required in a single workload set.
   // +required
   optional int32 replicas = 3;
+}
+
+// ComponentReplicaRequirements represents the resource and scheduling requirements for each replica.
+message ComponentReplicaRequirements {
+  // NodeClaim represents the NodeAffinity, NodeSelector and Tolerations required by each replica.
+  // +optional
+  optional NodeClaim nodeClaim = 1;
+
+  // ResourceRequest represents the resources required by each replica.
+  // +optional
+  map<string, .k8s.io.apimachinery.pkg.api.resource.Quantity> resourceRequest = 2;
+
+  // PriorityClassName represents the priority class name for a given ResourceRequest.
+  // It is used by the resource quota estimator to check quota constraints, as ResourceQuota supports priority class as a scope.
+  // +optional
+  optional string priorityClassName = 3;
 }
 
 // MaxAvailableComponentSetsRequest is the gRPC request message used to estimate
@@ -55,6 +71,12 @@ message MaxAvailableComponentSetsRequest {
   // along with their resource and replica requirements.
   // +required
   repeated Component components = 2;
+
+  // Namespace is the namespace of the workload being estimated.
+  // It is used by the accurate estimator to check the quota configurations
+  // in the target member cluster.
+  // +required
+  optional string namespace = 3;
 }
 
 // MaxAvailableComponentSetsResponse is the gRPC response message containing the
@@ -139,10 +161,8 @@ message ReplicaRequirements {
   // +optional
   optional string namespace = 3;
 
-  // PriorityClassName represents the priority class name for a given ResourceRequest
-  // Resource quotas are introduced for multi tenants sharing a cluster
-  // Besides estimate the replica based on nodes' resources, we need to consider the resource quota of a ResourceRequest
-  // ResourceQuota have an associated set of scopes, one of them is priority class
+  // PriorityClassName represents the priority class name for a given ResourceRequest.
+  // It is used by the resource quota estimator to check quota constraints, as ResourceQuota supports priority class as a scope.
   // +optional
   optional string priorityClassName = 4;
 }

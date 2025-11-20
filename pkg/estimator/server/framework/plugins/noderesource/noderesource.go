@@ -112,7 +112,7 @@ func (pl *nodeResourceEstimator) nodeMaxAvailableReplica(node *schedulerframewor
 
 // EstimateComponents estimates the maximum number of complete component sets that can be scheduled.
 // It returns the number of sets that can fit on the available node resources.
-func (pl *nodeResourceEstimator) EstimateComponents(_ context.Context, snapshot *schedcache.Snapshot, components []pb.Component) (int32, *framework.Result) {
+func (pl *nodeResourceEstimator) EstimateComponents(_ context.Context, snapshot *schedcache.Snapshot, components []pb.Component, _ string) (int32, *framework.Result) {
 	if !pl.enabled {
 		klog.V(5).Info("Estimator Plugin", "name", Name, "enabled", pl.enabled)
 		return noNodeConstraint, framework.NewResult(framework.Noopperation, fmt.Sprintf("%s is disabled", pl.Name()))

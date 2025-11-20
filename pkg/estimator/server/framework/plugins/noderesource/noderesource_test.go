@@ -52,7 +52,7 @@ func TestNodeResourceEstimator_EstimateComponents(t *testing.T) {
 			},
 			components: []pb.Component{
 				{
-					ReplicaRequirements: pb.ReplicaRequirements{
+					ReplicaRequirements: pb.ComponentReplicaRequirements{
 						ResourceRequest: corev1.ResourceList{
 							corev1.ResourceCPU:    resource.MustParse("1"),
 							corev1.ResourceMemory: resource.MustParse("1Gi"),
@@ -76,7 +76,7 @@ func TestNodeResourceEstimator_EstimateComponents(t *testing.T) {
 			},
 			components: []pb.Component{
 				{
-					ReplicaRequirements: pb.ReplicaRequirements{
+					ReplicaRequirements: pb.ComponentReplicaRequirements{
 						ResourceRequest: corev1.ResourceList{
 							corev1.ResourceCPU:    resource.MustParse("1"),
 							corev1.ResourceMemory: resource.MustParse("1Gi"),
@@ -100,7 +100,7 @@ func TestNodeResourceEstimator_EstimateComponents(t *testing.T) {
 			},
 			components: []pb.Component{
 				{
-					ReplicaRequirements: pb.ReplicaRequirements{
+					ReplicaRequirements: pb.ComponentReplicaRequirements{
 						ResourceRequest: corev1.ResourceList{
 							corev1.ResourceCPU:    resource.MustParse("1"),
 							corev1.ResourceMemory: resource.MustParse("1Gi"),
@@ -124,7 +124,7 @@ func TestNodeResourceEstimator_EstimateComponents(t *testing.T) {
 			},
 			components: []pb.Component{
 				{
-					ReplicaRequirements: pb.ReplicaRequirements{
+					ReplicaRequirements: pb.ComponentReplicaRequirements{
 						ResourceRequest: corev1.ResourceList{
 							corev1.ResourceCPU:    resource.MustParse("2"),
 							corev1.ResourceMemory: resource.MustParse("2Gi"),
@@ -133,7 +133,7 @@ func TestNodeResourceEstimator_EstimateComponents(t *testing.T) {
 					Replicas: 1,
 				},
 				{
-					ReplicaRequirements: pb.ReplicaRequirements{
+					ReplicaRequirements: pb.ComponentReplicaRequirements{
 						ResourceRequest: corev1.ResourceList{
 							corev1.ResourceCPU:    resource.MustParse("3"),
 							corev1.ResourceMemory: resource.MustParse("3Gi"),
@@ -162,7 +162,7 @@ func TestNodeResourceEstimator_EstimateComponents(t *testing.T) {
 			},
 			components: []pb.Component{
 				{
-					ReplicaRequirements: pb.ReplicaRequirements{
+					ReplicaRequirements: pb.ComponentReplicaRequirements{
 						ResourceRequest: corev1.ResourceList{
 							corev1.ResourceCPU:    resource.MustParse("3"),
 							corev1.ResourceMemory: resource.MustParse("3Gi"),
@@ -171,7 +171,7 @@ func TestNodeResourceEstimator_EstimateComponents(t *testing.T) {
 					Replicas: 2,
 				},
 				{
-					ReplicaRequirements: pb.ReplicaRequirements{
+					ReplicaRequirements: pb.ComponentReplicaRequirements{
 						ResourceRequest: corev1.ResourceList{
 							corev1.ResourceCPU:    resource.MustParse("2"),
 							corev1.ResourceMemory: resource.MustParse("2Gi"),
@@ -195,7 +195,7 @@ func TestNodeResourceEstimator_EstimateComponents(t *testing.T) {
 			},
 			components: []pb.Component{
 				{
-					ReplicaRequirements: pb.ReplicaRequirements{
+					ReplicaRequirements: pb.ComponentReplicaRequirements{
 						ResourceRequest: corev1.ResourceList{
 							corev1.ResourceCPU:    resource.MustParse("3"),
 							corev1.ResourceMemory: resource.MustParse("3Gi"),
@@ -225,7 +225,7 @@ func TestNodeResourceEstimator_EstimateComponents(t *testing.T) {
 			},
 			components: []pb.Component{
 				{
-					ReplicaRequirements: pb.ReplicaRequirements{
+					ReplicaRequirements: pb.ComponentReplicaRequirements{
 						ResourceRequest: corev1.ResourceList{
 							corev1.ResourceCPU:    resource.MustParse("1"),
 							corev1.ResourceMemory: resource.MustParse("2Gi"),
@@ -254,7 +254,7 @@ func TestNodeResourceEstimator_EstimateComponents(t *testing.T) {
 			},
 			components: []pb.Component{
 				{
-					ReplicaRequirements: pb.ReplicaRequirements{
+					ReplicaRequirements: pb.ComponentReplicaRequirements{
 						ResourceRequest: corev1.ResourceList{
 							corev1.ResourceCPU:    resource.MustParse("1"),
 							corev1.ResourceMemory: resource.MustParse("1Gi"),
@@ -298,7 +298,7 @@ func TestNodeResourceEstimator_EstimateComponents(t *testing.T) {
 			},
 			components: []pb.Component{
 				{
-					ReplicaRequirements: pb.ReplicaRequirements{
+					ReplicaRequirements: pb.ComponentReplicaRequirements{
 						ResourceRequest: corev1.ResourceList{
 							corev1.ResourceCPU:    resource.MustParse("1"),
 							corev1.ResourceMemory: resource.MustParse("1Gi"),
@@ -352,7 +352,7 @@ func TestNodeResourceEstimator_EstimateComponents(t *testing.T) {
 			}
 
 			// Execute test
-			result, status := pl.EstimateComponents(context.Background(), snapshot, tt.components)
+			result, status := pl.EstimateComponents(context.Background(), snapshot, tt.components, "")
 
 			// Verify results
 			if result != tt.expected {

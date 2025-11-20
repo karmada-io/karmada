@@ -81,7 +81,7 @@ func (es *AccurateSchedulerEstimatorServer) EstimateComponents(ctx context.Conte
 		return 0, nil
 	}
 
-	maxAvailableComponentSets, err := es.estimateComponents(ctx, snapShot, request.Components)
+	maxAvailableComponentSets, err := es.estimateComponents(ctx, snapShot, request.Components, request.Namespace)
 	if err != nil {
 		return 0, err
 	}
@@ -90,12 +90,8 @@ func (es *AccurateSchedulerEstimatorServer) EstimateComponents(ctx context.Conte
 	return maxAvailableComponentSets, nil
 }
 
-func (es *AccurateSchedulerEstimatorServer) estimateComponents(
-	ctx context.Context,
-	snapshot *schedcache.Snapshot,
-	components []pb.Component,
-) (int32, error) {
-	maxSets, ret := es.estimateFramework.RunEstimateComponentsPlugins(ctx, snapshot, components)
+func (es *AccurateSchedulerEstimatorServer) estimateComponents(ctx context.Context, snapshot *schedcache.Snapshot, components []pb.Component, namespace string) (int32, error) {
+	maxSets, ret := es.estimateFramework.RunEstimateComponentsPlugins(ctx, snapshot, components, namespace)
 
 	// No replicas can be scheduled on the cluster, skip further checks and return 0
 	if ret.IsUnschedulable() {

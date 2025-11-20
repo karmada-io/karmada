@@ -59,7 +59,7 @@ func (pl *TestPlugin) Estimate(_ context.Context, _ *schedcache.Snapshot, _ *pb.
 	return pl.inj.estimateReplicaResult.replica, pl.inj.estimateReplicaResult.ret
 }
 
-func (pl *TestPlugin) EstimateComponents(_ context.Context, _ *schedcache.Snapshot, _ []pb.Component) (int32, *framework.Result) {
+func (pl *TestPlugin) EstimateComponents(_ context.Context, _ *schedcache.Snapshot, _ []pb.Component, _ string) (int32, *framework.Result) {
 	return pl.inj.estimateComponentsResult.sets, pl.inj.estimateComponentsResult.ret
 }
 
@@ -452,7 +452,7 @@ func Test_frameworkImpl_RunEstimateComponentsPlugins(t *testing.T) {
 			if err != nil {
 				t.Errorf("create frame work error:%v", err)
 			}
-			sets, ret := f.RunEstimateComponentsPlugins(ctx, nil, []pb.Component{})
+			sets, ret := f.RunEstimateComponentsPlugins(ctx, nil, []pb.Component{}, "")
 
 			require.Equal(t, tt.expected.ret.Code(), ret.Code())
 			assert.ElementsMatch(t, tt.expected.ret.Reasons(), ret.Reasons())
