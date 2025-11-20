@@ -356,6 +356,9 @@ func isQuotaRelevantFieldChanged(oldRB, newRB *workv1alpha2.ResourceBinding) boo
 	if isScheduledReplicasChanged(oldRB, newRB) {
 		return true
 	}
+	if (len(oldRB.Spec.Components) != 0 || len(newRB.Spec.Components) != 0) && isScheduledClusterChanged(oldRB, newRB) {
+		return true
+	}
 	return isComponentsChanged(oldRB, newRB)
 }
 
@@ -381,6 +384,22 @@ func isScheduledReplicasChanged(oldRB, newRB *workv1alpha2.ResourceBinding) bool
 		newScheduledReplicas += c.Replicas
 	}
 	return oldScheduledReplicas != newScheduledReplicas
+}
+
+func isScheduledClusterChanged(oldRB, newRB *workv1alpha2.ResourceBinding) bool {
+	if len(oldRB.Spec.Clusters) != len(newRB.Spec.Clusters) {
+		return true
+	}
+	oldClusterMap := make(map[string]struct{})
+	for _, c := range oldRB.Spec.Clusters {
+		oldClusterMap[c.Name] = struct{}{}
+	}
+	for _, c := range newRB.Spec.Clusters {
+		if _, exists := oldClusterMap[c.Name]; !exists {
+			return true
+		}
+	}
+	return false
 }
 
 func isComponentsChanged(oldRB, newRB *workv1alpha2.ResourceBinding) bool {

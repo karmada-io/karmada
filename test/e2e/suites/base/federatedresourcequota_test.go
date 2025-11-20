@@ -27,14 +27,19 @@ import (
 	"github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/conversion"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/yaml"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -53,6 +58,11 @@ const waitTimeout = 3 * time.Second
 
 var admissionWebhookDenyMsgPrefix = "admission webhook \"resourcebinding.karmada.io\" denied the request"
 
+var checker = conversion.EqualitiesOrDie(
+	func(a, b resource.Quantity) bool {
+		return a.Equal(b)
+	})
+
 var _ = framework.SerialDescribe("FederatedResourceQuota auto-provision testing", func() {
 	var frqNamespace, frqName string
 	var federatedResourceQuota *policyv1alpha1.FederatedResourceQuota
@@ -67,7 +77,7 @@ var _ = framework.SerialDescribe("FederatedResourceQuota auto-provision testing"
 		f = cmdutil.NewFactory(defaultConfigFlags)
 	})
 
-	ginkgo.It("CURD a federatedResourceQuota", func() {
+	ginkgo.It("CURD a FederatedResourceQuota", func() {
 		var clusters = framework.ClusterNames()
 		federatedResourceQuota = helper.NewFederatedResourceQuota(frqNamespace, frqName, framework.ClusterNames())
 		ginkgo.By("[Create] federatedResourceQuota should be propagated to member clusters", func() {
@@ -75,7 +85,7 @@ var _ = framework.SerialDescribe("FederatedResourceQuota auto-provision testing"
 			framework.WaitResourceQuotaPresentOnClusters(clusters, frqNamespace, frqName)
 		})
 
-		ginkgo.By("[Update] federatedResourceQuota should be propagated to member clusters according to the new staticAssignments", func() {
+		ginkgo.By("[Update] FederatedResourceQuota should be propagated to member clusters according to the new staticAssignments", func() {
 			clusters = []string{framework.ClusterNames()[0]}
 			federatedResourceQuota = helper.NewFederatedResourceQuota(frqNamespace, frqName, clusters)
 			patch := []map[string]interface{}{
@@ -90,7 +100,7 @@ var _ = framework.SerialDescribe("FederatedResourceQuota auto-provision testing"
 			framework.WaitResourceQuotaDisappearOnClusters(framework.ClusterNames()[1:], frqNamespace, frqName)
 		})
 
-		ginkgo.By("[Delete] federatedResourceQuota should be removed from member clusters", func() {
+		ginkgo.By("[Delete] FederatedResourceQuota should be removed from member clusters", func() {
 			framework.RemoveFederatedResourceQuota(karmadaClient, frqNamespace, frqName)
 			framework.WaitResourceQuotaDisappearOnClusters(clusters, frqNamespace, frqName)
 		})
@@ -180,7 +190,7 @@ var _ = framework.SerialDescribe("FederatedResourceQuota auto-provision testing"
 			framework.RemoveFederatedResourceQuota(karmadaClient, frqNamespace, frqName)
 		})
 
-		ginkgo.It("federatedResourceQuota should only be propagated to newly joined cluster if the new cluster is declared in the StaticAssignment", func() {
+		ginkgo.It("FederatedResourceQuota should only be propagated to newly joined cluster if the new cluster is declared in the StaticAssignment", func() {
 			ginkgo.By(fmt.Sprintf("Joining cluster: %s", clusterNameInStaticAssignment), func() {
 				opts := join.CommandJoinOption{
 					DryRun:            false,
@@ -193,7 +203,7 @@ var _ = framework.SerialDescribe("FederatedResourceQuota auto-provision testing"
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 
-			ginkgo.By(fmt.Sprintf("waiting federatedResourceQuota(%s/%s) present on cluster: %s", frqNamespace, frqName, clusterNameInStaticAssignment), func() {
+			ginkgo.By(fmt.Sprintf("waiting FederatedResourceQuota(%s/%s) present on cluster: %s", frqNamespace, frqName, clusterNameInStaticAssignment), func() {
 				clusterClient, err := util.NewClusterClientSet(clusterNameInStaticAssignment, controlPlaneClient, nil)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
@@ -216,7 +226,7 @@ var _ = framework.SerialDescribe("FederatedResourceQuota auto-provision testing"
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			})
 
-			ginkgo.By(fmt.Sprintf("check if federatedResourceQuota(%s/%s) present on cluster: %s", frqNamespace, frqName, clusterNameNotInStaticAssignment), func() {
+			ginkgo.By(fmt.Sprintf("check if FederatedResourceQuota(%s/%s) present on cluster: %s", frqNamespace, frqName, clusterNameNotInStaticAssignment), func() {
 				clusterClient, err := util.NewClusterClientSet(clusterNameNotInStaticAssignment, controlPlaneClient, nil)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
@@ -238,12 +248,12 @@ var _ = framework.SerialDescribe("[FederatedResourceQuota] status collection tes
 		federatedResourceQuota = helper.NewFederatedResourceQuota(frqNamespace, frqName, framework.ClusterNames())
 	})
 
-	ginkgo.Context("collect federatedResourceQuota status", func() {
+	ginkgo.Context("collect FederatedResourceQuota status", func() {
 		ginkgo.AfterEach(func() {
 			framework.RemoveFederatedResourceQuota(karmadaClient, frqNamespace, frqName)
 		})
 
-		ginkgo.It("federatedResourceQuota status should be collect correctly", func() {
+		ginkgo.It("FederatedResourceQuota status should be collect correctly", func() {
 			framework.CreateFederatedResourceQuota(karmadaClient, federatedResourceQuota)
 			framework.WaitFederatedResourceQuotaCollectStatus(karmadaClient, frqNamespace, frqName)
 
@@ -297,7 +307,7 @@ var _ = ginkgo.Describe("FederatedResourceQuota enforcement testing", func() {
 			deploymentNamespace = deployNamespace
 			deploymentName = policyName
 
-			ginkgo.By("Creating federatedResourceQuota", func() {
+			ginkgo.By("Creating FederatedResourceQuota", func() {
 				overall = corev1.ResourceList{
 					"cpu":    resource.MustParse("10m"),
 					"memory": resource.MustParse("100Mi"),
@@ -305,9 +315,7 @@ var _ = ginkgo.Describe("FederatedResourceQuota enforcement testing", func() {
 				federatedResourceQuota = helper.NewFederatedResourceQuotaWithOverall(frqNamespace, frqName, overall)
 				framework.CreateFederatedResourceQuota(karmadaClient, federatedResourceQuota)
 				framework.WaitFederatedResourceQuotaFitWith(karmadaClient, frqNamespace, frqName, func(frq *policyv1alpha1.FederatedResourceQuota) bool {
-					// To avoid race condition, ensure that OverallUsed is not nil first, and then deployment can be created.
-					// MoreInfo can refer to https://github.com/karmada-io/karmada/pull/6876#issuecomment-3455446833.
-					return frq.Status.Overall != nil
+					return checker.DeepEqual(frq.Status.Overall, overall)
 				})
 				ginkgo.DeferCleanup(func() {
 					framework.RemoveFederatedResourceQuota(karmadaClient, frqNamespace, frqName)
@@ -481,6 +489,154 @@ var _ = ginkgo.Describe("FederatedResourceQuota enforcement testing", func() {
 				framework.WaitDeploymentPresentOnClustersFitWith(clusterNames, deploymentNamespace, deploymentName, func(deployment *appsv1.Deployment) bool {
 					return *deployment.Spec.Replicas == 1
 				})
+			})
+		})
+	})
+})
+
+var _ = ginkgo.Describe("Multi-Components: FederatedResourceQuota enforcement testing", func() {
+	ginkgo.Context("The FederatedResourceQuota usage should be calculated correctly", func() {
+		var (
+			frqNamespace, frqName    string
+			flinkDeploymentCRD       apiextensionsv1.CustomResourceDefinition
+			flinkDeploymentNamespace string
+			flinkDeploymentName      string
+			flinkDeploymentObj       *unstructured.Unstructured
+			flinkDeploymentGVR       schema.GroupVersionResource
+			federatedResourceQuota   *policyv1alpha1.FederatedResourceQuota
+		)
+
+		ginkgo.BeforeEach(func() {
+			ginkgo.By("create FlinkDeployment CRD on karmada control plane", func() {
+				err := yaml.Unmarshal([]byte(flinkDeploymentCRDYAML), &flinkDeploymentCRD)
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+				framework.CreateCRD(dynamicClient, &flinkDeploymentCRD)
+				ginkgo.DeferCleanup(func() {
+					framework.RemoveCRD(dynamicClient, flinkDeploymentCRD.Name)
+				})
+			})
+
+			ginkgo.By("create FederatedResourceQuota for FlinkDeployment", func() {
+				// To avoid conflicts with other test cases, use random strings to generate unique namespaces instead of using testNamespace.
+				frqNamespace = fmt.Sprintf("karmadatest-%s", rand.String(RandomStrLength))
+				err := setupTestNamespace(frqNamespace, kubeClient)
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				ginkgo.DeferCleanup(func() {
+					framework.RemoveNamespace(kubeClient, frqNamespace)
+				})
+				frqName = federatedResourceQuotaPrefix + rand.String(RandomStrLength)
+				overall := corev1.ResourceList{
+					"cpu":    resource.MustParse("10"),
+					"memory": resource.MustParse("1Gi"),
+				}
+				federatedResourceQuota = helper.NewFederatedResourceQuotaWithOverall(frqNamespace, frqName, overall)
+				framework.CreateFederatedResourceQuota(karmadaClient, federatedResourceQuota)
+				framework.WaitFederatedResourceQuotaFitWith(karmadaClient, frqNamespace, frqName, func(frq *policyv1alpha1.FederatedResourceQuota) bool {
+					return checker.DeepEqual(frq.Status.Overall, overall)
+				})
+				ginkgo.DeferCleanup(func() {
+					framework.RemoveFederatedResourceQuota(karmadaClient, frqNamespace, frqName)
+				})
+			})
+
+			ginkgo.By("propagate FlinkDeployment CRD to all clusters", func() {
+				cpp := helper.NewClusterPropagationPolicy("flink-deployment-cpp", []policyv1alpha1.ResourceSelector{
+					{
+						APIVersion: flinkDeploymentCRD.APIVersion,
+						Kind:       flinkDeploymentCRD.Kind,
+						Name:       flinkDeploymentCRD.Name,
+					},
+				}, policyv1alpha1.Placement{
+					ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+						ClusterNames: framework.ClusterNames(),
+					},
+				})
+
+				framework.CreateClusterPropagationPolicy(karmadaClient, cpp)
+				framework.WaitCRDPresentOnClusters(karmadaClient, framework.ClusterNames(),
+					fmt.Sprintf("%s/%s", flinkDeploymentCRD.Spec.Group, "v1beta1"), flinkDeploymentCRD.Spec.Names.Kind)
+				ginkgo.DeferCleanup(func() {
+					framework.RemoveClusterPropagationPolicy(karmadaClient, cpp.Name)
+				})
+			})
+
+			ginkgo.By("create FlinkDeployment on karmada control plane", func() {
+				flinkDeploymentNamespace = frqNamespace
+				flinkDeploymentName = fmt.Sprintf("flinkdeployment-%s", rand.String(RandomStrLength))
+				flinkDeploymentObj = &unstructured.Unstructured{}
+				err := yaml.Unmarshal([]byte(flinkDeploymentCRYAML), flinkDeploymentObj)
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+				flinkDeploymentObj.SetNamespace(flinkDeploymentNamespace)
+				flinkDeploymentObj.SetName(flinkDeploymentName)
+				err = unstructured.SetNestedField(flinkDeploymentObj.Object, int64(3), "spec", "jobManager", "replicas")
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				err = unstructured.SetNestedField(flinkDeploymentObj.Object, map[string]interface{}{
+					"cpu":    int64(2),
+					"memory": "50Mi",
+				}, "spec", "jobManager", "resource")
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				err = unstructured.SetNestedField(flinkDeploymentObj.Object, map[string]interface{}{
+					"cpu":    int64(1),
+					"memory": "100Mi",
+				}, "spec", "taskManager", "resource")
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+				flinkDeploymentGVR = schema.GroupVersionResource{
+					Group:    flinkDeploymentObj.GroupVersionKind().Group,
+					Version:  flinkDeploymentObj.GroupVersionKind().Version,
+					Resource: "flinkdeployments",
+				}
+
+				_, err = dynamicClient.Resource(flinkDeploymentGVR).Namespace(flinkDeploymentNamespace).
+					Create(context.Background(), flinkDeploymentObj, metav1.CreateOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				ginkgo.DeferCleanup(func() {
+					err := dynamicClient.Resource(flinkDeploymentGVR).Namespace(flinkDeploymentNamespace).
+						Delete(context.Background(), flinkDeploymentName, metav1.DeleteOptions{})
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				})
+			})
+
+			ginkgo.By("propagate FlinkDeployment resource to one cluster", func() {
+				pp := helper.NewPropagationPolicy(flinkDeploymentNamespace, flinkDeploymentName, []policyv1alpha1.ResourceSelector{
+					{
+						APIVersion: flinkDeploymentObj.GetAPIVersion(),
+						Kind:       flinkDeploymentObj.GetKind(),
+						Name:       flinkDeploymentObj.GetName(),
+					},
+				}, policyv1alpha1.Placement{
+					ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+						ClusterNames: framework.ClusterNames(),
+					},
+					SpreadConstraints: []policyv1alpha1.SpreadConstraint{
+						{
+							SpreadByField: policyv1alpha1.SpreadByFieldCluster,
+							MaxGroups:     1,
+							MinGroups:     1,
+						},
+					},
+					ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+						ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+						ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceAggregated,
+					},
+				})
+				framework.CreatePropagationPolicy(karmadaClient, pp)
+				ginkgo.DeferCleanup(func() {
+					framework.RemovePropagationPolicy(karmadaClient, pp.Namespace, pp.Name)
+				})
+			})
+		})
+
+		ginkgo.It("FederatedResourceQuota usage should be calculated correctly", func() {
+			framework.WaitFederatedResourceQuotaFitWith(karmadaClient, frqNamespace, frqName, func(frq *policyv1alpha1.FederatedResourceQuota) bool {
+				expectedUsed := corev1.ResourceList{
+					"cpu":    resource.MustParse("7"),
+					"memory": resource.MustParse("250Mi"),
+				}
+				return frq.Status.OverallUsed != nil && frq.Status.OverallUsed.Cpu().Equal(*expectedUsed.Cpu()) &&
+					frq.Status.OverallUsed.Memory().Equal(*expectedUsed.Memory())
 			})
 		})
 	})
