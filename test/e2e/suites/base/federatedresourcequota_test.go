@@ -494,7 +494,8 @@ var _ = ginkgo.Describe("FederatedResourceQuota enforcement testing", func() {
 	})
 })
 
-var _ = ginkgo.Describe("Multi-Components: FederatedResourceQuota enforcement testing", func() {
+// This test case needs to create and clean up FlinkDeployment CRD, which may affect other test cases running in parallel. Therefore, it is set to run serially.
+var _ = framework.SerialDescribe("Multi-Components: FederatedResourceQuota enforcement testing", func() {
 	ginkgo.Context("The FederatedResourceQuota usage should be calculated correctly", func() {
 		var (
 			frqNamespace, frqName    string
