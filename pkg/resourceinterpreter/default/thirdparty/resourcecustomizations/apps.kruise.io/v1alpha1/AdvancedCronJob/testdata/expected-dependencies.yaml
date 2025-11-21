@@ -1,0 +1,9 @@
+dependencies:
+  - apiVersion: v1
+    kind: ConfigMap
+    name: my-sample-config
+    namespace: test-acj
+  - apiVersion: v1
+    kind: ConfigMap
+    name: mysql-config
+    namespace: test-acj

@@ -2,5 +2,7 @@ tests:
   - desiredInputPath: testdata/desired-acj-nginx.yaml
     statusInputPath: testdata/status-file.yaml
     operation: AggregateStatus
+    expectedOutputPath: testdata/expected-aggregatestatus.yaml
   - desiredInputPath: testdata/desired-acj-nginx.yaml
     operation: InterpretDependency
+    expectedOutputPath: testdata/expected-dependencies.yaml
