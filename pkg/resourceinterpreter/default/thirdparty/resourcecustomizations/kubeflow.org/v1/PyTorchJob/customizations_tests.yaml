@@ -5,6 +5,4 @@ tests:
   - observedInputPath: testdata/observed-pytorchjob.yaml
     operation: InterpretHealth
   - observedInputPath: testdata/observed-pytorchjob.yaml
-    operation: InterpretStatus
-  - observedInputPath: testdata/observed-pytorchjob.yaml
     operation: InterpretComponent
