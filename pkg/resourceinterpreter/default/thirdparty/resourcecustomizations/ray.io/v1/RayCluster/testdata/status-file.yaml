@@ -46,3 +46,42 @@ status:
   state: ready
   stateTransitionTimes:
     ready: "2025-09-21T03:55:45Z"
+---
+applied: true
+clusterName: member2
+status:
+  availableWorkerReplicas: 2
+  conditions:
+  - lastTransitionTime: "2025-09-21T03:56:30Z"
+    message: ""
+    reason: HeadPodRunningAndReady
+    status: "True"
+    type: HeadPodReady
+  - lastTransitionTime: "2025-09-21T03:56:50Z"
+    message: All Ray Pods are ready for the first time
+    reason: AllPodRunningAndReadyFirstTime
+    status: "True"
+    type: RayClusterProvisioned
+  - lastTransitionTime: "2025-09-21T03:54:50Z"
+    message: ""
+    reason: RayClusterSuspended
+    status: "False"
+    type: RayClusterSuspended
+  - lastTransitionTime: "2025-09-21T03:54:50Z"
+    message: ""
+    reason: RayClusterSuspending
+    status: "False"
+    type: RayClusterSuspending
+  desiredCPU: "4"
+  desiredGPU: "1"
+  desiredMemory: 5G
+  desiredTPU: "0"
+  desiredWorkerReplicas: 3
+  lastUpdateTime: "2025-09-21T03:56:50Z"
+  maxWorkerReplicas: 10
+  minWorkerReplicas: 2
+  observedGeneration: 2
+  readyWorkerReplicas: 3
+  state: ready
+  stateTransitionTimes:
+    ready: "2025-09-21T03:56:50Z"

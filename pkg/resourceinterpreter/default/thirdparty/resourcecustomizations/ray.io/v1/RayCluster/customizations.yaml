@@ -113,9 +113,13 @@ spec:
           for i = 1, #statusItems do
             local currentStatus = statusItems[i].status
             if currentStatus ~= nil then
-              -- Merge conditions from all clusters
+              -- Merge conditions from all clusters with cluster name context
               if currentStatus.conditions ~= nil then
                 for _, condition in ipairs(currentStatus.conditions) do
+                  -- Add cluster name to identify the source cluster
+                  if statusItems[i].clusterName ~= nil then
+                    condition.clusterName = statusItems[i].clusterName
+                  end
                   table.insert(conditions, condition)
                 end
               end
@@ -207,29 +211,4 @@ spec:
           desiredObj.status.stateTransitionTimes = stateTransitionTimes
 
           return desiredObj
-        end
-    statusReflection:
-      luaScript: >
-        function ReflectStatus(observedObj)
-          status = {}
-          if observedObj == nil or observedObj.status == nil then
-            return status
-          end
-          status.state = observedObj.status.state
-          status.stateTransitionTimes = observedObj.status.stateTransitionTimes
-          status.conditions = observedObj.status.conditions
-          status.desiredCPU = observedObj.status.desiredCPU
-          status.desiredGPU = observedObj.status.desiredGPU
-          status.desiredMemory = observedObj.status.desiredMemory
-          status.desiredTPU = observedObj.status.desiredTPU
-          status.desiredWorkerReplicas = observedObj.status.desiredWorkerReplicas
-          status.availableWorkerReplicas = observedObj.status.availableWorkerReplicas
-          status.endpoints = observedObj.status.endpoints
-          status.head = observedObj.status.head
-          status.lastUpdateTime = observedObj.status.lastUpdateTime
-          status.maxWorkerReplicas = observedObj.status.maxWorkerReplicas
-          status.minWorkerReplicas = observedObj.status.minWorkerReplicas
-          status.observedGeneration = observedObj.status.observedGeneration
-          status.readyWorkerReplicas = observedObj.status.readyWorkerReplicas
-          return status
         end

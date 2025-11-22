@@ -5,6 +5,4 @@ tests:
   - observedInputPath: testdata/observed-raycluster.yaml
     operation: InterpretHealth
   - observedInputPath: testdata/observed-raycluster.yaml
-    operation: InterpretStatus
-  - observedInputPath: testdata/observed-raycluster.yaml
     operation: InterpretComponent
