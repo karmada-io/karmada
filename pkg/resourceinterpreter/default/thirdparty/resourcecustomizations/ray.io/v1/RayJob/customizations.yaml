@@ -1,0 +1,229 @@
+apiVersion: config.karmada.io/v1alpha1
+kind: ResourceInterpreterCustomization
+metadata:
+  name: declarative-configuration-rayjob
+spec:
+  target:
+    apiVersion: ray.io/v1
+    kind: RayJob
+  customizations:
+    componentResource:
+      luaScript: |
+        local kube = require("kube")
+
+        local function isempty(s)
+          return s == nil or s == ''
+        end
+
+        function GetComponents(desiredObj)
+          local components = {}
+
+          -- RayJob contains a RayCluster spec
+          if desiredObj.spec == nil or desiredObj.spec.rayClusterSpec == nil then
+            return components
+          end
+
+          local clusterSpec = desiredObj.spec.rayClusterSpec
+
+          -- Head component (always 1 replica)
+          if clusterSpec.headGroupSpec ~= nil and clusterSpec.headGroupSpec.template ~= nil then
+            local headRequires = kube.accuratePodRequirements(clusterSpec.headGroupSpec.template)
+            local headComponent = {
+              name = "ray-head",
+              replicas = 1,
+              replicaRequirements = headRequires
+            }
+            table.insert(components, headComponent)
+          end
+
+          -- Worker group components
+          if clusterSpec.workerGroupSpecs ~= nil then
+            for i, workerGroup in ipairs(clusterSpec.workerGroupSpecs) do
+              local name = workerGroup.groupName
+              if isempty(name) then
+                name = "worker-" .. tostring(i)
+              end
+              local replicas = workerGroup.replicas or 0
+              local requires = nil
+              if workerGroup.template ~= nil then
+                requires = kube.accuratePodRequirements(workerGroup.template)
+              end
+              local wgComponent = {
+                name = name,
+                replicas = replicas,
+                replicaRequirements = requires
+              }
+              table.insert(components, wgComponent)
+            end
+          end
+
+          return components
+        end
+    healthInterpretation:
+      luaScript: >
+        function InterpretHealth(observedObj)
+          if observedObj.status == nil then
+            return false
+          end
+          
+          local jobDeploymentStatus = observedObj.status.jobDeploymentStatus
+          local jobStatus = observedObj.status.jobStatus
+          
+          -- Consider healthy if job is running or completed successfully
+          if jobDeploymentStatus == 'Running' then
+            return true
+          end
+          
+          if jobDeploymentStatus == 'Complete' and jobStatus == 'SUCCEEDED' then
+            return true
+          end
+          
+          -- Unhealthy states
+          if jobDeploymentStatus == 'Failed' or jobDeploymentStatus == 'ValidationFailed' then
+            return false
+          end
+          
+          if jobStatus == 'FAILED' or jobStatus == 'STOPPED' then
+            return false
+          end
+          
+          -- Initializing, Waiting, Retrying, Suspending, Suspended are transitional - not fully healthy yet
+          return false
+        end
+    statusAggregation:
+      luaScript: >
+        function AggregateStatus(desiredObj, statusItems)
+          if statusItems == nil then
+            return desiredObj
+          end
+          if desiredObj.status == nil then
+            desiredObj.status = {}
+          end
+
+          -- If only one item, use it directly
+          if #statusItems == 1 then
+            desiredObj.status = statusItems[1].status
+            return desiredObj
+          end
+
+          -- Initialize aggregated values
+          local jobId = nil
+          local rayClusterName = nil
+          local dashboardURL = nil
+          local jobStatus = nil
+          local jobDeploymentStatus = nil
+          local reason = nil
+          local message = nil
+          local startTime = nil
+          local endTime = nil
+          local succeeded = 0
+          local failed = 0
+          local observedGeneration = nil
+          local rayJobStatusInfo = nil
+          local rayClusterStatus = nil
+
+          -- Priority for jobDeploymentStatus (worst state wins)
+          local deploymentStatusPriority = {
+            [""] = 0,
+            ["Initializing"] = 1,
+            ["Waiting"] = 2,
+            ["Suspending"] = 3,
+            ["Suspended"] = 3,
+            ["Retrying"] = 4,
+            ["Running"] = 5,
+            ["Complete"] = 6,
+            ["ValidationFailed"] = 7,
+            ["Failed"] = 8,
+          }
+
+          local worstDeploymentPriority = -1
+
+          -- Aggregate status from all member clusters
+          for i = 1, #statusItems do
+            local currentStatus = statusItems[i].status
+            if currentStatus ~= nil then
+              -- Take the worst jobDeploymentStatus
+              if currentStatus.jobDeploymentStatus ~= nil then
+                local priority = deploymentStatusPriority[currentStatus.jobDeploymentStatus] or 0
+                if priority > worstDeploymentPriority then
+                  worstDeploymentPriority = priority
+                  jobDeploymentStatus = currentStatus.jobDeploymentStatus
+                  reason = currentStatus.reason
+                  message = currentStatus.message
+                end
+              end
+
+              -- Take first non-nil jobStatus (should be same across clusters)
+              if jobStatus == nil and currentStatus.jobStatus ~= nil and currentStatus.jobStatus ~= "" then
+                jobStatus = currentStatus.jobStatus
+              end
+
+              -- Take first non-nil identifiers
+              if jobId == nil and currentStatus.jobId ~= nil then
+                jobId = currentStatus.jobId
+              end
+              if rayClusterName == nil and currentStatus.rayClusterName ~= nil then
+                rayClusterName = currentStatus.rayClusterName
+              end
+              if dashboardURL == nil and currentStatus.dashboardURL ~= nil then
+                dashboardURL = currentStatus.dashboardURL
+              end
+
+              -- Take earliest startTime
+              if currentStatus.startTime ~= nil then
+                if startTime == nil or currentStatus.startTime < startTime then
+                  startTime = currentStatus.startTime
+                end
+              end
+
+              -- Take latest endTime
+              if currentStatus.endTime ~= nil then
+                if endTime == nil or currentStatus.endTime > endTime then
+                  endTime = currentStatus.endTime
+                end
+              end
+
+              -- Sum succeeded and failed counts
+              if currentStatus.succeeded ~= nil then
+                succeeded = succeeded + currentStatus.succeeded
+              end
+              if currentStatus.failed ~= nil then
+                failed = failed + currentStatus.failed
+              end
+
+              -- Take minimum observedGeneration (most conservative)
+              if currentStatus.observedGeneration ~= nil then
+                if observedGeneration == nil or currentStatus.observedGeneration < observedGeneration then
+                  observedGeneration = currentStatus.observedGeneration
+                end
+              end
+
+              -- Take first non-nil rayJobStatusInfo and rayClusterStatus
+              if rayJobStatusInfo == nil and currentStatus.rayJobInfo ~= nil then
+                rayJobStatusInfo = currentStatus.rayJobInfo
+              end
+              if rayClusterStatus == nil and currentStatus.rayClusterStatus ~= nil then
+                rayClusterStatus = currentStatus.rayClusterStatus
+              end
+            end
+          end
+
+          -- Set aggregated status
+          desiredObj.status.jobId = jobId
+          desiredObj.status.rayClusterName = rayClusterName
+          desiredObj.status.dashboardURL = dashboardURL
+          desiredObj.status.jobStatus = jobStatus
+          desiredObj.status.jobDeploymentStatus = jobDeploymentStatus
+          desiredObj.status.reason = reason
+          desiredObj.status.message = message
+          desiredObj.status.startTime = startTime
+          desiredObj.status.endTime = endTime
+          desiredObj.status.succeeded = succeeded
+          desiredObj.status.failed = failed
+          desiredObj.status.observedGeneration = observedGeneration
+          desiredObj.status.rayJobInfo = rayJobStatusInfo
+          desiredObj.status.rayClusterStatus = rayClusterStatus
+
+          return desiredObj
+        end
+
