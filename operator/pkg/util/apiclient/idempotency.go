@@ -26,6 +26,7 @@ import (
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	crdsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
@@ -400,4 +401,28 @@ func GetService(client clientset.Interface, name, namespace string) (*corev1.Ser
 
 func containsLabels(object metav1.ObjectMeta, ls labels.Set) bool {
 	return ls.AsSelector().Matches(labels.Set(object.GetLabels()))
+}
+
+// CreateOrUpdatePodDisruptionBudget creates a PodDisruptionBudget if the target resource doesn't exist. If the resource exists already, this function will update the resource instead.
+func CreateOrUpdatePodDisruptionBudget(client clientset.Interface, pdb *policyv1.PodDisruptionBudget) error {
+	existing, errGet := client.PolicyV1().PodDisruptionBudgets(pdb.GetNamespace()).Get(context.TODO(), pdb.GetName(), metav1.GetOptions{})
+	if errGet != nil {
+		if apierrors.IsNotFound(errGet) {
+			_, errC := client.PolicyV1().PodDisruptionBudgets(pdb.GetNamespace()).Create(context.TODO(), pdb, metav1.CreateOptions{})
+			if errC != nil {
+				return errC
+			}
+			klog.V(5).InfoS("Successfully created PodDisruptionBudget", "PodDisruptionBudget", pdb.GetName())
+		}
+
+		return errGet
+	}
+
+	pdb.ResourceVersion = existing.ResourceVersion
+	_, errUpdate := client.PolicyV1().PodDisruptionBudgets(pdb.GetNamespace()).Update(context.TODO(), pdb, metav1.UpdateOptions{})
+	if errUpdate != nil {
+		return errUpdate
+	}
+	klog.V(5).InfoS("Successfully updated PodDisruptionBudget", "PodDisruptionBudget", pdb.GetName())
+	return nil
 }
