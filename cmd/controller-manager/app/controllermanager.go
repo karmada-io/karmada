@@ -117,6 +117,9 @@ func NewControllerManagerCommand(ctx context.Context) *cobra.Command {
 	opts := options.NewOptions()
 	opts.AddFlags(genericFlagSet, controllers.ControllerNames(), sets.List(controllersDisabledByDefault))
 
+	clusterFailoverFlagSet := fss.FlagSet("cluster failover")
+	opts.ClusterFailoverOptions.AddFlags(clusterFailoverFlagSet)
+
 	cmd := &cobra.Command{
 		Use: names.KarmadaControllerManagerComponentName,
 		Long: "The karmada-controller-manager runs various controllers.\n" +
@@ -149,6 +152,7 @@ func NewControllerManagerCommand(ctx context.Context) *cobra.Command {
 	cmd.AddCommand(sharedcommand.NewCmdVersion(names.KarmadaControllerManagerComponentName))
 	cmd.Flags().AddFlagSet(genericFlagSet)
 	cmd.Flags().AddFlagSet(logsFlagSet)
+	cmd.Flags().AddFlagSet(clusterFailoverFlagSet)
 
 	cols, _, _ := term.TerminalSize(cmd.OutOrStdout())
 	sharedcli.SetUsageAndHelpFunc(cmd, fss, cols)
@@ -297,10 +301,10 @@ func startClusterController(ctx controllerscontext.Context) (enabled bool, err e
 			ClusterTaintEvictionRetryFrequency: 10 * time.Second,
 			ConcurrentReconciles:               3,
 			RateLimiterOptions:                 ctx.Opts.RateLimiterOptions,
-			EnableNoExecuteTaintEviction:       ctx.Opts.FailoverConfiguration.EnableNoExecuteTaintEviction,
-			NoExecuteTaintEvictionPurgeMode:    ctx.Opts.FailoverConfiguration.NoExecuteTaintEvictionPurgeMode,
+			EnableNoExecuteTaintEviction:       ctx.Opts.ClusterFailoverConfiguration.EnableNoExecuteTaintEviction,
+			NoExecuteTaintEvictionPurgeMode:    ctx.Opts.ClusterFailoverConfiguration.NoExecuteTaintEvictionPurgeMode,
 			EvictionQueueOptions: cluster.EvictionQueueOptions{
-				ResourceEvictionRate: ctx.Opts.FailoverConfiguration.ResourceEvictionRate,
+				ResourceEvictionRate: ctx.Opts.ClusterFailoverConfiguration.ResourceEvictionRate,
 			},
 		}
 		if err := taintManager.SetupWithManager(mgr); err != nil {
@@ -926,7 +930,7 @@ func setupControllers(ctx context.Context, mgr controllerruntime.Manager, opts *
 			EnableClusterResourceModeling:     opts.EnableClusterResourceModeling,
 			HPAControllerConfiguration:        opts.HPAControllerConfiguration,
 			FederatedResourceQuotaOptions:     opts.FederatedResourceQuotaOptions,
-			FailoverConfiguration:             opts.FailoverOptions,
+			ClusterFailoverConfiguration:      opts.ClusterFailoverOptions,
 		},
 		Context:                     ctx,
 		DynamicClientSet:            dynamicClientSet,

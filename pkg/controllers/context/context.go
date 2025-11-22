@@ -98,8 +98,8 @@ type Options struct {
 	HPAControllerConfiguration federatehpaconfig.HPAControllerConfiguration
 	// FederatedResourceQuotaOptions holds configurations for FederatedResourceQuota reconciliation.
 	FederatedResourceQuotaOptions options.FederatedResourceQuotaOptions
-	// FailoverConfiguration is the config of failover function.
-	FailoverConfiguration options.FailoverOptions
+	// ClusterFailoverConfiguration is the config of cluster failover function.
+	ClusterFailoverConfiguration options.ClusterFailoverOptions
 }
 
 // Context defines the context object for controller.
