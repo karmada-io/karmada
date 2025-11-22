@@ -366,6 +366,7 @@ func TestOnAdd(t *testing.T) {
 		name            string
 		obj             interface{}
 		expectedEnqueue bool
+		isInitialList   bool
 	}{
 		{
 			name: "valid unstructured object",
@@ -380,6 +381,21 @@ func TestOnAdd(t *testing.T) {
 				},
 			},
 			expectedEnqueue: true,
+		},
+		{
+			name: "valid unstructured object, with low priority",
+			obj: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":      "test-deployment",
+						"namespace": "default",
+					},
+				},
+			},
+			expectedEnqueue: true,
+			isInitialList:   true,
 		},
 		{
 			name: "invalid unstructured object",
@@ -410,7 +426,7 @@ func TestOnAdd(t *testing.T) {
 			d := &ResourceDetector{
 				Processor: mockProcessor,
 			}
-			d.OnAdd(tt.obj)
+			d.OnAdd(tt.obj, tt.isInitialList)
 			if tt.expectedEnqueue {
 				assert.Equal(t, 1, mockProcessor.enqueueCount, "Object should be enqueued")
 				assert.IsType(t, ResourceItem{}, mockProcessor.lastEnqueued, "Enqueued item should be of type ResourceItem")
@@ -1056,6 +1072,10 @@ func (m *mockAsyncWorker) Add(_ interface{}) {
 	m.enqueueCount++
 }
 func (m *mockAsyncWorker) AddAfter(_ interface{}, _ time.Duration) {}
+func (m *mockAsyncWorker) AddWithOpts(_ util.AddOpts, _ ...any)    {}
+func (m *mockAsyncWorker) EnqueueWithOpts(_ util.AddOpts, item any) {
+	m.Enqueue(item)
+}
 
 func (m *mockAsyncWorker) Run(_ context.Context, _ int) {}
 
