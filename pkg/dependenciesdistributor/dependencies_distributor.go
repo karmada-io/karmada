@@ -78,13 +78,6 @@ const (
 	dependedByLabelKeyPrefix = "resourcebinding.karmada.io/depended-by-"
 )
 
-// well-know annotations
-const (
-	// dependenciesAnnotationKey is added to the independent binding,
-	// it describes the names of dependencies (json serialized).
-	dependenciesAnnotationKey = "resourcebinding.karmada.io/dependencies"
-)
-
 // LabelsKey is the object key which is a unique identifier under a cluster, across all resources.
 type LabelsKey struct {
 	keys.ClusterWideKey
@@ -211,7 +204,7 @@ func (d *DependenciesDistributor) reconcileResourceTemplate(key util.QueueKey) e
 // matchesWithBindingDependencies tells if the given object(resource template) is matched
 // with the dependencies of independent resourceBinding.
 func matchesWithBindingDependencies(resourceTemplateKey *LabelsKey, independentBinding *workv1alpha2.ResourceBinding) bool {
-	dependencies, exist := independentBinding.Annotations[dependenciesAnnotationKey]
+	dependencies, exist := independentBinding.Annotations[util.DependenciesAnnotationKey]
 	if !exist {
 		return false
 	}
@@ -439,10 +432,10 @@ func (d *DependenciesDistributor) recordDependencies(ctx context.Context, indepe
 	}
 
 	// dependencies are not updated, no need to update annotation.
-	if oldDependencies, exist := objectAnnotation[dependenciesAnnotationKey]; exist && oldDependencies == dependenciesStr {
+	if oldDependencies, exist := objectAnnotation[util.DependenciesAnnotationKey]; exist && oldDependencies == dependenciesStr {
 		return nil
 	}
-	objectAnnotation[dependenciesAnnotationKey] = dependenciesStr
+	objectAnnotation[util.DependenciesAnnotationKey] = dependenciesStr
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
 		independentBinding.SetAnnotations(objectAnnotation)

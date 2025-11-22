@@ -105,6 +105,10 @@ const (
 
 	// EndpointSliceProvisionClusterAnnotation is added to work of the dispatch EndpointSlice in consumption clusters' namespace.
 	EndpointSliceProvisionClusterAnnotation = "endpointslice.karmada.io/provision-cluster"
+
+	// DependenciesAnnotationKey is added to the independent binding,
+	// it describes the names of dependencies (json serialized).
+	DependenciesAnnotationKey = "resourcebinding.karmada.io/dependencies"
 )
 
 // Define finalizers used by karmada system.

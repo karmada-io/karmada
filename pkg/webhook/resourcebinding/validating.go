@@ -18,6 +18,7 @@ package resourcebinding
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -32,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
+	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/features"
@@ -64,6 +66,11 @@ func (v *ValidatingAdmission) Handle(ctx context.Context, req admission.Request)
 	}
 	klog.V(2).Infof("Processing ResourceBinding(%s/%s) for request: %s (%s)", rb.Namespace, rb.Name, req.Operation, req.UID)
 
+	if err := v.validateBindingAnnotations(rb.Annotations, field.NewPath("metadata").Child("annotations")); err != nil {
+		klog.Errorf("Admission denied for ResourceBinding %s/%s: %v", rb.Namespace, rb.Name, err)
+		return admission.Denied(err.Error())
+	}
+
 	if err := v.validateFederatedResourceQuota(ctx, req, rb, oldRB); err != nil {
 		if apierrors.IsInternalError(err) {
 			klog.Errorf("Internal error while processing ResourceBinding %s/%s: %v", rb.Namespace, rb.Name, err)
@@ -81,6 +88,22 @@ func (v *ValidatingAdmission) Handle(ctx context.Context, req admission.Request)
 	}
 
 	return admission.Allowed("")
+}
+
+func (v *ValidatingAdmission) validateBindingAnnotations(annotations map[string]string, fldPath *field.Path) error {
+	var allErrs field.ErrorList
+
+	dependencies, exist := annotations[util.DependenciesAnnotationKey]
+	if !exist {
+		return nil
+	}
+	var dependenciesSlice []configv1alpha1.DependentObjectReference
+	err := json.Unmarshal([]byte(dependencies), &dependenciesSlice)
+	if err != nil {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child(util.DependenciesAnnotationKey), dependencies, "annotation value must be a valid JSON"))
+	}
+
+	return allErrs.ToAggregate()
 }
 
 // validateFederatedResourceQuota checks the FederatedResourceQuota for the ResourceBinding.

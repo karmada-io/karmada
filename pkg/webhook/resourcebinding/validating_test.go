@@ -118,6 +118,17 @@ func WithResourceRef(ref workv1alpha2.ObjectReference) RBOption {
 	}
 }
 
+func WithAnnotations(annotations map[string]string) RBOption {
+	return func(rb *workv1alpha2.ResourceBinding) {
+		if rb.Annotations == nil {
+			rb.Annotations = make(map[string]string)
+		}
+		for k, v := range annotations {
+			rb.Annotations[k] = v
+		}
+	}
+}
+
 func makeTestRB(namespace, name string, opts ...RBOption) *workv1alpha2.ResourceBinding {
 	defaultResourceRef := workv1alpha2.ObjectReference{
 		APIVersion: "v1", Kind: "Pod", Name: "test-pod-" + name, Namespace: namespace,
@@ -423,6 +434,48 @@ func TestValidatingAdmission_Handle(t *testing.T) {
 			clientObjects: []client.Object{frqForDecodeErrorCase},
 			enableFederatedQuotaEnforcementFeatureGate: true,
 			wantResponse: admission.Errored(http.StatusBadRequest, errors.New("decode failed")),
+		},
+		{
+			name: "valid dependencies annotation should be allowed",
+			req: newAdmissionRequestBuilder(t, admissionv1.Create, "default", "rb-valid-deps", "valid-deps").
+				WithObject(makeTestRB("default", "rb-valid-deps",
+					WithAnnotations(map[string]string{
+						"resourcebinding.karmada.io/dependencies": `[{"apiVersion":"v1","kind":"ConfigMap","namespace":"default","name":"my-config"}]`,
+					}))).
+				Build(),
+			decoder: &fakeDecoder{decodeObj: makeTestRB("default", "rb-valid-deps",
+				WithAnnotations(map[string]string{
+					"resourcebinding.karmada.io/dependencies": `[{"apiVersion":"v1","kind":"ConfigMap","namespace":"default","name":"my-config"}]`,
+				}))},
+			clientObjects: nil,
+			enableFederatedQuotaEnforcementFeatureGate: false,
+			wantResponse: admission.Allowed(""),
+		},
+		{
+			name: "invalid dependencies annotation should be denied",
+			req: newAdmissionRequestBuilder(t, admissionv1.Create, "default", "rb-invalid-deps", "invalid-deps").
+				WithObject(makeTestRB("default", "rb-invalid-deps",
+					WithAnnotations(map[string]string{
+						"resourcebinding.karmada.io/dependencies": `invalid-json-string`,
+					}))).
+				Build(),
+			decoder: &fakeDecoder{decodeObj: makeTestRB("default", "rb-invalid-deps",
+				WithAnnotations(map[string]string{
+					"resourcebinding.karmada.io/dependencies": `invalid-json-string`,
+				}))},
+			clientObjects: nil,
+			enableFederatedQuotaEnforcementFeatureGate: false,
+			wantResponse: admission.Denied("metadata.annotations.resourcebinding.karmada.io/dependencies: Invalid value: \"invalid-json-string\": annotation value must be a valid JSON"),
+		},
+		{
+			name: "no dependencies annotation should be allowed",
+			req: newAdmissionRequestBuilder(t, admissionv1.Create, "default", "rb-no-deps", "no-deps").
+				WithObject(makeTestRB("default", "rb-no-deps")).
+				Build(),
+			decoder:       &fakeDecoder{decodeObj: makeTestRB("default", "rb-no-deps")},
+			clientObjects: nil,
+			enableFederatedQuotaEnforcementFeatureGate: false,
+			wantResponse: admission.Allowed(""),
 		},
 		{
 			name: "create operation not yet scheduled should be allowed",
