@@ -44,7 +44,7 @@ type Framework interface {
 	// The integer represents the minimum calculated value of estimated component sets from each EstimateComponentsPlugin.
 	// The Result contains code, reasons and error.
 	// It is merged from all plugins' returned result codes.
-	RunEstimateComponentsPlugins(ctx context.Context, snapshot *schedcache.Snapshot, components []pb.Component) (int32, *Result)
+	RunEstimateComponentsPlugins(ctx context.Context, snapshot *schedcache.Snapshot, components []pb.Component, namespace string) (int32, *Result)
 	// TODO(wengyao04): we can add filter and score plugin extension points if needed in the future
 }
 
@@ -75,7 +75,7 @@ type EstimateComponentsPlugin interface {
 	// The integer represents the estimated number of complete component sets that can be scheduled.
 	// The Result contains code, reasons and error.
 	// It is merged from all plugins' returned result codes.
-	EstimateComponents(ctx context.Context, snapshot *schedcache.Snapshot, components []pb.Component) (int32, *Result)
+	EstimateComponents(ctx context.Context, snapshot *schedcache.Snapshot, components []pb.Component, namespace string) (int32, *Result)
 }
 
 // Handle provides data and some tools that plugins can use. It is
@@ -108,7 +108,7 @@ const (
 	// Unschedulable is used when a plugin finds the resource unschedulable.
 	// The accompanying status message should explain why it is unschedulable.
 	Unschedulable
-	// Nooperation is used when a plugin is disabled or the plugin list is empty.
+	// Noopperation is used when a plugin is disabled or the plugin list is empty.
 	Noopperation
 	// Error is used for internal plugin errors, unexpected input, etc.
 	Error

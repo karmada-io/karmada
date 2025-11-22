@@ -60,10 +60,8 @@ type ReplicaRequirements struct {
 	// Namespace represents the namespaces belonged to a ResourceRequest
 	// +optional
 	Namespace string `json:"namespace,omitempty" protobuf:"bytes,3,opt,name=namespace"`
-	// PriorityClassName represents the priority class name for a given ResourceRequest
-	// Resource quotas are introduced for multi tenants sharing a cluster
-	// Besides estimate the replica based on nodes' resources, we need to consider the resource quota of a ResourceRequest
-	// ResourceQuota have an associated set of scopes, one of them is priority class
+	// PriorityClassName represents the priority class name for a given ResourceRequest.
+	// It is used by the resource quota estimator to check quota constraints, as ResourceQuota supports priority class as a scope.
 	// +optional
 	PriorityClassName string `json:"priorityClassName,omitempty" protobuf:"bytes,4,opt,name=priorityClassName"`
 }
@@ -124,10 +122,17 @@ type MaxAvailableComponentSetsRequest struct {
 	// Cluster is the target cluster where the scheduling estimation is performed.
 	// +required
 	Cluster string `json:"cluster" protobuf:"bytes,1,opt,name=cluster"`
+
 	// Components lists the component types that form one full workload set,
 	// along with their resource and replica requirements.
 	// +required
 	Components []Component `json:"components" protobuf:"bytes,2,rep,name=components"`
+
+	// Namespace is the namespace of the workload being estimated.
+	// It is used by the accurate estimator to check the quota configurations
+	// in the target member cluster.
+	// +required
+	Namespace string `json:"namespace" protobuf:"bytes,3,opt,name=namespace"`
 }
 
 // Component defines the scheduling and resource requirements for a single
@@ -136,13 +141,31 @@ type Component struct {
 	// Name is the identifier of the component within the workload set.
 	// +required
 	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
+
 	// ReplicaRequirements specifies the per-replica resource requirements
 	// (CPU, memory, etc.) and scheduling constraints.
 	// +required
-	ReplicaRequirements ReplicaRequirements `json:"replicaRequirements" protobuf:"bytes,2,opt,name=replicaRequirements"`
+	ReplicaRequirements ComponentReplicaRequirements `json:"replicaRequirements" protobuf:"bytes,2,opt,name=replicaRequirements"`
+
 	// Replicas is the number of replicas of this component required in a single workload set.
 	// +required
 	Replicas int32 `json:"replicas" protobuf:"varint,3,opt,name=replicas"`
+}
+
+// ComponentReplicaRequirements represents the resource and scheduling requirements for each replica.
+type ComponentReplicaRequirements struct {
+	// NodeClaim represents the NodeAffinity, NodeSelector and Tolerations required by each replica.
+	// +optional
+	NodeClaim *NodeClaim `json:"nodeClaim,omitempty" protobuf:"bytes,1,opt,name=nodeClaim"`
+
+	// ResourceRequest represents the resources required by each replica.
+	// +optional
+	ResourceRequest corev1.ResourceList `json:"resourceRequest,omitempty" protobuf:"bytes,2,rep,name=resourceRequest,casttype=k8s.io/api/core/v1.ResourceList,castkey=k8s.io/api/core/v1.ResourceName"`
+
+	// PriorityClassName represents the priority class name for a given ResourceRequest.
+	// It is used by the resource quota estimator to check quota constraints, as ResourceQuota supports priority class as a scope.
+	// +optional
+	PriorityClassName string `json:"priorityClassName,omitempty" protobuf:"bytes,3,opt,name=priorityClassName"`
 }
 
 // MaxAvailableComponentSetsResponse is the gRPC response message containing the

@@ -89,12 +89,7 @@ func (se *SchedulerEstimator) GetUnschedulableReplicas(
 	})
 }
 
-func (se *SchedulerEstimator) maxAvailableComponentSets(
-	ctx context.Context,
-	cluster string,
-	namespace string,
-	components []workv1alpha2.Component,
-) (int32, error) {
+func (se *SchedulerEstimator) maxAvailableComponentSets(ctx context.Context, cluster string, namespace string, components []workv1alpha2.Component) (int32, error) {
 	client, err := se.cache.GetClient(cluster)
 	if err != nil {
 		return 0, err
@@ -103,6 +98,7 @@ func (se *SchedulerEstimator) maxAvailableComponentSets(
 	pbReq := &pb.MaxAvailableComponentSetsRequest{
 		Cluster:    cluster,
 		Components: make([]pb.Component, 0, len(components)),
+		Namespace:  namespace,
 	}
 
 	for _, comp := range components {
@@ -115,7 +111,7 @@ func (se *SchedulerEstimator) maxAvailableComponentSets(
 		pbReq.Components = append(pbReq.Components, pb.Component{
 			Name:                comp.Name,
 			Replicas:            comp.Replicas,
-			ReplicaRequirements: toPBReplicaRequirements(cr, namespace),
+			ReplicaRequirements: toPBReplicaRequirements(cr),
 		})
 	}
 
@@ -126,10 +122,9 @@ func (se *SchedulerEstimator) maxAvailableComponentSets(
 	return res.MaxSets, nil
 }
 
-// toPBReplicaRequirements converts the API ComponentReplicaRequirements to the pb.ReplicaRequirements value.
-func toPBReplicaRequirements(cr *workv1alpha2.ComponentReplicaRequirements, namespace string) pb.ReplicaRequirements {
-	var out pb.ReplicaRequirements
-	out.Namespace = namespace
+// toPBReplicaRequirements converts the API ComponentReplicaRequirements to the pb.ComponentReplicaRequirements value.
+func toPBReplicaRequirements(cr *workv1alpha2.ComponentReplicaRequirements) pb.ComponentReplicaRequirements {
+	var out pb.ComponentReplicaRequirements
 	if cr == nil {
 		return out
 	}

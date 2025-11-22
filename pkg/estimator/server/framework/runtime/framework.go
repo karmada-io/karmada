@@ -181,7 +181,7 @@ func (frw *frameworkImpl) runEstimateReplicasPlugins(
 // for estimating the maximum number of complete component sets based on the given components.
 // It returns an integer and a Result.
 // The integer represents the minimum calculated value of estimated component sets from each EstimateComponentsPlugin.
-func (frw *frameworkImpl) RunEstimateComponentsPlugins(ctx context.Context, snapshot *schedcache.Snapshot, components []pb.Component) (int32, *framework.Result) {
+func (frw *frameworkImpl) RunEstimateComponentsPlugins(ctx context.Context, snapshot *schedcache.Snapshot, components []pb.Component, namespace string) (int32, *framework.Result) {
 	startTime := time.Now()
 	defer func() {
 		metrics.FrameworkExtensionPointDuration.WithLabelValues(estimateComponentsExtension).Observe(utilmetrics.DurationInSeconds(startTime))
@@ -189,7 +189,7 @@ func (frw *frameworkImpl) RunEstimateComponentsPlugins(ctx context.Context, snap
 	var sets int32 = math.MaxInt32
 	results := make(framework.PluginToResult)
 	for _, pl := range frw.estimateComponentsPlugins {
-		plSets, ret := frw.runEstimateComponentsPlugins(ctx, pl, snapshot, components)
+		plSets, ret := frw.runEstimateComponentsPlugins(ctx, pl, snapshot, components, namespace)
 		if (ret.IsSuccess() || ret.IsUnschedulable()) && plSets < sets {
 			sets = plSets
 		}
@@ -198,14 +198,9 @@ func (frw *frameworkImpl) RunEstimateComponentsPlugins(ctx context.Context, snap
 	return sets, results.Merge()
 }
 
-func (frw *frameworkImpl) runEstimateComponentsPlugins(
-	ctx context.Context,
-	pl framework.EstimateComponentsPlugin,
-	snapshot *schedcache.Snapshot,
-	components []pb.Component,
-) (int32, *framework.Result) {
+func (frw *frameworkImpl) runEstimateComponentsPlugins(ctx context.Context, pl framework.EstimateComponentsPlugin, snapshot *schedcache.Snapshot, components []pb.Component, namespace string) (int32, *framework.Result) {
 	startTime := time.Now()
-	sets, ret := pl.EstimateComponents(ctx, snapshot, components)
+	sets, ret := pl.EstimateComponents(ctx, snapshot, components, namespace)
 	metrics.PluginExecutionDuration.WithLabelValues(pl.Name(), estimateComponentsExtension).Observe(utilmetrics.DurationInSeconds(startTime))
 	return sets, ret
 }

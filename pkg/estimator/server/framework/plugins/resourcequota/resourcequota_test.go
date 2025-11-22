@@ -443,6 +443,7 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 	tests := map[string]struct {
 		resourceQuotaList []*corev1.ResourceQuota
 		components        []pb.Component
+		namespace         string
 		enabled           bool
 		expect            expect
 	}{
@@ -454,8 +455,7 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 			components: []pb.Component{
 				{
 					Name: "app",
-					ReplicaRequirements: pb.ReplicaRequirements{
-						Namespace:         fooNamespace,
+					ReplicaRequirements: pb.ComponentReplicaRequirements{
 						PriorityClassName: fooPriorityClassName,
 						ResourceRequest: corev1.ResourceList{
 							corev1.ResourceCPU: *resource.NewMilliQuantity(100, resource.DecimalSI),
@@ -464,7 +464,8 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 					Replicas: 1,
 				},
 			},
-			enabled: false,
+			namespace: fooNamespace,
+			enabled:   false,
 			expect: expect{
 				replica: math.MaxInt32,
 				ret:     framework.NewResult(framework.Noopperation, "ResourceQuotaEstimator is disabled"),
@@ -476,7 +477,7 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 			enabled:           true,
 			expect: expect{
 				replica: math.MaxInt32,
-				ret:     framework.NewResult(framework.Noopperation, "ResourceQuotaEstimator received empty components list"),
+				ret:     framework.NewResult(framework.Success, "ResourceQuotaEstimator received empty components list"),
 			},
 		},
 		"no-resource-quota-in-namespace": {
@@ -484,8 +485,7 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 			components: []pb.Component{
 				{
 					Name: "app",
-					ReplicaRequirements: pb.ReplicaRequirements{
-						Namespace:         fooNamespace,
+					ReplicaRequirements: pb.ComponentReplicaRequirements{
 						PriorityClassName: fooPriorityClassName,
 						ResourceRequest: corev1.ResourceList{
 							corev1.ResourceCPU: *resource.NewMilliQuantity(100, resource.DecimalSI),
@@ -494,7 +494,8 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 					Replicas: 1,
 				},
 			},
-			enabled: true,
+			namespace: fooNamespace,
+			enabled:   true,
 			expect: expect{
 				replica: math.MaxInt32,
 				ret:     framework.NewResult(framework.Success, "ResourceQuotaEstimator found no quota constraints"),
@@ -505,8 +506,7 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 			components: []pb.Component{
 				{
 					Name: "app",
-					ReplicaRequirements: pb.ReplicaRequirements{
-						Namespace:         fooNamespace,
+					ReplicaRequirements: pb.ComponentReplicaRequirements{
 						PriorityClassName: barPriorityClassName, // Mismatch
 						ResourceRequest: corev1.ResourceList{
 							corev1.ResourceCPU: *resource.NewMilliQuantity(100, resource.DecimalSI),
@@ -515,7 +515,8 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 					Replicas: 1,
 				},
 			},
-			enabled: true,
+			namespace: fooNamespace,
+			enabled:   true,
 			expect: expect{
 				replica: math.MaxInt32,
 				ret:     framework.NewResult(framework.Success, "ResourceQuotaEstimator found no quota constraints"),
@@ -526,8 +527,7 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 			components: []pb.Component{
 				{
 					Name: "app",
-					ReplicaRequirements: pb.ReplicaRequirements{
-						Namespace:         fooNamespace,
+					ReplicaRequirements: pb.ComponentReplicaRequirements{
 						PriorityClassName: "", // Empty priority class
 						ResourceRequest: corev1.ResourceList{
 							corev1.ResourceCPU: *resource.NewMilliQuantity(100, resource.DecimalSI),
@@ -536,7 +536,8 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 					Replicas: 1,
 				},
 			},
-			enabled: true,
+			namespace: fooNamespace,
+			enabled:   true,
 			expect: expect{
 				// fooResourceQuota has PriorityClass scope selector
 				// Empty priorityClassName won't match the scope selector
@@ -549,8 +550,7 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 			components: []pb.Component{
 				{
 					Name: "app",
-					ReplicaRequirements: pb.ReplicaRequirements{
-						Namespace:         fooNamespace,
+					ReplicaRequirements: pb.ComponentReplicaRequirements{
 						PriorityClassName: "", // Empty priority class
 						ResourceRequest: corev1.ResourceList{
 							corev1.ResourceCPU: *resource.NewMilliQuantity(100, resource.DecimalSI),
@@ -559,7 +559,8 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 					Replicas: 1,
 				},
 			},
-			enabled: true,
+			namespace: fooNamespace,
+			enabled:   true,
 			expect: expect{
 				// noScopeSelectorResourceQuota has no scope selector - applies to all pods
 				// Available: 800m CPU (1000m - 200m)
@@ -578,8 +579,7 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 			components: []pb.Component{
 				{
 					Name: "webserver",
-					ReplicaRequirements: pb.ReplicaRequirements{
-						Namespace:         fooNamespace,
+					ReplicaRequirements: pb.ComponentReplicaRequirements{
 						PriorityClassName: fooPriorityClassName,
 						ResourceRequest: corev1.ResourceList{
 							corev1.ResourceCPU:    *resource.NewMilliQuantity(100, resource.DecimalSI),
@@ -589,7 +589,8 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 					Replicas: 1,
 				},
 			},
-			enabled: true,
+			namespace: fooNamespace,
+			enabled:   true,
 			expect: expect{
 				// Available: 800m CPU (1000m - 200m), 3MB memory (4MB - 1MB)
 				// Per set: 100m CPU, 0.5MB memory
@@ -603,8 +604,7 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 			components: []pb.Component{
 				{
 					Name: "app1",
-					ReplicaRequirements: pb.ReplicaRequirements{
-						Namespace:         fooNamespace,
+					ReplicaRequirements: pb.ComponentReplicaRequirements{
 						PriorityClassName: fooPriorityClassName,
 						ResourceRequest: corev1.ResourceList{
 							corev1.ResourceCPU:    *resource.NewMilliQuantity(50, resource.DecimalSI),
@@ -615,8 +615,7 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 				},
 				{
 					Name: "app2",
-					ReplicaRequirements: pb.ReplicaRequirements{
-						Namespace:         fooNamespace,
+					ReplicaRequirements: pb.ComponentReplicaRequirements{
 						PriorityClassName: fooPriorityClassName,
 						ResourceRequest: corev1.ResourceList{
 							corev1.ResourceCPU:    *resource.NewMilliQuantity(100, resource.DecimalSI),
@@ -626,7 +625,8 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 					Replicas: 2,
 				},
 			},
-			enabled: true,
+			namespace: fooNamespace,
+			enabled:   true,
 			expect: expect{
 				// Per set: (50m*3 + 100m*2) = 350m CPU, (200*1024*3 + 500*1024*2) = 1,638,400 bytes = 1600KB memory
 				// Available: 800m CPU, 3MB (3,145,728 bytes = 3072KB) memory
@@ -644,8 +644,7 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 			components: []pb.Component{
 				{
 					Name: "memory-intensive",
-					ReplicaRequirements: pb.ReplicaRequirements{
-						Namespace:         fooNamespace,
+					ReplicaRequirements: pb.ComponentReplicaRequirements{
 						PriorityClassName: fooPriorityClassName,
 						ResourceRequest: corev1.ResourceList{
 							corev1.ResourceCPU:    *resource.NewMilliQuantity(50, resource.DecimalSI),
@@ -655,7 +654,8 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 					Replicas: 1,
 				},
 			},
-			enabled: true,
+			namespace: fooNamespace,
+			enabled:   true,
 			expect: expect{
 				// Available: 800m CPU, 3MB memory
 				// Per set: 50m CPU, 2MB memory
@@ -670,8 +670,7 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 			components: []pb.Component{
 				{
 					Name: "ml-worker",
-					ReplicaRequirements: pb.ReplicaRequirements{
-						Namespace:         fooNamespace,
+					ReplicaRequirements: pb.ComponentReplicaRequirements{
 						PriorityClassName: fooPriorityClassName,
 						ResourceRequest: corev1.ResourceList{
 							corev1.ResourceCPU:                    *resource.NewMilliQuantity(100, resource.DecimalSI),
@@ -682,7 +681,8 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 					Replicas: 2,
 				},
 			},
-			enabled: true,
+			namespace: fooNamespace,
+			enabled:   true,
 			expect: expect{
 				// Available: 800m CPU, 3MB memory, 3 GPUs (5 - 2)
 				// Per set: 200m CPU, 1MB memory, 2 GPUs
@@ -696,8 +696,7 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 			components: []pb.Component{
 				{
 					Name: "large-app",
-					ReplicaRequirements: pb.ReplicaRequirements{
-						Namespace:         fooNamespace,
+					ReplicaRequirements: pb.ComponentReplicaRequirements{
 						PriorityClassName: fooPriorityClassName,
 						ResourceRequest: corev1.ResourceList{
 							corev1.ResourceCPU:    *resource.NewQuantity(10, resource.DecimalSI),
@@ -707,7 +706,8 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 					Replicas: 1,
 				},
 			},
-			enabled: true,
+			namespace: fooNamespace,
+			enabled:   true,
 			expect: expect{
 				// Per set: 10000m CPU, 10MB memory
 				// Available: 800m CPU, 3MB memory
@@ -770,8 +770,7 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 			components: []pb.Component{
 				{
 					Name: "app",
-					ReplicaRequirements: pb.ReplicaRequirements{
-						Namespace:         fooNamespace,
+					ReplicaRequirements: pb.ComponentReplicaRequirements{
 						PriorityClassName: fooPriorityClassName,
 						ResourceRequest: corev1.ResourceList{
 							corev1.ResourceCPU:    *resource.NewMilliQuantity(200, resource.DecimalSI),
@@ -781,7 +780,8 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 					Replicas: 1,
 				},
 			},
-			enabled: true,
+			namespace: fooNamespace,
+			enabled:   true,
 			expect: expect{
 				// CPU quota: 800m / 200m = 4 sets
 				// Memory quota: 2MB / 1MB = 2 sets
@@ -850,8 +850,7 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 			components: []pb.Component{
 				{
 					Name: "frontend",
-					ReplicaRequirements: pb.ReplicaRequirements{
-						Namespace:         fooNamespace,
+					ReplicaRequirements: pb.ComponentReplicaRequirements{
 						PriorityClassName: fooPriorityClassName,
 						ResourceRequest: corev1.ResourceList{
 							corev1.ResourceCPU:    *resource.NewMilliQuantity(300, resource.DecimalSI),
@@ -862,8 +861,7 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 				},
 				{
 					Name: "backend",
-					ReplicaRequirements: pb.ReplicaRequirements{
-						Namespace:         fooNamespace,
+					ReplicaRequirements: pb.ComponentReplicaRequirements{
 						PriorityClassName: barPriorityClassName,
 						ResourceRequest: corev1.ResourceList{
 							corev1.ResourceCPU:    *resource.NewMilliQuantity(200, resource.DecimalSI),
@@ -873,7 +871,8 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 					Replicas: 1,
 				},
 			},
-			enabled: true,
+			namespace: fooNamespace,
+			enabled:   true,
 			expect: expect{
 				// foo-priority group (frontend): 2 replicas × 300m = 600m CPU, 2 × 500KB = 1MB memory per set
 				//   Available: 1800m CPU, 3MB memory
@@ -944,8 +943,7 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 			components: []pb.Component{
 				{
 					Name: "high-priority-app",
-					ReplicaRequirements: pb.ReplicaRequirements{
-						Namespace:         fooNamespace,
+					ReplicaRequirements: pb.ComponentReplicaRequirements{
 						PriorityClassName: fooPriorityClassName,
 						ResourceRequest: corev1.ResourceList{
 							corev1.ResourceCPU:    *resource.NewMilliQuantity(300, resource.DecimalSI),
@@ -956,8 +954,7 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 				},
 				{
 					Name: "low-priority-app",
-					ReplicaRequirements: pb.ReplicaRequirements{
-						Namespace:         fooNamespace,
+					ReplicaRequirements: pb.ComponentReplicaRequirements{
 						PriorityClassName: barPriorityClassName,
 						ResourceRequest: corev1.ResourceList{
 							corev1.ResourceCPU:    *resource.NewMilliQuantity(100, resource.DecimalSI),
@@ -967,7 +964,8 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 					Replicas: 1,
 				},
 			},
-			enabled: true,
+			namespace: fooNamespace,
+			enabled:   true,
 			expect: expect{
 				// foo-priority group (high-priority-app): 300m CPU, 500KB memory per set
 				//   Available: 400m CPU, 3MB memory
@@ -1044,8 +1042,7 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 			components: []pb.Component{
 				{
 					Name: "high-priority-component",
-					ReplicaRequirements: pb.ReplicaRequirements{
-						Namespace:         fooNamespace,
+					ReplicaRequirements: pb.ComponentReplicaRequirements{
 						PriorityClassName: fooPriorityClassName,
 						ResourceRequest: corev1.ResourceList{
 							corev1.ResourceCPU:    *resource.NewMilliQuantity(600, resource.DecimalSI), // 600m per replica
@@ -1056,8 +1053,7 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 				},
 				{
 					Name: "low-priority-component",
-					ReplicaRequirements: pb.ReplicaRequirements{
-						Namespace:         fooNamespace,
+					ReplicaRequirements: pb.ComponentReplicaRequirements{
 						PriorityClassName: barPriorityClassName,
 						ResourceRequest: corev1.ResourceList{
 							corev1.ResourceCPU:    *resource.NewMilliQuantity(500, resource.DecimalSI), // 500m per replica
@@ -1067,7 +1063,8 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 					Replicas: 1, // 500m CPU per set
 				},
 			},
-			enabled: true,
+			namespace: fooNamespace,
+			enabled:   true,
 			expect: expect{
 				// Evaluation against global-quota (no scope - applies to ALL components):
 				//   Aggregate: 600m (high-priority) + 500m (low-priority) = 1100m CPU per set
@@ -1090,7 +1087,7 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			testCtx := setup(t, tt.resourceQuotaList, tt.enabled)
-			sets, ret := testCtx.p.EstimateComponents(testCtx.ctx, nil, tt.components)
+			sets, ret := testCtx.p.EstimateComponents(testCtx.ctx, nil, tt.components, tt.namespace)
 
 			require.Equal(t, tt.expect.ret.Code(), ret.Code())
 			assert.ElementsMatch(t, tt.expect.ret.Reasons(), ret.Reasons())
