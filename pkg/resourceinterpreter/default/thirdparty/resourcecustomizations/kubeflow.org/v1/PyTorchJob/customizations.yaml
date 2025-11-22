@@ -40,61 +40,43 @@ spec:
           
           -- Master Component
           local master_spec = get(observedObj, {"spec", "pytorchReplicaSpecs", "Master"})
-          if master_spec == nil then
-            return components
+          if master_spec ~= nil then
+            local master_replicas = to_num(master_spec.replicas, 1)
+            local master_template = master_spec.template
+            
+            local master_requires = {}
+            if master_template ~= nil then
+              master_requires = kube.accuratePodRequirements(master_template)
+            end
+            
+            local masterComponent = {
+              name = "master",
+              replicas = master_replicas,
+              replicaRequirements = master_requires
+            }
+            table.insert(components, masterComponent)
           end
-          local master_replicas = to_num(master_spec.replicas, 1)
-          local master_template = master_spec.template
-          
-          local master_requires = {}
-          if master_template ~= nil then
-            master_requires = kube.accuratePodRequirements(master_template)
-          end
-          
-          local masterComponent = {
-            name = "master",
-            replicas = master_replicas,
-            replicaRequirements = master_requires
-          }
-          table.insert(components, masterComponent)
           
           -- Worker Component
           local worker_spec = get(observedObj, {"spec", "pytorchReplicaSpecs", "Worker"})
-          if worker_spec == nil then
-            return components
+          if worker_spec ~= nil then
+            local worker_replicas = to_num(worker_spec.replicas, 1)
+            local worker_template = worker_spec.template
+            
+            local worker_requires = {}
+            if worker_template ~= nil then
+              worker_requires = kube.accuratePodRequirements(worker_template)
+            end
+            
+            local workerComponent = {
+              name = "worker",
+              replicas = worker_replicas,
+              replicaRequirements = worker_requires
+            }
+            table.insert(components, workerComponent)
           end
-          local worker_replicas = to_num(worker_spec.replicas, 1)
-          local worker_template = worker_spec.template
-          
-          local worker_requires = {}
-          if worker_template ~= nil then
-            worker_requires = kube.accuratePodRequirements(worker_template)
-          end
-          
-          local workerComponent = {
-            name = "worker",
-            replicas = worker_replicas,
-            replicaRequirements = worker_requires
-          }
-          table.insert(components, workerComponent)
           
           return components
-        end
-    statusReflection:
-      luaScript: >
-        function ReflectStatus(observedObj)
-          local status = {}
-          if observedObj == nil or observedObj.status == nil then
-            return status
-          end
-          
-          -- Copy basic PyTorchJob status fields
-          status.conditions = observedObj.status.conditions
-          status.replicaStatuses = observedObj.status.replicaStatuses
-          status.startTime = observedObj.status.startTime
-          status.completionTime = observedObj.status.completionTime
-          status.lastReconcileTime = observedObj.status.lastReconcileTime
-          return status
         end
 
     statusAggregation:
