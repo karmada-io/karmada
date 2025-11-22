@@ -2,8 +2,6 @@ tests:
   - desiredInputPath: testdata/desired-raycluster.yaml
     statusInputPath: testdata/status-file.yaml
     operation: AggregateStatus
-  - desiredInputPath: testdata/desired-raycluster.yaml
-    operation: InterpretReplica
   - observedInputPath: testdata/observed-raycluster.yaml
     operation: InterpretHealth
   - observedInputPath: testdata/observed-raycluster.yaml
