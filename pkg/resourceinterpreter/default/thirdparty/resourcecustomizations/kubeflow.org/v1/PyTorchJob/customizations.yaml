@@ -240,3 +240,30 @@ spec:
           end
           return true
         end
+
+    dependencyInterpretation:
+      luaScript: >
+        local kube = require("kube")
+        function GetDependencies(desiredObj)
+          local refs = {}
+          
+          if desiredObj.spec == nil or desiredObj.spec.pytorchReplicaSpecs == nil then
+            return refs
+          end
+          
+          -- Iterate PyTorchJob replica types
+          local replicaTypes = {"Master", "Worker"}
+          for _, replicaType in ipairs(replicaTypes) do
+            local spec = desiredObj.spec.pytorchReplicaSpecs[replicaType]
+            if spec ~= nil and spec.template ~= nil then
+              local deps = kube.getPodDependencies(spec.template, desiredObj.metadata.namespace)
+              if deps ~= nil then
+                for _, dep in ipairs(deps) do
+                  table.insert(refs, dep)
+                end
+              end
+            end
+          end
+          
+          return refs
+        end
