@@ -43,6 +43,7 @@ type aggregateStatusInterpreter func(object *unstructured.Unstructured, aggregat
 func getAllDefaultAggregateStatusInterpreter() map[schema.GroupVersionKind]aggregateStatusInterpreter {
 	s := make(map[schema.GroupVersionKind]aggregateStatusInterpreter)
 	s[appsv1.SchemeGroupVersion.WithKind(util.DeploymentKind)] = aggregateDeploymentStatus
+	s[appsv1.SchemeGroupVersion.WithKind(util.ReplicaSetKind)] = aggregateReplicaSetStatus
 	s[corev1.SchemeGroupVersion.WithKind(util.ServiceKind)] = aggregateServiceStatus
 	s[networkingv1.SchemeGroupVersion.WithKind(util.IngressKind)] = aggregateIngressStatus
 	s[batchv1.SchemeGroupVersion.WithKind(util.JobKind)] = aggregateJobStatus
@@ -118,6 +119,63 @@ func aggregateDeploymentStatus(object *unstructured.Unstructured, aggregatedStat
 	oldStatus.UnavailableReplicas = newStatus.UnavailableReplicas
 
 	return helper.ToUnstructured(deploy)
+}
+
+func aggregateReplicaSetStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (*unstructured.Unstructured, error) {
+	rs := &appsv1.ReplicaSet{}
+	err := helper.ConvertToTypedObject(object, rs)
+	if err != nil {
+		return nil, err
+	}
+
+	oldStatus := &rs.Status
+	newStatus := &appsv1.ReplicaSetStatus{}
+	observedLatestResourceTemplateGenerationCount := 0
+	for _, item := range aggregatedStatusItems {
+		if item.Status == nil {
+			continue
+		}
+		member := &WrappedReplicaSetStatus{}
+		if err = json.Unmarshal(item.Status.Raw, member); err != nil {
+			return nil, err
+		}
+		klog.V(3).Infof("Grab replicaset(%s/%s) status from cluster(%s), replicas: %d, ready: %d, available: %d",
+			rs.Namespace, rs.Name, item.ClusterName, member.Replicas, member.ReadyReplicas, member.AvailableReplicas)
+
+		// `memberStatus.ObservedGeneration >= memberStatus.Generation` means the member's status corresponds the latest spec revision of the member replicaset.
+		// `memberStatus.ResourceTemplateGeneration >= rs.Generation` means the member replicaset has been aligned with the latest spec revision of federated replicaset.
+		// If both conditions are met, we consider the member's status corresponds the latest spec revision of federated replicaset.
+		if member.ObservedGeneration >= member.Generation &&
+			member.ResourceTemplateGeneration >= rs.Generation {
+			observedLatestResourceTemplateGenerationCount++
+		}
+
+		newStatus.Replicas += member.Replicas
+		newStatus.ReadyReplicas += member.ReadyReplicas
+		newStatus.AvailableReplicas += member.AvailableReplicas
+	}
+
+	// The 'observedGeneration' is mainly used by GitOps tools(like 'Argo CD') to assess the health status.
+	// For more details, please refer to https://argo-cd.readthedocs.io/en/stable/operator-manual/health/.
+	newStatus.ObservedGeneration = oldStatus.ObservedGeneration
+	if observedLatestResourceTemplateGenerationCount == len(aggregatedStatusItems) {
+		newStatus.ObservedGeneration = rs.Generation
+	}
+
+	if oldStatus.ObservedGeneration == newStatus.ObservedGeneration &&
+		oldStatus.Replicas == newStatus.Replicas &&
+		oldStatus.ReadyReplicas == newStatus.ReadyReplicas &&
+		oldStatus.AvailableReplicas == newStatus.AvailableReplicas {
+		klog.V(3).Infof("Ignore update replicaset(%s/%s) status as up to date", rs.Namespace, rs.Name)
+		return object, nil
+	}
+
+	oldStatus.ObservedGeneration = newStatus.ObservedGeneration
+	oldStatus.Replicas = newStatus.Replicas
+	oldStatus.ReadyReplicas = newStatus.ReadyReplicas
+	oldStatus.AvailableReplicas = newStatus.AvailableReplicas
+
+	return helper.ToUnstructured(rs)
 }
 
 func aggregateServiceStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (*unstructured.Unstructured, error) {

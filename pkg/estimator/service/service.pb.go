@@ -28,20 +28,22 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 func init() { proto.RegisterFile("service.proto", fileDescriptor_a0b84a42fa06f626) }
 
 var fileDescriptor_a0b84a42fa06f626 = []byte{
-	// 205 bytes of a gzipped FileDescriptorProto
+	// 240 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0x2d, 0x4e, 0x2d, 0x2a,
 	0xcb, 0x4c, 0x4e, 0xd5, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x32, 0x4e, 0xcf, 0x2c, 0xc9, 0x28,
 	0x4d, 0xd2, 0x4b, 0xce, 0xcf, 0xd5, 0xcb, 0x4e, 0x2c, 0xca, 0x4d, 0x4c, 0x49, 0x8c, 0xcf, 0xcc,
 	0x87, 0x31, 0xf5, 0x0a, 0xb2, 0xd3, 0xf5, 0x52, 0x8b, 0x4b, 0x32, 0x73, 0x13, 0x4b, 0xf2, 0x8b,
 	0xf4, 0xa0, 0x5a, 0xa5, 0x14, 0x0a, 0xb2, 0xd3, 0xf5, 0xe1, 0xc2, 0xfa, 0x05, 0x49, 0xfa, 0xe9,
-	0xa9, 0x79, 0xa9, 0x45, 0x89, 0x25, 0xa9, 0x29, 0x10, 0x63, 0x8d, 0xfe, 0x32, 0x71, 0x71, 0xba,
+	0xa9, 0x79, 0xa9, 0x45, 0x89, 0x25, 0xa9, 0x29, 0x10, 0x63, 0x8d, 0x0e, 0xb1, 0x70, 0x71, 0xba,
 	0xc2, 0x14, 0x08, 0x6d, 0x66, 0xe4, 0x12, 0xf1, 0x4d, 0xac, 0x70, 0x2c, 0x4b, 0xcc, 0xcc, 0x49,
 	0x4c, 0xca, 0x49, 0x0d, 0x4a, 0x2d, 0xc8, 0xc9, 0x4c, 0x4e, 0x2c, 0x16, 0xf2, 0xd6, 0x23, 0xc5,
 	0xfa, 0x82, 0x24, 0x3d, 0x6c, 0xa6, 0x04, 0xa5, 0x16, 0x96, 0xa6, 0x16, 0x97, 0x48, 0xf9, 0x50,
-	0xc7, 0xb0, 0xe2, 0x82, 0xfc, 0xbc, 0xe2, 0x54, 0x25, 0x06, 0xa1, 0x9d, 0x8c, 0x5c, 0x12, 0xee,
-	0xa9, 0x25, 0xa1, 0x79, 0xc5, 0xc9, 0x19, 0xa9, 0x29, 0xa5, 0xa8, 0x2e, 0x27, 0xd9, 0x32, 0xac,
-	0xc6, 0xc0, 0x9c, 0xee, 0x4b, 0x25, 0xd3, 0x60, 0x6e, 0x77, 0xe2, 0x8c, 0x62, 0x87, 0x46, 0x16,
-	0x20, 0x00, 0x00, 0xff, 0xff, 0x9f, 0xe1, 0x7a, 0x70, 0xf1, 0x01, 0x00, 0x00,
+	0xc7, 0xb0, 0xe2, 0x82, 0xfc, 0xbc, 0xe2, 0x54, 0x25, 0x06, 0xa1, 0x43, 0x8c, 0x5c, 0x92, 0xc8,
+	0x4a, 0x9c, 0xf3, 0x73, 0x0b, 0xf2, 0xf3, 0x52, 0xf3, 0x4a, 0x82, 0x53, 0x4b, 0x8a, 0x85, 0x02,
+	0x28, 0xb1, 0x0d, 0xc5, 0x28, 0x98, 0xfb, 0x03, 0xa9, 0x68, 0x22, 0xdc, 0x13, 0x3b, 0x19, 0xb9,
+	0x24, 0xdc, 0x53, 0x4b, 0x42, 0xf3, 0x8a, 0x93, 0x33, 0x52, 0x53, 0x4a, 0x51, 0x83, 0x9f, 0xe4,
+	0x10, 0xc3, 0x6a, 0x0c, 0xcc, 0xfd, 0xbe, 0x54, 0x32, 0x0d, 0xe6, 0x76, 0x27, 0xce, 0x28, 0x76,
+	0x68, 0x8a, 0x03, 0x04, 0x00, 0x00, 0xff, 0xff, 0xa2, 0x9f, 0x2a, 0xcf, 0xb6, 0x02, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -57,6 +59,7 @@ const _ = grpc.SupportPackageIsVersion4
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type EstimatorClient interface {
 	MaxAvailableReplicas(ctx context.Context, in *pb.MaxAvailableReplicasRequest, opts ...grpc.CallOption) (*pb.MaxAvailableReplicasResponse, error)
+	MaxAvailableComponentSets(ctx context.Context, in *pb.MaxAvailableComponentSetsRequest, opts ...grpc.CallOption) (*pb.MaxAvailableComponentSetsResponse, error)
 	GetUnschedulableReplicas(ctx context.Context, in *pb.UnschedulableReplicasRequest, opts ...grpc.CallOption) (*pb.UnschedulableReplicasResponse, error)
 }
 
@@ -77,6 +80,15 @@ func (c *estimatorClient) MaxAvailableReplicas(ctx context.Context, in *pb.MaxAv
 	return out, nil
 }
 
+func (c *estimatorClient) MaxAvailableComponentSets(ctx context.Context, in *pb.MaxAvailableComponentSetsRequest, opts ...grpc.CallOption) (*pb.MaxAvailableComponentSetsResponse, error) {
+	out := new(pb.MaxAvailableComponentSetsResponse)
+	err := c.cc.Invoke(ctx, "/github.com.karmada_io.karmada.pkg.estimator.service.Estimator/MaxAvailableComponentSets", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *estimatorClient) GetUnschedulableReplicas(ctx context.Context, in *pb.UnschedulableReplicasRequest, opts ...grpc.CallOption) (*pb.UnschedulableReplicasResponse, error) {
 	out := new(pb.UnschedulableReplicasResponse)
 	err := c.cc.Invoke(ctx, "/github.com.karmada_io.karmada.pkg.estimator.service.Estimator/GetUnschedulableReplicas", in, out, opts...)
@@ -89,6 +101,7 @@ func (c *estimatorClient) GetUnschedulableReplicas(ctx context.Context, in *pb.U
 // EstimatorServer is the server API for Estimator service.
 type EstimatorServer interface {
 	MaxAvailableReplicas(context.Context, *pb.MaxAvailableReplicasRequest) (*pb.MaxAvailableReplicasResponse, error)
+	MaxAvailableComponentSets(context.Context, *pb.MaxAvailableComponentSetsRequest) (*pb.MaxAvailableComponentSetsResponse, error)
 	GetUnschedulableReplicas(context.Context, *pb.UnschedulableReplicasRequest) (*pb.UnschedulableReplicasResponse, error)
 }
 
@@ -98,6 +111,9 @@ type UnimplementedEstimatorServer struct {
 
 func (*UnimplementedEstimatorServer) MaxAvailableReplicas(ctx context.Context, req *pb.MaxAvailableReplicasRequest) (*pb.MaxAvailableReplicasResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method MaxAvailableReplicas not implemented")
+}
+func (*UnimplementedEstimatorServer) MaxAvailableComponentSets(ctx context.Context, req *pb.MaxAvailableComponentSetsRequest) (*pb.MaxAvailableComponentSetsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MaxAvailableComponentSets not implemented")
 }
 func (*UnimplementedEstimatorServer) GetUnschedulableReplicas(ctx context.Context, req *pb.UnschedulableReplicasRequest) (*pb.UnschedulableReplicasResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetUnschedulableReplicas not implemented")
@@ -121,6 +137,24 @@ func _Estimator_MaxAvailableReplicas_Handler(srv interface{}, ctx context.Contex
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(EstimatorServer).MaxAvailableReplicas(ctx, req.(*pb.MaxAvailableReplicasRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Estimator_MaxAvailableComponentSets_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(pb.MaxAvailableComponentSetsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EstimatorServer).MaxAvailableComponentSets(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/github.com.karmada_io.karmada.pkg.estimator.service.Estimator/MaxAvailableComponentSets",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EstimatorServer).MaxAvailableComponentSets(ctx, req.(*pb.MaxAvailableComponentSetsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -150,6 +184,10 @@ var _Estimator_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "MaxAvailableReplicas",
 			Handler:    _Estimator_MaxAvailableReplicas_Handler,
+		},
+		{
+			MethodName: "MaxAvailableComponentSets",
+			Handler:    _Estimator_MaxAvailableComponentSets_Handler,
 		},
 		{
 			MethodName: "GetUnschedulableReplicas",

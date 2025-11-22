@@ -48,6 +48,7 @@ func Test_dynamicDivideReplicas(t *testing.T) {
 				targetReplicas:    12,
 				availableReplicas: 36,
 				strategyType:      DynamicWeightStrategy,
+				spec:              &workv1alpha2.ResourceBindingSpec{},
 			},
 			want: []workv1alpha2.TargetCluster{
 				{Name: ClusterMember1, Replicas: 6},
@@ -67,11 +68,12 @@ func Test_dynamicDivideReplicas(t *testing.T) {
 				targetReplicas:    12,
 				availableReplicas: 38,
 				strategyType:      DynamicWeightStrategy,
+				spec:              &workv1alpha2.ResourceBindingSpec{},
 			},
 			want: []workv1alpha2.TargetCluster{
-				{Name: ClusterMember1, Replicas: 7},
+				{Name: ClusterMember1, Replicas: 6},
 				{Name: ClusterMember2, Replicas: 4},
-				{Name: ClusterMember3, Replicas: 1},
+				{Name: ClusterMember3, Replicas: 2},
 			},
 			wantErr: false,
 		},
@@ -86,6 +88,7 @@ func Test_dynamicDivideReplicas(t *testing.T) {
 				targetReplicas:    12,
 				availableReplicas: 24,
 				strategyType:      DynamicWeightStrategy,
+				spec:              &workv1alpha2.ResourceBindingSpec{},
 			},
 			want: []workv1alpha2.TargetCluster{
 				{Name: ClusterMember1, Replicas: 3},
@@ -105,6 +108,7 @@ func Test_dynamicDivideReplicas(t *testing.T) {
 				targetReplicas:    12,
 				availableReplicas: 24,
 				strategyType:      AggregatedStrategy,
+				spec:              &workv1alpha2.ResourceBindingSpec{},
 			},
 			want: []workv1alpha2.TargetCluster{
 				{Name: ClusterMember2, Replicas: 12},
@@ -122,6 +126,7 @@ func Test_dynamicDivideReplicas(t *testing.T) {
 				targetReplicas:    12,
 				availableReplicas: 18,
 				strategyType:      AggregatedStrategy,
+				spec:              &workv1alpha2.ResourceBindingSpec{},
 			},
 			want: []workv1alpha2.TargetCluster{
 				{Name: ClusterMember1, Replicas: 6},

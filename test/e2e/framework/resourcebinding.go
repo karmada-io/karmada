@@ -40,6 +40,7 @@ func WaitResourceBindingFitWith(client karmada.Interface, namespace, name string
 	gomega.Eventually(func() bool {
 		resourceBinding, err := client.WorkV1alpha2().ResourceBindings(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
+			klog.Errorf("Failed to get ResourceBinding(%s/%s), err: %v", namespace, name, err)
 			return false
 		}
 		return fit(resourceBinding)

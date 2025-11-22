@@ -91,6 +91,7 @@ func WaitDeploymentPresentOnClusterFitWith(cluster, namespace, name string, fit 
 	gomega.Eventually(func() bool {
 		dep, err := clusterClient.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
+			klog.Errorf("Failed to get Deployment(%s/%s) on cluster(%s), err: %v", namespace, name, cluster, err)
 			return false
 		}
 		return fit(dep)
@@ -102,6 +103,7 @@ func WaitDeploymentFitWith(client kubernetes.Interface, namespace, name string, 
 	gomega.Eventually(func() bool {
 		dep, err := client.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
+			klog.Errorf("Failed to get Deployment(%s/%s), err: %v", namespace, name, err)
 			return false
 		}
 		return fit(dep)
@@ -123,6 +125,7 @@ func WaitDeploymentStatus(client kubernetes.Interface, deployment *appsv1.Deploy
 		gomega.Eventually(func() bool {
 			deploy, err := client.AppsV1().Deployments(deployment.Namespace).Get(context.TODO(), deployment.Name, metav1.GetOptions{})
 			if err != nil {
+				klog.Errorf("Failed to get Deployment(%s/%s), err: %v", deployment.Namespace, deployment.Name, err)
 				return false
 			}
 			return CheckDeploymentReadyStatus(deploy, replicas)
@@ -271,6 +274,7 @@ func WaitDeploymentGetByClientFitWith(client kubernetes.Interface, namespace, na
 		gomega.Eventually(func() bool {
 			dep, err := client.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 			if err != nil {
+				klog.Errorf("Failed to get Deployment(%s/%s), err: %v", namespace, name, err)
 				return false
 			}
 			return fit(dep)

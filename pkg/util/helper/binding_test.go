@@ -19,7 +19,6 @@ package helper
 import (
 	"context"
 	"reflect"
-	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -30,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/dynamic"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
@@ -52,19 +52,24 @@ const (
 	ClusterMember1 = "member1"
 	ClusterMember2 = "member2"
 	ClusterMember3 = "member3"
+	emptyUID       = ""
+	evenUID        = "4858ca61-3ff8-4095-8267-f3d059d8074c"
+	oddUID         = "d43fdeeb-d750-4e2b-bee3-64eb94534f4c"
 )
 
-func Test_dispenser_takeByWeight(t *testing.T) {
+func Test_dispenser_AllocateByWeight(t *testing.T) {
 	tests := []struct {
 		name              string
 		newReplicas       int32
 		initialAssignment []workv1alpha2.TargetCluster
 		weightList        ClusterWeightInfoList
 		desired           []workv1alpha2.TargetCluster
+		uuid              types.UID
 	}{
 		{
 			name:        "Scale up 6 replicas",
 			newReplicas: 6,
+			uuid:        emptyUID,
 			initialAssignment: []workv1alpha2.TargetCluster{
 				{Name: "A", Replicas: 1},
 				{Name: "B", Replicas: 2},
@@ -84,6 +89,27 @@ func Test_dispenser_takeByWeight(t *testing.T) {
 		{
 			name:        "Scale up 3 replicas",
 			newReplicas: 3,
+			uuid:        emptyUID,
+			initialAssignment: []workv1alpha2.TargetCluster{
+				{Name: "A", Replicas: 1},
+				{Name: "B", Replicas: 2},
+				{Name: "C", Replicas: 3},
+			},
+			weightList: []ClusterWeightInfo{
+				{ClusterName: "A", Weight: 1},
+				{ClusterName: "B", Weight: 2},
+				{ClusterName: "C", Weight: 3},
+			},
+			desired: []workv1alpha2.TargetCluster{
+				{Name: "A", Replicas: 2},
+				{Name: "B", Replicas: 3},
+				{Name: "C", Replicas: 4},
+			},
+		},
+		{
+			name:        "Scale up 2 replicas",
+			newReplicas: 2,
+			uuid:        emptyUID,
 			initialAssignment: []workv1alpha2.TargetCluster{
 				{Name: "A", Replicas: 1},
 				{Name: "B", Replicas: 2},
@@ -97,31 +123,13 @@ func Test_dispenser_takeByWeight(t *testing.T) {
 			desired: []workv1alpha2.TargetCluster{
 				{Name: "A", Replicas: 1},
 				{Name: "B", Replicas: 3},
-				{Name: "C", Replicas: 5},
-			},
-		},
-		{
-			name:        "Scale up 2 replicas",
-			newReplicas: 2,
-			initialAssignment: []workv1alpha2.TargetCluster{
-				{Name: "A", Replicas: 1},
-				{Name: "B", Replicas: 2},
-				{Name: "C", Replicas: 3},
-			},
-			weightList: []ClusterWeightInfo{
-				{ClusterName: "A", Weight: 1},
-				{ClusterName: "B", Weight: 2},
-				{ClusterName: "C", Weight: 3},
-			},
-			desired: []workv1alpha2.TargetCluster{
-				{Name: "A", Replicas: 1},
-				{Name: "B", Replicas: 2},
-				{Name: "C", Replicas: 5},
+				{Name: "C", Replicas: 4},
 			},
 		},
 		{
 			name:              "HA scenario with weight 2:1: assign 1 replica",
 			newReplicas:       1,
+			uuid:              emptyUID,
 			initialAssignment: nil,
 			weightList: []ClusterWeightInfo{
 				{ClusterName: "A", Weight: 2},
@@ -135,19 +143,21 @@ func Test_dispenser_takeByWeight(t *testing.T) {
 		{
 			name:              "HA scenario with weight 2:1: assign 2 replicas",
 			newReplicas:       2,
+			uuid:              emptyUID,
 			initialAssignment: nil,
 			weightList: []ClusterWeightInfo{
 				{ClusterName: "A", Weight: 2},
 				{ClusterName: "B", Weight: 1},
 			},
 			desired: []workv1alpha2.TargetCluster{
-				{Name: "A", Replicas: 2},
-				{Name: "B", Replicas: 0},
+				{Name: "A", Replicas: 1},
+				{Name: "B", Replicas: 1},
 			},
 		},
 		{
 			name:              "HA scenario with weight 2:1: assign 3 replicas",
 			newReplicas:       3,
+			uuid:              emptyUID,
 			initialAssignment: nil,
 			weightList: []ClusterWeightInfo{
 				{ClusterName: "A", Weight: 2},
@@ -161,6 +171,23 @@ func Test_dispenser_takeByWeight(t *testing.T) {
 		{
 			name:              "brand new assign 5 replicas",
 			newReplicas:       5,
+			uuid:              emptyUID,
+			initialAssignment: nil,
+			weightList: []ClusterWeightInfo{
+				{ClusterName: "A", Weight: 170},
+				{ClusterName: "B", Weight: 110},
+				{ClusterName: "C", Weight: 60},
+			},
+			desired: []workv1alpha2.TargetCluster{
+				{Name: "A", Replicas: 2},
+				{Name: "B", Replicas: 2},
+				{Name: "C", Replicas: 1},
+			},
+		},
+		{
+			name:              "brand new assign 6 replicas",
+			newReplicas:       6,
+			uuid:              emptyUID,
 			initialAssignment: nil,
 			weightList: []ClusterWeightInfo{
 				{ClusterName: "A", Weight: 170},
@@ -170,34 +197,47 @@ func Test_dispenser_takeByWeight(t *testing.T) {
 			desired: []workv1alpha2.TargetCluster{
 				{Name: "A", Replicas: 3},
 				{Name: "B", Replicas: 2},
-				{Name: "C", Replicas: 0},
+				{Name: "C", Replicas: 1},
 			},
 		},
 		{
-			name:              "brand new assign 6 replicas",
-			newReplicas:       6,
+			name:              "brand new assign 5 replicas with odd uuid",
+			newReplicas:       5,
+			uuid:              oddUID,
 			initialAssignment: nil,
 			weightList: []ClusterWeightInfo{
-				{ClusterName: "A", Weight: 170},
-				{ClusterName: "B", Weight: 110},
-				{ClusterName: "C", Weight: 60},
+				{ClusterName: "A", Weight: 1},
+				{ClusterName: "B", Weight: 1},
 			},
 			desired: []workv1alpha2.TargetCluster{
-				{Name: "A", Replicas: 4},
-				{Name: "B", Replicas: 1}, // TODO(@RainbowMango): comparing to the previous test where assign 5 replicas, this tests kind of scale up 1 replica, but the replica cluster B got reduced from 2 to 1, this is not expected and tracked by https://github.com/karmada-io/karmada/issues/6735.
-				{Name: "C", Replicas: 1},
+				{Name: "A", Replicas: 2},
+				{Name: "B", Replicas: 3},
+			},
+		},
+		{
+			name:              "brand new assign 5 replicas with even uuid",
+			newReplicas:       5,
+			uuid:              evenUID,
+			initialAssignment: nil,
+			weightList: []ClusterWeightInfo{
+				{ClusterName: "A", Weight: 1},
+				{ClusterName: "B", Weight: 1},
+			},
+			desired: []workv1alpha2.TargetCluster{
+				{Name: "A", Replicas: 3},
+				{Name: "B", Replicas: 2},
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			a := NewDispenser(tt.newReplicas, tt.initialAssignment)
-			a.TakeByWeight(tt.weightList)
+			a := NewDispenser(tt.newReplicas, tt.initialAssignment, tt.uuid)
+			a.AllocateByWeight(tt.weightList)
 			if !a.Done() {
 				t.Errorf("dispensing unexpectedly not finished")
 			}
 			if !testhelper.IsScheduleResultEqual(a.Result, tt.desired) {
-				t.Errorf("expected result after takeByWeight: %v, but got: %v", tt.desired, a.Result)
+				t.Errorf("expected result after AllocateByWeight: %v, but got: %v", tt.desired, a.Result)
 			}
 		})
 	}
@@ -383,7 +423,7 @@ func TestDispenseReplicasByTargetClusters(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := SpreadReplicasByTargetClusters(tt.args.sum, tt.args.clusters, nil)
+			got := SpreadReplicasByTargetClusters(tt.args.sum, tt.args.clusters, nil, "")
 			for _, want := range tt.wants {
 				if testhelper.IsScheduleResultEqual(got, want) {
 					return
@@ -523,66 +563,6 @@ func TestObtainBindingSpecExistingClusters(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := ObtainBindingSpecExistingClusters(tt.bindingSpec); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ObtainBindingSpecExistingClusters() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-// sortClusterByWeight sort clusters by the weight
-func sortClusterByWeight(m map[string]int64) ClusterWeightInfoList {
-	p := make(ClusterWeightInfoList, len(m))
-	i := 0
-	for k, v := range m {
-		p[i] = ClusterWeightInfo{ClusterName: k, Weight: v}
-		i++
-	}
-	sort.Sort(p)
-	return p
-}
-
-func TestSortClusterByWeight(t *testing.T) {
-	type args struct {
-		m map[string]int64
-	}
-	tests := []struct {
-		name string
-		args args
-		want ClusterWeightInfoList
-	}{
-		{
-			name: "nil",
-			args: args{
-				m: nil,
-			},
-			want: []ClusterWeightInfo{},
-		},
-		{
-			name: "empty",
-			args: args{
-				m: map[string]int64{},
-			},
-			want: []ClusterWeightInfo{},
-		},
-		{
-			name: "sort",
-			args: args{
-				m: map[string]int64{
-					"cluster11": 1,
-					"cluster12": 2,
-					"cluster13": 3,
-				},
-			},
-			want: []ClusterWeightInfo{
-				{ClusterName: "cluster13", Weight: 3},
-				{ClusterName: "cluster12", Weight: 2},
-				{ClusterName: "cluster11", Weight: 1},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := sortClusterByWeight(tt.args.m); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("SortClusterByWeight() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -1080,9 +1060,8 @@ func TestFetchWorkload(t *testing.T) {
 				"apiVersion": "v1",
 				"kind":       "Pod",
 				"metadata": map[string]interface{}{
-					"name":              "pod",
-					"namespace":         "default",
-					"creationTimestamp": nil,
+					"name":      "pod",
+					"namespace": "default",
 				},
 			}},
 			wantErr: false,
@@ -1116,9 +1095,8 @@ func TestFetchWorkload(t *testing.T) {
 				"apiVersion": "v1",
 				"kind":       "Pod",
 				"metadata": map[string]interface{}{
-					"name":              "pod",
-					"namespace":         "default",
-					"creationTimestamp": nil,
+					"name":      "pod",
+					"namespace": "default",
 				},
 			}},
 			wantErr: false,
@@ -1146,8 +1124,7 @@ func TestFetchWorkload(t *testing.T) {
 				"apiVersion": "v1",
 				"kind":       "Node",
 				"metadata": map[string]interface{}{
-					"name":              "node",
-					"creationTimestamp": nil,
+					"name": "node",
 				},
 			}},
 			wantErr: false,
@@ -1180,8 +1157,7 @@ func TestFetchWorkload(t *testing.T) {
 				"apiVersion": "v1",
 				"kind":       "Node",
 				"metadata": map[string]interface{}{
-					"name":              "node",
-					"creationTimestamp": nil,
+					"name": "node",
 				},
 			}},
 			wantErr: false,

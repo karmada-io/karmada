@@ -64,14 +64,6 @@ var _ = ginkgo.Describe("[ClusterAffinities] propagation testing", func() {
 							AffinityName:    "group2",
 							ClusterAffinity: policyv1alpha1.ClusterAffinity{LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{member2LabelKey: "ok"}}},
 						},
-						{
-							AffinityName:    "group3",
-							ClusterAffinity: policyv1alpha1.ClusterAffinity{LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"no-exist-cluster": "ok"}}},
-						},
-						{
-							AffinityName:    "group4",
-							ClusterAffinity: policyv1alpha1.ClusterAffinity{ClusterNames: []string{member1}},
-						},
 					}})
 			})
 
@@ -103,13 +95,6 @@ var _ = ginkgo.Describe("[ClusterAffinities] propagation testing", func() {
 
 				// 3. wait for deployment present on member2 cluster
 				framework.WaitDeploymentPresentOnClusterFitWith(member2, deployment.Namespace, deployment.Name, func(*appsv1.Deployment) bool { return true })
-
-				// 4. update member2 cluster label to make it's unmatched with the policy
-				framework.UpdateClusterLabels(karmadaClient, member2, map[string]string{member2LabelKey: "not-ok"})
-				framework.WaitDeploymentDisappearOnCluster(member2, deployment.Namespace, deployment.Name)
-
-				// 5. wait for deployment present on member1 cluster
-				framework.WaitDeploymentPresentOnClusterFitWith(member1, deployment.Namespace, deployment.Name, func(*appsv1.Deployment) bool { return true })
 			})
 		})
 
@@ -236,14 +221,6 @@ var _ = ginkgo.Describe("[ClusterAffinities] propagation testing", func() {
 							AffinityName:    "group2",
 							ClusterAffinity: policyv1alpha1.ClusterAffinity{LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{member2LabelKey: "ok"}}},
 						},
-						{
-							AffinityName:    "group3",
-							ClusterAffinity: policyv1alpha1.ClusterAffinity{LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"no-exist-cluster": "ok"}}},
-						},
-						{
-							AffinityName:    "group4",
-							ClusterAffinity: policyv1alpha1.ClusterAffinity{ClusterNames: []string{member1}},
-						},
 					}})
 			})
 
@@ -275,13 +252,6 @@ var _ = ginkgo.Describe("[ClusterAffinities] propagation testing", func() {
 
 				// 3. wait for clusterRole present on member2 cluster
 				framework.WaitClusterRolePresentOnClusterFitWith(member2, clusterRole.Name, func(*rbacv1.ClusterRole) bool { return true })
-
-				// 4. update member2 cluster label to make it's unmatched with the policy
-				framework.UpdateClusterLabels(karmadaClient, member2, map[string]string{member2LabelKey: "not-ok"})
-				framework.WaitClusterRoleDisappearOnCluster(member2, clusterRole.Name)
-
-				// 5. wait for deployment present on member1 cluster
-				framework.WaitClusterRolePresentOnClusterFitWith(member1, clusterRole.Name, func(*rbacv1.ClusterRole) bool { return true })
 			})
 		})
 

@@ -311,6 +311,113 @@ func Test_getDeploymentDependencies(t *testing.T) {
 	}
 }
 
+func Test_getReplicaSetDependencies(t *testing.T) {
+	tests := []struct {
+		name    string
+		object  *unstructured.Unstructured
+		want    []configv1alpha1.DependentObjectReference
+		wantErr bool
+	}{
+		{
+			name: "replicaset without dependencies",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "ReplicaSet",
+					"metadata": map[string]interface{}{
+						"name":       "fake-replicaset",
+						"generation": 1,
+						"namespace":  namespace,
+					},
+					"spec": map[string]interface{}{
+						"replicas": 3,
+					},
+				},
+			},
+			want:    nil,
+			wantErr: false,
+		},
+		{
+			name: "replicaset with dependencies 1",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "ReplicaSet",
+					"metadata": map[string]interface{}{
+						"name":       "fake-replicaset",
+						"generation": 1,
+						"namespace":  namespace,
+					},
+					"spec": map[string]interface{}{
+						"replicas": 3,
+						"template": map[string]interface{}{
+							"spec": testPairs[0].podSpecsWithDependencies.Object,
+						},
+					},
+				},
+			},
+			want:    testPairs[0].dependentObjectReference,
+			wantErr: false,
+		},
+		{
+			name: "replicaset with dependencies 2",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "ReplicaSet",
+					"metadata": map[string]interface{}{
+						"name":      "fake-replicaset",
+						"namespace": namespace,
+					},
+					"spec": map[string]interface{}{
+						"replicas": 3,
+						"template": map[string]interface{}{
+							"spec": testPairs[1].podSpecsWithDependencies.Object,
+						},
+					},
+				},
+			},
+			want:    testPairs[1].dependentObjectReference,
+			wantErr: false,
+		},
+		{
+			name: "replicaset with dependencies 3",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "ReplicaSet",
+					"metadata": map[string]interface{}{
+						"name":      "fake-replicaset",
+						"namespace": namespace,
+					},
+					"spec": map[string]interface{}{
+						"replicas": 3,
+						"template": map[string]interface{}{
+							"spec": testPairs[2].podSpecsWithDependencies.Object,
+						},
+					},
+				},
+			},
+			want:    testPairs[2].dependentObjectReference,
+			wantErr: false,
+		},
+	}
+
+	for i := range tests {
+		tt := tests[i]
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := getReplicaSetDependencies(tt.object)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("getReplicaSetDependencies() err = %v, wantErr %v", err, tt.wantErr)
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("getReplicaSetDependencies() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func Test_getJobDependencies(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -981,6 +1088,7 @@ func Test_getServiceImportDependencies(t *testing.T) {
 func Test_getAllDefaultDependenciesInterpreter(t *testing.T) {
 	expectedKinds := []schema.GroupVersionKind{
 		{Group: "apps", Version: "v1", Kind: "Deployment"},
+		{Group: "apps", Version: "v1", Kind: "ReplicaSet"},
 		{Group: "batch", Version: "v1", Kind: "Job"},
 		{Group: "batch", Version: "v1", Kind: "CronJob"},
 		{Group: "", Version: "v1", Kind: "Pod"},

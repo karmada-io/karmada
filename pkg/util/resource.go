@@ -94,6 +94,31 @@ func (r *Resource) SubResource(rr *Resource) *Resource {
 	return r
 }
 
+// Allocatable checks if r can satisfy rr.
+func (r *Resource) Allocatable(rr *Resource) bool {
+	if rr == nil {
+		return true
+	}
+	if r == nil {
+		return false
+	}
+
+	if r.MilliCPU < rr.MilliCPU || r.Memory < rr.Memory || r.EphemeralStorage < rr.EphemeralStorage || r.AllowedPodNumber < rr.AllowedPodNumber {
+		return false
+	}
+
+	for rrName, rrScalar := range rr.ScalarResources {
+		if lifted.IsScalarResourceName(rrName) {
+			rScalar, ok := r.ScalarResources[rrName]
+			if !ok || rScalar < rrScalar {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
 // SetMaxResource compares with ResourceList and takes max value for each Resource.
 func (r *Resource) SetMaxResource(rl corev1.ResourceList) {
 	if r == nil {

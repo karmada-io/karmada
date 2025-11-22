@@ -259,7 +259,7 @@ func (r *ResourceMetricsProvider) queryPodMetricsBySelector(selector, namespace 
 // queryNodeMetricsByName queries metrics by node name from target clusters
 func (r *ResourceMetricsProvider) queryNodeMetricsByName(name string) ([]metrics.NodeMetrics, error) {
 	resourceQueryFunc := func(sci typedmanager.SingleClusterInformerManager, _ string) error {
-		nodeInterface, err := sci.Lister(PodsGVR)
+		nodeInterface, err := sci.Lister(NodesGVR)
 		if err != nil {
 			return err
 		}

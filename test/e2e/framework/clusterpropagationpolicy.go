@@ -26,6 +26,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	karmada "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
@@ -61,23 +62,33 @@ func PatchClusterPropagationPolicy(client karmada.Interface, name string, patch 
 // UpdateClusterPropagationPolicyWithSpec update PropagationSpec with karmada client.
 func UpdateClusterPropagationPolicyWithSpec(client karmada.Interface, name string, policySpec policyv1alpha1.PropagationSpec) {
 	ginkgo.By(fmt.Sprintf("Updating ClusterPropagationPolicy(%s) spec", name), func() {
-		newPolicy, err := client.PolicyV1alpha1().ClusterPropagationPolicies().Get(context.TODO(), name, metav1.GetOptions{})
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			newPolicy, err := client.PolicyV1alpha1().ClusterPropagationPolicies().Get(context.TODO(), name, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
 
-		newPolicy.Spec = policySpec
-		_, err = client.PolicyV1alpha1().ClusterPropagationPolicies().Update(context.TODO(), newPolicy, metav1.UpdateOptions{})
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			newPolicy.Spec = policySpec
+			_, err = client.PolicyV1alpha1().ClusterPropagationPolicies().Update(context.TODO(), newPolicy, metav1.UpdateOptions{})
+			return err
+		})
+		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 	})
 }
 
 // UpdateClusterPropagationPolicy update ClusterPropagationPolicy resourceSelectors with karmada client.
 func UpdateClusterPropagationPolicy(client karmada.Interface, name string, resourceSelectors []policyv1alpha1.ResourceSelector) {
 	ginkgo.By(fmt.Sprintf("Updating ClusterPropagationPolicy(%s)", name), func() {
-		newPolicy, err := client.PolicyV1alpha1().ClusterPropagationPolicies().Get(context.TODO(), name, metav1.GetOptions{})
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			newPolicy, err := client.PolicyV1alpha1().ClusterPropagationPolicies().Get(context.TODO(), name, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
 
-		newPolicy.Spec.ResourceSelectors = resourceSelectors
-		_, err = client.PolicyV1alpha1().ClusterPropagationPolicies().Update(context.TODO(), newPolicy, metav1.UpdateOptions{})
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			newPolicy.Spec.ResourceSelectors = resourceSelectors
+			_, err = client.PolicyV1alpha1().ClusterPropagationPolicies().Update(context.TODO(), newPolicy, metav1.UpdateOptions{})
+			return err
+		})
+		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 	})
 }

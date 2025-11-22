@@ -41,6 +41,7 @@ type reflectStatusInterpreter func(object *unstructured.Unstructured) (*runtime.
 func getAllDefaultReflectStatusInterpreter() map[schema.GroupVersionKind]reflectStatusInterpreter {
 	s := make(map[schema.GroupVersionKind]reflectStatusInterpreter)
 	s[appsv1.SchemeGroupVersion.WithKind(util.DeploymentKind)] = reflectDeploymentStatus
+	s[appsv1.SchemeGroupVersion.WithKind(util.ReplicaSetKind)] = reflectReplicaSetStatus
 	s[corev1.SchemeGroupVersion.WithKind(util.ServiceKind)] = reflectServiceStatus
 	s[networkingv1.SchemeGroupVersion.WithKind(util.IngressKind)] = reflectIngressStatus
 	s[batchv1.SchemeGroupVersion.WithKind(util.JobKind)] = reflectJobStatus
@@ -89,6 +90,58 @@ func reflectDeploymentStatus(object *unstructured.Unstructured) (*runtime.RawExt
 			AvailableReplicas:   deploymentStatus.AvailableReplicas,
 			UnavailableReplicas: deploymentStatus.UnavailableReplicas,
 			ObservedGeneration:  deploymentStatus.ObservedGeneration,
+		},
+	}
+
+	grabStatusRaw, err := helper.BuildStatusRawExtension(grabStatus)
+	if err != nil {
+		return nil, err
+	}
+
+	// if status is empty struct, it actually means status haven't been collected from member cluster.
+	if bytes.Equal(grabStatusRaw.Raw, []byte("{}")) {
+		return nil, nil
+	}
+
+	return grabStatusRaw, nil
+}
+
+func reflectReplicaSetStatus(object *unstructured.Unstructured) (*runtime.RawExtension, error) {
+	statusMap, exist, err := unstructured.NestedMap(object.Object, "status")
+	if err != nil {
+		klog.Errorf("Failed to get status field from %s(%s/%s), error: %v",
+			object.GetKind(), object.GetNamespace(), object.GetName(), err)
+		return nil, err
+	}
+	if !exist {
+		klog.Errorf("Failed to grab status from %s(%s/%s) which should have status field.",
+			object.GetKind(), object.GetNamespace(), object.GetName())
+		return nil, nil
+	}
+
+	replicaSetStatus := &appsv1.ReplicaSetStatus{}
+	if err = helper.ConvertToTypedObject(statusMap, replicaSetStatus); err != nil {
+		return nil, fmt.Errorf("failed to convert ReplicaSetStatus from map[string]interface{}: %v", err)
+	}
+
+	resourceTemplateGenerationInt := int64(0)
+	resourceTemplateGenerationStr := util.GetAnnotationValue(object.GetAnnotations(), v1alpha2.ResourceTemplateGenerationAnnotationKey)
+	err = runtime.Convert_string_To_int64(&resourceTemplateGenerationStr, &resourceTemplateGenerationInt, nil)
+	if err != nil {
+		klog.Errorf("Failed to parse ReplicaSet(%s/%s) generation from annotation(%s:%s): %v", object.GetNamespace(), object.GetName(), v1alpha2.ResourceTemplateGenerationAnnotationKey, resourceTemplateGenerationStr, err)
+		return nil, err
+	}
+
+	grabStatus := &WrappedReplicaSetStatus{
+		FederatedGeneration: FederatedGeneration{
+			Generation:                 object.GetGeneration(),
+			ResourceTemplateGeneration: resourceTemplateGenerationInt,
+		},
+		ReplicaSetStatus: appsv1.ReplicaSetStatus{
+			Replicas:           replicaSetStatus.Replicas,
+			ReadyReplicas:      replicaSetStatus.ReadyReplicas,
+			AvailableReplicas:  replicaSetStatus.AvailableReplicas,
+			ObservedGeneration: replicaSetStatus.ObservedGeneration,
 		},
 	}
 

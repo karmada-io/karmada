@@ -58,13 +58,13 @@ jobs:
           hack/run-e2e.sh
       - name: upload logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: karmada_e2e_log_${{ matrix.k8s }}
           path: ${{ github.workspace }}/karmada-e2e-logs/${{ matrix.k8s }}/
       - name: upload kind logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: karmada_kind_log_${{ matrix.k8s }}
           path: /tmp/karmada/

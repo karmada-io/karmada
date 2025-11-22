@@ -65,6 +65,7 @@ func WaitConfigMapPresentOnClusterFitWith(cluster, namespace, name string, fit f
 	gomega.Eventually(func() bool {
 		configmap, err := clusterClient.CoreV1().ConfigMaps(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
+			klog.Errorf("Failed to get ConfigMap(%s/%s) on cluster(%s), err: %v", namespace, name, cluster, err)
 			return false
 		}
 		return fit(configmap)

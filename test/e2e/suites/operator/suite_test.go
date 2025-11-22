@@ -58,7 +58,7 @@ var (
 	kubeconfig     string
 	karmadactlPath string
 	restConfig     *rest.Config
-	kubeClient     kubernetes.Interface
+	hostClient     kubernetes.Interface
 	testNamespace  string
 	operatorClient operator.Interface
 )
@@ -93,11 +93,11 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
 	restConfig, err = framework.LoadRESTClientConfig(kubeconfig, hostContext)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	kubeClient, err = kubernetes.NewForConfig(restConfig)
+	hostClient, err = kubernetes.NewForConfig(restConfig)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	testNamespace = fmt.Sprintf("operatortest-%s", rand.String(RandomStrLength))
-	err = setupTestNamespace(testNamespace, kubeClient)
+	err = setupTestNamespace(testNamespace, hostClient)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	operatorClient, err = operator.NewForConfig(restConfig)
@@ -107,7 +107,7 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
 var _ = ginkgo.SynchronizedAfterSuite(func() {
 	// cleanup all namespaces we created both in control plane and member clusters.
 	// It will not return error even if there is no such namespace in there that may happen in case setup failed.
-	err := cleanupTestNamespace(testNamespace, kubeClient)
+	err := cleanupTestNamespace(testNamespace, hostClient)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 }, func() {})
 

@@ -56,6 +56,7 @@ func WaitServicePresentOnClusterFitWith(cluster, namespace, name string, fit fun
 	gomega.Eventually(func() bool {
 		svc, err := clusterClient.CoreV1().Services(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
+			klog.Errorf("Failed to get Service(%s/%s) on cluster(%s), err: %v", namespace, name, cluster, err)
 			return false
 		}
 		return fit(svc)

@@ -63,6 +63,7 @@ func WaitSecretPresentOnClusterFitWith(cluster, namespace, name string, fit func
 	gomega.Eventually(func() bool {
 		secret, err := clusterClient.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
+			klog.Errorf("Failed to get Secret(%s/%s) on cluster(%s), err: %v", namespace, name, cluster, err)
 			return false
 		}
 		return fit(secret)

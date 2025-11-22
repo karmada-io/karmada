@@ -34,6 +34,7 @@ import (
 func Test_getAllDefaultReplicaInterpreter(t *testing.T) {
 	expectedKinds := []schema.GroupVersionKind{
 		{Group: "apps", Version: "v1", Kind: "Deployment"},
+		{Group: "apps", Version: "v1", Kind: "ReplicaSet"},
 		{Group: "apps", Version: "v1", Kind: "StatefulSet"},
 		{Group: "batch", Version: "v1", Kind: "Job"},
 		{Group: "", Version: "v1", Kind: "Pod"},
@@ -150,6 +151,55 @@ func Test_statefulSetReplica(t *testing.T) {
 
 	assert.Equalf(t, wantReplica, gotReplica, "statefulSetReplica(%v)", unstructuredObject)
 	assert.Equalf(t, wantRequirement, gotRequirement, "statefulSetReplica(%v)", unstructuredObject)
+}
+
+func Test_replicaSetReplica(t *testing.T) {
+	object := &appsv1.ReplicaSet{
+		Spec: appsv1.ReplicaSetSpec{
+			Replicas: ptr.To[int32](3),
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					NodeSelector: map[string]string{"foo": "foo1"},
+					Tolerations:  []corev1.Toleration{{Key: "foo", Operator: corev1.TolerationOpExists, Effect: corev1.TaintEffectNoSchedule}},
+					Affinity: &corev1.Affinity{
+						NodeAffinity: &corev1.NodeAffinity{
+							RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+								NodeSelectorTerms: []corev1.NodeSelectorTerm{{
+									MatchFields: []corev1.NodeSelectorRequirement{{Key: "foo", Operator: corev1.NodeSelectorOpExists}},
+								}},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	unstructuredObject, err := helper.ToUnstructured(object)
+	if err != nil {
+		klog.Errorf("Failed to transform object, error: %v", err)
+		return
+	}
+	gotReplica, gotRequirement, err := replicaSetReplica(unstructuredObject)
+
+	wantReplica := int32(3)
+	wantRequirement := &workv1alpha2.ReplicaRequirements{
+		NodeClaim: &workv1alpha2.NodeClaim{
+			NodeSelector: map[string]string{"foo": "foo1"},
+			Tolerations:  []corev1.Toleration{{Key: "foo", Operator: corev1.TolerationOpExists, Effect: corev1.TaintEffectNoSchedule}},
+			HardNodeAffinity: &corev1.NodeSelector{
+				NodeSelectorTerms: []corev1.NodeSelectorTerm{{
+					MatchFields: []corev1.NodeSelectorRequirement{{Key: "foo", Operator: corev1.NodeSelectorOpExists}},
+				}},
+			},
+		},
+	}
+
+	if err != nil {
+		t.Errorf("replicaSetReplica() error = %v, want nil", err)
+	}
+
+	assert.Equalf(t, wantReplica, gotReplica, "replicaSetReplica(%v)", unstructuredObject)
+	assert.Equalf(t, wantRequirement, gotRequirement, "replicaSetReplica(%v)", unstructuredObject)
 }
 
 func Test_jobReplica(t *testing.T) {

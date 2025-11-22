@@ -118,8 +118,9 @@ func GetNoExecuteTaints(taints []corev1.Taint) []corev1.Taint {
 	return result
 }
 
-// GetMinTolerationTime returns minimal toleration time from the given slice, or -1 if it's infinite.
-func GetMinTolerationTime(noExecuteTaints []corev1.Taint, usedTolerations []corev1.Toleration) time.Duration {
+// GetMinTolerationTimeWithCurrentTime returns minimal toleration time from the given slice, or -1 if it's infinite.
+// This function accepts a currentTime parameter to enable deterministic testing.
+func GetMinTolerationTimeWithCurrentTime(noExecuteTaints []corev1.Taint, usedTolerations []corev1.Toleration, currentTime time.Time) time.Duration {
 	if len(noExecuteTaints) == 0 {
 		return -1
 	}
@@ -160,11 +161,11 @@ func GetMinTolerationTime(noExecuteTaints []corev1.Taint, usedTolerations []core
 	}
 
 	// If trigger time is up, don't tolerate.
-	if t.Before(time.Now()) {
+	if t.Before(currentTime) {
 		return 0
 	}
 
-	return time.Until(t)
+	return t.Sub(currentTime)
 }
 
 // GetMatchingTolerations returns true and list of Tolerations matching all Taints if all are tolerated, or false otherwise.

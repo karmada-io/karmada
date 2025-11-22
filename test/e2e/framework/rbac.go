@@ -67,6 +67,7 @@ func WaitRolePresentOnClusterFitWith(cluster, namespace, name string, fit func(r
 	gomega.Eventually(func() bool {
 		role, err := clusterClient.RbacV1().Roles(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
+			klog.Errorf("Failed to get Role(%s/%s) on cluster(%s), err: %v", namespace, name, cluster, err)
 			return false
 		}
 		return fit(role)
@@ -139,6 +140,7 @@ func WaitClusterRolePresentOnClusterFitWith(cluster, name string, fit func(clust
 	gomega.Eventually(func() bool {
 		clusterRole, err := clusterClient.RbacV1().ClusterRoles().Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
+			klog.Errorf("Failed to get ClusterRole(%s) on cluster(%s), err: %v", name, cluster, err)
 			return false
 		}
 		return fit(clusterRole)
@@ -180,6 +182,7 @@ func WaitClusterRoleGetByClientFitWith(client kubernetes.Interface, name string,
 		gomega.Eventually(func() bool {
 			clusterRole, err := client.RbacV1().ClusterRoles().Get(context.TODO(), name, metav1.GetOptions{})
 			if err != nil {
+				klog.Errorf("Failed to get ClusterRole(%s), err: %v", name, err)
 				return false
 			}
 			return fit(clusterRole)
@@ -224,6 +227,7 @@ func WaitRoleBindingPresentOnClusterFitWith(cluster, namespace, name string, fit
 	gomega.Eventually(func() bool {
 		roleBinding, err := clusterClient.RbacV1().RoleBindings(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
+			klog.Errorf("Failed to get RoleBinding(%s/%s) on cluster(%s), err: %v", namespace, name, cluster, err)
 			return false
 		}
 		return fit(roleBinding)
@@ -296,6 +300,7 @@ func WaitClusterRoleBindingPresentOnClusterFitWith(cluster, name string, fit fun
 	gomega.Eventually(func() bool {
 		clusterRoleBinding, err := clusterClient.RbacV1().ClusterRoleBindings().Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
+			klog.Errorf("Failed to get ClusterRoleBinding(%s) on cluster(%s), err: %v", name, cluster, err)
 			return false
 		}
 		return fit(clusterRoleBinding)
@@ -359,6 +364,7 @@ func WaitServiceAccountPresentOnClusterFitWith(cluster, namespace, name string, 
 	gomega.Eventually(func() bool {
 		sa, err := clusterClient.CoreV1().ServiceAccounts(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
+			klog.Errorf("Failed to get ServiceAccount(%s/%s) on cluster(%s), err: %v", namespace, name, cluster, err)
 			return false
 		}
 		return fit(sa)

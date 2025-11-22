@@ -82,6 +82,14 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 
 		return controllerruntime.Result{}, err
 	}
+	if namespace.GetObjectKind().GroupVersionKind().Empty() {
+		// In unit tests, we need to verify that a work object is created for the corresponding namespace.
+		// However, the fake client does not set TypeMeta information, which results in an incorrect generated work object name.
+		// This ensures correct GVK is set so work name generation in tests works as expected.
+		// Since controller-runtime v0.22.0, the group version kind is not set when using fake client.
+		// See https://github.com/kubernetes-sigs/controller-runtime/pull/3229 for more details.
+		namespace.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Namespace"))
+	}
 
 	if !namespace.DeletionTimestamp.IsZero() {
 		// Do nothing, just return as we have added owner reference to Work.

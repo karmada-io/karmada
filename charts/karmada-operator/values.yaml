@@ -30,7 +30,7 @@ kubectl:
   ##
   image:
     registry: docker.io
-    repository: bitnami/kubectl
+    repository: bitnamisecure/kubectl
     tag: latest
     ## Specify a imagePullPolicy, defaults to 'IfNotPresent'
     pullPolicy: IfNotPresent

@@ -18,9 +18,7 @@ package helper
 
 import (
 	"context"
-	"crypto/rand"
-	"math/big"
-	"sort"
+	"hash/fnv"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -30,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/dynamic"
@@ -56,28 +55,8 @@ type ClusterWeightInfo struct {
 	LastReplicas int32
 }
 
-// ClusterWeightInfoList is a slice of ClusterWeightInfo that implements sort.Interface to sort by Value.
+// ClusterWeightInfoList is a slice of ClusterWeightInfo.
 type ClusterWeightInfoList []ClusterWeightInfo
-
-func (p ClusterWeightInfoList) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
-func (p ClusterWeightInfoList) Len() int      { return len(p) }
-func (p ClusterWeightInfoList) Less(i, j int) bool {
-	if p[i].Weight != p[j].Weight {
-		return p[i].Weight > p[j].Weight
-	}
-	// when weights is equal, sort by last scheduling replicas result,
-	// more last scheduling replicas means the remainders of the last scheduling were randomized to such clusters,
-	// so in order to keep the inertia in this scheduling, such clusters should also be prioritized
-	if p[i].LastReplicas != p[j].LastReplicas {
-		return p[i].LastReplicas > p[j].LastReplicas
-	}
-	// when last scheduling replicas is also equal, sort by random,
-	// first generate a random number within [0, 100) range,
-	// then return < if the actual number is in [0, 50) range, return > if is in [50, 100) range
-	const maxRandomNum = 100
-	randomNum, err := rand.Int(rand.Reader, big.NewInt(maxRandomNum))
-	return err == nil && randomNum.Cmp(big.NewInt(maxRandomNum/2)) >= 0
-}
 
 // GetWeightSum returns the sum of the weight info.
 func (p ClusterWeightInfoList) GetWeightSum() int64 {
@@ -94,13 +73,16 @@ type Dispenser struct {
 	NumReplicas int32
 	// Final result.
 	Result []workv1alpha2.TargetCluster
+	// TieBreaker is used to break the tie.
+	TieBreaker func(a, b Party) bool
 }
 
 // NewDispenser will construct a dispenser with target replicas and a prescribed initial result.
-func NewDispenser(numReplicas int32, init []workv1alpha2.TargetCluster) *Dispenser {
+// uuid is used to generate a random but stable tiebreaker function, which is used to break the tie when the parties have the same priority.
+func NewDispenser(numReplicas int32, init []workv1alpha2.TargetCluster, uuid types.UID) *Dispenser {
 	cp := make([]workv1alpha2.TargetCluster, len(init))
 	copy(cp, init)
-	return &Dispenser{NumReplicas: numReplicas, Result: cp}
+	return &Dispenser{NumReplicas: numReplicas, Result: cp, TieBreaker: tieBreakerByUID(uuid)}
 }
 
 // Done indicates whether finish dispensing.
@@ -108,8 +90,8 @@ func (a *Dispenser) Done() bool {
 	return a.NumReplicas == 0 && len(a.Result) != 0
 }
 
-// TakeByWeight divide replicas by a weight list and merge the result into previous result.
-func (a *Dispenser) TakeByWeight(w ClusterWeightInfoList) {
+// AllocateByWeight divides replicas by Webster method.
+func (a *Dispenser) AllocateByWeight(w ClusterWeightInfoList) {
 	if a.Done() {
 		return
 	}
@@ -118,29 +100,58 @@ func (a *Dispenser) TakeByWeight(w ClusterWeightInfoList) {
 		return
 	}
 
-	sort.Sort(w)
+	var initialAssignments = make(map[string]int32, len(a.Result))
+	for _, cluster := range a.Result {
+		initialAssignments[cluster.Name] = cluster.Replicas
+	}
 
-	result := make([]workv1alpha2.TargetCluster, 0, w.Len())
-	remain := a.NumReplicas
+	partyVotes := make(map[string]int64, len(w))
 	for _, info := range w {
-		replicas := int32(info.Weight * int64(a.NumReplicas) / sum) // #nosec G115: integer overflow conversion int64 -> int32
-		result = append(result, workv1alpha2.TargetCluster{
-			Name:     info.ClusterName,
-			Replicas: replicas,
-		})
-		remain -= replicas
-	}
-	// TODO(Garrybest): take rest replicas by fraction part
-	for i := range result {
-		if remain == 0 {
-			break
-		}
-		result[i].Replicas++
-		remain--
+		partyVotes[info.ClusterName] = info.Weight
 	}
 
-	a.NumReplicas = remain
-	a.Result = util.MergeTargetClusters(a.Result, result)
+	a.Result = convertPartiesToTargetClusters(AllocateWebsterSeats(a.NumReplicas, partyVotes, initialAssignments, a.TieBreaker))
+	a.NumReplicas = 0
+}
+
+func tieBreakerByUID(uid types.UID) func(a, b Party) bool {
+	// sortNameDescending gives higher priority to parties with lexicographically larger names in case of a tie.
+	sortNameDescending := func(a, b Party) bool {
+		// The party with fewer seats wins the tie.
+		if a.Seats != b.Seats {
+			return a.Seats < b.Seats
+		}
+		return a.Name > b.Name
+	}
+	// sortNameAscending gives higher priority to parties with lexicographically smaller names in case of a tie.
+	sortNameAscending := func(a, b Party) bool {
+		// The party with fewer seats wins the tie.
+		if a.Seats != b.Seats {
+			return a.Seats < b.Seats
+		}
+		return a.Name < b.Name
+	}
+	if len(uid) == 0 {
+		return sortNameAscending
+	}
+
+	h := fnv.New32a()
+	h.Write([]byte(uid))
+	if h.Sum32()&1 == 1 {
+		return sortNameDescending
+	}
+	return sortNameAscending
+}
+
+func convertPartiesToTargetClusters(parties []Party) []workv1alpha2.TargetCluster {
+	result := make([]workv1alpha2.TargetCluster, 0, len(parties))
+	for _, party := range parties {
+		result = append(result, workv1alpha2.TargetCluster{
+			Name:     party.Name,
+			Replicas: party.Seats,
+		})
+	}
+	return result
 }
 
 // GetStaticWeightInfoListByTargetClusters constructs a weight list by target cluster slice.
@@ -164,10 +175,10 @@ func GetStaticWeightInfoListByTargetClusters(tcs, scheduled []workv1alpha2.Targe
 }
 
 // SpreadReplicasByTargetClusters divides replicas by the weight of a target cluster list.
-func SpreadReplicasByTargetClusters(numReplicas int32, tcs, init []workv1alpha2.TargetCluster) []workv1alpha2.TargetCluster {
+func SpreadReplicasByTargetClusters(numReplicas int32, tcs, init []workv1alpha2.TargetCluster, uuid types.UID) []workv1alpha2.TargetCluster {
 	weightList := GetStaticWeightInfoListByTargetClusters(tcs, init)
-	disp := NewDispenser(numReplicas, init)
-	disp.TakeByWeight(weightList)
+	disp := NewDispenser(numReplicas, init, uuid)
+	disp.AllocateByWeight(weightList)
 	return disp.Result
 }
 

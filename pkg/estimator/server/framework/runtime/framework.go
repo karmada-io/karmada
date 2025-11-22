@@ -34,15 +34,21 @@ import (
 )
 
 const (
-	estimator = "Estimator"
+	// estimator is the legacy label for replica estimation metrics.
+	// Deprecated: Use estimateReplicasExtension instead. This will be removed in a future release.
+	estimator                   = "Estimator"
+	estimateReplicasExtension   = "estimate_replicas"
+	estimateComponentsExtension = "estimate_components"
 )
 
 // frameworkImpl implements the Framework interface and is responsible for initializing and running scheduler
 // plugins.
 type frameworkImpl struct {
-	estimateReplicasPlugins []framework.EstimateReplicasPlugin
-	clientSet               clientset.Interface
-	informerFactory         informers.SharedInformerFactory
+	estimateReplicasPlugins   []framework.EstimateReplicasPlugin
+	estimateComponentsPlugins []framework.EstimateComponentsPlugin
+	clientSet                 clientset.Interface
+	informerFactory           informers.SharedInformerFactory
+	parallelism               int
 }
 
 var _ framework.Framework = &frameworkImpl{}
@@ -50,6 +56,7 @@ var _ framework.Framework = &frameworkImpl{}
 type frameworkOptions struct {
 	clientSet       clientset.Interface
 	informerFactory informers.SharedInformerFactory
+	parallelism     int
 }
 
 // Option for the frameworkImpl.
@@ -73,6 +80,13 @@ func WithInformerFactory(informerFactory informers.SharedInformerFactory) Option
 	}
 }
 
+// WithParallelism sets parallelism for the scheduling frameworkImpl.
+func WithParallelism(parallelism int) Option {
+	return func(o *frameworkOptions) {
+		o.parallelism = parallelism
+	}
+}
+
 // NewFramework creates a scheduling framework by registry.
 func NewFramework(r Registry, opts ...Option) (framework.Framework, error) {
 	options := defaultFrameworkOptions()
@@ -85,12 +99,16 @@ func NewFramework(r Registry, opts ...Option) (framework.Framework, error) {
 	estimateReplicasPluginsList := reflect.ValueOf(&f.estimateReplicasPlugins).Elem()
 	estimateReplicasType := estimateReplicasPluginsList.Type().Elem()
 
+	estimateComponentsPluginsList := reflect.ValueOf(&f.estimateComponentsPlugins).Elem()
+	estimateComponentsType := estimateComponentsPluginsList.Type().Elem()
+
 	for name, factory := range r {
 		p, err := factory(f)
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize plugin %q: %w", name, err)
 		}
 		addPluginToList(p, estimateReplicasType, &estimateReplicasPluginsList)
+		addPluginToList(p, estimateComponentsType, &estimateComponentsPluginsList)
 	}
 	return f, nil
 }
@@ -112,6 +130,11 @@ func (frw *frameworkImpl) SharedInformerFactory() informers.SharedInformerFactor
 	return frw.informerFactory
 }
 
+// Parallelism returns the amount of parallelism in algorithms for estimating.
+func (frw *frameworkImpl) Parallelism() int {
+	return frw.parallelism
+}
+
 // RunEstimateReplicasPlugins runs the set of configured EstimateReplicasPlugins
 // for estimating replicas based on the given replicaRequirements.
 // It returns an integer and an error.
@@ -119,7 +142,10 @@ func (frw *frameworkImpl) SharedInformerFactory() informers.SharedInformerFactor
 func (frw *frameworkImpl) RunEstimateReplicasPlugins(ctx context.Context, snapshot *schedcache.Snapshot, replicaRequirements *pb.ReplicaRequirements) (int32, *framework.Result) {
 	startTime := time.Now()
 	defer func() {
+		// Emit metrics with both old and new labels for backward compatibility
+		// TODO: Remove estimator label in a future release (deprecated)
 		metrics.FrameworkExtensionPointDuration.WithLabelValues(estimator).Observe(utilmetrics.DurationInSeconds(startTime))
+		metrics.FrameworkExtensionPointDuration.WithLabelValues(estimateReplicasExtension).Observe(utilmetrics.DurationInSeconds(startTime))
 	}()
 	var replica int32 = math.MaxInt32
 	results := make(framework.PluginToResult)
@@ -127,6 +153,9 @@ func (frw *frameworkImpl) RunEstimateReplicasPlugins(ctx context.Context, snapsh
 		plReplica, ret := frw.runEstimateReplicasPlugins(ctx, pl, snapshot, replicaRequirements)
 		if (ret.IsSuccess() || ret.IsUnschedulable()) && plReplica < replica {
 			replica = plReplica
+		}
+		if ret.IsFailed() {
+			replica = 0
 		}
 		results[pl.Name()] = ret
 	}
@@ -141,6 +170,42 @@ func (frw *frameworkImpl) runEstimateReplicasPlugins(
 ) (int32, *framework.Result) {
 	startTime := time.Now()
 	replica, ret := pl.Estimate(ctx, snapshot, replicaRequirements)
+	// Emit metrics with both old and new labels for backward compatibility
+	// TODO: Remove estimator label in a future release (deprecated)
 	metrics.PluginExecutionDuration.WithLabelValues(pl.Name(), estimator).Observe(utilmetrics.DurationInSeconds(startTime))
+	metrics.PluginExecutionDuration.WithLabelValues(pl.Name(), estimateReplicasExtension).Observe(utilmetrics.DurationInSeconds(startTime))
 	return replica, ret
+}
+
+// RunEstimateComponentsPlugins runs the set of configured EstimateComponentsPlugins
+// for estimating the maximum number of complete component sets based on the given components.
+// It returns an integer and a Result.
+// The integer represents the minimum calculated value of estimated component sets from each EstimateComponentsPlugin.
+func (frw *frameworkImpl) RunEstimateComponentsPlugins(ctx context.Context, snapshot *schedcache.Snapshot, components []pb.Component) (int32, *framework.Result) {
+	startTime := time.Now()
+	defer func() {
+		metrics.FrameworkExtensionPointDuration.WithLabelValues(estimateComponentsExtension).Observe(utilmetrics.DurationInSeconds(startTime))
+	}()
+	var sets int32 = math.MaxInt32
+	results := make(framework.PluginToResult)
+	for _, pl := range frw.estimateComponentsPlugins {
+		plSets, ret := frw.runEstimateComponentsPlugins(ctx, pl, snapshot, components)
+		if (ret.IsSuccess() || ret.IsUnschedulable()) && plSets < sets {
+			sets = plSets
+		}
+		results[pl.Name()] = ret
+	}
+	return sets, results.Merge()
+}
+
+func (frw *frameworkImpl) runEstimateComponentsPlugins(
+	ctx context.Context,
+	pl framework.EstimateComponentsPlugin,
+	snapshot *schedcache.Snapshot,
+	components []pb.Component,
+) (int32, *framework.Result) {
+	startTime := time.Now()
+	sets, ret := pl.EstimateComponents(ctx, snapshot, components)
+	metrics.PluginExecutionDuration.WithLabelValues(pl.Name(), estimateComponentsExtension).Observe(utilmetrics.DurationInSeconds(startTime))
+	return sets, ret
 }

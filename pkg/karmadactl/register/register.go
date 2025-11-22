@@ -68,11 +68,15 @@ var (
 		# Register cluster into karmada control plane with Pull mode.
 		# If '--cluster-name' isn't specified, the cluster of current-context will be used by default.
 		%[1]s register [karmada-apiserver-endpoint] --cluster-name=<CLUSTER_NAME> --token=<TOKEN>  --discovery-token-ca-cert-hash=<CA-CERT-HASH>
-		
+	
+		# The 'karmada-apiserver-endpoint' argument is an address of the Karmada API server from which info will be fetched.
+		# It should be provided in the format '<host>:<port>'.
+		%[1]s register 172.18.0.2:5443 --cluster-name=<CLUSTER_NAME> --token=<TOKEN> --discovery-token-ca-cert-hash=<CA-CERT-HASH>
+	
 		# UnsafeSkipCAVerification allows token-based discovery without CA verification via CACertHashes. This can weaken
 		# the security of register command since other clusters can impersonate the control-plane.
-		%[1]s register [karmada-apiserver-endpoint] --token=<TOKEN>  --discovery-token-unsafe-skip-ca-verification=true
-		`)
+		%[1]s register [karmada-apiserver-endpoint] --token=<TOKEN> --discovery-token-unsafe-skip-ca-verification=true
+	`)
 )
 
 const (
@@ -476,6 +480,17 @@ func (o *CommandRegisterOption) preflight() []error {
 	return errlist
 }
 
+func (o *CommandRegisterOption) getAPIServerEndpoint(clusterInfo *clientcmdapi.Cluster) string {
+	// if the command has specified a bootstrap API server endpoint, use that instead of the one from the clusterinfo
+	// since the one from the cluster-info is often local and unreachable from the pull cluster
+	karmadaServer := clusterInfo.Server
+	if o.BootstrapToken.APIServerEndpoint != "" {
+		karmadaServer = fmt.Sprintf("https://%s", o.BootstrapToken.APIServerEndpoint)
+	}
+
+	return karmadaServer
+}
+
 // discoveryBootstrapConfigAndClusterInfo get bootstrap-config and cluster-info from control plane
 func (o *CommandRegisterOption) discoveryBootstrapConfigAndClusterInfo(parentCommand string) (*kubeclient.Clientset, *clientcmdapi.Cluster, error) {
 	config, err := retrieveValidatedConfigInfo(nil, o.BootstrapToken, o.Timeout, DiscoveryRetryInterval, parentCommand)
@@ -485,8 +500,9 @@ func (o *CommandRegisterOption) discoveryBootstrapConfigAndClusterInfo(parentCom
 
 	klog.V(1).Info("[discovery] Using provided TLSBootstrapToken as authentication credentials for the join process")
 	clusterinfo := tokenutil.GetClusterFromKubeConfig(config, "")
+
 	tlsBootstrapCfg := CreateWithToken(
-		clusterinfo.Server,
+		o.getAPIServerEndpoint(clusterinfo),
 		DefaultClusterName,
 		TokenUserName,
 		clusterinfo.CertificateAuthorityData,
@@ -867,15 +883,8 @@ func (o *CommandRegisterOption) constructKubeConfig(bootstrapClient *kubeclient.
 		return nil, err
 	}
 
-	// Using o.BootstrapToken.APIServerEndpoint instead of the endpoint in discovered cluster-info
-	// because discivered endpoint can often be unreachable from member cluster
-	karmadaServer := karmadaClusterInfo.Server
-	if o.BootstrapToken.APIServerEndpoint != "" {
-		karmadaServer = fmt.Sprintf("https://%s", o.BootstrapToken.APIServerEndpoint)
-	}
-
 	return CreateWithCert(
-		karmadaServer,
+		o.getAPIServerEndpoint(karmadaClusterInfo),
 		DefaultClusterName,
 		o.ClusterName,
 		karmadaClusterInfo.CertificateAuthorityData,

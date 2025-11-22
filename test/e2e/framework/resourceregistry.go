@@ -23,6 +23,7 @@ import (
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
 
 	searchv1alpha1 "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
 	karmada "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
@@ -44,10 +45,19 @@ func RemoveResourceRegistry(client karmada.Interface, name string) {
 	})
 }
 
-// UpdateResourceRegistry patch ResourceRegistry with karmada client.
-func UpdateResourceRegistry(client karmada.Interface, rr *searchv1alpha1.ResourceRegistry) {
+// UpdateResourceRegistryWithSpec patch ResourceRegistry with karmada client.
+func UpdateResourceRegistryWithSpec(client karmada.Interface, rr *searchv1alpha1.ResourceRegistry) {
 	ginkgo.By(fmt.Sprintf("Update ResourceRegistry(%s)", rr.Name), func() {
-		_, err := client.SearchV1alpha1().ResourceRegistries().Update(context.TODO(), rr, metav1.UpdateOptions{})
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			latestRR, err := client.SearchV1alpha1().ResourceRegistries().Get(context.TODO(), rr.Name, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+
+			latestRR.Spec = rr.Spec
+			_, err = client.SearchV1alpha1().ResourceRegistries().Update(context.TODO(), latestRR, metav1.UpdateOptions{})
+			return err
+		})
+		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 	})
 }

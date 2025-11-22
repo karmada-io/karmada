@@ -300,6 +300,11 @@ func Test_getAllDefaultReflectStatusInterpreter(t *testing.T) {
 			wantFn: true,
 		},
 		{
+			name:   "ReplicaSet interpreter exists",
+			gvk:    appsv1.SchemeGroupVersion.WithKind(util.ReplicaSetKind),
+			wantFn: true,
+		},
+		{
 			name:   "Service interpreter exists",
 			gvk:    corev1.SchemeGroupVersion.WithKind(util.ServiceKind),
 			wantFn: true,
@@ -357,7 +362,7 @@ func Test_getAllDefaultReflectStatusInterpreter(t *testing.T) {
 	}
 
 	// Verify total number of interpreters
-	assert.Len(t, interpreters, 8, "unexpected number of interpreters")
+	assert.Len(t, interpreters, 9, "unexpected number of interpreters")
 
 	// Verify map is not nil
 	assert.NotNil(t, interpreters, "interpreters map should not be nil")
@@ -455,6 +460,114 @@ func Test_reflectDeploymentStatus(t *testing.T) {
 			}
 
 			got, err := reflectDeploymentStatus(unstrObj)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+
+			if tt.want == nil {
+				assert.Nil(t, got)
+				return
+			}
+
+			assert.NotNil(t, got)
+			assert.JSONEq(t, string(tt.want.Raw), string(got.Raw))
+		})
+	}
+}
+
+func Test_reflectReplicaSetStatus(t *testing.T) {
+	validReplicaSet := &appsv1.ReplicaSet{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ReplicaSet",
+			APIVersion: appsv1.SchemeGroupVersion.String(),
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       "test-replicaset",
+			Namespace:  "test-ns",
+			Generation: 2,
+			Annotations: map[string]string{
+				workv1alpha2.ResourceTemplateGenerationAnnotationKey: "1",
+			},
+		},
+		Status: appsv1.ReplicaSetStatus{
+			Replicas:           3,
+			ReadyReplicas:      3,
+			AvailableReplicas:  3,
+			ObservedGeneration: 2,
+		},
+	}
+
+	tests := []struct {
+		name       string
+		replicaSet *appsv1.ReplicaSet
+		modifyFunc func(*unstructured.Unstructured)
+		want       *runtime.RawExtension
+		wantErr    bool
+	}{
+		{
+			name:       "replicaset with valid status and generation annotation",
+			replicaSet: validReplicaSet.DeepCopy(),
+			want: func() *runtime.RawExtension {
+				wantStatus := &WrappedReplicaSetStatus{
+					FederatedGeneration: FederatedGeneration{
+						Generation:                 2,
+						ResourceTemplateGeneration: 1,
+					},
+					ReplicaSetStatus: validReplicaSet.Status,
+				}
+				raw, _ := helper.BuildStatusRawExtension(wantStatus)
+				return raw
+			}(),
+			wantErr: false,
+		},
+		{
+			name:       "replicaset without status field",
+			replicaSet: validReplicaSet.DeepCopy(),
+			modifyFunc: func(u *unstructured.Unstructured) {
+				delete(u.Object, "status")
+			},
+			want:    nil,
+			wantErr: false,
+		},
+		{
+			name:       "replicaset with invalid generation annotation",
+			replicaSet: validReplicaSet.DeepCopy(),
+			modifyFunc: func(u *unstructured.Unstructured) {
+				annotations := u.GetAnnotations()
+				annotations[workv1alpha2.ResourceTemplateGenerationAnnotationKey] = "invalid"
+				u.SetAnnotations(annotations)
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name:       "replicaset without generation annotation",
+			replicaSet: validReplicaSet.DeepCopy(),
+			modifyFunc: func(u *unstructured.Unstructured) {
+				annotations := u.GetAnnotations()
+				delete(annotations, workv1alpha2.ResourceTemplateGenerationAnnotationKey)
+				u.SetAnnotations(annotations)
+			},
+			want:    nil,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Convert replicaset to unstructured
+			unstrObj, err := helper.ToUnstructured(tt.replicaSet)
+			require.NoError(t, err, "Failed to convert replicaset to unstructured")
+
+			// Apply modifications if specified
+			if tt.modifyFunc != nil {
+				tt.modifyFunc(unstrObj)
+			}
+
+			got, err := reflectReplicaSetStatus(unstrObj)
 
 			if tt.wantErr {
 				assert.Error(t, err)

@@ -1,0 +1,221 @@
+apiVersion: config.karmada.io/v1alpha1
+kind: ResourceInterpreterCustomization
+metadata:
+  name: declarative-configuration-mpijob
+spec:
+  target:
+    apiVersion: kubeflow.org/v2beta1
+    kind: MPIJob
+  customizations:
+    healthInterpretation:
+      luaScript: >
+        function InterpretHealth(observedObj)
+          if observedObj.status == nil or observedObj.status.conditions == nil or #observedObj.status.conditions == 0 then
+            return false
+          end
+
+          local conditions = observedObj.status.conditions
+          for i = 1, #conditions do
+            local c = conditions[i]
+            if c.type == "Failed" and c.status == "True" then
+              return false
+            end
+          end
+          
+          return true
+        end
+    componentResource:
+      luaScript: |
+        local kube = require("kube")
+        local function get(obj, path)
+          local cur = obj
+          for i = 1, #path do
+            if cur == nil then return nil end
+            cur = cur[path[i]]
+          end
+          return cur
+        end
+
+        local function to_num(v, default)
+          if v == nil or v == '' then
+            return default
+          end
+          local n = tonumber(v)
+          if n ~= nil then return n end
+          return default
+        end
+
+        function GetComponents(observedObj)
+          local components = {}
+
+          local replicaSpecs = get(observedObj, {"spec", "mpiReplicaSpecs"})
+          if replicaSpecs == nil then
+            return components
+          end
+
+          for taskName, spec in pairs(replicaSpecs) do
+            if spec ~= nil and spec.template ~= nil then
+              local default_replicas = 1
+              if string.lower(taskName) == "worker" then
+                default_replicas = 0
+              end
+              local replicas = to_num(spec.replicas, default_replicas)
+              local requires = kube.accuratePodRequirements(spec.template)
+              table.insert(components, {
+                name = taskName,
+                replicas = replicas,
+                replicaRequirements = requires
+              })
+            end
+          end
+
+          return components
+        end
+    statusAggregation:
+      luaScript: >
+        local function get(obj, path)
+          local cur = obj
+          for i = 1, #path do
+            if cur == nil then return nil end
+            cur = cur[path[i]]
+          end
+          return cur
+        end
+
+        local function omitEmpty(t)
+          if t == nil then return nil end
+          local out = {}
+          for k, v in pairs(t) do
+            if type(v) == "table" then
+              local inner = omitEmpty(v)
+              if inner ~= nil and next(inner) ~= nil then
+                out[k] = inner
+              end
+            elseif v ~= nil then
+              out[k] = v
+            end
+          end
+          if next(out) ~= nil then
+            return out
+          else
+            return nil
+          end
+        end
+
+        function AggregateStatus(desiredObj, statusItems)
+          if statusItems == nil or #statusItems == 0 then return desiredObj end
+          if desiredObj.status == nil then desiredObj.status = {} end
+          
+          if #statusItems == 1 then
+            desiredObj.status = statusItems[1].status
+            return desiredObj
+          end
+          
+          local latestTransition = {}
+
+          local status = {
+            replicaStatuses = {},
+            conditions = {},
+            startTime = nil,
+            completionTime = nil,
+            lastReconcileTime = nil,
+          }
+
+          for i = 1, #statusItems do
+            local s = statusItems[i].status
+            if s ~= nil then
+              if s.replicaStatuses ~= nil then
+                for replicaType, repStatus in pairs(s.replicaStatuses) do
+                  if status.replicaStatuses[replicaType] == nil then
+                    status.replicaStatuses[replicaType] = {
+                      active = 0,
+                      succeeded = 0,
+                      failed = 0
+                    }
+                  end
+                  
+                  status.replicaStatuses[replicaType].active = status.replicaStatuses[replicaType].active + (repStatus.active or 0)
+                  status.replicaStatuses[replicaType].succeeded = status.replicaStatuses[replicaType].succeeded + (repStatus.succeeded or 0)
+                  status.replicaStatuses[replicaType].failed = status.replicaStatuses[replicaType].failed + (repStatus.failed or 0)
+                end
+              end
+
+              if s.startTime ~= nil and s.startTime ~= "" then
+                if status.startTime == nil or s.startTime < status.startTime then
+                  status.startTime = s.startTime
+                end
+              end
+
+              if s.completionTime ~= nil and s.completionTime ~= "" then
+                if status.completionTime == nil or s.completionTime > status.completionTime then
+                  status.completionTime = s.completionTime
+                end
+              end
+
+              if s.lastReconcileTime ~= nil and s.lastReconcileTime ~= "" then
+                if status.lastReconcileTime == nil or s.lastReconcileTime > status.lastReconcileTime then
+                  status.lastReconcileTime = s.lastReconcileTime
+                end
+              end
+
+              if s.conditions then
+                for _, c in ipairs(s.conditions) do
+                  local exist = latestTransition[c.type]
+                  local newTime = c.lastUpdateTime or c.lastTransitionTime
+
+                  if newTime ~= nil and newTime ~= "" then
+                    if exist == nil or newTime > (exist.lastUpdateTime or exist.lastTransitionTime) then
+                      latestTransition[c.type] = c
+                    end
+                  end
+                end
+              end
+              
+            end
+          end
+
+          for _, v in pairs(latestTransition) do
+            table.insert(status.conditions, v)
+          end
+
+          desiredObj.status = omitEmpty(status) or {}
+          return desiredObj
+        end
+    statusReflection:
+      luaScript: >
+        function ReflectStatus(observedObj)
+          local status = {}
+
+          if observedObj == nil or observedObj.status == nil then
+            return status
+          end
+
+          local s = observedObj.status
+
+          status.replicaStatuses = {}
+          if s.replicaStatuses ~= nil then
+            for k, v in pairs(s.replicaStatuses) do
+              if v ~= nil then
+                status.replicaStatuses[k] = {
+                  active = v.active,
+                  succeeded = v.succeeded,
+                  failed = v.failed,
+                  selector = v.selector
+                }
+              end
+            end
+          end
+
+          status.conditions = {}
+          if type(s.conditions) == "table" then
+            for _, cond in ipairs(s.conditions) do
+              table.insert(status.conditions, cond)
+            end
+          end
+
+          status.startTime = s.startTime
+          status.completionTime = s.completionTime
+          status.lastReconcileTime = s.lastReconcileTime
+
+          return status
+        end

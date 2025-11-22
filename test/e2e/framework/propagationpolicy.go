@@ -26,6 +26,8 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
+	"k8s.io/klog/v2"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	karmada "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
@@ -50,16 +52,10 @@ func RemovePropagationPolicy(client karmada.Interface, namespace, name string) {
 // RemovePropagationPolicyIfExist delete PropagationPolicy if it exists with karmada client.
 func RemovePropagationPolicyIfExist(client karmada.Interface, namespace, name string) {
 	ginkgo.By(fmt.Sprintf("Removing PropagationPolicy(%s/%s) if it exists", namespace, name), func() {
-		_, err := client.PolicyV1alpha1().PropagationPolicies(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-		if err != nil {
-			if apierrors.IsNotFound(err) {
-				return
-			}
+		err := client.PolicyV1alpha1().PropagationPolicies(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+		if err != nil && !apierrors.IsNotFound(err) {
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 		}
-
-		err = client.PolicyV1alpha1().PropagationPolicies(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	})
 }
 
@@ -77,12 +73,17 @@ func PatchPropagationPolicy(client karmada.Interface, namespace, name string, pa
 // UpdatePropagationPolicyWithSpec update PropagationSpec with karmada client.
 func UpdatePropagationPolicyWithSpec(client karmada.Interface, namespace, name string, policySpec policyv1alpha1.PropagationSpec) {
 	ginkgo.By(fmt.Sprintf("Updating PropagationPolicy(%s/%s) spec", namespace, name), func() {
-		newPolicy, err := client.PolicyV1alpha1().PropagationPolicies(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			newPolicy, err := client.PolicyV1alpha1().PropagationPolicies(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
 
-		newPolicy.Spec = policySpec
-		_, err = client.PolicyV1alpha1().PropagationPolicies(newPolicy.Namespace).Update(context.TODO(), newPolicy, metav1.UpdateOptions{})
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			newPolicy.Spec = policySpec
+			_, err = client.PolicyV1alpha1().PropagationPolicies(newPolicy.Namespace).Update(context.TODO(), newPolicy, metav1.UpdateOptions{})
+			return err
+		})
+		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 	})
 }
 
@@ -91,6 +92,7 @@ func WaitPropagationPolicyFitWith(client karmada.Interface, namespace, name stri
 	gomega.Eventually(func() bool {
 		policy, err := client.PolicyV1alpha1().PropagationPolicies(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
+			klog.Errorf("Failed to get PropagationPolicy(%s/%s), err: %v", namespace, name, err)
 			return false
 		}
 		return fit(policy)

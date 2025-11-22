@@ -119,10 +119,9 @@ var (
 	controlPlaneClient client.Client
 	// testNamespace is the main namespace for testing.
 	// It is the default namespace where most test resources are created and validated.
-	testNamespace         string
-	clusterProvider       *cluster.Provider
-	clusterLabels         = map[string]string{"location": "CHN"}
-	pushModeClusterLabels = map[string]string{"sync-mode": "Push"}
+	testNamespace   string
+	clusterProvider *cluster.Provider
+	clusterLabels   = map[string]string{"location": "CHN"}
 )
 
 func init() {

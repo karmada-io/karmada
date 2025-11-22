@@ -138,6 +138,89 @@ func (_c *MockEstimatorClient_GetUnschedulableReplicas_Call) RunAndReturn(run fu
 	return _c
 }
 
+// MaxAvailableComponentSets provides a mock function for the type MockEstimatorClient
+func (_mock *MockEstimatorClient) MaxAvailableComponentSets(ctx context.Context, in *pb.MaxAvailableComponentSetsRequest, opts ...grpc.CallOption) (*pb.MaxAvailableComponentSetsResponse, error) {
+	var tmpRet mock.Arguments
+	if len(opts) > 0 {
+		tmpRet = _mock.Called(ctx, in, opts)
+	} else {
+		tmpRet = _mock.Called(ctx, in)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for MaxAvailableComponentSets")
+	}
+
+	var r0 *pb.MaxAvailableComponentSetsResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *pb.MaxAvailableComponentSetsRequest, ...grpc.CallOption) (*pb.MaxAvailableComponentSetsResponse, error)); ok {
+		return returnFunc(ctx, in, opts...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *pb.MaxAvailableComponentSetsRequest, ...grpc.CallOption) *pb.MaxAvailableComponentSetsResponse); ok {
+		r0 = returnFunc(ctx, in, opts...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*pb.MaxAvailableComponentSetsResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *pb.MaxAvailableComponentSetsRequest, ...grpc.CallOption) error); ok {
+		r1 = returnFunc(ctx, in, opts...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockEstimatorClient_MaxAvailableComponentSets_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MaxAvailableComponentSets'
+type MockEstimatorClient_MaxAvailableComponentSets_Call struct {
+	*mock.Call
+}
+
+// MaxAvailableComponentSets is a helper method to define mock.On call
+//   - ctx context.Context
+//   - in *pb.MaxAvailableComponentSetsRequest
+//   - opts ...grpc.CallOption
+func (_e *MockEstimatorClient_Expecter) MaxAvailableComponentSets(ctx interface{}, in interface{}, opts ...interface{}) *MockEstimatorClient_MaxAvailableComponentSets_Call {
+	return &MockEstimatorClient_MaxAvailableComponentSets_Call{Call: _e.mock.On("MaxAvailableComponentSets",
+		append([]interface{}{ctx, in}, opts...)...)}
+}
+
+func (_c *MockEstimatorClient_MaxAvailableComponentSets_Call) Run(run func(ctx context.Context, in *pb.MaxAvailableComponentSetsRequest, opts ...grpc.CallOption)) *MockEstimatorClient_MaxAvailableComponentSets_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *pb.MaxAvailableComponentSetsRequest
+		if args[1] != nil {
+			arg1 = args[1].(*pb.MaxAvailableComponentSetsRequest)
+		}
+		var arg2 []grpc.CallOption
+		var variadicArgs []grpc.CallOption
+		if len(args) > 2 {
+			variadicArgs = args[2].([]grpc.CallOption)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockEstimatorClient_MaxAvailableComponentSets_Call) Return(maxAvailableComponentSetsResponse *pb.MaxAvailableComponentSetsResponse, err error) *MockEstimatorClient_MaxAvailableComponentSets_Call {
+	_c.Call.Return(maxAvailableComponentSetsResponse, err)
+	return _c
+}
+
+func (_c *MockEstimatorClient_MaxAvailableComponentSets_Call) RunAndReturn(run func(ctx context.Context, in *pb.MaxAvailableComponentSetsRequest, opts ...grpc.CallOption) (*pb.MaxAvailableComponentSetsResponse, error)) *MockEstimatorClient_MaxAvailableComponentSets_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // MaxAvailableReplicas provides a mock function for the type MockEstimatorClient
 func (_mock *MockEstimatorClient) MaxAvailableReplicas(ctx context.Context, in *pb.MaxAvailableReplicasRequest, opts ...grpc.CallOption) (*pb.MaxAvailableReplicasResponse, error) {
 	var tmpRet mock.Arguments

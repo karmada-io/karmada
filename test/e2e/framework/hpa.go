@@ -25,6 +25,7 @@ import (
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/retry"
 )
 
 // CreateHPA create HPA.
@@ -46,11 +47,16 @@ func RemoveHPA(client kubernetes.Interface, namespace, name string) {
 // UpdateHPAWithMinReplicas update HPA with replicas.
 func UpdateHPAWithMinReplicas(client kubernetes.Interface, namespace, name string, minReplicas int32) {
 	ginkgo.By(fmt.Sprintf("Updating HPA(%s/%s)", namespace, name), func() {
-		newHPA, err := client.AutoscalingV2().HorizontalPodAutoscalers(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			newHPA, err := client.AutoscalingV2().HorizontalPodAutoscalers(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
 
-		newHPA.Spec.MinReplicas = &minReplicas
-		_, err = client.AutoscalingV2().HorizontalPodAutoscalers(namespace).Update(context.TODO(), newHPA, metav1.UpdateOptions{})
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			newHPA.Spec.MinReplicas = &minReplicas
+			_, err = client.AutoscalingV2().HorizontalPodAutoscalers(namespace).Update(context.TODO(), newHPA, metav1.UpdateOptions{})
+			return err
+		})
+		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 	})
 }

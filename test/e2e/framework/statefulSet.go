@@ -25,6 +25,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog/v2"
 )
 
 // CreateStatefulSet create StatefulSet.
@@ -52,4 +53,16 @@ func UpdateStatefulSetReplicas(client kubernetes.Interface, statefulSet *appsv1.
 			return err
 		}, PollTimeout, PollInterval).ShouldNot(gomega.HaveOccurred())
 	})
+}
+
+// WaitStatefulSetFitWith wait statefulSet sync with fit func.
+func WaitStatefulSetFitWith(client kubernetes.Interface, namespace, name string, fit func(statefulSet *appsv1.StatefulSet) bool) {
+	gomega.Eventually(func() bool {
+		statefulSet, err := client.AppsV1().StatefulSets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		if err != nil {
+			klog.Errorf("Failed to get StatefulSet(%s/%s), err: %v", namespace, name, err)
+			return false
+		}
+		return fit(statefulSet)
+	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 }

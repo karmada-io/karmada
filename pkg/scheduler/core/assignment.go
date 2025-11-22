@@ -86,8 +86,7 @@ type assignState struct {
 	targetReplicas int32
 }
 
-func newAssignState(candidates []spreadconstraint.ClusterDetailInfo, spec *workv1alpha2.ResourceBindingSpec,
-	status *workv1alpha2.ResourceBindingStatus) *assignState {
+func newAssignState(candidates []spreadconstraint.ClusterDetailInfo, spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus) *assignState {
 	var strategyType string
 
 	switch spec.Placement.ReplicaSchedulingType() {
@@ -199,8 +198,8 @@ func assignByStaticWeightStrategy(state *assignState) ([]workv1alpha2.TargetClus
 	}
 	weightList := getStaticWeightInfoList(state.candidates, state.strategy.WeightPreference.StaticWeightList, state.spec.Clusters)
 
-	disp := helper.NewDispenser(state.spec.Replicas, nil)
-	disp.TakeByWeight(weightList)
+	disp := helper.NewDispenser(state.spec.Replicas, nil, state.spec.Resource.UID)
+	disp.AllocateByWeight(weightList)
 
 	return disp.Result, nil
 }

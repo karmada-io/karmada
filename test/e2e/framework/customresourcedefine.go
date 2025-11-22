@@ -102,10 +102,12 @@ func WaitCRDFitWith(client dynamic.Interface, crdName string, fit func(crd *apie
 		crd := &apiextensionsv1.CustomResourceDefinition{}
 		unstructured, err := client.Resource(crdGVR).Get(context.TODO(), crdName, metav1.GetOptions{})
 		if err != nil {
+			klog.Errorf("Failed to get CustomResourceDefinition(%s), err: %v", crdName, err)
 			return false
 		}
 		err = helper.ConvertToTypedObject(unstructured, crd)
 		if err != nil {
+			klog.Errorf("Failed to convert CustomResourceDefinition(%s) to typed object, err: %v", crdName, err)
 			return false
 		}
 		return fit(crd)

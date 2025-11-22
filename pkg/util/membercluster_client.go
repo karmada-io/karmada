@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -35,6 +36,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+)
+
+const (
+	defaultTimeout = 32 * time.Second
 )
 
 // ClusterClient stands for a cluster Clientset for the given member cluster
@@ -215,6 +220,7 @@ func BuildClusterConfig(clusterName string,
 	clusterConfig := &rest.Config{
 		BearerToken: string(token),
 		Host:        apiEndpoint,
+		Timeout:     defaultTimeout,
 	}
 
 	// Handle TLS configuration.

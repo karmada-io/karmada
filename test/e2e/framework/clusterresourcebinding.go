@@ -36,6 +36,7 @@ func WaitClusterResourceBindingFitWith(client karmada.Interface, name string, fi
 	gomega.Eventually(func() bool {
 		clusterResourceBinding, err := client.WorkV1alpha2().ClusterResourceBindings().Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
+			klog.Errorf("Failed to get ClusterResourceBinding(%s), err: %v", name, err)
 			return false
 		}
 		return fit(clusterResourceBinding)

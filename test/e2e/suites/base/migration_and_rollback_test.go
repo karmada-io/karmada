@@ -215,7 +215,7 @@ var _ = ginkgo.Describe("Seamless migration and rollback testing", func() {
 		})
 	})
 
-	ginkgo.Context("Test migrate namespaced resource: Service (NodePort)", func() {
+	ginkgo.Context("Test migrate namespaced resource: Service (ClusterIP)", func() {
 		var serviceName string
 		var service *corev1.Service
 		var pp *policyv1alpha1.PropagationPolicy
@@ -223,7 +223,7 @@ var _ = ginkgo.Describe("Seamless migration and rollback testing", func() {
 
 		ginkgo.BeforeEach(func() {
 			serviceName = serviceNamePrefix + rand.String(RandomStrLength)
-			service = helper.NewService(testNamespace, serviceName, corev1.ServiceTypeNodePort)
+			service = helper.NewService(testNamespace, serviceName, corev1.ServiceTypeClusterIP)
 			pp = helper.NewPropagationPolicy(testNamespace, service.Name, []policyv1alpha1.ResourceSelector{
 				{
 					APIVersion: service.APIVersion,

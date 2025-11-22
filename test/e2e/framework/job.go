@@ -64,6 +64,7 @@ func WaitJobPresentOnClusterFitWith(cluster, namespace, name string, fit func(jo
 	gomega.Eventually(func() bool {
 		dep, err := clusterClient.BatchV1().Jobs(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
+			klog.Errorf("Failed to get Job(%s/%s) on cluster(%s), err: %v", namespace, name, cluster, err)
 			return false
 		}
 		return fit(dep)

@@ -31,15 +31,14 @@ import (
 )
 
 var (
-	explainLong = templates.LongDesc(`
-		Describe fields and structure of various resources in Karmada control plane or a member cluster.
-
-		This command describes the fields associated with each supported API resource.
-		Fields are identified via a simple JSONPath identifier:
-
-			<type>.<fieldName>[.<fieldName>]
-
-		Information about each field is retrieved from the server in OpenAPI format.`)
+	explainLong = templates.LongDesc("Describe fields and structure of various resources in Karmada control plane or a member cluster.\n" +
+		"\n" +
+		"This command describes the fields associated with each supported API resource.\n" +
+		"Fields are identified via a simple JSONPath identifier:\n" +
+		"\n" +
+		"    `<type>.<fieldName>[.<fieldName>]`\n" +
+		"\n" +
+		"Information about each field is retrieved from the server in OpenAPI format.")
 
 	explainExamples = templates.Examples(`
 		# Get the documentation of the resource and its fields in Karmada control plane

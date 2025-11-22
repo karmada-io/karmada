@@ -59,7 +59,7 @@ func TestNewSchedulingResultHelper(t *testing.T) {
 				},
 			},
 			expected: &SchedulingResultHelper{
-				TargetClusters: []*TargetClusterWrapper{
+				TargetClusterReplicaStatus: []*ClusterReplicaStatus{
 					{ClusterName: "cluster1", Spec: 3, Ready: 2},
 					{ClusterName: "cluster2", Spec: 2, Ready: 1},
 				},
@@ -88,7 +88,7 @@ func TestNewSchedulingResultHelper(t *testing.T) {
 				},
 			},
 			expected: &SchedulingResultHelper{
-				TargetClusters: []*TargetClusterWrapper{
+				TargetClusterReplicaStatus: []*ClusterReplicaStatus{
 					{ClusterName: "cluster1", Spec: 3, Ready: 2},
 					{ClusterName: "cluster2", Spec: 2, Ready: client.UnauthenticReplica},
 				},
@@ -112,7 +112,7 @@ func TestSchedulingResultHelper_FillUnschedulableReplicas(t *testing.T) {
 		name           string
 		helper         *SchedulingResultHelper
 		mockEstimator  *mockUnschedulableReplicaEstimator
-		expected       []*TargetClusterWrapper
+		expected       []*ClusterReplicaStatus
 		expectedErrLog string
 	}{
 		{
@@ -128,13 +128,13 @@ func TestSchedulingResultHelper_FillUnschedulableReplicas(t *testing.T) {
 						},
 					},
 				},
-				TargetClusters: []*TargetClusterWrapper{
+				TargetClusterReplicaStatus: []*ClusterReplicaStatus{
 					{ClusterName: "cluster1", Spec: 3, Ready: 2},
 					{ClusterName: "cluster2", Spec: 2, Ready: 1},
 				},
 			},
 			mockEstimator: &mockUnschedulableReplicaEstimator{},
-			expected: []*TargetClusterWrapper{
+			expected: []*ClusterReplicaStatus{
 				{ClusterName: "cluster1", Spec: 3, Ready: 2, Unschedulable: 1},
 				{ClusterName: "cluster2", Spec: 2, Ready: 1, Unschedulable: 1},
 			},
@@ -152,12 +152,12 @@ func TestSchedulingResultHelper_FillUnschedulableReplicas(t *testing.T) {
 						},
 					},
 				},
-				TargetClusters: []*TargetClusterWrapper{
+				TargetClusterReplicaStatus: []*ClusterReplicaStatus{
 					{ClusterName: "cluster1", Spec: 3, Ready: 2},
 				},
 			},
 			mockEstimator: &mockUnschedulableReplicaEstimator{shouldError: true},
-			expected: []*TargetClusterWrapper{
+			expected: []*ClusterReplicaStatus{
 				{ClusterName: "cluster1", Spec: 3, Ready: 2, Unschedulable: 0},
 			},
 			expectedErrLog: "Max cluster unschedulable replicas error: mock error",
@@ -175,13 +175,13 @@ func TestSchedulingResultHelper_FillUnschedulableReplicas(t *testing.T) {
 						},
 					},
 				},
-				TargetClusters: []*TargetClusterWrapper{
+				TargetClusterReplicaStatus: []*ClusterReplicaStatus{
 					{ClusterName: "cluster1", Spec: 3, Ready: 2},
 					{ClusterName: "cluster2", Spec: 2, Ready: 1},
 				},
 			},
 			mockEstimator: &mockUnschedulableReplicaEstimator{unauthenticCluster: "cluster2"},
-			expected: []*TargetClusterWrapper{
+			expected: []*ClusterReplicaStatus{
 				{ClusterName: "cluster1", Spec: 3, Ready: 2, Unschedulable: 1},
 				{ClusterName: "cluster2", Spec: 2, Ready: 1, Unschedulable: 0},
 			},
@@ -195,8 +195,8 @@ func TestSchedulingResultHelper_FillUnschedulableReplicas(t *testing.T) {
 
 			tt.helper.FillUnschedulableReplicas(time.Minute)
 
-			if !reflect.DeepEqual(tt.helper.TargetClusters, tt.expected) {
-				t.Errorf("FillUnschedulableReplicas() = %v, want %v", tt.helper.TargetClusters, tt.expected)
+			if !reflect.DeepEqual(tt.helper.TargetClusterReplicaStatus, tt.expected) {
+				t.Errorf("FillUnschedulableReplicas() = %v, want %v", tt.helper.TargetClusterReplicaStatus, tt.expected)
 			}
 		})
 	}
@@ -206,19 +206,19 @@ func TestSchedulingResultHelper_GetUndesiredClusters(t *testing.T) {
 	tests := []struct {
 		name             string
 		helper           *SchedulingResultHelper
-		expectedClusters []*TargetClusterWrapper
+		expectedClusters []*ClusterReplicaStatus
 		expectedNames    []string
 	}{
 		{
 			name: "Mixed desired and undesired clusters",
 			helper: &SchedulingResultHelper{
-				TargetClusters: []*TargetClusterWrapper{
+				TargetClusterReplicaStatus: []*ClusterReplicaStatus{
 					{ClusterName: "cluster1", Spec: 3, Ready: 2},
 					{ClusterName: "cluster2", Spec: 2, Ready: 2},
 					{ClusterName: "cluster3", Spec: 4, Ready: 1},
 				},
 			},
-			expectedClusters: []*TargetClusterWrapper{
+			expectedClusters: []*ClusterReplicaStatus{
 				{ClusterName: "cluster1", Spec: 3, Ready: 2},
 				{ClusterName: "cluster3", Spec: 4, Ready: 1},
 			},
@@ -227,7 +227,7 @@ func TestSchedulingResultHelper_GetUndesiredClusters(t *testing.T) {
 		{
 			name: "All clusters desired",
 			helper: &SchedulingResultHelper{
-				TargetClusters: []*TargetClusterWrapper{
+				TargetClusterReplicaStatus: []*ClusterReplicaStatus{
 					{ClusterName: "cluster1", Spec: 2, Ready: 2},
 					{ClusterName: "cluster2", Spec: 3, Ready: 3},
 				},

@@ -61,6 +61,7 @@ func WaitPodPresentOnClusterFitWith(cluster, namespace, name string, fit func(po
 	gomega.Eventually(func() bool {
 		pod, err := clusterClient.CoreV1().Pods(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
+			klog.Errorf("Failed to get Pod(%s/%s) on cluster(%s), err: %v", namespace, name, cluster, err)
 			return false
 		}
 		return fit(pod)
