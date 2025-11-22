@@ -1,0 +1,10 @@
+tests:
+  - desiredInputPath: testdata/desired-tfjob.yaml
+    statusInputPath: testdata/status-file.yaml
+    operation: AggregateStatus
+  - observedInputPath: testdata/observed-tfjob.yaml
+    operation: InterpretHealth
+  - observedInputPath: testdata/observed-tfjob.yaml
+    operation: InterpretComponent
+  - desiredInputPath: testdata/desired-tfjob.yaml
+    operation: InterpretDependency
