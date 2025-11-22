@@ -110,10 +110,25 @@ spec:
     healthInterpretation:
       luaScript: >
         function InterpretHealth(observedObj)
-          if observedObj.status == nil or observedObj.status.state == nil then
+          if observedObj.status == nil or observedObj.status.conditions == nil then
             return false
           end
-          return observedObj.status.state == 'ready'
+          
+          local headPodReady = false
+          local clusterProvisioned = false
+          local replicaFailure = false
+          
+          for _, condition in ipairs(observedObj.status.conditions) do
+            if condition.type == 'HeadPodReady' and condition.status == 'True' then
+              headPodReady = true
+            elseif condition.type == 'RayClusterProvisioned' and condition.status == 'True' then
+              clusterProvisioned = true
+            elseif condition.type == 'RayClusterReplicaFailure' and condition.status == 'True' then
+              replicaFailure = true
+            end
+          end
+          
+          return headPodReady and clusterProvisioned and not replicaFailure
         end
     statusAggregation:
       luaScript: >
