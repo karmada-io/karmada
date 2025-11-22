@@ -27,7 +27,9 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/conversion"
 	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/apimachinery/pkg/util/yaml"
 
@@ -39,6 +41,10 @@ import (
 )
 
 var rules interpreter.Rules = interpreter.AllResourceInterpreterCustomizationRules
+var checker = conversion.EqualitiesOrDie(
+	func(a, b resource.Quantity) bool {
+		return a.Equal(b)
+	})
 
 func checkScript(script string) error {
 	ctx, cancel := context.WithTimeout(context.TODO(), time.Second)
@@ -102,11 +108,11 @@ type TestStructure struct {
 }
 
 type IndividualTest struct {
-	DesiredInputPath  string `yaml:"desiredInputPath,omitempty"`
-	ObservedInputPath string `yaml:"observedInputPath,omitempty"`
-	StatusInputPath   string `yaml:"statusInputPath,omitempty"`
-	DesiredReplica    int64  `yaml:"desiredReplicas,omitempty"`
-	Operation         string `yaml:"operation"`
+	DesiredInputPath  string                 `yaml:"desiredInputPath,omitempty"`
+	ObservedInputPath string                 `yaml:"observedInputPath,omitempty"`
+	StatusInputPath   string                 `yaml:"statusInputPath,omitempty"`
+	DesiredResults    map[string]interface{} `yaml:"desiredResults,omitempty"`
+	Operation         string                 `yaml:"operation"`
 }
 
 func checkInterpretationRule(t *testing.T, path string, configs []*configv1alpha1.ResourceInterpreterCustomization) {
@@ -133,7 +139,7 @@ func checkInterpretationRule(t *testing.T, path string, configs []*configv1alpha
 			if err != nil {
 				t.Fatalf("checking %s of %s, expected nil, but got: %v", rule.Name(), customization.Name, err)
 			}
-			args := interpreter.RuleArgs{Replica: input.DesiredReplica}
+			args := interpreter.RuleArgs{}
 			if input.DesiredInputPath != "" {
 				args.Desired = getObj(t, dir+"/"+strings.TrimPrefix(input.DesiredInputPath, "/"))
 			}
@@ -143,10 +149,79 @@ func checkInterpretationRule(t *testing.T, path string, configs []*configv1alpha
 			if input.StatusInputPath != "" {
 				args.Status = getAggregatedStatusItems(t, dir+"/"+strings.TrimPrefix(input.StatusInputPath, "/"))
 			}
-			if result := rule.Run(ipt, args); result.Err != nil {
+			result := rule.Run(ipt, args)
+			if result.Err != nil {
 				t.Fatalf("execute %s %s error: %v\n", customization.Name, rule.Name(), result.Err)
 			}
+			for _, res := range result.Results {
+				expected, ok := input.DesiredResults[res.Name]
+				if !ok {
+					t.Logf("no expected result for %s", res.Name)
+					continue
+				}
+
+				if equal, err := deepEqual(expected, res.Value); err != nil || !equal {
+					t.Fatal("unexpected result for", res.Name, "expected:", expected, "got:", res.Value, "error:", err)
+				}
+			}
 		}
+	}
+}
+
+func deepEqual(expected, actualValue interface{}) (bool, error) {
+	err := checker.AddFuncs(
+		func(a, b resource.Quantity) bool {
+			return a.Equal(b)
+		})
+	if err != nil {
+		return false, fmt.Errorf("failed to add custom equality function: %w", err)
+	}
+
+	expectedJSONBytes, err := json.Marshal(expected)
+	if err != nil {
+		return false, fmt.Errorf("failed to marshal expected value: %w", err)
+	}
+
+	// Handle known types for semantic comparison
+	switch typedActual := actualValue.(type) {
+	case *workv1alpha2.ReplicaRequirements:
+		var unmarshaledExpected workv1alpha2.ReplicaRequirements
+		if err := json.Unmarshal(expectedJSONBytes, &unmarshaledExpected); err != nil {
+			return false, fmt.Errorf("failed to unmarshal expected JSON into ReplicaRequirements: %w", err)
+		}
+		return checker.DeepEqual(&unmarshaledExpected, typedActual), nil
+
+	case *configv1alpha1.DependentObjectReference:
+		var unmarshaledExpected configv1alpha1.DependentObjectReference
+		if err := json.Unmarshal(expectedJSONBytes, &unmarshaledExpected); err != nil {
+			return false, fmt.Errorf("failed to unmarshal expected JSON into DependentObjectReference: %w", err)
+		}
+		return checker.DeepEqual(&unmarshaledExpected, typedActual), nil
+
+	case []workv1alpha2.Component:
+		var unmarshaledExpected []workv1alpha2.Component
+		if err := json.Unmarshal(expectedJSONBytes, &unmarshaledExpected); err != nil {
+			return false, fmt.Errorf("failed to unmarshal expected JSON into []Component: %w", err)
+		}
+
+		return checker.DeepEqual(unmarshaledExpected, typedActual), nil
+
+	case *unstructured.Unstructured:
+		var unmarshaledExpected unstructured.Unstructured
+
+		if err := json.Unmarshal(expectedJSONBytes, &unmarshaledExpected); err != nil {
+			fmt.Println(err)
+			return false, fmt.Errorf("failed to unmarshal expected JSON into Unstructured: %w", err)
+		}
+		return checker.DeepEqual(&unmarshaledExpected, typedActual), nil
+
+	default:
+		// Fallback: marshal actualValue and do byte-wise comparison
+		actualJSON, err := json.Marshal(actualValue)
+		if err != nil {
+			return false, fmt.Errorf("failed to marshal actual value: %w", err)
+		}
+		return bytes.Equal(expectedJSONBytes, actualJSON), nil
 	}
 }
 
