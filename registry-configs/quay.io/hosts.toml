@@ -1,0 +1,4 @@
+server = "https://quay.io"
+[host."https://quay.io"]
+  capabilities = ["pull", "resolve"]
+  skip_verify = true
