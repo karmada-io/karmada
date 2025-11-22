@@ -1,0 +1,9 @@
+tests:
+  - desiredInputPath: testdata/desired-rayjob.yaml
+    statusInputPath: testdata/status-file.yaml
+    operation: AggregateStatus
+  - observedInputPath: testdata/observed-rayjob.yaml
+    operation: InterpretHealth
+  - observedInputPath: testdata/observed-rayjob.yaml
+    operation: InterpretComponent
+

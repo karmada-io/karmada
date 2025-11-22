@@ -1,0 +1,40 @@
+applied: true
+clusterName: member1
+status:
+  jobId: raysubmit_12345abcde
+  rayClusterName: sample-rayjob-raycluster-abc12
+  dashboardURL: "sample-rayjob-raycluster-abc12-head-svc.default.svc.cluster.local:8265"
+  jobStatus: RUNNING
+  jobDeploymentStatus: Running
+  startTime: "2025-11-22T10:30:00Z"
+  succeeded: 0
+  failed: 0
+  observedGeneration: 1
+  rayJobInfo:
+    startTime: "2025-11-22T10:30:15Z"
+  rayClusterStatus:
+    availableWorkerReplicas: 2
+    desiredCPU: "4"
+    desiredMemory: 8Gi
+    readyWorkerReplicas: 2
+---
+applied: true
+clusterName: member2
+status:
+  jobId: raysubmit_12345abcde
+  rayClusterName: sample-rayjob-raycluster-xyz78
+  dashboardURL: "sample-rayjob-raycluster-xyz78-head-svc.default.svc.cluster.local:8265"
+  jobStatus: RUNNING
+  jobDeploymentStatus: Running
+  startTime: "2025-11-22T10:31:00Z"
+  succeeded: 0
+  failed: 0
+  observedGeneration: 2
+  rayJobInfo:
+    startTime: "2025-11-22T10:31:20Z"
+  rayClusterStatus:
+    availableWorkerReplicas: 3
+    desiredCPU: "6"
+    desiredMemory: 12Gi
+    readyWorkerReplicas: 3
+

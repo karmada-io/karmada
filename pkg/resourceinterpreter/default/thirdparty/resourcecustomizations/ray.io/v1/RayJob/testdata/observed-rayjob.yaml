@@ -1,0 +1,69 @@
+apiVersion: ray.io/v1
+kind: RayJob
+metadata:
+  name: sample-rayjob
+  namespace: default
+  generation: 1
+spec:
+  entrypoint: python /home/ray/samples/sample_code.py
+  shutdownAfterJobFinishes: true
+  ttlSecondsAfterFinished: 60
+  rayClusterSpec:
+    rayVersion: '2.46.0'
+    headGroupSpec:
+      rayStartParams: {}
+      template:
+        spec:
+          containers:
+          - name: ray-head
+            image: rayproject/ray:2.46.0
+            resources:
+              limits:
+                cpu: "2"
+                memory: 4Gi
+    workerGroupSpecs:
+    - groupName: small-workers
+      replicas: 2
+      minReplicas: 1
+      maxReplicas: 5
+      rayStartParams: {}
+      template:
+        spec:
+          containers:
+          - name: ray-worker
+            image: rayproject/ray:2.46.0
+            resources:
+              limits:
+                cpu: "1"
+                memory: 2Gi
+status:
+  jobId: raysubmit_12345abcde
+  rayClusterName: sample-rayjob-raycluster-abc12
+  dashboardURL: "sample-rayjob-raycluster-abc12-head-svc.default.svc.cluster.local:8265"
+  jobStatus: RUNNING
+  jobDeploymentStatus: Running
+  startTime: "2025-11-22T10:30:00Z"
+  succeeded: 0
+  failed: 0
+  observedGeneration: 1
+  rayJobInfo:
+    startTime: "2025-11-22T10:30:15Z"
+  rayClusterStatus:
+    availableWorkerReplicas: 2
+    conditions:
+    - lastTransitionTime: "2025-11-22T10:29:30Z"
+      message: ""
+      reason: HeadPodRunningAndReady
+      status: "True"
+      type: HeadPodReady
+    - lastTransitionTime: "2025-11-22T10:29:45Z"
+      message: All Ray Pods are ready for the first time
+      reason: AllPodRunningAndReadyFirstTime
+      status: "True"
+      type: RayClusterProvisioned
+    desiredCPU: "4"
+    desiredMemory: 8Gi
+    desiredWorkerReplicas: 2
+    readyWorkerReplicas: 2
+    state: ready
+
