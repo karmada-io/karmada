@@ -85,6 +85,59 @@ func TestNewClusterPredicateOnAgent(t *testing.T) {
 	}
 }
 
+func TestNewClusterStatusControllerPredicateOnAgent(t *testing.T) {
+	type want struct {
+		create, update, delete, generic bool
+	}
+	tests := []struct {
+		name string
+		obj  client.Object
+		want want
+	}{
+		{
+			name: "not matched",
+			obj:  &clusterv1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "unmatched"}},
+			want: want{
+				create:  false,
+				update:  false,
+				delete:  false,
+				generic: false,
+			},
+		},
+		{
+			name: "matched",
+			obj:  &clusterv1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "test"}},
+			want: want{
+				create:  true,
+				update:  false,
+				delete:  true,
+				generic: false,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pred := NewClusterStatusControllerPredicateOnAgent("test")
+			if got := pred.Create(event.CreateEvent{Object: tt.obj}); got != tt.want.create {
+				t.Errorf("Create() got = %v, want %v", got, tt.want.create)
+				return
+			}
+			if got := pred.Update(event.UpdateEvent{ObjectOld: tt.obj, ObjectNew: tt.obj}); got != tt.want.update {
+				t.Errorf("Update() got = %v, want %v", got, tt.want.update)
+				return
+			}
+			if got := pred.Delete(event.DeleteEvent{Object: tt.obj}); got != tt.want.delete {
+				t.Errorf("Delete() got = %v, want %v", got, tt.want.delete)
+				return
+			}
+			if got := pred.Generic(event.GenericEvent{Object: tt.obj}); got != tt.want.generic {
+				t.Errorf("Generic() got = %v, want %v", got, tt.want.generic)
+				return
+			}
+		})
+	}
+}
+
 func TestWorkWithinPushClusterPredicate(t *testing.T) {
 	type args struct {
 		mgr controllerruntime.Manager
