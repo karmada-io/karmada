@@ -17,24 +17,30 @@ limitations under the License.
 package validation
 
 import (
-	"errors"
-
-	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	metav1validation "k8s.io/apimachinery/pkg/apis/meta/v1/validation"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 )
 
 // VerifyDependencies verifies dependencies.
 func VerifyDependencies(dependencies []configv1alpha1.DependentObjectReference) error {
-	var errs []error
-	for _, dependency := range dependencies {
-		if len(dependency.APIVersion) == 0 || len(dependency.Kind) == 0 {
-			errs = append(errs, errors.New("dependency missing required apiVersion or kind"))
-			continue
+	allErrs := field.ErrorList{}
+	fldPath := field.NewPath("dependencies")
+	for i, dependency := range dependencies {
+		fldPath := fldPath.Index(i)
+		if len(dependency.APIVersion) == 0 {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("apiVersion"), dependency.APIVersion, "missing required apiVersion"))
+		}
+		if len(dependency.Kind) == 0 {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("kind"), dependency.Kind, "missing required kind"))
 		}
 		if len(dependency.Name) == 0 && dependency.LabelSelector == nil {
-			errs = append(errs, errors.New("dependency can not leave name and labelSelector all empty"))
+			allErrs = append(allErrs, field.Invalid(fldPath, dependencies[i], "dependency can not leave name and labelSelector all empty"))
 		}
+		allErrs = append(allErrs, metav1validation.ValidateLabelSelector(dependency.LabelSelector, metav1validation.LabelSelectorValidationOptions{
+			AllowInvalidLabelValueInSelector: false,
+		}, fldPath.Child("labelSelector"))...)
 	}
-	return utilerrors.NewAggregate(errs)
+	return allErrs.ToAggregate()
 }
