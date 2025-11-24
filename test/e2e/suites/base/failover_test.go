@@ -306,6 +306,7 @@ var _ = ginkgo.Describe("application failover testing", func() {
 	var policy *policyv1alpha1.PropagationPolicy
 	var maxGroups, minGroups int
 	var gracePeriodSeconds, tolerationSeconds int32
+	var targetClusters []string
 
 	ginkgo.BeforeEach(func() {
 		policyNamespace = testNamespace
@@ -315,6 +316,7 @@ var _ = ginkgo.Describe("application failover testing", func() {
 		deployment = testhelper.NewDeployment(deploymentNamespace, deploymentName)
 		maxGroups = 1
 		minGroups = 1
+		targetClusters = framework.ClusterNames()[:2]
 
 		policy = &policyv1alpha1.PropagationPolicy{
 			ObjectMeta: metav1.ObjectMeta{
@@ -331,7 +333,7 @@ var _ = ginkgo.Describe("application failover testing", func() {
 				},
 				Placement: policyv1alpha1.Placement{
 					ClusterAffinity: &policyv1alpha1.ClusterAffinity{
-						ClusterNames: framework.ClusterNames()[:2],
+						ClusterNames: targetClusters,
 					},
 					SpreadConstraints: []policyv1alpha1.SpreadConstraint{
 						{
@@ -372,6 +374,9 @@ var _ = ginkgo.Describe("application failover testing", func() {
 
 		ginkgo.It("application failover with purgeMode gracefully when the application come back to healthy on the new cluster", func() {
 			disabledClusters := framework.ExtractTargetClustersFromRB(controlPlaneClient, deployment.Kind, deployment.Namespace, deployment.Name)
+			framework.WaitDeploymentPresentOnClustersFitWith(disabledClusters, deployment.Namespace, deployment.Name, func(deployment *appsv1.Deployment) bool {
+				return framework.CheckDeploymentReadyStatus(deployment, *deployment.Spec.Replicas)
+			})
 			ginkgo.By("create an overridePolicy to make the application unhealthy", func() {
 				overridePolicy := testhelper.NewOverridePolicyByOverrideRules(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
 					{
@@ -445,6 +450,9 @@ var _ = ginkgo.Describe("application failover testing", func() {
 			})
 
 			disabledClusters := framework.ExtractTargetClustersFromRB(controlPlaneClient, deployment.Kind, deployment.Namespace, deployment.Name)
+			framework.WaitDeploymentPresentOnClustersFitWith(disabledClusters, deployment.Namespace, deployment.Name, func(deployment *appsv1.Deployment) bool {
+				return framework.CheckDeploymentReadyStatus(deployment, *deployment.Spec.Replicas)
+			})
 			var beginTime time.Time
 			ginkgo.By("create an overridePolicy to make the application unhealthy", func() {
 				overridePolicy := testhelper.NewOverridePolicyByOverrideRules(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
