@@ -30,7 +30,7 @@ jobs:
         karmada-version: [ release-1.15, release-1.14, release-1.13 ]
     steps:
       - name: checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ matrix.karmada-version }}
       - name: install Go
