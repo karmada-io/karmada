@@ -185,11 +185,20 @@ func (w *asyncWorker) AddWithOpts(opts AddOpts, item ...any) {
 		return
 	}
 
-	pq, ok := w.queue.(priorityqueue.PriorityQueue[any])
+	pq, ok := w.queue.(interface {
+		AddWithOpts(o priorityqueue.AddOpts, Items ...any)
+	})
 	if !ok {
 		klog.Warningf("queue is not priority queue, fallback to normal queue, queueName: %s", w.name)
 		for _, it := range item {
-			w.queue.Add(it)
+			switch {
+			case opts.After > 0:
+				w.queue.AddAfter(it, opts.After)
+			case opts.RateLimited:
+				w.queue.AddRateLimited(it)
+			default:
+				w.queue.Add(it)
+			}
 		}
 		return
 	}

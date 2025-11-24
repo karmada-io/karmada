@@ -269,7 +269,30 @@ func assertUntil(maxDuration time.Duration, assertion func() error) error {
 }
 
 func Test_asyncWorker_AddWithOpts(t *testing.T) {
-	t.Run("addAfter", func(t *testing.T) {
+	t.Run("AddAfter, pq not enabled", func(t *testing.T) {
+		const name = "fake_node"
+		const duration = 1 * time.Second
+
+		worker := newTestAsyncWorker(nil, false)
+
+		start := time.Now()
+		worker.AddWithOpts(AddOpts{After: duration}, name)
+
+		item, _ := worker.queue.Get()
+		end := time.Now()
+
+		if name != item {
+			t.Errorf("Added Item: %v, want: %v", item, name)
+		}
+
+		elapsed := end.Sub(start)
+		if elapsed < duration {
+			t.Errorf("Added Item should be dequeued after %v, but the actually elapsed time is %v.",
+				duration.String(), elapsed.String())
+		}
+	})
+
+	t.Run("addAfter, pq enabled", func(t *testing.T) {
 		const name = "fake_node"
 		const duration = 1 * time.Second
 
