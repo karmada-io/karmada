@@ -1,0 +1,68 @@
+apiVersion: kubeflow.org/v1
+kind: TFJob
+metadata:
+  name: dist-mnist-for-e2e-test
+  namespace: default
+spec:
+  tfReplicaSpecs:
+    PS:
+      replicas: 2
+      restartPolicy: Never
+      template:
+        spec:
+          containers:
+          - image: kubeflow/tf-dist-mnist-test:latest
+            name: tensorflow
+            resources:
+              limits:
+                cpu: 1
+                memory: 512Mi
+    Worker:
+      replicas: 4
+      restartPolicy: Never
+      template:
+        spec:
+          containers:
+          - command:
+            - bash
+            - -c
+            - sleep 15s
+            image: kubeflow/tf-dist-mnist-test:latest
+            name: tensorflow
+            volumeMounts:
+                - mountPath: "/train"
+                  name: "training"
+            resources:
+              limits:
+                cpu: 1
+                memory: 512Mi
+          volumes:
+            - name: "training"
+              persistentVolumeClaim:
+                claimName: "training-data"  
+status:
+  completionTime: "2025-11-22T10:49:40Z"
+  conditions:
+  - lastTransitionTime: "2025-11-22T10:48:50Z"
+    lastUpdateTime: "2025-11-22T10:48:50Z"
+    message: TFJob dist-mnist-for-e2e-test is created.
+    reason: TFJobCreated
+    status: "True"
+    type: Created
+  - lastTransitionTime: "2025-11-22T10:49:24Z"
+    lastUpdateTime: "2025-11-22T10:49:24Z"
+    message: TFJob default/dist-mnist-for-e2e-test is running.
+    reason: TFJobRunning
+    status: "False"
+    type: Running
+  - lastTransitionTime: "2025-11-22T10:49:40Z"
+    lastUpdateTime: "2025-11-22T10:49:40Z"
+    message: TFJob default/dist-mnist-for-e2e-test successfully completed.
+    reason: TFJobSucceeded
+    status: "True"
+    type: Succeeded
+  replicaStatuses:
+    PS:
+      succeeded: 2
+    Worker:
+      succeeded: 4
