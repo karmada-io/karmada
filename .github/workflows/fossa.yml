@@ -7,7 +7,7 @@ on:
       - 'dependabot/**'
 
 permissions:
-  contents: read # Required by actions/checkout@v5 to fetch the repository contents.
+  contents: read # Required by actions/checkout@v6 to fetch the repository contents.
   
 jobs:
   fossa:
@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Run FOSSA scan and upload build data
         uses: fossas/fossa-action@v1
         with:

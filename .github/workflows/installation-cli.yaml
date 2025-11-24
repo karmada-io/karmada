@@ -27,7 +27,7 @@ jobs:
         k8s: [ v1.31.0, v1.32.0, v1.33.0 ]
     steps:
       - name: checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           # Number of commits to fetch. 0 indicates all history for all branches and tags.
           # We need to guess version via git tags.
@@ -73,7 +73,7 @@ jobs:
         k8s: [ v1.31.0, v1.32.0, v1.33.0 ]
     steps:
       - name: checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: install Go
