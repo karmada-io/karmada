@@ -91,7 +91,7 @@ type ResourceBindingSpec struct {
 	// Resource represents the Kubernetes resource to be propagated.
 	Resource ObjectReference `json:"resource"`
 
-	// ReplicaRequirements represents the requirements required by each replica.
+	// ReplicaRequirements represents the resource and scheduling requirements for each replica.
 	// +optional
 	ReplicaRequirements *ReplicaRequirements `json:"replicaRequirements,omitempty"`
 
@@ -104,7 +104,7 @@ type ResourceBindingSpec struct {
 	Clusters []TargetCluster `json:"clusters,omitempty"`
 }
 
-// ReplicaRequirements represents the requirements required by each replica.
+// ReplicaRequirements represents the resource and scheduling requirements for each replica.
 type ReplicaRequirements struct {
 	// NodeClaim represents the node claim HardNodeAffinity, NodeSelector and Tolerations required by each replica.
 	// +optional

@@ -98,7 +98,7 @@ When the feature gate `MultiplePodTemplatesScheduling` is enabled, both the lega
 type ResourceBindingSpec struct {
     // ... existing fields ...
 
-    // ReplicaRequirements represents the requirements required by each replica.
+    // ReplicaRequirements represents the resource and scheduling requirements for each replica.
     // +optional
     ReplicaRequirements *ReplicaRequirements `json:"replicaRequirements,omitempty"` // (legacy field)
 
@@ -125,14 +125,14 @@ type ComponentRequirements struct {
     // +optional
     Replicas int32 `json:"replicas,omitempty"`
 
-    // ReplicaRequirements represents the requirements required by each replica for this component.
+    // ReplicaRequirements represents the resource and scheduling requirements for each replica.
     // +optional
     ReplicaRequirements *ReplicaRequirements `json:"replicaRequirements,omitempty"`
     
 	// Additional fields may be added in the future to support more complex requirements.
 }
 
-// ReplicaRequirements represents the requirements required by each replica.
+// ReplicaRequirements represents the resource and scheduling requirements for each replica.
 type ReplicaRequirements struct {
 	// NodeClaim represents the node claim HardNodeAffinity, NodeSelector and Tolerations required by each replica.
 	// +optional
@@ -252,7 +252,7 @@ type MaxAvailableReplicasRequest struct {
 	// Cluster represents the cluster name.
 	// +required
 	Cluster string `json:"cluster" protobuf:"bytes,1,opt,name=cluster"`
-	// ReplicaRequirements represents the requirements required by each replica.
+	// ReplicaRequirements represents the resource and scheduling requirements for each replica.
 	// +required
 	ReplicaRequirements ReplicaRequirements `json:"replicaRequirements" protobuf:"bytes,2,opt,name=replicaRequirements"`
 }
@@ -624,7 +624,7 @@ type ComponentReplicaRequirements struct {
 	Replicas int32 `json:"replicas" protobuf:"varint,3,opt,name=replicas"`
 }
 
-// ReplicaRequirements represents the requirements required by each replica.
+// ReplicaRequirements represents the resource and scheduling requirements for each replica.
 // (Assume this struct is already defined elsewhere, as in the legacy estimator interface.)
 // type ReplicaRequirements struct {
 //     // ... existing fields ...

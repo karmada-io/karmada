@@ -27,7 +27,7 @@ type MaxAvailableReplicasRequest struct {
 	// Cluster represents the cluster name.
 	// +required
 	Cluster string `json:"cluster" protobuf:"bytes,1,opt,name=cluster"`
-	// ReplicaRequirements represents the requirements required by each replica.
+	// ReplicaRequirements represents the resource and scheduling requirements for each replica.
 	// +required
 	ReplicaRequirements ReplicaRequirements `json:"replicaRequirements" protobuf:"bytes,2,opt,name=replicaRequirements"`
 }
@@ -49,7 +49,7 @@ type NodeClaim struct {
 	Tolerations []corev1.Toleration `json:"tolerations,omitempty" protobuf:"bytes,3,rep,name=tolerations"`
 }
 
-// ReplicaRequirements represents the requirements required by each replica.
+// ReplicaRequirements represents the resource and scheduling requirements for each replica.
 type ReplicaRequirements struct {
 	// NodeClaim represents the NodeAffinity, NodeSelector and Tolerations required by each replica.
 	// +optional

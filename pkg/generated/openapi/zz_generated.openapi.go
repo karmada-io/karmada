@@ -2674,7 +2674,7 @@ func schema_pkg_apis_config_v1alpha1_ResourceInterpreterResponse(ref common.Refe
 					},
 					"replicaRequirements": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ReplicaRequirements represents the requirements required by each replica. Required if InterpreterOperation is InterpreterOperationInterpretReplica.",
+							Description: "ReplicaRequirements represents the resource and scheduling requirements for each replica. Required if InterpreterOperation is InterpreterOperationInterpretReplica.",
 							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ReplicaRequirements"),
 						},
 					},
@@ -7296,7 +7296,7 @@ func schema_pkg_apis_work_v1alpha2_Component(ref common.ReferenceCallback) commo
 					},
 					"replicaRequirements": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ReplicaRequirements represents the requirements required by each replica for this component.",
+							Description: "ReplicaRequirements represents the resource and scheduling requirements for each replica.",
 							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ComponentReplicaRequirements"),
 						},
 					},
@@ -7313,7 +7313,7 @@ func schema_pkg_apis_work_v1alpha2_ComponentReplicaRequirements(ref common.Refer
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "ComponentReplicaRequirements represents the requirements required by each replica.",
+				Description: "ComponentReplicaRequirements represents the resource and scheduling requirements for each replica.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"nodeClaim": {
@@ -7577,7 +7577,7 @@ func schema_pkg_apis_work_v1alpha2_ReplicaRequirements(ref common.ReferenceCallb
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "ReplicaRequirements represents the requirements required by each replica.",
+				Description: "ReplicaRequirements represents the resource and scheduling requirements for each replica.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"nodeClaim": {
@@ -7745,7 +7745,7 @@ func schema_pkg_apis_work_v1alpha2_ResourceBindingSpec(ref common.ReferenceCallb
 					},
 					"replicaRequirements": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ReplicaRequirements represents the requirements required by each replica.",
+							Description: "ReplicaRequirements represents the resource and scheduling requirements for each replica.",
 							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ReplicaRequirements"),
 						},
 					},

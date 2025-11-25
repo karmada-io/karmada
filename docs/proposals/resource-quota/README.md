@@ -145,7 +145,7 @@ The admission check and resource consumption deduction of `KarmadaQuota` are ach
 
 The following is the API definition of ResourceBinding's replicaRequirements, the `resourceRequest` is the resource Request that karmada will distribute to the sub-cluster by PropagationPolicy.
 ```go 
-// ReplicaRequirements represents the requirements required by each replica.
+// ReplicaRequirements represents the resource and scheduling requirements for each replica.
 type ReplicaRequirements struct {
 	// A node selector represents the union of the results of one or more label queries
 	// over a set of nodes; that is, it represents the OR of the selectors represented

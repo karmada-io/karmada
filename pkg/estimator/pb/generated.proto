@@ -94,7 +94,7 @@ message MaxAvailableReplicasRequest {
   // +required
   optional string cluster = 1;
 
-  // ReplicaRequirements represents the requirements required by each replica.
+  // ReplicaRequirements represents the resource and scheduling requirements for each replica.
   // +required
   optional ReplicaRequirements replicaRequirements = 2;
 }
@@ -147,7 +147,7 @@ message ObjectReference {
   optional string name = 4;
 }
 
-// ReplicaRequirements represents the requirements required by each replica.
+// ReplicaRequirements represents the resource and scheduling requirements for each replica.
 message ReplicaRequirements {
   // NodeClaim represents the NodeAffinity, NodeSelector and Tolerations required by each replica.
   // +optional
