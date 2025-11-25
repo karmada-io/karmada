@@ -1,0 +1,37 @@
+{{- if $.Values.serviceMonitor.enabled }}
+{{- range .Values.serviceMonitor.targets }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    {{- if or $.Values.serviceMonitor.defaults.labels .labels }}
+    {{- toYaml (.labels | default $.Values.serviceMonitor.defaults.labels) | nindent 4 }}
+    {{- end }}
+  name: {{ template "karmada.operator.fullname" $ }}-{{ .name }}
+  namespace: {{ $.Values.serviceMonitor.namespace | default $.Release.Namespace }}
+spec:
+  endpoints:
+  - targetPort: {{ $.Values.service.port }}
+    scheme: {{ $.Values.serviceMonitor.scheme }}
+    interval: {{ .interval | default $.Values.serviceMonitor.defaults.interval }}
+    path: "/metrics"
+    scrapeTimeout: {{ .scrapeTimeout | default $.Values.serviceMonitor.defaults.scrapeTimeout }}
+    {{- with .additionalMetricsRelabels | default $.Values.serviceMonitor.defaults.additionalMetricsRelabels }}
+    metricRelabelings:
+    {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with .additionalRelabels | default $.Values.serviceMonitor.defaults.additionalRelabels }}
+    relabelings:
+    {{- toYaml . | nindent 6 }}
+    {{- end }}
+  jobLabel: {{ include "karmada.operator.fullname" $ }}
+  namespaceSelector:
+    matchNames:
+    - {{ $.Release.Namespace }}
+  selector:
+    matchLabels:
+      {{- include "common.labels.matchLabels" $ | nindent 6 }}
+      app: {{ include "karmada.operator.fullname" $ }}
+{{- end }}
+{{- end }}

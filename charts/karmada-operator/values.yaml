@@ -111,3 +111,39 @@ operator:
     rollingUpdate:
       maxUnavailable: 0
       maxSurge: 50%
+
+## operator service config
+service:
+  ## @param service.name
+  name: metrics
+  ## @param service.type
+  type: ClusterIP
+  ## @param service.port port of metrics a port
+  port: 8080
+  annotations: {}
+
+serviceMonitor:
+  # When set true then use a ServiceMonitor to configure scraping
+  # If true, a ServiceMonitor CRD is created for a prometheus operator.
+  # https://github.com/coreos/prometheus-operator
+  #
+  enabled: false
+
+  namespace: ""
+  scheme: http
+
+  # Default values that will be used for all ServiceMonitors created by `targets`
+  defaults:
+    additionalMetricsRelabels: []
+    additionalRelabels: []
+    interval: 10s
+    labels: {}
+    scrapeTimeout: 30s
+
+  targets:
+#    - name: example                    # Human readable URL that will appear in Prometheus / AlertManager
+#      labels: {}                       # Map of labels for ServiceMonitor. Overrides value set in `defaults`
+#      interval: 60s                    # Scraping interval. Overrides value set in `defaults`
+#      scrapeTimeout: 60s               # Scrape timeout. Overrides value set in `defaults`
+#      additionalMetricsRelabels: []    # Map of metric labels and values to add
+#      additionalRelabels: []           # relabelings of metrics
