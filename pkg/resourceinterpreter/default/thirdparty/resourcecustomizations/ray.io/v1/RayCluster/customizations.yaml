@@ -1,0 +1,201 @@
+apiVersion: config.karmada.io/v1alpha1
+kind: ResourceInterpreterCustomization
+metadata:
+  name: declarative-configuration-raycluster
+spec:
+  target:
+    apiVersion: ray.io/v1
+    kind: RayCluster
+  customizations:
+    componentResource:
+      luaScript: |
+        local kube = require("kube")
+
+        local function isempty(s)
+          return s == nil or s == ''
+        end
+
+        function GetComponents(desiredObj)
+          local components = {}
+
+          -- Head component (always 1 replica)
+          if desiredObj.spec ~= nil and desiredObj.spec.headGroupSpec ~= nil and desiredObj.spec.headGroupSpec.template ~= nil then
+            local headRequires = kube.accuratePodRequirements(desiredObj.spec.headGroupSpec.template)
+            local headComponent = {
+              name = "ray-head",
+              replicas = 1,
+              replicaRequirements = headRequires
+            }
+            table.insert(components, headComponent)
+          end
+
+          -- Worker group components
+          if desiredObj.spec ~= nil and desiredObj.spec.workerGroupSpecs ~= nil then
+            for i, workerGroup in ipairs(desiredObj.spec.workerGroupSpecs) do
+              local name = workerGroup.groupName
+              if isempty(name) then
+                name = "worker-" .. tostring(i)
+              end
+              local replicas = workerGroup.replicas or 0
+              local requires = nil
+              if workerGroup.template ~= nil then
+                requires = kube.accuratePodRequirements(workerGroup.template)
+              end
+              local wgComponent = {
+                name = name,
+                replicas = replicas,
+                replicaRequirements = requires
+              }
+              table.insert(components, wgComponent)
+            end
+          end
+
+          return components
+        end
+    healthInterpretation:
+      luaScript: >
+        function InterpretHealth(observedObj)
+          if observedObj.status == nil or observedObj.status.conditions == nil then
+            return false
+          end
+          
+          local headPodReady = false
+          local clusterProvisioned = false
+          local replicaFailure = false
+          
+          for _, condition in ipairs(observedObj.status.conditions) do
+            if condition.type == 'HeadPodReady' and condition.status == 'True' then
+              headPodReady = true
+            elseif condition.type == 'RayClusterProvisioned' and condition.status == 'True' then
+              clusterProvisioned = true
+            elseif condition.type == 'RayClusterReplicaFailure' and condition.status == 'True' then
+              replicaFailure = true
+            end
+          end
+          
+          return headPodReady and clusterProvisioned and not replicaFailure
+        end
+    statusAggregation:
+      luaScript: >
+        function AggregateStatus(desiredObj, statusItems)
+          if statusItems == nil then
+            return desiredObj
+          end
+          if desiredObj.status == nil then
+            desiredObj.status = {}
+          end
+
+          -- If only one item, use it directly
+          if #statusItems == 1 then
+            desiredObj.status = statusItems[1].status
+            return desiredObj
+          end
+
+          -- Initialize aggregated values
+          local conditions = {}
+          local readyWorkerReplicas = 0
+          local availableWorkerReplicas = 0
+          local maxWorkerReplicas = 0
+          local minWorkerReplicas = 0
+          local desiredWorkerReplicas = 0
+          local desiredCPU = 0
+          local desiredGPU = 0
+          local desiredMemory = 0
+          local desiredTPU = 0
+          local lastUpdateTime = nil
+          local endpoints = nil
+          local head = nil
+          local state = nil
+          local stateTransitionTimes = nil
+
+          -- Aggregate status from all member clusters
+          for i = 1, #statusItems do
+            local currentStatus = statusItems[i].status
+            if currentStatus ~= nil then
+              -- Merge conditions from all clusters
+              if currentStatus.conditions ~= nil then
+                for _, condition in ipairs(currentStatus.conditions) do
+                  table.insert(conditions, condition)
+                end
+              end
+
+              -- Sum numeric replica counts
+              if currentStatus.readyWorkerReplicas ~= nil then
+                readyWorkerReplicas = readyWorkerReplicas + currentStatus.readyWorkerReplicas
+              end
+              if currentStatus.availableWorkerReplicas ~= nil then
+                availableWorkerReplicas = availableWorkerReplicas + currentStatus.availableWorkerReplicas
+              end
+              if currentStatus.maxWorkerReplicas ~= nil then
+                maxWorkerReplicas = maxWorkerReplicas + currentStatus.maxWorkerReplicas
+              end
+              if currentStatus.minWorkerReplicas ~= nil then
+                minWorkerReplicas = minWorkerReplicas + currentStatus.minWorkerReplicas
+              end
+              if currentStatus.desiredWorkerReplicas ~= nil then
+                desiredWorkerReplicas = desiredWorkerReplicas + currentStatus.desiredWorkerReplicas
+              end
+
+              -- Sum resource quantities (stored as numeric strings like "2", "4", etc.)
+              if currentStatus.desiredCPU ~= nil and currentStatus.desiredCPU ~= "" then
+                desiredCPU = desiredCPU + tonumber(currentStatus.desiredCPU)
+              end
+              if currentStatus.desiredGPU ~= nil and currentStatus.desiredGPU ~= "" then
+                desiredGPU = desiredGPU + tonumber(currentStatus.desiredGPU)
+              end
+              if currentStatus.desiredTPU ~= nil and currentStatus.desiredTPU ~= "" then
+                desiredTPU = desiredTPU + tonumber(currentStatus.desiredTPU)
+              end
+              -- For memory, parse numeric part (e.g., "3G" -> 3)
+              if currentStatus.desiredMemory ~= nil and currentStatus.desiredMemory ~= "" then
+                local memNum = tonumber(string.match(currentStatus.desiredMemory, "%d+"))
+                if memNum ~= nil then
+                  desiredMemory = desiredMemory + memNum
+                end
+              end
+
+              -- Take the most recent lastUpdateTime
+              if currentStatus.lastUpdateTime ~= nil then
+                if lastUpdateTime == nil or currentStatus.lastUpdateTime > lastUpdateTime then
+                  lastUpdateTime = currentStatus.lastUpdateTime
+                end
+              end
+
+              -- Keep endpoints and head from first non-nil cluster (likely the one with head pod)
+              if endpoints == nil and currentStatus.endpoints ~= nil then
+                endpoints = currentStatus.endpoints
+              end
+              if head == nil and currentStatus.head ~= nil then
+                head = currentStatus.head
+              end
+
+              -- Keep state and stateTransitionTimes for backward compatibility (deprecated fields)
+              if state == nil and currentStatus.state ~= nil then
+                state = currentStatus.state
+                stateTransitionTimes = currentStatus.stateTransitionTimes
+              end
+            end
+          end
+
+          -- Set aggregated status
+          desiredObj.status.conditions = conditions
+          desiredObj.status.readyWorkerReplicas = readyWorkerReplicas
+          desiredObj.status.availableWorkerReplicas = availableWorkerReplicas
+          desiredObj.status.maxWorkerReplicas = maxWorkerReplicas
+          desiredObj.status.minWorkerReplicas = minWorkerReplicas
+          desiredObj.status.desiredWorkerReplicas = desiredWorkerReplicas
+          desiredObj.status.desiredCPU = tostring(desiredCPU)
+          desiredObj.status.desiredGPU = tostring(desiredGPU)
+          desiredObj.status.desiredTPU = tostring(desiredTPU)
+          -- Reconstruct memory with unit suffix
+          if desiredMemory > 0 then
+            desiredObj.status.desiredMemory = tostring(desiredMemory) .. "G"
+          end
+          desiredObj.status.lastUpdateTime = lastUpdateTime
+          desiredObj.status.endpoints = endpoints
+          desiredObj.status.head = head
+          desiredObj.status.state = state
+          desiredObj.status.stateTransitionTimes = stateTransitionTimes
+
+          return desiredObj
+        end
