@@ -107,7 +107,7 @@ type ResourceInterpreterResponse struct {
 	// +optional
 	PatchType *PatchType `json:"patchType,omitempty" protobuf:"bytes,5,opt,name=patchType"`
 
-	// ReplicaRequirements represents the requirements required by each replica.
+	// ReplicaRequirements represents the resource and scheduling requirements for each replica.
 	// Required if InterpreterOperation is InterpreterOperationInterpretReplica.
 	// +optional
 	ReplicaRequirements *workv1alpha2.ReplicaRequirements `json:"replicaRequirements,omitempty"`

@@ -78,7 +78,7 @@ type ResourceBindingSpec struct {
 	// +optional
 	PropagateDeps bool `json:"propagateDeps,omitempty"`
 
-	// ReplicaRequirements represents the requirements required by each replica.
+	// ReplicaRequirements represents the resource and scheduling requirements for each replica.
 	// +optional
 	ReplicaRequirements *ReplicaRequirements `json:"replicaRequirements,omitempty"`
 
@@ -204,7 +204,7 @@ type ObjectReference struct {
 	ResourceVersion string `json:"resourceVersion,omitempty"`
 }
 
-// ReplicaRequirements represents the requirements required by each replica.
+// ReplicaRequirements represents the resource and scheduling requirements for each replica.
 type ReplicaRequirements struct {
 	// NodeClaim represents the node claim HardNodeAffinity, NodeSelector and Tolerations required by each replica.
 	// +optional
@@ -236,12 +236,12 @@ type Component struct {
 	// +required
 	Replicas int32 `json:"replicas"`
 
-	// ReplicaRequirements represents the requirements required by each replica for this component.
+	// ReplicaRequirements represents the resource and scheduling requirements for each replica.
 	// +optional
 	ReplicaRequirements *ComponentReplicaRequirements `json:"replicaRequirements,omitempty"`
 }
 
-// ComponentReplicaRequirements represents the requirements required by each replica.
+// ComponentReplicaRequirements represents the resource and scheduling requirements for each replica.
 type ComponentReplicaRequirements struct {
 	// NodeClaim represents the node claim HardNodeAffinity, NodeSelector and Tolerations required by each replica.
 	// +optional

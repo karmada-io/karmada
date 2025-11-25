@@ -283,8 +283,8 @@ spec:
                       maxLength: 32
                       type: string
                     replicaRequirements:
-                      description: ReplicaRequirements represents the requirements
-                        required by each replica for this component.
+                      description: ReplicaRequirements represents the resource and
+                        scheduling requirements for each replica.
                       properties:
                         nodeClaim:
                           description: NodeClaim represents the node claim HardNodeAffinity,
@@ -1279,8 +1279,8 @@ spec:
                   default false.
                 type: boolean
               replicaRequirements:
-                description: ReplicaRequirements represents the requirements required
-                  by each replica.
+                description: ReplicaRequirements represents the resource and scheduling
+                  requirements for each replica.
                 properties:
                   namespace:
                     description: Namespace represents the resources namespaces
