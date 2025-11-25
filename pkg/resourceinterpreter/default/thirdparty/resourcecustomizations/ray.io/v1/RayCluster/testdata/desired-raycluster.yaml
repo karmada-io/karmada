@@ -1,0 +1,44 @@
+apiVersion: ray.io/v1
+kind: RayCluster
+metadata:
+  name: sample
+spec:
+  rayVersion: '2.46.0'
+  headGroupSpec:
+    rayStartParams: {}
+    template:
+      spec:
+        containers:
+        - name: ray-head
+          image: rayproject/ray:2.46.0
+          resources:
+            limits:
+              cpu: 1
+              memory: 2G
+            requests:
+              cpu: 1
+              memory: 2G
+          ports:
+          - containerPort: 6379
+            name: gcs-server
+          - containerPort: 8265
+            name: dashboard
+          - containerPort: 10001
+            name: client
+  workerGroupSpecs:
+  - replicas: 1
+    minReplicas: 1
+    maxReplicas: 5
+    groupName: workergroup
+    rayStartParams: {}
+    template:
+      spec:
+        containers:
+          image: rayproject/ray:2.46.0
+          resources:
+            limits:
+              cpu: 1
+              memory: 1G
+            requests:
+              cpu: 1
+              memory: 1G
