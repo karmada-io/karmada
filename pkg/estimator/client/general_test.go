@@ -229,6 +229,335 @@ func TestGetMaximumReplicasBasedOnResourceModels(t *testing.T) {
 	}
 }
 
+func q(s string) resource.Quantity { return resource.MustParse(s) }
+
+func comp(name string, replicas int32, rl corev1.ResourceList) workv1alpha2.Component {
+	return workv1alpha2.Component{
+		Name:     name,
+		Replicas: replicas,
+		ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+			ResourceRequest: rl,
+		},
+	}
+}
+
+func TestGetMaximumSetsBasedOnResourceModels(t *testing.T) {
+	const (
+		GPU  corev1.ResourceName = "nvidia.com/gpu"
+		BIGU int64               = 100 // define a large upper bound so we can test model decision algo
+	)
+
+	tests := []struct {
+		name         string
+		cluster      clusterv1alpha1.Cluster
+		components   []workv1alpha2.Component
+		upperBound   int64
+		expectError  bool
+		expectedSets int64
+	}{
+		{
+			name: "No grades defined → error",
+			cluster: clusterv1alpha1.Cluster{
+				Spec:   clusterv1alpha1.ClusterSpec{ResourceModels: nil},
+				Status: clusterv1alpha1.ClusterStatus{ResourceSummary: &clusterv1alpha1.ResourceSummary{}},
+			},
+			components: []workv1alpha2.Component{
+				comp("cpu-worker", 1, corev1.ResourceList{
+					corev1.ResourceCPU: q("1500m"),
+				}),
+			},
+			upperBound:   BIGU,
+			expectError:  true,
+			expectedSets: -1,
+		},
+		{
+			name: "No resource requirement",
+			cluster: clusterv1alpha1.Cluster{
+				Spec: clusterv1alpha1.ClusterSpec{
+					ResourceModels: []clusterv1alpha1.ResourceModel{
+						{Grade: uint(0), Ranges: []clusterv1alpha1.ResourceModelRange{{Name: corev1.ResourceCPU, Min: q("500m")}}},
+						{Grade: uint(1), Ranges: []clusterv1alpha1.ResourceModelRange{{Name: corev1.ResourceCPU, Min: q("1000m")}}},
+						{Grade: uint(2), Ranges: []clusterv1alpha1.ResourceModelRange{{Name: corev1.ResourceCPU, Min: q("2000m")}}}, // (first compliant grade for 1500m)
+					},
+				},
+				Status: clusterv1alpha1.ClusterStatus{
+					ResourceSummary: &clusterv1alpha1.ResourceSummary{
+						AllocatableModelings: []clusterv1alpha1.AllocatableModeling{
+							{Grade: uint(0), Count: 5},
+							{Grade: uint(1), Count: 0},
+							{Grade: uint(2), Count: 10},
+						},
+					},
+				},
+			},
+			components: []workv1alpha2.Component{
+				comp("no-resource", 1, corev1.ResourceList{}),
+			},
+			upperBound:   BIGU,
+			expectError:  false,
+			expectedSets: BIGU,
+		},
+		{
+			name: "CPU-only: 3 grades, only highest compliant",
+			cluster: clusterv1alpha1.Cluster{
+				Spec: clusterv1alpha1.ClusterSpec{
+					ResourceModels: []clusterv1alpha1.ResourceModel{
+						{Grade: uint(0), Ranges: []clusterv1alpha1.ResourceModelRange{{Name: corev1.ResourceCPU, Min: q("500m")}}},
+						{Grade: uint(1), Ranges: []clusterv1alpha1.ResourceModelRange{{Name: corev1.ResourceCPU, Min: q("1000m")}}},
+						{Grade: uint(2), Ranges: []clusterv1alpha1.ResourceModelRange{{Name: corev1.ResourceCPU, Min: q("2000m")}}},
+					},
+				},
+				Status: clusterv1alpha1.ClusterStatus{
+					ResourceSummary: &clusterv1alpha1.ResourceSummary{
+						AllocatableModelings: []clusterv1alpha1.AllocatableModeling{
+							{Grade: uint(0), Count: 5},
+							{Grade: uint(1), Count: 0},
+							{Grade: uint(2), Count: 10},
+						},
+					},
+				},
+			},
+			components: []workv1alpha2.Component{
+				comp("cpu-job", 1, corev1.ResourceList{
+					corev1.ResourceCPU: q("1500m"),
+				}),
+			},
+			upperBound:   BIGU,
+			expectError:  false,
+			expectedSets: 10, // 10 grade-2 nodes × 1 replica each = 10 sets (1 replica per set)
+		},
+		{
+			name: "Multi-resource with GPUs across grades",
+			cluster: clusterv1alpha1.Cluster{
+				Spec: clusterv1alpha1.ClusterSpec{
+					ResourceModels: []clusterv1alpha1.ResourceModel{
+						{Grade: uint(0), Ranges: []clusterv1alpha1.ResourceModelRange{
+							{Name: corev1.ResourceCPU, Min: q("1000m")},
+							{Name: corev1.ResourceMemory, Min: q("2Gi")},
+							{Name: GPU, Min: q("0")},
+						}},
+						{Grade: uint(1), Ranges: []clusterv1alpha1.ResourceModelRange{
+							{Name: corev1.ResourceCPU, Min: q("2000m")},
+							{Name: corev1.ResourceMemory, Min: q("4Gi")},
+							{Name: GPU, Min: q("1")},
+						}},
+						{Grade: uint(2), Ranges: []clusterv1alpha1.ResourceModelRange{
+							{Name: corev1.ResourceCPU, Min: q("4000m")},
+							{Name: corev1.ResourceMemory, Min: q("8Gi")},
+							{Name: GPU, Min: q("2")},
+						}},
+					},
+				},
+				Status: clusterv1alpha1.ClusterStatus{
+					ResourceSummary: &clusterv1alpha1.ResourceSummary{
+						AllocatableModelings: []clusterv1alpha1.AllocatableModeling{
+							{Grade: uint(0), Count: 4},
+							{Grade: uint(1), Count: 3},
+							{Grade: uint(2), Count: 2},
+						},
+					},
+				},
+			},
+			components: []workv1alpha2.Component{
+				// One set has 2 replicas; each replica needs 2 CPU, 4Gi, 1 GPU.
+				comp("gpu-worker", 2, corev1.ResourceList{
+					corev1.ResourceCPU:    q("2000m"),
+					corev1.ResourceMemory: q("4Gi"),
+					GPU:                   q("1"),
+				}),
+			},
+			upperBound:   BIGU,
+			expectError:  false,
+			expectedSets: 3,
+		},
+		{
+			name: "No compliant grades = 0 sets",
+			cluster: clusterv1alpha1.Cluster{
+				Spec: clusterv1alpha1.ClusterSpec{
+					ResourceModels: []clusterv1alpha1.ResourceModel{
+						{Grade: uint(0), Ranges: []clusterv1alpha1.ResourceModelRange{{Name: corev1.ResourceCPU, Min: q("1000m")}}},
+						{Grade: uint(1), Ranges: []clusterv1alpha1.ResourceModelRange{{Name: corev1.ResourceCPU, Min: q("2000m")}}},
+					},
+				},
+				Status: clusterv1alpha1.ClusterStatus{
+					ResourceSummary: &clusterv1alpha1.ResourceSummary{
+						AllocatableModelings: []clusterv1alpha1.AllocatableModeling{
+							{Grade: uint(0), Count: 10},
+							{Grade: uint(1), Count: 10},
+						},
+					},
+				},
+			},
+			components: []workv1alpha2.Component{
+				comp("too-heavy", 1, corev1.ResourceList{
+					corev1.ResourceCPU: q("3000m"),
+				}),
+			},
+			upperBound:   BIGU,
+			expectError:  false,
+			expectedSets: 0,
+		},
+		{
+			name: "Multi-component JM/TM across grades (CPU+Mem)",
+			cluster: clusterv1alpha1.Cluster{
+				Spec: clusterv1alpha1.ClusterSpec{
+					ResourceModels: []clusterv1alpha1.ResourceModel{
+						{ // grade 0: fits JM (1 CPU, 2Gi)
+							Grade: uint(0),
+							Ranges: []clusterv1alpha1.ResourceModelRange{
+								{Name: corev1.ResourceCPU, Min: q("1000m")},
+								{Name: corev1.ResourceMemory, Min: q("2Gi")},
+							},
+						},
+						{ // grade 1: fits TM (3 CPU, 10Gi)
+							Grade: uint(1),
+							Ranges: []clusterv1alpha1.ResourceModelRange{
+								{Name: corev1.ResourceCPU, Min: q("3000m")},
+								{Name: corev1.ResourceMemory, Min: q("10Gi")},
+							},
+						},
+						{ // grade 2: fits both JM and a TM (4 CPU, 12Gi)
+							Grade: uint(2),
+							Ranges: []clusterv1alpha1.ResourceModelRange{
+								{Name: corev1.ResourceCPU, Min: q("4000m")},
+								{Name: corev1.ResourceMemory, Min: q("12Gi")},
+							},
+						},
+					},
+				},
+				Status: clusterv1alpha1.ClusterStatus{
+					ResourceSummary: &clusterv1alpha1.ResourceSummary{
+						AllocatableModelings: []clusterv1alpha1.AllocatableModeling{
+							{Grade: uint(0), Count: 2}, // g0 nodes -> 2 JMs max
+							{Grade: uint(1), Count: 6}, // g1 nodes -> 6 TMs max
+							{Grade: uint(2), Count: 3}, // g2 nodes -> can fit 1 JM and 1 TM each
+						},
+						// Aggregate total resources for the cluster (example realistic values)
+						Allocatable: corev1.ResourceList{
+							corev1.ResourceCPU:    q("32"),    // ~32 cores
+							corev1.ResourceMemory: q("100Gi"), // ~100 Gi memory
+							corev1.ResourcePods:   q("1000"),  // arbitrary
+						},
+						// Some usage already allocated (these won't change the feasibility logic much)
+						Allocated: corev1.ResourceList{
+							corev1.ResourceCPU:    q("4"),
+							corev1.ResourceMemory: q("4Gi"),
+							corev1.ResourcePods:   q("50"),
+						},
+					},
+				},
+			},
+			components: []workv1alpha2.Component{
+				{
+					Name:     "jobmanager",
+					Replicas: 1,
+					ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+						ResourceRequest: corev1.ResourceList{
+							corev1.ResourceCPU:    q("1"),
+							corev1.ResourceMemory: q("2Gi"),
+						},
+					},
+				},
+				{
+					Name:     "taskmanager",
+					Replicas: 3,
+					ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+						ResourceRequest: corev1.ResourceList{
+							corev1.ResourceCPU:    q("3"),
+							corev1.ResourceMemory: q("10Gi"),
+						},
+					},
+				},
+			},
+			upperBound:   100,
+			expectError:  false,
+			expectedSets: 3,
+		},
+		{
+			name: "Three-component CRD across 4 grades (CPU+Mem)",
+			cluster: clusterv1alpha1.Cluster{
+				Spec: clusterv1alpha1.ClusterSpec{
+					ResourceModels: []clusterv1alpha1.ResourceModel{
+						{Grade: uint(0), Ranges: []clusterv1alpha1.ResourceModelRange{
+							{Name: corev1.ResourceCPU, Min: q("1000m")},
+							{Name: corev1.ResourceMemory, Min: q("2Gi")},
+						}},
+						{Grade: uint(1), Ranges: []clusterv1alpha1.ResourceModelRange{
+							{Name: corev1.ResourceCPU, Min: q("2000m")},
+							{Name: corev1.ResourceMemory, Min: q("4Gi")},
+						}},
+						{Grade: uint(2), Ranges: []clusterv1alpha1.ResourceModelRange{
+							{Name: corev1.ResourceCPU, Min: q("3000m")},
+							{Name: corev1.ResourceMemory, Min: q("6Gi")},
+						}},
+						{Grade: uint(3), Ranges: []clusterv1alpha1.ResourceModelRange{
+							{Name: corev1.ResourceCPU, Min: q("8000m")},
+							{Name: corev1.ResourceMemory, Min: q("12Gi")},
+						}},
+					},
+				},
+				Status: clusterv1alpha1.ClusterStatus{
+					ResourceSummary: &clusterv1alpha1.ResourceSummary{
+						AllocatableModelings: []clusterv1alpha1.AllocatableModeling{
+							{Grade: uint(0), Count: 2},
+							{Grade: uint(1), Count: 3},
+							{Grade: uint(2), Count: 2},
+							{Grade: uint(3), Count: 6},
+						},
+					},
+				},
+			},
+			components: []workv1alpha2.Component{
+				{
+					Name:     "jobmanager",
+					Replicas: 1,
+					ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+						ResourceRequest: corev1.ResourceList{
+							corev1.ResourceCPU:    q("1"),
+							corev1.ResourceMemory: q("2Gi"),
+						},
+					},
+				},
+				{
+					Name:     "taskmanager",
+					Replicas: 3,
+					ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+						ResourceRequest: corev1.ResourceList{
+							corev1.ResourceCPU:    q("3"),
+							corev1.ResourceMemory: q("10Gi"),
+						},
+					},
+				},
+				{
+					Name:     "cache",
+					Replicas: 1,
+					ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+						ResourceRequest: corev1.ResourceList{
+							corev1.ResourceCPU:    q("500m"),
+							corev1.ResourceMemory: q("1Gi"),
+						},
+					},
+				},
+			},
+			upperBound:   100,
+			expectError:  false,
+			expectedSets: 2, // Two sets max, bound by TMs which can only fit on largest nodes.
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := getMaximumSetsBasedOnResourceModels(&tt.cluster, tt.components, tt.upperBound)
+			if tt.expectError {
+				assert.Error(t, err)
+				assert.Equal(t, tt.expectedSets, got)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedSets, got)
+			}
+		})
+	}
+}
 func TestMaxAvailableReplicas(t *testing.T) {
 	tests := []struct {
 		name                string
