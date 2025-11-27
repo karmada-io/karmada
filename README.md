@@ -196,7 +196,7 @@ The following table shows the compatibility test results against the latest 10 K
 | Karmada v1.13         |                 |                 |                 | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               |
 | Karmada v1.14         |                 |                 | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               |
 | Karmada v1.15         |                 | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               |                 |
-| Karmada HEAD (master) |                 | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               |                 |
+| Karmada HEAD (master) | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               |                 |                 |
 
 Key:
 * `✓` Karmada and the Kubernetes version are exactly compatible.
