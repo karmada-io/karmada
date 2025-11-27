@@ -36,6 +36,8 @@ func ParsingJobStatus(obj *batchv1.Job, status []workv1alpha2.AggregatedStatusIt
 	var jobFailed []string
 	var startTime, completionTime *metav1.Time
 	successfulJobs, completionJobs := 0, 0
+	// Track how many member clusters already reported SuccessCriteriaMet=true
+	successCriteriaMetClusters := 0
 	newStatus := &batchv1.JobStatus{}
 	for _, item := range status {
 		if item.Status == nil {
@@ -58,6 +60,14 @@ func ParsingJobStatus(obj *batchv1.Job, status []workv1alpha2.AggregatedStatusIt
 			successfulJobs++
 		} else if isFinished && finishedStatus == batchv1.JobFailed {
 			jobFailed = append(jobFailed, item.ClusterName)
+		}
+
+		// Count clusters that already set SuccessCriteriaMet=true
+		for _, c := range temp.Conditions {
+			if c.Type == batchv1.JobSuccessCriteriaMet && c.Status == corev1.ConditionTrue {
+				successCriteriaMetClusters++
+				break
+			}
 		}
 
 		// StartTime
@@ -95,6 +105,18 @@ func ParsingJobStatus(obj *batchv1.Job, status []workv1alpha2.AggregatedStatusIt
 			Reason:             "Completed",
 			Message:            "Job completed",
 		})
+
+		// Set JobSuccessCriteriaMet condition when all member clusters have met success criteria.
+		if len(status) > 0 && successCriteriaMetClusters == len(status) {
+			newStatus.Conditions = append(newStatus.Conditions, batchv1.JobCondition{
+				Type:               batchv1.JobSuccessCriteriaMet,
+				Status:             corev1.ConditionTrue,
+				LastProbeTime:      metav1.Now(),
+				LastTransitionTime: metav1.Now(),
+				Reason:             "CompletionsReached",
+				Message:            "All member clusters have met success criteria",
+			})
+		}
 	}
 
 	if startTime != nil {
