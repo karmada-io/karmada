@@ -40,7 +40,7 @@ KARMADA_GO_PACKAGE="github.com/karmada-io/karmada"
 
 MIN_GO_VERSION="go$(go list -m -f {{.GoVersion}})"
 
-DEFAULT_CLUSTER_VERSION="kindest/node:v1.33.1"
+DEFAULT_CLUSTER_VERSION="kindest/node:v1.34.0"
 
 # KIND_VERSION defines the version of Kind (Kubernetes IN Docker) tool to be used
 # across all scripts in the project. This version is referenced by:

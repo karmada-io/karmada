@@ -1881,7 +1881,7 @@ sigs.k8s.io/custom-metrics-apiserver/pkg/registry/external_metrics
 ## explicit; go 1.23
 sigs.k8s.io/json
 sigs.k8s.io/json/internal/golang/encoding/json
-# sigs.k8s.io/kind v0.29.0
+# sigs.k8s.io/kind v0.30.0
 ## explicit; go 1.17
 sigs.k8s.io/kind/pkg/apis/config/defaults
 sigs.k8s.io/kind/pkg/apis/config/v1alpha4
@@ -2020,5 +2020,4 @@ sigs.k8s.io/structured-merge-diff/v6/value
 # sigs.k8s.io/yaml v1.6.0
 ## explicit; go 1.22
 sigs.k8s.io/yaml
-sigs.k8s.io/yaml/goyaml.v3
 sigs.k8s.io/yaml/kyaml
