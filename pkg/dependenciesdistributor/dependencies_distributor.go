@@ -51,6 +51,7 @@ import (
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/events"
+	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -102,7 +103,7 @@ type DependenciesDistributor struct {
 	RateLimiterOptions  ratelimiterflag.Options
 
 	eventHandler      cache.ResourceEventHandler
-	resourceProcessor util.AsyncWorker
+	resourceProcessor util.AsyncPriorityWorker
 	genericEvent      chan event.TypedGenericEvent[*workv1alpha2.ResourceBinding]
 	// ConcurrentDependentResourceSyncs is the number of dependent resource that are allowed to sync concurrently.
 	ConcurrentDependentResourceSyncs int
@@ -119,12 +120,13 @@ func (d *DependenciesDistributor) NeedLeaderElection() bool {
 }
 
 // OnAdd handles object add event and push the object to queue.
-func (d *DependenciesDistributor) OnAdd(obj interface{}) {
+func (d *DependenciesDistributor) OnAdd(obj interface{}, isInInitialList bool) {
 	runtimeObj, ok := obj.(runtime.Object)
 	if !ok {
 		return
 	}
-	d.resourceProcessor.Enqueue(runtimeObj)
+	priority := util.ItemPriorityIfInInitialList(isInInitialList)
+	d.resourceProcessor.EnqueueWithOpts(util.AddOpts{Priority: priority}, runtimeObj)
 }
 
 // OnUpdate handles object update event and push the object to queue.
@@ -146,9 +148,9 @@ func (d *DependenciesDistributor) OnUpdate(oldObj, newObj interface{}) {
 		return
 	}
 	if !equality.Semantic.DeepEqual(unstructuredOldObj.GetLabels(), unstructuredNewObj.GetLabels()) {
-		d.OnAdd(oldObj)
+		d.OnAdd(oldObj, false)
 	}
-	d.OnAdd(newObj)
+	d.OnAdd(newObj, false)
 }
 
 // OnDelete handles object delete event and push the object to queue.
@@ -160,7 +162,7 @@ func (d *DependenciesDistributor) OnDelete(obj interface{}) {
 			return
 		}
 	}
-	d.OnAdd(obj)
+	d.OnAdd(obj, false)
 }
 
 // reconcileResourceTemplate coordinates resources that may need to be distributed, such as Configmap, Service, etc.
@@ -663,6 +665,7 @@ func (d *DependenciesDistributor) Start(ctx context.Context) error {
 		},
 		ReconcileFunc:      d.reconcileResourceTemplate,
 		RateLimiterOptions: d.RateLimiterOptions,
+		UsePriorityQueue:   features.FeatureGate.Enabled(features.ControllerPriorityQueue),
 	}
 	d.eventHandler = fedinformer.NewHandlerOnEvents(d.OnAdd, d.OnUpdate, d.OnDelete)
 	d.resourceProcessor = util.NewAsyncWorker(resourceWorkerOptions)

@@ -83,11 +83,11 @@ type ResourceDetector struct {
 	EventRecorder       record.EventRecorder
 	// policyReconcileWorker maintains a rate limited queue which used to store PropagationPolicy's key and
 	// a reconcile function to consume the items in queue.
-	policyReconcileWorker util.AsyncWorker
+	policyReconcileWorker util.AsyncPriorityWorker
 
 	// clusterPolicyReconcileWorker maintains a rate limited queue which used to store ClusterPropagationPolicy's key and
 	// a reconcile function to consume the items in queue.
-	clusterPolicyReconcileWorker util.AsyncWorker
+	clusterPolicyReconcileWorker util.AsyncPriorityWorker
 
 	RESTMapper meta.RESTMapper
 
@@ -119,6 +119,7 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 		KeyFunc:            NamespacedKeyFunc,
 		ReconcileFunc:      d.ReconcilePropagationPolicy,
 		RateLimiterOptions: d.RateLimiterOptions,
+		UsePriorityQueue:   features.FeatureGate.Enabled(features.ControllerPriorityQueue),
 	}
 	d.policyReconcileWorker = util.NewAsyncWorker(policyWorkerOptions)
 	d.policyReconcileWorker.Run(ctx, d.ConcurrentPropagationPolicySyncs)
@@ -127,6 +128,7 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 		KeyFunc:            NamespacedKeyFunc,
 		ReconcileFunc:      d.ReconcileClusterPropagationPolicy,
 		RateLimiterOptions: d.RateLimiterOptions,
+		UsePriorityQueue:   features.FeatureGate.Enabled(features.ControllerPriorityQueue),
 	}
 	d.clusterPolicyReconcileWorker = util.NewAsyncWorker(clusterPolicyWorkerOptions)
 	d.clusterPolicyReconcileWorker.Run(ctx, d.ConcurrentClusterPropagationPolicySyncs)
@@ -311,16 +313,12 @@ func (d *ResourceDetector) EventFilter(obj interface{}) bool {
 }
 
 // OnAdd handles object add event and push the object to queue.
-func (d *ResourceDetector) OnAdd(obj interface{}, isInitialList bool) {
+func (d *ResourceDetector) OnAdd(obj interface{}, isInInitialList bool) {
 	runtimeObj, ok := obj.(runtime.Object)
 	if !ok {
 		return
 	}
-
-	var priority *int
-	if isInitialList {
-		priority = ptr.To(util.LowPriority)
-	}
+	priority := util.ItemPriorityIfInInitialList(isInInitialList)
 	d.Processor.EnqueueWithOpts(util.AddOpts{Priority: priority}, ResourceItem{Obj: runtimeObj})
 }
 
@@ -958,8 +956,9 @@ func (d *ResourceDetector) GetMatching(resourceSelectors []policyv1alpha1.Resour
 }
 
 // OnPropagationPolicyAdd handles object add event and push the object to queue.
-func (d *ResourceDetector) OnPropagationPolicyAdd(obj interface{}) {
-	d.policyReconcileWorker.Enqueue(obj)
+func (d *ResourceDetector) OnPropagationPolicyAdd(obj interface{}, isInInitialList bool) {
+	priority := util.ItemPriorityIfInInitialList(isInInitialList)
+	d.policyReconcileWorker.EnqueueWithOpts(util.AddOpts{Priority: priority}, obj)
 }
 
 // OnPropagationPolicyUpdate handles object update event and push the object to queue.
@@ -1029,8 +1028,9 @@ func (d *ResourceDetector) ReconcilePropagationPolicy(key util.QueueKey) error {
 }
 
 // OnClusterPropagationPolicyAdd handles object add event and push the object to queue.
-func (d *ResourceDetector) OnClusterPropagationPolicyAdd(obj interface{}) {
-	d.clusterPolicyReconcileWorker.Enqueue(obj)
+func (d *ResourceDetector) OnClusterPropagationPolicyAdd(obj interface{}, isInInitialList bool) {
+	priority := util.ItemPriorityIfInInitialList(isInInitialList)
+	d.clusterPolicyReconcileWorker.EnqueueWithOpts(util.AddOpts{Priority: priority}, obj)
 }
 
 // OnClusterPropagationPolicyUpdate handles object update event and push the object to queue.

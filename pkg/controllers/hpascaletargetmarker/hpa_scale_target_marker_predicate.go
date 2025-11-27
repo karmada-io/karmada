@@ -25,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util"
 )
 
 var _ predicate.Predicate = &HpaScaleTargetMarker{}
@@ -40,7 +41,8 @@ func (r *HpaScaleTargetMarker) Create(e event.CreateEvent) bool {
 
 	// if hpa exist and has been propagated, add label to its scale ref resource
 	if hasBeenPropagated(hpa) {
-		r.scaleTargetWorker.Add(labelEvent{addLabelEvent, hpa})
+		priority := util.ItemPriorityIfInInitialList(e.IsInInitialList)
+		r.scaleTargetWorker.AddWithOpts(util.AddOpts{Priority: priority}, labelEvent{addLabelEvent, hpa})
 	}
 
 	return false

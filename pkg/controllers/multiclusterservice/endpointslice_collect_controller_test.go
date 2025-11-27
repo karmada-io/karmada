@@ -74,7 +74,7 @@ func TestGetEventHandler(t *testing.T) {
 			assert.True(t, exists, "Handler should be stored in eventHandlers")
 			assert.Equal(t, handler, storedHandler, "Stored handler should match returned handler")
 			if !tc.existingHandler {
-				assert.IsType(t, &cache.ResourceEventHandlerFuncs{}, handler, "New handler should be of type *cache.ResourceEventHandlerFuncs")
+				assert.IsType(t, &cache.ResourceEventHandlerDetailedFuncs{}, handler, "New handler should be of type *cache.ResourceEventHandlerDetailedFuncs")
 			} else {
 				assert.IsType(t, &mockResourceEventHandler{}, handler, "Existing handler should be of type *mockResourceEventHandler")
 			}
@@ -92,7 +92,7 @@ func TestGenHandlerFuncs(t *testing.T) {
 			worker: mockWorker,
 		}
 		addFunc := controller.genHandlerAddFunc(clusterName)
-		addFunc(testObj)
+		addFunc(testObj, false)
 		assert.Equal(t, 1, mockWorker.addCount, "Add function should be called once")
 	})
 
@@ -447,6 +447,15 @@ func (m *mockAsyncWorker) Add(_ interface{}) {
 func (m *mockAsyncWorker) AddAfter(_ interface{}, _ time.Duration) {}
 
 func (m *mockAsyncWorker) Enqueue(_ interface{}) {}
+
+func (m *mockAsyncWorker) AddWithOpts(_ util.AddOpts, items ...any) {
+	for _, item := range items {
+		m.Add(item)
+	}
+}
+func (m *mockAsyncWorker) EnqueueWithOpts(_ util.AddOpts, item any) {
+	m.Enqueue(item)
+}
 
 func (m *mockAsyncWorker) Run(_ context.Context, _ int) {}
 

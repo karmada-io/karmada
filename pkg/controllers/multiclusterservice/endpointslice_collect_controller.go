@@ -46,6 +46,7 @@ import (
 	networkingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/controllers/ctrlutil"
+	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
@@ -69,7 +70,7 @@ type EndpointSliceCollectController struct {
 	// Each handler takes the cluster name as key and takes the handler function as the value, e.g.
 	// "member1": instance of ResourceEventHandler
 	eventHandlers sync.Map
-	worker        util.AsyncWorker // worker process resources periodic from rateLimitingQueue.
+	worker        util.AsyncPriorityWorker // worker process resources periodic from rateLimitingQueue.
 
 	ClusterCacheSyncTimeout metav1.Duration
 	RateLimiterOptions      ratelimiterflag.Options
@@ -133,9 +134,10 @@ func (c *EndpointSliceCollectController) SetupWithManager(mgr controllerruntime.
 // RunWorkQueue initializes worker and run it, worker will process resource asynchronously.
 func (c *EndpointSliceCollectController) RunWorkQueue() {
 	workerOptions := util.Options{
-		Name:          "endpointslice-collect",
-		KeyFunc:       nil,
-		ReconcileFunc: c.collectEndpointSlice,
+		Name:             "endpointslice-collect",
+		KeyFunc:          nil,
+		ReconcileFunc:    c.collectEndpointSlice,
+		UsePriorityQueue: features.FeatureGate.Enabled(features.ControllerPriorityQueue),
 	}
 	c.worker = util.NewAsyncWorker(workerOptions)
 	c.worker.Run(c.Context, c.WorkerNumber)
@@ -242,15 +244,16 @@ func (c *EndpointSliceCollectController) getEventHandler(clusterName string) cac
 	return eventHandler
 }
 
-func (c *EndpointSliceCollectController) genHandlerAddFunc(clusterName string) func(obj interface{}) {
-	return func(obj interface{}) {
+func (c *EndpointSliceCollectController) genHandlerAddFunc(clusterName string) func(obj interface{}, isInInitialList bool) {
+	return func(obj interface{}, isInInitialList bool) {
 		curObj := obj.(runtime.Object)
 		key, err := keys.FederatedKeyFunc(clusterName, curObj)
 		if err != nil {
 			klog.ErrorS(err, "Failed to generate key for obj", "gvk", curObj.GetObjectKind().GroupVersionKind())
 			return
 		}
-		c.worker.Add(key)
+		priority := util.ItemPriorityIfInInitialList(isInInitialList)
+		c.worker.AddWithOpts(util.AddOpts{Priority: priority}, key)
 	}
 }
 

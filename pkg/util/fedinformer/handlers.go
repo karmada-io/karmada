@@ -17,42 +17,12 @@ limitations under the License.
 package fedinformer
 
 import (
-	"reflect"
-
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
 )
 
-// NewHandlerOnAllEvents builds a ResourceEventHandler that the function 'fn' will be called on all events(add/update/delete).
-func NewHandlerOnAllEvents(fn func(interface{})) cache.ResourceEventHandler {
-	return &cache.ResourceEventHandlerFuncs{
-		AddFunc: func(cur interface{}) {
-			curObj := cur.(runtime.Object)
-			fn(curObj)
-		},
-		UpdateFunc: func(old, cur interface{}) {
-			curObj := cur.(runtime.Object)
-			if !reflect.DeepEqual(old, cur) {
-				fn(curObj)
-			}
-		},
-		DeleteFunc: func(old interface{}) {
-			if deleted, ok := old.(cache.DeletedFinalStateUnknown); ok {
-				// This object might be stale but ok for our current usage.
-				old = deleted.Obj
-				if old == nil {
-					return
-				}
-			}
-			oldObj := old.(runtime.Object)
-			fn(oldObj)
-		},
-	}
-}
-
 // NewHandlerOnEvents builds a ResourceEventHandler.
-func NewHandlerOnEvents(addFunc func(obj interface{}), updateFunc func(oldObj, newObj interface{}), deleteFunc func(obj interface{})) cache.ResourceEventHandler {
-	return &cache.ResourceEventHandlerFuncs{
+func NewHandlerOnEvents(addFunc func(obj interface{}, isInInitialList bool), updateFunc func(oldObj, newObj interface{}), deleteFunc func(obj interface{})) cache.ResourceEventHandler {
+	return &cache.ResourceEventHandlerDetailedFuncs{
 		AddFunc:    addFunc,
 		UpdateFunc: updateFunc,
 		DeleteFunc: deleteFunc,
@@ -65,7 +35,7 @@ func NewHandlerOnEvents(addFunc func(obj interface{}), updateFunc func(oldObj, n
 // Note: An object that starts passing the filter after an update is considered an add, and
 // an object that stops passing the filter after an update is considered a deletion.
 // Like the handlers, the filter MUST NOT modify the objects it is given.
-func NewFilteringHandlerOnAllEvents(filterFunc func(obj interface{}) bool, addFunc func(obj interface{}, isInitialList bool),
+func NewFilteringHandlerOnAllEvents(filterFunc func(obj interface{}) bool, addFunc func(obj interface{}, isInInitialList bool),
 	updateFunc func(oldObj, newObj interface{}), deleteFunc func(obj interface{})) cache.ResourceEventHandler {
 	return &cache.FilteringResourceEventHandler{
 		FilterFunc: filterFunc,

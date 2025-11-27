@@ -34,6 +34,7 @@ import (
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 )
 
@@ -58,6 +59,18 @@ func (m *MockAsyncWorker) AddAfter(item interface{}, duration time.Duration) {
 func (m *MockAsyncWorker) Enqueue(obj interface{}) {
 	// Assuming KeyFunc is used to generate a key; for simplicity, we use obj directly
 	m.queue = append(m.queue, obj)
+}
+
+// Note: This is a dummy implementation of AddWithOpts for testing purposes.
+func (m *MockAsyncWorker) AddWithOpts(_ util.AddOpts, items ...any) {
+	for _, item := range items {
+		m.Add(item)
+	}
+}
+
+// Note: This is a dummy implementation of EnqueueWithOpts for testing purposes.
+func (m *MockAsyncWorker) EnqueueWithOpts(_ util.AddOpts, item any) {
+	m.Enqueue(item)
 }
 
 // Note: This is a dummy implementation of Run for testing purposes.

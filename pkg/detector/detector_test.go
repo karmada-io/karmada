@@ -366,7 +366,7 @@ func TestOnAdd(t *testing.T) {
 		name            string
 		obj             interface{}
 		expectedEnqueue bool
-		isInitialList   bool
+		isInInitialList bool
 	}{
 		{
 			name: "valid unstructured object",
@@ -395,7 +395,7 @@ func TestOnAdd(t *testing.T) {
 				},
 			},
 			expectedEnqueue: true,
-			isInitialList:   true,
+			isInInitialList: true,
 		},
 		{
 			name: "invalid unstructured object",
@@ -426,7 +426,7 @@ func TestOnAdd(t *testing.T) {
 			d := &ResourceDetector{
 				Processor: mockProcessor,
 			}
-			d.OnAdd(tt.obj, tt.isInitialList)
+			d.OnAdd(tt.obj, tt.isInInitialList)
 			if tt.expectedEnqueue {
 				assert.Equal(t, 1, mockProcessor.enqueueCount, "Object should be enqueued")
 				assert.IsType(t, ResourceItem{}, mockProcessor.lastEnqueued, "Enqueued item should be of type ResourceItem")
@@ -1072,7 +1072,11 @@ func (m *mockAsyncWorker) Add(_ interface{}) {
 	m.enqueueCount++
 }
 func (m *mockAsyncWorker) AddAfter(_ interface{}, _ time.Duration) {}
-func (m *mockAsyncWorker) AddWithOpts(_ util.AddOpts, _ ...any)    {}
+func (m *mockAsyncWorker) AddWithOpts(_ util.AddOpts, items ...any) {
+	for _, item := range items {
+		m.Add(item)
+	}
+}
 func (m *mockAsyncWorker) EnqueueWithOpts(_ util.AddOpts, item any) {
 	m.Enqueue(item)
 }
