@@ -11,7 +11,7 @@ spec:
     etcd:
       local:
         imageRepository: registry.k8s.io/etcd
-        imageTag: 3.5.16-0
+        imageTag: 3.6.0-0
         replicas: 1
         volumeData:
           # hostPath:
@@ -28,7 +28,7 @@ spec:
                   storage: 3Gi
     karmadaAPIServer:
       imageRepository: registry.k8s.io/kube-apiserver
-      imageTag: v1.31.3
+      imageTag: v1.34.1
       replicas: 1
       serviceType: NodePort
       serviceSubnet: 10.96.0.0/12
@@ -50,7 +50,7 @@ spec:
       replicas: 1
     kubeControllerManager:
       imageRepository: registry.k8s.io/kube-controller-manager
-      imageTag: v1.31.3
+      imageTag: v1.34.1
       replicas: 1
     karmadaMetricsAdapter:
       imageRepository: docker.io/karmada/karmada-metrics-adapter
