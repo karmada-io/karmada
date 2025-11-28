@@ -172,7 +172,8 @@ func (c *ClusterStatusController) SetupWithManager(mgr controllerruntime.Manager
 	}
 	return controllerruntime.NewControllerManagedBy(mgr).
 		Named(ControllerName).
-		For(&clusterv1alpha1.Cluster{}, builder.WithPredicates(c.PredicateFunc, predicate.GenerationChangedPredicate{})).
+		For(&clusterv1alpha1.Cluster{}, builder.WithPredicates(c.PredicateFunc)).
+		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		WithOptions(controller.Options{
 			RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RateLimiterOptions),
 		}).Complete(c)
