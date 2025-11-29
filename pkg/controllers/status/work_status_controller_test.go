@@ -36,6 +36,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/uuid"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/ptr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -1095,4 +1096,114 @@ func TestWorkStatusController_interpretHealth(t *testing.T) {
 			}
 		})
 	}
+}
+
+type TestObject struct {
+	metav1.TypeMeta
+	metav1.ObjectMeta
+	Spec string
+}
+
+func (in *TestObject) DeepCopyObject() runtime.Object {
+	return &TestObject{
+		TypeMeta:   in.TypeMeta,
+		ObjectMeta: in.ObjectMeta,
+		Spec:       in.Spec,
+	}
+}
+
+// mockAsyncWorker implements util.AsyncPriorityWorker for testing onAdd/onUpdate/onDelete behavior.
+type mockAsyncWorker struct {
+	receivedObjs       []any  // objects passed via EnqueueWithOpts (onAdd)
+	receivedPriorities []*int // priorities captured from EnqueueWithOpts
+	enqueuedObjs       []any  // objects passed via Enqueue (onUpdate/onDelete)
+}
+
+func (m *mockAsyncWorker) EnqueueWithOpts(opts util.AddOpts, obj any) { // capture inputs for onAdd
+	m.receivedObjs = append(m.receivedObjs, obj)
+	m.receivedPriorities = append(m.receivedPriorities, opts.Priority)
+}
+func (m *mockAsyncWorker) AddWithOpts(_ util.AddOpts, _ ...any)    {}
+func (m *mockAsyncWorker) Add(_ interface{})                       {}
+func (m *mockAsyncWorker) AddAfter(_ interface{}, _ time.Duration) {}
+func (m *mockAsyncWorker) Enqueue(obj interface{}) { // capture inputs for onUpdate/onDelete
+	m.enqueuedObjs = append(m.enqueuedObjs, obj)
+}
+func (m *mockAsyncWorker) Run(_ context.Context, _ int) {}
+
+func TestWorkStatusController_onAdd(t *testing.T) {
+	cluster := newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)
+	c := newWorkStatusController(cluster)
+	mockWorker := &mockAsyncWorker{}
+	c.worker = mockWorker
+
+	obj := &TestObject{ObjectMeta: metav1.ObjectMeta{Name: "test-obj"}}
+
+	t.Run("in initial list -> low priority", func(t *testing.T) {
+		c.onAdd(obj, true)
+		assert.Equal(t, 1, len(mockWorker.receivedObjs))
+		assert.Equal(t, obj, mockWorker.receivedObjs[0])
+		if assert.NotNil(t, mockWorker.receivedPriorities[0]) {
+			assert.Equal(t, util.LowPriority, *mockWorker.receivedPriorities[0])
+		}
+	})
+
+	t.Run("not in initial list -> nil priority", func(t *testing.T) {
+		c.onAdd(obj, false)
+		assert.Equal(t, 2, len(mockWorker.receivedObjs))
+		assert.Equal(t, obj, mockWorker.receivedObjs[1])
+		assert.Nil(t, mockWorker.receivedPriorities[1])
+	})
+}
+
+func TestWorkStatusController_onUpdate(t *testing.T) {
+	cluster := newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)
+	c := newWorkStatusController(cluster)
+	mockWorker := &mockAsyncWorker{}
+	c.worker = mockWorker
+
+	oldObj := &TestObject{ObjectMeta: metav1.ObjectMeta{Name: "test-obj"}, Spec: "same"}
+	// Deep copy same content
+	curSame := oldObj.DeepCopyObject().(*TestObject)
+	// Different spec
+	curDiff := &TestObject{ObjectMeta: metav1.ObjectMeta{Name: "test-obj"}, Spec: "different"}
+
+	t.Run("objects equal -> no enqueue", func(t *testing.T) {
+		c.onUpdate(oldObj, curSame)
+		assert.Equal(t, 0, len(mockWorker.enqueuedObjs))
+	})
+
+	t.Run("objects differ -> enqueue", func(t *testing.T) {
+		c.onUpdate(oldObj, curDiff)
+		assert.Equal(t, 1, len(mockWorker.enqueuedObjs))
+		assert.Equal(t, curDiff, mockWorker.enqueuedObjs[0])
+	})
+}
+
+func TestWorkStatusController_onDelete(t *testing.T) {
+	cluster := newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)
+	c := newWorkStatusController(cluster)
+	mockWorker := &mockAsyncWorker{}
+	c.worker = mockWorker
+
+	obj := &TestObject{ObjectMeta: metav1.ObjectMeta{Name: "to-delete"}}
+
+	t.Run("direct object -> enqueue", func(t *testing.T) {
+		c.onDelete(obj)
+		assert.Equal(t, 1, len(mockWorker.enqueuedObjs))
+		assert.Equal(t, obj, mockWorker.enqueuedObjs[0])
+	})
+
+	t.Run("DeletedFinalStateUnknown wrapper -> enqueue", func(t *testing.T) {
+		wrapped := cache.DeletedFinalStateUnknown{Obj: &TestObject{ObjectMeta: metav1.ObjectMeta{Name: "wrapped"}}}
+		c.onDelete(wrapped)
+		assert.Equal(t, 2, len(mockWorker.enqueuedObjs))
+		assert.Equal(t, "wrapped", mockWorker.enqueuedObjs[1].(*TestObject).Name)
+	})
+
+	t.Run("DeletedFinalStateUnknown with nil Obj -> no additional enqueue", func(t *testing.T) {
+		wrappedNil := cache.DeletedFinalStateUnknown{Obj: nil}
+		c.onDelete(wrappedNil)
+		assert.Equal(t, 2, len(mockWorker.enqueuedObjs)) // unchanged
+	})
 }

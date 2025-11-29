@@ -73,6 +73,18 @@ func (m *MockAsyncWorker) Enqueue(obj interface{}) {
 	m.queue = append(m.queue, obj)
 }
 
+// Note: This is a dummy implementation of AddWithOpts for testing purposes.
+func (m *MockAsyncWorker) AddWithOpts(_ util.AddOpts, items ...any) {
+	for _, item := range items {
+		m.Add(item)
+	}
+}
+
+// Note: This is a dummy implementation of EnqueueWithOpts for testing purposes.
+func (m *MockAsyncWorker) EnqueueWithOpts(_ util.AddOpts, item any) {
+	m.Enqueue(item)
+}
+
 // Note: This is a dummy implementation of Run for testing purposes.
 func (m *MockAsyncWorker) Run(ctx context.Context, workerNumber int) {
 	// No actual work is done in the mock; we just simulate running

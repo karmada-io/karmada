@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
@@ -42,6 +43,7 @@ import (
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/events"
+	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
@@ -66,7 +68,7 @@ type WorkStatusController struct {
 	InformerManager genericmanager.MultiClusterInformerManager
 	eventHandler    cache.ResourceEventHandler // eventHandler knows how to handle events from the member cluster.
 	Context         context.Context
-	worker          util.AsyncWorker // worker process resources periodic from rateLimitingQueue.
+	worker          util.AsyncPriorityWorker // worker process resources periodic from rateLimitingQueue.
 	// ConcurrentWorkStatusSyncs is the number of Work status that are allowed to sync concurrently.
 	ConcurrentWorkStatusSyncs   int
 	ObjectWatcher               objectwatcher.ObjectWatcher
@@ -137,7 +139,7 @@ func (c *WorkStatusController) buildResourceInformers(cluster *clusterv1alpha1.C
 // getEventHandler return callback function that knows how to handle events from the member cluster.
 func (c *WorkStatusController) getEventHandler() cache.ResourceEventHandler {
 	if c.eventHandler == nil {
-		c.eventHandler = fedinformer.NewHandlerOnAllEvents(c.worker.Enqueue)
+		c.eventHandler = fedinformer.NewHandlerOnEvents(c.onAdd, c.onUpdate, c.onDelete)
 	}
 	return c.eventHandler
 }
@@ -145,9 +147,10 @@ func (c *WorkStatusController) getEventHandler() cache.ResourceEventHandler {
 // RunWorkQueue initializes worker and run it, worker will process resource asynchronously.
 func (c *WorkStatusController) RunWorkQueue() {
 	workerOptions := util.Options{
-		Name:          "work-status",
-		KeyFunc:       generateKey,
-		ReconcileFunc: c.syncWorkStatus,
+		Name:             "work-status",
+		KeyFunc:          generateKey,
+		ReconcileFunc:    c.syncWorkStatus,
+		UsePriorityQueue: features.FeatureGate.Enabled(features.ControllerPriorityQueue),
 	}
 	c.worker = util.NewAsyncWorker(workerOptions)
 	c.worker.Run(c.Context, c.ConcurrentWorkStatusSyncs)
@@ -564,4 +567,29 @@ func (c *WorkStatusController) eventf(object *unstructured.Unstructured, eventTy
 		return
 	}
 	c.EventRecorder.Eventf(ref, eventType, reason, messageFmt, args...)
+}
+
+func (c *WorkStatusController) onAdd(obj any, isInInitialList bool) {
+	curObj := obj.(runtime.Object)
+	priority := util.ItemPriorityIfInInitialList(isInInitialList)
+	c.worker.EnqueueWithOpts(util.AddOpts{Priority: priority}, curObj)
+}
+
+func (c *WorkStatusController) onUpdate(old, cur any) {
+	curObj := cur.(runtime.Object)
+	if !reflect.DeepEqual(old, cur) {
+		c.worker.Enqueue(curObj)
+	}
+}
+
+func (c *WorkStatusController) onDelete(old any) {
+	if deleted, ok := old.(cache.DeletedFinalStateUnknown); ok {
+		// This object might be stale but ok for our current usage.
+		old = deleted.Obj
+		if old == nil {
+			return
+		}
+	}
+	oldObj := old.(runtime.Object)
+	c.worker.Enqueue(oldObj)
 }

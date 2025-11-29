@@ -24,6 +24,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/priorityqueue"
 
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
@@ -192,10 +193,10 @@ func (w *asyncWorker) AddWithOpts(opts AddOpts, item ...any) {
 		klog.Warningf("queue is not priority queue, fallback to normal queue, queueName: %s", w.name)
 		for _, it := range item {
 			switch {
-			case opts.After > 0:
-				w.queue.AddAfter(it, opts.After)
 			case opts.RateLimited:
 				w.queue.AddRateLimited(it)
+			case opts.After > 0:
+				w.queue.AddAfter(it, opts.After)
 			default:
 				w.queue.Add(it)
 			}
@@ -241,4 +242,12 @@ func MetaNamespaceKeyFunc(obj interface{}) (QueueKey, error) {
 		return nil, err
 	}
 	return key, nil
+}
+
+// ItemPriorityIfInInitialList returns the item's priority if it belongs to the initial list; otherwise, it returns nil.
+func ItemPriorityIfInInitialList(isInInitialList bool) *int {
+	if !isInInitialList {
+		return nil
+	}
+	return ptr.To(LowPriority)
 }

@@ -50,6 +50,7 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/controllers/ctrlutil"
+	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
@@ -84,7 +85,7 @@ type ServiceExportController struct {
 	// "member1": instance of ResourceEventHandler
 	eventHandlers sync.Map
 	// worker process resources periodic from rateLimitingQueue.
-	worker             util.AsyncWorker
+	worker             util.AsyncPriorityWorker
 	RateLimiterOptions ratelimiterflag.Options
 
 	// epsWorkListFunc is used to mock the work list provider to return a specific work list,
@@ -161,9 +162,10 @@ func (c *ServiceExportController) SetupWithManager(mgr controllerruntime.Manager
 // RunWorkQueue initializes worker and run it, worker will process resource asynchronously.
 func (c *ServiceExportController) RunWorkQueue() {
 	workerOptions := util.Options{
-		Name:          "service-export",
-		KeyFunc:       nil,
-		ReconcileFunc: c.syncServiceExportOrEndpointSlice,
+		Name:             "service-export",
+		KeyFunc:          nil,
+		ReconcileFunc:    c.syncServiceExportOrEndpointSlice,
+		UsePriorityQueue: features.FeatureGate.Enabled(features.ControllerPriorityQueue),
 	}
 	c.worker = util.NewAsyncWorker(workerOptions)
 	c.worker.Run(c.Context, c.WorkerNumber)
@@ -318,15 +320,16 @@ func (c *ServiceExportController) getEventHandler(clusterName string) cache.Reso
 	return eventHandler
 }
 
-func (c *ServiceExportController) genHandlerAddFunc(clusterName string) func(obj interface{}) {
-	return func(obj interface{}) {
+func (c *ServiceExportController) genHandlerAddFunc(clusterName string) func(obj interface{}, isInInitialList bool) {
+	return func(obj interface{}, isInInitialList bool) {
 		curObj := obj.(runtime.Object)
 		key, err := keys.FederatedKeyFunc(clusterName, curObj)
 		if err != nil {
 			klog.ErrorS(err, "Failed to generate key for obj", "gvk", curObj.GetObjectKind().GroupVersionKind())
 			return
 		}
-		c.worker.Add(key)
+		priority := util.ItemPriorityIfInInitialList(isInInitialList)
+		c.worker.AddWithOpts(util.AddOpts{Priority: priority}, key)
 	}
 }
 

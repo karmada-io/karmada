@@ -26,6 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 
+	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 )
@@ -42,15 +43,16 @@ type HpaScaleTargetMarker struct {
 	DynamicClient dynamic.Interface
 	RESTMapper    meta.RESTMapper
 
-	scaleTargetWorker  util.AsyncWorker
+	scaleTargetWorker  util.AsyncPriorityWorker
 	RateLimiterOptions ratelimiterflag.Options
 }
 
 // SetupWithManager creates a controller and register to controller manager.
 func (r *HpaScaleTargetMarker) SetupWithManager(mgr controllerruntime.Manager) error {
 	scaleTargetWorkerOptions := util.Options{
-		Name:          "scale target worker",
-		ReconcileFunc: r.reconcileScaleRef,
+		Name:             "scale target worker",
+		ReconcileFunc:    r.reconcileScaleRef,
+		UsePriorityQueue: features.FeatureGate.Enabled(features.ControllerPriorityQueue),
 	}
 	r.scaleTargetWorker = util.NewAsyncWorker(scaleTargetWorkerOptions)
 	r.scaleTargetWorker.Run(context.Background(), scaleTargetWorkerNum)

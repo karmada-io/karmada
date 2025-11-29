@@ -17,7 +17,6 @@ limitations under the License.
 package fedinformer
 
 import (
-	"reflect"
 	"testing"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -59,65 +58,6 @@ func (c *CustomResourceEventHandler) OnDelete(obj interface{}) {
 	c.handler.OnDelete(obj)
 }
 
-func TestNewHandlerOnAllEvents(t *testing.T) {
-	testCases := []struct {
-		name     string
-		event    string
-		input    interface{}
-		expected runtime.Object
-	}{
-		{
-			name:     "Add event",
-			event:    "add",
-			input:    &TestObject{ObjectMeta: metav1.ObjectMeta{Name: "test-obj-add"}, Spec: "add"},
-			expected: &TestObject{ObjectMeta: metav1.ObjectMeta{Name: "test-obj-add"}, Spec: "add"},
-		},
-		{
-			name:     "Update event",
-			event:    "update",
-			input:    &TestObject{ObjectMeta: metav1.ObjectMeta{Name: "test-obj-update"}, Spec: "update"},
-			expected: &TestObject{ObjectMeta: metav1.ObjectMeta{Name: "test-obj-update"}, Spec: "update"},
-		},
-		{
-			name:     "Delete event",
-			event:    "delete",
-			input:    &TestObject{ObjectMeta: metav1.ObjectMeta{Name: "test-obj-delete"}, Spec: "delete"},
-			expected: &TestObject{ObjectMeta: metav1.ObjectMeta{Name: "test-obj-delete"}, Spec: "delete"},
-		},
-		{
-			name:     "Delete event with DeletedFinalStateUnknown",
-			event:    "delete",
-			input:    cache.DeletedFinalStateUnknown{Obj: &TestObject{ObjectMeta: metav1.ObjectMeta{Name: "test-obj-delete-unknown"}, Spec: "delete-unknown"}},
-			expected: &TestObject{ObjectMeta: metav1.ObjectMeta{Name: "test-obj-delete-unknown"}, Spec: "delete-unknown"},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			var calledWith runtime.Object
-			fn := func(obj interface{}) {
-				calledWith = obj.(runtime.Object)
-			}
-
-			handler := &CustomResourceEventHandler{NewHandlerOnAllEvents(fn)}
-
-			switch tc.event {
-			case "add":
-				handler.OnAdd(tc.input, false)
-			case "update":
-				oldObj := &TestObject{ObjectMeta: metav1.ObjectMeta{Name: "old-obj"}, Spec: "old"}
-				handler.OnUpdate(oldObj, tc.input)
-			case "delete":
-				handler.OnDelete(tc.input)
-			}
-
-			if !reflect.DeepEqual(calledWith, tc.expected) {
-				t.Errorf("expected %v, got %v", tc.expected, calledWith)
-			}
-		})
-	}
-}
-
 func TestNewHandlerOnEvents(t *testing.T) {
 	testCases := []struct {
 		name  string
@@ -131,7 +71,7 @@ func TestNewHandlerOnEvents(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			var addCalled, updateCalled, deleteCalled bool
-			addFunc := func(_ interface{}) { addCalled = true }
+			addFunc := func(_ interface{}, _ bool) { addCalled = true }
 			updateFunc := func(_, _ interface{}) { updateCalled = true }
 			deleteFunc := func(_ interface{}) { deleteCalled = true }
 
