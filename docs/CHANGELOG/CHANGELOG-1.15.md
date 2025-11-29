@@ -2,17 +2,22 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
+- [v1.15.3](#v1153)
+  - [Downloads for v1.15.3](#downloads-for-v1153)
+  - [Changelog since v1.15.2](#changelog-since-v1152)
+    - [Changes by Kind](#changes-by-kind)
+      - [Bug Fixes](#bug-fixes)
 - [v1.15.2](#v1152)
   - [Downloads for v1.15.2](#downloads-for-v1152)
   - [Changelog since v1.15.1](#changelog-since-v1151)
-    - [Changes by Kind](#changes-by-kind)
-      - [Bug Fixes](#bug-fixes)
+    - [Changes by Kind](#changes-by-kind-1)
+      - [Bug Fixes](#bug-fixes-1)
       - [Others](#others)
 - [v1.15.1](#v1151)
   - [Downloads for v1.15.1](#downloads-for-v1151)
   - [Changelog since v1.15.0](#changelog-since-v1150)
-    - [Changes by Kind](#changes-by-kind-1)
-      - [Bug Fixes](#bug-fixes-1)
+    - [Changes by Kind](#changes-by-kind-2)
+      - [Bug Fixes](#bug-fixes-2)
 - [v1.15.0](#v1150)
   - [Downloads for v1.15.0](#downloads-for-v1150)
   - [Urgent Update Notes](#urgent-update-notes)
@@ -26,7 +31,7 @@
     - [API Changes](#api-changes)
     - [Features & Enhancements](#features--enhancements)
     - [Deprecation](#deprecation)
-    - [Bug Fixes](#bug-fixes-2)
+    - [Bug Fixes](#bug-fixes-3)
     - [Security](#security)
   - [Other](#other)
     - [Dependencies](#dependencies)
@@ -38,11 +43,11 @@
   - [Downloads for v1.15.0-rc.0](#downloads-for-v1150-rc0)
   - [Changelog since v1.15.0-beta.0](#changelog-since-v1150-beta0)
   - [Urgent Update Notes](#urgent-update-notes-1)
-  - [Changes by Kind](#changes-by-kind-2)
+  - [Changes by Kind](#changes-by-kind-3)
     - [API Changes](#api-changes-1)
     - [Features & Enhancements](#features--enhancements-1)
     - [Deprecation](#deprecation-1)
-    - [Bug Fixes](#bug-fixes-3)
+    - [Bug Fixes](#bug-fixes-4)
     - [Security](#security-1)
   - [Other](#other-1)
     - [Dependencies](#dependencies-1)
@@ -53,11 +58,11 @@
   - [Downloads for v1.15.0-beta.0](#downloads-for-v1150-beta0)
   - [Changelog since v1.15.0-alpha.2](#changelog-since-v1150-alpha2)
   - [Urgent Update Notes](#urgent-update-notes-2)
-  - [Changes by Kind](#changes-by-kind-3)
+  - [Changes by Kind](#changes-by-kind-4)
     - [API Changes](#api-changes-2)
     - [Features & Enhancements](#features--enhancements-2)
     - [Deprecation](#deprecation-2)
-    - [Bug Fixes](#bug-fixes-4)
+    - [Bug Fixes](#bug-fixes-5)
     - [Security](#security-2)
   - [Other](#other-2)
     - [Dependencies](#dependencies-2)
@@ -68,11 +73,11 @@
   - [Downloads for v1.15.0-alpha.2](#downloads-for-v1150-alpha2)
   - [Changelog since v1.15.0-alpha.1](#changelog-since-v1150-alpha1)
   - [Urgent Update Notes](#urgent-update-notes-3)
-  - [Changes by Kind](#changes-by-kind-4)
+  - [Changes by Kind](#changes-by-kind-5)
     - [API Changes](#api-changes-3)
     - [Features & Enhancements](#features--enhancements-3)
     - [Deprecation](#deprecation-3)
-    - [Bug Fixes](#bug-fixes-5)
+    - [Bug Fixes](#bug-fixes-6)
     - [Security](#security-3)
   - [Other](#other-3)
     - [Dependencies](#dependencies-3)
@@ -83,11 +88,11 @@
   - [Downloads for v1.15.0-alpha.1](#downloads-for-v1150-alpha1)
   - [Changelog since v1.14.0](#changelog-since-v1140)
   - [Urgent Update Notes](#urgent-update-notes-4)
-  - [Changes by Kind](#changes-by-kind-5)
+  - [Changes by Kind](#changes-by-kind-6)
     - [API Changes](#api-changes-4)
     - [Features & Enhancements](#features--enhancements-4)
     - [Deprecation](#deprecation-4)
-    - [Bug Fixes](#bug-fixes-6)
+    - [Bug Fixes](#bug-fixes-7)
     - [Security](#security-4)
   - [Other](#other-4)
     - [Dependencies](#dependencies-4)
@@ -95,6 +100,21 @@
     - [Instrumentation](#instrumentation-4)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.15.3
+## Downloads for v1.15.3
+
+Download v1.15.3 in the [v1.15.3 release page](https://github.com/karmada-io/karmada/releases/tag/v1.15.3).
+
+## Changelog since v1.15.2
+### Changes by Kind
+#### Bug Fixes
+- `karmada-controller-manager`: Fixed the issue that `rbSpec.Components` is not updated when the template is updated. ([#6954](https://github.com/karmada-io/karmada/pull/6954), @zhzhuang-zju)
+- `karmada-controller-manager`: Fixed the Job status cannot be aggregated issue due to the missing `JobSuccessCriteriaMet` condition when using kube-apiserver v1.32+ as Karmada API server. ([#6976](https://github.com/karmada-io/karmada/pull/6976), @RainbowMango)
+- `karmada-controller-manager`: Fixed the issue that attached resource changes were not synchronized to the cluster in the dependencies distributor. ([#6982](https://github.com/karmada-io/karmada/pull/6982), @XiShanYongYe-Chang)
+- `karmada-webhook`: Fixed the issue that resourcebinding validating webhook may panic when ReplicaRequirements of a Component in rbSpec.Components is nil. ([#6954](https://github.com/karmada-io/karmada/pull/6954), @zhzhuang-zju)
+- `karmada-webhook`: Fixed the issue where the `FederatedResourceQuota` was not promptly updated when a multi-component workload generated new scheduling results. ([#6954](https://github.com/karmada-io/karmada/pull/6954), @zhzhuang-zju)
+- `karmadactl`: Fixed the issue that the `register` command still uses the cluster-info endpoint when registering a pull-mode cluster, even if the user provides the API server endpoint. ([#6882](https://github.com/karmada-io/karmada/pull/6882), @ssenecal-modular)
 
 # v1.15.2
 ## Downloads for v1.15.2
