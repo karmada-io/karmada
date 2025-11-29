@@ -28,6 +28,20 @@ jobs:
         # Please remember to update the CI Schedule Workflow when we add a new version.
         k8s: [ v1.29.0, v1.30.0, v1.31.0 ]
     steps:
+      # Free up disk space on Ubuntu
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed, if set to "true" but frees about 6 GB
+          tool-cache: false
+          # all of these default to true, but feel free to set to "false" if necessary for your workflow
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          docker-images: false
+          swap-storage: false
+      
       - name: Checkout
         uses: actions/checkout@v4
         with:
