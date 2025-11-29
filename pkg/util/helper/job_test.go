@@ -88,7 +88,7 @@ func TestParsingJobStatus(t *testing.T) {
 		"startTime":      testV1time,
 		"completionTime": testV1time,
 		"failed":         0,
-		"conditions":     []batchv1.JobCondition{{Type: batchv1.JobComplete, Status: corev1.ConditionTrue}},
+		"conditions":     []batchv1.JobCondition{{Type: batchv1.JobComplete, Status: corev1.ConditionTrue}, {Type: batchv1.JobSuccessCriteriaMet, Status: corev1.ConditionTrue}},
 	}
 	raw, _ := BuildStatusRawExtension(statusMap)
 	statusMapWithJobfailed := map[string]interface{}{
@@ -128,6 +128,14 @@ func TestParsingJobStatus(t *testing.T) {
 						LastTransitionTime: testV1time,
 						Reason:             "Completed",
 						Message:            "Job completed",
+					},
+					{
+						Type:               batchv1.JobSuccessCriteriaMet,
+						Status:             corev1.ConditionTrue,
+						LastProbeTime:      testV1time,
+						LastTransitionTime: testV1time,
+						Reason:             "CompletionsReached",
+						Message:            "All member clusters have met success criteria",
 					},
 				},
 			},
