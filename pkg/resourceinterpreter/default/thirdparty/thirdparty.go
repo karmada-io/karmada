@@ -64,6 +64,8 @@ func (p *ConfigurableInterpreter) HookEnabled(kind schema.GroupVersionKind, oper
 		script = customAccessor.GetRetentionLuaScript()
 	case configv1alpha1.InterpreterOperationReviseReplica:
 		script = customAccessor.GetReplicaRevisionLuaScript()
+	case configv1alpha1.InterpreterOperationInterpretSchedulingResult:
+		script = customAccessor.GetSchedulingResultInterpretationLuaScript()
 	}
 	return len(script) > 0
 }
@@ -245,6 +247,25 @@ func (p *ConfigurableInterpreter) InterpretHealth(object *unstructured.Unstructu
 	}
 
 	health, err = p.luaVM.InterpretHealth(object, script)
+	return
+}
+
+// InterpretSchedulingResult allows customizing the scheduling result for distributing replicas among clusters.
+func (p *ConfigurableInterpreter) InterpretSchedulingResult(object *unstructured.Unstructured, schedulingResult []workv1alpha2.TargetCluster) (result []workv1alpha2.TargetCluster, enabled bool, err error) {
+	klog.V(4).Infof("Interpret scheduling result for object: %v %s/%s with thirdparty configurable interpreter.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
+
+	customAccessor, enabled := p.getCustomAccessor(object.GroupVersionKind())
+	if !enabled {
+		return
+	}
+
+	script := customAccessor.GetSchedulingResultInterpretationLuaScript()
+	if len(script) == 0 {
+		enabled = false
+		return
+	}
+
+	result, err = p.luaVM.InterpretSchedulingResult(object, schedulingResult, script)
 	return
 }
 
