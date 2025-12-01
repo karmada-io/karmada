@@ -1,0 +1,60 @@
+# test case for aggregating status of ClusterPolicy
+# case1. ClusterPolicy with two status items
+
+name: "ClusterPolicy with two status items"
+description: "Test aggregating status of ClusterPolicy with two status items"
+desiredObj:
+  apiVersion: kyverno.io/v1
+  kind: ClusterPolicy
+  metadata:
+    name: sample
+  spec:
+    validationFailureAction: Enforce
+    rules:
+      - name: require-ns-purpose-label
+        match:
+          any:
+            - resources:
+                kinds:
+                  - Namespace
+        validate:
+          message: "You must have label `purpose` with value `production` set on all new namespaces."
+          pattern:
+            metadata:
+              labels:
+                purpose: production
+statusItems:
+  - applied: true
+    clusterName: member2
+    health: Healthy
+    status:
+      conditions:
+        - lastTransitionTime: "2023-05-07T12:28:58Z"
+          message: ""
+          reason: Succeeded
+          status: "True"
+          type: Ready
+      ready: true
+      rulecount:
+        generate: 0
+        mutate: 0
+        validate: 1
+        verifyimages: 0
+  - applied: true
+    clusterName: member3
+    health: Healthy
+    status:
+      conditions:
+        - lastTransitionTime: "2023-05-07T12:28:58Z"
+          message: ""
+          reason: Succeeded
+          status: "True"
+          type: Ready
+      ready: true
+      rulecount:
+        generate: 0
+        mutate: 0
+        validate: 1
+        verifyimages: 0
+operation: AggregateStatus
+output:

@@ -1,0 +1,80 @@
+# test case for aggregating status of Bucket
+# case1. Bucket with two status items
+
+name: "Bucket with two status items"
+description: "Test aggregating status of Bucket with two status items"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: Bucket
+  metadata:
+    name: sample
+    namespace: test-bucket
+    generation: 1
+  spec:
+    provider: generic
+    interval: 5m0s
+    bucketName: podinfo
+    endpoint: minio.minio.svc.cluster.local:9000
+    timeout: 60s
+    insecure: true
+    secretRef:
+      name: fake-minio-credentials
+statusItems:
+  - applied: true
+    clusterName: member1
+    health: Unhealthy
+    status:
+      conditions:
+        - lastTransitionTime: "2023-04-29T14:02:31Z"
+          message: building artifact
+          observedGeneration: 1
+          reason: ProgressingWithRetry
+          status: "True"
+          type: Reconciling
+        - lastTransitionTime: "2023-04-29T14:02:31Z"
+          message: 'invalid ''fake-secret'' secret data: required fields ''accesskey''
+          and ''secretkey'''
+          observedGeneration: 1
+          reason: AuthenticationFailed
+          status: "False"
+          type: Ready
+        - lastTransitionTime: "2023-04-29T14:01:44Z"
+          message: 'invalid ''fake-secret'' secret data: required fields ''accesskey''
+          and ''secretkey'''
+          observedGeneration: 1
+          reason: AuthenticationFailed
+          status: "True"
+          type: FetchFailed
+      generation: 1
+      observedGeneration: -1
+      resourceTemplateGeneration: 1
+  - applied: true
+    clusterName: member3
+    health: Unhealthy
+    status:
+      conditions:
+        - lastTransitionTime: "2023-04-29T14:02:31Z"
+          message: building artifact
+          observedGeneration: 1
+          reason: ProgressingWithRetry
+          status: "True"
+          type: Reconciling
+        - lastTransitionTime: "2023-04-29T14:02:31Z"
+          message: 'invalid ''fake-secret'' secret data: required fields ''accesskey''
+          and ''secretkey'''
+          observedGeneration: 1
+          reason: AuthenticationFailed
+          status: "False"
+          type: Ready
+        - lastTransitionTime: "2023-04-29T14:01:44Z"
+          message: 'invalid ''fake-secret'' secret data: required fields ''accesskey''
+          and ''secretkey'''
+          observedGeneration: 1
+          reason: AuthenticationFailed
+          status: "True"
+          type: FetchFailed
+      generation: 1
+      observedGeneration: -1
+      resourceTemplateGeneration: 1
+operation: AggregateStatus
+output:

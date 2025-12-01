@@ -1,0 +1,43 @@
+# test case for interpreting status of ClusterPolicy
+# case1. ClusterPolicy: interpret status test
+
+name: "ClusterPolicy: interpret status test"
+description: "Test interpreting status for ClusterPolicy"
+observedObj:
+  apiVersion: kyverno.io/v1
+  kind: ClusterPolicy
+  metadata:
+    name: sample
+  spec:
+    background: true
+    rules:
+      - match:
+          any:
+            - resources:
+                kinds:
+                  - Namespace
+        name: require-ns-purpose-label
+        validate:
+          message: You must have label `purpose` with value `production` set on all new
+            namespaces.
+          pattern:
+            metadata:
+              labels:
+                purpose: production
+    validationFailureAction: Enforce
+  status:
+    autogen: { }
+    conditions:
+      - lastTransitionTime: "2023-05-07T12:28:58Z"
+        message: ""
+        reason: Succeeded
+        status: "True"
+        type: Ready
+    ready: true
+    rulecount:
+      generate: 0
+      mutate: 0
+      validate: 1
+      verifyimages: 0
+operation: InterpretStatus
+output:

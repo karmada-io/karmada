@@ -1,0 +1,56 @@
+# test case for aggregating status of Kustomization
+# case1. Kustomization with two status items
+
+name: "Kustomization with two status items"
+description: "Test aggregating status of Kustomization with two status items"
+desiredObj:
+  apiVersion: kustomize.toolkit.fluxcd.io/v1
+  kind: Kustomization
+  metadata:
+    name: sample
+    namespace: test-kustomization
+    generation: 1
+  spec:
+    interval: 10m
+    targetNamespace: test-kustomization
+    sourceRef:
+      kind: GitRepository
+      name: sample
+    path: "./kustomize"
+    prune: true
+    timeout: 1m
+statusItems:
+  - applied: true
+    clusterName: member1
+    health: Healthy
+    status:
+      conditions:
+        - lastTransitionTime: "2023-04-30T12:51:06Z"
+          message: 'Applied revision: master@sha1:0647aea75b85755411b007a290b9321668370be5'
+          observedGeneration: 1
+          reason: ReconciliationSucceeded
+          status: "True"
+          type: Ready
+      generation: 1
+      lastAppliedRevision: master@sha1:0647aea75b85755411b007a290b9321668370be5
+      lastAttemptedRevision: master@sha1:0647aea75b85755411b007a290b9321668370be5
+      observedGeneration: 1
+      resourceTemplateGeneration: 1
+  - applied: true
+    clusterName: member3
+    health: Healthy
+    status:
+      conditions:
+        - lastTransitionTime: "2023-04-30T12:51:06Z"
+          message: 'Applied revision: master@sha1:0647aea75b85755411b007a290b9321668370be5'
+          observedGeneration: 1
+          reason: ReconciliationSucceeded
+          status: "True"
+          type: Ready
+      generation: 1
+      lastAppliedRevision: master@sha1:0647aea75b85755411b007a290b9321668370be5
+      lastAttemptedRevision: master@sha1:0647aea75b85755411b007a290b9321668370be5
+      observedGeneration: 1
+      resourceTemplateGeneration: 1
+operation: AggregateStatus
+output:

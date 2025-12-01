@@ -1,0 +1,72 @@
+# test case for aggregating status of DaemonSet
+# case1. DaemonSet with two status items
+
+name: "DaemonSet with two status items"
+description: "Test aggregating status of DaemonSet with two status items"
+desiredObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: DaemonSet
+  metadata:
+    labels:
+      app: sample-daemonset
+    name: sample
+    namespace: test-kruise-daemonset
+    generation: 1
+  spec:
+    selector:
+      matchLabels:
+        app: sample-daemonset
+    template:
+      metadata:
+        labels:
+          app: sample-daemonset
+      spec:
+        volumes:
+          - name: configmap
+            configMap:
+              name: my-sample-config
+        containers:
+          - name: nginx
+            image: nginx:alpine
+            env:
+              - name: logData
+                valueFrom:
+                  configMapKeyRef:
+                    name: mysql-config
+                    key: log
+              - name: lowerData
+                valueFrom:
+                  configMapKeyRef:
+                    name: mysql-config
+                    key: lower
+statusItems:
+  - applied: true
+    clusterName: member1
+    health: Healthy
+    status:
+      currentNumberScheduled: 1
+      daemonSetHash: 7dd59cf749
+      desiredNumberScheduled: 1
+      numberAvailable: 1
+      numberMisscheduled: 0
+      numberReady: 1
+      observedGeneration: 1
+      updatedNumberScheduled: 1
+      generation: 1
+      resourceTemplateGeneration: 1
+  - applied: true
+    clusterName: member3
+    health: Healthy
+    status:
+      currentNumberScheduled: 1
+      daemonSetHash: 7dd59cf749
+      desiredNumberScheduled: 1
+      numberAvailable: 1
+      numberMisscheduled: 0
+      numberReady: 1
+      observedGeneration: 1
+      updatedNumberScheduled: 1
+      generation: 1
+      resourceTemplateGeneration: 1
+operation: AggregateStatus
+output:

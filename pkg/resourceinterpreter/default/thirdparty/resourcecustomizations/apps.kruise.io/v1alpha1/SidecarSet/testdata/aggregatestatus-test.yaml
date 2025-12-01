@@ -1,0 +1,64 @@
+# test case for aggregating status of SidecarSet
+# case1. SidecarSet with two status items
+
+name: "SidecarSet with two status items"
+description: "Test aggregating status of SidecarSet with two status items"
+desiredObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: SidecarSet
+  metadata:
+    labels:
+      app: sample
+    name: sample-sidecarset
+    namespace: test-sidecarset
+    generation: 1
+  spec:
+    selector:
+      matchLabels:
+        app: sample
+        test: sidecarset
+    containers:
+      - name: sidecar
+        image: busybox:latest
+        env:
+          - name: CONFIG_DATA
+            valueFrom:
+              configMapKeyRef:
+                name: sidecar-config
+                key: config
+          - name: SECRET_DATA
+            valueFrom:
+              secretKeyRef:
+                name: sidecar-secret
+                key: secret
+    injectionStrategy: BeforeAppContainer
+    volumes:
+      - name: configmap
+        configMap:
+          name: sidecar-config
+      - name: secret
+        secret:
+          secretName: sidecar-secret
+statusItems:
+  - apiVersion: apps.kruise.io/v1alpha1
+    kind: SidecarSet
+    metadata:
+      name: sample-sidecarset
+      namespace: test-sidecarset
+      clusterName: member1
+    status:
+      matchedPods: 2
+      updatedPods: 2
+      readyPods: 2
+  - apiVersion: apps.kruise.io/v1alpha1
+    kind: SidecarSet
+    metadata:
+      name: sample-sidecarset
+      namespace: test-sidecarset
+      clusterName: member2
+    status:
+      matchedPods: 1
+      updatedPods: 1
+      readyPods: 1
+operation: AggregateStatus
+output:
