@@ -148,10 +148,10 @@ func NewClusterPredicateOnAgent(clusterName string) predicate.Funcs {
 		CreateFunc: func(createEvent event.CreateEvent) bool {
 			return createEvent.Object.GetName() == clusterName
 		},
-		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
+		UpdateFunc: func(_ event.UpdateEvent) bool {
 			return false
 		},
-		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
+		DeleteFunc: func(_ event.DeleteEvent) bool {
 			return false
 		},
 		GenericFunc: func(event.GenericEvent) bool {
