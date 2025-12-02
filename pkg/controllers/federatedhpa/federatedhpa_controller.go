@@ -1135,10 +1135,7 @@ func (c *FHPAController) stabilizeRecommendationWithBehaviors(args Normalization
 	}
 
 	// Bring the recommendation to within the upper and lower limits (stabilize).
-	recommendation := max(args.CurrentReplicas, upRecommendation)
-	if recommendation > downRecommendation {
-		recommendation = downRecommendation
-	}
+	recommendation := min(max(args.CurrentReplicas, upRecommendation), downRecommendation)
 
 	// Record the unstabilized recommendation.
 	if foundOldSample {
