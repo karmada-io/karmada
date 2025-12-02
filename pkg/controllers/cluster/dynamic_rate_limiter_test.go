@@ -144,7 +144,7 @@ func TestGracefulEvictionRateLimiter_ExponentialBackoff(t *testing.T) {
 		}
 		expectedBackoffDelay := time.Duration(expectedBackoffNs)
 
-		var expectedFinalDelay time.Duration = max(expectedBackoffDelay, expectedDynamicDelay)
+		var expectedFinalDelay = max(expectedBackoffDelay, expectedDynamicDelay)
 
 		t.Logf("Attempt %2d: Observed Delay=%-18v | Expected Backoff Delay=%-18v | Effective Expected Delay >= %-18v",
 			i+1, observedDelay, expectedBackoffDelay, expectedFinalDelay)
