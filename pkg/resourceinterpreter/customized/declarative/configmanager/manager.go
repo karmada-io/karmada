@@ -83,9 +83,9 @@ func NewInterpreterConfigManager(informer genericmanager.SingleClusterInformerMa
 		manager.informer = informer
 		manager.lister = informer.Lister(util.ResourceInterpreterCustomizationsGVR)
 		configHandlers := fedinformer.NewHandlerOnEvents(
-			func(_ interface{}, _ bool) { _ = manager.updateConfiguration() },
-			func(_, _ interface{}) { _ = manager.updateConfiguration() },
-			func(_ interface{}) { _ = manager.updateConfiguration() })
+			func(_ any, _ bool) { _ = manager.updateConfiguration() },
+			func(_, _ any) { _ = manager.updateConfiguration() },
+			func(_ any) { _ = manager.updateConfiguration() })
 		informer.ForResource(util.ResourceInterpreterCustomizationsGVR, configHandlers)
 	}
 

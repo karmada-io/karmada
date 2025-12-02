@@ -303,7 +303,7 @@ func DeepEqualTasks(t1, t2 workflow.Task) error {
 }
 
 // ContainsAllValues checks if all values in the 'values' slice exist in the 'container' slice or array.
-func ContainsAllValues(container interface{}, values interface{}) bool {
+func ContainsAllValues(container any, values any) bool {
 	// Ensure the provided container is a slice or array.
 	vContainer := reflect.ValueOf(container)
 	if vContainer.Kind() != reflect.Slice && vContainer.Kind() != reflect.Array {

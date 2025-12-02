@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"reflect"
 	"strings"
@@ -124,9 +125,7 @@ func WithAnnotations(annotations map[string]string) RBOption {
 		if rb.Annotations == nil {
 			rb.Annotations = make(map[string]string)
 		}
-		for k, v := range annotations {
-			rb.Annotations[k] = v
-		}
+		maps.Copy(rb.Annotations, annotations)
 	}
 }
 

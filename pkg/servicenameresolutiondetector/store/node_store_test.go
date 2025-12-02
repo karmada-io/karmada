@@ -54,7 +54,7 @@ func TestNodeStore(t *testing.T) {
 		operation      string
 		key            string
 		inputCondition *metav1.Condition
-		expectedResult interface{}
+		expectedResult any
 		expectedError  bool
 	}{
 		{
@@ -133,7 +133,7 @@ func TestNodeStore(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
-			var result interface{}
+			var result any
 			var opErr error
 
 			switch tc.operation {
@@ -248,7 +248,7 @@ func TestNodeStore_ListAll(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			nodeInterfaces := make([]interface{}, len(tc.nodes))
+			nodeInterfaces := make([]any, len(tc.nodes))
 			for i, node := range tc.nodes {
 				nodeInterfaces[i] = node
 			}

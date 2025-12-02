@@ -17,18 +17,15 @@ limitations under the License.
 package configuration
 
 import (
+	"slices"
+
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 )
 
 func hasWildcard(slice []string) bool {
-	for _, s := range slice {
-		if s == "*" {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(slice, "*")
 }
 
 func validateRule(rule *configv1alpha1.Rule, fldPath *field.Path) field.ErrorList {

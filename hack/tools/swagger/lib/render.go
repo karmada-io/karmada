@@ -19,6 +19,7 @@ package lib
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net"
 
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -59,9 +60,7 @@ type Config struct {
 func (c *Config) GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	out := map[string]common.OpenAPIDefinition{}
 	for _, def := range c.OpenAPIDefinitions {
-		for k, v := range def(ref) {
-			out[k] = v
-		}
+		maps.Copy(out, def(ref))
 	}
 	return out
 }
@@ -125,9 +124,7 @@ func RenderOpenAPISpec(cfg Config) (string, error) {
 			}
 		}
 
-		for version, s := range storage {
-			apiGroupInfo.VersionedResourcesStorageMap[version] = s
-		}
+		maps.Copy(apiGroupInfo.VersionedResourcesStorageMap, storage)
 
 		// Install api to apiserver.
 		if err := genericServer.InstallAPIGroup(&apiGroupInfo); err != nil {

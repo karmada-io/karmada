@@ -123,13 +123,13 @@ func NewController(option NewControllerOption) (*Controller, error) {
 	ctl.worker = util.NewAsyncWorker(workerOptions)
 
 	resourceEventHandler := cache.ResourceEventHandlerFuncs{
-		AddFunc: func(interface{}) {
+		AddFunc: func(any) {
 			ctl.worker.Add(workKey)
 		},
-		UpdateFunc: func(_, _ interface{}) {
+		UpdateFunc: func(_, _ any) {
 			ctl.worker.Add(workKey)
 		},
-		DeleteFunc: func(interface{}) {
+		DeleteFunc: func(any) {
 			ctl.worker.Add(workKey)
 		},
 	}

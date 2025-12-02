@@ -239,7 +239,7 @@ func newTableWriter(w io.Writer) *tablewriter.Table {
 	return table
 }
 
-func (a *analyzer) errorf(format string, args ...interface{}) {
+func (a *analyzer) errorf(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, "ERROR "+format, args...)
 	fmt.Fprintln(os.Stderr)
 	a.failed = true

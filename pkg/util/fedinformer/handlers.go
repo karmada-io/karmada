@@ -21,7 +21,7 @@ import (
 )
 
 // NewHandlerOnEvents builds a ResourceEventHandler.
-func NewHandlerOnEvents(addFunc func(obj interface{}, isInInitialList bool), updateFunc func(oldObj, newObj interface{}), deleteFunc func(obj interface{})) cache.ResourceEventHandler {
+func NewHandlerOnEvents(addFunc func(obj any, isInInitialList bool), updateFunc func(oldObj, newObj any), deleteFunc func(obj any)) cache.ResourceEventHandler {
 	return &cache.ResourceEventHandlerDetailedFuncs{
 		AddFunc:    addFunc,
 		UpdateFunc: updateFunc,
@@ -35,8 +35,8 @@ func NewHandlerOnEvents(addFunc func(obj interface{}, isInInitialList bool), upd
 // Note: An object that starts passing the filter after an update is considered an add, and
 // an object that stops passing the filter after an update is considered a deletion.
 // Like the handlers, the filter MUST NOT modify the objects it is given.
-func NewFilteringHandlerOnAllEvents(filterFunc func(obj interface{}) bool, addFunc func(obj interface{}, isInInitialList bool),
-	updateFunc func(oldObj, newObj interface{}), deleteFunc func(obj interface{})) cache.ResourceEventHandler {
+func NewFilteringHandlerOnAllEvents(filterFunc func(obj any) bool, addFunc func(obj any, isInInitialList bool),
+	updateFunc func(oldObj, newObj any), deleteFunc func(obj any)) cache.ResourceEventHandler {
 	return &cache.FilteringResourceEventHandler{
 		FilterFunc: filterFunc,
 		Handler: cache.ResourceEventHandlerDetailedFuncs{
