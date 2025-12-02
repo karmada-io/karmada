@@ -34,6 +34,11 @@ linters:
     gocyclo:
       # minimal cyclomatic complexity to report
       min-complexity: 15
+    modernize:
+      disable:
+        # Suggest replacing omitempty with omitzero for struct fields.
+        # Disable this check for now since it introduces too many changes in our existing codebase.
+        - omitzero
     revive:
       rules:
         # Disable if-return as it is too strict and not always useful.
