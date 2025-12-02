@@ -19,6 +19,7 @@ package descheduler
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -209,7 +210,8 @@ func (d *Descheduler) worker(key util.QueueKey) error {
 // how many replicas were descheduled per cluster and in total.
 func (d *Descheduler) updateScheduleResult(h *core.SchedulingResultHelper) error {
 	unschedulableSum := int32(0)
-	message := descheduleSuccessMessage
+	var message strings.Builder
+	message.WriteString(descheduleSuccessMessage)
 	binding := h.ResourceBinding.DeepCopy()
 	for i, cluster := range h.TargetClusterReplicaStatus {
 		// Only act when estimator reports some unschedulable replicas and the
@@ -224,19 +226,19 @@ func (d *Descheduler) updateScheduleResult(h *core.SchedulingResultHelper) error
 			binding.Spec.Clusters[i].Replicas = target
 			unschedulable := cluster.Spec - target
 			unschedulableSum += unschedulable
-			message += fmt.Sprintf(", %d replica(s) in cluster(%s)", unschedulable, cluster.ClusterName)
+			message.WriteString(fmt.Sprintf(", %d replica(s) in cluster(%s)", unschedulable, cluster.ClusterName))
 		}
 	}
 	if unschedulableSum == 0 {
 		// Nothing changed; skip API update and event recording logic.
 		return nil
 	}
-	message += fmt.Sprintf(", %d total descheduled replica(s)", unschedulableSum)
+	message.WriteString(fmt.Sprintf(", %d total descheduled replica(s)", unschedulableSum))
 
 	var err error
 	defer func() {
 		// Always record an event for observability, including failure reasons if any.
-		d.recordDescheduleResultEventForResourceBinding(binding, message, err)
+		d.recordDescheduleResultEventForResourceBinding(binding, message.String(), err)
 	}()
 
 	binding, err = d.KarmadaClient.WorkV1alpha2().ResourceBindings(binding.Namespace).Update(context.TODO(), binding, metav1.UpdateOptions{})
@@ -247,7 +249,7 @@ func (d *Descheduler) updateScheduleResult(h *core.SchedulingResultHelper) error
 	return nil
 }
 
-func (d *Descheduler) addCluster(obj interface{}) {
+func (d *Descheduler) addCluster(obj any) {
 	cluster, ok := obj.(*clusterv1alpha1.Cluster)
 	if !ok {
 		klog.Errorf("Cannot convert to Cluster: %v", obj)
@@ -257,7 +259,7 @@ func (d *Descheduler) addCluster(obj interface{}) {
 	d.schedulerEstimatorWorker.Add(cluster.Name)
 }
 
-func (d *Descheduler) updateCluster(_, newObj interface{}) {
+func (d *Descheduler) updateCluster(_, newObj any) {
 	cluster, ok := newObj.(*clusterv1alpha1.Cluster)
 	if !ok {
 		klog.Errorf("Cannot convert to Cluster: %v", newObj)
@@ -267,7 +269,7 @@ func (d *Descheduler) updateCluster(_, newObj interface{}) {
 	d.schedulerEstimatorWorker.Add(cluster.Name)
 }
 
-func (d *Descheduler) deleteCluster(obj interface{}) {
+func (d *Descheduler) deleteCluster(obj any) {
 	var cluster *clusterv1alpha1.Cluster
 	switch t := obj.(type) {
 	case *clusterv1alpha1.Cluster:

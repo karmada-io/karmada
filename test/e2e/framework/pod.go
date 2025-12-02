@@ -133,7 +133,7 @@ func WaitPodDisappearOnClusters(clusters []string, namespace, name string) {
 }
 
 // UpdatePodWithPatch update pod with patch bytes.
-func UpdatePodWithPatch(client kubernetes.Interface, namespace, name string, patch []map[string]interface{}, patchType types.PatchType) {
+func UpdatePodWithPatch(client kubernetes.Interface, namespace, name string, patch []map[string]any, patchType types.PatchType) {
 	ginkgo.By(fmt.Sprintf("Updating pod(%s/%s)", namespace, name), func() {
 		bytes, err := json.Marshal(patch)
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())

@@ -297,7 +297,7 @@ func TestCRBApplicationFailoverController_updateBinding(t *testing.T) {
 func generateRaw() *runtime.RawExtension {
 	testTime := time.Now()
 	testV1time := metav1.NewTime(testTime)
-	statusMap := map[string]interface{}{
+	statusMap := map[string]any{
 		"active":         0,
 		"succeeded":      1,
 		"startTime":      testV1time,

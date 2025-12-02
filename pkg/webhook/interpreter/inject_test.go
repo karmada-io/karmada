@@ -33,7 +33,7 @@ func (m *MockDecoderInjector) InjectDecoder(decoder *Decoder) {
 func TestInjectDecoder(t *testing.T) {
 	tests := []struct {
 		name             string
-		mockInjector     interface{}
+		mockInjector     any
 		decoder          *Decoder
 		wantToBeInjected bool
 	}{

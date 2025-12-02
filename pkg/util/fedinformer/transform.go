@@ -28,7 +28,7 @@ import (
 
 // StripUnusedFields is the transform function for shared informers,
 // it removes unused fields from objects before they are stored in the cache to save memory.
-func StripUnusedFields(obj interface{}) (interface{}, error) {
+func StripUnusedFields(obj any) (any, error) {
 	if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
 		obj = tombstone.Obj
 	}
@@ -49,7 +49,7 @@ func StripUnusedFields(obj interface{}) (interface{}, error) {
 //
 // Note: this function removes most of the fields, please make sure your controller
 // doesn't care for the removed fields, especially when use in shared informers.
-func NodeTransformFunc(obj interface{}) (interface{}, error) {
+func NodeTransformFunc(obj any) (any, error) {
 	var node *corev1.Node
 	switch t := obj.(type) {
 	case *corev1.Node:
@@ -82,7 +82,7 @@ func NodeTransformFunc(obj interface{}) (interface{}, error) {
 //
 // Note: this function removes most of the fields, please make sure your controller
 // doesn't care for the removed fields, especially when use in shared informers.
-func PodTransformFunc(obj interface{}) (interface{}, error) {
+func PodTransformFunc(obj any) (any, error) {
 	var pod *corev1.Pod
 	switch t := obj.(type) {
 	case *corev1.Pod:

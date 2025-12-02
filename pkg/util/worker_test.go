@@ -17,9 +17,9 @@ limitations under the License.
 package util
 
 import (
-	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"sync"
 	"testing"
 	"time"
@@ -162,9 +162,7 @@ func (a *asyncWorkerReconciler) ProcessedItem() map[int]struct{} {
 	defer a.lock.Unlock()
 
 	ret := make(map[int]struct{}, len(a.shouldPass))
-	for k, v := range a.shouldPass {
-		ret[k] = v
-	}
+	maps.Copy(ret, a.shouldPass)
 
 	return ret
 }
@@ -175,12 +173,11 @@ func Test_asyncWorker_Run(t *testing.T) {
 	reconcile := newAsyncWorkerReconciler()
 	worker := newTestAsyncWorker(reconcile.ReconcileFunc, false)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	worker.Run(ctx, 5)
 
-	for i := 0; i < cnt; i++ {
+	for i := range cnt {
 		worker.Add(i)
 	}
 
@@ -191,7 +188,7 @@ func Test_asyncWorker_Run(t *testing.T) {
 				len(processed), processed)
 		}
 
-		for i := 0; i < cnt; i++ {
+		for i := range cnt {
 			if _, ok := processed[i]; !ok {
 				return fmt.Errorf("expected item not processed, expected: %v, all processed item: %v",
 					i, processed)
@@ -212,12 +209,11 @@ func Test_asyncPriorityWorker_Run(t *testing.T) {
 	reconcile := newAsyncWorkerReconciler()
 	worker := newTestAsyncWorker(reconcile.ReconcileFunc, true)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	worker.Run(ctx, 5)
 
-	for i := 0; i < cnt; i++ {
+	for i := range cnt {
 		worker.Add(i)
 	}
 
@@ -228,7 +224,7 @@ func Test_asyncPriorityWorker_Run(t *testing.T) {
 				len(processed), processed)
 		}
 
-		for i := 0; i < cnt; i++ {
+		for i := range cnt {
 			if _, ok := processed[i]; !ok {
 				return fmt.Errorf("expected item not processed, expected: %v, all processed item: %v",
 					i, processed)

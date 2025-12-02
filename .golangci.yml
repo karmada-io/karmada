@@ -19,6 +19,7 @@ linters:
     - gocyclo
     - gosec
     - misspell
+    - modernize
     - revive
     - whitespace
   settings:
@@ -33,6 +34,14 @@ linters:
     gocyclo:
       # minimal cyclomatic complexity to report
       min-complexity: 15
+    modernize:
+      disable:
+        # Suggest replacing omitempty with omitzero for struct fields.
+        # Disable this check for now since it introduces too many changes in our existing codebase.
+        # It suggests changing metav1.ObjectMeta json tags from "metadata,omitempty" to "metadata,omitzero",
+        # which is not desired as it may break existing behavior.
+        # See https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#hdr-Analyzer_omitzero for more details.
+        - omitzero
     revive:
       rules:
         # Disable if-return as it is too strict and not always useful.

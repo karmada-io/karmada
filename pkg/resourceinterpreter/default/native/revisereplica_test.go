@@ -35,13 +35,13 @@ func TestReviseDeploymentReplica(t *testing.T) {
 		{
 			name: "Deployment .spec.replicas accessor error, expected int64",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "fake-deployment",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 1,
 					},
 				},
@@ -52,26 +52,26 @@ func TestReviseDeploymentReplica(t *testing.T) {
 		{
 			name: "revise deployment replica",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "fake-deployment",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": int64(1),
 					},
 				},
 			},
 			replica: 3,
 			expected: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "fake-deployment",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": int64(3),
 					},
 				},
@@ -111,13 +111,13 @@ func TestReviseReplicaSetReplica(t *testing.T) {
 		{
 			name: "ReplicaSet .spec.replicas accessor error, expected int64",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "ReplicaSet",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "fake-replicaset",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 1,
 					},
 				},
@@ -128,26 +128,26 @@ func TestReviseReplicaSetReplica(t *testing.T) {
 		{
 			name: "revise replicaset replica",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "ReplicaSet",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "fake-replicaset",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": int64(1),
 					},
 				},
 			},
 			replica: 3,
 			expected: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "ReplicaSet",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "fake-replicaset",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": int64(3),
 					},
 				},
@@ -187,13 +187,13 @@ func TestReviseJobReplica(t *testing.T) {
 		{
 			name: "Job .spec.parallelism accessor error, expected int64",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "batch/v1",
 					"kind":       "Job",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "fake-job",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"parallelism": 1,
 					},
 				},
@@ -204,26 +204,26 @@ func TestReviseJobReplica(t *testing.T) {
 		{
 			name: "revise job parallelism",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "batch/v1",
 					"kind":       "Job",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "fake-job",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"parallelism": int64(1),
 					},
 				},
 			},
 			replica: 3,
 			expected: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "batch/v1",
 					"kind":       "Job",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "fake-job",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"parallelism": int64(3),
 					},
 				},
@@ -263,13 +263,13 @@ func TestReviseStatefulSetReplica(t *testing.T) {
 		{
 			name: "StatefulSet .spec.replicas accessor error, expected int64",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "StatefulSet",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "fake-statefulset",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 1,
 					},
 				},
@@ -280,26 +280,26 @@ func TestReviseStatefulSetReplica(t *testing.T) {
 		{
 			name: "revise statefulset replica",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "StatefulSet",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "fake-statefulset",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": int64(1),
 					},
 				},
 			},
 			replica: 3,
 			expected: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "StatefulSet",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "fake-statefulset",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": int64(3),
 					},
 				},

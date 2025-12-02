@@ -157,7 +157,7 @@ var _ = ginkgo.Describe("[BasicCase] PropagationPolicy testing", func() {
 					return true
 				})
 
-			patch := []map[string]interface{}{{"op": "replace", "path": "/spec/ports/0/port", "value": updateServicePort}}
+			patch := []map[string]any{{"op": "replace", "path": "/spec/ports/0/port", "value": updateServicePort}}
 			framework.UpdateServiceWithPatch(kubeClient, service.Namespace, service.Name, patch, types.JSONPatchType)
 
 			framework.WaitServicePresentOnClustersFitWith(framework.ClusterNames(), service.Namespace, service.Name,
@@ -204,7 +204,7 @@ var _ = ginkgo.Describe("[BasicCase] PropagationPolicy testing", func() {
 					return true
 				})
 
-			patch := []map[string]interface{}{{"op": "replace", "path": "/spec/containers/0/image", "value": updatePodImage}}
+			patch := []map[string]any{{"op": "replace", "path": "/spec/containers/0/image", "value": updatePodImage}}
 			framework.UpdatePodWithPatch(kubeClient, pod.Namespace, pod.Name, patch, types.JSONPatchType)
 
 			framework.WaitPodPresentOnClustersFitWith(framework.ClusterNames(), pod.Namespace, pod.Name,
@@ -304,7 +304,7 @@ var _ = ginkgo.Describe("[BasicCase] PropagationPolicy testing", func() {
 			})
 
 			ginkgo.By("updating cr", func() {
-				patch := []map[string]interface{}{
+				patch := []map[string]any{
 					{
 						"op":    "replace",
 						"path":  "/spec/resource/namespace",
@@ -410,7 +410,7 @@ var _ = ginkgo.Describe("[BasicCase] PropagationPolicy testing", func() {
 					return true
 				})
 
-			patch := []map[string]interface{}{{"op": "replace", "path": "/spec/backoffLimit", "value": ptr.To[int32](updateBackoffLimit)}}
+			patch := []map[string]any{{"op": "replace", "path": "/spec/backoffLimit", "value": ptr.To[int32](updateBackoffLimit)}}
 			bytes, err := json.Marshal(patch)
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			framework.UpdateJobWithPatchBytes(kubeClient, job.Namespace, job.Name, bytes, types.JSONPatchType)
@@ -957,7 +957,7 @@ var _ = ginkgo.Describe("[AdvancedCase] PropagationPolicy testing", func() {
 		})
 
 		ginkgo.It("update policy propagateDeps", func() {
-			patch := []map[string]interface{}{
+			patch := []map[string]any{
 				{
 					"op":    "replace",
 					"path":  "/spec/propagateDeps",
@@ -987,7 +987,7 @@ var _ = ginkgo.Describe("[AdvancedCase] PropagationPolicy testing", func() {
 				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
 					ClusterNames: []string{updatedMember},
 				}}
-			patch := []map[string]interface{}{
+			patch := []map[string]any{
 				{
 					"op":    "replace",
 					"path":  "/spec/placement",

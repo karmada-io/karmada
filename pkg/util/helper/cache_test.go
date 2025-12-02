@@ -116,11 +116,11 @@ func TestGetObjectFromCache(t *testing.T) {
 					Version: "v1", Kind: "Pod", Namespace: "default", Name: "pod",
 				}},
 			},
-			want: &unstructured.Unstructured{Object: map[string]interface{}{
+			want: &unstructured.Unstructured{Object: map[string]any{
 				"apiVersion": "v1", "kind": "Pod",
-				"metadata": map[string]interface{}{"name": "pod", "namespace": "default"},
-				"spec":     map[string]interface{}{"containers": nil},
-				"status":   map[string]interface{}{},
+				"metadata": map[string]any{"name": "pod", "namespace": "default"},
+				"spec":     map[string]any{"containers": nil},
+				"status":   map[string]any{},
 			}},
 			wantErr: false,
 		},
@@ -168,19 +168,18 @@ func TestGetObjectFromCache(t *testing.T) {
 					Version: "v1", Kind: "Pod", Namespace: "default", Name: "pod",
 				}},
 			},
-			want: &unstructured.Unstructured{Object: map[string]interface{}{
+			want: &unstructured.Unstructured{Object: map[string]any{
 				"apiVersion": "v1", "kind": "Pod",
-				"metadata": map[string]interface{}{"name": "pod", "namespace": "default"},
-				"spec":     map[string]interface{}{"containers": nil},
-				"status":   map[string]interface{}{},
+				"metadata": map[string]any{"name": "pod", "namespace": "default"},
+				"spec":     map[string]any{"containers": nil},
+				"status":   map[string]any{},
 			}},
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+			ctx := t.Context()
 			mgr := tt.args.manager(ctx)
 			got, err := GetObjectFromCache(tt.args.restMapper, mgr, tt.args.fedKey)
 			if (err != nil) != tt.wantErr {
@@ -248,11 +247,11 @@ func TestGetObjectFromSingleClusterCache(t *testing.T) {
 				},
 				cwk: &keys.ClusterWideKey{Version: "v1", Kind: "Pod", Namespace: "default", Name: "pod"},
 			},
-			want: &unstructured.Unstructured{Object: map[string]interface{}{
+			want: &unstructured.Unstructured{Object: map[string]any{
 				"apiVersion": "v1", "kind": "Pod",
-				"metadata": map[string]interface{}{"name": "pod", "namespace": "default"},
-				"spec":     map[string]interface{}{"containers": nil},
-				"status":   map[string]interface{}{},
+				"metadata": map[string]any{"name": "pod", "namespace": "default"},
+				"spec":     map[string]any{"containers": nil},
+				"status":   map[string]any{},
 			}},
 			wantErr: false,
 		},
@@ -294,19 +293,18 @@ func TestGetObjectFromSingleClusterCache(t *testing.T) {
 				},
 				cwk: &keys.ClusterWideKey{Version: "v1", Kind: "Pod", Namespace: "default", Name: "pod"},
 			},
-			want: &unstructured.Unstructured{Object: map[string]interface{}{
+			want: &unstructured.Unstructured{Object: map[string]any{
 				"apiVersion": "v1", "kind": "Pod",
-				"metadata": map[string]interface{}{"name": "pod", "namespace": "default"},
-				"spec":     map[string]interface{}{"containers": nil},
-				"status":   map[string]interface{}{},
+				"metadata": map[string]any{"name": "pod", "namespace": "default"},
+				"spec":     map[string]any{"containers": nil},
+				"status":   map[string]any{},
 			}},
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+			ctx := t.Context()
 			mgr := tt.args.manager(ctx)
 			got, err := GetObjectFromSingleClusterCache(tt.args.restMapper, mgr, tt.args.cwk)
 			if (err != nil) != tt.wantErr {

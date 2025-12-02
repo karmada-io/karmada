@@ -419,11 +419,17 @@ func TestNewCertificateAuthority(t *testing.T) {
 		},
 	}
 
+	//nolint:staticcheck
+	// false positive from SA5011(related information): this check suggests that the pointer can be nil
+	// See https://github.com/golangci/golangci-lint/issues/5979 for more details.
 	cert, err := NewCertificateAuthority(cc)
 	if err != nil {
 		t.Fatalf("NewCertificateAuthority() returned an error: %v", err)
 	}
 
+	//nolint:staticcheck
+	// false positive from SA5011: possible nil pointer dereference
+	// See https://github.com/golangci/golangci-lint/issues/5979 for more details.
 	if cert == nil {
 		t.Fatal("NewCertificateAuthority() returned nil cert")
 	}
@@ -520,10 +526,16 @@ func TestCreateCertAndKeyFilesWithCA(t *testing.T) {
 		t.Fatalf("CreateCertAndKeyFilesWithCA() returned an error: %v", err)
 	}
 
+	//nolint:staticcheck
+	// false positive from SA5011(related information): this check suggests that the pointer can be nil
+	// See https://github.com/golangci/golangci-lint/issues/5979 for more details.
 	if cert == nil {
 		t.Fatal("CreateCertAndKeyFilesWithCA() returned nil cert")
 	}
 
+	//nolint:staticcheck
+	// false positive from SA5011: possible nil pointer dereference
+	// See https://github.com/golangci/golangci-lint/issues/5979 for more details.
 	if cert.cert == nil || cert.key == nil {
 		t.Error("Expected cert and key to be non-nil")
 	}

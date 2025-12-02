@@ -20,7 +20,7 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"sort"
+	"slices"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -582,13 +582,13 @@ func matchingResources(input []corev1.ResourceName) []corev1.ResourceName {
 		// add extended resources
 		if corev1helper.IsExtendedResourceName(resourceName) {
 			result = append(result, resourceName)
-		} else if strings.HasPrefix(string(resourceName), resourceRequestsPrefix) {
-			trimmedResourceName := corev1.ResourceName(strings.TrimPrefix(string(resourceName), resourceRequestsPrefix))
+		} else if after, ok := strings.CutPrefix(string(resourceName), resourceRequestsPrefix); ok {
+			trimmedResourceName := corev1.ResourceName(after)
 			if corev1helper.IsExtendedResourceName(trimmedResourceName) {
 				result = append(result, resourceName)
 			}
-		} else if strings.HasPrefix(string(resourceName), resourceLimitsPrefix) {
-			trimmedResourceName := corev1.ResourceName(strings.TrimPrefix(string(resourceName), resourceLimitsPrefix))
+		} else if after, ok := strings.CutPrefix(string(resourceName), resourceLimitsPrefix); ok {
+			trimmedResourceName := corev1.ResourceName(after)
 			if corev1helper.IsExtendedResourceName(trimmedResourceName) {
 				result = append(result, resourceName)
 			}
@@ -609,16 +609,11 @@ func intersection(a []corev1.ResourceName, b []corev1.ResourceName) []corev1.Res
 		}
 		result = append(result, item)
 	}
-	sort.Slice(result, func(i, j int) bool { return result[i] < result[j] })
+	slices.Sort(result)
 	return result
 }
 
 // contains returns true if the specified item is in the list of items
 func contains(items []corev1.ResourceName, item corev1.ResourceName) bool {
-	for _, i := range items {
-		if i == item {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(items, item)
 }

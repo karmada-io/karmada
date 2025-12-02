@@ -221,13 +221,13 @@ func Test_getHighestPriorityPropagationPolicies(t *testing.T) {
 			args: args{
 				policies: []*policyv1alpha1.PropagationPolicy{},
 				resource: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":      "nginx",
 							"namespace": "test",
-							"labels": map[string]interface{}{
+							"labels": map[string]any{
 								"app": "nginx",
 							}}}},
 				objectKey: keys.ClusterWideKey{Kind: "Deployment", Namespace: "test", Name: "nginx"},
@@ -262,13 +262,13 @@ func Test_getHighestPriorityPropagationPolicies(t *testing.T) {
 					},
 				},
 				resource: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":      "nginx",
 							"namespace": "test01",
-							"labels": map[string]interface{}{
+							"labels": map[string]any{
 								"app": "nginx",
 							}}}},
 				objectKey: keys.ClusterWideKey{Kind: "Deployment", Namespace: "test01", Name: "nginx"},
@@ -313,13 +313,13 @@ func Test_getHighestPriorityPropagationPolicies(t *testing.T) {
 					},
 				},
 				resource: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":      "nginx",
 							"namespace": "test",
-							"labels": map[string]interface{}{
+							"labels": map[string]any{
 								"app": "nginx",
 							}}}},
 				objectKey: keys.ClusterWideKey{Kind: "Deployment", Namespace: "test", Name: "nginx"},
@@ -364,13 +364,13 @@ func Test_getHighestPriorityPropagationPolicies(t *testing.T) {
 					},
 				},
 				resource: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":      "nginx",
 							"namespace": "test",
-							"labels": map[string]interface{}{
+							"labels": map[string]any{
 								"app": "nginx",
 							}}}},
 				objectKey: keys.ClusterWideKey{Kind: "Deployment", Namespace: "test", Name: "nginx"},
@@ -419,13 +419,13 @@ func Test_getHighestPriorityPropagationPolicies(t *testing.T) {
 					},
 				},
 				resource: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":      "nginx",
 							"namespace": "test",
-							"labels": map[string]interface{}{
+							"labels": map[string]any{
 								"app": "nginx",
 							}}}},
 				objectKey: keys.ClusterWideKey{Kind: "Deployment", Namespace: "test", Name: "nginx"},
@@ -482,13 +482,13 @@ func Test_getHighestPriorityPropagationPolicies(t *testing.T) {
 					},
 				},
 				resource: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":      "nginx",
 							"namespace": "test",
-							"labels": map[string]interface{}{
+							"labels": map[string]any{
 								"app": "nginx",
 							}}}},
 				objectKey: keys.ClusterWideKey{Kind: "Deployment", Namespace: "test", Name: "nginx"},
@@ -545,13 +545,13 @@ func Test_getHighestPriorityPropagationPolicies(t *testing.T) {
 					},
 				},
 				resource: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":      "nginx",
 							"namespace": "test",
-							"labels": map[string]interface{}{
+							"labels": map[string]any{
 								"app": "nginx",
 							}}}},
 				objectKey: keys.ClusterWideKey{Kind: "Deployment", Namespace: "test", Name: "nginx"},
@@ -608,13 +608,13 @@ func Test_getHighestPriorityPropagationPolicies(t *testing.T) {
 					},
 				},
 				resource: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":      "nginx",
 							"namespace": "test",
-							"labels": map[string]interface{}{
+							"labels": map[string]any{
 								"app": "nginx",
 							}}}},
 				objectKey: keys.ClusterWideKey{Kind: "Deployment", Namespace: "test", Name: "nginx"},
@@ -667,13 +667,13 @@ func Test_getHighestPriorityPropagationPolicies(t *testing.T) {
 					},
 				},
 				resource: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":      "nginx",
 							"namespace": "test",
-							"labels": map[string]interface{}{
+							"labels": map[string]any{
 								"app": "nginx",
 							}}}},
 				objectKey: keys.ClusterWideKey{Kind: "Deployment", Namespace: "test", Name: "nginx"},
@@ -716,13 +716,13 @@ func Test_getHighestPriorityClusterPropagationPolicies(t *testing.T) {
 			args: args{
 				policies: []*policyv1alpha1.ClusterPropagationPolicy{},
 				resource: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":      "nginx",
 							"namespace": "test",
-							"labels": map[string]interface{}{
+							"labels": map[string]any{
 								"app": "nginx",
 							}}}},
 				objectKey: keys.ClusterWideKey{Kind: "Deployment", Namespace: "test", Name: "nginx"},
@@ -757,13 +757,13 @@ func Test_getHighestPriorityClusterPropagationPolicies(t *testing.T) {
 					},
 				},
 				resource: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":      "nginx",
 							"namespace": "test01",
-							"labels": map[string]interface{}{
+							"labels": map[string]any{
 								"app": "nginx",
 							}}}},
 				objectKey: keys.ClusterWideKey{Kind: "Deployment", Namespace: "test01", Name: "nginx"},
@@ -808,13 +808,13 @@ func Test_getHighestPriorityClusterPropagationPolicies(t *testing.T) {
 					},
 				},
 				resource: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":      "nginx",
 							"namespace": "test",
-							"labels": map[string]interface{}{
+							"labels": map[string]any{
 								"app": "nginx",
 							}}}},
 				objectKey: keys.ClusterWideKey{Kind: "Deployment", Namespace: "test", Name: "nginx"},
@@ -859,13 +859,13 @@ func Test_getHighestPriorityClusterPropagationPolicies(t *testing.T) {
 					},
 				},
 				resource: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":      "nginx",
 							"namespace": "test",
-							"labels": map[string]interface{}{
+							"labels": map[string]any{
 								"app": "nginx",
 							}}}},
 				objectKey: keys.ClusterWideKey{Kind: "Deployment", Namespace: "test", Name: "nginx"},
@@ -914,13 +914,13 @@ func Test_getHighestPriorityClusterPropagationPolicies(t *testing.T) {
 					},
 				},
 				resource: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":      "nginx",
 							"namespace": "test",
-							"labels": map[string]interface{}{
+							"labels": map[string]any{
 								"app": "nginx",
 							}}}},
 				objectKey: keys.ClusterWideKey{Kind: "Deployment", Namespace: "test", Name: "nginx"},
@@ -977,13 +977,13 @@ func Test_getHighestPriorityClusterPropagationPolicies(t *testing.T) {
 					},
 				},
 				resource: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":      "nginx",
 							"namespace": "test",
-							"labels": map[string]interface{}{
+							"labels": map[string]any{
 								"app": "nginx",
 							}}}},
 				objectKey: keys.ClusterWideKey{Kind: "Deployment", Namespace: "test", Name: "nginx"},
@@ -1040,13 +1040,13 @@ func Test_getHighestPriorityClusterPropagationPolicies(t *testing.T) {
 					},
 				},
 				resource: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":      "nginx",
 							"namespace": "test",
-							"labels": map[string]interface{}{
+							"labels": map[string]any{
 								"app": "nginx",
 							}}}},
 				objectKey: keys.ClusterWideKey{Kind: "Deployment", Namespace: "test", Name: "nginx"},
@@ -1103,13 +1103,13 @@ func Test_getHighestPriorityClusterPropagationPolicies(t *testing.T) {
 					},
 				},
 				resource: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":      "nginx",
 							"namespace": "test",
-							"labels": map[string]interface{}{
+							"labels": map[string]any{
 								"app": "nginx",
 							}}}},
 				objectKey: keys.ClusterWideKey{Kind: "Deployment", Namespace: "test", Name: "nginx"},
@@ -1162,13 +1162,13 @@ func Test_getHighestPriorityClusterPropagationPolicies(t *testing.T) {
 					},
 				},
 				resource: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":      "nginx",
 							"namespace": "test",
-							"labels": map[string]interface{}{
+							"labels": map[string]any{
 								"app": "nginx",
 							}}}},
 				objectKey: keys.ClusterWideKey{Kind: "Deployment", Namespace: "test", Name: "nginx"},

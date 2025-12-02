@@ -63,7 +63,7 @@ func addDefaultingFuncs(scheme *runtime.Scheme) error {
 // Public to allow building arbitrary schemes.
 // All generated defaulters are covering - they call all nested defaulters.
 func RegisterDefaults(scheme *runtime.Scheme) error {
-	scheme.AddTypeDefaultingFunc(&Karmada{}, func(obj interface{}) { SetObjectDefaultsKarmada(obj.(*Karmada)) })
+	scheme.AddTypeDefaultingFunc(&Karmada{}, func(obj any) { SetObjectDefaultsKarmada(obj.(*Karmada)) })
 	return nil
 }
 

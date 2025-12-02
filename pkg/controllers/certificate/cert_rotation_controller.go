@@ -226,7 +226,7 @@ func (c *CertRotationController) syncCertRotation(ctx context.Context, secret *c
 	return nil
 }
 
-func (c *CertRotationController) createCSRInControlPlane(ctx context.Context, clusterName string, privateKey interface{}, oldCert []*x509.Certificate) (string, error) {
+func (c *CertRotationController) createCSRInControlPlane(ctx context.Context, clusterName string, privateKey any, oldCert []*x509.Certificate) (string, error) {
 	csrData, err := certutil.MakeCSR(privateKey, &oldCert[0].Subject, nil, nil)
 	if err != nil {
 		return "", fmt.Errorf("unable to generate certificate request: %v", err)
