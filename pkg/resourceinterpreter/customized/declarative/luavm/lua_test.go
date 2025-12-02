@@ -417,13 +417,13 @@ func TestReviseDeploymentReplica(t *testing.T) {
 		{
 			name: "Test ReviseDeploymentReplica",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "fake-deployment",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 1,
 					},
 				},
