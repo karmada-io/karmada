@@ -1,0 +1,73 @@
+# test case for aggregating status of AdvancedCronJob
+# case1. AdvancedCronJob with two status items
+
+name: "AdvancedCronJob with two status items"
+description: "Test aggregating status of AdvancedCronJob with two status items"
+desiredObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: AdvancedCronJob
+  metadata:
+    labels:
+      app: sample
+    name: sample
+    namespace: test-acj
+  spec:
+    schedule: "*/2 * * * *"
+    template:
+      broadcastJobTemplate:
+        spec:
+          template:
+            metadata:
+              labels:
+                app: sample
+            spec:
+              restartPolicy: Never
+              volumes:
+                - name: configmap
+                  configMap:
+                    name: my-sample-config
+              containers:
+                - name: nginx
+                  image: nginx:alpine
+                  env:
+                    - name: logData
+                      valueFrom:
+                        configMapKeyRef:
+                          name: mysql-config
+                          key: log
+                    - name: lowerData
+                      valueFrom:
+                        configMapKeyRef:
+                          name: mysql-config
+                          key: lower
+          completionPolicy:
+            type: Never
+statusItems:
+  - applied: true
+    clusterName: member1
+    health: Healthy
+    status:
+      active:
+        - apiVersion: apps.kruise.io/v1alpha1
+          kind: BroadcastJob
+          name: sample-1681378080
+          namespace: test-acj
+          resourceVersion: "3636404"
+          uid: f96013ef-2869-49d7-adf3-8f7231cc5e2a
+      lastScheduleTime: "2023-04-13T09:30:00Z"
+      type: BroadcastJob
+  - applied: true
+    clusterName: member3
+    health: Healthy
+    status:
+      active:
+        - apiVersion: apps.kruise.io/v1alpha1
+          kind: BroadcastJob
+          name: sample-1681378080
+          namespace: test-acj
+          resourceVersion: "3635081"
+          uid: d1f3c194-d650-4cce-b23d-307a445bb92e
+      lastScheduleTime: "2023-04-13T09:30:00Z"
+      type: BroadcastJob
+operation: AggregateStatus
+output:

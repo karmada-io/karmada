@@ -1,0 +1,111 @@
+# test case for interpreting health of RayCluster
+# case1. RayCluster: interpret health test
+
+name: "RayCluster: interpret health test"
+description: "Test interpreting health for RayCluster"
+observedObj:
+  apiVersion: ray.io/v1
+  kind: RayCluster
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"ray.io/v1","kind":"RayCluster","metadata":{"annotations":{},"name":"sample","namespace":"default"},"spec":{"headGroupSpec":{"rayStartParams":{},"template":{"spec":{"containers":[{"image":"rayproject/ray:2.46.0","name":"ray-head","ports":[{"containerPort":6379,"name":"gcs-server"},{"containerPort":8265,"name":"dashboard"},{"containerPort":10001,"name":"client"}],"resources":{"limits":{"cpu":1,"memory":"2G"},"requests":{"cpu":1,"memory":"2G"}}}]}}},"rayVersion":"2.46.0","workerGroupSpecs":[{"groupName":"workergroup","maxReplicas":5,"minReplicas":1,"rayStartParams":{},"replicas":1,"template":{"spec":{"containers":[{"image":"rayproject/ray:2.46.0","name":"ray-worker","resources":{"limits":{"cpu":1,"memory":"1G"},"requests":{"cpu":1,"memory":"1G"}}}]}}}]}}
+    creationTimestamp: "2025-09-21T03:54:44Z"
+    generation: 1
+    name: sample
+    namespace: default
+    resourceVersion: "850"
+    uid: 040acb09-4e53-4a23-a8b2-28b4300af70b
+  spec:
+    headGroupSpec:
+      rayStartParams: { }
+      template:
+        spec:
+          containers:
+            - image: rayproject/ray:2.46.0
+              name: ray-head
+              ports:
+                - containerPort: 6379
+                  name: gcs-server
+                  protocol: TCP
+                - containerPort: 8265
+                  name: dashboard
+                  protocol: TCP
+                - containerPort: 10001
+                  name: client
+                  protocol: TCP
+              resources:
+                limits:
+                  cpu: 1
+                  memory: 2G
+                requests:
+                  cpu: 1
+                  memory: 2G
+    rayVersion: 2.46.0
+    workerGroupSpecs:
+      - groupName: workergroup
+        maxReplicas: 5
+        minReplicas: 1
+        numOfHosts: 1
+        rayStartParams: { }
+        replicas: 1
+        template:
+          spec:
+            containers:
+              - image: rayproject/ray:2.46.0
+                name: ray-worker
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 1G
+                  requests:
+                    cpu: 1
+                    memory: 1G
+  status:
+    availableWorkerReplicas: 1
+    conditions:
+      - lastTransitionTime: "2025-09-21T03:55:30Z"
+        message: ""
+        reason: HeadPodRunningAndReady
+        status: "True"
+        type: HeadPodReady
+      - lastTransitionTime: "2025-09-21T03:55:45Z"
+        message: All Ray Pods are ready for the first time
+        reason: AllPodRunningAndReadyFirstTime
+        status: "True"
+        type: RayClusterProvisioned
+      - lastTransitionTime: "2025-09-21T03:54:44Z"
+        message: ""
+        reason: RayClusterSuspended
+        status: "False"
+        type: RayClusterSuspended
+      - lastTransitionTime: "2025-09-21T03:54:44Z"
+        message: ""
+        reason: RayClusterSuspending
+        status: "False"
+        type: RayClusterSuspending
+    desiredCPU: "2"
+    desiredGPU: "0"
+    desiredMemory: 3G
+    desiredTPU: "0"
+    desiredWorkerReplicas: 1
+    endpoints:
+      client: "10001"
+      dashboard: "8265"
+      gcs-server: "6379"
+      metrics: "8080"
+    head:
+      podIP: 10.244.0.6
+      podName: sample-head-9cvfc
+      serviceIP: 10.244.0.6
+      serviceName: sample-head-svc
+    lastUpdateTime: "2025-09-21T03:55:45Z"
+    maxWorkerReplicas: 5
+    minWorkerReplicas: 1
+    observedGeneration: 1
+    readyWorkerReplicas: 1
+    state: ready
+    stateTransitionTimes:
+      ready: "2025-09-21T03:55:45Z"
+operation: InterpretHealth
+output:

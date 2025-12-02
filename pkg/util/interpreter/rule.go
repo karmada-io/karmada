@@ -351,11 +351,7 @@ func (s *statusAggregationRule) Run(interpreter *declarative.ConfigurableInterpr
 		return newRuleResultWithError(err)
 	}
 
-	status := args.Status
-	if status == nil {
-		status = []workv1alpha2.AggregatedStatusItem{}
-	}
-	aggregateStatus, enabled, err := interpreter.AggregateStatus(obj, status)
+	aggregateStatus, enabled, err := interpreter.AggregateStatus(obj, args.Status)
 	if err != nil {
 		return newRuleResultWithError(err)
 	}

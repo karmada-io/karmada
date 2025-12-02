@@ -1,0 +1,79 @@
+# test case for aggregating status of CloneSet
+# case1. CloneSet with two status items
+
+name: "CloneSet with two status items"
+description: "Test aggregating status of CloneSet with two status items"
+desiredObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: CloneSet
+  metadata:
+    labels:
+      app: sample
+    name: sample
+    namespace: test-cloneset
+    generation: 1
+  spec:
+    replicas: 4
+    selector:
+      matchLabels:
+        app: sample
+        test: cloneset
+    template:
+      metadata:
+        labels:
+          app: sample
+          test: cloneset
+      spec:
+        volumes:
+          - name: configmap
+            configMap:
+              name: my-sample-config
+        containers:
+          - name: nginx
+            image: nginx:alpine
+            env:
+              - name: logData
+                valueFrom:
+                  configMapKeyRef:
+                    name: mysql-config
+                    key: log
+              - name: lowerData
+                valueFrom:
+                  configMapKeyRef:
+                    name: mysql-config
+                    key: lower
+statusItems:
+  - applied: true
+    clusterName: member1
+    health: Healthy
+    status:
+      availableReplicas: 2
+      currentRevision: sample-59df6bd888
+      expectedUpdatedReplicas: 2
+      labelSelector: app=sample,test=cloneset
+      observedGeneration: 1
+      readyReplicas: 2
+      replicas: 2
+      updateRevision: sample-59df6bd888
+      updatedReadyReplicas: 2
+      updatedReplicas: 2
+      generation: 1
+      resourceTemplateGeneration: 1
+  - applied: true
+    clusterName: member3
+    health: Healthy
+    status:
+      availableReplicas: 2
+      currentRevision: sample-59df6bd888
+      expectedUpdatedReplicas: 2
+      labelSelector: app=sample,test=cloneset
+      observedGeneration: 1
+      readyReplicas: 2
+      replicas: 2
+      updateRevision: sample-59df6bd888
+      updatedReadyReplicas: 2
+      updatedReplicas: 2
+      generation: 1
+      resourceTemplateGeneration: 1
+operation: AggregateStatus
+output:

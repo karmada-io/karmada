@@ -1,0 +1,76 @@
+# test case for aggregating status of HelmRepository
+# case1. HelmRepository with two status items
+
+name: "HelmRepository with two status items"
+description: "Test aggregating status of HelmRepository with two status items"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmRepository
+  metadata:
+    name: podinfo
+    namespace: test-helmrepository
+    generation: 1
+  spec:
+    interval: 5m0s
+    url: https://stefanprodan.github.io/podinfo
+    secretRef:
+      name: fake-secret
+statusItems:
+  - applied: true
+    clusterName: member1
+    health: Healthy
+    status:
+      artifact:
+        digest: sha256:61f94c20ee9417f222c3d30672724473ae50d406c8c097d80a8a6263c1384f69
+        lastUpdateTime: "2023-04-29T09:30:31Z"
+        path: helmrepository/test-helmrepository/sample/index-61f94c20ee9417f222c3d30672724473ae50d406c8c097d80a8a6263c1384f69.yaml
+        revision: sha256:61f94c20ee9417f222c3d30672724473ae50d406c8c097d80a8a6263c1384f69
+        size: 42012
+        url: http://source-controller.flux-system.svc.cluster.local./helmrepository/test-helmrepository/sample/index-61f94c20ee9417f222c3d30672724473ae50d406c8c097d80a8a6263c1384f69.yaml
+      conditions:
+        - lastTransitionTime: "2023-04-29T09:30:31Z"
+          message: 'stored artifact: revision ''sha256:61f94c20ee9417f222c3d30672724473ae50d406c8c097d80a8a6263c1384f69'''
+          observedGeneration: 1
+          reason: Succeeded
+          status: "True"
+          type: Ready
+        - lastTransitionTime: "2023-04-29T09:30:31Z"
+          message: 'stored artifact: revision ''sha256:61f94c20ee9417f222c3d30672724473ae50d406c8c097d80a8a6263c1384f69'''
+          observedGeneration: 1
+          reason: Succeeded
+          status: "True"
+          type: ArtifactInStorage
+      generation: 1
+      observedGeneration: 1
+      resourceTemplateGeneration: 1
+      url: http://source-controller.flux-system.svc.cluster.local./helmrepository/test-helmrepository/sample/index.yaml
+  - applied: true
+    clusterName: member3
+    health: Healthy
+    status:
+      artifact:
+        digest: sha256:61f94c20ee9417f222c3d30672724473ae50d406c8c097d80a8a6263c1384f69
+        lastUpdateTime: "2023-04-29T09:30:33Z"
+        path: helmrepository/test-helmrepository/sample/index-61f94c20ee9417f222c3d30672724473ae50d406c8c097d80a8a6263c1384f69.yaml
+        revision: sha256:61f94c20ee9417f222c3d30672724473ae50d406c8c097d80a8a6263c1384f69
+        size: 42012
+        url: http://source-controller.flux-system.svc.cluster.local./helmrepository/test-helmrepository/sample/index-61f94c20ee9417f222c3d30672724473ae50d406c8c097d80a8a6263c1384f69.yaml
+      conditions:
+        - lastTransitionTime: "2023-04-29T09:30:33Z"
+          message: 'stored artifact: revision ''sha256:61f94c20ee9417f222c3d30672724473ae50d406c8c097d80a8a6263c1384f69'''
+          observedGeneration: 1
+          reason: Succeeded
+          status: "True"
+          type: Ready
+        - lastTransitionTime: "2023-04-29T09:30:33Z"
+          message: 'stored artifact: revision ''sha256:61f94c20ee9417f222c3d30672724473ae50d406c8c097d80a8a6263c1384f69'''
+          observedGeneration: 1
+          reason: Succeeded
+          status: "True"
+          type: ArtifactInStorage
+      generation: 1
+      observedGeneration: 1
+      resourceTemplateGeneration: 1
+      url: http://source-controller.flux-system.svc.cluster.local./helmrepository/test-helmrepository/sample/index.yaml
+operation: AggregateStatus
+output:

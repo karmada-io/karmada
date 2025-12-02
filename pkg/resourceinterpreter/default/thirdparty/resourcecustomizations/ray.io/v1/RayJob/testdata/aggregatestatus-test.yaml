@@ -1,0 +1,97 @@
+# test case for aggregating status of RayJob
+# case1. RayJob with two status items
+
+name: "RayJob with two status items"
+description: "Test aggregating status of RayJob with two status items"
+desiredObj:
+  apiVersion: ray.io/v1
+  kind: RayJob
+  metadata:
+    name: sample-rayjob
+    namespace: default
+  spec:
+    entrypoint: python /home/ray/samples/sample_code.py
+    shutdownAfterJobFinishes: true
+    ttlSecondsAfterFinished: 60
+    rayClusterSpec:
+      rayVersion: '2.46.0'
+      headGroupSpec:
+        rayStartParams: { }
+        template:
+          spec:
+            containers:
+              - name: ray-head
+                image: rayproject/ray:2.46.0
+                ports:
+                  - containerPort: 6379
+                    name: gcs-server
+                  - containerPort: 8265
+                    name: dashboard
+                  - containerPort: 10001
+                    name: client
+                resources:
+                  limits:
+                    cpu: "2"
+                    memory: 4Gi
+                  requests:
+                    cpu: "2"
+                    memory: 4Gi
+      workerGroupSpecs:
+        - groupName: small-workers
+          replicas: 2
+          minReplicas: 1
+          maxReplicas: 5
+          rayStartParams: { }
+          template:
+            spec:
+              containers:
+                - name: ray-worker
+                  image: rayproject/ray:2.46.0
+                  resources:
+                    limits:
+                      cpu: "1"
+                      memory: 2Gi
+                    requests:
+                      cpu: "1"
+                      memory: 2Gi
+statusItems:
+  - applied: true
+    clusterName: member1
+    status:
+      jobId: raysubmit_12345abcde
+      rayClusterName: sample-rayjob-raycluster-abc12
+      dashboardURL: "sample-rayjob-raycluster-abc12-head-svc.default.svc.cluster.local:8265"
+      jobStatus: RUNNING
+      jobDeploymentStatus: Running
+      startTime: "2025-11-22T10:30:00Z"
+      succeeded: 0
+      failed: 0
+      observedGeneration: 1
+      rayJobInfo:
+        startTime: "2025-11-22T10:30:15Z"
+      rayClusterStatus:
+        availableWorkerReplicas: 2
+        desiredCPU: "4"
+        desiredMemory: 8Gi
+        readyWorkerReplicas: 2
+  - applied: true
+    clusterName: member2
+    status:
+      jobId: raysubmit_12345abcde
+      rayClusterName: sample-rayjob-raycluster-xyz78
+      dashboardURL: "sample-rayjob-raycluster-xyz78-head-svc.default.svc.cluster.local:8265"
+      jobStatus: RUNNING
+      jobDeploymentStatus: Running
+      startTime: "2025-11-22T10:31:00Z"
+      succeeded: 0
+      failed: 0
+      observedGeneration: 2
+      rayJobInfo:
+        startTime: "2025-11-22T10:31:20Z"
+      rayClusterStatus:
+        availableWorkerReplicas: 3
+        desiredCPU: "6"
+        desiredMemory: 12Gi
+        readyWorkerReplicas: 3
+operation: AggregateStatus
+output:
