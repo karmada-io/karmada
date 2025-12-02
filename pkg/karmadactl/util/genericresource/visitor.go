@@ -26,6 +26,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"time"
 
 	"golang.org/x/text/encoding/unicode"
@@ -86,12 +87,7 @@ func ignoreFile(path string, extensions []string) bool {
 		return false
 	}
 	ext := filepath.Ext(path)
-	for _, s := range extensions {
-		if s == ext {
-			return false
-		}
-	}
-	return true
+	return !slices.Contains(extensions, ext)
 }
 
 // FileVisitorForSTDIN return a special FileVisitor just for STDIN
@@ -220,7 +216,7 @@ func (v *StreamVisitor) Visit(fn VisitorFunc) error {
 }
 
 type mapper struct {
-	newFunc func() interface{}
+	newFunc func() any
 }
 
 func (m *mapper) infoForData(data []byte, source string) (*Info, error) {
@@ -262,7 +258,7 @@ func readHTTPWithRetries(get httpget, duration time.Duration, u string, attempts
 	if attempts <= 0 {
 		return nil, fmt.Errorf("http attempts must be greater than 0, was %d", attempts)
 	}
-	for i := 0; i < attempts; i++ {
+	for i := range attempts {
 		var (
 			statusCode int
 			status     string
@@ -311,5 +307,5 @@ type Info struct {
 	// If Subresource is specified, this will be the object for the subresource.
 	Data []byte
 
-	Object interface{}
+	Object any
 }

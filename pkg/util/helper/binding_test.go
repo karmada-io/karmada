@@ -1056,10 +1056,10 @@ func TestFetchWorkload(t *testing.T) {
 					Name:       "pod",
 				},
 			},
-			want: &unstructured.Unstructured{Object: map[string]interface{}{
+			want: &unstructured.Unstructured{Object: map[string]any{
 				"apiVersion": "v1",
 				"kind":       "Pod",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name":      "pod",
 					"namespace": "default",
 				},
@@ -1091,10 +1091,10 @@ func TestFetchWorkload(t *testing.T) {
 					Name:       "pod",
 				},
 			},
-			want: &unstructured.Unstructured{Object: map[string]interface{}{
+			want: &unstructured.Unstructured{Object: map[string]any{
 				"apiVersion": "v1",
 				"kind":       "Pod",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name":      "pod",
 					"namespace": "default",
 				},
@@ -1120,10 +1120,10 @@ func TestFetchWorkload(t *testing.T) {
 					Name:       "node",
 				},
 			},
-			want: &unstructured.Unstructured{Object: map[string]interface{}{
+			want: &unstructured.Unstructured{Object: map[string]any{
 				"apiVersion": "v1",
 				"kind":       "Node",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name": "node",
 				},
 			}},
@@ -1153,10 +1153,10 @@ func TestFetchWorkload(t *testing.T) {
 					Name:       "node",
 				},
 			},
-			want: &unstructured.Unstructured{Object: map[string]interface{}{
+			want: &unstructured.Unstructured{Object: map[string]any{
 				"apiVersion": "v1",
 				"kind":       "Node",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name": "node",
 				},
 			}},

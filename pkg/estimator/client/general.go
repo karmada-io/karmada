@@ -232,10 +232,7 @@ func placeOneSet(orderedKinds []replicaKind, work []modelNode) bool {
 			if fit <= 0 {
 				continue
 			}
-			place := fit
-			if place > remaining {
-				place = remaining
-			}
+			place := min(fit, remaining)
 			consumeMul(work[n].cap, k.dem, place)
 			remaining -= place
 		}

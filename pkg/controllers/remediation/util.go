@@ -18,6 +18,7 @@ package remediation
 
 import (
 	"context"
+	"slices"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,12 +34,7 @@ func isRemedyWorkOnCluster(remedy *remedyv1alpha1.Remedy, cluster *clusterv1alph
 		return true
 	}
 
-	for _, clusterName := range remedy.Spec.ClusterAffinity.ClusterNames {
-		if clusterName == cluster.Name {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(remedy.Spec.ClusterAffinity.ClusterNames, cluster.Name)
 }
 
 func remedyDecisionMatchWithCluster(decisionMatches []remedyv1alpha1.DecisionMatch, conditions []metav1.Condition) bool {

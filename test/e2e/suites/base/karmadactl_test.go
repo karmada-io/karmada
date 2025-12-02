@@ -1516,7 +1516,7 @@ var _ = ginkgo.Describe("Karmadactl apply testing", func() {
 //
 // Returns:
 // - error: An error if there was an issue during the process, otherwise nil.
-func WriteYamlToFile(obj interface{}, filePath string) error {
+func WriteYamlToFile(obj any, filePath string) error {
 	// Marshal the object to YAML.
 	yamlData, err := yaml.Marshal(obj)
 	if err != nil {

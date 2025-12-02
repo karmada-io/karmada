@@ -121,7 +121,7 @@ users:
 				}
 				base64CACert := base64.StdEncoding.EncodeToString([]byte(caCert))
 				base64Token := base64.StdEncoding.EncodeToString([]byte(token))
-				kubeconfigBytes := []byte(fmt.Sprintf(kubeconfig, base64CACert, base64Token))
+				kubeconfigBytes := fmt.Appendf(nil, kubeconfig, base64CACert, base64Token)
 
 				// Create secret with kubeconfig data.
 				secret := &corev1.Secret{

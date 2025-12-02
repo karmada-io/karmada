@@ -20,16 +20,12 @@ import (
 	"net"
 	"os"
 	"reflect"
+	"slices"
 	"testing"
 )
 
 func stringInslice(target string, strArray []string) bool {
-	for _, element := range strArray {
-		if target == element {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(strArray, target)
 }
 
 func TestIsExist(t *testing.T) {

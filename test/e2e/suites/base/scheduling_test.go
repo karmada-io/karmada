@@ -344,7 +344,7 @@ var _ = ginkgo.Describe("propagation with label and group constraints testing", 
 				gomega.Expect(minGroups == len(groupMatchedClusters)).ShouldNot(gomega.BeFalse())
 			})
 
-			patch := map[string]interface{}{"spec": map[string]interface{}{"parallelism": ptr.To[int32](updateParallelism)}}
+			patch := map[string]any{"spec": map[string]any{"parallelism": ptr.To[int32](updateParallelism)}}
 			bytes, err := json.Marshal(patch)
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			framework.UpdateJobWithPatchBytes(kubeClient, job.Namespace, job.Name, bytes, types.StrategicMergePatchType)
@@ -702,7 +702,7 @@ var _ = ginkgo.Describe("[JobReplicaScheduling] JobReplicaSchedulingStrategy tes
 })
 
 // get the resource binding associated with the workload
-func getResourceBinding(workload interface{}) (*workv1alpha2.ResourceBinding, error) {
+func getResourceBinding(workload any) (*workv1alpha2.ResourceBinding, error) {
 	obj, err := utilhelper.ToUnstructured(workload)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	bindingName := names.GenerateBindingName(obj.GetKind(), obj.GetName())
@@ -713,7 +713,7 @@ func getResourceBinding(workload interface{}) (*workv1alpha2.ResourceBinding, er
 }
 
 // get the cluster resource binding associated with the workload
-func getClusterResourceBinding(workload interface{}) (*workv1alpha2.ClusterResourceBinding, error) {
+func getClusterResourceBinding(workload any) (*workv1alpha2.ClusterResourceBinding, error) {
 	obj, err := utilhelper.ToUnstructured(workload)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	bindingName := names.GenerateBindingName(obj.GetKind(), obj.GetName())

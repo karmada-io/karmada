@@ -112,10 +112,10 @@ func TestPromoteResourceInLegacyCluster(t *testing.T) {
 				},
 			},
 			obj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apiextensions.k8s.io/v1",
 					"kind":       "CustomResourceDefinition",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "demo-crd",
 					},
 				},
@@ -133,10 +133,10 @@ func TestPromoteResourceInLegacyCluster(t *testing.T) {
 				name: "demo-crd",
 			},
 			obj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apiextensions.k8s.io/v1",
 					"kind":       "CustomResourceDefinition",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "demo-crd",
 					},
 				},
@@ -169,10 +169,10 @@ func TestPromoteResourceInLegacyCluster(t *testing.T) {
 				Deps:             true,
 			},
 			obj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apiextensions.k8s.io/v1",
 					"kind":       "CustomResourceDefinition",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "demo-crd",
 					},
 				},
@@ -215,10 +215,10 @@ func TestPromoteResourceInLegacyCluster(t *testing.T) {
 				AutoCreatePolicy: true,
 			},
 			obj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deploymnet",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "demo-deployment",
 						"namespace": names.NamespaceDefault,
 					},

@@ -18,6 +18,7 @@ package kubernetes
 
 import (
 	"fmt"
+	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -68,11 +69,11 @@ var (
 )
 
 func (i *CommandInitOption) etcdServers() string {
-	etcdClusterConfig := ""
+	var etcdClusterConfig strings.Builder
 	for v := int32(0); v < i.EtcdReplicas; v++ {
-		etcdClusterConfig += fmt.Sprintf("https://%s-%v.%s.%s.svc.%s:%v", etcdStatefulSetAndServiceName, v, etcdStatefulSetAndServiceName, i.Namespace, i.HostClusterDomain, etcdContainerClientPort) + ","
+		etcdClusterConfig.WriteString(fmt.Sprintf("https://%s-%v.%s.%s.svc.%s:%v", etcdStatefulSetAndServiceName, v, etcdStatefulSetAndServiceName, i.Namespace, i.HostClusterDomain, etcdContainerClientPort) + ",")
 	}
-	return etcdClusterConfig
+	return etcdClusterConfig.String()
 }
 
 func (i *CommandInitOption) makeKarmadaAPIServerDeployment() *appsv1.Deployment {

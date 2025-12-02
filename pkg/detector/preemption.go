@@ -349,7 +349,7 @@ func requeuePotentialKeys(sortedPotentialKeys *pq.Queue, worker util.AsyncWorker
 }
 
 // priorityDescendingComparator provides a basic descending comparison on policy priority.
-func priorityDescendingComparator(a, b interface{}) int {
+func priorityDescendingComparator(a, b any) int {
 	aPriority := a.(*PriorityKey).Priority
 	bPriority := b.(*PriorityKey).Priority
 	return godsutils.Int32Comparator(bPriority, aPriority)

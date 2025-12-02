@@ -35,7 +35,7 @@ import (
 // @param references: the method of encoding a lua table is flawed and needs to be referenced by the same Kind object.
 // take `Retain(desired, observed)` for example, we have problem to convert empty fields, but empty fields is most likely
 // from desired or observed object, so take {desired, observed} object as references to obtain more accurate encoding values.
-func ConvertLuaResultInto(luaResult *lua.LTable, obj interface{}, references ...any) error {
+func ConvertLuaResultInto(luaResult *lua.LTable, obj any, references ...any) error {
 	objReflect, err := conversion.EnforcePtr(obj)
 	if err != nil {
 		return fmt.Errorf("obj is not pointer")
