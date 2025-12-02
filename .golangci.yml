@@ -19,6 +19,7 @@ linters:
     - gocyclo
     - gosec
     - misspell
+    - modernize
     - revive
     - whitespace
   settings:
