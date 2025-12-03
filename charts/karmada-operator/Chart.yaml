@@ -32,7 +32,7 @@ appVersion: v1.1.0
 dependencies:
   - name: common
     repository: https://charts.bitnami.com/bitnami
-    version: 1.x.x
+    version: 2.x.x
 
 # This is karmada maintainers
 maintainers:
