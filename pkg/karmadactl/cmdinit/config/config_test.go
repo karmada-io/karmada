@@ -47,9 +47,6 @@ spec:
      Repository: "registry.k8s.io/etcd"
      Tag: "latest"
      dataPath: "/var/lib/karmada-etcd"
-     initImage:
-       repository: "alpine"
-       tag: "3.19.1"
      nodeSelectorLabels:
        karmada.io/etcd: "true"
      pvcSize: "5Gi"
@@ -155,10 +152,6 @@ func TestLoadInitConfiguration(t *testing.T) {
 							Tag:        "latest",
 						},
 						Replicas: 3,
-					},
-					InitImage: Image{
-						Repository: "alpine",
-						Tag:        "3.19.1",
 					},
 					DataPath: "/var/lib/karmada-etcd",
 					PVCSize:  "5Gi",

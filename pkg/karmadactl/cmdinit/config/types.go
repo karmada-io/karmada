@@ -120,6 +120,7 @@ type LocalEtcd struct {
 	DataPath string `json:"dataPath,omitempty" yaml:"dataPath,omitempty"`
 
 	// InitImage is the image for the Etcd init container
+	// Deprecated: The etcd init container is no longer used, this field is therefore ineffective and will be removed in a future release.
 	// +optional
 	InitImage Image `json:"initImage,omitempty" yaml:"initImage,omitempty"`
 
