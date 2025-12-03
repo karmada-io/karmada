@@ -82,6 +82,15 @@ else
   util::install_kubectl "" "${BS_ARCH}" "${BS_OS}"
 fi
 
+# install helm
+echo -n "Preparing: 'helm' existence check - "
+if util::cmd_exist helm; then
+  echo "passed"
+else
+  echo "installing helm"
+  util::install_helm
+fi
+
 #step1. create host cluster and member clusters in parallel
 # host IP address: script parameter ahead of WSL2 or macOS IP
 if [[ -z "${HOST_IPADDRESS}" ]]; then
@@ -114,6 +123,7 @@ if [[ -n "${HOST_IPADDRESS}" ]]; then # If bind the port of clusters(karmada-hos
 else
   util::create_cluster "${HOST_CLUSTER_NAME}" "${MAIN_KUBECONFIG}" "${CLUSTER_VERSION}" "${KIND_LOG_FILE}"
 fi
+
 util::create_cluster "${MEMBER_CLUSTER_1_NAME}" "${MEMBER_CLUSTER_1_TMP_CONFIG}" "${CLUSTER_VERSION}" "${KIND_LOG_FILE}" "${TEMP_PATH}"/member1.yaml
 util::create_cluster "${MEMBER_CLUSTER_2_NAME}" "${MEMBER_CLUSTER_2_TMP_CONFIG}" "${CLUSTER_VERSION}" "${KIND_LOG_FILE}" "${TEMP_PATH}"/member2.yaml
 util::create_cluster "${PULL_MODE_CLUSTER_NAME}" "${PULL_MODE_CLUSTER_TMP_CONFIG}" "${CLUSTER_VERSION}" "${KIND_LOG_FILE}" "${TEMP_PATH}"/member3.yaml
@@ -136,6 +146,9 @@ util::check_clusters_ready "${MAIN_KUBECONFIG}" "${HOST_CLUSTER_NAME}"
 util::check_clusters_ready "${MEMBER_CLUSTER_1_TMP_CONFIG}" "${MEMBER_CLUSTER_1_NAME}"
 util::check_clusters_ready "${MEMBER_CLUSTER_2_TMP_CONFIG}" "${MEMBER_CLUSTER_2_NAME}"
 util::check_clusters_ready "${PULL_MODE_CLUSTER_TMP_CONFIG}" "${PULL_MODE_CLUSTER_NAME}"
+
+echo "Installing cert-manager in host cluster..."
+kubectl --kubeconfig="${MAIN_KUBECONFIG}" --context="${HOST_CLUSTER_NAME}" apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.19.0/cert-manager.yaml
 
 #step4. load components images to kind cluster
 if [[ "${BUILD_FROM_SOURCE}" == "true" ]]; then
