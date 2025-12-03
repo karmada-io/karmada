@@ -85,7 +85,10 @@ metadata:
 EOF
 ```
 
-You can also create a Karmada CR directly using the sample provided by the Karmada operator.
+You can also create a Karmada CR directly using the sample provided by the Karmada operator. This sample deploys a Karmada instance under the `test` namespace 
+with default configurations, like the image tag of Karmada components set to `latest` and the service type of `karmada-apiserver` set to `NodePort`.
+
+> NOTE: the Karmada CR can be customized. For details, see [Custom Karmada CR](#custom-karmada-cr).
 
 ```shell
 kubectl create namespace test
@@ -167,6 +170,18 @@ kubectl label karmada karmada-demo -n test operator.karmada.io/disable-cascading
 This feature allows you to configure the Karmada CR to install Karmada instances flexibly.
 For details, see [karmada.yaml](./config/samples/karmada.yaml).
 
+### Set Karmada component image Tag
+
+The `imageTag` of all Karmada components can be modified.
+For example, you can set the karmada-scheduler `imageTag` to v1.16.0:
+
+```yaml
+    karmadaScheduler:
+      imageRepository: docker.io/karmada/karmada-scheduler
+      imageTag: v1.16.0
+      replicas: 1
+```
+
 ### Set Karmada component replicas
 
 The `replicas` of all Karmada components can be modified.
@@ -183,6 +198,25 @@ spec:
     etcd:
       local:
         replicas: 3
+```
+
+### Custom CRD Download Strategy 
+
+As a prerequisite for provisioning a new Karmada instance, the Karmada operator needs to ensure required CRDs are downloaded. 
+Karmada release artifacts include a tarball containing all necessary CRDs. By default, the Karmada operator will attempt to download the CRDs tarball 
+from a release artifact on GitHub. The URL for that release artifact is constructed based on the release version of the operator. For example, if 
+the operator is running version v1.16.0, it will attempt to download the CRDs from `https://github.com/karmada-io/karmada/releases/download/v1.16.0/crds.tar.gz`.
+
+Now, the Karmada operator supports customizing the CRD download strategy by specifying:
+- `crdTarball.httpSource.url`: specify a custom URL to download the CRD tarball.
+- `crdTarball.httpSource.proxy`: specify a proxy server to use when downloading the CRD tarball.
+- `crdTarball.crdDownloadPolicy`: specify the download policy. Supported values are `IfNotPresent` and `Always`. The default value is `IfNotPresent`.
+
+The following example shows how to customize the CRD download URL to install Karmada v1.16.0 crds:
+```yaml
+  crdTarball:
+    httpSource: 
+      url: "https://github.com/karmada-io/karmada/releases/download/v1.16.0/crds.tar.gz"
 ```
 
 ### Custom label and annotation
