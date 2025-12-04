@@ -1,0 +1,95 @@
+# test case for interpreting status of VCJob
+# case1. VCJob: interpret status test
+
+name: "VCJob: interpret status test"
+description: "Test interpreting status for VCJob"
+observedObj:
+  apiVersion: batch.volcano.sh/v1alpha1
+  kind: Job
+  metadata:
+    name: dk-job
+  spec:
+    maxRetry: 3
+    minAvailable: 3
+    plugins:
+      env: [ ]
+      ssh: [ ]
+      svc:
+        - --disable-network-policy=true
+    queue: default
+    schedulerName: volcano
+    tasks:
+      - minAvailable: 1
+        name: job-nginx1
+        replicas: 1
+        template:
+          metadata:
+            name: nginx1
+          spec:
+            containers:
+              - args:
+                  - sleep 10
+                command:
+                  - bash
+                  - -c
+                image: nginx:latest
+                imagePullPolicy: IfNotPresent
+                name: nginx
+                resources:
+                  requests:
+                    cpu: 100m
+            nodeSelector:
+              kubernetes.io/os: linux
+            restartPolicy: OnFailure
+      - minAvailable: 2
+        name: job-nginx2
+        replicas: 3
+        template:
+          metadata:
+            name: nginx2
+          spec:
+            containers:
+              - args:
+                  - sleep 30
+                command:
+                  - bash
+                  - -c
+                image: nginx:latest
+                imagePullPolicy: IfNotPresent
+                name: nginx
+                resources:
+                  requests:
+                    cpu: 100m
+            nodeSelector:
+              kubernetes.io/os: linux
+            restartPolicy: OnFailure
+  status:
+    conditions:
+      - lastTransitionTime: "2025-09-29T10:57:03Z"
+        status: Pending
+      - lastTransitionTime: "2025-09-29T10:57:07Z"
+        status: Running
+      - lastTransitionTime: "2025-09-29T10:57:38Z"
+        status: Completed
+    failed: 0
+    minAvailable: 3
+    pending: 0
+    retryCount: 0
+    running: 0
+    runningDuration: 35.688396584s
+    state:
+      lastTransitionTime: "2025-09-29T10:57:38Z"
+      phase: Completed
+    succeeded: 4
+    taskStatusCount:
+      job-nginx1:
+        phase:
+          Succeeded: 1
+      job-nginx2:
+        phase:
+          Succeeded: 3
+    terminating: 0
+    unknown: 0
+    version: 1
+operation: InterpretStatus
+output:

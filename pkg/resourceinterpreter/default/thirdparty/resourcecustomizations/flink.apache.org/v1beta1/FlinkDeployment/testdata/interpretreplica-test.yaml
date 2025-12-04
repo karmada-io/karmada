@@ -1,0 +1,78 @@
+# test case for interpreting replica of FlinkDeployment
+# case1. FlinkDeployment with taskManager.replicas set to 1
+# case2. FlinkDeployment with taskManager.replicas not set, use parallelism/numberOfTaskSlots
+
+name: "FlinkDeployment with taskManager.replicas set to 1"
+description: "Test interpreting replica of FlinkDeployment when taskManager.replicas is set"
+desiredObj:
+  apiVersion: flink.apache.org/v1beta1
+  kind: FlinkDeployment
+  metadata:
+    name: basic-example
+    namespace: test-namespace
+  spec:
+    flinkConfiguration:
+      taskmanager.numberOfTaskSlots: "2"
+    flinkVersion: v1_17
+    image: flink:1.17
+    job:
+      jarURI: local:///opt/flink/examples/streaming/StateMachineExample.jar
+      parallelism: 2
+      upgradeMode: stateless
+    jobManager:
+      replicas: 1
+      resource:
+        cpu: 1
+        memory: 2048m
+    mode: native
+    serviceAccount: flink
+    taskManager:
+      replicas: 1
+      resource:
+        cpu: 1
+        memory: 2048m
+operation: InterpretReplica
+output:
+  replica: 2
+  requires:
+    resourceRequest:
+      "cpu": "1"
+      "memory": "2048m"
+    namespace: "test-namespace"
+
+---
+name: "FlinkDeployment with taskManager.replicas not set, use parallelism/numberOfTaskSlots"
+description: "Test interpreting replica of FlinkDeployment when taskManager.replicas is not set"
+desiredObj:
+  apiVersion: flink.apache.org/v1beta1
+  kind: FlinkDeployment
+  metadata:
+    namespace: test-namespace
+    name: basic-example
+  spec:
+    image: flink:1.20
+    flinkVersion: v1_20
+    flinkConfiguration:
+      taskmanager.numberOfTaskSlots: "2"
+    serviceAccount: flink
+    jobManager:
+      resource:
+        memory: "2048m"
+        cpu: 1
+    taskManager:
+      resource:
+        memory: "2048m"
+        cpu: 1
+    job:
+      jarURI: local:///opt/flink/examples/streaming/StateMachineExample.jar
+      parallelism: 10
+      upgradeMode: stateless
+      state: running
+operation: InterpretReplica
+output:
+  replica: 6
+  requires:
+    resourceRequest:
+      "cpu": "1"
+      "memory": "2048m"
+    namespace: "test-namespace"

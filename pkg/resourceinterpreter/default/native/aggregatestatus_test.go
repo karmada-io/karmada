@@ -232,7 +232,10 @@ func TestAggregateJobStatus(t *testing.T) {
 		"failed":         0,
 		"startTime":      startTime,
 		"completionTime": completionTime,
-		"conditions":     []batchv1.JobCondition{{Type: batchv1.JobComplete, Status: corev1.ConditionTrue}},
+		"conditions": []batchv1.JobCondition{
+			{Type: batchv1.JobComplete, Status: corev1.ConditionTrue},
+			{Type: batchv1.JobSuccessCriteriaMet, Status: corev1.ConditionTrue},
+		},
 	}
 	raw, _ := helper.BuildStatusRawExtension(statusMap)
 	aggregatedStatusItems := []workv1alpha2.AggregatedStatusItem{
@@ -259,7 +262,7 @@ func TestAggregateJobStatus(t *testing.T) {
 	}
 	newJob := &batchv1.Job{
 		TypeMeta: metav1.TypeMeta{Kind: "Job", APIVersion: batchv1.SchemeGroupVersion.String()},
-		Status:   batchv1.JobStatus{Active: 0, Succeeded: 2, Failed: 0, StartTime: &startTime, CompletionTime: &completionTime, Conditions: []batchv1.JobCondition{{Type: batchv1.JobComplete, Status: corev1.ConditionTrue, Reason: "Completed", Message: "Job completed"}}},
+		Status:   batchv1.JobStatus{Active: 0, Succeeded: 2, Failed: 0, StartTime: &startTime, CompletionTime: &completionTime, Conditions: []batchv1.JobCondition{{Type: batchv1.JobComplete, Status: corev1.ConditionTrue, Reason: "Completed", Message: "Job completed"}, {Type: batchv1.JobSuccessCriteriaMet, Status: corev1.ConditionTrue, Reason: "CompletionsReached", Message: "All member clusters have met success criteria"}}},
 	}
 	oldObj, _ := helper.ToUnstructured(oldJob)
 	newObj, _ := helper.ToUnstructured(newJob)
@@ -297,10 +300,12 @@ func TestAggregateJobStatus(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		actualObj, _ := aggregateJobStatus(tt.curObj, tt.aggregatedStatusItems)
-		// Clean condition time before compare, due to issue: https://github.com/karmada-io/karmada/issues/1767
-		actualObj = cleanUnstructuredJobConditionTime(actualObj)
-		assert.Equal(t, tt.expectedObj, actualObj)
+		t.Run(tt.name, func(t *testing.T) {
+			actualObj, _ := aggregateJobStatus(tt.curObj, tt.aggregatedStatusItems)
+			// Clean condition time before compare, due to issue: https://github.com/karmada-io/karmada/issues/1767
+			actualObj = cleanUnstructuredJobConditionTime(actualObj)
+			assert.Equal(t, tt.expectedObj, actualObj)
+		})
 	}
 }
 

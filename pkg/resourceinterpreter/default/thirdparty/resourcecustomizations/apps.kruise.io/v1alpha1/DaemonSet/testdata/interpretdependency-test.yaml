@@ -1,0 +1,43 @@
+# test case for interpreting dependency of DaemonSet
+# case1. DaemonSet with configmap dependency
+
+name: "DaemonSet with configmap dependency"
+description: "Test interpreting dependency of DaemonSet with configmap dependency"
+desiredObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: DaemonSet
+  metadata:
+    labels:
+      app: sample-daemonset
+    name: sample
+    namespace: test-kruise-daemonset
+    generation: 1
+  spec:
+    selector:
+      matchLabels:
+        app: sample-daemonset
+    template:
+      metadata:
+        labels:
+          app: sample-daemonset
+      spec:
+        volumes:
+          - name: configmap
+            configMap:
+              name: my-sample-config
+        containers:
+          - name: nginx
+            image: nginx:alpine
+            env:
+              - name: logData
+                valueFrom:
+                  configMapKeyRef:
+                    name: mysql-config
+                    key: log
+              - name: lowerData
+                valueFrom:
+                  configMapKeyRef:
+                    name: mysql-config
+                    key: lower
+operation: InterpretDependency
+output:

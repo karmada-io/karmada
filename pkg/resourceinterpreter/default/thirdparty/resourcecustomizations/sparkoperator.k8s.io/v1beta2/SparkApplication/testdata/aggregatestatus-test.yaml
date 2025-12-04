@@ -1,0 +1,116 @@
+# test case for aggregating status of SparkApplication
+# case1. SparkApplication with three status items
+
+name: "SparkApplication with three status items"
+description: "Test aggregating status of SparkApplication with three status items"
+desiredObj:
+  apiVersion: "sparkoperator.k8s.io/v1beta2"
+  kind: SparkApplication
+  metadata:
+    name: spark-pi
+    namespace: default
+  spec:
+    type: Java
+    mode: cluster
+    image: "spark:3.5.0"
+    imagePullPolicy: Always
+    mainClass: org.apache.spark.examples.SparkPi
+    mainApplicationFile: "local:///opt/spark/examples/jars/spark-examples_2.12-3.5.0.jar"
+    sparkVersion: "3.5.0"
+    sparkUIOptions:
+      serviceLabels:
+        test-label/v1: 'true'
+    restartPolicy:
+      type: Never
+    volumes:
+      - name: "test-volume"
+        hostPath:
+          path: "/tmp"
+          type: Directory
+    driver:
+      cores: 2
+      memory: "512m"
+      labels:
+        version: 3.5.0
+      serviceAccount: spark-operator-spark
+      volumeMounts:
+        - name: "test-volume"
+          mountPath: "/tmp"
+    executor:
+      cores: 1
+      instances: 2
+      memory: "1g"
+      memoryOverhead: "512m"
+      labels:
+        version: 3.5.0
+      volumeMounts:
+        - name: "test-volume"
+          mountPath: "/tmp"
+    dynamicAllocation:
+      enabled: true
+      initialExecutors: 3
+      minExecutors: 3
+      maxExecutors: 10
+statusItems:
+  - applied: true
+    clusterName: member1
+    health: Healthy
+    status:
+      applicationState:
+        state: COMPLETED
+      driverInfo:
+        podName: spark-pi-driver
+        webUIAddress: 10.11.254.226:4040
+        webUIPort: 4040
+        webUIServiceName: spark-pi-ui-svc
+      executionAttempts: 1
+      executorState:
+        spark-pi-b5777a99d8b732a7-exec-1: COMPLETED
+        spark-pi-b5777a99d8b732a7-exec-2: COMPLETED
+      lastSubmissionAttemptTime: "2025-10-12T13:57:17Z"
+      sparkApplicationId: spark-ff27607fd312454b92455e2feabdd343
+      submissionAttempts: 1
+      submissionID: 0df4a04b-620b-425e-997a-e4404010e26a
+      terminationTime: "2025-10-12T13:58:39Z"
+  - applied: true
+    clusterName: member2
+    health: Healthy
+    status:
+      applicationState:
+        state: RUNNING
+      driverInfo:
+        podName: spark-pi-driver
+        webUIAddress: 10.11.254.227:4040
+        webUIPort: 4040
+        webUIServiceName: spark-pi-ui-svc
+      executionAttempts: 2
+      executorState:
+        spark-pi-b5777a99d8b732a8-exec-1: RUNNING
+        spark-pi-b5777a99d8b732a8-exec-2: RUNNING
+      lastSubmissionAttemptTime: "2025-10-12T14:00:00Z"
+      sparkApplicationId: spark-ff27607fd312454b92455e2feabdd343
+      submissionAttempts: 1
+      submissionID: 1ab2c34d-5678-9abc-def0-1234567890ab
+      terminationTime: null
+  - applied: true
+    clusterName: member3
+    health: Unhealthy
+    status:
+      applicationState:
+        state: FAILED
+      driverInfo:
+        podName: spark-pi-driver
+        webUIAddress: 10.11.254.228:4040
+        webUIPort: 4040
+        webUIServiceName: spark-pi-ui-svc
+      executionAttempts: 3
+      executorState:
+        spark-pi-b5777a99d8b732a9-exec-1: FAILED
+        spark-pi-b5777a99d8b732a9-exec-2: FAILED
+      lastSubmissionAttemptTime: "2025-10-12T14:10:00Z"
+      sparkApplicationId: spark-ff27607fd312454b92455e2feabdd343
+      submissionAttempts: 2
+      submissionID: 2cd4e56f-789a-1234-bcde-567890abcdef
+      terminationTime: "2025-10-12T14:12:30Z"
+operation: AggregateStatus
+output:

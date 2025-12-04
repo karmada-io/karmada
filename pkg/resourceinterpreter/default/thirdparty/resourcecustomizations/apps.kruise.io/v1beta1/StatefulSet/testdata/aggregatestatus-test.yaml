@@ -1,0 +1,88 @@
+# test case for aggregating status of StatefulSet
+# case1. StatefulSet with two status items
+
+name: "StatefulSet with two status items"
+description: "Test aggregating status of StatefulSet with two status items"
+desiredObj:
+  apiVersion: apps.kruise.io/v1beta1
+  kind: StatefulSet
+  metadata:
+    name: sample
+    namespace: test-statefulset
+    generation: 1
+  spec:
+    replicas: 2
+    serviceName: sample-statefulset-headless-service
+    selector:
+      matchLabels:
+        app: sample
+    template:
+      metadata:
+        labels:
+          app: sample
+      spec:
+        volumes:
+          - name: configmap
+            configMap:
+              name: my-sample-config
+        readinessGates:
+          # A new condition that ensures the pod remains at NotReady state while the in-place update is happening
+          - conditionType: InPlaceUpdateReady
+        containers:
+          - name: nginx
+            image: nginx:alpine
+            ports:
+              - containerPort: 80
+                name: web
+            env:
+              - name: logData
+                valueFrom:
+                  configMapKeyRef:
+                    name: mysql-config
+                    key: log
+              - name: lowerData
+                valueFrom:
+                  configMapKeyRef:
+                    name: mysql-config
+                    key: lower
+    podManagementPolicy: Parallel # allow parallel updates, works together with maxUnavailable
+    updateStrategy:
+      type: RollingUpdate
+      rollingUpdate:
+        # Do in-place update if possible, currently only image update is supported for in-place update
+        podUpdatePolicy: InPlaceIfPossible
+        # Allow parallel updates with max number of unavailable instances equals to 2
+        maxUnavailable: 2
+statusItems:
+  - applied: true
+    clusterName: member1
+    health: Healthy
+    status:
+      availableReplicas: 2
+      currentReplicas: 2
+      currentRevision: sample-5675547df7
+      generation: 1
+      resourceTemplateGeneration: 1
+      observedGeneration: 1
+      readyReplicas: 2
+      replicas: 2
+      updateRevision: sample-5675547df7
+      updatedReadyReplicas: 2
+      updatedReplicas: 2
+  - applied: true
+    clusterName: member3
+    health: Healthy
+    status:
+      availableReplicas: 2
+      currentReplicas: 2
+      currentRevision: sample-5675547df7
+      generation: 1
+      observedGeneration: 1
+      resourceTemplateGeneration: 1
+      readyReplicas: 2
+      replicas: 2
+      updateRevision: sample-5675547df7
+      updatedReadyReplicas: 2
+      updatedReplicas: 2
+operation: AggregateStatus
+output:

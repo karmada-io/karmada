@@ -98,12 +98,10 @@ var (
 
 	karmadaRelease string
 
-	defaultEtcdImage = "etcd:3.5.16-0"
+	defaultEtcdImage = "etcd:3.6.0-0"
 
 	// DefaultCrdURL Karmada crds resource
 	DefaultCrdURL string
-	// DefaultInitImage etcd init container image
-	DefaultInitImage string
 	// DefaultKarmadaSchedulerImage Karmada scheduler image
 	DefaultKarmadaSchedulerImage string
 	// DefaultKarmadaControllerManagerImage Karmada controller manager image
@@ -129,7 +127,6 @@ func init() {
 	karmadaRelease = releaseVer.ReleaseVersion()
 
 	DefaultCrdURL = fmt.Sprintf("https://github.com/karmada-io/karmada/releases/download/%s/crds.tar.gz", releaseVer.ReleaseVersion())
-	DefaultInitImage = "docker.io/alpine:3.21.3"
 	DefaultKarmadaSchedulerImage = fmt.Sprintf("docker.io/karmada/karmada-scheduler:%s", releaseVer.ReleaseVersion())
 	DefaultKarmadaControllerManagerImage = fmt.Sprintf("docker.io/karmada/karmada-controller-manager:%s", releaseVer.ReleaseVersion())
 	DefaultKarmadaWebhookImage = fmt.Sprintf("docker.io/karmada/karmada-webhook:%s", releaseVer.ReleaseVersion())
@@ -147,7 +144,6 @@ type CommandInitOption struct {
 	// internal etcd
 	EtcdImage                 string
 	EtcdReplicas              int32
-	EtcdInitImage             string
 	EtcdStorageMode           string
 	EtcdHostDataPath          string
 	EtcdNodeSelectorLabels    string
@@ -801,14 +797,6 @@ func (i *CommandInitOption) kubeControllerManagerImage() string {
 	return i.kubeRegistry() + "/kube-controller-manager:" + i.KubeImageTag
 }
 
-// get etcd-init image
-func (i *CommandInitOption) etcdInitImage() string {
-	if i.ImageRegistry != "" && i.EtcdInitImage == DefaultInitImage {
-		return i.ImageRegistry + "/alpine:3.21.3"
-	}
-	return i.EtcdInitImage
-}
-
 // get etcd image
 func (i *CommandInitOption) etcdImage() string {
 	if i.EtcdImage != "" {
@@ -990,7 +978,6 @@ func (i *CommandInitOption) parseEtcdConfig(etcd initConfig.Etcd) error {
 // data path, PVC size, and node selector labels.
 func (i *CommandInitOption) parseLocalEtcdConfig(localEtcd *initConfig.LocalEtcd) error {
 	setIfNotEmpty(&i.EtcdImage, localEtcd.CommonSettings.Image.GetImage())
-	setIfNotEmpty(&i.EtcdInitImage, localEtcd.InitImage.GetImage())
 	setIfNotEmpty(&i.EtcdHostDataPath, localEtcd.DataPath)
 	setIfNotEmpty(&i.EtcdPersistentVolumeSize, localEtcd.PVCSize)
 

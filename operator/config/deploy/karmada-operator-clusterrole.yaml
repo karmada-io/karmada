@@ -29,5 +29,8 @@ rules:
   - apiGroups: ["apps"]
     resources: ["statefulsets", "deployments"] # to manage statefulsets, e.g. etcd, and deployments, e.g. karmada-operator
     verbs: ["get", "create", "update", "delete"]
+  - apiGroups: ["policy"]
+    resources: ["poddisruptionbudgets"] # to manage pod disruption budgets for karmada components
+    verbs: ["get", "create", "update", "delete"]
   - nonResourceURLs: ["/healthz"] # used to check whether the karmada apiserver is health
     verbs: ["get"]

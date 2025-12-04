@@ -193,10 +193,10 @@ The following table shows the compatibility test results against the latest 10 K
 
 |                       | Kubernetes 1.34 | Kubernetes 1.33 | Kubernetes 1.32 | Kubernetes 1.31 | Kubernetes 1.30 | Kubernetes 1.29 | Kubernetes 1.28 | Kubernetes 1.27 | Kubernetes 1.26 | Kubernetes 1.25 | Kubernetes 1.24 | Kubernetes 1.23 |
 |-----------------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|
-| Karmada v1.13         |                 |                 |                 | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               |
 | Karmada v1.14         |                 |                 | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               |
 | Karmada v1.15         |                 | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               |                 |
-| Karmada HEAD (master) |                 | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               |                 |
+| Karmada v1.16         | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               |                 |                 |
+| Karmada HEAD (master) | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               |                 |                 |
 
 Key:
 * `✓` Karmada and the Kubernetes version are exactly compatible.
@@ -233,6 +233,7 @@ If you have questions, feel free to reach out to us in the following ways:
 | KubeCon(China 2023) | [Break Through Cluster Boundaries to Autoscale Workloads Across Them on a Large Scale](https://www.youtube.com/watch?v=22W1yrEJjtQ) |
 | KubeCon(China 2023) | [Cross-Cluster Traffic Orchestration with eBPF](https://www.youtube.com/watch?v=e4GA5e-C7n0) |
 | KubeCon(China 2023) | [Non-Intrusively Enable OpenKruise and Argo Workflow in a Multi-Cluster Federation](https://www.youtube.com/watch?v=gcllTXRkz-E) |
+| KubeCon(NA 2025)    | [Maximizing Global Potential: Cost-Optimized, High-Availability Workloads Across Regions](https://www.youtube.com/watch?v=VrXt_T8DkIo) |
 
 For blogs, please refer to [website](https://karmada.io/blog/).
 

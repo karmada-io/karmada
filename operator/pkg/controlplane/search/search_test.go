@@ -64,8 +64,35 @@ func TestEnsureKarmadaSearch(t *testing.T) {
 	}
 
 	actions := fakeClient.Actions()
-	if len(actions) != 2 {
-		t.Fatalf("expected 2 actions, but got %d", len(actions))
+	// We now create deployment, service, PDB, and perform a get action, so expect 4 actions
+	if len(actions) != 4 {
+		t.Fatalf("expected 4 actions, but got %d", len(actions))
+	}
+
+	// Check that we have deployment, service, and PDB
+	deploymentCount := 0
+	serviceCount := 0
+	pdbCount := 0
+	for _, action := range actions {
+		if action.GetResource().Resource == "deployments" {
+			deploymentCount++
+		} else if action.GetResource().Resource == "services" {
+			serviceCount++
+		} else if action.GetResource().Resource == "poddisruptionbudgets" {
+			pdbCount++
+		}
+	}
+
+	if deploymentCount != 2 {
+		t.Errorf("expected 2 deployment actions (create + get), but got %d", deploymentCount)
+	}
+
+	if serviceCount != 1 {
+		t.Errorf("expected 1 service action, but got %d", serviceCount)
+	}
+
+	if pdbCount != 1 {
+		t.Errorf("expected 1 PDB action, but got %d", pdbCount)
 	}
 }
 
@@ -106,9 +133,14 @@ func TestInstallKarmadaSearch(t *testing.T) {
 		t.Fatalf("failed to install karmada search: %v", err)
 	}
 
-	err = verifyDeploymentCreation(fakeClient, replicas, imagePullPolicy, extraArgs, name, namespace, image, imageTag, priorityClassName)
+	deployment, err := verifyDeploymentCreation(fakeClient)
 	if err != nil {
 		t.Fatalf("failed to verify karmada search deployment creation: %v", err)
+	}
+
+	// Verify deployment details
+	if err := verifyDeploymentDetails(deployment, replicas, imagePullPolicy, extraArgs, name, namespace, image, imageTag, priorityClassName); err != nil {
+		t.Fatalf("failed to verify deployment details: %v", err)
 	}
 }
 
@@ -153,26 +185,33 @@ func TestCreateKarmadaSearchService(t *testing.T) {
 	}
 }
 
-// verifyDeploymentCreation validates the details of a Deployment against the expected parameters.
-func verifyDeploymentCreation(client *fakeclientset.Clientset, replicas int32, imagePullPolicy corev1.PullPolicy, extraArgs map[string]string, name, namespace, image, imageTag, priorityClassName string) error {
-	// Assert that a Deployment was created.
+// verifyDeploymentCreation validates that a Deployment and PDB were created and returns the deployment.
+func verifyDeploymentCreation(client *fakeclientset.Clientset) (*appsv1.Deployment, error) {
+	// Assert that a Deployment and PDB were created.
 	actions := client.Actions()
-	if len(actions) != 1 {
-		return fmt.Errorf("expected exactly 1 action either create or update, but got %d actions", len(actions))
+	// We now create deployment, PDB, and perform a get action, so expect 3 actions
+	if len(actions) != 3 {
+		return nil, fmt.Errorf("expected exactly 3 actions (deployment + PDB + get), but got %d actions", len(actions))
 	}
 
-	// Check that the action was a Deployment creation.
-	createAction, ok := actions[0].(coretesting.CreateAction)
-	if !ok {
-		return fmt.Errorf("expected a CreateAction, but got %T", actions[0])
+	// Find the deployment action
+	var deployment *appsv1.Deployment
+	for _, action := range actions {
+		if action.GetResource().Resource == "deployments" {
+			createAction, ok := action.(coretesting.CreateAction)
+			if !ok {
+				return nil, fmt.Errorf("expected a CreateAction for deployment, but got %T", action)
+			}
+			deployment = createAction.GetObject().(*appsv1.Deployment)
+			break
+		}
 	}
 
-	if createAction.GetResource().Resource != "deployments" {
-		return fmt.Errorf("expected action on 'deployments', but got '%s'", createAction.GetResource().Resource)
+	if deployment == nil {
+		return nil, fmt.Errorf("expected deployment action, but none found")
 	}
 
-	deployment := createAction.GetObject().(*appsv1.Deployment)
-	return verifyDeploymentDetails(deployment, replicas, imagePullPolicy, extraArgs, name, namespace, image, imageTag, priorityClassName)
+	return deployment, nil
 }
 
 // verifyDeploymentDetails validates the details of a Deployment against the expected parameters.
