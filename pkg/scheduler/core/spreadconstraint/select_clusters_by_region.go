@@ -46,10 +46,7 @@ func selectBestClustersByRegion(spreadConstraintMap map[policyv1alpha1.SpreadFie
 		candidateClusters = append(candidateClusters, regions[i].Clusters[1:]...)
 	}
 
-	needCnt := len(candidateClusters) + len(selectedClusters)
-	if needCnt > spreadConstraintMap[policyv1alpha1.SpreadByFieldCluster].MaxGroups {
-		needCnt = spreadConstraintMap[policyv1alpha1.SpreadByFieldCluster].MaxGroups
-	}
+	needCnt := min(len(candidateClusters)+len(selectedClusters), spreadConstraintMap[policyv1alpha1.SpreadByFieldCluster].MaxGroups)
 
 	// thirdly, select the remaining Clusters based cluster.Score
 	restCnt := needCnt - len(selectedClusters)
@@ -60,7 +57,7 @@ func selectBestClustersByRegion(spreadConstraintMap map[policyv1alpha1.SpreadFie
 			}
 			return nil
 		})
-		for i := 0; i < restCnt; i++ {
+		for i := range restCnt {
 			selectedClusters = append(selectedClusters, candidateClusters[i])
 		}
 	}

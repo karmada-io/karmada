@@ -35,7 +35,7 @@ func TestInstall(t *testing.T) {
 	tests := []struct {
 		name          string
 		key           string
-		expectedAddon interface{}
+		expectedAddon any
 	}{
 		{
 			name:          "Install_WithKarmadaDeschedulerAddon_Installed",

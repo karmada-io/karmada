@@ -497,7 +497,7 @@ var _ = ginkgo.Describe("[AdvancedCase] ClusterPropagationPolicy testing", func(
 			})
 
 			ginkgo.It("update policy propagateDeps", func() {
-				patch := []map[string]interface{}{
+				patch := []map[string]any{
 					{
 						"op":    "replace",
 						"path":  "/spec/propagateDeps",
@@ -527,7 +527,7 @@ var _ = ginkgo.Describe("[AdvancedCase] ClusterPropagationPolicy testing", func(
 					ClusterAffinity: &policyv1alpha1.ClusterAffinity{
 						ClusterNames: []string{updatedMember},
 					}}
-				patch := []map[string]interface{}{
+				patch := []map[string]any{
 					{
 						"op":    "replace",
 						"path":  "/spec/placement",
@@ -584,7 +584,7 @@ var _ = ginkgo.Describe("[AdvancedCase] ClusterPropagationPolicy testing", func(
 					ClusterAffinity: &policyv1alpha1.ClusterAffinity{
 						ClusterNames: []string{updatedMember},
 					}}
-				patch := []map[string]interface{}{
+				patch := []map[string]any{
 					{
 						"op":    "replace",
 						"path":  "/spec/placement",

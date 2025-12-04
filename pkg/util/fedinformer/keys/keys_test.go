@@ -111,7 +111,7 @@ var (
 func TestClusterWideKeyFunc(t *testing.T) {
 	tests := []struct {
 		name         string
-		object       interface{}
+		object       any
 		expectErr    bool
 		expectKeyStr string
 	}{
@@ -194,7 +194,7 @@ func TestClusterWideKeyFunc(t *testing.T) {
 func TestFederatedKeyFunc(t *testing.T) {
 	tests := []struct {
 		name         string
-		object       interface{}
+		object       any
 		cluster      string
 		expectErr    bool
 		expectKeyStr string
@@ -317,7 +317,7 @@ func ExampleFederatedKey_String() {
 
 func TestNamespacedKeyFunc(t *testing.T) {
 	type args struct {
-		obj interface{}
+		obj any
 	}
 	tests := []struct {
 		name    string

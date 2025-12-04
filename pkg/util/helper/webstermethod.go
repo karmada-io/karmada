@@ -90,12 +90,12 @@ func (pq *WebsterPriorityQueue) Swap(i, j int) {
 }
 
 // Push adds a new party to the queue.
-func (pq *WebsterPriorityQueue) Push(x interface{}) {
+func (pq *WebsterPriorityQueue) Push(x any) {
 	pq.Parties = append(pq.Parties, x.(Party))
 }
 
 // Pop removes and returns the party with the highest priority.
-func (pq *WebsterPriorityQueue) Pop() interface{} {
+func (pq *WebsterPriorityQueue) Pop() any {
 	old := pq.Parties
 	n := len(old)
 	item := old[n-1]

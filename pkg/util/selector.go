@@ -17,6 +17,8 @@ limitations under the License.
 package util
 
 import (
+	slices0 "slices"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -94,10 +96,8 @@ func ResourceSelectorPriority(resource *unstructured.Unstructured, rs policyv1al
 
 // ClusterMatches tells if specific cluster matches the affinity.
 func ClusterMatches(cluster *clusterv1alpha1.Cluster, affinity policyv1alpha1.ClusterAffinity) bool {
-	for _, clusterName := range affinity.ExcludeClusters {
-		if clusterName == cluster.Name {
-			return false
-		}
+	if slices0.Contains(affinity.ExcludeClusters, cluster.Name) {
+		return false
 	}
 
 	// match rules:
@@ -161,12 +161,7 @@ func ClusterNamesMatches(cluster *clusterv1alpha1.Cluster, clusterNames []string
 		return true
 	}
 
-	for _, clusterName := range clusterNames {
-		if clusterName == cluster.Name {
-			return true
-		}
-	}
-	return false
+	return slices0.Contains(clusterNames, cluster.Name)
 }
 
 // ResourceMatchSelectors tells if the specific resource matches the selectors.

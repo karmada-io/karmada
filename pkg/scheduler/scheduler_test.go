@@ -52,7 +52,7 @@ func TestDoSchedule(t *testing.T) {
 	tests := []struct {
 		name        string
 		key         string
-		binding     interface{}
+		binding     any
 		expectError bool
 	}{
 		{

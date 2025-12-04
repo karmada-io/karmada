@@ -456,7 +456,7 @@ func TestBuildStatusRawExtension(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		status      interface{}
+		status      any
 		wantErr     bool
 		expectedRaw string
 	}{
@@ -847,10 +847,10 @@ func TestGetManifestIndex(t *testing.T) {
 	manifests := []workv1alpha1.Manifest{manifest1, manifest2}
 
 	service := &unstructured.Unstructured{
-		Object: map[string]interface{}{
+		Object: map[string]any{
 			"apiVersion": "v1",
 			"kind":       "Service",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      "test-service",
 				"namespace": "test-namespace",
 			},
@@ -858,10 +858,10 @@ func TestGetManifestIndex(t *testing.T) {
 	}
 
 	deployment := &unstructured.Unstructured{
-		Object: map[string]interface{}{
+		Object: map[string]any{
 			"apiVersion": "apps/v1",
 			"kind":       "Deployment",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      "test-deployment",
 				"namespace": "test-namespace",
 			},

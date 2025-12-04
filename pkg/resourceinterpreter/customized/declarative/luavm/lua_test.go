@@ -417,13 +417,13 @@ func TestReviseDeploymentReplica(t *testing.T) {
 		{
 			name: "Test ReviseDeploymentReplica",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "fake-deployment",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 1,
 					},
 				},
@@ -438,26 +438,26 @@ func TestReviseDeploymentReplica(t *testing.T) {
 		{
 			name: "revise deployment replica",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "fake-deployment",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": int64(1),
 					},
 				},
 			},
 			replica: 3,
 			expected: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "fake-deployment",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": int64(2),
 					},
 				},
@@ -490,7 +490,7 @@ func TestReviseDeploymentReplica(t *testing.T) {
 }
 
 func TestAggregateDeploymentStatus(t *testing.T) {
-	statusMap := map[string]interface{}{
+	statusMap := map[string]any{
 		"replicas":            0,
 		"readyReplicas":       1,
 		"updatedReplicas":     0,
@@ -616,25 +616,25 @@ func TestRetainDeployment(t *testing.T) {
 		{
 			name: "Test RetainDeployment1",
 			desiredObj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "fake-deployment",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 2,
 					},
 				},
 			},
 			observedObj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "fake-deployment",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": int64(2),
 					},
 				},
@@ -645,25 +645,25 @@ func TestRetainDeployment(t *testing.T) {
 		{
 			name: "Test RetainDeployment2",
 			desiredObj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "fake-deployment",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": int64(1),
 					},
 				},
 			},
 			observedObj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "fake-deployment",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": int64(1),
 					},
 				},
@@ -691,7 +691,7 @@ func TestRetainDeployment(t *testing.T) {
 }
 
 func TestStatusReflection(t *testing.T) {
-	testMap := map[string]interface{}{"key": "value"}
+	testMap := map[string]any{"key": "value"}
 	wantRawExtension, _ := helper.BuildStatusRawExtension(testMap)
 	type args struct {
 		object *unstructured.Unstructured
@@ -707,7 +707,7 @@ func TestStatusReflection(t *testing.T) {
 			"Test StatusReflection",
 			args{
 				&unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"status": testMap,
 					},
 				},
@@ -843,7 +843,7 @@ func Test_decodeValue(t *testing.T) {
 	L := lua.NewState()
 
 	type args struct {
-		value interface{}
+		value any
 	}
 	tests := []struct {
 		name    string
@@ -971,7 +971,7 @@ func Test_decodeValue(t *testing.T) {
 		{
 			name: "[]interface{}",
 			args: args{
-				value: []interface{}{1, 2},
+				value: []any{1, 2},
 			},
 			want: func() lua.LValue {
 				v := L.CreateTable(2, 0)
@@ -983,7 +983,7 @@ func Test_decodeValue(t *testing.T) {
 		{
 			name: "map[string]interface{}",
 			args: args{
-				value: map[string]interface{}{
+				value: map[string]any{
 					"foo": "foo1",
 				},
 			},

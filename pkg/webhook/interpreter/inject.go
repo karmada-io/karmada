@@ -23,7 +23,7 @@ type DecoderInjector interface {
 
 // InjectDecoderInto will set decoder on i and return the result if it implements Decoder.
 // Returns false if i does not implement Decoder.
-func InjectDecoderInto(decoder *Decoder, i interface{}) bool {
+func InjectDecoderInto(decoder *Decoder, i any) bool {
 	if s, ok := i.(DecoderInjector); ok {
 		s.InjectDecoder(decoder)
 		return true
