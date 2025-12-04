@@ -1,14 +1,21 @@
-# test case for interpreting dependency of AdvancedCronJob
-# case1. AdvancedCronJob with configmap dependency
+# Test cases for interpreting dependency of AdvancedCronJob
 
-name: "AdvancedCronJob with configmap dependency"
-description: "Test interpreting dependency of AdvancedCronJob with configmap dependency"
+# Case 1: Test GetDependencies with broadcastJobTemplate using ConfigMap in env
+# Case 2: Test GetDependencies with broadcastJobTemplate using ConfigMap in volume
+# Case 3: Test GetDependencies with broadcastJobTemplate using multiple ConfigMaps and Secrets
+# Case 4: Test GetDependencies with jobTemplate (not broadcastJobTemplate)
+# Case 5: Test GetDependencies with only Secret dependencies (no ConfigMaps)
+
+# Case 1:
+
+name: "AdvancedCronJob dependency: broadcastjob configmap env"
+description: "Test GetDependencies with broadcastJobTemplate using ConfigMap in env"
+operation: InterpretDependency
+
 desiredObj:
   apiVersion: apps.kruise.io/v1alpha1
   kind: AdvancedCronJob
   metadata:
-    labels:
-      app: sample
     name: sample
     namespace: test-acj
   spec:
@@ -17,30 +24,221 @@ desiredObj:
       broadcastJobTemplate:
         spec:
           template:
-            metadata:
-              labels:
-                app: sample
             spec:
-              restartPolicy: Never
-              volumes:
-                - name: configmap
-                  configMap:
-                    name: my-sample-config
+              containers:
+                - name: app
+                  image: myapp:latest
+                  env:
+                    - name: DB_HOST
+                      valueFrom:
+                        configMapKeyRef:
+                          name: db-config
+                          key: host
+                    - name: DB_PORT
+                      valueFrom:
+                        configMapKeyRef:
+                          name: db-config
+                          key: port
+
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: ConfigMap
+      name: db-config
+      namespace: test-acj
+
+---
+
+# Case 2:
+
+name: "AdvancedCronJob broadcastjob configmap volume"
+description: "Test GetDependencies with broadcastJobTemplate using ConfigMap in volume"
+operation: InterpretDependency
+
+desiredObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: AdvancedCronJob
+  metadata:
+    name: sample
+    namespace: test-acj
+  spec:
+    schedule: "*/2 * * * *"
+    template:
+      broadcastJobTemplate:
+        spec:
+          template:
+            spec:
               containers:
                 - name: nginx
                   image: nginx:alpine
-                  env:
-                    - name: logData
-                      valueFrom:
-                        configMapKeyRef:
-                          name: mysql-config
-                          key: log
-                    - name: lowerData
-                      valueFrom:
-                        configMapKeyRef:
-                          name: mysql-config
-                          key: lower
-          completionPolicy:
-            type: Never
-operation: InterpretDependency
+              volumes:
+                - name: config-volume
+                  configMap:
+                    name: my-config
+
 output:
+  dependencies:
+    - apiVersion: v1
+      kind: ConfigMap
+      name: my-config
+      namespace: test-acj
+
+---
+
+# Case 3:
+
+name: "AdvancedCronJob dependency broadcast job mixed"
+description: "Test GetDependencies with broadcastJobTemplate using multiple ConfigMaps and Secrets"
+operation: InterpretDependency
+
+desiredObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: AdvancedCronJob
+  metadata:
+    name: sample
+    namespace: test-acj
+  spec:
+    schedule: "*/2 * * * *"
+    template:
+      broadcastJobTemplate:
+        spec:
+          template:
+            spec:
+              containers:
+                - name: app
+                  image: myapp:latest
+                  env:
+                    - name: DB_HOST
+                      valueFrom:
+                        configMapKeyRef:
+                          name: db-config
+                          key: host
+                    - name: DB_PASSWORD
+                      valueFrom:
+                        secretKeyRef:
+                          name: db-secret
+                          key: password
+              volumes:
+                - name: app-config
+                  configMap:
+                    name: app-config
+                - name: tls-certs
+                  secret:
+                    secretName: tls-secret
+
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: ConfigMap
+      name: app-config
+      namespace: test-acj
+    - apiVersion: v1
+      kind: ConfigMap
+      name: db-config
+      namespace: test-acj
+    - apiVersion: v1
+      kind: Secret
+      name: db-secret
+      namespace: test-acj
+    - apiVersion: v1
+      kind: Secret
+      name: tls-secret
+      namespace: test-acj
+
+---
+
+# Case 4:
+
+name: "AdvancedCronJob dependency: jobtemplate configmap"
+description: "Test GetDependencies with jobTemplate (not broadcastJobTemplate)"
+operation: InterpretDependency
+
+desiredObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: AdvancedCronJob
+  metadata:
+    name: sample
+    namespace: test-acj
+  spec:
+    schedule: "*/5 * * * *"
+    template:
+      jobTemplate:
+        spec:
+          template:
+            spec:
+              restartPolicy: OnFailure
+              containers:
+                - name: worker
+                  image: worker:v1
+                  env:
+                    - name: CONFIG_PATH
+                      valueFrom:
+                        configMapKeyRef:
+                          name: worker-config
+                          key: path
+              volumes:
+                - name: shared-data
+                  configMap:
+                    name: shared-config
+
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: ConfigMap
+      name: shared-config
+      namespace: test-acj
+    - apiVersion: v1
+      kind: ConfigMap
+      name: worker-config
+      namespace: test-acj
+
+---
+
+# Case 5:
+
+name: "AdvancedCronJob dependency: secret only"
+description: "Test GetDependencies with only Secret dependencies (no ConfigMaps)"
+operation: InterpretDependency
+
+desiredObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: AdvancedCronJob
+  metadata:
+    name: sample
+    namespace: test-acj
+  spec:
+    schedule: "*/10 * * * *"
+    template:
+      broadcastJobTemplate:
+        spec:
+          template:
+            spec:
+              containers:
+                - name: secure-app
+                  image: secure:v1
+                  env:
+                    - name: API_KEY
+                      valueFrom:
+                        secretKeyRef:
+                          name: api-credentials
+                          key: key
+                    - name: API_SECRET
+                      valueFrom:
+                        secretKeyRef:
+                          name: api-credentials
+                          key: secret
+              volumes:
+                - name: tls
+                  secret:
+                    secretName: tls-certs
+
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: Secret
+      name: api-credentials
+      namespace: test-acj
+    - apiVersion: v1
+      kind: Secret
+      name: tls-certs
+      namespace: test-acj
