@@ -94,8 +94,6 @@ func (e *CustomizedInterpreter) HookEnabled(objGVK schema.GroupVersionKind, oper
 // GetReplicas returns the desired replicas of the object as well as the requirements of each replica.
 // It also returns a matched value to indicate whether there is a matching hook.
 func (e *CustomizedInterpreter) GetReplicas(ctx context.Context, attributes *request.Attributes) (replica int32, requires *workv1alpha2.ReplicaRequirements, matched bool, err error) {
-	klog.V(4).Infof("Get replicas for object: %v %s/%s with webhook interpreter.",
-		attributes.Object.GroupVersionKind(), attributes.Object.GetNamespace(), attributes.Object.GetName())
 	var response *request.ResponseAttributes
 	response, matched, err = e.interpret(ctx, attributes)
 	if err != nil {
@@ -105,14 +103,14 @@ func (e *CustomizedInterpreter) GetReplicas(ctx context.Context, attributes *req
 		return
 	}
 
+	klog.V(4).Infof("Running operation %s for object: %v %s/%s with webhook interpreter.",
+		attributes.Operation, attributes.Object.GroupVersionKind(), attributes.Object.GetNamespace(), attributes.Object.GetName())
 	return response.Replicas, response.ReplicaRequirements, matched, nil
 }
 
 // GetComponents returns the desired components of the object.
 // It also returns a matched value to indicate whether there is a matching hook.
 func (e *CustomizedInterpreter) GetComponents(ctx context.Context, attributes *request.Attributes) (components []workv1alpha2.Component, matched bool, err error) {
-	klog.V(4).Infof("Get components for object: %v %s/%s with webhook interpreter.",
-		attributes.Object.GroupVersionKind(), attributes.Object.GetNamespace(), attributes.Object.GetName())
 	var response *request.ResponseAttributes
 	response, matched, err = e.interpret(ctx, attributes)
 	if err != nil {
@@ -122,6 +120,8 @@ func (e *CustomizedInterpreter) GetComponents(ctx context.Context, attributes *r
 		return
 	}
 
+	klog.V(4).Infof("Running operation %s for object: %v %s/%s with webhook interpreter.",
+		attributes.Operation, attributes.Object.GroupVersionKind(), attributes.Object.GetNamespace(), attributes.Object.GetName())
 	return response.Components, matched, nil
 }
 
@@ -136,6 +136,8 @@ func (e *CustomizedInterpreter) Patch(ctx context.Context, attributes *request.A
 	if !matched {
 		return
 	}
+	klog.V(4).Infof("Running operation %s for object: %v %s/%s with webhook interpreter.",
+		attributes.Operation, attributes.Object.GroupVersionKind(), attributes.Object.GetNamespace(), attributes.Object.GetName())
 	obj, err = applyPatch(attributes.Object, response.Patch, response.PatchType)
 	if err != nil {
 		return
@@ -340,6 +342,8 @@ func (e *CustomizedInterpreter) GetDependencies(ctx context.Context, attributes 
 		return
 	}
 
+	klog.V(4).Infof("Running operation %s for object: %v %s/%s with webhook interpreter.",
+		attributes.Operation, attributes.Object.GroupVersionKind(), attributes.Object.GetNamespace(), attributes.Object.GetName())
 	return response.Dependencies, matched, nil
 }
 
@@ -355,6 +359,8 @@ func (e *CustomizedInterpreter) ReflectStatus(ctx context.Context, attributes *r
 		return
 	}
 
+	klog.V(4).Infof("Running operation %s for object: %v %s/%s with webhook interpreter.",
+		attributes.Operation, attributes.Object.GroupVersionKind(), attributes.Object.GetNamespace(), attributes.Object.GetName())
 	return &response.RawStatus, matched, nil
 }
 
@@ -370,6 +376,8 @@ func (e *CustomizedInterpreter) InterpretHealth(ctx context.Context, attributes 
 		return
 	}
 
+	klog.V(4).Infof("Running operation %s for object: %v %s/%s with webhook interpreter.",
+		attributes.Operation, attributes.Object.GroupVersionKind(), attributes.Object.GetNamespace(), attributes.Object.GetName())
 	return response.Healthy, matched, nil
 }
 
