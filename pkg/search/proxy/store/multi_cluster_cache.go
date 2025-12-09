@@ -55,8 +55,9 @@ type Store interface {
 
 // MultiClusterCache caches resource from multi member clusters
 type MultiClusterCache struct {
-	lock                sync.RWMutex
-	cache               map[string]*clusterCache
+	lock  sync.RWMutex
+	cache map[string]*clusterCache
+	// registeredResources tracks the resources that are registered with the cache
 	registeredResources map[schema.GroupVersionResource]struct{}
 	restMapper          meta.RESTMapper
 	// newClientFunc returns a dynamic client for member cluster apiserver
