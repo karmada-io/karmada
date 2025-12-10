@@ -19,6 +19,11 @@ This section describes how to install `karmada-operator` and create a Karmada in
 - Kubernetes 1.16+
 - Helm v3+
 
+### Install `cert-manager`
+
+`cert-manager` is used to provision and manage the certificate for the operator's webhook server. Please follow [these instructions](https://cert-manager.io/docs/installation/) to download `cert-manager` on the host cluster
+where the Karmada operator is to be installed.
+
 ### Deploy `karmada-operator`
 
 #### Helm install

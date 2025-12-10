@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
@@ -36,7 +35,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
-	operatorscheme "github.com/karmada-io/karmada/operator/pkg/scheme"
 )
 
 const (
@@ -92,13 +90,8 @@ func (ctrl *Controller) Reconcile(ctx context.Context, req controllerruntime.Req
 		return ctrl.removeFinalizer(ctx, karmada)
 	}
 
-	if err := ctrl.updateKarmada(ctx, karmada); err != nil {
+	if err := ctrl.addFinalizer(ctx, karmada); err != nil {
 		return controllerruntime.Result{}, err
-	}
-
-	if err := ctrl.validateKarmada(ctx, karmada); err != nil {
-		klog.ErrorS(err, "Validation failed for karmada", "name", karmada.Name)
-		return controllerruntime.Result{}, nil
 	}
 
 	return controllerruntime.Result{}, ctrl.syncKarmada(karmada)
@@ -129,26 +122,14 @@ func (ctrl *Controller) removeFinalizer(ctx context.Context, karmada *operatorv1
 	})
 }
 
-func (ctrl *Controller) updateKarmada(ctx context.Context, karmada *operatorv1alpha1.Karmada) error {
+func (ctrl *Controller) addFinalizer(ctx context.Context, karmada *operatorv1alpha1.Karmada) error {
 	// The object is not being deleted, so if it does not have our finalizer,
 	// then lets add the finalizer and update the object. This is equivalent
-	// registering our finalizer.
+	// to registering our finalizer.
 	updated := controllerutil.AddFinalizer(karmada, ControllerFinalizerName)
-	if _, isExist := karmada.Labels[DisableCascadingDeletionLabel]; !isExist {
-		labelMap := labels.Merge(karmada.GetLabels(), labels.Set{DisableCascadingDeletionLabel: "false"})
-		karmada.SetLabels(labelMap)
-		updated = true
-	}
-
-	older := karmada.DeepCopy()
-
-	// Set the defaults for karmada
-	operatorscheme.Scheme.Default(karmada)
-
-	if updated || !reflect.DeepEqual(karmada.Spec, older.Spec) {
+	if updated {
 		return ctrl.Update(ctx, karmada)
 	}
-
 	return nil
 }
 

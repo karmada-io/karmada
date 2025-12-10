@@ -86,6 +86,9 @@ OPERATOR_POD_NAME=$(kubectl --kubeconfig="${MAIN_KUBECONFIG}" --context="${HOST_
 kubectl --kubeconfig="${MAIN_KUBECONFIG}" --context="${HOST_CLUSTER_NAME}" exec -i ${OPERATOR_POD_NAME} -n ${KARMADA_SYSTEM_NAMESPACE} -- mkdir -p ${CRD_CACHE_DIR}
 kubectl --kubeconfig="${MAIN_KUBECONFIG}" --context="${HOST_CLUSTER_NAME}" cp ${REPO_ROOT}/crds.tar.gz ${KARMADA_SYSTEM_NAMESPACE}/${OPERATOR_POD_NAME}:${CRD_CACHE_DIR}
 
+echo "Installing cert-manager in host cluster"
+kubectl --kubeconfig="${MAIN_KUBECONFIG}" --context="${HOST_CLUSTER_NAME}" apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.19.0/cert-manager.yaml
+
 # step3.3 install karmada instance
 "${REPO_ROOT}"/hack/deploy-karmada-by-operator.sh "${MAIN_KUBECONFIG}" "${HOST_CLUSTER_NAME}" "${KARMADA_APISERVER_CLUSTER_NAME}" "latest" true "${CRDTARBALL_URL}"
 
