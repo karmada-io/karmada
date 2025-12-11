@@ -19,6 +19,7 @@ linters:
     - gocyclo
     - gosec
     - misspell
+    - modernize
     - revive
     - whitespace
   settings:
@@ -31,6 +32,14 @@ linters:
     gocyclo:
       # minimal cyclomatic complexity to report
       min-complexity: 15
+    modernize:
+      disable:
+        # Suggest replacing omitempty with omitzero for struct fields.
+        # Disable this check for now since it introduces too many changes in our existing codebase.
+        # It suggests changing metav1.ObjectMeta json tags from "metadata,omitempty" to "metadata,omitzero",
+        # which is not desired as it may break existing behavior.
+        # See https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#hdr-Analyzer_omitzero for more details.
+        - omitzero
     revive:
       rules:
         # Disable if-return as it is too strict and not always useful.
@@ -59,6 +68,15 @@ linters:
         - name: indent-error-flow
         - name: unreachable-code
         - name: var-naming
+          arguments:
+            - []
+            - []
+            # Disable package name checks which are too strict for our legcy codebase.
+            # Currently, we have 3 packages named "util" in different directories:
+            # - pkg/util
+            # - pkg/karmadactl/util (maybe we can rename this one to "cliutil" in the future)
+            # - operator/pkg/util (maybe we can rename this one to "oprutil" in the future)
+            - - skip-package-name-checks: true
         - name: redefines-builtin-id
         - name: unused-parameter
         - name: context-as-argument

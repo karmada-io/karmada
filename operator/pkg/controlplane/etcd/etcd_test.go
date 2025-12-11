@@ -18,6 +18,7 @@ package etcd
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -432,10 +433,5 @@ func verifyEtcdPeerOrClientService(service *corev1.Service, expectedPorts []core
 
 // contains check if a slice contains a specific string.
 func contains(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(slice, item)
 }

@@ -73,7 +73,7 @@ func WaitConfigMapPresentOnClusterFitWith(cluster, namespace, name string, fit f
 }
 
 // UpdateConfigMapWithPatch update configmap with patch bytes.
-func UpdateConfigMapWithPatch(client kubernetes.Interface, namespace, name string, patch []map[string]interface{}, patchType types.PatchType) {
+func UpdateConfigMapWithPatch(client kubernetes.Interface, namespace, name string, patch []map[string]any, patchType types.PatchType) {
 	ginkgo.By(fmt.Sprintf("Updating configmap(%s/%s)", namespace, name), func() {
 		bytes, err := json.Marshal(patch)
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())

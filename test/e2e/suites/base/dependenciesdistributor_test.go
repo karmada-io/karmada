@@ -115,7 +115,7 @@ var _ = ginkgo.Describe("[DependenciesDistributor] automatically propagate relev
 				})
 
 				ginkgo.By("updating propagation policy's clusterNames", func() {
-					patch := []map[string]interface{}{
+					patch := []map[string]any{
 						{
 							"op":    "replace",
 							"path":  "/spec/placement/clusterAffinity/clusterNames",
@@ -136,7 +136,7 @@ var _ = ginkgo.Describe("[DependenciesDistributor] automatically propagate relev
 				})
 
 				ginkgo.By("updating configmap's data", func() {
-					patch := []map[string]interface{}{
+					patch := []map[string]any{
 						{
 							"op":    "replace",
 							"path":  "/data/user",
@@ -446,11 +446,11 @@ var _ = ginkgo.Describe("[DependenciesDistributor] automatically propagate relev
 
 		ginkgo.It("conflict on both fields", func() {
 			ginkgo.By("set policy A Overwrite+true and policy B Abort+false", func() {
-				framework.PatchPropagationPolicy(karmadaClient, policyA.Namespace, policyA.Name, []map[string]interface{}{
+				framework.PatchPropagationPolicy(karmadaClient, policyA.Namespace, policyA.Name, []map[string]any{
 					{"op": "replace", "path": "/spec/conflictResolution", "value": string(policyv1alpha1.ConflictOverwrite)},
 					{"op": "replace", "path": "/spec/preserveResourcesOnDeletion", "value": true},
 				}, types.JSONPatchType)
-				framework.PatchPropagationPolicy(karmadaClient, policyB.Namespace, policyB.Name, []map[string]interface{}{
+				framework.PatchPropagationPolicy(karmadaClient, policyB.Namespace, policyB.Name, []map[string]any{
 					{"op": "replace", "path": "/spec/conflictResolution", "value": string(policyv1alpha1.ConflictAbort)},
 					{"op": "replace", "path": "/spec/preserveResourcesOnDeletion", "value": false},
 				}, types.JSONPatchType)
@@ -479,11 +479,11 @@ var _ = ginkgo.Describe("[DependenciesDistributor] automatically propagate relev
 
 		ginkgo.It("conflict on conflictResolution only", func() {
 			ginkgo.By("set policy A Overwrite+false and policy B Abort+false", func() {
-				framework.PatchPropagationPolicy(karmadaClient, policyA.Namespace, policyA.Name, []map[string]interface{}{
+				framework.PatchPropagationPolicy(karmadaClient, policyA.Namespace, policyA.Name, []map[string]any{
 					{"op": "replace", "path": "/spec/conflictResolution", "value": string(policyv1alpha1.ConflictOverwrite)},
 					{"op": "replace", "path": "/spec/preserveResourcesOnDeletion", "value": false},
 				}, types.JSONPatchType)
-				framework.PatchPropagationPolicy(karmadaClient, policyB.Namespace, policyB.Name, []map[string]interface{}{
+				framework.PatchPropagationPolicy(karmadaClient, policyB.Namespace, policyB.Name, []map[string]any{
 					{"op": "replace", "path": "/spec/conflictResolution", "value": string(policyv1alpha1.ConflictAbort)},
 					{"op": "replace", "path": "/spec/preserveResourcesOnDeletion", "value": false},
 				}, types.JSONPatchType)
@@ -512,11 +512,11 @@ var _ = ginkgo.Describe("[DependenciesDistributor] automatically propagate relev
 
 		ginkgo.It("conflict on preserve flag only", func() {
 			ginkgo.By("set policy A Overwrite+true and policy B Overwrite+false", func() {
-				framework.PatchPropagationPolicy(karmadaClient, policyA.Namespace, policyA.Name, []map[string]interface{}{
+				framework.PatchPropagationPolicy(karmadaClient, policyA.Namespace, policyA.Name, []map[string]any{
 					{"op": "replace", "path": "/spec/conflictResolution", "value": string(policyv1alpha1.ConflictOverwrite)},
 					{"op": "replace", "path": "/spec/preserveResourcesOnDeletion", "value": true},
 				}, types.JSONPatchType)
-				framework.PatchPropagationPolicy(karmadaClient, policyB.Namespace, policyB.Name, []map[string]interface{}{
+				framework.PatchPropagationPolicy(karmadaClient, policyB.Namespace, policyB.Name, []map[string]any{
 					{"op": "replace", "path": "/spec/conflictResolution", "value": string(policyv1alpha1.ConflictOverwrite)},
 					{"op": "replace", "path": "/spec/preserveResourcesOnDeletion", "value": false},
 				}, types.JSONPatchType)
@@ -545,11 +545,11 @@ var _ = ginkgo.Describe("[DependenciesDistributor] automatically propagate relev
 
 		ginkgo.It("conflict resolved by updating policy", func() {
 			ginkgo.By("start with policy A Overwrite+true and policy B Abort+false", func() {
-				framework.PatchPropagationPolicy(karmadaClient, policyA.Namespace, policyA.Name, []map[string]interface{}{
+				framework.PatchPropagationPolicy(karmadaClient, policyA.Namespace, policyA.Name, []map[string]any{
 					{"op": "replace", "path": "/spec/conflictResolution", "value": string(policyv1alpha1.ConflictOverwrite)},
 					{"op": "replace", "path": "/spec/preserveResourcesOnDeletion", "value": true},
 				}, types.JSONPatchType)
-				framework.PatchPropagationPolicy(karmadaClient, policyB.Namespace, policyB.Name, []map[string]interface{}{
+				framework.PatchPropagationPolicy(karmadaClient, policyB.Namespace, policyB.Name, []map[string]any{
 					{"op": "replace", "path": "/spec/conflictResolution", "value": string(policyv1alpha1.ConflictAbort)},
 					{"op": "replace", "path": "/spec/preserveResourcesOnDeletion", "value": false},
 				}, types.JSONPatchType)
@@ -567,7 +567,7 @@ var _ = ginkgo.Describe("[DependenciesDistributor] automatically propagate relev
 			})
 
 			ginkgo.By("align policy B with policy A", func() {
-				framework.PatchPropagationPolicy(karmadaClient, policyB.Namespace, policyB.Name, []map[string]interface{}{
+				framework.PatchPropagationPolicy(karmadaClient, policyB.Namespace, policyB.Name, []map[string]any{
 					{"op": "replace", "path": "/spec/conflictResolution", "value": string(policyv1alpha1.ConflictOverwrite)},
 					{"op": "replace", "path": "/spec/preserveResourcesOnDeletion", "value": true},
 				}, types.JSONPatchType)
@@ -583,11 +583,11 @@ var _ = ginkgo.Describe("[DependenciesDistributor] automatically propagate relev
 
 		ginkgo.It("conflict resolved after deleting policy B", func() {
 			ginkgo.By("start with policy A Overwrite+true and policy B Abort+false", func() {
-				framework.PatchPropagationPolicy(karmadaClient, policyA.Namespace, policyA.Name, []map[string]interface{}{
+				framework.PatchPropagationPolicy(karmadaClient, policyA.Namespace, policyA.Name, []map[string]any{
 					{"op": "replace", "path": "/spec/conflictResolution", "value": string(policyv1alpha1.ConflictOverwrite)},
 					{"op": "replace", "path": "/spec/preserveResourcesOnDeletion", "value": true},
 				}, types.JSONPatchType)
-				framework.PatchPropagationPolicy(karmadaClient, policyB.Namespace, policyB.Name, []map[string]interface{}{
+				framework.PatchPropagationPolicy(karmadaClient, policyB.Namespace, policyB.Name, []map[string]any{
 					{"op": "replace", "path": "/spec/conflictResolution", "value": string(policyv1alpha1.ConflictAbort)},
 					{"op": "replace", "path": "/spec/preserveResourcesOnDeletion", "value": false},
 				}, types.JSONPatchType)
@@ -684,7 +684,7 @@ var _ = ginkgo.Describe("[DependenciesDistributor] automatically propagate relev
 				})
 
 				ginkgo.By("updating propagation policy's clusterNames", func() {
-					patch := []map[string]interface{}{
+					patch := []map[string]any{
 						{
 							"op":    "replace",
 							"path":  "/spec/placement/clusterAffinity/clusterNames",
@@ -705,7 +705,7 @@ var _ = ginkgo.Describe("[DependenciesDistributor] automatically propagate relev
 				})
 
 				ginkgo.By("updating configmap's data", func() {
-					patch := []map[string]interface{}{
+					patch := []map[string]any{
 						{
 							"op":    "replace",
 							"path":  "/data/user",

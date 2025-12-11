@@ -72,7 +72,7 @@ type IndividualTest struct {
 	Operation     string                              `yaml:"operation"`               // the operation of resource interpreter
 	Filepath      string                              `yaml:"filepath,omitempty"`      // the file path of current test case, used for logging
 	// TODO(@zhzhuang-zju): When we have a complete set of test cases, change Output to required field.
-	Output map[string]interface{} `yaml:"output,omitempty"` // the expected output results
+	Output map[string]any `yaml:"output,omitempty"` // the expected output results
 }
 
 func checkInterpretationRule(t *testing.T, path string, configs []*configv1alpha1.ResourceInterpreterCustomization) {
@@ -162,7 +162,7 @@ func buildRuleArgs(input IndividualTest) interpreter.RuleArgs {
 	}
 }
 
-func deepEqual(expected, actualValue interface{}) (bool, error) {
+func deepEqual(expected, actualValue any) (bool, error) {
 	expectedJSONBytes, err := json.Marshal(expected)
 	if err != nil {
 		return false, fmt.Errorf("failed to marshal expected value: %w", err)

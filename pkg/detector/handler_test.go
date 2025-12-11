@@ -31,7 +31,7 @@ import (
 func TestClusterWideKeyFunc(t *testing.T) {
 	tests := []struct {
 		name      string
-		object    interface{}
+		object    any
 		expectKey keys.ClusterWideKey
 		expectErr bool
 	}{
@@ -128,7 +128,7 @@ func TestClusterWideKeyFunc(t *testing.T) {
 func TestResourceItemKeyFunc(t *testing.T) {
 	tests := []struct {
 		name      string
-		object    interface{}
+		object    any
 		expectKey keys.ClusterWideKeyWithConfig
 		expectErr bool
 	}{

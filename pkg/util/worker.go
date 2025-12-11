@@ -35,13 +35,13 @@ import (
 // after that the item will be discarded from the queue.
 type AsyncWorker interface {
 	// Add adds the 'item' to queue immediately(without any delay).
-	Add(item interface{})
+	Add(item any)
 
 	// AddAfter adds an item to the workqueue after the indicated duration has passed
-	AddAfter(item interface{}, duration time.Duration)
+	AddAfter(item any, duration time.Duration)
 
 	// Enqueue generates the key of 'obj' according to a 'KeyFunc' then adds the key as an item to queue by 'Add'.
-	Enqueue(obj interface{})
+	Enqueue(obj any)
 
 	// Run starts a certain number of concurrent workers to reconcile the items and will never stop until context
 	// is canceled.
@@ -83,10 +83,10 @@ func (o *AddOpts) toPriorityQueueAddOpts() priorityqueue.AddOpts {
 // In some cases, people would like store different resources in a same queue, the traditional full-qualified key,
 // such as '<namespace>/<name>', can't distinguish which resource the key belongs to, the key might carry more information
 // of a resource, such as GVK(Group Version Kind), in that cases people need to use self-defined key, e.g. a struct.
-type QueueKey interface{}
+type QueueKey any
 
 // KeyFunc knows how to make a key from an object. Implementations should be deterministic.
-type KeyFunc func(obj interface{}) (QueueKey, error)
+type KeyFunc func(obj any) (QueueKey, error)
 
 // ReconcileFunc knows how to consume items(key) from the queue.
 type ReconcileFunc func(key QueueKey) error
@@ -134,7 +134,7 @@ func NewAsyncWorker(opt Options) AsyncPriorityWorker {
 	}
 }
 
-func (w *asyncWorker) Enqueue(obj interface{}) {
+func (w *asyncWorker) Enqueue(obj any) {
 	key, err := w.keyFunc(obj)
 	if err != nil {
 		klog.Errorf("Failed to generate key for obj: %+v, err: %v", obj, err)
@@ -162,7 +162,7 @@ func (w *asyncWorker) EnqueueWithOpts(opts AddOpts, obj any) {
 	w.AddWithOpts(opts, key)
 }
 
-func (w *asyncWorker) Add(item interface{}) {
+func (w *asyncWorker) Add(item any) {
 	if item == nil {
 		klog.Warningf("Ignore nil item from queue")
 		return
@@ -171,7 +171,7 @@ func (w *asyncWorker) Add(item interface{}) {
 	w.queue.Add(item)
 }
 
-func (w *asyncWorker) AddAfter(item interface{}, duration time.Duration) {
+func (w *asyncWorker) AddAfter(item any, duration time.Duration) {
 	if item == nil {
 		klog.Warningf("Ignore nil item from queue")
 		return
@@ -224,7 +224,7 @@ func (w *asyncWorker) worker() {
 }
 
 func (w *asyncWorker) Run(ctx context.Context, workerNumber int) {
-	for i := 0; i < workerNumber; i++ {
+	for range workerNumber {
 		go wait.Until(w.worker, 0, ctx.Done())
 	}
 	// Ensure all goroutines are cleaned up when the stop channel closes
@@ -235,7 +235,7 @@ func (w *asyncWorker) Run(ctx context.Context, workerNumber int) {
 }
 
 // MetaNamespaceKeyFunc generates a namespaced key for object.
-func MetaNamespaceKeyFunc(obj interface{}) (QueueKey, error) {
+func MetaNamespaceKeyFunc(obj any) (QueueKey, error) {
 	var key string
 	var err error
 	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
