@@ -87,3 +87,34 @@ observedObj:
 operation: InterpretHealth
 output:
   healthy: false
+
+---
+# case3. Workflow interpreting health test (Error)
+name: "Workflow interpreting health test - Error"
+description: "Test interpreting health of error Workflow"
+observedObj:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Workflow
+  metadata:
+    labels:
+      app: sample
+    name: sample-error
+    namespace: test-workflow
+  spec:
+    parallelism: 1
+    entrypoint: volumes-existing-example
+    volumes:
+      - name: workdir
+        persistentVolumeClaim:
+          claimName: my-existing-volume
+    serviceAccountName: my-service-account
+  status:
+    phase: Error
+    progress: 0/1
+    conditions:
+      - status: "False"
+        type: Completed
+        message: "step errored"
+operation: InterpretHealth
+output:
+  healthy: false
