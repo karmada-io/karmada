@@ -106,7 +106,7 @@ spec:
           end
         
           -- If no member cluster status, initialize default status
-          if statusItems == nil then
+          if statusItems == nil or #statusItems == 0 then
             desiredObj.status.startTime = nil
             desiredObj.status.completionTime = nil
             desiredObj.status.replicaStatuses = {}
@@ -121,6 +121,10 @@ spec:
           local aggregatedConditions = {}
           local successfulClustersNum = 0
           local failedClusters = {}
+          local hasRunningCondition = false
+          local createdClustersNum = 0
+          local runningLastUpdateTime = nil
+          local runningLastTransitionTime = nil
         
           -- Initialize Master and Worker status
           replicaStatuses.Master = { active = 0, failed = 0, succeeded = 0 }
@@ -162,55 +166,103 @@ spec:
                 end
               end
             
-              -- Aggregate condition status (merge conditions from all member clusters)
-              local isFinished = false
-              local finishedType = ""
+              -- Aggregate condition status from member clusters
+              local hasFailed = false
+              local hasSucceeded = false
+              local hasCreated = false
+              
               if statusItems[i].status.conditions ~= nil then
                 for _, c in ipairs(statusItems[i].status.conditions) do
-                  -- Like kubernetes native Job, we do not merge conditions from member clusters, 
-                  -- but generate a new condition by PytorchJob finish state.
-                  -- table.insert(aggregatedConditions, c)
-                  if (c.type == "Succeeded" or c.type == "Failed") and c.status == "True" then
-                    isFinished = true
-                    finishedType = c.type
+                  if c.type == "Failed" and c.status == "True" then
+                    hasFailed = true
+                  elseif c.type == "Succeeded" and c.status == "True" then
+                    hasSucceeded = true
+                  end
+                  
+                  if c.type == "Running" then
+                    hasRunningCondition = true
+                    -- TODO: If users have specific requirements, refine the logic for selecting lastUpdateTime and lastTransitionTime
+                    -- Currently, we just pick a value from statusItems
+                    runningLastUpdateTime = c.lastUpdateTime
+                    runningLastTransitionTime = c.lastTransitionTime
+                  end
+                  
+                  if c.type == "Created" and c.status == "True" then
+                    hasCreated = true
                   end
                 end
               end
 
-              if isFinished then
-                if finishedType == "Succeeded" then
-                  successfulClustersNum = successfulClustersNum + 1
-                elseif finishedType == "Failed" then
-                  table.insert(failedClusters, statusItems[i].clusterName)
-                end
+              -- Count clusters by status
+              if hasFailed then
+                table.insert(failedClusters, statusItems[i].clusterName)
+              elseif hasSucceeded then
+                successfulClustersNum = successfulClustersNum + 1
+              end
+
+              if hasCreated then
+                createdClustersNum = createdClustersNum + 1
               end
 
             end
           end
             
+          -- Set conditions in order: Created -> Running -> Succeeded/Failed (mutually exclusive)
+          -- kubectl get shows the last condition, so order matters
+          
+          -- 1. Created condition (earliest state, can coexist with others)
+          if createdClustersNum > 0 then
+            table.insert(aggregatedConditions, {
+              type = "Created",
+              status = "True",
+              lastUpdateTime = startTime,
+              lastTransitionTime = startTime,
+              reason = "PyTorchJobCreated",
+              message = "PyTorchJob is created."
+            })
+          end
+          
+          -- 2. Running condition (intermediate state, can coexist with Created)
+          if hasRunningCondition then
+            local hasFinalState = (#failedClusters > 0) or (successfulClustersNum == #statusItems)
+            local runningStatus = "True"
+            if hasFinalState then
+              runningStatus = "False"
+            end
+            -- TODO: If users have specific requirements, refine the logic for selecting lastUpdateTime and lastTransitionTime
+            -- Currently, we just pick the first value from statusItems
+            table.insert(aggregatedConditions, {
+              type = "Running",
+              status = runningStatus,
+              lastUpdateTime = runningLastUpdateTime,
+              lastTransitionTime = runningLastTransitionTime,
+              reason = "PyTorchJobRunning",
+              message = "PyTorchJob is running."
+            })
+          end
+          
+          -- 3. Final states: Succeeded and Failed are mutually exclusive (last condition shown by kubectl get)
           if #failedClusters > 0 then
             table.insert(aggregatedConditions, {
               type = "Failed",
               status = "True",
-              lastProbeTime = os.date("!%Y-%m-%dT%H:%M:%SZ"),
-              lastTransitionTime = os.date("!%Y-%m-%dT%H:%M:%SZ"),
+              lastUpdateTime = completionTime,
+              lastTransitionTime = completionTime,
               reason = "PyTorchJobFailed",
               message = "PyTorchJob executed failed in member clusters: " .. table.concat(failedClusters, ", ")
             })
-          end
-
-          if successfulClustersNum == #statusItems and successfulClustersNum > 0 then
+          elseif successfulClustersNum == #statusItems and successfulClustersNum > 0 then
             table.insert(aggregatedConditions, {
               type = "Succeeded",
               status = "True",
-              lastProbeTime = os.date("!%Y-%m-%dT%H:%M:%SZ"),
-              lastTransitionTime = os.date("!%Y-%m-%dT%H:%M:%SZ"),
-              reason = "Completed",
-              message = "PyTorchJob completed successfully"
+              lastUpdateTime = completionTime,
+              lastTransitionTime = completionTime,
+              reason = "PyTorchJobSucceeded",
+              message = "PyTorchJob is successfully completed."
             })
             desiredObj.status.completionTime = completionTime
           end
-        
+          
           -- Set aggregated status
           desiredObj.status.startTime = startTime
           desiredObj.status.lastReconcileTime = lastReconcileTime

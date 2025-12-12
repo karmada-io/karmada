@@ -19,6 +19,7 @@ package thirdparty
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -30,7 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/conversion"
-	"k8s.io/apimachinery/pkg/util/json"
+	k8sjson "k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/apimachinery/pkg/util/yaml"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
@@ -108,7 +109,9 @@ func checkInterpretationRule(t *testing.T, path string, configs []*configv1alpha
 					}
 
 					if equal, err := deepEqual(expected, res.Value); err != nil || !equal {
-						t.Fatalf("FilePath: %s. Test case: %s. Unexpected result for %s, expected: %+v, got: %+v, error: %v", input.Filepath, input.Name, res.Name, expected, res.Value, err)
+						expectedJSON, _ := json.MarshalIndent(expected, "", "  ")
+						gotJSON, _ := json.MarshalIndent(res.Value, "", "  ")
+						t.Fatalf("FilePath: %s\nTest case: %s\nUnexpected result for %s\nExpected:\n%s\nGot:\n%s\nError: %v", input.Filepath, input.Name, res.Name, string(expectedJSON), string(gotJSON), err)
 					}
 				}
 			})
@@ -163,7 +166,7 @@ func buildRuleArgs(input IndividualTest) interpreter.RuleArgs {
 }
 
 func deepEqual(expected, actualValue interface{}) (bool, error) {
-	expectedJSONBytes, err := json.Marshal(expected)
+	expectedJSONBytes, err := k8sjson.Marshal(expected)
 	if err != nil {
 		return false, fmt.Errorf("failed to marshal expected value: %w", err)
 	}
@@ -172,21 +175,21 @@ func deepEqual(expected, actualValue interface{}) (bool, error) {
 	switch typedActual := actualValue.(type) {
 	case *workv1alpha2.ReplicaRequirements:
 		var unmarshaledExpected workv1alpha2.ReplicaRequirements
-		if err := json.Unmarshal(expectedJSONBytes, &unmarshaledExpected); err != nil {
+		if err := k8sjson.Unmarshal(expectedJSONBytes, &unmarshaledExpected); err != nil {
 			return false, fmt.Errorf("failed to unmarshal expected JSON into ReplicaRequirements: %w", err)
 		}
 		return checker.DeepEqual(&unmarshaledExpected, typedActual), nil
 
 	case []configv1alpha1.DependentObjectReference:
 		var unmarshaledExpected []configv1alpha1.DependentObjectReference
-		if err := json.Unmarshal(expectedJSONBytes, &unmarshaledExpected); err != nil {
+		if err := k8sjson.Unmarshal(expectedJSONBytes, &unmarshaledExpected); err != nil {
 			return false, fmt.Errorf("failed to unmarshal expected JSON into []DependentObjectReference: %w", err)
 		}
 		return checker.DeepEqual(unmarshaledExpected, typedActual), nil
 
 	case []workv1alpha2.Component:
 		var unmarshaledExpected []workv1alpha2.Component
-		if err := json.Unmarshal(expectedJSONBytes, &unmarshaledExpected); err != nil {
+		if err := k8sjson.Unmarshal(expectedJSONBytes, &unmarshaledExpected); err != nil {
 			return false, fmt.Errorf("failed to unmarshal expected JSON into []Component: %w", err)
 		}
 
@@ -195,14 +198,14 @@ func deepEqual(expected, actualValue interface{}) (bool, error) {
 	case *unstructured.Unstructured:
 		var unmarshaledExpected unstructured.Unstructured
 
-		if err := json.Unmarshal(expectedJSONBytes, &unmarshaledExpected); err != nil {
+		if err := k8sjson.Unmarshal(expectedJSONBytes, &unmarshaledExpected); err != nil {
 			return false, fmt.Errorf("failed to unmarshal expected JSON into Unstructured: %w", err)
 		}
 		return checker.DeepEqual(&unmarshaledExpected, typedActual), nil
 
 	default:
 		// Fallback: marshal actualValue and do byte-wise comparison
-		actualJSON, err := json.Marshal(actualValue)
+		actualJSON, err := k8sjson.Marshal(actualValue)
 		if err != nil {
 			return false, fmt.Errorf("failed to marshal actual value: %w", err)
 		}
