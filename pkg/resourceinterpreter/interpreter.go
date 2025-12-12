@@ -177,7 +177,6 @@ func (i *customResourceInterpreterImpl) ReviseReplica(object *unstructured.Unstr
 		return obj, nil
 	}
 
-	klog.V(4).Infof("Revise replicas for object: %v %s/%s with webhook interpreter.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
 	obj, hookEnabled, err = i.customizedInterpreter.Patch(context.TODO(), &request.Attributes{
 		Operation:   configv1alpha1.InterpreterOperationReviseReplica,
 		Object:      object,
@@ -250,7 +249,6 @@ func (i *customResourceInterpreterImpl) Retain(desired *unstructured.Unstructure
 		return obj, nil
 	}
 
-	klog.V(4).Infof("Retain object: %v %s/%s with webhook interpreter.", desired.GroupVersionKind(), desired.GetNamespace(), desired.GetName())
 	obj, hookEnabled, err = i.customizedInterpreter.Patch(context.TODO(), &request.Attributes{
 		Operation:   configv1alpha1.InterpreterOperationRetain,
 		Object:      desired,
@@ -283,7 +281,6 @@ func (i *customResourceInterpreterImpl) AggregateStatus(object *unstructured.Uns
 		return obj, nil
 	}
 
-	klog.V(4).Infof("Aggregate status of object: %v %s/%s with webhook interpreter.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
 	obj, hookEnabled, err = i.customizedInterpreter.Patch(context.TODO(), &request.Attributes{
 		Operation:        configv1alpha1.InterpreterOperationAggregateStatus,
 		Object:           object.DeepCopy(),
