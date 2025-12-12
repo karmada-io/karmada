@@ -35,7 +35,7 @@ spec:
           if observedObj.status == nil then
             return false
           end
-          if observedObj.status.phase == nil or observedObj.status.phase == '' or observedObj.status.phase == 'Failed' or observedObj.status.failed == 'Error' then
+          if observedObj.status.phase == nil or observedObj.status.phase == '' or observedObj.status.phase == 'Error' or observedObj.status.phase == 'Failed' then
             return false
           end
           return true

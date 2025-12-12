@@ -1,6 +1,6 @@
 # test case for interpreting replica of Workflow
-# case1. Workflow with parallelism set to 2
 
+# case1. Workflow with parallelism set to 2
 name: "Workflow with parallelism set to 2"
 description: "Test interpreting replica of Workflow with parallelism set to 2"
 desiredObj:
@@ -9,7 +9,7 @@ desiredObj:
   metadata:
     labels:
       app: sample
-    name: sample
+    name: sample-parallelism-2
     namespace: test-workflow
   spec:
     parallelism: 2
@@ -22,10 +22,10 @@ desiredObj:
     imagePullSecrets:
       - name: my-secret
     tolerations:
-      - key: 'key'
-        operation: 'Equal'
-        value: 'value'
-        effect: 'NoSchedule'
+      - key: "key"
+        operation: "Equal"
+        value: "value"
+        effect: "NoSchedule"
     templates:
       - name: volumes-existing-example
         steps:
@@ -34,8 +34,8 @@ desiredObj:
       - name: whalesay
         container:
           image: docker/whalesay:latest
-          command: [ cowsay ]
-          args: [ "hello world" ]
+          command: [cowsay]
+          args: ["hello world"]
           volumeMounts:
             - name: workdir
               mountPath: /mnt/vol
@@ -45,3 +45,54 @@ desiredObj:
             requests:
               memory: 1Mi
 operation: InterpretReplica
+output:
+  replica: 2
+
+---
+# case2. Workflow with parallelism set to 1
+name: "Workflow with parallelism set to 1"
+description: "Test interpreting replica of Workflow with parallelism set to 1"
+desiredObj:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Workflow
+  metadata:
+    labels:
+      app: sample
+    name: sample-parallelism-1
+    namespace: test-workflow
+  spec:
+    parallelism: 1
+    entrypoint: simple-template
+    templates:
+      - name: simple-template
+        container:
+          image: busybox
+          command: ["echo"]
+          args: ["done"]
+operation: InterpretReplica
+output:
+  replica: 1
+
+---
+# case3. Workflow with parallelism unset (default 1)
+name: "Workflow with parallelism unset"
+description: "Test interpreting replica of Workflow with no parallelism specified (defaults to 1)"
+desiredObj:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Workflow
+  metadata:
+    labels:
+      app: sample
+    name: sample-no-parallelism
+    namespace: test-workflow
+  spec:
+    entrypoint: simple-template
+    templates:
+      - name: simple-template
+        container:
+          image: busybox
+          command: ["sleep"]
+          args: ["10"]
+operation: InterpretReplica
+output:
+  replica: 1
