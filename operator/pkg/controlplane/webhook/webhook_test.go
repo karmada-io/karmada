@@ -61,9 +61,9 @@ func TestEnsureKarmadaWebhook(t *testing.T) {
 	}
 
 	actions := fakeClient.Actions()
-	// We now create deployment, service, PDB, and perform a get action, so expect 4 actions
-	if len(actions) != 4 {
-		t.Fatalf("expected 4 actions, but got %d", len(actions))
+	// We now create deployment, service and PDB, so expect 3 actions
+	if len(actions) != 3 {
+		t.Fatalf("expected 3 actions, but got %d", len(actions))
 	}
 
 	// Check that we have deployment, service, and PDB
@@ -80,8 +80,8 @@ func TestEnsureKarmadaWebhook(t *testing.T) {
 		}
 	}
 
-	if deploymentCount != 2 {
-		t.Errorf("expected 2 deployment actions (create + get), but got %d", deploymentCount)
+	if deploymentCount != 1 {
+		t.Errorf("expected 1 deployment actions, but got %d", deploymentCount)
 	}
 
 	if serviceCount != 1 {
@@ -186,9 +186,9 @@ func TestCreateKarmadaWebhookService(t *testing.T) {
 func verifyDeploymentCreation(client *fakeclientset.Clientset) (*appsv1.Deployment, error) {
 	// Assert that a Deployment and PDB were created.
 	actions := client.Actions()
-	// We now create deployment, PDB, and perform a get action, so expect 3 actions
-	if len(actions) != 3 {
-		return nil, fmt.Errorf("expected exactly 3 actions (deployment + PDB + get), but got %d actions", len(actions))
+	// We now create deployment and PDB, so expect 2 actions
+	if len(actions) != 2 {
+		return nil, fmt.Errorf("expected exactly 2 actions (deployment + PDB), but got %d actions", len(actions))
 	}
 
 	// Find the deployment action

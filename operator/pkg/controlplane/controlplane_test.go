@@ -110,8 +110,8 @@ func TestEnsureAllControlPlaneComponents(t *testing.T) {
 	}
 
 	actions := fakeClient.Actions()
-	// We now create both deployments and PDBs,include get the deployment. so expect 3 actions per component
-	expectedActions := len(components) * 3
+	// We now create both deployments and PDBs. so expect 2 actions per component
+	expectedActions := len(components) * 2
 	if len(actions) != expectedActions {
 		t.Fatalf("expected %d actions, but got %d", expectedActions, len(actions))
 	}
@@ -127,10 +127,9 @@ func TestEnsureAllControlPlaneComponents(t *testing.T) {
 		}
 	}
 
-	// Each component has 2 deployment actions (create + get) and 1 PDB action
-	expectedDeployments := len(components) * 2
-	if deploymentCount != expectedDeployments {
-		t.Errorf("expected %d deployment actions (create + get for each component), but got %d", expectedDeployments, deploymentCount)
+	// Each component has 1 deployment actions and 1 PDB action
+	if deploymentCount != len(components) {
+		t.Errorf("expected %d deployment actions (create + get for each component), but got %d", len(components), deploymentCount)
 	}
 
 	if pdbCount != len(components) {

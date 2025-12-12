@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package pdb
 
 import (
@@ -40,11 +41,7 @@ func EnsurePodDisruptionBudget(client clientset.Interface, pdbName, namespace st
 		return nil
 	}
 
-	pdb, err := createPodDisruptionBudget(pdbName, namespace, pdbConfig, componentLabels, ownerRefs)
-	if err != nil {
-		return fmt.Errorf("failed to create PDB manifest for %s, err: %w", pdbName, err)
-	}
-
+	pdb := buildPodDisruptionBudget(pdbName, namespace, pdbConfig, componentLabels, ownerRefs)
 	if err := apiclient.CreateOrUpdatePodDisruptionBudget(client, pdb); err != nil {
 		return fmt.Errorf("failed to create PDB resource for %s, err: %w", pdbName, err)
 	}
@@ -53,8 +50,8 @@ func EnsurePodDisruptionBudget(client clientset.Interface, pdbName, namespace st
 	return nil
 }
 
-// createPodDisruptionBudget creates a PodDisruptionBudget manifest for the component
-func createPodDisruptionBudget(pdbName, namespace string, pdbConfig *operatorv1alpha1.PodDisruptionBudgetConfig, componentLabels map[string]string, ownerRefs []metav1.OwnerReference) (*policyv1.PodDisruptionBudget, error) {
+// buildPodDisruptionBudget returns a PodDisruptionBudget manifest for the component
+func buildPodDisruptionBudget(pdbName, namespace string, pdbConfig *operatorv1alpha1.PodDisruptionBudgetConfig, componentLabels map[string]string, ownerRefs []metav1.OwnerReference) *policyv1.PodDisruptionBudget {
 	blockOwnerDeletion := true
 	isController := true
 
@@ -84,7 +81,7 @@ func createPodDisruptionBudget(pdbName, namespace string, pdbConfig *operatorv1a
 		pdb.ObjectMeta.OwnerReferences[i].BlockOwnerDeletion = &blockOwnerDeletion
 	}
 
-	return pdb, nil
+	return pdb
 }
 
 // deletePodDisruptionBudget deletes a PodDisruptionBudget if it exists
