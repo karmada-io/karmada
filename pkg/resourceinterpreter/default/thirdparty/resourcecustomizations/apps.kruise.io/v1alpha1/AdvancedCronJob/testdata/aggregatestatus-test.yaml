@@ -1,14 +1,21 @@
-# test case for aggregating status of AdvancedCronJob
-# case1. AdvancedCronJob with two status items
+# Test cases for aggregating status of AdvancedCronJob
 
-name: "AdvancedCronJob with two status items"
-description: "Test aggregating status of AdvancedCronJob with two status items"
+# Case 1: Test AggregateStatus with empty statusItems list
+# Case 2: Test AggregateStatus merging active jobs from multiple clusters
+# Case 3: Test AggregateStatus when clusters have multiple active jobs per cluster
+# Case 4: Test AggregateStatus when some clusters have nil active or status fields
+# Case 5: Test AggregateStatus with status from single cluster
+
+# Case 1:
+
+name: "AdvancedCronJob with empty statusItems list"
+description: "Test AggregateStatus with empty statusItems list"
+operation: AggregateStatus
+
 desiredObj:
   apiVersion: apps.kruise.io/v1alpha1
   kind: AdvancedCronJob
   metadata:
-    labels:
-      app: sample
     name: sample
     namespace: test-acj
   spec:
@@ -17,57 +24,351 @@ desiredObj:
       broadcastJobTemplate:
         spec:
           template:
-            metadata:
-              labels:
-                app: sample
             spec:
-              restartPolicy: Never
-              volumes:
-                - name: configmap
-                  configMap:
-                    name: my-sample-config
               containers:
                 - name: nginx
                   image: nginx:alpine
-                  env:
-                    - name: logData
-                      valueFrom:
-                        configMapKeyRef:
-                          name: mysql-config
-                          key: log
-                    - name: lowerData
-                      valueFrom:
-                        configMapKeyRef:
-                          name: mysql-config
-                          key: lower
-          completionPolicy:
-            type: Never
-statusItems:
-  - applied: true
-    clusterName: member1
-    health: Healthy
-    status:
-      active:
-        - apiVersion: apps.kruise.io/v1alpha1
-          kind: BroadcastJob
-          name: sample-1681378080
-          namespace: test-acj
-          resourceVersion: "3636404"
-          uid: f96013ef-2869-49d7-adf3-8f7231cc5e2a
-      lastScheduleTime: "2023-04-13T09:30:00Z"
-      type: BroadcastJob
-  - applied: true
-    clusterName: member3
-    health: Healthy
-    status:
-      active:
-        - apiVersion: apps.kruise.io/v1alpha1
-          kind: BroadcastJob
-          name: sample-1681378080
-          namespace: test-acj
-          resourceVersion: "3635081"
-          uid: d1f3c194-d650-4cce-b23d-307a445bb92e
-      lastScheduleTime: "2023-04-13T09:30:00Z"
-      type: BroadcastJob
-operation: AggregateStatus
+statusItems: []
+
 output:
+  aggregatedStatus:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: AdvancedCronJob
+    metadata:
+      name: sample
+      namespace: test-acj
+    spec:
+      schedule: "*/2 * * * *"
+      template:
+        broadcastJobTemplate:
+          spec:
+            template:
+              spec:
+                containers:
+                  - name: nginx
+                    image: nginx:alpine
+    status:
+      type: ""
+
+---
+
+# Case 2:
+
+name: "AdvancedCronJob with multiple clusters"
+description: "Test AggregateStatus merging active jobs from multiple clusters"
+operation: AggregateStatus
+
+desiredObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: AdvancedCronJob
+  metadata:
+    name: sample
+    namespace: test-acj
+  spec:
+    schedule: "*/2 * * * *"
+    template:
+      broadcastJobTemplate:
+        spec:
+          template:
+            spec:
+              containers:
+                - name: nginx
+                  image: nginx:alpine
+
+statusItems:
+  - clusterName: member1
+    status:
+      active:
+        - apiVersion: apps.kruise.io/v1alpha1
+          kind: BroadcastJob
+          name: sample-1681378080
+          namespace: test-acj
+          uid: f96013ef-2869-49d7-adf3-8f7231cc5e2a
+      type: BroadcastJob
+      lastScheduleTime: "2023-04-13T09:30:00Z"
+  - clusterName: member2
+    status:
+      active:
+        - apiVersion: apps.kruise.io/v1alpha1
+          kind: BroadcastJob
+          name: sample-1681378080
+          namespace: test-acj
+          uid: d1f3c194-d650-4cce-b23d-307a445bb92e
+      type: BroadcastJob
+      lastScheduleTime: "2023-04-13T09:30:00Z"
+  - clusterName: member3
+    status:
+      active:
+        - apiVersion: apps.kruise.io/v1alpha1
+          kind: BroadcastJob
+          name: sample-1681378100
+          namespace: test-acj
+          uid: a2b3c4d5-e6f7-8901-2345-6789abcdef01
+      type: BroadcastJob
+      lastScheduleTime: "2023-04-13T09:31:00Z"
+
+output:
+  aggregatedStatus:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: AdvancedCronJob
+    metadata:
+      name: sample
+      namespace: test-acj
+    spec:
+      schedule: "*/2 * * * *"
+      template:
+        broadcastJobTemplate:
+          spec:
+            template:
+              spec:
+                containers:
+                  - name: nginx
+                    image: nginx:alpine
+    status:
+      active:
+        - apiVersion: apps.kruise.io/v1alpha1
+          kind: BroadcastJob
+          name: sample-1681378080
+          namespace: test-acj
+          uid: f96013ef-2869-49d7-adf3-8f7231cc5e2a
+        - apiVersion: apps.kruise.io/v1alpha1
+          kind: BroadcastJob
+          name: sample-1681378080
+          namespace: test-acj
+          uid: d1f3c194-d650-4cce-b23d-307a445bb92e
+        - apiVersion: apps.kruise.io/v1alpha1
+          kind: BroadcastJob
+          name: sample-1681378100
+          namespace: test-acj
+          uid: a2b3c4d5-e6f7-8901-2345-6789abcdef01
+      type: BroadcastJob
+      lastScheduleTime: "2023-04-13T09:31:00Z"
+
+---
+
+# Case 3:
+
+name: "AdvancedCronJob with multiple active jobs per cluster"
+description: "Test AggregateStatus when clusters have multiple active jobs per cluster"
+operation: AggregateStatus
+
+desiredObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: AdvancedCronJob
+  metadata:
+    name: sample
+    namespace: test-acj
+  spec:
+    schedule: "*/2 * * * *"
+    template:
+      broadcastJobTemplate:
+        spec:
+          template:
+            spec:
+              containers:
+                - name: nginx
+                  image: nginx:alpine
+
+statusItems:
+  - clusterName: member1
+    status:
+      active:
+        - apiVersion: apps.kruise.io/v1alpha1
+          kind: BroadcastJob
+          name: sample-1681378080
+          namespace: test-acj
+        - apiVersion: apps.kruise.io/v1alpha1
+          kind: BroadcastJob
+          name: sample-1681378100
+          namespace: test-acj
+      type: BroadcastJob
+      lastScheduleTime: "2023-04-13T09:30:00Z"
+  - clusterName: member2
+    status:
+      active:
+        - apiVersion: apps.kruise.io/v1alpha1
+          kind: BroadcastJob
+          name: sample-1681378120
+          namespace: test-acj
+        - apiVersion: apps.kruise.io/v1alpha1
+          kind: BroadcastJob
+          name: sample-1681378140
+          namespace: test-acj
+        - apiVersion: apps.kruise.io/v1alpha1
+          kind: BroadcastJob
+          name: sample-1681378160
+          namespace: test-acj
+      type: BroadcastJob
+      lastScheduleTime: "2023-04-13T09:31:00Z"
+
+output:
+  aggregatedStatus:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: AdvancedCronJob
+    metadata:
+      name: sample
+      namespace: test-acj
+    spec:
+      schedule: "*/2 * * * *"
+      template:
+        broadcastJobTemplate:
+          spec:
+            template:
+              spec:
+                containers:
+                  - name: nginx
+                    image: nginx:alpine
+    status:
+      active:
+        - apiVersion: apps.kruise.io/v1alpha1
+          kind: BroadcastJob
+          name: sample-1681378080
+          namespace: test-acj
+        - apiVersion: apps.kruise.io/v1alpha1
+          kind: BroadcastJob
+          name: sample-1681378100
+          namespace: test-acj
+        - apiVersion: apps.kruise.io/v1alpha1
+          kind: BroadcastJob
+          name: sample-1681378120
+          namespace: test-acj
+        - apiVersion: apps.kruise.io/v1alpha1
+          kind: BroadcastJob
+          name: sample-1681378140
+          namespace: test-acj
+        - apiVersion: apps.kruise.io/v1alpha1
+          kind: BroadcastJob
+          name: sample-1681378160
+          namespace: test-acj
+      type: BroadcastJob
+      lastScheduleTime: "2023-04-13T09:31:00Z"
+
+---
+
+# Case 4:
+
+name: "AdvancedCronJob with partial data"
+description: "Test AggregateStatus when some clusters have nil active or status fields"
+operation: AggregateStatus
+
+desiredObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: AdvancedCronJob
+  metadata:
+    name: sample
+    namespace: test-acj
+  spec:
+    schedule: "*/2 * * * *"
+    template:
+      broadcastJobTemplate:
+        spec:
+          template:
+            spec:
+              containers:
+                - name: nginx
+                  image: nginx:alpine
+
+statusItems:
+  - clusterName: member1
+    status:
+      active:
+        - apiVersion: apps.kruise.io/v1alpha1
+          kind: BroadcastJob
+          name: sample-1681378080
+          namespace: test-acj
+      type: BroadcastJob
+      lastScheduleTime: "2023-04-13T09:30:00Z"
+  - clusterName: member2
+    status: {}
+  - clusterName: member3
+    status:
+      type: BroadcastJob
+      lastScheduleTime: "2023-04-13T09:30:00Z"
+
+output:
+  aggregatedStatus:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: AdvancedCronJob
+    metadata:
+      name: sample
+      namespace: test-acj
+    spec:
+      schedule: "*/2 * * * *"
+      template:
+        broadcastJobTemplate:
+          spec:
+            template:
+              spec:
+                containers:
+                  - name: nginx
+                    image: nginx:alpine
+    status:
+      active:
+        - apiVersion: apps.kruise.io/v1alpha1
+          kind: BroadcastJob
+          name: sample-1681378080
+          namespace: test-acj
+      type: BroadcastJob
+      lastScheduleTime: "2023-04-13T09:30:00Z"
+
+---
+
+# Case 5:
+
+name: "AdvancedCronJob with single cluster"
+description: "Test AggregateStatus with status from single cluster"
+operation: AggregateStatus
+
+desiredObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: AdvancedCronJob
+  metadata:
+    name: sample
+    namespace: test-acj
+  spec:
+    schedule: "*/2 * * * *"
+    template:
+      broadcastJobTemplate:
+        spec:
+          template:
+            spec:
+              containers:
+                - name: nginx
+                  image: nginx:alpine
+
+statusItems:
+  - clusterName: member1
+    status:
+      active:
+        - apiVersion: apps.kruise.io/v1alpha1
+          kind: BroadcastJob
+          name: sample-1681378080
+          namespace: test-acj
+      type: BroadcastJob
+      lastScheduleTime: "2023-04-13T09:30:00Z"
+
+output:
+  aggregatedStatus:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: AdvancedCronJob
+    metadata:
+      name: sample
+      namespace: test-acj
+    spec:
+      schedule: "*/2 * * * *"
+      template:
+        broadcastJobTemplate:
+          spec:
+            template:
+              spec:
+                containers:
+                  - name: nginx
+                    image: nginx:alpine
+    status:
+      active:
+        - apiVersion: apps.kruise.io/v1alpha1
+          kind: BroadcastJob
+          name: sample-1681378080
+          namespace: test-acj
+      type: BroadcastJob
+      lastScheduleTime: "2023-04-13T09:30:00Z"
