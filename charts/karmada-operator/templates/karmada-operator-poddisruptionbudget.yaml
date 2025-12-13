@@ -1,0 +1,26 @@
+{{- if .Values.operator.pdb.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "karmada.operator.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels: {{- include "common.labels.standard" . | nindent 4 }}
+    app: {{ include "karmada.operator.fullname" . }}
+    {{- if .Values.commonLabels }}
+    {{- include "common.tplvalues.render" ( dict "value" .Values.commonLabels "context" $ ) | nindent 4 }}
+    {{- end }}
+  {{- if .Values.commonAnnotations }}
+  annotations: {{- include "common.tplvalues.render" ( dict "value" .Values.commonAnnotations "context" $ ) | nindent 4 }}
+  {{- end }}
+spec:
+  selector:
+    matchLabels: {{- include "common.labels.matchLabels" . | nindent 6 }}
+      app: {{ include "karmada.operator.fullname" . }}
+  {{- if .Values.operator.pdb.minAvailable | toString }}
+  minAvailable: {{ .Values.operator.pdb.minAvailable }}
+  {{- else if .Values.operator.pdb.maxUnavailable | toString }}
+  maxUnavailable: {{ .Values.operator.pdb.maxUnavailable }}
+  {{- else }}
+  {{- fail "pdb.enabled is true but neither pdb.minAvailable nor pdb.maxUnavailable is set" }}
+  {{- end }}
+{{- end }}
