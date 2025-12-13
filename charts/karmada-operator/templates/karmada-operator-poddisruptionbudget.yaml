@@ -16,9 +16,11 @@ spec:
   selector:
     matchLabels: {{- include "common.labels.matchLabels" . | nindent 6 }}
       app: {{ include "karmada.operator.fullname" . }}
-  {{- if .Values.operator.pdb.minAvailable }}
+  {{- if .Values.operator.pdb.minAvailable | toString }}
   minAvailable: {{ .Values.operator.pdb.minAvailable }}
-  {{- else if .Values.operator.pdb.maxUnavailable }}
+  {{- else if .Values.operator.pdb.maxUnavailable | toString }}
   maxUnavailable: {{ .Values.operator.pdb.maxUnavailable }}
+  {{- else }}
+  {{- fail "pdb.enabled is true but neither pdb.minAvailable nor pdb.maxUnavailable is set" }}
   {{- end }}
 {{- end }}
