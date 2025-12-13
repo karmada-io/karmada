@@ -111,3 +111,27 @@ operator:
     rollingUpdate:
       maxUnavailable: 0
       maxSurge: 50%
+
+  ## @param operator.priorityClassName Priority class name for the operator pods
+  ## This ensures the operator is scheduled ahead of standard workloads
+  ## Example: "system-cluster-critical"
+  ## When empty, no priorityClassName will be set
+  priorityClassName: ""
+
+  ## @param operator.pdb PodDisruptionBudget configuration for the operator
+  ## Ensures high availability during voluntary disruptions (node drains, cluster-autoscaler actions, etc.)
+  pdb:
+    ## @param operator.pdb.enabled Enable PodDisruptionBudget for the operator
+    enabled: false
+    ## @param operator.pdb.minAvailable Minimum number of pods that must be available
+    ## Can be an integer (e.g., 1) or a percentage (e.g., "50%")
+    ## Mutually exclusive with maxUnavailable
+    ## When both minAvailable and maxUnavailable are set, only minAvailable will be used
+    ## To have maxUnavailable be the value that is used instead, set minAvailable to an empty string
+    minAvailable: 1
+    ## @param operator.pdb.maxUnavailable Maximum number of pods that can be unavailable
+    ## Can be an integer (e.g., 1) or a percentage (e.g., "50%")
+    ## Mutually exclusive with minAvailable
+    ## When both minAvailable and maxUnavailable are set, only minAvailable will be used
+    ## To have maxUnavailable be the value that is used instead, set minAvailable to an empty string
+    maxUnavailable: ""
