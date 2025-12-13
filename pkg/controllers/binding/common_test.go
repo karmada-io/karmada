@@ -21,7 +21,9 @@ import (
 	"sort"
 	"testing"
 
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/utils/ptr"
@@ -383,26 +385,150 @@ func Test_shouldSuspendDispatching(t *testing.T) {
 
 func Test_needReviseReplicas(t *testing.T) {
 	tests := []struct {
-		name      string
-		replicas  int32
-		placement *policyv1alpha1.Placement
-		want      bool
+		name        string
+		bindingSpec *workv1alpha2.ResourceBindingSpec
+		want        bool
 	}{
 		{
-			name:     "replicas is zero",
-			replicas: 0,
-			want:     false,
+			name: "replicas is zero, should not revise",
+			bindingSpec: &workv1alpha2.ResourceBindingSpec{
+				Replicas: 0,
+			},
+			want: false,
 		},
 		{
-			name:     "replicas is greater than zero",
-			replicas: 1,
-			want:     true,
+			name: "replicas is greater than zero, should revise",
+			bindingSpec: &workv1alpha2.ResourceBindingSpec{
+				Replicas: 1,
+			},
+			want: true,
+		},
+		{
+			name: "replicas is greater than 1, should revise",
+			bindingSpec: &workv1alpha2.ResourceBindingSpec{
+				Replicas: 3,
+			},
+			want: true,
+		},
+		{
+			name: "with ReplicaRequirements, should revise",
+			bindingSpec: &workv1alpha2.ResourceBindingSpec{
+				Replicas: 0,
+				ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
+					ResourceRequest: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("100m"),
+						corev1.ResourceMemory: resource.MustParse("200Mi"),
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "without ReplicaRequirements and replicas is 0, should not revise",
+			bindingSpec: &workv1alpha2.ResourceBindingSpec{
+				Replicas:            0,
+				ReplicaRequirements: nil,
+			},
+			want: false,
+		},
+		{
+			name: "with single component, should revise",
+			bindingSpec: &workv1alpha2.ResourceBindingSpec{
+				Components: []workv1alpha2.Component{
+					{
+						Name:     "jobmanager",
+						Replicas: 1,
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "with multiple components, should revise",
+			bindingSpec: &workv1alpha2.ResourceBindingSpec{
+				Components: []workv1alpha2.Component{
+					{
+						Name:     "jobmanager",
+						Replicas: 1,
+					},
+					{
+						Name:     "taskmanager",
+						Replicas: 2,
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "with empty components, should not revise",
+			bindingSpec: &workv1alpha2.ResourceBindingSpec{
+				Components: []workv1alpha2.Component{},
+			},
+			want: false,
+		},
+		{
+			name: "with replicas and ReplicaRequirements, should revise",
+			bindingSpec: &workv1alpha2.ResourceBindingSpec{
+				Replicas: 2,
+				ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
+					ResourceRequest: corev1.ResourceList{
+						corev1.ResourceCPU: resource.MustParse("500m"),
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "with replicas and components, should revise",
+			bindingSpec: &workv1alpha2.ResourceBindingSpec{
+				Replicas: 1,
+				Components: []workv1alpha2.Component{
+					{
+						Name:     "component1",
+						Replicas: 1,
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "with all fields populated, should revise",
+			bindingSpec: &workv1alpha2.ResourceBindingSpec{
+				Replicas: 2,
+				ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
+					ResourceRequest: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("1"),
+						corev1.ResourceMemory: resource.MustParse("1Gi"),
+					},
+				},
+				Components: []workv1alpha2.Component{
+					{
+						Name:     "comp1",
+						Replicas: 1,
+					},
+					{
+						Name:     "comp2",
+						Replicas: 1,
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "nil bindingSpec, should not revise",
+			bindingSpec: &workv1alpha2.ResourceBindingSpec{
+				Replicas:            0,
+				ReplicaRequirements: nil,
+				Components:          nil,
+			},
+			want: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := needReviseReplicas(tt.replicas); got != tt.want {
+			got := needReviseReplicas(tt.bindingSpec)
+			if got != tt.want {
 				t.Errorf("needReviseReplicas() = %v, want %v", got, tt.want)
 			}
 		})
