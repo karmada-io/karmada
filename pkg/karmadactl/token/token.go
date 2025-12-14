@@ -77,7 +77,7 @@ func NewCmdToken(f util.Factory, parentCommand string, streams genericiooptions.
 
 	cmd := &cobra.Command{
 		Use:     "token",
-		Short:   "Manage bootstrap tokens",
+		Short:   "Manage bootstrap tokens for joining member clusters to Karmada",
 		Long:    tokenLong,
 		Example: fmt.Sprintf(tokenExamples, parentCommand),
 		Annotations: map[string]string{
