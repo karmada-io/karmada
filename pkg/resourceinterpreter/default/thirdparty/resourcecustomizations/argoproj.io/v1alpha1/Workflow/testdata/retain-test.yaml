@@ -1,0 +1,157 @@
+# test case for retaining Workflow
+# case1. Workflow: retain test (recently completed)
+# case2. Workflow: retain test (old completed - TTL exceeded)
+# case3. Workflow: retain test (running)
+
+name: "Workflow: retain test (recently completed)"
+description: "Test retaining recently completed Workflow"
+desiredObj:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Workflow
+  metadata:
+    labels:
+      app: sample
+    name: sample-recent
+    namespace: test-workflow
+  spec:
+    parallelism: 1
+    entrypoint: volumes-existing-example
+    volumes:
+      - name: workdir
+        persistentVolumeClaim:
+          claimName: my-existing-volume
+    serviceAccountName: my-service-account
+    imagePullSecrets:
+      - name: my-secret
+    tolerations:
+      - key: 'key'
+        operation: 'Equal'
+        value: 'value'
+        effect: 'NoSchedule'
+    templates:
+      - name: volumes-existing-example
+        steps:
+          - - name: hello
+              template: whalesay
+      - name: whalesay
+        container:
+          image: docker/whalesay:latest
+          command: [ cowsay ]
+          args: [ 'hello world' ]
+          volumeMounts:
+            - name: workdir
+              mountPath: /mnt/vol
+          resources:
+            limits:
+              memory: 1Gi
+            requests:
+              memory: 1Mi
+observedObj:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Workflow
+  metadata:
+    labels:
+      app: sample
+    name: sample-recent
+    namespace: test-workflow
+  spec:
+    parallelism: 1
+    entrypoint: volumes-existing-example
+    volumes:
+      - name: workdir
+        persistentVolumeClaim:
+          claimName: my-existing-volume
+    serviceAccountName: my-service-account
+  status:
+    phase: Succeeded
+    progress: "1/1"
+    startedAt: "2025-12-12T10:00:00Z"
+    finishedAt: "2025-12-12T10:05:00Z"
+operation: Retain
+
+---
+name: "Workflow: retain test (old completed)"
+description: "Test retaining old completed Workflow (TTL exceeded)"
+desiredObj:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Workflow
+  metadata:
+    labels:
+      app: sample
+    name: sample-old
+    namespace: test-workflow
+  spec:
+    parallelism: 1
+    entrypoint: simple-template
+    templates:
+      - name: simple-template
+        container:
+          image: busybox
+          command: [ 'echo' ]
+          args: [ 'done' ]
+observedObj:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Workflow
+  metadata:
+    labels:
+      app: sample
+    name: sample-old
+    namespace: test-workflow
+  spec:
+    parallelism: 1
+    entrypoint: simple-template
+    templates:
+      - name: simple-template
+        container:
+          image: busybox
+          command: [ 'echo' ]
+          args: [ 'done' ]
+  status:
+    phase: Succeeded
+    progress: "1/1"
+    startedAt: "2024-01-01T00:00:00Z"
+    finishedAt: "2024-01-01T01:00:00Z"
+operation: Retain
+
+---
+name: "Workflow: retain test (running)"
+description: "Test retaining running Workflow"
+desiredObj:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Workflow
+  metadata:
+    labels:
+      app: sample
+    name: sample-running
+    namespace: test-workflow
+  spec:
+    parallelism: 1
+    entrypoint: long-running
+    templates:
+      - name: long-running
+        container:
+          image: busybox
+          command: ["sleep"]
+          args: ["3600"]
+observedObj:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Workflow
+  metadata:
+    labels:
+      app: sample
+    name: sample-running
+    namespace: test-workflow
+  spec:
+    parallelism: 1
+    entrypoint: long-running
+    templates:
+      - name: long-running
+        container:
+          image: busybox
+          command: [ 'sleep' ]
+          args: [ '3600' ]
+  status:
+    phase: Running
+    progress: "0/1"
+    startedAt: "2025-12-12T09:00:00Z"
+operation: Retain
