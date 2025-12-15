@@ -1,5 +1,8 @@
 # test case for interpreting health of CloneSet
 # case1. CloneSet interpreting health test
+# case2. CloneSet health when observedGeneration mismatches generation
+# case3. CloneSet health when updatedReplicas less than desired replicas
+# case4. CloneSet health when availableReplicas less than updatedReplicas
 
 name: "CloneSet interpreting health test"
 description: "Test interpreting health of CloneSet"
@@ -58,3 +61,82 @@ observedObj:
     updatedReplicas: 2
 operation: InterpretHealth
 output:
+  healthy: true
+---
+name: "CloneSet health when observedGeneration mismatches generation"
+description: "Health should be false when observedGeneration != generation"
+observedObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: CloneSet
+  metadata:
+    annotations:
+      resourcetemplate.karmada.io/generation: "1"
+    name: sample
+    namespace: test-cloneset
+    generation: 2
+  spec:
+    replicas: 2
+    template:
+      spec:
+        containers:
+          - name: nginx
+            image: nginx:alpine
+  status:
+    observedGeneration: 1
+    updatedReplicas: 2
+    availableReplicas: 2
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "CloneSet health when updatedReplicas less than desired replicas"
+description: "Health should be false when updatedReplicas < spec.replicas"
+observedObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: CloneSet
+  metadata:
+    annotations:
+      resourcetemplate.karmada.io/generation: "1"
+    name: sample
+    namespace: test-cloneset
+    generation: 1
+  spec:
+    replicas: 3
+    template:
+      spec:
+        containers:
+          - name: nginx
+            image: nginx:alpine
+  status:
+    observedGeneration: 1
+    updatedReplicas: 2
+    availableReplicas: 2
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "CloneSet health when availableReplicas less than updatedReplicas"
+description: "Health should be false when availableReplicas < updatedReplicas"
+observedObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: CloneSet
+  metadata:
+    annotations:
+      resourcetemplate.karmada.io/generation: "1"
+    name: sample
+    namespace: test-cloneset
+    generation: 1
+  spec:
+    replicas: 2
+    template:
+      spec:
+        containers:
+          - name: nginx
+            image: nginx:alpine
+  status:
+    observedGeneration: 1
+    updatedReplicas: 2
+    availableReplicas: 1
+operation: InterpretHealth
+output:
+  healthy: false  

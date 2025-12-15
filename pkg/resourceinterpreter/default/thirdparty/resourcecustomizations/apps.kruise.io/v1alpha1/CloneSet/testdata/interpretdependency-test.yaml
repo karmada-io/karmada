@@ -44,3 +44,12 @@ desiredObj:
                     key: lower
 operation: InterpretDependency
 output:
+  dependencies:
+    - apiVersion: v1
+      kind: ConfigMap
+      namespace: test-cloneset
+      name: my-sample-config
+    - apiVersion: v1
+      kind: ConfigMap
+      namespace: test-cloneset
+      name: mysql-config
