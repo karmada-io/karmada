@@ -77,7 +77,7 @@ func ensureWork(
 		// This rule applies regardless of whether the workload distribution mode is "Divided" or "Duplicated".
 		// Failing to do so could allow workloads to bypass the quota checks performed by the scheduler
 		// (especially during scale-up operations) or skip queue validation when scheduling is suspended.
-		if needReviseReplicas(bindingSpec.Replicas) {
+		if bindingSpec.IsWorkload() {
 			if resourceInterpreter.HookEnabled(clonedWorkload.GroupVersionKind(), configv1alpha1.InterpreterOperationReviseReplica) {
 				clonedWorkload, err = resourceInterpreter.ReviseReplica(clonedWorkload, int64(targetCluster.Replicas))
 				if err != nil {
@@ -327,10 +327,6 @@ func divideReplicasByJobCompletions(workload *unstructured.Unstructured, cluster
 	}
 
 	return targetClusters, nil
-}
-
-func needReviseReplicas(replicas int32) bool {
-	return replicas > 0
 }
 
 func needReviseJobCompletions(replicas int32, placement *policyv1alpha1.Placement) bool {

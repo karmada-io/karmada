@@ -381,34 +381,6 @@ func Test_shouldSuspendDispatching(t *testing.T) {
 	}
 }
 
-func Test_needReviseReplicas(t *testing.T) {
-	tests := []struct {
-		name      string
-		replicas  int32
-		placement *policyv1alpha1.Placement
-		want      bool
-	}{
-		{
-			name:     "replicas is zero",
-			replicas: 0,
-			want:     false,
-		},
-		{
-			name:     "replicas is greater than zero",
-			replicas: 1,
-			want:     true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := needReviseReplicas(tt.replicas); got != tt.want {
-				t.Errorf("needReviseReplicas() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func Test_needReviseJobCompletions(t *testing.T) {
 	tests := []struct {
 		name      string
