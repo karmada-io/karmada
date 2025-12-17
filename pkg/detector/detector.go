@@ -999,7 +999,9 @@ func (d *ResourceDetector) ReconcilePropagationPolicy(key util.QueueKey) error {
 
 	if !propagationObject.DeletionTimestamp.IsZero() {
 		klog.Infof("PropagationPolicy(%s) is being deleted.", nkey.NamespaceKey())
-		if err = d.HandlePropagationPolicyDeletion(propagationObject.Labels[policyv1alpha1.PropagationPolicyPermanentIDLabel], propagationObject.Spec.ResourceSelectors); err != nil {
+		policyID := propagationObject.Labels[policyv1alpha1.PropagationPolicyPermanentIDLabel]
+		claimMetadata := labels.Set{policyv1alpha1.PropagationPolicyPermanentIDLabel: policyID}
+		if err = d.handlePolicyDeletion(claimMetadata, propagationObject.Spec.ResourceSelectors, CleanupPPClaimMetadata); err != nil {
 			return err
 		}
 		if controllerutil.RemoveFinalizer(propagationObject, util.PropagationPolicyControllerFinalizer) {
@@ -1071,7 +1073,9 @@ func (d *ResourceDetector) ReconcileClusterPropagationPolicy(key util.QueueKey) 
 
 	if !propagationObject.DeletionTimestamp.IsZero() {
 		klog.Infof("ClusterPropagationPolicy(%s) is being deleted.", nkey.NamespaceKey())
-		if err = d.HandleClusterPropagationPolicyDeletion(propagationObject.Labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel], propagationObject.Spec.ResourceSelectors); err != nil {
+		policyID := propagationObject.Labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel]
+		claimMetadata := labels.Set{policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: policyID}
+		if err = d.handlePolicyDeletion(claimMetadata, propagationObject.Spec.ResourceSelectors, CleanupCPPClaimMetadata); err != nil {
 			return err
 		}
 		if controllerutil.RemoveFinalizer(propagationObject, util.ClusterPropagationPolicyControllerFinalizer) {
@@ -1087,13 +1091,12 @@ func (d *ResourceDetector) ReconcileClusterPropagationPolicy(key util.QueueKey) 
 	return d.HandleClusterPropagationPolicyCreationOrUpdate(propagationObject)
 }
 
-// HandlePropagationPolicyDeletion handles PropagationPolicy delete event.
+// handlePolicyDeletion handles the cleanup of the claim metadata for a given policy and resources.
 // After a policy is removed, the label and annotations claimed on relevant resource template will be removed (which gives
 // the resource template a change to match another policy).
 //
 // Note: The relevant ResourceBinding will continue to exist until the resource template is gone.
-func (d *ResourceDetector) HandlePropagationPolicyDeletion(policyID string, resources []policyv1alpha1.ResourceSelector) error {
-	claimMetadata := labels.Set{policyv1alpha1.PropagationPolicyPermanentIDLabel: policyID}
+func (d *ResourceDetector) handlePolicyDeletion(claimMetadata labels.Set, resources []policyv1alpha1.ResourceSelector, cleanupFunc func(obj metav1.Object)) error {
 	var errs []error
 	for _, resource := range util.ExtractUniqueNamespacedSelectors(resources) {
 		objRef := workv1alpha2.ObjectReference{
@@ -1103,49 +1106,21 @@ func (d *ResourceDetector) HandlePropagationPolicyDeletion(policyID string, reso
 		}
 
 		rawObjects, err := helper.FetchResourceTemplatesByLabelSelector(d.DynamicClient, d.InformerManager, d.RESTMapper, objRef, labels.SelectorFromSet(claimMetadata))
+		if meta.IsNoMatchError(err) {
+			klog.Infof("Skip cleanup as API(%s, kind=%s) is not installed or has been removed", objRef.APIVersion, objRef.Kind)
+			continue
+		}
 		if err != nil {
 			errs = append(errs, err)
 			continue
 		}
 		for _, rawObject := range rawObjects {
-			err := d.handleResourceTemplateAndBindingCleanup(rawObject, objRef, claimMetadata, CleanupPPClaimMetadata)
+			err := d.handleResourceTemplateAndBindingCleanup(rawObject, objRef, claimMetadata, cleanupFunc)
 			if err != nil {
 				errs = append(errs, err)
 			}
 		}
 	}
-	return errors.NewAggregate(errs)
-}
-
-// HandleClusterPropagationPolicyDeletion handles ClusterPropagationPolicy delete event.
-// After a policy is removed, the label and annotation claimed on relevant resource template will be removed (which gives
-// the resource template a change to match another policy).
-//
-// Note: The relevant ClusterResourceBinding or ResourceBinding will continue to exist until the resource template is gone.
-func (d *ResourceDetector) HandleClusterPropagationPolicyDeletion(policyID string, resources []policyv1alpha1.ResourceSelector) error {
-	var errs []error
-	claimMetadata := labels.Set{policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: policyID}
-
-	for _, resource := range util.ExtractUniqueNamespacedSelectors(resources) {
-		objRef := workv1alpha2.ObjectReference{
-			APIVersion: resource.APIVersion,
-			Kind:       resource.Kind,
-			Namespace:  resource.Namespace,
-		}
-
-		rawObjects, err := helper.FetchResourceTemplatesByLabelSelector(d.DynamicClient, d.InformerManager, d.RESTMapper, objRef, labels.SelectorFromSet(claimMetadata))
-		if err != nil {
-			errs = append(errs, err)
-			continue
-		}
-		for _, rawObject := range rawObjects {
-			err := d.handleResourceTemplateAndBindingCleanup(rawObject, objRef, claimMetadata, CleanupCPPClaimMetadata)
-			if err != nil {
-				errs = append(errs, err)
-			}
-		}
-	}
-
 	return errors.NewAggregate(errs)
 }
 
