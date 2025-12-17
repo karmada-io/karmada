@@ -17,7 +17,6 @@ limitations under the License.
 package etcd
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
@@ -25,7 +24,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kuberuntime "k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	clientset "k8s.io/client-go/kubernetes"
 	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/component-base/cli/flag"
@@ -37,6 +35,9 @@ import (
 	"github.com/karmada-io/karmada/operator/pkg/util/apiclient"
 	"github.com/karmada-io/karmada/operator/pkg/util/patcher"
 )
+
+// StatefulSetGVK represents the GroupVersionKind (GVK) for a Kubernetes StatefulSet resource.
+var StatefulSetGVK = appsv1.SchemeGroupVersion.WithKind("StatefulSet")
 
 // EnsureKarmadaEtcd creates etcd StatefulSet and service resource.
 func EnsureKarmadaEtcd(client clientset.Interface, cfg *operatorv1alpha1.LocalEtcd, name, namespace string) error {
@@ -98,17 +99,11 @@ func installKarmadaEtcd(client clientset.Interface, name, namespace string, cfg 
 		WithPriorityClassName(cfg.CommonSettings.PriorityClassName).
 		WithVolumeData(cfg.VolumeData).WithResources(cfg.Resources).ForStatefulSet(etcdStatefulSet)
 
-	if err := apiclient.CreateOrUpdateStatefulSet(client, etcdStatefulSet); err != nil {
+	if etcdStatefulSet, err = apiclient.CreateOrUpdateStatefulSet(client, etcdStatefulSet); err != nil {
 		return fmt.Errorf("error when creating Etcd statefulset, err: %w", err)
 	}
 
-	// Fetch persisted StatefulSet to get real UID
-	persisted, err := client.AppsV1().StatefulSets(namespace).Get(context.TODO(), etcdStatefulSet.GetName(), metav1.GetOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to fetch StatefulSet %s/%s for PDB owner, err: %w", namespace, etcdStatefulSet.GetName(), err)
-	}
-	gvk := schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "StatefulSet"}
-	ownerRef := *metav1.NewControllerRef(persisted, gvk)
+	ownerRef := *metav1.NewControllerRef(etcdStatefulSet, StatefulSetGVK)
 	if err := pdb.EnsurePodDisruptionBudget(client, util.KarmadaEtcdName(name), namespace, cfg.CommonSettings.PodDisruptionBudgetConfig, etcdStatefulSet.Spec.Template.Labels, []metav1.OwnerReference{ownerRef}); err != nil {
 		return fmt.Errorf("failed to ensure PDB for etcd component %s, err: %w", util.KarmadaEtcdName(name), err)
 	}

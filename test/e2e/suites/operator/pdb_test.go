@@ -31,13 +31,12 @@ import (
 	"k8s.io/utils/ptr"
 
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
+	"github.com/karmada-io/karmada/operator/pkg/controlplane/apiserver"
+	controlplaneetcd "github.com/karmada-io/karmada/operator/pkg/controlplane/etcd"
 	"github.com/karmada-io/karmada/operator/pkg/util"
 	operatorresource "github.com/karmada-io/karmada/test/e2e/framework/resource/operator"
 	"github.com/karmada-io/karmada/test/helper"
 )
-
-var deploymentGVK = appsv1.SchemeGroupVersion.WithKind("Deployment")
-var statefulSetGVK = appsv1.SchemeGroupVersion.WithKind("StatefulSet")
 
 var _ = ginkgo.Describe("PodDisruptionBudget configuration testing", func() {
 	var karmadaName string
@@ -50,6 +49,10 @@ var _ = ginkgo.Describe("PodDisruptionBudget configuration testing", func() {
 	ginkgo.BeforeEach(func() {
 		karmadaName = KarmadaInstanceNamePrefix + rand.String(RandomStrLength)
 		karmada = helper.NewKarmada(testNamespace, karmadaName)
+	})
+
+	ginkgo.AfterEach(func() {
+		operatorresource.DeleteKarmadaInstance(operatorClient, testNamespace, karmadaName)
 	})
 
 	ginkgo.Context("PodDisruptionBudget validation testing", func() {
@@ -108,7 +111,7 @@ var _ = ginkgo.Describe("PodDisruptionBudget configuration testing", func() {
 				etcdPDB, err = hostClient.PolicyV1().PodDisruptionBudgets(testNamespace).Get(context.TODO(), etcdPDBName, metav1.GetOptions{})
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 				gomega.Expect(etcdPDB.Spec.MinAvailable.IntValue()).Should(gomega.Equal(1))
-				gomega.Expect(etcdPDB.Spec.MaxUnavailable == nil).Should(gomega.BeTrue())
+				gomega.Expect(etcdPDB.Spec.MaxUnavailable).Should(gomega.BeNil())
 
 				var etcd *appsv1.StatefulSet
 				etcd, err = hostClient.AppsV1().StatefulSets(testNamespace).Get(context.TODO(), etcdPDBName, metav1.GetOptions{})
@@ -117,7 +120,7 @@ var _ = ginkgo.Describe("PodDisruptionBudget configuration testing", func() {
 				gomega.Expect(etcdPDB.Spec.Selector.MatchLabels).Should(gomega.Equal(etcd.Spec.Template.Labels))
 				gomega.Expect(len(etcdPDB.ObjectMeta.OwnerReferences)).Should(gomega.Equal(1))
 				// object etcd has no gvk info, so cannot use etcd.GroupVersionKind() to get StatefulSet gvk.
-				expectedOwnerReferences := *metav1.NewControllerRef(etcd, statefulSetGVK)
+				expectedOwnerReferences := *metav1.NewControllerRef(etcd, controlplaneetcd.StatefulSetGVK)
 				expectedOwnerReferences.Controller = ptr.To(true)
 				expectedOwnerReferences.BlockOwnerDeletion = ptr.To(true)
 				gomega.Expect(etcdPDB.ObjectMeta.OwnerReferences[0]).Should(gomega.Equal(expectedOwnerReferences))
@@ -128,7 +131,7 @@ var _ = ginkgo.Describe("PodDisruptionBudget configuration testing", func() {
 				cmPDB, err = hostClient.PolicyV1().PodDisruptionBudgets(testNamespace).Get(context.TODO(), cmPDBName, metav1.GetOptions{})
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 				gomega.Expect(cmPDB.Spec.MinAvailable.IntValue()).Should(gomega.Equal(1))
-				gomega.Expect(cmPDB.Spec.MaxUnavailable == nil).Should(gomega.BeTrue())
+				gomega.Expect(cmPDB.Spec.MaxUnavailable).Should(gomega.BeNil())
 
 				var karmadaControllerManager *appsv1.Deployment
 				karmadaControllerManager, err = hostClient.AppsV1().Deployments(testNamespace).Get(context.TODO(), cmPDBName, metav1.GetOptions{})
@@ -137,7 +140,7 @@ var _ = ginkgo.Describe("PodDisruptionBudget configuration testing", func() {
 				gomega.Expect(cmPDB.Spec.Selector.MatchLabels).Should(gomega.Equal(karmadaControllerManager.Spec.Template.Labels))
 				gomega.Expect(len(cmPDB.ObjectMeta.OwnerReferences)).Should(gomega.Equal(1))
 				// object karmadaControllerManager has no gvk info, so cannot use karmadaControllerManager.GroupVersionKind() to get Deployment gvk.
-				expectedOwnerReferences := *metav1.NewControllerRef(karmadaControllerManager, deploymentGVK)
+				expectedOwnerReferences := *metav1.NewControllerRef(karmadaControllerManager, apiserver.DeploymentGVK)
 				expectedOwnerReferences.Controller = ptr.To(true)
 				expectedOwnerReferences.BlockOwnerDeletion = ptr.To(true)
 				gomega.Expect(cmPDB.ObjectMeta.OwnerReferences[0]).Should(gomega.Equal(expectedOwnerReferences))
@@ -161,14 +164,14 @@ var _ = ginkgo.Describe("PodDisruptionBudget configuration testing", func() {
 			ginkgo.By("check if PDB of etcd is updated successfully", func() {
 				etcdPDB, err = hostClient.PolicyV1().PodDisruptionBudgets(testNamespace).Get(context.TODO(), etcdPDBName, metav1.GetOptions{})
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				gomega.Expect(etcdPDB.Spec.MinAvailable == nil).Should(gomega.BeTrue())
+				gomega.Expect(etcdPDB.Spec.MinAvailable).Should(gomega.BeNil())
 				gomega.Expect(etcdPDB.Spec.MaxUnavailable.IntValue()).Should(gomega.Equal(1))
 			})
 
 			ginkgo.By("check if PDB of KarmadaControllerManager is updated successfully", func() {
 				cmPDB, err = hostClient.PolicyV1().PodDisruptionBudgets(testNamespace).Get(context.TODO(), cmPDBName, metav1.GetOptions{})
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				gomega.Expect(cmPDB.Spec.MinAvailable == nil).Should(gomega.BeTrue())
+				gomega.Expect(cmPDB.Spec.MinAvailable).Should(gomega.BeNil())
 				gomega.Expect(cmPDB.Spec.MaxUnavailable.IntValue()).Should(gomega.Equal(1))
 			})
 
