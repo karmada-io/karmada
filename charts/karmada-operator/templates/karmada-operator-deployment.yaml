@@ -32,6 +32,9 @@ spec:
         {{- end }}
     spec:
       {{- include "karmada.operator.imagePullSecrets" . | indent 6 }}
+      {{- if .Values.operator.priorityClassName }}
+      priorityClassName: {{ .Values.operator.priorityClassName }}
+      {{- end }}
       containers:
       - name: {{ include "karmada.operator.fullname" . }}
         image: {{ template "karmada.operator.image" . }}
