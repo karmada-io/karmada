@@ -252,15 +252,15 @@ func compGetResourceList(restClientGetter genericclioptions.RESTClientGetter, cm
 	// TODO: Using karmadactlapiresources.CommandAPIResourcesOptions to adapt to the operation scope.
 	o := apiresources.NewAPIResourceOptions(streams)
 
-	if err := o.Complete(restClientGetter, cmd, nil); err != nil {
-		return nil
-	}
-
 	// Get the list of resources
 	o.PrintFlags.OutputFormat = ptr.To("name")
 	o.Cached = true
 	o.Verbs = []string{"get"}
 	// TODO:Should set --request-timeout=5s
+
+	if err := o.Complete(restClientGetter, cmd, nil); err != nil {
+		return nil
+	}
 
 	// Ignore errors as the output may still be valid
 	if err := o.RunAPIResources(); err != nil {
