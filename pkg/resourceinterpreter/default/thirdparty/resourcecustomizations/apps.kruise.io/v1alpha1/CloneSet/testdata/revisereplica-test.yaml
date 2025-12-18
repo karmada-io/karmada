@@ -45,3 +45,5 @@ desiredObj:
 inputReplicas: 1
 operation: ReviseReplica
 output:
+  spec:
+    replicas: 1

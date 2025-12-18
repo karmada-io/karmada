@@ -43,3 +43,5 @@ desiredObj:
                     name: mysql-config
                     key: lower
 operation: InterpretReplica
+output:
+  replica: 4
