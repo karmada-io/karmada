@@ -1,0 +1,85 @@
+# test case for interpreting dependency of Workflow
+
+# case1. Workflow with no dependencies
+name: "Workflow with no dependencies"
+description: "Test interpreting dependency of simple Workflow with no dependencies"
+desiredObj:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Workflow
+  metadata:
+    labels:
+      app: sample
+    name: sample-no-deps
+    namespace: test-workflow
+  spec:
+    parallelism: 1
+    entrypoint: simple-task
+    templates:
+      - name: simple-task
+        container:
+          image: busybox
+          command: ["echo"]
+          args: ["hello"]
+operation: InterpretDependency
+
+# case2. Workflow with volume dependency
+---
+name: "Workflow with volume dependency"
+description: "Test interpreting dependency of Workflow with PVC volume"
+desiredObj:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Workflow
+  metadata:
+    labels:
+      app: sample
+    name: sample-volume-dep
+    namespace: test-workflow
+  spec:
+    parallelism: 1
+    entrypoint: volumes-existing-example
+    volumes:
+      - name: workdir
+        persistentVolumeClaim:
+          claimName: my-existing-volume
+    serviceAccountName: my-service-account
+    templates:
+      - name: volumes-existing-example
+        container:
+          image: busybox
+          volumeMounts:
+            - name: workdir
+              mountPath: /mnt/vol
+operation: InterpretDependency
+
+# case3. Workflow with ConfigMap env dependency
+---
+name: "Workflow with ConfigMap env dependency"
+description: "Test interpreting dependency of Workflow with ConfigMap env refs"
+desiredObj:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Workflow
+  metadata:
+    labels:
+      app: sample
+    name: sample-configmap-dep
+    namespace: test-workflow
+  spec:
+    parallelism: 1
+    entrypoint: config-env-task
+    templates:
+      - name: config-env-task
+        container:
+          image: busybox
+          command: ["env"]
+          env:
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: workflow-config
+                  key: log-level
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: db-config
+                  key: host
+operation: InterpretDependency
