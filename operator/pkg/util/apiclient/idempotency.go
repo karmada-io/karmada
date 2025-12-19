@@ -122,21 +122,30 @@ func CreateOrUpdateService(client clientset.Interface, service *corev1.Service) 
 }
 
 // CreateOrUpdateDeployment creates a Deployment if the target resource doesn't exist. If the resource exists already, this function will update the resource instead.
-func CreateOrUpdateDeployment(client clientset.Interface, deployment *appsv1.Deployment) error {
-	_, err := client.AppsV1().Deployments(deployment.GetNamespace()).Create(context.TODO(), deployment, metav1.CreateOptions{})
+func CreateOrUpdateDeployment(client clientset.Interface, deployment *appsv1.Deployment) (*appsv1.Deployment, error) {
+	var latest *appsv1.Deployment
+	var err error
+	latest, err = client.AppsV1().Deployments(deployment.GetNamespace()).Create(context.TODO(), deployment, metav1.CreateOptions{})
 	if err != nil {
 		if !apierrors.IsAlreadyExists(err) {
-			return err
+			return nil, err
 		}
 
-		_, err := client.AppsV1().Deployments(deployment.GetNamespace()).Update(context.TODO(), deployment, metav1.UpdateOptions{})
+		var older *appsv1.Deployment
+		older, err = client.AppsV1().Deployments(deployment.GetNamespace()).Get(context.TODO(), deployment.GetName(), metav1.GetOptions{})
 		if err != nil {
-			return err
+			return nil, err
+		}
+
+		deployment.ResourceVersion = older.ResourceVersion
+		latest, err = client.AppsV1().Deployments(deployment.GetNamespace()).Update(context.TODO(), deployment, metav1.UpdateOptions{})
+		if err != nil {
+			return nil, err
 		}
 	}
 
-	klog.V(5).InfoS("Successfully created or updated deployment", "deployment", deployment.GetName())
-	return nil
+	klog.V(5).InfoS("Successfully created or updated Deployment", "Deployment", deployment.GetName())
+	return latest, err
 }
 
 // CreateOrUpdateMutatingWebhookConfiguration creates a MutatingWebhookConfiguration if the target resource doesn't exist. If the resource exists already, this function will update the resource instead.
@@ -248,27 +257,30 @@ func PatchCustomResourceDefinition(client *crdsclient.Clientset, name string, da
 }
 
 // CreateOrUpdateStatefulSet creates a StatefulSet if the target resource doesn't exist. If the resource exists already, this function will update the resource instead.
-func CreateOrUpdateStatefulSet(client clientset.Interface, statefulSet *appsv1.StatefulSet) error {
-	_, err := client.AppsV1().StatefulSets(statefulSet.GetNamespace()).Create(context.TODO(), statefulSet, metav1.CreateOptions{})
+func CreateOrUpdateStatefulSet(client clientset.Interface, statefulSet *appsv1.StatefulSet) (*appsv1.StatefulSet, error) {
+	var latest *appsv1.StatefulSet
+	var err error
+	latest, err = client.AppsV1().StatefulSets(statefulSet.GetNamespace()).Create(context.TODO(), statefulSet, metav1.CreateOptions{})
 	if err != nil {
 		if !apierrors.IsAlreadyExists(err) {
-			return err
+			return nil, err
 		}
 
-		older, err := client.AppsV1().StatefulSets(statefulSet.GetNamespace()).Get(context.TODO(), statefulSet.GetName(), metav1.GetOptions{})
+		var older *appsv1.StatefulSet
+		older, err = client.AppsV1().StatefulSets(statefulSet.GetNamespace()).Get(context.TODO(), statefulSet.GetName(), metav1.GetOptions{})
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		statefulSet.ResourceVersion = older.ResourceVersion
-		_, err = client.AppsV1().StatefulSets(statefulSet.GetNamespace()).Update(context.TODO(), statefulSet, metav1.UpdateOptions{})
+		latest, err = client.AppsV1().StatefulSets(statefulSet.GetNamespace()).Update(context.TODO(), statefulSet, metav1.UpdateOptions{})
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	klog.V(5).InfoS("Successfully created or updated statefulset", "statefulset", statefulSet.GetName())
-	return nil
+	klog.V(5).InfoS("Successfully created or updated StatefulSet", "StatefulSet", statefulSet.GetName())
+	return latest, nil
 }
 
 // CreateOrUpdateClusterRole creates a Clusterrole if the target resource doesn't exist. If the resource exists already, this function will update the resource instead.

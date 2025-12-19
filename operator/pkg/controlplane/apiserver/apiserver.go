@@ -17,7 +17,6 @@ limitations under the License.
 package apiserver
 
 import (
-	"context"
 	"fmt"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -25,7 +24,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	kuberuntime "k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	clientset "k8s.io/client-go/kubernetes"
 	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
 
@@ -36,6 +34,9 @@ import (
 	"github.com/karmada-io/karmada/operator/pkg/util/apiclient"
 	"github.com/karmada-io/karmada/operator/pkg/util/patcher"
 )
+
+// DeploymentGVK represents the GroupVersionKind (GVK) for a Kubernetes Deployment resource.
+var DeploymentGVK = appsv1.SchemeGroupVersion.WithKind("Deployment")
 
 // EnsureKarmadaAPIServer creates karmada apiserver deployment and service resource
 func EnsureKarmadaAPIServer(client clientset.Interface, cfg *operatorv1alpha1.KarmadaComponents, name, namespace string, featureGates map[string]bool) error {
@@ -88,17 +89,11 @@ func installKarmadaAPIServer(client clientset.Interface, cfg *operatorv1alpha1.K
 		WithExtraArgs(cfg.ExtraArgs).WithExtraVolumeMounts(cfg.ExtraVolumeMounts).
 		WithExtraVolumes(cfg.ExtraVolumes).WithSidecarContainers(cfg.SidecarContainers).WithResources(cfg.Resources).ForDeployment(apiserverDeployment)
 
-	if err := apiclient.CreateOrUpdateDeployment(client, apiserverDeployment); err != nil {
+	if apiserverDeployment, err = apiclient.CreateOrUpdateDeployment(client, apiserverDeployment); err != nil {
 		return fmt.Errorf("error when creating deployment for %s, err: %w", apiserverDeployment.Name, err)
 	}
 
-	// Fetch persisted Deployment to get real UID
-	persisted, err := client.AppsV1().Deployments(namespace).Get(context.TODO(), apiserverDeployment.GetName(), metav1.GetOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to fetch Deployment %s/%s for PDB owner, err: %w", namespace, apiserverDeployment.GetName(), err)
-	}
-	gvk := schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Deployment"}
-	ownerRef := *metav1.NewControllerRef(persisted, gvk)
+	ownerRef := *metav1.NewControllerRef(apiserverDeployment, DeploymentGVK)
 	if err := pdb.EnsurePodDisruptionBudget(client, util.KarmadaAPIServerName(name), namespace, cfg.CommonSettings.PodDisruptionBudgetConfig, apiserverDeployment.Spec.Template.Labels, []metav1.OwnerReference{ownerRef}); err != nil {
 		return fmt.Errorf("failed to ensure PDB for apiserver component %s, err: %w", util.KarmadaAPIServerName(name), err)
 	}
@@ -171,18 +166,12 @@ func installKarmadaAggregatedAPIServer(client clientset.Interface, cfg *operator
 		WithPriorityClassName(cfg.CommonSettings.PriorityClassName).
 		WithExtraArgs(cfg.ExtraArgs).WithFeatureGates(featureGates).WithResources(cfg.Resources).ForDeployment(aggregatedAPIServerDeployment)
 
-	if err := apiclient.CreateOrUpdateDeployment(client, aggregatedAPIServerDeployment); err != nil {
+	if aggregatedAPIServerDeployment, err = apiclient.CreateOrUpdateDeployment(client, aggregatedAPIServerDeployment); err != nil {
 		return fmt.Errorf("error when creating deployment for %s, err: %w", aggregatedAPIServerDeployment.Name, err)
 	}
 
-	// Fetch persisted Deployment to get real UID
-	persistedAgg, err := client.AppsV1().Deployments(namespace).Get(context.TODO(), aggregatedAPIServerDeployment.GetName(), metav1.GetOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to fetch Deployment %s/%s for PDB owner, err: %w", namespace, aggregatedAPIServerDeployment.GetName(), err)
-	}
-	gvk2 := schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Deployment"}
-	ownerRef2 := *metav1.NewControllerRef(persistedAgg, gvk2)
-	if err := pdb.EnsurePodDisruptionBudget(client, util.KarmadaAggregatedAPIServerName(name), namespace, cfg.CommonSettings.PodDisruptionBudgetConfig, aggregatedAPIServerDeployment.Spec.Template.Labels, []metav1.OwnerReference{ownerRef2}); err != nil {
+	ownerRef := *metav1.NewControllerRef(aggregatedAPIServerDeployment, DeploymentGVK)
+	if err := pdb.EnsurePodDisruptionBudget(client, util.KarmadaAggregatedAPIServerName(name), namespace, cfg.CommonSettings.PodDisruptionBudgetConfig, aggregatedAPIServerDeployment.Spec.Template.Labels, []metav1.OwnerReference{ownerRef}); err != nil {
 		return fmt.Errorf("failed to ensure PDB for aggregated apiserver component %s, err: %w", util.KarmadaAggregatedAPIServerName(name), err)
 	}
 

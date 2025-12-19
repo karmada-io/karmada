@@ -66,9 +66,9 @@ func TestEnsureKarmadaEtcd(t *testing.T) {
 	}
 
 	actions := fakeClient.Actions()
-	// We now create statefulset, 2 services (peer + client), and PDB, include get statefulset, so expect 5 actions
-	if len(actions) != 5 {
-		t.Fatalf("expected 5 actions, but got %d", len(actions))
+	// We now create statefulset, 2 services (peer + client), and PDB, so expect 4 actions
+	if len(actions) != 4 {
+		t.Fatalf("expected 4 actions, but got %d", len(actions))
 	}
 
 	// Check that we have statefulset, 2 services, and PDB
@@ -85,8 +85,8 @@ func TestEnsureKarmadaEtcd(t *testing.T) {
 		}
 	}
 
-	if statefulsetCount != 2 {
-		t.Errorf("expected 2 statefulset actions (create + get), but got %d", statefulsetCount)
+	if statefulsetCount != 1 {
+		t.Errorf("expected 1 statefulset actions, but got %d", statefulsetCount)
 	}
 
 	if serviceCount != 2 {
@@ -147,9 +147,9 @@ func TestInstallKarmadaEtcd(t *testing.T) {
 func verifyStatefulSetCreation(client *fakeclientset.Clientset) (*appsv1.StatefulSet, error) {
 	// Assert that a StatefulSet and PDB were created.
 	actions := client.Actions()
-	// We now create statefulset, PDB, and perform a get action, so expect 3 actions
-	if len(actions) != 3 {
-		return nil, fmt.Errorf("expected exactly 3 actions (statefulset + PDB + get), but got %d actions", len(actions))
+	// We now create statefulset and PDB, so expect 2 actions
+	if len(actions) != 2 {
+		return nil, fmt.Errorf("expected exactly 2 actions (statefulset + PDB), but got %d actions", len(actions))
 	}
 
 	// Find the statefulset action

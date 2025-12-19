@@ -91,3 +91,9 @@ func GetLastTransitionTime(karmada *operatorv1alpha1.Karmada, conditionType oper
 	}
 	return time.Now()
 }
+
+// DeleteKarmadaInstance deletes a karmada instance and ignores not found error.
+func DeleteKarmadaInstance(client operator.Interface, namespace, name string) {
+	err := client.OperatorV1alpha1().Karmadas(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+	gomega.Expect(err).To(gomega.SatisfyAny(gomega.BeNil(), gomega.WithTransform(apierrors.IsNotFound, gomega.BeTrue())))
+}
