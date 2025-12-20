@@ -1,6 +1,8 @@
 # test case for interpreting dependency of Workflow
-
 # case1. Workflow with no dependencies
+# case2. Workflow with volume dependency
+# case3. Workflow with ConfigMap env dependency
+
 name: "Workflow with no dependencies"
 description: "Test interpreting dependency of simple Workflow with no dependencies"
 desiredObj:
@@ -18,14 +20,15 @@ desiredObj:
       - name: simple-task
         container:
           image: busybox
-          command: ["echo"]
-          args: ["hello"]
+          command: [ "echo" ]
+          args: [ "hello" ]
 operation: InterpretDependency
+output:
+  dependencies: []
 
-# case2. Workflow with volume dependency
 ---
 name: "Workflow with volume dependency"
-description: "Test interpreting dependency of Workflow with PVC volume"
+description: "Test interpreting dependency of Workflow with PVC volume + ServiceAccount"
 desiredObj:
   apiVersion: argoproj.io/v1alpha1
   kind: Workflow
@@ -50,8 +53,17 @@ desiredObj:
             - name: workdir
               mountPath: /mnt/vol
 operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: my-existing-volume
+      namespace: test-workflow
+    - apiVersion: v1
+      kind: ServiceAccount
+      name: my-service-account
+      namespace: test-workflow
 
-# case3. Workflow with ConfigMap env dependency
 ---
 name: "Workflow with ConfigMap env dependency"
 description: "Test interpreting dependency of Workflow with ConfigMap env refs"
@@ -70,7 +82,7 @@ desiredObj:
       - name: config-env-task
         container:
           image: busybox
-          command: ["env"]
+          command: [ "env" ]
           env:
             - name: LOG_LEVEL
               valueFrom:
@@ -83,3 +95,5 @@ desiredObj:
                   name: db-config
                   key: host
 operation: InterpretDependency
+output:
+  dependencies: []
