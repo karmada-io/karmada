@@ -1,5 +1,7 @@
 # test case for interpreting status of BroadcastJob
 # case1. BroadcastJob: interpret status test
+# case2. BroadcastJob succeeded status
+# case3. BroadcastJob with empty status
 
 name: "BroadcastJob: interpret status test"
 description: "Test interpreting status for BroadcastJob"
@@ -57,3 +59,63 @@ observedObj:
     succeeded: 0
 operation: InterpretStatus
 output:
+  status:
+    active: 0
+    succeeded: 0
+    failed: 1
+    desired: 1
+    phase: failed
+    startTime: "2023-04-06T15:01:37Z"
+    completionTime: "2023-04-06T15:01:47Z"
+    conditions:
+      - lastProbeTime: "2023-04-06T15:01:47Z"
+        lastTransitionTime: "2023-04-06T15:01:47Z"
+        message: Job test-bcj/sample was active longer than specified deadline
+        reason: Failed
+        status: "True"
+        type: Failed
+---
+name: "BroadcastJob succeeded status"
+description: "InterpretStatus when BroadcastJob completes successfully"
+observedObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: BroadcastJob
+  metadata:
+    name: sample
+    namespace: test-bcj
+  status:
+    active: 0
+    succeeded: 1
+    failed: 0
+    desired: 1
+    phase: completed
+    startTime: "2023-04-06T15:01:10Z"
+    completionTime: "2023-04-06T15:01:20Z"
+    conditions:
+      - type: Complete
+        status: "True"
+operation: InterpretStatus
+output:
+  status:
+    active: 0
+    succeeded: 1
+    failed: 0
+    desired: 1
+    phase: completed
+    startTime: "2023-04-06T15:01:10Z"
+    completionTime: "2023-04-06T15:01:20Z"
+    conditions:
+      - type: Complete
+        status: "True"
+---
+name: "BroadcastJob with empty status"
+description: "InterpretStatus should return empty status when status is nil"
+observedObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: BroadcastJob
+  metadata:
+    name: sample
+    namespace: test-bcj
+operation: InterpretStatus
+output:
+  status: {}

@@ -1,6 +1,8 @@
 # test case for interpreting health of BroadcastJob
 # case1. BroadcastJob with failed phase should be Unhealthy
-
+# case2. BroadcastJob with desired zero should be Unhealthy
+# case3. BroadcastJob with no active and no succeeded should be Unhealthy
+# case4. BroadcastJob healthy when active or succeeded exists
 name: "BroadcastJob with failed phase should be Unhealthy"
 description: "Test interpreting health of BroadcastJob with failed phase"
 observedObj:
@@ -58,3 +60,54 @@ observedObj:
 operation: InterpretHealth
 output:
     health: false
+---
+name: "BroadcastJob with desired zero should be Unhealthy"
+description: "Health should be false when desired is zero"
+observedObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: BroadcastJob
+  metadata:
+    name: sample
+    namespace: test-bcj
+  status:
+    desired: 0
+    active: 0
+    succeeded: 0
+    failed: 0
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "BroadcastJob with no active and no succeeded should be Unhealthy"
+description: "Health should be false when both active and succeeded are zero"
+observedObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: BroadcastJob
+  metadata:
+    name: sample
+    namespace: test-bcj
+  status:
+    desired: 1
+    active: 0
+    succeeded: 0
+    failed: 0
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "BroadcastJob healthy when active or succeeded exists"
+description: "Health should be true when job is progressing or succeeded"
+observedObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: BroadcastJob
+  metadata:
+    name: sample
+    namespace: test-bcj
+  status:
+    desired: 1
+    active: 1
+    succeeded: 0
+    failed: 0
+operation: InterpretHealth
+output:
+  healthy: true

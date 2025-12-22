@@ -1,5 +1,7 @@
 # test case for interpreting dependency of BroadcastJob
 # case1. BroadcastJob with configmap dependency
+# case2. BroadcastJob with secret dependency
+# case3. BroadcastJob with configmap and secret dependency
 
 name: "BroadcastJob with configmap dependency"
 description: "Test interpreting dependency of BroadcastJob with configmap dependency"
@@ -42,3 +44,67 @@ desiredObj:
       activeDeadlineSeconds: 10
 operation: InterpretDependency
 output:
+ configMaps:
+    - name: my-sample-config
+      namespace: test-bcj
+    - name: mysql-config
+      namespace: test-bcj
+---
+name: "BroadcastJob with secret dependency"
+description: "Test interpreting dependency of BroadcastJob with secret env reference"
+desiredObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: BroadcastJob
+  metadata:
+    name: sample
+    namespace: test-bcj
+  spec:
+    template:
+      spec:
+        containers:
+          - name: nginx
+            image: nginx:alpine
+            env:
+              - name: SECRET_VAL
+                valueFrom:
+                  secretKeyRef:
+                    name: my-secret
+                    key: password
+operation: InterpretDependency
+output:
+  secrets:
+    - name: my-secret
+      namespace: test-bcj
+---
+name: "BroadcastJob with configmap and secret dependency"
+description: "Test interpreting mixed dependencies"
+desiredObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: BroadcastJob
+  metadata:
+    name: sample
+    namespace: test-bcj
+  spec:
+    template:
+      spec:
+        volumes:
+          - name: cm
+            configMap:
+              name: app-config
+        containers:
+          - name: nginx
+            image: nginx:alpine
+            env:
+              - name: TOKEN
+                valueFrom:
+                  secretKeyRef:
+                    name: api-secret
+                    key: token
+operation: InterpretDependency
+output:
+  configMaps:
+    - name: app-config
+      namespace: test-bcj
+  secrets:
+    - name: api-secret
+      namespace: test-bcj

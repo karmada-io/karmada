@@ -1,5 +1,6 @@
 # test case for retaining BroadcastJob
 # case1. BroadcastJob: retain test
+# case2. BroadcastJob retain should preserve observed labels
 
 name: "BroadcastJob: retain test"
 description: "Test retaining BroadcastJob"
@@ -94,3 +95,76 @@ observedObj:
     succeeded: 0
 operation: Retain
 output:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: BroadcastJob
+  metadata:
+    labels:
+      app: sample
+    name: sample
+    namespace: test-bcj
+  spec:
+    parallelism: 1
+    template:
+      metadata:
+        labels:
+          app: sample
+      spec:
+        restartPolicy: Never
+        volumes:
+          - name: configmap
+            configMap:
+              name: my-sample-config
+        containers:
+          - name: nginx
+            image: nginx:alpine
+            env:
+              - name: logData
+                valueFrom:
+                  configMapKeyRef:
+                    name: mysql-config
+                    key: log
+              - name: lowerData
+                valueFrom:
+                  configMapKeyRef:
+                    name: mysql-config
+                    key: lower
+    completionPolicy:
+      type: Always
+      activeDeadlineSeconds: 10
+---
+name: "BroadcastJob retain should preserve observed labels"
+description: "Retain should copy pod template labels from observedObj"
+desiredObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: BroadcastJob
+  metadata:
+    name: sample
+    namespace: test-bcj
+  spec:
+    template:
+      metadata:
+        labels:
+          app: old-label
+observedObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: BroadcastJob
+  metadata:
+    name: sample
+    namespace: test-bcj
+  spec:
+    template:
+      metadata:
+        labels:
+          app: new-label
+operation: Retain
+output:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: BroadcastJob
+  metadata:
+    name: sample
+    namespace: test-bcj
+  spec:
+    template:
+      metadata:
+        labels:
+          app: new-label
