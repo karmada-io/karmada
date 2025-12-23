@@ -22,9 +22,9 @@ import (
 	"io"
 	"strings"
 
-	"gopkg.in/yaml.v3"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/kubectl/pkg/cmd/util"
+	"sigs.k8s.io/yaml"
 
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/genericresource"
@@ -126,8 +126,9 @@ func printExecuteResult(w, errOut io.Writer, name string, result *interpreter.Ru
 	}
 }
 
-// MarshalJSON doesn't work for yaml encoder, so unstructured.Unstructured and runtime.RawExtension objects
-// will be encoded into unexpected data.
+// printObjectYaml serializes objects to YAML format with proper handling of Kubernetes objects.
+// Without converting through JSON first, unstructured.Unstructured and runtime.RawExtension objects
+// would be encoded into unexpected data structures.
 // Example1:
 //
 //	  &unstructured.Unstructured{
@@ -154,7 +155,8 @@ func printExecuteResult(w, errOut io.Writer, name string, result *interpreter.Ru
 //	  - 125
 //
 // Inspired from https://github.com/kubernetes/kubernetes/blob/8fb423bfabe0d53934cc94c154c7da2dc3ce1332/staging/src/k8s.io/kubectl/pkg/cmd/get/get.go#L781-L786
-// we convert it to map[string]interface{} by json, then encode the converted object to yaml.
+// To avoid these issues, we convert the object to map[string]interface{} via JSON marshaling/unmarshaling,
+// then encode it to YAML.
 func printObjectYaml(w io.Writer, obj interface{}) error {
 	data, err := json.Marshal(obj)
 	if err != nil {
@@ -167,7 +169,12 @@ func printObjectYaml(w io.Writer, obj interface{}) error {
 		return err
 	}
 
-	encoder := yaml.NewEncoder(w)
-	defer encoder.Close()
-	return encoder.Encode(converted)
+	yamlData, err := yaml.Marshal(converted)
+	if err != nil {
+		return err
+	}
+
+	_, err = w.Write(yamlData)
+
+	return err
 }
