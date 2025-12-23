@@ -28,6 +28,8 @@ linters:
           deny:
             - pkg: io/ioutil
               desc: 'replaced by io and os packages since Go 1.16: https://tip.golang.org/doc/go1.16#ioutil'
+            - pkg: gopkg.in/yaml.v3
+              desc: 'archived since April 2, 2025; use sigs.k8s.io/yaml instead for better Kubernetes object handling'
     gocyclo:
       # minimal cyclomatic complexity to report
       min-complexity: 15
