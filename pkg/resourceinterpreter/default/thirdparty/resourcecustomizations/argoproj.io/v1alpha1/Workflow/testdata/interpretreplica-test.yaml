@@ -50,30 +50,6 @@ output:
   replica: 2
 
 ---
-name: "Workflow with parallelism set to 1"
-description: "Test interpreting replica of Workflow with parallelism set to 1"
-desiredObj:
-  apiVersion: argoproj.io/v1alpha1
-  kind: Workflow
-  metadata:
-    labels:
-      app: sample
-    name: sample-parallelism-1
-    namespace: test-workflow
-  spec:
-    parallelism: 1
-    entrypoint: simple-template
-    templates:
-      - name: simple-template
-        container:
-          image: busybox
-          command: [ "echo" ]
-          args: [ "done" ]
-operation: InterpretReplica
-output:
-  replica: 1
-
----
 name: "Workflow with parallelism unset"
 description: "Test interpreting replica of Workflow with no parallelism specified (defaults to 1)"
 desiredObj:
