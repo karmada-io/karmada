@@ -1,0 +1,40 @@
+# test case for revising replica of StatefulSet
+# case1. StatefulSet revise replica from 1 to 3
+
+name: "StatefulSet revise replica from 1 to 3"
+description: "ReviseReplica should update spec.replicas to desired value"
+desiredObj:
+  apiVersion: apps.kruise.io/v1beta1
+  kind: StatefulSet
+  metadata:
+    name: sample
+    namespace: default
+  spec:
+    replicas: 1
+    template:
+      metadata:
+        labels:
+          app: sample
+      spec:
+        containers:
+          - name: nginx
+            image: nginx:alpine
+inputReplicas: 3
+operation: ReviseReplica
+output:
+  revised:
+    apiVersion: apps.kruise.io/v1beta1
+    kind: StatefulSet
+    metadata:
+      name: sample
+      namespace: default
+    spec:
+      replicas: 3
+      template:
+        metadata:
+          labels:
+            app: sample
+        spec:
+          containers:
+            - name: nginx
+              image: nginx:alpine
