@@ -1,5 +1,9 @@
 # test case for aggregating status of StatefulSet
 # case1. StatefulSet with two status items
+# case2. StatefulSet with partially ready replicas
+# case3. StatefulSet with mixed observed generations
+# case4. StatefulSet with no status items
+# case5. StatefulSet with stale resourceTemplateGeneration
 
 name: "StatefulSet with two status items"
 description: "Test aggregating status of StatefulSet with two status items"
@@ -86,3 +90,233 @@ statusItems:
       updatedReplicas: 2
 operation: AggregateStatus
 output:
+  aggregatedStatus:
+    apiVersion: apps.kruise.io/v1beta1
+    kind: StatefulSet
+    metadata:
+      name: sample
+      namespace: test-statefulset
+      generation: 1
+    spec:
+      replicas: 2
+      serviceName: sample-statefulset-headless-service
+      podManagementPolicy: Parallel
+      selector:
+        matchLabels:
+          app: sample
+      template:
+        metadata:
+          labels:
+            app: sample
+        spec:
+          volumes:
+            - name: configmap
+              configMap:
+                name: my-sample-config
+          readinessGates:
+            - conditionType: InPlaceUpdateReady
+          containers:
+            - name: nginx
+              image: nginx:alpine
+              ports:
+                - containerPort: 80
+                  name: web
+              env:
+                - name: logData
+                  valueFrom:
+                    configMapKeyRef:
+                      name: mysql-config
+                      key: log
+                - name: lowerData
+                  valueFrom:
+                    configMapKeyRef:
+                      name: mysql-config
+                      key: lower
+      updateStrategy:
+        type: RollingUpdate
+        rollingUpdate:
+          podUpdatePolicy: InPlaceIfPossible
+          maxUnavailable: 2
+    status:
+      replicas: 4
+      readyReplicas: 4
+      currentReplicas: 4
+      updatedReplicas: 4
+      availableReplicas: 4
+      updatedReadyReplicas: 4
+      updateRevision: sample-5675547df7
+      currentRevision: sample-5675547df7
+      observedGeneration: 1
+---
+name: "StatefulSet with partially ready replicas"
+description: "AggregateStatus when some replicas are not ready"
+desiredObj:
+  apiVersion: apps.kruise.io/v1beta1
+  kind: StatefulSet
+  metadata:
+    name: sample
+    namespace: test-statefulset
+    generation: 2
+statusItems:
+  - clusterName: member1
+    status:
+      replicas: 2
+      readyReplicas: 1
+      availableReplicas: 1
+      updatedReplicas: 2
+      updatedReadyReplicas: 1
+      currentReplicas: 2
+      generation: 2
+      observedGeneration: 2
+      resourceTemplateGeneration: 2
+  - clusterName: member2
+    status:
+      replicas: 2
+      readyReplicas: 2
+      availableReplicas: 2
+      updatedReplicas: 2
+      updatedReadyReplicas: 2
+      currentReplicas: 2
+      generation: 2
+      observedGeneration: 2
+      resourceTemplateGeneration: 2
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: apps.kruise.io/v1beta1
+    kind: StatefulSet
+    metadata:
+      name: sample
+      namespace: test-statefulset
+      generation: 2
+    status:
+      replicas: 4
+      readyReplicas: 3
+      currentReplicas: 4
+      updatedReplicas: 4
+      availableReplicas: 3
+      updatedReadyReplicas: 3
+      currentRevision: ""
+      updateRevision: ""
+      observedGeneration: 2
+---
+name: "StatefulSet with mixed observed generations"
+description: "ObservedGeneration should not advance if any member is stale"
+desiredObj:
+  apiVersion: apps.kruise.io/v1beta1
+  kind: StatefulSet
+  metadata:
+    name: sample
+    namespace: test-statefulset
+    generation: 3
+  status:
+    observedGeneration: 2
+statusItems:
+  - clusterName: member1
+    status:
+      replicas: 2
+      readyReplicas: 2
+      generation: 3
+      observedGeneration: 3
+      resourceTemplateGeneration: 3
+  - clusterName: member2
+    status:
+      replicas: 2
+      readyReplicas: 2
+      generation: 3
+      observedGeneration: 2
+      resourceTemplateGeneration: 3
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: apps.kruise.io/v1beta1
+    kind: StatefulSet
+    metadata:
+      name: sample
+      namespace: test-statefulset
+      generation: 3
+    status:
+      replicas: 4
+      readyReplicas: 4
+      currentReplicas: 0
+      updatedReplicas: 0
+      availableReplicas: 0
+      updatedReadyReplicas: 0
+      currentRevision: ""
+      updateRevision: ""
+      observedGeneration: 2
+---
+name: "StatefulSet with no status items"
+description: "AggregateStatus when StatefulSet is not propagated"
+desiredObj:
+  apiVersion: apps.kruise.io/v1beta1
+  kind: StatefulSet
+  metadata:
+    name: sample
+    namespace: test-statefulset
+    generation: 1
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: apps.kruise.io/v1beta1
+    kind: StatefulSet
+    metadata:
+      name: sample
+      namespace: test-statefulset
+      generation: 1
+    status:
+      replicas: 0
+      readyReplicas: 0
+      currentReplicas: 0
+      updatedReplicas: 0
+      availableReplicas: 0
+      updatedReadyReplicas: 0
+      updateRevision: ""
+      currentRevision: ""
+      observedGeneration: 1
+---
+name: "StatefulSet with stale resourceTemplateGeneration"
+description: "observedGeneration should not advance when any member has stale resourceTemplateGeneration"
+desiredObj:
+  apiVersion: apps.kruise.io/v1beta1
+  kind: StatefulSet
+  metadata:
+    name: sample
+    namespace: test-statefulset
+    generation: 3
+  status:
+    observedGeneration: 2
+statusItems:
+  - clusterName: member1
+    status:
+      replicas: 2
+      readyReplicas: 2
+      generation: 3
+      observedGeneration: 3
+      resourceTemplateGeneration: 3
+  - clusterName: member2
+    status:
+      replicas: 2
+      readyReplicas: 2
+      generation: 3
+      observedGeneration: 3
+      resourceTemplateGeneration: 2   
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: apps.kruise.io/v1beta1
+    kind: StatefulSet
+    metadata:
+      name: sample
+      namespace: test-statefulset
+      generation: 3
+    status:
+      replicas: 4
+      readyReplicas: 4
+      observedGeneration: 2
+      availableReplicas: 0
+      currentReplicas: 0
+      updatedReplicas: 0
+      updatedReadyReplicas: 0
+      updateRevision: ""
+      currentRevision: ""
