@@ -1,13 +1,16 @@
 # test case for aggregating status of RayCluster
-# case1. RayCluster with two status items
+# case1. RayCluster with two status items from different clusters
+# case2. RayCluster with single status item
+# case3. RayCluster with unhealthy cluster (replica failure)
 
 name: "RayCluster with two status items"
-description: "Test aggregating status of RayCluster with two status items"
+description: "Test aggregating status of RayCluster with two status items from different clusters"
 desiredObj:
   apiVersion: ray.io/v1
   kind: RayCluster
   metadata:
     name: sample
+    namespace: default
   spec:
     rayVersion: '2.46.0'
     headGroupSpec:
@@ -40,14 +43,15 @@ desiredObj:
         template:
           spec:
             containers:
-              image: rayproject/ray:2.46.0
-              resources:
-                limits:
-                  cpu: 1
-                  memory: 1G
-                requests:
-                  cpu: 1
-                  memory: 1G
+              - name: ray-worker
+                image: rayproject/ray:2.46.0
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 1G
+                  requests:
+                    cpu: 1
+                    memory: 1G
 statusItems:
   - applied: true
     clusterName: member1
@@ -137,3 +141,335 @@ statusItems:
         ready: "2025-09-21T03:56:50Z"
 operation: AggregateStatus
 output:
+  aggregatedStatus:
+    apiVersion: ray.io/v1
+    kind: RayCluster
+    metadata:
+      name: sample
+      namespace: default
+    status:
+      conditions:
+      - lastTransitionTime: "2025-09-21T03:55:30Z"
+        message: ""
+        reason: HeadPodRunningAndReady
+        status: "True"
+        type: HeadPodReady
+      - lastTransitionTime: "2025-09-21T03:55:45Z"
+        message: All Ray Pods are ready for the first time
+        reason: AllPodRunningAndReadyFirstTime
+        status: "True"
+        type: RayClusterProvisioned
+      - lastTransitionTime: "2025-09-21T03:54:44Z"
+        message: ""
+        reason: RayClusterSuspended
+        status: "False"
+        type: RayClusterSuspended
+      - lastTransitionTime: "2025-09-21T03:54:44Z"
+        message: ""
+        reason: RayClusterSuspending
+        status: "False"
+        type: RayClusterSuspending
+      - lastTransitionTime: "2025-09-21T03:56:30Z"
+        message: ""
+        reason: HeadPodRunningAndReady
+        status: "True"
+        type: HeadPodReady
+      - lastTransitionTime: "2025-09-21T03:56:50Z"
+        message: All Ray Pods are ready for the first time
+        reason: AllPodRunningAndReadyFirstTime
+        status: "True"
+        type: RayClusterProvisioned
+      - lastTransitionTime: "2025-09-21T03:54:50Z"
+        message: ""
+        reason: RayClusterSuspended
+        status: "False"
+        type: RayClusterSuspended
+      - lastTransitionTime: "2025-09-21T03:54:50Z"
+        message: ""
+        reason: RayClusterSuspending
+        status: "False"
+        type: RayClusterSuspending
+      readyWorkerReplicas: 4
+      availableWorkerReplicas: 3
+      maxWorkerReplicas: 15
+      minWorkerReplicas: 3
+      desiredWorkerReplicas: 4
+      desiredCPU: "6"
+      desiredGPU: "1"
+      desiredMemory: 8G
+      desiredTPU: "0"
+      lastUpdateTime: "2025-09-21T03:56:50Z"
+      endpoints:
+        client: "10001"
+        dashboard: "8265"
+        gcs-server: "6379"
+        metrics: "8080"
+      head:
+        podIP: 10.244.0.6
+        podName: sample-head-9cvfc
+        serviceIP: 10.244.0.6
+        serviceName: sample-head-svc
+      state: ready
+      stateTransitionTimes:
+        ready: "2025-09-21T03:55:45Z"
+
+---
+name: "RayCluster with single status item"
+description: "Test aggregating status of RayCluster with single status item"
+desiredObj:
+  apiVersion: ray.io/v1
+  kind: RayCluster
+  metadata:
+    name: single-cluster
+    namespace: default
+  spec:
+    rayVersion: '2.46.0'
+    headGroupSpec:
+      template:
+        spec:
+          containers:
+            - name: ray-head
+              image: rayproject/ray:2.46.0
+              resources:
+                requests:
+                  cpu: 500m
+                  memory: 1G
+    workerGroupSpecs:
+      - replicas: 2
+        groupName: small-group
+        template:
+          spec:
+            containers:
+              - name: ray-worker
+                image: rayproject/ray:2.46.0
+statusItems:
+  - applied: true
+    clusterName: member1
+    status:
+      availableWorkerReplicas: 2
+      conditions:
+        - lastTransitionTime: "2025-09-22T10:00:00Z"
+          message: ""
+          reason: HeadPodRunningAndReady
+          status: "True"
+          type: HeadPodReady
+        - lastTransitionTime: "2025-09-22T10:01:00Z"
+          message: All Ray Pods are ready for the first time
+          reason: AllPodRunningAndReadyFirstTime
+          status: "True"
+          type: RayClusterProvisioned
+        - lastTransitionTime: "2025-09-22T10:01:00Z"
+          message: ""
+          reason: NoReplicaFailure
+          status: "False"
+          type: RayClusterReplicaFailure
+      desiredCPU: "2.5"
+      desiredMemory: 3G
+      desiredWorkerReplicas: 2
+      endpoints:
+        client: "10001"
+        dashboard: "8265"
+        gcs-server: "6379"
+      head:
+        podIP: 10.244.1.5
+        podName: single-cluster-head-abc12
+        serviceIP: 10.96.1.100
+        serviceName: single-cluster-head-svc
+      lastUpdateTime: "2025-09-22T10:01:00Z"
+      maxWorkerReplicas: 2
+      minWorkerReplicas: 2
+      readyWorkerReplicas: 2
+      state: ready
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: ray.io/v1
+    kind: RayCluster
+    metadata:
+      name: single-cluster
+      namespace: default
+    status:
+      availableWorkerReplicas: 2
+      conditions:
+      - lastTransitionTime: "2025-09-22T10:00:00Z"
+        message: ""
+        reason: HeadPodRunningAndReady
+        status: "True"
+        type: HeadPodReady
+      - lastTransitionTime: "2025-09-22T10:01:00Z"
+        message: All Ray Pods are ready for the first time
+        reason: AllPodRunningAndReadyFirstTime
+        status: "True"
+        type: RayClusterProvisioned
+      - lastTransitionTime: "2025-09-22T10:01:00Z"
+        message: ""
+        reason: NoReplicaFailure
+        status: "False"
+        type: RayClusterReplicaFailure
+      desiredCPU: "2.5"
+      desiredMemory: 3G
+      desiredWorkerReplicas: 2
+      endpoints:
+        client: "10001"
+        dashboard: "8265"
+        gcs-server: "6379"
+      head:
+        podIP: 10.244.1.5
+        podName: single-cluster-head-abc12
+        serviceIP: 10.96.1.100
+        serviceName: single-cluster-head-svc
+      lastUpdateTime: "2025-09-22T10:01:00Z"
+      maxWorkerReplicas: 2
+      minWorkerReplicas: 2
+      readyWorkerReplicas: 2
+      state: ready
+
+---
+name: "RayCluster with unhealthy cluster"
+description: "Test aggregating status when one cluster has replica failure"
+desiredObj:
+  apiVersion: ray.io/v1
+  kind: RayCluster
+  metadata:
+    name: unhealthy-cluster
+    namespace: production
+  spec:
+    rayVersion: '2.46.0'
+    headGroupSpec:
+      template:
+        spec:
+          containers:
+            - name: ray-head
+              image: rayproject/ray:2.46.0
+    workerGroupSpecs:
+      - replicas: 5
+        groupName: large-group
+        template:
+          spec:
+            containers:
+              - name: ray-worker
+                image: rayproject/ray:2.46.0
+                resources:
+                  requests:
+                    cpu: 2
+                    memory: 4G
+statusItems:
+  - applied: true
+    clusterName: member1
+    status:
+      availableWorkerReplicas: 5
+      conditions:
+        - lastTransitionTime: "2025-09-23T12:00:00Z"
+          message: ""
+          reason: HeadPodRunningAndReady
+          status: "True"
+          type: HeadPodReady
+        - lastTransitionTime: "2025-09-23T12:05:00Z"
+          message: All Ray Pods are ready
+          reason: AllPodRunningAndReady
+          status: "True"
+          type: RayClusterProvisioned
+      desiredCPU: "11"
+      desiredGPU: "0"
+      desiredMemory: 21G
+      desiredTPU: "0"
+      desiredWorkerReplicas: 5
+      endpoints:
+        client: "10001"
+        dashboard: "8265"
+        gcs-server: "6379"
+      head:
+        podIP: 10.244.2.10
+        podName: unhealthy-cluster-head-xyz
+        serviceIP: 10.96.2.200
+        serviceName: unhealthy-cluster-head-svc
+      lastUpdateTime: "2025-09-23T12:05:00Z"
+      maxWorkerReplicas: 5
+      minWorkerReplicas: 0
+      readyWorkerReplicas: 5
+      state: ready
+  - applied: true
+    clusterName: member2
+    status:
+      availableWorkerReplicas: 2
+      conditions:
+        - lastTransitionTime: "2025-09-23T12:00:30Z"
+          message: ""
+          reason: HeadPodRunningAndReady
+          status: "True"
+          type: HeadPodReady
+        - lastTransitionTime: "2025-09-23T12:03:00Z"
+          message: Some Ray Pods are not ready
+          reason: SomePodNotReady
+          status: "False"
+          type: RayClusterProvisioned
+        - lastTransitionTime: "2025-09-23T12:03:00Z"
+          message: "3 replicas failed to start"
+          reason: WorkerReplicasFailed
+          status: "True"
+          type: RayClusterReplicaFailure
+      desiredCPU: "11"
+      desiredGPU: "0"
+      desiredMemory: 21G
+      desiredTPU: "0"
+      desiredWorkerReplicas: 5
+      lastUpdateTime: "2025-09-23T12:10:00Z"
+      maxWorkerReplicas: 5
+      minWorkerReplicas: 0
+      readyWorkerReplicas: 2
+      state: unhealthy
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: ray.io/v1
+    kind: RayCluster
+    metadata:
+      name: unhealthy-cluster
+      namespace: production
+    status:
+      conditions:
+      - lastTransitionTime: "2025-09-23T12:00:00Z"
+        message: ""
+        reason: HeadPodRunningAndReady
+        status: "True"
+        type: HeadPodReady
+      - lastTransitionTime: "2025-09-23T12:05:00Z"
+        message: All Ray Pods are ready
+        reason: AllPodRunningAndReady
+        status: "True"
+        type: RayClusterProvisioned
+      - lastTransitionTime: "2025-09-23T12:00:30Z"
+        message: ""
+        reason: HeadPodRunningAndReady
+        status: "True"
+        type: HeadPodReady
+      - lastTransitionTime: "2025-09-23T12:03:00Z"
+        message: Some Ray Pods are not ready
+        reason: SomePodNotReady
+        status: "False"
+        type: RayClusterProvisioned
+      - lastTransitionTime: "2025-09-23T12:03:00Z"
+        message: "3 replicas failed to start"
+        reason: WorkerReplicasFailed
+        status: "True"
+        type: RayClusterReplicaFailure
+      readyWorkerReplicas: 7
+      availableWorkerReplicas: 7
+      desiredWorkerReplicas: 10
+      desiredCPU: "22"
+      desiredGPU: "0"
+      desiredMemory: 42G
+      desiredTPU: "0"
+      maxWorkerReplicas: 10
+      minWorkerReplicas: 0
+      lastUpdateTime: "2025-09-23T12:10:00Z"
+      endpoints:
+        client: "10001"
+        dashboard: "8265"
+        gcs-server: "6379"
+      head:
+        podIP: 10.244.2.10
+        podName: unhealthy-cluster-head-xyz
+        serviceIP: 10.96.2.200
+        serviceName: unhealthy-cluster-head-svc
+      state: ready

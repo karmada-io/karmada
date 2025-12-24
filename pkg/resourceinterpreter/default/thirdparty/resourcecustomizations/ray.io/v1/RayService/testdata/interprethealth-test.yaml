@@ -1,0 +1,262 @@
+# test case for interpreting health of RayService
+# case1. RayService is ready (healthy)
+# case2. RayService is not ready (unhealthy)
+# case3. RayService is ready but upgrading (considered healthy)
+# case4. RayService with no status (unhealthy)
+# case5. RayService with no conditions (unhealthy)
+
+name: "RayService is ready"
+description: "Test interpreting health for RayService when Ready condition is True"
+observedObj:
+  apiVersion: ray.io/v1
+  kind: RayService
+  metadata:
+    name: rayservice-ready
+    namespace: default
+  spec:
+    serveConfigV2: |
+      applications:
+        - name: fruit-app
+          route_prefix: /fruit
+          import_path: fruit:deployment
+    rayClusterConfig:
+      rayVersion: "2.9.0"
+      headGroupSpec:
+        template:
+          spec:
+            containers:
+            - name: ray-head
+              image: rayproject/ray:2.9.0
+  status:
+    conditions:
+      - type: Ready
+        status: "True"
+        reason: NonZeroServeEndpoints
+        message: "Service is ready with 3 serve endpoints"
+        lastTransitionTime: "2024-01-15T10:30:00Z"
+    serviceStatus: Running
+    numServeEndpoints: 3
+    lastUpdateTime: "2024-01-15T10:30:00Z"
+    observedGeneration: 2
+    activeServiceStatus:
+      rayClusterName: rayservice-ready-cluster-abc123
+      applicationStatuses:
+        fruit-app:
+          status: RUNNING
+          message: "Application is running"
+          serveDeploymentStatuses:
+            FruitStand:
+              status: HEALTHY
+              message: "Deployment is healthy"
+operation: InterpretHealth
+output:
+  healthy: true
+
+---
+name: "RayService is not ready"
+description: "Test interpreting health for RayService when Ready condition is False"
+observedObj:
+  apiVersion: ray.io/v1
+  kind: RayService
+  metadata:
+    name: rayservice-not-ready
+    namespace: default
+  spec:
+    serveConfigV2: |
+      applications:
+        - name: ml-app
+          route_prefix: /ml
+          import_path: ml:app
+    rayClusterConfig:
+      rayVersion: "2.9.0"
+      headGroupSpec:
+        template:
+          spec:
+            containers:
+            - name: ray-head
+              image: rayproject/ray:2.9.0
+  status:
+    conditions:
+      - type: Ready
+        status: "False"
+        reason: ZeroServeEndpoints
+        message: "No serve endpoints available"
+        lastTransitionTime: "2024-01-15T10:35:00Z"
+    serviceStatus: ""
+    numServeEndpoints: 0
+    lastUpdateTime: "2024-01-15T10:35:00Z"
+    activeServiceStatus:
+      rayClusterName: rayservice-not-ready-cluster-xyz789
+      applicationStatuses:
+        ml-app:
+          status: DEPLOY_FAILED
+          message: "Failed to deploy application"
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "RayService is ready but upgrading"
+description: "Test interpreting health for RayService when Ready is True but UpgradeInProgress is also True"
+observedObj:
+  apiVersion: ray.io/v1
+  kind: RayService
+  metadata:
+    name: rayservice-upgrading
+    namespace: production
+  spec:
+    serveConfigV2: |
+      applications:
+        - name: model-serving
+          route_prefix: /predict
+          import_path: model_server:app
+    upgradeStrategy:
+      type: NewCluster
+    rayClusterConfig:
+      rayVersion: "2.9.0"
+      headGroupSpec:
+        template:
+          spec:
+            containers:
+            - name: ray-head
+              image: rayproject/ray:2.9.0
+  status:
+    conditions:
+      - type: Ready
+        status: "True"
+        reason: NonZeroServeEndpoints
+        message: "Service is ready with 5 serve endpoints"
+        lastTransitionTime: "2024-01-15T09:00:00Z"
+      - type: UpgradeInProgress
+        status: "True"
+        reason: BothActivePendingClustersExist
+        message: "Upgrading to new cluster"
+        lastTransitionTime: "2024-01-15T10:40:00Z"
+    serviceStatus: Running
+    numServeEndpoints: 5
+    lastUpdateTime: "2024-01-15T10:40:00Z"
+    observedGeneration: 3
+    activeServiceStatus:
+      rayClusterName: rayservice-upgrading-cluster-old
+      targetCapacity: 100
+      trafficRoutedPercent: 70
+      applicationStatuses:
+        model-serving:
+          status: RUNNING
+          message: "Application is running"
+    pendingServiceStatus:
+      rayClusterName: rayservice-upgrading-cluster-new
+      targetCapacity: 100
+      trafficRoutedPercent: 30
+      applicationStatuses:
+        model-serving:
+          status: DEPLOYING
+          message: "Deploying on new cluster"
+operation: InterpretHealth
+output:
+  healthy: true
+
+---
+name: "RayService with no status"
+description: "Test interpreting health for RayService when status is nil"
+observedObj:
+  apiVersion: ray.io/v1
+  kind: RayService
+  metadata:
+    name: rayservice-no-status
+    namespace: default
+  spec:
+    serveConfigV2: |
+      applications:
+        - name: app
+          route_prefix: /
+          import_path: app:main
+    rayClusterConfig:
+      rayVersion: "2.9.0"
+      headGroupSpec:
+        template:
+          spec:
+            containers:
+            - name: ray-head
+              image: rayproject/ray:2.9.0
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "RayService with no conditions"
+description: "Test interpreting health for RayService when conditions array is nil"
+observedObj:
+  apiVersion: ray.io/v1
+  kind: RayService
+  metadata:
+    name: rayservice-no-conditions
+    namespace: default
+  spec:
+    serveConfigV2: |
+      applications:
+        - name: app
+          route_prefix: /
+          import_path: app:main
+    rayClusterConfig:
+      rayVersion: "2.9.0"
+      headGroupSpec:
+        template:
+          spec:
+            containers:
+            - name: ray-head
+              image: rayproject/ray:2.9.0
+  status:
+    serviceStatus: ""
+    numServeEndpoints: 0
+    lastUpdateTime: "2024-01-15T10:45:00Z"
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "RayService with mixed conditions"
+description: "Test interpreting health for RayService with multiple conditions but Ready is False"
+observedObj:
+  apiVersion: ray.io/v1
+  kind: RayService
+  metadata:
+    name: rayservice-mixed-conditions
+    namespace: default
+  spec:
+    serveConfigV2: |
+      applications:
+        - name: api-service
+          route_prefix: /api
+          import_path: api:service
+    rayClusterConfig:
+      rayVersion: "2.9.0"
+      headGroupSpec:
+        template:
+          spec:
+            containers:
+            - name: ray-head
+              image: rayproject/ray:2.9.0
+  status:
+    conditions:
+      - type: UpgradeInProgress
+        status: "False"
+        reason: NoPendingCluster
+        message: "No upgrade in progress"
+        lastTransitionTime: "2024-01-15T10:00:00Z"
+      - type: Ready
+        status: "False"
+        reason: RayServiceInitializing
+        message: "Service is initializing"
+        lastTransitionTime: "2024-01-15T10:50:00Z"
+    serviceStatus: ""
+    numServeEndpoints: 0
+    lastUpdateTime: "2024-01-15T10:50:00Z"
+    activeServiceStatus:
+      rayClusterName: rayservice-mixed-cluster
+      rayClusterStatus:
+        state: ready
+        readyWorkerReplicas: 2
+operation: InterpretHealth
+output:
+  healthy: false
