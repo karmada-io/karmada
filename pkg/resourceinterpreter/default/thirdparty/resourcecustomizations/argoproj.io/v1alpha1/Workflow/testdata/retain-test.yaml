@@ -68,6 +68,7 @@ observedObj:
     startedAt: "2025-12-12T10:00:00Z"
     finishedAt: "2025-12-12T10:05:00Z"
 operation: Retain
+output:
 
 ---
 name: "Workflow: retain test (old completed)"
@@ -155,3 +156,4 @@ observedObj:
     progress: "0/1"
     startedAt: "2025-12-12T09:00:00Z"
 operation: Retain
+output:

@@ -48,6 +48,8 @@ desiredObj:
               memory: 1Mi
 inputReplicas: 1
 operation: ReviseReplica
+output:
+  revisedReplicas: 3
 
 ---
 name: "Workflow: revise replica test (no change)"
@@ -71,6 +73,8 @@ desiredObj:
           args: ["done"]
 inputReplicas: 2
 operation: ReviseReplica
+output:
+  revisedReplicas: 2
 
 ---
 name: "Workflow: revise replica test (scale down)"
@@ -94,3 +98,5 @@ desiredObj:
           args: ["10"]
 inputReplicas: 5
 operation: ReviseReplica
+output:
+  revisedReplicas: 1
