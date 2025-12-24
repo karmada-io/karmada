@@ -3,6 +3,8 @@
 # case2. BroadcastJob completed in all clusters
 # case3. BroadcastJob with active and succeeded jobs
 # case4. BroadcastJob with no status items
+
+# Case 1:
 name: "BroadcastJob with two status items"
 description: "Test aggregating status of BroadcastJob with two status items"
 desiredObj:
@@ -13,35 +15,6 @@ desiredObj:
       app: sample
     name: sample
     namespace: test-bcj
-  spec:
-    parallelism: 1
-    template:
-      metadata:
-        labels:
-          app: sample
-      spec:
-        restartPolicy: Never
-        volumes:
-          - name: configmap
-            configMap:
-              name: my-sample-config
-        containers:
-          - name: nginx
-            image: nginx:alpine
-            env:
-              - name: logData
-                valueFrom:
-                  configMapKeyRef:
-                    name: mysql-config
-                    key: log
-              - name: lowerData
-                valueFrom:
-                  configMapKeyRef:
-                    name: mysql-config
-                    key: lower
-    completionPolicy:
-      type: Always
-      activeDeadlineSeconds: 10
 statusItems:
   - applied: true
     clusterName: member1
@@ -81,18 +54,27 @@ statusItems:
       succeeded: 0
 operation: AggregateStatus
 output:
-  status:
-    active: 0
-    succeeded: 0
-    failed: 2
-    desired: 2
-    phase: failed
-    conditions:
-      - type: Failed
-        status: "True"
-        reason: JobFailed
-        message: "Job executed failed in member clusters: member1, member3"
+  aggregatedStatus:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: BroadcastJob
+    metadata:
+      labels:
+        app: sample
+      name: sample
+      namespace: test-bcj
+    status:
+      active: 0
+      conditions:
+        - type: Failed
+          status: "True"
+          reason: JobFailed
+          message: 'Job executed failed in member clusters: member1, member3'
+      desired: 2
+      failed: 2
+      phase: failed
+      succeeded: 0
 ---
+# Case 2:
 name: "BroadcastJob completed in all clusters"
 description: "AggregateStatus when all jobs succeed"
 desiredObj:
@@ -118,18 +100,25 @@ statusItems:
           status: "True"
 operation: AggregateStatus
 output:
-  status:
-    active: 0
-    succeeded: 2
-    failed: 0
-    desired: 2
-    phase: ""
-    conditions:
-      - type: Completed
-        status: "True"
-        reason: Completed
-        message: Job completed
+  aggregatedStatus:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: BroadcastJob
+    metadata:
+      name: sample
+      namespace: test-bcj
+    status:
+      active: 0
+      conditions:
+        - type: Completed
+          status: "True"
+          reason: Completed
+          message: 'Job completed'
+      desired: 2
+      failed: 0
+      phase: ""
+      succeeded: 2
 ---
+# Case 3:
 name: "BroadcastJob with active and succeeded jobs"
 description: "AggregateStatus aggregates counters without terminal state"
 desiredObj:
@@ -149,14 +138,20 @@ statusItems:
       desired: 1
 operation: AggregateStatus
 output:
-  status:
-    active: 1
-    succeeded: 1
-    failed: 0
-    desired: 2
-    phase: ""
-    conditions: []
+  aggregatedStatus:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: BroadcastJob
+    metadata:
+      name: sample
+      namespace: test-bcj
+    status:
+      active: 1
+      desired: 2
+      phase: ""
+      failed: 0
+      succeeded: 1
 ---
+# Case 4:
 name: "BroadcastJob with no status items"
 description: "AggregateStatus when job is not propagated"
 desiredObj:
