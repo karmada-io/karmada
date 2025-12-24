@@ -24,10 +24,10 @@ desiredObj:
     imagePullSecrets:
       - name: my-secret
     tolerations:
-      - key: "key"
-        operation: "Equal"
-        value: "value"
-        effect: "NoSchedule"
+      - key: 'key'
+        operation: 'Equal'
+        value: 'value'
+        effect: 'NoSchedule'
     templates:
       - name: volumes-existing-example
         steps:
@@ -36,8 +36,8 @@ desiredObj:
       - name: whalesay
         container:
           image: docker/whalesay:latest
-          command: [cowsay]
-          args: ["hello world"]
+          command: [ cowsay ]
+          args: [ "hello world" ]
           volumeMounts:
             - name: workdir
               mountPath: /mnt/vol
@@ -68,8 +68,8 @@ desiredObj:
       - name: simple-template
         container:
           image: busybox
-          command: ["echo"]
-          args: ["done"]
+          command: [ "echo" ]
+          args: [ "done" ]
 operation: InterpretReplica
 output:
   replica: 1
@@ -91,8 +91,8 @@ desiredObj:
       - name: simple-template
         container:
           image: busybox
-          command: ["sleep"]
-          args: ["10"]
+          command: [ "sleep" ]
+          args: [ "10" ]
 operation: InterpretReplica
 output:
   replica: 1
