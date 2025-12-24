@@ -1,7 +1,7 @@
 # test case for retaining Workflow
 # case1. Workflow: retain test (recently completed)
 # case2. Workflow: retain test (old completed - TTL exceeded)
-# case3. Workflow: retain test (running)
+# case3. Workflow retain should preserve observed labels
 
 name: "Workflow: retain test (recently completed)"
 description: "Test retaining recently completed Workflow"
@@ -69,6 +69,21 @@ observedObj:
     finishedAt: "2025-12-12T10:05:00Z"
 operation: Retain
 output:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Workflow
+  metadata:
+    labels:
+      app: sample
+    name: sample-recent
+    namespace: test-workflow
+  spec:
+    parallelism: 1
+    entrypoint: volumes-existing-example
+    volumes:
+      - name: workdir
+        persistentVolumeClaim:
+          claimName: my-existing-volume
+    serviceAccountName: my-service-account
 
 ---
 name: "Workflow: retain test (old completed)"
@@ -113,47 +128,73 @@ observedObj:
     startedAt: "2024-01-01T00:00:00Z"
     finishedAt: "2024-01-01T01:00:00Z"
 operation: Retain
+output:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Workflow
+  metadata:
+    labels:
+      app: sample
+    name: sample-old
+    namespace: test-workflow
+  spec:
+    parallelism: 1
+    entrypoint: simple-template
+    templates:
+      - name: simple-template
+        container:
+          image: busybox
+          command: [ 'echo' ]
+          args: [ 'done' ]
 
 ---
-name: "Workflow: retain test (running)"
-description: "Test retaining running Workflow"
+name: "Workflow retain should preserve observed labels"
+description: "Retain should copy template labels from observedObj"
 desiredObj:
   apiVersion: argoproj.io/v1alpha1
   kind: Workflow
   metadata:
-    labels:
-      app: sample
-    name: sample-running
+    name: sample-labels
     namespace: test-workflow
   spec:
     parallelism: 1
-    entrypoint: long-running
+    entrypoint: main
     templates:
-      - name: long-running
+      - name: main
+        metadata:
+          labels:
+            app: old-label
         container:
           image: busybox
-          command: ["sleep"]
-          args: ["3600"]
 observedObj:
   apiVersion: argoproj.io/v1alpha1
   kind: Workflow
   metadata:
-    labels:
-      app: sample
-    name: sample-running
+    name: sample-labels
     namespace: test-workflow
   spec:
     parallelism: 1
-    entrypoint: long-running
+    entrypoint: main
     templates:
-      - name: long-running
+      - name: main
+        metadata:
+          labels:
+            app: new-label
         container:
           image: busybox
-          command: [ 'sleep' ]
-          args: [ '3600' ]
-  status:
-    phase: Running
-    progress: "0/1"
-    startedAt: "2025-12-12T09:00:00Z"
 operation: Retain
 output:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Workflow
+  metadata:
+    name: sample-labels
+    namespace: test-workflow
+  spec:
+    parallelism: 1
+    entrypoint: main
+    templates:
+      - name: main
+        metadata:
+          labels:
+            app: new-label
+        container:
+          image: busybox
