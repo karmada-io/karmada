@@ -1,8 +1,11 @@
 # test case for aggregating status of RayJob
-# case1. RayJob with two status items
+# case1. RayJob with two status items from different clusters
+# case2. RayJob with single status item
+# case3. RayJob with mixed statuses (failed in one cluster)
+# case4. RayJob with retrying status (different deployment statuses)
 
 name: "RayJob with two status items"
-description: "Test aggregating status of RayJob with two status items"
+description: "Test aggregating status of RayJob with two status items from different clusters"
 desiredObj:
   apiVersion: ray.io/v1
   kind: RayJob
@@ -95,3 +98,209 @@ statusItems:
         readyWorkerReplicas: 3
 operation: AggregateStatus
 output:
+  aggregatedStatus:
+    apiVersion: ray.io/v1
+    kind: RayJob
+    metadata:
+      name: sample-rayjob
+      namespace: default
+    status:
+      jobStatus: RUNNING
+      jobDeploymentStatus: Running
+
+---
+name: "RayJob with single status item"
+description: "Test aggregating status of RayJob with single status item"
+desiredObj:
+  apiVersion: ray.io/v1
+  kind: RayJob
+  metadata:
+    name: single-rayjob
+    namespace: default
+  spec:
+    entrypoint: python /home/ray/samples/simple_job.py
+    rayClusterSpec:
+      rayVersion: '2.46.0'
+      headGroupSpec:
+        template:
+          spec:
+            containers:
+              - name: ray-head
+                image: rayproject/ray:2.46.0
+statusItems:
+  - applied: true
+    clusterName: member1
+    status:
+      jobId: raysubmit_67890fghij
+      rayClusterName: single-rayjob-raycluster-def45
+      dashboardURL: "single-rayjob-raycluster-def45-head-svc.default.svc.cluster.local:8265"
+      jobStatus: SUCCEEDED
+      jobDeploymentStatus: Complete
+      reason: JobCompleted
+      message: "Job completed successfully"
+      startTime: "2025-11-22T09:00:00Z"
+      endTime: "2025-11-22T09:15:30Z"
+      succeeded: 1
+      failed: 0
+      observedGeneration: 1
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: ray.io/v1
+    kind: RayJob
+    metadata:
+      name: single-rayjob
+      namespace: default
+    status:
+      jobId: raysubmit_67890fghij
+      rayClusterName: single-rayjob-raycluster-def45
+      dashboardURL: "single-rayjob-raycluster-def45-head-svc.default.svc.cluster.local:8265"
+      jobStatus: SUCCEEDED
+      jobDeploymentStatus: Complete
+      reason: JobCompleted
+      message: "Job completed successfully"
+      startTime: "2025-11-22T09:00:00Z"
+      endTime: "2025-11-22T09:15:30Z"
+      succeeded: 1
+      failed: 0
+      observedGeneration: 1
+
+---
+name: "RayJob with mixed statuses"
+description: "Test aggregating status when one cluster has failed job"
+desiredObj:
+  apiVersion: ray.io/v1
+  kind: RayJob
+  metadata:
+    name: mixed-status-rayjob
+    namespace: production
+  spec:
+    entrypoint: python /home/ray/samples/complex_job.py
+    shutdownAfterJobFinishes: true
+    ttlSecondsAfterFinished: 300
+    rayClusterSpec:
+      rayVersion: '2.46.0'
+      headGroupSpec:
+        template:
+          spec:
+            containers:
+              - name: ray-head
+                image: rayproject/ray:2.46.0
+                resources:
+                  requests:
+                    cpu: "1"
+                    memory: 2Gi
+      workerGroupSpecs:
+        - groupName: compute-workers
+          replicas: 3
+          template:
+            spec:
+              containers:
+                - name: ray-worker
+                  image: rayproject/ray:2.46.0
+                  resources:
+                    requests:
+                      cpu: "2"
+                      memory: 4Gi
+statusItems:
+  - applied: true
+    clusterName: member1
+    status:
+      jobId: raysubmit_aabbccddee
+      rayClusterName: mixed-status-rayjob-raycluster-abc
+      jobStatus: FAILED
+      jobDeploymentStatus: Failed
+      reason: JobExecutionError
+      message: "Job failed due to runtime error"
+      startTime: "2025-11-22T12:00:00Z"
+      endTime: "2025-11-22T12:05:00Z"
+      succeeded: 0
+      failed: 1
+  - applied: true
+    clusterName: member2
+    status:
+      jobId: raysubmit_aabbccddee
+      rayClusterName: mixed-status-rayjob-raycluster-xyz
+      jobStatus: RUNNING
+      jobDeploymentStatus: Running
+      startTime: "2025-11-22T12:00:00Z"
+      succeeded: 0
+      failed: 0
+  - applied: true
+    clusterName: member3
+    status:
+      jobId: raysubmit_aabbccddee
+      rayClusterName: mixed-status-rayjob-raycluster-def
+      jobStatus: PENDING
+      jobDeploymentStatus: Waiting
+      reason: ClusterInitializing
+      message: "Waiting for cluster to be ready"
+      startTime: "2025-11-22T12:00:00Z"
+      succeeded: 0
+      failed: 0
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: ray.io/v1
+    kind: RayJob
+    metadata:
+      name: mixed-status-rayjob
+      namespace: production
+    status:
+      jobStatus: FAILED
+      jobDeploymentStatus: Failed
+      reason: JobExecutionError
+      message: "Job failed due to runtime error"
+
+---
+name: "RayJob with retrying status"
+description: "Test aggregating status with different deployment statuses"
+desiredObj:
+  apiVersion: ray.io/v1
+  kind: RayJob
+  metadata:
+    name: retrying-rayjob
+    namespace: default
+  spec:
+    entrypoint: python /home/ray/samples/retry_job.py
+    rayClusterSpec:
+      rayVersion: '2.46.0'
+      headGroupSpec:
+        template:
+          spec:
+            containers:
+              - name: ray-head
+                image: rayproject/ray:2.46.0
+statusItems:
+  - applied: true
+    clusterName: member1
+    status:
+      jobStatus: STOPPED
+      jobDeploymentStatus: Suspended
+      reason: UserRequested
+      message: "Job suspended by user"
+  - applied: true
+    clusterName: member2
+    status:
+      jobStatus: RUNNING
+      jobDeploymentStatus: Retrying
+      reason: PreviousAttemptFailed
+      message: "Retrying after previous failure"
+  - applied: true
+    clusterName: member3
+    status:
+      jobStatus: PENDING
+      jobDeploymentStatus: Initializing
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: ray.io/v1
+    kind: RayJob
+    metadata:
+      name: retrying-rayjob
+      namespace: default
+    status:
+      jobStatus: STOPPED
+      jobDeploymentStatus: Retrying
+      reason: PreviousAttemptFailed
+      message: "Retrying after previous failure"

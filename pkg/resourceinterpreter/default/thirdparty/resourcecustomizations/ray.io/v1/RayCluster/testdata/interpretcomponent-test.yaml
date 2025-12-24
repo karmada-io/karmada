@@ -1,0 +1,264 @@
+# test case for interpreting component of RayCluster
+# case1. RayCluster with head and single worker group
+# case2. RayCluster with head and multiple worker groups with custom names
+# case3. RayCluster with head and worker groups without explicit names
+# case4. RayCluster with zero replica worker group
+
+name: "RayCluster with head and single worker group"
+description: "Test interpreting component of RayCluster with head and one worker group"
+desiredObj:
+  apiVersion: ray.io/v1
+  kind: RayCluster
+  metadata:
+    name: raycluster-sample
+    namespace: test-namespace
+  spec:
+    rayVersion: "2.9.0"
+    headGroupSpec:
+      rayStartParams:
+        dashboard-host: "0.0.0.0"
+      template:
+        spec:
+          containers:
+          - name: ray-head
+            image: rayproject/ray:2.9.0
+            resources:
+              limits:
+                cpu: "2"
+                memory: "4Gi"
+              requests:
+                cpu: "1"
+                memory: "2Gi"
+    workerGroupSpecs:
+    - groupName: small-group
+      replicas: 3
+      rayStartParams: {}
+      template:
+        spec:
+          containers:
+          - name: ray-worker
+            image: rayproject/ray:2.9.0
+            resources:
+              limits:
+                cpu: "1"
+                memory: "2Gi"
+              requests:
+                cpu: "500m"
+                memory: "1Gi"
+operation: InterpretComponent
+output:
+  components:
+    - name: ray-head
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          "cpu": "1"
+          "memory": "2Gi"
+    - name: small-group
+      replicas: 3
+      replicaRequirements:
+        resourceRequest:
+          "cpu": "500m"
+          "memory": "1Gi"
+
+---
+name: "RayCluster with head and multiple worker groups"
+description: "Test interpreting component of RayCluster with head and multiple worker groups with custom names"
+desiredObj:
+  apiVersion: ray.io/v1
+  kind: RayCluster
+  metadata:
+    namespace: default
+    name: raycluster-multi
+  spec:
+    rayVersion: "2.9.0"
+    headGroupSpec:
+      rayStartParams:
+        dashboard-host: "0.0.0.0"
+      template:
+        spec:
+          containers:
+          - name: ray-head
+            image: rayproject/ray:2.9.0
+            resources:
+              limits:
+                cpu: "4"
+                memory: "8Gi"
+              requests:
+                cpu: "2"
+                memory: "4Gi"
+    workerGroupSpecs:
+    - groupName: compute-group
+      replicas: 5
+      rayStartParams: {}
+      template:
+        spec:
+          containers:
+          - name: ray-worker
+            image: rayproject/ray:2.9.0
+            resources:
+              limits:
+                cpu: "2"
+                memory: "4Gi"
+              requests:
+                cpu: "1"
+                memory: "2Gi"
+    - groupName: gpu-group
+      replicas: 2
+      rayStartParams: {}
+      template:
+        spec:
+          containers:
+          - name: ray-worker
+            image: rayproject/ray:2.9.0-gpu
+            resources:
+              limits:
+                cpu: "4"
+                memory: "16Gi"
+                nvidia.com/gpu: "1"
+              requests:
+                cpu: "2"
+                memory: "8Gi"
+                nvidia.com/gpu: "1"
+operation: InterpretComponent
+output:
+  components:
+    - name: ray-head
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          "cpu": "2"
+          "memory": "4Gi"
+    - name: compute-group
+      replicas: 5
+      replicaRequirements:
+        resourceRequest:
+          "cpu": "1"
+          "memory": "2Gi"
+    - name: gpu-group
+      replicas: 2
+      replicaRequirements:
+        resourceRequest:
+          "cpu": "2"
+          "memory": "8Gi"
+          "nvidia.com/gpu": "1"
+
+---
+name: "RayCluster with worker groups without explicit names"
+description: "Test interpreting component of RayCluster where worker groups don't have groupName specified"
+desiredObj:
+  apiVersion: ray.io/v1
+  kind: RayCluster
+  metadata:
+    namespace: default
+    name: raycluster-noname
+  spec:
+    rayVersion: "2.9.0"
+    headGroupSpec:
+      rayStartParams:
+        dashboard-host: "0.0.0.0"
+      template:
+        spec:
+          containers:
+          - name: ray-head
+            image: rayproject/ray:2.9.0
+            resources:
+              requests:
+                cpu: "1"
+                memory: "2Gi"
+    workerGroupSpecs:
+    - replicas: 2
+      rayStartParams: {}
+      template:
+        spec:
+          containers:
+          - name: ray-worker
+            image: rayproject/ray:2.9.0
+            resources:
+              requests:
+                cpu: "500m"
+                memory: "1Gi"
+    - replicas: 4
+      rayStartParams: {}
+      template:
+        spec:
+          containers:
+          - name: ray-worker
+            image: rayproject/ray:2.9.0
+            resources:
+              requests:
+                cpu: "1"
+                memory: "2Gi"
+operation: InterpretComponent
+output:
+  components:
+    - name: ray-head
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          "cpu": "1"
+          "memory": "2Gi"
+    - name: worker-1
+      replicas: 2
+      replicaRequirements:
+        resourceRequest:
+          "cpu": "500m"
+          "memory": "1Gi"
+    - name: worker-2
+      replicas: 4
+      replicaRequirements:
+        resourceRequest:
+          "cpu": "1"
+          "memory": "2Gi"
+
+---
+name: "RayCluster with zero replica worker group"
+description: "Test interpreting component of RayCluster where a worker group has 0 replicas"
+desiredObj:
+  apiVersion: ray.io/v1
+  kind: RayCluster
+  metadata:
+    namespace: default
+    name: raycluster-zero
+  spec:
+    rayVersion: "2.9.0"
+    headGroupSpec:
+      rayStartParams:
+        dashboard-host: "0.0.0.0"
+      template:
+        spec:
+          containers:
+          - name: ray-head
+            image: rayproject/ray:2.9.0
+            resources:
+              requests:
+                cpu: "1"
+                memory: "2Gi"
+    workerGroupSpecs:
+    - groupName: standby-group
+      replicas: 0
+      rayStartParams: {}
+      template:
+        spec:
+          containers:
+          - name: ray-worker
+            image: rayproject/ray:2.9.0
+            resources:
+              requests:
+                cpu: "500m"
+                memory: "1Gi"
+operation: InterpretComponent
+output:
+  components:
+    - name: ray-head
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          "cpu": "1"
+          "memory": "2Gi"
+    - name: standby-group
+      replicas: 0
+      replicaRequirements:
+        resourceRequest:
+          "cpu": "500m"
+          "memory": "1Gi"

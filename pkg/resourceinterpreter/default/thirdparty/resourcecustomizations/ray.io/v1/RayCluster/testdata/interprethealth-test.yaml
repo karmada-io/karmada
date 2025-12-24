@@ -1,111 +1,330 @@
 # test case for interpreting health of RayCluster
-# case1. RayCluster: interpret health test
+# RayCluster is healthy when: HeadPodReady=True AND RayClusterProvisioned=True AND RayClusterReplicaFailure!=True
+# case1. RayCluster is healthy (head ready, cluster provisioned, no replica failure)
+# case2. RayCluster is unhealthy (head not ready)
+# case3. RayCluster is unhealthy (cluster not provisioned)
+# case4. RayCluster is unhealthy (replica failure)
+# case5. RayCluster with no status (unhealthy)
+# case6. RayCluster with no conditions (unhealthy)
+# case7. RayCluster is healthy with additional conditions
 
-name: "RayCluster: interpret health test"
-description: "Test interpreting health for RayCluster"
+name: "RayCluster is healthy"
+description: "Test interpreting health for RayCluster when all required conditions are met"
 observedObj:
   apiVersion: ray.io/v1
   kind: RayCluster
   metadata:
-    annotations:
-      kubectl.kubernetes.io/last-applied-configuration: |
-        {"apiVersion":"ray.io/v1","kind":"RayCluster","metadata":{"annotations":{},"name":"sample","namespace":"default"},"spec":{"headGroupSpec":{"rayStartParams":{},"template":{"spec":{"containers":[{"image":"rayproject/ray:2.46.0","name":"ray-head","ports":[{"containerPort":6379,"name":"gcs-server"},{"containerPort":8265,"name":"dashboard"},{"containerPort":10001,"name":"client"}],"resources":{"limits":{"cpu":1,"memory":"2G"},"requests":{"cpu":1,"memory":"2G"}}}]}}},"rayVersion":"2.46.0","workerGroupSpecs":[{"groupName":"workergroup","maxReplicas":5,"minReplicas":1,"rayStartParams":{},"replicas":1,"template":{"spec":{"containers":[{"image":"rayproject/ray:2.46.0","name":"ray-worker","resources":{"limits":{"cpu":1,"memory":"1G"},"requests":{"cpu":1,"memory":"1G"}}}]}}}]}}
-    creationTimestamp: "2025-09-21T03:54:44Z"
-    generation: 1
-    name: sample
+    name: raycluster-healthy
     namespace: default
-    resourceVersion: "850"
-    uid: 040acb09-4e53-4a23-a8b2-28b4300af70b
   spec:
+    rayVersion: "2.9.0"
     headGroupSpec:
-      rayStartParams: { }
+      rayStartParams:
+        dashboard-host: "0.0.0.0"
       template:
         spec:
           containers:
-            - image: rayproject/ray:2.46.0
-              name: ray-head
-              ports:
-                - containerPort: 6379
-                  name: gcs-server
-                  protocol: TCP
-                - containerPort: 8265
-                  name: dashboard
-                  protocol: TCP
-                - containerPort: 10001
-                  name: client
-                  protocol: TCP
-              resources:
-                limits:
-                  cpu: 1
-                  memory: 2G
-                requests:
-                  cpu: 1
-                  memory: 2G
-    rayVersion: 2.46.0
+          - name: ray-head
+            image: rayproject/ray:2.9.0
+            resources:
+              requests:
+                cpu: "1"
+                memory: "2Gi"
     workerGroupSpecs:
-      - groupName: workergroup
-        maxReplicas: 5
-        minReplicas: 1
-        numOfHosts: 1
-        rayStartParams: { }
-        replicas: 1
-        template:
-          spec:
-            containers:
-              - image: rayproject/ray:2.46.0
-                name: ray-worker
-                resources:
-                  limits:
-                    cpu: 1
-                    memory: 1G
-                  requests:
-                    cpu: 1
-                    memory: 1G
+    - groupName: worker-group
+      replicas: 2
+      rayStartParams: {}
+      template:
+        spec:
+          containers:
+          - name: ray-worker
+            image: rayproject/ray:2.9.0
+            resources:
+              requests:
+                cpu: "1"
+                memory: "1Gi"
   status:
-    availableWorkerReplicas: 1
     conditions:
-      - lastTransitionTime: "2025-09-21T03:55:30Z"
-        message: ""
-        reason: HeadPodRunningAndReady
-        status: "True"
-        type: HeadPodReady
-      - lastTransitionTime: "2025-09-21T03:55:45Z"
-        message: All Ray Pods are ready for the first time
-        reason: AllPodRunningAndReadyFirstTime
-        status: "True"
-        type: RayClusterProvisioned
-      - lastTransitionTime: "2025-09-21T03:54:44Z"
-        message: ""
-        reason: RayClusterSuspended
-        status: "False"
-        type: RayClusterSuspended
-      - lastTransitionTime: "2025-09-21T03:54:44Z"
-        message: ""
-        reason: RayClusterSuspending
-        status: "False"
-        type: RayClusterSuspending
-    desiredCPU: "2"
+    - type: HeadPodReady
+      status: "True"
+      reason: HeadPodRunningAndReady
+      message: "Head pod is running and ready"
+      lastTransitionTime: "2024-01-15T10:30:00Z"
+    - type: RayClusterProvisioned
+      status: "True"
+      reason: AllPodRunningAndReadyFirstTime
+      message: "All Ray Pods are ready for the first time"
+      lastTransitionTime: "2024-01-15T10:31:00Z"
+    availableWorkerReplicas: 2
+    readyWorkerReplicas: 2
+    desiredWorkerReplicas: 2
+    state: ready
+    lastUpdateTime: "2024-01-15T10:31:00Z"
+operation: InterpretHealth
+output:
+  healthy: true
+
+---
+name: "RayCluster is unhealthy - head not ready"
+description: "Test interpreting health for RayCluster when head pod is not ready"
+observedObj:
+  apiVersion: ray.io/v1
+  kind: RayCluster
+  metadata:
+    name: raycluster-head-not-ready
+    namespace: default
+  spec:
+    rayVersion: "2.9.0"
+    headGroupSpec:
+      rayStartParams:
+        dashboard-host: "0.0.0.0"
+      template:
+        spec:
+          containers:
+          - name: ray-head
+            image: rayproject/ray:2.9.0
+  status:
+    conditions:
+    - type: HeadPodReady
+      status: "False"
+      reason: HeadPodNotReady
+      message: "Head pod is not ready"
+      lastTransitionTime: "2024-01-15T10:35:00Z"
+    - type: RayClusterProvisioned
+      status: "False"
+      reason: WaitingForHeadPod
+      message: "Waiting for head pod to be ready"
+      lastTransitionTime: "2024-01-15T10:35:00Z"
+    state: failed
+    lastUpdateTime: "2024-01-15T10:35:00Z"
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "RayCluster is unhealthy - not provisioned"
+description: "Test interpreting health for RayCluster when cluster is not provisioned"
+observedObj:
+  apiVersion: ray.io/v1
+  kind: RayCluster
+  metadata:
+    name: raycluster-not-provisioned
+    namespace: default
+  spec:
+    rayVersion: "2.9.0"
+    headGroupSpec:
+      template:
+        spec:
+          containers:
+          - name: ray-head
+            image: rayproject/ray:2.9.0
+    workerGroupSpecs:
+    - groupName: worker-group
+      replicas: 3
+      template:
+        spec:
+          containers:
+          - name: ray-worker
+            image: rayproject/ray:2.9.0
+  status:
+    conditions:
+    - type: HeadPodReady
+      status: "True"
+      reason: HeadPodRunningAndReady
+      message: "Head pod is running and ready"
+      lastTransitionTime: "2024-01-15T10:40:00Z"
+    - type: RayClusterProvisioned
+      status: "False"
+      reason: WorkerPodsNotReady
+      message: "Some worker pods are not ready"
+      lastTransitionTime: "2024-01-15T10:40:00Z"
+    availableWorkerReplicas: 1
+    readyWorkerReplicas: 1
+    desiredWorkerReplicas: 3
+    state: provisioning
+    lastUpdateTime: "2024-01-15T10:40:00Z"
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "RayCluster is unhealthy - replica failure"
+description: "Test interpreting health for RayCluster when there is a replica failure"
+observedObj:
+  apiVersion: ray.io/v1
+  kind: RayCluster
+  metadata:
+    name: raycluster-replica-failure
+    namespace: default
+  spec:
+    rayVersion: "2.9.0"
+    headGroupSpec:
+      template:
+        spec:
+          containers:
+          - name: ray-head
+            image: rayproject/ray:2.9.0
+    workerGroupSpecs:
+    - groupName: worker-group
+      replicas: 2
+      template:
+        spec:
+          containers:
+          - name: ray-worker
+            image: rayproject/ray:2.9.0
+  status:
+    conditions:
+    - type: HeadPodReady
+      status: "True"
+      reason: HeadPodRunningAndReady
+      message: "Head pod is running and ready"
+      lastTransitionTime: "2024-01-15T10:45:00Z"
+    - type: RayClusterProvisioned
+      status: "True"
+      reason: AllPodRunningAndReady
+      message: "All Ray Pods are ready"
+      lastTransitionTime: "2024-01-15T10:45:00Z"
+    - type: RayClusterReplicaFailure
+      status: "True"
+      reason: WorkerPodsFailed
+      message: "Some worker pods have failed"
+      lastTransitionTime: "2024-01-15T10:46:00Z"
+    availableWorkerReplicas: 1
+    readyWorkerReplicas: 1
+    desiredWorkerReplicas: 2
+    state: unhealthy
+    lastUpdateTime: "2024-01-15T10:46:00Z"
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "RayCluster with no status"
+description: "Test interpreting health for RayCluster when status is nil"
+observedObj:
+  apiVersion: ray.io/v1
+  kind: RayCluster
+  metadata:
+    name: raycluster-no-status
+    namespace: default
+  spec:
+    rayVersion: "2.9.0"
+    headGroupSpec:
+      template:
+        spec:
+          containers:
+          - name: ray-head
+            image: rayproject/ray:2.9.0
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "RayCluster with no conditions"
+description: "Test interpreting health for RayCluster when conditions array is nil"
+observedObj:
+  apiVersion: ray.io/v1
+  kind: RayCluster
+  metadata:
+    name: raycluster-no-conditions
+    namespace: default
+  spec:
+    rayVersion: "2.9.0"
+    headGroupSpec:
+      template:
+        spec:
+          containers:
+          - name: ray-head
+            image: rayproject/ray:2.9.0
+  status:
+    state: initializing
+    lastUpdateTime: "2024-01-15T10:50:00Z"
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "RayCluster is healthy with additional conditions"
+description: "Test interpreting health for RayCluster with extra conditions (suspended=false, etc)"
+observedObj:
+  apiVersion: ray.io/v1
+  kind: RayCluster
+  metadata:
+    name: raycluster-healthy-extra
+    namespace: production
+  spec:
+    rayVersion: "2.9.0"
+    headGroupSpec:
+      rayStartParams:
+        dashboard-host: "0.0.0.0"
+      template:
+        spec:
+          containers:
+          - name: ray-head
+            image: rayproject/ray:2.9.0
+            resources:
+              requests:
+                cpu: "2"
+                memory: "4Gi"
+    workerGroupSpecs:
+    - groupName: worker-group
+      replicas: 5
+      minReplicas: 2
+      maxReplicas: 10
+      rayStartParams: {}
+      template:
+        spec:
+          containers:
+          - name: ray-worker
+            image: rayproject/ray:2.9.0
+            resources:
+              requests:
+                cpu: "1"
+                memory: "2Gi"
+  status:
+    conditions:
+    - type: HeadPodReady
+      status: "True"
+      reason: HeadPodRunningAndReady
+      message: "Head pod is running and ready"
+      lastTransitionTime: "2024-01-15T10:55:00Z"
+    - type: RayClusterProvisioned
+      status: "True"
+      reason: AllPodRunningAndReady
+      message: "All Ray Pods are ready"
+      lastTransitionTime: "2024-01-15T10:55:30Z"
+    - type: RayClusterSuspended
+      status: "False"
+      reason: RayClusterNotSuspended
+      message: "Cluster is not suspended"
+      lastTransitionTime: "2024-01-15T10:55:00Z"
+    - type: RayClusterSuspending
+      status: "False"
+      reason: RayClusterNotSuspending
+      message: "Cluster is not suspending"
+      lastTransitionTime: "2024-01-15T10:55:00Z"
+    availableWorkerReplicas: 5
+    readyWorkerReplicas: 5
+    desiredWorkerReplicas: 5
+    maxWorkerReplicas: 10
+    minWorkerReplicas: 2
+    desiredCPU: "7"
     desiredGPU: "0"
-    desiredMemory: 3G
+    desiredMemory: "14G"
     desiredTPU: "0"
-    desiredWorkerReplicas: 1
     endpoints:
       client: "10001"
       dashboard: "8265"
       gcs-server: "6379"
       metrics: "8080"
     head:
-      podIP: 10.244.0.6
-      podName: sample-head-9cvfc
-      serviceIP: 10.244.0.6
-      serviceName: sample-head-svc
-    lastUpdateTime: "2025-09-21T03:55:45Z"
-    maxWorkerReplicas: 5
-    minWorkerReplicas: 1
-    observedGeneration: 1
-    readyWorkerReplicas: 1
+      podIP: "10.244.1.10"
+      podName: "raycluster-healthy-extra-head-abcde"
+      serviceIP: "10.96.100.50"
+      serviceName: "raycluster-healthy-extra-head-svc"
     state: ready
-    stateTransitionTimes:
-      ready: "2025-09-21T03:55:45Z"
+    lastUpdateTime: "2024-01-15T10:55:30Z"
+    observedGeneration: 2
 operation: InterpretHealth
 output:
+  healthy: true
