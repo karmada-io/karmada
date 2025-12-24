@@ -1,6 +1,8 @@
 # test case for interpreting replica of Workflow
-
 # case1. Workflow with parallelism set to 2
+# case2. Workflow with parallelism set to 1
+# case3. Workflow with parallelism unset (default 1)
+
 name: "Workflow with parallelism set to 2"
 description: "Test interpreting replica of Workflow with parallelism set to 2"
 desiredObj:
@@ -49,7 +51,6 @@ output:
   replica: 2
 
 ---
-# case2. Workflow with parallelism set to 1
 name: "Workflow with parallelism set to 1"
 description: "Test interpreting replica of Workflow with parallelism set to 1"
 desiredObj:
@@ -74,7 +75,6 @@ output:
   replica: 1
 
 ---
-# case3. Workflow with parallelism unset (default 1)
 name: "Workflow with parallelism unset"
 description: "Test interpreting replica of Workflow with no parallelism specified (defaults to 1)"
 desiredObj:

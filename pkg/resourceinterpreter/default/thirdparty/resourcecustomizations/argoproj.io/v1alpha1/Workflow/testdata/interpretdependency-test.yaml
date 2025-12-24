@@ -68,13 +68,6 @@ output:
 name: "Workflow with ConfigMap env dependency"
 description: "Test interpreting dependency of Workflow with ConfigMap env refs"
 desiredObj:
-  apiVersion: argoproj.io/v1alpha1
-  kind: Workflow
-  metadata:
-    labels:
-      app: sample
-    name: sample-configmap-dep
-    namespace: test-workflow
   spec:
     parallelism: 1
     entrypoint: config-env-task
