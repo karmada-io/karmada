@@ -1,6 +1,8 @@
 # test case for revise replica
-
 # case1. Workflow: revise replica test (scale up)
+# case2. Workflow: revise replica test (no change)
+# case3. Workflow: revise replica test (scale down)
+
 name: "Workflow: revise replica test (scale up)"
 description: "Test revising replica of Workflow from 1 to 3"
 desiredObj:
@@ -47,7 +49,6 @@ desiredObj:
 inputReplicas: 1
 operation: ReviseReplica
 
-# case2. Workflow: revise replica test (no change)
 ---
 name: "Workflow: revise replica test (no change)"
 description: "Test revising replica of Workflow (no change needed)"
@@ -71,7 +72,6 @@ desiredObj:
 inputReplicas: 2
 operation: ReviseReplica
 
-# case3. Workflow: revise replica test (scale down)
 ---
 name: "Workflow: revise replica test (scale down)"
 description: "Test revising replica of Workflow from 5 to 1"

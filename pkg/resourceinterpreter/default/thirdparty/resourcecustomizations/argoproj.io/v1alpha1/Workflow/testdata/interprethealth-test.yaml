@@ -1,6 +1,8 @@
 # test case for interpreting health of Workflow
-
 # case1. Workflow interpreting health test (Succeeded)
+# case2. Workflow interpreting health test (Failed)
+# case3. Workflow interpreting health test (Error)
+
 name: "Workflow interpreting health test - Succeeded"
 description: "Test interpreting health of succeeded Workflow"
 observedObj:
@@ -58,7 +60,6 @@ output:
   healthy: true
 
 ---
-# case2. Workflow interpreting health test (Failed)
 name: "Workflow interpreting health test - Failed"
 description: "Test interpreting health of failed Workflow"
 observedObj:
@@ -89,7 +90,6 @@ output:
   healthy: false
 
 ---
-# case3. Workflow interpreting health test (Error)
 name: "Workflow interpreting health test - Error"
 description: "Test interpreting health of error Workflow"
 observedObj:
