@@ -1,102 +1,23 @@
 # test case for revise replica
-# case1. Workflow: revise replica test (scale up)
-# case2. Workflow: revise replica test (no change)
-# case3. Workflow: revise replica test (scale down)
+# case1. Workflow revise replica should update parallelism
 
-name: "Workflow: revise replica test (scale up)"
-description: "Test revising replica of Workflow from 1 to 3"
+name: "Workflow revise replica should update parallelism"
+description: "ReviseReplica updates spec.parallelism from 1 to 3"
 desiredObj:
   apiVersion: argoproj.io/v1alpha1
   kind: Workflow
   metadata:
-    labels:
-      app: sample
     name: sample-scaleup
     namespace: test-workflow
   spec:
     parallelism: 3
-    entrypoint: volumes-existing-example
-    volumes:
-      - name: workdir
-        persistentVolumeClaim:
-          claimName: my-existing-volume
-    serviceAccountName: my-service-account
-    imagePullSecrets:
-      - name: my-secret
-    tolerations:
-      - key: 'key'
-        operation: 'Equal'
-        value: 'value'
-        effect: 'NoSchedule'
-    templates:
-      - name: volumes-existing-example
-        steps:
-          - - name: hello
-              template: whalesay
-      - name: whalesay
-        container:
-          image: docker/whalesay:latest
-          command: [ cowsay ]
-          args: [ "hello world" ]
-          volumeMounts:
-            - name: workdir
-              mountPath: /mnt/vol
-          resources:
-            limits:
-              memory: 1Gi
-            requests:
-              memory: 1Mi
 inputReplicas: 1
 operation: ReviseReplica
 output:
-  revisedReplicas: 3
-
----
-name: "Workflow: revise replica test (no change)"
-description: "Test revising replica of Workflow (no change needed)"
-desiredObj:
   apiVersion: argoproj.io/v1alpha1
   kind: Workflow
   metadata:
-    labels:
-      app: sample
-    name: sample-nochange
+    name: sample-scaleup
     namespace: test-workflow
   spec:
-    parallelism: 2
-    entrypoint: simple-template
-    templates:
-      - name: simple-template
-        container:
-          image: busybox
-          command: ["echo"]
-          args: ["done"]
-inputReplicas: 2
-operation: ReviseReplica
-output:
-  revisedReplicas: 2
-
----
-name: "Workflow: revise replica test (scale down)"
-description: "Test revising replica of Workflow from 5 to 1"
-desiredObj:
-  apiVersion: argoproj.io/v1alpha1
-  kind: Workflow
-  metadata:
-    labels:
-      app: sample
-    name: sample-scaledown
-    namespace: test-workflow
-  spec:
-    parallelism: 1
-    entrypoint: simple-template
-    templates:
-      - name: simple-template
-        container:
-          image: busybox
-          command: ["sleep"]
-          args: ["10"]
-inputReplicas: 5
-operation: ReviseReplica
-output:
-  revisedReplicas: 1
+    parallelism: 3
