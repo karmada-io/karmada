@@ -76,6 +76,18 @@ type IndividualTest struct {
 Where:
 - `Output` The output are key-value mapping where the key is the field name of the expected result and the value is the expected result. The keys in output for different operations correspond to the Name field of the results returned by the corresponding resource interpreter operation `RuleResult.Results`.
 
+**Important:** All keys defined in the `output` field must exist in the actual test results. If any defined key is missing from the results, the test will fail. This ensures test accuracy and prevents silent failures due to typos or incorrect key names.
+
+**Supported output keys by operation:**
+- `Retention`: `retained` - The object after retention rules applied
+- `InterpretReplica`: `replica` - The replica count, `requires` - Resource requirements
+- `InterpretComponent`: `components` - List of component objects
+- `ReviseReplica`: `revised` - The object with revised replica count
+- `InterpretStatus`: `status` - The reflected status object
+- `AggregateStatus`: `aggregatedStatus` - The object with aggregated status
+- `InterpretHealth`: `healthy` - Boolean indicating health status
+- `InterpretDependency`: `dependencies` - List of dependent resources
+
 For example:
 ```go
 func (h *healthInterpretationRule) Run(interpreter *declarative.ConfigurableInterpreter, args RuleArgs) *RuleResult {

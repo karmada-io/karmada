@@ -1,10 +1,11 @@
 # test case for interpreting status of BroadcastJob
-# case1. BroadcastJob: interpret status test
-# case2. BroadcastJob succeeded status
-# case3. BroadcastJob with empty status
+# case1. Test interpreting status of BroadcastJob with failed phase
+# case2. Test interpreting status of BroadcastJob with completed phase
+# case3. Test interpreting status of BroadcastJob with empty status
 
-name: "BroadcastJob: interpret status test"
-description: "Test interpreting status for BroadcastJob"
+# Case 1:
+name: "BroadcastJob with failed phase status"
+description: "Test interpreting status of BroadcastJob with failed phase"
 observedObj:
   apiVersion: apps.kruise.io/v1alpha1
   kind: BroadcastJob
@@ -75,8 +76,9 @@ output:
         status: "True"
         type: Failed
 ---
-name: "BroadcastJob succeeded status"
-description: "InterpretStatus when BroadcastJob completes successfully"
+# Case 2:
+name: "BroadcastJob with completed phase status"
+description: "Test interpreting status of BroadcastJob with completed phase"
 observedObj:
   apiVersion: apps.kruise.io/v1alpha1
   kind: BroadcastJob
@@ -108,8 +110,9 @@ output:
       - type: Complete
         status: "True"
 ---
+# Case 3:
 name: "BroadcastJob with empty status"
-description: "InterpretStatus should return empty status when status is nil"
+description: "Test interpreting status of BroadcastJob with empty status"
 observedObj:
   apiVersion: apps.kruise.io/v1alpha1
   kind: BroadcastJob

@@ -3,6 +3,7 @@
 # case2. BroadcastJob with secret dependency
 # case3. BroadcastJob with configmap and secret dependency
 
+# Case 1:
 name: "BroadcastJob with configmap dependency"
 description: "Test interpreting dependency of BroadcastJob with configmap dependency"
 desiredObj:
@@ -44,12 +45,17 @@ desiredObj:
       activeDeadlineSeconds: 10
 operation: InterpretDependency
 output:
- configMaps:
-    - name: my-sample-config
+  dependencies:
+    - apiVersion: v1
+      kind: ConfigMap
+      name: my-sample-config
       namespace: test-bcj
-    - name: mysql-config
+    - apiVersion: v1
+      kind: ConfigMap
+      name: mysql-config
       namespace: test-bcj
 ---
+# Case 2:
 name: "BroadcastJob with secret dependency"
 description: "Test interpreting dependency of BroadcastJob with secret env reference"
 desiredObj:
@@ -72,10 +78,13 @@ desiredObj:
                     key: password
 operation: InterpretDependency
 output:
-  secrets:
-    - name: my-secret
+  dependencies:
+    - apiVersion: v1
+      kind: Secret
+      name: my-secret
       namespace: test-bcj
 ---
+# Case 3:
 name: "BroadcastJob with configmap and secret dependency"
 description: "Test interpreting mixed dependencies"
 desiredObj:
@@ -102,9 +111,12 @@ desiredObj:
                     key: token
 operation: InterpretDependency
 output:
-  configMaps:
-    - name: app-config
+  dependencies:
+    - apiVersion: v1
+      kind: ConfigMap
+      name: app-config
       namespace: test-bcj
-  secrets:
-    - name: api-secret
+    - apiVersion: v1
+      kind: Secret
+      name: api-secret
       namespace: test-bcj

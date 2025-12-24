@@ -4,6 +4,7 @@
 # case3. CloneSet health when updatedReplicas less than desired replicas
 # case4. CloneSet health when availableReplicas less than updatedReplicas
 
+# Case 1:
 name: "CloneSet interpreting health test"
 description: "Test interpreting health of CloneSet"
 observedObj:
@@ -63,6 +64,7 @@ operation: InterpretHealth
 output:
   healthy: true
 ---
+# Case 2:
 name: "CloneSet health when observedGeneration mismatches generation"
 description: "Health should be false when observedGeneration != generation"
 observedObj:
@@ -89,6 +91,7 @@ operation: InterpretHealth
 output:
   healthy: false
 ---
+# Case 3:
 name: "CloneSet health when updatedReplicas less than desired replicas"
 description: "Health should be false when updatedReplicas < spec.replicas"
 observedObj:
@@ -115,6 +118,7 @@ operation: InterpretHealth
 output:
   healthy: false
 ---
+# Case 4:
 name: "CloneSet health when availableReplicas less than updatedReplicas"
 description: "Health should be false when availableReplicas < updatedReplicas"
 observedObj:

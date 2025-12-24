@@ -14,10 +14,11 @@ desiredObj:
 inputReplicas: 3
 operation: ReviseReplica
 output:
-  apiVersion: apps.kruise.io/v1alpha1
-  kind: BroadcastJob
-  metadata:
-    name: sample
-    namespace: test-bcj
-  spec:
-    parallelism: 3
+  revised:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: BroadcastJob
+    metadata:
+      name: sample
+      namespace: test-bcj
+    spec:
+      parallelism: 3

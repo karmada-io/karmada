@@ -100,6 +100,10 @@ func checkInterpretationRule(t *testing.T, path string, configs []*configv1alpha
 				if result.Err != nil {
 					t.Fatalf("FilePath: %s. Test case: %s. Execute %s %s error: %v\n", input.Filepath, input.Name, customization.Name, rule.Name(), result.Err)
 				}
+
+				// Track which output keys have been validated
+				checkedKeys := make(map[string]bool)
+
 				for _, res := range result.Results {
 					expected, ok := input.Output[res.Name]
 					if !ok {
@@ -108,10 +112,20 @@ func checkInterpretationRule(t *testing.T, path string, configs []*configv1alpha
 						continue
 					}
 
+					// Mark this key as checked
+					checkedKeys[res.Name] = true
+
 					if equal, err := deepEqual(expected, res.Value); err != nil || !equal {
 						expectedJSON, _ := json.MarshalIndent(expected, "", "  ")
 						gotJSON, _ := json.MarshalIndent(res.Value, "", "  ")
 						t.Fatalf("FilePath: %s\nTest case: %s\nUnexpected result for %s\nExpected:\n%s\nGot:\n%s\nError: %v", input.Filepath, input.Name, res.Name, string(expectedJSON), string(gotJSON), err)
+					}
+				}
+
+				// Verify that all keys defined in output were actually present in results
+				for key := range input.Output {
+					if !checkedKeys[key] {
+						t.Fatalf("FilePath: %s. Test case: %s. Output key '%s' is defined but not present in actual results of %s", input.Filepath, input.Name, key, customization.Name)
 					}
 				}
 			})

@@ -66,4 +66,4 @@ observedObj:
         message: ReplicaSet has successfully progressed.
 operation: InterpretHealth
 output:
-    health: false
+  healthy: true
