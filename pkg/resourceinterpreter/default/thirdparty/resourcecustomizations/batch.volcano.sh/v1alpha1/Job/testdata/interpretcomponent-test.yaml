@@ -1,0 +1,197 @@
+# test case for interpreting component of VCJob
+# case1. VCJob with tasks having names
+# case2. VCJob with tasks without names (should use task-0, task-1, etc.)
+# case3. VCJob with tasks without minAvailable (should use default 1)
+# case4. VCJob with empty or nil tasks
+# case5. VCJob with mixed tasks (some with names, some without)
+
+name: "VCJob with tasks having names"
+description: "Test interpreting component of VCJob when tasks have names"
+observedObj:
+  apiVersion: batch.volcano.sh/v1alpha1
+  kind: Job
+  metadata:
+    name: test-job
+  spec:
+    tasks:
+      - name: task-1
+        minAvailable: 2
+        template:
+          spec:
+            containers:
+              - name: container-1
+                image: nginx:latest
+                resources:
+                  requests:
+                    cpu: 100m
+                    memory: 128Mi
+      - name: task-2
+        minAvailable: 3
+        template:
+          spec:
+            containers:
+              - name: container-2
+                image: nginx:latest
+                resources:
+                  requests:
+                    cpu: 200m
+                    memory: 256Mi
+operation: InterpretComponent
+output:
+  components:
+    - name: task-1
+      replicas: 2
+      replicaRequirements:
+        resourceRequest:
+          cpu: 100m
+          memory: 128Mi
+    - name: task-2
+      replicas: 3
+      replicaRequirements:
+        resourceRequest:
+          cpu: 200m
+          memory: 256Mi
+
+---
+name: "VCJob with tasks without names (should use task-0, task-1, etc.)"
+description: "Test interpreting component of VCJob when tasks don't have names"
+observedObj:
+  apiVersion: batch.volcano.sh/v1alpha1
+  kind: Job
+  metadata:
+    name: test-job
+  spec:
+    tasks:
+      - minAvailable: 1
+        template:
+          spec:
+            containers:
+              - name: container-1
+                image: nginx:latest
+                resources:
+                  requests:
+                    cpu: 100m
+      - minAvailable: 2
+        template:
+          spec:
+            containers:
+              - name: container-2
+                image: nginx:latest
+                resources:
+                  requests:
+                    cpu: 200m
+operation: InterpretComponent
+output:
+  components:
+    - name: task-0
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          cpu: 100m
+    - name: task-1
+      replicas: 2
+      replicaRequirements:
+        resourceRequest:
+          cpu: 200m
+
+---
+name: "VCJob with tasks without minAvailable (should use default 1)"
+description: "Test interpreting component of VCJob when tasks don't have minAvailable"
+observedObj:
+  apiVersion: batch.volcano.sh/v1alpha1
+  kind: Job
+  metadata:
+    name: test-job
+  spec:
+    tasks:
+      - name: master
+        template:
+          spec:
+            containers:
+              - name: master
+                image: nginx:latest
+                resources:
+                  requests:
+                    cpu: 1000m
+                    memory: 1Gi
+operation: InterpretComponent
+output:
+  components:
+    - name: master
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          cpu: 1000m
+          memory: 1Gi
+
+---
+name: "VCJob with empty or nil tasks"
+description: "Test interpreting component of VCJob when tasks is empty or nil"
+observedObj:
+  apiVersion: batch.volcano.sh/v1alpha1
+  kind: Job
+  metadata:
+    name: test-job
+  spec: {}
+operation: InterpretComponent
+output:
+  components: []
+
+---
+name: "VCJob with mixed tasks (some with names, some without)"
+description: "Test interpreting component of VCJob with mixed tasks"
+observedObj:
+  apiVersion: batch.volcano.sh/v1alpha1
+  kind: Job
+  metadata:
+    name: test-job
+  spec:
+    tasks:
+      - name: named-task
+        minAvailable: 2
+        template:
+          spec:
+            containers:
+              - name: container-1
+                image: nginx:latest
+                resources:
+                  requests:
+                    cpu: 100m
+      - minAvailable: 1
+        template:
+          spec:
+            containers:
+              - name: container-2
+                image: nginx:latest
+                resources:
+                  requests:
+                    cpu: 200m
+      - name: another-named-task
+        minAvailable: 3
+        template:
+          spec:
+            containers:
+              - name: container-3
+                image: nginx:latest
+                resources:
+                  requests:
+                    cpu: 300m
+operation: InterpretComponent
+output:
+  components:
+    - name: named-task
+      replicas: 2
+      replicaRequirements:
+        resourceRequest:
+          cpu: 100m
+    - name: task-1
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          cpu: 200m
+    - name: another-named-task
+      replicas: 3
+      replicaRequirements:
+        resourceRequest:
+          cpu: 300m
+
