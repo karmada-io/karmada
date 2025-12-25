@@ -72,6 +72,25 @@ func (r *Resource) Add(rl corev1.ResourceList) {
 	}
 }
 
+// Multiply is used to multiply a resource by a factor.
+func (r *Resource) Multiply(factor int64) *Resource {
+	if r == nil {
+		return r
+	}
+
+	r.MilliCPU = r.MilliCPU * factor
+	r.Memory = r.Memory * factor
+	r.EphemeralStorage = r.EphemeralStorage * factor
+	r.AllowedPodNumber = r.AllowedPodNumber * factor
+
+	for rName, rScalar := range r.ScalarResources {
+		if lifted.IsScalarResourceName(rName) {
+			r.ScalarResources[rName] = rScalar * factor
+		}
+	}
+	return r
+}
+
 // SubResource is used to subtract two resources, if r < rr, set r to zero.
 func (r *Resource) SubResource(rr *Resource) *Resource {
 	if r == nil || rr == nil {

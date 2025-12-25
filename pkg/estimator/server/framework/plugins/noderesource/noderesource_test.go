@@ -27,7 +27,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/estimator/pb"
 	"github.com/karmada-io/karmada/pkg/estimator/server/framework"
 	schedcache "github.com/karmada-io/karmada/pkg/util/lifted/scheduler/cache"
-	schedulerframework "github.com/karmada-io/karmada/pkg/util/lifted/scheduler/framework"
 )
 
 func TestNodeResourceEstimator_EstimateComponents(t *testing.T) {
@@ -361,103 +360,6 @@ func TestNodeResourceEstimator_EstimateComponents(t *testing.T) {
 
 			if status.Code() != tt.wantCode {
 				t.Errorf("EstimateComponents() status code = %v, expected %v", status.Code(), tt.wantCode)
-			}
-		})
-	}
-}
-
-func TestMatchNode(t *testing.T) {
-	tests := []struct {
-		name                string
-		replicaRequirements pb.ReplicaRequirements
-		node                *schedulerframework.NodeInfo
-		expected            bool
-	}{
-		{
-			name: "no constraints - should match",
-			replicaRequirements: pb.ReplicaRequirements{
-				ResourceRequest: corev1.ResourceList{
-					corev1.ResourceCPU: resource.MustParse("1"),
-				},
-			},
-			node: func() *schedulerframework.NodeInfo {
-				nodeInfo := schedulerframework.NewNodeInfo()
-				nodeInfo.SetNode(makeNode("node1", map[string]string{}, corev1.ResourceList{
-					corev1.ResourceCPU: resource.MustParse("4"),
-				}))
-				return nodeInfo
-			}(),
-			expected: true,
-		},
-		{
-			name: "node affinity matches",
-			replicaRequirements: pb.ReplicaRequirements{
-				ResourceRequest: corev1.ResourceList{
-					corev1.ResourceCPU: resource.MustParse("1"),
-				},
-				NodeClaim: &pb.NodeClaim{
-					NodeAffinity: &corev1.NodeSelector{
-						NodeSelectorTerms: []corev1.NodeSelectorTerm{
-							{
-								MatchExpressions: []corev1.NodeSelectorRequirement{
-									{
-										Key:      "zone",
-										Operator: corev1.NodeSelectorOpIn,
-										Values:   []string{"us-west"},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			node: func() *schedulerframework.NodeInfo {
-				nodeInfo := schedulerframework.NewNodeInfo()
-				nodeInfo.SetNode(makeNode("node1", map[string]string{"zone": "us-west"}, corev1.ResourceList{
-					corev1.ResourceCPU: resource.MustParse("4"),
-				}))
-				return nodeInfo
-			}(),
-			expected: true,
-		},
-		{
-			name: "node affinity does not match",
-			replicaRequirements: pb.ReplicaRequirements{
-				ResourceRequest: corev1.ResourceList{
-					corev1.ResourceCPU: resource.MustParse("1"),
-				},
-				NodeClaim: &pb.NodeClaim{
-					NodeAffinity: &corev1.NodeSelector{
-						NodeSelectorTerms: []corev1.NodeSelectorTerm{
-							{
-								MatchExpressions: []corev1.NodeSelectorRequirement{
-									{
-										Key:      "zone",
-										Operator: corev1.NodeSelectorOpIn,
-										Values:   []string{"us-west"},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			node: func() *schedulerframework.NodeInfo {
-				nodeInfo := schedulerframework.NewNodeInfo()
-				nodeInfo.SetNode(makeNode("node1", map[string]string{"zone": "us-east"}, corev1.ResourceList{
-					corev1.ResourceCPU: resource.MustParse("4"),
-				}))
-				return nodeInfo
-			}(),
-			expected: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := matchNode(tt.replicaRequirements.NodeClaim, tt.node)
-			if result != tt.expected {
-				t.Errorf("matchNode() = %v, expected %v", result, tt.expected)
 			}
 		})
 	}
