@@ -113,7 +113,7 @@ karmada-demo-webhook-6f5944f5d8-bpkqz                   1/1     Running   0     
 ### Generate kubeconfig for karmada
 
 ```shell
-kubectl get secret -n test karmada-demo-admin-config -o jsonpath={.data.kubeconfig} | base64 -d > ~/.kube/karmada-apiserver.config
+kubectl get secret -n test karmada-demo-admin-config -o jsonpath='{.data.karmada\.config}' | base64 -d > ~/.kube/karmada-apiserver.config
 export KUBECONFIG=~/.kube/karmada-apiserver.config
 ```
 
