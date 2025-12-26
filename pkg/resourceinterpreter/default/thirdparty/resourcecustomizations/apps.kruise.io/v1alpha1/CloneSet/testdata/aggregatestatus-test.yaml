@@ -4,6 +4,7 @@
 # case3. CloneSet with mixed observed generations
 # case4. CloneSet with no status items
 
+# Case 1:
 name: "CloneSet with two status items"
 description: "Test aggregating status of CloneSet with two status items"
 desiredObj:
@@ -15,36 +16,6 @@ desiredObj:
     name: sample
     namespace: test-cloneset
     generation: 1
-  spec:
-    replicas: 4
-    selector:
-      matchLabels:
-        app: sample
-        test: cloneset
-    template:
-      metadata:
-        labels:
-          app: sample
-          test: cloneset
-      spec:
-        volumes:
-          - name: configmap
-            configMap:
-              name: my-sample-config
-        containers:
-          - name: nginx
-            image: nginx:alpine
-            env:
-              - name: logData
-                valueFrom:
-                  configMapKeyRef:
-                    name: mysql-config
-                    key: log
-              - name: lowerData
-                valueFrom:
-                  configMapKeyRef:
-                    name: mysql-config
-                    key: lower
 statusItems:
   - applied: true
     clusterName: member1
@@ -80,15 +51,28 @@ statusItems:
       resourceTemplateGeneration: 1
 operation: AggregateStatus
 output:
-  status:
-    replicas: 4
-    readyReplicas: 4
-    availableReplicas: 4
-    updatedReplicas: 4
-    updatedReadyReplicas: 4
-    expectedUpdatedReplicas: 4
-    observedGeneration: 1
+  aggregatedStatus:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: CloneSet
+    metadata:
+      labels:
+        app: sample
+      name: sample
+      namespace: test-cloneset
+      generation: 1
+    status:
+      replicas: 4
+      readyReplicas: 4
+      availableReplicas: 4
+      updatedReplicas: 4
+      updatedReadyReplicas: 4
+      expectedUpdatedReplicas: 4
+      observedGeneration: 1
+      currentRevision: sample-59df6bd888
+      updateRevision: sample-59df6bd888
+      labelSelector: app=sample,test=cloneset
 ---
+# Case 2:
 name: "CloneSet with partially ready replicas"
 description: "AggregateStatus when some replicas are not ready"
 desiredObj:
@@ -127,15 +111,28 @@ statusItems:
       resourceTemplateGeneration: 2
 operation: AggregateStatus
 output:
-  status:
-    replicas: 4
-    readyReplicas: 3
-    availableReplicas: 3
-    updatedReplicas: 4
-    updatedReadyReplicas: 3
-    expectedUpdatedReplicas: 4
-    observedGeneration: 2
+  aggregatedStatus:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: CloneSet
+    metadata:
+      name: sample
+      namespace: test-cloneset
+      generation: 2
+    spec:
+      replicas: 4
+    status:
+      replicas: 4
+      readyReplicas: 3
+      availableReplicas: 3
+      updatedReplicas: 4
+      updatedReadyReplicas: 3
+      expectedUpdatedReplicas: 4
+      observedGeneration: 2
+      currentRevision: ''
+      updateRevision: ''
+      labelSelector: ''
 ---
+# Case 3:
 name: "CloneSet with mixed observed generations"
 description: "AggregateStatus should not update observedGeneration if any member is stale"
 desiredObj:
@@ -166,11 +163,26 @@ statusItems:
       resourceTemplateGeneration: 3
 operation: AggregateStatus
 output:
-  status:
-    replicas: 4
-    readyReplicas: 4
-    observedGeneration: 2
+  aggregatedStatus:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: CloneSet
+    metadata:
+      name: sample
+      namespace: test-cloneset
+      generation: 3
+    status:
+      replicas: 4
+      readyReplicas: 4
+      availableReplicas: 0
+      updatedReplicas: 0
+      updatedReadyReplicas: 0
+      expectedUpdatedReplicas: 0
+      observedGeneration: 2
+      currentRevision: ''
+      updateRevision: ''
+      labelSelector: ''
 ---
+# Case 4:
 name: "CloneSet with no status items"
 description: "AggregateStatus when CloneSet is not propagated"
 desiredObj:
@@ -182,13 +194,18 @@ desiredObj:
     generation: 1
 operation: AggregateStatus
 output:
-  status:
-    replicas: 0
-    readyReplicas: 0
-    availableReplicas: 0
-    updatedReplicas: 0
-    updatedReadyReplicas: 0
-    expectedUpdatedReplicas: 0
-    observedGeneration: 1
-
-
+  aggregatedStatus:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: CloneSet
+    metadata:
+      name: sample
+      namespace: test-cloneset
+      generation: 1
+    status:
+      replicas: 0
+      readyReplicas: 0
+      availableReplicas: 0
+      updatedReplicas: 0
+      updatedReadyReplicas: 0
+      expectedUpdatedReplicas: 0
+      observedGeneration: 1

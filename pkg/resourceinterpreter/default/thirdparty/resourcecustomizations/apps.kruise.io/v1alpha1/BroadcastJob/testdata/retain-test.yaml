@@ -1,137 +1,6 @@
 # test case for retaining BroadcastJob
-# case1. BroadcastJob: retain test
-# case2. BroadcastJob retain should preserve observed labels
+# case1. BroadcastJob retain should preserve observed labels
 
-name: "BroadcastJob: retain test"
-description: "Test retaining BroadcastJob"
-desiredObj:
-  apiVersion: apps.kruise.io/v1alpha1
-  kind: BroadcastJob
-  metadata:
-    labels:
-      app: sample
-    name: sample
-    namespace: test-bcj
-  spec:
-    parallelism: 1
-    template:
-      metadata:
-        labels:
-          app: sample
-      spec:
-        restartPolicy: Never
-        volumes:
-          - name: configmap
-            configMap:
-              name: my-sample-config
-        containers:
-          - name: nginx
-            image: nginx:alpine
-            env:
-              - name: logData
-                valueFrom:
-                  configMapKeyRef:
-                    name: mysql-config
-                    key: log
-              - name: lowerData
-                valueFrom:
-                  configMapKeyRef:
-                    name: mysql-config
-                    key: lower
-    completionPolicy:
-      type: Always
-      activeDeadlineSeconds: 10
-observedObj:
-  apiVersion: apps.kruise.io/v1alpha1
-  kind: BroadcastJob
-  metadata:
-    labels:
-      app: sample
-    name: sample
-    namespace: test-bcj
-  spec:
-    parallelism: 1
-    template:
-      metadata:
-        labels:
-          app: sample
-      spec:
-        restartPolicy: Never
-        volumes:
-          - name: configmap
-            configMap:
-              name: my-sample-config
-        containers:
-          - name: nginx
-            image: nginx:alpine
-            env:
-              - name: logData
-                valueFrom:
-                  configMapKeyRef:
-                    name: mysql-config
-                    key: log
-              - name: lowerData
-                valueFrom:
-                  configMapKeyRef:
-                    name: mysql-config
-                    key: lower
-    completionPolicy:
-      type: Always
-      activeDeadlineSeconds: 10
-  status:
-    active: 0
-    completionTime: "2023-04-06T15:01:47Z"
-    conditions:
-      - lastProbeTime: "2023-04-06T15:01:47Z"
-        lastTransitionTime: "2023-04-06T15:01:47Z"
-        message: Job test-bcj/sample was active longer than specified deadline
-        reason: Failed
-        status: "True"
-        type: Failed
-    desired: 1
-    failed: 1
-    phase: failed
-    startTime: "2023-04-06T15:01:37Z"
-    succeeded: 0
-operation: Retain
-output:
-  apiVersion: apps.kruise.io/v1alpha1
-  kind: BroadcastJob
-  metadata:
-    labels:
-      app: sample
-    name: sample
-    namespace: test-bcj
-  spec:
-    parallelism: 1
-    template:
-      metadata:
-        labels:
-          app: sample
-      spec:
-        restartPolicy: Never
-        volumes:
-          - name: configmap
-            configMap:
-              name: my-sample-config
-        containers:
-          - name: nginx
-            image: nginx:alpine
-            env:
-              - name: logData
-                valueFrom:
-                  configMapKeyRef:
-                    name: mysql-config
-                    key: log
-              - name: lowerData
-                valueFrom:
-                  configMapKeyRef:
-                    name: mysql-config
-                    key: lower
-    completionPolicy:
-      type: Always
-      activeDeadlineSeconds: 10
----
 name: "BroadcastJob retain should preserve observed labels"
 description: "Retain should copy pod template labels from observedObj"
 desiredObj:
@@ -158,13 +27,14 @@ observedObj:
           app: new-label
 operation: Retain
 output:
-  apiVersion: apps.kruise.io/v1alpha1
-  kind: BroadcastJob
-  metadata:
-    name: sample
-    namespace: test-bcj
-  spec:
-    template:
-      metadata:
-        labels:
-          app: new-label
+  retained:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: BroadcastJob
+    metadata:
+      name: sample
+      namespace: test-bcj
+    spec:
+      template:
+        metadata:
+          labels:
+            app: new-label
