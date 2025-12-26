@@ -1,6 +1,9 @@
 # test case for interpreting component of FlinkDeployment
 # case1. FlinkDeployment with taskManager.replicas set to 1
 # case2. FlinkDeployment with taskManager.replicas not set, use parallelism/numberOfTaskSlots
+# case3. FlinkDeployment with podTemplate containing nodeSelector, tolerations, and priorityClassName
+# case4. FlinkDeployment with taskManager.replicas not set and parallelism/task_slots not set, should default to 1
+# case5. FlinkDeployment with jobManager.replicas not set, should default to 1
 
 name: "FlinkDeployment with taskManager.replicas set to 1"
 description: "Test interpreting component of FlinkDeployment when taskManager.replicas is set"
@@ -90,3 +93,151 @@ output:
         resourceRequest:
           "cpu": "1"
           "memory": "2048m"
+
+---
+name: "FlinkDeployment with podTemplate containing nodeSelector, tolerations, and priorityClassName"
+description: "Test interpreting component of FlinkDeployment with podTemplate settings"
+desiredObj:
+  apiVersion: flink.apache.org/v1beta1
+  kind: FlinkDeployment
+  metadata:
+    name: basic-example
+    namespace: test-namespace
+  spec:
+    flinkConfiguration:
+      taskmanager.numberOfTaskSlots: "2"
+    flinkVersion: v1_17
+    image: flink:1.17
+    jobManager:
+      replicas: 1
+      resource:
+        cpu: 1
+        memory: 2048m
+    taskManager:
+      replicas: 2
+      resource:
+        cpu: 1
+        memory: 2048m
+    podTemplate:
+      spec:
+        nodeSelector:
+          disktype: ssd
+          zone: us-west-1
+        tolerations:
+          - key: "key1"
+            operator: "Equal"
+            value: "value1"
+            effect: "NoSchedule"
+        priorityClassName: high-priority
+operation: InterpretComponent
+output:
+  components:
+    - name: jobmanager
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          "cpu": "1"
+          "memory": "2048m"
+        nodeClaim:
+          nodeSelector:
+            disktype: ssd
+            zone: us-west-1
+          tolerations:
+            - key: "key1"
+              operator: "Equal"
+              value: "value1"
+              effect: "NoSchedule"
+        priorityClassName: high-priority
+    - name: taskmanager
+      replicas: 2
+      replicaRequirements:
+        resourceRequest:
+          "cpu": "1"
+          "memory": "2048m"
+        nodeClaim:
+          nodeSelector:
+            disktype: ssd
+            zone: us-west-1
+          tolerations:
+            - key: "key1"
+              operator: "Equal"
+              value: "value1"
+              effect: "NoSchedule"
+        priorityClassName: high-priority
+
+---
+name: "FlinkDeployment with taskManager.replicas not set and parallelism/task_slots not set should default to 1"
+description: "Test interpreting component when taskManager.replicas, parallelism, and task_slots are not set"
+desiredObj:
+  apiVersion: flink.apache.org/v1beta1
+  kind: FlinkDeployment
+  metadata:
+    name: basic-example
+    namespace: test-namespace
+  spec:
+    flinkVersion: v1_17
+    image: flink:1.17
+    jobManager:
+      replicas: 1
+      resource:
+        cpu: 1
+        memory: 2048m
+    taskManager:
+      resource:
+        cpu: 1
+        memory: 2048m
+operation: InterpretComponent
+output:
+  components:
+    - name: jobmanager
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          "cpu": "1"
+          "memory": "2048m"
+    - name: taskmanager
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          "cpu": "1"
+          "memory": "2048m"
+
+---
+name: "FlinkDeployment with jobManager.replicas not set should default to 1"
+description: "Test interpreting component when jobManager.replicas is not set"
+desiredObj:
+  apiVersion: flink.apache.org/v1beta1
+  kind: FlinkDeployment
+  metadata:
+    name: basic-example
+    namespace: test-namespace
+  spec:
+    flinkConfiguration:
+      taskmanager.numberOfTaskSlots: "2"
+    flinkVersion: v1_17
+    image: flink:1.17
+    jobManager:
+      resource:
+        cpu: 1
+        memory: 2048m
+    taskManager:
+      replicas: 2
+      resource:
+        cpu: 1
+        memory: 2048m
+operation: InterpretComponent
+output:
+  components:
+    - name: jobmanager
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          "cpu": "1"
+          "memory": "2048m"
+    - name: taskmanager
+      replicas: 2
+      replicaRequirements:
+        resourceRequest:
+          "cpu": "1"
+          "memory": "2048m"
+
