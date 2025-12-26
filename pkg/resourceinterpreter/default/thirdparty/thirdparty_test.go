@@ -76,7 +76,7 @@ type IndividualTest struct {
 }
 
 func checkInterpretationRule(t *testing.T, path string, configs []*configv1alpha1.ResourceInterpreterCustomization) {
-	ipt := declarative.NewConfigurableInterpreter(nil)
+	ipt := declarative.NewConfigurableInterpreter(nil, 10)
 	ipt.LoadConfig(configs)
 
 	dir := filepath.Dir(path)

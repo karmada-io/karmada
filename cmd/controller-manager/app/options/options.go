@@ -135,6 +135,10 @@ type Options struct {
 	// GracefulEvictionTimeout is the timeout period waiting for the grace-eviction-controller performs the final
 	// removal since the workload(resource) has been moved to the graceful eviction tasks.
 	GracefulEvictionTimeout metav1.Duration
+	// ConfigurableInterpreterLuaVMPoolSize is the size of the pool for the configurable interpreter lua vm.
+	ConfigurableInterpreterLuaVMPoolSize int
+	// ThirdPartyInterpreterLuaVMPoolSize is the size of the pool for the third party interpreter lua vm.
+	ThirdPartyInterpreterLuaVMPoolSize int
 
 	RateLimiterOpts            ratelimiterflag.Options
 	ProfileOpts                profileflag.Options
@@ -228,7 +232,8 @@ func (o *Options) AddFlags(flags *pflag.FlagSet, allControllers, disabledByDefau
 	flags.BoolVar(&o.EnableClusterResourceModeling, "enable-cluster-resource-modeling", true, "Enable means controller would build resource modeling for each cluster by syncing Nodes and Pods resources.\n"+
 		"The resource modeling might be used by the scheduler to make scheduling decisions in scenario of dynamic replica assignment based on cluster free resources.\n"+
 		"Disable if it does not fit your cases for better performance.")
-
+	flags.IntVar(&o.ConfigurableInterpreterLuaVMPoolSize, "configurable-interpreter-lua-vm-pool-size", 10, "The size of the pool for the configurable interpreter lua vm.")
+	flags.IntVar(&o.ThirdPartyInterpreterLuaVMPoolSize, "third-party-interpreter-lua-vm-pool-size", 10, "The size of the pool for the third party interpreter lua vm.")
 	o.RateLimiterOpts.AddFlags(flags)
 	o.ProfileOpts.AddFlags(flags)
 	o.HPAControllerConfiguration.AddFlags(flags)
