@@ -244,16 +244,16 @@ func comp(name string, replicas int32, rl corev1.ResourceList) workv1alpha2.Comp
 func TestGetMaximumSetsBasedOnResourceModels(t *testing.T) {
 	const (
 		GPU  corev1.ResourceName = "nvidia.com/gpu"
-		BIGU int64               = 100 // define a large upper bound so we can test model decision algo
+		BIGU int32               = 100 // define a large upper bound so we can test model decision algo
 	)
 
 	tests := []struct {
 		name         string
 		cluster      clusterv1alpha1.Cluster
 		components   []workv1alpha2.Component
-		upperBound   int64
+		upperBound   int32
 		expectError  bool
-		expectedSets int64
+		expectedSets int32
 	}{
 		{
 			name: "No grades defined → error",
