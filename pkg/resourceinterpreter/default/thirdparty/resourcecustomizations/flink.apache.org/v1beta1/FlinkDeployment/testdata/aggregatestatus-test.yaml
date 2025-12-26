@@ -1,6 +1,7 @@
 # test case for aggregating status of FlinkDeployment
 # case1. FlinkDeployment with nil status items
 # case2. FlinkDeployment with one status item
+# case3. FlinkDeployment with multiple status items, should use the last one
 
 name: "FlinkDeployment with nil status items"
 description: "Test aggregating status of FlinkDeployment with nil status items"
@@ -176,3 +177,107 @@ output:
       taskManager:
         labelSelector: component=taskmanager,app=basic-example
         replicas: 1
+
+---
+name: "FlinkDeployment with multiple status items should use the last one"
+description: "Test aggregating status of FlinkDeployment with multiple status items"
+desiredObj:
+  apiVersion: flink.apache.org/v1beta1
+  kind: FlinkDeployment
+  metadata:
+    name: basic-example
+    namespace: test-namespace
+  spec:
+    flinkConfiguration:
+      taskmanager.numberOfTaskSlots: "2"
+    flinkVersion: v1_17
+    image: flink:1.17
+    job:
+      jarURI: local:///opt/flink/examples/streaming/StateMachineExample.jar
+      parallelism: 2
+      upgradeMode: stateless
+    jobManager:
+      replicas: 1
+      resource:
+        cpu: 1
+        memory: 2048m
+    mode: native
+    serviceAccount: flink
+    taskManager:
+      resource:
+        cpu: 1
+        memory: 2048m
+statusItems:
+  - applied: true
+    clusterName: member1
+    health: Healthy
+    status:
+      clusterInfo:
+        flink-revision: 2750d5c @ 2023-05-19T10:45:46+02:00
+        flink-version: 1.17.1
+        total-cpu: "2.0"
+        total-memory: "4294967296"
+      jobManagerDeploymentStatus: READY
+      jobStatus:
+        state: RUNNING
+      lifecycleState: STABLE
+      observedGeneration: 1
+      taskManager:
+        replicas: 1
+  - applied: true
+    clusterName: member2
+    health: Healthy
+    status:
+      clusterInfo:
+        flink-revision: 2750d5c @ 2023-05-19T10:45:46+02:00
+        flink-version: 1.17.1
+        total-cpu: "4.0"
+        total-memory: "8589934592"
+      jobManagerDeploymentStatus: READY
+      jobStatus:
+        state: FINISHED
+      lifecycleState: STABLE
+      observedGeneration: 2
+      taskManager:
+        replicas: 2
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: flink.apache.org/v1beta1
+    kind: FlinkDeployment
+    metadata:
+      name: basic-example
+      namespace: test-namespace
+    spec:
+      flinkConfiguration:
+        taskmanager.numberOfTaskSlots: "2"
+      flinkVersion: v1_17
+      image: flink:1.17
+      job:
+        jarURI: local:///opt/flink/examples/streaming/StateMachineExample.jar
+        parallelism: 2
+        upgradeMode: stateless
+      jobManager:
+        replicas: 1
+        resource:
+          cpu: 1
+          memory: 2048m
+      mode: native
+      serviceAccount: flink
+      taskManager:
+        resource:
+          cpu: 1
+          memory: 2048m
+    status:
+      clusterInfo:
+        flink-revision: 2750d5c @ 2023-05-19T10:45:46+02:00
+        flink-version: 1.17.1
+        total-cpu: "4.0"
+        total-memory: "8589934592"
+      jobManagerDeploymentStatus: READY
+      jobStatus:
+        state: FINISHED
+      lifecycleState: STABLE
+      observedGeneration: 2
+      taskManager:
+        replicas: 2

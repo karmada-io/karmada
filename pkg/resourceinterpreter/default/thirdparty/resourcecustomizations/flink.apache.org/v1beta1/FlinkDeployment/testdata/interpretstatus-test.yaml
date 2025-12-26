@@ -1,5 +1,7 @@
 # test case for interpreting status of FlinkDeployment
 # case1. FlinkDeployment: interpret status test
+# case2. FlinkDeployment with nil status should return empty status
+# case3. FlinkDeployment with empty status should return empty status
 
 name: "FlinkDeployment: interpret status test"
 description: "Test interpreting status for FlinkDeployment"
@@ -93,3 +95,58 @@ output:
     taskManager:
       labelSelector: component=taskmanager,app=basic-example
       replicas: 1
+
+---
+name: "FlinkDeployment with nil status should return empty status"
+description: "Test interpreting status when status is nil"
+observedObj:
+  apiVersion: flink.apache.org/v1beta1
+  kind: FlinkDeployment
+  metadata:
+    name: basic-example
+    namespace: test-namespace
+  spec:
+    flinkConfiguration:
+      taskmanager.numberOfTaskSlots: "2"
+    flinkVersion: v1_17
+    image: flink:1.17
+    jobManager:
+      replicas: 1
+      resource:
+        cpu: 1
+        memory: 2048m
+    taskManager:
+      resource:
+        cpu: 1
+        memory: 2048m
+operation: InterpretStatus
+output:
+  status: {}
+
+---
+name: "FlinkDeployment with empty status should return empty status"
+description: "Test interpreting status when status is empty"
+observedObj:
+  apiVersion: flink.apache.org/v1beta1
+  kind: FlinkDeployment
+  metadata:
+    name: basic-example
+    namespace: test-namespace
+  spec:
+    flinkConfiguration:
+      taskmanager.numberOfTaskSlots: "2"
+    flinkVersion: v1_17
+    image: flink:1.17
+    jobManager:
+      replicas: 1
+      resource:
+        cpu: 1
+        memory: 2048m
+    taskManager:
+      resource:
+        cpu: 1
+        memory: 2048m
+  status: {}
+operation: InterpretStatus
+output:
+  status: {}
