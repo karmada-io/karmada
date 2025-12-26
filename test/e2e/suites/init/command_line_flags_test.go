@@ -19,7 +19,6 @@ package init
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -27,7 +26,6 @@ import (
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/klog/v2"
 
 	"github.com/karmada-io/karmada/test/e2e/framework"
@@ -56,30 +54,27 @@ var karmadaControllerManagerExpectedExtraArgs = []string{
 
 var _ = ginkgo.Describe("Component command line flags testing", func() {
 	ginkgo.Context("Customize karmada components command line flags", func() {
-		var tempData string
 		var tempPki string
+		var etcdDataPath string
 
 		ginkgo.BeforeEach(func() {
-			tempData = filepath.Join(os.TempDir(), KarmadaInstanceNamePrefix+rand.String(RandomStrLength))
-			tempPki = filepath.Join(tempData, "pki")
-		})
-
-		ginkgo.AfterEach(func() {
-			err := os.RemoveAll(tempData)
-			gomega.Expect(err).ShouldNot(gomega.HaveOccurred(), fmt.Sprintf("Failed to remove temp dir %s", tempData))
+			tempPki = filepath.Join(karmadaDataPath, "pki")
+			etcdDataPath = filepath.Join(karmadaDataPath, "etcd-data")
 		})
 
 		ginkgo.It("Customize karmada components command line flags via karmadactl init command flags", func() {
 			// step1 Execute the Karmadactl init command.
 			ginkgo.By("Execute the command karmadactl init", func() {
 				args := []string{"init",
-					"--karmada-data", tempData,
+					"--karmada-data", karmadaDataPath,
 					"--karmada-pki", tempPki,
 					"--crds", crdsPath,
 					"--karmada-aggregated-apiserver-image", karmadaAggregatedAPIServerImage,
 					"--karmada-controller-manager-image", karmadaControllerManagerImage,
 					"--karmada-scheduler-image", karmadaSchedulerImage,
 					"--karmada-webhook-image", karmadaWebhookImage,
+					"--port", karmadaAPIServerNodePort,
+					"--etcd-data", etcdDataPath,
 					"--v", "4",
 					// Here we select two specific examples: etcd in StatefulSet and karmada-controller-manager in Deployment.
 					// StatefulSet etcd
@@ -102,13 +97,13 @@ var _ = ginkgo.Describe("Component command line flags testing", func() {
 
 			// step2 Waiting for components to be ready.
 			ginkgo.By("Waiting for components to be ready.", func() {
-				cmdinit.WaitAllKarmadaComponentReady(kubeClient, testNamespace)
+				cmdinit.WaitAllKarmadaComponentReady(hostClient, testNamespace)
 			})
 
 			// step3.1 Check Command Line Flags
 			ginkgo.By(fmt.Sprintf("Checking command line flags for %s", cmdinit.KarmadaEtcdName), func() {
 				// 1. Get StatefulSet
-				statefulSet, err := kubeClient.AppsV1().StatefulSets(testNamespace).
+				statefulSet, err := hostClient.AppsV1().StatefulSets(testNamespace).
 					Get(context.TODO(), cmdinit.KarmadaEtcdName, metav1.GetOptions{})
 				if err != nil {
 					klog.Errorf("Get statefulset(%s/%s) failed, err: %v", testNamespace, cmdinit.KarmadaEtcdName, err)
@@ -133,7 +128,7 @@ var _ = ginkgo.Describe("Component command line flags testing", func() {
 			// step3.2 Check Command Line Flags
 			ginkgo.By(fmt.Sprintf("Checking command line flags for %s", cmdinit.KarmadaControllerManagerName), func() {
 				// 1. Get Deployment
-				deployment, err := kubeClient.AppsV1().Deployments(testNamespace).
+				deployment, err := hostClient.AppsV1().Deployments(testNamespace).
 					Get(context.TODO(), cmdinit.KarmadaControllerManagerName, metav1.GetOptions{})
 				if err != nil {
 					klog.Errorf("Get deployment(%s/%s) failed, err: %v", testNamespace, cmdinit.KarmadaControllerManagerName, err)

@@ -26,6 +26,19 @@ jobs:
         # Please remember to update the CI Schedule Workflow when we add a new version.
         k8s: [ v1.32.0, v1.33.0, v1.34.0 ]
     steps:
+      # Free up disk space on Ubuntu
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed, if set to "true" but frees about 6 GB
+          tool-cache: false
+          # all of these default to true, but feel free to set to "false" if necessary for your workflow
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          docker-images: false
+          swap-storage: false
       - name: checkout code
         uses: actions/checkout@v6
         with:
@@ -36,32 +49,28 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
-      - name: run karmadactl init test
+      - name: setup init e2e test environment
         run: |
           export CLUSTER_VERSION=kindest/node:${{ matrix.k8s }}
-
-          # init e2e environment
-          hack/cli-testing-environment.sh
-
-          # run a single e2e
-          export PULL_BASED_CLUSTERS="member1:${HOME}/.kube/member1.config"  
-          export KUBECONFIG=${HOME}/.kube/karmada-host.config:${HOME}/karmada/karmada-apiserver.config
-          GO111MODULE=on go install github.com/onsi/ginkgo/v2/ginkgo
-          ginkgo -v --race --trace -p  --focus="[BasicPropagation] propagation testing deployment propagation testing"  ./test/e2e/suites/base
-      - name: export logs
-        if: always()
+          hack/init-e2e-environment.sh
+      - name: run e2e
         run: |
-          export ARTIFACTS_PATH=${{ github.workspace }}/karmadactl-test-logs/${{ matrix.k8s }}/
-          mkdir -p $ARTIFACTS_PATH
-
-          mkdir -p $ARTIFACTS_PATH/karmada-host
-          kind export logs --name=karmada-host $ARTIFACTS_PATH/karmada-host
+          export ARTIFACTS_PATH=${{ github.workspace }}/karmada-init-e2e-logs/${{ matrix.k8s }}/
+          export REGISTRY="docker.io/karmada"
+          export VERSION="latest"
+          hack/run-e2e-init.sh
       - name: upload logs
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: karmadactl_test_logs_${{ matrix.k8s }}
-          path: ${{ github.workspace }}/karmadactl-test-logs/${{ matrix.k8s }}/
+          name: karmada_init_e2e_log_${{ matrix.k8s }}
+          path: ${{ github.workspace }}/karmada-init-e2e-logs/${{ matrix.k8s }}/
+      - name: upload kind logs
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: karmada_init_kind_log_${{ matrix.k8s }}
+          path: /tmp/karmada/
 
   init-config:
     name: init with config file
