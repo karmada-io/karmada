@@ -6,6 +6,8 @@
 # case5. FlinkDeployment with taskManager.replicas not set and parallelism/task_slots not set, should default to 1
 # case6. FlinkDeployment with different CPU and memory for jobManager and taskManager, should take max
 # case7. FlinkDeployment with taskManager having higher memory than jobManager
+# case8. FlinkDeployment with spec.jobManager missing, should default jobManager replicas to 1 and use only taskManager resources
+# case9. FlinkDeployment with taskmanager.numberOfTaskSlots set to 0, should avoid division by zero and default to 1
 
 name: "FlinkDeployment with taskManager.replicas set to 1"
 description: "Test interpreting replica of FlinkDeployment when taskManager.replicas is set"
@@ -264,5 +266,69 @@ output:
     resourceRequest:
       "cpu": "2"
       "memory": "8192m"
+    namespace: "test-namespace"
+
+---
+name: "FlinkDeployment with spec.jobManager missing"
+description: "Test interpreting replica when spec.jobManager is missing, should default jobManager replicas to 1 and use only taskManager resources"
+desiredObj:
+  apiVersion: flink.apache.org/v1beta1
+  kind: FlinkDeployment
+  metadata:
+    name: basic-example
+    namespace: test-namespace
+  spec:
+    flinkConfiguration:
+      taskmanager.numberOfTaskSlots: "2"
+    flinkVersion: v1_17
+    image: flink:1.17
+    taskManager:
+      replicas: 2
+      resource:
+        cpu: 1
+        memory: 2048m
+operation: InterpretReplica
+output:
+  replica: 3
+  requires:
+    resourceRequest:
+      "cpu": "1"
+      "memory": "2048m"
+    namespace: "test-namespace"
+
+---
+name: "FlinkDeployment with taskmanager.numberOfTaskSlots set to 0"
+description: "Test interpreting replica when taskmanager.numberOfTaskSlots is 0, should avoid division by zero and default to 1"
+desiredObj:
+  apiVersion: flink.apache.org/v1beta1
+  kind: FlinkDeployment
+  metadata:
+    name: basic-example
+    namespace: test-namespace
+  spec:
+    flinkConfiguration:
+      taskmanager.numberOfTaskSlots: "0"
+    flinkVersion: v1_17
+    image: flink:1.17
+    job:
+      jarURI: local:///opt/flink/examples/streaming/StateMachineExample.jar
+      parallelism: 10
+      upgradeMode: stateless
+    jobManager:
+      replicas: 1
+      resource:
+        cpu: 1
+        memory: 2048m
+    taskManager:
+      resource:
+        cpu: 1
+        memory: 2048m
+operation: InterpretReplica
+output:
+  replica: 2
+  requires:
+    resourceRequest:
+      "cpu": "1"
+      "memory": "2048m"
     namespace: "test-namespace"
 
