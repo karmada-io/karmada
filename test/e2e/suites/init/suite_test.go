@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -55,13 +57,15 @@ var (
 )
 
 var (
-	hostContext    string
-	kubeconfig     string
-	karmadactlPath string
-	restConfig     *rest.Config
-	kubeClient     kubernetes.Interface
-	testNamespace  string
-	crdsPath       string
+	hostContext              string
+	kubeconfig               string
+	karmadactlPath           string
+	restConfig               *rest.Config
+	hostClient               kubernetes.Interface
+	testNamespace            string
+	crdsPath                 string
+	karmadaAPIServerNodePort string
+	karmadaDataPath          string
 )
 
 // image
@@ -120,23 +124,29 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() []byte { return nil }, func([]byte
 	restConfig, err = framework.LoadRESTClientConfig(kubeconfig, hostContext)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	kubeClient, err = kubernetes.NewForConfig(restConfig)
+	hostClient, err = kubernetes.NewForConfig(restConfig)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	testNamespace = fmt.Sprintf("init-test-%s", rand.String(RandomStrLength))
-	err = setupTestNamespace(testNamespace, kubeClient)
+	err = setupTestNamespace(testNamespace, hostClient)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	framework.WaitNamespacePresentOnClusters(framework.ClusterNames(), testNamespace)
+
+	karmadaDataPath = filepath.Join(os.TempDir(), KarmadaInstanceNamePrefix+rand.String(RandomStrLength))
+	karmadaAPIServerNodePort = strconv.Itoa(rand.IntnRange(30000, 31000))
 })
 
 var _ = ginkgo.SynchronizedAfterSuite(func() {
 	// cleanup all namespaces we created both in control plane and member clusters.
 	// It will not return error even if there is no such namespace in there that may happen in case setup failed.
-	if testNamespace != "" && kubeClient != nil {
-		err := cleanupTestNamespace(testNamespace, kubeClient)
+	if testNamespace != "" && hostClient != nil {
+		err := cleanupTestNamespace(testNamespace, hostClient)
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	}
+
+	err := os.RemoveAll(karmadaDataPath)
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred(), fmt.Sprintf("Failed to remove temp dir %s", karmadaDataPath))
 }, func() {})
 
 // setupTestNamespace will create a namespace in control plane and all member clusters, most of cases will run against it.
