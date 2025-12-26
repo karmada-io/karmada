@@ -308,6 +308,31 @@ func CreateOrUpdateClusterRole(client clientset.Interface, clusterrole *rbacv1.C
 	return nil
 }
 
+// CreateOrUpdateRole creates a role if the target resource doesn't exist. If the resource exists already, this function will update the resource instead.
+func CreateOrUpdateRole(client clientset.Interface, role *rbacv1.Role) error {
+	_, err := client.RbacV1().Roles(role.Namespace).Create(context.TODO(), role, metav1.CreateOptions{})
+
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return err
+		}
+
+		older, err := client.RbacV1().Roles(role.GetNamespace()).Get(context.TODO(), role.GetName(), metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+
+		role.ResourceVersion = older.ResourceVersion
+		_, err = client.RbacV1().Roles(role.GetNamespace()).Update(context.TODO(), role, metav1.UpdateOptions{})
+		if err != nil {
+			return err
+		}
+	}
+
+	klog.V(4).InfoS("Successfully created or updated role", "role", role.GetName())
+	return nil
+}
+
 // CreateOrUpdateClusterRoleBinding creates a Clusterrolebinding if the target resource doesn't exist.
 // If the resource exists already, this function will update the resource instead.
 func CreateOrUpdateClusterRoleBinding(client clientset.Interface, clusterrolebinding *rbacv1.ClusterRoleBinding) error {
@@ -331,6 +356,32 @@ func CreateOrUpdateClusterRoleBinding(client clientset.Interface, clusterrolebin
 	}
 
 	klog.V(4).InfoS("Successfully created or updated clusterrolebinding", "clusterrolebinding", clusterrolebinding.GetName())
+	return nil
+}
+
+// CreateOrUpdateRoleBinding creates a rolebinding if the target resource doesn't exist.
+// If the resource exists already, this function will update the resource instead.
+func CreateOrUpdateRoleBinding(client clientset.Interface, rolebinding *rbacv1.RoleBinding) error {
+	_, err := client.RbacV1().RoleBindings(rolebinding.GetNamespace()).Create(context.TODO(), rolebinding, metav1.CreateOptions{})
+
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return err
+		}
+
+		older, err := client.RbacV1().RoleBindings(rolebinding.GetNamespace()).Get(context.TODO(), rolebinding.GetName(), metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+
+		rolebinding.ResourceVersion = older.ResourceVersion
+		_, err = client.RbacV1().RoleBindings(rolebinding.GetNamespace()).Update(context.TODO(), rolebinding, metav1.UpdateOptions{})
+		if err != nil {
+			return err
+		}
+	}
+
+	klog.V(4).InfoS("Successfully created or updated rolebinding", "rolebinding", rolebinding.GetName())
 	return nil
 }
 

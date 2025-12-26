@@ -183,7 +183,7 @@ func generateKubeconfigSecret(name, namespace, configString string) *corev1.Secr
 			Name:      name,
 			Labels:    constants.KarmadaOperatorLabel,
 		},
-		StringData: map[string]string{"karmada.config": configString},
+		StringData: map[string]string{constants.KarmadaConfigKey: configString},
 	}
 }
 
