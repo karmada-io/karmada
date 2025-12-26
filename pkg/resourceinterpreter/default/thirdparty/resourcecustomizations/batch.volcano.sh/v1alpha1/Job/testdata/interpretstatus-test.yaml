@@ -1,68 +1,15 @@
 # test case for interpreting status of VCJob
-# case1. VCJob: interpret status test
+# case1. VCJob with complete status
+# case2. VCJob with nil status
+# case3. VCJob with partial status fields
 
-name: "VCJob: interpret status test"
-description: "Test interpreting status for VCJob"
+name: "VCJob with complete status"
+description: "Test interpreting status for VCJob with complete status fields"
 observedObj:
   apiVersion: batch.volcano.sh/v1alpha1
   kind: Job
   metadata:
     name: dk-job
-  spec:
-    maxRetry: 3
-    minAvailable: 3
-    plugins:
-      env: [ ]
-      ssh: [ ]
-      svc:
-        - --disable-network-policy=true
-    queue: default
-    schedulerName: volcano
-    tasks:
-      - minAvailable: 1
-        name: job-nginx1
-        replicas: 1
-        template:
-          metadata:
-            name: nginx1
-          spec:
-            containers:
-              - args:
-                  - sleep 10
-                command:
-                  - bash
-                  - -c
-                image: nginx:latest
-                imagePullPolicy: IfNotPresent
-                name: nginx
-                resources:
-                  requests:
-                    cpu: 100m
-            nodeSelector:
-              kubernetes.io/os: linux
-            restartPolicy: OnFailure
-      - minAvailable: 2
-        name: job-nginx2
-        replicas: 3
-        template:
-          metadata:
-            name: nginx2
-          spec:
-            containers:
-              - args:
-                  - sleep 30
-                command:
-                  - bash
-                  - -c
-                image: nginx:latest
-                imagePullPolicy: IfNotPresent
-                name: nginx
-                resources:
-                  requests:
-                    cpu: 100m
-            nodeSelector:
-              kubernetes.io/os: linux
-            restartPolicy: OnFailure
   status:
     conditions:
       - lastTransitionTime: "2025-09-29T10:57:03Z"
@@ -91,5 +38,75 @@ observedObj:
     terminating: 0
     unknown: 0
     version: 1
+    controlledResources:
+      pod-1: "pod-uid-1"
+      pod-2: "pod-uid-2"
 operation: InterpretStatus
 output:
+  status:
+    minAvailable: 3
+    pending: 0
+    running: 0
+    succeeded: 4
+    failed: 0
+    terminating: 0
+    unknown: 0
+    version: 1
+    retryCount: 0
+    runningDuration: 35.688396584s
+    taskStatusCount:
+      job-nginx1:
+        phase:
+          Succeeded: 1
+      job-nginx2:
+        phase:
+          Succeeded: 3
+    controlledResources:
+      pod-1: "pod-uid-1"
+      pod-2: "pod-uid-2"
+    state:
+      lastTransitionTime: "2025-09-29T10:57:38Z"
+      phase: Completed
+    conditions:
+      - lastTransitionTime: "2025-09-29T10:57:03Z"
+        status: Pending
+      - lastTransitionTime: "2025-09-29T10:57:07Z"
+        status: Running
+      - lastTransitionTime: "2025-09-29T10:57:38Z"
+        status: Completed
+
+---
+name: "VCJob with nil status"
+description: "Test interpreting status for VCJob when status is nil"
+observedObj:
+  apiVersion: batch.volcano.sh/v1alpha1
+  kind: Job
+  metadata:
+    name: test-job
+operation: InterpretStatus
+output:
+  status: {}
+
+---
+name: "VCJob with partial status fields"
+description: "Test interpreting status for VCJob with partial status fields"
+observedObj:
+  apiVersion: batch.volcano.sh/v1alpha1
+  kind: Job
+  metadata:
+    name: test-job
+  status:
+    pending: 2
+    running: 1
+    succeeded: 0
+    failed: 0
+    version: 1
+operation: InterpretStatus
+output:
+  status:
+    pending: 2
+    running: 1
+    succeeded: 0
+    failed: 0
+    version: 1
+

@@ -1,5 +1,10 @@
 # test case for aggregating status of VCJob
 # case1. VCJob with one status item
+# case2. VCJob with multiple status items, mixed states
+# case3. VCJob with nil or empty statusItems
+# case4. VCJob with taskStatusCount aggregation
+# case5. VCJob with controlledResources aggregation
+# case6. VCJob with duration handling (string format)
 
 name: "VCJob with one status item"
 description: "Test aggregating status of VCJob with one status item"
@@ -8,61 +13,6 @@ desiredObj:
   kind: Job
   metadata:
     name: dk-job
-  spec:
-    maxRetry: 3
-    minAvailable: 3
-    plugins:
-      env: [ ]
-      ssh: [ ]
-      svc:
-        - --disable-network-policy=true
-    queue: default
-    schedulerName: volcano
-    tasks:
-      - minAvailable: 1
-        name: job-nginx1
-        replicas: 1
-        template:
-          metadata:
-            name: nginx1
-          spec:
-            containers:
-              - args:
-                  - sleep 10
-                command:
-                  - bash
-                  - -c
-                image: nginx:latest
-                imagePullPolicy: IfNotPresent
-                name: nginx
-                resources:
-                  requests:
-                    cpu: 100m
-            nodeSelector:
-              kubernetes.io/os: linux
-            restartPolicy: OnFailure
-      - minAvailable: 2
-        name: job-nginx2
-        replicas: 3
-        template:
-          metadata:
-            name: nginx2
-          spec:
-            containers:
-              - args:
-                  - sleep 30
-                command:
-                  - bash
-                  - -c
-                image: nginx:latest
-                imagePullPolicy: IfNotPresent
-                name: nginx
-                resources:
-                  requests:
-                    cpu: 100m
-            nodeSelector:
-              kubernetes.io/os: linux
-            restartPolicy: OnFailure
 statusItems:
   - applied: true
     clusterName: member1
@@ -97,3 +47,248 @@ statusItems:
       version: 1
 operation: AggregateStatus
 output:
+  aggregatedStatus:
+    apiVersion: batch.volcano.sh/v1alpha1
+    kind: Job
+    metadata:
+      name: dk-job
+    status:
+      conditions:
+        - lastTransitionTime: "2025-09-29T10:57:03Z"
+          status: Pending
+        - lastTransitionTime: "2025-09-29T10:57:07Z"
+          status: Running
+        - lastTransitionTime: "2025-09-29T10:57:38Z"
+          status: Completed
+      failed: 0
+      minAvailable: 3
+      pending: 0
+      retryCount: 0
+      running: 0
+      runningDuration: 35.688396584s
+      state:
+        lastTransitionTime: "2025-09-29T10:57:38Z"
+        phase: Completed
+      succeeded: 4
+      taskStatusCount:
+        job-nginx1:
+          phase:
+            Succeeded: 1
+        job-nginx2:
+          phase:
+            Succeeded: 3
+      terminating: 0
+      unknown: 0
+      version: 1
+
+
+---
+name: "VCJob with multiple status items, mixed states"
+description: "Test aggregating status of VCJob with mixed states"
+desiredObj:
+  apiVersion: batch.volcano.sh/v1alpha1
+  kind: Job
+  metadata:
+    name: test-job
+statusItems:
+  - applied: true
+    clusterName: member1
+    health: Healthy
+    status:
+      pending: 1
+      running: 1
+      succeeded: 0
+      failed: 0
+      minAvailable: 2
+      retryCount: 0
+      runningDuration: 100s
+      version: 1
+  - applied: true
+    clusterName: member2
+    health: Healthy
+    status:
+      pending: 0
+      running: 2
+      succeeded: 1
+      failed: 0
+      minAvailable: 3
+      retryCount: 1
+      runningDuration: 200s
+      version: 2
+  - applied: true
+    clusterName: member3
+    health: Healthy
+    status:
+      pending: 0
+      running: 0
+      succeeded: 2
+      failed: 0
+      minAvailable: 2
+      retryCount: 0
+      runningDuration: 50s
+      version: 1
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: batch.volcano.sh/v1alpha1
+    kind: Job
+    metadata:
+      name: test-job
+    status:
+      pending: 1
+      running: 3
+      succeeded: 3
+      minAvailable: 7
+      retryCount: 1
+      runningDuration: 200s
+      version: 2
+
+---
+name: "VCJob with nil or empty statusItems"
+description: "Test aggregating status of VCJob when statusItems is nil or empty"
+desiredObj:
+  apiVersion: batch.volcano.sh/v1alpha1
+  kind: Job
+  metadata:
+    name: test-job
+statusItems: []
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: batch.volcano.sh/v1alpha1
+    kind: Job
+    metadata:
+      name: test-job
+
+---
+name: "VCJob with taskStatusCount aggregation"
+description: "Test aggregating status of VCJob with taskStatusCount aggregation"
+desiredObj:
+  apiVersion: batch.volcano.sh/v1alpha1
+  kind: Job
+  metadata:
+    name: test-job
+statusItems:
+  - applied: true
+    clusterName: member1
+    health: Healthy
+    status:
+      taskStatusCount:
+        task-1:
+          phase:
+            Running: 2
+            Succeeded: 1
+        task-2:
+          phase:
+            Pending: 1
+      version: 1
+  - applied: true
+    clusterName: member2
+    health: Healthy
+    status:
+      taskStatusCount:
+        task-1:
+          phase:
+            Running: 1
+            Succeeded: 2
+        task-2:
+          phase:
+            Running: 2
+      version: 1
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: batch.volcano.sh/v1alpha1
+    kind: Job
+    metadata:
+      name: test-job
+    status:
+      taskStatusCount:
+        task-1:
+          phase:
+            Running: 3
+            Succeeded: 3
+        task-2:
+          phase:
+            Pending: 1
+            Running: 2
+      version: 1
+
+---
+name: "VCJob with controlledResources aggregation"
+description: "Test aggregating status of VCJob with controlledResources aggregation"
+desiredObj:
+  apiVersion: batch.volcano.sh/v1alpha1
+  kind: Job
+  metadata:
+    name: test-job
+statusItems:
+  - applied: true
+    clusterName: member1
+    health: Healthy
+    status:
+      controlledResources:
+        pod-1: "uid-1"
+        pod-2: "uid-2"
+      version: 1
+  - applied: true
+    clusterName: member2
+    health: Healthy
+    status:
+      controlledResources:
+        pod-3: "uid-3"
+        pod-4: "uid-4"
+      version: 1
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: batch.volcano.sh/v1alpha1
+    kind: Job
+    metadata:
+      name: test-job
+    status:
+      controlledResources:
+        pod-1: "uid-1"
+        pod-2: "uid-2"
+        pod-3: "uid-3"
+        pod-4: "uid-4"
+      version: 1
+
+---
+name: "VCJob with duration handling (string format)"
+description: "Test aggregating status of VCJob with duration in string format"
+desiredObj:
+  apiVersion: batch.volcano.sh/v1alpha1
+  kind: Job
+  metadata:
+    name: test-job
+statusItems:
+  - applied: true
+    clusterName: member1
+    health: Healthy
+    status:
+      runningDuration: 100s
+      version: 1
+  - applied: true
+    clusterName: member2
+    health: Healthy
+    status:
+      runningDuration: 2m30s
+      version: 1
+  - applied: true
+    clusterName: member3
+    health: Healthy
+    status:
+      runningDuration: 50s
+      version: 1
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: batch.volcano.sh/v1alpha1
+    kind: Job
+    metadata:
+      name: test-job
+    status:
+      runningDuration: 2m30s
+      version: 1
+
