@@ -123,8 +123,12 @@ spec:
 
           local jm_cpu    = get(observedObj, {"spec","jobManager","resource","cpu"})
           local jm_memory = get(observedObj, {"spec","jobManager","resource","memory"})
-          jm_requires.resourceRequest.cpu    = jm_cpu
-          jm_requires.resourceRequest.memory = kube.getResourceQuantity(jm_memory)
+          if jm_cpu ~= nil then
+            jm_requires.resourceRequest.cpu = jm_cpu
+          end
+          if jm_memory ~= nil then
+            jm_requires.resourceRequest.memory = kube.getResourceQuantity(jm_memory)
+          end
           apply_pod_template(pt_spec, jm_requires)
 
           local jobManagerComponent = {
@@ -153,8 +157,12 @@ spec:
 
           local tm_cpu    = get(observedObj, {"spec","taskManager","resource","cpu"})
           local tm_memory = get(observedObj, {"spec","taskManager","resource","memory"})
-          tm_requires.resourceRequest.cpu    = tm_cpu
-          tm_requires.resourceRequest.memory = kube.getResourceQuantity(tm_memory)
+          if tm_cpu ~= nil then
+            tm_requires.resourceRequest.cpu = tm_cpu
+          end
+          if tm_memory ~= nil then
+            tm_requires.resourceRequest.memory = kube.getResourceQuantity(tm_memory)
+          end
           apply_pod_template(pt_spec, tm_requires)
 
           local taskManagerComponent = {
@@ -167,11 +175,35 @@ spec:
           return components
         end
     replicaResource:
-      luaScript: >
+      luaScript: |
         local kube = require("kube")
 
         local function isempty(s)
           return s == nil or s == ''
+        end
+
+        -- Safe fetch of deeply nested table fields.
+        local function get(obj, path)
+          local cur = obj
+          for i = 1, #path do
+            if cur == nil then
+              return nil
+            end
+            cur = cur[path[i]]
+          end
+          return cur
+        end
+
+        -- Normalize possibly-string numbers with a default.
+        local function to_num(v, default)
+          if v == nil or v == '' then
+            return default
+          end
+          local n = tonumber(v)
+          if n ~= nil then
+            return n
+          end
+          return default
         end
 
         function GetReplicas(observedObj)
@@ -180,50 +212,66 @@ spec:
             nodeClaim = {},
           }
 
-          jm_replicas = observedObj.spec.jobManager.replicas
-          if isempty(jm_replicas) then
-            jm_replicas = 1
-          end
+          local jm_replicas = to_num(get(observedObj, {"spec","jobManager","replicas"}), 1)
 
           -- TaskManager replica setting takes precedence over parallelism setting
 
-          tm_replicas = observedObj.spec.taskManager.replicas
-          if isempty(tm_replicas) then
-            parallelism = observedObj.spec.job.parallelism
-            task_slots = observedObj.spec.flinkConfiguration['taskmanager.numberOfTaskSlots']
-            if isempty(parallelism) or isempty(task_slots) then
+          local tm_replicas = to_num(get(observedObj, {"spec","taskManager","replicas"}), nil)
+          if tm_replicas == nil then
+            local parallelism = to_num(get(observedObj, {"spec","job","parallelism"}), nil)
+            local task_slots = to_num(get(observedObj, {"spec","flinkConfiguration","taskmanager.numberOfTaskSlots"}), nil)
+            if parallelism == nil or task_slots == nil or task_slots == 0 then
               tm_replicas = 1
             else
-              tm_replicas = math.ceil(parallelism / observedObj.spec.flinkConfiguration['taskmanager.numberOfTaskSlots'])
+              tm_replicas = math.ceil(parallelism / task_slots)
             end
           end
 
-          replica = jm_replicas + tm_replicas
+          local replica = jm_replicas + tm_replicas
 
           -- Until multiple podTemplates are supported in replicaRequirements, take max of cpu + memory values as requirement
 
-          requires.resourceRequest.cpu = math.max(observedObj.spec.taskManager.resource.cpu, observedObj.spec.jobManager.resource.cpu)
-          jm_memory_value = kube.getResourceQuantity(observedObj.spec.jobManager.resource.memory)
-          tm_memory_value = kube.getResourceQuantity(observedObj.spec.taskManager.resource.memory)
-          if jm_memory_value > tm_memory_value then
-            requires.resourceRequest.memory = observedObj.spec.jobManager.resource.memory
-          else
-            requires.resourceRequest.memory = observedObj.spec.taskManager.resource.memory
+          local tm_cpu = get(observedObj, {"spec","taskManager","resource","cpu"})
+          local jm_cpu = get(observedObj, {"spec","jobManager","resource","cpu"})
+          if tm_cpu ~= nil and jm_cpu ~= nil then
+            requires.resourceRequest.cpu = math.max(tm_cpu, jm_cpu)
+          elseif tm_cpu ~= nil then
+            requires.resourceRequest.cpu = tm_cpu
+          elseif jm_cpu ~= nil then
+            requires.resourceRequest.cpu = jm_cpu
+          end
+
+          local jm_memory = get(observedObj, {"spec","jobManager","resource","memory"})
+          local tm_memory = get(observedObj, {"spec","taskManager","resource","memory"})
+          if jm_memory ~= nil and tm_memory ~= nil then
+            local jm_memory_value = kube.getResourceQuantity(jm_memory)
+            local tm_memory_value = kube.getResourceQuantity(tm_memory)
+            if jm_memory_value > tm_memory_value then
+              requires.resourceRequest.memory = jm_memory
+            else
+              requires.resourceRequest.memory = tm_memory
+            end
+          elseif jm_memory ~= nil then
+            requires.resourceRequest.memory = jm_memory
+          elseif tm_memory ~= nil then
+            requires.resourceRequest.memory = tm_memory
           end
 
           -- Until multiple podTemplates are supported, interpreter will only take affinity, toleration, and priorityclass input to common podTemplate
 
-          if observedObj.spec.podTemplate ~= nil and observedObj.spec.podTemplate.spec ~= nil then
-            requires.nodeClaim.nodeSelector = observedObj.spec.podTemplate.spec.nodeSelector
-            requires.nodeClaim.tolerations = observedObj.spec.podTemplate.spec.tolerations
-            priorityclass = observedObj.spec.podTemplate.spec.priorityClassName
+          local pod_template_spec = get(observedObj, {"spec","podTemplate","spec"})
+          if pod_template_spec ~= nil then
+            requires.nodeClaim.nodeSelector = pod_template_spec.nodeSelector
+            requires.nodeClaim.tolerations = pod_template_spec.tolerations
+            local priorityclass = pod_template_spec.priorityClassName
             if not isempty(priorityclass) then
               requires.priorityClassName = priorityclass
             end
           end
 
-          if not isempty(observedObj.metadata.namespace) then
-            requires.namespace = observedObj.metadata.namespace
+          local namespace = get(observedObj, {"metadata","namespace"})
+          if not isempty(namespace) then
+            requires.namespace = namespace
           end
 
           return replica, requires
