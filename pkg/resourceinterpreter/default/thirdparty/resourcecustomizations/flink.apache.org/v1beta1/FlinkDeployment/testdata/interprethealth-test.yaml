@@ -1,69 +1,359 @@
 # test case for interpreting health of FlinkDeployment
-# case1. FlinkDeployment with DEPLOYED state should be Healthy
+# case1. FlinkDeployment with RUNNING state should be Healthy
+# case2. FlinkDeployment with CREATED state without error should be Unhealthy
+# case3. FlinkDeployment with CREATED state with error should be Healthy
+# case4. FlinkDeployment with INITIALIZING state without error should be Unhealthy
+# case5. FlinkDeployment with INITIALIZING state with error should be Healthy
+# case6. FlinkDeployment with RECONCILING state without error should be Unhealthy
+# case7. FlinkDeployment with RECONCILING state with error should be Healthy
+# case8. FlinkDeployment with CREATED state and jobManagerDeploymentStatus ERROR should be Healthy
+# case9. FlinkDeployment with terminal states (FAILED, FINISHED, CANCELED, SUSPENDED) should be Healthy
+# case10. FlinkDeployment with short-lived states (CANCELLING, FAILING, RESTARTING) should be Healthy
+# case11. FlinkDeployment without jobStatus but with error should be Healthy
+# case12. FlinkDeployment without jobStatus and without error should be Unhealthy
 
-name: "FlinkDeployment with DEPLOYED state should be Healthy"
-description: "Test interpreting health of FlinkDeployment when lifecycleState is DEPLOYED"
+name: "FlinkDeployment with RUNNING state should be Healthy"
+description: "Test interpreting health of FlinkDeployment when jobStatus.state is RUNNING"
 observedObj:
   apiVersion: flink.apache.org/v1beta1
   kind: FlinkDeployment
   metadata:
-    creationTimestamp: "2024-06-05T14:52:28Z"
-    finalizers:
-      - flinkdeployments.flink.apache.org/finalizer
-    generation: 1
     name: basic-example
     namespace: test-namespace
-    resourceVersion: "5053661"
-    uid: 87ef77ca-7bf0-4998-b275-06f459872e03
+  status:
+    jobStatus:
+      state: RUNNING
+operation: InterpretHealth
+output:
+  healthy: true
+
+---
+name: "FlinkDeployment with CREATED state without error should be Unhealthy"
+description: "Test interpreting health of FlinkDeployment when jobStatus.state is CREATED and no error"
+observedObj:
+  apiVersion: flink.apache.org/v1beta1
+  kind: FlinkDeployment
+  metadata:
+    name: basic-example
+    namespace: test-namespace
   spec:
     flinkConfiguration:
       taskmanager.numberOfTaskSlots: "2"
     flinkVersion: v1_17
     image: flink:1.17
-    job:
-      args: [ ]
-      jarURI: local:///opt/flink/examples/streaming/StateMachineExample.jar
-      parallelism: 2
-      state: running
-      upgradeMode: stateless
     jobManager:
       replicas: 1
       resource:
         cpu: 1
         memory: 2048m
-    serviceAccount: flink
     taskManager:
       resource:
         cpu: 1
         memory: 2048m
   status:
-    clusterInfo:
-      flink-revision: 2750d5c @ 2023-05-19T10:45:46+02:00
-      flink-version: 1.17.1
-      total-cpu: "2.0"
-      total-memory: "4294967296"
-    jobManagerDeploymentStatus: READY
     jobStatus:
-      checkpointInfo:
-        lastPeriodicCheckpointTimestamp: 0
-      jobId: 44cc5573945d1d4925732d915c70b9ac
-      jobName: Minimal Spec Example
-      savepointInfo:
-        lastPeriodicSavepointTimestamp: 0
-        savepointHistory: [ ]
-      startTime: "1717599166365"
-      state: RUNNING
-      updateTime: "1717599182544"
-    lifecycleState: STABLE
-    observedGeneration: 1
-    reconciliationStatus:
-      lastReconciledSpec: '{"spec":{"job":{"jarURI":"local:///opt/flink/examples/streaming/StateMachineExample.jar","parallelism":2,"entryClass":null,"args":[],"state":"running","savepointTriggerNonce":null,"initialSavepointPath":null,"checkpointTriggerNonce":null,"upgradeMode":"stateless","allowNonRestoredState":null,"savepointRedeployNonce":null},"restartNonce":null,"flinkConfiguration":{"taskmanager.numberOfTaskSlots":"2"},"image":"flink:1.17","imagePullPolicy":null,"serviceAccount":"flink","flinkVersion":"v1_17","ingress":null,"podTemplate":null,"jobManager":{"resource":{"cpu":1.0,"memory":"2048m","ephemeralStorage":null},"replicas":1,"podTemplate":null},"taskManager":{"resource":{"cpu":1.0,"memory":"2048m","ephemeralStorage":null},"replicas":null,"podTemplate":null},"logConfiguration":null,"mode":null},"resource_metadata":{"apiVersion":"flink.apache.org/v1beta1","metadata":{"generation":2},"firstDeployment":true}}'
-      lastStableSpec: '{"spec":{"job":{"jarURI":"local:///opt/flink/examples/streaming/StateMachineExample.jar","parallelism":2,"entryClass":null,"args":[],"state":"running","savepointTriggerNonce":null,"initialSavepointPath":null,"checkpointTriggerNonce":null,"upgradeMode":"stateless","allowNonRestoredState":null,"savepointRedeployNonce":null},"restartNonce":null,"flinkConfiguration":{"taskmanager.numberOfTaskSlots":"2"},"image":"flink:1.17","imagePullPolicy":null,"serviceAccount":"flink","flinkVersion":"v1_17","ingress":null,"podTemplate":null,"jobManager":{"resource":{"cpu":1.0,"memory":"2048m","ephemeralStorage":null},"replicas":1,"podTemplate":null},"taskManager":{"resource":{"cpu":1.0,"memory":"2048m","ephemeralStorage":null},"replicas":null,"podTemplate":null},"logConfiguration":null,"mode":null},"resource_metadata":{"apiVersion":"flink.apache.org/v1beta1","metadata":{"generation":2},"firstDeployment":true}}'
-      reconciliationTimestamp: 1717599148930
-      state: DEPLOYED
-    taskManager:
-      labelSelector: component=taskmanager,app=basic-example
+      state: CREATED
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "FlinkDeployment with CREATED state with error should be Healthy"
+description: "Test interpreting health of FlinkDeployment when jobStatus.state is CREATED and has error"
+observedObj:
+  apiVersion: flink.apache.org/v1beta1
+  kind: FlinkDeployment
+  metadata:
+    name: basic-example
+    namespace: test-namespace
+  spec:
+    flinkConfiguration:
+      taskmanager.numberOfTaskSlots: "2"
+    flinkVersion: v1_17
+    image: flink:1.17
+    jobManager:
       replicas: 1
+      resource:
+        cpu: 1
+        memory: 2048m
+    taskManager:
+      resource:
+        cpu: 1
+        memory: 2048m
+  status:
+    error: "Image pull failed"
+    jobStatus:
+      state: CREATED
 operation: InterpretHealth
 output:
   healthy: true
+
+---
+name: "FlinkDeployment with INITIALIZING state without error should be Unhealthy"
+description: "Test interpreting health of FlinkDeployment when jobStatus.state is INITIALIZING and no error"
+observedObj:
+  apiVersion: flink.apache.org/v1beta1
+  kind: FlinkDeployment
+  metadata:
+    name: basic-example
+    namespace: test-namespace
+  spec:
+    flinkConfiguration:
+      taskmanager.numberOfTaskSlots: "2"
+    flinkVersion: v1_17
+    image: flink:1.17
+    jobManager:
+      replicas: 1
+      resource:
+        cpu: 1
+        memory: 2048m
+    taskManager:
+      resource:
+        cpu: 1
+        memory: 2048m
+  status:
+    jobStatus:
+      state: INITIALIZING
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "FlinkDeployment with INITIALIZING state with error should be Healthy"
+description: "Test interpreting health of FlinkDeployment when jobStatus.state is INITIALIZING and has error"
+observedObj:
+  apiVersion: flink.apache.org/v1beta1
+  kind: FlinkDeployment
+  metadata:
+    name: basic-example
+    namespace: test-namespace
+  spec:
+    flinkConfiguration:
+      taskmanager.numberOfTaskSlots: "2"
+    flinkVersion: v1_17
+    image: flink:1.17
+    jobManager:
+      replicas: 1
+      resource:
+        cpu: 1
+        memory: 2048m
+    taskManager:
+      resource:
+        cpu: 1
+        memory: 2048m
+  status:
+    error: "Configuration validation failed"
+    jobStatus:
+      state: INITIALIZING
+operation: InterpretHealth
+output:
+  healthy: true
+
+---
+name: "FlinkDeployment with RECONCILING state without error should be Unhealthy"
+description: "Test interpreting health of FlinkDeployment when jobStatus.state is RECONCILING and no error"
+observedObj:
+  apiVersion: flink.apache.org/v1beta1
+  kind: FlinkDeployment
+  metadata:
+    name: basic-example
+    namespace: test-namespace
+  spec:
+    flinkConfiguration:
+      taskmanager.numberOfTaskSlots: "2"
+    flinkVersion: v1_17
+    image: flink:1.17
+    jobManager:
+      replicas: 1
+      resource:
+        cpu: 1
+        memory: 2048m
+    taskManager:
+      resource:
+        cpu: 1
+        memory: 2048m
+  status:
+    jobStatus:
+      state: RECONCILING
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "FlinkDeployment with RECONCILING state with error should be Healthy"
+description: "Test interpreting health of FlinkDeployment when jobStatus.state is RECONCILING and has error"
+observedObj:
+  apiVersion: flink.apache.org/v1beta1
+  kind: FlinkDeployment
+  metadata:
+    name: basic-example
+    namespace: test-namespace
+  spec:
+    flinkConfiguration:
+      taskmanager.numberOfTaskSlots: "2"
+    flinkVersion: v1_17
+    image: flink:1.17
+    jobManager:
+      replicas: 1
+      resource:
+        cpu: 1
+        memory: 2048m
+    taskManager:
+      resource:
+        cpu: 1
+        memory: 2048m
+  status:
+    error: "Resource quota exceeded"
+    jobStatus:
+      state: RECONCILING
+operation: InterpretHealth
+output:
+  healthy: true
+
+---
+name: "FlinkDeployment with CREATED state and jobManagerDeploymentStatus ERROR should be Healthy"
+description: "Test interpreting health of FlinkDeployment when jobStatus.state is CREATED and jobManagerDeploymentStatus is ERROR"
+observedObj:
+  apiVersion: flink.apache.org/v1beta1
+  kind: FlinkDeployment
+  metadata:
+    name: basic-example
+    namespace: test-namespace
+  spec:
+    flinkConfiguration:
+      taskmanager.numberOfTaskSlots: "2"
+    flinkVersion: v1_17
+    image: flink:1.17
+    jobManager:
+      replicas: 1
+      resource:
+        cpu: 1
+        memory: 2048m
+    taskManager:
+      resource:
+        cpu: 1
+        memory: 2048m
+  status:
+    jobManagerDeploymentStatus: ERROR
+    jobStatus:
+      state: CREATED
+operation: InterpretHealth
+output:
+  healthy: true
+
+---
+name: "FlinkDeployment with FAILED state should be Healthy"
+description: "Test interpreting health of FlinkDeployment when jobStatus.state is FAILED (representative of terminal states)"
+observedObj:
+  apiVersion: flink.apache.org/v1beta1
+  kind: FlinkDeployment
+  metadata:
+    name: basic-example
+    namespace: test-namespace
+  spec:
+    flinkConfiguration:
+      taskmanager.numberOfTaskSlots: "2"
+    flinkVersion: v1_17
+    image: flink:1.17
+    jobManager:
+      replicas: 1
+      resource:
+        cpu: 1
+        memory: 2048m
+    taskManager:
+      resource:
+        cpu: 1
+        memory: 2048m
+  status:
+    jobStatus:
+      state: FAILED
+operation: InterpretHealth
+output:
+  healthy: true
+
+---
+name: "FlinkDeployment with CANCELLING state should be Healthy"
+description: "Test interpreting health of FlinkDeployment when jobStatus.state is CANCELLING (representative of short-lived states)"
+observedObj:
+  apiVersion: flink.apache.org/v1beta1
+  kind: FlinkDeployment
+  metadata:
+    name: basic-example
+    namespace: test-namespace
+  spec:
+    flinkConfiguration:
+      taskmanager.numberOfTaskSlots: "2"
+    flinkVersion: v1_17
+    image: flink:1.17
+    jobManager:
+      replicas: 1
+      resource:
+        cpu: 1
+        memory: 2048m
+    taskManager:
+      resource:
+        cpu: 1
+        memory: 2048m
+  status:
+    jobStatus:
+      state: CANCELLING
+operation: InterpretHealth
+output:
+  healthy: true
+
+---
+name: "FlinkDeployment without jobStatus but with error should be Healthy"
+description: "Test interpreting health of FlinkDeployment when there is no jobStatus but has error"
+observedObj:
+  apiVersion: flink.apache.org/v1beta1
+  kind: FlinkDeployment
+  metadata:
+    name: basic-example
+    namespace: test-namespace
+  spec:
+    flinkConfiguration:
+      taskmanager.numberOfTaskSlots: "2"
+    flinkVersion: v1_17
+    image: flink:1.17
+    jobManager:
+      replicas: 1
+      resource:
+        cpu: 1
+        memory: 2048m
+    taskManager:
+      resource:
+        cpu: 1
+        memory: 2048m
+  status:
+    error: "Deployment failed"
+operation: InterpretHealth
+output:
+  healthy: true
+
+---
+name: "FlinkDeployment without jobStatus and without error should be Unhealthy"
+description: "Test interpreting health of FlinkDeployment when there is no jobStatus and no error"
+observedObj:
+  apiVersion: flink.apache.org/v1beta1
+  kind: FlinkDeployment
+  metadata:
+    name: basic-example
+    namespace: test-namespace
+  spec:
+    flinkConfiguration:
+      taskmanager.numberOfTaskSlots: "2"
+    flinkVersion: v1_17
+    image: flink:1.17
+    jobManager:
+      replicas: 1
+      resource:
+        cpu: 1
+        memory: 2048m
+    taskManager:
+      resource:
+        cpu: 1
+        memory: 2048m
+  status: {}
+operation: InterpretHealth
+output:
+  healthy: false
