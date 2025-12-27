@@ -1,0 +1,47 @@
+# test case for interpreting replica of StatefulSet
+# case1. StatefulSet with replicas set
+# case2. StatefulSet with zero replicas
+
+name: "StatefulSet with replicas set to 3"
+description: "InterpretReplica should return replicas from spec.replicas"
+desiredObj:
+  apiVersion: apps.kruise.io/v1beta1
+  kind: StatefulSet
+  metadata:
+    name: sample
+    namespace: default
+  spec:
+    replicas: 3
+    template:
+      metadata:
+        labels:
+          app: sample
+      spec:
+        containers:
+          - name: nginx
+            image: nginx:alpine
+operation: InterpretReplica
+output:
+  replica: 3
+---
+name: "StatefulSet with zero replicas"
+description: "InterpretReplica should return zero replicas"
+desiredObj:
+  apiVersion: apps.kruise.io/v1beta1
+  kind: StatefulSet
+  metadata:
+    name: sample
+    namespace: default
+  spec:
+    replicas: 0
+    template:
+      metadata:
+        labels:
+          app: sample
+      spec:
+        containers:
+          - name: nginx
+            image: nginx:alpine
+operation: InterpretReplica
+output:
+  replica: 0
