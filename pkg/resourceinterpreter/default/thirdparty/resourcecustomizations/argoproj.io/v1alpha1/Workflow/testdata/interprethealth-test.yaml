@@ -1,15 +1,17 @@
 # test case for interpreting health of Workflow
-# case1. Workflow interpreting health test
+# case1. Workflow interpreting health test (Succeeded)
+# case2. Workflow interpreting health test (Failed)
+# case3. Workflow interpreting health test (Error)
 
-name: "Workflow interpreting health test"
-description: "Test interpreting health of Workflow"
+name: "Workflow interpreting health test - Succeeded"
+description: "Test interpreting health of succeeded Workflow"
 observedObj:
   apiVersion: argoproj.io/v1alpha1
   kind: Workflow
   metadata:
     labels:
       app: sample
-    name: sample
+    name: sample-succeeded
     namespace: test-workflow
   spec:
     parallelism: 1
@@ -46,75 +48,73 @@ observedObj:
             requests:
               memory: 1Mi
   status:
-    artifactGCStatus:
-      notSpecified: true
-    artifactRepositoryRef:
-      artifactRepository: { }
-      default: true
-    conditions:
-      - status: "False"
-        type: PodRunning
-      - status: "True"
-        type: Completed
-    finishedAt: "2023-04-20T11:26:47Z"
-    nodes:
-      sample:
-        children:
-          - sample-2754495299
-        displayName: sample
-        finishedAt: "2023-04-20T11:26:47Z"
-        id: sample
-        name: sample
-        outboundNodes:
-          - sample-410485805
-        phase: Succeeded
-        progress: 1/1
-        resourcesDuration:
-          cpu: 19
-          memory: 18
-        startedAt: "2023-04-20T11:26:17Z"
-        templateName: volumes-existing-example
-        templateScope: local/sample
-        type: Steps
-      sample-410485805:
-        boundaryID: sample
-        displayName: hello
-        finishedAt: "2023-04-20T11:26:38Z"
-        hostNodeName: member1-control-plane
-        id: sample-410485805
-        name: sample[0].hello
-        outputs:
-          exitCode: "0"
-        phase: Succeeded
-        progress: 1/1
-        resourcesDuration:
-          cpu: 19
-          memory: 18
-        startedAt: "2023-04-20T11:26:17Z"
-        templateName: whalesay
-        templateScope: local/sample
-        type: Pod
-      sample-2754495299:
-        boundaryID: sample
-        children:
-          - sample-410485805
-        displayName: '[0]'
-        finishedAt: "2023-04-20T11:26:47Z"
-        id: sample-2754495299
-        name: sample[0]
-        phase: Succeeded
-        progress: 1/1
-        resourcesDuration:
-          cpu: 19
-          memory: 18
-        startedAt: "2023-04-20T11:26:17Z"
-        templateScope: local/sample
-        type: StepGroup
     phase: Succeeded
     progress: 1/1
-    resourcesDuration:
-      cpu: 19
-      memory: 18
+    conditions:
+      - status: "True"
+        type: Completed
     startedAt: "2023-04-20T11:26:17Z"
+    finishedAt: "2023-04-20T11:26:47Z"
 operation: InterpretHealth
 output:
+  healthy: true
+
+---
+name: "Workflow interpreting health test - Failed"
+description: "Test interpreting health of failed Workflow"
+observedObj:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Workflow
+  metadata:
+    labels:
+      app: sample
+    name: sample-failed
+    namespace: test-workflow
+  spec:
+    parallelism: 1
+    entrypoint: volumes-existing-example
+    volumes:
+      - name: workdir
+        persistentVolumeClaim:
+          claimName: my-existing-volume
+    serviceAccountName: my-service-account
+  status:
+    phase: Failed
+    progress: 0/1
+    conditions:
+      - status: "False"
+        type: Completed
+        message: "step failed"
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "Workflow interpreting health test - Error"
+description: "Test interpreting health of error Workflow"
+observedObj:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Workflow
+  metadata:
+    labels:
+      app: sample
+    name: sample-error
+    namespace: test-workflow
+  spec:
+    parallelism: 1
+    entrypoint: volumes-existing-example
+    volumes:
+      - name: workdir
+        persistentVolumeClaim:
+          claimName: my-existing-volume
+    serviceAccountName: my-service-account
+  status:
+    phase: Error
+    progress: 0/1
+    conditions:
+      - status: "False"
+        type: Completed
+        message: "step errored"
+operation: InterpretHealth
+output:
+  healthy: false

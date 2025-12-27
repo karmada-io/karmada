@@ -1,0 +1,23 @@
+# test case for revise replica
+# case1. Workflow revise replica should update parallelism
+
+name: "Workflow revise replica should update parallelism"
+description: "ReviseReplica updates spec.parallelism from 1 to 3"
+desiredObj:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Workflow
+  metadata:
+    name: sample-scaleup
+    namespace: test-workflow
+  spec:
+    parallelism: 3
+inputReplicas: 1
+operation: ReviseReplica
+output:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Workflow
+  metadata:
+    name: sample-scaleup
+    namespace: test-workflow
+  spec:
+    parallelism: 3

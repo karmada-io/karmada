@@ -1,19 +1,18 @@
-# test case for interpreting replica of Workflow
-# case1. Workflow with parallelism set to 2
-# case2. Workflow with parallelism unset (default 1)
+# test case for retaining Workflow
+# case1. Workflow: retain test
 
-name: "Workflow with parallelism set to 2"
-description: "Test interpreting replica of Workflow with parallelism set to 2"
+name: "Workflow: retain test"
+description: "Test retaining recently completed Workflow"
 desiredObj:
   apiVersion: argoproj.io/v1alpha1
   kind: Workflow
   metadata:
     labels:
       app: sample
-    name: sample-parallelism-2
+    name: sample-recent
     namespace: test-workflow
   spec:
-    parallelism: 2
+    parallelism: 1
     entrypoint: volumes-existing-example
     volumes:
       - name: workdir
@@ -36,7 +35,7 @@ desiredObj:
         container:
           image: docker/whalesay:latest
           command: [ cowsay ]
-          args: [ "hello world" ]
+          args: [ 'hello world' ]
           volumeMounts:
             - name: workdir
               mountPath: /mnt/vol
@@ -45,29 +44,41 @@ desiredObj:
               memory: 1Gi
             requests:
               memory: 1Mi
-operation: InterpretReplica
-output:
-  replica: 2
-
----
-name: "Workflow with parallelism unset"
-description: "Test interpreting replica of Workflow with no parallelism specified (defaults to 1)"
-desiredObj:
+observedObj:
   apiVersion: argoproj.io/v1alpha1
   kind: Workflow
   metadata:
     labels:
       app: sample
-    name: sample-no-parallelism
+    name: sample-recent
     namespace: test-workflow
   spec:
-    entrypoint: simple-template
-    templates:
-      - name: simple-template
-        container:
-          image: busybox
-          command: [ "sleep" ]
-          args: [ "10" ]
-operation: InterpretReplica
+    parallelism: 1
+    entrypoint: volumes-existing-example
+    volumes:
+      - name: workdir
+        persistentVolumeClaim:
+          claimName: my-existing-volume
+    serviceAccountName: my-service-account
+  status:
+    phase: Succeeded
+    progress: "1/1"
+    startedAt: "2025-12-12T10:00:00Z"
+    finishedAt: "2025-12-12T10:05:00Z"
+operation: Retain
 output:
-  replica: 1
+  apiVersion: argoproj.io/v1alpha1
+  kind: Workflow
+  metadata:
+    labels:
+      app: sample
+    name: sample-recent
+    namespace: test-workflow
+  spec:
+    parallelism: 1
+    entrypoint: volumes-existing-example
+    volumes:
+      - name: workdir
+        persistentVolumeClaim:
+          claimName: my-existing-volume
+    serviceAccountName: my-service-account
