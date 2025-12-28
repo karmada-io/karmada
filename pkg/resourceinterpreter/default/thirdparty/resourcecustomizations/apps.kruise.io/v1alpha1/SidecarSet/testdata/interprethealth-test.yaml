@@ -1,5 +1,8 @@
 # test case for interpreting health of SidecarSet
 # case1. SidecarSet interpreting health test
+# case2. SidecarSet unhealthy when rollout is not complete
+# case3. SidecarSet healthy when no pods are matched
+# case4. SidecarSet unhealthy when status is missing
 
 name: "SidecarSet interpreting health test"
 description: "Test interpreting health of SidecarSet"
@@ -45,3 +48,48 @@ observedObj:
     readyPods: 3
 operation: InterpretHealth
 output:
+  healthy: true
+---
+name: "SidecarSet unhealthy when rollout is not complete"
+description: "Health should be false when updatedPods is less than matchedPods"
+observedObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: SidecarSet
+  metadata:
+    name: sample-sidecarset
+    namespace: test-sidecarset
+  status:
+    matchedPods: 3
+    updatedPods: 2
+    readyPods: 2
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "SidecarSet healthy when no pods are matched"
+description: "Health should be true when matchedPods is zero"
+observedObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: SidecarSet
+  metadata:
+    name: sample-sidecarset
+    namespace: test-sidecarset
+  status:
+    matchedPods: 0
+    updatedPods: 0
+    readyPods: 0
+operation: InterpretHealth
+output:
+  healthy: true
+---
+name: "SidecarSet unhealthy when status is missing"
+description: "Health should be false when status is not present"
+observedObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: SidecarSet
+  metadata:
+    name: sample-sidecarset
+    namespace: test-sidecarset
+operation: InterpretHealth
+output:
+  healthy: false

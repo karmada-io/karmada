@@ -62,3 +62,16 @@ statusItems:
       readyPods: 1
 operation: AggregateStatus
 output:
+  aggregatedStatus:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: SidecarSet
+    metadata:
+      name: sample-sidecarset
+      namespace: test-sidecarset
+      generation: 1
+      labels:
+        app: sample
+    status:
+      matchedPods: 3
+      updatedPods: 3
+      readyPods: 3
