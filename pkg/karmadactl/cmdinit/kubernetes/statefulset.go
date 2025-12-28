@@ -26,6 +26,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/component-base/cli/flag"
 	"k8s.io/utils/ptr"
+
+	certconst "github.com/karmada-io/karmada/pkg/cert"
+	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
 )
 
 const (
@@ -56,14 +59,22 @@ var (
 
 func (i *CommandInitOption) etcdVolume() (*[]corev1.Volume, *corev1.PersistentVolumeClaim) {
 	var Volumes []corev1.Volume
-
-	secretVolume := corev1.Volume{
-		Name: etcdCertName,
-		VolumeSource: corev1.VolumeSource{
-			Secret: &corev1.SecretVolumeSource{
-				SecretName: etcdCertName,
+	if strings.ToLower(i.SecretLayout) == secretLayoutSplit {
+		// split layout: mount server cert and etcd client cert separately
+		Volumes = append(Volumes,
+			corev1.Volume{Name: serverCertVolumeName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: certconst.SecretEtcdServer}}},
+			corev1.Volume{Name: etcdClientCertVolumeName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: certconst.SecretEtcdClient}}},
+		)
+	} else {
+		secretVolume := corev1.Volume{
+			Name: etcdCertName,
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: etcdCertName,
+				},
 			},
-		},
+		}
+		Volumes = append(Volumes, secretVolume)
 	}
 	configVolume := corev1.Volume{
 		Name: etcdContainerConfigVolumeMountName,
@@ -71,7 +82,7 @@ func (i *CommandInitOption) etcdVolume() (*[]corev1.Volume, *corev1.PersistentVo
 			EmptyDir: &corev1.EmptyDirVolumeSource{},
 		},
 	}
-	Volumes = append(Volumes, secretVolume, configVolume)
+	Volumes = append(Volumes, configVolume)
 
 	switch i.EtcdStorageMode {
 	case etcdStorageModePVC:
@@ -123,6 +134,116 @@ func (i *CommandInitOption) etcdVolume() (*[]corev1.Volume, *corev1.PersistentVo
 		Volumes = append(Volumes, emptyDir)
 		return &Volumes, nil
 	}
+}
+
+func (i *CommandInitOption) etcdInitContainerCommand() []string {
+	etcdClusterConfig := ""
+	for v := int32(0); v < i.EtcdReplicas; v++ {
+		etcdClusterConfig += fmt.Sprintf("%s-%v=http://%s-%v.%s.%s.svc.%s:%v", etcdStatefulSetAndServiceName, v, etcdStatefulSetAndServiceName, v, etcdStatefulSetAndServiceName, i.Namespace, i.HostClusterDomain, etcdContainerServerPort) + ","
+	}
+
+	command := []string{
+		"sh",
+		"-c",
+		fmt.Sprintf(
+			`set -ex
+cat <<EOF | tee %s/%s
+name: ${%s}
+client-transport-security:
+  client-cert-auth: true
+  trusted-ca-file: %s/%s.crt
+  key-file: %s/%s.key
+  cert-file: %s/%s.crt
+peer-transport-security:
+  client-cert-auth: false
+  trusted-ca-file: %s/%s.crt
+  key-file: %s/%s.key
+  cert-file: %s/%s.crt
+initial-cluster-state: new
+initial-cluster-token: etcd-cluster
+initial-cluster: %s
+listen-peer-urls: http://${%s}:%v
+listen-client-urls: https://${%s}:%v,http://127.0.0.1:%v
+initial-advertise-peer-urls: http://${%s}:%v
+advertise-client-urls: https://${%s}.%s.%s.svc.%s:%v
+data-dir: %s
+cipher-suites: %s
+
+`,
+			etcdContainerConfigDataMountPath, etcdConfigName,
+			etcdEnvPodName,
+			karmadaCertsVolumeMountPath, options.EtcdCaCertAndKeyName,
+			karmadaCertsVolumeMountPath, options.EtcdServerCertAndKeyName,
+			karmadaCertsVolumeMountPath, options.EtcdServerCertAndKeyName,
+			karmadaCertsVolumeMountPath, options.EtcdCaCertAndKeyName,
+			karmadaCertsVolumeMountPath, options.EtcdServerCertAndKeyName,
+			karmadaCertsVolumeMountPath, options.EtcdServerCertAndKeyName,
+			strings.TrimRight(etcdClusterConfig, ","),
+			etcdEnvPodIP, etcdContainerServerPort,
+			etcdEnvPodIP, etcdContainerClientPort, etcdContainerClientPort,
+			etcdEnvPodIP, etcdContainerServerPort,
+			etcdEnvPodName, etcdStatefulSetAndServiceName,
+			i.Namespace, i.HostClusterDomain,
+			etcdContainerClientPort,
+			etcdContainerDataVolumeMountPath,
+			etcdCipherSuites,
+		),
+	}
+
+	if strings.ToLower(i.SecretLayout) != secretLayoutSplit {
+		return command
+	}
+
+	// Split layout: reuse legacy YAML structure and command style,
+	// only swap certificate paths to split-mounted locations.
+	command = []string{
+		"sh",
+		"-c",
+		fmt.Sprintf(
+			`set -ex
+cat <<EOF | tee %s/%s
+name: ${%s}
+client-transport-security:
+  client-cert-auth: true
+  trusted-ca-file: %s/ca.crt
+  key-file: %s/tls.key
+  cert-file: %s/tls.crt
+peer-transport-security:
+  client-cert-auth: false
+  trusted-ca-file: %s/ca.crt
+  key-file: %s/tls.key
+  cert-file: %s/tls.crt
+initial-cluster-state: new
+initial-cluster-token: etcd-cluster
+initial-cluster: %s
+listen-peer-urls: http://${%s}:%v
+listen-client-urls: https://${%s}:%v,http://127.0.0.1:%v
+initial-advertise-peer-urls: http://${%s}:%v
+advertise-client-urls: https://${%s}.%s.%s.svc.%s:%v
+data-dir: %s
+cipher-suites: %s
+
+`,
+			etcdContainerConfigDataMountPath, etcdConfigName,
+			etcdEnvPodName,
+			etcdClientCertVolumeMountPath,
+			serverCertVolumeMountPath,
+			serverCertVolumeMountPath,
+			etcdClientCertVolumeMountPath,
+			serverCertVolumeMountPath,
+			serverCertVolumeMountPath,
+			strings.TrimRight(etcdClusterConfig, ","),
+			etcdEnvPodIP, etcdContainerServerPort,
+			etcdEnvPodIP, etcdContainerClientPort, etcdContainerClientPort,
+			etcdEnvPodIP, etcdContainerServerPort,
+			etcdEnvPodName, etcdStatefulSetAndServiceName,
+			i.Namespace, i.HostClusterDomain,
+			etcdContainerClientPort,
+			etcdContainerDataVolumeMountPath,
+			etcdCipherSuites,
+		),
+	}
+	return command
 }
 
 func (i *CommandInitOption) makeETCDStatefulSet() *appsv1.StatefulSet {
@@ -214,23 +335,21 @@ func (i *CommandInitOption) makeETCDStatefulSet() *appsv1.StatefulSet {
 						Protocol:      corev1.ProtocolTCP,
 					},
 				},
-				VolumeMounts: []corev1.VolumeMount{
-					{
-						Name:      etcdContainerDataVolumeMountName,
-						ReadOnly:  false,
-						MountPath: etcdContainerDataVolumeMountPath,
-					},
-					{
-						Name:      etcdContainerConfigVolumeMountName,
-						ReadOnly:  false,
-						MountPath: etcdContainerConfigDataMountPath,
-					},
-					{
-						Name:      etcdCertName,
-						ReadOnly:  true,
-						MountPath: karmadaCertsVolumeMountPath,
-					},
-				},
+				VolumeMounts: func() []corev1.VolumeMount {
+					if strings.ToLower(i.SecretLayout) == secretLayoutSplit {
+						return []corev1.VolumeMount{
+							{Name: etcdContainerDataVolumeMountName, ReadOnly: false, MountPath: etcdContainerDataVolumeMountPath},
+							{Name: etcdContainerConfigVolumeMountName, ReadOnly: false, MountPath: etcdContainerConfigDataMountPath},
+							{Name: serverCertVolumeName, ReadOnly: true, MountPath: serverCertVolumeMountPath},
+							{Name: etcdClientCertVolumeName, ReadOnly: true, MountPath: etcdClientCertVolumeMountPath},
+						}
+					}
+					return []corev1.VolumeMount{
+						{Name: etcdContainerDataVolumeMountName, ReadOnly: false, MountPath: etcdContainerDataVolumeMountPath},
+						{Name: etcdContainerConfigVolumeMountName, ReadOnly: false, MountPath: etcdContainerConfigDataMountPath},
+						{Name: etcdCertName, ReadOnly: true, MountPath: karmadaCertsVolumeMountPath},
+					}
+				}(),
 				LivenessProbe: livenesProbe,
 				//ReadinessProbe: readinesProbe,
 				Env: []corev1.EnvVar{

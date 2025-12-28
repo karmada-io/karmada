@@ -170,26 +170,48 @@ func (i *CommandInitOption) defaultKarmadaAggregatedAPIServerContainerCommand() 
 	if etcdServers = i.ExternalEtcdServers; etcdServers == "" {
 		etcdServers = strings.TrimRight(i.etcdServers(), ",")
 	}
-	command := []string{
-		"/bin/karmada-aggregated-apiserver",
-		fmt.Sprintf("--kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
-		fmt.Sprintf("--authentication-kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
-		fmt.Sprintf("--authorization-kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
-		fmt.Sprintf("--etcd-servers=%s", etcdServers),
-		fmt.Sprintf("--etcd-cafile=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdCaCertAndKeyName),
-		fmt.Sprintf("--etcd-certfile=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName),
-		fmt.Sprintf("--etcd-keyfile=%s/%s.key", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName),
-		fmt.Sprintf("--tls-cert-file=%s/%s.crt", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
-		fmt.Sprintf("--tls-private-key-file=%s/%s.key", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
-		"--tls-min-version=VersionTLS13",
-		"--audit-log-path=-",
-		"--audit-log-maxage=0",
-		"--audit-log-maxbackup=0",
-		"--bind-address=$(POD_IP)",
+	var command []string
+	if strings.ToLower(i.SecretLayout) == secretLayoutSplit {
+		command = []string{
+			"/bin/karmada-aggregated-apiserver",
+			fmt.Sprintf("--kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
+			fmt.Sprintf("--authentication-kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
+			fmt.Sprintf("--authorization-kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
+			fmt.Sprintf("--etcd-servers=%s", etcdServers),
+			fmt.Sprintf("--etcd-cafile=%s/ca.crt", etcdClientCertVolumeMountPath),
+			fmt.Sprintf("--etcd-certfile=%s/tls.crt", etcdClientCertVolumeMountPath),
+			fmt.Sprintf("--etcd-keyfile=%s/tls.key", etcdClientCertVolumeMountPath),
+			fmt.Sprintf("--tls-cert-file=%s/tls.crt", serverCertVolumeMountPath),
+			fmt.Sprintf("--tls-private-key-file=%s/tls.key", serverCertVolumeMountPath),
+			"--tls-min-version=VersionTLS13",
+			"--audit-log-path=-",
+			"--audit-log-maxage=0",
+			"--audit-log-maxbackup=0",
+			"--bind-address=$(POD_IP)",
+		}
+	} else {
+		command = []string{
+			"/bin/karmada-aggregated-apiserver",
+			fmt.Sprintf("--kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
+			fmt.Sprintf("--authentication-kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
+			fmt.Sprintf("--authorization-kubeconfig=%s", filepath.Join(karmadaConfigVolumeMountPath, util.KarmadaConfigFieldName)),
+			fmt.Sprintf("--etcd-servers=%s", etcdServers),
+			fmt.Sprintf("--etcd-cafile=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdCaCertAndKeyName),
+			fmt.Sprintf("--etcd-certfile=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName),
+			fmt.Sprintf("--etcd-keyfile=%s/%s.key", karmadaCertsVolumeMountPath, options.EtcdClientCertAndKeyName),
+			fmt.Sprintf("--tls-cert-file=%s/%s.crt", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
+			fmt.Sprintf("--tls-private-key-file=%s/%s.key", karmadaCertsVolumeMountPath, options.KarmadaCertAndKeyName),
+			"--tls-min-version=VersionTLS13",
+			"--audit-log-path=-",
+			"--audit-log-maxage=0",
+			"--audit-log-maxbackup=0",
+			"--bind-address=$(POD_IP)",
+		}
 	}
 	if i.ExternalEtcdKeyPrefix != "" {
 		command = append(command, fmt.Sprintf("--etcd-prefix=%s", i.ExternalEtcdKeyPrefix))
 	}
+	
 	return command
 }
 

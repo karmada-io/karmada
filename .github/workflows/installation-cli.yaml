@@ -115,3 +115,47 @@ jobs:
         with:
           name: karmadactl_config_test_logs_${{ matrix.k8s }}
           path: ${{ github.workspace }}/karmadactl-test-logs/${{ matrix.k8s }}/config/
+
+  test-on-kubernetes-split-secret:
+    name: Test on Kubernetes (Split Secret)
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        # Latest three minor releases of Kubernetes
+        k8s: [ v1.31.0, v1.32.0, v1.33.0 ]
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: install Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: run karmadactl init test (split secret layout)
+        run: |
+          export CLUSTER_VERSION=kindest/node:${{ matrix.k8s }}
+
+          # init e2e environment with split secret layout
+          hack/cli-testing-environment-split-secret.sh
+
+          # run a single e2e
+          export PULL_BASED_CLUSTERS="split-secret-member1:${HOME}/.kube/split-secret-member1.config"  
+          export KUBECONFIG=${HOME}/.kube/karmada-host.config:${HOME}/karmada/karmada-apiserver.config
+          GO111MODULE=on go install github.com/onsi/ginkgo/v2/ginkgo
+          ginkgo -v --race --trace -p  --focus="[BasicPropagation] propagation testing deployment propagation testing"  ./test/e2e/suites/base
+      - name: export logs (split secret)
+        if: always()
+        run: |
+          export ARTIFACTS_PATH=${{ github.workspace }}/karmadactl-test-logs/${{ matrix.k8s }}/split-secret
+          mkdir -p $ARTIFACTS_PATH
+
+          mkdir -p $ARTIFACTS_PATH/karmada-host
+          kind export logs --name=karmada-host $ARTIFACTS_PATH/karmada-host
+      - name: upload logs (split secret)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: karmadactl_split_secret_test_logs_${{ matrix.k8s }}
+          path: ${{ github.workspace }}/karmadactl-test-logs/${{ matrix.k8s }}/split-secret/

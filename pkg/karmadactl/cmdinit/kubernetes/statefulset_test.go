@@ -16,7 +16,12 @@ limitations under the License.
 
 package kubernetes
 
-import "testing"
+import (
+	"strings"
+	"testing"
+
+	certconst "github.com/karmada-io/karmada/pkg/cert"
+)
 
 func TestCommandInitIOption_etcdVolume(t *testing.T) {
 	tests := []struct {
@@ -66,6 +71,49 @@ func TestCommandInitIOption_etcdVolume(t *testing.T) {
 				t.Error(tt.errorMsg)
 			}
 		})
+	}
+}
+
+func TestEtcdInitContainerCommand_SplitYamlTemplate(t *testing.T) {
+	opt := CommandInitOption{Namespace: "karmada", EtcdReplicas: 1, SecretLayout: "split"}
+	got := opt.etcdInitContainerCommand()
+	if len(got) < 3 || got[0] != "sh" || got[1] != "-c" {
+		t.Fatalf("split etcd init command should be [sh -c <script>], got %#v", got)
+	}
+	script := got[2]
+	for _, want := range []string{
+		"name: ${POD_NAME}",
+		"client-transport-security:",
+		"peer-transport-security:",
+		"trusted-ca-file: " + etcdClientCertVolumeMountPath + "/ca.crt",
+		"cert-file: " + serverCertVolumeMountPath + "/tls.crt",
+		"key-file: " + serverCertVolumeMountPath + "/tls.key",
+	} {
+		if !strings.Contains(script, want) {
+			t.Fatalf("script missing %q", want)
+		}
+	}
+}
+
+func TestEtcdVolume_SplitVolumesAndSecrets(t *testing.T) {
+	opt := CommandInitOption{Namespace: "karmada", SecretLayout: "split"}
+	vols, _ := opt.etcdVolume()
+	if vols == nil {
+		t.Fatalf("vols nil")
+	}
+	var haveServer, haveClient, haveConfig bool
+	for _, v := range *vols {
+		switch v.Name {
+		case serverCertVolumeName:
+			haveServer = v.VolumeSource.Secret != nil && v.VolumeSource.Secret.SecretName == certconst.SecretEtcdServer
+		case etcdClientCertVolumeName:
+			haveClient = v.VolumeSource.Secret != nil && v.VolumeSource.Secret.SecretName == certconst.SecretEtcdClient
+		case etcdContainerConfigVolumeMountName:
+			haveConfig = v.VolumeSource.EmptyDir != nil
+		}
+	}
+	if !haveServer || !haveClient || !haveConfig {
+		t.Fatalf("split etcd volumes not as expected: server=%v client=%v config=%v", haveServer, haveClient, haveConfig)
 	}
 }
 
