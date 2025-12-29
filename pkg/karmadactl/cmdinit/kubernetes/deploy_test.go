@@ -20,6 +20,7 @@ import (
 	"context"
 	"net"
 	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
@@ -30,6 +31,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/config"
+	initopt "github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 )
 
@@ -687,4 +689,169 @@ func parseDuration(durationStr string) time.Duration {
 		return 0
 	}
 	return duration
+}
+
+// ===== Additional tests for split certificate design =====
+
+func containsString(ss []string, s string) bool {
+	for _, v := range ss {
+		if v == s {
+			return true
+		}
+	}
+	return false
+}
+
+func containsIP(ss []net.IP, s string) bool {
+	want := utils.StringToNetIP(s)
+	for _, v := range ss {
+		if v.Equal(want) {
+			return true
+		}
+	}
+	return false
+}
+
+func TestBuildDefaultAltNames(t *testing.T) {
+	i := &CommandInitOption{
+		Namespace:          "ns",
+		HostClusterDomain:  "cluster.local",
+		ExternalDNS:        "a.example.com,b.example.com",
+		ExternalIP:         "1.1.1.1,2.2.2.2",
+		KarmadaAPIServerIP: []net.IP{utils.StringToNetIP("10.0.0.1")},
+	}
+
+	alt := i.buildDefaultAltNames("karmada-apiserver")
+
+	if !containsString(alt.DNSNames, "karmada-apiserver.karmada-system.svc") {
+		t.Fatalf("missing dns: karmada-apiserver.karmada-system.svc")
+	}
+	if !containsString(alt.DNSNames, "karmada-apiserver.karmada-system.svc.cluster.local") {
+		t.Fatalf("missing dns: karmada-apiserver.karmada-system.svc.cluster.local")
+	}
+	if !containsString(alt.DNSNames, "karmada-apiserver.ns.svc.cluster.local") {
+		t.Fatalf("missing dns: karmada-apiserver.ns.svc.cluster.local")
+	}
+	if !containsString(alt.DNSNames, "localhost") {
+		t.Fatalf("missing dns: localhost")
+	}
+
+	for _, ip := range []string{"127.0.0.1", "1.1.1.1", "2.2.2.2", "10.0.0.1"} {
+		if !containsIP(alt.IPs, ip) {
+			t.Fatalf("missing ip: %s", ip)
+		}
+	}
+}
+
+func TestBuildSchedulerEstimatorAltNames(t *testing.T) {
+	i := &CommandInitOption{
+		Namespace:          "ns",
+		HostClusterDomain:  "cluster.local",
+		ExternalDNS:        "d1,d2",
+		ExternalIP:         "3.3.3.3",
+		KarmadaAPIServerIP: []net.IP{utils.StringToNetIP("10.0.0.2")},
+	}
+	alt := i.buildSchedulerEstimatorAltNames()
+
+	wants := []string{
+		"*.karmada-system.svc.cluster.local",
+		"*.karmada-system.svc",
+		"*.ns.svc.cluster.local",
+		"localhost",
+	}
+	for _, w := range wants {
+		if !containsString(alt.DNSNames, w) {
+			t.Fatalf("missing dns: %s", w)
+		}
+	}
+	for _, ip := range []string{"127.0.0.1", "3.3.3.3", "10.0.0.2"} {
+		if !containsIP(alt.IPs, ip) {
+			t.Fatalf("missing ip: %s", ip)
+		}
+	}
+}
+
+func exists(t *testing.T, dir, name string) {
+	t.Helper()
+	for _, ext := range []string{".crt", ".key"} {
+		if _, err := os.Stat(filepath.Join(dir, name+ext)); err != nil {
+			t.Fatalf("expected %s%s to exist: %v", name, ext, err)
+		}
+	}
+}
+
+func TestGenCertsSplitFull_GeneratesExpectedSubset(t *testing.T) {
+	dir := t.TempDir()
+	opt := &CommandInitOption{
+		CertValidity:      24 * time.Hour,
+		EtcdReplicas:      1,
+		Namespace:         "karmada",
+		HostClusterDomain: "cluster.local",
+		KarmadaPkiPath:    dir,
+	}
+
+	if err := opt.genCertsSplitFull(); err != nil {
+		t.Fatalf("genCertsSplitFull error: %v", err)
+	}
+
+	subset := []string{
+		initopt.EtcdCaCertAndKeyName,
+		initopt.FrontProxyCaCertAndKeyName,
+		initopt.KarmadaAPIServerCertAndKeyName,
+		initopt.KarmadaAggregatedAPIServerCertAndKeyName,
+		initopt.KarmadaAPIServerClientCertAndKeyName,
+		initopt.KarmadaAggregatedAPIServerEtcdClientCertAndKeyName,
+		initopt.EtcdClientCertAndKeyName,
+		initopt.FrontProxyClientCertAndKeyName,
+		initopt.EtcdServerCertAndKeyName,
+	}
+	for _, n := range subset {
+		exists(t, dir, n)
+	}
+}
+
+func TestReadExternalEtcdCert_SplitVariants(t *testing.T) {
+	dir := t.TempDir()
+	ca := filepath.Join(dir, "ca.crt")
+	cert := filepath.Join(dir, "client.crt")
+	key := filepath.Join(dir, "client.key")
+	mustWrite := func(p, s string) {
+		if err := os.WriteFile(p, []byte(s), 0600); err != nil {
+			t.Fatalf("write %s: %v", p, err)
+		}
+	}
+	mustWrite(ca, "CA")
+	mustWrite(cert, "ECC")
+	mustWrite(key, "ECK")
+
+	opt := &CommandInitOption{
+		ExternalEtcdServers:        "https://etcd:2379",
+		ExternalEtcdCACertPath:     ca,
+		ExternalEtcdClientCertPath: cert,
+		ExternalEtcdClientKeyPath:  key,
+		CertAndKeyFileData:         map[string][]byte{},
+	}
+
+	names := []string{
+		initopt.EtcdClientCertAndKeyName,
+		initopt.KarmadaAPIServerEtcdClientCertAndKeyName,
+		initopt.KarmadaAggregatedAPIServerEtcdClientCertAndKeyName,
+		initopt.KarmadaSearchEtcdClientCertAndKeyName,
+	}
+	for _, n := range names {
+		ok, err := opt.readExternalEtcdCert(n)
+		if err != nil || !ok {
+			t.Fatalf("readExternalEtcdCert(%s) ok=%v err=%v", n, ok, err)
+		}
+		if string(opt.CertAndKeyFileData[n+".crt"]) != "ECC" || string(opt.CertAndKeyFileData[n+".key"]) != "ECK" {
+			t.Fatalf("unexpected data for %s", n)
+		}
+	}
+
+	if ok, err := opt.readExternalEtcdCert(initopt.EtcdServerCertAndKeyName); err != nil || !ok {
+		t.Fatalf("readExternalEtcdCert(etcd-server) ok=%v err=%v", ok, err)
+	}
+	if len(opt.CertAndKeyFileData[initopt.EtcdServerCertAndKeyName+".crt"]) != 0 || len(opt.CertAndKeyFileData[initopt.EtcdServerCertAndKeyName+".key"]) != 0 {
+		t.Fatalf("expected empty data for etcd-server under external etcd")
+	}
 }
