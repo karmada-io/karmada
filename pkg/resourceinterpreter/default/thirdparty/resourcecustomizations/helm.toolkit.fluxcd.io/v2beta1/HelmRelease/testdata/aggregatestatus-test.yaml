@@ -1,5 +1,10 @@
 # test case for aggregating status of HelmRelease
 # case1. HelmRelease with two status items
+# case2. HelmRelease with nil statusItems should initialize empty status
+# case3. HelmRelease with multiple status items merging conditions
+# case4. HelmRelease with different revisions from multiple clusters
+# case5. HelmRelease with failures accumulation
+# case6. HelmRelease with partial observedGeneration update
 
 name: "HelmRelease with two status items"
 description: "Test aggregating status of HelmRelease with two status items"
@@ -71,5 +76,166 @@ statusItems:
       lastReleaseRevision: 1
       observedGeneration: 1
       resourceTemplateGeneration: 1
+operation: AggregateStatus
+output:
+
+---
+name: "HelmRelease with nil statusItems should initialize empty status"
+description: "Test aggregating status when statusItems is nil"
+desiredObj:
+  apiVersion: helm.toolkit.fluxcd.io/v2beta1
+  kind: HelmRelease
+  metadata:
+    name: sample
+    namespace: default
+    generation: 1
+  spec:
+    interval: 5m
+operation: AggregateStatus
+output:
+
+---
+name: "HelmRelease with multiple status items merging conditions"
+description: "Test aggregating status when multiple status items have same condition type"
+desiredObj:
+  apiVersion: helm.toolkit.fluxcd.io/v2beta1
+  kind: HelmRelease
+  metadata:
+    name: sample
+    namespace: default
+    generation: 1
+  spec:
+    interval: 5m
+statusItems:
+  - applied: true
+    clusterName: member1
+    health: Healthy
+    status:
+      conditions:
+        - type: Ready
+          status: "True"
+          reason: ReconciliationSucceeded
+          message: Release reconciliation succeeded
+      generation: 1
+      observedGeneration: 1
+      resourceTemplateGeneration: 1
+  - applied: true
+    clusterName: member2
+    health: Healthy
+    status:
+      conditions:
+        - type: Ready
+          status: "True"
+          reason: ReconciliationSucceeded
+          message: Release reconciliation succeeded
+      generation: 1
+      observedGeneration: 1
+      resourceTemplateGeneration: 1
+operation: AggregateStatus
+output:
+
+---
+name: "HelmRelease with different revisions from multiple clusters"
+description: "Test aggregating status when clusters have different revisions"
+desiredObj:
+  apiVersion: helm.toolkit.fluxcd.io/v2beta1
+  kind: HelmRelease
+  metadata:
+    name: sample
+    namespace: default
+    generation: 1
+  spec:
+    interval: 5m
+statusItems:
+  - applied: true
+    clusterName: member1
+    health: Healthy
+    status:
+      lastAttemptedRevision: 6.3.5
+      lastAppliedRevision: 6.3.5
+      lastReleaseRevision: 1
+      generation: 1
+      observedGeneration: 1
+      resourceTemplateGeneration: 1
+  - applied: true
+    clusterName: member2
+    health: Healthy
+    status:
+      lastAttemptedRevision: 6.3.6
+      lastAppliedRevision: 6.3.6
+      lastReleaseRevision: 2
+      generation: 1
+      observedGeneration: 1
+      resourceTemplateGeneration: 1
+operation: AggregateStatus
+output:
+
+---
+name: "HelmRelease with failures accumulation"
+description: "Test aggregating status when multiple clusters have failures"
+desiredObj:
+  apiVersion: helm.toolkit.fluxcd.io/v2beta1
+  kind: HelmRelease
+  metadata:
+    name: sample
+    namespace: default
+    generation: 1
+  spec:
+    interval: 5m
+  status:
+    failures: 0
+    upgradeFailures: 0
+    installFailures: 0
+statusItems:
+  - applied: true
+    clusterName: member1
+    health: Unhealthy
+    status:
+      failures: 2
+      upgradeFailures: 1
+      installFailures: 1
+      generation: 1
+      observedGeneration: 1
+      resourceTemplateGeneration: 1
+  - applied: true
+    clusterName: member2
+    health: Unhealthy
+    status:
+      failures: 3
+      upgradeFailures: 2
+      installFailures: 1
+      generation: 1
+      observedGeneration: 1
+      resourceTemplateGeneration: 1
+operation: AggregateStatus
+output:
+
+---
+name: "HelmRelease with partial observedGeneration update"
+description: "Test aggregating status when only some clusters have updated to latest generation"
+desiredObj:
+  apiVersion: helm.toolkit.fluxcd.io/v2beta1
+  kind: HelmRelease
+  metadata:
+    name: sample
+    namespace: default
+    generation: 2
+  spec:
+    interval: 5m
+statusItems:
+  - applied: true
+    clusterName: member1
+    health: Healthy
+    status:
+      generation: 2
+      observedGeneration: 2
+      resourceTemplateGeneration: 2
+  - applied: true
+    clusterName: member2
+    health: Healthy
+    status:
+      generation: 1
+      observedGeneration: 1
+      resourceTemplateGeneration: 2
 operation: AggregateStatus
 output:
