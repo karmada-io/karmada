@@ -24,6 +24,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -199,6 +200,10 @@ func deepEqual(expected, actualValue interface{}) (bool, error) {
 		if err := k8sjson.Unmarshal(expectedJSONBytes, &unmarshaledExpected); err != nil {
 			return false, fmt.Errorf("failed to unmarshal expected JSON into []DependentObjectReference: %w", err)
 		}
+		// Sort both slices before comparison to handle non-deterministic order from Lua pairs()
+		// This matches the sorting logic in ConfigurableInterpreter.GetDependencies
+		sortDependencies(unmarshaledExpected)
+		sortDependencies(typedActual)
 		return checker.DeepEqual(unmarshaledExpected, typedActual), nil
 
 	case []workv1alpha2.Component:
@@ -225,6 +230,22 @@ func deepEqual(expected, actualValue interface{}) (bool, error) {
 		}
 		return bytes.Equal(expectedJSONBytes, actualJSON), nil
 	}
+}
+
+// sortDependencies sorts a slice of DependentObjectReference by APIVersion, Kind, Namespace, and Name.
+func sortDependencies(deps []configv1alpha1.DependentObjectReference) {
+	sort.Slice(deps, func(i, j int) bool {
+		if deps[i].APIVersion != deps[j].APIVersion {
+			return deps[i].APIVersion < deps[j].APIVersion
+		}
+		if deps[i].Kind != deps[j].Kind {
+			return deps[i].Kind < deps[j].Kind
+		}
+		if deps[i].Namespace != deps[j].Namespace {
+			return deps[i].Namespace < deps[j].Namespace
+		}
+		return deps[i].Name < deps[j].Name
+	})
 }
 
 func TestThirdPartyCustomizationsFile(t *testing.T) {

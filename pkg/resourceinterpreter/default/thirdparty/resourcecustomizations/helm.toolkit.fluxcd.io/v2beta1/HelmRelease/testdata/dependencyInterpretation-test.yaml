@@ -115,7 +115,7 @@ output:
 
 ---
 name: "HelmRelease with all dependency types should return all dependencies"
-description: "Test interpreting dependencies when all dependency types are present. Note: Order may vary due to Lua pairs()"
+description: "Test interpreting dependencies when all dependency types are present"
 desiredObj:
   apiVersion: helm.toolkit.fluxcd.io/v2beta1
   kind: HelmRelease
@@ -141,6 +141,27 @@ desiredObj:
     serviceAccountName: my-serviceaccount
 operation: InterpretDependency
 output:
+  dependencies:
+    - apiVersion: v1
+      kind: ConfigMap
+      name: values-configmap
+      namespace: default
+    - apiVersion: v1
+      kind: Secret
+      name: kubeconfig-secret
+      namespace: default
+    - apiVersion: v1
+      kind: Secret
+      name: values-secret
+      namespace: default
+    - apiVersion: v1
+      kind: Secret
+      name: verify-secret
+      namespace: default
+    - apiVersion: v1
+      kind: ServiceAccount
+      name: my-serviceaccount
+      namespace: default
 
 ---
 name: "HelmRelease without dependencies should return empty array"
