@@ -39,6 +39,8 @@ kubectl:
 operator:
   ## @param operator.labels
   labels: {}
+  ## @param operator.annotations Operator deployment annotations
+  annotations: {}
   ## @param operator.replicaCount target replicas
   replicaCount: 1
   ## @param operator.podAnnotations
