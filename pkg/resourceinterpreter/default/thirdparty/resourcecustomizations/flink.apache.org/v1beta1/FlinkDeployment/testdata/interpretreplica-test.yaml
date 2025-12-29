@@ -1,6 +1,13 @@
 # test case for interpreting replica of FlinkDeployment
 # case1. FlinkDeployment with taskManager.replicas set to 1
 # case2. FlinkDeployment with taskManager.replicas not set, use parallelism/numberOfTaskSlots
+# case3. FlinkDeployment with podTemplate containing nodeSelector, tolerations, and priorityClassName
+# case4. FlinkDeployment with jobManager.replicas not set, should default to 1
+# case5. FlinkDeployment with taskManager.replicas not set and parallelism/task_slots not set, should default to 1
+# case6. FlinkDeployment with different CPU and memory for jobManager and taskManager, should take max
+# case7. FlinkDeployment with taskManager having higher memory than jobManager
+# case8. FlinkDeployment with spec.jobManager missing, should default jobManager replicas to 1 and use only taskManager resources
+# case9. FlinkDeployment with taskmanager.numberOfTaskSlots set to 0, should avoid division by zero and default to 1
 
 name: "FlinkDeployment with taskManager.replicas set to 1"
 description: "Test interpreting replica of FlinkDeployment when taskManager.replicas is set"
@@ -76,3 +83,252 @@ output:
       "cpu": "1"
       "memory": "2048m"
     namespace: "test-namespace"
+
+---
+name: "FlinkDeployment with podTemplate containing nodeSelector, tolerations, and priorityClassName"
+description: "Test interpreting replica of FlinkDeployment with podTemplate settings"
+desiredObj:
+  apiVersion: flink.apache.org/v1beta1
+  kind: FlinkDeployment
+  metadata:
+    name: basic-example
+    namespace: test-namespace
+  spec:
+    flinkConfiguration:
+      taskmanager.numberOfTaskSlots: "2"
+    flinkVersion: v1_17
+    image: flink:1.17
+    jobManager:
+      replicas: 1
+      resource:
+        cpu: 1
+        memory: 2048m
+    taskManager:
+      replicas: 2
+      resource:
+        cpu: 1
+        memory: 2048m
+    podTemplate:
+      spec:
+        nodeSelector:
+          disktype: ssd
+          zone: us-west-1
+        tolerations:
+          - key: "key1"
+            operator: "Equal"
+            value: "value1"
+            effect: "NoSchedule"
+        priorityClassName: high-priority
+operation: InterpretReplica
+output:
+  replica: 3
+  requires:
+    resourceRequest:
+      "cpu": "1"
+      "memory": "2048m"
+    nodeClaim:
+      nodeSelector:
+        disktype: ssd
+        zone: us-west-1
+      tolerations:
+        - key: "key1"
+          operator: "Equal"
+          value: "value1"
+          effect: "NoSchedule"
+    priorityClassName: high-priority
+    namespace: "test-namespace"
+
+---
+name: "FlinkDeployment with jobManager.replicas not set should default to 1"
+description: "Test interpreting replica when jobManager.replicas is not set"
+desiredObj:
+  apiVersion: flink.apache.org/v1beta1
+  kind: FlinkDeployment
+  metadata:
+    name: basic-example
+    namespace: test-namespace
+  spec:
+    flinkConfiguration:
+      taskmanager.numberOfTaskSlots: "2"
+    flinkVersion: v1_17
+    image: flink:1.17
+    jobManager:
+      resource:
+        cpu: 1
+        memory: 2048m
+    taskManager:
+      replicas: 2
+      resource:
+        cpu: 1
+        memory: 2048m
+operation: InterpretReplica
+output:
+  replica: 3
+  requires:
+    resourceRequest:
+      "cpu": "1"
+      "memory": "2048m"
+    namespace: "test-namespace"
+
+---
+name: "FlinkDeployment with taskManager.replicas not set and parallelism/task_slots not set should default to 1"
+description: "Test interpreting replica when taskManager.replicas, parallelism, and task_slots are not set"
+desiredObj:
+  apiVersion: flink.apache.org/v1beta1
+  kind: FlinkDeployment
+  metadata:
+    name: basic-example
+    namespace: test-namespace
+  spec:
+    flinkVersion: v1_17
+    image: flink:1.17
+    flinkConfiguration: {}
+    job: {}
+    jobManager:
+      replicas: 1
+      resource:
+        cpu: 1
+        memory: 2048m
+    taskManager:
+      resource:
+        cpu: 1
+        memory: 2048m
+operation: InterpretReplica
+output:
+  replica: 2
+  requires:
+    resourceRequest:
+      "cpu": "1"
+      "memory": "2048m"
+    namespace: "test-namespace"
+
+---
+name: "FlinkDeployment with different CPU and memory for jobManager and taskManager should take max"
+description: "Test interpreting replica when jobManager and taskManager have different CPU and memory, should take max"
+desiredObj:
+  apiVersion: flink.apache.org/v1beta1
+  kind: FlinkDeployment
+  metadata:
+    name: basic-example
+    namespace: test-namespace
+  spec:
+    flinkConfiguration:
+      taskmanager.numberOfTaskSlots: "2"
+    flinkVersion: v1_17
+    image: flink:1.17
+    jobManager:
+      replicas: 1
+      resource:
+        cpu: 2
+        memory: 4096m
+    taskManager:
+      replicas: 2
+      resource:
+        cpu: 1
+        memory: 2048m
+operation: InterpretReplica
+output:
+  replica: 3
+  requires:
+    resourceRequest:
+      "cpu": "2"
+      "memory": "4096m"
+    namespace: "test-namespace"
+
+---
+name: "FlinkDeployment with taskManager having higher memory than jobManager"
+description: "Test interpreting replica when taskManager has higher memory than jobManager"
+desiredObj:
+  apiVersion: flink.apache.org/v1beta1
+  kind: FlinkDeployment
+  metadata:
+    name: basic-example
+    namespace: test-namespace
+  spec:
+    flinkConfiguration:
+      taskmanager.numberOfTaskSlots: "2"
+    flinkVersion: v1_17
+    image: flink:1.17
+    jobManager:
+      replicas: 1
+      resource:
+        cpu: 1
+        memory: 2048m
+    taskManager:
+      replicas: 2
+      resource:
+        cpu: 2
+        memory: 8192m
+operation: InterpretReplica
+output:
+  replica: 3
+  requires:
+    resourceRequest:
+      "cpu": "2"
+      "memory": "8192m"
+    namespace: "test-namespace"
+
+---
+name: "FlinkDeployment with spec.jobManager missing"
+description: "Test interpreting replica when spec.jobManager is missing, should default jobManager replicas to 1 and use only taskManager resources"
+desiredObj:
+  apiVersion: flink.apache.org/v1beta1
+  kind: FlinkDeployment
+  metadata:
+    name: basic-example
+    namespace: test-namespace
+  spec:
+    flinkConfiguration:
+      taskmanager.numberOfTaskSlots: "2"
+    flinkVersion: v1_17
+    image: flink:1.17
+    taskManager:
+      replicas: 2
+      resource:
+        cpu: 1
+        memory: 2048m
+operation: InterpretReplica
+output:
+  replica: 3
+  requires:
+    resourceRequest:
+      "cpu": "1"
+      "memory": "2048m"
+    namespace: "test-namespace"
+
+---
+name: "FlinkDeployment with taskmanager.numberOfTaskSlots set to 0"
+description: "Test interpreting replica when taskmanager.numberOfTaskSlots is 0, should avoid division by zero and default to 1"
+desiredObj:
+  apiVersion: flink.apache.org/v1beta1
+  kind: FlinkDeployment
+  metadata:
+    name: basic-example
+    namespace: test-namespace
+  spec:
+    flinkConfiguration:
+      taskmanager.numberOfTaskSlots: "0"
+    flinkVersion: v1_17
+    image: flink:1.17
+    job:
+      jarURI: local:///opt/flink/examples/streaming/StateMachineExample.jar
+      parallelism: 10
+      upgradeMode: stateless
+    jobManager:
+      replicas: 1
+      resource:
+        cpu: 1
+        memory: 2048m
+    taskManager:
+      resource:
+        cpu: 1
+        memory: 2048m
+operation: InterpretReplica
+output:
+  replica: 2
+  requires:
+    resourceRequest:
+      "cpu": "1"
+      "memory": "2048m"
+    namespace: "test-namespace"
+
