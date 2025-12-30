@@ -87,6 +87,13 @@ type Options struct {
 	// in scenario of dynamic replica assignment based on cluster free resources.
 	// Disable if it does not fit your cases for better performance.
 	EnableClusterResourceModeling bool
+	// EnableAsyncWorkCreation enables asynchronous work creation for binding controller.
+	// When enabled, work creation tasks are submitted to an async queue and processed
+	// by dedicated workers, improving throughput for large-scale deployments.
+	EnableAsyncWorkCreation bool
+	// AsyncWorkWorkers is the number of concurrent workers for asynchronous work creation.
+	// Only effective when EnableAsyncWorkCreation is true.
+	AsyncWorkWorkers int
 	// CertRotationCheckingInterval defines the interval of checking if the certificate need to be rotated.
 	CertRotationCheckingInterval time.Duration
 	// CertRotationRemainingTimeThreshold defines the threshold of remaining time of the valid certificate.

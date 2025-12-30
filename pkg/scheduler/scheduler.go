@@ -50,6 +50,7 @@ import (
 	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 	clusterlister "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
 	worklister "github.com/karmada-io/karmada/pkg/generated/listers/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/scheduler/binder"
 	schedulercache "github.com/karmada-io/karmada/pkg/scheduler/cache"
 	"github.com/karmada-io/karmada/pkg/scheduler/core"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
@@ -119,6 +120,13 @@ type Scheduler struct {
 	schedulerName                       string
 
 	enableEmptyWorkloadPropagation bool
+
+	// scheduleWorkers is the number of concurrent workers for scheduling.
+	scheduleWorkers int
+
+	// Async bind support
+	enableAsyncBind bool
+	asyncBinder     *binder.AsyncBinder
 }
 
 type schedulerOptions struct {
@@ -144,6 +152,12 @@ type schedulerOptions struct {
 	RateLimiterOptions ratelimiterflag.Options
 	// schedulerEstimatorClientConfig contains the configuration of GRPC.
 	schedulerEstimatorClientConfig *grpcconnection.ClientConfig
+	// scheduleWorkers is the number of concurrent workers for scheduling.
+	scheduleWorkers int
+	// enableAsyncBind enables async binding
+	enableAsyncBind bool
+	// asyncBindWorkers is the number of async bind workers
+	asyncBindWorkers int
 }
 
 // Option configures a Scheduler
@@ -233,6 +247,27 @@ func WithRateLimiterOptions(rateLimiterOptions ratelimiterflag.Options) Option {
 	}
 }
 
+// WithScheduleWorkers sets the number of concurrent workers for scheduling
+func WithScheduleWorkers(workers int) Option {
+	return func(o *schedulerOptions) {
+		o.scheduleWorkers = workers
+	}
+}
+
+// WithEnableAsyncBind sets the enableAsyncBind for scheduler
+func WithEnableAsyncBind(enableAsyncBind bool) Option {
+	return func(o *schedulerOptions) {
+		o.enableAsyncBind = enableAsyncBind
+	}
+}
+
+// WithAsyncBindWorkers sets the number of async bind workers
+func WithAsyncBindWorkers(workers int) Option {
+	return func(o *schedulerOptions) {
+		o.asyncBindWorkers = workers
+	}
+}
+
 // NewScheduler instantiates a scheduler
 func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientset.Interface, kubeClient kubernetes.Interface, opts ...Option) (*Scheduler, error) {
 	factory := informerfactory.NewSharedInformerFactory(karmadaClient, 0)
@@ -299,6 +334,17 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 	}
 	sched.enableEmptyWorkloadPropagation = options.enableEmptyWorkloadPropagation
 	sched.schedulerName = options.schedulerName
+	sched.scheduleWorkers = options.scheduleWorkers
+	if sched.scheduleWorkers <= 0 {
+		sched.scheduleWorkers = 1
+	}
+
+	// Initialize async binder if enabled
+	sched.enableAsyncBind = options.enableAsyncBind
+	if sched.enableAsyncBind {
+		sched.asyncBinder = binder.NewAsyncBinder(karmadaClient, sched.eventRecorder, options.asyncBindWorkers)
+		klog.Infof("Async binder enabled with %d workers", options.asyncBindWorkers)
+	}
 
 	sched.addAllEventHandlers()
 	return sched, nil
@@ -320,7 +366,16 @@ func (s *Scheduler) Run(ctx context.Context) {
 
 	s.clusterReconcileWorker.Run(ctx, 1)
 
-	go wait.Until(s.worker, time.Second, ctx.Done())
+	// Start async binder if enabled
+	if s.enableAsyncBind && s.asyncBinder != nil {
+		go s.asyncBinder.Run(ctx)
+	}
+
+	// Start multiple schedule workers for improved throughput
+	klog.Infof("Starting %d schedule workers", s.scheduleWorkers)
+	for i := 0; i < s.scheduleWorkers; i++ {
+		go wait.Until(s.worker, time.Second, ctx.Done())
+	}
 
 	if features.FeatureGate.Enabled(features.PriorityBasedScheduling) {
 		s.priorityQueue.Run()
@@ -551,6 +606,11 @@ func (s *Scheduler) HasTerminatingTargetClusters(bindingSpec *workv1alpha2.Resou
 
 func (s *Scheduler) scheduleResourceBinding(rb *workv1alpha2.ResourceBinding) (err error) {
 	defer func() {
+		// Skip status update if async bind was submitted - the async binder will handle it
+		if errors.Is(err, errAsyncBindSubmitted) {
+			err = nil
+			return
+		}
 		condition, ignoreErr := getConditionByError(err)
 		if updateErr := patchBindingStatusCondition(s.KarmadaClient, rb, condition); updateErr != nil {
 			// if patch error occurs, just return patch error to reconcile again.
@@ -588,6 +648,24 @@ func (s *Scheduler) scheduleResourceBindingWithClusterAffinity(rb *workv1alpha2.
 	}
 
 	klog.V(4).Infof("ResourceBinding(%s/%s) scheduled to clusters %v", rb.Namespace, rb.Name, scheduleResult.SuggestedClusters)
+
+	// Use async binder if enabled
+	if s.enableAsyncBind && s.asyncBinder != nil {
+		condition, _ := getConditionByError(nil) // Success condition
+		asyncErr := s.asyncBinder.AsyncBind(&binder.BindResult{
+			Binding:        rb,
+			ScheduleResult: scheduleResult.SuggestedClusters,
+			Placement:      string(placementBytes),
+			Condition:      condition,
+		})
+		if asyncErr == nil {
+			klog.V(4).Infof("ResourceBinding(%s/%s) submitted to async binder", rb.Namespace, rb.Name)
+			return errAsyncBindSubmitted
+		}
+		// Async bind failed (queue full), fall back to sync path
+		klog.Warningf("Async bind failed for ResourceBinding(%s/%s): %v, falling back to sync", rb.Namespace, rb.Name, asyncErr)
+	}
+
 	patchErr := s.patchScheduleResultForResourceBinding(rb, string(placementBytes), scheduleResult.SuggestedClusters)
 	if patchErr != nil {
 		err = utilerrors.NewAggregate([]error{err, patchErr})
@@ -654,6 +732,25 @@ func (s *Scheduler) scheduleResourceBindingWithClusterAffinities(rb *workv1alpha
 	}
 
 	klog.V(4).Infof("ResourceBinding(%s/%s) scheduled to clusters %v", rb.Namespace, rb.Name, scheduleResult.SuggestedClusters)
+
+	// Use async binder if enabled
+	if s.enableAsyncBind && s.asyncBinder != nil {
+		condition, _ := getConditionByError(nil) // Success condition
+		asyncErr := s.asyncBinder.AsyncBind(&binder.BindResult{
+			Binding:        rb,
+			ScheduleResult: scheduleResult.SuggestedClusters,
+			Placement:      string(placementBytes),
+			Condition:      condition,
+			AffinityName:   updatedStatus.SchedulerObservedAffinityName,
+		})
+		if asyncErr == nil {
+			klog.V(4).Infof("ResourceBinding(%s/%s) submitted to async binder", rb.Namespace, rb.Name)
+			return errAsyncBindSubmitted
+		}
+		// Async bind failed (queue full), fall back to sync path
+		klog.Warningf("Async bind failed for ResourceBinding(%s/%s): %v, falling back to sync", rb.Namespace, rb.Name, asyncErr)
+	}
+
 	patchErr := s.patchScheduleResultForResourceBinding(rb, string(placementBytes), scheduleResult.SuggestedClusters)
 	patchStatusErr := patchBindingStatusWithAffinityName(s.KarmadaClient, rb, updatedStatus.SchedulerObservedAffinityName)
 	scheduleErr := utilerrors.NewAggregate([]error{patchErr, patchStatusErr})
@@ -689,6 +786,11 @@ func (s *Scheduler) patchScheduleResultForResourceBinding(oldBinding *workv1alph
 
 func (s *Scheduler) scheduleClusterResourceBinding(crb *workv1alpha2.ClusterResourceBinding) (err error) {
 	defer func() {
+		// Skip status update if async bind was submitted - the async binder will handle it
+		if errors.Is(err, errAsyncBindSubmitted) {
+			err = nil
+			return
+		}
 		condition, ignoreErr := getConditionByError(err)
 		if updateErr := patchClusterBindingStatusCondition(s.KarmadaClient, crb, condition); updateErr != nil {
 			// if patch error occurs, just return patch error to reconcile again.
@@ -726,6 +828,24 @@ func (s *Scheduler) scheduleClusterResourceBindingWithClusterAffinity(crb *workv
 	}
 
 	klog.V(4).Infof("clusterResourceBinding(%s) scheduled to clusters %v", crb.Name, scheduleResult.SuggestedClusters)
+
+	// Use async binder if enabled
+	if s.enableAsyncBind && s.asyncBinder != nil {
+		condition, _ := getConditionByError(nil) // Success condition
+		asyncErr := s.asyncBinder.AsyncBind(&binder.BindResult{
+			ClusterBinding: crb,
+			ScheduleResult: scheduleResult.SuggestedClusters,
+			Placement:      string(placementBytes),
+			Condition:      condition,
+		})
+		if asyncErr == nil {
+			klog.V(4).Infof("ClusterResourceBinding(%s) submitted to async binder", crb.Name)
+			return errAsyncBindSubmitted
+		}
+		// Async bind failed (queue full), fall back to sync path
+		klog.Warningf("Async bind failed for ClusterResourceBinding(%s): %v, falling back to sync", crb.Name, asyncErr)
+	}
+
 	patchErr := s.patchScheduleResultForClusterResourceBinding(crb, string(placementBytes), scheduleResult.SuggestedClusters)
 	if patchErr != nil {
 		err = utilerrors.NewAggregate([]error{err, patchErr})
@@ -792,6 +912,25 @@ func (s *Scheduler) scheduleClusterResourceBindingWithClusterAffinities(crb *wor
 	}
 
 	klog.V(4).Infof("ClusterResourceBinding(%s) scheduled to clusters %v", crb.Name, scheduleResult.SuggestedClusters)
+
+	// Use async binder if enabled
+	if s.enableAsyncBind && s.asyncBinder != nil {
+		condition, _ := getConditionByError(nil) // Success condition
+		asyncErr := s.asyncBinder.AsyncBind(&binder.BindResult{
+			ClusterBinding: crb,
+			ScheduleResult: scheduleResult.SuggestedClusters,
+			Placement:      string(placementBytes),
+			Condition:      condition,
+			AffinityName:   updatedStatus.SchedulerObservedAffinityName,
+		})
+		if asyncErr == nil {
+			klog.V(4).Infof("ClusterResourceBinding(%s) submitted to async binder", crb.Name)
+			return errAsyncBindSubmitted
+		}
+		// Async bind failed (queue full), fall back to sync path
+		klog.Warningf("Async bind failed for ClusterResourceBinding(%s): %v, falling back to sync", crb.Name, asyncErr)
+	}
+
 	patchErr := s.patchScheduleResultForClusterResourceBinding(crb, string(placementBytes), scheduleResult.SuggestedClusters)
 	patchStatusErr := patchClusterBindingStatusWithAffinityName(s.KarmadaClient, crb, updatedStatus.SchedulerObservedAffinityName)
 	scheduleErr := utilerrors.NewAggregate([]error{patchErr, patchStatusErr})

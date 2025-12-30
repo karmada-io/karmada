@@ -19,6 +19,7 @@ package app
 import (
 	"context"
 	"flag"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -380,15 +381,56 @@ func startBindingController(ctx controllerscontext.Context) (enabled bool, err e
 		klog.Errorf("Failed to register index for Work based on ResourceBinding ID: %v", err)
 		return false, err
 	}
+
+	// Create requeue channels for async work creation failures
+	// RB and CRB use separate channels but share the same AsyncWorkCreator
+	var rbRequeueChan, crbRequeueChan chan string
+	if ctx.Opts.EnableAsyncWorkCreation {
+		rbRequeueChan = make(chan string, binding.DefaultAsyncWorkQueueSize)
+		crbRequeueChan = make(chan string, binding.DefaultAsyncWorkQueueSize)
+	}
+
+	// Create and start AsyncWorkCreator if enabled
+	var asyncWorkCreator *binding.AsyncWorkCreator
+	if ctx.Opts.EnableAsyncWorkCreation {
+		// Create requeue function that routes to appropriate channel based on binding key format
+		// RB keys have format "namespace/name", CRB keys have format "crb:name"
+		requeueFunc := func(bindingKey string) {
+			var targetChan chan string
+			if strings.HasPrefix(bindingKey, "crb:") {
+				targetChan = crbRequeueChan
+				bindingKey = strings.TrimPrefix(bindingKey, "crb:")
+			} else {
+				targetChan = rbRequeueChan
+			}
+			select {
+			case targetChan <- bindingKey:
+			default:
+				klog.Warningf("Requeue channel is full, dropping requeue for %s", bindingKey)
+			}
+		}
+		asyncWorkCreator = binding.NewAsyncWorkCreator(
+			ctx.Mgr.GetClient(),
+			ctx.Mgr.GetEventRecorderFor(binding.ControllerName),
+			ctx.Opts.AsyncWorkWorkers,
+			requeueFunc,
+		)
+		go asyncWorkCreator.Run(ctx.Context)
+		klog.Infof("Started async work creator with %d workers", ctx.Opts.AsyncWorkWorkers)
+	}
+
 	bindingController := &binding.ResourceBindingController{
-		Client:              ctx.Mgr.GetClient(),
-		DynamicClient:       ctx.DynamicClientSet,
-		EventRecorder:       ctx.Mgr.GetEventRecorderFor(binding.ControllerName),
-		RESTMapper:          ctx.Mgr.GetRESTMapper(),
-		OverrideManager:     ctx.OverrideManager,
-		InformerManager:     ctx.ControlPlaneInformerManager,
-		ResourceInterpreter: ctx.ResourceInterpreter,
-		RateLimiterOptions:  ctx.Opts.RateLimiterOptions,
+		Client:                  ctx.Mgr.GetClient(),
+		DynamicClient:           ctx.DynamicClientSet,
+		EventRecorder:           ctx.Mgr.GetEventRecorderFor(binding.ControllerName),
+		RESTMapper:              ctx.Mgr.GetRESTMapper(),
+		OverrideManager:         ctx.OverrideManager,
+		InformerManager:         ctx.ControlPlaneInformerManager,
+		ResourceInterpreter:     ctx.ResourceInterpreter,
+		RateLimiterOptions:      ctx.Opts.RateLimiterOptions,
+		EnableAsyncWorkCreation: ctx.Opts.EnableAsyncWorkCreation,
+		AsyncWorkCreator:        asyncWorkCreator,
+		RequeueAfterFailure:     rbRequeueChan,
 	}
 	if err := bindingController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
@@ -398,15 +440,21 @@ func startBindingController(ctx controllerscontext.Context) (enabled bool, err e
 		klog.Errorf("Failed to register index for Work based on ClusterResourceBinding ID: %v", err)
 		return false, err
 	}
+
+	// CRB shares the same AsyncWorkCreator with RB, but uses its own requeue channel
+	// The AsyncWorkCreator's requeueFunc routes to appropriate channel based on binding key prefix
 	clusterResourceBindingController := &binding.ClusterResourceBindingController{
-		Client:              ctx.Mgr.GetClient(),
-		DynamicClient:       ctx.DynamicClientSet,
-		EventRecorder:       ctx.Mgr.GetEventRecorderFor(binding.ClusterResourceBindingControllerName),
-		RESTMapper:          ctx.Mgr.GetRESTMapper(),
-		OverrideManager:     ctx.OverrideManager,
-		InformerManager:     ctx.ControlPlaneInformerManager,
-		ResourceInterpreter: ctx.ResourceInterpreter,
-		RateLimiterOptions:  ctx.Opts.RateLimiterOptions,
+		Client:                  ctx.Mgr.GetClient(),
+		DynamicClient:           ctx.DynamicClientSet,
+		EventRecorder:           ctx.Mgr.GetEventRecorderFor(binding.ClusterResourceBindingControllerName),
+		RESTMapper:              ctx.Mgr.GetRESTMapper(),
+		OverrideManager:         ctx.OverrideManager,
+		InformerManager:         ctx.ControlPlaneInformerManager,
+		ResourceInterpreter:     ctx.ResourceInterpreter,
+		RateLimiterOptions:      ctx.Opts.RateLimiterOptions,
+		EnableAsyncWorkCreation: ctx.Opts.EnableAsyncWorkCreation,
+		AsyncWorkCreator:        asyncWorkCreator,
+		RequeueAfterFailure:     crbRequeueChan,
 	}
 	if err := clusterResourceBindingController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
@@ -924,6 +972,8 @@ func setupControllers(ctx context.Context, mgr controllerruntime.Manager, opts *
 			RateLimiterOptions:                opts.RateLimiterOpts,
 			GracefulEvictionTimeout:           opts.GracefulEvictionTimeout,
 			EnableClusterResourceModeling:     opts.EnableClusterResourceModeling,
+			EnableAsyncWorkCreation:           opts.EnableAsyncWorkCreation,
+			AsyncWorkWorkers:                  opts.AsyncWorkWorkers,
 			HPAControllerConfiguration:        opts.HPAControllerConfiguration,
 			FederatedResourceQuotaOptions:     opts.FederatedResourceQuotaOptions,
 			FailoverConfiguration:             opts.FailoverOptions,

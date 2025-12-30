@@ -19,6 +19,7 @@ package binding
 import (
 	"context"
 	"strconv"
+	"sync"
 	"time"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -47,17 +48,37 @@ const (
 	requeueIntervalForDirectlyPurge = 5 * time.Second
 )
 
+// workTask represents a task to create/update a Work object
+type workTask struct {
+	workMeta      metav1.ObjectMeta
+	workload      *unstructured.Unstructured
+	suspendDisp   bool
+	preserveOnDel bool
+}
+
+// prepareResult holds the result of preparing a single work task
+type prepareResult struct {
+	index int
+	task  workTask
+	err   error
+}
+
 // ensureWork ensure Work to be created or updated.
+// Optimized with parallel processing for both preparation and execution phases.
 func ensureWork(
 	ctx context.Context, c client.Client, resourceInterpreter resourceinterpreter.ResourceInterpreter, workload *unstructured.Unstructured,
 	overrideManager overridemanager.OverrideManager, binding metav1.Object, scope apiextensionsv1.ResourceScope,
 ) error {
 	bindingSpec := getBindingSpec(binding, scope)
 	targetClusters := mergeTargetClusters(bindingSpec.Clusters, bindingSpec.RequiredBy)
-	var err error
-	var errs []error
+
+	// Fast path: no target clusters
+	if len(targetClusters) == 0 {
+		return nil
+	}
 
 	var jobCompletions []workv1alpha2.TargetCluster
+	var err error
 	if workload.GetKind() == util.JobKind && needReviseJobCompletions(bindingSpec.Replicas, bindingSpec.Placement) {
 		jobCompletions, err = divideReplicasByJobCompletions(workload, targetClusters)
 		if err != nil {
@@ -65,96 +86,228 @@ func ensureWork(
 		}
 	}
 
+	numClusters := len(targetClusters)
+
+	// Single cluster: use sequential processing (no goroutine overhead)
+	if numClusters == 1 {
+		return ensureWorkSequential(ctx, c, resourceInterpreter, workload, overrideManager, binding, scope, bindingSpec, targetClusters, jobCompletions)
+	}
+
+	// Multiple clusters: parallel preparation and execution
+	return ensureWorkParallel(ctx, c, resourceInterpreter, workload, overrideManager, binding, scope, bindingSpec, targetClusters, jobCompletions)
+}
+
+// ensureWorkSequential handles single cluster case without goroutine overhead
+func ensureWorkSequential(
+	ctx context.Context, c client.Client, resourceInterpreter resourceinterpreter.ResourceInterpreter, workload *unstructured.Unstructured,
+	overrideManager overridemanager.OverrideManager, binding metav1.Object, scope apiextensionsv1.ResourceScope,
+	bindingSpec workv1alpha2.ResourceBindingSpec, targetClusters []workv1alpha2.TargetCluster, jobCompletions []workv1alpha2.TargetCluster,
+) error {
+	targetCluster := targetClusters[0]
+	clonedWorkload := workload.DeepCopy()
+
+	task, err := prepareWorkTask(PrepareWorkTaskArgs{
+		ResourceInterpreter: resourceInterpreter,
+		ClonedWorkload:      clonedWorkload,
+		OverrideManager:     overrideManager,
+		Binding:             binding,
+		Scope:               scope,
+		BindingSpec:         bindingSpec,
+		TargetCluster:       targetCluster,
+		ClusterIndex:        0,
+		JobCompletions:      jobCompletions,
+		TotalClusters:       len(targetClusters),
+	})
+	if err != nil {
+		return err
+	}
+
+	return ctrlutil.CreateOrUpdateWork(ctx, c, task.workMeta, task.workload,
+		ctrlutil.WithSuspendDispatching(task.suspendDisp),
+		ctrlutil.WithPreserveResourcesOnDeletion(task.preserveOnDel))
+}
+
+// ensureWorkParallel handles multiple clusters with parallel preparation and execution
+func ensureWorkParallel(
+	ctx context.Context, c client.Client, resourceInterpreter resourceinterpreter.ResourceInterpreter, workload *unstructured.Unstructured,
+	overrideManager overridemanager.OverrideManager, binding metav1.Object, scope apiextensionsv1.ResourceScope,
+	bindingSpec workv1alpha2.ResourceBindingSpec, targetClusters []workv1alpha2.TargetCluster, jobCompletions []workv1alpha2.TargetCluster,
+) error {
+	numClusters := len(targetClusters)
+
+	// Phase 1: Parallel preparation
+	resultCh := make(chan prepareResult, numClusters)
+	var prepareWg sync.WaitGroup
+
 	for i := range targetClusters {
-		targetCluster := targetClusters[i]
-		clonedWorkload := workload.DeepCopy()
+		prepareWg.Add(1)
+		go func(idx int, tc workv1alpha2.TargetCluster) {
+			defer prepareWg.Done()
 
-		workNamespace := names.GenerateExecutionSpaceName(targetCluster.Name)
+			// Each goroutine gets its own deep copy
+			clonedWorkload := workload.DeepCopy()
 
-		// When syncing workloads to member clusters, the controller MUST strictly adhere to the scheduling results
-		// specified in bindingSpec.Clusters for replica allocation, rather than using the replicas declared in the
-		// workload's resource template.
-		// This rule applies regardless of whether the workload distribution mode is "Divided" or "Duplicated".
-		// Failing to do so could allow workloads to bypass the quota checks performed by the scheduler
-		// (especially during scale-up operations) or skip queue validation when scheduling is suspended.
-		if bindingSpec.IsWorkload() {
-			if resourceInterpreter.HookEnabled(clonedWorkload.GroupVersionKind(), configv1alpha1.InterpreterOperationReviseReplica) {
-				clonedWorkload, err = resourceInterpreter.ReviseReplica(clonedWorkload, int64(targetCluster.Replicas))
-				if err != nil {
-					klog.ErrorS(err, "Failed to revise replica for workload in cluster.", "workloadKind", workload.GetKind(),
-						"workloadNamespace", workload.GetNamespace(), "workloadName", workload.GetName(), "cluster", targetCluster.Name)
-					errs = append(errs, err)
-					continue
-				}
-			}
+			task, err := prepareWorkTask(PrepareWorkTaskArgs{
+				ResourceInterpreter: resourceInterpreter,
+				ClonedWorkload:      clonedWorkload,
+				OverrideManager:     overrideManager,
+				Binding:             binding,
+				Scope:               scope,
+				BindingSpec:         bindingSpec,
+				TargetCluster:       tc,
+				ClusterIndex:        idx,
+				JobCompletions:      jobCompletions,
+				TotalClusters:       numClusters,
+			})
+			resultCh <- prepareResult{index: idx, task: task, err: err}
+		}(i, targetClusters[i])
+	}
+
+	// Wait for all preparations to complete, then close channel
+	go func() {
+		prepareWg.Wait()
+		close(resultCh)
+	}()
+
+	// Collect preparation results
+	tasks := make([]workTask, numClusters)
+	var prepareErrs []error
+	validCount := 0
+
+	for result := range resultCh {
+		if result.err != nil {
+			prepareErrs = append(prepareErrs, result.err)
+			continue
+		}
+		tasks[result.index] = result.task
+		validCount++
+	}
+
+	// If no valid tasks, return prepare errors
+	if validCount == 0 {
+		return errors.NewAggregate(prepareErrs)
+	}
+
+	// Phase 2: Parallel execution
+	errCh := make(chan error, validCount)
+	var execWg sync.WaitGroup
+
+	for i := range tasks {
+		// Skip empty tasks (failed preparation)
+		if tasks[i].workload == nil {
+			continue
 		}
 
-		// jobSpec.Completions specifies the desired number of successfully finished pods the job should be run with.
-		// When the replica scheduling policy is set to "divided", jobSpec.Completions should also be divided accordingly.
-		// The weight assigned to each cluster roughly equals that cluster's jobSpec.Parallelism value. This approach helps
-		// balance the execution time of the job across member clusters.
-		if len(jobCompletions) > 0 {
-			// Set allocated completions for Job only when the '.spec.completions' field not omitted from resource template.
-			// For jobs running with a 'work queue' usually leaves '.spec.completions' unset, in that case we skip
-			// setting this field as well.
-			// Refer to: https://kubernetes.io/docs/concepts/workloads/controllers/job/#parallel-jobs.
-			if err = helper.ApplyReplica(clonedWorkload, int64(jobCompletions[i].Replicas), util.CompletionsField); err != nil {
-				klog.ErrorS(err, "Failed to apply Completions for workload in cluster.",
+		execWg.Add(1)
+		go func(task workTask) {
+			defer execWg.Done()
+			if err := ctrlutil.CreateOrUpdateWork(ctx, c, task.workMeta, task.workload,
+				ctrlutil.WithSuspendDispatching(task.suspendDisp),
+				ctrlutil.WithPreserveResourcesOnDeletion(task.preserveOnDel)); err != nil {
+				errCh <- err
+			}
+		}(tasks[i])
+	}
+
+	execWg.Wait()
+	close(errCh)
+
+	// Collect execution errors
+	var executeErrs []error
+	for err := range errCh {
+		executeErrs = append(executeErrs, err)
+	}
+
+	// Combine all errors
+	allErrs := append(prepareErrs, executeErrs...)
+	if len(allErrs) > 0 {
+		return errors.NewAggregate(allErrs)
+	}
+	return nil
+}
+
+// PrepareWorkTaskArgs contains all arguments for prepareWorkTask function.
+// This struct encapsulates the 10 parameters to improve readability and maintainability.
+type PrepareWorkTaskArgs struct {
+	ResourceInterpreter resourceinterpreter.ResourceInterpreter
+	ClonedWorkload      *unstructured.Unstructured
+	OverrideManager     overridemanager.OverrideManager
+	Binding             metav1.Object
+	Scope               apiextensionsv1.ResourceScope
+	BindingSpec         workv1alpha2.ResourceBindingSpec
+	TargetCluster       workv1alpha2.TargetCluster
+	ClusterIndex        int
+	JobCompletions      []workv1alpha2.TargetCluster
+	TotalClusters       int
+}
+
+// prepareWorkTask prepares a single work task for a target cluster.
+// This function is safe to call concurrently as long as each call has its own clonedWorkload.
+func prepareWorkTask(args PrepareWorkTaskArgs) (workTask, error) {
+	clonedWorkload := args.ClonedWorkload
+	workNamespace := names.GenerateExecutionSpaceName(args.TargetCluster.Name)
+
+	// When syncing workloads to member clusters, the controller MUST strictly adhere to the scheduling results
+	// specified in bindingSpec.Clusters for replica allocation, rather than using the replicas declared in the
+	// workload's resource template.
+	if args.BindingSpec.IsWorkload() {
+		if args.ResourceInterpreter.HookEnabled(clonedWorkload.GroupVersionKind(), configv1alpha1.InterpreterOperationReviseReplica) {
+			var err error
+			clonedWorkload, err = args.ResourceInterpreter.ReviseReplica(clonedWorkload, int64(args.TargetCluster.Replicas))
+			if err != nil {
+				klog.ErrorS(err, "Failed to revise replica for workload in cluster.",
 					"workloadKind", clonedWorkload.GetKind(), "workloadNamespace", clonedWorkload.GetNamespace(),
-					"workloadName", clonedWorkload.GetName(), "cluster", targetCluster.Name)
-				errs = append(errs, err)
-				continue
+					"workloadName", clonedWorkload.GetName(), "cluster", args.TargetCluster.Name)
+				return workTask{}, err
 			}
 		}
+	}
 
-		// We should call ApplyOverridePolicies last, as override rules have the highest priority
-		cops, ops, err := overrideManager.ApplyOverridePolicies(clonedWorkload, targetCluster.Name)
-		if err != nil {
-			klog.ErrorS(err, "Failed to apply overrides for workload in cluster.",
+	// Set allocated completions for Job only when the '.spec.completions' field not omitted from resource template.
+	if len(args.JobCompletions) > 0 && args.ClusterIndex < len(args.JobCompletions) {
+		if err := helper.ApplyReplica(clonedWorkload, int64(args.JobCompletions[args.ClusterIndex].Replicas), util.CompletionsField); err != nil {
+			klog.ErrorS(err, "Failed to apply Completions for workload in cluster.",
 				"workloadKind", clonedWorkload.GetKind(), "workloadNamespace", clonedWorkload.GetNamespace(),
-				"workloadName", clonedWorkload.GetName(), "cluster", targetCluster.Name)
-			errs = append(errs, err)
-			continue
+				"workloadName", clonedWorkload.GetName(), "cluster", args.TargetCluster.Name)
+			return workTask{}, err
 		}
-		workLabel := mergeLabel(clonedWorkload, binding, scope)
+	}
 
-		annotations := mergeAnnotations(clonedWorkload, binding, scope)
-		annotations = mergeConflictResolution(clonedWorkload, bindingSpec.ConflictResolution, annotations)
-		annotations, err = RecordAppliedOverrides(cops, ops, annotations)
-		if err != nil {
-			klog.ErrorS(err, "Failed to record appliedOverrides in cluster.", "cluster", targetCluster.Name)
-			errs = append(errs, err)
-			continue
-		}
+	// We should call ApplyOverridePolicies last, as override rules have the highest priority
+	cops, ops, err := args.OverrideManager.ApplyOverridePolicies(clonedWorkload, args.TargetCluster.Name)
+	if err != nil {
+		klog.ErrorS(err, "Failed to apply overrides for workload in cluster.",
+			"workloadKind", clonedWorkload.GetKind(), "workloadNamespace", clonedWorkload.GetNamespace(),
+			"workloadName", clonedWorkload.GetName(), "cluster", args.TargetCluster.Name)
+		return workTask{}, err
+	}
 
-		if features.FeatureGate.Enabled(features.StatefulFailoverInjection) {
-			// we need to figure out if the targetCluster is in the cluster we are going to migrate application to.
-			// If yes, we have to inject the preserved label state to the clonedWorkload.
-			clonedWorkload = injectReservedLabelState(bindingSpec, targetCluster, clonedWorkload, len(targetClusters))
-		}
+	workLabel := mergeLabel(clonedWorkload, args.Binding, args.Scope)
 
-		workMeta := metav1.ObjectMeta{
+	annotations := mergeAnnotations(clonedWorkload, args.Binding, args.Scope)
+	annotations = mergeConflictResolution(clonedWorkload, args.BindingSpec.ConflictResolution, annotations)
+	annotations, err = RecordAppliedOverrides(cops, ops, annotations)
+	if err != nil {
+		klog.ErrorS(err, "Failed to record appliedOverrides in cluster.", "cluster", args.TargetCluster.Name)
+		return workTask{}, err
+	}
+
+	if features.FeatureGate.Enabled(features.StatefulFailoverInjection) {
+		clonedWorkload = injectReservedLabelState(args.BindingSpec, args.TargetCluster, clonedWorkload, args.TotalClusters)
+	}
+
+	return workTask{
+		workMeta: metav1.ObjectMeta{
 			Name:        names.GenerateWorkName(clonedWorkload.GetKind(), clonedWorkload.GetName(), clonedWorkload.GetNamespace()),
 			Namespace:   workNamespace,
 			Finalizers:  []string{util.ExecutionControllerFinalizer},
 			Labels:      workLabel,
 			Annotations: annotations,
-		}
-
-		if err = ctrlutil.CreateOrUpdateWork(
-			ctx,
-			c,
-			workMeta,
-			clonedWorkload,
-			ctrlutil.WithSuspendDispatching(shouldSuspendDispatching(bindingSpec.Suspension, targetCluster)),
-			ctrlutil.WithPreserveResourcesOnDeletion(ptr.Deref(bindingSpec.PreserveResourcesOnDeletion, false)),
-		); err != nil {
-			errs = append(errs, err)
-			continue
-		}
-	}
-
-	return errors.NewAggregate(errs)
+		},
+		workload:      clonedWorkload,
+		suspendDisp:   shouldSuspendDispatching(args.BindingSpec.Suspension, args.TargetCluster),
+		preserveOnDel: ptr.Deref(args.BindingSpec.PreserveResourcesOnDeletion, false),
+	}, nil
 }
 
 func getBindingSpec(binding metav1.Object, scope apiextensionsv1.ResourceScope) workv1alpha2.ResourceBindingSpec {

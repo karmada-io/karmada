@@ -33,6 +33,10 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 )
 
+// errAsyncBindSubmitted is a sentinel error indicating that the binding was submitted
+// to the async binder and should not be processed synchronously.
+var errAsyncBindSubmitted = errors.New("async bind submitted")
+
 func placementChanged(
 	placement policyv1alpha1.Placement,
 	appliedPlacementStr string,
