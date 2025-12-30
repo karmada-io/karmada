@@ -1,5 +1,7 @@
 # test case for interpreting status of SidecarSet
 # case1. SidecarSet: interpret status test
+# case2. SidecarSet interpret status with partial status
+# case3. SidecarSet interpret status with no status
 
 name: "SidecarSet: interpret status test"
 description: "Test interpreting status for SidecarSet"
@@ -45,3 +47,37 @@ observedObj:
     readyPods: 3
 operation: InterpretStatus
 output:
+  status:
+    matchedPods: 3
+    updatedPods: 3
+    readyPods: 3
+---
+name: "SidecarSet interpret status with partial status"
+description: "Missing status fields should default to zero"
+observedObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: SidecarSet
+  metadata:
+    name: sample-sidecarset
+    namespace: test-sidecarset
+  status:
+    matchedPods: 2
+operation: InterpretStatus
+output:
+  status:
+    matchedPods: 2
+    updatedPods: 0
+    readyPods: 0
+---
+name: "SidecarSet interpret status with no status"
+description: "InterpretStatus should return empty status when status is nil"
+observedObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: SidecarSet
+  metadata:
+    name: sample-sidecarset
+    namespace: test-sidecarset
+operation: InterpretStatus
+output:
+  status: {}
+

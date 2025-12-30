@@ -40,3 +40,5 @@ desiredObj:
         secret:
           secretName: sidecar-secret
 operation: InterpretReplica
+output:
+  replica: 0

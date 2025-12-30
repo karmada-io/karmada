@@ -1,5 +1,7 @@
 # test case for interpreting dependency of SidecarSet
 # case1. SidecarSet with configmap and secret dependency
+# case2. SidecarSet with volume configmap and secret dependency
+# case3. SidecarSet with no dependencies
 
 name: "SidecarSet with configmap and secret dependency"
 description: "Test interpreting dependency of SidecarSet with configmap and secret dependency"
@@ -41,3 +43,59 @@ desiredObj:
           secretName: sidecar-secret
 operation: InterpretDependency
 output:
+  dependencies:
+    - apiVersion: v1
+      kind: ConfigMap
+      name: sidecar-config
+      namespace: test-sidecarset
+    - apiVersion: v1
+      kind: Secret
+      name: sidecar-secret
+      namespace: test-sidecarset
+---
+name: "SidecarSet with volume configmap and secret dependency"
+description: "InterpretDependency should return dependencies from volumes"
+desiredObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: SidecarSet
+  metadata:
+    name: sample-sidecarset
+    namespace: test-sidecarset
+  spec:
+    containers:
+      - name: sidecar
+        image: busybox
+    volumes:
+      - name: config-vol
+        configMap:
+          name: sidecar-config
+      - name: secret-vol
+        secret:
+          secretName: sidecar-secret
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: ConfigMap
+      name: sidecar-config
+      namespace: test-sidecarset
+    - apiVersion: v1
+      kind: Secret
+      name: sidecar-secret
+      namespace: test-sidecarset 
+---
+name: "SidecarSet with no dependencies"
+description: "InterpretDependency should return empty dependency list"
+desiredObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: SidecarSet
+  metadata:
+    name: sample-sidecarset
+    namespace: test-sidecarset
+  spec:
+    containers:
+      - name: sidecar
+        image: busybox
+operation: InterpretDependency
+output:
+  dependencies: []
