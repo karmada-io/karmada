@@ -50,6 +50,7 @@ spec:
 
           local conditions = {}
           local generation = desiredObj.metadata.generation
+          local observedGeneration = desiredObj.status.observedGeneration
           local lastAttemptedRevision = desiredObj.status.lastAttemptedRevision
           local lastAppliedRevision = desiredObj.status.lastAppliedRevision
           local lastAttemptedValuesChecksum = desiredObj.status.lastAttemptedValuesChecksum
