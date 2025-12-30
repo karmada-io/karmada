@@ -144,6 +144,14 @@ type Options struct {
 	// in scenario of dynamic replica assignment based on cluster free resources.
 	// Disable if it does not fit your cases for better performance.
 	EnableClusterResourceModeling bool
+	// EnableAsyncWorkCreation enables asynchronous work creation for binding controller.
+	// When enabled, work creation tasks are submitted to an async queue and processed
+	// by dedicated workers, improving throughput for large-scale deployments.
+	EnableAsyncWorkCreation bool
+	// AsyncWorkWorkers is the number of concurrent workers for asynchronous work creation.
+	// Only effective when EnableAsyncWorkCreation is true.
+	// Defaults to 64.
+	AsyncWorkWorkers int
 	// FederatedResourceQuotaOptions holds configurations for FederatedResourceQuota reconciliation.
 	FederatedResourceQuotaOptions FederatedResourceQuotaOptions
 	// FailoverOptions holds the Failover configurations.
@@ -228,6 +236,8 @@ func (o *Options) AddFlags(flags *pflag.FlagSet, allControllers, disabledByDefau
 	flags.BoolVar(&o.EnableClusterResourceModeling, "enable-cluster-resource-modeling", true, "Enable means controller would build resource modeling for each cluster by syncing Nodes and Pods resources.\n"+
 		"The resource modeling might be used by the scheduler to make scheduling decisions in scenario of dynamic replica assignment based on cluster free resources.\n"+
 		"Disable if it does not fit your cases for better performance.")
+	flags.BoolVar(&o.EnableAsyncWorkCreation, "enable-async-work-creation", false, "Enable asynchronous work creation for binding controller. When enabled, work creation tasks are submitted to an async queue for processing by dedicated workers, improving throughput for large-scale deployments.")
+	flags.IntVar(&o.AsyncWorkWorkers, "async-work-workers", 64, "Number of concurrent workers for asynchronous work creation. Only effective when --enable-async-work-creation is true.")
 
 	o.RateLimiterOpts.AddFlags(flags)
 	o.ProfileOpts.AddFlags(flags)
