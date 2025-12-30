@@ -1,5 +1,6 @@
 # test case for interpreting replica of Workflow
 # case1. Workflow with parallelism set to 2
+# case2. Workflow with parallelism unset (default 1)
 
 name: "Workflow with parallelism set to 2"
 description: "Test interpreting replica of Workflow with parallelism set to 2"
@@ -9,7 +10,7 @@ desiredObj:
   metadata:
     labels:
       app: sample
-    name: sample
+    name: sample-parallelism-2
     namespace: test-workflow
   spec:
     parallelism: 2
@@ -45,3 +46,28 @@ desiredObj:
             requests:
               memory: 1Mi
 operation: InterpretReplica
+output:
+  replica: 2
+
+---
+name: "Workflow with parallelism unset"
+description: "Test interpreting replica of Workflow with no parallelism specified (defaults to 1)"
+desiredObj:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Workflow
+  metadata:
+    labels:
+      app: sample
+    name: sample-no-parallelism
+    namespace: test-workflow
+  spec:
+    entrypoint: simple-template
+    templates:
+      - name: simple-template
+        container:
+          image: busybox
+          command: [ "sleep" ]
+          args: [ "10" ]
+operation: InterpretReplica
+output:
+  replica: 1

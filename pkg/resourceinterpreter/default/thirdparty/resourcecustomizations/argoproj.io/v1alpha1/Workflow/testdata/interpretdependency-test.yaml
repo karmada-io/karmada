@@ -1,0 +1,100 @@
+# test case for interpreting dependency of Workflow
+# case1. Workflow with no dependencies
+# case2. Workflow with volume dependency
+# case3. Workflow with ConfigMap env dependency
+
+name: "Workflow with no dependencies"
+description: "Test interpreting dependency of simple Workflow with no dependencies"
+desiredObj:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Workflow
+  metadata:
+    labels:
+      app: sample
+    name: sample-no-deps
+    namespace: test-workflow
+  spec:
+    parallelism: 1
+    entrypoint: simple-task
+    templates:
+      - name: simple-task
+        container:
+          image: busybox
+          command: [ "echo" ]
+          args: [ "hello" ]
+operation: InterpretDependency
+output:
+  dependencies: []
+
+---
+name: "Workflow with volume dependency"
+description: "Test interpreting dependency of Workflow with PVC volume + ServiceAccount"
+desiredObj:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Workflow
+  metadata:
+    labels:
+      app: sample
+    name: sample-volume-dep
+    namespace: test-workflow
+  spec:
+    parallelism: 1
+    entrypoint: volumes-existing-example
+    volumes:
+      - name: workdir
+        persistentVolumeClaim:
+          claimName: my-existing-volume
+    serviceAccountName: my-service-account
+    templates:
+      - name: volumes-existing-example
+        container:
+          image: busybox
+          volumeMounts:
+            - name: workdir
+              mountPath: /mnt/vol
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: my-existing-volume
+      namespace: test-workflow
+    - apiVersion: v1
+      kind: ServiceAccount
+      name: my-service-account
+      namespace: test-workflow
+
+---
+name: "Workflow with volume ConfigMap dependency"
+description: "Test interpreting dependency of Workflow with volume-mounted ConfigMap"
+desiredObj:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Workflow
+  metadata:
+    labels:
+      app: sample
+    name: sample-config-volume
+    namespace: test-workflow
+  spec:
+    parallelism: 1
+    entrypoint: config-volume-task
+    volumes:
+      - name: config-volume
+        configMap:
+          name: workflow-config
+    templates:
+      - name: config-volume-task
+        container:
+          image: busybox
+          command: [ "ls" ]
+          args: [ "/config" ]
+          volumeMounts:
+            - name: config-volume
+              mountPath: /config
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: ConfigMap
+      name: workflow-config
+      namespace: test-workflow
