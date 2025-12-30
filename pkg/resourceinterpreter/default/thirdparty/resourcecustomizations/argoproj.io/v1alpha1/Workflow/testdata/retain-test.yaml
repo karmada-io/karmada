@@ -1,5 +1,6 @@
 # test case for retaining Workflow
 # case1. Workflow retain should preserve observed suspend
+# case2. Workflow retain should preserve observed status
 
 name: "Workflow retain should preserve observed suspend"
 description: "Retain should copy spec.suspend from observedObj"
@@ -32,3 +33,117 @@ output:
     spec:
       parallelism: 1
       suspend: true
+
+---
+name: "Workflow retain should preserve observed status"
+description: "Retain should copy status from observedObj"
+desiredObj:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Workflow
+  metadata:
+    labels:
+      app: sample
+    name: sample-recent
+    namespace: test-workflow
+  spec:
+    parallelism: 1
+    entrypoint: volumes-existing-example
+    volumes:
+      - name: workdir
+        persistentVolumeClaim:
+          claimName: my-existing-volume
+    serviceAccountName: my-service-account
+    imagePullSecrets:
+      - name: my-secret
+    tolerations:
+      - key: "key"
+        operation: "Equal"
+        value: "value"
+        effect: "NoSchedule"
+    templates:
+      - name: volumes-existing-example
+        steps:
+          - - name: hello
+              template: whalesay
+      - name: whalesay
+        container:
+          image: docker/whalesay:latest
+          command: [cowsay]
+          args: ["hello world"]
+          volumeMounts:
+            - name: workdir
+              mountPath: /mnt/vol
+          resources:
+            limits:
+              memory: 1Gi
+            requests:
+              memory: 1Mi
+observedObj:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Workflow
+  metadata:
+    labels:
+      app: sample
+    name: sample-recent
+    namespace: test-workflow
+  spec:
+    parallelism: 1
+    entrypoint: volumes-existing-example
+    volumes:
+      - name: workdir
+        persistentVolumeClaim:
+          claimName: my-existing-volume
+    serviceAccountName: my-service-account
+  status:
+    finishedAt: "2025-12-12T10:05:00Z"
+    phase: "Succeeded"
+    progress: "1/1"
+    startedAt: "2025-12-12T10:00:00Z"
+operation: Retain
+output:
+  retained:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Workflow
+    metadata:
+      labels:
+        app: sample
+      name: sample-recent
+      namespace: test-workflow
+    spec:
+      parallelism: 1
+      entrypoint: volumes-existing-example
+      volumes:
+        - name: workdir
+          persistentVolumeClaim:
+            claimName: my-existing-volume
+      serviceAccountName: my-service-account
+      imagePullSecrets:
+        - name: my-secret
+      tolerations:
+        - key: "key"
+          operation: "Equal"
+          value: "value"
+          effect: "NoSchedule"
+      templates:
+        - name: volumes-existing-example
+          steps:
+            - - name: hello
+                template: whalesay
+        - name: whalesay
+          container:
+            image: docker/whalesay:latest
+            command: [cowsay]
+            args: ["hello world"]
+            volumeMounts:
+              - name: workdir
+                mountPath: /mnt/vol
+            resources:
+              limits:
+                memory: 1Gi
+              requests:
+                memory: 1Mi
+    status:
+      finishedAt: "2025-12-12T10:05:00Z"
+      phase: "Succeeded"
+      progress: "1/1"
+      startedAt: "2025-12-12T10:00:00Z"
