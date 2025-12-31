@@ -1,0 +1,184 @@
+# test case for interpreting dependencies of HelmRelease
+# case1. HelmRelease with valuesFrom Secret should return Secret dependency
+# case2. HelmRelease with valuesFrom ConfigMap should return ConfigMap dependency
+# case3. HelmRelease with chart.spec.verify.secretRef should return Secret dependency
+# case4. HelmRelease with kubeConfig.secretRef should return Secret dependency
+# case5. HelmRelease with serviceAccountName should return ServiceAccount dependency
+# case6. HelmRelease with all dependency types should return all dependencies
+# case7. HelmRelease without dependencies should return empty array
+
+name: "HelmRelease with valuesFrom Secret should return Secret dependency"
+description: "Test interpreting dependencies when valuesFrom contains Secret"
+desiredObj:
+  apiVersion: helm.toolkit.fluxcd.io/v2beta1
+  kind: HelmRelease
+  metadata:
+    name: sample
+    namespace: default
+  spec:
+    valuesFrom:
+      - kind: Secret
+        name: my-secret
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: Secret
+      name: my-secret
+      namespace: default
+
+---
+name: "HelmRelease with valuesFrom ConfigMap should return ConfigMap dependency"
+description: "Test interpreting dependencies when valuesFrom contains ConfigMap"
+desiredObj:
+  apiVersion: helm.toolkit.fluxcd.io/v2beta1
+  kind: HelmRelease
+  metadata:
+    name: sample
+    namespace: default
+  spec:
+    valuesFrom:
+      - kind: ConfigMap
+        name: my-configmap
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: ConfigMap
+      name: my-configmap
+      namespace: default
+
+---
+name: "HelmRelease with chart.spec.verify.secretRef should return Secret dependency"
+description: "Test interpreting dependencies when chart.spec.verify.secretRef is set"
+desiredObj:
+  apiVersion: helm.toolkit.fluxcd.io/v2beta1
+  kind: HelmRelease
+  metadata:
+    name: sample
+    namespace: default
+  spec:
+    chart:
+      spec:
+        chart: "./charts/podinfo"
+        version: ">=4.0.0 <5.0.0"
+        verify:
+          secretRef:
+            name: verify-secret
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: Secret
+      name: verify-secret
+      namespace: default
+
+---
+name: "HelmRelease with kubeConfig.secretRef should return Secret dependency"
+description: "Test interpreting dependencies when kubeConfig.secretRef is set"
+desiredObj:
+  apiVersion: helm.toolkit.fluxcd.io/v2beta1
+  kind: HelmRelease
+  metadata:
+    name: sample
+    namespace: default
+  spec:
+    kubeConfig:
+      secretRef:
+        name: kubeconfig-secret
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: Secret
+      name: kubeconfig-secret
+      namespace: default
+
+---
+name: "HelmRelease with serviceAccountName should return ServiceAccount dependency"
+description: "Test interpreting dependencies when serviceAccountName is set"
+desiredObj:
+  apiVersion: helm.toolkit.fluxcd.io/v2beta1
+  kind: HelmRelease
+  metadata:
+    name: sample
+    namespace: default
+  spec:
+    serviceAccountName: my-serviceaccount
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: ServiceAccount
+      name: my-serviceaccount
+      namespace: default
+
+---
+name: "HelmRelease with all dependency types should return all dependencies"
+description: "Test interpreting dependencies when all dependency types are present"
+desiredObj:
+  apiVersion: helm.toolkit.fluxcd.io/v2beta1
+  kind: HelmRelease
+  metadata:
+    name: sample
+    namespace: default
+  spec:
+    valuesFrom:
+      - kind: Secret
+        name: values-secret
+      - kind: ConfigMap
+        name: values-configmap
+    chart:
+      spec:
+        chart: "./charts/podinfo"
+        version: ">=4.0.0 <5.0.0"
+        verify:
+          secretRef:
+            name: verify-secret
+    kubeConfig:
+      secretRef:
+        name: kubeconfig-secret
+    serviceAccountName: my-serviceaccount
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: ConfigMap
+      name: values-configmap
+      namespace: default
+    - apiVersion: v1
+      kind: Secret
+      name: kubeconfig-secret
+      namespace: default
+    - apiVersion: v1
+      kind: Secret
+      name: values-secret
+      namespace: default
+    - apiVersion: v1
+      kind: Secret
+      name: verify-secret
+      namespace: default
+    - apiVersion: v1
+      kind: ServiceAccount
+      name: my-serviceaccount
+      namespace: default
+
+---
+name: "HelmRelease without dependencies should return empty array"
+description: "Test interpreting dependencies when no dependencies are configured"
+desiredObj:
+  apiVersion: helm.toolkit.fluxcd.io/v2beta1
+  kind: HelmRelease
+  metadata:
+    name: sample
+    namespace: default
+  spec:
+    interval: 5m
+    chart:
+      spec:
+        chart: "./charts/podinfo"
+        version: ">=4.0.0 <5.0.0"
+operation: InterpretDependency
+output:
+  dependencies: []
+
