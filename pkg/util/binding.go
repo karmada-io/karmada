@@ -22,6 +22,7 @@ import (
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/features"
 )
 
 // GetBindingClusterNames will get clusterName list from bind clusters field
@@ -38,6 +39,20 @@ func IsBindingReplicasChanged(bindingSpec *workv1alpha2.ResourceBindingSpec, str
 	if strategy == nil {
 		return false
 	}
+
+	// For multi-component workloads, trigger rescheduling when clusters are empty (e.g., after eviction).
+	// This is a temporary fix to ensure cluster failover works correctly.
+	// Limitation: This only handles the failover scenario where clusters are cleared.
+	// It does not detect component replica changes (e.g., scale up/down) or replica swaps between components.
+	// A complete solution requires changing how scheduling results are stored to support multi-template workloads,
+	// likely by extending TargetCluster to include per-component replica information.
+	// The comprehensive solution is tracked by: https://github.com/karmada-io/karmada/issues/6998
+	if features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) && len(bindingSpec.Components) > 1 {
+		if len(bindingSpec.Clusters) == 0 {
+			return true
+		}
+	}
+
 	if strategy.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDuplicated {
 		for _, targetCluster := range bindingSpec.Clusters {
 			if targetCluster.Replicas != bindingSpec.Replicas {
