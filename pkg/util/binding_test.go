@@ -177,6 +177,60 @@ func TestIsBindingReplicasChanged(t *testing.T) {
 			strategy: &policyv1alpha1.ReplicaSchedulingStrategy{ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDivided},
 			expected: true,
 		},
+		{
+			name: "Duplicated strategy with components not changed",
+			bindingSpec: &workv1alpha2.ResourceBindingSpec{
+				Components: []workv1alpha2.Component{
+					{
+						Name:     "jobmanager",
+						Replicas: 2,
+					},
+					{
+						Name:     "taskmanager",
+						Replicas: 3,
+					},
+				},
+				Clusters: []workv1alpha2.TargetCluster{
+					{
+						Name:     ClusterMember1,
+						Replicas: 5,
+					},
+					{
+						Name:     ClusterMember2,
+						Replicas: 5,
+					},
+				},
+			},
+			strategy: &policyv1alpha1.ReplicaSchedulingStrategy{ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDuplicated},
+			expected: false,
+		},
+		{
+			name: "Divided strategy with components changed",
+			bindingSpec: &workv1alpha2.ResourceBindingSpec{
+				Components: []workv1alpha2.Component{
+					{
+						Name:     "jobmanager",
+						Replicas: 2,
+					},
+					{
+						Name:     "taskmanager",
+						Replicas: 3,
+					},
+				},
+				Clusters: []workv1alpha2.TargetCluster{
+					{
+						Name:     ClusterMember1,
+						Replicas: 2,
+					},
+					{
+						Name:     ClusterMember2,
+						Replicas: 2, // assigned sum = 4 != desired 5
+					},
+				},
+			},
+			strategy: &policyv1alpha1.ReplicaSchedulingStrategy{ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDivided},
+			expected: true,
+		},
 	}
 
 	for _, tt := range tests {
