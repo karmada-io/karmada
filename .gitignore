@@ -25,3 +25,6 @@ _output/
 # sub chart tgz
 charts/karmada/charts
 charts/karmada-operator/charts
+
+# Claude Code local context
+CLAUDE.local.md
