@@ -38,9 +38,12 @@ func IsBindingReplicasChanged(bindingSpec *workv1alpha2.ResourceBindingSpec, str
 	if strategy == nil {
 		return false
 	}
+
+	bindingReplicas := GetTotalBindingReplicas(bindingSpec)
+
 	if strategy.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDuplicated {
 		for _, targetCluster := range bindingSpec.Clusters {
-			if targetCluster.Replicas != bindingSpec.Replicas {
+			if targetCluster.Replicas != bindingReplicas {
 				return true
 			}
 		}
@@ -48,9 +51,26 @@ func IsBindingReplicasChanged(bindingSpec *workv1alpha2.ResourceBindingSpec, str
 	}
 	if strategy.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDivided {
 		replicasSum := GetSumOfReplicas(bindingSpec.Clusters)
-		return replicasSum != bindingSpec.Replicas
+		return replicasSum != bindingReplicas
 	}
 	return false
+}
+
+// GetTotalBindingReplicas will get the total replicas for a given resourcebinding
+func GetTotalBindingReplicas(bindingSpec *workv1alpha2.ResourceBindingSpec) int32 {
+	if len(bindingSpec.Components) > 0 {
+		return GetSumOfReplicasForComponents(bindingSpec.Components)
+	}
+	return bindingSpec.Replicas
+}
+
+// GetSumofReplicasForComponents will get the sum of replicas for multi-component resources
+func GetSumOfReplicasForComponents(components []workv1alpha2.Component) int32 {
+	replicasSum := int32(0)
+	for _, component := range components {
+		replicasSum += component.Replicas
+	}
+	return replicasSum
 }
 
 // GetSumOfReplicas will get the sum of replicas in target clusters
