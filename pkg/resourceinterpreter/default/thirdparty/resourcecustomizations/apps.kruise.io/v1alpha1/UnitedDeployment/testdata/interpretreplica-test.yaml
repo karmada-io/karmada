@@ -45,3 +45,5 @@ desiredObj:
       - topologyKey: kubernetes.io/hostname
         maxSkew: 1
 operation: InterpretReplica
+output:
+  replica: 3
