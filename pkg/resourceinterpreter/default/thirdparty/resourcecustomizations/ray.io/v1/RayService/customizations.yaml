@@ -1,11 +1,11 @@
 apiVersion: config.karmada.io/v1alpha1
 kind: ResourceInterpreterCustomization
 metadata:
-  name: declarative-configuration-rayjob
+  name: declarative-configuration-rayservice
 spec:
   target:
     apiVersion: ray.io/v1
-    kind: RayJob
+    kind: RayService
   customizations:
     componentResource:
       luaScript: |
@@ -18,12 +18,12 @@ spec:
         function GetComponents(desiredObj)
           local components = {}
 
-          -- RayJob contains a RayCluster spec
-          if desiredObj.spec == nil or desiredObj.spec.rayClusterSpec == nil then
+          -- RayService embeds a RayCluster spec in rayClusterConfig
+          if desiredObj.spec == nil or desiredObj.spec.rayClusterConfig == nil then
             return components
           end
 
-          local clusterSpec = desiredObj.spec.rayClusterSpec
+          local clusterSpec = desiredObj.spec.rayClusterConfig
 
           -- Head component (always 1 replica)
           if clusterSpec.headGroupSpec ~= nil and clusterSpec.headGroupSpec.template ~= nil then
@@ -62,33 +62,22 @@ spec:
     healthInterpretation:
       luaScript: >
         function InterpretHealth(observedObj)
-          if observedObj.status == nil then
+          if observedObj.status == nil or observedObj.status.conditions == nil then
             return false
           end
-          
-          local jobDeploymentStatus = observedObj.status.jobDeploymentStatus
-          local jobStatus = observedObj.status.jobStatus
-          
-          -- Consider healthy if job is running or completed successfully
-          if jobDeploymentStatus == 'Running' then
-            return true
+
+          -- Check RayService specific conditions
+          local ready = false
+
+          for _, condition in ipairs(observedObj.status.conditions) do
+            if condition.type == 'Ready' and condition.status == 'True' then
+              ready = true
+            end
           end
-          
-          if jobDeploymentStatus == 'Complete' and jobStatus == 'SUCCEEDED' then
-            return true
-          end
-          
-          -- Unhealthy states
-          if jobDeploymentStatus == 'Failed' or jobDeploymentStatus == 'ValidationFailed' then
-            return false
-          end
-          
-          if jobStatus == 'FAILED' or jobStatus == 'STOPPED' then
-            return false
-          end
-          
-          -- Initializing, Waiting, Retrying, Suspending, Suspended are transitional - not fully healthy yet
-          return false
+
+          -- RayService is considered healthy if it's Ready
+          -- During upgrade, the service remains functional and serves traffic
+          return ready
         end
     statusAggregation:
       luaScript: >
@@ -109,71 +98,102 @@ spec:
           end
 
           -- Initialize aggregated values
-          local jobStatus = nil
-          local jobDeploymentStatus = nil
-          local reason = nil
-          local message = nil
+          local conditions = {}
+          local numServeEndpoints = 0
+          local lastUpdateTime = nil
+          local observedGeneration = 0
 
-          -- Priority for jobDeploymentStatus (worst state wins)
-          local deploymentStatusPriority = {
-            [""] = 0,
-            ["Initializing"] = 1,
-            ["Waiting"] = 2,
-            ["Suspending"] = 3,
-            ["Suspended"] = 3,
-            ["Retrying"] = 4,
-            ["Running"] = 5,
-            ["Complete"] = 6,
-            ["ValidationFailed"] = 7,
-            ["Failed"] = 8,
-          }
+          -- For active and pending service status aggregation
+          local activeServiceStatuses = {}
+          local pendingServiceStatuses = {}
 
-          -- Priority for jobStatus (worst/most critical state wins)
-          local jobStatusPriority = {
-            [""] = 0,
-            ["PENDING"] = 1,
-            ["RUNNING"] = 2,
-            ["SUCCEEDED"] = 3,
-            ["STOPPED"] = 4,
-            ["FAILED"] = 5,
-          }
-
-
-          local worstDeploymentPriority = -1
-          local worstJobStatusPriority = -1
-          local worstClusterStatePriority = -1
+          -- Track worst service status (deprecated field but may still be used)
+          local worstServiceStatus = "Running"
 
           -- Aggregate status from all member clusters
           for i = 1, #statusItems do
             local currentStatus = statusItems[i].status
             if currentStatus ~= nil then
-              -- Take the worst jobDeploymentStatus
-              if currentStatus.jobDeploymentStatus ~= nil then
-                local priority = deploymentStatusPriority[currentStatus.jobDeploymentStatus] or 0
-                if priority > worstDeploymentPriority then
-                  worstDeploymentPriority = priority
-                  jobDeploymentStatus = currentStatus.jobDeploymentStatus
-                  reason = currentStatus.reason
-                  message = currentStatus.message
+              -- Aggregate conditions
+              if currentStatus.conditions ~= nil then
+                for _, condition in ipairs(currentStatus.conditions) do
+                  table.insert(conditions, condition)
                 end
               end
 
-              -- Take the worst jobStatus
-              if currentStatus.jobStatus ~= nil and currentStatus.jobStatus ~= "" then
-                local priority = jobStatusPriority[currentStatus.jobStatus] or 0
-                if priority > worstJobStatusPriority then
-                  worstJobStatusPriority = priority
-                  jobStatus = currentStatus.jobStatus
+              -- Sum serve endpoints
+              if currentStatus.numServeEndpoints ~= nil then
+                numServeEndpoints = numServeEndpoints + currentStatus.numServeEndpoints
+              end
+
+              -- Take the most recent lastUpdateTime
+              if currentStatus.lastUpdateTime ~= nil then
+                if lastUpdateTime == nil or currentStatus.lastUpdateTime > lastUpdateTime then
+                  lastUpdateTime = currentStatus.lastUpdateTime
                 end
+              end
+
+              -- Take the highest observed generation
+              if currentStatus.observedGeneration ~= nil and currentStatus.observedGeneration > observedGeneration then
+                observedGeneration = currentStatus.observedGeneration
+              end
+
+              -- Collect active service statuses
+              if currentStatus.activeServiceStatus ~= nil then
+                table.insert(activeServiceStatuses, currentStatus.activeServiceStatus)
+              end
+
+              -- Collect pending service statuses
+              if currentStatus.pendingServiceStatus ~= nil then
+                table.insert(pendingServiceStatuses, currentStatus.pendingServiceStatus)
+              end
+
+              -- Aggregate deprecated serviceStatus field (empty string means NotRunning)
+              if currentStatus.serviceStatus ~= nil and currentStatus.serviceStatus == "" then
+                worstServiceStatus = ""
               end
             end
           end
 
           -- Set aggregated status
-          desiredObj.status.jobStatus = jobStatus
-          desiredObj.status.jobDeploymentStatus = jobDeploymentStatus
-          desiredObj.status.reason = reason
-          desiredObj.status.message = message
+          desiredObj.status.conditions = conditions
+          desiredObj.status.numServeEndpoints = numServeEndpoints
+          desiredObj.status.lastUpdateTime = lastUpdateTime
+          desiredObj.status.observedGeneration = observedGeneration
+          desiredObj.status.serviceStatus = worstServiceStatus
+
+          -- Aggregate active service status (take first non-nil for simplicity)
+          if #activeServiceStatuses > 0 then
+            desiredObj.status.activeServiceStatus = activeServiceStatuses[1]
+
+            -- Aggregate application statuses across clusters if multiple
+            if #activeServiceStatuses > 1 then
+              local aggregatedApps = {}
+              for _, svcStatus in ipairs(activeServiceStatuses) do
+                if svcStatus.applicationStatuses ~= nil then
+                  for appName, appStatus in pairs(svcStatus.applicationStatuses) do
+                    if aggregatedApps[appName] == nil then
+                      aggregatedApps[appName] = appStatus
+                    else
+                      -- Take worst status for each app
+                      if appStatus.status == "DEPLOY_FAILED" or appStatus.status == "UNHEALTHY" then
+                        aggregatedApps[appName] = appStatus
+                      elseif aggregatedApps[appName].status ~= "DEPLOY_FAILED" and aggregatedApps[appName].status ~= "UNHEALTHY" and appStatus.status == "DEPLOYING" then
+                        aggregatedApps[appName] = appStatus
+                      end
+                    end
+                  end
+                end
+              end
+              desiredObj.status.activeServiceStatus.applicationStatuses = aggregatedApps
+            end
+          end
+
+          -- Aggregate pending service status (take first non-nil for simplicity)
+          if #pendingServiceStatuses > 0 then
+            desiredObj.status.pendingServiceStatus = pendingServiceStatuses[1]
+          end
+
           return desiredObj
         end
     dependencyInterpretation:
@@ -324,9 +344,9 @@ spec:
             end
           end
 
-          -- Extract dependencies from rayClusterSpec
-          if desiredObj.spec ~= nil and desiredObj.spec.rayClusterSpec ~= nil then
-            local clusterSpec = desiredObj.spec.rayClusterSpec
+          -- Extract dependencies from rayClusterConfig
+          if desiredObj.spec ~= nil and desiredObj.spec.rayClusterConfig ~= nil then
+            local clusterSpec = desiredObj.spec.rayClusterConfig
 
             -- Head group
             if clusterSpec.headGroupSpec ~= nil and clusterSpec.headGroupSpec.template ~= nil and clusterSpec.headGroupSpec.template.spec ~= nil then
@@ -341,11 +361,6 @@ spec:
                 end
               end
             end
-          end
-
-          -- Extract dependencies from submitterPodTemplate
-          if desiredObj.spec ~= nil and desiredObj.spec.submitterPodTemplate ~= nil and desiredObj.spec.submitterPodTemplate.spec ~= nil then
-            extractDependenciesFromPodSpec(desiredObj.spec.submitterPodTemplate.spec)
           end
 
           -- Build dependency references array
