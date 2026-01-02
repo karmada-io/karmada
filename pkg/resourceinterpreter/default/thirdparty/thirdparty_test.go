@@ -160,6 +160,10 @@ func getAllTestCases(t *testing.T, testDataDir string) TestStructure {
 				t.Fatal(fmt.Errorf("failed to decode file %s: %v", path, err))
 			}
 			test.Filepath = path
+			// Replace {{NOW_TIMESTAMP}} placeholders in Output with current time
+			if test.Output != nil {
+				test.Output = replaceTimestampPlaceholders(test.Output).(map[string]interface{})
+			}
 			resourceTest.Tests = append(resourceTest.Tests, test)
 		}
 		return nil
@@ -177,6 +181,38 @@ func buildRuleArgs(input IndividualTest) interpreter.RuleArgs {
 		Desired:  input.DesiredObj,
 		Observed: input.ObservedObj,
 		Status:   input.StatusItems,
+	}
+}
+
+const timestampPlaceholder = "{{NOW_TIMESTAMP}}"
+
+// replaceTimestampPlaceholders replaces {{NOW_TIMESTAMP}} placeholders with current UTC time
+// in the same format as Lua's os.date("!%Y-%m-%dT%H:%M:%SZ")
+func replaceTimestampPlaceholders(value interface{}) interface{} {
+	switch val := value.(type) {
+	case string:
+		if val == timestampPlaceholder {
+			// Replace with current UTC time in the same format as Lua script
+			return time.Now().UTC().Format("2006-01-02T15:04:05Z")
+		}
+		return val
+
+	case map[string]interface{}:
+		result := make(map[string]interface{})
+		for k, v := range val {
+			result[k] = replaceTimestampPlaceholders(v)
+		}
+		return result
+
+	case []interface{}:
+		result := make([]interface{}, len(val))
+		for i, v := range val {
+			result[i] = replaceTimestampPlaceholders(v)
+		}
+		return result
+
+	default:
+		return val
 	}
 }
 
@@ -220,6 +256,7 @@ func deepEqual(expected, actualValue interface{}) (bool, error) {
 		if err := k8sjson.Unmarshal(expectedJSONBytes, &unmarshaledExpected); err != nil {
 			return false, fmt.Errorf("failed to unmarshal expected JSON into Unstructured: %w", err)
 		}
+		// {{NOW_TIMESTAMP}} placeholders have already been replaced with current time during YAML parsing
 		return checker.DeepEqual(&unmarshaledExpected, typedActual), nil
 
 	default:
