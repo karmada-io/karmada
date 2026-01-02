@@ -1,8 +1,11 @@
 # test case for interpreting status of Notebook
-# case1. Notebook: interpret status test
+# case1. Notebook: interpret status test with full status
+# case2. Notebook with nil status should return empty status
+# case3. Notebook with empty status should return empty status
+# case4. Notebook with partial status fields
 
-name: "Notebook: interpret status test"
-description: "Test interpreting status for Notebook"
+name: "Notebook: interpret status test with full status"
+description: "Test interpreting status for Notebook with complete status fields"
 observedObj:
   apiVersion: kubeflow.org/v1
   kind: Notebook
@@ -38,3 +41,92 @@ observedObj:
     readyReplicas: 1
 operation: InterpretStatus
 output:
+  status:
+    readyReplicas: 1
+    containerState:
+      running:
+        startedAt: "2025-10-09T06:58:58Z"
+    conditions:
+      - lastProbeTime: "2025-10-09T06:58:59Z"
+        lastTransitionTime: "2025-10-09T06:58:54Z"
+        status: "True"
+        type: Initialized
+      - lastProbeTime: "2025-10-09T06:58:59Z"
+        lastTransitionTime: "2025-10-09T06:58:59Z"
+        status: "True"
+        type: Ready
+      - lastProbeTime: "2025-10-09T06:58:59Z"
+        lastTransitionTime: "2025-10-09T06:58:59Z"
+        status: "True"
+        type: ContainersReady
+      - lastProbeTime: "2025-10-09T06:58:59Z"
+        lastTransitionTime: "2025-10-09T06:58:54Z"
+        status: "True"
+        type: PodScheduled
+
+---
+name: "Notebook with nil status should return empty status"
+description: "Test interpreting status when status is nil"
+observedObj:
+  apiVersion: kubeflow.org/v1
+  kind: Notebook
+  metadata:
+    name: notebook-sample-v1
+  spec:
+    template:
+      spec:
+        containers:
+          - name: notebook-sample-v1
+            image: ghcr.io/kubeflow/kubeflow/notebook-servers/jupyter:latest
+operation: InterpretStatus
+output:
+  status: {}
+
+---
+name: "Notebook with empty status should return empty status"
+description: "Test interpreting status when status is empty"
+observedObj:
+  apiVersion: kubeflow.org/v1
+  kind: Notebook
+  metadata:
+    name: notebook-sample-v1
+  spec:
+    template:
+      spec:
+        containers:
+          - name: notebook-sample-v1
+            image: ghcr.io/kubeflow/kubeflow/notebook-servers/jupyter:latest
+  status: {}
+operation: InterpretStatus
+output:
+  status:
+    readyReplicas: 0
+
+---
+name: "Notebook with partial status fields"
+description: "Test interpreting status with only some status fields present"
+observedObj:
+  apiVersion: kubeflow.org/v1
+  kind: Notebook
+  metadata:
+    name: notebook-sample-v1
+  spec:
+    template:
+      spec:
+        containers:
+          - name: notebook-sample-v1
+            image: ghcr.io/kubeflow/kubeflow/notebook-servers/jupyter:latest
+  status:
+    readyReplicas: 2
+    containerState:
+      waiting:
+        reason: "ContainerCreating"
+        message: "Creating container"
+operation: InterpretStatus
+output:
+  status:
+    readyReplicas: 2
+    containerState:
+      waiting:
+        reason: "ContainerCreating"
+        message: "Creating container"
