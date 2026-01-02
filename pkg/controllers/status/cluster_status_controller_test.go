@@ -45,7 +45,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/typedmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
-	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 // copy from go/src/net/http/internal/testcert/testcert.go
@@ -212,7 +211,7 @@ func TestClusterStatusController_syncClusterStatus(t *testing.T) {
 				Duration: time.Duration(1000),
 			},
 			clusterConditionCache: clusterConditionStore{},
-			PredicateFunc:         helper.NewClusterPredicateOnAgent("test"),
+			PredicateFunc:         nil,
 			RateLimiterOptions: ratelimiterflag.Options{
 				RateLimiterBaseDelay:  time.Duration(1000),
 				RateLimiterMaxDelay:   time.Duration(1000),
@@ -255,7 +254,7 @@ func TestClusterStatusController_syncClusterStatus(t *testing.T) {
 				Duration: time.Duration(1000),
 			},
 			clusterConditionCache: clusterConditionStore{},
-			PredicateFunc:         helper.NewClusterPredicateOnAgent("test"),
+			PredicateFunc:         nil,
 			RateLimiterOptions: ratelimiterflag.Options{
 				RateLimiterBaseDelay:  time.Duration(1000),
 				RateLimiterMaxDelay:   time.Duration(1000),
@@ -301,7 +300,7 @@ func TestClusterStatusController_syncClusterStatus(t *testing.T) {
 				Duration: time.Duration(1000),
 			},
 			clusterConditionCache: clusterConditionStore{},
-			PredicateFunc:         helper.NewClusterPredicateOnAgent("test"),
+			PredicateFunc:         nil,
 			RateLimiterOptions: ratelimiterflag.Options{
 				RateLimiterBaseDelay:  time.Duration(1000),
 				RateLimiterMaxDelay:   time.Duration(1000),
