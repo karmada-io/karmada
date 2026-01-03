@@ -1,8 +1,12 @@
 # test case for interpreting health of PyTorchJob
-# case1. PyTorchJob interpreting health test
+# case1. PyTorchJob with healthy status (no Failed condition)
+# case2. PyTorchJob with Failed condition should be unhealthy
+# case3. PyTorchJob with nil/empty status should be unhealthy
+# case4. PyTorchJob with Failed condition status False should be healthy
+# case5. PyTorchJob with multiple conditions including Failed should be unhealthy
 
-name: "PyTorchJob interpreting health test"
-description: "Test interpreting health of PyTorchJob"
+name: "PyTorchJob with healthy status (no Failed condition)"
+description: "Test interpreting health of PyTorchJob when it has no Failed condition"
 observedObj:
   apiVersion: kubeflow.org/v1
   kind: PyTorchJob
@@ -84,3 +88,157 @@ observedObj:
     startTime: "2025-10-13T11:46:42Z"
 operation: InterpretHealth
 output:
+  healthy: true
+
+---
+name: "PyTorchJob with Failed condition should be unhealthy"
+description: "Test interpreting health of PyTorchJob when it has Failed condition"
+observedObj:
+  apiVersion: kubeflow.org/v1
+  kind: PyTorchJob
+  metadata:
+    name: pytorch-failed
+    namespace: kubeflow
+  spec:
+    pytorchReplicaSpecs:
+      Master:
+        replicas: 1
+        restartPolicy: OnFailure
+        template:
+          spec:
+            containers:
+              - name: pytorch
+                image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+  status:
+    conditions:
+      - lastTransitionTime: "2025-10-13T11:46:42Z"
+        lastUpdateTime: "2025-10-13T11:46:42Z"
+        message: PyTorchJob pytorch-failed failed.
+        reason: PyTorchJobFailed
+        status: "True"
+        type: Failed
+    startTime: "2025-10-13T11:46:42Z"
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "PyTorchJob with nil/empty status should be unhealthy"
+description: "Test interpreting health of PyTorchJob when status is nil or empty"
+observedObj:
+  apiVersion: kubeflow.org/v1
+  kind: PyTorchJob
+  metadata:
+    name: pytorch-no-status
+    namespace: kubeflow
+  spec:
+    pytorchReplicaSpecs:
+      Master:
+        replicas: 1
+        restartPolicy: OnFailure
+        template:
+          spec:
+            containers:
+              - name: pytorch
+                image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "PyTorchJob with Failed condition status False should be healthy"
+description: "Test interpreting health of PyTorchJob when Failed condition exists but status is False"
+observedObj:
+  apiVersion: kubeflow.org/v1
+  kind: PyTorchJob
+  metadata:
+    name: pytorch-failed-false
+    namespace: kubeflow
+  spec:
+    pytorchReplicaSpecs:
+      Master:
+        replicas: 1
+        restartPolicy: OnFailure
+        template:
+          spec:
+            containers:
+              - name: pytorch
+                image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+  status:
+    conditions:
+      - lastTransitionTime: "2025-10-13T11:46:42Z"
+        lastUpdateTime: "2025-10-13T11:46:42Z"
+        message: PyTorchJob pytorch-failed-false is not failed.
+        reason: PyTorchJobNotFailed
+        status: "False"
+        type: Failed
+      - lastTransitionTime: "2025-10-13T11:46:42Z"
+        lastUpdateTime: "2025-10-13T11:46:42Z"
+        message: PyTorchJob pytorch-failed-false is running.
+        reason: PyTorchJobRunning
+        status: "True"
+        type: Running
+operation: InterpretHealth
+output:
+  healthy: true
+
+---
+name: "PyTorchJob with multiple conditions including Failed should be unhealthy"
+description: "Test interpreting health of PyTorchJob with multiple conditions where Failed is True"
+observedObj:
+  apiVersion: kubeflow.org/v1
+  kind: PyTorchJob
+  metadata:
+    name: pytorch-multiple-conditions-failed
+    namespace: kubeflow
+  spec:
+    pytorchReplicaSpecs:
+      Master:
+        replicas: 1
+        restartPolicy: OnFailure
+        template:
+          spec:
+            containers:
+              - name: pytorch
+                image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+  status:
+    conditions:
+      - lastTransitionTime: "2025-10-13T11:46:42Z"
+        lastUpdateTime: "2025-10-13T11:46:42Z"
+        message: PyTorchJob pytorch-multiple-conditions-failed is created.
+        reason: PyTorchJobCreated
+        status: "True"
+        type: Created
+      - lastTransitionTime: "2025-10-13T11:47:40Z"
+        lastUpdateTime: "2025-10-13T11:47:40Z"
+        message: PyTorchJob pytorch-multiple-conditions-failed is running.
+        reason: PyTorchJobRunning
+        status: "True"
+        type: Running
+      - lastTransitionTime: "2025-10-13T11:48:15Z"
+        lastUpdateTime: "2025-10-13T11:48:15Z"
+        message: PyTorchJob pytorch-multiple-conditions-failed failed.
+        reason: PyTorchJobFailed
+        status: "True"
+        type: Failed
+    startTime: "2025-10-13T11:46:42Z"
+operation: InterpretHealth
+output:
+  healthy: false
+
