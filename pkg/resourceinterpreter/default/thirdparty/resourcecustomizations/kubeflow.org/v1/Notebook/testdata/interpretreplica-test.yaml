@@ -90,7 +90,7 @@ output:
         accelerator: nvidia-tesla-k80
       tolerations:
         - key: "nvidia.com/gpu"
-            operator: "Exists"
+          operator: "Exists"
           effect: "NoSchedule"
 
 ---
