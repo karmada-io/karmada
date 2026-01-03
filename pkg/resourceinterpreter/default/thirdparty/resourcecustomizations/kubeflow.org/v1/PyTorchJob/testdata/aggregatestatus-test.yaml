@@ -1,8 +1,59 @@
 # test case for aggregating status of PyTorchJob
-# case1. PyTorchJob with two status items
+# case1. PyTorchJob with empty status items
+# case2. PyTorchJob with two status items (both succeeded)
+# case3. PyTorchJob with failed cluster
+# case4. PyTorchJob with partial success (some clusters succeeded, some running)
 
+name: "PyTorchJob with empty status items"
+description: "Test aggregating status of PyTorchJob with empty status items"
+desiredObj:
+  apiVersion: kubeflow.org/v1
+  kind: PyTorchJob
+  metadata:
+    name: pytorch-empty
+    namespace: kubeflow
+  spec:
+    pytorchReplicaSpecs:
+      Master:
+        replicas: 1
+        restartPolicy: OnFailure
+        template:
+          spec:
+            containers:
+              - name: pytorch
+                image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+statusItems: []
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: kubeflow.org/v1
+    kind: PyTorchJob
+    metadata:
+      name: pytorch-empty
+      namespace: kubeflow
+    spec:
+      pytorchReplicaSpecs:
+        Master:
+          replicas: 1
+          restartPolicy: OnFailure
+          template:
+            spec:
+              containers:
+                - name: pytorch
+                  image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
+                  resources:
+                    limits:
+                      cpu: 1
+                      memory: 512Mi
+    status: {}
+
+---
 name: "PyTorchJob with two status items"
-description: "Test aggregating status of PyTorchJob with two status items"
+description: "Test aggregating status of PyTorchJob with two status items (both succeeded)"
 desiredObj:
   apiVersion: kubeflow.org/v1
   kind: PyTorchJob
@@ -12,18 +63,13 @@ desiredObj:
   spec:
     pytorchReplicaSpecs:
       Master:
-        replicas: 2
+        replicas: 1
         restartPolicy: OnFailure
         template:
           spec:
             containers:
               - name: pytorch
                 image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
-                imagePullPolicy: Always
-                command:
-                  - "python3"
-                  - "/opt/pytorch-mnist/mnist.py"
-                  - "--epochs=1"
                 resources:
                   limits:
                     cpu: 1
@@ -33,26 +79,13 @@ desiredObj:
         restartPolicy: OnFailure
         template:
           spec:
-            serviceAccountName: pytorch-service-account
             containers:
               - name: pytorch
                 image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
-                imagePullPolicy: Always
-                volumeMounts:
-                  - mountPath: "/train"
-                    name: "training"
-                command:
-                  - "python3"
-                  - "/opt/pytorch-mnist/mnist.py"
-                  - "--epochs=1"
                 resources:
                   limits:
                     cpu: 1
                     memory: 512Mi
-            volumes:
-              - name: "training"
-                persistentVolumeClaim:
-                  claimName: "training-data"
 statusItems:
   - applied: true
     clusterName: member1
@@ -62,61 +95,45 @@ statusItems:
       conditions:
         - lastTransitionTime: "2025-10-13T11:46:42Z"
           lastUpdateTime: "2025-10-13T11:46:42Z"
-          message: PyTorchJob pytorch-simple is created.
+          message: "PyTorchJob pytorch-simple is created."
           reason: PyTorchJobCreated
           status: "True"
           type: Created
-        - lastTransitionTime: "2025-10-13T11:47:40Z"
-          lastUpdateTime: "2025-10-13T11:47:40Z"
-          message: PyTorchJob pytorch-simple is running.
-          reason: PyTorchJobRunning
-          status: "False"
-          type: Running
         - lastTransitionTime: "2025-10-13T11:48:12Z"
           lastUpdateTime: "2025-10-13T11:48:12Z"
-          message: PyTorchJob pytorch-simple is successfully completed.
+          message: "PyTorchJob pytorch-simple is successfully completed."
           reason: PyTorchJobSucceeded
           status: "True"
           type: Succeeded
       replicaStatuses:
         Master:
-          selector: training.kubeflow.org/job-name=pytorch-simple,training.kubeflow.org/operator-name=pytorchjob-controller,training.kubeflow.org/replica-type=master
           succeeded: 1
         Worker:
-          selector: training.kubeflow.org/job-name=pytorch-simple,training.kubeflow.org/operator-name=pytorchjob-controller,training.kubeflow.org/replica-type=worker
-          succeeded: 1
+          succeeded: 2
       startTime: "2025-10-13T11:46:42Z"
   - applied: true
     clusterName: member2
     health: Healthy
     status:
-      completionTime: "2025-10-13T11:48:12Z"
+      completionTime: "2025-10-13T11:48:20Z"
       conditions:
         - lastTransitionTime: "2025-10-13T11:46:42Z"
           lastUpdateTime: "2025-10-13T11:46:42Z"
-          message: PyTorchJob pytorch-simple is created.
+          message: "PyTorchJob pytorch-simple is created."
           reason: PyTorchJobCreated
           status: "True"
           type: Created
-        - lastTransitionTime: "2025-10-13T11:47:40Z"
-          lastUpdateTime: "2025-10-13T11:47:40Z"
-          message: PyTorchJob pytorch-simple is running.
-          reason: PyTorchJobRunning
-          status: "False"
-          type: Running
-        - lastTransitionTime: "2025-10-13T11:48:12Z"
-          lastUpdateTime: "2025-10-13T11:48:12Z"
-          message: PyTorchJob pytorch-simple is successfully completed.
+        - lastTransitionTime: "2025-10-13T11:48:20Z"
+          lastUpdateTime: "2025-10-13T11:48:20Z"
+          message: "PyTorchJob pytorch-simple is successfully completed."
           reason: PyTorchJobSucceeded
           status: "True"
           type: Succeeded
       replicaStatuses:
         Master:
-          selector: training.kubeflow.org/job-name=pytorch-simple,training.kubeflow.org/operator-name=pytorchjob-controller,training.kubeflow.org/replica-type=master
           succeeded: 1
         Worker:
-          selector: training.kubeflow.org/job-name=pytorch-simple,training.kubeflow.org/operator-name=pytorchjob-controller,training.kubeflow.org/replica-type=worker
-          succeeded: 1
+          succeeded: 2
       startTime: "2025-10-13T11:46:42Z"
 operation: AggregateStatus
 output:
@@ -129,18 +146,13 @@ output:
     spec:
       pytorchReplicaSpecs:
         Master:
-          replicas: 2
+          replicas: 1
           restartPolicy: OnFailure
           template:
             spec:
               containers:
                 - name: pytorch
                   image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
-                  imagePullPolicy: Always
-                  command:
-                    - "python3"
-                    - "/opt/pytorch-mnist/mnist.py"
-                    - "--epochs=1"
                   resources:
                     limits:
                       cpu: 1
@@ -150,44 +162,25 @@ output:
           restartPolicy: OnFailure
           template:
             spec:
-              serviceAccountName: pytorch-service-account
               containers:
                 - name: pytorch
                   image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
-                  imagePullPolicy: Always
-                  volumeMounts:
-                    - mountPath: "/train"
-                      name: "training"
-                  command:
-                    - "python3"
-                    - "/opt/pytorch-mnist/mnist.py"
-                    - "--epochs=1"
                   resources:
                     limits:
                       cpu: 1
                       memory: 512Mi
-              volumes:
-                - name: "training"
-                  persistentVolumeClaim:
-                    claimName: "training-data"
     status:
-      completionTime: "2025-10-13T11:48:12Z"
+      completionTime: "2025-10-13T11:48:20Z"
       conditions:
         - lastTransitionTime: "2025-10-13T11:46:42Z"
           lastUpdateTime: "2025-10-13T11:46:42Z"
-          message: PyTorchJob is created.
+          message: "PyTorchJob is created."
           reason: PyTorchJobCreated
           status: "True"
           type: Created
-        - lastTransitionTime: "2025-10-13T11:47:40Z"
-          lastUpdateTime: "2025-10-13T11:47:40Z"
-          message: PyTorchJob is running.
-          reason: PyTorchJobRunning
-          status: "False"
-          type: Running
-        - lastTransitionTime: "2025-10-13T11:48:12Z"
-          lastUpdateTime: "2025-10-13T11:48:12Z"
-          message: PyTorchJob is successfully completed.
+        - lastTransitionTime: "2025-10-13T11:48:20Z"
+          lastUpdateTime: "2025-10-13T11:48:20Z"
+          message: "PyTorchJob is successfully completed."
           reason: PyTorchJobSucceeded
           status: "True"
           type: Succeeded
@@ -195,5 +188,292 @@ output:
         Master:
           succeeded: 2
         Worker:
+          succeeded: 4
+      startTime: "2025-10-13T11:46:42Z"
+
+---
+name: "PyTorchJob with failed cluster"
+description: "Test aggregating status of PyTorchJob when one cluster has failed"
+desiredObj:
+  apiVersion: kubeflow.org/v1
+  kind: PyTorchJob
+  metadata:
+    name: pytorch-failed
+    namespace: kubeflow
+  spec:
+    pytorchReplicaSpecs:
+      Master:
+        replicas: 1
+        restartPolicy: OnFailure
+        template:
+          spec:
+            containers:
+              - name: pytorch
+                image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+      Worker:
+        replicas: 2
+        restartPolicy: OnFailure
+        template:
+          spec:
+            containers:
+              - name: pytorch
+                image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+statusItems:
+  - applied: true
+    clusterName: member1
+    health: Healthy
+    status:
+      completionTime: "2025-10-13T11:48:12Z"
+      conditions:
+        - lastTransitionTime: "2025-10-13T11:46:42Z"
+          lastUpdateTime: "2025-10-13T11:46:42Z"
+          message: "PyTorchJob pytorch-failed is created."
+          reason: PyTorchJobCreated
+          status: "True"
+          type: Created
+        - lastTransitionTime: "2025-10-13T11:48:12Z"
+          lastUpdateTime: "2025-10-13T11:48:12Z"
+          message: "PyTorchJob pytorch-failed is successfully completed."
+          reason: PyTorchJobSucceeded
+          status: "True"
+          type: Succeeded
+      replicaStatuses:
+        Master:
+          succeeded: 1
+        Worker:
+          succeeded: 2
+      startTime: "2025-10-13T11:46:42Z"
+  - applied: true
+    clusterName: member2
+    health: Unhealthy
+    status:
+      completionTime: "2025-10-13T11:48:15Z"
+      conditions:
+        - lastTransitionTime: "2025-10-13T11:46:42Z"
+          lastUpdateTime: "2025-10-13T11:46:42Z"
+          message: "PyTorchJob pytorch-failed is created."
+          reason: PyTorchJobCreated
+          status: "True"
+          type: Created
+        - lastTransitionTime: "2025-10-13T11:48:15Z"
+          lastUpdateTime: "2025-10-13T11:48:15Z"
+          message: "PyTorchJob pytorch-failed failed."
+          reason: PyTorchJobFailed
+          status: "True"
+          type: Failed
+      replicaStatuses:
+        Master:
+          failed: 1
+        Worker:
+          failed: 2
+      startTime: "2025-10-13T11:46:42Z"
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: kubeflow.org/v1
+    kind: PyTorchJob
+    metadata:
+      name: pytorch-failed
+      namespace: kubeflow
+    spec:
+      pytorchReplicaSpecs:
+        Master:
+          replicas: 1
+          restartPolicy: OnFailure
+          template:
+            spec:
+              containers:
+                - name: pytorch
+                  image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
+                  resources:
+                    limits:
+                      cpu: 1
+                      memory: 512Mi
+        Worker:
+          replicas: 2
+          restartPolicy: OnFailure
+          template:
+            spec:
+              containers:
+                - name: pytorch
+                  image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
+                  resources:
+                    limits:
+                      cpu: 1
+                      memory: 512Mi
+    status:
+      conditions:
+        - lastTransitionTime: "2025-10-13T11:46:42Z"
+          lastUpdateTime: "2025-10-13T11:46:42Z"
+          message: "PyTorchJob is created."
+          reason: PyTorchJobCreated
+          status: "True"
+          type: Created
+        - lastTransitionTime: "2025-10-13T11:48:15Z"
+          lastUpdateTime: "2025-10-13T11:48:15Z"
+          message: "PyTorchJob executed failed in member clusters: member2"
+          reason: PyTorchJobFailed
+          status: "True"
+          type: Failed
+      replicaStatuses:
+        Master:
+          failed: 1
+          succeeded: 1
+        Worker:
+          failed: 2
+          succeeded: 2
+      startTime: "2025-10-13T11:46:42Z"
+
+---
+name: "PyTorchJob with partial success"
+description: "Test aggregating status of PyTorchJob with partial success (some clusters succeeded, some running)"
+desiredObj:
+  apiVersion: kubeflow.org/v1
+  kind: PyTorchJob
+  metadata:
+    name: pytorch-partial-success
+    namespace: kubeflow
+  spec:
+    pytorchReplicaSpecs:
+      Master:
+        replicas: 1
+        restartPolicy: OnFailure
+        template:
+          spec:
+            containers:
+              - name: pytorch
+                image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+      Worker:
+        replicas: 2
+        restartPolicy: OnFailure
+        template:
+          spec:
+            containers:
+              - name: pytorch
+                image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+statusItems:
+  - applied: true
+    clusterName: member1
+    health: Healthy
+    status:
+      completionTime: "2025-10-13T11:48:12Z"
+      conditions:
+        - lastTransitionTime: "2025-10-13T11:46:42Z"
+          lastUpdateTime: "2025-10-13T11:46:42Z"
+          message: "PyTorchJob pytorch-partial-success is created."
+          reason: PyTorchJobCreated
+          status: "True"
+          type: Created
+        - lastTransitionTime: "2025-10-13T11:47:40Z"
+          lastUpdateTime: "2025-10-13T11:47:40Z"
+          message: "PyTorchJob pytorch-partial-success is running."
+          reason: PyTorchJobRunning
+          status: "False"
+          type: Running
+        - lastTransitionTime: "2025-10-13T11:48:12Z"
+          lastUpdateTime: "2025-10-13T11:48:12Z"
+          message: "PyTorchJob pytorch-partial-success is successfully completed."
+          reason: PyTorchJobSucceeded
+          status: "True"
+          type: Succeeded
+      replicaStatuses:
+        Master:
+          succeeded: 1
+        Worker:
+          succeeded: 2
+      startTime: "2025-10-13T11:46:42Z"
+  - applied: true
+    clusterName: member2
+    health: Healthy
+    status:
+      conditions:
+        - lastTransitionTime: "2025-10-13T11:46:42Z"
+          lastUpdateTime: "2025-10-13T11:46:42Z"
+          message: "PyTorchJob pytorch-partial-success is created."
+          reason: PyTorchJobCreated
+          status: "True"
+          type: Created
+        - lastTransitionTime: "2025-10-13T11:47:40Z"
+          lastUpdateTime: "2025-10-13T11:47:40Z"
+          message: "PyTorchJob pytorch-partial-success is running."
+          reason: PyTorchJobRunning
+          status: "True"
+          type: Running
+      replicaStatuses:
+        Master:
+          active: 1
+        Worker:
+          active: 2
+      startTime: "2025-10-13T11:46:42Z"
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: kubeflow.org/v1
+    kind: PyTorchJob
+    metadata:
+      name: pytorch-partial-success
+      namespace: kubeflow
+    spec:
+      pytorchReplicaSpecs:
+        Master:
+          replicas: 1
+          restartPolicy: OnFailure
+          template:
+            spec:
+              containers:
+                - name: pytorch
+                  image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
+                  resources:
+                    limits:
+                      cpu: 1
+                      memory: 512Mi
+        Worker:
+          replicas: 2
+          restartPolicy: OnFailure
+          template:
+            spec:
+              containers:
+                - name: pytorch
+                  image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
+                  resources:
+                    limits:
+                      cpu: 1
+                      memory: 512Mi
+    status:
+      conditions:
+        - lastTransitionTime: "2025-10-13T11:46:42Z"
+          lastUpdateTime: "2025-10-13T11:46:42Z"
+          message: "PyTorchJob is created."
+          reason: PyTorchJobCreated
+          status: "True"
+          type: Created
+        - lastTransitionTime: "2025-10-13T11:47:40Z"
+          lastUpdateTime: "2025-10-13T11:47:40Z"
+          message: "PyTorchJob is running."
+          reason: PyTorchJobRunning
+          status: "True"
+          type: Running
+      replicaStatuses:
+        Master:
+          active: 1
+          succeeded: 1
+        Worker:
+          active: 2
           succeeded: 2
       startTime: "2025-10-13T11:46:42Z"
