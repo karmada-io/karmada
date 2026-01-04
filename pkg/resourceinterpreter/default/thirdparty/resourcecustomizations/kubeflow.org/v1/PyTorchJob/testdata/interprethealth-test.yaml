@@ -2,9 +2,8 @@
 # case1. PyTorchJob with healthy status (no Failed condition)
 # case2. PyTorchJob with Failed condition should be unhealthy
 # case3. PyTorchJob with nil/empty status should be unhealthy
-# case4. PyTorchJob with empty conditions array should be unhealthy
-# case5. PyTorchJob with Failed condition status False should be healthy
-# case6. PyTorchJob with multiple conditions including Failed should be unhealthy
+# case4. PyTorchJob with Failed condition status False should be healthy
+# case5. PyTorchJob with multiple conditions including Failed should be unhealthy
 
 name: "PyTorchJob with healthy status (no Failed condition)"
 description: "Test interpreting health of PyTorchJob when it has no Failed condition"
@@ -150,35 +149,6 @@ observedObj:
                   limits:
                     cpu: 1
                     memory: 512Mi
-operation: InterpretHealth
-output:
-  healthy: false
-
----
-name: "PyTorchJob with empty conditions array should be unhealthy"
-description: "Test interpreting health of PyTorchJob when conditions is an empty array"
-observedObj:
-  apiVersion: kubeflow.org/v1
-  kind: PyTorchJob
-  metadata:
-    name: pytorch-empty-conditions
-    namespace: kubeflow
-  spec:
-    pytorchReplicaSpecs:
-      Master:
-        replicas: 1
-        restartPolicy: OnFailure
-        template:
-          spec:
-            containers:
-              - name: pytorch
-                image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
-                resources:
-                  limits:
-                    cpu: 1
-                    memory: 512Mi
-  status:
-    conditions: []
 operation: InterpretHealth
 output:
   healthy: false

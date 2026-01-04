@@ -279,8 +279,7 @@ spec:
         function InterpretHealth(observedObj)
           if observedObj == nil or
              observedObj.status == nil or
-             observedObj.status.conditions == nil or
-             #observedObj.status.conditions == 0 then
+             observedObj.status.conditions == nil then
             return false
           end
           
