@@ -1,0 +1,344 @@
+# test case for interpreting dependency of PyTorchJob
+# case1. PyTorchJob with multiple dependencies from both Master and Worker
+# case2. PyTorchJob with empty pytorchReplicaSpecs
+# case3. PyTorchJob with multiple ConfigMaps and Secrets
+# case4. PyTorchJob with multiple PersistentVolumeClaims
+# case5. PyTorchJob with default ServiceAccount (should not be included)
+# case6. PyTorchJob with envFrom for ConfigMap and Secret
+
+name: "PyTorchJob with multiple dependencies from both Master and Worker"
+description: "Test interpreting dependency of PyTorchJob with multiple dependencies from both replicas"
+desiredObj:
+  apiVersion: kubeflow.org/v1
+  kind: PyTorchJob
+  metadata:
+    name: pytorch-multi-deps
+    namespace: kubeflow
+  spec:
+    pytorchReplicaSpecs:
+      Master:
+        replicas: 1
+        restartPolicy: OnFailure
+        template:
+          spec:
+            serviceAccountName: pytorch-service-account
+            containers:
+              - name: pytorch
+                image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
+                env:
+                  - name: CONFIG_DATA
+                    valueFrom:
+                      configMapKeyRef:
+                        name: pytorch-config
+                        key: config
+                volumeMounts:
+                  - mountPath: "/train"
+                    name: training-data
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+            volumes:
+              - name: training-data
+                persistentVolumeClaim:
+                  claimName: training-data-pvc
+      Worker:
+        replicas: 2
+        restartPolicy: OnFailure
+        template:
+          spec:
+            serviceAccountName: pytorch-service-account
+            containers:
+              - name: pytorch
+                image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
+                env:
+                  - name: SECRET_DATA
+                    valueFrom:
+                      secretKeyRef:
+                        name: pytorch-secret
+                        key: secret
+                volumeMounts:
+                  - mountPath: "/train"
+                    name: training-data
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+            volumes:
+              - name: training-data
+                persistentVolumeClaim:
+                  claimName: training-data-pvc
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: ServiceAccount
+      name: pytorch-service-account
+      namespace: kubeflow
+    - apiVersion: v1
+      kind: ConfigMap
+      name: pytorch-config
+      namespace: kubeflow
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: training-data-pvc
+      namespace: kubeflow
+    - apiVersion: v1
+      kind: Secret
+      name: pytorch-secret
+      namespace: kubeflow
+
+---
+name: "PyTorchJob with empty pytorchReplicaSpecs"
+description: "Test interpreting dependency of PyTorchJob when pytorchReplicaSpecs is empty"
+desiredObj:
+  apiVersion: kubeflow.org/v1
+  kind: PyTorchJob
+  metadata:
+    name: pytorch-empty-specs
+    namespace: kubeflow
+  spec:
+    pytorchReplicaSpecs: {}
+operation: InterpretDependency
+output:
+  dependencies: []
+
+---
+name: "PyTorchJob with multiple ConfigMaps and Secrets"
+description: "Test interpreting dependency of PyTorchJob with multiple ConfigMaps and Secrets"
+desiredObj:
+  apiVersion: kubeflow.org/v1
+  kind: PyTorchJob
+  metadata:
+    name: pytorch-multi-config-secret
+    namespace: kubeflow
+  spec:
+    pytorchReplicaSpecs:
+      Master:
+        replicas: 1
+        restartPolicy: OnFailure
+        template:
+          spec:
+            containers:
+              - name: pytorch
+                image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
+                env:
+                  - name: CONFIG1
+                    valueFrom:
+                      configMapKeyRef:
+                        name: config1
+                        key: key1
+                  - name: CONFIG2
+                    valueFrom:
+                      configMapKeyRef:
+                        name: config2
+                        key: key2
+                  - name: SECRET1
+                    valueFrom:
+                      secretKeyRef:
+                        name: secret1
+                        key: key1
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+      Worker:
+        replicas: 2
+        restartPolicy: OnFailure
+        template:
+          spec:
+            containers:
+              - name: pytorch
+                image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
+                env:
+                  - name: SECRET2
+                    valueFrom:
+                      secretKeyRef:
+                        name: secret2
+                        key: key1
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: ConfigMap
+      name: config1
+      namespace: kubeflow
+    - apiVersion: v1
+      kind: ConfigMap
+      name: config2
+      namespace: kubeflow
+    - apiVersion: v1
+      kind: Secret
+      name: secret1
+      namespace: kubeflow
+    - apiVersion: v1
+      kind: Secret
+      name: secret2
+      namespace: kubeflow
+
+---
+name: "PyTorchJob with multiple PersistentVolumeClaims"
+description: "Test interpreting dependency of PyTorchJob with multiple PersistentVolumeClaims"
+desiredObj:
+  apiVersion: kubeflow.org/v1
+  kind: PyTorchJob
+  metadata:
+    name: pytorch-multi-pvc
+    namespace: kubeflow
+  spec:
+    pytorchReplicaSpecs:
+      Master:
+        replicas: 1
+        restartPolicy: OnFailure
+        template:
+          spec:
+            containers:
+              - name: pytorch
+                image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
+                volumeMounts:
+                  - mountPath: "/data"
+                    name: data-volume
+                  - mountPath: "/cache"
+                    name: cache-volume
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+            volumes:
+              - name: data-volume
+                persistentVolumeClaim:
+                  claimName: data-pvc
+              - name: cache-volume
+                persistentVolumeClaim:
+                  claimName: cache-pvc
+      Worker:
+        replicas: 2
+        restartPolicy: OnFailure
+        template:
+          spec:
+            containers:
+              - name: pytorch
+                image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
+                volumeMounts:
+                  - mountPath: "/data"
+                    name: data-volume
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+            volumes:
+              - name: data-volume
+                persistentVolumeClaim:
+                  claimName: data-pvc
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: data-pvc
+      namespace: kubeflow
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: cache-pvc
+      namespace: kubeflow
+
+---
+name: "PyTorchJob with default ServiceAccount (should not be included)"
+description: "Test interpreting dependency of PyTorchJob with default ServiceAccount"
+desiredObj:
+  apiVersion: kubeflow.org/v1
+  kind: PyTorchJob
+  metadata:
+    name: pytorch-default-sa
+    namespace: kubeflow
+  spec:
+    pytorchReplicaSpecs:
+      Master:
+        replicas: 1
+        restartPolicy: OnFailure
+        template:
+          spec:
+            serviceAccountName: default
+            containers:
+              - name: pytorch
+                image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+      Worker:
+        replicas: 2
+        restartPolicy: OnFailure
+        template:
+          spec:
+            serviceAccountName: default
+            containers:
+              - name: pytorch
+                image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+operation: InterpretDependency
+output:
+  dependencies: []
+
+---
+name: "PyTorchJob with envFrom for ConfigMap and Secret"
+description: "Test interpreting dependency of PyTorchJob with envFrom referencing ConfigMap and Secret"
+desiredObj:
+  apiVersion: kubeflow.org/v1
+  kind: PyTorchJob
+  metadata:
+    name: pytorch-envfrom
+    namespace: kubeflow
+  spec:
+    pytorchReplicaSpecs:
+      Master:
+        replicas: 1
+        restartPolicy: OnFailure
+        template:
+          spec:
+            containers:
+              - name: pytorch
+                image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
+                envFrom:
+                  - configMapRef:
+                      name: pytorch-config
+                  - secretRef:
+                      name: pytorch-secret
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+      Worker:
+        replicas: 2
+        restartPolicy: OnFailure
+        template:
+          spec:
+            containers:
+              - name: pytorch
+                image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
+                envFrom:
+                  - configMapRef:
+                      name: pytorch-config
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: ConfigMap
+      name: pytorch-config
+      namespace: kubeflow
+    - apiVersion: v1
+      kind: Secret
+      name: pytorch-secret
+      namespace: kubeflow
+
