@@ -46,3 +46,12 @@ desiredObj:
         maxSkew: 1
 operation: InterpretDependency
 output:
+  dependencies:
+    - apiVersion: v1
+      kind: ConfigMap
+      name: app-config
+      namespace: test-namespace
+    - apiVersion: v1
+      kind: Secret
+      name: app-secret
+      namespace: test-namespace

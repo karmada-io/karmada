@@ -1,5 +1,7 @@
 # test case for interpreting health of UnitedDeployment
 # case1. UnitedDeployment interpreting health test
+# case2. UnitedDeployment unhealthy when observedGeneration mismatches
+# case3. UnitedDeployment unhealthy when rollout not complete
 
 name: "UnitedDeployment interpreting health test"
 description: "Test interpreting health of UnitedDeployment"
@@ -67,3 +69,41 @@ observedObj:
 operation: InterpretHealth
 output:
   healthy: true
+---
+name: "UnitedDeployment unhealthy when observedGeneration mismatches"
+description: "Health should be false when observedGeneration != metadata.generation"
+observedObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: UnitedDeployment
+  metadata:
+    name: sample-uniteddeployment
+    namespace: test-namespace
+    generation: 2
+  spec:
+    replicas: 3
+  status:
+    observedGeneration: 1
+    updatedReplicas: 3
+    availableReplicas: 3
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "UnitedDeployment unhealthy when rollout not complete"
+description: "Health should be false when updatedReplicas < spec.replicas"
+observedObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: UnitedDeployment
+  metadata:
+    name: sample-uniteddeployment
+    namespace: test-namespace
+    generation: 1
+  spec:
+    replicas: 3
+  status:
+    observedGeneration: 1
+    updatedReplicas: 2
+    availableReplicas: 2
+operation: InterpretHealth
+output:
+  healthy: false
