@@ -1011,6 +1011,7 @@ func (d *ResourceDetector) ReconcilePropagationPolicy(key util.QueueKey) error {
 		policyID := propagationObject.Labels[policyv1alpha1.PropagationPolicyPermanentIDLabel]
 		claimMetadata := labels.Set{policyv1alpha1.PropagationPolicyPermanentIDLabel: policyID}
 		if err = d.handlePolicyDeletion(claimMetadata, propagationObject.Spec.ResourceSelectors, CleanupPPClaimMetadata); err != nil {
+			klog.Errorf("Failed to handle policy deletion for PropagationPolicy(%s), err: %v", nkey.NamespaceKey(), err)
 			return err
 		}
 		if controllerutil.RemoveFinalizer(propagationObject, util.PropagationPolicyControllerFinalizer) {
@@ -1085,6 +1086,7 @@ func (d *ResourceDetector) ReconcileClusterPropagationPolicy(key util.QueueKey) 
 		policyID := propagationObject.Labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel]
 		claimMetadata := labels.Set{policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: policyID}
 		if err = d.handlePolicyDeletion(claimMetadata, propagationObject.Spec.ResourceSelectors, CleanupCPPClaimMetadata); err != nil {
+			klog.Errorf("Failed to handle policy deletion for ClusterPropagationPolicy(%s), err: %v", nkey.NamespaceKey(), err)
 			return err
 		}
 		if controllerutil.RemoveFinalizer(propagationObject, util.ClusterPropagationPolicyControllerFinalizer) {
@@ -1117,6 +1119,11 @@ func (d *ResourceDetector) handlePolicyDeletion(claimMetadata labels.Set, resour
 		rawObjects, err := helper.FetchResourceTemplatesByLabelSelector(d.DynamicClient, d.InformerManager, d.RESTMapper, objRef, labels.SelectorFromSet(claimMetadata))
 		if meta.IsNoMatchError(err) {
 			klog.Infof("Skip cleanup as API(%s, kind=%s) is not installed or has been removed", objRef.APIVersion, objRef.Kind)
+			continue
+		}
+		if apierrors.IsNotFound(err) {
+			// This error may occur because a namespace was incorrectly specified for a cluster-scoped resource.
+			klog.Infof("Skip cleanup as the server could not find the requested resource(%s, kind=%s, namespace=%s).", objRef.APIVersion, objRef.Kind, objRef.Namespace)
 			continue
 		}
 		if err != nil {
