@@ -180,6 +180,53 @@ func buildRuleArgs(input IndividualTest) interpreter.RuleArgs {
 	}
 }
 
+const excludePlaceholder = "{{EXCLUDE}}"
+
+// pathKey converts a path slice to a string key for map lookup
+func pathKey(path []string) string {
+	return strings.Join(path, ".")
+}
+
+// processObjectWithExclusion processes an object, collecting {{EXCLUDE}} markers and removing excluded fields
+func processObjectWithExclusion(obj interface{}, currentPath []string, excludePaths map[string]bool, isCollecting bool) interface{} {
+	switch val := obj.(type) {
+	case map[string]interface{}:
+		result := make(map[string]interface{})
+		for k, v := range val {
+			fieldPath := append(currentPath, k)
+			pathStr := pathKey(fieldPath)
+
+			if isCollecting {
+				// Collect exclude markers during first pass
+				if str, ok := v.(string); ok && str == excludePlaceholder {
+					excludePaths[pathStr] = true
+					continue
+				}
+			} else {
+				// Skip excluded fields during second pass
+				if excludePaths[pathStr] {
+					continue
+				}
+			}
+
+			// Recursively process nested structures
+			result[k] = processObjectWithExclusion(v, fieldPath, excludePaths, isCollecting)
+		}
+		return result
+
+	case []interface{}:
+		result := make([]interface{}, len(val))
+		for i, v := range val {
+			indexPath := append(currentPath, fmt.Sprintf("%d", i))
+			result[i] = processObjectWithExclusion(v, indexPath, excludePaths, isCollecting)
+		}
+		return result
+
+	default:
+		return val
+	}
+}
+
 func deepEqual(expected, actualValue interface{}) (bool, error) {
 	expectedJSONBytes, err := k8sjson.Marshal(expected)
 	if err != nil {
@@ -220,7 +267,13 @@ func deepEqual(expected, actualValue interface{}) (bool, error) {
 		if err := k8sjson.Unmarshal(expectedJSONBytes, &unmarshaledExpected); err != nil {
 			return false, fmt.Errorf("failed to unmarshal expected JSON into Unstructured: %w", err)
 		}
-		return checker.DeepEqual(&unmarshaledExpected, typedActual), nil
+		// Collect field paths marked with {{EXCLUDE}} and remove them from both objects
+		excludePaths := make(map[string]bool)
+		expectedExcluded := processObjectWithExclusion(unmarshaledExpected.Object, nil, excludePaths, true).(map[string]interface{})
+		actualExcluded := processObjectWithExclusion(typedActual.Object, nil, excludePaths, false).(map[string]interface{})
+		expectedObj := &unstructured.Unstructured{Object: expectedExcluded}
+		actualObj := &unstructured.Unstructured{Object: actualExcluded}
+		return checker.DeepEqual(expectedObj, actualObj), nil
 
 	default:
 		// Fallback: marshal actualValue and do byte-wise comparison

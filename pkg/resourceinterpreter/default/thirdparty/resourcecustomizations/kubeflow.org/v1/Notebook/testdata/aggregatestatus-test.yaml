@@ -1,8 +1,13 @@
 # test case for aggregating status of Notebook
-# case1. Notebook with two status items
+# case1. Notebook with nil status items
+# case2. Notebook with one status item
+# case3. Notebook with multiple status items - all successful
+# case4. Notebook with multiple status items - some failed
+# case5. Notebook with multiple status items - all failed
+# case6. Notebook with multiple status items - mixed states with latest start time
 
-name: "Notebook with one status item"
-description: "Test aggregating status of Notebook with two status items"
+name: "Notebook with nil status items"
+description: "Test aggregating status of Notebook with nil status items"
 desiredObj:
   apiVersion: kubeflow.org/v1
   kind: Notebook
@@ -15,7 +20,37 @@ desiredObj:
           - name: notebook-sample-v1
             image: ghcr.io/kubeflow/kubeflow/notebook-servers/jupyter:latest
 statusItems:
-  - status:
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: kubeflow.org/v1
+    kind: Notebook
+    metadata:
+      name: notebook-sample-v1
+    spec:
+      template:
+        spec:
+          containers:
+            - name: notebook-sample-v1
+              image: ghcr.io/kubeflow/kubeflow/notebook-servers/jupyter:latest
+
+---
+name: "Notebook with one status item"
+description: "Test aggregating status of Notebook with one status item"
+desiredObj:
+  apiVersion: kubeflow.org/v1
+  kind: Notebook
+  metadata:
+    name: notebook-sample-v1
+  spec:
+    template:
+      spec:
+        containers:
+          - name: notebook-sample-v1
+            image: ghcr.io/kubeflow/kubeflow/notebook-servers/jupyter:latest
+statusItems:
+  - clusterName: member1
+    status:
       conditions:
         - lastProbeTime: "2025-10-09T06:58:59Z"
           lastTransitionTime: "2025-10-09T06:58:54Z"
@@ -25,29 +60,253 @@ statusItems:
           lastTransitionTime: "2025-10-09T06:58:59Z"
           status: "True"
           type: Ready
-        - lastProbeTime: "2025-10-09T06:58:59Z"
-          lastTransitionTime: "2025-10-09T06:58:59Z"
-          status: "True"
-          type: ContainersReady
-        - lastProbeTime: "2025-10-09T06:58:59Z"
-          lastTransitionTime: "2025-10-09T06:58:54Z"
-          status: "True"
-          type: PodScheduled
       containerState:
         running:
           startedAt: "2025-10-09T06:58:58Z"
       readyReplicas: 1
-  - status:
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: kubeflow.org/v1
+    kind: Notebook
+    metadata:
+      name: notebook-sample-v1
+    spec:
+      template:
+        spec:
+          containers:
+            - name: notebook-sample-v1
+              image: ghcr.io/kubeflow/kubeflow/notebook-servers/jupyter:latest
+    status:
       conditions:
-        - lastProbeTime: "2025-10-24T07:56:35Z"
-          lastTransitionTime: "2025-10-24T07:56:35Z"
-          message: '0/6 nodes are available: 1 node(s) had untolerated taint {virtual-kubelet.io/provider:
-          leinao}, 5 node(s) were unschedulable. preemption: 0/6 nodes are available:
-          6 Preemption is not helpful for scheduling.'
-          reason: Unschedulable
-          status: "False"
-          type: PodScheduled
-      containerState: { }
+        - lastProbeTime: "2025-10-09T06:58:59Z"
+          lastTransitionTime: "2025-10-09T06:58:54Z"
+          status: "True"
+          type: Initialized
+        - lastProbeTime: "2025-10-09T06:58:59Z"
+          lastTransitionTime: "2025-10-09T06:58:59Z"
+          status: "True"
+          type: Ready
+      containerState:
+        running:
+          startedAt: "2025-10-09T06:58:58Z"
+      readyReplicas: 1
+
+---
+name: "Notebook with multiple status items - all successful"
+description: "Test aggregating status of Notebook with multiple successful status items"
+desiredObj:
+  apiVersion: kubeflow.org/v1
+  kind: Notebook
+  metadata:
+    name: notebook-sample-v1
+  spec:
+    template:
+      spec:
+        containers:
+          - name: notebook-sample-v1
+            image: ghcr.io/kubeflow/kubeflow/notebook-servers/jupyter:latest
+statusItems:
+  - clusterName: member1
+    status:
+      containerState:
+        running:
+          startedAt: "2025-10-09T06:58:58Z"
+      readyReplicas: 1
+  - clusterName: member2
+    status:
+      containerState:
+        running:
+          startedAt: "2025-10-09T07:00:00Z"
+      readyReplicas: 1
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: kubeflow.org/v1
+    kind: Notebook
+    metadata:
+      name: notebook-sample-v1
+    spec:
+      template:
+        spec:
+          containers:
+            - name: notebook-sample-v1
+              image: ghcr.io/kubeflow/kubeflow/notebook-servers/jupyter:latest
+    status:
+      readyReplicas: 2
+      containerState:
+        running:
+          startedAt: "2025-10-09T07:00:00Z"
+      conditions:
+        - type: "Ready"
+          status: "True"
+          reason: "Ready"
+          message: "All notebooks are ready"
+          lastProbeTime: "{{EXCLUDE}}"
+          lastTransitionTime: "{{EXCLUDE}}"
+
+---
+name: "Notebook with multiple status items - some failed"
+description: "Test aggregating status of Notebook with some failed status items"
+desiredObj:
+  apiVersion: kubeflow.org/v1
+  kind: Notebook
+  metadata:
+    name: notebook-sample-v1
+  spec:
+    template:
+      spec:
+        containers:
+          - name: notebook-sample-v1
+            image: ghcr.io/kubeflow/kubeflow/notebook-servers/jupyter:latest
+statusItems:
+  - clusterName: member1
+    status:
+      containerState:
+        running:
+          startedAt: "2025-10-09T06:58:58Z"
+      readyReplicas: 1
+  - clusterName: member2
+    status:
+      containerState: {}
       readyReplicas: 0
 operation: AggregateStatus
 output:
+  aggregatedStatus:
+    apiVersion: kubeflow.org/v1
+    kind: Notebook
+    metadata:
+      name: notebook-sample-v1
+    spec:
+      template:
+        spec:
+          containers:
+            - name: notebook-sample-v1
+              image: ghcr.io/kubeflow/kubeflow/notebook-servers/jupyter:latest
+    status:
+      readyReplicas: 1
+      containerState:
+        waiting:
+          reason: "Unschedulable"
+      conditions:
+        - type: "Failed"
+          status: "True"
+          reason: "NotebookFailed"
+          message: "Notebook executed failed in member clusters: member2"
+          lastProbeTime: "{{EXCLUDE}}"
+          lastTransitionTime: "{{EXCLUDE}}"
+
+---
+name: "Notebook with multiple status items - all failed"
+description: "Test aggregating status of Notebook with all failed status items"
+desiredObj:
+  apiVersion: kubeflow.org/v1
+  kind: Notebook
+  metadata:
+    name: notebook-sample-v1
+  spec:
+    template:
+      spec:
+        containers:
+          - name: notebook-sample-v1
+            image: ghcr.io/kubeflow/kubeflow/notebook-servers/jupyter:latest
+statusItems:
+  - clusterName: member1
+    status:
+      containerState:
+        waiting:
+          reason: "ImagePullBackOff"
+          message: "Failed to pull image"
+      readyReplicas: 0
+  - clusterName: member2
+    status:
+      containerState:
+        terminated:
+          reason: "Error"
+          exitCode: 1
+      readyReplicas: 0
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: kubeflow.org/v1
+    kind: Notebook
+    metadata:
+      name: notebook-sample-v1
+    spec:
+      template:
+        spec:
+          containers:
+            - name: notebook-sample-v1
+              image: ghcr.io/kubeflow/kubeflow/notebook-servers/jupyter:latest
+    status:
+      readyReplicas: 0
+      containerState:
+        terminated:
+          reason: "Error"
+          exitCode: 1
+      conditions:
+        - type: "Failed"
+          status: "True"
+          reason: "NotebookFailed"
+          message: "Notebook executed failed in member clusters: member1, member2"
+          lastProbeTime: "{{EXCLUDE}}"
+          lastTransitionTime: "{{EXCLUDE}}"
+
+---
+name: "Notebook with multiple status items - mixed states with latest start time"
+description: "Test aggregating status of Notebook with multiple running states, should use latest start time"
+desiredObj:
+  apiVersion: kubeflow.org/v1
+  kind: Notebook
+  metadata:
+    name: notebook-sample-v1
+  spec:
+    template:
+      spec:
+        containers:
+          - name: notebook-sample-v1
+            image: ghcr.io/kubeflow/kubeflow/notebook-servers/jupyter:latest
+statusItems:
+  - clusterName: member1
+    status:
+      containerState:
+        running:
+          startedAt: "2025-10-09T06:58:58Z"
+      readyReplicas: 1
+  - clusterName: member2
+    status:
+      containerState:
+        running:
+          startedAt: "2025-10-09T07:30:00Z"
+      readyReplicas: 1
+  - clusterName: member3
+    status:
+      containerState:
+        running:
+          startedAt: "2025-10-09T07:00:00Z"
+      readyReplicas: 1
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: kubeflow.org/v1
+    kind: Notebook
+    metadata:
+      name: notebook-sample-v1
+    spec:
+      template:
+        spec:
+          containers:
+            - name: notebook-sample-v1
+              image: ghcr.io/kubeflow/kubeflow/notebook-servers/jupyter:latest
+    status:
+      readyReplicas: 3
+      containerState:
+        running:
+          startedAt: "2025-10-09T07:30:00Z"
+      conditions:
+        - type: "Ready"
+          status: "True"
+          reason: "Ready"
+          message: "All notebooks are ready"
+          lastProbeTime: "{{EXCLUDE}}"
+          lastTransitionTime: "{{EXCLUDE}}"
