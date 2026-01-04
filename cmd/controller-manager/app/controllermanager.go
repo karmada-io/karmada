@@ -860,7 +860,7 @@ func setupControllers(ctx context.Context, mgr controllerruntime.Manager, opts *
 	sharedFactory.Start(ctx.Done())
 	sharedFactory.WaitForCacheSync(ctx.Done())
 
-	resourceInterpreter := resourceinterpreter.NewResourceInterpreter(controlPlaneInformerManager, serviceLister)
+	resourceInterpreter := resourceinterpreter.NewResourceInterpreter(controlPlaneInformerManager, serviceLister, opts.ConfigurableInterpreterLuaVMPoolSize, opts.ThirdPartyInterpreterLuaVMPoolSize)
 	if err := resourceInterpreter.Start(ctx); err != nil {
 		klog.Fatalf("Failed to start resource interpreter: %v", err)
 	}
