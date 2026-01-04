@@ -160,10 +160,6 @@ func getAllTestCases(t *testing.T, testDataDir string) TestStructure {
 				t.Fatal(fmt.Errorf("failed to decode file %s: %v", path, err))
 			}
 			test.Filepath = path
-			// Replace {{NOW_TIMESTAMP}} placeholders in Output with current time
-			if test.Output != nil {
-				test.Output = replaceTimestampPlaceholders(test.Output).(map[string]interface{})
-			}
 			resourceTest.Tests = append(resourceTest.Tests, test)
 		}
 		return nil
@@ -184,30 +180,45 @@ func buildRuleArgs(input IndividualTest) interpreter.RuleArgs {
 	}
 }
 
-const timestampPlaceholder = "{{NOW_TIMESTAMP}}"
+const excludePlaceholder = "{{EXCLUDE}}"
 
-// replaceTimestampPlaceholders replaces {{NOW_TIMESTAMP}} placeholders with current UTC time
-// in the same format as Lua's os.date("!%Y-%m-%dT%H:%M:%SZ")
-func replaceTimestampPlaceholders(value interface{}) interface{} {
-	switch val := value.(type) {
-	case string:
-		if val == timestampPlaceholder {
-			// Replace with current UTC time in the same format as Lua script
-			return time.Now().UTC().Format("2006-01-02T15:04:05Z")
-		}
-		return val
+// pathKey converts a path slice to a string key for map lookup
+func pathKey(path []string) string {
+	return strings.Join(path, ".")
+}
 
+// processObjectWithExclusion processes an object, collecting {{EXCLUDE}} markers and removing excluded fields
+func processObjectWithExclusion(obj interface{}, currentPath []string, excludePaths map[string]bool, isCollecting bool) interface{} {
+	switch val := obj.(type) {
 	case map[string]interface{}:
 		result := make(map[string]interface{})
 		for k, v := range val {
-			result[k] = replaceTimestampPlaceholders(v)
+			fieldPath := append(currentPath, k)
+			pathStr := pathKey(fieldPath)
+
+			if isCollecting {
+				// Collect exclude markers during first pass
+				if str, ok := v.(string); ok && str == excludePlaceholder {
+					excludePaths[pathStr] = true
+					continue
+				}
+			} else {
+				// Skip excluded fields during second pass
+				if excludePaths[pathStr] {
+					continue
+				}
+			}
+
+			// Recursively process nested structures
+			result[k] = processObjectWithExclusion(v, fieldPath, excludePaths, isCollecting)
 		}
 		return result
 
 	case []interface{}:
 		result := make([]interface{}, len(val))
 		for i, v := range val {
-			result[i] = replaceTimestampPlaceholders(v)
+			indexPath := append(currentPath, fmt.Sprintf("%d", i))
+			result[i] = processObjectWithExclusion(v, indexPath, excludePaths, isCollecting)
 		}
 		return result
 
@@ -256,8 +267,13 @@ func deepEqual(expected, actualValue interface{}) (bool, error) {
 		if err := k8sjson.Unmarshal(expectedJSONBytes, &unmarshaledExpected); err != nil {
 			return false, fmt.Errorf("failed to unmarshal expected JSON into Unstructured: %w", err)
 		}
-		// {{NOW_TIMESTAMP}} placeholders have already been replaced with current time during YAML parsing
-		return checker.DeepEqual(&unmarshaledExpected, typedActual), nil
+		// Collect field paths marked with {{EXCLUDE}} and remove them from both objects
+		excludePaths := make(map[string]bool)
+		expectedExcluded := processObjectWithExclusion(unmarshaledExpected.Object, nil, excludePaths, true).(map[string]interface{})
+		actualExcluded := processObjectWithExclusion(typedActual.Object, nil, excludePaths, false).(map[string]interface{})
+		expectedObj := &unstructured.Unstructured{Object: expectedExcluded}
+		actualObj := &unstructured.Unstructured{Object: actualExcluded}
+		return checker.DeepEqual(expectedObj, actualObj), nil
 
 	default:
 		// Fallback: marshal actualValue and do byte-wise comparison

@@ -142,8 +142,8 @@ output:
           status: "True"
           reason: "Ready"
           message: "All notebooks are ready"
-          lastProbeTime: "{{NOW_TIMESTAMP}}"
-          lastTransitionTime: "{{NOW_TIMESTAMP}}"
+          lastProbeTime: "{{EXCLUDE}}"
+          lastTransitionTime: "{{EXCLUDE}}"
 
 ---
 name: "Notebook with multiple status items - some failed"
@@ -193,8 +193,8 @@ output:
           status: "True"
           reason: "NotebookFailed"
           message: "Notebook executed failed in member clusters: member2"
-          lastProbeTime: "{{NOW_TIMESTAMP}}"
-          lastTransitionTime: "{{NOW_TIMESTAMP}}"
+          lastProbeTime: "{{EXCLUDE}}"
+          lastTransitionTime: "{{EXCLUDE}}"
 
 ---
 name: "Notebook with multiple status items - all failed"
@@ -249,8 +249,8 @@ output:
           status: "True"
           reason: "NotebookFailed"
           message: "Notebook executed failed in member clusters: member1, member2"
-          lastProbeTime: "{{NOW_TIMESTAMP}}"
-          lastTransitionTime: "{{NOW_TIMESTAMP}}"
+          lastProbeTime: "{{EXCLUDE}}"
+          lastTransitionTime: "{{EXCLUDE}}"
 
 ---
 name: "Notebook with multiple status items - mixed states with latest start time"
@@ -308,5 +308,5 @@ output:
           status: "True"
           reason: "Ready"
           message: "All notebooks are ready"
-          lastProbeTime: "{{NOW_TIMESTAMP}}"
-          lastTransitionTime: "{{NOW_TIMESTAMP}}"
+          lastProbeTime: "{{EXCLUDE}}"
+          lastTransitionTime: "{{EXCLUDE}}"
