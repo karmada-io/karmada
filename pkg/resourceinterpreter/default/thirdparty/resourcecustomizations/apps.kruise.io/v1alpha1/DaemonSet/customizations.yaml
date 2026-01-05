@@ -162,5 +162,8 @@ spec:
         local kube = require("kube")
         function GetDependencies(desiredObj)
           refs = kube.getPodDependencies(desiredObj.spec.template, desiredObj.metadata.namespace)
+          if refs == nil then
+            refs = {}
+          end
           return refs
         end

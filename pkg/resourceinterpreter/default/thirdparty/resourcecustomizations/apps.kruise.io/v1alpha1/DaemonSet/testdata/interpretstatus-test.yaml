@@ -1,5 +1,10 @@
 # test case for interpreting status of DaemonSet
 # case1. DaemonSet: interpret status test
+# case2. DaemonSet: empty observed status
+# case3. DaemonSet: missing metadata
+# case4. DaemonSet: missing annotations
+# case5. DaemonSet: missing annotation
+# case6. DaemonSet: invalid resourceTemplateGeneration value
 
 name: "DaemonSet: interpret status test"
 description: "Test interpreting status for DaemonSet"
@@ -50,5 +55,278 @@ observedObj:
     numberReady: 1
     observedGeneration: 1
     updatedNumberScheduled: 1
+    numberUnavailable: 0 
 operation: InterpretStatus
 output:
+  status:
+    observedGeneration: 1
+    currentNumberScheduled: 1
+    numberMisscheduled: 0
+    desiredNumberScheduled: 1
+    numberReady: 1
+    updatedNumberScheduled: 1
+    numberAvailable: 1
+    numberUnavailable: 0
+    daemonSetHash: 7dd59cf749
+    generation: 1
+    resourceTemplateGeneration: 1
+
+---
+name: "DaemonSet: interpret status with empty status"
+description: "Test InterpretStatus returns empty result when observedObj.status is nil"
+observedObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: DaemonSet
+  metadata:
+    name: sample-nil
+    namespace: test-kruise-daemonset
+    generation: 1
+    annotations:
+      resourcetemplate.karmada.io/generation: "1"
+  spec:
+    selector:
+      matchLabels:
+        app: sample-daemonset
+    template:
+      metadata:
+        labels:
+          app: sample-daemonset
+      spec:
+        containers:
+          - name: nginx
+            image: nginx:alpine
+operation: InterpretStatus
+output:
+  status: {}
+
+---
+name: "DaemonSet: interpret status with missing metadata"
+description: "Test InterpretStatus returns status fields without generation when metadata is nil"
+observedObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: DaemonSet
+  spec:
+    selector:
+      matchLabels:
+        app: sample-daemonset
+    template:
+      metadata:
+        labels:
+          app: sample-daemonset
+      spec:
+        containers:
+          - name: nginx
+            image: nginx:alpine
+  status:
+    currentNumberScheduled: 3
+    daemonSetHash: abc123
+    desiredNumberScheduled: 3
+    numberAvailable: 2
+    numberMisscheduled: 0
+    numberReady: 3
+    observedGeneration: 5
+    updatedNumberScheduled: 3
+    numberUnavailable: 1
+operation: InterpretStatus
+output:
+  status:
+    observedGeneration: 5
+    currentNumberScheduled: 3
+    numberMisscheduled: 0
+    desiredNumberScheduled: 3
+    numberReady: 3
+    updatedNumberScheduled: 3
+    numberAvailable: 2
+    numberUnavailable: 1
+    daemonSetHash: abc123
+
+---
+name: "DaemonSet: interpret status with missing annotations"
+description: "Test InterpretStatus returns status with generation without resourceTemplateGeneration when annotations is nil"
+observedObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: DaemonSet
+  metadata:
+    name: sample
+    namespace: test-kruise-daemonset
+    generation: 7
+  spec:
+    selector:
+      matchLabels:
+        app: sample-daemonset
+    template:
+      metadata:
+        labels:
+          app: sample-daemonset
+      spec:
+        containers:
+          - name: nginx
+            image: nginx:alpine
+  status:
+    currentNumberScheduled: 5
+    daemonSetHash: xyz789
+    desiredNumberScheduled: 5
+    numberAvailable: 5
+    numberMisscheduled: 0
+    numberReady: 5
+    observedGeneration: 7
+    updatedNumberScheduled: 5
+    numberUnavailable: 0
+operation: InterpretStatus
+output:
+  status:
+    observedGeneration: 7
+    currentNumberScheduled: 5
+    numberMisscheduled: 0
+    desiredNumberScheduled: 5
+    numberReady: 5
+    updatedNumberScheduled: 5
+    numberAvailable: 5
+    numberUnavailable: 0
+    daemonSetHash: xyz789
+    generation: 7
+---
+name: "DaemonSet: interpret status with missing resourcetemplate annotation"
+description: "Test InterpretStatus when resourcetemplate.karmada.io/generation annotation is missing"
+observedObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: DaemonSet
+  metadata:
+    name: sample
+    namespace: test-kruise-daemonset
+    generation: 3
+    annotations:
+      some-other-annotation: "value"
+  spec:
+    selector:
+      matchLabels:
+        app: sample-daemonset
+    template:
+      metadata:
+        labels:
+          app: sample-daemonset
+      spec:
+        containers:
+          - name: nginx
+            image: nginx:alpine
+  status:
+    currentNumberScheduled: 2
+    daemonSetHash: def456
+    desiredNumberScheduled: 2
+    numberAvailable: 2
+    numberMisscheduled: 0
+    numberReady: 2
+    observedGeneration: 3
+    updatedNumberScheduled: 2
+    numberUnavailable: 0
+operation: InterpretStatus
+output:
+  status:
+    observedGeneration: 3
+    currentNumberScheduled: 2
+    numberMisscheduled: 0
+    desiredNumberScheduled: 2
+    numberReady: 2
+    updatedNumberScheduled: 2
+    numberAvailable: 2
+    numberUnavailable: 0
+    daemonSetHash: def456
+    generation: 3
+
+---
+name: "DaemonSet: interpret status with invalid resourceTemplateGeneration"
+description: "Test InterpretStatus when resourcetemplate.karmada.io/generation is not a valid number"
+observedObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: DaemonSet
+  metadata:
+    name: sample
+    namespace: test-kruise-daemonset
+    generation: 4
+    annotations:
+      resourcetemplate.karmada.io/generation: "not-a-number"
+  spec:
+    selector:
+      matchLabels:
+        app: sample-daemonset
+    template:
+      metadata:
+        labels:
+          app: sample-daemonset
+      spec:
+        containers:
+          - name: nginx
+            image: nginx:alpine
+  status:
+    currentNumberScheduled: 4
+    daemonSetHash: ghi789
+    desiredNumberScheduled: 4
+    numberAvailable: 4
+    numberMisscheduled: 0
+    numberReady: 4
+    observedGeneration: 4
+    updatedNumberScheduled: 4
+    numberUnavailable: 0
+operation: InterpretStatus
+output:
+  status:
+    observedGeneration: 4
+    currentNumberScheduled: 4
+    numberMisscheduled: 0
+    desiredNumberScheduled: 4
+    numberReady: 4
+    updatedNumberScheduled: 4
+    numberAvailable: 4
+    numberUnavailable: 0
+    daemonSetHash: ghi789
+    generation: 4
+
+---
+name: "DaemonSet: interpret status with high generation numbers"
+description: "Test InterpretStatus with large generation values"
+observedObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: DaemonSet
+  metadata:
+    name: sample
+    namespace: test-kruise-daemonset
+    generation: 999
+    annotations:
+      resourcetemplate.karmada.io/generation: "888"
+  spec:
+    selector:
+      matchLabels:
+        app: sample-daemonset
+    template:
+      metadata:
+        labels:
+          app: sample-daemonset
+      spec:
+        containers:
+          - name: nginx
+            image: nginx:alpine
+  status:
+    currentNumberScheduled: 10
+    daemonSetHash: jkl012
+    desiredNumberScheduled: 10
+    numberAvailable: 8
+    numberMisscheduled: 1
+    numberReady: 9
+    observedGeneration: 998
+    updatedNumberScheduled: 10
+    numberUnavailable: 2
+operation: InterpretStatus
+output:
+  status:
+    observedGeneration: 998
+    currentNumberScheduled: 10
+    numberMisscheduled: 1
+    desiredNumberScheduled: 10
+    numberReady: 9
+    updatedNumberScheduled: 10
+    numberAvailable: 8
+    numberUnavailable: 2
+    daemonSetHash: jkl012
+    generation: 999
+    resourceTemplateGeneration: 888
+
