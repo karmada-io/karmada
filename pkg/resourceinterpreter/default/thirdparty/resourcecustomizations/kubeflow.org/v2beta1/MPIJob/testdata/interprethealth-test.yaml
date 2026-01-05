@@ -1,0 +1,274 @@
+# test case for interpreting health of MPIJob
+# case1. MPIJob with healthy status (no Failed condition)
+# case2. MPIJob with Failed condition should be unhealthy
+# case3. MPIJob with nil/empty status should be unhealthy
+# case4. MPIJob with Failed condition status False should be healthy
+# case5. MPIJob with multiple conditions including Failed should be unhealthy
+# case6. MPIJob with empty conditions array should be unhealthy
+
+name: "MPIJob with healthy status (no Failed condition)"
+description: "Test interpreting health of MPIJob when it has no Failed condition"
+observedObj:
+  apiVersion: kubeflow.org/v2beta1
+  kind: MPIJob
+  metadata:
+    name: mpijob-simple
+    namespace: default
+  spec:
+    slotsPerWorker: 1
+    runPolicy:
+      cleanPodPolicy: Running
+    mpiReplicaSpecs:
+      Launcher:
+        replicas: 1
+        template:
+          spec:
+            containers:
+              - image: mpioperator/tensorflow-benchmarks:latest
+                name: tensorflow-benchmarks
+      Worker:
+        replicas: 2
+        template:
+          spec:
+            containers:
+              - image: mpioperator/tensorflow-benchmarks:latest
+                name: tensorflow-benchmarks
+  status:
+    completionTime: "2019-07-10T10:00:00Z"
+    conditions:
+      - lastTransitionTime: "2019-07-10T09:00:00Z"
+        lastUpdateTime: "2019-07-10T09:00:00Z"
+        message: MPIJob mpijob-simple is created.
+        reason: MPIJobCreated
+        status: "True"
+        type: Created
+      - lastTransitionTime: "2019-07-10T09:30:00Z"
+        lastUpdateTime: "2019-07-10T09:30:00Z"
+        message: MPIJob mpijob-simple is running.
+        reason: MPIJobRunning
+        status: "False"
+        type: Running
+      - lastTransitionTime: "2019-07-10T10:00:00Z"
+        lastUpdateTime: "2019-07-10T10:00:00Z"
+        message: MPIJob mpijob-simple successfully completed.
+        reason: MPIJobSucceeded
+        status: "True"
+        type: Succeeded
+    replicaStatuses:
+      Launcher:
+        succeeded: 1
+      Worker:
+        succeeded: 2
+    startTime: "2019-07-10T09:00:00Z"
+operation: InterpretHealth
+output:
+  healthy: true
+
+---
+name: "MPIJob with Failed condition should be unhealthy"
+description: "Test interpreting health of MPIJob when it has Failed condition"
+observedObj:
+  apiVersion: kubeflow.org/v2beta1
+  kind: MPIJob
+  metadata:
+    name: mpijob-failed
+    namespace: default
+  spec:
+    slotsPerWorker: 1
+    runPolicy:
+      cleanPodPolicy: Running
+    mpiReplicaSpecs:
+      Launcher:
+        replicas: 1
+        template:
+          spec:
+            containers:
+              - image: mpioperator/tensorflow-benchmarks:latest
+                name: tensorflow-benchmarks
+      Worker:
+        replicas: 2
+        template:
+          spec:
+            containers:
+              - image: mpioperator/tensorflow-benchmarks:latest
+                name: tensorflow-benchmarks
+  status:
+    conditions:
+      - lastTransitionTime: "2019-07-10T09:00:00Z"
+        lastUpdateTime: "2019-07-10T09:00:00Z"
+        message: MPIJob mpijob-failed failed.
+        reason: MPIJobFailed
+        status: "True"
+        type: Failed
+    startTime: "2019-07-10T09:00:00Z"
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "MPIJob with nil/empty status should be unhealthy"
+description: "Test interpreting health of MPIJob when status is nil or empty"
+observedObj:
+  apiVersion: kubeflow.org/v2beta1
+  kind: MPIJob
+  metadata:
+    name: mpijob-no-status
+    namespace: default
+  spec:
+    slotsPerWorker: 1
+    runPolicy:
+      cleanPodPolicy: Running
+    mpiReplicaSpecs:
+      Launcher:
+        replicas: 1
+        template:
+          spec:
+            containers:
+              - image: mpioperator/tensorflow-benchmarks:latest
+                name: tensorflow-benchmarks
+      Worker:
+        replicas: 2
+        template:
+          spec:
+            containers:
+              - image: mpioperator/tensorflow-benchmarks:latest
+                name: tensorflow-benchmarks
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "MPIJob with Failed condition status False should be healthy"
+description: "Test interpreting health of MPIJob when Failed condition exists but status is False"
+observedObj:
+  apiVersion: kubeflow.org/v2beta1
+  kind: MPIJob
+  metadata:
+    name: mpijob-failed-false
+    namespace: default
+  spec:
+    slotsPerWorker: 1
+    runPolicy:
+      cleanPodPolicy: Running
+    mpiReplicaSpecs:
+      Launcher:
+        replicas: 1
+        template:
+          spec:
+            containers:
+              - image: mpioperator/tensorflow-benchmarks:latest
+                name: tensorflow-benchmarks
+      Worker:
+        replicas: 2
+        template:
+          spec:
+            containers:
+              - image: mpioperator/tensorflow-benchmarks:latest
+                name: tensorflow-benchmarks
+  status:
+    conditions:
+      - lastTransitionTime: "2019-07-10T09:00:00Z"
+        lastUpdateTime: "2019-07-10T09:00:00Z"
+        message: MPIJob mpijob-failed-false is not failed.
+        reason: MPIJobNotFailed
+        status: "False"
+        type: Failed
+      - lastTransitionTime: "2019-07-10T09:00:00Z"
+        lastUpdateTime: "2019-07-10T09:00:00Z"
+        message: MPIJob mpijob-failed-false is running.
+        reason: MPIJobRunning
+        status: "True"
+        type: Running
+    startTime: "2019-07-10T09:00:00Z"
+operation: InterpretHealth
+output:
+  healthy: true
+
+---
+name: "MPIJob with multiple conditions including Failed should be unhealthy"
+description: "Test interpreting health of MPIJob with multiple conditions where Failed is True"
+observedObj:
+  apiVersion: kubeflow.org/v2beta1
+  kind: MPIJob
+  metadata:
+    name: mpijob-multiple-conditions-failed
+    namespace: default
+  spec:
+    slotsPerWorker: 1
+    runPolicy:
+      cleanPodPolicy: Running
+    mpiReplicaSpecs:
+      Launcher:
+        replicas: 1
+        template:
+          spec:
+            containers:
+              - image: mpioperator/tensorflow-benchmarks:latest
+                name: tensorflow-benchmarks
+      Worker:
+        replicas: 2
+        template:
+          spec:
+            containers:
+              - image: mpioperator/tensorflow-benchmarks:latest
+                name: tensorflow-benchmarks
+  status:
+    conditions:
+      - lastTransitionTime: "2019-07-10T09:00:00Z"
+        lastUpdateTime: "2019-07-10T09:00:00Z"
+        message: MPIJob mpijob-multiple-conditions-failed is created.
+        reason: MPIJobCreated
+        status: "True"
+        type: Created
+      - lastTransitionTime: "2019-07-10T09:30:00Z"
+        lastUpdateTime: "2019-07-10T09:30:00Z"
+        message: MPIJob mpijob-multiple-conditions-failed is running.
+        reason: MPIJobRunning
+        status: "True"
+        type: Running
+      - lastTransitionTime: "2019-07-10T10:00:00Z"
+        lastUpdateTime: "2019-07-10T10:00:00Z"
+        message: MPIJob mpijob-multiple-conditions-failed failed.
+        reason: MPIJobFailed
+        status: "True"
+        type: Failed
+    startTime: "2019-07-10T09:00:00Z"
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "MPIJob with empty conditions array should be unhealthy"
+description: "Test interpreting health of MPIJob when conditions array is empty"
+observedObj:
+  apiVersion: kubeflow.org/v2beta1
+  kind: MPIJob
+  metadata:
+    name: mpijob-empty-conditions
+    namespace: default
+  spec:
+    slotsPerWorker: 1
+    runPolicy:
+      cleanPodPolicy: Running
+    mpiReplicaSpecs:
+      Launcher:
+        replicas: 1
+        template:
+          spec:
+            containers:
+              - image: mpioperator/tensorflow-benchmarks:latest
+                name: tensorflow-benchmarks
+      Worker:
+        replicas: 2
+        template:
+          spec:
+            containers:
+              - image: mpioperator/tensorflow-benchmarks:latest
+                name: tensorflow-benchmarks
+  status:
+    conditions: []
+    startTime: "2019-07-10T09:00:00Z"
+operation: InterpretHealth
+output:
+  healthy: false
+

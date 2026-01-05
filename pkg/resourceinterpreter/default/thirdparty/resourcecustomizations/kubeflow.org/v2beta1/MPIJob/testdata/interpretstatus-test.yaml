@@ -1,8 +1,12 @@
 # test case for interpreting status of MPIJob
-# case1. MPIJob: interpret status test
+# case1. MPIJob with complete status (all fields present)
+# case2. MPIJob with nil/empty status
+# case3. MPIJob with partial replicaStatuses
+# case4. MPIJob with empty conditions array
+# case5. MPIJob with lastReconcileTime field
 
-name: "MPIJob: interpret status test"
-description: "Test interpreting status for MPIJob"
+name: "MPIJob with complete status (all fields present)"
+description: "Test interpreting status for MPIJob with all status fields"
 observedObj:
   apiVersion: kubeflow.org/v2beta1
   kind: MPIJob
@@ -86,7 +90,236 @@ observedObj:
     replicaStatuses:
       Launcher:
         succeeded: 1
-      Worker: { }
+        selector: training.kubeflow.org/job-name=tensorflow-benchmarks,training.kubeflow.org/operator-name=mpijob-controller,training.kubeflow.org/replica-type=launcher
+      Worker:
+        active: 0
+        succeeded: 1
+        failed: 0
+        selector: training.kubeflow.org/job-name=tensorflow-benchmarks,training.kubeflow.org/operator-name=mpijob-controller,training.kubeflow.org/replica-type=worker
     startTime: "2019-07-09T22:15:51Z"
+    lastReconcileTime: "2019-07-09T22:17:06Z"
 operation: InterpretStatus
 output:
+  status:
+    replicaStatuses:
+      Launcher:
+        selector: training.kubeflow.org/job-name=tensorflow-benchmarks,training.kubeflow.org/operator-name=mpijob-controller,training.kubeflow.org/replica-type=launcher
+        succeeded: 1
+      Worker:
+        active: 0
+        failed: 0
+        selector: training.kubeflow.org/job-name=tensorflow-benchmarks,training.kubeflow.org/operator-name=mpijob-controller,training.kubeflow.org/replica-type=worker
+        succeeded: 1
+    conditions:
+      - lastTransitionTime: "2019-07-09T22:15:51Z"
+        lastUpdateTime: "2019-07-09T22:15:51Z"
+        message: MPIJob default/tensorflow-benchmarks is created.
+        reason: MPIJobCreated
+        status: "True"
+        type: Created
+      - lastTransitionTime: "2019-07-09T22:15:54Z"
+        lastUpdateTime: "2019-07-09T22:15:54Z"
+        message: MPIJob default/tensorflow-benchmarks is running.
+        reason: MPIJobRunning
+        status: "False"
+        type: Running
+      - lastTransitionTime: "2019-07-09T22:17:06Z"
+        lastUpdateTime: "2019-07-09T22:17:06Z"
+        message: MPIJob default/tensorflow-benchmarks successfully completed.
+        reason: MPIJobSucceeded
+        status: "True"
+        type: Succeeded
+    startTime: "2019-07-09T22:15:51Z"
+    completionTime: "2019-07-09T22:17:06Z"
+    lastReconcileTime: "2019-07-09T22:17:06Z"
+
+---
+name: "MPIJob with nil/empty status"
+description: "Test interpreting status for MPIJob when status is nil or empty"
+observedObj:
+  apiVersion: kubeflow.org/v2beta1
+  kind: MPIJob
+  metadata:
+    name: mpijob-no-status
+    namespace: default
+  spec:
+    slotsPerWorker: 1
+    runPolicy:
+      cleanPodPolicy: Running
+    mpiReplicaSpecs:
+      Launcher:
+        replicas: 1
+        template:
+          spec:
+            containers:
+              - image: mpioperator/tensorflow-benchmarks:latest
+                name: tensorflow-benchmarks
+      Worker:
+        replicas: 2
+        template:
+          spec:
+            containers:
+              - image: mpioperator/tensorflow-benchmarks:latest
+                name: tensorflow-benchmarks
+operation: InterpretStatus
+output:
+  status: {}
+
+---
+name: "MPIJob with partial replicaStatuses"
+description: "Test interpreting status for MPIJob with partial replicaStatuses"
+observedObj:
+  apiVersion: kubeflow.org/v2beta1
+  kind: MPIJob
+  metadata:
+    name: mpijob-partial-status
+    namespace: default
+  spec:
+    slotsPerWorker: 1
+    runPolicy:
+      cleanPodPolicy: Running
+    mpiReplicaSpecs:
+      Launcher:
+        replicas: 1
+        template:
+          spec:
+            containers:
+              - image: mpioperator/tensorflow-benchmarks:latest
+                name: tensorflow-benchmarks
+      Worker:
+        replicas: 2
+        template:
+          spec:
+            containers:
+              - image: mpioperator/tensorflow-benchmarks:latest
+                name: tensorflow-benchmarks
+  status:
+    replicaStatuses:
+      Launcher:
+        active: 1
+        selector: training.kubeflow.org/job-name=mpijob-partial-status,training.kubeflow.org/operator-name=mpijob-controller,training.kubeflow.org/replica-type=launcher
+      Worker:
+        active: 2
+        failed: 0
+        selector: training.kubeflow.org/job-name=mpijob-partial-status,training.kubeflow.org/operator-name=mpijob-controller,training.kubeflow.org/replica-type=worker
+    startTime: "2019-07-10T09:00:00Z"
+operation: InterpretStatus
+output:
+  status:
+    replicaStatuses:
+      Launcher:
+        active: 1
+        selector: training.kubeflow.org/job-name=mpijob-partial-status,training.kubeflow.org/operator-name=mpijob-controller,training.kubeflow.org/replica-type=launcher
+      Worker:
+        active: 2
+        failed: 0
+        selector: training.kubeflow.org/job-name=mpijob-partial-status,training.kubeflow.org/operator-name=mpijob-controller,training.kubeflow.org/replica-type=worker
+    startTime: "2019-07-10T09:00:00Z"
+
+---
+name: "MPIJob with empty conditions array"
+description: "Test interpreting status for MPIJob with empty conditions array"
+observedObj:
+  apiVersion: kubeflow.org/v2beta1
+  kind: MPIJob
+  metadata:
+    name: mpijob-empty-conditions
+    namespace: default
+  spec:
+    slotsPerWorker: 1
+    runPolicy:
+      cleanPodPolicy: Running
+    mpiReplicaSpecs:
+      Launcher:
+        replicas: 1
+        template:
+          spec:
+            containers:
+              - image: mpioperator/tensorflow-benchmarks:latest
+                name: tensorflow-benchmarks
+      Worker:
+        replicas: 2
+        template:
+          spec:
+            containers:
+              - image: mpioperator/tensorflow-benchmarks:latest
+                name: tensorflow-benchmarks
+  status:
+    conditions: []
+    replicaStatuses:
+      Launcher:
+        active: 1
+      Worker:
+        active: 2
+    startTime: "2019-07-10T09:00:00Z"
+operation: InterpretStatus
+output:
+  status:
+    replicaStatuses:
+      Launcher:
+        active: 1
+      Worker:
+        active: 2
+    startTime: "2019-07-10T09:00:00Z"
+
+---
+name: "MPIJob with lastReconcileTime field"
+description: "Test interpreting status for MPIJob with lastReconcileTime field"
+observedObj:
+  apiVersion: kubeflow.org/v2beta1
+  kind: MPIJob
+  metadata:
+    name: mpijob-reconcile-time
+    namespace: default
+  spec:
+    slotsPerWorker: 1
+    runPolicy:
+      cleanPodPolicy: Running
+    mpiReplicaSpecs:
+      Launcher:
+        replicas: 1
+        template:
+          spec:
+            containers:
+              - image: mpioperator/tensorflow-benchmarks:latest
+                name: tensorflow-benchmarks
+      Worker:
+        replicas: 2
+        template:
+          spec:
+            containers:
+              - image: mpioperator/tensorflow-benchmarks:latest
+                name: tensorflow-benchmarks
+  status:
+    conditions:
+      - lastTransitionTime: "2019-07-10T09:00:00Z"
+        lastUpdateTime: "2019-07-10T09:00:00Z"
+        message: MPIJob default/mpijob-reconcile-time is created.
+        reason: MPIJobCreated
+        status: "True"
+        type: Created
+    replicaStatuses:
+      Launcher:
+        active: 1
+      Worker:
+        active: 2
+    startTime: "2019-07-10T09:00:00Z"
+    lastReconcileTime: "2019-07-10T09:30:00Z"
+operation: InterpretStatus
+output:
+  status:
+    replicaStatuses:
+      Launcher:
+        active: 1
+      Worker:
+        active: 2
+    conditions:
+      - lastTransitionTime: "2019-07-10T09:00:00Z"
+        lastUpdateTime: "2019-07-10T09:00:00Z"
+        message: MPIJob default/mpijob-reconcile-time is created.
+        reason: MPIJobCreated
+        status: "True"
+        type: Created
+    startTime: "2019-07-10T09:00:00Z"
+    lastReconcileTime: "2019-07-10T09:30:00Z"
+
