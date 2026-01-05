@@ -27,6 +27,7 @@ import (
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
@@ -58,6 +59,14 @@ type frqProcessOutcome struct {
 	ProcessError       error // Error for RetryOnConflict (e.g., conflict error or nil for success/final decision)
 }
 
+type quotaExceededError struct {
+	errMsg string
+}
+
+func (q *quotaExceededError) Error() string {
+	return q.errMsg
+}
+
 // Handle implements admission.Handler interface.
 func (v *ValidatingAdmission) Handle(ctx context.Context, req admission.Request) admission.Response {
 	rb, oldRB, err := v.decodeRBs(req)
@@ -77,7 +86,7 @@ func (v *ValidatingAdmission) Handle(ctx context.Context, req admission.Request)
 			return admission.Errored(http.StatusInternalServerError, err)
 		}
 		klog.Errorf("Admission denied for ResourceBinding %s/%s: %v", rb.Namespace, rb.Name, err)
-		return admission.Denied(err.Error())
+		return buildDenyResponse(err)
 	}
 
 	if features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) {
@@ -301,6 +310,23 @@ func (v *ValidatingAdmission) decodeRBs(req admission.Request) (
 	return decodedRB, decodedOldRB, nil
 }
 
+func buildDenyResponse(err error) admission.Response {
+	var quotaErr *quotaExceededError
+	if errors.As(err, &quotaErr) {
+		return admission.Response{
+			AdmissionResponse: admissionv1.AdmissionResponse{
+				Allowed: false,
+				Result: &metav1.Status{
+					Message: quotaErr.Error(),
+					Reason:  util.QuotaExceededReason,
+					Code:    int32(http.StatusForbidden),
+				},
+			},
+		}
+	}
+	return admission.Denied(err.Error())
+}
+
 func (v *ValidatingAdmission) calculateRBUsages(rb, oldRB *workv1alpha2.ResourceBinding) (corev1.ResourceList, corev1.ResourceList, error) {
 	newRbTotalUsage := helper.CalculateResourceUsage(rb)
 	klog.V(4).Infof("Calculated total usage for incoming RB %s/%s: %v", rb.Namespace, rb.Name, newRbTotalUsage)
@@ -345,7 +371,7 @@ func (v *ValidatingAdmission) processSingleFRQ(frqItem *policyv1alpha1.Federated
 	if !isAllowed {
 		klog.Warningf("Quota exceeded for FederatedResourceQuota %s/%s. ResourceBinding %s/%s will be denied. %s",
 			frqItem.Namespace, frqItem.Name, rbNamespace, rbName, errMsg)
-		return nil, "", errors.New(errMsg)
+		return nil, "", &quotaExceededError{errMsg: errMsg}
 	}
 
 	msg := fmt.Sprintf("Quota check passed for FRQ %s/%s.", frqItem.Namespace, frqItem.Name)
