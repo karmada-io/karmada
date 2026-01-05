@@ -186,11 +186,11 @@ output:
       replicas: 1
       replicaRequirements:
         resourceRequest:
-          cpu: 1
+          cpu: "1"
           memory: "1408Mi"
     - name: executor
       replicas: 1
       replicaRequirements:
         resourceRequest:
-          cpu: 1
+          cpu: "1"
           memory: "1408Mi"
