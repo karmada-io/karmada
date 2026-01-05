@@ -1,6 +1,7 @@
 ---
 name: CherryPick Track
 about: Track tasks when release branches need cherry-pick.
+title: 'Backport #<PR_ID>'
 labels: help wanted
 ---
 
@@ -15,17 +16,16 @@ PR #
 Karmada now maintains 3 latest releases.
 If a branch doesn't need this cherry-pick, please explain the reason.
 -->
-- [ ] release-1.x 
+- [ ] release-1.x
 - [ ] release-1.y
 - [ ] release-1.z
 
 **How to cherry-pick PRs:**
 
 The `hack/cherry_pick_pull.sh` script can help you initiate a cherry-pick
-automatically, please follow the instructions at [this guideline](https://karmada.io/docs/contributor/cherry-picks). 
+automatically, please follow the instructions at [this guideline](https://karmada.io/docs/contributor/cherry-picks).
 
-The script will send the PR for you, please remember `copy the release notes` from
-the original PR by to the new PR description part.
+The script will send the PR for you and automatically include the release notes from the original PR in the new PR description.
 
 **How to join or take the task**:
 
