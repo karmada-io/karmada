@@ -1,5 +1,6 @@
 # test case for interpreting status of UnitedDeployment
 # case1. UnitedDeployment: interpret status test
+# case2. UnitedDeployment: interpret status with resourceTemplateGeneration
 
 name: "UnitedDeployment: interpret status test"
 description: "Test interpreting status for UnitedDeployment"
@@ -66,3 +67,49 @@ observedObj:
         message: ReplicaSet has successfully progressed.
 operation: InterpretStatus
 output:
+  status:
+    replicas: 3
+    updatedReplicas: 3
+    readyReplicas: 3
+    availableReplicas: 3
+    observedGeneration: 1
+    conditions:
+      - type: Available
+        status: "True"
+        lastTransitionTime: "2023-01-01T00:00:00Z"
+        reason: MinimumReplicasAvailable
+        message: Deployment has minimum availability.
+      - type: Progressing
+        status: "True"
+        lastTransitionTime: "2023-01-01T00:00:00Z"
+        reason: NewReplicaSetAvailable
+        message: ReplicaSet has successfully progressed.
+    generation: 1
+---
+name: "UnitedDeployment interpret status with resourceTemplateGeneration"
+description: "InterpretStatus should reflect resourceTemplateGeneration from annotation"
+observedObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: UnitedDeployment
+  metadata:
+    name: sample-uniteddeployment
+    namespace: test-namespace
+    generation: 1
+    annotations:
+      resourcetemplate.karmada.io/generation: "5"
+  status:
+    replicas: 3
+    updatedReplicas: 3
+    readyReplicas: 3
+    availableReplicas: 3
+    observedGeneration: 1
+operation: InterpretStatus
+output:
+  status:
+    replicas: 3
+    updatedReplicas: 3
+    readyReplicas: 3
+    availableReplicas: 3
+    observedGeneration: 1
+    resourceTemplateGeneration: 5
+    generation: 1
