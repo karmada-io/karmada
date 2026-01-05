@@ -187,7 +187,19 @@ func pathKey(path []string) string {
 	return strings.Join(path, ".")
 }
 
-// processObjectWithExclusion processes an object, collecting {{EXCLUDE}} markers and removing excluded fields
+// processObjectWithExclusion recursively traverses an object to handle fields marked with excludePlaceholder.
+// It operates in two modes controlled by the `isCollecting` flag.
+//
+// In the first pass (`isCollecting = true`), it identifies fields with the excludePlaceholder value,
+// adds their paths to the `excludePaths` map, and returns a new object with these fields removed.
+// This pass is typically done on the 'expected' object from a test case.
+//
+// In the second pass (`isCollecting = false`), it uses the pre-populated `excludePaths` map to remove
+// the corresponding fields from the object it is processing. This pass is typically done on the
+// 'actual' object from a test execution.
+//
+// This two-pass mechanism ensures that both 'expected' and 'actual' objects are compared
+// after removing a consistent set of fields.
 func processObjectWithExclusion(obj interface{}, currentPath []string, excludePaths map[string]bool, isCollecting bool) interface{} {
 	switch val := obj.(type) {
 	case map[string]interface{}:
