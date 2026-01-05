@@ -1,0 +1,77 @@
+# test case for interpreting health of SparkApplication
+# case1. SparkApplication healthy when state is COMPLETED
+# case2. SparkApplication unhealthy when state is FAILED
+# case3. SparkApplication unhealthy when status is missing
+# case4. SparkApplication unhealthy when applicationState.state is empty
+# case5. SparkApplication unhealthy when applicationState exists but state is missing
+
+name: "SparkApplication healthy when state is COMPLETED"
+description: "Health should be true when applicationState is not FAILED"
+observedObj:
+  apiVersion: sparkoperator.k8s.io/v1beta2
+  kind: SparkApplication
+  metadata:
+    name: spark-pi
+    namespace: default
+  status:
+    applicationState:
+      state: COMPLETED
+operation: InterpretHealth
+output:
+  healthy: true
+---
+name: "SparkApplication unhealthy when state is FAILED"
+description: "Health should be false when applicationState is FAILED"
+observedObj:
+  apiVersion: sparkoperator.k8s.io/v1beta2
+  kind: SparkApplication
+  metadata:
+    name: spark-pi
+    namespace: default
+  status:
+    applicationState:
+      state: FAILED
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "SparkApplication unhealthy when status is missing"
+description: "Health should be false when status or applicationState is nil"
+observedObj:
+  apiVersion: sparkoperator.k8s.io/v1beta2
+  kind: SparkApplication
+  metadata:
+    name: spark-pi
+    namespace: default
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "SparkApplication unhealthy when applicationState.state is empty"
+description: "Empty state should be treated as Unhealthy"
+observedObj:
+  apiVersion: sparkoperator.k8s.io/v1beta2
+  kind: SparkApplication
+  metadata:
+    name: spark-pi
+    namespace: default
+  status:
+    applicationState:
+      state: ""
+operation: InterpretHealth
+output:
+  healthy: true
+---
+name: "SparkApplication unhealthy when applicationState exists but state is missing"
+description: "Missing state field should be treated as Unhealthy"
+observedObj:
+  apiVersion: sparkoperator.k8s.io/v1beta2
+  kind: SparkApplication
+  metadata:
+    name: spark-pi
+    namespace: default
+  status:
+    applicationState: {}
+operation: InterpretHealth
+output:
+  healthy: false

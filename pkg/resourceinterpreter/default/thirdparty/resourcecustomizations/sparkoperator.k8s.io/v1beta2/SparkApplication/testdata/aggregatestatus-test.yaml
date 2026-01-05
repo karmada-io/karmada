@@ -1,5 +1,11 @@
 # test case for aggregating status of SparkApplication
 # case1. SparkApplication with three status items
+# case2. SparkApplication with single status item
+# case3. SparkApplication with no status items
+# case4. SparkApplication with missing attempts fields
+# case5. SparkApplication with missing executorState
+# case6. SparkApplication with missing lastSubmissionAttemptTime
+# case7. SparkApplication with missing terminationTime
 
 name: "SparkApplication with three status items"
 description: "Test aggregating status of SparkApplication with three status items"
@@ -114,3 +120,234 @@ statusItems:
       terminationTime: "2025-10-12T14:12:30Z"
 operation: AggregateStatus
 output:
+  aggregatedStatus:
+    apiVersion: sparkoperator.k8s.io/v1beta2
+    kind: SparkApplication
+    metadata:
+      name: spark-pi
+      namespace: default
+    spec:
+      type: Java
+      mode: cluster
+      image: spark:3.5.0
+      imagePullPolicy: Always
+      mainClass: org.apache.spark.examples.SparkPi
+      mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.12-3.5.0.jar
+      sparkVersion: "3.5.0"
+      sparkUIOptions:
+        serviceLabels:
+          test-label/v1: "true"
+      restartPolicy:
+        type: Never
+      volumes:
+        - name: test-volume
+          hostPath:
+            path: /tmp
+            type: Directory
+      driver:
+        cores: 2
+        memory: 512m
+        labels:
+          version: 3.5.0
+        serviceAccount: spark-operator-spark
+        volumeMounts:
+          - name: test-volume
+            mountPath: /tmp
+      executor:
+        cores: 1
+        instances: 2
+        memory: 1g
+        memoryOverhead: 512m
+        labels:
+          version: 3.5.0
+        volumeMounts:
+          - name: test-volume
+            mountPath: /tmp
+      dynamicAllocation:
+        enabled: true
+        initialExecutors: 3
+        minExecutors: 3
+        maxExecutors: 10
+    status:
+      applicationState:
+        state: FAILED
+      executionAttempts: 6
+      submissionAttempts: 4
+      lastSubmissionAttemptTime: "2025-10-12T14:10:00Z"
+      terminationTime: "2025-10-12T14:12:30Z"
+      executorState:
+        spark-pi-b5777a99d8b732a7-exec-1: COMPLETED
+        spark-pi-b5777a99d8b732a7-exec-2: COMPLETED
+        spark-pi-b5777a99d8b732a8-exec-1: RUNNING
+        spark-pi-b5777a99d8b732a8-exec-2: RUNNING
+        spark-pi-b5777a99d8b732a9-exec-1: FAILED
+        spark-pi-b5777a99d8b732a9-exec-2: FAILED
+---
+name: "SparkApplication with single status item"
+description: "AggregateStatus should directly copy single member status"
+desiredObj:
+  apiVersion: sparkoperator.k8s.io/v1beta2
+  kind: SparkApplication
+  metadata:
+    name: spark-pi
+    namespace: default
+statusItems:
+  - status:
+      applicationState:
+        state: RUNNING
+      executionAttempts: 2
+      submissionAttempts: 1
+      executorState:
+        exec-1: RUNNING
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: sparkoperator.k8s.io/v1beta2
+    kind: SparkApplication
+    metadata:
+      name: spark-pi
+      namespace: default
+    status:
+      applicationState:
+        state: RUNNING
+      executionAttempts: 2
+      submissionAttempts: 1
+      executorState:
+        exec-1: RUNNING
+---
+name: "SparkApplication with no status items"
+description: "AggregateStatus should return desiredObj unchanged"
+desiredObj:
+  apiVersion: sparkoperator.k8s.io/v1beta2
+  kind: SparkApplication
+  metadata:
+    name: spark-pi
+    namespace: default
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: sparkoperator.k8s.io/v1beta2
+    kind: SparkApplication
+    metadata:
+      name: spark-pi
+      namespace: default
+---
+name: "SparkApplication with missing attempts fields"
+description: "AggregateStatus should handle missing executionAttempts and submissionAttempts"
+desiredObj:
+  apiVersion: sparkoperator.k8s.io/v1beta2
+  kind: SparkApplication
+  metadata:
+    name: spark-pi
+    namespace: default
+statusItems:
+  - status:
+      applicationState:
+        state: RUNNING
+      executionAttempts: 2
+  - status:
+      applicationState:
+        state: RUNNING
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: sparkoperator.k8s.io/v1beta2
+    kind: SparkApplication
+    metadata:
+      name: spark-pi
+      namespace: default
+    status:
+      applicationState:
+        state: RUNNING
+      executionAttempts: 2
+      submissionAttempts: 0
+      lastSubmissionAttemptTime: ""
+      terminationTime: ""
+---
+name: "SparkApplication picks latest lastSubmissionAttemptTime"
+description: "AggregateStatus should pick the latest submission attempt time"
+desiredObj:
+  apiVersion: sparkoperator.k8s.io/v1beta2
+  kind: SparkApplication
+  metadata:
+    name: spark-pi
+    namespace: default
+statusItems:
+  - status:
+      lastSubmissionAttemptTime: "2025-10-12T13:00:00Z"
+  - status:
+      lastSubmissionAttemptTime: "2025-10-12T14:30:00Z"
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: sparkoperator.k8s.io/v1beta2
+    kind: SparkApplication
+    metadata:
+      name: spark-pi
+      namespace: default
+    status:
+      executionAttempts: 0
+      submissionAttempts: 0
+      lastSubmissionAttemptTime: "2025-10-12T14:30:00Z"
+      terminationTime: ""
+---
+name: "SparkApplication picks latest terminationTime"
+description: "AggregateStatus should pick the latest termination time"
+desiredObj:
+  apiVersion: sparkoperator.k8s.io/v1beta2
+  kind: SparkApplication
+  metadata:
+    name: spark-pi
+    namespace: default
+statusItems:
+  - status:
+      terminationTime: "2025-10-12T14:00:00Z"
+  - status:
+      terminationTime: "2025-10-12T15:45:00Z"
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: sparkoperator.k8s.io/v1beta2
+    kind: SparkApplication
+    metadata:
+      name: spark-pi
+      namespace: default
+    status:
+      executionAttempts: 0
+      submissionAttempts: 0
+      lastSubmissionAttemptTime: ""
+      terminationTime: "2025-10-12T15:45:00Z"
+---
+name: "SparkApplication worst state selected by priority"
+description: "FAILED should override RUNNING and COMPLETED"
+desiredObj:
+  apiVersion: sparkoperator.k8s.io/v1beta2
+  kind: SparkApplication
+  metadata:
+    name: spark-pi
+    namespace: default
+statusItems:
+  - status:
+      applicationState:
+        state: COMPLETED
+  - status:
+      applicationState:
+        state: RUNNING
+  - status:
+      applicationState:
+        state: FAILED
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: sparkoperator.k8s.io/v1beta2
+    kind: SparkApplication
+    metadata:
+      name: spark-pi
+      namespace: default
+    status:
+      applicationState:
+        state: FAILED
+      executionAttempts: 0
+      submissionAttempts: 0
+      lastSubmissionAttemptTime: ""
+      terminationTime: ""

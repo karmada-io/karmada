@@ -1,5 +1,9 @@
 # test case for interpreting status of SparkApplication
 # case1. SparkApplication: interpret status test
+# case2. SparkApplication: interpret status with no status
+# case3. SparkApplication: interpret status with applicationState but missing state
+# case4. SparkApplication: interpret status with partial status fields
+# case5. SparkApplication: interpret status with empty executorState
 
 name: "SparkApplication: interpret status test"
 description: "Test interpreting status for SparkApplication"
@@ -75,3 +79,79 @@ observedObj:
     terminationTime: "2025-10-12T13:58:39Z"
 operation: InterpretStatus
 output:
+  status:
+    applicationState:
+      state: COMPLETED
+    driverInfo:
+      podName: spark-pi-driver
+      webUIAddress: 10.11.254.226:4040
+      webUIPort: 4040
+      webUIServiceName: spark-pi-ui-svc
+    executorState:
+      spark-pi-b5777a99d8b732a7-exec-1: COMPLETED
+      spark-pi-b5777a99d8b732a7-exec-2: COMPLETED
+    sparkApplicationId: spark-ff27607fd312454b92455e2feabdd343
+    lastSubmissionAttemptTime: "2025-10-12T13:57:17Z"
+    submissionAttempts: 1
+    executionAttempts: 1
+    submissionID: 0df4a04b-620b-425e-997a-e4404010e26a
+    terminationTime: "2025-10-12T13:58:39Z"
+---
+name: "SparkApplication interpret status with no status"
+description: "InterpretStatus should return empty status when observed status is nil"
+observedObj:
+  apiVersion: sparkoperator.k8s.io/v1beta2
+  kind: SparkApplication
+  metadata:
+    name: spark-pi
+    namespace: default
+operation: InterpretStatus
+output:
+  status: {}
+---
+name: "SparkApplication interpret status with applicationState but missing state"
+description: "InterpretStatus should copy applicationState even if state field is missing"
+observedObj:
+  apiVersion: sparkoperator.k8s.io/v1beta2
+  kind: SparkApplication
+  metadata:
+    name: spark-pi
+    namespace: default
+  status:
+    applicationState: {}
+operation: InterpretStatus
+output:
+  status: {}
+---
+name: "SparkApplication interpret status with partial status fields"
+description: "InterpretStatus should copy existing fields and ignore nil ones"
+observedObj:
+  apiVersion: sparkoperator.k8s.io/v1beta2
+  kind: SparkApplication
+  metadata:
+    name: spark-pi
+    namespace: default
+  status:
+    driverInfo:
+      podName: spark-pi-driver
+      webUIPort: 4040
+operation: InterpretStatus
+output:
+  status:
+    driverInfo:
+      podName: spark-pi-driver
+      webUIPort: 4040
+---
+name: "SparkApplication interpret status with empty executorState"
+description: "Empty executorState should be copied as-is"
+observedObj:
+  apiVersion: sparkoperator.k8s.io/v1beta2
+  kind: SparkApplication
+  metadata:
+    name: spark-pi
+    namespace: default
+  status:
+    executorState: {}
+operation: InterpretStatus
+output:
+  status: {}
