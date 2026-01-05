@@ -66,6 +66,7 @@ var (
 	crdsPath                 string
 	karmadaAPIServerNodePort string
 	karmadaDataPath          string
+	karmadaConfigPath        string
 )
 
 // image
@@ -143,6 +144,8 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() []byte { return nil }, func([]byte
 
 	karmadaDataPath = filepath.Join(os.TempDir(), KarmadaInstanceNamePrefix+rand.String(RandomStrLength))
 	karmadaAPIServerNodePort = strconv.Itoa(rand.IntnRange(30000, 31000))
+
+	karmadaConfigPath = filepath.Join(os.TempDir(), KarmadaInstanceNamePrefix+rand.String(RandomStrLength))
 })
 
 var _ = ginkgo.SynchronizedAfterSuite(func() {
@@ -154,7 +157,10 @@ var _ = ginkgo.SynchronizedAfterSuite(func() {
 	}
 
 	err := os.RemoveAll(karmadaDataPath)
-	gomega.Expect(err).ShouldNot(gomega.HaveOccurred(), fmt.Sprintf("Failed to remove temp dir %s", karmadaDataPath))
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred(), fmt.Sprintf("Failed to remove temp data dir %s", karmadaDataPath))
+
+	err = os.RemoveAll(karmadaConfigPath)
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred(), fmt.Sprintf("Failed to remove temp config dir %s", karmadaConfigPath))
 }, func() {})
 
 // setupTestNamespace will create a namespace in control plane and all member clusters, most of cases will run against it.
@@ -162,17 +168,10 @@ var _ = ginkgo.SynchronizedAfterSuite(func() {
 func setupTestNamespace(namespace string, kubeClient kubernetes.Interface) error {
 	namespaceObj := helper.NewNamespace(namespace)
 	_, err := util.CreateNamespace(kubeClient, namespaceObj)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 // cleanupTestNamespace will remove the namespace we setup before for the whole testing.
 func cleanupTestNamespace(namespace string, kubeClient kubernetes.Interface) error {
-	err := util.DeleteNamespace(kubeClient, namespace)
-	if err != nil {
-		return err
-	}
-	return nil
+	return util.DeleteNamespace(kubeClient, namespace)
 }
