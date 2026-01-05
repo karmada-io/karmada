@@ -1,8 +1,12 @@
 # test case for interpreting health of TFJob
-# case1. TFJob interpreting health test
+# case1. TFJob with healthy status (no Failed condition)
+# case2. TFJob with Failed condition should be unhealthy
+# case3. TFJob with nil/empty status should be unhealthy
+# case4. TFJob with Failed condition status False should be healthy
+# case5. TFJob with multiple conditions including Failed should be unhealthy
 
-name: "TFJob interpreting health test"
-description: "Test interpreting health of TFJob"
+name: "TFJob with healthy status (no Failed condition)"
+description: "Test interpreting health of TFJob when it has no Failed condition"
 observedObj:
   apiVersion: kubeflow.org/v1
   kind: TFJob
@@ -72,5 +76,208 @@ observedObj:
         succeeded: 2
       Worker:
         succeeded: 4
+    startTime: "2025-11-22T10:48:50Z"
 operation: InterpretHealth
 output:
+  healthy: true
+
+---
+name: "TFJob with Failed condition should be unhealthy"
+description: "Test interpreting health of TFJob when it has Failed condition"
+observedObj:
+  apiVersion: kubeflow.org/v1
+  kind: TFJob
+  metadata:
+    name: tfjob-failed
+    namespace: default
+  spec:
+    tfReplicaSpecs:
+      PS:
+        replicas: 1
+        restartPolicy: Never
+        template:
+          spec:
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+      Worker:
+        replicas: 2
+        restartPolicy: Never
+        template:
+          spec:
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+  status:
+    conditions:
+      - lastTransitionTime: "2025-11-22T10:48:50Z"
+        lastUpdateTime: "2025-11-22T10:48:50Z"
+        message: TFJob tfjob-failed failed.
+        reason: TFJobFailed
+        status: "True"
+        type: Failed
+    startTime: "2025-11-22T10:48:50Z"
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "TFJob with nil/empty status should be unhealthy"
+description: "Test interpreting health of TFJob when status is nil or empty"
+observedObj:
+  apiVersion: kubeflow.org/v1
+  kind: TFJob
+  metadata:
+    name: tfjob-no-status
+    namespace: default
+  spec:
+    tfReplicaSpecs:
+      PS:
+        replicas: 1
+        restartPolicy: Never
+        template:
+          spec:
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+      Worker:
+        replicas: 2
+        restartPolicy: Never
+        template:
+          spec:
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "TFJob with Failed condition status False should be healthy"
+description: "Test interpreting health of TFJob when Failed condition exists but status is False"
+observedObj:
+  apiVersion: kubeflow.org/v1
+  kind: TFJob
+  metadata:
+    name: tfjob-failed-false
+    namespace: default
+  spec:
+    tfReplicaSpecs:
+      PS:
+        replicas: 1
+        restartPolicy: Never
+        template:
+          spec:
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+      Worker:
+        replicas: 2
+        restartPolicy: Never
+        template:
+          spec:
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+  status:
+    conditions:
+      - lastTransitionTime: "2025-11-22T10:48:50Z"
+        lastUpdateTime: "2025-11-22T10:48:50Z"
+        message: TFJob tfjob-failed-false is not failed.
+        reason: TFJobNotFailed
+        status: "False"
+        type: Failed
+      - lastTransitionTime: "2025-11-22T10:48:50Z"
+        lastUpdateTime: "2025-11-22T10:48:50Z"
+        message: TFJob tfjob-failed-false is running.
+        reason: TFJobRunning
+        status: "True"
+        type: Running
+    startTime: "2025-11-22T10:48:50Z"
+operation: InterpretHealth
+output:
+  healthy: true
+
+---
+name: "TFJob with multiple conditions including Failed should be unhealthy"
+description: "Test interpreting health of TFJob with multiple conditions where Failed is True"
+observedObj:
+  apiVersion: kubeflow.org/v1
+  kind: TFJob
+  metadata:
+    name: tfjob-multiple-conditions-failed
+    namespace: default
+  spec:
+    tfReplicaSpecs:
+      PS:
+        replicas: 1
+        restartPolicy: Never
+        template:
+          spec:
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+      Worker:
+        replicas: 2
+        restartPolicy: Never
+        template:
+          spec:
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+  status:
+    conditions:
+      - lastTransitionTime: "2025-11-22T10:48:50Z"
+        lastUpdateTime: "2025-11-22T10:48:50Z"
+        message: TFJob tfjob-multiple-conditions-failed is created.
+        reason: TFJobCreated
+        status: "True"
+        type: Created
+      - lastTransitionTime: "2025-11-22T10:49:24Z"
+        lastUpdateTime: "2025-11-22T10:49:24Z"
+        message: TFJob tfjob-multiple-conditions-failed is running.
+        reason: TFJobRunning
+        status: "True"
+        type: Running
+      - lastTransitionTime: "2025-11-22T10:49:45Z"
+        lastUpdateTime: "2025-11-22T10:49:45Z"
+        message: TFJob tfjob-multiple-conditions-failed failed.
+        reason: TFJobFailed
+        status: "True"
+        type: Failed
+    startTime: "2025-11-22T10:48:50Z"
+operation: InterpretHealth
+output:
+  healthy: false

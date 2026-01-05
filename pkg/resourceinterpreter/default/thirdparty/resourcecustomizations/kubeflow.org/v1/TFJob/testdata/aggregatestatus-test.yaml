@@ -1,8 +1,84 @@
 # test case for aggregating status of TFJob
-# case1. TFJob with two status items
+# case1. TFJob with nil status items
+# case2. TFJob with two status items (both succeeded)
+# case3. TFJob with failed cluster
+# case4. TFJob with partial success (some clusters succeeded, some running)
+# case5. TFJob with multiple replica types (PS, Worker, Chief, Master, Evaluator)
 
-name: "TFJob with two status items"
-description: "Test aggregating status of TFJob with two status items"
+name: "TFJob with nil status items"
+description: "Test aggregating status of TFJob with nil status items"
+desiredObj:
+  apiVersion: kubeflow.org/v1
+  kind: TFJob
+  metadata:
+    name: tfjob-empty
+    namespace: default
+  spec:
+    tfReplicaSpecs:
+      PS:
+        replicas: 2
+        restartPolicy: Never
+        template:
+          spec:
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+      Worker:
+        replicas: 4
+        restartPolicy: Never
+        template:
+          spec:
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+statusItems:
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: kubeflow.org/v1
+    kind: TFJob
+    metadata:
+      name: tfjob-empty
+      namespace: default
+    spec:
+      tfReplicaSpecs:
+        PS:
+          replicas: 2
+          restartPolicy: Never
+          template:
+            spec:
+              containers:
+                - image: kubeflow/tf-dist-mnist-test:latest
+                  name: tensorflow
+                  resources:
+                    limits:
+                      cpu: 1
+                      memory: 512Mi
+        Worker:
+          replicas: 4
+          restartPolicy: Never
+          template:
+            spec:
+              containers:
+                - image: kubeflow/tf-dist-mnist-test:latest
+                  name: tensorflow
+                  resources:
+                    limits:
+                      cpu: 1
+                      memory: 512Mi
+    status: {}
+
+---
+name: "TFJob with two status items (both succeeded)"
+description: "Test aggregating status of TFJob with two status items (both succeeded)"
 desiredObj:
   apiVersion: kubeflow.org/v1
   kind: TFJob
@@ -55,12 +131,6 @@ statusItems:
           reason: TFJobCreated
           status: "True"
           type: Created
-        - lastTransitionTime: "2025-11-22T10:49:24Z"
-          lastUpdateTime: "2025-11-22T10:49:24Z"
-          message: TFJob default/dist-mnist-for-e2e-test is running.
-          reason: TFJobRunning
-          status: "False"
-          type: Running
         - lastTransitionTime: "2025-11-22T10:49:40Z"
           lastUpdateTime: "2025-11-22T10:49:40Z"
           message: TFJob default/dist-mnist-for-e2e-test successfully completed.
@@ -72,11 +142,12 @@ statusItems:
           succeeded: 1
         Worker:
           succeeded: 2
+      startTime: "2025-11-22T10:48:50Z"
   - applied: true
     clusterName: member2
     health: Healthy
     status:
-      completionTime: "2025-11-22T10:49:40Z"
+      completionTime: "2025-11-22T10:49:50Z"
       conditions:
         - lastTransitionTime: "2025-11-22T10:48:50Z"
           lastUpdateTime: "2025-11-22T10:48:50Z"
@@ -84,14 +155,8 @@ statusItems:
           reason: TFJobCreated
           status: "True"
           type: Created
-        - lastTransitionTime: "2025-11-22T10:49:24Z"
-          lastUpdateTime: "2025-11-22T10:49:24Z"
-          message: TFJob default/dist-mnist-for-e2e-test is running.
-          reason: TFJobRunning
-          status: "False"
-          type: Running
-        - lastTransitionTime: "2025-11-22T10:49:40Z"
-          lastUpdateTime: "2025-11-22T10:49:40Z"
+        - lastTransitionTime: "2025-11-22T10:49:50Z"
+          lastUpdateTime: "2025-11-22T10:49:50Z"
           message: TFJob default/dist-mnist-for-e2e-test successfully completed.
           reason: TFJobSucceeded
           status: "True"
@@ -101,5 +166,552 @@ statusItems:
           succeeded: 1
         Worker:
           succeeded: 2
+      startTime: "2025-11-22T10:48:50Z"
 operation: AggregateStatus
 output:
+  aggregatedStatus:
+    apiVersion: kubeflow.org/v1
+    kind: TFJob
+    metadata:
+      name: dist-mnist-for-e2e-test
+      namespace: default
+    spec:
+      tfReplicaSpecs:
+        PS:
+          replicas: 2
+          restartPolicy: Never
+          template:
+            spec:
+              containers:
+                - image: kubeflow/tf-dist-mnist-test:latest
+                  name: tensorflow
+                  resources:
+                    limits:
+                      cpu: 1
+                      memory: 512Mi
+        Worker:
+          replicas: 4
+          restartPolicy: Never
+          template:
+            spec:
+              containers:
+                - image: kubeflow/tf-dist-mnist-test:latest
+                  name: tensorflow
+                  volumeMounts:
+                    - mountPath: "/train"
+                      name: "training"
+                  resources:
+                    limits:
+                      cpu: 1
+                      memory: 512Mi
+              volumes:
+                - name: "training"
+                  persistentVolumeClaim:
+                    claimName: "training-data"
+    status:
+      completionTime: "2025-11-22T10:49:50Z"
+      conditions:
+        - lastProbeTime: "{{EXCLUDE}}"
+          lastTransitionTime: "{{EXCLUDE}}"
+          message: "TFJob completed successfully"
+          reason: "Completed"
+          status: "True"
+          type: "Succeeded"
+      replicaStatuses:
+        PS:
+          succeeded: 2
+        Worker:
+          succeeded: 4
+      startTime: "2025-11-22T10:48:50Z"
+
+---
+name: "TFJob with failed cluster"
+description: "Test aggregating status of TFJob when one cluster has failed"
+desiredObj:
+  apiVersion: kubeflow.org/v1
+  kind: TFJob
+  metadata:
+    name: tfjob-failed
+    namespace: default
+  spec:
+    tfReplicaSpecs:
+      PS:
+        replicas: 1
+        restartPolicy: Never
+        template:
+          spec:
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+      Worker:
+        replicas: 2
+        restartPolicy: Never
+        template:
+          spec:
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+statusItems:
+  - applied: true
+    clusterName: member1
+    health: Healthy
+    status:
+      completionTime: "2025-11-22T10:49:40Z"
+      conditions:
+        - lastTransitionTime: "2025-11-22T10:48:50Z"
+          lastUpdateTime: "2025-11-22T10:48:50Z"
+          message: TFJob tfjob-failed is created.
+          reason: TFJobCreated
+          status: "True"
+          type: Created
+        - lastTransitionTime: "2025-11-22T10:49:40Z"
+          lastUpdateTime: "2025-11-22T10:49:40Z"
+          message: TFJob default/tfjob-failed successfully completed.
+          reason: TFJobSucceeded
+          status: "True"
+          type: Succeeded
+      replicaStatuses:
+        PS:
+          succeeded: 1
+        Worker:
+          succeeded: 2
+      startTime: "2025-11-22T10:48:50Z"
+  - applied: true
+    clusterName: member2
+    health: Unhealthy
+    status:
+      completionTime: "2025-11-22T10:49:45Z"
+      conditions:
+        - lastTransitionTime: "2025-11-22T10:48:50Z"
+          lastUpdateTime: "2025-11-22T10:48:50Z"
+          message: TFJob tfjob-failed is created.
+          reason: TFJobCreated
+          status: "True"
+          type: Created
+        - lastTransitionTime: "2025-11-22T10:49:45Z"
+          lastUpdateTime: "2025-11-22T10:49:45Z"
+          message: TFJob default/tfjob-failed failed.
+          reason: TFJobFailed
+          status: "True"
+          type: Failed
+      replicaStatuses:
+        PS:
+          failed: 1
+        Worker:
+          failed: 2
+      startTime: "2025-11-22T10:48:50Z"
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: kubeflow.org/v1
+    kind: TFJob
+    metadata:
+      name: tfjob-failed
+      namespace: default
+    spec:
+      tfReplicaSpecs:
+        PS:
+          replicas: 1
+          restartPolicy: Never
+          template:
+            spec:
+              containers:
+                - image: kubeflow/tf-dist-mnist-test:latest
+                  name: tensorflow
+                  resources:
+                    limits:
+                      cpu: 1
+                      memory: 512Mi
+        Worker:
+          replicas: 2
+          restartPolicy: Never
+          template:
+            spec:
+              containers:
+                - image: kubeflow/tf-dist-mnist-test:latest
+                  name: tensorflow
+                  resources:
+                    limits:
+                      cpu: 1
+                      memory: 512Mi
+    status:
+      conditions:
+        - lastProbeTime: "{{EXCLUDE}}"
+          lastTransitionTime: "{{EXCLUDE}}"
+          message: "TFJob executed failed in member clusters: member2"
+          reason: "TFJobFailed"
+          status: "True"
+          type: "Failed"
+      replicaStatuses:
+        PS:
+          failed: 1
+          succeeded: 1
+        Worker:
+          failed: 2
+          succeeded: 2
+      startTime: "2025-11-22T10:48:50Z"
+
+---
+name: "TFJob with partial success"
+description: "Test aggregating status of TFJob with partial success (some clusters succeeded, some running)"
+desiredObj:
+  apiVersion: kubeflow.org/v1
+  kind: TFJob
+  metadata:
+    name: tfjob-partial-success
+    namespace: default
+  spec:
+    tfReplicaSpecs:
+      PS:
+        replicas: 1
+        restartPolicy: Never
+        template:
+          spec:
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+      Worker:
+        replicas: 2
+        restartPolicy: Never
+        template:
+          spec:
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+statusItems:
+  - applied: true
+    clusterName: member1
+    health: Healthy
+    status:
+      completionTime: "2025-11-22T10:49:40Z"
+      conditions:
+        - lastTransitionTime: "2025-11-22T10:48:50Z"
+          lastUpdateTime: "2025-11-22T10:48:50Z"
+          message: TFJob tfjob-partial-success is created.
+          reason: TFJobCreated
+          status: "True"
+          type: Created
+        - lastTransitionTime: "2025-11-22T10:49:24Z"
+          lastUpdateTime: "2025-11-22T10:49:24Z"
+          message: TFJob default/tfjob-partial-success is running.
+          reason: TFJobRunning
+          status: "False"
+          type: Running
+        - lastTransitionTime: "2025-11-22T10:49:40Z"
+          lastUpdateTime: "2025-11-22T10:49:40Z"
+          message: TFJob default/tfjob-partial-success successfully completed.
+          reason: TFJobSucceeded
+          status: "True"
+          type: Succeeded
+      replicaStatuses:
+        PS:
+          succeeded: 1
+        Worker:
+          succeeded: 2
+      startTime: "2025-11-22T10:48:50Z"
+  - applied: true
+    clusterName: member2
+    health: Healthy
+    status:
+      conditions:
+        - lastTransitionTime: "2025-11-22T10:48:50Z"
+          lastUpdateTime: "2025-11-22T10:48:50Z"
+          message: TFJob tfjob-partial-success is created.
+          reason: TFJobCreated
+          status: "True"
+          type: Created
+        - lastTransitionTime: "2025-11-22T10:49:24Z"
+          lastUpdateTime: "2025-11-22T10:49:24Z"
+          message: TFJob default/tfjob-partial-success is running.
+          reason: TFJobRunning
+          status: "True"
+          type: Running
+      replicaStatuses:
+        PS:
+          active: 1
+        Worker:
+          active: 2
+      startTime: "2025-11-22T10:48:50Z"
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: kubeflow.org/v1
+    kind: TFJob
+    metadata:
+      name: tfjob-partial-success
+      namespace: default
+    spec:
+      tfReplicaSpecs:
+        PS:
+          replicas: 1
+          restartPolicy: Never
+          template:
+            spec:
+              containers:
+                - image: kubeflow/tf-dist-mnist-test:latest
+                  name: tensorflow
+                  resources:
+                    limits:
+                      cpu: 1
+                      memory: 512Mi
+        Worker:
+          replicas: 2
+          restartPolicy: Never
+          template:
+            spec:
+              containers:
+                - image: kubeflow/tf-dist-mnist-test:latest
+                  name: tensorflow
+                  resources:
+                    limits:
+                      cpu: 1
+                      memory: 512Mi
+    status:
+      replicaStatuses:
+        PS:
+          active: 1
+          succeeded: 1
+        Worker:
+          active: 2
+          succeeded: 2
+      startTime: "2025-11-22T10:48:50Z"
+
+---
+name: "TFJob with multiple replica types"
+description: "Test aggregating status of TFJob with multiple replica types (PS, Worker, Chief, Master, Evaluator)"
+desiredObj:
+  apiVersion: kubeflow.org/v1
+  kind: TFJob
+  metadata:
+    name: tfjob-multi-replica
+    namespace: default
+  spec:
+    tfReplicaSpecs:
+      PS:
+        replicas: 2
+        restartPolicy: Never
+        template:
+          spec:
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+      Worker:
+        replicas: 4
+        restartPolicy: Never
+        template:
+          spec:
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+      Chief:
+        replicas: 1
+        restartPolicy: Never
+        template:
+          spec:
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+      Master:
+        replicas: 1
+        restartPolicy: Never
+        template:
+          spec:
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+      Evaluator:
+        replicas: 1
+        restartPolicy: Never
+        template:
+          spec:
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+statusItems:
+  - applied: true
+    clusterName: member1
+    health: Healthy
+    status:
+      completionTime: "2025-11-22T10:49:40Z"
+      conditions:
+        - lastTransitionTime: "2025-11-22T10:48:50Z"
+          lastUpdateTime: "2025-11-22T10:48:50Z"
+          message: TFJob tfjob-multi-replica is created.
+          reason: TFJobCreated
+          status: "True"
+          type: Created
+        - lastTransitionTime: "2025-11-22T10:49:40Z"
+          lastUpdateTime: "2025-11-22T10:49:40Z"
+          message: TFJob default/tfjob-multi-replica successfully completed.
+          reason: TFJobSucceeded
+          status: "True"
+          type: Succeeded
+      replicaStatuses:
+        PS:
+          succeeded: 1
+        Worker:
+          succeeded: 2
+        Chief:
+          succeeded: 1
+        Master:
+          succeeded: 1
+        Evaluator:
+          succeeded: 1
+      startTime: "2025-11-22T10:48:50Z"
+  - applied: true
+    clusterName: member2
+    health: Healthy
+    status:
+      completionTime: "2025-11-22T10:49:50Z"
+      conditions:
+        - lastTransitionTime: "2025-11-22T10:48:50Z"
+          lastUpdateTime: "2025-11-22T10:48:50Z"
+          message: TFJob tfjob-multi-replica is created.
+          reason: TFJobCreated
+          status: "True"
+          type: Created
+        - lastTransitionTime: "2025-11-22T10:49:50Z"
+          lastUpdateTime: "2025-11-22T10:49:50Z"
+          message: TFJob default/tfjob-multi-replica successfully completed.
+          reason: TFJobSucceeded
+          status: "True"
+          type: Succeeded
+      replicaStatuses:
+        PS:
+          succeeded: 1
+        Worker:
+          succeeded: 2
+        Chief:
+          succeeded: 1
+        Master:
+          succeeded: 1
+        Evaluator:
+          succeeded: 1
+      startTime: "2025-11-22T10:48:50Z"
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: kubeflow.org/v1
+    kind: TFJob
+    metadata:
+      name: tfjob-multi-replica
+      namespace: default
+    spec:
+      tfReplicaSpecs:
+        PS:
+          replicas: 2
+          restartPolicy: Never
+          template:
+            spec:
+              containers:
+                - image: kubeflow/tf-dist-mnist-test:latest
+                  name: tensorflow
+                  resources:
+                    limits:
+                      cpu: 1
+                      memory: 512Mi
+        Worker:
+          replicas: 4
+          restartPolicy: Never
+          template:
+            spec:
+              containers:
+                - image: kubeflow/tf-dist-mnist-test:latest
+                  name: tensorflow
+                  resources:
+                    limits:
+                      cpu: 1
+                      memory: 512Mi
+        Chief:
+          replicas: 1
+          restartPolicy: Never
+          template:
+            spec:
+              containers:
+                - image: kubeflow/tf-dist-mnist-test:latest
+                  name: tensorflow
+                  resources:
+                    limits:
+                      cpu: 1
+                      memory: 512Mi
+        Master:
+          replicas: 1
+          restartPolicy: Never
+          template:
+            spec:
+              containers:
+                - image: kubeflow/tf-dist-mnist-test:latest
+                  name: tensorflow
+                  resources:
+                    limits:
+                      cpu: 1
+                      memory: 512Mi
+        Evaluator:
+          replicas: 1
+          restartPolicy: Never
+          template:
+            spec:
+              containers:
+                - image: kubeflow/tf-dist-mnist-test:latest
+                  name: tensorflow
+                  resources:
+                    limits:
+                      cpu: 1
+                      memory: 512Mi
+    status:
+      completionTime: "2025-11-22T10:49:50Z"
+      conditions:
+        - lastProbeTime: "{{EXCLUDE}}"
+          lastTransitionTime: "{{EXCLUDE}}"
+          message: "TFJob completed successfully"
+          reason: "Completed"
+          status: "True"
+          type: "Succeeded"
+      replicaStatuses:
+        PS:
+          succeeded: 2
+        Worker:
+          succeeded: 4
+        Chief:
+          succeeded: 2
+        Master:
+          succeeded: 2
+        Evaluator:
+          succeeded: 2
+      startTime: "2025-11-22T10:48:50Z"
