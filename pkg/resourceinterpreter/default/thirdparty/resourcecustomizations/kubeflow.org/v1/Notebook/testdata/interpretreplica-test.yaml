@@ -1,0 +1,144 @@
+# test case for interpreting replica of Notebook
+# case1. Notebook with basic template should return replica 1
+# case2. Notebook with resource requirements in template
+# case3. Notebook with nodeSelector and tolerations in template
+# case4. Notebook with multiple containers, should aggregate resources
+# case5. Notebook with empty template spec
+
+name: "Notebook with basic template should return replica 1"
+description: "Test interpreting replica of Notebook with basic template"
+desiredObj:
+  apiVersion: kubeflow.org/v1
+  kind: Notebook
+  metadata:
+    name: notebook-sample-v1
+    namespace: default
+  spec:
+    template:
+      spec:
+        containers:
+          - name: notebook-sample-v1
+            image: ghcr.io/kubeflow/kubeflow/notebook-servers/jupyter:latest
+operation: InterpretReplica
+output:
+  replica: 1
+
+---
+name: "Notebook with resource requirements in template"
+description: "Test interpreting replica of Notebook with CPU and memory requirements"
+desiredObj:
+  apiVersion: kubeflow.org/v1
+  kind: Notebook
+  metadata:
+    name: notebook-sample-v1
+    namespace: test-namespace
+  spec:
+    template:
+      spec:
+        containers:
+          - name: notebook-sample-v1
+            image: ghcr.io/kubeflow/kubeflow/notebook-servers/jupyter:latest
+            resources:
+              requests:
+                cpu: "2"
+                memory: "4Gi"
+              limits:
+                cpu: "4"
+                memory: "8Gi"
+operation: InterpretReplica
+output:
+  replica: 1
+  requires:
+    resourceRequest:
+      "cpu": "2"
+      "memory": "4Gi"
+
+---
+name: "Notebook with nodeSelector and tolerations in template"
+description: "Test interpreting replica of Notebook with nodeSelector and tolerations"
+desiredObj:
+  apiVersion: kubeflow.org/v1
+  kind: Notebook
+  metadata:
+    name: notebook-sample-v1
+    namespace: test-namespace
+  spec:
+    template:
+      spec:
+        nodeSelector:
+          accelerator: nvidia-tesla-k80
+        tolerations:
+          - key: "nvidia.com/gpu"
+            operator: "Exists"
+            effect: "NoSchedule"
+        containers:
+          - name: notebook-sample-v1
+            image: ghcr.io/kubeflow/kubeflow/notebook-servers/jupyter:latest
+            resources:
+              requests:
+                cpu: "1"
+                memory: "2Gi"
+operation: InterpretReplica
+output:
+  replica: 1
+  requires:
+    resourceRequest:
+      "cpu": "1"
+      "memory": "2Gi"
+    nodeClaim:
+      nodeSelector:
+        accelerator: nvidia-tesla-k80
+      tolerations:
+        - key: "nvidia.com/gpu"
+          operator: "Exists"
+          effect: "NoSchedule"
+
+---
+name: "Notebook with multiple containers, should aggregate resources"
+description: "Test interpreting replica of Notebook with multiple containers"
+desiredObj:
+  apiVersion: kubeflow.org/v1
+  kind: Notebook
+  metadata:
+    name: notebook-sample-v1
+    namespace: test-namespace
+  spec:
+    template:
+      spec:
+        containers:
+          - name: notebook-sample-v1
+            image: ghcr.io/kubeflow/kubeflow/notebook-servers/jupyter:latest
+            resources:
+              requests:
+                cpu: "1"
+                memory: "2Gi"
+          - name: sidecar
+            image: busybox:latest
+            resources:
+              requests:
+                cpu: "100m"
+                memory: "128Mi"
+operation: InterpretReplica
+output:
+  replica: 1
+  requires:
+    resourceRequest:
+      "cpu": "1100m"
+      "memory": "2176Mi"
+
+---
+name: "Notebook with empty template spec"
+description: "Test interpreting replica of Notebook with minimal template"
+desiredObj:
+  apiVersion: kubeflow.org/v1
+  kind: Notebook
+  metadata:
+    name: notebook-sample-v1
+    namespace: default
+  spec:
+    template:
+      spec: {}
+operation: InterpretReplica
+output:
+  replica: 1
+
