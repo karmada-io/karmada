@@ -1,0 +1,115 @@
+# test cases for interpreting health of GitRepository
+# case1: GitRepository Ready=True Succeeded should be Healthy
+# case2: GitRepository Ready=True but wrong reason
+# case3: GitRepository Ready=False
+# case4: GitRepository without Ready condition
+# case5: GitRepository with empty conditions
+# case6: GitRepository unhealthy when status is nil
+# case7: GitRepository unhealthy when status.conditions is nil
+
+name: "GitRepository Ready=True Succeeded should be Healthy"
+description: "Ready condition True with reason Succeeded"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1
+  kind: GitRepository
+  metadata:
+    name: sample
+    namespace: test-gitrepository
+  status:
+    conditions:
+      - type: Ready
+        status: "True"
+        reason: Succeeded
+operation: InterpretHealth
+output:
+  healthy: true
+---
+name: "GitRepository Ready=True but wrong reason"
+description: "Ready True but reason is not Succeeded"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1
+  kind: GitRepository
+  metadata:
+    name: sample
+    namespace: test-gitrepository
+  status:
+    conditions:
+      - type: Ready
+        status: "True"
+        reason: Progressing
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "GitRepository Ready=False"
+description: "Ready condition False should be Unhealthy"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1
+  kind: GitRepository
+  metadata:
+    name: sample
+    namespace: test-gitrepository
+  status:
+    conditions:
+      - type: Ready
+        status: "False"
+        reason: Succeeded
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "GitRepository without Ready condition"
+description: "No Ready condition present"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1
+  kind: GitRepository
+  metadata:
+    name: sample
+    namespace: test-gitrepository
+  status:
+    conditions:
+      - type: ArtifactInStorage
+        status: "True"
+        reason: Succeeded
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "GitRepository with empty conditions"
+description: "Empty conditions list"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1
+  kind: GitRepository
+  metadata:
+    name: sample
+    namespace: test-gitrepository
+  status:
+    conditions: []
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "GitRepository unhealthy when status is nil"
+description: "Health should be false when status is nil"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1
+  kind: GitRepository
+  metadata:
+    name: sample
+    namespace: test-gitrepository
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "GitRepository unhealthy when conditions is nil"
+description: "Health should be false when status.conditions is nil"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1
+  kind: GitRepository
+  metadata:
+    name: sample
+    namespace: test-gitrepository
+  status: {}
+operation: InterpretHealth
+output:
+  healthy: false
