@@ -1,6 +1,67 @@
 # test case for aggregating status of MPIJob
-# case1. MPIJob with three status items
+# case1. MPIJob with empty status items
+# case2. MPIJob with three status items
+# case3. MPIJob with failed cluster
+# case4. MPIJob with partial success (some clusters succeeded, some running)
+# case5. MPIJob with single status item (should return as-is)
 
+name: "MPIJob with empty status items"
+description: "Test aggregating status of MPIJob with empty status items"
+desiredObj:
+  apiVersion: kubeflow.org/v2beta1
+  kind: MPIJob
+  metadata:
+    name: mpijob-empty
+    namespace: default
+  spec:
+    slotsPerWorker: 1
+    runPolicy:
+      cleanPodPolicy: Running
+    mpiReplicaSpecs:
+      Launcher:
+        replicas: 1
+        template:
+          spec:
+            containers:
+              - image: mpioperator/tensorflow-benchmarks:latest
+                name: tensorflow-benchmarks
+      Worker:
+        replicas: 2
+        template:
+          spec:
+            containers:
+              - image: mpioperator/tensorflow-benchmarks:latest
+                name: tensorflow-benchmarks
+statusItems: []
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: kubeflow.org/v2beta1
+    kind: MPIJob
+    metadata:
+      name: mpijob-empty
+      namespace: default
+    spec:
+      slotsPerWorker: 1
+      runPolicy:
+        cleanPodPolicy: Running
+      mpiReplicaSpecs:
+        Launcher:
+          replicas: 1
+          template:
+            spec:
+              containers:
+                - image: mpioperator/tensorflow-benchmarks:latest
+                  name: tensorflow-benchmarks
+        Worker:
+          replicas: 2
+          template:
+            spec:
+              containers:
+                - image: mpioperator/tensorflow-benchmarks:latest
+                  name: tensorflow-benchmarks
+
+---
 name: "MPIJob with three status items"
 description: "Test aggregating status of MPIJob with three status items"
 desiredObj:
@@ -130,3 +191,467 @@ statusItems:
           succeeded: 1
 operation: AggregateStatus
 output:
+  aggregatedStatus:
+    apiVersion: kubeflow.org/v2beta1
+    kind: MPIJob
+    metadata:
+      name: tensorflow-benchmarks
+    spec:
+      slotsPerWorker: 1
+      runPolicy:
+        cleanPodPolicy: Running
+      mpiReplicaSpecs:
+        Launcher:
+          replicas: 1
+          template:
+            spec:
+              containers:
+                - image: mpioperator/tensorflow-benchmarks:latest
+                  name: tensorflow-benchmarks
+                  command:
+                    - mpirun
+                    - --allow-run-as-root
+                    - -np
+                    - "2"
+                    - -bind-to
+                    - none
+                    - -map-by
+                    - slot
+                    - -x
+                    - NCCL_DEBUG=INFO
+                    - -x
+                    - LD_LIBRARY_PATH
+                    - -x
+                    - PATH
+                    - -mca
+                    - pml
+                    - ob1
+                    - -mca
+                    - btl
+                    - ^openib
+                    - python
+                    - scripts/tf_cnn_benchmarks/tf_cnn_benchmarks.py
+                    - --model=resnet101
+                    - --batch_size=64
+                    - --variable_update=horovod
+        Worker:
+          replicas: 2
+          template:
+            spec:
+              containers:
+                - image: mpioperator/tensorflow-benchmarks:latest
+                  name: tensorflow-benchmarks
+                  resources:
+                    limits:
+                      nvidia.com/gpu: 1
+    status:
+      conditions:
+        - lastTransitionTime: "2019-07-12T08:00:00Z"
+          lastUpdateTime: "2019-07-12T08:00:00Z"
+          message: MPIJob default/tensorflow-benchmarks is created.
+          reason: MPIJobCreated
+          status: "True"
+          type: Created
+        - lastTransitionTime: "2019-07-12T08:05:00Z"
+          lastUpdateTime: "2019-07-12T08:05:00Z"
+          message: MPIJob default/tensorflow-benchmarks running with partial successes.
+          reason: MPIJobRunning
+          status: "True"
+          type: Running
+        - lastTransitionTime: "2019-07-11T11:45:00Z"
+          lastUpdateTime: "2019-07-11T11:45:00Z"
+          message: MPIJob default/tensorflow-benchmarks failed during execution.
+          reason: MPIJobFailed
+          status: "True"
+          type: Failed
+      replicaStatuses:
+        Launcher:
+          active: 2
+          failed: 1
+          succeeded: 0
+        Worker:
+          active: 3
+          failed: 2
+          succeeded: 1
+      startTime: "2019-07-10T10:00:00Z"
+      completionTime: "2019-07-11T12:00:00Z"
+
+---
+name: "MPIJob with failed cluster"
+description: "Test aggregating status of MPIJob when one cluster has failed"
+desiredObj:
+  apiVersion: kubeflow.org/v2beta1
+  kind: MPIJob
+  metadata:
+    name: mpijob-failed
+    namespace: default
+  spec:
+    slotsPerWorker: 1
+    runPolicy:
+      cleanPodPolicy: Running
+    mpiReplicaSpecs:
+      Launcher:
+        replicas: 1
+        template:
+          spec:
+            containers:
+              - image: mpioperator/tensorflow-benchmarks:latest
+                name: tensorflow-benchmarks
+      Worker:
+        replicas: 2
+        template:
+          spec:
+            containers:
+              - image: mpioperator/tensorflow-benchmarks:latest
+                name: tensorflow-benchmarks
+statusItems:
+  - applied: true
+    clusterName: member1
+    health: Healthy
+    status:
+      completionTime: "2019-07-10T10:00:00Z"
+      startTime: "2019-07-10T09:00:00Z"
+      conditions:
+        - lastTransitionTime: "2019-07-10T09:00:00Z"
+          lastUpdateTime: "2019-07-10T09:00:00Z"
+          message: MPIJob default/mpijob-failed is created.
+          reason: MPIJobCreated
+          status: "True"
+          type: Created
+        - lastTransitionTime: "2019-07-10T10:00:00Z"
+          lastUpdateTime: "2019-07-10T10:00:00Z"
+          message: MPIJob default/mpijob-failed successfully completed.
+          reason: MPIJobSucceeded
+          status: "True"
+          type: Succeeded
+      replicaStatuses:
+        Launcher:
+          succeeded: 1
+        Worker:
+          succeeded: 2
+  - applied: true
+    clusterName: member2
+    health: Unhealthy
+    status:
+      completionTime: "2019-07-10T10:15:00Z"
+      startTime: "2019-07-10T09:00:00Z"
+      conditions:
+        - lastTransitionTime: "2019-07-10T09:00:00Z"
+          lastUpdateTime: "2019-07-10T09:00:00Z"
+          message: MPIJob default/mpijob-failed is created.
+          reason: MPIJobCreated
+          status: "True"
+          type: Created
+        - lastTransitionTime: "2019-07-10T10:15:00Z"
+          lastUpdateTime: "2019-07-10T10:15:00Z"
+          message: MPIJob default/mpijob-failed failed.
+          reason: MPIJobFailed
+          status: "True"
+          type: Failed
+      replicaStatuses:
+        Launcher:
+          failed: 1
+        Worker:
+          failed: 2
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: kubeflow.org/v2beta1
+    kind: MPIJob
+    metadata:
+      name: mpijob-failed
+      namespace: default
+    spec:
+      slotsPerWorker: 1
+      runPolicy:
+        cleanPodPolicy: Running
+      mpiReplicaSpecs:
+        Launcher:
+          replicas: 1
+          template:
+            spec:
+              containers:
+                - image: mpioperator/tensorflow-benchmarks:latest
+                  name: tensorflow-benchmarks
+        Worker:
+          replicas: 2
+          template:
+            spec:
+              containers:
+                - image: mpioperator/tensorflow-benchmarks:latest
+                  name: tensorflow-benchmarks
+    status:
+      conditions:
+        - lastTransitionTime: "2019-07-10T09:00:00Z"
+          lastUpdateTime: "2019-07-10T09:00:00Z"
+          message: MPIJob default/mpijob-failed is created.
+          reason: MPIJobCreated
+          status: "True"
+          type: Created
+        - lastTransitionTime: "2019-07-10T10:00:00Z"
+          lastUpdateTime: "2019-07-10T10:00:00Z"
+          message: MPIJob default/mpijob-failed successfully completed.
+          reason: MPIJobSucceeded
+          status: "True"
+          type: Succeeded
+        - lastTransitionTime: "2019-07-10T10:15:00Z"
+          lastUpdateTime: "2019-07-10T10:15:00Z"
+          message: MPIJob default/mpijob-failed failed.
+          reason: MPIJobFailed
+          status: "True"
+          type: Failed
+      replicaStatuses:
+        Launcher:
+          active: 0
+          failed: 1
+          succeeded: 1
+        Worker:
+          active: 0
+          failed: 2
+          succeeded: 2
+      startTime: "2019-07-10T09:00:00Z"
+      completionTime: "2019-07-10T10:15:00Z"
+
+---
+name: "MPIJob with partial success"
+description: "Test aggregating status of MPIJob with partial success (some clusters succeeded, some running)"
+desiredObj:
+  apiVersion: kubeflow.org/v2beta1
+  kind: MPIJob
+  metadata:
+    name: mpijob-partial-success
+    namespace: default
+  spec:
+    slotsPerWorker: 1
+    runPolicy:
+      cleanPodPolicy: Running
+    mpiReplicaSpecs:
+      Launcher:
+        replicas: 1
+        template:
+          spec:
+            containers:
+              - image: mpioperator/tensorflow-benchmarks:latest
+                name: tensorflow-benchmarks
+      Worker:
+        replicas: 2
+        template:
+          spec:
+            containers:
+              - image: mpioperator/tensorflow-benchmarks:latest
+                name: tensorflow-benchmarks
+statusItems:
+  - applied: true
+    clusterName: member1
+    health: Healthy
+    status:
+      completionTime: "2019-07-10T10:00:00Z"
+      startTime: "2019-07-10T09:00:00Z"
+      conditions:
+        - lastTransitionTime: "2019-07-10T09:00:00Z"
+          lastUpdateTime: "2019-07-10T09:00:00Z"
+          message: MPIJob default/mpijob-partial-success is created.
+          reason: MPIJobCreated
+          status: "True"
+          type: Created
+        - lastTransitionTime: "2019-07-10T09:30:00Z"
+          lastUpdateTime: "2019-07-10T09:30:00Z"
+          message: MPIJob default/mpijob-partial-success is running.
+          reason: MPIJobRunning
+          status: "False"
+          type: Running
+        - lastTransitionTime: "2019-07-10T10:00:00Z"
+          lastUpdateTime: "2019-07-10T10:00:00Z"
+          message: MPIJob default/mpijob-partial-success successfully completed.
+          reason: MPIJobSucceeded
+          status: "True"
+          type: Succeeded
+      replicaStatuses:
+        Launcher:
+          succeeded: 1
+        Worker:
+          succeeded: 2
+  - applied: true
+    clusterName: member2
+    health: Healthy
+    status:
+      startTime: "2019-07-10T09:00:00Z"
+      conditions:
+        - lastTransitionTime: "2019-07-10T09:00:00Z"
+          lastUpdateTime: "2019-07-10T09:00:00Z"
+          message: MPIJob default/mpijob-partial-success is created.
+          reason: MPIJobCreated
+          status: "True"
+          type: Created
+        - lastTransitionTime: "2019-07-10T09:30:00Z"
+          lastUpdateTime: "2019-07-10T09:30:00Z"
+          message: MPIJob default/mpijob-partial-success is running.
+          reason: MPIJobRunning
+          status: "True"
+          type: Running
+      replicaStatuses:
+        Launcher:
+          active: 1
+        Worker:
+          active: 2
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: kubeflow.org/v2beta1
+    kind: MPIJob
+    metadata:
+      name: mpijob-partial-success
+      namespace: default
+    spec:
+      slotsPerWorker: 1
+      runPolicy:
+        cleanPodPolicy: Running
+      mpiReplicaSpecs:
+        Launcher:
+          replicas: 1
+          template:
+            spec:
+              containers:
+                - image: mpioperator/tensorflow-benchmarks:latest
+                  name: tensorflow-benchmarks
+        Worker:
+          replicas: 2
+          template:
+            spec:
+              containers:
+                - image: mpioperator/tensorflow-benchmarks:latest
+                  name: tensorflow-benchmarks
+    status:
+      conditions:
+        - lastTransitionTime: "2019-07-10T09:00:00Z"
+          lastUpdateTime: "2019-07-10T09:00:00Z"
+          message: MPIJob default/mpijob-partial-success is created.
+          reason: MPIJobCreated
+          status: "True"
+          type: Created
+        - lastTransitionTime: "2019-07-10T09:30:00Z"
+          lastUpdateTime: "2019-07-10T09:30:00Z"
+          message: MPIJob default/mpijob-partial-success is running.
+          reason: MPIJobRunning
+          status: "False"
+          type: Running
+        - lastTransitionTime: "2019-07-10T10:00:00Z"
+          lastUpdateTime: "2019-07-10T10:00:00Z"
+          message: MPIJob default/mpijob-partial-success successfully completed.
+          reason: MPIJobSucceeded
+          status: "True"
+          type: Succeeded
+      replicaStatuses:
+        Launcher:
+          active: 1
+          failed: 0
+          succeeded: 1
+        Worker:
+          active: 2
+          failed: 0
+          succeeded: 2
+      startTime: "2019-07-10T09:00:00Z"
+      completionTime: "2019-07-10T10:00:00Z"
+
+---
+name: "MPIJob with single status item"
+description: "Test aggregating status of MPIJob with single status item (should return as-is)"
+desiredObj:
+  apiVersion: kubeflow.org/v2beta1
+  kind: MPIJob
+  metadata:
+    name: mpijob-single
+    namespace: default
+  spec:
+    slotsPerWorker: 1
+    runPolicy:
+      cleanPodPolicy: Running
+    mpiReplicaSpecs:
+      Launcher:
+        replicas: 1
+        template:
+          spec:
+            containers:
+              - image: mpioperator/tensorflow-benchmarks:latest
+                name: tensorflow-benchmarks
+      Worker:
+        replicas: 2
+        template:
+          spec:
+            containers:
+              - image: mpioperator/tensorflow-benchmarks:latest
+                name: tensorflow-benchmarks
+statusItems:
+  - applied: true
+    clusterName: member1
+    health: Healthy
+    status:
+      completionTime: "2019-07-10T10:00:00Z"
+      startTime: "2019-07-10T09:00:00Z"
+      conditions:
+        - lastTransitionTime: "2019-07-10T09:00:00Z"
+          lastUpdateTime: "2019-07-10T09:00:00Z"
+          message: MPIJob default/mpijob-single is created.
+          reason: MPIJobCreated
+          status: "True"
+          type: Created
+        - lastTransitionTime: "2019-07-10T10:00:00Z"
+          lastUpdateTime: "2019-07-10T10:00:00Z"
+          message: MPIJob default/mpijob-single successfully completed.
+          reason: MPIJobSucceeded
+          status: "True"
+          type: Succeeded
+      replicaStatuses:
+        Launcher:
+          succeeded: 1
+        Worker:
+          succeeded: 2
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: kubeflow.org/v2beta1
+    kind: MPIJob
+    metadata:
+      name: mpijob-single
+      namespace: default
+    spec:
+      slotsPerWorker: 1
+      runPolicy:
+        cleanPodPolicy: Running
+      mpiReplicaSpecs:
+        Launcher:
+          replicas: 1
+          template:
+            spec:
+              containers:
+                - image: mpioperator/tensorflow-benchmarks:latest
+                  name: tensorflow-benchmarks
+        Worker:
+          replicas: 2
+          template:
+            spec:
+              containers:
+                - image: mpioperator/tensorflow-benchmarks:latest
+                  name: tensorflow-benchmarks
+    status:
+      completionTime: "2019-07-10T10:00:00Z"
+      startTime: "2019-07-10T09:00:00Z"
+      conditions:
+        - lastTransitionTime: "2019-07-10T09:00:00Z"
+          lastUpdateTime: "2019-07-10T09:00:00Z"
+          message: MPIJob default/mpijob-single is created.
+          reason: MPIJobCreated
+          status: "True"
+          type: Created
+        - lastTransitionTime: "2019-07-10T10:00:00Z"
+          lastUpdateTime: "2019-07-10T10:00:00Z"
+          message: MPIJob default/mpijob-single successfully completed.
+          reason: MPIJobSucceeded
+          status: "True"
+          type: Succeeded
+      replicaStatuses:
+        Launcher:
+          succeeded: 1
+        Worker:
+          succeeded: 2
+

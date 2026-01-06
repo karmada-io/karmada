@@ -1,0 +1,502 @@
+# test case for interpreting component of MPIJob
+# case1. MPIJob with both Launcher and Worker replicas
+# case2. MPIJob with only Launcher replica
+# case3. MPIJob with only Worker replica
+# case4. MPIJob with replicas as string numbers
+# case5. MPIJob with nil/empty replicas (should default to 1 for Launcher, 0 for Worker)
+# case6. MPIJob with empty mpiReplicaSpecs
+# case7. MPIJob with nil template (should handle gracefully)
+# case8. MPIJob with multiple containers
+# case9. MPIJob with nodeSelector and tolerations
+# case10. MPIJob with resources only in limits (no requests)
+
+name: "MPIJob with both Launcher and Worker replicas"
+description: "Test interpreting component of MPIJob when both Launcher and Worker are present"
+observedObj:
+  apiVersion: kubeflow.org/v2beta1
+  kind: MPIJob
+  metadata:
+    name: mpijob-full
+    namespace: default
+  spec:
+    slotsPerWorker: 1
+    runPolicy:
+      cleanPodPolicy: Running
+    mpiReplicaSpecs:
+      Launcher:
+        replicas: 1
+        template:
+          spec:
+            containers:
+              - name: tensorflow-benchmarks
+                image: mpioperator/tensorflow-benchmarks:latest
+                command:
+                  - mpirun
+                  - --allow-run-as-root
+                  - -np
+                  - "2"
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+                  requests:
+                    cpu: 500m
+                    memory: 256Mi
+      Worker:
+        replicas: 4
+        template:
+          spec:
+            containers:
+              - name: tensorflow-benchmarks
+                image: mpioperator/tensorflow-benchmarks:latest
+                resources:
+                  limits:
+                    cpu: 2
+                    memory: 1Gi
+                  requests:
+                    cpu: 1
+                    memory: 512Mi
+operation: InterpretComponent
+output:
+  components:
+    - name: Launcher
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          cpu: 500m
+          memory: 256Mi
+    - name: Worker
+      replicas: 4
+      replicaRequirements:
+        resourceRequest:
+          cpu: 1
+          memory: 512Mi
+
+---
+name: "MPIJob with only Launcher replica"
+description: "Test interpreting component of MPIJob when only Launcher is present"
+observedObj:
+  apiVersion: kubeflow.org/v2beta1
+  kind: MPIJob
+  metadata:
+    name: mpijob-launcher-only
+    namespace: default
+  spec:
+    slotsPerWorker: 1
+    runPolicy:
+      cleanPodPolicy: Running
+    mpiReplicaSpecs:
+      Launcher:
+        replicas: 1
+        template:
+          spec:
+            containers:
+              - name: tensorflow-benchmarks
+                image: mpioperator/tensorflow-benchmarks:latest
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+                  requests:
+                    cpu: 500m
+                    memory: 256Mi
+operation: InterpretComponent
+output:
+  components:
+    - name: Launcher
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          cpu: 500m
+          memory: 256Mi
+
+---
+name: "MPIJob with only Worker replica"
+description: "Test interpreting component of MPIJob when only Worker is present"
+observedObj:
+  apiVersion: kubeflow.org/v2beta1
+  kind: MPIJob
+  metadata:
+    name: mpijob-worker-only
+    namespace: default
+  spec:
+    slotsPerWorker: 1
+    runPolicy:
+      cleanPodPolicy: Running
+    mpiReplicaSpecs:
+      Worker:
+        replicas: 3
+        template:
+          spec:
+            containers:
+              - name: tensorflow-benchmarks
+                image: mpioperator/tensorflow-benchmarks:latest
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+                  requests:
+                    cpu: 500m
+                    memory: 256Mi
+operation: InterpretComponent
+output:
+  components:
+    - name: Worker
+      replicas: 3
+      replicaRequirements:
+        resourceRequest:
+          cpu: 500m
+          memory: 256Mi
+
+---
+name: "MPIJob with replicas as string numbers"
+description: "Test interpreting component of MPIJob when replicas are string numbers"
+observedObj:
+  apiVersion: kubeflow.org/v2beta1
+  kind: MPIJob
+  metadata:
+    name: mpijob-string-replicas
+    namespace: default
+  spec:
+    slotsPerWorker: 1
+    runPolicy:
+      cleanPodPolicy: Running
+    mpiReplicaSpecs:
+      Launcher:
+        replicas: "1"
+        template:
+          spec:
+            containers:
+              - name: tensorflow-benchmarks
+                image: mpioperator/tensorflow-benchmarks:latest
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+                  requests:
+                    cpu: 500m
+                    memory: 256Mi
+      Worker:
+        replicas: "2"
+        template:
+          spec:
+            containers:
+              - name: tensorflow-benchmarks
+                image: mpioperator/tensorflow-benchmarks:latest
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+                  requests:
+                    cpu: 500m
+                    memory: 256Mi
+operation: InterpretComponent
+output:
+  components:
+    - name: Launcher
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          cpu: 500m
+          memory: 256Mi
+    - name: Worker
+      replicas: 2
+      replicaRequirements:
+        resourceRequest:
+          cpu: 500m
+          memory: 256Mi
+
+---
+name: "MPIJob with nil/empty replicas (should default to 1 for Launcher, 0 for Worker)"
+description: "Test interpreting component of MPIJob when replicas is nil or empty"
+observedObj:
+  apiVersion: kubeflow.org/v2beta1
+  kind: MPIJob
+  metadata:
+    name: mpijob-default-replicas
+    namespace: default
+  spec:
+    slotsPerWorker: 1
+    runPolicy:
+      cleanPodPolicy: Running
+    mpiReplicaSpecs:
+      Launcher:
+        template:
+          spec:
+            containers:
+              - name: tensorflow-benchmarks
+                image: mpioperator/tensorflow-benchmarks:latest
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+                  requests:
+                    cpu: 500m
+                    memory: 256Mi
+      Worker:
+        replicas: ""
+        template:
+          spec:
+            containers:
+              - name: tensorflow-benchmarks
+                image: mpioperator/tensorflow-benchmarks:latest
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+                  requests:
+                    cpu: 500m
+                    memory: 256Mi
+operation: InterpretComponent
+output:
+  components:
+    - name: Launcher
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          cpu: 500m
+          memory: 256Mi
+    - name: Worker
+      replicas: 0
+      replicaRequirements:
+        resourceRequest:
+          cpu: 500m
+          memory: 256Mi
+
+---
+name: "MPIJob with empty mpiReplicaSpecs"
+description: "Test interpreting component of MPIJob when mpiReplicaSpecs is empty"
+observedObj:
+  apiVersion: kubeflow.org/v2beta1
+  kind: MPIJob
+  metadata:
+    name: mpijob-empty-specs
+    namespace: default
+  spec:
+    slotsPerWorker: 1
+    runPolicy:
+      cleanPodPolicy: Running
+    mpiReplicaSpecs: {}
+operation: InterpretComponent
+output:
+  components: []
+
+---
+name: "MPIJob with nil template (should handle gracefully)"
+description: "Test interpreting component of MPIJob when template is nil"
+observedObj:
+  apiVersion: kubeflow.org/v2beta1
+  kind: MPIJob
+  metadata:
+    name: mpijob-nil-template
+    namespace: default
+  spec:
+    slotsPerWorker: 1
+    runPolicy:
+      cleanPodPolicy: Running
+    mpiReplicaSpecs:
+      Launcher:
+        replicas: 1
+      Worker:
+        replicas: 2
+operation: InterpretComponent
+output:
+  components: []
+
+---
+name: "MPIJob with multiple containers"
+description: "Test interpreting component of MPIJob with multiple containers in a pod template"
+observedObj:
+  apiVersion: kubeflow.org/v2beta1
+  kind: MPIJob
+  metadata:
+    name: mpijob-multi-container
+    namespace: default
+  spec:
+    slotsPerWorker: 1
+    runPolicy:
+      cleanPodPolicy: Running
+    mpiReplicaSpecs:
+      Launcher:
+        replicas: 1
+        template:
+          spec:
+            containers:
+              - name: tensorflow-benchmarks
+                image: mpioperator/tensorflow-benchmarks:latest
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+                  requests:
+                    cpu: 500m
+                    memory: 256Mi
+              - name: sidecar
+                image: sidecar:latest
+                resources:
+                  limits:
+                    cpu: 100m
+                    memory: 128Mi
+                  requests:
+                    cpu: 50m
+                    memory: 64Mi
+      Worker:
+        replicas: 2
+        template:
+          spec:
+            containers:
+              - name: tensorflow-benchmarks
+                image: mpioperator/tensorflow-benchmarks:latest
+                resources:
+                  limits:
+                    cpu: 2
+                    memory: 1Gi
+                  requests:
+                    cpu: 1
+                    memory: 512Mi
+operation: InterpretComponent
+output:
+  components:
+    - name: Launcher
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          cpu: 550m
+          memory: 320Mi
+    - name: Worker
+      replicas: 2
+      replicaRequirements:
+        resourceRequest:
+          cpu: 1
+          memory: 512Mi
+
+---
+name: "MPIJob with nodeSelector and tolerations"
+description: "Test interpreting component of MPIJob with nodeSelector and tolerations"
+observedObj:
+  apiVersion: kubeflow.org/v2beta1
+  kind: MPIJob
+  metadata:
+    name: mpijob-node-requirements
+    namespace: default
+  spec:
+    slotsPerWorker: 1
+    runPolicy:
+      cleanPodPolicy: Running
+    mpiReplicaSpecs:
+      Launcher:
+        replicas: 1
+        template:
+          spec:
+            nodeSelector:
+              accelerator: gpu
+              zone: us-west-1
+            tolerations:
+              - key: nvidia.com/gpu
+                operator: Exists
+                effect: NoSchedule
+            containers:
+              - name: tensorflow-benchmarks
+                image: mpioperator/tensorflow-benchmarks:latest
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+                  requests:
+                    cpu: 500m
+                    memory: 256Mi
+      Worker:
+        replicas: 3
+        template:
+          spec:
+            nodeSelector:
+              accelerator: gpu
+            containers:
+              - name: tensorflow-benchmarks
+                image: mpioperator/tensorflow-benchmarks:latest
+                resources:
+                  limits:
+                    cpu: 2
+                    memory: 1Gi
+                  requests:
+                    cpu: 1
+                    memory: 512Mi
+operation: InterpretComponent
+output:
+  components:
+    - name: Launcher
+      replicas: 1
+      replicaRequirements:
+        nodeClaim:
+          nodeSelector:
+            accelerator: gpu
+            zone: us-west-1
+          tolerations:
+            - key: nvidia.com/gpu
+              operator: Exists
+              effect: NoSchedule
+        resourceRequest:
+          cpu: 500m
+          memory: 256Mi
+    - name: Worker
+      replicas: 3
+      replicaRequirements:
+        nodeClaim:
+          nodeSelector:
+            accelerator: gpu
+        resourceRequest:
+          cpu: 1
+          memory: 512Mi
+
+---
+name: "MPIJob with resources only in limits (no requests)"
+description: "Test interpreting component of MPIJob when only limits are specified"
+observedObj:
+  apiVersion: kubeflow.org/v2beta1
+  kind: MPIJob
+  metadata:
+    name: mpijob-limits-only
+    namespace: default
+  spec:
+    slotsPerWorker: 1
+    runPolicy:
+      cleanPodPolicy: Running
+    mpiReplicaSpecs:
+      Launcher:
+        replicas: 1
+        template:
+          spec:
+            containers:
+              - name: tensorflow-benchmarks
+                image: mpioperator/tensorflow-benchmarks:latest
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+      Worker:
+        replicas: 2
+        template:
+          spec:
+            containers:
+              - name: tensorflow-benchmarks
+                image: mpioperator/tensorflow-benchmarks:latest
+                resources:
+                  limits:
+                    cpu: 2
+                    memory: 1Gi
+operation: InterpretComponent
+output:
+  components:
+    - name: Launcher
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          cpu: 1
+          memory: 512Mi
+    - name: Worker
+      replicas: 2
+      replicaRequirements:
+        resourceRequest:
+          cpu: 2
+          memory: 1Gi
+

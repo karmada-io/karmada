@@ -270,7 +270,9 @@ func deepEqual(expected, actualValue interface{}) (bool, error) {
 		if err := k8sjson.Unmarshal(expectedJSONBytes, &unmarshaledExpected); err != nil {
 			return false, fmt.Errorf("failed to unmarshal expected JSON into []Component: %w", err)
 		}
-
+		// Sort both slices before comparison to handle non-deterministic order from Lua pairs()
+		sortComponents(unmarshaledExpected)
+		sortComponents(typedActual)
 		return checker.DeepEqual(unmarshaledExpected, typedActual), nil
 
 	case *unstructured.Unstructured:
@@ -310,6 +312,13 @@ func sortDependencies(deps []configv1alpha1.DependentObjectReference) {
 			return deps[i].Namespace < deps[j].Namespace
 		}
 		return deps[i].Name < deps[j].Name
+	})
+}
+
+// sortComponents sorts a slice of Component by name.
+func sortComponents(components []workv1alpha2.Component) {
+	sort.Slice(components, func(i, j int) bool {
+		return components[i].Name < components[j].Name
 	})
 }
 
