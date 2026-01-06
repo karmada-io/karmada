@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test-configmap
+data:
+  fake-config.yaml: |
+    fake-config: "fake-config-value"
