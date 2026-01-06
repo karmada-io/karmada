@@ -43,7 +43,7 @@ spec:
               command:
                 - /bin/sh
                 - -ec
-                - 'etcdctl get /registry --prefix --keys-only  --endpoints https://127.0.0.1:2379  --cacert /etc/karmada/pki/etcd-client/ca.crt --cert /etc/karmada/pki/etcd-client/tls.crt --key /etc/karmada/pki/etcd-client/tls.key'
+                - 'ETCDCTL_API=3 etcdctl endpoint health --endpoints https://127.0.0.1:2379 --cacert /etc/karmada/pki/etcd-client/ca.crt --cert /etc/karmada/pki/etcd-client/tls.crt --key /etc/karmada/pki/etcd-client/tls.key'
             failureThreshold: 3
             initialDelaySeconds: 600
             periodSeconds: 60
@@ -58,8 +58,8 @@ spec:
               protocol: TCP
           resources:
             requests:
-              cpu: 100m
-              memory: 100Mi
+              cpu: 500m
+              memory: 500Mi
           command:
             - /usr/local/bin/etcd
             - --name
