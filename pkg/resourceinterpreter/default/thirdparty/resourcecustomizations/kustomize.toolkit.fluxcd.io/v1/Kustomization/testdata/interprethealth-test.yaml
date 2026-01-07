@@ -1,0 +1,146 @@
+# test case for interpreting health of Kustomization
+# case1. Kustomization healthy when Ready condition is True with ReconciliationSucceeded reason (single condition)
+# case2. Kustomization unhealthy when Ready condition is False
+# case3. Kustomization unhealthy when Ready condition has different reason
+# case4. Kustomization unhealthy when status is nil
+# case5. Kustomization unhealthy when conditions is nil
+# case6. Kustomization unhealthy when Ready condition is not found
+# case7. Kustomization healthy when Ready condition with correct status and reason exists among multiple conditions
+
+name: "Kustomization healthy when Ready condition is True with ReconciliationSucceeded reason"
+description: "Health should be true when Ready condition exists with status=True and reason=ReconciliationSucceeded"
+observedObj:
+  apiVersion: kustomize.toolkit.fluxcd.io/v1
+  kind: Kustomization
+  metadata:
+    name: sample
+    namespace: test-kustomization
+  status:
+    conditions:
+      - lastTransitionTime: "2023-04-30T12:51:06Z"
+        message: 'Applied revision: master@sha1:0647aea75b85755411b007a290b9321668370be5'
+        observedGeneration: 1
+        reason: ReconciliationSucceeded
+        status: "True"
+        type: Ready
+operation: InterpretHealth
+output:
+  healthy: true
+---
+name: "Kustomization unhealthy when Ready condition is False"
+description: "Health should be false when Ready condition status is False"
+observedObj:
+  apiVersion: kustomize.toolkit.fluxcd.io/v1
+  kind: Kustomization
+  metadata:
+    name: sample
+    namespace: test-kustomization
+  status:
+    conditions:
+      - lastTransitionTime: "2023-04-30T12:51:06Z"
+        message: 'Reconciliation failed'
+        observedGeneration: 1
+        reason: ReconciliationFailed
+        status: "False"
+        type: Ready
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "Kustomization unhealthy when Ready condition has different reason"
+description: "Health should be false when Ready condition exists but reason is not ReconciliationSucceeded"
+observedObj:
+  apiVersion: kustomize.toolkit.fluxcd.io/v1
+  kind: Kustomization
+  metadata:
+    name: sample
+    namespace: test-kustomization
+  status:
+    conditions:
+      - lastTransitionTime: "2023-04-30T12:51:06Z"
+        message: 'Reconciliation in progress'
+        observedGeneration: 1
+        reason: Progressing
+        status: "True"
+        type: Ready
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "Kustomization unhealthy when status is nil"
+description: "Health should be false when status is nil"
+observedObj:
+  apiVersion: kustomize.toolkit.fluxcd.io/v1
+  kind: Kustomization
+  metadata:
+    name: sample
+    namespace: test-kustomization
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "Kustomization unhealthy when conditions is nil"
+description: "Health should be false when status.conditions is nil"
+observedObj:
+  apiVersion: kustomize.toolkit.fluxcd.io/v1
+  kind: Kustomization
+  metadata:
+    name: sample
+    namespace: test-kustomization
+  status: {}
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "Kustomization unhealthy when Ready condition is not found"
+description: "Health should be false when Ready condition does not exist in conditions"
+observedObj:
+  apiVersion: kustomize.toolkit.fluxcd.io/v1
+  kind: Kustomization
+  metadata:
+    name: sample
+    namespace: test-kustomization
+  status:
+    conditions:
+      - lastTransitionTime: "2023-04-30T12:51:06Z"
+        message: 'Some other condition'
+        observedGeneration: 1
+        reason: SomeReason
+        status: "True"
+        type: Reconciling
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "Kustomization with multiple conditions including Ready"
+description: "Health should be true when Ready condition with correct status and reason exists among multiple conditions"
+observedObj:
+  apiVersion: kustomize.toolkit.fluxcd.io/v1
+  kind: Kustomization
+  metadata:
+    name: sample
+    namespace: test-kustomization
+  status:
+    conditions:
+      - lastTransitionTime: "2023-04-30T12:50:00Z"
+        message: 'Reconciling'
+        observedGeneration: 1
+        reason: Progressing
+        status: "True"
+        type: Reconciling
+      - lastTransitionTime: "2023-04-30T12:51:06Z"
+        message: 'Applied revision: master@sha1:0647aea75b85755411b007a290b9321668370be5'
+        observedGeneration: 1
+        reason: ReconciliationSucceeded
+        status: "True"
+        type: Ready
+      - lastTransitionTime: "2023-04-30T12:51:07Z"
+        message: 'Artifact available'
+        observedGeneration: 1
+        reason: ArtifactAvailable
+        status: "True"
+        type: Artifact
+operation: InterpretHealth
+output:
+  healthy: true
+

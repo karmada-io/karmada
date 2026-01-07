@@ -1,0 +1,247 @@
+# test case for dependency interpretation of Kustomization
+# case1. Kustomization with decryption secretRef
+# case2. Kustomization with kubeConfig secretRef
+# case3. Kustomization with serviceAccountName
+# case4. Kustomization with all dependencies
+# case5. Kustomization with no dependencies
+# case6. Kustomization with empty secretRef name
+# case7. Kustomization with empty serviceAccountName
+# case8. Kustomization with same secret name in decryption and kubeConfig
+
+name: "Kustomization with decryption secretRef"
+description: "GetDependencies should return Secret dependency for decryption.secretRef"
+desiredObj:
+  apiVersion: kustomize.toolkit.fluxcd.io/v1
+  kind: Kustomization
+  metadata:
+    name: sample
+    namespace: test-kustomization
+  spec:
+    interval: 10m
+    targetNamespace: test-kustomization
+    sourceRef:
+      kind: GitRepository
+      name: sample
+    path: "./kustomize"
+    prune: true
+    timeout: 1m
+    decryption:
+      secretRef:
+        name: decryption-secret
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: Secret
+      name: decryption-secret
+      namespace: test-kustomization
+---
+name: "Kustomization with kubeConfig secretRef"
+description: "GetDependencies should return Secret dependency for kubeConfig.secretRef"
+desiredObj:
+  apiVersion: kustomize.toolkit.fluxcd.io/v1
+  kind: Kustomization
+  metadata:
+    name: sample
+    namespace: test-kustomization
+  spec:
+    interval: 10m
+    targetNamespace: test-kustomization
+    sourceRef:
+      kind: GitRepository
+      name: sample
+    path: "./kustomize"
+    prune: true
+    timeout: 1m
+    kubeConfig:
+      secretRef:
+        name: kubeconfig-secret
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: Secret
+      name: kubeconfig-secret
+      namespace: test-kustomization
+---
+name: "Kustomization with serviceAccountName"
+description: "GetDependencies should return ServiceAccount dependency for serviceAccountName"
+desiredObj:
+  apiVersion: kustomize.toolkit.fluxcd.io/v1
+  kind: Kustomization
+  metadata:
+    name: sample
+    namespace: test-kustomization
+  spec:
+    interval: 10m
+    targetNamespace: test-kustomization
+    sourceRef:
+      kind: GitRepository
+      name: sample
+    path: "./kustomize"
+    prune: true
+    timeout: 1m
+    serviceAccountName: my-service-account
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: ServiceAccount
+      name: my-service-account
+      namespace: test-kustomization
+---
+name: "Kustomization with all dependencies"
+description: "GetDependencies should return all dependencies when all are specified"
+desiredObj:
+  apiVersion: kustomize.toolkit.fluxcd.io/v1
+  kind: Kustomization
+  metadata:
+    name: sample
+    namespace: test-kustomization
+  spec:
+    interval: 10m
+    targetNamespace: test-kustomization
+    sourceRef:
+      kind: GitRepository
+      name: sample
+    path: "./kustomize"
+    prune: true
+    timeout: 1m
+    decryption:
+      secretRef:
+        name: decryption-secret
+    kubeConfig:
+      secretRef:
+        name: kubeconfig-secret
+    serviceAccountName: my-service-account
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: Secret
+      name: decryption-secret
+      namespace: test-kustomization
+    - apiVersion: v1
+      kind: Secret
+      name: kubeconfig-secret
+      namespace: test-kustomization
+    - apiVersion: v1
+      kind: ServiceAccount
+      name: my-service-account
+      namespace: test-kustomization
+---
+name: "Kustomization with no dependencies"
+description: "GetDependencies should return empty array when no dependencies are specified"
+desiredObj:
+  apiVersion: kustomize.toolkit.fluxcd.io/v1
+  kind: Kustomization
+  metadata:
+    name: sample
+    namespace: test-kustomization
+  spec:
+    interval: 10m
+    targetNamespace: test-kustomization
+    sourceRef:
+      kind: GitRepository
+      name: sample
+    path: "./kustomize"
+    prune: true
+    timeout: 1m
+operation: InterpretDependency
+output:
+  dependencies: []
+---
+name: "Kustomization with empty secretRef name"
+description: "GetDependencies should not include Secret when secretRef.name is empty"
+desiredObj:
+  apiVersion: kustomize.toolkit.fluxcd.io/v1
+  kind: Kustomization
+  metadata:
+    name: sample
+    namespace: test-kustomization
+  spec:
+    interval: 10m
+    targetNamespace: test-kustomization
+    sourceRef:
+      kind: GitRepository
+      name: sample
+    path: "./kustomize"
+    prune: true
+    timeout: 1m
+    decryption:
+      secretRef:
+        name: ''
+    serviceAccountName: my-service-account
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: ServiceAccount
+      name: my-service-account
+      namespace: test-kustomization
+---
+name: "Kustomization with empty serviceAccountName"
+description: "GetDependencies should not include ServiceAccount when serviceAccountName is empty"
+desiredObj:
+  apiVersion: kustomize.toolkit.fluxcd.io/v1
+  kind: Kustomization
+  metadata:
+    name: sample
+    namespace: test-kustomization
+  spec:
+    interval: 10m
+    targetNamespace: test-kustomization
+    sourceRef:
+      kind: GitRepository
+      name: sample
+    path: "./kustomize"
+    prune: true
+    timeout: 1m
+    decryption:
+      secretRef:
+        name: decryption-secret
+    serviceAccountName: ''
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: Secret
+      name: decryption-secret
+      namespace: test-kustomization
+---
+name: "Kustomization with same secret name in decryption and kubeConfig"
+description: "GetDependencies should deduplicate dependencies with same name and kind"
+desiredObj:
+  apiVersion: kustomize.toolkit.fluxcd.io/v1
+  kind: Kustomization
+  metadata:
+    name: sample
+    namespace: test-kustomization
+  spec:
+    interval: 10m
+    targetNamespace: test-kustomization
+    sourceRef:
+      kind: GitRepository
+      name: sample
+    path: "./kustomize"
+    prune: true
+    timeout: 1m
+    decryption:
+      secretRef:
+        name: shared-secret
+    kubeConfig:
+      secretRef:
+        name: shared-secret
+    serviceAccountName: my-service-account
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: Secret
+      name: shared-secret
+      namespace: test-kustomization
+    - apiVersion: v1
+      kind: ServiceAccount
+      name: my-service-account
+      namespace: test-kustomization
+
