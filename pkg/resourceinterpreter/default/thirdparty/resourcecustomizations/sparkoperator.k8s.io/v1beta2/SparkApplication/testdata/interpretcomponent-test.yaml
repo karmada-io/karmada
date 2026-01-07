@@ -1,0 +1,196 @@
+# test case for interpreting component of SparkApplication
+# case1. SparkApplication without dynamic allocation
+# case2. SparkApplication with dynamic allocation
+# case3. SparkApplication with non-JVM job
+# case4. SparkApplication with pod template
+# case5. SparkApplication with GPU
+# case6. SparkApplication with default values
+
+name: "SparkApplication interpret component without dynamic allocation"
+description: "Driver has 1 replica and executor uses spec.executor.instances"
+observedObj:
+  apiVersion: sparkoperator.k8s.io/v1beta2
+  kind: SparkApplication
+  metadata:
+    name: spark-pi
+    namespace: default
+  spec:
+    type: Java
+    driver:
+      cores: 2
+      memory: "1g"
+    executor:
+      cores: 1
+      instances: 2
+      memory: "1g"
+operation: InterpretComponent
+output:
+  components:
+    - name: driver
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          cpu: "2"
+          memory: "1408Mi"
+    - name: executor
+      replicas: 2
+      replicaRequirements:
+        resourceRequest:
+          cpu: "1"
+          memory: "1408Mi"
+---
+name: "SparkApplication interpret component with dynamic allocation"
+description: "Executor replicas come from dynamicAllocation"
+observedObj:
+  apiVersion: sparkoperator.k8s.io/v1beta2
+  kind: SparkApplication
+  metadata:
+    name: spark-pi
+    namespace: default
+  spec:
+    type: Java
+    executor:
+      instances: 1
+      memory: "1g"
+    dynamicAllocation:
+      enabled: true
+      initialExecutors: 3
+      minExecutors: 2
+operation: InterpretComponent
+output:
+  components:
+    - name: driver
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          cpu: "1"
+          memory: "1408Mi"
+    - name: executor
+      replicas: 3
+      replicaRequirements:
+        resourceRequest:
+          cpu: "1"
+          memory: "1408Mi"
+---
+name: "SparkApplication interpret component for non-JVM job"
+description: "Non-JVM jobs still produce driver and executor components"
+observedObj:
+  apiVersion: sparkoperator.k8s.io/v1beta2
+  kind: SparkApplication
+  metadata:
+    name: spark-pi
+    namespace: default
+  spec:
+    type: Python
+    executor:
+      instances: 4
+operation: InterpretComponent
+output:
+  components:
+    - name: driver
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          cpu: "1"
+          memory: "1433.600000Mi"
+    - name: executor
+      replicas: 4
+      replicaRequirements:
+        resourceRequest:
+          cpu: "1"
+          memory: "1433.600000Mi"
+---
+name: "SparkApplication interpret component with pod template"
+description: "NodeSelector and tolerations should propagate"
+observedObj:
+  apiVersion: sparkoperator.k8s.io/v1beta2
+  kind: SparkApplication
+  metadata:
+    name: spark-pi
+    namespace: default
+  spec:
+    type: Java
+    driver:
+      nodeSelector:
+        disktype: ssd
+      tolerations:
+        - key: key1
+          operator: Exists
+operation: InterpretComponent
+output:
+  components:
+    - name: driver
+      replicas: 1
+      replicaRequirements:
+        nodeClaim:
+          nodeSelector:
+            disktype: ssd
+          tolerations:
+            - key: key1
+              operator: Exists
+        resourceRequest:
+          cpu: "1"
+          memory: "1408Mi"
+    - name: executor
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          cpu: "1"
+          memory: "1408Mi"
+---
+name: "SparkApplication interpret component with GPU"
+description: "GPU resource should be included in driver"
+observedObj:
+  apiVersion: sparkoperator.k8s.io/v1beta2
+  kind: SparkApplication
+  metadata:
+    name: spark-pi
+    namespace: default
+  spec:
+    type: Java
+    driver:
+      gpu:
+        name: nvidia.com/gpu
+        quantity: 2
+operation: InterpretComponent
+output:
+  components:
+    - name: driver
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          cpu: "1"
+          memory: "1408Mi"
+          nvidia.com/gpu: "2"
+    - name: executor
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          cpu: "1"
+          memory: "1408Mi"
+---
+name: "SparkApplication interpret component with default values"
+description: "Defaults used when cores and memory are missing"
+observedObj:
+  apiVersion: sparkoperator.k8s.io/v1beta2
+  kind: SparkApplication
+  metadata:
+    name: spark-pi
+    namespace: default
+  spec:
+    type: Java
+operation: InterpretComponent
+output:
+  components:
+    - name: driver
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          cpu: 1
+          memory: "1408Mi"
+    - name: executor
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          cpu: 1
+          memory: "1408Mi"
