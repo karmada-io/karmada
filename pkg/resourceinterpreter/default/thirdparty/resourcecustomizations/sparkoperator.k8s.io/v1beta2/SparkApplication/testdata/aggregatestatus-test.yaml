@@ -3,9 +3,9 @@
 # case2. SparkApplication with single status item
 # case3. SparkApplication with no status items
 # case4. SparkApplication with missing attempts fields
-# case5. SparkApplication with missing executorState
-# case6. SparkApplication with missing lastSubmissionAttemptTime
-# case7. SparkApplication with missing terminationTime
+# case5. SparkApplication picks latest lastSubmissionAttemptTime
+# case6. SparkApplication picking latest terminationTime
+# case7. SparkApplication worst state selected by priority
 
 name: "SparkApplication with three status items"
 description: "Test aggregating status of SparkApplication with three status items"
@@ -25,7 +25,7 @@ desiredObj:
     sparkVersion: "3.5.0"
     sparkUIOptions:
       serviceLabels:
-        test-label/v1: 'true'
+        test-label/v1: "true"
     restartPolicy:
       type: Never
     volumes:

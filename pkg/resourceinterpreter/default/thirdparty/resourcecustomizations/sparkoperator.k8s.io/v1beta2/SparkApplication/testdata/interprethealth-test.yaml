@@ -47,8 +47,8 @@ operation: InterpretHealth
 output:
   healthy: false
 ---
-name: "SparkApplication unhealthy when applicationState.state is empty"
-description: "Empty state should be treated as Unhealthy"
+name: "SparkApplication healthy when applicationState.state is empty"
+description: "Empty state should be treated as Healthy"
 observedObj:
   apiVersion: sparkoperator.k8s.io/v1beta2
   kind: SparkApplication

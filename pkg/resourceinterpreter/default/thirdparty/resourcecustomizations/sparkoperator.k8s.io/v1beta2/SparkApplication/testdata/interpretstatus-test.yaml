@@ -110,7 +110,7 @@ output:
   status: {}
 ---
 name: "SparkApplication interpret status with applicationState but missing state"
-description: "InterpretStatus should copy applicationState even if state field is missing"
+description: "InterpretStatus does not copy applicationState when state field is missing"
 observedObj:
   apiVersion: sparkoperator.k8s.io/v1beta2
   kind: SparkApplication
@@ -143,7 +143,7 @@ output:
       webUIPort: 4040
 ---
 name: "SparkApplication interpret status with empty executorState"
-description: "Empty executorState should be copied as-is"
+description: "Empty executorState is ignored by InterpretStatus"
 observedObj:
   apiVersion: sparkoperator.k8s.io/v1beta2
   kind: SparkApplication
