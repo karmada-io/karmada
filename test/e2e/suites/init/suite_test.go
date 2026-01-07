@@ -76,6 +76,10 @@ var (
 	karmadaControllerManagerImage   string
 	karmadaSchedulerImage           string
 	karmadaWebhookImage             string
+	karmadaDeschedulerImage         string
+	karmadaMetricsAdapterImage      string
+	karmadaSearchImage              string
+	karmadaSchedulerEstimatorImage  string
 )
 
 func init() {
@@ -112,6 +116,10 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() []byte { return nil }, func([]byte
 	karmadaControllerManagerImage = fmt.Sprintf("%s/karmada-controller-manager:%s", registry, version)
 	karmadaSchedulerImage = fmt.Sprintf("%s/karmada-scheduler:%s", registry, version)
 	karmadaWebhookImage = fmt.Sprintf("%s/karmada-webhook:%s", registry, version)
+	karmadaDeschedulerImage = fmt.Sprintf("%s/karmada-descheduler:%s", registry, version)
+	karmadaMetricsAdapterImage = fmt.Sprintf("%s/karmada-metrics-adapter:%s", registry, version)
+	karmadaSearchImage = fmt.Sprintf("%s/karmada-search:%s", registry, version)
+	karmadaSchedulerEstimatorImage = fmt.Sprintf("%s/karmada-scheduler-estimator:%s", registry, version)
 
 	goPathCmd := exec.Command("go", "env", "GOPATH")
 	goPath, err := goPathCmd.CombinedOutput()
