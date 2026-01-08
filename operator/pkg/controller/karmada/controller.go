@@ -92,10 +92,16 @@ func (ctrl *Controller) Reconcile(ctx context.Context, req controllerruntime.Req
 		return ctrl.removeFinalizer(ctx, karmada)
 	}
 
-	if err := ctrl.updateKarmada(ctx, karmada); err != nil {
+	// Simulate a mutation webhook by setting defaults. Return and wait for the next reconciliation if spec is updated.
+	specUpdated, err := ctrl.updateKarmada(ctx, karmada)
+	if err != nil {
 		return controllerruntime.Result{}, err
 	}
+	if specUpdated {
+		return controllerruntime.Result{}, nil
+	}
 
+	// Simulate a validation webhook by validating the resource.
 	if err := ctrl.validateKarmada(ctx, karmada); err != nil {
 		klog.ErrorS(err, "Validation failed for karmada", "name", karmada.Name)
 		return controllerruntime.Result{}, nil
@@ -129,7 +135,7 @@ func (ctrl *Controller) removeFinalizer(ctx context.Context, karmada *operatorv1
 	})
 }
 
-func (ctrl *Controller) updateKarmada(ctx context.Context, karmada *operatorv1alpha1.Karmada) error {
+func (ctrl *Controller) updateKarmada(ctx context.Context, karmada *operatorv1alpha1.Karmada) (bool, error) {
 	// The object is not being deleted, so if it does not have our finalizer,
 	// then lets add the finalizer and update the object. This is equivalent
 	// registering our finalizer.
@@ -144,12 +150,13 @@ func (ctrl *Controller) updateKarmada(ctx context.Context, karmada *operatorv1al
 
 	// Set the defaults for karmada
 	operatorscheme.Scheme.Default(karmada)
+	specUpdated := !reflect.DeepEqual(karmada.Spec, older.Spec)
 
-	if updated || !reflect.DeepEqual(karmada.Spec, older.Spec) {
-		return ctrl.Update(ctx, karmada)
+	if updated || specUpdated {
+		return specUpdated, ctrl.Update(ctx, karmada)
 	}
 
-	return nil
+	return specUpdated, nil
 }
 
 // SetupWithManager creates a controller and register to controller manager.
