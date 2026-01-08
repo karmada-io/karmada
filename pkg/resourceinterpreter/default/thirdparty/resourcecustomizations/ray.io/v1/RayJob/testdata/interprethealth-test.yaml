@@ -1,76 +1,326 @@
 # test case for interpreting health of RayJob
-# case1. RayJob: interpret health test
+# RayJob is healthy when:
+# - jobDeploymentStatus is 'Running' OR
+# - jobDeploymentStatus is 'Complete' AND jobStatus is 'SUCCEEDED'
+# case1. RayJob is healthy - running
+# case2. RayJob is healthy - completed successfully
+# case3. RayJob is unhealthy - failed deployment
+# case4. RayJob is unhealthy - validation failed
+# case5. RayJob is unhealthy - job failed
+# case6. RayJob is unhealthy - job stopped
+# case7. RayJob is unhealthy - initializing
+# case8. RayJob is unhealthy - waiting
+# case9. RayJob is unhealthy - retrying
+# case10. RayJob with no status (unhealthy)
 
-name: "RayJob: interpret health test"
-description: "Test interpreting health for RayJob"
+name: "RayJob is healthy - running"
+description: "Test interpreting health for RayJob when job is running"
 observedObj:
   apiVersion: ray.io/v1
   kind: RayJob
   metadata:
-    name: sample-rayjob
+    name: rayjob-running
     namespace: default
-    generation: 1
   spec:
-    entrypoint: python /home/ray/samples/sample_code.py
-    shutdownAfterJobFinishes: true
-    ttlSecondsAfterFinished: 60
+    entrypoint: python /home/ray/script.py
     rayClusterSpec:
-      rayVersion: '2.46.0'
+      rayVersion: "2.9.0"
       headGroupSpec:
-        rayStartParams: { }
         template:
           spec:
             containers:
-              - name: ray-head
-                image: rayproject/ray:2.46.0
-                resources:
-                  limits:
-                    cpu: "2"
-                    memory: 4Gi
+            - name: ray-head
+              image: rayproject/ray:2.9.0
       workerGroupSpecs:
-        - groupName: small-workers
-          replicas: 2
-          minReplicas: 1
-          maxReplicas: 5
-          rayStartParams: { }
-          template:
-            spec:
-              containers:
-                - name: ray-worker
-                  image: rayproject/ray:2.46.0
-                  resources:
-                    limits:
-                      cpu: "1"
-                      memory: 2Gi
+      - groupName: workers
+        replicas: 2
+        template:
+          spec:
+            containers:
+            - name: ray-worker
+              image: rayproject/ray:2.9.0
   status:
-    jobId: raysubmit_12345abcde
-    rayClusterName: sample-rayjob-raycluster-abc12
-    dashboardURL: "sample-rayjob-raycluster-abc12-head-svc.default.svc.cluster.local:8265"
+    jobId: "raysubmit_abc123"
     jobStatus: RUNNING
     jobDeploymentStatus: Running
-    startTime: "2025-11-22T10:30:00Z"
-    succeeded: 0
-    failed: 0
-    observedGeneration: 1
-    rayJobInfo:
-      startTime: "2025-11-22T10:30:15Z"
-    rayClusterStatus:
-      availableWorkerReplicas: 2
-      conditions:
-        - lastTransitionTime: "2025-11-22T10:29:30Z"
-          message: ""
-          reason: HeadPodRunningAndReady
-          status: "True"
-          type: HeadPodReady
-        - lastTransitionTime: "2025-11-22T10:29:45Z"
-          message: All Ray Pods are ready for the first time
-          reason: AllPodRunningAndReadyFirstTime
-          status: "True"
-          type: RayClusterProvisioned
-      desiredCPU: "4"
-      desiredMemory: 8Gi
-      desiredWorkerReplicas: 2
-      readyWorkerReplicas: 2
-      state: ready
+    rayClusterName: "rayjob-running-cluster"
+    dashboardURL: "rayjob-running-cluster-head-svc:8265"
+    startTime: "2024-01-15T10:30:00Z"
 operation: InterpretHealth
 output:
+  healthy: true
+
+---
+name: "RayJob is healthy - completed successfully"
+description: "Test interpreting health for RayJob when job completed successfully"
+observedObj:
+  apiVersion: ray.io/v1
+  kind: RayJob
+  metadata:
+    name: rayjob-succeeded
+    namespace: default
+  spec:
+    entrypoint: python /home/ray/batch_job.py
+    shutdownAfterJobFinishes: true
+    ttlSecondsAfterFinished: 300
+    rayClusterSpec:
+      rayVersion: "2.9.0"
+      headGroupSpec:
+        template:
+          spec:
+            containers:
+            - name: ray-head
+              image: rayproject/ray:2.9.0
+  status:
+    jobId: "raysubmit_xyz789"
+    jobStatus: SUCCEEDED
+    jobDeploymentStatus: Complete
+    rayClusterName: "rayjob-succeeded-cluster"
+    dashboardURL: "rayjob-succeeded-cluster-head-svc:8265"
+    startTime: "2024-01-15T09:00:00Z"
+    endTime: "2024-01-15T09:30:00Z"
+    message: "Job completed successfully"
+operation: InterpretHealth
+output:
+  healthy: true
+
+---
+name: "RayJob is unhealthy - failed deployment"
+description: "Test interpreting health for RayJob when deployment failed"
+observedObj:
+  apiVersion: ray.io/v1
+  kind: RayJob
+  metadata:
+    name: rayjob-deploy-failed
+    namespace: default
+  spec:
+    entrypoint: python /home/ray/invalid_script.py
+    rayClusterSpec:
+      rayVersion: "2.9.0"
+      headGroupSpec:
+        template:
+          spec:
+            containers:
+            - name: ray-head
+              image: rayproject/ray:2.9.0
+  status:
+    jobId: "raysubmit_failed123"
+    jobStatus: FAILED
+    jobDeploymentStatus: Failed
+    reason: "ClusterCreationFailed"
+    message: "Failed to create Ray cluster"
+    rayClusterName: "rayjob-deploy-failed-cluster"
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "RayJob is unhealthy - validation failed"
+description: "Test interpreting health for RayJob when validation failed"
+observedObj:
+  apiVersion: ray.io/v1
+  kind: RayJob
+  metadata:
+    name: rayjob-validation-failed
+    namespace: default
+  spec:
+    entrypoint: ""  # Invalid - empty entrypoint
+    rayClusterSpec:
+      rayVersion: "2.9.0"
+      headGroupSpec:
+        template:
+          spec:
+            containers:
+            - name: ray-head
+              image: rayproject/ray:2.9.0
+  status:
+    jobDeploymentStatus: ValidationFailed
+    reason: "InvalidJobSpec"
+    message: "Entrypoint cannot be empty"
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "RayJob is unhealthy - job failed"
+description: "Test interpreting health for RayJob when job execution failed"
+observedObj:
+  apiVersion: ray.io/v1
+  kind: RayJob
+  metadata:
+    name: rayjob-exec-failed
+    namespace: default
+  spec:
+    entrypoint: python /home/ray/failing_job.py
+    rayClusterSpec:
+      rayVersion: "2.9.0"
+      headGroupSpec:
+        template:
+          spec:
+            containers:
+            - name: ray-head
+              image: rayproject/ray:2.9.0
+  status:
+    jobId: "raysubmit_fail456"
+    jobStatus: FAILED
+    jobDeploymentStatus: Complete
+    rayClusterName: "rayjob-exec-failed-cluster"
+    startTime: "2024-01-15T11:00:00Z"
+    endTime: "2024-01-15T11:05:00Z"
+    reason: "JobExecutionFailed"
+    message: "Job failed with exit code 1"
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "RayJob is unhealthy - job stopped"
+description: "Test interpreting health for RayJob when job was stopped"
+observedObj:
+  apiVersion: ray.io/v1
+  kind: RayJob
+  metadata:
+    name: rayjob-stopped
+    namespace: default
+  spec:
+    entrypoint: python /home/ray/long_running.py
+    rayClusterSpec:
+      rayVersion: "2.9.0"
+      headGroupSpec:
+        template:
+          spec:
+            containers:
+            - name: ray-head
+              image: rayproject/ray:2.9.0
+      workerGroupSpecs:
+      - groupName: workers
+        replicas: 3
+        template:
+          spec:
+            containers:
+            - name: ray-worker
+              image: rayproject/ray:2.9.0
+  status:
+    jobId: "raysubmit_stop789"
+    jobStatus: STOPPED
+    jobDeploymentStatus: Suspended
+    rayClusterName: "rayjob-stopped-cluster"
+    startTime: "2024-01-15T12:00:00Z"
+    endTime: "2024-01-15T12:30:00Z"
+    reason: "UserRequested"
+    message: "Job was stopped by user"
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "RayJob is unhealthy - initializing"
+description: "Test interpreting health for RayJob when still initializing"
+observedObj:
+  apiVersion: ray.io/v1
+  kind: RayJob
+  metadata:
+    name: rayjob-initializing
+    namespace: default
+  spec:
+    entrypoint: python /home/ray/init.py
+    rayClusterSpec:
+      rayVersion: "2.9.0"
+      headGroupSpec:
+        template:
+          spec:
+            containers:
+            - name: ray-head
+              image: rayproject/ray:2.9.0
+  status:
+    jobDeploymentStatus: Initializing
+    message: "Creating Ray cluster"
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "RayJob is unhealthy - waiting"
+description: "Test interpreting health for RayJob in waiting state"
+observedObj:
+  apiVersion: ray.io/v1
+  kind: RayJob
+  metadata:
+    name: rayjob-waiting
+    namespace: default
+  spec:
+    entrypoint: python /home/ray/wait.py
+    rayClusterSpec:
+      rayVersion: "2.9.0"
+      headGroupSpec:
+        template:
+          spec:
+            containers:
+            - name: ray-head
+              image: rayproject/ray:2.9.0
+  status:
+    jobDeploymentStatus: Waiting
+    rayClusterName: "rayjob-waiting-cluster"
+    message: "Waiting for Ray cluster to be ready"
+    rayClusterStatus:
+      state: provisioning
+      conditions:
+      - type: HeadPodReady
+        status: "False"
+        reason: HeadPodNotReady
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "RayJob is unhealthy - retrying"
+description: "Test interpreting health for RayJob in retrying state"
+observedObj:
+  apiVersion: ray.io/v1
+  kind: RayJob
+  metadata:
+    name: rayjob-retrying
+    namespace: default
+  spec:
+    entrypoint: python /home/ray/retry.py
+    rayClusterSpec:
+      rayVersion: "2.9.0"
+      headGroupSpec:
+        template:
+          spec:
+            containers:
+            - name: ray-head
+              image: rayproject/ray:2.9.0
+  status:
+    jobId: "raysubmit_retry123"
+    jobStatus: PENDING
+    jobDeploymentStatus: Retrying
+    rayClusterName: "rayjob-retrying-cluster"
+    message: "Retrying job submission (attempt 2/3)"
+    failed: 1
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "RayJob with no status"
+description: "Test interpreting health for RayJob when status is nil"
+observedObj:
+  apiVersion: ray.io/v1
+  kind: RayJob
+  metadata:
+    name: rayjob-no-status
+    namespace: default
+  spec:
+    entrypoint: python /home/ray/job.py
+    rayClusterSpec:
+      rayVersion: "2.9.0"
+      headGroupSpec:
+        template:
+          spec:
+            containers:
+            - name: ray-head
+              image: rayproject/ray:2.9.0
+operation: InterpretHealth
+output:
+  healthy: false
