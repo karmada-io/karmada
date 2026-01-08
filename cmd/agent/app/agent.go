@@ -159,9 +159,6 @@ func run(ctx context.Context, opts *options.Options) error {
 	if err != nil {
 		return fmt.Errorf("error building kubeconfig of member cluster: %w", err)
 	}
-	clusterKubeClient := kubeclientset.NewForConfigOrDie(clusterConfig)
-	controlPlaneKubeClient := kubeclientset.NewForConfigOrDie(controlPlaneRestConfig)
-	karmadaClient := karmadaclientset.NewForConfigOrDie(controlPlaneRestConfig)
 
 	registerOption := util.ClusterRegisterOption{
 		ClusterNamespace:   opts.ClusterNamespace,
@@ -177,27 +174,15 @@ func run(ctx context.Context, opts *options.Options) error {
 		ClusterConfig:      clusterConfig,
 	}
 
-	registerOption.ClusterID, err = util.ObtainClusterID(clusterKubeClient)
-	if err != nil {
+	if err = registerOption.Complete(); err != nil {
 		return err
 	}
 
-	if err = registerOption.Validate(karmadaClient, true); err != nil {
+	if err = registerOption.Validate(true); err != nil {
 		return err
 	}
 
-	clusterSecret, impersonatorSecret, err := util.ObtainCredentialsFromMemberCluster(clusterKubeClient, registerOption)
-	if err != nil {
-		return err
-	}
-	if clusterSecret != nil {
-		registerOption.Secret = *clusterSecret
-	}
-	if impersonatorSecret != nil {
-		registerOption.ImpersonatorSecret = *impersonatorSecret
-	}
-	err = util.RegisterClusterInControllerPlane(registerOption, controlPlaneKubeClient, generateClusterInControllerPlane)
-	if err != nil {
+	if err = registerOption.RunRegister(generateClusterInControllerPlane); err != nil {
 		return fmt.Errorf("failed to register with karmada control plane: %w", err)
 	}
 
