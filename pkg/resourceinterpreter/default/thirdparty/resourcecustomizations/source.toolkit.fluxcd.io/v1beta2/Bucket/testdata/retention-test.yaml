@@ -1,0 +1,59 @@
+# test case for retaining suspend field of Bucket
+# case1. Bucket: retain suspend=true
+# case2. Bucket: retain suspend=false
+# case3. Bucket: retain without suspend
+
+name: "Bucket retain suspend=true"
+description: "Retain should copy suspend=true from observed object"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: Bucket
+  spec: {}
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: Bucket
+  spec:
+    suspend: true
+operation: Retain
+output:
+  retained:
+    apiVersion: source.toolkit.fluxcd.io/v1beta2
+    kind: Bucket
+    spec:
+      suspend: true
+---
+name: "Bucket retain suspend=false"
+description: "Retain should copy suspend=false from observed object"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: Bucket
+  spec: {}
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: Bucket
+  spec:
+    suspend: false
+operation: Retain
+output:
+  retained:
+    apiVersion: source.toolkit.fluxcd.io/v1beta2
+    kind: Bucket
+    spec:
+      suspend: false
+---
+name: "Bucket retain without suspend"
+description: "Retain should not add suspend if observed object does not have it"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: Bucket
+  spec: {}
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: Bucket
+  spec: {}
+operation: Retain
+output:
+  retained:
+    apiVersion: source.toolkit.fluxcd.io/v1beta2
+    kind: Bucket
+    spec: {}
