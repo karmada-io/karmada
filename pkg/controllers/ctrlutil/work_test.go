@@ -157,3 +157,263 @@ func TestCreateOrUpdateWork(t *testing.T) {
 		})
 	}
 }
+
+func TestWorkUnchanged(t *testing.T) {
+	baseWorkload := []byte(`{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"name":"test"}}`)
+	differentWorkload := []byte(`{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"name":"different"}}`)
+
+	tests := []struct {
+		name            string
+		existing        *workv1alpha1.Work
+		desired         *workv1alpha1.Work
+		newWorkloadJSON []byte
+		expected        bool
+	}{
+		{
+			name: "unchanged - identical work",
+			existing: &workv1alpha1.Work{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels:      map[string]string{"app": "test"},
+					Annotations: map[string]string{"key": "value"},
+					Finalizers:  []string{"finalizer1"},
+				},
+				Spec: workv1alpha1.WorkSpec{
+					Workload: workv1alpha1.WorkloadTemplate{
+						Manifests: []workv1alpha1.Manifest{
+							{RawExtension: runtime.RawExtension{Raw: baseWorkload}},
+						},
+					},
+				},
+			},
+			desired: &workv1alpha1.Work{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels:      map[string]string{"app": "test"},
+					Annotations: map[string]string{"key": "value"},
+					Finalizers:  []string{"finalizer1"},
+				},
+			},
+			newWorkloadJSON: baseWorkload,
+			expected:        true,
+		},
+		{
+			name: "changed - different workload",
+			existing: &workv1alpha1.Work{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels:      map[string]string{"app": "test"},
+					Annotations: map[string]string{"key": "value"},
+				},
+				Spec: workv1alpha1.WorkSpec{
+					Workload: workv1alpha1.WorkloadTemplate{
+						Manifests: []workv1alpha1.Manifest{
+							{RawExtension: runtime.RawExtension{Raw: baseWorkload}},
+						},
+					},
+				},
+			},
+			desired: &workv1alpha1.Work{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels:      map[string]string{"app": "test"},
+					Annotations: map[string]string{"key": "value"},
+				},
+			},
+			newWorkloadJSON: differentWorkload,
+			expected:        false,
+		},
+		{
+			name: "changed - empty existing workload",
+			existing: &workv1alpha1.Work{
+				Spec: workv1alpha1.WorkSpec{
+					Workload: workv1alpha1.WorkloadTemplate{
+						Manifests: []workv1alpha1.Manifest{},
+					},
+				},
+			},
+			desired:         &workv1alpha1.Work{},
+			newWorkloadJSON: baseWorkload,
+			expected:        false,
+		},
+		{
+			name: "changed - different label",
+			existing: &workv1alpha1.Work{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "test"},
+				},
+				Spec: workv1alpha1.WorkSpec{
+					Workload: workv1alpha1.WorkloadTemplate{
+						Manifests: []workv1alpha1.Manifest{
+							{RawExtension: runtime.RawExtension{Raw: baseWorkload}},
+						},
+					},
+				},
+			},
+			desired: &workv1alpha1.Work{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "different"},
+				},
+			},
+			newWorkloadJSON: baseWorkload,
+			expected:        false,
+		},
+		{
+			name: "changed - new label added",
+			existing: &workv1alpha1.Work{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "test"},
+				},
+				Spec: workv1alpha1.WorkSpec{
+					Workload: workv1alpha1.WorkloadTemplate{
+						Manifests: []workv1alpha1.Manifest{
+							{RawExtension: runtime.RawExtension{Raw: baseWorkload}},
+						},
+					},
+				},
+			},
+			desired: &workv1alpha1.Work{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "test", "version": "v1"},
+				},
+			},
+			newWorkloadJSON: baseWorkload,
+			expected:        false,
+		},
+		{
+			name: "changed - different annotation",
+			existing: &workv1alpha1.Work{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{"key": "value"},
+				},
+				Spec: workv1alpha1.WorkSpec{
+					Workload: workv1alpha1.WorkloadTemplate{
+						Manifests: []workv1alpha1.Manifest{
+							{RawExtension: runtime.RawExtension{Raw: baseWorkload}},
+						},
+					},
+				},
+			},
+			desired: &workv1alpha1.Work{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{"key": "different"},
+				},
+			},
+			newWorkloadJSON: baseWorkload,
+			expected:        false,
+		},
+		{
+			name: "changed - new annotation added",
+			existing: &workv1alpha1.Work{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{"key": "value"},
+				},
+				Spec: workv1alpha1.WorkSpec{
+					Workload: workv1alpha1.WorkloadTemplate{
+						Manifests: []workv1alpha1.Manifest{
+							{RawExtension: runtime.RawExtension{Raw: baseWorkload}},
+						},
+					},
+				},
+			},
+			desired: &workv1alpha1.Work{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{"key": "value", "new-key": "new-value"},
+				},
+			},
+			newWorkloadJSON: baseWorkload,
+			expected:        false,
+		},
+		{
+			name: "changed - new finalizer added",
+			existing: &workv1alpha1.Work{
+				ObjectMeta: metav1.ObjectMeta{
+					Finalizers: []string{"finalizer1"},
+				},
+				Spec: workv1alpha1.WorkSpec{
+					Workload: workv1alpha1.WorkloadTemplate{
+						Manifests: []workv1alpha1.Manifest{
+							{RawExtension: runtime.RawExtension{Raw: baseWorkload}},
+						},
+					},
+				},
+			},
+			desired: &workv1alpha1.Work{
+				ObjectMeta: metav1.ObjectMeta{
+					Finalizers: []string{"finalizer1", "finalizer2"},
+				},
+			},
+			newWorkloadJSON: baseWorkload,
+			expected:        false,
+		},
+		{
+			name: "changed - different SuspendDispatching",
+			existing: &workv1alpha1.Work{
+				Spec: workv1alpha1.WorkSpec{
+					SuspendDispatching: nil,
+					Workload: workv1alpha1.WorkloadTemplate{
+						Manifests: []workv1alpha1.Manifest{
+							{RawExtension: runtime.RawExtension{Raw: baseWorkload}},
+						},
+					},
+				},
+			},
+			desired: &workv1alpha1.Work{
+				Spec: workv1alpha1.WorkSpec{
+					SuspendDispatching: ptrBool(true),
+				},
+			},
+			newWorkloadJSON: baseWorkload,
+			expected:        false,
+		},
+		{
+			name: "changed - different PreserveResourcesOnDeletion",
+			existing: &workv1alpha1.Work{
+				Spec: workv1alpha1.WorkSpec{
+					PreserveResourcesOnDeletion: nil,
+					Workload: workv1alpha1.WorkloadTemplate{
+						Manifests: []workv1alpha1.Manifest{
+							{RawExtension: runtime.RawExtension{Raw: baseWorkload}},
+						},
+					},
+				},
+			},
+			desired: &workv1alpha1.Work{
+				Spec: workv1alpha1.WorkSpec{
+					PreserveResourcesOnDeletion: ptrBool(true),
+				},
+			},
+			newWorkloadJSON: baseWorkload,
+			expected:        false,
+		},
+		{
+			name: "unchanged - existing has more labels than desired",
+			existing: &workv1alpha1.Work{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "test", "extra": "label"},
+				},
+				Spec: workv1alpha1.WorkSpec{
+					Workload: workv1alpha1.WorkloadTemplate{
+						Manifests: []workv1alpha1.Manifest{
+							{RawExtension: runtime.RawExtension{Raw: baseWorkload}},
+						},
+					},
+				},
+			},
+			desired: &workv1alpha1.Work{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "test"},
+				},
+			},
+			newWorkloadJSON: baseWorkload,
+			expected:        true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := workUnchanged(tt.existing, tt.desired, tt.newWorkloadJSON)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func ptrBool(b bool) *bool {
+	return &b
+}
