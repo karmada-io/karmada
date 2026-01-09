@@ -443,7 +443,11 @@ var _ = ginkgo.Describe("FederatedResourceQuota enforcement testing", func() {
 					if err != nil {
 						return false
 					}
-					return rb != nil && meta.IsStatusConditionPresentAndEqual(rb.Status.Conditions, workv1alpha2.Scheduled, metav1.ConditionFalse)
+					if rb == nil {
+						return false
+					}
+					cond := meta.FindStatusCondition(rb.Status.Conditions, workv1alpha2.Scheduled)
+					return cond != nil && cond.Status == metav1.ConditionFalse && cond.Reason == workv1alpha2.BindingReasonQuotaExceeded
 				}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 				framework.WaitResourceBindingFitWith(karmadaClient, newDeploymentNamespace, newRB, func(resourceBinding *workv1alpha2.ResourceBinding) bool {
 					return resourceBinding.Spec.Clusters == nil
@@ -474,7 +478,11 @@ var _ = ginkgo.Describe("FederatedResourceQuota enforcement testing", func() {
 					if err != nil {
 						return false
 					}
-					return rb != nil && meta.IsStatusConditionPresentAndEqual(rb.Status.Conditions, workv1alpha2.Scheduled, metav1.ConditionFalse)
+					if rb == nil {
+						return false
+					}
+					cond := meta.FindStatusCondition(rb.Status.Conditions, workv1alpha2.Scheduled)
+					return cond != nil && cond.Status == metav1.ConditionFalse && cond.Reason == workv1alpha2.BindingReasonQuotaExceeded
 				}, pollTimeout, pollInterval).Should(gomega.Equal(true))
 			})
 

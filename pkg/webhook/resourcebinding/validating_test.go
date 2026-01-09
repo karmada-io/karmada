@@ -40,6 +40,7 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/features"
+	"github.com/karmada-io/karmada/pkg/util"
 )
 
 // testScheme is the scheme used for fake client in tests.
@@ -185,6 +186,20 @@ func makeTestFRQ(namespace, name string, opts ...FRQOption) *policyv1alpha1.Fede
 
 // boolPtr returns a pointer to a boolean value.
 func boolPtr(b bool) *bool { return &b }
+
+// quotaExceededResponse creates an admission response for quota exceeded errors.
+func quotaExceededResponse(message string) admission.Response {
+	return admission.Response{
+		AdmissionResponse: admissionv1.AdmissionResponse{
+			Allowed: false,
+			Result: &metav1.Status{
+				Message: message,
+				Reason:  util.QuotaExceededReason,
+				Code:    int32(http.StatusForbidden),
+			},
+		},
+	}
+}
 
 // --- Admission Request Builder ---
 type admissionRequestBuilder struct {
@@ -527,7 +542,7 @@ func TestValidatingAdmission_Handle(t *testing.T) {
 			decoder:       &fakeDecoder{decodeObj: rbCreateExceeds},
 			clientObjects: []client.Object{frqForCreateExceeds},
 			enableFederatedQuotaEnforcementFeatureGate: true,
-			wantResponse: admission.Denied("FederatedResourceQuota(quota-ns/frq-create-exceeds) exceeded for resource cpu: requested sum 200m, limit 150m."),
+			wantResponse: quotaExceededResponse("FederatedResourceQuota(quota-ns/frq-create-exceeds) exceeded for resource cpu: requested sum 200m, limit 150m."),
 		},
 		{
 			name: "update passes quota (allowed response, non-dryrun)",
@@ -562,7 +577,7 @@ func TestValidatingAdmission_Handle(t *testing.T) {
 			decoder:       &fakeDecoder{decodeObj: rbUpdateFailNew, rawDecodedObj: rbUpdateFailOld},
 			clientObjects: []client.Object{frqForUpdateFail},
 			enableFederatedQuotaEnforcementFeatureGate: true,
-			wantResponse: admission.Denied("FederatedResourceQuota(quota-ns/frq-update-fail) exceeded for resource cpu: requested sum 110m, limit 100m."),
+			wantResponse: quotaExceededResponse("FederatedResourceQuota(quota-ns/frq-update-fail) exceeded for resource cpu: requested sum 110m, limit 100m."),
 		},
 		{
 			name: "validateComponents: zero components (should allow)",
@@ -656,7 +671,7 @@ func TestValidatingAdmission_Handle(t *testing.T) {
 			decoder:       &fakeDecoder{decodeObj: rbWithComponents},
 			clientObjects: []client.Object{frqForComponentsExceeded},
 			enableFederatedQuotaEnforcementFeatureGate: true,
-			wantResponse: admission.Denied("FederatedResourceQuota(quota-ns/frq-components-exceeded) exceeded for resource cpu: requested sum 160m, limit 150m."),
+			wantResponse: quotaExceededResponse("FederatedResourceQuota(quota-ns/frq-components-exceeded) exceeded for resource cpu: requested sum 160m, limit 150m."),
 		},
 		{
 			name: "update components passes quota (allowed response)",
@@ -678,7 +693,7 @@ func TestValidatingAdmission_Handle(t *testing.T) {
 			decoder:       &fakeDecoder{decodeObj: rbComponentsFailNew, rawDecodedObj: rbComponentsFailOld},
 			clientObjects: []client.Object{frqForComponentsFail},
 			enableFederatedQuotaEnforcementFeatureGate: true,
-			wantResponse: admission.Denied("FederatedResourceQuota(quota-ns/frq-components-fail) exceeded for resource cpu: requested sum 110m, limit 100m."),
+			wantResponse: quotaExceededResponse("FederatedResourceQuota(quota-ns/frq-components-fail) exceeded for resource cpu: requested sum 110m, limit 100m."),
 		},
 	}
 
@@ -721,6 +736,9 @@ func TestValidatingAdmission_Handle(t *testing.T) {
 				}
 				if got.Result.Code != tt.wantResponse.Result.Code {
 					t.Errorf("Handle() got.Result.Code = %d, want %d", got.Result.Code, tt.wantResponse.Result.Code)
+				}
+				if got.Result.Reason != tt.wantResponse.Result.Reason {
+					t.Errorf("Handle() got.Result.Reason = %q, want %q", got.Result.Reason, tt.wantResponse.Result.Reason)
 				}
 			}
 
