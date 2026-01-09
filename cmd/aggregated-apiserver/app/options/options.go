@@ -140,7 +140,7 @@ func (o *Options) Run(ctx context.Context) error {
 
 // Config returns config for the api server given Options
 func (o *Options) Config() (*aggregatedapiserver.Config, error) {
-	// TODO have a "real" external address
+	// TODO: Have a "real" external address
 	if err := o.SecureServing.MaybeDefaultWithSelfSignedCerts("localhost", nil, []net.IP{netutils.ParseIPSloppy("127.0.0.1")}); err != nil {
 		return nil, fmt.Errorf("error creating self-signed certificates: %v", err)
 	}
