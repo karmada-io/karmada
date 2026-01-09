@@ -1,0 +1,21 @@
+# test case for retaining Bucket fields
+# case1. Bucket retain suspend field
+
+name: "Bucket retain suspend field"
+description: "Retain copies spec.suspend from observed object"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: Bucket
+  spec: {}
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: Bucket
+  spec:
+    suspend: true
+operation: Retain
+output:
+  retained:
+    apiVersion: source.toolkit.fluxcd.io/v1beta2
+    kind: Bucket
+    spec:
+      suspend: true

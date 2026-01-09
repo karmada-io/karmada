@@ -1,0 +1,41 @@
+# test case for interpreting health of Bucket
+# case1. Bucket healthy when Ready=True and reason=Succeeded
+# case2. Bucket unhealthy when Ready=False
+# case3. Bucket unhealthy when conditions missing
+
+name: "Bucket healthy when Ready=True and reason=Succeeded"
+description: "Health should be true when Ready condition is Succeeded"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: Bucket
+  status:
+    conditions:
+      - type: Ready
+        status: "True"
+        reason: Succeeded
+operation: InterpretHealth
+output:
+  healthy: true
+---
+name: "Bucket unhealthy when Ready=False"
+description: "Health should be false when Ready condition is False"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: Bucket
+  status:
+    conditions:
+      - type: Ready
+        status: "False"
+        reason: Failed
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "Bucket unhealthy when conditions missing"
+description: "Health should be false when status.conditions is nil"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: Bucket
+operation: InterpretHealth
+output:
+  healthy: false
