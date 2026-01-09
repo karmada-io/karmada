@@ -33,7 +33,9 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -41,6 +43,27 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
 )
+
+// withGVKInterceptor returns an interceptor that sets the GVK on objects after Get operations.
+// This simulates the behavior of real API server clients, which automatically set GVK.
+// The fake client doesn't do this by default (since controller-runtime v0.22.0).
+func withGVKInterceptor(scheme *runtime.Scheme) interceptor.Funcs {
+	return interceptor.Funcs{
+		Get: func(ctx context.Context, c client.WithWatch, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+			if err := c.Get(ctx, key, obj, opts...); err != nil {
+				return err
+			}
+			// Set GVK from scheme if it's empty (mimicking real client behavior)
+			if obj.GetObjectKind().GroupVersionKind().Empty() {
+				gvks, _, _ := scheme.ObjectKinds(obj)
+				if len(gvks) > 0 {
+					obj.GetObjectKind().SetGroupVersionKind(gvks[0])
+				}
+			}
+			return nil
+		},
+	}
+}
 
 func TestController_namespaceShouldBeSynced(t *testing.T) {
 	tests := []struct {
@@ -198,6 +221,7 @@ func TestController_Reconcile(t *testing.T) {
 			}
 
 			fakeClientBuilder = fakeClientBuilder.WithLists(&clusterv1alpha1.ClusterList{Items: tt.clusters})
+			fakeClientBuilder = fakeClientBuilder.WithInterceptorFuncs(withGVKInterceptor(scheme))
 			fakeClient := fakeClientBuilder.Build()
 			fakeRecorder := record.NewFakeRecorder(100)
 

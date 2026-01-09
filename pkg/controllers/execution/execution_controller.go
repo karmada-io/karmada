@@ -358,22 +358,7 @@ func (c *Controller) updateWorkDispatchingConditionIfNeeded(ctx context.Context,
 		return err
 	}
 
-	if work.GetObjectKind().GroupVersionKind().Empty() {
-		// In unit tests, we need to verify how many events are emitted. However, when using the fake client,
-		// the work object may not have TypeMeta (APIVersion/Kind) set, which prevents building a proper
-		// object reference and thus no event is actually emitted. This workaround ensures the GVK is set
-		// so event emission, and thereby event counting in unit tests, works as expected.
-		// Since controller-runtime v0.22.0, the group version kind is not set when using fake client.
-		// See https://github.com/kubernetes-sigs/controller-runtime/pull/3229 for more details.
-		work.SetGroupVersionKind(workv1alpha1.SchemeGroupVersion.WithKind("Work"))
-	}
-
-	obj, err := helper.ToUnstructured(work)
-	if err != nil {
-		return err
-	}
-
-	c.eventf(obj, corev1.EventTypeNormal, events.EventReasonWorkDispatching, newWorkDispatchingCondition.Message)
+	c.EventRecorder.Eventf(work, corev1.EventTypeNormal, events.EventReasonWorkDispatching, newWorkDispatchingCondition.Message)
 	return nil
 }
 
