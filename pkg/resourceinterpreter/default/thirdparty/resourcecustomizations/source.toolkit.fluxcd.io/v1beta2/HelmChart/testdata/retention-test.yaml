@@ -1,0 +1,31 @@
+# test case for interpreting status of HelmChart
+# case1. HelmChart retain suspend
+
+name: "HelmChart retain suspend field"
+description: "Retain should copy suspend field from observed object"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmChart
+  metadata:
+    name: sample
+    namespace: test-helmchart
+  spec:
+    suspend: false
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmChart
+  metadata:
+    name: sample
+    namespace: test-helmchart
+  spec:
+    suspend: true
+operation: Retain
+output:
+  retained:
+    apiVersion: source.toolkit.fluxcd.io/v1beta2
+    kind: HelmChart
+    metadata:
+      name: sample
+      namespace: test-helmchart
+    spec:
+      suspend: true

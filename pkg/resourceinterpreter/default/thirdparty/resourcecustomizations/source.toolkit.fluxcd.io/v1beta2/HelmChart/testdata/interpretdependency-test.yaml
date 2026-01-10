@@ -1,0 +1,21 @@
+#test cases for interpretdependency of helmchart
+# case1. HelmChart verify secretRef dependency
+
+name: "HelmChart verify secretRef dependency"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmChart
+  metadata:
+    name: sample
+    namespace: test-helmchart
+  spec:
+    verify:
+      secretRef:
+        name: verify-secret
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: Secret
+      name: verify-secret
+      namespace: test-helmchart
