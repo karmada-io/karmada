@@ -1,5 +1,8 @@
 # test case for aggregating status of HelmChart
 # case1. HelmChart with two status items
+# case2. HelmChart with no status items
+# case3. HelmChart with stale member
+# case4. HelmChart with different artifacts picks last one
 
 name: "HelmChart with two status items"
 description: "Test aggregating status of HelmChart with two status items"
@@ -81,3 +84,157 @@ statusItems:
       url: http://source-controller.flux-system.svc.cluster.local./helmchart/test-helmchart/sample/latest.tar.gz
 operation: AggregateStatus
 output:
+  aggregatedStatus:
+    apiVersion: source.toolkit.fluxcd.io/v1beta2
+    kind: HelmChart
+    metadata:
+      name: sample
+      namespace: test-helmchart
+      generation: 1
+    spec:
+      chart: podinfo
+      interval: 5m0s
+      reconcileStrategy: ChartVersion
+      sourceRef:
+        kind: HelmRepository
+        name: sample
+      version: "5.*"
+    status:
+      artifact:
+        digest: sha256:6c3cc3b955bce1686036ae6822ee2ca0ef6ecb994e3f2d19eaf3ec03dcba84b3
+        lastUpdateTime: "2023-04-30T07:22:37Z"
+        path: helmchart/test-helmchart/sample/podinfo-5.2.1.tgz
+        revision: "5.2.1"
+        size: 13418
+        url: http://source-controller.flux-system.svc.cluster.local./helmchart/test-helmchart/sample/podinfo-5.2.1.tgz
+      conditions:
+        - lastTransitionTime: "2023-04-30T07:22:36Z"
+          message: "member1=pulled 'podinfo' chart with version '5.2.1', member3=pulled 'podinfo' chart with version '5.2.1'"
+          observedGeneration: 1
+          reason: ChartPullSucceeded
+          status: "True"
+          type: Ready
+        - lastTransitionTime: "2023-04-30T07:22:36Z"
+          message: "member1=pulled 'podinfo' chart with version '5.2.1', member3=pulled 'podinfo' chart with version '5.2.1'"
+          observedGeneration: 1
+          reason: ChartPullSucceeded
+          status: "True"
+          type: ArtifactInStorage
+      observedChartName: podinfo
+      observedGeneration: 1
+      observedSourceArtifactRevision: sha256:61f94c20ee9417f222c3d30672724473ae50d406c8c097d80a8a6263c1384f69
+      url: http://source-controller.flux-system.svc.cluster.local./helmchart/test-helmchart/sample/latest.tar.gz
+---
+name: "HelmChart with no status items"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmChart
+  metadata:
+    name: sample
+    namespace: test-helmchart
+    generation: 3
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: source.toolkit.fluxcd.io/v1beta2
+    kind: HelmChart
+    metadata:
+      name: sample
+      namespace: test-helmchart
+      generation: 3
+    status:
+      observedChartName: ""
+      observedSourceArtifactRevision: ""
+      observedGeneration: 3
+      url: ""
+---
+name: "HelmChart with stale member"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmChart
+  metadata:
+    name: sample
+    namespace: test-helmchart
+    generation: 5
+  status:
+    observedGeneration: 4
+statusItems:
+  - status:
+      generation: 5
+      observedGeneration: 5
+      resourceTemplateGeneration: 5
+  - status:
+      generation: 5
+      observedGeneration: 4
+      resourceTemplateGeneration: 5
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: source.toolkit.fluxcd.io/v1beta2
+    kind: HelmChart
+    metadata:
+      name: sample
+      namespace: test-helmchart
+      generation: 5
+    status:
+      observedGeneration: 4
+      observedChartName: ""
+      observedSourceArtifactRevision: ""
+      url: ""
+---
+name: "HelmChart with different artifacts picks last one"
+description: "AggregateStatus should pick the last artifact when members report different chart artifacts"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmChart
+  metadata:
+    name: sample
+    namespace: test-helmchart
+    generation: 1
+  spec:
+    chart: podinfo
+    interval: 5m0s
+    reconcileStrategy: ChartVersion
+    sourceRef:
+      kind: HelmRepository
+      name: sample
+    version: "5.*"
+statusItems:
+  - clusterName: member1
+    status:
+      artifact:
+        revision: "5.2.0"
+        path: helmchart/test-helmchart/sample/podinfo-5.2.0.tgz
+        url: http://example.com/podinfo-5.2.0.tgz
+  - clusterName: member2
+    status:
+      artifact:
+        revision: "5.2.1"
+        path: helmchart/test-helmchart/sample/podinfo-5.2.1.tgz
+        url: http://example.com/podinfo-5.2.1.tgz
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: source.toolkit.fluxcd.io/v1beta2
+    kind: HelmChart
+    metadata:
+      name: sample
+      namespace: test-helmchart
+      generation: 1
+    spec:
+      interval: 5m0s
+      chart: podinfo
+      reconcileStrategy: ChartVersion
+      sourceRef:
+        kind: HelmRepository
+        name: sample
+      version: "5.*"
+    status:
+      artifact:
+        revision: "5.2.1"
+        path: helmchart/test-helmchart/sample/podinfo-5.2.1.tgz
+        url: http://example.com/podinfo-5.2.1.tgz
+      observedChartName: ""
+      observedSourceArtifactRevision: ""
+      observedGeneration: 0
+      url: ""

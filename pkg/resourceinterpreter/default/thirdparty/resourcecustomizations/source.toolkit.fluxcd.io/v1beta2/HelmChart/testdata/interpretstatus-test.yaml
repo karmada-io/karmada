@@ -1,5 +1,9 @@
 # test case for interpreting status of HelmChart
 # case1. HelmChart: interpret status test
+# case2. HelmChart with nil status
+# case3. HelmChart without resourceTemplateGeneration annotation
+# case4. HelmChart with non-numeric resourceTemplateGeneration
+# case5. HelmChart without conditions(HelmChart-specific)
 
 name: "HelmChart: interpret status test"
 description: "Test interpreting status for HelmChart"
@@ -52,3 +56,92 @@ observedObj:
     url: http://source-controller.flux-system.svc.cluster.local./helmchart/test-helmchart/sample/latest.tar.gz
 operation: InterpretStatus
 output:
+  status:
+    artifact:
+      digest: sha256:6c3cc3b955bce1686036ae6822ee2ca0ef6ecb994e3f2d19eaf3ec03dcba84b3
+      lastUpdateTime: "2023-04-30T07:22:36Z"
+      path: helmchart/test-helmchart/sample/podinfo-5.2.1.tgz
+      revision: 5.2.1
+      size: 13418
+      url: http://source-controller.flux-system.svc.cluster.local./helmchart/test-helmchart/sample/podinfo-5.2.1.tgz
+    conditions:
+      - lastTransitionTime: "2023-04-30T07:22:36Z"
+        message: pulled 'podinfo' chart with version '5.2.1'
+        observedGeneration: 1
+        reason: ChartPullSucceeded
+        status: "True"
+        type: Ready
+      - lastTransitionTime: "2023-04-30T07:22:36Z"
+        message: pulled 'podinfo' chart with version '5.2.1'
+        observedGeneration: 1
+        reason: ChartPullSucceeded
+        status: "True"
+        type: ArtifactInStorage
+    observedChartName: podinfo
+    observedSourceArtifactRevision: sha256:61f94c20ee9417f222c3d30672724473ae50d406c8c097d80a8a6263c1384f69
+    url: http://source-controller.flux-system.svc.cluster.local./helmchart/test-helmchart/sample/latest.tar.gz
+    generation: 1
+    resourceTemplateGeneration: 1
+---
+name: "HelmChart with nil status"
+description: "InterpretStatus should return empty status when status is nil"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmChart
+  metadata:
+    name: sample
+    namespace: test-helmchart
+operation: InterpretStatus
+output:
+  status: {}
+---
+name: "HelmChart without resourceTemplateGeneration annotation"
+description: "resourceTemplateGeneration should be absent if annotation is missing"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmChart
+  metadata:
+    name: sample
+    namespace: test-helmchart
+    generation: 2
+  status:
+    observedGeneration: 2
+operation: InterpretStatus
+output:
+  status:
+    generation: 2
+---
+name: "HelmChart with non-numeric resourceTemplateGeneration"
+description: "Non-numeric resourceTemplateGeneration should be ignored"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmChart
+  metadata:
+    name: sample
+    namespace: test-helmchart
+    annotations:
+      resourcetemplate.karmada.io/generation: not-a-number
+  status:
+    artifact: {}
+operation: InterpretStatus
+output:
+  status: {}
+---
+name: "HelmChart without conditions"
+description: "InterpretStatus should work when conditions are missing"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmChart
+  metadata:
+    name: sample
+    namespace: test-helmchart
+    generation: 1
+  status:
+    artifact:
+      revision: 1.0.0
+operation: InterpretStatus
+output:
+  status:
+    artifact:
+      revision: 1.0.0
+    generation: 1
