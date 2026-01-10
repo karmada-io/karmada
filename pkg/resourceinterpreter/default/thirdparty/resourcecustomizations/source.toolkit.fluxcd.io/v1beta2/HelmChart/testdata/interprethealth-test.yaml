@@ -1,0 +1,52 @@
+# test cases for interprethealth of helmchart
+# case1: HelmChart with Ready=True + Succeeded
+# case2: HelmChart with Ready=True + ChartPullSucceeded
+# case3: HelmChart with Ready=False
+# case4: HelmChart with No conditions
+
+name: "HelmChart Ready Succeeded"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmChart
+  status:
+    conditions:
+      - type: Ready
+        status: "True"
+        reason: Succeeded
+operation: InterpretHealth
+output:
+  healthy: true
+---
+name: "HelmChart Ready ChartPullSucceeded"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmChart
+  status:
+    conditions:
+      - type: Ready
+        status: "True"
+        reason: ChartPullSucceeded
+operation: InterpretHealth
+output:
+  healthy: true
+---
+name: "HelmChart Ready False"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmChart
+  status:
+    conditions:
+      - type: Ready
+        status: "False"
+        reason: Succeeded
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "HelmChart No Conditions"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmChart
+operation: InterpretHealth
+output:
+  healthy: false
