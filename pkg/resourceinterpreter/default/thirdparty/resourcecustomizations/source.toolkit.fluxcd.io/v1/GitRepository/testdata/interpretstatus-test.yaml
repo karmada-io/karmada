@@ -1,5 +1,11 @@
 # test case for interpreting status of GitRepository
 # case1. GitRepository: interpret status test
+# case2. GitRepository with nil status
+# case3. GitRepository without resourceTemplateGeneration annotation
+# case4. GitRepository interpret status with observedIgnore
+# case5. GitRepository interpret status with observedRecurseSubmodules
+# case6. GitRepository interpret status with non-numeric resourceTemplateGeneration
+# case7. GitRepository with numeric resourceTemplateGeneration annotation
 
 name: "GitRepository: interpret status test"
 description: "Test interpreting status for GitRepository"
@@ -45,3 +51,121 @@ observedObj:
     observedGeneration: 1
 operation: InterpretStatus
 output:
+  status:
+    artifact:
+      digest: sha256:a375b2ca68275734e3850d3c80e0bc20c1d7a4daa1a9717056d5c0c563ea0719
+      lastUpdateTime: "2023-05-01T10:17:09Z"
+      path: gitrepository/test-gitrepository/sample/0647aea75b85755411b007a290b9321668370be5.tar.gz
+      revision: master@sha1:0647aea75b85755411b007a290b9321668370be5
+      size: 83516
+      url: http://source-controller.flux-system.svc.cluster.local./gitrepository/test-gitrepository/sample/0647aea75b85755411b007a290b9321668370be5.tar.gz
+    conditions:
+    - lastTransitionTime: "2023-05-01T10:17:09Z"
+      message: stored artifact for revision 'master@sha1:0647aea75b85755411b007a290b9321668370be5'
+      observedGeneration: 1
+      reason: Succeeded
+      status: "True"
+      type: Ready
+    - lastTransitionTime: "2023-05-01T10:17:09Z"
+      message: stored artifact for revision 'master@sha1:0647aea75b85755411b007a290b9321668370be5'
+      observedGeneration: 1
+      reason: Succeeded
+      status: "True"
+      type: ArtifactInStorage
+    observedGeneration: 1
+    generation: 1
+    resourceTemplateGeneration: 1
+---
+name: "GitRepository with nil status"
+description: "InterpretStatus should return empty status when status is nil"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1
+  kind: GitRepository
+  metadata:
+    name: sample
+    namespace: test-gitrepository
+operation: InterpretStatus
+output:
+  status: {}
+---
+name: "GitRepository without resourceTemplateGeneration annotation"
+description: "resourceTemplateGeneration should be absent if annotation is missing"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1
+  kind: GitRepository
+  metadata:
+    generation: 2
+    name: sample
+    namespace: test-gitrepository
+  status:
+    observedGeneration: 2
+operation: InterpretStatus
+output:
+  status:
+    observedGeneration: 2
+    generation: 2
+---
+name: "GitRepository interpret status with observedIgnore"
+description: "InterpretStatus should copy observedIgnore field"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1
+  kind: GitRepository
+  metadata:
+    name: sample
+    namespace: test-gitrepository
+  status:
+    observedIgnore: true
+operation: InterpretStatus
+output:
+  status:
+    observedIgnore: true
+---
+name: "GitRepository interpret status with observedRecurseSubmodules"
+description: "InterpretStatus should copy observedRecurseSubmodules field"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1
+  kind: GitRepository
+  metadata:
+    name: sample
+    namespace: test-gitrepository
+  status:
+    observedRecurseSubmodules: true
+operation: InterpretStatus
+output:
+  status:
+    observedRecurseSubmodules: true
+---
+name: "GitRepository interpret status with non-numeric resourceTemplateGeneration"
+description: "Non-numeric resourceTemplateGeneration annotation should be ignored"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1
+  kind: GitRepository
+  metadata:
+    name: sample
+    namespace: test-gitrepository
+    annotations:
+      resourcetemplate.karmada.io/generation: not-a-number
+  status: {}
+operation: InterpretStatus
+output:
+  status: {}
+---
+name: "GitRepository with numeric resourceTemplateGeneration annotation"
+description: "Numeric resourceTemplateGeneration annotation should be parsed correctly"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1
+  kind: GitRepository
+  metadata:
+    name: sample
+    namespace: test-gitrepository
+    generation: 3
+    annotations:
+      resourcetemplate.karmada.io/generation: 123
+  status:
+    observedGeneration: 3
+operation: InterpretStatus
+output:
+  status:
+    generation: 3
+    observedGeneration: 3
+    resourceTemplateGeneration: 123
