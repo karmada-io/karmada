@@ -457,10 +457,15 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 		}
 	}()
 
-	policyID, err := d.ClaimPolicyForObject(object, policy)
+	policyID, claimed, err := d.ClaimPolicyForObject(object, policy)
 	if err != nil {
 		klog.Errorf("Failed to claim policy(%s/%s) for object: %s", policy.Namespace, policy.Name, object)
 		return err
+	}
+
+	if claimed {
+		klog.V(4).Infof("Claim metadata added to object(%s) for policy(%s/%s), object will be automatically requeued via update event", objectKey, policy.Namespace, policy.Name)
+		return nil
 	}
 
 	// If this Reconcile action is triggered by Karmada itself and the current bound Policy is lazy activation preference,
@@ -545,10 +550,15 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 		}
 	}()
 
-	policyID, err := d.ClaimClusterPolicyForObject(object, policy)
+	policyID, claimed, err := d.ClaimClusterPolicyForObject(object, policy)
 	if err != nil {
 		klog.Errorf("Failed to claim cluster policy(%s) for object: %s", policy.Name, object)
 		return err
+	}
+
+	if claimed {
+		klog.V(4).Infof("Claim metadata added to object(%s) for cluster policy(%s), object will be automatically requeued via update event", objectKey, policy.Name)
+		return nil
 	}
 
 	// If this Reconcile action is triggered by Karmada itself and the current bound Policy is lazy activation preference,
@@ -762,7 +772,7 @@ func (d *ResourceDetector) fetchClusterResourceBinding(ctx context.Context, crbN
 
 // ClaimPolicyForObject set policy identifier which the object associated with.
 // It will add policy labels and annotations to the object, and update the obj with the content returned by the Server, ensuring that the obj used when generating the binding is the latest.
-func (d *ResourceDetector) ClaimPolicyForObject(object *unstructured.Unstructured, policy *policyv1alpha1.PropagationPolicy) (string, error) {
+func (d *ResourceDetector) ClaimPolicyForObject(object *unstructured.Unstructured, policy *policyv1alpha1.PropagationPolicy) (string, bool, error) {
 	policyID := policy.Labels[policyv1alpha1.PropagationPolicyPermanentIDLabel]
 
 	objLabels := object.GetLabels()
@@ -770,27 +780,27 @@ func (d *ResourceDetector) ClaimPolicyForObject(object *unstructured.Unstructure
 		// object has been claimed, don't need to claim again
 		if !excludeClusterPolicy(object) &&
 			objLabels[policyv1alpha1.PropagationPolicyPermanentIDLabel] == policyID {
-			return policyID, nil
+			return policyID, false, nil
 		}
 	}
 
 	AddPPClaimMetadata(object, policyID, policy.ObjectMeta)
-	return policyID, d.Client.Update(context.TODO(), object)
+	return policyID, true, d.Client.Update(context.TODO(), object)
 }
 
 // ClaimClusterPolicyForObject set cluster identifier which the object associated with.
 // It will add policy labels and annotations to the object, and update the obj with the content returned by the Server, ensuring that the obj used when generating the binding is the latest.
-func (d *ResourceDetector) ClaimClusterPolicyForObject(object *unstructured.Unstructured, policy *policyv1alpha1.ClusterPropagationPolicy) (string, error) {
+func (d *ResourceDetector) ClaimClusterPolicyForObject(object *unstructured.Unstructured, policy *policyv1alpha1.ClusterPropagationPolicy) (string, bool, error) {
 	policyID := policy.Labels[policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel]
 
 	claimedID := util.GetLabelValue(object.GetLabels(), policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel)
 	// object has been claimed, don't need to claim again
 	if claimedID == policyID {
-		return policyID, nil
+		return policyID, false, nil
 	}
 
 	AddCPPClaimMetadata(object, policyID, policy.ObjectMeta)
-	return policyID, d.Client.Update(context.TODO(), object)
+	return policyID, true, d.Client.Update(context.TODO(), object)
 }
 
 // BuildResourceBinding builds a desired ResourceBinding for object.
