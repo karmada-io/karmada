@@ -1,0 +1,346 @@
+# Test cases for interpreting replica of RayService
+#
+# RayService replica calculation:
+# - Total replicas = 1 (head) + sum of all worker group replicas
+# - Resource requirements = MAX of CPU and memory across head and all worker groups
+# - NodeClaim (nodeSelector, tolerations) from head pod template
+#
+# Test cases:
+# 1. Basic RayService with head and one worker group
+# 2. Multiple worker groups with max resources from workers
+# 3. Head only (no worker groups)
+# 4. Head with higher resources and worker group with 0 replicas
+# 5. NodeSelector and tolerations on head
+# 6. Multiple containers (tests resource aggregation)
+# 7. Mixed CPU/memory max (different pods win each resource type)
+
+name: "Basic RayService with head and one worker group"
+description: "Test basic replica counting: 1 head + 3 workers = 4 total"
+desiredObj:
+  apiVersion: ray.io/v1
+  kind: RayService
+  metadata:
+    name: rayservice-basic
+    namespace: default
+  spec:
+    rayClusterConfig:
+      headGroupSpec:
+        rayStartParams: {}
+        template:
+          spec:
+            containers:
+              - name: ray-head
+                image: rayproject/ray:2.9.0
+                resources:
+                  requests:
+                    cpu: "2"
+                    memory: "4Gi"
+      workerGroupSpecs:
+        - groupName: workers
+          replicas: 3
+          rayStartParams: {}
+          template:
+            spec:
+              containers:
+                - name: ray-worker
+                  image: rayproject/ray:2.9.0
+                  resources:
+                    requests:
+                      cpu: "2"
+                      memory: "4Gi"
+operation: InterpretReplica
+output:
+  replica: 4
+  requires:
+    resourceRequest:
+      cpu: "2"
+      memory: "4Gi"
+
+---
+name: "Multiple worker groups with max resources from workers"
+description: "Test multiple worker groups (1 head + 2 + 4 = 7 total) and max resources taken from gpu-group"
+desiredObj:
+  apiVersion: ray.io/v1
+  kind: RayService
+  metadata:
+    name: rayservice-multi-worker
+    namespace: default
+  spec:
+    rayClusterConfig:
+      headGroupSpec:
+        rayStartParams: {}
+        template:
+          spec:
+            containers:
+              - name: ray-head
+                image: rayproject/ray:2.9.0
+                resources:
+                  requests:
+                    cpu: "1"
+                    memory: "2Gi"
+      workerGroupSpecs:
+        - groupName: cpu-group
+          replicas: 2
+          rayStartParams: {}
+          template:
+            spec:
+              containers:
+                - name: ray-worker
+                  image: rayproject/ray:2.9.0
+                  resources:
+                    requests:
+                      cpu: "2"
+                      memory: "4Gi"
+        - groupName: gpu-group
+          replicas: 4
+          rayStartParams: {}
+          template:
+            spec:
+              containers:
+                - name: ray-worker
+                  image: rayproject/ray:2.9.0
+                  resources:
+                    requests:
+                      cpu: "8"
+                      memory: "32Gi"
+operation: InterpretReplica
+output:
+  replica: 7
+  requires:
+    resourceRequest:
+      cpu: "8"
+      memory: "32Gi"
+
+---
+name: "Head only with no worker groups"
+description: "Test RayService with only head group (1 replica total)"
+desiredObj:
+  apiVersion: ray.io/v1
+  kind: RayService
+  metadata:
+    name: rayservice-head-only
+    namespace: default
+  spec:
+    rayClusterConfig:
+      headGroupSpec:
+        rayStartParams: {}
+        template:
+          spec:
+            containers:
+              - name: ray-head
+                image: rayproject/ray:2.9.0
+                resources:
+                  requests:
+                    cpu: "2"
+                    memory: "4Gi"
+operation: InterpretReplica
+output:
+  replica: 1
+  requires:
+    resourceRequest:
+      cpu: "2"
+      memory: "4Gi"
+
+---
+name: "Head with higher resources and worker group with 0 replicas"
+description: "Test that head resources are used as max when workers have lower resources, and 0 replica workers don't affect count"
+desiredObj:
+  apiVersion: ray.io/v1
+  kind: RayService
+  metadata:
+    name: rayservice-head-heavy
+    namespace: default
+  spec:
+    rayClusterConfig:
+      headGroupSpec:
+        rayStartParams: {}
+        template:
+          spec:
+            containers:
+              - name: ray-head
+                image: rayproject/ray:2.9.0
+                resources:
+                  requests:
+                    cpu: "4"
+                    memory: "16Gi"
+      workerGroupSpecs:
+        - groupName: dormant-group
+          replicas: 0
+          rayStartParams: {}
+          template:
+            spec:
+              containers:
+                - name: ray-worker
+                  image: rayproject/ray:2.9.0
+                  resources:
+                    requests:
+                      cpu: "1"
+                      memory: "2Gi"
+        - groupName: active-group
+          replicas: 3
+          rayStartParams: {}
+          template:
+            spec:
+              containers:
+                - name: ray-worker
+                  image: rayproject/ray:2.9.0
+                  resources:
+                    requests:
+                      cpu: "2"
+                      memory: "4Gi"
+operation: InterpretReplica
+output:
+  replica: 4
+  requires:
+    resourceRequest:
+      cpu: "4"
+      memory: "16Gi"
+
+---
+name: "NodeSelector and tolerations on head"
+description: "Test that nodeSelector and tolerations are extracted from head template"
+desiredObj:
+  apiVersion: ray.io/v1
+  kind: RayService
+  metadata:
+    name: rayservice-scheduling
+    namespace: default
+  spec:
+    rayClusterConfig:
+      headGroupSpec:
+        rayStartParams: {}
+        template:
+          spec:
+            nodeSelector:
+              accelerator: nvidia-a100
+              zone: us-west-2a
+            tolerations:
+              - key: "nvidia.com/gpu"
+                operator: "Exists"
+                effect: "NoSchedule"
+            containers:
+              - name: ray-head
+                image: rayproject/ray:2.9.0
+                resources:
+                  requests:
+                    cpu: "2"
+                    memory: "8Gi"
+      workerGroupSpecs:
+        - groupName: workers
+          replicas: 2
+          rayStartParams: {}
+          template:
+            spec:
+              containers:
+                - name: ray-worker
+                  image: rayproject/ray:2.9.0
+                  resources:
+                    requests:
+                      cpu: "2"
+                      memory: "8Gi"
+operation: InterpretReplica
+output:
+  replica: 3
+  requires:
+    resourceRequest:
+      cpu: "2"
+      memory: "8Gi"
+    nodeClaim:
+      nodeSelector:
+        accelerator: nvidia-a100
+        zone: us-west-2a
+      tolerations:
+        - key: "nvidia.com/gpu"
+          operator: "Exists"
+          effect: "NoSchedule"
+
+---
+name: "Multiple containers in pod template"
+description: "Test that resources from multiple containers (ray-head + sidecar) are aggregated"
+desiredObj:
+  apiVersion: ray.io/v1
+  kind: RayService
+  metadata:
+    name: rayservice-sidecar
+    namespace: default
+  spec:
+    rayClusterConfig:
+      headGroupSpec:
+        rayStartParams: {}
+        template:
+          spec:
+            containers:
+              - name: ray-head
+                image: rayproject/ray:2.9.0
+                resources:
+                  requests:
+                    cpu: "2"
+                    memory: "4Gi"
+              - name: sidecar
+                image: busybox:latest
+                resources:
+                  requests:
+                    cpu: "500m"
+                    memory: "512Mi"
+      workerGroupSpecs:
+        - groupName: workers
+          replicas: 2
+          rayStartParams: {}
+          template:
+            spec:
+              containers:
+                - name: ray-worker
+                  image: rayproject/ray:2.9.0
+                  resources:
+                    requests:
+                      cpu: "1"
+                      memory: "2Gi"
+operation: InterpretReplica
+output:
+  replica: 3
+  requires:
+    resourceRequest:
+      cpu: "2500m"
+      memory: "4608Mi"
+---
+name: "Mixed CPU and memory max from different pods"
+description: "Test when head has higher memory (16Gi) but worker has higher CPU (8) - both max values are taken"
+desiredObj:
+  apiVersion: ray.io/v1
+  kind: RayService
+  metadata:
+    name: rayservice-mixed
+    namespace: default
+  spec:
+    rayClusterConfig:
+      headGroupSpec:
+        rayStartParams: {}
+        template:
+          spec:
+            containers:
+              - name: ray-head
+                image: rayproject/ray:2.9.0
+                resources:
+                  requests:
+                    cpu: "1"
+                    memory: "16Gi"
+      workerGroupSpecs:
+        - groupName: cpu-workers
+          replicas: 3
+          rayStartParams: {}
+          template:
+            spec:
+              containers:
+                - name: ray-worker
+                  image: rayproject/ray:2.9.0
+                  resources:
+                    requests:
+                      cpu: "8"
+                      memory: "4Gi"
+operation: InterpretReplica
+output:
+  replica: 4
+  requires:
+    resourceRequest:
+      cpu: "8"
+      memory: "16Gi"
