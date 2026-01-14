@@ -1,5 +1,10 @@
 # test case for interpreting status of Bucket
 # case1. Bucket: interpret status test
+# case2. Bucket with nil status
+# case3. Bucket without resourceTemplateGeneration annotation
+# case4. Bucket with non-numeric resourceTemplateGeneration
+# case5. Bucket copies observedIgnore and url
+# case6. Bucket with numeric resourceTemplateGeneration annotation
 
 name: "Bucket: interpret status test"
 description: "Test interpreting status for Bucket"
@@ -47,3 +52,113 @@ observedObj:
     observedGeneration: -1
 operation: InterpretStatus
 output:
+  status:
+    conditions:
+      - lastTransitionTime: "2023-04-29T14:03:19Z"
+        message: building artifact
+        observedGeneration: 1
+        reason: ProgressingWithRetry
+        status: "True"
+        type: Reconciling
+      - lastTransitionTime: "2023-04-29T14:03:19Z"
+        message: "invalid 'fake-secret' secret data: required fields 'accesskey' and 'secretkey'"
+        observedGeneration: 1
+        reason: AuthenticationFailed
+        status: "False"
+        type: Ready
+      - lastTransitionTime: "2023-04-29T14:01:44Z"
+        message: "invalid 'fake-secret' secret data: required fields 'accesskey' and 'secretkey'"
+        observedGeneration: 1
+        reason: AuthenticationFailed
+        status: "True"
+        type: FetchFailed
+    observedGeneration: -1
+    generation: 1
+    resourceTemplateGeneration: 1
+---
+name: "Bucket with nil status"
+description: "InterpretStatus should return empty status when observed status is nil"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: Bucket
+  metadata:
+    name: sample
+    namespace: test-bucket
+operation: InterpretStatus
+output:
+  status: {}
+---
+name: "Bucket without resourceTemplateGeneration annotation"
+description: "resourceTemplateGeneration should not be set when annotation is missing"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: Bucket
+  metadata:
+    name: sample
+    namespace: test-bucket
+    generation: 2
+  status:
+    observedGeneration: 2
+operation: InterpretStatus
+output:
+  status:
+    observedGeneration: 2
+    generation: 2
+---
+name: "Bucket with non-numeric resourceTemplateGeneration"
+description: "Non-numeric resourceTemplateGeneration annotation should be ignored"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: Bucket
+  metadata:
+    name: sample
+    namespace: test-bucket
+    generation: 3
+    annotations:
+      resourcetemplate.karmada.io/generation: not-a-number
+  status:
+    observedGeneration: 3
+operation: InterpretStatus
+output:
+  status:
+    observedGeneration: 3
+    generation: 3
+---
+name: "Bucket copies observedIgnore and url"
+description: "InterpretStatus should copy observedIgnore and url fields"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: Bucket
+  metadata:
+    name: sample
+    namespace: test-bucket
+    generation: 4
+  status:
+    observedIgnore: true
+    url: http://bucket/example
+operation: InterpretStatus
+output:
+  status:
+    observedIgnore: true
+    url: http://bucket/example
+    generation: 4
+---
+name: "Bucket with numeric resourceTemplateGeneration annotation"
+description: "InterpretStatus should set resourceTemplateGeneration when annotation is numeric"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: Bucket
+  metadata:
+    name: sample
+    namespace: test-bucket
+    generation: 6
+    annotations:
+      resourcetemplate.karmada.io/generation: "123"
+  status:
+    observedGeneration: 6
+operation: InterpretStatus
+output:
+  status:
+    observedGeneration: 6
+    generation: 6
+    resourceTemplateGeneration: 123

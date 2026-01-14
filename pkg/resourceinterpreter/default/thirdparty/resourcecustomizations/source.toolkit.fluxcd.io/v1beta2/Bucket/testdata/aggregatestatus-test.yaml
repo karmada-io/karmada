@@ -1,5 +1,10 @@
 # test case for aggregating status of Bucket
 # case1. Bucket with two status items
+# case2. Bucket with no status items
+# case3. Bucket with stale member
+# case4. Bucket condition merging with different reasons
+# case5. Bucket ignores empty url
+# case6. Bucket with different artifacts picks last one
 
 name: "Bucket with two status items"
 description: "Test aggregating status of Bucket with two status items"
@@ -78,3 +83,203 @@ statusItems:
       resourceTemplateGeneration: 1
 operation: AggregateStatus
 output:
+  aggregatedStatus:
+    apiVersion: source.toolkit.fluxcd.io/v1beta2
+    kind: Bucket
+    metadata:
+      name: sample
+      namespace: test-bucket
+      generation: 1
+    spec:
+      provider: generic
+      interval: 5m0s
+      bucketName: podinfo
+      endpoint: minio.minio.svc.cluster.local:9000
+      timeout: 60s
+      insecure: true
+      secretRef:
+        name: fake-minio-credentials
+    status:
+      conditions:
+        - type: Reconciling
+          status: "True"
+          reason: ProgressingWithRetry
+          message: "member1=building artifact, member3=building artifact"
+          observedGeneration: 1
+          lastTransitionTime: "2023-04-29T14:02:31Z"
+        - type: Ready
+          status: "False"
+          reason: AuthenticationFailed
+          message: "member1=invalid 'fake-secret' secret data: required fields 'accesskey' and 'secretkey', member3=invalid 'fake-secret' secret data: required fields 'accesskey' and 'secretkey'"
+          observedGeneration: 1
+          lastTransitionTime: "2023-04-29T14:02:31Z"
+        - type: FetchFailed
+          status: "True"
+          reason: AuthenticationFailed
+          message: "member1=invalid 'fake-secret' secret data: required fields 'accesskey' and 'secretkey', member3=invalid 'fake-secret' secret data: required fields 'accesskey' and 'secretkey'"
+          observedGeneration: 1
+          lastTransitionTime: "2023-04-29T14:01:44Z"
+      observedGeneration: 0
+      url: ""
+---
+name: "Bucket with no status items"
+description: "AggregateStatus initializes empty status when no members exist"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: Bucket
+  metadata:
+    name: sample
+    namespace: test-bucket
+    generation: 3
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: source.toolkit.fluxcd.io/v1beta2
+    kind: Bucket
+    metadata:
+      name: sample
+      namespace: test-bucket
+      generation: 3
+    status:
+      url: ""
+      observedGeneration: 3
+---
+name: "Bucket with stale member"
+description: "observedGeneration should not advance if any member is stale"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: Bucket
+  metadata:
+    name: sample
+    namespace: test-bucket
+    generation: 5
+  status:
+    observedGeneration: 4
+statusItems:
+  - status:
+      generation: 5
+      observedGeneration: 5
+      resourceTemplateGeneration: 5
+  - status:
+      generation: 5
+      observedGeneration: 4
+      resourceTemplateGeneration: 5
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: source.toolkit.fluxcd.io/v1beta2
+    kind: Bucket
+    metadata:
+      name: sample
+      namespace: test-bucket
+      generation: 5
+    status:
+      observedGeneration: 4
+      url: ""
+---
+name: "Bucket condition merging with different reasons"
+description: "Conditions with same type but different reasons are not merged"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: Bucket
+  metadata:
+    name: sample
+    namespace: test-bucket
+statusItems:
+  - clusterName: member1
+    status:
+      conditions:
+        - type: Ready
+          status: "True"
+          reason: Succeeded
+          message: ok
+  - clusterName: member2
+    status:
+      conditions:
+        - type: Ready
+          status: "False"
+          reason: Failed
+          message: error
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: source.toolkit.fluxcd.io/v1beta2
+    kind: Bucket
+    metadata:
+      name: sample
+      namespace: test-bucket
+      generation: 0
+    status:
+      conditions:
+        - type: Ready
+          status: "True"
+          reason: Succeeded
+          message: member1=ok
+        - type: Ready
+          status: "False"
+          reason: Failed
+          message: member2=error
+      observedGeneration: 0
+      url: ""
+---
+name: "Bucket ignores empty url"
+description: "Empty url fields are ignored during aggregation"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: Bucket
+  metadata:
+    name: sample
+    namespace: test-bucket
+statusItems:
+  - status:
+      url: ""
+  - status:
+      url: http://bucket/valid
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: source.toolkit.fluxcd.io/v1beta2
+    kind: Bucket
+    metadata:
+      name: sample
+      namespace: test-bucket
+      generation: 0
+    status:
+      observedGeneration: 0
+      url: http://bucket/valid
+---
+name: "Bucket with different artifacts picks last one"
+description: "AggregateStatus should pick the last artifact when members report different artifacts"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: Bucket
+  metadata:
+    name: sample
+    namespace: test-bucket
+    generation: 1
+statusItems:
+  - clusterName: member1
+    status:
+      artifact:
+        path: artifact-a.tar.gz
+        revision: rev-a
+  - clusterName: member2
+    status:
+      artifact:
+        path: artifact-b.tar.gz
+        revision: rev-b
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: source.toolkit.fluxcd.io/v1beta2
+    kind: Bucket
+    metadata:
+      name: sample
+      namespace: test-bucket
+      generation: 1
+    status:
+      artifact:
+        path: artifact-b.tar.gz
+        revision: rev-b
+      observedGeneration: 0
+      url: ""
