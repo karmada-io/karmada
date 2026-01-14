@@ -1,0 +1,51 @@
+# test case for interpreting dependencies of HelmRepository
+# case1. HelmRepository with secretRef
+# case2. HelmRepository without secretRef
+# case3. HelmRepository with empty secretRef name
+
+name: "HelmRepository with secretRef"
+description: "InterpretDependency should return Secret dependency when secretRef is set"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmRepository
+  metadata:
+    name: sample
+    namespace: test-helmrepository
+  spec:
+    secretRef:
+      name: repo-secret
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: Secret
+      name: repo-secret
+      namespace: test-helmrepository
+---
+name: "HelmRepository without secretRef"
+description: "InterpretDependency should return empty list when secretRef is missing"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmRepository
+  metadata:
+    name: sample
+    namespace: test-helmrepository
+  spec: {}
+operation: InterpretDependency
+output:
+  dependencies: []
+---
+name: "HelmRepository with empty secretRef name"
+description: "InterpretDependency should ignore empty secretRef name"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmRepository
+  metadata:
+    name: sample
+    namespace: test-helmrepository
+  spec:
+    secretRef:
+      name: ""
+operation: InterpretDependency
+output:
+  dependencies: []
