@@ -1,0 +1,162 @@
+# test case for retention of Kustomization
+# case1. Kustomization without suspend field in observedObj
+# case2. Kustomization with suspend field set to true
+# case3. Kustomization with suspend field set to false
+
+name: "Kustomization without suspend field in observedObj"
+description: "Retention should not modify desiredObj when suspend field is missing in observedObj"
+desiredObj:
+  apiVersion: kustomize.toolkit.fluxcd.io/v1
+  kind: Kustomization
+  metadata:
+    name: sample
+    namespace: test-kustomization
+  spec:
+    interval: 10m
+    targetNamespace: test-kustomization
+    sourceRef:
+      kind: GitRepository
+      name: sample
+    path: "./kustomize"
+    prune: true
+    timeout: 1m
+    suspend: false
+observedObj:
+  apiVersion: kustomize.toolkit.fluxcd.io/v1
+  kind: Kustomization
+  metadata:
+    name: sample
+    namespace: test-kustomization
+  spec:
+    interval: 10m
+    targetNamespace: test-kustomization
+    sourceRef:
+      kind: GitRepository
+      name: sample
+    path: "./kustomize"
+    prune: true
+    timeout: 1m
+operation: Retain
+output:
+  retained:
+    apiVersion: kustomize.toolkit.fluxcd.io/v1
+    kind: Kustomization
+    metadata:
+      name: sample
+      namespace: test-kustomization
+    spec:
+      interval: 10m
+      targetNamespace: test-kustomization
+      sourceRef:
+        kind: GitRepository
+        name: sample
+      path: "./kustomize"
+      prune: true
+      timeout: 1m
+      suspend: false
+---
+name: "Kustomization with suspend field set to true"
+description: "Retention should retain suspend=true from observedObj"
+desiredObj:
+  apiVersion: kustomize.toolkit.fluxcd.io/v1
+  kind: Kustomization
+  metadata:
+    name: sample
+    namespace: test-kustomization
+  spec:
+    interval: 10m
+    targetNamespace: test-kustomization
+    sourceRef:
+      kind: GitRepository
+      name: sample
+    path: "./kustomize"
+    prune: true
+    timeout: 1m
+    suspend: false
+observedObj:
+  apiVersion: kustomize.toolkit.fluxcd.io/v1
+  kind: Kustomization
+  metadata:
+    name: sample
+    namespace: test-kustomization
+  spec:
+    interval: 10m
+    targetNamespace: test-kustomization
+    sourceRef:
+      kind: GitRepository
+      name: sample
+    path: "./kustomize"
+    prune: true
+    timeout: 1m
+    suspend: true
+operation: Retain
+output:
+  retained:
+    apiVersion: kustomize.toolkit.fluxcd.io/v1
+    kind: Kustomization
+    metadata:
+      name: sample
+      namespace: test-kustomization
+    spec:
+      interval: 10m
+      targetNamespace: test-kustomization
+      sourceRef:
+        kind: GitRepository
+        name: sample
+      path: "./kustomize"
+      prune: true
+      timeout: 1m
+      suspend: true
+---
+name: "Kustomization with suspend field set to false"
+description: "Retention should retain suspend=false from observedObj"
+desiredObj:
+  apiVersion: kustomize.toolkit.fluxcd.io/v1
+  kind: Kustomization
+  metadata:
+    name: sample
+    namespace: test-kustomization
+  spec:
+    interval: 10m
+    targetNamespace: test-kustomization
+    sourceRef:
+      kind: GitRepository
+      name: sample
+    path: "./kustomize"
+    prune: true
+    timeout: 1m
+    suspend: true
+observedObj:
+  apiVersion: kustomize.toolkit.fluxcd.io/v1
+  kind: Kustomization
+  metadata:
+    name: sample
+    namespace: test-kustomization
+  spec:
+    interval: 10m
+    targetNamespace: test-kustomization
+    sourceRef:
+      kind: GitRepository
+      name: sample
+    path: "./kustomize"
+    prune: true
+    timeout: 1m
+    suspend: false
+operation: Retain
+output:
+  retained:
+    apiVersion: kustomize.toolkit.fluxcd.io/v1
+    kind: Kustomization
+    metadata:
+      name: sample
+      namespace: test-kustomization
+    spec:
+      interval: 10m
+      targetNamespace: test-kustomization
+      sourceRef:
+        kind: GitRepository
+        name: sample
+      path: "./kustomize"
+      prune: true
+      timeout: 1m
+      suspend: false

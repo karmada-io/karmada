@@ -1,8 +1,119 @@
 # test case for aggregating status of Kustomization
-# case1. Kustomization with two status items
+# case1. Kustomization with no status items
+# case2. Kustomization with single status item
+# case3. Kustomization with multiple status items (different conditions)
+# case4. Kustomization with multiple status items (same conditions)
 
-name: "Kustomization with two status items"
-description: "Test aggregating status of Kustomization with two status items"
+name: "Kustomization with no status items"
+description: "AggregateStatus should initialize status when statusItems is nil"
+desiredObj:
+  apiVersion: kustomize.toolkit.fluxcd.io/v1
+  kind: Kustomization
+  metadata:
+    name: sample
+    namespace: test-kustomization
+    generation: 2
+  spec:
+    interval: 10m
+    targetNamespace: test-kustomization
+    sourceRef:
+      kind: GitRepository
+      name: sample
+    path: "./kustomize"
+    prune: true
+    timeout: 1m
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: kustomize.toolkit.fluxcd.io/v1
+    kind: Kustomization
+    metadata:
+      name: sample
+      namespace: test-kustomization
+      generation: 2
+    spec:
+      interval: 10m
+      targetNamespace: test-kustomization
+      sourceRef:
+        kind: GitRepository
+        name: sample
+      path: "./kustomize"
+      prune: true
+      timeout: 1m
+    status:
+      observedGeneration: 2
+      lastAttemptedRevision: ''
+      lastAppliedRevision: ''
+
+---
+name: "Kustomization with single status item"
+description: "AggregateStatus should handle single status item correctly"
+desiredObj:
+  apiVersion: kustomize.toolkit.fluxcd.io/v1
+  kind: Kustomization
+  metadata:
+    name: sample
+    namespace: test-kustomization
+    generation: 1
+  spec:
+    interval: 10m
+    targetNamespace: test-kustomization
+    sourceRef:
+      kind: GitRepository
+      name: sample
+    path: "./kustomize"
+    prune: true
+    timeout: 1m
+statusItems:
+  - applied: true
+    clusterName: member1
+    health: Healthy
+    status:
+      conditions:
+        - lastTransitionTime: "2023-04-30T12:51:06Z"
+          message: 'Applied revision: master@sha1:0647aea75b85755411b007a290b9321668370be5'
+          observedGeneration: 1
+          reason: ReconciliationSucceeded
+          status: "True"
+          type: Ready
+      generation: 1
+      lastAppliedRevision: master@sha1:0647aea75b85755411b007a290b9321668370be5
+      lastAttemptedRevision: master@sha1:0647aea75b85755411b007a290b9321668370be5
+      observedGeneration: 1
+      resourceTemplateGeneration: 1
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: kustomize.toolkit.fluxcd.io/v1
+    kind: Kustomization
+    metadata:
+      name: sample
+      namespace: test-kustomization
+      generation: 1
+    spec:
+      interval: 10m
+      targetNamespace: test-kustomization
+      sourceRef:
+        kind: GitRepository
+        name: sample
+      path: "./kustomize"
+      prune: true
+      timeout: 1m
+    status:
+      conditions:
+        - lastTransitionTime: "2023-04-30T12:51:06Z"
+          message: 'member1=Applied revision: master@sha1:0647aea75b85755411b007a290b9321668370be5'
+          observedGeneration: 1
+          reason: ReconciliationSucceeded
+          status: "True"
+          type: Ready
+      lastAppliedRevision: master@sha1:0647aea75b85755411b007a290b9321668370be5
+      lastAttemptedRevision: master@sha1:0647aea75b85755411b007a290b9321668370be5
+      observedGeneration: 1
+
+---
+name: "Kustomization with multiple status items and condition merging"
+description: "AggregateStatus should merge conditions with same type/status/reason and keep different ones separate"
 desiredObj:
   apiVersion: kustomize.toolkit.fluxcd.io/v1
   kind: Kustomization
@@ -37,20 +148,136 @@ statusItems:
       observedGeneration: 1
       resourceTemplateGeneration: 1
   - applied: true
-    clusterName: member3
+    clusterName: member2
+    health: Unhealthy
+    status:
+      conditions:
+        - lastTransitionTime: "2023-04-30T12:52:00Z"
+          message: 'Reconciliation failed'
+          observedGeneration: 1
+          reason: ReconciliationFailed
+          status: "False"
+          type: Ready
+      generation: 1
+      lastAppliedRevision: ''
+      lastAttemptedRevision: master@sha1:0647aea75b85755411b007a290b9321668370be6
+      observedGeneration: 1
+      resourceTemplateGeneration: 1
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: kustomize.toolkit.fluxcd.io/v1
+    kind: Kustomization
+    metadata:
+      name: sample
+      namespace: test-kustomization
+      generation: 1
+    spec:
+      interval: 10m
+      targetNamespace: test-kustomization
+      sourceRef:
+        kind: GitRepository
+        name: sample
+      path: "./kustomize"
+      prune: true
+      timeout: 1m
+    status:
+      conditions:
+        - lastTransitionTime: "2023-04-30T12:51:06Z"
+          message: 'member1=Applied revision: master@sha1:0647aea75b85755411b007a290b9321668370be5'
+          observedGeneration: 1
+          reason: ReconciliationSucceeded
+          status: "True"
+          type: Ready
+        - lastTransitionTime: "2023-04-30T12:52:00Z"
+          message: 'member2=Reconciliation failed'
+          observedGeneration: 1
+          reason: ReconciliationFailed
+          status: "False"
+          type: Ready
+      lastAppliedRevision: master@sha1:0647aea75b85755411b007a290b9321668370be5
+      lastAttemptedRevision: master@sha1:0647aea75b85755411b007a290b9321668370be6
+      observedGeneration: 1
+
+---
+name: "Kustomization with same conditions merging"
+description: "AggregateStatus should merge conditions with same type/status/reason from multiple clusters"
+desiredObj:
+  apiVersion: kustomize.toolkit.fluxcd.io/v1
+  kind: Kustomization
+  metadata:
+    name: sample
+    namespace: test-kustomization
+    generation: 1
+  spec:
+    interval: 10m
+    targetNamespace: test-kustomization
+    sourceRef:
+      kind: GitRepository
+      name: sample
+    path: "./kustomize"
+    prune: true
+    timeout: 1m
+statusItems:
+  - applied: true
+    clusterName: member1
     health: Healthy
     status:
       conditions:
         - lastTransitionTime: "2023-04-30T12:51:06Z"
-          message: 'Applied revision: master@sha1:0647aea75b85755411b007a290b9321668370be5'
+          message: 'Applied revision: master@sha1:abc123'
           observedGeneration: 1
           reason: ReconciliationSucceeded
           status: "True"
           type: Ready
       generation: 1
-      lastAppliedRevision: master@sha1:0647aea75b85755411b007a290b9321668370be5
-      lastAttemptedRevision: master@sha1:0647aea75b85755411b007a290b9321668370be5
+      lastAppliedRevision: master@sha1:abc123
+      lastAttemptedRevision: master@sha1:abc123
+      observedGeneration: 1
+      resourceTemplateGeneration: 1
+  - applied: true
+    clusterName: member2
+    health: Healthy
+    status:
+      conditions:
+        - lastTransitionTime: "2023-04-30T12:51:07Z"
+          message: 'Applied revision: master@sha1:def456'
+          observedGeneration: 1
+          reason: ReconciliationSucceeded
+          status: "True"
+          type: Ready
+      generation: 1
+      lastAppliedRevision: master@sha1:def456
+      lastAttemptedRevision: master@sha1:def456
       observedGeneration: 1
       resourceTemplateGeneration: 1
 operation: AggregateStatus
 output:
+  aggregatedStatus:
+    apiVersion: kustomize.toolkit.fluxcd.io/v1
+    kind: Kustomization
+    metadata:
+      name: sample
+      namespace: test-kustomization
+      generation: 1
+    spec:
+      interval: 10m
+      targetNamespace: test-kustomization
+      sourceRef:
+        kind: GitRepository
+        name: sample
+      path: "./kustomize"
+      prune: true
+      timeout: 1m
+    status:
+      conditions:
+        - lastTransitionTime: "2023-04-30T12:51:06Z"
+          message: 'member1=Applied revision: master@sha1:abc123, member2=Applied revision: master@sha1:def456'
+          observedGeneration: 1
+          reason: ReconciliationSucceeded
+          status: "True"
+          type: Ready
+      lastAppliedRevision: master@sha1:def456
+      lastAttemptedRevision: master@sha1:def456
+      observedGeneration: 1
+

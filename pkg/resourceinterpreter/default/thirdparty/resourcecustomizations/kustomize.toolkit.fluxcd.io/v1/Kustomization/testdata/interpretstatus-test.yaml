@@ -1,5 +1,10 @@
 # test case for interpreting status of Kustomization
 # case1. Kustomization: interpret status test
+# case2. Kustomization with nil observedObj
+# case3. Kustomization with nil metadata
+# case4. Kustomization with nil annotations
+# case5. Kustomization without resourceTemplateGeneration annotation
+# case6. Kustomization with partial status fields
 
 name: "Kustomization: interpret status test"
 description: "Test interpreting status for Kustomization"
@@ -50,3 +55,202 @@ observedObj:
     observedGeneration: 1
 operation: InterpretStatus
 output:
+  status:
+    conditions:
+      - lastTransitionTime: "2023-04-30T12:51:06Z"
+        message: 'Applied revision: master@sha1:0647aea75b85755411b007a290b9321668370be5'
+        observedGeneration: 1
+        reason: ReconciliationSucceeded
+        status: "True"
+        type: Ready
+    lastAppliedRevision: master@sha1:0647aea75b85755411b007a290b9321668370be5
+    lastAttemptedRevision: master@sha1:0647aea75b85755411b007a290b9321668370be5
+    observedGeneration: 1
+    generation: 1
+    resourceTemplateGeneration: 1
+---
+name: "Kustomization with nil observedObj"
+description: "InterpretStatus should return empty status when observedObj has no status"
+observedObj:
+  apiVersion: kustomize.toolkit.fluxcd.io/v1
+  kind: Kustomization
+  metadata:
+    name: sample
+    namespace: test-kustomization
+operation: InterpretStatus
+output:
+  status: {}
+---
+name: "Kustomization with nil metadata"
+description: "InterpretStatus should return status without generation when metadata is nil"
+observedObj:
+  apiVersion: kustomize.toolkit.fluxcd.io/v1
+  kind: Kustomization
+  spec:
+    interval: 10m
+    targetNamespace: test-kustomization
+    sourceRef:
+      kind: GitRepository
+      name: sample
+    path: "./kustomize"
+    prune: true
+    timeout: 1m
+  status:
+    conditions:
+      - lastTransitionTime: "2023-04-30T12:51:06Z"
+        message: 'Applied revision: master@sha1:0647aea75b85755411b007a290b9321668370be5'
+        observedGeneration: 1
+        reason: ReconciliationSucceeded
+        status: "True"
+        type: Ready
+    lastAppliedRevision: master@sha1:0647aea75b85755411b007a290b9321668370be5
+    lastAttemptedRevision: master@sha1:0647aea75b85755411b007a290b9321668370be5
+    observedGeneration: 1
+operation: InterpretStatus
+output:
+  status:
+    conditions:
+      - lastTransitionTime: "2023-04-30T12:51:06Z"
+        message: 'Applied revision: master@sha1:0647aea75b85755411b007a290b9321668370be5'
+        observedGeneration: 1
+        reason: ReconciliationSucceeded
+        status: "True"
+        type: Ready
+    lastAppliedRevision: master@sha1:0647aea75b85755411b007a290b9321668370be5
+    lastAttemptedRevision: master@sha1:0647aea75b85755411b007a290b9321668370be5
+    observedGeneration: 1
+---
+name: "Kustomization with nil annotations"
+description: "InterpretStatus should return status without resourceTemplateGeneration when annotations is nil"
+observedObj:
+  apiVersion: kustomize.toolkit.fluxcd.io/v1
+  kind: Kustomization
+  metadata:
+    name: sample
+    namespace: test-kustomization
+    generation: 1
+  spec:
+    interval: 10m
+    targetNamespace: test-kustomization
+    sourceRef:
+      kind: GitRepository
+      name: sample
+    path: "./kustomize"
+    prune: true
+    timeout: 1m
+  status:
+    conditions:
+      - lastTransitionTime: "2023-04-30T12:51:06Z"
+        message: 'Applied revision: master@sha1:0647aea75b85755411b007a290b9321668370be5'
+        observedGeneration: 1
+        reason: ReconciliationSucceeded
+        status: "True"
+        type: Ready
+    lastAppliedRevision: master@sha1:0647aea75b85755411b007a290b9321668370be5
+    lastAttemptedRevision: master@sha1:0647aea75b85755411b007a290b9321668370be5
+    observedGeneration: 1
+operation: InterpretStatus
+output:
+  status:
+    conditions:
+      - lastTransitionTime: "2023-04-30T12:51:06Z"
+        message: 'Applied revision: master@sha1:0647aea75b85755411b007a290b9321668370be5'
+        observedGeneration: 1
+        reason: ReconciliationSucceeded
+        status: "True"
+        type: Ready
+    lastAppliedRevision: master@sha1:0647aea75b85755411b007a290b9321668370be5
+    lastAttemptedRevision: master@sha1:0647aea75b85755411b007a290b9321668370be5
+    observedGeneration: 1
+    generation: 1
+---
+name: "Kustomization without resourceTemplateGeneration annotation"
+description: "InterpretStatus should return status without resourceTemplateGeneration when annotation is missing"
+observedObj:
+  apiVersion: kustomize.toolkit.fluxcd.io/v1
+  kind: Kustomization
+  metadata:
+    name: sample
+    namespace: test-kustomization
+    generation: 1
+    annotations:
+      some.other.annotation: "value"
+  spec:
+    interval: 10m
+    targetNamespace: test-kustomization
+    sourceRef:
+      kind: GitRepository
+      name: sample
+    path: "./kustomize"
+    prune: true
+    timeout: 1m
+  status:
+    conditions:
+      - lastTransitionTime: "2023-04-30T12:51:06Z"
+        message: 'Applied revision: master@sha1:0647aea75b85755411b007a290b9321668370be5'
+        observedGeneration: 1
+        reason: ReconciliationSucceeded
+        status: "True"
+        type: Ready
+    lastAppliedRevision: master@sha1:0647aea75b85755411b007a290b9321668370be5
+    lastAttemptedRevision: master@sha1:0647aea75b85755411b007a290b9321668370be5
+    observedGeneration: 1
+operation: InterpretStatus
+output:
+  status:
+    conditions:
+      - lastTransitionTime: "2023-04-30T12:51:06Z"
+        message: 'Applied revision: master@sha1:0647aea75b85755411b007a290b9321668370be5'
+        observedGeneration: 1
+        reason: ReconciliationSucceeded
+        status: "True"
+        type: Ready
+    lastAppliedRevision: master@sha1:0647aea75b85755411b007a290b9321668370be5
+    lastAttemptedRevision: master@sha1:0647aea75b85755411b007a290b9321668370be5
+    observedGeneration: 1
+    generation: 1
+---
+name: "Kustomization with partial status fields"
+description: "InterpretStatus should return status with available fields even when some are missing"
+observedObj:
+  apiVersion: kustomize.toolkit.fluxcd.io/v1
+  kind: Kustomization
+  metadata:
+    name: sample
+    namespace: test-kustomization
+    generation: 2
+    annotations:
+      resourcetemplate.karmada.io/generation: "2"
+  spec:
+    interval: 10m
+    targetNamespace: test-kustomization
+    sourceRef:
+      kind: GitRepository
+      name: sample
+    path: "./kustomize"
+    prune: true
+    timeout: 1m
+  status:
+    conditions:
+      - lastTransitionTime: "2023-04-30T12:51:06Z"
+        message: 'Reconciling'
+        observedGeneration: 2
+        reason: Progressing
+        status: "True"
+        type: Reconciling
+    lastAttemptedRevision: master@sha1:0647aea75b85755411b007a290b9321668370be6
+    observedGeneration: 2
+operation: InterpretStatus
+output:
+  status:
+    conditions:
+      - lastTransitionTime: "2023-04-30T12:51:06Z"
+        message: 'Reconciling'
+        observedGeneration: 2
+        reason: Progressing
+        status: "True"
+        type: Reconciling
+    lastAttemptedRevision: master@sha1:0647aea75b85755411b007a290b9321668370be6
+    observedGeneration: 2
+    generation: 2
+    resourceTemplateGeneration: 2
