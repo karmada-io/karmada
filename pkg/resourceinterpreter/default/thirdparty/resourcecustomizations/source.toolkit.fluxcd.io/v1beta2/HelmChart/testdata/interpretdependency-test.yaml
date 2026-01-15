@@ -1,0 +1,57 @@
+# test cases for interpreting dependency of HelmChart
+# case1. HelmChart with verify.secretRef dependency
+# case2. HelmChart with empty verify.secretRef name
+# case3. HelmChart without verify field
+
+name: "HelmChart with verify.secretRef dependency"
+description: "InterpretDependency should return Secret referenced by spec.verify.secretRef"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmChart
+  metadata:
+    name: sample
+    namespace: test-helmchart
+  spec:
+    verify:
+      provider: cosign
+      secretRef:
+        name: cosign-public-key
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: Secret
+      name: cosign-public-key
+      namespace: test-helmchart
+---
+name: "HelmChart with empty verify.secretRef name"
+description: "Empty verify.secretRef.name should not produce dependencies"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmChart
+  metadata:
+    name: sample
+    namespace: test-helmchart
+  spec:
+    verify:
+      provider: cosign
+      secretRef:
+        name: ""
+operation: InterpretDependency
+output:
+  dependencies: []
+---
+name: "HelmChart without verify field"
+description: "No verify field should produce no dependencies"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmChart
+  metadata:
+    name: sample
+    namespace: test-helmchart
+  spec:
+    chart: podinfo
+    interval: 5m0s
+operation: InterpretDependency
+output:
+  dependencies: []
