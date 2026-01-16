@@ -1,0 +1,298 @@
+# Test cases for interpreting dependencies of RayService
+#
+# RayService dependencies are extracted from:
+# - spec.rayClusterConfig.headGroupSpec.template.spec (head pod)
+# - spec.rayClusterConfig.workerGroupSpecs[].template.spec (worker pods)
+#
+# Dependency types:
+# - ConfigMap: volumes, envFrom, env valueFrom
+# - Secret: volumes, envFrom, env valueFrom, imagePullSecrets
+# - ServiceAccount: non-default serviceAccountName
+# - PersistentVolumeClaim: PVC volumes
+#
+# Test cases:
+# 1. No dependencies
+# 2. Head group with ConfigMap and Secret dependencies
+# 3. Worker group dependencies
+# 4. Mixed dependencies from head and workers (deduplication)
+
+name: "RayService with no dependencies"
+description: "Simple RayService with no ConfigMaps, Secrets, or PVCs"
+desiredObj:
+  apiVersion: ray.io/v1
+  kind: RayService
+  metadata:
+    name: simple-rayservice
+    namespace: default
+  spec:
+    serveConfigV2: |
+      applications:
+        - name: simple-app
+          route_prefix: /
+          import_path: app:deployment
+    rayClusterConfig:
+      rayVersion: "2.9.0"
+      headGroupSpec:
+        template:
+          spec:
+            containers:
+            - name: ray-head
+              image: rayproject/ray:2.9.0
+              resources:
+                requests:
+                  cpu: "1"
+                  memory: "2Gi"
+      workerGroupSpecs:
+      - groupName: small-workers
+        replicas: 2
+        template:
+          spec:
+            containers:
+            - name: ray-worker
+              image: rayproject/ray:2.9.0
+operation: InterpretDependency
+output:
+  dependencies: []
+
+---
+name: "RayService with head group dependencies"
+description: "Head pod with ConfigMap volume, Secret env, ServiceAccount, and imagePullSecrets"
+desiredObj:
+  apiVersion: ray.io/v1
+  kind: RayService
+  metadata:
+    name: rayservice-head-deps
+    namespace: production
+  spec:
+    serveConfigV2: |
+      applications:
+        - name: model-app
+          route_prefix: /predict
+          import_path: model:deployment
+    rayClusterConfig:
+      rayVersion: "2.9.0"
+      headGroupSpec:
+        template:
+          spec:
+            serviceAccountName: ray-head-sa
+            imagePullSecrets:
+            - name: docker-registry-secret
+            volumes:
+            - name: serve-config
+              configMap:
+                name: serve-config-cm
+            - name: model-weights
+              persistentVolumeClaim:
+                claimName: model-pvc
+            containers:
+            - name: ray-head
+              image: private-registry.io/ray:2.9.0
+              volumeMounts:
+              - name: serve-config
+                mountPath: /config
+              - name: model-weights
+                mountPath: /models
+              env:
+              - name: API_KEY
+                valueFrom:
+                  secretKeyRef:
+                    name: api-secrets
+                    key: api-key
+              envFrom:
+              - configMapRef:
+                  name: env-config-cm
+              - secretRef:
+                  name: env-secrets
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: ConfigMap
+      name: serve-config-cm
+      namespace: production
+    - apiVersion: v1
+      kind: ConfigMap
+      name: env-config-cm
+      namespace: production
+    - apiVersion: v1
+      kind: Secret
+      name: docker-registry-secret
+      namespace: production
+    - apiVersion: v1
+      kind: Secret
+      name: api-secrets
+      namespace: production
+    - apiVersion: v1
+      kind: Secret
+      name: env-secrets
+      namespace: production
+    - apiVersion: v1
+      kind: ServiceAccount
+      name: ray-head-sa
+      namespace: production
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: model-pvc
+      namespace: production
+
+---
+name: "RayService with worker group dependencies"
+description: "Worker groups with their own ConfigMaps and Secrets"
+desiredObj:
+  apiVersion: ray.io/v1
+  kind: RayService
+  metadata:
+    name: rayservice-worker-deps
+    namespace: default
+  spec:
+    serveConfigV2: |
+      applications:
+        - name: data-app
+          route_prefix: /process
+          import_path: processor:deployment
+    rayClusterConfig:
+      rayVersion: "2.9.0"
+      headGroupSpec:
+        template:
+          spec:
+            containers:
+            - name: ray-head
+              image: rayproject/ray:2.9.0
+      workerGroupSpecs:
+      - groupName: gpu-workers
+        replicas: 2
+        template:
+          spec:
+            serviceAccountName: gpu-worker-sa
+            volumes:
+            - name: worker-config
+              configMap:
+                name: gpu-worker-config
+            containers:
+            - name: ray-worker
+              image: rayproject/ray:2.9.0
+              env:
+              - name: GPU_LICENSE
+                valueFrom:
+                  secretKeyRef:
+                    name: gpu-license-secret
+                    key: license
+      - groupName: cpu-workers
+        replicas: 4
+        template:
+          spec:
+            volumes:
+            - name: data-volume
+              persistentVolumeClaim:
+                claimName: shared-data-pvc
+            containers:
+            - name: ray-worker
+              image: rayproject/ray:2.9.0
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: ConfigMap
+      name: gpu-worker-config
+      namespace: default
+    - apiVersion: v1
+      kind: Secret
+      name: gpu-license-secret
+      namespace: default
+    - apiVersion: v1
+      kind: ServiceAccount
+      name: gpu-worker-sa
+      namespace: default
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: shared-data-pvc
+      namespace: default
+
+---
+name: "RayService with mixed dependencies and deduplication"
+description: "Same ConfigMap/Secret used in head and workers should appear only once"
+desiredObj:
+  apiVersion: ray.io/v1
+  kind: RayService
+  metadata:
+    name: rayservice-dedup
+    namespace: ml-team
+  spec:
+    serveConfigV2: |
+      applications:
+        - name: ml-app
+          route_prefix: /ml
+          import_path: ml:deployment
+    rayClusterConfig:
+      rayVersion: "2.9.0"
+      headGroupSpec:
+        template:
+          spec:
+            volumes:
+            - name: shared-config
+              configMap:
+                name: shared-config-cm
+            initContainers:
+            - name: init-container
+              image: busybox
+              envFrom:
+              - secretRef:
+                  name: init-secrets
+            containers:
+            - name: ray-head
+              image: rayproject/ray:2.9.0
+              env:
+              - name: SHARED_SECRET
+                valueFrom:
+                  secretKeyRef:
+                    name: shared-secrets
+                    key: value
+      workerGroupSpecs:
+      - groupName: workers
+        replicas: 3
+        template:
+          spec:
+            volumes:
+            # Same ConfigMap as head - should be deduplicated
+            - name: shared-config
+              configMap:
+                name: shared-config-cm
+            containers:
+            - name: ray-worker
+              image: rayproject/ray:2.9.0
+              env:
+              # Same Secret as head - should be deduplicated
+              - name: SHARED_SECRET
+                valueFrom:
+                  secretKeyRef:
+                    name: shared-secrets
+                    key: value
+              # Worker-specific secret
+              - name: WORKER_TOKEN
+                valueFrom:
+                  secretKeyRef:
+                    name: worker-tokens
+                    key: token
+operation: InterpretDependency
+output:
+  dependencies:
+    # shared-config-cm appears once even though used in head and workers
+    - apiVersion: v1
+      kind: ConfigMap
+      name: shared-config-cm
+      namespace: ml-team
+    # init-secrets from init container
+    - apiVersion: v1
+      kind: Secret
+      name: init-secrets
+      namespace: ml-team
+    # shared-secrets appears once even though used in head and workers
+    - apiVersion: v1
+      kind: Secret
+      name: shared-secrets
+      namespace: ml-team
+    # worker-tokens is worker-specific
+    - apiVersion: v1
+      kind: Secret
+      name: worker-tokens
+      namespace: ml-team

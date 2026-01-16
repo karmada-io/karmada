@@ -1,0 +1,493 @@
+apiVersion: config.karmada.io/v1alpha1
+kind: ResourceInterpreterCustomization
+metadata:
+  name: declarative-configuration-rayservice
+spec:
+  target:
+    apiVersion: ray.io/v1
+    kind: RayService
+  customizations:
+    replicaResource:
+      luaScript: |
+        local kube = require("kube")
+
+        function GetReplicas(desiredObj)
+          -- RayService replica calculation:
+          -- - Total replicas = 1 (head) + sum of all worker group replicas
+          -- - Resource requirements = MAX of CPU and memory across head and all worker groups
+          -- - NodeClaim (nodeSelector, tolerations) from head pod template
+          --
+          -- Note: HeadGroupSpec and HeadGroupSpec.Template are required fields per kuberay API.
+          -- A valid RayService always has a head pod template.
+
+          if desiredObj.spec == nil or desiredObj.spec.rayClusterConfig == nil then
+            return 0, nil
+          end
+
+          local clusterConfig = desiredObj.spec.rayClusterConfig
+
+          -- HeadGroupSpec is required per kuberay API
+          if clusterConfig.headGroupSpec == nil or clusterConfig.headGroupSpec.template == nil then
+            return 0, nil
+          end
+
+          -- Head group always has 1 replica
+          local totalReplicas = 1
+          local requires = kube.accuratePodRequirements(clusterConfig.headGroupSpec.template)
+
+          -- Track max resources (value for comparison, string for output)
+          local maxCpuVal = 0
+          local maxMemVal = 0
+          local maxCpuStr = nil
+          local maxMemStr = nil
+
+          if requires ~= nil and requires.resourceRequest ~= nil then
+            if requires.resourceRequest.cpu ~= nil then
+              maxCpuVal = kube.getResourceQuantity(requires.resourceRequest.cpu)
+              maxCpuStr = requires.resourceRequest.cpu
+            end
+            if requires.resourceRequest.memory ~= nil then
+              maxMemVal = kube.getResourceQuantity(requires.resourceRequest.memory)
+              maxMemStr = requires.resourceRequest.memory
+            end
+          end
+
+          -- Add replicas from worker groups and find max resources
+          if clusterConfig.workerGroupSpecs ~= nil then
+            for _, workerGroup in ipairs(clusterConfig.workerGroupSpecs) do
+              totalReplicas = totalReplicas + (workerGroup.replicas or 0)
+
+              if workerGroup.template ~= nil then
+                local workerReqs = kube.accuratePodRequirements(workerGroup.template)
+                if workerReqs ~= nil and workerReqs.resourceRequest ~= nil then
+                  if workerReqs.resourceRequest.cpu ~= nil then
+                    local cpuVal = kube.getResourceQuantity(workerReqs.resourceRequest.cpu)
+                    if cpuVal > maxCpuVal then
+                      maxCpuVal = cpuVal
+                      maxCpuStr = workerReqs.resourceRequest.cpu
+                    end
+                  end
+                  if workerReqs.resourceRequest.memory ~= nil then
+                    local memVal = kube.getResourceQuantity(workerReqs.resourceRequest.memory)
+                    if memVal > maxMemVal then
+                      maxMemVal = memVal
+                      maxMemStr = workerReqs.resourceRequest.memory
+                    end
+                  end
+                end
+              end
+            end
+          end
+
+          -- Apply max resources to the requires object
+          if requires ~= nil and (maxCpuStr ~= nil or maxMemStr ~= nil) then
+            if requires.resourceRequest == nil then
+              requires.resourceRequest = {}
+            end
+            if maxCpuStr ~= nil then
+              requires.resourceRequest.cpu = maxCpuStr
+            end
+            if maxMemStr ~= nil then
+              requires.resourceRequest.memory = maxMemStr
+            end
+          end
+
+          return totalReplicas, requires
+        end
+    replicaRevision:
+      luaScript: |
+        function ReviseReplica(desiredObj, desiredReplica)
+          -- RayService replica revision:
+          -- - Head group always has 1 replica (not scalable)
+          -- - Worker replicas = desiredReplica - 1
+          -- - Distribution: single group gets all, multiple groups distributed proportionally
+
+          if desiredObj.spec == nil or desiredObj.spec.rayClusterConfig == nil then
+            return desiredObj
+          end
+
+          local clusterConfig = desiredObj.spec.rayClusterConfig
+          local workerReplicas = math.max(0, desiredReplica - 1)
+
+          if clusterConfig.workerGroupSpecs == nil or #clusterConfig.workerGroupSpecs == 0 then
+            return desiredObj
+          end
+
+          local workerGroups = clusterConfig.workerGroupSpecs
+          local numGroups = #workerGroups
+
+          -- Single worker group: assign all worker replicas directly
+          if numGroups == 1 then
+            workerGroups[1].replicas = workerReplicas
+            return desiredObj
+          end
+
+          -- Calculate current total for proportional distribution
+          local currentTotal = 0
+          for _, wg in ipairs(workerGroups) do
+            currentTotal = currentTotal + (wg.replicas or 0)
+          end
+
+          -- Handle zero workers case
+          if workerReplicas == 0 then
+            for _, wg in ipairs(workerGroups) do
+              wg.replicas = 0
+            end
+            return desiredObj
+          end
+
+          -- Multiple groups: distribute proportionally or equally if starting from 0
+          local distributed = 0
+          for i, wg in ipairs(workerGroups) do
+            if i == numGroups then
+              -- Last group gets remainder to ensure exact total
+              wg.replicas = workerReplicas - distributed
+            elseif currentTotal == 0 then
+              -- Equal distribution when starting from 0
+              wg.replicas = math.floor(workerReplicas / numGroups)
+              if i <= (workerReplicas % numGroups) then
+                wg.replicas = wg.replicas + 1
+              end
+              distributed = distributed + wg.replicas
+            else
+              -- Proportional distribution based on current ratio
+              local proportion = (wg.replicas or 0) / currentTotal
+              wg.replicas = math.floor(workerReplicas * proportion + 0.5)
+              distributed = distributed + wg.replicas
+            end
+          end
+
+          return desiredObj
+        end
+    healthInterpretation:
+      luaScript: >
+        function InterpretHealth(observedObj)
+          if observedObj.status == nil or observedObj.status.conditions == nil then
+            return false
+          end
+
+          for _, condition in ipairs(observedObj.status.conditions) do
+            if condition.type == 'Ready' and condition.status == 'True' then
+              return true
+            end
+          end
+
+          return false
+        end
+    statusAggregation:
+      luaScript: >
+        function AggregateStatus(desiredObj, statusItems)
+          if statusItems == nil then
+            return desiredObj
+          end
+          if desiredObj.status == nil then
+            desiredObj.status = {}
+          end
+
+          desiredObj.spec = nil
+
+          -- If only one item, use it directly
+          if #statusItems == 1 then
+            desiredObj.status = statusItems[1].status
+            return desiredObj
+          end
+
+          -- Priority for application status (higher = worse, worst wins)
+          local appStatusPriority = {
+            ["RUNNING"] = 0,
+            ["NOT_STARTED"] = 1,
+            ["DEPLOYING"] = 2,
+            ["DELETING"] = 3,
+            ["UNHEALTHY"] = 4,
+            ["DEPLOY_FAILED"] = 5,
+          }
+
+          -- Aggregate values
+          local conditions = {}
+          local numServeEndpoints = 0
+          local lastUpdateTime = nil
+          local observedGeneration = 0
+          local worstServiceStatus = "Running"
+          local activeServiceStatus = nil
+          local pendingServiceStatus = nil
+          local aggregatedApps = {}
+
+          for i = 1, #statusItems do
+            local currentStatus = statusItems[i].status
+            if currentStatus ~= nil then
+              -- Collect all conditions from all clusters
+              if currentStatus.conditions ~= nil then
+                for _, condition in ipairs(currentStatus.conditions) do
+                  table.insert(conditions, condition)
+                end
+              end
+
+              -- Sum serve endpoints across clusters
+              if currentStatus.numServeEndpoints ~= nil then
+                numServeEndpoints = numServeEndpoints + currentStatus.numServeEndpoints
+              end
+
+              -- Take most recent lastUpdateTime
+              if currentStatus.lastUpdateTime ~= nil then
+                if lastUpdateTime == nil or currentStatus.lastUpdateTime > lastUpdateTime then
+                  lastUpdateTime = currentStatus.lastUpdateTime
+                end
+              end
+
+              -- Take highest observed generation
+              if currentStatus.observedGeneration ~= nil and currentStatus.observedGeneration > observedGeneration then
+                observedGeneration = currentStatus.observedGeneration
+              end
+
+              -- Take worst serviceStatus (empty = not running = worse)
+              if currentStatus.serviceStatus ~= nil and currentStatus.serviceStatus == "" then
+                worstServiceStatus = ""
+              end
+
+              -- Take first activeServiceStatus as base, merge applicationStatuses
+              if currentStatus.activeServiceStatus ~= nil then
+                if activeServiceStatus == nil then
+                  activeServiceStatus = currentStatus.activeServiceStatus
+                end
+                -- Merge application statuses with worst-status-wins logic
+                if currentStatus.activeServiceStatus.applicationStatuses ~= nil then
+                  for appName, appStatus in pairs(currentStatus.activeServiceStatus.applicationStatuses) do
+                    local currentPriority = appStatusPriority[appStatus.status] or 0
+                    local existingPriority = -1
+                    if aggregatedApps[appName] ~= nil then
+                      existingPriority = appStatusPriority[aggregatedApps[appName].status] or 0
+                    end
+                    if currentPriority > existingPriority then
+                      aggregatedApps[appName] = appStatus
+                    end
+                  end
+                end
+              end
+
+              -- Take first pendingServiceStatus
+              if currentStatus.pendingServiceStatus ~= nil and pendingServiceStatus == nil then
+                pendingServiceStatus = currentStatus.pendingServiceStatus
+              end
+            end
+          end
+
+          -- Set aggregated status
+          desiredObj.status.conditions = conditions
+          desiredObj.status.numServeEndpoints = numServeEndpoints
+          desiredObj.status.lastUpdateTime = lastUpdateTime
+          desiredObj.status.observedGeneration = observedGeneration
+          desiredObj.status.serviceStatus = worstServiceStatus
+
+          if activeServiceStatus ~= nil then
+            activeServiceStatus.applicationStatuses = aggregatedApps
+            desiredObj.status.activeServiceStatus = activeServiceStatus
+          end
+
+          if pendingServiceStatus ~= nil then
+            desiredObj.status.pendingServiceStatus = pendingServiceStatus
+          end
+
+          return desiredObj
+        end
+    dependencyInterpretation:
+      luaScript: >
+        function GetDependencies(desiredObj)
+          dependentConfigMaps = {}
+          dependentSecrets = {}
+          dependentSas = {}
+          dependentPVCs = {}
+          refs = {}
+
+          -- Helper function to extract dependencies from a pod template spec
+          local function extractDependenciesFromPodSpec(podSpec)
+            if podSpec == nil then
+              return
+            end
+
+            -- Service account
+            if podSpec.serviceAccountName ~= nil and podSpec.serviceAccountName ~= '' and podSpec.serviceAccountName ~= 'default' then
+              dependentSas[podSpec.serviceAccountName] = true
+            end
+
+            -- Image pull secrets
+            if podSpec.imagePullSecrets ~= nil then
+              for _, secretRef in pairs(podSpec.imagePullSecrets) do
+                if secretRef.name ~= nil and secretRef.name ~= '' then
+                  dependentSecrets[secretRef.name] = true
+                end
+              end
+            end
+
+            -- Volumes
+            if podSpec.volumes ~= nil then
+              for _, volume in pairs(podSpec.volumes) do
+                -- ConfigMap volumes
+                if volume.configMap ~= nil and volume.configMap.name ~= nil and volume.configMap.name ~= '' then
+                  dependentConfigMaps[volume.configMap.name] = true
+                end
+                -- Secret volumes
+                if volume.secret ~= nil and volume.secret.secretName ~= nil and volume.secret.secretName ~= '' then
+                  dependentSecrets[volume.secret.secretName] = true
+                end
+                -- Projected volumes
+                if volume.projected ~= nil and volume.projected.sources ~= nil then
+                  for _, source in pairs(volume.projected.sources) do
+                    if source.configMap ~= nil and source.configMap.name ~= nil and source.configMap.name ~= '' then
+                      dependentConfigMaps[source.configMap.name] = true
+                    end
+                    if source.secret ~= nil and source.secret.name ~= nil and source.secret.name ~= '' then
+                      dependentSecrets[source.secret.name] = true
+                    end
+                    if source.serviceAccountToken ~= nil then
+                      -- ServiceAccount tokens don't need explicit dependency tracking
+                    end
+                  end
+                end
+                -- PVC volumes
+                if volume.persistentVolumeClaim ~= nil and volume.persistentVolumeClaim.claimName ~= nil and volume.persistentVolumeClaim.claimName ~= '' then
+                  dependentPVCs[volume.persistentVolumeClaim.claimName] = true
+                end
+                -- Other secret references in volumes
+                if volume.azureFile ~= nil and volume.azureFile.secretName ~= nil and volume.azureFile.secretName ~= '' then
+                  dependentSecrets[volume.azureFile.secretName] = true
+                end
+                if volume.cephfs ~= nil and volume.cephfs.secretRef ~= nil and volume.cephfs.secretRef.name ~= nil and volume.cephfs.secretRef.name ~= '' then
+                  dependentSecrets[volume.cephfs.secretRef.name] = true
+                end
+                if volume.cinder ~= nil and volume.cinder.secretRef ~= nil and volume.cinder.secretRef.name ~= nil and volume.cinder.secretRef.name ~= '' then
+                  dependentSecrets[volume.cinder.secretRef.name] = true
+                end
+                if volume.flexVolume ~= nil and volume.flexVolume.secretRef ~= nil and volume.flexVolume.secretRef.name ~= nil and volume.flexVolume.secretRef.name ~= '' then
+                  dependentSecrets[volume.flexVolume.secretRef.name] = true
+                end
+                if volume.rbd ~= nil and volume.rbd.secretRef ~= nil and volume.rbd.secretRef.name ~= nil and volume.rbd.secretRef.name ~= '' then
+                  dependentSecrets[volume.rbd.secretRef.name] = true
+                end
+                if volume.scaleIO ~= nil and volume.scaleIO.secretRef ~= nil and volume.scaleIO.secretRef.name ~= nil and volume.scaleIO.secretRef.name ~= '' then
+                  dependentSecrets[volume.scaleIO.secretRef.name] = true
+                end
+                if volume.iscsi ~= nil and volume.iscsi.secretRef ~= nil and volume.iscsi.secretRef.name ~= nil and volume.iscsi.secretRef.name ~= '' then
+                  dependentSecrets[volume.iscsi.secretRef.name] = true
+                end
+                if volume.storageos ~= nil and volume.storageos.secretRef ~= nil and volume.storageos.secretRef.name ~= nil and volume.storageos.secretRef.name ~= '' then
+                  dependentSecrets[volume.storageos.secretRef.name] = true
+                end
+                if volume.csi ~= nil and volume.csi.nodePublishSecretRef ~= nil and volume.csi.nodePublishSecretRef.name ~= nil and volume.csi.nodePublishSecretRef.name ~= '' then
+                  dependentSecrets[volume.csi.nodePublishSecretRef.name] = true
+                end
+              end
+            end
+
+            -- Container envFrom references
+            if podSpec.containers ~= nil then
+              for _, container in pairs(podSpec.containers) do
+                if container.envFrom ~= nil then
+                  for _, envFromSource in pairs(container.envFrom) do
+                    if envFromSource.configMapRef ~= nil and envFromSource.configMapRef.name ~= nil and envFromSource.configMapRef.name ~= '' then
+                      dependentConfigMaps[envFromSource.configMapRef.name] = true
+                    end
+                    if envFromSource.secretRef ~= nil and envFromSource.secretRef.name ~= nil and envFromSource.secretRef.name ~= '' then
+                      dependentSecrets[envFromSource.secretRef.name] = true
+                    end
+                  end
+                end
+                -- Container env valueFrom references
+                if container.env ~= nil then
+                  for _, envVar in pairs(container.env) do
+                    if envVar.valueFrom ~= nil then
+                      if envVar.valueFrom.configMapKeyRef ~= nil and envVar.valueFrom.configMapKeyRef.name ~= nil and envVar.valueFrom.configMapKeyRef.name ~= '' then
+                        dependentConfigMaps[envVar.valueFrom.configMapKeyRef.name] = true
+                      end
+                      if envVar.valueFrom.secretKeyRef ~= nil and envVar.valueFrom.secretKeyRef.name ~= nil and envVar.valueFrom.secretKeyRef.name ~= '' then
+                        dependentSecrets[envVar.valueFrom.secretKeyRef.name] = true
+                      end
+                    end
+                  end
+                end
+              end
+            end
+
+            -- Init containers
+            if podSpec.initContainers ~= nil then
+              for _, container in pairs(podSpec.initContainers) do
+                if container.envFrom ~= nil then
+                  for _, envFromSource in pairs(container.envFrom) do
+                    if envFromSource.configMapRef ~= nil and envFromSource.configMapRef.name ~= nil and envFromSource.configMapRef.name ~= '' then
+                      dependentConfigMaps[envFromSource.configMapRef.name] = true
+                    end
+                    if envFromSource.secretRef ~= nil and envFromSource.secretRef.name ~= nil and envFromSource.secretRef.name ~= '' then
+                      dependentSecrets[envFromSource.secretRef.name] = true
+                    end
+                  end
+                end
+                if container.env ~= nil then
+                  for _, envVar in pairs(container.env) do
+                    if envVar.valueFrom ~= nil then
+                      if envVar.valueFrom.configMapKeyRef ~= nil and envVar.valueFrom.configMapKeyRef.name ~= nil and envVar.valueFrom.configMapKeyRef.name ~= '' then
+                        dependentConfigMaps[envVar.valueFrom.configMapKeyRef.name] = true
+                      end
+                      if envVar.valueFrom.secretKeyRef ~= nil and envVar.valueFrom.secretKeyRef.name ~= nil and envVar.valueFrom.secretKeyRef.name ~= '' then
+                        dependentSecrets[envVar.valueFrom.secretKeyRef.name] = true
+                      end
+                    end
+                  end
+                end
+              end
+            end
+          end
+
+          -- Extract dependencies from rayClusterConfig
+          if desiredObj.spec ~= nil and desiredObj.spec.rayClusterConfig ~= nil then
+            local clusterSpec = desiredObj.spec.rayClusterConfig
+
+            -- Head group
+            if clusterSpec.headGroupSpec ~= nil and clusterSpec.headGroupSpec.template ~= nil and clusterSpec.headGroupSpec.template.spec ~= nil then
+              extractDependenciesFromPodSpec(clusterSpec.headGroupSpec.template.spec)
+            end
+
+            -- Worker groups
+            if clusterSpec.workerGroupSpecs ~= nil then
+              for _, workerGroup in pairs(clusterSpec.workerGroupSpecs) do
+                if workerGroup.template ~= nil and workerGroup.template.spec ~= nil then
+                  extractDependenciesFromPodSpec(workerGroup.template.spec)
+                end
+              end
+            end
+          end
+
+          -- Build dependency references array
+          for key, _ in pairs(dependentConfigMaps) do
+            table.insert(refs, {
+              apiVersion = 'v1',
+              kind = 'ConfigMap',
+              name = key,
+              namespace = desiredObj.metadata.namespace
+            })
+          end
+          for key, _ in pairs(dependentSecrets) do
+            table.insert(refs, {
+              apiVersion = 'v1',
+              kind = 'Secret',
+              name = key,
+              namespace = desiredObj.metadata.namespace
+            })
+          end
+          for key, _ in pairs(dependentSas) do
+            table.insert(refs, {
+              apiVersion = 'v1',
+              kind = 'ServiceAccount',
+              name = key,
+              namespace = desiredObj.metadata.namespace
+            })
+          end
+          for key, _ in pairs(dependentPVCs) do
+            table.insert(refs, {
+              apiVersion = 'v1',
+              kind = 'PersistentVolumeClaim',
+              name = key,
+              namespace = desiredObj.metadata.namespace
+            })
+          end
+
+          return refs
+        end
