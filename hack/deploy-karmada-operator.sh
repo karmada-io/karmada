@@ -61,7 +61,7 @@ kind load docker-image "${REGISTRY}/karmada-operator:${VERSION}" --name="${CONTE
 kubectl --kubeconfig="${KUBECONFIG}" --context="${CONTEXT_NAME}" apply -f "${REPO_ROOT}/artifacts/deploy/namespace.yaml"
 
 # install Karmada operator crds
-kubectl --kubeconfig="${KUBECONFIG}" --context="${CONTEXT_NAME}" apply -f operator/config/crds/
+kubectl --kubeconfig="${KUBECONFIG}" --context="${CONTEXT_NAME}" apply -f operator/config/crds/ --server-side
 
 # deploy karmada-operator
 kubectl --kubeconfig="${KUBECONFIG}" --context="${CONTEXT_NAME}" apply -f "${REPO_ROOT}/operator/config/deploy/karmada-operator-clusterrole.yaml"
