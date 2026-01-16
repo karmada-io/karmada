@@ -1,5 +1,9 @@
 # test case for aggregating status of HelmRepository
 # case1. HelmRepository with two status items
+# case2. HelmRepository with no status items
+# case3. HelmRepository with stale member
+# case4. HelmRepository with different artifacts picks last one
+# case5. HelmRepository condition merging with different reasons
 
 name: "HelmRepository with two status items"
 description: "Test aggregating status of HelmRepository with two status items"
@@ -74,3 +78,174 @@ statusItems:
       url: http://source-controller.flux-system.svc.cluster.local./helmrepository/test-helmrepository/sample/index.yaml
 operation: AggregateStatus
 output:
+  aggregatedStatus:
+    apiVersion: source.toolkit.fluxcd.io/v1beta2
+    kind: HelmRepository
+    metadata:
+      name: podinfo
+      namespace: test-helmrepository
+      generation: 1
+    spec:
+      interval: 5m0s
+      url: https://stefanprodan.github.io/podinfo
+      secretRef:
+        name: fake-secret
+    status:
+      artifact:
+        digest: sha256:61f94c20ee9417f222c3d30672724473ae50d406c8c097d80a8a6263c1384f69
+        lastUpdateTime: "2023-04-29T09:30:33Z"
+        path: helmrepository/test-helmrepository/sample/index-61f94c20ee9417f222c3d30672724473ae50d406c8c097d80a8a6263c1384f69.yaml
+        revision: sha256:61f94c20ee9417f222c3d30672724473ae50d406c8c097d80a8a6263c1384f69
+        size: 42012
+        url: http://source-controller.flux-system.svc.cluster.local./helmrepository/test-helmrepository/sample/index-61f94c20ee9417f222c3d30672724473ae50d406c8c097d80a8a6263c1384f69.yaml
+      conditions:
+        - type: Ready
+          status: "True"
+          reason: Succeeded
+          lastTransitionTime: "2023-04-29T09:30:31Z"
+          observedGeneration: 1
+          message: "member1=stored artifact: revision 'sha256:61f94c20ee9417f222c3d30672724473ae50d406c8c097d80a8a6263c1384f69', member3=stored artifact: revision 'sha256:61f94c20ee9417f222c3d30672724473ae50d406c8c097d80a8a6263c1384f69'"
+        - type: ArtifactInStorage
+          status: "True"
+          reason: Succeeded
+          lastTransitionTime: "2023-04-29T09:30:31Z"
+          observedGeneration: 1
+          message: "member1=stored artifact: revision 'sha256:61f94c20ee9417f222c3d30672724473ae50d406c8c097d80a8a6263c1384f69', member3=stored artifact: revision 'sha256:61f94c20ee9417f222c3d30672724473ae50d406c8c097d80a8a6263c1384f69'"
+      observedGeneration: 1
+      url: http://source-controller.flux-system.svc.cluster.local./helmrepository/test-helmrepository/sample/index.yaml
+---
+name: "HelmRepository with no status items"
+description: "AggregateStatus should initialize empty status"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmRepository
+  metadata:
+    name: podinfo
+    namespace: test-helmrepository
+    generation: 3
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: source.toolkit.fluxcd.io/v1beta2
+    kind: HelmRepository
+    metadata:
+      name: podinfo
+      namespace: test-helmrepository
+      generation: 3
+    status:
+      observedGeneration: 3
+      url: ""
+---
+name: "HelmRepository with stale member"
+description: "observedGeneration should not advance if any member is stale"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmRepository
+  metadata:
+    name: podinfo
+    namespace: test-helmrepository
+    generation: 5
+  status:
+    observedGeneration: 4
+statusItems:
+  - status:
+      generation: 5
+      observedGeneration: 5
+      resourceTemplateGeneration: 5
+  - status:
+      generation: 5
+      observedGeneration: 4
+      resourceTemplateGeneration: 5
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: source.toolkit.fluxcd.io/v1beta2
+    kind: HelmRepository
+    metadata:
+      name: podinfo
+      namespace: test-helmrepository
+      generation: 5
+    status:
+      observedGeneration: 4
+      url: ""
+---
+name: "HelmRepository with different artifacts picks last one"
+description: "AggregateStatus should pick the last reported artifact"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmRepository
+  metadata:
+    name: podinfo
+    namespace: test-helmrepository
+    generation: 1
+statusItems:
+  - clusterName: member1
+    status:
+      artifact:
+        revision: sha256:aaaa1111
+        path: index-a.yaml
+  - clusterName: member2
+    status:
+      artifact:
+        revision: sha256:bbbb2222
+        path: index-b.yaml
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: source.toolkit.fluxcd.io/v1beta2
+    kind: HelmRepository
+    metadata:
+      name: podinfo
+      namespace: test-helmrepository
+      generation: 1
+    status:
+      artifact:
+        revision: sha256:bbbb2222
+        path: index-b.yaml
+      observedGeneration: 0
+      url: ""
+---
+name: "HelmRepository condition merging with different reasons"
+description: "Conditions with same type but different reasons should not be merged"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmRepository
+  metadata:
+    name: podinfo
+    namespace: test-helmrepository
+statusItems:
+  - clusterName: member1
+    status:
+      conditions:
+        - type: Ready
+          status: "True"
+          reason: Succeeded
+          message: ok
+  - clusterName: member2
+    status:
+      conditions:
+        - type: Ready
+          status: "False"
+          reason: Failed
+          message: error
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: source.toolkit.fluxcd.io/v1beta2
+    kind: HelmRepository
+    metadata:
+      name: podinfo
+      namespace: test-helmrepository
+      generation: 0
+    status:
+      conditions:
+        - type: Ready
+          status: "True"
+          reason: Succeeded
+          message: member1=ok
+        - type: Ready
+          status: "False"
+          reason: Failed
+          message: member2=error
+      observedGeneration: 0
+      url: ""
