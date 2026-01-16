@@ -275,7 +275,10 @@ func (c *Controller) syncToClusters(ctx context.Context, clusterName string, wor
 			continue
 		}
 
-		if err = c.tryCreateOrUpdateWorkload(ctx, clusterName, workload); err != nil {
+		err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			return c.tryCreateOrUpdateWorkload(ctx, clusterName, workload)
+		})
+		if err != nil {
 			klog.ErrorS(err, "Failed to create or update resource in the given member cluster", "namespace", workload.GetNamespace(), "name", workload.GetName(), "cluster", clusterName)
 			c.eventf(workload, corev1.EventTypeWarning, events.EventReasonSyncWorkloadFailed, "Failed to create or update resource(%s) in member cluster(%s): %v", klog.KObj(workload), clusterName, err)
 			errs = append(errs, err)
