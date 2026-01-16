@@ -55,6 +55,7 @@ output:
     resourceRequest:
       cpu: "2"
       memory: "4Gi"
+    namespace: "default"
 
 ---
 name: "Multiple worker groups with max resources from workers"
@@ -110,6 +111,7 @@ output:
     resourceRequest:
       cpu: "8"
       memory: "32Gi"
+    namespace: "default"
 
 ---
 name: "Head only with no worker groups"
@@ -119,7 +121,7 @@ desiredObj:
   kind: RayService
   metadata:
     name: rayservice-head-only
-    namespace: default
+    namespace: test-namespace
   spec:
     rayClusterConfig:
       headGroupSpec:
@@ -140,6 +142,7 @@ output:
     resourceRequest:
       cpu: "2"
       memory: "4Gi"
+    namespace: "test-namespace"
 
 ---
 name: "Head with higher resources and worker group with 0 replicas"
@@ -195,6 +198,7 @@ output:
     resourceRequest:
       cpu: "4"
       memory: "16Gi"
+    namespace: "default"
 
 ---
 name: "NodeSelector and tolerations on head"
@@ -253,6 +257,7 @@ output:
         - key: "nvidia.com/gpu"
           operator: "Exists"
           effect: "NoSchedule"
+    namespace: "default"
 
 ---
 name: "Multiple containers in pod template"
@@ -302,6 +307,7 @@ output:
     resourceRequest:
       cpu: "2500m"
       memory: "4608Mi"
+    namespace: "default"
 ---
 name: "Mixed CPU and memory max from different pods"
 description: "Test when head has higher memory (16Gi) but worker has higher CPU (8) - both max values are taken"
@@ -344,3 +350,4 @@ output:
     resourceRequest:
       cpu: "8"
       memory: "16Gi"
+    namespace: "default"

@@ -92,6 +92,11 @@ spec:
             end
           end
 
+          -- Set namespace from the resource metadata
+          if requires ~= nil and desiredObj.metadata ~= nil and desiredObj.metadata.namespace ~= nil then
+            requires.namespace = desiredObj.metadata.namespace
+          end
+
           return totalReplicas, requires
         end
     replicaRevision:
