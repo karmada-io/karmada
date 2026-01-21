@@ -42,7 +42,9 @@ spec:
             - --grpc-client-ca-file=/etc/karmada/pki/server/ca.crt
             - --metrics-bind-address=$(POD_IP):8080
             - --health-probe-bind-address=$(POD_IP):10351
+            - --feature-gates=AllAlpha=true,AllBeta=true
             - --logging-format=json
+            - --v=4
           livenessProbe:
             httpGet:
               path: /healthz

@@ -22,10 +22,28 @@ import (
 
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 )
+
+// CreateResourceQuota creates the given ResourceQuota resource.
+func CreateResourceQuota(client kubernetes.Interface, resourceQuota *corev1.ResourceQuota) {
+	ginkgo.By(fmt.Sprintf("Creating ResourceQuota(%s/%s)", resourceQuota.Namespace, resourceQuota.Name), func() {
+		_, err := client.CoreV1().ResourceQuotas(resourceQuota.Namespace).Create(context.TODO(), resourceQuota, metav1.CreateOptions{})
+		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+	})
+}
+
+// RemoveResourceQuota deletes the ResourceQuota resource by namespace and name.
+func RemoveResourceQuota(client kubernetes.Interface, namespace, name string) {
+	ginkgo.By(fmt.Sprintf("Removing ResourceQuota(%s/%s)", namespace, name), func() {
+		err := client.CoreV1().ResourceQuotas(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+	})
+}
 
 // WaitResourceQuotaPresentOnClusters wait resourceQuota present on clusters until timeout.
 func WaitResourceQuotaPresentOnClusters(clusters []string, namespace, name string) {
