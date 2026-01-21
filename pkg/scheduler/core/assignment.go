@@ -67,6 +67,7 @@ const (
 
 // assignState is a wrapper of the input for assigning function.
 type assignState struct {
+	// candidates are the clusters selected for assignment by the selectClusters function.
 	candidates []spreadconstraint.ClusterDetailInfo
 	strategy   *policyv1alpha1.ReplicaSchedulingStrategy
 	spec       *workv1alpha2.ResourceBindingSpec
@@ -77,9 +78,14 @@ type assignState struct {
 	// assignmentMode represents the mode how to assign replicas
 	assignmentMode assignmentMode
 
+	// scheduledClusters is the list of clusters from `candidates` that were assigned replicas in the previous scheduling.
 	scheduledClusters []workv1alpha2.TargetCluster
-	assignedReplicas  int32
+	// assignedReplicas is the total number of replicas assigned to `candidates` in the previous scheduling. It is calculated from scheduledClusters.
+	assignedReplicas int32
+	// availableClusters is the list of available clusters for the current scheduling, where the Replicas field indicates
+	// the number of assignable replicas and is generally used as dynamic weight.
 	availableClusters []workv1alpha2.TargetCluster
+	// availableReplicas is the number of replicas that can be assigned in this round. It is calculated from availableClusters.
 	availableReplicas int32
 
 	// targetReplicas is the replicas that we need to schedule in this round
