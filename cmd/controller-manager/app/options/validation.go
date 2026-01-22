@@ -40,6 +40,9 @@ func (o *Options) Validate() field.ErrorList {
 	if o.ClusterLeaseDuration.Duration <= 0 {
 		errs = append(errs, field.Invalid(newPath.Child("ClusterLeaseDuration"), o.ClusterLeaseDuration, "must be greater than 0"))
 	}
+	if o.ClusterLeaseRenewIntervalFraction <= 0 || o.ClusterLeaseRenewIntervalFraction >= 1 {
+		errs = append(errs, field.Invalid(newPath.Child("ClusterLeaseRenewIntervalFraction"), o.ClusterLeaseRenewIntervalFraction, "must be greater than 0 and less than 1"))
+	}
 	if o.ClusterMonitorPeriod.Duration <= 0 {
 		errs = append(errs, field.Invalid(newPath.Child("ClusterMonitorPeriod"), o.ClusterMonitorPeriod, "must be greater than 0"))
 	}

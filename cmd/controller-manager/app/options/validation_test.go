@@ -30,12 +30,13 @@ type ModifyOptions func(option *Options)
 // New an Options with default parameters
 func New(modifyOptions ModifyOptions) Options {
 	option := Options{
-		SkippedPropagatingAPIs:       "cluster.karmada.io;policy.karmada.io;work.karmada.io",
-		ClusterStatusUpdateFrequency: metav1.Duration{Duration: 10 * time.Second},
-		ClusterLeaseDuration:         metav1.Duration{Duration: 10 * time.Second},
-		ClusterMonitorPeriod:         metav1.Duration{Duration: 10 * time.Second},
-		ClusterMonitorGracePeriod:    metav1.Duration{Duration: 10 * time.Second},
-		ClusterStartupGracePeriod:    metav1.Duration{Duration: 10 * time.Second},
+		SkippedPropagatingAPIs:            "cluster.karmada.io;policy.karmada.io;work.karmada.io",
+		ClusterStatusUpdateFrequency:      metav1.Duration{Duration: 10 * time.Second},
+		ClusterLeaseDuration:              metav1.Duration{Duration: 10 * time.Second},
+		ClusterMonitorPeriod:              metav1.Duration{Duration: 10 * time.Second},
+		ClusterMonitorGracePeriod:         metav1.Duration{Duration: 10 * time.Second},
+		ClusterStartupGracePeriod:         metav1.Duration{Duration: 10 * time.Second},
+		ClusterLeaseRenewIntervalFraction: 0.25,
 		FederatedResourceQuotaOptions: FederatedResourceQuotaOptions{
 			ResourceQuotaSyncPeriod: metav1.Duration{
 				Duration: 10 * time.Second,
@@ -82,6 +83,18 @@ func TestValidateControllerManagerConfiguration(t *testing.T) {
 				options.ClusterLeaseDuration.Duration = -40 * time.Second
 			}),
 			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("ClusterLeaseDuration"), metav1.Duration{Duration: -40 * time.Second}, "must be greater than 0")},
+		},
+		"invalid ClusterLeaseRenewIntervalFraction": {
+			opt: New(func(options *Options) {
+				options.ClusterLeaseRenewIntervalFraction = 1.2
+			}),
+			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("ClusterLeaseRenewIntervalFraction"), float64(1.2), "must be greater than 0 and less than 1")},
+		},
+		"invalid ClusterLeaseRenewIntervalFraction (negative)": {
+			opt: New(func(options *Options) {
+				options.ClusterLeaseRenewIntervalFraction = -0.1
+			}),
+			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("ClusterLeaseRenewIntervalFraction"), float64(-0.1), "must be greater than 0 and less than 1")},
 		},
 		"invalid ClusterMonitorPeriod": {
 			opt: New(func(options *Options) {

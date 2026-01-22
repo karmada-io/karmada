@@ -85,9 +85,15 @@ func TestValidateKarmadaAgentConfiguration(t *testing.T) {
 		},
 		"invalid ClusterLeaseRenewIntervalFraction": {
 			opt: New(func(options *Options) {
-				options.ClusterLeaseRenewIntervalFraction = 0
+				options.ClusterLeaseRenewIntervalFraction = 1.2
 			}),
-			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("ClusterLeaseRenewIntervalFraction"), 0, "must be greater than 0")},
+			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("ClusterLeaseRenewIntervalFraction"), float64(1.2), "must be greater than 0 and less than 1")},
+		},
+		"invalid ClusterLeaseRenewIntervalFraction (negative)": {
+			opt: New(func(options *Options) {
+				options.ClusterLeaseRenewIntervalFraction = -0.1
+			}),
+			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("ClusterLeaseRenewIntervalFraction"), float64(-0.1), "must be greater than 0 and less than 1")},
 		},
 	}
 
