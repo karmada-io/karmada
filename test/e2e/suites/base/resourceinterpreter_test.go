@@ -644,7 +644,9 @@ var _ = framework.SerialDescribe("Resource interpreter customization testing", f
 					expectedReplicaRequirements := &workv1alpha2.ReplicaRequirements{
 						ResourceRequest: map[corev1.ResourceName]resource.Quantity{
 							corev1.ResourceCPU: resource.MustParse("100m"),
-						}}
+						},
+						Namespace: deployment.Namespace,
+					}
 
 					gomega.Eventually(func(g gomega.Gomega) (bool, error) {
 						resourceBinding, err := karmadaClient.WorkV1alpha2().ResourceBindings(deployment.Namespace).Get(context.TODO(), resourceBindingName, metav1.GetOptions{})
