@@ -1,0 +1,92 @@
+#test cases for retention of OCIRepo
+# case1. OCIRepository: retain behavior for suspend field
+# case2. OCIRepository: desired without suspend, observed has suspend
+# case3. OCIRepository: retain should not affect other spec fields
+
+name: "OCIRepository retain behavior for suspend field"
+description: "Retain copies suspend when present and otherwise leaves desired unchanged"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: OCIRepository
+  metadata:
+    name: sample
+    namespace: test-ocirepository
+  spec:
+    suspend: false
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: OCIRepository
+  metadata:
+    name: sample
+    namespace: test-ocirepository
+  spec:
+    suspend: true
+operation: Retain
+output:
+  retained:
+    apiVersion: source.toolkit.fluxcd.io/v1beta2
+    kind: OCIRepository
+    metadata:
+      name: sample
+      namespace: test-ocirepository
+    spec:
+      suspend: true
+---
+name: "OCIRepository retain adds suspend to desired"
+description: "Retain should add suspend field if missing in desired"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: OCIRepository
+  metadata:
+    name: sample
+    namespace: test-ocirepository
+  spec: {}
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: OCIRepository
+  metadata:
+    name: sample
+    namespace: test-ocirepository
+  spec:
+    suspend: true
+operation: Retain
+output:
+  retained:
+    apiVersion: source.toolkit.fluxcd.io/v1beta2
+    kind: OCIRepository
+    metadata:
+      name: sample
+      namespace: test-ocirepository
+    spec:
+      suspend: true
+---
+name: "OCIRepository retain does not modify other fields"
+description: "Retain must only affect suspend field"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: OCIRepository
+  metadata:
+    name: sample
+    namespace: test-ocirepository
+  spec:
+    interval: 10m
+    suspend: false
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: OCIRepository
+  metadata:
+    name: sample
+    namespace: test-ocirepository
+  spec:
+    suspend: true
+operation: Retain
+output:
+  retained:
+    apiVersion: source.toolkit.fluxcd.io/v1beta2
+    kind: OCIRepository
+    metadata:
+      name: sample
+      namespace: test-ocirepository
+    spec:
+      interval: 10m
+      suspend: true

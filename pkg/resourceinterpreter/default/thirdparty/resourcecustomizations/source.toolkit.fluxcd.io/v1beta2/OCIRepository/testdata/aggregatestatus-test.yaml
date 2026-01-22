@@ -1,5 +1,9 @@
 # test case for aggregating status of OCIRepository
 # case1. OCIRepository with two status items
+# case2. OCIRepository with stale member
+# case3. OCIRepository with no status items
+# case4. OCIRepository with different artifacts picks last one
+# case5. OCIRepository condition merging with different reasons
 
 name: "OCIRepository with two status items"
 description: "Test aggregating status of OCIRepository with two status items"
@@ -86,3 +90,193 @@ statusItems:
       url: http://source-controller.flux-system.svc.cluster.local./ocirepository/test-ocirepository/sample/latest.tar.gz
 operation: AggregateStatus
 output:
+  aggregatedStatus:
+    apiVersion: source.toolkit.fluxcd.io/v1beta2
+    kind: OCIRepository
+    metadata:
+      name: sample
+      namespace: test-ocirepository
+      generation: 1
+    spec:
+      interval: 5m
+      ref:
+        branch: master
+        semver: "6.2.x"
+      secretRef:
+        name: fake-secret
+      serviceAccountName: fake-serviceaccount
+      url: oci://ghcr.io/stefanprodan/podinfo-deploy
+    status:
+      observedGeneration: 1
+      artifact:
+        digest: sha256:b6ccead26c790c8a0d40579905edc6d83f732ceacc0f4133f578fed456a2438a
+        lastUpdateTime: "2023-04-29T06:07:53Z"
+        metadata:
+          org.opencontainers.image.created: "2022-11-09T11:24:23Z"
+          org.opencontainers.image.revision: 6.2.3/8615cb75d926ea0ba5353b1d56867868c737bf5e
+          org.opencontainers.image.source: https://github.com/stefanprodan/podinfo
+        path: ocirepository/test-ocirepository/sample/sha256:a081a2c95eff48a80add59a9db3488c1653b8f82223ed409e32d925d228af792.tar.gz
+        revision: 6.2.3@sha256:a081a2c95eff48a80add59a9db3488c1653b8f82223ed409e32d925d228af792
+        size: 1103
+        url: http://source-controller.flux-system.svc.cluster.local./ocirepository/test-ocirepository/sample/sha256:a081a2c95eff48a80add59a9db3488c1653b8f82223ed409e32d925d228af792.tar.gz
+      url: http://source-controller.flux-system.svc.cluster.local./ocirepository/test-ocirepository/sample/latest.tar.gz
+      conditions:
+        - type: Ready
+          status: "True"
+          reason: Succeeded
+          observedGeneration: 1
+          lastTransitionTime: "2023-04-29T06:07:53Z"
+          message: "member1=stored artifact for digest '6.2.3@sha256:a081a2c95eff48a80add59a9db3488c1653b8f82223ed409e32d925d228af792', member3=stored artifact for digest '6.2.3@sha256:a081a2c95eff48a80add59a9db3488c1653b8f82223ed409e32d925d228af792'"
+
+        - type: ArtifactInStorage
+          status: "True"
+          reason: Succeeded
+          observedGeneration: 1
+          lastTransitionTime: "2023-04-29T06:07:53Z"
+          message: "member1=stored artifact for digest '6.2.3@sha256:a081a2c95eff48a80add59a9db3488c1653b8f82223ed409e32d925d228af792', member3=stored artifact for digest '6.2.3@sha256:a081a2c95eff48a80add59a9db3488c1653b8f82223ed409e32d925d228af792'"
+---
+name: "OCIRepository with stale member"
+description: "observedGeneration should not advance when not all members are updated"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: OCIRepository
+  metadata:
+    name: sample
+    namespace: test-ocirepository
+    generation: 2
+statusItems:
+  - clusterName: member1
+    status:
+      generation: 2
+      observedGeneration: 2
+      resourceTemplateGeneration: 2
+  - clusterName: member2
+    status:
+      generation: 2
+      observedGeneration: 1
+      resourceTemplateGeneration: 2
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: source.toolkit.fluxcd.io/v1beta2
+    kind: OCIRepository
+    metadata:
+      name: sample
+      namespace: test-ocirepository
+      generation: 2
+    status:
+      observedGeneration: 0
+      url: ""
+---
+name: "OCIRepository with no status items"
+description: "Initialize empty status when statusItems is nil"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: OCIRepository
+  metadata:
+    name: sample
+    namespace: test-ocirepository
+    generation: 5
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: source.toolkit.fluxcd.io/v1beta2
+    kind: OCIRepository
+    metadata:
+      name: sample
+      namespace: test-ocirepository
+      generation: 5
+    status:
+      observedGeneration: 5
+      url: ""
+---
+name: "OCIRepository with different artifacts"
+description: "AggregateStatus picks artifact from the last status item"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: OCIRepository
+  metadata:
+    name: sample
+    namespace: test-ocirepository
+    generation: 1
+statusItems:
+  - clusterName: member1
+    status:
+      artifact:
+        revision: v1
+      generation: 1
+      observedGeneration: 1
+      resourceTemplateGeneration: 1
+  - clusterName: member2
+    status:
+      artifact:
+        revision: v2
+      generation: 1
+      observedGeneration: 1
+      resourceTemplateGeneration: 1
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: source.toolkit.fluxcd.io/v1beta2
+    kind: OCIRepository
+    metadata:
+      name: sample
+      namespace: test-ocirepository
+      generation: 1
+    status:
+      observedGeneration: 1
+      artifact:
+        revision: v2
+      url: ""
+---
+name: "OCIRepository condition merging with different reasons"
+description: "Conditions with different reasons should not be merged"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: OCIRepository
+  metadata:
+    name: sample
+    namespace: test-ocirepository
+    generation: 1
+statusItems:
+  - clusterName: member1
+    status:
+      conditions:
+        - type: Ready
+          status: "True"
+          reason: Succeeded
+          message: ok
+      generation: 1
+      observedGeneration: 1
+      resourceTemplateGeneration: 1
+  - clusterName: member2
+    status:
+      conditions:
+        - type: Ready
+          status: "True"
+          reason: Progressing
+          message: syncing
+      generation: 1
+      observedGeneration: 1
+      resourceTemplateGeneration: 1
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: source.toolkit.fluxcd.io/v1beta2
+    kind: OCIRepository
+    metadata:
+      name: sample
+      namespace: test-ocirepository
+      generation: 1
+    status:
+      observedGeneration: 1
+      url: ""
+      conditions:
+        - type: Ready
+          status: "True"
+          reason: Succeeded
+          message: "member1=ok"
+        - type: Ready
+          status: "True"
+          reason: Progressing
+          message: "member2=syncing"
