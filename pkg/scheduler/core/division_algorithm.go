@@ -105,16 +105,16 @@ func dynamicScaleDown(state *assignState) ([]workv1alpha2.TargetCluster, error) 
 	// In other words, we scale down the replicas proportionally by their scheduled replicas.
 	// Now:
 	// 1. targetReplicas is set to desired replicas.
-	// 2. availableClusters is set to the former schedule result.
+	// 2. availableClusters is set to the filtered scheduled clusters (only clusters still in candidates).
 	// 3. scheduledClusters and assignedReplicas are not set, which implicates we consider this action as a first schedule.
 	state.targetReplicas = state.spec.Replicas
-	state.scheduledClusters = nil
-	state.buildAvailableClusters(func(_ []spreadconstraint.ClusterDetailInfo, spec *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster {
-		availableClusters := make(TargetClustersList, len(spec.Clusters))
-		copy(availableClusters, spec.Clusters)
+	state.buildAvailableClusters(func(_ []spreadconstraint.ClusterDetailInfo, _ *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster {
+		availableClusters := make(TargetClustersList, len(state.scheduledClusters))
+		copy(availableClusters, state.scheduledClusters)
 		sort.Sort(availableClusters)
 		return availableClusters
 	})
+	state.scheduledClusters = nil
 	return dynamicDivideReplicas(state)
 }
 
