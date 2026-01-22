@@ -1449,6 +1449,16 @@ func (d *ResourceDetector) applyReplicaInterpretation(object *unstructured.Unstr
 			klog.Errorf("Failed to customize replicas for %s(%s): %v", gvk, name, err)
 			return err
 		}
+
+		// Most interpreters (except webhook interpreter) cannot properly obtain the namespace because they extract
+		// information from PodTemplate, and advanced workloads' PodTemplates typically don't have a namespace set.
+		// Therefore, we uniformly check and set the namespace here.
+		// Note: The replicaRequirements.Namespace field is somewhat redundant and could be deprecated in the future,
+		// as the namespace can be obtained directly from ResourceBinding.
+		if features.FeatureGate.Enabled(features.ResourceQuotaEstimate) && replicaRequirements != nil && len(replicaRequirements.Namespace) == 0 {
+			replicaRequirements.Namespace = object.GetNamespace()
+		}
+
 		spec.Replicas = replicas
 		spec.ReplicaRequirements = replicaRequirements
 	}
