@@ -27,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -121,6 +122,11 @@ func (c *CRBApplicationFailoverController) detectFailure(clusters []string, tole
 func (c *CRBApplicationFailoverController) syncBinding(ctx context.Context, binding *workv1alpha2.ClusterResourceBinding) (time.Duration, error) {
 	key := types.NamespacedName{Name: binding.Name, Namespace: binding.Namespace}
 	tolerationSeconds := binding.Spec.Failover.Application.DecisionConditions.TolerationSeconds
+	// If tolerationSeconds is not set, use the default value of 300 seconds
+	// to avoid nil pointer dereference in detectFailure.
+	if tolerationSeconds == nil {
+		tolerationSeconds = ptr.To[int32](300)
+	}
 
 	allClusters := sets.New[string]()
 	for _, cluster := range binding.Spec.Clusters {

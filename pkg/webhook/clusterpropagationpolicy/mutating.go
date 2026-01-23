@@ -70,6 +70,7 @@ func (a *MutatingAdmission) Handle(_ context.Context, req admission.Request) adm
 	if policy.Spec.Failover != nil {
 		if policy.Spec.Failover.Application != nil {
 			helper.SetDefaultGracePeriodSeconds(policy.Spec.Failover.Application)
+			helper.SetDefaultTolerationSeconds(policy.Spec.Failover.Application)
 		}
 	}
 
