@@ -85,7 +85,8 @@ func Test_assessSingleTask(t *testing.T) {
 					observedStatus: []workv1alpha2.AggregatedStatusItem{
 						{ClusterName: "memberA", Health: workv1alpha2.ResourceHealthy},
 					},
-					hasScheduled: true,
+					hasScheduled:   true,
+					statusUpToDate: true,
 				},
 			},
 			want: nil,
@@ -463,6 +464,42 @@ func Test_assessEvictionTasks(t *testing.T) {
 			},
 			wantCluster: nil,
 		},
+		{
+			// This test verifies the fix for the race condition where stale status could cause
+			// premature eviction. When scheduler reschedules to a new cluster but the status
+			// controller hasn't updated AggregatedStatus yet, we should NOT remove eviction tasks
+			// even if hasScheduled is true.
+			name: "race condition: hasScheduled is true but status is stale (missing new cluster), should do nothing",
+			args: args{
+				bindingSpec: workv1alpha2.ResourceBindingSpec{
+					Clusters: []workv1alpha2.TargetCluster{
+						{Name: "memberC"}, // New cluster after reschedule
+					},
+					GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{
+						{
+							FromCluster:       "member1",
+							CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -1)},
+						},
+					},
+				},
+				// Stale status: shows old clusters as healthy, but missing the new cluster (memberC)
+				observedStatus: []workv1alpha2.AggregatedStatusItem{
+					{ClusterName: "memberA", Health: workv1alpha2.ResourceHealthy},
+					{ClusterName: "memberB", Health: workv1alpha2.ResourceHealthy},
+				},
+				timeout:      timeout,
+				now:          timeNow,
+				hasScheduled: true,
+			},
+			// Task should NOT be removed because status doesn't cover the new cluster
+			wantTask: []workv1alpha2.GracefulEvictionTask{
+				{
+					FromCluster:       "member1",
+					CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -1)},
+				},
+			},
+			wantCluster: nil,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -470,9 +507,86 @@ func Test_assessEvictionTasks(t *testing.T) {
 				timeout:        tt.args.timeout,
 				scheduleResult: tt.args.bindingSpec.Clusters,
 				observedStatus: tt.args.observedStatus,
-				hasScheduled:   true,
+				hasScheduled:   tt.args.hasScheduled,
+				statusUpToDate: isStatusUpToDate(tt.args.bindingSpec.Clusters, tt.args.observedStatus),
 			}); !reflect.DeepEqual(gotTask, tt.wantTask) || !reflect.DeepEqual(gotCluster, tt.wantCluster) {
 				t.Errorf("assessEvictionTasks() = (%v, %v), want (%v, %v)", gotTask, gotCluster, tt.wantTask, tt.wantCluster)
+			}
+		})
+	}
+}
+
+func Test_isStatusUpToDate(t *testing.T) {
+	tests := []struct {
+		name           string
+		scheduleResult []workv1alpha2.TargetCluster
+		observedStatus []workv1alpha2.AggregatedStatusItem
+		want           bool
+	}{
+		{
+			name:           "empty schedule result",
+			scheduleResult: []workv1alpha2.TargetCluster{},
+			observedStatus: []workv1alpha2.AggregatedStatusItem{},
+			want:           true,
+		},
+		{
+			name: "all scheduled clusters have status",
+			scheduleResult: []workv1alpha2.TargetCluster{
+				{Name: "memberA"},
+				{Name: "memberB"},
+			},
+			observedStatus: []workv1alpha2.AggregatedStatusItem{
+				{ClusterName: "memberA", Health: workv1alpha2.ResourceHealthy},
+				{ClusterName: "memberB", Health: workv1alpha2.ResourceHealthy},
+			},
+			want: true,
+		},
+		{
+			name: "some scheduled clusters missing status",
+			scheduleResult: []workv1alpha2.TargetCluster{
+				{Name: "memberA"},
+				{Name: "memberB"},
+			},
+			observedStatus: []workv1alpha2.AggregatedStatusItem{
+				{ClusterName: "memberA", Health: workv1alpha2.ResourceHealthy},
+			},
+			want: false,
+		},
+		{
+			name: "status has extra clusters not in schedule result",
+			scheduleResult: []workv1alpha2.TargetCluster{
+				{Name: "memberA"},
+			},
+			observedStatus: []workv1alpha2.AggregatedStatusItem{
+				{ClusterName: "memberA", Health: workv1alpha2.ResourceHealthy},
+				{ClusterName: "memberB", Health: workv1alpha2.ResourceHealthy},
+			},
+			want: true,
+		},
+		{
+			name: "no status for any scheduled cluster",
+			scheduleResult: []workv1alpha2.TargetCluster{
+				{Name: "memberA"},
+				{Name: "memberB"},
+			},
+			observedStatus: []workv1alpha2.AggregatedStatusItem{},
+			want:           false,
+		},
+		{
+			name: "status has different clusters than schedule result",
+			scheduleResult: []workv1alpha2.TargetCluster{
+				{Name: "memberA"},
+			},
+			observedStatus: []workv1alpha2.AggregatedStatusItem{
+				{ClusterName: "memberB", Health: workv1alpha2.ResourceHealthy},
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isStatusUpToDate(tt.scheduleResult, tt.observedStatus); got != tt.want {
+				t.Errorf("isStatusUpToDate() = %v, want %v", got, tt.want)
 			}
 		})
 	}
