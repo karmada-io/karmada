@@ -20122,6 +20122,10 @@
             "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.SpreadConstraint"
           }
+        },
+        "workloadAffinity": {
+          "description": "WorkloadAffinity represents inter-workload affinity and anti-affinity scheduling policies.",
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.WorkloadAffinity"
         }
       }
     },
@@ -20542,6 +20546,48 @@
         "value": {
           "description": "Value represents the taint value corresponding to the taint key.",
           "type": "string"
+        }
+      }
+    },
+    "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.WorkloadAffinity": {
+      "description": "WorkloadAffinity defines inter-workload affinity and anti-affinity rules.",
+      "type": "object",
+      "properties": {
+        "affinity": {
+          "description": "Affinity represents inter-workload affinity scheduling rules. These are hard requirements: workloads will only be scheduled to clusters that satisfy the affinity term if it is specified.\n\nFor the first workload of an affinity group (when no workloads with a matching label value exist in the system), the scheduler will not block scheduling. This allows bootstrapping new workload groups without encountering scheduling deadlocks, providing a better user experience.",
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.WorkloadAffinityTerm"
+        },
+        "antiAffinity": {
+          "description": "AntiAffinity represents inter-workload anti-affinity scheduling rules. These are hard requirements: workloads will be scheduled to avoid clusters where matching workloads are already scheduled.",
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.WorkloadAntiAffinityTerm"
+        }
+      }
+    },
+    "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.WorkloadAffinityTerm": {
+      "description": "WorkloadAffinityTerm defines affinity rules for co-locating workloads with specific workload groups.",
+      "type": "object",
+      "required": [
+        "groupByLabelKey"
+      ],
+      "properties": {
+        "groupByLabelKey": {
+          "description": "GroupByLabelKey declares the label key on the workload resource template that determines the affinity group. Workloads with the same label value under this key belong to the same affinity group.\n\nThe scheduler maintains a global index of affinity groups in memory for efficient lookup. Each affinity group is identified by a serialized key-value pair and contains all workload resource templates that belong to the group.\n\nNote: Affinity groups are scoped to the namespace. Workloads that use the same affinity label but reside in different namespaces are not treated as part of the same group.\n\nThe key must be a valid Kubernetes label key.\n\nExample: If GroupByLabelKey is \"app.group\", workloads with the label \"app.group=frontend\" will form one affinity group, while those with \"app.group=backend\" will form another.",
+          "type": "string",
+          "default": ""
+        }
+      }
+    },
+    "com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.WorkloadAntiAffinityTerm": {
+      "description": "WorkloadAntiAffinityTerm defines anti-affinity rules for separating workloads from specific workload groups.",
+      "type": "object",
+      "required": [
+        "groupByLabelKey"
+      ],
+      "properties": {
+        "groupByLabelKey": {
+          "description": "GroupByLabelKey declares the label key on the workload resource template that determines the anti-affinity group. Workloads with the same label value under this key belong to the same anti-affinity group and will be separated.\n\nThe scheduler maintains a global index of affinity groups in memory for efficient lookup. Each affinity group is identified by a serialized key-value pair and contains all workload resource templates that belong to the group.\n\nNote: Affinity groups are scoped to the namespace. Workloads that use the same anti-affinity label but reside in different namespaces are not treated as part of the same group.\n\nThe key must be a valid Kubernetes label key.\n\nExample: If GroupByLabelKey is \"app.group\", workloads with the label \"app.group=frontend\" will avoid clusters where other \"app.group=frontend\" workloads already exist.",
+          "type": "string",
+          "default": ""
         }
       }
     },
