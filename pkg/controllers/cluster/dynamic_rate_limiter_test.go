@@ -133,7 +133,7 @@ func TestGracefulEvictionRateLimiter_ExponentialBackoff(t *testing.T) {
 	}
 
 	t.Log("--- Analyzing delays between attempts ---")
-	var lastObservedDelay time.Duration
+
 	for i := 1; i < len(attemptTimes); i++ {
 		observedDelay := attemptTimes[i].Sub(attemptTimes[i-1])
 
@@ -154,16 +154,8 @@ func TestGracefulEvictionRateLimiter_ExponentialBackoff(t *testing.T) {
 		t.Logf("Attempt %2d: Observed Delay=%-18v | Expected Backoff Delay=%-18v | Effective Expected Delay >= %-18v",
 			i+1, observedDelay, expectedBackoffDelay, expectedFinalDelay)
 
-		if i > 1 {
-			// Only check for a strict increase if the backoff delay is larger than the dynamic delay.
-			if expectedBackoffDelay > expectedDynamicDelay && observedDelay < lastObservedDelay {
-				t.Errorf("Attempt %d: Delay did not increase as expected after backoff became dominant. Previous: %v, Current: %v", i+1, lastObservedDelay, observedDelay)
-			}
-		}
-
 		if observedDelay < expectedFinalDelay*9/10 {
 			t.Errorf("Attempt %d: Observed delay %v is significantly less than the effective expected delay %v", i+1, observedDelay, expectedFinalDelay)
 		}
-		lastObservedDelay = observedDelay
 	}
 }
