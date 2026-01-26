@@ -43,19 +43,16 @@ COMPONENTS=(
 )
 
 # Parse command line arguments
-for arg in "$@"; do
-    case $arg in
+while [[ $# -gt 0 ]]; do
+    case "$1" in
         --binary-dir=*)
-            BINARY_DIR="${arg#*=}"
-            shift
+            BINARY_DIR="${1#*=}"
             ;;
         --output=*)
-            OUTPUT_FILE="${arg#*=}"
-            shift
+            OUTPUT_FILE="${1#*=}"
             ;;
         --version=*)
-            VERSION="${arg#*=}"
-            shift
+            VERSION="${1#*=}"
             ;;
         --help)
             echo "Usage: $0 [--binary-dir=./bin] [--output=flags.json] [--version=v1.x.x]"
@@ -63,7 +60,12 @@ for arg in "$@"; do
             echo "Extracts command-line flags from Karmada component binaries."
             exit 0
             ;;
+        *)
+            echo "Error: Unknown option $1" >&2
+            exit 1
+            ;;
     esac
+    shift
 done
 
 # Validate binary directory
@@ -82,31 +84,31 @@ extract_flags_from_binary() {
         return
     fi
     
-    # Run --help and extract unique flag names
+    # Run --help and extract unique flag names.
+    # pipefail is temporarily disabled to prevent the script from exiting if grep finds no matches.
+    set +o pipefail
     "$binary_path" --help 2>&1 | grep -oE -- '--[a-zA-Z0-9_-]+' | sed 's/^--//' | sort -u
+    set -o pipefail
 }
 
-# Function to count flags for a component
-count_flags() {
-    local binary="$1"
-    local binary_path="${BINARY_DIR}/${binary}"
-    
-    if [[ ! -x "$binary_path" ]]; then
-        echo "0"
-        return
-    fi
-    
-    "$binary_path" --help 2>&1 | grep -oE -- '--[a-zA-Z0-9_-]+' | sort -u | wc -l | tr -d ' '
-}
+
 
 # Generate JSON output for a single component
+# Optimized: runs binary once, counts from stored result
 generate_component_json() {
     local component="$1"
-    local flag_count
     local flags
+    local flag_count
     
-    flag_count=$(count_flags "$component")
+    # Extract flags once and store in variable
     flags=$(extract_flags_from_binary "$component")
+    
+    # Count flags from the stored variable
+    if [[ -n "$flags" ]]; then
+        flag_count=$(echo "$flags" | wc -l | tr -d ' ')
+    else
+        flag_count=0
+    fi
     
     echo "    {"
     echo "      \"name\": \"$component\","
