@@ -1,0 +1,93 @@
+# test cases for interprethealth of ClusterPolicy
+# case1. ClusterPolicy healthy when status.ready is true
+# case2. ClusterPolicy unhealthy when ready=false
+# case3. ClusterPolicy healthy via Ready condition
+# case4. ClusterPolicy unhealthy when Ready=True but reason is not Succeeded
+# case5. ClusterPolicy unhealthy when Ready condition is missing
+# case6. ClusterPolicy unhealthy when conditions are empty
+
+name: "ClusterPolicy healthy when ready=true"
+description: "Health should be true when status.ready is true"
+observedObj:
+  apiVersion: kyverno.io/v1
+  kind: ClusterPolicy
+  status:
+    ready: true
+operation: InterpretHealth
+output:
+  healthy: true
+---
+name: "ClusterPolicy unhealthy when ready=false"
+description: "Health should be false when status.ready is false"
+observedObj:
+  apiVersion: kyverno.io/v1
+  kind: ClusterPolicy
+  status:
+    ready: false
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "ClusterPolicy healthy when Ready=True and reason=Succeeded"
+description: "Health should be true when Ready condition is True and reason is Succeeded"
+observedObj:
+  apiVersion: kyverno.io/v1
+  kind: ClusterPolicy
+  status:
+    conditions:
+      - type: Ready
+        status: "True"
+        reason: Succeeded
+operation: InterpretHealth
+output:
+  healthy: true
+---
+name: "ClusterPolicy unhealthy when Ready=True but reason is not Succeeded"
+description: "Health should be false when Ready condition reason is not Succeeded"
+observedObj:
+  apiVersion: kyverno.io/v1
+  kind: ClusterPolicy
+  status:
+    conditions:
+      - type: Ready
+        status: "True"
+        reason: Progressing
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "ClusterPolicy unhealthy when Ready condition is missing"
+description: "Health should be false when no Ready condition exists"
+observedObj:
+  apiVersion: kyverno.io/v1
+  kind: ClusterPolicy
+  status:
+    conditions:
+      - type: SomethingElse
+        status: "True"
+        reason: Succeeded
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "ClusterPolicy unhealthy when conditions are empty"
+description: "Health should be false when status.conditions is empty"
+observedObj:
+  apiVersion: kyverno.io/v1
+  kind: ClusterPolicy
+  status:
+    conditions: []
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "ClusterPolicy unhealthy without status"
+description: "InterpretHealth should return false when status is missing"
+observedObj:
+  apiVersion: kyverno.io/v1
+  kind: ClusterPolicy
+  metadata:
+    name: no-status
+operation: InterpretHealth
+output:
+  healthy: false

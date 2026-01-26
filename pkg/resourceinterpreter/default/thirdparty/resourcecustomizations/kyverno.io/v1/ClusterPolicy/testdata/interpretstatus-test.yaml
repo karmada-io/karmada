@@ -1,5 +1,8 @@
 # test case for interpreting status of ClusterPolicy
 # case1. ClusterPolicy: interpret status test
+# case2. ClusterPolicy with nil status
+# case3. ClusterPolicy without conditions
+# case4. ClusterPolicy with only ready field
 
 name: "ClusterPolicy: interpret status test"
 description: "Test interpreting status for ClusterPolicy"
@@ -41,3 +44,65 @@ observedObj:
       verifyimages: 0
 operation: InterpretStatus
 output:
+  status:
+    ready: true
+    conditions:
+      - lastTransitionTime: "2023-05-07T12:28:58Z"
+        message: ""
+        reason: Succeeded
+        status: "True"
+        type: Ready
+    rulecount:
+      generate: 0
+      mutate: 0
+      validate: 1
+      verifyimages: 0
+---
+name: "ClusterPolicy with nil status"
+description: "InterpretStatus should return empty status when status is nil"
+observedObj:
+  apiVersion: kyverno.io/v1
+  kind: ClusterPolicy
+  metadata:
+    name: sample
+operation: InterpretStatus
+output:
+  status: {}
+---
+name: "ClusterPolicy without conditions"
+description: "InterpretStatus should work when conditions are missing"
+observedObj:
+  apiVersion: kyverno.io/v1
+  kind: ClusterPolicy
+  metadata:
+    name: sample
+  status:
+    ready: false
+    rulecount:
+      generate: 0
+      mutate: 1
+      validate: 0
+      verifyimages: 0
+operation: InterpretStatus
+output:
+  status:
+    ready: false
+    rulecount:
+      generate: 0
+      mutate: 1
+      validate: 0
+      verifyimages: 0
+---
+name: "ClusterPolicy with only ready"
+description: "InterpretStatus should copy ready when other fields are absent"
+observedObj:
+  apiVersion: kyverno.io/v1
+  kind: ClusterPolicy
+  metadata:
+    name: sample
+  status:
+    ready: true
+operation: InterpretStatus
+output:
+  status:
+    ready: true
