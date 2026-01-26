@@ -29,6 +29,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 )
 
 // +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/apis/core/validation/validation.go#L3497-L3518
@@ -42,11 +44,12 @@ func validateClusterTaintEffect(effect *corev1.TaintEffect, allowEmpty bool, fld
 
 	allErrors := field.ErrorList{}
 	switch *effect {
-	case corev1.TaintEffectNoSchedule, corev1.TaintEffectNoExecute:
+	case corev1.TaintEffectNoSchedule, corev1.TaintEffectNoExecute, policyv1alpha1.TaintEffectSelectiveNoExecute:
 	default:
 		validValues := []string{
 			string(corev1.TaintEffectNoSchedule),
 			string(corev1.TaintEffectNoExecute),
+			string(policyv1alpha1.TaintEffectSelectiveNoExecute),
 		}
 		allErrors = append(allErrors, field.NotSupported(fldPath, *effect, validValues))
 	}
