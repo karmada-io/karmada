@@ -24,7 +24,6 @@ import (
 
 	"github.com/karmada-io/karmada/operator/pkg/constants"
 	"github.com/karmada-io/karmada/operator/pkg/controlplane/apiserver"
-	"github.com/karmada-io/karmada/operator/pkg/util/apiclient"
 	"github.com/karmada-io/karmada/operator/pkg/workflow"
 )
 
@@ -41,7 +40,9 @@ func NewKarmadaApiserverTask() workflow.Task {
 			},
 			{
 				Name: fmt.Sprintf("%s-%s", "wait", constants.KarmadaAPIserverComponent),
-				Run:  runWaitKarmadaAPIServer,
+				Run: runWaitControlPlaneSubTask(constants.KarmadaAPIserverComponent, karmadaApiserverLabels, func(data InitData) int32 {
+					return *data.Components().KarmadaAPIServer.Replicas
+				}),
 			},
 		},
 	}
@@ -60,7 +61,9 @@ func NewKarmadaAggregatedApiserverTask() workflow.Task {
 			},
 			{
 				Name: fmt.Sprintf("%s-%s", "wait", constants.KarmadaAggregatedAPIServerComponent),
-				Run:  runWaitKarmadaAggregatedAPIServer,
+				Run: runWaitControlPlaneSubTask(constants.KarmadaAggregatedAPIServerComponent, karmadaAggregatedAPIServerLabels, func(data InitData) int32 {
+					return *data.Components().KarmadaAggregatedAPIServer.Replicas
+				}),
 			},
 		},
 	}
@@ -113,23 +116,6 @@ func runKarmadaAPIServer(r workflow.RunData) error {
 	return nil
 }
 
-func runWaitKarmadaAPIServer(r workflow.RunData) error {
-	data, ok := r.(InitData)
-	if !ok {
-		return errors.New("wait-KarmadaAPIServer task invoked with an invalid data struct")
-	}
-
-	waiter := apiclient.NewKarmadaWaiter(data.ControlplaneConfig(), data.RemoteClient(), componentBeReadyTimeout)
-
-	err := waiter.WaitForSomePods(karmadaApiserverLabels.String(), data.GetNamespace(), 1)
-	if err != nil {
-		return fmt.Errorf("waiting for karmada-apiserver to ready timeout, err: %w", err)
-	}
-
-	klog.V(2).InfoS("[wait-KarmadaAPIServer] the karmada-apiserver is ready", "karmada", klog.KObj(data))
-	return nil
-}
-
 func runKarmadaAggregatedAPIServer(r workflow.RunData) error {
 	data, ok := r.(InitData)
 	if !ok {
@@ -153,22 +139,5 @@ func runKarmadaAggregatedAPIServer(r workflow.RunData) error {
 	}
 
 	klog.V(2).InfoS("[KarmadaAggregatedApiserver] Successfully installed karmada-aggregated-apiserver component", "karmada", klog.KObj(data))
-	return nil
-}
-
-func runWaitKarmadaAggregatedAPIServer(r workflow.RunData) error {
-	data, ok := r.(InitData)
-	if !ok {
-		return errors.New("wait-KarmadaAggregatedAPIServer task invoked with an invalid data struct")
-	}
-
-	waiter := apiclient.NewKarmadaWaiter(data.ControlplaneConfig(), data.RemoteClient(), componentBeReadyTimeout)
-
-	err := waiter.WaitForSomePods(karmadaAggregatedAPIServerLabels.String(), data.GetNamespace(), 1)
-	if err != nil {
-		return fmt.Errorf("waiting for karmada-aggregated-apiserver to ready timeout, err: %w", err)
-	}
-
-	klog.V(2).InfoS("[wait-KarmadaAggregatedAPIServer] the karmada-aggregated-apiserver is ready", "karmada", klog.KObj(data))
 	return nil
 }

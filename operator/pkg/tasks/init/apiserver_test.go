@@ -20,17 +20,14 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	fakeclientset "k8s.io/client-go/kubernetes/fake"
-	"k8s.io/client-go/rest"
 	"k8s.io/utils/ptr"
 
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	"github.com/karmada-io/karmada/operator/pkg/constants"
 	"github.com/karmada-io/karmada/operator/pkg/util"
-	"github.com/karmada-io/karmada/operator/pkg/util/apiclient"
 	"github.com/karmada-io/karmada/operator/pkg/workflow"
 )
 
@@ -52,7 +49,9 @@ func TestNewAPIServerTask(t *testing.T) {
 					},
 					{
 						Name: fmt.Sprintf("%s-%s", "wait", constants.KarmadaAPIserverComponent),
-						Run:  runWaitKarmadaAPIServer,
+						Run: runWaitControlPlaneSubTask(constants.KarmadaAPIserverComponent, karmadaApiserverLabels, func(data InitData) int32 {
+							return *data.Components().KarmadaAPIServer.Replicas
+						}),
 					},
 				},
 			},
@@ -88,7 +87,9 @@ func TestNewKarmadaAggregatedApiserverTask(t *testing.T) {
 					},
 					{
 						Name: fmt.Sprintf("%s-%s", "wait", constants.KarmadaAggregatedAPIServerComponent),
-						Run:  runWaitKarmadaAggregatedAPIServer,
+						Run: runWaitControlPlaneSubTask(constants.KarmadaAggregatedAPIServerComponent, karmadaAggregatedAPIServerLabels, func(data InitData) int32 {
+							return *data.Components().KarmadaAggregatedAPIServer.Replicas
+						}),
 					},
 				},
 			},
@@ -246,78 +247,6 @@ func TestRunKarmadaAPIServer(t *testing.T) {
 	}
 }
 
-func TestRunWaitKarmadaAPIServer(t *testing.T) {
-	tests := []struct {
-		name    string
-		runData workflow.RunData
-		prep    func(workflow.RunData) error
-		wantErr bool
-		errMsg  string
-	}{
-		{
-			name:    "RunWaitKarmadaAPIServer_InvalidTypeAssertion_TypeAssertionFailed",
-			runData: &MyTestData{Data: "test"},
-			prep:    func(workflow.RunData) error { return nil },
-			wantErr: true,
-			errMsg:  "wait-KarmadaAPIServer task invoked with an invalid data struct",
-		},
-		{
-			name: "RunWaitKarmadaAPIServer_TimeoutWaitingForSomeKarmadaAPIServersPods_Timeout",
-			runData: &TestInitData{
-				Name:                   "karmada-demo",
-				Namespace:              "test",
-				RemoteClientConnector:  fakeclientset.NewSimpleClientset(),
-				ControlplaneConfigREST: &rest.Config{},
-				FeatureGatesOptions: map[string]bool{
-					"Feature1": true,
-				},
-			},
-			prep: func(workflow.RunData) error {
-				componentBeReadyTimeout = time.Second
-				return nil
-			},
-			wantErr: true,
-			errMsg:  "waiting for karmada-apiserver to ready timeout",
-		},
-		{
-			name: "RunWaitKarmadaAPIServer_WaitingForSomeKarmadaAPIServersPods_KarmadaAPIServerIsReady",
-			runData: &TestInitData{
-				Name:                   "karmada-demo",
-				Namespace:              "test",
-				RemoteClientConnector:  fakeclientset.NewSimpleClientset(),
-				ControlplaneConfigREST: &rest.Config{},
-				FeatureGatesOptions: map[string]bool{
-					"Feature1": true,
-				},
-			},
-			prep: func(rd workflow.RunData) error {
-				data := rd.(*TestInitData)
-				_, err := apiclient.CreatePods(data.RemoteClient(), data.Namespace, util.KarmadaAPIServerName(data.Name), 2, karmadaApiserverLabels, true)
-				return err
-			},
-			wantErr: false,
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			if err := test.prep(test.runData); err != nil {
-				t.Errorf("failed to prep waiting for Karmada APIServer: %v", err)
-			}
-			err := runWaitKarmadaAPIServer(test.runData)
-			if err == nil && test.wantErr {
-				t.Errorf("expected error, but got none")
-			}
-			if err != nil && !test.wantErr {
-				t.Errorf("unexpected error: %v", err)
-			}
-			if err != nil && test.wantErr && !strings.Contains(err.Error(), test.errMsg) {
-				t.Errorf("expected %s error msg to contain %s", err.Error(), test.errMsg)
-			}
-		})
-	}
-}
-
 func TestRunKarmadaAggregatedAPIServer(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -375,80 +304,6 @@ func TestRunKarmadaAggregatedAPIServer(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			err := runKarmadaAggregatedAPIServer(test.runData)
-			if err == nil && test.wantErr {
-				t.Errorf("expected error, but got none")
-			}
-			if err != nil && !test.wantErr {
-				t.Errorf("unexpected error: %v", err)
-			}
-			if err != nil && test.wantErr && !strings.Contains(err.Error(), test.errMsg) {
-				t.Errorf("expected %s error msg to contain %s", err.Error(), test.errMsg)
-			}
-		})
-	}
-}
-
-func TestRunWaitKarmadaAggregatedAPIServer(t *testing.T) {
-	tests := []struct {
-		name    string
-		runData workflow.RunData
-		prep    func(workflow.RunData) error
-		wantErr bool
-		errMsg  string
-	}{
-		{
-			name:    "RunWaitKarmadaAggregatedAPIServer_InvalidTypeAssertion_TypeAssertionFailed",
-			runData: &MyTestData{Data: "test"},
-			prep: func(workflow.RunData) error {
-				return nil
-			},
-			wantErr: true,
-			errMsg:  "wait-KarmadaAggregatedAPIServer task invoked with an invalid data struct",
-		},
-		{
-			name: "RunWaitKarmadaAggregatedAPIServer_TimeoutWaitingForSomeKarmadaAggregatedAPIServersPods_Timeout",
-			runData: &TestInitData{
-				Name:                   "karmada-demo",
-				Namespace:              "test",
-				RemoteClientConnector:  fakeclientset.NewSimpleClientset(),
-				ControlplaneConfigREST: &rest.Config{},
-				FeatureGatesOptions: map[string]bool{
-					"Feature1": true,
-				},
-			},
-			prep: func(workflow.RunData) error {
-				componentBeReadyTimeout = time.Second
-				return nil
-			},
-			wantErr: true,
-			errMsg:  "waiting for karmada-aggregated-apiserver to ready timeout",
-		},
-		{
-			name: "RunWaitKarmadaAggregatedAPIServer_WaitingForSomeKarmadaAggregatedAPIServersPods_KarmadaAggregatedAPIServerIsReady",
-			runData: &TestInitData{
-				Name:                   "karmada-demo",
-				Namespace:              "test",
-				RemoteClientConnector:  fakeclientset.NewSimpleClientset(),
-				ControlplaneConfigREST: &rest.Config{},
-				FeatureGatesOptions: map[string]bool{
-					"Feature1": true,
-				},
-			},
-			prep: func(rd workflow.RunData) error {
-				data := rd.(*TestInitData)
-				_, err := apiclient.CreatePods(data.RemoteClient(), data.Namespace, util.KarmadaAggregatedAPIServerName(data.Name), 2, karmadaAggregatedAPIServerLabels, true)
-				return err
-			},
-			wantErr: false,
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			if err := test.prep(test.runData); err != nil {
-				t.Errorf("failed to prep waiting for Karmada Aggregated APIServer: %v", err)
-			}
-			err := runWaitKarmadaAggregatedAPIServer(test.runData)
 			if err == nil && test.wantErr {
 				t.Errorf("expected error, but got none")
 			}
