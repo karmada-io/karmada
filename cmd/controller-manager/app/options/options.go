@@ -187,8 +187,10 @@ func (o *Options) AddFlags(flags *pflag.FlagSet, allControllers, disabledByDefau
 		"of a leadership. This is only applicable if leader election is enabled.")
 	flags.DurationVar(&o.ClusterLeaseDuration.Duration, "cluster-lease-duration", 40*time.Second,
 		"Specifies the expiration period of a cluster lease.")
+	_ = flags.MarkDeprecated("cluster-lease-duration", "The flag --cluster-lease-duration has been marked deprecated because it has never been used, and will be removed in a future release.")
 	flags.Float64Var(&o.ClusterLeaseRenewIntervalFraction, "cluster-lease-renew-interval-fraction", 0.25,
 		"Specifies the cluster lease renew interval fraction.")
+	_ = flags.MarkDeprecated("cluster-lease-renew-interval-fraction", "The flag --cluster-lease-renew-interval-fraction has been marked deprecated because it has never been used, and will be removed in a future release.")
 	flags.DurationVar(&o.ClusterSuccessThreshold.Duration, "cluster-success-threshold", 30*time.Second, "The duration of successes for the cluster to be considered healthy after recovery.")
 	flags.DurationVar(&o.ClusterFailureThreshold.Duration, "cluster-failure-threshold", 30*time.Second, "The duration of failure for the cluster to be considered unhealthy.")
 	flags.DurationVar(&o.ClusterMonitorPeriod.Duration, "cluster-monitor-period", 5*time.Second,
