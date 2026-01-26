@@ -125,6 +125,7 @@ func (c *CRBApplicationFailoverController) syncBinding(ctx context.Context, bind
 	// If tolerationSeconds is not set, use the default value of 300 seconds
 	// to avoid nil pointer dereference in detectFailure.
 	if tolerationSeconds == nil {
+		klog.Warningf("TolerationSeconds is nil for ClusterResourceBinding %s, expected to be set by webhook. Defaulting to 300 seconds.", binding.Name)
 		tolerationSeconds = ptr.To[int32](300)
 	}
 
