@@ -521,6 +521,11 @@ type Placement struct {
 	// when propagating resources that have replicas in spec (e.g. deployments, statefulsets) to member clusters.
 	// +optional
 	ReplicaScheduling *ReplicaSchedulingStrategy `json:"replicaScheduling,omitempty"`
+
+	// WorkloadAffinity represents inter-workload affinity and anti-affinity
+	// scheduling policies.
+	// +optional
+	WorkloadAffinity *WorkloadAffinity `json:"workloadAffinity,omitempty"`
 }
 
 // SpreadFieldValue is the type to define valid values for SpreadConstraint.SpreadByField
@@ -595,6 +600,85 @@ type ClusterAffinityTerm struct {
 	AffinityName string `json:"affinityName"`
 
 	ClusterAffinity `json:",inline"`
+}
+
+// WorkloadAffinity defines inter-workload affinity and anti-affinity rules.
+type WorkloadAffinity struct {
+	// Affinity represents inter-workload affinity scheduling rules.
+	// These are hard requirements: workloads will only be scheduled to clusters
+	// that satisfy the affinity term if it is specified.
+	//
+	// For the first workload of an affinity group (when no workloads with a
+	// matching label value exist in the system), the scheduler will not block
+	// scheduling. This allows bootstrapping new workload groups without
+	// encountering scheduling deadlocks, providing a better user experience.
+	//
+	// +optional
+	Affinity *WorkloadAffinityTerm `json:"affinity,omitempty"`
+
+	// AntiAffinity represents inter-workload anti-affinity scheduling rules.
+	// These are hard requirements: workloads will be scheduled to avoid clusters
+	// where matching workloads are already scheduled.
+	//
+	// +optional
+	AntiAffinity *WorkloadAntiAffinityTerm `json:"antiAffinity,omitempty"`
+
+	// Note: Both Affinity and AntiAffinity terms, if specified, are required to be
+	// satisfied during scheduling. If more flexible rules are needed (for example,
+	// preferred scheduling), PreferredAffinity and PreferredAntiAffinity fields
+	// can be added in the future.
+}
+
+// WorkloadAntiAffinityTerm defines anti-affinity rules for separating workloads
+// from specific workload groups.
+type WorkloadAntiAffinityTerm struct {
+	// GroupByLabelKey declares the label key on the workload resource template that
+	// determines the anti-affinity group. Workloads with the same label value under
+	// this key belong to the same anti-affinity group and will be separated.
+	//
+	// The scheduler maintains a global index of affinity groups in memory for
+	// efficient lookup. Each affinity group is identified by a serialized
+	// key-value pair and contains all workload resource templates that belong
+	// to the group.
+	//
+	// Note: Affinity groups are scoped to the namespace. Workloads that use the
+	// same anti-affinity label but reside in different namespaces are not treated
+	// as part of the same group.
+	//
+	// The key must be a valid Kubernetes label key.
+	//
+	// Example: If GroupByLabelKey is "app.group", workloads with the label
+	// "app.group=frontend" will avoid clusters where other
+	// "app.group=frontend" workloads already exist.
+	//
+	// +required
+	GroupByLabelKey string `json:"groupByLabelKey"`
+}
+
+// WorkloadAffinityTerm defines affinity rules for co-locating workloads with
+// specific workload groups.
+type WorkloadAffinityTerm struct {
+	// GroupByLabelKey declares the label key on the workload resource template that
+	// determines the affinity group. Workloads with the same label value under
+	// this key belong to the same affinity group.
+	//
+	// The scheduler maintains a global index of affinity groups in memory for
+	// efficient lookup. Each affinity group is identified by a serialized
+	// key-value pair and contains all workload resource templates that belong
+	// to the group.
+	//
+	// Note: Affinity groups are scoped to the namespace. Workloads that use the
+	// same affinity label but reside in different namespaces are not treated
+	// as part of the same group.
+	//
+	// The key must be a valid Kubernetes label key.
+	//
+	// Example: If GroupByLabelKey is "app.group", workloads with the label
+	// "app.group=frontend" will form one affinity group, while those with
+	// "app.group=backend" will form another.
+	//
+	// +required
+	GroupByLabelKey string `json:"groupByLabelKey"`
 }
 
 // ReplicaSchedulingType describes scheduling methods for the "replicas" in a resource.

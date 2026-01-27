@@ -143,6 +143,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.SuspendClusters":                             schema_pkg_apis_policy_v1alpha1_SuspendClusters(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Suspension":                                  schema_pkg_apis_policy_v1alpha1_Suspension(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Taint":                                       schema_pkg_apis_policy_v1alpha1_Taint(ref),
+		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.WorkloadAffinity":                            schema_pkg_apis_policy_v1alpha1_WorkloadAffinity(ref),
+		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.WorkloadAffinityTerm":                        schema_pkg_apis_policy_v1alpha1_WorkloadAffinityTerm(ref),
+		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.WorkloadAntiAffinityTerm":                    schema_pkg_apis_policy_v1alpha1_WorkloadAntiAffinityTerm(ref),
 		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.YAMLPatchOperation":                          schema_pkg_apis_policy_v1alpha1_YAMLPatchOperation(ref),
 		"github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1.ClusterAffinity":                             schema_pkg_apis_remedy_v1alpha1_ClusterAffinity(ref),
 		"github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1.ClusterConditionRequirement":                 schema_pkg_apis_remedy_v1alpha1_ClusterConditionRequirement(ref),
@@ -5061,11 +5064,17 @@ func schema_pkg_apis_policy_v1alpha1_Placement(ref common.ReferenceCallback) com
 							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ReplicaSchedulingStrategy"),
 						},
 					},
+					"workloadAffinity": {
+						SchemaProps: spec.SchemaProps{
+							Description: "WorkloadAffinity represents inter-workload affinity and anti-affinity scheduling policies.",
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.WorkloadAffinity"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinity", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinityTerm", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ReplicaSchedulingStrategy", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.SpreadConstraint", "k8s.io/api/core/v1.Toleration"},
+			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinity", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinityTerm", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ReplicaSchedulingStrategy", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.SpreadConstraint", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.WorkloadAffinity", "k8s.io/api/core/v1.Toleration"},
 	}
 }
 
@@ -5731,6 +5740,77 @@ func schema_pkg_apis_policy_v1alpha1_Taint(ref common.ReferenceCallback) common.
 					},
 				},
 				Required: []string{"key", "effect"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_policy_v1alpha1_WorkloadAffinity(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "WorkloadAffinity defines inter-workload affinity and anti-affinity rules.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"affinity": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Affinity represents inter-workload affinity scheduling rules. These are hard requirements: workloads will only be scheduled to clusters that satisfy the affinity term if it is specified.\n\nFor the first workload of an affinity group (when no workloads with a matching label value exist in the system), the scheduler will not block scheduling. This allows bootstrapping new workload groups without encountering scheduling deadlocks, providing a better user experience.",
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.WorkloadAffinityTerm"),
+						},
+					},
+					"antiAffinity": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AntiAffinity represents inter-workload anti-affinity scheduling rules. These are hard requirements: workloads will be scheduled to avoid clusters where matching workloads are already scheduled.",
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.WorkloadAntiAffinityTerm"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.WorkloadAffinityTerm", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.WorkloadAntiAffinityTerm"},
+	}
+}
+
+func schema_pkg_apis_policy_v1alpha1_WorkloadAffinityTerm(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "WorkloadAffinityTerm defines affinity rules for co-locating workloads with specific workload groups.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"groupByLabelKey": {
+						SchemaProps: spec.SchemaProps{
+							Description: "GroupByLabelKey declares the label key on the workload resource template that determines the affinity group. Workloads with the same label value under this key belong to the same affinity group.\n\nThe scheduler maintains a global index of affinity groups in memory for efficient lookup. Each affinity group is identified by a serialized key-value pair and contains all workload resource templates that belong to the group.\n\nNote: Affinity groups are scoped to the namespace. Workloads that use the same affinity label but reside in different namespaces are not treated as part of the same group.\n\nThe key must be a valid Kubernetes label key.\n\nExample: If GroupByLabelKey is \"app.group\", workloads with the label \"app.group=frontend\" will form one affinity group, while those with \"app.group=backend\" will form another.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"groupByLabelKey"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_policy_v1alpha1_WorkloadAntiAffinityTerm(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "WorkloadAntiAffinityTerm defines anti-affinity rules for separating workloads from specific workload groups.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"groupByLabelKey": {
+						SchemaProps: spec.SchemaProps{
+							Description: "GroupByLabelKey declares the label key on the workload resource template that determines the anti-affinity group. Workloads with the same label value under this key belong to the same anti-affinity group and will be separated.\n\nThe scheduler maintains a global index of affinity groups in memory for efficient lookup. Each affinity group is identified by a serialized key-value pair and contains all workload resource templates that belong to the group.\n\nNote: Affinity groups are scoped to the namespace. Workloads that use the same anti-affinity label but reside in different namespaces are not treated as part of the same group.\n\nThe key must be a valid Kubernetes label key.\n\nExample: If GroupByLabelKey is \"app.group\", workloads with the label \"app.group=frontend\" will avoid clusters where other \"app.group=frontend\" workloads already exist.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"groupByLabelKey"},
 			},
 		},
 	}
