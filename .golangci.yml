@@ -61,6 +61,13 @@ linters:
         - name: indent-error-flow
         - name: unreachable-code
         - name: var-naming
+          arguments:
+            - []
+            - []
+            # Revive's package-name lint is too strict for our usage. We follow Effective Go instead:
+            # keep package names short and accept non-unique names since the package name is only the default import name.
+            # For collisions, we standardize aliases in hack/.import-aliases. Guidance: https://go.dev/doc/effective_go#package-names
+            - - skip-package-name-checks: true
         - name: redefines-builtin-id
         - name: unused-parameter
         - name: context-as-argument
