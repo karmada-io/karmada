@@ -24,8 +24,17 @@ import (
 
 // OpenSearchConfigApplyConfiguration represents a declarative configuration of the OpenSearchConfig type for use
 // with apply.
+//
+// OpenSearchConfig holds the necessary configuration for client to access and config an OpenSearch server.
 type OpenSearchConfigApplyConfiguration struct {
-	Addresses []string                                                `json:"addresses,omitempty"`
+	// Addresses is a list of node endpoint(e.g. 'https://localhost:9200') to use.
+	// For the 'node' concept, please refer to:
+	// https://opensearch.org/docs/latest/opensearch/index/#clusters-and-nodes
+	Addresses []string `json:"addresses,omitempty"`
+	// SecretRef represents the secret contains mandatory credentials to access the server.
+	// The secret should hold credentials as follows:
+	// - secret.data.userName
+	// - secret.data.password
 	SecretRef *clusterv1alpha1.LocalSecretReferenceApplyConfiguration `json:"secretRef,omitempty"`
 }
 

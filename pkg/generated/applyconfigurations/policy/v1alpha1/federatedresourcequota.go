@@ -29,11 +29,15 @@ import (
 
 // FederatedResourceQuotaApplyConfiguration represents a declarative configuration of the FederatedResourceQuota type for use
 // with apply.
+//
+// FederatedResourceQuota sets aggregate quota restrictions enforced per namespace across all clusters.
 type FederatedResourceQuotaApplyConfiguration struct {
 	v1.TypeMetaApplyConfiguration    `json:",inline"`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
-	Spec                             *FederatedResourceQuotaSpecApplyConfiguration   `json:"spec,omitempty"`
-	Status                           *FederatedResourceQuotaStatusApplyConfiguration `json:"status,omitempty"`
+	// Spec defines the desired quota.
+	Spec *FederatedResourceQuotaSpecApplyConfiguration `json:"spec,omitempty"`
+	// Status defines the actual enforced quota and its current usage.
+	Status *FederatedResourceQuotaStatusApplyConfiguration `json:"status,omitempty"`
 }
 
 // FederatedResourceQuota constructs a declarative configuration of the FederatedResourceQuota type for use with
@@ -47,29 +51,14 @@ func FederatedResourceQuota(name, namespace string) *FederatedResourceQuotaApply
 	return b
 }
 
-// ExtractFederatedResourceQuota extracts the applied configuration owned by fieldManager from
-// federatedResourceQuota. If no managedFields are found in federatedResourceQuota for fieldManager, a
-// FederatedResourceQuotaApplyConfiguration is returned with only the Name, Namespace (if applicable),
-// APIVersion and Kind populated. It is possible that no managed fields were found for because other
-// field managers have taken ownership of all the fields previously owned by fieldManager, or because
-// the fieldManager never owned fields any fields.
+// ExtractFederatedResourceQuotaFrom extracts the applied configuration owned by fieldManager from
+// federatedResourceQuota for the specified subresource. Pass an empty string for subresource to extract
+// the main resource. Common subresources include "status", "scale", etc.
 // federatedResourceQuota must be a unmodified FederatedResourceQuota API object that was retrieved from the Kubernetes API.
-// ExtractFederatedResourceQuota provides a way to perform a extract/modify-in-place/apply workflow.
+// ExtractFederatedResourceQuotaFrom provides a way to perform a extract/modify-in-place/apply workflow.
 // Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
 // applied if another fieldManager has updated or force applied any of the previously applied fields.
-// Experimental!
-func ExtractFederatedResourceQuota(federatedResourceQuota *policyv1alpha1.FederatedResourceQuota, fieldManager string) (*FederatedResourceQuotaApplyConfiguration, error) {
-	return extractFederatedResourceQuota(federatedResourceQuota, fieldManager, "")
-}
-
-// ExtractFederatedResourceQuotaStatus is the same as ExtractFederatedResourceQuota except
-// that it extracts the status subresource applied configuration.
-// Experimental!
-func ExtractFederatedResourceQuotaStatus(federatedResourceQuota *policyv1alpha1.FederatedResourceQuota, fieldManager string) (*FederatedResourceQuotaApplyConfiguration, error) {
-	return extractFederatedResourceQuota(federatedResourceQuota, fieldManager, "status")
-}
-
-func extractFederatedResourceQuota(federatedResourceQuota *policyv1alpha1.FederatedResourceQuota, fieldManager string, subresource string) (*FederatedResourceQuotaApplyConfiguration, error) {
+func ExtractFederatedResourceQuotaFrom(federatedResourceQuota *policyv1alpha1.FederatedResourceQuota, fieldManager string, subresource string) (*FederatedResourceQuotaApplyConfiguration, error) {
 	b := &FederatedResourceQuotaApplyConfiguration{}
 	err := managedfields.ExtractInto(federatedResourceQuota, internal.Parser().Type("com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.FederatedResourceQuota"), fieldManager, b, subresource)
 	if err != nil {
@@ -82,6 +71,27 @@ func extractFederatedResourceQuota(federatedResourceQuota *policyv1alpha1.Federa
 	b.WithAPIVersion("policy.karmada.io/v1alpha1")
 	return b, nil
 }
+
+// ExtractFederatedResourceQuota extracts the applied configuration owned by fieldManager from
+// federatedResourceQuota. If no managedFields are found in federatedResourceQuota for fieldManager, a
+// FederatedResourceQuotaApplyConfiguration is returned with only the Name, Namespace (if applicable),
+// APIVersion and Kind populated. It is possible that no managed fields were found for because other
+// field managers have taken ownership of all the fields previously owned by fieldManager, or because
+// the fieldManager never owned fields any fields.
+// federatedResourceQuota must be a unmodified FederatedResourceQuota API object that was retrieved from the Kubernetes API.
+// ExtractFederatedResourceQuota provides a way to perform a extract/modify-in-place/apply workflow.
+// Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
+// applied if another fieldManager has updated or force applied any of the previously applied fields.
+func ExtractFederatedResourceQuota(federatedResourceQuota *policyv1alpha1.FederatedResourceQuota, fieldManager string) (*FederatedResourceQuotaApplyConfiguration, error) {
+	return ExtractFederatedResourceQuotaFrom(federatedResourceQuota, fieldManager, "")
+}
+
+// ExtractFederatedResourceQuotaStatus extracts the applied configuration owned by fieldManager from
+// federatedResourceQuota for the status subresource.
+func ExtractFederatedResourceQuotaStatus(federatedResourceQuota *policyv1alpha1.FederatedResourceQuota, fieldManager string) (*FederatedResourceQuotaApplyConfiguration, error) {
+	return ExtractFederatedResourceQuotaFrom(federatedResourceQuota, fieldManager, "status")
+}
+
 func (b FederatedResourceQuotaApplyConfiguration) IsApplyConfiguration() {}
 
 // WithKind sets the Kind field in the declarative configuration to the given value

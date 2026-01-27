@@ -24,11 +24,21 @@ import (
 
 // ResourceSelectorApplyConfiguration represents a declarative configuration of the ResourceSelector type for use
 // with apply.
+//
+// ResourceSelector the resources will be selected.
 type ResourceSelectorApplyConfiguration struct {
-	APIVersion    *string                             `json:"apiVersion,omitempty"`
-	Kind          *string                             `json:"kind,omitempty"`
-	Namespace     *string                             `json:"namespace,omitempty"`
-	Name          *string                             `json:"name,omitempty"`
+	// APIVersion represents the API version of the target resources.
+	APIVersion *string `json:"apiVersion,omitempty"`
+	// Kind represents the Kind of the target resources.
+	Kind *string `json:"kind,omitempty"`
+	// Namespace of the target resource.
+	// Default is empty, which means inherit from the parent object scope.
+	Namespace *string `json:"namespace,omitempty"`
+	// Name of the target resource.
+	// Default is empty, which means selecting all resources.
+	Name *string `json:"name,omitempty"`
+	// A label query over a set of resources.
+	// If name is not empty, labelSelector will be ignored.
 	LabelSelector *v1.LabelSelectorApplyConfiguration `json:"labelSelector,omitempty"`
 }
 

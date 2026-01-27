@@ -20,8 +20,17 @@ package v1alpha1
 
 // SuspensionApplyConfiguration represents a declarative configuration of the Suspension type for use
 // with apply.
+//
+// Suspension defines the policy for suspending different aspects of propagation.
 type SuspensionApplyConfiguration struct {
-	Dispatching           *bool                              `json:"dispatching,omitempty"`
+	// Dispatching controls whether dispatching should be suspended.
+	// nil means not suspend, no default value, only accepts 'true'.
+	// Note: true means stop propagating to all clusters. Can not co-exist
+	// with DispatchingOnClusters which is used to suspend particular clusters.
+	Dispatching *bool `json:"dispatching,omitempty"`
+	// DispatchingOnClusters declares a list of clusters to which the dispatching
+	// should be suspended.
+	// Note: Can not co-exist with Dispatching which is used to suspend all.
 	DispatchingOnClusters *SuspendClustersApplyConfiguration `json:"dispatchingOnClusters,omitempty"`
 }
 

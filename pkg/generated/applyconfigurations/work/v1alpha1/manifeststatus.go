@@ -25,10 +25,16 @@ import (
 
 // ManifestStatusApplyConfiguration represents a declarative configuration of the ManifestStatus type for use
 // with apply.
+//
+// ManifestStatus contains running status of a specific manifest in spec.
 type ManifestStatusApplyConfiguration struct {
+	// Identifier represents the identity of a resource linking to manifests in spec.
 	Identifier *ResourceIdentifierApplyConfiguration `json:"identifier,omitempty"`
-	Status     *runtime.RawExtension                 `json:"status,omitempty"`
-	Health     *workv1alpha1.ResourceHealth          `json:"health,omitempty"`
+	// Status reflects running status of current manifest.
+	Status *runtime.RawExtension `json:"status,omitempty"`
+	// Health represents the healthy state of the current resource.
+	// There maybe different rules for different resources to achieve health status.
+	Health *workv1alpha1.ResourceHealth `json:"health,omitempty"`
 }
 
 // ManifestStatusApplyConfiguration constructs a declarative configuration of the ManifestStatus type for use with

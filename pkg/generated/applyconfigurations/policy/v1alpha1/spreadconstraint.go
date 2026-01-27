@@ -24,11 +24,26 @@ import (
 
 // SpreadConstraintApplyConfiguration represents a declarative configuration of the SpreadConstraint type for use
 // with apply.
+//
+// SpreadConstraint represents the spread constraints on resources.
 type SpreadConstraintApplyConfiguration struct {
+	// SpreadByField represents the fields on Karmada cluster API used for
+	// dynamically grouping member clusters into different groups.
+	// Resources will be spread among different cluster groups.
+	// Available fields for spreading are: cluster, region, zone, and provider.
+	// SpreadByField should not co-exist with SpreadByLabel.
+	// If both SpreadByField and SpreadByLabel are empty, SpreadByField will be set to "cluster" by system.
 	SpreadByField *policyv1alpha1.SpreadFieldValue `json:"spreadByField,omitempty"`
-	SpreadByLabel *string                          `json:"spreadByLabel,omitempty"`
-	MaxGroups     *int                             `json:"maxGroups,omitempty"`
-	MinGroups     *int                             `json:"minGroups,omitempty"`
+	// SpreadByLabel represents the label key used for
+	// grouping member clusters into different groups.
+	// Resources will be spread among different cluster groups.
+	// SpreadByLabel should not co-exist with SpreadByField.
+	SpreadByLabel *string `json:"spreadByLabel,omitempty"`
+	// MaxGroups restricts the maximum number of cluster groups to be selected.
+	MaxGroups *int `json:"maxGroups,omitempty"`
+	// MinGroups restricts the minimum number of cluster groups to be selected.
+	// Defaults to 1.
+	MinGroups *int `json:"minGroups,omitempty"`
 }
 
 // SpreadConstraintApplyConfiguration constructs a declarative configuration of the SpreadConstraint type for use with

@@ -25,10 +25,29 @@ import (
 
 // ResourceModelRangeApplyConfiguration represents a declarative configuration of the ResourceModelRange type for use
 // with apply.
+//
+// ResourceModelRange describes the detail of each modeling quota that ranges from min to max.
+// Please pay attention, by default, the value of min can be inclusive, and the value of max cannot be inclusive.
+// E.g. in an interval, min = 2, max = 10 is set, which means the interval [2,10).
+// This rule ensures that all intervals have the same meaning. If the last interval is infinite,
+// it is definitely unreachable. Therefore, we define the right interval as the open interval.
+// For a valid interval, the value on the right is greater than the value on the left,
+// in other words, max must be greater than min.
+// It is strongly recommended that the [Min, Max) of all ResourceModelRanges can make a continuous interval.
 type ResourceModelRangeApplyConfiguration struct {
-	Name *v1.ResourceName   `json:"name,omitempty"`
-	Min  *resource.Quantity `json:"min,omitempty"`
-	Max  *resource.Quantity `json:"max,omitempty"`
+	// Name is the name for the resource that you want to categorize.
+	Name *v1.ResourceName `json:"name,omitempty"`
+	// Min is the minimum amount of this resource represented by resource name.
+	// Note: The Min value of first grade(usually 0) always acts as zero.
+	// E.g. [1,2) equal to [0,2).
+	Min *resource.Quantity `json:"min,omitempty"`
+	// Max is the maximum amount of this resource represented by resource name.
+	// Special Instructions, for the last ResourceModelRange, which no matter what Max value you pass,
+	// the meaning is infinite. Because for the last item,
+	// any ResourceModelRange's quota larger than Min will be classified to the last one.
+	// Of course, the value of the Max field is always greater than the value of the Min field.
+	// It should be true in any case.
+	Max *resource.Quantity `json:"max,omitempty"`
 }
 
 // ResourceModelRangeApplyConfiguration constructs a declarative configuration of the ResourceModelRange type for use with

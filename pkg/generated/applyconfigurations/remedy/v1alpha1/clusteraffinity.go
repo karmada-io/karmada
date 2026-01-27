@@ -20,7 +20,10 @@ package v1alpha1
 
 // ClusterAffinityApplyConfiguration represents a declarative configuration of the ClusterAffinity type for use
 // with apply.
+//
+// ClusterAffinity represents the filter to select clusters.
 type ClusterAffinityApplyConfiguration struct {
+	// ClusterNames is the list of clusters to be selected.
 	ClusterNames []string `json:"clusterNames,omitempty"`
 }
 

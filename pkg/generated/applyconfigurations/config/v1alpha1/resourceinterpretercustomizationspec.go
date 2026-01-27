@@ -20,9 +20,13 @@ package v1alpha1
 
 // ResourceInterpreterCustomizationSpecApplyConfiguration represents a declarative configuration of the ResourceInterpreterCustomizationSpec type for use
 // with apply.
+//
+// ResourceInterpreterCustomizationSpec describes the configuration in detail.
 type ResourceInterpreterCustomizationSpecApplyConfiguration struct {
-	Target         *CustomizationTargetApplyConfiguration `json:"target,omitempty"`
-	Customizations *CustomizationRulesApplyConfiguration  `json:"customizations,omitempty"`
+	// CustomizationTarget represents the resource type that the customization applies to.
+	Target *CustomizationTargetApplyConfiguration `json:"target,omitempty"`
+	// Customizations describe the interpretation rules.
+	Customizations *CustomizationRulesApplyConfiguration `json:"customizations,omitempty"`
 }
 
 // ResourceInterpreterCustomizationSpecApplyConfiguration constructs a declarative configuration of the ResourceInterpreterCustomizationSpec type for use with

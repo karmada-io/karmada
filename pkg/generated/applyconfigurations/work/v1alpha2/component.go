@@ -20,9 +20,16 @@ package v1alpha2
 
 // ComponentApplyConfiguration represents a declarative configuration of the Component type for use
 // with apply.
+//
+// Component represents the requirements for a specific component.
 type ComponentApplyConfiguration struct {
-	Name                *string                                         `json:"name,omitempty"`
-	Replicas            *int32                                          `json:"replicas,omitempty"`
+	// Name of this component.
+	// It is required when the resource contains multiple components to ensure proper identification,
+	// and must also be unique within the same resource.
+	Name *string `json:"name,omitempty"`
+	// Replicas represents the replica number of the resource's component.
+	Replicas *int32 `json:"replicas,omitempty"`
+	// ReplicaRequirements represents the resource and scheduling requirements for each replica.
 	ReplicaRequirements *ComponentReplicaRequirementsApplyConfiguration `json:"replicaRequirements,omitempty"`
 }
 

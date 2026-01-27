@@ -20,10 +20,16 @@ package v1alpha1
 
 // ResourceSelectorApplyConfiguration represents a declarative configuration of the ResourceSelector type for use
 // with apply.
+//
+// ResourceSelector specifies the resources type and its scope.
 type ResourceSelectorApplyConfiguration struct {
+	// APIVersion represents the API version of the target resources.
 	APIVersion *string `json:"apiVersion,omitempty"`
-	Kind       *string `json:"kind,omitempty"`
-	Namespace  *string `json:"namespace,omitempty"`
+	// Kind represents the kind of the target resources.
+	Kind *string `json:"kind,omitempty"`
+	// Namespace of the target resource.
+	// Default is empty, which means all namespaces.
+	Namespace *string `json:"namespace,omitempty"`
 }
 
 // ResourceSelectorApplyConfiguration constructs a declarative configuration of the ResourceSelector type for use with

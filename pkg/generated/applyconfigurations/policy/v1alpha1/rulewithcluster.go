@@ -20,9 +20,15 @@ package v1alpha1
 
 // RuleWithClusterApplyConfiguration represents a declarative configuration of the RuleWithCluster type for use
 // with apply.
+//
+// RuleWithCluster defines the override rules on clusters.
 type RuleWithClusterApplyConfiguration struct {
+	// TargetCluster defines restrictions on this override policy
+	// that only applies to resources propagated to the matching clusters.
+	// nil means matching all clusters.
 	TargetCluster *ClusterAffinityApplyConfiguration `json:"targetCluster,omitempty"`
-	Overriders    *OverridersApplyConfiguration      `json:"overriders,omitempty"`
+	// Overriders represents the override rules that would apply on resources
+	Overriders *OverridersApplyConfiguration `json:"overriders,omitempty"`
 }
 
 // RuleWithClusterApplyConfiguration constructs a declarative configuration of the RuleWithCluster type for use with

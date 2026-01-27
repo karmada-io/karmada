@@ -20,7 +20,10 @@ package v1alpha1
 
 // CronFederatedHPAStatusApplyConfiguration represents a declarative configuration of the CronFederatedHPAStatus type for use
 // with apply.
+//
+// CronFederatedHPAStatus represents the current status of a CronFederatedHPA.
 type CronFederatedHPAStatusApplyConfiguration struct {
+	// ExecutionHistories record the execution histories of CronFederatedHPARule.
 	ExecutionHistories []ExecutionHistoryApplyConfiguration `json:"executionHistories,omitempty"`
 }
 

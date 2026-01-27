@@ -30,11 +30,17 @@ import (
 
 // MultiClusterIngressApplyConfiguration represents a declarative configuration of the MultiClusterIngress type for use
 // with apply.
+//
+// MultiClusterIngress is a collection of rules that allow inbound connections to reach the
+// endpoints defined by a backend. The structure of MultiClusterIngress is same as Ingress,
+// indicates the Ingress in multi-clusters.
 type MultiClusterIngressApplyConfiguration struct {
 	v1.TypeMetaApplyConfiguration    `json:",inline"`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
-	Spec                             *networkingv1.IngressSpecApplyConfiguration  `json:"spec,omitempty"`
-	Status                           *MultiClusterIngressStatusApplyConfiguration `json:"status,omitempty"`
+	// Spec is the desired state of the MultiClusterIngress.
+	Spec *networkingv1.IngressSpecApplyConfiguration `json:"spec,omitempty"`
+	// Status is the current state of the MultiClusterIngress.
+	Status *MultiClusterIngressStatusApplyConfiguration `json:"status,omitempty"`
 }
 
 // MultiClusterIngress constructs a declarative configuration of the MultiClusterIngress type for use with
@@ -48,29 +54,14 @@ func MultiClusterIngress(name, namespace string) *MultiClusterIngressApplyConfig
 	return b
 }
 
-// ExtractMultiClusterIngress extracts the applied configuration owned by fieldManager from
-// multiClusterIngress. If no managedFields are found in multiClusterIngress for fieldManager, a
-// MultiClusterIngressApplyConfiguration is returned with only the Name, Namespace (if applicable),
-// APIVersion and Kind populated. It is possible that no managed fields were found for because other
-// field managers have taken ownership of all the fields previously owned by fieldManager, or because
-// the fieldManager never owned fields any fields.
+// ExtractMultiClusterIngressFrom extracts the applied configuration owned by fieldManager from
+// multiClusterIngress for the specified subresource. Pass an empty string for subresource to extract
+// the main resource. Common subresources include "status", "scale", etc.
 // multiClusterIngress must be a unmodified MultiClusterIngress API object that was retrieved from the Kubernetes API.
-// ExtractMultiClusterIngress provides a way to perform a extract/modify-in-place/apply workflow.
+// ExtractMultiClusterIngressFrom provides a way to perform a extract/modify-in-place/apply workflow.
 // Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
 // applied if another fieldManager has updated or force applied any of the previously applied fields.
-// Experimental!
-func ExtractMultiClusterIngress(multiClusterIngress *networkingv1alpha1.MultiClusterIngress, fieldManager string) (*MultiClusterIngressApplyConfiguration, error) {
-	return extractMultiClusterIngress(multiClusterIngress, fieldManager, "")
-}
-
-// ExtractMultiClusterIngressStatus is the same as ExtractMultiClusterIngress except
-// that it extracts the status subresource applied configuration.
-// Experimental!
-func ExtractMultiClusterIngressStatus(multiClusterIngress *networkingv1alpha1.MultiClusterIngress, fieldManager string) (*MultiClusterIngressApplyConfiguration, error) {
-	return extractMultiClusterIngress(multiClusterIngress, fieldManager, "status")
-}
-
-func extractMultiClusterIngress(multiClusterIngress *networkingv1alpha1.MultiClusterIngress, fieldManager string, subresource string) (*MultiClusterIngressApplyConfiguration, error) {
+func ExtractMultiClusterIngressFrom(multiClusterIngress *networkingv1alpha1.MultiClusterIngress, fieldManager string, subresource string) (*MultiClusterIngressApplyConfiguration, error) {
 	b := &MultiClusterIngressApplyConfiguration{}
 	err := managedfields.ExtractInto(multiClusterIngress, internal.Parser().Type("com.github.karmada-io.karmada.pkg.apis.networking.v1alpha1.MultiClusterIngress"), fieldManager, b, subresource)
 	if err != nil {
@@ -83,6 +74,27 @@ func extractMultiClusterIngress(multiClusterIngress *networkingv1alpha1.MultiClu
 	b.WithAPIVersion("networking.karmada.io/v1alpha1")
 	return b, nil
 }
+
+// ExtractMultiClusterIngress extracts the applied configuration owned by fieldManager from
+// multiClusterIngress. If no managedFields are found in multiClusterIngress for fieldManager, a
+// MultiClusterIngressApplyConfiguration is returned with only the Name, Namespace (if applicable),
+// APIVersion and Kind populated. It is possible that no managed fields were found for because other
+// field managers have taken ownership of all the fields previously owned by fieldManager, or because
+// the fieldManager never owned fields any fields.
+// multiClusterIngress must be a unmodified MultiClusterIngress API object that was retrieved from the Kubernetes API.
+// ExtractMultiClusterIngress provides a way to perform a extract/modify-in-place/apply workflow.
+// Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
+// applied if another fieldManager has updated or force applied any of the previously applied fields.
+func ExtractMultiClusterIngress(multiClusterIngress *networkingv1alpha1.MultiClusterIngress, fieldManager string) (*MultiClusterIngressApplyConfiguration, error) {
+	return ExtractMultiClusterIngressFrom(multiClusterIngress, fieldManager, "")
+}
+
+// ExtractMultiClusterIngressStatus extracts the applied configuration owned by fieldManager from
+// multiClusterIngress for the status subresource.
+func ExtractMultiClusterIngressStatus(multiClusterIngress *networkingv1alpha1.MultiClusterIngress, fieldManager string) (*MultiClusterIngressApplyConfiguration, error) {
+	return ExtractMultiClusterIngressFrom(multiClusterIngress, fieldManager, "status")
+}
+
 func (b MultiClusterIngressApplyConfiguration) IsApplyConfiguration() {}
 
 // WithKind sets the Kind field in the declarative configuration to the given value

@@ -29,10 +29,13 @@ import (
 
 // ClusterOverridePolicyApplyConfiguration represents a declarative configuration of the ClusterOverridePolicy type for use
 // with apply.
+//
+// ClusterOverridePolicy represents the cluster-wide policy that overrides a group of resources to one or more clusters.
 type ClusterOverridePolicyApplyConfiguration struct {
 	v1.TypeMetaApplyConfiguration    `json:",inline"`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
-	Spec                             *OverrideSpecApplyConfiguration `json:"spec,omitempty"`
+	// Spec represents the desired behavior of ClusterOverridePolicy.
+	Spec *OverrideSpecApplyConfiguration `json:"spec,omitempty"`
 }
 
 // ClusterOverridePolicy constructs a declarative configuration of the ClusterOverridePolicy type for use with
@@ -45,29 +48,14 @@ func ClusterOverridePolicy(name string) *ClusterOverridePolicyApplyConfiguration
 	return b
 }
 
-// ExtractClusterOverridePolicy extracts the applied configuration owned by fieldManager from
-// clusterOverridePolicy. If no managedFields are found in clusterOverridePolicy for fieldManager, a
-// ClusterOverridePolicyApplyConfiguration is returned with only the Name, Namespace (if applicable),
-// APIVersion and Kind populated. It is possible that no managed fields were found for because other
-// field managers have taken ownership of all the fields previously owned by fieldManager, or because
-// the fieldManager never owned fields any fields.
+// ExtractClusterOverridePolicyFrom extracts the applied configuration owned by fieldManager from
+// clusterOverridePolicy for the specified subresource. Pass an empty string for subresource to extract
+// the main resource. Common subresources include "status", "scale", etc.
 // clusterOverridePolicy must be a unmodified ClusterOverridePolicy API object that was retrieved from the Kubernetes API.
-// ExtractClusterOverridePolicy provides a way to perform a extract/modify-in-place/apply workflow.
+// ExtractClusterOverridePolicyFrom provides a way to perform a extract/modify-in-place/apply workflow.
 // Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
 // applied if another fieldManager has updated or force applied any of the previously applied fields.
-// Experimental!
-func ExtractClusterOverridePolicy(clusterOverridePolicy *policyv1alpha1.ClusterOverridePolicy, fieldManager string) (*ClusterOverridePolicyApplyConfiguration, error) {
-	return extractClusterOverridePolicy(clusterOverridePolicy, fieldManager, "")
-}
-
-// ExtractClusterOverridePolicyStatus is the same as ExtractClusterOverridePolicy except
-// that it extracts the status subresource applied configuration.
-// Experimental!
-func ExtractClusterOverridePolicyStatus(clusterOverridePolicy *policyv1alpha1.ClusterOverridePolicy, fieldManager string) (*ClusterOverridePolicyApplyConfiguration, error) {
-	return extractClusterOverridePolicy(clusterOverridePolicy, fieldManager, "status")
-}
-
-func extractClusterOverridePolicy(clusterOverridePolicy *policyv1alpha1.ClusterOverridePolicy, fieldManager string, subresource string) (*ClusterOverridePolicyApplyConfiguration, error) {
+func ExtractClusterOverridePolicyFrom(clusterOverridePolicy *policyv1alpha1.ClusterOverridePolicy, fieldManager string, subresource string) (*ClusterOverridePolicyApplyConfiguration, error) {
 	b := &ClusterOverridePolicyApplyConfiguration{}
 	err := managedfields.ExtractInto(clusterOverridePolicy, internal.Parser().Type("com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ClusterOverridePolicy"), fieldManager, b, subresource)
 	if err != nil {
@@ -79,6 +67,21 @@ func extractClusterOverridePolicy(clusterOverridePolicy *policyv1alpha1.ClusterO
 	b.WithAPIVersion("policy.karmada.io/v1alpha1")
 	return b, nil
 }
+
+// ExtractClusterOverridePolicy extracts the applied configuration owned by fieldManager from
+// clusterOverridePolicy. If no managedFields are found in clusterOverridePolicy for fieldManager, a
+// ClusterOverridePolicyApplyConfiguration is returned with only the Name, Namespace (if applicable),
+// APIVersion and Kind populated. It is possible that no managed fields were found for because other
+// field managers have taken ownership of all the fields previously owned by fieldManager, or because
+// the fieldManager never owned fields any fields.
+// clusterOverridePolicy must be a unmodified ClusterOverridePolicy API object that was retrieved from the Kubernetes API.
+// ExtractClusterOverridePolicy provides a way to perform a extract/modify-in-place/apply workflow.
+// Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
+// applied if another fieldManager has updated or force applied any of the previously applied fields.
+func ExtractClusterOverridePolicy(clusterOverridePolicy *policyv1alpha1.ClusterOverridePolicy, fieldManager string) (*ClusterOverridePolicyApplyConfiguration, error) {
+	return ExtractClusterOverridePolicyFrom(clusterOverridePolicy, fieldManager, "")
+}
+
 func (b ClusterOverridePolicyApplyConfiguration) IsApplyConfiguration() {}
 
 // WithKind sets the Kind field in the declarative configuration to the given value

@@ -24,13 +24,23 @@ import (
 
 // KarmadaStatusApplyConfiguration represents a declarative configuration of the KarmadaStatus type for use
 // with apply.
+//
+// KarmadaStatus define the most recently observed status of the Karmada.
 type KarmadaStatusApplyConfiguration struct {
-	ObservedGeneration *int64                                  `json:"observedGeneration,omitempty"`
-	SecretRef          *LocalSecretReferenceApplyConfiguration `json:"secretRef,omitempty"`
-	KarmadaVersion     *string                                 `json:"karmadaVersion,omitempty"`
-	KubernetesVersion  *string                                 `json:"kubernetesVersion,omitempty"`
-	Conditions         []v1.ConditionApplyConfiguration        `json:"conditions,omitempty"`
-	APIServerService   *APIServerServiceApplyConfiguration     `json:"apiServerService,omitempty"`
+	// ObservedGeneration is the last observed generation.
+	ObservedGeneration *int64 `json:"observedGeneration,omitempty"`
+	// after the karmada installed, restore the kubeconfig to secret.
+	SecretRef *LocalSecretReferenceApplyConfiguration `json:"secretRef,omitempty"`
+	// KarmadaVersion represent the karmada version.
+	KarmadaVersion *string `json:"karmadaVersion,omitempty"`
+	// KubernetesVersion represent the karmada-apiserver version.
+	KubernetesVersion *string `json:"kubernetesVersion,omitempty"`
+	// Conditions represents the latest available observations of a karmada's current state.
+	Conditions []v1.ConditionApplyConfiguration `json:"conditions,omitempty"`
+	// APIServerService reports the location of the Karmada API server service which
+	// can be used by third-party applications to discover the Karmada Service, e.g.
+	// expose the service outside the cluster by Ingress.
+	APIServerService *APIServerServiceApplyConfiguration `json:"apiServerService,omitempty"`
 }
 
 // KarmadaStatusApplyConfiguration constructs a declarative configuration of the KarmadaStatus type for use with

@@ -24,9 +24,30 @@ import (
 
 // SchedulePriorityApplyConfiguration represents a declarative configuration of the SchedulePriority type for use
 // with apply.
+//
+// SchedulePriority defines how Karmada should resolve the priority and preemption policy
+// for workload scheduling.
 type SchedulePriorityApplyConfiguration struct {
+	// PriorityClassSource specifies where Karmada should look for the PriorityClass definition.
+	// Available options:
+	// - KubePriorityClass: Uses Kubernetes PriorityClass (scheduling.k8s.io/v1)
+	// - PodPriorityClass: Uses PriorityClassName from PodTemplate: PodSpec.PriorityClassName (not yet implemented)
+	// - FederatedPriorityClass: Uses Karmada FederatedPriorityClass (not yet implemented)
 	PriorityClassSource *policyv1alpha1.PriorityClassSource `json:"priorityClassSource,omitempty"`
-	PriorityClassName   *string                             `json:"priorityClassName,omitempty"`
+	// PriorityClassName specifies which PriorityClass to use. Its behavior depends on PriorityClassSource:
+	//
+	// Behavior of PriorityClassName:
+	//
+	// For KubePriorityClass:
+	// - When specified: Uses the named Kubernetes PriorityClass.
+	//
+	// For PodPriorityClass:
+	// - Uses PriorityClassName from the PodTemplate.
+	// - Not yet implemented.
+	//
+	// For FederatedPriorityClass:
+	// - Not yet implemented.
+	PriorityClassName *string `json:"priorityClassName,omitempty"`
 }
 
 // SchedulePriorityApplyConfiguration constructs a declarative configuration of the SchedulePriority type for use with

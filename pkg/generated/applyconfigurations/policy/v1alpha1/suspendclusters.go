@@ -20,7 +20,12 @@ package v1alpha1
 
 // SuspendClustersApplyConfiguration represents a declarative configuration of the SuspendClusters type for use
 // with apply.
+//
+// SuspendClusters represents a group of clusters that should be suspended from propagating.
+// Note: No plan to introduce the label selector or field selector to select clusters yet, as it
+// would make the system unpredictable.
 type SuspendClustersApplyConfiguration struct {
+	// ClusterNames is the list of clusters to be selected.
 	ClusterNames []string `json:"clusterNames,omitempty"`
 }
 

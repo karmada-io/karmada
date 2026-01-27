@@ -24,11 +24,21 @@ import (
 
 // ClusterAffinityApplyConfiguration represents a declarative configuration of the ClusterAffinity type for use
 // with apply.
+//
+// ClusterAffinity represents the filter to select clusters.
 type ClusterAffinityApplyConfiguration struct {
-	LabelSelector   *v1.LabelSelectorApplyConfiguration `json:"labelSelector,omitempty"`
-	FieldSelector   *FieldSelectorApplyConfiguration    `json:"fieldSelector,omitempty"`
-	ClusterNames    []string                            `json:"clusterNames,omitempty"`
-	ExcludeClusters []string                            `json:"exclude,omitempty"`
+	// LabelSelector is a filter to select member clusters by labels.
+	// If non-nil and non-empty, only the clusters match this filter will be selected.
+	LabelSelector *v1.LabelSelectorApplyConfiguration `json:"labelSelector,omitempty"`
+	// FieldSelector is a filter to select member clusters by fields.
+	// The key(field) of the match expression should be 'provider', 'region', or 'zone',
+	// and the operator of the match expression should be 'In' or 'NotIn'.
+	// If non-nil and non-empty, only the clusters match this filter will be selected.
+	FieldSelector *FieldSelectorApplyConfiguration `json:"fieldSelector,omitempty"`
+	// ClusterNames is the list of clusters to be selected.
+	ClusterNames []string `json:"clusterNames,omitempty"`
+	// ExcludedClusters is the list of clusters to be ignored.
+	ExcludeClusters []string `json:"exclude,omitempty"`
 }
 
 // ClusterAffinityApplyConfiguration constructs a declarative configuration of the ClusterAffinity type for use with

@@ -20,7 +20,10 @@ package v1alpha1
 
 // ClusterSelectorApplyConfiguration represents a declarative configuration of the ClusterSelector type for use
 // with apply.
+//
+// ClusterSelector specifies the cluster to be selected.
 type ClusterSelectorApplyConfiguration struct {
+	// Name is the name of the cluster to be selected.
 	Name *string `json:"name,omitempty"`
 }
 

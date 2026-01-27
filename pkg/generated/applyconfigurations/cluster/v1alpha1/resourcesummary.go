@@ -24,10 +24,19 @@ import (
 
 // ResourceSummaryApplyConfiguration represents a declarative configuration of the ResourceSummary type for use
 // with apply.
+//
+// ResourceSummary represents the summary of resources in the member cluster.
 type ResourceSummaryApplyConfiguration struct {
-	Allocatable          *v1.ResourceList                        `json:"allocatable,omitempty"`
-	Allocating           *v1.ResourceList                        `json:"allocating,omitempty"`
-	Allocated            *v1.ResourceList                        `json:"allocated,omitempty"`
+	// Allocatable represents the resources of a cluster that are available for scheduling.
+	// Total amount of allocatable resources on all nodes.
+	Allocatable *v1.ResourceList `json:"allocatable,omitempty"`
+	// Allocating represents the resources of a cluster that are pending for scheduling.
+	// Total amount of required resources of all Pods that are waiting for scheduling.
+	Allocating *v1.ResourceList `json:"allocating,omitempty"`
+	// Allocated represents the resources of a cluster that have been scheduled.
+	// Total amount of required resources of all Pods that have been scheduled to nodes.
+	Allocated *v1.ResourceList `json:"allocated,omitempty"`
+	// AllocatableModelings represents the statistical resource modeling.
 	AllocatableModelings []AllocatableModelingApplyConfiguration `json:"allocatableModelings,omitempty"`
 }
 

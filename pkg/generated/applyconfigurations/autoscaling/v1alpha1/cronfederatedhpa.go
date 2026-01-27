@@ -29,11 +29,17 @@ import (
 
 // CronFederatedHPAApplyConfiguration represents a declarative configuration of the CronFederatedHPA type for use
 // with apply.
+//
+// CronFederatedHPA represents a collection of repeating schedule to scale
+// replica number of a specific workload. It can scale any resource implementing
+// the scale subresource as well as FederatedHPA.
 type CronFederatedHPAApplyConfiguration struct {
 	v1.TypeMetaApplyConfiguration    `json:",inline"`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
-	Spec                             *CronFederatedHPASpecApplyConfiguration   `json:"spec,omitempty"`
-	Status                           *CronFederatedHPAStatusApplyConfiguration `json:"status,omitempty"`
+	// Spec is the specification of the CronFederatedHPA.
+	Spec *CronFederatedHPASpecApplyConfiguration `json:"spec,omitempty"`
+	// Status is the current status of the CronFederatedHPA.
+	Status *CronFederatedHPAStatusApplyConfiguration `json:"status,omitempty"`
 }
 
 // CronFederatedHPA constructs a declarative configuration of the CronFederatedHPA type for use with
@@ -47,29 +53,14 @@ func CronFederatedHPA(name, namespace string) *CronFederatedHPAApplyConfiguratio
 	return b
 }
 
-// ExtractCronFederatedHPA extracts the applied configuration owned by fieldManager from
-// cronFederatedHPA. If no managedFields are found in cronFederatedHPA for fieldManager, a
-// CronFederatedHPAApplyConfiguration is returned with only the Name, Namespace (if applicable),
-// APIVersion and Kind populated. It is possible that no managed fields were found for because other
-// field managers have taken ownership of all the fields previously owned by fieldManager, or because
-// the fieldManager never owned fields any fields.
+// ExtractCronFederatedHPAFrom extracts the applied configuration owned by fieldManager from
+// cronFederatedHPA for the specified subresource. Pass an empty string for subresource to extract
+// the main resource. Common subresources include "status", "scale", etc.
 // cronFederatedHPA must be a unmodified CronFederatedHPA API object that was retrieved from the Kubernetes API.
-// ExtractCronFederatedHPA provides a way to perform a extract/modify-in-place/apply workflow.
+// ExtractCronFederatedHPAFrom provides a way to perform a extract/modify-in-place/apply workflow.
 // Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
 // applied if another fieldManager has updated or force applied any of the previously applied fields.
-// Experimental!
-func ExtractCronFederatedHPA(cronFederatedHPA *autoscalingv1alpha1.CronFederatedHPA, fieldManager string) (*CronFederatedHPAApplyConfiguration, error) {
-	return extractCronFederatedHPA(cronFederatedHPA, fieldManager, "")
-}
-
-// ExtractCronFederatedHPAStatus is the same as ExtractCronFederatedHPA except
-// that it extracts the status subresource applied configuration.
-// Experimental!
-func ExtractCronFederatedHPAStatus(cronFederatedHPA *autoscalingv1alpha1.CronFederatedHPA, fieldManager string) (*CronFederatedHPAApplyConfiguration, error) {
-	return extractCronFederatedHPA(cronFederatedHPA, fieldManager, "status")
-}
-
-func extractCronFederatedHPA(cronFederatedHPA *autoscalingv1alpha1.CronFederatedHPA, fieldManager string, subresource string) (*CronFederatedHPAApplyConfiguration, error) {
+func ExtractCronFederatedHPAFrom(cronFederatedHPA *autoscalingv1alpha1.CronFederatedHPA, fieldManager string, subresource string) (*CronFederatedHPAApplyConfiguration, error) {
 	b := &CronFederatedHPAApplyConfiguration{}
 	err := managedfields.ExtractInto(cronFederatedHPA, internal.Parser().Type("com.github.karmada-io.karmada.pkg.apis.autoscaling.v1alpha1.CronFederatedHPA"), fieldManager, b, subresource)
 	if err != nil {
@@ -82,6 +73,27 @@ func extractCronFederatedHPA(cronFederatedHPA *autoscalingv1alpha1.CronFederated
 	b.WithAPIVersion("autoscaling.karmada.io/v1alpha1")
 	return b, nil
 }
+
+// ExtractCronFederatedHPA extracts the applied configuration owned by fieldManager from
+// cronFederatedHPA. If no managedFields are found in cronFederatedHPA for fieldManager, a
+// CronFederatedHPAApplyConfiguration is returned with only the Name, Namespace (if applicable),
+// APIVersion and Kind populated. It is possible that no managed fields were found for because other
+// field managers have taken ownership of all the fields previously owned by fieldManager, or because
+// the fieldManager never owned fields any fields.
+// cronFederatedHPA must be a unmodified CronFederatedHPA API object that was retrieved from the Kubernetes API.
+// ExtractCronFederatedHPA provides a way to perform a extract/modify-in-place/apply workflow.
+// Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
+// applied if another fieldManager has updated or force applied any of the previously applied fields.
+func ExtractCronFederatedHPA(cronFederatedHPA *autoscalingv1alpha1.CronFederatedHPA, fieldManager string) (*CronFederatedHPAApplyConfiguration, error) {
+	return ExtractCronFederatedHPAFrom(cronFederatedHPA, fieldManager, "")
+}
+
+// ExtractCronFederatedHPAStatus extracts the applied configuration owned by fieldManager from
+// cronFederatedHPA for the status subresource.
+func ExtractCronFederatedHPAStatus(cronFederatedHPA *autoscalingv1alpha1.CronFederatedHPA, fieldManager string) (*CronFederatedHPAApplyConfiguration, error) {
+	return ExtractCronFederatedHPAFrom(cronFederatedHPA, fieldManager, "status")
+}
+
 func (b CronFederatedHPAApplyConfiguration) IsApplyConfiguration() {}
 
 // WithKind sets the Kind field in the declarative configuration to the given value

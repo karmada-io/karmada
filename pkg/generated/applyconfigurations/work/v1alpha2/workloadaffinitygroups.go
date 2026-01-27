@@ -20,8 +20,17 @@ package v1alpha2
 
 // WorkloadAffinityGroupsApplyConfiguration represents a declarative configuration of the WorkloadAffinityGroups type for use
 // with apply.
+//
+// WorkloadAffinityGroups stores the instantiated affinity and anti-affinity group names.
+// Each group name is serialized as "<labelKey>=<labelValue>" (for example: "app.group=frontend"),
+// and is used by the scheduler to co-locate workloads in the same affinity group and to separate
+// workloads in the same anti-affinity group.
+// Note: If multiple groups are needed later, prefer adding list-typed fields (e.g., AffinityGroups,
+// AntiAffinityGroups) alongside these fields to keep backward compatibility.
 type WorkloadAffinityGroupsApplyConfiguration struct {
-	AffinityGroup     *string `json:"affinityGroup,omitempty"`
+	// AffinityGroup is the instantiated group name derived from affinity rules.
+	AffinityGroup *string `json:"affinityGroup,omitempty"`
+	// AntiAffinityGroup is the instantiated group name derived from anti-affinity rules.
 	AntiAffinityGroup *string `json:"antiAffinityGroup,omitempty"`
 }
 

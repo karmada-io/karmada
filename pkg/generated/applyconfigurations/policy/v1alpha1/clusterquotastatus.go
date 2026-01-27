@@ -25,7 +25,10 @@ import (
 
 // ClusterQuotaStatusApplyConfiguration represents a declarative configuration of the ClusterQuotaStatus type for use
 // with apply.
+//
+// ClusterQuotaStatus represents the set of desired limits and observed usage for a specific cluster.
 type ClusterQuotaStatusApplyConfiguration struct {
+	// ClusterName is the name of the cluster the limits enforce to.
 	ClusterName                              *string `json:"clusterName,omitempty"`
 	v1.ResourceQuotaStatusApplyConfiguration `json:",inline"`
 }

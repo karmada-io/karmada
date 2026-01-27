@@ -25,11 +25,18 @@ import (
 
 // LocalEtcdApplyConfiguration represents a declarative configuration of the LocalEtcd type for use
 // with apply.
+//
+// LocalEtcd describes that operator should run an etcd cluster in a host cluster.
 type LocalEtcdApplyConfiguration struct {
+	// CommonSettings holds common settings to etcd.
 	CommonSettingsApplyConfiguration `json:",inline"`
-	VolumeData                       *VolumeDataApplyConfiguration `json:"volumeData,omitempty"`
-	ServerCertSANs                   []string                      `json:"serverCertSANs,omitempty"`
-	PeerCertSANs                     []string                      `json:"peerCertSANs,omitempty"`
+	// VolumeData describes the settings of etcd data store.
+	// We will support 3 modes: emptyDir, hostPath, PVC. default by hostPath.
+	VolumeData *VolumeDataApplyConfiguration `json:"volumeData,omitempty"`
+	// ServerCertSANs sets extra Subject Alternative Names for the etcd server signing cert.
+	ServerCertSANs []string `json:"serverCertSANs,omitempty"`
+	// PeerCertSANs sets extra Subject Alternative Names for the etcd peer signing cert.
+	PeerCertSANs []string `json:"peerCertSANs,omitempty"`
 }
 
 // LocalEtcdApplyConfiguration constructs a declarative configuration of the LocalEtcd type for use with

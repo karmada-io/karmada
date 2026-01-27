@@ -24,8 +24,14 @@ import (
 
 // CRDTarballApplyConfiguration represents a declarative configuration of the CRDTarball type for use
 // with apply.
+//
+// CRDTarball specifies the source from which the Karmada CRD tarball should be downloaded, along with the download policy to use.
 type CRDTarballApplyConfiguration struct {
-	HTTPSource        *HTTPSourceApplyConfiguration       `json:"httpSource,omitempty"`
+	// HTTPSource specifies how to download the CRD tarball via either HTTP or HTTPS protocol.
+	HTTPSource *HTTPSourceApplyConfiguration `json:"httpSource,omitempty"`
+	// CRDDownloadPolicy specifies a policy that should be used to download the CRD tarball.
+	// Valid values are "Always" and "IfNotPresent".
+	// Defaults to "IfNotPresent".
 	CRDDownloadPolicy *operatorv1alpha1.CRDDownloadPolicy `json:"crdDownloadPolicy,omitempty"`
 }
 

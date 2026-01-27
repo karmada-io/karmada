@@ -29,11 +29,15 @@ import (
 
 // ResourceBindingApplyConfiguration represents a declarative configuration of the ResourceBinding type for use
 // with apply.
+//
+// ResourceBinding represents a binding of a kubernetes resource with a propagation policy.
 type ResourceBindingApplyConfiguration struct {
 	v1.TypeMetaApplyConfiguration    `json:",inline"`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
-	Spec                             *ResourceBindingSpecApplyConfiguration   `json:"spec,omitempty"`
-	Status                           *ResourceBindingStatusApplyConfiguration `json:"status,omitempty"`
+	// Spec represents the desired behavior.
+	Spec *ResourceBindingSpecApplyConfiguration `json:"spec,omitempty"`
+	// Status represents the most recently observed status of the ResourceBinding.
+	Status *ResourceBindingStatusApplyConfiguration `json:"status,omitempty"`
 }
 
 // ResourceBinding constructs a declarative configuration of the ResourceBinding type for use with
@@ -47,29 +51,14 @@ func ResourceBinding(name, namespace string) *ResourceBindingApplyConfiguration 
 	return b
 }
 
-// ExtractResourceBinding extracts the applied configuration owned by fieldManager from
-// resourceBinding. If no managedFields are found in resourceBinding for fieldManager, a
-// ResourceBindingApplyConfiguration is returned with only the Name, Namespace (if applicable),
-// APIVersion and Kind populated. It is possible that no managed fields were found for because other
-// field managers have taken ownership of all the fields previously owned by fieldManager, or because
-// the fieldManager never owned fields any fields.
+// ExtractResourceBindingFrom extracts the applied configuration owned by fieldManager from
+// resourceBinding for the specified subresource. Pass an empty string for subresource to extract
+// the main resource. Common subresources include "status", "scale", etc.
 // resourceBinding must be a unmodified ResourceBinding API object that was retrieved from the Kubernetes API.
-// ExtractResourceBinding provides a way to perform a extract/modify-in-place/apply workflow.
+// ExtractResourceBindingFrom provides a way to perform a extract/modify-in-place/apply workflow.
 // Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
 // applied if another fieldManager has updated or force applied any of the previously applied fields.
-// Experimental!
-func ExtractResourceBinding(resourceBinding *workv1alpha2.ResourceBinding, fieldManager string) (*ResourceBindingApplyConfiguration, error) {
-	return extractResourceBinding(resourceBinding, fieldManager, "")
-}
-
-// ExtractResourceBindingStatus is the same as ExtractResourceBinding except
-// that it extracts the status subresource applied configuration.
-// Experimental!
-func ExtractResourceBindingStatus(resourceBinding *workv1alpha2.ResourceBinding, fieldManager string) (*ResourceBindingApplyConfiguration, error) {
-	return extractResourceBinding(resourceBinding, fieldManager, "status")
-}
-
-func extractResourceBinding(resourceBinding *workv1alpha2.ResourceBinding, fieldManager string, subresource string) (*ResourceBindingApplyConfiguration, error) {
+func ExtractResourceBindingFrom(resourceBinding *workv1alpha2.ResourceBinding, fieldManager string, subresource string) (*ResourceBindingApplyConfiguration, error) {
 	b := &ResourceBindingApplyConfiguration{}
 	err := managedfields.ExtractInto(resourceBinding, internal.Parser().Type("com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.ResourceBinding"), fieldManager, b, subresource)
 	if err != nil {
@@ -82,6 +71,27 @@ func extractResourceBinding(resourceBinding *workv1alpha2.ResourceBinding, field
 	b.WithAPIVersion("work.karmada.io/v1alpha2")
 	return b, nil
 }
+
+// ExtractResourceBinding extracts the applied configuration owned by fieldManager from
+// resourceBinding. If no managedFields are found in resourceBinding for fieldManager, a
+// ResourceBindingApplyConfiguration is returned with only the Name, Namespace (if applicable),
+// APIVersion and Kind populated. It is possible that no managed fields were found for because other
+// field managers have taken ownership of all the fields previously owned by fieldManager, or because
+// the fieldManager never owned fields any fields.
+// resourceBinding must be a unmodified ResourceBinding API object that was retrieved from the Kubernetes API.
+// ExtractResourceBinding provides a way to perform a extract/modify-in-place/apply workflow.
+// Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
+// applied if another fieldManager has updated or force applied any of the previously applied fields.
+func ExtractResourceBinding(resourceBinding *workv1alpha2.ResourceBinding, fieldManager string) (*ResourceBindingApplyConfiguration, error) {
+	return ExtractResourceBindingFrom(resourceBinding, fieldManager, "")
+}
+
+// ExtractResourceBindingStatus extracts the applied configuration owned by fieldManager from
+// resourceBinding for the status subresource.
+func ExtractResourceBindingStatus(resourceBinding *workv1alpha2.ResourceBinding, fieldManager string) (*ResourceBindingApplyConfiguration, error) {
+	return ExtractResourceBindingFrom(resourceBinding, fieldManager, "status")
+}
+
 func (b ResourceBindingApplyConfiguration) IsApplyConfiguration() {}
 
 // WithKind sets the Kind field in the declarative configuration to the given value

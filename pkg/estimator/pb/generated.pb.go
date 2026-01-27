@@ -23,427 +23,39 @@ import (
 	fmt "fmt"
 
 	io "io"
+	"sort"
 
-	proto "github.com/gogo/protobuf/proto"
-	github_com_gogo_protobuf_sortkeys "github.com/gogo/protobuf/sortkeys"
 	k8s_io_api_core_v1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 
-	math "math"
 	math_bits "math/bits"
 	reflect "reflect"
 	strings "strings"
 	time "time"
 )
 
-// Reference imports to suppress errors if they are not otherwise used.
-var _ = proto.Marshal
-var _ = fmt.Errorf
-var _ = math.Inf
-var _ = time.Kitchen
+func (m *Component) Reset() { *m = Component{} }
 
-// This is a compile-time assertion to ensure that this generated file
-// is compatible with the proto package it is being compiled against.
-// A compilation error at this line likely means your copy of the
-// proto package needs to be updated.
-const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
+func (m *ComponentReplicaRequirements) Reset() { *m = ComponentReplicaRequirements{} }
 
-func (m *Component) Reset()      { *m = Component{} }
-func (*Component) ProtoMessage() {}
-func (*Component) Descriptor() ([]byte, []int) {
-	return fileDescriptor_9773618571bdb725, []int{0}
-}
-func (m *Component) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *Component) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	b = b[:cap(b)]
-	n, err := m.MarshalToSizedBuffer(b)
-	if err != nil {
-		return nil, err
-	}
-	return b[:n], nil
-}
-func (m *Component) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Component.Merge(m, src)
-}
-func (m *Component) XXX_Size() int {
-	return m.Size()
-}
-func (m *Component) XXX_DiscardUnknown() {
-	xxx_messageInfo_Component.DiscardUnknown(m)
-}
+func (m *MaxAvailableComponentSetsRequest) Reset() { *m = MaxAvailableComponentSetsRequest{} }
 
-var xxx_messageInfo_Component proto.InternalMessageInfo
+func (m *MaxAvailableComponentSetsResponse) Reset() { *m = MaxAvailableComponentSetsResponse{} }
 
-func (m *ComponentReplicaRequirements) Reset()      { *m = ComponentReplicaRequirements{} }
-func (*ComponentReplicaRequirements) ProtoMessage() {}
-func (*ComponentReplicaRequirements) Descriptor() ([]byte, []int) {
-	return fileDescriptor_9773618571bdb725, []int{1}
-}
-func (m *ComponentReplicaRequirements) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *ComponentReplicaRequirements) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	b = b[:cap(b)]
-	n, err := m.MarshalToSizedBuffer(b)
-	if err != nil {
-		return nil, err
-	}
-	return b[:n], nil
-}
-func (m *ComponentReplicaRequirements) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ComponentReplicaRequirements.Merge(m, src)
-}
-func (m *ComponentReplicaRequirements) XXX_Size() int {
-	return m.Size()
-}
-func (m *ComponentReplicaRequirements) XXX_DiscardUnknown() {
-	xxx_messageInfo_ComponentReplicaRequirements.DiscardUnknown(m)
-}
+func (m *MaxAvailableReplicasRequest) Reset() { *m = MaxAvailableReplicasRequest{} }
 
-var xxx_messageInfo_ComponentReplicaRequirements proto.InternalMessageInfo
+func (m *MaxAvailableReplicasResponse) Reset() { *m = MaxAvailableReplicasResponse{} }
 
-func (m *MaxAvailableComponentSetsRequest) Reset()      { *m = MaxAvailableComponentSetsRequest{} }
-func (*MaxAvailableComponentSetsRequest) ProtoMessage() {}
-func (*MaxAvailableComponentSetsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_9773618571bdb725, []int{2}
-}
-func (m *MaxAvailableComponentSetsRequest) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *MaxAvailableComponentSetsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	b = b[:cap(b)]
-	n, err := m.MarshalToSizedBuffer(b)
-	if err != nil {
-		return nil, err
-	}
-	return b[:n], nil
-}
-func (m *MaxAvailableComponentSetsRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MaxAvailableComponentSetsRequest.Merge(m, src)
-}
-func (m *MaxAvailableComponentSetsRequest) XXX_Size() int {
-	return m.Size()
-}
-func (m *MaxAvailableComponentSetsRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_MaxAvailableComponentSetsRequest.DiscardUnknown(m)
-}
+func (m *NodeClaim) Reset() { *m = NodeClaim{} }
 
-var xxx_messageInfo_MaxAvailableComponentSetsRequest proto.InternalMessageInfo
+func (m *ObjectReference) Reset() { *m = ObjectReference{} }
 
-func (m *MaxAvailableComponentSetsResponse) Reset()      { *m = MaxAvailableComponentSetsResponse{} }
-func (*MaxAvailableComponentSetsResponse) ProtoMessage() {}
-func (*MaxAvailableComponentSetsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_9773618571bdb725, []int{3}
-}
-func (m *MaxAvailableComponentSetsResponse) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *MaxAvailableComponentSetsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	b = b[:cap(b)]
-	n, err := m.MarshalToSizedBuffer(b)
-	if err != nil {
-		return nil, err
-	}
-	return b[:n], nil
-}
-func (m *MaxAvailableComponentSetsResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MaxAvailableComponentSetsResponse.Merge(m, src)
-}
-func (m *MaxAvailableComponentSetsResponse) XXX_Size() int {
-	return m.Size()
-}
-func (m *MaxAvailableComponentSetsResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_MaxAvailableComponentSetsResponse.DiscardUnknown(m)
-}
+func (m *ReplicaRequirements) Reset() { *m = ReplicaRequirements{} }
 
-var xxx_messageInfo_MaxAvailableComponentSetsResponse proto.InternalMessageInfo
+func (m *UnschedulableReplicasRequest) Reset() { *m = UnschedulableReplicasRequest{} }
 
-func (m *MaxAvailableReplicasRequest) Reset()      { *m = MaxAvailableReplicasRequest{} }
-func (*MaxAvailableReplicasRequest) ProtoMessage() {}
-func (*MaxAvailableReplicasRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_9773618571bdb725, []int{4}
-}
-func (m *MaxAvailableReplicasRequest) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *MaxAvailableReplicasRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	b = b[:cap(b)]
-	n, err := m.MarshalToSizedBuffer(b)
-	if err != nil {
-		return nil, err
-	}
-	return b[:n], nil
-}
-func (m *MaxAvailableReplicasRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MaxAvailableReplicasRequest.Merge(m, src)
-}
-func (m *MaxAvailableReplicasRequest) XXX_Size() int {
-	return m.Size()
-}
-func (m *MaxAvailableReplicasRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_MaxAvailableReplicasRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_MaxAvailableReplicasRequest proto.InternalMessageInfo
-
-func (m *MaxAvailableReplicasResponse) Reset()      { *m = MaxAvailableReplicasResponse{} }
-func (*MaxAvailableReplicasResponse) ProtoMessage() {}
-func (*MaxAvailableReplicasResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_9773618571bdb725, []int{5}
-}
-func (m *MaxAvailableReplicasResponse) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *MaxAvailableReplicasResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	b = b[:cap(b)]
-	n, err := m.MarshalToSizedBuffer(b)
-	if err != nil {
-		return nil, err
-	}
-	return b[:n], nil
-}
-func (m *MaxAvailableReplicasResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MaxAvailableReplicasResponse.Merge(m, src)
-}
-func (m *MaxAvailableReplicasResponse) XXX_Size() int {
-	return m.Size()
-}
-func (m *MaxAvailableReplicasResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_MaxAvailableReplicasResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_MaxAvailableReplicasResponse proto.InternalMessageInfo
-
-func (m *NodeClaim) Reset()      { *m = NodeClaim{} }
-func (*NodeClaim) ProtoMessage() {}
-func (*NodeClaim) Descriptor() ([]byte, []int) {
-	return fileDescriptor_9773618571bdb725, []int{6}
-}
-func (m *NodeClaim) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *NodeClaim) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	b = b[:cap(b)]
-	n, err := m.MarshalToSizedBuffer(b)
-	if err != nil {
-		return nil, err
-	}
-	return b[:n], nil
-}
-func (m *NodeClaim) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_NodeClaim.Merge(m, src)
-}
-func (m *NodeClaim) XXX_Size() int {
-	return m.Size()
-}
-func (m *NodeClaim) XXX_DiscardUnknown() {
-	xxx_messageInfo_NodeClaim.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_NodeClaim proto.InternalMessageInfo
-
-func (m *ObjectReference) Reset()      { *m = ObjectReference{} }
-func (*ObjectReference) ProtoMessage() {}
-func (*ObjectReference) Descriptor() ([]byte, []int) {
-	return fileDescriptor_9773618571bdb725, []int{7}
-}
-func (m *ObjectReference) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *ObjectReference) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	b = b[:cap(b)]
-	n, err := m.MarshalToSizedBuffer(b)
-	if err != nil {
-		return nil, err
-	}
-	return b[:n], nil
-}
-func (m *ObjectReference) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ObjectReference.Merge(m, src)
-}
-func (m *ObjectReference) XXX_Size() int {
-	return m.Size()
-}
-func (m *ObjectReference) XXX_DiscardUnknown() {
-	xxx_messageInfo_ObjectReference.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ObjectReference proto.InternalMessageInfo
-
-func (m *ReplicaRequirements) Reset()      { *m = ReplicaRequirements{} }
-func (*ReplicaRequirements) ProtoMessage() {}
-func (*ReplicaRequirements) Descriptor() ([]byte, []int) {
-	return fileDescriptor_9773618571bdb725, []int{8}
-}
-func (m *ReplicaRequirements) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *ReplicaRequirements) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	b = b[:cap(b)]
-	n, err := m.MarshalToSizedBuffer(b)
-	if err != nil {
-		return nil, err
-	}
-	return b[:n], nil
-}
-func (m *ReplicaRequirements) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ReplicaRequirements.Merge(m, src)
-}
-func (m *ReplicaRequirements) XXX_Size() int {
-	return m.Size()
-}
-func (m *ReplicaRequirements) XXX_DiscardUnknown() {
-	xxx_messageInfo_ReplicaRequirements.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ReplicaRequirements proto.InternalMessageInfo
-
-func (m *UnschedulableReplicasRequest) Reset()      { *m = UnschedulableReplicasRequest{} }
-func (*UnschedulableReplicasRequest) ProtoMessage() {}
-func (*UnschedulableReplicasRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_9773618571bdb725, []int{9}
-}
-func (m *UnschedulableReplicasRequest) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *UnschedulableReplicasRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	b = b[:cap(b)]
-	n, err := m.MarshalToSizedBuffer(b)
-	if err != nil {
-		return nil, err
-	}
-	return b[:n], nil
-}
-func (m *UnschedulableReplicasRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_UnschedulableReplicasRequest.Merge(m, src)
-}
-func (m *UnschedulableReplicasRequest) XXX_Size() int {
-	return m.Size()
-}
-func (m *UnschedulableReplicasRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_UnschedulableReplicasRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_UnschedulableReplicasRequest proto.InternalMessageInfo
-
-func (m *UnschedulableReplicasResponse) Reset()      { *m = UnschedulableReplicasResponse{} }
-func (*UnschedulableReplicasResponse) ProtoMessage() {}
-func (*UnschedulableReplicasResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_9773618571bdb725, []int{10}
-}
-func (m *UnschedulableReplicasResponse) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *UnschedulableReplicasResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	b = b[:cap(b)]
-	n, err := m.MarshalToSizedBuffer(b)
-	if err != nil {
-		return nil, err
-	}
-	return b[:n], nil
-}
-func (m *UnschedulableReplicasResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_UnschedulableReplicasResponse.Merge(m, src)
-}
-func (m *UnschedulableReplicasResponse) XXX_Size() int {
-	return m.Size()
-}
-func (m *UnschedulableReplicasResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_UnschedulableReplicasResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_UnschedulableReplicasResponse proto.InternalMessageInfo
-
-func init() {
-	proto.RegisterType((*Component)(nil), "github.com.karmada_io.karmada.pkg.estimator.pb.Component")
-	proto.RegisterType((*ComponentReplicaRequirements)(nil), "github.com.karmada_io.karmada.pkg.estimator.pb.ComponentReplicaRequirements")
-	proto.RegisterMapType((k8s_io_api_core_v1.ResourceList)(nil), "github.com.karmada_io.karmada.pkg.estimator.pb.ComponentReplicaRequirements.ResourceRequestEntry")
-	proto.RegisterType((*MaxAvailableComponentSetsRequest)(nil), "github.com.karmada_io.karmada.pkg.estimator.pb.MaxAvailableComponentSetsRequest")
-	proto.RegisterType((*MaxAvailableComponentSetsResponse)(nil), "github.com.karmada_io.karmada.pkg.estimator.pb.MaxAvailableComponentSetsResponse")
-	proto.RegisterType((*MaxAvailableReplicasRequest)(nil), "github.com.karmada_io.karmada.pkg.estimator.pb.MaxAvailableReplicasRequest")
-	proto.RegisterType((*MaxAvailableReplicasResponse)(nil), "github.com.karmada_io.karmada.pkg.estimator.pb.MaxAvailableReplicasResponse")
-	proto.RegisterType((*NodeClaim)(nil), "github.com.karmada_io.karmada.pkg.estimator.pb.NodeClaim")
-	proto.RegisterMapType((map[string]string)(nil), "github.com.karmada_io.karmada.pkg.estimator.pb.NodeClaim.NodeSelectorEntry")
-	proto.RegisterType((*ObjectReference)(nil), "github.com.karmada_io.karmada.pkg.estimator.pb.ObjectReference")
-	proto.RegisterType((*ReplicaRequirements)(nil), "github.com.karmada_io.karmada.pkg.estimator.pb.ReplicaRequirements")
-	proto.RegisterMapType((k8s_io_api_core_v1.ResourceList)(nil), "github.com.karmada_io.karmada.pkg.estimator.pb.ReplicaRequirements.ResourceRequestEntry")
-	proto.RegisterType((*UnschedulableReplicasRequest)(nil), "github.com.karmada_io.karmada.pkg.estimator.pb.UnschedulableReplicasRequest")
-	proto.RegisterType((*UnschedulableReplicasResponse)(nil), "github.com.karmada_io.karmada.pkg.estimator.pb.UnschedulableReplicasResponse")
-}
-
-func init() {
-	proto.RegisterFile("github.com/karmada-io/karmada/pkg/estimator/pb/generated.proto", fileDescriptor_9773618571bdb725)
-}
-
-var fileDescriptor_9773618571bdb725 = []byte{
-	// 1000 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xd4, 0x57, 0x4f, 0x6f, 0x1b, 0x45,
-	0x14, 0xcf, 0xc6, 0x8e, 0x5a, 0x8f, 0x53, 0x25, 0xd9, 0xa4, 0x55, 0x70, 0xd3, 0xb5, 0xd9, 0x53,
-	0x90, 0xe8, 0xac, 0x1a, 0x81, 0xd4, 0x72, 0xa0, 0xca, 0xba, 0x08, 0xa1, 0x36, 0xa6, 0x4c, 0x92,
-	0x0a, 0x21, 0x21, 0x34, 0x5e, 0x8f, 0xed, 0xc1, 0xbb, 0x3b, 0xcb, 0xcc, 0x6c, 0x14, 0xdf, 0x10,
-	0x88, 0x3b, 0xe2, 0xca, 0x89, 0x6f, 0xc0, 0x99, 0x4f, 0x90, 0x1b, 0x3d, 0xf6, 0x82, 0x21, 0xe6,
-	0x86, 0xc4, 0x07, 0xa0, 0x27, 0xb4, 0xbb, 0xb3, 0x7f, 0xe2, 0x6c, 0x22, 0xb9, 0x44, 0x02, 0x6e,
-	0xb3, 0xf3, 0xde, 0xfb, 0xbd, 0xf7, 0x7e, 0xf3, 0xfe, 0xd8, 0xe0, 0xdd, 0x01, 0x95, 0xc3, 0xb0,
-	0x0b, 0x1d, 0xe6, 0x59, 0x23, 0xcc, 0x3d, 0xdc, 0xc3, 0x77, 0x29, 0x4b, 0x8f, 0x56, 0x30, 0x1a,
-	0x58, 0x44, 0x48, 0xea, 0x61, 0xc9, 0xb8, 0x15, 0x74, 0xad, 0x01, 0xf1, 0x09, 0xc7, 0x92, 0xf4,
-	0x60, 0xc0, 0x99, 0x64, 0x3a, 0xcc, 0xed, 0xa1, 0x32, 0xfa, 0x8c, 0xb2, 0xf4, 0x08, 0x83, 0xd1,
-	0x00, 0x66, 0xf6, 0x30, 0xe8, 0x36, 0xee, 0x16, 0xfc, 0x0d, 0xd8, 0x80, 0x59, 0x31, 0x4c, 0x37,
-	0xec, 0xc7, 0x5f, 0xf1, 0x47, 0x7c, 0x4a, 0xe0, 0x1b, 0xe6, 0xe8, 0xbe, 0x80, 0x94, 0x59, 0x38,
-	0xa0, 0x96, 0xc3, 0x38, 0xb1, 0x8e, 0xee, 0xcd, 0x86, 0xd0, 0x78, 0x2b, 0xd7, 0xf1, 0xb0, 0x33,
-	0xa4, 0x3e, 0xe1, 0xe3, 0x38, 0xf0, 0xc8, 0x88, 0x13, 0xc1, 0x42, 0xee, 0x90, 0x59, 0x2b, 0xf3,
-	0x2f, 0x0d, 0xd4, 0xda, 0xcc, 0x0b, 0x98, 0x4f, 0x7c, 0xa9, 0xb7, 0x40, 0xd5, 0xc7, 0x1e, 0xd9,
-	0xd4, 0x5a, 0xda, 0x76, 0xcd, 0x5e, 0x3e, 0x99, 0x34, 0x17, 0xa6, 0x93, 0x66, 0xb5, 0x83, 0x3d,
-	0x82, 0x62, 0x89, 0xfe, 0xbd, 0x06, 0xd6, 0x39, 0x09, 0x5c, 0xea, 0x60, 0x44, 0xbe, 0x08, 0x29,
-	0x27, 0x1e, 0xf1, 0xa5, 0xd8, 0x5c, 0x6c, 0x69, 0xdb, 0xf5, 0x9d, 0x27, 0x73, 0xf2, 0x00, 0x33,
-	0xd7, 0xe8, 0x3c, 0xa6, 0x7d, 0x5b, 0xf9, 0x5f, 0x2f, 0x11, 0xa2, 0xb2, 0x28, 0xf4, 0x37, 0xc1,
-	0x75, 0x75, 0x2d, 0x36, 0x2b, 0x2d, 0x6d, 0x7b, 0xc9, 0x5e, 0x55, 0x18, 0xd7, 0x15, 0x86, 0x40,
-	0x99, 0x86, 0xf9, 0x63, 0x15, 0x6c, 0x5d, 0x16, 0x80, 0xde, 0x07, 0x35, 0x9f, 0xf5, 0x48, 0xdb,
-	0xc5, 0xd4, 0x8b, 0x39, 0xa9, 0xef, 0x3c, 0x98, 0x37, 0xc3, 0x4e, 0x0a, 0x60, 0xdf, 0x98, 0x4e,
-	0x9a, 0xb5, 0xec, 0x13, 0xe5, 0xd0, 0xfa, 0x1f, 0x1a, 0x58, 0x49, 0x5f, 0x28, 0x0a, 0x80, 0x08,
-	0xb9, 0xb9, 0xd8, 0xaa, 0x6c, 0xd7, 0x77, 0xf0, 0x55, 0x12, 0x0a, 0xd1, 0x59, 0x1f, 0xef, 0xf9,
-	0x92, 0x8f, 0xed, 0x4f, 0x15, 0x43, 0x2b, 0x33, 0xd2, 0x97, 0x93, 0x66, 0xf3, 0x7c, 0xd9, 0x65,
-	0x18, 0x4f, 0xa8, 0x90, 0x5f, 0xfd, 0x7a, 0xa9, 0x4a, 0x5c, 0x36, 0xb3, 0x89, 0xe9, 0xef, 0x83,
-	0xb5, 0x80, 0x53, 0xc6, 0xa9, 0x1c, 0xb7, 0x5d, 0x2c, 0x44, 0xa4, 0x15, 0x3f, 0x56, 0xcd, 0x7e,
-	0x4d, 0x85, 0xb2, 0xf6, 0x74, 0x56, 0x01, 0x9d, 0xb7, 0x69, 0x70, 0xb0, 0x51, 0x96, 0x90, 0xbe,
-	0x0a, 0x2a, 0x23, 0x32, 0x4e, 0x6a, 0x18, 0x45, 0x47, 0xfd, 0x11, 0x58, 0x3a, 0xc2, 0x6e, 0x48,
-	0x54, 0x95, 0x42, 0x98, 0x04, 0x0d, 0x8b, 0xad, 0x12, 0x53, 0x89, 0x03, 0x0a, 0xd3, 0x78, 0xe1,
-	0x47, 0x21, 0xf6, 0x25, 0x95, 0x63, 0x94, 0x18, 0xbf, 0xb3, 0x78, 0x5f, 0x33, 0xff, 0xd4, 0x40,
-	0x6b, 0x0f, 0x1f, 0xef, 0x1e, 0x61, 0xea, 0xe2, 0xae, 0x4b, 0x32, 0xba, 0xf7, 0x89, 0x14, 0x69,
-	0x86, 0x6f, 0x80, 0x6b, 0x8e, 0x1b, 0x0a, 0x49, 0xb8, 0x6a, 0xa4, 0x15, 0x95, 0xd7, 0xb5, 0x76,
-	0x72, 0x8d, 0x52, 0xb9, 0xee, 0x01, 0xe0, 0xa4, 0x10, 0x42, 0xbd, 0xf9, 0x83, 0x57, 0x7e, 0x73,
-	0x5b, 0x57, 0x8e, 0x40, 0x76, 0x25, 0x50, 0xc1, 0x81, 0x6e, 0x81, 0x5a, 0xd4, 0xc5, 0x22, 0xc0,
-	0x4e, 0xca, 0xf9, 0x9a, 0x32, 0xa9, 0x75, 0x52, 0x01, 0xca, 0x75, 0xcc, 0x0e, 0x78, 0xfd, 0x92,
-	0x74, 0x45, 0xc0, 0x7c, 0x41, 0xa2, 0x7c, 0x3d, 0x7c, 0x1c, 0x5d, 0xc5, 0xf9, 0x2e, 0xe5, 0xf9,
-	0xee, 0x25, 0xd7, 0x28, 0x95, 0x9b, 0xbf, 0x68, 0xe0, 0x76, 0x11, 0x30, 0xeb, 0xca, 0xf9, 0xa9,
-	0xfb, 0xee, 0xd2, 0x49, 0xd4, 0x9e, 0x97, 0xc4, 0x2b, 0x19, 0x40, 0xe6, 0x21, 0xd8, 0x2a, 0x4f,
-	0x4f, 0x51, 0xf5, 0x36, 0xa8, 0x7b, 0xf8, 0x38, 0xbd, 0x56, 0x74, 0xad, 0x2b, 0x37, 0xf5, 0xbd,
-	0x5c, 0x84, 0x8a, 0x7a, 0xe6, 0xd7, 0x15, 0x90, 0x4f, 0x0e, 0xfd, 0x19, 0x58, 0x8e, 0x66, 0xc7,
-	0x6e, 0xbf, 0x4f, 0x7d, 0x2a, 0xc7, 0x6a, 0x32, 0xb5, 0x0a, 0x55, 0x0d, 0xa3, 0x56, 0x84, 0x47,
-	0xf7, 0xe2, 0xe9, 0xb3, 0x4f, 0x5c, 0xe2, 0x48, 0xc6, 0xed, 0xd5, 0xe9, 0xa4, 0xb9, 0xdc, 0x29,
-	0x58, 0xa2, 0x33, 0x38, 0xfa, 0x37, 0x5a, 0x02, 0x9c, 0x1a, 0xa8, 0x7a, 0x7c, 0xfc, 0xca, 0x23,
-	0xef, 0x8c, 0xfb, 0x64, 0xda, 0x6c, 0xa8, 0x5c, 0x97, 0x8b, 0x22, 0x74, 0xc6, 0xad, 0x7e, 0x08,
-	0xea, 0x92, 0xb9, 0xd1, 0x9a, 0xa2, 0xcc, 0x8f, 0x06, 0x79, 0x14, 0x85, 0x51, 0x96, 0xde, 0x41,
-	0xa6, 0x96, 0x93, 0x98, 0xdf, 0x09, 0x54, 0xc4, 0x69, 0x3c, 0x04, 0x6b, 0xe7, 0xe2, 0x29, 0x19,
-	0x16, 0x1b, 0xc5, 0x61, 0x51, 0x2b, 0x36, 0xff, 0x4f, 0x1a, 0x58, 0xf9, 0xb0, 0xfb, 0x39, 0x71,
-	0x24, 0x22, 0x7d, 0xc2, 0x89, 0xef, 0x10, 0x7d, 0x07, 0x00, 0x1c, 0xd0, 0x67, 0x84, 0x0b, 0xca,
-	0x7c, 0x55, 0xb3, 0x59, 0x17, 0xee, 0x3e, 0xfd, 0x40, 0x49, 0x50, 0x41, 0x2b, 0xda, 0xb2, 0x23,
-	0xea, 0xf7, 0x12, 0x07, 0xf9, 0x96, 0x7d, 0x4c, 0xfd, 0x1e, 0x8a, 0x25, 0x73, 0xf7, 0x69, 0xb6,
-	0xb8, 0xab, 0x17, 0x2d, 0x6e, 0xf3, 0xe7, 0x2a, 0x58, 0xff, 0x37, 0x77, 0xdc, 0xe9, 0x85, 0x3b,
-	0xee, 0xe3, 0x2b, 0x68, 0xd5, 0xff, 0xc6, 0x6a, 0x9b, 0xfb, 0xd9, 0x4a, 0x77, 0x61, 0xf5, 0x7f,
-	0xb2, 0x0b, 0x7f, 0x58, 0x04, 0x5b, 0x87, 0xbe, 0x70, 0x86, 0xa4, 0x17, 0xfe, 0xd3, 0x61, 0xee,
-	0x45, 0x3f, 0xdc, 0x12, 0x5f, 0x2a, 0xb0, 0x87, 0xf3, 0x56, 0xc5, 0x4c, 0x67, 0x16, 0x7f, 0xf9,
-	0x29, 0x62, 0x32, 0x17, 0xfa, 0x00, 0xdc, 0x0a, 0x8b, 0x91, 0x1f, 0x0c, 0x39, 0x11, 0x43, 0xe6,
-	0xf6, 0xe2, 0x57, 0xab, 0xd8, 0x96, 0xb2, 0xbd, 0x75, 0x58, 0xaa, 0xf5, 0x72, 0xd2, 0xbc, 0x21,
-	0xa9, 0x47, 0xe0, 0xa3, 0x30, 0x19, 0x2e, 0xe8, 0x02, 0x38, 0x53, 0x82, 0x3b, 0x17, 0x50, 0xa4,
-	0x16, 0xc2, 0x3e, 0xb8, 0x19, 0x96, 0x29, 0xa8, 0xd5, 0x70, 0x47, 0x05, 0x72, 0xb3, 0x1c, 0xa5,
-	0xdc, 0xd6, 0x3e, 0x38, 0x39, 0x35, 0x16, 0x9e, 0x9f, 0x1a, 0x0b, 0x2f, 0x4e, 0x8d, 0x85, 0x2f,
-	0xa7, 0x86, 0x76, 0x32, 0x35, 0xb4, 0xe7, 0x53, 0x43, 0x7b, 0x31, 0x35, 0xb4, 0xdf, 0xa6, 0x86,
-	0xf6, 0xed, 0xef, 0xc6, 0xc2, 0x27, 0x70, 0xbe, 0xff, 0x3c, 0x7f, 0x07, 0x00, 0x00, 0xff, 0xff,
-	0xf7, 0x7c, 0xc1, 0xcd, 0x24, 0x0d, 0x00, 0x00,
-}
+func (m *UnschedulableReplicasResponse) Reset() { *m = UnschedulableReplicasResponse{} }
 
 func (m *Component) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
@@ -516,7 +128,7 @@ func (m *ComponentReplicaRequirements) MarshalToSizedBuffer(dAtA []byte) (int, e
 		for k := range m.ResourceRequest {
 			keysForResourceRequest = append(keysForResourceRequest, string(k))
 		}
-		github_com_gogo_protobuf_sortkeys.Strings(keysForResourceRequest)
+		sort.Strings(keysForResourceRequest)
 		for iNdEx := len(keysForResourceRequest) - 1; iNdEx >= 0; iNdEx-- {
 			v := m.ResourceRequest[k8s_io_api_core_v1.ResourceName(keysForResourceRequest[iNdEx])]
 			baseI := i
@@ -731,7 +343,7 @@ func (m *NodeClaim) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		for k := range m.NodeSelector {
 			keysForNodeSelector = append(keysForNodeSelector, string(k))
 		}
-		github_com_gogo_protobuf_sortkeys.Strings(keysForNodeSelector)
+		sort.Strings(keysForNodeSelector)
 		for iNdEx := len(keysForNodeSelector) - 1; iNdEx >= 0; iNdEx-- {
 			v := m.NodeSelector[string(keysForNodeSelector[iNdEx])]
 			baseI := i
@@ -843,7 +455,7 @@ func (m *ReplicaRequirements) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		for k := range m.ResourceRequest {
 			keysForResourceRequest = append(keysForResourceRequest, string(k))
 		}
-		github_com_gogo_protobuf_sortkeys.Strings(keysForResourceRequest)
+		sort.Strings(keysForResourceRequest)
 		for iNdEx := len(keysForResourceRequest) - 1; iNdEx >= 0; iNdEx-- {
 			v := m.ResourceRequest[k8s_io_api_core_v1.ResourceName(keysForResourceRequest[iNdEx])]
 			baseI := i
@@ -1170,7 +782,7 @@ func (this *ComponentReplicaRequirements) String() string {
 	for k := range this.ResourceRequest {
 		keysForResourceRequest = append(keysForResourceRequest, string(k))
 	}
-	github_com_gogo_protobuf_sortkeys.Strings(keysForResourceRequest)
+	sort.Strings(keysForResourceRequest)
 	mapStringForResourceRequest := "k8s_io_api_core_v1.ResourceList{"
 	for _, k := range keysForResourceRequest {
 		mapStringForResourceRequest += fmt.Sprintf("%v: %v,", k, this.ResourceRequest[k8s_io_api_core_v1.ResourceName(k)])
@@ -1245,7 +857,7 @@ func (this *NodeClaim) String() string {
 	for k := range this.NodeSelector {
 		keysForNodeSelector = append(keysForNodeSelector, k)
 	}
-	github_com_gogo_protobuf_sortkeys.Strings(keysForNodeSelector)
+	sort.Strings(keysForNodeSelector)
 	mapStringForNodeSelector := "map[string]string{"
 	for _, k := range keysForNodeSelector {
 		mapStringForNodeSelector += fmt.Sprintf("%v: %v,", k, this.NodeSelector[k])
@@ -1280,7 +892,7 @@ func (this *ReplicaRequirements) String() string {
 	for k := range this.ResourceRequest {
 		keysForResourceRequest = append(keysForResourceRequest, string(k))
 	}
-	github_com_gogo_protobuf_sortkeys.Strings(keysForResourceRequest)
+	sort.Strings(keysForResourceRequest)
 	mapStringForResourceRequest := "k8s_io_api_core_v1.ResourceList{"
 	for _, k := range keysForResourceRequest {
 		mapStringForResourceRequest += fmt.Sprintf("%v: %v,", k, this.ResourceRequest[k8s_io_api_core_v1.ResourceName(k)])

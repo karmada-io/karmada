@@ -24,9 +24,13 @@ import (
 
 // StaticClusterAssignmentApplyConfiguration represents a declarative configuration of the StaticClusterAssignment type for use
 // with apply.
+//
+// StaticClusterAssignment represents the set of desired hard limits for a specific cluster.
 type StaticClusterAssignmentApplyConfiguration struct {
-	ClusterName *string          `json:"clusterName,omitempty"`
-	Hard        *v1.ResourceList `json:"hard,omitempty"`
+	// ClusterName is the name of the cluster the limits enforce to.
+	ClusterName *string `json:"clusterName,omitempty"`
+	// Hard is the set of desired hard limits for each named resource.
+	Hard *v1.ResourceList `json:"hard,omitempty"`
 }
 
 // StaticClusterAssignmentApplyConfiguration constructs a declarative configuration of the StaticClusterAssignment type for use with

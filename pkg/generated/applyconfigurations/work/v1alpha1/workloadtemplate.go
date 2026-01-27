@@ -20,7 +20,10 @@ package v1alpha1
 
 // WorkloadTemplateApplyConfiguration represents a declarative configuration of the WorkloadTemplate type for use
 // with apply.
+//
+// WorkloadTemplate represents the manifest workload to be deployed on managed cluster.
 type WorkloadTemplateApplyConfiguration struct {
+	// Manifests represents a list of Kubernetes resources to be deployed on the managed cluster.
 	Manifests []ManifestApplyConfiguration `json:"manifests,omitempty"`
 }
 

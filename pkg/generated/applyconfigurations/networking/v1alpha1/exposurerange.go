@@ -20,7 +20,12 @@ package v1alpha1
 
 // ExposureRangeApplyConfiguration represents a declarative configuration of the ExposureRange type for use
 // with apply.
+//
+// ExposureRange describes a list of clusters where the service is exposed.
+// Now supports selecting cluster by name, leave the room for extend more methods
+// such as using label selector.
 type ExposureRangeApplyConfiguration struct {
+	// ClusterNames is the list of clusters to be selected.
 	ClusterNames []string `json:"clusterNames,omitempty"`
 }
 

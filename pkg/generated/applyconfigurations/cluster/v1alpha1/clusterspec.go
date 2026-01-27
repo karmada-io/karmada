@@ -25,21 +25,125 @@ import (
 
 // ClusterSpecApplyConfiguration represents a declarative configuration of the ClusterSpec type for use
 // with apply.
+//
+// ClusterSpec defines the desired state of a member cluster.
 type ClusterSpecApplyConfiguration struct {
-	ID                          *string                                 `json:"id,omitempty"`
-	SyncMode                    *clusterv1alpha1.ClusterSyncMode        `json:"syncMode,omitempty"`
-	APIEndpoint                 *string                                 `json:"apiEndpoint,omitempty"`
-	SecretRef                   *LocalSecretReferenceApplyConfiguration `json:"secretRef,omitempty"`
-	ImpersonatorSecretRef       *LocalSecretReferenceApplyConfiguration `json:"impersonatorSecretRef,omitempty"`
-	InsecureSkipTLSVerification *bool                                   `json:"insecureSkipTLSVerification,omitempty"`
-	ProxyURL                    *string                                 `json:"proxyURL,omitempty"`
-	ProxyHeader                 map[string]string                       `json:"proxyHeader,omitempty"`
-	Provider                    *string                                 `json:"provider,omitempty"`
-	Region                      *string                                 `json:"region,omitempty"`
-	Zone                        *string                                 `json:"zone,omitempty"`
-	Zones                       []string                                `json:"zones,omitempty"`
-	Taints                      []v1.TaintApplyConfiguration            `json:"taints,omitempty"`
-	ResourceModels              []ResourceModelApplyConfiguration       `json:"resourceModels,omitempty"`
+	// ID is the unique identifier for the cluster.
+	// It is different from the object uid(.metadata.uid) and is typically collected automatically
+	// from each member cluster during the process of registration.
+	//
+	// The value is collected in order:
+	// 1. If the registering cluster enabled ClusterProperty API and defined the cluster ID by
+	// creating a ClusterProperty object with name 'cluster.clusterset.k8s.io', Karmada would
+	// take the defined value in the ClusterProperty object.
+	// See https://github.com/kubernetes-sigs/about-api for more details about ClusterProperty API.
+	// 2. Take the uid of 'kube-system' namespace on the registering cluster.
+	//
+	// Please don't update this value unless you know what you are doing, because
+	// it will/may be used to :
+	// - uniquely identify the clusters within the Karmada system.
+	// - compose the DNS name of multi-cluster services.
+	ID *string `json:"id,omitempty"`
+	// SyncMode describes how a cluster syncs resources from karmada control plane.
+	SyncMode *clusterv1alpha1.ClusterSyncMode `json:"syncMode,omitempty"`
+	// The API endpoint of the member cluster. This can be a hostname,
+	// hostname:port, IP or IP:port.
+	APIEndpoint *string `json:"apiEndpoint,omitempty"`
+	// SecretRef represents the secret that contains mandatory credentials to access the member cluster.
+	// The secret should hold credentials as follows:
+	// - secret.data.token
+	// - secret.data.caBundle
+	SecretRef *LocalSecretReferenceApplyConfiguration `json:"secretRef,omitempty"`
+	// ImpersonatorSecretRef represents the secret that contains the token of impersonator.
+	// The secret should hold credentials as follows:
+	// - secret.data.token
+	ImpersonatorSecretRef *LocalSecretReferenceApplyConfiguration `json:"impersonatorSecretRef,omitempty"`
+	// InsecureSkipTLSVerification indicates that the karmada control plane should not confirm the validity of the serving
+	// certificate of the cluster it is connecting to. This will make the HTTPS connection between the karmada control
+	// plane and the member cluster insecure.
+	// Defaults to false.
+	InsecureSkipTLSVerification *bool `json:"insecureSkipTLSVerification,omitempty"`
+	// ProxyURL is the proxy URL for the cluster.
+	// If not empty, the karmada control plane will use this proxy to talk to the cluster.
+	// For more details please refer to: https://github.com/kubernetes/client-go/issues/351
+	ProxyURL *string `json:"proxyURL,omitempty"`
+	// ProxyHeader is the HTTP header required by proxy server.
+	// The key in the key-value pair is HTTP header key and the value is the associated header payloads.
+	// For the header with multiple values, the values should be separated by comma(e.g. 'k1': 'v1,v2,v3').
+	ProxyHeader map[string]string `json:"proxyHeader,omitempty"`
+	// Provider represents the cloud provider name of the member cluster.
+	Provider *string `json:"provider,omitempty"`
+	// Region represents the region in which the member cluster is located.
+	Region *string `json:"region,omitempty"`
+	// Zone represents the zone in which the member cluster is located.
+	// Deprecated: This field was never been used by Karmada, and it will not be
+	// removed from v1alpha1 for backward compatibility, use Zones instead.
+	Zone *string `json:"zone,omitempty"`
+	// Zones represents the failure zones(also called availability zones) of the
+	// member cluster. The zones are presented as a slice to support the case
+	// that cluster runs across multiple failure zones.
+	// Refer https://kubernetes.io/docs/setup/best-practices/multiple-zones/ for
+	// more details about running Kubernetes in multiple zones.
+	Zones []string `json:"zones,omitempty"`
+	// Taints are attached to the member cluster.
+	// Taints on the cluster have the "effect" on
+	// any resource that does not tolerate the Taint.
+	Taints []v1.TaintApplyConfiguration `json:"taints,omitempty"`
+	// ResourceModels is the list of resource modeling in this cluster. Each modeling quota can be customized by the user.
+	// Modeling name must be one of the following: cpu, memory, storage, ephemeral-storage.
+	// If the user does not define the modeling name and modeling quota, it will be the default model.
+	// The default model grade from 0 to 8.
+	// When grade = 0 or grade = 1, the default model's cpu quota and memory quota is a fix value.
+	// When grade greater than or equal to 2, each default model's cpu quota is [2^(grade-1), 2^grade), 2 <= grade <= 7
+	// Each default model's memory quota is [2^(grade + 2), 2^(grade + 3)), 2 <= grade <= 7
+	// E.g. grade 0 likes this:
+	// - grade: 0
+	// ranges:
+	// - name: "cpu"
+	// min: 0 C
+	// max: 1 C
+	// - name: "memory"
+	// min: 0 GB
+	// max: 4 GB
+	//
+	// - grade: 1
+	// ranges:
+	// - name: "cpu"
+	// min: 1 C
+	// max: 2 C
+	// - name: "memory"
+	// min: 4 GB
+	// max: 16 GB
+	//
+	// - grade: 2
+	// ranges:
+	// - name: "cpu"
+	// min: 2 C
+	// max: 4 C
+	// - name: "memory"
+	// min: 16 GB
+	// max: 32 GB
+	//
+	// - grade: 7
+	// range:
+	// - name: "cpu"
+	// min: 64 C
+	// max: 128 C
+	// - name: "memory"
+	// min: 512 GB
+	// max: 1024 GB
+	//
+	// grade 8, the last one likes below. No matter what Max value you pass,
+	// the meaning of Max value in this grade is infinite. You can pass any number greater than Min value.
+	// - grade: 8
+	// range:
+	// - name: "cpu"
+	// min: 128 C
+	// max: MAXINT
+	// - name: "memory"
+	// min: 1024 GB
+	// max: MAXINT
+	ResourceModels []ResourceModelApplyConfiguration `json:"resourceModels,omitempty"`
 }
 
 // ClusterSpecApplyConfiguration constructs a declarative configuration of the ClusterSpec type for use with

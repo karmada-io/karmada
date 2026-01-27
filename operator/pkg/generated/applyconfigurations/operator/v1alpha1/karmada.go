@@ -29,11 +29,16 @@ import (
 
 // KarmadaApplyConfiguration represents a declarative configuration of the Karmada type for use
 // with apply.
+//
+// Karmada enables declarative installation of karmada.
 type KarmadaApplyConfiguration struct {
-	v1.TypeMetaApplyConfiguration    `json:",inline"`
+	v1.TypeMetaApplyConfiguration `json:",inline"`
+	// Standard object's metadata.
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
-	Spec                             *KarmadaSpecApplyConfiguration   `json:"spec,omitempty"`
-	Status                           *KarmadaStatusApplyConfiguration `json:"status,omitempty"`
+	// Spec defines the desired behavior of the Karmada.
+	Spec *KarmadaSpecApplyConfiguration `json:"spec,omitempty"`
+	// Most recently observed status of the Karmada.
+	Status *KarmadaStatusApplyConfiguration `json:"status,omitempty"`
 }
 
 // Karmada constructs a declarative configuration of the Karmada type for use with
@@ -47,29 +52,14 @@ func Karmada(name, namespace string) *KarmadaApplyConfiguration {
 	return b
 }
 
-// ExtractKarmada extracts the applied configuration owned by fieldManager from
-// karmada. If no managedFields are found in karmada for fieldManager, a
-// KarmadaApplyConfiguration is returned with only the Name, Namespace (if applicable),
-// APIVersion and Kind populated. It is possible that no managed fields were found for because other
-// field managers have taken ownership of all the fields previously owned by fieldManager, or because
-// the fieldManager never owned fields any fields.
+// ExtractKarmadaFrom extracts the applied configuration owned by fieldManager from
+// karmada for the specified subresource. Pass an empty string for subresource to extract
+// the main resource. Common subresources include "status", "scale", etc.
 // karmada must be a unmodified Karmada API object that was retrieved from the Kubernetes API.
-// ExtractKarmada provides a way to perform a extract/modify-in-place/apply workflow.
+// ExtractKarmadaFrom provides a way to perform a extract/modify-in-place/apply workflow.
 // Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
 // applied if another fieldManager has updated or force applied any of the previously applied fields.
-// Experimental!
-func ExtractKarmada(karmada *operatorv1alpha1.Karmada, fieldManager string) (*KarmadaApplyConfiguration, error) {
-	return extractKarmada(karmada, fieldManager, "")
-}
-
-// ExtractKarmadaStatus is the same as ExtractKarmada except
-// that it extracts the status subresource applied configuration.
-// Experimental!
-func ExtractKarmadaStatus(karmada *operatorv1alpha1.Karmada, fieldManager string) (*KarmadaApplyConfiguration, error) {
-	return extractKarmada(karmada, fieldManager, "status")
-}
-
-func extractKarmada(karmada *operatorv1alpha1.Karmada, fieldManager string, subresource string) (*KarmadaApplyConfiguration, error) {
+func ExtractKarmadaFrom(karmada *operatorv1alpha1.Karmada, fieldManager string, subresource string) (*KarmadaApplyConfiguration, error) {
 	b := &KarmadaApplyConfiguration{}
 	err := managedfields.ExtractInto(karmada, internal.Parser().Type("com.github.karmada-io.karmada.operator.pkg.apis.operator.v1alpha1.Karmada"), fieldManager, b, subresource)
 	if err != nil {
@@ -82,6 +72,27 @@ func extractKarmada(karmada *operatorv1alpha1.Karmada, fieldManager string, subr
 	b.WithAPIVersion("operator.karmada.io/v1alpha1")
 	return b, nil
 }
+
+// ExtractKarmada extracts the applied configuration owned by fieldManager from
+// karmada. If no managedFields are found in karmada for fieldManager, a
+// KarmadaApplyConfiguration is returned with only the Name, Namespace (if applicable),
+// APIVersion and Kind populated. It is possible that no managed fields were found for because other
+// field managers have taken ownership of all the fields previously owned by fieldManager, or because
+// the fieldManager never owned fields any fields.
+// karmada must be a unmodified Karmada API object that was retrieved from the Kubernetes API.
+// ExtractKarmada provides a way to perform a extract/modify-in-place/apply workflow.
+// Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
+// applied if another fieldManager has updated or force applied any of the previously applied fields.
+func ExtractKarmada(karmada *operatorv1alpha1.Karmada, fieldManager string) (*KarmadaApplyConfiguration, error) {
+	return ExtractKarmadaFrom(karmada, fieldManager, "")
+}
+
+// ExtractKarmadaStatus extracts the applied configuration owned by fieldManager from
+// karmada for the status subresource.
+func ExtractKarmadaStatus(karmada *operatorv1alpha1.Karmada, fieldManager string) (*KarmadaApplyConfiguration, error) {
+	return ExtractKarmadaFrom(karmada, fieldManager, "status")
+}
+
 func (b KarmadaApplyConfiguration) IsApplyConfiguration() {}
 
 // WithKind sets the Kind field in the declarative configuration to the given value

@@ -20,14 +20,44 @@ package v1alpha1
 
 // KarmadaSpecApplyConfiguration represents a declarative configuration of the KarmadaSpec type for use
 // with apply.
+//
+// KarmadaSpec is the specification of the desired behavior of the Karmada.
 type KarmadaSpecApplyConfiguration struct {
-	HostCluster       *HostClusterApplyConfiguration       `json:"hostCluster,omitempty"`
-	PrivateRegistry   *ImageRegistryApplyConfiguration     `json:"privateRegistry,omitempty"`
-	Components        *KarmadaComponentsApplyConfiguration `json:"components,omitempty"`
-	FeatureGates      map[string]bool                      `json:"featureGates,omitempty"`
-	CRDTarball        *CRDTarballApplyConfiguration        `json:"crdTarball,omitempty"`
+	// HostCluster represents the cluster where to install the Karmada control plane.
+	// If not set, the control plane will be installed on the cluster where
+	// running the operator.
+	HostCluster *HostClusterApplyConfiguration `json:"hostCluster,omitempty"`
+	// PrivateRegistry is the global image registry.
+	// If set, the operator will pull all required images from it, no matter
+	// the image is maintained by Karmada or Kubernetes.
+	// It will be useful for offline installation to specify an accessible registry.
+	PrivateRegistry *ImageRegistryApplyConfiguration `json:"privateRegistry,omitempty"`
+	// Components define all of karmada components.
+	// not all of these components need to be installed.
+	Components *KarmadaComponentsApplyConfiguration `json:"components,omitempty"`
+	// FeatureGates enabled by the user.
+	// - Failover: https://karmada.io/docs/userguide/failover/#failover
+	// - GracefulEviction: https://karmada.io/docs/userguide/failover/#graceful-eviction-feature
+	// - PropagateDeps: https://karmada.io/docs/userguide/scheduling/propagate-dependencies
+	// - CustomizedClusterResourceModeling: https://karmada.io/docs/userguide/scheduling/cluster-resources#start-to-use-cluster-resource-models
+	// More info: https://github.com/karmada-io/karmada/blob/master/pkg/features/features.go
+	FeatureGates map[string]bool `json:"featureGates,omitempty"`
+	// CRDTarball specifies the source from which the Karmada CRD tarball should be downloaded, along with the download policy to use.
+	// If not set, the operator will download the tarball from a GitHub release.
+	// By default, it will download the tarball of the same version as the operator itself.
+	// For instance, if the operator's version is v1.10.0, the tarball will be downloaded from the following location:
+	// https://github.com/karmada-io/karmada/releases/download/v1.10.0/crds.tar.gz
+	// By default, the operator will only attempt to download the tarball if it's not yet present in the local cache.
+	CRDTarball *CRDTarballApplyConfiguration `json:"crdTarball,omitempty"`
+	// CustomCertificate specifies the configuration to customize the certificates
+	// for Karmada components or control the certificate generation process, such as
+	// the algorithm, validity period, etc.
+	// Currently, it only supports customizing the CA certificate for limited components.
 	CustomCertificate *CustomCertificateApplyConfiguration `json:"customCertificate,omitempty"`
-	Suspend           *bool                                `json:"suspend,omitempty"`
+	// Suspend indicates that the operator should suspend reconciliation
+	// for this Karmada control plane and all its managed resources.
+	// Karmada instances for which this field is not explicitly set to `true` will continue to be reconciled as usual.
+	Suspend *bool `json:"suspend,omitempty"`
 }
 
 // KarmadaSpecApplyConfiguration constructs a declarative configuration of the KarmadaSpec type for use with

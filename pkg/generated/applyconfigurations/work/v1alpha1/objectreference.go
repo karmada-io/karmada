@@ -24,14 +24,27 @@ import (
 
 // ObjectReferenceApplyConfiguration represents a declarative configuration of the ObjectReference type for use
 // with apply.
+//
+// ObjectReference contains enough information to locate the referenced object inside current cluster.
 type ObjectReferenceApplyConfiguration struct {
-	APIVersion                  *string          `json:"apiVersion,omitempty"`
-	Kind                        *string          `json:"kind,omitempty"`
-	Namespace                   *string          `json:"namespace,omitempty"`
-	Name                        *string          `json:"name,omitempty"`
-	ResourceVersion             *string          `json:"resourceVersion,omitempty"`
+	// APIVersion represents the API version of the referent.
+	APIVersion *string `json:"apiVersion,omitempty"`
+	// Kind represents the Kind of the referent.
+	Kind *string `json:"kind,omitempty"`
+	// Namespace represents the namespace for the referent.
+	// For non-namespace scoped resources(e.g. 'ClusterRole')，do not need specify Namespace,
+	// and for namespace scoped resources, Namespace is required.
+	// If Namespace is not specified, means the resource is non-namespace scoped.
+	Namespace *string `json:"namespace,omitempty"`
+	// Name represents the name of the referent.
+	Name *string `json:"name,omitempty"`
+	// ResourceVersion represents the internal version of the referenced object, that can be used by clients to
+	// determine when object has changed.
+	ResourceVersion *string `json:"resourceVersion,omitempty"`
+	// ReplicaResourceRequirements represents the resources required by each replica.
 	ReplicaResourceRequirements *v1.ResourceList `json:"resourcePerReplicas,omitempty"`
-	Replicas                    *int32           `json:"replicas,omitempty"`
+	// Replicas represents the replica number of the referencing resource.
+	Replicas *int32 `json:"replicas,omitempty"`
 }
 
 // ObjectReferenceApplyConfiguration constructs a declarative configuration of the ObjectReference type for use with

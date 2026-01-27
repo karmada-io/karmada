@@ -20,10 +20,29 @@ package v1alpha1
 
 // RuleApplyConfiguration represents a declarative configuration of the Rule type for use
 // with apply.
+//
+// Rule is a tuple of APIGroups, APIVersion, and Kinds.
 type RuleApplyConfiguration struct {
-	APIGroups   []string `json:"apiGroups,omitempty"`
+	// APIGroups is the API groups the resources belong to. '*' is all groups.
+	// If '*' is present, the length of the slice must be one.
+	// For example:
+	// ["apps", "batch", "example.io"] means matches 3 groups.
+	// ["*"] means matches all group
+	//
+	// Note: The group could be empty, e.g the 'core' group of kubernetes, in that case use [""].
+	APIGroups []string `json:"apiGroups,omitempty"`
+	// APIVersions is the API versions the resources belong to. '*' is all versions.
+	// If '*' is present, the length of the slice must be one.
+	// For example:
+	// ["v1alpha1", "v1beta1"] means matches 2 versions.
+	// ["*"] means matches all versions.
 	APIVersions []string `json:"apiVersions,omitempty"`
-	Kinds       []string `json:"kinds,omitempty"`
+	// Kinds is a list of resources this rule applies to.
+	// If '*' is present, the length of the slice must be one.
+	// For example:
+	// ["Deployment", "Pod"] means matches Deployment and Pod.
+	// ["*"] means apply to all resources.
+	Kinds []string `json:"kinds,omitempty"`
 }
 
 // RuleApplyConfiguration constructs a declarative configuration of the Rule type for use with

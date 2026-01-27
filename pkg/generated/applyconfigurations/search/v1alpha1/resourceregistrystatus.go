@@ -24,7 +24,10 @@ import (
 
 // ResourceRegistryStatusApplyConfiguration represents a declarative configuration of the ResourceRegistryStatus type for use
 // with apply.
+//
+// ResourceRegistryStatus defines the observed state of ResourceRegistry
 type ResourceRegistryStatusApplyConfiguration struct {
+	// Conditions contain the different condition statuses.
 	Conditions []v1.ConditionApplyConfiguration `json:"conditions,omitempty"`
 }
 

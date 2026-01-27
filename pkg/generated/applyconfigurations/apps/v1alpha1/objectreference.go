@@ -20,11 +20,18 @@ package v1alpha1
 
 // ObjectReferenceApplyConfiguration represents a declarative configuration of the ObjectReference type for use
 // with apply.
+//
+// ObjectReference the expected resource.
 type ObjectReferenceApplyConfiguration struct {
+	// APIVersion represents the API version of the target resource.
 	APIVersion *string `json:"apiVersion,omitempty"`
-	Kind       *string `json:"kind,omitempty"`
-	Name       *string `json:"name,omitempty"`
-	Namespace  *string `json:"namespace,omitempty"`
+	// Kind represents the Kind of the target resource.
+	Kind *string `json:"kind,omitempty"`
+	// Name of the target resource.
+	Name *string `json:"name,omitempty"`
+	// Namespace of the target resource.
+	// Default is empty, which means it is a non-namespacescoped resource.
+	Namespace *string `json:"namespace,omitempty"`
 }
 
 // ObjectReferenceApplyConfiguration constructs a declarative configuration of the ObjectReference type for use with

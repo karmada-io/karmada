@@ -20,9 +20,13 @@ package v1alpha1
 
 // StaticClusterWeightApplyConfiguration represents a declarative configuration of the StaticClusterWeight type for use
 // with apply.
+//
+// StaticClusterWeight defines the static cluster weight.
 type StaticClusterWeightApplyConfiguration struct {
+	// TargetCluster describes the filter to select clusters.
 	TargetCluster *ClusterAffinityApplyConfiguration `json:"targetCluster,omitempty"`
-	Weight        *int64                             `json:"weight,omitempty"`
+	// Weight expressing the preference to the cluster(s) specified by 'TargetCluster'.
+	Weight *int64 `json:"weight,omitempty"`
 }
 
 // StaticClusterWeightApplyConfiguration constructs a declarative configuration of the StaticClusterWeight type for use with

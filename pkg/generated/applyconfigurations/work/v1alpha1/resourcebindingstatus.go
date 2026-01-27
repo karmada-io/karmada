@@ -24,8 +24,12 @@ import (
 
 // ResourceBindingStatusApplyConfiguration represents a declarative configuration of the ResourceBindingStatus type for use
 // with apply.
+//
+// ResourceBindingStatus represents the overall status of the strategy as well as the referenced resources.
 type ResourceBindingStatusApplyConfiguration struct {
-	Conditions       []v1.ConditionApplyConfiguration         `json:"conditions,omitempty"`
+	// Conditions contain the different condition statuses.
+	Conditions []v1.ConditionApplyConfiguration `json:"conditions,omitempty"`
+	// AggregatedStatus represents status list of the resource running in each member cluster.
 	AggregatedStatus []AggregatedStatusItemApplyConfiguration `json:"aggregatedStatus,omitempty"`
 }
 

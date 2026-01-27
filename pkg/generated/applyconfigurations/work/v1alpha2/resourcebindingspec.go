@@ -26,24 +26,85 @@ import (
 
 // ResourceBindingSpecApplyConfiguration represents a declarative configuration of the ResourceBindingSpec type for use
 // with apply.
+//
+// ResourceBindingSpec represents the expectation of ResourceBinding.
 type ResourceBindingSpecApplyConfiguration struct {
-	Resource                    *ObjectReferenceApplyConfiguration           `json:"resource,omitempty"`
-	PropagateDeps               *bool                                        `json:"propagateDeps,omitempty"`
-	ReplicaRequirements         *ReplicaRequirementsApplyConfiguration       `json:"replicaRequirements,omitempty"`
-	Replicas                    *int32                                       `json:"replicas,omitempty"`
-	Components                  []ComponentApplyConfiguration                `json:"components,omitempty"`
-	Clusters                    []TargetClusterApplyConfiguration            `json:"clusters,omitempty"`
-	Placement                   *v1alpha1.PlacementApplyConfiguration        `json:"placement,omitempty"`
-	GracefulEvictionTasks       []GracefulEvictionTaskApplyConfiguration     `json:"gracefulEvictionTasks,omitempty"`
-	RequiredBy                  []BindingSnapshotApplyConfiguration          `json:"requiredBy,omitempty"`
-	SchedulerName               *string                                      `json:"schedulerName,omitempty"`
-	Failover                    *v1alpha1.FailoverBehaviorApplyConfiguration `json:"failover,omitempty"`
-	ConflictResolution          *policyv1alpha1.ConflictResolution           `json:"conflictResolution,omitempty"`
-	RescheduleTriggeredAt       *v1.Time                                     `json:"rescheduleTriggeredAt,omitempty"`
-	Suspension                  *SuspensionApplyConfiguration                `json:"suspension,omitempty"`
-	PreserveResourcesOnDeletion *bool                                        `json:"preserveResourcesOnDeletion,omitempty"`
-	SchedulePriority            *SchedulePriorityApplyConfiguration          `json:"schedulePriority,omitempty"`
-	WorkloadAffinityGroups      *WorkloadAffinityGroupsApplyConfiguration    `json:"workloadAffinityGroups,omitempty"`
+	// Resource represents the Kubernetes resource to be propagated.
+	Resource *ObjectReferenceApplyConfiguration `json:"resource,omitempty"`
+	// PropagateDeps tells if relevant resources should be propagated automatically.
+	// It is inherited from PropagationPolicy or ClusterPropagationPolicy.
+	// default false.
+	PropagateDeps *bool `json:"propagateDeps,omitempty"`
+	// ReplicaRequirements represents the resource and scheduling requirements for each replica.
+	ReplicaRequirements *ReplicaRequirementsApplyConfiguration `json:"replicaRequirements,omitempty"`
+	// Replicas represents the replica number of the referencing resource.
+	Replicas *int32 `json:"replicas,omitempty"`
+	// Components represents the requirements of multiple pod templates of the referencing resource.
+	// It is designed to support workloads that consist of multiple pod templates,
+	// such as distributed training jobs (e.g., PyTorch, TensorFlow) and big data workloads (e.g., FlinkDeployment),
+	// where each workload is composed of more than one pod template. It is also capable of representing
+	// single-component workloads, such as Deployment.
+	//
+	// Note: This field is intended to replace the legacy ReplicaRequirements and Replicas fields above.
+	// It is only populated when the MultiplePodTemplatesScheduling feature gate is enabled.
+	Components []ComponentApplyConfiguration `json:"components,omitempty"`
+	// Clusters represents target member clusters where the resource to be deployed.
+	Clusters []TargetClusterApplyConfiguration `json:"clusters,omitempty"`
+	// Placement represents the rule for select clusters to propagate resources.
+	Placement *v1alpha1.PlacementApplyConfiguration `json:"placement,omitempty"`
+	// GracefulEvictionTasks holds the eviction tasks that are expected to perform
+	// the eviction in a graceful way.
+	// The intended workflow is:
+	// 1. Once the controller(such as 'taint-manager') decided to evict the resource that
+	// is referenced by current ResourceBinding or ClusterResourceBinding from a target
+	// cluster, it removes(or scale down the replicas) the target from Clusters(.spec.Clusters)
+	// and builds a graceful eviction task.
+	// 2. The scheduler may perform a re-scheduler and probably select a substitute cluster
+	// to take over the evicting workload(resource).
+	// 3. The graceful eviction controller takes care of the graceful eviction tasks and
+	// performs the final removal after the workload(resource) is available on the substitute
+	// cluster or exceed the grace termination period(defaults to 10 minutes).
+	GracefulEvictionTasks []GracefulEvictionTaskApplyConfiguration `json:"gracefulEvictionTasks,omitempty"`
+	// RequiredBy represents the list of Bindings that depend on the referencing resource.
+	RequiredBy []BindingSnapshotApplyConfiguration `json:"requiredBy,omitempty"`
+	// SchedulerName represents which scheduler to proceed the scheduling.
+	// It inherits directly from the associated PropagationPolicy(or ClusterPropagationPolicy).
+	SchedulerName *string `json:"schedulerName,omitempty"`
+	// Failover indicates how Karmada migrates applications in case of failures.
+	// It inherits directly from the associated PropagationPolicy(or ClusterPropagationPolicy).
+	Failover *v1alpha1.FailoverBehaviorApplyConfiguration `json:"failover,omitempty"`
+	// ConflictResolution declares how potential conflict should be handled when
+	// a resource that is being propagated already exists in the target cluster.
+	//
+	// It defaults to "Abort" which means stop propagating to avoid unexpected
+	// overwrites. The "Overwrite" might be useful when migrating legacy cluster
+	// resources to Karmada, in which case conflict is predictable and can be
+	// instructed to Karmada take over the resource by overwriting.
+	ConflictResolution *policyv1alpha1.ConflictResolution `json:"conflictResolution,omitempty"`
+	// RescheduleTriggeredAt is a timestamp representing when the referenced resource is triggered rescheduling.
+	// When this field is updated, it means a rescheduling is manually triggered by user, and the expected behavior
+	// of this action is to do a complete recalculation without referring to last scheduling results.
+	// It works with the status.lastScheduledTime field, and only when this timestamp is later than timestamp in
+	// status.lastScheduledTime will the rescheduling actually execute, otherwise, ignored.
+	//
+	// It is represented in RFC3339 form (like '2006-01-02T15:04:05Z') and is in UTC.
+	RescheduleTriggeredAt *v1.Time `json:"rescheduleTriggeredAt,omitempty"`
+	// Suspension declares the policy for suspending different aspects of propagation.
+	// nil means no suspension. no default values.
+	Suspension *SuspensionApplyConfiguration `json:"suspension,omitempty"`
+	// PreserveResourcesOnDeletion controls whether resources should be preserved on the
+	// member clusters when the binding object is deleted.
+	// If set to true, resources will be preserved on the member clusters.
+	// Default is false, which means resources will be deleted along with the binding object.
+	// This setting applies to all Work objects created under this binding object.
+	PreserveResourcesOnDeletion *bool `json:"preserveResourcesOnDeletion,omitempty"`
+	// SchedulePriority represents the scheduling priority assigned to workloads.
+	SchedulePriority *SchedulePriorityApplyConfiguration `json:"schedulePriority,omitempty"`
+	// WorkloadAffinityGroups represents instantiated grouping results from .spec.placement.workloadAffinity,
+	// used to keep workloads with the same affinity group co-located or those with the same
+	// anti-affinity group separated across clusters. Populated by controllers, the scheduler
+	// consumes it for decisions.
+	WorkloadAffinityGroups *WorkloadAffinityGroupsApplyConfiguration `json:"workloadAffinityGroups,omitempty"`
 }
 
 // ResourceBindingSpecApplyConfiguration constructs a declarative configuration of the ResourceBindingSpec type for use with

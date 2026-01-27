@@ -24,8 +24,18 @@ import (
 
 // WorkStatusApplyConfiguration represents a declarative configuration of the WorkStatus type for use
 // with apply.
+//
+// WorkStatus defines the observed state of Work.
 type WorkStatusApplyConfiguration struct {
-	Conditions       []v1.ConditionApplyConfiguration   `json:"conditions,omitempty"`
+	// Conditions contain the different condition statuses for this work.
+	// Valid condition types are:
+	// 1. Applied represents workload in Work is applied successfully on a managed cluster.
+	// 2. Progressing represents workload in Work is being applied on a managed cluster.
+	// 3. Available represents workload in Work exists on the managed cluster.
+	// 4. Degraded represents the current state of workload does not match the desired
+	// state for a certain period.
+	Conditions []v1.ConditionApplyConfiguration `json:"conditions,omitempty"`
+	// ManifestStatuses contains running status of manifests in spec.
 	ManifestStatuses []ManifestStatusApplyConfiguration `json:"manifestStatuses,omitempty"`
 }
 

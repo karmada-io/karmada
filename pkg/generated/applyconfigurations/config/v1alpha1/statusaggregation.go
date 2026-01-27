@@ -20,7 +20,31 @@ package v1alpha1
 
 // StatusAggregationApplyConfiguration represents a declarative configuration of the StatusAggregation type for use
 // with apply.
+//
+// StatusAggregation holds the scripts for aggregating several decentralized statuses.
 type StatusAggregationApplyConfiguration struct {
+	// LuaScript holds the Lua script that is used to aggregate decentralized statuses
+	// to the desired specification.
+	// The script should implement a function as follows:
+	//
+	// ```
+	// luaScript: >
+	// function AggregateStatus(desiredObj, statusItems)
+	// for i = 1, #statusItems do
+	// desiredObj.status.readyReplicas = desiredObj.status.readyReplicas + items[i].readyReplicas
+	// end
+	// return desiredObj
+	// end
+	// ```
+	//
+	// The content of the LuaScript needs to be a whole function including both
+	// declaration and implementation.
+	//
+	// The parameters will be supplied by the system:
+	// - desiredObj: the object represents a resource template.
+	// - statusItems: the slice of status expressed with AggregatedStatusItem.
+	//
+	// The returned object should be a whole object with status aggregated.
 	LuaScript *string `json:"luaScript,omitempty"`
 }
 

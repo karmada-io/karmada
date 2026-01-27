@@ -20,7 +20,10 @@ package v1alpha1
 
 // NetworkingApplyConfiguration represents a declarative configuration of the Networking type for use
 // with apply.
+//
+// Networking contains elements describing cluster's networking configuration
 type NetworkingApplyConfiguration struct {
+	// DNSDomain is the dns domain used by k8s services. Defaults to "cluster.local".
 	DNSDomain *string `json:"dnsDomain,omitempty"`
 }
 

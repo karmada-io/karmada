@@ -20,7 +20,28 @@ package v1alpha1
 
 // WorkloadAffinityTermApplyConfiguration represents a declarative configuration of the WorkloadAffinityTerm type for use
 // with apply.
+//
+// WorkloadAffinityTerm defines affinity rules for co-locating workloads with
+// specific workload groups.
 type WorkloadAffinityTermApplyConfiguration struct {
+	// GroupByLabelKey declares the label key on the workload resource template that
+	// determines the affinity group. Workloads with the same label value under
+	// this key belong to the same affinity group.
+	//
+	// The scheduler maintains a global index of affinity groups in memory for
+	// efficient lookup. Each affinity group is identified by a serialized
+	// key-value pair and contains all workload resource templates that belong
+	// to the group.
+	//
+	// Note: Affinity groups are scoped to the namespace. Workloads that use the
+	// same affinity label but reside in different namespaces are not treated
+	// as part of the same group.
+	//
+	// The key must be a valid Kubernetes label key.
+	//
+	// Example: If GroupByLabelKey is "app.group", workloads with the label
+	// "app.group=frontend" will form one affinity group, while those with
+	// "app.group=backend" will form another.
 	GroupByLabelKey *string `json:"groupByLabelKey,omitempty"`
 }
 

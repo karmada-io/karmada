@@ -20,9 +20,18 @@ package v1alpha1
 
 // WorkloadRebalancerSpecApplyConfiguration represents a declarative configuration of the WorkloadRebalancerSpec type for use
 // with apply.
+//
+// WorkloadRebalancerSpec represents the specification of the desired behavior of Reschedule.
 type WorkloadRebalancerSpecApplyConfiguration struct {
-	Workloads               []ObjectReferenceApplyConfiguration `json:"workloads,omitempty"`
-	TTLSecondsAfterFinished *int32                              `json:"ttlSecondsAfterFinished,omitempty"`
+	// Workloads used to specify the list of expected resource.
+	// Nil or empty list is not allowed.
+	Workloads []ObjectReferenceApplyConfiguration `json:"workloads,omitempty"`
+	// TTLSecondsAfterFinished limits the lifetime of a WorkloadRebalancer that has finished execution (means each
+	// target workload is finished with result of Successful or Failed).
+	// If this field is set, ttlSecondsAfterFinished after the WorkloadRebalancer finishes, it is eligible to be automatically deleted.
+	// If this field is unset, the WorkloadRebalancer won't be automatically deleted.
+	// If this field is set to zero, the WorkloadRebalancer becomes eligible to be deleted immediately after it finishes.
+	TTLSecondsAfterFinished *int32 `json:"ttlSecondsAfterFinished,omitempty"`
 }
 
 // WorkloadRebalancerSpecApplyConfiguration constructs a declarative configuration of the WorkloadRebalancerSpec type for use with

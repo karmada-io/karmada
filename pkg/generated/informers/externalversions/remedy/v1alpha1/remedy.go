@@ -56,7 +56,7 @@ func NewRemedyInformer(client versioned.Interface, resyncPeriod time.Duration, i
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredRemedyInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
-		&cache.ListWatch{
+		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
@@ -81,7 +81,7 @@ func NewFilteredRemedyInformer(client versioned.Interface, resyncPeriod time.Dur
 				}
 				return client.RemedyV1alpha1().Remedies().Watch(ctx, options)
 			},
-		},
+		}, client),
 		&apisremedyv1alpha1.Remedy{},
 		resyncPeriod,
 		indexers,

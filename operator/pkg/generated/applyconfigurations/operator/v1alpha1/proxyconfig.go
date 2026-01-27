@@ -20,7 +20,12 @@ package v1alpha1
 
 // ProxyConfigApplyConfiguration represents a declarative configuration of the ProxyConfig type for use
 // with apply.
+//
+// ProxyConfig defines the configuration for a proxy server to use when downloading a CRD tarball.
 type ProxyConfigApplyConfiguration struct {
+	// ProxyURL specifies the HTTP/HTTPS proxy server URL to use when downloading the CRD tarball.
+	// This is useful in environments where direct access to the server hosting the CRD tarball is restricted and a proxy must be used to reach that server.
+	// The format should be a valid URL, e.g., "http://proxy.example.com:8080".
 	ProxyURL *string `json:"proxyURL,omitempty"`
 }
 

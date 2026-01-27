@@ -24,10 +24,18 @@ import (
 
 // CommandArgsOverriderApplyConfiguration represents a declarative configuration of the CommandArgsOverrider type for use
 // with apply.
+//
+// CommandArgsOverrider represents the rules dedicated to handling command/args overrides.
 type CommandArgsOverriderApplyConfiguration struct {
-	ContainerName *string                           `json:"containerName,omitempty"`
-	Operator      *policyv1alpha1.OverriderOperator `json:"operator,omitempty"`
-	Value         []string                          `json:"value,omitempty"`
+	// The name of container
+	ContainerName *string `json:"containerName,omitempty"`
+	// Operator represents the operator which will apply on the command/args.
+	Operator *policyv1alpha1.OverriderOperator `json:"operator,omitempty"`
+	// Value to be applied to command/args.
+	// Items in Value which will be appended after command/args when Operator is 'add'.
+	// Items in Value which match in command/args will be deleted when Operator is 'remove'.
+	// If Value is empty, then the command/args will remain the same.
+	Value []string `json:"value,omitempty"`
 }
 
 // CommandArgsOverriderApplyConfiguration constructs a declarative configuration of the CommandArgsOverrider type for use with

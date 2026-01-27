@@ -29,10 +29,16 @@ import (
 
 // ResourceInterpreterCustomizationApplyConfiguration represents a declarative configuration of the ResourceInterpreterCustomization type for use
 // with apply.
+//
+// ResourceInterpreterCustomization describes the configuration of a specific
+// resource for Karmada to get the structure.
+// It has higher precedence than the default interpreter and the interpreter
+// webhook.
 type ResourceInterpreterCustomizationApplyConfiguration struct {
 	v1.TypeMetaApplyConfiguration    `json:",inline"`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
-	Spec                             *ResourceInterpreterCustomizationSpecApplyConfiguration `json:"spec,omitempty"`
+	// Spec describes the configuration in detail.
+	Spec *ResourceInterpreterCustomizationSpecApplyConfiguration `json:"spec,omitempty"`
 }
 
 // ResourceInterpreterCustomization constructs a declarative configuration of the ResourceInterpreterCustomization type for use with
@@ -45,29 +51,14 @@ func ResourceInterpreterCustomization(name string) *ResourceInterpreterCustomiza
 	return b
 }
 
-// ExtractResourceInterpreterCustomization extracts the applied configuration owned by fieldManager from
-// resourceInterpreterCustomization. If no managedFields are found in resourceInterpreterCustomization for fieldManager, a
-// ResourceInterpreterCustomizationApplyConfiguration is returned with only the Name, Namespace (if applicable),
-// APIVersion and Kind populated. It is possible that no managed fields were found for because other
-// field managers have taken ownership of all the fields previously owned by fieldManager, or because
-// the fieldManager never owned fields any fields.
+// ExtractResourceInterpreterCustomizationFrom extracts the applied configuration owned by fieldManager from
+// resourceInterpreterCustomization for the specified subresource. Pass an empty string for subresource to extract
+// the main resource. Common subresources include "status", "scale", etc.
 // resourceInterpreterCustomization must be a unmodified ResourceInterpreterCustomization API object that was retrieved from the Kubernetes API.
-// ExtractResourceInterpreterCustomization provides a way to perform a extract/modify-in-place/apply workflow.
+// ExtractResourceInterpreterCustomizationFrom provides a way to perform a extract/modify-in-place/apply workflow.
 // Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
 // applied if another fieldManager has updated or force applied any of the previously applied fields.
-// Experimental!
-func ExtractResourceInterpreterCustomization(resourceInterpreterCustomization *configv1alpha1.ResourceInterpreterCustomization, fieldManager string) (*ResourceInterpreterCustomizationApplyConfiguration, error) {
-	return extractResourceInterpreterCustomization(resourceInterpreterCustomization, fieldManager, "")
-}
-
-// ExtractResourceInterpreterCustomizationStatus is the same as ExtractResourceInterpreterCustomization except
-// that it extracts the status subresource applied configuration.
-// Experimental!
-func ExtractResourceInterpreterCustomizationStatus(resourceInterpreterCustomization *configv1alpha1.ResourceInterpreterCustomization, fieldManager string) (*ResourceInterpreterCustomizationApplyConfiguration, error) {
-	return extractResourceInterpreterCustomization(resourceInterpreterCustomization, fieldManager, "status")
-}
-
-func extractResourceInterpreterCustomization(resourceInterpreterCustomization *configv1alpha1.ResourceInterpreterCustomization, fieldManager string, subresource string) (*ResourceInterpreterCustomizationApplyConfiguration, error) {
+func ExtractResourceInterpreterCustomizationFrom(resourceInterpreterCustomization *configv1alpha1.ResourceInterpreterCustomization, fieldManager string, subresource string) (*ResourceInterpreterCustomizationApplyConfiguration, error) {
 	b := &ResourceInterpreterCustomizationApplyConfiguration{}
 	err := managedfields.ExtractInto(resourceInterpreterCustomization, internal.Parser().Type("com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.ResourceInterpreterCustomization"), fieldManager, b, subresource)
 	if err != nil {
@@ -79,6 +70,21 @@ func extractResourceInterpreterCustomization(resourceInterpreterCustomization *c
 	b.WithAPIVersion("config.karmada.io/v1alpha1")
 	return b, nil
 }
+
+// ExtractResourceInterpreterCustomization extracts the applied configuration owned by fieldManager from
+// resourceInterpreterCustomization. If no managedFields are found in resourceInterpreterCustomization for fieldManager, a
+// ResourceInterpreterCustomizationApplyConfiguration is returned with only the Name, Namespace (if applicable),
+// APIVersion and Kind populated. It is possible that no managed fields were found for because other
+// field managers have taken ownership of all the fields previously owned by fieldManager, or because
+// the fieldManager never owned fields any fields.
+// resourceInterpreterCustomization must be a unmodified ResourceInterpreterCustomization API object that was retrieved from the Kubernetes API.
+// ExtractResourceInterpreterCustomization provides a way to perform a extract/modify-in-place/apply workflow.
+// Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
+// applied if another fieldManager has updated or force applied any of the previously applied fields.
+func ExtractResourceInterpreterCustomization(resourceInterpreterCustomization *configv1alpha1.ResourceInterpreterCustomization, fieldManager string) (*ResourceInterpreterCustomizationApplyConfiguration, error) {
+	return ExtractResourceInterpreterCustomizationFrom(resourceInterpreterCustomization, fieldManager, "")
+}
+
 func (b ResourceInterpreterCustomizationApplyConfiguration) IsApplyConfiguration() {}
 
 // WithKind sets the Kind field in the declarative configuration to the given value

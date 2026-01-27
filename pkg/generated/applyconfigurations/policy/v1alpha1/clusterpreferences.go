@@ -24,9 +24,14 @@ import (
 
 // ClusterPreferencesApplyConfiguration represents a declarative configuration of the ClusterPreferences type for use
 // with apply.
+//
+// ClusterPreferences describes weight for each cluster or for each group of cluster.
 type ClusterPreferencesApplyConfiguration struct {
+	// StaticWeightList defines the static cluster weight.
 	StaticWeightList []StaticClusterWeightApplyConfiguration `json:"staticWeightList,omitempty"`
-	DynamicWeight    *policyv1alpha1.DynamicWeightFactor     `json:"dynamicWeight,omitempty"`
+	// DynamicWeight specifies the factor to generates dynamic weight list.
+	// If specified, StaticWeightList will be ignored.
+	DynamicWeight *policyv1alpha1.DynamicWeightFactor `json:"dynamicWeight,omitempty"`
 }
 
 // ClusterPreferencesApplyConfiguration constructs a declarative configuration of the ClusterPreferences type for use with

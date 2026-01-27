@@ -20,7 +20,30 @@ package v1alpha1
 
 // StatusReflectionApplyConfiguration represents a declarative configuration of the StatusReflection type for use
 // with apply.
+//
+// StatusReflection holds the scripts for getting the status.
 type StatusReflectionApplyConfiguration struct {
+	// LuaScript holds the Lua script that is used to get the status from the observed specification.
+	// The script should implement a function as follows:
+	//
+	// ```
+	// luaScript: >
+	// function ReflectStatus(observedObj)
+	// status = {}
+	// status.readyReplicas = observedObj.status.observedObj
+	// return status
+	// end
+	// ```
+	//
+	// The content of the LuaScript needs to be a whole function including both
+	// declaration and implementation.
+	//
+	// The parameters will be supplied by the system:
+	// - observedObj: the object represents the configuration that is observed
+	// from a specific member cluster.
+	//
+	// The returned status could be the whole status or part of it and will
+	// be set into both Work and ResourceBinding(ClusterResourceBinding).
 	LuaScript *string `json:"luaScript,omitempty"`
 }
 

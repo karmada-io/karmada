@@ -24,11 +24,18 @@ import (
 
 // ExecutionHistoryApplyConfiguration represents a declarative configuration of the ExecutionHistory type for use
 // with apply.
+//
+// ExecutionHistory records the execution history of specific CronFederatedHPARule.
 type ExecutionHistoryApplyConfiguration struct {
-	RuleName             *string                                 `json:"ruleName,omitempty"`
-	NextExecutionTime    *v1.Time                                `json:"nextExecutionTime,omitempty"`
+	// RuleName is the name of the CronFederatedHPARule.
+	RuleName *string `json:"ruleName,omitempty"`
+	// NextExecutionTime is the next time to execute.
+	// Nil means the rule has been suspended.
+	NextExecutionTime *v1.Time `json:"nextExecutionTime,omitempty"`
+	// SuccessfulExecutions records successful executions.
 	SuccessfulExecutions []SuccessfulExecutionApplyConfiguration `json:"successfulExecutions,omitempty"`
-	FailedExecutions     []FailedExecutionApplyConfiguration     `json:"failedExecutions,omitempty"`
+	// FailedExecutions records failed executions.
+	FailedExecutions []FailedExecutionApplyConfiguration `json:"failedExecutions,omitempty"`
 }
 
 // ExecutionHistoryApplyConfiguration constructs a declarative configuration of the ExecutionHistory type for use with

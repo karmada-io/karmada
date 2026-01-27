@@ -20,7 +20,48 @@ package v1alpha1
 
 // ComponentResourceRequirementApplyConfiguration represents a declarative configuration of the ComponentResourceRequirement type for use
 // with apply.
+//
+// ComponentResourceRequirement holds the scripts for extracting the desired replica count
+// and resource requirements for each component within a resource. This is particularly useful for
+// resources that define multiple components (such as CRDs with multiple pod templates), but can also
+// be used for single-component resources.
 type ComponentResourceRequirementApplyConfiguration struct {
+	// LuaScript holds the Lua script that is used to extract the desired replica count and resource
+	// requirements for each component of the resource.
+	//
+	// The script should implement a function as follows:
+	//
+	// ```
+	// luaScript: >
+	// function GetComponents(desiredObj)
+	// local components = {}
+	//
+	// local jobManagerComponent = {
+	// name = "jobmanager",
+	// replicas = desiredObj.spec.jobManager.replicas
+	// }
+	// table.insert(components, jobManagerComponent)
+	//
+	// local taskManagerComponent = {
+	// name = "taskmanager",
+	// replicas = desiredObj.spec.taskManager.replicas
+	// }
+	// table.insert(components, taskManagerComponent)
+	//
+	// return components
+	// end
+	// ```
+	//
+	// The content of the LuaScript needs to be a whole function including both
+	// declaration and implementation.
+	//
+	// The parameters will be supplied by the system:
+	// - desiredObj: the object represents the configuration to be applied
+	// to the member cluster.
+	//
+	// The function expects one return value:
+	// - components: the resource requirements for each component.
+	// The returned value will be set into a ResourceBinding or ClusterResourceBinding.
 	LuaScript *string `json:"luaScript,omitempty"`
 }
 

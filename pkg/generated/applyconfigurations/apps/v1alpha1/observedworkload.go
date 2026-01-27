@@ -24,10 +24,15 @@ import (
 
 // ObservedWorkloadApplyConfiguration represents a declarative configuration of the ObservedWorkload type for use
 // with apply.
+//
+// ObservedWorkload the observed resource.
 type ObservedWorkloadApplyConfiguration struct {
-	Workload *ObjectReferenceApplyConfiguration  `json:"workload,omitempty"`
-	Result   *appsv1alpha1.RebalanceResult       `json:"result,omitempty"`
-	Reason   *appsv1alpha1.RebalanceFailedReason `json:"reason,omitempty"`
+	// Workload the observed resource.
+	Workload *ObjectReferenceApplyConfiguration `json:"workload,omitempty"`
+	// Result the observed rebalance result of resource.
+	Result *appsv1alpha1.RebalanceResult `json:"result,omitempty"`
+	// Reason represents a machine-readable description of why this resource rebalanced failed.
+	Reason *appsv1alpha1.RebalanceFailedReason `json:"reason,omitempty"`
 }
 
 // ObservedWorkloadApplyConfiguration constructs a declarative configuration of the ObservedWorkload type for use with

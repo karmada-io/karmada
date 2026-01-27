@@ -24,21 +24,126 @@ import (
 
 // PropagationSpecApplyConfiguration represents a declarative configuration of the PropagationSpec type for use
 // with apply.
+//
+// PropagationSpec represents the desired behavior of PropagationPolicy.
 type PropagationSpecApplyConfiguration struct {
-	ResourceSelectors           []ResourceSelectorApplyConfiguration `json:"resourceSelectors,omitempty"`
-	Association                 *bool                                `json:"association,omitempty"`
-	PropagateDeps               *bool                                `json:"propagateDeps,omitempty"`
-	Placement                   *PlacementApplyConfiguration         `json:"placement,omitempty"`
-	Priority                    *int32                               `json:"priority,omitempty"`
-	Preemption                  *policyv1alpha1.PreemptionBehavior   `json:"preemption,omitempty"`
-	DependentOverrides          []string                             `json:"dependentOverrides,omitempty"`
-	SchedulerName               *string                              `json:"schedulerName,omitempty"`
-	Failover                    *FailoverBehaviorApplyConfiguration  `json:"failover,omitempty"`
-	ConflictResolution          *policyv1alpha1.ConflictResolution   `json:"conflictResolution,omitempty"`
-	ActivationPreference        *policyv1alpha1.ActivationPreference `json:"activationPreference,omitempty"`
-	Suspension                  *SuspensionApplyConfiguration        `json:"suspension,omitempty"`
-	PreserveResourcesOnDeletion *bool                                `json:"preserveResourcesOnDeletion,omitempty"`
-	SchedulePriority            *SchedulePriorityApplyConfiguration  `json:"schedulePriority,omitempty"`
+	// ResourceSelectors used to select resources.
+	// Nil or empty selector is not allowed and doesn't mean match all kinds
+	// of resources for security concerns that sensitive resources(like Secret)
+	// might be accidentally propagated.
+	ResourceSelectors []ResourceSelectorApplyConfiguration `json:"resourceSelectors,omitempty"`
+	// Association tells if relevant resources should be selected automatically.
+	// e.g. a ConfigMap referred by a Deployment.
+	// default false.
+	// Deprecated: in favor of PropagateDeps.
+	Association *bool `json:"association,omitempty"`
+	// PropagateDeps tells if relevant resources should be propagated automatically.
+	// Take 'Deployment' which referencing 'ConfigMap' and 'Secret' as an example, when 'propagateDeps' is 'true',
+	// the referencing resources could be omitted(for saving config effort) from 'resourceSelectors' as they will be
+	// propagated along with the Deployment. In addition to the propagating process, the referencing resources will be
+	// migrated along with the Deployment in the fail-over scenario.
+	//
+	// Defaults to false.
+	PropagateDeps *bool `json:"propagateDeps,omitempty"`
+	// Placement represents the rule for select clusters to propagate resources.
+	Placement *PlacementApplyConfiguration `json:"placement,omitempty"`
+	// Priority indicates the importance of a policy(PropagationPolicy or ClusterPropagationPolicy).
+	// A policy will be applied for the matched resource templates if there is
+	// no other policies with higher priority at the point of the resource
+	// template be processed.
+	// Once a resource template has been claimed by a policy, by default it will
+	// not be preempted by following policies even with a higher priority.
+	// See Preemption for more details.
+	//
+	// In case of two policies have the same priority, the one with a more precise
+	// matching rules in ResourceSelectors wins:
+	// - matching by name(resourceSelector.name) has higher priority than
+	// by selector(resourceSelector.labelSelector)
+	// - matching by selector(resourceSelector.labelSelector) has higher priority
+	// than by APIVersion(resourceSelector.apiVersion) and Kind(resourceSelector.kind).
+	// If there is still no winner at this point, the one with the lower alphabetic
+	// order wins, e.g. policy 'bar' has higher priority than 'foo'.
+	//
+	// The higher the value, the higher the priority. Defaults to zero.
+	Priority *int32 `json:"priority,omitempty"`
+	// Preemption declares the behaviors for preempting.
+	// Valid options are "Always" and "Never".
+	Preemption *policyv1alpha1.PreemptionBehavior `json:"preemption,omitempty"`
+	// DependentOverrides represents the list of overrides(OverridePolicy)
+	// which must present before the current PropagationPolicy takes effect.
+	//
+	// It used to explicitly specify overrides which current PropagationPolicy rely on.
+	// A typical scenario is the users create OverridePolicy(ies) and resources at the same time,
+	// they want to ensure the new-created policies would be adopted.
+	//
+	// Note: For the overrides, OverridePolicy(ies) in current namespace and ClusterOverridePolicy(ies),
+	// which not present in this list will still be applied if they matches the resources.
+	DependentOverrides []string `json:"dependentOverrides,omitempty"`
+	// SchedulerName represents which scheduler to proceed the scheduling.
+	// If specified, the policy will be dispatched by specified scheduler.
+	// If not specified, the policy will be dispatched by default scheduler.
+	SchedulerName *string `json:"schedulerName,omitempty"`
+	// Failover indicates how Karmada migrates applications in case of failures.
+	// If this value is nil, failover is disabled.
+	Failover *FailoverBehaviorApplyConfiguration `json:"failover,omitempty"`
+	// ConflictResolution declares how potential conflict should be handled when
+	// a resource that is being propagated already exists in the target cluster.
+	//
+	// It defaults to "Abort" which means stop propagating to avoid unexpected
+	// overwrites. The "Overwrite" might be useful when migrating legacy cluster
+	// resources to Karmada, in which case conflict is predictable and can be
+	// instructed to Karmada take over the resource by overwriting.
+	ConflictResolution *policyv1alpha1.ConflictResolution `json:"conflictResolution,omitempty"`
+	// ActivationPreference indicates how the referencing resource template will
+	// be propagated, in case of policy changes.
+	//
+	// If empty, the resource template will respond to policy changes
+	// immediately, in other words, any policy changes will drive the resource
+	// template to be propagated immediately as per the current propagation rules.
+	//
+	// If the value is 'Lazy' means the policy changes will not take effect for now
+	// but defer to the resource template changes, in other words, the resource
+	// template will not be propagated as per the current propagation rules until
+	// there is an update on it.
+	// This is an experimental feature that might help in a scenario where a policy
+	// manages huge amount of resource templates, changes to a policy typically
+	// affect numerous applications simultaneously. A minor misconfiguration
+	// could lead to widespread failures. With this feature, the change can be
+	// gradually rolled out through iterative modifications of resource templates.
+	ActivationPreference *policyv1alpha1.ActivationPreference `json:"activationPreference,omitempty"`
+	// Suspension declares the policy for suspending different aspects of propagation.
+	// nil means no suspension. no default values.
+	Suspension *SuspensionApplyConfiguration `json:"suspension,omitempty"`
+	// PreserveResourcesOnDeletion controls whether resources should be preserved on the
+	// member clusters when the resource template is deleted.
+	// If set to true, resources will be preserved on the member clusters.
+	// Default is false, which means resources will be deleted along with the resource template.
+	//
+	// This setting is particularly useful during workload migration scenarios to ensure
+	// that rollback can occur quickly without affecting the workloads running on the
+	// member clusters.
+	//
+	// Additionally, this setting applies uniformly across all member clusters and will not
+	// selectively control preservation on only some clusters.
+	//
+	// Note: This setting does not apply to the deletion of the policy itself.
+	// When the policy is deleted, the resource templates and their corresponding
+	// propagated resources in member clusters will remain unchanged unless explicitly deleted.
+	PreserveResourcesOnDeletion *bool `json:"preserveResourcesOnDeletion,omitempty"`
+	// SchedulePriority defines how Karmada should resolve the priority and preemption policy
+	// for workload scheduling.
+	//
+	// This setting is useful for controlling the scheduling behavior of offline workloads.
+	// By setting a higher or lower priority, users can control which workloads are scheduled first.
+	// Additionally, it allows specifying a preemption policy where higher-priority workloads can
+	// preempt lower-priority ones in scenarios of resource contention.
+	//
+	// Note: This feature is currently in the alpha stage. The priority-based scheduling functionality is
+	// controlled by the PriorityBasedScheduling feature gate, and preemption is controlled by the
+	// PriorityBasedPreemptiveScheduling feature gate. Currently, only priority-based scheduling is
+	// supported. Preemption functionality is not yet available and will be introduced in future
+	// releases as the feature matures.
+	SchedulePriority *SchedulePriorityApplyConfiguration `json:"schedulePriority,omitempty"`
 }
 
 // PropagationSpecApplyConfiguration constructs a declarative configuration of the PropagationSpec type for use with

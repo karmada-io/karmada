@@ -29,10 +29,13 @@ import (
 
 // RemedyApplyConfiguration represents a declarative configuration of the Remedy type for use
 // with apply.
+//
+// Remedy represents the cluster-level management strategies based on cluster conditions.
 type RemedyApplyConfiguration struct {
 	v1.TypeMetaApplyConfiguration    `json:",inline"`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
-	Spec                             *RemedySpecApplyConfiguration `json:"spec,omitempty"`
+	// Spec represents the desired behavior of Remedy.
+	Spec *RemedySpecApplyConfiguration `json:"spec,omitempty"`
 }
 
 // Remedy constructs a declarative configuration of the Remedy type for use with
@@ -45,29 +48,14 @@ func Remedy(name string) *RemedyApplyConfiguration {
 	return b
 }
 
-// ExtractRemedy extracts the applied configuration owned by fieldManager from
-// remedy. If no managedFields are found in remedy for fieldManager, a
-// RemedyApplyConfiguration is returned with only the Name, Namespace (if applicable),
-// APIVersion and Kind populated. It is possible that no managed fields were found for because other
-// field managers have taken ownership of all the fields previously owned by fieldManager, or because
-// the fieldManager never owned fields any fields.
+// ExtractRemedyFrom extracts the applied configuration owned by fieldManager from
+// remedy for the specified subresource. Pass an empty string for subresource to extract
+// the main resource. Common subresources include "status", "scale", etc.
 // remedy must be a unmodified Remedy API object that was retrieved from the Kubernetes API.
-// ExtractRemedy provides a way to perform a extract/modify-in-place/apply workflow.
+// ExtractRemedyFrom provides a way to perform a extract/modify-in-place/apply workflow.
 // Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
 // applied if another fieldManager has updated or force applied any of the previously applied fields.
-// Experimental!
-func ExtractRemedy(remedy *remedyv1alpha1.Remedy, fieldManager string) (*RemedyApplyConfiguration, error) {
-	return extractRemedy(remedy, fieldManager, "")
-}
-
-// ExtractRemedyStatus is the same as ExtractRemedy except
-// that it extracts the status subresource applied configuration.
-// Experimental!
-func ExtractRemedyStatus(remedy *remedyv1alpha1.Remedy, fieldManager string) (*RemedyApplyConfiguration, error) {
-	return extractRemedy(remedy, fieldManager, "status")
-}
-
-func extractRemedy(remedy *remedyv1alpha1.Remedy, fieldManager string, subresource string) (*RemedyApplyConfiguration, error) {
+func ExtractRemedyFrom(remedy *remedyv1alpha1.Remedy, fieldManager string, subresource string) (*RemedyApplyConfiguration, error) {
 	b := &RemedyApplyConfiguration{}
 	err := managedfields.ExtractInto(remedy, internal.Parser().Type("com.github.karmada-io.karmada.pkg.apis.remedy.v1alpha1.Remedy"), fieldManager, b, subresource)
 	if err != nil {
@@ -79,6 +67,21 @@ func extractRemedy(remedy *remedyv1alpha1.Remedy, fieldManager string, subresour
 	b.WithAPIVersion("remedy.karmada.io/v1alpha1")
 	return b, nil
 }
+
+// ExtractRemedy extracts the applied configuration owned by fieldManager from
+// remedy. If no managedFields are found in remedy for fieldManager, a
+// RemedyApplyConfiguration is returned with only the Name, Namespace (if applicable),
+// APIVersion and Kind populated. It is possible that no managed fields were found for because other
+// field managers have taken ownership of all the fields previously owned by fieldManager, or because
+// the fieldManager never owned fields any fields.
+// remedy must be a unmodified Remedy API object that was retrieved from the Kubernetes API.
+// ExtractRemedy provides a way to perform a extract/modify-in-place/apply workflow.
+// Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
+// applied if another fieldManager has updated or force applied any of the previously applied fields.
+func ExtractRemedy(remedy *remedyv1alpha1.Remedy, fieldManager string) (*RemedyApplyConfiguration, error) {
+	return ExtractRemedyFrom(remedy, fieldManager, "")
+}
+
 func (b RemedyApplyConfiguration) IsApplyConfiguration() {}
 
 // WithKind sets the Kind field in the declarative configuration to the given value

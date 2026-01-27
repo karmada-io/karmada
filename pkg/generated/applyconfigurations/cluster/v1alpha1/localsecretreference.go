@@ -20,9 +20,14 @@ package v1alpha1
 
 // LocalSecretReferenceApplyConfiguration represents a declarative configuration of the LocalSecretReference type for use
 // with apply.
+//
+// LocalSecretReference is a reference to a secret within the enclosing
+// namespace.
 type LocalSecretReferenceApplyConfiguration struct {
+	// Namespace is the namespace for the resource being referenced.
 	Namespace *string `json:"namespace,omitempty"`
-	Name      *string `json:"name,omitempty"`
+	// Name is the name of the resource being referenced.
+	Name *string `json:"name,omitempty"`
 }
 
 // LocalSecretReferenceApplyConfiguration constructs a declarative configuration of the LocalSecretReference type for use with

@@ -20,9 +20,20 @@ package v1alpha1
 
 // CustomCertificateApplyConfiguration represents a declarative configuration of the CustomCertificate type for use
 // with apply.
+//
+// CustomCertificate holds the configuration for generating the certificate.
 type CustomCertificateApplyConfiguration struct {
-	APIServerCACert      *LocalSecretReferenceApplyConfiguration `json:"apiServerCACert,omitempty"`
-	LeafCertValidityDays *int32                                  `json:"leafCertValidityDays,omitempty"`
+	// APIServerCACert references a Kubernetes secret containing the CA certificate
+	// for component karmada-apiserver.
+	// The secret must contain the following data keys:
+	// - tls.crt: The TLS certificate.
+	// - tls.key: The TLS private key.
+	// If specified, this CA will be used to issue client certificates for
+	// all components that access the APIServer as clients.
+	APIServerCACert *LocalSecretReferenceApplyConfiguration `json:"apiServerCACert,omitempty"`
+	// LeafCertValidityDays specifies the validity period of leaf certificates (e.g., API Server certificate) in days.
+	// If not specified, the default validity period of 1 year will be used.
+	LeafCertValidityDays *int32 `json:"leafCertValidityDays,omitempty"`
 }
 
 // CustomCertificateApplyConfiguration constructs a declarative configuration of the CustomCertificate type for use with

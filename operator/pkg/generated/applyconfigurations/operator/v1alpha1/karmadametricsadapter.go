@@ -25,9 +25,25 @@ import (
 
 // KarmadaMetricsAdapterApplyConfiguration represents a declarative configuration of the KarmadaMetricsAdapter type for use
 // with apply.
+//
+// KarmadaMetricsAdapter holds settings to karmada-metrics-adapter component of the karmada.
 type KarmadaMetricsAdapterApplyConfiguration struct {
+	// CommonSettings holds common settings to karmada metrics adapter.
 	CommonSettingsApplyConfiguration `json:",inline"`
-	ExtraArgs                        map[string]string `json:"extraArgs,omitempty"`
+	// ExtraArgs is an extra set of flags to pass to the karmada-metrics-adapter component or override.
+	// A key in this map is the flag name as it appears on the command line except without
+	// leading dash(es).
+	//
+	// Note: This is a temporary solution to allow for the configuration of the karmada-metrics-adapter
+	// component. In the future, we will provide a more structured way to configure the component.
+	// Once that is done, this field will be discouraged to be used.
+	// Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
+	// state. Before you do it, please confirm that you understand the risks of this configuration.
+	//
+	// For supported flags, please see
+	// https://karmada.io/docs/reference/components/karmada-metrics-adapter
+	// for details.
+	ExtraArgs map[string]string `json:"extraArgs,omitempty"`
 }
 
 // KarmadaMetricsAdapterApplyConfiguration constructs a declarative configuration of the KarmadaMetricsAdapter type for use with

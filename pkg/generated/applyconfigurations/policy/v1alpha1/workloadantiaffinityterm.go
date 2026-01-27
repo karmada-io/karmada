@@ -20,7 +20,28 @@ package v1alpha1
 
 // WorkloadAntiAffinityTermApplyConfiguration represents a declarative configuration of the WorkloadAntiAffinityTerm type for use
 // with apply.
+//
+// WorkloadAntiAffinityTerm defines anti-affinity rules for separating workloads
+// from specific workload groups.
 type WorkloadAntiAffinityTermApplyConfiguration struct {
+	// GroupByLabelKey declares the label key on the workload resource template that
+	// determines the anti-affinity group. Workloads with the same label value under
+	// this key belong to the same anti-affinity group and will be separated.
+	//
+	// The scheduler maintains a global index of affinity groups in memory for
+	// efficient lookup. Each affinity group is identified by a serialized
+	// key-value pair and contains all workload resource templates that belong
+	// to the group.
+	//
+	// Note: Affinity groups are scoped to the namespace. Workloads that use the
+	// same anti-affinity label but reside in different namespaces are not treated
+	// as part of the same group.
+	//
+	// The key must be a valid Kubernetes label key.
+	//
+	// Example: If GroupByLabelKey is "app.group", workloads with the label
+	// "app.group=frontend" will avoid clusters where other
+	// "app.group=frontend" workloads already exist.
 	GroupByLabelKey *string `json:"groupByLabelKey,omitempty"`
 }
 

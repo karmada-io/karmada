@@ -20,7 +20,40 @@ package v1alpha1
 
 // ReplicaResourceRequirementApplyConfiguration represents a declarative configuration of the ReplicaResourceRequirement type for use
 // with apply.
+//
+// ReplicaResourceRequirement holds the scripts for getting the desired replicas
+// as well as the resource requirement of each replica.
 type ReplicaResourceRequirementApplyConfiguration struct {
+	// LuaScript holds the Lua script that is used to discover the resource's
+	// replica as well as resource requirements
+	//
+	// The script should implement a function as follows:
+	//
+	// ```
+	// luaScript: >
+	// function GetReplicas(desiredObj)
+	// replica = desiredObj.spec.replicas
+	// requirement = {}
+	// requirement.nodeClaim = {}
+	// requirement.nodeClaim.nodeSelector = desiredObj.spec.template.spec.nodeSelector
+	// requirement.nodeClaim.tolerations = desiredObj.spec.template.spec.tolerations
+	// requirement.resourceRequest = desiredObj.spec.template.spec.containers[1].resources.limits
+	// return replica, requirement
+	// end
+	// ```
+	//
+	// The content of the LuaScript needs to be a whole function including both
+	// declaration and implementation.
+	//
+	// The parameters will be supplied by the system:
+	// - desiredObj: the object represents the configuration to be applied
+	// to the member cluster.
+	//
+	// The function expects two return values:
+	// - replica: the declared replica number
+	// - requirement: the resource required by each replica expressed with a
+	// ResourceBindingSpec.ReplicaRequirements.
+	// The returned values will be set into a ResourceBinding or ClusterResourceBinding.
 	LuaScript *string `json:"luaScript,omitempty"`
 }
 

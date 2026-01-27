@@ -20,8 +20,15 @@ package v1alpha1
 
 // HTTPSourceApplyConfiguration represents a declarative configuration of the HTTPSource type for use
 // with apply.
+//
+// HTTPSource specifies how to download the CRD tarball via either HTTP or HTTPS protocol.
 type HTTPSourceApplyConfiguration struct {
-	URL   *string                        `json:"url,omitempty"`
+	// URL specifies the URL of the CRD tarball resource.
+	URL *string `json:"url,omitempty"`
+	// Proxy specifies the configuration of a proxy server to use when downloading the CRD tarball.
+	// When set, the operator will use the configuration to determine how to establish a connection to the proxy to fetch the tarball from the URL specified above.
+	// This is useful in environments where direct access to the server hosting the CRD tarball is restricted and a proxy must be used to reach that server.
+	// If a proxy configuration is not set, the operator will attempt to download the tarball directly from the URL specified above without using a proxy.
 	Proxy *ProxyConfigApplyConfiguration `json:"proxy,omitempty"`
 }
 

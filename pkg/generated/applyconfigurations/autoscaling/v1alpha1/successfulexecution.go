@@ -24,12 +24,24 @@ import (
 
 // SuccessfulExecutionApplyConfiguration represents a declarative configuration of the SuccessfulExecution type for use
 // with apply.
+//
+// SuccessfulExecution records a successful execution.
 type SuccessfulExecutionApplyConfiguration struct {
-	ScheduleTime       *v1.Time `json:"scheduleTime,omitempty"`
-	ExecutionTime      *v1.Time `json:"executionTime,omitempty"`
-	AppliedReplicas    *int32   `json:"appliedReplicas,omitempty"`
-	AppliedMaxReplicas *int32   `json:"appliedMaxReplicas,omitempty"`
-	AppliedMinReplicas *int32   `json:"appliedMinReplicas,omitempty"`
+	// ScheduleTime is the expected execution time declared in CronFederatedHPARule.
+	ScheduleTime *v1.Time `json:"scheduleTime,omitempty"`
+	// ExecutionTime is the actual execution time of CronFederatedHPARule.
+	// Tasks may not always be executed at ScheduleTime. ExecutionTime is used
+	// to evaluate the efficiency of the controller's execution.
+	ExecutionTime *v1.Time `json:"executionTime,omitempty"`
+	// AppliedReplicas is the replicas have been applied.
+	// It is required if .spec.rules[*].targetReplicas is not empty.
+	AppliedReplicas *int32 `json:"appliedReplicas,omitempty"`
+	// AppliedMaxReplicas is the MaxReplicas have been applied.
+	// It is required if .spec.rules[*].targetMaxReplicas is not empty.
+	AppliedMaxReplicas *int32 `json:"appliedMaxReplicas,omitempty"`
+	// AppliedMinReplicas is the MinReplicas have been applied.
+	// It is required if .spec.rules[*].targetMinReplicas is not empty.
+	AppliedMinReplicas *int32 `json:"appliedMinReplicas,omitempty"`
 }
 
 // SuccessfulExecutionApplyConfiguration constructs a declarative configuration of the SuccessfulExecution type for use with

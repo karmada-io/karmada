@@ -20,17 +20,30 @@ package v1alpha1
 
 // KarmadaComponentsApplyConfiguration represents a declarative configuration of the KarmadaComponents type for use
 // with apply.
+//
+// KarmadaComponents define all of karmada components.
 type KarmadaComponentsApplyConfiguration struct {
-	Etcd                       *EtcdApplyConfiguration                       `json:"etcd,omitempty"`
-	KarmadaAPIServer           *KarmadaAPIServerApplyConfiguration           `json:"karmadaAPIServer,omitempty"`
+	// Etcd holds configuration for etcd.
+	Etcd *EtcdApplyConfiguration `json:"etcd,omitempty"`
+	// KarmadaAPIServer holds settings to kube-apiserver component. Currently, kube-apiserver
+	// is used as the apiserver of karmada. we had the same experience as k8s apiserver.
+	KarmadaAPIServer *KarmadaAPIServerApplyConfiguration `json:"karmadaAPIServer,omitempty"`
+	// KarmadaAggregatedAPIServer holds settings to karmada-aggregated-apiserver component of the karmada.
 	KarmadaAggregatedAPIServer *KarmadaAggregatedAPIServerApplyConfiguration `json:"karmadaAggregatedAPIServer,omitempty"`
-	KubeControllerManager      *KubeControllerManagerApplyConfiguration      `json:"kubeControllerManager,omitempty"`
-	KarmadaControllerManager   *KarmadaControllerManagerApplyConfiguration   `json:"karmadaControllerManager,omitempty"`
-	KarmadaScheduler           *KarmadaSchedulerApplyConfiguration           `json:"karmadaScheduler,omitempty"`
-	KarmadaWebhook             *KarmadaWebhookApplyConfiguration             `json:"karmadaWebhook,omitempty"`
-	KarmadaDescheduler         *KarmadaDeschedulerApplyConfiguration         `json:"karmadaDescheduler,omitempty"`
-	KarmadaSearch              *KarmadaSearchApplyConfiguration              `json:"karmadaSearch,omitempty"`
-	KarmadaMetricsAdapter      *KarmadaMetricsAdapterApplyConfiguration      `json:"karmadaMetricsAdapter,omitempty"`
+	// KubeControllerManager holds settings to kube-controller-manager component of the karmada.
+	KubeControllerManager *KubeControllerManagerApplyConfiguration `json:"kubeControllerManager,omitempty"`
+	// KarmadaControllerManager holds settings to karmada-controller-manager component of the karmada.
+	KarmadaControllerManager *KarmadaControllerManagerApplyConfiguration `json:"karmadaControllerManager,omitempty"`
+	// KarmadaScheduler holds settings to karmada-scheduler component of the karmada.
+	KarmadaScheduler *KarmadaSchedulerApplyConfiguration `json:"karmadaScheduler,omitempty"`
+	// KarmadaWebhook holds settings to karmada-webhook component of the karmada.
+	KarmadaWebhook *KarmadaWebhookApplyConfiguration `json:"karmadaWebhook,omitempty"`
+	// KarmadaDescheduler holds settings to karmada-descheduler component of the karmada.
+	KarmadaDescheduler *KarmadaDeschedulerApplyConfiguration `json:"karmadaDescheduler,omitempty"`
+	// KarmadaSearch holds settings to karmada search component of the karmada.
+	KarmadaSearch *KarmadaSearchApplyConfiguration `json:"karmadaSearch,omitempty"`
+	// KarmadaMetricsAdapter holds settings to karmada metrics adapter component of the karmada.
+	KarmadaMetricsAdapter *KarmadaMetricsAdapterApplyConfiguration `json:"karmadaMetricsAdapter,omitempty"`
 }
 
 // KarmadaComponentsApplyConfiguration constructs a declarative configuration of the KarmadaComponents type for use with

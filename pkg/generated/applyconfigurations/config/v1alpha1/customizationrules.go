@@ -20,15 +20,61 @@ package v1alpha1
 
 // CustomizationRulesApplyConfiguration represents a declarative configuration of the CustomizationRules type for use
 // with apply.
+//
+// CustomizationRules describes the interpretation rules.
 type CustomizationRulesApplyConfiguration struct {
-	Retention                *LocalValueRetentionApplyConfiguration          `json:"retention,omitempty"`
-	ReplicaResource          *ReplicaResourceRequirementApplyConfiguration   `json:"replicaResource,omitempty"`
-	ComponentResource        *ComponentResourceRequirementApplyConfiguration `json:"componentResource,omitempty"`
-	ReplicaRevision          *ReplicaRevisionApplyConfiguration              `json:"replicaRevision,omitempty"`
-	StatusReflection         *StatusReflectionApplyConfiguration             `json:"statusReflection,omitempty"`
-	StatusAggregation        *StatusAggregationApplyConfiguration            `json:"statusAggregation,omitempty"`
-	HealthInterpretation     *HealthInterpretationApplyConfiguration         `json:"healthInterpretation,omitempty"`
-	DependencyInterpretation *DependencyInterpretationApplyConfiguration     `json:"dependencyInterpretation,omitempty"`
+	// Retention describes the desired behavior that Karmada should react on
+	// the changes made by member cluster components. This avoids system
+	// running into a meaningless loop that Karmada resource controller and
+	// the member cluster component continually applying opposite values of a field.
+	// For example, the "replicas" of Deployment might be changed by the HPA
+	// controller on member cluster. In this case, Karmada should retain the "replicas"
+	// and not try to change it.
+	Retention *LocalValueRetentionApplyConfiguration `json:"retention,omitempty"`
+	// ReplicaResource describes the rules for Karmada to discover the resource's
+	// replica as well as resource requirements.
+	// It would be useful for those CRD resources that declare workload types like
+	// Deployment.
+	// It is usually not needed for Kubernetes native resources(Deployment, Job) as
+	// Karmada knows how to discover info from them. But if it is set, the built-in
+	// discovery rules will be ignored.
+	ReplicaResource *ReplicaResourceRequirementApplyConfiguration `json:"replicaResource,omitempty"`
+	// ComponentResource describes the rules for Karmada to discover the resource requirements
+	// for multiple components from the given object.
+	// This is designed for CRDs with multiple components (e.g., FlinkDeployment), but
+	// can also be used for single-component resources like Deployment.
+	// If implemented, the controller will use this to obtain per-component replica and resource
+	// requirements, and will not call ReplicaResource.
+	// If not implemented, the controller will fall back to ReplicaResource for backward compatibility.
+	// This will only be used when the feature gate 'MultiplePodTemplatesScheduling' is enabled.
+	ComponentResource *ComponentResourceRequirementApplyConfiguration `json:"componentResource,omitempty"`
+	// ReplicaRevision describes the rules for Karmada to revise the resource's replica.
+	// It would be useful for those CRD resources that declare workload types like
+	// Deployment.
+	// It is usually not needed for Kubernetes native resources(Deployment, Job) as
+	// Karmada knows how to revise replicas for them. But if it is set, the built-in
+	// revision rules will be ignored.
+	ReplicaRevision *ReplicaRevisionApplyConfiguration `json:"replicaRevision,omitempty"`
+	// StatusReflection describes the rules for Karmada to pick the resource's status.
+	// Karmada provides built-in rules for several standard Kubernetes types, see:
+	// https://karmada.io/docs/userguide/globalview/customizing-resource-interpreter/#interpretstatus
+	// If StatusReflection is set, the built-in rules will be ignored.
+	StatusReflection *StatusReflectionApplyConfiguration `json:"statusReflection,omitempty"`
+	// StatusAggregation describes the rules for Karmada to aggregate status
+	// collected from member clusters to resource template.
+	// Karmada provides built-in rules for several standard Kubernetes types, see:
+	// https://karmada.io/docs/userguide/globalview/customizing-resource-interpreter/#aggregatestatus
+	// If StatusAggregation is set, the built-in rules will be ignored.
+	StatusAggregation *StatusAggregationApplyConfiguration `json:"statusAggregation,omitempty"`
+	// HealthInterpretation describes the health assessment rules by which Karmada
+	// can assess the health state of the resource type.
+	HealthInterpretation *HealthInterpretationApplyConfiguration `json:"healthInterpretation,omitempty"`
+	// DependencyInterpretation describes the rules for Karmada to analyze the
+	// dependent resources.
+	// Karmada provides built-in rules for several standard Kubernetes types, see:
+	// https://karmada.io/docs/userguide/globalview/customizing-resource-interpreter/#interpretdependency
+	// If DependencyInterpretation is set, the built-in rules will be ignored.
+	DependencyInterpretation *DependencyInterpretationApplyConfiguration `json:"dependencyInterpretation,omitempty"`
 }
 
 // CustomizationRulesApplyConfiguration constructs a declarative configuration of the CustomizationRules type for use with

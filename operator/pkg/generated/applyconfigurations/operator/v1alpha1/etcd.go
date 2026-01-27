@@ -20,8 +20,14 @@ package v1alpha1
 
 // EtcdApplyConfiguration represents a declarative configuration of the Etcd type for use
 // with apply.
+//
+// Etcd contains elements describing Etcd configuration.
 type EtcdApplyConfiguration struct {
-	Local    *LocalEtcdApplyConfiguration    `json:"local,omitempty"`
+	// Local provides configuration knobs for configuring the built-in etcd instance
+	// Local and External are mutually exclusive
+	Local *LocalEtcdApplyConfiguration `json:"local,omitempty"`
+	// External describes how to connect to an external etcd cluster
+	// Local and External are mutually exclusive
 	External *ExternalEtcdApplyConfiguration `json:"external,omitempty"`
 }
 

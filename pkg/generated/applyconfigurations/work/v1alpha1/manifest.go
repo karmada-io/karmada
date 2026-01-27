@@ -24,6 +24,8 @@ import (
 
 // ManifestApplyConfiguration represents a declarative configuration of the Manifest type for use
 // with apply.
+//
+// Manifest represents a resource to be deployed on managed cluster.
 type ManifestApplyConfiguration struct {
 	runtime.RawExtension `json:",inline"`
 }

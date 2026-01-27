@@ -30,11 +30,18 @@ import (
 
 // FederatedHPAApplyConfiguration represents a declarative configuration of the FederatedHPA type for use
 // with apply.
+//
+// FederatedHPA is centralized HPA that can aggregate the metrics in multiple clusters.
+// When the system load increases, it will query the metrics from multiple clusters and scales up the replicas.
+// When the system load decreases, it will query the metrics from multiple clusters and scales down the replicas.
+// After the replicas are scaled up/down, karmada-scheduler will schedule the replicas based on the policy.
 type FederatedHPAApplyConfiguration struct {
 	v1.TypeMetaApplyConfiguration    `json:",inline"`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
-	Spec                             *FederatedHPASpecApplyConfiguration                 `json:"spec,omitempty"`
-	Status                           *v2.HorizontalPodAutoscalerStatusApplyConfiguration `json:"status,omitempty"`
+	// Spec is the specification of the FederatedHPA.
+	Spec *FederatedHPASpecApplyConfiguration `json:"spec,omitempty"`
+	// Status is the current status of the FederatedHPA.
+	Status *v2.HorizontalPodAutoscalerStatusApplyConfiguration `json:"status,omitempty"`
 }
 
 // FederatedHPA constructs a declarative configuration of the FederatedHPA type for use with
@@ -48,29 +55,14 @@ func FederatedHPA(name, namespace string) *FederatedHPAApplyConfiguration {
 	return b
 }
 
-// ExtractFederatedHPA extracts the applied configuration owned by fieldManager from
-// federatedHPA. If no managedFields are found in federatedHPA for fieldManager, a
-// FederatedHPAApplyConfiguration is returned with only the Name, Namespace (if applicable),
-// APIVersion and Kind populated. It is possible that no managed fields were found for because other
-// field managers have taken ownership of all the fields previously owned by fieldManager, or because
-// the fieldManager never owned fields any fields.
+// ExtractFederatedHPAFrom extracts the applied configuration owned by fieldManager from
+// federatedHPA for the specified subresource. Pass an empty string for subresource to extract
+// the main resource. Common subresources include "status", "scale", etc.
 // federatedHPA must be a unmodified FederatedHPA API object that was retrieved from the Kubernetes API.
-// ExtractFederatedHPA provides a way to perform a extract/modify-in-place/apply workflow.
+// ExtractFederatedHPAFrom provides a way to perform a extract/modify-in-place/apply workflow.
 // Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
 // applied if another fieldManager has updated or force applied any of the previously applied fields.
-// Experimental!
-func ExtractFederatedHPA(federatedHPA *autoscalingv1alpha1.FederatedHPA, fieldManager string) (*FederatedHPAApplyConfiguration, error) {
-	return extractFederatedHPA(federatedHPA, fieldManager, "")
-}
-
-// ExtractFederatedHPAStatus is the same as ExtractFederatedHPA except
-// that it extracts the status subresource applied configuration.
-// Experimental!
-func ExtractFederatedHPAStatus(federatedHPA *autoscalingv1alpha1.FederatedHPA, fieldManager string) (*FederatedHPAApplyConfiguration, error) {
-	return extractFederatedHPA(federatedHPA, fieldManager, "status")
-}
-
-func extractFederatedHPA(federatedHPA *autoscalingv1alpha1.FederatedHPA, fieldManager string, subresource string) (*FederatedHPAApplyConfiguration, error) {
+func ExtractFederatedHPAFrom(federatedHPA *autoscalingv1alpha1.FederatedHPA, fieldManager string, subresource string) (*FederatedHPAApplyConfiguration, error) {
 	b := &FederatedHPAApplyConfiguration{}
 	err := managedfields.ExtractInto(federatedHPA, internal.Parser().Type("com.github.karmada-io.karmada.pkg.apis.autoscaling.v1alpha1.FederatedHPA"), fieldManager, b, subresource)
 	if err != nil {
@@ -83,6 +75,27 @@ func extractFederatedHPA(federatedHPA *autoscalingv1alpha1.FederatedHPA, fieldMa
 	b.WithAPIVersion("autoscaling.karmada.io/v1alpha1")
 	return b, nil
 }
+
+// ExtractFederatedHPA extracts the applied configuration owned by fieldManager from
+// federatedHPA. If no managedFields are found in federatedHPA for fieldManager, a
+// FederatedHPAApplyConfiguration is returned with only the Name, Namespace (if applicable),
+// APIVersion and Kind populated. It is possible that no managed fields were found for because other
+// field managers have taken ownership of all the fields previously owned by fieldManager, or because
+// the fieldManager never owned fields any fields.
+// federatedHPA must be a unmodified FederatedHPA API object that was retrieved from the Kubernetes API.
+// ExtractFederatedHPA provides a way to perform a extract/modify-in-place/apply workflow.
+// Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
+// applied if another fieldManager has updated or force applied any of the previously applied fields.
+func ExtractFederatedHPA(federatedHPA *autoscalingv1alpha1.FederatedHPA, fieldManager string) (*FederatedHPAApplyConfiguration, error) {
+	return ExtractFederatedHPAFrom(federatedHPA, fieldManager, "")
+}
+
+// ExtractFederatedHPAStatus extracts the applied configuration owned by fieldManager from
+// federatedHPA for the status subresource.
+func ExtractFederatedHPAStatus(federatedHPA *autoscalingv1alpha1.FederatedHPA, fieldManager string) (*FederatedHPAApplyConfiguration, error) {
+	return ExtractFederatedHPAFrom(federatedHPA, fieldManager, "status")
+}
+
 func (b FederatedHPAApplyConfiguration) IsApplyConfiguration() {}
 
 // WithKind sets the Kind field in the declarative configuration to the given value

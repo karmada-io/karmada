@@ -20,8 +20,18 @@ package v1alpha1
 
 // ExternalEtcdApplyConfiguration represents a declarative configuration of the ExternalEtcd type for use
 // with apply.
+//
+// ExternalEtcd describes an external etcd cluster.
+// operator has no knowledge of where certificate files live, and they must be supplied.
 type ExternalEtcdApplyConfiguration struct {
-	Endpoints []string                                `json:"endpoints,omitempty"`
+	// Endpoints of etcd members. Required for ExternalEtcd.
+	Endpoints []string `json:"endpoints,omitempty"`
+	// SecretRef references a Kubernetes secret containing the etcd connection credentials.
+	// The secret must contain the following data keys:
+	// ca.crt: The Certificate Authority (CA) certificate data.
+	// tls.crt: The TLS certificate data used for verifying the etcd server's certificate.
+	// tls.key: The TLS private key.
+	// Required to configure the connection to an external etcd cluster.
 	SecretRef *LocalSecretReferenceApplyConfiguration `json:"secretRef,omitempty"`
 }
 

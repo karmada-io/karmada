@@ -20,7 +20,12 @@ package v1alpha2
 
 // SchedulePriorityApplyConfiguration represents a declarative configuration of the SchedulePriority type for use
 // with apply.
+//
+// SchedulePriority represents the scheduling priority assigned to workloads.
 type SchedulePriorityApplyConfiguration struct {
+	// Priority specifies the scheduling priority for the binding.
+	// Higher values indicate a higher priority.
+	// If not explicitly set, the default value is 0.
 	Priority *int32 `json:"priority,omitempty"`
 }
 

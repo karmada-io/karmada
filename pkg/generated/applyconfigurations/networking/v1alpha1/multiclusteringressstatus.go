@@ -24,10 +24,18 @@ import (
 
 // MultiClusterIngressStatusApplyConfiguration represents a declarative configuration of the MultiClusterIngressStatus type for use
 // with apply.
+//
+// MultiClusterIngressStatus is the current state of the MultiClusterIngress.
 type MultiClusterIngressStatusApplyConfiguration struct {
 	v1.IngressStatusApplyConfiguration `json:",inline"`
-	TrafficBlockClusters               []string                            `json:"trafficBlockClusters,omitempty"`
-	ServiceLocations                   []ServiceLocationApplyConfiguration `json:"serviceLocations,omitempty"`
+	// TrafficBlockClusters records the cluster name list that needs to perform traffic block.
+	// When the cloud provider implements its multicluster-cloud-provider and refreshes
+	// the service backend address to the LoadBalancer Service, it needs to filter out
+	// the backend addresses in these clusters.
+	TrafficBlockClusters []string `json:"trafficBlockClusters,omitempty"`
+	// ServiceLocations records the locations of MulticlusterIngress's backend
+	// Service resources. It will be set by the system controller.
+	ServiceLocations []ServiceLocationApplyConfiguration `json:"serviceLocations,omitempty"`
 }
 
 // MultiClusterIngressStatusApplyConfiguration constructs a declarative configuration of the MultiClusterIngressStatus type for use with

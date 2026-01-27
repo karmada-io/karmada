@@ -29,11 +29,15 @@ import (
 
 // WorkApplyConfiguration represents a declarative configuration of the Work type for use
 // with apply.
+//
+// Work defines a list of resources to be deployed on the member cluster.
 type WorkApplyConfiguration struct {
 	v1.TypeMetaApplyConfiguration    `json:",inline"`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
-	Spec                             *WorkSpecApplyConfiguration   `json:"spec,omitempty"`
-	Status                           *WorkStatusApplyConfiguration `json:"status,omitempty"`
+	// Spec represents the desired behavior of Work.
+	Spec *WorkSpecApplyConfiguration `json:"spec,omitempty"`
+	// Status represents the status of PropagationStatus.
+	Status *WorkStatusApplyConfiguration `json:"status,omitempty"`
 }
 
 // Work constructs a declarative configuration of the Work type for use with
@@ -47,29 +51,14 @@ func Work(name, namespace string) *WorkApplyConfiguration {
 	return b
 }
 
-// ExtractWork extracts the applied configuration owned by fieldManager from
-// work. If no managedFields are found in work for fieldManager, a
-// WorkApplyConfiguration is returned with only the Name, Namespace (if applicable),
-// APIVersion and Kind populated. It is possible that no managed fields were found for because other
-// field managers have taken ownership of all the fields previously owned by fieldManager, or because
-// the fieldManager never owned fields any fields.
+// ExtractWorkFrom extracts the applied configuration owned by fieldManager from
+// work for the specified subresource. Pass an empty string for subresource to extract
+// the main resource. Common subresources include "status", "scale", etc.
 // work must be a unmodified Work API object that was retrieved from the Kubernetes API.
-// ExtractWork provides a way to perform a extract/modify-in-place/apply workflow.
+// ExtractWorkFrom provides a way to perform a extract/modify-in-place/apply workflow.
 // Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
 // applied if another fieldManager has updated or force applied any of the previously applied fields.
-// Experimental!
-func ExtractWork(work *workv1alpha1.Work, fieldManager string) (*WorkApplyConfiguration, error) {
-	return extractWork(work, fieldManager, "")
-}
-
-// ExtractWorkStatus is the same as ExtractWork except
-// that it extracts the status subresource applied configuration.
-// Experimental!
-func ExtractWorkStatus(work *workv1alpha1.Work, fieldManager string) (*WorkApplyConfiguration, error) {
-	return extractWork(work, fieldManager, "status")
-}
-
-func extractWork(work *workv1alpha1.Work, fieldManager string, subresource string) (*WorkApplyConfiguration, error) {
+func ExtractWorkFrom(work *workv1alpha1.Work, fieldManager string, subresource string) (*WorkApplyConfiguration, error) {
 	b := &WorkApplyConfiguration{}
 	err := managedfields.ExtractInto(work, internal.Parser().Type("com.github.karmada-io.karmada.pkg.apis.work.v1alpha1.Work"), fieldManager, b, subresource)
 	if err != nil {
@@ -82,6 +71,27 @@ func extractWork(work *workv1alpha1.Work, fieldManager string, subresource strin
 	b.WithAPIVersion("work.karmada.io/v1alpha1")
 	return b, nil
 }
+
+// ExtractWork extracts the applied configuration owned by fieldManager from
+// work. If no managedFields are found in work for fieldManager, a
+// WorkApplyConfiguration is returned with only the Name, Namespace (if applicable),
+// APIVersion and Kind populated. It is possible that no managed fields were found for because other
+// field managers have taken ownership of all the fields previously owned by fieldManager, or because
+// the fieldManager never owned fields any fields.
+// work must be a unmodified Work API object that was retrieved from the Kubernetes API.
+// ExtractWork provides a way to perform a extract/modify-in-place/apply workflow.
+// Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
+// applied if another fieldManager has updated or force applied any of the previously applied fields.
+func ExtractWork(work *workv1alpha1.Work, fieldManager string) (*WorkApplyConfiguration, error) {
+	return ExtractWorkFrom(work, fieldManager, "")
+}
+
+// ExtractWorkStatus extracts the applied configuration owned by fieldManager from
+// work for the status subresource.
+func ExtractWorkStatus(work *workv1alpha1.Work, fieldManager string) (*WorkApplyConfiguration, error) {
+	return ExtractWorkFrom(work, fieldManager, "status")
+}
+
 func (b WorkApplyConfiguration) IsApplyConfiguration() {}
 
 // WithKind sets the Kind field in the declarative configuration to the given value

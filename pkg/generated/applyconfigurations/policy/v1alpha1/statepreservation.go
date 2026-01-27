@@ -20,7 +20,14 @@ package v1alpha1
 
 // StatePreservationApplyConfiguration represents a declarative configuration of the StatePreservation type for use
 // with apply.
+//
+// StatePreservation defines the policy for preserving state during failover events.
 type StatePreservationApplyConfiguration struct {
+	// Rules contains a list of StatePreservationRule configurations.
+	// Each rule specifies a JSONPath expression targeting specific pieces of
+	// state data to be preserved during failover events. An AliasLabelName is associated
+	// with each rule, serving as a label key when the preserved data is passed
+	// to the new cluster.
 	Rules []StatePreservationRuleApplyConfiguration `json:"rules,omitempty"`
 }
 

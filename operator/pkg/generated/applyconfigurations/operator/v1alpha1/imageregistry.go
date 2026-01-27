@@ -20,7 +20,14 @@ package v1alpha1
 
 // ImageRegistryApplyConfiguration represents a declarative configuration of the ImageRegistry type for use
 // with apply.
+//
+// ImageRegistry represents an image registry as well as the
+// necessary credentials to access with.
+// Note: Postpone define the credentials to the next release.
 type ImageRegistryApplyConfiguration struct {
+	// Registry is the image registry hostname, like:
+	// - docker.io
+	// - fictional.registry.example
 	Registry *string `json:"registry,omitempty"`
 }
 

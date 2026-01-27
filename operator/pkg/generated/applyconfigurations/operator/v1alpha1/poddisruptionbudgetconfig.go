@@ -24,8 +24,17 @@ import (
 
 // PodDisruptionBudgetConfigApplyConfiguration represents a declarative configuration of the PodDisruptionBudgetConfig type for use
 // with apply.
+//
+// PodDisruptionBudgetConfig defines a subset of PodDisruptionBudgetSpec fields
+// that users can configure for their control plane components.
 type PodDisruptionBudgetConfigApplyConfiguration struct {
-	MinAvailable   *intstr.IntOrString `json:"minAvailable,omitempty"`
+	// MinAvailable specifies the minimum number or percentage of pods
+	// that must remain available after evictions.
+	// Mutually exclusive with MaxUnavailable.
+	MinAvailable *intstr.IntOrString `json:"minAvailable,omitempty"`
+	// MaxUnavailable specifies the maximum number or percentage of pods
+	// that can be unavailable after evictions.
+	// Mutually exclusive with MinAvailable.
 	MaxUnavailable *intstr.IntOrString `json:"maxUnavailable,omitempty"`
 }
 
