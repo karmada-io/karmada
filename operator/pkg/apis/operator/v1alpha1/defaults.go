@@ -51,7 +51,8 @@ func init() {
 		releaseVer = &version.ReleaseVersion{} // initialize to avoid panic
 	}
 	DefaultKarmadaImageVersion = releaseVer.ReleaseVersion()
-	klog.Infof("default Karmada Image Version: %s", DefaultKarmadaImageVersion)
+	// Use a verbose log level to avoid side effects (unconditional logging) for consumers importing this package.
+	klog.V(4).Infof("default Karmada Image Version: %s", DefaultKarmadaImageVersion)
 }
 
 func addDefaultingFuncs(scheme *runtime.Scheme) error {
