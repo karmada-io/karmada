@@ -19,7 +19,7 @@ set -o nounset
 set -o pipefail
 
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
-GOLANGCI_LINT_VER="v2.0.2"
+GOLANGCI_LINT_VER="v2.8.0"
 
 cd "${REPO_ROOT}"
 source "hack/util.sh"

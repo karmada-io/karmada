@@ -103,7 +103,7 @@ push-chart:
 	helm push _output/charts/karmada-operator-chart-${VERSION}.tgz oci://docker.io/karmada
 
 GOTESTSUM_REGISTRY:=gotest.tools/gotestsum
-GOTESTSUM_VERSION:=ec99a250836f069a524bb9d9b5de0a7a96334ea7 # v1.11.0
+GOTESTSUM_VERSION:=v1.13.0
 GOTESTSUM_FLAGS?=--format testname
 GOTESTSUM_ENABLED?=
 GOTEST=go test
