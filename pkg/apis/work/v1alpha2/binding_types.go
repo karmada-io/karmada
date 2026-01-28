@@ -174,6 +174,13 @@ type ResourceBindingSpec struct {
 	// SchedulePriority represents the scheduling priority assigned to workloads.
 	// +optional
 	SchedulePriority *SchedulePriority `json:"schedulePriority,omitempty"`
+
+	// WorkloadAffinityGroups represents instantiated grouping results from .spec.placement.workloadAffinity,
+	// used to keep workloads with the same affinity group co-located or those with the same
+	// anti-affinity group separated across clusters. Populated by controllers, the scheduler
+	// consumes it for decisions.
+	// +optional
+	WorkloadAffinityGroups *WorkloadAffinityGroups `json:"workloadAffinityGroups,omitempty"`
 }
 
 // ObjectReference contains enough information to locate the referenced object inside current cluster.
@@ -393,6 +400,22 @@ type SchedulePriority struct {
 	// +kubebuilder:default=0
 	// +optional
 	Priority int32 `json:"priority,omitempty"`
+}
+
+// WorkloadAffinityGroups stores the instantiated affinity and anti-affinity group names.
+// Each group name is serialized as "<labelKey>=<labelValue>" (for example: "app.group=frontend"),
+// and is used by the scheduler to co-locate workloads in the same affinity group and to separate
+// workloads in the same anti-affinity group.
+// Note: If multiple groups are needed later, prefer adding list-typed fields (e.g., AffinityGroups,
+// AntiAffinityGroups) alongside these fields to keep backward compatibility.
+type WorkloadAffinityGroups struct {
+	// AffinityGroup is the instantiated group name derived from affinity rules.
+	// +optional
+	AffinityGroup string `json:"affinityGroup,omitempty"`
+
+	// AntiAffinityGroup is the instantiated group name derived from anti-affinity rules.
+	// +optional
+	AntiAffinityGroup string `json:"antiAffinityGroup,omitempty"`
 }
 
 // ResourceBindingStatus represents the overall status of the strategy as well as the referenced resources.
