@@ -83,6 +83,7 @@ func (c *CRBGracefulEvictionController) syncBinding(ctx context.Context, binding
 		scheduleResult: binding.Spec.Clusters,
 		observedStatus: binding.Status.AggregatedStatus,
 		hasScheduled:   binding.Status.SchedulerObservedGeneration == binding.Generation,
+		statusUpToDate: isStatusUpToDate(binding.Spec.Clusters, binding.Status.AggregatedStatus),
 	})
 	if reflect.DeepEqual(binding.Spec.GracefulEvictionTasks, keptTask) {
 		return nextRetry(keptTask, c.GracefulEvictionTimeout, metav1.Now().Time), nil

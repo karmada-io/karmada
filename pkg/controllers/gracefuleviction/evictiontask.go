@@ -30,6 +30,10 @@ type assessmentOption struct {
 	scheduleResult []workv1alpha2.TargetCluster
 	observedStatus []workv1alpha2.AggregatedStatusItem
 	hasScheduled   bool
+	// statusUpToDate indicates whether the observed status covers all scheduled clusters.
+	// This is a safeguard against race conditions where the graceful eviction controller
+	// processes a binding before the status controller has updated AggregatedStatus.
+	statusUpToDate bool
 }
 
 // assessEvictionTasks assesses each task according to graceful eviction rules and
@@ -78,9 +82,12 @@ func assessSingleTask(task workv1alpha2.GracefulEvictionTask, opt assessmentOpti
 		return nil
 	}
 
-	// Only when the binding object has been scheduled can further judgment be made.
-	// Otherwise, the binding status may be the old, which will affect the correctness of the judgment.
-	if opt.hasScheduled && allScheduledResourceInHealthyState(opt) {
+	// Only when the binding object has been scheduled AND the status is up-to-date can further
+	// judgment be made. The statusUpToDate check is critical to prevent a race condition where
+	// the graceful eviction controller processes a binding before the status controller has
+	// updated AggregatedStatus to reflect the new cluster list. Without this check, stale status
+	// could cause premature removal of eviction tasks, leading to resource unavailability.
+	if opt.hasScheduled && opt.statusUpToDate && allScheduledResourceInHealthyState(opt) {
 		return nil
 	}
 
@@ -110,6 +117,30 @@ func allScheduledResourceInHealthyState(opt assessmentOption) bool {
 		}
 	}
 
+	return true
+}
+
+// isStatusUpToDate checks if the observed status covers all scheduled clusters.
+// This helps detect stale status that hasn't been updated after a rescheduling event.
+// Returns true only if every cluster in scheduleResult has a corresponding entry
+// in observedStatus, indicating the status controller has processed the current schedule.
+func isStatusUpToDate(scheduleResult []workv1alpha2.TargetCluster, observedStatus []workv1alpha2.AggregatedStatusItem) bool {
+	if len(scheduleResult) == 0 {
+		return true
+	}
+
+	// Build a set of clusters that have status
+	statusClusters := make(map[string]struct{}, len(observedStatus))
+	for _, status := range observedStatus {
+		statusClusters[status.ClusterName] = struct{}{}
+	}
+
+	// Check that all scheduled clusters have status
+	for _, target := range scheduleResult {
+		if _, exists := statusClusters[target.Name]; !exists {
+			return false
+		}
+	}
 	return true
 }
 

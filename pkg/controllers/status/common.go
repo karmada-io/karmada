@@ -88,6 +88,7 @@ var bindingPredicateFn = builder.WithPredicates(predicate.Funcs{
 		}
 
 		var oldResourceVersion, newResourceVersion string
+		var oldClusters, newClusters []workv1alpha2.TargetCluster
 
 		// NOTE: We add this logic to prevent the situation as following:
 		// 1. Create Deployment and HPA.
@@ -98,8 +99,10 @@ var bindingPredicateFn = builder.WithPredicates(predicate.Funcs{
 		switch oldBinding := e.ObjectOld.(type) {
 		case *workv1alpha2.ResourceBinding:
 			oldResourceVersion = oldBinding.Spec.Resource.ResourceVersion
+			oldClusters = oldBinding.Spec.Clusters
 		case *workv1alpha2.ClusterResourceBinding:
 			oldResourceVersion = oldBinding.Spec.Resource.ResourceVersion
+			oldClusters = oldBinding.Spec.Clusters
 		default:
 			return false
 		}
@@ -107,13 +110,23 @@ var bindingPredicateFn = builder.WithPredicates(predicate.Funcs{
 		switch newBinding := e.ObjectNew.(type) {
 		case *workv1alpha2.ResourceBinding:
 			newResourceVersion = newBinding.Spec.Resource.ResourceVersion
+			newClusters = newBinding.Spec.Clusters
 		case *workv1alpha2.ClusterResourceBinding:
 			newResourceVersion = newBinding.Spec.Resource.ResourceVersion
+			newClusters = newBinding.Spec.Clusters
 		default:
 			return false
 		}
 
-		return oldResourceVersion != newResourceVersion
+		// Trigger status aggregation when resource template changes OR when the cluster list changes.
+		// The cluster list change check is critical for graceful eviction: when the scheduler reschedules
+		// to new clusters, the status controller must update AggregatedStatus before the graceful eviction
+		// controller makes eviction decisions. Without this check, a race condition can occur where
+		// the graceful eviction controller uses stale status to prematurely remove eviction tasks.
+		if oldResourceVersion != newResourceVersion {
+			return true
+		}
+		return !targetClustersEqual(oldClusters, newClusters)
 	},
 	DeleteFunc: func(event.DeleteEvent) bool { return false },
 })
@@ -213,4 +226,23 @@ func updateResourceStatus(
 	}
 
 	return nil
+}
+
+// targetClustersEqual checks if two slices of TargetCluster are equal.
+// It compares cluster names and replica counts.
+func targetClustersEqual(a, b []workv1alpha2.TargetCluster) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	// Build a map for quick lookup
+	clusterMap := make(map[string]int32, len(a))
+	for _, cluster := range a {
+		clusterMap[cluster.Name] = cluster.Replicas
+	}
+	for _, cluster := range b {
+		if replicas, exists := clusterMap[cluster.Name]; !exists || replicas != cluster.Replicas {
+			return false
+		}
+	}
+	return true
 }
