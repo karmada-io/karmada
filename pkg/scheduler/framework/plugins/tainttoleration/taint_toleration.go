@@ -22,6 +22,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	v1helper "k8s.io/component-helpers/scheduling/corev1"
+	"k8s.io/klog/v2"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -66,7 +67,15 @@ func (p *TaintToleration) Filter(
 		return t.Effect == corev1.TaintEffectNoSchedule || t.Effect == corev1.TaintEffectNoExecute
 	}
 
-	taint, isUntolerated := v1helper.FindMatchingUntoleratedTaint(cluster.Spec.Taints, bindingSpec.Placement.ClusterTolerations, filterPredicate)
+	// Note: Kubernetes v1.35 extended the toleration operators by introducing Lt and Gt,
+	// and extended the ToleratesTaint method to include logger and enableComparisonOperators parameters.
+	// PR: https://github.com/kubernetes/kubernetes/pull/134665
+	//
+	// TODO(@RainbowMango): Karmada requires more detailed design to support these new operators.
+	// For now, we disable the comparison operators (enableComparisonOperators=false) to maintain
+	// backward-compatible behavior.
+	// With this flag set to false, the logger parameter is not actually used.
+	taint, isUntolerated := v1helper.FindMatchingUntoleratedTaint(klog.Background(), cluster.Spec.Taints, bindingSpec.Placement.ClusterTolerations, filterPredicate, false)
 	if !isUntolerated {
 		return framework.NewResult(framework.Success)
 	}
