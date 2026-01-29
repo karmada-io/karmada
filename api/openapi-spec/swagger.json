@@ -21624,6 +21624,10 @@
         "suspension": {
           "description": "Suspension declares the policy for suspending different aspects of propagation. nil means no suspension. no default values.",
           "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.Suspension"
+        },
+        "workloadAffinityGroups": {
+          "description": "WorkloadAffinityGroups represents instantiated grouping results from .spec.placement.workloadAffinity, used to keep workloads with the same affinity group co-located or those with the same anti-affinity group separated across clusters. Populated by controllers, the scheduler consumes it for decisions.",
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.WorkloadAffinityGroups"
         }
       }
     },
@@ -21707,6 +21711,20 @@
           "description": "Replicas in target cluster",
           "type": "integer",
           "format": "int32"
+        }
+      }
+    },
+    "com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.WorkloadAffinityGroups": {
+      "description": "WorkloadAffinityGroups stores the instantiated affinity and anti-affinity group names. Each group name is serialized as \"\u003clabelKey\u003e=\u003clabelValue\u003e\" (for example: \"app.group=frontend\"), and is used by the scheduler to co-locate workloads in the same affinity group and to separate workloads in the same anti-affinity group. Note: If multiple groups are needed later, prefer adding list-typed fields (e.g., AffinityGroups, AntiAffinityGroups) alongside these fields to keep backward compatibility.",
+      "type": "object",
+      "properties": {
+        "affinityGroup": {
+          "description": "AffinityGroup is the instantiated group name derived from affinity rules.",
+          "type": "string"
+        },
+        "antiAffinityGroup": {
+          "description": "AntiAffinityGroup is the instantiated group name derived from anti-affinity rules.",
+          "type": "string"
         }
       }
     },

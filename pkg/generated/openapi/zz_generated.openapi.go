@@ -197,6 +197,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.Suspension":                                    schema_pkg_apis_work_v1alpha2_Suspension(ref),
 		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.TargetCluster":                                 schema_pkg_apis_work_v1alpha2_TargetCluster(ref),
 		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.TaskOptions":                                   schema_pkg_apis_work_v1alpha2_TaskOptions(ref),
+		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.WorkloadAffinityGroups":                        schema_pkg_apis_work_v1alpha2_WorkloadAffinityGroups(ref),
 		"k8s.io/api/admissionregistration/v1.AuditAnnotation":                                                schema_k8sio_api_admissionregistration_v1_AuditAnnotation(ref),
 		"k8s.io/api/admissionregistration/v1.ExpressionWarning":                                              schema_k8sio_api_admissionregistration_v1_ExpressionWarning(ref),
 		"k8s.io/api/admissionregistration/v1.MatchCondition":                                                 schema_k8sio_api_admissionregistration_v1_MatchCondition(ref),
@@ -7942,12 +7943,18 @@ func schema_pkg_apis_work_v1alpha2_ResourceBindingSpec(ref common.ReferenceCallb
 							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.SchedulePriority"),
 						},
 					},
+					"workloadAffinityGroups": {
+						SchemaProps: spec.SchemaProps{
+							Description: "WorkloadAffinityGroups represents instantiated grouping results from .spec.placement.workloadAffinity, used to keep workloads with the same affinity group co-located or those with the same anti-affinity group separated across clusters. Populated by controllers, the scheduler consumes it for decisions.",
+							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.WorkloadAffinityGroups"),
+						},
+					},
 				},
 				Required: []string{"resource"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FailoverBehavior", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Placement", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.BindingSnapshot", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.Component", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.GracefulEvictionTask", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ObjectReference", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ReplicaRequirements", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.SchedulePriority", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.Suspension", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.TargetCluster", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FailoverBehavior", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Placement", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.BindingSnapshot", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.Component", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.GracefulEvictionTask", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ObjectReference", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ReplicaRequirements", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.SchedulePriority", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.Suspension", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.TargetCluster", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.WorkloadAffinityGroups", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 
@@ -8176,6 +8183,33 @@ func schema_pkg_apis_work_v1alpha2_TaskOptions(ref common.ReferenceCallback) com
 					},
 				},
 				Required: []string{"purgeMode", "producer", "reason", "message", "gracePeriodSeconds", "suppressDeletion", "preservedLabelState", "clustersBeforeFailover"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_work_v1alpha2_WorkloadAffinityGroups(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "WorkloadAffinityGroups stores the instantiated affinity and anti-affinity group names. Each group name is serialized as \"<labelKey>=<labelValue>\" (for example: \"app.group=frontend\"), and is used by the scheduler to co-locate workloads in the same affinity group and to separate workloads in the same anti-affinity group. Note: If multiple groups are needed later, prefer adding list-typed fields (e.g., AffinityGroups, AntiAffinityGroups) alongside these fields to keep backward compatibility.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"affinityGroup": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AffinityGroup is the instantiated group name derived from affinity rules.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"antiAffinityGroup": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AntiAffinityGroup is the instantiated group name derived from anti-affinity rules.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
 			},
 		},
 	}

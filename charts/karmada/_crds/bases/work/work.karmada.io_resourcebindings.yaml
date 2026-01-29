@@ -1651,6 +1651,22 @@ spec:
                       lead to ineffective suspension.
                     type: boolean
                 type: object
+              workloadAffinityGroups:
+                description: |-
+                  WorkloadAffinityGroups represents instantiated grouping results from .spec.placement.workloadAffinity,
+                  used to keep workloads with the same affinity group co-located or those with the same
+                  anti-affinity group separated across clusters. Populated by controllers, the scheduler
+                  consumes it for decisions.
+                properties:
+                  affinityGroup:
+                    description: AffinityGroup is the instantiated group name derived
+                      from affinity rules.
+                    type: string
+                  antiAffinityGroup:
+                    description: AntiAffinityGroup is the instantiated group name
+                      derived from anti-affinity rules.
+                    type: string
+                type: object
             required:
             - resource
             type: object
