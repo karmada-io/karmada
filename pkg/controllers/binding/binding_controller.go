@@ -19,12 +19,14 @@ package binding
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/record"
@@ -34,9 +36,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -63,6 +67,17 @@ type ResourceBindingController struct {
 	OverrideManager     overridemanager.OverrideManager
 	ResourceInterpreter resourceinterpreter.ResourceInterpreter
 	RateLimiterOptions  ratelimiterflag.Options
+
+	// EnableAsyncWorkCreation enables asynchronous work creation for improved throughput.
+	// When enabled, work creation tasks are submitted to an async queue and processed
+	// by dedicated workers, similar to kube-scheduler's async binding pattern.
+	EnableAsyncWorkCreation bool
+	// AsyncWorkCreator handles asynchronous work creation
+	AsyncWorkCreator *AsyncWorkCreator
+	// RequeueAfterFailure is a channel used to requeue bindings after async work creation failure.
+	// When AsyncWorkCreator fails to create a work, it sends the binding key to this channel
+	// to trigger a re-reconciliation.
+	RequeueAfterFailure chan string
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -108,7 +123,31 @@ func (c *ResourceBindingController) removeFinalizer(ctx context.Context, rb *wor
 }
 
 // syncBinding will sync resourceBinding to Works.
+//
+//nolint:gocyclo
 func (c *ResourceBindingController) syncBinding(ctx context.Context, binding *workv1alpha2.ResourceBinding) (controllerruntime.Result, error) {
+	bindingKey := fmt.Sprintf("%s/%s", binding.Namespace, binding.Name)
+
+	// Fast path: Check assume cache first - if works are being created asynchronously, skip this reconcile
+	if c.EnableAsyncWorkCreation && c.AsyncWorkCreator != nil && c.AsyncWorkCreator.IsAssumed(bindingKey) {
+		klog.V(4).InfoS("Skip reconcile, works are being created asynchronously", "binding", bindingKey)
+		return controllerruntime.Result{}, nil
+	}
+
+	// Compute target clusters hash for async work creation optimization
+	currentHash := helper.GetTargetClustersHash(binding.Spec.Clusters, binding.Spec.RequiredBy)
+	lastHash := ""
+	if binding.Annotations != nil {
+		lastHash = binding.Annotations[workv1alpha2.TargetClustersHashAnnotation]
+	}
+
+	// Clear assume cache when clusters changed - need full re-sync
+	if lastHash != currentHash && c.EnableAsyncWorkCreation && c.AsyncWorkCreator != nil {
+		c.AsyncWorkCreator.ForgetBinding(bindingKey)
+	}
+
+	// Always check and remove orphan works to ensure correctness
+	// This matches the original behavior and prevents edge cases where orphans are missed
 	if err := c.removeOrphanWorks(ctx, binding); err != nil {
 		return controllerruntime.Result{}, err
 	}
@@ -135,6 +174,13 @@ func (c *ResourceBindingController) syncBinding(ctx context.Context, binding *wo
 		klog.ErrorS(err, "Failed to fetch workload for ResourceBinding", "namespace", binding.GetNamespace(), "binding", binding.GetName())
 		return controllerruntime.Result{}, err
 	}
+
+	// Use async work creation if enabled
+	if c.EnableAsyncWorkCreation && c.AsyncWorkCreator != nil {
+		return c.syncBindingAsync(ctx, binding, workload, bindingKey, currentHash, lastHash)
+	}
+
+	// Fallback to synchronous work creation
 	start := time.Now()
 	err = ensureWork(ctx, c.Client, c.ResourceInterpreter, workload, c.OverrideManager, binding, apiextensionsv1.NamespaceScoped)
 	metrics.ObserveSyncWorkLatency(err, start)
@@ -145,11 +191,124 @@ func (c *ResourceBindingController) syncBinding(ctx context.Context, binding *wo
 		return controllerruntime.Result{}, err
 	}
 
+	// Update target clusters hash annotation if changed
+	if lastHash != currentHash {
+		if err := c.updateTargetClustersHash(ctx, binding, currentHash); err != nil {
+			klog.V(4).ErrorS(err, "Failed to update target clusters hash annotation", "namespace", binding.GetNamespace(), "binding", binding.GetName())
+			// Don't return error, this is just an optimization hint
+		}
+	}
+
 	msg := fmt.Sprintf("Sync work of ResourceBinding(%s/%s) successful.", binding.Namespace, binding.Name)
 	klog.V(4).InfoS(msg, "namespace", binding.GetNamespace(), "binding", binding.GetName())
 	c.EventRecorder.Event(binding, corev1.EventTypeNormal, events.EventReasonSyncWorkSucceed, msg)
 	c.EventRecorder.Event(workload, corev1.EventTypeNormal, events.EventReasonSyncWorkSucceed, msg)
 	return controllerruntime.Result{}, nil
+}
+
+// syncBindingAsync handles asynchronous work creation following the kube-scheduler pattern.
+// It prepares work tasks and submits them to the async queue, returning immediately without
+// waiting for the actual work creation to complete.
+func (c *ResourceBindingController) syncBindingAsync(ctx context.Context, binding *workv1alpha2.ResourceBinding,
+	workload *unstructured.Unstructured, bindingKey, currentHash, lastHash string) (controllerruntime.Result, error) {
+	// Prepare work tasks
+	tasks, err := c.prepareWorkTasks(ctx, binding, workload)
+	if err != nil {
+		klog.ErrorS(err, "Failed to prepare work tasks", "binding", bindingKey)
+		c.EventRecorder.Event(binding, corev1.EventTypeWarning, events.EventReasonSyncWorkFailed, err.Error())
+		return controllerruntime.Result{}, err
+	}
+
+	if len(tasks) == 0 {
+		klog.V(4).InfoS("No work tasks to create", "binding", bindingKey)
+		return controllerruntime.Result{}, nil
+	}
+
+	// Submit tasks to async queue
+	if err := c.AsyncWorkCreator.Submit(bindingKey, tasks); err != nil {
+		klog.ErrorS(err, "Failed to submit work tasks to async queue", "binding", bindingKey)
+		// Queue is full, fall back to sync processing
+		return controllerruntime.Result{Requeue: true}, err
+	}
+
+	klog.V(4).InfoS("Submitted work tasks to async queue", "binding", bindingKey, "taskCount", len(tasks))
+
+	// Update target clusters hash annotation if changed
+	if lastHash != currentHash {
+		if err := c.updateTargetClustersHash(ctx, binding, currentHash); err != nil {
+			klog.V(4).ErrorS(err, "Failed to update target clusters hash annotation", "binding", bindingKey)
+		}
+	}
+
+	// Note: Success events will be recorded by AsyncWorkCreator when works are actually created
+	return controllerruntime.Result{}, nil
+}
+
+// prepareWorkTasks prepares work creation tasks for all target clusters.
+// This reuses the existing prepareWorkTask logic from common.go and converts results to WorkTask.
+func (c *ResourceBindingController) prepareWorkTasks(_ context.Context, binding *workv1alpha2.ResourceBinding,
+	workload *unstructured.Unstructured) ([]*WorkTask, error) {
+	bindingSpec := binding.Spec
+	targetClusters := mergeTargetClusters(bindingSpec.Clusters, bindingSpec.RequiredBy)
+
+	if len(targetClusters) == 0 {
+		return nil, nil
+	}
+
+	var jobCompletions []workv1alpha2.TargetCluster
+	var err error
+	if workload.GetKind() == util.JobKind && needReviseJobCompletions(bindingSpec.Replicas, bindingSpec.Placement) {
+		jobCompletions, err = divideReplicasByJobCompletions(workload, targetClusters)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	tasks := make([]*WorkTask, 0, len(targetClusters))
+	numClusters := len(targetClusters)
+
+	for i, targetCluster := range targetClusters {
+		// Deep copy workload for each cluster
+		clonedWorkload := workload.DeepCopy()
+
+		// Use existing prepareWorkTask from common.go
+		wt, err := prepareWorkTask(PrepareWorkTaskArgs{
+			ResourceInterpreter: c.ResourceInterpreter,
+			ClonedWorkload:      clonedWorkload,
+			OverrideManager:     c.OverrideManager,
+			Binding:             binding,
+			Scope:               apiextensionsv1.NamespaceScoped,
+			BindingSpec:         bindingSpec,
+			TargetCluster:       targetCluster,
+			ClusterIndex:        i,
+			JobCompletions:      jobCompletions,
+			TotalClusters:       numClusters,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to prepare work task for cluster %s: %w", targetCluster.Name, err)
+		}
+
+		// Convert workTask to WorkTask for async processing
+		tasks = append(tasks, &WorkTask{
+			WorkMeta:                    wt.workMeta,
+			Workload:                    wt.workload,
+			SuspendDispatching:          ptr.To(wt.suspendDisp),
+			PreserveResourcesOnDeletion: ptr.To(wt.preserveOnDel),
+			Binding:                     binding,
+		})
+	}
+
+	return tasks, nil
+}
+
+// updateTargetClustersHash updates the target clusters hash annotation on the binding.
+func (c *ResourceBindingController) updateTargetClustersHash(ctx context.Context, binding *workv1alpha2.ResourceBinding, hash string) error {
+	bindingCopy := binding.DeepCopy()
+	if bindingCopy.Annotations == nil {
+		bindingCopy.Annotations = make(map[string]string)
+	}
+	bindingCopy.Annotations[workv1alpha2.TargetClustersHashAnnotation] = hash
+	return c.Client.Update(ctx, bindingCopy)
 }
 
 func (c *ResourceBindingController) removeOrphanWorks(ctx context.Context, binding *workv1alpha2.ResourceBinding) error {
@@ -185,14 +344,48 @@ func (c *ResourceBindingController) checkDirectPurgeOrphanWorks(ctx context.Cont
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *ResourceBindingController) SetupWithManager(mgr controllerruntime.Manager) error {
-	return controllerruntime.NewControllerManagedBy(mgr).
+	builder := controllerruntime.NewControllerManagedBy(mgr).
 		Named(ControllerName).
 		For(&workv1alpha2.ResourceBinding{}).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		Watches(&policyv1alpha1.OverridePolicy{}, handler.EnqueueRequestsFromMapFunc(c.newOverridePolicyFunc())).
 		Watches(&policyv1alpha1.ClusterOverridePolicy{}, handler.EnqueueRequestsFromMapFunc(c.newOverridePolicyFunc())).
-		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RateLimiterOptions)}).
-		Complete(c)
+		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RateLimiterOptions)})
+
+	// Add channel source for requeue after async work creation failure
+	if c.EnableAsyncWorkCreation && c.RequeueAfterFailure != nil {
+		requeueEventChan := make(chan event.GenericEvent, 1000)
+		// Start goroutine to convert string keys to GenericEvents
+		go c.runRequeueListener(requeueEventChan)
+		builder = builder.WatchesRawSource(source.Channel(requeueEventChan, &handler.EnqueueRequestForObject{}))
+	}
+
+	return builder.Complete(c)
+}
+
+// runRequeueListener listens on RequeueAfterFailure channel and converts binding keys to GenericEvents
+func (c *ResourceBindingController) runRequeueListener(eventChan chan<- event.GenericEvent) {
+	for bindingKey := range c.RequeueAfterFailure {
+		parts := strings.SplitN(bindingKey, "/", 2)
+		if len(parts) != 2 {
+			klog.Warningf("Invalid binding key format: %s", bindingKey)
+			continue
+		}
+		namespace, name := parts[0], parts[1]
+		klog.V(4).Infof("Requeuing ResourceBinding %s/%s after async work creation failure", namespace, name)
+
+		// Create a minimal ResourceBinding object for the event
+		// The controller will fetch the full object during reconciliation
+		rb := &workv1alpha2.ResourceBinding{}
+		rb.SetNamespace(namespace)
+		rb.SetName(name)
+
+		select {
+		case eventChan <- event.GenericEvent{Object: rb}:
+		default:
+			klog.Warningf("Requeue event channel is full, dropping requeue for %s", bindingKey)
+		}
+	}
 }
 
 func (c *ResourceBindingController) newOverridePolicyFunc() handler.MapFunc {

@@ -104,6 +104,20 @@ type Options struct {
 
 	// RateLimiterOpts contains the options for rate limiter.
 	RateLimiterOpts ratelimiterflag.Options
+
+	// ScheduleWorkers is the number of concurrent workers for scheduling ResourceBindings.
+	// Higher values improve throughput but increase API server load.
+	// Defaults to 1 for backward compatibility.
+	ScheduleWorkers int
+
+	// EnableAsyncBind enables asynchronous binding of scheduling results.
+	// When enabled, the scheduler submits binding requests to an async queue
+	// for processing by dedicated workers, improving throughput.
+	EnableAsyncBind bool
+	// AsyncBindWorkers is the number of concurrent workers for asynchronous binding.
+	// Only effective when EnableAsyncBind is true.
+	// Defaults to 32.
+	AsyncBindWorkers int
 }
 
 // NewOptions builds an default scheduler options.
@@ -163,6 +177,9 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	fs.StringSliceVar(&o.Plugins, "plugins", []string{"*"},
 		fmt.Sprintf("A list of plugins to enable. '*' enables all build-in and customized plugins, 'foo' enables the plugin named 'foo', '*,-foo' disables the plugin named 'foo'.\nAll build-in plugins: %s.", strings.Join(frameworkplugins.NewInTreeRegistry().FactoryNames(), ",")))
 	fs.StringVar(&o.SchedulerName, "scheduler-name", scheduler.DefaultScheduler, "SchedulerName represents the name of the scheduler. default is 'default-scheduler'.")
+	fs.IntVar(&o.ScheduleWorkers, "schedule-workers", 1, "Number of concurrent workers for scheduling ResourceBindings. Higher values improve throughput but increase API server load. Defaults to 1 for backward compatibility.")
+	fs.BoolVar(&o.EnableAsyncBind, "enable-async-bind", false, "Enable asynchronous binding of scheduling results. When enabled, the scheduler submits binding requests to an async queue for processing by dedicated workers, improving throughput.")
+	fs.IntVar(&o.AsyncBindWorkers, "async-bind-workers", 32, "Number of concurrent workers for asynchronous binding. Only effective when --enable-async-bind is true.")
 	features.FeatureGate.AddFlag(fs)
 	o.ProfileOpts.AddFlags(fs)
 	o.RateLimiterOpts.AddFlags(fs)
