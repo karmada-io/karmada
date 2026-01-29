@@ -127,6 +127,17 @@ const (
 	// owner: @zach593
 	// alpha: v1.15
 	ControllerPriorityQueue featuregate.Feature = "ControllerPriorityQueue"
+
+	// WorkloadAffinity enables the scheduler to group or separate workloads across clusters
+	// based on their defined workload affinity or anti-affinity groups, which are managed
+	// via the PropagationPolicy or ClusterPropagationPolicy.
+	// When enabled, the scheduler maintains a global in-memory index of affinity groups.
+	// Based on a workload's affinity group, the scheduler filters out candidate clusters
+	// that would violate the workload's affinity settings.
+	//
+	// owner: @mszacillo, @RainbowMango, @kevin-wangzefeng
+	// alpha: v1.17
+	WorkloadAffinity featuregate.Feature = "WorkloadAffinity"
 )
 
 var (
@@ -154,6 +165,7 @@ var (
 		ContextualLogging:                 {Default: true, PreRelease: featuregate.Beta},
 		MultiplePodTemplatesScheduling:    {Default: false, PreRelease: featuregate.Alpha},
 		ControllerPriorityQueue:           {Default: false, PreRelease: featuregate.Alpha},
+		WorkloadAffinity:                  {Default: false, PreRelease: featuregate.Alpha},
 	}
 )
 
