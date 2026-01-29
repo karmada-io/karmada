@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 
-	"k8s.io/apimachinery/pkg/api/equality"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -38,20 +37,17 @@ import (
 // already exist.
 func UpdateStatus(ctx context.Context, c client.Client, obj client.Object, f controllerutil.MutateFn) (controllerutil.OperationResult, error) {
 	key := client.ObjectKeyFromObject(obj)
-	if err := c.Get(ctx, key, obj); err != nil {
-		return controllerutil.OperationResultNone, err
-	}
 
-	existing := obj.DeepCopyObject()
+	oldObj := obj.DeepCopyObject().(client.Object)
 	if err := mutate(f, key, obj); err != nil {
 		return controllerutil.OperationResultNone, err
 	}
 
-	if equality.Semantic.DeepEqual(existing, obj) {
-		return controllerutil.OperationResultNone, nil
-	}
-
-	if err := c.Status().Update(ctx, obj); err != nil {
+	// Patch status directly without checking for equality to ensure the status is always updated,
+	// even if the content appears unchanged. This avoids issues where stale cache data might cause
+	// updates to be skipped incorrectly.
+	// FYI: https://github.com/karmada-io/karmada/issues/6858
+	if err := c.Status().Patch(ctx, obj, client.MergeFrom(oldObj)); err != nil {
 		return controllerutil.OperationResultNone, err
 	}
 	return controllerutil.OperationResultUpdatedStatusOnly, nil
