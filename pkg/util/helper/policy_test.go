@@ -405,3 +405,58 @@ func TestSetDefaultGracePeriodSeconds(t *testing.T) {
 		})
 	}
 }
+
+func TestSetDefaultTolerationSeconds(t *testing.T) {
+	tests := []struct {
+		name           string
+		behavior       *policyv1alpha1.ApplicationFailoverBehavior
+		expectBehavior *policyv1alpha1.ApplicationFailoverBehavior
+	}{
+		{
+			name: "tolerationSeconds is already set",
+			behavior: &policyv1alpha1.ApplicationFailoverBehavior{
+				DecisionConditions: policyv1alpha1.DecisionConditions{
+					TolerationSeconds: ptr.To[int32](100),
+				},
+			},
+			expectBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
+				DecisionConditions: policyv1alpha1.DecisionConditions{
+					TolerationSeconds: ptr.To[int32](100),
+				},
+			},
+		},
+		{
+			name: "tolerationSeconds is not set",
+			behavior: &policyv1alpha1.ApplicationFailoverBehavior{
+				DecisionConditions: policyv1alpha1.DecisionConditions{},
+			},
+			expectBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
+				DecisionConditions: policyv1alpha1.DecisionConditions{
+					TolerationSeconds: ptr.To[int32](300),
+				},
+			},
+		},
+		{
+			name: "tolerationSeconds is nil with other fields set",
+			behavior: &policyv1alpha1.ApplicationFailoverBehavior{
+				DecisionConditions: policyv1alpha1.DecisionConditions{},
+				PurgeMode:          policyv1alpha1.Graciously,
+			},
+			expectBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
+				DecisionConditions: policyv1alpha1.DecisionConditions{
+					TolerationSeconds: ptr.To[int32](300),
+				},
+				PurgeMode: policyv1alpha1.Graciously,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			SetDefaultTolerationSeconds(tt.behavior)
+			if !reflect.DeepEqual(tt.behavior, tt.expectBehavior) {
+				t.Errorf("expectedBehavior %v, but got %v", tt.expectBehavior, tt.behavior)
+			}
+		})
+	}
+}

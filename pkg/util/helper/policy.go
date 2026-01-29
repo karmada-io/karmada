@@ -135,3 +135,11 @@ func SetDefaultGracePeriodSeconds(behavior *policyv1alpha1.ApplicationFailoverBe
 		behavior.GracePeriodSeconds = ptr.To[int32](600)
 	}
 }
+
+// SetDefaultTolerationSeconds sets the default value of TolerationSeconds in ApplicationFailoverBehavior.
+// The default value is 300 seconds, which matches the CRD schema default.
+func SetDefaultTolerationSeconds(behavior *policyv1alpha1.ApplicationFailoverBehavior) {
+	if behavior.DecisionConditions.TolerationSeconds == nil {
+		behavior.DecisionConditions.TolerationSeconds = ptr.To[int32](300)
+	}
+}
