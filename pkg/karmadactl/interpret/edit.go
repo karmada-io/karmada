@@ -171,7 +171,26 @@ func (o *Options) runEdit() error {
 		// not a syntax error as it turns out...
 		containsError = false
 
-		// TODO: add last-applied-configuration annotation
+		// Add last-applied-configuration annotation
+		// Create a copy without the annotation to serialize, avoiding recursion
+		tempCustomization := editedCustomization.DeepCopy()
+		tempAnnotations := tempCustomization.GetAnnotations()
+		if tempAnnotations != nil {
+			delete(tempAnnotations, corev1.LastAppliedConfigAnnotation)
+			tempCustomization.SetAnnotations(tempAnnotations)
+		}
+		// Serialize the customization without the annotation
+		lastAppliedJSON, err := json.Marshal(tempCustomization)
+		if err != nil {
+			return fmt.Errorf("failed to marshal customization for last-applied-configuration annotation: %w", err)
+		}
+		// Add the serialized JSON as the annotation value (only one SetAnnotations call on the original object)
+		annotations := editedCustomization.GetAnnotations()
+		if annotations == nil {
+			annotations = make(map[string]string)
+		}
+		annotations[corev1.LastAppliedConfigAnnotation] = string(lastAppliedJSON)
+		editedCustomization.SetAnnotations(annotations)
 
 		switch {
 		case info.Source != "":
