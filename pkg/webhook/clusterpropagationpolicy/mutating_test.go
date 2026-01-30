@@ -191,16 +191,28 @@ func TestMutatingAdmission_Handle_FullCoverage(t *testing.T) {
 	// Call the Handle function.
 	got := mutatingHandler.Handle(context.Background(), req)
 
-	// Check if exactly one patch is applied.
-	if len(got.Patches) != 1 {
-		t.Errorf("Handle() returned an unexpected number of patches. Expected one patch, received: %v", got.Patches)
+	// Check if exactly two patches are applied (one for UUID label, one for tolerationSeconds default).
+	if len(got.Patches) != 2 {
+		t.Errorf("Handle() returned an unexpected number of patches. Expected two patches, received: %v", got.Patches)
 	}
 
-	// Verify that the only patch applied is for the UUID label.
+	// Verify that the patches applied are for the UUID label and tolerationSeconds default.
 	// If any other patches are present, it indicates that the cp policy was not handled as expected.
-	firstPatch := got.Patches[0]
-	if firstPatch.Operation != "replace" || firstPatch.Path != "/metadata/labels/clusterpropagationpolicy.karmada.io~1permanent-id" {
-		t.Errorf("Handle() returned unexpected patches. Only the UUID patch was expected. Received patches: %v", got.Patches)
+	expectedPatches := map[string]bool{
+		"/metadata/labels/clusterpropagationpolicy.karmada.io~1permanent-id": false,
+		"/spec/failover/application/decisionConditions/tolerationSeconds":    false,
+	}
+	for _, patch := range got.Patches {
+		if _, ok := expectedPatches[patch.Path]; ok {
+			expectedPatches[patch.Path] = true
+		} else {
+			t.Errorf("Handle() returned unexpected patch path: %v", patch.Path)
+		}
+	}
+	for path, found := range expectedPatches {
+		if !found {
+			t.Errorf("Handle() missing expected patch for path: %v", path)
+		}
 	}
 
 	// Check if the admission request was allowed.
