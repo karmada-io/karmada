@@ -116,7 +116,7 @@ func (c *CRBStatusController) syncBindingStatus(ctx context.Context, binding *wo
 		return err
 	}
 
-	err = updateResourceStatus(ctx, c.DynamicClient, c.RESTMapper, c.ResourceInterpreter, c.EventRecorder, binding.Spec.Resource, binding.Status)
+	err = updateResourceStatus(ctx, c.DynamicClient, c.InformerManager, c.RESTMapper, c.ResourceInterpreter, c.EventRecorder, binding.Spec.Resource, binding.Status)
 	if err != nil {
 		return err
 	}
