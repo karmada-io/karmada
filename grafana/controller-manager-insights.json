@@ -62,7 +62,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "round(sum(increase(controller_runtime_reconcile_errors_total{job=\"monitoring/karmada-controller-manager\",controller=~\"$controller\"}[30m])))",
+          "expr": "round(sum(increase(controller_runtime_reconcile_errors_total{controller=~\"$controller\"}[30m])))",
           "legendFormat": "errors (30m)",
           "range": true,
           "instant": false,
@@ -123,7 +123,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "100 * (sum(increase(controller_runtime_reconcile_total{job=\"monitoring/karmada-controller-manager\",controller=~\"$controller\", result=\"error\"}[30m])))/(clamp_min(sum(increase(controller_runtime_reconcile_total{job=\"monitoring/karmada-controller-manager\",controller=~\"$controller\"}[30m])), 1e-9))",
+          "expr": "100 * (sum(increase(controller_runtime_reconcile_total{controller=~\"$controller\", result=\"error\"}[30m])))/(clamp_min(sum(increase(controller_runtime_reconcile_total{controller=~\"$controller\"}[30m])), 1e-9))",
           "legendFormat": "error % (30m)",
           "range": true,
           "instant": false,
@@ -184,7 +184,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "round(sum(increase(controller_runtime_reconcile_errors_total{job=\"monitoring/karmada-controller-manager\",controller=~\"$controller\"}[1h])))",
+          "expr": "round(sum(increase(controller_runtime_reconcile_errors_total{controller=~\"$controller\"}[1h])))",
           "legendFormat": "errors (1h)",
           "range": true,
           "instant": false,
@@ -245,7 +245,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "100 * (sum(increase(controller_runtime_reconcile_total{job=\"monitoring/karmada-controller-manager\",controller=~\"$controller\", result=\"error\"}[1h])))/(clamp_min(sum(increase(controller_runtime_reconcile_total{job=\"monitoring/karmada-controller-manager\",controller=~\"$controller\"}[1h])), 1e-9))",
+          "expr": "100 * (sum(increase(controller_runtime_reconcile_total{controller=~\"$controller\", result=\"error\"}[1h])))/(clamp_min(sum(increase(controller_runtime_reconcile_total{controller=~\"$controller\"}[1h])), 1e-9))",
           "legendFormat": "error % (1h)",
           "range": true,
           "instant": false,
@@ -312,7 +312,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "(sum by(controller) (increase(controller_runtime_reconcile_total{job=\"monitoring/karmada-controller-manager\",controller=~\"$controller\", result=\"error\"}[30m]))) and (sum by(controller) (increase(controller_runtime_reconcile_total{job=\"monitoring/karmada-controller-manager\",controller=~\"$controller\", result=\"error\"}[30m]))) > 0",
+          "expr": "(sum by (controller) (increase(controller_runtime_reconcile_total{controller=~\"$controller\", result=\"error\"}[30m]))) and (sum by (controller) (increase(controller_runtime_reconcile_total{controller=~\"$controller\", result=\"error\"}[30m]))) > 0",
           "legendFormat": "{{controller}}"
         }
       ],
@@ -377,7 +377,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "(sum by(controller) (increase(controller_runtime_reconcile_total{job=\"monitoring/karmada-controller-manager\",controller=~\"$controller\", result=\"error\"}[1h]))) and (sum by(controller) (increase(controller_runtime_reconcile_total{job=\"monitoring/karmada-controller-manager\",controller=~\"$controller\", result=\"error\"}[1h]))) > 0",
+          "expr": "(sum by (controller) (increase(controller_runtime_reconcile_total{controller=~\"$controller\", result=\"error\"}[1h]))) and (sum by (controller) (increase(controller_runtime_reconcile_total{controller=~\"$controller\", result=\"error\"}[1h]))) > 0",
           "legendFormat": "{{controller}}"
         }
       ],
@@ -436,7 +436,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by(controller, result) (rate(controller_runtime_reconcile_total{job=\"monitoring/karmada-controller-manager\",controller=~\"$controller\"}[5m]))",
+          "expr": "sum by(controller, result) (rate(controller_runtime_reconcile_total{controller=~\"$controller\"}[5m]))",
           "legendFormat": "{{controller}} {{result}}",
           "range": true,
           "instant": false,
@@ -475,7 +475,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "histogram_quantile(0.5,  sum by(le, controller) (rate(controller_runtime_reconcile_time_seconds_bucket{job=\"monitoring/karmada-controller-manager\",controller=~\"$controller\"}[5m])))",
+          "expr": "histogram_quantile(0.5,  sum by (le, controller) (rate(controller_runtime_reconcile_time_seconds_bucket{controller=~\"$controller\"}[5m])))",
           "legendFormat": "p50 {{controller}}",
           "range": true,
           "instant": false,
@@ -484,7 +484,7 @@
         },
         {
           "refId": "B",
-          "expr": "histogram_quantile(0.9,  sum by(le, controller) (rate(controller_runtime_reconcile_time_seconds_bucket{job=\"monitoring/karmada-controller-manager\",controller=~\"$controller\"}[5m])))",
+          "expr": "histogram_quantile(0.9,  sum by (le, controller) (rate(controller_runtime_reconcile_time_seconds_bucket{controller=~\"$controller\"}[5m])))",
           "legendFormat": "p90 {{controller}}",
           "range": true,
           "instant": false,
@@ -493,7 +493,7 @@
         },
         {
           "refId": "C",
-          "expr": "histogram_quantile(0.99, sum by(le, controller) (rate(controller_runtime_reconcile_time_seconds_bucket{job=\"monitoring/karmada-controller-manager\",controller=~\"$controller\"}[5m])))",
+          "expr": "histogram_quantile(0.99, sum by (le, controller) (rate(controller_runtime_reconcile_time_seconds_bucket{controller=~\"$controller\"}[5m])))",
           "legendFormat": "p99 {{controller}}",
           "range": true,
           "instant": false,
@@ -532,7 +532,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by(controller) (rate(controller_runtime_reconcile_errors_total{job=\"monitoring/karmada-controller-manager\",controller=~\"$controller\"}[5m]))",
+          "expr": "sum by(controller) (rate(controller_runtime_reconcile_errors_total{controller=~\"$controller\"}[5m]))",
           "legendFormat": "{{controller}}",
           "range": true,
           "instant": false,
@@ -571,7 +571,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by(controller) (rate(controller_runtime_reconcile_panics_total{job=\"monitoring/karmada-controller-manager\",controller=~\"$controller\"}[5m]))",
+          "expr": "sum by(controller) (rate(controller_runtime_reconcile_panics_total{controller=~\"$controller\"}[5m]))",
           "legendFormat": "{{controller}}",
           "range": true,
           "instant": false,
@@ -610,7 +610,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "(sum by(controller) (rate(controller_runtime_reconcile_time_seconds_sum{job=\"monitoring/karmada-controller-manager\",controller=~\"$controller\"}[5m]))) / (sum by(controller) (rate(controller_runtime_reconcile_time_seconds_count{job=\"monitoring/karmada-controller-manager\",controller=~\"$controller\"}[5m])))",
+          "expr": "(sum by(controller) (rate(controller_runtime_reconcile_time_seconds_sum{controller=~\"$controller\"}[5m]))) / (sum by(controller) (rate(controller_runtime_reconcile_time_seconds_count{controller=~\"$controller\"}[5m])))",
           "legendFormat": "avg {{controller}}",
           "range": true,
           "instant": false,
@@ -649,7 +649,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "avg by(controller) (controller_runtime_active_workers{job=\"monitoring/karmada-controller-manager\",controller=~\"$controller\"})",
+          "expr": "avg by(controller) (controller_runtime_active_workers{controller=~\"$controller\"})",
           "legendFormat": "active {{controller}}",
           "range": true,
           "instant": false,
@@ -658,7 +658,7 @@
         },
         {
           "refId": "B",
-          "expr": "max by(controller) (controller_runtime_max_concurrent_reconciles{job=\"monitoring/karmada-controller-manager\",controller=~\"$controller\"})",
+          "expr": "max by(controller) (controller_runtime_max_concurrent_reconciles{controller=~\"$controller\"})",
           "legendFormat": "max {{controller}}",
           "range": true,
           "instant": false,
@@ -697,7 +697,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "100 * avg by(controller) (controller_runtime_active_workers{job=\"monitoring/karmada-controller-manager\",controller=~\"$controller\"}) / clamp_max(max by(controller) (controller_runtime_max_concurrent_reconciles{job=\"monitoring/karmada-controller-manager\",controller=~\"$controller\"}), 1e9)",
+          "expr": "100 * avg by(controller) (controller_runtime_active_workers{controller=~\"$controller\"}) / clamp_max(max by(controller) (controller_runtime_max_concurrent_reconciles{controller=~\"$controller\"}), 1e9)",
           "legendFormat": "{{controller}}",
           "range": true,
           "instant": false,
@@ -736,7 +736,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by(controller) (rate(controller_runtime_terminal_reconcile_errors_total{job=\"monitoring/karmada-controller-manager\",controller=~\"$controller\"}[5m]))",
+          "expr": "sum by(controller) (rate(controller_runtime_terminal_reconcile_errors_total{controller=~\"$controller\"}[5m]))",
           "legendFormat": "{{controller}}",
           "range": true,
           "instant": false,
@@ -786,7 +786,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by(name, controller) (workqueue_depth{job=\"monitoring/karmada-controller-manager\",controller=~\"$controller\"})",
+          "expr": "sum by(name, controller) (workqueue_depth{controller=~\"$controller\"})",
           "legendFormat": "{{controller}}/{{name}}",
           "range": true,
           "instant": false,
@@ -825,7 +825,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by(name, controller) (rate(workqueue_adds_total{job=\"monitoring/karmada-controller-manager\",controller=~\"$controller\"}[5m]))",
+          "expr": "sum by(name, controller) (rate(workqueue_adds_total{controller=~\"$controller\"}[5m]))",
           "legendFormat": "{{controller}}/{{name}}",
           "range": true,
           "instant": false,
@@ -864,7 +864,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "histogram_quantile(0.5,  sum by(le, name, controller) (rate(workqueue_queue_duration_seconds_bucket{job=\"monitoring/karmada-controller-manager\",controller=~\"$controller\"}[5m])))",
+          "expr": "histogram_quantile(0.5,  sum by (le, name, controller) (rate(workqueue_queue_duration_seconds_bucket{controller=~\"$controller\"}[5m])))",
           "legendFormat": "p50 {{controller}}/{{name}}",
           "range": true,
           "instant": false,
@@ -873,7 +873,7 @@
         },
         {
           "refId": "B",
-          "expr": "histogram_quantile(0.9,  sum by(le, name, controller) (rate(workqueue_queue_duration_seconds_bucket{job=\"monitoring/karmada-controller-manager\",controller=~\"$controller\"}[5m])))",
+          "expr": "histogram_quantile(0.9,  sum by (le, name, controller) (rate(workqueue_queue_duration_seconds_bucket{controller=~\"$controller\"}[5m])))",
           "legendFormat": "p90 {{controller}}/{{name}}",
           "range": true,
           "instant": false,
@@ -882,7 +882,7 @@
         },
         {
           "refId": "C",
-          "expr": "histogram_quantile(0.99, sum by(le, name, controller) (rate(workqueue_queue_duration_seconds_bucket{job=\"monitoring/karmada-controller-manager\",controller=~\"$controller\"}[5m])))",
+          "expr": "histogram_quantile(0.99, sum by (le, name, controller) (rate(workqueue_queue_duration_seconds_bucket{controller=~\"$controller\"}[5m])))",
           "legendFormat": "p99 {{controller}}/{{name}}",
           "range": true,
           "instant": false,
@@ -921,7 +921,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "histogram_quantile(0.5,  sum by(le, name, controller) (rate(workqueue_work_duration_seconds_bucket{job=\"monitoring/karmada-controller-manager\",controller=~\"$controller\"}[5m])))",
+          "expr": "histogram_quantile(0.5,  sum by (le, name, controller) (rate(workqueue_work_duration_seconds_bucket{controller=~\"$controller\"}[5m])))",
           "legendFormat": "p50 {{controller}}/{{name}}",
           "range": true,
           "instant": false,
@@ -930,7 +930,7 @@
         },
         {
           "refId": "B",
-          "expr": "histogram_quantile(0.9,  sum by(le, name, controller) (rate(workqueue_work_duration_seconds_bucket{job=\"monitoring/karmada-controller-manager\",controller=~\"$controller\"}[5m])))",
+          "expr": "histogram_quantile(0.9,  sum by (le, name, controller) (rate(workqueue_work_duration_seconds_bucket{controller=~\"$controller\"}[5m])))",
           "legendFormat": "p90 {{controller}}/{{name}}",
           "range": true,
           "instant": false,
@@ -939,7 +939,7 @@
         },
         {
           "refId": "C",
-          "expr": "histogram_quantile(0.99, sum by(le, name, controller) (rate(workqueue_work_duration_seconds_bucket{job=\"monitoring/karmada-controller-manager\",controller=~\"$controller\"}[5m])))",
+          "expr": "histogram_quantile(0.99, sum by (le, name, controller) (rate(workqueue_work_duration_seconds_bucket{controller=~\"$controller\"}[5m])))",
           "legendFormat": "p99 {{controller}}/{{name}}",
           "range": true,
           "instant": false,
@@ -978,7 +978,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by(name, controller) (workqueue_unfinished_work_seconds{job=\"monitoring/karmada-controller-manager\",controller=~\"$controller\"})",
+          "expr": "sum by (name, controller) (workqueue_unfinished_work_seconds{controller=~\"$controller\"})",
           "legendFormat": "{{controller}}/{{name}}",
           "range": true,
           "instant": false,
@@ -1017,7 +1017,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "max by(name, controller) (workqueue_longest_running_processor_seconds{job=\"monitoring/karmada-controller-manager\",controller=~\"$controller\"})",
+          "expr": "max by (name, controller) (workqueue_longest_running_processor_seconds{controller=~\"$controller\"})",
           "legendFormat": "{{controller}}/{{name}}",
           "range": true,
           "instant": false,
@@ -1056,7 +1056,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by(name, controller) (rate(workqueue_retries_total{job=\"monitoring/karmada-controller-manager\",controller=~\"$controller\"}[5m]))",
+          "expr": "sum by (name, controller) (rate(workqueue_retries_total{controller=~\"$controller\"}[5m]))",
           "legendFormat": "{{controller}}/{{name}}",
           "range": true,
           "instant": false,
@@ -1106,7 +1106,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by(webhook, code) (rate(controller_runtime_webhook_requests_total{job=\"monitoring/karmada-controller-manager\"}[5m]))",
+          "expr": "sum by (webhook, code) (rate(controller_runtime_webhook_requests_total{}[5m]))",
           "legendFormat": "{{webhook}} {{code}}",
           "range": true,
           "instant": false,
@@ -1145,7 +1145,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by(webhook) (controller_runtime_webhook_requests_in_flight{job=\"monitoring/karmada-controller-manager\"})",
+          "expr": "sum by (webhook) (controller_runtime_webhook_requests_in_flight{})",
           "legendFormat": "{{webhook}}",
           "range": true,
           "instant": false,
@@ -1184,7 +1184,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "histogram_quantile(0.5,  sum by(le, webhook) (rate(controller_runtime_webhook_latency_seconds_bucket{job=\"monitoring/karmada-controller-manager\"}[5m])))",
+          "expr": "histogram_quantile(0.5,  sum by (le, webhook) (rate(controller_runtime_webhook_latency_seconds_bucket{}[5m])))",
           "legendFormat": "p50 {{webhook}}",
           "range": true,
           "instant": false,
@@ -1193,7 +1193,7 @@
         },
         {
           "refId": "B",
-          "expr": "histogram_quantile(0.9,  sum by(le, webhook) (rate(controller_runtime_webhook_latency_seconds_bucket{job=\"monitoring/karmada-controller-manager\"}[5m])))",
+          "expr": "histogram_quantile(0.9,  sum by (le, webhook) (rate(controller_runtime_webhook_latency_seconds_bucket{}[5m])))",
           "legendFormat": "p90 {{webhook}}",
           "range": true,
           "instant": false,
@@ -1202,7 +1202,7 @@
         },
         {
           "refId": "C",
-          "expr": "histogram_quantile(0.99, sum by(le, webhook) (rate(controller_runtime_webhook_latency_seconds_bucket{job=\"monitoring/karmada-controller-manager\"}[5m])))",
+          "expr": "histogram_quantile(0.99, sum by (le, webhook) (rate(controller_runtime_webhook_latency_seconds_bucket{}[5m])))",
           "legendFormat": "p99 {{webhook}}",
           "range": true,
           "instant": false,
@@ -1252,7 +1252,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(rate(process_cpu_seconds_total{job=\"monitoring/karmada-controller-manager\"}[5m]))",
+          "expr": "sum(rate(process_cpu_seconds_total{}[5m]))",
           "legendFormat": "cpu/s",
           "range": true,
           "instant": false,
@@ -1291,7 +1291,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(process_resident_memory_bytes{job=\"monitoring/karmada-controller-manager\"})",
+          "expr": "sum(process_resident_memory_bytes{})",
           "legendFormat": "rss",
           "range": true,
           "instant": false,
@@ -1330,7 +1330,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(go_memstats_alloc_bytes{job=\"monitoring/karmada-controller-manager\"})",
+          "expr": "sum(go_memstats_alloc_bytes{})",
           "legendFormat": "heap_alloc",
           "range": true,
           "instant": false,
@@ -1369,7 +1369,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "histogram_quantile(0.99, sum by(le) (rate(go_gc_duration_seconds_bucket{job=\"monitoring/karmada-controller-manager\"}[5m])))",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(go_gc_duration_seconds_bucket{}[5m])))",
           "legendFormat": "p99",
           "range": true,
           "instant": false,
@@ -1408,7 +1408,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(go_goroutines{job=\"monitoring/karmada-controller-manager\"})",
+          "expr": "sum(go_goroutines{})",
           "legendFormat": "goroutines",
           "range": true,
           "instant": false,
@@ -1447,7 +1447,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(go_threads{job=\"monitoring/karmada-controller-manager\"})",
+          "expr": "sum(go_threads{})",
           "legendFormat": "threads",
           "range": true,
           "instant": false,
@@ -1486,7 +1486,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(process_open_fds{job=\"monitoring/karmada-controller-manager\"})",
+          "expr": "sum(process_open_fds{})",
           "legendFormat": "fds",
           "range": true,
           "instant": false,
@@ -1525,7 +1525,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(rate(go_gc_cycles_total{job=\"monitoring/karmada-controller-manager\"}[5m]))",
+          "expr": "sum(rate(go_gc_cycles_total{}[5m]))",
           "legendFormat": "gc/s",
           "range": true,
           "instant": false,
@@ -1579,7 +1579,7 @@
         "label": "Controller",
         "type": "query",
         "datasource": "$DS_PROMETHEUS",
-        "query": "label_values(controller_runtime_reconcile_total{job=\"monitoring/karmada-controller-manager\"}, controller)",
+        "query": "label_values(controller_runtime_reconcile_total, controller)",
         "refresh": 2,
         "includeAll": true,
         "multi": true,

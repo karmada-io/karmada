@@ -70,7 +70,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "max by (cluster_name) (cluster_ready_state{job=\"monitoring/karmada-controller-manager\", cluster_name=~\"$cluster\"})",
+          "expr": "max by (cluster_name) (cluster_ready_state{cluster_name=~\"$cluster\"})",
           "legendFormat": "{{cluster_name}}"
         }
       ],
@@ -172,7 +172,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "max by (cluster_name) (cluster_node_number{job=\"monitoring/karmada-controller-manager\", cluster_name=~\"$cluster\"}) and on (cluster_name) max by (cluster_name) (cluster_ready_state == 1)",
+          "expr": "max by (cluster_name) (cluster_node_number{cluster_name=~\"$cluster\"}) and on (cluster_name) max by (cluster_name) (cluster_ready_state == 1)",
           "legendFormat": "{{cluster_name}}"
         }
       ],
@@ -212,7 +212,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "100 * max by (cluster_name) (clamp_min(cluster_ready_node_number{job=\"monitoring/karmada-controller-manager\", cluster_name=~\"$cluster\"},0) / clamp_min(cluster_node_number{cluster_name=~\"$cluster\"},1)) and on (cluster_name) max by (cluster_name) (cluster_ready_state == 1)",
+          "expr": "100 * max by (cluster_name) (clamp_min(cluster_ready_node_number{cluster_name=~\"$cluster\"},0) / clamp_min(cluster_node_number{cluster_name=~\"$cluster\"},1)) and on (cluster_name) max by (cluster_name) (cluster_ready_state == 1)",
           "legendFormat": "{{cluster_name}}"
         }
       ],
@@ -269,12 +269,12 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "max by (cluster_name) (cluster_cpu_allocatable_number{job=\"monitoring/karmada-controller-manager\", cluster_name=~\"$cluster\"}) and on (cluster_name) max by (cluster_name) (cluster_ready_state == 1)",
+          "expr": "max by (cluster_name) (cluster_cpu_allocatable_number{cluster_name=~\"$cluster\"}) and on (cluster_name) max by (cluster_name) (cluster_ready_state == 1)",
           "legendFormat": "allocatable {{cluster_name}}"
         },
         {
           "refId": "B",
-          "expr": "max by (cluster_name) (cluster_cpu_allocated_number{job=\"monitoring/karmada-controller-manager\", cluster_name=~\"$cluster\"}) and on (cluster_name) max by (cluster_name) (cluster_ready_state == 1)",
+          "expr": "max by (cluster_name) (cluster_cpu_allocated_number{cluster_name=~\"$cluster\"}) and on (cluster_name) max by (cluster_name) (cluster_ready_state == 1)",
           "legendFormat": "allocated {{cluster_name}}"
         }
       ],
@@ -309,12 +309,12 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "max by (cluster_name) (cluster_memory_allocatable_bytes{job=\"monitoring/karmada-controller-manager\", cluster_name=~\"$cluster\"}) and on (cluster_name) max by (cluster_name) (cluster_ready_state == 1)",
+          "expr": "max by (cluster_name) (cluster_memory_allocatable_bytes{cluster_name=~\"$cluster\"}) and on (cluster_name) max by (cluster_name) (cluster_ready_state == 1)",
           "legendFormat": "allocatable {{cluster_name}}"
         },
         {
           "refId": "B",
-          "expr": "max by (cluster_name) (cluster_memory_allocated_bytes{job=\"monitoring/karmada-controller-manager\", cluster_name=~\"$cluster\"}) and on (cluster_name) max by (cluster_name) (cluster_ready_state == 1)",
+          "expr": "max by (cluster_name) (cluster_memory_allocated_bytes{cluster_name=~\"$cluster\"}) and on (cluster_name) max by (cluster_name) (cluster_ready_state == 1)",
           "legendFormat": "allocated {{cluster_name}}"
         }
       ],
@@ -349,12 +349,12 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "max by (cluster_name) (cluster_pod_allocatable_number{job=\"monitoring/karmada-controller-manager\", cluster_name=~\"$cluster\"}) and on (cluster_name) max by (cluster_name) (cluster_ready_state == 1)",
+          "expr": "max by (cluster_name) (cluster_pod_allocatable_number{cluster_name=~\"$cluster\"}) and on (cluster_name) max by (cluster_name) (cluster_ready_state == 1)",
           "legendFormat": "allocatable {{cluster_name}}"
         },
         {
           "refId": "B",
-          "expr": "max by (cluster_name) (cluster_pod_allocated_number{job=\"monitoring/karmada-controller-manager\", cluster_name=~\"$cluster\"}) and on (cluster_name) max by (cluster_name) (cluster_ready_state == 1)",
+          "expr": "max by (cluster_name) (cluster_pod_allocated_number{cluster_name=~\"$cluster\"}) and on (cluster_name) max by (cluster_name) (cluster_ready_state == 1)",
           "legendFormat": "allocated {{cluster_name}}"
         }
       ],
@@ -399,7 +399,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "(100 * max by (cluster_name) (cluster_cpu_allocated_number{job=\"monitoring/karmada-controller-manager\", cluster_name=~\"$cluster\"} / clamp_min(cluster_cpu_allocatable_number{cluster_name=~\"$cluster\"},1))) and on (cluster_name) max by (cluster_name) (cluster_ready_state == 1)",
+          "expr": "(100 * max by (cluster_name) (cluster_cpu_allocated_number{cluster_name=~\"$cluster\"} / clamp_min(cluster_cpu_allocatable_number{cluster_name=~\"$cluster\"},1))) and on (cluster_name) max by (cluster_name) (cluster_ready_state == 1)",
           "legendFormat": "{{cluster_name}}"
         }
       ],
@@ -445,7 +445,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "(100 * max by (cluster_name) (cluster_memory_allocated_bytes{job=\"monitoring/karmada-controller-manager\", cluster_name=~\"$cluster\"} / clamp_min(cluster_memory_allocatable_bytes{cluster_name=~\"$cluster\"},1))) and on (cluster_name) max by (cluster_name) (cluster_ready_state == 1)",
+          "expr": "(100 * max by (cluster_name) (cluster_memory_allocated_bytes{cluster_name=~\"$cluster\"} / clamp_min(cluster_memory_allocatable_bytes{cluster_name=~\"$cluster\"},1))) and on (cluster_name) max by (cluster_name) (cluster_ready_state == 1)",
           "legendFormat": "{{cluster_name}}"
         }
       ],
@@ -491,7 +491,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "(100 * max by (cluster_name) (cluster_pod_allocated_number{job=\"monitoring/karmada-controller-manager\", cluster_name=~\"$cluster\"} / clamp_min(cluster_pod_allocatable_number{cluster_name=~\"$cluster\"},1))) and on (cluster_name) max by (cluster_name) (cluster_ready_state == 1)",
+          "expr": "(100 * max by (cluster_name) (cluster_pod_allocated_number{cluster_name=~\"$cluster\"} / clamp_min(cluster_pod_allocatable_number{cluster_name=~\"$cluster\"},1))) and on (cluster_name) max by (cluster_name) (cluster_ready_state == 1)",
           "legendFormat": "{{cluster_name}}"
         }
       ],
@@ -548,7 +548,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "(sum by (cluster_name) (rate(cluster_sync_status_duration_seconds_sum{job=\"monitoring/karmada-controller-manager\", cluster_name=~\"$cluster\"}[5m])) / sum by (cluster_name) (rate(cluster_sync_status_duration_seconds_count{cluster_name=~\"$cluster\"}[5m]))) and on (cluster_name) max by (cluster_name) (cluster_ready_state == 1)",
+          "expr": "(sum by (cluster_name) (rate(cluster_sync_status_duration_seconds_sum{cluster_name=~\"$cluster\"}[5m])) / sum by (cluster_name) (rate(cluster_sync_status_duration_seconds_count{cluster_name=~\"$cluster\"}[5m]))) and on (cluster_name) max by (cluster_name) (cluster_ready_state == 1)",
           "legendFormat": "avg {{cluster_name}}"
         }
       ],
@@ -583,7 +583,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "histogram_quantile(0.95, sum by (le, cluster_name) (rate(cluster_sync_status_duration_seconds_bucket{job=\"monitoring/karmada-controller-manager\", cluster_name=~\"$cluster\"}[5m]))) and on (cluster_name) max by (cluster_name) (cluster_ready_state == 1)",
+          "expr": "histogram_quantile(0.95, sum by (le, cluster_name) (rate(cluster_sync_status_duration_seconds_bucket{cluster_name=~\"$cluster\"}[5m]))) and on (cluster_name) max by (cluster_name) (cluster_ready_state == 1)",
           "legendFormat": "p95 {{cluster_name}}"
         }
       ],
@@ -615,7 +615,8 @@
   "schemaVersion": 39,
   "style": "dark",
   "tags": [
-    "karmada"
+    "karmada",
+    "managed-karmada"
   ],
   "templating": {
     "list": [

@@ -82,14 +82,14 @@ hc --namespace monitoring get secrets kps-grafana -o jsonpath="{.data.admin-pass
 Expose Grafana and Prometheus on the host network via port forwarding:
 
 ```bash
-hc -n monitoring port-forward svc/kps-grafana 3000:80
+hc -n monitoring port-forward svc/kps-grafana 3010:80
 ```
 
 ```bash
 hc -n monitoring port-forward svc/kps-kube-prometheus-stack-prometheus 9090
 ```
 
-Grafana will be available at [http://localhost:3000](http://localhost:3000), and Prometheus at [http://localhost:9090](http://localhost:9090).
+Grafana will be available at [http://localhost:3010](http://localhost:3010), and Prometheus at [http://localhost:9090](http://localhost:9090).
 
 ---
 

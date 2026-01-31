@@ -62,7 +62,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (git_version) (  kubernetes_build_info{job=\"monitoring/karmada-apiserver\"})",
+          "expr": "sum by (git_version) (  kubernetes_build_info{})",
           "legendFormat": "{{git_version}}",
           "instant": true
         }
@@ -102,7 +102,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "count(count by (instance) (apiserver_request_total{job=\"monitoring/karmada-apiserver\"}))"
+          "expr": "count(count by (instance) (apiserver_request_total))"
         }
       ],
       "gridPos": {
@@ -135,7 +135,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "(time() - min(process_start_time_seconds{job=\"monitoring/karmada-apiserver\"})) / 3600"
+          "expr": "(time() - min(process_start_time_seconds{})) / 3600"
         }
       ],
       "gridPos": {
@@ -177,7 +177,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(apiserver_current_inflight_requests{job=\"monitoring/karmada-apiserver\"})"
+          "expr": "sum(apiserver_current_inflight_requests{})"
         }
       ],
       "gridPos": {
@@ -210,7 +210,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "100 * ( sum(rate(apiserver_request_total{job=\"monitoring/karmada-apiserver\",code=~\"5..\"}[30m])) ) / clamp_min(sum(rate(apiserver_request_total{job=\"monitoring/karmada-apiserver\"}[30m])), 1e-9)"
+          "expr": "100 * ( sum(rate(apiserver_request_total{code=~\"5..\"}[30m])) ) / clamp_min(sum(rate(apiserver_request_total{}[30m])), 1e-9)"
         }
       ],
       "gridPos": {
@@ -244,7 +244,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "100 * ( sum(rate(apiserver_request_total{job=\"monitoring/karmada-apiserver\",code=~\"4..\"}[30m])) ) / clamp_min(sum(rate(apiserver_request_total{job=\"monitoring/karmada-apiserver\"}[30m])), 1e-9)"
+          "expr": "100 * ( sum(rate(apiserver_request_total{code=~\"4..\"}[30m])) ) / clamp_min(sum(rate(apiserver_request_total{}[30m])), 1e-9)"
         }
       ],
       "gridPos": {
@@ -279,12 +279,12 @@
         {
           "refId": "A",
           "legendFormat": "total",
-          "expr": "sum(rate(apiserver_request_total{job=\"monitoring/karmada-apiserver\"}[5m]))"
+          "expr": "sum(rate(apiserver_request_total{}[5m]))"
         },
         {
           "refId": "B",
           "legendFormat": "{{verb}}",
-          "expr": "topk(8, sum by (verb) (rate(apiserver_request_total{job=\"monitoring/karmada-apiserver\"}[5m])))"
+          "expr": "topk(8, sum by (verb) (rate(apiserver_request_total{}[5m])))"
         }
       ],
       "gridPos": {
@@ -320,17 +320,17 @@
         {
           "refId": "A",
           "legendFormat": "2xx",
-          "expr": "sum(rate(apiserver_request_total{job=\"monitoring/karmada-apiserver\",code=~\"2..\"}[5m]))"
+          "expr": "sum(rate(apiserver_request_total{code=~\"2..\"}[5m]))"
         },
         {
           "refId": "B",
           "legendFormat": "4xx",
-          "expr": "sum(rate(apiserver_request_total{job=\"monitoring/karmada-apiserver\",code=~\"4..\"}[5m]))"
+          "expr": "sum(rate(apiserver_request_total{code=~\"4..\"}[5m]))"
         },
         {
           "refId": "C",
           "legendFormat": "5xx",
-          "expr": "sum(rate(apiserver_request_total{job=\"monitoring/karmada-apiserver\",code=~\"5..\"}[5m]))"
+          "expr": "sum(rate(apiserver_request_total{code=~\"5..\"}[5m]))"
         }
       ],
       "gridPos": {
@@ -376,22 +376,22 @@
         {
           "refId": "avg",
           "legendFormat": "avg",
-          "expr": "(sum(rate(apiserver_request_duration_seconds_sum{job=\"monitoring/karmada-apiserver\",verb!~\"WATCH|WATCHLIST\"}[5m])) / clamp_min(sum(rate(apiserver_request_duration_seconds_count{job=\"monitoring/karmada-apiserver\",verb!~\"WATCH|WATCHLIST\"}[5m])), 1e-9))"
+          "expr": "(sum(rate(apiserver_request_duration_seconds_sum{verb!~\"WATCH|WATCHLIST\"}[5m])) / clamp_min(sum(rate(apiserver_request_duration_seconds_count{verb!~\"WATCH|WATCHLIST\"}[5m])), 1e-9))"
         },
         {
           "refId": "p50",
           "legendFormat": "p50",
-          "expr": "histogram_quantile(0.5,  sum by (le) (rate(apiserver_request_duration_seconds_bucket{job=\"monitoring/karmada-apiserver\",verb!~\"WATCH|WATCHLIST\"}[5m])))"
+          "expr": "histogram_quantile(0.5,  sum by (le) (rate(apiserver_request_duration_seconds_bucket{verb!~\"WATCH|WATCHLIST\"}[5m])))"
         },
         {
           "refId": "p90",
           "legendFormat": "p90",
-          "expr": "histogram_quantile(0.9,  sum by (le) (rate(apiserver_request_duration_seconds_bucket{job=\"monitoring/karmada-apiserver\",verb!~\"WATCH|WATCHLIST\"}[5m])))"
+          "expr": "histogram_quantile(0.9,  sum by (le) (rate(apiserver_request_duration_seconds_bucket{verb!~\"WATCH|WATCHLIST\"}[5m])))"
         },
         {
           "refId": "p99",
           "legendFormat": "p99",
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(apiserver_request_duration_seconds_bucket{job=\"monitoring/karmada-apiserver\",verb!~\"WATCH|WATCHLIST\"}[5m])))"
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(apiserver_request_duration_seconds_bucket{verb!~\"WATCH|WATCHLIST\"}[5m])))"
         }
       ],
       "gridPos": {
@@ -427,7 +427,7 @@
         {
           "refId": "A",
           "legendFormat": "{{verb}}",
-          "expr": "histogram_quantile(0.99, sum by (le, verb) (rate(apiserver_request_duration_seconds_bucket{job=\"monitoring/karmada-apiserver\",verb!~\"WATCH|WATCHLIST\"}[5m])))"
+          "expr": "histogram_quantile(0.99, sum by (le, verb) (rate(apiserver_request_duration_seconds_bucket{verb!~\"WATCH|WATCHLIST\"}[5m])))"
         }
       ],
       "gridPos": {
@@ -463,12 +463,12 @@
         {
           "refId": "A",
           "legendFormat": "mutating",
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(apiserver_request_duration_seconds_bucket{job=\"monitoring/karmada-apiserver\",verb=~\"POST|PUT|PATCH|DELETE\"}[5m])))"
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(apiserver_request_duration_seconds_bucket{verb=~\"POST|PUT|PATCH|DELETE\"}[5m])))"
         },
         {
           "refId": "B",
           "legendFormat": "read-only",
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(apiserver_request_duration_seconds_bucket{job=\"monitoring/karmada-apiserver\",verb=~\"GET|LIST\"}[5m])))"
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(apiserver_request_duration_seconds_bucket{verb=~\"GET|LIST\"}[5m])))"
         }
       ],
       "gridPos": {
@@ -504,7 +504,7 @@
         {
           "refId": "A",
           "legendFormat": "{{verb}}",
-          "expr": "histogram_quantile(0.9, sum by (le, verb) (rate(apiserver_request_duration_seconds_bucket{job=\"monitoring/karmada-apiserver\",verb!~\"WATCH|WATCHLIST\"}[5m])))"
+          "expr": "histogram_quantile(0.9, sum by (le, verb) (rate(apiserver_request_duration_seconds_bucket{verb!~\"WATCH|WATCHLIST\"}[5m])))"
         }
       ],
       "gridPos": {
@@ -551,7 +551,7 @@
         {
           "refId": "A",
           "legendFormat": "{{resource}}",
-          "expr": "topk(15, sum by (resource) (rate(apiserver_request_total{job=\"monitoring/karmada-apiserver\"}[5m])))"
+          "expr": "topk(15, sum by (resource) (rate(apiserver_request_total{}[5m])))"
         }
       ],
       "gridPos": {
@@ -586,7 +586,7 @@
         {
           "refId": "A",
           "legendFormat": "{{group}}",
-          "expr": "topk(10, sum by (group) (rate(apiserver_request_total{job=\"monitoring/karmada-apiserver\"}[5m])))"
+          "expr": "topk(10, sum by (group) (rate(apiserver_request_total{}[5m])))"
         }
       ],
       "gridPos": {
@@ -621,12 +621,12 @@
         {
           "refId": "A",
           "legendFormat": "mutating",
-          "expr": "sum(rate(apiserver_request_total{job=\"monitoring/karmada-apiserver\",verb=~\"POST|PUT|PATCH|DELETE\"}[5m]))"
+          "expr": "sum(rate(apiserver_request_total{verb=~\"POST|PUT|PATCH|DELETE\"}[5m]))"
         },
         {
           "refId": "B",
           "legendFormat": "read-only",
-          "expr": "sum(rate(apiserver_request_total{job=\"monitoring/karmada-apiserver\",verb=~\"GET|LIST|WATCH|WATCHLIST\"}[5m]))"
+          "expr": "sum(rate(apiserver_request_total{verb=~\"GET|LIST|WATCH|WATCHLIST\"}[5m]))"
         }
       ],
       "gridPos": {
@@ -661,7 +661,7 @@
         {
           "refId": "A",
           "legendFormat": "{{resource}} {{verb}}",
-          "expr": "topk(15, sum by (resource, verb) (rate(apiserver_request_total{job=\"monitoring/karmada-apiserver\"}[5m])))"
+          "expr": "topk(15, sum by (resource, verb) (rate(apiserver_request_total{}[5m])))"
         }
       ],
       "gridPos": {
@@ -707,17 +707,17 @@
         {
           "refId": "p50",
           "legendFormat": "p50",
-          "expr": "histogram_quantile(0.5,  sum by (le) (rate(apiserver_response_sizes_bucket{job=\"monitoring/karmada-apiserver\"}[5m])))"
+          "expr": "histogram_quantile(0.5,  sum by (le) (rate(apiserver_response_sizes_bucket{}[5m])))"
         },
         {
           "refId": "p90",
           "legendFormat": "p90",
-          "expr": "histogram_quantile(0.9,  sum by (le) (rate(apiserver_response_sizes_bucket{job=\"monitoring/karmada-apiserver\"}[5m])))"
+          "expr": "histogram_quantile(0.9,  sum by (le) (rate(apiserver_response_sizes_bucket{}[5m])))"
         },
         {
           "refId": "p99",
           "legendFormat": "p99",
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(apiserver_response_sizes_bucket{job=\"monitoring/karmada-apiserver\"}[5m])))"
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(apiserver_response_sizes_bucket{}[5m])))"
         }
       ],
       "gridPos": {
@@ -752,7 +752,7 @@
         {
           "refId": "A",
           "legendFormat": "{{resource}}",
-          "expr": "topk(10, histogram_quantile(0.99, sum by (le, resource) (rate(apiserver_response_sizes_bucket{job=\"monitoring/karmada-apiserver\"}[5m]))))"
+          "expr": "topk(10, histogram_quantile(0.99, sum by (le, resource) (rate(apiserver_response_sizes_bucket{}[5m]))))"
         }
       ],
       "gridPos": {
@@ -798,7 +798,7 @@
         {
           "refId": "A",
           "legendFormat": "{{name}}",
-          "expr": "topk(10, histogram_quantile(0.9, sum by (le, name) (rate(apiserver_admission_controller_admission_duration_seconds_bucket{job=\"monitoring/karmada-apiserver\"}[5m]))))"
+          "expr": "topk(10, histogram_quantile(0.9, sum by (le, name) (rate(apiserver_admission_controller_admission_duration_seconds_bucket{}[5m]))))"
         }
       ],
       "gridPos": {
@@ -834,7 +834,7 @@
         {
           "refId": "A",
           "legendFormat": "{{name}} ({{type}})",
-          "expr": "topk(10, histogram_quantile(0.9, sum by (le, name, type) (rate(apiserver_admission_webhook_admission_duration_seconds_bucket{job=\"monitoring/karmada-apiserver\"}[5m]))))"
+          "expr": "topk(10, histogram_quantile(0.9, sum by (le, name, type) (rate(apiserver_admission_webhook_admission_duration_seconds_bucket{}[5m]))))"
         }
       ],
       "gridPos": {
@@ -870,7 +870,7 @@
         {
           "refId": "A",
           "legendFormat": "events",
-          "expr": "sum(rate(apiserver_audit_event_total{job=\"monitoring/karmada-apiserver\"}[5m]))"
+          "expr": "sum(rate(apiserver_audit_event_total{}[5m]))"
         }
       ],
       "gridPos": {
@@ -905,7 +905,7 @@
         {
           "refId": "A",
           "legendFormat": "rejections",
-          "expr": "sum(rate(apiserver_audit_requests_rejected_total{job=\"monitoring/karmada-apiserver\"}[5m]))"
+          "expr": "sum(rate(apiserver_audit_requests_rejected_total{}[5m]))"
         }
       ],
       "gridPos": {
@@ -940,7 +940,7 @@
         {
           "refId": "A",
           "legendFormat": "events",
-          "expr": "sum(rate(apiserver_watch_events_total{job=\"monitoring/karmada-apiserver\"}[5m]))"
+          "expr": "sum(rate(apiserver_watch_events_total{}[5m]))"
         }
       ],
       "gridPos": {
@@ -986,7 +986,7 @@
         {
           "refId": "A",
           "legendFormat": "{{operation}}",
-          "expr": "sum by (operation) (rate(etcd_request_duration_seconds_count{job=\"monitoring/karmada-apiserver\"}[5m]))"
+          "expr": "sum by (operation) (rate(etcd_request_duration_seconds_count{}[5m]))"
         }
       ],
       "gridPos": {
@@ -1021,7 +1021,7 @@
         {
           "refId": "A",
           "legendFormat": "{{operation}}",
-          "expr": "histogram_quantile(0.9, sum by (le, operation) (rate(etcd_request_duration_seconds_bucket{job=\"monitoring/karmada-apiserver\"}[5m])))"
+          "expr": "histogram_quantile(0.9, sum by (le, operation) (rate(etcd_request_duration_seconds_bucket{}[5m])))"
         }
       ],
       "gridPos": {
@@ -1068,7 +1068,7 @@
         {
           "refId": "A",
           "legendFormat": "cpu",
-          "expr": "sum(rate(process_cpu_seconds_total{job=\"monitoring/karmada-apiserver\"}[5m]))"
+          "expr": "sum(rate(process_cpu_seconds_total{}[5m]))"
         }
       ],
       "gridPos": {
@@ -1104,7 +1104,7 @@
         {
           "refId": "A",
           "legendFormat": "rss",
-          "expr": "sum(process_resident_memory_bytes{job=\"monitoring/karmada-apiserver\"})"
+          "expr": "sum(process_resident_memory_bytes{})"
         }
       ],
       "gridPos": {
@@ -1139,7 +1139,7 @@
         {
           "refId": "A",
           "legendFormat": "heap_alloc",
-          "expr": "sum(go_memstats_heap_alloc_bytes{job=\"monitoring/karmada-apiserver\"})"
+          "expr": "sum(go_memstats_heap_alloc_bytes{})"
         }
       ],
       "gridPos": {
@@ -1174,7 +1174,7 @@
         {
           "refId": "A",
           "legendFormat": "gc p99",
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(go_gc_duration_seconds_bucket{job=\"monitoring/karmada-apiserver\"}[5m])))"
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(go_gc_duration_seconds_bucket{}[5m])))"
         }
       ],
       "gridPos": {
@@ -1210,7 +1210,7 @@
         {
           "refId": "A",
           "legendFormat": "goroutines",
-          "expr": "sum(go_goroutines{job=\"monitoring/karmada-apiserver\"})"
+          "expr": "sum(go_goroutines{})"
         }
       ],
       "gridPos": {
@@ -1245,7 +1245,7 @@
         {
           "refId": "A",
           "legendFormat": "threads",
-          "expr": "sum(go_threads{job=\"monitoring/karmada-apiserver\"})"
+          "expr": "sum(go_threads{})"
         }
       ],
       "gridPos": {
@@ -1280,7 +1280,7 @@
         {
           "refId": "A",
           "legendFormat": "fds",
-          "expr": "sum(process_open_fds{job=\"monitoring/karmada-apiserver\"})"
+          "expr": "sum(process_open_fds{})"
         }
       ],
       "gridPos": {
@@ -1315,7 +1315,7 @@
         {
           "refId": "A",
           "legendFormat": "used %",
-          "expr": "100 * sum(process_open_fds{job=\"monitoring/karmada-apiserver\"}) / clamp_min(sum(process_max_fds{job=\"monitoring/karmada-apiserver\"}), 1)"
+          "expr": "100 * sum(process_open_fds{}) / clamp_min(sum(process_max_fds{}), 1)"
         }
       ],
       "gridPos": {
