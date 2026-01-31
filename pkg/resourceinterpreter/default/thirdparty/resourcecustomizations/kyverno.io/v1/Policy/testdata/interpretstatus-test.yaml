@@ -1,5 +1,10 @@
 # test case for interpreting status of Policy
 # case1. Policy: interpret status test
+# case2. Policy with nil status
+# case3. Policy with only ready field
+# case4. Policy without conditions
+# case5. Policy with only conditions
+# case6. Policy with only autogen
 
 name: "Policy: interpret status test"
 description: "Test interpreting status for Policy"
@@ -92,3 +97,163 @@ observedObj:
       verifyimages: 0
 operation: InterpretStatus
 output:
+  status:
+    autogen:
+      rules:
+        - exclude: {}
+          generate: {}
+          match:
+            any:
+              - resources:
+                  kinds:
+                    - DaemonSet
+                    - Deployment
+                    - Job
+                    - StatefulSet
+                    - ReplicaSet
+                    - ReplicationController
+          name: autogen-require-pod-purpose-label
+          validate:
+            message: You must have label `purpose` with value `production` set on all new Pod in test-policy Namespace.
+            pattern:
+              spec:
+                template:
+                  metadata:
+                    labels:
+                      purpose: production
+        - exclude: {}
+          generate: {}
+          match:
+            any:
+              - resources:
+                  kinds:
+                    - CronJob
+          name: autogen-cronjob-require-pod-purpose-label
+          validate:
+            message: You must have label `purpose` with value `production` set on all new Pod in test-policy Namespace.
+            pattern:
+              spec:
+                jobTemplate:
+                  spec:
+                    template:
+                      metadata:
+                        labels:
+                          purpose: production
+    conditions:
+      - lastTransitionTime: "2023-05-07T09:19:06Z"
+        message: ""
+        reason: Succeeded
+        status: "True"
+        type: Ready
+    ready: true
+    rulecount:
+      generate: 0
+      mutate: 0
+      validate: 1
+      verifyimages: 0
+---
+name: "Policy with nil status"
+description: "InterpretStatus should return empty status when status is nil"
+observedObj:
+  apiVersion: kyverno.io/v1
+  kind: Policy
+  metadata:
+    name: sample
+    namespace: test-policy
+operation: InterpretStatus
+output:
+  status: {}
+---
+name: "Policy with only ready"
+description: "InterpretStatus should copy ready when other fields are missing"
+observedObj:
+  apiVersion: kyverno.io/v1
+  kind: Policy
+  metadata:
+    name: sample
+    namespace: test-policy
+  status:
+    ready: false
+operation: InterpretStatus
+output:
+  status:
+    ready: false
+---
+name: "Policy without conditions"
+description: "InterpretStatus should work when conditions are absent"
+observedObj:
+  apiVersion: kyverno.io/v1
+  kind: Policy
+  metadata:
+    name: sample
+    namespace: test-policy
+  status:
+    rulecount:
+      generate: 0
+      mutate: 1
+      validate: 0
+      verifyimages: 0
+operation: InterpretStatus
+output:
+  status:
+    rulecount:
+      generate: 0
+      mutate: 1
+      validate: 0
+      verifyimages: 0
+---
+name: "Policy with only conditions"
+description: "InterpretStatus should copy conditions when other fields are missing"
+observedObj:
+  apiVersion: kyverno.io/v1
+  kind: Policy
+  metadata:
+    name: only-conditions
+    namespace: test-policy
+  status:
+    conditions:
+      - type: Ready
+        status: "True"
+        reason: Succeeded
+        message: "ok"
+operation: InterpretStatus
+output:
+  status:
+    conditions:
+      - type: Ready
+        status: "True"
+        reason: Succeeded
+        message: "ok"
+---
+name: "Policy with only autogen"
+description: "InterpretStatus should reflect autogen when only autogen exists"
+observedObj:
+  apiVersion: kyverno.io/v1
+  kind: Policy
+  metadata:
+    name: autogen-only
+    namespace: test-policy
+  status:
+    autogen:
+      rules:
+        - match:
+            any:
+              - resources:
+                  kinds:
+                    - Deployment
+          name: autogen-only
+          validate:
+            message: test
+operation: InterpretStatus
+output:
+  status:
+    autogen:
+      rules:
+        - match:
+            any:
+              - resources:
+                  kinds:
+                    - Deployment
+          name: autogen-only
+          validate:
+            message: test

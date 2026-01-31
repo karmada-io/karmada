@@ -1,5 +1,8 @@
 # test case for aggregating status of Policy
 # case1. Policy with two status items
+# case2. Policy with different Ready reasons
+# case3. Policy with nil statusItems
+# case4. Policy with mixed empty and valid statusItems
 
 name: "Policy with two status items"
 description: "Test aggregating status of Policy with two status items"
@@ -145,3 +148,177 @@ statusItems:
         verifyimages: 0
 operation: AggregateStatus
 output:
+  aggregatedStatus:
+    apiVersion: kyverno.io/v1
+    kind: Policy
+    metadata:
+      name: sample
+      namespace: test-policy
+    spec:
+      validationFailureAction: Enforce
+      rules:
+        - name: require-pod-purpose-label
+          match:
+            any:
+              - resources:
+                  kinds:
+                    - Pod
+          validate:
+            message: "You must have label `purpose` with value `production` set on all new Pod in test-policy Namespace."
+            pattern:
+              metadata:
+                labels:
+                  purpose: production
+    status:
+      ready: true
+      autogen:
+        rules:
+          - match:
+              any:
+                - resources:
+                    kinds:
+                      - DaemonSet
+                      - Deployment
+                      - Job
+                      - StatefulSet
+                      - ReplicaSet
+                      - ReplicationController
+            name: autogen-require-pod-purpose-label
+            validate:
+              message: You must have label `purpose` with value `production` set on all new Pod in test-policy Namespace.
+              pattern:
+                spec:
+                  template:
+                    metadata:
+                      labels:
+                        purpose: production
+          - match:
+              any:
+                - resources:
+                    kinds:
+                      - CronJob
+            name: autogen-cronjob-require-pod-purpose-label
+            validate:
+              message: You must have label `purpose` with value `production` set on all new Pod in test-policy Namespace.
+              pattern:
+                spec:
+                  jobTemplate:
+                    spec:
+                      template:
+                        metadata:
+                          labels:
+                            purpose: production
+      rulecount:
+        generate: 0
+        mutate: 0
+        validate: 2
+        verifyimages: 0
+      conditions:
+        - type: Ready
+          status: "True"
+          reason: Succeeded
+          lastTransitionTime: "2023-05-07T09:19:06Z"
+          message: "member2=, member3="
+---
+name: "Policy with different Ready reasons"
+description: "Conditions with different reasons should not be merged"
+desiredObj:
+  apiVersion: kyverno.io/v1
+  kind: Policy
+  metadata:
+    name: mixed-reasons
+    namespace: test-policy
+statusItems:
+  - clusterName: member1
+    status:
+      conditions:
+        - type: Ready
+          status: "True"
+          reason: Succeeded
+          message: "ok"
+  - clusterName: member2
+    status:
+      conditions:
+        - type: Ready
+          status: "True"
+          reason: Failed
+          message: "error"
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: kyverno.io/v1
+    kind: Policy
+    metadata:
+      name: mixed-reasons
+      namespace: test-policy
+    status:
+      conditions:
+        - type: Ready
+          status: "True"
+          reason: Succeeded
+          message: "member1=ok"
+        - type: Ready
+          status: "True"
+          reason: Failed
+          message: "member2=error"
+      rulecount:
+        generate: 0
+        mutate: 0
+        validate: 0
+        verifyimages: 0
+---
+name: "Policy with nil statusItems"
+description: "AggregateStatus should return desiredObj unchanged when statusItems is nil"
+desiredObj:
+  apiVersion: kyverno.io/v1
+  kind: Policy
+  metadata:
+    name: no-status
+    namespace: test-policy
+statusItems: null
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: kyverno.io/v1
+    kind: Policy
+    metadata:
+      name: no-status
+      namespace: test-policy
+---
+name: "Policy with mixed empty and valid statusItems"
+description: "One statusItem has empty status and should be ignored"
+desiredObj:
+  apiVersion: kyverno.io/v1
+  kind: Policy
+  metadata:
+    name: mixed-empty
+    namespace: test-policy
+statusItems:
+  - clusterName: member1
+    status:
+      conditions:
+        - type: Ready
+          status: "True"
+          reason: Succeeded
+          message: "ok"
+  - clusterName: member2
+    status: {}
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: kyverno.io/v1
+    kind: Policy
+    metadata:
+      name: mixed-empty
+      namespace: test-policy
+    status:
+      conditions:
+        - type: Ready
+          status: "True"
+          reason: Succeeded
+          message: "member1=ok"
+      rulecount:
+        generate: 0
+        mutate: 0
+        validate: 0
+        verifyimages: 0
