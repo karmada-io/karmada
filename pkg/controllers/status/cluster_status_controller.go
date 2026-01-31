@@ -217,7 +217,7 @@ func (c *ClusterStatusController) syncClusterStatus(ctx context.Context, cluster
 		// 	We should move this logic to both `execution-controller` and `work-status-controller`.
 		//  After that the 'initializeGenericInformerManagerForCluster' function as well as 'c.GenericInformerManager'
 		//  can be safely removed from current controller.
-		c.initializeGenericInformerManagerForCluster(clusterClient)
+		c.initializeGenericInformerManagerForCluster(clusterClient, cluster)
 
 		var conditions []metav1.Condition
 		conditions, err = c.setCurrentClusterStatus(clusterClient, cluster, &currentClusterStatus)
@@ -259,7 +259,7 @@ func (c *ClusterStatusController) setCurrentClusterStatus(clusterClient *util.Cl
 
 	if c.EnableClusterResourceModeling {
 		// get or create informer for pods and nodes in member cluster
-		clusterInformerManager, err := c.buildInformerForCluster(clusterClient)
+		clusterInformerManager, err := c.buildInformerForCluster(clusterClient, cluster)
 		if err != nil {
 			klog.ErrorS(err, "Failed to get or create informer for Cluster", "cluster", cluster.GetName())
 			// in large-scale clusters, the timeout may occur.
@@ -337,8 +337,9 @@ func updateStatusCondition(ctx context.Context, c client.Client, cluster *cluste
 	return nil
 }
 
-func (c *ClusterStatusController) initializeGenericInformerManagerForCluster(clusterClient *util.ClusterClient) {
-	if c.GenericInformerManager.IsManagerExist(clusterClient.ClusterName) {
+func (c *ClusterStatusController) initializeGenericInformerManagerForCluster(clusterClient *util.ClusterClient, cluster *clusterv1alpha1.Cluster) {
+	// Skip client creation if manager already exists with matching UID
+	if c.GenericInformerManager.IsManagerExistWithUID(clusterClient.ClusterName, cluster.UID) {
 		return
 	}
 
@@ -347,16 +348,24 @@ func (c *ClusterStatusController) initializeGenericInformerManagerForCluster(clu
 		klog.ErrorS(err, "Failed to build dynamic cluster client", "cluster", clusterClient.ClusterName)
 		return
 	}
-	c.GenericInformerManager.ForCluster(clusterClient.ClusterName, dynamicClient.DynamicClientSet, 0)
+	// Use ForClusterWithUID to ensure proper cache invalidation when a cluster with
+	// the same name but different UID is registered (e.g., after cluster removal and re-registration).
+	c.GenericInformerManager.ForClusterWithUID(clusterClient.ClusterName, cluster.UID, dynamicClient.DynamicClientSet, 0)
 }
 
 // buildInformerForCluster builds informer manager for cluster if it doesn't exist, then constructs informers for node
 // and pod and start it. If the informer manager exist, return it.
-func (c *ClusterStatusController) buildInformerForCluster(clusterClient *util.ClusterClient) (typedmanager.SingleClusterInformerManager, error) {
-	singleClusterInformerManager := c.TypedInformerManager.GetSingleClusterManager(clusterClient.ClusterName)
-	if singleClusterInformerManager == nil {
-		singleClusterInformerManager = c.TypedInformerManager.ForCluster(clusterClient.ClusterName, clusterClient.KubeClient, 0)
-	}
+// Uses the cluster's UID to detect when a cluster with the same name but different identity
+// is registered (e.g., after cluster removal and re-registration), ensuring stale cache is invalidated.
+func (c *ClusterStatusController) buildInformerForCluster(clusterClient *util.ClusterClient, cluster *clusterv1alpha1.Cluster) (typedmanager.SingleClusterInformerManager, error) {
+	// Use ForClusterWithUID to ensure proper cache invalidation when a cluster with
+	// the same name but different UID is registered.
+	singleClusterInformerManager := c.TypedInformerManager.ForClusterWithUID(
+		clusterClient.ClusterName,
+		cluster.UID,
+		clusterClient.KubeClient,
+		0,
+	)
 
 	gvrs := []schema.GroupVersionResource{nodeGVR, podGVR}
 
