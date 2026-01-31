@@ -2,9 +2,9 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.17.0-alpha.2](#v1170-alpha2)
-  - [Downloads for v1.17.0-alpha.2](#downloads-for-v1170-alpha2)
-  - [Changelog since v1.17.0-alpha.1](#changelog-since-v1170-alpha1)
+- [v1.17.0-beta.0](#v1170-beta0)
+  - [Downloads for v1.17.0-beta.0](#downloads-for-v1170-beta0)
+  - [Changelog since v1.17.0-alpha.2](#changelog-since-v1170-alpha2)
   - [Urgent Update Notes](#urgent-update-notes)
   - [Changes by Kind](#changes-by-kind)
     - [API Changes](#api-changes)
@@ -17,9 +17,9 @@
     - [Helm Charts](#helm-charts)
     - [Instrumentation](#instrumentation)
     - [Performance](#performance)
-- [v1.17.0-alpha.1](#v1170-alpha1)
-  - [Downloads for v1.17.0-alpha.1](#downloads-for-v1170-alpha1)
-  - [Changelog since v1.17.0-alpha.0](#changelog-since-v1170-alpha0)
+- [v1.17.0-alpha.2](#v1170-alpha2)
+  - [Downloads for v1.17.0-alpha.2](#downloads-for-v1170-alpha2)
+  - [Changelog since v1.17.0-alpha.1](#changelog-since-v1170-alpha1)
   - [Urgent Update Notes](#urgent-update-notes-1)
   - [Changes by Kind](#changes-by-kind-1)
     - [API Changes](#api-changes-1)
@@ -32,8 +32,65 @@
     - [Helm Charts](#helm-charts-1)
     - [Instrumentation](#instrumentation-1)
     - [Performance](#performance-1)
+- [v1.17.0-alpha.1](#v1170-alpha1)
+  - [Downloads for v1.17.0-alpha.1](#downloads-for-v1170-alpha1)
+  - [Changelog since v1.17.0-alpha.0](#changelog-since-v1170-alpha0)
+  - [Urgent Update Notes](#urgent-update-notes-2)
+  - [Changes by Kind](#changes-by-kind-2)
+    - [API Changes](#api-changes-2)
+    - [Features & Enhancements](#features--enhancements-2)
+    - [Deprecation](#deprecation-2)
+    - [Bug Fixes](#bug-fixes-2)
+    - [Security](#security-2)
+  - [Other](#other-2)
+    - [Dependencies](#dependencies-2)
+    - [Helm Charts](#helm-charts-2)
+    - [Instrumentation](#instrumentation-2)
+    - [Performance](#performance-2)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.17.0-beta.0
+## Downloads for v1.17.0-beta.0
+
+Download v1.17.0-beta.0 in the [v1.17.0-beta.0 release page](https://github.com/karmada-io/karmada/releases/tag/v1.17.0-beta.0).
+
+## Changelog since v1.17.0-alpha.2
+
+## Urgent Update Notes
+
+## Changes by Kind
+
+### API Changes
+- Introduced `WorkloadAffinity` to `PropagationPolicy` API to support affinity and anti-affinity workload scheduling. ([#7131](https://github.com/karmada-io/karmada/pull/7131), @mszacillo)
+- Introduced `WorkloadAffinityGroups` to `ResourceBinding/ClusterResourceBinding`, which will be used to hold instantiated grouping results. ([#7144](https://github.com/karmada-io/karmada/pull/7144), @RainbowMango)
+
+### Features & Enhancements
+- Introduced `WorkloadAffinity` feature gate, default to false. ([#7148](https://github.com/karmada-io/karmada/pull/7148), @mszacillo)
+
+### Deprecation
+- `karmada-controller-manager`: The flags `--cluster-lease-duration` and `--cluster-lease-renew-interval-fraction` have been deprecated and will be removed in a future release. ([#7126](https://github.com/karmada-io/karmada/pull/7126), @FAUST-BENCHOU)
+
+### Bug Fixes
+- `karmada-scheduler`: Fixed an issue that prevented multi-component workloads from being rescheduled during cluster failover events. ([#7066](https://github.com/karmada-io/karmada/pull/7066), @mszacillo)
+- `karmada-scheduler`: Fixed the issue that `dynamicScaleDown` used stale clusters for scale-down operations. ([#7110](https://github.com/karmada-io/karmada/pull/7110), @zhzhuang-zju)
+- `karmada-scheduler-estimator`: Fixed the issue where the resource quota plugin failed to list resource quotas due to a missing namespace in the gRPC request. ([#7124](https://github.com/karmada-io/karmada/pull/7124), @zhzhuang-zju)
+
+### Security
+None.
+
+## Other
+### Dependencies
+- Karmada is now built with Golang v1.25.6. ([#7141](https://github.com/karmada-io/karmada/pull/7141), @RainbowMango)
+
+### Helm Charts
+None.
+
+### Instrumentation
+None.
+
+### Performance
+None.
 
 # v1.17.0-alpha.2
 ## Downloads for v1.17.0-alpha.2
