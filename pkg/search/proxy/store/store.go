@@ -224,9 +224,10 @@ func (s *store) GetCurrentResourceVersion(ctx context.Context) (uint64, error) {
 	return currentResourceVersion, nil
 }
 
-// SetKeysFunc implements storage.Interface.
-func (s *store) SetKeysFunc(storage.KeysFunc) {
-	// unimplemented
+// EnableResourceSizeEstimation enables estimating resource size by providing function get keys from storage.
+// No-op in proxy store as it doesn't manage actual storage.
+func (s *store) EnableResourceSizeEstimation(storage.KeysFunc) error {
+	return nil
 }
 
 // CompactRevision implements storage.Interface.
