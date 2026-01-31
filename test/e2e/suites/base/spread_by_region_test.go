@@ -129,7 +129,7 @@ var _ = framework.SerialDescribe("spread-by-region testing", func() {
 						MinGroups:     updatedRegionGroups,
 					},
 				}
-				patch := []map[string]interface{}{
+				patch := []map[string]any{
 					{
 						"op":    "replace",
 						"path":  "/spec/placement/spreadConstraints",

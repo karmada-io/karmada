@@ -1005,7 +1005,7 @@ func newFakeController(objs ...runtime.Object) *MCSController {
 }
 
 // Helper function to convert a slice of objects to a slice of runtime.Object
-func toRuntimeObjects(objs interface{}) []runtime.Object {
+func toRuntimeObjects(objs any) []runtime.Object {
 	var result []runtime.Object
 	switch v := objs.(type) {
 	case []*workv1alpha1.Work:

@@ -165,7 +165,7 @@ func TestDedupeAndSortServiceLoadBalancerIngress(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			for i := 0; i < 1000; i++ { // eliminate randomness in sorting
+			for range 1000 { // eliminate randomness in sorting
 				pass := assert.Equalf(t, tt.want, DedupeAndSortServiceLoadBalancerIngress(tt.args.ingresses), "DedupeAndSortServiceLoadBalancerIngress(%v)", tt.args.ingresses)
 				if !pass {
 					break

@@ -439,7 +439,7 @@ var _ = ginkgo.Describe("application failover testing", func() {
 			gracePeriodSeconds = 10
 			ginkgo.By("update the gracePeriodSeconds of the pp", func() {
 				// modify gracePeriodSeconds to create a time difference with tolerationSecond to avoid cluster interference
-				patch := []map[string]interface{}{
+				patch := []map[string]any{
 					{
 						"op":    policyv1alpha1.OverriderOpReplace,
 						"path":  "/spec/failover/application/gracePeriodSeconds",

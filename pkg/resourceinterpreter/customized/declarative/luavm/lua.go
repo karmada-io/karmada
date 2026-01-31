@@ -71,7 +71,7 @@ func (vm *VM) NewLuaState() (*lua.LState, error) {
 }
 
 // RunScript got a lua vm from pool, and execute script with given arguments.
-func (vm *VM) RunScript(script string, fnName string, nRets int, args ...interface{}) ([]lua.LValue, error) {
+func (vm *VM) RunScript(script string, fnName string, nRets int, args ...any) ([]lua.LValue, error) {
 	a, err := vm.Pool.Get()
 	if err != nil {
 		return nil, err
@@ -360,10 +360,10 @@ func NewWithContext(ctx context.Context) (*lua.LState, error) {
 }
 
 // nolint:gocyclo
-func decodeValue(L *lua.LState, value interface{}) (lua.LValue, error) {
+func decodeValue(L *lua.LState, value any) (lua.LValue, error) {
 	// We handle simple type without json for better performance.
 	switch converted := value.(type) {
-	case []interface{}:
+	case []any:
 		arr := L.CreateTable(len(converted), 0)
 		for _, item := range converted {
 			v, err := decodeValue(L, item)
@@ -373,7 +373,7 @@ func decodeValue(L *lua.LState, value interface{}) (lua.LValue, error) {
 			arr.Append(v)
 		}
 		return arr, nil
-	case map[string]interface{}:
+	case map[string]any:
 		tbl := L.CreateTable(0, len(converted))
 		for key, item := range converted {
 			v, err := decodeValue(L, item)

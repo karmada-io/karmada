@@ -48,9 +48,16 @@ func TestAddAndGetCert(t *testing.T) {
 	store.AddCert(cert)
 
 	retrievedCert := store.GetCert("testCert")
+	//nolint:staticcheck
+	// false positive from SA5011(related information): this check suggests that the pointer can be nil
+	// See https://github.com/golangci/golangci-lint/issues/5979 for more details.
 	if retrievedCert == nil {
 		t.Fatalf("expected to retrieve cert but got nil")
 	}
+
+	//nolint:staticcheck
+	// false positive from SA5011: possible nil pointer dereference
+	// See https://github.com/golangci/golangci-lint/issues/5979 for more details.
 	if string(retrievedCert.cert) != "certData" {
 		t.Errorf("expected certData but got %s", string(retrievedCert.cert))
 	}
