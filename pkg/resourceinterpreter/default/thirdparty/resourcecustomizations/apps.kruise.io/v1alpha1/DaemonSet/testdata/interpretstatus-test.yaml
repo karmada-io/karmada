@@ -1,5 +1,7 @@
 # test case for interpreting status of DaemonSet
 # case1. DaemonSet: interpret status test
+# case2. DaemonSet: empty observed status
+# case3. DaemonSet: multiple members but not all observed generation updated
 
 name: "DaemonSet: interpret status test"
 description: "Test interpreting status for DaemonSet"
@@ -50,5 +52,96 @@ observedObj:
     numberReady: 1
     observedGeneration: 1
     updatedNumberScheduled: 1
+    numberUnavailable: 0 
 operation: InterpretStatus
 output:
+  status:
+    observedGeneration: 1
+    currentNumberScheduled: 1
+    numberMisscheduled: 0
+    desiredNumberScheduled: 1
+    numberReady: 1
+    updatedNumberScheduled: 1
+    numberAvailable: 1
+    numberUnavailable: 0
+    daemonSetHash: 7dd59cf749
+    generation: 1
+    resourceTemplateGeneration: 1
+---
+# Case 2:
+name: "DaemonSet: interpret status with empty status"
+description: "Test InterpretStatus returns empty result when observedObj.status is nil"
+observedObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: DaemonSet
+  metadata:
+    name: sample-nil
+    namespace: test-kruise-daemonset
+    generation: 1
+    annotations:
+      resourcetemplate.karmada.io/generation: "1"
+  spec:
+    selector:
+      matchLabels:
+        app: sample-daemonset
+    template:
+      metadata:
+        labels:
+          app: sample-daemonset
+      spec:
+        containers:
+          - name: nginx
+            image: nginx:alpine
+operation: InterpretStatus
+output:
+  status: {}
+---
+# Case 3:
+name: "DaemonSet: interpret status test - mixed generation members"
+description: "Test observedGeneration does not advance when not all members are updated"
+observedObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: DaemonSet
+  metadata:
+    name: sample-mixed
+    namespace: test-kruise-daemonset
+    generation: 2
+    annotations:
+      resourcetemplate.karmada.io/generation: "2"
+  spec:
+    selector:
+      matchLabels:
+        app: sample-daemonset
+    template:
+      metadata:
+        labels:
+          app: sample-daemonset
+      spec:
+        containers:
+          - name: nginx
+            image: nginx:alpine
+  status:
+    currentNumberScheduled: 1
+    desiredNumberScheduled: 1
+    numberReady: 1
+    numberAvailable: 1
+    updatedNumberScheduled: 1
+    numberMisscheduled: 0
+    generation: 2
+    observedGeneration: 1
+    resourceTemplateGeneration: 2
+    daemonSetHash: hash-a
+
+operation: InterpretStatus
+output:
+  status:
+    generation: 2
+    observedGeneration: 1
+    resourceTemplateGeneration: 2
+    currentNumberScheduled: 1
+    desiredNumberScheduled: 1
+    numberReady: 1
+    numberAvailable: 1
+    updatedNumberScheduled: 1
+    numberMisscheduled: 0
+    daemonSetHash: hash-a
