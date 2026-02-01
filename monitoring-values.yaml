@@ -1,0 +1,26 @@
+## Kube-Prometheus-Stack Values
+## This file configures Grafana datasources to fix the "multiple default datasources" error
+
+grafana:
+  # Configure datasources to ensure only one is marked as default
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      uid: loki  # Set explicit UID to match dashboard expectations
+      access: proxy
+      url: http://loki:3100
+      isDefault: false  # Prometheus should be the only default
+      jsonData:
+        maxLines: 1000
+
+  # Ensure Prometheus datasource is properly configured as the default
+#  datasources:
+#    datasources.yaml:
+#      apiVersion: 1
+#      datasources:
+#        - name: Prometheus
+#          type: prometheus
+#          access: proxy
+#          url: http://kps-kube-prometheus-stack-prometheus:9090
+#          isDefault: true
+#          editable: false

@@ -12,7 +12,7 @@ spec:
     matchLabels:
       app: karmada-search
       apiserver: "true"
-  replicas: 2
+  replicas: 1
   template:
     metadata:
       labels:

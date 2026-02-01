@@ -60,6 +60,7 @@ spec:
             - --tls-private-key-file=/etc/karmada/pki/server/tls.key
             - --client-ca-file=/etc/karmada/pki/server/ca.crt
             - --tls-min-version=VersionTLS13
+            - --logging-format=json
           name: karmada-apiserver
           image: registry.k8s.io/kube-apiserver:{{karmada_apiserver_version}}
           imagePullPolicy: IfNotPresent
