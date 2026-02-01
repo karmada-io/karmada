@@ -1,21 +1,196 @@
-{"level":"info","time":"2026-02-01T17:33:10Z","message":"Reading config file /data/config.yaml"}
-{"level":"info","time":"2026-02-01T17:33:10Z","message":"Starting with config: exporter.Config{LogLevel:\"info\", LogFormat:\"json\", ThrottlePeriod:0, MaxEventAgeSeconds:0, ClusterName:\"\", Namespace:\"\", LeaderElection:kube.LeaderElectionConfig{Enabled:false, LeaderElectionID:\"\"}, Route:exporter.Route{Drop:[]exporter.Rule(nil), Match:[]exporter.Rule(nil), Routes:[]exporter.Route{exporter.Route{Drop:[]exporter.Rule(nil), Match:[]exporter.Rule{exporter.Rule{Labels:map[string]string(nil), Annotations:map[string]string(nil), Message:\"\", APIVersion:\"\", Kind:\"\", Namespace:\"\", Reason:\"\", Type:\"\", MinCount:0, Component:\"\", Host:\"\", Receiver:\"dump\"}}, Routes:[]exporter.Route(nil)}}}, Receivers:[]sinks.ReceiverConfig{sinks.ReceiverConfig{Name:\"dump\", InMemory:(*sinks.InMemoryConfig)(nil), Webhook:(*sinks.WebhookConfig)(nil), File:(*sinks.FileConfig)(nil), Syslog:(*sinks.SyslogConfig)(nil), Stdout:(*sinks.StdoutConfig)(0x400034ea60), Elasticsearch:(*sinks.ElasticsearchConfig)(nil), Kinesis:(*sinks.KinesisConfig)(nil), Firehose:(*sinks.FirehoseConfig)(nil), OpenSearch:(*sinks.OpenSearchConfig)(nil), Opsgenie:(*sinks.OpsgenieConfig)(nil), Loki:(*sinks.LokiConfig)(nil), SQS:(*sinks.SQSConfig)(nil), SNS:(*sinks.SNSConfig)(nil), Slack:(*sinks.SlackConfig)(nil), Kafka:(*sinks.KafkaConfig)(nil), Pubsub:(*sinks.PubsubConfig)(nil), Opscenter:(*sinks.OpsCenterConfig)(nil), Teams:(*sinks.TeamsConfig)(nil), BigQuery:(*sinks.BigQueryConfig)(nil), EventBridge:(*sinks.EventBridgeConfig)(nil), Pipe:(*sinks.PipeConfig)(nil)}}, KubeQPS:5, KubeBurst:10, MetricsNamePrefix:\"\", OmitLookup:false, CacheSize:1024}"}
-{"level":"info","time":"2026-02-01T17:33:10Z","message":"setting config.maxEventAgeSeconds=5 (default)"}
-{"level":"warn","time":"2026-02-01T17:33:10Z","message":"metrics name prefix is empty, setting config.metricsNamePrefix='event_exporter_' is recommended"}
-{"level":"info","name":"dump","type":"*sinks.Stdout","time":"2026-02-01T17:33:10Z","message":"Registering sink"}
-{"level":"info","time":"2026-02-01T17:33:10Z","message":"levelinfomsgListening onaddress[::]:2112"}
-{"level":"info","time":"2026-02-01T17:33:10Z","message":"levelinfomsgTLS is disabled.http2falseaddress[::]:2112"}
-{"level":"info","time":"2026-02-01T17:33:10Z","message":"leader election disabled"}
-{"component":"resource-detector","count":"1","firstTimestamp":"2026-02-01 17:34:07 +0000 UTC","host":"","involvedObjectAPIVersion":"apps/v1","kind":"Deployment","lastTimestamp":"2026-02-01 17:34:07 +0000 UTC","message":"Apply policy(default/deployment-policy) succeed","name":"nginx-deployment-1","namespace":"default","reason":"ApplyPolicySucceed","type":"Normal"}
-{"component":"binding-controller","count":"1","firstTimestamp":"2026-02-01 17:34:07 +0000 UTC","host":"","involvedObjectAPIVersion":"apps/v1","kind":"Deployment","lastTimestamp":"2026-02-01 17:34:07 +0000 UTC","message":"Sync work of ResourceBinding(default/nginx-deployment-1-deployment) successful.","name":"nginx-deployment-1","namespace":"default","reason":"SyncWorkSucceed","type":"Normal"}
-{"component":"binding-controller","count":"1","firstTimestamp":"2026-02-01 17:34:07 +0000 UTC","host":"","involvedObjectAPIVersion":"work.karmada.io/v1alpha2","kind":"ResourceBinding","lastTimestamp":"2026-02-01 17:34:07 +0000 UTC","message":"Sync work of ResourceBinding(default/nginx-deployment-1-deployment) successful.","name":"nginx-deployment-1-deployment","namespace":"default","reason":"SyncWorkSucceed","type":"Normal"}
-{"component":"default-scheduler","count":"1","firstTimestamp":"2026-02-01 17:34:07 +0000 UTC","host":"","involvedObjectAPIVersion":"work.karmada.io/v1alpha2","kind":"ResourceBinding","lastTimestamp":"2026-02-01 17:34:07 +0000 UTC","message":"Binding has been scheduled successfully. Result: {member1:1}","name":"nginx-deployment-1-deployment","namespace":"default","reason":"ScheduleBindingSucceed","type":"Normal"}
-{"component":"resource-detector","count":"1","firstTimestamp":"2026-02-01 17:34:07 +0000 UTC","host":"","involvedObjectAPIVersion":"apps/v1","kind":"Deployment","lastTimestamp":"2026-02-01 17:34:07 +0000 UTC","message":"Apply policy(default/deployment-policy) failed: resourcebindings.work.karmada.io \"nginx-deployment-1-deployment\" already exists","name":"nginx-deployment-1","namespace":"default","reason":"ApplyPolicyFailed","type":"Normal"}
-{"component":"default-scheduler","count":"1","firstTimestamp":"2026-02-01 17:34:07 +0000 UTC","host":"","involvedObjectAPIVersion":"apps/v1","kind":"Deployment","lastTimestamp":"2026-02-01 17:34:07 +0000 UTC","message":"Binding has been scheduled successfully. Result: {member1:1}","name":"nginx-deployment-1","namespace":"default","reason":"ScheduleBindingSucceed","type":"Normal"}
-{"component":"execution-controller","count":"1","firstTimestamp":"2026-02-01 17:34:07 +0000 UTC","host":"","involvedObjectAPIVersion":"work.karmada.io/v1alpha1","kind":"Work","lastTimestamp":"2026-02-01 17:34:07 +0000 UTC","message":"Work is being dispatched to member clusters.","name":"nginx-deployment-1-666c48f9fc","namespace":"karmada-es-member1","reason":"WorkDispatching","type":"Normal"}
-{"component":"execution-controller","count":"1","firstTimestamp":"2026-02-01 17:34:07 +0000 UTC","host":"","involvedObjectAPIVersion":"apps/v1","kind":"Deployment","lastTimestamp":"2026-02-01 17:34:07 +0000 UTC","message":"Successfully applied resource(default/nginx-deployment-1) to cluster member1","name":"nginx-deployment-1","namespace":"default","reason":"SyncSucceed","type":"Normal"}
-{"component":"resource-binding-status-controller","count":"1","firstTimestamp":"2026-02-01 17:34:07 +0000 UTC","host":"","involvedObjectAPIVersion":"work.karmada.io/v1alpha2","kind":"ResourceBinding","lastTimestamp":"2026-02-01 17:34:07 +0000 UTC","message":"Update ResourceBinding(default/nginx-deployment-1-deployment) with AggregatedStatus successfully.","name":"nginx-deployment-1-deployment","namespace":"default","reason":"AggregateStatusSucceed","type":"Normal"}
-{"component":"work-status-controller","count":"1","firstTimestamp":"2026-02-01 17:34:08 +0000 UTC","host":"","involvedObjectAPIVersion":"work.karmada.io/v1alpha1","kind":"Work","lastTimestamp":"2026-02-01 17:34:08 +0000 UTC","message":"Interpret health of object(Deployment/default/nginx-deployment-1) as unhealthy.","name":"nginx-deployment-1-666c48f9fc","namespace":"karmada-es-member1","reason":"InterpretHealthSucceed","type":"Normal"}
-{"component":"work-status-controller","count":"1","firstTimestamp":"2026-02-01 17:34:08 +0000 UTC","host":"","involvedObjectAPIVersion":"work.karmada.io/v1alpha1","kind":"Work","lastTimestamp":"2026-02-01 17:34:08 +0000 UTC","message":"Reflect status for object(Deployment/default/nginx-deployment-1) succeed.","name":"nginx-deployment-1-666c48f9fc","namespace":"karmada-es-member1","reason":"ReflectStatusSucceed","type":"Normal"}
-{"component":"execution-controller","count":"1","firstTimestamp":"2026-02-01 17:34:07 +0000 UTC","host":"","involvedObjectAPIVersion":"work.karmada.io/v1alpha1","kind":"Work","lastTimestamp":"2026-02-01 17:34:07 +0000 UTC","message":"Sync work(karmada-es-member1/nginx-deployment-1-666c48f9fc) to cluster(member1) successful.","name":"nginx-deployment-1-666c48f9fc","namespace":"karmada-es-member1","reason":"SyncSucceed","type":"Normal"}
-{"component":"resource-binding-status-controller","count":"1","firstTimestamp":"2026-02-01 17:34:08 +0000 UTC","host":"","involvedObjectAPIVersion":"apps/v1","kind":"Deployment","lastTimestamp":"2026-02-01 17:34:08 +0000 UTC","message":"Update Resource with AggregatedStatus successfully.","name":"nginx-deployment-1","namespace":"default","reason":"AggregateStatusSucceed","type":"Normal"}
+{"time": "2026-02-01T19:18:30.154847+00:00", "level": "INFO", "msg": "Starting collector"}
+{"time": "2026-02-01T19:18:30.155494+00:00", "level": "INFO", "msg": "No folder annotation was provided, defaulting to k8s-sidecar-target-directory"}
+{"time": "2026-02-01T19:18:30.155624+00:00", "level": "INFO", "msg": "Loading incluster config..."}
+{"time": "2026-02-01T19:18:30.156018+00:00", "level": "INFO", "msg": "Unique filenames will not be enforced."}
+{"time": "2026-02-01T19:18:30.156084+00:00", "level": "INFO", "msg": "5xx response content will not be enabled."}
+{"time": "2026-02-01T19:18:30.156136+00:00", "level": "INFO", "msg": "Performing initial list-based sync before starting watch."}
+{"time": "2026-02-01T19:18:30.156210+00:00", "level": "INFO", "msg": "Loading incluster config..."}
+{"time": "2026-02-01T19:18:30.156589+00:00", "level": "INFO", "msg": "Performing list-based sync on secret resources: {}"}
+{"time": "2026-02-01T19:18:30.157046+00:00", "level": "INFO", "msg": "Starting health server on port 8080"}
+{"time": "2026-02-01T19:18:30.184508+00:00", "level": "INFO", "msg": "Loading incluster config..."}
+{"time": "2026-02-01T19:18:30.185924+00:00", "level": "INFO", "msg": "Performing list-based sync on configmap resources: {}"}
+{"time": "2026-02-01T19:18:30.209909+00:00", "level": "INFO", "msg": "Writing /tmp/dashboards/alertmanager-overview.json (ascii)"}
+{"time": "2026-02-01T19:18:30.210641+00:00", "level": "INFO", "msg": "Writing /tmp/dashboards/apiserver.json (ascii)"}
+{"time": "2026-02-01T19:18:30.211133+00:00", "level": "INFO", "msg": "Writing /tmp/dashboards/cluster-total.json (ascii)"}
+{"time": "2026-02-01T19:18:30.211550+00:00", "level": "INFO", "msg": "Writing /tmp/dashboards/controller-manager.json (ascii)"}
+{"time": "2026-02-01T19:18:30.211951+00:00", "level": "INFO", "msg": "Writing /tmp/dashboards/etcd.json (ascii)"}
+{"time": "2026-02-01T19:18:30.220848+00:00", "level": "INFO", "msg": "Writing /tmp/dashboards/grafana-overview.json (ascii)"}
+{"time": "2026-02-01T19:18:30.221200+00:00", "level": "INFO", "msg": "Writing /tmp/dashboards/k8s-coredns.json (ascii)"}
+{"time": "2026-02-01T19:18:30.221489+00:00", "level": "INFO", "msg": "Writing /tmp/dashboards/k8s-resources-cluster.json (ascii)"}
+{"time": "2026-02-01T19:18:30.221757+00:00", "level": "INFO", "msg": "Writing /tmp/dashboards/k8s-resources-multicluster.json (ascii)"}
+{"time": "2026-02-01T19:18:30.222008+00:00", "level": "INFO", "msg": "Writing /tmp/dashboards/k8s-resources-namespace.json (ascii)"}
+{"time": "2026-02-01T19:18:30.225394+00:00", "level": "INFO", "msg": "Writing /tmp/dashboards/k8s-resources-node.json (ascii)"}
+{"time": "2026-02-01T19:18:30.225783+00:00", "level": "INFO", "msg": "Writing /tmp/dashboards/k8s-resources-pod.json (ascii)"}
+{"time": "2026-02-01T19:18:30.226294+00:00", "level": "INFO", "msg": "Writing /tmp/dashboards/k8s-resources-workload.json (ascii)"}
+{"time": "2026-02-01T19:18:30.226670+00:00", "level": "INFO", "msg": "Writing /tmp/dashboards/k8s-resources-workloads-namespace.json (ascii)"}
+{"time": "2026-02-01T19:18:30.226966+00:00", "level": "INFO", "msg": "Writing /tmp/dashboards/kubelet.json (ascii)"}
+{"time": "2026-02-01T19:18:30.230993+00:00", "level": "INFO", "msg": "Writing /tmp/dashboards/namespace-by-pod.json (ascii)"}
+{"time": "2026-02-01T19:18:30.231697+00:00", "level": "INFO", "msg": "Writing /tmp/dashboards/namespace-by-workload.json (ascii)"}
+{"time": "2026-02-01T19:18:30.232227+00:00", "level": "INFO", "msg": "Writing /tmp/dashboards/node-cluster-rsrc-use.json (ascii)"}
+{"time": "2026-02-01T19:18:30.232622+00:00", "level": "INFO", "msg": "Writing /tmp/dashboards/node-rsrc-use.json (ascii)"}
+{"time": "2026-02-01T19:18:30.232880+00:00", "level": "INFO", "msg": "Writing /tmp/dashboards/nodes.json (ascii)"}
+{"time": "2026-02-01T19:18:30.237616+00:00", "level": "INFO", "msg": "Writing /tmp/dashboards/nodes-aix.json (ascii)"}
+{"time": "2026-02-01T19:18:30.238052+00:00", "level": "INFO", "msg": "Writing /tmp/dashboards/nodes-darwin.json (ascii)"}
+{"time": "2026-02-01T19:18:30.238395+00:00", "level": "INFO", "msg": "Writing /tmp/dashboards/persistentvolumesusage.json (ascii)"}
+{"time": "2026-02-01T19:18:30.238708+00:00", "level": "INFO", "msg": "Writing /tmp/dashboards/pod-total.json (ascii)"}
+{"time": "2026-02-01T19:18:30.239144+00:00", "level": "INFO", "msg": "Writing /tmp/dashboards/prometheus.json (ascii)"}
+{"time": "2026-02-01T19:18:30.242388+00:00", "level": "INFO", "msg": "Writing /tmp/dashboards/proxy.json (ascii)"}
+{"time": "2026-02-01T19:18:30.242709+00:00", "level": "INFO", "msg": "Writing /tmp/dashboards/scheduler.json (ascii)"}
+{"time": "2026-02-01T19:18:30.242978+00:00", "level": "INFO", "msg": "Writing /tmp/dashboards/workload-total.json (ascii)"}
+{"time": "2026-02-01T19:18:30.243905+00:00", "level": "WARNING", "msg": "Retrying (Retry(total=4, connect=9, read=5, redirect=None, status=None)) after connection broken by 'NewConnectionError(\"HTTPConnection(host='localhost', port=3000): Failed to establish a new connection: [Errno 111] Connection refused\")': /api/admin/provisioning/dashboards/reload"}
+{"time": "2026-02-01T19:18:32.445461+00:00", "level": "WARNING", "msg": "Retrying (Retry(total=3, connect=8, read=5, redirect=None, status=None)) after connection broken by 'NewConnectionError(\"HTTPConnection(host='localhost', port=3000): Failed to establish a new connection: [Errno 111] Connection refused\")': /api/admin/provisioning/dashboards/reload"}
+{"time": "2026-02-01T19:18:36.847516+00:00", "level": "WARNING", "msg": "Retrying (Retry(total=2, connect=7, read=5, redirect=None, status=None)) after connection broken by 'NewConnectionError(\"HTTPConnection(host='localhost', port=3000): Failed to establish a new connection: [Errno 111] Connection refused\")': /api/admin/provisioning/dashboards/reload"}
+{"time": "2026-02-01T19:18:45.649682+00:00", "level": "WARNING", "msg": "Retrying (Retry(total=1, connect=6, read=5, redirect=None, status=None)) after connection broken by 'NewConnectionError(\"HTTPConnection(host='localhost', port=3000): Failed to establish a new connection: [Errno 111] Connection refused\")': /api/admin/provisioning/dashboards/reload"}
+{"time": "2026-02-01T19:19:03.253228+00:00", "level": "WARNING", "msg": "Retrying (Retry(total=0, connect=5, read=5, redirect=None, status=None)) after connection broken by 'NewConnectionError(\"HTTPConnection(host='localhost', port=3000): Failed to establish a new connection: [Errno 111] Connection refused\")': /api/admin/provisioning/dashboards/reload"}
+{"time": "2026-02-01T19:19:03.263340+00:00", "level": "ERROR", "msg": "Unexpected error during request to http://localhost:3000/api/admin/provisioning/dashboards/reload: HTTPConnectionPool(host='localhost', port=3000): Max retries exceeded with url: /api/admin/provisioning/dashboards/reload (Caused by NewConnectionError(\"HTTPConnection(host='localhost', port=3000): Failed to establish a new connection: [Errno 111] Connection refused\"))"}
+{"time": "2026-02-01T19:19:03.263991+00:00", "level": "INFO", "msg": "Initial sync complete, sidecar is ready."}
+{"time": "2026-02-01T19:19:03.265789+00:00", "level": "INFO", "msg": "Loading incluster config..."}
+{"time": "2026-02-01T19:19:03.268118+00:00", "level": "INFO", "msg": "Loading incluster config..."}
+{"time": "2026-02-01T19:19:03.270507+00:00", "level": "INFO", "msg": "Loading incluster config..."}
+{"time": "2026-02-01T19:19:03.280306+00:00", "level": "INFO", "msg": "Loading incluster config..."}
+{"time": "2026-02-01T19:20:03.297858+00:00", "level": "INFO", "msg": "Loading incluster config..."}
+{"time": "2026-02-01T19:20:03.298940+00:00", "level": "INFO", "msg": "Loading incluster config..."}
+{"time": "2026-02-01T19:21:03.331256+00:00", "level": "INFO", "msg": "Loading incluster config..."}
+{"time": "2026-02-01T19:21:03.335641+00:00", "level": "INFO", "msg": "Loading incluster config..."}
+{"time": "2026-02-01T19:22:03.367175+00:00", "level": "INFO", "msg": "Loading incluster config..."}
+{"time": "2026-02-01T19:22:03.369416+00:00", "level": "INFO", "msg": "Loading incluster config..."}
+{"time": "2026-02-01T19:18:30.261963+00:00", "level": "INFO", "msg": "Starting collector"}
+{"time": "2026-02-01T19:18:30.262538+00:00", "level": "INFO", "msg": "No folder annotation was provided, defaulting to k8s-sidecar-target-directory"}
+Exception in thread Thread-1 (run):
+{"time": "2026-02-01T19:18:30.262851+00:00", "level": "INFO", "msg": "Loading incluster config..."}
+{"time": "2026-02-01T19:18:30.263572+00:00", "level": "INFO", "msg": "Unique filenames will not be enforced."}
+{"time": "2026-02-01T19:18:30.263635+00:00", "level": "INFO", "msg": "5xx response content will not be enabled."}
+{"time": "2026-02-01T19:18:30.263751+00:00", "level": "INFO", "msg": "Performing initial list-based sync before starting watch."}
+{"time": "2026-02-01T19:18:30.263813+00:00", "level": "INFO", "msg": "Loading incluster config..."}
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.14/threading.py", line 1082, in _bootstrap_inner
+    self._context.run(self.run)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "/usr/local/lib/python3.14/threading.py", line 1024, in run
+    self._target(*self._args, **self._kwargs)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/healthz.py", line 133, in run
+    server = ThreadingHTTPServer(("", health_port), HealthHandler)
+  File "/usr/local/lib/python3.14/socketserver.py", line 457, in __init__
+    self.server_bind()
+    ~~~~~~~~~~~~~~~~^^
+  File "/usr/local/lib/python3.14/http/server.py", line 148, in server_bind
+    socketserver.TCPServer.server_bind(self)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/usr/local/lib/python3.14/socketserver.py", line 478, in server_bind
+    self.socket.bind(self.server_address)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+OSError: [Errno 98] Address in use
+{"time": "2026-02-01T19:18:30.264776+00:00", "level": "INFO", "msg": "Performing list-based sync on secret resources: {'namespace': 'monitoring'}"}
+{"time": "2026-02-01T19:18:30.271982+00:00", "level": "INFO", "msg": "Loading incluster config..."}
+{"time": "2026-02-01T19:18:30.272396+00:00", "level": "INFO", "msg": "Performing list-based sync on configmap resources: {'namespace': 'monitoring'}"}
+{"time": "2026-02-01T19:18:30.304970+00:00", "level": "INFO", "msg": "Writing /etc/grafana/provisioning/datasources/datasource.yaml (ascii)"}
+{"time": "2026-02-01T19:18:30.305364+00:00", "level": "INFO", "msg": "Writing /etc/grafana/provisioning/datasources/loki-stack-datasource.yaml (ascii)"}
+{"time": "2026-02-01T19:18:30.306131+00:00", "level": "WARNING", "msg": "Retrying (Retry(total=4, connect=9, read=5, redirect=None, status=None)) after connection broken by 'NewConnectionError(\"HTTPConnection(host='localhost', port=3000): Failed to establish a new connection: [Errno 111] Connection refused\")': /api/admin/provisioning/datasources/reload"}
+{"time": "2026-02-01T19:18:32.507496+00:00", "level": "WARNING", "msg": "Retrying (Retry(total=3, connect=8, read=5, redirect=None, status=None)) after connection broken by 'NewConnectionError(\"HTTPConnection(host='localhost', port=3000): Failed to establish a new connection: [Errno 111] Connection refused\")': /api/admin/provisioning/datasources/reload"}
+{"time": "2026-02-01T19:18:36.910593+00:00", "level": "WARNING", "msg": "Retrying (Retry(total=2, connect=7, read=5, redirect=None, status=None)) after connection broken by 'NewConnectionError(\"HTTPConnection(host='localhost', port=3000): Failed to establish a new connection: [Errno 111] Connection refused\")': /api/admin/provisioning/datasources/reload"}
+{"time": "2026-02-01T19:18:45.712500+00:00", "level": "WARNING", "msg": "Retrying (Retry(total=1, connect=6, read=5, redirect=None, status=None)) after connection broken by 'NewConnectionError(\"HTTPConnection(host='localhost', port=3000): Failed to establish a new connection: [Errno 111] Connection refused\")': /api/admin/provisioning/datasources/reload"}
+{"time": "2026-02-01T19:19:03.315235+00:00", "level": "WARNING", "msg": "Retrying (Retry(total=0, connect=5, read=5, redirect=None, status=None)) after connection broken by 'NewConnectionError(\"HTTPConnection(host='localhost', port=3000): Failed to establish a new connection: [Errno 111] Connection refused\")': /api/admin/provisioning/datasources/reload"}
+{"time": "2026-02-01T19:19:03.319667+00:00", "level": "ERROR", "msg": "Unexpected error during request to http://localhost:3000/api/admin/provisioning/datasources/reload: HTTPConnectionPool(host='localhost', port=3000): Max retries exceeded with url: /api/admin/provisioning/datasources/reload (Caused by NewConnectionError(\"HTTPConnection(host='localhost', port=3000): Failed to establish a new connection: [Errno 111] Connection refused\"))"}
+{"time": "2026-02-01T19:19:03.320102+00:00", "level": "INFO", "msg": "Initial sync complete, sidecar is ready."}
+{"time": "2026-02-01T19:19:03.321647+00:00", "level": "INFO", "msg": "Loading incluster config..."}
+{"time": "2026-02-01T19:19:03.323580+00:00", "level": "INFO", "msg": "Loading incluster config..."}
+{"time": "2026-02-01T19:19:03.325935+00:00", "level": "INFO", "msg": "Loading incluster config..."}
+{"time": "2026-02-01T19:19:03.326701+00:00", "level": "INFO", "msg": "Loading incluster config..."}
+{"time": "2026-02-01T19:20:03.341308+00:00", "level": "INFO", "msg": "Loading incluster config..."}
+{"time": "2026-02-01T19:20:03.342989+00:00", "level": "INFO", "msg": "Loading incluster config..."}
+{"time": "2026-02-01T19:21:03.359157+00:00", "level": "INFO", "msg": "Loading incluster config..."}
+{"time": "2026-02-01T19:21:03.360982+00:00", "level": "INFO", "msg": "Loading incluster config..."}
+{"time": "2026-02-01T19:22:03.381750+00:00", "level": "INFO", "msg": "Loading incluster config..."}
+{"time": "2026-02-01T19:22:03.383012+00:00", "level": "INFO", "msg": "Loading incluster config..."}
+logger=settings t=2026-02-01T19:21:34.585526757Z level=info msg="Starting Grafana" version=12.3.1 commit=3a1c80ca7ce612f309fdc99338dd3c5e486339be branch=release-12.3.1 compiled=2026-02-01T19:21:34Z
+logger=settings t=2026-02-01T19:21:34.585809674Z level=info msg="Config loaded from" file=/usr/share/grafana/conf/defaults.ini
+logger=settings t=2026-02-01T19:21:34.585817174Z level=info msg="Config loaded from" file=/etc/grafana/grafana.ini
+logger=settings t=2026-02-01T19:21:34.585819174Z level=info msg="Config overridden from command line" arg="default.paths.data=/var/lib/grafana/"
+logger=settings t=2026-02-01T19:21:34.585820715Z level=info msg="Config overridden from command line" arg="default.paths.logs=/var/log/grafana"
+logger=settings t=2026-02-01T19:21:34.585822799Z level=info msg="Config overridden from command line" arg="default.paths.plugins=/var/lib/grafana/plugins"
+logger=settings t=2026-02-01T19:21:34.585824215Z level=info msg="Config overridden from command line" arg="default.paths.provisioning=/etc/grafana/provisioning"
+logger=settings t=2026-02-01T19:21:34.585825924Z level=info msg="Config overridden from command line" arg="default.log.mode=console"
+logger=settings t=2026-02-01T19:21:34.585827424Z level=info msg="Config overridden from Environment variable" var="GF_PATHS_DATA=/var/lib/grafana/"
+logger=settings t=2026-02-01T19:21:34.585828924Z level=info msg="Config overridden from Environment variable" var="GF_PATHS_LOGS=/var/log/grafana"
+logger=settings t=2026-02-01T19:21:34.585830299Z level=info msg="Config overridden from Environment variable" var="GF_PATHS_PLUGINS=/var/lib/grafana/plugins"
+logger=settings t=2026-02-01T19:21:34.585831715Z level=info msg="Config overridden from Environment variable" var="GF_PATHS_PROVISIONING=/etc/grafana/provisioning"
+logger=settings t=2026-02-01T19:21:34.585833215Z level=info msg="Config overridden from Environment variable" var="GF_SECURITY_ADMIN_USER=admin"
+logger=settings t=2026-02-01T19:21:34.585834632Z level=info msg="Config overridden from Environment variable" var="GF_SECURITY_ADMIN_PASSWORD=*********"
+logger=settings t=2026-02-01T19:21:34.585836007Z level=info msg="Config overridden from Environment variable" var="GF_UNIFIED_STORAGE_INDEX_PATH=/var/lib/grafana-search/bleve"
+logger=settings t=2026-02-01T19:21:34.585837465Z level=info msg=Target target=[all]
+logger=settings t=2026-02-01T19:21:34.585844257Z level=info msg="Path Home" path=/usr/share/grafana
+logger=settings t=2026-02-01T19:21:34.585845507Z level=info msg="Path Data" path=/var/lib/grafana/
+logger=settings t=2026-02-01T19:21:34.585846507Z level=info msg="Path Logs" path=/var/log/grafana
+logger=settings t=2026-02-01T19:21:34.585847549Z level=info msg="Path Plugins" path=/var/lib/grafana/plugins
+logger=settings t=2026-02-01T19:21:34.585848549Z level=info msg="Path Provisioning" path=/etc/grafana/provisioning
+logger=settings t=2026-02-01T19:21:34.585849632Z level=info msg="App mode production"
+logger=featuremgmt t=2026-02-01T19:21:34.586130424Z level=info msg=FeatureToggles panelMonitoring=true alertingQueryAndExpressionsStepMode=true dashboardSceneSolo=true correlations=true logsExploreTableVisualisation=true sharingDashboardImage=true alertingUseNewSimplifiedRoutingHashAlgorithm=true dashboardScene=true preventPanelChromeOverflow=true improvedExternalSessionHandling=true grafanaconThemes=true onlyStoreActionSets=true unifiedRequestLog=true newLogsPanel=true dataplaneFrontendFallback=true logsInfiniteScrolling=true recordedQueriesMulti=true azureMonitorEnableUserAuth=true alertingRuleVersionHistoryRestore=true logsPanelControls=true unifiedStorageHistoryPruner=true cloudWatchCrossAccountQuerying=true pinNavItems=true addFieldFromCalculationStatFunctions=true adhocFiltersInTooltips=true alertingRulePermanentlyDelete=true formatString=true cloudWatchRoundUpEndTime=true dashgpt=true tlsMemcached=true dashboardDsAdHocFiltering=true alertingBulkActionsInUI=true dashboardSceneForViewers=true ssoSettingsLDAP=true cloudWatchNewLabelParsing=true alertingRuleRecoverDeleted=true lokiQuerySplitting=true annotationPermissionUpdate=true azureMonitorPrometheusExemplars=true awsAsyncQueryCaching=true logRowsPopoverMenu=true alertingUIOptimizeReducer=true improvedExternalSessionHandlingSAML=true prometheusAzureOverrideAudience=true grafanaAssistantInProfilesDrilldown=true groupToNestedTableTransformation=true onPremToCloudMigrations=true influxdbBackendMigration=true alertingNotificationsStepMode=true preinstallAutoUpdate=true alertRuleRestore=true transformationsRedesign=true newPDFRendering=true publicDashboardsScene=true awsDatasourcesTempCredentials=true useSessionStorageForRedirection=true logsContextDatasourceUi=true newFiltersUI=true alertingImportYAMLUI=true alertingMigrationUI=true lokiLabelNamesQueryApi=true alertingSaveStateCompressed=true kubernetesDashboards=true
+logger=sqlstore t=2026-02-01T19:21:34.586165465Z level=info msg="Connecting to DB" dbtype=sqlite3
+logger=sqlstore t=2026-02-01T19:21:34.586167715Z level=info msg="Using SQLite driver" driver="mattn/go-sqlite3 (CGO enabled)"
+logger=migrator t=2026-02-01T19:21:34.594014299Z level=info msg="Locking database"
+logger=migrator t=2026-02-01T19:21:34.594037882Z level=info msg="Starting DB migrations"
+logger=migrator t=2026-02-01T19:21:34.603275715Z level=info msg="migrations completed" performed=0 skipped=690 duration=351.958µs
+logger=migrator t=2026-02-01T19:21:34.603548007Z level=info msg="Unlocking database"
+logger=secrets t=2026-02-01T19:21:34.60379334Z level=info msg="Envelope encryption state" enabled=true currentprovider=secretKey.v1
+logger=plugin.angulardetectorsprovider.dynamic t=2026-02-01T19:21:34.639077257Z level=info msg="Restored cache from database" duration=813.958µs
+logger=accesscontrol.service t=2026-02-01T19:21:34.639873757Z level=info msg="Starting migration to remove deprecated permissions" migration=removeDeprecatedPermissions
+logger=accesscontrol.service t=2026-02-01T19:21:34.64003709Z level=info msg="Completed migration to remove deprecated permissions" migration=removeDeprecatedPermissions totalRemoved=0 duration=163.458µs
+logger=secret-migrator t=2026-02-01T19:21:34.640484632Z level=info msg="Locking database"
+logger=secret-migrator t=2026-02-01T19:21:34.640491965Z level=info msg="Starting DB migrations"
+logger=secret-migrator t=2026-02-01T19:21:34.641006049Z level=info msg="migrations completed" performed=0 skipped=26 duration=16.458µs
+logger=secret-migrator t=2026-02-01T19:21:34.641231965Z level=info msg="Unlocking database"
+logger=resource-db t=2026-02-01T19:21:34.641580257Z level=info msg="Using database section" db_type=sqlite3
+logger=resource-db t=2026-02-01T19:21:34.641619007Z level=info msg="Initializing Resource DB" db_type=sqlite3 open_conn=0 in_use_conn=0 idle_conn=0 max_open_conn=0
+logger=resource-migrator t=2026-02-01T19:21:34.646103007Z level=info msg="Locking database"
+logger=resource-migrator t=2026-02-01T19:21:34.646114382Z level=info msg="Starting DB migrations"
+logger=resource-migrator t=2026-02-01T19:21:34.651007174Z level=info msg="migrations completed" performed=0 skipped=29 duration=19.583µs
+logger=resource-migrator t=2026-02-01T19:21:34.651243632Z level=info msg="Unlocking database"
+t=2026-02-01T19:21:34.651363799Z level=info caller=logger.go:214 time=2026-02-01T19:21:34.651360465Z msg="Using channel notifier" logger=sql-resource-server
+logger=plugin.store t=2026-02-01T19:21:34.652145174Z level=info msg="Loading plugins..."
+logger=plugin.store t=2026-02-01T19:21:34.69298709Z level=info msg="Plugins loaded" count=53 duration=40.84225ms
+logger=annotations t=2026-02-01T19:21:34.694464924Z level=info msg="Starting annotation dashboard_uid migration in background"
+logger=annotations t=2026-02-01T19:21:34.694479632Z level=info msg="Starting batched dashboard_uid migration for annotations (newest first)" batchSize=5000
+logger=annotations t=2026-02-01T19:21:34.695575757Z level=info msg="Completed dashboard_uid migration for annotations" totalUpdated=0
+logger=annotations t=2026-02-01T19:21:34.695585382Z level=info msg="Annotation dashboard_uid migration completed successfully"
+logger=query_data t=2026-02-01T19:21:34.695794507Z level=info msg="Query Service initialization"
+logger=live.push_http t=2026-02-01T19:21:34.697397757Z level=info msg="Live Push Gateway initialization"
+logger=ngalert.notifier component=alertmanager orgID=1 t=2026-02-01T19:21:34.698824757Z level=info msg="Applying new configuration to Alertmanager" configHash=d2c56faca6af2a5772ff4253222f7386
+logger=ngalert.writer t=2026-02-01T19:21:34.702896215Z level=info msg="Setting up remote write using data sources" timeout=10s default_datasource_uid=
+logger=ngalert t=2026-02-01T19:21:34.702930465Z level=info msg="Using protobuf-based alert instance store"
+logger=ngalert.state.manager.persist t=2026-02-01T19:21:34.702938465Z level=info msg="Using rule state persister"
+logger=infra.usagestats.collector t=2026-02-01T19:21:34.70450634Z level=info msg="registering usage stat providers" usageStatsProvidersLen=2
+logger=backgroundsvcs.managerAdapter t=2026-02-01T19:21:34.711926965Z level=info msg=starting module=tracing
+logger=backgroundsvcs.managerAdapter t=2026-02-01T19:21:34.71199959Z level=info msg=starting module=grafana-apiserver
+logger=grafana-apiserver t=2026-02-01T19:21:34.82168109Z level=info msg="Adding GroupVersion userstorage.grafana.app v0alpha1 to ResourceManager"
+logger=grafana-apiserver t=2026-02-01T19:21:34.821929132Z level=info msg="Adding GroupVersion features.grafana.app v0alpha1 to ResourceManager"
+logger=grafana-apiserver t=2026-02-01T19:21:34.830092674Z level=info msg="Adding GroupVersion dashboard.grafana.app v1beta1 to ResourceManager"
+logger=grafana-apiserver t=2026-02-01T19:21:34.830246215Z level=info msg="Adding GroupVersion dashboard.grafana.app v0alpha1 to ResourceManager"
+logger=grafana-apiserver t=2026-02-01T19:21:34.83040484Z level=info msg="Adding GroupVersion dashboard.grafana.app v2beta1 to ResourceManager"
+logger=grafana-apiserver t=2026-02-01T19:21:34.83054559Z level=info msg="Adding GroupVersion dashboard.grafana.app v2alpha1 to ResourceManager"
+t=2026-02-01T19:21:34.830607424Z level=info caller=logger.go:214 time=2026-02-01T19:21:34.83060159Z msg="Zanzana is not enabled; skipping folder propagation hooks"
+logger=grafana-apiserver t=2026-02-01T19:21:34.831801507Z level=info msg="Adding GroupVersion folder.grafana.app v1beta1 to ResourceManager"
+logger=grafana-apiserver t=2026-02-01T19:21:34.835000549Z level=info msg="Adding GroupVersion iam.grafana.app v0alpha1 to ResourceManager"
+t=2026-02-01T19:21:34.835101465Z level=warn caller=logger.go:224 time=2026-02-01T19:21:34.835099174Z msg="skipped registering status sub-resource that does not support dual writing" resource=playlists.playlist.grafana.app version=v0alpha1 storagePath=playlists/status
+logger=grafana-apiserver t=2026-02-01T19:21:34.835427049Z level=info msg="Adding GroupVersion playlist.grafana.app v0alpha1 to ResourceManager"
+t=2026-02-01T19:21:34.835453924Z level=info caller=logger.go:214 time=2026-02-01T19:21:34.835451465Z msg="Installed APIs for app" app=playlist
+logger=grafana-apiserver t=2026-02-01T19:21:34.835794674Z level=info msg="Adding GroupVersion plugins.grafana.app v0alpha1 to ResourceManager"
+t=2026-02-01T19:21:34.835833924Z level=info caller=logger.go:214 time=2026-02-01T19:21:34.835830965Z msg="Installed APIs for app" app=plugins
+logger=grafana-apiserver t=2026-02-01T19:21:34.835919799Z level=info msg="Skipping API example.grafana.app/v1alpha1 because it has no resources."
+logger=grafana-apiserver t=2026-02-01T19:21:34.835926924Z level=info msg="Skipping API example.grafana.app/v0alpha1 because it has no resources."
+t=2026-02-01T19:21:34.835957799Z level=info caller=logger.go:214 time=2026-02-01T19:21:34.835955965Z msg="Installed APIs for app" app=example
+logger=grafana-apiserver t=2026-02-01T19:21:34.836653424Z level=info msg="Adding GroupVersion notifications.alerting.grafana.app v0alpha1 to ResourceManager"
+t=2026-02-01T19:21:34.836683299Z level=info caller=logger.go:214 time=2026-02-01T19:21:34.836680799Z msg="Installed APIs for app" app=alerting-notifications
+t=2026-02-01T19:21:34.86825709Z level=info caller=logger.go:214 time=2026-02-01T19:21:34.868255174Z msg="App initialized" app=playlist
+t=2026-02-01T19:21:34.86833509Z level=info caller=logger.go:214 time=2026-02-01T19:21:34.868333549Z msg="App initialized" app=plugins
+t=2026-02-01T19:21:34.868351174Z level=info caller=logger.go:214 time=2026-02-01T19:21:34.868349507Z msg="App initialized" app=example
+t=2026-02-01T19:21:34.868367549Z level=info caller=logger.go:214 time=2026-02-01T19:21:34.868365007Z msg="App initialized" app=alerting-notifications
+logger=backgroundsvcs.managerAdapter t=2026-02-01T19:21:34.868413715Z level=info msg=starting module=plugins.store
+logger=backgroundsvcs.managerAdapter t=2026-02-01T19:21:34.868445257Z level=info msg=starting module=plugin.backgroundinstaller
+logger=plugin.backgroundinstaller t=2026-02-01T19:21:34.868463215Z level=info msg="Plugins installed" plugins=[]
+logger=plugin.backgroundinstaller t=2026-02-01T19:21:34.868481549Z level=info msg="Installing plugins" plugins="[{ID:grafana-exploretraces-app Version: URL:} {ID:grafana-metricsdrilldown-app Version: URL:} {ID:grafana-lokiexplore-app Version: URL:} {ID:grafana-pyroscope-app Version: URL:}]"
+logger=plugin.backgroundinstaller t=2026-02-01T19:21:34.86850584Z level=info msg="Installing plugin" pluginId=grafana-exploretraces-app version=
+logger=backgroundsvcs.managerAdapter t=2026-02-01T19:21:34.868927632Z level=info msg=starting module=provisioning
+logger=provisioning t=2026-02-01T19:21:34.870236007Z level=error msg="Failed to provision data sources" error="Datasource provisioning error: datasource.yaml config is invalid. Only one datasource per organization can be marked as default"
+logger=provisioning t=2026-02-01T19:21:34.87024759Z level=error msg="Failed to provision data sources" error="Datasource provisioning error: datasource.yaml config is invalid. Only one datasource per organization can be marked as default"
+Error: ✗ invalid service state: Failed, expected: Terminated, failure: invalid service state: Failed, expected: Running, failure: not healthy, 0 terminated, 1 failed: [starting module provisioning: invalid service state: Failed, expected: Running, failure: Datasource provisioning error: datasource.yaml config is invalid. Only one datasource per organization can be marked as default]

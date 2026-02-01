@@ -52,14 +52,14 @@ Add the Grafana Helm repository and install the Loki stack into the `monitoring`
 
 ```bash
 helm repo add grafana https://grafana.github.io/helm-charts
-helm repo update
 helm upgrade --install loki grafana/loki-stack \
   --namespace monitoring \
   --kubeconfig ~/.kube/karmada.config \
   --kube-context karmada-host \
   --set promtail.enabled=true \
   --set loki.persistence.enabled=true \
-  --set loki.persistence.size=10Gi
+  --set loki.persistence.size=10Gi \
+  --set grafana.enabled=false
 ```
 
 This installs Loki (log aggregation system) and Promtail (log collection agent) for centralized log management. Promtail automatically collects logs from all pods in the cluster and sends them to Loki.
@@ -272,6 +272,76 @@ The dashboard includes:
 - Recent events log stream
 
 For a complete guide on working with Kubernetes events in Loki, see [docs/kubernetes-events-guide.md](docs/kubernetes-events-guide.md).
+
+---
+
+## 12. Generate Test Events for Dashboard Testing
+
+To populate the Events dashboard with realistic test data, use the event generation script:
+
+```bash
+hack/generate-events.sh \
+  --kubeconfig ~/.kube/karmada.config \
+  --context karmada-apiserver \
+  --namespace default
+```
+
+This script will continuously generate various Kubernetes events by creating, updating, scaling, and deleting resources in an infinite loop.
+
+### What Events Are Generated
+
+The script creates diverse events across multiple scenarios:
+
+**Normal Events:**
+- Deployment creation and scaling (ScalingReplicaSet, SuccessfulCreate)
+- ConfigMap creation and updates
+- Service creation
+- Pod lifecycle events (Scheduled, Pulling, Pulled, Created, Started)
+- Init container events
+
+**Warning Events:**
+- Image pull failures (FailedPull, ErrImagePull, BackOff)
+- Invalid image references
+
+**Deletion Events:**
+- Resource cleanup events (Killing, DELETE)
+
+### Options
+
+```bash
+# Generate events in a specific namespace
+hack/generate-events.sh \
+  --kubeconfig ~/.kube/karmada.config \
+  --context karmada-apiserver \
+  --namespace my-test-namespace
+
+# Enable trace mode for debugging
+hack/generate-events.sh \
+  --kubeconfig ~/.kube/karmada.config \
+  --context karmada-apiserver \
+  --trace
+```
+
+### Usage Tips
+
+- Each iteration takes approximately 40-50 seconds and generates dozens of events
+- Run for 5-10 minutes to populate the dashboard with sufficient data
+- Press `Ctrl+C` to stop event generation when you have enough data
+- Monitor events in real-time in Grafana → Dashboards → Karmada Events
+
+### Verify Events Are Being Generated
+
+Check the event exporter logs to see events streaming:
+
+```bash
+hc logs -n karmada-system -l app=event-exporter -f
+```
+
+Or query Loki in Grafana:
+
+```logql
+{namespace="karmada-system", app="event-exporter"} | json
+```
 
 ---
 

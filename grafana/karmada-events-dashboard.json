@@ -45,7 +45,7 @@
         {
           "datasource": "${datasource}",
           "editorMode": "code",
-          "expr": "{namespace=~\"$namespace\", app=\"event-exporter\"} | json | kind != \"\" | type=~\"$event_type\" | reason=~\"$event_reason\" | kind=~\"$object_kind\" | line_format \"{{.timestamp}} | {{.type}} | {{.reason}} | {{.kind}}/{{.name}} ({{.namespace}}) | {{.component}} | {{.message}}\"",
+          "expr": "{app=\"event-exporter\"} | json | kind != \"\" | type=~\"$event_type\" | line_format \"{{.lastTimestamp}} | {{.type}} | {{.reason}} | {{.kind}}/{{.name}} ({{.namespace}}) | {{.component}} | {{.message}}\"",
           "queryType": "range",
           "refId": "A",
           "resolution": 1,
@@ -132,7 +132,7 @@
         {
           "datasource": "${datasource}",
           "editorMode": "code",
-          "expr": "sum by (type) (count_over_time({namespace=~\"$namespace\", app=\"event-exporter\"} | json | kind != \"\" | type=~\"$event_type\" | reason=~\"$event_reason\" | kind=~\"$object_kind\" [$__range]))",
+          "expr": "sum by (type) (count_over_time({app=\"event-exporter\"} | json | kind != \"\" | type=~\"$event_type\" [$__range]))",
           "queryType": "range",
           "refId": "A"
         }
@@ -185,7 +185,7 @@
         {
           "datasource": "${datasource}",
           "editorMode": "code",
-          "expr": "sum by (reason) (count_over_time({namespace=~\"$namespace\", app=\"event-exporter\"} | json | kind != \"\" | type=~\"$event_type\" | reason=~\"$event_reason\" | kind=~\"$object_kind\" [$__range]))",
+          "expr": "sum by (reason) (count_over_time({app=\"event-exporter\"} | json | kind != \"\" | type=~\"$event_type\" [$__range]))",
           "queryType": "range",
           "refId": "A"
         }
@@ -265,7 +265,7 @@
         {
           "datasource": "${datasource}",
           "editorMode": "code",
-          "expr": "sum by (namespace) (count_over_time({namespace=~\"$namespace\", app=\"event-exporter\"} | json | kind != \"\" | type=~\"$event_type\" | reason=~\"$event_reason\" | kind=~\"$object_kind\" [$__range]))",
+          "expr": "sum by (namespace) (count_over_time({app=\"event-exporter\"} | json | kind != \"\" | type=~\"$event_type\" [$__range]))",
           "queryType": "range",
           "refId": "A"
         }
@@ -345,7 +345,7 @@
         {
           "datasource": "${datasource}",
           "editorMode": "code",
-          "expr": "sum by (kind) (count_over_time({namespace=~\"$namespace\", app=\"event-exporter\"} | json | kind != \"\" | type=~\"$event_type\" | reason=~\"$event_reason\" | kind=~\"$object_kind\" [$__range]))",
+          "expr": "sum by (kind) (count_over_time({app=\"event-exporter\"} | json | kind != \"\" | type=~\"$event_type\" [$__range]))",
           "queryType": "range",
           "refId": "A"
         }
@@ -460,7 +460,7 @@
         {
           "datasource": "${datasource}",
           "editorMode": "code",
-          "expr": "sum by (type) (count_over_time({namespace=~\"$namespace\", app=\"event-exporter\"} | json | kind != \"\" | type=~\"$event_type\" | reason=~\"$event_reason\" | kind=~\"$object_kind\" [1m]))",
+          "expr": "sum by (type) (count_over_time({app=\"event-exporter\"} | json | kind != \"\" | type=~\"$event_type\" [1m]))",
           "queryType": "range",
           "refId": "A"
         }
@@ -523,7 +523,7 @@
         {
           "datasource": "${datasource}",
           "editorMode": "code",
-          "expr": "sum(count_over_time({namespace=~\"$namespace\", app=\"event-exporter\"} | json | kind != \"\" | type=\"Warning\" | reason=~\"$event_reason\" | kind=~\"$object_kind\" [$__range]))",
+          "expr": "sum(count_over_time({app=\"event-exporter\"} | json | kind != \"\" | type=\"Warning\" [$__range]))",
           "queryType": "range",
           "refId": "A"
         }
@@ -578,7 +578,7 @@
         {
           "datasource": "${datasource}",
           "editorMode": "code",
-          "expr": "sum(count_over_time({namespace=~\"$namespace\", app=\"event-exporter\"} | json | kind != \"\" | type=\"Normal\" | reason=~\"$event_reason\" | kind=~\"$object_kind\" [$__range]))",
+          "expr": "sum(count_over_time({app=\"event-exporter\"} | json | kind != \"\" | type=\"Normal\" [$__range]))",
           "queryType": "range",
           "refId": "A"
         }
@@ -633,7 +633,7 @@
         {
           "datasource": "${datasource}",
           "editorMode": "code",
-          "expr": "sum(count_over_time({namespace=~\"$namespace\", app=\"event-exporter\"} | json | kind != \"\" | type=~\"$event_type\" | reason=~\"$event_reason\" | kind=~\"$object_kind\" [$__range]))",
+          "expr": "sum(count_over_time({app=\"event-exporter\"} | json | kind != \"\" | type=~\"$event_type\" [$__range]))",
           "queryType": "range",
           "refId": "A"
         }
@@ -688,7 +688,7 @@
         {
           "datasource": "${datasource}",
           "editorMode": "code",
-          "expr": "count(count by (namespace) (count_over_time({namespace=~\"$namespace\", app=\"event-exporter\"} | json | kind != \"\" | type=~\"$event_type\" | reason=~\"$event_reason\" | kind=~\"$object_kind\" [$__range])))",
+          "expr": "count(count by (namespace) (count_over_time({app=\"event-exporter\"} | json | kind != \"\" | type=~\"$event_type\" [$__range])))",
           "queryType": "range",
           "refId": "A"
         }
@@ -743,7 +743,7 @@
         {
           "datasource": "${datasource}",
           "editorMode": "code",
-          "expr": "count(count by (kind) (count_over_time({namespace=~\"$namespace\", app=\"event-exporter\"} | json | kind != \"\" | type=~\"$event_type\" | reason=~\"$event_reason\" | kind=~\"$object_kind\" [$__range])))",
+          "expr": "count(count by (kind) (count_over_time({app=\"event-exporter\"} | json | kind != \"\" | type=~\"$event_type\" [$__range])))",
           "queryType": "range",
           "refId": "A"
         }
@@ -798,7 +798,7 @@
         {
           "datasource": "${datasource}",
           "editorMode": "code",
-          "expr": "count(count by (reason) (count_over_time({namespace=~\"$namespace\", app=\"event-exporter\"} | json | kind != \"\" | type=~\"$event_type\" | reason=~\"$event_reason\" | kind=~\"$object_kind\" [$__range])))",
+          "expr": "count(count by (reason) (count_over_time({app=\"event-exporter\"} | json | kind != \"\" | type=~\"$event_type\" [$__range])))",
           "queryType": "range",
           "refId": "A"
         }
@@ -839,27 +839,6 @@
         "current": {
           "selected": true,
           "text": "All",
-          "value": "$__all"
-        },
-        "datasource": "${datasource}",
-        "definition": "label_values({app=\"event-exporter\"} | json | kind != \"\", namespace)",
-        "hide": 0,
-        "includeAll": true,
-        "label": "Namespace",
-        "multi": true,
-        "name": "namespace",
-        "options": [],
-        "query": "label_values({app=\"event-exporter\"} | json | kind != \"\", namespace)",
-        "refresh": 2,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 1,
-        "type": "query"
-      },
-      {
-        "current": {
-          "selected": true,
-          "text": "All",
           "value": ".*"
         },
         "hide": 0,
@@ -888,48 +867,6 @@
         "queryValue": "",
         "skipUrlSync": false,
         "type": "custom"
-      },
-      {
-        "current": {
-          "selected": true,
-          "text": "All",
-          "value": "$__all"
-        },
-        "datasource": "${datasource}",
-        "definition": "label_values({app=\"event-exporter\"} | json | kind != \"\", reason)",
-        "hide": 0,
-        "includeAll": true,
-        "label": "Event Reason",
-        "multi": true,
-        "name": "event_reason",
-        "options": [],
-        "query": "label_values({app=\"event-exporter\"} | json | kind != \"\", reason)",
-        "refresh": 2,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 1,
-        "type": "query"
-      },
-      {
-        "current": {
-          "selected": true,
-          "text": "All",
-          "value": "$__all"
-        },
-        "datasource": "${datasource}",
-        "definition": "label_values({app=\"event-exporter\"} | json | kind != \"\", kind)",
-        "hide": 0,
-        "includeAll": true,
-        "label": "Object Kind",
-        "multi": true,
-        "name": "object_kind",
-        "options": [],
-        "query": "label_values({app=\"event-exporter\"} | json | kind != \"\", kind)",
-        "refresh": 2,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 1,
-        "type": "query"
       }
     ]
   },

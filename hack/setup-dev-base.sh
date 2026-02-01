@@ -102,6 +102,9 @@ cp -rf "${REPO_ROOT}"/artifacts/kindClusterConfig/member2.yaml "${TEMP_PATH}"/me
 cp -rf "${REPO_ROOT}"/artifacts/kindClusterConfig/member3.yaml "${TEMP_PATH}"/member3.yaml
 cp -rf "${REPO_ROOT}"/artifacts/kindClusterConfig/karmada-host.yaml "${TEMP_PATH}"/karmada-host.yaml
 sed -i "" "s|{{ContainerdRegistryConfigsHostPath}}|$REPO_ROOT/registry-configs|g" "${TEMP_PATH}"/karmada-host.yaml
+sed -i "" "s|{{ContainerdRegistryConfigsHostPath}}|$REPO_ROOT/registry-configs|g" "${TEMP_PATH}"/member1.yaml
+sed -i "" "s|{{ContainerdRegistryConfigsHostPath}}|$REPO_ROOT/registry-configs|g" "${TEMP_PATH}"/member2.yaml
+sed -i "" "s|{{ContainerdRegistryConfigsHostPath}}|$REPO_ROOT/registry-configs|g" "${TEMP_PATH}"/member3.yaml
 
 util::delete_necessary_resources "${MAIN_KUBECONFIG},${MEMBER_CLUSTER_KUBECONFIG}" "${HOST_CLUSTER_NAME},${MEMBER_CLUSTER_1_NAME},${MEMBER_CLUSTER_2_NAME},${PULL_MODE_CLUSTER_NAME}" "${KIND_LOG_FILE}"
 
