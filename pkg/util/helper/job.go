@@ -35,7 +35,7 @@ import (
 func ParsingJobStatus(obj *batchv1.Job, status []workv1alpha2.AggregatedStatusItem) (*batchv1.JobStatus, error) {
 	var jobFailed []string
 	var startTime, completionTime *metav1.Time
-	successfulJobs, completionJobs := 0, 0
+	successfulJobs, startJobs, completionJobs := 0, 0, 0
 	// Track how many member clusters already reported SuccessCriteriaMet=true
 	successCriteriaMetClusters := 0
 	newStatus := &batchv1.JobStatus{}
@@ -71,6 +71,9 @@ func ParsingJobStatus(obj *batchv1.Job, status []workv1alpha2.AggregatedStatusIt
 		}
 
 		// StartTime
+		if temp.StartTime != nil {
+			startJobs++
+		}
 		if startTime == nil || temp.StartTime.Before(startTime) {
 			startTime = temp.StartTime
 		}
@@ -119,7 +122,8 @@ func ParsingJobStatus(obj *batchv1.Job, status []workv1alpha2.AggregatedStatusIt
 		}
 	}
 
-	if startTime != nil {
+	newStatus.StartTime = obj.Status.StartTime
+	if obj.Status.StartTime == nil && startJobs == len(status) && startJobs > 0 {
 		newStatus.StartTime = startTime.DeepCopy()
 	}
 	if completionTime != nil && completionJobs == len(status) {
