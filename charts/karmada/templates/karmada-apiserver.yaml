@@ -73,6 +73,9 @@ spec:
             - --max-requests-inflight={{ .Values.apiServer.maxRequestsInflight }}
             - --max-mutating-requests-inflight={{ .Values.apiServer.maxMutatingRequestsInflight }}
             - --tls-min-version=VersionTLS13
+            {{- if .Values.apiServer.encryptionAtRest.enabled }}
+            - --encryption-provider-config={{ .Values.apiServer.encryptionAtRest.configFile }}
+            {{- end }}
             {{- with .Values.apiServer.oidc }}
             {{- if .caFile }}
             - --oidc-ca-file={{ .caFile }}
@@ -137,6 +140,12 @@ spec:
             - name: etcd-cert
               mountPath: /etc/etcd/pki
               readOnly: true
+            {{- if .Values.apiServer.encryptionAtRest.enabled }}
+            - name: encryption-config
+              mountPath: {{ .Values.apiServer.encryptionAtRest.configFile }}
+              subPath: {{ .Values.apiServer.encryptionAtRest.existingSecret.key }}
+              readOnly: true
+            {{- end }}
       {{- if .Values.apiServer.hostNetwork }}
       dnsPolicy: ClusterFirstWithHostNet
       {{- end }}
@@ -174,6 +183,14 @@ spec:
           {{- if eq .Values.etcd.mode "external" }}
             secretName: {{ $name }}-external-etcd-cert
           {{- end }}
+        {{- if .Values.apiServer.encryptionAtRest.enabled }}
+        - name: encryption-config
+          secret:
+            secretName: {{ .Values.apiServer.encryptionAtRest.existingSecret.name }}
+            items:
+              - key: {{ .Values.apiServer.encryptionAtRest.existingSecret.key }}
+                path: {{ .Values.apiServer.encryptionAtRest.existingSecret.key }}
+        {{- end }}
 ---
 apiVersion: v1
 kind: Service

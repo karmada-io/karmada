@@ -95,6 +95,80 @@ karmada-scheduler-66566879d5-xqqlc                1/1     Running   0           
 karmada-webhook-749f5f75df-4l5h4                  1/1     Running   2 (67s ago)   2m12s
 ```
 
+### Encryption at rest (existing Secret)
+
+Karmada supports Karmada API server encryption-at-rest for sensitive resources like Secrets. This feature allows you to encrypt data stored in etcd by providing an existing Secret containing an `EncryptionConfiguration` file.
+
+**Security Warning**: Do NOT store encryption keys or configuration in Git or Helm values. Use a secret management solution (Vault, External Secrets Operator, SealedSecrets, etc.) to provision the Secret securely.
+
+#### Step 1: Create the encryption configuration Secret
+
+First, create a Secret containing your encryption configuration. This configuration enables at-rest encryption for Secrets. You can also configure additional or alternative resources (e.g., ConfigMaps) by updating the `resources.resources` section.
+
+Replace `<BASE64_KEY_MATERIAL>` with a base64-encoded 32-byte random key (e.g., generated with `head -c 32 /dev/urandom | base64`):
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: karmada-encryption-config
+  namespace: karmada-system
+type: Opaque
+stringData:
+  encryption-config.yaml: |
+    apiVersion: apiserver.config.k8s.io/v1
+    kind: EncryptionConfiguration
+    resources:
+    - resources:
+      - secrets
+      providers:
+      - aescbc:
+          keys:
+          - name: key1
+            secret: <BASE64_KEY_MATERIAL>
+      - identity: {}
+```
+
+Apply the Secret before installing or upgrading the Helm chart:
+
+```console
+kubectl apply -f encryption-secret.yaml
+```
+
+#### Step 2: Enable encryption in Helm values
+
+Enable encryption at rest by setting the following values:
+
+```yaml
+apiServer:
+  encryptionAtRest:
+    enabled: true
+    existingSecret:
+      name: karmada-encryption-config
+      key: encryption-config.yaml
+    configFile: /etc/karmada/encryption/encryption-config.yaml
+```
+
+Or use `--set` flags during installation:
+
+```console
+helm upgrade --install karmada -n karmada-system --create-namespace --dependency-update \
+  ./charts/karmada \
+  --set apiServer.encryptionAtRest.enabled=true \
+  --set apiServer.encryptionAtRest.existingSecret.name=karmada-encryption-config \
+  --set apiServer.encryptionAtRest.existingSecret.key=encryption-config.yaml
+```
+
+#### Step 3: Verify encryption is enabled
+
+Check that the `karmada-apiserver` pod has the `--encryption-provider-config` argument:
+
+```console
+kubectl get pod -n karmada-system -l app=karmada-apiserver -o yaml | grep encryption-provider-config
+```
+
+For more information on encryption at rest, see the [Kubernetes documentation](https://kubernetes.io/docs/tasks/administer-cluster/encrypt-data/).
+
 ## Uninstalling the Chart
 
 To uninstall/delete the `karmada` helm release in namespace `karmada-system`:

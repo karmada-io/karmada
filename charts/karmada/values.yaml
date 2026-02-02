@@ -469,6 +469,22 @@ apiServer:
     signingAlgs: ""
     usernameClaim: ""
     usernamePrefix: ""
+  ## @param apiServer.encryptionAtRest encryption at rest configuration
+  ## This feature enables Karmada API server encryption-at-rest by mounting a user-provided
+  ## Secret containing an EncryptionConfiguration file and passing --encryption-provider-config to karmada-apiserver.
+  ## SECURITY WARNING: Do NOT store encryption keys or config in Git or Helm values.
+  ## Use a secret management solution (Vault, External Secrets Operator, SealedSecrets, etc.) to provision the Secret.
+  encryptionAtRest:
+    ## @param apiServer.encryptionAtRest.enabled enable encryption at rest for karmada-apiserver
+    enabled: false
+    ## @param apiServer.encryptionAtRest.existingSecret reference to an existing Secret containing the encryption config
+    existingSecret:
+      ## @param apiServer.encryptionAtRest.existingSecret.name name of the existing Secret
+      name: ""
+      ## @param apiServer.encryptionAtRest.existingSecret.key key in the Secret that contains the EncryptionConfiguration YAML
+      key: "encryption-config.yaml"
+    ## @param apiServer.encryptionAtRest.configFile path where the encryption config file will be mounted in the container
+    configFile: "/etc/karmada/encryption/encryption-config.yaml"
 
 ## karmada aggregated apiserver config
 aggregatedApiServer:
