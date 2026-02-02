@@ -225,7 +225,7 @@ func TestVerifyDependencies(t *testing.T) {
 				},
 			}},
 			wantErr:         true,
-			wantErrContains: "must be no more than 63 characters",
+			wantErrContains: "must be no more than 63 bytes",
 		},
 	}
 	for _, tt := range tests {

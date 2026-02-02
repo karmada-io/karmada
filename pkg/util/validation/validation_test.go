@@ -804,7 +804,7 @@ func TestValidateApplicationFailover(t *testing.T) {
 					},
 				},
 			},
-			expectedErr: "spec.failover.application.statePreservation.rules[0].aliasLabelName: Invalid value: \"" + strings.Repeat("a", 64) + "\": name part must be no more than 63 characters",
+			expectedErr: "spec.failover.application.statePreservation.rules[0].aliasLabelName: Invalid value: \"" + strings.Repeat("a", 64) + "\": name part must be no more than 63 bytes",
 		},
 		{
 			name: "statePreservation with multiple invalid rules",
