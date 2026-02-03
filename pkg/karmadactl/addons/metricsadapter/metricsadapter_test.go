@@ -55,7 +55,7 @@ func TestStatus(t *testing.T) {
 			name: "Status_WithoutKarmadaMetricsAdapter_AddonDisabledStatus",
 			listOpts: &addoninit.CommandAddonsListOption{
 				GlobalCommandOptions: addoninit.GlobalCommandOptions{
-					KubeClientSet: fakeclientset.NewSimpleClientset(),
+					KubeClientSet: fakeclientset.NewClientset(),
 				},
 			},
 			prep:       func(*addoninit.CommandAddonsListOption) error { return nil },
@@ -65,7 +65,7 @@ func TestStatus(t *testing.T) {
 			name: "Status_WithNetworkIssue_AddonUnknownStatus",
 			listOpts: &addoninit.CommandAddonsListOption{
 				GlobalCommandOptions: addoninit.GlobalCommandOptions{
-					KubeClientSet: fakeclientset.NewSimpleClientset(),
+					KubeClientSet: fakeclientset.NewClientset(),
 				},
 			},
 			prep: func(listOpts *addoninit.CommandAddonsListOption) error {
@@ -80,7 +80,7 @@ func TestStatus(t *testing.T) {
 			listOpts: &addoninit.CommandAddonsListOption{
 				GlobalCommandOptions: addoninit.GlobalCommandOptions{
 					Namespace:     namespace,
-					KubeClientSet: fakeclientset.NewSimpleClientset(),
+					KubeClientSet: fakeclientset.NewClientset(),
 				},
 			},
 			prep: func(listOpts *addoninit.CommandAddonsListOption) error {
@@ -95,8 +95,11 @@ func TestStatus(t *testing.T) {
 			name: "Status_WithoutAAAPIService_AddonDisabledStatus",
 			listOpts: &addoninit.CommandAddonsListOption{
 				GlobalCommandOptions: addoninit.GlobalCommandOptions{
-					Namespace:                  namespace,
-					KubeClientSet:              fakeclientset.NewSimpleClientset(),
+					Namespace:     namespace,
+					KubeClientSet: fakeclientset.NewClientset(),
+					//nolint:staticcheck
+					// Note: disable `deprecation` check SA1019 until we bump to Kuberentes v1.36.
+					// Tracked by: https://github.com/karmada-io/karmada/issues/7009
 					KarmadaAggregatorClientSet: fakeAggregator.NewSimpleClientset(),
 				},
 			},
@@ -109,8 +112,11 @@ func TestStatus(t *testing.T) {
 			name: "Status_WithoutAvailableAPIService_AddonUnhealthyStatus",
 			listOpts: &addoninit.CommandAddonsListOption{
 				GlobalCommandOptions: addoninit.GlobalCommandOptions{
-					Namespace:                  namespace,
-					KubeClientSet:              fakeclientset.NewSimpleClientset(),
+					Namespace:     namespace,
+					KubeClientSet: fakeclientset.NewClientset(),
+					//nolint:staticcheck
+					// Note: disable `deprecation` check SA1019 until we bump to Kuberentes v1.36.
+					// Tracked by: https://github.com/karmada-io/karmada/issues/7009
 					KarmadaAggregatorClientSet: fakeAggregator.NewSimpleClientset(),
 				},
 			},
@@ -131,8 +137,11 @@ func TestStatus(t *testing.T) {
 			name: "Status_WithAllAPIServicesAreAvailable_AddonEnabledStatus",
 			listOpts: &addoninit.CommandAddonsListOption{
 				GlobalCommandOptions: addoninit.GlobalCommandOptions{
-					Namespace:                  namespace,
-					KubeClientSet:              fakeclientset.NewSimpleClientset(),
+					Namespace:     namespace,
+					KubeClientSet: fakeclientset.NewClientset(),
+					//nolint:staticcheck
+					// Note: disable `deprecation` check SA1019 until we bump to Kuberentes v1.36.
+					// Tracked by: https://github.com/karmada-io/karmada/issues/7009
 					KarmadaAggregatorClientSet: fakeAggregator.NewSimpleClientset(),
 				},
 			},

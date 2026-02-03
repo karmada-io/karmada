@@ -29,7 +29,7 @@ import (
 )
 
 func TestSingleClusterInformerManager(t *testing.T) {
-	client := fake.NewSimpleClientset()
+	client := fake.NewClientset()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -84,7 +84,7 @@ func TestSingleClusterInformerManager(t *testing.T) {
 }
 
 func TestSingleClusterInformerManagerWithTransformFunc(t *testing.T) {
-	client := fake.NewSimpleClientset()
+	client := fake.NewClientset()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -106,7 +106,7 @@ func TestSingleClusterInformerManagerWithTransformFunc(t *testing.T) {
 }
 
 func TestSingleClusterInformerManagerMultipleHandlers(t *testing.T) {
-	client := fake.NewSimpleClientset()
+	client := fake.NewClientset()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -128,7 +128,7 @@ func TestSingleClusterInformerManagerMultipleHandlers(t *testing.T) {
 }
 
 func TestSingleClusterInformerManagerDifferentResources(t *testing.T) {
-	client := fake.NewSimpleClientset()
+	client := fake.NewClientset()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -149,7 +149,7 @@ func TestSingleClusterInformerManagerDifferentResources(t *testing.T) {
 }
 
 func TestIsInformerSynced(t *testing.T) {
-	client := fake.NewSimpleClientset()
+	client := fake.NewClientset()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	manager := NewSingleClusterInformerManager(ctx, client, 0, nil)

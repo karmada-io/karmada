@@ -43,17 +43,23 @@ func TestWaitAPIServiceReady(t *testing.T) {
 		{
 			name:             "WaitAPIServiceReady_AAAPIServiceDoesNotExist_Timeout",
 			aaAPIServiceName: aaAPIServiceName,
-			client:           fakeAggregator.NewSimpleClientset(),
-			timeout:          time.Millisecond * 50,
-			prep:             func(aggregator.Interface) error { return nil },
-			wantErr:          true,
-			errMsg:           "context deadline exceeded",
+			//nolint:staticcheck
+			// Note: disable `deprecation` check SA1019 until we bump to Kuberentes v1.36.
+			// Tracked by: https://github.com/karmada-io/karmada/issues/7009
+			client:  fakeAggregator.NewSimpleClientset(),
+			timeout: time.Millisecond * 50,
+			prep:    func(aggregator.Interface) error { return nil },
+			wantErr: true,
+			errMsg:  "context deadline exceeded",
 		},
 		{
 			name:             "WaitAPIServiceReady_AAAPIServiceIsNotReady_Timeout",
 			aaAPIServiceName: aaAPIServiceName,
-			client:           fakeAggregator.NewSimpleClientset(),
-			timeout:          time.Millisecond * 100,
+			//nolint:staticcheck
+			// Note: disable `deprecation` check SA1019 until we bump to Kuberentes v1.36.
+			// Tracked by: https://github.com/karmada-io/karmada/issues/7009
+			client:  fakeAggregator.NewSimpleClientset(),
+			timeout: time.Millisecond * 100,
 			prep: func(client aggregator.Interface) error {
 				if _, err := createAAAPIService(client, aaAPIServiceName); err != nil {
 					return fmt.Errorf("failed to create %s aaAPIService, got: %v", aaAPIServiceName, err)
@@ -66,8 +72,11 @@ func TestWaitAPIServiceReady(t *testing.T) {
 		{
 			name:             "WaitAPIServiceReady_AAAPIServiceIsReady_ItIsNowReadyToUse",
 			aaAPIServiceName: aaAPIServiceName,
-			client:           fakeAggregator.NewSimpleClientset(),
-			timeout:          time.Millisecond * 50,
+			//nolint:staticcheck
+			// Note: disable `deprecation` check SA1019 until we bump to Kuberentes v1.36.
+			// Tracked by: https://github.com/karmada-io/karmada/issues/7009
+			client:  fakeAggregator.NewSimpleClientset(),
+			timeout: time.Millisecond * 50,
 			prep: func(client aggregator.Interface) error {
 				if err := createAndMarkAAAPIServiceAvailable(client, aaAPIServiceName); err != nil {
 					return fmt.Errorf("failed to create and mark availability status of %s aaAPIService, got: %v", aaAPIServiceName, err)

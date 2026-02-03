@@ -45,7 +45,7 @@ func TestCreateServiceAccount(t *testing.T) {
 		{
 			name: "service account already exist",
 			args: args{
-				client: fake.NewSimpleClientset(makeServiceAccount("test")),
+				client: fake.NewClientset(makeServiceAccount("test")),
 				sa:     makeServiceAccount("test"),
 			},
 			want:    makeServiceAccount("test"),
@@ -63,7 +63,7 @@ func TestCreateServiceAccount(t *testing.T) {
 		{
 			name: "service account create success",
 			args: args{
-				client: fake.NewSimpleClientset(),
+				client: fake.NewClientset(),
 				sa:     makeServiceAccount("test"),
 			},
 			want:    makeServiceAccount("test"),
@@ -98,7 +98,7 @@ func TestDeleteServiceAccount(t *testing.T) {
 		{
 			name: "service account not found",
 			args: args{
-				client:    fake.NewSimpleClientset(),
+				client:    fake.NewClientset(),
 				namespace: metav1.NamespaceDefault,
 				name:      "test",
 			},
@@ -116,7 +116,7 @@ func TestDeleteServiceAccount(t *testing.T) {
 		{
 			name: "service account delete success",
 			args: args{
-				client:    fake.NewSimpleClientset(makeServiceAccount("test")),
+				client:    fake.NewClientset(makeServiceAccount("test")),
 				namespace: metav1.NamespaceDefault,
 				name:      "test",
 			},
@@ -147,7 +147,7 @@ func TestEnsureServiceAccountExist(t *testing.T) {
 		{
 			name: "dry run",
 			args: args{
-				client:            fake.NewSimpleClientset(),
+				client:            fake.NewClientset(),
 				serviceAccountObj: makeServiceAccount("test"),
 				dryRun:            true,
 			},
@@ -157,7 +157,7 @@ func TestEnsureServiceAccountExist(t *testing.T) {
 		{
 			name: "service account already exist",
 			args: args{
-				client:            fake.NewSimpleClientset(makeServiceAccount("test")),
+				client:            fake.NewClientset(makeServiceAccount("test")),
 				serviceAccountObj: makeServiceAccount("test"),
 				dryRun:            false,
 			},
@@ -167,7 +167,7 @@ func TestEnsureServiceAccountExist(t *testing.T) {
 		{
 			name: "service account not exists",
 			args: args{
-				client:            fake.NewSimpleClientset(),
+				client:            fake.NewClientset(),
 				serviceAccountObj: makeServiceAccount("test"),
 				dryRun:            false,
 			},
@@ -178,7 +178,7 @@ func TestEnsureServiceAccountExist(t *testing.T) {
 			name: "get service account error",
 			args: args{
 				client: func() kubernetes.Interface {
-					c := fake.NewSimpleClientset()
+					c := fake.NewClientset()
 					c.PrependReactor("get", "*", errorAction)
 					return c
 				}(),
@@ -192,7 +192,7 @@ func TestEnsureServiceAccountExist(t *testing.T) {
 			name: "create service account error",
 			args: args{
 				client: func() kubernetes.Interface {
-					c := fake.NewSimpleClientset()
+					c := fake.NewClientset()
 					c.PrependReactor("create", "*", errorAction)
 					return c
 				}(),
@@ -232,7 +232,7 @@ func TestIsServiceAccountExist(t *testing.T) {
 		{
 			name: "service account not found",
 			args: args{
-				client:    fake.NewSimpleClientset(),
+				client:    fake.NewClientset(),
 				namespace: metav1.NamespaceDefault,
 				name:      "test",
 			},
@@ -252,7 +252,7 @@ func TestIsServiceAccountExist(t *testing.T) {
 		{
 			name: "service account already exist",
 			args: args{
-				client:    fake.NewSimpleClientset(makeServiceAccount("test")),
+				client:    fake.NewClientset(makeServiceAccount("test")),
 				namespace: metav1.NamespaceDefault,
 				name:      "test",
 			},
@@ -291,7 +291,7 @@ func TestWaitForServiceAccountSecretCreation(t *testing.T) {
 		return client.Tracker().Update(schema.GroupVersionResource{Version: "v1", Resource: "secrets"}, secret, metav1.NamespaceDefault)
 	}
 
-	client := fake.NewSimpleClientset(makeServiceAccount("test"))
+	client := fake.NewClientset(makeServiceAccount("test"))
 	client.PrependReactor("get", "serviceaccounts", func(action kubetesting.Action) (bool, runtime.Object, error) {
 		saVisitCount++
 		if saVisitCount == 1 {
@@ -321,6 +321,14 @@ func TestWaitForServiceAccountSecretCreation(t *testing.T) {
 		t.Error(err)
 		return
 	}
+	if got != nil {
+		// remove fields injected by fake client
+		got.TypeMeta = metav1.TypeMeta{}
+		got.ResourceVersion = ""
+		got.UID = ""
+		got.Generation = 0
+		got.ManagedFields = nil
+	}
 
 	want := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -348,7 +356,7 @@ var (
 )
 
 func init() {
-	c := fake.NewSimpleClientset()
+	c := fake.NewClientset()
 	c.PrependReactor("*", "*", errorAction)
 	alwaysErrorKubeClient = c
 }

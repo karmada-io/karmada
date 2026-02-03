@@ -116,7 +116,7 @@ func TestRunUnJoinCluster(t *testing.T) {
 			unjoinOpts:             &CommandUnjoinOption{ClusterName: "member1"},
 			controlPlaneRestConfig: &rest.Config{},
 			clusterConfig:          &rest.Config{},
-			karmadaClient:          fakekarmadaclient.NewSimpleClientset(),
+			karmadaClient:          fakekarmadaclient.NewClientset(),
 			prep: func(_ kubeclient.Interface, _ kubeclient.Interface, karmadaClient karmadaclientset.Interface, _ *CommandUnjoinOption) error {
 				karmadaClient.(*fakekarmadaclient.Clientset).Fake.PrependReactor("get", "clusters", func(coretesting.Action) (bool, runtime.Object, error) {
 					return true, &clusterv1alpha1.Cluster{
@@ -144,7 +144,7 @@ func TestRunUnJoinCluster(t *testing.T) {
 			unjoinOpts:             &CommandUnjoinOption{ClusterName: "member1"},
 			controlPlaneRestConfig: &rest.Config{},
 			clusterConfig:          &rest.Config{},
-			karmadaClient:          fakekarmadaclient.NewSimpleClientset(),
+			karmadaClient:          fakekarmadaclient.NewClientset(),
 			prep: func(_ kubeclient.Interface, _ kubeclient.Interface, karmadaClient karmadaclientset.Interface, _ *CommandUnjoinOption) error {
 				karmadaClient.(*fakekarmadaclient.Clientset).Fake.PrependReactor("get", "clusters", func(coretesting.Action) (bool, runtime.Object, error) {
 					return true, &clusterv1alpha1.Cluster{
@@ -179,7 +179,7 @@ func TestRunUnJoinCluster(t *testing.T) {
 				Wait:             time.Minute,
 			},
 			controlKubeClient: fakeclientset.NewClientset(),
-			karmadaClient:     fakekarmadaclient.NewSimpleClientset(),
+			karmadaClient:     fakekarmadaclient.NewClientset(),
 			clusterKubeClient: fakeclientset.NewClientset(),
 			clusterConfig:     &rest.Config{},
 			prep: func(controlKubeClient, clusterKubeClient kubeclient.Interface, karmadaClient karmadaclientset.Interface, opts *CommandUnjoinOption) error {

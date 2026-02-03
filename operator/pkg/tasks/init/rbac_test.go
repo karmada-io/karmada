@@ -74,7 +74,7 @@ func TestRunRBAC(t *testing.T) {
 			runData: &TestInitData{
 				Name:                   name,
 				Namespace:              namespace,
-				KarmadaClientConnector: fakeclientset.NewSimpleClientset(),
+				KarmadaClientConnector: fakeclientset.NewClientset(),
 			},
 			verify: func(rd workflow.RunData) error {
 				_, ok := rd.(*TestInitData)

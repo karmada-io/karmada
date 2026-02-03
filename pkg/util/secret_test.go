@@ -41,7 +41,7 @@ func TestCreateSecret(t *testing.T) {
 		{
 			name: "already exist",
 			args: args{
-				client: fake.NewSimpleClientset(makeSecret("test")),
+				client: fake.NewClientset(makeSecret("test")),
 				secret: makeSecret("test"),
 			},
 			want:    makeSecret("test"),
@@ -59,7 +59,7 @@ func TestCreateSecret(t *testing.T) {
 		{
 			name: "create success",
 			args: args{
-				client: fake.NewSimpleClientset(),
+				client: fake.NewClientset(),
 				secret: makeSecret("test"),
 			},
 			want:    makeSecret("test"),
@@ -72,6 +72,14 @@ func TestCreateSecret(t *testing.T) {
 			if (err != nil) != tt.wantErr {
 				t.Errorf("CreateSecret() error = %v, wantErr %v", err, tt.wantErr)
 				return
+			}
+			if got != nil {
+				// remove fields injected by fake client
+				got.TypeMeta = metav1.TypeMeta{}
+				got.ResourceVersion = ""
+				got.UID = ""
+				got.Generation = 0
+				got.ManagedFields = nil
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("CreateSecret() got = %v, want %v", got, tt.want)
@@ -146,7 +154,7 @@ func TestPatchSecret(t *testing.T) {
 		{
 			name: "not found error",
 			args: args{
-				client:          fake.NewSimpleClientset(),
+				client:          fake.NewClientset(),
 				namespace:       metav1.NamespaceDefault,
 				name:            "test",
 				pt:              types.MergePatchType,
@@ -157,7 +165,7 @@ func TestPatchSecret(t *testing.T) {
 		{
 			name: "patchType is not supported",
 			args: args{
-				client:          fake.NewSimpleClientset(makeSecret("test")),
+				client:          fake.NewClientset(makeSecret("test")),
 				namespace:       metav1.NamespaceDefault,
 				name:            "test",
 				pt:              "",
@@ -168,7 +176,7 @@ func TestPatchSecret(t *testing.T) {
 		{
 			name: "patch success",
 			args: args{
-				client:          fake.NewSimpleClientset(makeSecret("test")),
+				client:          fake.NewClientset(makeSecret("test")),
 				namespace:       metav1.NamespaceDefault,
 				name:            "test",
 				pt:              types.MergePatchType,

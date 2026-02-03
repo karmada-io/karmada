@@ -100,7 +100,7 @@ func TestDoSchedule(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fakeClient := karmadafake.NewSimpleClientset()
+			fakeClient := karmadafake.NewClientset()
 			fakeRecorder := record.NewFakeRecorder(10)
 
 			var bindingLister *fakeBindingLister
@@ -248,7 +248,7 @@ func TestDoScheduleBinding(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fakeClient := karmadafake.NewSimpleClientset(tt.binding)
+			fakeClient := karmadafake.NewClientset(tt.binding)
 			fakeRecorder := record.NewFakeRecorder(10)
 			mockAlgorithm := &mockAlgorithm{
 				scheduleFunc: func(context.Context, *workv1alpha2.ResourceBindingSpec, *workv1alpha2.ResourceBindingStatus, *core.ScheduleAlgorithmOption) (core.ScheduleResult, error) {
@@ -374,7 +374,7 @@ func TestDoScheduleClusterBinding(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fakeClient := karmadafake.NewSimpleClientset(tt.binding)
+			fakeClient := karmadafake.NewClientset(tt.binding)
 			fakeRecorder := record.NewFakeRecorder(10)
 			mockAlgorithm := &mockAlgorithm{
 				scheduleFunc: func(context.Context, *workv1alpha2.ResourceBindingSpec, *workv1alpha2.ResourceBindingStatus, *core.ScheduleAlgorithmOption) (core.ScheduleResult, error) {
@@ -476,7 +476,7 @@ func TestScheduleResourceBindingWithClusterAffinity(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fakeClient := karmadafake.NewSimpleClientset(tt.binding)
+			fakeClient := karmadafake.NewClientset(tt.binding)
 			fakeRecorder := record.NewFakeRecorder(10)
 			mockAlgorithm := &mockAlgorithm{
 				scheduleFunc: func(context.Context, *workv1alpha2.ResourceBindingSpec, *workv1alpha2.ResourceBindingStatus, *core.ScheduleAlgorithmOption) (core.ScheduleResult, error) {
@@ -648,7 +648,7 @@ func TestScheduleResourceBindingWithClusterAffinities(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fakeClient := karmadafake.NewSimpleClientset(tt.binding)
+			fakeClient := karmadafake.NewClientset(tt.binding)
 			fakeRecorder := record.NewFakeRecorder(10)
 			mockAlgorithm := &mockAlgorithm{
 				scheduleFunc: func(_ context.Context, spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus, _ *core.ScheduleAlgorithmOption) (core.ScheduleResult, error) {
@@ -777,7 +777,7 @@ func TestPatchScheduleResultForResourceBinding(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := &Scheduler{
-				KarmadaClient: karmadafake.NewSimpleClientset(tt.oldBinding),
+				KarmadaClient: karmadafake.NewClientset(tt.oldBinding),
 			}
 
 			err := s.patchScheduleResultForResourceBinding(tt.oldBinding, tt.placement, tt.scheduleResult)
@@ -849,7 +849,7 @@ func TestScheduleClusterResourceBindingWithClusterAffinity(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fakeClient := karmadafake.NewSimpleClientset(tt.binding)
+			fakeClient := karmadafake.NewClientset(tt.binding)
 			fakeRecorder := record.NewFakeRecorder(10)
 			mockAlgorithm := &mockAlgorithm{
 				scheduleFunc: func(_ context.Context, _ *workv1alpha2.ResourceBindingSpec, _ *workv1alpha2.ResourceBindingStatus, _ *core.ScheduleAlgorithmOption) (core.ScheduleResult, error) {
@@ -1004,7 +1004,7 @@ func TestScheduleClusterResourceBindingWithClusterAffinities(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fakeClient := karmadafake.NewSimpleClientset(tt.binding)
+			fakeClient := karmadafake.NewClientset(tt.binding)
 			fakeRecorder := record.NewFakeRecorder(10)
 			mockAlgorithm := &mockAlgorithm{
 				scheduleFunc: func(_ context.Context, spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus, _ *core.ScheduleAlgorithmOption) (core.ScheduleResult, error) {
@@ -1060,7 +1060,7 @@ func TestWorkerAndScheduleNext(t *testing.T) {
 		},
 	}
 
-	fakeClient := karmadafake.NewSimpleClientset(resourceBinding, clusterResourceBinding)
+	fakeClient := karmadafake.NewClientset(resourceBinding, clusterResourceBinding)
 
 	testCases := []struct {
 		name         string
@@ -1207,8 +1207,8 @@ func TestPlacementChanged(t *testing.T) {
 
 func TestCreateScheduler(t *testing.T) {
 	dynamicClient := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
-	karmadaClient := karmadafake.NewSimpleClientset()
-	kubeClient := fake.NewSimpleClientset()
+	karmadaClient := karmadafake.NewClientset()
+	kubeClient := fake.NewClientset()
 	port := 10025
 	serviceNamespace := "tenant1"
 	servicePrefix := "test-service-prefix"
@@ -1388,7 +1388,7 @@ func TestPatchBindingStatusCondition(t *testing.T) {
 	noClusterFitCondition.LastTransitionTime = metav1.Time{Time: oneHourAfter}
 	unschedulableCondition.LastTransitionTime = metav1.Time{Time: oneHourAfter}
 
-	karmadaClient := karmadafake.NewSimpleClientset()
+	karmadaClient := karmadafake.NewClientset()
 
 	tests := []struct {
 		name                  string
@@ -1533,7 +1533,7 @@ func TestPatchBindingStatusCondition(t *testing.T) {
 }
 
 func TestPatchBindingStatusWithAffinityName(t *testing.T) {
-	karmadaClient := karmadafake.NewSimpleClientset()
+	karmadaClient := karmadafake.NewClientset()
 
 	tests := []struct {
 		name         string
@@ -1592,7 +1592,7 @@ func TestPatchClusterBindingStatusCondition(t *testing.T) {
 	noClusterFitCondition.LastTransitionTime = metav1.Time{Time: oneHourAfter}
 	unschedulableCondition.LastTransitionTime = metav1.Time{Time: oneHourAfter}
 
-	karmadaClient := karmadafake.NewSimpleClientset()
+	karmadaClient := karmadafake.NewClientset()
 
 	tests := []struct {
 		name                  string
@@ -1737,7 +1737,7 @@ func TestPatchClusterBindingStatusCondition(t *testing.T) {
 }
 
 func TestPatchClusterBindingStatusWithAffinityName(t *testing.T) {
-	karmadaClient := karmadafake.NewSimpleClientset()
+	karmadaClient := karmadafake.NewClientset()
 
 	tests := []struct {
 		name         string

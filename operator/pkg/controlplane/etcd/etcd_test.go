@@ -58,7 +58,7 @@ func TestEnsureKarmadaEtcd(t *testing.T) {
 	}
 
 	// Create fake clientset.
-	fakeClient := fakeclientset.NewSimpleClientset()
+	fakeClient := fakeclientset.NewClientset()
 
 	err := EnsureKarmadaEtcd(fakeClient, cfg, name, namespace)
 	if err != nil {
@@ -125,7 +125,7 @@ func TestInstallKarmadaEtcd(t *testing.T) {
 	}
 
 	// Create fake clientset.
-	fakeClient := fakeclientset.NewSimpleClientset()
+	fakeClient := fakeclientset.NewClientset()
 
 	err := installKarmadaEtcd(fakeClient, name, namespace, cfg)
 	if err != nil {
@@ -182,7 +182,7 @@ func TestCreateEtcdService(t *testing.T) {
 	namespace := "test"
 
 	// Initialize fake clientset.
-	client := fakeclientset.NewSimpleClientset()
+	client := fakeclientset.NewClientset()
 
 	err := createEtcdService(client, name, namespace)
 	if err != nil {

@@ -50,7 +50,7 @@ func TestNewKarmadaSearchAPIServer(t *testing.T) {
 			cfg: &completedConfig{
 				ExtraConfig: &ExtraConfig{},
 			},
-			client: fakeclientset.NewSimpleClientset(),
+			client: fakeclientset.NewClientset(),
 			genericAPIServerConfig: &genericapiserver.Config{
 				RESTOptionsGetter: generic.RESTOptions{},
 				Serializer: runtime.NewSimpleNegotiatedSerializer(runtime.SerializerInfo{
@@ -80,7 +80,7 @@ func TestNewKarmadaSearchAPIServer(t *testing.T) {
 			cfg: &completedConfig{
 				ExtraConfig: &ExtraConfig{},
 			},
-			client: fakeclientset.NewSimpleClientset(),
+			client: fakeclientset.NewClientset(),
 			genericAPIServerConfig: &genericapiserver.Config{
 				RESTOptionsGetter: generic.RESTOptions{},
 				Serializer: runtime.NewSimpleNegotiatedSerializer(runtime.SerializerInfo{
@@ -113,7 +113,7 @@ func TestNewKarmadaSearchAPIServer(t *testing.T) {
 			cfg: &completedConfig{
 				ExtraConfig: &ExtraConfig{},
 			},
-			client: fakeclientset.NewSimpleClientset(),
+			client: fakeclientset.NewClientset(),
 			genericAPIServerConfig: &genericapiserver.Config{
 				RESTOptionsGetter: generic.RESTOptions{},
 				Serializer: runtime.NewSimpleNegotiatedSerializer(runtime.SerializerInfo{

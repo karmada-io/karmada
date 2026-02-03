@@ -142,7 +142,7 @@ func TestRunRemoveComponentSubTask(t *testing.T) {
 			runData: &TestDeInitData{
 				name:         name,
 				namespace:    namespace,
-				remoteClient: fakeclientset.NewSimpleClientset(),
+				remoteClient: fakeclientset.NewClientset(),
 			},
 			hasService: true,
 			wantErr:    false,
@@ -234,7 +234,7 @@ func TestRunRemoveEtcd(t *testing.T) {
 			runData: &TestDeInitData{
 				name:         name,
 				namespace:    namespace,
-				remoteClient: fakeclientset.NewSimpleClientset(),
+				remoteClient: fakeclientset.NewClientset(),
 			},
 			wantErr: false,
 		},

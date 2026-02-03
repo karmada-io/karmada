@@ -41,7 +41,7 @@ func TestEnsureClusterRoleBindingExist(t *testing.T) {
 		{
 			name: "dry run",
 			args: args{
-				client:             fake.NewSimpleClientset(),
+				client:             fake.NewClientset(),
 				clusterRoleBinding: makeClusterRoleBinding("test"),
 				dryRun:             true,
 			},
@@ -51,7 +51,7 @@ func TestEnsureClusterRoleBindingExist(t *testing.T) {
 		{
 			name: "already exist",
 			args: args{
-				client:             fake.NewSimpleClientset(makeClusterRoleBinding("test")),
+				client:             fake.NewClientset(makeClusterRoleBinding("test")),
 				clusterRoleBinding: makeClusterRoleBinding("test"),
 				dryRun:             false,
 			},
@@ -61,7 +61,7 @@ func TestEnsureClusterRoleBindingExist(t *testing.T) {
 		{
 			name: "not exist",
 			args: args{
-				client:             fake.NewSimpleClientset(),
+				client:             fake.NewClientset(),
 				clusterRoleBinding: makeClusterRoleBinding("test"),
 				dryRun:             false,
 			},
@@ -82,7 +82,7 @@ func TestEnsureClusterRoleBindingExist(t *testing.T) {
 			name: "create error",
 			args: args{
 				client: func() kubernetes.Interface {
-					c := fake.NewSimpleClientset()
+					c := fake.NewClientset()
 					c.PrependReactor("create", "*", errorAction)
 					return c
 				}(),
@@ -99,6 +99,14 @@ func TestEnsureClusterRoleBindingExist(t *testing.T) {
 			if (err != nil) != tt.wantErr {
 				t.Errorf("EnsureClusterRoleBindingExist() error = %v, wantErr %v", err, tt.wantErr)
 				return
+			}
+			if got != nil {
+				// remove fields injected by fake client
+				got.TypeMeta = metav1.TypeMeta{}
+				got.ResourceVersion = ""
+				got.UID = ""
+				got.Generation = 0
+				got.ManagedFields = nil
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("EnsureClusterRoleBindingExist() got = %v, want %v", got, tt.want)
@@ -122,7 +130,7 @@ func TestEnsureClusterRoleExist(t *testing.T) {
 		{
 			name: "dry run",
 			args: args{
-				client:      fake.NewSimpleClientset(),
+				client:      fake.NewClientset(),
 				clusterRole: makeClusterRole("test"),
 				dryRun:      true,
 			},
@@ -132,7 +140,7 @@ func TestEnsureClusterRoleExist(t *testing.T) {
 		{
 			name: "already exist",
 			args: args{
-				client:      fake.NewSimpleClientset(makeClusterRole("test")),
+				client:      fake.NewClientset(makeClusterRole("test")),
 				clusterRole: makeClusterRole("test"),
 				dryRun:      false,
 			},
@@ -142,7 +150,7 @@ func TestEnsureClusterRoleExist(t *testing.T) {
 		{
 			name: "not exist",
 			args: args{
-				client:      fake.NewSimpleClientset(),
+				client:      fake.NewClientset(),
 				clusterRole: makeClusterRole("test"),
 				dryRun:      false,
 			},
@@ -163,7 +171,7 @@ func TestEnsureClusterRoleExist(t *testing.T) {
 			name: "create error",
 			args: args{
 				client: func() kubernetes.Interface {
-					c := fake.NewSimpleClientset()
+					c := fake.NewClientset()
 					c.PrependReactor("create", "*", errorAction)
 					return c
 				}(),
@@ -180,6 +188,14 @@ func TestEnsureClusterRoleExist(t *testing.T) {
 			if (err != nil) != tt.wantErr {
 				t.Errorf("EnsureClusterRoleExist() error = %v, wantErr %v", err, tt.wantErr)
 				return
+			}
+			if got != nil {
+				// remove fields injected by fake client
+				got.TypeMeta = metav1.TypeMeta{}
+				got.ResourceVersion = ""
+				got.UID = ""
+				got.Generation = 0
+				got.ManagedFields = nil
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("EnsureClusterRoleExist() got = %v, want %v", got, tt.want)

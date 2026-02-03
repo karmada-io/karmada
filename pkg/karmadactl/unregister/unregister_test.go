@@ -151,7 +151,7 @@ func TestCommandUnregisterOption_getKarmadaAgentConfig(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			j := &CommandUnregisterOption{
 				Namespace:           namespace,
-				MemberClusterClient: fake.NewSimpleClientset(tt.clusterResources...),
+				MemberClusterClient: fake.NewClientset(tt.clusterResources...),
 			}
 			agent := &appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{Name: names.KarmadaAgentComponentName, Namespace: namespace},
@@ -227,8 +227,8 @@ func TestCommandUnregisterOption_RunUnregisterCluster(t *testing.T) {
 				ClusterNamespace: clusterNamespace,
 				Wait:             60 * time.Second,
 			}
-			j.ControlPlaneClient = fakekarmadaclient.NewSimpleClientset(tt.clusterObject...)
-			j.MemberClusterClient = fake.NewSimpleClientset(tt.clusterResources...)
+			j.ControlPlaneClient = fakekarmadaclient.NewClientset(tt.clusterObject...)
+			j.MemberClusterClient = fake.NewClientset(tt.clusterResources...)
 			j.rbacResources = register.GenerateRBACResources(j.ClusterName, j.ClusterNamespace)
 			err := j.RunUnregisterCluster()
 			if (err == nil && tt.wantErr) || (err != nil && !tt.wantErr) {

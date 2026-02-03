@@ -69,7 +69,7 @@ func TestNewAggregatedAPIServer(t *testing.T) {
 				ExternalAddress:  "10.0.0.0:10000",
 				EffectiveVersion: compatibility.DefaultBuildEffectiveVersion(),
 			},
-			client: fakeclientset.NewSimpleClientset(),
+			client: fakeclientset.NewClientset(),
 			prep: func(cfg *completedConfig, genericAPIServerCfg *genericapiserver.Config, client clientset.Interface) error {
 				sharedInformer := informers.NewSharedInformerFactory(client, 0)
 				cfg.GenericConfig = genericAPIServerCfg.Complete(sharedInformer)

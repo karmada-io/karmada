@@ -80,7 +80,7 @@ func TestRunCleanupKubeconfig(t *testing.T) {
 			runData: &TestDeInitData{
 				name:         name,
 				namespace:    namespace,
-				remoteClient: fakeclientset.NewSimpleClientset(),
+				remoteClient: fakeclientset.NewClientset(),
 			},
 			secret: helper.NewSecret(namespace, util.AdminKarmadaConfigSecretName(name), map[string][]byte{}),
 			prep: func(rd workflow.RunData, s *corev1.Secret) error {

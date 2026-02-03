@@ -52,7 +52,7 @@ func TestStatus(t *testing.T) {
 			name: "Status_WithoutDescheduler_AddonDisabledStatus",
 			listOpts: &addoninit.CommandAddonsListOption{
 				GlobalCommandOptions: addoninit.GlobalCommandOptions{
-					KubeClientSet: fakeclientset.NewSimpleClientset(),
+					KubeClientSet: fakeclientset.NewClientset(),
 				},
 			},
 			prep:       func(*addoninit.CommandAddonsListOption) error { return nil },
@@ -62,7 +62,7 @@ func TestStatus(t *testing.T) {
 			name: "Status_WithNetworkIssue_AddonUnknownStatus",
 			listOpts: &addoninit.CommandAddonsListOption{
 				GlobalCommandOptions: addoninit.GlobalCommandOptions{
-					KubeClientSet: fakeclientset.NewSimpleClientset(),
+					KubeClientSet: fakeclientset.NewClientset(),
 				},
 			},
 			prep: func(listOpts *addoninit.CommandAddonsListOption) error {
@@ -77,7 +77,7 @@ func TestStatus(t *testing.T) {
 			listOpts: &addoninit.CommandAddonsListOption{
 				GlobalCommandOptions: addoninit.GlobalCommandOptions{
 					Namespace:     namespace,
-					KubeClientSet: fakeclientset.NewSimpleClientset(),
+					KubeClientSet: fakeclientset.NewClientset(),
 				},
 			},
 			prep: func(listOpts *addoninit.CommandAddonsListOption) error {
@@ -93,7 +93,7 @@ func TestStatus(t *testing.T) {
 			listOpts: &addoninit.CommandAddonsListOption{
 				GlobalCommandOptions: addoninit.GlobalCommandOptions{
 					Namespace:     namespace,
-					KubeClientSet: fakeclientset.NewSimpleClientset(),
+					KubeClientSet: fakeclientset.NewClientset(),
 				},
 			},
 			prep: func(listOpts *addoninit.CommandAddonsListOption) error {
@@ -142,7 +142,7 @@ func TestEnableDescheduler(t *testing.T) {
 			enableOpts: &addoninit.CommandAddonsEnableOption{
 				GlobalCommandOptions: addoninit.GlobalCommandOptions{
 					Namespace:     namespace,
-					KubeClientSet: fakeclientset.NewSimpleClientset(),
+					KubeClientSet: fakeclientset.NewClientset(),
 				},
 				KarmadaDeschedulerReplicas: replicas,
 			},
@@ -177,7 +177,7 @@ func TestEnableDescheduler(t *testing.T) {
 
 func TestDisableDescheduler(t *testing.T) {
 	name, namespace := names.KarmadaDeschedulerComponentName, "test"
-	client := fakeclientset.NewSimpleClientset()
+	client := fakeclientset.NewClientset()
 	var replicas int32 = 2
 	tests := []struct {
 		name        string

@@ -263,8 +263,8 @@ func buildBinding(name, ns string, target, status []workv1alpha2.TargetCluster) 
 }
 
 func TestNewDescheduler(t *testing.T) {
-	karmadaClient := fakekarmadaclient.NewSimpleClientset()
-	kubeClient := fake.NewSimpleClientset()
+	karmadaClient := fakekarmadaclient.NewClientset()
+	kubeClient := fake.NewClientset()
 	opts := &options.Options{
 		UnschedulableThreshold: metav1.Duration{Duration: 5 * time.Minute},
 		DeschedulingInterval:   metav1.Duration{Duration: 1 * time.Minute},
@@ -284,8 +284,8 @@ func TestNewDescheduler(t *testing.T) {
 }
 
 func TestRun(t *testing.T) {
-	karmadaClient := fakekarmadaclient.NewSimpleClientset()
-	kubeClient := fake.NewSimpleClientset()
+	karmadaClient := fakekarmadaclient.NewClientset()
+	kubeClient := fake.NewClientset()
 	opts := &options.Options{
 		UnschedulableThreshold: metav1.Duration{Duration: 5 * time.Minute},
 		DeschedulingInterval:   metav1.Duration{Duration: 1 * time.Minute},
@@ -320,8 +320,8 @@ func TestRun(t *testing.T) {
 }
 
 func TestDescheduleOnce(t *testing.T) {
-	karmadaClient := fakekarmadaclient.NewSimpleClientset()
-	kubeClient := fake.NewSimpleClientset()
+	karmadaClient := fakekarmadaclient.NewClientset()
+	kubeClient := fake.NewClientset()
 	opts := &options.Options{
 		UnschedulableThreshold: metav1.Duration{Duration: 5 * time.Minute},
 		DeschedulingInterval:   metav1.Duration{Duration: 1 * time.Second},
@@ -758,7 +758,7 @@ func TestDescheduler_worker(t *testing.T) {
 				t.Fatalf("build binding error: %v", err)
 			}
 
-			karmadaClient := fakekarmadaclient.NewSimpleClientset(binding)
+			karmadaClient := fakekarmadaclient.NewClientset(binding)
 			factory := informerfactory.NewSharedInformerFactory(karmadaClient, 0)
 
 			desched := &Descheduler{

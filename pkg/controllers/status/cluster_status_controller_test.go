@@ -377,7 +377,7 @@ func TransformFunc(interface{}) (interface{}, error) {
 
 func TestListPods(t *testing.T) {
 	ctx := context.Background()
-	clientset := kubernetesfake.NewSimpleClientset()
+	clientset := kubernetesfake.NewClientset()
 	transformFuncs := map[schema.GroupVersionResource]cache.TransformFunc{
 		{}: TransformFunc,
 	}
@@ -389,7 +389,7 @@ func TestListPods(t *testing.T) {
 
 func TestListNodes(t *testing.T) {
 	ctx := context.Background()
-	clientset := kubernetesfake.NewSimpleClientset()
+	clientset := kubernetesfake.NewClientset()
 	transformFuncs := map[schema.GroupVersionResource]cache.TransformFunc{
 		{}: TransformFunc,
 	}

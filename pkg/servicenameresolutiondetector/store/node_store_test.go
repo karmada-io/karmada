@@ -31,7 +31,7 @@ import (
 )
 
 func TestNodeStore(t *testing.T) {
-	clientset := fake.NewSimpleClientset()
+	clientset := fake.NewClientset()
 
 	nodeInformer := cache.NewSharedIndexInformer(
 		&cache.ListWatch{},
@@ -156,7 +156,7 @@ func TestNodeStore(t *testing.T) {
 }
 
 func TestNodeStore_ListAll(t *testing.T) {
-	clientset := fake.NewSimpleClientset()
+	clientset := fake.NewClientset()
 	nodeInformer := cache.NewSharedIndexInformer(
 		&cache.ListWatch{},
 		&corev1.Node{},

@@ -108,8 +108,8 @@ func TestNewCorednsDetector(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			memberClusterClient := fake.NewSimpleClientset()
-			karmadaClient := karmadafake.NewSimpleClientset()
+			memberClusterClient := fake.NewClientset()
+			karmadaClient := karmadafake.NewClientset()
 			informerFactory := informers.NewSharedInformerFactory(memberClusterClient, 0)
 
 			cfg := &Config{
@@ -310,8 +310,8 @@ func TestDetectorRun(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			memberClusterClient := fake.NewSimpleClientset()
-			karmadaClient := karmadafake.NewSimpleClientset()
+			memberClusterClient := fake.NewClientset()
+			karmadaClient := karmadafake.NewClientset()
 			informerFactory := informers.NewSharedInformerFactory(memberClusterClient, 0)
 
 			cfg := &Config{
@@ -389,8 +389,8 @@ func TestDetectorWorker(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			memberClusterClient := fake.NewSimpleClientset()
-			karmadaClient := karmadafake.NewSimpleClientset()
+			memberClusterClient := fake.NewClientset()
+			karmadaClient := karmadafake.NewClientset()
 			informerFactory := informers.NewSharedInformerFactory(memberClusterClient, 0)
 
 			cfg := &Config{
@@ -464,8 +464,8 @@ func TestDetectorProcessNextWorkItem(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			memberClusterClient := fake.NewSimpleClientset()
-			karmadaClient := karmadafake.NewSimpleClientset()
+			memberClusterClient := fake.NewClientset()
+			karmadaClient := karmadafake.NewClientset()
 			informerFactory := informers.NewSharedInformerFactory(memberClusterClient, 0)
 
 			cfg := &Config{
@@ -553,7 +553,7 @@ func TestDetectorSync(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			karmadaClient := karmadafake.NewSimpleClientset()
+			karmadaClient := karmadafake.NewClientset()
 
 			d := &Detector{
 				karmadaClient: karmadaClient,
