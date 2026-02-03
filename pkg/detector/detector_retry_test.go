@@ -18,7 +18,6 @@ package detector
 
 import (
 	"context"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -133,12 +132,9 @@ func TestApplyPolicy_RetryOnAlreadyExists(t *testing.T) {
 	// Since metrics are global, hard to test in unit tests without deep hacking, but check events?
 	// If successful, should have an event
 	select {
-	case e := <-fakeRecorder.Events:
-		if !strings.Contains(e, "Apply policy(default/test-policy) succeed") {
-			// It might be "ResourceBinding is up to date" if the second pass didn't change anything
-			// But CreateOrUpdate returns OperationResultUpdated if we change something.
-			// Here we just want no error.
-		}
+	case <-fakeRecorder.Events:
+		// It might be "Apply policy(...) succeed" or "ResourceBinding is up to date".
+		// We just want to ensure the event is consumed and no error occurred (checked by assert.NoError above).
 	default:
 		// No event might mean it was considered "up to date" on the second pass, which is fine
 	}
