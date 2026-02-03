@@ -39,6 +39,7 @@ import (
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 )
@@ -815,6 +816,36 @@ func TestLookForMatchedClusterPolicy(t *testing.T) {
 	}
 }
 
+func verifyWorkloadAffinity(t *testing.T, object *unstructured.Unstructured, policySpec *policyv1alpha1.PropagationSpec, bindingSpec *workv1alpha2.ResourceBindingSpec) {
+	if policySpec.Placement.WorkloadAffinity == nil {
+		assert.Nil(t, bindingSpec.WorkloadAffinityGroups)
+		return
+	}
+
+	expectedAffinityGroup := ""
+	if affinityTerm := policySpec.Placement.WorkloadAffinity.Affinity; affinityTerm != nil {
+		if affinityValue, ok := object.GetLabels()[affinityTerm.GroupByLabelKey]; ok {
+			expectedAffinityGroup = fmt.Sprintf("%s=%s", affinityTerm.GroupByLabelKey, affinityValue)
+		}
+	}
+
+	expectedAntiAffinityGroup := ""
+	if antiAffinityTerm := policySpec.Placement.WorkloadAffinity.AntiAffinity; antiAffinityTerm != nil {
+		if antiAffinityValue, ok := object.GetLabels()[antiAffinityTerm.GroupByLabelKey]; ok {
+			expectedAntiAffinityGroup = fmt.Sprintf("%s=%s", antiAffinityTerm.GroupByLabelKey, antiAffinityValue)
+		}
+	}
+
+	if expectedAffinityGroup == "" && expectedAntiAffinityGroup == "" {
+		assert.Nil(t, bindingSpec.WorkloadAffinityGroups)
+		return
+	}
+
+	assert.NotNil(t, bindingSpec.WorkloadAffinityGroups)
+	assert.Equal(t, expectedAffinityGroup, bindingSpec.WorkloadAffinityGroups.AffinityGroup)
+	assert.Equal(t, expectedAntiAffinityGroup, bindingSpec.WorkloadAffinityGroups.AntiAffinityGroup)
+}
+
 func TestApplyPolicy(t *testing.T) {
 	tests := []struct {
 		name                    string
@@ -822,6 +853,7 @@ func TestApplyPolicy(t *testing.T) {
 		policy                  *policyv1alpha1.PropagationPolicy
 		resourceChangeByKarmada bool
 		expectError             bool
+		enableWorkloadAffinity  bool
 	}{
 		{
 			name: "basic apply policy",
@@ -845,6 +877,139 @@ func TestApplyPolicy(t *testing.T) {
 			},
 			resourceChangeByKarmada: false,
 			expectError:             false,
+			enableWorkloadAffinity:  false,
+		},
+		{
+			name: "both affinity and antiAffinity label exists",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":      "test-deployment",
+						"namespace": "default",
+						"uid":       "test-uid",
+						"labels": map[string]interface{}{
+							"affinityKey":     "affinityValue",
+							"antiAffinityKey": "antiAffinityValue",
+						},
+					},
+				},
+			},
+			policy: &policyv1alpha1.PropagationPolicy{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-policy",
+					Namespace: "default",
+				},
+				Spec: policyv1alpha1.PropagationSpec{
+					Placement: policyv1alpha1.Placement{
+						WorkloadAffinity: &policyv1alpha1.WorkloadAffinity{
+							Affinity:     &policyv1alpha1.WorkloadAffinityTerm{GroupByLabelKey: "affinityKey"},
+							AntiAffinity: &policyv1alpha1.WorkloadAntiAffinityTerm{GroupByLabelKey: "antiAffinityKey"},
+						},
+					},
+				},
+			},
+			resourceChangeByKarmada: false,
+			expectError:             false,
+			enableWorkloadAffinity:  true,
+		},
+		{
+			name: "Only Affinity rule and label exists",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":      "test-deployment",
+						"namespace": "default",
+						"uid":       "test-uid",
+						"labels": map[string]interface{}{
+							"affinityKey": "affinityValue",
+						},
+					},
+				},
+			},
+			policy: &policyv1alpha1.PropagationPolicy{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-policy",
+					Namespace: "default",
+				},
+				Spec: policyv1alpha1.PropagationSpec{
+					Placement: policyv1alpha1.Placement{
+						WorkloadAffinity: &policyv1alpha1.WorkloadAffinity{
+							Affinity: &policyv1alpha1.WorkloadAffinityTerm{GroupByLabelKey: "affinityKey"},
+						},
+					},
+				},
+			},
+			resourceChangeByKarmada: false,
+			expectError:             false,
+			enableWorkloadAffinity:  true,
+		},
+		{
+			name: "Only Anti Affinity rule and label exists",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":      "test-deployment",
+						"namespace": "default",
+						"uid":       "test-uid",
+						"labels": map[string]interface{}{
+							"antiAffinityKey": "antiAffinityValue",
+						},
+					},
+				},
+			},
+			policy: &policyv1alpha1.PropagationPolicy{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-policy",
+					Namespace: "default",
+				},
+				Spec: policyv1alpha1.PropagationSpec{
+					Placement: policyv1alpha1.Placement{
+						WorkloadAffinity: &policyv1alpha1.WorkloadAffinity{
+							AntiAffinity: &policyv1alpha1.WorkloadAntiAffinityTerm{GroupByLabelKey: "antiAffinityKey"},
+						},
+					},
+				},
+			},
+			resourceChangeByKarmada: false,
+			expectError:             false,
+			enableWorkloadAffinity:  true,
+		},
+		{
+			name: "Affinity/AntiAffinity rule exists but label missing",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":      "test-deployment",
+						"namespace": "default",
+						"uid":       "test-uid",
+					},
+				},
+			},
+			policy: &policyv1alpha1.PropagationPolicy{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-policy",
+					Namespace: "default",
+				},
+				Spec: policyv1alpha1.PropagationSpec{
+					Placement: policyv1alpha1.Placement{
+						WorkloadAffinity: &policyv1alpha1.WorkloadAffinity{
+							Affinity:     &policyv1alpha1.WorkloadAffinityTerm{GroupByLabelKey: "affinityKey"},
+							AntiAffinity: &policyv1alpha1.WorkloadAntiAffinityTerm{GroupByLabelKey: "antiAffinityKey"},
+						},
+					},
+				},
+			},
+			resourceChangeByKarmada: false,
+			expectError:             false,
+			enableWorkloadAffinity:  true,
 		},
 	}
 
@@ -863,6 +1028,10 @@ func TestApplyPolicy(t *testing.T) {
 				RESTMapper:          &mockRESTMapper{},
 			}
 
+			if err := features.FeatureGate.Set(fmt.Sprintf("%s=%v", features.WorkloadAffinity, tt.enableWorkloadAffinity)); err != nil {
+				t.Fatalf("Failed to set feature gate %s to %v: %v", features.WorkloadAffinity, tt.enableWorkloadAffinity, err)
+			}
+
 			err := d.ApplyPolicy(tt.object, keys.ClusterWideKey{}, tt.resourceChangeByKarmada, tt.policy)
 
 			if tt.expectError {
@@ -878,6 +1047,8 @@ func TestApplyPolicy(t *testing.T) {
 				}, binding)
 				assert.NoError(t, err)
 				assert.Equal(t, tt.object.GetName(), binding.Spec.Resource.Name)
+
+				verifyWorkloadAffinity(t, tt.object, &tt.policy.Spec, &binding.Spec)
 			}
 		})
 	}
@@ -889,6 +1060,7 @@ func TestApplyClusterPolicy(t *testing.T) {
 		policy                  *policyv1alpha1.ClusterPropagationPolicy
 		resourceChangeByKarmada bool
 		expectError             bool
+		enableWorkloadAffinity  bool
 	}{
 		{
 			name: "apply cluster policy for namespaced resource",
@@ -911,6 +1083,7 @@ func TestApplyClusterPolicy(t *testing.T) {
 			},
 			resourceChangeByKarmada: false,
 			expectError:             false,
+			enableWorkloadAffinity:  false,
 		},
 		{
 			name: "apply cluster policy for cluster-scoped resource",
@@ -932,6 +1105,42 @@ func TestApplyClusterPolicy(t *testing.T) {
 			},
 			resourceChangeByKarmada: false,
 			expectError:             false,
+			enableWorkloadAffinity:  false,
+		},
+		{
+			name: "both affinity and antiAffinity label exists",
+			object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"name":      "test-deployment",
+						"namespace": "default",
+						"uid":       "test-uid",
+						"labels": map[string]interface{}{
+							"affinityKey":     "affinityValue",
+							"antiAffinityKey": "antiAffinityValue",
+						},
+					},
+				},
+			},
+			policy: &policyv1alpha1.ClusterPropagationPolicy{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-policy",
+					Namespace: "default",
+				},
+				Spec: policyv1alpha1.PropagationSpec{
+					Placement: policyv1alpha1.Placement{
+						WorkloadAffinity: &policyv1alpha1.WorkloadAffinity{
+							Affinity:     &policyv1alpha1.WorkloadAffinityTerm{GroupByLabelKey: "affinityKey"},
+							AntiAffinity: &policyv1alpha1.WorkloadAntiAffinityTerm{GroupByLabelKey: "antiAffinityKey"},
+						},
+					},
+				},
+			},
+			resourceChangeByKarmada: false,
+			expectError:             false,
+			enableWorkloadAffinity:  true,
 		},
 	}
 
@@ -950,6 +1159,10 @@ func TestApplyClusterPolicy(t *testing.T) {
 				RESTMapper:          &mockRESTMapper{},
 			}
 
+			if err := features.FeatureGate.Set(fmt.Sprintf("%s=%v", features.WorkloadAffinity, tt.enableWorkloadAffinity)); err != nil {
+				t.Fatalf("Failed to set feature gate %s to %v: %v", features.WorkloadAffinity, tt.enableWorkloadAffinity, err)
+			}
+
 			err := d.ApplyClusterPolicy(tt.object, keys.ClusterWideKey{}, tt.resourceChangeByKarmada, tt.policy)
 
 			if tt.expectError {
@@ -966,6 +1179,7 @@ func TestApplyClusterPolicy(t *testing.T) {
 					}, binding)
 					assert.NoError(t, err)
 					assert.Equal(t, tt.object.GetName(), binding.Spec.Resource.Name)
+					verifyWorkloadAffinity(t, tt.object, &tt.policy.Spec, &binding.Spec)
 				} else {
 					binding := &workv1alpha2.ClusterResourceBinding{}
 					err = fakeClient.Get(context.TODO(), client.ObjectKey{
@@ -973,6 +1187,7 @@ func TestApplyClusterPolicy(t *testing.T) {
 					}, binding)
 					assert.NoError(t, err)
 					assert.Equal(t, tt.object.GetName(), binding.Spec.Resource.Name)
+					verifyWorkloadAffinity(t, tt.object, &tt.policy.Spec, &binding.Spec)
 				}
 			}
 		})

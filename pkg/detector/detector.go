@@ -793,6 +793,34 @@ func (d *ResourceDetector) ClaimClusterPolicyForObject(object *unstructured.Unst
 	return policyID, d.Client.Update(context.TODO(), object)
 }
 
+// getWorkloadAffinityGroups extracts workload affinity groups from the policy and object labels.
+func getWorkloadAffinityGroups(object *unstructured.Unstructured, policySpec *policyv1alpha1.PropagationSpec, policyID string) *workv1alpha2.WorkloadAffinityGroups {
+	if policySpec.Placement.WorkloadAffinity == nil {
+		klog.V(4).Infof("WorkloadAffinity is not specified in policy %s for object %s/%s", policyID, object.GetNamespace(), object.GetName())
+		return nil
+	}
+
+	objectLabels := object.GetLabels()
+	workloadAffinityGroups := &workv1alpha2.WorkloadAffinityGroups{}
+
+	if affinityTerm := policySpec.Placement.WorkloadAffinity.Affinity; affinityTerm != nil {
+		if affinityGroup, ok := objectLabels[affinityTerm.GroupByLabelKey]; ok {
+			workloadAffinityGroups.AffinityGroup = fmt.Sprintf("%s=%s", affinityTerm.GroupByLabelKey, affinityGroup)
+		}
+	}
+
+	if antiAffinityTerm := policySpec.Placement.WorkloadAffinity.AntiAffinity; antiAffinityTerm != nil {
+		if antiAffinityGroup, ok := objectLabels[antiAffinityTerm.GroupByLabelKey]; ok {
+			workloadAffinityGroups.AntiAffinityGroup = fmt.Sprintf("%s=%s", antiAffinityTerm.GroupByLabelKey, antiAffinityGroup)
+		}
+	}
+
+	if workloadAffinityGroups.AffinityGroup == "" && workloadAffinityGroups.AntiAffinityGroup == "" {
+		return nil
+	}
+	return workloadAffinityGroups
+}
+
 // BuildResourceBinding builds a desired ResourceBinding for object.
 func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructured, policySpec *policyv1alpha1.PropagationSpec, policyID string, policyMeta metav1.ObjectMeta, claimFunc func(object metav1.Object, policyId string, objectMeta metav1.ObjectMeta)) (*workv1alpha2.ResourceBinding, error) {
 	bindingName := names.GenerateBindingName(object.GetKind(), object.GetName())
@@ -821,6 +849,10 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 				ResourceVersion: object.GetResourceVersion(),
 			},
 		},
+	}
+
+	if features.FeatureGate.Enabled(features.WorkloadAffinity) {
+		propagationBinding.Spec.WorkloadAffinityGroups = getWorkloadAffinityGroups(object, policySpec, policyID)
 	}
 
 	if policySpec.Suspension != nil {
@@ -889,6 +921,10 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 				ResourceVersion: object.GetResourceVersion(),
 			},
 		},
+	}
+
+	if features.FeatureGate.Enabled(features.WorkloadAffinity) {
+		binding.Spec.WorkloadAffinityGroups = getWorkloadAffinityGroups(object, policySpec, policyID)
 	}
 
 	if policySpec.Suspension != nil {
