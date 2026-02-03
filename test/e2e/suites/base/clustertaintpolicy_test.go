@@ -50,7 +50,7 @@ var _ = framework.SerialDescribe("Taint cluster with ClusterTaintPolicy", func()
 		policyName = clusterTaintPolicyNamePrefix + rand.String(RandomStrLength)
 		clusterTaintPolicy = &policyv1alpha1.ClusterTaintPolicy{
 			TypeMeta: metav1.TypeMeta{
-				APIVersion: policyv1alpha1.SchemeGroupVersion.String(),
+				APIVersion: policyv1alpha1.GroupVersion.String(),
 				Kind:       "ClusterTaintPolicy",
 			},
 			ObjectMeta: metav1.ObjectMeta{

@@ -20,6 +20,7 @@ import (
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/klog/v2"
 	"k8s.io/kube-openapi/pkg/common"
@@ -45,83 +46,100 @@ func main() {
 
 	mapper := meta.NewDefaultRESTMapper(nil)
 
-	mapper.AddSpecific(clusterv1alpha1.SchemeGroupVersion.WithKind(clusterv1alpha1.ResourceKindCluster),
-		clusterv1alpha1.SchemeGroupVersion.WithResource(clusterv1alpha1.ResourcePluralCluster),
-		clusterv1alpha1.SchemeGroupVersion.WithResource(clusterv1alpha1.ResourceSingularCluster), meta.RESTScopeRoot)
+	mapper.AddSpecific(schema.GroupVersion{Group: clusterv1alpha1.GroupVersion.Group, Version: clusterv1alpha1.GroupVersion.Version}.WithKind(clusterv1alpha1.ResourceKindCluster),
+		schema.GroupVersion{Group: clusterv1alpha1.GroupVersion.Group, Version: clusterv1alpha1.GroupVersion.Version}.WithResource(clusterv1alpha1.ResourcePluralCluster),
+		schema.GroupVersion{Group: clusterv1alpha1.GroupVersion.Group, Version: clusterv1alpha1.GroupVersion.Version}.WithResource(clusterv1alpha1.ResourceSingularCluster),
+		meta.RESTScopeRoot)
 
-	mapper.AddSpecific(configv1alpha1.SchemeGroupVersion.WithKind(configv1alpha1.ResourceKindResourceInterpreterWebhookConfiguration),
-		configv1alpha1.SchemeGroupVersion.WithResource(configv1alpha1.ResourcePluralResourceInterpreterWebhookConfiguration),
-		configv1alpha1.SchemeGroupVersion.WithResource(configv1alpha1.ResourceSingularResourceInterpreterWebhookConfiguration), meta.RESTScopeRoot)
+	mapper.AddSpecific(schema.GroupVersion{Group: configv1alpha1.GroupVersion.Group, Version: configv1alpha1.GroupVersion.Version}.WithKind(configv1alpha1.ResourceKindResourceInterpreterWebhookConfiguration),
+		schema.GroupVersion{Group: configv1alpha1.GroupVersion.Group, Version: configv1alpha1.GroupVersion.Version}.WithResource(configv1alpha1.ResourcePluralResourceInterpreterWebhookConfiguration),
+		schema.GroupVersion{Group: configv1alpha1.GroupVersion.Group, Version: configv1alpha1.GroupVersion.Version}.WithResource(configv1alpha1.ResourceSingularResourceInterpreterWebhookConfiguration),
+		meta.RESTScopeRoot)
 
-	mapper.AddSpecific(configv1alpha1.SchemeGroupVersion.WithKind(configv1alpha1.ResourceKindResourceInterpreterCustomization),
-		configv1alpha1.SchemeGroupVersion.WithResource(configv1alpha1.ResourcePluralResourceInterpreterCustomization),
-		configv1alpha1.SchemeGroupVersion.WithResource(configv1alpha1.ResourceSingularResourceInterpreterCustomization), meta.RESTScopeRoot)
+	mapper.AddSpecific(schema.GroupVersion{Group: configv1alpha1.GroupVersion.Group, Version: configv1alpha1.GroupVersion.Version}.WithKind(configv1alpha1.ResourceKindResourceInterpreterCustomization),
+		schema.GroupVersion{Group: configv1alpha1.GroupVersion.Group, Version: configv1alpha1.GroupVersion.Version}.WithResource(configv1alpha1.ResourcePluralResourceInterpreterCustomization),
+		schema.GroupVersion{Group: configv1alpha1.GroupVersion.Group, Version: configv1alpha1.GroupVersion.Version}.WithResource(configv1alpha1.ResourceSingularResourceInterpreterCustomization),
+		meta.RESTScopeRoot)
 
-	mapper.AddSpecific(networkingv1alpha1.SchemeGroupVersion.WithKind(networkingv1alpha1.ResourceKindMultiClusterIngress),
-		networkingv1alpha1.SchemeGroupVersion.WithResource(networkingv1alpha1.ResourcePluralMultiClusterIngress),
-		networkingv1alpha1.SchemeGroupVersion.WithResource(networkingv1alpha1.ResourceSingularMultiClusterIngress), meta.RESTScopeRoot)
+	mapper.AddSpecific(schema.GroupVersion{Group: networkingv1alpha1.GroupVersion.Group, Version: networkingv1alpha1.GroupVersion.Version}.WithKind(networkingv1alpha1.ResourceKindMultiClusterIngress),
+		schema.GroupVersion{Group: networkingv1alpha1.GroupVersion.Group, Version: networkingv1alpha1.GroupVersion.Version}.WithResource(networkingv1alpha1.ResourcePluralMultiClusterIngress),
+		schema.GroupVersion{Group: networkingv1alpha1.GroupVersion.Group, Version: networkingv1alpha1.GroupVersion.Version}.WithResource(networkingv1alpha1.ResourceSingularMultiClusterIngress),
+		meta.RESTScopeRoot)
 
-	mapper.AddSpecific(networkingv1alpha1.SchemeGroupVersion.WithKind(networkingv1alpha1.ResourceKindMultiClusterService),
-		networkingv1alpha1.SchemeGroupVersion.WithResource(networkingv1alpha1.ResourcePluralMultiClusterService),
-		networkingv1alpha1.SchemeGroupVersion.WithResource(networkingv1alpha1.ResourceSingularMultiClusterService), meta.RESTScopeRoot)
+	mapper.AddSpecific(schema.GroupVersion{Group: networkingv1alpha1.GroupVersion.Group, Version: networkingv1alpha1.GroupVersion.Version}.WithKind(networkingv1alpha1.ResourceKindMultiClusterService),
+		schema.GroupVersion{Group: networkingv1alpha1.GroupVersion.Group, Version: networkingv1alpha1.GroupVersion.Version}.WithResource(networkingv1alpha1.ResourcePluralMultiClusterService),
+		schema.GroupVersion{Group: networkingv1alpha1.GroupVersion.Group, Version: networkingv1alpha1.GroupVersion.Version}.WithResource(networkingv1alpha1.ResourceSingularMultiClusterService), meta.RESTScopeRoot)
 
-	mapper.AddSpecific(policyv1alpha1.SchemeGroupVersion.WithKind(policyv1alpha1.ResourceKindPropagationPolicy),
-		policyv1alpha1.SchemeGroupVersion.WithResource(policyv1alpha1.ResourcePluralPropagationPolicy),
-		policyv1alpha1.SchemeGroupVersion.WithResource(policyv1alpha1.ResourceSingularPropagationPolicy), meta.RESTScopeRoot)
+	mapper.AddSpecific(schema.GroupVersion{Group: policyv1alpha1.GroupVersion.Group, Version: policyv1alpha1.GroupVersion.Version}.WithKind(policyv1alpha1.ResourceKindPropagationPolicy),
+		schema.GroupVersion{Group: policyv1alpha1.GroupVersion.Group, Version: policyv1alpha1.GroupVersion.Version}.WithResource(policyv1alpha1.ResourcePluralPropagationPolicy),
+		schema.GroupVersion{Group: policyv1alpha1.GroupVersion.Group, Version: policyv1alpha1.GroupVersion.Version}.WithResource(policyv1alpha1.ResourceSingularPropagationPolicy),
+		meta.RESTScopeRoot)
 
-	mapper.AddSpecific(policyv1alpha1.SchemeGroupVersion.WithKind(policyv1alpha1.ResourceKindClusterPropagationPolicy),
-		policyv1alpha1.SchemeGroupVersion.WithResource(policyv1alpha1.ResourcePluralClusterPropagationPolicy),
-		policyv1alpha1.SchemeGroupVersion.WithResource(policyv1alpha1.ResourceSingularClusterPropagationPolicy), meta.RESTScopeRoot)
+	mapper.AddSpecific(schema.GroupVersion{Group: policyv1alpha1.GroupVersion.Group, Version: policyv1alpha1.GroupVersion.Version}.WithKind(policyv1alpha1.ResourceKindClusterPropagationPolicy),
+		schema.GroupVersion{Group: policyv1alpha1.GroupVersion.Group, Version: policyv1alpha1.GroupVersion.Version}.WithResource(policyv1alpha1.ResourcePluralClusterPropagationPolicy),
+		schema.GroupVersion{Group: policyv1alpha1.GroupVersion.Group, Version: policyv1alpha1.GroupVersion.Version}.WithResource(policyv1alpha1.ResourceSingularClusterPropagationPolicy), meta.RESTScopeRoot)
 
-	mapper.AddSpecific(policyv1alpha1.SchemeGroupVersion.WithKind(policyv1alpha1.ResourceKindOverridePolicy),
-		policyv1alpha1.SchemeGroupVersion.WithResource(policyv1alpha1.ResourcePluralOverridePolicy),
-		policyv1alpha1.SchemeGroupVersion.WithResource(policyv1alpha1.ResourceSingularOverridePolicy), meta.RESTScopeRoot)
+	mapper.AddSpecific(schema.GroupVersion{Group: policyv1alpha1.GroupVersion.Group, Version: policyv1alpha1.GroupVersion.Version}.WithKind(policyv1alpha1.ResourceKindOverridePolicy),
+		schema.GroupVersion{Group: policyv1alpha1.GroupVersion.Group, Version: policyv1alpha1.GroupVersion.Version}.WithResource(policyv1alpha1.ResourcePluralOverridePolicy),
+		schema.GroupVersion{Group: policyv1alpha1.GroupVersion.Group, Version: policyv1alpha1.GroupVersion.Version}.WithResource(policyv1alpha1.ResourceSingularOverridePolicy),
+		meta.RESTScopeRoot)
 
-	mapper.AddSpecific(policyv1alpha1.SchemeGroupVersion.WithKind(policyv1alpha1.ResourceKindClusterOverridePolicy),
-		policyv1alpha1.SchemeGroupVersion.WithResource(policyv1alpha1.ResourcePluralClusterOverridePolicy),
-		policyv1alpha1.SchemeGroupVersion.WithResource(policyv1alpha1.ResourceSingularClusterOverridePolicy), meta.RESTScopeRoot)
+	mapper.AddSpecific(schema.GroupVersion{Group: policyv1alpha1.GroupVersion.Group, Version: policyv1alpha1.GroupVersion.Version}.WithKind(policyv1alpha1.ResourceKindClusterOverridePolicy),
+		schema.GroupVersion{Group: policyv1alpha1.GroupVersion.Group, Version: policyv1alpha1.GroupVersion.Version}.WithResource(policyv1alpha1.ResourcePluralClusterOverridePolicy),
+		schema.GroupVersion{Group: policyv1alpha1.GroupVersion.Group, Version: policyv1alpha1.GroupVersion.Version}.WithResource(policyv1alpha1.ResourceSingularClusterOverridePolicy),
+		meta.RESTScopeRoot)
 
-	mapper.AddSpecific(policyv1alpha1.SchemeGroupVersion.WithKind(policyv1alpha1.ResourceKindFederatedResourceQuota),
-		policyv1alpha1.SchemeGroupVersion.WithResource(policyv1alpha1.ResourcePluralFederatedResourceQuota),
-		policyv1alpha1.SchemeGroupVersion.WithResource(policyv1alpha1.ResourceSingularFederatedResourceQuota), meta.RESTScopeRoot)
+	mapper.AddSpecific(schema.GroupVersion{Group: policyv1alpha1.GroupVersion.Group, Version: policyv1alpha1.GroupVersion.Version}.WithKind(policyv1alpha1.ResourceKindFederatedResourceQuota),
+		schema.GroupVersion{Group: policyv1alpha1.GroupVersion.Group, Version: policyv1alpha1.GroupVersion.Version}.WithResource(policyv1alpha1.ResourcePluralFederatedResourceQuota),
+		schema.GroupVersion{Group: policyv1alpha1.GroupVersion.Group, Version: policyv1alpha1.GroupVersion.Version}.WithResource(policyv1alpha1.ResourceSingularFederatedResourceQuota),
+		meta.RESTScopeRoot)
 
-	mapper.AddSpecific(policyv1alpha1.SchemeGroupVersion.WithKind(policyv1alpha1.ResourceKindClusterTaintPolicy),
-		policyv1alpha1.SchemeGroupVersion.WithResource(policyv1alpha1.ResourcePluralClusterTaintPolicy),
-		policyv1alpha1.SchemeGroupVersion.WithResource(policyv1alpha1.ResourceSingularClusterTaintPolicy), meta.RESTScopeRoot)
+	mapper.AddSpecific(schema.GroupVersion{Group: policyv1alpha1.GroupVersion.Group, Version: policyv1alpha1.GroupVersion.Version}.WithKind(policyv1alpha1.ResourceKindClusterTaintPolicy),
+		schema.GroupVersion{Group: policyv1alpha1.GroupVersion.Group, Version: policyv1alpha1.GroupVersion.Version}.WithResource(policyv1alpha1.ResourcePluralClusterTaintPolicy),
+		schema.GroupVersion{Group: policyv1alpha1.GroupVersion.Group, Version: policyv1alpha1.GroupVersion.Version}.WithResource(policyv1alpha1.ResourceSingularClusterTaintPolicy),
+		meta.RESTScopeRoot)
 
-	mapper.AddSpecific(workv1alpha1.SchemeGroupVersion.WithKind(workv1alpha1.ResourceKindWork),
-		workv1alpha1.SchemeGroupVersion.WithResource(workv1alpha1.ResourcePluralWork),
-		workv1alpha1.SchemeGroupVersion.WithResource(workv1alpha1.ResourceSingularWork), meta.RESTScopeRoot)
+	mapper.AddSpecific(schema.GroupVersion{Group: workv1alpha1.GroupVersion.Group, Version: workv1alpha1.GroupVersion.Version}.WithKind(workv1alpha1.ResourceKindWork),
+		schema.GroupVersion{Group: workv1alpha1.GroupVersion.Group, Version: workv1alpha1.GroupVersion.Version}.WithResource(workv1alpha1.ResourcePluralWork),
+		schema.GroupVersion{Group: workv1alpha1.GroupVersion.Group, Version: workv1alpha1.GroupVersion.Version}.WithResource(workv1alpha1.ResourceSingularWork),
+		meta.RESTScopeRoot)
 
-	mapper.AddSpecific(workv1alpha2.SchemeGroupVersion.WithKind(workv1alpha2.ResourceKindResourceBinding),
-		workv1alpha2.SchemeGroupVersion.WithResource(workv1alpha2.ResourcePluralResourceBinding),
-		workv1alpha2.SchemeGroupVersion.WithResource(workv1alpha2.ResourceSingularResourceBinding), meta.RESTScopeRoot)
+	mapper.AddSpecific(schema.GroupVersion{Group: workv1alpha2.GroupVersion.Group, Version: workv1alpha2.GroupVersion.Version}.WithKind(workv1alpha2.ResourceKindResourceBinding),
+		schema.GroupVersion{Group: workv1alpha2.GroupVersion.Group, Version: workv1alpha2.GroupVersion.Version}.WithResource(workv1alpha2.ResourcePluralResourceBinding),
+		schema.GroupVersion{Group: workv1alpha2.GroupVersion.Group, Version: workv1alpha2.GroupVersion.Version}.WithResource(workv1alpha2.ResourceSingularResourceBinding),
+		meta.RESTScopeRoot)
 
-	mapper.AddSpecific(workv1alpha2.SchemeGroupVersion.WithKind(workv1alpha2.ResourceKindClusterResourceBinding),
-		workv1alpha2.SchemeGroupVersion.WithResource(workv1alpha2.ResourcePluralClusterResourceBinding),
-		workv1alpha2.SchemeGroupVersion.WithResource(workv1alpha2.ResourceSingularClusterResourceBinding), meta.RESTScopeRoot)
+	mapper.AddSpecific(schema.GroupVersion{Group: workv1alpha2.GroupVersion.Group, Version: workv1alpha2.GroupVersion.Version}.WithKind(workv1alpha2.ResourceKindClusterResourceBinding),
+		schema.GroupVersion{Group: workv1alpha2.GroupVersion.Group, Version: workv1alpha2.GroupVersion.Version}.WithResource(workv1alpha2.ResourcePluralClusterResourceBinding),
+		schema.GroupVersion{Group: workv1alpha2.GroupVersion.Group, Version: workv1alpha2.GroupVersion.Version}.WithResource(workv1alpha2.ResourceSingularClusterResourceBinding),
+		meta.RESTScopeRoot)
 
-	mapper.AddSpecific(searchv1alpha1.SchemeGroupVersion.WithKind(searchv1alpha1.ResourceKindResourceRegistry),
-		searchv1alpha1.SchemeGroupVersion.WithResource(searchv1alpha1.ResourcePluralResourceRegistry),
-		searchv1alpha1.SchemeGroupVersion.WithResource(searchv1alpha1.ResourceSingularResourceRegistry), meta.RESTScopeRoot)
+	mapper.AddSpecific(schema.GroupVersion{Group: searchv1alpha1.GroupVersion.Group, Version: searchv1alpha1.GroupVersion.Version}.WithKind(searchv1alpha1.ResourceKindResourceRegistry),
+		schema.GroupVersion{Group: searchv1alpha1.GroupVersion.Group, Version: searchv1alpha1.GroupVersion.Version}.WithResource(searchv1alpha1.ResourcePluralResourceRegistry),
+		schema.GroupVersion{Group: searchv1alpha1.GroupVersion.Group, Version: searchv1alpha1.GroupVersion.Version}.WithResource(searchv1alpha1.ResourceSingularResourceRegistry),
+		meta.RESTScopeRoot)
 
-	mapper.AddSpecific(autoscalingv1alpha1.SchemeGroupVersion.WithKind(autoscalingv1alpha1.FederatedHPAKind),
-		autoscalingv1alpha1.SchemeGroupVersion.WithResource(autoscalingv1alpha1.ResourcePluralFederatedHPA),
-		autoscalingv1alpha1.SchemeGroupVersion.WithResource(autoscalingv1alpha1.ResourceSingularFederatedHPA), meta.RESTScopeRoot)
+	mapper.AddSpecific(schema.GroupVersion{Group: autoscalingv1alpha1.GroupVersion.Group, Version: autoscalingv1alpha1.GroupVersion.Version}.WithKind(autoscalingv1alpha1.FederatedHPAKind),
+		schema.GroupVersion{Group: autoscalingv1alpha1.GroupVersion.Group, Version: autoscalingv1alpha1.GroupVersion.Version}.WithResource(autoscalingv1alpha1.ResourcePluralFederatedHPA),
+		schema.GroupVersion{Group: autoscalingv1alpha1.GroupVersion.Group, Version: autoscalingv1alpha1.GroupVersion.Version}.WithResource(autoscalingv1alpha1.ResourceSingularFederatedHPA),
+		meta.RESTScopeRoot)
 
-	mapper.AddSpecific(autoscalingv1alpha1.SchemeGroupVersion.WithKind(autoscalingv1alpha1.ResourceKindCronFederatedHPA),
-		autoscalingv1alpha1.SchemeGroupVersion.WithResource(autoscalingv1alpha1.ResourcePluralCronFederatedHPA),
-		autoscalingv1alpha1.SchemeGroupVersion.WithResource(autoscalingv1alpha1.ResourceSingularCronFederatedHPA), meta.RESTScopeRoot)
+	mapper.AddSpecific(schema.GroupVersion{Group: autoscalingv1alpha1.GroupVersion.Group, Version: autoscalingv1alpha1.GroupVersion.Version}.WithKind(autoscalingv1alpha1.ResourceKindCronFederatedHPA),
+		schema.GroupVersion{Group: autoscalingv1alpha1.GroupVersion.Group, Version: autoscalingv1alpha1.GroupVersion.Version}.WithResource(autoscalingv1alpha1.ResourcePluralCronFederatedHPA),
+		schema.GroupVersion{Group: autoscalingv1alpha1.GroupVersion.Group, Version: autoscalingv1alpha1.GroupVersion.Version}.WithResource(autoscalingv1alpha1.ResourceSingularCronFederatedHPA),
+		meta.RESTScopeRoot)
 
-	mapper.AddSpecific(remedyv1alpha1.SchemeGroupVersion.WithKind(remedyv1alpha1.ResourceKindRemedy),
-		remedyv1alpha1.SchemeGroupVersion.WithResource(remedyv1alpha1.ResourcePluralRemedy),
-		remedyv1alpha1.SchemeGroupVersion.WithResource(remedyv1alpha1.ResourceSingularRemedy), meta.RESTScopeRoot)
+	mapper.AddSpecific(schema.GroupVersion{Group: remedyv1alpha1.GroupVersion.Group, Version: remedyv1alpha1.GroupVersion.Version}.WithKind(remedyv1alpha1.ResourceKindRemedy),
+		schema.GroupVersion{Group: remedyv1alpha1.GroupVersion.Group, Version: remedyv1alpha1.GroupVersion.Version}.WithResource(remedyv1alpha1.ResourcePluralRemedy),
+		schema.GroupVersion{Group: remedyv1alpha1.GroupVersion.Group, Version: remedyv1alpha1.GroupVersion.Version}.WithResource(remedyv1alpha1.ResourceSingularRemedy),
+		meta.RESTScopeRoot)
 
-	mapper.AddSpecific(appsv1alpha1.SchemeGroupVersion.WithKind(appsv1alpha1.ResourceKindWorkloadRebalancer),
-		appsv1alpha1.SchemeGroupVersion.WithResource(appsv1alpha1.ResourcePluralWorkloadRebalancer),
-		appsv1alpha1.SchemeGroupVersion.WithResource(appsv1alpha1.ResourceSingularWorkloadRebalancer), meta.RESTScopeRoot)
+	mapper.AddSpecific(schema.GroupVersion{Group: appsv1alpha1.GroupVersion.Group, Version: appsv1alpha1.GroupVersion.Version}.WithKind(appsv1alpha1.ResourceKindWorkloadRebalancer),
+		schema.GroupVersion{Group: appsv1alpha1.GroupVersion.Group, Version: appsv1alpha1.GroupVersion.Version}.WithResource(appsv1alpha1.ResourcePluralWorkloadRebalancer),
+		schema.GroupVersion{Group: appsv1alpha1.GroupVersion.Group, Version: appsv1alpha1.GroupVersion.Version}.WithResource(appsv1alpha1.ResourceSingularWorkloadRebalancer),
+		meta.RESTScopeRoot)
 
-	spec, err := lib.RenderOpenAPISpec(lib.Config{
+	openAPISpec, err := lib.RenderOpenAPISpec(lib.Config{
 		Info: spec.InfoProps{
 			Title:       "Karmada OpenAPI",
 			Version:     "unversioned",
@@ -137,30 +155,30 @@ func main() {
 			generatedopenapi.GetOpenAPIDefinitions,
 		},
 		Resources: []lib.ResourceWithNamespaceScoped{
-			{GVR: clusterv1alpha1.SchemeGroupVersion.WithResource(clusterv1alpha1.ResourcePluralCluster), NamespaceScoped: clusterv1alpha1.ResourceNamespaceScopedCluster},
-			{GVR: configv1alpha1.SchemeGroupVersion.WithResource(configv1alpha1.ResourcePluralResourceInterpreterWebhookConfiguration), NamespaceScoped: configv1alpha1.ResourceNamespaceScopedResourceInterpreterWebhookConfiguration},
-			{GVR: configv1alpha1.SchemeGroupVersion.WithResource(configv1alpha1.ResourcePluralResourceInterpreterCustomization), NamespaceScoped: configv1alpha1.ResourceNamespaceScopedResourceInterpreterCustomization},
-			{GVR: networkingv1alpha1.SchemeGroupVersion.WithResource(networkingv1alpha1.ResourcePluralMultiClusterIngress), NamespaceScoped: networkingv1alpha1.ResourceNamespaceScopedMultiClusterIngress},
-			{GVR: networkingv1alpha1.SchemeGroupVersion.WithResource(networkingv1alpha1.ResourcePluralMultiClusterService), NamespaceScoped: networkingv1alpha1.ResourceNamespaceScopedMultiClusterService},
-			{GVR: policyv1alpha1.SchemeGroupVersion.WithResource(policyv1alpha1.ResourcePluralPropagationPolicy), NamespaceScoped: policyv1alpha1.ResourceNamespaceScopedPropagationPolicy},
-			{GVR: policyv1alpha1.SchemeGroupVersion.WithResource(policyv1alpha1.ResourcePluralClusterPropagationPolicy), NamespaceScoped: policyv1alpha1.ResourceNamespaceScopedClusterPropagationPolicy},
-			{GVR: policyv1alpha1.SchemeGroupVersion.WithResource(policyv1alpha1.ResourcePluralOverridePolicy), NamespaceScoped: policyv1alpha1.ResourceNamespaceScopedOverridePolicy},
-			{GVR: policyv1alpha1.SchemeGroupVersion.WithResource(policyv1alpha1.ResourcePluralClusterOverridePolicy), NamespaceScoped: policyv1alpha1.ResourceNamespaceScopedClusterOverridePolicy},
-			{GVR: policyv1alpha1.SchemeGroupVersion.WithResource(policyv1alpha1.ResourcePluralFederatedResourceQuota), NamespaceScoped: policyv1alpha1.ResourceNamespaceScopedFederatedResourceQuota},
-			{GVR: policyv1alpha1.SchemeGroupVersion.WithResource(policyv1alpha1.ResourcePluralClusterTaintPolicy), NamespaceScoped: policyv1alpha1.ResourceNamespaceScopedClusterTaintPolicy},
-			{GVR: workv1alpha1.SchemeGroupVersion.WithResource(workv1alpha1.ResourcePluralWork), NamespaceScoped: workv1alpha1.ResourceNamespaceScopedWork},
-			{GVR: workv1alpha2.SchemeGroupVersion.WithResource(workv1alpha2.ResourcePluralResourceBinding), NamespaceScoped: workv1alpha2.ResourceNamespaceScopedResourceBinding},
-			{GVR: workv1alpha2.SchemeGroupVersion.WithResource(workv1alpha2.ResourcePluralClusterResourceBinding), NamespaceScoped: workv1alpha2.ResourceNamespaceScopedClusterResourceBinding},
-			{GVR: searchv1alpha1.SchemeGroupVersion.WithResource(searchv1alpha1.ResourcePluralResourceRegistry), NamespaceScoped: searchv1alpha1.ResourceNamespaceScopedResourceRegistry},
-			{GVR: autoscalingv1alpha1.SchemeGroupVersion.WithResource(autoscalingv1alpha1.ResourcePluralFederatedHPA), NamespaceScoped: autoscalingv1alpha1.ResourceNamespaceScopedFederatedHPA},
-			{GVR: autoscalingv1alpha1.SchemeGroupVersion.WithResource(autoscalingv1alpha1.ResourcePluralCronFederatedHPA), NamespaceScoped: autoscalingv1alpha1.ResourceNamespaceScopedCronFederatedHPA},
-			{GVR: remedyv1alpha1.SchemeGroupVersion.WithResource(remedyv1alpha1.ResourcePluralRemedy), NamespaceScoped: remedyv1alpha1.ResourceNamespaceScopedRemedy},
-			{GVR: appsv1alpha1.SchemeGroupVersion.WithResource(appsv1alpha1.ResourcePluralWorkloadRebalancer), NamespaceScoped: appsv1alpha1.ResourceNamespaceScopedWorkloadRebalancer},
+			{GVR: schema.GroupVersion{Group: clusterv1alpha1.GroupVersion.Group, Version: clusterv1alpha1.GroupVersion.Version}.WithResource(clusterv1alpha1.ResourcePluralCluster), NamespaceScoped: clusterv1alpha1.ResourceNamespaceScopedCluster},
+			{GVR: schema.GroupVersion{Group: configv1alpha1.GroupVersion.Group, Version: configv1alpha1.GroupVersion.Version}.WithResource(configv1alpha1.ResourcePluralResourceInterpreterWebhookConfiguration), NamespaceScoped: configv1alpha1.ResourceNamespaceScopedResourceInterpreterWebhookConfiguration},
+			{GVR: schema.GroupVersion{Group: configv1alpha1.GroupVersion.Group, Version: configv1alpha1.GroupVersion.Version}.WithResource(configv1alpha1.ResourcePluralResourceInterpreterCustomization), NamespaceScoped: configv1alpha1.ResourceNamespaceScopedResourceInterpreterCustomization},
+			{GVR: schema.GroupVersion{Group: networkingv1alpha1.GroupVersion.Group, Version: networkingv1alpha1.GroupVersion.Version}.WithResource(networkingv1alpha1.ResourcePluralMultiClusterIngress), NamespaceScoped: networkingv1alpha1.ResourceNamespaceScopedMultiClusterIngress},
+			{GVR: schema.GroupVersion{Group: networkingv1alpha1.GroupVersion.Group, Version: networkingv1alpha1.GroupVersion.Version}.WithResource(networkingv1alpha1.ResourcePluralMultiClusterService), NamespaceScoped: networkingv1alpha1.ResourceNamespaceScopedMultiClusterService},
+			{GVR: schema.GroupVersion{Group: policyv1alpha1.GroupVersion.Group, Version: policyv1alpha1.GroupVersion.Version}.WithResource(policyv1alpha1.ResourcePluralPropagationPolicy), NamespaceScoped: policyv1alpha1.ResourceNamespaceScopedPropagationPolicy},
+			{GVR: schema.GroupVersion{Group: policyv1alpha1.GroupVersion.Group, Version: policyv1alpha1.GroupVersion.Version}.WithResource(policyv1alpha1.ResourcePluralClusterPropagationPolicy), NamespaceScoped: policyv1alpha1.ResourceNamespaceScopedClusterPropagationPolicy},
+			{GVR: schema.GroupVersion{Group: policyv1alpha1.GroupVersion.Group, Version: policyv1alpha1.GroupVersion.Version}.WithResource(policyv1alpha1.ResourcePluralOverridePolicy), NamespaceScoped: policyv1alpha1.ResourceNamespaceScopedOverridePolicy},
+			{GVR: schema.GroupVersion{Group: policyv1alpha1.GroupVersion.Group, Version: policyv1alpha1.GroupVersion.Version}.WithResource(policyv1alpha1.ResourcePluralClusterOverridePolicy), NamespaceScoped: policyv1alpha1.ResourceNamespaceScopedClusterOverridePolicy},
+			{GVR: schema.GroupVersion{Group: policyv1alpha1.GroupVersion.Group, Version: policyv1alpha1.GroupVersion.Version}.WithResource(policyv1alpha1.ResourcePluralFederatedResourceQuota), NamespaceScoped: policyv1alpha1.ResourceNamespaceScopedFederatedResourceQuota},
+			{GVR: schema.GroupVersion{Group: policyv1alpha1.GroupVersion.Group, Version: policyv1alpha1.GroupVersion.Version}.WithResource(policyv1alpha1.ResourcePluralClusterTaintPolicy), NamespaceScoped: policyv1alpha1.ResourceNamespaceScopedClusterTaintPolicy},
+			{GVR: schema.GroupVersion{Group: workv1alpha1.GroupVersion.Group, Version: workv1alpha1.GroupVersion.Version}.WithResource(workv1alpha1.ResourcePluralWork), NamespaceScoped: workv1alpha1.ResourceNamespaceScopedWork},
+			{GVR: schema.GroupVersion{Group: workv1alpha2.GroupVersion.Group, Version: workv1alpha2.GroupVersion.Version}.WithResource(workv1alpha2.ResourcePluralResourceBinding), NamespaceScoped: workv1alpha2.ResourceNamespaceScopedResourceBinding},
+			{GVR: schema.GroupVersion{Group: workv1alpha2.GroupVersion.Group, Version: workv1alpha2.GroupVersion.Version}.WithResource(workv1alpha2.ResourcePluralClusterResourceBinding), NamespaceScoped: workv1alpha2.ResourceNamespaceScopedClusterResourceBinding},
+			{GVR: schema.GroupVersion{Group: searchv1alpha1.GroupVersion.Group, Version: searchv1alpha1.GroupVersion.Version}.WithResource(searchv1alpha1.ResourcePluralResourceRegistry), NamespaceScoped: searchv1alpha1.ResourceNamespaceScopedResourceRegistry},
+			{GVR: schema.GroupVersion{Group: autoscalingv1alpha1.GroupVersion.Group, Version: autoscalingv1alpha1.GroupVersion.Version}.WithResource(autoscalingv1alpha1.ResourcePluralFederatedHPA), NamespaceScoped: autoscalingv1alpha1.ResourceNamespaceScopedFederatedHPA},
+			{GVR: schema.GroupVersion{Group: autoscalingv1alpha1.GroupVersion.Group, Version: autoscalingv1alpha1.GroupVersion.Version}.WithResource(autoscalingv1alpha1.ResourcePluralCronFederatedHPA), NamespaceScoped: autoscalingv1alpha1.ResourceNamespaceScopedCronFederatedHPA},
+			{GVR: schema.GroupVersion{Group: remedyv1alpha1.GroupVersion.Group, Version: remedyv1alpha1.GroupVersion.Version}.WithResource(remedyv1alpha1.ResourcePluralRemedy), NamespaceScoped: remedyv1alpha1.ResourceNamespaceScopedRemedy},
+			{GVR: schema.GroupVersion{Group: appsv1alpha1.GroupVersion.Group, Version: appsv1alpha1.GroupVersion.Version}.WithResource(appsv1alpha1.ResourcePluralWorkloadRebalancer), NamespaceScoped: appsv1alpha1.ResourceNamespaceScopedWorkloadRebalancer},
 		},
 		Mapper: mapper,
 	})
 	if err != nil {
 		klog.Fatal(err.Error())
 	}
-	fmt.Println(spec)
+	fmt.Println(openAPISpec)
 }

@@ -135,7 +135,7 @@ func makeTestRB(namespace, name string, opts ...RBOption) *workv1alpha2.Resource
 		APIVersion: "v1", Kind: "Pod", Name: "test-pod-" + name, Namespace: namespace,
 	}
 	rb := &workv1alpha2.ResourceBinding{
-		TypeMeta: metav1.TypeMeta{APIVersion: workv1alpha2.SchemeGroupVersion.String(), Kind: "ResourceBinding"},
+		TypeMeta: metav1.TypeMeta{APIVersion: workv1alpha2.GroupVersion.String(), Kind: "ResourceBinding"},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
@@ -170,7 +170,7 @@ func WithOverallUsed(used corev1.ResourceList) FRQOption {
 
 func makeTestFRQ(namespace, name string, opts ...FRQOption) *policyv1alpha1.FederatedResourceQuota {
 	frq := &policyv1alpha1.FederatedResourceQuota{
-		TypeMeta: metav1.TypeMeta{APIVersion: policyv1alpha1.SchemeGroupVersion.String(), Kind: "FederatedResourceQuota"},
+		TypeMeta: metav1.TypeMeta{APIVersion: policyv1alpha1.GroupVersion.String(), Kind: "FederatedResourceQuota"},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,

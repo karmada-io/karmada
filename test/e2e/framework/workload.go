@@ -26,6 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
 
@@ -33,7 +34,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
-var workloadGVR = workloadv1alpha1.SchemeGroupVersion.WithResource("workloads")
+var workloadGVR = schema.GroupVersionResource{Group: workloadv1alpha1.GroupVersion.Group, Version: workloadv1alpha1.GroupVersion.Version, Resource: "workloads"}
 
 // CreateWorkload creates Workload with dynamic client
 func CreateWorkload(client dynamic.Interface, workload *workloadv1alpha1.Workload) {

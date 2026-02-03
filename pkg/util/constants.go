@@ -21,6 +21,7 @@ import (
 
 	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -252,10 +253,10 @@ var (
 // Define resource group version resource.
 var (
 	// ResourceInterpreterCustomizationsGVR is the GroupVersionResource of ResourceInterpreterCustomizations.
-	ResourceInterpreterCustomizationsGVR = configv1alpha1.SchemeGroupVersion.WithResource("resourceinterpretercustomizations")
+	ResourceInterpreterCustomizationsGVR = schema.GroupVersion{Group: configv1alpha1.GroupVersion.Group, Version: configv1alpha1.GroupVersion.Version}.WithResource("resourceinterpretercustomizations")
 
 	// ResourceInterpreterWebhookConfigurationsGVR is the GroupVersionResource of ResourceInterpreterWebhookConfigurations.
-	ResourceInterpreterWebhookConfigurationsGVR = configv1alpha1.SchemeGroupVersion.WithResource("resourceinterpreterwebhookconfigurations")
+	ResourceInterpreterWebhookConfigurationsGVR = schema.GroupVersion{Group: configv1alpha1.GroupVersion.Group, Version: configv1alpha1.GroupVersion.Version}.WithResource("resourceinterpreterwebhookconfigurations")
 )
 
 const (
