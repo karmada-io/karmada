@@ -62,6 +62,7 @@ function build_binary_for_platform() {
   local gopkg="${KARMADA_GO_PACKAGE}/$(util::get_target_source $target)"
   set -x
   CGO_ENABLED=0 GOOS=${os} GOARCH=${arch} go build \
+      -tags kubernetes_protomessage_one_more_release \
       -ldflags "${LDFLAGS:-}" \
       -o "_output/bin/${platform}/$target" \
       "${gopkg}"
