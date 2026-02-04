@@ -19,6 +19,7 @@ package applicationfailover
 import (
 	"context"
 	"math"
+	"reflect"
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -26,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -122,6 +124,8 @@ func (c *RBApplicationFailoverController) syncBinding(ctx context.Context, bindi
 	key := types.NamespacedName{Name: binding.Name, Namespace: binding.Namespace}
 	tolerationSeconds := binding.Spec.Failover.Application.DecisionConditions.TolerationSeconds
 
+	c.workloadUnhealthyMap.loadFromStatus(key, binding.Status.FailoverHistory)
+
 	allClusters := sets.New[string]()
 	for _, cluster := range binding.Spec.Clusters {
 		allClusters.Insert(cluster.Name)
@@ -142,8 +146,11 @@ func (c *RBApplicationFailoverController) syncBinding(ctx context.Context, bindi
 		}
 	}
 
-	// Cleanup clusters on which the application status is not unhealthy and clusters that have been evicted or removed in the workloadUnhealthyMap.
 	c.workloadUnhealthyMap.deleteIrrelevantClusters(key, allClusters, others)
+
+	if err = c.persistFailoverHistory(ctx, binding, key); err != nil {
+		klog.ErrorS(err, "Failed to persist failover history", "namespace", binding.Namespace, "name", binding.Name)
+	}
 
 	return time.Duration(duration) * time.Second, nil
 }
@@ -177,6 +184,22 @@ func (c *RBApplicationFailoverController) updateBinding(ctx context.Context, bin
 	}
 
 	return nil
+}
+
+func (c *RBApplicationFailoverController) persistFailoverHistory(ctx context.Context, binding *workv1alpha2.ResourceBinding, key types.NamespacedName) error {
+	timestamps := c.workloadUnhealthyMap.getAll(key)
+	if reflect.DeepEqual(binding.Status.FailoverHistory, timestamps) {
+		return nil
+	}
+
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		latest := &workv1alpha2.ResourceBinding{}
+		if err := c.Client.Get(ctx, client.ObjectKeyFromObject(binding), latest); err != nil {
+			return err
+		}
+		latest.Status.FailoverHistory = timestamps
+		return c.Client.Status().Update(ctx, latest)
+	})
 }
 
 // SetupWithManager creates a controller and register to controller manager.

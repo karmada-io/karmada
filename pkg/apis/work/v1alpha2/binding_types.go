@@ -443,6 +443,12 @@ type ResourceBindingStatus struct {
 	// AggregatedStatus represents status list of the resource running in each member cluster.
 	// +optional
 	AggregatedStatus []AggregatedStatusItem `json:"aggregatedStatus,omitempty"`
+
+	// FailoverHistory records the timestamp when each cluster's workload first became
+	// unhealthy. Used by the application failover controller to track toleration periods
+	// across controller restarts.
+	// +optional
+	FailoverHistory map[string]metav1.Time `json:"failoverHistory,omitempty"`
 }
 
 // AggregatedStatusItem represents status of the resource running in a member cluster.
