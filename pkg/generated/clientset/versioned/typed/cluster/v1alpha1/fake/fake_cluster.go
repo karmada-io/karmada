@@ -20,19 +20,20 @@ package fake
 
 import (
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
-	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/cluster/v1alpha1"
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/generated/applyconfigurations/cluster/v1alpha1"
+	typedclusterv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/cluster/v1alpha1"
 	gentype "k8s.io/client-go/gentype"
 )
 
 // fakeClusters implements ClusterInterface
 type fakeClusters struct {
-	*gentype.FakeClientWithList[*v1alpha1.Cluster, *v1alpha1.ClusterList]
+	*gentype.FakeClientWithListAndApply[*v1alpha1.Cluster, *v1alpha1.ClusterList, *clusterv1alpha1.ClusterApplyConfiguration]
 	Fake *FakeClusterV1alpha1
 }
 
-func newFakeClusters(fake *FakeClusterV1alpha1) clusterv1alpha1.ClusterInterface {
+func newFakeClusters(fake *FakeClusterV1alpha1) typedclusterv1alpha1.ClusterInterface {
 	return &fakeClusters{
-		gentype.NewFakeClientWithList[*v1alpha1.Cluster, *v1alpha1.ClusterList](
+		gentype.NewFakeClientWithListAndApply[*v1alpha1.Cluster, *v1alpha1.ClusterList, *clusterv1alpha1.ClusterApplyConfiguration](
 			fake.Fake,
 			"",
 			v1alpha1.SchemeGroupVersion.WithResource("clusters"),

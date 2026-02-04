@@ -20,19 +20,20 @@ package fake
 
 import (
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
-	networkingv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/networking/v1alpha1"
+	networkingv1alpha1 "github.com/karmada-io/karmada/pkg/generated/applyconfigurations/networking/v1alpha1"
+	typednetworkingv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/networking/v1alpha1"
 	gentype "k8s.io/client-go/gentype"
 )
 
 // fakeMultiClusterServices implements MultiClusterServiceInterface
 type fakeMultiClusterServices struct {
-	*gentype.FakeClientWithList[*v1alpha1.MultiClusterService, *v1alpha1.MultiClusterServiceList]
+	*gentype.FakeClientWithListAndApply[*v1alpha1.MultiClusterService, *v1alpha1.MultiClusterServiceList, *networkingv1alpha1.MultiClusterServiceApplyConfiguration]
 	Fake *FakeNetworkingV1alpha1
 }
 
-func newFakeMultiClusterServices(fake *FakeNetworkingV1alpha1, namespace string) networkingv1alpha1.MultiClusterServiceInterface {
+func newFakeMultiClusterServices(fake *FakeNetworkingV1alpha1, namespace string) typednetworkingv1alpha1.MultiClusterServiceInterface {
 	return &fakeMultiClusterServices{
-		gentype.NewFakeClientWithList[*v1alpha1.MultiClusterService, *v1alpha1.MultiClusterServiceList](
+		gentype.NewFakeClientWithListAndApply[*v1alpha1.MultiClusterService, *v1alpha1.MultiClusterServiceList, *networkingv1alpha1.MultiClusterServiceApplyConfiguration](
 			fake.Fake,
 			namespace,
 			v1alpha1.SchemeGroupVersion.WithResource("multiclusterservices"),

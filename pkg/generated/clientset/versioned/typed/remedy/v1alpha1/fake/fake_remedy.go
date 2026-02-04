@@ -20,19 +20,20 @@ package fake
 
 import (
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1"
-	remedyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/remedy/v1alpha1"
+	remedyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/applyconfigurations/remedy/v1alpha1"
+	typedremedyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/remedy/v1alpha1"
 	gentype "k8s.io/client-go/gentype"
 )
 
 // fakeRemedies implements RemedyInterface
 type fakeRemedies struct {
-	*gentype.FakeClientWithList[*v1alpha1.Remedy, *v1alpha1.RemedyList]
+	*gentype.FakeClientWithListAndApply[*v1alpha1.Remedy, *v1alpha1.RemedyList, *remedyv1alpha1.RemedyApplyConfiguration]
 	Fake *FakeRemedyV1alpha1
 }
 
-func newFakeRemedies(fake *FakeRemedyV1alpha1) remedyv1alpha1.RemedyInterface {
+func newFakeRemedies(fake *FakeRemedyV1alpha1) typedremedyv1alpha1.RemedyInterface {
 	return &fakeRemedies{
-		gentype.NewFakeClientWithList[*v1alpha1.Remedy, *v1alpha1.RemedyList](
+		gentype.NewFakeClientWithListAndApply[*v1alpha1.Remedy, *v1alpha1.RemedyList, *remedyv1alpha1.RemedyApplyConfiguration](
 			fake.Fake,
 			"",
 			v1alpha1.SchemeGroupVersion.WithResource("remedies"),

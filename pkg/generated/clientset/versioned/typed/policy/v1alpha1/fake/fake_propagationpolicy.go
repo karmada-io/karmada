@@ -20,19 +20,20 @@ package fake
 
 import (
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	policyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/policy/v1alpha1"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/applyconfigurations/policy/v1alpha1"
+	typedpolicyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/policy/v1alpha1"
 	gentype "k8s.io/client-go/gentype"
 )
 
 // fakePropagationPolicies implements PropagationPolicyInterface
 type fakePropagationPolicies struct {
-	*gentype.FakeClientWithList[*v1alpha1.PropagationPolicy, *v1alpha1.PropagationPolicyList]
+	*gentype.FakeClientWithListAndApply[*v1alpha1.PropagationPolicy, *v1alpha1.PropagationPolicyList, *policyv1alpha1.PropagationPolicyApplyConfiguration]
 	Fake *FakePolicyV1alpha1
 }
 
-func newFakePropagationPolicies(fake *FakePolicyV1alpha1, namespace string) policyv1alpha1.PropagationPolicyInterface {
+func newFakePropagationPolicies(fake *FakePolicyV1alpha1, namespace string) typedpolicyv1alpha1.PropagationPolicyInterface {
 	return &fakePropagationPolicies{
-		gentype.NewFakeClientWithList[*v1alpha1.PropagationPolicy, *v1alpha1.PropagationPolicyList](
+		gentype.NewFakeClientWithListAndApply[*v1alpha1.PropagationPolicy, *v1alpha1.PropagationPolicyList, *policyv1alpha1.PropagationPolicyApplyConfiguration](
 			fake.Fake,
 			namespace,
 			v1alpha1.SchemeGroupVersion.WithResource("propagationpolicies"),

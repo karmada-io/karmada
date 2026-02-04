@@ -20,19 +20,20 @@ package fake
 
 import (
 	v1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
-	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/generated/clientset/versioned/typed/operator/v1alpha1"
+	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/generated/applyconfigurations/operator/v1alpha1"
+	typedoperatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/generated/clientset/versioned/typed/operator/v1alpha1"
 	gentype "k8s.io/client-go/gentype"
 )
 
 // fakeKarmadas implements KarmadaInterface
 type fakeKarmadas struct {
-	*gentype.FakeClientWithList[*v1alpha1.Karmada, *v1alpha1.KarmadaList]
+	*gentype.FakeClientWithListAndApply[*v1alpha1.Karmada, *v1alpha1.KarmadaList, *operatorv1alpha1.KarmadaApplyConfiguration]
 	Fake *FakeOperatorV1alpha1
 }
 
-func newFakeKarmadas(fake *FakeOperatorV1alpha1, namespace string) operatorv1alpha1.KarmadaInterface {
+func newFakeKarmadas(fake *FakeOperatorV1alpha1, namespace string) typedoperatorv1alpha1.KarmadaInterface {
 	return &fakeKarmadas{
-		gentype.NewFakeClientWithList[*v1alpha1.Karmada, *v1alpha1.KarmadaList](
+		gentype.NewFakeClientWithListAndApply[*v1alpha1.Karmada, *v1alpha1.KarmadaList, *operatorv1alpha1.KarmadaApplyConfiguration](
 			fake.Fake,
 			namespace,
 			v1alpha1.SchemeGroupVersion.WithResource("karmadas"),

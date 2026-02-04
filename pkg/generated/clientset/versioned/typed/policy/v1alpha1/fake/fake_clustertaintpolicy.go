@@ -20,19 +20,20 @@ package fake
 
 import (
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	policyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/policy/v1alpha1"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/applyconfigurations/policy/v1alpha1"
+	typedpolicyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/policy/v1alpha1"
 	gentype "k8s.io/client-go/gentype"
 )
 
 // fakeClusterTaintPolicies implements ClusterTaintPolicyInterface
 type fakeClusterTaintPolicies struct {
-	*gentype.FakeClientWithList[*v1alpha1.ClusterTaintPolicy, *v1alpha1.ClusterTaintPolicyList]
+	*gentype.FakeClientWithListAndApply[*v1alpha1.ClusterTaintPolicy, *v1alpha1.ClusterTaintPolicyList, *policyv1alpha1.ClusterTaintPolicyApplyConfiguration]
 	Fake *FakePolicyV1alpha1
 }
 
-func newFakeClusterTaintPolicies(fake *FakePolicyV1alpha1) policyv1alpha1.ClusterTaintPolicyInterface {
+func newFakeClusterTaintPolicies(fake *FakePolicyV1alpha1) typedpolicyv1alpha1.ClusterTaintPolicyInterface {
 	return &fakeClusterTaintPolicies{
-		gentype.NewFakeClientWithList[*v1alpha1.ClusterTaintPolicy, *v1alpha1.ClusterTaintPolicyList](
+		gentype.NewFakeClientWithListAndApply[*v1alpha1.ClusterTaintPolicy, *v1alpha1.ClusterTaintPolicyList, *policyv1alpha1.ClusterTaintPolicyApplyConfiguration](
 			fake.Fake,
 			"",
 			v1alpha1.SchemeGroupVersion.WithResource("clustertaintpolicies"),

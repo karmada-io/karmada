@@ -22,6 +22,7 @@ import (
 	context "context"
 
 	appsv1alpha1 "github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1"
+	applyconfigurationsappsv1alpha1 "github.com/karmada-io/karmada/pkg/generated/applyconfigurations/apps/v1alpha1"
 	scheme "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -47,18 +48,21 @@ type WorkloadRebalancerInterface interface {
 	List(ctx context.Context, opts v1.ListOptions) (*appsv1alpha1.WorkloadRebalancerList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
 	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *appsv1alpha1.WorkloadRebalancer, err error)
+	Apply(ctx context.Context, workloadRebalancer *applyconfigurationsappsv1alpha1.WorkloadRebalancerApplyConfiguration, opts v1.ApplyOptions) (result *appsv1alpha1.WorkloadRebalancer, err error)
+	// Add a +genclient:noStatus comment above the type to avoid generating ApplyStatus().
+	ApplyStatus(ctx context.Context, workloadRebalancer *applyconfigurationsappsv1alpha1.WorkloadRebalancerApplyConfiguration, opts v1.ApplyOptions) (result *appsv1alpha1.WorkloadRebalancer, err error)
 	WorkloadRebalancerExpansion
 }
 
 // workloadRebalancers implements WorkloadRebalancerInterface
 type workloadRebalancers struct {
-	*gentype.ClientWithList[*appsv1alpha1.WorkloadRebalancer, *appsv1alpha1.WorkloadRebalancerList]
+	*gentype.ClientWithListAndApply[*appsv1alpha1.WorkloadRebalancer, *appsv1alpha1.WorkloadRebalancerList, *applyconfigurationsappsv1alpha1.WorkloadRebalancerApplyConfiguration]
 }
 
 // newWorkloadRebalancers returns a WorkloadRebalancers
 func newWorkloadRebalancers(c *AppsV1alpha1Client) *workloadRebalancers {
 	return &workloadRebalancers{
-		gentype.NewClientWithList[*appsv1alpha1.WorkloadRebalancer, *appsv1alpha1.WorkloadRebalancerList](
+		gentype.NewClientWithListAndApply[*appsv1alpha1.WorkloadRebalancer, *appsv1alpha1.WorkloadRebalancerList, *applyconfigurationsappsv1alpha1.WorkloadRebalancerApplyConfiguration](
 			"workloadrebalancers",
 			c.RESTClient(),
 			scheme.ParameterCodec,

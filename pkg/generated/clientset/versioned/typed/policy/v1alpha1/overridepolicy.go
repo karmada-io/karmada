@@ -22,6 +22,7 @@ import (
 	context "context"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	applyconfigurationspolicyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/applyconfigurations/policy/v1alpha1"
 	scheme "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -45,18 +46,19 @@ type OverridePolicyInterface interface {
 	List(ctx context.Context, opts v1.ListOptions) (*policyv1alpha1.OverridePolicyList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
 	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *policyv1alpha1.OverridePolicy, err error)
+	Apply(ctx context.Context, overridePolicy *applyconfigurationspolicyv1alpha1.OverridePolicyApplyConfiguration, opts v1.ApplyOptions) (result *policyv1alpha1.OverridePolicy, err error)
 	OverridePolicyExpansion
 }
 
 // overridePolicies implements OverridePolicyInterface
 type overridePolicies struct {
-	*gentype.ClientWithList[*policyv1alpha1.OverridePolicy, *policyv1alpha1.OverridePolicyList]
+	*gentype.ClientWithListAndApply[*policyv1alpha1.OverridePolicy, *policyv1alpha1.OverridePolicyList, *applyconfigurationspolicyv1alpha1.OverridePolicyApplyConfiguration]
 }
 
 // newOverridePolicies returns a OverridePolicies
 func newOverridePolicies(c *PolicyV1alpha1Client, namespace string) *overridePolicies {
 	return &overridePolicies{
-		gentype.NewClientWithList[*policyv1alpha1.OverridePolicy, *policyv1alpha1.OverridePolicyList](
+		gentype.NewClientWithListAndApply[*policyv1alpha1.OverridePolicy, *policyv1alpha1.OverridePolicyList, *applyconfigurationspolicyv1alpha1.OverridePolicyApplyConfiguration](
 			"overridepolicies",
 			c.RESTClient(),
 			scheme.ParameterCodec,

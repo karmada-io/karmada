@@ -20,19 +20,20 @@ package fake
 
 import (
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
-	networkingv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/networking/v1alpha1"
+	networkingv1alpha1 "github.com/karmada-io/karmada/pkg/generated/applyconfigurations/networking/v1alpha1"
+	typednetworkingv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/networking/v1alpha1"
 	gentype "k8s.io/client-go/gentype"
 )
 
 // fakeMultiClusterIngresses implements MultiClusterIngressInterface
 type fakeMultiClusterIngresses struct {
-	*gentype.FakeClientWithList[*v1alpha1.MultiClusterIngress, *v1alpha1.MultiClusterIngressList]
+	*gentype.FakeClientWithListAndApply[*v1alpha1.MultiClusterIngress, *v1alpha1.MultiClusterIngressList, *networkingv1alpha1.MultiClusterIngressApplyConfiguration]
 	Fake *FakeNetworkingV1alpha1
 }
 
-func newFakeMultiClusterIngresses(fake *FakeNetworkingV1alpha1, namespace string) networkingv1alpha1.MultiClusterIngressInterface {
+func newFakeMultiClusterIngresses(fake *FakeNetworkingV1alpha1, namespace string) typednetworkingv1alpha1.MultiClusterIngressInterface {
 	return &fakeMultiClusterIngresses{
-		gentype.NewFakeClientWithList[*v1alpha1.MultiClusterIngress, *v1alpha1.MultiClusterIngressList](
+		gentype.NewFakeClientWithListAndApply[*v1alpha1.MultiClusterIngress, *v1alpha1.MultiClusterIngressList, *networkingv1alpha1.MultiClusterIngressApplyConfiguration](
 			fake.Fake,
 			namespace,
 			v1alpha1.SchemeGroupVersion.WithResource("multiclusteringresses"),

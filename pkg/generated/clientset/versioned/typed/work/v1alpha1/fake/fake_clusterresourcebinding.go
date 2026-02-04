@@ -20,19 +20,20 @@ package fake
 
 import (
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
-	workv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/work/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/generated/applyconfigurations/work/v1alpha1"
+	typedworkv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/work/v1alpha1"
 	gentype "k8s.io/client-go/gentype"
 )
 
 // fakeClusterResourceBindings implements ClusterResourceBindingInterface
 type fakeClusterResourceBindings struct {
-	*gentype.FakeClientWithList[*v1alpha1.ClusterResourceBinding, *v1alpha1.ClusterResourceBindingList]
+	*gentype.FakeClientWithListAndApply[*v1alpha1.ClusterResourceBinding, *v1alpha1.ClusterResourceBindingList, *workv1alpha1.ClusterResourceBindingApplyConfiguration]
 	Fake *FakeWorkV1alpha1
 }
 
-func newFakeClusterResourceBindings(fake *FakeWorkV1alpha1) workv1alpha1.ClusterResourceBindingInterface {
+func newFakeClusterResourceBindings(fake *FakeWorkV1alpha1) typedworkv1alpha1.ClusterResourceBindingInterface {
 	return &fakeClusterResourceBindings{
-		gentype.NewFakeClientWithList[*v1alpha1.ClusterResourceBinding, *v1alpha1.ClusterResourceBindingList](
+		gentype.NewFakeClientWithListAndApply[*v1alpha1.ClusterResourceBinding, *v1alpha1.ClusterResourceBindingList, *workv1alpha1.ClusterResourceBindingApplyConfiguration](
 			fake.Fake,
 			"",
 			v1alpha1.SchemeGroupVersion.WithResource("clusterresourcebindings"),

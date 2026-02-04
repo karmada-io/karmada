@@ -22,6 +22,7 @@ import (
 	context "context"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
+	applyconfigurationsconfigv1alpha1 "github.com/karmada-io/karmada/pkg/generated/applyconfigurations/config/v1alpha1"
 	scheme "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -45,18 +46,19 @@ type ResourceInterpreterCustomizationInterface interface {
 	List(ctx context.Context, opts v1.ListOptions) (*configv1alpha1.ResourceInterpreterCustomizationList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
 	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *configv1alpha1.ResourceInterpreterCustomization, err error)
+	Apply(ctx context.Context, resourceInterpreterCustomization *applyconfigurationsconfigv1alpha1.ResourceInterpreterCustomizationApplyConfiguration, opts v1.ApplyOptions) (result *configv1alpha1.ResourceInterpreterCustomization, err error)
 	ResourceInterpreterCustomizationExpansion
 }
 
 // resourceInterpreterCustomizations implements ResourceInterpreterCustomizationInterface
 type resourceInterpreterCustomizations struct {
-	*gentype.ClientWithList[*configv1alpha1.ResourceInterpreterCustomization, *configv1alpha1.ResourceInterpreterCustomizationList]
+	*gentype.ClientWithListAndApply[*configv1alpha1.ResourceInterpreterCustomization, *configv1alpha1.ResourceInterpreterCustomizationList, *applyconfigurationsconfigv1alpha1.ResourceInterpreterCustomizationApplyConfiguration]
 }
 
 // newResourceInterpreterCustomizations returns a ResourceInterpreterCustomizations
 func newResourceInterpreterCustomizations(c *ConfigV1alpha1Client) *resourceInterpreterCustomizations {
 	return &resourceInterpreterCustomizations{
-		gentype.NewClientWithList[*configv1alpha1.ResourceInterpreterCustomization, *configv1alpha1.ResourceInterpreterCustomizationList](
+		gentype.NewClientWithListAndApply[*configv1alpha1.ResourceInterpreterCustomization, *configv1alpha1.ResourceInterpreterCustomizationList, *applyconfigurationsconfigv1alpha1.ResourceInterpreterCustomizationApplyConfiguration](
 			"resourceinterpretercustomizations",
 			c.RESTClient(),
 			scheme.ParameterCodec,

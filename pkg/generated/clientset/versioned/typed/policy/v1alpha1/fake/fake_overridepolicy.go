@@ -20,19 +20,20 @@ package fake
 
 import (
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	policyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/policy/v1alpha1"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/applyconfigurations/policy/v1alpha1"
+	typedpolicyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/policy/v1alpha1"
 	gentype "k8s.io/client-go/gentype"
 )
 
 // fakeOverridePolicies implements OverridePolicyInterface
 type fakeOverridePolicies struct {
-	*gentype.FakeClientWithList[*v1alpha1.OverridePolicy, *v1alpha1.OverridePolicyList]
+	*gentype.FakeClientWithListAndApply[*v1alpha1.OverridePolicy, *v1alpha1.OverridePolicyList, *policyv1alpha1.OverridePolicyApplyConfiguration]
 	Fake *FakePolicyV1alpha1
 }
 
-func newFakeOverridePolicies(fake *FakePolicyV1alpha1, namespace string) policyv1alpha1.OverridePolicyInterface {
+func newFakeOverridePolicies(fake *FakePolicyV1alpha1, namespace string) typedpolicyv1alpha1.OverridePolicyInterface {
 	return &fakeOverridePolicies{
-		gentype.NewFakeClientWithList[*v1alpha1.OverridePolicy, *v1alpha1.OverridePolicyList](
+		gentype.NewFakeClientWithListAndApply[*v1alpha1.OverridePolicy, *v1alpha1.OverridePolicyList, *policyv1alpha1.OverridePolicyApplyConfiguration](
 			fake.Fake,
 			namespace,
 			v1alpha1.SchemeGroupVersion.WithResource("overridepolicies"),

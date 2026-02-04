@@ -22,6 +22,7 @@ import (
 	context "context"
 
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	applyconfigurationsworkv1alpha2 "github.com/karmada-io/karmada/pkg/generated/applyconfigurations/work/v1alpha2"
 	scheme "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -47,18 +48,21 @@ type ResourceBindingInterface interface {
 	List(ctx context.Context, opts v1.ListOptions) (*workv1alpha2.ResourceBindingList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
 	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *workv1alpha2.ResourceBinding, err error)
+	Apply(ctx context.Context, resourceBinding *applyconfigurationsworkv1alpha2.ResourceBindingApplyConfiguration, opts v1.ApplyOptions) (result *workv1alpha2.ResourceBinding, err error)
+	// Add a +genclient:noStatus comment above the type to avoid generating ApplyStatus().
+	ApplyStatus(ctx context.Context, resourceBinding *applyconfigurationsworkv1alpha2.ResourceBindingApplyConfiguration, opts v1.ApplyOptions) (result *workv1alpha2.ResourceBinding, err error)
 	ResourceBindingExpansion
 }
 
 // resourceBindings implements ResourceBindingInterface
 type resourceBindings struct {
-	*gentype.ClientWithList[*workv1alpha2.ResourceBinding, *workv1alpha2.ResourceBindingList]
+	*gentype.ClientWithListAndApply[*workv1alpha2.ResourceBinding, *workv1alpha2.ResourceBindingList, *applyconfigurationsworkv1alpha2.ResourceBindingApplyConfiguration]
 }
 
 // newResourceBindings returns a ResourceBindings
 func newResourceBindings(c *WorkV1alpha2Client, namespace string) *resourceBindings {
 	return &resourceBindings{
-		gentype.NewClientWithList[*workv1alpha2.ResourceBinding, *workv1alpha2.ResourceBindingList](
+		gentype.NewClientWithListAndApply[*workv1alpha2.ResourceBinding, *workv1alpha2.ResourceBindingList, *applyconfigurationsworkv1alpha2.ResourceBindingApplyConfiguration](
 			"resourcebindings",
 			c.RESTClient(),
 			scheme.ParameterCodec,

@@ -250,7 +250,7 @@ func TestDeleteClusterEventHandler(t *testing.T) {
 		{
 			name:       "AddAllEventHandlers_TriggerDeleteClusterEvent_DeletedClusterAddedToWorkQueue",
 			restConfig: &rest.Config{},
-			client:     fakekarmadaclient.NewSimpleClientset(),
+			client:     fakekarmadaclient.NewClientset(),
 			restMapper: restmapper.NewDiscoveryRESTMapper(apiGroupResources),
 			prep: func(ctx context.Context, clientConnector *fakekarmadaclient.Clientset, restConfig *rest.Config, restMapper meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error) {
 				factory := informerfactory.NewSharedInformerFactory(clientConnector, time.Second)

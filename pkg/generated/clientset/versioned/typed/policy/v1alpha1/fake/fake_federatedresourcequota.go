@@ -20,19 +20,20 @@ package fake
 
 import (
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	policyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/policy/v1alpha1"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/applyconfigurations/policy/v1alpha1"
+	typedpolicyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/policy/v1alpha1"
 	gentype "k8s.io/client-go/gentype"
 )
 
 // fakeFederatedResourceQuotas implements FederatedResourceQuotaInterface
 type fakeFederatedResourceQuotas struct {
-	*gentype.FakeClientWithList[*v1alpha1.FederatedResourceQuota, *v1alpha1.FederatedResourceQuotaList]
+	*gentype.FakeClientWithListAndApply[*v1alpha1.FederatedResourceQuota, *v1alpha1.FederatedResourceQuotaList, *policyv1alpha1.FederatedResourceQuotaApplyConfiguration]
 	Fake *FakePolicyV1alpha1
 }
 
-func newFakeFederatedResourceQuotas(fake *FakePolicyV1alpha1, namespace string) policyv1alpha1.FederatedResourceQuotaInterface {
+func newFakeFederatedResourceQuotas(fake *FakePolicyV1alpha1, namespace string) typedpolicyv1alpha1.FederatedResourceQuotaInterface {
 	return &fakeFederatedResourceQuotas{
-		gentype.NewFakeClientWithList[*v1alpha1.FederatedResourceQuota, *v1alpha1.FederatedResourceQuotaList](
+		gentype.NewFakeClientWithListAndApply[*v1alpha1.FederatedResourceQuota, *v1alpha1.FederatedResourceQuotaList, *policyv1alpha1.FederatedResourceQuotaApplyConfiguration](
 			fake.Fake,
 			namespace,
 			v1alpha1.SchemeGroupVersion.WithResource("federatedresourcequotas"),

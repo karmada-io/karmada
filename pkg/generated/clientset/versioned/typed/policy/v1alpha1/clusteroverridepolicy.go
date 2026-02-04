@@ -22,6 +22,7 @@ import (
 	context "context"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	applyconfigurationspolicyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/applyconfigurations/policy/v1alpha1"
 	scheme "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -45,18 +46,19 @@ type ClusterOverridePolicyInterface interface {
 	List(ctx context.Context, opts v1.ListOptions) (*policyv1alpha1.ClusterOverridePolicyList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
 	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *policyv1alpha1.ClusterOverridePolicy, err error)
+	Apply(ctx context.Context, clusterOverridePolicy *applyconfigurationspolicyv1alpha1.ClusterOverridePolicyApplyConfiguration, opts v1.ApplyOptions) (result *policyv1alpha1.ClusterOverridePolicy, err error)
 	ClusterOverridePolicyExpansion
 }
 
 // clusterOverridePolicies implements ClusterOverridePolicyInterface
 type clusterOverridePolicies struct {
-	*gentype.ClientWithList[*policyv1alpha1.ClusterOverridePolicy, *policyv1alpha1.ClusterOverridePolicyList]
+	*gentype.ClientWithListAndApply[*policyv1alpha1.ClusterOverridePolicy, *policyv1alpha1.ClusterOverridePolicyList, *applyconfigurationspolicyv1alpha1.ClusterOverridePolicyApplyConfiguration]
 }
 
 // newClusterOverridePolicies returns a ClusterOverridePolicies
 func newClusterOverridePolicies(c *PolicyV1alpha1Client) *clusterOverridePolicies {
 	return &clusterOverridePolicies{
-		gentype.NewClientWithList[*policyv1alpha1.ClusterOverridePolicy, *policyv1alpha1.ClusterOverridePolicyList](
+		gentype.NewClientWithListAndApply[*policyv1alpha1.ClusterOverridePolicy, *policyv1alpha1.ClusterOverridePolicyList, *applyconfigurationspolicyv1alpha1.ClusterOverridePolicyApplyConfiguration](
 			"clusteroverridepolicies",
 			c.RESTClient(),
 			scheme.ParameterCodec,

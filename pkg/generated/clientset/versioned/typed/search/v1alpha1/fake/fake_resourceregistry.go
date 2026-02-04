@@ -20,19 +20,20 @@ package fake
 
 import (
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
-	searchv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/search/v1alpha1"
+	searchv1alpha1 "github.com/karmada-io/karmada/pkg/generated/applyconfigurations/search/v1alpha1"
+	typedsearchv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/search/v1alpha1"
 	gentype "k8s.io/client-go/gentype"
 )
 
 // fakeResourceRegistries implements ResourceRegistryInterface
 type fakeResourceRegistries struct {
-	*gentype.FakeClientWithList[*v1alpha1.ResourceRegistry, *v1alpha1.ResourceRegistryList]
+	*gentype.FakeClientWithListAndApply[*v1alpha1.ResourceRegistry, *v1alpha1.ResourceRegistryList, *searchv1alpha1.ResourceRegistryApplyConfiguration]
 	Fake *FakeSearchV1alpha1
 }
 
-func newFakeResourceRegistries(fake *FakeSearchV1alpha1) searchv1alpha1.ResourceRegistryInterface {
+func newFakeResourceRegistries(fake *FakeSearchV1alpha1) typedsearchv1alpha1.ResourceRegistryInterface {
 	return &fakeResourceRegistries{
-		gentype.NewFakeClientWithList[*v1alpha1.ResourceRegistry, *v1alpha1.ResourceRegistryList](
+		gentype.NewFakeClientWithListAndApply[*v1alpha1.ResourceRegistry, *v1alpha1.ResourceRegistryList, *searchv1alpha1.ResourceRegistryApplyConfiguration](
 			fake.Fake,
 			"",
 			v1alpha1.SchemeGroupVersion.WithResource("resourceregistries"),

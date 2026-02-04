@@ -20,19 +20,20 @@ package fake
 
 import (
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
-	workv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/work/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/generated/applyconfigurations/work/v1alpha1"
+	typedworkv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/work/v1alpha1"
 	gentype "k8s.io/client-go/gentype"
 )
 
 // fakeResourceBindings implements ResourceBindingInterface
 type fakeResourceBindings struct {
-	*gentype.FakeClientWithList[*v1alpha1.ResourceBinding, *v1alpha1.ResourceBindingList]
+	*gentype.FakeClientWithListAndApply[*v1alpha1.ResourceBinding, *v1alpha1.ResourceBindingList, *workv1alpha1.ResourceBindingApplyConfiguration]
 	Fake *FakeWorkV1alpha1
 }
 
-func newFakeResourceBindings(fake *FakeWorkV1alpha1, namespace string) workv1alpha1.ResourceBindingInterface {
+func newFakeResourceBindings(fake *FakeWorkV1alpha1, namespace string) typedworkv1alpha1.ResourceBindingInterface {
 	return &fakeResourceBindings{
-		gentype.NewFakeClientWithList[*v1alpha1.ResourceBinding, *v1alpha1.ResourceBindingList](
+		gentype.NewFakeClientWithListAndApply[*v1alpha1.ResourceBinding, *v1alpha1.ResourceBindingList, *workv1alpha1.ResourceBindingApplyConfiguration](
 			fake.Fake,
 			namespace,
 			v1alpha1.SchemeGroupVersion.WithResource("resourcebindings"),

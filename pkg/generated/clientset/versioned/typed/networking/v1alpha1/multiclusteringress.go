@@ -22,6 +22,7 @@ import (
 	context "context"
 
 	networkingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
+	applyconfigurationsnetworkingv1alpha1 "github.com/karmada-io/karmada/pkg/generated/applyconfigurations/networking/v1alpha1"
 	scheme "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -47,18 +48,21 @@ type MultiClusterIngressInterface interface {
 	List(ctx context.Context, opts v1.ListOptions) (*networkingv1alpha1.MultiClusterIngressList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
 	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *networkingv1alpha1.MultiClusterIngress, err error)
+	Apply(ctx context.Context, multiClusterIngress *applyconfigurationsnetworkingv1alpha1.MultiClusterIngressApplyConfiguration, opts v1.ApplyOptions) (result *networkingv1alpha1.MultiClusterIngress, err error)
+	// Add a +genclient:noStatus comment above the type to avoid generating ApplyStatus().
+	ApplyStatus(ctx context.Context, multiClusterIngress *applyconfigurationsnetworkingv1alpha1.MultiClusterIngressApplyConfiguration, opts v1.ApplyOptions) (result *networkingv1alpha1.MultiClusterIngress, err error)
 	MultiClusterIngressExpansion
 }
 
 // multiClusterIngresses implements MultiClusterIngressInterface
 type multiClusterIngresses struct {
-	*gentype.ClientWithList[*networkingv1alpha1.MultiClusterIngress, *networkingv1alpha1.MultiClusterIngressList]
+	*gentype.ClientWithListAndApply[*networkingv1alpha1.MultiClusterIngress, *networkingv1alpha1.MultiClusterIngressList, *applyconfigurationsnetworkingv1alpha1.MultiClusterIngressApplyConfiguration]
 }
 
 // newMultiClusterIngresses returns a MultiClusterIngresses
 func newMultiClusterIngresses(c *NetworkingV1alpha1Client, namespace string) *multiClusterIngresses {
 	return &multiClusterIngresses{
-		gentype.NewClientWithList[*networkingv1alpha1.MultiClusterIngress, *networkingv1alpha1.MultiClusterIngressList](
+		gentype.NewClientWithListAndApply[*networkingv1alpha1.MultiClusterIngress, *networkingv1alpha1.MultiClusterIngressList, *applyconfigurationsnetworkingv1alpha1.MultiClusterIngressApplyConfiguration](
 			"multiclusteringresses",
 			c.RESTClient(),
 			scheme.ParameterCodec,

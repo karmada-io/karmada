@@ -20,19 +20,20 @@ package fake
 
 import (
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
-	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/autoscaling/v1alpha1"
+	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/generated/applyconfigurations/autoscaling/v1alpha1"
+	typedautoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/autoscaling/v1alpha1"
 	gentype "k8s.io/client-go/gentype"
 )
 
 // fakeFederatedHPAs implements FederatedHPAInterface
 type fakeFederatedHPAs struct {
-	*gentype.FakeClientWithList[*v1alpha1.FederatedHPA, *v1alpha1.FederatedHPAList]
+	*gentype.FakeClientWithListAndApply[*v1alpha1.FederatedHPA, *v1alpha1.FederatedHPAList, *autoscalingv1alpha1.FederatedHPAApplyConfiguration]
 	Fake *FakeAutoscalingV1alpha1
 }
 
-func newFakeFederatedHPAs(fake *FakeAutoscalingV1alpha1, namespace string) autoscalingv1alpha1.FederatedHPAInterface {
+func newFakeFederatedHPAs(fake *FakeAutoscalingV1alpha1, namespace string) typedautoscalingv1alpha1.FederatedHPAInterface {
 	return &fakeFederatedHPAs{
-		gentype.NewFakeClientWithList[*v1alpha1.FederatedHPA, *v1alpha1.FederatedHPAList](
+		gentype.NewFakeClientWithListAndApply[*v1alpha1.FederatedHPA, *v1alpha1.FederatedHPAList, *autoscalingv1alpha1.FederatedHPAApplyConfiguration](
 			fake.Fake,
 			namespace,
 			v1alpha1.SchemeGroupVersion.WithResource("federatedhpas"),

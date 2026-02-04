@@ -22,6 +22,7 @@ import (
 	context "context"
 
 	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
+	applyconfigurationsautoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/generated/applyconfigurations/autoscaling/v1alpha1"
 	scheme "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -47,18 +48,21 @@ type FederatedHPAInterface interface {
 	List(ctx context.Context, opts v1.ListOptions) (*autoscalingv1alpha1.FederatedHPAList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
 	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *autoscalingv1alpha1.FederatedHPA, err error)
+	Apply(ctx context.Context, federatedHPA *applyconfigurationsautoscalingv1alpha1.FederatedHPAApplyConfiguration, opts v1.ApplyOptions) (result *autoscalingv1alpha1.FederatedHPA, err error)
+	// Add a +genclient:noStatus comment above the type to avoid generating ApplyStatus().
+	ApplyStatus(ctx context.Context, federatedHPA *applyconfigurationsautoscalingv1alpha1.FederatedHPAApplyConfiguration, opts v1.ApplyOptions) (result *autoscalingv1alpha1.FederatedHPA, err error)
 	FederatedHPAExpansion
 }
 
 // federatedHPAs implements FederatedHPAInterface
 type federatedHPAs struct {
-	*gentype.ClientWithList[*autoscalingv1alpha1.FederatedHPA, *autoscalingv1alpha1.FederatedHPAList]
+	*gentype.ClientWithListAndApply[*autoscalingv1alpha1.FederatedHPA, *autoscalingv1alpha1.FederatedHPAList, *applyconfigurationsautoscalingv1alpha1.FederatedHPAApplyConfiguration]
 }
 
 // newFederatedHPAs returns a FederatedHPAs
 func newFederatedHPAs(c *AutoscalingV1alpha1Client, namespace string) *federatedHPAs {
 	return &federatedHPAs{
-		gentype.NewClientWithList[*autoscalingv1alpha1.FederatedHPA, *autoscalingv1alpha1.FederatedHPAList](
+		gentype.NewClientWithListAndApply[*autoscalingv1alpha1.FederatedHPA, *autoscalingv1alpha1.FederatedHPAList, *applyconfigurationsautoscalingv1alpha1.FederatedHPAApplyConfiguration](
 			"federatedhpas",
 			c.RESTClient(),
 			scheme.ParameterCodec,

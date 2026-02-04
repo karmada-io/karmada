@@ -20,19 +20,20 @@ package fake
 
 import (
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
-	workv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/work/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/generated/applyconfigurations/work/v1alpha1"
+	typedworkv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/work/v1alpha1"
 	gentype "k8s.io/client-go/gentype"
 )
 
 // fakeWorks implements WorkInterface
 type fakeWorks struct {
-	*gentype.FakeClientWithList[*v1alpha1.Work, *v1alpha1.WorkList]
+	*gentype.FakeClientWithListAndApply[*v1alpha1.Work, *v1alpha1.WorkList, *workv1alpha1.WorkApplyConfiguration]
 	Fake *FakeWorkV1alpha1
 }
 
-func newFakeWorks(fake *FakeWorkV1alpha1, namespace string) workv1alpha1.WorkInterface {
+func newFakeWorks(fake *FakeWorkV1alpha1, namespace string) typedworkv1alpha1.WorkInterface {
 	return &fakeWorks{
-		gentype.NewFakeClientWithList[*v1alpha1.Work, *v1alpha1.WorkList](
+		gentype.NewFakeClientWithListAndApply[*v1alpha1.Work, *v1alpha1.WorkList, *workv1alpha1.WorkApplyConfiguration](
 			fake.Fake,
 			namespace,
 			v1alpha1.SchemeGroupVersion.WithResource("works"),

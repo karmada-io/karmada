@@ -22,6 +22,7 @@ import (
 	context "context"
 
 	searchv1alpha1 "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
+	applyconfigurationssearchv1alpha1 "github.com/karmada-io/karmada/pkg/generated/applyconfigurations/search/v1alpha1"
 	scheme "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -47,18 +48,21 @@ type ResourceRegistryInterface interface {
 	List(ctx context.Context, opts v1.ListOptions) (*searchv1alpha1.ResourceRegistryList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
 	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *searchv1alpha1.ResourceRegistry, err error)
+	Apply(ctx context.Context, resourceRegistry *applyconfigurationssearchv1alpha1.ResourceRegistryApplyConfiguration, opts v1.ApplyOptions) (result *searchv1alpha1.ResourceRegistry, err error)
+	// Add a +genclient:noStatus comment above the type to avoid generating ApplyStatus().
+	ApplyStatus(ctx context.Context, resourceRegistry *applyconfigurationssearchv1alpha1.ResourceRegistryApplyConfiguration, opts v1.ApplyOptions) (result *searchv1alpha1.ResourceRegistry, err error)
 	ResourceRegistryExpansion
 }
 
 // resourceRegistries implements ResourceRegistryInterface
 type resourceRegistries struct {
-	*gentype.ClientWithList[*searchv1alpha1.ResourceRegistry, *searchv1alpha1.ResourceRegistryList]
+	*gentype.ClientWithListAndApply[*searchv1alpha1.ResourceRegistry, *searchv1alpha1.ResourceRegistryList, *applyconfigurationssearchv1alpha1.ResourceRegistryApplyConfiguration]
 }
 
 // newResourceRegistries returns a ResourceRegistries
 func newResourceRegistries(c *SearchV1alpha1Client) *resourceRegistries {
 	return &resourceRegistries{
-		gentype.NewClientWithList[*searchv1alpha1.ResourceRegistry, *searchv1alpha1.ResourceRegistryList](
+		gentype.NewClientWithListAndApply[*searchv1alpha1.ResourceRegistry, *searchv1alpha1.ResourceRegistryList, *applyconfigurationssearchv1alpha1.ResourceRegistryApplyConfiguration](
 			"resourceregistries",
 			c.RESTClient(),
 			scheme.ParameterCodec,
