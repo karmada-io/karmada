@@ -78,7 +78,7 @@ type EndpointSliceCollectController struct {
 
 var (
 	endpointSliceGVR       = discoveryv1.SchemeGroupVersion.WithResource("endpointslices")
-	multiClusterServiceGVK = networkingv1alpha1.SchemeGroupVersion.WithKind("MultiClusterService")
+	multiClusterServiceGVK = schema.GroupVersion{Group: networkingv1alpha1.GroupVersion.Group, Version: networkingv1alpha1.GroupVersion.Version}.WithKind("MultiClusterService")
 )
 
 // EndpointSliceCollectControllerName is the controller name that will be used when reporting events and metrics.

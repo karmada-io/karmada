@@ -123,7 +123,7 @@ var _ = ginkgo.Describe("Resource interpreter webhook testing", func() {
 					newUnstructuredObj, err := helper.ToUnstructured(curWorkload)
 					g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-					workloadGVR := workloadv1alpha1.SchemeGroupVersion.WithResource("workloads")
+					workloadGVR := schema.GroupVersion{Group: workloadv1alpha1.GroupVersion.Group, Version: workloadv1alpha1.GroupVersion.Version}.WithResource("workloads")
 					_, err = dynamicClient.Resource(workloadGVR).Namespace(curWorkload.Namespace).Update(context.TODO(), newUnstructuredObj, metav1.UpdateOptions{})
 					return err
 				}, pollTimeout, pollInterval).ShouldNot(gomega.HaveOccurred())

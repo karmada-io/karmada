@@ -33,7 +33,7 @@ var (
 	PodGVR     = corev1.SchemeGroupVersion.WithResource("pods")
 	NodeGVR    = corev1.SchemeGroupVersion.WithResource("nodes")
 	SecretGVR  = corev1.SchemeGroupVersion.WithResource("secret")
-	ClusterGVR = clusterv1alpha1.SchemeGroupVersion.WithResource("cluster")
+	ClusterGVR = schema.GroupVersion{Group: clusterv1alpha1.GroupVersion.Group, Version: clusterv1alpha1.GroupVersion.Version}.WithResource("cluster")
 
 	PodSelector = searchv1alpha1.ResourceSelector{APIVersion: PodGVK.GroupVersion().String(), Kind: PodGVK.Kind}
 

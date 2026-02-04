@@ -710,7 +710,7 @@ func (d *ResourceDetector) fetchResourceBinding(ctx context.Context, rbNamespace
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			// If not found with client, try using dynamic client
-			gvr := workv1alpha2.SchemeGroupVersion.WithResource(workv1alpha2.ResourcePluralResourceBinding)
+			gvr := schema.GroupVersion{Group: workv1alpha2.GroupVersion.Group, Version: workv1alpha2.GroupVersion.Version}.WithResource(workv1alpha2.ResourcePluralResourceBinding)
 			unstructuredRB, dynamicErr := d.DynamicClient.Resource(gvr).Namespace(rbNamespace).Get(ctx, rbName, metav1.GetOptions{})
 			if dynamicErr != nil {
 				return nil, dynamicErr
@@ -739,7 +739,7 @@ func (d *ResourceDetector) fetchClusterResourceBinding(ctx context.Context, crbN
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			// If not found with client, try using dynamic client
-			gvr := workv1alpha2.SchemeGroupVersion.WithResource(workv1alpha2.ResourcePluralClusterResourceBinding)
+			gvr := schema.GroupVersion{Group: workv1alpha2.GroupVersion.Group, Version: workv1alpha2.GroupVersion.Version}.WithResource(workv1alpha2.ResourcePluralClusterResourceBinding)
 			unstructuredRB, dynamicErr := d.DynamicClient.Resource(gvr).Get(ctx, crbName, metav1.GetOptions{})
 			if dynamicErr != nil {
 				return nil, dynamicErr
@@ -1371,7 +1371,7 @@ func (d *ResourceDetector) CleanupResourceBindingClaimMetadata(rbNamespace, rbNa
 
 		if apierrors.IsConflict(updateErr) {
 			updated := &workv1alpha2.ResourceBinding{}
-			gvr := workv1alpha2.SchemeGroupVersion.WithResource(workv1alpha2.ResourcePluralResourceBinding)
+			gvr := schema.GroupVersion{Group: workv1alpha2.GroupVersion.Group, Version: workv1alpha2.GroupVersion.Version}.WithResource(workv1alpha2.ResourcePluralResourceBinding)
 			if unstructuredRB, dynamicErr := d.DynamicClient.Resource(gvr).Namespace(rbNamespace).Get(context.TODO(), rbName, metav1.GetOptions{}); dynamicErr == nil {
 				// Convert unstructured to ResourceBinding
 				if convertErr := helper.ConvertToTypedObject(unstructuredRB, updated); convertErr != nil {
@@ -1418,7 +1418,7 @@ func (d *ResourceDetector) CleanupClusterResourceBindingClaimMetadata(crbName st
 
 		if apierrors.IsConflict(updateErr) {
 			updated := &workv1alpha2.ClusterResourceBinding{}
-			gvr := workv1alpha2.SchemeGroupVersion.WithResource(workv1alpha2.ResourcePluralClusterResourceBinding)
+			gvr := schema.GroupVersion{Group: workv1alpha2.GroupVersion.Group, Version: workv1alpha2.GroupVersion.Version}.WithResource(workv1alpha2.ResourcePluralClusterResourceBinding)
 			if unstructuredRB, dynamicErr := d.DynamicClient.Resource(gvr).Get(context.TODO(), crbName, metav1.GetOptions{}); dynamicErr == nil {
 				// Convert unstructured to ClusterResourceBinding
 				if convertErr := helper.ConvertToTypedObject(unstructuredRB, updated); convertErr != nil {

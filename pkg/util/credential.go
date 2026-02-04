@@ -22,6 +22,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	kubeclient "k8s.io/client-go/kubernetes"
 
@@ -30,7 +31,7 @@ import (
 )
 
 var (
-	clusterResourceKind = clusterv1alpha1.SchemeGroupVersion.WithKind("Cluster")
+	clusterResourceKind = schema.GroupVersion{Group: clusterv1alpha1.GroupVersion.Group, Version: clusterv1alpha1.GroupVersion.Version}.WithKind("Cluster")
 
 	// Policy rules allowing full access to resources in the cluster or namespace.
 	namespacedPolicyRules = []rbacv1.PolicyRule{

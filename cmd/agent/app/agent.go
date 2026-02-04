@@ -23,6 +23,7 @@ import (
 
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/informers"
@@ -222,8 +223,8 @@ func run(ctx context.Context, opts *options.Options) error {
 		},
 		Controller: config.Controller{
 			GroupKindConcurrency: map[string]int{
-				workv1alpha1.SchemeGroupVersion.WithKind("Work").GroupKind().String():       opts.ConcurrentWorkSyncs,
-				clusterv1alpha1.SchemeGroupVersion.WithKind("Cluster").GroupKind().String(): opts.ConcurrentClusterSyncs,
+				schema.GroupKind{Group: workv1alpha1.GroupName, Kind: "Work"}.String():       opts.ConcurrentWorkSyncs,
+				schema.GroupKind{Group: clusterv1alpha1.GroupName, Kind: "Cluster"}.String(): opts.ConcurrentClusterSyncs,
 			},
 			CacheSyncTimeout: opts.ClusterCacheSyncTimeout.Duration,
 			UsePriorityQueue: ptr.To(features.FeatureGate.Enabled(features.ControllerPriorityQueue)),

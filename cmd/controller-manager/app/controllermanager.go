@@ -191,11 +191,11 @@ func Run(ctx context.Context, opts *options.Options) error {
 		},
 		Controller: config.Controller{
 			GroupKindConcurrency: map[string]int{
-				workv1alpha1.SchemeGroupVersion.WithKind("Work").GroupKind().String():                     opts.ConcurrentWorkSyncs,
-				workv1alpha2.SchemeGroupVersion.WithKind("ResourceBinding").GroupKind().String():          opts.ConcurrentResourceBindingSyncs,
-				workv1alpha2.SchemeGroupVersion.WithKind("ClusterResourceBinding").GroupKind().String():   opts.ConcurrentClusterResourceBindingSyncs,
-				clusterv1alpha1.SchemeGroupVersion.WithKind("Cluster").GroupKind().String():               opts.ConcurrentClusterSyncs,
-				schema.GroupVersionKind{Group: "", Version: "v1", Kind: "Namespace"}.GroupKind().String(): opts.ConcurrentNamespaceSyncs,
+				schema.GroupKind{Group: workv1alpha1.GroupName, Kind: "Work"}.String():                   opts.ConcurrentWorkSyncs,
+				schema.GroupKind{Group: workv1alpha2.GroupName, Kind: "ResourceBinding"}.String():        opts.ConcurrentResourceBindingSyncs,
+				schema.GroupKind{Group: workv1alpha2.GroupName, Kind: "ClusterResourceBinding"}.String(): opts.ConcurrentClusterResourceBindingSyncs,
+				schema.GroupKind{Group: clusterv1alpha1.GroupName, Kind: "Cluster"}.String():             opts.ConcurrentClusterSyncs,
+				schema.GroupKind{Group: "", Kind: "Namespace"}.String():                                  opts.ConcurrentNamespaceSyncs,
 			},
 			CacheSyncTimeout: opts.ClusterCacheSyncTimeout.Duration,
 			UsePriorityQueue: ptr.To(features.FeatureGate.Enabled(features.ControllerPriorityQueue)),
