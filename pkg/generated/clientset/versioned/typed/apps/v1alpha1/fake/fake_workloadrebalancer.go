@@ -20,19 +20,20 @@ package fake
 
 import (
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1"
-	appsv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/apps/v1alpha1"
+	appsv1alpha1 "github.com/karmada-io/karmada/pkg/generated/applyconfigurations/apps/v1alpha1"
+	typedappsv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/apps/v1alpha1"
 	gentype "k8s.io/client-go/gentype"
 )
 
 // fakeWorkloadRebalancers implements WorkloadRebalancerInterface
 type fakeWorkloadRebalancers struct {
-	*gentype.FakeClientWithList[*v1alpha1.WorkloadRebalancer, *v1alpha1.WorkloadRebalancerList]
+	*gentype.FakeClientWithListAndApply[*v1alpha1.WorkloadRebalancer, *v1alpha1.WorkloadRebalancerList, *appsv1alpha1.WorkloadRebalancerApplyConfiguration]
 	Fake *FakeAppsV1alpha1
 }
 
-func newFakeWorkloadRebalancers(fake *FakeAppsV1alpha1) appsv1alpha1.WorkloadRebalancerInterface {
+func newFakeWorkloadRebalancers(fake *FakeAppsV1alpha1) typedappsv1alpha1.WorkloadRebalancerInterface {
 	return &fakeWorkloadRebalancers{
-		gentype.NewFakeClientWithList[*v1alpha1.WorkloadRebalancer, *v1alpha1.WorkloadRebalancerList](
+		gentype.NewFakeClientWithListAndApply[*v1alpha1.WorkloadRebalancer, *v1alpha1.WorkloadRebalancerList, *appsv1alpha1.WorkloadRebalancerApplyConfiguration](
 			fake.Fake,
 			"",
 			v1alpha1.SchemeGroupVersion.WithResource("workloadrebalancers"),

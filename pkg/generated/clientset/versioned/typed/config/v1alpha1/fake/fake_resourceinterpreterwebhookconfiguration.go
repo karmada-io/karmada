@@ -20,19 +20,20 @@ package fake
 
 import (
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
-	configv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/config/v1alpha1"
+	configv1alpha1 "github.com/karmada-io/karmada/pkg/generated/applyconfigurations/config/v1alpha1"
+	typedconfigv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/config/v1alpha1"
 	gentype "k8s.io/client-go/gentype"
 )
 
 // fakeResourceInterpreterWebhookConfigurations implements ResourceInterpreterWebhookConfigurationInterface
 type fakeResourceInterpreterWebhookConfigurations struct {
-	*gentype.FakeClientWithList[*v1alpha1.ResourceInterpreterWebhookConfiguration, *v1alpha1.ResourceInterpreterWebhookConfigurationList]
+	*gentype.FakeClientWithListAndApply[*v1alpha1.ResourceInterpreterWebhookConfiguration, *v1alpha1.ResourceInterpreterWebhookConfigurationList, *configv1alpha1.ResourceInterpreterWebhookConfigurationApplyConfiguration]
 	Fake *FakeConfigV1alpha1
 }
 
-func newFakeResourceInterpreterWebhookConfigurations(fake *FakeConfigV1alpha1) configv1alpha1.ResourceInterpreterWebhookConfigurationInterface {
+func newFakeResourceInterpreterWebhookConfigurations(fake *FakeConfigV1alpha1) typedconfigv1alpha1.ResourceInterpreterWebhookConfigurationInterface {
 	return &fakeResourceInterpreterWebhookConfigurations{
-		gentype.NewFakeClientWithList[*v1alpha1.ResourceInterpreterWebhookConfiguration, *v1alpha1.ResourceInterpreterWebhookConfigurationList](
+		gentype.NewFakeClientWithListAndApply[*v1alpha1.ResourceInterpreterWebhookConfiguration, *v1alpha1.ResourceInterpreterWebhookConfigurationList, *configv1alpha1.ResourceInterpreterWebhookConfigurationApplyConfiguration](
 			fake.Fake,
 			"",
 			v1alpha1.SchemeGroupVersion.WithResource("resourceinterpreterwebhookconfigurations"),

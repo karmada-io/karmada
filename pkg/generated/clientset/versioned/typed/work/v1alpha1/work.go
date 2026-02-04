@@ -22,6 +22,7 @@ import (
 	context "context"
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	applyconfigurationsworkv1alpha1 "github.com/karmada-io/karmada/pkg/generated/applyconfigurations/work/v1alpha1"
 	scheme "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -47,18 +48,21 @@ type WorkInterface interface {
 	List(ctx context.Context, opts v1.ListOptions) (*workv1alpha1.WorkList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
 	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *workv1alpha1.Work, err error)
+	Apply(ctx context.Context, work *applyconfigurationsworkv1alpha1.WorkApplyConfiguration, opts v1.ApplyOptions) (result *workv1alpha1.Work, err error)
+	// Add a +genclient:noStatus comment above the type to avoid generating ApplyStatus().
+	ApplyStatus(ctx context.Context, work *applyconfigurationsworkv1alpha1.WorkApplyConfiguration, opts v1.ApplyOptions) (result *workv1alpha1.Work, err error)
 	WorkExpansion
 }
 
 // works implements WorkInterface
 type works struct {
-	*gentype.ClientWithList[*workv1alpha1.Work, *workv1alpha1.WorkList]
+	*gentype.ClientWithListAndApply[*workv1alpha1.Work, *workv1alpha1.WorkList, *applyconfigurationsworkv1alpha1.WorkApplyConfiguration]
 }
 
 // newWorks returns a Works
 func newWorks(c *WorkV1alpha1Client, namespace string) *works {
 	return &works{
-		gentype.NewClientWithList[*workv1alpha1.Work, *workv1alpha1.WorkList](
+		gentype.NewClientWithListAndApply[*workv1alpha1.Work, *workv1alpha1.WorkList, *applyconfigurationsworkv1alpha1.WorkApplyConfiguration](
 			"works",
 			c.RESTClient(),
 			scheme.ParameterCodec,

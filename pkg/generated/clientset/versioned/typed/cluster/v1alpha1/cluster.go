@@ -22,6 +22,7 @@ import (
 	context "context"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	applyconfigurationsclusterv1alpha1 "github.com/karmada-io/karmada/pkg/generated/applyconfigurations/cluster/v1alpha1"
 	scheme "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -47,18 +48,21 @@ type ClusterInterface interface {
 	List(ctx context.Context, opts v1.ListOptions) (*clusterv1alpha1.ClusterList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
 	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *clusterv1alpha1.Cluster, err error)
+	Apply(ctx context.Context, cluster *applyconfigurationsclusterv1alpha1.ClusterApplyConfiguration, opts v1.ApplyOptions) (result *clusterv1alpha1.Cluster, err error)
+	// Add a +genclient:noStatus comment above the type to avoid generating ApplyStatus().
+	ApplyStatus(ctx context.Context, cluster *applyconfigurationsclusterv1alpha1.ClusterApplyConfiguration, opts v1.ApplyOptions) (result *clusterv1alpha1.Cluster, err error)
 	ClusterExpansion
 }
 
 // clusters implements ClusterInterface
 type clusters struct {
-	*gentype.ClientWithList[*clusterv1alpha1.Cluster, *clusterv1alpha1.ClusterList]
+	*gentype.ClientWithListAndApply[*clusterv1alpha1.Cluster, *clusterv1alpha1.ClusterList, *applyconfigurationsclusterv1alpha1.ClusterApplyConfiguration]
 }
 
 // newClusters returns a Clusters
 func newClusters(c *ClusterV1alpha1Client) *clusters {
 	return &clusters{
-		gentype.NewClientWithList[*clusterv1alpha1.Cluster, *clusterv1alpha1.ClusterList](
+		gentype.NewClientWithListAndApply[*clusterv1alpha1.Cluster, *clusterv1alpha1.ClusterList, *applyconfigurationsclusterv1alpha1.ClusterApplyConfiguration](
 			"clusters",
 			c.RESTClient(),
 			scheme.ParameterCodec,

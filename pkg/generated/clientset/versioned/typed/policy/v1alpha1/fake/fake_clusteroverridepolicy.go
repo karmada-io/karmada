@@ -20,19 +20,20 @@ package fake
 
 import (
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	policyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/policy/v1alpha1"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/applyconfigurations/policy/v1alpha1"
+	typedpolicyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/policy/v1alpha1"
 	gentype "k8s.io/client-go/gentype"
 )
 
 // fakeClusterOverridePolicies implements ClusterOverridePolicyInterface
 type fakeClusterOverridePolicies struct {
-	*gentype.FakeClientWithList[*v1alpha1.ClusterOverridePolicy, *v1alpha1.ClusterOverridePolicyList]
+	*gentype.FakeClientWithListAndApply[*v1alpha1.ClusterOverridePolicy, *v1alpha1.ClusterOverridePolicyList, *policyv1alpha1.ClusterOverridePolicyApplyConfiguration]
 	Fake *FakePolicyV1alpha1
 }
 
-func newFakeClusterOverridePolicies(fake *FakePolicyV1alpha1) policyv1alpha1.ClusterOverridePolicyInterface {
+func newFakeClusterOverridePolicies(fake *FakePolicyV1alpha1) typedpolicyv1alpha1.ClusterOverridePolicyInterface {
 	return &fakeClusterOverridePolicies{
-		gentype.NewFakeClientWithList[*v1alpha1.ClusterOverridePolicy, *v1alpha1.ClusterOverridePolicyList](
+		gentype.NewFakeClientWithListAndApply[*v1alpha1.ClusterOverridePolicy, *v1alpha1.ClusterOverridePolicyList, *policyv1alpha1.ClusterOverridePolicyApplyConfiguration](
 			fake.Fake,
 			"",
 			v1alpha1.SchemeGroupVersion.WithResource("clusteroverridepolicies"),

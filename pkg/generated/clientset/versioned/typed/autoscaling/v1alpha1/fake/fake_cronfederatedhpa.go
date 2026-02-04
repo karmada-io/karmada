@@ -20,19 +20,20 @@ package fake
 
 import (
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
-	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/autoscaling/v1alpha1"
+	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/generated/applyconfigurations/autoscaling/v1alpha1"
+	typedautoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/autoscaling/v1alpha1"
 	gentype "k8s.io/client-go/gentype"
 )
 
 // fakeCronFederatedHPAs implements CronFederatedHPAInterface
 type fakeCronFederatedHPAs struct {
-	*gentype.FakeClientWithList[*v1alpha1.CronFederatedHPA, *v1alpha1.CronFederatedHPAList]
+	*gentype.FakeClientWithListAndApply[*v1alpha1.CronFederatedHPA, *v1alpha1.CronFederatedHPAList, *autoscalingv1alpha1.CronFederatedHPAApplyConfiguration]
 	Fake *FakeAutoscalingV1alpha1
 }
 
-func newFakeCronFederatedHPAs(fake *FakeAutoscalingV1alpha1, namespace string) autoscalingv1alpha1.CronFederatedHPAInterface {
+func newFakeCronFederatedHPAs(fake *FakeAutoscalingV1alpha1, namespace string) typedautoscalingv1alpha1.CronFederatedHPAInterface {
 	return &fakeCronFederatedHPAs{
-		gentype.NewFakeClientWithList[*v1alpha1.CronFederatedHPA, *v1alpha1.CronFederatedHPAList](
+		gentype.NewFakeClientWithListAndApply[*v1alpha1.CronFederatedHPA, *v1alpha1.CronFederatedHPAList, *autoscalingv1alpha1.CronFederatedHPAApplyConfiguration](
 			fake.Fake,
 			namespace,
 			v1alpha1.SchemeGroupVersion.WithResource("cronfederatedhpas"),

@@ -22,6 +22,7 @@ import (
 	context "context"
 
 	networkingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
+	applyconfigurationsnetworkingv1alpha1 "github.com/karmada-io/karmada/pkg/generated/applyconfigurations/networking/v1alpha1"
 	scheme "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -47,18 +48,21 @@ type MultiClusterServiceInterface interface {
 	List(ctx context.Context, opts v1.ListOptions) (*networkingv1alpha1.MultiClusterServiceList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
 	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *networkingv1alpha1.MultiClusterService, err error)
+	Apply(ctx context.Context, multiClusterService *applyconfigurationsnetworkingv1alpha1.MultiClusterServiceApplyConfiguration, opts v1.ApplyOptions) (result *networkingv1alpha1.MultiClusterService, err error)
+	// Add a +genclient:noStatus comment above the type to avoid generating ApplyStatus().
+	ApplyStatus(ctx context.Context, multiClusterService *applyconfigurationsnetworkingv1alpha1.MultiClusterServiceApplyConfiguration, opts v1.ApplyOptions) (result *networkingv1alpha1.MultiClusterService, err error)
 	MultiClusterServiceExpansion
 }
 
 // multiClusterServices implements MultiClusterServiceInterface
 type multiClusterServices struct {
-	*gentype.ClientWithList[*networkingv1alpha1.MultiClusterService, *networkingv1alpha1.MultiClusterServiceList]
+	*gentype.ClientWithListAndApply[*networkingv1alpha1.MultiClusterService, *networkingv1alpha1.MultiClusterServiceList, *applyconfigurationsnetworkingv1alpha1.MultiClusterServiceApplyConfiguration]
 }
 
 // newMultiClusterServices returns a MultiClusterServices
 func newMultiClusterServices(c *NetworkingV1alpha1Client, namespace string) *multiClusterServices {
 	return &multiClusterServices{
-		gentype.NewClientWithList[*networkingv1alpha1.MultiClusterService, *networkingv1alpha1.MultiClusterServiceList](
+		gentype.NewClientWithListAndApply[*networkingv1alpha1.MultiClusterService, *networkingv1alpha1.MultiClusterServiceList, *applyconfigurationsnetworkingv1alpha1.MultiClusterServiceApplyConfiguration](
 			"multiclusterservices",
 			c.RESTClient(),
 			scheme.ParameterCodec,

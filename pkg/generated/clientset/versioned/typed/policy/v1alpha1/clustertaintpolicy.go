@@ -22,6 +22,7 @@ import (
 	context "context"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	applyconfigurationspolicyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/applyconfigurations/policy/v1alpha1"
 	scheme "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -45,18 +46,19 @@ type ClusterTaintPolicyInterface interface {
 	List(ctx context.Context, opts v1.ListOptions) (*policyv1alpha1.ClusterTaintPolicyList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
 	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *policyv1alpha1.ClusterTaintPolicy, err error)
+	Apply(ctx context.Context, clusterTaintPolicy *applyconfigurationspolicyv1alpha1.ClusterTaintPolicyApplyConfiguration, opts v1.ApplyOptions) (result *policyv1alpha1.ClusterTaintPolicy, err error)
 	ClusterTaintPolicyExpansion
 }
 
 // clusterTaintPolicies implements ClusterTaintPolicyInterface
 type clusterTaintPolicies struct {
-	*gentype.ClientWithList[*policyv1alpha1.ClusterTaintPolicy, *policyv1alpha1.ClusterTaintPolicyList]
+	*gentype.ClientWithListAndApply[*policyv1alpha1.ClusterTaintPolicy, *policyv1alpha1.ClusterTaintPolicyList, *applyconfigurationspolicyv1alpha1.ClusterTaintPolicyApplyConfiguration]
 }
 
 // newClusterTaintPolicies returns a ClusterTaintPolicies
 func newClusterTaintPolicies(c *PolicyV1alpha1Client) *clusterTaintPolicies {
 	return &clusterTaintPolicies{
-		gentype.NewClientWithList[*policyv1alpha1.ClusterTaintPolicy, *policyv1alpha1.ClusterTaintPolicyList](
+		gentype.NewClientWithListAndApply[*policyv1alpha1.ClusterTaintPolicy, *policyv1alpha1.ClusterTaintPolicyList, *applyconfigurationspolicyv1alpha1.ClusterTaintPolicyApplyConfiguration](
 			"clustertaintpolicies",
 			c.RESTClient(),
 			scheme.ParameterCodec,

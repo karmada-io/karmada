@@ -22,6 +22,7 @@ import (
 	context "context"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
+	applyconfigurationsconfigv1alpha1 "github.com/karmada-io/karmada/pkg/generated/applyconfigurations/config/v1alpha1"
 	scheme "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -45,18 +46,19 @@ type ResourceInterpreterWebhookConfigurationInterface interface {
 	List(ctx context.Context, opts v1.ListOptions) (*configv1alpha1.ResourceInterpreterWebhookConfigurationList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
 	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *configv1alpha1.ResourceInterpreterWebhookConfiguration, err error)
+	Apply(ctx context.Context, resourceInterpreterWebhookConfiguration *applyconfigurationsconfigv1alpha1.ResourceInterpreterWebhookConfigurationApplyConfiguration, opts v1.ApplyOptions) (result *configv1alpha1.ResourceInterpreterWebhookConfiguration, err error)
 	ResourceInterpreterWebhookConfigurationExpansion
 }
 
 // resourceInterpreterWebhookConfigurations implements ResourceInterpreterWebhookConfigurationInterface
 type resourceInterpreterWebhookConfigurations struct {
-	*gentype.ClientWithList[*configv1alpha1.ResourceInterpreterWebhookConfiguration, *configv1alpha1.ResourceInterpreterWebhookConfigurationList]
+	*gentype.ClientWithListAndApply[*configv1alpha1.ResourceInterpreterWebhookConfiguration, *configv1alpha1.ResourceInterpreterWebhookConfigurationList, *applyconfigurationsconfigv1alpha1.ResourceInterpreterWebhookConfigurationApplyConfiguration]
 }
 
 // newResourceInterpreterWebhookConfigurations returns a ResourceInterpreterWebhookConfigurations
 func newResourceInterpreterWebhookConfigurations(c *ConfigV1alpha1Client) *resourceInterpreterWebhookConfigurations {
 	return &resourceInterpreterWebhookConfigurations{
-		gentype.NewClientWithList[*configv1alpha1.ResourceInterpreterWebhookConfiguration, *configv1alpha1.ResourceInterpreterWebhookConfigurationList](
+		gentype.NewClientWithListAndApply[*configv1alpha1.ResourceInterpreterWebhookConfiguration, *configv1alpha1.ResourceInterpreterWebhookConfigurationList, *applyconfigurationsconfigv1alpha1.ResourceInterpreterWebhookConfigurationApplyConfiguration](
 			"resourceinterpreterwebhookconfigurations",
 			c.RESTClient(),
 			scheme.ParameterCodec,

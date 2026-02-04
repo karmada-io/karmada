@@ -22,6 +22,7 @@ import (
 	context "context"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	applyconfigurationspolicyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/applyconfigurations/policy/v1alpha1"
 	scheme "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -45,18 +46,19 @@ type PropagationPolicyInterface interface {
 	List(ctx context.Context, opts v1.ListOptions) (*policyv1alpha1.PropagationPolicyList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
 	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *policyv1alpha1.PropagationPolicy, err error)
+	Apply(ctx context.Context, propagationPolicy *applyconfigurationspolicyv1alpha1.PropagationPolicyApplyConfiguration, opts v1.ApplyOptions) (result *policyv1alpha1.PropagationPolicy, err error)
 	PropagationPolicyExpansion
 }
 
 // propagationPolicies implements PropagationPolicyInterface
 type propagationPolicies struct {
-	*gentype.ClientWithList[*policyv1alpha1.PropagationPolicy, *policyv1alpha1.PropagationPolicyList]
+	*gentype.ClientWithListAndApply[*policyv1alpha1.PropagationPolicy, *policyv1alpha1.PropagationPolicyList, *applyconfigurationspolicyv1alpha1.PropagationPolicyApplyConfiguration]
 }
 
 // newPropagationPolicies returns a PropagationPolicies
 func newPropagationPolicies(c *PolicyV1alpha1Client, namespace string) *propagationPolicies {
 	return &propagationPolicies{
-		gentype.NewClientWithList[*policyv1alpha1.PropagationPolicy, *policyv1alpha1.PropagationPolicyList](
+		gentype.NewClientWithListAndApply[*policyv1alpha1.PropagationPolicy, *policyv1alpha1.PropagationPolicyList, *applyconfigurationspolicyv1alpha1.PropagationPolicyApplyConfiguration](
 			"propagationpolicies",
 			c.RESTClient(),
 			scheme.ParameterCodec,

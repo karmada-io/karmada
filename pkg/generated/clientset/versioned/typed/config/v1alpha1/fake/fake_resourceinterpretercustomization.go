@@ -20,19 +20,20 @@ package fake
 
 import (
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
-	configv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/config/v1alpha1"
+	configv1alpha1 "github.com/karmada-io/karmada/pkg/generated/applyconfigurations/config/v1alpha1"
+	typedconfigv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/config/v1alpha1"
 	gentype "k8s.io/client-go/gentype"
 )
 
 // fakeResourceInterpreterCustomizations implements ResourceInterpreterCustomizationInterface
 type fakeResourceInterpreterCustomizations struct {
-	*gentype.FakeClientWithList[*v1alpha1.ResourceInterpreterCustomization, *v1alpha1.ResourceInterpreterCustomizationList]
+	*gentype.FakeClientWithListAndApply[*v1alpha1.ResourceInterpreterCustomization, *v1alpha1.ResourceInterpreterCustomizationList, *configv1alpha1.ResourceInterpreterCustomizationApplyConfiguration]
 	Fake *FakeConfigV1alpha1
 }
 
-func newFakeResourceInterpreterCustomizations(fake *FakeConfigV1alpha1) configv1alpha1.ResourceInterpreterCustomizationInterface {
+func newFakeResourceInterpreterCustomizations(fake *FakeConfigV1alpha1) typedconfigv1alpha1.ResourceInterpreterCustomizationInterface {
 	return &fakeResourceInterpreterCustomizations{
-		gentype.NewFakeClientWithList[*v1alpha1.ResourceInterpreterCustomization, *v1alpha1.ResourceInterpreterCustomizationList](
+		gentype.NewFakeClientWithListAndApply[*v1alpha1.ResourceInterpreterCustomization, *v1alpha1.ResourceInterpreterCustomizationList, *configv1alpha1.ResourceInterpreterCustomizationApplyConfiguration](
 			fake.Fake,
 			"",
 			v1alpha1.SchemeGroupVersion.WithResource("resourceinterpretercustomizations"),

@@ -22,6 +22,7 @@ import (
 	context "context"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	applyconfigurationspolicyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/applyconfigurations/policy/v1alpha1"
 	scheme "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -47,18 +48,21 @@ type FederatedResourceQuotaInterface interface {
 	List(ctx context.Context, opts v1.ListOptions) (*policyv1alpha1.FederatedResourceQuotaList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
 	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *policyv1alpha1.FederatedResourceQuota, err error)
+	Apply(ctx context.Context, federatedResourceQuota *applyconfigurationspolicyv1alpha1.FederatedResourceQuotaApplyConfiguration, opts v1.ApplyOptions) (result *policyv1alpha1.FederatedResourceQuota, err error)
+	// Add a +genclient:noStatus comment above the type to avoid generating ApplyStatus().
+	ApplyStatus(ctx context.Context, federatedResourceQuota *applyconfigurationspolicyv1alpha1.FederatedResourceQuotaApplyConfiguration, opts v1.ApplyOptions) (result *policyv1alpha1.FederatedResourceQuota, err error)
 	FederatedResourceQuotaExpansion
 }
 
 // federatedResourceQuotas implements FederatedResourceQuotaInterface
 type federatedResourceQuotas struct {
-	*gentype.ClientWithList[*policyv1alpha1.FederatedResourceQuota, *policyv1alpha1.FederatedResourceQuotaList]
+	*gentype.ClientWithListAndApply[*policyv1alpha1.FederatedResourceQuota, *policyv1alpha1.FederatedResourceQuotaList, *applyconfigurationspolicyv1alpha1.FederatedResourceQuotaApplyConfiguration]
 }
 
 // newFederatedResourceQuotas returns a FederatedResourceQuotas
 func newFederatedResourceQuotas(c *PolicyV1alpha1Client, namespace string) *federatedResourceQuotas {
 	return &federatedResourceQuotas{
-		gentype.NewClientWithList[*policyv1alpha1.FederatedResourceQuota, *policyv1alpha1.FederatedResourceQuotaList](
+		gentype.NewClientWithListAndApply[*policyv1alpha1.FederatedResourceQuota, *policyv1alpha1.FederatedResourceQuotaList, *applyconfigurationspolicyv1alpha1.FederatedResourceQuotaApplyConfiguration](
 			"federatedresourcequotas",
 			c.RESTClient(),
 			scheme.ParameterCodec,

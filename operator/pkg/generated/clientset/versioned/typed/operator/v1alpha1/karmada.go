@@ -22,6 +22,7 @@ import (
 	context "context"
 
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
+	applyconfigurationsoperatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/generated/applyconfigurations/operator/v1alpha1"
 	scheme "github.com/karmada-io/karmada/operator/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -47,18 +48,21 @@ type KarmadaInterface interface {
 	List(ctx context.Context, opts v1.ListOptions) (*operatorv1alpha1.KarmadaList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
 	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *operatorv1alpha1.Karmada, err error)
+	Apply(ctx context.Context, karmada *applyconfigurationsoperatorv1alpha1.KarmadaApplyConfiguration, opts v1.ApplyOptions) (result *operatorv1alpha1.Karmada, err error)
+	// Add a +genclient:noStatus comment above the type to avoid generating ApplyStatus().
+	ApplyStatus(ctx context.Context, karmada *applyconfigurationsoperatorv1alpha1.KarmadaApplyConfiguration, opts v1.ApplyOptions) (result *operatorv1alpha1.Karmada, err error)
 	KarmadaExpansion
 }
 
 // karmadas implements KarmadaInterface
 type karmadas struct {
-	*gentype.ClientWithList[*operatorv1alpha1.Karmada, *operatorv1alpha1.KarmadaList]
+	*gentype.ClientWithListAndApply[*operatorv1alpha1.Karmada, *operatorv1alpha1.KarmadaList, *applyconfigurationsoperatorv1alpha1.KarmadaApplyConfiguration]
 }
 
 // newKarmadas returns a Karmadas
 func newKarmadas(c *OperatorV1alpha1Client, namespace string) *karmadas {
 	return &karmadas{
-		gentype.NewClientWithList[*operatorv1alpha1.Karmada, *operatorv1alpha1.KarmadaList](
+		gentype.NewClientWithListAndApply[*operatorv1alpha1.Karmada, *operatorv1alpha1.KarmadaList, *applyconfigurationsoperatorv1alpha1.KarmadaApplyConfiguration](
 			"karmadas",
 			c.RESTClient(),
 			scheme.ParameterCodec,
