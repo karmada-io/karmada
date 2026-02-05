@@ -50,6 +50,7 @@ func (s *Scheduler) addAllEventHandlers() {
 		Handler: cache.ResourceEventHandlerFuncs{
 			AddFunc:    s.onResourceBindingAdd,
 			UpdateFunc: s.onResourceBindingUpdate,
+			DeleteFunc: s.onResourceBindingDelete,
 		},
 	})
 	if err != nil {
@@ -62,6 +63,7 @@ func (s *Scheduler) addAllEventHandlers() {
 		Handler: cache.ResourceEventHandlerFuncs{
 			AddFunc:    s.onResourceBindingAdd,
 			UpdateFunc: s.onResourceBindingUpdate,
+			DeleteFunc: s.onResourceBindingDelete,
 		},
 	})
 	if err != nil {
@@ -137,6 +139,11 @@ func newQueuedBindingInfo(obj interface{}) *internalqueue.QueuedBindingInfo {
 }
 
 func (s *Scheduler) onResourceBindingAdd(obj interface{}) {
+	// If WorkloadAffinity is enabled, we need to update the scheduler cache to reindex RBs
+	if features.FeatureGate.Enabled(features.WorkloadAffinity) {
+		s.schedulerCache.OnResourceBindingAdd(obj)
+	}
+
 	if features.FeatureGate.Enabled(features.PriorityBasedScheduling) {
 		bindingInfo := newQueuedBindingInfo(obj)
 		if bindingInfo == nil {
@@ -179,6 +186,11 @@ func (s *Scheduler) onResourceBindingUpdate(old, cur interface{}) {
 		return
 	}
 
+	// If WorkloadAffinity is enabled, we need to update the scheduler cache to reindex RBs
+	if features.FeatureGate.Enabled(features.WorkloadAffinity) {
+		s.schedulerCache.OnResourceBindingUpdate(old, cur)
+	}
+
 	if features.FeatureGate.Enabled(features.PriorityBasedScheduling) {
 		bindingInfo := newQueuedBindingInfo(cur)
 		if bindingInfo == nil {
@@ -198,6 +210,13 @@ func (s *Scheduler) onResourceBindingUpdate(old, cur interface{}) {
 		s.queue.Add(key)
 	}
 	metrics.CountSchedulerBindings(metrics.BindingUpdate)
+}
+
+func (s *Scheduler) onResourceBindingDelete(obj interface{}) {
+	// If WorkloadAffinity is enabled, we need to update the scheduler cache to reindex RBs
+	if features.FeatureGate.Enabled(features.WorkloadAffinity) {
+		s.schedulerCache.OnResourceBindingDelete(obj)
+	}
 }
 
 func (s *Scheduler) onResourceBindingRequeue(binding *workv1alpha2.ResourceBinding, event string) {

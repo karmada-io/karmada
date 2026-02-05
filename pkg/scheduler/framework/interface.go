@@ -30,6 +30,7 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/scheduler/cache"
 )
 
 const (
@@ -46,7 +47,7 @@ type Framework interface {
 
 	// RunFilterPlugins runs the set of configured Filter plugins for resources on
 	// the given cluster.
-	RunFilterPlugins(ctx context.Context, bindingSpec *workv1alpha2.ResourceBindingSpec, bindingStatus *workv1alpha2.ResourceBindingStatus, cluster *clusterv1alpha1.Cluster) *Result
+	RunFilterPlugins(ctx context.Context, bindingSpec *workv1alpha2.ResourceBindingSpec, bindingStatus *workv1alpha2.ResourceBindingStatus, cluster *clusterv1alpha1.Cluster, snapshot *cache.Snapshot) *Result
 
 	// RunScorePlugins runs the set of configured Score plugins, it returns a map of plugin names to scores
 	RunScorePlugins(ctx context.Context, spec *workv1alpha2.ResourceBindingSpec, clusters []*clusterv1alpha1.Cluster) (PluginToClusterScores, *Result)
@@ -71,6 +72,9 @@ type FilterContext struct {
 
 	// Cluster is the cluster being evaluated.
 	Cluster *clusterv1alpha1.Cluster
+
+	// Snapshot of the scheduler cache
+	Snapshot *cache.Snapshot
 }
 
 // FilterPlugin is an interface for filter plugins. These filters are used to filter out clusters
@@ -78,7 +82,12 @@ type FilterContext struct {
 type FilterPlugin interface {
 	Plugin
 	// Filter is called by the scheduling framework.
-	Filter(ctx context.Context, bindingSpec *workv1alpha2.ResourceBindingSpec, bindingStatus *workv1alpha2.ResourceBindingStatus, cluster *clusterv1alpha1.Cluster) *Result
+	Filter(
+		ctx context.Context,
+		bindingSpec *workv1alpha2.ResourceBindingSpec,
+		bindingStatus *workv1alpha2.ResourceBindingStatus,
+		cluster *clusterv1alpha1.Cluster,
+	) *Result
 }
 
 // FilterPluginWithContext is an extended interface for filter plugins that use FilterContext.
