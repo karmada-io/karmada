@@ -47,7 +47,7 @@ func TestCreateOrUpdateSecret(t *testing.T) {
 		{
 			name: "create success",
 			args: args{
-				client: fake.NewSimpleClientset(),
+				client: fake.NewClientset(),
 				secret: makeSecret("test"),
 			},
 			wantErr: false,
@@ -55,7 +55,7 @@ func TestCreateOrUpdateSecret(t *testing.T) {
 		{
 			name: "update success",
 			args: args{
-				client: fake.NewSimpleClientset(makeSecret("test")),
+				client: fake.NewClientset(makeSecret("test")),
 				secret: makeSecret("test"),
 			},
 			wantErr: false,
@@ -64,7 +64,7 @@ func TestCreateOrUpdateSecret(t *testing.T) {
 			name: "create error",
 			args: args{
 				client: func() kubernetes.Interface {
-					c := fake.NewSimpleClientset()
+					c := fake.NewClientset()
 					c.PrependReactor("create", "*", func(coretesting.Action) (handled bool, ret runtime.Object, err error) {
 						return true, nil, errors.New("create secret error")
 					})
@@ -78,7 +78,7 @@ func TestCreateOrUpdateSecret(t *testing.T) {
 			name: "update error",
 			args: args{
 				client: func() kubernetes.Interface {
-					c := fake.NewSimpleClientset(makeSecret("test"))
+					c := fake.NewClientset(makeSecret("test"))
 					c.PrependReactor("update", "*", func(coretesting.Action) (handled bool, ret runtime.Object, err error) {
 						return true, nil, errors.New("update secret error")
 					})
@@ -120,7 +120,7 @@ func TestCreateOrUpdateClusterRole(t *testing.T) {
 		{
 			name: "not exist and create",
 			args: args{
-				client:      fake.NewSimpleClientset(),
+				client:      fake.NewClientset(),
 				clusterRole: makeClusterRole("test"),
 			},
 			wantErr: false,
@@ -128,7 +128,7 @@ func TestCreateOrUpdateClusterRole(t *testing.T) {
 		{
 			name: "already exist and update",
 			args: args{
-				client:      fake.NewSimpleClientset(makeClusterRole("test")),
+				client:      fake.NewClientset(makeClusterRole("test")),
 				clusterRole: makeClusterRole("test"),
 			},
 			wantErr: false,
@@ -137,7 +137,7 @@ func TestCreateOrUpdateClusterRole(t *testing.T) {
 			name: "create error",
 			args: args{
 				client: func() kubernetes.Interface {
-					c := fake.NewSimpleClientset()
+					c := fake.NewClientset()
 					c.PrependReactor("create", "*", errorAction)
 					return c
 				}(),
@@ -149,7 +149,7 @@ func TestCreateOrUpdateClusterRole(t *testing.T) {
 			name: "update error",
 			args: args{
 				client: func() kubernetes.Interface {
-					c := fake.NewSimpleClientset(makeClusterRole("test"))
+					c := fake.NewClientset(makeClusterRole("test"))
 					c.PrependReactor("update", "*", errorAction)
 					return c
 				}(),
@@ -180,7 +180,7 @@ func TestCreateOrUpdateClusterRoleBinding(t *testing.T) {
 		{
 			name: "not exist and create",
 			args: args{
-				client:             fake.NewSimpleClientset(),
+				client:             fake.NewClientset(),
 				clusterRoleBinding: makeClusterRoleBinding("test"),
 			},
 			wantErr: false,
@@ -188,7 +188,7 @@ func TestCreateOrUpdateClusterRoleBinding(t *testing.T) {
 		{
 			name: "already exist and update",
 			args: args{
-				client:             fake.NewSimpleClientset(makeClusterRole("test")),
+				client:             fake.NewClientset(makeClusterRole("test")),
 				clusterRoleBinding: makeClusterRoleBinding("test"),
 			},
 			wantErr: false,
@@ -197,7 +197,7 @@ func TestCreateOrUpdateClusterRoleBinding(t *testing.T) {
 			name: "create error",
 			args: args{
 				client: func() kubernetes.Interface {
-					c := fake.NewSimpleClientset()
+					c := fake.NewClientset()
 					c.PrependReactor("create", "*", errorAction)
 					return c
 				}(),
@@ -209,7 +209,7 @@ func TestCreateOrUpdateClusterRoleBinding(t *testing.T) {
 			name: "update error",
 			args: args{
 				client: func() kubernetes.Interface {
-					c := fake.NewSimpleClientset(makeClusterRoleBinding("test"))
+					c := fake.NewClientset(makeClusterRoleBinding("test"))
 					c.PrependReactor("update", "*", errorAction)
 					return c
 				}(),

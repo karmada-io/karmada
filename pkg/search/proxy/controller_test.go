@@ -62,8 +62,8 @@ func TestController(t *testing.T) {
 		},
 	}
 
-	kubeFactory := informers.NewSharedInformerFactory(fake.NewSimpleClientset(), 0)
-	karmadaFactory := karmadainformers.NewSharedInformerFactory(karmadafake.NewSimpleClientset(cluster1, rr), 0)
+	kubeFactory := informers.NewSharedInformerFactory(fake.NewClientset(), 0)
+	karmadaFactory := karmadainformers.NewSharedInformerFactory(karmadafake.NewClientset(cluster1, rr), 0)
 
 	ctrl, err := NewController(NewControllerOption{
 		RestConfig:        restConfig,
@@ -343,7 +343,7 @@ func TestController_reconcile(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			actual := map[string]map[string]*store.MultiNamespace{}
-			karmadaClientset := karmadafake.NewSimpleClientset(tt.input...)
+			karmadaClientset := karmadafake.NewClientset(tt.input...)
 			karmadaFactory := karmadainformers.NewSharedInformerFactory(karmadaClientset, 0)
 
 			ctl := &Controller{

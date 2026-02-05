@@ -77,14 +77,14 @@ func TestGetAPIServiceIP(t *testing.T) {
 	}{
 		{
 			name:    "GetAPIServiceIP_WithNoNodesInTheCluster_FailedToGetAPIServiceIP",
-			client:  fakeclientset.NewSimpleClientset(),
+			client:  fakeclientset.NewClientset(),
 			prep:    func(clientset.Interface) error { return nil },
 			wantErr: true,
 			errMsg:  "there are no nodes in cluster",
 		},
 		{
 			name:   "GetAPIServiceIP_WithoutMasterNode_WorkerNodeAPIServiceIPReturned",
-			client: fakeclientset.NewSimpleClientset(),
+			client: fakeclientset.NewClientset(),
 			prep: func(client clientset.Interface) error {
 				nodes := []*corev1.Node{
 					{
@@ -114,7 +114,7 @@ func TestGetAPIServiceIP(t *testing.T) {
 		},
 		{
 			name:   "GetAPIServiceIP_WithMasterNode_MasterNodeAPIServiceIPReturned",
-			client: fakeclientset.NewSimpleClientset(),
+			client: fakeclientset.NewClientset(),
 			prep: func(client clientset.Interface) error {
 				nodes := []*corev1.Node{
 					{

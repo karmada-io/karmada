@@ -23,28 +23,28 @@ import (
 )
 
 func Test_grantProxyPermissionToAdmin(t *testing.T) {
-	client := fake.NewSimpleClientset()
+	client := fake.NewClientset()
 	if err := grantProxyPermissionToAdmin(client); err != nil {
 		t.Errorf("grantProxyPermissionToAdmin() expected no error, but got err: %v", err)
 	}
 }
 
 func Test_grantAccessPermissionToAgent(t *testing.T) {
-	client := fake.NewSimpleClientset()
+	client := fake.NewClientset()
 	if err := grantAccessPermissionToAgentRBACGenerator(client); err != nil {
 		t.Errorf("grantAccessPermissionToAgentRBACGenerator() expected no error, but got err: %v", err)
 	}
 }
 
 func Test_grantKarmadaPermissionToViewClusterRole(t *testing.T) {
-	client := fake.NewSimpleClientset()
+	client := fake.NewClientset()
 	if err := grantKarmadaPermissionToViewClusterRole(client); err != nil {
 		t.Errorf("grantKarmadaPermissionToViewClusterRole() expected no error, but got err: %v", err)
 	}
 }
 
 func Test_grantKarmadaPermissionToEditClusterRole(t *testing.T) {
-	client := fake.NewSimpleClientset()
+	client := fake.NewClientset()
 	if err := grantKarmadaPermissionToEditClusterRole(client); err != nil {
 		t.Errorf("grantKarmadaPermissionToEditClusterRole() expected no error, but got err: %v", err)
 	}

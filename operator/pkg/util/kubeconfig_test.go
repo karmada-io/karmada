@@ -68,7 +68,7 @@ users:
 	}{
 		{
 			name:   "BuildClientFromSecretRef_GotNetworkIssue_FailedToBuildClient",
-			client: fakeclientset.NewSimpleClientset(),
+			client: fakeclientset.NewClientset(),
 			ref: &operatorv1alpha1.LocalSecretReference{
 				Name:      name,
 				Namespace: namespace,
@@ -84,7 +84,7 @@ users:
 		},
 		{
 			name:   "BuildClientFromSecretRef_WithoutKubeConfig_KubeConfigIsNotFound",
-			client: fakeclientset.NewSimpleClientset(),
+			client: fakeclientset.NewClientset(),
 			ref: &operatorv1alpha1.LocalSecretReference{
 				Name:      name,
 				Namespace: namespace,
@@ -108,7 +108,7 @@ users:
 		},
 		{
 			name:   "BuildClientFromSecretRef_WithKubeconfig_ClientIsBuilt",
-			client: fakeclientset.NewSimpleClientset(),
+			client: fakeclientset.NewClientset(),
 			ref: &operatorv1alpha1.LocalSecretReference{
 				Name:      name,
 				Namespace: namespace,

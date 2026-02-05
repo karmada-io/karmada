@@ -171,7 +171,7 @@ func setup(t *testing.T, resourceQuotaList []*corev1.ResourceQuota, enablePlugin
 	t.Cleanup(cancel)
 	tc.ctx = ctx
 
-	tc.client = fake.NewSimpleClientset()
+	tc.client = fake.NewClientset()
 	tc.informerFactory = informers.NewSharedInformerFactory(tc.client, 0)
 
 	opts := []frameworkruntime.Option{

@@ -114,7 +114,7 @@ func TestRunJoinCluster(t *testing.T) {
 			controlPlaneRestCfg: &rest.Config{},
 			clusterCfg:          &rest.Config{},
 			clusterKubeClient:   fakeclientset.NewClientset(),
-			karmadaClient:       fakekarmadaclient.NewSimpleClientset(),
+			karmadaClient:       fakekarmadaclient.NewClientset(),
 			clusterID:           types.UID(uuid.New().String()),
 			prep: func(karmadaClient karmadaclientset.Interface, _, clusterKubeClient kubeclient.Interface, opts *CommandJoinOption, clusterID types.UID, clusterName string) error {
 				opts.ClusterName = clusterName
@@ -149,7 +149,7 @@ func TestRunJoinCluster(t *testing.T) {
 			clusterCfg:          &rest.Config{},
 			controlKubeClient:   fakeclientset.NewClientset(),
 			clusterKubeClient:   fakeclientset.NewClientset(),
-			karmadaClient:       fakekarmadaclient.NewSimpleClientset(),
+			karmadaClient:       fakekarmadaclient.NewClientset(),
 			clusterID:           types.UID(uuid.New().String()),
 			prep: func(karmadaClient karmadaclientset.Interface, controlKubeClient, clusterKubeClient kubeclient.Interface, opts *CommandJoinOption, clusterID types.UID, clusterName string) error {
 				return prepJoinCluster(karmadaClient, controlKubeClient, clusterKubeClient, opts, clusterID, clusterName)

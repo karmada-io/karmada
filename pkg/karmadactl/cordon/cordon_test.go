@@ -91,7 +91,7 @@ func TestRunCordonOrUncordon(t *testing.T) {
 		{
 			name:                "RunCordonOrUncordon_CordonUncordonedCluster_ClusterCordoned",
 			desiredCordonStatus: DesiredCordon,
-			f:                   testFactory{client: fakekarmadaclient.NewSimpleClientset()},
+			f:                   testFactory{client: fakekarmadaclient.NewClientset()},
 			opts:                &CommandCordonOption{ClusterName: clusterName},
 			prep: func(f util.Factory, _ *CommandCordonOption, _ int) error {
 				return prepClusterCreation(f, clusterName)
@@ -105,7 +105,7 @@ func TestRunCordonOrUncordon(t *testing.T) {
 		{
 			name:                "RunCordonOrUncordon_CordonCordonedCluster_ClusterAlreadyCordoned",
 			desiredCordonStatus: DesiredCordon,
-			f:                   testFactory{client: fakekarmadaclient.NewSimpleClientset()},
+			f:                   testFactory{client: fakekarmadaclient.NewClientset()},
 			opts:                &CommandCordonOption{ClusterName: clusterName},
 			prep: func(f util.Factory, opts *CommandCordonOption, desiredCordonStatus int) error {
 				if err := prepClusterCreation(f, clusterName); err != nil {
@@ -123,7 +123,7 @@ func TestRunCordonOrUncordon(t *testing.T) {
 		{
 			name:                "RunCordonOrUncordon_UncordonCordonedCluster_ClusterUncordoned",
 			desiredCordonStatus: DesiredUnCordon,
-			f:                   testFactory{client: fakekarmadaclient.NewSimpleClientset()},
+			f:                   testFactory{client: fakekarmadaclient.NewClientset()},
 			opts:                &CommandCordonOption{ClusterName: clusterName},
 			prep: func(f util.Factory, opts *CommandCordonOption, _ int) error {
 				if err := prepClusterCreation(f, clusterName); err != nil {
@@ -143,7 +143,7 @@ func TestRunCordonOrUncordon(t *testing.T) {
 		{
 			name:                "RunCordonOrUncordon_UncordonUncordonedCluster_ClusterAlreadyUncordoned",
 			desiredCordonStatus: DesiredUnCordon,
-			f:                   testFactory{client: fakekarmadaclient.NewSimpleClientset()},
+			f:                   testFactory{client: fakekarmadaclient.NewClientset()},
 			opts:                &CommandCordonOption{ClusterName: clusterName},
 			prep: func(f util.Factory, _ *CommandCordonOption, _ int) error {
 				return prepClusterCreation(f, clusterName)

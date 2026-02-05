@@ -111,7 +111,7 @@ func TestResolveCluster(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			clientset := fake.NewSimpleClientset()
+			clientset := fake.NewClientset()
 			if tt.service != nil {
 				_, err := clientset.CoreV1().Services(tt.namespace).Create(context.TODO(), tt.service, metav1.CreateOptions{})
 				if err != nil {

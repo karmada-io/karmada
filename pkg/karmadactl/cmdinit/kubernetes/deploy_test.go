@@ -206,7 +206,7 @@ func TestCommandInitOption_genCerts(t *testing.T) {
 
 func TestInitKarmadaAPIServer(t *testing.T) {
 	// Create a fake clientset
-	clientset := fake.NewSimpleClientset()
+	clientset := fake.NewClientset()
 
 	// Create a new CommandInitOption
 	initOption := &CommandInitOption{
@@ -243,7 +243,7 @@ func TestInitKarmadaAPIServer(t *testing.T) {
 
 func TestCommandInitOption_initKarmadaComponent(t *testing.T) {
 	// Create a fake kube clientset
-	clientSet := fake.NewSimpleClientset()
+	clientSet := fake.NewClientset()
 
 	// Create a new CommandInitOption
 	initOption := &CommandInitOption{

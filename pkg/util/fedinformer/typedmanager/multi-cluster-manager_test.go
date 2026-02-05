@@ -41,7 +41,7 @@ func TestMultiClusterInformerManager(t *testing.T) {
 
 	t.Run("ForCluster", func(_ *testing.T) {
 		cluster := "test-cluster"
-		client := fake.NewSimpleClientset()
+		client := fake.NewClientset()
 		resync := 10 * time.Second
 
 		singleManager := manager.ForCluster(cluster, client, resync)
@@ -70,7 +70,7 @@ func TestMultiClusterInformerManager(t *testing.T) {
 
 	t.Run("Start and Stop", func(t *testing.T) {
 		cluster := "test-cluster-2"
-		client := fake.NewSimpleClientset()
+		client := fake.NewClientset()
 		resync := 10 * time.Second
 
 		manager.ForCluster(cluster, client, resync)
@@ -85,7 +85,7 @@ func TestMultiClusterInformerManager(t *testing.T) {
 
 	t.Run("WaitForCacheSync", func(t *testing.T) {
 		cluster := "test-cluster-3"
-		client := fake.NewSimpleClientset()
+		client := fake.NewClientset()
 		resync := 10 * time.Millisecond
 		singleManager := manager.ForCluster(cluster, client, resync)
 		manager.Start(cluster)
@@ -109,7 +109,7 @@ func TestMultiClusterInformerManager(t *testing.T) {
 
 	t.Run("WaitForCacheSyncWithTimeout", func(t *testing.T) {
 		cluster := "test-cluster-4"
-		client := fake.NewSimpleClientset()
+		client := fake.NewClientset()
 		resync := 10 * time.Millisecond
 		singleManager := manager.ForCluster(cluster, client, resync)
 		manager.Start(cluster)

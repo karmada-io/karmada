@@ -38,7 +38,7 @@ func TestAllowBootstrapTokensToPostCSRs(t *testing.T) {
 	}{
 		{
 			name:   "AllowBootstrapTokensToPostCSRs_CreateClusterRoleBinding_Created",
-			client: fakeclientset.NewSimpleClientset(),
+			client: fakeclientset.NewClientset(),
 			prep:   func(clientset.Interface) error { return nil },
 			verify: func(client clientset.Interface) error {
 				return verifyClusterRoleBinding(client, KarmadaAgentBootstrap, KarmadaAgentBootstrapperClusterRoleName)
@@ -46,7 +46,7 @@ func TestAllowBootstrapTokensToPostCSRs(t *testing.T) {
 		},
 		{
 			name:   "AllowBootstrapTokensToPostCSRs_ClusterRoleBindingAlreadyExists_Updated",
-			client: fakeclientset.NewSimpleClientset(),
+			client: fakeclientset.NewClientset(),
 			prep: func(client clientset.Interface) error {
 				return createClusterRoleBinding(client, KarmadaAgentBootstrap, KarmadaAgentBootstrapperClusterRoleName, KarmadaAgentBootstrapTokenAuthGroup)
 			},
@@ -79,7 +79,7 @@ func TestAutoApproveKarmadaAgentBootstrapTokens(t *testing.T) {
 	}{
 		{
 			name:   "AutoApproveKarmadaAgentBootstrapTokens_CreateClusterRoleBindings_Created",
-			client: fakeclientset.NewSimpleClientset(),
+			client: fakeclientset.NewClientset(),
 			prep:   func(clientset.Interface) error { return nil },
 			verify: func(client clientset.Interface) error {
 				return verifyClusterRoleBinding(client, KarmadaAgentAutoApproveBootstrapClusterRoleBinding, CSRAutoApprovalClusterRoleName)
@@ -87,7 +87,7 @@ func TestAutoApproveKarmadaAgentBootstrapTokens(t *testing.T) {
 		},
 		{
 			name:   "AutoApproveKarmadaAgentBootstrapTokens_ClusterRoleBindingAlreadyExists_Updated",
-			client: fakeclientset.NewSimpleClientset(),
+			client: fakeclientset.NewClientset(),
 			prep: func(client clientset.Interface) error {
 				return createClusterRoleBinding(client, KarmadaAgentAutoApproveBootstrapClusterRoleBinding, CSRAutoApprovalClusterRoleName, KarmadaAgentBootstrapTokenAuthGroup)
 			},
@@ -120,7 +120,7 @@ func TestAutoApproveAgentCertificateRotation(t *testing.T) {
 	}{
 		{
 			name:   "AutoApproveAgentCertificateRotation_CreateClusterRoleBindings_Created",
-			client: fakeclientset.NewSimpleClientset(),
+			client: fakeclientset.NewClientset(),
 			prep:   func(clientset.Interface) error { return nil },
 			verify: func(client clientset.Interface) error {
 				return verifyClusterRoleBinding(client, KarmadaAgentAutoApproveCertificateRotationClusterRoleBinding, KarmadaAgentSelfCSRAutoApprovalClusterRoleName)
@@ -128,7 +128,7 @@ func TestAutoApproveAgentCertificateRotation(t *testing.T) {
 		},
 		{
 			name:   "AutoApproveAgentCertificateRotation_ClusterRoleBindingAlreadyExists_Updated",
-			client: fakeclientset.NewSimpleClientset(),
+			client: fakeclientset.NewClientset(),
 			prep: func(client clientset.Interface) error {
 				return createClusterRoleBinding(client, KarmadaAgentAutoApproveCertificateRotationClusterRoleBinding, KarmadaAgentSelfCSRAutoApprovalClusterRoleName, KarmadaAgentGroup)
 			},

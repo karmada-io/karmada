@@ -36,7 +36,7 @@ func TestCommandInitOption_getKarmadaAPIServerIP(t *testing.T) {
 		{
 			name: "KarmadaAPIServerAdvertiseAddress is not empty",
 			option: CommandInitOption{
-				KubeClientSet:                    fake.NewSimpleClientset(),
+				KubeClientSet:                    fake.NewClientset(),
 				KarmadaAPIServerAdvertiseAddress: "127.0.0.1",
 			},
 			nodes:   []string{"node1"},
@@ -46,7 +46,7 @@ func TestCommandInitOption_getKarmadaAPIServerIP(t *testing.T) {
 		{
 			name: "three nodes but they are not master",
 			option: CommandInitOption{
-				KubeClientSet: fake.NewSimpleClientset(),
+				KubeClientSet: fake.NewClientset(),
 			},
 			nodes:   []string{"node1", "node2", "node3"},
 			labels:  map[string]string{},
@@ -55,7 +55,7 @@ func TestCommandInitOption_getKarmadaAPIServerIP(t *testing.T) {
 		{
 			name: "three master nodes",
 			option: CommandInitOption{
-				KubeClientSet: fake.NewSimpleClientset(),
+				KubeClientSet: fake.NewClientset(),
 			},
 			nodes:   []string{"node1", "node2", "node3"},
 			labels:  map[string]string{"node-role.kubernetes.io/control-plane": ""},
@@ -64,7 +64,7 @@ func TestCommandInitOption_getKarmadaAPIServerIP(t *testing.T) {
 		{
 			name: "no nodes",
 			option: CommandInitOption{
-				KubeClientSet: fake.NewSimpleClientset(),
+				KubeClientSet: fake.NewClientset(),
 			},
 			wantErr: true,
 		},
@@ -191,7 +191,7 @@ func TestCommandInitOption_AddNodeSelectorLabels(t *testing.T) {
 		{
 			name: "there is healthy node",
 			option: CommandInitOption{
-				KubeClientSet: fake.NewSimpleClientset(),
+				KubeClientSet: fake.NewClientset(),
 			},
 			status:  corev1.ConditionTrue,
 			spec:    corev1.NodeSpec{},
@@ -200,7 +200,7 @@ func TestCommandInitOption_AddNodeSelectorLabels(t *testing.T) {
 		{
 			name: "there is unhealthy node",
 			option: CommandInitOption{
-				KubeClientSet: fake.NewSimpleClientset(),
+				KubeClientSet: fake.NewClientset(),
 			},
 			status:  corev1.ConditionFalse,
 			spec:    corev1.NodeSpec{},
@@ -209,7 +209,7 @@ func TestCommandInitOption_AddNodeSelectorLabels(t *testing.T) {
 		{
 			name: "there is taint node",
 			option: CommandInitOption{
-				KubeClientSet: fake.NewSimpleClientset(),
+				KubeClientSet: fake.NewClientset(),
 			},
 			status: corev1.ConditionTrue,
 			spec: corev1.NodeSpec{
@@ -254,7 +254,7 @@ func TestCommandInitOption_isNodeExist(t *testing.T) {
 		{
 			name: "there is matched node",
 			option: CommandInitOption{
-				KubeClientSet: fake.NewSimpleClientset(),
+				KubeClientSet: fake.NewClientset(),
 			},
 			nodeName: "node1",
 			labels:   map[string]string{"foo": "bar"},
@@ -263,7 +263,7 @@ func TestCommandInitOption_isNodeExist(t *testing.T) {
 		{
 			name: "there is no matched node",
 			option: CommandInitOption{
-				KubeClientSet: fake.NewSimpleClientset(),
+				KubeClientSet: fake.NewClientset(),
 			},
 			nodeName: "node2",
 			labels:   map[string]string{"bar": "foo"},

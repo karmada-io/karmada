@@ -179,7 +179,7 @@ func TestPromoteResourceInLegacyCluster(t *testing.T) {
 			},
 			controlPlaneRestConfig:    &rest.Config{},
 			controlPlaneDynamicClient: fakedynamic.NewSimpleDynamicClient(scheme.Scheme),
-			karmadaClient:             fakekarmadaclient.NewSimpleClientset(),
+			karmadaClient:             fakekarmadaclient.NewClientset(),
 			gvr: schema.GroupVersionResource{
 				Group:    "apiextensions.k8s.io",
 				Version:  "v1",
@@ -226,7 +226,7 @@ func TestPromoteResourceInLegacyCluster(t *testing.T) {
 			},
 			controlPlaneRestConfig:    &rest.Config{},
 			controlPlaneDynamicClient: fakedynamic.NewSimpleDynamicClient(scheme.Scheme),
-			karmadaClient:             fakekarmadaclient.NewSimpleClientset(),
+			karmadaClient:             fakekarmadaclient.NewClientset(),
 			gvr: schema.GroupVersionResource{
 				Group:    "apps",
 				Version:  "v1",
@@ -292,7 +292,7 @@ func TestCreatePropagationPolicy(t *testing.T) {
 				Namespace:  names.NamespaceDefault,
 				PolicyName: "webserver-propagation",
 			},
-			client: fakekarmadaclient.NewSimpleClientset(),
+			client: fakekarmadaclient.NewClientset(),
 			prep: func(client karmadaclientset.Interface, promoteOpts *CommandPromoteOption) error {
 				pp := &policyv1alpha1.PropagationPolicy{
 					ObjectMeta: metav1.ObjectMeta{
@@ -315,7 +315,7 @@ func TestCreatePropagationPolicy(t *testing.T) {
 				Namespace:  names.NamespaceDefault,
 				PolicyName: "webserver-propagation",
 			},
-			client: fakekarmadaclient.NewSimpleClientset(),
+			client: fakekarmadaclient.NewClientset(),
 			prep: func(client karmadaclientset.Interface, _ *CommandPromoteOption) error {
 				client.(*fakekarmadaclient.Clientset).Fake.PrependReactor("get", "propagationpolicies", func(coretesting.Action) (bool, runtime.Object, error) {
 					return true, nil, errors.New("unexpected error: encountered a network issue while getting the propagationpolicies")
@@ -333,7 +333,7 @@ func TestCreatePropagationPolicy(t *testing.T) {
 				PolicyName: "webserver-propagation",
 				Cluster:    "member1",
 			},
-			client: fakekarmadaclient.NewSimpleClientset(),
+			client: fakekarmadaclient.NewClientset(),
 			prep: func(client karmadaclientset.Interface, _ *CommandPromoteOption) error {
 				client.(*fakekarmadaclient.Clientset).Fake.PrependReactor("get", "propagationpolicies", func(coretesting.Action) (bool, runtime.Object, error) {
 					return true, nil, errors.New("unexpected error: encountered a network issue while creating the propagationpolicies")
@@ -357,7 +357,7 @@ func TestCreatePropagationPolicy(t *testing.T) {
 				},
 				Deps: true,
 			},
-			client: fakekarmadaclient.NewSimpleClientset(),
+			client: fakekarmadaclient.NewClientset(),
 			prep:   func(karmadaclientset.Interface, *CommandPromoteOption) error { return nil },
 			verify: func(client karmadaclientset.Interface, promoteOpts *CommandPromoteOption) error {
 				if _, err := client.PolicyV1alpha1().PropagationPolicies(promoteOpts.Namespace).Get(context.TODO(), promoteOpts.PolicyName, metav1.GetOptions{}); err != nil {
@@ -411,7 +411,7 @@ func TestCreateClusterPropagationPolicy(t *testing.T) {
 			promoteOpts: &CommandPromoteOption{
 				PolicyName: "crd-cluster-propagation",
 			},
-			client: fakekarmadaclient.NewSimpleClientset(),
+			client: fakekarmadaclient.NewClientset(),
 			prep: func(client karmadaclientset.Interface, promoteOpts *CommandPromoteOption) error {
 				cpp := &policyv1alpha1.ClusterPropagationPolicy{
 					ObjectMeta: metav1.ObjectMeta{
@@ -432,7 +432,7 @@ func TestCreateClusterPropagationPolicy(t *testing.T) {
 			promoteOpts: &CommandPromoteOption{
 				PolicyName: "crd-cluster-propagation",
 			},
-			client: fakekarmadaclient.NewSimpleClientset(),
+			client: fakekarmadaclient.NewClientset(),
 			prep: func(client karmadaclientset.Interface, _ *CommandPromoteOption) error {
 				client.(*fakekarmadaclient.Clientset).Fake.PrependReactor("get", "clusterpropagationpolicies", func(coretesting.Action) (bool, runtime.Object, error) {
 					return true, nil, errors.New("unexpected error: encountered a network issue while getting the cluster propagationpolicies")
@@ -449,7 +449,7 @@ func TestCreateClusterPropagationPolicy(t *testing.T) {
 				PolicyName: "crd-cluster-propagation",
 				Cluster:    "member1",
 			},
-			client: fakekarmadaclient.NewSimpleClientset(),
+			client: fakekarmadaclient.NewClientset(),
 			prep: func(client karmadaclientset.Interface, _ *CommandPromoteOption) error {
 				client.(*fakekarmadaclient.Clientset).Fake.PrependReactor("get", "clusterpropagationpolicies", func(coretesting.Action) (bool, runtime.Object, error) {
 					return true, nil, errors.New("unexpected error: encountered a network issue while creating the cluster propagationpolicies")
@@ -472,7 +472,7 @@ func TestCreateClusterPropagationPolicy(t *testing.T) {
 				},
 				Deps: true,
 			},
-			client: fakekarmadaclient.NewSimpleClientset(),
+			client: fakekarmadaclient.NewClientset(),
 			prep:   func(karmadaclientset.Interface, *CommandPromoteOption) error { return nil },
 			verify: func(client karmadaclientset.Interface, promoteOpts *CommandPromoteOption) error {
 				if _, err := client.PolicyV1alpha1().ClusterPropagationPolicies().Get(context.TODO(), promoteOpts.PolicyName, metav1.GetOptions{}); err != nil {

@@ -27,7 +27,7 @@ import (
 )
 
 func TestEnsureKarmadaRBAC(t *testing.T) {
-	fakeClient := fakeclientset.NewSimpleClientset()
+	fakeClient := fakeclientset.NewClientset()
 	err := EnsureKarmadaRBAC(fakeClient)
 	if err != nil {
 		t.Fatalf("failed to ensure karmada rbac: %v", err)
@@ -40,7 +40,7 @@ func TestEnsureKarmadaRBAC(t *testing.T) {
 }
 
 func TestGrantKarmadaResourceEditClusterrole(t *testing.T) {
-	fakeClient := fakeclientset.NewSimpleClientset()
+	fakeClient := fakeclientset.NewClientset()
 	err := grantKarmadaResourceEditClusterRole(fakeClient)
 	if err != nil {
 		t.Fatalf("failed to grant karmada resource edit clusterrole: %v", err)
@@ -75,7 +75,7 @@ func TestGrantKarmadaResourceEditClusterrole(t *testing.T) {
 }
 
 func TestGrantKarmadaResourceViewClusterrole(t *testing.T) {
-	fakeClient := fakeclientset.NewSimpleClientset()
+	fakeClient := fakeclientset.NewClientset()
 	err := grantKarmadaResourceViewClusterRole(fakeClient)
 	if err != nil {
 		t.Fatalf("failed to grant karmada resource view clusterrole: %v", err)

@@ -24,7 +24,7 @@ import (
 )
 
 func Test_createOrUpdateValidatingWebhookConfiguration(t *testing.T) {
-	client := fake.NewSimpleClientset()
+	client := fake.NewClientset()
 	cfg := validatingConfig(base64.StdEncoding.EncodeToString([]byte("foo")), "bar")
 	if cfg == "" {
 		t.Errorf("validatingConfig() return = %v, want yaml config", cfg)
@@ -35,7 +35,7 @@ func Test_createOrUpdateValidatingWebhookConfiguration(t *testing.T) {
 }
 
 func Test_createOrUpdateMutatingWebhookConfiguration(t *testing.T) {
-	client := fake.NewSimpleClientset()
+	client := fake.NewClientset()
 	cfg := mutatingConfig(base64.StdEncoding.EncodeToString([]byte("foo")), "bar")
 	if cfg == "" {
 		t.Errorf("mutatingConfig() return = %v, want yaml config", cfg)

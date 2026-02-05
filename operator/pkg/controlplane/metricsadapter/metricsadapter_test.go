@@ -56,7 +56,7 @@ func TestEnsureKarmadaMetricAdapter(t *testing.T) {
 	}
 
 	// Create fake clientset.
-	fakeClient := fakeclientset.NewSimpleClientset()
+	fakeClient := fakeclientset.NewClientset()
 
 	err := EnsureKarmadaMetricAdapter(fakeClient, cfg, name, namespace)
 	if err != nil {
@@ -122,7 +122,7 @@ func TestInstallKarmadaMetricAdapter(t *testing.T) {
 	}
 
 	// Create fake clientset.
-	fakeClient := fakeclientset.NewSimpleClientset()
+	fakeClient := fakeclientset.NewClientset()
 
 	err := installKarmadaMetricAdapter(fakeClient, cfg, name, namespace)
 	if err != nil {
@@ -141,7 +141,7 @@ func TestCreateKarmadaMetricAdapterService(t *testing.T) {
 	namespace := "test"
 
 	// Initialize fake clientset.
-	client := fakeclientset.NewSimpleClientset()
+	client := fakeclientset.NewClientset()
 
 	err := createKarmadaMetricAdapterService(client, name, namespace)
 	if err != nil {

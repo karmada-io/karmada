@@ -75,7 +75,7 @@ func TestCommandInitOption_isNodePortExist(t *testing.T) {
 		{
 			name: "there is no svc",
 			option: CommandInitOption{
-				KubeClientSet:            fake.NewSimpleClientset(),
+				KubeClientSet:            fake.NewClientset(),
 				KarmadaAPIServerNodePort: 30000,
 			},
 			exists: false,
@@ -83,7 +83,7 @@ func TestCommandInitOption_isNodePortExist(t *testing.T) {
 		{
 			name: "there is no node port svc",
 			option: CommandInitOption{
-				KubeClientSet:            fake.NewSimpleClientset(),
+				KubeClientSet:            fake.NewClientset(),
 				KarmadaAPIServerNodePort: 30000,
 			},
 			svc: []*corev1.Service{
@@ -97,7 +97,7 @@ func TestCommandInitOption_isNodePortExist(t *testing.T) {
 		{
 			name: "there is node port svc and it's port is same with KarmadaAPIServerNodePort",
 			option: CommandInitOption{
-				KubeClientSet:            fake.NewSimpleClientset(),
+				KubeClientSet:            fake.NewClientset(),
 				KarmadaAPIServerNodePort: 30000,
 			},
 			svc: []*corev1.Service{
@@ -111,7 +111,7 @@ func TestCommandInitOption_isNodePortExist(t *testing.T) {
 		{
 			name: "there is node port svc and it's port is not same with KarmadaAPIServerNodePort",
 			option: CommandInitOption{
-				KubeClientSet:            fake.NewSimpleClientset(),
+				KubeClientSet:            fake.NewClientset(),
 				KarmadaAPIServerNodePort: 30001,
 			},
 			svc: []*corev1.Service{

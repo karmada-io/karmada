@@ -58,7 +58,7 @@ func TestValidateApplyCommand(t *testing.T) {
 			name: "Validate_WithNonExistentCluster_ClusterDoesNotExist",
 			applyOpts: &CommandApplyOptions{
 				Clusters:      []string{"member1"},
-				karmadaClient: fakekarmadaclient.NewSimpleClientset(),
+				karmadaClient: fakekarmadaclient.NewClientset(),
 			},
 			prep:    func(karmadaclientset.Interface) error { return nil },
 			wantErr: true,
@@ -68,7 +68,7 @@ func TestValidateApplyCommand(t *testing.T) {
 			name: "Validate_WithExistentCluster_Validated",
 			applyOpts: &CommandApplyOptions{
 				Clusters:      []string{"member1"},
-				karmadaClient: fakekarmadaclient.NewSimpleClientset(),
+				karmadaClient: fakekarmadaclient.NewClientset(),
 			},
 			prep: func(client karmadaclientset.Interface) error {
 				_, err := client.ClusterV1alpha1().Clusters().Create(context.TODO(), &clusterv1alpha1.Cluster{

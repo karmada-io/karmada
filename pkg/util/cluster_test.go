@@ -68,7 +68,7 @@ func TestCreateOrUpdateClusterObject(t *testing.T) {
 		{
 			name: "cluster exist, and update cluster",
 			args: args{
-				controlPlaneClient: karmadaclientsetfake.NewSimpleClientset(withAPIEndPoint(newCluster(ClusterMember1), "https://127.0.0.1:6443")),
+				controlPlaneClient: karmadaclientsetfake.NewClientset(withAPIEndPoint(newCluster(ClusterMember1), "https://127.0.0.1:6443")),
 				clusterObj:         newCluster(ClusterMember1),
 				mutate: func(cluster *clusterv1alpha1.Cluster) {
 					cluster.Spec.SyncMode = clusterv1alpha1.Pull
@@ -79,7 +79,7 @@ func TestCreateOrUpdateClusterObject(t *testing.T) {
 		{
 			name: "cluster exist and equal, not update",
 			args: args{
-				controlPlaneClient: karmadaclientsetfake.NewSimpleClientset(withSyncMode(withAPIEndPoint(newCluster(ClusterMember1), "https://127.0.0.1:6443"), clusterv1alpha1.Pull)),
+				controlPlaneClient: karmadaclientsetfake.NewClientset(withSyncMode(withAPIEndPoint(newCluster(ClusterMember1), "https://127.0.0.1:6443"), clusterv1alpha1.Pull)),
 				clusterObj:         withSyncMode(withAPIEndPoint(newCluster(ClusterMember1), "https://127.0.0.1:6443"), clusterv1alpha1.Pull),
 				mutate: func(cluster *clusterv1alpha1.Cluster) {
 					cluster.Spec.SyncMode = clusterv1alpha1.Pull
@@ -90,7 +90,7 @@ func TestCreateOrUpdateClusterObject(t *testing.T) {
 		{
 			name: "cluster not exist, and create cluster",
 			args: args{
-				controlPlaneClient: karmadaclientsetfake.NewSimpleClientset(),
+				controlPlaneClient: karmadaclientsetfake.NewClientset(),
 				clusterObj:         newCluster(ClusterMember1),
 				mutate: func(cluster *clusterv1alpha1.Cluster) {
 					cluster.Spec.SyncMode = clusterv1alpha1.Pull
@@ -102,7 +102,7 @@ func TestCreateOrUpdateClusterObject(t *testing.T) {
 			name: "get cluster error",
 			args: args{
 				controlPlaneClient: func() karmadaclientset.Interface {
-					c := karmadaclientsetfake.NewSimpleClientset()
+					c := karmadaclientsetfake.NewClientset()
 					c.PrependReactor("get", "*", errorAction)
 					return c
 				}(),
@@ -118,7 +118,7 @@ func TestCreateOrUpdateClusterObject(t *testing.T) {
 			name: "create cluster error",
 			args: args{
 				controlPlaneClient: func() karmadaclientset.Interface {
-					c := karmadaclientsetfake.NewSimpleClientset()
+					c := karmadaclientsetfake.NewClientset()
 					c.PrependReactor("create", "*", errorAction)
 					return c
 				}(),
@@ -134,7 +134,7 @@ func TestCreateOrUpdateClusterObject(t *testing.T) {
 			name: "update cluster error",
 			args: args{
 				controlPlaneClient: func() karmadaclientset.Interface {
-					c := karmadaclientsetfake.NewSimpleClientset(withAPIEndPoint(newCluster(ClusterMember1), "https://127.0.0.1:6443"))
+					c := karmadaclientsetfake.NewClientset(withAPIEndPoint(newCluster(ClusterMember1), "https://127.0.0.1:6443"))
 					c.PrependReactor("update", "*", errorAction)
 					return c
 				}(),
@@ -153,6 +153,14 @@ func TestCreateOrUpdateClusterObject(t *testing.T) {
 			if (err != nil) != tt.wantErr {
 				t.Errorf("CreateOrUpdateClusterObject() error = %v, wantErr %v", err, tt.wantErr)
 				return
+			}
+			if got != nil {
+				// remove fields injected by fake client
+				got.TypeMeta = metav1.TypeMeta{}
+				got.ResourceVersion = ""
+				got.UID = ""
+				got.Generation = 0
+				got.ManagedFields = nil
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("CreateOrUpdateClusterObject() got = %v, want %v", got, tt.want)
@@ -389,7 +397,7 @@ func TestCreateClusterObject(t *testing.T) {
 		{
 			name: "cluster not exit, and create it",
 			args: args{
-				controlPlaneClient: karmadaclientsetfake.NewSimpleClientset(),
+				controlPlaneClient: karmadaclientsetfake.NewClientset(),
 				clusterObj:         newCluster("test"),
 			},
 			want:    newCluster("test"),
@@ -398,7 +406,7 @@ func TestCreateClusterObject(t *testing.T) {
 		{
 			name: "cluster exits, and return error",
 			args: args{
-				controlPlaneClient: karmadaclientsetfake.NewSimpleClientset(newCluster("test")),
+				controlPlaneClient: karmadaclientsetfake.NewClientset(newCluster("test")),
 				clusterObj:         newCluster("test"),
 			},
 			want:    newCluster("test"),
@@ -408,7 +416,7 @@ func TestCreateClusterObject(t *testing.T) {
 			name: "get cluster error",
 			args: args{
 				controlPlaneClient: func() karmadaclientset.Interface {
-					c := karmadaclientsetfake.NewSimpleClientset()
+					c := karmadaclientsetfake.NewClientset()
 					c.PrependReactor("get", "*", errorAction)
 					return c
 				}(),
@@ -421,7 +429,7 @@ func TestCreateClusterObject(t *testing.T) {
 			name: "create cluster error",
 			args: args{
 				controlPlaneClient: func() karmadaclientset.Interface {
-					c := karmadaclientsetfake.NewSimpleClientset()
+					c := karmadaclientsetfake.NewClientset()
 					c.PrependReactor("create", "*", errorAction)
 					return c
 				}(),
@@ -437,6 +445,14 @@ func TestCreateClusterObject(t *testing.T) {
 			if (err != nil) != tt.wantErr {
 				t.Errorf("CreateClusterObject() error = %v, wantErr %v", err, tt.wantErr)
 				return
+			}
+			if got != nil {
+				// remove fields injected by fake client
+				got.TypeMeta = metav1.TypeMeta{}
+				got.ResourceVersion = ""
+				got.UID = ""
+				got.Generation = 0
+				got.ManagedFields = nil
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("CreateClusterObject() got = %v, want %v", got, tt.want)
@@ -507,7 +523,7 @@ func TestObtainClusterID(t *testing.T) {
 		{
 			name: "namespace not exist",
 			args: args{
-				clusterKubeClient: fake.NewSimpleClientset(),
+				clusterKubeClient: fake.NewClientset(),
 			},
 			want:    "",
 			wantErr: true,
@@ -515,7 +531,7 @@ func TestObtainClusterID(t *testing.T) {
 		{
 			name: "namespace exists",
 			args: args{
-				clusterKubeClient: fake.NewSimpleClientset(&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: metav1.NamespaceSystem, UID: "123"}}),
+				clusterKubeClient: fake.NewClientset(&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: metav1.NamespaceSystem, UID: "123"}}),
 			},
 			want:    "123",
 			wantErr: false,

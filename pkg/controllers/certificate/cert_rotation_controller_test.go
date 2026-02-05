@@ -87,7 +87,7 @@ func makeFakeCertRotationController(threshold float64) *CertRotationController {
 		}).Build()
 	return &CertRotationController{
 		Client:                             client,
-		KubeClient:                         fake.NewSimpleClientset(),
+		KubeClient:                         fake.NewClientset(),
 		CertRotationRemainingTimeThreshold: threshold,
 		ClusterClientSetFunc:               util.NewClusterClientSet,
 		KarmadaKubeconfigNamespace:         "karmada-system",

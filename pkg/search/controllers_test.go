@@ -94,8 +94,8 @@ func TestNewKarmadaSearchController(t *testing.T) {
 			name:       "NewKarmadaSearchController",
 			restConfig: &rest.Config{},
 			restMapper: meta.NewDefaultRESTMapper(nil),
-			client:     fakekarmadaclient.NewSimpleClientset(),
-			factory:    informerfactory.NewSharedInformerFactory(fakekarmadaclient.NewSimpleClientset(), 0),
+			client:     fakekarmadaclient.NewClientset(),
+			factory:    informerfactory.NewSharedInformerFactory(fakekarmadaclient.NewClientset(), 0),
 			prep:       func(*informerfactory.SharedInformerFactory, versioned.Interface) error { return nil },
 			wantErr:    false,
 		},
@@ -131,7 +131,7 @@ func TestAddClusterEventHandler(t *testing.T) {
 		{
 			name:       "AddAllEventHandlers_TriggerAddClusterEvent_ClusterAddedToWorkQueue",
 			restConfig: &rest.Config{},
-			client:     fakekarmadaclient.NewSimpleClientset(),
+			client:     fakekarmadaclient.NewClientset(),
 			restMapper: meta.NewDefaultRESTMapper(nil),
 			prep: func(ctx context.Context, clientConnector *fakekarmadaclient.Clientset, restConfig *rest.Config, restMapper meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error) {
 				factory := informerfactory.NewSharedInformerFactory(clientConnector, time.Second)
@@ -187,7 +187,7 @@ func TestUpdateClusterEventHandler(t *testing.T) {
 		{
 			name:       "AddAllEventHandlers_TriggerUpdateClusterEvent_UpdatedClusterAddedToWorkQueue",
 			restConfig: &rest.Config{},
-			client:     fakekarmadaclient.NewSimpleClientset(),
+			client:     fakekarmadaclient.NewClientset(),
 			restMapper: meta.NewDefaultRESTMapper(nil),
 			prep: func(ctx context.Context, clientConnector *fakekarmadaclient.Clientset, restConfig *rest.Config, restMapper meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error) {
 				factory := informerfactory.NewSharedInformerFactory(clientConnector, time.Second)
@@ -339,7 +339,7 @@ func TestAddResourceRegistryEventHandler(t *testing.T) {
 		{
 			name:       "AddAllEventHandlers_TriggerAddResourceRegistryEvent_ResourceRegistryAddedToWorkQueue",
 			restConfig: &rest.Config{},
-			client:     fakekarmadaclient.NewSimpleClientset(),
+			client:     fakekarmadaclient.NewClientset(),
 			restMapper: restmapper.NewDiscoveryRESTMapper(apiGroupResources),
 			prep: func(ctx context.Context, clientConnector *fakekarmadaclient.Clientset, restConfig *rest.Config, restMapper meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error) {
 				factory := informerfactory.NewSharedInformerFactory(clientConnector, time.Second)
@@ -416,7 +416,7 @@ func TestUpdateResourceRegistryEventHandler(t *testing.T) {
 		{
 			name:       "AddAllEventHandlers_TriggerUpdateResourceRegistryEvent_UpdatedResourceRegistryAddedToWorkQueue",
 			restConfig: &rest.Config{},
-			client:     fakekarmadaclient.NewSimpleClientset(),
+			client:     fakekarmadaclient.NewClientset(),
 			restMapper: restmapper.NewDiscoveryRESTMapper(apiGroupResources),
 			prep: func(ctx context.Context, clientConnector *fakekarmadaclient.Clientset, restConfig *rest.Config, restMapper meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error) {
 				factory := informerfactory.NewSharedInformerFactory(clientConnector, time.Second)
@@ -509,7 +509,7 @@ func TestDeleteResourceRegistryEventHandler(t *testing.T) {
 		{
 			name:       "AddAllEventHandlers_TriggerDeleteResourceRegistryEvent_DeletedResourceRegistryAddedToWorkQueue",
 			restConfig: &rest.Config{},
-			client:     fakekarmadaclient.NewSimpleClientset(),
+			client:     fakekarmadaclient.NewClientset(),
 			restMapper: restmapper.NewDiscoveryRESTMapper(apiGroupResources),
 			prep: func(ctx context.Context, clientConnector *fakekarmadaclient.Clientset, restConfig *rest.Config, restMapper meta.RESTMapper) (*Controller, informerfactory.SharedInformerFactory, error) {
 				factory := informerfactory.NewSharedInformerFactory(clientConnector, time.Second)

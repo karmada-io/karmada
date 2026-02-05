@@ -232,7 +232,7 @@ func TestRunWaitControlPlaneSubTask(t *testing.T) {
 			runData: &TestInitData{
 				Name:                   "karmada-demo",
 				Namespace:              "test",
-				RemoteClientConnector:  fakeclientset.NewSimpleClientset(),
+				RemoteClientConnector:  fakeclientset.NewClientset(),
 				ControlplaneConfigREST: &rest.Config{},
 			},
 			prep: func(workflow.RunData) error {
@@ -247,7 +247,7 @@ func TestRunWaitControlPlaneSubTask(t *testing.T) {
 			runData: &TestInitData{
 				Name:                   "karmada-demo",
 				Namespace:              "test",
-				RemoteClientConnector:  fakeclientset.NewSimpleClientset(),
+				RemoteClientConnector:  fakeclientset.NewClientset(),
 				ControlplaneConfigREST: &rest.Config{},
 			},
 			prep: func(rd workflow.RunData) error {

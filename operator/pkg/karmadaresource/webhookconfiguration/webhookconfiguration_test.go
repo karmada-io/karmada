@@ -36,7 +36,7 @@ func TestEnsureWebhookConfiguration(t *testing.T) {
 	caTestData := "test-ca-data"
 	caBundle := base64.StdEncoding.EncodeToString([]byte(caTestData))
 
-	fakeClient := fakeclientset.NewSimpleClientset()
+	fakeClient := fakeclientset.NewClientset()
 	err := EnsureWebhookConfiguration(fakeClient, namespace, name, caBundle)
 	if err != nil {
 		t.Fatalf("failed to create karmada mutating webhook configuration and validation webhook configuration: %v", err)
@@ -56,7 +56,7 @@ func TestMutatingWebhookConfiguration(t *testing.T) {
 	caTestData := "test-ca-data"
 	caBundle := base64.StdEncoding.EncodeToString([]byte(caTestData))
 
-	fakeClient := fakeclientset.NewSimpleClientset()
+	fakeClient := fakeclientset.NewClientset()
 	err := mutatingWebhookConfiguration(fakeClient, namespace, name, caBundle)
 	if err != nil {
 		t.Fatalf("error creating the mutating webhook configuration: %v", err)
@@ -96,7 +96,7 @@ func TestValidatingWebhookConfiguration(t *testing.T) {
 	caTestData := "test-ca-data"
 	caBundle := base64.StdEncoding.EncodeToString([]byte(caTestData))
 
-	fakeClient := fakeclientset.NewSimpleClientset()
+	fakeClient := fakeclientset.NewClientset()
 	err := validatingWebhookConfiguration(fakeClient, namespace, name, caBundle)
 	if err != nil {
 		t.Fatalf("error creating the mutating webhook configuration: %v", err)

@@ -59,7 +59,7 @@ func TestEnsureKarmadaAPIServer(t *testing.T) {
 		},
 	}
 
-	fakeClient := fakeclientset.NewSimpleClientset()
+	fakeClient := fakeclientset.NewClientset()
 
 	err := EnsureKarmadaAPIServer(fakeClient, cfg, name, namespace, map[string]bool{})
 	if err != nil {
@@ -127,7 +127,7 @@ func TestEnsureKarmadaAggregatedAPIServer(t *testing.T) {
 
 	featureGates := map[string]bool{"FeatureA": true}
 
-	fakeClient := fakeclientset.NewSimpleClientset()
+	fakeClient := fakeclientset.NewClientset()
 
 	err := EnsureKarmadaAggregatedAPIServer(fakeClient, cfg, name, namespace, featureGates)
 	if err != nil {
@@ -179,7 +179,7 @@ func TestInstallKarmadaAPIServer(t *testing.T) {
 	priorityClassName := "system-cluster-critical"
 
 	// Create fake clientset.
-	fakeClient := fakeclientset.NewSimpleClientset()
+	fakeClient := fakeclientset.NewClientset()
 
 	// Define a valid KarmadaAPIServer configuration.
 	cfg := &operatorv1alpha1.KarmadaAPIServer{
@@ -224,7 +224,7 @@ func TestInstallKarmadaAPIServer(t *testing.T) {
 
 func TestCreateKarmadaAPIServerService(t *testing.T) {
 	// Initialize fake clientset.
-	client := fakeclientset.NewSimpleClientset()
+	client := fakeclientset.NewClientset()
 
 	// Define inputs.
 	name := "test-apiserver"
@@ -282,7 +282,7 @@ func TestInstallKarmadaAggregatedAPIServer(t *testing.T) {
 	priorityClassName := "system-cluster-critical"
 
 	// Use fake clientset.
-	fakeClient := fakeclientset.NewSimpleClientset()
+	fakeClient := fakeclientset.NewClientset()
 
 	// Define valid inputs.
 	cfg := &operatorv1alpha1.KarmadaAggregatedAPIServer{
@@ -320,7 +320,7 @@ func TestInstallKarmadaAggregatedAPIServer(t *testing.T) {
 
 func TestCreateKarmadaAggregatedAPIServerService(t *testing.T) {
 	// Initialize fake clientset.
-	client := fakeclientset.NewSimpleClientset()
+	client := fakeclientset.NewClientset()
 
 	// Define inputs.
 	name := "test-agg-server"

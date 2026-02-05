@@ -53,7 +53,7 @@ func TestEnsureKarmadaWebhook(t *testing.T) {
 	}
 
 	// Create fake clientset.
-	fakeClient := fakeclientset.NewSimpleClientset()
+	fakeClient := fakeclientset.NewClientset()
 
 	err := EnsureKarmadaWebhook(fakeClient, cfg, name, namespace, map[string]bool{})
 	if err != nil {
@@ -121,7 +121,7 @@ func TestInstallKarmadaWebhook(t *testing.T) {
 	}
 
 	// Create fake clientset.
-	fakeClient := fakeclientset.NewSimpleClientset()
+	fakeClient := fakeclientset.NewClientset()
 
 	featureGates := map[string]bool{"FeatureA": true}
 
@@ -147,7 +147,7 @@ func TestCreateKarmadaWebhookService(t *testing.T) {
 	namespace := "test"
 
 	// Initialize fake clientset.
-	client := fakeclientset.NewSimpleClientset()
+	client := fakeclientset.NewClientset()
 
 	err := createKarmadaWebhookService(client, name, namespace)
 	if err != nil {

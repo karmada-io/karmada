@@ -111,7 +111,7 @@ func TestRunCerts(t *testing.T) {
 }
 
 func TestSkipCerts(t *testing.T) {
-	client := fakeclientset.NewSimpleClientset()
+	client := fakeclientset.NewClientset()
 	tests := []struct {
 		name     string
 		runData  workflow.RunData

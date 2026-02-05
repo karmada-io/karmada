@@ -93,7 +93,7 @@ func TestEnsureAllControlPlaneComponents(t *testing.T) {
 		},
 	}
 
-	fakeClient := fakeclientset.NewSimpleClientset()
+	fakeClient := fakeclientset.NewClientset()
 
 	components := []string{
 		constants.KubeControllerManagerComponent,

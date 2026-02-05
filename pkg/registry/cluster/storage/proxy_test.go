@@ -70,7 +70,7 @@ func TestProxyREST_Connect(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{Name: "secret", Namespace: "ns"},
 					Data:       map[string][]byte{clusterapis.SecretTokenKey: []byte("token")},
 				},
-				kubeClient: fake.NewSimpleClientset(&corev1.Secret{
+				kubeClient: fake.NewClientset(&corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{Name: "secret", Namespace: "ns"},
 					Data:       map[string][]byte{clusterapis.SecretTokenKey: []byte("token")},
 				}),
@@ -99,7 +99,7 @@ func TestProxyREST_Connect(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{Name: "secret", Namespace: "ns"},
 					Data:       map[string][]byte{clusterapis.SecretTokenKey: []byte("token")},
 				},
-				kubeClient: fake.NewSimpleClientset(&corev1.Secret{
+				kubeClient: fake.NewClientset(&corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{Name: "secret", Namespace: "ns"},
 					Data:       map[string][]byte{clusterapis.SecretTokenKey: []byte("token")},
 				}),
@@ -118,7 +118,7 @@ func TestProxyREST_Connect(t *testing.T) {
 			name: "proxy success without secret cache",
 			fields: fields{
 				secret: &corev1.Secret{},
-				kubeClient: fake.NewSimpleClientset(&corev1.Secret{
+				kubeClient: fake.NewClientset(&corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{Name: "secret", Namespace: "ns"},
 					Data:       map[string][]byte{clusterapis.SecretTokenKey: []byte("token")},
 				}),
@@ -147,7 +147,7 @@ func TestProxyREST_Connect(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{Name: "secret", Namespace: "ns"},
 					Data:       map[string][]byte{clusterapis.SecretTokenKey: []byte("token")},
 				},
-				kubeClient: fake.NewSimpleClientset(),
+				kubeClient: fake.NewClientset(),
 				clusterGetter: func(_ context.Context, name string) (*clusterapis.Cluster, error) {
 					return &clusterapis.Cluster{
 						ObjectMeta: metav1.ObjectMeta{Name: name},
@@ -178,7 +178,7 @@ func TestProxyREST_Connect(t *testing.T) {
 			}
 			resp := httptest.NewRecorder()
 
-			kubeFactory := informers.NewSharedInformerFactory(fake.NewSimpleClientset(tt.fields.secret), 0)
+			kubeFactory := informers.NewSharedInformerFactory(fake.NewClientset(tt.fields.secret), 0)
 			r := &ProxyREST{
 				secretLister:  kubeFactory.Core().V1().Secrets().Lister(),
 				kubeClient:    tt.fields.kubeClient,

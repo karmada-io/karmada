@@ -138,7 +138,7 @@ func TestRunCleanupCertSubTask(t *testing.T) {
 			runData: &TestDeInitData{
 				name:         "karmada-demo",
 				namespace:    "test",
-				remoteClient: fakeclientset.NewSimpleClientset(),
+				remoteClient: fakeclientset.NewClientset(),
 			},
 			wantErr: false,
 		},

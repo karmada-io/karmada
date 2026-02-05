@@ -38,8 +38,11 @@ func TestEnsureAggregatedAPIService(t *testing.T) {
 	caTestData := "test-ca-data"
 	caBundle := base64.StdEncoding.EncodeToString([]byte(caTestData))
 
+	//nolint:staticcheck
+	// Note: disable `deprecation` check SA1019 until we bump to Kuberentes v1.36.
+	// Tracked by: https://github.com/karmada-io/karmada/issues/7009
 	fakeAggregatorClient := fakeAggregator.NewSimpleClientset()
-	fakeClient := fakeclientset.NewSimpleClientset()
+	fakeClient := fakeclientset.NewClientset()
 	err := EnsureAggregatedAPIService(
 		fakeAggregatorClient, fakeClient, name, namespace, name, namespace, caBundle,
 	)
@@ -67,6 +70,9 @@ func TestAggregatedAPIService(t *testing.T) {
 	caTestData := "test-ca-data"
 	caBundle := base64.StdEncoding.EncodeToString([]byte(caTestData))
 
+	//nolint:staticcheck
+	// Note: disable `deprecation` check SA1019 until we bump to Kuberentes v1.36.
+	// Tracked by: https://github.com/karmada-io/karmada/issues/7009
 	fakeClient := fakeAggregator.NewSimpleClientset()
 	err := aggregatedAPIService(fakeClient, name, namespace, caBundle)
 	if err != nil {
@@ -108,7 +114,7 @@ func TestAggregatedAPIService(t *testing.T) {
 func TestAggregatedAPIServerService(t *testing.T) {
 	name, namespace := "karmada-demo", "test"
 
-	fakeClient := fakeclientset.NewSimpleClientset()
+	fakeClient := fakeclientset.NewClientset()
 	err := aggregatedApiserverService(fakeClient, name, namespace, name, namespace)
 	if err != nil {
 		t.Fatalf("failed to create aggregated apiserver service: %v", err)
@@ -154,8 +160,11 @@ func TestEnsureMetricsAdapterAPIService(t *testing.T) {
 	caTestData := "test-ca-data"
 	caBundle := base64.StdEncoding.EncodeToString([]byte(caTestData))
 
+	//nolint:staticcheck
+	// Note: disable `deprecation` check SA1019 until we bump to Kuberentes v1.36.
+	// Tracked by: https://github.com/karmada-io/karmada/issues/7009
 	fakeAggregatorClient := fakeAggregator.NewSimpleClientset()
-	fakeClient := fakeclientset.NewSimpleClientset()
+	fakeClient := fakeclientset.NewClientset()
 	err := EnsureMetricsAdapterAPIService(
 		fakeAggregatorClient, fakeClient, name, namespace, name, namespace, caBundle,
 	)
@@ -183,6 +192,9 @@ func TestKarmadaMetricsAdapterAPIService(t *testing.T) {
 	caTestData := "test-ca-data"
 	caBundle := base64.StdEncoding.EncodeToString([]byte(caTestData))
 
+	//nolint:staticcheck
+	// Note: disable `deprecation` check SA1019 until we bump to Kuberentes v1.36.
+	// Tracked by: https://github.com/karmada-io/karmada/issues/7009
 	fakeAggregatorClient := fakeAggregator.NewSimpleClientset()
 	err := karmadaMetricsAdapterAPIService(fakeAggregatorClient, name, namespace, caBundle)
 	if err != nil {
@@ -241,7 +253,7 @@ func TestKarmadaMetricsAdapterAPIService(t *testing.T) {
 func TestKarmadaMetricsAdapterService(t *testing.T) {
 	name, namespace := "karmada-demo", "test"
 
-	fakeClient := fakeclientset.NewSimpleClientset()
+	fakeClient := fakeclientset.NewClientset()
 	err := karmadaMetricsAdapterService(fakeClient, name, namespace, name, namespace)
 	if err != nil {
 		t.Fatalf("failed to create karmada metrics adapter service: %v", err)
@@ -287,8 +299,11 @@ func TestEnsureSearchAPIService(t *testing.T) {
 	caTestData := "test-ca-data"
 	caBundle := base64.StdEncoding.EncodeToString([]byte(caTestData))
 
+	//nolint:staticcheck
+	// Note: disable `deprecation` check SA1019 until we bump to Kuberentes v1.36.
+	// Tracked by: https://github.com/karmada-io/karmada/issues/7009
 	fakeAggregatorClient := fakeAggregator.NewSimpleClientset()
-	fakeClient := fakeclientset.NewSimpleClientset()
+	fakeClient := fakeclientset.NewClientset()
 	err := EnsureSearchAPIService(
 		fakeAggregatorClient, fakeClient, name, namespace, name, namespace, caBundle,
 	)
@@ -316,6 +331,9 @@ func TestKarmadaSearchAPIService(t *testing.T) {
 	caTestData := "test-ca-data"
 	caBundle := base64.StdEncoding.EncodeToString([]byte(caTestData))
 
+	//nolint:staticcheck
+	// Note: disable `deprecation` check SA1019 until we bump to Kuberentes v1.36.
+	// Tracked by: https://github.com/karmada-io/karmada/issues/7009
 	fakeClient := fakeAggregator.NewSimpleClientset()
 	err := karmadaSearchAPIService(fakeClient, name, namespace, caBundle)
 	if err != nil {
@@ -357,7 +375,7 @@ func TestKarmadaSearchAPIService(t *testing.T) {
 func TestKarmadaSearchService(t *testing.T) {
 	name, namespace := "karmada-demo", "test"
 
-	fakeClient := fakeclientset.NewSimpleClientset()
+	fakeClient := fakeclientset.NewClientset()
 	err := karmadaSearchService(fakeClient, name, namespace, name, namespace)
 	if err != nil {
 		t.Fatalf("failed to create karmada search service: %v", err)
