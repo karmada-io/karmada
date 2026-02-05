@@ -1,5 +1,9 @@
 # test case for interpreting health of DaemonSet
 # case1. DaemonSet interpreting health test
+# case2: Generation mismatch
+# case3: Not all updated pods are available
+# case4: Not all pods updated
+# case5: Zero desired pods
 
 name: "DaemonSet interpreting health test"
 description: "Test interpreting health of DaemonSet"
@@ -52,3 +56,130 @@ observedObj:
     updatedNumberScheduled: 1
 operation: InterpretHealth
 output:
+  healthy: true
+
+---
+name: "DaemonSet unhealthy - generation mismatch"
+description: "Test InterpretHealth returns false when observedGeneration doesn't match generation"
+observedObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: DaemonSet
+  metadata:
+    name: sample
+    namespace: test-kruise-daemonset
+    generation: 5
+  spec:
+    selector:
+      matchLabels:
+        app: sample-daemonset
+    template:
+      metadata:
+        labels:
+          app: sample-daemonset
+      spec:
+        containers:
+          - name: nginx
+            image: nginx:alpine
+  status:
+    observedGeneration: 3
+    desiredNumberScheduled: 3
+    updatedNumberScheduled: 3
+    numberAvailable: 3
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "DaemonSet unhealthy - not all updated pods available"
+description: "Test InterpretHealth returns false when numberAvailable < updatedNumberScheduled"
+observedObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: DaemonSet
+  metadata:
+    name: sample
+    namespace: test-kruise-daemonset
+    generation: 2
+  spec:
+    selector:
+      matchLabels:
+        app: sample-daemonset
+    template:
+      metadata:
+        labels:
+          app: sample-daemonset
+      spec:
+        containers:
+          - name: nginx
+            image: nginx:alpine
+  status:
+    observedGeneration: 2
+    desiredNumberScheduled: 5
+    updatedNumberScheduled: 5
+    numberAvailable: 3
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "DaemonSet unhealthy - not all pods updated"
+description: "Test InterpretHealth returns false when updatedNumberScheduled < desiredNumberScheduled"
+observedObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: DaemonSet
+  metadata:
+    name: sample
+    namespace: test-kruise-daemonset
+    generation: 2
+  spec:
+    selector:
+      matchLabels:
+        app: sample-daemonset
+    template:
+      metadata:
+        labels:
+          app: sample-daemonset
+      spec:
+        containers:
+          - name: nginx
+            image: nginx:alpine
+  status:
+    observedGeneration: 2
+    desiredNumberScheduled: 5
+    updatedNumberScheduled: 3
+    numberAvailable: 3
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "DaemonSet healthy - zero desired pods"
+description: "Test InterpretHealth returns true when desiredNumberScheduled is 0"
+observedObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: DaemonSet
+  metadata:
+    name: sample
+    namespace: test-kruise-daemonset
+    generation: 1
+  spec:
+    selector:
+      matchLabels:
+        app: sample-daemonset
+    template:
+      metadata:
+        labels:
+          app: sample-daemonset
+      spec:
+        containers:
+          - name: nginx
+            image: nginx:alpine
+  status:
+    observedGeneration: 1
+    desiredNumberScheduled: 0
+    updatedNumberScheduled: 0
+    numberAvailable: 0
+    currentNumberScheduled: 0
+    numberReady: 0
+operation: InterpretHealth
+output:
+  healthy: true
