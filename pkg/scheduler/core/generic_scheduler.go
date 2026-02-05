@@ -120,7 +120,7 @@ func (g *genericScheduler) findClustersThatFit(
 	ctx context.Context,
 	bindingSpec *workv1alpha2.ResourceBindingSpec,
 	bindingStatus *workv1alpha2.ResourceBindingStatus,
-	clusterInfo *cache.Snapshot,
+	snapshot *cache.Snapshot,
 ) ([]*clusterv1alpha1.Cluster, framework.Diagnosis, error) {
 	startTime := time.Now()
 	defer metrics.ScheduleStep(metrics.ScheduleStepFilter, startTime)
@@ -131,20 +131,20 @@ func (g *genericScheduler) findClustersThatFit(
 
 	var out []*clusterv1alpha1.Cluster
 	// DO NOT filter unhealthy cluster, let users make decisions by using ClusterTolerations of Placement.
-	clusters := clusterInfo.GetClusters()
+	clusters := snapshot.GetClusters()
 	for _, c := range clusters {
 		// When cluster is deleting, we will clean up the scheduled results in the cluster.
 		// So we should not schedule resource to the deleting cluster.
-		if !c.Cluster().DeletionTimestamp.IsZero() {
-			klog.V(4).Infof("Cluster %q is deleting, skip it", c.Cluster().Name)
+		if !c.DeletionTimestamp.IsZero() {
+			klog.V(4).Infof("Cluster %q is deleting, skip it", c.Name)
 			continue
 		}
 
-		if result := g.scheduleFramework.RunFilterPlugins(ctx, bindingSpec, bindingStatus, c.Cluster()); !result.IsSuccess() {
-			klog.V(4).Infof("Cluster %q is not fit, reason: %v", c.Cluster().Name, result.AsError())
-			diagnosis.ClusterToResultMap[c.Cluster().Name] = result
+		if result := g.scheduleFramework.RunFilterPlugins(ctx, bindingSpec, bindingStatus, c, snapshot); !result.IsSuccess() {
+			klog.V(4).Infof("Cluster %q is not fit, reason: %v", c.Name, result.AsError())
+			diagnosis.ClusterToResultMap[c.Name] = result
 		} else {
-			out = append(out, c.Cluster())
+			out = append(out, c)
 		}
 	}
 

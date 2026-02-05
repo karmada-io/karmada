@@ -112,7 +112,7 @@ func TestTaintToleration_Filter(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := p.Filter(context.Background(), tt.bindingSpec, nil, tt.cluster)
+			result := p.Filter(context.Background(), tt.bindingSpec, nil, tt.cluster, nil)
 			assert.Equal(t, tt.expectedCode, result.Code())
 			if tt.expectedReason != "" {
 				assert.Contains(t, result.AsError().Error(), tt.expectedReason)
