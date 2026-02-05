@@ -58,6 +58,11 @@ const (
 	// - Manifest in Work object: describes the name of ClusterResourceBinding which the manifest derived from.
 	ClusterResourceBindingAnnotationKey = "clusterresourcebinding.karmada.io/name"
 
+	// TargetClustersHashAnnotation is added to ResourceBinding/ClusterResourceBinding to record
+	// the hash of target clusters. This is used to determine if orphan work check is needed.
+	// Only when target clusters change (hash differs), the orphan check will be performed.
+	TargetClustersHashAnnotation = "resourcebinding.karmada.io/target-clusters-hash"
+
 	// BindingManagedByLabel is added to ResourceBinding to represent what kind of resource manages this Binding.
 	BindingManagedByLabel = "binding.karmada.io/managed-by"
 

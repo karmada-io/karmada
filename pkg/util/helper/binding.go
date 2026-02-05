@@ -18,6 +18,7 @@ package helper
 
 import (
 	"context"
+	"fmt"
 	"hash/fnv"
 
 	corev1 "k8s.io/api/core/v1"
@@ -223,6 +224,27 @@ func ObtainClustersWithPurgeModeDirectly(bindingSpec workv1alpha2.ResourceBindin
 		}
 	}
 	return clusterNames
+}
+
+// GetTargetClustersHash computes a hash of target clusters for orphan work check optimization.
+// By comparing the hash, we can determine if target clusters have changed and whether
+// orphan work check is needed. This avoids unnecessary List API calls.
+func GetTargetClustersHash(clusters []workv1alpha2.TargetCluster, requiredBy []workv1alpha2.BindingSnapshot) string {
+	h := fnv.New32a()
+
+	// Hash clusters
+	for _, cluster := range clusters {
+		h.Write([]byte(cluster.Name))
+	}
+
+	// Hash requiredBy clusters
+	for _, snapshot := range requiredBy {
+		for _, cluster := range snapshot.Clusters {
+			h.Write([]byte(cluster.Name))
+		}
+	}
+
+	return fmt.Sprintf("%x", h.Sum32())
 }
 
 // FindOrphanWorks retrieves all works that labeled with current binding(ResourceBinding or ClusterResourceBinding) objects,
