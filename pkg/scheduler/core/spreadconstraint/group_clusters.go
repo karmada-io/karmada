@@ -213,6 +213,9 @@ func (info *GroupClustersInfo) calcGroupScoreForDuplicate(
 	// Group2's Score = 2 * 1000 + 0 = 2000
 
 	// the priority of validClusters is higher than sumValidScore.
+	if validClusters == 0 {
+		return 0
+	}
 	weightedValidClusters := validClusters * weightUnit
 	return weightedValidClusters + sumValidScore/validClusters
 }

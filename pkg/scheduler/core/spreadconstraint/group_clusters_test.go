@@ -378,3 +378,38 @@ func Test_CalcGroupScore(t *testing.T) {
 		})
 	}
 }
+
+func Test_CalcGroupScoreForDuplicate(t *testing.T) {
+	tests := []struct {
+		name     string
+		clusters []ClusterDetailInfo
+		rbSpec   *workv1alpha2.ResourceBindingSpec
+		watScore int64
+	}{
+		{
+			name:     "get 0 score when clusters is empty",
+			clusters: []ClusterDetailInfo{},
+			rbSpec:   &workv1alpha2.ResourceBindingSpec{Replicas: 10},
+			watScore: 0,
+		},
+		{
+			name: "get 0 score when all clusters can not meet the replica requirements",
+			clusters: []ClusterDetailInfo{
+				{Name: "member1", Score: 50, AvailableReplicas: 5},
+				{Name: "member2", Score: 50, AvailableReplicas: 5},
+			},
+			rbSpec:   &workv1alpha2.ResourceBindingSpec{Replicas: 10},
+			watScore: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			groupClustersInfo := &GroupClustersInfo{}
+			score := groupClustersInfo.calcGroupScoreForDuplicate(tt.clusters, tt.rbSpec)
+			if score != tt.watScore {
+				t.Errorf("calcGroupScoreForDuplicate: want score %v, but got %v", tt.watScore, score)
+			}
+		})
+	}
+}
