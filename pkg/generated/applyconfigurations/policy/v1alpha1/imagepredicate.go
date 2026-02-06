@@ -20,7 +20,10 @@ package v1alpha1
 
 // ImagePredicateApplyConfiguration represents a declarative configuration of the ImagePredicate type for use
 // with apply.
+//
+// ImagePredicate describes images filter.
 type ImagePredicateApplyConfiguration struct {
+	// Path indicates the path of target field
 	Path *string `json:"path,omitempty"`
 }
 

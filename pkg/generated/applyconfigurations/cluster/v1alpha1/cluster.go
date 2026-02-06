@@ -29,11 +29,15 @@ import (
 
 // ClusterApplyConfiguration represents a declarative configuration of the Cluster type for use
 // with apply.
+//
+// Cluster represents the desired state and status of a member cluster.
 type ClusterApplyConfiguration struct {
 	v1.TypeMetaApplyConfiguration    `json:",inline"`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
-	Spec                             *ClusterSpecApplyConfiguration   `json:"spec,omitempty"`
-	Status                           *ClusterStatusApplyConfiguration `json:"status,omitempty"`
+	// Spec represents the specification of the desired behavior of member cluster.
+	Spec *ClusterSpecApplyConfiguration `json:"spec,omitempty"`
+	// Status represents the status of member cluster.
+	Status *ClusterStatusApplyConfiguration `json:"status,omitempty"`
 }
 
 // Cluster constructs a declarative configuration of the Cluster type for use with
@@ -46,29 +50,14 @@ func Cluster(name string) *ClusterApplyConfiguration {
 	return b
 }
 
-// ExtractCluster extracts the applied configuration owned by fieldManager from
-// cluster. If no managedFields are found in cluster for fieldManager, a
-// ClusterApplyConfiguration is returned with only the Name, Namespace (if applicable),
-// APIVersion and Kind populated. It is possible that no managed fields were found for because other
-// field managers have taken ownership of all the fields previously owned by fieldManager, or because
-// the fieldManager never owned fields any fields.
+// ExtractClusterFrom extracts the applied configuration owned by fieldManager from
+// cluster for the specified subresource. Pass an empty string for subresource to extract
+// the main resource. Common subresources include "status", "scale", etc.
 // cluster must be a unmodified Cluster API object that was retrieved from the Kubernetes API.
-// ExtractCluster provides a way to perform a extract/modify-in-place/apply workflow.
+// ExtractClusterFrom provides a way to perform a extract/modify-in-place/apply workflow.
 // Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
 // applied if another fieldManager has updated or force applied any of the previously applied fields.
-// Experimental!
-func ExtractCluster(cluster *clusterv1alpha1.Cluster, fieldManager string) (*ClusterApplyConfiguration, error) {
-	return extractCluster(cluster, fieldManager, "")
-}
-
-// ExtractClusterStatus is the same as ExtractCluster except
-// that it extracts the status subresource applied configuration.
-// Experimental!
-func ExtractClusterStatus(cluster *clusterv1alpha1.Cluster, fieldManager string) (*ClusterApplyConfiguration, error) {
-	return extractCluster(cluster, fieldManager, "status")
-}
-
-func extractCluster(cluster *clusterv1alpha1.Cluster, fieldManager string, subresource string) (*ClusterApplyConfiguration, error) {
+func ExtractClusterFrom(cluster *clusterv1alpha1.Cluster, fieldManager string, subresource string) (*ClusterApplyConfiguration, error) {
 	b := &ClusterApplyConfiguration{}
 	err := managedfields.ExtractInto(cluster, internal.Parser().Type("com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.Cluster"), fieldManager, b, subresource)
 	if err != nil {
@@ -80,6 +69,27 @@ func extractCluster(cluster *clusterv1alpha1.Cluster, fieldManager string, subre
 	b.WithAPIVersion("cluster.karmada.io/v1alpha1")
 	return b, nil
 }
+
+// ExtractCluster extracts the applied configuration owned by fieldManager from
+// cluster. If no managedFields are found in cluster for fieldManager, a
+// ClusterApplyConfiguration is returned with only the Name, Namespace (if applicable),
+// APIVersion and Kind populated. It is possible that no managed fields were found for because other
+// field managers have taken ownership of all the fields previously owned by fieldManager, or because
+// the fieldManager never owned fields any fields.
+// cluster must be a unmodified Cluster API object that was retrieved from the Kubernetes API.
+// ExtractCluster provides a way to perform a extract/modify-in-place/apply workflow.
+// Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
+// applied if another fieldManager has updated or force applied any of the previously applied fields.
+func ExtractCluster(cluster *clusterv1alpha1.Cluster, fieldManager string) (*ClusterApplyConfiguration, error) {
+	return ExtractClusterFrom(cluster, fieldManager, "")
+}
+
+// ExtractClusterStatus extracts the applied configuration owned by fieldManager from
+// cluster for the status subresource.
+func ExtractClusterStatus(cluster *clusterv1alpha1.Cluster, fieldManager string) (*ClusterApplyConfiguration, error) {
+	return ExtractClusterFrom(cluster, fieldManager, "status")
+}
+
 func (b ClusterApplyConfiguration) IsApplyConfiguration() {}
 
 // WithKind sets the Kind field in the declarative configuration to the given value

@@ -20,9 +20,14 @@ package v1alpha1
 
 // APIEnablementApplyConfiguration represents a declarative configuration of the APIEnablement type for use
 // with apply.
+//
+// APIEnablement is a list of API resource, it is used to expose the name of the
+// resources supported in a specific group and version.
 type APIEnablementApplyConfiguration struct {
-	GroupVersion *string                         `json:"groupVersion,omitempty"`
-	Resources    []APIResourceApplyConfiguration `json:"resources,omitempty"`
+	// GroupVersion is the group and version this APIEnablement is for.
+	GroupVersion *string `json:"groupVersion,omitempty"`
+	// Resources is a list of APIResource.
+	Resources []APIResourceApplyConfiguration `json:"resources,omitempty"`
 }
 
 // APIEnablementApplyConfiguration constructs a declarative configuration of the APIEnablement type for use with

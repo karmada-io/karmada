@@ -25,10 +25,18 @@ import (
 
 // MatchConditionApplyConfiguration represents a declarative configuration of the MatchCondition type for use
 // with apply.
+//
+// MatchCondition represents the condition match detail of activating the failover
+// relevant taints on target clusters.
 type MatchConditionApplyConfiguration struct {
-	ConditionType *string                                `json:"conditionType,omitempty"`
-	Operator      *policyv1alpha1.MatchConditionOperator `json:"operator,omitempty"`
-	StatusValues  []v1.ConditionStatus                   `json:"statusValues,omitempty"`
+	// ConditionType specifies the ClusterStatus condition type.
+	ConditionType *string `json:"conditionType,omitempty"`
+	// Operator represents a relationship to a set of values.
+	// Valid operators are In, NotIn.
+	Operator *policyv1alpha1.MatchConditionOperator `json:"operator,omitempty"`
+	// StatusValues is an array of metav1.ConditionStatus values.
+	// The item specifies the ClusterStatus condition status.
+	StatusValues []v1.ConditionStatus `json:"statusValues,omitempty"`
 }
 
 // MatchConditionApplyConfiguration constructs a declarative configuration of the MatchCondition type for use with

@@ -24,9 +24,16 @@ import (
 
 // CronFederatedHPASpecApplyConfiguration represents a declarative configuration of the CronFederatedHPASpec type for use
 // with apply.
+//
+// CronFederatedHPASpec is the specification of the CronFederatedHPA.
 type CronFederatedHPASpecApplyConfiguration struct {
+	// ScaleTargetRef points to the target resource to scale.
+	// Target resource could be any resource that implementing the scale
+	// subresource like Deployment, or FederatedHPA.
 	ScaleTargetRef *v2.CrossVersionObjectReferenceApplyConfiguration `json:"scaleTargetRef,omitempty"`
-	Rules          []CronFederatedHPARuleApplyConfiguration          `json:"rules,omitempty"`
+	// Rules contains a collection of schedules that declares when and how
+	// the referencing target resource should be scaled.
+	Rules []CronFederatedHPARuleApplyConfiguration `json:"rules,omitempty"`
 }
 
 // CronFederatedHPASpecApplyConfiguration constructs a declarative configuration of the CronFederatedHPASpec type for use with

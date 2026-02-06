@@ -24,12 +24,48 @@ import (
 
 // ResourceInterpreterWebhookApplyConfiguration represents a declarative configuration of the ResourceInterpreterWebhook type for use
 // with apply.
+//
+// ResourceInterpreterWebhook describes the webhook as well as the resources and operations it applies to.
 type ResourceInterpreterWebhookApplyConfiguration struct {
-	Name                       *string                                   `json:"name,omitempty"`
-	ClientConfig               *v1.WebhookClientConfigApplyConfiguration `json:"clientConfig,omitempty"`
-	Rules                      []RuleWithOperationsApplyConfiguration    `json:"rules,omitempty"`
-	TimeoutSeconds             *int32                                    `json:"timeoutSeconds,omitempty"`
-	InterpreterContextVersions []string                                  `json:"interpreterContextVersions,omitempty"`
+	// Name is the full-qualified name of the webhook.
+	Name *string `json:"name,omitempty"`
+	// ClientConfig defines how to communicate with the hook.
+	// It supports two mutually exclusive configuration modes:
+	//
+	// 1. URL - Directly specify the webhook URL with format `scheme://host:port/path`.
+	// Example: https://webhook.example.com:8443/my-interpreter
+	//
+	// 2. Service - Reference a Kubernetes Service that exposes the webhook.
+	// When using Service reference, Karmada resolves the endpoint through following steps:
+	// a) First attempts to locate the Service in karmada-apiserver
+	// b) If found, constructs URL based on Service type:
+	// - ClusterIP/LoadBalancer/NodePort: Uses ClusterIP with port from Service spec
+	// (Note: Services with ClusterIP "None" are rejected), Example:
+	// `https://<cluster ip>:<port>`
+	// - ExternalName: Uses external DNS name format: `https://<external name>:<port>`
+	// c) If NOT found in karmada-apiserver, falls back to standard Kubernetes
+	// service DNS name format: `https://<service>.<namespace>.svc:<port>`
+	//
+	// Note: When both URL and Service are specified, the Service reference takes precedence
+	// and the URL configuration will be ignored.
+	ClientConfig *v1.WebhookClientConfigApplyConfiguration `json:"clientConfig,omitempty"`
+	// Rules describes what operations on what resources the webhook cares about.
+	// The webhook cares about an operation if it matches any Rule.
+	Rules []RuleWithOperationsApplyConfiguration `json:"rules,omitempty"`
+	// TimeoutSeconds specifies the timeout for this webhook. After the timeout passes,
+	// the webhook call will be ignored or the API call will fail based on the
+	// failure policy.
+	// The timeout value must be between 1 and 30 seconds.
+	// Default to 10 seconds.
+	TimeoutSeconds *int32 `json:"timeoutSeconds,omitempty"`
+	// InterpreterContextVersions is an ordered list of preferred `ResourceInterpreterContext`
+	// versions the Webhook expects. Karmada will try to use first version in
+	// the list which it supports. If none of the versions specified in this list
+	// supported by Karmada, validation will fail for this object.
+	// If a persisted webhook configuration specifies allowed versions and does not
+	// include any versions known to the Karmada, calls to the webhook will fail
+	// and be subject to the failure policy.
+	InterpreterContextVersions []string `json:"interpreterContextVersions,omitempty"`
 }
 
 // ResourceInterpreterWebhookApplyConfiguration constructs a declarative configuration of the ResourceInterpreterWebhook type for use with

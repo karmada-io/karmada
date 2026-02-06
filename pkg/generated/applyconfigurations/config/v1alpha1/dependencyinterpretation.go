@@ -20,7 +20,39 @@ package v1alpha1
 
 // DependencyInterpretationApplyConfiguration represents a declarative configuration of the DependencyInterpretation type for use
 // with apply.
+//
+// DependencyInterpretation holds the rules for interpreting the dependent resources
+// of a specific resources.
 type DependencyInterpretationApplyConfiguration struct {
+	// LuaScript holds the Lua script that is used to interpret the dependencies of
+	// a specific resource.
+	// The script should implement a function as follows:
+	//
+	// ```
+	// luaScript: >
+	// function GetDependencies(desiredObj)
+	// dependencies = {}
+	// serviceAccountName = desiredObj.spec.template.spec.serviceAccountName
+	// if serviceAccountName ~= nil and serviceAccountName ~= "default" then
+	// dependency = {}
+	// dependency.apiVersion = "v1"
+	// dependency.kind = "ServiceAccount"
+	// dependency.name = serviceAccountName
+	// dependency.namespace = desiredObj.metadata.namespace
+	// dependencies[1] = dependency
+	// end
+	// return dependencies
+	// end
+	// ```
+	//
+	// The content of the LuaScript needs to be a whole function including both
+	// declaration and implementation.
+	//
+	// The parameters will be supplied by the system:
+	// - desiredObj: the object represents the configuration to be applied
+	// to the member cluster.
+	//
+	// The returned value should be expressed by a slice of DependentObjectReference.
 	LuaScript *string `json:"luaScript,omitempty"`
 }
 

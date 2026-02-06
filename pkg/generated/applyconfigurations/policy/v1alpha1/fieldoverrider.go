@@ -20,10 +20,21 @@ package v1alpha1
 
 // FieldOverriderApplyConfiguration represents a declarative configuration of the FieldOverrider type for use
 // with apply.
+//
+// FieldOverrider represents the rules dedicated to modifying a specific field in any Kubernetes resource.
+// This allows changing a single field within the resource with multiple operations.
+// It is designed to handle structured field values such as those found in ConfigMaps or Secrets.
+// The current implementation supports JSON and YAML formats, but can easily be extended to support XML in the future.
+// Note: In any given instance, FieldOverrider processes either JSON or YAML fields, but not both simultaneously.
 type FieldOverriderApplyConfiguration struct {
-	FieldPath *string                                `json:"fieldPath,omitempty"`
-	JSON      []JSONPatchOperationApplyConfiguration `json:"json,omitempty"`
-	YAML      []YAMLPatchOperationApplyConfiguration `json:"yaml,omitempty"`
+	// FieldPath specifies the initial location in the instance document where the operation should take place.
+	// The path uses RFC 6901 for navigating into nested structures. For example, the path "/data/db-config.yaml"
+	// specifies the configuration data key named "db-config.yaml" in a ConfigMap: "/data/db-config.yaml".
+	FieldPath *string `json:"fieldPath,omitempty"`
+	// JSON represents the operations performed on the JSON document specified by the FieldPath.
+	JSON []JSONPatchOperationApplyConfiguration `json:"json,omitempty"`
+	// YAML represents the operations performed on the YAML document specified by the FieldPath.
+	YAML []YAMLPatchOperationApplyConfiguration `json:"yaml,omitempty"`
 }
 
 // FieldOverriderApplyConfiguration constructs a declarative configuration of the FieldOverrider type for use with

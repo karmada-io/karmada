@@ -25,12 +25,22 @@ import (
 
 // AggregatedStatusItemApplyConfiguration represents a declarative configuration of the AggregatedStatusItem type for use
 // with apply.
+//
+// AggregatedStatusItem represents status of the resource running in a member cluster.
 type AggregatedStatusItemApplyConfiguration struct {
-	ClusterName    *string                      `json:"clusterName,omitempty"`
-	Status         *runtime.RawExtension        `json:"status,omitempty"`
-	Applied        *bool                        `json:"applied,omitempty"`
-	AppliedMessage *string                      `json:"appliedMessage,omitempty"`
-	Health         *workv1alpha2.ResourceHealth `json:"health,omitempty"`
+	// ClusterName represents the member cluster name which the resource deployed on.
+	ClusterName *string `json:"clusterName,omitempty"`
+	// Status reflects running status of current manifest.
+	Status *runtime.RawExtension `json:"status,omitempty"`
+	// Applied represents if the resource referencing by ResourceBinding or ClusterResourceBinding
+	// is successfully applied on the cluster.
+	Applied *bool `json:"applied,omitempty"`
+	// AppliedMessage is a human readable message indicating details about the applied status.
+	// This is usually holds the error message in case of apply failed.
+	AppliedMessage *string `json:"appliedMessage,omitempty"`
+	// Health represents the healthy state of the current resource.
+	// There maybe different rules for different resources to achieve health status.
+	Health *workv1alpha2.ResourceHealth `json:"health,omitempty"`
 }
 
 // AggregatedStatusItemApplyConfiguration constructs a declarative configuration of the AggregatedStatusItem type for use with

@@ -24,10 +24,19 @@ import (
 
 // NodeClaimApplyConfiguration represents a declarative configuration of the NodeClaim type for use
 // with apply.
+//
+// NodeClaim represents the node claim HardNodeAffinity, NodeSelector and Tolerations required by each replica.
 type NodeClaimApplyConfiguration struct {
+	// A node selector represents the union of the results of one or more label queries over a set of
+	// nodes; that is, it represents the OR of the selectors represented by the node selector terms.
+	// Note that only PodSpec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution
+	// is included here because it has a hard limit on pod scheduling.
 	HardNodeAffinity *v1.NodeSelectorApplyConfiguration `json:"hardNodeAffinity,omitempty"`
-	NodeSelector     map[string]string                  `json:"nodeSelector,omitempty"`
-	Tolerations      []v1.TolerationApplyConfiguration  `json:"tolerations,omitempty"`
+	// NodeSelector is a selector which must be true for the pod to fit on a node.
+	// Selector which must match a node's labels for the pod to be scheduled on that node.
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+	// If specified, the pod's tolerations.
+	Tolerations []v1.TolerationApplyConfiguration `json:"tolerations,omitempty"`
 }
 
 // NodeClaimApplyConfiguration constructs a declarative configuration of the NodeClaim type for use with

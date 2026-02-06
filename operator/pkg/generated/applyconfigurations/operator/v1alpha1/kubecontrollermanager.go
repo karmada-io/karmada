@@ -25,11 +25,65 @@ import (
 
 // KubeControllerManagerApplyConfiguration represents a declarative configuration of the KubeControllerManager type for use
 // with apply.
+//
+// KubeControllerManager holds settings to kube-controller-manager component of the kubernetes.
+// Karmada uses it to manage the lifecycle of the federated resources. An especial case is the garbage
+// collection of the orphan resources in your karmada.
 type KubeControllerManagerApplyConfiguration struct {
+	// CommonSettings holds common settings to kubernetes controller manager.
 	CommonSettingsApplyConfiguration `json:",inline"`
-	Controllers                      []string          `json:"controllers,omitempty"`
-	ExtraArgs                        map[string]string `json:"extraArgs,omitempty"`
-	FeatureGates                     map[string]bool   `json:"featureGates,omitempty"`
+	// A list of controllers to enable. '*' enables all on-by-default controllers,
+	// 'foo' enables the controller named 'foo', '-foo' disables the controller named
+	// 'foo'.
+	//
+	// All controllers: attachdetach, bootstrapsigner, cloud-node-lifecycle,
+	// clusterrole-aggregation, cronjob, csrapproving, csrcleaner, csrsigning,
+	// daemonset, deployment, disruption, endpoint, endpointslice,
+	// endpointslicemirroring, ephemeral-volume, garbagecollector,
+	// horizontalpodautoscaling, job, namespace, nodeipam, nodelifecycle,
+	// persistentvolume-binder, persistentvolume-expander, podgc, pv-protection,
+	// pvc-protection, replicaset, replicationcontroller, resourcequota,
+	// root-ca-cert-publisher, route, service, serviceaccount, serviceaccount-token,
+	// statefulset, tokencleaner, ttl, ttl-after-finished
+	// Disabled-by-default controllers: bootstrapsigner, tokencleaner (default [*])
+	// Actual Supported controllers depend on the version of Kubernetes. See
+	// https://kubernetes.io/docs/reference/command-line-tools-reference/kube-controller-manager/
+	// for details.
+	//
+	// However, Karmada uses Kubernetes Native API definitions for federated resource template,
+	// so it doesn't need enable some resource related controllers like daemonset, deployment etc.
+	// On the other hand, Karmada leverages the capabilities of the Kubernetes controller to
+	// manage the lifecycle of the federated resource, so it needs to enable some controllers.
+	// For example, the `namespace` controller is used to manage the lifecycle of the namespace
+	// and the `garbagecollector` controller handles automatic clean-up of redundant items in
+	// your karmada.
+	//
+	// According to the user feedback and karmada requirements, the following controllers are
+	// enabled by default: namespace, garbagecollector, serviceaccount-token, ttl-after-finished,
+	// bootstrapsigner,csrapproving,csrcleaner,csrsigning. See
+	// https://karmada.io/docs/administrator/configuration/configure-controllers#kubernetes-controllers
+	//
+	// Others are disabled by default. If you want to enable or disable other controllers, you
+	// have to explicitly specify all the controllers that kube-controller-manager should enable
+	// at startup phase.
+	Controllers []string `json:"controllers,omitempty"`
+	// ExtraArgs is an extra set of flags to pass to the kube-controller-manager component or
+	// override. A key in this map is the flag name as it appears on the command line except
+	// without leading dash(es).
+	//
+	// Note: This is a temporary solution to allow for the configuration of the
+	// kube-controller-manager component. In the future, we will provide a more structured way
+	// to configure the component. Once that is done, this field will be discouraged to be used.
+	// Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
+	// state. Before you do it, please confirm that you understand the risks of this configuration.
+	//
+	// For supported flags, please see
+	// https://kubernetes.io/docs/reference/command-line-tools-reference/kube-controller-manager/
+	// for details.
+	ExtraArgs map[string]string `json:"extraArgs,omitempty"`
+	// FeatureGates enabled by the user.
+	// More info: https://kubernetes.io/docs/reference/command-line-tools-reference/kube-controller-manager/
+	FeatureGates map[string]bool `json:"featureGates,omitempty"`
 }
 
 // KubeControllerManagerApplyConfiguration constructs a declarative configuration of the KubeControllerManager type for use with

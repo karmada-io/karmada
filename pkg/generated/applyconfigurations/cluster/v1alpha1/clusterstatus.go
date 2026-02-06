@@ -24,13 +24,23 @@ import (
 
 // ClusterStatusApplyConfiguration represents a declarative configuration of the ClusterStatus type for use
 // with apply.
+//
+// ClusterStatus contains information about the current status of a
+// cluster updated periodically by cluster controller.
 type ClusterStatusApplyConfiguration struct {
-	KubernetesVersion *string                            `json:"kubernetesVersion,omitempty"`
-	APIEnablements    []APIEnablementApplyConfiguration  `json:"apiEnablements,omitempty"`
-	Conditions        []v1.ConditionApplyConfiguration   `json:"conditions,omitempty"`
-	NodeSummary       *NodeSummaryApplyConfiguration     `json:"nodeSummary,omitempty"`
-	ResourceSummary   *ResourceSummaryApplyConfiguration `json:"resourceSummary,omitempty"`
-	RemedyActions     []string                           `json:"remedyActions,omitempty"`
+	// KubernetesVersion represents version of the member cluster.
+	KubernetesVersion *string `json:"kubernetesVersion,omitempty"`
+	// APIEnablements represents the list of APIs installed on the member cluster.
+	APIEnablements []APIEnablementApplyConfiguration `json:"apiEnablements,omitempty"`
+	// Conditions is an array of current cluster conditions.
+	Conditions []v1.ConditionApplyConfiguration `json:"conditions,omitempty"`
+	// NodeSummary represents the summary of nodes status in the member cluster.
+	NodeSummary *NodeSummaryApplyConfiguration `json:"nodeSummary,omitempty"`
+	// ResourceSummary represents the summary of resources in the member cluster.
+	ResourceSummary *ResourceSummaryApplyConfiguration `json:"resourceSummary,omitempty"`
+	// RemedyActions represents the remedy actions that needs to be performed
+	// on the cluster.
+	RemedyActions []string `json:"remedyActions,omitempty"`
 }
 
 // ClusterStatusApplyConfiguration constructs a declarative configuration of the ClusterStatus type for use with

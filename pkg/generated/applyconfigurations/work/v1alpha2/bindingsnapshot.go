@@ -20,10 +20,17 @@ package v1alpha2
 
 // BindingSnapshotApplyConfiguration represents a declarative configuration of the BindingSnapshot type for use
 // with apply.
+//
+// BindingSnapshot is a snapshot of a ResourceBinding or ClusterResourceBinding.
 type BindingSnapshotApplyConfiguration struct {
-	Namespace *string                           `json:"namespace,omitempty"`
-	Name      *string                           `json:"name,omitempty"`
-	Clusters  []TargetClusterApplyConfiguration `json:"clusters,omitempty"`
+	// Namespace represents the namespace of the Binding.
+	// It is required for ResourceBinding.
+	// If Namespace is not specified, means the referencing is ClusterResourceBinding.
+	Namespace *string `json:"namespace,omitempty"`
+	// Name represents the name of the Binding.
+	Name *string `json:"name,omitempty"`
+	// Clusters represents the scheduled result.
+	Clusters []TargetClusterApplyConfiguration `json:"clusters,omitempty"`
 }
 
 // BindingSnapshotApplyConfiguration constructs a declarative configuration of the BindingSnapshot type for use with

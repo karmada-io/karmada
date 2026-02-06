@@ -20,10 +20,21 @@ package v1alpha1
 
 // HostClusterApplyConfiguration represents a declarative configuration of the HostCluster type for use
 // with apply.
+//
+// HostCluster represents the cluster where to install the Karmada control plane.
 type HostClusterApplyConfiguration struct {
-	APIEndpoint *string                                 `json:"apiEndpoint,omitempty"`
-	SecretRef   *LocalSecretReferenceApplyConfiguration `json:"secretRef,omitempty"`
-	Networking  *NetworkingApplyConfiguration           `json:"networking,omitempty"`
+	// APIEndpoint is the API endpoint of the cluster where deploy Karmada
+	// control plane on.
+	// This can be a hostname, hostname:port, IP or IP:port.
+	APIEndpoint *string `json:"apiEndpoint,omitempty"`
+	// SecretRef represents the secret contains mandatory credentials to
+	// access the cluster.
+	// The secret should hold credentials as follows:
+	// - secret.data.token
+	// - secret.data.caBundle
+	SecretRef *LocalSecretReferenceApplyConfiguration `json:"secretRef,omitempty"`
+	// Networking holds configuration for the networking topology of the cluster.
+	Networking *NetworkingApplyConfiguration `json:"networking,omitempty"`
 }
 
 // HostClusterApplyConfiguration constructs a declarative configuration of the HostCluster type for use with

@@ -20,8 +20,13 @@ package v1alpha1
 
 // ServiceLocationApplyConfiguration represents a declarative configuration of the ServiceLocation type for use
 // with apply.
+//
+// ServiceLocation records the locations of MulticlusterIngress's backend Service resources.
 type ServiceLocationApplyConfiguration struct {
-	Name     *string  `json:"name,omitempty"`
+	// name is the referenced service. The service must exist in
+	// the same namespace as the MultiClusterService object.
+	Name *string `json:"name,omitempty"`
+	// Clusters records the cluster list where the Service is located.
 	Clusters []string `json:"clusters,omitempty"`
 }
 

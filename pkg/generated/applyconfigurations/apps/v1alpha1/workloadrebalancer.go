@@ -29,11 +29,15 @@ import (
 
 // WorkloadRebalancerApplyConfiguration represents a declarative configuration of the WorkloadRebalancer type for use
 // with apply.
+//
+// WorkloadRebalancer represents the desired behavior and status of a job which can enforces a resource rebalance.
 type WorkloadRebalancerApplyConfiguration struct {
 	v1.TypeMetaApplyConfiguration    `json:",inline"`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
-	Spec                             *WorkloadRebalancerSpecApplyConfiguration   `json:"spec,omitempty"`
-	Status                           *WorkloadRebalancerStatusApplyConfiguration `json:"status,omitempty"`
+	// Spec represents the specification of the desired behavior of WorkloadRebalancer.
+	Spec *WorkloadRebalancerSpecApplyConfiguration `json:"spec,omitempty"`
+	// Status represents the status of WorkloadRebalancer.
+	Status *WorkloadRebalancerStatusApplyConfiguration `json:"status,omitempty"`
 }
 
 // WorkloadRebalancer constructs a declarative configuration of the WorkloadRebalancer type for use with
@@ -46,29 +50,14 @@ func WorkloadRebalancer(name string) *WorkloadRebalancerApplyConfiguration {
 	return b
 }
 
-// ExtractWorkloadRebalancer extracts the applied configuration owned by fieldManager from
-// workloadRebalancer. If no managedFields are found in workloadRebalancer for fieldManager, a
-// WorkloadRebalancerApplyConfiguration is returned with only the Name, Namespace (if applicable),
-// APIVersion and Kind populated. It is possible that no managed fields were found for because other
-// field managers have taken ownership of all the fields previously owned by fieldManager, or because
-// the fieldManager never owned fields any fields.
+// ExtractWorkloadRebalancerFrom extracts the applied configuration owned by fieldManager from
+// workloadRebalancer for the specified subresource. Pass an empty string for subresource to extract
+// the main resource. Common subresources include "status", "scale", etc.
 // workloadRebalancer must be a unmodified WorkloadRebalancer API object that was retrieved from the Kubernetes API.
-// ExtractWorkloadRebalancer provides a way to perform a extract/modify-in-place/apply workflow.
+// ExtractWorkloadRebalancerFrom provides a way to perform a extract/modify-in-place/apply workflow.
 // Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
 // applied if another fieldManager has updated or force applied any of the previously applied fields.
-// Experimental!
-func ExtractWorkloadRebalancer(workloadRebalancer *appsv1alpha1.WorkloadRebalancer, fieldManager string) (*WorkloadRebalancerApplyConfiguration, error) {
-	return extractWorkloadRebalancer(workloadRebalancer, fieldManager, "")
-}
-
-// ExtractWorkloadRebalancerStatus is the same as ExtractWorkloadRebalancer except
-// that it extracts the status subresource applied configuration.
-// Experimental!
-func ExtractWorkloadRebalancerStatus(workloadRebalancer *appsv1alpha1.WorkloadRebalancer, fieldManager string) (*WorkloadRebalancerApplyConfiguration, error) {
-	return extractWorkloadRebalancer(workloadRebalancer, fieldManager, "status")
-}
-
-func extractWorkloadRebalancer(workloadRebalancer *appsv1alpha1.WorkloadRebalancer, fieldManager string, subresource string) (*WorkloadRebalancerApplyConfiguration, error) {
+func ExtractWorkloadRebalancerFrom(workloadRebalancer *appsv1alpha1.WorkloadRebalancer, fieldManager string, subresource string) (*WorkloadRebalancerApplyConfiguration, error) {
 	b := &WorkloadRebalancerApplyConfiguration{}
 	err := managedfields.ExtractInto(workloadRebalancer, internal.Parser().Type("com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.WorkloadRebalancer"), fieldManager, b, subresource)
 	if err != nil {
@@ -80,6 +69,27 @@ func extractWorkloadRebalancer(workloadRebalancer *appsv1alpha1.WorkloadRebalanc
 	b.WithAPIVersion("apps.karmada.io/v1alpha1")
 	return b, nil
 }
+
+// ExtractWorkloadRebalancer extracts the applied configuration owned by fieldManager from
+// workloadRebalancer. If no managedFields are found in workloadRebalancer for fieldManager, a
+// WorkloadRebalancerApplyConfiguration is returned with only the Name, Namespace (if applicable),
+// APIVersion and Kind populated. It is possible that no managed fields were found for because other
+// field managers have taken ownership of all the fields previously owned by fieldManager, or because
+// the fieldManager never owned fields any fields.
+// workloadRebalancer must be a unmodified WorkloadRebalancer API object that was retrieved from the Kubernetes API.
+// ExtractWorkloadRebalancer provides a way to perform a extract/modify-in-place/apply workflow.
+// Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
+// applied if another fieldManager has updated or force applied any of the previously applied fields.
+func ExtractWorkloadRebalancer(workloadRebalancer *appsv1alpha1.WorkloadRebalancer, fieldManager string) (*WorkloadRebalancerApplyConfiguration, error) {
+	return ExtractWorkloadRebalancerFrom(workloadRebalancer, fieldManager, "")
+}
+
+// ExtractWorkloadRebalancerStatus extracts the applied configuration owned by fieldManager from
+// workloadRebalancer for the status subresource.
+func ExtractWorkloadRebalancerStatus(workloadRebalancer *appsv1alpha1.WorkloadRebalancer, fieldManager string) (*WorkloadRebalancerApplyConfiguration, error) {
+	return ExtractWorkloadRebalancerFrom(workloadRebalancer, fieldManager, "status")
+}
+
 func (b WorkloadRebalancerApplyConfiguration) IsApplyConfiguration() {}
 
 // WithKind sets the Kind field in the declarative configuration to the given value

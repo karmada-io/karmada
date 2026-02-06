@@ -24,9 +24,16 @@ import (
 
 // LabelAnnotationOverriderApplyConfiguration represents a declarative configuration of the LabelAnnotationOverrider type for use
 // with apply.
+//
+// LabelAnnotationOverrider represents the rules dedicated to handling workload labels/annotations
 type LabelAnnotationOverriderApplyConfiguration struct {
+	// Operator represents the operator which will apply on the workload.
 	Operator *policyv1alpha1.OverriderOperator `json:"operator,omitempty"`
-	Value    map[string]string                 `json:"value,omitempty"`
+	// Value to be applied to annotations/labels of workload.
+	// Items in Value which will be appended after annotations/labels when Operator is 'add'.
+	// Items in Value which match in annotations/labels will be deleted when Operator is 'remove'.
+	// Items in Value which match in annotations/labels will be replaced when Operator is 'replace'.
+	Value map[string]string `json:"value,omitempty"`
 }
 
 // LabelAnnotationOverriderApplyConfiguration constructs a declarative configuration of the LabelAnnotationOverrider type for use with

@@ -20,8 +20,21 @@ package v1alpha1
 
 // WorkloadAffinityApplyConfiguration represents a declarative configuration of the WorkloadAffinity type for use
 // with apply.
+//
+// WorkloadAffinity defines inter-workload affinity and anti-affinity rules.
 type WorkloadAffinityApplyConfiguration struct {
-	Affinity     *WorkloadAffinityTermApplyConfiguration     `json:"affinity,omitempty"`
+	// Affinity represents inter-workload affinity scheduling rules.
+	// These are hard requirements: workloads will only be scheduled to clusters
+	// that satisfy the affinity term if it is specified.
+	//
+	// For the first workload of an affinity group (when no workloads with a
+	// matching label value exist in the system), the scheduler will not block
+	// scheduling. This allows bootstrapping new workload groups without
+	// encountering scheduling deadlocks, providing a better user experience.
+	Affinity *WorkloadAffinityTermApplyConfiguration `json:"affinity,omitempty"`
+	// AntiAffinity represents inter-workload anti-affinity scheduling rules.
+	// These are hard requirements: workloads will be scheduled to avoid clusters
+	// where matching workloads are already scheduled.
 	AntiAffinity *WorkloadAntiAffinityTermApplyConfiguration `json:"antiAffinity,omitempty"`
 }
 

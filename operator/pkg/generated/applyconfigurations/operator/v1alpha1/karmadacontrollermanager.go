@@ -25,11 +25,44 @@ import (
 
 // KarmadaControllerManagerApplyConfiguration represents a declarative configuration of the KarmadaControllerManager type for use
 // with apply.
+//
+// KarmadaControllerManager holds settings to the karmada-controller-manager component of the karmada.
 type KarmadaControllerManagerApplyConfiguration struct {
+	// CommonSettings holds common settings to karmada controller manager.
 	CommonSettingsApplyConfiguration `json:",inline"`
-	Controllers                      []string          `json:"controllers,omitempty"`
-	ExtraArgs                        map[string]string `json:"extraArgs,omitempty"`
-	FeatureGates                     map[string]bool   `json:"featureGates,omitempty"`
+	// A list of controllers to enable. '*' enables all on-by-default controllers,
+	// 'foo' enables the controller named 'foo', '-foo' disables the controller named
+	// 'foo'.
+	//
+	// All controllers: binding, cluster, clusterStatus, endpointSlice, execution,
+	// federatedResourceQuotaStatus, federatedResourceQuotaSync, hpa, namespace,
+	// serviceExport, serviceImport, unifiedAuth, workStatus.
+	// Disabled-by-default controllers: hpa (default [*])
+	// Actual Supported controllers depend on the version of Karmada. See
+	// https://karmada.io/docs/administrator/configuration/configure-controllers#configure-karmada-controllers
+	// for details.
+	Controllers []string `json:"controllers,omitempty"`
+	// ExtraArgs is an extra set of flags to pass to the karmada-controller-manager component or
+	// override. A key in this map is the flag name as it appears on the command line except
+	// without leading dash(es).
+	//
+	// Note: This is a temporary solution to allow for the configuration of the
+	// karmada-controller-manager component. In the future, we will provide a more structured way
+	// to configure the component. Once that is done, this field will be discouraged to be used.
+	// Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
+	// state. Before you do it, please confirm that you understand the risks of this configuration.
+	//
+	// For supported flags, please see
+	// https://karmada.io/docs/reference/components/karmada-controller-manager
+	// for details.
+	ExtraArgs map[string]string `json:"extraArgs,omitempty"`
+	// FeatureGates enabled by the user.
+	// - Failover: https://karmada.io/docs/userguide/failover/#failover
+	// - GracefulEviction: https://karmada.io/docs/userguide/failover/#graceful-eviction-feature
+	// - PropagateDeps: https://karmada.io/docs/userguide/scheduling/propagate-dependencies
+	// - CustomizedClusterResourceModeling: https://karmada.io/docs/userguide/scheduling/cluster-resources#start-to-use-cluster-resource-models
+	// More info: https://github.com/karmada-io/karmada/blob/master/pkg/features/features.go
+	FeatureGates map[string]bool `json:"featureGates,omitempty"`
 }
 
 // KarmadaControllerManagerApplyConfiguration constructs a declarative configuration of the KarmadaControllerManager type for use with

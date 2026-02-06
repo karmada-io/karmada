@@ -29,10 +29,14 @@ import (
 
 // ResourceInterpreterWebhookConfigurationApplyConfiguration represents a declarative configuration of the ResourceInterpreterWebhookConfiguration type for use
 // with apply.
+//
+// ResourceInterpreterWebhookConfiguration describes the configuration of webhooks which take the responsibility to
+// tell karmada the details of the resource object, especially for custom resources.
 type ResourceInterpreterWebhookConfigurationApplyConfiguration struct {
 	v1.TypeMetaApplyConfiguration    `json:",inline"`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
-	Webhooks                         []ResourceInterpreterWebhookApplyConfiguration `json:"webhooks,omitempty"`
+	// Webhooks is a list of webhooks and the affected resources and operations.
+	Webhooks []ResourceInterpreterWebhookApplyConfiguration `json:"webhooks,omitempty"`
 }
 
 // ResourceInterpreterWebhookConfiguration constructs a declarative configuration of the ResourceInterpreterWebhookConfiguration type for use with
@@ -45,29 +49,14 @@ func ResourceInterpreterWebhookConfiguration(name string) *ResourceInterpreterWe
 	return b
 }
 
-// ExtractResourceInterpreterWebhookConfiguration extracts the applied configuration owned by fieldManager from
-// resourceInterpreterWebhookConfiguration. If no managedFields are found in resourceInterpreterWebhookConfiguration for fieldManager, a
-// ResourceInterpreterWebhookConfigurationApplyConfiguration is returned with only the Name, Namespace (if applicable),
-// APIVersion and Kind populated. It is possible that no managed fields were found for because other
-// field managers have taken ownership of all the fields previously owned by fieldManager, or because
-// the fieldManager never owned fields any fields.
+// ExtractResourceInterpreterWebhookConfigurationFrom extracts the applied configuration owned by fieldManager from
+// resourceInterpreterWebhookConfiguration for the specified subresource. Pass an empty string for subresource to extract
+// the main resource. Common subresources include "status", "scale", etc.
 // resourceInterpreterWebhookConfiguration must be a unmodified ResourceInterpreterWebhookConfiguration API object that was retrieved from the Kubernetes API.
-// ExtractResourceInterpreterWebhookConfiguration provides a way to perform a extract/modify-in-place/apply workflow.
+// ExtractResourceInterpreterWebhookConfigurationFrom provides a way to perform a extract/modify-in-place/apply workflow.
 // Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
 // applied if another fieldManager has updated or force applied any of the previously applied fields.
-// Experimental!
-func ExtractResourceInterpreterWebhookConfiguration(resourceInterpreterWebhookConfiguration *configv1alpha1.ResourceInterpreterWebhookConfiguration, fieldManager string) (*ResourceInterpreterWebhookConfigurationApplyConfiguration, error) {
-	return extractResourceInterpreterWebhookConfiguration(resourceInterpreterWebhookConfiguration, fieldManager, "")
-}
-
-// ExtractResourceInterpreterWebhookConfigurationStatus is the same as ExtractResourceInterpreterWebhookConfiguration except
-// that it extracts the status subresource applied configuration.
-// Experimental!
-func ExtractResourceInterpreterWebhookConfigurationStatus(resourceInterpreterWebhookConfiguration *configv1alpha1.ResourceInterpreterWebhookConfiguration, fieldManager string) (*ResourceInterpreterWebhookConfigurationApplyConfiguration, error) {
-	return extractResourceInterpreterWebhookConfiguration(resourceInterpreterWebhookConfiguration, fieldManager, "status")
-}
-
-func extractResourceInterpreterWebhookConfiguration(resourceInterpreterWebhookConfiguration *configv1alpha1.ResourceInterpreterWebhookConfiguration, fieldManager string, subresource string) (*ResourceInterpreterWebhookConfigurationApplyConfiguration, error) {
+func ExtractResourceInterpreterWebhookConfigurationFrom(resourceInterpreterWebhookConfiguration *configv1alpha1.ResourceInterpreterWebhookConfiguration, fieldManager string, subresource string) (*ResourceInterpreterWebhookConfigurationApplyConfiguration, error) {
 	b := &ResourceInterpreterWebhookConfigurationApplyConfiguration{}
 	err := managedfields.ExtractInto(resourceInterpreterWebhookConfiguration, internal.Parser().Type("com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.ResourceInterpreterWebhookConfiguration"), fieldManager, b, subresource)
 	if err != nil {
@@ -79,6 +68,21 @@ func extractResourceInterpreterWebhookConfiguration(resourceInterpreterWebhookCo
 	b.WithAPIVersion("config.karmada.io/v1alpha1")
 	return b, nil
 }
+
+// ExtractResourceInterpreterWebhookConfiguration extracts the applied configuration owned by fieldManager from
+// resourceInterpreterWebhookConfiguration. If no managedFields are found in resourceInterpreterWebhookConfiguration for fieldManager, a
+// ResourceInterpreterWebhookConfigurationApplyConfiguration is returned with only the Name, Namespace (if applicable),
+// APIVersion and Kind populated. It is possible that no managed fields were found for because other
+// field managers have taken ownership of all the fields previously owned by fieldManager, or because
+// the fieldManager never owned fields any fields.
+// resourceInterpreterWebhookConfiguration must be a unmodified ResourceInterpreterWebhookConfiguration API object that was retrieved from the Kubernetes API.
+// ExtractResourceInterpreterWebhookConfiguration provides a way to perform a extract/modify-in-place/apply workflow.
+// Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
+// applied if another fieldManager has updated or force applied any of the previously applied fields.
+func ExtractResourceInterpreterWebhookConfiguration(resourceInterpreterWebhookConfiguration *configv1alpha1.ResourceInterpreterWebhookConfiguration, fieldManager string) (*ResourceInterpreterWebhookConfigurationApplyConfiguration, error) {
+	return ExtractResourceInterpreterWebhookConfigurationFrom(resourceInterpreterWebhookConfiguration, fieldManager, "")
+}
+
 func (b ResourceInterpreterWebhookConfigurationApplyConfiguration) IsApplyConfiguration() {}
 
 // WithKind sets the Kind field in the declarative configuration to the given value

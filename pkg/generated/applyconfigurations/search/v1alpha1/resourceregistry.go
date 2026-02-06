@@ -29,11 +29,16 @@ import (
 
 // ResourceRegistryApplyConfiguration represents a declarative configuration of the ResourceRegistry type for use
 // with apply.
+//
+// ResourceRegistry represents the configuration of the cache scope, mainly describes which resources in
+// which clusters should be cached.
 type ResourceRegistryApplyConfiguration struct {
 	v1.TypeMetaApplyConfiguration    `json:",inline"`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
-	Spec                             *ResourceRegistrySpecApplyConfiguration   `json:"spec,omitempty"`
-	Status                           *ResourceRegistryStatusApplyConfiguration `json:"status,omitempty"`
+	// Spec represents the desired behavior of ResourceRegistry.
+	Spec *ResourceRegistrySpecApplyConfiguration `json:"spec,omitempty"`
+	// Status represents the status of ResourceRegistry.
+	Status *ResourceRegistryStatusApplyConfiguration `json:"status,omitempty"`
 }
 
 // ResourceRegistry constructs a declarative configuration of the ResourceRegistry type for use with
@@ -46,29 +51,14 @@ func ResourceRegistry(name string) *ResourceRegistryApplyConfiguration {
 	return b
 }
 
-// ExtractResourceRegistry extracts the applied configuration owned by fieldManager from
-// resourceRegistry. If no managedFields are found in resourceRegistry for fieldManager, a
-// ResourceRegistryApplyConfiguration is returned with only the Name, Namespace (if applicable),
-// APIVersion and Kind populated. It is possible that no managed fields were found for because other
-// field managers have taken ownership of all the fields previously owned by fieldManager, or because
-// the fieldManager never owned fields any fields.
+// ExtractResourceRegistryFrom extracts the applied configuration owned by fieldManager from
+// resourceRegistry for the specified subresource. Pass an empty string for subresource to extract
+// the main resource. Common subresources include "status", "scale", etc.
 // resourceRegistry must be a unmodified ResourceRegistry API object that was retrieved from the Kubernetes API.
-// ExtractResourceRegistry provides a way to perform a extract/modify-in-place/apply workflow.
+// ExtractResourceRegistryFrom provides a way to perform a extract/modify-in-place/apply workflow.
 // Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
 // applied if another fieldManager has updated or force applied any of the previously applied fields.
-// Experimental!
-func ExtractResourceRegistry(resourceRegistry *searchv1alpha1.ResourceRegistry, fieldManager string) (*ResourceRegistryApplyConfiguration, error) {
-	return extractResourceRegistry(resourceRegistry, fieldManager, "")
-}
-
-// ExtractResourceRegistryStatus is the same as ExtractResourceRegistry except
-// that it extracts the status subresource applied configuration.
-// Experimental!
-func ExtractResourceRegistryStatus(resourceRegistry *searchv1alpha1.ResourceRegistry, fieldManager string) (*ResourceRegistryApplyConfiguration, error) {
-	return extractResourceRegistry(resourceRegistry, fieldManager, "status")
-}
-
-func extractResourceRegistry(resourceRegistry *searchv1alpha1.ResourceRegistry, fieldManager string, subresource string) (*ResourceRegistryApplyConfiguration, error) {
+func ExtractResourceRegistryFrom(resourceRegistry *searchv1alpha1.ResourceRegistry, fieldManager string, subresource string) (*ResourceRegistryApplyConfiguration, error) {
 	b := &ResourceRegistryApplyConfiguration{}
 	err := managedfields.ExtractInto(resourceRegistry, internal.Parser().Type("com.github.karmada-io.karmada.pkg.apis.search.v1alpha1.ResourceRegistry"), fieldManager, b, subresource)
 	if err != nil {
@@ -80,6 +70,27 @@ func extractResourceRegistry(resourceRegistry *searchv1alpha1.ResourceRegistry, 
 	b.WithAPIVersion("search.karmada.io/v1alpha1")
 	return b, nil
 }
+
+// ExtractResourceRegistry extracts the applied configuration owned by fieldManager from
+// resourceRegistry. If no managedFields are found in resourceRegistry for fieldManager, a
+// ResourceRegistryApplyConfiguration is returned with only the Name, Namespace (if applicable),
+// APIVersion and Kind populated. It is possible that no managed fields were found for because other
+// field managers have taken ownership of all the fields previously owned by fieldManager, or because
+// the fieldManager never owned fields any fields.
+// resourceRegistry must be a unmodified ResourceRegistry API object that was retrieved from the Kubernetes API.
+// ExtractResourceRegistry provides a way to perform a extract/modify-in-place/apply workflow.
+// Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
+// applied if another fieldManager has updated or force applied any of the previously applied fields.
+func ExtractResourceRegistry(resourceRegistry *searchv1alpha1.ResourceRegistry, fieldManager string) (*ResourceRegistryApplyConfiguration, error) {
+	return ExtractResourceRegistryFrom(resourceRegistry, fieldManager, "")
+}
+
+// ExtractResourceRegistryStatus extracts the applied configuration owned by fieldManager from
+// resourceRegistry for the status subresource.
+func ExtractResourceRegistryStatus(resourceRegistry *searchv1alpha1.ResourceRegistry, fieldManager string) (*ResourceRegistryApplyConfiguration, error) {
+	return ExtractResourceRegistryFrom(resourceRegistry, fieldManager, "status")
+}
+
 func (b ResourceRegistryApplyConfiguration) IsApplyConfiguration() {}
 
 // WithKind sets the Kind field in the declarative configuration to the given value

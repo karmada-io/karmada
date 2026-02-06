@@ -20,6 +20,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	schedcorev1 "k8s.io/component-helpers/scheduling/corev1"
 	"k8s.io/component-helpers/scheduling/corev1/nodeaffinity"
+	"k8s.io/klog/v2"
 
 	"github.com/karmada-io/karmada/pkg/estimator/pb"
 )
@@ -58,12 +59,27 @@ func IsNodeAffinityMatched(node *corev1.Node, affinity nodeaffinity.RequiredNode
 
 // IsTolerationMatched returns whether the node matches the tolerations.
 func IsTolerationMatched(node *corev1.Node, tolerations []corev1.Toleration) bool {
-	// If pod tolerate unschedulable taint, it's also tolerate `node.Spec.Unschedulable`.
-	podToleratesUnschedulable := schedcorev1.TolerationsTolerateTaint(tolerations, &unschedulableTaint)
+	// Note: Kubernetes v1.35 extended the toleration operators by introducing Lt and Gt,
+	// and extended the ToleratesTaint method to include logger and enableComparisonOperators parameters.
+	// PR: https://github.com/kubernetes/kubernetes/pull/134665
+	//
+	// TODO(@RainbowMango): Karmada requires more detailed design to support these new operators.
+	// For now, we disable the comparison operators (enableComparisonOperators=false) to maintain
+	// backward-compatible behavior.
+	// With this flag set to false, the logger parameter is not actually used.
+	podToleratesUnschedulable := schedcorev1.TolerationsTolerateTaint(klog.Background(), tolerations, &unschedulableTaint, false)
 	if node.Spec.Unschedulable && !podToleratesUnschedulable {
 		return false
 	}
-	if _, isUntolerated := schedcorev1.FindMatchingUntoleratedTaint(node.Spec.Taints, tolerations, DoNotScheduleTaintsFilterFunc()); isUntolerated {
+	// Note: Kubernetes v1.35 extended the toleration operators by introducing Lt and Gt,
+	// and extended the ToleratesTaint method to include logger and enableComparisonOperators parameters.
+	// PR: https://github.com/kubernetes/kubernetes/pull/134665
+	//
+	// TODO(@RainbowMango): Karmada requires more detailed design to support these new operators.
+	// For now, we disable the comparison operators (enableComparisonOperators=false) to maintain
+	// backward-compatible behavior.
+	// With this flag set to false, the logger parameter is not actually used.
+	if _, isUntolerated := schedcorev1.FindMatchingUntoleratedTaint(klog.Background(), node.Spec.Taints, tolerations, DoNotScheduleTaintsFilterFunc(), false); isUntolerated {
 		return false
 	}
 	return true

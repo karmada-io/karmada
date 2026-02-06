@@ -24,10 +24,17 @@ import (
 
 // FailedExecutionApplyConfiguration represents a declarative configuration of the FailedExecution type for use
 // with apply.
+//
+// FailedExecution records a failed execution.
 type FailedExecutionApplyConfiguration struct {
-	ScheduleTime  *v1.Time `json:"scheduleTime,omitempty"`
+	// ScheduleTime is the expected execution time declared in CronFederatedHPARule.
+	ScheduleTime *v1.Time `json:"scheduleTime,omitempty"`
+	// ExecutionTime is the actual execution time of CronFederatedHPARule.
+	// Tasks may not always be executed at ScheduleTime. ExecutionTime is used
+	// to evaluate the efficiency of the controller's execution.
 	ExecutionTime *v1.Time `json:"executionTime,omitempty"`
-	Message       *string  `json:"message,omitempty"`
+	// Message is the human-readable message indicating details about the failure.
+	Message *string `json:"message,omitempty"`
 }
 
 // FailedExecutionApplyConfiguration constructs a declarative configuration of the FailedExecution type for use with

@@ -20,7 +20,13 @@ package v1alpha1
 
 // DecisionConditionsApplyConfiguration represents a declarative configuration of the DecisionConditions type for use
 // with apply.
+//
+// DecisionConditions represents the decision conditions of performing the failover process.
 type DecisionConditionsApplyConfiguration struct {
+	// TolerationSeconds represents the period of time Karmada should wait
+	// after reaching the desired state before performing failover process.
+	// If not specified, Karmada will immediately perform failover process.
+	// Defaults to 300s.
 	TolerationSeconds *int32 `json:"tolerationSeconds,omitempty"`
 }
 

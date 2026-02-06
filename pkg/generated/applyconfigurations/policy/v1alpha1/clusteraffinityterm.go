@@ -24,7 +24,10 @@ import (
 
 // ClusterAffinityTermApplyConfiguration represents a declarative configuration of the ClusterAffinityTerm type for use
 // with apply.
+//
+// ClusterAffinityTerm selects a set of cluster.
 type ClusterAffinityTermApplyConfiguration struct {
+	// AffinityName is the name of the cluster group.
 	AffinityName                      *string `json:"affinityName,omitempty"`
 	ClusterAffinityApplyConfiguration `json:",inline"`
 }

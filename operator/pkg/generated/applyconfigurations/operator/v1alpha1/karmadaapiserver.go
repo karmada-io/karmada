@@ -25,18 +25,67 @@ import (
 
 // KarmadaAPIServerApplyConfiguration represents a declarative configuration of the KarmadaAPIServer type for use
 // with apply.
+//
+// KarmadaAPIServer holds settings to kube-apiserver component of the kubernetes.
+// Karmada uses it as its own apiserver in order to provide Kubernetes-native APIs.
 type KarmadaAPIServerApplyConfiguration struct {
+	// CommonSettings holds common settings to kubernetes api server.
 	CommonSettingsApplyConfiguration `json:",inline"`
-	ServiceSubnet                    *string                                `json:"serviceSubnet,omitempty"`
-	ServiceType                      *v1.ServiceType                        `json:"serviceType,omitempty"`
-	LoadBalancerClass                *string                                `json:"loadBalancerClass,omitempty"`
-	ServiceAnnotations               map[string]string                      `json:"serviceAnnotations,omitempty"`
-	ExtraArgs                        map[string]string                      `json:"extraArgs,omitempty"`
-	ExtraVolumes                     []corev1.VolumeApplyConfiguration      `json:"extraVolumes,omitempty"`
-	ExtraVolumeMounts                []corev1.VolumeMountApplyConfiguration `json:"extraVolumeMounts,omitempty"`
-	CertSANs                         []string                               `json:"certSANs,omitempty"`
-	FeatureGates                     map[string]bool                        `json:"featureGates,omitempty"`
-	SidecarContainers                []corev1.ContainerApplyConfiguration   `json:"sidecarContainers,omitempty"`
+	// ServiceSubnet is the subnet used by k8s services. Defaults to "10.96.0.0/12".
+	ServiceSubnet *string `json:"serviceSubnet,omitempty"`
+	// ServiceType represents the service type of Karmada API server.
+	// Valid options are: "ClusterIP", "NodePort", "LoadBalancer".
+	// Defaults to "ClusterIP".
+	ServiceType *v1.ServiceType `json:"serviceType,omitempty"`
+	// LoadBalancerClass specifies the load balancer implementation class for the Karmada API server.
+	// This field is applicable only when ServiceType is set to LoadBalancer.
+	// If specified, the service will be processed by the load balancer implementation that matches the specified class.
+	// By default, this is not set and the LoadBalancer type of Service uses the cloud provider's default load balancer
+	// implementation.
+	// Once set, it cannot be changed. The value must be a label-style identifier, with an optional prefix such as
+	// "internal-vip" or "example.com/internal-vip".
+	// More info: https://kubernetes.io/docs/concepts/services-networking/service/#load-balancer-class
+	LoadBalancerClass *string `json:"loadBalancerClass,omitempty"`
+	// ServiceAnnotations is an extra set of annotations for service of karmada apiserver.
+	// more info: https://github.com/karmada-io/karmada/issues/4634
+	ServiceAnnotations map[string]string `json:"serviceAnnotations,omitempty"`
+	// ExtraArgs is an extra set of flags to pass to the kube-apiserver component or
+	// override. A key in this map is the flag name as it appears on the command line except
+	// without leading dash(es).
+	//
+	// Note: This is a temporary solution to allow for the configuration of the
+	// kube-apiserver component. In the future, we will provide a more structured way
+	// to configure the component. Once that is done, this field will be discouraged to be used.
+	// Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
+	// state. Before you do it, please confirm that you understand the risks of this configuration.
+	//
+	// For supported flags, please see
+	// https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/
+	// for details.
+	ExtraArgs map[string]string `json:"extraArgs,omitempty"`
+	// ExtraVolumes specifies a list of extra volumes for the API server's pod
+	// To fulfil the base functionality required for a functioning control plane, when provisioning a new Karmada instance,
+	// the operator will automatically attach volumes for the API server pod needed to configure things such as TLS,
+	// SA token issuance/signing and secured connection to etcd, amongst others. However, given the wealth of options for configurability,
+	// there are additional features (e.g., encryption at rest and custom AuthN webhook) that can be configured. ExtraVolumes, in conjunction
+	// with ExtraArgs and ExtraVolumeMounts can be used to fulfil those use cases.
+	ExtraVolumes []corev1.VolumeApplyConfiguration `json:"extraVolumes,omitempty"`
+	// ExtraVolumeMounts specifies a list of extra volume mounts to be mounted into the API server's container
+	// To fulfil the base functionality required for a functioning control plane, when provisioning a new Karmada instance,
+	// the operator will automatically mount volumes into the API server container needed to configure things such as TLS,
+	// SA token issuance/signing and secured connection to etcd, amongst others. However, given the wealth of options for configurability,
+	// there are additional features (e.g., encryption at rest and custom AuthN webhook) that can be configured. ExtraVolumeMounts, in conjunction
+	// with ExtraArgs and ExtraVolumes can be used to fulfil those use cases.
+	ExtraVolumeMounts []corev1.VolumeMountApplyConfiguration `json:"extraVolumeMounts,omitempty"`
+	// CertSANs sets extra Subject Alternative Names for the API Server signing cert.
+	CertSANs []string `json:"certSANs,omitempty"`
+	// FeatureGates enabled by the user.
+	// More info: https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/
+	FeatureGates map[string]bool `json:"featureGates,omitempty"`
+	// SidecarContainers specifies a list of sidecar containers to be deployed
+	// within the Karmada API server pod.
+	// This enables users to integrate auxiliary services such as KMS plugins for configuring encryption at rest.
+	SidecarContainers []corev1.ContainerApplyConfiguration `json:"sidecarContainers,omitempty"`
 }
 
 // KarmadaAPIServerApplyConfiguration constructs a declarative configuration of the KarmadaAPIServer type for use with

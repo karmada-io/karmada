@@ -20,7 +20,30 @@ package v1alpha1
 
 // ReplicaRevisionApplyConfiguration represents a declarative configuration of the ReplicaRevision type for use
 // with apply.
+//
+// ReplicaRevision holds the scripts for revising the desired replicas.
 type ReplicaRevisionApplyConfiguration struct {
+	// LuaScript holds the Lua script that is used to revise replicas in the desired specification.
+	// The script should implement a function as follows:
+	//
+	// ```
+	// luaScript: >
+	// function ReviseReplica(desiredObj, desiredReplica)
+	// desiredObj.spec.replicas = desiredReplica
+	// return desiredObj
+	// end
+	// ```
+	//
+	// The content of the LuaScript needs to be a whole function including both
+	// declaration and implementation.
+	//
+	// The parameters will be supplied by the system:
+	// - desiredObj: the object represents the configuration to be applied
+	// to the member cluster.
+	// - desiredReplica: the replica number should be applied with.
+	//
+	// The returned object should be a revised configuration which will be
+	// applied to member cluster eventually.
 	LuaScript *string `json:"luaScript,omitempty"`
 }
 

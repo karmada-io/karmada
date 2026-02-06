@@ -20,7 +20,30 @@ package v1alpha1
 
 // HealthInterpretationApplyConfiguration represents a declarative configuration of the HealthInterpretation type for use
 // with apply.
+//
+// HealthInterpretation holds the rules for interpreting the health state of a specific resource.
 type HealthInterpretationApplyConfiguration struct {
+	// LuaScript holds the Lua script that is used to assess the health state of
+	// a specific resource.
+	// The script should implement a function as follows:
+	//
+	// ```
+	// luaScript: >
+	// function InterpretHealth(observedObj)
+	// if observedObj.status.readyReplicas == observedObj.spec.replicas then
+	// return true
+	// end
+	// end
+	// ```
+	//
+	// The content of the LuaScript needs to be a whole function including both
+	// declaration and implementation.
+	//
+	// The parameters will be supplied by the system:
+	// - observedObj: the object represents the configuration that is observed
+	// from a specific member cluster.
+	//
+	// The returned boolean value indicates the health status.
 	LuaScript *string `json:"luaScript,omitempty"`
 }
 

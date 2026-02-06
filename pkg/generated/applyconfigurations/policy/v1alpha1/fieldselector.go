@@ -24,7 +24,10 @@ import (
 
 // FieldSelectorApplyConfiguration represents a declarative configuration of the FieldSelector type for use
 // with apply.
+//
+// FieldSelector is a field filter.
 type FieldSelectorApplyConfiguration struct {
+	// A list of field selector requirements.
 	MatchExpressions []v1.NodeSelectorRequirementApplyConfiguration `json:"matchExpressions,omitempty"`
 }
 

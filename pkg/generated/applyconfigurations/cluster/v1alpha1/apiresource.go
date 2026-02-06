@@ -20,8 +20,12 @@ package v1alpha1
 
 // APIResourceApplyConfiguration represents a declarative configuration of the APIResource type for use
 // with apply.
+//
+// APIResource specifies the name and kind names for the resource.
 type APIResourceApplyConfiguration struct {
+	// Name is the plural name of the resource.
 	Name *string `json:"name,omitempty"`
+	// Kind is the kind for the resource (e.g. 'Deployment' is the kind for resource 'deployments')
 	Kind *string `json:"kind,omitempty"`
 }
 

@@ -20,11 +20,31 @@ package v1alpha1
 
 // ClusterTaintPolicySpecApplyConfiguration represents a declarative configuration of the ClusterTaintPolicySpec type for use
 // with apply.
+//
+// ClusterTaintPolicySpec represents the desired behavior of ClusterTaintPolicy.
 type ClusterTaintPolicySpecApplyConfiguration struct {
-	TargetClusters     *ClusterAffinityApplyConfiguration `json:"targetClusters,omitempty"`
-	AddOnConditions    []MatchConditionApplyConfiguration `json:"addOnConditions,omitempty"`
+	// TargetClusters specifies the clusters that ClusterTaintPolicy needs
+	// to pay attention to.
+	// For clusters that no longer match the TargetClusters, the taints
+	// will be kept unchanged.
+	// If targetClusters is not set, any cluster can be selected.
+	TargetClusters *ClusterAffinityApplyConfiguration `json:"targetClusters,omitempty"`
+	// AddOnConditions defines the conditions to match for triggering
+	// the controller to add taints on the cluster object.
+	// The match conditions are ANDed.
+	// If AddOnConditions is empty, no taints will be added.
+	AddOnConditions []MatchConditionApplyConfiguration `json:"addOnConditions,omitempty"`
+	// RemoveOnConditions defines the conditions to match for triggering
+	// the controller to remove taints from the cluster object.
+	// The match conditions are ANDed.
+	// If RemoveOnConditions is empty, no taints will be removed.
 	RemoveOnConditions []MatchConditionApplyConfiguration `json:"removeOnConditions,omitempty"`
-	Taints             []TaintApplyConfiguration          `json:"taints,omitempty"`
+	// Taints specifies the taints that need to be added or removed on
+	// the cluster object which match with TargetClusters.
+	// If the Taints is modified, the system will process the taints based on
+	// the latest value of Taints during the next condition-triggered execution,
+	// regardless of whether the taint has been added or removed.
+	Taints []TaintApplyConfiguration `json:"taints,omitempty"`
 }
 
 // ClusterTaintPolicySpecApplyConfiguration constructs a declarative configuration of the ClusterTaintPolicySpec type for use with

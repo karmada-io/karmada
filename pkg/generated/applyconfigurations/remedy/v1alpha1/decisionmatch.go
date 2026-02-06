@@ -20,7 +20,10 @@ package v1alpha1
 
 // DecisionMatchApplyConfiguration represents a declarative configuration of the DecisionMatch type for use
 // with apply.
+//
+// DecisionMatch represents the decision match detail of activating the remedy system.
 type DecisionMatchApplyConfiguration struct {
+	// ClusterConditionMatch describes the cluster condition requirement.
 	ClusterConditionMatch *ClusterConditionRequirementApplyConfiguration `json:"clusterConditionMatch,omitempty"`
 }
 

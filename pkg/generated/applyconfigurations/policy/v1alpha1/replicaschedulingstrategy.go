@@ -24,10 +24,24 @@ import (
 
 // ReplicaSchedulingStrategyApplyConfiguration represents a declarative configuration of the ReplicaSchedulingStrategy type for use
 // with apply.
+//
+// ReplicaSchedulingStrategy represents the assignment strategy of replicas.
 type ReplicaSchedulingStrategyApplyConfiguration struct {
-	ReplicaSchedulingType     *policyv1alpha1.ReplicaSchedulingType     `json:"replicaSchedulingType,omitempty"`
+	// ReplicaSchedulingType determines how the replicas is scheduled when karmada propagating
+	// a resource. Valid options are Duplicated and Divided.
+	// "Duplicated" duplicates the same replicas to each candidate member cluster from resource.
+	// "Divided" divides replicas into parts according to number of valid candidate member
+	// clusters, and exact replicas for each cluster are determined by ReplicaDivisionPreference.
+	ReplicaSchedulingType *policyv1alpha1.ReplicaSchedulingType `json:"replicaSchedulingType,omitempty"`
+	// ReplicaDivisionPreference determines how the replicas is divided
+	// when ReplicaSchedulingType is "Divided". Valid options are Aggregated and Weighted.
+	// "Aggregated" divides replicas into clusters as few as possible,
+	// while respecting clusters' resource availabilities during the division.
+	// "Weighted" divides replicas by weight according to WeightPreference.
 	ReplicaDivisionPreference *policyv1alpha1.ReplicaDivisionPreference `json:"replicaDivisionPreference,omitempty"`
-	WeightPreference          *ClusterPreferencesApplyConfiguration     `json:"weightPreference,omitempty"`
+	// WeightPreference describes weight for each cluster or for each group of cluster
+	// If ReplicaDivisionPreference is set to "Weighted", and WeightPreference is not set, scheduler will weight all clusters the same.
+	WeightPreference *ClusterPreferencesApplyConfiguration `json:"weightPreference,omitempty"`
 }
 
 // ReplicaSchedulingStrategyApplyConfiguration constructs a declarative configuration of the ReplicaSchedulingStrategy type for use with

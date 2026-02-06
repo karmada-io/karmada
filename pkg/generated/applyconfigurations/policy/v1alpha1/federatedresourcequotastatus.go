@@ -24,9 +24,14 @@ import (
 
 // FederatedResourceQuotaStatusApplyConfiguration represents a declarative configuration of the FederatedResourceQuotaStatus type for use
 // with apply.
+//
+// FederatedResourceQuotaStatus defines the enforced hard limits and observed use.
 type FederatedResourceQuotaStatusApplyConfiguration struct {
-	Overall          *v1.ResourceList                       `json:"overall,omitempty"`
-	OverallUsed      *v1.ResourceList                       `json:"overallUsed,omitempty"`
+	// Overall is the set of enforced hard limits for each named resource.
+	Overall *v1.ResourceList `json:"overall,omitempty"`
+	// OverallUsed is the current observed total usage of the resource in the namespace.
+	OverallUsed *v1.ResourceList `json:"overallUsed,omitempty"`
+	// AggregatedStatus is the observed quota usage of each cluster.
 	AggregatedStatus []ClusterQuotaStatusApplyConfiguration `json:"aggregatedStatus,omitempty"`
 }
 

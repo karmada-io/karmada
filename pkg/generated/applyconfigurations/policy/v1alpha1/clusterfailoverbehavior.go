@@ -24,8 +24,28 @@ import (
 
 // ClusterFailoverBehaviorApplyConfiguration represents a declarative configuration of the ClusterFailoverBehavior type for use
 // with apply.
+//
+// ClusterFailoverBehavior indicates cluster failover behaviors.
 type ClusterFailoverBehaviorApplyConfiguration struct {
-	PurgeMode         *policyv1alpha1.PurgeMode            `json:"purgeMode,omitempty"`
+	// PurgeMode represents how to deal with the legacy applications on the
+	// cluster from which the application is migrated.
+	// Valid options are "Directly", "Gracefully".
+	// Defaults to "Gracefully".
+	PurgeMode *policyv1alpha1.PurgeMode `json:"purgeMode,omitempty"`
+	// StatePreservation defines the policy for preserving and restoring state data
+	// during failover events for stateful applications.
+	//
+	// When an application fails over from one cluster to another, this policy enables
+	// the extraction of critical data from the original resource configuration.
+	// Upon successful migration, the extracted data is then re-injected into the new
+	// resource, ensuring that the application can resume operation with its previous
+	// state intact.
+	// This is particularly useful for stateful applications where maintaining data
+	// consistency across failover events is crucial.
+	// If not specified, means no state data will be preserved.
+	//
+	// Note: This requires the StatefulFailoverInjection feature gate to be enabled,
+	// which is alpha.
 	StatePreservation *StatePreservationApplyConfiguration `json:"statePreservation,omitempty"`
 }
 

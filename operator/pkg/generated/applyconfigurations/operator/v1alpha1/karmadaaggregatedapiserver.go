@@ -25,11 +25,31 @@ import (
 
 // KarmadaAggregatedAPIServerApplyConfiguration represents a declarative configuration of the KarmadaAggregatedAPIServer type for use
 // with apply.
+//
+// KarmadaAggregatedAPIServer holds settings to karmada-aggregated-apiserver component of the karmada.
 type KarmadaAggregatedAPIServerApplyConfiguration struct {
+	// CommonSettings holds common settings to karmada apiServer.
 	CommonSettingsApplyConfiguration `json:",inline"`
-	ExtraArgs                        map[string]string `json:"extraArgs,omitempty"`
-	CertSANs                         []string          `json:"certSANs,omitempty"`
-	FeatureGates                     map[string]bool   `json:"featureGates,omitempty"`
+	// ExtraArgs is an extra set of flags to pass to the karmada-aggregated-apiserver component or
+	// override. A key in this map is the flag name as it appears on the command line except
+	// without leading dash(es).
+	//
+	// Note: This is a temporary solution to allow for the configuration of the
+	// karmada-aggregated-apiserver component. In the future, we will provide a more structured way
+	// to configure the component. Once that is done, this field will be discouraged to be used.
+	// Incorrect settings on this field maybe lead to the corresponding component in an unhealthy
+	// state. Before you do it, please confirm that you understand the risks of this configuration.
+	//
+	// For supported flags, please see
+	// https://karmada.io/docs/reference/components/karmada-aggregated-apiserver
+	// for details.
+	ExtraArgs map[string]string `json:"extraArgs,omitempty"`
+	// CertSANs sets extra Subject Alternative Names for the API Server signing cert.
+	CertSANs []string `json:"certSANs,omitempty"`
+	// FeatureGates enabled by the user.
+	// - CustomizedClusterResourceModeling: https://karmada.io/docs/userguide/scheduling/cluster-resources#start-to-use-cluster-resource-models
+	// More info: https://github.com/karmada-io/karmada/blob/master/pkg/features/features.go
+	FeatureGates map[string]bool `json:"featureGates,omitempty"`
 }
 
 // KarmadaAggregatedAPIServerApplyConfiguration constructs a declarative configuration of the KarmadaAggregatedAPIServer type for use with

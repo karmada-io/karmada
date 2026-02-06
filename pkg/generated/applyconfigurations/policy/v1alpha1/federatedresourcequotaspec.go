@@ -24,8 +24,20 @@ import (
 
 // FederatedResourceQuotaSpecApplyConfiguration represents a declarative configuration of the FederatedResourceQuotaSpec type for use
 // with apply.
+//
+// FederatedResourceQuotaSpec defines the desired hard limits to enforce for Quota.
 type FederatedResourceQuotaSpecApplyConfiguration struct {
-	Overall           *v1.ResourceList                            `json:"overall,omitempty"`
+	// Overall is the set of desired hard limits for each named resource.
+	Overall *v1.ResourceList `json:"overall,omitempty"`
+	// StaticAssignments specifies ResourceQuota settings for specific clusters.
+	// If non-empty, Karmada will create ResourceQuotas in the corresponding clusters.
+	// Clusters not listed here or when StaticAssignments is empty will have no ResourceQuotas created.
+	//
+	// This field addresses multi-cluster configuration management challenges by allowing centralized
+	// control over ResourceQuotas across clusters.
+	//
+	// Note: The Karmada scheduler currently does NOT use this configuration for scheduling decisions.
+	// Future updates may integrate it into the scheduling logic.
 	StaticAssignments []StaticClusterAssignmentApplyConfiguration `json:"staticAssignments,omitempty"`
 }
 

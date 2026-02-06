@@ -20,9 +20,25 @@ package v1alpha1
 
 // StatePreservationRuleApplyConfiguration represents a declarative configuration of the StatePreservationRule type for use
 // with apply.
+//
+// StatePreservationRule defines a single rule for state preservation.
+// It includes a JSONPath expression and an alias name that will be used
+// as a label key when passing state information to the new cluster.
 type StatePreservationRuleApplyConfiguration struct {
+	// AliasLabelName is the name that will be used as a label key when the preserved
+	// data is passed to the new cluster. This facilitates the injection of the
+	// preserved state back into the application resources during recovery.
 	AliasLabelName *string `json:"aliasLabelName,omitempty"`
-	JSONPath       *string `json:"jsonPath,omitempty"`
+	// JSONPath is the JSONPath template used to identify the state data
+	// to be preserved from the original resource configuration.
+	// The JSONPath syntax follows the Kubernetes specification:
+	// https://kubernetes.io/docs/reference/kubectl/jsonpath/
+	//
+	// Note: The JSONPath expression will start searching from the "status" field of
+	// the API resource object by default. For example, to extract the "availableReplicas"
+	// from a Deployment, the JSONPath expression should be "{.availableReplicas}", not
+	// "{.status.availableReplicas}".
+	JSONPath *string `json:"jsonPath,omitempty"`
 }
 
 // StatePreservationRuleApplyConfiguration constructs a declarative configuration of the StatePreservationRule type for use with

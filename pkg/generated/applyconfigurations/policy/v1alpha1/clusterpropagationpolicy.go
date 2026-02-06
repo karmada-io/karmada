@@ -29,10 +29,16 @@ import (
 
 // ClusterPropagationPolicyApplyConfiguration represents a declarative configuration of the ClusterPropagationPolicy type for use
 // with apply.
+//
+// ClusterPropagationPolicy represents the cluster-wide policy that propagates a group of resources to one or more clusters.
+// Different with PropagationPolicy that could only propagate resources in its own namespace, ClusterPropagationPolicy
+// is able to propagate cluster level resources and resources in any namespace other than system reserved ones.
+// System reserved namespaces are: karmada-system, karmada-cluster, karmada-es-*.
 type ClusterPropagationPolicyApplyConfiguration struct {
 	v1.TypeMetaApplyConfiguration    `json:",inline"`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
-	Spec                             *PropagationSpecApplyConfiguration `json:"spec,omitempty"`
+	// Spec represents the desired behavior of ClusterPropagationPolicy.
+	Spec *PropagationSpecApplyConfiguration `json:"spec,omitempty"`
 }
 
 // ClusterPropagationPolicy constructs a declarative configuration of the ClusterPropagationPolicy type for use with
@@ -45,29 +51,14 @@ func ClusterPropagationPolicy(name string) *ClusterPropagationPolicyApplyConfigu
 	return b
 }
 
-// ExtractClusterPropagationPolicy extracts the applied configuration owned by fieldManager from
-// clusterPropagationPolicy. If no managedFields are found in clusterPropagationPolicy for fieldManager, a
-// ClusterPropagationPolicyApplyConfiguration is returned with only the Name, Namespace (if applicable),
-// APIVersion and Kind populated. It is possible that no managed fields were found for because other
-// field managers have taken ownership of all the fields previously owned by fieldManager, or because
-// the fieldManager never owned fields any fields.
+// ExtractClusterPropagationPolicyFrom extracts the applied configuration owned by fieldManager from
+// clusterPropagationPolicy for the specified subresource. Pass an empty string for subresource to extract
+// the main resource. Common subresources include "status", "scale", etc.
 // clusterPropagationPolicy must be a unmodified ClusterPropagationPolicy API object that was retrieved from the Kubernetes API.
-// ExtractClusterPropagationPolicy provides a way to perform a extract/modify-in-place/apply workflow.
+// ExtractClusterPropagationPolicyFrom provides a way to perform a extract/modify-in-place/apply workflow.
 // Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
 // applied if another fieldManager has updated or force applied any of the previously applied fields.
-// Experimental!
-func ExtractClusterPropagationPolicy(clusterPropagationPolicy *policyv1alpha1.ClusterPropagationPolicy, fieldManager string) (*ClusterPropagationPolicyApplyConfiguration, error) {
-	return extractClusterPropagationPolicy(clusterPropagationPolicy, fieldManager, "")
-}
-
-// ExtractClusterPropagationPolicyStatus is the same as ExtractClusterPropagationPolicy except
-// that it extracts the status subresource applied configuration.
-// Experimental!
-func ExtractClusterPropagationPolicyStatus(clusterPropagationPolicy *policyv1alpha1.ClusterPropagationPolicy, fieldManager string) (*ClusterPropagationPolicyApplyConfiguration, error) {
-	return extractClusterPropagationPolicy(clusterPropagationPolicy, fieldManager, "status")
-}
-
-func extractClusterPropagationPolicy(clusterPropagationPolicy *policyv1alpha1.ClusterPropagationPolicy, fieldManager string, subresource string) (*ClusterPropagationPolicyApplyConfiguration, error) {
+func ExtractClusterPropagationPolicyFrom(clusterPropagationPolicy *policyv1alpha1.ClusterPropagationPolicy, fieldManager string, subresource string) (*ClusterPropagationPolicyApplyConfiguration, error) {
 	b := &ClusterPropagationPolicyApplyConfiguration{}
 	err := managedfields.ExtractInto(clusterPropagationPolicy, internal.Parser().Type("com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ClusterPropagationPolicy"), fieldManager, b, subresource)
 	if err != nil {
@@ -79,6 +70,21 @@ func extractClusterPropagationPolicy(clusterPropagationPolicy *policyv1alpha1.Cl
 	b.WithAPIVersion("policy.karmada.io/v1alpha1")
 	return b, nil
 }
+
+// ExtractClusterPropagationPolicy extracts the applied configuration owned by fieldManager from
+// clusterPropagationPolicy. If no managedFields are found in clusterPropagationPolicy for fieldManager, a
+// ClusterPropagationPolicyApplyConfiguration is returned with only the Name, Namespace (if applicable),
+// APIVersion and Kind populated. It is possible that no managed fields were found for because other
+// field managers have taken ownership of all the fields previously owned by fieldManager, or because
+// the fieldManager never owned fields any fields.
+// clusterPropagationPolicy must be a unmodified ClusterPropagationPolicy API object that was retrieved from the Kubernetes API.
+// ExtractClusterPropagationPolicy provides a way to perform a extract/modify-in-place/apply workflow.
+// Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
+// applied if another fieldManager has updated or force applied any of the previously applied fields.
+func ExtractClusterPropagationPolicy(clusterPropagationPolicy *policyv1alpha1.ClusterPropagationPolicy, fieldManager string) (*ClusterPropagationPolicyApplyConfiguration, error) {
+	return ExtractClusterPropagationPolicyFrom(clusterPropagationPolicy, fieldManager, "")
+}
+
 func (b ClusterPropagationPolicyApplyConfiguration) IsApplyConfiguration() {}
 
 // WithKind sets the Kind field in the declarative configuration to the given value

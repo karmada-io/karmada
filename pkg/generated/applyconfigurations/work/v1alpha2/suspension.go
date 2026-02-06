@@ -24,9 +24,18 @@ import (
 
 // SuspensionApplyConfiguration represents a declarative configuration of the Suspension type for use
 // with apply.
+//
+// Suspension defines the policy for suspending dispatching and scheduling.
 type SuspensionApplyConfiguration struct {
 	v1alpha1.SuspensionApplyConfiguration `json:",inline"`
-	Scheduling                            *bool `json:"scheduling,omitempty"`
+	// Scheduling controls whether scheduling should be suspended, the scheduler will pause scheduling and not
+	// process resource binding when the value is true and resume scheduling when it's false or nil.
+	// This is designed for third-party systems to temporarily pause the scheduling of applications, which enabling
+	// manage resource allocation, prioritize critical workloads, etc.
+	// It is expected that third-party systems use an admission webhook to suspend scheduling at the time of
+	// ResourceBinding creation. Once a ResourceBinding has been scheduled, it cannot be paused afterward, as it may
+	// lead to ineffective suspension.
+	Scheduling *bool `json:"scheduling,omitempty"`
 }
 
 // SuspensionApplyConfiguration constructs a declarative configuration of the Suspension type for use with

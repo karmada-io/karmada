@@ -24,13 +24,55 @@ import (
 
 // PlacementApplyConfiguration represents a declarative configuration of the Placement type for use
 // with apply.
+//
+// Placement represents the rule for select clusters.
 type PlacementApplyConfiguration struct {
-	ClusterAffinity    *ClusterAffinityApplyConfiguration           `json:"clusterAffinity,omitempty"`
-	ClusterAffinities  []ClusterAffinityTermApplyConfiguration      `json:"clusterAffinities,omitempty"`
-	ClusterTolerations []v1.TolerationApplyConfiguration            `json:"clusterTolerations,omitempty"`
-	SpreadConstraints  []SpreadConstraintApplyConfiguration         `json:"spreadConstraints,omitempty"`
-	ReplicaScheduling  *ReplicaSchedulingStrategyApplyConfiguration `json:"replicaScheduling,omitempty"`
-	WorkloadAffinity   *WorkloadAffinityApplyConfiguration          `json:"workloadAffinity,omitempty"`
+	// ClusterAffinity represents scheduling restrictions to a certain set of clusters.
+	// Note:
+	// 1. ClusterAffinity can not co-exist with ClusterAffinities.
+	// 2. If both ClusterAffinity and ClusterAffinities are not set, any cluster
+	// can be scheduling candidates.
+	ClusterAffinity *ClusterAffinityApplyConfiguration `json:"clusterAffinity,omitempty"`
+	// ClusterAffinities represents scheduling restrictions to multiple cluster
+	// groups that indicated by ClusterAffinityTerm.
+	//
+	// The scheduler will evaluate these groups one by one in the order they
+	// appear in the spec, the group that does not satisfy scheduling restrictions
+	// will be ignored which means all clusters in this group will not be selected
+	// unless it also belongs to the next group(a cluster could belong to multiple
+	// groups).
+	//
+	// If none of the groups satisfy the scheduling restrictions, then scheduling
+	// fails, which means no cluster will be selected.
+	//
+	// Note:
+	// 1. ClusterAffinities can not co-exist with ClusterAffinity.
+	// 2. If both ClusterAffinity and ClusterAffinities are not set, any cluster
+	// can be scheduling candidates.
+	//
+	// Potential use case 1:
+	// The private clusters in the local data center could be the main group, and
+	// the managed clusters provided by cluster providers could be the secondary
+	// group. So that the Karmada scheduler would prefer to schedule workloads
+	// to the main group and the second group will only be considered in case of
+	// the main group does not satisfy restrictions(like, lack of resources).
+	//
+	// Potential use case 2:
+	// For the disaster recovery scenario, the clusters could be organized to
+	// primary and backup groups, the workloads would be scheduled to primary
+	// clusters firstly, and when primary cluster fails(like data center power off),
+	// Karmada scheduler could migrate workloads to the backup clusters.
+	ClusterAffinities []ClusterAffinityTermApplyConfiguration `json:"clusterAffinities,omitempty"`
+	// ClusterTolerations represents the tolerations.
+	ClusterTolerations []v1.TolerationApplyConfiguration `json:"clusterTolerations,omitempty"`
+	// SpreadConstraints represents a list of the scheduling constraints.
+	SpreadConstraints []SpreadConstraintApplyConfiguration `json:"spreadConstraints,omitempty"`
+	// ReplicaScheduling represents the scheduling policy on dealing with the number of replicas
+	// when propagating resources that have replicas in spec (e.g. deployments, statefulsets) to member clusters.
+	ReplicaScheduling *ReplicaSchedulingStrategyApplyConfiguration `json:"replicaScheduling,omitempty"`
+	// WorkloadAffinity represents inter-workload affinity and anti-affinity
+	// scheduling policies.
+	WorkloadAffinity *WorkloadAffinityApplyConfiguration `json:"workloadAffinity,omitempty"`
 }
 
 // PlacementApplyConfiguration constructs a declarative configuration of the Placement type for use with

@@ -20,9 +20,14 @@ package v1alpha1
 
 // ExposurePortApplyConfiguration represents a declarative configuration of the ExposurePort type for use
 // with apply.
+//
+// ExposurePort describes which port will be exposed.
 type ExposurePortApplyConfiguration struct {
+	// Name is the name of the port that needs to be exposed within the service.
+	// The port name must be the same as that defined in the service.
 	Name *string `json:"name,omitempty"`
-	Port *int32  `json:"port,omitempty"`
+	// Port specifies the exposed service port.
+	Port *int32 `json:"port,omitempty"`
 }
 
 // ExposurePortApplyConfiguration constructs a declarative configuration of the ExposurePort type for use with

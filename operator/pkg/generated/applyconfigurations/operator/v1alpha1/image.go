@@ -20,9 +20,16 @@ package v1alpha1
 
 // ImageApplyConfiguration represents a declarative configuration of the Image type for use
 // with apply.
+//
+// Image allows to customize the image used for components.
 type ImageApplyConfiguration struct {
+	// ImageRepository sets the container registry to pull images from.
+	// if not set, the ImageRepository defined in KarmadaSpec will be used instead.
 	ImageRepository *string `json:"imageRepository,omitempty"`
-	ImageTag        *string `json:"imageTag,omitempty"`
+	// ImageTag allows to specify a tag for the image.
+	// In case this value is set, operator does not change automatically the version
+	// of the above components during upgrades.
+	ImageTag *string `json:"imageTag,omitempty"`
 }
 
 // ImageApplyConfiguration constructs a declarative configuration of the Image type for use with

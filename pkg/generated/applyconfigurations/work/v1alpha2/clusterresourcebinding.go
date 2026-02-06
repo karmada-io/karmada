@@ -29,11 +29,15 @@ import (
 
 // ClusterResourceBindingApplyConfiguration represents a declarative configuration of the ClusterResourceBinding type for use
 // with apply.
+//
+// ClusterResourceBinding represents a binding of a kubernetes resource with a ClusterPropagationPolicy.
 type ClusterResourceBindingApplyConfiguration struct {
 	v1.TypeMetaApplyConfiguration    `json:",inline"`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
-	Spec                             *ResourceBindingSpecApplyConfiguration   `json:"spec,omitempty"`
-	Status                           *ResourceBindingStatusApplyConfiguration `json:"status,omitempty"`
+	// Spec represents the desired behavior.
+	Spec *ResourceBindingSpecApplyConfiguration `json:"spec,omitempty"`
+	// Status represents the most recently observed status of the ResourceBinding.
+	Status *ResourceBindingStatusApplyConfiguration `json:"status,omitempty"`
 }
 
 // ClusterResourceBinding constructs a declarative configuration of the ClusterResourceBinding type for use with
@@ -46,29 +50,14 @@ func ClusterResourceBinding(name string) *ClusterResourceBindingApplyConfigurati
 	return b
 }
 
-// ExtractClusterResourceBinding extracts the applied configuration owned by fieldManager from
-// clusterResourceBinding. If no managedFields are found in clusterResourceBinding for fieldManager, a
-// ClusterResourceBindingApplyConfiguration is returned with only the Name, Namespace (if applicable),
-// APIVersion and Kind populated. It is possible that no managed fields were found for because other
-// field managers have taken ownership of all the fields previously owned by fieldManager, or because
-// the fieldManager never owned fields any fields.
+// ExtractClusterResourceBindingFrom extracts the applied configuration owned by fieldManager from
+// clusterResourceBinding for the specified subresource. Pass an empty string for subresource to extract
+// the main resource. Common subresources include "status", "scale", etc.
 // clusterResourceBinding must be a unmodified ClusterResourceBinding API object that was retrieved from the Kubernetes API.
-// ExtractClusterResourceBinding provides a way to perform a extract/modify-in-place/apply workflow.
+// ExtractClusterResourceBindingFrom provides a way to perform a extract/modify-in-place/apply workflow.
 // Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
 // applied if another fieldManager has updated or force applied any of the previously applied fields.
-// Experimental!
-func ExtractClusterResourceBinding(clusterResourceBinding *workv1alpha2.ClusterResourceBinding, fieldManager string) (*ClusterResourceBindingApplyConfiguration, error) {
-	return extractClusterResourceBinding(clusterResourceBinding, fieldManager, "")
-}
-
-// ExtractClusterResourceBindingStatus is the same as ExtractClusterResourceBinding except
-// that it extracts the status subresource applied configuration.
-// Experimental!
-func ExtractClusterResourceBindingStatus(clusterResourceBinding *workv1alpha2.ClusterResourceBinding, fieldManager string) (*ClusterResourceBindingApplyConfiguration, error) {
-	return extractClusterResourceBinding(clusterResourceBinding, fieldManager, "status")
-}
-
-func extractClusterResourceBinding(clusterResourceBinding *workv1alpha2.ClusterResourceBinding, fieldManager string, subresource string) (*ClusterResourceBindingApplyConfiguration, error) {
+func ExtractClusterResourceBindingFrom(clusterResourceBinding *workv1alpha2.ClusterResourceBinding, fieldManager string, subresource string) (*ClusterResourceBindingApplyConfiguration, error) {
 	b := &ClusterResourceBindingApplyConfiguration{}
 	err := managedfields.ExtractInto(clusterResourceBinding, internal.Parser().Type("com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.ClusterResourceBinding"), fieldManager, b, subresource)
 	if err != nil {
@@ -80,6 +69,27 @@ func extractClusterResourceBinding(clusterResourceBinding *workv1alpha2.ClusterR
 	b.WithAPIVersion("work.karmada.io/v1alpha2")
 	return b, nil
 }
+
+// ExtractClusterResourceBinding extracts the applied configuration owned by fieldManager from
+// clusterResourceBinding. If no managedFields are found in clusterResourceBinding for fieldManager, a
+// ClusterResourceBindingApplyConfiguration is returned with only the Name, Namespace (if applicable),
+// APIVersion and Kind populated. It is possible that no managed fields were found for because other
+// field managers have taken ownership of all the fields previously owned by fieldManager, or because
+// the fieldManager never owned fields any fields.
+// clusterResourceBinding must be a unmodified ClusterResourceBinding API object that was retrieved from the Kubernetes API.
+// ExtractClusterResourceBinding provides a way to perform a extract/modify-in-place/apply workflow.
+// Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
+// applied if another fieldManager has updated or force applied any of the previously applied fields.
+func ExtractClusterResourceBinding(clusterResourceBinding *workv1alpha2.ClusterResourceBinding, fieldManager string) (*ClusterResourceBindingApplyConfiguration, error) {
+	return ExtractClusterResourceBindingFrom(clusterResourceBinding, fieldManager, "")
+}
+
+// ExtractClusterResourceBindingStatus extracts the applied configuration owned by fieldManager from
+// clusterResourceBinding for the status subresource.
+func ExtractClusterResourceBindingStatus(clusterResourceBinding *workv1alpha2.ClusterResourceBinding, fieldManager string) (*ClusterResourceBindingApplyConfiguration, error) {
+	return ExtractClusterResourceBindingFrom(clusterResourceBinding, fieldManager, "status")
+}
+
 func (b ClusterResourceBindingApplyConfiguration) IsApplyConfiguration() {}
 
 // WithKind sets the Kind field in the declarative configuration to the given value

@@ -56,7 +56,7 @@ func NewClusterPropagationPolicyInformer(client versioned.Interface, resyncPerio
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredClusterPropagationPolicyInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
-		&cache.ListWatch{
+		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
@@ -81,7 +81,7 @@ func NewFilteredClusterPropagationPolicyInformer(client versioned.Interface, res
 				}
 				return client.PolicyV1alpha1().ClusterPropagationPolicies().Watch(ctx, options)
 			},
-		},
+		}, client),
 		&apispolicyv1alpha1.ClusterPropagationPolicy{},
 		resyncPeriod,
 		indexers,

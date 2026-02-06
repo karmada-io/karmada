@@ -20,11 +20,24 @@ package v1alpha1
 
 // OverrideSpecApplyConfiguration represents a declarative configuration of the OverrideSpec type for use
 // with apply.
+//
+// OverrideSpec defines the desired behavior of OverridePolicy.
 type OverrideSpecApplyConfiguration struct {
+	// ResourceSelectors restricts resource types that this override policy applies to.
+	// nil means matching all resources.
 	ResourceSelectors []ResourceSelectorApplyConfiguration `json:"resourceSelectors,omitempty"`
-	OverrideRules     []RuleWithClusterApplyConfiguration  `json:"overrideRules,omitempty"`
-	TargetCluster     *ClusterAffinityApplyConfiguration   `json:"targetCluster,omitempty"`
-	Overriders        *OverridersApplyConfiguration        `json:"overriders,omitempty"`
+	// OverrideRules defines a collection of override rules on target clusters.
+	OverrideRules []RuleWithClusterApplyConfiguration `json:"overrideRules,omitempty"`
+	// TargetCluster defines restrictions on this override policy
+	// that only applies to resources propagated to the matching clusters.
+	// nil means matching all clusters.
+	//
+	// Deprecated: This filed is deprecated in v1.0 and please use the OverrideRules instead.
+	TargetCluster *ClusterAffinityApplyConfiguration `json:"targetCluster,omitempty"`
+	// Overriders represents the override rules that would apply on resources
+	//
+	// Deprecated: This filed is deprecated in v1.0 and please use the OverrideRules instead.
+	Overriders *OverridersApplyConfiguration `json:"overriders,omitempty"`
 }
 
 // OverrideSpecApplyConfiguration constructs a declarative configuration of the OverrideSpec type for use with

@@ -20,7 +20,34 @@ package v1alpha1
 
 // LocalValueRetentionApplyConfiguration represents a declarative configuration of the LocalValueRetention type for use
 // with apply.
+//
+// LocalValueRetention holds the scripts for retention.
+// Now only supports Lua.
 type LocalValueRetentionApplyConfiguration struct {
+	// LuaScript holds the Lua script that is used to retain runtime values
+	// to the desired specification.
+	//
+	// The script should implement a function as follows:
+	//
+	// ```
+	// luaScript: >
+	// function Retain(desiredObj, observedObj)
+	// desiredObj.spec.fieldFoo = observedObj.spec.fieldFoo
+	// return desiredObj
+	// end
+	// ```
+	//
+	// The content of the LuaScript needs to be a whole function including both
+	// declaration and implementation.
+	//
+	// The parameters will be supplied by the system:
+	// - desiredObj: the object represents the configuration to be applied
+	// to the member cluster.
+	// - observedObj: the object represents the configuration that is observed
+	// from a specific member cluster.
+	//
+	// The returned object should be a retained configuration which will be
+	// applied to member cluster eventually.
 	LuaScript *string `json:"luaScript,omitempty"`
 }
 

@@ -24,10 +24,18 @@ import (
 
 // WorkloadRebalancerStatusApplyConfiguration represents a declarative configuration of the WorkloadRebalancerStatus type for use
 // with apply.
+//
+// WorkloadRebalancerStatus contains information about the current status of a WorkloadRebalancer
+// updated periodically by schedule trigger controller.
 type WorkloadRebalancerStatusApplyConfiguration struct {
-	ObservedWorkloads  []ObservedWorkloadApplyConfiguration `json:"observedWorkloads,omitempty"`
-	ObservedGeneration *int64                               `json:"observedGeneration,omitempty"`
-	FinishTime         *v1.Time                             `json:"finishTime,omitempty"`
+	// ObservedWorkloads contains information about the execution states and messages of target resources.
+	ObservedWorkloads []ObservedWorkloadApplyConfiguration `json:"observedWorkloads,omitempty"`
+	// ObservedGeneration is the generation(.metadata.generation) observed by the controller.
+	// If ObservedGeneration is less than the generation in metadata means the controller hasn't confirmed
+	// the rebalance result or hasn't done the rebalance yet.
+	ObservedGeneration *int64 `json:"observedGeneration,omitempty"`
+	// FinishTime represents the finish time of rebalancer.
+	FinishTime *v1.Time `json:"finishTime,omitempty"`
 }
 
 // WorkloadRebalancerStatusApplyConfiguration constructs a declarative configuration of the WorkloadRebalancerStatus type for use with

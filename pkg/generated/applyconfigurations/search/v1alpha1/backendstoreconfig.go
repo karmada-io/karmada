@@ -20,7 +20,11 @@ package v1alpha1
 
 // BackendStoreConfigApplyConfiguration represents a declarative configuration of the BackendStoreConfig type for use
 // with apply.
+//
+// BackendStoreConfig specifies backend store.
 type BackendStoreConfigApplyConfiguration struct {
+	// OpenSearch is a community-driven, open source search and analytics suite.
+	// Refer to website(https://opensearch.org/) for more details about OpenSearch.
 	OpenSearch *OpenSearchConfigApplyConfiguration `json:"openSearch,omitempty"`
 }
 

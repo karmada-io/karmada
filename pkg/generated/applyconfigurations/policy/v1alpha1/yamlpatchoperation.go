@@ -25,10 +25,18 @@ import (
 
 // YAMLPatchOperationApplyConfiguration represents a declarative configuration of the YAMLPatchOperation type for use
 // with apply.
+//
+// YAMLPatchOperation represents a single field modification operation for YAML format.
 type YAMLPatchOperationApplyConfiguration struct {
-	SubPath  *string                           `json:"subPath,omitempty"`
+	// SubPath specifies the relative location within the initial FieldPath where the operation should take place.
+	// The path uses RFC 6901 for navigating into nested structures.
+	SubPath *string `json:"subPath,omitempty"`
+	// Operator indicates the operation on target field.
+	// Available operators are: "add", "remove", and "replace".
 	Operator *policyv1alpha1.OverriderOperator `json:"operator,omitempty"`
-	Value    *v1.JSON                          `json:"value,omitempty"`
+	// Value is the new value to set for the specified field if the operation is "add" or "replace".
+	// For "remove" operation, this field is ignored.
+	Value *v1.JSON `json:"value,omitempty"`
 }
 
 // YAMLPatchOperationApplyConfiguration constructs a declarative configuration of the YAMLPatchOperation type for use with

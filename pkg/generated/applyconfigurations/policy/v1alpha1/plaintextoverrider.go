@@ -25,10 +25,18 @@ import (
 
 // PlaintextOverriderApplyConfiguration represents a declarative configuration of the PlaintextOverrider type for use
 // with apply.
+//
+// PlaintextOverrider is a simple overrider that overrides target fields
+// according to path, operator and value.
 type PlaintextOverriderApplyConfiguration struct {
-	Path     *string                           `json:"path,omitempty"`
+	// Path indicates the path of target field
+	Path *string `json:"path,omitempty"`
+	// Operator indicates the operation on target field.
+	// Available operators are: add, replace and remove.
 	Operator *policyv1alpha1.OverriderOperator `json:"operator,omitempty"`
-	Value    *v1.JSON                          `json:"value,omitempty"`
+	// Value to be applied to target field.
+	// Must be empty when operator is Remove.
+	Value *v1.JSON `json:"value,omitempty"`
 }
 
 // PlaintextOverriderApplyConfiguration constructs a declarative configuration of the PlaintextOverrider type for use with

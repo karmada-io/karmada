@@ -24,10 +24,16 @@ import (
 
 // ClusterConditionRequirementApplyConfiguration represents a declarative configuration of the ClusterConditionRequirement type for use
 // with apply.
+//
+// ClusterConditionRequirement describes the Cluster condition requirement details.
 type ClusterConditionRequirementApplyConfiguration struct {
-	ConditionType   *remedyv1alpha1.ConditionType            `json:"conditionType,omitempty"`
-	Operator        *remedyv1alpha1.ClusterConditionOperator `json:"operator,omitempty"`
-	ConditionStatus *string                                  `json:"conditionStatus,omitempty"`
+	// ConditionType specifies the ClusterStatus condition type.
+	ConditionType *remedyv1alpha1.ConditionType `json:"conditionType,omitempty"`
+	// Operator represents a conditionType's relationship to a conditionStatus.
+	// Valid operators are Equal, NotEqual.
+	Operator *remedyv1alpha1.ClusterConditionOperator `json:"operator,omitempty"`
+	// ConditionStatus specifies the ClusterStatue condition status.
+	ConditionStatus *string `json:"conditionStatus,omitempty"`
 }
 
 // ClusterConditionRequirementApplyConfiguration constructs a declarative configuration of the ClusterConditionRequirement type for use with

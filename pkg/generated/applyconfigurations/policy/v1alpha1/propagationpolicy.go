@@ -29,10 +29,13 @@ import (
 
 // PropagationPolicyApplyConfiguration represents a declarative configuration of the PropagationPolicy type for use
 // with apply.
+//
+// PropagationPolicy represents the policy that propagates a group of resources to one or more clusters.
 type PropagationPolicyApplyConfiguration struct {
 	v1.TypeMetaApplyConfiguration    `json:",inline"`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
-	Spec                             *PropagationSpecApplyConfiguration `json:"spec,omitempty"`
+	// Spec represents the desired behavior of PropagationPolicy.
+	Spec *PropagationSpecApplyConfiguration `json:"spec,omitempty"`
 }
 
 // PropagationPolicy constructs a declarative configuration of the PropagationPolicy type for use with
@@ -46,29 +49,14 @@ func PropagationPolicy(name, namespace string) *PropagationPolicyApplyConfigurat
 	return b
 }
 
-// ExtractPropagationPolicy extracts the applied configuration owned by fieldManager from
-// propagationPolicy. If no managedFields are found in propagationPolicy for fieldManager, a
-// PropagationPolicyApplyConfiguration is returned with only the Name, Namespace (if applicable),
-// APIVersion and Kind populated. It is possible that no managed fields were found for because other
-// field managers have taken ownership of all the fields previously owned by fieldManager, or because
-// the fieldManager never owned fields any fields.
+// ExtractPropagationPolicyFrom extracts the applied configuration owned by fieldManager from
+// propagationPolicy for the specified subresource. Pass an empty string for subresource to extract
+// the main resource. Common subresources include "status", "scale", etc.
 // propagationPolicy must be a unmodified PropagationPolicy API object that was retrieved from the Kubernetes API.
-// ExtractPropagationPolicy provides a way to perform a extract/modify-in-place/apply workflow.
+// ExtractPropagationPolicyFrom provides a way to perform a extract/modify-in-place/apply workflow.
 // Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
 // applied if another fieldManager has updated or force applied any of the previously applied fields.
-// Experimental!
-func ExtractPropagationPolicy(propagationPolicy *policyv1alpha1.PropagationPolicy, fieldManager string) (*PropagationPolicyApplyConfiguration, error) {
-	return extractPropagationPolicy(propagationPolicy, fieldManager, "")
-}
-
-// ExtractPropagationPolicyStatus is the same as ExtractPropagationPolicy except
-// that it extracts the status subresource applied configuration.
-// Experimental!
-func ExtractPropagationPolicyStatus(propagationPolicy *policyv1alpha1.PropagationPolicy, fieldManager string) (*PropagationPolicyApplyConfiguration, error) {
-	return extractPropagationPolicy(propagationPolicy, fieldManager, "status")
-}
-
-func extractPropagationPolicy(propagationPolicy *policyv1alpha1.PropagationPolicy, fieldManager string, subresource string) (*PropagationPolicyApplyConfiguration, error) {
+func ExtractPropagationPolicyFrom(propagationPolicy *policyv1alpha1.PropagationPolicy, fieldManager string, subresource string) (*PropagationPolicyApplyConfiguration, error) {
 	b := &PropagationPolicyApplyConfiguration{}
 	err := managedfields.ExtractInto(propagationPolicy, internal.Parser().Type("com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.PropagationPolicy"), fieldManager, b, subresource)
 	if err != nil {
@@ -81,6 +69,21 @@ func extractPropagationPolicy(propagationPolicy *policyv1alpha1.PropagationPolic
 	b.WithAPIVersion("policy.karmada.io/v1alpha1")
 	return b, nil
 }
+
+// ExtractPropagationPolicy extracts the applied configuration owned by fieldManager from
+// propagationPolicy. If no managedFields are found in propagationPolicy for fieldManager, a
+// PropagationPolicyApplyConfiguration is returned with only the Name, Namespace (if applicable),
+// APIVersion and Kind populated. It is possible that no managed fields were found for because other
+// field managers have taken ownership of all the fields previously owned by fieldManager, or because
+// the fieldManager never owned fields any fields.
+// propagationPolicy must be a unmodified PropagationPolicy API object that was retrieved from the Kubernetes API.
+// ExtractPropagationPolicy provides a way to perform a extract/modify-in-place/apply workflow.
+// Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
+// applied if another fieldManager has updated or force applied any of the previously applied fields.
+func ExtractPropagationPolicy(propagationPolicy *policyv1alpha1.PropagationPolicy, fieldManager string) (*PropagationPolicyApplyConfiguration, error) {
+	return ExtractPropagationPolicyFrom(propagationPolicy, fieldManager, "")
+}
+
 func (b PropagationPolicyApplyConfiguration) IsApplyConfiguration() {}
 
 // WithKind sets the Kind field in the declarative configuration to the given value

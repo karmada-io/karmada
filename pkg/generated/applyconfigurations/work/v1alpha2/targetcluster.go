@@ -20,9 +20,13 @@ package v1alpha2
 
 // TargetClusterApplyConfiguration represents a declarative configuration of the TargetCluster type for use
 // with apply.
+//
+// TargetCluster represents the identifier of a member cluster.
 type TargetClusterApplyConfiguration struct {
-	Name     *string `json:"name,omitempty"`
-	Replicas *int32  `json:"replicas,omitempty"`
+	// Name of target cluster.
+	Name *string `json:"name,omitempty"`
+	// Replicas in target cluster
+	Replicas *int32 `json:"replicas,omitempty"`
 }
 
 // TargetClusterApplyConfiguration constructs a declarative configuration of the TargetCluster type for use with

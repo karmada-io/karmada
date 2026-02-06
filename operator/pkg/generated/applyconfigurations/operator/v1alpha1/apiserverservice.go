@@ -20,7 +20,12 @@ package v1alpha1
 
 // APIServerServiceApplyConfiguration represents a declarative configuration of the APIServerService type for use
 // with apply.
+//
+// APIServerService tells the location of Karmada API server service.
+// Currently, it only includes the name of the service. The namespace
+// of the service is the same as the namespace of the current Karmada object.
 type APIServerServiceApplyConfiguration struct {
+	// Name represents the name of the Karmada API Server service.
 	Name *string `json:"name,omitempty"`
 }
 

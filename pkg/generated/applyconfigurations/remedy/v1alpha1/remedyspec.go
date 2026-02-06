@@ -24,10 +24,21 @@ import (
 
 // RemedySpecApplyConfiguration represents a declarative configuration of the RemedySpec type for use
 // with apply.
+//
+// RemedySpec represents the desired behavior of Remedy.
 type RemedySpecApplyConfiguration struct {
+	// ClusterAffinity specifies the clusters that Remedy needs to pay attention to.
+	// For clusters that meet the DecisionConditions, Actions will be preformed.
+	// If empty, all clusters will be selected.
 	ClusterAffinity *ClusterAffinityApplyConfiguration `json:"clusterAffinity,omitempty"`
-	DecisionMatches []DecisionMatchApplyConfiguration  `json:"decisionMatches,omitempty"`
-	Actions         []remedyv1alpha1.RemedyAction      `json:"actions,omitempty"`
+	// DecisionMatches indicates the decision matches of triggering the remedy
+	// system to perform the actions. As long as any one DecisionMatch matches,
+	// the Actions will be preformed.
+	// If empty, the Actions will be performed immediately.
+	DecisionMatches []DecisionMatchApplyConfiguration `json:"decisionMatches,omitempty"`
+	// Actions specifies the actions that remedy system needs to perform.
+	// If empty, no action will be performed.
+	Actions []remedyv1alpha1.RemedyAction `json:"actions,omitempty"`
 }
 
 // RemedySpecApplyConfiguration constructs a declarative configuration of the RemedySpec type for use with

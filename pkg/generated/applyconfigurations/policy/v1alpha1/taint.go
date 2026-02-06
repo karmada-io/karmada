@@ -24,10 +24,15 @@ import (
 
 // TaintApplyConfiguration represents a declarative configuration of the Taint type for use
 // with apply.
+//
+// Taint describes the taint that needs to be applied to the cluster.
 type TaintApplyConfiguration struct {
-	Key    *string         `json:"key,omitempty"`
+	// Key represents the taint key to be applied to a cluster.
+	Key *string `json:"key,omitempty"`
+	// Effect represents the taint effect to be applied to a cluster.
 	Effect *v1.TaintEffect `json:"effect,omitempty"`
-	Value  *string         `json:"value,omitempty"`
+	// Value represents the taint value corresponding to the taint key.
+	Value *string `json:"value,omitempty"`
 }
 
 // TaintApplyConfiguration constructs a declarative configuration of the Taint type for use with

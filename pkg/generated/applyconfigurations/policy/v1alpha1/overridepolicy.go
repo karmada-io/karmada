@@ -29,10 +29,13 @@ import (
 
 // OverridePolicyApplyConfiguration represents a declarative configuration of the OverridePolicy type for use
 // with apply.
+//
+// OverridePolicy represents the policy that overrides a group of resources to one or more clusters.
 type OverridePolicyApplyConfiguration struct {
 	v1.TypeMetaApplyConfiguration    `json:",inline"`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
-	Spec                             *OverrideSpecApplyConfiguration `json:"spec,omitempty"`
+	// Spec represents the desired behavior of OverridePolicy.
+	Spec *OverrideSpecApplyConfiguration `json:"spec,omitempty"`
 }
 
 // OverridePolicy constructs a declarative configuration of the OverridePolicy type for use with
@@ -46,29 +49,14 @@ func OverridePolicy(name, namespace string) *OverridePolicyApplyConfiguration {
 	return b
 }
 
-// ExtractOverridePolicy extracts the applied configuration owned by fieldManager from
-// overridePolicy. If no managedFields are found in overridePolicy for fieldManager, a
-// OverridePolicyApplyConfiguration is returned with only the Name, Namespace (if applicable),
-// APIVersion and Kind populated. It is possible that no managed fields were found for because other
-// field managers have taken ownership of all the fields previously owned by fieldManager, or because
-// the fieldManager never owned fields any fields.
+// ExtractOverridePolicyFrom extracts the applied configuration owned by fieldManager from
+// overridePolicy for the specified subresource. Pass an empty string for subresource to extract
+// the main resource. Common subresources include "status", "scale", etc.
 // overridePolicy must be a unmodified OverridePolicy API object that was retrieved from the Kubernetes API.
-// ExtractOverridePolicy provides a way to perform a extract/modify-in-place/apply workflow.
+// ExtractOverridePolicyFrom provides a way to perform a extract/modify-in-place/apply workflow.
 // Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
 // applied if another fieldManager has updated or force applied any of the previously applied fields.
-// Experimental!
-func ExtractOverridePolicy(overridePolicy *policyv1alpha1.OverridePolicy, fieldManager string) (*OverridePolicyApplyConfiguration, error) {
-	return extractOverridePolicy(overridePolicy, fieldManager, "")
-}
-
-// ExtractOverridePolicyStatus is the same as ExtractOverridePolicy except
-// that it extracts the status subresource applied configuration.
-// Experimental!
-func ExtractOverridePolicyStatus(overridePolicy *policyv1alpha1.OverridePolicy, fieldManager string) (*OverridePolicyApplyConfiguration, error) {
-	return extractOverridePolicy(overridePolicy, fieldManager, "status")
-}
-
-func extractOverridePolicy(overridePolicy *policyv1alpha1.OverridePolicy, fieldManager string, subresource string) (*OverridePolicyApplyConfiguration, error) {
+func ExtractOverridePolicyFrom(overridePolicy *policyv1alpha1.OverridePolicy, fieldManager string, subresource string) (*OverridePolicyApplyConfiguration, error) {
 	b := &OverridePolicyApplyConfiguration{}
 	err := managedfields.ExtractInto(overridePolicy, internal.Parser().Type("com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.OverridePolicy"), fieldManager, b, subresource)
 	if err != nil {
@@ -81,6 +69,21 @@ func extractOverridePolicy(overridePolicy *policyv1alpha1.OverridePolicy, fieldM
 	b.WithAPIVersion("policy.karmada.io/v1alpha1")
 	return b, nil
 }
+
+// ExtractOverridePolicy extracts the applied configuration owned by fieldManager from
+// overridePolicy. If no managedFields are found in overridePolicy for fieldManager, a
+// OverridePolicyApplyConfiguration is returned with only the Name, Namespace (if applicable),
+// APIVersion and Kind populated. It is possible that no managed fields were found for because other
+// field managers have taken ownership of all the fields previously owned by fieldManager, or because
+// the fieldManager never owned fields any fields.
+// overridePolicy must be a unmodified OverridePolicy API object that was retrieved from the Kubernetes API.
+// ExtractOverridePolicy provides a way to perform a extract/modify-in-place/apply workflow.
+// Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
+// applied if another fieldManager has updated or force applied any of the previously applied fields.
+func ExtractOverridePolicy(overridePolicy *policyv1alpha1.OverridePolicy, fieldManager string) (*OverridePolicyApplyConfiguration, error) {
+	return ExtractOverridePolicyFrom(overridePolicy, fieldManager, "")
+}
+
 func (b OverridePolicyApplyConfiguration) IsApplyConfiguration() {}
 
 // WithKind sets the Kind field in the declarative configuration to the given value

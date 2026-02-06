@@ -20,14 +20,25 @@ package v1alpha1
 
 // ResourceIdentifierApplyConfiguration represents a declarative configuration of the ResourceIdentifier type for use
 // with apply.
+//
+// ResourceIdentifier provides the identifiers needed to interact with any arbitrary object.
 type ResourceIdentifierApplyConfiguration struct {
-	Ordinal   *int    `json:"ordinal,omitempty"`
-	Group     *string `json:"group,omitempty"`
-	Version   *string `json:"version,omitempty"`
-	Kind      *string `json:"kind,omitempty"`
-	Resource  *string `json:"resource,omitempty"`
+	// Ordinal represents an index in manifests list, so the condition can still be linked
+	// to a manifest even though manifest cannot be parsed successfully.
+	Ordinal *int `json:"ordinal,omitempty"`
+	// Group is the group of the resource.
+	Group *string `json:"group,omitempty"`
+	// Version is the version of the resource.
+	Version *string `json:"version,omitempty"`
+	// Kind is the kind of the resource.
+	Kind *string `json:"kind,omitempty"`
+	// Resource is the resource type of the resource
+	Resource *string `json:"resource,omitempty"`
+	// Namespace is the namespace of the resource, the resource is cluster scoped if the value
+	// is empty
 	Namespace *string `json:"namespace,omitempty"`
-	Name      *string `json:"name,omitempty"`
+	// Name is the name of the resource
+	Name *string `json:"name,omitempty"`
 }
 
 // ResourceIdentifierApplyConfiguration constructs a declarative configuration of the ResourceIdentifier type for use with

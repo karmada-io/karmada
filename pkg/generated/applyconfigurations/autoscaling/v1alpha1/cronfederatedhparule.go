@@ -20,16 +20,56 @@ package v1alpha1
 
 // CronFederatedHPARuleApplyConfiguration represents a declarative configuration of the CronFederatedHPARule type for use
 // with apply.
+//
+// CronFederatedHPARule declares a schedule as well as scale actions.
 type CronFederatedHPARuleApplyConfiguration struct {
-	Name                   *string `json:"name,omitempty"`
-	Schedule               *string `json:"schedule,omitempty"`
-	TargetReplicas         *int32  `json:"targetReplicas,omitempty"`
-	TargetMinReplicas      *int32  `json:"targetMinReplicas,omitempty"`
-	TargetMaxReplicas      *int32  `json:"targetMaxReplicas,omitempty"`
-	Suspend                *bool   `json:"suspend,omitempty"`
-	TimeZone               *string `json:"timeZone,omitempty"`
-	SuccessfulHistoryLimit *int32  `json:"successfulHistoryLimit,omitempty"`
-	FailedHistoryLimit     *int32  `json:"failedHistoryLimit,omitempty"`
+	// Name of the rule.
+	// Each rule in a CronFederatedHPA must have a unique name.
+	//
+	// Note: the name will be used as an identifier to record its execution
+	// history. Changing the name will be considered as deleting the old rule
+	// and adding a new rule, that means the original execution history will be
+	// discarded.
+	Name *string `json:"name,omitempty"`
+	// Schedule is the cron expression that represents a periodical time.
+	// The syntax follows https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/#schedule-syntax.
+	Schedule *string `json:"schedule,omitempty"`
+	// TargetReplicas is the target replicas to be scaled for resources
+	// referencing by ScaleTargetRef of this CronFederatedHPA.
+	// Only needed when referencing resource is not FederatedHPA.
+	TargetReplicas *int32 `json:"targetReplicas,omitempty"`
+	// TargetMinReplicas is the target MinReplicas to be set for FederatedHPA.
+	// Only needed when referencing resource is FederatedHPA.
+	// TargetMinReplicas and TargetMaxReplicas can be specified together or
+	// either one can be specified alone.
+	// nil means the MinReplicas(.spec.minReplicas) of the referencing FederatedHPA
+	// will not be updated.
+	TargetMinReplicas *int32 `json:"targetMinReplicas,omitempty"`
+	// TargetMaxReplicas is the target MaxReplicas to be set for FederatedHPA.
+	// Only needed when referencing resource is FederatedHPA.
+	// TargetMinReplicas and TargetMaxReplicas can be specified together or
+	// either one can be specified alone.
+	// nil means the MaxReplicas(.spec.maxReplicas) of the referencing FederatedHPA
+	// will not be updated.
+	TargetMaxReplicas *int32 `json:"targetMaxReplicas,omitempty"`
+	// Suspend tells the controller to suspend subsequent executions.
+	// Defaults to false.
+	Suspend *bool `json:"suspend,omitempty"`
+	// TimeZone for the giving schedule.
+	// If not specified, this will default to the time zone of the
+	// karmada-controller-manager process.
+	// Invalid TimeZone will be rejected when applying by karmada-webhook.
+	// see https://en.wikipedia.org/wiki/List_of_tz_database_time_zones for the
+	// all timezones.
+	TimeZone *string `json:"timeZone,omitempty"`
+	// SuccessfulHistoryLimit represents the count of successful execution items
+	// for each rule.
+	// The value must be a positive integer. It defaults to 3.
+	SuccessfulHistoryLimit *int32 `json:"successfulHistoryLimit,omitempty"`
+	// FailedHistoryLimit represents the count of failed execution items for
+	// each rule.
+	// The value must be a positive integer. It defaults to 3.
+	FailedHistoryLimit *int32 `json:"failedHistoryLimit,omitempty"`
 }
 
 // CronFederatedHPARuleApplyConfiguration constructs a declarative configuration of the CronFederatedHPARule type for use with

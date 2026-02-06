@@ -24,12 +24,34 @@ import (
 
 // FederatedHPASpecApplyConfiguration represents a declarative configuration of the FederatedHPASpec type for use
 // with apply.
+//
+// FederatedHPASpec describes the desired functionality of the FederatedHPA.
 type FederatedHPASpecApplyConfiguration struct {
-	ScaleTargetRef *v2.CrossVersionObjectReferenceApplyConfiguration     `json:"scaleTargetRef,omitempty"`
-	MinReplicas    *int32                                                `json:"minReplicas,omitempty"`
-	MaxReplicas    *int32                                                `json:"maxReplicas,omitempty"`
-	Metrics        []v2.MetricSpecApplyConfiguration                     `json:"metrics,omitempty"`
-	Behavior       *v2.HorizontalPodAutoscalerBehaviorApplyConfiguration `json:"behavior,omitempty"`
+	// ScaleTargetRef points to the target resource to scale, and is used to
+	// the pods for which metrics should be collected, as well as to actually
+	// change the replica count.
+	ScaleTargetRef *v2.CrossVersionObjectReferenceApplyConfiguration `json:"scaleTargetRef,omitempty"`
+	// MinReplicas is the lower limit for the number of replicas to which the
+	// autoscaler can scale down.
+	// It defaults to 1 pod.
+	MinReplicas *int32 `json:"minReplicas,omitempty"`
+	// MaxReplicas is the upper limit for the number of replicas to which the
+	// autoscaler can scale up.
+	// It cannot be less that minReplicas.
+	MaxReplicas *int32 `json:"maxReplicas,omitempty"`
+	// Metrics contains the specifications for which to use to calculate the
+	// desired replica count (the maximum replica count across all metrics will
+	// be used). The desired replica count is calculated multiplying the
+	// ratio between the target value and the current value by the current
+	// number of pods. Ergo, metrics used must decrease as the pod count is
+	// increased, and vice-versa. See the individual metric source types for
+	// more information about how each type of metric must respond.
+	// If not set, the default metric will be set to 80% average CPU utilization.
+	Metrics []v2.MetricSpecApplyConfiguration `json:"metrics,omitempty"`
+	// Behavior configures the scaling behavior of the target
+	// in both Up and Down directions (scaleUp and scaleDown fields respectively).
+	// If not set, the default HPAScalingRules for scale up and scale down are used.
+	Behavior *v2.HorizontalPodAutoscalerBehaviorApplyConfiguration `json:"behavior,omitempty"`
 }
 
 // FederatedHPASpecApplyConfiguration constructs a declarative configuration of the FederatedHPASpec type for use with

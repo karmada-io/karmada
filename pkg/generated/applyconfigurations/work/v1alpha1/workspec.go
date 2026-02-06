@@ -20,10 +20,21 @@ package v1alpha1
 
 // WorkSpecApplyConfiguration represents a declarative configuration of the WorkSpec type for use
 // with apply.
+//
+// WorkSpec defines the desired state of Work.
 type WorkSpecApplyConfiguration struct {
-	Workload                    *WorkloadTemplateApplyConfiguration `json:"workload,omitempty"`
-	SuspendDispatching          *bool                               `json:"suspendDispatching,omitempty"`
-	PreserveResourcesOnDeletion *bool                               `json:"preserveResourcesOnDeletion,omitempty"`
+	// Workload represents the manifest workload to be deployed on managed cluster.
+	Workload *WorkloadTemplateApplyConfiguration `json:"workload,omitempty"`
+	// SuspendDispatching controls whether dispatching should
+	// be suspended, nil means not suspend.
+	// Note: true means stop propagating to the corresponding member cluster, and
+	// does not prevent status collection.
+	SuspendDispatching *bool `json:"suspendDispatching,omitempty"`
+	// PreserveResourcesOnDeletion controls whether resources should be preserved on the
+	// member cluster when the Work object is deleted.
+	// If set to true, resources will be preserved on the member cluster.
+	// Default is false, which means resources will be deleted along with the Work object.
+	PreserveResourcesOnDeletion *bool `json:"preserveResourcesOnDeletion,omitempty"`
 }
 
 // WorkSpecApplyConfiguration constructs a declarative configuration of the WorkSpec type for use with

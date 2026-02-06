@@ -25,18 +25,51 @@ import (
 
 // GracefulEvictionTaskApplyConfiguration represents a declarative configuration of the GracefulEvictionTask type for use
 // with apply.
+//
+// GracefulEvictionTask represents a graceful eviction task.
 type GracefulEvictionTaskApplyConfiguration struct {
-	FromCluster            *string             `json:"fromCluster,omitempty"`
-	PurgeMode              *v1alpha1.PurgeMode `json:"purgeMode,omitempty"`
-	Replicas               *int32              `json:"replicas,omitempty"`
-	Reason                 *string             `json:"reason,omitempty"`
-	Message                *string             `json:"message,omitempty"`
-	Producer               *string             `json:"producer,omitempty"`
-	GracePeriodSeconds     *int32              `json:"gracePeriodSeconds,omitempty"`
-	SuppressDeletion       *bool               `json:"suppressDeletion,omitempty"`
-	PreservedLabelState    map[string]string   `json:"preservedLabelState,omitempty"`
-	CreationTimestamp      *v1.Time            `json:"creationTimestamp,omitempty"`
-	ClustersBeforeFailover []string            `json:"clustersBeforeFailover,omitempty"`
+	// FromCluster which cluster the eviction perform from.
+	FromCluster *string `json:"fromCluster,omitempty"`
+	// PurgeMode represents how to deal with the legacy applications on the
+	// cluster from which the application is migrated.
+	// Valid options are "Immediately", "Directly", "Graciously", "Gracefully" and "Never".
+	PurgeMode *v1alpha1.PurgeMode `json:"purgeMode,omitempty"`
+	// Replicas indicates the number of replicas should be evicted.
+	// Should be ignored for resource type that doesn't have replica.
+	Replicas *int32 `json:"replicas,omitempty"`
+	// Reason contains a programmatic identifier indicating the reason for the eviction.
+	// Producers may define expected values and meanings for this field,
+	// and whether the values are considered a guaranteed API.
+	// The value should be a CamelCase string.
+	// This field may not be empty.
+	Reason *string `json:"reason,omitempty"`
+	// Message is a human-readable message indicating details about the eviction.
+	// This may be an empty string.
+	Message *string `json:"message,omitempty"`
+	// Producer indicates the controller who triggered the eviction.
+	Producer *string `json:"producer,omitempty"`
+	// GracePeriodSeconds is the maximum waiting duration in seconds before the item
+	// should be deleted. If the application on the new cluster cannot reach a Healthy state,
+	// Karmada will delete the item after GracePeriodSeconds is reached.
+	// Value must be positive integer.
+	// It can not co-exist with SuppressDeletion.
+	GracePeriodSeconds *int32 `json:"gracePeriodSeconds,omitempty"`
+	// SuppressDeletion represents the grace period will be persistent until
+	// the tools or human intervention stops it.
+	// It can not co-exist with GracePeriodSeconds.
+	SuppressDeletion *bool `json:"suppressDeletion,omitempty"`
+	// PreservedLabelState represents the application state information collected from the original cluster,
+	// and it will be injected into the new cluster in form of application labels.
+	PreservedLabelState map[string]string `json:"preservedLabelState,omitempty"`
+	// CreationTimestamp is a timestamp representing the server time when this object was
+	// created.
+	// Clients should not set this value to avoid the time inconsistency issue.
+	// It is represented in RFC3339 form(like '2021-04-25T10:02:10Z') and is in UTC.
+	//
+	// Populated by the system. Read-only.
+	CreationTimestamp *v1.Time `json:"creationTimestamp,omitempty"`
+	// ClustersBeforeFailover records the clusters where running the application before failover.
+	ClustersBeforeFailover []string `json:"clustersBeforeFailover,omitempty"`
 }
 
 // GracefulEvictionTaskApplyConfiguration constructs a declarative configuration of the GracefulEvictionTask type for use with

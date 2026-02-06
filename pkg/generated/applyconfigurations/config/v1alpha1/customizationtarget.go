@@ -20,9 +20,13 @@ package v1alpha1
 
 // CustomizationTargetApplyConfiguration represents a declarative configuration of the CustomizationTarget type for use
 // with apply.
+//
+// CustomizationTarget represents the resource type that the customization applies to.
 type CustomizationTargetApplyConfiguration struct {
+	// APIVersion represents the API version of the target resource.
 	APIVersion *string `json:"apiVersion,omitempty"`
-	Kind       *string `json:"kind,omitempty"`
+	// Kind represents the Kind of target resources.
+	Kind *string `json:"kind,omitempty"`
 }
 
 // CustomizationTargetApplyConfiguration constructs a declarative configuration of the CustomizationTarget type for use with

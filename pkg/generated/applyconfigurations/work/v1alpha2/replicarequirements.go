@@ -24,11 +24,17 @@ import (
 
 // ReplicaRequirementsApplyConfiguration represents a declarative configuration of the ReplicaRequirements type for use
 // with apply.
+//
+// ReplicaRequirements represents the resource and scheduling requirements for each replica.
 type ReplicaRequirementsApplyConfiguration struct {
-	NodeClaim         *NodeClaimApplyConfiguration `json:"nodeClaim,omitempty"`
-	ResourceRequest   *v1.ResourceList             `json:"resourceRequest,omitempty"`
-	Namespace         *string                      `json:"namespace,omitempty"`
-	PriorityClassName *string                      `json:"priorityClassName,omitempty"`
+	// NodeClaim represents the node claim HardNodeAffinity, NodeSelector and Tolerations required by each replica.
+	NodeClaim *NodeClaimApplyConfiguration `json:"nodeClaim,omitempty"`
+	// ResourceRequest represents the resources required by each replica.
+	ResourceRequest *v1.ResourceList `json:"resourceRequest,omitempty"`
+	// Namespace represents the resources namespaces
+	Namespace *string `json:"namespace,omitempty"`
+	// PriorityClassName represents the resources priorityClassName
+	PriorityClassName *string `json:"priorityClassName,omitempty"`
 }
 
 // ReplicaRequirementsApplyConfiguration constructs a declarative configuration of the ReplicaRequirements type for use with

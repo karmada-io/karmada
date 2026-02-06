@@ -30,11 +30,20 @@ import (
 
 // MultiClusterServiceApplyConfiguration represents a declarative configuration of the MultiClusterService type for use
 // with apply.
+//
+// MultiClusterService is a named abstraction of multi-cluster software service.
+// The name field of MultiClusterService is the same as that of Service name.
+// Services with the same name in different clusters are regarded as the same
+// service and are associated with the same MultiClusterService.
+// MultiClusterService can control the exposure of services to outside multiple
+// clusters, and also enable service discovery between clusters.
 type MultiClusterServiceApplyConfiguration struct {
 	v1.TypeMetaApplyConfiguration    `json:",inline"`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
-	Spec                             *MultiClusterServiceSpecApplyConfiguration `json:"spec,omitempty"`
-	Status                           *corev1.ServiceStatusApplyConfiguration    `json:"status,omitempty"`
+	// Spec is the desired state of the MultiClusterService.
+	Spec *MultiClusterServiceSpecApplyConfiguration `json:"spec,omitempty"`
+	// Status is the current state of the MultiClusterService.
+	Status *corev1.ServiceStatusApplyConfiguration `json:"status,omitempty"`
 }
 
 // MultiClusterService constructs a declarative configuration of the MultiClusterService type for use with
@@ -48,29 +57,14 @@ func MultiClusterService(name, namespace string) *MultiClusterServiceApplyConfig
 	return b
 }
 
-// ExtractMultiClusterService extracts the applied configuration owned by fieldManager from
-// multiClusterService. If no managedFields are found in multiClusterService for fieldManager, a
-// MultiClusterServiceApplyConfiguration is returned with only the Name, Namespace (if applicable),
-// APIVersion and Kind populated. It is possible that no managed fields were found for because other
-// field managers have taken ownership of all the fields previously owned by fieldManager, or because
-// the fieldManager never owned fields any fields.
+// ExtractMultiClusterServiceFrom extracts the applied configuration owned by fieldManager from
+// multiClusterService for the specified subresource. Pass an empty string for subresource to extract
+// the main resource. Common subresources include "status", "scale", etc.
 // multiClusterService must be a unmodified MultiClusterService API object that was retrieved from the Kubernetes API.
-// ExtractMultiClusterService provides a way to perform a extract/modify-in-place/apply workflow.
+// ExtractMultiClusterServiceFrom provides a way to perform a extract/modify-in-place/apply workflow.
 // Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
 // applied if another fieldManager has updated or force applied any of the previously applied fields.
-// Experimental!
-func ExtractMultiClusterService(multiClusterService *networkingv1alpha1.MultiClusterService, fieldManager string) (*MultiClusterServiceApplyConfiguration, error) {
-	return extractMultiClusterService(multiClusterService, fieldManager, "")
-}
-
-// ExtractMultiClusterServiceStatus is the same as ExtractMultiClusterService except
-// that it extracts the status subresource applied configuration.
-// Experimental!
-func ExtractMultiClusterServiceStatus(multiClusterService *networkingv1alpha1.MultiClusterService, fieldManager string) (*MultiClusterServiceApplyConfiguration, error) {
-	return extractMultiClusterService(multiClusterService, fieldManager, "status")
-}
-
-func extractMultiClusterService(multiClusterService *networkingv1alpha1.MultiClusterService, fieldManager string, subresource string) (*MultiClusterServiceApplyConfiguration, error) {
+func ExtractMultiClusterServiceFrom(multiClusterService *networkingv1alpha1.MultiClusterService, fieldManager string, subresource string) (*MultiClusterServiceApplyConfiguration, error) {
 	b := &MultiClusterServiceApplyConfiguration{}
 	err := managedfields.ExtractInto(multiClusterService, internal.Parser().Type("com.github.karmada-io.karmada.pkg.apis.networking.v1alpha1.MultiClusterService"), fieldManager, b, subresource)
 	if err != nil {
@@ -83,6 +77,27 @@ func extractMultiClusterService(multiClusterService *networkingv1alpha1.MultiClu
 	b.WithAPIVersion("networking.karmada.io/v1alpha1")
 	return b, nil
 }
+
+// ExtractMultiClusterService extracts the applied configuration owned by fieldManager from
+// multiClusterService. If no managedFields are found in multiClusterService for fieldManager, a
+// MultiClusterServiceApplyConfiguration is returned with only the Name, Namespace (if applicable),
+// APIVersion and Kind populated. It is possible that no managed fields were found for because other
+// field managers have taken ownership of all the fields previously owned by fieldManager, or because
+// the fieldManager never owned fields any fields.
+// multiClusterService must be a unmodified MultiClusterService API object that was retrieved from the Kubernetes API.
+// ExtractMultiClusterService provides a way to perform a extract/modify-in-place/apply workflow.
+// Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
+// applied if another fieldManager has updated or force applied any of the previously applied fields.
+func ExtractMultiClusterService(multiClusterService *networkingv1alpha1.MultiClusterService, fieldManager string) (*MultiClusterServiceApplyConfiguration, error) {
+	return ExtractMultiClusterServiceFrom(multiClusterService, fieldManager, "")
+}
+
+// ExtractMultiClusterServiceStatus extracts the applied configuration owned by fieldManager from
+// multiClusterService for the status subresource.
+func ExtractMultiClusterServiceStatus(multiClusterService *networkingv1alpha1.MultiClusterService, fieldManager string) (*MultiClusterServiceApplyConfiguration, error) {
+	return ExtractMultiClusterServiceFrom(multiClusterService, fieldManager, "status")
+}
+
 func (b MultiClusterServiceApplyConfiguration) IsApplyConfiguration() {}
 
 // WithKind sets the Kind field in the declarative configuration to the given value

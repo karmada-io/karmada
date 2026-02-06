@@ -24,10 +24,15 @@ import (
 
 // ResourceRegistrySpecApplyConfiguration represents a declarative configuration of the ResourceRegistrySpec type for use
 // with apply.
+//
+// ResourceRegistrySpec defines the desired state of ResourceRegistry.
 type ResourceRegistrySpecApplyConfiguration struct {
-	TargetCluster     *policyv1alpha1.ClusterAffinityApplyConfiguration `json:"targetCluster,omitempty"`
-	ResourceSelectors []ResourceSelectorApplyConfiguration              `json:"resourceSelectors,omitempty"`
-	BackendStore      *BackendStoreConfigApplyConfiguration             `json:"backendStore,omitempty"`
+	// TargetCluster specifies the clusters where the cache system collect resource from.
+	TargetCluster *policyv1alpha1.ClusterAffinityApplyConfiguration `json:"targetCluster,omitempty"`
+	// ResourceSelectors specifies the resources type that should be cached by cache system.
+	ResourceSelectors []ResourceSelectorApplyConfiguration `json:"resourceSelectors,omitempty"`
+	// BackendStore specifies the location where to store the cached items.
+	BackendStore *BackendStoreConfigApplyConfiguration `json:"backendStore,omitempty"`
 }
 
 // ResourceRegistrySpecApplyConfiguration constructs a declarative configuration of the ResourceRegistrySpec type for use with

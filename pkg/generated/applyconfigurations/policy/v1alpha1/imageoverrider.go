@@ -24,11 +24,42 @@ import (
 
 // ImageOverriderApplyConfiguration represents a declarative configuration of the ImageOverrider type for use
 // with apply.
+//
+// ImageOverrider represents the rules dedicated to handling image overrides.
 type ImageOverriderApplyConfiguration struct {
+	// Predicate filters images before applying the rule.
+	//
+	// Defaults to nil, in that case, the system will automatically detect image fields if the resource type is
+	// Pod, ReplicaSet, Deployment, StatefulSet, DaemonSet or Job by following rule:
+	// - Pod: /spec/containers/<N>/image
+	// - ReplicaSet: /spec/template/spec/containers/<N>/image
+	// - Deployment: /spec/template/spec/containers/<N>/image
+	// - DaemonSet: /spec/template/spec/containers/<N>/image
+	// - StatefulSet: /spec/template/spec/containers/<N>/image
+	// - Job: /spec/template/spec/containers/<N>/image
+	// In addition, all images will be processed if the resource object has more than one container.
+	//
+	// If not nil, only images matches the filters will be processed.
 	Predicate *ImagePredicateApplyConfiguration `json:"predicate,omitempty"`
-	Component *policyv1alpha1.ImageComponent    `json:"component,omitempty"`
-	Operator  *policyv1alpha1.OverriderOperator `json:"operator,omitempty"`
-	Value     *string                           `json:"value,omitempty"`
+	// Component is part of image name.
+	// Basically we presume an image can be made of '[registry/]repository[:tag]'.
+	// The registry could be:
+	// - registry.k8s.io
+	// - fictional.registry.example:10443
+	// The repository could be:
+	// - kube-apiserver
+	// - fictional/nginx
+	// The tag cloud be:
+	// - latest
+	// - v1.19.1
+	// - @sha256:dbcc1c35ac38df41fd2f5e4130b32ffdb93ebae8b3dbe638c23575912276fc9c
+	Component *policyv1alpha1.ImageComponent `json:"component,omitempty"`
+	// Operator represents the operator which will apply on the image.
+	Operator *policyv1alpha1.OverriderOperator `json:"operator,omitempty"`
+	// Value to be applied to image.
+	// Must not be empty when operator is 'add' or 'replace'.
+	// Defaults to empty and ignored when operator is 'remove'.
+	Value *string `json:"value,omitempty"`
 }
 
 // ImageOverriderApplyConfiguration constructs a declarative configuration of the ImageOverrider type for use with

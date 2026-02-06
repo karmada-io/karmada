@@ -20,8 +20,12 @@ package v1alpha1
 
 // NodeSummaryApplyConfiguration represents a declarative configuration of the NodeSummary type for use
 // with apply.
+//
+// NodeSummary represents the summary of nodes status in a specific cluster.
 type NodeSummaryApplyConfiguration struct {
+	// TotalNum is the total number of nodes in the cluster.
 	TotalNum *int32 `json:"totalNum,omitempty"`
+	// ReadyNum is the number of ready nodes in the cluster.
 	ReadyNum *int32 `json:"readyNum,omitempty"`
 }
 

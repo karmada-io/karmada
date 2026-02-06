@@ -56,7 +56,7 @@ func NewResourceInterpreterCustomizationInformer(client versioned.Interface, res
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredResourceInterpreterCustomizationInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
-		&cache.ListWatch{
+		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
@@ -81,7 +81,7 @@ func NewFilteredResourceInterpreterCustomizationInformer(client versioned.Interf
 				}
 				return client.ConfigV1alpha1().ResourceInterpreterCustomizations().Watch(ctx, options)
 			},
-		},
+		}, client),
 		&apisconfigv1alpha1.ResourceInterpreterCustomization{},
 		resyncPeriod,
 		indexers,

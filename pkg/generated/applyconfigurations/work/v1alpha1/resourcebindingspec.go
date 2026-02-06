@@ -20,9 +20,13 @@ package v1alpha1
 
 // ResourceBindingSpecApplyConfiguration represents a declarative configuration of the ResourceBindingSpec type for use
 // with apply.
+//
+// ResourceBindingSpec represents the expectation of ResourceBinding.
 type ResourceBindingSpecApplyConfiguration struct {
+	// Resource represents the Kubernetes resource to be propagated.
 	Resource *ObjectReferenceApplyConfiguration `json:"resource,omitempty"`
-	Clusters []TargetClusterApplyConfiguration  `json:"clusters,omitempty"`
+	// Clusters represents target member clusters where the resource to be deployed.
+	Clusters []TargetClusterApplyConfiguration `json:"clusters,omitempty"`
 }
 
 // ResourceBindingSpecApplyConfiguration constructs a declarative configuration of the ResourceBindingSpec type for use with

@@ -24,14 +24,41 @@ import (
 
 // MultiClusterServiceSpecApplyConfiguration represents a declarative configuration of the MultiClusterServiceSpec type for use
 // with apply.
+//
+// MultiClusterServiceSpec is the desired state of the MultiClusterService.
 type MultiClusterServiceSpecApplyConfiguration struct {
-	Types                      []networkingv1alpha1.ExposureType   `json:"types,omitempty"`
-	Ports                      []ExposurePortApplyConfiguration    `json:"ports,omitempty"`
-	Range                      *ExposureRangeApplyConfiguration    `json:"range,omitempty"`
-	ServiceProvisionClusters   []string                            `json:"serviceProvisionClusters,omitempty"`
-	ServiceConsumptionClusters []string                            `json:"serviceConsumptionClusters,omitempty"`
-	ProviderClusters           []ClusterSelectorApplyConfiguration `json:"providerClusters,omitempty"`
-	ConsumerClusters           []ClusterSelectorApplyConfiguration `json:"consumerClusters,omitempty"`
+	// Types specifies how to expose the service referencing by this
+	// MultiClusterService.
+	Types []networkingv1alpha1.ExposureType `json:"types,omitempty"`
+	// Ports is the list of ports that are exposed by this MultiClusterService.
+	// No specified port will be filtered out during the service
+	// exposure and discovery process.
+	// All ports in the referencing service will be exposed by default.
+	Ports []ExposurePortApplyConfiguration `json:"ports,omitempty"`
+	// Range specifies the ranges where the referencing service should
+	// be exposed.
+	// Only valid and optional in case of Types contains CrossCluster.
+	// If not set and Types contains CrossCluster, all clusters will
+	// be selected, that means the referencing service will be exposed
+	// across all registered clusters.
+	// Deprecated: in favor of ProviderClusters/ConsumerClusters.
+	Range *ExposureRangeApplyConfiguration `json:"range,omitempty"`
+	// ServiceProvisionClusters specifies the clusters which will provision the service backend.
+	// If leave it empty, we will collect the backend endpoints from all clusters and sync
+	// them to the ServiceConsumptionClusters.
+	// Deprecated: in favor of ProviderClusters/ConsumerClusters.
+	ServiceProvisionClusters []string `json:"serviceProvisionClusters,omitempty"`
+	// ServiceConsumptionClusters specifies the clusters where the service will be exposed, for clients.
+	// If leave it empty, the service will be exposed to all clusters.
+	// Deprecated: in favor of ProviderClusters/ConsumerClusters.
+	ServiceConsumptionClusters []string `json:"serviceConsumptionClusters,omitempty"`
+	// ProviderClusters specifies the clusters which will provide the service backend.
+	// If leave it empty, we will collect the backend endpoints from all clusters and sync
+	// them to the ConsumerClusters.
+	ProviderClusters []ClusterSelectorApplyConfiguration `json:"providerClusters,omitempty"`
+	// ConsumerClusters specifies the clusters where the service will be exposed, for clients.
+	// If leave it empty, the service will be exposed to all clusters.
+	ConsumerClusters []ClusterSelectorApplyConfiguration `json:"consumerClusters,omitempty"`
 }
 
 // MultiClusterServiceSpecApplyConfiguration constructs a declarative configuration of the MultiClusterServiceSpec type for use with

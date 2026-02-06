@@ -25,17 +25,40 @@ import (
 
 // CommonSettingsApplyConfiguration represents a declarative configuration of the CommonSettings type for use
 // with apply.
+//
+// CommonSettings describes the common settings of all karmada Components.
 type CommonSettingsApplyConfiguration struct {
-	ImageApplyConfiguration   `json:",inline"`
-	ImagePullPolicy           *v1.PullPolicy                                 `json:"imagePullPolicy,omitempty"`
-	Replicas                  *int32                                         `json:"replicas,omitempty"`
-	Labels                    map[string]string                              `json:"labels,omitempty"`
-	Annotations               map[string]string                              `json:"annotations,omitempty"`
-	Resources                 *corev1.ResourceRequirementsApplyConfiguration `json:"resources,omitempty"`
-	PriorityClassName         *string                                        `json:"priorityClassName,omitempty"`
-	PodDisruptionBudgetConfig *PodDisruptionBudgetConfigApplyConfiguration   `json:"podDisruptionBudgetConfig,omitempty"`
-	Tolerations               []corev1.TolerationApplyConfiguration          `json:"tolerations,omitempty"`
-	Affinity                  *corev1.AffinityApplyConfiguration             `json:"affinity,omitempty"`
+	// Image allows to customize the image used for the component.
+	ImageApplyConfiguration `json:",inline"`
+	// ImagePullPolicy defines the policy for pulling the container image.
+	// If not specified, it defaults to IfNotPresent.
+	ImagePullPolicy *v1.PullPolicy `json:"imagePullPolicy,omitempty"`
+	// Number of desired pods. This is a pointer to distinguish between explicit
+	// zero and not specified. Defaults to 1.
+	Replicas *int32 `json:"replicas,omitempty"`
+	// Map of string keys and values that can be used to organize and categorize
+	// (scope and select) objects. May match selectors of replication controllers
+	// and services.
+	// More info: http://kubernetes.io/docs/user-guide/labels
+	Labels map[string]string `json:"labels,omitempty"`
+	// Annotations is an unstructured key value map stored with a resource that may be
+	// set by external tools to store and retrieve arbitrary metadata. They are not
+	// queryable and should be preserved when modifying objects.
+	// More info: http://kubernetes.io/docs/user-guide/annotations
+	Annotations map[string]string `json:"annotations,omitempty"`
+	// Compute Resources required by this component.
+	// More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+	Resources *corev1.ResourceRequirementsApplyConfiguration `json:"resources,omitempty"`
+	// PriorityClassName specifies the priority class name for the component.
+	// If not specified, it defaults to "system-node-critical".
+	PriorityClassName *string `json:"priorityClassName,omitempty"`
+	// PodDisruptionBudgetConfig specifies the PodDisruptionBudget configuration
+	// for this component's pods. If not set, no PDB will be created.
+	PodDisruptionBudgetConfig *PodDisruptionBudgetConfigApplyConfiguration `json:"podDisruptionBudgetConfig,omitempty"`
+	// Tolerations to apply to the pods for this component.
+	Tolerations []corev1.TolerationApplyConfiguration `json:"tolerations,omitempty"`
+	// Affinity to apply to the pods for this component.
+	Affinity *corev1.AffinityApplyConfiguration `json:"affinity,omitempty"`
 }
 
 // CommonSettingsApplyConfiguration constructs a declarative configuration of the CommonSettings type for use with

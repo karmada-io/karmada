@@ -24,10 +24,26 @@ import (
 
 // VolumeDataApplyConfiguration represents a declarative configuration of the VolumeData type for use
 // with apply.
+//
+// VolumeData describes the settings of etcd data store.
 type VolumeDataApplyConfiguration struct {
+	// The specification for the PersistentVolumeClaim. The entire content is
+	// copied unchanged into the PVC that gets created from this
+	// template. The same fields as in a PersistentVolumeClaim
+	// are also valid here.
 	VolumeClaim *v1.PersistentVolumeClaimTemplateApplyConfiguration `json:"volumeClaim,omitempty"`
-	HostPath    *v1.HostPathVolumeSourceApplyConfiguration          `json:"hostPath,omitempty"`
-	EmptyDir    *v1.EmptyDirVolumeSourceApplyConfiguration          `json:"emptyDir,omitempty"`
+	// HostPath represents a pre-existing file or directory on the host
+	// machine that is directly exposed to the container. This is generally
+	// used for system agents or other privileged things that are allowed
+	// to see the host machine. Most containers will NOT need this.
+	// More info: https://kubernetes.io/docs/concepts/storage/volumes#hostpath
+	// ---
+	// TODO(jonesdl) We need to restrict who can use host directory mounts and who can/can not
+	// mount host directories as read/write.
+	HostPath *v1.HostPathVolumeSourceApplyConfiguration `json:"hostPath,omitempty"`
+	// EmptyDir represents a temporary directory that shares a pod's lifetime.
+	// More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir
+	EmptyDir *v1.EmptyDirVolumeSourceApplyConfiguration `json:"emptyDir,omitempty"`
 }
 
 // VolumeDataApplyConfiguration constructs a declarative configuration of the VolumeData type for use with

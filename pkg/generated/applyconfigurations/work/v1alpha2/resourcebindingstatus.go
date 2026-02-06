@@ -25,12 +25,23 @@ import (
 
 // ResourceBindingStatusApplyConfiguration represents a declarative configuration of the ResourceBindingStatus type for use
 // with apply.
+//
+// ResourceBindingStatus represents the overall status of the strategy as well as the referenced resources.
 type ResourceBindingStatusApplyConfiguration struct {
-	SchedulerObservedGeneration   *int64                                   `json:"schedulerObservedGeneration,omitempty"`
-	SchedulerObservedAffinityName *string                                  `json:"schedulerObservingAffinityName,omitempty"`
-	LastScheduledTime             *v1.Time                                 `json:"lastScheduledTime,omitempty"`
-	Conditions                    []metav1.ConditionApplyConfiguration     `json:"conditions,omitempty"`
-	AggregatedStatus              []AggregatedStatusItemApplyConfiguration `json:"aggregatedStatus,omitempty"`
+	// SchedulerObservedGeneration is the generation(.metadata.generation) observed by the scheduler.
+	// If SchedulerObservedGeneration is less than the generation in metadata means the scheduler hasn't confirmed
+	// the scheduling result or hasn't done the schedule yet.
+	SchedulerObservedGeneration *int64 `json:"schedulerObservedGeneration,omitempty"`
+	// SchedulerObservedAffinityName is the name of affinity term that is
+	// the basis of current scheduling.
+	SchedulerObservedAffinityName *string `json:"schedulerObservingAffinityName,omitempty"`
+	// LastScheduledTime representing the latest timestamp when scheduler successfully finished a scheduling.
+	// It is represented in RFC3339 form (like '2006-01-02T15:04:05Z') and is in UTC.
+	LastScheduledTime *v1.Time `json:"lastScheduledTime,omitempty"`
+	// Conditions contain the different condition statuses.
+	Conditions []metav1.ConditionApplyConfiguration `json:"conditions,omitempty"`
+	// AggregatedStatus represents status list of the resource running in each member cluster.
+	AggregatedStatus []AggregatedStatusItemApplyConfiguration `json:"aggregatedStatus,omitempty"`
 }
 
 // ResourceBindingStatusApplyConfiguration constructs a declarative configuration of the ResourceBindingStatus type for use with

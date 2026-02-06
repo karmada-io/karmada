@@ -29,10 +29,18 @@ import (
 
 // ClusterTaintPolicyApplyConfiguration represents a declarative configuration of the ClusterTaintPolicy type for use
 // with apply.
+//
+// ClusterTaintPolicy automates taint management on Cluster objects based
+// on declarative conditions.
+// The system evaluates AddOnConditions to determine when to add taints,
+// and RemoveOnConditions to determine when to remove taints.
+// AddOnConditions are evaluated before RemoveOnConditions.
+// Taints are NEVER automatically removed when the ClusterTaintPolicy is deleted.
 type ClusterTaintPolicyApplyConfiguration struct {
 	v1.TypeMetaApplyConfiguration    `json:",inline"`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
-	Spec                             *ClusterTaintPolicySpecApplyConfiguration `json:"spec,omitempty"`
+	// Spec represents the desired behavior of ClusterTaintPolicy.
+	Spec *ClusterTaintPolicySpecApplyConfiguration `json:"spec,omitempty"`
 }
 
 // ClusterTaintPolicy constructs a declarative configuration of the ClusterTaintPolicy type for use with
@@ -45,29 +53,14 @@ func ClusterTaintPolicy(name string) *ClusterTaintPolicyApplyConfiguration {
 	return b
 }
 
-// ExtractClusterTaintPolicy extracts the applied configuration owned by fieldManager from
-// clusterTaintPolicy. If no managedFields are found in clusterTaintPolicy for fieldManager, a
-// ClusterTaintPolicyApplyConfiguration is returned with only the Name, Namespace (if applicable),
-// APIVersion and Kind populated. It is possible that no managed fields were found for because other
-// field managers have taken ownership of all the fields previously owned by fieldManager, or because
-// the fieldManager never owned fields any fields.
+// ExtractClusterTaintPolicyFrom extracts the applied configuration owned by fieldManager from
+// clusterTaintPolicy for the specified subresource. Pass an empty string for subresource to extract
+// the main resource. Common subresources include "status", "scale", etc.
 // clusterTaintPolicy must be a unmodified ClusterTaintPolicy API object that was retrieved from the Kubernetes API.
-// ExtractClusterTaintPolicy provides a way to perform a extract/modify-in-place/apply workflow.
+// ExtractClusterTaintPolicyFrom provides a way to perform a extract/modify-in-place/apply workflow.
 // Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
 // applied if another fieldManager has updated or force applied any of the previously applied fields.
-// Experimental!
-func ExtractClusterTaintPolicy(clusterTaintPolicy *policyv1alpha1.ClusterTaintPolicy, fieldManager string) (*ClusterTaintPolicyApplyConfiguration, error) {
-	return extractClusterTaintPolicy(clusterTaintPolicy, fieldManager, "")
-}
-
-// ExtractClusterTaintPolicyStatus is the same as ExtractClusterTaintPolicy except
-// that it extracts the status subresource applied configuration.
-// Experimental!
-func ExtractClusterTaintPolicyStatus(clusterTaintPolicy *policyv1alpha1.ClusterTaintPolicy, fieldManager string) (*ClusterTaintPolicyApplyConfiguration, error) {
-	return extractClusterTaintPolicy(clusterTaintPolicy, fieldManager, "status")
-}
-
-func extractClusterTaintPolicy(clusterTaintPolicy *policyv1alpha1.ClusterTaintPolicy, fieldManager string, subresource string) (*ClusterTaintPolicyApplyConfiguration, error) {
+func ExtractClusterTaintPolicyFrom(clusterTaintPolicy *policyv1alpha1.ClusterTaintPolicy, fieldManager string, subresource string) (*ClusterTaintPolicyApplyConfiguration, error) {
 	b := &ClusterTaintPolicyApplyConfiguration{}
 	err := managedfields.ExtractInto(clusterTaintPolicy, internal.Parser().Type("com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ClusterTaintPolicy"), fieldManager, b, subresource)
 	if err != nil {
@@ -79,6 +72,21 @@ func extractClusterTaintPolicy(clusterTaintPolicy *policyv1alpha1.ClusterTaintPo
 	b.WithAPIVersion("policy.karmada.io/v1alpha1")
 	return b, nil
 }
+
+// ExtractClusterTaintPolicy extracts the applied configuration owned by fieldManager from
+// clusterTaintPolicy. If no managedFields are found in clusterTaintPolicy for fieldManager, a
+// ClusterTaintPolicyApplyConfiguration is returned with only the Name, Namespace (if applicable),
+// APIVersion and Kind populated. It is possible that no managed fields were found for because other
+// field managers have taken ownership of all the fields previously owned by fieldManager, or because
+// the fieldManager never owned fields any fields.
+// clusterTaintPolicy must be a unmodified ClusterTaintPolicy API object that was retrieved from the Kubernetes API.
+// ExtractClusterTaintPolicy provides a way to perform a extract/modify-in-place/apply workflow.
+// Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
+// applied if another fieldManager has updated or force applied any of the previously applied fields.
+func ExtractClusterTaintPolicy(clusterTaintPolicy *policyv1alpha1.ClusterTaintPolicy, fieldManager string) (*ClusterTaintPolicyApplyConfiguration, error) {
+	return ExtractClusterTaintPolicyFrom(clusterTaintPolicy, fieldManager, "")
+}
+
 func (b ClusterTaintPolicyApplyConfiguration) IsApplyConfiguration() {}
 
 // WithKind sets the Kind field in the declarative configuration to the given value

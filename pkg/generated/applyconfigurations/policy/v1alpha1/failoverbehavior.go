@@ -20,9 +20,22 @@ package v1alpha1
 
 // FailoverBehaviorApplyConfiguration represents a declarative configuration of the FailoverBehavior type for use
 // with apply.
+//
+// FailoverBehavior indicates failover behaviors in case of an application or
+// cluster failure.
 type FailoverBehaviorApplyConfiguration struct {
+	// Application indicates failover behaviors in case of application failure.
+	// If this value is nil, failover is disabled.
+	// If set, the PropagateDeps should be true so that the dependencies could
+	// be migrated along with the application.
 	Application *ApplicationFailoverBehaviorApplyConfiguration `json:"application,omitempty"`
-	Cluster     *ClusterFailoverBehaviorApplyConfiguration     `json:"cluster,omitempty"`
+	// Cluster indicates failover behaviors in case of cluster failure.
+	// If this value is nil, the failover behavior in case of cluster failure
+	// will be controlled by the controller's no-execute-taint-eviction-purge-mode
+	// parameter.
+	// If set, the failover behavior in case of cluster failure will be defined
+	// by this value.
+	Cluster *ClusterFailoverBehaviorApplyConfiguration `json:"cluster,omitempty"`
 }
 
 // FailoverBehaviorApplyConfiguration constructs a declarative configuration of the FailoverBehavior type for use with

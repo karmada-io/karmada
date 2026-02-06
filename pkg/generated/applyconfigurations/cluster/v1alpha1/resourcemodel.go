@@ -20,8 +20,12 @@ package v1alpha1
 
 // ResourceModelApplyConfiguration represents a declarative configuration of the ResourceModel type for use
 // with apply.
+//
+// ResourceModel describes the modeling that you want to statistics.
 type ResourceModelApplyConfiguration struct {
-	Grade  *uint                                  `json:"grade,omitempty"`
+	// Grade is the index for the resource modeling.
+	Grade *uint `json:"grade,omitempty"`
+	// Ranges describes the resource quota ranges.
 	Ranges []ResourceModelRangeApplyConfiguration `json:"ranges,omitempty"`
 }
 

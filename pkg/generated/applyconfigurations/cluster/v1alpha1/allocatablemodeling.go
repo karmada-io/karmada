@@ -20,9 +20,14 @@ package v1alpha1
 
 // AllocatableModelingApplyConfiguration represents a declarative configuration of the AllocatableModeling type for use
 // with apply.
+//
+// AllocatableModeling represents the number of nodes in which allocatable resources in a specific resource model grade.
+// E.g. AllocatableModeling{Grade: 2, Count: 10} means 10 nodes belong to resource model in grade 2.
 type AllocatableModelingApplyConfiguration struct {
+	// Grade is the index of ResourceModel.
 	Grade *uint `json:"grade,omitempty"`
-	Count *int  `json:"count,omitempty"`
+	// Count is the number of nodes that own the resources delineated by this modeling.
+	Count *int `json:"count,omitempty"`
 }
 
 // AllocatableModelingApplyConfiguration constructs a declarative configuration of the AllocatableModeling type for use with

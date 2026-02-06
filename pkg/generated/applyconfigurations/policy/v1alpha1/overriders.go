@@ -20,14 +20,35 @@ package v1alpha1
 
 // OverridersApplyConfiguration represents a declarative configuration of the Overriders type for use
 // with apply.
+//
+// Overriders offers various alternatives to represent the override rules.
+//
+// If more than one alternative exists, they will be applied with following order:
+// - ImageOverrider
+// - CommandOverrider
+// - ArgsOverrider
+// - LabelsOverrider
+// - AnnotationsOverrider
+// - FieldOverrider
+// - Plaintext
 type OverridersApplyConfiguration struct {
-	Plaintext            []PlaintextOverriderApplyConfiguration       `json:"plaintext,omitempty"`
-	ImageOverrider       []ImageOverriderApplyConfiguration           `json:"imageOverrider,omitempty"`
-	CommandOverrider     []CommandArgsOverriderApplyConfiguration     `json:"commandOverrider,omitempty"`
-	ArgsOverrider        []CommandArgsOverriderApplyConfiguration     `json:"argsOverrider,omitempty"`
-	LabelsOverrider      []LabelAnnotationOverriderApplyConfiguration `json:"labelsOverrider,omitempty"`
+	// Plaintext represents override rules defined with plaintext overriders.
+	Plaintext []PlaintextOverriderApplyConfiguration `json:"plaintext,omitempty"`
+	// ImageOverrider represents the rules dedicated to handling image overrides.
+	ImageOverrider []ImageOverriderApplyConfiguration `json:"imageOverrider,omitempty"`
+	// CommandOverrider represents the rules dedicated to handling container command
+	CommandOverrider []CommandArgsOverriderApplyConfiguration `json:"commandOverrider,omitempty"`
+	// ArgsOverrider represents the rules dedicated to handling container args
+	ArgsOverrider []CommandArgsOverriderApplyConfiguration `json:"argsOverrider,omitempty"`
+	// LabelsOverrider represents the rules dedicated to handling workload labels
+	LabelsOverrider []LabelAnnotationOverriderApplyConfiguration `json:"labelsOverrider,omitempty"`
+	// AnnotationsOverrider represents the rules dedicated to handling workload annotations
 	AnnotationsOverrider []LabelAnnotationOverriderApplyConfiguration `json:"annotationsOverrider,omitempty"`
-	FieldOverrider       []FieldOverriderApplyConfiguration           `json:"fieldOverrider,omitempty"`
+	// FieldOverrider represents the rules dedicated to modifying a specific field in any Kubernetes resource.
+	// This allows changing a single field within the resource with multiple operations.
+	// It is designed to handle structured field values such as those found in ConfigMaps or Secrets.
+	// The current implementation supports JSON and YAML formats, but can easily be extended to support XML in the future.
+	FieldOverrider []FieldOverriderApplyConfiguration `json:"fieldOverrider,omitempty"`
 }
 
 // OverridersApplyConfiguration constructs a declarative configuration of the Overriders type for use with
