@@ -64,7 +64,7 @@ func osTime(L *lua.LState) int {
 		year := getIntField(tbl, "year", -1)
 		isdst := getBoolField(tbl, "isdst", false)
 		t := time.Date(year, time.Month(month), day, hour, min, sec, 0, time.Local)
-		// TODO dst
+		// TODO: dst
 		if false {
 			print(isdst)
 		}
@@ -110,7 +110,7 @@ func osDate(L *lua.LState) int {
 			ret.RawSetString("min", lua.LNumber(t.Minute()))
 			ret.RawSetString("sec", lua.LNumber(t.Second()))
 			ret.RawSetString("wday", lua.LNumber(t.Weekday()+1))
-			// TODO yday & dst
+			// TODO: yday & dst
 			ret.RawSetString("yday", lua.LNumber(0))
 			ret.RawSetString("isdst", lua.LFalse)
 			L.Push(ret)

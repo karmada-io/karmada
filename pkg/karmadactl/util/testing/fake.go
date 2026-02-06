@@ -40,12 +40,12 @@ func NewTestFactory() *TestFactory {
 
 // KarmadaClientSet returns a karmada clientset
 func (t *TestFactory) KarmadaClientSet() (versioned.Interface, error) {
-	// TODO implement me
+	// TODO: Implement me
 	panic("implement me")
 }
 
 // FactoryForMemberCluster returns a cmdutil.Factory for the member cluster
 func (t *TestFactory) FactoryForMemberCluster(_ string) (cmdutil.Factory, error) {
-	// TODO implement me
+	// TODO: Implement me
 	panic("implement me")
 }
