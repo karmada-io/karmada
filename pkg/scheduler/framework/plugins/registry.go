@@ -17,18 +17,20 @@ limitations under the License.
 package plugins
 
 import (
+	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/apienablement"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/clusteraffinity"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/clustereviction"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/clusterlocality"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/spreadconstraint"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/tainttoleration"
+	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/workloadantiaffinity"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/runtime"
 )
 
 // NewInTreeRegistry builds the registry with all the in-tree plugins.
 func NewInTreeRegistry() runtime.Registry {
-	return runtime.Registry{
+	registry := runtime.Registry{
 		apienablement.Name:    apienablement.New,
 		tainttoleration.Name:  tainttoleration.New,
 		clusteraffinity.Name:  clusteraffinity.New,
@@ -36,4 +38,11 @@ func NewInTreeRegistry() runtime.Registry {
 		clusterlocality.Name:  clusterlocality.New,
 		clustereviction.Name:  clustereviction.New,
 	}
+
+	// Register WorkloadAntiAffinity plugin only when WorkloadAffinity feature gate is enabled
+	if features.FeatureGate.Enabled(features.WorkloadAffinity) {
+		registry[workloadantiaffinity.Name] = workloadantiaffinity.New
+	}
+
+	return registry
 }
