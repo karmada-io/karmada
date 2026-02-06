@@ -106,6 +106,47 @@ func (m *workloadUnhealthyMap) deleteIrrelevantClusters(key types.NamespacedName
 	m.workloadUnhealthy[key] = unhealthyClusters
 }
 
+// loadFromStatus loads the failover history from the binding status into the
+// in-memory map. This is intended to be called at the beginning of a
+// reconciliation. It will only load the history if the in-memory state for the
+// binding does not already exist, preventing the in-memory state from being
+// overwritten during a single controller session.
+func (m *workloadUnhealthyMap) loadFromStatus(key types.NamespacedName, timestamps map[string]metav1.Time) {
+	if timestamps == nil {
+		return
+	}
+
+	m.Lock()
+	defer m.Unlock()
+
+	if m.workloadUnhealthy[key] != nil {
+		return
+	}
+
+	m.workloadUnhealthy[key] = make(map[string]metav1.Time, len(timestamps))
+	for cluster, ts := range timestamps {
+		m.workloadUnhealthy[key][cluster] = ts
+	}
+}
+
+// getAll returns a copy of all unhealthy timestamps for a given workload.
+// It returns a copy to prevent race conditions.
+func (m *workloadUnhealthyMap) getAll(key types.NamespacedName) map[string]metav1.Time {
+	m.RLock()
+	defer m.RUnlock()
+
+	src := m.workloadUnhealthy[key]
+	if src == nil {
+		return nil
+	}
+
+	result := make(map[string]metav1.Time, len(src))
+	for k, v := range src {
+		result[k] = v
+	}
+	return result
+}
+
 // distinguishUnhealthyClustersWithOthers distinguishes clusters which is in the unHealthy state(not in the process of eviction) with others.
 func distinguishUnhealthyClustersWithOthers(aggregatedStatusItems []workv1alpha2.AggregatedStatusItem, resourceBindingSpec workv1alpha2.ResourceBindingSpec) ([]string, []string) {
 	var unhealthyClusters, others []string
