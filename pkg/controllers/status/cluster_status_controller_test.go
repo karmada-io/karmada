@@ -984,8 +984,14 @@ func TestClusterStatusController_initializeGenericInformerManagerForCluster(t *t
 		clusterClientSet := &util.ClusterClient{
 			ClusterName: "test",
 		}
+		cluster := &clusterv1alpha1.Cluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test",
+				UID:  "test-uid",
+			},
+		}
 
-		c.initializeGenericInformerManagerForCluster(clusterClientSet)
+		c.initializeGenericInformerManagerForCluster(clusterClientSet, cluster)
 	})
 
 	t.Run("suc to create dynamicClient", func(*testing.T) {
@@ -1000,8 +1006,14 @@ func TestClusterStatusController_initializeGenericInformerManagerForCluster(t *t
 		clusterClientSet := &util.ClusterClient{
 			ClusterName: "test",
 		}
+		cluster := &clusterv1alpha1.Cluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test",
+				UID:  "test-uid",
+			},
+		}
 
-		c.initializeGenericInformerManagerForCluster(clusterClientSet)
+		c.initializeGenericInformerManagerForCluster(clusterClientSet, cluster)
 	})
 }
 
