@@ -124,17 +124,20 @@ func (a *analyzer) collect(dir string) {
 					ast.SortImports(a.fset, file)
 					var buffer bytes.Buffer
 					if err = format.Node(&buffer, a.fset, file); err != nil {
-						panic(fmt.Sprintf("Error formatting ast node after rewriting import.\n%s\n", err.Error()))
+						fmt.Fprintf(os.Stderr, "Error formatting ast node after rewriting import: %v\n", err)
+						continue
 					}
 
 					fileInfo, err := os.Stat(pathToFile)
 					if err != nil {
-						panic(fmt.Sprintf("Error stat'ing file: %s\n%s\n", pathToFile, err.Error()))
+						fmt.Fprintf(os.Stderr, "Error stat'ing file %s: %v\n", pathToFile, err)
+						continue
 					}
 
 					err = os.WriteFile(pathToFile, buffer.Bytes(), fileInfo.Mode())
 					if err != nil {
-						panic(fmt.Sprintf("Error writing file: %s\n%s\n", pathToFile, err.Error()))
+						fmt.Fprintf(os.Stderr, "Error writing file %s: %v\n", pathToFile, err)
+						continue
 					}
 				}
 			}
