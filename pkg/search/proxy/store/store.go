@@ -243,6 +243,22 @@ func (s *store) ReadinessCheck() error {
 	return fmt.Errorf("not implemented")
 }
 
+// IsWatchListSemanticsUnSupported informs the store doesn't support WatchList semantics.
+// Returning true signals that WatchList can NOT be used.
+//
+// Background:
+// Since Kubernetes v1.35, the client-go enabled WatchListClient feature by default, which would
+// prevent the cache from completing its initialization. See:
+// - Kubernetes PR: https://github.com/kubernetes/kubernetes/pull/134180
+// - Related tracking issue: https://github.com/kubernetes/kubernetes/issues/135895
+//
+// Purpose:
+// This implementation disables the WatchListClient feature to prevent incompatible changes from
+// being introduced. Whether karmada-search needs to adapt to this feature requires further investigation.
+func (s *store) IsWatchListSemanticsUnSupported() bool {
+	return true
+}
+
 func (s *store) client(namespace string) (dynamic.ResourceInterface, error) {
 	client, err := s.newClientFunc()
 	if err != nil {
