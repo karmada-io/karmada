@@ -24,25 +24,30 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 )
 
 func TestUpdateStatus(t *testing.T) {
 	scheme := runtime.NewScheme()
 	_ = corev1.AddToScheme(scheme)
+	_ = workv1alpha1.Install(scheme)
 
 	tests := []struct {
 		name          string
-		setupObj      *corev1.Pod
-		mutateStatus  func(*corev1.Pod)
+		setupObj      client.Object
+		mutateStatus  func(client.Object)
 		statusError   bool
 		expectedOp    controllerutil.OperationResult
 		expectedError string
+		verify        func(*testing.T, client.Client)
 	}{
 		{
 			name: "successful status update",
@@ -55,12 +60,18 @@ func TestUpdateStatus(t *testing.T) {
 					Phase: corev1.PodPending,
 				},
 			},
-			mutateStatus: func(pod *corev1.Pod) {
+			mutateStatus: func(obj client.Object) {
+				pod := obj.(*corev1.Pod)
 				pod.Status.Phase = corev1.PodRunning
 			},
 			statusError:   false,
 			expectedOp:    controllerutil.OperationResultUpdatedStatusOnly,
 			expectedError: "",
+			verify: func(t *testing.T, c client.Client) {
+				pod := &corev1.Pod{}
+				assert.NoError(t, c.Get(context.TODO(), types.NamespacedName{Name: "test-pod", Namespace: "default"}, pod))
+				assert.Equal(t, corev1.PodRunning, pod.Status.Phase)
+			},
 		},
 		{
 			name: "status update error",
@@ -73,7 +84,8 @@ func TestUpdateStatus(t *testing.T) {
 					Phase: corev1.PodPending,
 				},
 			},
-			mutateStatus: func(pod *corev1.Pod) {
+			mutateStatus: func(obj client.Object) {
+				pod := obj.(*corev1.Pod)
 				pod.Status.Phase = corev1.PodRunning
 			},
 			statusError:   true,
@@ -81,7 +93,7 @@ func TestUpdateStatus(t *testing.T) {
 			expectedError: "Internal error occurred: status update failed",
 		},
 		{
-			name: "no changes needed",
+			name: "no changes, should still update",
 			setupObj: &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-pod",
@@ -91,22 +103,54 @@ func TestUpdateStatus(t *testing.T) {
 					Phase: corev1.PodRunning,
 				},
 			},
-			mutateStatus: func(_ *corev1.Pod) {
-				// No changes to status
+			mutateStatus: func(_ client.Object) {
+				// No changes
 			},
 			statusError:   false,
-			expectedOp:    controllerutil.OperationResultNone,
+			expectedOp:    controllerutil.OperationResultUpdatedStatusOnly,
 			expectedError: "",
+			verify: func(t *testing.T, c client.Client) {
+				pod := &corev1.Pod{}
+				assert.NoError(t, c.Get(context.TODO(), types.NamespacedName{Name: "test-pod", Namespace: "default"}, pod))
+				assert.Equal(t, corev1.PodRunning, pod.Status.Phase)
+			},
 		},
 		{
-			name:     "object not found",
-			setupObj: nil, // Not create the object
-			mutateStatus: func(pod *corev1.Pod) {
-				pod.Status.Phase = corev1.PodRunning
+			name: "update with same WorkApplied condition, should still update",
+			setupObj: &workv1alpha1.Work{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-work",
+					Namespace: "default",
+				},
+				Status: workv1alpha1.WorkStatus{
+					Conditions: []metav1.Condition{
+						{
+							Type:    workv1alpha1.WorkApplied,
+							Status:  metav1.ConditionTrue,
+							Reason:  "AppliedSuccessful",
+							Message: "Manifest has been successfully applied",
+						},
+					},
+				},
 			},
-			statusError:   false,
-			expectedOp:    controllerutil.OperationResultNone,
-			expectedError: "not found",
+			mutateStatus: func(obj client.Object) {
+				meta.SetStatusCondition(&obj.(*workv1alpha1.Work).Status.Conditions, metav1.Condition{
+					Type:    workv1alpha1.WorkApplied,
+					Status:  metav1.ConditionTrue,
+					Reason:  "AppliedSuccessful",
+					Message: "Manifest has been successfully applied",
+				})
+			},
+			expectedOp: controllerutil.OperationResultUpdatedStatusOnly,
+			verify: func(t *testing.T, c client.Client) {
+				work := &workv1alpha1.Work{}
+				assert.NoError(t, c.Get(context.TODO(), types.NamespacedName{Name: "test-work", Namespace: "default"}, work))
+
+				cond := meta.FindStatusCondition(work.Status.Conditions, workv1alpha1.WorkApplied)
+				assert.NotNil(t, cond)
+				assert.Equal(t, metav1.ConditionTrue, cond.Status)
+				assert.Equal(t, "AppliedSuccessful", cond.Reason)
+			},
 		},
 		{
 			name: "mutation error",
@@ -116,9 +160,9 @@ func TestUpdateStatus(t *testing.T) {
 					Namespace: "default",
 				},
 			},
-			mutateStatus: func(pod *corev1.Pod) {
+			mutateStatus: func(obj client.Object) {
 				// Simulate mutation error by changing name
-				pod.Name = "different-name"
+				obj.SetName("different-name")
 			},
 			statusError:   false,
 			expectedOp:    controllerutil.OperationResultNone,
@@ -131,31 +175,19 @@ func TestUpdateStatus(t *testing.T) {
 			clientBuilder := fake.NewClientBuilder().WithScheme(scheme)
 			if tt.setupObj != nil {
 				clientBuilder = clientBuilder.WithObjects(tt.setupObj)
-			}
-			fakeClient := clientBuilder.Build()
-
-			var client client.Client
-			if tt.statusError {
-				client = &mockClient{
-					Client:      fakeClient,
-					shouldError: true,
+				if _, ok := tt.setupObj.(*workv1alpha1.Work); ok {
+					clientBuilder = clientBuilder.WithStatusSubresource(tt.setupObj)
 				}
-			} else {
-				client = fakeClient
 			}
 
-			// Create a new object for update
-			obj := &corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-pod",
-					Namespace: "default",
-				},
+			c := client.Client(clientBuilder.Build())
+			if tt.statusError {
+				c = &mockClient{Client: c, shouldError: true}
 			}
 
-			// Run the update
-			op, err := UpdateStatus(context.TODO(), client, obj, func() error {
+			op, err := UpdateStatus(context.TODO(), c, tt.setupObj, func() error {
 				if tt.mutateStatus != nil {
-					tt.mutateStatus(obj)
+					tt.mutateStatus(tt.setupObj)
 				}
 				return nil
 			})
@@ -171,12 +203,8 @@ func TestUpdateStatus(t *testing.T) {
 			// Check operation result
 			assert.Equal(t, tt.expectedOp, op)
 
-			// If successful update, verify the status was actually changed
-			if tt.expectedOp == controllerutil.OperationResultUpdatedStatusOnly {
-				updatedPod := &corev1.Pod{}
-				err := client.Get(context.TODO(), types.NamespacedName{Name: "test-pod", Namespace: "default"}, updatedPod)
-				assert.NoError(t, err)
-				assert.Equal(t, corev1.PodRunning, updatedPod.Status.Phase)
+			if tt.verify != nil {
+				tt.verify(t, c)
 			}
 		})
 	}
@@ -353,6 +381,13 @@ type mockStatusWriter struct {
 }
 
 func (m *mockStatusWriter) Update(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error {
+	if m.shouldError {
+		return apierrors.NewInternalError(fmt.Errorf("status update failed"))
+	}
+	return nil
+}
+
+func (m *mockStatusWriter) Patch(_ context.Context, _ client.Object, _ client.Patch, _ ...client.SubResourcePatchOption) error {
 	if m.shouldError {
 		return apierrors.NewInternalError(fmt.Errorf("status update failed"))
 	}
