@@ -26,6 +26,7 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/scheduler/cache"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 )
 
@@ -55,6 +56,7 @@ func (p *TaintToleration) Filter(
 	bindingSpec *workv1alpha2.ResourceBindingSpec,
 	_ *workv1alpha2.ResourceBindingStatus,
 	cluster *clusterv1alpha1.Cluster,
+	_ *cache.Snapshot,
 ) *framework.Result {
 	// skip the filter if the cluster is already in the list of scheduling results,
 	// if the workload referencing by the binding can't tolerate the taint,

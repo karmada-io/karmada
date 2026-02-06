@@ -23,6 +23,7 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/scheduler/cache"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 )
 
@@ -47,7 +48,13 @@ func (p *ClusterEviction) Name() string {
 }
 
 // Filter checks if the target cluster is in the GracefulEvictionTasks which means it is in the process of eviction.
-func (p *ClusterEviction) Filter(_ context.Context, bindingSpec *workv1alpha2.ResourceBindingSpec, _ *workv1alpha2.ResourceBindingStatus, cluster *clusterv1alpha1.Cluster) *framework.Result {
+func (p *ClusterEviction) Filter(
+	_ context.Context,
+	bindingSpec *workv1alpha2.ResourceBindingSpec,
+	_ *workv1alpha2.ResourceBindingStatus,
+	cluster *clusterv1alpha1.Cluster,
+	_ *cache.Snapshot,
+) *framework.Result {
 	if bindingSpec.ClusterInGracefulEvictionTasks(cluster.Name) {
 		klog.V(2).Infof("Cluster(%s) is in the process of eviction.", cluster.Name)
 		return framework.NewResult(framework.Unschedulable, "cluster(s) is in the process of eviction")

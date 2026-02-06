@@ -24,8 +24,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/tools/cache"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	clusterlister "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
 )
 
@@ -148,7 +150,7 @@ func TestSnapshot(t *testing.T) {
 			for _, cluster := range tt.clusters {
 				gotCluster := snapshot.GetCluster(cluster.Name)
 				assert.NotNil(t, gotCluster, "GetCluster(%s) returned nil", cluster.Name)
-				assert.Equal(t, cluster, gotCluster.Cluster(), "GetCluster(%s) returned incorrect cluster", cluster.Name)
+				assert.Equal(t, cluster, gotCluster, "GetCluster(%s) returned incorrect cluster", cluster.Name)
 			}
 
 			// Test GetCluster for non-existent cluster
@@ -156,7 +158,7 @@ func TestSnapshot(t *testing.T) {
 
 			// Verify that the snapshot is a deep copy
 			for i, cluster := range tt.clusters {
-				snapshotCluster := snapshot.GetClusters()[i].Cluster()
+				snapshotCluster := snapshot.GetClusters()[i]
 				assert.Equal(t, cluster, snapshotCluster, "Snapshot cluster should be equal to original")
 			}
 		})
@@ -232,8 +234,172 @@ func TestSnapshotError(t *testing.T) {
 	assert.Empty(t, snapshot.GetClusters(), "Snapshot should have no clusters when there's an error")
 }
 
-// Mock Implementations
+func TestOnResourceBindingAdd_IndexesAffinityAndAntiAffinity(t *testing.T) {
+	c := NewCache(&mockClusterLister{}).(*schedulerCache)
 
+	rb := rbWithGroups("default", "rb1", []string{"c1", "c2"}, "gA", "gB")
+	c.OnResourceBindingAdd(rb)
+
+	// internal keys should be present
+	affKey := makeWorkloadGroupKey("default", GroupTypeAffinity, "gA")
+	antiKey := makeWorkloadGroupKey("default", GroupTypeAntiAffinity, "gB")
+
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	assert.ElementsMatch(t, []string{"rb:default/rb1"}, c.groupPeers[affKey])
+	assert.ElementsMatch(t, []string{"rb:default/rb1"}, c.groupPeers[antiKey])
+
+	clusters := c.clustersByBinding["rb:default/rb1"]
+	assert.NotNil(t, clusters)
+	assert.True(t, clusters.Has("c1"))
+	assert.True(t, clusters.Has("c2"))
+}
+
+func TestOnResourceBindingAdd_SkipsWhenNoClusters(t *testing.T) {
+	c := NewCache(&mockClusterLister{}).(*schedulerCache)
+
+	// Has groups, but no scheduled clusters -> should not be indexed.
+	rb := rbWithGroups("default", "rb1", nil, "gA", "gB")
+	c.OnResourceBindingAdd(rb)
+
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	assert.Empty(t, c.groupPeers)
+	assert.Empty(t, c.clustersByBinding)
+}
+
+func TestOnResourceBindingAdd_SkipsWhenNoGroups(t *testing.T) {
+	c := NewCache(&mockClusterLister{}).(*schedulerCache)
+
+	// Has clusters, but no WorkloadAffinityGroups -> should not be indexed.
+	rb := rbWithGroups("default", "rb1", []string{"c1"}, "", "")
+	c.OnResourceBindingAdd(rb)
+
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	assert.Empty(t, c.groupPeers)
+	assert.Empty(t, c.clustersByBinding)
+}
+
+func TestOnResourceBindingUpdate_ReindexesGroupAndClusters(t *testing.T) {
+	c := NewCache(&mockClusterLister{}).(*schedulerCache)
+
+	oldRB := rbWithGroups("default", "rb1", []string{"c1"}, "gOld", "gAntiOld")
+	newRB := rbWithGroups("default", "rb1", []string{"c2", "c3"}, "gNew", "gAntiNew")
+
+	c.OnResourceBindingAdd(oldRB)
+	c.OnResourceBindingUpdate(oldRB, newRB)
+
+	oldAffKey := makeWorkloadGroupKey("default", GroupTypeAffinity, "gOld")
+	oldAntiKey := makeWorkloadGroupKey("default", GroupTypeAntiAffinity, "gAntiOld")
+	newAffKey := makeWorkloadGroupKey("default", GroupTypeAffinity, "gNew")
+	newAntiKey := makeWorkloadGroupKey("default", GroupTypeAntiAffinity, "gAntiNew")
+
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	// old keys removed
+	_, ok := c.groupPeers[oldAffKey]
+	assert.False(t, ok)
+	_, ok = c.groupPeers[oldAntiKey]
+	assert.False(t, ok)
+
+	// new keys present
+	assert.ElementsMatch(t, []string{"rb:default/rb1"}, c.groupPeers[newAffKey])
+	assert.ElementsMatch(t, []string{"rb:default/rb1"}, c.groupPeers[newAntiKey])
+
+	// clusters updated
+	got := c.clustersByBinding["rb:default/rb1"]
+	assert.Equal(t, sets.New("c2", "c3"), got)
+}
+
+func TestOnResourceBindingDelete_UnindexesAndCleansUp(t *testing.T) {
+	c := NewCache(&mockClusterLister{}).(*schedulerCache)
+
+	rb := rbWithGroups("default", "rb1", []string{"c1"}, "gA", "gB")
+	c.OnResourceBindingAdd(rb)
+
+	// delete via tombstone to cover that path too
+	tombstone := cache.DeletedFinalStateUnknown{Obj: rb}
+	c.OnResourceBindingDelete(tombstone)
+
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	assert.Empty(t, c.groupPeers)
+	assert.Empty(t, c.clustersByBinding)
+}
+
+func TestAffinityAndAntiAffinity_SameGroupString_DoNotCollide(t *testing.T) {
+	c := NewCache(&mockClusterLister{}).(*schedulerCache)
+
+	// Same string in both fields
+	rb := rbWithGroups("default", "rb1", []string{"c1"}, "same", "same")
+	c.OnResourceBindingAdd(rb)
+
+	affKey := makeWorkloadGroupKey("default", GroupTypeAffinity, "same")
+	antiKey := makeWorkloadGroupKey("default", GroupTypeAntiAffinity, "same")
+
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	// both exist independently
+	assert.ElementsMatch(t, []string{"rb:default/rb1"}, c.groupPeers[affKey])
+	assert.ElementsMatch(t, []string{"rb:default/rb1"}, c.groupPeers[antiKey])
+	assert.NotEqual(t, affKey, antiKey)
+}
+
+func TestClusterResourceBinding_IsIndexedAndNamespacedSeparately(t *testing.T) {
+	c := NewCache(&mockClusterLister{}).(*schedulerCache)
+
+	crb := crbWithGroups("crb1", []string{"c9"}, "gA", "gB")
+	c.OnResourceBindingAdd(crb)
+
+	affKey := makeWorkloadGroupKey("", GroupTypeAffinity, "gA")
+	antiKey := makeWorkloadGroupKey("", GroupTypeAntiAffinity, "gB")
+
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	assert.ElementsMatch(t, []string{"crb:crb1"}, c.groupPeers[affKey])
+	assert.ElementsMatch(t, []string{"crb:crb1"}, c.groupPeers[antiKey])
+
+	got := c.clustersByBinding["crb:crb1"]
+	assert.Equal(t, sets.New("c9"), got)
+}
+
+func TestResourceBindingAndClusterResourceBinding_SameName_NoCollision(t *testing.T) {
+	c := NewCache(&mockClusterLister{}).(*schedulerCache)
+
+	// RB name "x" and CRB name "x" must not collide
+	rb := rbWithGroups("default", "x", []string{"c1"}, "g1", "")
+	crb := crbWithGroups("x", []string{"c2"}, "g1", "")
+
+	c.OnResourceBindingAdd(rb)
+	c.OnResourceBindingAdd(crb)
+
+	rbID := "rb:default/x"
+	crbID := "crb:x"
+
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	assert.NotEqual(t, rbID, crbID)
+	assert.Equal(t, sets.New("c1"), c.clustersByBinding[rbID])
+	assert.Equal(t, sets.New("c2"), c.clustersByBinding[crbID])
+
+	// groupPeers should contain both, under different namespaces ("default" vs "")
+	rbKey := makeWorkloadGroupKey("default", GroupTypeAffinity, "g1")
+	crbKey := makeWorkloadGroupKey("", GroupTypeAffinity, "g1")
+
+	assert.ElementsMatch(t, []string{rbID}, c.groupPeers[rbKey])
+	assert.ElementsMatch(t, []string{crbID}, c.groupPeers[crbKey])
+}
+
+// Mock Implementations
 type mockClusterLister struct {
 	clusters []*clusterv1alpha1.Cluster
 	err      error
@@ -253,4 +419,39 @@ func (m *mockClusterLister) Get(name string) (*clusterv1alpha1.Cluster, error) {
 		}
 	}
 	return nil, nil
+}
+
+// Helper methods
+
+func rbWithGroups(ns, name string, clusters []string, affinityGroup, antiGroup string) *workv1alpha2.ResourceBinding {
+	rb := &workv1alpha2.ResourceBinding{}
+	rb.Namespace = ns
+	rb.Name = name
+
+	for _, c := range clusters {
+		rb.Spec.Clusters = append(rb.Spec.Clusters, workv1alpha2.TargetCluster{Name: c})
+	}
+	if affinityGroup != "" || antiGroup != "" {
+		rb.Spec.WorkloadAffinityGroups = &workv1alpha2.WorkloadAffinityGroups{
+			AffinityGroup:     affinityGroup,
+			AntiAffinityGroup: antiGroup,
+		}
+	}
+	return rb
+}
+
+func crbWithGroups(name string, clusters []string, affinityGroup, antiGroup string) *workv1alpha2.ClusterResourceBinding {
+	crb := &workv1alpha2.ClusterResourceBinding{}
+	crb.Name = name
+
+	for _, c := range clusters {
+		crb.Spec.Clusters = append(crb.Spec.Clusters, workv1alpha2.TargetCluster{Name: c})
+	}
+	if affinityGroup != "" || antiGroup != "" {
+		crb.Spec.WorkloadAffinityGroups = &workv1alpha2.WorkloadAffinityGroups{
+			AffinityGroup:     affinityGroup,
+			AntiAffinityGroup: antiGroup,
+		}
+	}
+	return crb
 }

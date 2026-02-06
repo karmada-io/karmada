@@ -88,7 +88,7 @@ func Test_frameworkImpl_RunFilterPlugins(t *testing.T) {
 				t.Errorf("create frame work error:%v", err)
 			}
 
-			result := frameWork.RunFilterPlugins(ctx, nil, nil, nil)
+			result := frameWork.RunFilterPlugins(ctx, nil, nil, nil, nil)
 			if result.IsSuccess() != tt.isSuccess {
 				t.Errorf("want %v, but get:%v", tt.isSuccess, result.IsSuccess())
 			}

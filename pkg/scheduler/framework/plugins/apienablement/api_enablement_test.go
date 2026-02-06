@@ -130,7 +130,7 @@ func TestAPIEnablement_Filter(t *testing.T) {
 	p := &APIEnablement{}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := p.Filter(context.Background(), tt.bindingSpec, nil, tt.cluster)
+			result := p.Filter(context.Background(), tt.bindingSpec, nil, tt.cluster, nil)
 			assert.Equal(t, tt.expectedCode, result.Code())
 			assert.Equal(t, tt.expectError, result.AsError() != nil)
 		})
