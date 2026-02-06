@@ -155,6 +155,9 @@ func Test_cleanPPUnmatchedRBs(t *testing.T) {
 			defer cancel()
 			fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme, tt.existingObject)
 			genMgr := genericmanager.NewSingleClusterInformerManager(ctx, fakeDynamicClient, 0)
+			genMgr.Lister(appsv1.SchemeGroupVersion.WithResource("deployments"))
+			genMgr.Start()
+			genMgr.WaitForCacheSync()
 			resourceDetector := &ResourceDetector{
 				Client:          fakeClient,
 				DynamicClient:   fakeDynamicClient,
@@ -290,6 +293,9 @@ func Test_cleanUnmatchedRBs(t *testing.T) {
 			defer cancel()
 			fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme, tt.existingObject)
 			genMgr := genericmanager.NewSingleClusterInformerManager(ctx, fakeDynamicClient, 0)
+			genMgr.Lister(appsv1.SchemeGroupVersion.WithResource("deployments"))
+			genMgr.Start()
+			genMgr.WaitForCacheSync()
 			resourceDetector := &ResourceDetector{
 				Client:          fakeClient,
 				DynamicClient:   fakeDynamicClient,
@@ -425,6 +431,9 @@ func Test_cleanUnmatchedCRBs(t *testing.T) {
 			defer cancel()
 			fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme, tt.existingObject)
 			genMgr := genericmanager.NewSingleClusterInformerManager(ctx, fakeDynamicClient, 0)
+			genMgr.Lister(appsv1.SchemeGroupVersion.WithResource("deployments"))
+			genMgr.Start()
+			genMgr.WaitForCacheSync()
 			resourceDetector := &ResourceDetector{
 				Client:          fakeClient,
 				DynamicClient:   fakeDynamicClient,
@@ -659,6 +668,9 @@ func Test_removeRBsClaimMetadata(t *testing.T) {
 			defer cancel()
 			fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme, tt.existingObject)
 			genMgr := genericmanager.NewSingleClusterInformerManager(ctx, fakeDynamicClient, 0)
+			genMgr.Lister(appsv1.SchemeGroupVersion.WithResource("deployments"))
+			genMgr.Start()
+			genMgr.WaitForCacheSync()
 			resourceDetector := &ResourceDetector{
 				Client:          fakeClient,
 				DynamicClient:   fakeDynamicClient,
@@ -884,6 +896,9 @@ func Test_removeCRBsClaimMetadata(t *testing.T) {
 			defer cancel()
 			fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme, tt.existingObject)
 			genMgr := genericmanager.NewSingleClusterInformerManager(ctx, fakeDynamicClient, 0)
+			genMgr.Lister(appsv1.SchemeGroupVersion.WithResource("deployments"))
+			genMgr.Start()
+			genMgr.WaitForCacheSync()
 			resourceDetector := &ResourceDetector{
 				Client:          fakeClient,
 				DynamicClient:   fakeDynamicClient,
@@ -1107,6 +1122,9 @@ func Test_removeResourceClaimMetadataIfNotMatched(t *testing.T) {
 			defer cancel()
 			fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme, tt.existingObject)
 			genMgr := genericmanager.NewSingleClusterInformerManager(ctx, fakeDynamicClient, 0)
+			genMgr.Lister(appsv1.SchemeGroupVersion.WithResource("deployments"))
+			genMgr.Start()
+			genMgr.WaitForCacheSync()
 			resourceDetector := &ResourceDetector{
 				Client:          fakeClient,
 				DynamicClient:   fakeDynamicClient,

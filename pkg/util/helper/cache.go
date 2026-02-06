@@ -55,7 +55,7 @@ func GetObjectFromCache(
 		return nil, fmt.Errorf("the informer of cluster(%s) has not been initialized", fedKey.Cluster)
 	}
 
-	if !singleClusterManager.IsInformerSynced(gvr) {
+	if !singleClusterManager.IsInformerStarted(gvr) {
 		// fall back to call api server in case the cache has not been synchronized yet
 		return getObjectFromSingleCluster(gvr, &fedKey.ClusterWideKey, singleClusterManager.GetClient())
 	}
