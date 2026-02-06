@@ -388,7 +388,7 @@ func (c *Controller) setStatusCondition(ctx context.Context, work *workv1alpha1.
 	})
 }
 
-func (c *Controller) eventf(object *unstructured.Unstructured, eventType, reason, messageFmt string, args ...interface{}) {
+func (c *Controller) eventf(object *unstructured.Unstructured, eventType, reason, messageFmt string, args ...any) {
 	ref, err := util.GenEventRef(object)
 	if err != nil {
 		klog.ErrorS(err, "Ignore event as failed to build event reference", "reason", reason, "kind", object.GetKind(), "object", klog.KObj(object))

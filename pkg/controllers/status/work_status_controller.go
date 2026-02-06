@@ -157,7 +157,7 @@ func (c *WorkStatusController) RunWorkQueue() {
 }
 
 // generateKey generates a key from obj, the key contains cluster, GVK, namespace and name.
-func generateKey(obj interface{}) (util.QueueKey, error) {
+func generateKey(obj any) (util.QueueKey, error) {
 	resource := obj.(*unstructured.Unstructured)
 	cluster, err := getClusterNameFromAnnotation(resource)
 	if err != nil {
@@ -560,7 +560,7 @@ func (c *WorkStatusController) SetupWithManager(mgr controllerruntime.Manager) e
 	return ctrlBuilder.Complete(c)
 }
 
-func (c *WorkStatusController) eventf(object *unstructured.Unstructured, eventType, reason, messageFmt string, args ...interface{}) {
+func (c *WorkStatusController) eventf(object *unstructured.Unstructured, eventType, reason, messageFmt string, args ...any) {
 	ref, err := util.GenEventRef(object)
 	if err != nil {
 		klog.ErrorS(err, "Ignoring event. Failed to build event reference.", "reason", reason, "kind", object.GetKind(), "reference", klog.KObj(object))

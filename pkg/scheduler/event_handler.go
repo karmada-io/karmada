@@ -91,7 +91,7 @@ func (s *Scheduler) addAllEventHandlers() {
 	s.eventRecorder = eventBroadcaster.NewRecorder(gclient.NewSchema(), corev1.EventSource{Component: s.schedulerName})
 }
 
-func (s *Scheduler) resourceBindingEventFilter(obj interface{}) bool {
+func (s *Scheduler) resourceBindingEventFilter(obj any) bool {
 	accessor, err := meta.Accessor(obj)
 	if err != nil {
 		return false
@@ -119,7 +119,7 @@ func (s *Scheduler) resourceBindingEventFilter(obj interface{}) bool {
 		util.GetLabelValue(accessor.GetLabels(), workv1alpha2.BindingManagedByLabel) != ""
 }
 
-func newQueuedBindingInfo(obj interface{}) *internalqueue.QueuedBindingInfo {
+func newQueuedBindingInfo(obj any) *internalqueue.QueuedBindingInfo {
 	switch t := obj.(type) {
 	case *workv1alpha2.ResourceBinding:
 		return &internalqueue.QueuedBindingInfo{
@@ -136,7 +136,7 @@ func newQueuedBindingInfo(obj interface{}) *internalqueue.QueuedBindingInfo {
 	return nil
 }
 
-func (s *Scheduler) onResourceBindingAdd(obj interface{}) {
+func (s *Scheduler) onResourceBindingAdd(obj any) {
 	if features.FeatureGate.Enabled(features.PriorityBasedScheduling) {
 		bindingInfo := newQueuedBindingInfo(obj)
 		if bindingInfo == nil {
@@ -157,7 +157,7 @@ func (s *Scheduler) onResourceBindingAdd(obj interface{}) {
 	metrics.CountSchedulerBindings(metrics.BindingAdd)
 }
 
-func (s *Scheduler) onResourceBindingUpdate(old, cur interface{}) {
+func (s *Scheduler) onResourceBindingUpdate(old, cur any) {
 	oldMeta, err := meta.Accessor(old)
 	if err != nil {
 		klog.Errorf("Failed to transform oldObj as metav1.Object, error: %v", err)
@@ -238,7 +238,7 @@ func (s *Scheduler) onClusterResourceBindingRequeue(clusterResourceBinding *work
 	metrics.CountSchedulerBindings(event)
 }
 
-func (s *Scheduler) addCluster(obj interface{}) {
+func (s *Scheduler) addCluster(obj any) {
 	cluster, ok := obj.(*clusterv1alpha1.Cluster)
 	if !ok {
 		klog.Errorf("cannot convert to Cluster: %v", obj)
@@ -250,7 +250,7 @@ func (s *Scheduler) addCluster(obj interface{}) {
 	}
 }
 
-func (s *Scheduler) updateCluster(oldObj, newObj interface{}) {
+func (s *Scheduler) updateCluster(oldObj, newObj any) {
 	newCluster, ok := newObj.(*clusterv1alpha1.Cluster)
 	if !ok {
 		klog.Errorf("cannot convert newObj to Cluster: %v", newObj)
@@ -280,7 +280,7 @@ func (s *Scheduler) updateCluster(oldObj, newObj interface{}) {
 	}
 }
 
-func (s *Scheduler) deleteCluster(obj interface{}) {
+func (s *Scheduler) deleteCluster(obj any) {
 	var cluster *clusterv1alpha1.Cluster
 	switch t := obj.(type) {
 	case *clusterv1alpha1.Cluster:

@@ -99,7 +99,7 @@ func (d *ClusterDetector) discoveryCluster() {
 }
 
 // OnAdd handles object add event and push the object to queue.
-func (d *ClusterDetector) OnAdd(obj interface{}, isInInitialList bool) {
+func (d *ClusterDetector) OnAdd(obj any, isInInitialList bool) {
 	runtimeObj, ok := obj.(runtime.Object)
 	if !ok {
 		return
@@ -109,12 +109,12 @@ func (d *ClusterDetector) OnAdd(obj interface{}, isInInitialList bool) {
 }
 
 // OnUpdate handles object update event and push the object to queue.
-func (d *ClusterDetector) OnUpdate(_, newObj interface{}) {
+func (d *ClusterDetector) OnUpdate(_, newObj any) {
 	d.OnAdd(newObj, false)
 }
 
 // OnDelete handles object delete event and push the object to queue.
-func (d *ClusterDetector) OnDelete(obj interface{}) {
+func (d *ClusterDetector) OnDelete(obj any) {
 	if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
 		obj = tombstone.Obj
 		if obj == nil {

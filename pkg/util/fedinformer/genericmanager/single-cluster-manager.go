@@ -18,6 +18,7 @@ package genericmanager
 
 import (
 	"context"
+	"slices"
 	"sync"
 	"time"
 
@@ -139,13 +140,7 @@ func (s *singleClusterInformerManagerImpl) isHandlerExist(resource schema.GroupV
 		return false
 	}
 
-	for _, h := range handlers {
-		if h == handler {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(handlers, handler)
 }
 
 func (s *singleClusterInformerManagerImpl) Lister(resource schema.GroupVersionResource) cache.GenericLister {

@@ -16,7 +16,10 @@ limitations under the License.
 
 package imageparser
 
-import "regexp"
+import (
+	"regexp"
+	"strings"
+)
 
 /*
 This code is directly lifted from the distribution codebase as they haven't been exported.
@@ -50,10 +53,10 @@ func anchored(res ...*regexp.Regexp) *regexp.Regexp {
 // expression defines a full expression, where each regular expression must
 // follow the previous.
 func expression(res ...*regexp.Regexp) *regexp.Regexp {
-	var s string
+	var s strings.Builder
 	for _, re := range res {
-		s += re.String()
+		s.WriteString(re.String())
 	}
 
-	return match(s)
+	return match(s.String())
 }

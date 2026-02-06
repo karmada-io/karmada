@@ -86,7 +86,7 @@ func GetFreePorts(host string, n int) ([]int, error) {
 		}
 	}()
 
-	for i := 0; i < n; i++ {
+	for range n {
 		listener, err := net.Listen("tcp", fmt.Sprintf("%s:0", host))
 		if err != nil {
 			return nil, err

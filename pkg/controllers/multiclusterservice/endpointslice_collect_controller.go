@@ -244,8 +244,8 @@ func (c *EndpointSliceCollectController) getEventHandler(clusterName string) cac
 	return eventHandler
 }
 
-func (c *EndpointSliceCollectController) genHandlerAddFunc(clusterName string) func(obj interface{}, isInInitialList bool) {
-	return func(obj interface{}, isInInitialList bool) {
+func (c *EndpointSliceCollectController) genHandlerAddFunc(clusterName string) func(obj any, isInInitialList bool) {
+	return func(obj any, isInInitialList bool) {
 		curObj := obj.(runtime.Object)
 		key, err := keys.FederatedKeyFunc(clusterName, curObj)
 		if err != nil {
@@ -257,8 +257,8 @@ func (c *EndpointSliceCollectController) genHandlerAddFunc(clusterName string) f
 	}
 }
 
-func (c *EndpointSliceCollectController) genHandlerUpdateFunc(clusterName string) func(oldObj, newObj interface{}) {
-	return func(oldObj, newObj interface{}) {
+func (c *EndpointSliceCollectController) genHandlerUpdateFunc(clusterName string) func(oldObj, newObj any) {
+	return func(oldObj, newObj any) {
 		curObj := newObj.(runtime.Object)
 		if !reflect.DeepEqual(oldObj, newObj) {
 			key, err := keys.FederatedKeyFunc(clusterName, curObj)
@@ -271,8 +271,8 @@ func (c *EndpointSliceCollectController) genHandlerUpdateFunc(clusterName string
 	}
 }
 
-func (c *EndpointSliceCollectController) genHandlerDeleteFunc(clusterName string) func(obj interface{}) {
-	return func(obj interface{}) {
+func (c *EndpointSliceCollectController) genHandlerDeleteFunc(clusterName string) func(obj any) {
+	return func(obj any) {
 		if deleted, ok := obj.(cache.DeletedFinalStateUnknown); ok {
 			// This object might be stale but ok for our current usage.
 			obj = deleted.Obj

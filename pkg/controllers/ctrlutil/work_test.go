@@ -52,10 +52,10 @@ func TestCreateOrUpdateWork(t *testing.T) {
 				Name:      "test-work",
 			},
 			resource: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "test-deployment",
 						"uid":  "test-uid",
 					},
@@ -82,10 +82,10 @@ func TestCreateOrUpdateWork(t *testing.T) {
 				Name:      "test-work",
 			},
 			resource: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "test-deployment",
 						"uid":  "test-uid",
 					},
@@ -124,10 +124,10 @@ func TestCreateOrUpdateWork(t *testing.T) {
 				Name:      "test-work",
 			},
 			resource: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "test-deployment",
 					},
 				},

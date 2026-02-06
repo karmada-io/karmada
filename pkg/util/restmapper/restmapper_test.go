@@ -124,8 +124,7 @@ func BenchmarkGetGroupVersionResourceWithoutCache(b *testing.B) {
 
 	mapper := restmapper.NewDiscoveryRESTMapper(groupResources)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		for _, tc := range getGVRTestCases {
 			_, err := GetGroupVersionResource(mapper, tc.inputGVK)
 			if (err != nil && !tc.expectErr) || (err == nil && tc.expectErr) {
@@ -147,8 +146,7 @@ func BenchmarkGetGroupVersionResourceWithCache(b *testing.B) {
 	cachedMapper.restMapper = newMapper
 	cachedMapper.discoveryClient = discoveryClient
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		for _, tc := range getGVRTestCases {
 			_, err := GetGroupVersionResource(cachedMapper, tc.inputGVK)
 			if (err != nil && !tc.expectErr) || (err == nil && tc.expectErr) {

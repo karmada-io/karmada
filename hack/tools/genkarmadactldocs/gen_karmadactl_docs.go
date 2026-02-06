@@ -35,7 +35,7 @@ import (
 
 // PrintCLIByTag print custom defined index
 func PrintCLIByTag(cmd *cobra.Command, all []*cobra.Command, tag string) string {
-	var result string
+	var result strings.Builder
 	var pl []string
 	for _, c := range all {
 		if !c.IsAvailableCommand() || c.IsAdditionalHelpTopicCommand() {
@@ -51,10 +51,10 @@ func PrintCLIByTag(cmd *cobra.Command, all []*cobra.Command, tag string) string 
 	}
 
 	for _, v := range pl {
-		result += v
+		result.WriteString(v)
 	}
-	result += "\n"
-	return result
+	result.WriteString("\n")
+	return result.String()
 }
 
 // GenMarkdownTreeForIndex generate the index page for karmadactl

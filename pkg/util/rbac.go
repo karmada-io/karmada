@@ -18,6 +18,7 @@ package util
 
 import (
 	"context"
+	"slices"
 
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -134,13 +135,7 @@ func PolicyRuleResourceNameMatches(rule *rbacv1.PolicyRule, requestedName string
 		return true
 	}
 
-	for _, resourceName := range rule.ResourceNames {
-		if resourceName == requestedName {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(rule.ResourceNames, requestedName)
 }
 
 // GenerateImpersonationRules generate PolicyRules from given subjects for impersonation.
