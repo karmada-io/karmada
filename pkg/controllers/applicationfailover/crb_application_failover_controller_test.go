@@ -204,6 +204,52 @@ func TestCRBApplicationFailoverController_syncBinding(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestCRBApplicationFailoverController_syncBinding_NilTolerationSeconds(t *testing.T) {
+	// Test that syncBinding handles nil TolerationSeconds gracefully
+	// by using the default value of 300 seconds.
+	c := generateCRBApplicationFailoverController()
+	binding := &workv1alpha2.ClusterResourceBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "bindingName",
+		},
+		Spec: workv1alpha2.ResourceBindingSpec{
+			Resource: workv1alpha2.ObjectReference{
+				APIVersion: "v1",
+				Kind:       "Pod",
+				Namespace:  "default",
+				Name:       "pod",
+			},
+			Failover: &policyv1alpha1.FailoverBehavior{
+				Application: &policyv1alpha1.ApplicationFailoverBehavior{
+					DecisionConditions: policyv1alpha1.DecisionConditions{
+						TolerationSeconds: nil, // Explicitly nil to test the fix
+					},
+				},
+			},
+			Clusters: []workv1alpha2.TargetCluster{
+				{
+					Name:     "member1",
+					Replicas: 1,
+				},
+			},
+		},
+		Status: workv1alpha2.ResourceBindingStatus{
+			AggregatedStatus: []workv1alpha2.AggregatedStatusItem{
+				{
+					ClusterName: "member1",
+					Health:      workv1alpha2.ResourceHealthy,
+				},
+			},
+		},
+	}
+
+	// This should not panic and should use default tolerationSeconds of 300
+	dur, err := c.syncBinding(context.Background(), binding)
+	assert.NoError(t, err)
+	// Duration should be 0 since no unhealthy clusters
+	assert.Equal(t, time.Duration(0), dur)
+}
+
 func TestCRBApplicationFailoverController_evictBinding(t *testing.T) {
 	tests := []struct {
 		name        string
