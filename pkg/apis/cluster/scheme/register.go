@@ -21,6 +21,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	flowcontrolv1beta3 "k8s.io/api/flowcontrol/v1beta3"
 
 	clusterinstall "github.com/karmada-io/karmada/pkg/apis/cluster/install"
 )
@@ -37,6 +39,12 @@ var (
 
 func init() {
 	clusterinstall.Install(Scheme)
+
+	// Register flowcontrol v1beta3 types to fix apiserver cacher errors
+	// when watching FlowSchema and PriorityLevelConfiguration resources.
+	// This ensures compatibility with Kubernetes API servers that use v1beta3
+	// for flow control API resources.
+	utilruntime.Must(flowcontrolv1beta3.AddToScheme(Scheme))
 
 	// we need to add the options to empty v1
 	// TODO fix the server code to avoid this
