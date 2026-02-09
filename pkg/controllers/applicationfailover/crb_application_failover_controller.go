@@ -127,6 +127,8 @@ func (c *CRBApplicationFailoverController) syncBinding(ctx context.Context, bind
 		allClusters.Insert(cluster.Name)
 	}
 
+	c.workloadUnhealthyMap.restoreFromAnnotation(key, binding.GetAnnotations())
+
 	unhealthyClusters, others := distinguishUnhealthyClustersWithOthers(binding.Status.AggregatedStatus, binding.Spec)
 	duration, needEvictClusters := c.detectFailure(unhealthyClusters, tolerationSeconds, key)
 
@@ -144,6 +146,10 @@ func (c *CRBApplicationFailoverController) syncBinding(ctx context.Context, bind
 
 	// Cleanup clusters on which the application status is not unhealthy and clusters that have been evicted or removed in the workloadUnhealthyMap.
 	c.workloadUnhealthyMap.deleteIrrelevantClusters(key, allClusters, others)
+
+	if err := persistUnhealthyTimestamps(ctx, c.Client, c.workloadUnhealthyMap, key, binding); err != nil {
+		klog.V(4).InfoS("Failed to persist unhealthy timestamps", "binding", klog.KObj(binding), "err", err)
+	}
 
 	return time.Duration(duration) * time.Second, nil
 }

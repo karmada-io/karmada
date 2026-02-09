@@ -17,6 +17,8 @@ limitations under the License.
 package applicationfailover
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"sync"
 
@@ -25,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -104,6 +107,83 @@ func (m *workloadUnhealthyMap) deleteIrrelevantClusters(key types.NamespacedName
 	}
 
 	m.workloadUnhealthy[key] = unhealthyClusters
+}
+
+// workloadUnhealthyTimestampsAnnotation persists per-cluster unhealthy detection
+// timestamps so that the toleration timer survives controller restarts.
+const workloadUnhealthyTimestampsAnnotation = "work.karmada.io/unhealthy-first-detected"
+
+func (m *workloadUnhealthyMap) restoreFromAnnotation(key types.NamespacedName, annotations map[string]string) {
+	m.Lock()
+	defer m.Unlock()
+
+	if _, exists := m.workloadUnhealthy[key]; exists {
+		return
+	}
+
+	value := annotations[workloadUnhealthyTimestampsAnnotation]
+	if value == "" {
+		return
+	}
+
+	var timestamps map[string]metav1.Time
+	if err := json.Unmarshal([]byte(value), &timestamps); err != nil {
+		klog.V(4).InfoS("Failed to unmarshal unhealthy timestamps annotation", "err", err)
+		return
+	}
+	if len(timestamps) > 0 {
+		m.workloadUnhealthy[key] = timestamps
+	}
+}
+
+func (m *workloadUnhealthyMap) getTimestampsSnapshot(key types.NamespacedName) map[string]metav1.Time {
+	m.RLock()
+	defer m.RUnlock()
+
+	src := m.workloadUnhealthy[key]
+	if len(src) == 0 {
+		return nil
+	}
+	result := make(map[string]metav1.Time, len(src))
+	for k, v := range src {
+		result[k] = v
+	}
+	return result
+}
+
+func marshalUnhealthyTimestamps(timestamps map[string]metav1.Time) string {
+	if len(timestamps) == 0 {
+		return ""
+	}
+	data, err := json.Marshal(timestamps)
+	if err != nil {
+		return ""
+	}
+	return string(data)
+}
+
+func persistUnhealthyTimestamps(ctx context.Context, c client.Client, m *workloadUnhealthyMap, key types.NamespacedName, obj client.Object) error {
+	timestamps := m.getTimestampsSnapshot(key)
+	newValue := marshalUnhealthyTimestamps(timestamps)
+	oldValue := obj.GetAnnotations()[workloadUnhealthyTimestampsAnnotation]
+
+	if newValue == oldValue {
+		return nil
+	}
+
+	objPatch := client.MergeFrom(obj)
+	modifiedObj := obj.DeepCopyObject().(client.Object)
+	annotations := modifiedObj.GetAnnotations()
+	if annotations == nil {
+		annotations = make(map[string]string)
+	}
+	if newValue == "" {
+		delete(annotations, workloadUnhealthyTimestampsAnnotation)
+	} else {
+		annotations[workloadUnhealthyTimestampsAnnotation] = newValue
+	}
+	modifiedObj.SetAnnotations(annotations)
+	return c.Patch(ctx, modifiedObj, objPatch)
 }
 
 // distinguishUnhealthyClustersWithOthers distinguishes clusters which is in the unHealthy state(not in the process of eviction) with others.
