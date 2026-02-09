@@ -148,7 +148,8 @@ func (c *RBApplicationFailoverController) syncBinding(ctx context.Context, bindi
 	c.workloadUnhealthyMap.deleteIrrelevantClusters(key, allClusters, others)
 
 	if err := persistUnhealthyTimestamps(ctx, c.Client, c.workloadUnhealthyMap, key, binding); err != nil {
-		klog.V(4).InfoS("Failed to persist unhealthy timestamps", "binding", klog.KObj(binding), "err", err)
+		klog.ErrorS(err, "Failed to persist unhealthy timestamps", "binding", klog.KObj(binding))
+		return 0, err
 	}
 
 	return time.Duration(duration) * time.Second, nil

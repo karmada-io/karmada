@@ -113,6 +113,9 @@ func (m *workloadUnhealthyMap) deleteIrrelevantClusters(key types.NamespacedName
 // timestamps so that the toleration timer survives controller restarts.
 const workloadUnhealthyTimestampsAnnotation = "work.karmada.io/unhealthy-first-detected"
 
+// restoreFromAnnotation populates the in-memory map from persisted annotation data.
+// It is called at the beginning of syncBinding to recover timestamps after a controller restart.
+// If the in-memory map already has entries for the given key, this is a no-op.
 func (m *workloadUnhealthyMap) restoreFromAnnotation(key types.NamespacedName, annotations map[string]string) {
 	m.Lock()
 	defer m.Unlock()
@@ -136,6 +139,8 @@ func (m *workloadUnhealthyMap) restoreFromAnnotation(key types.NamespacedName, a
 	}
 }
 
+// getTimestampsSnapshot returns a shallow copy of the per-cluster unhealthy timestamps
+// for the given binding key. Returns nil if no entries exist.
 func (m *workloadUnhealthyMap) getTimestampsSnapshot(key types.NamespacedName) map[string]metav1.Time {
 	m.RLock()
 	defer m.RUnlock()
@@ -151,20 +156,28 @@ func (m *workloadUnhealthyMap) getTimestampsSnapshot(key types.NamespacedName) m
 	return result
 }
 
-func marshalUnhealthyTimestamps(timestamps map[string]metav1.Time) string {
+// marshalUnhealthyTimestamps serializes per-cluster unhealthy detection timestamps to JSON.
+// Returns an empty string when the input map is empty, or an error if JSON encoding fails.
+func marshalUnhealthyTimestamps(timestamps map[string]metav1.Time) (string, error) {
 	if len(timestamps) == 0 {
-		return ""
+		return "", nil
 	}
 	data, err := json.Marshal(timestamps)
 	if err != nil {
-		return ""
+		return "", fmt.Errorf("failed to marshal unhealthy timestamps: %w", err)
 	}
-	return string(data)
+	return string(data), nil
 }
 
+// persistUnhealthyTimestamps writes the current in-memory unhealthy detection timestamps
+// to the binding's annotation via a merge patch. It skips the patch if the annotation
+// value is already up to date. Called at the end of each syncBinding reconciliation.
 func persistUnhealthyTimestamps(ctx context.Context, c client.Client, m *workloadUnhealthyMap, key types.NamespacedName, obj client.Object) error {
 	timestamps := m.getTimestampsSnapshot(key)
-	newValue := marshalUnhealthyTimestamps(timestamps)
+	newValue, err := marshalUnhealthyTimestamps(timestamps)
+	if err != nil {
+		return err
+	}
 	oldValue := obj.GetAnnotations()[workloadUnhealthyTimestampsAnnotation]
 
 	if newValue == oldValue {
