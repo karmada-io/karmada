@@ -37,6 +37,7 @@ while getopts 'h' OPT; do
           ;;
     esac
 done
+shift $((OPTIND-1))
 
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 source "${REPO_ROOT}"/hack/util.sh
@@ -79,12 +80,10 @@ function deploy_prometheus() {
     
     KARMADA_TOKEN=$(kubectl --context="${KARMADA_APISERVER_CLUSTER_NAME}" get secret prometheus -o=jsonpath={.data.token} -n monitor | base64 -d)
     
-    local temp_file=$(mktemp)
-    sed "s/{{karmada-token}}/${KARMADA_TOKEN}/g" "${REPO_ROOT}/hack/performance-env/prometheus/application.yaml" > "${temp_file}"
+    # Create secret with token in host cluster
+    kubectl --context="${HOST_CLUSTER_NAME}" create secret generic karmada-token --from-literal=token="${KARMADA_TOKEN}" -n monitor --dry-run=client -o yaml | kubectl --context="${HOST_CLUSTER_NAME}" apply -f -
     
-    kubectl --context="${HOST_CLUSTER_NAME}" apply -f "${temp_file}"
-    
-    rm -f "${temp_file}"
+    kubectl --context="${HOST_CLUSTER_NAME}" apply -f "${REPO_ROOT}/hack/performance-env/prometheus/application.yaml"
     
     kubectl --context="${HOST_CLUSTER_NAME}" wait --for=condition=available --timeout=180s deployment/prometheus -n monitor
 }

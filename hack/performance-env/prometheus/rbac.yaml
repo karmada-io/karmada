@@ -29,8 +29,7 @@ rules:
   - 'cluster.karmada.io'
   resources:
   - '*'
-  verbs:
-  - '*'
+  verbs: ["get", "list", "watch"]
 ---
 apiVersion: v1
 kind: ServiceAccount

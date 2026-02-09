@@ -286,8 +286,8 @@ def plot_rest_client_rate(ax, baseline, target, base_path):
     """
     # Target
     c_total = extract_timeseries(target, base_path + ['total', 'rate_per_second'])
-    c_2xx = extract_timeseries(target, base_path + ['by_status', '2xx', 'rate_per_second'])
-    c_4xx = extract_timeseries(target, base_path + ['by_status', '4xx', 'rate_per_second'])
+    c_2xx = extract_timeseries(target, base_path + ['2xx', 'rate_per_second'])
+    c_4xx = extract_timeseries(target, base_path + ['4xx', 'rate_per_second'])
     
     # Baseline
     b_total = extract_timeseries(baseline, base_path + ['total', 'rate_per_second'])
@@ -308,8 +308,8 @@ def plot_rest_client_count(ax, baseline, target, base_path):
     """
     # Target
     c_total = extract_timeseries(target, base_path + ['total', 'count'])
-    c_2xx = extract_timeseries(target, base_path + ['by_status', '2xx', 'count'])
-    c_4xx = extract_timeseries(target, base_path + ['by_status', '4xx', 'count'])
+    c_2xx = extract_timeseries(target, base_path + ['2xx', 'count'])
+    c_4xx = extract_timeseries(target, base_path + ['4xx', 'count'])
     
     # Baseline
     b_total = extract_timeseries(baseline, base_path + ['total', 'count'])

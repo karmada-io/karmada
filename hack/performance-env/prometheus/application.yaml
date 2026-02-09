@@ -66,7 +66,7 @@ data:
       scheme: https
       tls_config:
         insecure_skip_verify: true
-      bearer_token: {{karmada-token}}
+      bearer_token_file: /etc/karmada/token
       relabel_configs:
       - source_labels: [__meta_kubernetes_pod_label_app]
         action: keep
@@ -79,7 +79,7 @@ data:
       scheme: https
       tls_config:
         insecure_skip_verify: true
-      bearer_token: {{karmada-token}}
+      bearer_token_file: /etc/karmada/token
       relabel_configs:
       - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoints_name]
         action: keep
@@ -173,10 +173,13 @@ spec:
           name: prometheus-config
         - mountPath: "/prom-data"
           name: prom-data
+        - mountPath: "/etc/karmada"
+          name: karmada-token
+          readOnly: true
       initContainers:
       - name: prometheus-data-permission-fix
         image: busybox
-        command: ["/bin/chmod","-R","777", "/data"]
+        command: ["/bin/chown","-R","65534:65534", "/data"]
         volumeMounts:
         - name: prom-data
           mountPath: /data
@@ -188,3 +191,6 @@ spec:
         hostPath:
           path: /var/lib/prom-data
           type: DirectoryOrCreate
+      - name: karmada-token
+        secret:
+          secretName: karmada-token
