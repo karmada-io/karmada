@@ -32,6 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
@@ -92,9 +93,9 @@ type ResourceDetector struct {
 	RESTMapper meta.RESTMapper
 
 	// waitingObjects tracks of objects which haven't been propagated yet as lack of appropriate policies.
-	waitingObjects map[keys.ClusterWideKey]struct{}
-	// waitingLock is the lock for waitingObjects operation.
-	waitingLock sync.RWMutex
+	// Its key is of type schema.GroupVersionKind, and the value is a pointer to namespacedObject,
+	// which indexes the resources to be bound under this GVK by namespace.
+	waitingObjects sync.Map
 	// ConcurrentPropagationPolicySyncs is the number of PropagationPolicy that are allowed to sync concurrently.
 	ConcurrentPropagationPolicySyncs int
 	// ConcurrentClusterPropagationPolicySyncs is the number of ClusterPropagationPolicy that are allowed to sync concurrently.
@@ -108,10 +109,16 @@ type ResourceDetector struct {
 	RateLimiterOptions ratelimiterflag.Options
 }
 
+// namespacedObject is used to track the objects which haven't been propagated yet as lack of appropriate policies.
+// It is indexed by namespace.
+type namespacedObject struct {
+	sync.RWMutex
+	objects map[string]map[keys.ClusterWideKey]struct{}
+}
+
 // Start runs the detector, never stop until context canceled.
 func (d *ResourceDetector) Start(ctx context.Context) error {
 	klog.Infof("Starting resource detector.")
-	d.waitingObjects = make(map[keys.ClusterWideKey]struct{})
 
 	// setup policy reconcile worker
 	policyWorkerOptions := util.Options{
@@ -942,37 +949,110 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 
 // isWaiting indicates if the object is in waiting list.
 func (d *ResourceDetector) isWaiting(objectKey keys.ClusterWideKey) bool {
-	d.waitingLock.RLock()
-	_, ok := d.waitingObjects[objectKey]
-	d.waitingLock.RUnlock()
+	gvk := objectKey.GroupVersionKind()
+	namespace := objectKey.Namespace
+
+	val, ok := d.waitingObjects.Load(gvk)
+	if !ok {
+		return false
+	}
+
+	nsObjects := val.(*namespacedObject)
+	nsObjects.RLock()
+	defer nsObjects.RUnlock()
+	objects, ok := nsObjects.objects[namespace]
+	if !ok {
+		return false
+	}
+
+	_, ok = objects[objectKey]
 	return ok
 }
 
 // AddWaiting adds object's key to waiting list.
 func (d *ResourceDetector) AddWaiting(objectKey keys.ClusterWideKey) {
-	d.waitingLock.Lock()
-	defer d.waitingLock.Unlock()
+	gvk := objectKey.GroupVersionKind()
 
-	d.waitingObjects[objectKey] = struct{}{}
-	klog.V(1).Infof("Add object(%s) to waiting list, length of list is: %d", objectKey.String(), len(d.waitingObjects))
+	val, ok := d.waitingObjects.Load(gvk)
+	if !ok {
+		val, _ = d.waitingObjects.LoadOrStore(gvk, &namespacedObject{
+			objects: make(map[string]map[keys.ClusterWideKey]struct{}),
+		})
+	}
+
+	nsObjects := val.(*namespacedObject)
+	nsObjects.Lock()
+	defer nsObjects.Unlock()
+	if nsObjects.objects[objectKey.Namespace] == nil {
+		nsObjects.objects[objectKey.Namespace] = make(map[keys.ClusterWideKey]struct{})
+	}
+	nsObjects.objects[objectKey.Namespace][objectKey] = struct{}{}
+	klog.V(1).Infof("Add object(%s) to waiting list, the length of the list under the same GVK and namespace is %d", objectKey.String(), len(nsObjects.objects[objectKey.Namespace]))
 }
 
 // RemoveWaiting removes object's key from waiting list.
 func (d *ResourceDetector) RemoveWaiting(objectKey keys.ClusterWideKey) {
-	d.waitingLock.Lock()
-	defer d.waitingLock.Unlock()
+	gvk := objectKey.GroupVersionKind()
+	val, ok := d.waitingObjects.Load(gvk)
+	if !ok {
+		return
+	}
 
-	delete(d.waitingObjects, objectKey)
+	nsObjects := val.(*namespacedObject)
+	nsObjects.Lock()
+	defer nsObjects.Unlock()
+	if nsObjects.objects[objectKey.Namespace] == nil {
+		return
+	}
+	delete(nsObjects.objects[objectKey.Namespace], objectKey)
+
+	// Clean up empty namespace maps to avoid a large number of empty namespace maps occupying memory in waitingObjects.
+	// When there are no more objects waiting under a certain GVK, the entire GVK entry in sync.Map is not deleted because
+	// GVKs are finite, and since pointers are stored, the memory footprint is small; repeatedly deleting and creating
+	// GVK entries would cause performance degradation of sync.Map.
+	if len(nsObjects.objects[objectKey.Namespace]) == 0 {
+		delete(nsObjects.objects, objectKey.Namespace)
+	}
 }
 
 // GetMatching gets objects keys in waiting list that matches one of resource selectors.
-func (d *ResourceDetector) GetMatching(resourceSelectors []policyv1alpha1.ResourceSelector) []keys.ClusterWideKey {
-	d.waitingLock.RLock()
-	defer d.waitingLock.RUnlock()
+func (d *ResourceDetector) GetMatching(resourceSelectors []policyv1alpha1.ResourceSelector) sets.Set[keys.ClusterWideKey] {
+	matchedResult := sets.New[keys.ClusterWideKey]()
 
-	var matchedResult []keys.ClusterWideKey
+	for _, selector := range resourceSelectors {
+		gvk := schema.FromAPIVersionAndKind(selector.APIVersion, selector.Kind)
+		namespace := selector.Namespace
 
-	for waitKey := range d.waitingObjects {
+		val, ok := d.waitingObjects.Load(gvk)
+		if !ok {
+			continue
+		}
+
+		nsObjects := val.(*namespacedObject)
+		nsObjects.RLock()
+		// namespace is empty means selecting objects in all namespaces or cluster-scoped objects.
+		if namespace == "" {
+			for _, objects := range nsObjects.objects {
+				d.match(objects, selector, matchedResult)
+			}
+		} else {
+			if objects, ok := nsObjects.objects[namespace]; ok {
+				d.match(objects, selector, matchedResult)
+			}
+		}
+		nsObjects.RUnlock()
+	}
+
+	return matchedResult
+}
+
+// match checks which objects in the given map match the resource selector and adds them to matchedResult.
+func (d *ResourceDetector) match(objects map[keys.ClusterWideKey]struct{}, rs policyv1alpha1.ResourceSelector, matchedResult sets.Set[keys.ClusterWideKey]) {
+	for waitKey := range objects {
+		if matchedResult.Has(waitKey) {
+			continue
+		}
+
 		waitObj, err := d.GetUnstructuredObject(waitKey)
 		if err != nil {
 			// all object in waiting list should exist. Just print a log to trace.
@@ -980,15 +1060,10 @@ func (d *ResourceDetector) GetMatching(resourceSelectors []policyv1alpha1.Resour
 			continue
 		}
 
-		for _, rs := range resourceSelectors {
-			if util.ResourceMatches(waitObj, rs) {
-				matchedResult = append(matchedResult, waitKey)
-				break
-			}
+		if util.ResourceMatches(waitObj, rs) {
+			matchedResult.Insert(waitKey)
 		}
 	}
-
-	return matchedResult
 }
 
 // OnPropagationPolicyAdd handles object add event and push the object to queue.
@@ -1248,7 +1323,7 @@ func (d *ResourceDetector) HandlePropagationPolicyCreationOrUpdate(policy *polic
 	klog.Infof("Matched %d resources by policy(%s/%s)", len(matchedKeys), policy.Namespace, policy.Name)
 
 	// check dependents only when there at least a real match.
-	if len(matchedKeys) > 0 {
+	if matchedKeys.Len() > 0 {
 		// return err when dependents not present, that we can retry at next reconcile.
 		if present, err := helper.IsDependentOverridesPresent(d.Client, policy); err != nil || !present {
 			klog.Infof("Waiting for dependent overrides present for policy(%s/%s)", policy.Namespace, policy.Name)
@@ -1256,7 +1331,7 @@ func (d *ResourceDetector) HandlePropagationPolicyCreationOrUpdate(policy *polic
 		}
 	}
 
-	for _, key := range matchedKeys {
+	for key := range matchedKeys {
 		d.RemoveWaiting(key)
 		d.enqueueResourceTemplateForPolicyChange(key, policy.Spec.ActivationPreference)
 	}
@@ -1321,7 +1396,7 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyCreationOrUpdate(policy
 	klog.Infof("Matched %d resources by policy(%s)", len(matchedKeys), policy.Name)
 
 	// check dependents only when there at least a real match.
-	if len(matchedKeys) > 0 {
+	if matchedKeys.Len() > 0 {
 		// return err when dependents not present, that we can retry at next reconcile.
 		if present, err := helper.IsDependentClusterOverridesPresent(d.Client, policy); err != nil || !present {
 			klog.Infof("Waiting for dependent overrides present for policy(%s)", policy.Name)
@@ -1329,7 +1404,7 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyCreationOrUpdate(policy
 		}
 	}
 
-	for _, key := range matchedKeys {
+	for key := range matchedKeys {
 		d.RemoveWaiting(key)
 		d.enqueueResourceTemplateForPolicyChange(key, policy.Spec.ActivationPreference)
 	}
