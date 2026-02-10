@@ -24,11 +24,13 @@ import (
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 const (
@@ -221,13 +223,21 @@ func (o *CommandDeInitOption) removeNodeLabels() error {
 		return nil
 	}
 
-	for v := range nodes.Items {
-		removeLabels(&nodes.Items[v], karmadaNodeLabel)
-		fmt.Printf("remove node %q labels %q\n", nodes.Items[v].Name, karmadaNodeLabel)
+	for _, node := range nodes.Items {
+		nodeCopy := node.DeepCopy()
+		removeLabels(nodeCopy, karmadaNodeLabel)
+		fmt.Printf("remove node %q labels %q\n", node.Name, karmadaNodeLabel)
 		if o.DryRun {
 			continue
 		}
-		if _, err := nodeClient.Update(context.TODO(), &nodes.Items[v], metav1.UpdateOptions{}); err != nil {
+		patchBytes, err := helper.GenMergePatch(node, nodeCopy)
+		if err != nil {
+			return err
+		}
+		if len(patchBytes) == 0 {
+			continue
+		}
+		if _, err = o.KubeClientSet.CoreV1().Nodes().Patch(context.TODO(), node.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}); err != nil {
 			return err
 		}
 	}
