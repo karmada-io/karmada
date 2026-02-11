@@ -1,4 +1,4 @@
-**Purpose:** This document outlines the specific code style and quality rules for the Karmada project. When reviewing code or generating PR descriptions, Gemini should enforce these rules to ensure consistency and maintainability.
+**Purpose:** This document outlines the specific code style and quality rules for the Karmada project. When reviewing code or generating PR descriptions, Copilot should enforce these rules to ensure consistency and maintainability.
 
 ## Code Review
 
