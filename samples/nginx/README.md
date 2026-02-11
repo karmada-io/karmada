@@ -90,4 +90,3 @@ kubectl delete -f deployment.yaml
 
 - [Propagation Policy Documentation](https://karmada.io/docs/userguide/scheduling/resource-propagating)
 - [Override Policy Documentation](https://karmada.io/docs/userguide/scheduling/override-policy)
-- [Multi-Cluster Service](https://karmada.io/docs/userguide/service/multi-cluster-service)
