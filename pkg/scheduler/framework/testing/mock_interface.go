@@ -160,6 +160,57 @@ func (mr *MockFilterPluginMockRecorder) Name() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Name", reflect.TypeOf((*MockFilterPlugin)(nil).Name))
 }
 
+// MockFilterPluginWithContext is a mock of FilterPluginWithContext interface.
+type MockFilterPluginWithContext struct {
+	ctrl     *gomock.Controller
+	recorder *MockFilterPluginWithContextMockRecorder
+}
+
+// MockFilterPluginWithContextMockRecorder is the mock recorder for MockFilterPluginWithContext.
+type MockFilterPluginWithContextMockRecorder struct {
+	mock *MockFilterPluginWithContext
+}
+
+// NewMockFilterPluginWithContext creates a new mock instance.
+func NewMockFilterPluginWithContext(ctrl *gomock.Controller) *MockFilterPluginWithContext {
+	mock := &MockFilterPluginWithContext{ctrl: ctrl}
+	mock.recorder = &MockFilterPluginWithContextMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockFilterPluginWithContext) EXPECT() *MockFilterPluginWithContextMockRecorder {
+	return m.recorder
+}
+
+// FilterWithContext mocks base method.
+func (m *MockFilterPluginWithContext) FilterWithContext(filterCtx *framework.FilterContext) *framework.Result {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FilterWithContext", filterCtx)
+	ret0, _ := ret[0].(*framework.Result)
+	return ret0
+}
+
+// FilterWithContext indicates an expected call of FilterWithContext.
+func (mr *MockFilterPluginWithContextMockRecorder) FilterWithContext(filterCtx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FilterWithContext", reflect.TypeOf((*MockFilterPluginWithContext)(nil).FilterWithContext), filterCtx)
+}
+
+// Name mocks base method.
+func (m *MockFilterPluginWithContext) Name() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Name")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// Name indicates an expected call of Name.
+func (mr *MockFilterPluginWithContextMockRecorder) Name() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Name", reflect.TypeOf((*MockFilterPluginWithContext)(nil).Name))
+}
+
 // MockScorePlugin is a mock of ScorePlugin interface.
 type MockScorePlugin struct {
 	ctrl     *gomock.Controller
