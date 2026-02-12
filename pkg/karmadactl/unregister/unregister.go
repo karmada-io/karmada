@@ -59,6 +59,9 @@ var (
 
 		# Unregister cluster from karmada control plane, manually specify the location of the karmada config
 		%[1]s unregister CLUSTER_NAME --karmada-config=<KARMADA_CONFIG> [--karmada-context=<KARMADA_CONTEXT>] --cluster-kubeconfig=<CLUSTER_KUBECONFIG> [--cluster-context=<CLUSTER_CONTEXT>]
+
+		# Force unregister cluster from karmada control plane
+		%[1]s unregister CLUSTER_NAME --cluster-kubeconfig=<CLUSTER_KUBECONFIG> --force
     `)
 )
 
@@ -128,6 +131,9 @@ type CommandUnregisterOption struct {
 	// DryRun tells if run the command in dry-run mode, without making any server requests.
 	DryRun bool
 
+	// Force tells if force deletion should be used when deleting the cluster object.
+	Force bool
+
 	// ControlPlaneClient control plane client set
 	ControlPlaneClient karmadaclientset.Interface
 
@@ -153,6 +159,7 @@ func (j *CommandUnregisterOption) AddFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&j.ClusterNamespace, "cluster-namespace", options.DefaultKarmadaClusterNamespace, "Namespace in the control plane where member cluster secrets are stored.")
 	flags.DurationVar(&j.Wait, "wait", 60*time.Second, "wait for the unjoin command execution process(default 60s), if there is no success after this time, timeout will be returned.")
 	flags.BoolVar(&j.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
+	flags.BoolVar(&j.Force, "force", false, "When set, the unregister command will attempt to force delete the cluster object by removing finalizers if the normal deletion times out. This may leave some resources in the member cluster.")
 }
 
 // Complete ensures that options are valid and marshals them if necessary.
@@ -339,8 +346,7 @@ func (j *CommandUnregisterOption) RunUnregisterCluster() error {
 	j.Wait = j.Wait - time.Since(start)
 
 	// 2. delete the cluster object from the Karmada control plane
-	//TODO: add flag --force to implement force deletion.
-	if err = cmdutil.DeleteClusterObject(j.ControlPlaneKubeClient, j.ControlPlaneClient, j.ClusterName, j.Wait, j.DryRun, false); err != nil {
+	if err = cmdutil.DeleteClusterObject(j.ControlPlaneKubeClient, j.ControlPlaneClient, j.ClusterName, j.Wait, j.DryRun, j.Force); err != nil {
 		klog.Errorf("Failed to delete cluster object. cluster name: %s, error: %v", j.ClusterName, err)
 		return err
 	}
