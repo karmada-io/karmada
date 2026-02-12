@@ -229,7 +229,10 @@ func Run(ctx context.Context, opts *options.Options) error {
 
 	// others
 	hookServer.Register("/validate-resourcedeletionprotection", &webhook.Admission{Handler: &resourcedeletionprotection.ValidatingAdmission{Decoder: decoder}})
-	hookServer.Register("/convert", conversion.NewWebhookHandler(hookManager.GetScheme()))
+	// Note: Starting from controller-runtime v0.23.0, conversion can be implemented outside the API package
+	// and registered to the converter registry, allowing the API package to avoid depending on controller-runtime.
+	// Currently, our conversions are still implemented in the API package. We can migrate them if needed in the future.
+	hookServer.Register("/convert", conversion.NewWebhookHandler(hookManager.GetScheme(), hookManager.GetConverterRegistry()))
 	hookServer.WebhookMux().Handle("/readyz/", http.StripPrefix("/readyz/", &healthz.Handler{}))
 
 	ctrlmetrics.Registry.MustRegister(versionmetrics.NewBuildInfoCollector())
