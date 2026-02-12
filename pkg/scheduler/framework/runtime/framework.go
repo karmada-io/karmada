@@ -24,6 +24,7 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	worklister "github.com/karmada-io/karmada/pkg/generated/listers/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 	"github.com/karmada-io/karmada/pkg/scheduler/metrics"
 	utilmetrics "github.com/karmada-io/karmada/pkg/util/metrics"
@@ -95,6 +96,7 @@ func (frw *frameworkImpl) RunFilterPlugins(
 	bindingSpec *workv1alpha2.ResourceBindingSpec,
 	bindingStatus *workv1alpha2.ResourceBindingStatus,
 	cluster *clusterv1alpha1.Cluster,
+	resourceBindingLister worklister.ResourceBindingLister,
 ) (result *framework.Result) {
 	startTime := time.Now()
 	defer func() {
@@ -102,10 +104,11 @@ func (frw *frameworkImpl) RunFilterPlugins(
 	}()
 
 	filterCtx := &framework.FilterContext{
-		Context:       ctx,
-		BindingSpec:   bindingSpec,
-		BindingStatus: bindingStatus,
-		Cluster:       cluster,
+		Context:               ctx,
+		BindingSpec:           bindingSpec,
+		BindingStatus:         bindingStatus,
+		Cluster:               cluster,
+		ResourceBindingLister: resourceBindingLister,
 	}
 
 	for _, p := range frw.filterPlugins {

@@ -22,6 +22,7 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	clusterlister "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
+	worklister "github.com/karmada-io/karmada/pkg/generated/listers/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 )
 
@@ -32,16 +33,21 @@ type Cache interface {
 	DeleteCluster(cluster *clusterv1alpha1.Cluster)
 	// Snapshot returns a snapshot of the current clusters info
 	Snapshot() Snapshot
+
+	// ResourceBindingLister returns the lister for ResourceBindings, used for advanced scheduling logic.
+	ResourceBindingLister() worklister.ResourceBindingLister
 }
 
 type schedulerCache struct {
-	clusterLister clusterlister.ClusterLister
+	clusterLister         clusterlister.ClusterLister
+	resourceBindingLister worklister.ResourceBindingLister
 }
 
 // NewCache instantiates a cache used only by scheduler.
-func NewCache(clusterLister clusterlister.ClusterLister) Cache {
+func NewCache(clusterLister clusterlister.ClusterLister, resourceBindingLister worklister.ResourceBindingLister) Cache {
 	return &schedulerCache{
-		clusterLister: clusterLister,
+		clusterLister:         clusterLister,
+		resourceBindingLister: resourceBindingLister,
 	}
 }
 
@@ -74,4 +80,9 @@ func (c *schedulerCache) Snapshot() Snapshot {
 	}
 
 	return out
+}
+
+// ResourceBindingLister returns the lister for ResourceBindings, used for advanced scheduling logic.
+func (c *schedulerCache) ResourceBindingLister() worklister.ResourceBindingLister {
+	return c.resourceBindingLister
 }

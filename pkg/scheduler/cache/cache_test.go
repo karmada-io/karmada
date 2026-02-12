@@ -50,7 +50,7 @@ func TestNewCache(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cache := NewCache(tt.clusterLister)
+			cache := NewCache(tt.clusterLister, nil)
 
 			assert.NotNil(t, cache, "NewCache() returned nil cache")
 
@@ -136,7 +136,7 @@ func TestSnapshot(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockLister := &mockClusterLister{clusters: tt.clusters}
-			cache := NewCache(mockLister)
+			cache := NewCache(mockLister, nil)
 			snapshot := cache.Snapshot()
 
 			assert.Equal(t, tt.wantTotal, snapshot.NumOfClusters(), "Incorrect number of total clusters")
@@ -200,7 +200,7 @@ func TestAddUpdateDeleteCluster(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockLister := &mockClusterLister{}
-			cache := NewCache(mockLister).(*schedulerCache)
+			cache := NewCache(mockLister, nil).(*schedulerCache)
 
 			cluster := &clusterv1alpha1.Cluster{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-cluster"},
@@ -223,7 +223,7 @@ func TestSnapshotError(t *testing.T) {
 		err:      mockError,
 	}
 
-	cache := NewCache(mockLister)
+	cache := NewCache(mockLister, nil)
 
 	snapshot := cache.Snapshot()
 

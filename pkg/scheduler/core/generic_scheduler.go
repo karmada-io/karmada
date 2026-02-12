@@ -132,6 +132,8 @@ func (g *genericScheduler) findClustersThatFit(
 	var out []*clusterv1alpha1.Cluster
 	// DO NOT filter unhealthy cluster, let users make decisions by using ClusterTolerations of Placement.
 	clusters := clusterInfo.GetClusters()
+	resourceBindingLister := g.schedulerCache.ResourceBindingLister()
+
 	for _, c := range clusters {
 		// When cluster is deleting, we will clean up the scheduled results in the cluster.
 		// So we should not schedule resource to the deleting cluster.
@@ -140,7 +142,7 @@ func (g *genericScheduler) findClustersThatFit(
 			continue
 		}
 
-		if result := g.scheduleFramework.RunFilterPlugins(ctx, bindingSpec, bindingStatus, c.Cluster()); !result.IsSuccess() {
+		if result := g.scheduleFramework.RunFilterPlugins(ctx, bindingSpec, bindingStatus, c.Cluster(), resourceBindingLister); !result.IsSuccess() {
 			klog.V(4).Infof("Cluster %q is not fit, reason: %v", c.Cluster().Name, result.AsError())
 			diagnosis.ClusterToResultMap[c.Cluster().Name] = result
 		} else {

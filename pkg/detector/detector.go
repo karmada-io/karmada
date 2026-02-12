@@ -504,6 +504,7 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 			bindingCopy.Spec.PreserveResourcesOnDeletion = binding.Spec.PreserveResourcesOnDeletion
 			bindingCopy.Spec.SchedulePriority = binding.Spec.SchedulePriority
 			bindingCopy.Spec.Suspension = util.MergePolicySuspension(bindingCopy.Spec.Suspension, policy.Spec.Suspension)
+			bindingCopy.Spec.WorkloadAffinityGroups = binding.Spec.WorkloadAffinityGroups
 			excludeClusterPolicy(bindingCopy)
 			return nil
 		})
@@ -596,6 +597,7 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 				bindingCopy.Spec.PreserveResourcesOnDeletion = binding.Spec.PreserveResourcesOnDeletion
 				bindingCopy.Spec.SchedulePriority = binding.Spec.SchedulePriority
 				bindingCopy.Spec.Suspension = util.MergePolicySuspension(bindingCopy.Spec.Suspension, policy.Spec.Suspension)
+				bindingCopy.Spec.WorkloadAffinityGroups = binding.Spec.WorkloadAffinityGroups
 				return nil
 			})
 			return err
@@ -645,6 +647,7 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 				bindingCopy.Spec.ConflictResolution = binding.Spec.ConflictResolution
 				bindingCopy.Spec.PreserveResourcesOnDeletion = binding.Spec.PreserveResourcesOnDeletion
 				bindingCopy.Spec.Suspension = util.MergePolicySuspension(bindingCopy.Spec.Suspension, policy.Spec.Suspension)
+				bindingCopy.Spec.WorkloadAffinityGroups = binding.Spec.WorkloadAffinityGroups
 				return nil
 			})
 			return err

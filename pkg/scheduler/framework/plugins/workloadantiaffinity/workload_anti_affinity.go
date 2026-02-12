@@ -19,6 +19,7 @@ package workloadantiaffinity
 import (
 	"context"
 
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog/v2"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -68,6 +69,12 @@ func (p *WorkloadAntiAffinity) FilterWithContext(filterCtx *framework.FilterCont
 	bindingSpec := filterCtx.BindingSpec
 	cluster := filterCtx.Cluster
 
+	// If the cluster is already in the target list, always allow it to pass
+	// This ensures the scheduler never deletes scheduled resources by this plugin.
+	if bindingSpec.TargetContains(cluster.Name) {
+		return framework.NewResult(framework.Success)
+	}
+
 	// If no workload anti-affinity groups spec, skip this filter
 	if bindingSpec.WorkloadAffinityGroups == nil || bindingSpec.WorkloadAffinityGroups.AntiAffinityGroup == "" {
 		return framework.NewResult(framework.Success)
@@ -75,8 +82,34 @@ func (p *WorkloadAntiAffinity) FilterWithContext(filterCtx *framework.FilterCont
 
 	antiAffinityGroup := bindingSpec.WorkloadAffinityGroups.AntiAffinityGroup
 
-	// Check if current cluster already has workloads with the same anti-affinity group
-	// if yes --> deny
+	if filterCtx.ResourceBindingLister == nil {
+		return framework.NewResult(framework.Unschedulable, "ResourceBindingLister is nil")
+	}
+
+	// TODO(@RainbowMango): 1. Use index to accelerate lister query
+	//                      2. Filter out self to avoid self-exclusion during reschedule
+	//                      3. Check assigning binding list to avoid cache delay
+	bindings, err := filterCtx.ResourceBindingLister.ResourceBindings(bindingSpec.Resource.Namespace).List(labels.Everything())
+	if err != nil {
+		klog.Errorf("Failed to list ResourceBinding, err: %v", err)
+		return framework.NewResult(framework.Unschedulable, "failed to list ResourceBindings")
+	}
+
+	for _, rb := range bindings {
+		if rb == nil || rb.Spec.WorkloadAffinityGroups == nil {
+			continue
+		}
+
+		if !rb.Spec.TargetContains(cluster.GetName()) {
+			continue
+		}
+
+		if rb.Spec.WorkloadAffinityGroups.AntiAffinityGroup == antiAffinityGroup {
+			klog.Infof("Cluster %s already has workload with anti-affinity group %s, deny scheduling", cluster.GetName(), antiAffinityGroup)
+			return framework.NewResult(framework.Unschedulable, "cluster already has workload with the same anti-affinity group")
+		}
+	}
+
 	klog.Infof("checking cluster: %s, with anti-affinity group: %s", cluster.GetName(), antiAffinityGroup)
 
 	// If cluster does not match anti-affinity group label, allow scheduling
