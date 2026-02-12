@@ -282,7 +282,7 @@ func startClusterController(ctx controllerscontext.Context) (enabled bool, err e
 
 	clusterController := &cluster.Controller{
 		Client:                    mgr.GetClient(),
-		EventRecorder:             mgr.GetEventRecorderFor(cluster.ControllerName),
+		EventRecorder:             mgr.GetEventRecorderFor(cluster.ControllerName), //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
 		ClusterMonitorPeriod:      opts.ClusterMonitorPeriod.Duration,
 		ClusterMonitorGracePeriod: opts.ClusterMonitorGracePeriod.Duration,
 		ClusterStartupGracePeriod: opts.ClusterStartupGracePeriod.Duration,
@@ -297,7 +297,7 @@ func startClusterController(ctx controllerscontext.Context) (enabled bool, err e
 	if ctx.Opts.EnableTaintManager && features.FeatureGate.Enabled(features.Failover) {
 		taintManager := &cluster.NoExecuteTaintManager{
 			Client:                             mgr.GetClient(),
-			EventRecorder:                      mgr.GetEventRecorderFor(cluster.TaintManagerName),
+			EventRecorder:                      mgr.GetEventRecorderFor(cluster.TaintManagerName), //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
 			ClusterTaintEvictionRetryFrequency: 10 * time.Second,
 			ConcurrentReconciles:               3,
 			RateLimiterOptions:                 ctx.Opts.RateLimiterOptions,
@@ -355,7 +355,7 @@ func startClusterStatusController(ctx controllerscontext.Context) (enabled bool,
 	clusterStatusController := &status.ClusterStatusController{
 		Client:                            mgr.GetClient(),
 		KubeClient:                        kubeclientset.NewForConfigOrDie(mgr.GetConfig()),
-		EventRecorder:                     mgr.GetEventRecorderFor(status.ControllerName),
+		EventRecorder:                     mgr.GetEventRecorderFor(status.ControllerName), //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
 		PredicateFunc:                     clusterPredicateFunc,
 		TypedInformerManager:              typedmanager.GetInstance(),
 		GenericInformerManager:            genericmanager.GetInstance(),
@@ -387,7 +387,7 @@ func startBindingController(ctx controllerscontext.Context) (enabled bool, err e
 	bindingController := &binding.ResourceBindingController{
 		Client:              ctx.Mgr.GetClient(),
 		DynamicClient:       ctx.DynamicClientSet,
-		EventRecorder:       ctx.Mgr.GetEventRecorderFor(binding.ControllerName),
+		EventRecorder:       ctx.Mgr.GetEventRecorderFor(binding.ControllerName), //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
 		RESTMapper:          ctx.Mgr.GetRESTMapper(),
 		OverrideManager:     ctx.OverrideManager,
 		InformerManager:     ctx.ControlPlaneInformerManager,
@@ -405,7 +405,7 @@ func startBindingController(ctx controllerscontext.Context) (enabled bool, err e
 	clusterResourceBindingController := &binding.ClusterResourceBindingController{
 		Client:              ctx.Mgr.GetClient(),
 		DynamicClient:       ctx.DynamicClientSet,
-		EventRecorder:       ctx.Mgr.GetEventRecorderFor(binding.ClusterResourceBindingControllerName),
+		EventRecorder:       ctx.Mgr.GetEventRecorderFor(binding.ClusterResourceBindingControllerName), //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
 		RESTMapper:          ctx.Mgr.GetRESTMapper(),
 		OverrideManager:     ctx.OverrideManager,
 		InformerManager:     ctx.ControlPlaneInformerManager,
@@ -429,7 +429,7 @@ func startBindingStatusController(ctx controllerscontext.Context) (enabled bool,
 		DynamicClient:       ctx.DynamicClientSet,
 		InformerManager:     ctx.ControlPlaneInformerManager,
 		ResourceInterpreter: ctx.ResourceInterpreter,
-		EventRecorder:       ctx.Mgr.GetEventRecorderFor(status.RBStatusControllerName),
+		EventRecorder:       ctx.Mgr.GetEventRecorderFor(status.RBStatusControllerName), //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
 		RESTMapper:          ctx.Mgr.GetRESTMapper(),
 		RateLimiterOptions:  ctx.Opts.RateLimiterOptions,
 	}
@@ -446,7 +446,7 @@ func startBindingStatusController(ctx controllerscontext.Context) (enabled bool,
 		DynamicClient:       ctx.DynamicClientSet,
 		InformerManager:     ctx.ControlPlaneInformerManager,
 		ResourceInterpreter: ctx.ResourceInterpreter,
-		EventRecorder:       ctx.Mgr.GetEventRecorderFor(status.CRBStatusControllerName),
+		EventRecorder:       ctx.Mgr.GetEventRecorderFor(status.CRBStatusControllerName), //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
 		RESTMapper:          ctx.Mgr.GetRESTMapper(),
 		RateLimiterOptions:  ctx.Opts.RateLimiterOptions,
 	}
@@ -460,7 +460,7 @@ func startBindingStatusController(ctx controllerscontext.Context) (enabled bool,
 func startExecutionController(ctx controllerscontext.Context) (enabled bool, err error) {
 	executionController := &execution.Controller{
 		Client:             ctx.Mgr.GetClient(),
-		EventRecorder:      ctx.Mgr.GetEventRecorderFor(execution.ControllerName),
+		EventRecorder:      ctx.Mgr.GetEventRecorderFor(execution.ControllerName), //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
 		RESTMapper:         ctx.Mgr.GetRESTMapper(),
 		ObjectWatcher:      ctx.ObjectWatcher,
 		WorkPredicateFunc:  helper.WorkWithinPushClusterPredicate(ctx.Mgr),
@@ -477,7 +477,7 @@ func startWorkStatusController(ctx controllerscontext.Context) (enabled bool, er
 	opts := ctx.Opts
 	workStatusController := &status.WorkStatusController{
 		Client:                      ctx.Mgr.GetClient(),
-		EventRecorder:               ctx.Mgr.GetEventRecorderFor(status.WorkStatusControllerName),
+		EventRecorder:               ctx.Mgr.GetEventRecorderFor(status.WorkStatusControllerName), //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
 		RESTMapper:                  ctx.Mgr.GetRESTMapper(),
 		InformerManager:             genericmanager.GetInstance(),
 		Context:                     ctx.Context,
@@ -501,7 +501,7 @@ func startWorkStatusController(ctx controllerscontext.Context) (enabled bool, er
 func startNamespaceController(ctx controllerscontext.Context) (enabled bool, err error) {
 	namespaceSyncController := &namespace.Controller{
 		Client:                       ctx.Mgr.GetClient(),
-		EventRecorder:                ctx.Mgr.GetEventRecorderFor(namespace.ControllerName),
+		EventRecorder:                ctx.Mgr.GetEventRecorderFor(namespace.ControllerName), //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
 		SkippedPropagatingNamespaces: ctx.Opts.SkippedPropagatingNamespaces,
 		OverrideManager:              ctx.OverrideManager,
 		RateLimiterOptions:           ctx.Opts.RateLimiterOptions,
@@ -516,7 +516,7 @@ func startServiceExportController(ctx controllerscontext.Context) (enabled bool,
 	opts := ctx.Opts
 	serviceExportController := &mcs.ServiceExportController{
 		Client:                      ctx.Mgr.GetClient(),
-		EventRecorder:               ctx.Mgr.GetEventRecorderFor(mcs.ServiceExportControllerName),
+		EventRecorder:               ctx.Mgr.GetEventRecorderFor(mcs.ServiceExportControllerName), //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
 		RESTMapper:                  ctx.Mgr.GetRESTMapper(),
 		InformerManager:             genericmanager.GetInstance(),
 		Context:                     ctx.Context,
@@ -568,7 +568,7 @@ func startEndpointSliceDispatchController(ctx controllerscontext.Context) (enabl
 	}
 	endpointSliceSyncController := &multiclusterservice.EndpointsliceDispatchController{
 		Client:             ctx.Mgr.GetClient(),
-		EventRecorder:      ctx.Mgr.GetEventRecorderFor(multiclusterservice.EndpointsliceDispatchControllerName),
+		EventRecorder:      ctx.Mgr.GetEventRecorderFor(multiclusterservice.EndpointsliceDispatchControllerName), //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
 		RESTMapper:         ctx.Mgr.GetRESTMapper(),
 		InformerManager:    genericmanager.GetInstance(),
 		RateLimiterOptions: ctx.Opts.RateLimiterOptions,
@@ -582,7 +582,7 @@ func startEndpointSliceDispatchController(ctx controllerscontext.Context) (enabl
 func startEndpointSliceController(ctx controllerscontext.Context) (enabled bool, err error) {
 	endpointSliceController := &mcs.EndpointSliceController{
 		Client:             ctx.Mgr.GetClient(),
-		EventRecorder:      ctx.Mgr.GetEventRecorderFor(mcs.EndpointSliceControllerName),
+		EventRecorder:      ctx.Mgr.GetEventRecorderFor(mcs.EndpointSliceControllerName), //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
 		RateLimiterOptions: ctx.Opts.RateLimiterOptions,
 	}
 	if err := endpointSliceController.SetupWithManager(ctx.Mgr); err != nil {
@@ -594,7 +594,7 @@ func startEndpointSliceController(ctx controllerscontext.Context) (enabled bool,
 func startServiceImportController(ctx controllerscontext.Context) (enabled bool, err error) {
 	serviceImportController := &mcs.ServiceImportController{
 		Client:             ctx.Mgr.GetClient(),
-		EventRecorder:      ctx.Mgr.GetEventRecorderFor(mcs.ServiceImportControllerName),
+		EventRecorder:      ctx.Mgr.GetEventRecorderFor(mcs.ServiceImportControllerName), //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
 		RateLimiterOptions: ctx.Opts.RateLimiterOptions,
 	}
 	if err := serviceImportController.SetupWithManager(ctx.Mgr); err != nil {
@@ -606,7 +606,7 @@ func startServiceImportController(ctx controllerscontext.Context) (enabled bool,
 func startUnifiedAuthController(ctx controllerscontext.Context) (enabled bool, err error) {
 	unifiedAuthController := &unifiedauth.Controller{
 		Client:             ctx.Mgr.GetClient(),
-		EventRecorder:      ctx.Mgr.GetEventRecorderFor(unifiedauth.ControllerName),
+		EventRecorder:      ctx.Mgr.GetEventRecorderFor(unifiedauth.ControllerName), //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
 		RateLimiterOptions: ctx.Opts.RateLimiterOptions,
 	}
 	if err := unifiedAuthController.SetupWithManager(ctx.Mgr); err != nil {
@@ -618,7 +618,7 @@ func startUnifiedAuthController(ctx controllerscontext.Context) (enabled bool, e
 func startFederatedResourceQuotaSyncController(ctx controllerscontext.Context) (enabled bool, err error) {
 	controller := federatedresourcequota.SyncController{
 		Client:             ctx.Mgr.GetClient(),
-		EventRecorder:      ctx.Mgr.GetEventRecorderFor(federatedresourcequota.SyncControllerName),
+		EventRecorder:      ctx.Mgr.GetEventRecorderFor(federatedresourcequota.SyncControllerName), //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
 		RateLimiterOptions: ctx.Opts.RateLimiterOptions,
 	}
 	if err = controller.SetupWithManager(ctx.Mgr); err != nil {
@@ -630,7 +630,7 @@ func startFederatedResourceQuotaSyncController(ctx controllerscontext.Context) (
 func startFederatedResourceQuotaStatusController(ctx controllerscontext.Context) (enabled bool, err error) {
 	controller := federatedresourcequota.StatusController{
 		Client:             ctx.Mgr.GetClient(),
-		EventRecorder:      ctx.Mgr.GetEventRecorderFor(federatedresourcequota.StatusControllerName),
+		EventRecorder:      ctx.Mgr.GetEventRecorderFor(federatedresourcequota.StatusControllerName), //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
 		RateLimiterOptions: ctx.Opts.RateLimiterOptions,
 	}
 	if err = controller.SetupWithManager(ctx.Mgr); err != nil {
@@ -645,7 +645,7 @@ func startFederatedResourceQuotaEnforcementController(ctx controllerscontext.Con
 	}
 	controller := federatedresourcequota.QuotaEnforcementController{
 		Client:        ctx.Mgr.GetClient(),
-		EventRecorder: ctx.Mgr.GetEventRecorderFor(federatedresourcequota.QuotaEnforcementControllerName),
+		EventRecorder: ctx.Mgr.GetEventRecorderFor(federatedresourcequota.QuotaEnforcementControllerName), //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
 		Recalculation: federatedresourcequota.QuotaRecalculation{
 			ResyncPeriod: ctx.Opts.FederatedResourceQuotaOptions.ResourceQuotaSyncPeriod,
 		},
@@ -659,7 +659,7 @@ func startFederatedResourceQuotaEnforcementController(ctx controllerscontext.Con
 func startGracefulEvictionController(ctx controllerscontext.Context) (enabled bool, err error) {
 	rbGracefulEvictionController := &gracefuleviction.RBGracefulEvictionController{
 		Client:                  ctx.Mgr.GetClient(),
-		EventRecorder:           ctx.Mgr.GetEventRecorderFor(gracefuleviction.RBGracefulEvictionControllerName),
+		EventRecorder:           ctx.Mgr.GetEventRecorderFor(gracefuleviction.RBGracefulEvictionControllerName), //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
 		RateLimiterOptions:      ctx.Opts.RateLimiterOptions,
 		GracefulEvictionTimeout: ctx.Opts.GracefulEvictionTimeout.Duration,
 	}
@@ -669,7 +669,7 @@ func startGracefulEvictionController(ctx controllerscontext.Context) (enabled bo
 
 	crbGracefulEvictionController := &gracefuleviction.CRBGracefulEvictionController{
 		Client:                  ctx.Mgr.GetClient(),
-		EventRecorder:           ctx.Mgr.GetEventRecorderFor(gracefuleviction.CRBGracefulEvictionControllerName),
+		EventRecorder:           ctx.Mgr.GetEventRecorderFor(gracefuleviction.CRBGracefulEvictionControllerName), //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
 		RateLimiterOptions:      ctx.Opts.RateLimiterOptions,
 		GracefulEvictionTimeout: ctx.Opts.GracefulEvictionTimeout.Duration,
 	}
@@ -683,7 +683,7 @@ func startGracefulEvictionController(ctx controllerscontext.Context) (enabled bo
 func startApplicationFailoverController(ctx controllerscontext.Context) (enabled bool, err error) {
 	rbApplicationFailoverController := applicationfailover.RBApplicationFailoverController{
 		Client:              ctx.Mgr.GetClient(),
-		EventRecorder:       ctx.Mgr.GetEventRecorderFor(applicationfailover.RBApplicationFailoverControllerName),
+		EventRecorder:       ctx.Mgr.GetEventRecorderFor(applicationfailover.RBApplicationFailoverControllerName), //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
 		ResourceInterpreter: ctx.ResourceInterpreter,
 		RateLimiterOptions:  ctx.Opts.RateLimiterOptions,
 	}
@@ -693,7 +693,7 @@ func startApplicationFailoverController(ctx controllerscontext.Context) (enabled
 
 	crbApplicationFailoverController := applicationfailover.CRBApplicationFailoverController{
 		Client:              ctx.Mgr.GetClient(),
-		EventRecorder:       ctx.Mgr.GetEventRecorderFor(applicationfailover.CRBApplicationFailoverControllerName),
+		EventRecorder:       ctx.Mgr.GetEventRecorderFor(applicationfailover.CRBApplicationFailoverControllerName), //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
 		ResourceInterpreter: ctx.ResourceInterpreter,
 		RateLimiterOptions:  ctx.Opts.RateLimiterOptions,
 	}
@@ -720,7 +720,7 @@ func startFederatedHorizontalPodAutoscalerController(ctx controllerscontext.Cont
 		ctx.Opts.HPAControllerConfiguration.HorizontalPodAutoscalerInitialReadinessDelay.Duration)
 	federatedHPAController := federatedhpa.FHPAController{
 		Client:                            ctx.Mgr.GetClient(),
-		EventRecorder:                     ctx.Mgr.GetEventRecorderFor(federatedhpa.ControllerName),
+		EventRecorder:                     ctx.Mgr.GetEventRecorderFor(federatedhpa.ControllerName), //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
 		RESTMapper:                        ctx.Mgr.GetRESTMapper(),
 		DownscaleStabilisationWindow:      ctx.Opts.HPAControllerConfiguration.HorizontalPodAutoscalerDownscaleStabilizationWindow.Duration,
 		HorizontalPodAutoscalerSyncPeriod: ctx.Opts.HPAControllerConfiguration.HorizontalPodAutoscalerSyncPeriod.Duration,
@@ -739,7 +739,7 @@ func startFederatedHorizontalPodAutoscalerController(ctx controllerscontext.Cont
 func startCronFederatedHorizontalPodAutoscalerController(ctx controllerscontext.Context) (enabled bool, err error) {
 	cronFHPAController := cronfederatedhpa.CronFHPAController{
 		Client:             ctx.Mgr.GetClient(),
-		EventRecorder:      ctx.Mgr.GetEventRecorderFor(cronfederatedhpa.ControllerName),
+		EventRecorder:      ctx.Mgr.GetEventRecorderFor(cronfederatedhpa.ControllerName), //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
 		RateLimiterOptions: ctx.Opts.RateLimiterOptions,
 	}
 	if err = cronFHPAController.SetupWithManager(ctx.Mgr); err != nil {
@@ -781,7 +781,7 @@ func startMCSController(ctx controllerscontext.Context) (enabled bool, err error
 	}
 	mcsController := &multiclusterservice.MCSController{
 		Client:             ctx.Mgr.GetClient(),
-		EventRecorder:      ctx.Mgr.GetEventRecorderFor(multiclusterservice.ControllerName),
+		EventRecorder:      ctx.Mgr.GetEventRecorderFor(multiclusterservice.ControllerName), //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
 		RateLimiterOptions: ctx.Opts.RateLimiterOptions,
 	}
 	if err = mcsController.SetupWithManager(ctx.Mgr); err != nil {
@@ -833,7 +833,7 @@ func startClusterTaintPolicyController(ctx controllerscontext.Context) (enabled 
 
 	clusterTaintPolicyController := taint.ClusterTaintPolicyController{
 		Client:             ctx.Mgr.GetClient(),
-		EventRecorder:      ctx.Mgr.GetEventRecorderFor(taint.ControllerName),
+		EventRecorder:      ctx.Mgr.GetEventRecorderFor(taint.ControllerName), //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
 		RateLimiterOptions: ctx.Opts.RateLimiterOptions,
 	}
 	if err := clusterTaintPolicyController.SetupWithManager(ctx.Mgr); err != nil {
@@ -849,7 +849,7 @@ func setupControllers(ctx context.Context, mgr controllerruntime.Manager, opts *
 	discoverClientSet := discovery.NewDiscoveryClientForConfigOrDie(restConfig)
 	kubeClientSet := kubeclientset.NewForConfigOrDie(restConfig)
 
-	overrideManager := overridemanager.New(mgr.GetClient(), mgr.GetEventRecorderFor(overridemanager.OverrideManagerName))
+	overrideManager := overridemanager.New(mgr.GetClient(), mgr.GetEventRecorderFor(overridemanager.OverrideManagerName)) //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
 	skippedResourceConfig := util.NewSkippedResourceConfig()
 	if err := skippedResourceConfig.Parse(opts.SkippedPropagatingAPIs); err != nil {
 		// The program will never go here because the parameters have been checked
@@ -882,7 +882,7 @@ func setupControllers(ctx context.Context, mgr controllerruntime.Manager, opts *
 		SkippedResourceConfig:                   skippedResourceConfig,
 		SkippedPropagatingNamespaces:            opts.SkippedNamespacesRegexps(),
 		ResourceInterpreter:                     resourceInterpreter,
-		EventRecorder:                           mgr.GetEventRecorderFor("resource-detector"),
+		EventRecorder:                           mgr.GetEventRecorderFor("resource-detector"), //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
 		ConcurrentPropagationPolicySyncs:        opts.ConcurrentPropagationPolicySyncs,
 		ConcurrentClusterPropagationPolicySyncs: opts.ConcurrentClusterPropagationPolicySyncs,
 		ConcurrentResourceTemplateSyncs:         opts.ConcurrentResourceTemplateSyncs,
@@ -899,7 +899,7 @@ func setupControllers(ctx context.Context, mgr controllerruntime.Manager, opts *
 			InformerManager:                  controlPlaneInformerManager,
 			ResourceInterpreter:              resourceInterpreter,
 			RESTMapper:                       mgr.GetRESTMapper(),
-			EventRecorder:                    mgr.GetEventRecorderFor("dependencies-distributor"),
+			EventRecorder:                    mgr.GetEventRecorderFor("dependencies-distributor"), //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
 			RateLimiterOptions:               opts.RateLimiterOpts,
 			ConcurrentDependentResourceSyncs: opts.ConcurrentDependentResourceSyncs,
 		}

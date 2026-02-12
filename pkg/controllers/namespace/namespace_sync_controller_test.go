@@ -441,8 +441,8 @@ func TestController_SetupWithManager(t *testing.T) {
 
 			c := &Controller{
 				Client:          mgr.GetClient(),
-				EventRecorder:   mgr.GetEventRecorderFor("test-controller"),
-				OverrideManager: overridemanager.New(mgr.GetClient(), mgr.GetEventRecorderFor("test-controller")),
+				EventRecorder:   mgr.GetEventRecorderFor("test-controller"),                                       //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
+				OverrideManager: overridemanager.New(mgr.GetClient(), mgr.GetEventRecorderFor("test-controller")), //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
 			}
 			err = c.SetupWithManager(mgr)
 			if tt.expectError {
