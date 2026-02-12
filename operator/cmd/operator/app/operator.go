@@ -155,7 +155,7 @@ func startKarmadaController(ctx operatorctx.Context) (bool, error) {
 	ctrl := &karmada.Controller{
 		Config:        ctx.Manager.GetConfig(),
 		Client:        ctx.Manager.GetClient(),
-		EventRecorder: ctx.Manager.GetEventRecorderFor(karmada.ControllerName),
+		EventRecorder: ctx.Manager.GetEventRecorderFor(karmada.ControllerName), //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
 	}
 	if err := ctrl.SetupWithManager(ctx.Manager); err != nil {
 		klog.ErrorS(err, "unable to setup with manager", "controller", karmada.ControllerName)

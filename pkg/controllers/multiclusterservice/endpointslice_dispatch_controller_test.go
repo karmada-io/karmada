@@ -883,8 +883,16 @@ type MockStatusWriter struct {
 	mock.Mock
 }
 
+// Check if our MockStatusWriter implements necessary interfaces
+var _ client.SubResourceWriter = &MockStatusWriter{}
+
 func (m *MockStatusWriter) Create(ctx context.Context, obj client.Object, subResource client.Object, opts ...client.SubResourceCreateOption) error {
 	args := m.Called(ctx, obj, subResource, opts)
+	return args.Error(0)
+}
+
+func (m *MockStatusWriter) Apply(ctx context.Context, obj runtime.ApplyConfiguration, opts ...client.SubResourceApplyOption) error {
+	args := m.Called(ctx, obj, opts)
 	return args.Error(0)
 }
 

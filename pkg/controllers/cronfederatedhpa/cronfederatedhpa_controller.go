@@ -118,7 +118,7 @@ func (c *CronFHPAController) Reconcile(ctx context.Context, req controllerruntim
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *CronFHPAController) SetupWithManager(mgr controllerruntime.Manager) error {
-	c.CronHandler = NewCronHandler(mgr.GetClient(), mgr.GetEventRecorderFor(ControllerName))
+	c.CronHandler = NewCronHandler(mgr.GetClient(), mgr.GetEventRecorderFor(ControllerName)) //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
 	return controllerruntime.NewControllerManagedBy(mgr).
 		Named(ControllerName).
 		For(&autoscalingv1alpha1.CronFederatedHPA{}).
