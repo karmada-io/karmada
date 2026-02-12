@@ -1,0 +1,116 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: event-exporter
+  namespace: karmada-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: event-exporter
+rules:
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["get", "watch", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: event-exporter
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: event-exporter
+subjects:
+  - kind: ServiceAccount
+    namespace: karmada-system
+    name: event-exporter
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: event-exporter-cfg
+  namespace: karmada-system
+data:
+  config.yaml: |
+    logLevel: info
+    logFormat: json
+    route:
+      routes:
+        - match:
+            - receiver: "dump"
+    receivers:
+      - name: "dump"
+        stdout:
+          layout:
+            type: "Normal"
+            reason: "{{ .Reason }}"
+            message: "{{ .Message }}"
+            kind: "{{ .InvolvedObject.Kind }}"
+            name: "{{ .InvolvedObject.Name }}"
+            namespace: "{{ .Namespace }}"
+            component: "{{ .Source.Component }}"
+            host: "{{ .Source.Host }}"
+            involvedObjectAPIVersion: "{{ .InvolvedObject.APIVersion }}"
+            count: "{{ .Count }}"
+            firstTimestamp: "{{ .FirstTimestamp }}"
+            lastTimestamp: "{{ .LastTimestamp }}"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: event-exporter
+  namespace: karmada-system
+  labels:
+    app: event-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: event-exporter
+  template:
+    metadata:
+      labels:
+        app: event-exporter
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: event-exporter
+          image: ghcr.io/resmoio/kubernetes-event-exporter:v1.7
+          imagePullPolicy: IfNotPresent
+          args:
+            - -conf=/data/config.yaml
+            - -kubeconfig=/etc/karmada/config/karmada.config
+          volumeMounts:
+            - mountPath: /data
+              name: cfg
+            - name: karmada-config
+              mountPath: /etc/karmada/config
+              readOnly: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            runAsNonRoot: true
+            runAsUser: 65534
+            capabilities:
+              drop:
+                - ALL
+      volumes:
+        - name: cfg
+          configMap:
+            name: event-exporter-cfg
+        - name: karmada-config
+          secret:
+            secretName: event-exporter-config
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      priorityClassName: system-cluster-critical
