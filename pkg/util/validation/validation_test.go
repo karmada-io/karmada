@@ -658,6 +658,15 @@ func TestValidateApplicationFailover(t *testing.T) {
 			expectedErr:                 "",
 		},
 		{
+			name: "tolerationSeconds is nil (should use default, no error)",
+			applicationFailoverBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
+				DecisionConditions: policyv1alpha1.DecisionConditions{
+					TolerationSeconds: nil,
+				},
+			},
+			expectedErr: "",
+		},
+		{
 			name: "the tolerationSeconds is less than zero",
 			applicationFailoverBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
 				DecisionConditions: policyv1alpha1.DecisionConditions{

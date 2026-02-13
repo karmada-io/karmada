@@ -223,7 +223,8 @@ func ValidateApplicationFailover(applicationFailoverBehavior *policyv1alpha1.App
 		return nil
 	}
 
-	if *applicationFailoverBehavior.DecisionConditions.TolerationSeconds < 0 {
+	if applicationFailoverBehavior.DecisionConditions.TolerationSeconds != nil &&
+		*applicationFailoverBehavior.DecisionConditions.TolerationSeconds < 0 {
 		allErrs = append(allErrs, field.Invalid(fldPath.Child("decisionConditions").Child("tolerationSeconds"), *applicationFailoverBehavior.DecisionConditions.TolerationSeconds, "must be greater than or equal to 0"))
 	}
 
