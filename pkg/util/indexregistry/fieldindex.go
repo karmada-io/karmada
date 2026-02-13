@@ -53,6 +53,16 @@ const (
 	// The index is constructed from the cluster names listed in the `spec.clusters` field of each ClusterResourceBindings,
 	// enabling efficient lookups of ClusterResourceBindings targeting particular clusters.
 	ClusterResourceBindingIndexByFieldCluster = "ClusterResourceBindingIndexByFieldCluster"
+
+	// ResourceBindingIndexByAffinityGroup is the index name used for ResourceBindings associated with specific AffinityGroup.
+	// The index is constructed from the `spec.workloadAffinityGroups.affinityGroup` field of each ResourceBindings,
+	// enabling efficient lookups of ResourceBindings targeting particular AffinityGroup.
+	ResourceBindingIndexByAffinityGroup = "ResourceBindingIndexByAffinityGroup"
+
+	// ResourceBindingIndexByAntiAffinityGroup is the index name used for ResourceBindings associated with specific Anti-AffinityGroup.
+	// The index is constructed from the `spec.workloadAffinityGroups.antiAffinityGroup` field of each ResourceBindings,
+	// enabling efficient lookups of ResourceBindings targeting particular Anti-AffinityGroup.
+	ResourceBindingIndexByAntiAffinityGroup = "ResourceBindingIndexByAntiAffinityGroup"
 )
 
 var (

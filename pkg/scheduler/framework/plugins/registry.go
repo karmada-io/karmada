@@ -24,6 +24,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/clusterlocality"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/spreadconstraint"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/tainttoleration"
+	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/workloadaffinity"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/plugins/workloadantiaffinity"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/runtime"
 )
@@ -42,6 +43,7 @@ func NewInTreeRegistry() runtime.Registry {
 	// Register WorkloadAntiAffinity plugin only when WorkloadAffinity feature gate is enabled
 	if features.FeatureGate.Enabled(features.WorkloadAffinity) {
 		registry[workloadantiaffinity.Name] = workloadantiaffinity.New
+		registry[workloadaffinity.Name] = workloadaffinity.New
 	}
 
 	return registry

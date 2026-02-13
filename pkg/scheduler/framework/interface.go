@@ -28,9 +28,10 @@ import (
 	"errors"
 	"strings"
 
+	"k8s.io/client-go/tools/cache"
+
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	worklister "github.com/karmada-io/karmada/pkg/generated/listers/work/v1alpha2"
 )
 
 const (
@@ -47,7 +48,7 @@ type Framework interface {
 
 	// RunFilterPlugins runs the set of configured Filter plugins for resources on the given cluster.
 	// TODO(@RainbowMango): refactor parameters to a struct for easier extension
-	RunFilterPlugins(ctx context.Context, bindingSpec *workv1alpha2.ResourceBindingSpec, bindingStatus *workv1alpha2.ResourceBindingStatus, cluster *clusterv1alpha1.Cluster, resourceBindingLister worklister.ResourceBindingLister) *Result
+	RunFilterPlugins(ctx context.Context, bindingSpec *workv1alpha2.ResourceBindingSpec, bindingStatus *workv1alpha2.ResourceBindingStatus, cluster *clusterv1alpha1.Cluster, resourceBindingIndexer cache.Indexer) *Result
 
 	// RunScorePlugins runs the set of configured Score plugins, it returns a map of plugin names to scores
 	RunScorePlugins(ctx context.Context, spec *workv1alpha2.ResourceBindingSpec, clusters []*clusterv1alpha1.Cluster) (PluginToClusterScores, *Result)
@@ -73,8 +74,8 @@ type FilterContext struct {
 	// Cluster is the cluster being evaluated.
 	Cluster *clusterv1alpha1.Cluster
 
-	// ResourceBindingLister provides access to ResourceBindings for advanced scheduling logic.
-	ResourceBindingLister worklister.ResourceBindingLister
+	// ResourceBindingIndexer provides access to ResourceBindings for advanced scheduling logic.
+	ResourceBindingIndexer cache.Indexer
 }
 
 // FilterPlugin is an interface for filter plugins. These filters are used to filter out clusters

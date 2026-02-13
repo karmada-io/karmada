@@ -237,12 +237,11 @@ func WithRateLimiterOptions(rateLimiterOptions ratelimiterflag.Options) Option {
 func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientset.Interface, kubeClient kubernetes.Interface, opts ...Option) (*Scheduler, error) {
 	factory := informerfactory.NewSharedInformerFactory(karmadaClient, 0)
 
-	// factory.Work().V1alpha2().ResourceBindings().Informer().AddIndexers()
-
-	bindingLister := factory.Work().V1alpha2().ResourceBindings().Lister()
+	bindingInformer := factory.Work().V1alpha2().ResourceBindings()
+	bindingLister := bindingInformer.Lister()
 	clusterBindingLister := factory.Work().V1alpha2().ClusterResourceBindings().Lister()
 	clusterLister := factory.Cluster().V1alpha1().Clusters().Lister()
-	schedulerCache := schedulercache.NewCache(clusterLister, bindingLister)
+	schedulerCache := schedulercache.NewCache(clusterLister, bindingInformer.Informer().GetIndexer())
 
 	options := schedulerOptions{}
 	for _, opt := range opts {
@@ -303,6 +302,7 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 	sched.enableEmptyWorkloadPropagation = options.enableEmptyWorkloadPropagation
 	sched.schedulerName = options.schedulerName
 
+	sched.addIndexers()
 	sched.addAllEventHandlers()
 	return sched, nil
 }
