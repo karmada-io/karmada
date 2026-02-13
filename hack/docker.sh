@@ -74,8 +74,12 @@ function build_local_image() {
 
   echo "Building image for ${platform}: ${image_name}"
   set -x
+  # Disable provenance to maintain compatibility. Docker v29.1.5 changed default behavior from v28.0.4.
+  # GitHub Action runner upgraded Docker version which caused provenance to be enabled by default.
+  # Disable this feature temporarily until the image registry supports it.
   docker build --build-arg BINARY="${target}" \
           ${DOCKER_BUILD_ARGS} \
+          --provenance=false \
           --tag "${image_name}" \
           --file "${REPO_ROOT}/cluster/images/Dockerfile" \
           "${REPO_ROOT}/_output/bin/${platform}"
