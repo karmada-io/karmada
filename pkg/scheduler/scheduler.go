@@ -683,6 +683,12 @@ func (s *Scheduler) patchScheduleResultForResourceBinding(oldBinding *workv1alph
 		return err
 	}
 
+	// Update cache to make sure next scheduling cycle has latest RB information
+	if features.FeatureGate.Enabled(features.WorkloadAffinity) {
+		klog.V(4).Infof("Updating cache snapshot for ResourceBinding(%s/%s).", oldBinding.Namespace, oldBinding.Name)
+		s.schedulerCache.OnResourceBindingUpdate(oldBinding, newBinding)
+	}
+
 	klog.V(4).Infof("Patch schedule to ResourceBinding(%s/%s) succeed", oldBinding.Namespace, oldBinding.Name)
 	return nil
 }
@@ -819,6 +825,12 @@ func (s *Scheduler) patchScheduleResultForClusterResourceBinding(oldBinding *wor
 	if err != nil {
 		klog.Errorf("Failed to patch schedule to ClusterResourceBinding(%s): %v", oldBinding.Name, err)
 		return err
+	}
+
+	// Update cache to make sure next scheduling cycle has latest RB information
+	if features.FeatureGate.Enabled(features.WorkloadAffinity) {
+		klog.V(4).Infof("Updating cache snapshot for ClusterResourceBinding(%s).", oldBinding.Name)
+		s.schedulerCache.OnResourceBindingUpdate(oldBinding, newBinding)
 	}
 
 	klog.V(4).Infof("Patch schedule to ClusterResourceBinding(%s) succeed", oldBinding.Name)

@@ -47,7 +47,12 @@ func (p *ClusterEviction) Name() string {
 }
 
 // Filter checks if the target cluster is in the GracefulEvictionTasks which means it is in the process of eviction.
-func (p *ClusterEviction) Filter(_ context.Context, bindingSpec *workv1alpha2.ResourceBindingSpec, _ *workv1alpha2.ResourceBindingStatus, cluster *clusterv1alpha1.Cluster) *framework.Result {
+func (p *ClusterEviction) Filter(
+	_ context.Context,
+	bindingSpec *workv1alpha2.ResourceBindingSpec,
+	_ *workv1alpha2.ResourceBindingStatus,
+	cluster *clusterv1alpha1.Cluster,
+) *framework.Result {
 	if bindingSpec.ClusterInGracefulEvictionTasks(cluster.Name) {
 		klog.V(2).Infof("Cluster(%s) is in the process of eviction.", cluster.Name)
 		return framework.NewResult(framework.Unschedulable, "cluster(s) is in the process of eviction")
