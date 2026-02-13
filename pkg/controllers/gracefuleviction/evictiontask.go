@@ -39,6 +39,7 @@ func assessEvictionTasks(tasks []workv1alpha2.GracefulEvictionTask, now metav1.T
 	var keptTasks []workv1alpha2.GracefulEvictionTask
 	var evictedClusters []string
 
+	defaultTimeout := opt.timeout
 	for _, task := range tasks {
 		// set creation timestamp for new task
 		if task.CreationTimestamp.IsZero() {
@@ -47,6 +48,7 @@ func assessEvictionTasks(tasks []workv1alpha2.GracefulEvictionTask, now metav1.T
 			continue
 		}
 
+		opt.timeout = defaultTimeout
 		if task.GracePeriodSeconds != nil {
 			opt.timeout = time.Duration(*task.GracePeriodSeconds) * time.Second
 		}
