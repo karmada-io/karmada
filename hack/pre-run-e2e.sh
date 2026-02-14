@@ -43,7 +43,7 @@ export KUBECONFIG="${MAIN_KUBECONFIG}"
 
 # Due to we are using kube-proxy in IPVS mode, we have to enable strict ARP mode.
 # refer to https://metallb.universe.tf/installation/#preparation
-kubectl --context="${HOST_CLUSTER_NAME}" get configmap kube-proxy -n kube-system -o yaml | \
+kubectl --context="${HOST_CLUSTER_NAME}" get configmap kube-proxy -n kube-system -o json | \
 sed -e "s/strictARP: false/strictARP: true/" | \
 kubectl --context="${HOST_CLUSTER_NAME}" apply -f - -n kube-system
 

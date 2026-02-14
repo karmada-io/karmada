@@ -85,8 +85,8 @@ spec:
           set -ex
           # Fetch certs from existing secret
           karmada_ca=$(kubectl get secret {{ $name }}-cert -n {{ $namespace }} -o jsonpath='{.data.server-ca\.crt}')
-          kubectl get configmap {{ $name }}-static-resources -n {{ $namespace }} -o yaml | sed -e "s/{{ print "{{ ca_crt }}" }}/${karmada_ca}/g" | kubectl apply -f -
-          kubectl get configmap {{ $name }}-crds-patches -n {{ $namespace }} -o yaml | sed -e "s/{{ print "{{ ca_crt }}" }}/${karmada_ca}/g" | kubectl apply -f -
+          kubectl get configmap {{ $name }}-static-resources -n {{ $namespace }} -o json | sed -e "s/{{ print "{{ ca_crt }}" }}/${karmada_ca}/g" | kubectl apply -f -
+          kubectl get configmap {{ $name }}-crds-patches -n {{ $namespace }} -o json | sed -e "s/{{ print "{{ ca_crt }}" }}/${karmada_ca}/g" | kubectl apply -f -
         resources:
           requests:
             cpu: 50m
