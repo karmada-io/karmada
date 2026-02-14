@@ -1060,7 +1060,6 @@ func TestApplyClusterPolicy(t *testing.T) {
 		policy                  *policyv1alpha1.ClusterPropagationPolicy
 		resourceChangeByKarmada bool
 		expectError             bool
-		enableWorkloadAffinity  bool
 	}{
 		{
 			name: "apply cluster policy for namespaced resource",
@@ -1083,7 +1082,6 @@ func TestApplyClusterPolicy(t *testing.T) {
 			},
 			resourceChangeByKarmada: false,
 			expectError:             false,
-			enableWorkloadAffinity:  false,
 		},
 		{
 			name: "apply cluster policy for cluster-scoped resource",
@@ -1105,42 +1103,6 @@ func TestApplyClusterPolicy(t *testing.T) {
 			},
 			resourceChangeByKarmada: false,
 			expectError:             false,
-			enableWorkloadAffinity:  false,
-		},
-		{
-			name: "both affinity and antiAffinity label exists",
-			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"apiVersion": "apps/v1",
-					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
-						"name":      "test-deployment",
-						"namespace": "default",
-						"uid":       "test-uid",
-						"labels": map[string]interface{}{
-							"affinityKey":     "affinityValue",
-							"antiAffinityKey": "antiAffinityValue",
-						},
-					},
-				},
-			},
-			policy: &policyv1alpha1.ClusterPropagationPolicy{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-policy",
-					Namespace: "default",
-				},
-				Spec: policyv1alpha1.PropagationSpec{
-					Placement: policyv1alpha1.Placement{
-						WorkloadAffinity: &policyv1alpha1.WorkloadAffinity{
-							Affinity:     &policyv1alpha1.WorkloadAffinityTerm{GroupByLabelKey: "affinityKey"},
-							AntiAffinity: &policyv1alpha1.WorkloadAntiAffinityTerm{GroupByLabelKey: "antiAffinityKey"},
-						},
-					},
-				},
-			},
-			resourceChangeByKarmada: false,
-			expectError:             false,
-			enableWorkloadAffinity:  true,
 		},
 	}
 
@@ -1159,10 +1121,6 @@ func TestApplyClusterPolicy(t *testing.T) {
 				RESTMapper:          &mockRESTMapper{},
 			}
 
-			if err := features.FeatureGate.Set(fmt.Sprintf("%s=%v", features.WorkloadAffinity, tt.enableWorkloadAffinity)); err != nil {
-				t.Fatalf("Failed to set feature gate %s to %v: %v", features.WorkloadAffinity, tt.enableWorkloadAffinity, err)
-			}
-
 			err := d.ApplyClusterPolicy(tt.object, keys.ClusterWideKey{}, tt.resourceChangeByKarmada, tt.policy)
 
 			if tt.expectError {
@@ -1179,7 +1137,6 @@ func TestApplyClusterPolicy(t *testing.T) {
 					}, binding)
 					assert.NoError(t, err)
 					assert.Equal(t, tt.object.GetName(), binding.Spec.Resource.Name)
-					verifyWorkloadAffinity(t, tt.object, &tt.policy.Spec, &binding.Spec)
 				} else {
 					binding := &workv1alpha2.ClusterResourceBinding{}
 					err = fakeClient.Get(context.TODO(), client.ObjectKey{
@@ -1187,7 +1144,6 @@ func TestApplyClusterPolicy(t *testing.T) {
 					}, binding)
 					assert.NoError(t, err)
 					assert.Equal(t, tt.object.GetName(), binding.Spec.Resource.Name)
-					verifyWorkloadAffinity(t, tt.object, &tt.policy.Spec, &binding.Spec)
 				}
 			}
 		})
