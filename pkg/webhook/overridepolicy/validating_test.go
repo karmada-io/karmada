@@ -24,7 +24,9 @@ import (
 	"strings"
 	"testing"
 
+	admissionv1 "k8s.io/api/admission/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
@@ -388,6 +390,34 @@ func TestValidatingAdmission_Handle(t *testing.T) {
 			want: TestResponse{
 				Type:    Denied,
 				Message: `spec.overrideRules[0].overriders.fieldOverrider[0].json[0].value: Invalid value: {"db":"new"}: value is not allowed for remove operation`,
+			},
+		},
+		{
+			name: "Handle_ResourceSelectorNamespaceMismatch_DeniesAdmission",
+			decoder: &fakeValidationDecoder{
+				obj: &policyv1alpha1.OverridePolicy{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "ns-1",
+					},
+					Spec: policyv1alpha1.OverrideSpec{
+						ResourceSelectors: []policyv1alpha1.ResourceSelector{
+							{
+								APIVersion: "apps/v1",
+								Kind:       "Deployment",
+								Namespace:  "ns-2",
+							},
+						},
+					},
+				},
+			},
+			req: admission.Request{
+				AdmissionRequest: admissionv1.AdmissionRequest{
+					Namespace: "ns-1",
+				},
+			},
+			want: TestResponse{
+				Type:    Denied,
+				Message: "spec.resourceSelectors[0].namespace: Invalid value: \"ns-2\": namespace of resource selector must be the same as the namespace of the policy",
 			},
 		},
 	}

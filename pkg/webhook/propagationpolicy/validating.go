@@ -46,7 +46,7 @@ func (v *ValidatingAdmission) Handle(_ context.Context, req admission.Request) a
 	if err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
-	klog.V(2).Infof("Validating PropagationPolicy(%s/%s) for request: %s", policy.Namespace, policy.Name, req.Operation)
+	klog.V(2).Infof("Validating PropagationPolicy(%s/%s) for request: %s", req.Namespace, policy.Name, req.Operation)
 
 	if req.Operation == admissionv1.Update {
 		oldPolicy := &policyv1alpha1.PropagationPolicy{}
@@ -54,28 +54,46 @@ func (v *ValidatingAdmission) Handle(_ context.Context, req admission.Request) a
 		if err != nil {
 			return admission.Errored(http.StatusBadRequest, err)
 		}
-
-		if policy.Spec.SchedulerName != oldPolicy.Spec.SchedulerName {
-			err = fmt.Errorf("the schedulerName should not be updated")
+		if err = v.validateUpdate(policy, oldPolicy); err != nil {
 			klog.Error(err)
 			return admission.Denied(err.Error())
 		}
-
-		if policy.Labels[policyv1alpha1.PropagationPolicyPermanentIDLabel] !=
-			oldPolicy.Labels[policyv1alpha1.PropagationPolicyPermanentIDLabel] {
-			return admission.Denied(fmt.Sprintf("label %s is immutable, it can only be set by the system during creation",
-				policyv1alpha1.PropagationPolicyPermanentIDLabel))
-		}
-	}
-	if _, exist := policy.Labels[policyv1alpha1.PropagationPolicyPermanentIDLabel]; !exist {
-		return admission.Denied(fmt.Sprintf("label %s is required, it should be set by the mutating admission webhook during creation",
-			policyv1alpha1.PropagationPolicyPermanentIDLabel))
 	}
 
-	errs := validation.ValidatePropagationSpec(policy.Spec)
-	if len(errs) != 0 {
-		klog.Error(errs)
-		return admission.Denied(errs.ToAggregate().Error())
+	if err = v.validatePolicy(policy, req.Namespace); err != nil {
+		klog.Error(err)
+		return admission.Denied(err.Error())
 	}
+
 	return admission.Allowed("")
+}
+
+func (v *ValidatingAdmission) validateUpdate(policy, oldPolicy *policyv1alpha1.PropagationPolicy) error {
+	if policy.Spec.SchedulerName != oldPolicy.Spec.SchedulerName {
+		err := fmt.Errorf("the schedulerName should not be updated")
+		return err
+	}
+
+	if policy.Labels[policyv1alpha1.PropagationPolicyPermanentIDLabel] !=
+		oldPolicy.Labels[policyv1alpha1.PropagationPolicyPermanentIDLabel] {
+		err := fmt.Errorf("label %s is immutable, it can only be set by the system during creation",
+			policyv1alpha1.PropagationPolicyPermanentIDLabel)
+		return err
+	}
+
+	return nil
+}
+
+func (v *ValidatingAdmission) validatePolicy(policy *policyv1alpha1.PropagationPolicy, namespace string) error {
+	if _, exist := policy.Labels[policyv1alpha1.PropagationPolicyPermanentIDLabel]; !exist {
+		err := fmt.Errorf("label %s is required, it should be set by the mutating admission webhook during creation",
+			policyv1alpha1.PropagationPolicyPermanentIDLabel)
+		return err
+	}
+
+	if errs := validation.ValidatePropagationSpec(policy.Spec, namespace); len(errs) != 0 {
+		return errs.ToAggregate()
+	}
+
+	return nil
 }

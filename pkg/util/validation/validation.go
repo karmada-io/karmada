@@ -39,15 +39,31 @@ import (
 )
 
 // ValidatePropagationSpec validates a PropagationSpec before creation or update.
-func ValidatePropagationSpec(spec policyv1alpha1.PropagationSpec) field.ErrorList {
+func ValidatePropagationSpec(spec policyv1alpha1.PropagationSpec, policyNamespace string) field.ErrorList {
 	var allErrs field.ErrorList
 	allErrs = append(allErrs, ValidatePlacement(spec.Placement, field.NewPath("spec").Child("placement"))...)
 	if spec.Failover != nil && spec.Failover.Application != nil && !spec.PropagateDeps {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("propagateDeps"), spec.PropagateDeps, "application failover is set, propagateDeps must be true"))
 	}
 	allErrs = append(allErrs, ValidateFailover(spec.Failover, field.NewPath("spec").Child("failover"))...)
+	allErrs = append(allErrs, validateResourceSelectors(spec.ResourceSelectors, policyNamespace, field.NewPath("spec").Child("resourceSelectors"))...)
 	allErrs = append(allErrs, validateResourceSelectorsIfPreemptionEnabled(spec, field.NewPath("spec").Child("resourceSelectors"))...)
 	allErrs = append(allErrs, validateSuspension(spec.Suspension, field.NewPath("spec").Child("suspension"))...)
+	return allErrs
+}
+
+// validateResourceSelectors validates ResourceSelectors before creation or update.
+func validateResourceSelectors(selectors []policyv1alpha1.ResourceSelector, policyNamespace string, fldPath *field.Path) field.ErrorList {
+	if len(policyNamespace) == 0 {
+		return nil
+	}
+
+	var allErrs field.ErrorList
+	for index, selector := range selectors {
+		if selector.Namespace != policyNamespace {
+			allErrs = append(allErrs, field.Invalid(fldPath.Index(index).Child("namespace"), selector.Namespace, "namespace of resource selector must be the same as the namespace of the policy"))
+		}
+	}
 	return allErrs
 }
 
@@ -287,7 +303,7 @@ func validateStatePreservationRule(rule policyv1alpha1.StatePreservationRule, fl
 }
 
 // ValidateOverrideSpec validates that the overrider specification is correctly defined.
-func ValidateOverrideSpec(overrideSpec *policyv1alpha1.OverrideSpec) field.ErrorList {
+func ValidateOverrideSpec(overrideSpec *policyv1alpha1.OverrideSpec, policyNamespace string) field.ErrorList {
 	var allErrs field.ErrorList
 	if overrideSpec == nil {
 		return nil
@@ -309,6 +325,7 @@ func ValidateOverrideSpec(overrideSpec *policyv1alpha1.OverrideSpec) field.Error
 		allErrs = append(allErrs, field.Invalid(specPath.Child("overriders"), overrideSpec.Overriders, "overrideRules and overriders can't co-exist"))
 	}
 	allErrs = append(allErrs, ValidateOverrideRules(overrideSpec.OverrideRules, specPath)...)
+	allErrs = append(allErrs, validateResourceSelectors(overrideSpec.ResourceSelectors, policyNamespace, specPath.Child("resourceSelectors"))...)
 	return allErrs
 }
 

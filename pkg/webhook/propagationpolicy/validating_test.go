@@ -164,6 +164,35 @@ func TestValidatingAdmission_Handle(t *testing.T) {
 			},
 			want: admission.Allowed(""),
 		},
+		{
+			name: "Handle_ResourceSelectorNamespaceMismatch_DeniesAdmission",
+			decoder: &fakeValidationDecoder{
+				obj: &policyv1alpha1.PropagationPolicy{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "ns-1",
+						Labels: map[string]string{
+							policyv1alpha1.PropagationPolicyPermanentIDLabel: "new-id",
+						},
+					},
+					Spec: policyv1alpha1.PropagationSpec{
+						ResourceSelectors: []policyv1alpha1.ResourceSelector{
+							{
+								APIVersion: "apps/v1",
+								Kind:       "Deployment",
+								Namespace:  "ns-2",
+							},
+						},
+					},
+				},
+			},
+			req: admission.Request{
+				AdmissionRequest: admissionv1.AdmissionRequest{
+					Operation: admissionv1.Create,
+					Namespace: "ns-1",
+				},
+			},
+			want: admission.Denied("spec.resourceSelectors[0].namespace: Invalid value: \"ns-2\": namespace of resource selector must be the same as the namespace of the policy"),
+		},
 	}
 
 	for _, tt := range tests {
