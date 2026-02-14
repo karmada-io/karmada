@@ -339,7 +339,7 @@ func (j *CommandUnregisterOption) RunUnregisterCluster() error {
 	j.Wait = j.Wait - time.Since(start)
 
 	// 2. delete the cluster object from the Karmada control plane
-	//TODO: add flag --force to implement force deletion.
+	// TODO: add flag --force to implement force deletion.
 	if err = cmdutil.DeleteClusterObject(j.ControlPlaneKubeClient, j.ControlPlaneClient, j.ClusterName, j.Wait, j.DryRun, false); err != nil {
 		klog.Errorf("Failed to delete cluster object. cluster name: %s, error: %v", j.ClusterName, err)
 		return err
