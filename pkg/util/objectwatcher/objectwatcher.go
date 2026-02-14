@@ -98,29 +98,23 @@ func (o *objectWatcherImpl) Create(ctx context.Context, clusterName string, desi
 		return err
 	}
 
-	fedKey, err := keys.FederatedKeyFunc(clusterName, desireObj)
+	clusterObj, err := dynamicClusterClient.DynamicClientSet.Resource(gvr).Namespace(desireObj.GetNamespace()).Create(ctx, desireObj, metav1.CreateOptions{})
 	if err != nil {
-		klog.Errorf("Failed to get FederatedKey %s, error: %v.", desireObj.GetName(), err)
+		if apierrors.IsAlreadyExists(err) {
+			existingObj, getErr := dynamicClusterClient.DynamicClientSet.Resource(gvr).Namespace(desireObj.GetNamespace()).Get(ctx, desireObj.GetName(), metav1.GetOptions{})
+			if getErr != nil {
+				klog.Errorf("Failed to get existing resource(kind=%s, %s/%s) in cluster %s, err: %v.", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName, getErr)
+				return getErr
+			}
+			o.recordVersion(existingObj, dynamicClusterClient.ClusterName)
+			return nil
+		}
+		klog.Errorf("Failed to create resource(kind=%s, %s/%s) in cluster %s, err is %v.", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName, err)
 		return err
 	}
-	_, err = helper.GetObjectFromCache(o.RESTMapper, o.InformerManager, fedKey)
-	if err != nil {
-		if !apierrors.IsNotFound(err) {
-			klog.Errorf("Failed to get resource(kind=%s, %s/%s) from member cluster, err is %v.", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), err)
-			return err
-		}
 
-		clusterObj, err := dynamicClusterClient.DynamicClientSet.Resource(gvr).Namespace(desireObj.GetNamespace()).Create(ctx, desireObj, metav1.CreateOptions{})
-		if err != nil {
-			klog.Errorf("Failed to create resource(kind=%s, %s/%s) in cluster %s, err is %v.", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName, err)
-			return err
-		}
-
-		klog.Infof("Created the resource(kind=%s, %s/%s) on cluster(%s).", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName)
-		// record version
-		o.recordVersion(clusterObj, dynamicClusterClient.ClusterName)
-	}
-
+	klog.Infof("Created the resource(kind=%s, %s/%s) on cluster(%s).", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName)
+	o.recordVersion(clusterObj, dynamicClusterClient.ClusterName)
 	return nil
 }
 
