@@ -647,7 +647,6 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 				bindingCopy.Spec.ConflictResolution = binding.Spec.ConflictResolution
 				bindingCopy.Spec.PreserveResourcesOnDeletion = binding.Spec.PreserveResourcesOnDeletion
 				bindingCopy.Spec.Suspension = util.MergePolicySuspension(bindingCopy.Spec.Suspension, policy.Spec.Suspension)
-				bindingCopy.Spec.WorkloadAffinityGroups = binding.Spec.WorkloadAffinityGroups
 				return nil
 			})
 			return err
@@ -925,11 +924,6 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 			},
 		},
 	}
-
-	if features.FeatureGate.Enabled(features.WorkloadAffinity) {
-		binding.Spec.WorkloadAffinityGroups = getWorkloadAffinityGroups(object, policySpec, policyID)
-	}
-
 	if policySpec.Suspension != nil {
 		binding.Spec.Suspension = &workv1alpha2.Suspension{Suspension: *policySpec.Suspension}
 	}
