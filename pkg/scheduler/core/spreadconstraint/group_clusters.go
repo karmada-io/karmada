@@ -349,7 +349,10 @@ func (info *GroupClustersInfo) generateClustersInfo(clustersScore framework.Clus
 	clustersReplicas := info.calAvailableReplicasFunc(clusters, rbSpec)
 	for i, clustersReplica := range clustersReplicas {
 		info.Clusters[i].AvailableReplicas = int64(clustersReplica.Replicas)
-		info.Clusters[i].AvailableReplicas += int64(rbSpec.AssignedReplicasForCluster(clustersReplica.Name))
+		// Only add historical assignments if the cluster still meets constraints
+		if info.Clusters[i].AvailableReplicas > 0 {
+			info.Clusters[i].AvailableReplicas += int64(rbSpec.AssignedReplicasForCluster(clustersReplica.Name))
+		}
 		info.Clusters[i].AllocatableReplicas = clustersReplica.Replicas
 	}
 
