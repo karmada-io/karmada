@@ -31,7 +31,7 @@ type evictionWorker struct {
 	name             string
 	keyFunc          util.KeyFunc
 	reconcileFunc    util.ReconcileFunc
-	resourceKindFunc func(key interface{}) (clusterName, resourceKind string)
+	resourceKindFunc func(key any) (clusterName, resourceKind string)
 	queue            workqueue.TypedRateLimitingInterface[any]
 	// pacer is the combined limiter (dynamic + default) used to throttle the
 	// processing throughput between items even when initial enqueues are immediate.
@@ -62,7 +62,7 @@ func NewEvictionWorker(opts EvictionWorkerOptions) util.AsyncWorker {
 }
 
 // Enqueue converts an object to a key and adds it to the queue.
-func (w *evictionWorker) Enqueue(obj interface{}) {
+func (w *evictionWorker) Enqueue(obj any) {
 	key, err := w.keyFunc(obj)
 	if err != nil {
 		klog.Errorf("Failed to generate key for obj: %+v, err: %v", obj, err)
@@ -77,7 +77,7 @@ func (w *evictionWorker) Enqueue(obj interface{}) {
 }
 
 // Add puts an item into the queue and updates metrics.
-func (w *evictionWorker) Add(item interface{}) {
+func (w *evictionWorker) Add(item any) {
 	if item == nil {
 		klog.Warningf("Ignore nil item from queue")
 		return
@@ -94,7 +94,7 @@ func (w *evictionWorker) Add(item interface{}) {
 }
 
 // AddAfter adds an item to the queue after a delay and updates metrics.
-func (w *evictionWorker) AddAfter(item interface{}, duration time.Duration) {
+func (w *evictionWorker) AddAfter(item any, duration time.Duration) {
 	if item == nil {
 		klog.Warningf("Ignore nil item from queue")
 		return
@@ -173,7 +173,7 @@ func (w *evictionWorker) processNextWorkItem(ctx context.Context) bool {
 // Run starts worker goroutines and ensures cleanup when context is canceled.
 func (w *evictionWorker) Run(ctx context.Context, workerNumber int) {
 	klog.Infof("Starting %d workers for eviction worker %s", workerNumber, w.name)
-	for i := 0; i < workerNumber; i++ {
+	for range workerNumber {
 		go w.worker(ctx)
 	}
 

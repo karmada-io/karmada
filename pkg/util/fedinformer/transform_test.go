@@ -30,8 +30,8 @@ import (
 func TestStripUnusedFields(t *testing.T) {
 	tests := []struct {
 		name string
-		obj  interface{}
-		want interface{}
+		obj  any
+		want any
 	}{
 		{
 			name: "transform pods",
@@ -95,8 +95,8 @@ func TestStripUnusedFields(t *testing.T) {
 func TestNodeTransformFunc(t *testing.T) {
 	tests := []struct {
 		name string
-		obj  interface{}
-		want interface{}
+		obj  any
+		want any
 	}{
 		{
 			name: "transform nodes without status",
@@ -182,8 +182,8 @@ func TestPodTransformFunc(t *testing.T) {
 	timeNow := metav1.Now()
 	tests := []struct {
 		name string
-		obj  interface{}
-		want interface{}
+		obj  any
+		want any
 	}{
 		{
 			name: "transform pods without status",

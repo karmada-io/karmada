@@ -78,26 +78,26 @@ func TestMergeLabel(t *testing.T) {
 		{
 			name: "nil labels",
 			obj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "demo-deployment",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 2,
 					},
 				},
 			},
 			expected: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":   "demo-deployment",
-						"labels": map[string]interface{}{"foo": "bar"},
+						"labels": map[string]any{"foo": "bar"},
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 2,
 					},
 				},
@@ -108,27 +108,27 @@ func TestMergeLabel(t *testing.T) {
 		{
 			name: "same labelKey",
 			obj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":   "demo-deployment",
-						"labels": map[string]interface{}{"foo": "bar"},
+						"labels": map[string]any{"foo": "bar"},
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 2,
 					},
 				},
 			},
 			expected: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":   "demo-deployment",
-						"labels": map[string]interface{}{"foo": "bar1"},
+						"labels": map[string]any{"foo": "bar1"},
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 2,
 					},
 				},
@@ -139,27 +139,27 @@ func TestMergeLabel(t *testing.T) {
 		{
 			name: "new labelKey",
 			obj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":   "demo-deployment",
-						"labels": map[string]interface{}{"foo": "bar"},
+						"labels": map[string]any{"foo": "bar"},
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 2,
 					},
 				},
 			},
 			expected: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":   "demo-deployment",
-						"labels": map[string]interface{}{"foo": "bar", "foo1": "bar1"},
+						"labels": map[string]any{"foo": "bar", "foo1": "bar1"},
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 2,
 					},
 				},
@@ -242,14 +242,14 @@ func TestRemoveLabel(t *testing.T) {
 			name: "empty labelKeys",
 			args: args{
 				obj: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":   "demo-deployment",
-							"labels": map[string]interface{}{"foo": "bar"},
+							"labels": map[string]any{"foo": "bar"},
 						},
-						"spec": map[string]interface{}{
+						"spec": map[string]any{
 							"replicas": 2,
 						},
 					},
@@ -257,14 +257,14 @@ func TestRemoveLabel(t *testing.T) {
 				labelKeys: []string{},
 			},
 			expected: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":   "demo-deployment",
-						"labels": map[string]interface{}{"foo": "bar"},
+						"labels": map[string]any{"foo": "bar"},
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 2,
 					},
 				},
@@ -274,13 +274,13 @@ func TestRemoveLabel(t *testing.T) {
 			name: "nil object labels",
 			args: args{
 				obj: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name": "demo-deployment",
 						},
-						"spec": map[string]interface{}{
+						"spec": map[string]any{
 							"replicas": 2,
 						},
 					},
@@ -288,13 +288,13 @@ func TestRemoveLabel(t *testing.T) {
 				labelKeys: []string{"foo"},
 			},
 			expected: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "demo-deployment",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 2,
 					},
 				},
@@ -304,14 +304,14 @@ func TestRemoveLabel(t *testing.T) {
 			name: "same labelKeys",
 			args: args{
 				obj: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":   "demo-deployment",
-							"labels": map[string]interface{}{"foo": "bar"},
+							"labels": map[string]any{"foo": "bar"},
 						},
-						"spec": map[string]interface{}{
+						"spec": map[string]any{
 							"replicas": 2,
 						},
 					},
@@ -319,14 +319,14 @@ func TestRemoveLabel(t *testing.T) {
 				labelKeys: []string{"foo"},
 			},
 			expected: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":   "demo-deployment",
-						"labels": map[string]interface{}{},
+						"labels": map[string]any{},
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 2,
 					},
 				},
@@ -336,14 +336,14 @@ func TestRemoveLabel(t *testing.T) {
 			name: "different labelKeys",
 			args: args{
 				obj: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":   "demo-deployment",
-							"labels": map[string]interface{}{"foo": "bar"},
+							"labels": map[string]any{"foo": "bar"},
 						},
-						"spec": map[string]interface{}{
+						"spec": map[string]any{
 							"replicas": 2,
 						},
 					},
@@ -351,14 +351,14 @@ func TestRemoveLabel(t *testing.T) {
 				labelKeys: []string{"foo1"},
 			},
 			expected: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":   "demo-deployment",
-						"labels": map[string]interface{}{"foo": "bar"},
+						"labels": map[string]any{"foo": "bar"},
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 2,
 					},
 				},
@@ -368,14 +368,14 @@ func TestRemoveLabel(t *testing.T) {
 			name: "same labelKeys of different length",
 			args: args{
 				obj: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":   "demo-deployment",
-							"labels": map[string]interface{}{"foo": "bar", "foo1": "bar1"},
+							"labels": map[string]any{"foo": "bar", "foo1": "bar1"},
 						},
-						"spec": map[string]interface{}{
+						"spec": map[string]any{
 							"replicas": 2,
 						},
 					},
@@ -383,14 +383,14 @@ func TestRemoveLabel(t *testing.T) {
 				labelKeys: []string{"foo", "foo1"},
 			},
 			expected: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":   "demo-deployment",
-						"labels": map[string]interface{}{},
+						"labels": map[string]any{},
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 2,
 					},
 				},
@@ -400,14 +400,14 @@ func TestRemoveLabel(t *testing.T) {
 			name: "different labelKeys of different length",
 			args: args{
 				obj: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":   "demo-deployment",
-							"labels": map[string]interface{}{"foo": "bar", "foo1": "bar1"},
+							"labels": map[string]any{"foo": "bar", "foo1": "bar1"},
 						},
-						"spec": map[string]interface{}{
+						"spec": map[string]any{
 							"replicas": 2,
 						},
 					},
@@ -415,14 +415,14 @@ func TestRemoveLabel(t *testing.T) {
 				labelKeys: []string{"foo2", "foo3"},
 			},
 			expected: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":   "demo-deployment",
-						"labels": map[string]interface{}{"foo": "bar", "foo1": "bar1"},
+						"labels": map[string]any{"foo": "bar", "foo1": "bar1"},
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 2,
 					},
 				},
@@ -449,37 +449,37 @@ func TestRetainLabels(t *testing.T) {
 		{
 			name: "observed has nil labels",
 			desired: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "demo-deployment",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 2,
 					},
 				},
 			},
 			observed: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "demo-deployment-1",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 2,
 					},
 				},
 			},
 			expected: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "demo-deployment",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 2,
 					},
 				},
@@ -488,39 +488,39 @@ func TestRetainLabels(t *testing.T) {
 		{
 			name: "observed has labels",
 			desired: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "demo-deployment",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 2,
 					},
 				},
 			},
 			observed: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":   "demo-deployment-1",
-						"labels": map[string]interface{}{"foo": "bar"},
+						"labels": map[string]any{"foo": "bar"},
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 2,
 					},
 				},
 			},
 			expected: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":   "demo-deployment",
-						"labels": map[string]interface{}{"foo": "bar"},
+						"labels": map[string]any{"foo": "bar"},
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 2,
 					},
 				},
@@ -529,40 +529,40 @@ func TestRetainLabels(t *testing.T) {
 		{
 			name: "observed and desired have the same label key",
 			desired: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":   "demo-deployment",
-						"labels": map[string]interface{}{"foo": "foo"},
+						"labels": map[string]any{"foo": "foo"},
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 2,
 					},
 				},
 			},
 			observed: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":   "demo-deployment-1",
-						"labels": map[string]interface{}{"foo": "bar"},
+						"labels": map[string]any{"foo": "bar"},
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 2,
 					},
 				},
 			},
 			expected: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":   "demo-deployment",
-						"labels": map[string]interface{}{"foo": "foo"},
+						"labels": map[string]any{"foo": "foo"},
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 2,
 					},
 				},
@@ -571,50 +571,50 @@ func TestRetainLabels(t *testing.T) {
 		{
 			name: "do not merge deleted labels",
 			desired: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":        "demo-deployment",
-						"annotations": map[string]interface{}{workv1alpha2.ManagedLabels: "foo"},
-						"labels":      map[string]interface{}{"foo": "foo"},
+						"annotations": map[string]any{workv1alpha2.ManagedLabels: "foo"},
+						"labels":      map[string]any{"foo": "foo"},
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 2,
 					},
 				},
 			},
 			observed: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":        "demo-deployment-1",
-						"annotations": map[string]interface{}{workv1alpha2.ManagedLabels: "foo,deleted"},
-						"labels": map[string]interface{}{
+						"annotations": map[string]any{workv1alpha2.ManagedLabels: "foo,deleted"},
+						"labels": map[string]any{
 							"foo":     "bar",
 							"deleted": "deleted",
 							"retain":  "retain",
 						},
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 2,
 					},
 				},
 			},
 			expected: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":        "demo-deployment",
-						"annotations": map[string]interface{}{workv1alpha2.ManagedLabels: "foo"},
-						"labels": map[string]interface{}{
+						"annotations": map[string]any{workv1alpha2.ManagedLabels: "foo"},
+						"labels": map[string]any{
 							"foo":    "foo",
 							"retain": "retain",
 						},
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 2,
 					},
 				},
@@ -641,28 +641,28 @@ func TestRecordManagedLabels(t *testing.T) {
 		{
 			name: "nil label",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "demo-deployment-1",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 2,
 					},
 				},
 			},
 			expected: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "demo-deployment-1",
-						"annotations": map[string]interface{}{
+						"annotations": map[string]any{
 							workv1alpha2.ManagedLabels: "",
 						},
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 2,
 					},
 				},
@@ -671,34 +671,34 @@ func TestRecordManagedLabels(t *testing.T) {
 		{
 			name: "object has labels",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "demo-deployment-1",
-						"labels": map[string]interface{}{
+						"labels": map[string]any{
 							"foo": "foo",
 						},
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 2,
 					},
 				},
 			},
 			expected: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "demo-deployment-1",
-						"annotations": map[string]interface{}{
+						"annotations": map[string]any{
 							workv1alpha2.ManagedLabels: "foo",
 						},
-						"labels": map[string]interface{}{
+						"labels": map[string]any{
 							"foo": "foo",
 						},
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 2,
 					},
 				},

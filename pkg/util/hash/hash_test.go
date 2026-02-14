@@ -29,8 +29,8 @@ func TestDeepHashObject(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		obj1     interface{}
-		obj2     interface{}
+		obj1     any
+		obj2     any
 		wantSame bool
 	}{
 		{

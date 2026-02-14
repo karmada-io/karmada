@@ -22,6 +22,6 @@ import (
 )
 
 // ClusterWideKeyFunc generates a ClusterWideKey for object.
-func ClusterWideKeyFunc(obj interface{}) (util.QueueKey, error) {
+func ClusterWideKeyFunc(obj any) (util.QueueKey, error) {
 	return keys.ClusterWideKeyFunc(obj)
 }

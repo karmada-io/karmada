@@ -371,7 +371,7 @@ func TestGenerateReadyCondition(t *testing.T) {
 	assert.Equal(t, expect, con)
 }
 
-func TransformFunc(interface{}) (interface{}, error) {
+func TransformFunc(any) (any, error) {
 	return nil, nil
 }
 

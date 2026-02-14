@@ -250,7 +250,7 @@ func buildModelNodes(cluster *clusterv1alpha1.Cluster) ([]*schedulerframework.No
 			continue
 		}
 
-		for i := 0; i < cnt; i++ {
+		for range cnt {
 			node := &schedulerframework.NodeInfo{
 				Allocatable: util.NewResource(tmpl),
 			}

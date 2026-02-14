@@ -39,13 +39,13 @@ func (r *Result) Err() error {
 }
 
 // Objects returns the list of objects of all found resources.
-func (r *Result) Objects() ([]interface{}, error) {
+func (r *Result) Objects() ([]any, error) {
 	infos, err := r.Infos()
 	if err != nil {
 		return nil, err
 	}
 
-	objects := make([]interface{}, len(infos))
+	objects := make([]any, len(infos))
 	for i, info := range infos {
 		objects[i] = info.Object
 	}

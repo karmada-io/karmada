@@ -88,7 +88,7 @@ var _ = framework.SerialDescribe("FederatedResourceQuota auto-provision testing"
 		ginkgo.By("[Update] FederatedResourceQuota should be propagated to member clusters according to the new staticAssignments", func() {
 			clusters = []string{framework.ClusterNames()[0]}
 			federatedResourceQuota = helper.NewFederatedResourceQuota(frqNamespace, frqName, clusters)
-			patch := []map[string]interface{}{
+			patch := []map[string]any{
 				{
 					"op":    "replace",
 					"path":  "/spec/staticAssignments",
@@ -257,7 +257,7 @@ var _ = framework.SerialDescribe("[FederatedResourceQuota] status collection tes
 			framework.CreateFederatedResourceQuota(karmadaClient, federatedResourceQuota)
 			framework.WaitFederatedResourceQuotaCollectStatus(karmadaClient, frqNamespace, frqName)
 
-			patch := []map[string]interface{}{
+			patch := []map[string]any{
 				{
 					"op":    "replace",
 					"path":  "/spec/staticAssignments/0/hard/cpu",
@@ -581,12 +581,12 @@ var _ = framework.SerialDescribe("Multi-Components: FederatedResourceQuota enfor
 				flinkDeploymentObj.SetName(flinkDeploymentName)
 				err = unstructured.SetNestedField(flinkDeploymentObj.Object, int64(3), "spec", "jobManager", "replicas")
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				err = unstructured.SetNestedField(flinkDeploymentObj.Object, map[string]interface{}{
+				err = unstructured.SetNestedField(flinkDeploymentObj.Object, map[string]any{
 					"cpu":    int64(2),
 					"memory": "50Mi",
 				}, "spec", "jobManager", "resource")
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				err = unstructured.SetNestedField(flinkDeploymentObj.Object, map[string]interface{}{
+				err = unstructured.SetNestedField(flinkDeploymentObj.Object, map[string]any{
 					"cpu":    int64(1),
 					"memory": "100Mi",
 				}, "spec", "taskManager", "resource")

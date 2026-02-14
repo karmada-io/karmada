@@ -19,6 +19,7 @@ package store
 import (
 	"encoding/base64"
 	"encoding/json"
+	"maps"
 	"sort"
 	"sync"
 
@@ -83,9 +84,7 @@ func (m *multiClusterResourceVersion) clone() *multiClusterResourceVersion {
 		isZero: m.isZero,
 		rvs:    make(map[string]string, len(m.rvs)),
 	}
-	for k, v := range m.rvs {
-		ret.rvs[k] = v
-	}
+	maps.Copy(ret.rvs, m.rvs)
 	return ret
 }
 
@@ -214,11 +213,9 @@ func (w *watchMux) Start() {
 	wg := sync.WaitGroup{}
 	for i := range w.sources {
 		source := w.sources[i]
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			w.startWatchSource(source.watcher, source.decorator)
-		}()
+		})
 	}
 
 	go func() {

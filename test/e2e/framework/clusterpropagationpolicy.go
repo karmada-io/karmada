@@ -49,7 +49,7 @@ func RemoveClusterPropagationPolicy(client karmada.Interface, name string) {
 }
 
 // PatchClusterPropagationPolicy patch ClusterPropagationPolicy with karmada client.
-func PatchClusterPropagationPolicy(client karmada.Interface, name string, patch []map[string]interface{}, patchType types.PatchType) {
+func PatchClusterPropagationPolicy(client karmada.Interface, name string, patch []map[string]any, patchType types.PatchType) {
 	ginkgo.By(fmt.Sprintf("Patching ClusterPropagationPolicy(%s)", name), func() {
 		patchBytes, err := json.Marshal(patch)
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())

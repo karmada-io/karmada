@@ -26,7 +26,7 @@ func TestParseTemplate(t *testing.T) {
 	tests := []struct {
 		name     string
 		template string
-		args     interface{}
+		args     any
 		want     []byte
 		wantErr  bool
 		errMsg   string

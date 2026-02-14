@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"slices"
 	"sync"
 	"time"
 
@@ -216,13 +217,7 @@ func (d *ResourceDetector) gvrDisabled(gvr schema.GroupVersionResource) bool {
 		return false
 	}
 
-	for _, gvk := range gvks {
-		if d.SkippedResourceConfig.GroupVersionKindDisabled(gvk) {
-			return true
-		}
-	}
-
-	return false
+	return slices.ContainsFunc(gvks, d.SkippedResourceConfig.GroupVersionKindDisabled)
 }
 
 // NeedLeaderElection implements LeaderElectionRunnable interface.
@@ -278,7 +273,7 @@ func (d *ResourceDetector) Reconcile(key util.QueueKey) error {
 //
 // If '--skipped-propagating-namespaces'(defaults to kube-.*) is specified,
 // all resources in the skipped-propagating-namespaces will be ignored.
-func (d *ResourceDetector) EventFilter(obj interface{}) bool {
+func (d *ResourceDetector) EventFilter(obj any) bool {
 	key, err := ClusterWideKeyFunc(obj)
 	if err != nil {
 		return false
@@ -313,7 +308,7 @@ func (d *ResourceDetector) EventFilter(obj interface{}) bool {
 }
 
 // OnAdd handles object add event and push the object to queue.
-func (d *ResourceDetector) OnAdd(obj interface{}, isInInitialList bool) {
+func (d *ResourceDetector) OnAdd(obj any, isInInitialList bool) {
 	runtimeObj, ok := obj.(runtime.Object)
 	if !ok {
 		return
@@ -323,7 +318,7 @@ func (d *ResourceDetector) OnAdd(obj interface{}, isInInitialList bool) {
 }
 
 // OnUpdate handles object update event and push the object to queue.
-func (d *ResourceDetector) OnUpdate(oldObj, newObj interface{}) {
+func (d *ResourceDetector) OnUpdate(oldObj, newObj any) {
 	unstructuredOldObj, err := helper.ToUnstructured(oldObj)
 	if err != nil {
 		klog.Errorf("Failed to transform oldObj, error: %v", err)
@@ -371,7 +366,7 @@ func (d *ResourceDetector) OnUpdate(oldObj, newObj interface{}) {
 }
 
 // OnDelete handles object delete event and push the object to queue.
-func (d *ResourceDetector) OnDelete(obj interface{}) {
+func (d *ResourceDetector) OnDelete(obj any) {
 	if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
 		obj = tombstone.Obj
 		if obj == nil {
@@ -995,13 +990,13 @@ func (d *ResourceDetector) GetMatching(resourceSelectors []policyv1alpha1.Resour
 }
 
 // OnPropagationPolicyAdd handles object add event and push the object to queue.
-func (d *ResourceDetector) OnPropagationPolicyAdd(obj interface{}, isInInitialList bool) {
+func (d *ResourceDetector) OnPropagationPolicyAdd(obj any, isInInitialList bool) {
 	priority := util.ItemPriorityIfInInitialList(isInInitialList)
 	d.policyReconcileWorker.EnqueueWithOpts(util.AddOpts{Priority: priority}, obj)
 }
 
 // OnPropagationPolicyUpdate handles object update event and push the object to queue.
-func (d *ResourceDetector) OnPropagationPolicyUpdate(oldObj, newObj interface{}) {
+func (d *ResourceDetector) OnPropagationPolicyUpdate(oldObj, newObj any) {
 	d.policyReconcileWorker.Enqueue(newObj)
 
 	// Temporary solution of corner case: After the priority(.spec.priority) of
@@ -1070,13 +1065,13 @@ func (d *ResourceDetector) ReconcilePropagationPolicy(key util.QueueKey) error {
 }
 
 // OnClusterPropagationPolicyAdd handles object add event and push the object to queue.
-func (d *ResourceDetector) OnClusterPropagationPolicyAdd(obj interface{}, isInInitialList bool) {
+func (d *ResourceDetector) OnClusterPropagationPolicyAdd(obj any, isInInitialList bool) {
 	priority := util.ItemPriorityIfInInitialList(isInInitialList)
 	d.clusterPolicyReconcileWorker.EnqueueWithOpts(util.AddOpts{Priority: priority}, obj)
 }
 
 // OnClusterPropagationPolicyUpdate handles object update event and push the object to queue.
-func (d *ResourceDetector) OnClusterPropagationPolicyUpdate(oldObj, newObj interface{}) {
+func (d *ResourceDetector) OnClusterPropagationPolicyUpdate(oldObj, newObj any) {
 	d.clusterPolicyReconcileWorker.Enqueue(newObj)
 
 	// Temporary solution of corner case: After the priority(.spec.priority) of

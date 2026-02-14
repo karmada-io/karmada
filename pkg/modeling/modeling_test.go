@@ -432,9 +432,9 @@ func TestConvertToResourceList(t *testing.T) {
 		corev1.ResourceCPU:    *resource.NewMilliQuantity(1, resource.DecimalSI),
 		corev1.ResourceMemory: *resource.NewQuantity(1024*6, resource.DecimalSI),
 	}
-	for name := range rsl {
-		if reflect.TypeOf(name).String() != "v1.ResourceName" {
-			t.Errorf("Got %v expected %v", reflect.TypeOf(name), "v1.ResourceName")
+	for range rsl {
+		if reflect.TypeFor[corev1.ResourceName]().String() != "v1.ResourceName" {
+			t.Errorf("Got %v expected %v", reflect.TypeFor[corev1.ResourceName](), "v1.ResourceName")
 		}
 	}
 }
