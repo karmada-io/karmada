@@ -2970,6 +2970,7 @@ func Test_createOrUpdateAttachedBinding(t *testing.T) {
 							},
 						},
 					},
+					PreserveResourcesOnDeletion: ptr.To[bool](false),
 				},
 			},
 			wantErr: false,
@@ -3026,10 +3027,19 @@ func Test_createOrUpdateAttachedBinding(t *testing.T) {
 							},
 						},
 					},
+					ConflictResolution:          policyv1alpha1.ConflictAbort,
+					PreserveResourcesOnDeletion: ptr.To[bool](false),
 				},
 			},
 			setupClient: func() client.Client {
-				return fake.NewClientBuilder().WithScheme(Scheme).Build()
+				// Add the referenced ResourceBindings
+				ref1 := &workv1alpha2.ResourceBinding{ObjectMeta: metav1.ObjectMeta{Name: "default-binding-1", Namespace: "default-1"}}
+				ref2 := &workv1alpha2.ResourceBinding{ObjectMeta: metav1.ObjectMeta{Name: "default-binding-2", Namespace: "default-2"}}
+				ref3 := &workv1alpha2.ResourceBinding{ObjectMeta: metav1.ObjectMeta{Name: "default-binding-3", Namespace: "default-3"}}
+				ref4 := &workv1alpha2.ResourceBinding{ObjectMeta: metav1.ObjectMeta{Name: "test-binding-1", Namespace: "test-1"}}
+				ref5 := &workv1alpha2.ResourceBinding{ObjectMeta: metav1.ObjectMeta{Name: "test-binding-2", Namespace: "test-2"}}
+
+				return fake.NewClientBuilder().WithScheme(Scheme).WithObjects(ref1, ref2, ref3, ref4, ref5).Build()
 			},
 		},
 		{
