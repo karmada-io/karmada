@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package workloadantiaffinity
+package workloadaffinity
 
 import (
 	"context"
@@ -30,43 +30,43 @@ import (
 
 const (
 	// Name is the name of the plugin used in the plugin registry and configurations.
-	Name = "WorkloadAntiAffinity"
+	Name = "WorkloadAffinity"
 )
 
-// WorkloadAntiAffinity is a plugin that checks if a cluster matches the workload anti-affinity group constraint.
-// It separates workloads in the same anti-affinity group across different clusters.
-type WorkloadAntiAffinity struct{}
+// WorkloadAffinity is a plugin that checks if a cluster matches the workload affinity group constraint.
+// It ensures workloads in the same affinity group are scheduled to the same cluster.
+type WorkloadAffinity struct{}
 
 var (
-	_ framework.FilterPlugin            = &WorkloadAntiAffinity{}
-	_ framework.FilterPluginWithContext = &WorkloadAntiAffinity{}
+	_ framework.FilterPlugin            = &WorkloadAffinity{}
+	_ framework.FilterPluginWithContext = &WorkloadAffinity{}
 )
 
-// New instantiates the workload anti-affinity plugin.
+// New instantiates the workload affinity plugin.
 func New() (framework.Plugin, error) {
-	return &WorkloadAntiAffinity{}, nil
+	return &WorkloadAffinity{}, nil
 }
 
 // Name returns the plugin name.
-func (p *WorkloadAntiAffinity) Name() string {
+func (p *WorkloadAffinity) Name() string {
 	return Name
 }
 
 // Filter implements FilterPlugin interface for backward compatibility.
 // TODO(@RainbowMango): Reconsider the plugin architecture to avoid requiring new plugins to implement this interface.
 // This method should never be called as the framework will use FilterWithContext when available.
-func (p *WorkloadAntiAffinity) Filter(context.Context, *workv1alpha2.ResourceBindingSpec, *workv1alpha2.ResourceBindingStatus, *clusterv1alpha1.Cluster) *framework.Result {
+func (p *WorkloadAffinity) Filter(context.Context, *workv1alpha2.ResourceBindingSpec, *workv1alpha2.ResourceBindingStatus, *clusterv1alpha1.Cluster) *framework.Result {
 	// This implementation should never be reached because the framework detects FilterPluginWithContext
 	// and calls FilterWithContext instead. Return Unschedulable as a safeguard.
 	klog.Warningf("Filter() was called unexpectedly for plugin %s, this should not happen", Name)
 	return framework.NewResult(framework.Unschedulable, "plugin should use FilterWithContext method")
 }
 
-// FilterWithContext checks if the cluster matches the workload anti-affinity group constraint.
+// FilterWithContext checks if the cluster matches the workload affinity group constraint.
 // It only implements the new FilterWithContext interface and does not implement the old Filter interface.
-// If the binding has a workload anti-affinity group specified, it ensures the cluster
-// is not selected if it matches the anti-affinity group criteria.
-func (p *WorkloadAntiAffinity) FilterWithContext(filterCtx *framework.FilterContext) *framework.Result {
+// If the binding has a workload affinity group specified, it ensures the cluster
+// is selected only if it matches the affinity group criteria (same cluster as other workloads in the group).
+func (p *WorkloadAffinity) FilterWithContext(filterCtx *framework.FilterContext) *framework.Result {
 	bindingSpec := filterCtx.BindingSpec
 	cluster := filterCtx.Cluster
 
@@ -76,19 +76,19 @@ func (p *WorkloadAntiAffinity) FilterWithContext(filterCtx *framework.FilterCont
 		return framework.NewResult(framework.Success)
 	}
 
-	// If no workload anti-affinity groups spec, skip this filter
-	if bindingSpec.WorkloadAffinityGroups == nil || bindingSpec.WorkloadAffinityGroups.AntiAffinityGroup == "" {
+	// If no workload affinity groups spec, skip this filter
+	if bindingSpec.WorkloadAffinityGroups == nil || bindingSpec.WorkloadAffinityGroups.AffinityGroup == "" {
 		return framework.NewResult(framework.Success)
 	}
 
-	antiAffinityGroup := bindingSpec.WorkloadAffinityGroups.AntiAffinityGroup
+	affinityGroup := bindingSpec.WorkloadAffinityGroups.AffinityGroup
 
 	if filterCtx.ResourceBindingIndexer == nil {
 		return framework.NewResult(framework.Unschedulable, "ResourceBindingIndexer is nil")
 	}
 
 	// TODO(@RainbowMango): Check assigning binding list to avoid cache delay
-	objs, err := filterCtx.ResourceBindingIndexer.ByIndex(indexregistry.ResourceBindingIndexByAntiAffinityGroup, antiAffinityGroup)
+	objs, err := filterCtx.ResourceBindingIndexer.ByIndex(indexregistry.ResourceBindingIndexByAffinityGroup, affinityGroup)
 	if err != nil {
 		klog.Errorf("Failed to list ResourceBinding, err: %v", err)
 		return framework.NewResult(framework.Unschedulable, "failed to list ResourceBindings")
@@ -104,20 +104,20 @@ func (p *WorkloadAntiAffinity) FilterWithContext(filterCtx *framework.FilterCont
 			continue
 		}
 
+		if rb.Spec.Clusters == nil {
+			continue
+		}
+
 		if rb.GetName() == bindingName {
 			continue
 		}
 
-		if !rb.Spec.TargetContains(cluster.GetName()) {
-			continue
+		if !rb.Spec.TargetContains(cluster.Name) {
+			klog.Infof("cluster %s does not match the affinity group %s because ResourceBinding %s does not target this cluster, deny scheduling", cluster.GetName(), affinityGroup, rb.GetName())
+			return framework.NewResult(framework.Unschedulable, "ResourceBinding with the same affinity group does not target this cluster")
 		}
-
-		klog.Infof("Cluster %s already has workload with anti-affinity group %s, deny scheduling", cluster.GetName(), antiAffinityGroup)
-		return framework.NewResult(framework.Unschedulable, "cluster already has workload with the same anti-affinity group")
 	}
 
-	klog.Infof("checking cluster: %s, with anti-affinity group: %s", cluster.GetName(), antiAffinityGroup)
-
-	// If cluster does not match anti-affinity group label, allow scheduling
+	klog.Infof("checking cluster: %s, with affinity group: %s", cluster.GetName(), affinityGroup)
 	return framework.NewResult(framework.Success)
 }

@@ -18,6 +18,7 @@ package cache
 
 import (
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -32,16 +33,21 @@ type Cache interface {
 	DeleteCluster(cluster *clusterv1alpha1.Cluster)
 	// Snapshot returns a snapshot of the current clusters info
 	Snapshot() Snapshot
+
+	// ResourceBindingIndexer returns the indexer for ResourceBindings, used for advanced scheduling logic.
+	ResourceBindingIndexer() cache.Indexer
 }
 
 type schedulerCache struct {
-	clusterLister clusterlister.ClusterLister
+	clusterLister          clusterlister.ClusterLister
+	resourceBindingIndexer cache.Indexer
 }
 
 // NewCache instantiates a cache used only by scheduler.
-func NewCache(clusterLister clusterlister.ClusterLister) Cache {
+func NewCache(clusterLister clusterlister.ClusterLister, resourceBindingIndexer cache.Indexer) Cache {
 	return &schedulerCache{
-		clusterLister: clusterLister,
+		clusterLister:          clusterLister,
+		resourceBindingIndexer: resourceBindingIndexer,
 	}
 }
 
@@ -74,4 +80,8 @@ func (c *schedulerCache) Snapshot() Snapshot {
 	}
 
 	return out
+}
+
+func (c *schedulerCache) ResourceBindingIndexer() cache.Indexer {
+	return c.resourceBindingIndexer
 }
