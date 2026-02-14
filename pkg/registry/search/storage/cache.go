@@ -122,6 +122,11 @@ func (r *SearchREST) getObjectItemsFromClusters(
 		}
 
 		var err error
+		// Skip resources whose informer has not been started
+		if !singleClusterManger.IsInformerStarted(objGVR) {
+			klog.V(4).Infof("Informer for %s in cluster %s not started, skipping", objGVR, cluster.Name)
+			continue
+		}
 		objLister := singleClusterManger.Lister(objGVR)
 		if len(name) > 0 {
 			var resourceObject runtime.Object
