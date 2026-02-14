@@ -18,9 +18,10 @@ package helper
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
-	"k8s.io/apimachinery/pkg/api/equality"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -38,23 +39,72 @@ import (
 // already exist.
 func UpdateStatus(ctx context.Context, c client.Client, obj client.Object, f controllerutil.MutateFn) (controllerutil.OperationResult, error) {
 	key := client.ObjectKeyFromObject(obj)
-	if err := c.Get(ctx, key, obj); err != nil {
-		return controllerutil.OperationResultNone, err
-	}
 
-	existing := obj.DeepCopyObject()
 	if err := mutate(f, key, obj); err != nil {
 		return controllerutil.OperationResultNone, err
 	}
 
-	if equality.Semantic.DeepEqual(existing, obj) {
-		return controllerutil.OperationResultNone, nil
-	}
-
-	if err := c.Status().Update(ctx, obj); err != nil {
+	// Extract status from the mutated object to construct a JSON Patch
+	// that directly updates /status path.
+	// FYI: https://github.com/karmada-io/karmada/issues/6858
+	status, err := getStatusFromObject(obj)
+	if err != nil {
 		return controllerutil.OperationResultNone, err
 	}
+
+	patch, err := buildStatusPatch(status)
+	if err != nil {
+		return controllerutil.OperationResultNone, err
+	}
+
+	// Apply JSON Patch directly to /status
+	if err := c.Status().Patch(ctx, obj, patch); err != nil {
+		return controllerutil.OperationResultNone, err
+	}
+
 	return controllerutil.OperationResultUpdatedStatusOnly, nil
+}
+
+func getStatusFromObject(obj client.Object) (json.RawMessage, error) {
+	objBytes, err := json.Marshal(obj)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal object: %w", err)
+	}
+
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(objBytes, &fields); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal object: %w", err)
+	}
+
+	statusRaw, ok := fields["status"]
+	if !ok {
+		return nil, fmt.Errorf("object %T does not have status field", obj)
+	}
+
+	return statusRaw, nil
+}
+
+func buildStatusPatch(statusRaw json.RawMessage) (client.Patch, error) {
+	type patchOp struct {
+		Op    string          `json:"op"`
+		Path  string          `json:"path"`
+		Value json.RawMessage `json:"value"`
+	}
+
+	ops := []patchOp{
+		{
+			Op:    "add",
+			Path:  "/status",
+			Value: statusRaw,
+		},
+	}
+
+	patchBytes, err := json.Marshal(ops)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal patch: %w", err)
+	}
+
+	return client.RawPatch(types.JSONPatchType, patchBytes), nil
 }
 
 // mutate wraps a MutateFn and applies validation to its result.
