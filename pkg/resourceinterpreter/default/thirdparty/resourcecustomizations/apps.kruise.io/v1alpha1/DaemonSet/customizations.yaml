@@ -161,6 +161,5 @@ spec:
       luaScript: >
         local kube = require("kube")
         function GetDependencies(desiredObj)
-          refs = kube.getPodDependencies(desiredObj.spec.template, desiredObj.metadata.namespace)
-          return refs
+          return kube.getPodDependencies(desiredObj.spec.template, desiredObj.metadata.namespace) or {}
         end

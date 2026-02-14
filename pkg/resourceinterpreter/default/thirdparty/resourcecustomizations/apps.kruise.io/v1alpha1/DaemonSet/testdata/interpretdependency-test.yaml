@@ -1,5 +1,8 @@
 # test case for interpreting dependency of DaemonSet
 # case1. DaemonSet with configmap dependency
+# case2. DaemonSet with secret dependency
+# case3. DaemonSet with multiple containers sharing dependency
+# case4. DaemonSet with no dependencies
 
 name: "DaemonSet with configmap dependency"
 description: "Test interpreting dependency of DaemonSet with configmap dependency"
@@ -41,3 +44,120 @@ desiredObj:
                     key: lower
 operation: InterpretDependency
 output:
+  dependencies:
+    - apiVersion: v1
+      kind: ConfigMap
+      name: my-sample-config
+      namespace: test-kruise-daemonset
+    - apiVersion: v1
+      kind: ConfigMap
+      name: mysql-config
+      namespace: test-kruise-daemonset
+
+---
+name: "DaemonSet with secret dependency"
+description: "Test interpreting dependency of DaemonSet with secret dependency"
+desiredObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: DaemonSet
+  metadata:
+    name: sample-secret
+    namespace: test-kruise-daemonset
+  spec:
+    selector:
+      matchLabels:
+        app: sample-daemonset
+    template:
+      metadata:
+        labels:
+          app: sample-daemonset
+      spec:
+        containers:
+          - name: nginx
+            image: nginx:alpine
+            env:
+              - name: SECRET_VAL
+                valueFrom:
+                  secretKeyRef:
+                    name: my-secret
+                    key: password
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: Secret
+      name: my-secret
+      namespace: test-kruise-daemonset
+
+---
+name: "DaemonSet with multiple containers sharing configmap"
+description: "Test interpreting dependency with multiple containers using same ConfigMap"
+desiredObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: DaemonSet
+  metadata:
+    name: sample-multicontainer
+    namespace: test-kruise-daemonset
+  spec:
+    selector:
+      matchLabels:
+        app: sample-daemonset
+    template:
+      metadata:
+        labels:
+          app: sample-daemonset
+      spec:
+        containers:
+          - name: app1
+            image: nginx:alpine
+            env:
+              - name: CFG
+                valueFrom:
+                  configMapKeyRef:
+                    name: shared-config
+                    key: abc
+          - name: app2
+            image: busybox
+            env:
+              - name: CFG
+                valueFrom:
+                  configMapKeyRef:
+                    name: shared-config
+                    key: cba
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: ConfigMap
+      name: shared-config
+      namespace: test-kruise-daemonset
+
+---
+name: "DaemonSet with no dependencies"
+description: "Test interpreting dependency when DaemonSet has no ConfigMap or Secret dependencies"
+desiredObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: DaemonSet
+  metadata:
+    name: sample-no-deps
+    namespace: test-kruise-daemonset
+  spec:
+    selector:
+      matchLabels:
+        app: sample-daemonset
+    template:
+      metadata:
+        labels:
+          app: sample-daemonset
+      spec:
+        containers:
+          - name: nginx
+            image: nginx:alpine
+            env:
+              - name: STATIC_VALUE
+                value: "hello-world"
+              - name: ANOTHER_VAL
+                value: "67"
+operation: InterpretDependency
+output:
+  dependencies: []
