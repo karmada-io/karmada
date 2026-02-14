@@ -553,7 +553,7 @@ key:
 			if !reflect.DeepEqual(gotOP, tt.wantOP) {
 				t.Errorf("ApplyOverridePolicies() gotOP = %v, wantOP %v", gotOP, tt.wantOP)
 			}
-			wantData := map[string]interface{}{
+			wantData := map[string]any{
 				"test.yaml": `key:
   key1: updated_value
 `,
@@ -672,7 +672,7 @@ func Test_overrideManagerImpl_ApplyJSONOverridePolicies_JSON(t *testing.T) {
 			if !reflect.DeepEqual(gotOP, tt.wantOP) {
 				t.Errorf("ApplyOverridePolicies() gotOP = %v, wantOP %v", gotOP, tt.wantOP)
 			}
-			wantData := map[string]interface{}{
+			wantData := map[string]any{
 				"test.json": `{"key":{"key1":"updated_value"}}`,
 			}
 			if !reflect.DeepEqual(tt.args.rawObj.Object["data"], wantData) {

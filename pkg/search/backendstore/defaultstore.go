@@ -32,7 +32,7 @@ func NewDefaultBackend(cluster string) *Default {
 	klog.Infof("create default backend store: %s", cluster)
 	return &Default{
 		resourceEventHandler: &cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
+			AddFunc: func(obj any) {
 				us, ok := obj.(*unstructured.Unstructured)
 				if !ok {
 					klog.Errorf("unexpected type %T", obj)
@@ -41,7 +41,7 @@ func NewDefaultBackend(cluster string) *Default {
 				klog.V(4).Infof("AddFunc Cluster(%s) GVK(%s) Name(%s/%s)",
 					cluster, us.GroupVersionKind().String(), us.GetNamespace(), us.GetName())
 			},
-			UpdateFunc: func(_, curObj interface{}) {
+			UpdateFunc: func(_, curObj any) {
 				us, ok := curObj.(*unstructured.Unstructured)
 				if !ok {
 					klog.Errorf("unexpected type %T", curObj)
@@ -50,7 +50,7 @@ func NewDefaultBackend(cluster string) *Default {
 				klog.V(4).Infof("UpdateFunc Cluster(%s) GVK(%s) Name(%s/%s)",
 					cluster, us.GroupVersionKind().String(), us.GetNamespace(), us.GetName())
 			},
-			DeleteFunc: func(obj interface{}) {
+			DeleteFunc: func(obj any) {
 				if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
 					obj = tombstone.Obj
 					if obj == nil {

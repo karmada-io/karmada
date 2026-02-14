@@ -26,7 +26,7 @@ import (
 )
 
 // ConvertToTypedObject converts an unstructured object to typed.
-func ConvertToTypedObject(in, out interface{}) error {
+func ConvertToTypedObject(in, out any) error {
 	if in == nil || out == nil {
 		return fmt.Errorf("convert objects should not be nil")
 	}
@@ -34,7 +34,7 @@ func ConvertToTypedObject(in, out interface{}) error {
 	switch v := in.(type) {
 	case *unstructured.Unstructured:
 		return runtime.DefaultUnstructuredConverter.FromUnstructured(v.UnstructuredContent(), out)
-	case map[string]interface{}:
+	case map[string]any:
 		return runtime.DefaultUnstructuredConverter.FromUnstructured(v, out)
 	default:
 		return fmt.Errorf("convert object must be pointer of unstructured or map[string]interface{}")
@@ -68,7 +68,7 @@ func ApplyReplicaAlways(workload *unstructured.Unstructured, desireReplica int64
 }
 
 // ToUnstructured converts a typed object to an unstructured object.
-func ToUnstructured(obj interface{}) (*unstructured.Unstructured, error) {
+func ToUnstructured(obj any) (*unstructured.Unstructured, error) {
 	uncastObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
 	if err != nil {
 		return nil, err

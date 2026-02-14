@@ -296,11 +296,11 @@ func etcdServers(opts *addoninit.CommandAddonsEnableOption) (string, string, err
 	}
 
 	etcdReplicas := *sts.Spec.Replicas
-	etcdServers := ""
+	var etcdServers strings.Builder
 
-	for v := int32(0); v < etcdReplicas; v++ {
-		etcdServers += fmt.Sprintf("https://%s-%v.%s.%s.svc.%s:%v", etcdStatefulSetAndServiceName, v, etcdStatefulSetAndServiceName, opts.Namespace, opts.HostClusterDomain, etcdContainerClientPort) + ","
+	for v := range etcdReplicas {
+		etcdServers.WriteString(fmt.Sprintf("https://%s-%v.%s.%s.svc.%s:%v", etcdStatefulSetAndServiceName, v, etcdStatefulSetAndServiceName, opts.Namespace, opts.HostClusterDomain, etcdContainerClientPort) + ",")
 	}
 
-	return strings.TrimRight(etcdServers, ","), "", nil
+	return strings.TrimRight(etcdServers.String(), ","), "", nil
 }

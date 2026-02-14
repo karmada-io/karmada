@@ -401,7 +401,7 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 	ginkgo.Context("DaemonSetStatus collection testing", func() {
 		var daemonSetNamespace, daemonSetName string
 		var daemonSet *appsv1.DaemonSet
-		var patch []map[string]interface{}
+		var patch []map[string]any
 
 		ginkgo.BeforeEach(func() {
 			policyNamespace = testNamespace
@@ -422,7 +422,7 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 				},
 			})
 
-			patch = []map[string]interface{}{
+			patch = []map[string]any{
 				{
 					"op":    "replace",
 					"path":  "/spec/placement/clusterAffinity/clusterNames",

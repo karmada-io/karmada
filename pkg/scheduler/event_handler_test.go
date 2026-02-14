@@ -36,7 +36,7 @@ func TestResourceBindingEventFilter(t *testing.T) {
 	testCases := []struct {
 		name           string
 		schedulerName  string
-		obj            interface{}
+		obj            any
 		expectedResult bool
 	}{
 		{
@@ -148,7 +148,7 @@ func TestAddCluster(t *testing.T) {
 	tests := []struct {
 		name                     string
 		enableSchedulerEstimator bool
-		obj                      interface{}
+		obj                      any
 		expectedAdded            bool
 		expectedClusterName      string
 	}{
@@ -203,8 +203,8 @@ func TestUpdateCluster(t *testing.T) {
 	tests := []struct {
 		name                     string
 		enableSchedulerEstimator bool
-		oldObj                   interface{}
-		newObj                   interface{}
+		oldObj                   any
+		newObj                   any
 		expectedEstimatorAdded   bool
 		expectedReconcileAdded   int
 	}{
@@ -307,7 +307,7 @@ func TestDeleteCluster(t *testing.T) {
 	tests := []struct {
 		name                     string
 		enableSchedulerEstimator bool
-		obj                      interface{}
+		obj                      any
 		expectedAdded            bool
 		expectedClusterName      string
 	}{
@@ -454,20 +454,20 @@ func createClusterResourceBinding(name, schedulerName string, labels map[string]
 type mockAsyncWorker struct {
 	addCount     int
 	enqueueCount int
-	lastAdded    interface{}
-	lastEnqueued interface{}
+	lastAdded    any
+	lastEnqueued any
 }
 
-func (m *mockAsyncWorker) Add(item interface{}) {
+func (m *mockAsyncWorker) Add(item any) {
 	m.addCount++
 	m.lastAdded = item
 }
 
-func (m *mockAsyncWorker) Enqueue(item interface{}) {
+func (m *mockAsyncWorker) Enqueue(item any) {
 	m.enqueueCount++
 	m.lastEnqueued = item
 }
 
-func (m *mockAsyncWorker) AddAfter(_ interface{}, _ time.Duration) {}
+func (m *mockAsyncWorker) AddAfter(_ any, _ time.Duration) {}
 
 func (m *mockAsyncWorker) Run(_ context.Context, _ int) {}

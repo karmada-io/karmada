@@ -342,17 +342,17 @@ func createTestEndpointSlice(name, namespace string) *unstructured.Unstructured 
 
 // Helper function to create an EndpointSlice for testing with specific properties
 func createEndpointSliceForTest(name, namespace, serviceName string, isManaged bool) *unstructured.Unstructured {
-	labels := map[string]interface{}{
+	labels := map[string]any{
 		discoveryv1.LabelServiceName: serviceName,
 	}
 	if isManaged {
 		labels[discoveryv1.LabelManagedBy] = util.EndpointSliceDispatchControllerLabelValue
 	}
 	return &unstructured.Unstructured{
-		Object: map[string]interface{}{
+		Object: map[string]any{
 			"apiVersion": "discovery.k8s.io/v1",
 			"kind":       "EndpointSlice",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      name,
 				"namespace": namespace,
 				"labels":    labels,
@@ -440,13 +440,13 @@ type mockAsyncWorker struct {
 	addCount int
 }
 
-func (m *mockAsyncWorker) Add(_ interface{}) {
+func (m *mockAsyncWorker) Add(_ any) {
 	m.addCount++
 }
 
-func (m *mockAsyncWorker) AddAfter(_ interface{}, _ time.Duration) {}
+func (m *mockAsyncWorker) AddAfter(_ any, _ time.Duration) {}
 
-func (m *mockAsyncWorker) Enqueue(_ interface{}) {}
+func (m *mockAsyncWorker) Enqueue(_ any) {}
 
 func (m *mockAsyncWorker) AddWithOpts(_ util.AddOpts, items ...any) {
 	for _, item := range items {
@@ -461,8 +461,8 @@ func (m *mockAsyncWorker) Run(_ context.Context, _ int) {}
 
 type mockResourceEventHandler struct{}
 
-func (m *mockResourceEventHandler) OnAdd(_ interface{}, _ bool) {}
+func (m *mockResourceEventHandler) OnAdd(_ any, _ bool) {}
 
-func (m *mockResourceEventHandler) OnUpdate(_, _ interface{}) {}
+func (m *mockResourceEventHandler) OnUpdate(_, _ any) {}
 
-func (m *mockResourceEventHandler) OnDelete(_ interface{}) {}
+func (m *mockResourceEventHandler) OnDelete(_ any) {}

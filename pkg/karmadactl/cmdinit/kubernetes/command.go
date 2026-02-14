@@ -28,9 +28,9 @@ import (
 )
 
 func (i *CommandInitOption) defaultEtcdContainerCommand() []string {
-	etcdClusterConfig := ""
+	var etcdClusterConfig strings.Builder
 	for v := int32(0); v < i.EtcdReplicas; v++ {
-		etcdClusterConfig += fmt.Sprintf("%s-%v=http://%s-%v.%s.%s.svc.%s:%v", etcdStatefulSetAndServiceName, v, etcdStatefulSetAndServiceName, v, etcdStatefulSetAndServiceName, i.Namespace, i.HostClusterDomain, etcdContainerServerPort) + ","
+		etcdClusterConfig.WriteString(fmt.Sprintf("%s-%v=http://%s-%v.%s.%s.svc.%s:%v", etcdStatefulSetAndServiceName, v, etcdStatefulSetAndServiceName, v, etcdStatefulSetAndServiceName, i.Namespace, i.HostClusterDomain, etcdContainerServerPort) + ",")
 	}
 
 	command := []string{
@@ -39,7 +39,7 @@ func (i *CommandInitOption) defaultEtcdContainerCommand() []string {
 		fmt.Sprintf("--listen-peer-urls=http://$(%s):%v", etcdEnvPodIP, etcdContainerServerPort),
 		fmt.Sprintf("--listen-client-urls=https://$(%s):%v,http://127.0.0.1:%v", etcdEnvPodIP, etcdContainerClientPort, etcdContainerClientPort),
 		fmt.Sprintf("--advertise-client-urls=https://$(%s).%s.%s.svc.%s:%v", etcdEnvPodName, etcdStatefulSetAndServiceName, i.Namespace, i.HostClusterDomain, etcdContainerClientPort),
-		fmt.Sprintf("--initial-cluster=%s", strings.TrimRight(etcdClusterConfig, ",")),
+		fmt.Sprintf("--initial-cluster=%s", strings.TrimRight(etcdClusterConfig.String(), ",")),
 		"--initial-cluster-state=new",
 		"--client-cert-auth=true",
 		fmt.Sprintf("--cert-file=%s/%s.crt", karmadaCertsVolumeMountPath, options.EtcdServerCertAndKeyName),

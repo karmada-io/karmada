@@ -843,7 +843,7 @@ func (s *Scheduler) handleErr(err error, bindingInfo *internalqueue.QueuedBindin
 	metrics.CountSchedulerBindings(metrics.ScheduleAttemptFailure)
 }
 
-func (s *Scheduler) legacyHandleErr(err error, key interface{}) {
+func (s *Scheduler) legacyHandleErr(err error, key any) {
 	if err == nil || apierrors.HasStatusCause(err, corev1.NamespaceTerminatingCause) {
 		s.queue.Forget(key)
 		return

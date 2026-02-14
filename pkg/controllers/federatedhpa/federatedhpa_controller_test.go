@@ -1484,7 +1484,7 @@ func TestSetCondition(t *testing.T) {
 		status         corev1.ConditionStatus
 		reason         string
 		message        string
-		args           []interface{}
+		args           []any
 		expectedLength int
 		checkIndex     int
 	}{
@@ -1524,7 +1524,7 @@ func TestSetCondition(t *testing.T) {
 			status:         corev1.ConditionTrue,
 			reason:         "FormattedReason",
 			message:        "Formatted message: %d",
-			args:           []interface{}{42},
+			args:           []any{42},
 			expectedLength: 1,
 			checkIndex:     0,
 		},
@@ -1560,7 +1560,7 @@ func TestSetConditionInList(t *testing.T) {
 		status         corev1.ConditionStatus
 		reason         string
 		message        string
-		args           []interface{}
+		args           []any
 		expectedLength int
 		checkIndex     int
 	}{
@@ -1601,7 +1601,7 @@ func TestSetConditionInList(t *testing.T) {
 			status:         corev1.ConditionTrue,
 			reason:         "FormattedReason",
 			message:        "Formatted message: %d",
-			args:           []interface{}{42},
+			args:           []any{42},
 			expectedLength: 2,
 			checkIndex:     1,
 		},

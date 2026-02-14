@@ -31,13 +31,13 @@ import (
 
 func TestResourceMatches(t *testing.T) {
 	resource := &unstructured.Unstructured{
-		Object: map[string]interface{}{
+		Object: map[string]any{
 			"apiVersion": "v1",
 			"kind":       "Pod",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      "test",
 				"namespace": "default",
-				"labels": map[string]interface{}{
+				"labels": map[string]any{
 					"foo": "bar",
 				},
 			},
@@ -117,13 +117,13 @@ func TestResourceMatches(t *testing.T) {
 
 func TestResourceSelectorPriority(t *testing.T) {
 	resource := &unstructured.Unstructured{
-		Object: map[string]interface{}{
+		Object: map[string]any{
 			"apiVersion": "v1",
 			"kind":       "Pod",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      "test",
 				"namespace": "default",
-				"labels": map[string]interface{}{
+				"labels": map[string]any{
 					"foo": "bar",
 				},
 			},
@@ -774,13 +774,13 @@ func TestClusterMatches(t *testing.T) {
 
 func TestResourceMatchSelectors(t *testing.T) {
 	resource := &unstructured.Unstructured{
-		Object: map[string]interface{}{
+		Object: map[string]any{
 			"apiVersion": "v1",
 			"kind":       "Pod",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      "test",
 				"namespace": "default",
-				"labels": map[string]interface{}{
+				"labels": map[string]any{
 					"foo": "bar",
 				},
 			},
@@ -853,13 +853,13 @@ func TestResourceMatchSelectors(t *testing.T) {
 
 func TestResourceMatchSelectorsPriority(t *testing.T) {
 	resource := &unstructured.Unstructured{
-		Object: map[string]interface{}{
+		Object: map[string]any{
 			"apiVersion": "v1",
 			"kind":       "Pod",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      "test",
 				"namespace": "default",
-				"labels": map[string]interface{}{
+				"labels": map[string]any{
 					"foo": "bar",
 				},
 			},

@@ -1135,13 +1135,7 @@ func (c *FHPAController) stabilizeRecommendationWithBehaviors(args Normalization
 	}
 
 	// Bring the recommendation to within the upper and lower limits (stabilize).
-	recommendation := args.CurrentReplicas
-	if recommendation < upRecommendation {
-		recommendation = upRecommendation
-	}
-	if recommendation > downRecommendation {
-		recommendation = downRecommendation
-	}
+	recommendation := min(max(args.CurrentReplicas, upRecommendation), downRecommendation)
 
 	// Record the unstabilized recommendation.
 	if foundOldSample {
@@ -1172,12 +1166,9 @@ func (c *FHPAController) convertDesiredReplicasWithBehaviorRate(args Normalizati
 		defer c.scaleUpEventsLock.RUnlock()
 		c.scaleDownEventsLock.RLock()
 		defer c.scaleDownEventsLock.RUnlock()
-		scaleUpLimit := calculateScaleUpLimitWithScalingRules(args.CurrentReplicas, c.scaleUpEvents[args.Key], c.scaleDownEvents[args.Key], args.ScaleUpBehavior)
-
-		if scaleUpLimit < args.CurrentReplicas {
+		scaleUpLimit := max(calculateScaleUpLimitWithScalingRules(args.CurrentReplicas, c.scaleUpEvents[args.Key], c.scaleDownEvents[args.Key], args.ScaleUpBehavior),
 			// We shouldn't scale up further until the scaleUpEvents will be cleaned up
-			scaleUpLimit = args.CurrentReplicas
-		}
+			args.CurrentReplicas)
 		maximumAllowedReplicas := args.MaxReplicas
 		if maximumAllowedReplicas > scaleUpLimit {
 			maximumAllowedReplicas = scaleUpLimit
@@ -1195,12 +1186,9 @@ func (c *FHPAController) convertDesiredReplicasWithBehaviorRate(args Normalizati
 		defer c.scaleUpEventsLock.RUnlock()
 		c.scaleDownEventsLock.RLock()
 		defer c.scaleDownEventsLock.RUnlock()
-		scaleDownLimit := calculateScaleDownLimitWithBehaviors(args.CurrentReplicas, c.scaleUpEvents[args.Key], c.scaleDownEvents[args.Key], args.ScaleDownBehavior)
-
-		if scaleDownLimit > args.CurrentReplicas {
+		scaleDownLimit := min(calculateScaleDownLimitWithBehaviors(args.CurrentReplicas, c.scaleUpEvents[args.Key], c.scaleDownEvents[args.Key], args.ScaleDownBehavior),
 			// We shouldn't scale down further until the scaleDownEvents will be cleaned up
-			scaleDownLimit = args.CurrentReplicas
-		}
+			args.CurrentReplicas)
 		minimumAllowedReplicas := args.MinReplicas
 		if minimumAllowedReplicas < scaleDownLimit {
 			minimumAllowedReplicas = scaleDownLimit
@@ -1383,14 +1371,14 @@ func (c *FHPAController) updateStatus(ctx context.Context, hpa *autoscalingv1alp
 // setCondition sets the specific condition type on the given HPA to the specified value with the given reason
 // and message.  The message and args are treated like a format string.  The condition will be added if it is
 // not present.
-func setCondition(hpa *autoscalingv1alpha1.FederatedHPA, conditionType autoscalingv2.HorizontalPodAutoscalerConditionType, status corev1.ConditionStatus, reason, message string, args ...interface{}) {
+func setCondition(hpa *autoscalingv1alpha1.FederatedHPA, conditionType autoscalingv2.HorizontalPodAutoscalerConditionType, status corev1.ConditionStatus, reason, message string, args ...any) {
 	hpa.Status.Conditions = setConditionInList(hpa.Status.Conditions, conditionType, status, reason, message, args...)
 }
 
 // setConditionInList sets the specific condition type on the given HPA to the specified value with the given
 // reason and message.  The message and args are treated like a format string.  The condition will be added if
 // it is not present.  The new list will be returned.
-func setConditionInList(inputList []autoscalingv2.HorizontalPodAutoscalerCondition, conditionType autoscalingv2.HorizontalPodAutoscalerConditionType, status corev1.ConditionStatus, reason, message string, args ...interface{}) []autoscalingv2.HorizontalPodAutoscalerCondition {
+func setConditionInList(inputList []autoscalingv2.HorizontalPodAutoscalerCondition, conditionType autoscalingv2.HorizontalPodAutoscalerConditionType, status corev1.ConditionStatus, reason, message string, args ...any) []autoscalingv2.HorizontalPodAutoscalerCondition {
 	resList := inputList
 	var existingCond *autoscalingv2.HorizontalPodAutoscalerCondition
 	for i, condition := range resList {

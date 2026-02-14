@@ -116,10 +116,10 @@ func Test_mergeLabel(t *testing.T) {
 		{
 			name: "NamespaceScoped",
 			workload: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "demo-deployment",
 						"namespace": namespace,
 					},
@@ -142,10 +142,10 @@ func Test_mergeLabel(t *testing.T) {
 		{
 			name: "ClusterScoped",
 			workload: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "v1",
 					"kind":       "Namespace",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "demo-ns",
 					},
 				},
@@ -196,10 +196,10 @@ func Test_mergeAnnotations(t *testing.T) {
 		{
 			name: "NamespaceScoped",
 			workload: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "demo-deployment",
 						"namespace": namespace,
 					},
@@ -220,10 +220,10 @@ func Test_mergeAnnotations(t *testing.T) {
 		{
 			name: "ClusterScoped",
 			workload: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "v1",
 					"kind":       "Namespace",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "demo-ns",
 					},
 				},
@@ -251,10 +251,10 @@ func Test_mergeAnnotations(t *testing.T) {
 func Test_mergeConflictResolution(t *testing.T) {
 	namespace := "fake-ns"
 	workload := unstructured.Unstructured{
-		Object: map[string]interface{}{
+		Object: map[string]any{
 			"apiVersion": "apps/v1",
 			"kind":       "Deployment",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      "test-deployment",
 				"namespace": namespace,
 			},
@@ -446,8 +446,8 @@ func Test_divideReplicasByJobCompletions(t *testing.T) {
 		{
 			name: "completions found",
 			workload: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"spec": map[string]interface{}{
+				Object: map[string]any{
+					"spec": map[string]any{
 						"completions": int64(10),
 					},
 				},
@@ -465,7 +465,7 @@ func Test_divideReplicasByJobCompletions(t *testing.T) {
 		{
 			name: "error in NestedInt64",
 			workload: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"spec": "invalid",
 				},
 			},

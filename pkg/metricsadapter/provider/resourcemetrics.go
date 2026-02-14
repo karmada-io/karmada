@@ -62,7 +62,7 @@ var (
 )
 
 type queryResourceFromClustersFunc func(sci typedmanager.SingleClusterInformerManager, clusterName string) error
-type queryMetricsFromClustersFunc func(sci genericmanager.SingleClusterInformerManager, clusterName string) (interface{}, error)
+type queryMetricsFromClustersFunc func(sci genericmanager.SingleClusterInformerManager, clusterName string) (any, error)
 
 // ResourceMetricsProvider is a resource metrics provider, to provide cpu/memory metrics
 type ResourceMetricsProvider struct {
@@ -87,7 +87,7 @@ func NewResourceMetricsProvider(clusterLister clusterlister.ClusterLister, typed
 
 // getMetricsParallel is a parallel func to query metrics from member clusters
 func (r *ResourceMetricsProvider) getMetricsParallel(resourceFunc queryResourceFromClustersFunc,
-	metricsFunc queryMetricsFromClustersFunc) ([]interface{}, error) {
+	metricsFunc queryMetricsFromClustersFunc) ([]any, error) {
 	clusters, err := r.clusterLister.List(labels.Everything())
 	if err != nil {
 		klog.Errorf("Failed to list clusters: %v", err)
@@ -112,13 +112,13 @@ func (r *ResourceMetricsProvider) getMetricsParallel(resourceFunc queryResourceF
 		targetClusters = append(targetClusters, cluster.Name)
 	}
 
-	var metrics []interface{}
+	var metrics []any
 	if len(targetClusters) == 0 {
 		return metrics, nil
 	}
 
 	// step 2. Query metrics from the filtered target clusters
-	metricsChannel := make(chan interface{})
+	metricsChannel := make(chan any)
 
 	var wg sync.WaitGroup
 	for _, clusterName := range targetClusters {
@@ -174,7 +174,7 @@ func (r *ResourceMetricsProvider) queryPodMetricsByName(name, namespace string) 
 		_, err = lister.Pods(namespace).Get(name)
 		return err
 	}
-	metricsQueryFunc := func(sci genericmanager.SingleClusterInformerManager, clusterName string) (interface{}, error) {
+	metricsQueryFunc := func(sci genericmanager.SingleClusterInformerManager, clusterName string) (any, error) {
 		metricsValue, err := sci.GetClient().Resource(podMetricsGVR).
 			Namespace(namespace).Get(context.Background(), name, metav1.GetOptions{})
 		if err != nil {
@@ -224,7 +224,7 @@ func (r *ResourceMetricsProvider) queryPodMetricsBySelector(selector, namespace 
 		}
 		return nil
 	}
-	metricsQueryFunc := func(sci genericmanager.SingleClusterInformerManager, clusterName string) (interface{}, error) {
+	metricsQueryFunc := func(sci genericmanager.SingleClusterInformerManager, clusterName string) (any, error) {
 		metricsList, err := sci.GetClient().Resource(podMetricsGVR).
 			Namespace(namespace).List(context.Background(), metav1.ListOptions{
 			LabelSelector: selector,
@@ -267,7 +267,7 @@ func (r *ResourceMetricsProvider) queryNodeMetricsByName(name string) ([]metrics
 		_, err = lister.Get(name)
 		return err
 	}
-	metricsQueryFunc := func(sci genericmanager.SingleClusterInformerManager, clusterName string) (interface{}, error) {
+	metricsQueryFunc := func(sci genericmanager.SingleClusterInformerManager, clusterName string) (any, error) {
 		metricsValue, err := sci.GetClient().Resource(nodeMetricsGVR).Get(context.Background(), name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
@@ -316,7 +316,7 @@ func (r *ResourceMetricsProvider) queryNodeMetricsBySelector(selector string) ([
 		}
 		return nil
 	}
-	metricsQueryFunc := func(sci genericmanager.SingleClusterInformerManager, clusterName string) (interface{}, error) {
+	metricsQueryFunc := func(sci genericmanager.SingleClusterInformerManager, clusterName string) (any, error) {
 		metricsList, err := sci.GetClient().Resource(nodeMetricsGVR).List(context.Background(), metav1.ListOptions{
 			LabelSelector: selector,
 		})

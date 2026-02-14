@@ -199,8 +199,8 @@ func CompGetFromTemplate(template *string, f util.Factory, cmd *cobra.Command, n
 		return nil
 	}
 	var comps []string
-	resources := strings.Split(buf.String(), " ")
-	for _, res := range resources {
+	resources := strings.SplitSeq(buf.String(), " ")
+	for res := range resources {
 		if res != "" && strings.HasPrefix(res, toComplete) {
 			comps = append(comps, res)
 		}
@@ -278,8 +278,8 @@ func compGetResourceList(restClientGetter genericclioptions.RESTClientGetter, cm
 		suffix = toComplete[lastIdx+1:]
 	}
 	var comps []string
-	resources := strings.Split(buf.String(), "\n")
-	for _, res := range resources {
+	resources := strings.SplitSeq(buf.String(), "\n")
+	for res := range resources {
 		if res != "" && strings.HasPrefix(res, suffix) {
 			comps = append(comps, fmt.Sprintf("%s%s", prefix, res))
 		}

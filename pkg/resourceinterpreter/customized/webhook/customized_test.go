@@ -180,10 +180,10 @@ func TestGetReplicas(t *testing.T) {
 			hasSynced: false,
 			attributes: &request.Attributes{
 				Object: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":      "test-deployment",
 							"namespace": "test-ns",
 						},
@@ -200,10 +200,10 @@ func TestGetReplicas(t *testing.T) {
 			hooks:     []configmanager.WebhookAccessor{},
 			attributes: &request.Attributes{
 				Object: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":      "test-deployment",
 							"namespace": "test-ns",
 						},
@@ -260,10 +260,10 @@ func TestGetComponents(t *testing.T) {
 			hasSynced: false,
 			attributes: &request.Attributes{
 				Object: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":      "test-deployment",
 							"namespace": "test-ns",
 						},
@@ -280,10 +280,10 @@ func TestGetComponents(t *testing.T) {
 			hooks:     []configmanager.WebhookAccessor{},
 			attributes: &request.Attributes{
 				Object: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":      "test-deployment",
 							"namespace": "test-ns",
 						},
@@ -339,10 +339,10 @@ func TestPatch(t *testing.T) {
 			hasSynced: false,
 			attributes: &request.Attributes{
 				Object: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":      "test-deployment",
 							"namespace": "test-ns",
 						},
@@ -359,10 +359,10 @@ func TestPatch(t *testing.T) {
 			hooks:     []configmanager.WebhookAccessor{},
 			attributes: &request.Attributes{
 				Object: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":      "test-deployment",
 							"namespace": "test-ns",
 						},
@@ -541,10 +541,10 @@ func TestGetFirstRelevantHook(t *testing.T) {
 
 func TestInterpret(t *testing.T) {
 	defaultDeployment := &unstructured.Unstructured{
-		Object: map[string]interface{}{
+		Object: map[string]any{
 			"apiVersion": "apps/v1",
 			"kind":       "Deployment",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name": "test",
 			},
 		},
@@ -798,10 +798,10 @@ func TestShouldCallHook(t *testing.T) {
 
 func TestApplyPatch(t *testing.T) {
 	defaultObject := &unstructured.Unstructured{
-		Object: map[string]interface{}{
+		Object: map[string]any{
 			"apiVersion": "apps/v1",
 			"kind":       "Deployment",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name": "test",
 			},
 		},
@@ -889,7 +889,7 @@ func TestApplyPatch(t *testing.T) {
 		},
 		{
 			name:      "invalid object for marshaling",
-			object:    &unstructured.Unstructured{Object: map[string]interface{}{"invalid": make(chan int)}},
+			object:    &unstructured.Unstructured{Object: map[string]any{"invalid": make(chan int)}},
 			patch:     []byte(`[{"op": "replace", "path": "/metadata/name", "value": "test"}]`),
 			patchType: configv1alpha1.PatchTypeJSONPatch,
 			wantErr:   true,
@@ -927,10 +927,10 @@ func TestGetDependencies(t *testing.T) {
 			hasSynced: false,
 			attributes: &request.Attributes{
 				Object: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":      "test-deployment",
 							"namespace": "test-ns",
 						},
@@ -947,10 +947,10 @@ func TestGetDependencies(t *testing.T) {
 			hooks:     []configmanager.WebhookAccessor{},
 			attributes: &request.Attributes{
 				Object: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":      "test-deployment",
 							"namespace": "test-ns",
 						},
@@ -1006,10 +1006,10 @@ func TestReflectStatus(t *testing.T) {
 			hasSynced: false,
 			attributes: &request.Attributes{
 				Object: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":      "test-deployment",
 							"namespace": "test-ns",
 						},
@@ -1026,10 +1026,10 @@ func TestReflectStatus(t *testing.T) {
 			hooks:     []configmanager.WebhookAccessor{},
 			attributes: &request.Attributes{
 				Object: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":      "test-deployment",
 							"namespace": "test-ns",
 						},
@@ -1085,10 +1085,10 @@ func TestInterpretHealth(t *testing.T) {
 			hasSynced: false,
 			attributes: &request.Attributes{
 				Object: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":      "test-deployment",
 							"namespace": "test-ns",
 						},
@@ -1105,10 +1105,10 @@ func TestInterpretHealth(t *testing.T) {
 			hooks:     []configmanager.WebhookAccessor{},
 			attributes: &request.Attributes{
 				Object: &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":      "test-deployment",
 							"namespace": "test-ns",
 						},

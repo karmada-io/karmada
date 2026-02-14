@@ -60,7 +60,7 @@ func RemovePropagationPolicyIfExist(client karmada.Interface, namespace, name st
 }
 
 // PatchPropagationPolicy patch PropagationPolicy with karmada client.
-func PatchPropagationPolicy(client karmada.Interface, namespace, name string, patch []map[string]interface{}, patchType types.PatchType) {
+func PatchPropagationPolicy(client karmada.Interface, namespace, name string, patch []map[string]any, patchType types.PatchType) {
 	ginkgo.By(fmt.Sprintf("Patching PropagationPolicy(%s/%s)", namespace, name), func() {
 		patchBytes, err := json.Marshal(patch)
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())

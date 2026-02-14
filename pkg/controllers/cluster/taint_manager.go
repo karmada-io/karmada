@@ -80,7 +80,7 @@ type EvictionWorkerOptions struct {
 	ReconcileFunc util.ReconcileFunc
 
 	// ResourceKindFunc returns resource metadata for metrics collection
-	ResourceKindFunc func(key interface{}) (clusterName, resourceKind string)
+	ResourceKindFunc func(key any) (clusterName, resourceKind string)
 
 	// EvictionQueueOptions configures dynamic rate limiting behavior
 	EvictionQueueOptions EvictionQueueOptions
@@ -187,7 +187,7 @@ func (tc *NoExecuteTaintManager) Start(ctx context.Context) error {
 
 // getResourceKindFromKey extracts cluster name and resource kind from a queue key
 // for eviction metrics collection.
-func (tc *NoExecuteTaintManager) getResourceKindFromKey(key interface{}) (clusterName, resourceKind string) {
+func (tc *NoExecuteTaintManager) getResourceKindFromKey(key any) (clusterName, resourceKind string) {
 	fedKey, ok := key.(keys.FederatedKey)
 	if !ok {
 		return "", ""

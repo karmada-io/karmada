@@ -211,7 +211,7 @@ func printMetricsLine(out io.Writer, metrics *ResourceMetricsInfo) {
 	fmt.Fprint(out, "\n")
 }
 
-func printValue(out io.Writer, value interface{}) {
+func printValue(out io.Writer, value any) {
 	fmt.Fprintf(out, "%v\t", value)
 }
 

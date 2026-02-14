@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"slices"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -69,22 +70,12 @@ type ClusterRegisterOption struct {
 
 // IsKubeCredentialsEnabled represents whether report secret
 func (r *ClusterRegisterOption) IsKubeCredentialsEnabled() bool {
-	for _, sct := range r.ReportSecrets {
-		if sct == KubeCredentials {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(r.ReportSecrets, KubeCredentials)
 }
 
 // IsKubeImpersonatorEnabled represents whether report impersonator secret
 func (r *ClusterRegisterOption) IsKubeImpersonatorEnabled() bool {
-	for _, sct := range r.ReportSecrets {
-		if sct == KubeImpersonator {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(r.ReportSecrets, KubeImpersonator)
 }
 
 // Validate validates the cluster register option, including clusterID, cluster name and so on.

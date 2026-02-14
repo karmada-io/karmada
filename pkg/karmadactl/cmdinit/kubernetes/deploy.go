@@ -24,6 +24,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -246,10 +247,8 @@ func (i *CommandInitOption) validateLocalEtcd(parentCommand string) error {
 
 	supportedStorageMode := SupportedStorageMode()
 	if i.EtcdStorageMode != "" {
-		for _, mode := range supportedStorageMode {
-			if i.EtcdStorageMode == mode {
-				return nil
-			}
+		if slices.Contains(supportedStorageMode, i.EtcdStorageMode) {
+			return nil
 		}
 		return fmt.Errorf("unsupported etcd-storage-mode %s. See '%s init --help'", i.EtcdStorageMode, parentCommand)
 	}
@@ -373,8 +372,8 @@ func (i *CommandInitOption) Complete() error {
 	}
 
 	if !i.isExternalEtcdProvided() && i.EtcdStorageMode == "hostPath" && i.EtcdNodeSelectorLabels != "" {
-		labels := strings.Split(i.EtcdNodeSelectorLabels, ",")
-		for _, label := range labels {
+		labels := strings.SplitSeq(i.EtcdNodeSelectorLabels, ",")
+		for label := range labels {
 			if !i.isNodeExist(label) {
 				return fmt.Errorf("no node found by label %s", label)
 			}

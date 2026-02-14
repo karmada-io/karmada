@@ -133,15 +133,15 @@ func obtainImageValue(rawObj *unstructured.Unstructured, predicatePath string) (
 	ok := false
 	for index := 0; index < len(pathSegments)-1; index++ {
 		switch currentObj[pathSegments[index]].(type) {
-		case map[string]interface{}:
-			currentObj = currentObj[pathSegments[index]].(map[string]interface{})
-		case []interface{}:
-			tmpSlice := currentObj[pathSegments[index]].([]interface{})
+		case map[string]any:
+			currentObj = currentObj[pathSegments[index]].(map[string]any)
+		case []any:
+			tmpSlice := currentObj[pathSegments[index]].([]any)
 			sliceIndex, err := strconv.ParseInt(pathSegments[index+1], 10, 32)
 			if err != nil {
 				return "", fmt.Errorf("path(%s) of rawObj's is not number", pathSegments[index+1])
 			}
-			currentObj = tmpSlice[sliceIndex].(map[string]interface{})
+			currentObj = tmpSlice[sliceIndex].(map[string]any)
 			index++
 		default:
 			return "", fmt.Errorf("path(%s) of rawObj's type is not map[string]interface{} and []interface{}", pathSegments[index])

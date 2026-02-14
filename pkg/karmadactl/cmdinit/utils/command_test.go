@@ -452,7 +452,7 @@ func TestKarmadaComponentCommand(t *testing.T) {
 
 // Benchmark test
 func BenchmarkKarmadaComponentCommand(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = KarmadaComponentCommand(defaultArgs, commonCases[0].extraArgs)
 	}
 }

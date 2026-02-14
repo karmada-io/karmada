@@ -17,7 +17,6 @@ limitations under the License.
 package typedmanager
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -30,8 +29,7 @@ import (
 
 func TestSingleClusterInformerManager(t *testing.T) {
 	client := fake.NewClientset()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	manager := NewSingleClusterInformerManager(ctx, client, 0, nil)
 
@@ -85,10 +83,9 @@ func TestSingleClusterInformerManager(t *testing.T) {
 
 func TestSingleClusterInformerManagerWithTransformFunc(t *testing.T) {
 	client := fake.NewClientset()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
-	transformFunc := func(i interface{}) (interface{}, error) {
+	transformFunc := func(i any) (any, error) {
 		return i, nil
 	}
 
@@ -107,8 +104,7 @@ func TestSingleClusterInformerManagerWithTransformFunc(t *testing.T) {
 
 func TestSingleClusterInformerManagerMultipleHandlers(t *testing.T) {
 	client := fake.NewClientset()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	manager := NewSingleClusterInformerManager(ctx, client, 0, nil)
 
@@ -129,8 +125,7 @@ func TestSingleClusterInformerManagerMultipleHandlers(t *testing.T) {
 
 func TestSingleClusterInformerManagerDifferentResources(t *testing.T) {
 	client := fake.NewClientset()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	manager := NewSingleClusterInformerManager(ctx, client, 0, nil)
 
@@ -150,8 +145,7 @@ func TestSingleClusterInformerManagerDifferentResources(t *testing.T) {
 
 func TestIsInformerSynced(t *testing.T) {
 	client := fake.NewClientset()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	manager := NewSingleClusterInformerManager(ctx, client, 0, nil)
 
 	assert.False(t, manager.IsInformerSynced(podGVR))
@@ -179,6 +173,6 @@ func TestIsInformerSynced(t *testing.T) {
 
 type testResourceEventHandler struct{}
 
-func (t *testResourceEventHandler) OnAdd(_ interface{}, _ bool) {}
-func (t *testResourceEventHandler) OnUpdate(_, _ interface{})   {}
-func (t *testResourceEventHandler) OnDelete(_ interface{})      {}
+func (t *testResourceEventHandler) OnAdd(_ any, _ bool) {}
+func (t *testResourceEventHandler) OnUpdate(_, _ any)   {}
+func (t *testResourceEventHandler) OnDelete(_ any)      {}

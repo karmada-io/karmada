@@ -18,6 +18,7 @@ package apiserver
 
 import (
 	"fmt"
+	"slices"
 	"testing"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -360,16 +361,6 @@ func TestCreateKarmadaAggregatedAPIServerService(t *testing.T) {
 	}
 }
 
-// contains check if a slice contains a specific string.
-func contains(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
-		}
-	}
-	return false
-}
-
 // verifyDeploymentCreation verifies the creation of a Kubernetes deployment
 // based on the given parameters. It ensures that the deployment has the correct
 // number of replicas, image pull policy, extra arguments, and labels, as well
@@ -452,14 +443,14 @@ func verifyDeploymentDetails(deployment *appsv1.Deployment, replicas *int32, ima
 
 	for key, value := range extraArgs {
 		expectedArg := fmt.Sprintf("--%s=%s", key, value)
-		if !contains(container.Command, expectedArg) {
+		if !slices.Contains(container.Command, expectedArg) {
 			return fmt.Errorf("expected container commands to include '%s', but it was missing", expectedArg)
 		}
 	}
 
 	etcdServersArg := fmt.Sprintf("https://%s.%s.svc.cluster.local:%d,", util.KarmadaEtcdClientName(name), namespace, constants.EtcdListenClientPort)
 	etcdServersArg = fmt.Sprintf("--etcd-servers=%s", etcdServersArg[:len(etcdServersArg)-1])
-	if !contains(container.Command, etcdServersArg) {
+	if !slices.Contains(container.Command, etcdServersArg) {
 		return fmt.Errorf("etcd servers argument '%s' not found in container command", etcdServersArg)
 	}
 
@@ -475,7 +466,7 @@ func verifyAggregatedAPIServerDeploymentAdditionalDetails(featureGates map[strin
 		featureGatesArg += fmt.Sprintf("%s=%t,", key, value)
 	}
 	featureGatesArg = fmt.Sprintf("--feature-gates=%s", featureGatesArg[:len(featureGatesArg)-1])
-	if !contains(deployment.Spec.Template.Spec.Containers[0].Command, featureGatesArg) {
+	if !slices.Contains(deployment.Spec.Template.Spec.Containers[0].Command, featureGatesArg) {
 		return fmt.Errorf("expected container commands to include '%s', but it was missing", featureGatesArg)
 	}
 
@@ -489,7 +480,7 @@ func verifyAggregatedAPIServerDeploymentAdditionalDetails(featureGates map[strin
 	}
 	expectedSecrets := []string{util.ComponentKarmadaConfigSecretName(util.KarmadaAggregatedAPIServerName(expectedDeploymentName)), util.KarmadaCertSecretName(expectedDeploymentName), util.EtcdCertSecretName(expectedDeploymentName)}
 	for _, expectedSecret := range expectedSecrets {
-		if !contains(extractedSecrets, expectedSecret) {
+		if !slices.Contains(extractedSecrets, expectedSecret) {
 			return fmt.Errorf("expected secret '%s' not found in extracted secrets", expectedSecret)
 		}
 	}
@@ -503,7 +494,7 @@ func verifyAggregatedAPIServerDeploymentAdditionalDetails(featureGates map[strin
 // secret volumes are mounted in the deployment.
 func verifyAPIServerDeploymentAdditionalDetails(deployment *appsv1.Deployment, expectedDeploymentName, serviceSubnet string) error {
 	serviceClusterIPRangeArg := fmt.Sprintf("--service-cluster-ip-range=%s", serviceSubnet)
-	if !contains(deployment.Spec.Template.Spec.Containers[0].Command, serviceClusterIPRangeArg) {
+	if !slices.Contains(deployment.Spec.Template.Spec.Containers[0].Command, serviceClusterIPRangeArg) {
 		return fmt.Errorf("service cluster IP range argument '%s' not found in container command", serviceClusterIPRangeArg)
 	}
 
@@ -517,7 +508,7 @@ func verifyAPIServerDeploymentAdditionalDetails(deployment *appsv1.Deployment, e
 	}
 	expectedSecrets := []string{util.KarmadaCertSecretName(expectedDeploymentName), util.EtcdCertSecretName(expectedDeploymentName)}
 	for _, expectedSecret := range expectedSecrets {
-		if !contains(extractedSecrets, expectedSecret) {
+		if !slices.Contains(extractedSecrets, expectedSecret) {
 			return fmt.Errorf("expected secret '%s' not found in extracted secrets", expectedSecret)
 		}
 	}

@@ -280,7 +280,7 @@ func generateRbSpec(replica int32) RbSpecMap {
 
 func generateClusterScores(n int, scores []int64, replicas []int64) []ClusterDetailInfo {
 	info := make([]ClusterDetailInfo, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		info[i] = ClusterDetailInfo{
 			Name:              fmt.Sprintf("member%d", i+1),
 			Score:             scores[i],

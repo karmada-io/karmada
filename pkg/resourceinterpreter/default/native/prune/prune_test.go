@@ -43,7 +43,7 @@ type test struct {
 	unexpectedResource      string
 	shouldNotRemoveFields   []field
 	shouldNotRemoveResource string
-	containsFunc            func(interface{}, string) bool
+	containsFunc            func(any, string) bool
 }
 
 func TestRemoveIrrelevantField(t *testing.T) {
@@ -51,13 +51,13 @@ func TestRemoveIrrelevantField(t *testing.T) {
 		{
 			name: "remove common object irrelevant fields",
 			workload: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"metadata": map[string]interface{}{
+				Object: map[string]any{
+					"metadata": map[string]any{
 						"creationTimestamp":          "2023-03-13T05:00:41Z",
 						"deletionTimestamp":          "2023-03-13T06:00:41Z",
 						"deletionGracePeriodSeconds": 10,
 						"generation":                 2,
-						"managedFields": []map[string]interface{}{
+						"managedFields": []map[string]any{
 							{
 								"apiVersion": "v1",
 								"fieldsType": "FieldsV1",
@@ -68,7 +68,7 @@ func TestRemoveIrrelevantField(t *testing.T) {
 						"resourceVersion": "22222",
 						"selfLink":        "http://example.com",
 						"uid":             "db56a4a6-0dff-465a-b046-2c1dea42a42b",
-						"ownerReferences": []map[string]interface{}{
+						"ownerReferences": []map[string]any{
 							{
 								"apiVersion": "v1",
 								"kind":       "Pod",
@@ -78,7 +78,7 @@ func TestRemoveIrrelevantField(t *testing.T) {
 						},
 						"finalizers": []string{"foregroundDeletion"},
 					},
-					"status": map[string]interface{}{},
+					"status": map[string]any{},
 				},
 			},
 			extraHooks: nil,
@@ -99,9 +99,9 @@ func TestRemoveIrrelevantField(t *testing.T) {
 		{
 			name: "remove service irrelevant fields",
 			workload: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"kind": util.ServiceKind,
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"clusterIP":  "10.10.10.10",
 						"clusterIPs": []string{"10.10.10.10"},
 					},
@@ -116,18 +116,18 @@ func TestRemoveIrrelevantField(t *testing.T) {
 		{
 			name: "remove job irrelevant fields",
 			workload: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"kind": util.JobKind,
-					"spec": map[string]interface{}{
-						"selector": map[string]interface{}{
-							"matchLabels": map[string]interface{}{
+					"spec": map[string]any{
+						"selector": map[string]any{
+							"matchLabels": map[string]any{
 								"foo":            "bar",
 								"controller-uid": "ab11a9a6-1daa-265b-c046-1c1dea42a42c",
 							},
 						},
-						"template": map[string]interface{}{
-							"metadata": map[string]interface{}{
-								"labels": map[string]interface{}{
+						"template": map[string]any{
+							"metadata": map[string]any{
+								"labels": map[string]any{
 									"controller-uid": "ab11a9a6-1daa-265b-c046-1c1dea42a42c",
 									"job-name":       "test-job",
 									"foo":            "bar",
@@ -153,16 +153,16 @@ func TestRemoveIrrelevantField(t *testing.T) {
 		{
 			name: "remove serviceaccount irrelevant fields",
 			workload: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"kind": util.ServiceAccountKind,
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "foo",
 					},
-					"secrets": []interface{}{
-						map[string]interface{}{
+					"secrets": []any{
+						map[string]any{
 							"name": "foo-token-6pgxf",
 						},
-						map[string]interface{}{
+						map[string]any{
 							"name": "foo-dockercfg-zdr2j",
 						},
 					},
@@ -173,11 +173,11 @@ func TestRemoveIrrelevantField(t *testing.T) {
 			unexpectedResource:      "foo-token-6pgxf",
 			shouldNotRemoveFields:   []field{{"secrets"}},
 			shouldNotRemoveResource: "foo-dockercfg-zdr2j",
-			containsFunc: func(obj interface{}, resource string) bool {
-				maps, _ := obj.([]interface{})
+			containsFunc: func(obj any, resource string) bool {
+				maps, _ := obj.([]any)
 
 				for _, m := range maps {
-					if m.(map[string]interface{})["name"] == resource {
+					if m.(map[string]any)["name"] == resource {
 						return true
 					}
 				}
@@ -187,13 +187,13 @@ func TestRemoveIrrelevantField(t *testing.T) {
 		{
 			name: "remove service-account token secret irrelevant fields",
 			workload: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"kind": util.SecretKind,
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						corev1.ServiceAccountUIDKey: "123",
 					},
 					"type": string(corev1.SecretTypeServiceAccountToken),
-					"data": map[string]interface{}{
+					"data": map[string]any{
 						corev1.ServiceAccountTokenKey: "abc",
 					},
 				},
@@ -206,13 +206,13 @@ func TestRemoveIrrelevantField(t *testing.T) {
 		{
 			name: "retains secret basic-auth fields",
 			workload: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"kind": util.SecretKind,
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"foo": "bar",
 					},
 					"type": string(corev1.SecretTypeBasicAuth),
-					"data": map[string]interface{}{
+					"data": map[string]any{
 						corev1.BasicAuthUsernameKey: "foo",
 						corev1.BasicAuthPasswordKey: "bar",
 					},
@@ -227,10 +227,10 @@ func TestRemoveIrrelevantField(t *testing.T) {
 		{
 			name: "remove selected-node pvc annotation",
 			workload: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"kind": util.PersistentVolumeClaimKind,
-					"metadata": map[string]interface{}{
-						"annotations": map[string]interface{}{
+					"metadata": map[string]any{
+						"annotations": map[string]any{
 							storagevolume.AnnSelectedNode: "node1",
 						},
 					},
@@ -243,10 +243,10 @@ func TestRemoveIrrelevantField(t *testing.T) {
 		{
 			name: "removes deployment revision annotation",
 			workload: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"kind": util.DeploymentKind,
-					"metadata": map[string]interface{}{
-						"annotations": map[string]interface{}{
+					"metadata": map[string]any{
+						"annotations": map[string]any{
 							utildeployment.RevisionAnnotation: 1,
 						},
 					},
@@ -259,10 +259,10 @@ func TestRemoveIrrelevantField(t *testing.T) {
 		{
 			name: "removes deployment revision history annotation",
 			workload: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"kind": util.DeploymentKind,
-					"metadata": map[string]interface{}{
-						"annotations": map[string]interface{}{
+					"metadata": map[string]any{
+						"annotations": map[string]any{
 							utildeployment.RevisionHistoryAnnotation: "1,2",
 						},
 					},

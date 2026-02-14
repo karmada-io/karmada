@@ -17,7 +17,6 @@ limitations under the License.
 package server
 
 import (
-	"context"
 	"reflect"
 	"testing"
 
@@ -225,8 +224,7 @@ func TestAccurateSchedulerEstimatorServer_MaxAvailableReplicas(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+			ctx := t.Context()
 
 			gvrToListKind := map[schema.GroupVersionResource]string{
 				{Group: "apps", Version: "v1", Resource: "deployments"}: "DeploymentList",
@@ -367,8 +365,7 @@ func BenchmarkAccurateSchedulerEstimatorServer_MaxAvailableReplicas(b *testing.B
 	}
 	for _, tt := range tests {
 		b.Run(tt.name, func(b *testing.B) {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+			ctx := b.Context()
 
 			ctx = metadata.NewIncomingContext(ctx, metadata.Pairs(string(util.ContextKeyObject), "fake"))
 

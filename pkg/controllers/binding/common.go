@@ -18,6 +18,7 @@ package binding
 
 import (
 	"context"
+	"slices"
 	"strconv"
 	"time"
 
@@ -341,11 +342,8 @@ func shouldSuspendDispatching(suspension *workv1alpha2.Suspension, targetCluster
 	suspendDispatching := ptr.Deref(suspension.Dispatching, false)
 
 	if !suspendDispatching && suspension.DispatchingOnClusters != nil {
-		for _, cluster := range suspension.DispatchingOnClusters.ClusterNames {
-			if cluster == targetCluster.Name {
-				suspendDispatching = true
-				break
-			}
+		if slices.Contains(suspension.DispatchingOnClusters.ClusterNames, targetCluster.Name) {
+			suspendDispatching = true
 		}
 	}
 	return suspendDispatching

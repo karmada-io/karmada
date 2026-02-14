@@ -127,7 +127,6 @@ func (s *store) List(ctx context.Context, key string, opts storage.ListOptions, 
 	if objFilter != nil {
 		filteredItems := make([]unstructured.Unstructured, 0, len(objects.Items))
 		for _, obj := range objects.Items {
-			obj := obj
 			if objFilter(&obj) {
 				filteredItems = append(filteredItems, obj)
 			}

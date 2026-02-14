@@ -132,7 +132,7 @@ func getReadyReplicas(binding *workv1alpha2.ResourceBinding) map[string]int32 {
 			continue
 		}
 
-		workloadStatus := make(map[string]interface{})
+		workloadStatus := make(map[string]any)
 		if err := json.Unmarshal(item.Status.Raw, &workloadStatus); err != nil {
 			klog.ErrorS(err, "Failed to unmarshal workload status when get ready replicas", "ResourceBinding", klog.KObj(binding))
 			continue

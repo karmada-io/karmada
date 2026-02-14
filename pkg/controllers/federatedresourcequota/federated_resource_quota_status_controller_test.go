@@ -326,7 +326,7 @@ func TestCalculateUsed(t *testing.T) {
 }
 
 // Helper function to marshal ResourceQuotaStatus to JSON
-func mustMarshal(v interface{}) []byte {
+func mustMarshal(v any) []byte {
 	b, err := json.Marshal(v)
 	if err != nil {
 		panic(err)

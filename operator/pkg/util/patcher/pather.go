@@ -19,6 +19,7 @@ package patcher
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"sort"
 	"strconv"
 	"strings"
@@ -163,9 +164,7 @@ func (p *Patcher) ForDeployment(deployment *appsv1.Deployment) {
 			overrideArgs["feature-gates"] = buildFeatureGatesArgumentFromMap(baseFeatureGates, p.featureGates)
 		}
 
-		for key, val := range p.extraArgs {
-			overrideArgs[key] = val
-		}
+		maps.Copy(overrideArgs, p.extraArgs)
 
 		// the first argument is most often the binary name
 		command := []string{baseArguments[0]}
@@ -217,12 +216,8 @@ func buildArgumentListFromMap(baseArguments, overrideArguments map[string]string
 
 	argsMap := make(map[string]string)
 
-	for k, v := range baseArguments {
-		argsMap[k] = v
-	}
-	for k, v := range overrideArguments {
-		argsMap[k] = v
-	}
+	maps.Copy(argsMap, baseArguments)
+	maps.Copy(argsMap, overrideArguments)
 
 	for k := range argsMap {
 		keys = append(keys, k)
@@ -257,12 +252,8 @@ func buildFeatureGatesArgumentFromMap(baseFeatureGates, overrideFeatureGates map
 
 	featureGateMap := make(map[string]bool)
 
-	for k, v := range baseFeatureGates {
-		featureGateMap[k] = v
-	}
-	for k, v := range overrideFeatureGates {
-		featureGateMap[k] = v
-	}
+	maps.Copy(featureGateMap, baseFeatureGates)
+	maps.Copy(featureGateMap, overrideFeatureGates)
 
 	for k := range featureGateMap {
 		keys = append(keys, k)

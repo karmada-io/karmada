@@ -19,6 +19,7 @@ package typedmanager
 import (
 	"context"
 	"reflect"
+	"slices"
 	"sync"
 	"time"
 
@@ -34,8 +35,8 @@ var (
 	nodeGVR    = corev1.SchemeGroupVersion.WithResource("nodes")
 	podGVR     = corev1.SchemeGroupVersion.WithResource("pods")
 	gvrTypeMap = map[reflect.Type]schema.GroupVersionResource{
-		reflect.TypeOf(&corev1.Node{}): nodeGVR,
-		reflect.TypeOf(&corev1.Pod{}):  podGVR,
+		reflect.TypeFor[*corev1.Node](): nodeGVR,
+		reflect.TypeFor[*corev1.Pod]():  podGVR,
 	}
 )
 
@@ -59,7 +60,7 @@ type SingleClusterInformerManager interface {
 
 	// Lister returns a lister used to get 'resource' from informer's store.
 	// The informer for 'resource' will be created if not exist, but without any event handler.
-	Lister(resource schema.GroupVersionResource) (interface{}, error)
+	Lister(resource schema.GroupVersionResource) (any, error)
 
 	// Start will run all informers, the informers will keep running until the channel closed.
 	// It is intended to be called after create new informer(s), and it's safe to call multi times.
@@ -181,16 +182,10 @@ func (s *singleClusterInformerManagerImpl) isHandlerExist(resource schema.GroupV
 		return false
 	}
 
-	for _, h := range handlers {
-		if h == handler {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(handlers, handler)
 }
 
-func (s *singleClusterInformerManagerImpl) Lister(resource schema.GroupVersionResource) (interface{}, error) {
+func (s *singleClusterInformerManagerImpl) Lister(resource schema.GroupVersionResource) (any, error) {
 	resourceInformer, err := s.informerFactory.ForResource(resource)
 	if err != nil {
 		return nil, err

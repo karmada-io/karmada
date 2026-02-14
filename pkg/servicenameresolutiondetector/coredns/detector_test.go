@@ -18,6 +18,7 @@ package coredns
 
 import (
 	"context"
+	"slices"
 	"testing"
 	"time"
 
@@ -164,13 +165,7 @@ func TestLookupOnce(t *testing.T) {
 				t.Errorf("Expected condition type to be '%s', got '%s'", tt.expectedType, condition.Type)
 			}
 
-			validStatus := false
-			for _, status := range tt.expectedStatus {
-				if condition.Status == status {
-					validStatus = true
-					break
-				}
-			}
+			validStatus := slices.Contains(tt.expectedStatus, condition.Status)
 			if !validStatus {
 				t.Errorf("Expected condition status to be one of %v, got '%s'", tt.expectedStatus, condition.Status)
 			}

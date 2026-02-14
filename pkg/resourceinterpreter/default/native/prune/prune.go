@@ -174,7 +174,7 @@ func removeServiceAccountIrrelevantField(workload *unstructured.Unstructured) er
 	if exist && len(secrets) > 0 {
 		tokenPrefix := fmt.Sprintf("%s-token-", workload.GetName())
 		for idx := 0; idx < len(secrets); idx++ {
-			if strings.HasPrefix(secrets[idx].(map[string]interface{})["name"].(string), tokenPrefix) {
+			if strings.HasPrefix(secrets[idx].(map[string]any)["name"].(string), tokenPrefix) {
 				secrets = append(secrets[:idx], secrets[idx+1:]...)
 			}
 		}

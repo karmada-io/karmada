@@ -317,7 +317,7 @@ func (o *CommandPromoteOption) revertPromotedDeps(memberClusterFactory cmdutil.F
 		klog.Errorf("revertPromotedDeps failed to get dynamic client of member cluster: %v", err)
 		return
 	}
-	for i := 0; i < index; i++ {
+	for i := range index {
 		dep := dependencies[i]
 		depInfo, err := o.getObjInfo(memberClusterFactory, o.Cluster, []string{dep.Kind, dep.Name})
 		if err != nil {

@@ -591,7 +591,7 @@ func (g *CommandGetOptions) reconstructionRow(objs []Obj, table *metav1.Table) (
 			return nil, nil, err
 		}
 		for rowIdx := range table.Rows {
-			var cells []interface{}
+			var cells []any
 			cells = append(cells, table.Rows[rowIdx].Cells[0])
 			cells = append(cells, objs[ix].Cluster)
 			cells = append(cells, table.Rows[rowIdx].Cells[1:]...)
@@ -634,7 +634,7 @@ func (g *CommandGetOptions) reconstructObj(obj runtime.Object, mapping *meta.RES
 	}
 
 	for rowIdx := range table.Rows {
-		var cells []interface{}
+		var cells []any
 		if g.OutputWatchEvents {
 			cells = append(append(cells, event, table.Rows[rowIdx].Cells[0], cluster), table.Rows[rowIdx].Cells[1:]...)
 		} else {
@@ -868,14 +868,14 @@ func (g *CommandGetOptions) printGeneric(r *resource.Result) error {
 
 		// take the items and create a new list for display
 		list := &unstructured.UnstructuredList{
-			Object: map[string]interface{}{
+			Object: map[string]any{
 				"kind":       "List",
 				"apiVersion": "v1",
-				"metadata":   map[string]interface{}{},
+				"metadata":   map[string]any{},
 			},
 		}
 		if listMeta, err := meta.ListAccessor(obj); err == nil {
-			list.Object["metadata"] = map[string]interface{}{
+			list.Object["metadata"] = map[string]any{
 				"selfLink":        listMeta.GetSelfLink(),
 				"resourceVersion": listMeta.GetResourceVersion(),
 			}

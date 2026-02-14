@@ -470,14 +470,14 @@ func NewCustomResourceDefinition(group string, specNames apiextensionsv1.CustomR
 // NewCustomResource will build a CR object with CRD Foo.
 func NewCustomResource(apiVersion, kind, namespace, name string) *unstructured.Unstructured {
 	return &unstructured.Unstructured{
-		Object: map[string]interface{}{
+		Object: map[string]any{
 			"apiVersion": apiVersion,
 			"kind":       kind,
 			"metadata": map[string]string{
 				"namespace": namespace,
 				"name":      name,
 			},
-			"spec": map[string]interface{}{
+			"spec": map[string]any{
 				"resource": map[string]string{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
@@ -592,7 +592,7 @@ func MakeNodesAndPods(allNodesNum, allPodsNum int, nodeTemplate *corev1.Node, po
 	pods := make([]*corev1.Pod, 0, allPodsNum)
 
 	avg, residue := allPodsNum/allNodesNum, allPodsNum%allNodesNum
-	for i := 0; i < allNodesNum; i++ {
+	for i := range allNodesNum {
 		node := nodeTemplate.DeepCopy()
 		node.Name = fmt.Sprintf("node-%d", i)
 		node.UID = types.UID(node.Name)

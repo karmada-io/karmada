@@ -17,6 +17,7 @@ limitations under the License.
 package util
 
 import (
+	"maps"
 	"sort"
 	"strings"
 
@@ -93,9 +94,7 @@ func DedupeAndMergeLabels(existLabel, newLabel map[string]string) map[string]str
 		return newLabel
 	}
 
-	for k, v := range newLabel {
-		existLabel[k] = v
-	}
+	maps.Copy(existLabel, newLabel)
 	return existLabel
 }
 

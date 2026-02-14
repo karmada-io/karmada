@@ -37,13 +37,13 @@ import (
 
 const incomingBindingMetricsName = "queue_incoming_bindings_total"
 
-type trigger func(scheduler *Scheduler, obj interface{})
+type trigger func(scheduler *Scheduler, obj any)
 
 var (
-	addBinding = func(scheduler *Scheduler, obj interface{}) {
+	addBinding = func(scheduler *Scheduler, obj any) {
 		scheduler.onResourceBindingAdd(obj)
 	}
-	updateBinding = func(scheduler *Scheduler, obj interface{}) {
+	updateBinding = func(scheduler *Scheduler, obj any) {
 		oldRB := &workv1alpha2.ResourceBinding{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "ResourceBinding",
@@ -55,30 +55,30 @@ var (
 		}
 		scheduler.onResourceBindingUpdate(oldRB, obj)
 	}
-	policyChanged = func(scheduler *Scheduler, obj interface{}) {
+	policyChanged = func(scheduler *Scheduler, obj any) {
 		rb := obj.(*workv1alpha2.ResourceBinding)
 		scheduler.onResourceBindingRequeue(rb, metrics.PolicyChanged)
 	}
-	crbPolicyChanged = func(scheduler *Scheduler, obj interface{}) {
+	crbPolicyChanged = func(scheduler *Scheduler, obj any) {
 		crb := obj.(*workv1alpha2.ClusterResourceBinding)
 		scheduler.onClusterResourceBindingRequeue(crb, metrics.PolicyChanged)
 	}
-	clusterChanged = func(scheduler *Scheduler, obj interface{}) {
+	clusterChanged = func(scheduler *Scheduler, obj any) {
 		rb := obj.(*workv1alpha2.ResourceBinding)
 		scheduler.onResourceBindingRequeue(rb, metrics.ClusterChanged)
 	}
-	crbClusterChanged = func(scheduler *Scheduler, obj interface{}) {
+	crbClusterChanged = func(scheduler *Scheduler, obj any) {
 		crb := obj.(*workv1alpha2.ClusterResourceBinding)
 		scheduler.onClusterResourceBindingRequeue(crb, metrics.ClusterChanged)
 	}
-	scheduleAttemptSuccess = func(scheduler *Scheduler, obj interface{}) {
+	scheduleAttemptSuccess = func(scheduler *Scheduler, obj any) {
 		rb := obj.(*workv1alpha2.ResourceBinding)
 		scheduler.handleErr(nil, &internalqueue.QueuedBindingInfo{
 			NamespacedKey: cache.ObjectName{Namespace: rb.Namespace, Name: rb.Namespace}.String(),
 			Priority:      rb.Spec.SchedulePriorityValue(),
 		})
 	}
-	scheduleAttemptFailure = func(scheduler *Scheduler, obj interface{}) {
+	scheduleAttemptFailure = func(scheduler *Scheduler, obj any) {
 		rb := obj.(*workv1alpha2.ResourceBinding)
 		scheduler.handleErr(fmt.Errorf("schedule attempt failure"), &internalqueue.QueuedBindingInfo{
 			NamespacedKey: cache.ObjectName{Namespace: rb.Namespace, Name: rb.Namespace}.String(),

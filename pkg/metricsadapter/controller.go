@@ -81,7 +81,7 @@ func NewMetricsController(ctx context.Context, restConfig *rest.Config, factory 
 	return controller
 }
 
-func nodeTransformFunc(obj interface{}) (interface{}, error) {
+func nodeTransformFunc(obj any) (any, error) {
 	var node *corev1.Node
 	switch t := obj.(type) {
 	case *corev1.Node:
@@ -107,7 +107,7 @@ func nodeTransformFunc(obj interface{}) (interface{}, error) {
 	return aggregatedNode, nil
 }
 
-func podTransformFunc(obj interface{}) (interface{}, error) {
+func podTransformFunc(obj any) (any, error) {
 	var pod *corev1.Pod
 	switch t := obj.(type) {
 	case *corev1.Pod:
@@ -155,13 +155,13 @@ func (m *MetricsController) addEventHandler() {
 }
 
 // addCluster adds cluster to queue
-func (m *MetricsController) addCluster(obj interface{}) {
+func (m *MetricsController) addCluster(obj any) {
 	cluster := obj.(*clusterV1alpha1.Cluster)
 	m.queue.Add(cluster.GetName())
 }
 
 // updateCluster updates cluster in queue
-func (m *MetricsController) updateCluster(oldObj, curObj interface{}) {
+func (m *MetricsController) updateCluster(oldObj, curObj any) {
 	curCluster := curObj.(*clusterV1alpha1.Cluster)
 	oldCluster := oldObj.(*clusterV1alpha1.Cluster)
 	if curCluster.ResourceVersion == oldCluster.ResourceVersion {

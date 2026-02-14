@@ -120,7 +120,7 @@ func (d *DependenciesDistributor) NeedLeaderElection() bool {
 }
 
 // OnAdd handles object add event and push the object to queue.
-func (d *DependenciesDistributor) OnAdd(obj interface{}, isInInitialList bool) {
+func (d *DependenciesDistributor) OnAdd(obj any, isInInitialList bool) {
 	runtimeObj, ok := obj.(runtime.Object)
 	if !ok {
 		return
@@ -130,7 +130,7 @@ func (d *DependenciesDistributor) OnAdd(obj interface{}, isInInitialList bool) {
 }
 
 // OnUpdate handles object update event and push the object to queue.
-func (d *DependenciesDistributor) OnUpdate(oldObj, newObj interface{}) {
+func (d *DependenciesDistributor) OnUpdate(oldObj, newObj any) {
 	unstructuredOldObj, err := helper.ToUnstructured(oldObj)
 	if err != nil {
 		klog.Errorf("Failed to transform oldObj, error: %v", err)
@@ -154,7 +154,7 @@ func (d *DependenciesDistributor) OnUpdate(oldObj, newObj interface{}) {
 }
 
 // OnDelete handles object delete event and push the object to queue.
-func (d *DependenciesDistributor) OnDelete(obj interface{}) {
+func (d *DependenciesDistributor) OnDelete(obj any) {
 	if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
 		obj = tombstone.Obj
 		if obj == nil {
@@ -664,7 +664,7 @@ func (d *DependenciesDistributor) Start(ctx context.Context) error {
 	klog.Infof("Starting dependencies distributor.")
 	resourceWorkerOptions := util.Options{
 		Name: "dependencies resource detector",
-		KeyFunc: func(obj interface{}) (util.QueueKey, error) {
+		KeyFunc: func(obj any) (util.QueueKey, error) {
 			key, err := keys.ClusterWideKeyFunc(obj)
 			if err != nil {
 				return nil, err

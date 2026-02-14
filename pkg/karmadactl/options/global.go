@@ -18,6 +18,7 @@ package options
 
 import (
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/spf13/pflag"
@@ -99,10 +100,8 @@ func VerifyOperationScopeFlags(operationScope OperationScope, supportScope ...Op
 	if len(supportScope) == 0 {
 		supportScope = []OperationScope{KarmadaControlPlane, Members, All}
 	}
-	for _, scope := range supportScope {
-		if operationScope == scope {
-			return nil
-		}
+	if slices.Contains(supportScope, operationScope) {
+		return nil
 	}
 	return fmt.Errorf("not support operation scope: %s", operationScope)
 }

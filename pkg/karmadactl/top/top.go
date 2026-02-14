@@ -19,6 +19,7 @@ package top
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -77,10 +78,8 @@ func SupportedMetricsAPIVersionAvailable(discoveredAPIGroups *metav1.APIGroupLis
 			continue
 		}
 		for _, version := range discoveredAPIGroup.Versions {
-			for _, supportedVersion := range supportedMetricsAPIVersions {
-				if version.Version == supportedVersion {
-					return true
-				}
+			if slices.Contains(supportedMetricsAPIVersions, version.Version) {
+				return true
 			}
 		}
 	}

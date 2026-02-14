@@ -17,7 +17,6 @@ limitations under the License.
 package detector
 
 import (
-	"context"
 	"reflect"
 	"testing"
 
@@ -73,10 +72,10 @@ func Test_cleanPPUnmatchedRBs(t *testing.T) {
 			wantErr: false,
 			setupClient: func() *fake.ClientBuilder {
 				obj := &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":      "deployment",
 							"namespace": "test",
 						},
@@ -107,10 +106,10 @@ func Test_cleanPPUnmatchedRBs(t *testing.T) {
 				return fake.NewClientBuilder().WithScheme(scheme).WithObjects(obj, rb).WithRESTMapper(restMapper)
 			},
 			existingObject: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "deployment",
 						"namespace": "test",
 					},
@@ -135,10 +134,10 @@ func Test_cleanPPUnmatchedRBs(t *testing.T) {
 				return fake.NewClientBuilder().WithRESTMapper(restMapper)
 			},
 			existingObject: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "deployment",
 						"namespace": "test",
 					},
@@ -151,8 +150,7 @@ func Test_cleanPPUnmatchedRBs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fakeClient := tt.setupClient().Build()
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+			ctx := t.Context()
 			fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme, tt.existingObject)
 			genMgr := genericmanager.NewSingleClusterInformerManager(ctx, fakeDynamicClient, 0)
 			resourceDetector := &ResourceDetector{
@@ -211,10 +209,10 @@ func Test_cleanUnmatchedRBs(t *testing.T) {
 			wantErr: false,
 			setupClient: func() *fake.ClientBuilder {
 				obj := &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":      "deployment",
 							"namespace": "test",
 						},
@@ -243,10 +241,10 @@ func Test_cleanUnmatchedRBs(t *testing.T) {
 				return fake.NewClientBuilder().WithScheme(scheme).WithObjects(obj, rb).WithRESTMapper(restMapper)
 			},
 			existingObject: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "deployment",
 						"namespace": "test",
 					},
@@ -270,10 +268,10 @@ func Test_cleanUnmatchedRBs(t *testing.T) {
 				return fake.NewClientBuilder().WithRESTMapper(restMapper)
 			},
 			existingObject: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "deployment",
 						"namespace": "test",
 					},
@@ -286,8 +284,7 @@ func Test_cleanUnmatchedRBs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fakeClient := tt.setupClient().Build()
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+			ctx := t.Context()
 			fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme, tt.existingObject)
 			genMgr := genericmanager.NewSingleClusterInformerManager(ctx, fakeDynamicClient, 0)
 			resourceDetector := &ResourceDetector{
@@ -346,10 +343,10 @@ func Test_cleanUnmatchedCRBs(t *testing.T) {
 			wantErr: false,
 			setupClient: func() *fake.ClientBuilder {
 				obj := &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":      "deployment",
 							"namespace": "test",
 						},
@@ -378,10 +375,10 @@ func Test_cleanUnmatchedCRBs(t *testing.T) {
 				return fake.NewClientBuilder().WithScheme(scheme).WithObjects(obj, rb).WithRESTMapper(restMapper)
 			},
 			existingObject: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "deployment",
 						"namespace": "test",
 					},
@@ -405,10 +402,10 @@ func Test_cleanUnmatchedCRBs(t *testing.T) {
 				return fake.NewClientBuilder().WithRESTMapper(restMapper)
 			},
 			existingObject: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "deployment",
 						"namespace": "test",
 					},
@@ -421,8 +418,7 @@ func Test_cleanUnmatchedCRBs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fakeClient := tt.setupClient().Build()
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+			ctx := t.Context()
 			fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme, tt.existingObject)
 			genMgr := genericmanager.NewSingleClusterInformerManager(ctx, fakeDynamicClient, 0)
 			resourceDetector := &ResourceDetector{
@@ -498,28 +494,28 @@ func Test_removeRBsClaimMetadata(t *testing.T) {
 			removeLabels:      []string{"app"},
 			removeAnnotations: []string{"foo"},
 			existingObject: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":        "deployment",
 						"namespace":   "test",
-						"labels":      map[string]interface{}{"app": "nginx"},
-						"annotations": map[string]interface{}{"foo": "bar"},
+						"labels":      map[string]any{"app": "nginx"},
+						"annotations": map[string]any{"foo": "bar"},
 					},
 				},
 			},
 			wantErr: false,
 			setupClient: func() *fake.ClientBuilder {
 				obj := &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":        "deployment",
 							"namespace":   "test",
-							"labels":      map[string]interface{}{"app": "nginx"},
-							"annotations": map[string]interface{}{"foo": "bar"},
+							"labels":      map[string]any{"app": "nginx"},
+							"annotations": map[string]any{"foo": "bar"},
 						},
 					},
 				}
@@ -559,28 +555,28 @@ func Test_removeRBsClaimMetadata(t *testing.T) {
 			removeLabels:      []string{"app"},
 			removeAnnotations: []string{"foo"},
 			existingObject: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":        "deployment",
 						"namespace":   "test",
-						"labels":      map[string]interface{}{"app": "nginx"},
-						"annotations": map[string]interface{}{"foo": "bar"},
+						"labels":      map[string]any{"app": "nginx"},
+						"annotations": map[string]any{"foo": "bar"},
 					},
 				},
 			},
 			wantErr: false,
 			setupClient: func() *fake.ClientBuilder {
 				obj := &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":        "deployment",
 							"namespace":   "test",
-							"labels":      map[string]interface{}{"app": "nginx"},
-							"annotations": map[string]interface{}{"foo": "bar"},
+							"labels":      map[string]any{"app": "nginx"},
+							"annotations": map[string]any{"foo": "bar"},
 						},
 					},
 				}
@@ -635,14 +631,14 @@ func Test_removeRBsClaimMetadata(t *testing.T) {
 			removeLabels:      []string{"app"},
 			removeAnnotations: []string{"foo"},
 			existingObject: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":        "deployment",
 						"namespace":   "test",
-						"labels":      map[string]interface{}{"app": "nginx"},
-						"annotations": map[string]interface{}{"foo": "bar"},
+						"labels":      map[string]any{"app": "nginx"},
+						"annotations": map[string]any{"foo": "bar"},
 					},
 				},
 			},
@@ -655,8 +651,7 @@ func Test_removeRBsClaimMetadata(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fakeClient := tt.setupClient().Build()
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+			ctx := t.Context()
 			fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme, tt.existingObject)
 			genMgr := genericmanager.NewSingleClusterInformerManager(ctx, fakeDynamicClient, 0)
 			resourceDetector := &ResourceDetector{
@@ -723,28 +718,28 @@ func Test_removeCRBsClaimMetadata(t *testing.T) {
 			removeLabels:      []string{"app"},
 			removeAnnotations: []string{"foo"},
 			existingObject: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":        "deployment",
 						"namespace":   "test",
-						"labels":      map[string]interface{}{"app": "nginx"},
-						"annotations": map[string]interface{}{"foo": "bar"},
+						"labels":      map[string]any{"app": "nginx"},
+						"annotations": map[string]any{"foo": "bar"},
 					},
 				},
 			},
 			wantErr: false,
 			setupClient: func() *fake.ClientBuilder {
 				obj := &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":        "deployment",
 							"namespace":   "test",
-							"labels":      map[string]interface{}{"app": "nginx"},
-							"annotations": map[string]interface{}{"foo": "bar"},
+							"labels":      map[string]any{"app": "nginx"},
+							"annotations": map[string]any{"foo": "bar"},
 						},
 					},
 				}
@@ -784,28 +779,28 @@ func Test_removeCRBsClaimMetadata(t *testing.T) {
 			removeLabels:      []string{"app"},
 			removeAnnotations: []string{"foo"},
 			existingObject: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":        "deployment",
 						"namespace":   "test",
-						"labels":      map[string]interface{}{"app": "nginx"},
-						"annotations": map[string]interface{}{"foo": "bar"},
+						"labels":      map[string]any{"app": "nginx"},
+						"annotations": map[string]any{"foo": "bar"},
 					},
 				},
 			},
 			wantErr: false,
 			setupClient: func() *fake.ClientBuilder {
 				obj := &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":        "deployment",
 							"namespace":   "test",
-							"labels":      map[string]interface{}{"app": "nginx"},
-							"annotations": map[string]interface{}{"foo": "bar"},
+							"labels":      map[string]any{"app": "nginx"},
+							"annotations": map[string]any{"foo": "bar"},
 						},
 					},
 				}
@@ -860,14 +855,14 @@ func Test_removeCRBsClaimMetadata(t *testing.T) {
 			removeLabels:      []string{"app"},
 			removeAnnotations: []string{"foo"},
 			existingObject: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":        "deployment",
 						"namespace":   "test",
-						"labels":      map[string]interface{}{"app": "nginx"},
-						"annotations": map[string]interface{}{"foo": "bar"},
+						"labels":      map[string]any{"app": "nginx"},
+						"annotations": map[string]any{"foo": "bar"},
 					},
 				},
 			},
@@ -880,8 +875,7 @@ func Test_removeCRBsClaimMetadata(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fakeClient := tt.setupClient().Build()
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+			ctx := t.Context()
 			fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme, tt.existingObject)
 			genMgr := genericmanager.NewSingleClusterInformerManager(ctx, fakeDynamicClient, 0)
 			resourceDetector := &ResourceDetector{
@@ -936,14 +930,14 @@ func Test_removeResourceClaimMetadataIfNotMatched(t *testing.T) {
 			labels:      []string{"app"},
 			annotations: []string{"foo"},
 			existingObject: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":        "deployment",
 						"namespace":   "test",
-						"labels":      map[string]interface{}{"app": "nginx"},
-						"annotations": map[string]interface{}{"foo": "bar"},
+						"labels":      map[string]any{"app": "nginx"},
+						"annotations": map[string]any{"foo": "bar"},
 					},
 				},
 			},
@@ -951,14 +945,14 @@ func Test_removeResourceClaimMetadataIfNotMatched(t *testing.T) {
 			wantErr:     false,
 			setupClient: func() *fake.ClientBuilder {
 				obj := &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":        "deployment",
 							"namespace":   "test",
-							"labels":      map[string]interface{}{"app": "nginx"},
-							"annotations": map[string]interface{}{"foo": "bar"},
+							"labels":      map[string]any{"app": "nginx"},
+							"annotations": map[string]any{"foo": "bar"},
 						},
 					},
 				}
@@ -983,14 +977,14 @@ func Test_removeResourceClaimMetadataIfNotMatched(t *testing.T) {
 			labels:      []string{"app"},
 			annotations: []string{"foo"},
 			existingObject: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":        "deployment",
 						"namespace":   "test",
-						"labels":      map[string]interface{}{"app": "nginx"},
-						"annotations": map[string]interface{}{"foo": "bar"},
+						"labels":      map[string]any{"app": "nginx"},
+						"annotations": map[string]any{"foo": "bar"},
 					},
 				},
 			},
@@ -998,14 +992,14 @@ func Test_removeResourceClaimMetadataIfNotMatched(t *testing.T) {
 			wantErr:     false,
 			setupClient: func() *fake.ClientBuilder {
 				obj := &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":        "deployment",
 							"namespace":   "test",
-							"labels":      map[string]interface{}{"app": "nginx"},
-							"annotations": map[string]interface{}{"foo": "bar"},
+							"labels":      map[string]any{"app": "nginx"},
+							"annotations": map[string]any{"foo": "bar"},
 						},
 					},
 				}
@@ -1032,14 +1026,14 @@ func Test_removeResourceClaimMetadataIfNotMatched(t *testing.T) {
 			labels:      []string{"app"},
 			annotations: []string{"foo"},
 			existingObject: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":        "deployment",
 						"namespace":   "test",
-						"labels":      map[string]interface{}{"app": "nginx"},
-						"annotations": map[string]interface{}{"foo": "bar"},
+						"labels":      map[string]any{"app": "nginx"},
+						"annotations": map[string]any{"foo": "bar"},
 					},
 				},
 			},
@@ -1067,14 +1061,14 @@ func Test_removeResourceClaimMetadataIfNotMatched(t *testing.T) {
 			labels:      []string{"app"},
 			annotations: []string{"foo"},
 			existingObject: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Pod",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":        "pod",
 						"namespace":   "test",
-						"labels":      map[string]interface{}{"app": "nginx"},
-						"annotations": map[string]interface{}{"foo": "bar"},
+						"labels":      map[string]any{"app": "nginx"},
+						"annotations": map[string]any{"foo": "bar"},
 					},
 				},
 			},
@@ -1082,14 +1076,14 @@ func Test_removeResourceClaimMetadataIfNotMatched(t *testing.T) {
 			wantErr:     false,
 			setupClient: func() *fake.ClientBuilder {
 				obj := &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "apps/v1",
 						"kind":       "Pod",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name":        "pod",
 							"namespace":   "test",
-							"labels":      map[string]interface{}{"app": "nginx"},
-							"annotations": map[string]interface{}{"foo": "bar"},
+							"labels":      map[string]any{"app": "nginx"},
+							"annotations": map[string]any{"foo": "bar"},
 						},
 					},
 				}
@@ -1103,8 +1097,7 @@ func Test_removeResourceClaimMetadataIfNotMatched(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fakeClient := tt.setupClient().Build()
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+			ctx := t.Context()
 			fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme, tt.existingObject)
 			genMgr := genericmanager.NewSingleClusterInformerManager(ctx, fakeDynamicClient, 0)
 			resourceDetector := &ResourceDetector{
@@ -1372,16 +1365,16 @@ func Test_excludeClusterPolicy(t *testing.T) {
 		{
 			name: "propagation policy was claimed",
 			obj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"metadata": map[string]interface{}{
-						"labels": map[string]interface{}{},
+				Object: map[string]any{
+					"metadata": map[string]any{
+						"labels": map[string]any{},
 					},
 				},
 			},
 			result: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"metadata": map[string]interface{}{
-						"labels": map[string]interface{}{},
+				Object: map[string]any{
+					"metadata": map[string]any{
+						"labels": map[string]any{},
 					},
 				},
 			},
@@ -1389,18 +1382,18 @@ func Test_excludeClusterPolicy(t *testing.T) {
 		}, {
 			name: "propagation policy was not claimed",
 			obj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"metadata": map[string]interface{}{
-						"labels":      map[string]interface{}{policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "f2507cgb-f3f3-4a4b-b289-5691a4fef979", "foo": "bar"},
-						"annotations": map[string]interface{}{policyv1alpha1.ClusterPropagationPolicyAnnotation: "nginx", "foo1": "bar1"},
+				Object: map[string]any{
+					"metadata": map[string]any{
+						"labels":      map[string]any{policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "f2507cgb-f3f3-4a4b-b289-5691a4fef979", "foo": "bar"},
+						"annotations": map[string]any{policyv1alpha1.ClusterPropagationPolicyAnnotation: "nginx", "foo1": "bar1"},
 					},
 				},
 			},
 			result: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"metadata": map[string]interface{}{
-						"labels":      map[string]interface{}{"foo": "bar"},
-						"annotations": map[string]interface{}{"foo1": "bar1"},
+				Object: map[string]any{
+					"metadata": map[string]any{
+						"labels":      map[string]any{"foo": "bar"},
+						"annotations": map[string]any{"foo1": "bar1"},
 					},
 				},
 			},

@@ -64,7 +64,7 @@ func TestGenCerts(t *testing.T) {
 		"localhost",
 	}
 
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		etcdServerCertDNS = append(etcdServerCertDNS, fmt.Sprintf("%s-%v.%s.%s.svc.cluster.local", "etcd", i, "etcd", namespace))
 	}
 

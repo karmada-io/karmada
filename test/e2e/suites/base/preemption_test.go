@@ -206,7 +206,7 @@ var _ = ginkgo.Describe("[Preemption] propagation policy preemption testing", fu
 
 				ginkgo.By("Reduce the priority of the high-priority PropagationPolicy to be preempted by the low-priority PropagationPolicy", func() {
 					highPriorityPolicy.Spec.Priority = ptr.To[int32](4)
-					patch := []map[string]interface{}{
+					patch := []map[string]any{
 						{
 							"path":  "/spec/priority",
 							"op":    "replace",
@@ -331,7 +331,7 @@ var _ = ginkgo.Describe("[Preemption] propagation policy preemption testing", fu
 
 				ginkgo.By("Reduce the priority of the high-priority ClusterPropagationPolicy to be preempted by the low-priority ClusterPropagationPolicy", func() {
 					highPriorityPolicy.Spec.Priority = ptr.To[int32](4)
-					patch := []map[string]interface{}{
+					patch := []map[string]any{
 						{
 							"path":  "/spec/priority",
 							"op":    "replace",
