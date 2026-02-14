@@ -125,7 +125,7 @@ const (
 	// deduplicated before processing.
 	//
 	// owner: @zach593
-	// alpha: v1.15
+	// beta: v1.17
 	ControllerPriorityQueue featuregate.Feature = "ControllerPriorityQueue"
 
 	// WorkloadAffinity enables the scheduler to group or separate workloads across clusters
@@ -164,7 +164,7 @@ var (
 		LoggingBetaOptions:                {Default: true, PreRelease: featuregate.Beta},
 		ContextualLogging:                 {Default: true, PreRelease: featuregate.Beta},
 		MultiplePodTemplatesScheduling:    {Default: false, PreRelease: featuregate.Alpha},
-		ControllerPriorityQueue:           {Default: false, PreRelease: featuregate.Alpha},
+		ControllerPriorityQueue:           {Default: true, PreRelease: featuregate.Beta},
 		WorkloadAffinity:                  {Default: false, PreRelease: featuregate.Alpha},
 	}
 )
