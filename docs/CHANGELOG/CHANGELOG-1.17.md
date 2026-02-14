@@ -2,9 +2,9 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.17.0-beta.0](#v1170-beta0)
-  - [Downloads for v1.17.0-beta.0](#downloads-for-v1170-beta0)
-  - [Changelog since v1.17.0-alpha.2](#changelog-since-v1170-alpha2)
+- [v1.17.0-rc.0](#v1170-rc0)
+  - [Downloads for v1.17.0-rc.0](#downloads-for-v1170-rc0)
+  - [Changelog since v1.17.0-beta.0](#changelog-since-v1170-beta0)
   - [Urgent Update Notes](#urgent-update-notes)
   - [Changes by Kind](#changes-by-kind)
     - [API Changes](#api-changes)
@@ -17,9 +17,9 @@
     - [Helm Charts](#helm-charts)
     - [Instrumentation](#instrumentation)
     - [Performance](#performance)
-- [v1.17.0-alpha.2](#v1170-alpha2)
-  - [Downloads for v1.17.0-alpha.2](#downloads-for-v1170-alpha2)
-  - [Changelog since v1.17.0-alpha.1](#changelog-since-v1170-alpha1)
+- [v1.17.0-beta.0](#v1170-beta0)
+  - [Downloads for v1.17.0-beta.0](#downloads-for-v1170-beta0)
+  - [Changelog since v1.17.0-alpha.2](#changelog-since-v1170-alpha2)
   - [Urgent Update Notes](#urgent-update-notes-1)
   - [Changes by Kind](#changes-by-kind-1)
     - [API Changes](#api-changes-1)
@@ -32,9 +32,9 @@
     - [Helm Charts](#helm-charts-1)
     - [Instrumentation](#instrumentation-1)
     - [Performance](#performance-1)
-- [v1.17.0-alpha.1](#v1170-alpha1)
-  - [Downloads for v1.17.0-alpha.1](#downloads-for-v1170-alpha1)
-  - [Changelog since v1.17.0-alpha.0](#changelog-since-v1170-alpha0)
+- [v1.17.0-alpha.2](#v1170-alpha2)
+  - [Downloads for v1.17.0-alpha.2](#downloads-for-v1170-alpha2)
+  - [Changelog since v1.17.0-alpha.1](#changelog-since-v1170-alpha1)
   - [Urgent Update Notes](#urgent-update-notes-2)
   - [Changes by Kind](#changes-by-kind-2)
     - [API Changes](#api-changes-2)
@@ -47,8 +47,68 @@
     - [Helm Charts](#helm-charts-2)
     - [Instrumentation](#instrumentation-2)
     - [Performance](#performance-2)
+- [v1.17.0-alpha.1](#v1170-alpha1)
+  - [Downloads for v1.17.0-alpha.1](#downloads-for-v1170-alpha1)
+  - [Changelog since v1.17.0-alpha.0](#changelog-since-v1170-alpha0)
+  - [Urgent Update Notes](#urgent-update-notes-3)
+  - [Changes by Kind](#changes-by-kind-3)
+    - [API Changes](#api-changes-3)
+    - [Features & Enhancements](#features--enhancements-3)
+    - [Deprecation](#deprecation-3)
+    - [Bug Fixes](#bug-fixes-3)
+    - [Security](#security-3)
+  - [Other](#other-3)
+    - [Dependencies](#dependencies-3)
+    - [Helm Charts](#helm-charts-3)
+    - [Instrumentation](#instrumentation-3)
+    - [Performance](#performance-3)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.17.0-rc.0
+## Downloads for v1.17.0-rc.0
+
+Download v1.17.0-rc.0 in the [v1.17.0-rc.0 release page](https://github.com/karmada-io/karmada/releases/tag/v1.17.0-rc.0).
+
+## Changelog since v1.17.0-beta.0
+
+## Urgent Update Notes
+
+## Changes by Kind
+
+### API Changes
+None.
+
+### Features & Enhancements
+- `karmada-scheduler`: Added optional `FilterPluginWithContext` (`FilterWithContext` method) for filter plugins, and introduced a `WorkloadAntiAffinity` filter plugin gated by the `WorkloadAffinity` feature gate. ([#7177](https://github.com/karmada-io/karmada/pull/7177), @RainbowMango)
+- `karmada-scheduler`: Implemented workload affinity and anti-affinity filter plugins to support co-locating workloads in the same `AffinityGroup` or isolating workloads in the same `AntiAffinityGroup` across clusters. ([#7189](https://github.com/karmada-io/karmada/pull/7189), @zhzhuang-zju)
+- `karmada-controller-manager`: Populated `ResourceBinding` and `ClusterResourceBinding` with `WorkloadAffinity` fields. ([#7166](https://github.com/karmada-io/karmada/pull/7166), @dahuo98)
+
+### Deprecation
+None.
+
+### Bug Fixes
+- `karmada-controller-manager`: Fixed the issue where the job status aggregator could enter an error loop due to a race condition when setting the initial `startTime`. ([#7138](https://github.com/karmada-io/karmada/pull/7138), @zhzhuang-zju)
+- `karmada-controller-manager`: Fixed CronFederatedHPA scale-up from zero failure when the replicas field is missing. ([#7183](https://github.com/karmada-io/karmada/pull/7183), @zhengjr9)
+- `karmada-controller-manager`: Fixed an issue where a per-task `GracePeriodSeconds` value could leak to subsequent graceful eviction tasks, causing premature or delayed evictions. ([#7184](https://github.com/karmada-io/karmada/pull/7184), @Ady0333)
+- `karmada-scheduler`: Fixed a scheduler panic caused by a divide-by-zero error when calculating spread constraints with no valid clusters. ([#7154](https://github.com/karmada-io/karmada/pull/7154), @Aman-Cool)
+
+### Security
+None.
+
+## Other
+### Dependencies
+- Upgraded Kubernetes dependencies to v1.35.0. ([#7149](https://github.com/karmada-io/karmada/pull/7149), @RainbowMango)
+- Promoted the base image `alpine` from `alpine:3.23.2` to `alpine:3.23.3`. ([#7159](https://github.com/karmada-io/karmada/pull/7159), @dependabot)
+
+### Helm Charts
+None.
+
+### Instrumentation
+None.
+
+### Performance
+None.
 
 # v1.17.0-beta.0
 ## Downloads for v1.17.0-beta.0
