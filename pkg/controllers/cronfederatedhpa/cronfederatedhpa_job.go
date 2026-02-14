@@ -203,7 +203,7 @@ func (c *ScalingJob) ScaleWorkloads(cronFHPA *autoscalingv1alpha1.CronFederatedH
 	}
 
 	if scale.Spec.Replicas != *c.rule.TargetReplicas {
-		if err := helper.ApplyReplica(scaleObj, int64(*c.rule.TargetReplicas), util.ReplicasField); err != nil {
+		if err := helper.ApplyReplicaAlways(scaleObj, int64(*c.rule.TargetReplicas), util.ReplicasField); err != nil {
 			klog.ErrorS(err, "CronFederatedHPA applies Replicas failed", "cronFederatedHPA", c.namespaceName, "namespace", cronFHPA.Namespace, "name", cronFHPA.Spec.ScaleTargetRef.Name)
 			return err
 		}
