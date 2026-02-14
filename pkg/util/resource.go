@@ -17,6 +17,7 @@ limitations under the License.
 package util
 
 import (
+	"maps"
 	"math"
 
 	corev1 "k8s.io/api/core/v1"
@@ -324,9 +325,7 @@ func (r *Resource) Clone() *Resource {
 	}
 	if r.ScalarResources != nil {
 		res.ScalarResources = make(map[corev1.ResourceName]int64)
-		for k, v := range r.ScalarResources {
-			res.ScalarResources[k] = v
-		}
+		maps.Copy(res.ScalarResources, r.ScalarResources)
 	}
 	return res
 }

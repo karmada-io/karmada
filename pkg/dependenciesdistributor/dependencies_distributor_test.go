@@ -51,24 +51,24 @@ import (
 )
 
 type MockAsyncWorker struct {
-	queue []interface{}
+	queue []any
 }
 
 // Note: This is a dummy implementation of Add for testing purposes.
-func (m *MockAsyncWorker) Add(item interface{}) {
+func (m *MockAsyncWorker) Add(item any) {
 	// No actual work is done in the mock; we just simulate running
 	m.queue = append(m.queue, item)
 }
 
 // Note: This is a dummy implementation of AddAfter for testing purposes.
-func (m *MockAsyncWorker) AddAfter(item interface{}, duration time.Duration) {
+func (m *MockAsyncWorker) AddAfter(item any, duration time.Duration) {
 	// No actual work is done in the mock; we just simulate running
 	fmt.Printf("%v", duration)
 	m.queue = append(m.queue, item)
 }
 
 // Note: This is a dummy implementation of Enqueue for testing purposes.
-func (m *MockAsyncWorker) Enqueue(obj interface{}) {
+func (m *MockAsyncWorker) Enqueue(obj any) {
 	// Assuming KeyFunc is used to generate a key; for simplicity, we use obj directly
 	m.queue = append(m.queue, obj)
 }
@@ -93,14 +93,14 @@ func (m *MockAsyncWorker) Run(ctx context.Context, workerNumber int) {
 }
 
 // GetQueue returns the current state of the queue
-func (m *MockAsyncWorker) GetQueue() []interface{} {
+func (m *MockAsyncWorker) GetQueue() []any {
 	return m.queue
 }
 
 func Test_OnUpdate(t *testing.T) {
 	type args struct {
-		oldObj interface{}
-		newObj interface{}
+		oldObj any
+		newObj any
 	}
 	tests := []struct {
 		name          string
@@ -3485,10 +3485,10 @@ func Test_buildAttachedBinding(t *testing.T) {
 				},
 			},
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":            "demo-app",
 						"namespace":       "fake-ns",
 						"resourceVersion": "22222",

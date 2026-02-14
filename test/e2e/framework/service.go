@@ -102,7 +102,7 @@ func WaitServiceDisappearOnClusters(clusters []string, namespace, name string) {
 }
 
 // UpdateServiceWithPatch update service with patch bytes.
-func UpdateServiceWithPatch(client kubernetes.Interface, namespace, name string, patch []map[string]interface{}, patchType types.PatchType) {
+func UpdateServiceWithPatch(client kubernetes.Interface, namespace, name string, patch []map[string]any, patchType types.PatchType) {
 	ginkgo.By(fmt.Sprintf("Updating service(%s/%s)", namespace, name), func() {
 		bytes, err := json.Marshal(patch)
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())

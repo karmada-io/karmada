@@ -30,8 +30,8 @@ import (
 
 const defaultHTTPGetAttempts int = 3
 
-var defaultNewFunc = func() interface{} {
-	return map[string]interface{}{}
+var defaultNewFunc = func() any {
+	return map[string]any{}
 }
 
 var errMissingResource = fmt.Errorf(`you must provide one or more resources`)
@@ -63,7 +63,7 @@ func (b *Builder) Schema(schema resource.ContentValidator) *Builder {
 }
 
 // Constructor tells wanted type of object.
-func (b *Builder) Constructor(newFunc func() interface{}) *Builder {
+func (b *Builder) Constructor(newFunc func() any) *Builder {
 	b.mapper.newFunc = newFunc
 	return b
 }

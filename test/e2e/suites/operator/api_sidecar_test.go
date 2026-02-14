@@ -18,6 +18,7 @@ package e2e
 
 import (
 	"context"
+	"slices"
 
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
@@ -96,10 +97,5 @@ func getContainer(containers []corev1.Container, name string) corev1.Container {
 }
 
 func isCommandExist(container corev1.Container, command string) bool {
-	for _, c := range container.Command {
-		if c == command {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(container.Command, command)
 }

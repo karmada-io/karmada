@@ -34,13 +34,13 @@ func TestGenMergePatch(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		modifyFunc    func() interface{}
+		modifyFunc    func() any
 		expectedPatch string
 		expectErr     bool
 	}{
 		{
 			name: "update spec",
-			modifyFunc: func() interface{} {
+			modifyFunc: func() any {
 				modified := testObj.DeepCopy()
 				modified.Spec.Replicas = 10
 				modified.Spec.Clusters = []workv1alpha2.TargetCluster{
@@ -60,7 +60,7 @@ func TestGenMergePatch(t *testing.T) {
 		},
 		{
 			name: "update status",
-			modifyFunc: func() interface{} {
+			modifyFunc: func() any {
 				modified := testObj.DeepCopy()
 				modified.Status.SchedulerObservedGeneration = 10
 				modified.Status.Conditions = []metav1.Condition{
@@ -80,7 +80,7 @@ func TestGenMergePatch(t *testing.T) {
 		},
 		{
 			name: "no change",
-			modifyFunc: func() interface{} {
+			modifyFunc: func() any {
 				modified := testObj.DeepCopy()
 				return modified
 			},
@@ -89,7 +89,7 @@ func TestGenMergePatch(t *testing.T) {
 		},
 		{
 			name: "invalid input should arise error",
-			modifyFunc: func() interface{} {
+			modifyFunc: func() any {
 				var invalid = 0
 				return invalid
 			},
@@ -98,7 +98,7 @@ func TestGenMergePatch(t *testing.T) {
 		},
 		{
 			name: "update to empty annotations",
-			modifyFunc: func() interface{} {
+			modifyFunc: func() any {
 				modified := testObj.DeepCopy()
 				modified.Annotations = make(map[string]string, 0)
 				return modified

@@ -196,7 +196,7 @@ func generateComponentKubeconfigSecrets(data InitData, configString string) []*c
 		return secrets
 	}
 
-	componentList := map[string]interface{}{
+	componentList := map[string]any{
 		util.KarmadaAggregatedAPIServerName(data.GetName()): data.Components().KarmadaAggregatedAPIServer,
 		util.KarmadaControllerManagerName(data.GetName()):   data.Components().KarmadaControllerManager,
 		util.KubeControllerManagerName(data.GetName()):      data.Components().KubeControllerManager,

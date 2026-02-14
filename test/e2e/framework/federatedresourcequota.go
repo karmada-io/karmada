@@ -49,7 +49,7 @@ func RemoveFederatedResourceQuota(client karmada.Interface, namespace, name stri
 }
 
 // UpdateFederatedResourceQuotaWithPatch update FederatedResourceQuota with patch bytes.
-func UpdateFederatedResourceQuotaWithPatch(client karmada.Interface, namespace, name string, patch []map[string]interface{}, patchType types.PatchType) {
+func UpdateFederatedResourceQuotaWithPatch(client karmada.Interface, namespace, name string, patch []map[string]any, patchType types.PatchType) {
 	ginkgo.By(fmt.Sprintf("Updating FederatedResourceQuota(%s/%s)", namespace, name), func() {
 		bytes, err := json.Marshal(patch)
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())

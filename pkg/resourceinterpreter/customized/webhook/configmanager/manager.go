@@ -82,9 +82,9 @@ func NewExploreConfigManager(inform genericmanager.SingleClusterInformerManager)
 
 	manager.informer = inform
 	configHandlers := fedinformer.NewHandlerOnEvents(
-		func(_ interface{}, _ bool) { _ = manager.updateConfiguration() },
-		func(_, _ interface{}) { _ = manager.updateConfiguration() },
-		func(_ interface{}) { _ = manager.updateConfiguration() })
+		func(_ any, _ bool) { _ = manager.updateConfiguration() },
+		func(_, _ any) { _ = manager.updateConfiguration() },
+		func(_ any) { _ = manager.updateConfiguration() })
 	inform.ForResource(util.ResourceInterpreterWebhookConfigurationsGVR, configHandlers)
 
 	return manager

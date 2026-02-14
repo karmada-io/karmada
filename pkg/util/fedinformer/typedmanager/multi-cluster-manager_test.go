@@ -17,7 +17,6 @@ limitations under the License.
 package typedmanager
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -29,8 +28,7 @@ import (
 )
 
 func TestMultiClusterInformerManager(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	transforms := map[schema.GroupVersionResource]cache.TransformFunc{
 		nodeGVR: fedinformer.NodeTransformFunc,

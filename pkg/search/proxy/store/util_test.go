@@ -37,7 +37,7 @@ import (
 func Test_watchMux_StopBySelf(t *testing.T) {
 	m := newWatchMux()
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		w := newFakeWatcher(wait.NeverStop)
 		m.AddSource(w, func(watch.Event) {})
 		go func() {
@@ -82,7 +82,7 @@ func Test_watchMux_StopBySource(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.TODO(), time.Second)
 	defer cancel()
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		w := newFakeWatcher(ctx.Done())
 		m.AddSource(w, func(watch.Event) {})
 		go func() {

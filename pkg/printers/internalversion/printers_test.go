@@ -48,7 +48,7 @@ func TestPrintCluster(t *testing.T) {
 				},
 			},
 			printers.GenerateOptions{Wide: false},
-			[]metav1.TableRow{{Cells: []interface{}{"test1", "1.24.2", clusterapis.ClusterSyncMode("Push"), "True", "<unknown>"}}},
+			[]metav1.TableRow{{Cells: []any{"test1", "1.24.2", clusterapis.ClusterSyncMode("Push"), "True", "<unknown>"}}},
 		},
 		{
 			clusterapis.Cluster{
@@ -67,7 +67,7 @@ func TestPrintCluster(t *testing.T) {
 				},
 			},
 			printers.GenerateOptions{Wide: true},
-			[]metav1.TableRow{{Cells: []interface{}{"test2", "1.24.2", clusterapis.ClusterSyncMode("Push"), "True", "<unknown>",
+			[]metav1.TableRow{{Cells: []any{"test2", "1.24.2", clusterapis.ClusterSyncMode("Push"), "True", "<unknown>",
 				"foo,bar",
 				"<none>",
 				"<none>",
