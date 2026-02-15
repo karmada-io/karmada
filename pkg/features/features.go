@@ -125,6 +125,7 @@ const (
 	// deduplicated before processing.
 	//
 	// owner: @zach593
+	// alpha: v1.15
 	// beta: v1.17
 	ControllerPriorityQueue featuregate.Feature = "ControllerPriorityQueue"
 
