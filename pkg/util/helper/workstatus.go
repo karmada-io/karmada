@@ -71,13 +71,13 @@ func AggregateResourceBindingWorkStatus(
 		return err
 	}
 
-	fullyAppliedCondition := generateFullyAppliedCondition(binding.Spec, aggregatedStatuses)
-
 	var operationResult controllerutil.OperationResult
 	if err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		operationResult, err = UpdateStatus(ctx, c, binding, func() error {
 			binding.Status.AggregatedStatus = aggregatedStatuses
-			// set binding status with the newest condition
+			// set binding status with the newest condition, recompute using the
+			// refreshed binding.Spec to reflect any concurrent spec.clusters changes
+			fullyAppliedCondition := generateFullyAppliedCondition(binding.Spec, aggregatedStatuses)
 			meta.SetStatusCondition(&binding.Status.Conditions, fullyAppliedCondition)
 			return nil
 		})
@@ -114,13 +114,13 @@ func AggregateClusterResourceBindingWorkStatus(
 		return err
 	}
 
-	fullyAppliedCondition := generateFullyAppliedCondition(binding.Spec, aggregatedStatuses)
-
 	var operationResult controllerutil.OperationResult
 	if err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		operationResult, err = UpdateStatus(ctx, c, binding, func() error {
 			binding.Status.AggregatedStatus = aggregatedStatuses
-			// set binding status with the newest condition
+			// set binding status with the newest condition, recompute using the
+			// refreshed binding.Spec to reflect any concurrent spec.clusters changes
+			fullyAppliedCondition := generateFullyAppliedCondition(binding.Spec, aggregatedStatuses)
 			meta.SetStatusCondition(&binding.Status.Conditions, fullyAppliedCondition)
 			return nil
 		})
