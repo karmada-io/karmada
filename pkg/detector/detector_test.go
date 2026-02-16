@@ -26,6 +26,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	schedulingv1 "k8s.io/api/scheduling/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -1192,6 +1193,52 @@ func TestApplyClusterPolicy(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestBuildClusterResourceBindingSchedulePriority(t *testing.T) {
+	if err := features.FeatureGate.Set(fmt.Sprintf("%s=true", features.PriorityBasedScheduling)); err != nil {
+		t.Fatalf("Failed to enable PriorityBasedScheduling feature gate: %v", err)
+	}
+	defer func() {
+		_ = features.FeatureGate.Set(fmt.Sprintf("%s=false", features.PriorityBasedScheduling))
+	}()
+
+	scheme := setupTestScheme()
+	_ = schedulingv1.AddToScheme(scheme)
+
+	priorityClass := &schedulingv1.PriorityClass{
+		ObjectMeta: metav1.ObjectMeta{Name: "high-priority"},
+		Value:      1000000,
+	}
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(priorityClass).Build()
+
+	d := &ResourceDetector{
+		Client:              fakeClient,
+		ResourceInterpreter: &mockResourceInterpreter{},
+	}
+
+	object := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "rbac.authorization.k8s.io/v1",
+			"kind":       "ClusterRole",
+			"metadata": map[string]interface{}{
+				"name": "test-cluster-role",
+				"uid":  "test-uid",
+			},
+		},
+	}
+
+	policySpec := &policyv1alpha1.PropagationSpec{
+		SchedulePriority: &policyv1alpha1.SchedulePriority{
+			PriorityClassSource: policyv1alpha1.KubePriorityClass,
+			PriorityClassName:   "high-priority",
+		},
+	}
+
+	binding, err := d.BuildClusterResourceBinding(object, policySpec, "test-policy-id", metav1.ObjectMeta{Name: "test-policy"})
+	assert.NoError(t, err)
+	assert.NotNil(t, binding.Spec.SchedulePriority, "SchedulePriority should be set on ClusterResourceBinding")
+	assert.Equal(t, int32(1000000), binding.Spec.SchedulePriority.Priority)
 }
 
 func TestEnqueueResourceKeyWithActivationPref(t *testing.T) {
