@@ -641,11 +641,13 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 				bindingCopy.Spec.ReplicaRequirements = binding.Spec.ReplicaRequirements
 				bindingCopy.Spec.Replicas = binding.Spec.Replicas
 				bindingCopy.Spec.Components = binding.Spec.Components
+				bindingCopy.Spec.PropagateDeps = binding.Spec.PropagateDeps
 				bindingCopy.Spec.SchedulerName = binding.Spec.SchedulerName
 				bindingCopy.Spec.Placement = binding.Spec.Placement
 				bindingCopy.Spec.Failover = binding.Spec.Failover
 				bindingCopy.Spec.ConflictResolution = binding.Spec.ConflictResolution
 				bindingCopy.Spec.PreserveResourcesOnDeletion = binding.Spec.PreserveResourcesOnDeletion
+				bindingCopy.Spec.SchedulePriority = binding.Spec.SchedulePriority
 				bindingCopy.Spec.Suspension = util.MergePolicySuspension(bindingCopy.Spec.Suspension, policy.Spec.Suspension)
 				bindingCopy.Spec.WorkloadAffinityGroups = binding.Spec.WorkloadAffinityGroups
 				return nil
@@ -938,6 +940,32 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 
 	if err := d.applyReplicaInterpretation(object, &binding.Spec); err != nil {
 		return nil, err
+	}
+
+	if features.FeatureGate.Enabled(features.PriorityBasedScheduling) && policySpec.SchedulePriority != nil {
+		var bindingSchedulePriority *workv1alpha2.SchedulePriority
+		priorityClassName := policySpec.SchedulePriority.PriorityClassName
+
+		switch policySpec.SchedulePriority.PriorityClassSource {
+		case policyv1alpha1.KubePriorityClass:
+			kubePriorityClass, err := helper.GetPriorityClassByName(context.TODO(), d.Client, policySpec.SchedulePriority.PriorityClassName)
+			if err != nil {
+				klog.Errorf("Failed to get Kube PriorityClass(%s): %v", priorityClassName, err)
+				return nil, err
+			}
+			bindingSchedulePriority = &workv1alpha2.SchedulePriority{
+				Priority: kubePriorityClass.Value,
+				// TODO add preemptionpolicy
+				// PreemptionPolicy: kubePriorityClass.PreemptionPolicy,
+			}
+		case policyv1alpha1.PodPriorityClass:
+			return nil, fmt.Errorf("priority class source is PodPriorityClass, but PodPriorityClass is not supported yet")
+		case policyv1alpha1.FederatedPriorityClass:
+			return nil, fmt.Errorf("priority class source is FederatedPriorityClass, but FederatedPriorityClass is not supported yet")
+		default:
+			return nil, fmt.Errorf("unsupported priority class source")
+		}
+		binding.Spec.SchedulePriority = bindingSchedulePriority
 	}
 
 	return binding, nil
