@@ -121,6 +121,12 @@ func (c *RBApplicationFailoverController) detectFailure(clusters []string, toler
 func (c *RBApplicationFailoverController) syncBinding(ctx context.Context, binding *workv1alpha2.ResourceBinding) (time.Duration, error) {
 	key := types.NamespacedName{Name: binding.Name, Namespace: binding.Namespace}
 	tolerationSeconds := binding.Spec.Failover.Application.DecisionConditions.TolerationSeconds
+	// Use default value if tolerationSeconds is nil to prevent nil pointer dereference.
+	// This can happen with objects created before the CRD default was added.
+	if tolerationSeconds == nil {
+		defaultTolerationSeconds := int32(300)
+		tolerationSeconds = &defaultTolerationSeconds
+	}
 
 	allClusters := sets.New[string]()
 	for _, cluster := range binding.Spec.Clusters {
