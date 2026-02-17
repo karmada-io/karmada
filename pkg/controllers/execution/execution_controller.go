@@ -204,6 +204,9 @@ func (c *Controller) cleanupPolicyClaimMetadata(ctx context.Context, work *workv
 
 		clusterObj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, fedKey)
 		if err != nil {
+			if apierrors.IsNotFound(err) {
+				continue
+			}
 			klog.ErrorS(err, "Failed to get the resource from member cluster cache", "kind", workload.GetKind(), "namespace", workload.GetNamespace(), "name", workload.GetName(), "cluster", cluster.Name)
 			return err
 		}
