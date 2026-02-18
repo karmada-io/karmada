@@ -194,6 +194,7 @@ func (d *ResourceDetector) discoverResources(ctx context.Context, period time.Du
 			d.InformerManager.ForResource(r, d.EventHandler)
 		}
 		d.InformerManager.Start()
+		d.InformerManager.WaitForCacheSync()
 	}, period, ctx.Done())
 }
 
