@@ -224,4 +224,4 @@ jobs:
       if: steps.get-latest-tag.outputs.latestTag == github.event.release.tag_name
     - name: Update new version in krew-index
       if: steps.get-latest-tag.outputs.latestTag == github.event.release.tag_name
-      uses: rajatjindal/krew-release-bot@v0.0.47
+      uses: rajatjindal/krew-release-bot@v0.0.50
