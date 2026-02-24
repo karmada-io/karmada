@@ -27,7 +27,7 @@ A good summary is probably at least a paragraph in length.
 
 For some certain predictable load change scenarios, for example Black Friday sale and Singles' Day sale, there will be sharp load peaks. With standard K8s HPA, it needs time to scale up the replicas, which may not be fast enough to handle sharp load peaks, resulting in service unavailability.
 
-To solve this problem, there are already some approaches in single cluster, called `CronHPA`, which can scale up/down the workloads at specific time. Cluster administrators can scale up the workloads in advance with `CronHPA`, to meet the requirements of the sharp load peaks. So this proposal proposes `CronFederatedHPA` to meet the the same requirements in multi-cluster scenario.
+To solve this problem, there are already some approaches in single cluster, called `CronHPA`, which can scale up/down the workloads at specific time. Cluster administrators can scale up the workloads in advance with `CronHPA`, to meet the requirements of the sharp load peaks. So this proposal proposes `CronFederatedHPA` to meet the same requirements in multi-cluster scenario.
 
 ## Motivation
 

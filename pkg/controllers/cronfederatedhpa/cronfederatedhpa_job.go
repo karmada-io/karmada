@@ -78,7 +78,7 @@ func RunCronFederatedHPARule(c *ScalingJob) {
 		if apierrors.IsNotFound(err) {
 			klog.InfoS("CronFederatedHPA not found", "cronFederatedHPA", c.namespaceName)
 		} else {
-			// TODO: This may happen when the the network is down, we should do something here
+			// TODO: This may happen when the network is down, we should do something here
 			// But we are not sure what to do(retry not solve the problem)
 			klog.ErrorS(err, "Get CronFederatedHPA failed", "cronFederatedHPA", c.namespaceName)
 		}

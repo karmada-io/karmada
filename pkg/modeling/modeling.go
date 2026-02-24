@@ -59,7 +59,7 @@ type resourceModels struct {
 
 // ClusterResourceNode represents the each raw resource entity without modeling.
 type ClusterResourceNode struct {
-	// quantity is the the number of this node
+	// quantity is the number of this node
 	// Only when the resourceLists are exactly the same can they be counted as the same node.
 	// +required
 	quantity int
