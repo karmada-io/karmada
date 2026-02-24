@@ -34,6 +34,7 @@ import (
 func TestValidateOverrideSpec(t *testing.T) {
 	var tests = []struct {
 		name         string
+		namespace    string
 		overrideSpec policyv1alpha1.OverrideSpec
 		expectError  bool
 	}{
@@ -237,7 +238,7 @@ func TestValidateOverrideSpec(t *testing.T) {
 
 	for _, test := range tests {
 		tc := test
-		err := ValidateOverrideSpec(&tc.overrideSpec)
+		err := ValidateOverrideSpec(&tc.overrideSpec, tc.namespace)
 		if err != nil && tc.expectError != true {
 			t.Fatalf("expect no error but got: %v", err)
 		}
@@ -307,6 +308,7 @@ func TestEmptyOverrides(t *testing.T) {
 func TestValidatePropagationSpec(t *testing.T) {
 	tests := []struct {
 		name        string
+		namespace   string
 		spec        policyv1alpha1.PropagationSpec
 		expectedErr string
 	}{
@@ -628,7 +630,7 @@ func TestValidatePropagationSpec(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			errs := ValidatePropagationSpec(tt.spec)
+			errs := ValidatePropagationSpec(tt.spec, tt.namespace)
 			err := errs.ToAggregate()
 			if err != nil {
 				errStr := err.Error()

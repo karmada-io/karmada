@@ -72,7 +72,7 @@ func (v *ValidatingAdmission) Handle(_ context.Context, req admission.Request) a
 			policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel))
 	}
 
-	errs := validation.ValidatePropagationSpec(policy.Spec)
+	errs := validation.ValidatePropagationSpec(policy.Spec, req.Namespace)
 	if len(errs) != 0 {
 		klog.Error(errs)
 		return admission.Denied(errs.ToAggregate().Error())
