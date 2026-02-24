@@ -104,6 +104,9 @@ type ResourceBindingSpecApplyConfiguration struct {
 	// used to keep workloads with the same affinity group co-located or those with the same
 	// anti-affinity group separated across clusters. Populated by controllers, the scheduler
 	// consumes it for decisions.
+	// Note: Since workloads are namespace-scoped resources, workload affinity only applies to
+	// ResourceBinding. Therefore, the WorkloadAffinityGroups field in ClusterResourceBinding
+	// will not be set and will not be consumed by the scheduler.
 	WorkloadAffinityGroups *WorkloadAffinityGroupsApplyConfiguration `json:"workloadAffinityGroups,omitempty"`
 }
 

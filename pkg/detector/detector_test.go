@@ -1187,7 +1187,6 @@ func TestApplyClusterPolicy(t *testing.T) {
 					}, binding)
 					assert.NoError(t, err)
 					assert.Equal(t, tt.object.GetName(), binding.Spec.Resource.Name)
-					verifyWorkloadAffinity(t, tt.object, &tt.policy.Spec, &binding.Spec)
 				}
 			}
 		})

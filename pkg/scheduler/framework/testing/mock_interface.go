@@ -14,6 +14,7 @@ import (
 	reflect "reflect"
 
 	gomock "go.uber.org/mock/gomock"
+	cache "k8s.io/client-go/tools/cache"
 
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	v1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -44,17 +45,17 @@ func (m *MockFramework) EXPECT() *MockFrameworkMockRecorder {
 }
 
 // RunFilterPlugins mocks base method.
-func (m *MockFramework) RunFilterPlugins(ctx context.Context, bindingSpec *v1alpha2.ResourceBindingSpec, bindingStatus *v1alpha2.ResourceBindingStatus, cluster *v1alpha1.Cluster) *framework.Result {
+func (m *MockFramework) RunFilterPlugins(ctx context.Context, bindingSpec *v1alpha2.ResourceBindingSpec, bindingStatus *v1alpha2.ResourceBindingStatus, cluster *v1alpha1.Cluster, resourceBindingIndexer cache.Indexer) *framework.Result {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RunFilterPlugins", ctx, bindingSpec, bindingStatus, cluster)
+	ret := m.ctrl.Call(m, "RunFilterPlugins", ctx, bindingSpec, bindingStatus, cluster, resourceBindingIndexer)
 	ret0, _ := ret[0].(*framework.Result)
 	return ret0
 }
 
 // RunFilterPlugins indicates an expected call of RunFilterPlugins.
-func (mr *MockFrameworkMockRecorder) RunFilterPlugins(ctx, bindingSpec, bindingStatus, cluster any) *gomock.Call {
+func (mr *MockFrameworkMockRecorder) RunFilterPlugins(ctx, bindingSpec, bindingStatus, cluster, resourceBindingIndexer any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RunFilterPlugins", reflect.TypeOf((*MockFramework)(nil).RunFilterPlugins), ctx, bindingSpec, bindingStatus, cluster)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RunFilterPlugins", reflect.TypeOf((*MockFramework)(nil).RunFilterPlugins), ctx, bindingSpec, bindingStatus, cluster, resourceBindingIndexer)
 }
 
 // RunScorePlugins mocks base method.
