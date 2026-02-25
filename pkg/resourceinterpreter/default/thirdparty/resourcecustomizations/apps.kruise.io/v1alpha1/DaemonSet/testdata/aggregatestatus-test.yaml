@@ -1,5 +1,10 @@
 # test case for aggregating status of DaemonSet
-# case1. DaemonSet with two status items
+# case 1: DaemonSet with two status items
+# case 2: DaemonSet with no member status
+# case 3: DaemonSet with all members updated to latest generation
+# case 4: DaemonSet with mixed observed generations
+# case 5: DaemonSet with stale resourceTemplateGeneration
+# case 6: DaemonSet with mixed nil status fields
 
 name: "DaemonSet with two status items"
 description: "Test aggregating status of DaemonSet with two status items"
@@ -70,3 +75,437 @@ statusItems:
       resourceTemplateGeneration: 1
 operation: AggregateStatus
 output:
+  aggregatedStatus:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: DaemonSet
+    metadata:
+      labels:
+        app: sample-daemonset
+      name: sample
+      namespace: test-kruise-daemonset
+      generation: 1
+    spec:
+      selector:
+        matchLabels:
+          app: sample-daemonset
+      template:
+        metadata:
+          labels:
+            app: sample-daemonset
+        spec:
+          volumes:
+            - name: configmap
+              configMap:
+                name: my-sample-config
+          containers:
+            - name: nginx
+              image: nginx:alpine
+              env:
+                - name: logData
+                  valueFrom:
+                    configMapKeyRef:
+                      name: mysql-config
+                      key: log
+                - name: lowerData
+                  valueFrom:
+                    configMapKeyRef:
+                      name: mysql-config
+                      key: lower
+    status:
+      observedGeneration: 1
+      currentNumberScheduled: 2
+      numberMisscheduled: 0
+      desiredNumberScheduled: 2
+      numberReady: 2
+      updatedNumberScheduled: 2
+      numberAvailable: 2
+      numberUnavailable: 0
+      daemonSetHash: 7dd59cf749
+
+---
+name: "DaemonSet: aggregate status with no members"
+description: "Test AggregateStatus initializes status when statusItems is nil"
+desiredObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: DaemonSet
+  metadata:
+    name: sample-nil
+    namespace: test-kruise-daemonset
+    generation: 3
+  spec:
+    selector:
+      matchLabels:
+        app: sample-daemonset
+    template:
+      metadata:
+        labels:
+          app: sample-daemonset
+      spec:
+        containers:
+          - name: nginx
+            image: nginx:alpine
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: DaemonSet
+    metadata:
+      name: sample-nil
+      namespace: test-kruise-daemonset
+      generation: 3
+    spec:
+      selector:
+        matchLabels:
+          app: sample-daemonset
+      template:
+        metadata:
+          labels:
+            app: sample-daemonset
+        spec:
+          containers:
+            - name: nginx
+              image: nginx:alpine
+    status:
+      observedGeneration: 3
+      currentNumberScheduled: 0
+      numberMisscheduled: 0
+      desiredNumberScheduled: 0
+      numberReady: 0
+      updatedNumberScheduled: 0
+      numberAvailable: 0
+      numberUnavailable: 0
+      daemonSetHash: 0
+
+---
+name: "DaemonSet with all members updated to latest generation"
+description: "Check if the member's status is updated to the latest generation and observedGeneration should advance"
+desiredObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: DaemonSet
+  metadata:
+    name: sample-updated
+    namespace: test-kruise-daemonset
+    generation: 3
+  status:
+    observedGeneration: 2
+  spec:
+    selector:
+      matchLabels:
+        app: sample-daemonset
+    template:
+      metadata:
+        labels:
+          app: sample-daemonset
+      spec:
+        containers:
+          - name: nginx
+            image: nginx:alpine
+statusItems:
+  - applied: true
+    clusterName: member1
+    health: Healthy
+    status:
+      currentNumberScheduled: 1
+      daemonSetHash: abc123
+      desiredNumberScheduled: 1
+      numberAvailable: 1
+      numberMisscheduled: 0
+      numberReady: 1
+      observedGeneration: 3
+      updatedNumberScheduled: 1
+      generation: 3
+      resourceTemplateGeneration: 3
+  - applied: true
+    clusterName: member2
+    health: Healthy
+    status:
+      currentNumberScheduled: 1
+      daemonSetHash: abc123
+      desiredNumberScheduled: 1
+      numberAvailable: 1
+      numberMisscheduled: 0
+      numberReady: 1
+      observedGeneration: 3
+      updatedNumberScheduled: 1
+      generation: 3
+      resourceTemplateGeneration: 3
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: DaemonSet
+    metadata:
+      name: sample-updated
+      namespace: test-kruise-daemonset
+      generation: 3
+    spec:
+      selector:
+        matchLabels:
+          app: sample-daemonset
+      template:
+        metadata:
+          labels:
+            app: sample-daemonset
+        spec:
+          containers:
+            - name: nginx
+              image: nginx:alpine
+    status:
+      observedGeneration: 3
+      currentNumberScheduled: 2
+      numberMisscheduled: 0
+      desiredNumberScheduled: 2
+      numberReady: 2
+      updatedNumberScheduled: 2
+      numberAvailable: 2
+      numberUnavailable: 0
+      daemonSetHash: abc123
+
+---
+name: "DaemonSet with mixed observed generations"
+description: "Update the observed generation based on the observedResourceTemplateGenerationCount - should not advance if any member is stale"
+desiredObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: DaemonSet
+  metadata:
+    name: sample-mixed
+    namespace: test-kruise-daemonset
+    generation: 3
+  status:
+    observedGeneration: 2
+  spec:
+    selector:
+      matchLabels:
+        app: sample-daemonset
+    template:
+      metadata:
+        labels:
+          app: sample-daemonset
+      spec:
+        containers:
+          - name: nginx
+            image: nginx:alpine
+statusItems:
+  - applied: true
+    clusterName: member1
+    health: Healthy
+    status:
+      currentNumberScheduled: 1
+      daemonSetHash: def456
+      desiredNumberScheduled: 1
+      numberAvailable: 1
+      numberMisscheduled: 0
+      numberReady: 1
+      observedGeneration: 3
+      updatedNumberScheduled: 1
+      generation: 3
+      resourceTemplateGeneration: 3
+  - applied: true
+    clusterName: member2
+    health: Healthy
+    status:
+      currentNumberScheduled: 1
+      daemonSetHash: def456
+      desiredNumberScheduled: 1
+      numberAvailable: 1
+      numberMisscheduled: 0
+      numberReady: 1
+      observedGeneration: 2
+      updatedNumberScheduled: 1
+      generation: 3
+      resourceTemplateGeneration: 3
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: DaemonSet
+    metadata:
+      name: sample-mixed
+      namespace: test-kruise-daemonset
+      generation: 3
+    spec:
+      selector:
+        matchLabels:
+          app: sample-daemonset
+      template:
+        metadata:
+          labels:
+            app: sample-daemonset
+        spec:
+          containers:
+            - name: nginx
+              image: nginx:alpine
+    status:
+      observedGeneration: 2
+      currentNumberScheduled: 2
+      numberMisscheduled: 0
+      desiredNumberScheduled: 2
+      numberReady: 2
+      updatedNumberScheduled: 2
+      numberAvailable: 2
+      numberUnavailable: 0
+      daemonSetHash: def456
+
+---
+name: "DaemonSet with stale resourceTemplateGeneration"
+description: "observedGeneration should not advance when any member has stale resourceTemplateGeneration"
+desiredObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: DaemonSet
+  metadata:
+    name: sample-stale-template
+    namespace: test-kruise-daemonset
+    generation: 3
+  status:
+    observedGeneration: 2
+  spec:
+    selector:
+      matchLabels:
+        app: sample-daemonset
+    template:
+      metadata:
+        labels:
+          app: sample-daemonset
+      spec:
+        containers:
+          - name: nginx
+            image: nginx:alpine
+statusItems:
+  - applied: true
+    clusterName: member1
+    health: Healthy
+    status:
+      currentNumberScheduled: 1
+      daemonSetHash: ghi789
+      desiredNumberScheduled: 1
+      numberAvailable: 1
+      numberMisscheduled: 0
+      numberReady: 1
+      observedGeneration: 3
+      updatedNumberScheduled: 1
+      generation: 3
+      resourceTemplateGeneration: 3
+  - applied: true
+    clusterName: member2
+    health: Healthy
+    status:
+      currentNumberScheduled: 1
+      daemonSetHash: ghi789
+      desiredNumberScheduled: 1
+      numberAvailable: 1
+      numberMisscheduled: 0
+      numberReady: 1
+      observedGeneration: 3
+      updatedNumberScheduled: 1
+      generation: 3
+      resourceTemplateGeneration: 2
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: DaemonSet
+    metadata:
+      name: sample-stale-template
+      namespace: test-kruise-daemonset
+      generation: 3
+    spec:
+      selector:
+        matchLabels:
+          app: sample-daemonset
+      template:
+        metadata:
+          labels:
+            app: sample-daemonset
+        spec:
+          containers:
+            - name: nginx
+              image: nginx:alpine
+    status:
+      observedGeneration: 2
+      currentNumberScheduled: 2
+      numberMisscheduled: 0
+      desiredNumberScheduled: 2
+      numberReady: 2
+      updatedNumberScheduled: 2
+      numberAvailable: 2
+      numberUnavailable: 0
+      daemonSetHash: ghi789
+
+---
+name: "DaemonSet with mixed nil status fields"
+description: "If some fields in the status of certain members are nil, the accumulation should be skipped"
+desiredObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: DaemonSet
+  metadata:
+    name: sample-nil-fields
+    namespace: test-kruise-daemonset
+    generation: 2
+  spec:
+    selector:
+      matchLabels:
+        app: sample-daemonset
+    template:
+      metadata:
+        labels:
+          app: sample-daemonset
+      spec:
+        containers:
+          - name: nginx
+            image: nginx:alpine
+statusItems:
+  - applied: true
+    clusterName: member1
+    health: Healthy
+    status:
+      currentNumberScheduled: 2
+      daemonSetHash: jkl012
+      desiredNumberScheduled: 2
+      numberAvailable: 2
+      numberMisscheduled: 0
+      numberReady: 2
+      observedGeneration: 2
+      updatedNumberScheduled: 2
+      generation: 2
+      resourceTemplateGeneration: 2
+  - applied: true
+    clusterName: member2
+    health: Healthy
+    status:
+      currentNumberScheduled: 1
+      numberMisscheduled: 0
+      numberReady: 1
+      observedGeneration: 2
+      generation: 2
+      resourceTemplateGeneration: 2
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: DaemonSet
+    metadata:
+      name: sample-nil-fields
+      namespace: test-kruise-daemonset
+      generation: 2
+    spec:
+      selector:
+        matchLabels:
+          app: sample-daemonset
+      template:
+        metadata:
+          labels:
+            app: sample-daemonset
+        spec:
+          containers:
+            - name: nginx
+              image: nginx:alpine
+    status:
+      observedGeneration: 2
+      currentNumberScheduled: 3
+      numberMisscheduled: 0
+      desiredNumberScheduled: 2
+      numberReady: 3
+      updatedNumberScheduled: 2
+      numberAvailable: 2
+      numberUnavailable: 0
+      daemonSetHash: jkl012
