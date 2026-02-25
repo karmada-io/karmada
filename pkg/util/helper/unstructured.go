@@ -56,6 +56,17 @@ func ApplyReplica(workload *unstructured.Unstructured, desireReplica int64, fiel
 	return nil
 }
 
+// ApplyReplicaAlways unconditionally applies the Replica value for the specific field.
+// Unlike ApplyReplica, this function sets the field regardless of whether it exists or not.
+// This is useful for scenarios like scaling from zero where the replicas field may be missing.
+func ApplyReplicaAlways(workload *unstructured.Unstructured, desireReplica int64, field string) error {
+	_, _, err := unstructured.NestedInt64(workload.Object, util.SpecField, field)
+	if err != nil {
+		return err
+	}
+	return unstructured.SetNestedField(workload.Object, desireReplica, util.SpecField, field)
+}
+
 // ToUnstructured converts a typed object to an unstructured object.
 func ToUnstructured(obj interface{}) (*unstructured.Unstructured, error) {
 	uncastObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
