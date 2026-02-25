@@ -7955,7 +7955,7 @@ func schema_pkg_apis_work_v1alpha2_ResourceBindingSpec(ref common.ReferenceCallb
 					},
 					"workloadAffinityGroups": {
 						SchemaProps: spec.SchemaProps{
-							Description: "WorkloadAffinityGroups represents instantiated grouping results from .spec.placement.workloadAffinity, used to keep workloads with the same affinity group co-located or those with the same anti-affinity group separated across clusters. Populated by controllers, the scheduler consumes it for decisions.",
+							Description: "WorkloadAffinityGroups represents instantiated grouping results from .spec.placement.workloadAffinity, used to keep workloads with the same affinity group co-located or those with the same anti-affinity group separated across clusters. Populated by controllers, the scheduler consumes it for decisions. Note: Since workloads are namespace-scoped resources, workload affinity only applies to ResourceBinding. Therefore, the WorkloadAffinityGroups field in ClusterResourceBinding will not be set and will not be consumed by the scheduler.",
 							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.WorkloadAffinityGroups"),
 						},
 					},
