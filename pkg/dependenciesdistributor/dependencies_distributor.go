@@ -435,18 +435,19 @@ func (d *DependenciesDistributor) recordDependencies(ctx context.Context, indepe
 	}
 	dependenciesStr := string(dependenciesBytes)
 
-	objectAnnotation := independentBinding.GetAnnotations()
-	if objectAnnotation == nil {
-		objectAnnotation = make(map[string]string, 1)
-	}
-
 	// dependencies are not updated, no need to update annotation.
-	if oldDependencies, exist := objectAnnotation[dependenciesAnnotationKey]; exist && oldDependencies == dependenciesStr {
-		return nil
+	if annots := independentBinding.GetAnnotations(); annots != nil {
+		if oldDependencies, exist := annots[dependenciesAnnotationKey]; exist && oldDependencies == dependenciesStr {
+			return nil
+		}
 	}
-	objectAnnotation[dependenciesAnnotationKey] = dependenciesStr
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+		objectAnnotation := independentBinding.GetAnnotations()
+		if objectAnnotation == nil {
+			objectAnnotation = make(map[string]string, 1)
+		}
+		objectAnnotation[dependenciesAnnotationKey] = dependenciesStr
 		independentBinding.SetAnnotations(objectAnnotation)
 		updateErr := d.Client.Update(ctx, independentBinding)
 		if updateErr == nil {
