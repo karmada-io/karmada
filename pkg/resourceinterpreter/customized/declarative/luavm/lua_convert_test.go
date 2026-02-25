@@ -50,13 +50,13 @@ func TestConvertLuaResultToStruct(t *testing.T) {
 
 	type args struct {
 		luaResult *lua.LTable
-		obj       interface{}
+		obj       any
 	}
 	tests := []struct {
 		name    string
 		args    args
 		wantErr bool
-		want    interface{}
+		want    any
 	}{
 		{
 			name: "obj is not a pointer",
@@ -232,11 +232,11 @@ func TestConvertLuaResultToUnstruct(t *testing.T) {
 			},
 			wantErr: false,
 			want: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"kind": "demo",
-					"spec": map[string]interface{}{
-						"NonEmptyMap":   map[string]interface{}{"test-key": `\"trap-string\":[]`},
-						"NonEmptySlice": []interface{}{`\"trap-string\":[]`},
+					"spec": map[string]any{
+						"NonEmptyMap":   map[string]any{"test-key": `\"trap-string\":[]`},
+						"NonEmptySlice": []any{`\"trap-string\":[]`},
 						"OtherField":    `\"trap-string\":[]`,
 					},
 				},
@@ -265,20 +265,20 @@ func TestConvertLuaResultToUnstruct(t *testing.T) {
 					return v
 				}(),
 				references: []*unstructured.Unstructured{{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"kind": "demo",
-						"spec": map[string]interface{}{"EmptySlice": []interface{}{}, "EmptyMap": map[string]interface{}{}}},
+						"spec": map[string]any{"EmptySlice": []any{}, "EmptyMap": map[string]any{}}},
 				}},
 			},
 			wantErr: false,
 			want: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"kind": "demo",
-					"spec": map[string]interface{}{
-						"EmptyMap":      map[string]interface{}{},
-						"NonEmptyMap":   map[string]interface{}{"test-key": `\"trap-string\":[]`},
-						"EmptySlice":    []interface{}{},
-						"NonEmptySlice": []interface{}{`\"trap-string\":[]`},
+					"spec": map[string]any{
+						"EmptyMap":      map[string]any{},
+						"NonEmptyMap":   map[string]any{"test-key": `\"trap-string\":[]`},
+						"EmptySlice":    []any{},
+						"NonEmptySlice": []any{`\"trap-string\":[]`},
 						"OtherField":    `\"trap-string\":[]`,
 					},
 				},

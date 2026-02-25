@@ -34,13 +34,13 @@ import (
 func Test_retainK8sWorkloadReplicas(t *testing.T) {
 	desiredNum, observedNum := int32(2), int32(4)
 	type args struct {
-		desired  interface{}
-		observed interface{}
+		desired  any
+		observed any
 	}
 	tests := []struct {
 		name    string
 		args    args
-		want    interface{}
+		want    any
 		wantErr bool
 	}{
 		{
@@ -200,10 +200,10 @@ func Test_retainSecretServiceAccountToken(t *testing.T) {
 		{
 			name: "ignores missing uid and data for type service-account-token",
 			args: args{
-				desired:  &unstructured.Unstructured{Object: map[string]interface{}{"type": string(corev1.SecretTypeServiceAccountToken)}},
-				observed: &unstructured.Unstructured{Object: map[string]interface{}{"type": string(corev1.SecretTypeServiceAccountToken)}},
+				desired:  &unstructured.Unstructured{Object: map[string]any{"type": string(corev1.SecretTypeServiceAccountToken)}},
+				observed: &unstructured.Unstructured{Object: map[string]any{"type": string(corev1.SecretTypeServiceAccountToken)}},
 			},
-			want: &unstructured.Unstructured{Object: map[string]interface{}{"type": string(corev1.SecretTypeServiceAccountToken)}},
+			want: &unstructured.Unstructured{Object: map[string]any{"type": string(corev1.SecretTypeServiceAccountToken)}},
 		},
 		{
 			name: "does not retain for type tls",
@@ -328,13 +328,13 @@ func Test_retainPersistentVolumeClaimFields(t *testing.T) {
 func Test_retainJobSelectorFields(t *testing.T) {
 	replicaNum := int32(2)
 	type args struct {
-		desired  interface{}
-		observed interface{}
+		desired  any
+		observed any
 	}
 	tests := []struct {
 		name    string
 		args    args
-		want    interface{}
+		want    any
 		wantErr bool
 	}{
 		{
@@ -505,13 +505,13 @@ func Test_retainJobSelectorFields(t *testing.T) {
 
 func Test_retainPodFields(t *testing.T) {
 	type args struct {
-		desired  interface{}
-		observed interface{}
+		desired  any
+		observed any
 	}
 	tests := []struct {
 		name    string
 		args    args
-		want    interface{}
+		want    any
 		wantErr bool
 	}{
 		{

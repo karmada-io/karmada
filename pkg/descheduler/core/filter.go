@@ -17,6 +17,8 @@ limitations under the License.
 package core
 
 import (
+	"slices"
+
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog/v2"
@@ -44,12 +46,7 @@ func FilterBindings(bindings []*workv1alpha2.ResourceBinding) []*workv1alpha2.Re
 
 func validateGVK(reference *workv1alpha2.ObjectReference) bool {
 	gvr := schema.FromAPIVersionAndKind(reference.APIVersion, reference.Kind)
-	for i := range supportedGVKs {
-		if gvr == supportedGVKs[i] {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(supportedGVKs, gvr)
 }
 
 func validatePlacement(binding *workv1alpha2.ResourceBinding) bool {

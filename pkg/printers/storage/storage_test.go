@@ -78,7 +78,6 @@ func TestPrintHandlerStorage(t *testing.T) {
 		},
 	}
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(fmt.Sprintf("object=%#v", tc.object), func(t *testing.T) {
 			_, err := convert.ConvertToTable(context.Background(), tc.object, nil)
 			if err != nil {

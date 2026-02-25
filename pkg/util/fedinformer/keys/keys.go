@@ -76,7 +76,7 @@ func (k *ClusterWideKey) GroupVersion() schema.GroupVersion {
 }
 
 // ClusterWideKeyFunc generates a ClusterWideKey for object.
-func ClusterWideKeyFunc(obj interface{}) (ClusterWideKey, error) {
+func ClusterWideKeyFunc(obj any) (ClusterWideKey, error) {
 	key := ClusterWideKey{}
 
 	runtimeObject, ok := obj.(runtime.Object)
@@ -140,7 +140,7 @@ func (f FederatedKey) String() string {
 }
 
 // FederatedKeyFunc generates a FederatedKey for object.
-func FederatedKeyFunc(cluster string, obj interface{}) (FederatedKey, error) {
+func FederatedKeyFunc(cluster string, obj any) (FederatedKey, error) {
 	key := FederatedKey{}
 
 	if len(cluster) == 0 {
@@ -166,7 +166,7 @@ type NamespacedKey struct {
 }
 
 // NamespacedKeyFunc generates a NamespacedKey for object.
-func NamespacedKeyFunc(obj interface{}) (NamespacedKey, error) {
+func NamespacedKeyFunc(obj any) (NamespacedKey, error) {
 	key := NamespacedKey{}
 
 	metaInfo, err := meta.Accessor(obj)

@@ -70,7 +70,7 @@ func (m *MockDiscovery) RESTClient() rest.Interface {
 //   - An error if pod creation fails.
 func CreatePods(client clientset.Interface, namespace string, componentName string, replicaCount int32, labels map[string]string, markRunningState bool) ([]*corev1.Pod, error) {
 	pods := make([]*corev1.Pod, 0, replicaCount)
-	for i := int32(0); i < replicaCount; i++ {
+	for i := range replicaCount {
 		podName := fmt.Sprintf("%s-pod-%d", componentName, i)
 		pod := &corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{

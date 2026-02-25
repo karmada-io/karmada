@@ -169,7 +169,7 @@ func (c *Controller) cacheNext() bool {
 }
 
 // handleErr checks if an error happened and makes sure we will retry later.
-func (c *Controller) handleErr(err error, key interface{}) {
+func (c *Controller) handleErr(err error, key any) {
 	if err == nil {
 		c.queue.Forget(key)
 		return
@@ -427,7 +427,7 @@ func (c *Controller) doCacheCluster(cluster string) error {
 }
 
 // addResourceRegistry parse the resourceRegistry object and add Cluster to the queue
-func (c *Controller) addResourceRegistry(obj interface{}) {
+func (c *Controller) addResourceRegistry(obj any) {
 	rr := obj.(*searchv1alpha1.ResourceRegistry)
 
 	for _, cluster := range c.getClusters(rr.Spec.TargetCluster) {
@@ -436,7 +436,7 @@ func (c *Controller) addResourceRegistry(obj interface{}) {
 }
 
 // updateResourceRegistry parse the resourceRegistry object and add (added/deleted) Cluster to the queue
-func (c *Controller) updateResourceRegistry(oldObj, newObj interface{}) {
+func (c *Controller) updateResourceRegistry(oldObj, newObj any) {
 	oldRR := oldObj.(*searchv1alpha1.ResourceRegistry)
 	newRR := newObj.(*searchv1alpha1.ResourceRegistry)
 
@@ -455,7 +455,7 @@ func (c *Controller) updateResourceRegistry(oldObj, newObj interface{}) {
 }
 
 // deleteResourceRegistry parse the resourceRegistry object and add deleted Cluster to the queue
-func (c *Controller) deleteResourceRegistry(obj interface{}) {
+func (c *Controller) deleteResourceRegistry(obj any) {
 	rr, isRR := obj.(*searchv1alpha1.ResourceRegistry)
 	// We can get DeletedFinalStateUnknown instead of *searchv1alpha1.ResourceRegistry here and
 	// we need to handle that correctly.
@@ -478,14 +478,14 @@ func (c *Controller) deleteResourceRegistry(obj interface{}) {
 }
 
 // addCluster adds a cluster object to the queue if needed
-func (c *Controller) addCluster(obj interface{}) {
+func (c *Controller) addCluster(obj any) {
 	cluster := obj.(*clusterv1alpha1.Cluster)
 
 	c.queue.Add(cluster.GetName())
 }
 
 // updateCluster rebuild informer if Cluster.Spec is changed
-func (c *Controller) updateCluster(oldObj, curObj interface{}) {
+func (c *Controller) updateCluster(oldObj, curObj any) {
 	curCluster := curObj.(*clusterv1alpha1.Cluster)
 
 	oldCluster := oldObj.(*clusterv1alpha1.Cluster)
@@ -506,7 +506,7 @@ func (c *Controller) updateCluster(oldObj, curObj interface{}) {
 }
 
 // deleteCluster set cluster to not exists
-func (c *Controller) deleteCluster(obj interface{}) {
+func (c *Controller) deleteCluster(obj any) {
 	cluster, isCluster := obj.(*clusterv1alpha1.Cluster)
 	// We can get DeletedFinalStateUnknown instead of *clusterV1alpha1.Cluster here and
 	// we need to handle that correctly.

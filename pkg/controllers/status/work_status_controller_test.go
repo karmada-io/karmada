@@ -373,13 +373,13 @@ func TestGenerateKey(t *testing.T) {
 		{
 			name: "normal case",
 			obj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "v1",
 					"kind":       "Pod",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "test",
 						"namespace": "default",
-						"annotations": map[string]interface{}{
+						"annotations": map[string]any{
 							workv1alpha2.WorkNamespaceAnnotation: "karmada-es-cluster",
 						},
 					},
@@ -391,13 +391,13 @@ func TestGenerateKey(t *testing.T) {
 		{
 			name: "getClusterNameFromAnnotation failed",
 			obj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "v1",
 					"kind":       "Pod",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "test",
 						"namespace": "default",
-						"annotations": map[string]interface{}{
+						"annotations": map[string]any{
 							workv1alpha2.WorkNamespaceAnnotation: "karmada-cluster",
 						},
 					},
@@ -409,13 +409,13 @@ func TestGenerateKey(t *testing.T) {
 		{
 			name: "cluster is empty",
 			obj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "v1",
 					"kind":       "Pod",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "test",
 						"namespace": "default",
-						"annotations": map[string]interface{}{
+						"annotations": map[string]any{
 							"test": "karmada-es-cluster",
 						},
 					},
@@ -454,13 +454,13 @@ func TestGetClusterNameFromAnnotation(t *testing.T) {
 		{
 			name: "normal case",
 			resource: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "v1",
 					"kind":       "Pod",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "test",
 						"namespace": "default",
-						"annotations": map[string]interface{}{
+						"annotations": map[string]any{
 							workv1alpha2.WorkNamespaceAnnotation: "karmada-es-cluster",
 						},
 					},
@@ -472,13 +472,13 @@ func TestGetClusterNameFromAnnotation(t *testing.T) {
 		{
 			name: "workNamespace is 0",
 			resource: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "v1",
 					"kind":       "Pod",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "test",
 						"namespace": "default",
-						"annotations": map[string]interface{}{
+						"annotations": map[string]any{
 							"foo": "karmada-es-cluster",
 						},
 					},
@@ -490,13 +490,13 @@ func TestGetClusterNameFromAnnotation(t *testing.T) {
 		{
 			name: "failed to get cluster name",
 			resource: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "v1",
 					"kind":       "Pod",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "test",
 						"namespace": "default",
-						"annotations": map[string]interface{}{
+						"annotations": map[string]any{
 							workv1alpha2.WorkNamespaceAnnotation: "karmada-cluster",
 						},
 					},
@@ -522,13 +522,13 @@ func TestGetClusterNameFromAnnotation(t *testing.T) {
 
 func newPodObj(namespace string) *unstructured.Unstructured {
 	obj := &unstructured.Unstructured{
-		Object: map[string]interface{}{
+		Object: map[string]any{
 			"apiVersion": "v1",
 			"kind":       "Pod",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      "pod",
 				"namespace": "default",
-				"annotations": map[string]interface{}{
+				"annotations": map[string]any{
 					workv1alpha2.WorkNamespaceAnnotation: namespace,
 					workv1alpha2.WorkNameAnnotation:      "work-name",
 				},
@@ -782,8 +782,7 @@ func TestWorkStatusController_getSingleClusterManager(t *testing.T) {
 	cluster := newCluster(clusterName, clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)
 
 	// Generate InformerManager
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	dynamicClientSet := dynamicfake.NewSimpleDynamicClient(scheme.Scheme)
 
@@ -886,13 +885,13 @@ func TestWorkStatusController_recreateResourceIfNeeded(t *testing.T) {
 	work := testhelper.NewWork("work", "default", workUID, raw)
 
 	obj := &unstructured.Unstructured{
-		Object: map[string]interface{}{
+		Object: map[string]any{
 			"apiVersion": "v1",
 			"kind":       "Pod",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      "pod1",
 				"namespace": "default",
-				"annotations": map[string]interface{}{
+				"annotations": map[string]any{
 					workv1alpha2.WorkNamespaceAnnotation: "karmada-es-cluster",
 				},
 			},
@@ -1001,8 +1000,7 @@ func TestWorkStatusController_registerInformersAndStart(t *testing.T) {
 	cluster := newCluster(clusterName, clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)
 
 	// Generate InformerManager
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	dynamicClientSet := dynamicfake.NewSimpleDynamicClient(scheme.Scheme)
 	c := newWorkStatusController(cluster)
 	opt := util.Options{
@@ -1123,10 +1121,10 @@ func (m *mockAsyncWorker) EnqueueWithOpts(opts util.AddOpts, obj any) { // captu
 	m.receivedObjs = append(m.receivedObjs, obj)
 	m.receivedPriorities = append(m.receivedPriorities, opts.Priority)
 }
-func (m *mockAsyncWorker) AddWithOpts(_ util.AddOpts, _ ...any)    {}
-func (m *mockAsyncWorker) Add(_ interface{})                       {}
-func (m *mockAsyncWorker) AddAfter(_ interface{}, _ time.Duration) {}
-func (m *mockAsyncWorker) Enqueue(obj interface{}) { // capture inputs for onUpdate/onDelete
+func (m *mockAsyncWorker) AddWithOpts(_ util.AddOpts, _ ...any) {}
+func (m *mockAsyncWorker) Add(_ any)                            {}
+func (m *mockAsyncWorker) AddAfter(_ any, _ time.Duration)      {}
+func (m *mockAsyncWorker) Enqueue(obj any) { // capture inputs for onUpdate/onDelete
 	m.enqueuedObjs = append(m.enqueuedObjs, obj)
 }
 func (m *mockAsyncWorker) Run(_ context.Context, _ int) {}

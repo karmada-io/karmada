@@ -27,7 +27,7 @@ import (
 // original object to the modified object.
 // The merge patch format is primarily intended for use with the HTTP PATCH method
 // as a means of describing a set of modifications to a target resource's content.
-func GenMergePatch(originalObj interface{}, modifiedObj interface{}) ([]byte, error) {
+func GenMergePatch(originalObj any, modifiedObj any) ([]byte, error) {
 	originalBytes, err := json.Marshal(originalObj)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal original object: %w", err)
@@ -53,7 +53,7 @@ func GenMergePatch(originalObj interface{}, modifiedObj interface{}) ([]byte, er
 // original field to the modified field.
 // The merge patch format is primarily intended for use with the HTTP PATCH method
 // as a means of describing a set of modifications to a target resource's content.
-func GenFieldMergePatch(fieldName string, originField interface{}, modifiedField interface{}) ([]byte, error) {
+func GenFieldMergePatch(fieldName string, originField any, modifiedField any) ([]byte, error) {
 	patchBytes, err := GenMergePatch(originField, modifiedField)
 	if err != nil {
 		return nil, err

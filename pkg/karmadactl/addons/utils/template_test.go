@@ -24,7 +24,7 @@ import (
 func TestParseTemplate(t *testing.T) {
 	type args struct {
 		strTmpl string
-		obj     interface{}
+		obj     any
 	}
 	tests := []struct {
 		name    string

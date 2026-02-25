@@ -297,7 +297,7 @@ func IsResourceApplied(workStatus *workv1alpha1.WorkStatus) bool {
 }
 
 // BuildStatusRawExtension builds raw JSON by a status map.
-func BuildStatusRawExtension(status interface{}) (*runtime.RawExtension, error) {
+func BuildStatusRawExtension(status any) (*runtime.RawExtension, error) {
 	statusJSON, err := json.Marshal(status)
 	if err != nil {
 		klog.Errorf("Failed to marshal status. Error: %v.", statusJSON)

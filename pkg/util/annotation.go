@@ -17,6 +17,7 @@ limitations under the License.
 package util
 
 import (
+	"maps"
 	"sort"
 	"strings"
 
@@ -108,9 +109,7 @@ func DedupeAndMergeAnnotations(existAnnotation, newAnnotation map[string]string)
 		return newAnnotation
 	}
 
-	for k, v := range newAnnotation {
-		existAnnotation[k] = v
-	}
+	maps.Copy(existAnnotation, newAnnotation)
 	return existAnnotation
 }
 

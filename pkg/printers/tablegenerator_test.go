@@ -41,7 +41,7 @@ func (obj *TestPrintType) DeepCopyObject() runtime.Object {
 }
 
 func PrintCustomType(obj *TestPrintType, _ GenerateOptions) ([]metav1beta1.TableRow, error) {
-	return []metav1beta1.TableRow{{Cells: []interface{}{obj.Data}}}, nil
+	return []metav1beta1.TableRow{{Cells: []any{obj.Data}}}, nil
 }
 
 func ErrorPrintHandler(_ *TestPrintType, _ GenerateOptions) ([]metav1beta1.TableRow, error) {
@@ -64,7 +64,7 @@ func TestCustomTypePrinting(t *testing.T) {
 
 	expectedTable := &metav1.Table{
 		ColumnDefinitions: []metav1.TableColumnDefinition{{Name: "Data"}},
-		Rows:              []metav1.TableRow{{Cells: []interface{}{"test object"}}},
+		Rows:              []metav1.TableRow{{Cells: []any{"test object"}}},
 	}
 	if !reflect.DeepEqual(expectedTable, table) {
 		t.Errorf("Error generating table from custom type. Expected (%#v), got (%#v)", expectedTable, table)

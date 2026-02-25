@@ -63,7 +63,7 @@ func (i *CommandInitOption) getKarmadaAPIServerIP() error {
 		return err
 	}
 
-	for number := 0; number < 3; number++ {
+	for number := range 3 {
 		if number >= len(nodes.Items) {
 			break
 		}
@@ -135,7 +135,7 @@ func (i *CommandInitOption) AddNodeSelectorLabels() error {
 	}
 
 	etcdSelectorLabels["karmada.io/etcd"] = ""
-	patchData := map[string]interface{}{"metadata": map[string]map[string]string{"labels": etcdSelectorLabels}}
+	patchData := map[string]any{"metadata": map[string]map[string]string{"labels": etcdSelectorLabels}}
 	playLoadBytes, _ := json.Marshal(patchData)
 	if _, err := i.KubeClientSet.CoreV1().Nodes().Patch(context.TODO(), etcdNodeName, types.StrategicMergePatchType, playLoadBytes, metav1.PatchOptions{}); err != nil {
 		return err

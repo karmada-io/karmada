@@ -261,7 +261,7 @@ var _ = ginkgo.Describe("Resource interpreter webhook testing", func() {
 				}
 			}
 
-			CheckResult := func(result workv1alpha2.ResourceHealth) interface{} {
+			CheckResult := func(result workv1alpha2.ResourceHealth) any {
 				return func(g gomega.Gomega) (bool, error) {
 					rb, err := karmadaClient.WorkV1alpha2().ResourceBindings(workload.Namespace).Get(context.TODO(), resourceBindingName, metav1.GetOptions{})
 					g.Expect(err).NotTo(gomega.HaveOccurred())
@@ -499,7 +499,7 @@ end
 			})
 
 			ginkgo.By("updating dependency cr", func() {
-				patch := []map[string]interface{}{
+				patch := []map[string]any{
 					{
 						"op":    "replace",
 						"path":  "/spec/resource/namespace",
@@ -872,7 +872,7 @@ var _ = framework.SerialDescribe("Resource interpreter customization testing", f
 					framework.WaitDeploymentStatus(clusterClient, memberDeployment, readyReplicas)
 				}
 
-				CheckResult := func(result workv1alpha2.ResourceHealth) interface{} {
+				CheckResult := func(result workv1alpha2.ResourceHealth) any {
 					return func(g gomega.Gomega) (bool, error) {
 						rb, err := karmadaClient.WorkV1alpha2().ResourceBindings(deployment.Namespace).Get(context.TODO(), resourceBindingName, metav1.GetOptions{})
 						g.Expect(err).NotTo(gomega.HaveOccurred())

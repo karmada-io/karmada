@@ -100,7 +100,7 @@ func (h *data[T]) Swap(i, j int) {
 }
 
 // Push is supposed to be called by container/heap.Push only.
-func (h *data[T]) Push(kv interface{}) {
+func (h *data[T]) Push(kv any) {
 	keyValue := kv.(*itemKeyValue[T])
 	n := len(h.queue)
 	h.items[keyValue.key] = &heapItem[T]{keyValue.obj, n}
@@ -108,7 +108,7 @@ func (h *data[T]) Push(kv interface{}) {
 }
 
 // Pop is supposed to be called by container/heap.Pop only.
-func (h *data[T]) Pop() interface{} {
+func (h *data[T]) Pop() any {
 	if len(h.queue) == 0 {
 		return nil
 	}

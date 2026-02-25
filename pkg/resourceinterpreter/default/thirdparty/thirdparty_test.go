@@ -74,7 +74,7 @@ type IndividualTest struct {
 	Operation     string                              `yaml:"operation"`               // the operation of resource interpreter
 	Filepath      string                              `yaml:"filepath,omitempty"`      // the file path of current test case, used for logging
 	// TODO(@zhzhuang-zju): When we have a complete set of test cases, change Output to required field.
-	Output map[string]interface{} `yaml:"output,omitempty"` // the expected output results
+	Output map[string]any `yaml:"output,omitempty"` // the expected output results
 }
 
 func checkInterpretationRule(t *testing.T, path string, configs []*configv1alpha1.ResourceInterpreterCustomization) {
@@ -200,10 +200,10 @@ func pathKey(path []string) string {
 //
 // This two-pass mechanism ensures that both 'expected' and 'actual' objects are compared
 // after removing a consistent set of fields.
-func processObjectWithExclusion(obj interface{}, currentPath []string, excludePaths map[string]bool, isCollecting bool) interface{} {
+func processObjectWithExclusion(obj any, currentPath []string, excludePaths map[string]bool, isCollecting bool) any {
 	switch val := obj.(type) {
-	case map[string]interface{}:
-		result := make(map[string]interface{})
+	case map[string]any:
+		result := make(map[string]any)
 		for k, v := range val {
 			fieldPath := append(currentPath, k)
 			pathStr := pathKey(fieldPath)
@@ -226,8 +226,8 @@ func processObjectWithExclusion(obj interface{}, currentPath []string, excludePa
 		}
 		return result
 
-	case []interface{}:
-		result := make([]interface{}, len(val))
+	case []any:
+		result := make([]any, len(val))
 		for i, v := range val {
 			indexPath := append(currentPath, fmt.Sprintf("%d", i))
 			result[i] = processObjectWithExclusion(v, indexPath, excludePaths, isCollecting)
@@ -239,7 +239,7 @@ func processObjectWithExclusion(obj interface{}, currentPath []string, excludePa
 	}
 }
 
-func deepEqual(expected, actualValue interface{}) (bool, error) {
+func deepEqual(expected, actualValue any) (bool, error) {
 	expectedJSONBytes, err := k8sjson.Marshal(expected)
 	if err != nil {
 		return false, fmt.Errorf("failed to marshal expected value: %w", err)
@@ -283,8 +283,8 @@ func deepEqual(expected, actualValue interface{}) (bool, error) {
 		}
 		// Collect field paths marked with {{EXCLUDE}} and remove them from both objects
 		excludePaths := make(map[string]bool)
-		expectedExcluded := processObjectWithExclusion(unmarshaledExpected.Object, nil, excludePaths, true).(map[string]interface{})
-		actualExcluded := processObjectWithExclusion(typedActual.Object, nil, excludePaths, false).(map[string]interface{})
+		expectedExcluded := processObjectWithExclusion(unmarshaledExpected.Object, nil, excludePaths, true).(map[string]any)
+		actualExcluded := processObjectWithExclusion(typedActual.Object, nil, excludePaths, false).(map[string]any)
 		expectedObj := &unstructured.Unstructured{Object: expectedExcluded}
 		actualObj := &unstructured.Unstructured{Object: actualExcluded}
 		return checker.DeepEqual(expectedObj, actualObj), nil

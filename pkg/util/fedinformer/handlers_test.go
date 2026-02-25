@@ -42,19 +42,19 @@ type CustomResourceEventHandler struct {
 	handler cache.ResourceEventHandler
 }
 
-func (c *CustomResourceEventHandler) OnAdd(obj interface{}, isInInitialList bool) {
-	if h, ok := c.handler.(interface{ OnAdd(interface{}, bool) }); ok {
+func (c *CustomResourceEventHandler) OnAdd(obj any, isInInitialList bool) {
+	if h, ok := c.handler.(interface{ OnAdd(any, bool) }); ok {
 		h.OnAdd(obj, isInInitialList)
 	} else {
 		c.handler.OnAdd(obj, false)
 	}
 }
 
-func (c *CustomResourceEventHandler) OnUpdate(oldObj, newObj interface{}) {
+func (c *CustomResourceEventHandler) OnUpdate(oldObj, newObj any) {
 	c.handler.OnUpdate(oldObj, newObj)
 }
 
-func (c *CustomResourceEventHandler) OnDelete(obj interface{}) {
+func (c *CustomResourceEventHandler) OnDelete(obj any) {
 	c.handler.OnDelete(obj)
 }
 
@@ -71,9 +71,9 @@ func TestNewHandlerOnEvents(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			var addCalled, updateCalled, deleteCalled bool
-			addFunc := func(_ interface{}, _ bool) { addCalled = true }
-			updateFunc := func(_, _ interface{}) { updateCalled = true }
-			deleteFunc := func(_ interface{}) { deleteCalled = true }
+			addFunc := func(_ any, _ bool) { addCalled = true }
+			updateFunc := func(_, _ any) { updateCalled = true }
+			deleteFunc := func(_ any) { deleteCalled = true }
 
 			handler := &CustomResourceEventHandler{NewHandlerOnEvents(addFunc, updateFunc, deleteFunc)}
 
@@ -104,7 +104,7 @@ func TestNewFilteringHandlerOnAllEvents(t *testing.T) {
 	testCases := []struct {
 		name           string
 		event          string
-		input          interface{}
+		input          any
 		expectedAdd    bool
 		expectedUpdate bool
 		expectedDelete bool
@@ -154,11 +154,11 @@ func TestNewFilteringHandlerOnAllEvents(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			var addCalled, updateCalled, deleteCalled bool
-			addFunc := func(_ interface{}, _ bool) { addCalled = true }
-			updateFunc := func(_, _ interface{}) { updateCalled = true }
-			deleteFunc := func(_ interface{}) { deleteCalled = true }
+			addFunc := func(_ any, _ bool) { addCalled = true }
+			updateFunc := func(_, _ any) { updateCalled = true }
+			deleteFunc := func(_ any) { deleteCalled = true }
 
-			filterFunc := func(obj interface{}) bool {
+			filterFunc := func(obj any) bool {
 				testObj := obj.(*TestObject)
 				return testObj.Spec == "pass"
 			}

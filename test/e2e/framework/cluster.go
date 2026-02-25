@@ -19,6 +19,7 @@ package framework
 import (
 	"context"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -134,8 +135,8 @@ func fetchPullBasedClusters() (map[string]string, error) {
 
 	pullBasedClustersMap := make(map[string]string)
 	pullBasedClusters = strings.TrimSuffix(pullBasedClusters, ";")
-	clusterInfo := strings.Split(pullBasedClusters, ";")
-	for _, cluster := range clusterInfo {
+	clusterInfo := strings.SplitSeq(pullBasedClusters, ";")
+	for cluster := range clusterInfo {
 		clusterNameAndConfigPath := strings.Split(cluster, ":")
 		if len(clusterNameAndConfigPath) != 2 {
 			return nil, fmt.Errorf("failed to parse config path for cluster: %s", cluster)
@@ -257,9 +258,7 @@ func UpdateClusterLabels(client karmada.Interface, clusterName string, labels ma
 		if cluster.Labels == nil {
 			cluster.Labels = map[string]string{}
 		}
-		for key, value := range labels {
-			cluster.Labels[key] = value
-		}
+		maps.Copy(cluster.Labels, labels)
 		_, err = client.ClusterV1alpha1().Clusters().Update(context.TODO(), cluster, metav1.UpdateOptions{})
 		if err != nil {
 			return false, err

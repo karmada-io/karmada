@@ -138,7 +138,7 @@ func TestRecordDescheduleResultEventForResourceBinding(t *testing.T) {
 func TestUpdateCluster(t *testing.T) {
 	tests := []struct {
 		name        string
-		newObj      interface{}
+		newObj      any
 		expectedAdd bool
 	}{
 		{
@@ -182,7 +182,7 @@ func TestUpdateCluster(t *testing.T) {
 func TestDeleteCluster(t *testing.T) {
 	tests := []struct {
 		name        string
-		obj         interface{}
+		obj         any
 		expectedAdd bool
 	}{
 		{
@@ -237,7 +237,7 @@ func TestDeleteCluster(t *testing.T) {
 func buildBinding(name, ns string, target, status []workv1alpha2.TargetCluster) (*workv1alpha2.ResourceBinding, error) {
 	bindingStatus := workv1alpha2.ResourceBindingStatus{}
 	for _, cluster := range status {
-		statusMap := map[string]interface{}{
+		statusMap := map[string]any{
 			util.ReadyReplicasField: cluster.Replicas,
 		}
 		raw, err := helper.BuildStatusRawExtension(statusMap)
@@ -300,8 +300,7 @@ func TestRun(t *testing.T) {
 	_, err := karmadaClient.ClusterV1alpha1().Clusters().Create(context.TODO(), testCluster, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
-	baseCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	baseCtx := t.Context()
 	descheduler.informerFactory.Start(baseCtx.Done())
 	descheduler.informerFactory.WaitForCacheSync(baseCtx.Done())
 
@@ -750,8 +749,7 @@ func TestDescheduler_worker(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.TODO())
-			defer cancel()
+			ctx := t.Context()
 
 			binding, err := buildBinding(tt.args.name, tt.args.namespace, tt.args.target, tt.args.status)
 			if err != nil {
@@ -825,7 +823,7 @@ func TestDescheduler_worker(t *testing.T) {
 func TestDescheduler_workerErrors(t *testing.T) {
 	tests := []struct {
 		name          string
-		key           interface{}
+		key           any
 		setupMocks    func(*Descheduler)
 		expectedError string
 	}{
@@ -901,21 +899,21 @@ type mockAsyncWorker struct {
 	mock.Mock
 }
 
-func (m *mockAsyncWorker) Add(item interface{}) {
+func (m *mockAsyncWorker) Add(item any) {
 	m.Called(item)
 }
 
-func (m *mockAsyncWorker) AddAfter(item interface{}, duration time.Duration) {
+func (m *mockAsyncWorker) AddAfter(item any, duration time.Duration) {
 	m.Called(item, duration)
 }
 
 func (m *mockAsyncWorker) Run(_ context.Context, _ int) {}
 
-func (m *mockAsyncWorker) Enqueue(obj interface{}) {
+func (m *mockAsyncWorker) Enqueue(obj any) {
 	m.Called(obj)
 }
 
-func (m *mockAsyncWorker) EnqueueAfter(obj interface{}, duration time.Duration) {
+func (m *mockAsyncWorker) EnqueueAfter(obj any, duration time.Duration) {
 	m.Called(obj, duration)
 }
 

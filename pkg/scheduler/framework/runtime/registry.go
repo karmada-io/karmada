@@ -18,6 +18,7 @@ package runtime
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -72,14 +73,10 @@ func (r Registry) FactoryNames() []string {
 // Filter out the disabled plugin
 func (r Registry) Filter(names []string) Registry {
 	var retRegistry = make(Registry)
-	for _, name := range names {
-		// --plugins=*
-		if name == "*" {
-			for factoryName, factory := range r {
-				klog.Infof("Enable Scheduler plugin %q", factoryName)
-				retRegistry[factoryName] = factory
-			}
-			break
+	if slices.Contains(names, "*") {
+		for factoryName, factory := range r {
+			klog.Infof("Enable Scheduler plugin %q", factoryName)
+			retRegistry[factoryName] = factory
 		}
 	}
 

@@ -33,8 +33,8 @@ import (
 func TestSpecificationChanged(t *testing.T) {
 	tests := []struct {
 		name       string
-		oldObj     interface{}
-		newObj     interface{}
+		oldObj     any
+		newObj     any
 		wantChange bool
 	}{
 		{
@@ -322,8 +322,8 @@ func TestSpecificationChanged(t *testing.T) {
 func TestResourceChangeByKarmada(t *testing.T) {
 	tests := []struct {
 		name                string
-		oldObj              interface{}
-		newObj              interface{}
+		oldObj              any
+		newObj              any
 		wantChangeByKarmada bool
 	}{
 		{

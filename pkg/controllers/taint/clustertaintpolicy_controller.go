@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"slices"
 	"sort"
 
 	corev1 "k8s.io/api/core/v1"
@@ -132,19 +133,13 @@ func conditionMatches(conditions []metav1.Condition, matchConditions []policyv1a
 
 			switch matchCondition.Operator {
 			case policyv1alpha1.MatchConditionOpIn:
-				for _, value := range matchCondition.StatusValues {
-					if clusterCondition.Status == value {
-						match = true
-						break
-					}
+				if slices.Contains(matchCondition.StatusValues, clusterCondition.Status) {
+					match = true
 				}
 			case policyv1alpha1.MatchConditionOpNotIn:
 				match = true
-				for _, value := range matchCondition.StatusValues {
-					if clusterCondition.Status == value {
-						match = false
-						break
-					}
+				if slices.Contains(matchCondition.StatusValues, clusterCondition.Status) {
+					match = false
 				}
 			default:
 				err := fmt.Errorf("unsupported MatchCondition operator")

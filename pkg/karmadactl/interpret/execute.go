@@ -56,7 +56,7 @@ func (o *Options) completeExecute(f util.Factory) []error {
 
 	if len(o.StatusFile) > 0 {
 		o.StatusResult = genericresource.NewBuilder().
-			Constructor(func() interface{} { return &workv1alpha2.AggregatedStatusItem{} }).
+			Constructor(func() any { return &workv1alpha2.AggregatedStatusItem{} }).
 			Filename(false, o.StatusFile).
 			Do()
 		errs = append(errs, o.StatusResult.Err())
@@ -157,13 +157,13 @@ func printExecuteResult(w, errOut io.Writer, name string, result *interpreter.Ru
 // Inspired from https://github.com/kubernetes/kubernetes/blob/8fb423bfabe0d53934cc94c154c7da2dc3ce1332/staging/src/k8s.io/kubectl/pkg/cmd/get/get.go#L781-L786
 // To avoid these issues, we convert the object to map[string]interface{} via JSON marshaling/unmarshaling,
 // then encode it to YAML.
-func printObjectYaml(w io.Writer, obj interface{}) error {
+func printObjectYaml(w io.Writer, obj any) error {
 	data, err := json.Marshal(obj)
 	if err != nil {
 		return err
 	}
 
-	var converted interface{}
+	var converted any
 	err = json.Unmarshal(data, &converted)
 	if err != nil {
 		return err

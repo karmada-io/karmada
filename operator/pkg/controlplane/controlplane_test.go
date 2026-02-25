@@ -15,6 +15,7 @@ package controlplane
 
 import (
 	"fmt"
+	"slices"
 	"testing"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -467,10 +468,5 @@ func verifyFeatureGates(container *corev1.Container, featureGates map[string]boo
 
 // contains check if a slice contains a specific string.
 func contains(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(slice, item)
 }

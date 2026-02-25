@@ -39,17 +39,17 @@ func TestAddPPClaimMetadata(t *testing.T) {
 			policyID:   "f2507cgb-f3f3-4a4b-b289-5691a4fef979",
 			policyMeta: metav1.ObjectMeta{Name: "pp-example", Namespace: "test"},
 			obj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"metadata": map[string]interface{}{
-						"labels": map[string]interface{}{},
+				Object: map[string]any{
+					"metadata": map[string]any{
+						"labels": map[string]any{},
 					},
 				},
 			},
 			result: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"metadata": map[string]interface{}{
-						"labels":      map[string]interface{}{policyv1alpha1.PropagationPolicyPermanentIDLabel: "f2507cgb-f3f3-4a4b-b289-5691a4fef979"},
-						"annotations": map[string]interface{}{policyv1alpha1.PropagationPolicyNamespaceAnnotation: "test", policyv1alpha1.PropagationPolicyNameAnnotation: "pp-example"},
+				Object: map[string]any{
+					"metadata": map[string]any{
+						"labels":      map[string]any{policyv1alpha1.PropagationPolicyPermanentIDLabel: "f2507cgb-f3f3-4a4b-b289-5691a4fef979"},
+						"annotations": map[string]any{policyv1alpha1.PropagationPolicyNamespaceAnnotation: "test", policyv1alpha1.PropagationPolicyNameAnnotation: "pp-example"},
 					},
 				},
 			},
@@ -76,17 +76,17 @@ func TestAddCPPClaimMetadata(t *testing.T) {
 			policyID:   "f2507cgb-f3f3-4a4b-b289-5691a4fef979",
 			policyMeta: metav1.ObjectMeta{Name: "cpp-example"},
 			obj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"metadata": map[string]interface{}{
-						"labels": map[string]interface{}{},
+				Object: map[string]any{
+					"metadata": map[string]any{
+						"labels": map[string]any{},
 					},
 				},
 			},
 			result: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"metadata": map[string]interface{}{
-						"labels":      map[string]interface{}{policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "f2507cgb-f3f3-4a4b-b289-5691a4fef979"},
-						"annotations": map[string]interface{}{policyv1alpha1.ClusterPropagationPolicyAnnotation: "cpp-example"},
+				Object: map[string]any{
+					"metadata": map[string]any{
+						"labels":      map[string]any{policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "f2507cgb-f3f3-4a4b-b289-5691a4fef979"},
+						"annotations": map[string]any{policyv1alpha1.ClusterPropagationPolicyAnnotation: "cpp-example"},
 					},
 				},
 			},
@@ -109,18 +109,18 @@ func TestCleanupPPClaimMetadata(t *testing.T) {
 		{
 			name: "clean up policy claim metadata",
 			obj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"metadata": map[string]interface{}{
-						"labels":      map[string]interface{}{policyv1alpha1.PropagationPolicyPermanentIDLabel: "f2507cgb-f3f3-4a4b-b289-5691a4fef979"},
-						"annotations": map[string]interface{}{policyv1alpha1.PropagationPolicyNamespaceAnnotation: "default", policyv1alpha1.PropagationPolicyNameAnnotation: "pp-example"},
+				Object: map[string]any{
+					"metadata": map[string]any{
+						"labels":      map[string]any{policyv1alpha1.PropagationPolicyPermanentIDLabel: "f2507cgb-f3f3-4a4b-b289-5691a4fef979"},
+						"annotations": map[string]any{policyv1alpha1.PropagationPolicyNamespaceAnnotation: "default", policyv1alpha1.PropagationPolicyNameAnnotation: "pp-example"},
 					},
 				},
 			},
 			result: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"metadata": map[string]interface{}{
-						"labels":      map[string]interface{}{},
-						"annotations": map[string]interface{}{},
+				Object: map[string]any{
+					"metadata": map[string]any{
+						"labels":      map[string]any{},
+						"annotations": map[string]any{},
 					},
 				},
 			},
@@ -143,18 +143,18 @@ func TestCleanupCPPClaimMetadata(t *testing.T) {
 		{
 			name: "clean up policy claim metadata",
 			obj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"metadata": map[string]interface{}{
-						"labels":      map[string]interface{}{policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "f2507cgb-f3f3-4a4b-b289-5691a4fef979"},
-						"annotations": map[string]interface{}{policyv1alpha1.ClusterPropagationPolicyAnnotation: "cpp-example"},
+				Object: map[string]any{
+					"metadata": map[string]any{
+						"labels":      map[string]any{policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "f2507cgb-f3f3-4a4b-b289-5691a4fef979"},
+						"annotations": map[string]any{policyv1alpha1.ClusterPropagationPolicyAnnotation: "cpp-example"},
 					},
 				},
 			},
 			result: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"metadata": map[string]interface{}{
-						"labels":      map[string]interface{}{},
-						"annotations": map[string]interface{}{},
+				Object: map[string]any{
+					"metadata": map[string]any{
+						"labels":      map[string]any{},
+						"annotations": map[string]any{},
 					},
 				},
 			},
@@ -178,10 +178,10 @@ func TestNeedCleanupClaimMetadata(t *testing.T) {
 		{
 			name: "need cleanup",
 			obj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"metadata": map[string]interface{}{
-						"labels":      map[string]interface{}{policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "f2507cgb-f3f3-4a4b-b289-5691a4fef979"},
-						"annotations": map[string]interface{}{policyv1alpha1.ClusterPropagationPolicyAnnotation: "cpp-example"},
+				Object: map[string]any{
+					"metadata": map[string]any{
+						"labels":      map[string]any{policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "f2507cgb-f3f3-4a4b-b289-5691a4fef979"},
+						"annotations": map[string]any{policyv1alpha1.ClusterPropagationPolicyAnnotation: "cpp-example"},
 					},
 				},
 			},
@@ -191,10 +191,10 @@ func TestNeedCleanupClaimMetadata(t *testing.T) {
 		{
 			name: "no need cleanup",
 			obj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"metadata": map[string]interface{}{
-						"labels":      map[string]interface{}{policyv1alpha1.PropagationPolicyPermanentIDLabel: "b0907cgb-f3f3-4a4b-b289-5691a4fef979"},
-						"annotations": map[string]interface{}{policyv1alpha1.PropagationPolicyNamespaceAnnotation: "default", policyv1alpha1.PropagationPolicyNameAnnotation: "pp-example"},
+				Object: map[string]any{
+					"metadata": map[string]any{
+						"labels":      map[string]any{policyv1alpha1.PropagationPolicyPermanentIDLabel: "b0907cgb-f3f3-4a4b-b289-5691a4fef979"},
+						"annotations": map[string]any{policyv1alpha1.PropagationPolicyNamespaceAnnotation: "default", policyv1alpha1.PropagationPolicyNameAnnotation: "pp-example"},
 					},
 				},
 			},

@@ -50,7 +50,7 @@ func parseJSONValue(rawStatus []byte, jsonPath string) (string, error) {
 	if err := j.Parse(jsonPath); err != nil {
 		return "", err
 	}
-	var unmarshalled interface{}
+	var unmarshalled any
 	if err := json.Unmarshal(rawStatus, &unmarshalled); err != nil {
 		return "", fmt.Errorf("failed to unmarshal rawStatus: %w", err)
 	}

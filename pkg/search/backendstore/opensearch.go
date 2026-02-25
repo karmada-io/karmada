@@ -140,13 +140,13 @@ func NewOpenSearch(cluster string, cfg *searchv1alpha1.BackendStoreConfig) (*Ope
 // ResourceEventHandlerFuncs implements cache.ResourceEventHandler
 func (os *OpenSearch) ResourceEventHandlerFuncs() cache.ResourceEventHandler {
 	return &cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			os.upsert(obj)
 		},
-		UpdateFunc: func(_, curObj interface{}) {
+		UpdateFunc: func(_, curObj any) {
 			os.upsert(curObj)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
 				obj = tombstone.Obj
 				if obj == nil {
@@ -163,7 +163,7 @@ func (os *OpenSearch) ResourceEventHandlerFuncs() cache.ResourceEventHandler {
 func (os *OpenSearch) Close() {}
 
 // TODO: bulk delete
-func (os *OpenSearch) delete(obj interface{}) {
+func (os *OpenSearch) delete(obj any) {
 	us, ok := obj.(*unstructured.Unstructured)
 	if !ok {
 		klog.Errorf("unexpected type %T", obj)
@@ -190,7 +190,7 @@ func (os *OpenSearch) delete(obj interface{}) {
 }
 
 // TODO: bulk upsert
-func (os *OpenSearch) upsert(obj interface{}) {
+func (os *OpenSearch) upsert(obj any) {
 	us, ok := obj.(*unstructured.Unstructured)
 	if !ok {
 		klog.Errorf("unexpected type %T", obj)
@@ -206,10 +206,10 @@ func (os *OpenSearch) upsert(obj interface{}) {
 	annotations[clusterv1alpha1.CacheSourceAnnotationKey] = os.cluster
 	us.SetAnnotations(annotations)
 
-	doc := map[string]interface{}{
+	doc := map[string]any{
 		"apiVersion": us.GetAPIVersion(),
 		"kind":       us.GetKind(),
-		"metadata": map[string]interface{}{
+		"metadata": map[string]any{
 			"name":              us.GetName(),
 			"namespace":         us.GetNamespace(),
 			"creationTimestamp": us.GetCreationTimestamp().Format(time.RFC3339),

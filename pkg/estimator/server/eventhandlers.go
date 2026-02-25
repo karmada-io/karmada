@@ -33,7 +33,7 @@ func addAllEventHandlers(es *AccurateSchedulerEstimatorServer, informerFactory i
 	// scheduled pod cache
 	_, err := informerFactory.Core().V1().Pods().Informer().AddEventHandler(
 		cache.FilteringResourceEventHandler{
-			FilterFunc: func(obj interface{}) bool {
+			FilterFunc: func(obj any) bool {
 				switch t := obj.(type) {
 				case *corev1.Pod:
 					return assignedPod(t)
@@ -73,7 +73,7 @@ func addAllEventHandlers(es *AccurateSchedulerEstimatorServer, informerFactory i
 	}
 }
 
-func (es *AccurateSchedulerEstimatorServer) addPodToCache(obj interface{}) {
+func (es *AccurateSchedulerEstimatorServer) addPodToCache(obj any) {
 	pod, ok := obj.(*corev1.Pod)
 	if !ok {
 		klog.ErrorS(nil, "Cannot convert to *v1.Pod", "obj", obj)
@@ -86,7 +86,7 @@ func (es *AccurateSchedulerEstimatorServer) addPodToCache(obj interface{}) {
 	}
 }
 
-func (es *AccurateSchedulerEstimatorServer) updatePodInCache(oldObj, newObj interface{}) {
+func (es *AccurateSchedulerEstimatorServer) updatePodInCache(oldObj, newObj any) {
 	oldPod, ok := oldObj.(*corev1.Pod)
 	if !ok {
 		klog.ErrorS(nil, "Cannot convert oldObj to *v1.Pod", "oldObj", oldObj)
@@ -104,7 +104,7 @@ func (es *AccurateSchedulerEstimatorServer) updatePodInCache(oldObj, newObj inte
 	}
 }
 
-func (es *AccurateSchedulerEstimatorServer) deletePodFromCache(obj interface{}) {
+func (es *AccurateSchedulerEstimatorServer) deletePodFromCache(obj any) {
 	var pod *corev1.Pod
 	switch t := obj.(type) {
 	case *corev1.Pod:
@@ -126,7 +126,7 @@ func (es *AccurateSchedulerEstimatorServer) deletePodFromCache(obj interface{}) 
 	}
 }
 
-func (es *AccurateSchedulerEstimatorServer) addNodeToCache(obj interface{}) {
+func (es *AccurateSchedulerEstimatorServer) addNodeToCache(obj any) {
 	node, ok := obj.(*corev1.Node)
 	if !ok {
 		klog.ErrorS(nil, "Cannot convert to *v1.Node", "obj", obj)
@@ -137,7 +137,7 @@ func (es *AccurateSchedulerEstimatorServer) addNodeToCache(obj interface{}) {
 	klog.V(3).InfoS("Add event for node", "node", klog.KObj(node))
 }
 
-func (es *AccurateSchedulerEstimatorServer) updateNodeInCache(oldObj, newObj interface{}) {
+func (es *AccurateSchedulerEstimatorServer) updateNodeInCache(oldObj, newObj any) {
 	oldNode, ok := oldObj.(*corev1.Node)
 	if !ok {
 		klog.ErrorS(nil, "Cannot convert oldObj to *v1.Node", "oldObj", oldObj)
@@ -152,7 +152,7 @@ func (es *AccurateSchedulerEstimatorServer) updateNodeInCache(oldObj, newObj int
 	es.Cache.UpdateNode(oldNode, newNode)
 }
 
-func (es *AccurateSchedulerEstimatorServer) deleteNodeFromCache(obj interface{}) {
+func (es *AccurateSchedulerEstimatorServer) deleteNodeFromCache(obj any) {
 	var node *corev1.Node
 	switch t := obj.(type) {
 	case *corev1.Node:

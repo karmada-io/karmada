@@ -47,16 +47,16 @@ import (
 func BenchmarkEventFilterNoSkipNameSpaces(b *testing.B) {
 	dt := &ResourceDetector{}
 	dt.SkippedPropagatingNamespaces = nil
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		dt.EventFilter(&unstructured.Unstructured{
-			Object: map[string]interface{}{
+			Object: map[string]any{
 				"apiVersion": "apps/v1",
 				"kind":       "Deployment",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name":      "demo-deployment",
 					"namespace": "benchmark",
 				},
-				"spec": map[string]interface{}{
+				"spec": map[string]any{
 					"replicas": 2,
 				},
 			},
@@ -67,16 +67,16 @@ func BenchmarkEventFilterNoSkipNameSpaces(b *testing.B) {
 func BenchmarkEventFilterNoMatchSkipNameSpaces(b *testing.B) {
 	dt := &ResourceDetector{}
 	dt.SkippedPropagatingNamespaces = append(dt.SkippedPropagatingNamespaces, regexp.MustCompile("^benchmark-.*$"))
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		dt.EventFilter(&unstructured.Unstructured{
-			Object: map[string]interface{}{
+			Object: map[string]any{
 				"apiVersion": "apps/v1",
 				"kind":       "Deployment",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name":      "demo-deployment",
 					"namespace": "benchmark",
 				},
-				"spec": map[string]interface{}{
+				"spec": map[string]any{
 					"replicas": 2,
 				},
 			},
@@ -87,16 +87,16 @@ func BenchmarkEventFilterNoMatchSkipNameSpaces(b *testing.B) {
 func BenchmarkEventFilterNoWildcards(b *testing.B) {
 	dt := &ResourceDetector{}
 	dt.SkippedPropagatingNamespaces = append(dt.SkippedPropagatingNamespaces, regexp.MustCompile("^benchmark$"))
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		dt.EventFilter(&unstructured.Unstructured{
-			Object: map[string]interface{}{
+			Object: map[string]any{
 				"apiVersion": "apps/v1",
 				"kind":       "Deployment",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name":      "demo-deployment",
 					"namespace": "benchmark-1",
 				},
-				"spec": map[string]interface{}{
+				"spec": map[string]any{
 					"replicas": 2,
 				},
 			},
@@ -107,16 +107,16 @@ func BenchmarkEventFilterNoWildcards(b *testing.B) {
 func BenchmarkEventFilterPrefixMatchSkipNameSpaces(b *testing.B) {
 	dt := &ResourceDetector{}
 	dt.SkippedPropagatingNamespaces = append(dt.SkippedPropagatingNamespaces, regexp.MustCompile("^benchmark-.*$"))
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		dt.EventFilter(&unstructured.Unstructured{
-			Object: map[string]interface{}{
+			Object: map[string]any{
 				"apiVersion": "apps/v1",
 				"kind":       "Deployment",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name":      "demo-deployment",
 					"namespace": "benchmark-1",
 				},
-				"spec": map[string]interface{}{
+				"spec": map[string]any{
 					"replicas": 2,
 				},
 			},
@@ -126,16 +126,16 @@ func BenchmarkEventFilterPrefixMatchSkipNameSpaces(b *testing.B) {
 func BenchmarkEventFilterSuffixMatchSkipNameSpaces(b *testing.B) {
 	dt := &ResourceDetector{}
 	dt.SkippedPropagatingNamespaces = append(dt.SkippedPropagatingNamespaces, regexp.MustCompile("^.*-benchmark$"))
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		dt.EventFilter(&unstructured.Unstructured{
-			Object: map[string]interface{}{
+			Object: map[string]any{
 				"apiVersion": "apps/v1",
 				"kind":       "Deployment",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name":      "demo-deployment",
 					"namespace": "example-benchmark",
 				},
-				"spec": map[string]interface{}{
+				"spec": map[string]any{
 					"replicas": 2,
 				},
 			},
@@ -146,16 +146,16 @@ func BenchmarkEventFilterSuffixMatchSkipNameSpaces(b *testing.B) {
 func BenchmarkEventFilterMultiSkipNameSpaces(b *testing.B) {
 	dt := &ResourceDetector{}
 	dt.SkippedPropagatingNamespaces = append(dt.SkippedPropagatingNamespaces, regexp.MustCompile("^.*-benchmark$"), regexp.MustCompile("^benchmark-.*$"))
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		dt.EventFilter(&unstructured.Unstructured{
-			Object: map[string]interface{}{
+			Object: map[string]any{
 				"apiVersion": "apps/v1",
 				"kind":       "Deployment",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name":      "demo-deployment",
 					"namespace": "benchmark-1",
 				},
-				"spec": map[string]interface{}{
+				"spec": map[string]any{
 					"replicas": 2,
 				},
 			},
@@ -166,12 +166,12 @@ func BenchmarkEventFilterMultiSkipNameSpaces(b *testing.B) {
 func BenchmarkEventFilterExtensionApiserverAuthentication(b *testing.B) {
 	dt := &ResourceDetector{}
 	dt.SkippedPropagatingNamespaces = append(dt.SkippedPropagatingNamespaces, regexp.MustCompile("^kube-.*$"))
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		dt.EventFilter(&unstructured.Unstructured{
-			Object: map[string]interface{}{
+			Object: map[string]any{
 				"apiVersion": "v1",
 				"kind":       "ConfigMap",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name":      "extension-apiserver-authentication",
 					"namespace": "kube-system",
 				},
@@ -255,10 +255,10 @@ func TestEventFilter(t *testing.T) {
 		{
 			name: "object in karmada-system namespace",
 			obj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "v1",
 					"kind":       "Pod",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"namespace": "karmada-system",
 						"name":      "test-obj",
 					},
@@ -269,10 +269,10 @@ func TestEventFilter(t *testing.T) {
 		{
 			name: "object in karmada-cluster namespace",
 			obj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "v1",
 					"kind":       "Pod",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"namespace": "karmada-cluster",
 						"name":      "test-obj",
 					},
@@ -283,10 +283,10 @@ func TestEventFilter(t *testing.T) {
 		{
 			name: "object in karmada-es-* namespace",
 			obj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "v1",
 					"kind":       "Pod",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"namespace": "karmada-es-test",
 						"name":      "test-obj",
 					},
@@ -297,10 +297,10 @@ func TestEventFilter(t *testing.T) {
 		{
 			name: "object in skipped namespace",
 			obj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "v1",
 					"kind":       "Pod",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"namespace": "kube-system",
 						"name":      "test-obj",
 					},
@@ -312,10 +312,10 @@ func TestEventFilter(t *testing.T) {
 		{
 			name: "object in non-skipped namespace",
 			obj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "v1",
 					"kind":       "Pod",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"namespace": "default",
 						"name":      "test-obj",
 					},
@@ -326,10 +326,10 @@ func TestEventFilter(t *testing.T) {
 		{
 			name: "extension-apiserver-authentication configmap in kube-system",
 			obj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "v1",
 					"kind":       "ConfigMap",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"namespace": "kube-system",
 						"name":      "extension-apiserver-authentication",
 					},
@@ -340,10 +340,10 @@ func TestEventFilter(t *testing.T) {
 		{
 			name: "cluster-scoped resource",
 			obj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "v1",
 					"kind":       "Node",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "test-node",
 					},
 				},
@@ -365,17 +365,17 @@ func TestEventFilter(t *testing.T) {
 func TestOnAdd(t *testing.T) {
 	tests := []struct {
 		name            string
-		obj             interface{}
+		obj             any
 		expectedEnqueue bool
 		isInInitialList bool
 	}{
 		{
 			name: "valid unstructured object",
 			obj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "test-deployment",
 						"namespace": "default",
 					},
@@ -386,10 +386,10 @@ func TestOnAdd(t *testing.T) {
 		{
 			name: "valid unstructured object, with low priority",
 			obj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "test-deployment",
 						"namespace": "default",
 					},
@@ -401,7 +401,7 @@ func TestOnAdd(t *testing.T) {
 		{
 			name: "invalid unstructured object",
 			obj: &unstructured.Unstructured{
-				Object: map[string]interface{}{},
+				Object: map[string]any{},
 			},
 			expectedEnqueue: true, // The function doesn't check for validity, so it will still enqueue
 		},
@@ -443,35 +443,35 @@ func TestOnAdd(t *testing.T) {
 func TestOnUpdate(t *testing.T) {
 	tests := []struct {
 		name                      string
-		oldObj                    interface{}
-		newObj                    interface{}
+		oldObj                    any
+		newObj                    any
 		expectedEnqueue           bool
 		expectToUnstructuredError bool
 	}{
 		{
 			name: "valid update with changes",
 			oldObj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "test-deployment",
 						"namespace": "default",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": int64(1),
 					},
 				},
 			},
 			newObj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "test-deployment",
 						"namespace": "default",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": int64(2),
 					},
 				},
@@ -481,27 +481,27 @@ func TestOnUpdate(t *testing.T) {
 		{
 			name: "update without changes",
 			oldObj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "test-deployment",
 						"namespace": "default",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": int64(1),
 					},
 				},
 			},
 			newObj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "test-deployment",
 						"namespace": "default",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": int64(1),
 					},
 				},
@@ -517,23 +517,23 @@ func TestOnUpdate(t *testing.T) {
 		{
 			name: "change by Karmada",
 			oldObj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "test-deployment",
 						"namespace": "default",
 					},
 				},
 			},
 			newObj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "test-deployment",
 						"namespace": "default",
-						"annotations": map[string]interface{}{
+						"annotations": map[string]any{
 							util.PolicyPlacementAnnotation: "test",
 						},
 					},
@@ -603,10 +603,10 @@ func TestOnDelete(t *testing.T) {
 		{
 			name: "valid object",
 			obj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "test-deployment",
 						"namespace": "default",
 					},
@@ -617,7 +617,7 @@ func TestOnDelete(t *testing.T) {
 		{
 			name: "invalid object",
 			obj: &unstructured.Unstructured{
-				Object: map[string]interface{}{},
+				Object: map[string]any{},
 			},
 			expectedEnqueue: true, // The function doesn't check for validity, so it will still enqueue
 		},
@@ -651,10 +651,10 @@ func TestLookForMatchedPolicy(t *testing.T) {
 		{
 			name: "matching policy found",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "test-deployment",
 						"namespace": "default",
 					},
@@ -740,10 +740,10 @@ func TestLookForMatchedClusterPolicy(t *testing.T) {
 		{
 			name: "matching cluster policy found",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "test-deployment",
 						"namespace": "default",
 					},
@@ -858,10 +858,10 @@ func TestApplyPolicy(t *testing.T) {
 		{
 			name: "basic apply policy",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "test-deployment",
 						"namespace": "default",
 						"uid":       "test-uid",
@@ -882,14 +882,14 @@ func TestApplyPolicy(t *testing.T) {
 		{
 			name: "both affinity and antiAffinity label exists",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "test-deployment",
 						"namespace": "default",
 						"uid":       "test-uid",
-						"labels": map[string]interface{}{
+						"labels": map[string]any{
 							"affinityKey":     "affinityValue",
 							"antiAffinityKey": "antiAffinityValue",
 						},
@@ -917,14 +917,14 @@ func TestApplyPolicy(t *testing.T) {
 		{
 			name: "Only Affinity rule and label exists",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "test-deployment",
 						"namespace": "default",
 						"uid":       "test-uid",
-						"labels": map[string]interface{}{
+						"labels": map[string]any{
 							"affinityKey": "affinityValue",
 						},
 					},
@@ -950,14 +950,14 @@ func TestApplyPolicy(t *testing.T) {
 		{
 			name: "Only Anti Affinity rule and label exists",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "test-deployment",
 						"namespace": "default",
 						"uid":       "test-uid",
-						"labels": map[string]interface{}{
+						"labels": map[string]any{
 							"antiAffinityKey": "antiAffinityValue",
 						},
 					},
@@ -983,10 +983,10 @@ func TestApplyPolicy(t *testing.T) {
 		{
 			name: "Affinity/AntiAffinity rule exists but label missing",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "test-deployment",
 						"namespace": "default",
 						"uid":       "test-uid",
@@ -1065,10 +1065,10 @@ func TestApplyClusterPolicy(t *testing.T) {
 		{
 			name: "apply cluster policy for namespaced resource",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "test-deployment",
 						"namespace": "default",
 						"uid":       "test-uid",
@@ -1088,10 +1088,10 @@ func TestApplyClusterPolicy(t *testing.T) {
 		{
 			name: "apply cluster policy for cluster-scoped resource",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "rbac.authorization.k8s.io/v1",
 					"kind":       "ClusterRole",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "test-cluster-role",
 						"uid":  "test-uid",
 					},
@@ -1110,14 +1110,14 @@ func TestApplyClusterPolicy(t *testing.T) {
 		{
 			name: "both affinity and antiAffinity label exists",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "test-deployment",
 						"namespace": "default",
 						"uid":       "test-uid",
-						"labels": map[string]interface{}{
+						"labels": map[string]any{
 							"affinityKey":     "affinityValue",
 							"antiAffinityKey": "antiAffinityValue",
 						},
@@ -1275,18 +1275,18 @@ func setupTestScheme() *runtime.Scheme {
 // mockAsyncWorker is a mock implementation of util.AsyncWorker
 type mockAsyncWorker struct {
 	enqueueCount int
-	lastEnqueued interface{}
+	lastEnqueued any
 }
 
-func (m *mockAsyncWorker) Enqueue(item interface{}) {
+func (m *mockAsyncWorker) Enqueue(item any) {
 	m.enqueueCount++
 	m.lastEnqueued = item
 }
 
-func (m *mockAsyncWorker) Add(_ interface{}) {
+func (m *mockAsyncWorker) Add(_ any) {
 	m.enqueueCount++
 }
-func (m *mockAsyncWorker) AddAfter(_ interface{}, _ time.Duration) {}
+func (m *mockAsyncWorker) AddAfter(_ any, _ time.Duration) {}
 func (m *mockAsyncWorker) AddWithOpts(_ util.AddOpts, items ...any) {
 	for _, item := range items {
 		m.Add(item)

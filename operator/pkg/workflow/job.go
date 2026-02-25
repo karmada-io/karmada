@@ -21,7 +21,7 @@ import (
 )
 
 // RunData is an interface represents all of runDatas abstract object.
-type RunData = interface{}
+type RunData = any
 
 // Job represents an executable workflow, it has list of tasks.
 // these tasks must be execution order. if one of these tasks throws

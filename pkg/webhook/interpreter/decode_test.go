@@ -123,7 +123,7 @@ func TestDecodeRaw(t *testing.T) {
 			},
 			into: &unstructured.Unstructured{},
 			prep: func(re *runtime.RawExtension, apiVersion, kind, name string) error {
-				re.Raw = []byte(fmt.Sprintf(`{"apiVersion": "%s", "kind": "%s", "metadata": {"name": "%s"}}`, apiVersion, kind, name))
+				re.Raw = fmt.Appendf(nil, `{"apiVersion": "%s", "kind": "%s", "metadata": {"name": "%s"}}`, apiVersion, kind, name)
 				return nil
 			},
 			verify:  verifyRuntimeObject,
@@ -139,7 +139,7 @@ func TestDecodeRaw(t *testing.T) {
 			},
 			into: &MyTestPod{},
 			prep: func(re *runtime.RawExtension, apiVersion, kind, name string) error {
-				re.Raw = []byte(fmt.Sprintf(`{"apiVersion": "%s", "kind": "%s", "metadata": {"name": "%s"}}`, apiVersion, kind, name))
+				re.Raw = fmt.Appendf(nil, `{"apiVersion": "%s", "kind": "%s", "metadata": {"name": "%s"}}`, apiVersion, kind, name)
 				return nil
 			},
 			verify:  verifyRuntimeObject,
@@ -210,7 +210,7 @@ func TestDecode(t *testing.T) {
 			},
 			into: &unstructured.Unstructured{},
 			prep: func(re *Request, apiVersion, kind, name string) error {
-				re.ResourceInterpreterRequest.Object.Raw = []byte(fmt.Sprintf(`{"apiVersion": "%s", "kind": "%s", "metadata": {"name": "%s"}}`, apiVersion, kind, name))
+				re.ResourceInterpreterRequest.Object.Raw = fmt.Appendf(nil, `{"apiVersion": "%s", "kind": "%s", "metadata": {"name": "%s"}}`, apiVersion, kind, name)
 				return nil
 			},
 			verify:  verifyRuntimeObject,

@@ -82,8 +82,7 @@ func TestController(t *testing.T) {
 		return
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	kubeFactory.Start(ctx.Done())
 	karmadaFactory.Start(ctx.Done())
 	ctrl.Start(ctx)
@@ -366,8 +365,7 @@ func TestController_reconcile(t *testing.T) {
 					},
 				},
 			}
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+			ctx := t.Context()
 			karmadaFactory.Start(ctx.Done())
 			karmadaFactory.WaitForCacheSync(ctx.Done())
 

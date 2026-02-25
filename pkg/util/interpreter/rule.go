@@ -561,7 +561,7 @@ func (r RuleArgs) getObjectOrError() (*unstructured.Unstructured, error) {
 // NameValue name and value.
 type NameValue struct {
 	Name  string
-	Value interface{}
+	Value any
 }
 
 // RuleResult rule execution result.
@@ -580,7 +580,7 @@ func newRuleResultWithError(err error) *RuleResult {
 	}
 }
 
-func (r *RuleResult) add(name string, value interface{}) *RuleResult {
+func (r *RuleResult) add(name string, value any) *RuleResult {
 	r.Results = append(r.Results, NameValue{Name: name, Value: value})
 	return r
 }

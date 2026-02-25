@@ -19,6 +19,7 @@ package framework
 import (
 	"context"
 	"fmt"
+	"maps"
 	"reflect"
 
 	"github.com/onsi/ginkgo/v2"
@@ -203,9 +204,7 @@ func AppendDeploymentAnnotations(client kubernetes.Interface, deployment *appsv1
 			if deploy.Annotations == nil {
 				deploy.Annotations = make(map[string]string, 0)
 			}
-			for k, v := range annotations {
-				deploy.Annotations[k] = v
-			}
+			maps.Copy(deploy.Annotations, annotations)
 			_, err = client.AppsV1().Deployments(deploy.Namespace).Update(context.TODO(), deploy, metav1.UpdateOptions{})
 			return err
 		}, PollTimeout, PollInterval).ShouldNot(gomega.HaveOccurred())

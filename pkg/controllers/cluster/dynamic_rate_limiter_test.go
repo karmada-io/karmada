@@ -112,7 +112,7 @@ func TestGracefulEvictionRateLimiter_ExponentialBackoff(t *testing.T) {
 
 	worker := &evictionWorker{
 		name:          "backoff-worker",
-		keyFunc:       func(obj interface{}) (util.QueueKey, error) { return obj, nil },
+		keyFunc:       func(obj any) (util.QueueKey, error) { return obj, nil },
 		reconcileFunc: reconcileFunc,
 		queue:         queue,
 	}
@@ -144,12 +144,7 @@ func TestGracefulEvictionRateLimiter_ExponentialBackoff(t *testing.T) {
 		}
 		expectedBackoffDelay := time.Duration(expectedBackoffNs)
 
-		var expectedFinalDelay time.Duration
-		if expectedBackoffDelay > expectedDynamicDelay {
-			expectedFinalDelay = expectedBackoffDelay
-		} else {
-			expectedFinalDelay = expectedDynamicDelay
-		}
+		var expectedFinalDelay = max(expectedBackoffDelay, expectedDynamicDelay)
 
 		t.Logf("Attempt %2d: Observed Delay=%-18v | Expected Backoff Delay=%-18v | Effective Expected Delay >= %-18v",
 			i+1, observedDelay, expectedBackoffDelay, expectedFinalDelay)

@@ -45,7 +45,7 @@ func TestInc(t *testing.T) {
 	var wg sync.WaitGroup
 	loops := 100
 	wg.Add(loops)
-	for i := 0; i < loops; i++ {
+	for range loops {
 		go func() {
 			fakeRecorder.Inc()
 			wg.Done()
@@ -62,7 +62,7 @@ func TestDec(t *testing.T) {
 	var wg sync.WaitGroup
 	loops := 100
 	wg.Add(loops)
-	for i := 0; i < loops; i++ {
+	for range loops {
 		go func() {
 			fakeRecorder.Dec()
 			wg.Done()
@@ -79,13 +79,13 @@ func TestClear(t *testing.T) {
 	var wg sync.WaitGroup
 	incLoops, decLoops := 100, 80
 	wg.Add(incLoops + decLoops)
-	for i := 0; i < incLoops; i++ {
+	for range incLoops {
 		go func() {
 			fakeRecorder.Inc()
 			wg.Done()
 		}()
 	}
-	for i := 0; i < decLoops; i++ {
+	for range decLoops {
 		go func() {
 			fakeRecorder.Dec()
 			wg.Done()

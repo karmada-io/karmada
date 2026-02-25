@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -125,12 +126,7 @@ func validateWebhook(hook *configv1alpha1.ResourceInterpreterWebhook, fldPath *f
 }
 
 func hasWildcardOperation(operations []configv1alpha1.InterpreterOperation) bool {
-	for _, o := range operations {
-		if o == configv1alpha1.InterpreterOperationAll {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(operations, configv1alpha1.InterpreterOperationAll)
 }
 
 func validateRuleWithOperations(ruleWithOperations *configv1alpha1.RuleWithOperations, fldPath *field.Path) field.ErrorList {
@@ -182,10 +178,5 @@ func validateInterpreterContextVersions(versions []string, fldPath *field.Path) 
 }
 
 func isAcceptedExploreReviewVersions(v string) bool {
-	for _, version := range acceptedInterpreterContextVersions {
-		if v == version {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(acceptedInterpreterContextVersions, v)
 }

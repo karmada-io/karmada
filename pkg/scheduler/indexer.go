@@ -26,7 +26,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/indexregistry"
 )
 
-func resourceBindingAffinityGroupIndexer(obj interface{}) ([]string, error) {
+func resourceBindingAffinityGroupIndexer(obj any) ([]string, error) {
 	rb, ok := obj.(*workv1alpha2.ResourceBinding)
 	if !ok {
 		return []string{}, fmt.Errorf("object is not a ResourceBinding: %v", obj)
@@ -38,7 +38,7 @@ func resourceBindingAffinityGroupIndexer(obj interface{}) ([]string, error) {
 	return []string{rb.Spec.WorkloadAffinityGroups.AffinityGroup}, nil
 }
 
-func resourceBindingAntiAffinityGroupIndexer(obj interface{}) ([]string, error) {
+func resourceBindingAntiAffinityGroupIndexer(obj any) ([]string, error) {
 	rb, ok := obj.(*workv1alpha2.ResourceBinding)
 	if !ok {
 		return []string{}, fmt.Errorf("object is not a ResourceBinding: %v", obj)

@@ -86,9 +86,9 @@ func TestValidatingAdmission_Handle(t *testing.T) {
 					Operation: admissionv1.Delete,
 					OldObject: runtime.RawExtension{
 						Object: &unstructured.Unstructured{
-							Object: map[string]interface{}{
-								"metadata": map[string]interface{}{
-									"labels": map[string]interface{}{
+							Object: map[string]any{
+								"metadata": map[string]any{
+									"labels": map[string]any{
 										workv1alpha2.DeletionProtectionLabelKey: workv1alpha2.DeletionProtectionAlways,
 									},
 								},
@@ -107,9 +107,9 @@ func TestValidatingAdmission_Handle(t *testing.T) {
 					Operation: admissionv1.Delete,
 					OldObject: runtime.RawExtension{
 						Object: &unstructured.Unstructured{
-							Object: map[string]interface{}{
-								"metadata": map[string]interface{}{
-									"labels": map[string]interface{}{},
+							Object: map[string]any{
+								"metadata": map[string]any{
+									"labels": map[string]any{},
 								},
 							},
 						},
@@ -126,9 +126,9 @@ func TestValidatingAdmission_Handle(t *testing.T) {
 					Operation: admissionv1.Delete,
 					OldObject: runtime.RawExtension{
 						Object: &unstructured.Unstructured{
-							Object: map[string]interface{}{
-								"metadata": map[string]interface{}{
-									"labels": map[string]interface{}{
+							Object: map[string]any{
+								"metadata": map[string]any{
+									"labels": map[string]any{
 										"some-other-label": "some-value",
 									},
 								},

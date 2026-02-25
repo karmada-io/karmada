@@ -34,17 +34,17 @@ func Test_interpretDeploymentHealth(t *testing.T) {
 		{
 			name: "deployment healthy",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":       "fake-deployment",
 						"generation": 1,
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 3,
 					},
-					"status": map[string]interface{}{
+					"status": map[string]any{
 						"availableReplicas":  3,
 						"updatedReplicas":    3,
 						"observedGeneration": 1,
@@ -57,17 +57,17 @@ func Test_interpretDeploymentHealth(t *testing.T) {
 		{
 			name: "generation not equal to observedGeneration",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":       "fake-deployment",
 						"generation": 1,
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 3,
 					},
-					"status": map[string]interface{}{
+					"status": map[string]any{
 						"availableReplicas":  3,
 						"updatedReplicas":    3,
 						"observedGeneration": 2,
@@ -80,17 +80,17 @@ func Test_interpretDeploymentHealth(t *testing.T) {
 		{
 			name: "replicas not equal to updatedReplicas",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":       "fake-deployment",
 						"generation": 1,
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 3,
 					},
-					"status": map[string]interface{}{
+					"status": map[string]any{
 						"updatedReplicas":    1,
 						"observedGeneration": 1,
 					},
@@ -102,17 +102,17 @@ func Test_interpretDeploymentHealth(t *testing.T) {
 		{
 			name: "availableReplicas not equal to updatedReplicas",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":       "fake-deployment",
 						"generation": 1,
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 3,
 					},
-					"status": map[string]interface{}{
+					"status": map[string]any{
 						"availableReplicas":  0,
 						"updatedReplicas":    3,
 						"observedGeneration": 1,
@@ -148,17 +148,17 @@ func Test_interpretStatefulSetHealth(t *testing.T) {
 		{
 			name: "statefulSet healthy",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "StatefulSet",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":       "fake-statefulSet",
 						"generation": 1,
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 3,
 					},
-					"status": map[string]interface{}{
+					"status": map[string]any{
 						"availableReplicas":  3,
 						"updatedReplicas":    3,
 						"observedGeneration": 1,
@@ -171,17 +171,17 @@ func Test_interpretStatefulSetHealth(t *testing.T) {
 		{
 			name: "generation not equal to observedGeneration",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "StatefulSet",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":       "fake-statefulSet",
 						"generation": 1,
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 3,
 					},
-					"status": map[string]interface{}{
+					"status": map[string]any{
 						"availableReplicas":  3,
 						"updatedReplicas":    3,
 						"observedGeneration": 2,
@@ -194,17 +194,17 @@ func Test_interpretStatefulSetHealth(t *testing.T) {
 		{
 			name: "replicas not equal to updatedReplicas",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "StatefulSet",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":       "fake-statefulSet",
 						"generation": 1,
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 3,
 					},
-					"status": map[string]interface{}{
+					"status": map[string]any{
 						"updatedReplicas":    1,
 						"observedGeneration": 1,
 					},
@@ -216,17 +216,17 @@ func Test_interpretStatefulSetHealth(t *testing.T) {
 		{
 			name: "availableReplicas not equal to updatedReplicas",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "StatefulSet",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":       "fake-statefulSet",
 						"generation": 1,
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 3,
 					},
-					"status": map[string]interface{}{
+					"status": map[string]any{
 						"availableReplicas":  1,
 						"updatedReplicas":    3,
 						"observedGeneration": 1,
@@ -262,14 +262,14 @@ func Test_interpretReplicaSetHealth(t *testing.T) {
 		{
 			name: "replicaSet healthy",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"metadata": map[string]interface{}{
+				Object: map[string]any{
+					"metadata": map[string]any{
 						"generation": 1,
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 3,
 					},
-					"status": map[string]interface{}{
+					"status": map[string]any{
 						"availableReplicas":  3,
 						"observedGeneration": 1,
 					},
@@ -281,14 +281,14 @@ func Test_interpretReplicaSetHealth(t *testing.T) {
 		{
 			name: "generation not equal to observedGeneration",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"metadata": map[string]interface{}{
+				Object: map[string]any{
+					"metadata": map[string]any{
 						"generation": 1,
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 3,
 					},
-					"status": map[string]interface{}{
+					"status": map[string]any{
 						"availableReplicas":  3,
 						"observedGeneration": 2,
 					},
@@ -300,14 +300,14 @@ func Test_interpretReplicaSetHealth(t *testing.T) {
 		{
 			name: "replicas not equal to availableReplicas",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"metadata": map[string]interface{}{
+				Object: map[string]any{
+					"metadata": map[string]any{
 						"generation": 1,
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 3,
 					},
-					"status": map[string]interface{}{
+					"status": map[string]any{
 						"availableReplicas":  2,
 						"observedGeneration": 2,
 					},
@@ -341,11 +341,11 @@ func Test_interpretDaemonSetHealth(t *testing.T) {
 		{
 			name: "daemonSet healthy",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"metadata": map[string]interface{}{
+				Object: map[string]any{
+					"metadata": map[string]any{
 						"generation": 1,
 					},
-					"status": map[string]interface{}{
+					"status": map[string]any{
 						"observedGeneration": 1,
 					},
 				},
@@ -356,11 +356,11 @@ func Test_interpretDaemonSetHealth(t *testing.T) {
 		{
 			name: "generation not equal to observedGeneration",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"metadata": map[string]interface{}{
+				Object: map[string]any{
+					"metadata": map[string]any{
 						"generation": 1,
 					},
-					"status": map[string]interface{}{
+					"status": map[string]any{
 						"observedGeneration": 2,
 					},
 				},
@@ -371,8 +371,8 @@ func Test_interpretDaemonSetHealth(t *testing.T) {
 		{
 			name: "updatedNumberScheduled < desiredNumberScheduled",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"status": map[string]interface{}{
+				Object: map[string]any{
+					"status": map[string]any{
 						"updatedNumberScheduled": 3,
 						"desiredNumberScheduled": 5,
 					},
@@ -384,8 +384,8 @@ func Test_interpretDaemonSetHealth(t *testing.T) {
 		{
 			name: "numberAvailable < updatedNumberScheduled",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"status": map[string]interface{}{
+				Object: map[string]any{
+					"status": map[string]any{
 						"updatedNumberScheduled": 5,
 						"numberAvailable":        3,
 					},
@@ -421,13 +421,13 @@ func Test_interpretServiceHealth(t *testing.T) {
 		{
 			name: "service healthy",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"spec": map[string]interface{}{
+				Object: map[string]any{
+					"spec": map[string]any{
 						"type": corev1.ServiceTypeLoadBalancer,
 					},
-					"status": map[string]interface{}{
-						"loadBalancer": map[string]interface{}{
-							"ingress": []map[string]interface{}{{"ip": "localhost"}},
+					"status": map[string]any{
+						"loadBalancer": map[string]any{
+							"ingress": []map[string]any{{"ip": "localhost"}},
 						},
 					},
 				},
@@ -438,13 +438,13 @@ func Test_interpretServiceHealth(t *testing.T) {
 		{
 			name: "not loadBalancer type",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"spec": map[string]interface{}{
+				Object: map[string]any{
+					"spec": map[string]any{
 						"type": corev1.ServiceTypeNodePort,
 					},
-					"status": map[string]interface{}{
-						"loadBalancer": map[string]interface{}{
-							"ingress": []map[string]interface{}{{"ip": "localhost"}},
+					"status": map[string]any{
+						"loadBalancer": map[string]any{
+							"ingress": []map[string]any{{"ip": "localhost"}},
 						},
 					},
 				},
@@ -455,13 +455,13 @@ func Test_interpretServiceHealth(t *testing.T) {
 		{
 			name: "status.loadBalancer.ingress list is empty",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"spec": map[string]interface{}{
+				Object: map[string]any{
+					"spec": map[string]any{
 						"type": corev1.ServiceTypeLoadBalancer,
 					},
-					"status": map[string]interface{}{
-						"loadBalancer": map[string]interface{}{
-							"ingress": []map[string]interface{}{},
+					"status": map[string]any{
+						"loadBalancer": map[string]any{
+							"ingress": []map[string]any{},
 						},
 					},
 				},
@@ -496,10 +496,10 @@ func Test_interpretIngressHealth(t *testing.T) {
 		{
 			name: "ingress healthy",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"status": map[string]interface{}{
-						"loadBalancer": map[string]interface{}{
-							"ingress": []map[string]interface{}{{"ip": "localhost"}},
+				Object: map[string]any{
+					"status": map[string]any{
+						"loadBalancer": map[string]any{
+							"ingress": []map[string]any{{"ip": "localhost"}},
 						},
 					},
 				},
@@ -510,10 +510,10 @@ func Test_interpretIngressHealth(t *testing.T) {
 		{
 			name: "status.loadBalancer.ingress list is empty",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"status": map[string]interface{}{
-						"loadBalancer": map[string]interface{}{
-							"ingress": []map[string]interface{}{},
+				Object: map[string]any{
+					"status": map[string]any{
+						"loadBalancer": map[string]any{
+							"ingress": []map[string]any{},
 						},
 					},
 				},
@@ -548,8 +548,8 @@ func Test_interpretPersistentVolumeClaimHealth(t *testing.T) {
 		{
 			name: "persistentVolumeClaim healthy",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"status": map[string]interface{}{
+				Object: map[string]any{
+					"status": map[string]any{
 						"phase": corev1.ClaimBound,
 					},
 				},
@@ -560,8 +560,8 @@ func Test_interpretPersistentVolumeClaimHealth(t *testing.T) {
 		{
 			name: "status.phase not equals to Bound",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"status": map[string]interface{}{
+				Object: map[string]any{
+					"status": map[string]any{
 						"phase": corev1.ClaimPending,
 					},
 				},
@@ -596,13 +596,13 @@ func Test_interpretPodHealth(t *testing.T) {
 		{
 			name: "service type pod healthy",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "v1",
 					"kind":       "Pod",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "fake-pod",
 					},
-					"status": map[string]interface{}{
+					"status": map[string]any{
 						"conditions": []map[string]string{
 							{
 								"type":   "Ready",
@@ -619,13 +619,13 @@ func Test_interpretPodHealth(t *testing.T) {
 		{
 			name: "job type pod healthy",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "v1",
 					"kind":       "Pod",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "fake-pod",
 					},
-					"status": map[string]interface{}{
+					"status": map[string]any{
 						"phase": "Succeeded",
 					},
 				},
@@ -636,13 +636,13 @@ func Test_interpretPodHealth(t *testing.T) {
 		{
 			name: "pod condition ready false",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "v1",
 					"kind":       "Pod",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "fake-pod",
 					},
-					"status": map[string]interface{}{
+					"status": map[string]any{
 						"conditions": []map[string]string{
 							{
 								"type":   "Ready",
@@ -659,13 +659,13 @@ func Test_interpretPodHealth(t *testing.T) {
 		{
 			name: "pod phase not running and not succeeded",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "v1",
 					"kind":       "Pod",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "fake-pod",
 					},
-					"status": map[string]interface{}{
+					"status": map[string]any{
 						"phase": "Failed",
 					},
 				},
@@ -676,10 +676,10 @@ func Test_interpretPodHealth(t *testing.T) {
 		{
 			name: "condition or phase nil",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "v1",
 					"kind":       "Pod",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "fake-pod",
 					},
 				},
@@ -713,8 +713,8 @@ func Test_interpretPodDisruptionBudgetHealth(t *testing.T) {
 		{
 			name: "podDisruptionBudget healthy",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"status": map[string]interface{}{
+				Object: map[string]any{
+					"status": map[string]any{
 						"desiredHealthy": 2,
 						"currentHealthy": 3,
 					},
@@ -725,8 +725,8 @@ func Test_interpretPodDisruptionBudgetHealth(t *testing.T) {
 		{
 			name: "podDisruptionBudget healthy when desired healthy equals to current healthy pods",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"status": map[string]interface{}{
+				Object: map[string]any{
+					"status": map[string]any{
 						"desiredHealthy": 2,
 						"currentHealthy": 2,
 					},
@@ -737,8 +737,8 @@ func Test_interpretPodDisruptionBudgetHealth(t *testing.T) {
 		{
 			name: "podDisruptionBudget does not allow further disruption when number of healthy pods is less than desired",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"status": map[string]interface{}{
+				Object: map[string]any{
+					"status": map[string]any{
 						"desiredHealthy": 2,
 						"currentHealthy": 1,
 					},

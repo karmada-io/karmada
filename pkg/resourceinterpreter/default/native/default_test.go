@@ -136,41 +136,41 @@ func TestGetReplicas(t *testing.T) {
 		{
 			name: "desired replica exists",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "fake-deployment",
 						"namespace": "default",
-						"labels":    map[string]interface{}{"app": "my-app"},
+						"labels":    map[string]any{"app": "my-app"},
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": int64(2),
-						"selector": map[string]interface{}{
-							"matchLabels": map[string]interface{}{"app": "my-app"},
+						"selector": map[string]any{
+							"matchLabels": map[string]any{"app": "my-app"},
 						},
-						"template": map[string]interface{}{
-							"metadata": map[string]interface{}{
-								"labels": map[string]interface{}{"app": "my-app"},
+						"template": map[string]any{
+							"metadata": map[string]any{
+								"labels": map[string]any{"app": "my-app"},
 							},
-							"spec": map[string]interface{}{
-								"nodeSelector": map[string]interface{}{
+							"spec": map[string]any{
+								"nodeSelector": map[string]any{
 									"foo": "foo1",
 								},
-								"tolerations": []interface{}{
-									map[string]interface{}{
+								"tolerations": []any{
+									map[string]any{
 										"key":      "foo",
 										"operator": "Exists",
 										"effect":   "NoSchedule",
 									},
 								},
-								"affinity": map[string]interface{}{
-									"nodeAffinity": map[string]interface{}{
-										"requiredDuringSchedulingIgnoredDuringExecution": map[string]interface{}{
-											"nodeSelectorTerms": []interface{}{
-												map[string]interface{}{
-													"matchFields": []interface{}{
-														map[string]interface{}{
+								"affinity": map[string]any{
+									"nodeAffinity": map[string]any{
+										"requiredDuringSchedulingIgnoredDuringExecution": map[string]any{
+											"nodeSelectorTerms": []any{
+												map[string]any{
+													"matchFields": []any{
+														map[string]any{
 															"key":      "foo",
 															"operator": "Exists",
 														},
@@ -216,13 +216,13 @@ func TestGetReplicas(t *testing.T) {
 		}, {
 			name: "cannot get desired replica of given kind and apiversion",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Pod",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "fake-pod",
 						"namespace": "default",
-						"labels":    map[string]interface{}{"app": "my-app"},
+						"labels":    map[string]any{"app": "my-app"},
 					},
 				},
 			},
@@ -254,26 +254,26 @@ func TestReviseReplica(t *testing.T) {
 		{
 			name: "revise deployment replica",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "fake-deployment",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": int64(1),
 					},
 				},
 			},
 			replica: 3,
 			want: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "fake-deployment",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": int64(3),
 					},
 				},
@@ -283,13 +283,13 @@ func TestReviseReplica(t *testing.T) {
 		{
 			name: "cannot revise deployment replica of given kind and apiversion",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Job",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "fake-deployment",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": int64(1),
 					},
 				},
@@ -321,37 +321,37 @@ func TestRetain(t *testing.T) {
 		{
 			name: "retain observed replica",
 			desired: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "nginx",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": int32(2),
 					},
 				},
 			},
 			observed: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "nginx",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": int32(4),
 					},
 				},
 			},
 			want: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "nginx",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": int32(2),
 					},
 				},
@@ -361,25 +361,25 @@ func TestRetain(t *testing.T) {
 		{
 			name: "cannot retain observed replica of given kind and apiversion",
 			desired: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Pod",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "nginx",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": int32(2),
 					},
 				},
 			},
 			observed: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Pod",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "nginx",
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": int32(4),
 					},
 				},
@@ -400,7 +400,7 @@ func TestRetain(t *testing.T) {
 }
 
 func TestAggregateStatus(t *testing.T) {
-	statusMap := map[string]interface{}{
+	statusMap := map[string]any{
 		"replicas":            1,
 		"readyReplicas":       1,
 		"updatedReplicas":     1,
@@ -422,7 +422,7 @@ func TestAggregateStatus(t *testing.T) {
 		{
 			name: "update deployment status",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
 				},
@@ -440,21 +440,21 @@ func TestAggregateStatus(t *testing.T) {
 				},
 			},
 			want: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata":   map[string]interface{}{},
-					"spec": map[string]interface{}{
+					"metadata":   map[string]any{},
+					"spec": map[string]any{
 						"selector": nil,
-						"strategy": map[string]interface{}{},
-						"template": map[string]interface{}{
-							"metadata": map[string]interface{}{},
-							"spec": map[string]interface{}{
+						"strategy": map[string]any{},
+						"template": map[string]any{
+							"metadata": map[string]any{},
+							"spec": map[string]any{
 								"containers": nil,
 							},
 						},
 					},
-					"status": map[string]interface{}{
+					"status": map[string]any{
 						"availableReplicas": int64(2),
 						"readyReplicas":     int64(2),
 						"replicas":          int64(2),
@@ -466,7 +466,7 @@ func TestAggregateStatus(t *testing.T) {
 		}, {
 			name: "cannot update deployment status for given kind and apiversion",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Job",
 				},
@@ -508,16 +508,16 @@ func TestGetDependencies(t *testing.T) {
 		{
 			name: "deployment with dependencies 2",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "fake-deployment",
 						"namespace": namespace,
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 3,
-						"template": map[string]interface{}{
+						"template": map[string]any{
 							"spec": testPairs[1].podSpecsWithDependencies.Object,
 						},
 					},
@@ -548,16 +548,16 @@ func TestGetDependencies(t *testing.T) {
 		{
 			name: "can not get dependencies of given kind and apiversion",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "CronJob",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "fake-cronjob",
 						"namespace": namespace,
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 3,
-						"template": map[string]interface{}{
+						"template": map[string]any{
 							"spec": testPairs[1].podSpecsWithDependencies.Object,
 						},
 					},
@@ -590,7 +590,7 @@ func TestReflectStatus(t *testing.T) {
 		klog.Errorf("Failed to build wantRawExtension, error: %v", err)
 		return
 	}
-	testRawExtension, err := helper.BuildStatusRawExtension(map[string]interface{}{"key": "value"})
+	testRawExtension, err := helper.BuildStatusRawExtension(map[string]any{"key": "value"})
 	if err != nil {
 		klog.Errorf("Failed to build testRawExtension, error: %v", err)
 		return
@@ -604,10 +604,10 @@ func TestReflectStatus(t *testing.T) {
 		{
 			name: "object have correct format status",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "policy/v1",
 					"kind":       "PodDisruptionBudget",
-					"status": map[string]interface{}{
+					"status": map[string]any{
 						"currentHealthy":     int64(1),
 						"desiredHealthy":     int64(1),
 						"disruptionsAllowed": int64(1),
@@ -621,8 +621,8 @@ func TestReflectStatus(t *testing.T) {
 		{
 			name: "missing build-in handler",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"status": map[string]interface{}{"key": "value"},
+				Object: map[string]any{
+					"status": map[string]any{"key": "value"},
 				},
 			},
 			want:    testRawExtension,
@@ -650,17 +650,17 @@ func TestInterpretHealth(t *testing.T) {
 		{
 			name: "deployment healthy",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":       "fake-deployment",
 						"generation": 1,
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 3,
 					},
-					"status": map[string]interface{}{
+					"status": map[string]any{
 						"availableReplicas":  3,
 						"updatedReplicas":    3,
 						"observedGeneration": 1,
@@ -673,17 +673,17 @@ func TestInterpretHealth(t *testing.T) {
 		{
 			name: "cannot get health state for given kind and apiversion",
 			object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "policy/v1",
 					"kind":       "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":       "fake-deployment",
 						"generation": 1,
 					},
-					"spec": map[string]interface{}{
+					"spec": map[string]any{
 						"replicas": 3,
 					},
-					"status": map[string]interface{}{
+					"status": map[string]any{
 						"availableReplicas":  3,
 						"updatedReplicas":    3,
 						"observedGeneration": 1,

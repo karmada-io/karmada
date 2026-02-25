@@ -17,6 +17,8 @@ limitations under the License.
 package helper
 
 import (
+	"slices"
+
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
 
@@ -26,13 +28,7 @@ func IsScheduleResultEqual(tc1, tc2 []workv1alpha2.TargetCluster) bool {
 		return false
 	}
 	for _, c1 := range tc1 {
-		found := false
-		for _, c2 := range tc2 {
-			if c1 == c2 {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(tc2, c1)
 		if !found {
 			return false
 		}
@@ -42,10 +38,5 @@ func IsScheduleResultEqual(tc1, tc2 []workv1alpha2.TargetCluster) bool {
 
 // IsExclude indicate if the target clusters exclude the srcCluster
 func IsExclude(srcCluster string, targetClusters []string) bool {
-	for _, cluster := range targetClusters {
-		if cluster == srcCluster {
-			return false
-		}
-	}
-	return true
+	return !slices.Contains(targetClusters, srcCluster)
 }

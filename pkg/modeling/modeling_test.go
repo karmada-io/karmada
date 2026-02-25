@@ -19,7 +19,6 @@ package modeling
 import (
 	"container/list"
 	"fmt"
-	"reflect"
 	"testing"
 
 	"github.com/emirpasic/gods/trees/redblacktree"
@@ -423,18 +422,6 @@ func TestGetNodeNumFromModel(t *testing.T) {
 			if num != 2 {
 				t.Errorf("Got %v expected %v", num, 2)
 			}
-		}
-	}
-}
-
-func TestConvertToResourceList(t *testing.T) {
-	rsl := corev1.ResourceList{
-		corev1.ResourceCPU:    *resource.NewMilliQuantity(1, resource.DecimalSI),
-		corev1.ResourceMemory: *resource.NewQuantity(1024*6, resource.DecimalSI),
-	}
-	for name := range rsl {
-		if reflect.TypeOf(name).String() != "v1.ResourceName" {
-			t.Errorf("Got %v expected %v", reflect.TypeOf(name), "v1.ResourceName")
 		}
 	}
 }

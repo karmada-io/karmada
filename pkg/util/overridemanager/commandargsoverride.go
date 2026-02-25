@@ -64,15 +64,15 @@ func buildCommandArgsPatchesWithPath(target string, specContainersPath string, r
 	}
 	klog.V(4).Infof("buildCommandArgsPatchesWithPath containers info (%+v)", containers)
 	for index, container := range containers {
-		if container.(map[string]interface{})["name"] == commandRunOverrider.ContainerName {
+		if container.(map[string]any)["name"] == commandRunOverrider.ContainerName {
 			commandArgsPath := fmt.Sprintf("/%s/%d/%s", specContainersPath, index, target)
 			commandArgsValue := make([]string, 0)
 			var patch overrideOption
 			// if target is nil, to add new [target]
-			if container.(map[string]interface{})[target] == nil {
+			if container.(map[string]any)[target] == nil {
 				patch, _ = acquireAddOverrideOption(commandArgsPath, commandRunOverrider)
 			} else {
-				for _, val := range container.(map[string]interface{})[target].([]interface{}) {
+				for _, val := range container.(map[string]any)[target].([]any) {
 					commandArgsValue = append(commandArgsValue, fmt.Sprintf("%s", val))
 				}
 				patch, _ = acquireReplaceOverrideOption(commandArgsPath, commandArgsValue, commandRunOverrider)

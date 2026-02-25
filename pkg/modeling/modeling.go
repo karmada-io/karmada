@@ -145,7 +145,7 @@ func searchLastLessElement(nums []resource.Quantity, target resource.Quantity) i
 }
 
 // clusterResourceNodeComparator provides a fast comparison on clusterResourceNodes
-func (rs *ResourceSummary) clusterResourceNodeComparator(a, b interface{}) int {
+func (rs *ResourceSummary) clusterResourceNodeComparator(a, b any) int {
 	s1 := a.(ClusterResourceNode)
 	s2 := b.(ClusterResourceNode)
 	for index := 0; index < len(rs.modelSortingResourceNames); index++ {

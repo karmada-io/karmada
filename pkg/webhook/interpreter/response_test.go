@@ -125,8 +125,8 @@ func TestPatchResponseFromRaw(t *testing.T) {
 	}{
 		{
 			name:     "PatchResponseFromRaw_ReplacePatch_ReplacePatchExpected",
-			original: []byte(fmt.Sprintf(`{"name": "%s"}`, "original")),
-			current:  []byte(fmt.Sprintf(`{"name": "%s"}`, "current")),
+			original: fmt.Appendf(nil, `{"name": "%s"}`, "original"),
+			current:  fmt.Appendf(nil, `{"name": "%s"}`, "current"),
 			prep: func(wantRes *Response) error {
 				expectedPatch := []jsonpatch.Operation{
 					{
@@ -152,8 +152,8 @@ func TestPatchResponseFromRaw(t *testing.T) {
 		},
 		{
 			name:     "PatchResponseFromRaw_OriginalSameAsCurrentValue_NoPatchExpected",
-			original: []byte(fmt.Sprintf(`{"name": "%s"}`, "same")),
-			current:  []byte(fmt.Sprintf(`{"name": "%s"}`, "same")),
+			original: fmt.Appendf(nil, `{"name": "%s"}`, "same"),
+			current:  fmt.Appendf(nil, `{"name": "%s"}`, "same"),
 			prep:     func(*Response) error { return nil },
 			want:     Succeeded(""),
 		},
