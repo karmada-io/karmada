@@ -22,10 +22,17 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
+
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/lister"
+)
+
+var (
+	syncedPollPeriod = 100 * time.Millisecond
 )
 
 // SingleClusterInformerManager manages dynamic shared informer for all resources, include Kubernetes resource and
@@ -45,6 +52,10 @@ type SingleClusterInformerManager interface {
 
 	// IsHandlerExist checks if handler already added to the informer that watches the 'resource'.
 	IsHandlerExist(resource schema.GroupVersionResource, handler cache.ResourceEventHandler) bool
+
+	// IsInformerStarted checks if the informer for the resource has been started.
+	// Returns false if the informer was never created or never started.
+	IsInformerStarted(resource schema.GroupVersionResource) bool
 
 	// Lister returns a generic lister used to get 'resource' from informer's store.
 	// The informer for 'resource' will be created if not exist, but without any event handler.
@@ -78,7 +89,6 @@ func NewSingleClusterInformerManager(ctx context.Context, client dynamic.Interfa
 	return &singleClusterInformerManagerImpl{
 		informerFactory: dynamicinformer.NewDynamicSharedInformerFactory(client, defaultResync),
 		handlers:        make(map[schema.GroupVersionResource][]cache.ResourceEventHandler),
-		syncedInformers: make(map[schema.GroupVersionResource]struct{}),
 		ctx:             ctx,
 		cancel:          cancel,
 		client:          client,
@@ -90,8 +100,6 @@ type singleClusterInformerManagerImpl struct {
 	cancel context.CancelFunc
 
 	informerFactory dynamicinformer.DynamicSharedInformerFactory
-
-	syncedInformers map[schema.GroupVersionResource]struct{}
 
 	handlers map[schema.GroupVersionResource][]cache.ResourceEventHandler
 
@@ -119,10 +127,15 @@ func (s *singleClusterInformerManagerImpl) ForResource(resource schema.GroupVers
 }
 
 func (s *singleClusterInformerManagerImpl) IsInformerSynced(resource schema.GroupVersionResource) bool {
+	return s.informerFactory.ForResource(resource).Informer().HasSynced()
+}
+
+// TODO: this is a temporary solution, need to be optimized in the future
+func (s *singleClusterInformerManagerImpl) IsInformerStarted(resource schema.GroupVersionResource) bool {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
-
-	_, exist := s.syncedInformers[resource]
+	// Check if this resource has any handlers registered, which indicates it was started
+	_, exist := s.handlers[resource]
 	return exist
 }
 
@@ -149,7 +162,14 @@ func (s *singleClusterInformerManagerImpl) isHandlerExist(resource schema.GroupV
 }
 
 func (s *singleClusterInformerManagerImpl) Lister(resource schema.GroupVersionResource) cache.GenericLister {
-	return s.informerFactory.ForResource(resource).Lister()
+	waitForSync := func() error {
+		err := wait.PollUntilContextCancel(s.ctx, syncedPollPeriod, true,
+			func(_ context.Context) (bool, error) {
+				return s.informerFactory.ForResource(resource).Informer().HasSynced(), nil
+			})
+		return err
+	}
+	return lister.NewSyncedLister(s.informerFactory.ForResource(resource).Lister(), waitForSync)
 }
 
 func (s *singleClusterInformerManagerImpl) appendHandler(resource schema.GroupVersionResource, handler cache.ResourceEventHandler) {
@@ -169,26 +189,14 @@ func (s *singleClusterInformerManagerImpl) Stop() {
 }
 
 func (s *singleClusterInformerManagerImpl) WaitForCacheSync() map[schema.GroupVersionResource]bool {
-	return s.waitForCacheSync(s.ctx)
+	return s.informerFactory.WaitForCacheSync(s.ctx.Done())
 }
 
 func (s *singleClusterInformerManagerImpl) WaitForCacheSyncWithTimeout(cacheSyncTimeout time.Duration) map[schema.GroupVersionResource]bool {
 	ctx, cancel := context.WithTimeout(s.ctx, cacheSyncTimeout)
 	defer cancel()
 
-	return s.waitForCacheSync(ctx)
-}
-
-func (s *singleClusterInformerManagerImpl) waitForCacheSync(ctx context.Context) map[schema.GroupVersionResource]bool {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	res := s.informerFactory.WaitForCacheSync(ctx.Done())
-	for resource, synced := range res {
-		if _, exist := s.syncedInformers[resource]; !exist && synced {
-			s.syncedInformers[resource] = struct{}{}
-		}
-	}
-	return res
+	return s.informerFactory.WaitForCacheSync(ctx.Done())
 }
 
 func (s *singleClusterInformerManagerImpl) Context() context.Context {
