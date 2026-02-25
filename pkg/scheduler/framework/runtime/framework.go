@@ -50,7 +50,8 @@ type frameworkImpl struct {
 var _ framework.Framework = &frameworkImpl{}
 
 type frameworkOptions struct {
-	metricsRecorder *metricsRecorder
+	metricsRecorder       *metricsRecorder
+	scorePluginsWeightMap map[string]int
 }
 
 // Option for the frameworkImpl.
@@ -62,6 +63,13 @@ func defaultFrameworkOptions() frameworkOptions {
 	}
 }
 
+// WithScorePluginsWeight sets the weight for score plugins.
+func WithScorePluginsWeight(m map[string]int) Option {
+	return func(options *frameworkOptions) {
+		options.scorePluginsWeightMap = m
+	}
+}
+
 // NewFramework creates a scheduling framework by registry.
 func NewFramework(r Registry, opts ...Option) (framework.Framework, error) {
 	options := defaultFrameworkOptions()
@@ -70,7 +78,8 @@ func NewFramework(r Registry, opts ...Option) (framework.Framework, error) {
 	}
 
 	f := &frameworkImpl{
-		metricsRecorder: options.metricsRecorder,
+		scorePluginsWeightMap: make(map[string]int),
+		metricsRecorder:       options.metricsRecorder,
 	}
 	filterPluginsList := reflect.ValueOf(&f.filterPlugins).Elem()
 	scorePluginsList := reflect.ValueOf(&f.scorePlugins).Elem()
@@ -87,6 +96,13 @@ func NewFramework(r Registry, opts ...Option) (framework.Framework, error) {
 		addPluginToList(p, scoreType, &scorePluginsList)
 	}
 
+	for _, p := range f.scorePlugins {
+		weight, exist := options.scorePluginsWeightMap[p.Name()]
+		if !exist {
+			return nil, fmt.Errorf("score plugin %q is not configured with weight", p.Name())
+		}
+		f.scorePluginsWeightMap[p.Name()] = weight
+	}
 	return f, nil
 }
 
