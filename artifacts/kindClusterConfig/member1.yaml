@@ -5,3 +5,11 @@ networking:
   serviceSubnet: "10.11.0.0/16"
 nodes:
   - role: control-plane
+    image: kindest/node:v1.30.0
+    extraMounts:
+      - hostPath: {{ContainerdRegistryConfigsHostPath}}
+        containerPath: /etc/containerd/registry-configs.d
+containerdConfigPatches:
+  - |-
+    [plugins."io.containerd.grpc.v1.cri".registry]
+      config_path = "/etc/containerd/registry-configs.d"

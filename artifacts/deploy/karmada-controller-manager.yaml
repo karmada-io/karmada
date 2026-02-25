@@ -6,7 +6,7 @@ metadata:
   labels:
     app: karmada-controller-manager
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: karmada-controller-manager
