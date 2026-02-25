@@ -271,15 +271,6 @@ func startClusterController(ctx controllerscontext.Context) (enabled bool, err e
 	mgr := ctx.Mgr
 	opts := ctx.Opts
 
-	// Indexes are added to help the cluster-controller and TaintManager quickly locate ResourceBinding
-	// and ClusterResourceBinding resources associated with a given cluster when eviction is needed.
-	if err := indexregistry.RegisterResourceBindingIndexByFieldCluster(ctx.Context, mgr); err != nil {
-		return false, err
-	}
-	if err := indexregistry.RegisterClusterResourceBindingIndexByFieldCluster(ctx.Context, mgr); err != nil {
-		return false, err
-	}
-
 	clusterController := &cluster.Controller{
 		Client:                    mgr.GetClient(),
 		EventRecorder:             mgr.GetEventRecorderFor(cluster.ControllerName), //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
@@ -939,6 +930,17 @@ func setupControllers(ctx context.Context, mgr controllerruntime.Manager, opts *
 		ControlPlaneInformerManager: controlPlaneInformerManager,
 		ResourceInterpreter:         resourceInterpreter,
 		ClusterClientOption:         clusterClientOption,
+	}
+
+	// Register indexes that are used by multiple controllers to ensure they are available
+	// before any controller that depends on them starts.
+	// These indexes help cluster-controller and TaintManager quickly locate ResourceBinding
+	// and ClusterResourceBinding resources associated with a given cluster.
+	if err := indexregistry.RegisterResourceBindingIndexByFieldCluster(ctx, mgr); err != nil {
+		klog.Fatalf("Failed to register ResourceBinding index: %v", err)
+	}
+	if err := indexregistry.RegisterClusterResourceBindingIndexByFieldCluster(ctx, mgr); err != nil {
+		klog.Fatalf("Failed to register ClusterResourceBinding index: %v", err)
 	}
 
 	if err := controllers.StartControllers(controllerContext, controllersDisabledByDefault); err != nil {
