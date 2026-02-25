@@ -27,6 +27,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation"
+
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 )
 
 // +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/staging/src/k8s.io/kubectl/pkg/cmd/taint/utils.go#L37-L73
@@ -122,9 +124,13 @@ func parseTaint(st string) (corev1.Taint, error) {
 }
 
 // +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.26/staging/src/k8s.io/kubectl/pkg/cmd/taint/utils.go#L120-L126
+// +lifted:changed
 
 func validateTaintEffect(effect corev1.TaintEffect) error {
-	if effect != corev1.TaintEffectNoSchedule && effect != corev1.TaintEffectPreferNoSchedule && effect != corev1.TaintEffectNoExecute {
+	if effect != corev1.TaintEffectNoSchedule &&
+		effect != corev1.TaintEffectPreferNoSchedule &&
+		effect != corev1.TaintEffectNoExecute &&
+		effect != policyv1alpha1.TaintEffectSelectiveNoExecute {
 		return fmt.Errorf("invalid taint effect: %v, unsupported taint effect", effect)
 	}
 

@@ -22231,13 +22231,14 @@
       ],
       "properties": {
         "effect": {
-          "description": "Required. The effect of the taint on pods that do not tolerate the taint. Valid effects are NoSchedule, PreferNoSchedule and NoExecute.\n\nPossible enum values:\n - `\"NoExecute\"` Evict any already-running pods that do not tolerate the taint. Currently enforced by NodeController.\n - `\"NoSchedule\"` Do not allow new pods to schedule onto the node unless they tolerate the taint, but allow all pods submitted to Kubelet without going through the scheduler to start, and allow all already-running pods to continue running. Enforced by the scheduler.\n - `\"PreferNoSchedule\"` Like TaintEffectNoSchedule, but the scheduler tries not to schedule new pods onto the node, rather than prohibiting new pods from scheduling onto the node entirely. Enforced by the scheduler.",
+          "description": "Required. The effect of the taint on pods that do not tolerate the taint. Valid effects are NoSchedule, PreferNoSchedule and NoExecute.\n\nPossible enum values:\n - `\"NoExecute\"` Evict any already-running pods that do not tolerate the taint. Currently enforced by NodeController.\n - `\"NoSchedule\"` Do not allow new pods to schedule onto the node unless they tolerate the taint, but allow all pods submitted to Kubelet without going through the scheduler to start, and allow all already-running pods to continue running. Enforced by the scheduler.\n - `\"PreferNoSchedule\"` Like TaintEffectNoSchedule, but the scheduler tries not to schedule new pods onto the node, rather than prohibiting new pods from scheduling onto the node entirely. Enforced by the scheduler.\n - `\"SelectiveNoExecute\"` blocks new workloads scheduling unless tolerated, and prevents automatic eviction of existing workloads unless the cluster failover policies defined in the Failover.Cluster field of PropagationPolicy/ClusterPropagationPolicy spec are explicitly defined: 1. Scheduling behavior (like NoSchedule): - Do not allow new workloads to schedule onto the tainted cluster, unless explicitly tolerated by tolerations defined in the Placement.ClusterTolerations field of PropagationPolicy/ClusterPropagationPolicy spec. 2. Eviction behavior (different from NoExecute): - Existing workloads may be proactively migrated according to the cluster failover policies, regardless of their tolerations. - Workloads without matching failover policies remain running, ignore the propagation policies tolerations for this taint. This effect enables policy-driven \"active migration\" where: - Migration decisions are fully controlled by Failover.Cluster configurations - Traditional taint tolerations are ignored for migration logic Enforcement: - Scheduling restrictions enforced by Karmada scheduler - Actual migrations controlled by Karmada eviction controller",
           "type": "string",
           "default": "",
           "enum": [
             "NoExecute",
             "NoSchedule",
-            "PreferNoSchedule"
+            "PreferNoSchedule",
+            "SelectiveNoExecute"
           ]
         },
         "key": {
@@ -22260,12 +22261,13 @@
       "type": "object",
       "properties": {
         "effect": {
-          "description": "Effect indicates the taint effect to match. Empty means match all taint effects. When specified, allowed values are NoSchedule, PreferNoSchedule and NoExecute.\n\nPossible enum values:\n - `\"NoExecute\"` Evict any already-running pods that do not tolerate the taint. Currently enforced by NodeController.\n - `\"NoSchedule\"` Do not allow new pods to schedule onto the node unless they tolerate the taint, but allow all pods submitted to Kubelet without going through the scheduler to start, and allow all already-running pods to continue running. Enforced by the scheduler.\n - `\"PreferNoSchedule\"` Like TaintEffectNoSchedule, but the scheduler tries not to schedule new pods onto the node, rather than prohibiting new pods from scheduling onto the node entirely. Enforced by the scheduler.",
+          "description": "Effect indicates the taint effect to match. Empty means match all taint effects. When specified, allowed values are NoSchedule, PreferNoSchedule and NoExecute.\n\nPossible enum values:\n - `\"NoExecute\"` Evict any already-running pods that do not tolerate the taint. Currently enforced by NodeController.\n - `\"NoSchedule\"` Do not allow new pods to schedule onto the node unless they tolerate the taint, but allow all pods submitted to Kubelet without going through the scheduler to start, and allow all already-running pods to continue running. Enforced by the scheduler.\n - `\"PreferNoSchedule\"` Like TaintEffectNoSchedule, but the scheduler tries not to schedule new pods onto the node, rather than prohibiting new pods from scheduling onto the node entirely. Enforced by the scheduler.\n - `\"SelectiveNoExecute\"` blocks new workloads scheduling unless tolerated, and prevents automatic eviction of existing workloads unless the cluster failover policies defined in the Failover.Cluster field of PropagationPolicy/ClusterPropagationPolicy spec are explicitly defined: 1. Scheduling behavior (like NoSchedule): - Do not allow new workloads to schedule onto the tainted cluster, unless explicitly tolerated by tolerations defined in the Placement.ClusterTolerations field of PropagationPolicy/ClusterPropagationPolicy spec. 2. Eviction behavior (different from NoExecute): - Existing workloads may be proactively migrated according to the cluster failover policies, regardless of their tolerations. - Workloads without matching failover policies remain running, ignore the propagation policies tolerations for this taint. This effect enables policy-driven \"active migration\" where: - Migration decisions are fully controlled by Failover.Cluster configurations - Traditional taint tolerations are ignored for migration logic Enforcement: - Scheduling restrictions enforced by Karmada scheduler - Actual migrations controlled by Karmada eviction controller",
           "type": "string",
           "enum": [
             "NoExecute",
             "NoSchedule",
-            "PreferNoSchedule"
+            "PreferNoSchedule",
+            "SelectiveNoExecute"
           ]
         },
         "key": {

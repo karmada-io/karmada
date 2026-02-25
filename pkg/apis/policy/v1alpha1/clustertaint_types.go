@@ -121,6 +121,8 @@ type Taint struct {
 	Key string `json:"key"`
 
 	// Effect represents the taint effect to be applied to a cluster.
+	// Valid options are "NoSchedule", "SelectiveNoExecute" and "NoExecute".
+	// +kubebuilder:validation:Enum=NoSchedule;SelectiveNoExecute;NoExecute
 	// +required
 	Effect corev1.TaintEffect `json:"effect"`
 
@@ -128,6 +130,32 @@ type Taint struct {
 	// +optional
 	Value string `json:"value,omitempty"`
 }
+
+const (
+	// TaintEffectSelectiveNoExecute blocks new workloads scheduling unless tolerated,
+	// and prevents automatic eviction of existing workloads unless the cluster failover
+	// policies defined in the Failover.Cluster field of
+	// PropagationPolicy/ClusterPropagationPolicy spec are explicitly defined:
+	// 1. Scheduling behavior (like NoSchedule):
+	//    - Do not allow new workloads to schedule onto the tainted cluster,
+	//      unless explicitly tolerated by tolerations defined in the
+	//      Placement.ClusterTolerations field of
+	//      PropagationPolicy/ClusterPropagationPolicy spec.
+	// 2. Eviction behavior (different from NoExecute):
+	//    - Existing workloads may be proactively migrated according to the
+	//      cluster failover policies, regardless of their tolerations.
+	//    - Workloads without matching failover policies remain running,
+	//      ignore the propagation policies tolerations for this taint.
+	//
+	// This effect enables policy-driven "active migration" where:
+	// - Migration decisions are fully controlled by Failover.Cluster configurations
+	// - Traditional taint tolerations are ignored for migration logic
+	//
+	// Enforcement:
+	// - Scheduling restrictions enforced by Karmada scheduler
+	// - Actual migrations controlled by Karmada eviction controller
+	TaintEffectSelectiveNoExecute corev1.TaintEffect = "SelectiveNoExecute"
+)
 
 // +kubebuilder:resource:scope="Cluster"
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

@@ -123,8 +123,13 @@ spec:
                     to the cluster.
                   properties:
                     effect:
-                      description: Effect represents the taint effect to be applied
-                        to a cluster.
+                      description: |-
+                        Effect represents the taint effect to be applied to a cluster.
+                        Valid options are "NoSchedule", "SelectiveNoExecute" and "NoExecute".
+                      enum:
+                      - NoSchedule
+                      - SelectiveNoExecute
+                      - NoExecute
                       type: string
                     key:
                       description: Key represents the taint key to be applied to a
