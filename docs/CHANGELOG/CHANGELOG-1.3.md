@@ -1,8 +1,26 @@
-* [v1.3.0](#v130)
-  * [Downloads for v1.3.0](#downloads-for-v130)
-  * [Karmada v1.3 Release Notes](#karmada-v13-release-notes)
-    * [1.3 What's New](#whats-new)
-    * [Other Notable Changes](#other-notable-changes)
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
+
+- [v1.3.0](#v130)
+  - [Downloads for v1.3.0](#downloads-for-v130)
+  - [Karmada v1.3 Release Notes](#karmada-v13-release-notes)
+    - [What's New](#whats-new)
+      - [Taint-based eviction in graceful way](#taint-based-eviction-in-graceful-way)
+      - [Global proxy for resources across multi-clusters](#global-proxy-for-resources-across-multi-clusters)
+      - [Cluster resource modeling](#cluster-resource-modeling)
+      - [Bootstrap token-based cluster registration](#bootstrap-token-based-cluster-registration)
+      - [Significant improvement in system scalability](#significant-improvement-in-system-scalability)
+    - [Other Notable Changes](#other-notable-changes)
+      - [API changes](#api-changes)
+      - [Bug Fixes](#bug-fixes)
+      - [Features & Enhancements](#features--enhancements)
+    - [Other](#other)
+      - [Helm Chart](#helm-chart)
+      - [Dependencies](#dependencies)
+      - [Deprecation](#deprecation)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 # v1.3.0
 

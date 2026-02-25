@@ -1,3 +1,15 @@
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
+
+- [What's New](#whats-new)
+  - [Upgrading support](#upgrading-support)
+  - [Introduced karmada-scheduler-estimator to facilitate end-to-end scheduling accuracy](#introduced-karmada-scheduler-estimator-to-facilitate-end-to-end-scheduling-accuracy)
+  - [Maintainability improvements](#maintainability-improvements)
+- [Other Notable Changes](#other-notable-changes)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 # What's New
 ## Upgrading support
 Users are now able to upgrade from the previous version smoothly. With the 
