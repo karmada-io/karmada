@@ -69,12 +69,38 @@ type ClusterTaintPolicySpec struct {
 	// +optional
 	AddOnConditions []MatchCondition `json:"addOnConditions,omitempty"`
 
+	// AddOnSeconds is the duration in seconds for which the AddOnConditions
+	// must be continuously matched before adding the specified taint to the
+	// cluster. This provides stability by ensuring the condition persists
+	// long enough before taking action.
+	// All AddOnConditions should remain satisfied with the start time
+	// calculated from each condition's lastTransitionTime.
+	// It requires time synchronization between the controller and the apiserver.
+	// Defaults to 30.
+	// +optional
+	// +kubebuilder:default=30
+	// +kubebuilder:validation:Minimum=1
+	AddOnSeconds *int32 `json:"addOnSeconds,omitempty"`
+
 	// RemoveOnConditions defines the conditions to match for triggering
 	// the controller to remove taints from the cluster object.
 	// The match conditions are ANDed.
 	// If RemoveOnConditions is empty, no taints will be removed.
 	// +optional
 	RemoveOnConditions []MatchCondition `json:"removeOnConditions,omitempty"`
+
+	// RemoveOnSeconds is the duration in seconds for which the RemoveOnConditions
+	// must be continuously unmatched before removing the taint from the cluster.
+	// This prevents premature taint removal during brief connection recoveries.
+	// The duration requirement is satisfied when any single condition do not
+	// meet the specified time duration. The evaluation uses the lastTransitionTime
+	// as the start point for duration calculation.
+	// It requires time synchronization between the controller and apiserver.
+	// Defaults to 30.
+	// +optional
+	// +kubebuilder:default=30
+	// +kubebuilder:validation:Minimum=1
+	RemoveOnSeconds *int32 `json:"removeOnSeconds,omitempty"`
 
 	// Taints specifies the taints that need to be added or removed on
 	// the cluster object which match with TargetClusters.
