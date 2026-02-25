@@ -219,11 +219,11 @@ func matchZones(zoneMatchExpression *corev1.NodeSelectorRequirement, zones []str
 			return false
 		}
 		for _, zone := range zones {
-			if !slices.Contains(zoneMatchExpression.Values, zone) {
-				return false
+			if slices.Contains(zoneMatchExpression.Values, zone) {
+				return true
 			}
 		}
-		return true
+		return false
 	case corev1.NodeSelectorOpNotIn:
 		for _, zone := range zones {
 			if slices.Contains(zoneMatchExpression.Values, zone) {
