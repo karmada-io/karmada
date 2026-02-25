@@ -47,8 +47,7 @@ const (
 type Framework interface {
 
 	// RunFilterPlugins runs the set of configured Filter plugins for resources on the given cluster.
-	// TODO(@RainbowMango): refactor parameters to a struct for easier extension
-	RunFilterPlugins(ctx context.Context, bindingSpec *workv1alpha2.ResourceBindingSpec, bindingStatus *workv1alpha2.ResourceBindingStatus, cluster *clusterv1alpha1.Cluster, resourceBindingIndexer cache.Indexer) *Result
+	RunFilterPlugins(filterCtx *FilterContext) *Result
 
 	// RunScorePlugins runs the set of configured Score plugins, it returns a map of plugin names to scores
 	RunScorePlugins(ctx context.Context, spec *workv1alpha2.ResourceBindingSpec, clusters []*clusterv1alpha1.Cluster) (PluginToClusterScores, *Result)

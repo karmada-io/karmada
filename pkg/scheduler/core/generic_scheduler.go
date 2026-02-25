@@ -142,7 +142,15 @@ func (g *genericScheduler) findClustersThatFit(
 			continue
 		}
 
-		if result := g.scheduleFramework.RunFilterPlugins(ctx, bindingSpec, bindingStatus, c.Cluster(), resourceBindingIndexer); !result.IsSuccess() {
+		filterCtx := &framework.FilterContext{
+			Context:                ctx,
+			BindingSpec:            bindingSpec,
+			BindingStatus:          bindingStatus,
+			Cluster:                c.Cluster(),
+			ResourceBindingIndexer: resourceBindingIndexer,
+		}
+
+		if result := g.scheduleFramework.RunFilterPlugins(filterCtx); !result.IsSuccess() {
 			klog.V(4).Infof("Cluster %q is not fit, reason: %v", c.Cluster().Name, result.AsError())
 			diagnosis.ClusterToResultMap[c.Cluster().Name] = result
 		} else {
