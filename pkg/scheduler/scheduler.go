@@ -555,7 +555,7 @@ func (s *Scheduler) HasTerminatingTargetClusters(bindingSpec *workv1alpha2.Resou
 func (s *Scheduler) scheduleResourceBinding(rb *workv1alpha2.ResourceBinding) (err error) {
 	defer func() {
 		condition, ignoreErr := getConditionByError(err)
-		if updateErr := patchBindingStatusCondition(s.KarmadaClient, rb, condition); updateErr != nil {
+		if updateErr := patchBindingStatusCondition(s.KarmadaClient, rb, condition, ignoreErr); updateErr != nil {
 			// if patch error occurs, just return patch error to reconcile again.
 			err = updateErr
 			klog.Errorf("Failed to patch schedule status to ResourceBinding(%s/%s): %v", rb.Namespace, rb.Name, err)
@@ -693,7 +693,7 @@ func (s *Scheduler) patchScheduleResultForResourceBinding(oldBinding *workv1alph
 func (s *Scheduler) scheduleClusterResourceBinding(crb *workv1alpha2.ClusterResourceBinding) (err error) {
 	defer func() {
 		condition, ignoreErr := getConditionByError(err)
-		if updateErr := patchClusterBindingStatusCondition(s.KarmadaClient, crb, condition); updateErr != nil {
+		if updateErr := patchClusterBindingStatusCondition(s.KarmadaClient, crb, condition, ignoreErr); updateErr != nil {
 			// if patch error occurs, just return patch error to reconcile again.
 			err = updateErr
 			klog.Errorf("Failed to patch schedule status to ClusterResourceBinding(%s): %v", crb.Name, err)
@@ -900,14 +900,16 @@ func (s *Scheduler) establishEstimatorConnections() {
 }
 
 // patchBindingStatusCondition patches schedule status condition of ResourceBinding when necessary.
-func patchBindingStatusCondition(karmadaClient karmadaclientset.Interface, rb *workv1alpha2.ResourceBinding, newScheduledCondition metav1.Condition) error {
+func patchBindingStatusCondition(karmadaClient karmadaclientset.Interface, rb *workv1alpha2.ResourceBinding, newScheduledCondition metav1.Condition, ignoreErr bool) error {
 	klog.V(4).Infof("Begin to patch status condition to ResourceBinding(%s/%s)", rb.Namespace, rb.Name)
 
 	updateRB := rb.DeepCopy()
 	meta.SetStatusCondition(&updateRB.Status.Conditions, newScheduledCondition)
 	// Postpone setting observed generation until schedule succeed, assume scheduler will retry and
 	// will succeed eventually.
-	if newScheduledCondition.Status == metav1.ConditionTrue {
+	// If an error during scheduling could be ignored, the scheduling result would have been patched successfully.
+	// The scheduler observed generation should be updated.
+	if newScheduledCondition.Status == metav1.ConditionTrue || ignoreErr {
 		updateRB.Status.SchedulerObservedGeneration = rb.Generation
 		currentTime := metav1.Now()
 		updateRB.Status.LastScheduledTime = &currentTime
@@ -951,14 +953,16 @@ func patchBindingStatus(karmadaClient karmadaclientset.Interface, rb, updateRB *
 }
 
 // patchClusterBindingStatusCondition patches schedule status condition of ClusterResourceBinding when necessary
-func patchClusterBindingStatusCondition(karmadaClient karmadaclientset.Interface, crb *workv1alpha2.ClusterResourceBinding, newScheduledCondition metav1.Condition) error {
+func patchClusterBindingStatusCondition(karmadaClient karmadaclientset.Interface, crb *workv1alpha2.ClusterResourceBinding, newScheduledCondition metav1.Condition, ignoreErr bool) error {
 	klog.V(4).Infof("Begin to patch status condition to ClusterResourceBinding(%s)", crb.Name)
 
 	updateCRB := crb.DeepCopy()
 	meta.SetStatusCondition(&updateCRB.Status.Conditions, newScheduledCondition)
 	// Postpone setting observed generation until schedule succeed, assume scheduler will retry and
 	// will succeed eventually.
-	if newScheduledCondition.Status == metav1.ConditionTrue {
+	// If an error during scheduling could be ignored, the scheduling result would have been patched successfully.
+	// The scheduler observed generation should be updated.
+	if newScheduledCondition.Status == metav1.ConditionTrue || ignoreErr {
 		updateCRB.Status.SchedulerObservedGeneration = crb.Generation
 		currentTime := metav1.Now()
 		updateCRB.Status.LastScheduledTime = &currentTime
