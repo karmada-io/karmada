@@ -22,8 +22,6 @@ import (
 	"reflect"
 	"time"
 
-	"k8s.io/client-go/tools/cache"
-
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
@@ -92,25 +90,11 @@ func NewFramework(r Registry, opts ...Option) (framework.Framework, error) {
 
 // RunFilterPlugins runs the set of configured Filter plugins for resources on the cluster.
 // If any of the result is not success, the cluster is not suited for the resource.
-func (frw *frameworkImpl) RunFilterPlugins(
-	ctx context.Context,
-	bindingSpec *workv1alpha2.ResourceBindingSpec,
-	bindingStatus *workv1alpha2.ResourceBindingStatus,
-	cluster *clusterv1alpha1.Cluster,
-	resourceBindingIndexer cache.Indexer,
-) (result *framework.Result) {
+func (frw *frameworkImpl) RunFilterPlugins(filterCtx *framework.FilterContext) (result *framework.Result) {
 	startTime := time.Now()
 	defer func() {
 		metrics.FrameworkExtensionPointDuration.WithLabelValues(filter, result.Code().String()).Observe(utilmetrics.DurationInSeconds(startTime))
 	}()
-
-	filterCtx := &framework.FilterContext{
-		Context:                ctx,
-		BindingSpec:            bindingSpec,
-		BindingStatus:          bindingStatus,
-		Cluster:                cluster,
-		ResourceBindingIndexer: resourceBindingIndexer,
-	}
 
 	for _, p := range frw.filterPlugins {
 		if result := frw.runFilterPluginWithContext(p, filterCtx); !result.IsSuccess() {
