@@ -94,6 +94,10 @@ type Options struct {
 	CertRotationRemainingTimeThreshold float64
 	// KarmadaKubeconfigNamespace is the namespace of the secret containing karmada-agent certificate.
 	KarmadaKubeconfigNamespace string
+	// KarmadaKubeconfigName is the name of the secret containing karmada-agent certificate.
+	KarmadaKubeconfigName string
+	// KarmadaKubeconfigField is the field name of the karmada config secret containing karmada-agent certificate.
+	KarmadaKubeconfigField string
 	// HPAControllerConfiguration is the config of federatedHPA-controller.
 	HPAControllerConfiguration federatehpaconfig.HPAControllerConfiguration
 	// FederatedResourceQuotaOptions holds configurations for FederatedResourceQuota reconciliation.

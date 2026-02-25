@@ -55,9 +55,6 @@ const (
 
 	// SignerName defines the signer name for csr, 'kubernetes.io/kube-apiserver-client-kubelet' can sign the csr automatically
 	SignerName = "kubernetes.io/kube-apiserver-client-kubelet"
-
-	// KarmadaKubeconfigName is the name of the secret containing karmada-agent certificate.
-	KarmadaKubeconfigName = "karmada-kubeconfig"
 )
 
 // CertRotationController is to rotate certificates.
@@ -78,6 +75,10 @@ type CertRotationController struct {
 	CertRotationCheckingInterval time.Duration
 	// KarmadaKubeconfigNamespace is the namespace of the secret containing karmada-agent certificate.
 	KarmadaKubeconfigNamespace string
+	// KarmadaKubeconfigName is the name of the secret containing karmada-agent certificate.
+	KarmadaKubeconfigName string
+	// KarmadaKubeconfigField is the field name of the karmada config secret containing karmada-agent certificate.
+	KarmadaKubeconfigField string
 	// CertRotationRemainingTimeThreshold defines the threshold of remaining time of the valid certificate.
 	// If the ratio of remaining time to total time is less than or equal to this threshold, the certificate rotation starts.
 	CertRotationRemainingTimeThreshold float64
@@ -112,7 +113,7 @@ func (c *CertRotationController) Reconcile(ctx context.Context, req controllerru
 		return controllerruntime.Result{}, err
 	}
 
-	secret, err := c.ClusterClient.KubeClient.CoreV1().Secrets(c.KarmadaKubeconfigNamespace).Get(ctx, KarmadaKubeconfigName, metav1.GetOptions{})
+	secret, err := c.ClusterClient.KubeClient.CoreV1().Secrets(c.KarmadaKubeconfigNamespace).Get(ctx, c.KarmadaKubeconfigName, metav1.GetOptions{})
 	if err != nil {
 		klog.ErrorS(err, "failed to get karmada kubeconfig secret")
 		return controllerruntime.Result{}, err
@@ -139,7 +140,7 @@ func (c *CertRotationController) SetupWithManager(mgr controllerruntime.Manager)
 }
 
 func (c *CertRotationController) syncCertRotation(ctx context.Context, secret *corev1.Secret) error {
-	karmadaKubeconfig, err := getKubeconfigFromSecret(secret)
+	karmadaKubeconfig, err := c.getKubeconfigFromSecret(secret)
 	if err != nil {
 		return err
 	}
@@ -209,7 +210,7 @@ func (c *CertRotationController) syncCertRotation(ctx context.Context, secret *c
 		return fmt.Errorf("failed to serialize karmada-agent kubeConfig. %v", err)
 	}
 
-	secret.Data["karmada-kubeconfig"] = karmadaKubeconfigBytes
+	secret.Data[c.KarmadaKubeconfigField] = karmadaKubeconfigBytes
 	// Update the karmada-kubeconfig secret in the member cluster.
 	if _, err := c.ClusterClient.KubeClient.CoreV1().Secrets(secret.Namespace).Update(ctx, secret, metav1.UpdateOptions{}); err != nil {
 		return fmt.Errorf("unable to update secret, err: %w", err)
@@ -261,12 +262,12 @@ func (c *CertRotationController) createCSRInControlPlane(ctx context.Context, cl
 	return csrName, nil
 }
 
-func getKubeconfigFromSecret(secret *corev1.Secret) (*clientcmdapi.Config, error) {
+func (c *CertRotationController) getKubeconfigFromSecret(secret *corev1.Secret) (*clientcmdapi.Config, error) {
 	if secret.Data == nil {
 		return nil, fmt.Errorf("no client certificate found in secret %q", secret.Namespace+"/"+secret.Name)
 	}
 
-	karmadaKubeconfigData, ok := secret.Data[KarmadaKubeconfigName]
+	karmadaKubeconfigData, ok := secret.Data[c.KarmadaKubeconfigField]
 	if !ok {
 		return nil, fmt.Errorf("no karmada kubeconfig found in secret %q", secret.Namespace+"/"+secret.Name)
 	}

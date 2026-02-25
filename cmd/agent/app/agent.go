@@ -439,6 +439,8 @@ func startCertRotationController(ctx controllerscontext.Context) (bool, error) {
 		CertRotationCheckingInterval:       ctx.Opts.CertRotationCheckingInterval,
 		CertRotationRemainingTimeThreshold: ctx.Opts.CertRotationRemainingTimeThreshold,
 		KarmadaKubeconfigNamespace:         ctx.Opts.KarmadaKubeconfigNamespace,
+		KarmadaKubeconfigName:              ctx.Opts.KarmadaKubeconfigName,
+		KarmadaKubeconfigField:             ctx.Opts.KarmadaKubeconfigField,
 	}
 	if err := certRotationController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
