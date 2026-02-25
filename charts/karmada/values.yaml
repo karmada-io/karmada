@@ -445,6 +445,9 @@ apiServer:
   ## will take effect when 'apiServer.serviceType' is 'NodePort'.
   ## If no port is specified, the nodePort will be automatically assigned.
   nodePort: 0
+  ## @param apiServer.hostIP, the IP address of the node where the karmada apiserver is running,
+  ## used for external components or clients to connect.
+  hostIP: ""
   serviceClusterIPRange: "10.96.0.0/12"
   maxRequestsInflight: 1500
   maxMutatingRequestsInflight: 500
