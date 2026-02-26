@@ -277,7 +277,10 @@ func applyJSONPatch(obj *unstructured.Unstructured, overrides []overrideOption) 
 		return err
 	}
 
-	patchedObjectJSONBytes, err := patch.Apply(objectJSONBytes)
+	applyOption := jsonpatch.NewApplyOptions()
+	applyOption.EnsurePathExistsOnAdd = true
+	applyOption.AllowMissingPathOnRemove = true
+	patchedObjectJSONBytes, err := patch.ApplyWithOptions(objectJSONBytes, applyOption)
 	if err != nil {
 		return err
 	}
