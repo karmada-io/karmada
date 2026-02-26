@@ -509,7 +509,13 @@ type Placement struct {
 	// +optional
 	ClusterAffinities []ClusterAffinityTerm `json:"clusterAffinities,omitempty"`
 
-	// ClusterTolerations represents the tolerations.
+	// ClusterTolerations represents the tolerations that allow the resource to be scheduled onto clusters with matching taints.
+	// These tolerations are used during the scheduling process to determine if a cluster's taints can be tolerated.
+	// If a cluster has taints that match these tolerations, the resource can be scheduled to that cluster.
+	// This is particularly useful for scenarios like:
+	// - Scheduling to clusters with specific hardware requirements
+	// - Handling cluster maintenance or draining scenarios
+	// - Managing cluster availability during failover
 	// +optional
 	ClusterTolerations []corev1.Toleration `json:"clusterTolerations,omitempty"`
 

@@ -557,7 +557,21 @@ spec:
                         x-kubernetes-map-type: atomic
                     type: object
                   clusterTolerations:
-                    description: ClusterTolerations represents the tolerations.
+                    description: |-
+                      ClusterTolerations represents the tolerations that allow the resource to be scheduled onto clusters with matching taints.
+                      These tolerations are used in two scenarios:
+                      1. During the scheduling process to determine if a cluster's taints can be tolerated for new workloads
+                      2. During runtime to determine if existing workloads should be evicted from clusters with NoExecute taints
+                      
+                      The tolerations affect both scheduling and eviction behavior:
+                      - For scheduling: If a cluster has taints that match these tolerations, the resource can be scheduled to that cluster
+                      - For eviction: If a cluster gets NoExecute taints that are not tolerated, workloads will be evicted after the toleration period
+                      
+                      This is particularly useful for scenarios like:
+                      - Scheduling to clusters with specific hardware requirements
+                      - Handling cluster maintenance or draining scenarios
+                      - Managing cluster availability during failover
+                      - Controlling workload eviction during cluster issues
                     items:
                       description: |-
                         The pod this Toleration is attached to tolerates any taint that matches
