@@ -77,6 +77,10 @@ type ResourceInterpreter interface {
 	// InterpretHealth returns the health state of the object.
 	InterpretHealth(object *unstructured.Unstructured) (healthy bool, err error)
 
+	// InterpretSchedulingResult allows customizing the scheduling result for distributing replicas among clusters.
+	// This is useful for handling remainders in replica distribution or syncing changes from member clusters back to control plane.
+	InterpretSchedulingResult(object *unstructured.Unstructured, schedulingResult []workv1alpha2.TargetCluster) ([]workv1alpha2.TargetCluster, error)
+
 	// other common method
 }
 
@@ -395,6 +399,39 @@ func (i *customResourceInterpreterImpl) InterpretHealth(object *unstructured.Uns
 
 	healthy, err = i.defaultInterpreter.InterpretHealth(object)
 	return
+}
+
+// InterpretSchedulingResult allows customizing the scheduling result for distributing replicas among clusters.
+func (i *customResourceInterpreterImpl) InterpretSchedulingResult(object *unstructured.Unstructured, schedulingResult []workv1alpha2.TargetCluster) ([]workv1alpha2.TargetCluster, error) {
+	result, hookEnabled, err := i.configurableInterpreter.InterpretSchedulingResult(object, schedulingResult)
+	if err != nil {
+		return nil, err
+	}
+	if hookEnabled {
+		return result, nil
+	}
+
+	result, hookEnabled, err = i.customizedInterpreter.InterpretSchedulingResult(context.TODO(), &request.Attributes{
+		Operation:          configv1alpha1.InterpreterOperationInterpretSchedulingResult,
+		Object:             object,
+		SchedulingResult:   schedulingResult,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if hookEnabled {
+		return result, nil
+	}
+
+	result, hookEnabled, err = i.thirdpartyInterpreter.InterpretSchedulingResult(object, schedulingResult)
+	if err != nil {
+		return nil, err
+	}
+	if hookEnabled {
+		return result, nil
+	}
+
+	return i.defaultInterpreter.InterpretSchedulingResult(object, schedulingResult)
 }
 
 // loadConfig loads the full set of ResourceInterpreterCustomization and

@@ -137,6 +137,13 @@ type CustomizationRules struct {
 	// +optional
 	HealthInterpretation *HealthInterpretation `json:"healthInterpretation,omitempty"`
 
+	// SchedulingResultInterpretation describes the rules for Karmada to customize
+	// the scheduling result for distributing replicas among clusters.
+	// This allows customizing how remainders in replica distribution are handled
+	// or syncing replica changes from member clusters back to the control plane.
+	// +optional
+	SchedulingResultInterpretation *SchedulingResultInterpretation `json:"schedulingResultInterpretation,omitempty"`
+
 	// DependencyInterpretation describes the rules for Karmada to analyze the
 	// dependent resources.
 	// Karmada provides built-in rules for several standard Kubernetes types, see:
@@ -365,6 +372,36 @@ type HealthInterpretation struct {
 	//       from a specific member cluster.
 	//
 	// The returned boolean value indicates the health status.
+	//
+	// +required
+	LuaScript string `json:"luaScript"`
+}
+
+// SchedulingResultInterpretation holds the rules for customizing the scheduling result
+// for distributing replicas among clusters.
+type SchedulingResultInterpretation struct {
+	// LuaScript holds the Lua script that is used to customize the scheduling result.
+	// The script should implement a function as follows:
+	//
+	// ```
+	//   luaScript: >
+	//       function InterpretSchedulingResult(obj, schedulingResult)
+	//           -- obj: the resource object being scheduled
+	//           -- schedulingResult: array of TargetCluster with name and replicas
+	//           -- Return modified schedulingResult array
+	//           return schedulingResult
+	//       end
+	// ```
+	//
+	// The content of the LuaScript needs to be a whole function including both
+	// declaration and implementation.
+	//
+	// The parameters will be supplied by the system:
+	//   - obj: the resource object being scheduled
+	//   - schedulingResult: array of TargetCluster objects with name and replicas fields
+	//
+	// The returned value should be an array of TargetCluster objects representing
+	// the customized scheduling result.
 	//
 	// +required
 	LuaScript string `json:"luaScript"`
