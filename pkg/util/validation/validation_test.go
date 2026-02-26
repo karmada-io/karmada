@@ -627,6 +627,90 @@ func TestValidatePropagationSpec(t *testing.T) {
 			},
 			expectedErr: "",
 		},
+		{
+			name: "workloadAffinity affinity and antiAffinity with same groupByLabelKey",
+			spec: policyv1alpha1.PropagationSpec{
+				Placement: policyv1alpha1.Placement{
+					WorkloadAffinity: &policyv1alpha1.WorkloadAffinity{
+						Affinity: &policyv1alpha1.WorkloadAffinityTerm{
+							GroupByLabelKey: "app.group",
+						},
+						AntiAffinity: &policyv1alpha1.WorkloadAntiAffinityTerm{
+							GroupByLabelKey: "app.group",
+						},
+					},
+				},
+			},
+			expectedErr: "affinity and antiAffinity must not use the same groupByLabelKey",
+		},
+		{
+			name: "workloadAffinity affinity and antiAffinity with different groupByLabelKey is valid",
+			spec: policyv1alpha1.PropagationSpec{
+				Placement: policyv1alpha1.Placement{
+					WorkloadAffinity: &policyv1alpha1.WorkloadAffinity{
+						Affinity: &policyv1alpha1.WorkloadAffinityTerm{
+							GroupByLabelKey: "app.group",
+						},
+						AntiAffinity: &policyv1alpha1.WorkloadAntiAffinityTerm{
+							GroupByLabelKey: "app.region",
+						},
+					},
+				},
+			},
+			expectedErr: "",
+		},
+		{
+			name: "workloadAffinity with only affinity is valid",
+			spec: policyv1alpha1.PropagationSpec{
+				Placement: policyv1alpha1.Placement{
+					WorkloadAffinity: &policyv1alpha1.WorkloadAffinity{
+						Affinity: &policyv1alpha1.WorkloadAffinityTerm{
+							GroupByLabelKey: "app.group",
+						},
+					},
+				},
+			},
+			expectedErr: "",
+		},
+		{
+			name: "workloadAffinity with only antiAffinity is valid",
+			spec: policyv1alpha1.PropagationSpec{
+				Placement: policyv1alpha1.Placement{
+					WorkloadAffinity: &policyv1alpha1.WorkloadAffinity{
+						AntiAffinity: &policyv1alpha1.WorkloadAntiAffinityTerm{
+							GroupByLabelKey: "app.group",
+						},
+					},
+				},
+			},
+			expectedErr: "",
+		},
+		{
+			name: "workloadAffinity affinity with invalid groupByLabelKey",
+			spec: policyv1alpha1.PropagationSpec{
+				Placement: policyv1alpha1.Placement{
+					WorkloadAffinity: &policyv1alpha1.WorkloadAffinity{
+						Affinity: &policyv1alpha1.WorkloadAffinityTerm{
+							GroupByLabelKey: "INVALID KEY!",
+						},
+					},
+				},
+			},
+			expectedErr: "spec.placement.workloadAffinity.affinity.groupByLabelKey",
+		},
+		{
+			name: "workloadAffinity antiAffinity with invalid groupByLabelKey",
+			spec: policyv1alpha1.PropagationSpec{
+				Placement: policyv1alpha1.Placement{
+					WorkloadAffinity: &policyv1alpha1.WorkloadAffinity{
+						AntiAffinity: &policyv1alpha1.WorkloadAntiAffinityTerm{
+							GroupByLabelKey: "INVALID KEY!",
+						},
+					},
+				},
+			},
+			expectedErr: "spec.placement.workloadAffinity.antiAffinity.groupByLabelKey",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1028,5 +1112,97 @@ func TestValidateCrdsTarBall(t *testing.T) {
 	}
 	for _, item := range testItems {
 		assert.Equal(t, item.expectedErr, ValidateCrdsTarBall(item.header))
+	}
+}
+
+func TestValidateWorkloadAffinity(t *testing.T) {
+	tests := []struct {
+		name             string
+		workloadAffinity *policyv1alpha1.WorkloadAffinity
+		expectedErr      string
+	}{
+		{
+			name:             "nil workloadAffinity is valid",
+			workloadAffinity: nil,
+			expectedErr:      "",
+		},
+		{
+			name: "only affinity set is valid",
+			workloadAffinity: &policyv1alpha1.WorkloadAffinity{
+				Affinity: &policyv1alpha1.WorkloadAffinityTerm{
+					GroupByLabelKey: "app.group",
+				},
+			},
+			expectedErr: "",
+		},
+		{
+			name: "only antiAffinity set is valid",
+			workloadAffinity: &policyv1alpha1.WorkloadAffinity{
+				AntiAffinity: &policyv1alpha1.WorkloadAntiAffinityTerm{
+					GroupByLabelKey: "app.group",
+				},
+			},
+			expectedErr: "",
+		},
+		{
+			name: "affinity and antiAffinity with different groupByLabelKey is valid",
+			workloadAffinity: &policyv1alpha1.WorkloadAffinity{
+				Affinity: &policyv1alpha1.WorkloadAffinityTerm{
+					GroupByLabelKey: "app.group",
+				},
+				AntiAffinity: &policyv1alpha1.WorkloadAntiAffinityTerm{
+					GroupByLabelKey: "app.region",
+				},
+			},
+			expectedErr: "",
+		},
+		{
+			name: "affinity and antiAffinity with same groupByLabelKey is invalid",
+			workloadAffinity: &policyv1alpha1.WorkloadAffinity{
+				Affinity: &policyv1alpha1.WorkloadAffinityTerm{
+					GroupByLabelKey: "app.group",
+				},
+				AntiAffinity: &policyv1alpha1.WorkloadAntiAffinityTerm{
+					GroupByLabelKey: "app.group",
+				},
+			},
+			expectedErr: "affinity and antiAffinity must not use the same groupByLabelKey",
+		},
+		{
+			name: "affinity with invalid groupByLabelKey is invalid",
+			workloadAffinity: &policyv1alpha1.WorkloadAffinity{
+				Affinity: &policyv1alpha1.WorkloadAffinityTerm{
+					GroupByLabelKey: "INVALID KEY!",
+				},
+			},
+			expectedErr: "spec.placement.workloadAffinity.affinity.groupByLabelKey",
+		},
+		{
+			name: "antiAffinity with invalid groupByLabelKey is invalid",
+			workloadAffinity: &policyv1alpha1.WorkloadAffinity{
+				AntiAffinity: &policyv1alpha1.WorkloadAntiAffinityTerm{
+					GroupByLabelKey: "INVALID KEY!",
+				},
+			},
+			expectedErr: "spec.placement.workloadAffinity.antiAffinity.groupByLabelKey",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := ValidateWorkloadAffinity(tt.workloadAffinity, field.NewPath("spec").Child("placement").Child("workloadAffinity"))
+			err := errs.ToAggregate()
+			if err != nil {
+				errStr := err.Error()
+				if tt.expectedErr == "" {
+					t.Errorf("expected no error:\n  but got:\n  %s", errStr)
+				} else if !strings.Contains(errStr, tt.expectedErr) {
+					t.Errorf("expected to contain:\n  %s\ngot:\n  %s", tt.expectedErr, errStr)
+				}
+			} else {
+				if tt.expectedErr != "" {
+					t.Errorf("unexpected no error, expected to contain:\n  %s", tt.expectedErr)
+				}
+			}
+		})
 	}
 }

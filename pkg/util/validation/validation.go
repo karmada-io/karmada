@@ -28,6 +28,7 @@ import (
 	"github.com/go-openapi/jsonpointer"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/api/validate/content"
 	apivalidation "k8s.io/apimachinery/pkg/api/validation"
 	metav1validation "k8s.io/apimachinery/pkg/apis/meta/v1/validation"
 	"k8s.io/apimachinery/pkg/util/validation"
@@ -108,6 +109,34 @@ func ValidatePlacement(placement policyv1alpha1.Placement, fldPath *field.Path) 
 	allErrs = append(allErrs, ValidateClusterAffinity(placement.ClusterAffinity, fldPath.Child("clusterAffinity"))...)
 	allErrs = append(allErrs, ValidateClusterAffinities(placement.ClusterAffinities, fldPath.Child("clusterAffinities"))...)
 	allErrs = append(allErrs, ValidateSpreadConstraint(placement.SpreadConstraints, fldPath.Child("spreadConstraints"))...)
+	allErrs = append(allErrs, ValidateWorkloadAffinity(placement.WorkloadAffinity, fldPath.Child("workloadAffinity"))...)
+	return allErrs
+}
+
+// ValidateWorkloadAffinity validates a workloadAffinity before creation or update.
+func ValidateWorkloadAffinity(workloadAffinity *policyv1alpha1.WorkloadAffinity, fldPath *field.Path) field.ErrorList {
+	if workloadAffinity == nil {
+		return nil
+	}
+
+	var allErrs field.ErrorList
+
+	if workloadAffinity.Affinity != nil {
+		for _, msg := range content.IsLabelKey(workloadAffinity.Affinity.GroupByLabelKey) {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("affinity").Child("groupByLabelKey"), workloadAffinity.Affinity.GroupByLabelKey, msg))
+		}
+	}
+	if workloadAffinity.AntiAffinity != nil {
+		for _, msg := range content.IsLabelKey(workloadAffinity.AntiAffinity.GroupByLabelKey) {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("antiAffinity").Child("groupByLabelKey"), workloadAffinity.AntiAffinity.GroupByLabelKey, msg))
+		}
+	}
+
+	if workloadAffinity.Affinity != nil && workloadAffinity.AntiAffinity != nil &&
+		workloadAffinity.Affinity.GroupByLabelKey == workloadAffinity.AntiAffinity.GroupByLabelKey {
+		allErrs = append(allErrs, field.Invalid(fldPath, workloadAffinity,
+			"affinity and antiAffinity must not use the same groupByLabelKey"))
+	}
 	return allErrs
 }
 
