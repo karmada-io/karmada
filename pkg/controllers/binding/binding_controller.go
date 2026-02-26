@@ -31,9 +31,11 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -187,7 +189,7 @@ func (c *ResourceBindingController) checkDirectPurgeOrphanWorks(ctx context.Cont
 func (c *ResourceBindingController) SetupWithManager(mgr controllerruntime.Manager) error {
 	return controllerruntime.NewControllerManagedBy(mgr).
 		Named(ControllerName).
-		For(&workv1alpha2.ResourceBinding{}).
+		For(&workv1alpha2.ResourceBinding{}, builder.WithPredicates(bindingPredicateFn)).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		Watches(&policyv1alpha1.OverridePolicy{}, handler.EnqueueRequestsFromMapFunc(c.newOverridePolicyFunc())).
 		Watches(&policyv1alpha1.ClusterOverridePolicy{}, handler.EnqueueRequestsFromMapFunc(c.newOverridePolicyFunc())).
@@ -253,4 +255,29 @@ func (c *ResourceBindingController) newOverridePolicyFunc() handler.MapFunc {
 		}
 		return requests
 	}
+}
+
+var bindingPredicateFn = predicate.Funcs{
+	CreateFunc: func(tce event.TypedCreateEvent[client.Object]) bool {
+		binding, ok := tce.Object.(*workv1alpha2.ResourceBinding)
+		if !ok {
+			return false
+		}
+		return binding.Status.SchedulerObservedGeneration == binding.Generation
+	},
+	UpdateFunc: func(tue event.TypedUpdateEvent[client.Object]) bool {
+		newBinding, ok := tue.ObjectNew.(*workv1alpha2.ResourceBinding)
+		if !ok {
+			return false
+		}
+		_, ok = tue.ObjectOld.(*workv1alpha2.ResourceBinding)
+		if !ok {
+			return false
+		}
+
+		return newBinding.Status.SchedulerObservedGeneration == newBinding.Generation
+	},
+	DeleteFunc: func(tde event.TypedDeleteEvent[client.Object]) bool {
+		return true
+	},
 }
