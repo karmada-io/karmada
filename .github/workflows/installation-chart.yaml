@@ -26,7 +26,7 @@ jobs:
         # Here support the latest three minor releases of Kubernetes, this can be considered to be roughly
         # the same as the End of Life of the Kubernetes release: https://kubernetes.io/releases/
         # Please remember to update the CI Schedule Workflow when we add a new version.
-        k8s: [ v1.32.0, v1.33.0, v1.34.0 ]
+        k8s: [ v1.33.0, v1.34.0, v1.35.0 ]
     steps:
       # Free up disk space on Ubuntu
       - name: Free Disk Space (Ubuntu)

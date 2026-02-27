@@ -349,7 +349,7 @@ fi
 # deploy karmada apiserver
 TEMP_PATH_APISERVER=$(mktemp -d)
 trap '{ rm -rf ${TEMP_PATH_APISERVER}; }' EXIT
-KARMADA_APISERVER_VERSION=${KARMADA_APISERVER_VERSION:-"v1.34.0"}
+KARMADA_APISERVER_VERSION=${KARMADA_APISERVER_VERSION:-"v1.35.0"}
 cp "${REPO_ROOT}"/artifacts/deploy/karmada-apiserver.yaml "${TEMP_PATH_APISERVER}"/karmada-apiserver.yaml
 sed -i'' -e "s/{{service_type}}/${KARMADA_APISERVER_SERVICE_TYPE}/g" "${TEMP_PATH_APISERVER}"/karmada-apiserver.yaml
 sed -i'' -e "s/{{karmada_apiserver_version}}/${KARMADA_APISERVER_VERSION}/g" "${TEMP_PATH_APISERVER}"/karmada-apiserver.yaml

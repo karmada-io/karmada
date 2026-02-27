@@ -36,7 +36,7 @@ spec:
           securityContext:
             allowPrivilegeEscalation: false
             privileged: false
-          image: registry.k8s.io/etcd:3.6.0-0
+          image: registry.k8s.io/etcd:3.6.6-0
           imagePullPolicy: IfNotPresent
           livenessProbe:
             exec:
