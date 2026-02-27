@@ -680,10 +680,15 @@ func (s *Scheduler) patchScheduleResultForResourceBinding(oldBinding *workv1alph
 		return nil
 	}
 
-	_, err = s.KarmadaClient.WorkV1alpha2().ResourceBindings(newBinding.Namespace).Patch(context.TODO(), newBinding.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{})
+	result, err := s.KarmadaClient.WorkV1alpha2().ResourceBindings(newBinding.Namespace).Patch(context.TODO(), newBinding.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{})
 	if err != nil {
 		klog.Errorf("Failed to patch schedule to ResourceBinding(%s/%s): %v", oldBinding.Namespace, oldBinding.Name, err)
 		return err
+	}
+	if features.FeatureGate.Enabled(features.WorkloadAffinity) {
+		// TODO(@zhzhuang-zju): Consider race condition where Informer's event for 'result' arrives before this Add call,
+		// leading to a potential memory leak in AssigningResourceBindings cache if no further updates occur.
+		s.schedulerCache.AssigningResourceBindings().Add(result)
 	}
 
 	klog.V(4).Infof("Patch schedule to ResourceBinding(%s/%s) succeed", oldBinding.Namespace, oldBinding.Name)

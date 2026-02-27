@@ -50,6 +50,7 @@ func (s *Scheduler) addAllEventHandlers() {
 		Handler: cache.ResourceEventHandlerFuncs{
 			AddFunc:    s.onResourceBindingAdd,
 			UpdateFunc: s.onResourceBindingUpdate,
+			DeleteFunc: s.onResourceBindingDelete,
 		},
 	})
 	if err != nil {
@@ -170,6 +171,11 @@ func (s *Scheduler) onResourceBindingUpdate(old, cur any) {
 		return
 	}
 
+	newResourceBinding, ok := cur.(*workv1alpha2.ResourceBinding)
+	if ok && features.FeatureGate.Enabled(features.WorkloadAffinity) {
+		s.schedulerCache.AssigningResourceBindings().OnBindingUpdate(newResourceBinding)
+	}
+
 	if oldMeta.GetGeneration() == newMeta.GetGeneration() {
 		if oldMeta.GetNamespace() != "" {
 			klog.V(4).Infof("Ignore update event of resourceBinding %s/%s as specification no change", oldMeta.GetNamespace(), oldMeta.GetName())
@@ -198,6 +204,29 @@ func (s *Scheduler) onResourceBindingUpdate(old, cur any) {
 		s.queue.Add(key)
 	}
 	metrics.CountSchedulerBindings(metrics.BindingUpdate)
+}
+
+// onResourceBindingDelete is called when a delete event for a ResourceBinding is received from the Informer.
+func (s *Scheduler) onResourceBindingDelete(obj any) {
+	if features.FeatureGate.Enabled(features.WorkloadAffinity) {
+		var binding *workv1alpha2.ResourceBinding
+		switch t := obj.(type) {
+		case *workv1alpha2.ResourceBinding:
+			binding = t
+		case cache.DeletedFinalStateUnknown:
+			var ok bool
+			binding, ok = t.Obj.(*workv1alpha2.ResourceBinding)
+			if !ok {
+				klog.Errorf("cannot convert to workv1alpha2.ResourceBinding: %v", t.Obj)
+				return
+			}
+		default:
+			klog.Errorf("cannot convert to workv1alpha2.ResourceBinding: %v", t)
+			return
+		}
+
+		s.schedulerCache.AssigningResourceBindings().OnBindingDelete(binding)
+	}
 }
 
 func (s *Scheduler) onResourceBindingRequeue(binding *workv1alpha2.ResourceBinding, event string) {

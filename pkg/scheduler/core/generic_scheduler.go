@@ -148,6 +148,7 @@ func (g *genericScheduler) findClustersThatFit(
 			BindingStatus:          bindingStatus,
 			Cluster:                c.Cluster(),
 			ResourceBindingIndexer: resourceBindingIndexer,
+			AssigningBindings:      g.schedulerCache.AssigningResourceBindings().GetBindings(),
 		}
 
 		if result := g.scheduleFramework.RunFilterPlugins(filterCtx); !result.IsSuccess() {
