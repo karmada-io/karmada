@@ -19,6 +19,7 @@ package workloadantiaffinity
 import (
 	"context"
 
+	"k8s.io/apimachinery/pkg/util/resourceversion"
 	"k8s.io/klog/v2"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -87,37 +88,54 @@ func (p *WorkloadAntiAffinity) FilterWithContext(filterCtx *framework.FilterCont
 		return framework.NewResult(framework.Unschedulable, "ResourceBindingIndexer is nil")
 	}
 
-	// TODO(@RainbowMango): Check assigning binding list to avoid cache delay
+	bindingName := names.GenerateBindingName(bindingSpec.Resource.Kind, bindingSpec.Resource.Name)
+	assignBindings := filterCtx.AssigningBindings
 	objs, err := filterCtx.ResourceBindingIndexer.ByIndex(indexregistry.ResourceBindingIndexByAntiAffinityGroup, antiAffinityGroup)
 	if err != nil {
 		klog.Errorf("Failed to list ResourceBinding, err: %v", err)
 		return framework.NewResult(framework.Unschedulable, "failed to list ResourceBindings")
 	}
 
-	bindingName := names.GenerateBindingName(bindingSpec.Resource.Kind, bindingSpec.Resource.Name)
 	for _, obj := range objs {
 		rb, ok := obj.(*workv1alpha2.ResourceBinding)
 		if !ok {
 			continue
 		}
-		if rb == nil || rb.Spec.WorkloadAffinityGroups == nil || rb.GetNamespace() != bindingSpec.Resource.Namespace {
-			continue
+
+		existingBinding := rb
+		if assignBinding, ok := assignBindings[names.NamespacedKey(rb.Namespace, rb.Name)]; ok {
+			compare, err := resourceversion.CompareResourceVersion(assignBinding.GetResourceVersion(), rb.GetResourceVersion())
+			if err != nil {
+				klog.Errorf("Failed to compare resource versions for ResourceBinding %s/%s: %v", rb.Namespace, rb.Name, err)
+				return framework.NewResult(framework.Unschedulable, "failed to compare resource versions for ResourceBinding")
+			}
+			if compare == 1 {
+				existingBinding = assignBinding
+			}
 		}
 
-		if rb.GetName() == bindingName {
-			continue
+		if obey := obeyAntiAffinityGroup(bindingName, bindingSpec.Resource.Namespace, antiAffinityGroup, cluster.GetName(), existingBinding); !obey {
+			klog.Infof("Cluster %s already has workload with anti-affinity group %s, deny scheduling", cluster.GetName(), antiAffinityGroup)
+			return framework.NewResult(framework.Unschedulable, "cluster already has workload with the same anti-affinity group")
 		}
-
-		if !rb.Spec.TargetContains(cluster.GetName()) {
-			continue
-		}
-
-		klog.Infof("Cluster %s already has workload with anti-affinity group %s, deny scheduling", cluster.GetName(), antiAffinityGroup)
-		return framework.NewResult(framework.Unschedulable, "cluster already has workload with the same anti-affinity group")
 	}
 
 	klog.Infof("checking cluster: %s, with anti-affinity group: %s", cluster.GetName(), antiAffinityGroup)
 
 	// If cluster does not match anti-affinity group label, allow scheduling
 	return framework.NewResult(framework.Success)
+}
+
+// obeyAntiAffinityGroup checks if scheduling the resource to the targetCluster would violate the anti-affinity group rules
+// based on an existing binding.
+func obeyAntiAffinityGroup(bindingName, bindingNamespace, antiAffinityGroup, targetCluster string, existingBinding *workv1alpha2.ResourceBinding) bool {
+	if existingBinding == nil || existingBinding.Spec.WorkloadAffinityGroups == nil || existingBinding.GetNamespace() != bindingNamespace || existingBinding.Spec.WorkloadAffinityGroups.AntiAffinityGroup != antiAffinityGroup {
+		return true
+	}
+
+	if existingBinding.GetName() == bindingName {
+		return true
+	}
+
+	return !existingBinding.Spec.TargetContains(targetCluster)
 }

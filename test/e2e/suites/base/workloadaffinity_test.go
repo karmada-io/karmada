@@ -110,13 +110,10 @@ var _ = ginkgo.Describe("[WorkloadAffinity] inter-workload affinity/anti-affinit
 
 			framework.CreatePropagationPolicy(karmadaClient, policy)
 			framework.CreateDeployment(kubeClient, dep1)
-			// TODO: the waiting logic can be removed after the scheduler builds
-			// a cache to get other binding objects in a timely manner
-			c1 := eventuallyGetBindingClusters(dep1.Namespace, dep1.Name)
-			gomega.Expect(len(c1)).To(gomega.Equal(1))
-			framework.WaitDeploymentPresentOnClusterFitWith(c1[0], dep1.Namespace, dep1.Name, func(*appsv1.Deployment) bool { return true })
 			framework.CreateDeployment(kubeClient, dep2)
 
+			c1 := eventuallyGetBindingClusters(dep1.Namespace, dep1.Name)
+			gomega.Expect(len(c1)).To(gomega.Equal(1))
 			c2 := eventuallyGetBindingClusters(dep2.Namespace, dep2.Name)
 			gomega.Expect(len(c2)).To(gomega.Equal(1))
 			gomega.Expect(c1[0]).ToNot(gomega.Equal(c2[0]))
@@ -171,16 +168,12 @@ var _ = ginkgo.Describe("[WorkloadAffinity] inter-workload affinity/anti-affinit
 
 			framework.CreatePropagationPolicy(karmadaClient, policy)
 			framework.CreateDeployment(kubeClient, dep1)
-			// TODO: the waiting logic can be removed after the scheduler builds
-			// a cache to get other binding objects in a timely manner
+			framework.CreateDeployment(kubeClient, dep2)
+
 			c1 := eventuallyGetBindingClusters(dep1.Namespace, dep1.Name)
 			gomega.Expect(len(c1)).To(gomega.Equal(1))
-			framework.WaitDeploymentPresentOnClusterFitWith(c1[0], dep1.Namespace, dep1.Name, func(*appsv1.Deployment) bool { return true })
-
-			framework.CreateDeployment(kubeClient, dep2)
 			c2 := eventuallyGetBindingClusters(dep2.Namespace, dep2.Name)
 			gomega.Expect(len(c2)).To(gomega.Equal(1))
-
 			gomega.Expect(c1[0]).To(gomega.Equal(c2[0]))
 		})
 	})
@@ -252,10 +245,6 @@ var _ = ginkgo.Describe("[WorkloadAffinity] inter-workload affinity/anti-affinit
 
 			framework.CreatePropagationPolicy(karmadaClient, policy1)
 			framework.CreateDeployment(kubeClient, dep1)
-			// TODO: the waiting logic can be removed after the scheduler builds
-			// a cache to get other binding objects in a timely manner
-			framework.WaitDeploymentPresentOnClusterFitWith(targetCluster, dep1.Namespace, dep1.Name, func(*appsv1.Deployment) bool { return true })
-
 			framework.CreatePropagationPolicy(karmadaClient, policy2)
 			framework.CreateDeployment(kubeClient, dep2)
 			framework.WaitDeploymentPresentOnClusterFitWith(targetCluster, dep2.Namespace, dep2.Name, func(*appsv1.Deployment) bool { return true })
@@ -319,6 +308,7 @@ var _ = ginkgo.Describe("[WorkloadAffinity] inter-workload affinity/anti-affinit
 						Affinity:     &policyv1alpha1.WorkloadAffinityTerm{GroupByLabelKey: affinityLabelKey},
 						AntiAffinity: &policyv1alpha1.WorkloadAntiAffinityTerm{GroupByLabelKey: antiaffinityLabelKey},
 					},
+					ClusterAffinity: &policyv1alpha1.ClusterAffinity{ClusterNames: []string{targetCluster}},
 					SpreadConstraints: []policyv1alpha1.SpreadConstraint{
 						{
 							SpreadByField: policyv1alpha1.SpreadByFieldCluster,
@@ -341,20 +331,18 @@ var _ = ginkgo.Describe("[WorkloadAffinity] inter-workload affinity/anti-affinit
 
 			framework.CreatePropagationPolicy(karmadaClient, policy1)
 			framework.CreateDeployment(kubeClient, dep1)
-			// TODO: the waiting logic can be removed after the scheduler builds
-			// a cache to get other binding objects in a timely manner
-			framework.WaitDeploymentPresentOnClusterFitWith(targetCluster, dep1.Namespace, dep1.Name, func(*appsv1.Deployment) bool { return true })
-
 			framework.CreatePropagationPolicy(karmadaClient, policy2)
 			framework.CreateDeployment(kubeClient, dep2)
-			// TODO: the waiting logic can be removed after the scheduler builds
-			// a cache to get other binding objects in a timely manner
-			framework.WaitDeploymentPresentOnClusterFitWith(targetCluster, dep2.Namespace, dep2.Name, func(*appsv1.Deployment) bool { return true })
-
 			framework.CreatePropagationPolicy(karmadaClient, policy3)
 			framework.CreateDeployment(kubeClient, dep3)
+
+			c1 := eventuallyGetBindingClusters(dep1.Namespace, dep1.Name)
+			gomega.Expect(len(c1)).To(gomega.Equal(1))
+			c2 := eventuallyGetBindingClusters(dep2.Namespace, dep2.Name)
 			c3 := eventuallyGetBindingClusters(dep3.Namespace, dep3.Name)
-			gomega.Expect(c3).Should(gomega.BeEmpty())
+			// Only one of dep2 and dep3 can be scheduled to the target cluster.
+			gomega.Expect(len(c2) == 0 || len(c3) == 0).To(gomega.BeTrue())
+			gomega.Expect(len(c2) == 0 && len(c3) == 0).To(gomega.BeFalse())
 		})
 	})
 })

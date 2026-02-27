@@ -75,6 +75,9 @@ type FilterContext struct {
 
 	// ResourceBindingIndexer provides access to ResourceBindings for advanced scheduling logic.
 	ResourceBindingIndexer cache.Indexer
+
+	// AssigningBindings stores the ResourceBindings that are in the "assigning" state.
+	AssigningBindings map[string]*workv1alpha2.ResourceBinding
 }
 
 // FilterPlugin is an interface for filter plugins. These filters are used to filter out clusters
