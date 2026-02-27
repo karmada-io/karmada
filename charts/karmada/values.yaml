@@ -395,7 +395,7 @@ apiServer:
   image:
     registry: registry.k8s.io
     repository: kube-apiserver
-    tag: "v1.34.1"
+    tag: "v1.35.2"
     ## Specify a imagePullPolicy, defaults to 'IfNotPresent'
     pullPolicy: IfNotPresent
     ## Optionally specify an array of imagePullSecrets.
@@ -626,7 +626,7 @@ kubeControllerManager:
   image:
     registry: registry.k8s.io
     repository: kube-controller-manager
-    tag: "v1.34.1"
+    tag: "v1.35.2"
     ## Specify a imagePullPolicy, defaults to 'IfNotPresent'
     pullPolicy: IfNotPresent
     ## Optionally specify an array of imagePullSecrets.
@@ -724,7 +724,7 @@ etcd:
     image:
       registry: registry.k8s.io
       repository: etcd
-      tag: "3.6.0-0"
+      tag: "3.6.6-0"
       ## Specify a imagePullPolicy, defaults to 'IfNotPresent'
       pullPolicy: IfNotPresent
     ## @param etcd.internal.storageType storage type for etcd data
