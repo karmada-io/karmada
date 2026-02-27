@@ -148,7 +148,7 @@ func (i *CommandInitOption) makeETCDStatefulSet() *appsv1.StatefulSet {
 				Command: []string{
 					"/bin/sh",
 					"-ec",
-					fmt.Sprintf("etcdctl get /registry --prefix --keys-only  --endpoints http://127.0.0.1:%v", etcdContainerClientPort),
+					fmt.Sprintf("etcdctl endpoint health --endpoints http://127.0.0.1:%v", etcdContainerClientPort),
 				},
 			},
 		},
