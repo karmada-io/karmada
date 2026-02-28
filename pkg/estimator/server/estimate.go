@@ -102,8 +102,6 @@ func (es *AccurateSchedulerEstimatorServer) estimateComponents(ctx context.Conte
 		return maxSets, fmt.Errorf("estimate components plugins fails with %s", ret.Reasons())
 	}
 
-	// TODO - Node info has not be included in this implementation. Node Resource Estimation will be moved to a separate plugin.
-
 	// If no plugins were run (NoOperation), return maxSets value to prevent scheduling failure
 	if ret.IsSuccess() || ret.IsNoOperation() {
 		return maxSets, nil

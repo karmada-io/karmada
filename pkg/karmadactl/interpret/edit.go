@@ -166,12 +166,8 @@ func (o *Options) runEdit() error {
 			file: file,
 		}
 
-		// TODO: validate edited customization
-
 		// not a syntax error as it turns out...
 		containsError = false
-
-		// TODO: add last-applied-configuration annotation
 
 		switch {
 		case info.Source != "":
