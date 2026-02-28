@@ -55,8 +55,8 @@ require (
 	layeh.com/gopher-json v0.0.0-20201124131017-552bb3c4c3bf
 	sigs.k8s.io/cluster-api v1.7.1
 	sigs.k8s.io/controller-runtime v0.23.1
-	sigs.k8s.io/custom-metrics-apiserver v1.34.1-0.20260127041547-647100cc1b83
-	sigs.k8s.io/kind v0.30.0
+	sigs.k8s.io/custom-metrics-apiserver v1.35.0
+	sigs.k8s.io/kind v0.31.0
 	sigs.k8s.io/mcs-api v0.1.0
 	sigs.k8s.io/metrics-server v0.8.1-0.20260129002750-4bf067be02ad
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.2-0.20260122202528-d9cc6641c482
