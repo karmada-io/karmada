@@ -99,7 +99,7 @@ func (g *genericScheduler) Schedule(
 	if err != nil {
 		return result, fmt.Errorf("failed to select clusters: %w", err)
 	}
-	klog.V(4).Infof("Selected clusters: %v", selectedClusters)
+	klog.V(4).Infof("Selected clusters: %+v", selectedClusters)
 
 	clustersWithReplicas, err := g.assignReplicas(selectedClusters, spec, status)
 	if err != nil {
