@@ -22,6 +22,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/clock"
 
 	"github.com/karmada-io/karmada/pkg/scheduler/internal/heap"
 	metrics "github.com/karmada-io/karmada/pkg/scheduler/metrics/queue"
@@ -132,13 +133,15 @@ func NewSchedulingQueue(opts ...Option) SchedulingQueue {
 
 	bq := &prioritySchedulingQueue{
 		stop:                          make(chan struct{}),
+		clock:                         clock.RealClock{},
 		bindingInitialBackoffDuration: options.bindingInitialBackoffDuration,
 		bindingMaxBackoffDuration:     options.bindingMaxBackoffDuration,
 		bindingMaxInUnschedulableBindingsDuration: options.bindingMaxInUnschedulableBindingsDuration,
 		activeQ:               NewActiveQueue(metrics.NewActiveBindingsRecorder()),
-		backoffQ:              heap.NewWithRecorder(BindingKeyFunc, Less, metrics.NewBackoffBindingsRecorder()),
 		unschedulableBindings: newUnschedulableBindings(metrics.NewUnschedulableBindingsRecorder()),
 	}
+
+	bq.backoffQ = heap.NewWithRecorder(BindingKeyFunc, bq.lessBackoffCompletedWithPriority, metrics.NewBackoffBindingsRecorder())
 
 	return bq
 }
@@ -158,6 +161,9 @@ type prioritySchedulingQueue struct {
 	// lock takes precedence and should be taken first,
 	// before any other locks in the queue.
 	lock sync.RWMutex
+
+	// clock is the clock used to get the current time.
+	clock clock.WithTicker
 
 	// binding initial backoff duration.
 	bindingInitialBackoffDuration time.Duration
@@ -217,7 +223,7 @@ func (bq *prioritySchedulingQueue) flushBackoffQCompleted() {
 // If this returns true, the binding should not be re-tried.
 func (bq *prioritySchedulingQueue) isBindingBackingoff(bindingInfo *QueuedBindingInfo) bool {
 	boTime := bq.getBackoffTime(bindingInfo)
-	return boTime.After(time.Now())
+	return boTime.After(bq.clock.Now())
 }
 
 // calculateBackoffDuration is a helper function for calculating the backoffDuration
@@ -247,6 +253,18 @@ func (bq *prioritySchedulingQueue) getBackoffTime(bindingInfo *QueuedBindingInfo
 	return backoffTime
 }
 
+// lessBackoffCompletedWithPriority is the function used by the backoffQ heap algorithm to sort bindings.
+// It sorts bindings based on their backoff completion time and priority.
+func (bq *prioritySchedulingQueue) lessBackoffCompletedWithPriority(bInfo1, bInfo2 *QueuedBindingInfo) bool {
+	bo1 := bq.getBackoffTime(bInfo1)
+	bo2 := bq.getBackoffTime(bInfo2)
+	if !bo1.Equal(bo2) {
+		return bo1.Before(bo2)
+	}
+	// If the backoff time is the same, sort the bindings as activeQ does.
+	return Less(bInfo1, bInfo2)
+}
+
 // flushUnschedulableBindingsLeftover moves bindings which stay in unschedulableBindings
 // longer than bindingMaxInUnschedulableBindingsDuration to activeQ.
 func (bq *prioritySchedulingQueue) flushUnschedulableBindingsLeftover() {
@@ -254,7 +272,7 @@ func (bq *prioritySchedulingQueue) flushUnschedulableBindingsLeftover() {
 	defer bq.lock.Unlock()
 
 	var bindingsToMove []*QueuedBindingInfo
-	currentTime := time.Now()
+	currentTime := bq.clock.Now()
 	for _, bInfo := range bq.unschedulableBindings.bindingInfoMap {
 		lastScheduleTime := bInfo.Timestamp
 		if currentTime.Sub(lastScheduleTime) > bq.bindingMaxInUnschedulableBindingsDuration {
