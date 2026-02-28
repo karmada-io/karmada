@@ -42,7 +42,7 @@ If all your clusters are `Push` type clusters, you can access the webhook servic
 Please run the following script to deploy `MetalLB`.
 
 ```bash
-kubectl --context="karmada-host" get configmap kube-proxy -n kube-system -o yaml | \
+kubectl --context="karmada-host" get configmap kube-proxy -n kube-system -o json | \
   sed -e "s/strictARP: false/strictARP: true/" | \
   kubectl --context="karmada-host" apply -n kube-system -f -
 
