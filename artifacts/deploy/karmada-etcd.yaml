@@ -58,8 +58,8 @@ spec:
               protocol: TCP
           resources:
             requests:
-              cpu: 100m
-              memory: 100Mi
+              cpu: 500m
+              memory: 500Mi
           command:
             - /usr/local/bin/etcd
             - --name
