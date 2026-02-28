@@ -821,6 +821,16 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 			klog.Errorf("Failed to customize replicas for %s(%s), %v", object.GroupVersionKind(), object.GetName(), err)
 			return nil, err
 		}
+
+		// Most interpreters (except webhook interpreter) cannot properly obtain the namespace because they extract
+		// information from PodTemplate, and advanced workloads' PodTemplates typically don't have a namespace set.
+		// Therefore, we uniformly check and set the namespace here.
+		// Note: The replicaRequirements.Namespace field is somewhat redundant and could be deprecated in the future,
+		// as the namespace can be obtained directly from ResourceBinding.
+		if features.FeatureGate.Enabled(features.ResourceQuotaEstimate) && replicaRequirements != nil && len(replicaRequirements.Namespace) == 0 {
+			replicaRequirements.Namespace = object.GetNamespace()
+		}
+
 		propagationBinding.Spec.Replicas = replicas
 		propagationBinding.Spec.ReplicaRequirements = replicaRequirements
 	}
@@ -895,6 +905,16 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 			klog.Errorf("Failed to customize replicas for %s(%s), %v", object.GroupVersionKind(), object.GetName(), err)
 			return nil, err
 		}
+
+		// Most interpreters (except webhook interpreter) cannot properly obtain the namespace because they extract
+		// information from PodTemplate, and advanced workloads' PodTemplates typically don't have a namespace set.
+		// Therefore, we uniformly check and set the namespace here.
+		// Note: The replicaRequirements.Namespace field is somewhat redundant and could be deprecated in the future,
+		// as the namespace can be obtained directly from ResourceBinding.
+		if features.FeatureGate.Enabled(features.ResourceQuotaEstimate) && replicaRequirements != nil && len(replicaRequirements.Namespace) == 0 {
+			replicaRequirements.Namespace = object.GetNamespace()
+		}
+
 		binding.Spec.Replicas = replicas
 		binding.Spec.ReplicaRequirements = replicaRequirements
 	}

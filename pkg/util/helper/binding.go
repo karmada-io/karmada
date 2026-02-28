@@ -403,7 +403,6 @@ func GenerateReplicaRequirements(podTemplate *corev1.PodTemplateSpec) *workv1alp
 			ResourceRequest: resourceRequest,
 		}
 		if features.FeatureGate.Enabled(features.ResourceQuotaEstimate) {
-			replicaRequirements.Namespace = podTemplate.Namespace
 			// PriorityClassName is set from podTemplate
 			// If it is not set from podTemplate, it is default to an empty string
 			replicaRequirements.PriorityClassName = podTemplate.Spec.PriorityClassName
