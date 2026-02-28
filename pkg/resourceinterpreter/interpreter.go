@@ -81,10 +81,12 @@ type ResourceInterpreter interface {
 }
 
 // NewResourceInterpreter builds a new ResourceInterpreter object.
-func NewResourceInterpreter(informer genericmanager.SingleClusterInformerManager, serviceLister corev1.ServiceLister) ResourceInterpreter {
+func NewResourceInterpreter(informer genericmanager.SingleClusterInformerManager, serviceLister corev1.ServiceLister, configurablePool, thirdpartyPool int) ResourceInterpreter {
 	return &customResourceInterpreterImpl{
-		informer:      informer,
-		serviceLister: serviceLister,
+		informer:         informer,
+		serviceLister:    serviceLister,
+		configurablePool: configurablePool,
+		thirdpartyPool:   thirdpartyPool,
 	}
 }
 
@@ -96,6 +98,9 @@ type customResourceInterpreterImpl struct {
 	customizedInterpreter   *webhook.CustomizedInterpreter
 	thirdpartyInterpreter   *thirdparty.ConfigurableInterpreter
 	defaultInterpreter      *native.DefaultInterpreter
+
+	configurablePool int
+	thirdpartyPool   int
 }
 
 // Start initializes all interpreters and load all ResourceInterpreterCustomization and
@@ -109,9 +114,9 @@ func (i *customResourceInterpreterImpl) Start(_ context.Context) (err error) {
 	if err != nil {
 		return err
 	}
-	i.configurableInterpreter = declarative.NewConfigurableInterpreter(i.informer)
+	i.configurableInterpreter = declarative.NewConfigurableInterpreter(i.informer, i.configurablePool)
 
-	i.thirdpartyInterpreter = thirdparty.NewConfigurableInterpreter()
+	i.thirdpartyInterpreter = thirdparty.NewConfigurableInterpreter(i.thirdpartyPool)
 	i.defaultInterpreter = native.NewDefaultInterpreter()
 
 	i.informer.Start()

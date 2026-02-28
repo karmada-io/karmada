@@ -255,9 +255,9 @@ func (p *ConfigurableInterpreter) getCustomAccessor(kind schema.GroupVersionKind
 }
 
 // NewConfigurableInterpreter return a new ConfigurableInterpreter.
-func NewConfigurableInterpreter() *ConfigurableInterpreter {
+func NewConfigurableInterpreter(pool int) *ConfigurableInterpreter {
 	return &ConfigurableInterpreter{
 		configManager: NewThirdPartyConfigManager(),
-		luaVM:         luavm.New(false, 10),
+		luaVM:         luavm.New(false, pool),
 	}
 }
