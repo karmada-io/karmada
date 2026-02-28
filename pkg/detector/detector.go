@@ -473,7 +473,10 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 		return err
 	}
 	bindingCopy := binding.DeepCopy()
-	err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+	// RetryOnConflict handles AlreadyExists as well because during concurrent reconciliations,
+	// another controller might have created the binding between our Get and Create calls.
+	// We treat this as a transient failure and retry, allowing the subsequent Get to find the existing object.
+	err = retry.OnError(retry.DefaultRetry, isConflictOrAlreadyExists, func() (err error) {
 		operationResult, err = controllerutil.CreateOrUpdate(context.TODO(), d.Client, bindingCopy, func() error {
 			// If this binding exists and its owner is not the input object, return error and let garbage collector
 			// delete this binding and try again later. See https://github.com/karmada-io/karmada/issues/2090.
@@ -566,7 +569,10 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 			return err
 		}
 		bindingCopy := binding.DeepCopy()
-		err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+		// RetryOnConflict handles AlreadyExists as well because during concurrent reconciliations,
+		// another controller might have created the binding between our Get and Create calls.
+		// We treat this as a transient failure and retry, allowing the subsequent Get to find the existing object.
+		err = retry.OnError(retry.DefaultRetry, isConflictOrAlreadyExists, func() (err error) {
 			operationResult, err = controllerutil.CreateOrUpdate(context.TODO(), d.Client, bindingCopy, func() error {
 				// If this binding exists and its owner is not the input object, return error and let garbage collector
 				// delete this binding and try again later. See https://github.com/karmada-io/karmada/issues/2090.
@@ -618,7 +624,10 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 			return err
 		}
 		bindingCopy := binding.DeepCopy()
-		err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+		// RetryOnConflict handles AlreadyExists as well because during concurrent reconciliations,
+		// another controller might have created the binding between our Get and Create calls.
+		// We treat this as a transient failure and retry, allowing the subsequent Get to find the existing object.
+		err = retry.OnError(retry.DefaultRetry, isConflictOrAlreadyExists, func() (err error) {
 			operationResult, err = controllerutil.CreateOrUpdate(context.TODO(), d.Client, bindingCopy, func() error {
 				// If this binding exists and its owner is not the input object, return error and let garbage collector
 				// delete this binding and try again later. See https://github.com/karmada-io/karmada/issues/2090.
@@ -981,6 +990,11 @@ func (d *ResourceDetector) GetMatching(resourceSelectors []policyv1alpha1.Resour
 	}
 
 	return matchedResult
+}
+
+// isConflictOrAlreadyExists checks if the error is a Conflict or AlreadyExists error.
+func isConflictOrAlreadyExists(err error) bool {
+	return apierrors.IsConflict(err) || apierrors.IsAlreadyExists(err)
 }
 
 // OnPropagationPolicyAdd handles object add event and push the object to queue.
