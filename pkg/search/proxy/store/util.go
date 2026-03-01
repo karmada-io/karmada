@@ -414,3 +414,35 @@ func BuildMultiClusterResourceVersion(clusterResourceMap map[string]string) stri
 	}
 	return m.String()
 }
+
+type syncMap struct {
+	m     map[string]runtime.Object
+	mutex sync.RWMutex
+	wg    sync.WaitGroup
+}
+
+func makeSyncMap() *syncMap {
+	return &syncMap{
+		m: make(map[string]runtime.Object),
+	}
+}
+func (s *syncMap) wait() {
+	s.wg.Wait()
+}
+func (s *syncMap) add() {
+	s.wg.Add(1)
+}
+func (s *syncMap) done() {
+	s.wg.Done()
+}
+func (s *syncMap) put(key string, val runtime.Object) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	s.m[key] = val
+}
+
+func (s *syncMap) get(key string) runtime.Object {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	return s.m[key]
+}
