@@ -57,7 +57,7 @@ var namespaceSubresources = sets.NewString("status", "finalize")
 // +lifted:source=https://github.com/kubernetes/apiserver/blob/release-1.26/pkg/endpoints/request/requestinfo.go#L88-L247
 // +lifted:changed
 
-// TODO write an integration test against the swagger doc to test the RequestInfo and match up behavior to responses
+// TODO: Write an integration test against the swagger doc to test the RequestInfo and match up behavior to responses
 // NewRequestInfo returns the information from the http request.  If error is not nil, RequestInfo holds the information as best it is known before the failure
 // It handles both resource and non-resource requests and fills in all the pertinent information for each.
 // Valid Inputs:

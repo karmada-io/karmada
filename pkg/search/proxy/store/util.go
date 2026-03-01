@@ -92,7 +92,7 @@ func (m *multiClusterResourceVersion) String() string {
 	if m.isZero {
 		return "0"
 	}
-	// todo consider to separate this two scenarios:
+	// TODO: Consider to separate these two scenarios:
 	// 1. client do not send ResourceVersion
 	// 2. client send ResourceVersion with empty cluster.
 	if len(m.rvs) == 0 {
