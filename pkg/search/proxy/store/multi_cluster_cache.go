@@ -61,6 +61,11 @@ type MultiClusterCache struct {
 	restMapper          meta.RESTMapper
 	// newClientFunc returns a dynamic client for member cluster apiserver
 	newClientFunc func(string) (dynamic.Interface, error)
+
+	activeWatchersLock sync.RWMutex
+	// activeWatchers tracks all active watch connections for each GVR
+	// key: GVR, value: list of active watch multiplexers
+	activeWatchers map[schema.GroupVersionResource][]*watchMuxWithInvalidation
 }
 
 var _ Store = &MultiClusterCache{}
@@ -72,6 +77,7 @@ func NewMultiClusterCache(newClientFunc func(string) (dynamic.Interface, error),
 		newClientFunc:       newClientFunc,
 		cache:               map[string]*clusterCache{},
 		registeredResources: map[schema.GroupVersionResource]struct{}{},
+		activeWatchers:      map[schema.GroupVersionResource][]*watchMuxWithInvalidation{},
 	}
 }
 
@@ -116,12 +122,14 @@ func (c *MultiClusterCache) UpdateCache(resourcesByCluster map[string]map[schema
 	}
 
 	// add/update cluster cache
+	clustersAdded := false
 	for clusterName, resources := range resourcesByCluster {
 		cache, exist := c.cache[clusterName]
 		if !exist {
 			klog.Infof("Add cache for cluster %v", clusterName)
 			cache = newClusterCache(clusterName, c.clientForClusterFunc(clusterName), c.restMapper)
 			c.cache[clusterName] = cache
+			clustersAdded = true
 		}
 		err := cache.updateCache(resources)
 		if err != nil {
@@ -129,6 +137,20 @@ func (c *MultiClusterCache) UpdateCache(resourcesByCluster map[string]map[schema
 		}
 	}
 	c.registeredResources = registeredResources
+
+	// Only invalidate watches when clusters are added (not removed)
+	// Cluster removal is already handled by cacher.Stop() -> terminateAllWatchers()
+	if clustersAdded {
+		// When a new cluster joins or a failed cluster recovers, the watch connection cannot perceive the change.
+		// As a result, resources in the cluster cannot be watched, leading to data inconsistency.
+		// Therefore, we actively disconnect to wait the client to initiate a new connection.
+		// Here not altering the watch behavior but simply terminating the connection early.
+		// The client will automatically re-establish the watch request, thereby obtaining the
+		// complete cluster resource information, including the new or recovered cluster.
+		// For details, please refer to the issue: https://github.com/karmada-io/karmada/issues/6963
+		klog.Infof("Cluster topology changed, invalidating all active watches to trigger reconnection")
+		c.invalidateAllWatches()
+	}
 	return nil
 }
 
@@ -347,7 +369,7 @@ func (c *MultiClusterCache) Watch(ctx context.Context, gvr schema.GroupVersionRe
 		accessor.SetResourceVersion(responseResourceVersion.String())
 	}
 
-	mux := newWatchMux()
+	mux := newWatchMuxWithInvalidation()
 	clusters := c.getClusterNames()
 	for i := range clusters {
 		cluster := clusters[i]
@@ -367,6 +389,9 @@ func (c *MultiClusterCache) Watch(ctx context.Context, gvr schema.GroupVersionRe
 		})
 	}
 	mux.Start()
+
+	// Register this watch so we can invalidate it when cluster topology changes
+	c.registerWatch(gvr, mux)
 	return mux, nil
 }
 
@@ -498,6 +523,61 @@ func (c *MultiClusterCache) getClusterResourceVersion(ctx context.Context, clust
 		return "", err
 	}
 	return listObj.GetResourceVersion(), nil
+}
+
+// registerWatch registers an active watch connection
+func (c *MultiClusterCache) registerWatch(gvr schema.GroupVersionResource, mux *watchMuxWithInvalidation) {
+	c.activeWatchersLock.Lock()
+	defer c.activeWatchersLock.Unlock()
+
+	c.activeWatchers[gvr] = append(c.activeWatchers[gvr], mux)
+
+	// Set up cleanup when watch is stopped
+	go func() {
+		<-mux.StoppedCh()
+		c.unregisterWatch(gvr, mux)
+	}()
+}
+
+// unregisterWatch removes a watch connection from tracking
+func (c *MultiClusterCache) unregisterWatch(gvr schema.GroupVersionResource, mux *watchMuxWithInvalidation) {
+	c.activeWatchersLock.Lock()
+	defer c.activeWatchersLock.Unlock()
+
+	watchers := c.activeWatchers[gvr]
+	for i, w := range watchers {
+		if w == mux {
+			// Remove from slice
+			c.activeWatchers[gvr] = append(watchers[:i], watchers[i+1:]...)
+			break
+		}
+	}
+
+	// Clean up empty entries
+	if len(c.activeWatchers[gvr]) == 0 {
+		delete(c.activeWatchers, gvr)
+	}
+}
+
+// invalidateAllWatches sends invalidation events to all active watches
+// This causes clients to reconnect and get the updated cluster list
+func (c *MultiClusterCache) invalidateAllWatches() {
+	c.activeWatchersLock.RLock()
+	var watchersToInvalidate []*watchMuxWithInvalidation
+	for _, watchers := range c.activeWatchers {
+		watchersToInvalidate = append(watchersToInvalidate, watchers...)
+	}
+	defer c.activeWatchersLock.RUnlock()
+
+	totalWatches := len(watchersToInvalidate)
+	for _, mux := range watchersToInvalidate {
+		// Send invalidation event asynchronously to avoid blocking
+		go mux.Invalidate()
+	}
+
+	if totalWatches > 0 {
+		klog.Infof("Sent invalidation signal to %d active watch connections", totalWatches)
+	}
 }
 
 // Inputs and outputs:
