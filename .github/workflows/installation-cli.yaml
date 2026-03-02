@@ -61,13 +61,13 @@ jobs:
           hack/run-e2e-init.sh
       - name: upload logs
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: karmada_init_e2e_log_${{ matrix.k8s }}
           path: ${{ github.workspace }}/karmada-init-e2e-logs/${{ matrix.k8s }}/
       - name: upload kind logs
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: karmada_init_kind_log_${{ matrix.k8s }}
           path: /tmp/karmada/

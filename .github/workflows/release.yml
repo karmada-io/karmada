@@ -34,7 +34,7 @@ jobs:
         GOARCH: ${{ matrix.arch }}
       run: make release-${{ matrix.target }}
     - name: upload cli
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: cli-${{ matrix.target }}-${{ matrix.os }}-${{ matrix.arch }}.tgz
         path: _output/release/${{ matrix.target }}-${{ matrix.os }}-${{ matrix.arch }}.tgz
