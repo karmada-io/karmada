@@ -18,6 +18,7 @@ package helper
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"testing"
 
@@ -43,6 +44,7 @@ func TestUpdateStatus(t *testing.T) {
 		statusError   bool
 		expectedOp    controllerutil.OperationResult
 		expectedError string
+		validateFunc  func(t *testing.T, client client.Client)
 	}{
 		{
 			name: "successful status update",
@@ -61,6 +63,12 @@ func TestUpdateStatus(t *testing.T) {
 			statusError:   false,
 			expectedOp:    controllerutil.OperationResultUpdatedStatusOnly,
 			expectedError: "",
+			validateFunc: func(t *testing.T, client client.Client) {
+				updatedPod := &corev1.Pod{}
+				err := client.Get(context.TODO(), types.NamespacedName{Name: "test-pod", Namespace: "default"}, updatedPod)
+				assert.NoError(t, err)
+				assert.Equal(t, corev1.PodRunning, updatedPod.Status.Phase)
+			},
 		},
 		{
 			name: "status update error",
@@ -78,7 +86,7 @@ func TestUpdateStatus(t *testing.T) {
 			},
 			statusError:   true,
 			expectedOp:    controllerutil.OperationResultNone,
-			expectedError: "Internal error occurred: status update failed",
+			expectedError: "Internal error occurred: status patch failed",
 		},
 		{
 			name: "no changes needed",
@@ -95,7 +103,7 @@ func TestUpdateStatus(t *testing.T) {
 				// No changes to status
 			},
 			statusError:   false,
-			expectedOp:    controllerutil.OperationResultNone,
+			expectedOp:    controllerutil.OperationResultUpdatedStatusOnly,
 			expectedError: "",
 		},
 		{
@@ -123,6 +131,176 @@ func TestUpdateStatus(t *testing.T) {
 			statusError:   false,
 			expectedOp:    controllerutil.OperationResultNone,
 			expectedError: "cannot mutate object name",
+		},
+		{
+			name: "update multiple status fields",
+			setupObj: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-pod",
+					Namespace: "default",
+				},
+				Status: corev1.PodStatus{
+					Phase: corev1.PodPending,
+				},
+			},
+			mutateStatus: func(pod *corev1.Pod) {
+				pod.Status.Phase = corev1.PodRunning
+				pod.Status.Message = "Pod is running"
+				pod.Status.Reason = "Started"
+			},
+			statusError:   false,
+			expectedOp:    controllerutil.OperationResultUpdatedStatusOnly,
+			expectedError: "",
+			validateFunc: func(t *testing.T, client client.Client) {
+				updatedPod := &corev1.Pod{}
+				err := client.Get(context.TODO(), types.NamespacedName{Name: "test-pod", Namespace: "default"}, updatedPod)
+				assert.NoError(t, err)
+				assert.Equal(t, corev1.PodRunning, updatedPod.Status.Phase)
+				assert.Equal(t, "Pod is running", updatedPod.Status.Message)
+				assert.Equal(t, "Started", updatedPod.Status.Reason)
+			},
+		},
+		{
+			name: "update condition with same status but different message",
+			setupObj: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-pod",
+					Namespace: "default",
+				},
+				Status: corev1.PodStatus{
+					Phase: corev1.PodRunning,
+					Conditions: []corev1.PodCondition{
+						{
+							Type:    corev1.PodReady,
+							Status:  corev1.ConditionTrue,
+							Reason:  "AllContainersReady",
+							Message: "All containers are ready",
+						},
+					},
+				},
+			},
+			mutateStatus: func(pod *corev1.Pod) {
+				pod.Status.Phase = corev1.PodRunning
+				pod.Status.Conditions = []corev1.PodCondition{
+					{
+						Type:    corev1.PodReady,
+						Status:  corev1.ConditionTrue,
+						Reason:  "HealthCheckPassed",
+						Message: "Updated: All containers are ready and healthy",
+					},
+				}
+			},
+			statusError:   false,
+			expectedOp:    controllerutil.OperationResultUpdatedStatusOnly,
+			expectedError: "",
+			validateFunc: func(t *testing.T, client client.Client) {
+				updatedPod := &corev1.Pod{}
+				err := client.Get(context.TODO(), types.NamespacedName{Name: "test-pod", Namespace: "default"}, updatedPod)
+				assert.NoError(t, err)
+				// Verify condition message and reason were updated even though status remained the same
+				assert.Len(t, updatedPod.Status.Conditions, 1)
+				assert.Equal(t, corev1.PodReady, updatedPod.Status.Conditions[0].Type)
+				assert.Equal(t, corev1.ConditionTrue, updatedPod.Status.Conditions[0].Status)
+				assert.Equal(t, "Updated: All containers are ready and healthy", updatedPod.Status.Conditions[0].Message)
+				assert.Equal(t, "HealthCheckPassed", updatedPod.Status.Conditions[0].Reason)
+			},
+		},
+		{
+			name: "update condition from failed to successful",
+			setupObj: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-pod",
+					Namespace: "default",
+				},
+				Status: corev1.PodStatus{
+					Phase: corev1.PodPending,
+					Conditions: []corev1.PodCondition{
+						{
+							Type:    corev1.PodScheduled,
+							Status:  corev1.ConditionFalse,
+							Reason:  "Unschedulable",
+							Message: "0/3 nodes are available",
+						},
+					},
+				},
+			},
+			mutateStatus: func(pod *corev1.Pod) {
+				pod.Status.Phase = corev1.PodRunning
+				pod.Status.Conditions = []corev1.PodCondition{
+					{
+						Type:    corev1.PodScheduled,
+						Status:  corev1.ConditionTrue,
+						Reason:  "Scheduled",
+						Message: "Successfully assigned to node",
+					},
+				}
+			},
+			statusError:   false,
+			expectedOp:    controllerutil.OperationResultUpdatedStatusOnly,
+			expectedError: "",
+			validateFunc: func(t *testing.T, client client.Client) {
+				updatedPod := &corev1.Pod{}
+				err := client.Get(context.TODO(), types.NamespacedName{Name: "test-pod", Namespace: "default"}, updatedPod)
+				assert.NoError(t, err)
+				// Verify condition status changed from False to True
+				assert.Equal(t, corev1.PodRunning, updatedPod.Status.Phase)
+				assert.Len(t, updatedPod.Status.Conditions, 1)
+				assert.Equal(t, corev1.PodScheduled, updatedPod.Status.Conditions[0].Type)
+				assert.Equal(t, corev1.ConditionTrue, updatedPod.Status.Conditions[0].Status)
+				assert.Equal(t, "Scheduled", updatedPod.Status.Conditions[0].Reason)
+				assert.Equal(t, "Successfully assigned to node", updatedPod.Status.Conditions[0].Message)
+			},
+		},
+		{
+			name: "add new condition to existing conditions",
+			setupObj: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-pod",
+					Namespace: "default",
+				},
+				Status: corev1.PodStatus{
+					Phase: corev1.PodRunning,
+					Conditions: []corev1.PodCondition{
+						{
+							Type:    corev1.PodReady,
+							Status:  corev1.ConditionTrue,
+							Reason:  "AllContainersReady",
+							Message: "All containers are ready",
+						},
+					},
+				},
+			},
+			mutateStatus: func(pod *corev1.Pod) {
+				// Add a new condition while keeping existing ones
+				pod.Status.Phase = corev1.PodRunning
+				pod.Status.Conditions = []corev1.PodCondition{
+					{
+						Type:    corev1.PodReady,
+						Status:  corev1.ConditionTrue,
+						Reason:  "AllContainersReady",
+						Message: "All containers are ready",
+					},
+					{
+						Type:    corev1.ContainersReady,
+						Status:  corev1.ConditionTrue,
+						Reason:  "ContainersReady",
+						Message: "All containers in the pod are ready",
+					},
+				}
+			},
+			statusError:   false,
+			expectedOp:    controllerutil.OperationResultUpdatedStatusOnly,
+			expectedError: "",
+			validateFunc: func(t *testing.T, client client.Client) {
+				updatedPod := &corev1.Pod{}
+				err := client.Get(context.TODO(), types.NamespacedName{Name: "test-pod", Namespace: "default"}, updatedPod)
+				assert.NoError(t, err)
+				// Verify new condition was added
+				assert.Len(t, updatedPod.Status.Conditions, 2)
+				assert.Equal(t, corev1.PodReady, updatedPod.Status.Conditions[0].Type)
+				assert.Equal(t, corev1.ContainersReady, updatedPod.Status.Conditions[1].Type)
+				assert.Equal(t, corev1.ConditionTrue, updatedPod.Status.Conditions[1].Status)
+			},
 		},
 	}
 
@@ -171,12 +349,9 @@ func TestUpdateStatus(t *testing.T) {
 			// Check operation result
 			assert.Equal(t, tt.expectedOp, op)
 
-			// If successful update, verify the status was actually changed
-			if tt.expectedOp == controllerutil.OperationResultUpdatedStatusOnly {
-				updatedPod := &corev1.Pod{}
-				err := client.Get(context.TODO(), types.NamespacedName{Name: "test-pod", Namespace: "default"}, updatedPod)
-				assert.NoError(t, err)
-				assert.Equal(t, corev1.PodRunning, updatedPod.Status.Phase)
+			// If test case has validation function, run it
+			if tt.validateFunc != nil {
+				tt.validateFunc(t, client)
 			}
 		})
 	}
@@ -359,6 +534,13 @@ func (m *mockStatusWriter) Update(_ context.Context, _ client.Object, _ ...clien
 	return nil
 }
 
+func (m *mockStatusWriter) Patch(_ context.Context, _ client.Object, _ client.Patch, _ ...client.SubResourcePatchOption) error {
+	if m.shouldError {
+		return apierrors.NewInternalError(fmt.Errorf("status patch failed"))
+	}
+	return nil
+}
+
 // mockClient wraps the fake client and returns our mock status writer
 type mockClient struct {
 	client.Client
@@ -367,4 +549,210 @@ type mockClient struct {
 
 func (m *mockClient) Status() client.StatusWriter {
 	return &mockStatusWriter{shouldError: m.shouldError}
+}
+
+func TestGetStatusFromObject(t *testing.T) {
+	tests := []struct {
+		name          string
+		obj           client.Object
+		expectedError string
+		validateFunc  func(t *testing.T, status json.RawMessage)
+	}{
+		{
+			name: "successful extraction from pod with status",
+			obj: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-pod",
+					Namespace: "default",
+				},
+				Status: corev1.PodStatus{
+					Phase:   corev1.PodRunning,
+					Message: "Pod is running",
+				},
+			},
+			expectedError: "",
+			validateFunc: func(t *testing.T, status json.RawMessage) {
+				assert.NotNil(t, status)
+				var podStatus corev1.PodStatus
+				err := json.Unmarshal(status, &podStatus)
+				assert.NoError(t, err)
+				assert.Equal(t, corev1.PodRunning, podStatus.Phase)
+				assert.Equal(t, "Pod is running", podStatus.Message)
+			},
+		},
+		{
+			name: "successful extraction from pod with empty status",
+			obj: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-pod",
+					Namespace: "default",
+				},
+				Status: corev1.PodStatus{},
+			},
+			expectedError: "",
+			validateFunc: func(t *testing.T, status json.RawMessage) {
+				assert.NotNil(t, status)
+				var podStatus corev1.PodStatus
+				err := json.Unmarshal(status, &podStatus)
+				assert.NoError(t, err)
+			},
+		},
+		{
+			name: "successful extraction with complex status",
+			obj: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-pod",
+					Namespace: "default",
+				},
+				Status: corev1.PodStatus{
+					Phase:   corev1.PodRunning,
+					Message: "Pod is running",
+					Reason:  "Started",
+					Conditions: []corev1.PodCondition{
+						{
+							Type:   corev1.PodReady,
+							Status: corev1.ConditionTrue,
+						},
+					},
+				},
+			},
+			expectedError: "",
+			validateFunc: func(t *testing.T, status json.RawMessage) {
+				assert.NotNil(t, status)
+				var podStatus corev1.PodStatus
+				err := json.Unmarshal(status, &podStatus)
+				assert.NoError(t, err)
+				assert.Equal(t, corev1.PodRunning, podStatus.Phase)
+				assert.Equal(t, "Pod is running", podStatus.Message)
+				assert.Equal(t, "Started", podStatus.Reason)
+				assert.Len(t, podStatus.Conditions, 1)
+				assert.Equal(t, corev1.PodReady, podStatus.Conditions[0].Type)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			status, err := getStatusFromObject(tt.obj)
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+				return
+			}
+
+			assert.NoError(t, err)
+			if tt.validateFunc != nil {
+				tt.validateFunc(t, status)
+			}
+		})
+	}
+}
+
+func TestBuildStatusPatch(t *testing.T) {
+	tests := []struct {
+		name          string
+		statusRaw     json.RawMessage
+		expectedError string
+		validateFunc  func(t *testing.T, patch client.Patch)
+	}{
+		{
+			name:          "successful patch creation with simple status",
+			statusRaw:     json.RawMessage(`{"phase":"Running"}`),
+			expectedError: "",
+			validateFunc: func(t *testing.T, patch client.Patch) {
+				assert.NotNil(t, patch)
+				assert.Equal(t, types.JSONPatchType, patch.Type())
+
+				// Verify patch data structure
+				patchData, err := patch.Data(nil)
+				assert.NoError(t, err)
+
+				var ops []map[string]interface{}
+				err = json.Unmarshal(patchData, &ops)
+				assert.NoError(t, err)
+				assert.Len(t, ops, 1)
+				assert.Equal(t, "add", ops[0]["op"])
+				assert.Equal(t, "/status", ops[0]["path"])
+			},
+		},
+		{
+			name:          "successful patch creation with complex status",
+			statusRaw:     json.RawMessage(`{"phase":"Running","message":"Pod is running","conditions":[{"type":"Ready","status":"True"}]}`),
+			expectedError: "",
+			validateFunc: func(t *testing.T, patch client.Patch) {
+				assert.NotNil(t, patch)
+				assert.Equal(t, types.JSONPatchType, patch.Type())
+
+				patchData, err := patch.Data(nil)
+				assert.NoError(t, err)
+
+				var ops []map[string]interface{}
+				err = json.Unmarshal(patchData, &ops)
+				assert.NoError(t, err)
+				assert.Len(t, ops, 1)
+				assert.Equal(t, "add", ops[0]["op"])
+				assert.Equal(t, "/status", ops[0]["path"])
+
+				// Verify the value contains the expected status
+				valueBytes, err := json.Marshal(ops[0]["value"])
+				assert.NoError(t, err)
+				assert.Contains(t, string(valueBytes), "Running")
+				assert.Contains(t, string(valueBytes), "Pod is running")
+			},
+		},
+		{
+			name:          "successful patch creation with empty status",
+			statusRaw:     json.RawMessage(`{}`),
+			expectedError: "",
+			validateFunc: func(t *testing.T, patch client.Patch) {
+				assert.NotNil(t, patch)
+				assert.Equal(t, types.JSONPatchType, patch.Type())
+
+				patchData, err := patch.Data(nil)
+				assert.NoError(t, err)
+
+				var ops []map[string]interface{}
+				err = json.Unmarshal(patchData, &ops)
+				assert.NoError(t, err)
+				assert.Len(t, ops, 1)
+			},
+		},
+		{
+			name:          "successful patch with nested status fields",
+			statusRaw:     json.RawMessage(`{"phase":"Running","containerStatuses":[{"name":"container1","ready":true}]}`),
+			expectedError: "",
+			validateFunc: func(t *testing.T, patch client.Patch) {
+				assert.NotNil(t, patch)
+				patchData, err := patch.Data(nil)
+				assert.NoError(t, err)
+
+				var ops []map[string]interface{}
+				err = json.Unmarshal(patchData, &ops)
+				assert.NoError(t, err)
+				assert.Len(t, ops, 1)
+
+				valueBytes, err := json.Marshal(ops[0]["value"])
+				assert.NoError(t, err)
+				assert.Contains(t, string(valueBytes), "containerStatuses")
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			patch, err := buildStatusPatch(tt.statusRaw)
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+				return
+			}
+
+			assert.NoError(t, err)
+			if tt.validateFunc != nil {
+				tt.validateFunc(t, patch)
+			}
+		})
+	}
 }

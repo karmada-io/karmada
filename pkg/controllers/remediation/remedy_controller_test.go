@@ -192,7 +192,11 @@ func setupScheme() *runtime.Scheme {
 
 // Helper function to create a fake client
 func createFakeClient(scheme *runtime.Scheme, objs ...runtime.Object) client.Client {
-	return fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(objs...).Build()
+	return fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithRuntimeObjects(objs...).
+		WithStatusSubresource(&clusterv1alpha1.Cluster{}).
+		Build()
 }
 
 // Helper function to set up the manager
