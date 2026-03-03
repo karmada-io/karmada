@@ -103,6 +103,34 @@ func Test_overrideManagerImpl_ApplyLabelAnnotationOverriderPolicies(t *testing.T
 												},
 											},
 										},
+										Plaintext: []policyv1alpha1.PlaintextOverrider{
+											{
+												// add on not exist path
+												Path:     "/spec/template/metadata/annotations/testAddAnnotation",
+												Operator: policyv1alpha1.OverriderOpAdd,
+												Value: apiextensionsv1.JSON{
+													Raw: []byte(`"testAddAnnotation"`),
+												},
+											},
+											{
+												// add on exist path
+												Path:     "/spec/template/metadata/labels/testAddLabel",
+												Operator: policyv1alpha1.OverriderOpAdd,
+												Value: apiextensionsv1.JSON{
+													Raw: []byte(`"testAddLabel"`),
+												},
+											},
+											{
+												// remove on not exist path
+												Path:     "/notexist",
+												Operator: policyv1alpha1.OverriderOpRemove,
+											},
+											{
+												// remove on exist path
+												Path:     "/spec/replicas",
+												Operator: policyv1alpha1.OverriderOpRemove,
+											},
+										},
 									},
 								},
 							},
@@ -135,6 +163,34 @@ func Test_overrideManagerImpl_ApplyLabelAnnotationOverriderPolicies(t *testing.T
 									Value: map[string]string{
 										"testAddAnnotation": "testAddAnnotation",
 									},
+								},
+							},
+							Plaintext: []policyv1alpha1.PlaintextOverrider{
+								{
+									// add on not exist path
+									Path:     "/spec/template/metadata/annotations/testAddAnnotation",
+									Operator: policyv1alpha1.OverriderOpAdd,
+									Value: apiextensionsv1.JSON{
+										Raw: []byte(`"testAddAnnotation"`),
+									},
+								},
+								{
+									// add on exist path
+									Path:     "/spec/template/metadata/labels/testAddLabel",
+									Operator: policyv1alpha1.OverriderOpAdd,
+									Value: apiextensionsv1.JSON{
+										Raw: []byte(`"testAddLabel"`),
+									},
+								},
+								{
+									// remove on not exist path
+									Path:     "/notexist",
+									Operator: policyv1alpha1.OverriderOpRemove,
+								},
+								{
+									// remove on exist path
+									Path:     "/spec/replicas",
+									Operator: policyv1alpha1.OverriderOpRemove,
 								},
 							},
 						},
@@ -177,6 +233,34 @@ func Test_overrideManagerImpl_ApplyLabelAnnotationOverriderPolicies(t *testing.T
 												},
 											},
 										},
+										Plaintext: []policyv1alpha1.PlaintextOverrider{
+											{
+												// add on not exist path
+												Path:     "/spec/template/metadata/annotations/testAddAnnotation",
+												Operator: policyv1alpha1.OverriderOpAdd,
+												Value: apiextensionsv1.JSON{
+													Raw: []byte(`"testAddAnnotation"`),
+												},
+											},
+											{
+												// add on exist path
+												Path:     "/spec/template/metadata/labels/testAddLabel",
+												Operator: policyv1alpha1.OverriderOpAdd,
+												Value: apiextensionsv1.JSON{
+													Raw: []byte(`"testAddLabel"`),
+												},
+											},
+											{
+												// remove on not exist path
+												Path:     "/notexist",
+												Operator: policyv1alpha1.OverriderOpRemove,
+											},
+											{
+												// remove on exist path
+												Path:     "/spec/replicas",
+												Operator: policyv1alpha1.OverriderOpRemove,
+											},
+										},
 									},
 								},
 							},
@@ -208,6 +292,34 @@ func Test_overrideManagerImpl_ApplyLabelAnnotationOverriderPolicies(t *testing.T
 									Value: map[string]string{
 										"testAddAnnotation": "testAddAnnotation",
 									},
+								},
+							},
+							Plaintext: []policyv1alpha1.PlaintextOverrider{
+								{
+									// add on not exist path
+									Path:     "/spec/template/metadata/annotations/testAddAnnotation",
+									Operator: policyv1alpha1.OverriderOpAdd,
+									Value: apiextensionsv1.JSON{
+										Raw: []byte(`"testAddAnnotation"`),
+									},
+								},
+								{
+									// add on exist path
+									Path:     "/spec/template/metadata/labels/testAddLabel",
+									Operator: policyv1alpha1.OverriderOpAdd,
+									Value: apiextensionsv1.JSON{
+										Raw: []byte(`"testAddLabel"`),
+									},
+								},
+								{
+									// remove on not exist path
+									Path:     "/notexist",
+									Operator: policyv1alpha1.OverriderOpRemove,
+								},
+								{
+									// remove on exist path
+									Path:     "/spec/replicas",
+									Operator: policyv1alpha1.OverriderOpRemove,
 								},
 							},
 						},
