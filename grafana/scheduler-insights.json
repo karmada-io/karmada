@@ -1,0 +1,767 @@
+{
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": ">=9.0"
+    },
+    {
+      "type": "panel",
+      "id": "timeseries",
+      "name": "Time series",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "stat",
+      "name": "Stat",
+      "version": ""
+    },
+    {
+      "type": "datasource",
+      "id": "prometheus",
+      "name": "Prometheus",
+      "version": ""
+    }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "iteration": 1758400958,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "type": "row",
+      "title": "Overview",
+      "id": 1,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Scheduling success rate %",
+      "id": 2,
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "legendFormat": "success",
+          "expr": "100 * (\n  sum(rate(karmada_scheduler_schedule_attempts_total{result=\"scheduled\", schedule_type=~\"$schedule_type\"}[5m]))\n  or on() vector(0)\n) / clamp_min(\n  (sum(rate(karmada_scheduler_schedule_attempts_total{schedule_type=~\"$schedule_type\"}[5m])) or on() vector(0)),\n  0.000001\n)"
+        }
+      ],
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 0,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 2,
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "hidden",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Scheduling error rate %",
+      "id": 3,
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "legendFormat": "error",
+          "expr": "100 * (\n  sum(rate(karmada_scheduler_schedule_attempts_total{result=\"error\", schedule_type=~\"$schedule_type\"}[5m]))\n  or on() vector(0)\n) / clamp_min(\n  (sum(rate(karmada_scheduler_schedule_attempts_total{schedule_type=~\"$schedule_type\"}[5m])) or on() vector(0)),\n  0.000001\n)"
+        }
+      ],
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 8,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 2,
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "hidden",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Scheduling attempts /s",
+      "id": 4,
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "legendFormat": "attempts",
+          "expr": "(sum(rate(karmada_scheduler_schedule_attempts_total{schedule_type=~\"$schedule_type\"}[5m])) or on() vector(0))"
+        }
+      ],
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 16,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "decimals": 3
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "hidden",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "Scheduling Throughput & Results",
+      "id": 10,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 7
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Schedule attempts /s by result",
+      "id": 11,
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (result) (rate(karmada_scheduler_schedule_attempts_total{schedule_type=~\"$schedule_type\",result=~\"$result\"}[5m]))",
+          "legendFormat": "{{result}}"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "decimals": 3
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Schedule attempts /s by type",
+      "id": 12,
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (schedule_type) (rate(karmada_scheduler_schedule_attempts_total{schedule_type=~\"$schedule_type\",result=~\"$result\"}[5m]))",
+          "legendFormat": "{{schedule_type}}"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "decimals": 3
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "E2E Scheduling Latency",
+      "id": 20,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 16
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Avg e2e latency by schedule_type",
+      "id": 21,
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (schedule_type) (rate(karmada_scheduler_e2e_scheduling_duration_seconds_sum{result=~\"$result\",schedule_type=~\"$schedule_type\"}[5m])) / clamp_min(sum by (schedule_type) (rate(karmada_scheduler_e2e_scheduling_duration_seconds_count{result=~\"$result\",schedule_type=~\"$schedule_type\"}[5m])), 1)",
+          "legendFormat": "avg {{schedule_type}}"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 17
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 3
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "p95 e2e latency by schedule_type",
+      "id": 22,
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le, schedule_type) (rate(karmada_scheduler_e2e_scheduling_duration_seconds_bucket{result=~\"$result\",schedule_type=~\"$schedule_type\"}[5m])))",
+          "legendFormat": "p95 {{schedule_type}}"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 17
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 3
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "Algorithm & Queue",
+      "id": 30,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 25
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Scheduling algorithm p95 (s) by step",
+      "id": 31,
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le, schedule_step) (rate(karmada_scheduler_scheduling_algorithm_duration_seconds_bucket{}[5m])))",
+          "legendFormat": "{{schedule_step}}"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 26
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 3
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Queue incoming bindings /s by event",
+      "id": 32,
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (event) (rate(karmada_scheduler_queue_incoming_bindings_total{event=~\"$event\"}[5m]))",
+          "legendFormat": "{{event}}"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 26
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "decimals": 3
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "Framework Extension Points",
+      "id": 40,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 34
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Extension point p95 (s)",
+      "id": 41,
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le, extension_point) (rate(karmada_scheduler_framework_extension_point_duration_seconds_bucket{extension_point=~\"$extension_point\",result=~\"$result\"}[5m])))",
+          "legendFormat": "{{extension_point}}"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 35
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 4
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Extension point avg latency (s)",
+      "id": 42,
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (extension_point) (rate(karmada_scheduler_framework_extension_point_duration_seconds_sum{extension_point=~\"$extension_point\",result=~\"$result\"}[5m])) / clamp_min(sum by (extension_point) (rate(karmada_scheduler_framework_extension_point_duration_seconds_count{extension_point=~\"$extension_point\",result=~\"$result\"}[5m])), 1)",
+          "legendFormat": "avg {{extension_point}}"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 35
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 4
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "Plugin Execution",
+      "id": 50,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 43
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Plugin p95 (s) by plugin/extension",
+      "id": 51,
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le, plugin, extension_point) (rate(karmada_scheduler_plugin_execution_duration_seconds_bucket{plugin=~\"$plugin\",extension_point=~\"$extension_point\",result=~\"$result\"}[5m])))",
+          "legendFormat": "{{plugin}} @ {{extension_point}}"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 44
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 5
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Plugin avg latency (s) over time",
+      "id": 52,
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (plugin, extension_point) (rate(karmada_scheduler_plugin_execution_duration_seconds_sum{plugin=~\"$plugin\",extension_point=~\"$extension_point\",result=~\"$result\"}[5m])) / clamp_min(sum by (plugin, extension_point) (rate(karmada_scheduler_plugin_execution_duration_seconds_count{plugin=~\"$plugin\",extension_point=~\"$extension_point\",result=~\"$result\"}[5m])), 1)",
+          "legendFormat": "avg {{plugin}} @ {{extension_point}}"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 44
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 5
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "Breakdowns by Schedule Type",
+      "id": 60,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 52
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Success rate % by schedule_type",
+      "id": 61,
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * sum by (schedule_type) (rate(karmada_scheduler_schedule_attempts_total{result=\"scheduled\",schedule_type=~\"$schedule_type\"}[5m])) / clamp_min(sum by (schedule_type) (rate(karmada_scheduler_schedule_attempts_total{schedule_type=~\"$schedule_type\"}[5m])), 0.000001)",
+          "legendFormat": "{{schedule_type}}"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 53
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Attempts /s by schedule_type",
+      "id": 62,
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (schedule_type) (rate(karmada_scheduler_schedule_attempts_total{schedule_type=~\"$schedule_type\",result=~\"$result\"}[5m]))",
+          "legendFormat": "{{schedule_type}}"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 53
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "decimals": 3
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "style": "dark",
+  "tags": [
+    "karmada"
+  ],
+  "templating": {
+    "list": [
+      {
+        "type": "datasource",
+        "name": "DS_PROMETHEUS",
+        "label": "Prometheus",
+        "query": "prometheus",
+        "hide": 0
+      },
+      {
+        "name": "schedule_type",
+        "label": "Schedule Type",
+        "type": "query",
+        "datasource": "$DS_PROMETHEUS",
+        "query": "label_values(karmada_scheduler_schedule_attempts_total{}, schedule_type)",
+        "refresh": 2,
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*",
+        "sort": 1
+      },
+      {
+        "name": "result",
+        "label": "Result",
+        "type": "query",
+        "datasource": "$DS_PROMETHEUS",
+        "query": "label_values(karmada_scheduler_schedule_attempts_total{}, result)",
+        "refresh": 2,
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*",
+        "sort": 1
+      },
+      {
+        "name": "event",
+        "label": "Event",
+        "type": "query",
+        "datasource": "$DS_PROMETHEUS",
+        "query": "label_values(karmada_scheduler_queue_incoming_bindings_total{}, event)",
+        "refresh": 2,
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*",
+        "sort": 1
+      },
+      {
+        "name": "extension_point",
+        "label": "Extension Point",
+        "type": "query",
+        "datasource": "$DS_PROMETHEUS",
+        "query": "label_values(karmada_scheduler_framework_extension_point_duration_seconds_bucket{}, extension_point)",
+        "refresh": 2,
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*",
+        "sort": 1
+      },
+      {
+        "name": "plugin",
+        "label": "Plugin",
+        "type": "query",
+        "datasource": "$DS_PROMETHEUS",
+        "query": "label_values(karmada_scheduler_plugin_execution_duration_seconds_bucket{}, plugin)",
+        "refresh": 2,
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*",
+        "sort": 1
+      }
+    ]
+  },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h"
+    ],
+    "time_options": [
+      "5m",
+      "15m",
+      "1h",
+      "6h",
+      "12h",
+      "24h",
+      "2d",
+      "7d",
+      "30d"
+    ]
+  },
+  "timezone": "browser",
+  "title": "Karmada Scheduler Insights",
+  "uid": "karmada-scheduler-insights",
+  "version": 8,
+  "weekStart": ""
+}

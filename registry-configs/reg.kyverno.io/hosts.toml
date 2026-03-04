@@ -1,0 +1,4 @@
+server = "https://reg.kyverno.io"
+[host."https://reg.kyverno.io"]
+  capabilities = ["pull", "resolve"]
+  skip_verify = true

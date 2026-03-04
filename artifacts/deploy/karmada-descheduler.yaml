@@ -6,7 +6,7 @@ metadata:
   labels:
     app: karmada-descheduler
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: karmada-descheduler
