@@ -18,6 +18,7 @@ package clusterapi
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
@@ -53,6 +54,21 @@ const (
 var (
 	clusterGVRs = []schema.GroupVersionResource{
 		{Group: clusterapiv1beta1.GroupVersion.Group, Version: clusterapiv1beta1.GroupVersion.Version, Resource: resourceCluster},
+	}
+)
+
+var (
+	cacheGenericListerBuilder = func(clusterDetector *ClusterDetector, objectGVR schema.GroupVersionResource, objectKey keys.ClusterWideKey) (runtime.Object, error) {
+		return clusterDetector.InformerManager.Lister(objectGVR).Get(objectKey.NamespaceKey())
+	}
+	joinClusterRunner = func(opts *join.CommandJoinOption, controlPlaneRestConfig, clusterConfig *rest.Config) error {
+		return opts.RunJoinCluster(controlPlaneRestConfig, clusterConfig)
+	}
+	unjoinClusterRunner = func(opts *unjoin.CommandUnjoinOption, controlPlaneRestConfig, clusterConfig *rest.Config) error {
+		return opts.RunUnJoinCluster(controlPlaneRestConfig, clusterConfig)
+	}
+	kubeconfigFileGenerator = func(clusterName string, kubeconfigData []byte) (string, error) {
+		return generateKubeconfigFile(clusterName, kubeconfigData)
 	}
 )
 
@@ -130,8 +146,9 @@ func (d *ClusterDetector) OnDelete(obj any) {
 func (d *ClusterDetector) Reconcile(key util.QueueKey) error {
 	clusterWideKey, ok := key.(keys.ClusterWideKey)
 	if !ok {
-		klog.Errorf("Invalid key")
-		return fmt.Errorf("invalid key")
+		errMsg := fmt.Sprintf("expected keys.ClusterWideKey, but got %T type", key)
+		klog.Error(errMsg)
+		return errors.New(errMsg)
 	}
 	klog.Infof("Reconciling cluster-api object: %s", clusterWideKey)
 
@@ -165,7 +182,7 @@ func (d *ClusterDetector) GetUnstructuredObject(objectKey keys.ClusterWideKey) (
 		Resource: resourceCluster,
 	}
 
-	object, err := d.InformerManager.Lister(objectGVR).Get(objectKey.NamespaceKey())
+	object, err := cacheGenericListerBuilder(d, objectGVR, objectKey)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			klog.Errorf("Failed to get object(%s), error: %v", objectKey, err)
@@ -200,7 +217,7 @@ func (d *ClusterDetector) joinClusterAPICluster(clusterWideKey keys.ClusterWideK
 		return err
 	}
 
-	kubeconfigPath, err := generateKubeconfigFile(clusterWideKey.Name, secret.Data[secretutil.KubeconfigDataName])
+	kubeconfigPath, err := kubeconfigFileGenerator(clusterWideKey.Name, secret.Data[secretutil.KubeconfigDataName])
 	if err != nil {
 		return err
 	}
@@ -214,7 +231,7 @@ func (d *ClusterDetector) joinClusterAPICluster(clusterWideKey keys.ClusterWideK
 		ClusterNamespace: options.DefaultKarmadaClusterNamespace,
 		ClusterName:      clusterWideKey.Name,
 	}
-	err = opts.RunJoinCluster(d.ControllerPlaneConfig, clusterRestConfig)
+	err = joinClusterRunner(&opts, d.ControllerPlaneConfig, clusterRestConfig)
 	if err != nil {
 		klog.Errorf("Failed to join cluster-api's cluster(%s): %v", clusterWideKey.Name, err)
 		return err
@@ -232,7 +249,7 @@ func (d *ClusterDetector) unJoinClusterAPICluster(clusterName string) error {
 		ClusterName:      clusterName,
 		Wait:             options.DefaultKarmadactlCommandDuration,
 	}
-	err := opts.RunUnJoinCluster(d.ControllerPlaneConfig, nil)
+	err := unjoinClusterRunner(&opts, d.ControllerPlaneConfig, nil)
 	if err != nil {
 		klog.Errorf("Failed to unJoin cluster-api's cluster(%s): %v", clusterName, err)
 		return err
