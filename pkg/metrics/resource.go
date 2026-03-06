@@ -39,11 +39,6 @@ const (
 	cronFederatedHPARuleDurationMetricsName    = "cronfederatedhpa_rule_process_duration_seconds"
 	federatedHPADurationMetricsName            = "federatedhpa_process_duration_seconds"
 	federatedHPAPullMetricsDurationMetricsName = "federatedhpa_pull_metrics_duration_seconds"
-
-	// DEPRECATED: cluster (target removal: 1.18)
-	// Rationale: standardize on the metric label name used to denote a Karmada member cluster across all metrics.
-	// Migration: use member_cluster instead across all queries and dashboards.
-	clusterLabel = "cluster"
 )
 
 var (
@@ -78,18 +73,18 @@ var (
 
 	createResourceWhenSyncWork = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: createResourceToCluster,
-		Help: "Number of creation operations against a target member cluster. The 'result' label indicates outcome ('success' or 'error'), 'recreate' indicates whether the operation is recreated (true/false). Labels 'apiversion', 'kind', and 'cluster' specify the resource type, API version, and target cluster respectively. [Label deprecation: cluster deprecated in 1.16; use member_cluster. Removal planned 1.18.]",
-	}, []string{"result", "apiversion", "kind", memberClusterLabel, clusterLabel, "recreate"})
+		Help: "Number of creation operations against a target member cluster. The 'result' label indicates outcome ('success' or 'error'), 'recreate' indicates whether the operation is recreated (true/false). Labels 'apiversion', 'kind', and 'member_cluster' specify the resource type, API version, and target cluster respectively.",
+	}, []string{"result", "apiversion", "kind", memberClusterLabel, "recreate"})
 
 	updateResourceWhenSyncWork = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: updateResourceToCluster,
-		Help: "Number of updating operation of the resource to a target member cluster. By the result, 'error' means a resource updated failed. Otherwise 'success'. Cluster means the target member cluster. operationResult means the result of the update operation. [Label deprecation: cluster deprecated in 1.16; use member_cluster. Removal planned 1.18.]",
-	}, []string{"result", "apiversion", "kind", memberClusterLabel, clusterLabel, "operationResult"})
+		Help: "Number of updating operation of the resource to a target member cluster. By the result, 'error' means a resource updated failed. Otherwise 'success'. member_cluster means the target member cluster. operationResult means the result of the update operation.",
+	}, []string{"result", "apiversion", "kind", memberClusterLabel, "operationResult"})
 
 	deleteResourceWhenSyncWork = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: deleteResourceFromCluster,
-		Help: "Number of deletion operations against a target member cluster. The 'result' label indicates outcome ('success' or 'error'). Labels 'apiversion', 'kind', and 'cluster' specify the resource's API version, type, and source cluster respectively. [Label deprecation: cluster deprecated in 1.16; use member_cluster. Removal planned 1.18.]",
-	}, []string{"result", "apiversion", "kind", memberClusterLabel, clusterLabel})
+		Help: "Number of deletion operations against a target member cluster. The 'result' label indicates outcome ('success' or 'error'). Labels 'apiversion', 'kind', and 'member_cluster' specify the resource's API version, type, and source cluster respectively.",
+	}, []string{"result", "apiversion", "kind", memberClusterLabel})
 
 	policyPreemptionCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: policyPreemptionMetricsName,
@@ -149,7 +144,6 @@ func CountCreateResourceToCluster(err error, apiVersion, kind, cluster string, r
 		apiVersion,
 		kind,
 		cluster,
-		cluster,
 		strconv.FormatBool(recreate),
 	).Inc()
 }
@@ -161,7 +155,6 @@ func CountUpdateResourceToCluster(err error, apiVersion, kind, cluster string, o
 		apiVersion,
 		kind,
 		cluster,
-		cluster,
 		operationResult,
 	).Inc()
 }
@@ -172,7 +165,6 @@ func CountDeleteResourceFromCluster(err error, apiVersion, kind, cluster string)
 		utilmetrics.GetResultByError(err),
 		apiVersion,
 		kind,
-		cluster,
 		cluster,
 	).Inc()
 }

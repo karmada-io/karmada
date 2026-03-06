@@ -36,10 +36,10 @@ func TestCountCreateResourceToCluster(t *testing.T) {
 	CountCreateResourceToCluster(fmt.Errorf("boom"), apiVersion, kind, cluster, false)
 
 	want := `
-# HELP create_resource_to_cluster Number of creation operations against a target member cluster. The 'result' label indicates outcome ('success' or 'error'), 'recreate' indicates whether the operation is recreated (true/false). Labels 'apiversion', 'kind', and 'cluster' specify the resource type, API version, and target cluster respectively. [Label deprecation: cluster deprecated in 1.16; use member_cluster. Removal planned 1.18.]
+# HELP create_resource_to_cluster Number of creation operations against a target member cluster. The 'result' label indicates outcome ('success' or 'error'), 'recreate' indicates whether the operation is recreated (true/false). Labels 'apiversion', 'kind', and 'member_cluster' specify the resource type, API version, and target cluster respectively.
 # TYPE create_resource_to_cluster counter
-create_resource_to_cluster{apiversion="v1",cluster="member-1",kind="Pod",member_cluster="member-1",recreate="false",result="error"} 1
-create_resource_to_cluster{apiversion="v1",cluster="member-1",kind="Pod",member_cluster="member-1",recreate="true",result="success"} 1
+create_resource_to_cluster{apiversion="v1",kind="Pod",member_cluster="member-1",recreate="false",result="error"} 1
+create_resource_to_cluster{apiversion="v1",kind="Pod",member_cluster="member-1",recreate="true",result="success"} 1
 `
 	if err := promtestutil.CollectAndCompare(createResourceWhenSyncWork, strings.NewReader(want), createResourceToCluster); err != nil {
 		t.Fatalf("unexpected collecting result:\n%s", err)
@@ -56,9 +56,9 @@ func TestCountUpdateResourceToCluster(t *testing.T) {
 	CountUpdateResourceToCluster(nil, apiVersion, kind, cluster, "updated")
 
 	want := `
-# HELP update_resource_to_cluster Number of updating operation of the resource to a target member cluster. By the result, 'error' means a resource updated failed. Otherwise 'success'. Cluster means the target member cluster. operationResult means the result of the update operation. [Label deprecation: cluster deprecated in 1.16; use member_cluster. Removal planned 1.18.]
+# HELP update_resource_to_cluster Number of updating operation of the resource to a target member cluster. By the result, 'error' means a resource updated failed. Otherwise 'success'. member_cluster means the target member cluster. operationResult means the result of the update operation.
 # TYPE update_resource_to_cluster counter
-update_resource_to_cluster{apiversion="apps/v1",cluster="member-2",kind="Deployment",member_cluster="member-2",operationResult="updated",result="success"} 1
+update_resource_to_cluster{apiversion="apps/v1",kind="Deployment",member_cluster="member-2",operationResult="updated",result="success"} 1
 `
 	if err := promtestutil.CollectAndCompare(updateResourceWhenSyncWork, strings.NewReader(want), updateResourceToCluster); err != nil {
 		t.Fatalf("unexpected collecting result:\n%s", err)
@@ -76,9 +76,9 @@ func TestCountDeleteResourceFromCluster(t *testing.T) {
 	CountDeleteResourceFromCluster(fmt.Errorf("nope"), apiVersion, kind, cluster)
 
 	want := `
-# HELP delete_resource_from_cluster Number of deletion operations against a target member cluster. The 'result' label indicates outcome ('success' or 'error'). Labels 'apiversion', 'kind', and 'cluster' specify the resource's API version, type, and source cluster respectively. [Label deprecation: cluster deprecated in 1.16; use member_cluster. Removal planned 1.18.]
+# HELP delete_resource_from_cluster Number of deletion operations against a target member cluster. The 'result' label indicates outcome ('success' or 'error'). Labels 'apiversion', 'kind', and 'member_cluster' specify the resource's API version, type, and source cluster respectively.
 # TYPE delete_resource_from_cluster counter
-delete_resource_from_cluster{apiversion="batch/v1",cluster="member-3",kind="Job",member_cluster="member-3",result="error"} 1
+delete_resource_from_cluster{apiversion="batch/v1",kind="Job",member_cluster="member-3",result="error"} 1
 `
 	if err := promtestutil.CollectAndCompare(deleteResourceWhenSyncWork, strings.NewReader(want), deleteResourceFromCluster); err != nil {
 		t.Fatalf("unexpected collecting result:\n%s", err)
