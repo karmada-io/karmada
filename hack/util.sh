@@ -386,7 +386,7 @@ function util::wait_context_exist() {
 # Parameters:
 #  - $1: k8s context name, such as "karmada-apiserver"
 #  - $2: pod label, such as "app=etcd"
-#  - $3: pod namespace, such as "karmada-system"
+#  - $3: pod namespace, such as "karmada-systegut m"
 #  - $4: time out, such as "200s"
 function util::wait_pod_ready() {
     local context_name=$1
@@ -710,28 +710,51 @@ function util::get_wsl2_ipaddress() {
   util::verify_ip_address "${WSL2_HOST_IP_ADDRESS}"
 }
 
-# util::get_macos_ipaddress will get ip address on macos interactively, store to 'MAC_NIC_IPADDRESS' if available
-MAC_NIC_IPADDRESS=''
+# util::get_macos_ipaddress will auto-detect the host IP address on macOS, store to 'MAC_NIC_IPADDRESS' if available
+# The function tries the following in order:
+#   1. Use MAC_NIC_IPADDRESS if already set (e.g. by CI or the caller)
+#   2. Detect the active network interface via the routing table
+#   3. Scan common physical interfaces (en0-en3) as a fallback (e.g. when on VPN)
+#   4. Fall back to 127.0.0.1 as a last resort
+MAC_NIC_IPADDRESS=${MAC_NIC_IPADDRESS:-}
 function util::get_macos_ipaddress() {
   if [[ $(go env GOOS) = "darwin" ]]; then
-    tmp_ip=$(ipconfig getifaddr en0 || true)
-    echo ""
-    echo " Detected that you are installing Karmada on macOS "
-    echo ""
-    echo "It needs a Macintosh IP address to bind Karmada API Server(port 5443),"
-    echo "so that member clusters can access it from docker containers, please"
-    echo -n "input an available IP, "
-    if [[ -z ${tmp_ip} ]]; then
-      echo "you can use the command 'ifconfig' to look for one"
-      tips_msg="[Enter IP address]:"
-    else
-      echo "default IP will be en0 inet addr if exists"
-      tips_msg="[Enter for default ${tmp_ip}]:"
+    echo ""
+    echo " Detected that you are installing Karmada on macOS "
+    echo ""
+
+    # If already set by the caller (e.g. CI passing MAC_NIC_IPADDRESS env var), honour it
+    if [[ -n "${MAC_NIC_IPADDRESS:-}" ]]; then
+      util::verify_ip_address "${MAC_NIC_IPADDRESS}"
+      echo "Using provided IP address: ${MAC_NIC_IPADDRESS}"
+      return
     fi
-    read -r -p "${tips_msg}" MAC_NIC_IPADDRESS
-    MAC_NIC_IPADDRESS=${MAC_NIC_IPADDRESS:-$tmp_ip}
+
+    # Auto-detect via routing table (works on any active interface, not just en0)
+    local active_iface
+    active_iface=$(route get default 2>/dev/null | awk '/interface:/{print $2; exit}')
+    MAC_NIC_IPADDRESS=$(ipconfig getifaddr "${active_iface}" 2>/dev/null || true)
+
+    # If the default-route interface has no IP (e.g. VPN tunnel), scan physical NICs
+    if [[ -z "${MAC_NIC_IPADDRESS}" ]]; then
+      echo "Default route interface '${active_iface}' has no IP (VPN?), scanning physical NICs..."
+      for iface in en0 en1 en2 en3; do
+        MAC_NIC_IPADDRESS=$(ipconfig getifaddr "${iface}" 2>/dev/null || true)
+        if [[ -n "${MAC_NIC_IPADDRESS}" ]]; then
+          break
+        fi
+      done
+    fi
+
+    # Last resort fallback
+    if [[ -z "${MAC_NIC_IPADDRESS}" ]]; then
+      echo "WARNING: No routable IP found, falling back to 127.0.0.1"
+      echo "         Set MAC_NIC_IPADDRESS=<your-ip> if member clusters cannot connect."
+      MAC_NIC_IPADDRESS="127.0.0.1"
+    fi
+
     util::verify_ip_address "${MAC_NIC_IPADDRESS}"
-    echo "Using IP address: ${MAC_NIC_IPADDRESS}"
+    echo "Using macOS host IP: ${MAC_NIC_IPADDRESS}"
   else # non-macOS
     MAC_NIC_IPADDRESS=${MAC_NIC_IPADDRESS:-}
   fi
