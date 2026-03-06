@@ -54,12 +54,6 @@ type Options struct {
 	// ClusterStatusUpdateFrequency is the frequency that controller computes and report cluster status.
 	// It must work with ClusterMonitorGracePeriod(--cluster-monitor-grace-period) in karmada-controller-manager.
 	ClusterStatusUpdateFrequency metav1.Duration
-	// ClusterLeaseDuration is a duration that candidates for a lease need to wait to force acquire it.
-	// This is measure against time of last observed lease RenewTime.
-	ClusterLeaseDuration metav1.Duration
-	// ClusterLeaseRenewIntervalFraction is a fraction coordinated with ClusterLeaseDuration that
-	// how long the current holder of a lease has last updated the lease.
-	ClusterLeaseRenewIntervalFraction float64
 	// ClusterSuccessThreshold is the duration of successes for the cluster to be considered healthy after recovery.
 	ClusterSuccessThreshold metav1.Duration
 	// ClusterFailureThreshold is the duration of failure for the cluster to be considered unhealthy.
@@ -185,12 +179,6 @@ func (o *Options) AddFlags(flags *pflag.FlagSet, allControllers, disabledByDefau
 	flags.DurationVar(&o.LeaderElection.RetryPeriod.Duration, "leader-elect-retry-period", defaultElectionRetryPeriod.Duration, ""+
 		"The duration the clients should wait between attempting acquisition and renewal "+
 		"of a leadership. This is only applicable if leader election is enabled.")
-	flags.DurationVar(&o.ClusterLeaseDuration.Duration, "cluster-lease-duration", 40*time.Second,
-		"Specifies the expiration period of a cluster lease.")
-	_ = flags.MarkDeprecated("cluster-lease-duration", "The flag --cluster-lease-duration has been marked deprecated because it has never been used, and will be removed in a future release.")
-	flags.Float64Var(&o.ClusterLeaseRenewIntervalFraction, "cluster-lease-renew-interval-fraction", 0.25,
-		"Specifies the cluster lease renew interval fraction.")
-	_ = flags.MarkDeprecated("cluster-lease-renew-interval-fraction", "The flag --cluster-lease-renew-interval-fraction has been marked deprecated because it has never been used, and will be removed in a future release.")
 	flags.DurationVar(&o.ClusterSuccessThreshold.Duration, "cluster-success-threshold", 30*time.Second, "The duration of successes for the cluster to be considered healthy after recovery.")
 	flags.DurationVar(&o.ClusterFailureThreshold.Duration, "cluster-failure-threshold", 30*time.Second, "The duration of failure for the cluster to be considered unhealthy.")
 	flags.DurationVar(&o.ClusterMonitorPeriod.Duration, "cluster-monitor-period", 5*time.Second,
