@@ -17,5 +17,5 @@ limitations under the License.
 // +k8s:deepcopy-gen=package
 // +k8s:defaulter-gen=ObjectMeta
 // +groupName=operator.karmada.io
-
+// +k8s:openapi-model-package=com.github.karmada-io.karmada.operator.pkg.apis.operator.v1alpha1
 package v1alpha1

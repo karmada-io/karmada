@@ -167,6 +167,7 @@ echo "Generating with openapi-gen"
 openapi-gen \
   --go-header-file hack/boilerplate/boilerplate.go.txt \
   --output-pkg "github.com/karmada-io/karmada/pkg/generated/openapi" \
+  --output-model-name-file "zz_generated.model_name.go" \
   --output-dir pkg/generated/openapi \
   --output-file zz_generated.openapi.go \
   "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1" \
@@ -199,6 +200,7 @@ openapi-gen \
   --go-header-file hack/boilerplate/boilerplate.go.txt \
   --output-pkg "github.com/karmada-io/karmada/operator/pkg/generated/openapi" \
   --output-dir operator/pkg/generated/openapi \
+  --output-model-name-file "zz_generated.model_name.go" \
   --output-file zz_generated.openapi.go \
   "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1" \
   "k8s.io/api/core/v1" \
@@ -207,6 +209,12 @@ openapi-gen \
   "k8s.io/apimachinery/pkg/util/intstr" \
   "k8s.io/apimachinery/pkg/runtime" \
   "k8s.io/apimachinery/pkg/version"
+
+# Running command `openapi-gen --output-model-name-file "zz_generated.model_name.go"` generates a zz_generated.model_name.go file
+# for every input package containing the +k8s:openapi-model-package tag. This results in overwriting existing files in
+# the vendor directory, such as vendor/k8s.io/metrics/pkg/apis/metrics/v1beta1/zz_generated.model_name.go. To avoid
+# unnecessary modifications, changes within the vendor directory are discarded.
+git checkout -- vendor
 
 EXTERNAL_APPLY_CONFIGS="k8s.io/api/core/v1.Taint:k8s.io/client-go/applyconfigurations/core/v1,\
 k8s.io/api/core/v1.Toleration:k8s.io/client-go/applyconfigurations/core/v1,\
