@@ -1,0 +1,188 @@
+name: Performance Compare Workflow
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_branch:
+        description: 'Base branch to compare with'
+        required: false
+        default: 'master'
+      target_pr_number:
+        description: 'Target pr number to compare with'
+        required: true
+
+env:
+  BASE_BRANCH: ${{ github.event.inputs.base_branch || 'master' }}
+  TARGET_PR_NUMBER: ${{ github.event.inputs.target_pr_number }}
+
+permissions:
+  contents: read # for actions/checkout to fetch code
+
+jobs:
+  base-performance-test:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+    steps:
+      # Free up disk space on Ubuntu
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed, if set to "true" but frees about 6 GB
+          tool-cache: false
+          # all of these default to true, but feel free to set to "false" if necessary for your workflow
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          docker-images: false
+          swap-storage: false
+
+      - name: checkout code
+        uses: actions/checkout@v6
+        with:
+          # Number of commits to fetch. 0 indicates all history for all branches and tags.
+          # We need to guess version via git tags.
+          fetch-depth: 0
+          ref: ${{ env.BASE_BRANCH }}
+          
+      - name: install Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+        
+      - name: Install dependencies
+        run: |
+            wget https://github.com/kubernetes-sigs/kwok/releases/download/v0.7.0/kwokctl-linux-amd64
+            chmod +x kwokctl-linux-amd64
+            sudo mv kwokctl-linux-amd64 /usr/local/bin/kwokctl
+            
+            sudo apt-get update
+            sudo apt-get install -y jq bc
+
+      - name: setup performance test environment
+        run: |
+          export CLUSTER_VERSION=kindest/node:v1.34.0
+          hack/local-up-performance-env.sh
+          
+      - name: run performance test
+        run: |
+          export OUTPUT_FILE=${{ github.workspace }}/base-metrics/karmada-metrics.json
+          hack/run-performance-test.sh
+
+      - name: upload metrics file
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: base-metrics
+          path: ${{ github.workspace }}/base-metrics/
+          
+  target-performance-test:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+    steps:
+      - name: Validate TARGET_PR_NUMBER
+        run: |
+          if [ -z "${{ env.TARGET_PR_NUMBER }}" ]; then
+            echo "::error::TARGET_PR_NUMBER is required and must not be empty."
+            exit 1
+          fi
+          if ! [[ "${{ env.TARGET_PR_NUMBER }}" =~ ^[1-9][0-9]*$ ]]; then
+            echo "::error::TARGET_PR_NUMBER must be a positive integer, got: ${{ env.TARGET_PR_NUMBER }}"
+            exit 1
+          fi
+          echo "TARGET_PR_NUMBER is valid: ${{ env.TARGET_PR_NUMBER }}"
+
+      # Free up disk space on Ubuntu
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed, if set to "true" but frees about 6 GB
+          tool-cache: false
+          # all of these default to true, but feel free to set to "false" if necessary for your workflow
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          docker-images: false
+          swap-storage: false
+
+      - name: checkout code
+        uses: actions/checkout@v6
+        with:
+          # Number of commits to fetch. 0 indicates all history for all branches and tags.
+          # We need to guess version via git tags.
+          fetch-depth: 0
+          ref: refs/pull/${{ env.TARGET_PR_NUMBER }}/head
+          
+      - name: install Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+        
+      - name: Install dependencies
+        run: |
+            wget https://github.com/kubernetes-sigs/kwok/releases/download/v0.7.0/kwokctl-linux-amd64
+            chmod +x kwokctl-linux-amd64
+            sudo mv kwokctl-linux-amd64 /usr/local/bin/kwokctl
+            
+            sudo apt-get update
+            sudo apt-get install -y jq bc
+
+      - name: setup performance test environment
+        run: |
+          export CLUSTER_VERSION=kindest/node:v1.34.0
+          hack/local-up-performance-env.sh
+          
+      - name: run performance test
+        run: |
+          export OUTPUT_FILE=${{ github.workspace }}/target-metrics/karmada-metrics.json
+          hack/run-performance-test.sh
+
+      - name: upload metrics file
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: target-metrics
+          path: ${{ github.workspace }}/target-metrics/
+    
+  compare-performance:
+    needs: [base-performance-test, target-performance-test]
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Download base metrics
+        uses: actions/download-artifact@v6
+        with:
+          name: base-metrics
+          path: ${{ github.workspace }}/base-metrics/
+
+      - name: Download target metrics
+        uses: actions/download-artifact@v6
+        with:
+          name: target-metrics
+          path: ${{ github.workspace }}/target-metrics/
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3 python3-pip
+          pip3 install matplotlib
+
+      - name: Compare performance
+        run: |
+          python3 hack/performance-env/visualize-metrics.py \
+            --baseline ${{ github.workspace }}/base-metrics/karmada-metrics.json \
+            --target ${{ github.workspace }}/target-metrics/karmada-metrics.json \
+            --output-dir ${{ github.workspace }}/performance-comparison/
+
+      - name: Upload performance comparison image
+        uses: actions/upload-artifact@v6
+        with:
+          name: performance-comparison
+          path: ${{ github.workspace }}/performance-comparison/
