@@ -349,12 +349,12 @@ func (c *Controller) getRegistryBackendHandler(cluster string, matchedRegistries
 }
 
 var clusterDynamicClientBuilder = func(cluster string, controlPlaneClient client.Client) (*util.DynamicClusterClient, error) {
-	// TODO: Add "--cluster-api-qps" and "--cluster-api-burst" flags to karmada-search and pass them via clientOption， instead of passing a "nil" here
+	// TODO: Add "--cluster-api-qps" and "--cluster-api-burst" flags to karmada-search and pass them via clientOption, instead of passing a "nil" here
 	return util.NewClusterDynamicClientSet(cluster, controlPlaneClient, nil)
 }
 
 // doCacheCluster processes the resourceRegistry object
-// TODO: update status
+// TODO: Update status
 func (c *Controller) doCacheCluster(cluster string) error {
 	// STEP0: stop informer manager for the cluster which does not exist anymore or is not ready.
 	cls, able, err := c.clusterAbleToCache(cluster)
