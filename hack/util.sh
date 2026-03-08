@@ -386,7 +386,7 @@ function util::wait_context_exist() {
 # Parameters:
 #  - $1: k8s context name, such as "karmada-apiserver"
 #  - $2: pod label, such as "app=etcd"
-#  - $3: pod namespace, such as "karmada-systegut m"
+#  - $3: pod namespace, such as "karmada-system"
 #  - $4: time out, such as "200s"
 function util::wait_pod_ready() {
     local context_name=$1
