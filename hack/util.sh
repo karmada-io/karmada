@@ -738,6 +738,7 @@ function util::get_macos_ipaddress() {
     # If the default-route interface has no IP (e.g. VPN tunnel), scan physical NICs
     if [[ -z "${MAC_NIC_IPADDRESS}" ]]; then
       echo "Default route interface '${active_iface}' has no IP (VPN?), scanning physical NICs..."
+      local iface
       for iface in en0 en1 en2 en3; do
         MAC_NIC_IPADDRESS=$(ipconfig getifaddr "${iface}" 2>/dev/null || true)
         if [[ -n "${MAC_NIC_IPADDRESS}" ]]; then
@@ -746,11 +747,12 @@ function util::get_macos_ipaddress() {
       done
     fi
 
-    # Last resort fallback
+    # Fail fast: 127.0.0.1 is not reachable from Docker containers
     if [[ -z "${MAC_NIC_IPADDRESS}" ]]; then
-      echo "WARNING: No routable IP found, falling back to 127.0.0.1"
-      echo "         Set MAC_NIC_IPADDRESS=<your-ip> if member clusters cannot connect."
-      MAC_NIC_IPADDRESS="127.0.0.1"
+      echo "ERROR: Failed to detect a routable macOS host IP address."
+      echo "       Please set MAC_NIC_IPADDRESS to your host's IP and retry, e.g.:"
+      echo "       export MAC_NIC_IPADDRESS=<your-ip>"
+      return 1
     fi
 
     util::verify_ip_address "${MAC_NIC_IPADDRESS}"
