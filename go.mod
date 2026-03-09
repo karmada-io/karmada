@@ -26,7 +26,7 @@ require (
 	github.com/tidwall/gjson v1.18.0
 	github.com/tidwall/sjson v1.2.5
 	github.com/vektra/mockery/v3 v3.5.5
-	github.com/yuin/gopher-lua v0.0.0-20220504180219-658193537a64
+	github.com/yuin/gopher-lua v1.1.1
 	go.uber.org/mock v0.4.0
 	golang.org/x/net v0.49.0
 	golang.org/x/term v0.39.0
