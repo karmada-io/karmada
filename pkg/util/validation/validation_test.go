@@ -248,6 +248,81 @@ func TestValidateOverrideSpec(t *testing.T) {
 	}
 }
 
+func TestValidateClusterTolerations(t *testing.T) {
+	tests := []struct {
+		name        string
+		tolerations []corev1.Toleration
+		expectedErr string
+	}{
+		{
+			name:        "nil tolerations is valid",
+			tolerations: nil,
+			expectedErr: "",
+		},
+		{
+			name: "toleration with Exists operator is valid",
+			tolerations: []corev1.Toleration{
+				{Key: "key1", Operator: corev1.TolerationOpExists},
+			},
+			expectedErr: "",
+		},
+		{
+			name: "toleration with Equal operator is valid",
+			tolerations: []corev1.Toleration{
+				{Key: "key1", Operator: corev1.TolerationOpEqual, Value: "value1"},
+			},
+			expectedErr: "",
+		},
+		{
+			name: "toleration with empty operator is valid (defaults to Equal)",
+			tolerations: []corev1.Toleration{
+				{Key: "key1", Value: "value1"},
+			},
+			expectedErr: "",
+		},
+		{
+			name: "toleration with Lt operator is invalid",
+			tolerations: []corev1.Toleration{
+				{Key: "key1", Operator: corev1.TolerationOpLt, Value: "100"},
+			},
+			expectedErr: "Unsupported value",
+		},
+		{
+			name: "toleration with Gt operator is invalid",
+			tolerations: []corev1.Toleration{
+				{Key: "key1", Operator: corev1.TolerationOpGt, Value: "100"},
+			},
+			expectedErr: "Unsupported value",
+		},
+		{
+			name: "mixed tolerations with one invalid Lt operator",
+			tolerations: []corev1.Toleration{
+				{Key: "key1", Operator: corev1.TolerationOpEqual, Value: "value1"},
+				{Key: "key2", Operator: corev1.TolerationOpLt, Value: "100"},
+			},
+			expectedErr: "Unsupported value",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := validateClusterTolerations(tt.tolerations, field.NewPath("spec").Child("placement").Child("clusterTolerations"))
+			err := errs.ToAggregate()
+			if err != nil {
+				errStr := err.Error()
+				if tt.expectedErr == "" {
+					t.Errorf("expected no error:\n  but got:\n  %s", errStr)
+				} else if !strings.Contains(errStr, tt.expectedErr) {
+					t.Errorf("expected to contain:\n  %s\ngot:\n  %s", tt.expectedErr, errStr)
+				}
+			} else {
+				if tt.expectedErr != "" {
+					t.Errorf("unexpected no error, expected to contain:\n  %s", tt.expectedErr)
+				}
+			}
+		})
+	}
+}
+
 func TestEmptyOverrides(t *testing.T) {
 	tests := []struct {
 		name       string

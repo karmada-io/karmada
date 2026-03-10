@@ -110,6 +110,26 @@ func ValidatePlacement(placement policyv1alpha1.Placement, fldPath *field.Path) 
 	allErrs = append(allErrs, ValidateClusterAffinities(placement.ClusterAffinities, fldPath.Child("clusterAffinities"))...)
 	allErrs = append(allErrs, ValidateSpreadConstraint(placement.SpreadConstraints, fldPath.Child("spreadConstraints"))...)
 	allErrs = append(allErrs, ValidateWorkloadAffinity(placement.WorkloadAffinity, fldPath.Child("workloadAffinity"))...)
+	allErrs = append(allErrs, validateClusterTolerations(placement.ClusterTolerations, fldPath.Child("clusterTolerations"))...)
+	return allErrs
+}
+
+// validateClusterTolerations validates clusterTolerations in a Placement.
+// The Lt and Gt operators introduced by the Kubernetes TaintTolerationComparisonOperators
+// feature gate (alpha, KEP-5471) are intentionally disallowed here. Karmada applies
+// tolerations to clusters rather than nodes, which represents distinct semantics.
+// Until the upstream feature reaches stability and Karmada defines its own cluster-level
+// SLA semantics, allowing Lt/Gt would risk compatibility issues across member clusters
+// with different feature gate configurations.
+func validateClusterTolerations(tolerations []corev1.Toleration, fldPath *field.Path) field.ErrorList {
+	var allErrs field.ErrorList
+	for i, toleration := range tolerations {
+		if toleration.Operator == corev1.TolerationOpLt || toleration.Operator == corev1.TolerationOpGt {
+			allErrs = append(allErrs, field.NotSupported(fldPath.Index(i).Child("operator"),
+				toleration.Operator,
+				[]string{"", string(corev1.TolerationOpExists), string(corev1.TolerationOpEqual)}))
+		}
+	}
 	return allErrs
 }
 
