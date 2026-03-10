@@ -48,7 +48,7 @@ require (
 	k8s.io/controller-manager v0.35.0
 	k8s.io/klog/v2 v2.130.1
 	k8s.io/kube-aggregator v0.35.0
-	k8s.io/kube-openapi v0.0.0-20260127142750-a19766b6e2d4
+	k8s.io/kube-openapi v0.0.0-20260304202019-5b3e3fdb0acf
 	k8s.io/kubectl v0.35.0
 	k8s.io/metrics v0.35.0
 	k8s.io/utils v0.0.0-20260108192941-914a6e750570

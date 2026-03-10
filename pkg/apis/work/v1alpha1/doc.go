@@ -18,4 +18,5 @@ limitations under the License.
 // +k8s:deepcopy-gen=package,register
 // +k8s:openapi-gen=true
 // +groupName=work.karmada.io
+// +k8s:openapi-model-package=com.github.karmada-io.karmada.pkg.apis.work.v1alpha1
 package v1alpha1
