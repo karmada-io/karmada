@@ -28,6 +28,7 @@ import (
 	"testing"
 	"time"
 
+	certificatesv1 "k8s.io/api/certificates/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -355,4 +356,41 @@ func newMockCert(notBefore, notAfter time.Time) (*x509.Certificate, error) {
 	}
 
 	return x509.ParseCertificate(certData)
+}
+
+// TestSignerNameMatchesAgentCSRApprover verifies that the SignerName used when creating
+// a CSR in cert_rotation_controller matches the signer expected by agent_csr_approving,
+// so that rotation CSRs can be auto-approved.
+func TestSignerNameMatchesAgentCSRApprover(t *testing.T) {
+	c := makeFakeCertRotationController(1)
+
+	// Generate a key and a mock cert to drive createCSRInControlPlane.
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("failed to generate key: %v", err)
+	}
+
+	now := time.Now()
+	cert, err := newMockCert(now, now.Add(24*time.Hour))
+	if err != nil {
+		t.Fatalf("failed to create mock cert: %v", err)
+	}
+
+	csrName, err := c.createCSRInControlPlane(context.Background(), "test-cluster", privateKey, []*x509.Certificate{cert})
+	if err != nil {
+		t.Fatalf("createCSRInControlPlane() error = %v", err)
+	}
+
+	csr, err := c.KubeClient.CertificatesV1().CertificateSigningRequests().Get(context.Background(), csrName, metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("failed to get CSR %q: %v", csrName, err)
+	}
+
+	// The approver (agent_csr_approving) only recognises CSRs whose SignerName is
+	// KubeAPIServerClientSignerName ("kubernetes.io/kube-apiserver-client").
+	// Using KubeAPIServerClientKubeletSignerName would cause the CSR to be silently ignored.
+	wantSigner := certificatesv1.KubeAPIServerClientSignerName
+	if csr.Spec.SignerName != wantSigner {
+		t.Errorf("CSR SignerName = %q, want %q (must match agent_csr_approving expectation)", csr.Spec.SignerName, wantSigner)
+	}
 }
