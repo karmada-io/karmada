@@ -198,11 +198,11 @@ func extractClusterFields(cluster *clusterv1alpha1.Cluster) labels.Set {
 	return clusterFieldsMap
 }
 
-// matchZones checks if zoneMatchExpression can match zones and returns true if it matches.
+// matchZones checks whether the zone selector matches the cluster zones.
 // For unknown operators, matchZones always returns false.
 // The matching rules are as follows:
-// 1. When the operator is "In", zoneMatchExpression must contain all zones, otherwise it doesn't match.
-// 2. When the operator is "NotIn", zoneMatchExpression mustn't contain any one of zones, otherwise it doesn't match.
+// 1. When the operator is "In", any overlapping zone is enough for a match.
+// 2. When the operator is "NotIn", none of the cluster zones can appear in the expression values.
 // 3. When the operator is "Exists", zones mustn't be empty, otherwise it doesn't match.
 // 4. When the operator is "DoesNotExist", zones must be empty, otherwise it doesn't match.
 func matchZones(zoneMatchExpression *corev1.NodeSelectorRequirement, zones []string) bool {
@@ -212,11 +212,11 @@ func matchZones(zoneMatchExpression *corev1.NodeSelectorRequirement, zones []str
 			return false
 		}
 		for _, zone := range zones {
-			if !slices.Contains(zoneMatchExpression.Values, zone) {
-				return false
+			if slices.Contains(zoneMatchExpression.Values, zone) {
+				return true
 			}
 		}
-		return true
+		return false
 	case corev1.NodeSelectorOpNotIn:
 		for _, zone := range zones {
 			if slices.Contains(zoneMatchExpression.Values, zone) {
