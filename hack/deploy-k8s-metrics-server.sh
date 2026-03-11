@@ -53,11 +53,12 @@ fi
 MEMBER_CLUSTER_NAME=$2
 
 # get deploy yaml
+METRICS_SERVER_URL="https://github.com/kubernetes-sigs/metrics-server/releases/download/v0.6.3/components.yaml"
 # Prefer curl (available on macOS + Linux); fall back to wget; fail with a clear error if neither exists
 if command -v curl &>/dev/null; then
-  curl -fsSL https://github.com/kubernetes-sigs/metrics-server/releases/download/v0.6.3/components.yaml -o "${_tmp}/components.yaml"
+  curl -fsSL "${METRICS_SERVER_URL}" -o "${_tmp}/components.yaml"
 elif command -v wget &>/dev/null; then
-  wget -qO "${_tmp}/components.yaml" https://github.com/kubernetes-sigs/metrics-server/releases/download/v0.6.3/components.yaml
+  wget -qO "${_tmp}/components.yaml" "${METRICS_SERVER_URL}"
 else
   echo "ERROR: neither curl nor wget found. Please install one of them and retry."
   exit 1
