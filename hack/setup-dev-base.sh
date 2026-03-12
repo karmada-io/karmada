@@ -75,7 +75,7 @@ DOCKER_MEM=$(docker system info --format '{{.MemTotal}}' 2>/dev/null || echo "0"
 DOCKER_CPU=$(docker system info --format '{{.NCPU}}' 2>/dev/null || echo "0")
 
 # Convert bytes to GB (4GB = 4294967296 bytes)
-DOCKER_MEM_GB=$((DOCKER_MEM / 1024 / 1024 / 1024))
+DOCKER_MEM_GB=$(( ${DOCKER_MEM:-0} / 1024 / 1024 / 1024))
 
 # At the top — collect warnings but don't print yet
 DOCKER_WARNINGS=""
@@ -84,7 +84,7 @@ if [[ ${DOCKER_MEM_GB} -lt 4 ]]; then
   DOCKER_WARNINGS+="WARNING: Docker memory is ${DOCKER_MEM_GB}GB (recommended: 4GB). This may impact cluster performance.\n"
 fi
 
-if [[ ${DOCKER_CPU} -lt 2 ]]; then
+if [[ ${DOCKER_CPU:-0} -lt 2 ]]; then
   DOCKER_WARNINGS+="WARNING: Docker CPU count is ${DOCKER_CPU} (recommended: 2+). This may impact cluster performance.\n"
 fi
 
