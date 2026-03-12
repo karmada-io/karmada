@@ -77,12 +77,15 @@ DOCKER_CPU=$(docker system info --format '{{.NCPU}}' 2>/dev/null || echo "0")
 # Convert bytes to GB (4GB = 4294967296 bytes)
 DOCKER_MEM_GB=$((DOCKER_MEM / 1024 / 1024 / 1024))
 
+# At the top — collect warnings but don't print yet
+DOCKER_WARNINGS=""
+
 if [[ ${DOCKER_MEM_GB} -lt 4 ]]; then
-  echo "WARNING: Docker memory is ${DOCKER_MEM_GB}GB (recommended: 4GB). This may impact cluster performance."
+  DOCKER_WARNINGS+="WARNING: Docker memory is ${DOCKER_MEM_GB}GB (recommended: 4GB). This may impact cluster performance.\n"
 fi
 
 if [[ ${DOCKER_CPU} -lt 2 ]]; then
-  echo "WARNING: Docker CPU count is ${DOCKER_CPU} (recommended: 2+). This may impact cluster performance."
+  DOCKER_WARNINGS+="WARNING: Docker CPU count is ${DOCKER_CPU} (recommended: 2+). This may impact cluster performance.\n"
 fi
 
 # install kind and kubectl
@@ -197,3 +200,8 @@ echo "cluster networks connected"
 export KUBECONFIG=$(find ${KUBECONFIG_PATH} -maxdepth 1 -type f | grep ${MEMBER_TMP_CONFIG_PREFIX} | tr '\n' ':')
 kubectl config view --flatten > ${MEMBER_CLUSTER_KUBECONFIG}
 rm $(find ${KUBECONFIG_PATH} -maxdepth 1 -type f | grep ${MEMBER_TMP_CONFIG_PREFIX})
+
+# Print any Docker resource warnings
+if [[ -n "${DOCKER_WARNINGS}" ]]; then
+  echo -e "\n${DOCKER_WARNINGS}"
+fi
