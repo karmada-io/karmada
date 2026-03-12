@@ -44,7 +44,7 @@ util:create_gopath_tree "${KARMADA_ROOT}" "${go_path}"
 export GOPATH="${go_path}"
 
 # https://github.com/kubernetes/kubernetes/blob/release-1.23/hack/update-generated-protobuf-dockerized.sh
-if [[ -z "$(which protoc)" || $(protoc --version | sed -r "s/libprotoc ([0-9]+).*/\1/g") -lt 3 ]]; then
+if [[ -z "$(which protoc)" || $(protoc --version | sed -E "s/libprotoc ([0-9]+).*/\1/g") -lt 3 ]]; then
   echo "Generating protobuf requires protoc 3.0.0-beta1 or newer. Please download and"
   echo "install the platform appropriate Protobuf package for your OS: "
   echo
