@@ -56,8 +56,34 @@ fi
 util::cmd_must_exist "go"
 util::verify_go_version
 
-# make sure docker exists
+# make sure docker exists and daemon is running
 util::cmd_must_exist "docker"
+
+# Verify Docker daemon is actually running
+if ! docker info >/dev/null 2>&1; then
+  echo "ERROR: Docker daemon is not running."
+  if [[ "$(uname)" == "Darwin" ]]; then
+    echo "On macOS, please start Docker Desktop."
+  else
+    echo "Please start the Docker daemon"
+  fi
+  exit 1
+fi
+
+# Check Docker resources and warn if below recommended levels
+DOCKER_MEM=$(docker system info --format '{{.MemTotal}}' 2>/dev/null || echo "0")
+DOCKER_CPU=$(docker system info --format '{{.NCPU}}' 2>/dev/null || echo "0")
+
+# Convert bytes to GB (4GB = 4294967296 bytes)
+DOCKER_MEM_GB=$((DOCKER_MEM / 1024 / 1024 / 1024))
+
+if [[ ${DOCKER_MEM_GB} -lt 4 ]]; then
+  echo "WARNING: Docker memory is ${DOCKER_MEM_GB}GB (recommended: 4GB). This may impact cluster performance."
+fi
+
+if [[ ${DOCKER_CPU} -lt 2 ]]; then
+  echo "WARNING: Docker CPU count is ${DOCKER_CPU} (recommended: 2+). This may impact cluster performance."
+fi
 
 # install kind and kubectl
 echo -n "Preparing: 'kind' existence check - "
