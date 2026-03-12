@@ -24,6 +24,7 @@ import (
 	"testing"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,6 +36,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -48,10 +50,23 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 type MockAsyncWorker struct {
 	queue []any
+}
+
+type trackingInformerManager struct {
+	genericmanager.SingleClusterInformerManager
+	waitCalls int
+}
+
+var _ genericmanager.SingleClusterInformerManager = &trackingInformerManager{}
+
+func (m *trackingInformerManager) WaitForCacheSync() map[schema.GroupVersionResource]bool {
+	m.waitCalls++
+	return map[schema.GroupVersionResource]bool{}
 }
 
 // Note: This is a dummy implementation of Add for testing purposes.
@@ -1880,6 +1895,84 @@ func Test_recordDependencies(t *testing.T) {
 				t.Errorf("Client.Get() got = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func Test_syncScheduleResultToAttachedBindings_doesNotWaitForInformerCacheSync(t *testing.T) {
+	testScheme := runtime.NewScheme()
+	utilruntime.Must(scheme.AddToScheme(testScheme))
+	utilruntime.Must(workv1alpha2.Install(testScheme))
+
+	independentBinding := &workv1alpha2.ResourceBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "test-binding",
+			Namespace:       "test",
+			ResourceVersion: "1000",
+			Labels: map[string]string{
+				workv1alpha2.ResourceBindingPermanentIDLabel: "93162d3c-ee8e-4995-9034-05f4d5d2c2b9",
+			},
+		},
+		Spec: workv1alpha2.ResourceBindingSpec{
+			Resource: workv1alpha2.ObjectReference{
+				APIVersion: "apps/v1",
+				Kind:       "Deployment",
+				Namespace:  "default",
+				Name:       "workload",
+			},
+			Clusters: []workv1alpha2.TargetCluster{
+				{Name: "member1", Replicas: 1},
+			},
+		},
+	}
+
+	dependency := configv1alpha1.DependentObjectReference{
+		APIVersion: "v1",
+		Kind:       "Pod",
+		Namespace:  "default",
+		Name:       "pod",
+	}
+
+	fakeClient := fake.NewClientBuilder().WithScheme(testScheme).WithObjects(independentBinding).Build()
+	dynamicClient := dynamicfake.NewSimpleDynamicClient(
+		scheme.Scheme,
+		&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default"}},
+	)
+	baseInformerManager := genericmanager.NewSingleClusterInformerManager(context.TODO(), dynamicClient, 0)
+	baseInformerManager.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
+	trackingManager := &trackingInformerManager{SingleClusterInformerManager: baseInformerManager}
+
+	restMapper := meta.NewDefaultRESTMapper([]schema.GroupVersion{appsv1.SchemeGroupVersion, corev1.SchemeGroupVersion})
+	restMapper.Add(appsv1.SchemeGroupVersion.WithKind("Deployment"), meta.RESTScopeNamespace)
+	restMapper.Add(corev1.SchemeGroupVersion.WithKind("Pod"), meta.RESTScopeNamespace)
+
+	distributor := &DependenciesDistributor{
+		Client:          fakeClient,
+		DynamicClient:   dynamicClient,
+		InformerManager: trackingManager,
+		EventRecorder:   record.NewFakeRecorder(10),
+		RESTMapper:      restMapper,
+		eventHandler:    &cache.ResourceEventHandlerFuncs{},
+	}
+
+	if err := distributor.syncScheduleResultToAttachedBindings(context.Background(), independentBinding, []configv1alpha1.DependentObjectReference{dependency}); err != nil {
+		t.Fatalf("syncScheduleResultToAttachedBindings() error = %v", err)
+	}
+
+	if trackingManager.waitCalls != 0 {
+		t.Fatalf("syncScheduleResultToAttachedBindings() should not wait for informer cache sync, got %d wait call(s)", trackingManager.waitCalls)
+	}
+
+	attachedBinding := &workv1alpha2.ResourceBinding{}
+	attachedBindingKey := client.ObjectKey{
+		Namespace: independentBinding.Namespace,
+		Name:      names.GenerateBindingName(dependency.Kind, dependency.Name),
+	}
+	if err := fakeClient.Get(context.Background(), attachedBindingKey, attachedBinding); err != nil {
+		t.Fatalf("failed to get attached binding: %v", err)
+	}
+
+	if attachedBinding.Spec.Resource.Name != dependency.Name {
+		t.Fatalf("attached binding resource name = %s, want %s", attachedBinding.Spec.Resource.Name, dependency.Name)
 	}
 }
 

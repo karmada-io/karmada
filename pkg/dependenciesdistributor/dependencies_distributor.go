@@ -422,7 +422,6 @@ func (d *DependenciesDistributor) syncScheduleResultToAttachedBindings(ctx conte
 	}
 	if startInformerManager {
 		d.InformerManager.Start()
-		d.InformerManager.WaitForCacheSync()
 	}
 	return utilerrors.NewAggregate(errs)
 }
