@@ -19,4 +19,5 @@ limitations under the License.
 // +k8s:openapi-gen=true
 // +k8s:conversion-gen=github.com/karmada-io/karmada/pkg/apis/search
 // +groupName=search.karmada.io
+// +k8s:openapi-model-package=com.github.karmada-io.karmada.pkg.apis.search.v1alpha1
 package v1alpha1

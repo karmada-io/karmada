@@ -39,207 +39,2881 @@ func Parser() *typed.Parser {
 var parserOnce sync.Once
 var parser *typed.Parser
 var schemaYAML = typed.YAMLObject(`types:
+- name: com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.ObjectReference
+  map:
+    fields:
+    - name: apiVersion
+      type:
+        scalar: string
+      default: ""
+    - name: kind
+      type:
+        scalar: string
+      default: ""
+    - name: name
+      type:
+        scalar: string
+      default: ""
+    - name: namespace
+      type:
+        scalar: string
+- name: com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.ObservedWorkload
+  map:
+    fields:
+    - name: reason
+      type:
+        scalar: string
+    - name: result
+      type:
+        scalar: string
+    - name: workload
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.ObjectReference
+      default: {}
 - name: com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.WorkloadRebalancer
-  scalar: untyped
-  list:
-    elementType:
-      namedType: __untyped_atomic_
-    elementRelationship: atomic
   map:
-    elementType:
-      namedType: __untyped_deduced_
-    elementRelationship: separable
+    fields:
+    - name: apiVersion
+      type:
+        scalar: string
+    - name: kind
+      type:
+        scalar: string
+    - name: metadata
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta
+      default: {}
+    - name: spec
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.WorkloadRebalancerSpec
+      default: {}
+    - name: status
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.WorkloadRebalancerStatus
+      default: {}
+- name: com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.WorkloadRebalancerSpec
+  map:
+    fields:
+    - name: ttlSecondsAfterFinished
+      type:
+        scalar: numeric
+    - name: workloads
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.ObjectReference
+          elementRelationship: atomic
+- name: com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.WorkloadRebalancerStatus
+  map:
+    fields:
+    - name: finishTime
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.Time
+    - name: observedGeneration
+      type:
+        scalar: numeric
+    - name: observedWorkloads
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.ObservedWorkload
+          elementRelationship: atomic
 - name: com.github.karmada-io.karmada.pkg.apis.autoscaling.v1alpha1.CronFederatedHPA
-  scalar: untyped
-  list:
-    elementType:
-      namedType: __untyped_atomic_
-    elementRelationship: atomic
   map:
-    elementType:
-      namedType: __untyped_deduced_
-    elementRelationship: separable
+    fields:
+    - name: apiVersion
+      type:
+        scalar: string
+    - name: kind
+      type:
+        scalar: string
+    - name: metadata
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta
+      default: {}
+    - name: spec
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.autoscaling.v1alpha1.CronFederatedHPASpec
+      default: {}
+    - name: status
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.autoscaling.v1alpha1.CronFederatedHPAStatus
+      default: {}
+- name: com.github.karmada-io.karmada.pkg.apis.autoscaling.v1alpha1.CronFederatedHPARule
+  map:
+    fields:
+    - name: failedHistoryLimit
+      type:
+        scalar: numeric
+    - name: name
+      type:
+        scalar: string
+      default: ""
+    - name: schedule
+      type:
+        scalar: string
+      default: ""
+    - name: successfulHistoryLimit
+      type:
+        scalar: numeric
+    - name: suspend
+      type:
+        scalar: boolean
+    - name: targetMaxReplicas
+      type:
+        scalar: numeric
+    - name: targetMinReplicas
+      type:
+        scalar: numeric
+    - name: targetReplicas
+      type:
+        scalar: numeric
+    - name: timeZone
+      type:
+        scalar: string
+- name: com.github.karmada-io.karmada.pkg.apis.autoscaling.v1alpha1.CronFederatedHPASpec
+  map:
+    fields:
+    - name: rules
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.autoscaling.v1alpha1.CronFederatedHPARule
+          elementRelationship: atomic
+    - name: scaleTargetRef
+      type:
+        namedType: io.k8s.api.autoscaling.v2.CrossVersionObjectReference
+      default: {}
+- name: com.github.karmada-io.karmada.pkg.apis.autoscaling.v1alpha1.CronFederatedHPAStatus
+  map:
+    fields:
+    - name: executionHistories
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.autoscaling.v1alpha1.ExecutionHistory
+          elementRelationship: atomic
+- name: com.github.karmada-io.karmada.pkg.apis.autoscaling.v1alpha1.ExecutionHistory
+  map:
+    fields:
+    - name: failedExecutions
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.autoscaling.v1alpha1.FailedExecution
+          elementRelationship: atomic
+    - name: nextExecutionTime
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.Time
+    - name: ruleName
+      type:
+        scalar: string
+      default: ""
+    - name: successfulExecutions
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.autoscaling.v1alpha1.SuccessfulExecution
+          elementRelationship: atomic
+- name: com.github.karmada-io.karmada.pkg.apis.autoscaling.v1alpha1.FailedExecution
+  map:
+    fields:
+    - name: executionTime
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.Time
+    - name: message
+      type:
+        scalar: string
+      default: ""
+    - name: scheduleTime
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.Time
 - name: com.github.karmada-io.karmada.pkg.apis.autoscaling.v1alpha1.FederatedHPA
-  scalar: untyped
-  list:
-    elementType:
-      namedType: __untyped_atomic_
-    elementRelationship: atomic
   map:
-    elementType:
-      namedType: __untyped_deduced_
-    elementRelationship: separable
+    fields:
+    - name: apiVersion
+      type:
+        scalar: string
+    - name: kind
+      type:
+        scalar: string
+    - name: metadata
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta
+      default: {}
+    - name: spec
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.autoscaling.v1alpha1.FederatedHPASpec
+      default: {}
+    - name: status
+      type:
+        namedType: io.k8s.api.autoscaling.v2.HorizontalPodAutoscalerStatus
+      default: {}
+- name: com.github.karmada-io.karmada.pkg.apis.autoscaling.v1alpha1.FederatedHPASpec
+  map:
+    fields:
+    - name: behavior
+      type:
+        namedType: io.k8s.api.autoscaling.v2.HorizontalPodAutoscalerBehavior
+    - name: maxReplicas
+      type:
+        scalar: numeric
+      default: 0
+    - name: metrics
+      type:
+        list:
+          elementType:
+            namedType: io.k8s.api.autoscaling.v2.MetricSpec
+          elementRelationship: atomic
+    - name: minReplicas
+      type:
+        scalar: numeric
+    - name: scaleTargetRef
+      type:
+        namedType: io.k8s.api.autoscaling.v2.CrossVersionObjectReference
+      default: {}
+- name: com.github.karmada-io.karmada.pkg.apis.autoscaling.v1alpha1.SuccessfulExecution
+  map:
+    fields:
+    - name: appliedMaxReplicas
+      type:
+        scalar: numeric
+    - name: appliedMinReplicas
+      type:
+        scalar: numeric
+    - name: appliedReplicas
+      type:
+        scalar: numeric
+    - name: executionTime
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.Time
+    - name: scheduleTime
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.Time
+- name: com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.APIEnablement
+  map:
+    fields:
+    - name: groupVersion
+      type:
+        scalar: string
+      default: ""
+    - name: resources
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.APIResource
+          elementRelationship: atomic
+- name: com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.APIResource
+  map:
+    fields:
+    - name: kind
+      type:
+        scalar: string
+      default: ""
+    - name: name
+      type:
+        scalar: string
+      default: ""
+- name: com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.AllocatableModeling
+  map:
+    fields:
+    - name: count
+      type:
+        scalar: numeric
+      default: 0
+    - name: grade
+      type:
+        scalar: numeric
+      default: 0
 - name: com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.Cluster
-  scalar: untyped
-  list:
-    elementType:
-      namedType: __untyped_atomic_
-    elementRelationship: atomic
   map:
-    elementType:
-      namedType: __untyped_deduced_
-    elementRelationship: separable
+    fields:
+    - name: apiVersion
+      type:
+        scalar: string
+    - name: kind
+      type:
+        scalar: string
+    - name: metadata
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta
+      default: {}
+    - name: spec
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.ClusterSpec
+      default: {}
+    - name: status
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.ClusterStatus
+      default: {}
+- name: com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.ClusterSpec
+  map:
+    fields:
+    - name: apiEndpoint
+      type:
+        scalar: string
+    - name: id
+      type:
+        scalar: string
+    - name: impersonatorSecretRef
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.LocalSecretReference
+    - name: insecureSkipTLSVerification
+      type:
+        scalar: boolean
+    - name: provider
+      type:
+        scalar: string
+    - name: proxyHeader
+      type:
+        map:
+          elementType:
+            scalar: string
+    - name: proxyURL
+      type:
+        scalar: string
+    - name: region
+      type:
+        scalar: string
+    - name: resourceModels
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.ResourceModel
+          elementRelationship: atomic
+    - name: secretRef
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.LocalSecretReference
+    - name: syncMode
+      type:
+        scalar: string
+      default: ""
+    - name: taints
+      type:
+        list:
+          elementType:
+            namedType: io.k8s.api.core.v1.Taint
+          elementRelationship: atomic
+    - name: zone
+      type:
+        scalar: string
+    - name: zones
+      type:
+        list:
+          elementType:
+            scalar: string
+          elementRelationship: atomic
+- name: com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.ClusterStatus
+  map:
+    fields:
+    - name: apiEnablements
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.APIEnablement
+          elementRelationship: atomic
+    - name: conditions
+      type:
+        list:
+          elementType:
+            namedType: io.k8s.apimachinery.pkg.apis.meta.v1.Condition
+          elementRelationship: atomic
+    - name: kubernetesVersion
+      type:
+        scalar: string
+    - name: nodeSummary
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.NodeSummary
+    - name: remedyActions
+      type:
+        list:
+          elementType:
+            scalar: string
+          elementRelationship: atomic
+    - name: resourceSummary
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.ResourceSummary
+- name: com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.LocalSecretReference
+  map:
+    fields:
+    - name: name
+      type:
+        scalar: string
+      default: ""
+    - name: namespace
+      type:
+        scalar: string
+      default: ""
+- name: com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.NodeSummary
+  map:
+    fields:
+    - name: readyNum
+      type:
+        scalar: numeric
+    - name: totalNum
+      type:
+        scalar: numeric
+- name: com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.ResourceModel
+  map:
+    fields:
+    - name: grade
+      type:
+        scalar: numeric
+      default: 0
+    - name: ranges
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.ResourceModelRange
+          elementRelationship: atomic
+- name: com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.ResourceModelRange
+  map:
+    fields:
+    - name: max
+      type:
+        namedType: io.k8s.apimachinery.pkg.api.resource.Quantity
+    - name: min
+      type:
+        namedType: io.k8s.apimachinery.pkg.api.resource.Quantity
+    - name: name
+      type:
+        scalar: string
+      default: ""
+- name: com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.ResourceSummary
+  map:
+    fields:
+    - name: allocatable
+      type:
+        map:
+          elementType:
+            namedType: io.k8s.apimachinery.pkg.api.resource.Quantity
+    - name: allocatableModelings
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.AllocatableModeling
+          elementRelationship: atomic
+    - name: allocated
+      type:
+        map:
+          elementType:
+            namedType: io.k8s.apimachinery.pkg.api.resource.Quantity
+    - name: allocating
+      type:
+        map:
+          elementType:
+            namedType: io.k8s.apimachinery.pkg.api.resource.Quantity
+- name: com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.ComponentResourceRequirement
+  map:
+    fields:
+    - name: luaScript
+      type:
+        scalar: string
+      default: ""
+- name: com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.CustomizationRules
+  map:
+    fields:
+    - name: componentResource
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.ComponentResourceRequirement
+    - name: dependencyInterpretation
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.DependencyInterpretation
+    - name: healthInterpretation
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.HealthInterpretation
+    - name: replicaResource
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.ReplicaResourceRequirement
+    - name: replicaRevision
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.ReplicaRevision
+    - name: retention
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.LocalValueRetention
+    - name: statusAggregation
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.StatusAggregation
+    - name: statusReflection
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.StatusReflection
+- name: com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.CustomizationTarget
+  map:
+    fields:
+    - name: apiVersion
+      type:
+        scalar: string
+      default: ""
+    - name: kind
+      type:
+        scalar: string
+      default: ""
+- name: com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.DependencyInterpretation
+  map:
+    fields:
+    - name: luaScript
+      type:
+        scalar: string
+      default: ""
+- name: com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.HealthInterpretation
+  map:
+    fields:
+    - name: luaScript
+      type:
+        scalar: string
+      default: ""
+- name: com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.LocalValueRetention
+  map:
+    fields:
+    - name: luaScript
+      type:
+        scalar: string
+      default: ""
+- name: com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.ReplicaResourceRequirement
+  map:
+    fields:
+    - name: luaScript
+      type:
+        scalar: string
+      default: ""
+- name: com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.ReplicaRevision
+  map:
+    fields:
+    - name: luaScript
+      type:
+        scalar: string
+      default: ""
 - name: com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.ResourceInterpreterCustomization
-  scalar: untyped
-  list:
-    elementType:
-      namedType: __untyped_atomic_
-    elementRelationship: atomic
   map:
-    elementType:
-      namedType: __untyped_deduced_
-    elementRelationship: separable
+    fields:
+    - name: apiVersion
+      type:
+        scalar: string
+    - name: kind
+      type:
+        scalar: string
+    - name: metadata
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta
+      default: {}
+    - name: spec
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.ResourceInterpreterCustomizationSpec
+      default: {}
+- name: com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.ResourceInterpreterCustomizationSpec
+  map:
+    fields:
+    - name: customizations
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.CustomizationRules
+      default: {}
+    - name: target
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.CustomizationTarget
+      default: {}
+- name: com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.ResourceInterpreterWebhook
+  map:
+    fields:
+    - name: clientConfig
+      type:
+        namedType: io.k8s.api.admissionregistration.v1.WebhookClientConfig
+      default: {}
+    - name: interpreterContextVersions
+      type:
+        list:
+          elementType:
+            scalar: string
+          elementRelationship: atomic
+    - name: name
+      type:
+        scalar: string
+      default: ""
+    - name: rules
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.RuleWithOperations
+          elementRelationship: atomic
+    - name: timeoutSeconds
+      type:
+        scalar: numeric
 - name: com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.ResourceInterpreterWebhookConfiguration
-  scalar: untyped
-  list:
-    elementType:
-      namedType: __untyped_atomic_
-    elementRelationship: atomic
   map:
-    elementType:
-      namedType: __untyped_deduced_
-    elementRelationship: separable
+    fields:
+    - name: apiVersion
+      type:
+        scalar: string
+    - name: kind
+      type:
+        scalar: string
+    - name: metadata
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta
+      default: {}
+    - name: webhooks
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.ResourceInterpreterWebhook
+          elementRelationship: atomic
+- name: com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.RuleWithOperations
+  map:
+    fields:
+    - name: apiGroups
+      type:
+        list:
+          elementType:
+            scalar: string
+          elementRelationship: atomic
+    - name: apiVersions
+      type:
+        list:
+          elementType:
+            scalar: string
+          elementRelationship: atomic
+    - name: kinds
+      type:
+        list:
+          elementType:
+            scalar: string
+          elementRelationship: atomic
+    - name: operations
+      type:
+        list:
+          elementType:
+            scalar: string
+          elementRelationship: atomic
+- name: com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.StatusAggregation
+  map:
+    fields:
+    - name: luaScript
+      type:
+        scalar: string
+      default: ""
+- name: com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.StatusReflection
+  map:
+    fields:
+    - name: luaScript
+      type:
+        scalar: string
+      default: ""
+- name: com.github.karmada-io.karmada.pkg.apis.networking.v1alpha1.ClusterSelector
+  map:
+    fields:
+    - name: name
+      type:
+        scalar: string
+      default: ""
+- name: com.github.karmada-io.karmada.pkg.apis.networking.v1alpha1.ExposurePort
+  map:
+    fields:
+    - name: name
+      type:
+        scalar: string
+    - name: port
+      type:
+        scalar: numeric
+      default: 0
+- name: com.github.karmada-io.karmada.pkg.apis.networking.v1alpha1.ExposureRange
+  map:
+    fields:
+    - name: clusterNames
+      type:
+        list:
+          elementType:
+            scalar: string
+          elementRelationship: atomic
 - name: com.github.karmada-io.karmada.pkg.apis.networking.v1alpha1.MultiClusterIngress
-  scalar: untyped
-  list:
-    elementType:
-      namedType: __untyped_atomic_
-    elementRelationship: atomic
   map:
-    elementType:
-      namedType: __untyped_deduced_
-    elementRelationship: separable
+    fields:
+    - name: apiVersion
+      type:
+        scalar: string
+    - name: kind
+      type:
+        scalar: string
+    - name: metadata
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta
+      default: {}
+    - name: spec
+      type:
+        namedType: io.k8s.api.networking.v1.IngressSpec
+      default: {}
+    - name: status
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.networking.v1alpha1.MultiClusterIngressStatus
+      default: {}
+- name: com.github.karmada-io.karmada.pkg.apis.networking.v1alpha1.MultiClusterIngressStatus
+  map:
+    fields:
+    - name: loadBalancer
+      type:
+        namedType: io.k8s.api.networking.v1.IngressLoadBalancerStatus
+      default: {}
+    - name: serviceLocations
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.networking.v1alpha1.ServiceLocation
+          elementRelationship: atomic
+    - name: trafficBlockClusters
+      type:
+        list:
+          elementType:
+            scalar: string
+          elementRelationship: atomic
 - name: com.github.karmada-io.karmada.pkg.apis.networking.v1alpha1.MultiClusterService
-  scalar: untyped
-  list:
-    elementType:
-      namedType: __untyped_atomic_
-    elementRelationship: atomic
   map:
-    elementType:
-      namedType: __untyped_deduced_
-    elementRelationship: separable
+    fields:
+    - name: apiVersion
+      type:
+        scalar: string
+    - name: kind
+      type:
+        scalar: string
+    - name: metadata
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta
+      default: {}
+    - name: spec
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.networking.v1alpha1.MultiClusterServiceSpec
+      default: {}
+    - name: status
+      type:
+        namedType: io.k8s.api.core.v1.ServiceStatus
+      default: {}
+- name: com.github.karmada-io.karmada.pkg.apis.networking.v1alpha1.MultiClusterServiceSpec
+  map:
+    fields:
+    - name: consumerClusters
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.networking.v1alpha1.ClusterSelector
+          elementRelationship: atomic
+    - name: ports
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.networking.v1alpha1.ExposurePort
+          elementRelationship: atomic
+    - name: providerClusters
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.networking.v1alpha1.ClusterSelector
+          elementRelationship: atomic
+    - name: range
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.networking.v1alpha1.ExposureRange
+      default: {}
+    - name: serviceConsumptionClusters
+      type:
+        list:
+          elementType:
+            scalar: string
+          elementRelationship: atomic
+    - name: serviceProvisionClusters
+      type:
+        list:
+          elementType:
+            scalar: string
+          elementRelationship: atomic
+    - name: types
+      type:
+        list:
+          elementType:
+            scalar: string
+          elementRelationship: atomic
+- name: com.github.karmada-io.karmada.pkg.apis.networking.v1alpha1.ServiceLocation
+  map:
+    fields:
+    - name: clusters
+      type:
+        list:
+          elementType:
+            scalar: string
+          elementRelationship: atomic
+    - name: name
+      type:
+        scalar: string
+      default: ""
+- name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ApplicationFailoverBehavior
+  map:
+    fields:
+    - name: decisionConditions
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.DecisionConditions
+      default: {}
+    - name: gracePeriodSeconds
+      type:
+        scalar: numeric
+    - name: purgeMode
+      type:
+        scalar: string
+    - name: statePreservation
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.StatePreservation
+- name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ClusterAffinity
+  map:
+    fields:
+    - name: clusterNames
+      type:
+        list:
+          elementType:
+            scalar: string
+          elementRelationship: atomic
+    - name: exclude
+      type:
+        list:
+          elementType:
+            scalar: string
+          elementRelationship: atomic
+    - name: fieldSelector
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.FieldSelector
+    - name: labelSelector
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.LabelSelector
+- name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ClusterAffinityTerm
+  map:
+    fields:
+    - name: affinityName
+      type:
+        scalar: string
+      default: ""
+    - name: clusterNames
+      type:
+        list:
+          elementType:
+            scalar: string
+          elementRelationship: atomic
+    - name: exclude
+      type:
+        list:
+          elementType:
+            scalar: string
+          elementRelationship: atomic
+    - name: fieldSelector
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.FieldSelector
+    - name: labelSelector
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.LabelSelector
+- name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ClusterFailoverBehavior
+  map:
+    fields:
+    - name: purgeMode
+      type:
+        scalar: string
+    - name: statePreservation
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.StatePreservation
 - name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ClusterOverridePolicy
-  scalar: untyped
-  list:
-    elementType:
-      namedType: __untyped_atomic_
-    elementRelationship: atomic
   map:
-    elementType:
-      namedType: __untyped_deduced_
-    elementRelationship: separable
+    fields:
+    - name: apiVersion
+      type:
+        scalar: string
+    - name: kind
+      type:
+        scalar: string
+    - name: metadata
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta
+      default: {}
+    - name: spec
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.OverrideSpec
+      default: {}
+- name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ClusterPreferences
+  map:
+    fields:
+    - name: dynamicWeight
+      type:
+        scalar: string
+    - name: staticWeightList
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.StaticClusterWeight
+          elementRelationship: atomic
 - name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ClusterPropagationPolicy
-  scalar: untyped
-  list:
-    elementType:
-      namedType: __untyped_atomic_
-    elementRelationship: atomic
   map:
-    elementType:
-      namedType: __untyped_deduced_
-    elementRelationship: separable
+    fields:
+    - name: apiVersion
+      type:
+        scalar: string
+    - name: kind
+      type:
+        scalar: string
+    - name: metadata
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta
+      default: {}
+    - name: spec
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.PropagationSpec
+      default: {}
+- name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ClusterQuotaStatus
+  map:
+    fields:
+    - name: clusterName
+      type:
+        scalar: string
+      default: ""
+    - name: hard
+      type:
+        map:
+          elementType:
+            namedType: io.k8s.apimachinery.pkg.api.resource.Quantity
+    - name: used
+      type:
+        map:
+          elementType:
+            namedType: io.k8s.apimachinery.pkg.api.resource.Quantity
 - name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ClusterTaintPolicy
-  scalar: untyped
-  list:
-    elementType:
-      namedType: __untyped_atomic_
-    elementRelationship: atomic
   map:
-    elementType:
-      namedType: __untyped_deduced_
-    elementRelationship: separable
+    fields:
+    - name: apiVersion
+      type:
+        scalar: string
+    - name: kind
+      type:
+        scalar: string
+    - name: metadata
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta
+      default: {}
+    - name: spec
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ClusterTaintPolicySpec
+      default: {}
+- name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ClusterTaintPolicySpec
+  map:
+    fields:
+    - name: addOnConditions
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.MatchCondition
+          elementRelationship: atomic
+    - name: removeOnConditions
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.MatchCondition
+          elementRelationship: atomic
+    - name: taints
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.Taint
+          elementRelationship: atomic
+    - name: targetClusters
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ClusterAffinity
+- name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.CommandArgsOverrider
+  map:
+    fields:
+    - name: containerName
+      type:
+        scalar: string
+      default: ""
+    - name: operator
+      type:
+        scalar: string
+      default: ""
+    - name: value
+      type:
+        list:
+          elementType:
+            scalar: string
+          elementRelationship: atomic
+- name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.DecisionConditions
+  map:
+    fields:
+    - name: tolerationSeconds
+      type:
+        scalar: numeric
+- name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.FailoverBehavior
+  map:
+    fields:
+    - name: application
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ApplicationFailoverBehavior
+    - name: cluster
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ClusterFailoverBehavior
 - name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.FederatedResourceQuota
-  scalar: untyped
-  list:
-    elementType:
-      namedType: __untyped_atomic_
-    elementRelationship: atomic
   map:
-    elementType:
-      namedType: __untyped_deduced_
-    elementRelationship: separable
+    fields:
+    - name: apiVersion
+      type:
+        scalar: string
+    - name: kind
+      type:
+        scalar: string
+    - name: metadata
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta
+      default: {}
+    - name: spec
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.FederatedResourceQuotaSpec
+      default: {}
+    - name: status
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.FederatedResourceQuotaStatus
+      default: {}
+- name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.FederatedResourceQuotaSpec
+  map:
+    fields:
+    - name: overall
+      type:
+        map:
+          elementType:
+            namedType: io.k8s.apimachinery.pkg.api.resource.Quantity
+    - name: staticAssignments
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.StaticClusterAssignment
+          elementRelationship: atomic
+- name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.FederatedResourceQuotaStatus
+  map:
+    fields:
+    - name: aggregatedStatus
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ClusterQuotaStatus
+          elementRelationship: atomic
+    - name: overall
+      type:
+        map:
+          elementType:
+            namedType: io.k8s.apimachinery.pkg.api.resource.Quantity
+    - name: overallUsed
+      type:
+        map:
+          elementType:
+            namedType: io.k8s.apimachinery.pkg.api.resource.Quantity
+- name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.FieldOverrider
+  map:
+    fields:
+    - name: fieldPath
+      type:
+        scalar: string
+      default: ""
+    - name: json
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.JSONPatchOperation
+          elementRelationship: atomic
+    - name: yaml
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.YAMLPatchOperation
+          elementRelationship: atomic
+- name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.FieldSelector
+  map:
+    fields:
+    - name: matchExpressions
+      type:
+        list:
+          elementType:
+            namedType: io.k8s.api.core.v1.NodeSelectorRequirement
+          elementRelationship: atomic
+- name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ImageOverrider
+  map:
+    fields:
+    - name: component
+      type:
+        scalar: string
+      default: ""
+    - name: operator
+      type:
+        scalar: string
+      default: ""
+    - name: predicate
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ImagePredicate
+    - name: value
+      type:
+        scalar: string
+- name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ImagePredicate
+  map:
+    fields:
+    - name: path
+      type:
+        scalar: string
+      default: ""
+- name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.JSONPatchOperation
+  map:
+    fields:
+    - name: operator
+      type:
+        scalar: string
+      default: ""
+    - name: subPath
+      type:
+        scalar: string
+      default: ""
+    - name: value
+      type:
+        namedType: io.k8s.apiextensions-apiserver.pkg.apis.apiextensions.v1.JSON
+- name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.LabelAnnotationOverrider
+  map:
+    fields:
+    - name: operator
+      type:
+        scalar: string
+      default: ""
+    - name: value
+      type:
+        map:
+          elementType:
+            scalar: string
+- name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.MatchCondition
+  map:
+    fields:
+    - name: conditionType
+      type:
+        scalar: string
+      default: ""
+    - name: operator
+      type:
+        scalar: string
+      default: ""
+    - name: statusValues
+      type:
+        list:
+          elementType:
+            scalar: string
+          elementRelationship: atomic
 - name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.OverridePolicy
-  scalar: untyped
-  list:
-    elementType:
-      namedType: __untyped_atomic_
-    elementRelationship: atomic
   map:
-    elementType:
-      namedType: __untyped_deduced_
-    elementRelationship: separable
+    fields:
+    - name: apiVersion
+      type:
+        scalar: string
+    - name: kind
+      type:
+        scalar: string
+    - name: metadata
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta
+      default: {}
+    - name: spec
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.OverrideSpec
+      default: {}
+- name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.OverrideSpec
+  map:
+    fields:
+    - name: overrideRules
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.RuleWithCluster
+          elementRelationship: atomic
+    - name: overriders
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.Overriders
+      default: {}
+    - name: resourceSelectors
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ResourceSelector
+          elementRelationship: atomic
+    - name: targetCluster
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ClusterAffinity
+- name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.Overriders
+  map:
+    fields:
+    - name: annotationsOverrider
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.LabelAnnotationOverrider
+          elementRelationship: atomic
+    - name: argsOverrider
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.CommandArgsOverrider
+          elementRelationship: atomic
+    - name: commandOverrider
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.CommandArgsOverrider
+          elementRelationship: atomic
+    - name: fieldOverrider
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.FieldOverrider
+          elementRelationship: atomic
+    - name: imageOverrider
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ImageOverrider
+          elementRelationship: atomic
+    - name: labelsOverrider
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.LabelAnnotationOverrider
+          elementRelationship: atomic
+    - name: plaintext
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.PlaintextOverrider
+          elementRelationship: atomic
+- name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.Placement
+  map:
+    fields:
+    - name: clusterAffinities
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ClusterAffinityTerm
+          elementRelationship: atomic
+    - name: clusterAffinity
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ClusterAffinity
+    - name: clusterTolerations
+      type:
+        list:
+          elementType:
+            namedType: io.k8s.api.core.v1.Toleration
+          elementRelationship: atomic
+    - name: replicaScheduling
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ReplicaSchedulingStrategy
+    - name: spreadConstraints
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.SpreadConstraint
+          elementRelationship: atomic
+    - name: workloadAffinity
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.WorkloadAffinity
+- name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.PlaintextOverrider
+  map:
+    fields:
+    - name: operator
+      type:
+        scalar: string
+      default: ""
+    - name: path
+      type:
+        scalar: string
+      default: ""
+    - name: value
+      type:
+        namedType: io.k8s.apiextensions-apiserver.pkg.apis.apiextensions.v1.JSON
 - name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.PropagationPolicy
-  scalar: untyped
-  list:
-    elementType:
-      namedType: __untyped_atomic_
-    elementRelationship: atomic
   map:
-    elementType:
-      namedType: __untyped_deduced_
-    elementRelationship: separable
+    fields:
+    - name: apiVersion
+      type:
+        scalar: string
+    - name: kind
+      type:
+        scalar: string
+    - name: metadata
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta
+      default: {}
+    - name: spec
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.PropagationSpec
+      default: {}
+- name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.PropagationSpec
+  map:
+    fields:
+    - name: activationPreference
+      type:
+        scalar: string
+    - name: association
+      type:
+        scalar: boolean
+    - name: conflictResolution
+      type:
+        scalar: string
+    - name: dependentOverrides
+      type:
+        list:
+          elementType:
+            scalar: string
+          elementRelationship: atomic
+    - name: failover
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.FailoverBehavior
+    - name: placement
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.Placement
+      default: {}
+    - name: preemption
+      type:
+        scalar: string
+    - name: preserveResourcesOnDeletion
+      type:
+        scalar: boolean
+    - name: priority
+      type:
+        scalar: numeric
+    - name: propagateDeps
+      type:
+        scalar: boolean
+    - name: resourceSelectors
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ResourceSelector
+          elementRelationship: atomic
+    - name: schedulePriority
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.SchedulePriority
+    - name: schedulerName
+      type:
+        scalar: string
+    - name: suspension
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.Suspension
+- name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ReplicaSchedulingStrategy
+  map:
+    fields:
+    - name: replicaDivisionPreference
+      type:
+        scalar: string
+    - name: replicaSchedulingType
+      type:
+        scalar: string
+    - name: weightPreference
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ClusterPreferences
+- name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ResourceSelector
+  map:
+    fields:
+    - name: apiVersion
+      type:
+        scalar: string
+      default: ""
+    - name: kind
+      type:
+        scalar: string
+      default: ""
+    - name: labelSelector
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.LabelSelector
+    - name: name
+      type:
+        scalar: string
+    - name: namespace
+      type:
+        scalar: string
+- name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.RuleWithCluster
+  map:
+    fields:
+    - name: overriders
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.Overriders
+      default: {}
+    - name: targetCluster
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ClusterAffinity
+- name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.SchedulePriority
+  map:
+    fields:
+    - name: priorityClassName
+      type:
+        scalar: string
+      default: ""
+    - name: priorityClassSource
+      type:
+        scalar: string
+      default: ""
+- name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.SpreadConstraint
+  map:
+    fields:
+    - name: maxGroups
+      type:
+        scalar: numeric
+    - name: minGroups
+      type:
+        scalar: numeric
+    - name: spreadByField
+      type:
+        scalar: string
+    - name: spreadByLabel
+      type:
+        scalar: string
+- name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.StatePreservation
+  map:
+    fields:
+    - name: rules
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.StatePreservationRule
+          elementRelationship: atomic
+- name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.StatePreservationRule
+  map:
+    fields:
+    - name: aliasLabelName
+      type:
+        scalar: string
+      default: ""
+    - name: jsonPath
+      type:
+        scalar: string
+      default: ""
+- name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.StaticClusterAssignment
+  map:
+    fields:
+    - name: clusterName
+      type:
+        scalar: string
+      default: ""
+    - name: hard
+      type:
+        map:
+          elementType:
+            namedType: io.k8s.apimachinery.pkg.api.resource.Quantity
+- name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.StaticClusterWeight
+  map:
+    fields:
+    - name: targetCluster
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ClusterAffinity
+      default: {}
+    - name: weight
+      type:
+        scalar: numeric
+      default: 0
+- name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.SuspendClusters
+  map:
+    fields:
+    - name: clusterNames
+      type:
+        list:
+          elementType:
+            scalar: string
+          elementRelationship: atomic
+- name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.Suspension
+  map:
+    fields:
+    - name: dispatching
+      type:
+        scalar: boolean
+    - name: dispatchingOnClusters
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.SuspendClusters
+- name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.Taint
+  map:
+    fields:
+    - name: effect
+      type:
+        scalar: string
+      default: ""
+    - name: key
+      type:
+        scalar: string
+      default: ""
+    - name: value
+      type:
+        scalar: string
+- name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.WorkloadAffinity
+  map:
+    fields:
+    - name: affinity
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.WorkloadAffinityTerm
+    - name: antiAffinity
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.WorkloadAntiAffinityTerm
+- name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.WorkloadAffinityTerm
+  map:
+    fields:
+    - name: groupByLabelKey
+      type:
+        scalar: string
+      default: ""
+- name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.WorkloadAntiAffinityTerm
+  map:
+    fields:
+    - name: groupByLabelKey
+      type:
+        scalar: string
+      default: ""
+- name: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.YAMLPatchOperation
+  map:
+    fields:
+    - name: operator
+      type:
+        scalar: string
+      default: ""
+    - name: subPath
+      type:
+        scalar: string
+      default: ""
+    - name: value
+      type:
+        namedType: io.k8s.apiextensions-apiserver.pkg.apis.apiextensions.v1.JSON
+- name: com.github.karmada-io.karmada.pkg.apis.remedy.v1alpha1.ClusterAffinity
+  map:
+    fields:
+    - name: clusterNames
+      type:
+        list:
+          elementType:
+            scalar: string
+          elementRelationship: atomic
+- name: com.github.karmada-io.karmada.pkg.apis.remedy.v1alpha1.ClusterConditionRequirement
+  map:
+    fields:
+    - name: conditionStatus
+      type:
+        scalar: string
+      default: ""
+    - name: conditionType
+      type:
+        scalar: string
+      default: ""
+    - name: operator
+      type:
+        scalar: string
+      default: ""
+- name: com.github.karmada-io.karmada.pkg.apis.remedy.v1alpha1.DecisionMatch
+  map:
+    fields:
+    - name: clusterConditionMatch
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.remedy.v1alpha1.ClusterConditionRequirement
 - name: com.github.karmada-io.karmada.pkg.apis.remedy.v1alpha1.Remedy
-  scalar: untyped
-  list:
-    elementType:
-      namedType: __untyped_atomic_
-    elementRelationship: atomic
   map:
-    elementType:
-      namedType: __untyped_deduced_
-    elementRelationship: separable
+    fields:
+    - name: apiVersion
+      type:
+        scalar: string
+    - name: kind
+      type:
+        scalar: string
+    - name: metadata
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta
+      default: {}
+    - name: spec
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.remedy.v1alpha1.RemedySpec
+      default: {}
+- name: com.github.karmada-io.karmada.pkg.apis.remedy.v1alpha1.RemedySpec
+  map:
+    fields:
+    - name: actions
+      type:
+        list:
+          elementType:
+            scalar: string
+          elementRelationship: atomic
+    - name: clusterAffinity
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.remedy.v1alpha1.ClusterAffinity
+    - name: decisionMatches
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.remedy.v1alpha1.DecisionMatch
+          elementRelationship: atomic
+- name: com.github.karmada-io.karmada.pkg.apis.search.v1alpha1.BackendStoreConfig
+  map:
+    fields:
+    - name: openSearch
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.search.v1alpha1.OpenSearchConfig
+- name: com.github.karmada-io.karmada.pkg.apis.search.v1alpha1.OpenSearchConfig
+  map:
+    fields:
+    - name: addresses
+      type:
+        list:
+          elementType:
+            scalar: string
+          elementRelationship: atomic
+    - name: secretRef
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.LocalSecretReference
+      default: {}
 - name: com.github.karmada-io.karmada.pkg.apis.search.v1alpha1.ResourceRegistry
-  scalar: untyped
-  list:
-    elementType:
-      namedType: __untyped_atomic_
-    elementRelationship: atomic
   map:
-    elementType:
-      namedType: __untyped_deduced_
-    elementRelationship: separable
+    fields:
+    - name: apiVersion
+      type:
+        scalar: string
+    - name: kind
+      type:
+        scalar: string
+    - name: metadata
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta
+      default: {}
+    - name: spec
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.search.v1alpha1.ResourceRegistrySpec
+      default: {}
+    - name: status
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.search.v1alpha1.ResourceRegistryStatus
+      default: {}
+- name: com.github.karmada-io.karmada.pkg.apis.search.v1alpha1.ResourceRegistrySpec
+  map:
+    fields:
+    - name: backendStore
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.search.v1alpha1.BackendStoreConfig
+    - name: resourceSelectors
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.search.v1alpha1.ResourceSelector
+          elementRelationship: atomic
+    - name: targetCluster
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ClusterAffinity
+      default: {}
+- name: com.github.karmada-io.karmada.pkg.apis.search.v1alpha1.ResourceRegistryStatus
+  map:
+    fields:
+    - name: conditions
+      type:
+        list:
+          elementType:
+            namedType: io.k8s.apimachinery.pkg.apis.meta.v1.Condition
+          elementRelationship: atomic
+- name: com.github.karmada-io.karmada.pkg.apis.search.v1alpha1.ResourceSelector
+  map:
+    fields:
+    - name: apiVersion
+      type:
+        scalar: string
+      default: ""
+    - name: kind
+      type:
+        scalar: string
+      default: ""
+    - name: namespace
+      type:
+        scalar: string
+- name: com.github.karmada-io.karmada.pkg.apis.work.v1alpha1.AggregatedStatusItem
+  map:
+    fields:
+    - name: applied
+      type:
+        scalar: boolean
+    - name: appliedMessage
+      type:
+        scalar: string
+    - name: clusterName
+      type:
+        scalar: string
+      default: ""
+    - name: status
+      type:
+        namedType: __untyped_atomic_
 - name: com.github.karmada-io.karmada.pkg.apis.work.v1alpha1.ClusterResourceBinding
-  scalar: untyped
-  list:
-    elementType:
-      namedType: __untyped_atomic_
-    elementRelationship: atomic
+  map:
+    fields:
+    - name: apiVersion
+      type:
+        scalar: string
+    - name: kind
+      type:
+        scalar: string
+    - name: metadata
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta
+      default: {}
+    - name: spec
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.work.v1alpha1.ResourceBindingSpec
+      default: {}
+    - name: status
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.work.v1alpha1.ResourceBindingStatus
+      default: {}
+- name: com.github.karmada-io.karmada.pkg.apis.work.v1alpha1.Manifest
   map:
     elementType:
-      namedType: __untyped_deduced_
-    elementRelationship: separable
+      scalar: untyped
+      list:
+        elementType:
+          namedType: __untyped_atomic_
+        elementRelationship: atomic
+      map:
+        elementType:
+          namedType: __untyped_deduced_
+        elementRelationship: separable
+- name: com.github.karmada-io.karmada.pkg.apis.work.v1alpha1.ManifestStatus
+  map:
+    fields:
+    - name: health
+      type:
+        scalar: string
+    - name: identifier
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.work.v1alpha1.ResourceIdentifier
+      default: {}
+    - name: status
+      type:
+        namedType: __untyped_atomic_
+- name: com.github.karmada-io.karmada.pkg.apis.work.v1alpha1.ObjectReference
+  map:
+    fields:
+    - name: apiVersion
+      type:
+        scalar: string
+      default: ""
+    - name: kind
+      type:
+        scalar: string
+      default: ""
+    - name: name
+      type:
+        scalar: string
+      default: ""
+    - name: namespace
+      type:
+        scalar: string
+    - name: replicas
+      type:
+        scalar: numeric
+    - name: resourcePerReplicas
+      type:
+        map:
+          elementType:
+            namedType: io.k8s.apimachinery.pkg.api.resource.Quantity
+    - name: resourceVersion
+      type:
+        scalar: string
 - name: com.github.karmada-io.karmada.pkg.apis.work.v1alpha1.ResourceBinding
-  scalar: untyped
-  list:
-    elementType:
-      namedType: __untyped_atomic_
-    elementRelationship: atomic
   map:
-    elementType:
-      namedType: __untyped_deduced_
-    elementRelationship: separable
+    fields:
+    - name: apiVersion
+      type:
+        scalar: string
+    - name: kind
+      type:
+        scalar: string
+    - name: metadata
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta
+      default: {}
+    - name: spec
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.work.v1alpha1.ResourceBindingSpec
+      default: {}
+    - name: status
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.work.v1alpha1.ResourceBindingStatus
+      default: {}
+- name: com.github.karmada-io.karmada.pkg.apis.work.v1alpha1.ResourceBindingSpec
+  map:
+    fields:
+    - name: clusters
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.work.v1alpha1.TargetCluster
+          elementRelationship: atomic
+    - name: resource
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.work.v1alpha1.ObjectReference
+      default: {}
+- name: com.github.karmada-io.karmada.pkg.apis.work.v1alpha1.ResourceBindingStatus
+  map:
+    fields:
+    - name: aggregatedStatus
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.work.v1alpha1.AggregatedStatusItem
+          elementRelationship: atomic
+    - name: conditions
+      type:
+        list:
+          elementType:
+            namedType: io.k8s.apimachinery.pkg.apis.meta.v1.Condition
+          elementRelationship: atomic
+- name: com.github.karmada-io.karmada.pkg.apis.work.v1alpha1.ResourceIdentifier
+  map:
+    fields:
+    - name: group
+      type:
+        scalar: string
+    - name: kind
+      type:
+        scalar: string
+      default: ""
+    - name: name
+      type:
+        scalar: string
+      default: ""
+    - name: namespace
+      type:
+        scalar: string
+    - name: ordinal
+      type:
+        scalar: numeric
+      default: 0
+    - name: resource
+      type:
+        scalar: string
+      default: ""
+    - name: version
+      type:
+        scalar: string
+      default: ""
+- name: com.github.karmada-io.karmada.pkg.apis.work.v1alpha1.TargetCluster
+  map:
+    fields:
+    - name: name
+      type:
+        scalar: string
+      default: ""
+    - name: replicas
+      type:
+        scalar: numeric
 - name: com.github.karmada-io.karmada.pkg.apis.work.v1alpha1.Work
-  scalar: untyped
-  list:
-    elementType:
-      namedType: __untyped_atomic_
-    elementRelationship: atomic
   map:
-    elementType:
-      namedType: __untyped_deduced_
-    elementRelationship: separable
+    fields:
+    - name: apiVersion
+      type:
+        scalar: string
+    - name: kind
+      type:
+        scalar: string
+    - name: metadata
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta
+      default: {}
+    - name: spec
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.work.v1alpha1.WorkSpec
+      default: {}
+    - name: status
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.work.v1alpha1.WorkStatus
+      default: {}
+- name: com.github.karmada-io.karmada.pkg.apis.work.v1alpha1.WorkSpec
+  map:
+    fields:
+    - name: preserveResourcesOnDeletion
+      type:
+        scalar: boolean
+    - name: suspendDispatching
+      type:
+        scalar: boolean
+    - name: workload
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.work.v1alpha1.WorkloadTemplate
+      default: {}
+- name: com.github.karmada-io.karmada.pkg.apis.work.v1alpha1.WorkStatus
+  map:
+    fields:
+    - name: conditions
+      type:
+        list:
+          elementType:
+            namedType: io.k8s.apimachinery.pkg.apis.meta.v1.Condition
+          elementRelationship: atomic
+    - name: manifestStatuses
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.work.v1alpha1.ManifestStatus
+          elementRelationship: atomic
+- name: com.github.karmada-io.karmada.pkg.apis.work.v1alpha1.WorkloadTemplate
+  map:
+    fields:
+    - name: manifests
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.work.v1alpha1.Manifest
+          elementRelationship: atomic
+- name: com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.AggregatedStatusItem
+  map:
+    fields:
+    - name: applied
+      type:
+        scalar: boolean
+    - name: appliedMessage
+      type:
+        scalar: string
+    - name: clusterName
+      type:
+        scalar: string
+      default: ""
+    - name: health
+      type:
+        scalar: string
+    - name: status
+      type:
+        namedType: __untyped_atomic_
+- name: com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.BindingSnapshot
+  map:
+    fields:
+    - name: clusters
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.TargetCluster
+          elementRelationship: atomic
+    - name: name
+      type:
+        scalar: string
+      default: ""
+    - name: namespace
+      type:
+        scalar: string
 - name: com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.ClusterResourceBinding
-  scalar: untyped
-  list:
-    elementType:
-      namedType: __untyped_atomic_
-    elementRelationship: atomic
   map:
-    elementType:
-      namedType: __untyped_deduced_
-    elementRelationship: separable
+    fields:
+    - name: apiVersion
+      type:
+        scalar: string
+    - name: kind
+      type:
+        scalar: string
+    - name: metadata
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta
+      default: {}
+    - name: spec
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.ResourceBindingSpec
+      default: {}
+    - name: status
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.ResourceBindingStatus
+      default: {}
+- name: com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.Component
+  map:
+    fields:
+    - name: name
+      type:
+        scalar: string
+      default: ""
+    - name: replicaRequirements
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.ComponentReplicaRequirements
+    - name: replicas
+      type:
+        scalar: numeric
+      default: 0
+- name: com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.ComponentReplicaRequirements
+  map:
+    fields:
+    - name: nodeClaim
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.NodeClaim
+    - name: priorityClassName
+      type:
+        scalar: string
+    - name: resourceRequest
+      type:
+        map:
+          elementType:
+            namedType: io.k8s.apimachinery.pkg.api.resource.Quantity
+- name: com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.GracefulEvictionTask
+  map:
+    fields:
+    - name: clustersBeforeFailover
+      type:
+        list:
+          elementType:
+            scalar: string
+          elementRelationship: atomic
+    - name: creationTimestamp
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.Time
+    - name: fromCluster
+      type:
+        scalar: string
+      default: ""
+    - name: gracePeriodSeconds
+      type:
+        scalar: numeric
+    - name: message
+      type:
+        scalar: string
+    - name: preservedLabelState
+      type:
+        map:
+          elementType:
+            scalar: string
+    - name: producer
+      type:
+        scalar: string
+      default: ""
+    - name: purgeMode
+      type:
+        scalar: string
+    - name: reason
+      type:
+        scalar: string
+      default: ""
+    - name: replicas
+      type:
+        scalar: numeric
+    - name: suppressDeletion
+      type:
+        scalar: boolean
+- name: com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.NodeClaim
+  map:
+    fields:
+    - name: hardNodeAffinity
+      type:
+        namedType: io.k8s.api.core.v1.NodeSelector
+    - name: nodeSelector
+      type:
+        map:
+          elementType:
+            scalar: string
+    - name: tolerations
+      type:
+        list:
+          elementType:
+            namedType: io.k8s.api.core.v1.Toleration
+          elementRelationship: atomic
+- name: com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.ObjectReference
+  map:
+    fields:
+    - name: apiVersion
+      type:
+        scalar: string
+      default: ""
+    - name: kind
+      type:
+        scalar: string
+      default: ""
+    - name: name
+      type:
+        scalar: string
+      default: ""
+    - name: namespace
+      type:
+        scalar: string
+    - name: resourceVersion
+      type:
+        scalar: string
+    - name: uid
+      type:
+        scalar: string
+- name: com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.ReplicaRequirements
+  map:
+    fields:
+    - name: namespace
+      type:
+        scalar: string
+    - name: nodeClaim
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.NodeClaim
+    - name: priorityClassName
+      type:
+        scalar: string
+    - name: resourceRequest
+      type:
+        map:
+          elementType:
+            namedType: io.k8s.apimachinery.pkg.api.resource.Quantity
 - name: com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.ResourceBinding
+  map:
+    fields:
+    - name: apiVersion
+      type:
+        scalar: string
+    - name: kind
+      type:
+        scalar: string
+    - name: metadata
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta
+      default: {}
+    - name: spec
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.ResourceBindingSpec
+      default: {}
+    - name: status
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.ResourceBindingStatus
+      default: {}
+- name: com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.ResourceBindingSpec
+  map:
+    fields:
+    - name: clusters
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.TargetCluster
+          elementRelationship: atomic
+    - name: components
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.Component
+          elementRelationship: atomic
+    - name: conflictResolution
+      type:
+        scalar: string
+    - name: failover
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.FailoverBehavior
+    - name: gracefulEvictionTasks
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.GracefulEvictionTask
+          elementRelationship: atomic
+    - name: placement
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.Placement
+    - name: preserveResourcesOnDeletion
+      type:
+        scalar: boolean
+    - name: propagateDeps
+      type:
+        scalar: boolean
+    - name: replicaRequirements
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.ReplicaRequirements
+    - name: replicas
+      type:
+        scalar: numeric
+    - name: requiredBy
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.BindingSnapshot
+          elementRelationship: atomic
+    - name: rescheduleTriggeredAt
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.Time
+    - name: resource
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.ObjectReference
+      default: {}
+    - name: schedulePriority
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.SchedulePriority
+    - name: schedulerName
+      type:
+        scalar: string
+    - name: suspension
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.Suspension
+    - name: workloadAffinityGroups
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.WorkloadAffinityGroups
+- name: com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.ResourceBindingStatus
+  map:
+    fields:
+    - name: aggregatedStatus
+      type:
+        list:
+          elementType:
+            namedType: com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.AggregatedStatusItem
+          elementRelationship: atomic
+    - name: conditions
+      type:
+        list:
+          elementType:
+            namedType: io.k8s.apimachinery.pkg.apis.meta.v1.Condition
+          elementRelationship: atomic
+    - name: lastScheduledTime
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.Time
+    - name: schedulerObservedGeneration
+      type:
+        scalar: numeric
+    - name: schedulerObservingAffinityName
+      type:
+        scalar: string
+- name: com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.SchedulePriority
+  map:
+    fields:
+    - name: priority
+      type:
+        scalar: numeric
+- name: com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.Suspension
+  map:
+    fields:
+    - name: dispatching
+      type:
+        scalar: boolean
+    - name: dispatchingOnClusters
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.SuspendClusters
+    - name: scheduling
+      type:
+        scalar: boolean
+- name: com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.TargetCluster
+  map:
+    fields:
+    - name: name
+      type:
+        scalar: string
+      default: ""
+    - name: replicas
+      type:
+        scalar: numeric
+- name: com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.WorkloadAffinityGroups
+  map:
+    fields:
+    - name: affinityGroup
+      type:
+        scalar: string
+    - name: antiAffinityGroup
+      type:
+        scalar: string
+- name: io.k8s.api.admissionregistration.v1.ServiceReference
+  map:
+    fields:
+    - name: name
+      type:
+        scalar: string
+      default: ""
+    - name: namespace
+      type:
+        scalar: string
+      default: ""
+    - name: path
+      type:
+        scalar: string
+    - name: port
+      type:
+        scalar: numeric
+- name: io.k8s.api.admissionregistration.v1.WebhookClientConfig
+  map:
+    fields:
+    - name: caBundle
+      type:
+        scalar: string
+    - name: service
+      type:
+        namedType: io.k8s.api.admissionregistration.v1.ServiceReference
+    - name: url
+      type:
+        scalar: string
+- name: io.k8s.api.autoscaling.v2.ContainerResourceMetricSource
+  map:
+    fields:
+    - name: container
+      type:
+        scalar: string
+      default: ""
+    - name: name
+      type:
+        scalar: string
+      default: ""
+    - name: target
+      type:
+        namedType: io.k8s.api.autoscaling.v2.MetricTarget
+      default: {}
+- name: io.k8s.api.autoscaling.v2.ContainerResourceMetricStatus
+  map:
+    fields:
+    - name: container
+      type:
+        scalar: string
+      default: ""
+    - name: current
+      type:
+        namedType: io.k8s.api.autoscaling.v2.MetricValueStatus
+      default: {}
+    - name: name
+      type:
+        scalar: string
+      default: ""
+- name: io.k8s.api.autoscaling.v2.CrossVersionObjectReference
+  map:
+    fields:
+    - name: apiVersion
+      type:
+        scalar: string
+    - name: kind
+      type:
+        scalar: string
+      default: ""
+    - name: name
+      type:
+        scalar: string
+      default: ""
+- name: io.k8s.api.autoscaling.v2.ExternalMetricSource
+  map:
+    fields:
+    - name: metric
+      type:
+        namedType: io.k8s.api.autoscaling.v2.MetricIdentifier
+      default: {}
+    - name: target
+      type:
+        namedType: io.k8s.api.autoscaling.v2.MetricTarget
+      default: {}
+- name: io.k8s.api.autoscaling.v2.ExternalMetricStatus
+  map:
+    fields:
+    - name: current
+      type:
+        namedType: io.k8s.api.autoscaling.v2.MetricValueStatus
+      default: {}
+    - name: metric
+      type:
+        namedType: io.k8s.api.autoscaling.v2.MetricIdentifier
+      default: {}
+- name: io.k8s.api.autoscaling.v2.HPAScalingPolicy
+  map:
+    fields:
+    - name: periodSeconds
+      type:
+        scalar: numeric
+      default: 0
+    - name: type
+      type:
+        scalar: string
+      default: ""
+    - name: value
+      type:
+        scalar: numeric
+      default: 0
+- name: io.k8s.api.autoscaling.v2.HPAScalingRules
+  map:
+    fields:
+    - name: policies
+      type:
+        list:
+          elementType:
+            namedType: io.k8s.api.autoscaling.v2.HPAScalingPolicy
+          elementRelationship: atomic
+    - name: selectPolicy
+      type:
+        scalar: string
+    - name: stabilizationWindowSeconds
+      type:
+        scalar: numeric
+    - name: tolerance
+      type:
+        namedType: io.k8s.apimachinery.pkg.api.resource.Quantity
+- name: io.k8s.api.autoscaling.v2.HorizontalPodAutoscalerBehavior
+  map:
+    fields:
+    - name: scaleDown
+      type:
+        namedType: io.k8s.api.autoscaling.v2.HPAScalingRules
+    - name: scaleUp
+      type:
+        namedType: io.k8s.api.autoscaling.v2.HPAScalingRules
+- name: io.k8s.api.autoscaling.v2.HorizontalPodAutoscalerCondition
+  map:
+    fields:
+    - name: lastTransitionTime
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.Time
+    - name: message
+      type:
+        scalar: string
+    - name: reason
+      type:
+        scalar: string
+    - name: status
+      type:
+        scalar: string
+      default: ""
+    - name: type
+      type:
+        scalar: string
+      default: ""
+- name: io.k8s.api.autoscaling.v2.HorizontalPodAutoscalerStatus
+  map:
+    fields:
+    - name: conditions
+      type:
+        list:
+          elementType:
+            namedType: io.k8s.api.autoscaling.v2.HorizontalPodAutoscalerCondition
+          elementRelationship: associative
+          keys:
+          - type
+    - name: currentMetrics
+      type:
+        list:
+          elementType:
+            namedType: io.k8s.api.autoscaling.v2.MetricStatus
+          elementRelationship: atomic
+    - name: currentReplicas
+      type:
+        scalar: numeric
+    - name: desiredReplicas
+      type:
+        scalar: numeric
+      default: 0
+    - name: lastScaleTime
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.Time
+    - name: observedGeneration
+      type:
+        scalar: numeric
+- name: io.k8s.api.autoscaling.v2.MetricIdentifier
+  map:
+    fields:
+    - name: name
+      type:
+        scalar: string
+      default: ""
+    - name: selector
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.LabelSelector
+- name: io.k8s.api.autoscaling.v2.MetricSpec
+  map:
+    fields:
+    - name: containerResource
+      type:
+        namedType: io.k8s.api.autoscaling.v2.ContainerResourceMetricSource
+    - name: external
+      type:
+        namedType: io.k8s.api.autoscaling.v2.ExternalMetricSource
+    - name: object
+      type:
+        namedType: io.k8s.api.autoscaling.v2.ObjectMetricSource
+    - name: pods
+      type:
+        namedType: io.k8s.api.autoscaling.v2.PodsMetricSource
+    - name: resource
+      type:
+        namedType: io.k8s.api.autoscaling.v2.ResourceMetricSource
+    - name: type
+      type:
+        scalar: string
+      default: ""
+- name: io.k8s.api.autoscaling.v2.MetricStatus
+  map:
+    fields:
+    - name: containerResource
+      type:
+        namedType: io.k8s.api.autoscaling.v2.ContainerResourceMetricStatus
+    - name: external
+      type:
+        namedType: io.k8s.api.autoscaling.v2.ExternalMetricStatus
+    - name: object
+      type:
+        namedType: io.k8s.api.autoscaling.v2.ObjectMetricStatus
+    - name: pods
+      type:
+        namedType: io.k8s.api.autoscaling.v2.PodsMetricStatus
+    - name: resource
+      type:
+        namedType: io.k8s.api.autoscaling.v2.ResourceMetricStatus
+    - name: type
+      type:
+        scalar: string
+      default: ""
+- name: io.k8s.api.autoscaling.v2.MetricTarget
+  map:
+    fields:
+    - name: averageUtilization
+      type:
+        scalar: numeric
+    - name: averageValue
+      type:
+        namedType: io.k8s.apimachinery.pkg.api.resource.Quantity
+    - name: type
+      type:
+        scalar: string
+      default: ""
+    - name: value
+      type:
+        namedType: io.k8s.apimachinery.pkg.api.resource.Quantity
+- name: io.k8s.api.autoscaling.v2.MetricValueStatus
+  map:
+    fields:
+    - name: averageUtilization
+      type:
+        scalar: numeric
+    - name: averageValue
+      type:
+        namedType: io.k8s.apimachinery.pkg.api.resource.Quantity
+    - name: value
+      type:
+        namedType: io.k8s.apimachinery.pkg.api.resource.Quantity
+- name: io.k8s.api.autoscaling.v2.ObjectMetricSource
+  map:
+    fields:
+    - name: describedObject
+      type:
+        namedType: io.k8s.api.autoscaling.v2.CrossVersionObjectReference
+      default: {}
+    - name: metric
+      type:
+        namedType: io.k8s.api.autoscaling.v2.MetricIdentifier
+      default: {}
+    - name: target
+      type:
+        namedType: io.k8s.api.autoscaling.v2.MetricTarget
+      default: {}
+- name: io.k8s.api.autoscaling.v2.ObjectMetricStatus
+  map:
+    fields:
+    - name: current
+      type:
+        namedType: io.k8s.api.autoscaling.v2.MetricValueStatus
+      default: {}
+    - name: describedObject
+      type:
+        namedType: io.k8s.api.autoscaling.v2.CrossVersionObjectReference
+      default: {}
+    - name: metric
+      type:
+        namedType: io.k8s.api.autoscaling.v2.MetricIdentifier
+      default: {}
+- name: io.k8s.api.autoscaling.v2.PodsMetricSource
+  map:
+    fields:
+    - name: metric
+      type:
+        namedType: io.k8s.api.autoscaling.v2.MetricIdentifier
+      default: {}
+    - name: target
+      type:
+        namedType: io.k8s.api.autoscaling.v2.MetricTarget
+      default: {}
+- name: io.k8s.api.autoscaling.v2.PodsMetricStatus
+  map:
+    fields:
+    - name: current
+      type:
+        namedType: io.k8s.api.autoscaling.v2.MetricValueStatus
+      default: {}
+    - name: metric
+      type:
+        namedType: io.k8s.api.autoscaling.v2.MetricIdentifier
+      default: {}
+- name: io.k8s.api.autoscaling.v2.ResourceMetricSource
+  map:
+    fields:
+    - name: name
+      type:
+        scalar: string
+      default: ""
+    - name: target
+      type:
+        namedType: io.k8s.api.autoscaling.v2.MetricTarget
+      default: {}
+- name: io.k8s.api.autoscaling.v2.ResourceMetricStatus
+  map:
+    fields:
+    - name: current
+      type:
+        namedType: io.k8s.api.autoscaling.v2.MetricValueStatus
+      default: {}
+    - name: name
+      type:
+        scalar: string
+      default: ""
+- name: io.k8s.api.core.v1.LoadBalancerIngress
+  map:
+    fields:
+    - name: hostname
+      type:
+        scalar: string
+    - name: ip
+      type:
+        scalar: string
+    - name: ipMode
+      type:
+        scalar: string
+    - name: ports
+      type:
+        list:
+          elementType:
+            namedType: io.k8s.api.core.v1.PortStatus
+          elementRelationship: atomic
+- name: io.k8s.api.core.v1.LoadBalancerStatus
+  map:
+    fields:
+    - name: ingress
+      type:
+        list:
+          elementType:
+            namedType: io.k8s.api.core.v1.LoadBalancerIngress
+          elementRelationship: atomic
+- name: io.k8s.api.core.v1.NodeSelector
+  map:
+    fields:
+    - name: nodeSelectorTerms
+      type:
+        list:
+          elementType:
+            namedType: io.k8s.api.core.v1.NodeSelectorTerm
+          elementRelationship: atomic
+    elementRelationship: atomic
+- name: io.k8s.api.core.v1.NodeSelectorRequirement
+  map:
+    fields:
+    - name: key
+      type:
+        scalar: string
+      default: ""
+    - name: operator
+      type:
+        scalar: string
+      default: ""
+    - name: values
+      type:
+        list:
+          elementType:
+            scalar: string
+          elementRelationship: atomic
+- name: io.k8s.api.core.v1.NodeSelectorTerm
+  map:
+    fields:
+    - name: matchExpressions
+      type:
+        list:
+          elementType:
+            namedType: io.k8s.api.core.v1.NodeSelectorRequirement
+          elementRelationship: atomic
+    - name: matchFields
+      type:
+        list:
+          elementType:
+            namedType: io.k8s.api.core.v1.NodeSelectorRequirement
+          elementRelationship: atomic
+    elementRelationship: atomic
+- name: io.k8s.api.core.v1.PortStatus
+  map:
+    fields:
+    - name: error
+      type:
+        scalar: string
+    - name: port
+      type:
+        scalar: numeric
+      default: 0
+    - name: protocol
+      type:
+        scalar: string
+      default: ""
+- name: io.k8s.api.core.v1.ServiceStatus
+  map:
+    fields:
+    - name: conditions
+      type:
+        list:
+          elementType:
+            namedType: io.k8s.apimachinery.pkg.apis.meta.v1.Condition
+          elementRelationship: associative
+          keys:
+          - type
+    - name: loadBalancer
+      type:
+        namedType: io.k8s.api.core.v1.LoadBalancerStatus
+      default: {}
+- name: io.k8s.api.core.v1.Taint
+  map:
+    fields:
+    - name: effect
+      type:
+        scalar: string
+      default: ""
+    - name: key
+      type:
+        scalar: string
+      default: ""
+    - name: timeAdded
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.Time
+    - name: value
+      type:
+        scalar: string
+- name: io.k8s.api.core.v1.Toleration
+  map:
+    fields:
+    - name: effect
+      type:
+        scalar: string
+    - name: key
+      type:
+        scalar: string
+    - name: operator
+      type:
+        scalar: string
+    - name: tolerationSeconds
+      type:
+        scalar: numeric
+    - name: value
+      type:
+        scalar: string
+- name: io.k8s.api.core.v1.TypedLocalObjectReference
+  map:
+    fields:
+    - name: apiGroup
+      type:
+        scalar: string
+    - name: kind
+      type:
+        scalar: string
+      default: ""
+    - name: name
+      type:
+        scalar: string
+      default: ""
+    elementRelationship: atomic
+- name: io.k8s.api.networking.v1.HTTPIngressPath
+  map:
+    fields:
+    - name: backend
+      type:
+        namedType: io.k8s.api.networking.v1.IngressBackend
+      default: {}
+    - name: path
+      type:
+        scalar: string
+    - name: pathType
+      type:
+        scalar: string
+- name: io.k8s.api.networking.v1.HTTPIngressRuleValue
+  map:
+    fields:
+    - name: paths
+      type:
+        list:
+          elementType:
+            namedType: io.k8s.api.networking.v1.HTTPIngressPath
+          elementRelationship: atomic
+- name: io.k8s.api.networking.v1.IngressBackend
+  map:
+    fields:
+    - name: resource
+      type:
+        namedType: io.k8s.api.core.v1.TypedLocalObjectReference
+    - name: service
+      type:
+        namedType: io.k8s.api.networking.v1.IngressServiceBackend
+- name: io.k8s.api.networking.v1.IngressLoadBalancerIngress
+  map:
+    fields:
+    - name: hostname
+      type:
+        scalar: string
+    - name: ip
+      type:
+        scalar: string
+    - name: ports
+      type:
+        list:
+          elementType:
+            namedType: io.k8s.api.networking.v1.IngressPortStatus
+          elementRelationship: atomic
+- name: io.k8s.api.networking.v1.IngressLoadBalancerStatus
+  map:
+    fields:
+    - name: ingress
+      type:
+        list:
+          elementType:
+            namedType: io.k8s.api.networking.v1.IngressLoadBalancerIngress
+          elementRelationship: atomic
+- name: io.k8s.api.networking.v1.IngressPortStatus
+  map:
+    fields:
+    - name: error
+      type:
+        scalar: string
+    - name: port
+      type:
+        scalar: numeric
+      default: 0
+    - name: protocol
+      type:
+        scalar: string
+      default: ""
+- name: io.k8s.api.networking.v1.IngressRule
+  map:
+    fields:
+    - name: host
+      type:
+        scalar: string
+    - name: http
+      type:
+        namedType: io.k8s.api.networking.v1.HTTPIngressRuleValue
+- name: io.k8s.api.networking.v1.IngressServiceBackend
+  map:
+    fields:
+    - name: name
+      type:
+        scalar: string
+      default: ""
+    - name: port
+      type:
+        namedType: io.k8s.api.networking.v1.ServiceBackendPort
+      default: {}
+- name: io.k8s.api.networking.v1.IngressSpec
+  map:
+    fields:
+    - name: defaultBackend
+      type:
+        namedType: io.k8s.api.networking.v1.IngressBackend
+    - name: ingressClassName
+      type:
+        scalar: string
+    - name: rules
+      type:
+        list:
+          elementType:
+            namedType: io.k8s.api.networking.v1.IngressRule
+          elementRelationship: atomic
+    - name: tls
+      type:
+        list:
+          elementType:
+            namedType: io.k8s.api.networking.v1.IngressTLS
+          elementRelationship: atomic
+- name: io.k8s.api.networking.v1.IngressTLS
+  map:
+    fields:
+    - name: hosts
+      type:
+        list:
+          elementType:
+            scalar: string
+          elementRelationship: atomic
+    - name: secretName
+      type:
+        scalar: string
+- name: io.k8s.api.networking.v1.ServiceBackendPort
+  map:
+    fields:
+    - name: name
+      type:
+        scalar: string
+    - name: number
+      type:
+        scalar: numeric
+    elementRelationship: atomic
+- name: io.k8s.apiextensions-apiserver.pkg.apis.apiextensions.v1.JSON
   scalar: untyped
   list:
     elementType:
@@ -249,6 +2923,204 @@ var schemaYAML = typed.YAMLObject(`types:
     elementType:
       namedType: __untyped_deduced_
     elementRelationship: separable
+- name: io.k8s.apimachinery.pkg.api.resource.Quantity
+  scalar: untyped
+- name: io.k8s.apimachinery.pkg.apis.meta.v1.Condition
+  map:
+    fields:
+    - name: lastTransitionTime
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.Time
+    - name: message
+      type:
+        scalar: string
+      default: ""
+    - name: observedGeneration
+      type:
+        scalar: numeric
+    - name: reason
+      type:
+        scalar: string
+      default: ""
+    - name: status
+      type:
+        scalar: string
+      default: ""
+    - name: type
+      type:
+        scalar: string
+      default: ""
+- name: io.k8s.apimachinery.pkg.apis.meta.v1.FieldsV1
+  map:
+    elementType:
+      scalar: untyped
+      list:
+        elementType:
+          namedType: __untyped_atomic_
+        elementRelationship: atomic
+      map:
+        elementType:
+          namedType: __untyped_deduced_
+        elementRelationship: separable
+- name: io.k8s.apimachinery.pkg.apis.meta.v1.LabelSelector
+  map:
+    fields:
+    - name: matchExpressions
+      type:
+        list:
+          elementType:
+            namedType: io.k8s.apimachinery.pkg.apis.meta.v1.LabelSelectorRequirement
+          elementRelationship: atomic
+    - name: matchLabels
+      type:
+        map:
+          elementType:
+            scalar: string
+    elementRelationship: atomic
+- name: io.k8s.apimachinery.pkg.apis.meta.v1.LabelSelectorRequirement
+  map:
+    fields:
+    - name: key
+      type:
+        scalar: string
+      default: ""
+    - name: operator
+      type:
+        scalar: string
+      default: ""
+    - name: values
+      type:
+        list:
+          elementType:
+            scalar: string
+          elementRelationship: atomic
+- name: io.k8s.apimachinery.pkg.apis.meta.v1.ManagedFieldsEntry
+  map:
+    fields:
+    - name: apiVersion
+      type:
+        scalar: string
+    - name: fieldsType
+      type:
+        scalar: string
+    - name: fieldsV1
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.FieldsV1
+    - name: manager
+      type:
+        scalar: string
+    - name: operation
+      type:
+        scalar: string
+    - name: subresource
+      type:
+        scalar: string
+    - name: time
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.Time
+- name: io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta
+  map:
+    fields:
+    - name: annotations
+      type:
+        map:
+          elementType:
+            scalar: string
+    - name: creationTimestamp
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.Time
+    - name: deletionGracePeriodSeconds
+      type:
+        scalar: numeric
+    - name: deletionTimestamp
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.Time
+    - name: finalizers
+      type:
+        list:
+          elementType:
+            scalar: string
+          elementRelationship: associative
+    - name: generateName
+      type:
+        scalar: string
+    - name: generation
+      type:
+        scalar: numeric
+    - name: labels
+      type:
+        map:
+          elementType:
+            scalar: string
+    - name: managedFields
+      type:
+        list:
+          elementType:
+            namedType: io.k8s.apimachinery.pkg.apis.meta.v1.ManagedFieldsEntry
+          elementRelationship: atomic
+    - name: name
+      type:
+        scalar: string
+    - name: namespace
+      type:
+        scalar: string
+    - name: ownerReferences
+      type:
+        list:
+          elementType:
+            namedType: io.k8s.apimachinery.pkg.apis.meta.v1.OwnerReference
+          elementRelationship: associative
+          keys:
+          - uid
+    - name: resourceVersion
+      type:
+        scalar: string
+    - name: selfLink
+      type:
+        scalar: string
+    - name: uid
+      type:
+        scalar: string
+- name: io.k8s.apimachinery.pkg.apis.meta.v1.OwnerReference
+  map:
+    fields:
+    - name: apiVersion
+      type:
+        scalar: string
+      default: ""
+    - name: blockOwnerDeletion
+      type:
+        scalar: boolean
+    - name: controller
+      type:
+        scalar: boolean
+    - name: kind
+      type:
+        scalar: string
+      default: ""
+    - name: name
+      type:
+        scalar: string
+      default: ""
+    - name: uid
+      type:
+        scalar: string
+      default: ""
+    elementRelationship: atomic
+- name: io.k8s.apimachinery.pkg.apis.meta.v1.Time
+  scalar: untyped
+- name: io.k8s.apimachinery.pkg.runtime.RawExtension
+  map:
+    elementType:
+      scalar: untyped
+      list:
+        elementType:
+          namedType: __untyped_atomic_
+        elementRelationship: atomic
+      map:
+        elementType:
+          namedType: __untyped_deduced_
+        elementRelationship: separable
 - name: __untyped_atomic_
   scalar: untyped
   list:
