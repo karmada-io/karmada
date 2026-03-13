@@ -59,13 +59,19 @@ util::verify_go_version
 # make sure docker exists and daemon is running
 util::cmd_must_exist "docker"
 
-# Verify Docker daemon is actually running
-if ! docker info >/dev/null 2>&1; then
-  echo "ERROR: Docker daemon is not running."
+# Verify Docker daemon is actually reachable
+DOCKER_INFO_ERROR_OUTPUT=""
+if ! DOCKER_INFO_ERROR_OUTPUT=$(docker info 2>&1 >/dev/null); then
+  echo "ERROR: Cannot connect to Docker (docker info failed)."
+  if [[ -n "${DOCKER_INFO_ERROR_OUTPUT}" ]]; then
+    echo "docker info output:"
+    echo "${DOCKER_INFO_ERROR_OUTPUT}"
+  fi
   if [[ "$(uname)" == "Darwin" ]]; then
     echo "On macOS, please start Docker Desktop."
   else
-    echo "Please start the Docker daemon"
+    echo "On Linux, this may be a permissions issue (e.g., your user is not in the 'docker' group) or a misconfigured Docker context."
+    echo "Please ensure the Docker daemon is running and that you have permission to access it."
   fi
   exit 1
 fi
