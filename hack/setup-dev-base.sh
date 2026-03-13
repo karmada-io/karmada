@@ -83,7 +83,7 @@ DOCKER_CPU=$(docker system info --format '{{.NCPU}}' 2>/dev/null || echo "0")
 # Convert bytes to GB (4GB = 4294967296 bytes)
 DOCKER_MEM_GB=$(( ${DOCKER_MEM:-0} / 1024 / 1024 / 1024))
 
-# At the top — collect warnings but don't print yet
+# Collect Docker-related warnings to print later
 DOCKER_WARNINGS=""
 
 if [[ ${DOCKER_MEM_GB} -lt 4 ]]; then
