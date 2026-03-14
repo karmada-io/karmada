@@ -128,7 +128,7 @@ func Test_isMultiTemplateSchedulingApplicable(t *testing.T) {
 			want: false,
 		},
 		{
-			name: "spec with single component should not be applicable",
+			name: "spec with single component and valid spread constraint should be applicable",
 			spec: &workv1alpha2.ResourceBindingSpec{
 				Components: []workv1alpha2.Component{
 					{Name: "component1"},
@@ -143,7 +143,7 @@ func Test_isMultiTemplateSchedulingApplicable(t *testing.T) {
 					},
 				},
 			},
-			want: false,
+			want: true,
 		},
 		{
 			name: "spec with valid cluster spread constraint should be applicable",
