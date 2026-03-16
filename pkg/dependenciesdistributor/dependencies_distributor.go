@@ -131,6 +131,12 @@ func (d *DependenciesDistributor) OnAdd(obj any, isInInitialList bool) {
 }
 
 // OnUpdate handles object update event and push the object to queue.
+// Note: We don't check DeletionTimestamp in the update handler because:
+// 1. For independent bindings, when they are deleted, the independent binding's
+//    deletion event will trigger cleanup of attached bindings via handleIndependentBindingDeletion.
+// 2. For attached resource templates (e.g., ConfigMap, Secret), when they are deleted,
+//    their corresponding ResourceBindings will also be deleted by the garbage collector,
+//    so there's no need to handle cleanup here.
 func (d *DependenciesDistributor) OnUpdate(oldObj, newObj any) {
 	unstructuredOldObj, err := helper.ToUnstructured(oldObj)
 	if err != nil {
