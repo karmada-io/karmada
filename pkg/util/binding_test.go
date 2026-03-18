@@ -17,6 +17,7 @@ limitations under the License.
 package util
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -27,6 +28,7 @@ import (
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/features"
 	testhelper "github.com/karmada-io/karmada/test/helper"
 )
 
@@ -179,11 +181,73 @@ func TestIsBindingReplicasChanged(t *testing.T) {
 		},
 	}
 
+	// Component-based workload failover tests require the MultiplePodTemplatesScheduling feature gate.
+	componentTests := []struct {
+		name        string
+		bindingSpec *workv1alpha2.ResourceBindingSpec
+		strategy    *policyv1alpha1.ReplicaSchedulingStrategy
+		expected    bool
+	}{
+		{
+			name: "single component with empty clusters should trigger rescheduling",
+			bindingSpec: &workv1alpha2.ResourceBindingSpec{
+				Components: []workv1alpha2.Component{
+					{Name: "component1", Replicas: 3},
+				},
+				Clusters: []workv1alpha2.TargetCluster{},
+			},
+			strategy: &policyv1alpha1.ReplicaSchedulingStrategy{ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDuplicated},
+			expected: true,
+		},
+		{
+			name: "multiple components with empty clusters should trigger rescheduling",
+			bindingSpec: &workv1alpha2.ResourceBindingSpec{
+				Components: []workv1alpha2.Component{
+					{Name: "component1", Replicas: 3},
+					{Name: "component2", Replicas: 2},
+				},
+				Clusters: []workv1alpha2.TargetCluster{},
+			},
+			strategy: &policyv1alpha1.ReplicaSchedulingStrategy{ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDuplicated},
+			expected: true,
+		},
+		{
+			name: "single component with non-empty clusters should not trigger rescheduling",
+			bindingSpec: &workv1alpha2.ResourceBindingSpec{
+				Components: []workv1alpha2.Component{
+					{Name: "component1", Replicas: 3},
+				},
+				Clusters: []workv1alpha2.TargetCluster{
+					{Name: ClusterMember1},
+				},
+			},
+			strategy: &policyv1alpha1.ReplicaSchedulingStrategy{ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDuplicated},
+			expected: false,
+		},
+	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.bindingSpec == nil {
 				t.FailNow()
 			}
+			got := IsBindingReplicasChanged(tt.bindingSpec, tt.strategy)
+			if got != tt.expected {
+				t.Errorf("IsBindingReplicasChanged() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+
+	// Run component-based tests with the feature gate enabled.
+	originalFeatureGates := features.FeatureGate.DeepCopy()
+	if err := features.FeatureGate.Set(fmt.Sprintf("%s=true", features.MultiplePodTemplatesScheduling)); err != nil {
+		t.Fatalf("Failed to enable feature gate %s: %v", features.MultiplePodTemplatesScheduling, err)
+	}
+	t.Cleanup(func() {
+		features.FeatureGate = originalFeatureGates
+	})
+	for _, tt := range componentTests {
+		t.Run(tt.name, func(t *testing.T) {
 			got := IsBindingReplicasChanged(tt.bindingSpec, tt.strategy)
 			if got != tt.expected {
 				t.Errorf("IsBindingReplicasChanged() = %v, want %v", got, tt.expected)

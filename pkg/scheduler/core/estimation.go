@@ -29,8 +29,8 @@ import (
 )
 
 // isMultiTemplateSchedulingApplicable checks if the given ResourceBindingSpec
-// meets the criteria for multi-template scheduling:
-//  1. The referenced resource holds multiple pod templates (multiple components).
+// meets the criteria for component-based scheduling:
+//  1. The referenced resource has at least one component populated.
 //  2. The placement configuration schedules the resource to exactly one cluster.
 //     This is currently determined by checking if spread constraints is set and requires exactly one cluster.
 //
@@ -44,7 +44,7 @@ func isMultiTemplateSchedulingApplicable(spec *workv1alpha2.ResourceBindingSpec)
 		return false
 	}
 
-	if len(spec.Components) < 2 {
+	if len(spec.Components) == 0 {
 		return false
 	}
 

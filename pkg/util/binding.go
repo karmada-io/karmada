@@ -40,14 +40,14 @@ func IsBindingReplicasChanged(bindingSpec *workv1alpha2.ResourceBindingSpec, str
 		return false
 	}
 
-	// For multi-component workloads, trigger rescheduling when clusters are empty (e.g., after eviction).
+	// For component-based workloads, trigger rescheduling when clusters are empty (e.g., after eviction).
 	// This is a temporary fix to ensure cluster failover works correctly.
 	// Limitation: This only handles the failover scenario where clusters are cleared.
 	// It does not detect component replica changes (e.g., scale up/down) or replica swaps between components.
 	// A complete solution requires changing how scheduling results are stored to support multi-template workloads,
 	// likely by extending TargetCluster to include per-component replica information.
 	// The comprehensive solution is tracked by: https://github.com/karmada-io/karmada/issues/6998
-	if features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) && len(bindingSpec.Components) > 1 {
+	if features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) && len(bindingSpec.Components) > 0 {
 		if len(bindingSpec.Clusters) == 0 {
 			return true
 		}
