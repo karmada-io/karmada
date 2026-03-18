@@ -179,9 +179,9 @@ func getMaximumSetsBasedOnResourceModels(cluster *clusterv1alpha1.Cluster, compo
 		return -1, err
 	}
 
-	pbComponents := make([]pb.Component, 0, len(components))
+	pbComponents := make([]*pb.Component, 0, len(components))
 	for _, comp := range components {
-		pbComponents = append(pbComponents, pb.Component{
+		pbComponents = append(pbComponents, &pb.Component{
 			Name:                comp.Name,
 			Replicas:            comp.Replicas,
 			ReplicaRequirements: toPBReplicaRequirements(comp.ReplicaRequirements),

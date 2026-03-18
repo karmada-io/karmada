@@ -221,19 +221,18 @@ func setup(t *testing.T, resourceQuotaList []*corev1.ResourceQuota, enablePlugin
 
 func TestResourceQuotaEstimatorPlugin(t *testing.T) {
 	tests := map[string]struct {
-		replicaRequirements pb.ReplicaRequirements
+		replicaRequirements *pb.ReplicaRequirements
 		resourceQuotaList   []*corev1.ResourceQuota
 		enabled             bool
 		expect              expect
 	}{
 		"empty-resource-quota-list": {
-			replicaRequirements: pb.ReplicaRequirements{
-				ResourceRequest: map[corev1.ResourceName]resource.Quantity{
-					"cpu": *resource.NewMilliQuantity(200, resource.DecimalSI),
-				},
+			replicaRequirements: (&pb.ReplicaRequirements{
 				Namespace:         fooNamespace,
 				PriorityClassName: fooPriorityClassName,
-			},
+			}).MustSetResourceRequest(corev1.ResourceList{
+				"cpu": *resource.NewMilliQuantity(200, resource.DecimalSI),
+			}),
 			resourceQuotaList: []*corev1.ResourceQuota{},
 			enabled:           true,
 			expect: expect{
@@ -242,13 +241,12 @@ func TestResourceQuotaEstimatorPlugin(t *testing.T) {
 			},
 		},
 		"resource-quota-evaluate-cpu-only": {
-			replicaRequirements: pb.ReplicaRequirements{
-				ResourceRequest: map[corev1.ResourceName]resource.Quantity{
-					"cpu": *resource.NewMilliQuantity(200, resource.DecimalSI),
-				},
+			replicaRequirements: (&pb.ReplicaRequirements{
 				Namespace:         fooNamespace,
 				PriorityClassName: fooPriorityClassName,
-			},
+			}).MustSetResourceRequest(corev1.ResourceList{
+				"cpu": *resource.NewMilliQuantity(200, resource.DecimalSI),
+			}),
 			resourceQuotaList: []*corev1.ResourceQuota{
 				fooResourceQuota,
 			},
@@ -259,13 +257,12 @@ func TestResourceQuotaEstimatorPlugin(t *testing.T) {
 			},
 		},
 		"resource-quota-evaluate-memory-only": {
-			replicaRequirements: pb.ReplicaRequirements{
-				ResourceRequest: map[corev1.ResourceName]resource.Quantity{
-					"memory": *resource.NewQuantity(2*(1024*1024), resource.DecimalSI),
-				},
+			replicaRequirements: (&pb.ReplicaRequirements{
 				Namespace:         fooNamespace,
 				PriorityClassName: fooPriorityClassName,
-			},
+			}).MustSetResourceRequest(corev1.ResourceList{
+				"memory": *resource.NewQuantity(2*(1024*1024), resource.DecimalSI),
+			}),
 			resourceQuotaList: []*corev1.ResourceQuota{
 				fooResourceQuota,
 			},
@@ -276,13 +273,12 @@ func TestResourceQuotaEstimatorPlugin(t *testing.T) {
 			},
 		},
 		"resource-quota-evaluate-extended-resource-only": {
-			replicaRequirements: pb.ReplicaRequirements{
-				ResourceRequest: map[corev1.ResourceName]resource.Quantity{
-					"nvidia.com/gpu": *resource.NewQuantity(1, resource.DecimalSI),
-				},
+			replicaRequirements: (&pb.ReplicaRequirements{
 				Namespace:         fooNamespace,
 				PriorityClassName: fooPriorityClassName,
-			},
+			}).MustSetResourceRequest(corev1.ResourceList{
+				"nvidia.com/gpu": *resource.NewQuantity(1, resource.DecimalSI),
+			}),
 			resourceQuotaList: []*corev1.ResourceQuota{
 				fooResourceQuota,
 			},
@@ -293,13 +289,12 @@ func TestResourceQuotaEstimatorPlugin(t *testing.T) {
 			},
 		},
 		"resource-quota-evaluate-not-supported-ephemeral-storage": {
-			replicaRequirements: pb.ReplicaRequirements{
-				ResourceRequest: map[corev1.ResourceName]resource.Quantity{
-					"ephemeral-storage": *resource.NewQuantity(1024*1024, resource.DecimalSI),
-				},
+			replicaRequirements: (&pb.ReplicaRequirements{
 				Namespace:         fooNamespace,
 				PriorityClassName: fooPriorityClassName,
-			},
+			}).MustSetResourceRequest(corev1.ResourceList{
+				"ephemeral-storage": *resource.NewQuantity(1024*1024, resource.DecimalSI),
+			}),
 			resourceQuotaList: []*corev1.ResourceQuota{
 				fooResourceQuota,
 			},
@@ -310,15 +305,14 @@ func TestResourceQuotaEstimatorPlugin(t *testing.T) {
 			},
 		},
 		"resource-quota-evaluate-all-unschedulable": {
-			replicaRequirements: pb.ReplicaRequirements{
-				ResourceRequest: map[corev1.ResourceName]resource.Quantity{
-					"cpu":            *resource.NewQuantity(2, resource.DecimalSI),
-					"memory":         *resource.NewQuantity(2*(1024*1024), resource.DecimalSI),
-					"nvidia.com/gpu": *resource.NewQuantity(1, resource.DecimalSI),
-				},
+			replicaRequirements: (&pb.ReplicaRequirements{
 				Namespace:         fooNamespace,
 				PriorityClassName: fooPriorityClassName,
-			},
+			}).MustSetResourceRequest(corev1.ResourceList{
+				"cpu":            *resource.NewQuantity(2, resource.DecimalSI),
+				"memory":         *resource.NewQuantity(2*(1024*1024), resource.DecimalSI),
+				"nvidia.com/gpu": *resource.NewQuantity(1, resource.DecimalSI),
+			}),
 			resourceQuotaList: []*corev1.ResourceQuota{
 				fooResourceQuota,
 			},
@@ -329,15 +323,14 @@ func TestResourceQuotaEstimatorPlugin(t *testing.T) {
 			},
 		},
 		"resource-quota-evaluate-all-with-multiple-selector-scopes": {
-			replicaRequirements: pb.ReplicaRequirements{
-				ResourceRequest: map[corev1.ResourceName]resource.Quantity{
-					"cpu":            *resource.NewQuantity(2, resource.DecimalSI),
-					"memory":         *resource.NewQuantity(2*(1024*1024), resource.DecimalSI),
-					"nvidia.com/gpu": *resource.NewQuantity(1, resource.DecimalSI),
-				},
+			replicaRequirements: (&pb.ReplicaRequirements{
 				Namespace:         fooNamespace,
 				PriorityClassName: fooPriorityClassName,
-			},
+			}).MustSetResourceRequest(corev1.ResourceList{
+				"cpu":            *resource.NewQuantity(2, resource.DecimalSI),
+				"memory":         *resource.NewQuantity(2*(1024*1024), resource.DecimalSI),
+				"nvidia.com/gpu": *resource.NewQuantity(1, resource.DecimalSI),
+			}),
 			resourceQuotaList: []*corev1.ResourceQuota{
 				multipleSelectorScopesResourceQuota,
 			},
@@ -348,15 +341,14 @@ func TestResourceQuotaEstimatorPlugin(t *testing.T) {
 			},
 		},
 		"request-resource-quota-evaluate-all": {
-			replicaRequirements: pb.ReplicaRequirements{
-				ResourceRequest: map[corev1.ResourceName]resource.Quantity{
-					"cpu":            *resource.NewMilliQuantity(200, resource.DecimalSI),
-					"memory":         *resource.NewQuantity(2*(1024*1024), resource.DecimalSI),
-					"nvidia.com/gpu": *resource.NewQuantity(1, resource.DecimalSI),
-				},
+			replicaRequirements: (&pb.ReplicaRequirements{
 				Namespace:         barNamespace,
 				PriorityClassName: barPriorityClassName,
-			},
+			}).MustSetResourceRequest(corev1.ResourceList{
+				"cpu":            *resource.NewMilliQuantity(200, resource.DecimalSI),
+				"memory":         *resource.NewQuantity(2*(1024*1024), resource.DecimalSI),
+				"nvidia.com/gpu": *resource.NewQuantity(1, resource.DecimalSI),
+			}),
 			resourceQuotaList: []*corev1.ResourceQuota{
 				barResourceQuota,
 			},
@@ -367,15 +359,14 @@ func TestResourceQuotaEstimatorPlugin(t *testing.T) {
 			},
 		},
 		"resource-quota-evaluate-all": {
-			replicaRequirements: pb.ReplicaRequirements{
-				ResourceRequest: map[corev1.ResourceName]resource.Quantity{
-					"cpu":            *resource.NewMilliQuantity(200, resource.DecimalSI),
-					"memory":         *resource.NewQuantity(2*(1024*1024), resource.DecimalSI),
-					"nvidia.com/gpu": *resource.NewQuantity(1, resource.DecimalSI),
-				},
+			replicaRequirements: (&pb.ReplicaRequirements{
 				Namespace:         fooNamespace,
 				PriorityClassName: fooPriorityClassName,
-			},
+			}).MustSetResourceRequest(corev1.ResourceList{
+				"cpu":            *resource.NewMilliQuantity(200, resource.DecimalSI),
+				"memory":         *resource.NewQuantity(2*(1024*1024), resource.DecimalSI),
+				"nvidia.com/gpu": *resource.NewQuantity(1, resource.DecimalSI),
+			}),
 			resourceQuotaList: []*corev1.ResourceQuota{
 				fooResourceQuota,
 			},
@@ -386,13 +377,12 @@ func TestResourceQuotaEstimatorPlugin(t *testing.T) {
 			},
 		},
 		"resource-quota-not-supported-scopes": {
-			replicaRequirements: pb.ReplicaRequirements{
-				ResourceRequest: map[corev1.ResourceName]resource.Quantity{
-					"cpu": *resource.NewMilliQuantity(200, resource.DecimalSI),
-				},
+			replicaRequirements: (&pb.ReplicaRequirements{
 				Namespace:         fooNamespace,
 				PriorityClassName: fooPriorityClassName,
-			},
+			}).MustSetResourceRequest(corev1.ResourceList{
+				"cpu": *resource.NewMilliQuantity(200, resource.DecimalSI),
+			}),
 			resourceQuotaList: []*corev1.ResourceQuota{
 				{
 					ObjectMeta: metav1.ObjectMeta{
@@ -429,8 +419,7 @@ func TestResourceQuotaEstimatorPlugin(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			testCtx := setup(t, tt.resourceQuotaList, tt.enabled)
-			requirement := tt.replicaRequirements
-			replica, ret := testCtx.p.Estimate(testCtx.ctx, nil, &requirement)
+			replica, ret := testCtx.p.Estimate(testCtx.ctx, nil, tt.replicaRequirements)
 
 			require.Equal(t, tt.expect.ret.Code(), ret.Code())
 			assert.ElementsMatch(t, tt.expect.ret.Reasons(), ret.Reasons())
@@ -442,7 +431,7 @@ func TestResourceQuotaEstimatorPlugin(t *testing.T) {
 func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 	tests := map[string]struct {
 		resourceQuotaList []*corev1.ResourceQuota
-		components        []pb.Component
+		components        []*pb.Component
 		namespace         string
 		enabled           bool
 		expect            expect
@@ -452,15 +441,14 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 		// ============================================
 		"feature-gate-disabled": {
 			resourceQuotaList: []*corev1.ResourceQuota{fooResourceQuota},
-			components: []pb.Component{
+			components: []*pb.Component{
 				{
 					Name: "app",
-					ReplicaRequirements: pb.ComponentReplicaRequirements{
+					ReplicaRequirements: (&pb.ComponentReplicaRequirements{
 						PriorityClassName: fooPriorityClassName,
-						ResourceRequest: corev1.ResourceList{
-							corev1.ResourceCPU: *resource.NewMilliQuantity(100, resource.DecimalSI),
-						},
-					},
+					}).MustSetResourceRequest(corev1.ResourceList{
+						corev1.ResourceCPU: *resource.NewMilliQuantity(100, resource.DecimalSI),
+					}),
 					Replicas: 1,
 				},
 			},
@@ -473,7 +461,7 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 		},
 		"empty-components-list": {
 			resourceQuotaList: []*corev1.ResourceQuota{fooResourceQuota},
-			components:        []pb.Component{},
+			components:        []*pb.Component{},
 			enabled:           true,
 			expect: expect{
 				replica: math.MaxInt32,
@@ -482,15 +470,14 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 		},
 		"no-resource-quota-in-namespace": {
 			resourceQuotaList: []*corev1.ResourceQuota{}, // Empty list
-			components: []pb.Component{
+			components: []*pb.Component{
 				{
 					Name: "app",
-					ReplicaRequirements: pb.ComponentReplicaRequirements{
+					ReplicaRequirements: (&pb.ComponentReplicaRequirements{
 						PriorityClassName: fooPriorityClassName,
-						ResourceRequest: corev1.ResourceList{
-							corev1.ResourceCPU: *resource.NewMilliQuantity(100, resource.DecimalSI),
-						},
-					},
+					}).MustSetResourceRequest(corev1.ResourceList{
+						corev1.ResourceCPU: *resource.NewMilliQuantity(100, resource.DecimalSI),
+					}),
 					Replicas: 1,
 				},
 			},
@@ -503,15 +490,14 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 		},
 		"priority-class-scope-mismatch": {
 			resourceQuotaList: []*corev1.ResourceQuota{fooResourceQuota},
-			components: []pb.Component{
+			components: []*pb.Component{
 				{
 					Name: "app",
-					ReplicaRequirements: pb.ComponentReplicaRequirements{
+					ReplicaRequirements: (&pb.ComponentReplicaRequirements{
 						PriorityClassName: barPriorityClassName, // Mismatch
-						ResourceRequest: corev1.ResourceList{
-							corev1.ResourceCPU: *resource.NewMilliQuantity(100, resource.DecimalSI),
-						},
-					},
+					}).MustSetResourceRequest(corev1.ResourceList{
+						corev1.ResourceCPU: *resource.NewMilliQuantity(100, resource.DecimalSI),
+					}),
 					Replicas: 1,
 				},
 			},
@@ -524,15 +510,14 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 		},
 		"empty-priority-class-name": {
 			resourceQuotaList: []*corev1.ResourceQuota{fooResourceQuota},
-			components: []pb.Component{
+			components: []*pb.Component{
 				{
 					Name: "app",
-					ReplicaRequirements: pb.ComponentReplicaRequirements{
+					ReplicaRequirements: (&pb.ComponentReplicaRequirements{
 						PriorityClassName: "", // Empty priority class
-						ResourceRequest: corev1.ResourceList{
-							corev1.ResourceCPU: *resource.NewMilliQuantity(100, resource.DecimalSI),
-						},
-					},
+					}).MustSetResourceRequest(corev1.ResourceList{
+						corev1.ResourceCPU: *resource.NewMilliQuantity(100, resource.DecimalSI),
+					}),
 					Replicas: 1,
 				},
 			},
@@ -547,15 +532,14 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 		},
 		"empty-priority-class-name-with-no-scope-quota": {
 			resourceQuotaList: []*corev1.ResourceQuota{noScopeSelectorResourceQuota},
-			components: []pb.Component{
+			components: []*pb.Component{
 				{
 					Name: "app",
-					ReplicaRequirements: pb.ComponentReplicaRequirements{
+					ReplicaRequirements: (&pb.ComponentReplicaRequirements{
 						PriorityClassName: "", // Empty priority class
-						ResourceRequest: corev1.ResourceList{
-							corev1.ResourceCPU: *resource.NewMilliQuantity(100, resource.DecimalSI),
-						},
-					},
+					}).MustSetResourceRequest(corev1.ResourceList{
+						corev1.ResourceCPU: *resource.NewMilliQuantity(100, resource.DecimalSI),
+					}),
 					Replicas: 1,
 				},
 			},
@@ -576,16 +560,15 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 		// ============================================
 		"single-component-basic": {
 			resourceQuotaList: []*corev1.ResourceQuota{fooResourceQuota},
-			components: []pb.Component{
+			components: []*pb.Component{
 				{
 					Name: "webserver",
-					ReplicaRequirements: pb.ComponentReplicaRequirements{
+					ReplicaRequirements: (&pb.ComponentReplicaRequirements{
 						PriorityClassName: fooPriorityClassName,
-						ResourceRequest: corev1.ResourceList{
-							corev1.ResourceCPU:    *resource.NewMilliQuantity(100, resource.DecimalSI),
-							corev1.ResourceMemory: *resource.NewQuantity(500*1024, resource.DecimalSI),
-						},
-					},
+					}).MustSetResourceRequest(corev1.ResourceList{
+						corev1.ResourceCPU:    *resource.NewMilliQuantity(100, resource.DecimalSI),
+						corev1.ResourceMemory: *resource.NewQuantity(500*1024, resource.DecimalSI),
+					}),
 					Replicas: 1,
 				},
 			},
@@ -601,27 +584,25 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 		},
 		"multi-component-complex-aggregation": {
 			resourceQuotaList: []*corev1.ResourceQuota{fooResourceQuota},
-			components: []pb.Component{
+			components: []*pb.Component{
 				{
 					Name: "app1",
-					ReplicaRequirements: pb.ComponentReplicaRequirements{
+					ReplicaRequirements: (&pb.ComponentReplicaRequirements{
 						PriorityClassName: fooPriorityClassName,
-						ResourceRequest: corev1.ResourceList{
-							corev1.ResourceCPU:    *resource.NewMilliQuantity(50, resource.DecimalSI),
-							corev1.ResourceMemory: *resource.NewQuantity(200*1024, resource.DecimalSI),
-						},
-					},
+					}).MustSetResourceRequest(corev1.ResourceList{
+						corev1.ResourceCPU:    *resource.NewMilliQuantity(50, resource.DecimalSI),
+						corev1.ResourceMemory: *resource.NewQuantity(200*1024, resource.DecimalSI),
+					}),
 					Replicas: 3,
 				},
 				{
 					Name: "app2",
-					ReplicaRequirements: pb.ComponentReplicaRequirements{
+					ReplicaRequirements: (&pb.ComponentReplicaRequirements{
 						PriorityClassName: fooPriorityClassName,
-						ResourceRequest: corev1.ResourceList{
-							corev1.ResourceCPU:    *resource.NewMilliQuantity(100, resource.DecimalSI),
-							corev1.ResourceMemory: *resource.NewQuantity(500*1024, resource.DecimalSI),
-						},
-					},
+					}).MustSetResourceRequest(corev1.ResourceList{
+						corev1.ResourceCPU:    *resource.NewMilliQuantity(100, resource.DecimalSI),
+						corev1.ResourceMemory: *resource.NewQuantity(500*1024, resource.DecimalSI),
+					}),
 					Replicas: 2,
 				},
 			},
@@ -641,16 +622,15 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 		// ============================================
 		"memory-bottleneck": {
 			resourceQuotaList: []*corev1.ResourceQuota{fooResourceQuota},
-			components: []pb.Component{
+			components: []*pb.Component{
 				{
 					Name: "memory-intensive",
-					ReplicaRequirements: pb.ComponentReplicaRequirements{
+					ReplicaRequirements: (&pb.ComponentReplicaRequirements{
 						PriorityClassName: fooPriorityClassName,
-						ResourceRequest: corev1.ResourceList{
-							corev1.ResourceCPU:    *resource.NewMilliQuantity(50, resource.DecimalSI),
-							corev1.ResourceMemory: *resource.NewQuantity(2*1024*1024, resource.DecimalSI),
-						},
-					},
+					}).MustSetResourceRequest(corev1.ResourceList{
+						corev1.ResourceCPU:    *resource.NewMilliQuantity(50, resource.DecimalSI),
+						corev1.ResourceMemory: *resource.NewQuantity(2*1024*1024, resource.DecimalSI),
+					}),
 					Replicas: 1,
 				},
 			},
@@ -667,17 +647,16 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 		},
 		"gpu-extended-resource-bottleneck": {
 			resourceQuotaList: []*corev1.ResourceQuota{fooResourceQuota},
-			components: []pb.Component{
+			components: []*pb.Component{
 				{
 					Name: "ml-worker",
-					ReplicaRequirements: pb.ComponentReplicaRequirements{
+					ReplicaRequirements: (&pb.ComponentReplicaRequirements{
 						PriorityClassName: fooPriorityClassName,
-						ResourceRequest: corev1.ResourceList{
-							corev1.ResourceCPU:                    *resource.NewMilliQuantity(100, resource.DecimalSI),
-							corev1.ResourceMemory:                 *resource.NewQuantity(500*1024, resource.DecimalSI),
-							corev1.ResourceName("nvidia.com/gpu"): *resource.NewQuantity(1, resource.DecimalSI),
-						},
-					},
+					}).MustSetResourceRequest(corev1.ResourceList{
+						corev1.ResourceCPU:                    *resource.NewMilliQuantity(100, resource.DecimalSI),
+						corev1.ResourceMemory:                 *resource.NewQuantity(500*1024, resource.DecimalSI),
+						corev1.ResourceName("nvidia.com/gpu"): *resource.NewQuantity(1, resource.DecimalSI),
+					}),
 					Replicas: 2,
 				},
 			},
@@ -693,16 +672,15 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 		},
 		"quota-exhausted-zero-sets": {
 			resourceQuotaList: []*corev1.ResourceQuota{fooResourceQuota},
-			components: []pb.Component{
+			components: []*pb.Component{
 				{
 					Name: "large-app",
-					ReplicaRequirements: pb.ComponentReplicaRequirements{
+					ReplicaRequirements: (&pb.ComponentReplicaRequirements{
 						PriorityClassName: fooPriorityClassName,
-						ResourceRequest: corev1.ResourceList{
-							corev1.ResourceCPU:    *resource.NewQuantity(10, resource.DecimalSI),
-							corev1.ResourceMemory: *resource.NewQuantity(10*1024*1024, resource.DecimalSI),
-						},
-					},
+					}).MustSetResourceRequest(corev1.ResourceList{
+						corev1.ResourceCPU:    *resource.NewQuantity(10, resource.DecimalSI),
+						corev1.ResourceMemory: *resource.NewQuantity(10*1024*1024, resource.DecimalSI),
+					}),
 					Replicas: 1,
 				},
 			},
@@ -767,16 +745,15 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 					},
 				},
 			},
-			components: []pb.Component{
+			components: []*pb.Component{
 				{
 					Name: "app",
-					ReplicaRequirements: pb.ComponentReplicaRequirements{
+					ReplicaRequirements: (&pb.ComponentReplicaRequirements{
 						PriorityClassName: fooPriorityClassName,
-						ResourceRequest: corev1.ResourceList{
-							corev1.ResourceCPU:    *resource.NewMilliQuantity(200, resource.DecimalSI),
-							corev1.ResourceMemory: *resource.NewQuantity(1024*1024, resource.DecimalSI),
-						},
-					},
+					}).MustSetResourceRequest(corev1.ResourceList{
+						corev1.ResourceCPU:    *resource.NewMilliQuantity(200, resource.DecimalSI),
+						corev1.ResourceMemory: *resource.NewQuantity(1024*1024, resource.DecimalSI),
+					}),
 					Replicas: 1,
 				},
 			},
@@ -847,27 +824,25 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 					},
 				},
 			},
-			components: []pb.Component{
+			components: []*pb.Component{
 				{
 					Name: "frontend",
-					ReplicaRequirements: pb.ComponentReplicaRequirements{
+					ReplicaRequirements: (&pb.ComponentReplicaRequirements{
 						PriorityClassName: fooPriorityClassName,
-						ResourceRequest: corev1.ResourceList{
-							corev1.ResourceCPU:    *resource.NewMilliQuantity(300, resource.DecimalSI),
-							corev1.ResourceMemory: *resource.NewQuantity(500*1024, resource.DecimalSI),
-						},
-					},
+					}).MustSetResourceRequest(corev1.ResourceList{
+						corev1.ResourceCPU:    *resource.NewMilliQuantity(300, resource.DecimalSI),
+						corev1.ResourceMemory: *resource.NewQuantity(500*1024, resource.DecimalSI),
+					}),
 					Replicas: 2,
 				},
 				{
 					Name: "backend",
-					ReplicaRequirements: pb.ComponentReplicaRequirements{
+					ReplicaRequirements: (&pb.ComponentReplicaRequirements{
 						PriorityClassName: barPriorityClassName,
-						ResourceRequest: corev1.ResourceList{
-							corev1.ResourceCPU:    *resource.NewMilliQuantity(200, resource.DecimalSI),
-							corev1.ResourceMemory: *resource.NewQuantity(400*1024, resource.DecimalSI),
-						},
-					},
+					}).MustSetResourceRequest(corev1.ResourceList{
+						corev1.ResourceCPU:    *resource.NewMilliQuantity(200, resource.DecimalSI),
+						corev1.ResourceMemory: *resource.NewQuantity(400*1024, resource.DecimalSI),
+					}),
 					Replicas: 1,
 				},
 			},
@@ -940,27 +915,25 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 					},
 				},
 			},
-			components: []pb.Component{
+			components: []*pb.Component{
 				{
 					Name: "high-priority-app",
-					ReplicaRequirements: pb.ComponentReplicaRequirements{
+					ReplicaRequirements: (&pb.ComponentReplicaRequirements{
 						PriorityClassName: fooPriorityClassName,
-						ResourceRequest: corev1.ResourceList{
-							corev1.ResourceCPU:    *resource.NewMilliQuantity(300, resource.DecimalSI),
-							corev1.ResourceMemory: *resource.NewQuantity(500*1024, resource.DecimalSI),
-						},
-					},
+					}).MustSetResourceRequest(corev1.ResourceList{
+						corev1.ResourceCPU:    *resource.NewMilliQuantity(300, resource.DecimalSI),
+						corev1.ResourceMemory: *resource.NewQuantity(500*1024, resource.DecimalSI),
+					}),
 					Replicas: 1,
 				},
 				{
 					Name: "low-priority-app",
-					ReplicaRequirements: pb.ComponentReplicaRequirements{
+					ReplicaRequirements: (&pb.ComponentReplicaRequirements{
 						PriorityClassName: barPriorityClassName,
-						ResourceRequest: corev1.ResourceList{
-							corev1.ResourceCPU:    *resource.NewMilliQuantity(100, resource.DecimalSI),
-							corev1.ResourceMemory: *resource.NewQuantity(200*1024, resource.DecimalSI),
-						},
-					},
+					}).MustSetResourceRequest(corev1.ResourceList{
+						corev1.ResourceCPU:    *resource.NewMilliQuantity(100, resource.DecimalSI),
+						corev1.ResourceMemory: *resource.NewQuantity(200*1024, resource.DecimalSI),
+					}),
 					Replicas: 1,
 				},
 			},
@@ -1039,27 +1012,25 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 					},
 				},
 			},
-			components: []pb.Component{
+			components: []*pb.Component{
 				{
 					Name: "high-priority-component",
-					ReplicaRequirements: pb.ComponentReplicaRequirements{
+					ReplicaRequirements: (&pb.ComponentReplicaRequirements{
 						PriorityClassName: fooPriorityClassName,
-						ResourceRequest: corev1.ResourceList{
-							corev1.ResourceCPU:    *resource.NewMilliQuantity(600, resource.DecimalSI), // 600m per replica
-							corev1.ResourceMemory: *resource.NewQuantity(1*1024*1024, resource.DecimalSI),
-						},
-					},
+					}).MustSetResourceRequest(corev1.ResourceList{
+						corev1.ResourceCPU:    *resource.NewMilliQuantity(600, resource.DecimalSI), // 600m per replica
+						corev1.ResourceMemory: *resource.NewQuantity(1*1024*1024, resource.DecimalSI),
+					}),
 					Replicas: 1, // 600m CPU per set
 				},
 				{
 					Name: "low-priority-component",
-					ReplicaRequirements: pb.ComponentReplicaRequirements{
+					ReplicaRequirements: (&pb.ComponentReplicaRequirements{
 						PriorityClassName: barPriorityClassName,
-						ResourceRequest: corev1.ResourceList{
-							corev1.ResourceCPU:    *resource.NewMilliQuantity(500, resource.DecimalSI), // 500m per replica
-							corev1.ResourceMemory: *resource.NewQuantity(1*1024*1024, resource.DecimalSI),
-						},
-					},
+					}).MustSetResourceRequest(corev1.ResourceList{
+						corev1.ResourceCPU:    *resource.NewMilliQuantity(500, resource.DecimalSI), // 500m per replica
+						corev1.ResourceMemory: *resource.NewQuantity(1*1024*1024, resource.DecimalSI),
+					}),
 					Replicas: 1, // 500m CPU per set
 				},
 			},

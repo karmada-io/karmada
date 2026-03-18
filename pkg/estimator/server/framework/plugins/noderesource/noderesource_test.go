@@ -35,7 +35,7 @@ func TestNodeResourceEstimator_EstimateComponents(t *testing.T) {
 		enabled    bool
 		nodes      []*corev1.Node
 		pods       []*corev1.Pod
-		components []pb.Component
+		components []*pb.Component
 		expected   int32
 		wantCode   framework.Code
 	}{
@@ -49,14 +49,12 @@ func TestNodeResourceEstimator_EstimateComponents(t *testing.T) {
 					corev1.ResourcePods:   resource.MustParse("10"),
 				}),
 			},
-			components: []pb.Component{
+			components: []*pb.Component{
 				{
-					ReplicaRequirements: pb.ComponentReplicaRequirements{
-						ResourceRequest: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("1"),
-							corev1.ResourceMemory: resource.MustParse("1Gi"),
-						},
-					},
+					ReplicaRequirements: (&pb.ComponentReplicaRequirements{}).MustSetResourceRequest(corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("1"),
+						corev1.ResourceMemory: resource.MustParse("1Gi"),
+					}),
 					Replicas: 2,
 				},
 			},
@@ -73,14 +71,12 @@ func TestNodeResourceEstimator_EstimateComponents(t *testing.T) {
 					corev1.ResourcePods:   resource.MustParse("10"),
 				}),
 			},
-			components: []pb.Component{
+			components: []*pb.Component{
 				{
-					ReplicaRequirements: pb.ComponentReplicaRequirements{
-						ResourceRequest: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("1"),
-							corev1.ResourceMemory: resource.MustParse("1Gi"),
-						},
-					},
+					ReplicaRequirements: (&pb.ComponentReplicaRequirements{}).MustSetResourceRequest(corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("1"),
+						corev1.ResourceMemory: resource.MustParse("1Gi"),
+					}),
 					Replicas: 1,
 				},
 			},
@@ -97,14 +93,12 @@ func TestNodeResourceEstimator_EstimateComponents(t *testing.T) {
 					corev1.ResourcePods:   resource.MustParse("10"),
 				}),
 			},
-			components: []pb.Component{
+			components: []*pb.Component{
 				{
-					ReplicaRequirements: pb.ComponentReplicaRequirements{
-						ResourceRequest: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("1"),
-							corev1.ResourceMemory: resource.MustParse("1Gi"),
-						},
-					},
+					ReplicaRequirements: (&pb.ComponentReplicaRequirements{}).MustSetResourceRequest(corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("1"),
+						corev1.ResourceMemory: resource.MustParse("1Gi"),
+					}),
 					Replicas: 2,
 				},
 			},
@@ -121,23 +115,19 @@ func TestNodeResourceEstimator_EstimateComponents(t *testing.T) {
 					corev1.ResourcePods:   resource.MustParse("10"),
 				}),
 			},
-			components: []pb.Component{
+			components: []*pb.Component{
 				{
-					ReplicaRequirements: pb.ComponentReplicaRequirements{
-						ResourceRequest: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("2"),
-							corev1.ResourceMemory: resource.MustParse("2Gi"),
-						},
-					},
+					ReplicaRequirements: (&pb.ComponentReplicaRequirements{}).MustSetResourceRequest(corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("2"),
+						corev1.ResourceMemory: resource.MustParse("2Gi"),
+					}),
 					Replicas: 1,
 				},
 				{
-					ReplicaRequirements: pb.ComponentReplicaRequirements{
-						ResourceRequest: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("3"),
-							corev1.ResourceMemory: resource.MustParse("3Gi"),
-						},
-					},
+					ReplicaRequirements: (&pb.ComponentReplicaRequirements{}).MustSetResourceRequest(corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("3"),
+						corev1.ResourceMemory: resource.MustParse("3Gi"),
+					}),
 					Replicas: 1,
 				},
 			},
@@ -159,23 +149,19 @@ func TestNodeResourceEstimator_EstimateComponents(t *testing.T) {
 					corev1.ResourcePods:   resource.MustParse("10"),
 				}),
 			},
-			components: []pb.Component{
+			components: []*pb.Component{
 				{
-					ReplicaRequirements: pb.ComponentReplicaRequirements{
-						ResourceRequest: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("3"),
-							corev1.ResourceMemory: resource.MustParse("3Gi"),
-						},
-					},
+					ReplicaRequirements: (&pb.ComponentReplicaRequirements{}).MustSetResourceRequest(corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("3"),
+						corev1.ResourceMemory: resource.MustParse("3Gi"),
+					}),
 					Replicas: 2,
 				},
 				{
-					ReplicaRequirements: pb.ComponentReplicaRequirements{
-						ResourceRequest: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("2"),
-							corev1.ResourceMemory: resource.MustParse("2Gi"),
-						},
-					},
+					ReplicaRequirements: (&pb.ComponentReplicaRequirements{}).MustSetResourceRequest(corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("2"),
+						corev1.ResourceMemory: resource.MustParse("2Gi"),
+					}),
 					Replicas: 1,
 				},
 			},
@@ -192,14 +178,12 @@ func TestNodeResourceEstimator_EstimateComponents(t *testing.T) {
 					corev1.ResourcePods:   resource.MustParse("10"),
 				}),
 			},
-			components: []pb.Component{
+			components: []*pb.Component{
 				{
-					ReplicaRequirements: pb.ComponentReplicaRequirements{
-						ResourceRequest: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("3"),
-							corev1.ResourceMemory: resource.MustParse("3Gi"),
-						},
-					},
+					ReplicaRequirements: (&pb.ComponentReplicaRequirements{}).MustSetResourceRequest(corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("3"),
+						corev1.ResourceMemory: resource.MustParse("3Gi"),
+					}),
 					Replicas: 1,
 				},
 			},
@@ -222,14 +206,12 @@ func TestNodeResourceEstimator_EstimateComponents(t *testing.T) {
 					corev1.ResourceMemory: resource.MustParse("2Gi"),
 				}),
 			},
-			components: []pb.Component{
+			components: []*pb.Component{
 				{
-					ReplicaRequirements: pb.ComponentReplicaRequirements{
-						ResourceRequest: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("1"),
-							corev1.ResourceMemory: resource.MustParse("2Gi"),
-						},
-					},
+					ReplicaRequirements: (&pb.ComponentReplicaRequirements{}).MustSetResourceRequest(corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("1"),
+						corev1.ResourceMemory: resource.MustParse("2Gi"),
+					}),
 					Replicas: 1,
 				},
 			},
@@ -251,29 +233,26 @@ func TestNodeResourceEstimator_EstimateComponents(t *testing.T) {
 					corev1.ResourcePods:   resource.MustParse("10"),
 				}),
 			},
-			components: []pb.Component{
+			components: []*pb.Component{
 				{
-					ReplicaRequirements: pb.ComponentReplicaRequirements{
-						ResourceRequest: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("1"),
-							corev1.ResourceMemory: resource.MustParse("1Gi"),
-						},
-						NodeClaim: &pb.NodeClaim{
-							NodeAffinity: &corev1.NodeSelector{
-								NodeSelectorTerms: []corev1.NodeSelectorTerm{
-									{
-										MatchExpressions: []corev1.NodeSelectorRequirement{
-											{
-												Key:      "zone",
-												Operator: corev1.NodeSelectorOpIn,
-												Values:   []string{"us-west"},
-											},
+					ReplicaRequirements: (&pb.ComponentReplicaRequirements{
+						NodeClaim: (&pb.NodeClaim{}).MustSetNodeAffinity(&corev1.NodeSelector{
+							NodeSelectorTerms: []corev1.NodeSelectorTerm{
+								{
+									MatchExpressions: []corev1.NodeSelectorRequirement{
+										{
+											Key:      "zone",
+											Operator: corev1.NodeSelectorOpIn,
+											Values:   []string{"us-west"},
 										},
 									},
 								},
 							},
-						},
-					},
+						}),
+					}).MustSetResourceRequest(corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("1"),
+						corev1.ResourceMemory: resource.MustParse("1Gi"),
+					}),
 					Replicas: 1,
 				},
 			},
@@ -295,29 +274,26 @@ func TestNodeResourceEstimator_EstimateComponents(t *testing.T) {
 					corev1.ResourcePods:   resource.MustParse("10"),
 				}),
 			},
-			components: []pb.Component{
+			components: []*pb.Component{
 				{
-					ReplicaRequirements: pb.ComponentReplicaRequirements{
-						ResourceRequest: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("1"),
-							corev1.ResourceMemory: resource.MustParse("1Gi"),
-						},
-						NodeClaim: &pb.NodeClaim{
-							NodeAffinity: &corev1.NodeSelector{
-								NodeSelectorTerms: []corev1.NodeSelectorTerm{
-									{
-										MatchExpressions: []corev1.NodeSelectorRequirement{
-											{
-												Key:      "zone",
-												Operator: corev1.NodeSelectorOpIn,
-												Values:   []string{"us-south"},
-											},
+					ReplicaRequirements: (&pb.ComponentReplicaRequirements{
+						NodeClaim: (&pb.NodeClaim{}).MustSetNodeAffinity(&corev1.NodeSelector{
+							NodeSelectorTerms: []corev1.NodeSelectorTerm{
+								{
+									MatchExpressions: []corev1.NodeSelectorRequirement{
+										{
+											Key:      "zone",
+											Operator: corev1.NodeSelectorOpIn,
+											Values:   []string{"us-south"},
 										},
 									},
 								},
 							},
-						},
-					},
+						}),
+					}).MustSetResourceRequest(corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("1"),
+						corev1.ResourceMemory: resource.MustParse("1Gi"),
+					}),
 					Replicas: 4,
 				},
 			},
@@ -334,7 +310,7 @@ func TestNodeResourceEstimator_EstimateComponents(t *testing.T) {
 					corev1.ResourcePods:   resource.MustParse("10"),
 				}),
 			},
-			components: []pb.Component{},
+			components: []*pb.Component{},
 			expected:   noNodeConstraint,
 			wantCode:   framework.Noopperation,
 		},

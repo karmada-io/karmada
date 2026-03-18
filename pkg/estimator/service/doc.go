@@ -16,5 +16,5 @@ limitations under the License.
 
 package service
 
-//go:generate protoc --gogo_opt=paths=source_relative -I . -I ../../.. -I ../../../vendor --gogo_out=plugins=grpc:. --gogo_opt=Mpkg/estimator/pb/generated.proto=github.com/karmada-io/karmada/pkg/estimator/pb service.proto
+//go:generate protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative -I . -I ../../.. -I ../../../vendor service.proto
 //go:generate mockery --config=mockery.yaml

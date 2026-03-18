@@ -70,9 +70,7 @@ func TestAccurateSchedulerEstimatorServer_MaxAvailableReplicas(t *testing.T) {
 			args: args{
 				request: &pb.MaxAvailableReplicasRequest{
 					Cluster: "fake",
-					ReplicaRequirements: pb.ReplicaRequirements{
-						ResourceRequest: testhelper.NewResourceList(1*testhelper.ResourceUnitCPU, 2*testhelper.ResourceUnitMem, testhelper.ResourceUnitZero),
-					},
+					ReplicaRequirements: (&pb.ReplicaRequirements{}).MustSetResourceRequest(testhelper.NewResourceList(1*testhelper.ResourceUnitCPU, 2*testhelper.ResourceUnitMem, testhelper.ResourceUnitZero)),
 				},
 			},
 			wantResponse: &pb.MaxAvailableReplicasResponse{
@@ -99,9 +97,7 @@ func TestAccurateSchedulerEstimatorServer_MaxAvailableReplicas(t *testing.T) {
 			args: args{
 				request: &pb.MaxAvailableReplicasRequest{
 					Cluster: "fake",
-					ReplicaRequirements: pb.ReplicaRequirements{
-						ResourceRequest: testhelper.NewResourceList(1*testhelper.ResourceUnitCPU, 2*testhelper.ResourceUnitMem, testhelper.ResourceUnitZero),
-					},
+					ReplicaRequirements: (&pb.ReplicaRequirements{}).MustSetResourceRequest(testhelper.NewResourceList(1*testhelper.ResourceUnitCPU, 2*testhelper.ResourceUnitMem, testhelper.ResourceUnitZero)),
 				},
 			},
 			wantResponse: &pb.MaxAvailableReplicasResponse{
@@ -128,14 +124,13 @@ func TestAccurateSchedulerEstimatorServer_MaxAvailableReplicas(t *testing.T) {
 			args: args{
 				request: &pb.MaxAvailableReplicasRequest{
 					Cluster: "fake",
-					ReplicaRequirements: pb.ReplicaRequirements{
+					ReplicaRequirements: (&pb.ReplicaRequirements{
 						NodeClaim: &pb.NodeClaim{
 							NodeSelector: map[string]string{
 								"a": "3",
 							},
 						},
-						ResourceRequest: testhelper.NewResourceList(1*testhelper.ResourceUnitCPU, 2*testhelper.ResourceUnitMem, testhelper.ResourceUnitZero),
-					},
+					}).MustSetResourceRequest(testhelper.NewResourceList(1*testhelper.ResourceUnitCPU, 2*testhelper.ResourceUnitMem, testhelper.ResourceUnitZero)),
 				},
 			},
 			wantResponse: &pb.MaxAvailableReplicasResponse{
@@ -162,24 +157,21 @@ func TestAccurateSchedulerEstimatorServer_MaxAvailableReplicas(t *testing.T) {
 			args: args{
 				request: &pb.MaxAvailableReplicasRequest{
 					Cluster: "fake",
-					ReplicaRequirements: pb.ReplicaRequirements{
-						NodeClaim: &pb.NodeClaim{
-							NodeAffinity: &corev1.NodeSelector{
-								NodeSelectorTerms: []corev1.NodeSelectorTerm{
-									{
-										MatchExpressions: []corev1.NodeSelectorRequirement{
-											{
-												Key:      "a",
-												Operator: corev1.NodeSelectorOpGt,
-												Values:   []string{"0"},
-											},
+					ReplicaRequirements: (&pb.ReplicaRequirements{
+						NodeClaim: (&pb.NodeClaim{}).MustSetNodeAffinity(&corev1.NodeSelector{
+							NodeSelectorTerms: []corev1.NodeSelectorTerm{
+								{
+									MatchExpressions: []corev1.NodeSelectorRequirement{
+										{
+											Key:      "a",
+											Operator: corev1.NodeSelectorOpGt,
+											Values:   []string{"0"},
 										},
 									},
 								},
 							},
-						},
-						ResourceRequest: testhelper.NewResourceList(1*testhelper.ResourceUnitCPU, 2*testhelper.ResourceUnitMem, testhelper.ResourceUnitZero),
-					},
+						}),
+					}).MustSetResourceRequest(testhelper.NewResourceList(1*testhelper.ResourceUnitCPU, 2*testhelper.ResourceUnitMem, testhelper.ResourceUnitZero)),
 				},
 			},
 			wantResponse: &pb.MaxAvailableReplicasResponse{
@@ -206,14 +198,11 @@ func TestAccurateSchedulerEstimatorServer_MaxAvailableReplicas(t *testing.T) {
 			args: args{
 				request: &pb.MaxAvailableReplicasRequest{
 					Cluster: "fake",
-					ReplicaRequirements: pb.ReplicaRequirements{
-						NodeClaim: &pb.NodeClaim{
-							Tolerations: []corev1.Toleration{
-								{Key: "key1", Operator: corev1.TolerationOpEqual, Value: "value1"},
-							},
-						},
-						ResourceRequest: testhelper.NewResourceList(1*testhelper.ResourceUnitCPU, 2*testhelper.ResourceUnitMem, testhelper.ResourceUnitZero),
-					},
+					ReplicaRequirements: (&pb.ReplicaRequirements{
+						NodeClaim: (&pb.NodeClaim{}).MustSetTolerations([]corev1.Toleration{
+							{Key: "key1", Operator: corev1.TolerationOpEqual, Value: "value1"},
+						}),
+					}).MustSetResourceRequest(testhelper.NewResourceList(1*testhelper.ResourceUnitCPU, 2*testhelper.ResourceUnitMem, testhelper.ResourceUnitZero)),
 				},
 			},
 			wantResponse: &pb.MaxAvailableReplicasResponse{
@@ -285,9 +274,7 @@ func BenchmarkAccurateSchedulerEstimatorServer_MaxAvailableReplicas(b *testing.B
 			args: args{
 				request: &pb.MaxAvailableReplicasRequest{
 					Cluster: "fake",
-					ReplicaRequirements: pb.ReplicaRequirements{
-						ResourceRequest: testhelper.NewResourceList(1*testhelper.ResourceUnitCPU, 2*testhelper.ResourceUnitMem, testhelper.ResourceUnitZero),
-					},
+					ReplicaRequirements: (&pb.ReplicaRequirements{}).MustSetResourceRequest(testhelper.NewResourceList(1*testhelper.ResourceUnitCPU, 2*testhelper.ResourceUnitMem, testhelper.ResourceUnitZero)),
 				},
 			},
 		},
@@ -301,9 +288,7 @@ func BenchmarkAccurateSchedulerEstimatorServer_MaxAvailableReplicas(b *testing.B
 			args: args{
 				request: &pb.MaxAvailableReplicasRequest{
 					Cluster: "fake",
-					ReplicaRequirements: pb.ReplicaRequirements{
-						ResourceRequest: testhelper.NewResourceList(1*testhelper.ResourceUnitCPU, 2*testhelper.ResourceUnitMem, testhelper.ResourceUnitZero),
-					},
+					ReplicaRequirements: (&pb.ReplicaRequirements{}).MustSetResourceRequest(testhelper.NewResourceList(1*testhelper.ResourceUnitCPU, 2*testhelper.ResourceUnitMem, testhelper.ResourceUnitZero)),
 				},
 			},
 		},
@@ -317,14 +302,11 @@ func BenchmarkAccurateSchedulerEstimatorServer_MaxAvailableReplicas(b *testing.B
 			args: args{
 				request: &pb.MaxAvailableReplicasRequest{
 					Cluster: "fake",
-					ReplicaRequirements: pb.ReplicaRequirements{
-						NodeClaim: &pb.NodeClaim{
-							Tolerations: []corev1.Toleration{
-								{Key: "key1", Operator: corev1.TolerationOpEqual, Value: "value1"},
-							},
-						},
-						ResourceRequest: testhelper.NewResourceList(1*testhelper.ResourceUnitCPU, 2*testhelper.ResourceUnitMem, testhelper.ResourceUnitZero),
-					},
+					ReplicaRequirements: (&pb.ReplicaRequirements{
+						NodeClaim: (&pb.NodeClaim{}).MustSetTolerations([]corev1.Toleration{
+							{Key: "key1", Operator: corev1.TolerationOpEqual, Value: "value1"},
+						}),
+					}).MustSetResourceRequest(testhelper.NewResourceList(1*testhelper.ResourceUnitCPU, 2*testhelper.ResourceUnitMem, testhelper.ResourceUnitZero)),
 				},
 			},
 		},
@@ -338,27 +320,23 @@ func BenchmarkAccurateSchedulerEstimatorServer_MaxAvailableReplicas(b *testing.B
 			args: args{
 				request: &pb.MaxAvailableReplicasRequest{
 					Cluster: "fake",
-					ReplicaRequirements: pb.ReplicaRequirements{
-						NodeClaim: &pb.NodeClaim{
-							NodeAffinity: &corev1.NodeSelector{
-								NodeSelectorTerms: []corev1.NodeSelectorTerm{
-									{
-										MatchExpressions: []corev1.NodeSelectorRequirement{
-											{
-												Key:      "a",
-												Operator: corev1.NodeSelectorOpGt,
-												Values:   []string{"0"},
-											},
+					ReplicaRequirements: (&pb.ReplicaRequirements{
+						NodeClaim: (&pb.NodeClaim{}).MustSetNodeAffinity(&corev1.NodeSelector{
+							NodeSelectorTerms: []corev1.NodeSelectorTerm{
+								{
+									MatchExpressions: []corev1.NodeSelectorRequirement{
+										{
+											Key:      "a",
+											Operator: corev1.NodeSelectorOpGt,
+											Values:   []string{"0"},
 										},
 									},
 								},
 							},
-							Tolerations: []corev1.Toleration{
-								{Key: "key1", Operator: corev1.TolerationOpEqual, Value: "value1"},
-							},
-						},
-						ResourceRequest: testhelper.NewResourceList(1*testhelper.ResourceUnitCPU, 2*testhelper.ResourceUnitMem, testhelper.ResourceUnitZero),
-					},
+						}).MustSetTolerations([]corev1.Toleration{
+							{Key: "key1", Operator: corev1.TolerationOpEqual, Value: "value1"},
+						}),
+					}).MustSetResourceRequest(testhelper.NewResourceList(1*testhelper.ResourceUnitCPU, 2*testhelper.ResourceUnitMem, testhelper.ResourceUnitZero)),
 				},
 			},
 		},

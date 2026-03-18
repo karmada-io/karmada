@@ -37,12 +37,13 @@ func GetRequiredNodeAffinity(requirements pb.ReplicaRequirements) nodeaffinity.R
 	if requirements.NodeClaim == nil {
 		return nodeaffinity.RequiredNodeAffinity{}
 	}
+	nodeAffinity, _ := requirements.NodeClaim.UnmarshalNodeAffinity()
 	pod := &corev1.Pod{
 		Spec: corev1.PodSpec{
 			NodeSelector: requirements.NodeClaim.NodeSelector,
 			Affinity: &corev1.Affinity{
 				NodeAffinity: &corev1.NodeAffinity{
-					RequiredDuringSchedulingIgnoredDuringExecution: requirements.NodeClaim.NodeAffinity,
+					RequiredDuringSchedulingIgnoredDuringExecution: nodeAffinity,
 				},
 			},
 		},

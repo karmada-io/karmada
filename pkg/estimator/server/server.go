@@ -73,6 +73,7 @@ var (
 // AccurateSchedulerEstimatorServer is the gRPC server of a cluster accurate scheduler estimator.
 // Please see https://github.com/karmada-io/karmada/pull/580 (#580).
 type AccurateSchedulerEstimatorServer struct {
+	estimatorservice.UnimplementedEstimatorServer
 	clusterName       string
 	kubeClient        kubernetes.Interface
 	restMapper        meta.RESTMapper
@@ -288,7 +289,7 @@ func (es *AccurateSchedulerEstimatorServer) GetUnschedulableReplicas(ctx context
 
 	// Get the workload.
 	startTime := time.Now()
-	gvk := schema.FromAPIVersionAndKind(request.Resource.APIVersion, request.Resource.Kind)
+	gvk := schema.FromAPIVersionAndKind(request.Resource.ApiVersion, request.Resource.Kind)
 	unstructObj, err := helper.GetObjectFromSingleClusterCache(es.restMapper, es.informerManager, &keys.ClusterWideKey{
 		Group:     gvk.Group,
 		Version:   gvk.Version,
@@ -303,7 +304,7 @@ func (es *AccurateSchedulerEstimatorServer) GetUnschedulableReplicas(ctx context
 
 	// List all unschedulable replicas.
 	startTime = time.Now()
-	unschedulables, err := replica.GetUnschedulablePodsOfWorkload(unstructObj, request.UnschedulableThreshold, es.replicaLister)
+	unschedulables, err := replica.GetUnschedulablePodsOfWorkload(unstructObj, time.Duration(request.UnschedulableThreshold), es.replicaLister)
 	metrics.UpdateEstimatingAlgorithmLatency(err, metrics.EstimatingTypeGetUnschedulableReplicas, metrics.EstimatingStepGetUnschedulablePodsOfWorkload, startTime)
 	if err != nil {
 		return nil, err
