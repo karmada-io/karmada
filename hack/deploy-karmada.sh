@@ -201,10 +201,12 @@ function deploy_karmada_component() {
   util::wait_pod_ready "${HOST_CLUSTER_NAME}" "${wait_label}" "${KARMADA_SYSTEM_NAMESPACE}"
 }
 
-# Use x.x.x.8 IP address, which is the same CIDR with the node address of the Kind cluster,
-# as the loadBalancer service address of component karmada-interpreter-webhook-example.
-interpreter_webhook_example_service_external_ip_prefix=$(echo $(util::get_apiserver_ip_from_kubeconfig "${HOST_CLUSTER_NAME}") | awk -F. '{printf "%s.%s.%s",$1,$2,$3}')
-interpreter_webhook_example_service_external_ip_address=${interpreter_webhook_example_service_external_ip_prefix}.8
+# Use an address from the Docker network of the host kind cluster so pull members can
+# reach the interpreter webhook even when kubeconfig endpoints are host-facing.
+interpreter_webhook_example_service_external_ip_address=""
+if [[ "${HOST_CLUSTER_TYPE:-local}" == "local" ]]; then
+  interpreter_webhook_example_service_external_ip_address=$(util::get_kind_cluster_loadbalancer_ip "${HOST_CLUSTER_NAME}")
+fi
 
 # generate cert
 util::cmd_must_exist "openssl"
@@ -212,7 +214,10 @@ util::cmd_must_exist_cfssl ${CFSSL_VERSION}
 # create CA signers
 util::create_signing_certkey "" "${CERT_DIR}" ca karmada '"client auth","server auth"'
 
-karmadaAltNames=("*.karmada-system.svc.cluster.local" "*.karmada-system.svc" "localhost" "127.0.0.1" $(util::get_apiserver_ip_from_kubeconfig "${HOST_CLUSTER_NAME}") "${interpreter_webhook_example_service_external_ip_address}")
+karmadaAltNames=("*.karmada-system.svc.cluster.local" "*.karmada-system.svc" "localhost" "127.0.0.1" $(util::get_apiserver_ip_from_kubeconfig "${HOST_CLUSTER_NAME}"))
+if [[ -n "${interpreter_webhook_example_service_external_ip_address}" ]]; then
+  karmadaAltNames+=("${interpreter_webhook_example_service_external_ip_address}")
+fi
 # Define SAN names for each server component
 karmada_apiserver_alt_names=("karmada-apiserver.karmada-system.svc.cluster.local" "karmada-apiserver.karmada-system.svc" "localhost" "127.0.0.1" $(util::get_apiserver_ip_from_kubeconfig "${HOST_CLUSTER_NAME}"))
 karmada_aggregated_apiserver_alt_names=("karmada-aggregated-apiserver.karmada-system.svc.cluster.local" "karmada-aggregated-apiserver.karmada-system.svc" "localhost" "127.0.0.1")

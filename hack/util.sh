@@ -522,6 +522,20 @@ function util::get_docker_native_ipaddress(){
   docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${container_name}"
 }
 
+# util::get_kind_cluster_loadbalancer_ip returns a load balancer IP that stays on the
+# Docker network of the kind cluster. This is required for cross-cluster traffic,
+# because kubeconfig endpoints on WSL2/macOS may be rewritten to host-facing addresses.
+function util::get_kind_cluster_loadbalancer_ip(){
+  local context_name=$1
+  local docker_native_ip
+  docker_native_ip=$(util::get_docker_native_ipaddress "${context_name}-control-plane")
+  if [[ -z "${docker_native_ip}" ]]; then
+    echo "ERROR: Failed to get docker native IP for ${context_name}-control-plane" >&2
+    return 1
+  fi
+  echo "${docker_native_ip%.*}.8"
+}
+
 # This function returns the IP address and port of a specific docker instance's host IP
 # Parameters:
 #  - $1: docker instance name
