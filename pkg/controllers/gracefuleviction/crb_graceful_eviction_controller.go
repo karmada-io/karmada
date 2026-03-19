@@ -88,7 +88,7 @@ func (c *CRBGracefulEvictionController) syncBinding(ctx context.Context, binding
 		return nextRetry(keptTask, c.GracefulEvictionTimeout, metav1.Now().Time), nil
 	}
 
-	objPatch := client.MergeFrom(binding)
+	objPatch := client.MergeFromWithOptions(binding, client.MergeFromWithOptimisticLock{})
 	modifiedObj := binding.DeepCopy()
 	modifiedObj.Spec.GracefulEvictionTasks = keptTask
 	err := c.Client.Patch(ctx, modifiedObj, objPatch)
