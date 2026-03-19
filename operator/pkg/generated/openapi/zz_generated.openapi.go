@@ -22,310 +22,3124 @@ limitations under the License.
 package openapi
 
 import (
-	v1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/admissionregistration/v1"
+	v2 "k8s.io/api/autoscaling/v2"
+	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	resource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
-	intstr "k8s.io/apimachinery/pkg/util/intstr"
 	version "k8s.io/apimachinery/pkg/version"
 	common "k8s.io/kube-openapi/pkg/common"
 	spec "k8s.io/kube-openapi/pkg/validation/spec"
+	v1beta1 "k8s.io/metrics/pkg/apis/custom_metrics/v1beta1"
+	v1beta2 "k8s.io/metrics/pkg/apis/custom_metrics/v1beta2"
+	externalmetricsv1beta1 "k8s.io/metrics/pkg/apis/external_metrics/v1beta1"
+	metricsv1beta1 "k8s.io/metrics/pkg/apis/metrics/v1beta1"
 )
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		v1.AWSElasticBlockStoreVolumeSource{}.OpenAPIModelName():  schema_k8sio_api_core_v1_AWSElasticBlockStoreVolumeSource(ref),
-		v1.Affinity{}.OpenAPIModelName():                          schema_k8sio_api_core_v1_Affinity(ref),
-		v1.AppArmorProfile{}.OpenAPIModelName():                   schema_k8sio_api_core_v1_AppArmorProfile(ref),
-		v1.AttachedVolume{}.OpenAPIModelName():                    schema_k8sio_api_core_v1_AttachedVolume(ref),
-		v1.AvoidPods{}.OpenAPIModelName():                         schema_k8sio_api_core_v1_AvoidPods(ref),
-		v1.AzureDiskVolumeSource{}.OpenAPIModelName():             schema_k8sio_api_core_v1_AzureDiskVolumeSource(ref),
-		v1.AzureFilePersistentVolumeSource{}.OpenAPIModelName():   schema_k8sio_api_core_v1_AzureFilePersistentVolumeSource(ref),
-		v1.AzureFileVolumeSource{}.OpenAPIModelName():             schema_k8sio_api_core_v1_AzureFileVolumeSource(ref),
-		v1.Binding{}.OpenAPIModelName():                           schema_k8sio_api_core_v1_Binding(ref),
-		v1.CSIPersistentVolumeSource{}.OpenAPIModelName():         schema_k8sio_api_core_v1_CSIPersistentVolumeSource(ref),
-		v1.CSIVolumeSource{}.OpenAPIModelName():                   schema_k8sio_api_core_v1_CSIVolumeSource(ref),
-		v1.Capabilities{}.OpenAPIModelName():                      schema_k8sio_api_core_v1_Capabilities(ref),
-		v1.CephFSPersistentVolumeSource{}.OpenAPIModelName():      schema_k8sio_api_core_v1_CephFSPersistentVolumeSource(ref),
-		v1.CephFSVolumeSource{}.OpenAPIModelName():                schema_k8sio_api_core_v1_CephFSVolumeSource(ref),
-		v1.CinderPersistentVolumeSource{}.OpenAPIModelName():      schema_k8sio_api_core_v1_CinderPersistentVolumeSource(ref),
-		v1.CinderVolumeSource{}.OpenAPIModelName():                schema_k8sio_api_core_v1_CinderVolumeSource(ref),
-		v1.ClientIPConfig{}.OpenAPIModelName():                    schema_k8sio_api_core_v1_ClientIPConfig(ref),
-		v1.ClusterTrustBundleProjection{}.OpenAPIModelName():      schema_k8sio_api_core_v1_ClusterTrustBundleProjection(ref),
-		v1.ComponentCondition{}.OpenAPIModelName():                schema_k8sio_api_core_v1_ComponentCondition(ref),
-		v1.ComponentStatus{}.OpenAPIModelName():                   schema_k8sio_api_core_v1_ComponentStatus(ref),
-		v1.ComponentStatusList{}.OpenAPIModelName():               schema_k8sio_api_core_v1_ComponentStatusList(ref),
-		v1.ConfigMap{}.OpenAPIModelName():                         schema_k8sio_api_core_v1_ConfigMap(ref),
-		v1.ConfigMapEnvSource{}.OpenAPIModelName():                schema_k8sio_api_core_v1_ConfigMapEnvSource(ref),
-		v1.ConfigMapKeySelector{}.OpenAPIModelName():              schema_k8sio_api_core_v1_ConfigMapKeySelector(ref),
-		v1.ConfigMapList{}.OpenAPIModelName():                     schema_k8sio_api_core_v1_ConfigMapList(ref),
-		v1.ConfigMapNodeConfigSource{}.OpenAPIModelName():         schema_k8sio_api_core_v1_ConfigMapNodeConfigSource(ref),
-		v1.ConfigMapProjection{}.OpenAPIModelName():               schema_k8sio_api_core_v1_ConfigMapProjection(ref),
-		v1.ConfigMapVolumeSource{}.OpenAPIModelName():             schema_k8sio_api_core_v1_ConfigMapVolumeSource(ref),
-		v1.Container{}.OpenAPIModelName():                         schema_k8sio_api_core_v1_Container(ref),
-		v1.ContainerExtendedResourceRequest{}.OpenAPIModelName():  schema_k8sio_api_core_v1_ContainerExtendedResourceRequest(ref),
-		v1.ContainerImage{}.OpenAPIModelName():                    schema_k8sio_api_core_v1_ContainerImage(ref),
-		v1.ContainerPort{}.OpenAPIModelName():                     schema_k8sio_api_core_v1_ContainerPort(ref),
-		v1.ContainerResizePolicy{}.OpenAPIModelName():             schema_k8sio_api_core_v1_ContainerResizePolicy(ref),
-		v1.ContainerRestartRule{}.OpenAPIModelName():              schema_k8sio_api_core_v1_ContainerRestartRule(ref),
-		v1.ContainerRestartRuleOnExitCodes{}.OpenAPIModelName():   schema_k8sio_api_core_v1_ContainerRestartRuleOnExitCodes(ref),
-		v1.ContainerState{}.OpenAPIModelName():                    schema_k8sio_api_core_v1_ContainerState(ref),
-		v1.ContainerStateRunning{}.OpenAPIModelName():             schema_k8sio_api_core_v1_ContainerStateRunning(ref),
-		v1.ContainerStateTerminated{}.OpenAPIModelName():          schema_k8sio_api_core_v1_ContainerStateTerminated(ref),
-		v1.ContainerStateWaiting{}.OpenAPIModelName():             schema_k8sio_api_core_v1_ContainerStateWaiting(ref),
-		v1.ContainerStatus{}.OpenAPIModelName():                   schema_k8sio_api_core_v1_ContainerStatus(ref),
-		v1.ContainerUser{}.OpenAPIModelName():                     schema_k8sio_api_core_v1_ContainerUser(ref),
-		v1.DaemonEndpoint{}.OpenAPIModelName():                    schema_k8sio_api_core_v1_DaemonEndpoint(ref),
-		v1.DownwardAPIProjection{}.OpenAPIModelName():             schema_k8sio_api_core_v1_DownwardAPIProjection(ref),
-		v1.DownwardAPIVolumeFile{}.OpenAPIModelName():             schema_k8sio_api_core_v1_DownwardAPIVolumeFile(ref),
-		v1.DownwardAPIVolumeSource{}.OpenAPIModelName():           schema_k8sio_api_core_v1_DownwardAPIVolumeSource(ref),
-		v1.EmptyDirVolumeSource{}.OpenAPIModelName():              schema_k8sio_api_core_v1_EmptyDirVolumeSource(ref),
-		v1.EndpointAddress{}.OpenAPIModelName():                   schema_k8sio_api_core_v1_EndpointAddress(ref),
-		v1.EndpointPort{}.OpenAPIModelName():                      schema_k8sio_api_core_v1_EndpointPort(ref),
-		v1.EndpointSubset{}.OpenAPIModelName():                    schema_k8sio_api_core_v1_EndpointSubset(ref),
-		v1.Endpoints{}.OpenAPIModelName():                         schema_k8sio_api_core_v1_Endpoints(ref),
-		v1.EndpointsList{}.OpenAPIModelName():                     schema_k8sio_api_core_v1_EndpointsList(ref),
-		v1.EnvFromSource{}.OpenAPIModelName():                     schema_k8sio_api_core_v1_EnvFromSource(ref),
-		v1.EnvVar{}.OpenAPIModelName():                            schema_k8sio_api_core_v1_EnvVar(ref),
-		v1.EnvVarSource{}.OpenAPIModelName():                      schema_k8sio_api_core_v1_EnvVarSource(ref),
-		v1.EphemeralContainer{}.OpenAPIModelName():                schema_k8sio_api_core_v1_EphemeralContainer(ref),
-		v1.EphemeralContainerCommon{}.OpenAPIModelName():          schema_k8sio_api_core_v1_EphemeralContainerCommon(ref),
-		v1.EphemeralVolumeSource{}.OpenAPIModelName():             schema_k8sio_api_core_v1_EphemeralVolumeSource(ref),
-		v1.Event{}.OpenAPIModelName():                             schema_k8sio_api_core_v1_Event(ref),
-		v1.EventList{}.OpenAPIModelName():                         schema_k8sio_api_core_v1_EventList(ref),
-		v1.EventSeries{}.OpenAPIModelName():                       schema_k8sio_api_core_v1_EventSeries(ref),
-		v1.EventSource{}.OpenAPIModelName():                       schema_k8sio_api_core_v1_EventSource(ref),
-		v1.ExecAction{}.OpenAPIModelName():                        schema_k8sio_api_core_v1_ExecAction(ref),
-		v1.FCVolumeSource{}.OpenAPIModelName():                    schema_k8sio_api_core_v1_FCVolumeSource(ref),
-		v1.FileKeySelector{}.OpenAPIModelName():                   schema_k8sio_api_core_v1_FileKeySelector(ref),
-		v1.FlexPersistentVolumeSource{}.OpenAPIModelName():        schema_k8sio_api_core_v1_FlexPersistentVolumeSource(ref),
-		v1.FlexVolumeSource{}.OpenAPIModelName():                  schema_k8sio_api_core_v1_FlexVolumeSource(ref),
-		v1.FlockerVolumeSource{}.OpenAPIModelName():               schema_k8sio_api_core_v1_FlockerVolumeSource(ref),
-		v1.GCEPersistentDiskVolumeSource{}.OpenAPIModelName():     schema_k8sio_api_core_v1_GCEPersistentDiskVolumeSource(ref),
-		v1.GRPCAction{}.OpenAPIModelName():                        schema_k8sio_api_core_v1_GRPCAction(ref),
-		v1.GitRepoVolumeSource{}.OpenAPIModelName():               schema_k8sio_api_core_v1_GitRepoVolumeSource(ref),
-		v1.GlusterfsPersistentVolumeSource{}.OpenAPIModelName():   schema_k8sio_api_core_v1_GlusterfsPersistentVolumeSource(ref),
-		v1.GlusterfsVolumeSource{}.OpenAPIModelName():             schema_k8sio_api_core_v1_GlusterfsVolumeSource(ref),
-		v1.HTTPGetAction{}.OpenAPIModelName():                     schema_k8sio_api_core_v1_HTTPGetAction(ref),
-		v1.HTTPHeader{}.OpenAPIModelName():                        schema_k8sio_api_core_v1_HTTPHeader(ref),
-		v1.HostAlias{}.OpenAPIModelName():                         schema_k8sio_api_core_v1_HostAlias(ref),
-		v1.HostIP{}.OpenAPIModelName():                            schema_k8sio_api_core_v1_HostIP(ref),
-		v1.HostPathVolumeSource{}.OpenAPIModelName():              schema_k8sio_api_core_v1_HostPathVolumeSource(ref),
-		v1.ISCSIPersistentVolumeSource{}.OpenAPIModelName():       schema_k8sio_api_core_v1_ISCSIPersistentVolumeSource(ref),
-		v1.ISCSIVolumeSource{}.OpenAPIModelName():                 schema_k8sio_api_core_v1_ISCSIVolumeSource(ref),
-		v1.ImageVolumeSource{}.OpenAPIModelName():                 schema_k8sio_api_core_v1_ImageVolumeSource(ref),
-		v1.KeyToPath{}.OpenAPIModelName():                         schema_k8sio_api_core_v1_KeyToPath(ref),
-		v1.Lifecycle{}.OpenAPIModelName():                         schema_k8sio_api_core_v1_Lifecycle(ref),
-		v1.LifecycleHandler{}.OpenAPIModelName():                  schema_k8sio_api_core_v1_LifecycleHandler(ref),
-		v1.LimitRange{}.OpenAPIModelName():                        schema_k8sio_api_core_v1_LimitRange(ref),
-		v1.LimitRangeItem{}.OpenAPIModelName():                    schema_k8sio_api_core_v1_LimitRangeItem(ref),
-		v1.LimitRangeList{}.OpenAPIModelName():                    schema_k8sio_api_core_v1_LimitRangeList(ref),
-		v1.LimitRangeSpec{}.OpenAPIModelName():                    schema_k8sio_api_core_v1_LimitRangeSpec(ref),
-		v1.LinuxContainerUser{}.OpenAPIModelName():                schema_k8sio_api_core_v1_LinuxContainerUser(ref),
-		v1.List{}.OpenAPIModelName():                              schema_k8sio_api_core_v1_List(ref),
-		v1.LoadBalancerIngress{}.OpenAPIModelName():               schema_k8sio_api_core_v1_LoadBalancerIngress(ref),
-		v1.LoadBalancerStatus{}.OpenAPIModelName():                schema_k8sio_api_core_v1_LoadBalancerStatus(ref),
-		v1.LocalObjectReference{}.OpenAPIModelName():              schema_k8sio_api_core_v1_LocalObjectReference(ref),
-		v1.LocalVolumeSource{}.OpenAPIModelName():                 schema_k8sio_api_core_v1_LocalVolumeSource(ref),
-		v1.ModifyVolumeStatus{}.OpenAPIModelName():                schema_k8sio_api_core_v1_ModifyVolumeStatus(ref),
-		v1.NFSVolumeSource{}.OpenAPIModelName():                   schema_k8sio_api_core_v1_NFSVolumeSource(ref),
-		v1.Namespace{}.OpenAPIModelName():                         schema_k8sio_api_core_v1_Namespace(ref),
-		v1.NamespaceCondition{}.OpenAPIModelName():                schema_k8sio_api_core_v1_NamespaceCondition(ref),
-		v1.NamespaceList{}.OpenAPIModelName():                     schema_k8sio_api_core_v1_NamespaceList(ref),
-		v1.NamespaceSpec{}.OpenAPIModelName():                     schema_k8sio_api_core_v1_NamespaceSpec(ref),
-		v1.NamespaceStatus{}.OpenAPIModelName():                   schema_k8sio_api_core_v1_NamespaceStatus(ref),
-		v1.Node{}.OpenAPIModelName():                              schema_k8sio_api_core_v1_Node(ref),
-		v1.NodeAddress{}.OpenAPIModelName():                       schema_k8sio_api_core_v1_NodeAddress(ref),
-		v1.NodeAffinity{}.OpenAPIModelName():                      schema_k8sio_api_core_v1_NodeAffinity(ref),
-		v1.NodeCondition{}.OpenAPIModelName():                     schema_k8sio_api_core_v1_NodeCondition(ref),
-		v1.NodeConfigSource{}.OpenAPIModelName():                  schema_k8sio_api_core_v1_NodeConfigSource(ref),
-		v1.NodeConfigStatus{}.OpenAPIModelName():                  schema_k8sio_api_core_v1_NodeConfigStatus(ref),
-		v1.NodeDaemonEndpoints{}.OpenAPIModelName():               schema_k8sio_api_core_v1_NodeDaemonEndpoints(ref),
-		v1.NodeFeatures{}.OpenAPIModelName():                      schema_k8sio_api_core_v1_NodeFeatures(ref),
-		v1.NodeList{}.OpenAPIModelName():                          schema_k8sio_api_core_v1_NodeList(ref),
-		v1.NodeProxyOptions{}.OpenAPIModelName():                  schema_k8sio_api_core_v1_NodeProxyOptions(ref),
-		v1.NodeRuntimeHandler{}.OpenAPIModelName():                schema_k8sio_api_core_v1_NodeRuntimeHandler(ref),
-		v1.NodeRuntimeHandlerFeatures{}.OpenAPIModelName():        schema_k8sio_api_core_v1_NodeRuntimeHandlerFeatures(ref),
-		v1.NodeSelector{}.OpenAPIModelName():                      schema_k8sio_api_core_v1_NodeSelector(ref),
-		v1.NodeSelectorRequirement{}.OpenAPIModelName():           schema_k8sio_api_core_v1_NodeSelectorRequirement(ref),
-		v1.NodeSelectorTerm{}.OpenAPIModelName():                  schema_k8sio_api_core_v1_NodeSelectorTerm(ref),
-		v1.NodeSpec{}.OpenAPIModelName():                          schema_k8sio_api_core_v1_NodeSpec(ref),
-		v1.NodeStatus{}.OpenAPIModelName():                        schema_k8sio_api_core_v1_NodeStatus(ref),
-		v1.NodeSwapStatus{}.OpenAPIModelName():                    schema_k8sio_api_core_v1_NodeSwapStatus(ref),
-		v1.NodeSystemInfo{}.OpenAPIModelName():                    schema_k8sio_api_core_v1_NodeSystemInfo(ref),
-		v1.ObjectFieldSelector{}.OpenAPIModelName():               schema_k8sio_api_core_v1_ObjectFieldSelector(ref),
-		v1.ObjectReference{}.OpenAPIModelName():                   schema_k8sio_api_core_v1_ObjectReference(ref),
-		v1.PersistentVolume{}.OpenAPIModelName():                  schema_k8sio_api_core_v1_PersistentVolume(ref),
-		v1.PersistentVolumeClaim{}.OpenAPIModelName():             schema_k8sio_api_core_v1_PersistentVolumeClaim(ref),
-		v1.PersistentVolumeClaimCondition{}.OpenAPIModelName():    schema_k8sio_api_core_v1_PersistentVolumeClaimCondition(ref),
-		v1.PersistentVolumeClaimList{}.OpenAPIModelName():         schema_k8sio_api_core_v1_PersistentVolumeClaimList(ref),
-		v1.PersistentVolumeClaimSpec{}.OpenAPIModelName():         schema_k8sio_api_core_v1_PersistentVolumeClaimSpec(ref),
-		v1.PersistentVolumeClaimStatus{}.OpenAPIModelName():       schema_k8sio_api_core_v1_PersistentVolumeClaimStatus(ref),
-		v1.PersistentVolumeClaimTemplate{}.OpenAPIModelName():     schema_k8sio_api_core_v1_PersistentVolumeClaimTemplate(ref),
-		v1.PersistentVolumeClaimVolumeSource{}.OpenAPIModelName(): schema_k8sio_api_core_v1_PersistentVolumeClaimVolumeSource(ref),
-		v1.PersistentVolumeList{}.OpenAPIModelName():              schema_k8sio_api_core_v1_PersistentVolumeList(ref),
-		v1.PersistentVolumeSource{}.OpenAPIModelName():            schema_k8sio_api_core_v1_PersistentVolumeSource(ref),
-		v1.PersistentVolumeSpec{}.OpenAPIModelName():              schema_k8sio_api_core_v1_PersistentVolumeSpec(ref),
-		v1.PersistentVolumeStatus{}.OpenAPIModelName():            schema_k8sio_api_core_v1_PersistentVolumeStatus(ref),
-		v1.PhotonPersistentDiskVolumeSource{}.OpenAPIModelName():  schema_k8sio_api_core_v1_PhotonPersistentDiskVolumeSource(ref),
-		v1.Pod{}.OpenAPIModelName():                               schema_k8sio_api_core_v1_Pod(ref),
-		v1.PodAffinity{}.OpenAPIModelName():                       schema_k8sio_api_core_v1_PodAffinity(ref),
-		v1.PodAffinityTerm{}.OpenAPIModelName():                   schema_k8sio_api_core_v1_PodAffinityTerm(ref),
-		v1.PodAntiAffinity{}.OpenAPIModelName():                   schema_k8sio_api_core_v1_PodAntiAffinity(ref),
-		v1.PodAttachOptions{}.OpenAPIModelName():                  schema_k8sio_api_core_v1_PodAttachOptions(ref),
-		v1.PodCertificateProjection{}.OpenAPIModelName():          schema_k8sio_api_core_v1_PodCertificateProjection(ref),
-		v1.PodCondition{}.OpenAPIModelName():                      schema_k8sio_api_core_v1_PodCondition(ref),
-		v1.PodDNSConfig{}.OpenAPIModelName():                      schema_k8sio_api_core_v1_PodDNSConfig(ref),
-		v1.PodDNSConfigOption{}.OpenAPIModelName():                schema_k8sio_api_core_v1_PodDNSConfigOption(ref),
-		v1.PodExecOptions{}.OpenAPIModelName():                    schema_k8sio_api_core_v1_PodExecOptions(ref),
-		v1.PodExtendedResourceClaimStatus{}.OpenAPIModelName():    schema_k8sio_api_core_v1_PodExtendedResourceClaimStatus(ref),
-		v1.PodIP{}.OpenAPIModelName():                             schema_k8sio_api_core_v1_PodIP(ref),
-		v1.PodList{}.OpenAPIModelName():                           schema_k8sio_api_core_v1_PodList(ref),
-		v1.PodLogOptions{}.OpenAPIModelName():                     schema_k8sio_api_core_v1_PodLogOptions(ref),
-		v1.PodOS{}.OpenAPIModelName():                             schema_k8sio_api_core_v1_PodOS(ref),
-		v1.PodPortForwardOptions{}.OpenAPIModelName():             schema_k8sio_api_core_v1_PodPortForwardOptions(ref),
-		v1.PodProxyOptions{}.OpenAPIModelName():                   schema_k8sio_api_core_v1_PodProxyOptions(ref),
-		v1.PodReadinessGate{}.OpenAPIModelName():                  schema_k8sio_api_core_v1_PodReadinessGate(ref),
-		v1.PodResourceClaim{}.OpenAPIModelName():                  schema_k8sio_api_core_v1_PodResourceClaim(ref),
-		v1.PodResourceClaimStatus{}.OpenAPIModelName():            schema_k8sio_api_core_v1_PodResourceClaimStatus(ref),
-		v1.PodSchedulingGate{}.OpenAPIModelName():                 schema_k8sio_api_core_v1_PodSchedulingGate(ref),
-		v1.PodSecurityContext{}.OpenAPIModelName():                schema_k8sio_api_core_v1_PodSecurityContext(ref),
-		v1.PodSignature{}.OpenAPIModelName():                      schema_k8sio_api_core_v1_PodSignature(ref),
-		v1.PodSpec{}.OpenAPIModelName():                           schema_k8sio_api_core_v1_PodSpec(ref),
-		v1.PodStatus{}.OpenAPIModelName():                         schema_k8sio_api_core_v1_PodStatus(ref),
-		v1.PodStatusResult{}.OpenAPIModelName():                   schema_k8sio_api_core_v1_PodStatusResult(ref),
-		v1.PodTemplate{}.OpenAPIModelName():                       schema_k8sio_api_core_v1_PodTemplate(ref),
-		v1.PodTemplateList{}.OpenAPIModelName():                   schema_k8sio_api_core_v1_PodTemplateList(ref),
-		v1.PodTemplateSpec{}.OpenAPIModelName():                   schema_k8sio_api_core_v1_PodTemplateSpec(ref),
-		v1.PortStatus{}.OpenAPIModelName():                        schema_k8sio_api_core_v1_PortStatus(ref),
-		v1.PortworxVolumeSource{}.OpenAPIModelName():              schema_k8sio_api_core_v1_PortworxVolumeSource(ref),
-		v1.PreferAvoidPodsEntry{}.OpenAPIModelName():              schema_k8sio_api_core_v1_PreferAvoidPodsEntry(ref),
-		v1.PreferredSchedulingTerm{}.OpenAPIModelName():           schema_k8sio_api_core_v1_PreferredSchedulingTerm(ref),
-		v1.Probe{}.OpenAPIModelName():                             schema_k8sio_api_core_v1_Probe(ref),
-		v1.ProbeHandler{}.OpenAPIModelName():                      schema_k8sio_api_core_v1_ProbeHandler(ref),
-		v1.ProjectedVolumeSource{}.OpenAPIModelName():             schema_k8sio_api_core_v1_ProjectedVolumeSource(ref),
-		v1.QuobyteVolumeSource{}.OpenAPIModelName():               schema_k8sio_api_core_v1_QuobyteVolumeSource(ref),
-		v1.RBDPersistentVolumeSource{}.OpenAPIModelName():         schema_k8sio_api_core_v1_RBDPersistentVolumeSource(ref),
-		v1.RBDVolumeSource{}.OpenAPIModelName():                   schema_k8sio_api_core_v1_RBDVolumeSource(ref),
-		v1.RangeAllocation{}.OpenAPIModelName():                   schema_k8sio_api_core_v1_RangeAllocation(ref),
-		v1.ReplicationController{}.OpenAPIModelName():             schema_k8sio_api_core_v1_ReplicationController(ref),
-		v1.ReplicationControllerCondition{}.OpenAPIModelName():    schema_k8sio_api_core_v1_ReplicationControllerCondition(ref),
-		v1.ReplicationControllerList{}.OpenAPIModelName():         schema_k8sio_api_core_v1_ReplicationControllerList(ref),
-		v1.ReplicationControllerSpec{}.OpenAPIModelName():         schema_k8sio_api_core_v1_ReplicationControllerSpec(ref),
-		v1.ReplicationControllerStatus{}.OpenAPIModelName():       schema_k8sio_api_core_v1_ReplicationControllerStatus(ref),
-		v1.ResourceClaim{}.OpenAPIModelName():                     schema_k8sio_api_core_v1_ResourceClaim(ref),
-		v1.ResourceFieldSelector{}.OpenAPIModelName():             schema_k8sio_api_core_v1_ResourceFieldSelector(ref),
-		v1.ResourceHealth{}.OpenAPIModelName():                    schema_k8sio_api_core_v1_ResourceHealth(ref),
-		v1.ResourceQuota{}.OpenAPIModelName():                     schema_k8sio_api_core_v1_ResourceQuota(ref),
-		v1.ResourceQuotaList{}.OpenAPIModelName():                 schema_k8sio_api_core_v1_ResourceQuotaList(ref),
-		v1.ResourceQuotaSpec{}.OpenAPIModelName():                 schema_k8sio_api_core_v1_ResourceQuotaSpec(ref),
-		v1.ResourceQuotaStatus{}.OpenAPIModelName():               schema_k8sio_api_core_v1_ResourceQuotaStatus(ref),
-		v1.ResourceRequirements{}.OpenAPIModelName():              schema_k8sio_api_core_v1_ResourceRequirements(ref),
-		v1.ResourceStatus{}.OpenAPIModelName():                    schema_k8sio_api_core_v1_ResourceStatus(ref),
-		v1.SELinuxOptions{}.OpenAPIModelName():                    schema_k8sio_api_core_v1_SELinuxOptions(ref),
-		v1.ScaleIOPersistentVolumeSource{}.OpenAPIModelName():     schema_k8sio_api_core_v1_ScaleIOPersistentVolumeSource(ref),
-		v1.ScaleIOVolumeSource{}.OpenAPIModelName():               schema_k8sio_api_core_v1_ScaleIOVolumeSource(ref),
-		v1.ScopeSelector{}.OpenAPIModelName():                     schema_k8sio_api_core_v1_ScopeSelector(ref),
-		v1.ScopedResourceSelectorRequirement{}.OpenAPIModelName(): schema_k8sio_api_core_v1_ScopedResourceSelectorRequirement(ref),
-		v1.SeccompProfile{}.OpenAPIModelName():                    schema_k8sio_api_core_v1_SeccompProfile(ref),
-		v1.Secret{}.OpenAPIModelName():                            schema_k8sio_api_core_v1_Secret(ref),
-		v1.SecretEnvSource{}.OpenAPIModelName():                   schema_k8sio_api_core_v1_SecretEnvSource(ref),
-		v1.SecretKeySelector{}.OpenAPIModelName():                 schema_k8sio_api_core_v1_SecretKeySelector(ref),
-		v1.SecretList{}.OpenAPIModelName():                        schema_k8sio_api_core_v1_SecretList(ref),
-		v1.SecretProjection{}.OpenAPIModelName():                  schema_k8sio_api_core_v1_SecretProjection(ref),
-		v1.SecretReference{}.OpenAPIModelName():                   schema_k8sio_api_core_v1_SecretReference(ref),
-		v1.SecretVolumeSource{}.OpenAPIModelName():                schema_k8sio_api_core_v1_SecretVolumeSource(ref),
-		v1.SecurityContext{}.OpenAPIModelName():                   schema_k8sio_api_core_v1_SecurityContext(ref),
-		v1.SerializedReference{}.OpenAPIModelName():               schema_k8sio_api_core_v1_SerializedReference(ref),
-		v1.Service{}.OpenAPIModelName():                           schema_k8sio_api_core_v1_Service(ref),
-		v1.ServiceAccount{}.OpenAPIModelName():                    schema_k8sio_api_core_v1_ServiceAccount(ref),
-		v1.ServiceAccountList{}.OpenAPIModelName():                schema_k8sio_api_core_v1_ServiceAccountList(ref),
-		v1.ServiceAccountTokenProjection{}.OpenAPIModelName():     schema_k8sio_api_core_v1_ServiceAccountTokenProjection(ref),
-		v1.ServiceList{}.OpenAPIModelName():                       schema_k8sio_api_core_v1_ServiceList(ref),
-		v1.ServicePort{}.OpenAPIModelName():                       schema_k8sio_api_core_v1_ServicePort(ref),
-		v1.ServiceProxyOptions{}.OpenAPIModelName():               schema_k8sio_api_core_v1_ServiceProxyOptions(ref),
-		v1.ServiceSpec{}.OpenAPIModelName():                       schema_k8sio_api_core_v1_ServiceSpec(ref),
-		v1.ServiceStatus{}.OpenAPIModelName():                     schema_k8sio_api_core_v1_ServiceStatus(ref),
-		v1.SessionAffinityConfig{}.OpenAPIModelName():             schema_k8sio_api_core_v1_SessionAffinityConfig(ref),
-		v1.SleepAction{}.OpenAPIModelName():                       schema_k8sio_api_core_v1_SleepAction(ref),
-		v1.StorageOSPersistentVolumeSource{}.OpenAPIModelName():   schema_k8sio_api_core_v1_StorageOSPersistentVolumeSource(ref),
-		v1.StorageOSVolumeSource{}.OpenAPIModelName():             schema_k8sio_api_core_v1_StorageOSVolumeSource(ref),
-		v1.Sysctl{}.OpenAPIModelName():                            schema_k8sio_api_core_v1_Sysctl(ref),
-		v1.TCPSocketAction{}.OpenAPIModelName():                   schema_k8sio_api_core_v1_TCPSocketAction(ref),
-		v1.Taint{}.OpenAPIModelName():                             schema_k8sio_api_core_v1_Taint(ref),
-		v1.Toleration{}.OpenAPIModelName():                        schema_k8sio_api_core_v1_Toleration(ref),
-		v1.TopologySelectorLabelRequirement{}.OpenAPIModelName():  schema_k8sio_api_core_v1_TopologySelectorLabelRequirement(ref),
-		v1.TopologySelectorTerm{}.OpenAPIModelName():              schema_k8sio_api_core_v1_TopologySelectorTerm(ref),
-		v1.TopologySpreadConstraint{}.OpenAPIModelName():          schema_k8sio_api_core_v1_TopologySpreadConstraint(ref),
-		v1.TypedLocalObjectReference{}.OpenAPIModelName():         schema_k8sio_api_core_v1_TypedLocalObjectReference(ref),
-		v1.TypedObjectReference{}.OpenAPIModelName():              schema_k8sio_api_core_v1_TypedObjectReference(ref),
-		v1.Volume{}.OpenAPIModelName():                            schema_k8sio_api_core_v1_Volume(ref),
-		v1.VolumeDevice{}.OpenAPIModelName():                      schema_k8sio_api_core_v1_VolumeDevice(ref),
-		v1.VolumeMount{}.OpenAPIModelName():                       schema_k8sio_api_core_v1_VolumeMount(ref),
-		v1.VolumeMountStatus{}.OpenAPIModelName():                 schema_k8sio_api_core_v1_VolumeMountStatus(ref),
-		v1.VolumeNodeAffinity{}.OpenAPIModelName():                schema_k8sio_api_core_v1_VolumeNodeAffinity(ref),
-		v1.VolumeProjection{}.OpenAPIModelName():                  schema_k8sio_api_core_v1_VolumeProjection(ref),
-		v1.VolumeResourceRequirements{}.OpenAPIModelName():        schema_k8sio_api_core_v1_VolumeResourceRequirements(ref),
-		v1.VolumeSource{}.OpenAPIModelName():                      schema_k8sio_api_core_v1_VolumeSource(ref),
-		v1.VsphereVirtualDiskVolumeSource{}.OpenAPIModelName():    schema_k8sio_api_core_v1_VsphereVirtualDiskVolumeSource(ref),
-		v1.WeightedPodAffinityTerm{}.OpenAPIModelName():           schema_k8sio_api_core_v1_WeightedPodAffinityTerm(ref),
-		v1.WindowsSecurityContextOptions{}.OpenAPIModelName():     schema_k8sio_api_core_v1_WindowsSecurityContextOptions(ref),
-		v1.WorkloadReference{}.OpenAPIModelName():                 schema_k8sio_api_core_v1_WorkloadReference(ref),
-		resource.Quantity{}.OpenAPIModelName():                    schema_apimachinery_pkg_api_resource_Quantity(ref),
-		metav1.APIGroup{}.OpenAPIModelName():                      schema_pkg_apis_meta_v1_APIGroup(ref),
-		metav1.APIGroupList{}.OpenAPIModelName():                  schema_pkg_apis_meta_v1_APIGroupList(ref),
-		metav1.APIResource{}.OpenAPIModelName():                   schema_pkg_apis_meta_v1_APIResource(ref),
-		metav1.APIResourceList{}.OpenAPIModelName():               schema_pkg_apis_meta_v1_APIResourceList(ref),
-		metav1.APIVersions{}.OpenAPIModelName():                   schema_pkg_apis_meta_v1_APIVersions(ref),
-		metav1.ApplyOptions{}.OpenAPIModelName():                  schema_pkg_apis_meta_v1_ApplyOptions(ref),
-		metav1.Condition{}.OpenAPIModelName():                     schema_pkg_apis_meta_v1_Condition(ref),
-		metav1.CreateOptions{}.OpenAPIModelName():                 schema_pkg_apis_meta_v1_CreateOptions(ref),
-		metav1.DeleteOptions{}.OpenAPIModelName():                 schema_pkg_apis_meta_v1_DeleteOptions(ref),
-		metav1.Duration{}.OpenAPIModelName():                      schema_pkg_apis_meta_v1_Duration(ref),
-		metav1.FieldSelectorRequirement{}.OpenAPIModelName():      schema_pkg_apis_meta_v1_FieldSelectorRequirement(ref),
-		metav1.FieldsV1{}.OpenAPIModelName():                      schema_pkg_apis_meta_v1_FieldsV1(ref),
-		metav1.GetOptions{}.OpenAPIModelName():                    schema_pkg_apis_meta_v1_GetOptions(ref),
-		metav1.GroupKind{}.OpenAPIModelName():                     schema_pkg_apis_meta_v1_GroupKind(ref),
-		metav1.GroupResource{}.OpenAPIModelName():                 schema_pkg_apis_meta_v1_GroupResource(ref),
-		metav1.GroupVersion{}.OpenAPIModelName():                  schema_pkg_apis_meta_v1_GroupVersion(ref),
-		metav1.GroupVersionForDiscovery{}.OpenAPIModelName():      schema_pkg_apis_meta_v1_GroupVersionForDiscovery(ref),
-		metav1.GroupVersionKind{}.OpenAPIModelName():              schema_pkg_apis_meta_v1_GroupVersionKind(ref),
-		metav1.GroupVersionResource{}.OpenAPIModelName():          schema_pkg_apis_meta_v1_GroupVersionResource(ref),
-		metav1.InternalEvent{}.OpenAPIModelName():                 schema_pkg_apis_meta_v1_InternalEvent(ref),
-		metav1.LabelSelector{}.OpenAPIModelName():                 schema_pkg_apis_meta_v1_LabelSelector(ref),
-		metav1.LabelSelectorRequirement{}.OpenAPIModelName():      schema_pkg_apis_meta_v1_LabelSelectorRequirement(ref),
-		metav1.List{}.OpenAPIModelName():                          schema_pkg_apis_meta_v1_List(ref),
-		metav1.ListMeta{}.OpenAPIModelName():                      schema_pkg_apis_meta_v1_ListMeta(ref),
-		metav1.ListOptions{}.OpenAPIModelName():                   schema_pkg_apis_meta_v1_ListOptions(ref),
-		metav1.ManagedFieldsEntry{}.OpenAPIModelName():            schema_pkg_apis_meta_v1_ManagedFieldsEntry(ref),
-		metav1.MicroTime{}.OpenAPIModelName():                     schema_pkg_apis_meta_v1_MicroTime(ref),
-		metav1.ObjectMeta{}.OpenAPIModelName():                    schema_pkg_apis_meta_v1_ObjectMeta(ref),
-		metav1.OwnerReference{}.OpenAPIModelName():                schema_pkg_apis_meta_v1_OwnerReference(ref),
-		metav1.PartialObjectMetadata{}.OpenAPIModelName():         schema_pkg_apis_meta_v1_PartialObjectMetadata(ref),
-		metav1.PartialObjectMetadataList{}.OpenAPIModelName():     schema_pkg_apis_meta_v1_PartialObjectMetadataList(ref),
-		metav1.Patch{}.OpenAPIModelName():                         schema_pkg_apis_meta_v1_Patch(ref),
-		metav1.PatchOptions{}.OpenAPIModelName():                  schema_pkg_apis_meta_v1_PatchOptions(ref),
-		metav1.Preconditions{}.OpenAPIModelName():                 schema_pkg_apis_meta_v1_Preconditions(ref),
-		metav1.RootPaths{}.OpenAPIModelName():                     schema_pkg_apis_meta_v1_RootPaths(ref),
-		metav1.ServerAddressByClientCIDR{}.OpenAPIModelName():     schema_pkg_apis_meta_v1_ServerAddressByClientCIDR(ref),
-		metav1.Status{}.OpenAPIModelName():                        schema_pkg_apis_meta_v1_Status(ref),
-		metav1.StatusCause{}.OpenAPIModelName():                   schema_pkg_apis_meta_v1_StatusCause(ref),
-		metav1.StatusDetails{}.OpenAPIModelName():                 schema_pkg_apis_meta_v1_StatusDetails(ref),
-		metav1.Table{}.OpenAPIModelName():                         schema_pkg_apis_meta_v1_Table(ref),
-		metav1.TableColumnDefinition{}.OpenAPIModelName():         schema_pkg_apis_meta_v1_TableColumnDefinition(ref),
-		metav1.TableOptions{}.OpenAPIModelName():                  schema_pkg_apis_meta_v1_TableOptions(ref),
-		metav1.TableRow{}.OpenAPIModelName():                      schema_pkg_apis_meta_v1_TableRow(ref),
-		metav1.TableRowCondition{}.OpenAPIModelName():             schema_pkg_apis_meta_v1_TableRowCondition(ref),
-		metav1.Time{}.OpenAPIModelName():                          schema_pkg_apis_meta_v1_Time(ref),
-		metav1.Timestamp{}.OpenAPIModelName():                     schema_pkg_apis_meta_v1_Timestamp(ref),
-		metav1.TypeMeta{}.OpenAPIModelName():                      schema_pkg_apis_meta_v1_TypeMeta(ref),
-		metav1.UpdateOptions{}.OpenAPIModelName():                 schema_pkg_apis_meta_v1_UpdateOptions(ref),
-		metav1.WatchEvent{}.OpenAPIModelName():                    schema_pkg_apis_meta_v1_WatchEvent(ref),
-		runtime.RawExtension{}.OpenAPIModelName():                 schema_k8sio_apimachinery_pkg_runtime_RawExtension(ref),
-		runtime.TypeMeta{}.OpenAPIModelName():                     schema_k8sio_apimachinery_pkg_runtime_TypeMeta(ref),
-		runtime.Unknown{}.OpenAPIModelName():                      schema_k8sio_apimachinery_pkg_runtime_Unknown(ref),
-		intstr.IntOrString{}.OpenAPIModelName():                   schema_apimachinery_pkg_util_intstr_IntOrString(ref),
-		version.Info{}.OpenAPIModelName():                         schema_k8sio_apimachinery_pkg_version_Info(ref),
+		v1.AuditAnnotation{}.OpenAPIModelName():                                schema_k8sio_api_admissionregistration_v1_AuditAnnotation(ref),
+		v1.ExpressionWarning{}.OpenAPIModelName():                              schema_k8sio_api_admissionregistration_v1_ExpressionWarning(ref),
+		v1.MatchCondition{}.OpenAPIModelName():                                 schema_k8sio_api_admissionregistration_v1_MatchCondition(ref),
+		v1.MatchResources{}.OpenAPIModelName():                                 schema_k8sio_api_admissionregistration_v1_MatchResources(ref),
+		v1.MutatingWebhook{}.OpenAPIModelName():                                schema_k8sio_api_admissionregistration_v1_MutatingWebhook(ref),
+		v1.MutatingWebhookConfiguration{}.OpenAPIModelName():                   schema_k8sio_api_admissionregistration_v1_MutatingWebhookConfiguration(ref),
+		v1.MutatingWebhookConfigurationList{}.OpenAPIModelName():               schema_k8sio_api_admissionregistration_v1_MutatingWebhookConfigurationList(ref),
+		v1.NamedRuleWithOperations{}.OpenAPIModelName():                        schema_k8sio_api_admissionregistration_v1_NamedRuleWithOperations(ref),
+		v1.ParamKind{}.OpenAPIModelName():                                      schema_k8sio_api_admissionregistration_v1_ParamKind(ref),
+		v1.ParamRef{}.OpenAPIModelName():                                       schema_k8sio_api_admissionregistration_v1_ParamRef(ref),
+		v1.Rule{}.OpenAPIModelName():                                           schema_k8sio_api_admissionregistration_v1_Rule(ref),
+		v1.RuleWithOperations{}.OpenAPIModelName():                             schema_k8sio_api_admissionregistration_v1_RuleWithOperations(ref),
+		v1.ServiceReference{}.OpenAPIModelName():                               schema_k8sio_api_admissionregistration_v1_ServiceReference(ref),
+		v1.TypeChecking{}.OpenAPIModelName():                                   schema_k8sio_api_admissionregistration_v1_TypeChecking(ref),
+		v1.ValidatingAdmissionPolicy{}.OpenAPIModelName():                      schema_k8sio_api_admissionregistration_v1_ValidatingAdmissionPolicy(ref),
+		v1.ValidatingAdmissionPolicyBinding{}.OpenAPIModelName():               schema_k8sio_api_admissionregistration_v1_ValidatingAdmissionPolicyBinding(ref),
+		v1.ValidatingAdmissionPolicyBindingList{}.OpenAPIModelName():           schema_k8sio_api_admissionregistration_v1_ValidatingAdmissionPolicyBindingList(ref),
+		v1.ValidatingAdmissionPolicyBindingSpec{}.OpenAPIModelName():           schema_k8sio_api_admissionregistration_v1_ValidatingAdmissionPolicyBindingSpec(ref),
+		v1.ValidatingAdmissionPolicyList{}.OpenAPIModelName():                  schema_k8sio_api_admissionregistration_v1_ValidatingAdmissionPolicyList(ref),
+		v1.ValidatingAdmissionPolicySpec{}.OpenAPIModelName():                  schema_k8sio_api_admissionregistration_v1_ValidatingAdmissionPolicySpec(ref),
+		v1.ValidatingAdmissionPolicyStatus{}.OpenAPIModelName():                schema_k8sio_api_admissionregistration_v1_ValidatingAdmissionPolicyStatus(ref),
+		v1.ValidatingWebhook{}.OpenAPIModelName():                              schema_k8sio_api_admissionregistration_v1_ValidatingWebhook(ref),
+		v1.ValidatingWebhookConfiguration{}.OpenAPIModelName():                 schema_k8sio_api_admissionregistration_v1_ValidatingWebhookConfiguration(ref),
+		v1.ValidatingWebhookConfigurationList{}.OpenAPIModelName():             schema_k8sio_api_admissionregistration_v1_ValidatingWebhookConfigurationList(ref),
+		v1.Validation{}.OpenAPIModelName():                                     schema_k8sio_api_admissionregistration_v1_Validation(ref),
+		v1.Variable{}.OpenAPIModelName():                                       schema_k8sio_api_admissionregistration_v1_Variable(ref),
+		v1.WebhookClientConfig{}.OpenAPIModelName():                            schema_k8sio_api_admissionregistration_v1_WebhookClientConfig(ref),
+		v2.ContainerResourceMetricSource{}.OpenAPIModelName():                  schema_k8sio_api_autoscaling_v2_ContainerResourceMetricSource(ref),
+		v2.ContainerResourceMetricStatus{}.OpenAPIModelName():                  schema_k8sio_api_autoscaling_v2_ContainerResourceMetricStatus(ref),
+		v2.CrossVersionObjectReference{}.OpenAPIModelName():                    schema_k8sio_api_autoscaling_v2_CrossVersionObjectReference(ref),
+		v2.ExternalMetricSource{}.OpenAPIModelName():                           schema_k8sio_api_autoscaling_v2_ExternalMetricSource(ref),
+		v2.ExternalMetricStatus{}.OpenAPIModelName():                           schema_k8sio_api_autoscaling_v2_ExternalMetricStatus(ref),
+		v2.HPAScalingPolicy{}.OpenAPIModelName():                               schema_k8sio_api_autoscaling_v2_HPAScalingPolicy(ref),
+		v2.HPAScalingRules{}.OpenAPIModelName():                                schema_k8sio_api_autoscaling_v2_HPAScalingRules(ref),
+		v2.HorizontalPodAutoscaler{}.OpenAPIModelName():                        schema_k8sio_api_autoscaling_v2_HorizontalPodAutoscaler(ref),
+		v2.HorizontalPodAutoscalerBehavior{}.OpenAPIModelName():                schema_k8sio_api_autoscaling_v2_HorizontalPodAutoscalerBehavior(ref),
+		v2.HorizontalPodAutoscalerCondition{}.OpenAPIModelName():               schema_k8sio_api_autoscaling_v2_HorizontalPodAutoscalerCondition(ref),
+		v2.HorizontalPodAutoscalerList{}.OpenAPIModelName():                    schema_k8sio_api_autoscaling_v2_HorizontalPodAutoscalerList(ref),
+		v2.HorizontalPodAutoscalerSpec{}.OpenAPIModelName():                    schema_k8sio_api_autoscaling_v2_HorizontalPodAutoscalerSpec(ref),
+		v2.HorizontalPodAutoscalerStatus{}.OpenAPIModelName():                  schema_k8sio_api_autoscaling_v2_HorizontalPodAutoscalerStatus(ref),
+		v2.MetricIdentifier{}.OpenAPIModelName():                               schema_k8sio_api_autoscaling_v2_MetricIdentifier(ref),
+		v2.MetricSpec{}.OpenAPIModelName():                                     schema_k8sio_api_autoscaling_v2_MetricSpec(ref),
+		v2.MetricStatus{}.OpenAPIModelName():                                   schema_k8sio_api_autoscaling_v2_MetricStatus(ref),
+		v2.MetricTarget{}.OpenAPIModelName():                                   schema_k8sio_api_autoscaling_v2_MetricTarget(ref),
+		v2.MetricValueStatus{}.OpenAPIModelName():                              schema_k8sio_api_autoscaling_v2_MetricValueStatus(ref),
+		v2.ObjectMetricSource{}.OpenAPIModelName():                             schema_k8sio_api_autoscaling_v2_ObjectMetricSource(ref),
+		v2.ObjectMetricStatus{}.OpenAPIModelName():                             schema_k8sio_api_autoscaling_v2_ObjectMetricStatus(ref),
+		v2.PodsMetricSource{}.OpenAPIModelName():                               schema_k8sio_api_autoscaling_v2_PodsMetricSource(ref),
+		v2.PodsMetricStatus{}.OpenAPIModelName():                               schema_k8sio_api_autoscaling_v2_PodsMetricStatus(ref),
+		v2.ResourceMetricSource{}.OpenAPIModelName():                           schema_k8sio_api_autoscaling_v2_ResourceMetricSource(ref),
+		v2.ResourceMetricStatus{}.OpenAPIModelName():                           schema_k8sio_api_autoscaling_v2_ResourceMetricStatus(ref),
+		corev1.AWSElasticBlockStoreVolumeSource{}.OpenAPIModelName():           schema_k8sio_api_core_v1_AWSElasticBlockStoreVolumeSource(ref),
+		corev1.Affinity{}.OpenAPIModelName():                                   schema_k8sio_api_core_v1_Affinity(ref),
+		corev1.AppArmorProfile{}.OpenAPIModelName():                            schema_k8sio_api_core_v1_AppArmorProfile(ref),
+		corev1.AttachedVolume{}.OpenAPIModelName():                             schema_k8sio_api_core_v1_AttachedVolume(ref),
+		corev1.AvoidPods{}.OpenAPIModelName():                                  schema_k8sio_api_core_v1_AvoidPods(ref),
+		corev1.AzureDiskVolumeSource{}.OpenAPIModelName():                      schema_k8sio_api_core_v1_AzureDiskVolumeSource(ref),
+		corev1.AzureFilePersistentVolumeSource{}.OpenAPIModelName():            schema_k8sio_api_core_v1_AzureFilePersistentVolumeSource(ref),
+		corev1.AzureFileVolumeSource{}.OpenAPIModelName():                      schema_k8sio_api_core_v1_AzureFileVolumeSource(ref),
+		corev1.Binding{}.OpenAPIModelName():                                    schema_k8sio_api_core_v1_Binding(ref),
+		corev1.CSIPersistentVolumeSource{}.OpenAPIModelName():                  schema_k8sio_api_core_v1_CSIPersistentVolumeSource(ref),
+		corev1.CSIVolumeSource{}.OpenAPIModelName():                            schema_k8sio_api_core_v1_CSIVolumeSource(ref),
+		corev1.Capabilities{}.OpenAPIModelName():                               schema_k8sio_api_core_v1_Capabilities(ref),
+		corev1.CephFSPersistentVolumeSource{}.OpenAPIModelName():               schema_k8sio_api_core_v1_CephFSPersistentVolumeSource(ref),
+		corev1.CephFSVolumeSource{}.OpenAPIModelName():                         schema_k8sio_api_core_v1_CephFSVolumeSource(ref),
+		corev1.CinderPersistentVolumeSource{}.OpenAPIModelName():               schema_k8sio_api_core_v1_CinderPersistentVolumeSource(ref),
+		corev1.CinderVolumeSource{}.OpenAPIModelName():                         schema_k8sio_api_core_v1_CinderVolumeSource(ref),
+		corev1.ClientIPConfig{}.OpenAPIModelName():                             schema_k8sio_api_core_v1_ClientIPConfig(ref),
+		corev1.ClusterTrustBundleProjection{}.OpenAPIModelName():               schema_k8sio_api_core_v1_ClusterTrustBundleProjection(ref),
+		corev1.ComponentCondition{}.OpenAPIModelName():                         schema_k8sio_api_core_v1_ComponentCondition(ref),
+		corev1.ComponentStatus{}.OpenAPIModelName():                            schema_k8sio_api_core_v1_ComponentStatus(ref),
+		corev1.ComponentStatusList{}.OpenAPIModelName():                        schema_k8sio_api_core_v1_ComponentStatusList(ref),
+		corev1.ConfigMap{}.OpenAPIModelName():                                  schema_k8sio_api_core_v1_ConfigMap(ref),
+		corev1.ConfigMapEnvSource{}.OpenAPIModelName():                         schema_k8sio_api_core_v1_ConfigMapEnvSource(ref),
+		corev1.ConfigMapKeySelector{}.OpenAPIModelName():                       schema_k8sio_api_core_v1_ConfigMapKeySelector(ref),
+		corev1.ConfigMapList{}.OpenAPIModelName():                              schema_k8sio_api_core_v1_ConfigMapList(ref),
+		corev1.ConfigMapNodeConfigSource{}.OpenAPIModelName():                  schema_k8sio_api_core_v1_ConfigMapNodeConfigSource(ref),
+		corev1.ConfigMapProjection{}.OpenAPIModelName():                        schema_k8sio_api_core_v1_ConfigMapProjection(ref),
+		corev1.ConfigMapVolumeSource{}.OpenAPIModelName():                      schema_k8sio_api_core_v1_ConfigMapVolumeSource(ref),
+		corev1.Container{}.OpenAPIModelName():                                  schema_k8sio_api_core_v1_Container(ref),
+		corev1.ContainerExtendedResourceRequest{}.OpenAPIModelName():           schema_k8sio_api_core_v1_ContainerExtendedResourceRequest(ref),
+		corev1.ContainerImage{}.OpenAPIModelName():                             schema_k8sio_api_core_v1_ContainerImage(ref),
+		corev1.ContainerPort{}.OpenAPIModelName():                              schema_k8sio_api_core_v1_ContainerPort(ref),
+		corev1.ContainerResizePolicy{}.OpenAPIModelName():                      schema_k8sio_api_core_v1_ContainerResizePolicy(ref),
+		corev1.ContainerRestartRule{}.OpenAPIModelName():                       schema_k8sio_api_core_v1_ContainerRestartRule(ref),
+		corev1.ContainerRestartRuleOnExitCodes{}.OpenAPIModelName():            schema_k8sio_api_core_v1_ContainerRestartRuleOnExitCodes(ref),
+		corev1.ContainerState{}.OpenAPIModelName():                             schema_k8sio_api_core_v1_ContainerState(ref),
+		corev1.ContainerStateRunning{}.OpenAPIModelName():                      schema_k8sio_api_core_v1_ContainerStateRunning(ref),
+		corev1.ContainerStateTerminated{}.OpenAPIModelName():                   schema_k8sio_api_core_v1_ContainerStateTerminated(ref),
+		corev1.ContainerStateWaiting{}.OpenAPIModelName():                      schema_k8sio_api_core_v1_ContainerStateWaiting(ref),
+		corev1.ContainerStatus{}.OpenAPIModelName():                            schema_k8sio_api_core_v1_ContainerStatus(ref),
+		corev1.ContainerUser{}.OpenAPIModelName():                              schema_k8sio_api_core_v1_ContainerUser(ref),
+		corev1.DaemonEndpoint{}.OpenAPIModelName():                             schema_k8sio_api_core_v1_DaemonEndpoint(ref),
+		corev1.DownwardAPIProjection{}.OpenAPIModelName():                      schema_k8sio_api_core_v1_DownwardAPIProjection(ref),
+		corev1.DownwardAPIVolumeFile{}.OpenAPIModelName():                      schema_k8sio_api_core_v1_DownwardAPIVolumeFile(ref),
+		corev1.DownwardAPIVolumeSource{}.OpenAPIModelName():                    schema_k8sio_api_core_v1_DownwardAPIVolumeSource(ref),
+		corev1.EmptyDirVolumeSource{}.OpenAPIModelName():                       schema_k8sio_api_core_v1_EmptyDirVolumeSource(ref),
+		corev1.EndpointAddress{}.OpenAPIModelName():                            schema_k8sio_api_core_v1_EndpointAddress(ref),
+		corev1.EndpointPort{}.OpenAPIModelName():                               schema_k8sio_api_core_v1_EndpointPort(ref),
+		corev1.EndpointSubset{}.OpenAPIModelName():                             schema_k8sio_api_core_v1_EndpointSubset(ref),
+		corev1.Endpoints{}.OpenAPIModelName():                                  schema_k8sio_api_core_v1_Endpoints(ref),
+		corev1.EndpointsList{}.OpenAPIModelName():                              schema_k8sio_api_core_v1_EndpointsList(ref),
+		corev1.EnvFromSource{}.OpenAPIModelName():                              schema_k8sio_api_core_v1_EnvFromSource(ref),
+		corev1.EnvVar{}.OpenAPIModelName():                                     schema_k8sio_api_core_v1_EnvVar(ref),
+		corev1.EnvVarSource{}.OpenAPIModelName():                               schema_k8sio_api_core_v1_EnvVarSource(ref),
+		corev1.EphemeralContainer{}.OpenAPIModelName():                         schema_k8sio_api_core_v1_EphemeralContainer(ref),
+		corev1.EphemeralContainerCommon{}.OpenAPIModelName():                   schema_k8sio_api_core_v1_EphemeralContainerCommon(ref),
+		corev1.EphemeralVolumeSource{}.OpenAPIModelName():                      schema_k8sio_api_core_v1_EphemeralVolumeSource(ref),
+		corev1.Event{}.OpenAPIModelName():                                      schema_k8sio_api_core_v1_Event(ref),
+		corev1.EventList{}.OpenAPIModelName():                                  schema_k8sio_api_core_v1_EventList(ref),
+		corev1.EventSeries{}.OpenAPIModelName():                                schema_k8sio_api_core_v1_EventSeries(ref),
+		corev1.EventSource{}.OpenAPIModelName():                                schema_k8sio_api_core_v1_EventSource(ref),
+		corev1.ExecAction{}.OpenAPIModelName():                                 schema_k8sio_api_core_v1_ExecAction(ref),
+		corev1.FCVolumeSource{}.OpenAPIModelName():                             schema_k8sio_api_core_v1_FCVolumeSource(ref),
+		corev1.FileKeySelector{}.OpenAPIModelName():                            schema_k8sio_api_core_v1_FileKeySelector(ref),
+		corev1.FlexPersistentVolumeSource{}.OpenAPIModelName():                 schema_k8sio_api_core_v1_FlexPersistentVolumeSource(ref),
+		corev1.FlexVolumeSource{}.OpenAPIModelName():                           schema_k8sio_api_core_v1_FlexVolumeSource(ref),
+		corev1.FlockerVolumeSource{}.OpenAPIModelName():                        schema_k8sio_api_core_v1_FlockerVolumeSource(ref),
+		corev1.GCEPersistentDiskVolumeSource{}.OpenAPIModelName():              schema_k8sio_api_core_v1_GCEPersistentDiskVolumeSource(ref),
+		corev1.GRPCAction{}.OpenAPIModelName():                                 schema_k8sio_api_core_v1_GRPCAction(ref),
+		corev1.GitRepoVolumeSource{}.OpenAPIModelName():                        schema_k8sio_api_core_v1_GitRepoVolumeSource(ref),
+		corev1.GlusterfsPersistentVolumeSource{}.OpenAPIModelName():            schema_k8sio_api_core_v1_GlusterfsPersistentVolumeSource(ref),
+		corev1.GlusterfsVolumeSource{}.OpenAPIModelName():                      schema_k8sio_api_core_v1_GlusterfsVolumeSource(ref),
+		corev1.HTTPGetAction{}.OpenAPIModelName():                              schema_k8sio_api_core_v1_HTTPGetAction(ref),
+		corev1.HTTPHeader{}.OpenAPIModelName():                                 schema_k8sio_api_core_v1_HTTPHeader(ref),
+		corev1.HostAlias{}.OpenAPIModelName():                                  schema_k8sio_api_core_v1_HostAlias(ref),
+		corev1.HostIP{}.OpenAPIModelName():                                     schema_k8sio_api_core_v1_HostIP(ref),
+		corev1.HostPathVolumeSource{}.OpenAPIModelName():                       schema_k8sio_api_core_v1_HostPathVolumeSource(ref),
+		corev1.ISCSIPersistentVolumeSource{}.OpenAPIModelName():                schema_k8sio_api_core_v1_ISCSIPersistentVolumeSource(ref),
+		corev1.ISCSIVolumeSource{}.OpenAPIModelName():                          schema_k8sio_api_core_v1_ISCSIVolumeSource(ref),
+		corev1.ImageVolumeSource{}.OpenAPIModelName():                          schema_k8sio_api_core_v1_ImageVolumeSource(ref),
+		corev1.KeyToPath{}.OpenAPIModelName():                                  schema_k8sio_api_core_v1_KeyToPath(ref),
+		corev1.Lifecycle{}.OpenAPIModelName():                                  schema_k8sio_api_core_v1_Lifecycle(ref),
+		corev1.LifecycleHandler{}.OpenAPIModelName():                           schema_k8sio_api_core_v1_LifecycleHandler(ref),
+		corev1.LimitRange{}.OpenAPIModelName():                                 schema_k8sio_api_core_v1_LimitRange(ref),
+		corev1.LimitRangeItem{}.OpenAPIModelName():                             schema_k8sio_api_core_v1_LimitRangeItem(ref),
+		corev1.LimitRangeList{}.OpenAPIModelName():                             schema_k8sio_api_core_v1_LimitRangeList(ref),
+		corev1.LimitRangeSpec{}.OpenAPIModelName():                             schema_k8sio_api_core_v1_LimitRangeSpec(ref),
+		corev1.LinuxContainerUser{}.OpenAPIModelName():                         schema_k8sio_api_core_v1_LinuxContainerUser(ref),
+		corev1.List{}.OpenAPIModelName():                                       schema_k8sio_api_core_v1_List(ref),
+		corev1.LoadBalancerIngress{}.OpenAPIModelName():                        schema_k8sio_api_core_v1_LoadBalancerIngress(ref),
+		corev1.LoadBalancerStatus{}.OpenAPIModelName():                         schema_k8sio_api_core_v1_LoadBalancerStatus(ref),
+		corev1.LocalObjectReference{}.OpenAPIModelName():                       schema_k8sio_api_core_v1_LocalObjectReference(ref),
+		corev1.LocalVolumeSource{}.OpenAPIModelName():                          schema_k8sio_api_core_v1_LocalVolumeSource(ref),
+		corev1.ModifyVolumeStatus{}.OpenAPIModelName():                         schema_k8sio_api_core_v1_ModifyVolumeStatus(ref),
+		corev1.NFSVolumeSource{}.OpenAPIModelName():                            schema_k8sio_api_core_v1_NFSVolumeSource(ref),
+		corev1.Namespace{}.OpenAPIModelName():                                  schema_k8sio_api_core_v1_Namespace(ref),
+		corev1.NamespaceCondition{}.OpenAPIModelName():                         schema_k8sio_api_core_v1_NamespaceCondition(ref),
+		corev1.NamespaceList{}.OpenAPIModelName():                              schema_k8sio_api_core_v1_NamespaceList(ref),
+		corev1.NamespaceSpec{}.OpenAPIModelName():                              schema_k8sio_api_core_v1_NamespaceSpec(ref),
+		corev1.NamespaceStatus{}.OpenAPIModelName():                            schema_k8sio_api_core_v1_NamespaceStatus(ref),
+		corev1.Node{}.OpenAPIModelName():                                       schema_k8sio_api_core_v1_Node(ref),
+		corev1.NodeAddress{}.OpenAPIModelName():                                schema_k8sio_api_core_v1_NodeAddress(ref),
+		corev1.NodeAffinity{}.OpenAPIModelName():                               schema_k8sio_api_core_v1_NodeAffinity(ref),
+		corev1.NodeCondition{}.OpenAPIModelName():                              schema_k8sio_api_core_v1_NodeCondition(ref),
+		corev1.NodeConfigSource{}.OpenAPIModelName():                           schema_k8sio_api_core_v1_NodeConfigSource(ref),
+		corev1.NodeConfigStatus{}.OpenAPIModelName():                           schema_k8sio_api_core_v1_NodeConfigStatus(ref),
+		corev1.NodeDaemonEndpoints{}.OpenAPIModelName():                        schema_k8sio_api_core_v1_NodeDaemonEndpoints(ref),
+		corev1.NodeFeatures{}.OpenAPIModelName():                               schema_k8sio_api_core_v1_NodeFeatures(ref),
+		corev1.NodeList{}.OpenAPIModelName():                                   schema_k8sio_api_core_v1_NodeList(ref),
+		corev1.NodeProxyOptions{}.OpenAPIModelName():                           schema_k8sio_api_core_v1_NodeProxyOptions(ref),
+		corev1.NodeRuntimeHandler{}.OpenAPIModelName():                         schema_k8sio_api_core_v1_NodeRuntimeHandler(ref),
+		corev1.NodeRuntimeHandlerFeatures{}.OpenAPIModelName():                 schema_k8sio_api_core_v1_NodeRuntimeHandlerFeatures(ref),
+		corev1.NodeSelector{}.OpenAPIModelName():                               schema_k8sio_api_core_v1_NodeSelector(ref),
+		corev1.NodeSelectorRequirement{}.OpenAPIModelName():                    schema_k8sio_api_core_v1_NodeSelectorRequirement(ref),
+		corev1.NodeSelectorTerm{}.OpenAPIModelName():                           schema_k8sio_api_core_v1_NodeSelectorTerm(ref),
+		corev1.NodeSpec{}.OpenAPIModelName():                                   schema_k8sio_api_core_v1_NodeSpec(ref),
+		corev1.NodeStatus{}.OpenAPIModelName():                                 schema_k8sio_api_core_v1_NodeStatus(ref),
+		corev1.NodeSwapStatus{}.OpenAPIModelName():                             schema_k8sio_api_core_v1_NodeSwapStatus(ref),
+		corev1.NodeSystemInfo{}.OpenAPIModelName():                             schema_k8sio_api_core_v1_NodeSystemInfo(ref),
+		corev1.ObjectFieldSelector{}.OpenAPIModelName():                        schema_k8sio_api_core_v1_ObjectFieldSelector(ref),
+		corev1.ObjectReference{}.OpenAPIModelName():                            schema_k8sio_api_core_v1_ObjectReference(ref),
+		corev1.PersistentVolume{}.OpenAPIModelName():                           schema_k8sio_api_core_v1_PersistentVolume(ref),
+		corev1.PersistentVolumeClaim{}.OpenAPIModelName():                      schema_k8sio_api_core_v1_PersistentVolumeClaim(ref),
+		corev1.PersistentVolumeClaimCondition{}.OpenAPIModelName():             schema_k8sio_api_core_v1_PersistentVolumeClaimCondition(ref),
+		corev1.PersistentVolumeClaimList{}.OpenAPIModelName():                  schema_k8sio_api_core_v1_PersistentVolumeClaimList(ref),
+		corev1.PersistentVolumeClaimSpec{}.OpenAPIModelName():                  schema_k8sio_api_core_v1_PersistentVolumeClaimSpec(ref),
+		corev1.PersistentVolumeClaimStatus{}.OpenAPIModelName():                schema_k8sio_api_core_v1_PersistentVolumeClaimStatus(ref),
+		corev1.PersistentVolumeClaimTemplate{}.OpenAPIModelName():              schema_k8sio_api_core_v1_PersistentVolumeClaimTemplate(ref),
+		corev1.PersistentVolumeClaimVolumeSource{}.OpenAPIModelName():          schema_k8sio_api_core_v1_PersistentVolumeClaimVolumeSource(ref),
+		corev1.PersistentVolumeList{}.OpenAPIModelName():                       schema_k8sio_api_core_v1_PersistentVolumeList(ref),
+		corev1.PersistentVolumeSource{}.OpenAPIModelName():                     schema_k8sio_api_core_v1_PersistentVolumeSource(ref),
+		corev1.PersistentVolumeSpec{}.OpenAPIModelName():                       schema_k8sio_api_core_v1_PersistentVolumeSpec(ref),
+		corev1.PersistentVolumeStatus{}.OpenAPIModelName():                     schema_k8sio_api_core_v1_PersistentVolumeStatus(ref),
+		corev1.PhotonPersistentDiskVolumeSource{}.OpenAPIModelName():           schema_k8sio_api_core_v1_PhotonPersistentDiskVolumeSource(ref),
+		corev1.Pod{}.OpenAPIModelName():                                        schema_k8sio_api_core_v1_Pod(ref),
+		corev1.PodAffinity{}.OpenAPIModelName():                                schema_k8sio_api_core_v1_PodAffinity(ref),
+		corev1.PodAffinityTerm{}.OpenAPIModelName():                            schema_k8sio_api_core_v1_PodAffinityTerm(ref),
+		corev1.PodAntiAffinity{}.OpenAPIModelName():                            schema_k8sio_api_core_v1_PodAntiAffinity(ref),
+		corev1.PodAttachOptions{}.OpenAPIModelName():                           schema_k8sio_api_core_v1_PodAttachOptions(ref),
+		corev1.PodCertificateProjection{}.OpenAPIModelName():                   schema_k8sio_api_core_v1_PodCertificateProjection(ref),
+		corev1.PodCondition{}.OpenAPIModelName():                               schema_k8sio_api_core_v1_PodCondition(ref),
+		corev1.PodDNSConfig{}.OpenAPIModelName():                               schema_k8sio_api_core_v1_PodDNSConfig(ref),
+		corev1.PodDNSConfigOption{}.OpenAPIModelName():                         schema_k8sio_api_core_v1_PodDNSConfigOption(ref),
+		corev1.PodExecOptions{}.OpenAPIModelName():                             schema_k8sio_api_core_v1_PodExecOptions(ref),
+		corev1.PodExtendedResourceClaimStatus{}.OpenAPIModelName():             schema_k8sio_api_core_v1_PodExtendedResourceClaimStatus(ref),
+		corev1.PodIP{}.OpenAPIModelName():                                      schema_k8sio_api_core_v1_PodIP(ref),
+		corev1.PodList{}.OpenAPIModelName():                                    schema_k8sio_api_core_v1_PodList(ref),
+		corev1.PodLogOptions{}.OpenAPIModelName():                              schema_k8sio_api_core_v1_PodLogOptions(ref),
+		corev1.PodOS{}.OpenAPIModelName():                                      schema_k8sio_api_core_v1_PodOS(ref),
+		corev1.PodPortForwardOptions{}.OpenAPIModelName():                      schema_k8sio_api_core_v1_PodPortForwardOptions(ref),
+		corev1.PodProxyOptions{}.OpenAPIModelName():                            schema_k8sio_api_core_v1_PodProxyOptions(ref),
+		corev1.PodReadinessGate{}.OpenAPIModelName():                           schema_k8sio_api_core_v1_PodReadinessGate(ref),
+		corev1.PodResourceClaim{}.OpenAPIModelName():                           schema_k8sio_api_core_v1_PodResourceClaim(ref),
+		corev1.PodResourceClaimStatus{}.OpenAPIModelName():                     schema_k8sio_api_core_v1_PodResourceClaimStatus(ref),
+		corev1.PodSchedulingGate{}.OpenAPIModelName():                          schema_k8sio_api_core_v1_PodSchedulingGate(ref),
+		corev1.PodSecurityContext{}.OpenAPIModelName():                         schema_k8sio_api_core_v1_PodSecurityContext(ref),
+		corev1.PodSignature{}.OpenAPIModelName():                               schema_k8sio_api_core_v1_PodSignature(ref),
+		corev1.PodSpec{}.OpenAPIModelName():                                    schema_k8sio_api_core_v1_PodSpec(ref),
+		corev1.PodStatus{}.OpenAPIModelName():                                  schema_k8sio_api_core_v1_PodStatus(ref),
+		corev1.PodStatusResult{}.OpenAPIModelName():                            schema_k8sio_api_core_v1_PodStatusResult(ref),
+		corev1.PodTemplate{}.OpenAPIModelName():                                schema_k8sio_api_core_v1_PodTemplate(ref),
+		corev1.PodTemplateList{}.OpenAPIModelName():                            schema_k8sio_api_core_v1_PodTemplateList(ref),
+		corev1.PodTemplateSpec{}.OpenAPIModelName():                            schema_k8sio_api_core_v1_PodTemplateSpec(ref),
+		corev1.PortStatus{}.OpenAPIModelName():                                 schema_k8sio_api_core_v1_PortStatus(ref),
+		corev1.PortworxVolumeSource{}.OpenAPIModelName():                       schema_k8sio_api_core_v1_PortworxVolumeSource(ref),
+		corev1.PreferAvoidPodsEntry{}.OpenAPIModelName():                       schema_k8sio_api_core_v1_PreferAvoidPodsEntry(ref),
+		corev1.PreferredSchedulingTerm{}.OpenAPIModelName():                    schema_k8sio_api_core_v1_PreferredSchedulingTerm(ref),
+		corev1.Probe{}.OpenAPIModelName():                                      schema_k8sio_api_core_v1_Probe(ref),
+		corev1.ProbeHandler{}.OpenAPIModelName():                               schema_k8sio_api_core_v1_ProbeHandler(ref),
+		corev1.ProjectedVolumeSource{}.OpenAPIModelName():                      schema_k8sio_api_core_v1_ProjectedVolumeSource(ref),
+		corev1.QuobyteVolumeSource{}.OpenAPIModelName():                        schema_k8sio_api_core_v1_QuobyteVolumeSource(ref),
+		corev1.RBDPersistentVolumeSource{}.OpenAPIModelName():                  schema_k8sio_api_core_v1_RBDPersistentVolumeSource(ref),
+		corev1.RBDVolumeSource{}.OpenAPIModelName():                            schema_k8sio_api_core_v1_RBDVolumeSource(ref),
+		corev1.RangeAllocation{}.OpenAPIModelName():                            schema_k8sio_api_core_v1_RangeAllocation(ref),
+		corev1.ReplicationController{}.OpenAPIModelName():                      schema_k8sio_api_core_v1_ReplicationController(ref),
+		corev1.ReplicationControllerCondition{}.OpenAPIModelName():             schema_k8sio_api_core_v1_ReplicationControllerCondition(ref),
+		corev1.ReplicationControllerList{}.OpenAPIModelName():                  schema_k8sio_api_core_v1_ReplicationControllerList(ref),
+		corev1.ReplicationControllerSpec{}.OpenAPIModelName():                  schema_k8sio_api_core_v1_ReplicationControllerSpec(ref),
+		corev1.ReplicationControllerStatus{}.OpenAPIModelName():                schema_k8sio_api_core_v1_ReplicationControllerStatus(ref),
+		corev1.ResourceClaim{}.OpenAPIModelName():                              schema_k8sio_api_core_v1_ResourceClaim(ref),
+		corev1.ResourceFieldSelector{}.OpenAPIModelName():                      schema_k8sio_api_core_v1_ResourceFieldSelector(ref),
+		corev1.ResourceHealth{}.OpenAPIModelName():                             schema_k8sio_api_core_v1_ResourceHealth(ref),
+		corev1.ResourceQuota{}.OpenAPIModelName():                              schema_k8sio_api_core_v1_ResourceQuota(ref),
+		corev1.ResourceQuotaList{}.OpenAPIModelName():                          schema_k8sio_api_core_v1_ResourceQuotaList(ref),
+		corev1.ResourceQuotaSpec{}.OpenAPIModelName():                          schema_k8sio_api_core_v1_ResourceQuotaSpec(ref),
+		corev1.ResourceQuotaStatus{}.OpenAPIModelName():                        schema_k8sio_api_core_v1_ResourceQuotaStatus(ref),
+		corev1.ResourceRequirements{}.OpenAPIModelName():                       schema_k8sio_api_core_v1_ResourceRequirements(ref),
+		corev1.ResourceStatus{}.OpenAPIModelName():                             schema_k8sio_api_core_v1_ResourceStatus(ref),
+		corev1.SELinuxOptions{}.OpenAPIModelName():                             schema_k8sio_api_core_v1_SELinuxOptions(ref),
+		corev1.ScaleIOPersistentVolumeSource{}.OpenAPIModelName():              schema_k8sio_api_core_v1_ScaleIOPersistentVolumeSource(ref),
+		corev1.ScaleIOVolumeSource{}.OpenAPIModelName():                        schema_k8sio_api_core_v1_ScaleIOVolumeSource(ref),
+		corev1.ScopeSelector{}.OpenAPIModelName():                              schema_k8sio_api_core_v1_ScopeSelector(ref),
+		corev1.ScopedResourceSelectorRequirement{}.OpenAPIModelName():          schema_k8sio_api_core_v1_ScopedResourceSelectorRequirement(ref),
+		corev1.SeccompProfile{}.OpenAPIModelName():                             schema_k8sio_api_core_v1_SeccompProfile(ref),
+		corev1.Secret{}.OpenAPIModelName():                                     schema_k8sio_api_core_v1_Secret(ref),
+		corev1.SecretEnvSource{}.OpenAPIModelName():                            schema_k8sio_api_core_v1_SecretEnvSource(ref),
+		corev1.SecretKeySelector{}.OpenAPIModelName():                          schema_k8sio_api_core_v1_SecretKeySelector(ref),
+		corev1.SecretList{}.OpenAPIModelName():                                 schema_k8sio_api_core_v1_SecretList(ref),
+		corev1.SecretProjection{}.OpenAPIModelName():                           schema_k8sio_api_core_v1_SecretProjection(ref),
+		corev1.SecretReference{}.OpenAPIModelName():                            schema_k8sio_api_core_v1_SecretReference(ref),
+		corev1.SecretVolumeSource{}.OpenAPIModelName():                         schema_k8sio_api_core_v1_SecretVolumeSource(ref),
+		corev1.SecurityContext{}.OpenAPIModelName():                            schema_k8sio_api_core_v1_SecurityContext(ref),
+		corev1.SerializedReference{}.OpenAPIModelName():                        schema_k8sio_api_core_v1_SerializedReference(ref),
+		corev1.Service{}.OpenAPIModelName():                                    schema_k8sio_api_core_v1_Service(ref),
+		corev1.ServiceAccount{}.OpenAPIModelName():                             schema_k8sio_api_core_v1_ServiceAccount(ref),
+		corev1.ServiceAccountList{}.OpenAPIModelName():                         schema_k8sio_api_core_v1_ServiceAccountList(ref),
+		corev1.ServiceAccountTokenProjection{}.OpenAPIModelName():              schema_k8sio_api_core_v1_ServiceAccountTokenProjection(ref),
+		corev1.ServiceList{}.OpenAPIModelName():                                schema_k8sio_api_core_v1_ServiceList(ref),
+		corev1.ServicePort{}.OpenAPIModelName():                                schema_k8sio_api_core_v1_ServicePort(ref),
+		corev1.ServiceProxyOptions{}.OpenAPIModelName():                        schema_k8sio_api_core_v1_ServiceProxyOptions(ref),
+		corev1.ServiceSpec{}.OpenAPIModelName():                                schema_k8sio_api_core_v1_ServiceSpec(ref),
+		corev1.ServiceStatus{}.OpenAPIModelName():                              schema_k8sio_api_core_v1_ServiceStatus(ref),
+		corev1.SessionAffinityConfig{}.OpenAPIModelName():                      schema_k8sio_api_core_v1_SessionAffinityConfig(ref),
+		corev1.SleepAction{}.OpenAPIModelName():                                schema_k8sio_api_core_v1_SleepAction(ref),
+		corev1.StorageOSPersistentVolumeSource{}.OpenAPIModelName():            schema_k8sio_api_core_v1_StorageOSPersistentVolumeSource(ref),
+		corev1.StorageOSVolumeSource{}.OpenAPIModelName():                      schema_k8sio_api_core_v1_StorageOSVolumeSource(ref),
+		corev1.Sysctl{}.OpenAPIModelName():                                     schema_k8sio_api_core_v1_Sysctl(ref),
+		corev1.TCPSocketAction{}.OpenAPIModelName():                            schema_k8sio_api_core_v1_TCPSocketAction(ref),
+		corev1.Taint{}.OpenAPIModelName():                                      schema_k8sio_api_core_v1_Taint(ref),
+		corev1.Toleration{}.OpenAPIModelName():                                 schema_k8sio_api_core_v1_Toleration(ref),
+		corev1.TopologySelectorLabelRequirement{}.OpenAPIModelName():           schema_k8sio_api_core_v1_TopologySelectorLabelRequirement(ref),
+		corev1.TopologySelectorTerm{}.OpenAPIModelName():                       schema_k8sio_api_core_v1_TopologySelectorTerm(ref),
+		corev1.TopologySpreadConstraint{}.OpenAPIModelName():                   schema_k8sio_api_core_v1_TopologySpreadConstraint(ref),
+		corev1.TypedLocalObjectReference{}.OpenAPIModelName():                  schema_k8sio_api_core_v1_TypedLocalObjectReference(ref),
+		corev1.TypedObjectReference{}.OpenAPIModelName():                       schema_k8sio_api_core_v1_TypedObjectReference(ref),
+		corev1.Volume{}.OpenAPIModelName():                                     schema_k8sio_api_core_v1_Volume(ref),
+		corev1.VolumeDevice{}.OpenAPIModelName():                               schema_k8sio_api_core_v1_VolumeDevice(ref),
+		corev1.VolumeMount{}.OpenAPIModelName():                                schema_k8sio_api_core_v1_VolumeMount(ref),
+		corev1.VolumeMountStatus{}.OpenAPIModelName():                          schema_k8sio_api_core_v1_VolumeMountStatus(ref),
+		corev1.VolumeNodeAffinity{}.OpenAPIModelName():                         schema_k8sio_api_core_v1_VolumeNodeAffinity(ref),
+		corev1.VolumeProjection{}.OpenAPIModelName():                           schema_k8sio_api_core_v1_VolumeProjection(ref),
+		corev1.VolumeResourceRequirements{}.OpenAPIModelName():                 schema_k8sio_api_core_v1_VolumeResourceRequirements(ref),
+		corev1.VolumeSource{}.OpenAPIModelName():                               schema_k8sio_api_core_v1_VolumeSource(ref),
+		corev1.VsphereVirtualDiskVolumeSource{}.OpenAPIModelName():             schema_k8sio_api_core_v1_VsphereVirtualDiskVolumeSource(ref),
+		corev1.WeightedPodAffinityTerm{}.OpenAPIModelName():                    schema_k8sio_api_core_v1_WeightedPodAffinityTerm(ref),
+		corev1.WindowsSecurityContextOptions{}.OpenAPIModelName():              schema_k8sio_api_core_v1_WindowsSecurityContextOptions(ref),
+		corev1.WorkloadReference{}.OpenAPIModelName():                          schema_k8sio_api_core_v1_WorkloadReference(ref),
+		networkingv1.HTTPIngressPath{}.OpenAPIModelName():                      schema_k8sio_api_networking_v1_HTTPIngressPath(ref),
+		networkingv1.HTTPIngressRuleValue{}.OpenAPIModelName():                 schema_k8sio_api_networking_v1_HTTPIngressRuleValue(ref),
+		networkingv1.IPAddress{}.OpenAPIModelName():                            schema_k8sio_api_networking_v1_IPAddress(ref),
+		networkingv1.IPAddressList{}.OpenAPIModelName():                        schema_k8sio_api_networking_v1_IPAddressList(ref),
+		networkingv1.IPAddressSpec{}.OpenAPIModelName():                        schema_k8sio_api_networking_v1_IPAddressSpec(ref),
+		networkingv1.IPBlock{}.OpenAPIModelName():                              schema_k8sio_api_networking_v1_IPBlock(ref),
+		networkingv1.Ingress{}.OpenAPIModelName():                              schema_k8sio_api_networking_v1_Ingress(ref),
+		networkingv1.IngressBackend{}.OpenAPIModelName():                       schema_k8sio_api_networking_v1_IngressBackend(ref),
+		networkingv1.IngressClass{}.OpenAPIModelName():                         schema_k8sio_api_networking_v1_IngressClass(ref),
+		networkingv1.IngressClassList{}.OpenAPIModelName():                     schema_k8sio_api_networking_v1_IngressClassList(ref),
+		networkingv1.IngressClassParametersReference{}.OpenAPIModelName():      schema_k8sio_api_networking_v1_IngressClassParametersReference(ref),
+		networkingv1.IngressClassSpec{}.OpenAPIModelName():                     schema_k8sio_api_networking_v1_IngressClassSpec(ref),
+		networkingv1.IngressList{}.OpenAPIModelName():                          schema_k8sio_api_networking_v1_IngressList(ref),
+		networkingv1.IngressLoadBalancerIngress{}.OpenAPIModelName():           schema_k8sio_api_networking_v1_IngressLoadBalancerIngress(ref),
+		networkingv1.IngressLoadBalancerStatus{}.OpenAPIModelName():            schema_k8sio_api_networking_v1_IngressLoadBalancerStatus(ref),
+		networkingv1.IngressPortStatus{}.OpenAPIModelName():                    schema_k8sio_api_networking_v1_IngressPortStatus(ref),
+		networkingv1.IngressRule{}.OpenAPIModelName():                          schema_k8sio_api_networking_v1_IngressRule(ref),
+		networkingv1.IngressRuleValue{}.OpenAPIModelName():                     schema_k8sio_api_networking_v1_IngressRuleValue(ref),
+		networkingv1.IngressServiceBackend{}.OpenAPIModelName():                schema_k8sio_api_networking_v1_IngressServiceBackend(ref),
+		networkingv1.IngressSpec{}.OpenAPIModelName():                          schema_k8sio_api_networking_v1_IngressSpec(ref),
+		networkingv1.IngressStatus{}.OpenAPIModelName():                        schema_k8sio_api_networking_v1_IngressStatus(ref),
+		networkingv1.IngressTLS{}.OpenAPIModelName():                           schema_k8sio_api_networking_v1_IngressTLS(ref),
+		networkingv1.NetworkPolicy{}.OpenAPIModelName():                        schema_k8sio_api_networking_v1_NetworkPolicy(ref),
+		networkingv1.NetworkPolicyEgressRule{}.OpenAPIModelName():              schema_k8sio_api_networking_v1_NetworkPolicyEgressRule(ref),
+		networkingv1.NetworkPolicyIngressRule{}.OpenAPIModelName():             schema_k8sio_api_networking_v1_NetworkPolicyIngressRule(ref),
+		networkingv1.NetworkPolicyList{}.OpenAPIModelName():                    schema_k8sio_api_networking_v1_NetworkPolicyList(ref),
+		networkingv1.NetworkPolicyPeer{}.OpenAPIModelName():                    schema_k8sio_api_networking_v1_NetworkPolicyPeer(ref),
+		networkingv1.NetworkPolicyPort{}.OpenAPIModelName():                    schema_k8sio_api_networking_v1_NetworkPolicyPort(ref),
+		networkingv1.NetworkPolicySpec{}.OpenAPIModelName():                    schema_k8sio_api_networking_v1_NetworkPolicySpec(ref),
+		networkingv1.ParentReference{}.OpenAPIModelName():                      schema_k8sio_api_networking_v1_ParentReference(ref),
+		networkingv1.ServiceBackendPort{}.OpenAPIModelName():                   schema_k8sio_api_networking_v1_ServiceBackendPort(ref),
+		networkingv1.ServiceCIDR{}.OpenAPIModelName():                          schema_k8sio_api_networking_v1_ServiceCIDR(ref),
+		networkingv1.ServiceCIDRList{}.OpenAPIModelName():                      schema_k8sio_api_networking_v1_ServiceCIDRList(ref),
+		networkingv1.ServiceCIDRSpec{}.OpenAPIModelName():                      schema_k8sio_api_networking_v1_ServiceCIDRSpec(ref),
+		networkingv1.ServiceCIDRStatus{}.OpenAPIModelName():                    schema_k8sio_api_networking_v1_ServiceCIDRStatus(ref),
+		apiextensionsv1.ConversionRequest{}.OpenAPIModelName():                 schema_pkg_apis_apiextensions_v1_ConversionRequest(ref),
+		apiextensionsv1.ConversionResponse{}.OpenAPIModelName():                schema_pkg_apis_apiextensions_v1_ConversionResponse(ref),
+		apiextensionsv1.ConversionReview{}.OpenAPIModelName():                  schema_pkg_apis_apiextensions_v1_ConversionReview(ref),
+		apiextensionsv1.CustomResourceColumnDefinition{}.OpenAPIModelName():    schema_pkg_apis_apiextensions_v1_CustomResourceColumnDefinition(ref),
+		apiextensionsv1.CustomResourceConversion{}.OpenAPIModelName():          schema_pkg_apis_apiextensions_v1_CustomResourceConversion(ref),
+		apiextensionsv1.CustomResourceDefinition{}.OpenAPIModelName():          schema_pkg_apis_apiextensions_v1_CustomResourceDefinition(ref),
+		apiextensionsv1.CustomResourceDefinitionCondition{}.OpenAPIModelName(): schema_pkg_apis_apiextensions_v1_CustomResourceDefinitionCondition(ref),
+		apiextensionsv1.CustomResourceDefinitionList{}.OpenAPIModelName():      schema_pkg_apis_apiextensions_v1_CustomResourceDefinitionList(ref),
+		apiextensionsv1.CustomResourceDefinitionNames{}.OpenAPIModelName():     schema_pkg_apis_apiextensions_v1_CustomResourceDefinitionNames(ref),
+		apiextensionsv1.CustomResourceDefinitionSpec{}.OpenAPIModelName():      schema_pkg_apis_apiextensions_v1_CustomResourceDefinitionSpec(ref),
+		apiextensionsv1.CustomResourceDefinitionStatus{}.OpenAPIModelName():    schema_pkg_apis_apiextensions_v1_CustomResourceDefinitionStatus(ref),
+		apiextensionsv1.CustomResourceDefinitionVersion{}.OpenAPIModelName():   schema_pkg_apis_apiextensions_v1_CustomResourceDefinitionVersion(ref),
+		apiextensionsv1.CustomResourceSubresourceScale{}.OpenAPIModelName():    schema_pkg_apis_apiextensions_v1_CustomResourceSubresourceScale(ref),
+		apiextensionsv1.CustomResourceSubresourceStatus{}.OpenAPIModelName():   schema_pkg_apis_apiextensions_v1_CustomResourceSubresourceStatus(ref),
+		apiextensionsv1.CustomResourceSubresources{}.OpenAPIModelName():        schema_pkg_apis_apiextensions_v1_CustomResourceSubresources(ref),
+		apiextensionsv1.CustomResourceValidation{}.OpenAPIModelName():          schema_pkg_apis_apiextensions_v1_CustomResourceValidation(ref),
+		apiextensionsv1.ExternalDocumentation{}.OpenAPIModelName():             schema_pkg_apis_apiextensions_v1_ExternalDocumentation(ref),
+		apiextensionsv1.JSON{}.OpenAPIModelName():                              schema_pkg_apis_apiextensions_v1_JSON(ref),
+		apiextensionsv1.JSONSchemaProps{}.OpenAPIModelName():                   schema_pkg_apis_apiextensions_v1_JSONSchemaProps(ref),
+		apiextensionsv1.JSONSchemaPropsOrArray{}.OpenAPIModelName():            schema_pkg_apis_apiextensions_v1_JSONSchemaPropsOrArray(ref),
+		apiextensionsv1.JSONSchemaPropsOrBool{}.OpenAPIModelName():             schema_pkg_apis_apiextensions_v1_JSONSchemaPropsOrBool(ref),
+		apiextensionsv1.JSONSchemaPropsOrStringArray{}.OpenAPIModelName():      schema_pkg_apis_apiextensions_v1_JSONSchemaPropsOrStringArray(ref),
+		apiextensionsv1.SelectableField{}.OpenAPIModelName():                   schema_pkg_apis_apiextensions_v1_SelectableField(ref),
+		apiextensionsv1.ServiceReference{}.OpenAPIModelName():                  schema_pkg_apis_apiextensions_v1_ServiceReference(ref),
+		apiextensionsv1.ValidationRule{}.OpenAPIModelName():                    schema_pkg_apis_apiextensions_v1_ValidationRule(ref),
+		apiextensionsv1.WebhookClientConfig{}.OpenAPIModelName():               schema_pkg_apis_apiextensions_v1_WebhookClientConfig(ref),
+		apiextensionsv1.WebhookConversion{}.OpenAPIModelName():                 schema_pkg_apis_apiextensions_v1_WebhookConversion(ref),
+		resource.Quantity{}.OpenAPIModelName():                                 schema_apimachinery_pkg_api_resource_Quantity(ref),
+		metav1.APIGroup{}.OpenAPIModelName():                                   schema_pkg_apis_meta_v1_APIGroup(ref),
+		metav1.APIGroupList{}.OpenAPIModelName():                               schema_pkg_apis_meta_v1_APIGroupList(ref),
+		metav1.APIResource{}.OpenAPIModelName():                                schema_pkg_apis_meta_v1_APIResource(ref),
+		metav1.APIResourceList{}.OpenAPIModelName():                            schema_pkg_apis_meta_v1_APIResourceList(ref),
+		metav1.APIVersions{}.OpenAPIModelName():                                schema_pkg_apis_meta_v1_APIVersions(ref),
+		metav1.ApplyOptions{}.OpenAPIModelName():                               schema_pkg_apis_meta_v1_ApplyOptions(ref),
+		metav1.Condition{}.OpenAPIModelName():                                  schema_pkg_apis_meta_v1_Condition(ref),
+		metav1.CreateOptions{}.OpenAPIModelName():                              schema_pkg_apis_meta_v1_CreateOptions(ref),
+		metav1.DeleteOptions{}.OpenAPIModelName():                              schema_pkg_apis_meta_v1_DeleteOptions(ref),
+		metav1.Duration{}.OpenAPIModelName():                                   schema_pkg_apis_meta_v1_Duration(ref),
+		metav1.FieldSelectorRequirement{}.OpenAPIModelName():                   schema_pkg_apis_meta_v1_FieldSelectorRequirement(ref),
+		metav1.FieldsV1{}.OpenAPIModelName():                                   schema_pkg_apis_meta_v1_FieldsV1(ref),
+		metav1.GetOptions{}.OpenAPIModelName():                                 schema_pkg_apis_meta_v1_GetOptions(ref),
+		metav1.GroupKind{}.OpenAPIModelName():                                  schema_pkg_apis_meta_v1_GroupKind(ref),
+		metav1.GroupResource{}.OpenAPIModelName():                              schema_pkg_apis_meta_v1_GroupResource(ref),
+		metav1.GroupVersion{}.OpenAPIModelName():                               schema_pkg_apis_meta_v1_GroupVersion(ref),
+		metav1.GroupVersionForDiscovery{}.OpenAPIModelName():                   schema_pkg_apis_meta_v1_GroupVersionForDiscovery(ref),
+		metav1.GroupVersionKind{}.OpenAPIModelName():                           schema_pkg_apis_meta_v1_GroupVersionKind(ref),
+		metav1.GroupVersionResource{}.OpenAPIModelName():                       schema_pkg_apis_meta_v1_GroupVersionResource(ref),
+		metav1.InternalEvent{}.OpenAPIModelName():                              schema_pkg_apis_meta_v1_InternalEvent(ref),
+		metav1.LabelSelector{}.OpenAPIModelName():                              schema_pkg_apis_meta_v1_LabelSelector(ref),
+		metav1.LabelSelectorRequirement{}.OpenAPIModelName():                   schema_pkg_apis_meta_v1_LabelSelectorRequirement(ref),
+		metav1.List{}.OpenAPIModelName():                                       schema_pkg_apis_meta_v1_List(ref),
+		metav1.ListMeta{}.OpenAPIModelName():                                   schema_pkg_apis_meta_v1_ListMeta(ref),
+		metav1.ListOptions{}.OpenAPIModelName():                                schema_pkg_apis_meta_v1_ListOptions(ref),
+		metav1.ManagedFieldsEntry{}.OpenAPIModelName():                         schema_pkg_apis_meta_v1_ManagedFieldsEntry(ref),
+		metav1.MicroTime{}.OpenAPIModelName():                                  schema_pkg_apis_meta_v1_MicroTime(ref),
+		metav1.ObjectMeta{}.OpenAPIModelName():                                 schema_pkg_apis_meta_v1_ObjectMeta(ref),
+		metav1.OwnerReference{}.OpenAPIModelName():                             schema_pkg_apis_meta_v1_OwnerReference(ref),
+		metav1.PartialObjectMetadata{}.OpenAPIModelName():                      schema_pkg_apis_meta_v1_PartialObjectMetadata(ref),
+		metav1.PartialObjectMetadataList{}.OpenAPIModelName():                  schema_pkg_apis_meta_v1_PartialObjectMetadataList(ref),
+		metav1.Patch{}.OpenAPIModelName():                                      schema_pkg_apis_meta_v1_Patch(ref),
+		metav1.PatchOptions{}.OpenAPIModelName():                               schema_pkg_apis_meta_v1_PatchOptions(ref),
+		metav1.Preconditions{}.OpenAPIModelName():                              schema_pkg_apis_meta_v1_Preconditions(ref),
+		metav1.RootPaths{}.OpenAPIModelName():                                  schema_pkg_apis_meta_v1_RootPaths(ref),
+		metav1.ServerAddressByClientCIDR{}.OpenAPIModelName():                  schema_pkg_apis_meta_v1_ServerAddressByClientCIDR(ref),
+		metav1.Status{}.OpenAPIModelName():                                     schema_pkg_apis_meta_v1_Status(ref),
+		metav1.StatusCause{}.OpenAPIModelName():                                schema_pkg_apis_meta_v1_StatusCause(ref),
+		metav1.StatusDetails{}.OpenAPIModelName():                              schema_pkg_apis_meta_v1_StatusDetails(ref),
+		metav1.Table{}.OpenAPIModelName():                                      schema_pkg_apis_meta_v1_Table(ref),
+		metav1.TableColumnDefinition{}.OpenAPIModelName():                      schema_pkg_apis_meta_v1_TableColumnDefinition(ref),
+		metav1.TableOptions{}.OpenAPIModelName():                               schema_pkg_apis_meta_v1_TableOptions(ref),
+		metav1.TableRow{}.OpenAPIModelName():                                   schema_pkg_apis_meta_v1_TableRow(ref),
+		metav1.TableRowCondition{}.OpenAPIModelName():                          schema_pkg_apis_meta_v1_TableRowCondition(ref),
+		metav1.Time{}.OpenAPIModelName():                                       schema_pkg_apis_meta_v1_Time(ref),
+		metav1.Timestamp{}.OpenAPIModelName():                                  schema_pkg_apis_meta_v1_Timestamp(ref),
+		metav1.TypeMeta{}.OpenAPIModelName():                                   schema_pkg_apis_meta_v1_TypeMeta(ref),
+		metav1.UpdateOptions{}.OpenAPIModelName():                              schema_pkg_apis_meta_v1_UpdateOptions(ref),
+		metav1.WatchEvent{}.OpenAPIModelName():                                 schema_pkg_apis_meta_v1_WatchEvent(ref),
+		runtime.RawExtension{}.OpenAPIModelName():                              schema_k8sio_apimachinery_pkg_runtime_RawExtension(ref),
+		runtime.TypeMeta{}.OpenAPIModelName():                                  schema_k8sio_apimachinery_pkg_runtime_TypeMeta(ref),
+		runtime.Unknown{}.OpenAPIModelName():                                   schema_k8sio_apimachinery_pkg_runtime_Unknown(ref),
+		version.Info{}.OpenAPIModelName():                                      schema_k8sio_apimachinery_pkg_version_Info(ref),
+		v1beta1.MetricListOptions{}.OpenAPIModelName():                         schema_pkg_apis_custom_metrics_v1beta1_MetricListOptions(ref),
+		v1beta1.MetricValue{}.OpenAPIModelName():                               schema_pkg_apis_custom_metrics_v1beta1_MetricValue(ref),
+		v1beta1.MetricValueList{}.OpenAPIModelName():                           schema_pkg_apis_custom_metrics_v1beta1_MetricValueList(ref),
+		v1beta2.MetricIdentifier{}.OpenAPIModelName():                          schema_pkg_apis_custom_metrics_v1beta2_MetricIdentifier(ref),
+		v1beta2.MetricListOptions{}.OpenAPIModelName():                         schema_pkg_apis_custom_metrics_v1beta2_MetricListOptions(ref),
+		v1beta2.MetricValue{}.OpenAPIModelName():                               schema_pkg_apis_custom_metrics_v1beta2_MetricValue(ref),
+		v1beta2.MetricValueList{}.OpenAPIModelName():                           schema_pkg_apis_custom_metrics_v1beta2_MetricValueList(ref),
+		externalmetricsv1beta1.ExternalMetricValue{}.OpenAPIModelName():        schema_pkg_apis_external_metrics_v1beta1_ExternalMetricValue(ref),
+		externalmetricsv1beta1.ExternalMetricValueList{}.OpenAPIModelName():    schema_pkg_apis_external_metrics_v1beta1_ExternalMetricValueList(ref),
+		metricsv1beta1.ContainerMetrics{}.OpenAPIModelName():                   schema_pkg_apis_metrics_v1beta1_ContainerMetrics(ref),
+		metricsv1beta1.NodeMetrics{}.OpenAPIModelName():                        schema_pkg_apis_metrics_v1beta1_NodeMetrics(ref),
+		metricsv1beta1.NodeMetricsList{}.OpenAPIModelName():                    schema_pkg_apis_metrics_v1beta1_NodeMetricsList(ref),
+		metricsv1beta1.PodMetrics{}.OpenAPIModelName():                         schema_pkg_apis_metrics_v1beta1_PodMetrics(ref),
+		metricsv1beta1.PodMetricsList{}.OpenAPIModelName():                     schema_pkg_apis_metrics_v1beta1_PodMetricsList(ref),
+	}
+}
+
+func schema_k8sio_api_admissionregistration_v1_AuditAnnotation(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "AuditAnnotation describes how to produce an audit annotation for an API request.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"key": {
+						SchemaProps: spec.SchemaProps{
+							Description: "key specifies the audit annotation key. The audit annotation keys of a ValidatingAdmissionPolicy must be unique. The key must be a qualified name ([A-Za-z0-9][-A-Za-z0-9_.]*) no more than 63 bytes in length.\n\nThe key is combined with the resource name of the ValidatingAdmissionPolicy to construct an audit annotation key: \"{ValidatingAdmissionPolicy name}/{key}\".\n\nIf an admission webhook uses the same resource name as this ValidatingAdmissionPolicy and the same audit annotation key, the annotation key will be identical. In this case, the first annotation written with the key will be included in the audit event and all subsequent annotations with the same key will be discarded.\n\nRequired.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"valueExpression": {
+						SchemaProps: spec.SchemaProps{
+							Description: "valueExpression represents the expression which is evaluated by CEL to produce an audit annotation value. The expression must evaluate to either a string or null value. If the expression evaluates to a string, the audit annotation is included with the string value. If the expression evaluates to null or empty string the audit annotation will be omitted. The valueExpression may be no longer than 5kb in length. If the result of the valueExpression is more than 10kb in length, it will be truncated to 10kb.\n\nIf multiple ValidatingAdmissionPolicyBinding resources match an API request, then the valueExpression will be evaluated for each binding. All unique values produced by the valueExpressions will be joined together in a comma-separated list.\n\nRequired.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"key", "valueExpression"},
+			},
+		},
+	}
+}
+
+func schema_k8sio_api_admissionregistration_v1_ExpressionWarning(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ExpressionWarning is a warning information that targets a specific expression.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"fieldRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The path to the field that refers the expression. For example, the reference to the expression of the first item of validations is \"spec.validations[0].expression\"",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"warning": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The content of type checking information in a human-readable form. Each line of the warning contains the type that the expression is checked against, followed by the type check error from the compiler.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"fieldRef", "warning"},
+			},
+		},
+	}
+}
+
+func schema_k8sio_api_admissionregistration_v1_MatchCondition(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "MatchCondition represents a condition which must by fulfilled for a request to be sent to a webhook.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name is an identifier for this match condition, used for strategic merging of MatchConditions, as well as providing an identifier for logging purposes. A good name should be descriptive of the associated expression. Name must be a qualified name consisting of alphanumeric characters, '-', '_' or '.', and must start and end with an alphanumeric character (e.g. 'MyName',  or 'my.name',  or '123-abc', regex used for validation is '([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9]') with an optional DNS subdomain prefix and '/' (e.g. 'example.com/MyName')\n\nRequired.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"expression": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Expression represents the expression which will be evaluated by CEL. Must evaluate to bool. CEL expressions have access to the contents of the AdmissionRequest and Authorizer, organized into CEL variables:\n\n'object' - The object from the incoming request. The value is null for DELETE requests. 'oldObject' - The existing object. The value is null for CREATE requests. 'request' - Attributes of the admission request(/pkg/apis/admission/types.go#AdmissionRequest). 'authorizer' - A CEL Authorizer. May be used to perform authorization checks for the principal (user or service account) of the request.\n  See https://pkg.go.dev/k8s.io/apiserver/pkg/cel/library#Authz\n'authorizer.requestResource' - A CEL ResourceCheck constructed from the 'authorizer' and configured with the\n  request resource.\nDocumentation on CEL: https://kubernetes.io/docs/reference/using-api/cel/\n\nRequired.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"name", "expression"},
+			},
+		},
+	}
+}
+
+func schema_k8sio_api_admissionregistration_v1_MatchResources(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "MatchResources decides whether to run the admission control policy on an object based on whether it meets the match criteria. The exclude rules take precedence over include rules (if a resource matches both, it is excluded)",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"namespaceSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NamespaceSelector decides whether to run the admission control policy on an object based on whether the namespace for that object matches the selector. If the object itself is a namespace, the matching is performed on object.metadata.labels. If the object is another cluster scoped resource, it never skips the policy.\n\nFor example, to run the webhook on any objects whose namespace is not associated with \"runlevel\" of \"0\" or \"1\";  you will set the selector as follows: \"namespaceSelector\": {\n  \"matchExpressions\": [\n    {\n      \"key\": \"runlevel\",\n      \"operator\": \"NotIn\",\n      \"values\": [\n        \"0\",\n        \"1\"\n      ]\n    }\n  ]\n}\n\nIf instead you want to only run the policy on any objects whose namespace is associated with the \"environment\" of \"prod\" or \"staging\"; you will set the selector as follows: \"namespaceSelector\": {\n  \"matchExpressions\": [\n    {\n      \"key\": \"environment\",\n      \"operator\": \"In\",\n      \"values\": [\n        \"prod\",\n        \"staging\"\n      ]\n    }\n  ]\n}\n\nSee https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/ for more examples of label selectors.\n\nDefault to the empty LabelSelector, which matches everything.",
+							Ref:         ref(metav1.LabelSelector{}.OpenAPIModelName()),
+						},
+					},
+					"objectSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ObjectSelector decides whether to run the validation based on if the object has matching labels. objectSelector is evaluated against both the oldObject and newObject that would be sent to the cel validation, and is considered to match if either object matches the selector. A null object (oldObject in the case of create, or newObject in the case of delete) or an object that cannot have labels (like a DeploymentRollback or a PodProxyOptions object) is not considered to match. Use the object selector only if the webhook is opt-in, because end users may skip the admission webhook by setting the labels. Default to the empty LabelSelector, which matches everything.",
+							Ref:         ref(metav1.LabelSelector{}.OpenAPIModelName()),
+						},
+					},
+					"resourceRules": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "ResourceRules describes what operations on what resources/subresources the ValidatingAdmissionPolicy matches. The policy cares about an operation if it matches _any_ Rule.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(v1.NamedRuleWithOperations{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+					"excludeResourceRules": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "ExcludeResourceRules describes what operations on what resources/subresources the ValidatingAdmissionPolicy should not care about. The exclude rules take precedence over include rules (if a resource matches both, it is excluded)",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(v1.NamedRuleWithOperations{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+					"matchPolicy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "matchPolicy defines how the \"MatchResources\" list is used to match incoming requests. Allowed values are \"Exact\" or \"Equivalent\".\n\n- Exact: match a request only if it exactly matches a specified rule. For example, if deployments can be modified via apps/v1, apps/v1beta1, and extensions/v1beta1, but \"rules\" only included `apiGroups:[\"apps\"], apiVersions:[\"v1\"], resources: [\"deployments\"]`, a request to apps/v1beta1 or extensions/v1beta1 would not be sent to the ValidatingAdmissionPolicy.\n\n- Equivalent: match a request if modifies a resource listed in rules, even via another API group or version. For example, if deployments can be modified via apps/v1, apps/v1beta1, and extensions/v1beta1, and \"rules\" only included `apiGroups:[\"apps\"], apiVersions:[\"v1\"], resources: [\"deployments\"]`, a request to apps/v1beta1 or extensions/v1beta1 would be converted to apps/v1 and sent to the ValidatingAdmissionPolicy.\n\nDefaults to \"Equivalent\"\n\nPossible enum values:\n - `\"Equivalent\"` means requests should be sent to the webhook if they modify a resource listed in rules via another API group or version.\n - `\"Exact\"` means requests should only be sent to the webhook if they exactly match a given rule.",
+							Type:        []string{"string"},
+							Format:      "",
+							Enum:        []interface{}{"Equivalent", "Exact"},
+						},
+					},
+				},
+			},
+			VendorExtensible: spec.VendorExtensible{
+				Extensions: spec.Extensions{
+					"x-kubernetes-map-type": "atomic",
+				},
+			},
+		},
+		Dependencies: []string{
+			v1.NamedRuleWithOperations{}.OpenAPIModelName(), metav1.LabelSelector{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_admissionregistration_v1_MutatingWebhook(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "MutatingWebhook describes an admission webhook and the resources and operations it applies to.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The name of the admission webhook. Name should be fully qualified, e.g., imagepolicy.kubernetes.io, where \"imagepolicy\" is the name of the webhook, and kubernetes.io is the name of the organization. Required.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"clientConfig": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ClientConfig defines how to communicate with the hook. Required",
+							Default:     map[string]interface{}{},
+							Ref:         ref(v1.WebhookClientConfig{}.OpenAPIModelName()),
+						},
+					},
+					"rules": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Rules describes what operations on what resources/subresources the webhook cares about. The webhook cares about an operation if it matches _any_ Rule. However, in order to prevent ValidatingAdmissionWebhooks and MutatingAdmissionWebhooks from putting the cluster in a state which cannot be recovered from without completely disabling the plugin, ValidatingAdmissionWebhooks and MutatingAdmissionWebhooks are never called on admission requests for ValidatingWebhookConfiguration and MutatingWebhookConfiguration objects.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(v1.RuleWithOperations{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+					"failurePolicy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "FailurePolicy defines how unrecognized errors from the admission endpoint are handled - allowed values are Ignore or Fail. Defaults to Fail.\n\nPossible enum values:\n - `\"Fail\"` means that an error calling the webhook causes the admission to fail.\n - `\"Ignore\"` means that an error calling the webhook is ignored.",
+							Type:        []string{"string"},
+							Format:      "",
+							Enum:        []interface{}{"Fail", "Ignore"},
+						},
+					},
+					"matchPolicy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "matchPolicy defines how the \"rules\" list is used to match incoming requests. Allowed values are \"Exact\" or \"Equivalent\".\n\n- Exact: match a request only if it exactly matches a specified rule. For example, if deployments can be modified via apps/v1, apps/v1beta1, and extensions/v1beta1, but \"rules\" only included `apiGroups:[\"apps\"], apiVersions:[\"v1\"], resources: [\"deployments\"]`, a request to apps/v1beta1 or extensions/v1beta1 would not be sent to the webhook.\n\n- Equivalent: match a request if modifies a resource listed in rules, even via another API group or version. For example, if deployments can be modified via apps/v1, apps/v1beta1, and extensions/v1beta1, and \"rules\" only included `apiGroups:[\"apps\"], apiVersions:[\"v1\"], resources: [\"deployments\"]`, a request to apps/v1beta1 or extensions/v1beta1 would be converted to apps/v1 and sent to the webhook.\n\nDefaults to \"Equivalent\"\n\nPossible enum values:\n - `\"Equivalent\"` means requests should be sent to the webhook if they modify a resource listed in rules via another API group or version.\n - `\"Exact\"` means requests should only be sent to the webhook if they exactly match a given rule.",
+							Type:        []string{"string"},
+							Format:      "",
+							Enum:        []interface{}{"Equivalent", "Exact"},
+						},
+					},
+					"namespaceSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NamespaceSelector decides whether to run the webhook on an object based on whether the namespace for that object matches the selector. If the object itself is a namespace, the matching is performed on object.metadata.labels. If the object is another cluster scoped resource, it never skips the webhook.\n\nFor example, to run the webhook on any objects whose namespace is not associated with \"runlevel\" of \"0\" or \"1\";  you will set the selector as follows: \"namespaceSelector\": {\n  \"matchExpressions\": [\n    {\n      \"key\": \"runlevel\",\n      \"operator\": \"NotIn\",\n      \"values\": [\n        \"0\",\n        \"1\"\n      ]\n    }\n  ]\n}\n\nIf instead you want to only run the webhook on any objects whose namespace is associated with the \"environment\" of \"prod\" or \"staging\"; you will set the selector as follows: \"namespaceSelector\": {\n  \"matchExpressions\": [\n    {\n      \"key\": \"environment\",\n      \"operator\": \"In\",\n      \"values\": [\n        \"prod\",\n        \"staging\"\n      ]\n    }\n  ]\n}\n\nSee https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/ for more examples of label selectors.\n\nDefault to the empty LabelSelector, which matches everything.",
+							Ref:         ref(metav1.LabelSelector{}.OpenAPIModelName()),
+						},
+					},
+					"objectSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ObjectSelector decides whether to run the webhook based on if the object has matching labels. objectSelector is evaluated against both the oldObject and newObject that would be sent to the webhook, and is considered to match if either object matches the selector. A null object (oldObject in the case of create, or newObject in the case of delete) or an object that cannot have labels (like a DeploymentRollback or a PodProxyOptions object) is not considered to match. Use the object selector only if the webhook is opt-in, because end users may skip the admission webhook by setting the labels. Default to the empty LabelSelector, which matches everything.",
+							Ref:         ref(metav1.LabelSelector{}.OpenAPIModelName()),
+						},
+					},
+					"sideEffects": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SideEffects states whether this webhook has side effects. Acceptable values are: None, NoneOnDryRun (webhooks created via v1beta1 may also specify Some or Unknown). Webhooks with side effects MUST implement a reconciliation system, since a request may be rejected by a future step in the admission chain and the side effects therefore need to be undone. Requests with the dryRun attribute will be auto-rejected if they match a webhook with sideEffects == Unknown or Some.\n\nPossible enum values:\n - `\"None\"` means that calling the webhook will have no side effects.\n - `\"NoneOnDryRun\"` means that calling the webhook will possibly have side effects, but if the request being reviewed has the dry-run attribute, the side effects will be suppressed.\n - `\"Some\"` means that calling the webhook will possibly have side effects. If a request with the dry-run attribute would trigger a call to this webhook, the request will instead fail.\n - `\"Unknown\"` means that no information is known about the side effects of calling the webhook. If a request with the dry-run attribute would trigger a call to this webhook, the request will instead fail.",
+							Type:        []string{"string"},
+							Format:      "",
+							Enum:        []interface{}{"None", "NoneOnDryRun", "Some", "Unknown"},
+						},
+					},
+					"timeoutSeconds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TimeoutSeconds specifies the timeout for this webhook. After the timeout passes, the webhook call will be ignored or the API call will fail based on the failure policy. The timeout value must be between 1 and 30 seconds. Default to 10 seconds.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"admissionReviewVersions": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "AdmissionReviewVersions is an ordered list of preferred `AdmissionReview` versions the Webhook expects. API server will try to use first version in the list which it supports. If none of the versions specified in this list supported by API server, validation will fail for this object. If a persisted webhook configuration specifies allowed versions and does not include any versions known to the API Server, calls to the webhook will fail and be subject to the failure policy.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"reinvocationPolicy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "reinvocationPolicy indicates whether this webhook should be called multiple times as part of a single admission evaluation. Allowed values are \"Never\" and \"IfNeeded\".\n\nNever: the webhook will not be called more than once in a single admission evaluation.\n\nIfNeeded: the webhook will be called at least one additional time as part of the admission evaluation if the object being admitted is modified by other admission plugins after the initial webhook call. Webhooks that specify this option *must* be idempotent, able to process objects they previously admitted. Note: * the number of additional invocations is not guaranteed to be exactly one. * if additional invocations result in further modifications to the object, webhooks are not guaranteed to be invoked again. * webhooks that use this option may be reordered to minimize the number of additional invocations. * to validate an object after all mutations are guaranteed complete, use a validating admission webhook instead.\n\nDefaults to \"Never\".\n\nPossible enum values:\n - `\"IfNeeded\"` indicates that the mutation may be called at least one additional time as part of the admission evaluation if the object being admitted is modified by other admission plugins after the initial mutation call.\n - `\"Never\"` indicates that the mutation must not be called more than once in a single admission evaluation.",
+							Type:        []string{"string"},
+							Format:      "",
+							Enum:        []interface{}{"IfNeeded", "Never"},
+						},
+					},
+					"matchConditions": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"name",
+								},
+								"x-kubernetes-list-type":       "map",
+								"x-kubernetes-patch-merge-key": "name",
+								"x-kubernetes-patch-strategy":  "merge",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "MatchConditions is a list of conditions that must be met for a request to be sent to this webhook. Match conditions filter requests that have already been matched by the rules, namespaceSelector, and objectSelector. An empty list of matchConditions matches all requests. There are a maximum of 64 match conditions allowed.\n\nThe exact matching logic is (in order):\n  1. If ANY matchCondition evaluates to FALSE, the webhook is skipped.\n  2. If ALL matchConditions evaluate to TRUE, the webhook is called.\n  3. If any matchCondition evaluates to an error (but none are FALSE):\n     - If failurePolicy=Fail, reject the request\n     - If failurePolicy=Ignore, the error is ignored and the webhook is skipped",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(v1.MatchCondition{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"name", "clientConfig", "sideEffects", "admissionReviewVersions"},
+			},
+		},
+		Dependencies: []string{
+			v1.MatchCondition{}.OpenAPIModelName(), v1.RuleWithOperations{}.OpenAPIModelName(), v1.WebhookClientConfig{}.OpenAPIModelName(), metav1.LabelSelector{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_admissionregistration_v1_MutatingWebhookConfiguration(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "MutatingWebhookConfiguration describes the configuration of and admission webhook that accept or reject and may change the object.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Standard object metadata; More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata.",
+							Default:     map[string]interface{}{},
+							Ref:         ref(metav1.ObjectMeta{}.OpenAPIModelName()),
+						},
+					},
+					"webhooks": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"name",
+								},
+								"x-kubernetes-list-type":       "map",
+								"x-kubernetes-patch-merge-key": "name",
+								"x-kubernetes-patch-strategy":  "merge",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Webhooks is a list of webhooks and the affected resources and operations.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(v1.MutatingWebhook{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			v1.MutatingWebhook{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_admissionregistration_v1_MutatingWebhookConfigurationList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "MutatingWebhookConfigurationList is a list of MutatingWebhookConfiguration.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Standard list metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Default:     map[string]interface{}{},
+							Ref:         ref(metav1.ListMeta{}.OpenAPIModelName()),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Description: "List of MutatingWebhookConfiguration.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(v1.MutatingWebhookConfiguration{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			v1.MutatingWebhookConfiguration{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_admissionregistration_v1_NamedRuleWithOperations(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "NamedRuleWithOperations is a tuple of Operations and Resources with ResourceNames.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"resourceNames": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "ResourceNames is an optional white list of names that the rule applies to.  An empty set means that everything is allowed.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"operations": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Operations is the operations the admission hook cares about - CREATE, UPDATE, DELETE, CONNECT or * for all of those operations and any future admission operations that are added. If '*' is present, the length of the slice must be one. Required.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+										Enum:    []interface{}{"*", "CONNECT", "CREATE", "DELETE", "UPDATE"},
+									},
+								},
+							},
+						},
+					},
+					"apiGroups": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "APIGroups is the API groups the resources belong to. '*' is all groups. If '*' is present, the length of the slice must be one. Required.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"apiVersions": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersions is the API versions the resources belong to. '*' is all versions. If '*' is present, the length of the slice must be one. Required.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"resources": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Resources is a list of resources this rule applies to.\n\nFor example: 'pods' means pods. 'pods/log' means the log subresource of pods. '*' means all resources, but not subresources. 'pods/*' means all subresources of pods. '*/scale' means all scale subresources. '*/*' means all resources and their subresources.\n\nIf wildcard is present, the validation rule will ensure resources do not overlap with each other.\n\nDepending on the enclosing object, subresources might not be allowed. Required.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"scope": {
+						SchemaProps: spec.SchemaProps{
+							Description: "scope specifies the scope of this rule. Valid values are \"Cluster\", \"Namespaced\", and \"*\" \"Cluster\" means that only cluster-scoped resources will match this rule. Namespace API objects are cluster-scoped. \"Namespaced\" means that only namespaced resources will match this rule. \"*\" means that there are no scope restrictions. Subresources match the scope of their parent resource. Default is \"*\".\n\n\nPossible enum values:\n - `\"*\"` means that all scopes are included.\n - `\"Cluster\"` means that scope is limited to cluster-scoped objects. Namespace objects are cluster-scoped.\n - `\"Namespaced\"` means that scope is limited to namespaced objects.",
+							Type:        []string{"string"},
+							Format:      "",
+							Enum:        []interface{}{"*", "Cluster", "Namespaced"},
+						},
+					},
+				},
+			},
+			VendorExtensible: spec.VendorExtensible{
+				Extensions: spec.Extensions{
+					"x-kubernetes-map-type": "atomic",
+				},
+			},
+		},
+	}
+}
+
+func schema_k8sio_api_admissionregistration_v1_ParamKind(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ParamKind is a tuple of Group Kind and Version.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion is the API group version the resources belong to. In format of \"group/version\". Required.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is the API kind the resources belong to. Required.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+			VendorExtensible: spec.VendorExtensible{
+				Extensions: spec.Extensions{
+					"x-kubernetes-map-type": "atomic",
+				},
+			},
+		},
+	}
+}
+
+func schema_k8sio_api_admissionregistration_v1_ParamRef(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ParamRef describes how to locate the params to be used as input to expressions of rules applied by a policy binding.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "name is the name of the resource being referenced.\n\nOne of `name` or `selector` must be set, but `name` and `selector` are mutually exclusive properties. If one is set, the other must be unset.\n\nA single parameter used for all admission requests can be configured by setting the `name` field, leaving `selector` blank, and setting namespace if `paramKind` is namespace-scoped.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"namespace": {
+						SchemaProps: spec.SchemaProps{
+							Description: "namespace is the namespace of the referenced resource. Allows limiting the search for params to a specific namespace. Applies to both `name` and `selector` fields.\n\nA per-namespace parameter may be used by specifying a namespace-scoped `paramKind` in the policy and leaving this field empty.\n\n- If `paramKind` is cluster-scoped, this field MUST be unset. Setting this field results in a configuration error.\n\n- If `paramKind` is namespace-scoped, the namespace of the object being evaluated for admission will be used when this field is left unset. Take care that if this is left empty the binding must not match any cluster-scoped resources, which will result in an error.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"selector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "selector can be used to match multiple param objects based on their labels. Supply selector: {} to match all resources of the ParamKind.\n\nIf multiple params are found, they are all evaluated with the policy expressions and the results are ANDed together.\n\nOne of `name` or `selector` must be set, but `name` and `selector` are mutually exclusive properties. If one is set, the other must be unset.",
+							Ref:         ref(metav1.LabelSelector{}.OpenAPIModelName()),
+						},
+					},
+					"parameterNotFoundAction": {
+						SchemaProps: spec.SchemaProps{
+							Description: "`parameterNotFoundAction` controls the behavior of the binding when the resource exists, and name or selector is valid, but there are no parameters matched by the binding. If the value is set to `Allow`, then no matched parameters will be treated as successful validation by the binding. If set to `Deny`, then no matched parameters will be subject to the `failurePolicy` of the policy.\n\nAllowed values are `Allow` or `Deny`\n\nRequired",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+			VendorExtensible: spec.VendorExtensible{
+				Extensions: spec.Extensions{
+					"x-kubernetes-map-type": "atomic",
+				},
+			},
+		},
+		Dependencies: []string{
+			metav1.LabelSelector{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_admissionregistration_v1_Rule(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Rule is a tuple of APIGroups, APIVersion, and Resources.It is recommended to make sure that all the tuple expansions are valid.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"apiGroups": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "APIGroups is the API groups the resources belong to. '*' is all groups. If '*' is present, the length of the slice must be one. Required.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"apiVersions": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersions is the API versions the resources belong to. '*' is all versions. If '*' is present, the length of the slice must be one. Required.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"resources": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Resources is a list of resources this rule applies to.\n\nFor example: 'pods' means pods. 'pods/log' means the log subresource of pods. '*' means all resources, but not subresources. 'pods/*' means all subresources of pods. '*/scale' means all scale subresources. '*/*' means all resources and their subresources.\n\nIf wildcard is present, the validation rule will ensure resources do not overlap with each other.\n\nDepending on the enclosing object, subresources might not be allowed. Required.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"scope": {
+						SchemaProps: spec.SchemaProps{
+							Description: "scope specifies the scope of this rule. Valid values are \"Cluster\", \"Namespaced\", and \"*\" \"Cluster\" means that only cluster-scoped resources will match this rule. Namespace API objects are cluster-scoped. \"Namespaced\" means that only namespaced resources will match this rule. \"*\" means that there are no scope restrictions. Subresources match the scope of their parent resource. Default is \"*\".\n\n\nPossible enum values:\n - `\"*\"` means that all scopes are included.\n - `\"Cluster\"` means that scope is limited to cluster-scoped objects. Namespace objects are cluster-scoped.\n - `\"Namespaced\"` means that scope is limited to namespaced objects.",
+							Type:        []string{"string"},
+							Format:      "",
+							Enum:        []interface{}{"*", "Cluster", "Namespaced"},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_k8sio_api_admissionregistration_v1_RuleWithOperations(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "RuleWithOperations is a tuple of Operations and Resources. It is recommended to make sure that all the tuple expansions are valid.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"operations": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Operations is the operations the admission hook cares about - CREATE, UPDATE, DELETE, CONNECT or * for all of those operations and any future admission operations that are added. If '*' is present, the length of the slice must be one. Required.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+										Enum:    []interface{}{"*", "CONNECT", "CREATE", "DELETE", "UPDATE"},
+									},
+								},
+							},
+						},
+					},
+					"apiGroups": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "APIGroups is the API groups the resources belong to. '*' is all groups. If '*' is present, the length of the slice must be one. Required.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"apiVersions": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersions is the API versions the resources belong to. '*' is all versions. If '*' is present, the length of the slice must be one. Required.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"resources": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Resources is a list of resources this rule applies to.\n\nFor example: 'pods' means pods. 'pods/log' means the log subresource of pods. '*' means all resources, but not subresources. 'pods/*' means all subresources of pods. '*/scale' means all scale subresources. '*/*' means all resources and their subresources.\n\nIf wildcard is present, the validation rule will ensure resources do not overlap with each other.\n\nDepending on the enclosing object, subresources might not be allowed. Required.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"scope": {
+						SchemaProps: spec.SchemaProps{
+							Description: "scope specifies the scope of this rule. Valid values are \"Cluster\", \"Namespaced\", and \"*\" \"Cluster\" means that only cluster-scoped resources will match this rule. Namespace API objects are cluster-scoped. \"Namespaced\" means that only namespaced resources will match this rule. \"*\" means that there are no scope restrictions. Subresources match the scope of their parent resource. Default is \"*\".\n\n\nPossible enum values:\n - `\"*\"` means that all scopes are included.\n - `\"Cluster\"` means that scope is limited to cluster-scoped objects. Namespace objects are cluster-scoped.\n - `\"Namespaced\"` means that scope is limited to namespaced objects.",
+							Type:        []string{"string"},
+							Format:      "",
+							Enum:        []interface{}{"*", "Cluster", "Namespaced"},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_k8sio_api_admissionregistration_v1_ServiceReference(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ServiceReference holds a reference to Service.legacy.k8s.io",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"namespace": {
+						SchemaProps: spec.SchemaProps{
+							Description: "`namespace` is the namespace of the service. Required",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "`name` is the name of the service. Required",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"path": {
+						SchemaProps: spec.SchemaProps{
+							Description: "`path` is an optional URL path which will be sent in any request to this service.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"port": {
+						SchemaProps: spec.SchemaProps{
+							Description: "If specified, the port on the service that hosting webhook. Default to 443 for backward compatibility. `port` should be a valid port number (1-65535, inclusive).",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+				},
+				Required: []string{"namespace", "name"},
+			},
+		},
+	}
+}
+
+func schema_k8sio_api_admissionregistration_v1_TypeChecking(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "TypeChecking contains results of type checking the expressions in the ValidatingAdmissionPolicy",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"expressionWarnings": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "The type checking warnings for each expression.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(v1.ExpressionWarning{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			v1.ExpressionWarning{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_admissionregistration_v1_ValidatingAdmissionPolicy(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ValidatingAdmissionPolicy describes the definition of an admission validation policy that accepts or rejects an object without changing it.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Standard object metadata; More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata.",
+							Default:     map[string]interface{}{},
+							Ref:         ref(metav1.ObjectMeta{}.OpenAPIModelName()),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Specification of the desired behavior of the ValidatingAdmissionPolicy.",
+							Default:     map[string]interface{}{},
+							Ref:         ref(v1.ValidatingAdmissionPolicySpec{}.OpenAPIModelName()),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The status of the ValidatingAdmissionPolicy, including warnings that are useful to determine if the policy behaves in the expected way. Populated by the system. Read-only.",
+							Default:     map[string]interface{}{},
+							Ref:         ref(v1.ValidatingAdmissionPolicyStatus{}.OpenAPIModelName()),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			v1.ValidatingAdmissionPolicySpec{}.OpenAPIModelName(), v1.ValidatingAdmissionPolicyStatus{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_admissionregistration_v1_ValidatingAdmissionPolicyBinding(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ValidatingAdmissionPolicyBinding binds the ValidatingAdmissionPolicy with paramerized resources. ValidatingAdmissionPolicyBinding and parameter CRDs together define how cluster administrators configure policies for clusters.\n\nFor a given admission request, each binding will cause its policy to be evaluated N times, where N is 1 for policies/bindings that don't use params, otherwise N is the number of parameters selected by the binding.\n\nThe CEL expressions of a policy must have a computed CEL cost below the maximum CEL budget. Each evaluation of the policy is given an independent CEL cost budget. Adding/removing policies, bindings, or params can not affect whether a given (policy, binding, param) combination is within its own CEL budget.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Standard object metadata; More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata.",
+							Default:     map[string]interface{}{},
+							Ref:         ref(metav1.ObjectMeta{}.OpenAPIModelName()),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Specification of the desired behavior of the ValidatingAdmissionPolicyBinding.",
+							Default:     map[string]interface{}{},
+							Ref:         ref(v1.ValidatingAdmissionPolicyBindingSpec{}.OpenAPIModelName()),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			v1.ValidatingAdmissionPolicyBindingSpec{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_admissionregistration_v1_ValidatingAdmissionPolicyBindingList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ValidatingAdmissionPolicyBindingList is a list of ValidatingAdmissionPolicyBinding.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Standard list metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Default:     map[string]interface{}{},
+							Ref:         ref(metav1.ListMeta{}.OpenAPIModelName()),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Description: "List of PolicyBinding.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(v1.ValidatingAdmissionPolicyBinding{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			v1.ValidatingAdmissionPolicyBinding{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_admissionregistration_v1_ValidatingAdmissionPolicyBindingSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ValidatingAdmissionPolicyBindingSpec is the specification of the ValidatingAdmissionPolicyBinding.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"policyName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PolicyName references a ValidatingAdmissionPolicy name which the ValidatingAdmissionPolicyBinding binds to. If the referenced resource does not exist, this binding is considered invalid and will be ignored Required.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"paramRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "paramRef specifies the parameter resource used to configure the admission control policy. It should point to a resource of the type specified in ParamKind of the bound ValidatingAdmissionPolicy. If the policy specifies a ParamKind and the resource referred to by ParamRef does not exist, this binding is considered mis-configured and the FailurePolicy of the ValidatingAdmissionPolicy applied. If the policy does not specify a ParamKind then this field is ignored, and the rules are evaluated without a param.",
+							Ref:         ref(v1.ParamRef{}.OpenAPIModelName()),
+						},
+					},
+					"matchResources": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MatchResources declares what resources match this binding and will be validated by it. Note that this is intersected with the policy's matchConstraints, so only requests that are matched by the policy can be selected by this. If this is unset, all resources matched by the policy are validated by this binding When resourceRules is unset, it does not constrain resource matching. If a resource is matched by the other fields of this object, it will be validated. Note that this is differs from ValidatingAdmissionPolicy matchConstraints, where resourceRules are required.",
+							Ref:         ref(v1.MatchResources{}.OpenAPIModelName()),
+						},
+					},
+					"validationActions": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "set",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "validationActions declares how Validations of the referenced ValidatingAdmissionPolicy are enforced. If a validation evaluates to false it is always enforced according to these actions.\n\nFailures defined by the ValidatingAdmissionPolicy's FailurePolicy are enforced according to these actions only if the FailurePolicy is set to Fail, otherwise the failures are ignored. This includes compilation errors, runtime errors and misconfigurations of the policy.\n\nvalidationActions is declared as a set of action values. Order does not matter. validationActions may not contain duplicates of the same action.\n\nThe supported actions values are:\n\n\"Deny\" specifies that a validation failure results in a denied request.\n\n\"Warn\" specifies that a validation failure is reported to the request client in HTTP Warning headers, with a warning code of 299. Warnings can be sent both for allowed or denied admission responses.\n\n\"Audit\" specifies that a validation failure is included in the published audit event for the request. The audit event will contain a `validation.policy.admission.k8s.io/validation_failure` audit annotation with a value containing the details of the validation failures, formatted as a JSON list of objects, each with the following fields: - message: The validation failure message string - policy: The resource name of the ValidatingAdmissionPolicy - binding: The resource name of the ValidatingAdmissionPolicyBinding - expressionIndex: The index of the failed validations in the ValidatingAdmissionPolicy - validationActions: The enforcement actions enacted for the validation failure Example audit annotation: `\"validation.policy.admission.k8s.io/validation_failure\": \"[{\\\"message\\\": \\\"Invalid value\\\", {\\\"policy\\\": \\\"policy.example.com\\\", {\\\"binding\\\": \\\"policybinding.example.com\\\", {\\\"expressionIndex\\\": \\\"1\\\", {\\\"validationActions\\\": [\\\"Audit\\\"]}]\"`\n\nClients should expect to handle additional values by ignoring any values not recognized.\n\n\"Deny\" and \"Warn\" may not be used together since this combination needlessly duplicates the validation failure both in the API response body and the HTTP warning headers.\n\nRequired.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+										Enum:    []interface{}{"Audit", "Deny", "Warn"},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			v1.MatchResources{}.OpenAPIModelName(), v1.ParamRef{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_admissionregistration_v1_ValidatingAdmissionPolicyList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ValidatingAdmissionPolicyList is a list of ValidatingAdmissionPolicy.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Standard list metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Default:     map[string]interface{}{},
+							Ref:         ref(metav1.ListMeta{}.OpenAPIModelName()),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Description: "List of ValidatingAdmissionPolicy.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(v1.ValidatingAdmissionPolicy{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			v1.ValidatingAdmissionPolicy{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_admissionregistration_v1_ValidatingAdmissionPolicySpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ValidatingAdmissionPolicySpec is the specification of the desired behavior of the AdmissionPolicy.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"paramKind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ParamKind specifies the kind of resources used to parameterize this policy. If absent, there are no parameters for this policy and the param CEL variable will not be provided to validation expressions. If ParamKind refers to a non-existent kind, this policy definition is mis-configured and the FailurePolicy is applied. If paramKind is specified but paramRef is unset in ValidatingAdmissionPolicyBinding, the params variable will be null.",
+							Ref:         ref(v1.ParamKind{}.OpenAPIModelName()),
+						},
+					},
+					"matchConstraints": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MatchConstraints specifies what resources this policy is designed to validate. The AdmissionPolicy cares about a request if it matches _all_ Constraints. However, in order to prevent clusters from being put into an unstable state that cannot be recovered from via the API ValidatingAdmissionPolicy cannot match ValidatingAdmissionPolicy and ValidatingAdmissionPolicyBinding. Required.",
+							Ref:         ref(v1.MatchResources{}.OpenAPIModelName()),
+						},
+					},
+					"validations": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Validations contain CEL expressions which is used to apply the validation. Validations and AuditAnnotations may not both be empty; a minimum of one Validations or AuditAnnotations is required.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(v1.Validation{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+					"failurePolicy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "failurePolicy defines how to handle failures for the admission policy. Failures can occur from CEL expression parse errors, type check errors, runtime errors and invalid or mis-configured policy definitions or bindings.\n\nA policy is invalid if spec.paramKind refers to a non-existent Kind. A binding is invalid if spec.paramRef.name refers to a non-existent resource.\n\nfailurePolicy does not define how validations that evaluate to false are handled.\n\nWhen failurePolicy is set to Fail, ValidatingAdmissionPolicyBinding validationActions define how failures are enforced.\n\nAllowed values are Ignore or Fail. Defaults to Fail.\n\nPossible enum values:\n - `\"Fail\"` means that an error calling the webhook causes the admission to fail.\n - `\"Ignore\"` means that an error calling the webhook is ignored.",
+							Type:        []string{"string"},
+							Format:      "",
+							Enum:        []interface{}{"Fail", "Ignore"},
+						},
+					},
+					"auditAnnotations": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "auditAnnotations contains CEL expressions which are used to produce audit annotations for the audit event of the API request. validations and auditAnnotations may not both be empty; a least one of validations or auditAnnotations is required.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(v1.AuditAnnotation{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+					"matchConditions": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"name",
+								},
+								"x-kubernetes-list-type":       "map",
+								"x-kubernetes-patch-merge-key": "name",
+								"x-kubernetes-patch-strategy":  "merge",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "MatchConditions is a list of conditions that must be met for a request to be validated. Match conditions filter requests that have already been matched by the rules, namespaceSelector, and objectSelector. An empty list of matchConditions matches all requests. There are a maximum of 64 match conditions allowed.\n\nIf a parameter object is provided, it can be accessed via the `params` handle in the same manner as validation expressions.\n\nThe exact matching logic is (in order):\n  1. If ANY matchCondition evaluates to FALSE, the policy is skipped.\n  2. If ALL matchConditions evaluate to TRUE, the policy is evaluated.\n  3. If any matchCondition evaluates to an error (but none are FALSE):\n     - If failurePolicy=Fail, reject the request\n     - If failurePolicy=Ignore, the policy is skipped",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(v1.MatchCondition{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+					"variables": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"name",
+								},
+								"x-kubernetes-list-type":       "map",
+								"x-kubernetes-patch-merge-key": "name",
+								"x-kubernetes-patch-strategy":  "merge",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Variables contain definitions of variables that can be used in composition of other expressions. Each variable is defined as a named CEL expression. The variables defined here will be available under `variables` in other expressions of the policy except MatchConditions because MatchConditions are evaluated before the rest of the policy.\n\nThe expression of a variable can refer to other variables defined earlier in the list but not those after. Thus, Variables must be sorted by the order of first appearance and acyclic.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(v1.Variable{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			v1.AuditAnnotation{}.OpenAPIModelName(), v1.MatchCondition{}.OpenAPIModelName(), v1.MatchResources{}.OpenAPIModelName(), v1.ParamKind{}.OpenAPIModelName(), v1.Validation{}.OpenAPIModelName(), v1.Variable{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_admissionregistration_v1_ValidatingAdmissionPolicyStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ValidatingAdmissionPolicyStatus represents the status of an admission validation policy.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"observedGeneration": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The generation observed by the controller.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"typeChecking": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The results of type checking for each expression. Presence of this field indicates the completion of the type checking.",
+							Ref:         ref(v1.TypeChecking{}.OpenAPIModelName()),
+						},
+					},
+					"conditions": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"type",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "The conditions represent the latest available observations of a policy's current state.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(metav1.Condition{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			v1.TypeChecking{}.OpenAPIModelName(), metav1.Condition{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_admissionregistration_v1_ValidatingWebhook(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ValidatingWebhook describes an admission webhook and the resources and operations it applies to.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The name of the admission webhook. Name should be fully qualified, e.g., imagepolicy.kubernetes.io, where \"imagepolicy\" is the name of the webhook, and kubernetes.io is the name of the organization. Required.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"clientConfig": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ClientConfig defines how to communicate with the hook. Required",
+							Default:     map[string]interface{}{},
+							Ref:         ref(v1.WebhookClientConfig{}.OpenAPIModelName()),
+						},
+					},
+					"rules": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Rules describes what operations on what resources/subresources the webhook cares about. The webhook cares about an operation if it matches _any_ Rule. However, in order to prevent ValidatingAdmissionWebhooks and MutatingAdmissionWebhooks from putting the cluster in a state which cannot be recovered from without completely disabling the plugin, ValidatingAdmissionWebhooks and MutatingAdmissionWebhooks are never called on admission requests for ValidatingWebhookConfiguration and MutatingWebhookConfiguration objects.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(v1.RuleWithOperations{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+					"failurePolicy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "FailurePolicy defines how unrecognized errors from the admission endpoint are handled - allowed values are Ignore or Fail. Defaults to Fail.\n\nPossible enum values:\n - `\"Fail\"` means that an error calling the webhook causes the admission to fail.\n - `\"Ignore\"` means that an error calling the webhook is ignored.",
+							Type:        []string{"string"},
+							Format:      "",
+							Enum:        []interface{}{"Fail", "Ignore"},
+						},
+					},
+					"matchPolicy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "matchPolicy defines how the \"rules\" list is used to match incoming requests. Allowed values are \"Exact\" or \"Equivalent\".\n\n- Exact: match a request only if it exactly matches a specified rule. For example, if deployments can be modified via apps/v1, apps/v1beta1, and extensions/v1beta1, but \"rules\" only included `apiGroups:[\"apps\"], apiVersions:[\"v1\"], resources: [\"deployments\"]`, a request to apps/v1beta1 or extensions/v1beta1 would not be sent to the webhook.\n\n- Equivalent: match a request if modifies a resource listed in rules, even via another API group or version. For example, if deployments can be modified via apps/v1, apps/v1beta1, and extensions/v1beta1, and \"rules\" only included `apiGroups:[\"apps\"], apiVersions:[\"v1\"], resources: [\"deployments\"]`, a request to apps/v1beta1 or extensions/v1beta1 would be converted to apps/v1 and sent to the webhook.\n\nDefaults to \"Equivalent\"\n\nPossible enum values:\n - `\"Equivalent\"` means requests should be sent to the webhook if they modify a resource listed in rules via another API group or version.\n - `\"Exact\"` means requests should only be sent to the webhook if they exactly match a given rule.",
+							Type:        []string{"string"},
+							Format:      "",
+							Enum:        []interface{}{"Equivalent", "Exact"},
+						},
+					},
+					"namespaceSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NamespaceSelector decides whether to run the webhook on an object based on whether the namespace for that object matches the selector. If the object itself is a namespace, the matching is performed on object.metadata.labels. If the object is another cluster scoped resource, it never skips the webhook.\n\nFor example, to run the webhook on any objects whose namespace is not associated with \"runlevel\" of \"0\" or \"1\";  you will set the selector as follows: \"namespaceSelector\": {\n  \"matchExpressions\": [\n    {\n      \"key\": \"runlevel\",\n      \"operator\": \"NotIn\",\n      \"values\": [\n        \"0\",\n        \"1\"\n      ]\n    }\n  ]\n}\n\nIf instead you want to only run the webhook on any objects whose namespace is associated with the \"environment\" of \"prod\" or \"staging\"; you will set the selector as follows: \"namespaceSelector\": {\n  \"matchExpressions\": [\n    {\n      \"key\": \"environment\",\n      \"operator\": \"In\",\n      \"values\": [\n        \"prod\",\n        \"staging\"\n      ]\n    }\n  ]\n}\n\nSee https://kubernetes.io/docs/concepts/overview/working-with-objects/labels for more examples of label selectors.\n\nDefault to the empty LabelSelector, which matches everything.",
+							Ref:         ref(metav1.LabelSelector{}.OpenAPIModelName()),
+						},
+					},
+					"objectSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ObjectSelector decides whether to run the webhook based on if the object has matching labels. objectSelector is evaluated against both the oldObject and newObject that would be sent to the webhook, and is considered to match if either object matches the selector. A null object (oldObject in the case of create, or newObject in the case of delete) or an object that cannot have labels (like a DeploymentRollback or a PodProxyOptions object) is not considered to match. Use the object selector only if the webhook is opt-in, because end users may skip the admission webhook by setting the labels. Default to the empty LabelSelector, which matches everything.",
+							Ref:         ref(metav1.LabelSelector{}.OpenAPIModelName()),
+						},
+					},
+					"sideEffects": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SideEffects states whether this webhook has side effects. Acceptable values are: None, NoneOnDryRun (webhooks created via v1beta1 may also specify Some or Unknown). Webhooks with side effects MUST implement a reconciliation system, since a request may be rejected by a future step in the admission chain and the side effects therefore need to be undone. Requests with the dryRun attribute will be auto-rejected if they match a webhook with sideEffects == Unknown or Some.\n\nPossible enum values:\n - `\"None\"` means that calling the webhook will have no side effects.\n - `\"NoneOnDryRun\"` means that calling the webhook will possibly have side effects, but if the request being reviewed has the dry-run attribute, the side effects will be suppressed.\n - `\"Some\"` means that calling the webhook will possibly have side effects. If a request with the dry-run attribute would trigger a call to this webhook, the request will instead fail.\n - `\"Unknown\"` means that no information is known about the side effects of calling the webhook. If a request with the dry-run attribute would trigger a call to this webhook, the request will instead fail.",
+							Type:        []string{"string"},
+							Format:      "",
+							Enum:        []interface{}{"None", "NoneOnDryRun", "Some", "Unknown"},
+						},
+					},
+					"timeoutSeconds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TimeoutSeconds specifies the timeout for this webhook. After the timeout passes, the webhook call will be ignored or the API call will fail based on the failure policy. The timeout value must be between 1 and 30 seconds. Default to 10 seconds.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"admissionReviewVersions": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "AdmissionReviewVersions is an ordered list of preferred `AdmissionReview` versions the Webhook expects. API server will try to use first version in the list which it supports. If none of the versions specified in this list supported by API server, validation will fail for this object. If a persisted webhook configuration specifies allowed versions and does not include any versions known to the API Server, calls to the webhook will fail and be subject to the failure policy.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"matchConditions": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"name",
+								},
+								"x-kubernetes-list-type":       "map",
+								"x-kubernetes-patch-merge-key": "name",
+								"x-kubernetes-patch-strategy":  "merge",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "MatchConditions is a list of conditions that must be met for a request to be sent to this webhook. Match conditions filter requests that have already been matched by the rules, namespaceSelector, and objectSelector. An empty list of matchConditions matches all requests. There are a maximum of 64 match conditions allowed.\n\nThe exact matching logic is (in order):\n  1. If ANY matchCondition evaluates to FALSE, the webhook is skipped.\n  2. If ALL matchConditions evaluate to TRUE, the webhook is called.\n  3. If any matchCondition evaluates to an error (but none are FALSE):\n     - If failurePolicy=Fail, reject the request\n     - If failurePolicy=Ignore, the error is ignored and the webhook is skipped",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(v1.MatchCondition{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"name", "clientConfig", "sideEffects", "admissionReviewVersions"},
+			},
+		},
+		Dependencies: []string{
+			v1.MatchCondition{}.OpenAPIModelName(), v1.RuleWithOperations{}.OpenAPIModelName(), v1.WebhookClientConfig{}.OpenAPIModelName(), metav1.LabelSelector{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_admissionregistration_v1_ValidatingWebhookConfiguration(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ValidatingWebhookConfiguration describes the configuration of and admission webhook that accept or reject and object without changing it.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Standard object metadata; More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata.",
+							Default:     map[string]interface{}{},
+							Ref:         ref(metav1.ObjectMeta{}.OpenAPIModelName()),
+						},
+					},
+					"webhooks": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"name",
+								},
+								"x-kubernetes-list-type":       "map",
+								"x-kubernetes-patch-merge-key": "name",
+								"x-kubernetes-patch-strategy":  "merge",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Webhooks is a list of webhooks and the affected resources and operations.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(v1.ValidatingWebhook{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			v1.ValidatingWebhook{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_admissionregistration_v1_ValidatingWebhookConfigurationList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ValidatingWebhookConfigurationList is a list of ValidatingWebhookConfiguration.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Standard list metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Default:     map[string]interface{}{},
+							Ref:         ref(metav1.ListMeta{}.OpenAPIModelName()),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Description: "List of ValidatingWebhookConfiguration.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(v1.ValidatingWebhookConfiguration{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			v1.ValidatingWebhookConfiguration{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_admissionregistration_v1_Validation(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Validation specifies the CEL expression which is used to apply the validation.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"expression": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Expression represents the expression which will be evaluated by CEL. ref: https://github.com/google/cel-spec CEL expressions have access to the contents of the API request/response, organized into CEL variables as well as some other useful variables:\n\n- 'object' - The object from the incoming request. The value is null for DELETE requests. - 'oldObject' - The existing object. The value is null for CREATE requests. - 'request' - Attributes of the API request([ref](/pkg/apis/admission/types.go#AdmissionRequest)). - 'params' - Parameter resource referred to by the policy binding being evaluated. Only populated if the policy has a ParamKind. - 'namespaceObject' - The namespace object that the incoming object belongs to. The value is null for cluster-scoped resources. - 'variables' - Map of composited variables, from its name to its lazily evaluated value.\n  For example, a variable named 'foo' can be accessed as 'variables.foo'.\n- 'authorizer' - A CEL Authorizer. May be used to perform authorization checks for the principal (user or service account) of the request.\n  See https://pkg.go.dev/k8s.io/apiserver/pkg/cel/library#Authz\n- 'authorizer.requestResource' - A CEL ResourceCheck constructed from the 'authorizer' and configured with the\n  request resource.\n\nThe `apiVersion`, `kind`, `metadata.name` and `metadata.generateName` are always accessible from the root of the object. No other metadata properties are accessible.\n\nOnly property names of the form `[a-zA-Z_.-/][a-zA-Z0-9_.-/]*` are accessible. Accessible property names are escaped according to the following rules when accessed in the expression: - '__' escapes to '__underscores__' - '.' escapes to '__dot__' - '-' escapes to '__dash__' - '/' escapes to '__slash__' - Property names that exactly match a CEL RESERVED keyword escape to '__{keyword}__'. The keywords are:\n\t  \"true\", \"false\", \"null\", \"in\", \"as\", \"break\", \"const\", \"continue\", \"else\", \"for\", \"function\", \"if\",\n\t  \"import\", \"let\", \"loop\", \"package\", \"namespace\", \"return\".\nExamples:\n  - Expression accessing a property named \"namespace\": {\"Expression\": \"object.__namespace__ > 0\"}\n  - Expression accessing a property named \"x-prop\": {\"Expression\": \"object.x__dash__prop > 0\"}\n  - Expression accessing a property named \"redact__d\": {\"Expression\": \"object.redact__underscores__d > 0\"}\n\nEquality on arrays with list type of 'set' or 'map' ignores element order, i.e. [1, 2] == [2, 1]. Concatenation on arrays with x-kubernetes-list-type use the semantics of the list type:\n  - 'set': `X + Y` performs a union where the array positions of all elements in `X` are preserved and\n    non-intersecting elements in `Y` are appended, retaining their partial order.\n  - 'map': `X + Y` performs a merge where the array positions of all keys in `X` are preserved but the values\n    are overwritten by values in `Y` when the key sets of `X` and `Y` intersect. Elements in `Y` with\n    non-intersecting keys are appended, retaining their partial order.\nRequired.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"message": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Message represents the message displayed when validation fails. The message is required if the Expression contains line breaks. The message must not contain line breaks. If unset, the message is \"failed rule: {Rule}\". e.g. \"must be a URL with the host matching spec.host\" If the Expression contains line breaks. Message is required. The message must not contain line breaks. If unset, the message is \"failed Expression: {Expression}\".",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"reason": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Reason represents a machine-readable description of why this validation failed. If this is the first validation in the list to fail, this reason, as well as the corresponding HTTP response code, are used in the HTTP response to the client. The currently supported reasons are: \"Unauthorized\", \"Forbidden\", \"Invalid\", \"RequestEntityTooLarge\". If not set, StatusReasonInvalid is used in the response to the client.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"messageExpression": {
+						SchemaProps: spec.SchemaProps{
+							Description: "messageExpression declares a CEL expression that evaluates to the validation failure message that is returned when this rule fails. Since messageExpression is used as a failure message, it must evaluate to a string. If both message and messageExpression are present on a validation, then messageExpression will be used if validation fails. If messageExpression results in a runtime error, the runtime error is logged, and the validation failure message is produced as if the messageExpression field were unset. If messageExpression evaluates to an empty string, a string with only spaces, or a string that contains line breaks, then the validation failure message will also be produced as if the messageExpression field were unset, and the fact that messageExpression produced an empty string/string with only spaces/string with line breaks will be logged. messageExpression has access to all the same variables as the `expression` except for 'authorizer' and 'authorizer.requestResource'. Example: \"object.x must be less than max (\"+string(params.max)+\")\"",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"expression"},
+			},
+		},
+	}
+}
+
+func schema_k8sio_api_admissionregistration_v1_Variable(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Variable is the definition of a variable that is used for composition. A variable is defined as a named expression.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name is the name of the variable. The name must be a valid CEL identifier and unique among all variables. The variable can be accessed in other expressions through `variables` For example, if name is \"foo\", the variable will be available as `variables.foo`",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"expression": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Expression is the expression that will be evaluated as the value of the variable. The CEL expression has access to the same identifiers as the CEL expressions in Validation.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"name", "expression"},
+			},
+			VendorExtensible: spec.VendorExtensible{
+				Extensions: spec.Extensions{
+					"x-kubernetes-map-type": "atomic",
+				},
+			},
+		},
+	}
+}
+
+func schema_k8sio_api_admissionregistration_v1_WebhookClientConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "WebhookClientConfig contains the information to make a TLS connection with the webhook",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"url": {
+						SchemaProps: spec.SchemaProps{
+							Description: "`url` gives the location of the webhook, in standard URL form (`scheme://host:port/path`). Exactly one of `url` or `service` must be specified.\n\nThe `host` should not refer to a service running in the cluster; use the `service` field instead. The host might be resolved via external DNS in some apiservers (e.g., `kube-apiserver` cannot resolve in-cluster DNS as that would be a layering violation). `host` may also be an IP address.\n\nPlease note that using `localhost` or `127.0.0.1` as a `host` is risky unless you take great care to run this webhook on all hosts which run an apiserver which might need to make calls to this webhook. Such installs are likely to be non-portable, i.e., not easy to turn up in a new cluster.\n\nThe scheme must be \"https\"; the URL must begin with \"https://\".\n\nA path is optional, and if present may be any string permissible in a URL. You may use the path to pass an arbitrary string to the webhook, for example, a cluster identifier.\n\nAttempting to use a user or basic auth e.g. \"user:password@\" is not allowed. Fragments (\"#...\") and query parameters (\"?...\") are not allowed, either.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"service": {
+						SchemaProps: spec.SchemaProps{
+							Description: "`service` is a reference to the service for this webhook. Either `service` or `url` must be specified.\n\nIf the webhook is running within the cluster, then you should use `service`.",
+							Ref:         ref(v1.ServiceReference{}.OpenAPIModelName()),
+						},
+					},
+					"caBundle": {
+						SchemaProps: spec.SchemaProps{
+							Description: "`caBundle` is a PEM encoded CA bundle which will be used to validate the webhook's server certificate. If unspecified, system trust roots on the apiserver are used.",
+							Type:        []string{"string"},
+							Format:      "byte",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			v1.ServiceReference{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_autoscaling_v2_ContainerResourceMetricSource(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ContainerResourceMetricSource indicates how to scale on a resource metric known to Kubernetes, as specified in requests and limits, describing each pod in the current scale target (e.g. CPU or memory).  The values will be averaged together before being compared to the target.  Such metrics are built in to Kubernetes, and have special scaling options on top of those available to normal per-pod metrics using the \"pods\" source.  Only one \"target\" type should be set.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "name is the name of the resource in question.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"target": {
+						SchemaProps: spec.SchemaProps{
+							Description: "target specifies the target value for the given metric",
+							Default:     map[string]interface{}{},
+							Ref:         ref(v2.MetricTarget{}.OpenAPIModelName()),
+						},
+					},
+					"container": {
+						SchemaProps: spec.SchemaProps{
+							Description: "container is the name of the container in the pods of the scaling target",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"name", "target", "container"},
+			},
+		},
+		Dependencies: []string{
+			v2.MetricTarget{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_autoscaling_v2_ContainerResourceMetricStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ContainerResourceMetricStatus indicates the current value of a resource metric known to Kubernetes, as specified in requests and limits, describing a single container in each pod in the current scale target (e.g. CPU or memory).  Such metrics are built in to Kubernetes, and have special scaling options on top of those available to normal per-pod metrics using the \"pods\" source.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "name is the name of the resource in question.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"current": {
+						SchemaProps: spec.SchemaProps{
+							Description: "current contains the current value for the given metric",
+							Default:     map[string]interface{}{},
+							Ref:         ref(v2.MetricValueStatus{}.OpenAPIModelName()),
+						},
+					},
+					"container": {
+						SchemaProps: spec.SchemaProps{
+							Description: "container is the name of the container in the pods of the scaling target",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"name", "current", "container"},
+			},
+		},
+		Dependencies: []string{
+			v2.MetricValueStatus{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_autoscaling_v2_CrossVersionObjectReference(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "CrossVersionObjectReference contains enough information to let you identify the referred resource.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "kind is the kind of the referent; More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "name is the name of the referent; More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "apiVersion is the API version of the referent",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"kind", "name"},
+			},
+		},
+	}
+}
+
+func schema_k8sio_api_autoscaling_v2_ExternalMetricSource(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ExternalMetricSource indicates how to scale on a metric not associated with any Kubernetes object (for example length of queue in cloud messaging service, or QPS from loadbalancer running outside of cluster).",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"metric": {
+						SchemaProps: spec.SchemaProps{
+							Description: "metric identifies the target metric by name and selector",
+							Default:     map[string]interface{}{},
+							Ref:         ref(v2.MetricIdentifier{}.OpenAPIModelName()),
+						},
+					},
+					"target": {
+						SchemaProps: spec.SchemaProps{
+							Description: "target specifies the target value for the given metric",
+							Default:     map[string]interface{}{},
+							Ref:         ref(v2.MetricTarget{}.OpenAPIModelName()),
+						},
+					},
+				},
+				Required: []string{"metric", "target"},
+			},
+		},
+		Dependencies: []string{
+			v2.MetricIdentifier{}.OpenAPIModelName(), v2.MetricTarget{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_autoscaling_v2_ExternalMetricStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ExternalMetricStatus indicates the current value of a global metric not associated with any Kubernetes object.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"metric": {
+						SchemaProps: spec.SchemaProps{
+							Description: "metric identifies the target metric by name and selector",
+							Default:     map[string]interface{}{},
+							Ref:         ref(v2.MetricIdentifier{}.OpenAPIModelName()),
+						},
+					},
+					"current": {
+						SchemaProps: spec.SchemaProps{
+							Description: "current contains the current value for the given metric",
+							Default:     map[string]interface{}{},
+							Ref:         ref(v2.MetricValueStatus{}.OpenAPIModelName()),
+						},
+					},
+				},
+				Required: []string{"metric", "current"},
+			},
+		},
+		Dependencies: []string{
+			v2.MetricIdentifier{}.OpenAPIModelName(), v2.MetricValueStatus{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_autoscaling_v2_HPAScalingPolicy(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "HPAScalingPolicy is a single policy which must hold true for a specified past interval.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"type": {
+						SchemaProps: spec.SchemaProps{
+							Description: "type is used to specify the scaling policy.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"value": {
+						SchemaProps: spec.SchemaProps{
+							Description: "value contains the amount of change which is permitted by the policy. It must be greater than zero",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"periodSeconds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "periodSeconds specifies the window of time for which the policy should hold true. PeriodSeconds must be greater than zero and less than or equal to 1800 (30 min).",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+				},
+				Required: []string{"type", "value", "periodSeconds"},
+			},
+		},
+	}
+}
+
+func schema_k8sio_api_autoscaling_v2_HPAScalingRules(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "HPAScalingRules configures the scaling behavior for one direction via scaling Policy Rules and a configurable metric tolerance.\n\nScaling Policy Rules are applied after calculating DesiredReplicas from metrics for the HPA. They can limit the scaling velocity by specifying scaling policies. They can prevent flapping by specifying the stabilization window, so that the number of replicas is not set instantly, instead, the safest value from the stabilization window is chosen.\n\nThe tolerance is applied to the metric values and prevents scaling too eagerly for small metric variations. (Note that setting a tolerance requires the beta HPAConfigurableTolerance feature gate to be enabled.)",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"stabilizationWindowSeconds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "stabilizationWindowSeconds is the number of seconds for which past recommendations should be considered while scaling up or scaling down. StabilizationWindowSeconds must be greater than or equal to zero and less than or equal to 3600 (one hour). If not set, use the default values: - For scale up: 0 (i.e. no stabilization is done). - For scale down: 300 (i.e. the stabilization window is 300 seconds long).",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"selectPolicy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "selectPolicy is used to specify which policy should be used. If not set, the default value Max is used.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"policies": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "policies is a list of potential scaling polices which can be used during scaling. If not set, use the default values: - For scale up: allow doubling the number of pods, or an absolute change of 4 pods in a 15s window. - For scale down: allow all pods to be removed in a 15s window.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(v2.HPAScalingPolicy{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+					"tolerance": {
+						SchemaProps: spec.SchemaProps{
+							Description: "tolerance is the tolerance on the ratio between the current and desired metric value under which no updates are made to the desired number of replicas (e.g. 0.01 for 1%). Must be greater than or equal to zero. If not set, the default cluster-wide tolerance is applied (by default 10%).\n\nFor example, if autoscaling is configured with a memory consumption target of 100Mi, and scale-down and scale-up tolerances of 5% and 1% respectively, scaling will be triggered when the actual consumption falls below 95Mi or exceeds 101Mi.\n\nThis is an beta field and requires the HPAConfigurableTolerance feature gate to be enabled.",
+							Ref:         ref(resource.Quantity{}.OpenAPIModelName()),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			v2.HPAScalingPolicy{}.OpenAPIModelName(), resource.Quantity{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_autoscaling_v2_HorizontalPodAutoscaler(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "HorizontalPodAutoscaler is the configuration for a horizontal pod autoscaler, which automatically manages the replica count of any resource implementing the scale subresource based on the metrics specified.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Description: "metadata is the standard object metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata",
+							Default:     map[string]interface{}{},
+							Ref:         ref(metav1.ObjectMeta{}.OpenAPIModelName()),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Description: "spec is the specification for the behaviour of the autoscaler. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status.",
+							Default:     map[string]interface{}{},
+							Ref:         ref(v2.HorizontalPodAutoscalerSpec{}.OpenAPIModelName()),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Description: "status is the current information about the autoscaler.",
+							Default:     map[string]interface{}{},
+							Ref:         ref(v2.HorizontalPodAutoscalerStatus{}.OpenAPIModelName()),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			v2.HorizontalPodAutoscalerSpec{}.OpenAPIModelName(), v2.HorizontalPodAutoscalerStatus{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_autoscaling_v2_HorizontalPodAutoscalerBehavior(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "HorizontalPodAutoscalerBehavior configures the scaling behavior of the target in both Up and Down directions (scaleUp and scaleDown fields respectively).",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"scaleUp": {
+						SchemaProps: spec.SchemaProps{
+							Description: "scaleUp is scaling policy for scaling Up. If not set, the default value is the higher of:\n  * increase no more than 4 pods per 60 seconds\n  * double the number of pods per 60 seconds\nNo stabilization is used.",
+							Ref:         ref(v2.HPAScalingRules{}.OpenAPIModelName()),
+						},
+					},
+					"scaleDown": {
+						SchemaProps: spec.SchemaProps{
+							Description: "scaleDown is scaling policy for scaling Down. If not set, the default value is to allow to scale down to minReplicas pods, with a 300 second stabilization window (i.e., the highest recommendation for the last 300sec is used).",
+							Ref:         ref(v2.HPAScalingRules{}.OpenAPIModelName()),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			v2.HPAScalingRules{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_autoscaling_v2_HorizontalPodAutoscalerCondition(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "HorizontalPodAutoscalerCondition describes the state of a HorizontalPodAutoscaler at a certain point.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"type": {
+						SchemaProps: spec.SchemaProps{
+							Description: "type describes the current condition",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Description: "status is the status of the condition (True, False, Unknown)",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"lastTransitionTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "lastTransitionTime is the last time the condition transitioned from one status to another",
+							Ref:         ref(metav1.Time{}.OpenAPIModelName()),
+						},
+					},
+					"reason": {
+						SchemaProps: spec.SchemaProps{
+							Description: "reason is the reason for the condition's last transition.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"message": {
+						SchemaProps: spec.SchemaProps{
+							Description: "message is a human-readable explanation containing details about the transition",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"type", "status"},
+			},
+		},
+		Dependencies: []string{
+			metav1.Time{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_autoscaling_v2_HorizontalPodAutoscalerList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "HorizontalPodAutoscalerList is a list of horizontal pod autoscaler objects.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Description: "metadata is the standard list metadata.",
+							Default:     map[string]interface{}{},
+							Ref:         ref(metav1.ListMeta{}.OpenAPIModelName()),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Description: "items is the list of horizontal pod autoscaler objects.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(v2.HorizontalPodAutoscaler{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			v2.HorizontalPodAutoscaler{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_autoscaling_v2_HorizontalPodAutoscalerSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "HorizontalPodAutoscalerSpec describes the desired functionality of the HorizontalPodAutoscaler.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"scaleTargetRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "scaleTargetRef points to the target resource to scale, and is used to the pods for which metrics should be collected, as well as to actually change the replica count.",
+							Default:     map[string]interface{}{},
+							Ref:         ref(v2.CrossVersionObjectReference{}.OpenAPIModelName()),
+						},
+					},
+					"minReplicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "minReplicas is the lower limit for the number of replicas to which the autoscaler can scale down.  It defaults to 1 pod.  minReplicas is allowed to be 0 if the alpha feature gate HPAScaleToZero is enabled and at least one Object or External metric is configured.  Scaling is active as long as at least one metric value is available.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"maxReplicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "maxReplicas is the upper limit for the number of replicas to which the autoscaler can scale up. It cannot be less that minReplicas.",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"metrics": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "metrics contains the specifications for which to use to calculate the desired replica count (the maximum replica count across all metrics will be used).  The desired replica count is calculated multiplying the ratio between the target value and the current value by the current number of pods.  Ergo, metrics used must decrease as the pod count is increased, and vice-versa.  See the individual metric source types for more information about how each type of metric must respond. If not set, the default metric will be set to 80% average CPU utilization.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(v2.MetricSpec{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+					"behavior": {
+						SchemaProps: spec.SchemaProps{
+							Description: "behavior configures the scaling behavior of the target in both Up and Down directions (scaleUp and scaleDown fields respectively). If not set, the default HPAScalingRules for scale up and scale down are used.",
+							Ref:         ref(v2.HorizontalPodAutoscalerBehavior{}.OpenAPIModelName()),
+						},
+					},
+				},
+				Required: []string{"scaleTargetRef", "maxReplicas"},
+			},
+		},
+		Dependencies: []string{
+			v2.CrossVersionObjectReference{}.OpenAPIModelName(), v2.HorizontalPodAutoscalerBehavior{}.OpenAPIModelName(), v2.MetricSpec{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_autoscaling_v2_HorizontalPodAutoscalerStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "HorizontalPodAutoscalerStatus describes the current status of a horizontal pod autoscaler.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"observedGeneration": {
+						SchemaProps: spec.SchemaProps{
+							Description: "observedGeneration is the most recent generation observed by this autoscaler.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"lastScaleTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "lastScaleTime is the last time the HorizontalPodAutoscaler scaled the number of pods, used by the autoscaler to control how often the number of pods is changed.",
+							Ref:         ref(metav1.Time{}.OpenAPIModelName()),
+						},
+					},
+					"currentReplicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "currentReplicas is current number of replicas of pods managed by this autoscaler, as last seen by the autoscaler.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"desiredReplicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "desiredReplicas is the desired number of replicas of pods managed by this autoscaler, as last calculated by the autoscaler.",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"currentMetrics": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "currentMetrics is the last read state of the metrics used by this autoscaler.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(v2.MetricStatus{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+					"conditions": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"type",
+								},
+								"x-kubernetes-list-type":       "map",
+								"x-kubernetes-patch-merge-key": "type",
+								"x-kubernetes-patch-strategy":  "merge",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "conditions is the set of conditions required for this autoscaler to scale its target, and indicates whether or not those conditions are met.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(v2.HorizontalPodAutoscalerCondition{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"desiredReplicas"},
+			},
+		},
+		Dependencies: []string{
+			v2.HorizontalPodAutoscalerCondition{}.OpenAPIModelName(), v2.MetricStatus{}.OpenAPIModelName(), metav1.Time{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_autoscaling_v2_MetricIdentifier(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "MetricIdentifier defines the name and optionally selector for a metric",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "name is the name of the given metric",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"selector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "selector is the string-encoded form of a standard kubernetes label selector for the given metric When set, it is passed as an additional parameter to the metrics server for more specific metrics scoping. When unset, just the metricName will be used to gather metrics.",
+							Ref:         ref(metav1.LabelSelector{}.OpenAPIModelName()),
+						},
+					},
+				},
+				Required: []string{"name"},
+			},
+		},
+		Dependencies: []string{
+			metav1.LabelSelector{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_autoscaling_v2_MetricSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "MetricSpec specifies how to scale based on a single metric (only `type` and one other matching field should be set at once).",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"type": {
+						SchemaProps: spec.SchemaProps{
+							Description: "type is the type of metric source.  It should be one of \"ContainerResource\", \"External\", \"Object\", \"Pods\" or \"Resource\", each mapping to a matching field in the object.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"object": {
+						SchemaProps: spec.SchemaProps{
+							Description: "object refers to a metric describing a single kubernetes object (for example, hits-per-second on an Ingress object).",
+							Ref:         ref(v2.ObjectMetricSource{}.OpenAPIModelName()),
+						},
+					},
+					"pods": {
+						SchemaProps: spec.SchemaProps{
+							Description: "pods refers to a metric describing each pod in the current scale target (for example, transactions-processed-per-second).  The values will be averaged together before being compared to the target value.",
+							Ref:         ref(v2.PodsMetricSource{}.OpenAPIModelName()),
+						},
+					},
+					"resource": {
+						SchemaProps: spec.SchemaProps{
+							Description: "resource refers to a resource metric (such as those specified in requests and limits) known to Kubernetes describing each pod in the current scale target (e.g. CPU or memory). Such metrics are built in to Kubernetes, and have special scaling options on top of those available to normal per-pod metrics using the \"pods\" source.",
+							Ref:         ref(v2.ResourceMetricSource{}.OpenAPIModelName()),
+						},
+					},
+					"containerResource": {
+						SchemaProps: spec.SchemaProps{
+							Description: "containerResource refers to a resource metric (such as those specified in requests and limits) known to Kubernetes describing a single container in each pod of the current scale target (e.g. CPU or memory). Such metrics are built in to Kubernetes, and have special scaling options on top of those available to normal per-pod metrics using the \"pods\" source.",
+							Ref:         ref(v2.ContainerResourceMetricSource{}.OpenAPIModelName()),
+						},
+					},
+					"external": {
+						SchemaProps: spec.SchemaProps{
+							Description: "external refers to a global metric that is not associated with any Kubernetes object. It allows autoscaling based on information coming from components running outside of cluster (for example length of queue in cloud messaging service, or QPS from loadbalancer running outside of cluster).",
+							Ref:         ref(v2.ExternalMetricSource{}.OpenAPIModelName()),
+						},
+					},
+				},
+				Required: []string{"type"},
+			},
+		},
+		Dependencies: []string{
+			v2.ContainerResourceMetricSource{}.OpenAPIModelName(), v2.ExternalMetricSource{}.OpenAPIModelName(), v2.ObjectMetricSource{}.OpenAPIModelName(), v2.PodsMetricSource{}.OpenAPIModelName(), v2.ResourceMetricSource{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_autoscaling_v2_MetricStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "MetricStatus describes the last-read state of a single metric.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"type": {
+						SchemaProps: spec.SchemaProps{
+							Description: "type is the type of metric source.  It will be one of \"ContainerResource\", \"External\", \"Object\", \"Pods\" or \"Resource\", each corresponds to a matching field in the object.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"object": {
+						SchemaProps: spec.SchemaProps{
+							Description: "object refers to a metric describing a single kubernetes object (for example, hits-per-second on an Ingress object).",
+							Ref:         ref(v2.ObjectMetricStatus{}.OpenAPIModelName()),
+						},
+					},
+					"pods": {
+						SchemaProps: spec.SchemaProps{
+							Description: "pods refers to a metric describing each pod in the current scale target (for example, transactions-processed-per-second).  The values will be averaged together before being compared to the target value.",
+							Ref:         ref(v2.PodsMetricStatus{}.OpenAPIModelName()),
+						},
+					},
+					"resource": {
+						SchemaProps: spec.SchemaProps{
+							Description: "resource refers to a resource metric (such as those specified in requests and limits) known to Kubernetes describing each pod in the current scale target (e.g. CPU or memory). Such metrics are built in to Kubernetes, and have special scaling options on top of those available to normal per-pod metrics using the \"pods\" source.",
+							Ref:         ref(v2.ResourceMetricStatus{}.OpenAPIModelName()),
+						},
+					},
+					"containerResource": {
+						SchemaProps: spec.SchemaProps{
+							Description: "container resource refers to a resource metric (such as those specified in requests and limits) known to Kubernetes describing a single container in each pod in the current scale target (e.g. CPU or memory). Such metrics are built in to Kubernetes, and have special scaling options on top of those available to normal per-pod metrics using the \"pods\" source.",
+							Ref:         ref(v2.ContainerResourceMetricStatus{}.OpenAPIModelName()),
+						},
+					},
+					"external": {
+						SchemaProps: spec.SchemaProps{
+							Description: "external refers to a global metric that is not associated with any Kubernetes object. It allows autoscaling based on information coming from components running outside of cluster (for example length of queue in cloud messaging service, or QPS from loadbalancer running outside of cluster).",
+							Ref:         ref(v2.ExternalMetricStatus{}.OpenAPIModelName()),
+						},
+					},
+				},
+				Required: []string{"type"},
+			},
+		},
+		Dependencies: []string{
+			v2.ContainerResourceMetricStatus{}.OpenAPIModelName(), v2.ExternalMetricStatus{}.OpenAPIModelName(), v2.ObjectMetricStatus{}.OpenAPIModelName(), v2.PodsMetricStatus{}.OpenAPIModelName(), v2.ResourceMetricStatus{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_autoscaling_v2_MetricTarget(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "MetricTarget defines the target value, average value, or average utilization of a specific metric",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"type": {
+						SchemaProps: spec.SchemaProps{
+							Description: "type represents whether the metric type is Utilization, Value, or AverageValue",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"value": {
+						SchemaProps: spec.SchemaProps{
+							Description: "value is the target value of the metric (as a quantity).",
+							Ref:         ref(resource.Quantity{}.OpenAPIModelName()),
+						},
+					},
+					"averageValue": {
+						SchemaProps: spec.SchemaProps{
+							Description: "averageValue is the target value of the average of the metric across all relevant pods (as a quantity)",
+							Ref:         ref(resource.Quantity{}.OpenAPIModelName()),
+						},
+					},
+					"averageUtilization": {
+						SchemaProps: spec.SchemaProps{
+							Description: "averageUtilization is the target value of the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods. Currently only valid for Resource metric source type",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+				},
+				Required: []string{"type"},
+			},
+		},
+		Dependencies: []string{
+			resource.Quantity{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_autoscaling_v2_MetricValueStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "MetricValueStatus holds the current value for a metric",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"value": {
+						SchemaProps: spec.SchemaProps{
+							Description: "value is the current value of the metric (as a quantity).",
+							Ref:         ref(resource.Quantity{}.OpenAPIModelName()),
+						},
+					},
+					"averageValue": {
+						SchemaProps: spec.SchemaProps{
+							Description: "averageValue is the current value of the average of the metric across all relevant pods (as a quantity)",
+							Ref:         ref(resource.Quantity{}.OpenAPIModelName()),
+						},
+					},
+					"averageUtilization": {
+						SchemaProps: spec.SchemaProps{
+							Description: "currentAverageUtilization is the current value of the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			resource.Quantity{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_autoscaling_v2_ObjectMetricSource(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ObjectMetricSource indicates how to scale on a metric describing a kubernetes object (for example, hits-per-second on an Ingress object).",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"describedObject": {
+						SchemaProps: spec.SchemaProps{
+							Description: "describedObject specifies the descriptions of a object,such as kind,name apiVersion",
+							Default:     map[string]interface{}{},
+							Ref:         ref(v2.CrossVersionObjectReference{}.OpenAPIModelName()),
+						},
+					},
+					"target": {
+						SchemaProps: spec.SchemaProps{
+							Description: "target specifies the target value for the given metric",
+							Default:     map[string]interface{}{},
+							Ref:         ref(v2.MetricTarget{}.OpenAPIModelName()),
+						},
+					},
+					"metric": {
+						SchemaProps: spec.SchemaProps{
+							Description: "metric identifies the target metric by name and selector",
+							Default:     map[string]interface{}{},
+							Ref:         ref(v2.MetricIdentifier{}.OpenAPIModelName()),
+						},
+					},
+				},
+				Required: []string{"describedObject", "target", "metric"},
+			},
+		},
+		Dependencies: []string{
+			v2.CrossVersionObjectReference{}.OpenAPIModelName(), v2.MetricIdentifier{}.OpenAPIModelName(), v2.MetricTarget{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_autoscaling_v2_ObjectMetricStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ObjectMetricStatus indicates the current value of a metric describing a kubernetes object (for example, hits-per-second on an Ingress object).",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"metric": {
+						SchemaProps: spec.SchemaProps{
+							Description: "metric identifies the target metric by name and selector",
+							Default:     map[string]interface{}{},
+							Ref:         ref(v2.MetricIdentifier{}.OpenAPIModelName()),
+						},
+					},
+					"current": {
+						SchemaProps: spec.SchemaProps{
+							Description: "current contains the current value for the given metric",
+							Default:     map[string]interface{}{},
+							Ref:         ref(v2.MetricValueStatus{}.OpenAPIModelName()),
+						},
+					},
+					"describedObject": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DescribedObject specifies the descriptions of a object,such as kind,name apiVersion",
+							Default:     map[string]interface{}{},
+							Ref:         ref(v2.CrossVersionObjectReference{}.OpenAPIModelName()),
+						},
+					},
+				},
+				Required: []string{"metric", "current", "describedObject"},
+			},
+		},
+		Dependencies: []string{
+			v2.CrossVersionObjectReference{}.OpenAPIModelName(), v2.MetricIdentifier{}.OpenAPIModelName(), v2.MetricValueStatus{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_autoscaling_v2_PodsMetricSource(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "PodsMetricSource indicates how to scale on a metric describing each pod in the current scale target (for example, transactions-processed-per-second). The values will be averaged together before being compared to the target value.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"metric": {
+						SchemaProps: spec.SchemaProps{
+							Description: "metric identifies the target metric by name and selector",
+							Default:     map[string]interface{}{},
+							Ref:         ref(v2.MetricIdentifier{}.OpenAPIModelName()),
+						},
+					},
+					"target": {
+						SchemaProps: spec.SchemaProps{
+							Description: "target specifies the target value for the given metric",
+							Default:     map[string]interface{}{},
+							Ref:         ref(v2.MetricTarget{}.OpenAPIModelName()),
+						},
+					},
+				},
+				Required: []string{"metric", "target"},
+			},
+		},
+		Dependencies: []string{
+			v2.MetricIdentifier{}.OpenAPIModelName(), v2.MetricTarget{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_autoscaling_v2_PodsMetricStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "PodsMetricStatus indicates the current value of a metric describing each pod in the current scale target (for example, transactions-processed-per-second).",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"metric": {
+						SchemaProps: spec.SchemaProps{
+							Description: "metric identifies the target metric by name and selector",
+							Default:     map[string]interface{}{},
+							Ref:         ref(v2.MetricIdentifier{}.OpenAPIModelName()),
+						},
+					},
+					"current": {
+						SchemaProps: spec.SchemaProps{
+							Description: "current contains the current value for the given metric",
+							Default:     map[string]interface{}{},
+							Ref:         ref(v2.MetricValueStatus{}.OpenAPIModelName()),
+						},
+					},
+				},
+				Required: []string{"metric", "current"},
+			},
+		},
+		Dependencies: []string{
+			v2.MetricIdentifier{}.OpenAPIModelName(), v2.MetricValueStatus{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_autoscaling_v2_ResourceMetricSource(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ResourceMetricSource indicates how to scale on a resource metric known to Kubernetes, as specified in requests and limits, describing each pod in the current scale target (e.g. CPU or memory).  The values will be averaged together before being compared to the target.  Such metrics are built in to Kubernetes, and have special scaling options on top of those available to normal per-pod metrics using the \"pods\" source.  Only one \"target\" type should be set.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "name is the name of the resource in question.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"target": {
+						SchemaProps: spec.SchemaProps{
+							Description: "target specifies the target value for the given metric",
+							Default:     map[string]interface{}{},
+							Ref:         ref(v2.MetricTarget{}.OpenAPIModelName()),
+						},
+					},
+				},
+				Required: []string{"name", "target"},
+			},
+		},
+		Dependencies: []string{
+			v2.MetricTarget{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_autoscaling_v2_ResourceMetricStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ResourceMetricStatus indicates the current value of a resource metric known to Kubernetes, as specified in requests and limits, describing each pod in the current scale target (e.g. CPU or memory).  Such metrics are built in to Kubernetes, and have special scaling options on top of those available to normal per-pod metrics using the \"pods\" source.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "name is the name of the resource in question.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"current": {
+						SchemaProps: spec.SchemaProps{
+							Description: "current contains the current value for the given metric",
+							Default:     map[string]interface{}{},
+							Ref:         ref(v2.MetricValueStatus{}.OpenAPIModelName()),
+						},
+					},
+				},
+				Required: []string{"name", "current"},
+			},
+		},
+		Dependencies: []string{
+			v2.MetricValueStatus{}.OpenAPIModelName()},
 	}
 }
 
@@ -382,26 +3196,26 @@ func schema_k8sio_api_core_v1_Affinity(ref common.ReferenceCallback) common.Open
 					"nodeAffinity": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Describes node affinity scheduling rules for the pod.",
-							Ref:         ref(v1.NodeAffinity{}.OpenAPIModelName()),
+							Ref:         ref(corev1.NodeAffinity{}.OpenAPIModelName()),
 						},
 					},
 					"podAffinity": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Describes pod affinity scheduling rules (e.g. co-locate this pod in the same node, zone, etc. as some other pod(s)).",
-							Ref:         ref(v1.PodAffinity{}.OpenAPIModelName()),
+							Ref:         ref(corev1.PodAffinity{}.OpenAPIModelName()),
 						},
 					},
 					"podAntiAffinity": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Describes pod anti-affinity scheduling rules (e.g. avoid putting this pod in the same node, zone, etc. as some other pod(s)).",
-							Ref:         ref(v1.PodAntiAffinity{}.OpenAPIModelName()),
+							Ref:         ref(corev1.PodAntiAffinity{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			v1.NodeAffinity{}.OpenAPIModelName(), v1.PodAffinity{}.OpenAPIModelName(), v1.PodAntiAffinity{}.OpenAPIModelName()},
+			corev1.NodeAffinity{}.OpenAPIModelName(), corev1.PodAffinity{}.OpenAPIModelName(), corev1.PodAntiAffinity{}.OpenAPIModelName()},
 	}
 }
 
@@ -497,7 +3311,7 @@ func schema_k8sio_api_core_v1_AvoidPods(ref common.ReferenceCallback) common.Ope
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.PreferAvoidPodsEntry{}.OpenAPIModelName()),
+										Ref:     ref(corev1.PreferAvoidPodsEntry{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -507,7 +3321,7 @@ func schema_k8sio_api_core_v1_AvoidPods(ref common.ReferenceCallback) common.Ope
 			},
 		},
 		Dependencies: []string{
-			v1.PreferAvoidPodsEntry{}.OpenAPIModelName()},
+			corev1.PreferAvoidPodsEntry{}.OpenAPIModelName()},
 	}
 }
 
@@ -537,7 +3351,7 @@ func schema_k8sio_api_core_v1_AzureDiskVolumeSource(ref common.ReferenceCallback
 					"cachingMode": {
 						SchemaProps: spec.SchemaProps{
 							Description: "cachingMode is the Host Caching mode: None, Read Only, Read Write.\n\nPossible enum values:\n - `\"None\"`\n - `\"ReadOnly\"`\n - `\"ReadWrite\"`",
-							Default:     v1.AzureDataDiskCachingReadWrite,
+							Default:     corev1.AzureDataDiskCachingReadWrite,
 							Type:        []string{"string"},
 							Format:      "",
 							Enum:        []interface{}{"None", "ReadOnly", "ReadWrite"},
@@ -562,7 +3376,7 @@ func schema_k8sio_api_core_v1_AzureDiskVolumeSource(ref common.ReferenceCallback
 					"kind": {
 						SchemaProps: spec.SchemaProps{
 							Description: "kind expected values are Shared: multiple blob disks per storage account  Dedicated: single blob disk per storage account  Managed: azure managed data disk (only in managed availability set). defaults to shared\n\nPossible enum values:\n - `\"Dedicated\"`\n - `\"Managed\"`\n - `\"Shared\"`",
-							Default:     v1.AzureSharedBlobDisk,
+							Default:     corev1.AzureSharedBlobDisk,
 							Type:        []string{"string"},
 							Format:      "",
 							Enum:        []interface{}{"Dedicated", "Managed", "Shared"},
@@ -688,7 +3502,7 @@ func schema_k8sio_api_core_v1_Binding(ref common.ReferenceCallback) common.OpenA
 						SchemaProps: spec.SchemaProps{
 							Description: "The target object that you want to bind to the standard object.",
 							Default:     map[string]interface{}{},
-							Ref:         ref(v1.ObjectReference{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ObjectReference{}.OpenAPIModelName()),
 						},
 					},
 				},
@@ -696,7 +3510,7 @@ func schema_k8sio_api_core_v1_Binding(ref common.ReferenceCallback) common.OpenA
 			},
 		},
 		Dependencies: []string{
-			v1.ObjectReference{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
+			corev1.ObjectReference{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -756,31 +3570,31 @@ func schema_k8sio_api_core_v1_CSIPersistentVolumeSource(ref common.ReferenceCall
 					"controllerPublishSecretRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "controllerPublishSecretRef is a reference to the secret object containing sensitive information to pass to the CSI driver to complete the CSI ControllerPublishVolume and ControllerUnpublishVolume calls. This field is optional, and may be empty if no secret is required. If the secret object contains more than one secret, all secrets are passed.",
-							Ref:         ref(v1.SecretReference{}.OpenAPIModelName()),
+							Ref:         ref(corev1.SecretReference{}.OpenAPIModelName()),
 						},
 					},
 					"nodeStageSecretRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "nodeStageSecretRef is a reference to the secret object containing sensitive information to pass to the CSI driver to complete the CSI NodeStageVolume and NodeStageVolume and NodeUnstageVolume calls. This field is optional, and may be empty if no secret is required. If the secret object contains more than one secret, all secrets are passed.",
-							Ref:         ref(v1.SecretReference{}.OpenAPIModelName()),
+							Ref:         ref(corev1.SecretReference{}.OpenAPIModelName()),
 						},
 					},
 					"nodePublishSecretRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "nodePublishSecretRef is a reference to the secret object containing sensitive information to pass to the CSI driver to complete the CSI NodePublishVolume and NodeUnpublishVolume calls. This field is optional, and may be empty if no secret is required. If the secret object contains more than one secret, all secrets are passed.",
-							Ref:         ref(v1.SecretReference{}.OpenAPIModelName()),
+							Ref:         ref(corev1.SecretReference{}.OpenAPIModelName()),
 						},
 					},
 					"controllerExpandSecretRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "controllerExpandSecretRef is a reference to the secret object containing sensitive information to pass to the CSI driver to complete the CSI ControllerExpandVolume call. This field is optional, and may be empty if no secret is required. If the secret object contains more than one secret, all secrets are passed.",
-							Ref:         ref(v1.SecretReference{}.OpenAPIModelName()),
+							Ref:         ref(corev1.SecretReference{}.OpenAPIModelName()),
 						},
 					},
 					"nodeExpandSecretRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "nodeExpandSecretRef is a reference to the secret object containing sensitive information to pass to the CSI driver to complete the CSI NodeExpandVolume call. This field is optional, may be omitted if no secret is required. If the secret object contains more than one secret, all secrets are passed.",
-							Ref:         ref(v1.SecretReference{}.OpenAPIModelName()),
+							Ref:         ref(corev1.SecretReference{}.OpenAPIModelName()),
 						},
 					},
 				},
@@ -788,7 +3602,7 @@ func schema_k8sio_api_core_v1_CSIPersistentVolumeSource(ref common.ReferenceCall
 			},
 		},
 		Dependencies: []string{
-			v1.SecretReference{}.OpenAPIModelName()},
+			corev1.SecretReference{}.OpenAPIModelName()},
 	}
 }
 
@@ -840,7 +3654,7 @@ func schema_k8sio_api_core_v1_CSIVolumeSource(ref common.ReferenceCallback) comm
 					"nodePublishSecretRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "nodePublishSecretRef is a reference to the secret object containing sensitive information to pass to the CSI driver to complete the CSI NodePublishVolume and NodeUnpublishVolume calls. This field is optional, and  may be empty if no secret is required. If the secret object contains more than one secret, all secret references are passed.",
-							Ref:         ref(v1.LocalObjectReference{}.OpenAPIModelName()),
+							Ref:         ref(corev1.LocalObjectReference{}.OpenAPIModelName()),
 						},
 					},
 				},
@@ -848,7 +3662,7 @@ func schema_k8sio_api_core_v1_CSIVolumeSource(ref common.ReferenceCallback) comm
 			},
 		},
 		Dependencies: []string{
-			v1.LocalObjectReference{}.OpenAPIModelName()},
+			corev1.LocalObjectReference{}.OpenAPIModelName()},
 	}
 }
 
@@ -956,7 +3770,7 @@ func schema_k8sio_api_core_v1_CephFSPersistentVolumeSource(ref common.ReferenceC
 					"secretRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "secretRef is Optional: SecretRef is reference to the authentication secret for User, default is empty. More info: https://examples.k8s.io/volumes/cephfs/README.md#how-to-use-it",
-							Ref:         ref(v1.SecretReference{}.OpenAPIModelName()),
+							Ref:         ref(corev1.SecretReference{}.OpenAPIModelName()),
 						},
 					},
 					"readOnly": {
@@ -971,7 +3785,7 @@ func schema_k8sio_api_core_v1_CephFSPersistentVolumeSource(ref common.ReferenceC
 			},
 		},
 		Dependencies: []string{
-			v1.SecretReference{}.OpenAPIModelName()},
+			corev1.SecretReference{}.OpenAPIModelName()},
 	}
 }
 
@@ -1026,7 +3840,7 @@ func schema_k8sio_api_core_v1_CephFSVolumeSource(ref common.ReferenceCallback) c
 					"secretRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "secretRef is Optional: SecretRef is reference to the authentication secret for User, default is empty. More info: https://examples.k8s.io/volumes/cephfs/README.md#how-to-use-it",
-							Ref:         ref(v1.LocalObjectReference{}.OpenAPIModelName()),
+							Ref:         ref(corev1.LocalObjectReference{}.OpenAPIModelName()),
 						},
 					},
 					"readOnly": {
@@ -1041,7 +3855,7 @@ func schema_k8sio_api_core_v1_CephFSVolumeSource(ref common.ReferenceCallback) c
 			},
 		},
 		Dependencies: []string{
-			v1.LocalObjectReference{}.OpenAPIModelName()},
+			corev1.LocalObjectReference{}.OpenAPIModelName()},
 	}
 }
 
@@ -1077,7 +3891,7 @@ func schema_k8sio_api_core_v1_CinderPersistentVolumeSource(ref common.ReferenceC
 					"secretRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "secretRef is Optional: points to a secret object containing parameters used to connect to OpenStack.",
-							Ref:         ref(v1.SecretReference{}.OpenAPIModelName()),
+							Ref:         ref(corev1.SecretReference{}.OpenAPIModelName()),
 						},
 					},
 				},
@@ -1085,7 +3899,7 @@ func schema_k8sio_api_core_v1_CinderPersistentVolumeSource(ref common.ReferenceC
 			},
 		},
 		Dependencies: []string{
-			v1.SecretReference{}.OpenAPIModelName()},
+			corev1.SecretReference{}.OpenAPIModelName()},
 	}
 }
 
@@ -1121,7 +3935,7 @@ func schema_k8sio_api_core_v1_CinderVolumeSource(ref common.ReferenceCallback) c
 					"secretRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "secretRef is optional: points to a secret object containing parameters used to connect to OpenStack.",
-							Ref:         ref(v1.LocalObjectReference{}.OpenAPIModelName()),
+							Ref:         ref(corev1.LocalObjectReference{}.OpenAPIModelName()),
 						},
 					},
 				},
@@ -1129,7 +3943,7 @@ func schema_k8sio_api_core_v1_CinderVolumeSource(ref common.ReferenceCallback) c
 			},
 		},
 		Dependencies: []string{
-			v1.LocalObjectReference{}.OpenAPIModelName()},
+			corev1.LocalObjectReference{}.OpenAPIModelName()},
 	}
 }
 
@@ -1294,7 +4108,7 @@ func schema_k8sio_api_core_v1_ComponentStatus(ref common.ReferenceCallback) comm
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.ComponentCondition{}.OpenAPIModelName()),
+										Ref:     ref(corev1.ComponentCondition{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -1304,7 +4118,7 @@ func schema_k8sio_api_core_v1_ComponentStatus(ref common.ReferenceCallback) comm
 			},
 		},
 		Dependencies: []string{
-			v1.ComponentCondition{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
+			corev1.ComponentCondition{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -1344,7 +4158,7 @@ func schema_k8sio_api_core_v1_ComponentStatusList(ref common.ReferenceCallback) 
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.ComponentStatus{}.OpenAPIModelName()),
+										Ref:     ref(corev1.ComponentStatus{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -1355,7 +4169,7 @@ func schema_k8sio_api_core_v1_ComponentStatusList(ref common.ReferenceCallback) 
 			},
 		},
 		Dependencies: []string{
-			v1.ComponentStatus{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
+			corev1.ComponentStatus{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -1539,7 +4353,7 @@ func schema_k8sio_api_core_v1_ConfigMapList(ref common.ReferenceCallback) common
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.ConfigMap{}.OpenAPIModelName()),
+										Ref:     ref(corev1.ConfigMap{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -1550,7 +4364,7 @@ func schema_k8sio_api_core_v1_ConfigMapList(ref common.ReferenceCallback) common
 			},
 		},
 		Dependencies: []string{
-			v1.ConfigMap{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
+			corev1.ConfigMap{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -1634,7 +4448,7 @@ func schema_k8sio_api_core_v1_ConfigMapProjection(ref common.ReferenceCallback) 
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.KeyToPath{}.OpenAPIModelName()),
+										Ref:     ref(corev1.KeyToPath{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -1651,7 +4465,7 @@ func schema_k8sio_api_core_v1_ConfigMapProjection(ref common.ReferenceCallback) 
 			},
 		},
 		Dependencies: []string{
-			v1.KeyToPath{}.OpenAPIModelName()},
+			corev1.KeyToPath{}.OpenAPIModelName()},
 	}
 }
 
@@ -1683,7 +4497,7 @@ func schema_k8sio_api_core_v1_ConfigMapVolumeSource(ref common.ReferenceCallback
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.KeyToPath{}.OpenAPIModelName()),
+										Ref:     ref(corev1.KeyToPath{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -1707,7 +4521,7 @@ func schema_k8sio_api_core_v1_ConfigMapVolumeSource(ref common.ReferenceCallback
 			},
 		},
 		Dependencies: []string{
-			v1.KeyToPath{}.OpenAPIModelName()},
+			corev1.KeyToPath{}.OpenAPIModelName()},
 	}
 }
 
@@ -1799,7 +4613,7 @@ func schema_k8sio_api_core_v1_Container(ref common.ReferenceCallback) common.Ope
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.ContainerPort{}.OpenAPIModelName()),
+										Ref:     ref(corev1.ContainerPort{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -1818,7 +4632,7 @@ func schema_k8sio_api_core_v1_Container(ref common.ReferenceCallback) common.Ope
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.EnvFromSource{}.OpenAPIModelName()),
+										Ref:     ref(corev1.EnvFromSource{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -1842,7 +4656,7 @@ func schema_k8sio_api_core_v1_Container(ref common.ReferenceCallback) common.Ope
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.EnvVar{}.OpenAPIModelName()),
+										Ref:     ref(corev1.EnvVar{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -1852,7 +4666,7 @@ func schema_k8sio_api_core_v1_Container(ref common.ReferenceCallback) common.Ope
 						SchemaProps: spec.SchemaProps{
 							Description: "Compute Resources required by this container. Cannot be updated. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/",
 							Default:     map[string]interface{}{},
-							Ref:         ref(v1.ResourceRequirements{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ResourceRequirements{}.OpenAPIModelName()),
 						},
 					},
 					"resizePolicy": {
@@ -1868,7 +4682,7 @@ func schema_k8sio_api_core_v1_Container(ref common.ReferenceCallback) common.Ope
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.ContainerResizePolicy{}.OpenAPIModelName()),
+										Ref:     ref(corev1.ContainerResizePolicy{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -1894,7 +4708,7 @@ func schema_k8sio_api_core_v1_Container(ref common.ReferenceCallback) common.Ope
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.ContainerRestartRule{}.OpenAPIModelName()),
+										Ref:     ref(corev1.ContainerRestartRule{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -1918,7 +4732,7 @@ func schema_k8sio_api_core_v1_Container(ref common.ReferenceCallback) common.Ope
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.VolumeMount{}.OpenAPIModelName()),
+										Ref:     ref(corev1.VolumeMount{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -1942,7 +4756,7 @@ func schema_k8sio_api_core_v1_Container(ref common.ReferenceCallback) common.Ope
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.VolumeDevice{}.OpenAPIModelName()),
+										Ref:     ref(corev1.VolumeDevice{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -1951,25 +4765,25 @@ func schema_k8sio_api_core_v1_Container(ref common.ReferenceCallback) common.Ope
 					"livenessProbe": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Periodic probe of container liveness. Container will be restarted if the probe fails. Cannot be updated. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes",
-							Ref:         ref(v1.Probe{}.OpenAPIModelName()),
+							Ref:         ref(corev1.Probe{}.OpenAPIModelName()),
 						},
 					},
 					"readinessProbe": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Periodic probe of container service readiness. Container will be removed from service endpoints if the probe fails. Cannot be updated. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes",
-							Ref:         ref(v1.Probe{}.OpenAPIModelName()),
+							Ref:         ref(corev1.Probe{}.OpenAPIModelName()),
 						},
 					},
 					"startupProbe": {
 						SchemaProps: spec.SchemaProps{
 							Description: "StartupProbe indicates that the Pod has successfully initialized. If specified, no other probes are executed until this completes successfully. If this probe fails, the Pod will be restarted, just as if the livenessProbe failed. This can be used to provide different probe parameters at the beginning of a Pod's lifecycle, when it might take a long time to load data or warm a cache, than during steady-state operation. This cannot be updated. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes",
-							Ref:         ref(v1.Probe{}.OpenAPIModelName()),
+							Ref:         ref(corev1.Probe{}.OpenAPIModelName()),
 						},
 					},
 					"lifecycle": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Actions that the management system should take in response to container lifecycle events. Cannot be updated.",
-							Ref:         ref(v1.Lifecycle{}.OpenAPIModelName()),
+							Ref:         ref(corev1.Lifecycle{}.OpenAPIModelName()),
 						},
 					},
 					"terminationMessagePath": {
@@ -1998,7 +4812,7 @@ func schema_k8sio_api_core_v1_Container(ref common.ReferenceCallback) common.Ope
 					"securityContext": {
 						SchemaProps: spec.SchemaProps{
 							Description: "SecurityContext defines the security options the container should be run with. If set, the fields of SecurityContext override the equivalent fields of PodSecurityContext. More info: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/",
-							Ref:         ref(v1.SecurityContext{}.OpenAPIModelName()),
+							Ref:         ref(corev1.SecurityContext{}.OpenAPIModelName()),
 						},
 					},
 					"stdin": {
@@ -2027,7 +4841,7 @@ func schema_k8sio_api_core_v1_Container(ref common.ReferenceCallback) common.Ope
 			},
 		},
 		Dependencies: []string{
-			v1.ContainerPort{}.OpenAPIModelName(), v1.ContainerResizePolicy{}.OpenAPIModelName(), v1.ContainerRestartRule{}.OpenAPIModelName(), v1.EnvFromSource{}.OpenAPIModelName(), v1.EnvVar{}.OpenAPIModelName(), v1.Lifecycle{}.OpenAPIModelName(), v1.Probe{}.OpenAPIModelName(), v1.ResourceRequirements{}.OpenAPIModelName(), v1.SecurityContext{}.OpenAPIModelName(), v1.VolumeDevice{}.OpenAPIModelName(), v1.VolumeMount{}.OpenAPIModelName()},
+			corev1.ContainerPort{}.OpenAPIModelName(), corev1.ContainerResizePolicy{}.OpenAPIModelName(), corev1.ContainerRestartRule{}.OpenAPIModelName(), corev1.EnvFromSource{}.OpenAPIModelName(), corev1.EnvVar{}.OpenAPIModelName(), corev1.Lifecycle{}.OpenAPIModelName(), corev1.Probe{}.OpenAPIModelName(), corev1.ResourceRequirements{}.OpenAPIModelName(), corev1.SecurityContext{}.OpenAPIModelName(), corev1.VolumeDevice{}.OpenAPIModelName(), corev1.VolumeMount{}.OpenAPIModelName()},
 	}
 }
 
@@ -2208,7 +5022,7 @@ func schema_k8sio_api_core_v1_ContainerRestartRule(ref common.ReferenceCallback)
 					"exitCodes": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Represents the exit codes to check on container exits.",
-							Ref:         ref(v1.ContainerRestartRuleOnExitCodes{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ContainerRestartRuleOnExitCodes{}.OpenAPIModelName()),
 						},
 					},
 				},
@@ -2216,7 +5030,7 @@ func schema_k8sio_api_core_v1_ContainerRestartRule(ref common.ReferenceCallback)
 			},
 		},
 		Dependencies: []string{
-			v1.ContainerRestartRuleOnExitCodes{}.OpenAPIModelName()},
+			corev1.ContainerRestartRuleOnExitCodes{}.OpenAPIModelName()},
 	}
 }
 
@@ -2271,26 +5085,26 @@ func schema_k8sio_api_core_v1_ContainerState(ref common.ReferenceCallback) commo
 					"waiting": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Details about a waiting container",
-							Ref:         ref(v1.ContainerStateWaiting{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ContainerStateWaiting{}.OpenAPIModelName()),
 						},
 					},
 					"running": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Details about a running container",
-							Ref:         ref(v1.ContainerStateRunning{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ContainerStateRunning{}.OpenAPIModelName()),
 						},
 					},
 					"terminated": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Details about a terminated container",
-							Ref:         ref(v1.ContainerStateTerminated{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ContainerStateTerminated{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			v1.ContainerStateRunning{}.OpenAPIModelName(), v1.ContainerStateTerminated{}.OpenAPIModelName(), v1.ContainerStateWaiting{}.OpenAPIModelName()},
+			corev1.ContainerStateRunning{}.OpenAPIModelName(), corev1.ContainerStateTerminated{}.OpenAPIModelName(), corev1.ContainerStateWaiting{}.OpenAPIModelName()},
 	}
 }
 
@@ -2425,14 +5239,14 @@ func schema_k8sio_api_core_v1_ContainerStatus(ref common.ReferenceCallback) comm
 						SchemaProps: spec.SchemaProps{
 							Description: "State holds details about the container's current condition.",
 							Default:     map[string]interface{}{},
-							Ref:         ref(v1.ContainerState{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ContainerState{}.OpenAPIModelName()),
 						},
 					},
 					"lastState": {
 						SchemaProps: spec.SchemaProps{
 							Description: "LastTerminationState holds the last termination state of the container to help debug container crashes and restarts. This field is not populated if the container is still running and RestartCount is 0.",
 							Default:     map[string]interface{}{},
-							Ref:         ref(v1.ContainerState{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ContainerState{}.OpenAPIModelName()),
 						},
 					},
 					"ready": {
@@ -2498,7 +5312,7 @@ func schema_k8sio_api_core_v1_ContainerStatus(ref common.ReferenceCallback) comm
 					"resources": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Resources represents the compute resource requests and limits that have been successfully enacted on the running container after it has been started or has been successfully resized.",
-							Ref:         ref(v1.ResourceRequirements{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ResourceRequirements{}.OpenAPIModelName()),
 						},
 					},
 					"volumeMounts": {
@@ -2519,7 +5333,7 @@ func schema_k8sio_api_core_v1_ContainerStatus(ref common.ReferenceCallback) comm
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.VolumeMountStatus{}.OpenAPIModelName()),
+										Ref:     ref(corev1.VolumeMountStatus{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -2528,7 +5342,7 @@ func schema_k8sio_api_core_v1_ContainerStatus(ref common.ReferenceCallback) comm
 					"user": {
 						SchemaProps: spec.SchemaProps{
 							Description: "User represents user identity information initially attached to the first process of the container",
-							Ref:         ref(v1.ContainerUser{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ContainerUser{}.OpenAPIModelName()),
 						},
 					},
 					"allocatedResourcesStatus": {
@@ -2549,7 +5363,7 @@ func schema_k8sio_api_core_v1_ContainerStatus(ref common.ReferenceCallback) comm
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.ResourceStatus{}.OpenAPIModelName()),
+										Ref:     ref(corev1.ResourceStatus{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -2568,7 +5382,7 @@ func schema_k8sio_api_core_v1_ContainerStatus(ref common.ReferenceCallback) comm
 			},
 		},
 		Dependencies: []string{
-			v1.ContainerState{}.OpenAPIModelName(), v1.ContainerUser{}.OpenAPIModelName(), v1.ResourceRequirements{}.OpenAPIModelName(), v1.ResourceStatus{}.OpenAPIModelName(), v1.VolumeMountStatus{}.OpenAPIModelName(), resource.Quantity{}.OpenAPIModelName()},
+			corev1.ContainerState{}.OpenAPIModelName(), corev1.ContainerUser{}.OpenAPIModelName(), corev1.ResourceRequirements{}.OpenAPIModelName(), corev1.ResourceStatus{}.OpenAPIModelName(), corev1.VolumeMountStatus{}.OpenAPIModelName(), resource.Quantity{}.OpenAPIModelName()},
 	}
 }
 
@@ -2582,14 +5396,14 @@ func schema_k8sio_api_core_v1_ContainerUser(ref common.ReferenceCallback) common
 					"linux": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Linux holds user identity information initially attached to the first process of the containers in Linux. Note that the actual running identity can be changed if the process has enough privilege to do so.",
-							Ref:         ref(v1.LinuxContainerUser{}.OpenAPIModelName()),
+							Ref:         ref(corev1.LinuxContainerUser{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			v1.LinuxContainerUser{}.OpenAPIModelName()},
+			corev1.LinuxContainerUser{}.OpenAPIModelName()},
 	}
 }
 
@@ -2635,7 +5449,7 @@ func schema_k8sio_api_core_v1_DownwardAPIProjection(ref common.ReferenceCallback
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.DownwardAPIVolumeFile{}.OpenAPIModelName()),
+										Ref:     ref(corev1.DownwardAPIVolumeFile{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -2645,7 +5459,7 @@ func schema_k8sio_api_core_v1_DownwardAPIProjection(ref common.ReferenceCallback
 			},
 		},
 		Dependencies: []string{
-			v1.DownwardAPIVolumeFile{}.OpenAPIModelName()},
+			corev1.DownwardAPIVolumeFile{}.OpenAPIModelName()},
 	}
 }
 
@@ -2667,13 +5481,13 @@ func schema_k8sio_api_core_v1_DownwardAPIVolumeFile(ref common.ReferenceCallback
 					"fieldRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Required: Selects a field of the pod: only annotations, labels, name, namespace and uid are supported.",
-							Ref:         ref(v1.ObjectFieldSelector{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ObjectFieldSelector{}.OpenAPIModelName()),
 						},
 					},
 					"resourceFieldRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Selects a resource of the container: only resources limits and requests (limits.cpu, limits.memory, requests.cpu and requests.memory) are currently supported.",
-							Ref:         ref(v1.ResourceFieldSelector{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ResourceFieldSelector{}.OpenAPIModelName()),
 						},
 					},
 					"mode": {
@@ -2688,7 +5502,7 @@ func schema_k8sio_api_core_v1_DownwardAPIVolumeFile(ref common.ReferenceCallback
 			},
 		},
 		Dependencies: []string{
-			v1.ObjectFieldSelector{}.OpenAPIModelName(), v1.ResourceFieldSelector{}.OpenAPIModelName()},
+			corev1.ObjectFieldSelector{}.OpenAPIModelName(), corev1.ResourceFieldSelector{}.OpenAPIModelName()},
 	}
 }
 
@@ -2712,7 +5526,7 @@ func schema_k8sio_api_core_v1_DownwardAPIVolumeSource(ref common.ReferenceCallba
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.DownwardAPIVolumeFile{}.OpenAPIModelName()),
+										Ref:     ref(corev1.DownwardAPIVolumeFile{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -2729,7 +5543,7 @@ func schema_k8sio_api_core_v1_DownwardAPIVolumeSource(ref common.ReferenceCallba
 			},
 		},
 		Dependencies: []string{
-			v1.DownwardAPIVolumeFile{}.OpenAPIModelName()},
+			corev1.DownwardAPIVolumeFile{}.OpenAPIModelName()},
 	}
 }
 
@@ -2793,7 +5607,7 @@ func schema_k8sio_api_core_v1_EndpointAddress(ref common.ReferenceCallback) comm
 					"targetRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Reference to object providing the endpoint.",
-							Ref:         ref(v1.ObjectReference{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ObjectReference{}.OpenAPIModelName()),
 						},
 					},
 				},
@@ -2806,7 +5620,7 @@ func schema_k8sio_api_core_v1_EndpointAddress(ref common.ReferenceCallback) comm
 			},
 		},
 		Dependencies: []string{
-			v1.ObjectReference{}.OpenAPIModelName()},
+			corev1.ObjectReference{}.OpenAPIModelName()},
 	}
 }
 
@@ -2879,7 +5693,7 @@ func schema_k8sio_api_core_v1_EndpointSubset(ref common.ReferenceCallback) commo
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.EndpointAddress{}.OpenAPIModelName()),
+										Ref:     ref(corev1.EndpointAddress{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -2898,7 +5712,7 @@ func schema_k8sio_api_core_v1_EndpointSubset(ref common.ReferenceCallback) commo
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.EndpointAddress{}.OpenAPIModelName()),
+										Ref:     ref(corev1.EndpointAddress{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -2917,7 +5731,7 @@ func schema_k8sio_api_core_v1_EndpointSubset(ref common.ReferenceCallback) commo
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.EndpointPort{}.OpenAPIModelName()),
+										Ref:     ref(corev1.EndpointPort{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -2927,7 +5741,7 @@ func schema_k8sio_api_core_v1_EndpointSubset(ref common.ReferenceCallback) commo
 			},
 		},
 		Dependencies: []string{
-			v1.EndpointAddress{}.OpenAPIModelName(), v1.EndpointPort{}.OpenAPIModelName()},
+			corev1.EndpointAddress{}.OpenAPIModelName(), corev1.EndpointPort{}.OpenAPIModelName()},
 	}
 }
 
@@ -2972,7 +5786,7 @@ func schema_k8sio_api_core_v1_Endpoints(ref common.ReferenceCallback) common.Ope
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.EndpointSubset{}.OpenAPIModelName()),
+										Ref:     ref(corev1.EndpointSubset{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -2982,7 +5796,7 @@ func schema_k8sio_api_core_v1_Endpoints(ref common.ReferenceCallback) common.Ope
 			},
 		},
 		Dependencies: []string{
-			v1.EndpointSubset{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
+			corev1.EndpointSubset{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -3022,7 +5836,7 @@ func schema_k8sio_api_core_v1_EndpointsList(ref common.ReferenceCallback) common
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.Endpoints{}.OpenAPIModelName()),
+										Ref:     ref(corev1.Endpoints{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -3033,7 +5847,7 @@ func schema_k8sio_api_core_v1_EndpointsList(ref common.ReferenceCallback) common
 			},
 		},
 		Dependencies: []string{
-			v1.Endpoints{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
+			corev1.Endpoints{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -3054,20 +5868,20 @@ func schema_k8sio_api_core_v1_EnvFromSource(ref common.ReferenceCallback) common
 					"configMapRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The ConfigMap to select from",
-							Ref:         ref(v1.ConfigMapEnvSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ConfigMapEnvSource{}.OpenAPIModelName()),
 						},
 					},
 					"secretRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The Secret to select from",
-							Ref:         ref(v1.SecretEnvSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.SecretEnvSource{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			v1.ConfigMapEnvSource{}.OpenAPIModelName(), v1.SecretEnvSource{}.OpenAPIModelName()},
+			corev1.ConfigMapEnvSource{}.OpenAPIModelName(), corev1.SecretEnvSource{}.OpenAPIModelName()},
 	}
 }
 
@@ -3096,7 +5910,7 @@ func schema_k8sio_api_core_v1_EnvVar(ref common.ReferenceCallback) common.OpenAP
 					"valueFrom": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Source for the environment variable's value. Cannot be used if value is not empty.",
-							Ref:         ref(v1.EnvVarSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.EnvVarSource{}.OpenAPIModelName()),
 						},
 					},
 				},
@@ -3104,7 +5918,7 @@ func schema_k8sio_api_core_v1_EnvVar(ref common.ReferenceCallback) common.OpenAP
 			},
 		},
 		Dependencies: []string{
-			v1.EnvVarSource{}.OpenAPIModelName()},
+			corev1.EnvVarSource{}.OpenAPIModelName()},
 	}
 }
 
@@ -3118,38 +5932,38 @@ func schema_k8sio_api_core_v1_EnvVarSource(ref common.ReferenceCallback) common.
 					"fieldRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Selects a field of the pod: supports metadata.name, metadata.namespace, `metadata.labels['<KEY>']`, `metadata.annotations['<KEY>']`, spec.nodeName, spec.serviceAccountName, status.hostIP, status.podIP, status.podIPs.",
-							Ref:         ref(v1.ObjectFieldSelector{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ObjectFieldSelector{}.OpenAPIModelName()),
 						},
 					},
 					"resourceFieldRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Selects a resource of the container: only resources limits and requests (limits.cpu, limits.memory, limits.ephemeral-storage, requests.cpu, requests.memory and requests.ephemeral-storage) are currently supported.",
-							Ref:         ref(v1.ResourceFieldSelector{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ResourceFieldSelector{}.OpenAPIModelName()),
 						},
 					},
 					"configMapKeyRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Selects a key of a ConfigMap.",
-							Ref:         ref(v1.ConfigMapKeySelector{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ConfigMapKeySelector{}.OpenAPIModelName()),
 						},
 					},
 					"secretKeyRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Selects a key of a secret in the pod's namespace",
-							Ref:         ref(v1.SecretKeySelector{}.OpenAPIModelName()),
+							Ref:         ref(corev1.SecretKeySelector{}.OpenAPIModelName()),
 						},
 					},
 					"fileKeyRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "FileKeyRef selects a key of the env file. Requires the EnvFiles feature gate to be enabled.",
-							Ref:         ref(v1.FileKeySelector{}.OpenAPIModelName()),
+							Ref:         ref(corev1.FileKeySelector{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			v1.ConfigMapKeySelector{}.OpenAPIModelName(), v1.FileKeySelector{}.OpenAPIModelName(), v1.ObjectFieldSelector{}.OpenAPIModelName(), v1.ResourceFieldSelector{}.OpenAPIModelName(), v1.SecretKeySelector{}.OpenAPIModelName()},
+			corev1.ConfigMapKeySelector{}.OpenAPIModelName(), corev1.FileKeySelector{}.OpenAPIModelName(), corev1.ObjectFieldSelector{}.OpenAPIModelName(), corev1.ResourceFieldSelector{}.OpenAPIModelName(), corev1.SecretKeySelector{}.OpenAPIModelName()},
 	}
 }
 
@@ -3241,7 +6055,7 @@ func schema_k8sio_api_core_v1_EphemeralContainer(ref common.ReferenceCallback) c
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.ContainerPort{}.OpenAPIModelName()),
+										Ref:     ref(corev1.ContainerPort{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -3260,7 +6074,7 @@ func schema_k8sio_api_core_v1_EphemeralContainer(ref common.ReferenceCallback) c
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.EnvFromSource{}.OpenAPIModelName()),
+										Ref:     ref(corev1.EnvFromSource{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -3284,7 +6098,7 @@ func schema_k8sio_api_core_v1_EphemeralContainer(ref common.ReferenceCallback) c
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.EnvVar{}.OpenAPIModelName()),
+										Ref:     ref(corev1.EnvVar{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -3294,7 +6108,7 @@ func schema_k8sio_api_core_v1_EphemeralContainer(ref common.ReferenceCallback) c
 						SchemaProps: spec.SchemaProps{
 							Description: "Resources are not allowed for ephemeral containers. Ephemeral containers use spare resources already allocated to the pod.",
 							Default:     map[string]interface{}{},
-							Ref:         ref(v1.ResourceRequirements{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ResourceRequirements{}.OpenAPIModelName()),
 						},
 					},
 					"resizePolicy": {
@@ -3310,7 +6124,7 @@ func schema_k8sio_api_core_v1_EphemeralContainer(ref common.ReferenceCallback) c
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.ContainerResizePolicy{}.OpenAPIModelName()),
+										Ref:     ref(corev1.ContainerResizePolicy{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -3336,7 +6150,7 @@ func schema_k8sio_api_core_v1_EphemeralContainer(ref common.ReferenceCallback) c
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.ContainerRestartRule{}.OpenAPIModelName()),
+										Ref:     ref(corev1.ContainerRestartRule{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -3360,7 +6174,7 @@ func schema_k8sio_api_core_v1_EphemeralContainer(ref common.ReferenceCallback) c
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.VolumeMount{}.OpenAPIModelName()),
+										Ref:     ref(corev1.VolumeMount{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -3384,7 +6198,7 @@ func schema_k8sio_api_core_v1_EphemeralContainer(ref common.ReferenceCallback) c
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.VolumeDevice{}.OpenAPIModelName()),
+										Ref:     ref(corev1.VolumeDevice{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -3393,25 +6207,25 @@ func schema_k8sio_api_core_v1_EphemeralContainer(ref common.ReferenceCallback) c
 					"livenessProbe": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Probes are not allowed for ephemeral containers.",
-							Ref:         ref(v1.Probe{}.OpenAPIModelName()),
+							Ref:         ref(corev1.Probe{}.OpenAPIModelName()),
 						},
 					},
 					"readinessProbe": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Probes are not allowed for ephemeral containers.",
-							Ref:         ref(v1.Probe{}.OpenAPIModelName()),
+							Ref:         ref(corev1.Probe{}.OpenAPIModelName()),
 						},
 					},
 					"startupProbe": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Probes are not allowed for ephemeral containers.",
-							Ref:         ref(v1.Probe{}.OpenAPIModelName()),
+							Ref:         ref(corev1.Probe{}.OpenAPIModelName()),
 						},
 					},
 					"lifecycle": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Lifecycle is not allowed for ephemeral containers.",
-							Ref:         ref(v1.Lifecycle{}.OpenAPIModelName()),
+							Ref:         ref(corev1.Lifecycle{}.OpenAPIModelName()),
 						},
 					},
 					"terminationMessagePath": {
@@ -3440,7 +6254,7 @@ func schema_k8sio_api_core_v1_EphemeralContainer(ref common.ReferenceCallback) c
 					"securityContext": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Optional: SecurityContext defines the security options the ephemeral container should be run with. If set, the fields of SecurityContext override the equivalent fields of PodSecurityContext.",
-							Ref:         ref(v1.SecurityContext{}.OpenAPIModelName()),
+							Ref:         ref(corev1.SecurityContext{}.OpenAPIModelName()),
 						},
 					},
 					"stdin": {
@@ -3476,7 +6290,7 @@ func schema_k8sio_api_core_v1_EphemeralContainer(ref common.ReferenceCallback) c
 			},
 		},
 		Dependencies: []string{
-			v1.ContainerPort{}.OpenAPIModelName(), v1.ContainerResizePolicy{}.OpenAPIModelName(), v1.ContainerRestartRule{}.OpenAPIModelName(), v1.EnvFromSource{}.OpenAPIModelName(), v1.EnvVar{}.OpenAPIModelName(), v1.Lifecycle{}.OpenAPIModelName(), v1.Probe{}.OpenAPIModelName(), v1.ResourceRequirements{}.OpenAPIModelName(), v1.SecurityContext{}.OpenAPIModelName(), v1.VolumeDevice{}.OpenAPIModelName(), v1.VolumeMount{}.OpenAPIModelName()},
+			corev1.ContainerPort{}.OpenAPIModelName(), corev1.ContainerResizePolicy{}.OpenAPIModelName(), corev1.ContainerRestartRule{}.OpenAPIModelName(), corev1.EnvFromSource{}.OpenAPIModelName(), corev1.EnvVar{}.OpenAPIModelName(), corev1.Lifecycle{}.OpenAPIModelName(), corev1.Probe{}.OpenAPIModelName(), corev1.ResourceRequirements{}.OpenAPIModelName(), corev1.SecurityContext{}.OpenAPIModelName(), corev1.VolumeDevice{}.OpenAPIModelName(), corev1.VolumeMount{}.OpenAPIModelName()},
 	}
 }
 
@@ -3568,7 +6382,7 @@ func schema_k8sio_api_core_v1_EphemeralContainerCommon(ref common.ReferenceCallb
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.ContainerPort{}.OpenAPIModelName()),
+										Ref:     ref(corev1.ContainerPort{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -3587,7 +6401,7 @@ func schema_k8sio_api_core_v1_EphemeralContainerCommon(ref common.ReferenceCallb
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.EnvFromSource{}.OpenAPIModelName()),
+										Ref:     ref(corev1.EnvFromSource{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -3611,7 +6425,7 @@ func schema_k8sio_api_core_v1_EphemeralContainerCommon(ref common.ReferenceCallb
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.EnvVar{}.OpenAPIModelName()),
+										Ref:     ref(corev1.EnvVar{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -3621,7 +6435,7 @@ func schema_k8sio_api_core_v1_EphemeralContainerCommon(ref common.ReferenceCallb
 						SchemaProps: spec.SchemaProps{
 							Description: "Resources are not allowed for ephemeral containers. Ephemeral containers use spare resources already allocated to the pod.",
 							Default:     map[string]interface{}{},
-							Ref:         ref(v1.ResourceRequirements{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ResourceRequirements{}.OpenAPIModelName()),
 						},
 					},
 					"resizePolicy": {
@@ -3637,7 +6451,7 @@ func schema_k8sio_api_core_v1_EphemeralContainerCommon(ref common.ReferenceCallb
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.ContainerResizePolicy{}.OpenAPIModelName()),
+										Ref:     ref(corev1.ContainerResizePolicy{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -3663,7 +6477,7 @@ func schema_k8sio_api_core_v1_EphemeralContainerCommon(ref common.ReferenceCallb
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.ContainerRestartRule{}.OpenAPIModelName()),
+										Ref:     ref(corev1.ContainerRestartRule{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -3687,7 +6501,7 @@ func schema_k8sio_api_core_v1_EphemeralContainerCommon(ref common.ReferenceCallb
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.VolumeMount{}.OpenAPIModelName()),
+										Ref:     ref(corev1.VolumeMount{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -3711,7 +6525,7 @@ func schema_k8sio_api_core_v1_EphemeralContainerCommon(ref common.ReferenceCallb
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.VolumeDevice{}.OpenAPIModelName()),
+										Ref:     ref(corev1.VolumeDevice{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -3720,25 +6534,25 @@ func schema_k8sio_api_core_v1_EphemeralContainerCommon(ref common.ReferenceCallb
 					"livenessProbe": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Probes are not allowed for ephemeral containers.",
-							Ref:         ref(v1.Probe{}.OpenAPIModelName()),
+							Ref:         ref(corev1.Probe{}.OpenAPIModelName()),
 						},
 					},
 					"readinessProbe": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Probes are not allowed for ephemeral containers.",
-							Ref:         ref(v1.Probe{}.OpenAPIModelName()),
+							Ref:         ref(corev1.Probe{}.OpenAPIModelName()),
 						},
 					},
 					"startupProbe": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Probes are not allowed for ephemeral containers.",
-							Ref:         ref(v1.Probe{}.OpenAPIModelName()),
+							Ref:         ref(corev1.Probe{}.OpenAPIModelName()),
 						},
 					},
 					"lifecycle": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Lifecycle is not allowed for ephemeral containers.",
-							Ref:         ref(v1.Lifecycle{}.OpenAPIModelName()),
+							Ref:         ref(corev1.Lifecycle{}.OpenAPIModelName()),
 						},
 					},
 					"terminationMessagePath": {
@@ -3767,7 +6581,7 @@ func schema_k8sio_api_core_v1_EphemeralContainerCommon(ref common.ReferenceCallb
 					"securityContext": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Optional: SecurityContext defines the security options the ephemeral container should be run with. If set, the fields of SecurityContext override the equivalent fields of PodSecurityContext.",
-							Ref:         ref(v1.SecurityContext{}.OpenAPIModelName()),
+							Ref:         ref(corev1.SecurityContext{}.OpenAPIModelName()),
 						},
 					},
 					"stdin": {
@@ -3796,7 +6610,7 @@ func schema_k8sio_api_core_v1_EphemeralContainerCommon(ref common.ReferenceCallb
 			},
 		},
 		Dependencies: []string{
-			v1.ContainerPort{}.OpenAPIModelName(), v1.ContainerResizePolicy{}.OpenAPIModelName(), v1.ContainerRestartRule{}.OpenAPIModelName(), v1.EnvFromSource{}.OpenAPIModelName(), v1.EnvVar{}.OpenAPIModelName(), v1.Lifecycle{}.OpenAPIModelName(), v1.Probe{}.OpenAPIModelName(), v1.ResourceRequirements{}.OpenAPIModelName(), v1.SecurityContext{}.OpenAPIModelName(), v1.VolumeDevice{}.OpenAPIModelName(), v1.VolumeMount{}.OpenAPIModelName()},
+			corev1.ContainerPort{}.OpenAPIModelName(), corev1.ContainerResizePolicy{}.OpenAPIModelName(), corev1.ContainerRestartRule{}.OpenAPIModelName(), corev1.EnvFromSource{}.OpenAPIModelName(), corev1.EnvVar{}.OpenAPIModelName(), corev1.Lifecycle{}.OpenAPIModelName(), corev1.Probe{}.OpenAPIModelName(), corev1.ResourceRequirements{}.OpenAPIModelName(), corev1.SecurityContext{}.OpenAPIModelName(), corev1.VolumeDevice{}.OpenAPIModelName(), corev1.VolumeMount{}.OpenAPIModelName()},
 	}
 }
 
@@ -3810,14 +6624,14 @@ func schema_k8sio_api_core_v1_EphemeralVolumeSource(ref common.ReferenceCallback
 					"volumeClaimTemplate": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Will be used to create a stand-alone PVC to provision the volume. The pod in which this EphemeralVolumeSource is embedded will be the owner of the PVC, i.e. the PVC will be deleted together with the pod.  The name of the PVC will be `<pod name>-<volume name>` where `<volume name>` is the name from the `PodSpec.Volumes` array entry. Pod validation will reject the pod if the concatenated name is not valid for a PVC (for example, too long).\n\nAn existing PVC with that name that is not owned by the pod will *not* be used for the pod to avoid using an unrelated volume by mistake. Starting the pod is then blocked until the unrelated PVC is removed. If such a pre-created PVC is meant to be used by the pod, the PVC has to updated with an owner reference to the pod once the pod exists. Normally this should not be necessary, but it may be useful when manually reconstructing a broken cluster.\n\nThis field is read-only and no changes will be made by Kubernetes to the PVC after it has been created.\n\nRequired, must not be nil.",
-							Ref:         ref(v1.PersistentVolumeClaimTemplate{}.OpenAPIModelName()),
+							Ref:         ref(corev1.PersistentVolumeClaimTemplate{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			v1.PersistentVolumeClaimTemplate{}.OpenAPIModelName()},
+			corev1.PersistentVolumeClaimTemplate{}.OpenAPIModelName()},
 	}
 }
 
@@ -3853,7 +6667,7 @@ func schema_k8sio_api_core_v1_Event(ref common.ReferenceCallback) common.OpenAPI
 						SchemaProps: spec.SchemaProps{
 							Description: "The object that this event is about.",
 							Default:     map[string]interface{}{},
-							Ref:         ref(v1.ObjectReference{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ObjectReference{}.OpenAPIModelName()),
 						},
 					},
 					"reason": {
@@ -3874,7 +6688,7 @@ func schema_k8sio_api_core_v1_Event(ref common.ReferenceCallback) common.OpenAPI
 						SchemaProps: spec.SchemaProps{
 							Description: "The component reporting this event. Should be a short machine understandable string.",
 							Default:     map[string]interface{}{},
-							Ref:         ref(v1.EventSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.EventSource{}.OpenAPIModelName()),
 						},
 					},
 					"firstTimestamp": {
@@ -3912,7 +6726,7 @@ func schema_k8sio_api_core_v1_Event(ref common.ReferenceCallback) common.OpenAPI
 					"series": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Data about the Event series this event represents or nil if it's a singleton Event.",
-							Ref:         ref(v1.EventSeries{}.OpenAPIModelName()),
+							Ref:         ref(corev1.EventSeries{}.OpenAPIModelName()),
 						},
 					},
 					"action": {
@@ -3925,7 +6739,7 @@ func schema_k8sio_api_core_v1_Event(ref common.ReferenceCallback) common.OpenAPI
 					"related": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Optional secondary object for more complex actions.",
-							Ref:         ref(v1.ObjectReference{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ObjectReference{}.OpenAPIModelName()),
 						},
 					},
 					"reportingComponent": {
@@ -3949,7 +6763,7 @@ func schema_k8sio_api_core_v1_Event(ref common.ReferenceCallback) common.OpenAPI
 			},
 		},
 		Dependencies: []string{
-			v1.EventSeries{}.OpenAPIModelName(), v1.EventSource{}.OpenAPIModelName(), v1.ObjectReference{}.OpenAPIModelName(), metav1.MicroTime{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName(), metav1.Time{}.OpenAPIModelName()},
+			corev1.EventSeries{}.OpenAPIModelName(), corev1.EventSource{}.OpenAPIModelName(), corev1.ObjectReference{}.OpenAPIModelName(), metav1.MicroTime{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName(), metav1.Time{}.OpenAPIModelName()},
 	}
 }
 
@@ -3989,7 +6803,7 @@ func schema_k8sio_api_core_v1_EventList(ref common.ReferenceCallback) common.Ope
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.Event{}.OpenAPIModelName()),
+										Ref:     ref(corev1.Event{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -4000,7 +6814,7 @@ func schema_k8sio_api_core_v1_EventList(ref common.ReferenceCallback) common.Ope
 			},
 		},
 		Dependencies: []string{
-			v1.Event{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
+			corev1.Event{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -4242,7 +7056,7 @@ func schema_k8sio_api_core_v1_FlexPersistentVolumeSource(ref common.ReferenceCal
 					"secretRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "secretRef is Optional: SecretRef is reference to the secret object containing sensitive information to pass to the plugin scripts. This may be empty if no secret object is specified. If the secret object contains more than one secret, all secrets are passed to the plugin scripts.",
-							Ref:         ref(v1.SecretReference{}.OpenAPIModelName()),
+							Ref:         ref(corev1.SecretReference{}.OpenAPIModelName()),
 						},
 					},
 					"readOnly": {
@@ -4273,7 +7087,7 @@ func schema_k8sio_api_core_v1_FlexPersistentVolumeSource(ref common.ReferenceCal
 			},
 		},
 		Dependencies: []string{
-			v1.SecretReference{}.OpenAPIModelName()},
+			corev1.SecretReference{}.OpenAPIModelName()},
 	}
 }
 
@@ -4302,7 +7116,7 @@ func schema_k8sio_api_core_v1_FlexVolumeSource(ref common.ReferenceCallback) com
 					"secretRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "secretRef is Optional: secretRef is reference to the secret object containing sensitive information to pass to the plugin scripts. This may be empty if no secret object is specified. If the secret object contains more than one secret, all secrets are passed to the plugin scripts.",
-							Ref:         ref(v1.LocalObjectReference{}.OpenAPIModelName()),
+							Ref:         ref(corev1.LocalObjectReference{}.OpenAPIModelName()),
 						},
 					},
 					"readOnly": {
@@ -4333,7 +7147,7 @@ func schema_k8sio_api_core_v1_FlexVolumeSource(ref common.ReferenceCallback) com
 			},
 		},
 		Dependencies: []string{
-			v1.LocalObjectReference{}.OpenAPIModelName()},
+			corev1.LocalObjectReference{}.OpenAPIModelName()},
 	}
 }
 
@@ -4571,7 +7385,7 @@ func schema_k8sio_api_core_v1_HTTPGetAction(ref common.ReferenceCallback) common
 					"port": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Name or number of the port to access on the container. Number must be in the range 1 to 65535. Name must be an IANA_SVC_NAME.",
-							Ref:         ref(intstr.IntOrString{}.OpenAPIModelName()),
+							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
 						},
 					},
 					"host": {
@@ -4602,7 +7416,7 @@ func schema_k8sio_api_core_v1_HTTPGetAction(ref common.ReferenceCallback) common
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.HTTPHeader{}.OpenAPIModelName()),
+										Ref:     ref(corev1.HTTPHeader{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -4613,7 +7427,7 @@ func schema_k8sio_api_core_v1_HTTPGetAction(ref common.ReferenceCallback) common
 			},
 		},
 		Dependencies: []string{
-			v1.HTTPHeader{}.OpenAPIModelName(), intstr.IntOrString{}.OpenAPIModelName()},
+			corev1.HTTPHeader{}.OpenAPIModelName(), "k8s.io/apimachinery/pkg/util/intstr.IntOrString"},
 	}
 }
 
@@ -4831,7 +7645,7 @@ func schema_k8sio_api_core_v1_ISCSIPersistentVolumeSource(ref common.ReferenceCa
 					"secretRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "secretRef is the CHAP Secret for iSCSI target and initiator authentication",
-							Ref:         ref(v1.SecretReference{}.OpenAPIModelName()),
+							Ref:         ref(corev1.SecretReference{}.OpenAPIModelName()),
 						},
 					},
 					"initiatorName": {
@@ -4846,7 +7660,7 @@ func schema_k8sio_api_core_v1_ISCSIPersistentVolumeSource(ref common.ReferenceCa
 			},
 		},
 		Dependencies: []string{
-			v1.SecretReference{}.OpenAPIModelName()},
+			corev1.SecretReference{}.OpenAPIModelName()},
 	}
 }
 
@@ -4940,7 +7754,7 @@ func schema_k8sio_api_core_v1_ISCSIVolumeSource(ref common.ReferenceCallback) co
 					"secretRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "secretRef is the CHAP Secret for iSCSI target and initiator authentication",
-							Ref:         ref(v1.LocalObjectReference{}.OpenAPIModelName()),
+							Ref:         ref(corev1.LocalObjectReference{}.OpenAPIModelName()),
 						},
 					},
 					"initiatorName": {
@@ -4955,7 +7769,7 @@ func schema_k8sio_api_core_v1_ISCSIVolumeSource(ref common.ReferenceCallback) co
 			},
 		},
 		Dependencies: []string{
-			v1.LocalObjectReference{}.OpenAPIModelName()},
+			corev1.LocalObjectReference{}.OpenAPIModelName()},
 	}
 }
 
@@ -5034,13 +7848,13 @@ func schema_k8sio_api_core_v1_Lifecycle(ref common.ReferenceCallback) common.Ope
 					"postStart": {
 						SchemaProps: spec.SchemaProps{
 							Description: "PostStart is called immediately after a container is created. If the handler fails, the container is terminated and restarted according to its restart policy. Other management of the container blocks until the hook completes. More info: https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/#container-hooks",
-							Ref:         ref(v1.LifecycleHandler{}.OpenAPIModelName()),
+							Ref:         ref(corev1.LifecycleHandler{}.OpenAPIModelName()),
 						},
 					},
 					"preStop": {
 						SchemaProps: spec.SchemaProps{
 							Description: "PreStop is called immediately before a container is terminated due to an API request or management event such as liveness/startup probe failure, preemption, resource contention, etc. The handler is not called if the container crashes or exits. The Pod's termination grace period countdown begins before the PreStop hook is executed. Regardless of the outcome of the handler, the container will eventually terminate within the Pod's termination grace period (unless delayed by finalizers). Other management of the container blocks until the hook completes or until the termination grace period is reached. More info: https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/#container-hooks",
-							Ref:         ref(v1.LifecycleHandler{}.OpenAPIModelName()),
+							Ref:         ref(corev1.LifecycleHandler{}.OpenAPIModelName()),
 						},
 					},
 					"stopSignal": {
@@ -5055,7 +7869,7 @@ func schema_k8sio_api_core_v1_Lifecycle(ref common.ReferenceCallback) common.Ope
 			},
 		},
 		Dependencies: []string{
-			v1.LifecycleHandler{}.OpenAPIModelName()},
+			corev1.LifecycleHandler{}.OpenAPIModelName()},
 	}
 }
 
@@ -5069,32 +7883,32 @@ func schema_k8sio_api_core_v1_LifecycleHandler(ref common.ReferenceCallback) com
 					"exec": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Exec specifies a command to execute in the container.",
-							Ref:         ref(v1.ExecAction{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ExecAction{}.OpenAPIModelName()),
 						},
 					},
 					"httpGet": {
 						SchemaProps: spec.SchemaProps{
 							Description: "HTTPGet specifies an HTTP GET request to perform.",
-							Ref:         ref(v1.HTTPGetAction{}.OpenAPIModelName()),
+							Ref:         ref(corev1.HTTPGetAction{}.OpenAPIModelName()),
 						},
 					},
 					"tcpSocket": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Deprecated. TCPSocket is NOT supported as a LifecycleHandler and kept for backward compatibility. There is no validation of this field and lifecycle hooks will fail at runtime when it is specified.",
-							Ref:         ref(v1.TCPSocketAction{}.OpenAPIModelName()),
+							Ref:         ref(corev1.TCPSocketAction{}.OpenAPIModelName()),
 						},
 					},
 					"sleep": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Sleep represents a duration that the container should sleep.",
-							Ref:         ref(v1.SleepAction{}.OpenAPIModelName()),
+							Ref:         ref(corev1.SleepAction{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			v1.ExecAction{}.OpenAPIModelName(), v1.HTTPGetAction{}.OpenAPIModelName(), v1.SleepAction{}.OpenAPIModelName(), v1.TCPSocketAction{}.OpenAPIModelName()},
+			corev1.ExecAction{}.OpenAPIModelName(), corev1.HTTPGetAction{}.OpenAPIModelName(), corev1.SleepAction{}.OpenAPIModelName(), corev1.TCPSocketAction{}.OpenAPIModelName()},
 	}
 }
 
@@ -5130,14 +7944,14 @@ func schema_k8sio_api_core_v1_LimitRange(ref common.ReferenceCallback) common.Op
 						SchemaProps: spec.SchemaProps{
 							Description: "Spec defines the limits enforced. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status",
 							Default:     map[string]interface{}{},
-							Ref:         ref(v1.LimitRangeSpec{}.OpenAPIModelName()),
+							Ref:         ref(corev1.LimitRangeSpec{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			v1.LimitRangeSpec{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
+			corev1.LimitRangeSpec{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -5271,7 +8085,7 @@ func schema_k8sio_api_core_v1_LimitRangeList(ref common.ReferenceCallback) commo
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.LimitRange{}.OpenAPIModelName()),
+										Ref:     ref(corev1.LimitRange{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -5282,7 +8096,7 @@ func schema_k8sio_api_core_v1_LimitRangeList(ref common.ReferenceCallback) commo
 			},
 		},
 		Dependencies: []string{
-			v1.LimitRange{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
+			corev1.LimitRange{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -5306,7 +8120,7 @@ func schema_k8sio_api_core_v1_LimitRangeSpec(ref common.ReferenceCallback) commo
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.LimitRangeItem{}.OpenAPIModelName()),
+										Ref:     ref(corev1.LimitRangeItem{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -5317,7 +8131,7 @@ func schema_k8sio_api_core_v1_LimitRangeSpec(ref common.ReferenceCallback) commo
 			},
 		},
 		Dependencies: []string{
-			v1.LimitRangeItem{}.OpenAPIModelName()},
+			corev1.LimitRangeItem{}.OpenAPIModelName()},
 	}
 }
 
@@ -5462,7 +8276,7 @@ func schema_k8sio_api_core_v1_LoadBalancerIngress(ref common.ReferenceCallback) 
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.PortStatus{}.OpenAPIModelName()),
+										Ref:     ref(corev1.PortStatus{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -5472,7 +8286,7 @@ func schema_k8sio_api_core_v1_LoadBalancerIngress(ref common.ReferenceCallback) 
 			},
 		},
 		Dependencies: []string{
-			v1.PortStatus{}.OpenAPIModelName()},
+			corev1.PortStatus{}.OpenAPIModelName()},
 	}
 }
 
@@ -5496,7 +8310,7 @@ func schema_k8sio_api_core_v1_LoadBalancerStatus(ref common.ReferenceCallback) c
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.LoadBalancerIngress{}.OpenAPIModelName()),
+										Ref:     ref(corev1.LoadBalancerIngress{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -5506,7 +8320,7 @@ func schema_k8sio_api_core_v1_LoadBalancerStatus(ref common.ReferenceCallback) c
 			},
 		},
 		Dependencies: []string{
-			v1.LoadBalancerIngress{}.OpenAPIModelName()},
+			corev1.LoadBalancerIngress{}.OpenAPIModelName()},
 	}
 }
 
@@ -5664,21 +8478,21 @@ func schema_k8sio_api_core_v1_Namespace(ref common.ReferenceCallback) common.Ope
 						SchemaProps: spec.SchemaProps{
 							Description: "Spec defines the behavior of the Namespace. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status",
 							Default:     map[string]interface{}{},
-							Ref:         ref(v1.NamespaceSpec{}.OpenAPIModelName()),
+							Ref:         ref(corev1.NamespaceSpec{}.OpenAPIModelName()),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Status describes the current status of a Namespace. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status",
 							Default:     map[string]interface{}{},
-							Ref:         ref(v1.NamespaceStatus{}.OpenAPIModelName()),
+							Ref:         ref(corev1.NamespaceStatus{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			v1.NamespaceSpec{}.OpenAPIModelName(), v1.NamespaceStatus{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
+			corev1.NamespaceSpec{}.OpenAPIModelName(), corev1.NamespaceStatus{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -5770,7 +8584,7 @@ func schema_k8sio_api_core_v1_NamespaceList(ref common.ReferenceCallback) common
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.Namespace{}.OpenAPIModelName()),
+										Ref:     ref(corev1.Namespace{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -5781,7 +8595,7 @@ func schema_k8sio_api_core_v1_NamespaceList(ref common.ReferenceCallback) common
 			},
 		},
 		Dependencies: []string{
-			v1.Namespace{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
+			corev1.Namespace{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -5851,7 +8665,7 @@ func schema_k8sio_api_core_v1_NamespaceStatus(ref common.ReferenceCallback) comm
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.NamespaceCondition{}.OpenAPIModelName()),
+										Ref:     ref(corev1.NamespaceCondition{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -5861,7 +8675,7 @@ func schema_k8sio_api_core_v1_NamespaceStatus(ref common.ReferenceCallback) comm
 			},
 		},
 		Dependencies: []string{
-			v1.NamespaceCondition{}.OpenAPIModelName()},
+			corev1.NamespaceCondition{}.OpenAPIModelName()},
 	}
 }
 
@@ -5897,21 +8711,21 @@ func schema_k8sio_api_core_v1_Node(ref common.ReferenceCallback) common.OpenAPID
 						SchemaProps: spec.SchemaProps{
 							Description: "Spec defines the behavior of a node. https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status",
 							Default:     map[string]interface{}{},
-							Ref:         ref(v1.NodeSpec{}.OpenAPIModelName()),
+							Ref:         ref(corev1.NodeSpec{}.OpenAPIModelName()),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Most recently observed status of the node. Populated by the system. Read-only. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status",
 							Default:     map[string]interface{}{},
-							Ref:         ref(v1.NodeStatus{}.OpenAPIModelName()),
+							Ref:         ref(corev1.NodeStatus{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			v1.NodeSpec{}.OpenAPIModelName(), v1.NodeStatus{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
+			corev1.NodeSpec{}.OpenAPIModelName(), corev1.NodeStatus{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -5955,7 +8769,7 @@ func schema_k8sio_api_core_v1_NodeAffinity(ref common.ReferenceCallback) common.
 					"requiredDuringSchedulingIgnoredDuringExecution": {
 						SchemaProps: spec.SchemaProps{
 							Description: "If the affinity requirements specified by this field are not met at scheduling time, the pod will not be scheduled onto the node. If the affinity requirements specified by this field cease to be met at some point during pod execution (e.g. due to an update), the system may or may not try to eventually evict the pod from its node.",
-							Ref:         ref(v1.NodeSelector{}.OpenAPIModelName()),
+							Ref:         ref(corev1.NodeSelector{}.OpenAPIModelName()),
 						},
 					},
 					"preferredDuringSchedulingIgnoredDuringExecution": {
@@ -5971,7 +8785,7 @@ func schema_k8sio_api_core_v1_NodeAffinity(ref common.ReferenceCallback) common.
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.PreferredSchedulingTerm{}.OpenAPIModelName()),
+										Ref:     ref(corev1.PreferredSchedulingTerm{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -5981,7 +8795,7 @@ func schema_k8sio_api_core_v1_NodeAffinity(ref common.ReferenceCallback) common.
 			},
 		},
 		Dependencies: []string{
-			v1.NodeSelector{}.OpenAPIModelName(), v1.PreferredSchedulingTerm{}.OpenAPIModelName()},
+			corev1.NodeSelector{}.OpenAPIModelName(), corev1.PreferredSchedulingTerm{}.OpenAPIModelName()},
 	}
 }
 
@@ -6053,14 +8867,14 @@ func schema_k8sio_api_core_v1_NodeConfigSource(ref common.ReferenceCallback) com
 					"configMap": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ConfigMap is a reference to a Node's ConfigMap",
-							Ref:         ref(v1.ConfigMapNodeConfigSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ConfigMapNodeConfigSource{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			v1.ConfigMapNodeConfigSource{}.OpenAPIModelName()},
+			corev1.ConfigMapNodeConfigSource{}.OpenAPIModelName()},
 	}
 }
 
@@ -6074,19 +8888,19 @@ func schema_k8sio_api_core_v1_NodeConfigStatus(ref common.ReferenceCallback) com
 					"assigned": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Assigned reports the checkpointed config the node will try to use. When Node.Spec.ConfigSource is updated, the node checkpoints the associated config payload to local disk, along with a record indicating intended config. The node refers to this record to choose its config checkpoint, and reports this record in Assigned. Assigned only updates in the status after the record has been checkpointed to disk. When the Kubelet is restarted, it tries to make the Assigned config the Active config by loading and validating the checkpointed payload identified by Assigned.",
-							Ref:         ref(v1.NodeConfigSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.NodeConfigSource{}.OpenAPIModelName()),
 						},
 					},
 					"active": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Active reports the checkpointed config the node is actively using. Active will represent either the current version of the Assigned config, or the current LastKnownGood config, depending on whether attempting to use the Assigned config results in an error.",
-							Ref:         ref(v1.NodeConfigSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.NodeConfigSource{}.OpenAPIModelName()),
 						},
 					},
 					"lastKnownGood": {
 						SchemaProps: spec.SchemaProps{
 							Description: "LastKnownGood reports the checkpointed config the node will fall back to when it encounters an error attempting to use the Assigned config. The Assigned config becomes the LastKnownGood config when the node determines that the Assigned config is stable and correct. This is currently implemented as a 10-minute soak period starting when the local record of Assigned config is updated. If the Assigned config is Active at the end of this period, it becomes the LastKnownGood. Note that if Spec.ConfigSource is reset to nil (use local defaults), the LastKnownGood is also immediately reset to nil, because the local default config is always assumed good. You should not make assumptions about the node's method of determining config stability and correctness, as this may change or become configurable in the future.",
-							Ref:         ref(v1.NodeConfigSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.NodeConfigSource{}.OpenAPIModelName()),
 						},
 					},
 					"error": {
@@ -6100,7 +8914,7 @@ func schema_k8sio_api_core_v1_NodeConfigStatus(ref common.ReferenceCallback) com
 			},
 		},
 		Dependencies: []string{
-			v1.NodeConfigSource{}.OpenAPIModelName()},
+			corev1.NodeConfigSource{}.OpenAPIModelName()},
 	}
 }
 
@@ -6115,14 +8929,14 @@ func schema_k8sio_api_core_v1_NodeDaemonEndpoints(ref common.ReferenceCallback) 
 						SchemaProps: spec.SchemaProps{
 							Description: "Endpoint on which Kubelet is listening.",
 							Default:     map[string]interface{}{},
-							Ref:         ref(v1.DaemonEndpoint{}.OpenAPIModelName()),
+							Ref:         ref(corev1.DaemonEndpoint{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			v1.DaemonEndpoint{}.OpenAPIModelName()},
+			corev1.DaemonEndpoint{}.OpenAPIModelName()},
 	}
 }
 
@@ -6182,7 +8996,7 @@ func schema_k8sio_api_core_v1_NodeList(ref common.ReferenceCallback) common.Open
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.Node{}.OpenAPIModelName()),
+										Ref:     ref(corev1.Node{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -6193,7 +9007,7 @@ func schema_k8sio_api_core_v1_NodeList(ref common.ReferenceCallback) common.Open
 			},
 		},
 		Dependencies: []string{
-			v1.Node{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
+			corev1.Node{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -6249,14 +9063,14 @@ func schema_k8sio_api_core_v1_NodeRuntimeHandler(ref common.ReferenceCallback) c
 					"features": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Supported features.",
-							Ref:         ref(v1.NodeRuntimeHandlerFeatures{}.OpenAPIModelName()),
+							Ref:         ref(corev1.NodeRuntimeHandlerFeatures{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			v1.NodeRuntimeHandlerFeatures{}.OpenAPIModelName()},
+			corev1.NodeRuntimeHandlerFeatures{}.OpenAPIModelName()},
 	}
 }
 
@@ -6307,7 +9121,7 @@ func schema_k8sio_api_core_v1_NodeSelector(ref common.ReferenceCallback) common.
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.NodeSelectorTerm{}.OpenAPIModelName()),
+										Ref:     ref(corev1.NodeSelectorTerm{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -6323,7 +9137,7 @@ func schema_k8sio_api_core_v1_NodeSelector(ref common.ReferenceCallback) common.
 			},
 		},
 		Dependencies: []string{
-			v1.NodeSelectorTerm{}.OpenAPIModelName()},
+			corev1.NodeSelectorTerm{}.OpenAPIModelName()},
 	}
 }
 
@@ -6398,7 +9212,7 @@ func schema_k8sio_api_core_v1_NodeSelectorTerm(ref common.ReferenceCallback) com
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.NodeSelectorRequirement{}.OpenAPIModelName()),
+										Ref:     ref(corev1.NodeSelectorRequirement{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -6417,7 +9231,7 @@ func schema_k8sio_api_core_v1_NodeSelectorTerm(ref common.ReferenceCallback) com
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.NodeSelectorRequirement{}.OpenAPIModelName()),
+										Ref:     ref(corev1.NodeSelectorRequirement{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -6432,7 +9246,7 @@ func schema_k8sio_api_core_v1_NodeSelectorTerm(ref common.ReferenceCallback) com
 			},
 		},
 		Dependencies: []string{
-			v1.NodeSelectorRequirement{}.OpenAPIModelName()},
+			corev1.NodeSelectorRequirement{}.OpenAPIModelName()},
 	}
 }
 
@@ -6498,7 +9312,7 @@ func schema_k8sio_api_core_v1_NodeSpec(ref common.ReferenceCallback) common.Open
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.Taint{}.OpenAPIModelName()),
+										Ref:     ref(corev1.Taint{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -6507,7 +9321,7 @@ func schema_k8sio_api_core_v1_NodeSpec(ref common.ReferenceCallback) common.Open
 					"configSource": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Deprecated: Previously used to specify the source of the node's configuration for the DynamicKubeletConfig feature. This feature is removed.",
-							Ref:         ref(v1.NodeConfigSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.NodeConfigSource{}.OpenAPIModelName()),
 						},
 					},
 					"externalID": {
@@ -6521,7 +9335,7 @@ func schema_k8sio_api_core_v1_NodeSpec(ref common.ReferenceCallback) common.Open
 			},
 		},
 		Dependencies: []string{
-			v1.NodeConfigSource{}.OpenAPIModelName(), v1.Taint{}.OpenAPIModelName()},
+			corev1.NodeConfigSource{}.OpenAPIModelName(), corev1.Taint{}.OpenAPIModelName()},
 	}
 }
 
@@ -6586,7 +9400,7 @@ func schema_k8sio_api_core_v1_NodeStatus(ref common.ReferenceCallback) common.Op
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.NodeCondition{}.OpenAPIModelName()),
+										Ref:     ref(corev1.NodeCondition{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -6610,7 +9424,7 @@ func schema_k8sio_api_core_v1_NodeStatus(ref common.ReferenceCallback) common.Op
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.NodeAddress{}.OpenAPIModelName()),
+										Ref:     ref(corev1.NodeAddress{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -6620,14 +9434,14 @@ func schema_k8sio_api_core_v1_NodeStatus(ref common.ReferenceCallback) common.Op
 						SchemaProps: spec.SchemaProps{
 							Description: "Endpoints of daemons running on the Node.",
 							Default:     map[string]interface{}{},
-							Ref:         ref(v1.NodeDaemonEndpoints{}.OpenAPIModelName()),
+							Ref:         ref(corev1.NodeDaemonEndpoints{}.OpenAPIModelName()),
 						},
 					},
 					"nodeInfo": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Set of ids/uuids to uniquely identify the node. More info: https://kubernetes.io/docs/reference/node/node-status/#info",
 							Default:     map[string]interface{}{},
-							Ref:         ref(v1.NodeSystemInfo{}.OpenAPIModelName()),
+							Ref:         ref(corev1.NodeSystemInfo{}.OpenAPIModelName()),
 						},
 					},
 					"images": {
@@ -6643,7 +9457,7 @@ func schema_k8sio_api_core_v1_NodeStatus(ref common.ReferenceCallback) common.Op
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.ContainerImage{}.OpenAPIModelName()),
+										Ref:     ref(corev1.ContainerImage{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -6682,7 +9496,7 @@ func schema_k8sio_api_core_v1_NodeStatus(ref common.ReferenceCallback) common.Op
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.AttachedVolume{}.OpenAPIModelName()),
+										Ref:     ref(corev1.AttachedVolume{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -6691,7 +9505,7 @@ func schema_k8sio_api_core_v1_NodeStatus(ref common.ReferenceCallback) common.Op
 					"config": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Status of the config assigned to the node via the dynamic Kubelet config feature.",
-							Ref:         ref(v1.NodeConfigStatus{}.OpenAPIModelName()),
+							Ref:         ref(corev1.NodeConfigStatus{}.OpenAPIModelName()),
 						},
 					},
 					"runtimeHandlers": {
@@ -6707,7 +9521,7 @@ func schema_k8sio_api_core_v1_NodeStatus(ref common.ReferenceCallback) common.Op
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.NodeRuntimeHandler{}.OpenAPIModelName()),
+										Ref:     ref(corev1.NodeRuntimeHandler{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -6716,7 +9530,7 @@ func schema_k8sio_api_core_v1_NodeStatus(ref common.ReferenceCallback) common.Op
 					"features": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Features describes the set of features implemented by the CRI implementation.",
-							Ref:         ref(v1.NodeFeatures{}.OpenAPIModelName()),
+							Ref:         ref(corev1.NodeFeatures{}.OpenAPIModelName()),
 						},
 					},
 					"declaredFeatures": {
@@ -6743,7 +9557,7 @@ func schema_k8sio_api_core_v1_NodeStatus(ref common.ReferenceCallback) common.Op
 			},
 		},
 		Dependencies: []string{
-			v1.AttachedVolume{}.OpenAPIModelName(), v1.ContainerImage{}.OpenAPIModelName(), v1.NodeAddress{}.OpenAPIModelName(), v1.NodeCondition{}.OpenAPIModelName(), v1.NodeConfigStatus{}.OpenAPIModelName(), v1.NodeDaemonEndpoints{}.OpenAPIModelName(), v1.NodeFeatures{}.OpenAPIModelName(), v1.NodeRuntimeHandler{}.OpenAPIModelName(), v1.NodeSystemInfo{}.OpenAPIModelName(), resource.Quantity{}.OpenAPIModelName()},
+			corev1.AttachedVolume{}.OpenAPIModelName(), corev1.ContainerImage{}.OpenAPIModelName(), corev1.NodeAddress{}.OpenAPIModelName(), corev1.NodeCondition{}.OpenAPIModelName(), corev1.NodeConfigStatus{}.OpenAPIModelName(), corev1.NodeDaemonEndpoints{}.OpenAPIModelName(), corev1.NodeFeatures{}.OpenAPIModelName(), corev1.NodeRuntimeHandler{}.OpenAPIModelName(), corev1.NodeSystemInfo{}.OpenAPIModelName(), resource.Quantity{}.OpenAPIModelName()},
 	}
 }
 
@@ -6857,7 +9671,7 @@ func schema_k8sio_api_core_v1_NodeSystemInfo(ref common.ReferenceCallback) commo
 					"swap": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Swap Info reported by the node.",
-							Ref:         ref(v1.NodeSwapStatus{}.OpenAPIModelName()),
+							Ref:         ref(corev1.NodeSwapStatus{}.OpenAPIModelName()),
 						},
 					},
 				},
@@ -6865,7 +9679,7 @@ func schema_k8sio_api_core_v1_NodeSystemInfo(ref common.ReferenceCallback) commo
 			},
 		},
 		Dependencies: []string{
-			v1.NodeSwapStatus{}.OpenAPIModelName()},
+			corev1.NodeSwapStatus{}.OpenAPIModelName()},
 	}
 }
 
@@ -7002,21 +9816,21 @@ func schema_k8sio_api_core_v1_PersistentVolume(ref common.ReferenceCallback) com
 						SchemaProps: spec.SchemaProps{
 							Description: "spec defines a specification of a persistent volume owned by the cluster. Provisioned by an administrator. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistent-volumes",
 							Default:     map[string]interface{}{},
-							Ref:         ref(v1.PersistentVolumeSpec{}.OpenAPIModelName()),
+							Ref:         ref(corev1.PersistentVolumeSpec{}.OpenAPIModelName()),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Description: "status represents the current information/status for the persistent volume. Populated by the system. Read-only. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistent-volumes",
 							Default:     map[string]interface{}{},
-							Ref:         ref(v1.PersistentVolumeStatus{}.OpenAPIModelName()),
+							Ref:         ref(corev1.PersistentVolumeStatus{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			v1.PersistentVolumeSpec{}.OpenAPIModelName(), v1.PersistentVolumeStatus{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
+			corev1.PersistentVolumeSpec{}.OpenAPIModelName(), corev1.PersistentVolumeStatus{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -7052,21 +9866,21 @@ func schema_k8sio_api_core_v1_PersistentVolumeClaim(ref common.ReferenceCallback
 						SchemaProps: spec.SchemaProps{
 							Description: "spec defines the desired characteristics of a volume requested by a pod author. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims",
 							Default:     map[string]interface{}{},
-							Ref:         ref(v1.PersistentVolumeClaimSpec{}.OpenAPIModelName()),
+							Ref:         ref(corev1.PersistentVolumeClaimSpec{}.OpenAPIModelName()),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Description: "status represents the current information/status of a persistent volume claim. Read-only. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims",
 							Default:     map[string]interface{}{},
-							Ref:         ref(v1.PersistentVolumeClaimStatus{}.OpenAPIModelName()),
+							Ref:         ref(corev1.PersistentVolumeClaimStatus{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			v1.PersistentVolumeClaimSpec{}.OpenAPIModelName(), v1.PersistentVolumeClaimStatus{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
+			corev1.PersistentVolumeClaimSpec{}.OpenAPIModelName(), corev1.PersistentVolumeClaimStatus{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -7164,7 +9978,7 @@ func schema_k8sio_api_core_v1_PersistentVolumeClaimList(ref common.ReferenceCall
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.PersistentVolumeClaim{}.OpenAPIModelName()),
+										Ref:     ref(corev1.PersistentVolumeClaim{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -7175,7 +9989,7 @@ func schema_k8sio_api_core_v1_PersistentVolumeClaimList(ref common.ReferenceCall
 			},
 		},
 		Dependencies: []string{
-			v1.PersistentVolumeClaim{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
+			corev1.PersistentVolumeClaim{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -7217,7 +10031,7 @@ func schema_k8sio_api_core_v1_PersistentVolumeClaimSpec(ref common.ReferenceCall
 						SchemaProps: spec.SchemaProps{
 							Description: "resources represents the minimum resources the volume should have. Users are allowed to specify resource requirements that are lower than previous value but must still be higher than capacity recorded in the status field of the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources",
 							Default:     map[string]interface{}{},
-							Ref:         ref(v1.VolumeResourceRequirements{}.OpenAPIModelName()),
+							Ref:         ref(corev1.VolumeResourceRequirements{}.OpenAPIModelName()),
 						},
 					},
 					"volumeName": {
@@ -7245,13 +10059,13 @@ func schema_k8sio_api_core_v1_PersistentVolumeClaimSpec(ref common.ReferenceCall
 					"dataSource": {
 						SchemaProps: spec.SchemaProps{
 							Description: "dataSource field can be used to specify either: * An existing VolumeSnapshot object (snapshot.storage.k8s.io/VolumeSnapshot) * An existing PVC (PersistentVolumeClaim) If the provisioner or an external controller can support the specified data source, it will create a new volume based on the contents of the specified data source. When the AnyVolumeDataSource feature gate is enabled, dataSource contents will be copied to dataSourceRef, and dataSourceRef contents will be copied to dataSource when dataSourceRef.namespace is not specified. If the namespace is specified, then dataSourceRef will not be copied to dataSource.",
-							Ref:         ref(v1.TypedLocalObjectReference{}.OpenAPIModelName()),
+							Ref:         ref(corev1.TypedLocalObjectReference{}.OpenAPIModelName()),
 						},
 					},
 					"dataSourceRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "dataSourceRef specifies the object from which to populate the volume with data, if a non-empty volume is desired. This may be any object from a non-empty API group (non core object) or a PersistentVolumeClaim object. When this field is specified, volume binding will only succeed if the type of the specified object matches some installed volume populator or dynamic provisioner. This field will replace the functionality of the dataSource field and as such if both fields are non-empty, they must have the same value. For backwards compatibility, when namespace isn't specified in dataSourceRef, both fields (dataSource and dataSourceRef) will be set to the same value automatically if one of them is empty and the other is non-empty. When namespace is specified in dataSourceRef, dataSource isn't set to the same value and must be empty. There are three important differences between dataSource and dataSourceRef: * While dataSource only allows two specific types of objects, dataSourceRef\n  allows any non-core object, as well as PersistentVolumeClaim objects.\n* While dataSource ignores disallowed values (dropping them), dataSourceRef\n  preserves all values, and generates an error if a disallowed value is\n  specified.\n* While dataSource only allows local objects, dataSourceRef allows objects\n  in any namespaces.\n(Beta) Using this field requires the AnyVolumeDataSource feature gate to be enabled. (Alpha) Using the namespace field of dataSourceRef requires the CrossNamespaceVolumeDataSource feature gate to be enabled.",
-							Ref:         ref(v1.TypedObjectReference{}.OpenAPIModelName()),
+							Ref:         ref(corev1.TypedObjectReference{}.OpenAPIModelName()),
 						},
 					},
 					"volumeAttributesClassName": {
@@ -7265,7 +10079,7 @@ func schema_k8sio_api_core_v1_PersistentVolumeClaimSpec(ref common.ReferenceCall
 			},
 		},
 		Dependencies: []string{
-			v1.TypedLocalObjectReference{}.OpenAPIModelName(), v1.TypedObjectReference{}.OpenAPIModelName(), v1.VolumeResourceRequirements{}.OpenAPIModelName(), metav1.LabelSelector{}.OpenAPIModelName()},
+			corev1.TypedLocalObjectReference{}.OpenAPIModelName(), corev1.TypedObjectReference{}.OpenAPIModelName(), corev1.VolumeResourceRequirements{}.OpenAPIModelName(), metav1.LabelSelector{}.OpenAPIModelName()},
 	}
 }
 
@@ -7337,7 +10151,7 @@ func schema_k8sio_api_core_v1_PersistentVolumeClaimStatus(ref common.ReferenceCa
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.PersistentVolumeClaimCondition{}.OpenAPIModelName()),
+										Ref:     ref(corev1.PersistentVolumeClaimCondition{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -7389,14 +10203,14 @@ func schema_k8sio_api_core_v1_PersistentVolumeClaimStatus(ref common.ReferenceCa
 					"modifyVolumeStatus": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ModifyVolumeStatus represents the status object of ControllerModifyVolume operation. When this is unset, there is no ModifyVolume operation being attempted.",
-							Ref:         ref(v1.ModifyVolumeStatus{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ModifyVolumeStatus{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			v1.ModifyVolumeStatus{}.OpenAPIModelName(), v1.PersistentVolumeClaimCondition{}.OpenAPIModelName(), resource.Quantity{}.OpenAPIModelName()},
+			corev1.ModifyVolumeStatus{}.OpenAPIModelName(), corev1.PersistentVolumeClaimCondition{}.OpenAPIModelName(), resource.Quantity{}.OpenAPIModelName()},
 	}
 }
 
@@ -7418,7 +10232,7 @@ func schema_k8sio_api_core_v1_PersistentVolumeClaimTemplate(ref common.Reference
 						SchemaProps: spec.SchemaProps{
 							Description: "The specification for the PersistentVolumeClaim. The entire content is copied unchanged into the PVC that gets created from this template. The same fields as in a PersistentVolumeClaim are also valid here.",
 							Default:     map[string]interface{}{},
-							Ref:         ref(v1.PersistentVolumeClaimSpec{}.OpenAPIModelName()),
+							Ref:         ref(corev1.PersistentVolumeClaimSpec{}.OpenAPIModelName()),
 						},
 					},
 				},
@@ -7426,7 +10240,7 @@ func schema_k8sio_api_core_v1_PersistentVolumeClaimTemplate(ref common.Reference
 			},
 		},
 		Dependencies: []string{
-			v1.PersistentVolumeClaimSpec{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
+			corev1.PersistentVolumeClaimSpec{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -7495,7 +10309,7 @@ func schema_k8sio_api_core_v1_PersistentVolumeList(ref common.ReferenceCallback)
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.PersistentVolume{}.OpenAPIModelName()),
+										Ref:     ref(corev1.PersistentVolume{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -7506,7 +10320,7 @@ func schema_k8sio_api_core_v1_PersistentVolumeList(ref common.ReferenceCallback)
 			},
 		},
 		Dependencies: []string{
-			v1.PersistentVolume{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
+			corev1.PersistentVolume{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -7520,140 +10334,140 @@ func schema_k8sio_api_core_v1_PersistentVolumeSource(ref common.ReferenceCallbac
 					"gcePersistentDisk": {
 						SchemaProps: spec.SchemaProps{
 							Description: "gcePersistentDisk represents a GCE Disk resource that is attached to a kubelet's host machine and then exposed to the pod. Provisioned by an admin. Deprecated: GCEPersistentDisk is deprecated. All operations for the in-tree gcePersistentDisk type are redirected to the pd.csi.storage.gke.io CSI driver. More info: https://kubernetes.io/docs/concepts/storage/volumes#gcepersistentdisk",
-							Ref:         ref(v1.GCEPersistentDiskVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.GCEPersistentDiskVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"awsElasticBlockStore": {
 						SchemaProps: spec.SchemaProps{
 							Description: "awsElasticBlockStore represents an AWS Disk resource that is attached to a kubelet's host machine and then exposed to the pod. Deprecated: AWSElasticBlockStore is deprecated. All operations for the in-tree awsElasticBlockStore type are redirected to the ebs.csi.aws.com CSI driver. More info: https://kubernetes.io/docs/concepts/storage/volumes#awselasticblockstore",
-							Ref:         ref(v1.AWSElasticBlockStoreVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.AWSElasticBlockStoreVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"hostPath": {
 						SchemaProps: spec.SchemaProps{
 							Description: "hostPath represents a directory on the host. Provisioned by a developer or tester. This is useful for single-node development and testing only! On-host storage is not supported in any way and WILL NOT WORK in a multi-node cluster. More info: https://kubernetes.io/docs/concepts/storage/volumes#hostpath",
-							Ref:         ref(v1.HostPathVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.HostPathVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"glusterfs": {
 						SchemaProps: spec.SchemaProps{
 							Description: "glusterfs represents a Glusterfs volume that is attached to a host and exposed to the pod. Provisioned by an admin. Deprecated: Glusterfs is deprecated and the in-tree glusterfs type is no longer supported. More info: https://examples.k8s.io/volumes/glusterfs/README.md",
-							Ref:         ref(v1.GlusterfsPersistentVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.GlusterfsPersistentVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"nfs": {
 						SchemaProps: spec.SchemaProps{
 							Description: "nfs represents an NFS mount on the host. Provisioned by an admin. More info: https://kubernetes.io/docs/concepts/storage/volumes#nfs",
-							Ref:         ref(v1.NFSVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.NFSVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"rbd": {
 						SchemaProps: spec.SchemaProps{
 							Description: "rbd represents a Rados Block Device mount on the host that shares a pod's lifetime. Deprecated: RBD is deprecated and the in-tree rbd type is no longer supported. More info: https://examples.k8s.io/volumes/rbd/README.md",
-							Ref:         ref(v1.RBDPersistentVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.RBDPersistentVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"iscsi": {
 						SchemaProps: spec.SchemaProps{
 							Description: "iscsi represents an ISCSI Disk resource that is attached to a kubelet's host machine and then exposed to the pod. Provisioned by an admin.",
-							Ref:         ref(v1.ISCSIPersistentVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ISCSIPersistentVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"cinder": {
 						SchemaProps: spec.SchemaProps{
 							Description: "cinder represents a cinder volume attached and mounted on kubelets host machine. Deprecated: Cinder is deprecated. All operations for the in-tree cinder type are redirected to the cinder.csi.openstack.org CSI driver. More info: https://examples.k8s.io/mysql-cinder-pd/README.md",
-							Ref:         ref(v1.CinderPersistentVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.CinderPersistentVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"cephfs": {
 						SchemaProps: spec.SchemaProps{
 							Description: "cephFS represents a Ceph FS mount on the host that shares a pod's lifetime. Deprecated: CephFS is deprecated and the in-tree cephfs type is no longer supported.",
-							Ref:         ref(v1.CephFSPersistentVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.CephFSPersistentVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"fc": {
 						SchemaProps: spec.SchemaProps{
 							Description: "fc represents a Fibre Channel resource that is attached to a kubelet's host machine and then exposed to the pod.",
-							Ref:         ref(v1.FCVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.FCVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"flocker": {
 						SchemaProps: spec.SchemaProps{
 							Description: "flocker represents a Flocker volume attached to a kubelet's host machine and exposed to the pod for its usage. This depends on the Flocker control service being running. Deprecated: Flocker is deprecated and the in-tree flocker type is no longer supported.",
-							Ref:         ref(v1.FlockerVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.FlockerVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"flexVolume": {
 						SchemaProps: spec.SchemaProps{
 							Description: "flexVolume represents a generic volume resource that is provisioned/attached using an exec based plugin. Deprecated: FlexVolume is deprecated. Consider using a CSIDriver instead.",
-							Ref:         ref(v1.FlexPersistentVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.FlexPersistentVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"azureFile": {
 						SchemaProps: spec.SchemaProps{
 							Description: "azureFile represents an Azure File Service mount on the host and bind mount to the pod. Deprecated: AzureFile is deprecated. All operations for the in-tree azureFile type are redirected to the file.csi.azure.com CSI driver.",
-							Ref:         ref(v1.AzureFilePersistentVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.AzureFilePersistentVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"vsphereVolume": {
 						SchemaProps: spec.SchemaProps{
 							Description: "vsphereVolume represents a vSphere volume attached and mounted on kubelets host machine. Deprecated: VsphereVolume is deprecated. All operations for the in-tree vsphereVolume type are redirected to the csi.vsphere.vmware.com CSI driver.",
-							Ref:         ref(v1.VsphereVirtualDiskVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.VsphereVirtualDiskVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"quobyte": {
 						SchemaProps: spec.SchemaProps{
 							Description: "quobyte represents a Quobyte mount on the host that shares a pod's lifetime. Deprecated: Quobyte is deprecated and the in-tree quobyte type is no longer supported.",
-							Ref:         ref(v1.QuobyteVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.QuobyteVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"azureDisk": {
 						SchemaProps: spec.SchemaProps{
 							Description: "azureDisk represents an Azure Data Disk mount on the host and bind mount to the pod. Deprecated: AzureDisk is deprecated. All operations for the in-tree azureDisk type are redirected to the disk.csi.azure.com CSI driver.",
-							Ref:         ref(v1.AzureDiskVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.AzureDiskVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"photonPersistentDisk": {
 						SchemaProps: spec.SchemaProps{
 							Description: "photonPersistentDisk represents a PhotonController persistent disk attached and mounted on kubelets host machine. Deprecated: PhotonPersistentDisk is deprecated and the in-tree photonPersistentDisk type is no longer supported.",
-							Ref:         ref(v1.PhotonPersistentDiskVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.PhotonPersistentDiskVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"portworxVolume": {
 						SchemaProps: spec.SchemaProps{
 							Description: "portworxVolume represents a portworx volume attached and mounted on kubelets host machine. Deprecated: PortworxVolume is deprecated. All operations for the in-tree portworxVolume type are redirected to the pxd.portworx.com CSI driver when the CSIMigrationPortworx feature-gate is on.",
-							Ref:         ref(v1.PortworxVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.PortworxVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"scaleIO": {
 						SchemaProps: spec.SchemaProps{
 							Description: "scaleIO represents a ScaleIO persistent volume attached and mounted on Kubernetes nodes. Deprecated: ScaleIO is deprecated and the in-tree scaleIO type is no longer supported.",
-							Ref:         ref(v1.ScaleIOPersistentVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ScaleIOPersistentVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"local": {
 						SchemaProps: spec.SchemaProps{
 							Description: "local represents directly-attached storage with node affinity",
-							Ref:         ref(v1.LocalVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.LocalVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"storageos": {
 						SchemaProps: spec.SchemaProps{
 							Description: "storageOS represents a StorageOS volume that is attached to the kubelet's host machine and mounted into the pod. Deprecated: StorageOS is deprecated and the in-tree storageos type is no longer supported. More info: https://examples.k8s.io/volumes/storageos/README.md",
-							Ref:         ref(v1.StorageOSPersistentVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.StorageOSPersistentVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"csi": {
 						SchemaProps: spec.SchemaProps{
 							Description: "csi represents storage that is handled by an external CSI driver.",
-							Ref:         ref(v1.CSIPersistentVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.CSIPersistentVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			v1.AWSElasticBlockStoreVolumeSource{}.OpenAPIModelName(), v1.AzureDiskVolumeSource{}.OpenAPIModelName(), v1.AzureFilePersistentVolumeSource{}.OpenAPIModelName(), v1.CSIPersistentVolumeSource{}.OpenAPIModelName(), v1.CephFSPersistentVolumeSource{}.OpenAPIModelName(), v1.CinderPersistentVolumeSource{}.OpenAPIModelName(), v1.FCVolumeSource{}.OpenAPIModelName(), v1.FlexPersistentVolumeSource{}.OpenAPIModelName(), v1.FlockerVolumeSource{}.OpenAPIModelName(), v1.GCEPersistentDiskVolumeSource{}.OpenAPIModelName(), v1.GlusterfsPersistentVolumeSource{}.OpenAPIModelName(), v1.HostPathVolumeSource{}.OpenAPIModelName(), v1.ISCSIPersistentVolumeSource{}.OpenAPIModelName(), v1.LocalVolumeSource{}.OpenAPIModelName(), v1.NFSVolumeSource{}.OpenAPIModelName(), v1.PhotonPersistentDiskVolumeSource{}.OpenAPIModelName(), v1.PortworxVolumeSource{}.OpenAPIModelName(), v1.QuobyteVolumeSource{}.OpenAPIModelName(), v1.RBDPersistentVolumeSource{}.OpenAPIModelName(), v1.ScaleIOPersistentVolumeSource{}.OpenAPIModelName(), v1.StorageOSPersistentVolumeSource{}.OpenAPIModelName(), v1.VsphereVirtualDiskVolumeSource{}.OpenAPIModelName()},
+			corev1.AWSElasticBlockStoreVolumeSource{}.OpenAPIModelName(), corev1.AzureDiskVolumeSource{}.OpenAPIModelName(), corev1.AzureFilePersistentVolumeSource{}.OpenAPIModelName(), corev1.CSIPersistentVolumeSource{}.OpenAPIModelName(), corev1.CephFSPersistentVolumeSource{}.OpenAPIModelName(), corev1.CinderPersistentVolumeSource{}.OpenAPIModelName(), corev1.FCVolumeSource{}.OpenAPIModelName(), corev1.FlexPersistentVolumeSource{}.OpenAPIModelName(), corev1.FlockerVolumeSource{}.OpenAPIModelName(), corev1.GCEPersistentDiskVolumeSource{}.OpenAPIModelName(), corev1.GlusterfsPersistentVolumeSource{}.OpenAPIModelName(), corev1.HostPathVolumeSource{}.OpenAPIModelName(), corev1.ISCSIPersistentVolumeSource{}.OpenAPIModelName(), corev1.LocalVolumeSource{}.OpenAPIModelName(), corev1.NFSVolumeSource{}.OpenAPIModelName(), corev1.PhotonPersistentDiskVolumeSource{}.OpenAPIModelName(), corev1.PortworxVolumeSource{}.OpenAPIModelName(), corev1.QuobyteVolumeSource{}.OpenAPIModelName(), corev1.RBDPersistentVolumeSource{}.OpenAPIModelName(), corev1.ScaleIOPersistentVolumeSource{}.OpenAPIModelName(), corev1.StorageOSPersistentVolumeSource{}.OpenAPIModelName(), corev1.VsphereVirtualDiskVolumeSource{}.OpenAPIModelName()},
 	}
 }
 
@@ -7681,133 +10495,133 @@ func schema_k8sio_api_core_v1_PersistentVolumeSpec(ref common.ReferenceCallback)
 					"gcePersistentDisk": {
 						SchemaProps: spec.SchemaProps{
 							Description: "gcePersistentDisk represents a GCE Disk resource that is attached to a kubelet's host machine and then exposed to the pod. Provisioned by an admin. Deprecated: GCEPersistentDisk is deprecated. All operations for the in-tree gcePersistentDisk type are redirected to the pd.csi.storage.gke.io CSI driver. More info: https://kubernetes.io/docs/concepts/storage/volumes#gcepersistentdisk",
-							Ref:         ref(v1.GCEPersistentDiskVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.GCEPersistentDiskVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"awsElasticBlockStore": {
 						SchemaProps: spec.SchemaProps{
 							Description: "awsElasticBlockStore represents an AWS Disk resource that is attached to a kubelet's host machine and then exposed to the pod. Deprecated: AWSElasticBlockStore is deprecated. All operations for the in-tree awsElasticBlockStore type are redirected to the ebs.csi.aws.com CSI driver. More info: https://kubernetes.io/docs/concepts/storage/volumes#awselasticblockstore",
-							Ref:         ref(v1.AWSElasticBlockStoreVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.AWSElasticBlockStoreVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"hostPath": {
 						SchemaProps: spec.SchemaProps{
 							Description: "hostPath represents a directory on the host. Provisioned by a developer or tester. This is useful for single-node development and testing only! On-host storage is not supported in any way and WILL NOT WORK in a multi-node cluster. More info: https://kubernetes.io/docs/concepts/storage/volumes#hostpath",
-							Ref:         ref(v1.HostPathVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.HostPathVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"glusterfs": {
 						SchemaProps: spec.SchemaProps{
 							Description: "glusterfs represents a Glusterfs volume that is attached to a host and exposed to the pod. Provisioned by an admin. Deprecated: Glusterfs is deprecated and the in-tree glusterfs type is no longer supported. More info: https://examples.k8s.io/volumes/glusterfs/README.md",
-							Ref:         ref(v1.GlusterfsPersistentVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.GlusterfsPersistentVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"nfs": {
 						SchemaProps: spec.SchemaProps{
 							Description: "nfs represents an NFS mount on the host. Provisioned by an admin. More info: https://kubernetes.io/docs/concepts/storage/volumes#nfs",
-							Ref:         ref(v1.NFSVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.NFSVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"rbd": {
 						SchemaProps: spec.SchemaProps{
 							Description: "rbd represents a Rados Block Device mount on the host that shares a pod's lifetime. Deprecated: RBD is deprecated and the in-tree rbd type is no longer supported. More info: https://examples.k8s.io/volumes/rbd/README.md",
-							Ref:         ref(v1.RBDPersistentVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.RBDPersistentVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"iscsi": {
 						SchemaProps: spec.SchemaProps{
 							Description: "iscsi represents an ISCSI Disk resource that is attached to a kubelet's host machine and then exposed to the pod. Provisioned by an admin.",
-							Ref:         ref(v1.ISCSIPersistentVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ISCSIPersistentVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"cinder": {
 						SchemaProps: spec.SchemaProps{
 							Description: "cinder represents a cinder volume attached and mounted on kubelets host machine. Deprecated: Cinder is deprecated. All operations for the in-tree cinder type are redirected to the cinder.csi.openstack.org CSI driver. More info: https://examples.k8s.io/mysql-cinder-pd/README.md",
-							Ref:         ref(v1.CinderPersistentVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.CinderPersistentVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"cephfs": {
 						SchemaProps: spec.SchemaProps{
 							Description: "cephFS represents a Ceph FS mount on the host that shares a pod's lifetime. Deprecated: CephFS is deprecated and the in-tree cephfs type is no longer supported.",
-							Ref:         ref(v1.CephFSPersistentVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.CephFSPersistentVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"fc": {
 						SchemaProps: spec.SchemaProps{
 							Description: "fc represents a Fibre Channel resource that is attached to a kubelet's host machine and then exposed to the pod.",
-							Ref:         ref(v1.FCVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.FCVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"flocker": {
 						SchemaProps: spec.SchemaProps{
 							Description: "flocker represents a Flocker volume attached to a kubelet's host machine and exposed to the pod for its usage. This depends on the Flocker control service being running. Deprecated: Flocker is deprecated and the in-tree flocker type is no longer supported.",
-							Ref:         ref(v1.FlockerVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.FlockerVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"flexVolume": {
 						SchemaProps: spec.SchemaProps{
 							Description: "flexVolume represents a generic volume resource that is provisioned/attached using an exec based plugin. Deprecated: FlexVolume is deprecated. Consider using a CSIDriver instead.",
-							Ref:         ref(v1.FlexPersistentVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.FlexPersistentVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"azureFile": {
 						SchemaProps: spec.SchemaProps{
 							Description: "azureFile represents an Azure File Service mount on the host and bind mount to the pod. Deprecated: AzureFile is deprecated. All operations for the in-tree azureFile type are redirected to the file.csi.azure.com CSI driver.",
-							Ref:         ref(v1.AzureFilePersistentVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.AzureFilePersistentVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"vsphereVolume": {
 						SchemaProps: spec.SchemaProps{
 							Description: "vsphereVolume represents a vSphere volume attached and mounted on kubelets host machine. Deprecated: VsphereVolume is deprecated. All operations for the in-tree vsphereVolume type are redirected to the csi.vsphere.vmware.com CSI driver.",
-							Ref:         ref(v1.VsphereVirtualDiskVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.VsphereVirtualDiskVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"quobyte": {
 						SchemaProps: spec.SchemaProps{
 							Description: "quobyte represents a Quobyte mount on the host that shares a pod's lifetime. Deprecated: Quobyte is deprecated and the in-tree quobyte type is no longer supported.",
-							Ref:         ref(v1.QuobyteVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.QuobyteVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"azureDisk": {
 						SchemaProps: spec.SchemaProps{
 							Description: "azureDisk represents an Azure Data Disk mount on the host and bind mount to the pod. Deprecated: AzureDisk is deprecated. All operations for the in-tree azureDisk type are redirected to the disk.csi.azure.com CSI driver.",
-							Ref:         ref(v1.AzureDiskVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.AzureDiskVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"photonPersistentDisk": {
 						SchemaProps: spec.SchemaProps{
 							Description: "photonPersistentDisk represents a PhotonController persistent disk attached and mounted on kubelets host machine. Deprecated: PhotonPersistentDisk is deprecated and the in-tree photonPersistentDisk type is no longer supported.",
-							Ref:         ref(v1.PhotonPersistentDiskVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.PhotonPersistentDiskVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"portworxVolume": {
 						SchemaProps: spec.SchemaProps{
 							Description: "portworxVolume represents a portworx volume attached and mounted on kubelets host machine. Deprecated: PortworxVolume is deprecated. All operations for the in-tree portworxVolume type are redirected to the pxd.portworx.com CSI driver when the CSIMigrationPortworx feature-gate is on.",
-							Ref:         ref(v1.PortworxVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.PortworxVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"scaleIO": {
 						SchemaProps: spec.SchemaProps{
 							Description: "scaleIO represents a ScaleIO persistent volume attached and mounted on Kubernetes nodes. Deprecated: ScaleIO is deprecated and the in-tree scaleIO type is no longer supported.",
-							Ref:         ref(v1.ScaleIOPersistentVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ScaleIOPersistentVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"local": {
 						SchemaProps: spec.SchemaProps{
 							Description: "local represents directly-attached storage with node affinity",
-							Ref:         ref(v1.LocalVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.LocalVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"storageos": {
 						SchemaProps: spec.SchemaProps{
 							Description: "storageOS represents a StorageOS volume that is attached to the kubelet's host machine and mounted into the pod. Deprecated: StorageOS is deprecated and the in-tree storageos type is no longer supported. More info: https://examples.k8s.io/volumes/storageos/README.md",
-							Ref:         ref(v1.StorageOSPersistentVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.StorageOSPersistentVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"csi": {
 						SchemaProps: spec.SchemaProps{
 							Description: "csi represents storage that is handled by an external CSI driver.",
-							Ref:         ref(v1.CSIPersistentVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.CSIPersistentVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"accessModes": {
@@ -7839,7 +10653,7 @@ func schema_k8sio_api_core_v1_PersistentVolumeSpec(ref common.ReferenceCallback)
 						},
 						SchemaProps: spec.SchemaProps{
 							Description: "claimRef is part of a bi-directional binding between PersistentVolume and PersistentVolumeClaim. Expected to be non-nil when bound. claim.VolumeName is the authoritative bind between PV and PVC. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#binding",
-							Ref:         ref(v1.ObjectReference{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ObjectReference{}.OpenAPIModelName()),
 						},
 					},
 					"persistentVolumeReclaimPolicy": {
@@ -7888,7 +10702,7 @@ func schema_k8sio_api_core_v1_PersistentVolumeSpec(ref common.ReferenceCallback)
 					"nodeAffinity": {
 						SchemaProps: spec.SchemaProps{
 							Description: "nodeAffinity defines constraints that limit what nodes this volume can be accessed from. This field influences the scheduling of pods that use this volume. This field is mutable if MutablePVNodeAffinity feature gate is enabled.",
-							Ref:         ref(v1.VolumeNodeAffinity{}.OpenAPIModelName()),
+							Ref:         ref(corev1.VolumeNodeAffinity{}.OpenAPIModelName()),
 						},
 					},
 					"volumeAttributesClassName": {
@@ -7902,7 +10716,7 @@ func schema_k8sio_api_core_v1_PersistentVolumeSpec(ref common.ReferenceCallback)
 			},
 		},
 		Dependencies: []string{
-			v1.AWSElasticBlockStoreVolumeSource{}.OpenAPIModelName(), v1.AzureDiskVolumeSource{}.OpenAPIModelName(), v1.AzureFilePersistentVolumeSource{}.OpenAPIModelName(), v1.CSIPersistentVolumeSource{}.OpenAPIModelName(), v1.CephFSPersistentVolumeSource{}.OpenAPIModelName(), v1.CinderPersistentVolumeSource{}.OpenAPIModelName(), v1.FCVolumeSource{}.OpenAPIModelName(), v1.FlexPersistentVolumeSource{}.OpenAPIModelName(), v1.FlockerVolumeSource{}.OpenAPIModelName(), v1.GCEPersistentDiskVolumeSource{}.OpenAPIModelName(), v1.GlusterfsPersistentVolumeSource{}.OpenAPIModelName(), v1.HostPathVolumeSource{}.OpenAPIModelName(), v1.ISCSIPersistentVolumeSource{}.OpenAPIModelName(), v1.LocalVolumeSource{}.OpenAPIModelName(), v1.NFSVolumeSource{}.OpenAPIModelName(), v1.ObjectReference{}.OpenAPIModelName(), v1.PhotonPersistentDiskVolumeSource{}.OpenAPIModelName(), v1.PortworxVolumeSource{}.OpenAPIModelName(), v1.QuobyteVolumeSource{}.OpenAPIModelName(), v1.RBDPersistentVolumeSource{}.OpenAPIModelName(), v1.ScaleIOPersistentVolumeSource{}.OpenAPIModelName(), v1.StorageOSPersistentVolumeSource{}.OpenAPIModelName(), v1.VolumeNodeAffinity{}.OpenAPIModelName(), v1.VsphereVirtualDiskVolumeSource{}.OpenAPIModelName(), resource.Quantity{}.OpenAPIModelName()},
+			corev1.AWSElasticBlockStoreVolumeSource{}.OpenAPIModelName(), corev1.AzureDiskVolumeSource{}.OpenAPIModelName(), corev1.AzureFilePersistentVolumeSource{}.OpenAPIModelName(), corev1.CSIPersistentVolumeSource{}.OpenAPIModelName(), corev1.CephFSPersistentVolumeSource{}.OpenAPIModelName(), corev1.CinderPersistentVolumeSource{}.OpenAPIModelName(), corev1.FCVolumeSource{}.OpenAPIModelName(), corev1.FlexPersistentVolumeSource{}.OpenAPIModelName(), corev1.FlockerVolumeSource{}.OpenAPIModelName(), corev1.GCEPersistentDiskVolumeSource{}.OpenAPIModelName(), corev1.GlusterfsPersistentVolumeSource{}.OpenAPIModelName(), corev1.HostPathVolumeSource{}.OpenAPIModelName(), corev1.ISCSIPersistentVolumeSource{}.OpenAPIModelName(), corev1.LocalVolumeSource{}.OpenAPIModelName(), corev1.NFSVolumeSource{}.OpenAPIModelName(), corev1.ObjectReference{}.OpenAPIModelName(), corev1.PhotonPersistentDiskVolumeSource{}.OpenAPIModelName(), corev1.PortworxVolumeSource{}.OpenAPIModelName(), corev1.QuobyteVolumeSource{}.OpenAPIModelName(), corev1.RBDPersistentVolumeSource{}.OpenAPIModelName(), corev1.ScaleIOPersistentVolumeSource{}.OpenAPIModelName(), corev1.StorageOSPersistentVolumeSource{}.OpenAPIModelName(), corev1.VolumeNodeAffinity{}.OpenAPIModelName(), corev1.VsphereVirtualDiskVolumeSource{}.OpenAPIModelName(), resource.Quantity{}.OpenAPIModelName()},
 	}
 }
 
@@ -8010,21 +10824,21 @@ func schema_k8sio_api_core_v1_Pod(ref common.ReferenceCallback) common.OpenAPIDe
 						SchemaProps: spec.SchemaProps{
 							Description: "Specification of the desired behavior of the pod. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status",
 							Default:     map[string]interface{}{},
-							Ref:         ref(v1.PodSpec{}.OpenAPIModelName()),
+							Ref:         ref(corev1.PodSpec{}.OpenAPIModelName()),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Most recently observed status of the pod. This data may not be up to date. Populated by the system. Read-only. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status",
 							Default:     map[string]interface{}{},
-							Ref:         ref(v1.PodStatus{}.OpenAPIModelName()),
+							Ref:         ref(corev1.PodStatus{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			v1.PodSpec{}.OpenAPIModelName(), v1.PodStatus{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
+			corev1.PodSpec{}.OpenAPIModelName(), corev1.PodStatus{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -8048,7 +10862,7 @@ func schema_k8sio_api_core_v1_PodAffinity(ref common.ReferenceCallback) common.O
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.PodAffinityTerm{}.OpenAPIModelName()),
+										Ref:     ref(corev1.PodAffinityTerm{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -8067,7 +10881,7 @@ func schema_k8sio_api_core_v1_PodAffinity(ref common.ReferenceCallback) common.O
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.WeightedPodAffinityTerm{}.OpenAPIModelName()),
+										Ref:     ref(corev1.WeightedPodAffinityTerm{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -8077,7 +10891,7 @@ func schema_k8sio_api_core_v1_PodAffinity(ref common.ReferenceCallback) common.O
 			},
 		},
 		Dependencies: []string{
-			v1.PodAffinityTerm{}.OpenAPIModelName(), v1.WeightedPodAffinityTerm{}.OpenAPIModelName()},
+			corev1.PodAffinityTerm{}.OpenAPIModelName(), corev1.WeightedPodAffinityTerm{}.OpenAPIModelName()},
 	}
 }
 
@@ -8197,7 +11011,7 @@ func schema_k8sio_api_core_v1_PodAntiAffinity(ref common.ReferenceCallback) comm
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.PodAffinityTerm{}.OpenAPIModelName()),
+										Ref:     ref(corev1.PodAffinityTerm{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -8216,7 +11030,7 @@ func schema_k8sio_api_core_v1_PodAntiAffinity(ref common.ReferenceCallback) comm
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.WeightedPodAffinityTerm{}.OpenAPIModelName()),
+										Ref:     ref(corev1.WeightedPodAffinityTerm{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -8226,7 +11040,7 @@ func schema_k8sio_api_core_v1_PodAntiAffinity(ref common.ReferenceCallback) comm
 			},
 		},
 		Dependencies: []string{
-			v1.PodAffinityTerm{}.OpenAPIModelName(), v1.WeightedPodAffinityTerm{}.OpenAPIModelName()},
+			corev1.PodAffinityTerm{}.OpenAPIModelName(), corev1.WeightedPodAffinityTerm{}.OpenAPIModelName()},
 	}
 }
 
@@ -8489,7 +11303,7 @@ func schema_k8sio_api_core_v1_PodDNSConfig(ref common.ReferenceCallback) common.
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.PodDNSConfigOption{}.OpenAPIModelName()),
+										Ref:     ref(corev1.PodDNSConfigOption{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -8499,7 +11313,7 @@ func schema_k8sio_api_core_v1_PodDNSConfig(ref common.ReferenceCallback) common.
 			},
 		},
 		Dependencies: []string{
-			v1.PodDNSConfigOption{}.OpenAPIModelName()},
+			corev1.PodDNSConfigOption{}.OpenAPIModelName()},
 	}
 }
 
@@ -8633,7 +11447,7 @@ func schema_k8sio_api_core_v1_PodExtendedResourceClaimStatus(ref common.Referenc
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.ContainerExtendedResourceRequest{}.OpenAPIModelName()),
+										Ref:     ref(corev1.ContainerExtendedResourceRequest{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -8652,7 +11466,7 @@ func schema_k8sio_api_core_v1_PodExtendedResourceClaimStatus(ref common.Referenc
 			},
 		},
 		Dependencies: []string{
-			v1.ContainerExtendedResourceRequest{}.OpenAPIModelName()},
+			corev1.ContainerExtendedResourceRequest{}.OpenAPIModelName()},
 	}
 }
 
@@ -8714,7 +11528,7 @@ func schema_k8sio_api_core_v1_PodList(ref common.ReferenceCallback) common.OpenA
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.Pod{}.OpenAPIModelName()),
+										Ref:     ref(corev1.Pod{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -8725,7 +11539,7 @@ func schema_k8sio_api_core_v1_PodList(ref common.ReferenceCallback) common.OpenA
 			},
 		},
 		Dependencies: []string{
-			v1.Pod{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
+			corev1.Pod{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -9049,13 +11863,13 @@ func schema_k8sio_api_core_v1_PodSecurityContext(ref common.ReferenceCallback) c
 					"seLinuxOptions": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The SELinux context to be applied to all containers. If unspecified, the container runtime will allocate a random SELinux context for each container.  May also be set in SecurityContext.  If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence for that container. Note that this field cannot be set when spec.os.name is windows.",
-							Ref:         ref(v1.SELinuxOptions{}.OpenAPIModelName()),
+							Ref:         ref(corev1.SELinuxOptions{}.OpenAPIModelName()),
 						},
 					},
 					"windowsOptions": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The Windows specific settings applied to all containers. If unspecified, the options within a container's SecurityContext will be used. If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence. Note that this field cannot be set when spec.os.name is linux.",
-							Ref:         ref(v1.WindowsSecurityContextOptions{}.OpenAPIModelName()),
+							Ref:         ref(corev1.WindowsSecurityContextOptions{}.OpenAPIModelName()),
 						},
 					},
 					"runAsUser": {
@@ -9127,7 +11941,7 @@ func schema_k8sio_api_core_v1_PodSecurityContext(ref common.ReferenceCallback) c
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.Sysctl{}.OpenAPIModelName()),
+										Ref:     ref(corev1.Sysctl{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -9144,13 +11958,13 @@ func schema_k8sio_api_core_v1_PodSecurityContext(ref common.ReferenceCallback) c
 					"seccompProfile": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The seccomp options to use by the containers in this pod. Note that this field cannot be set when spec.os.name is windows.",
-							Ref:         ref(v1.SeccompProfile{}.OpenAPIModelName()),
+							Ref:         ref(corev1.SeccompProfile{}.OpenAPIModelName()),
 						},
 					},
 					"appArmorProfile": {
 						SchemaProps: spec.SchemaProps{
 							Description: "appArmorProfile is the AppArmor options to use by the containers in this pod. Note that this field cannot be set when spec.os.name is windows.",
-							Ref:         ref(v1.AppArmorProfile{}.OpenAPIModelName()),
+							Ref:         ref(corev1.AppArmorProfile{}.OpenAPIModelName()),
 						},
 					},
 					"seLinuxChangePolicy": {
@@ -9164,7 +11978,7 @@ func schema_k8sio_api_core_v1_PodSecurityContext(ref common.ReferenceCallback) c
 			},
 		},
 		Dependencies: []string{
-			v1.AppArmorProfile{}.OpenAPIModelName(), v1.SELinuxOptions{}.OpenAPIModelName(), v1.SeccompProfile{}.OpenAPIModelName(), v1.Sysctl{}.OpenAPIModelName(), v1.WindowsSecurityContextOptions{}.OpenAPIModelName()},
+			corev1.AppArmorProfile{}.OpenAPIModelName(), corev1.SELinuxOptions{}.OpenAPIModelName(), corev1.SeccompProfile{}.OpenAPIModelName(), corev1.Sysctl{}.OpenAPIModelName(), corev1.WindowsSecurityContextOptions{}.OpenAPIModelName()},
 	}
 }
 
@@ -9214,7 +12028,7 @@ func schema_k8sio_api_core_v1_PodSpec(ref common.ReferenceCallback) common.OpenA
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.Volume{}.OpenAPIModelName()),
+										Ref:     ref(corev1.Volume{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -9238,7 +12052,7 @@ func schema_k8sio_api_core_v1_PodSpec(ref common.ReferenceCallback) common.OpenA
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.Container{}.OpenAPIModelName()),
+										Ref:     ref(corev1.Container{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -9262,7 +12076,7 @@ func schema_k8sio_api_core_v1_PodSpec(ref common.ReferenceCallback) common.OpenA
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.Container{}.OpenAPIModelName()),
+										Ref:     ref(corev1.Container{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -9286,7 +12100,7 @@ func schema_k8sio_api_core_v1_PodSpec(ref common.ReferenceCallback) common.OpenA
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.EphemeralContainer{}.OpenAPIModelName()),
+										Ref:     ref(corev1.EphemeralContainer{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -9402,7 +12216,7 @@ func schema_k8sio_api_core_v1_PodSpec(ref common.ReferenceCallback) common.OpenA
 					"securityContext": {
 						SchemaProps: spec.SchemaProps{
 							Description: "SecurityContext holds pod-level security attributes and common container settings. Optional: Defaults to empty.  See type description for default values of each field.",
-							Ref:         ref(v1.PodSecurityContext{}.OpenAPIModelName()),
+							Ref:         ref(corev1.PodSecurityContext{}.OpenAPIModelName()),
 						},
 					},
 					"imagePullSecrets": {
@@ -9423,7 +12237,7 @@ func schema_k8sio_api_core_v1_PodSpec(ref common.ReferenceCallback) common.OpenA
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.LocalObjectReference{}.OpenAPIModelName()),
+										Ref:     ref(corev1.LocalObjectReference{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -9446,7 +12260,7 @@ func schema_k8sio_api_core_v1_PodSpec(ref common.ReferenceCallback) common.OpenA
 					"affinity": {
 						SchemaProps: spec.SchemaProps{
 							Description: "If specified, the pod's scheduling constraints",
-							Ref:         ref(v1.Affinity{}.OpenAPIModelName()),
+							Ref:         ref(corev1.Affinity{}.OpenAPIModelName()),
 						},
 					},
 					"schedulerName": {
@@ -9469,7 +12283,7 @@ func schema_k8sio_api_core_v1_PodSpec(ref common.ReferenceCallback) common.OpenA
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.Toleration{}.OpenAPIModelName()),
+										Ref:     ref(corev1.Toleration{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -9493,7 +12307,7 @@ func schema_k8sio_api_core_v1_PodSpec(ref common.ReferenceCallback) common.OpenA
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.HostAlias{}.OpenAPIModelName()),
+										Ref:     ref(corev1.HostAlias{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -9516,7 +12330,7 @@ func schema_k8sio_api_core_v1_PodSpec(ref common.ReferenceCallback) common.OpenA
 					"dnsConfig": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Specifies the DNS parameters of a pod. Parameters specified here will be merged to the generated DNS configuration based on DNSPolicy.",
-							Ref:         ref(v1.PodDNSConfig{}.OpenAPIModelName()),
+							Ref:         ref(corev1.PodDNSConfig{}.OpenAPIModelName()),
 						},
 					},
 					"readinessGates": {
@@ -9532,7 +12346,7 @@ func schema_k8sio_api_core_v1_PodSpec(ref common.ReferenceCallback) common.OpenA
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.PodReadinessGate{}.OpenAPIModelName()),
+										Ref:     ref(corev1.PodReadinessGate{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -9593,7 +12407,7 @@ func schema_k8sio_api_core_v1_PodSpec(ref common.ReferenceCallback) common.OpenA
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.TopologySpreadConstraint{}.OpenAPIModelName()),
+										Ref:     ref(corev1.TopologySpreadConstraint{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -9609,7 +12423,7 @@ func schema_k8sio_api_core_v1_PodSpec(ref common.ReferenceCallback) common.OpenA
 					"os": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Specifies the OS of the containers in the pod. Some pod and container fields are restricted if this is set.\n\nIf the OS field is set to linux, the following fields must be unset: -securityContext.windowsOptions\n\nIf the OS field is set to windows, following fields must be unset: - spec.hostPID - spec.hostIPC - spec.hostUsers - spec.resources - spec.securityContext.appArmorProfile - spec.securityContext.seLinuxOptions - spec.securityContext.seccompProfile - spec.securityContext.fsGroup - spec.securityContext.fsGroupChangePolicy - spec.securityContext.sysctls - spec.shareProcessNamespace - spec.securityContext.runAsUser - spec.securityContext.runAsGroup - spec.securityContext.supplementalGroups - spec.securityContext.supplementalGroupsPolicy - spec.containers[*].securityContext.appArmorProfile - spec.containers[*].securityContext.seLinuxOptions - spec.containers[*].securityContext.seccompProfile - spec.containers[*].securityContext.capabilities - spec.containers[*].securityContext.readOnlyRootFilesystem - spec.containers[*].securityContext.privileged - spec.containers[*].securityContext.allowPrivilegeEscalation - spec.containers[*].securityContext.procMount - spec.containers[*].securityContext.runAsUser - spec.containers[*].securityContext.runAsGroup",
-							Ref:         ref(v1.PodOS{}.OpenAPIModelName()),
+							Ref:         ref(corev1.PodOS{}.OpenAPIModelName()),
 						},
 					},
 					"hostUsers": {
@@ -9637,7 +12451,7 @@ func schema_k8sio_api_core_v1_PodSpec(ref common.ReferenceCallback) common.OpenA
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.PodSchedulingGate{}.OpenAPIModelName()),
+										Ref:     ref(corev1.PodSchedulingGate{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -9661,7 +12475,7 @@ func schema_k8sio_api_core_v1_PodSpec(ref common.ReferenceCallback) common.OpenA
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.PodResourceClaim{}.OpenAPIModelName()),
+										Ref:     ref(corev1.PodResourceClaim{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -9670,7 +12484,7 @@ func schema_k8sio_api_core_v1_PodSpec(ref common.ReferenceCallback) common.OpenA
 					"resources": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Resources is the total amount of CPU and Memory resources required by all containers in the pod. It supports specifying Requests and Limits for \"cpu\", \"memory\" and \"hugepages-\" resource names only. ResourceClaims are not supported.\n\nThis field enables fine-grained control over resource allocation for the entire pod, allowing resource sharing among containers in a pod.\n\nThis is an alpha field and requires enabling the PodLevelResources feature gate.",
-							Ref:         ref(v1.ResourceRequirements{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ResourceRequirements{}.OpenAPIModelName()),
 						},
 					},
 					"hostnameOverride": {
@@ -9683,7 +12497,7 @@ func schema_k8sio_api_core_v1_PodSpec(ref common.ReferenceCallback) common.OpenA
 					"workloadRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "WorkloadRef provides a reference to the Workload object that this Pod belongs to. This field is used by the scheduler to identify the PodGroup and apply the correct group scheduling policies. The Workload object referenced by this field may not exist at the time the Pod is created. This field is immutable, but a Workload object with the same name may be recreated with different policies. Doing this during pod scheduling may result in the placement not conforming to the expected policies.",
-							Ref:         ref(v1.WorkloadReference{}.OpenAPIModelName()),
+							Ref:         ref(corev1.WorkloadReference{}.OpenAPIModelName()),
 						},
 					},
 				},
@@ -9691,7 +12505,7 @@ func schema_k8sio_api_core_v1_PodSpec(ref common.ReferenceCallback) common.OpenA
 			},
 		},
 		Dependencies: []string{
-			v1.Affinity{}.OpenAPIModelName(), v1.Container{}.OpenAPIModelName(), v1.EphemeralContainer{}.OpenAPIModelName(), v1.HostAlias{}.OpenAPIModelName(), v1.LocalObjectReference{}.OpenAPIModelName(), v1.PodDNSConfig{}.OpenAPIModelName(), v1.PodOS{}.OpenAPIModelName(), v1.PodReadinessGate{}.OpenAPIModelName(), v1.PodResourceClaim{}.OpenAPIModelName(), v1.PodSchedulingGate{}.OpenAPIModelName(), v1.PodSecurityContext{}.OpenAPIModelName(), v1.ResourceRequirements{}.OpenAPIModelName(), v1.Toleration{}.OpenAPIModelName(), v1.TopologySpreadConstraint{}.OpenAPIModelName(), v1.Volume{}.OpenAPIModelName(), v1.WorkloadReference{}.OpenAPIModelName(), resource.Quantity{}.OpenAPIModelName()},
+			corev1.Affinity{}.OpenAPIModelName(), corev1.Container{}.OpenAPIModelName(), corev1.EphemeralContainer{}.OpenAPIModelName(), corev1.HostAlias{}.OpenAPIModelName(), corev1.LocalObjectReference{}.OpenAPIModelName(), corev1.PodDNSConfig{}.OpenAPIModelName(), corev1.PodOS{}.OpenAPIModelName(), corev1.PodReadinessGate{}.OpenAPIModelName(), corev1.PodResourceClaim{}.OpenAPIModelName(), corev1.PodSchedulingGate{}.OpenAPIModelName(), corev1.PodSecurityContext{}.OpenAPIModelName(), corev1.ResourceRequirements{}.OpenAPIModelName(), corev1.Toleration{}.OpenAPIModelName(), corev1.TopologySpreadConstraint{}.OpenAPIModelName(), corev1.Volume{}.OpenAPIModelName(), corev1.WorkloadReference{}.OpenAPIModelName(), resource.Quantity{}.OpenAPIModelName()},
 	}
 }
 
@@ -9735,7 +12549,7 @@ func schema_k8sio_api_core_v1_PodStatus(ref common.ReferenceCallback) common.Ope
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.PodCondition{}.OpenAPIModelName()),
+										Ref:     ref(corev1.PodCondition{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -9784,7 +12598,7 @@ func schema_k8sio_api_core_v1_PodStatus(ref common.ReferenceCallback) common.Ope
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.HostIP{}.OpenAPIModelName()),
+										Ref:     ref(corev1.HostIP{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -9815,7 +12629,7 @@ func schema_k8sio_api_core_v1_PodStatus(ref common.ReferenceCallback) common.Ope
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.PodIP{}.OpenAPIModelName()),
+										Ref:     ref(corev1.PodIP{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -9840,7 +12654,7 @@ func schema_k8sio_api_core_v1_PodStatus(ref common.ReferenceCallback) common.Ope
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.ContainerStatus{}.OpenAPIModelName()),
+										Ref:     ref(corev1.ContainerStatus{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -9859,7 +12673,7 @@ func schema_k8sio_api_core_v1_PodStatus(ref common.ReferenceCallback) common.Ope
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.ContainerStatus{}.OpenAPIModelName()),
+										Ref:     ref(corev1.ContainerStatus{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -9886,7 +12700,7 @@ func schema_k8sio_api_core_v1_PodStatus(ref common.ReferenceCallback) common.Ope
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.ContainerStatus{}.OpenAPIModelName()),
+										Ref:     ref(corev1.ContainerStatus{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -9917,7 +12731,7 @@ func schema_k8sio_api_core_v1_PodStatus(ref common.ReferenceCallback) common.Ope
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.PodResourceClaimStatus{}.OpenAPIModelName()),
+										Ref:     ref(corev1.PodResourceClaimStatus{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -9926,7 +12740,7 @@ func schema_k8sio_api_core_v1_PodStatus(ref common.ReferenceCallback) common.Ope
 					"extendedResourceClaimStatus": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Status of extended resource claim backed by DRA.",
-							Ref:         ref(v1.PodExtendedResourceClaimStatus{}.OpenAPIModelName()),
+							Ref:         ref(corev1.PodExtendedResourceClaimStatus{}.OpenAPIModelName()),
 						},
 					},
 					"allocatedResources": {
@@ -9946,14 +12760,14 @@ func schema_k8sio_api_core_v1_PodStatus(ref common.ReferenceCallback) common.Ope
 					"resources": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Resources represents the compute resource requests and limits that have been applied at the pod level if pod-level requests or limits are set in PodSpec.Resources",
-							Ref:         ref(v1.ResourceRequirements{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ResourceRequirements{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			v1.ContainerStatus{}.OpenAPIModelName(), v1.HostIP{}.OpenAPIModelName(), v1.PodCondition{}.OpenAPIModelName(), v1.PodExtendedResourceClaimStatus{}.OpenAPIModelName(), v1.PodIP{}.OpenAPIModelName(), v1.PodResourceClaimStatus{}.OpenAPIModelName(), v1.ResourceRequirements{}.OpenAPIModelName(), resource.Quantity{}.OpenAPIModelName(), metav1.Time{}.OpenAPIModelName()},
+			corev1.ContainerStatus{}.OpenAPIModelName(), corev1.HostIP{}.OpenAPIModelName(), corev1.PodCondition{}.OpenAPIModelName(), corev1.PodExtendedResourceClaimStatus{}.OpenAPIModelName(), corev1.PodIP{}.OpenAPIModelName(), corev1.PodResourceClaimStatus{}.OpenAPIModelName(), corev1.ResourceRequirements{}.OpenAPIModelName(), resource.Quantity{}.OpenAPIModelName(), metav1.Time{}.OpenAPIModelName()},
 	}
 }
 
@@ -9989,14 +12803,14 @@ func schema_k8sio_api_core_v1_PodStatusResult(ref common.ReferenceCallback) comm
 						SchemaProps: spec.SchemaProps{
 							Description: "Most recently observed status of the pod. This data may not be up to date. Populated by the system. Read-only. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status",
 							Default:     map[string]interface{}{},
-							Ref:         ref(v1.PodStatus{}.OpenAPIModelName()),
+							Ref:         ref(corev1.PodStatus{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			v1.PodStatus{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
+			corev1.PodStatus{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -10032,14 +12846,14 @@ func schema_k8sio_api_core_v1_PodTemplate(ref common.ReferenceCallback) common.O
 						SchemaProps: spec.SchemaProps{
 							Description: "Template defines the pods that will be created from this pod template. https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status",
 							Default:     map[string]interface{}{},
-							Ref:         ref(v1.PodTemplateSpec{}.OpenAPIModelName()),
+							Ref:         ref(corev1.PodTemplateSpec{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			v1.PodTemplateSpec{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
+			corev1.PodTemplateSpec{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -10079,7 +12893,7 @@ func schema_k8sio_api_core_v1_PodTemplateList(ref common.ReferenceCallback) comm
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.PodTemplate{}.OpenAPIModelName()),
+										Ref:     ref(corev1.PodTemplate{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -10090,7 +12904,7 @@ func schema_k8sio_api_core_v1_PodTemplateList(ref common.ReferenceCallback) comm
 			},
 		},
 		Dependencies: []string{
-			v1.PodTemplate{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
+			corev1.PodTemplate{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -10112,14 +12926,14 @@ func schema_k8sio_api_core_v1_PodTemplateSpec(ref common.ReferenceCallback) comm
 						SchemaProps: spec.SchemaProps{
 							Description: "Specification of the desired behavior of the pod. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status",
 							Default:     map[string]interface{}{},
-							Ref:         ref(v1.PodSpec{}.OpenAPIModelName()),
+							Ref:         ref(corev1.PodSpec{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			v1.PodSpec{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
+			corev1.PodSpec{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -10208,7 +13022,7 @@ func schema_k8sio_api_core_v1_PreferAvoidPodsEntry(ref common.ReferenceCallback)
 						SchemaProps: spec.SchemaProps{
 							Description: "The class of pods.",
 							Default:     map[string]interface{}{},
-							Ref:         ref(v1.PodSignature{}.OpenAPIModelName()),
+							Ref:         ref(corev1.PodSignature{}.OpenAPIModelName()),
 						},
 					},
 					"evictionTime": {
@@ -10236,7 +13050,7 @@ func schema_k8sio_api_core_v1_PreferAvoidPodsEntry(ref common.ReferenceCallback)
 			},
 		},
 		Dependencies: []string{
-			v1.PodSignature{}.OpenAPIModelName(), metav1.Time{}.OpenAPIModelName()},
+			corev1.PodSignature{}.OpenAPIModelName(), metav1.Time{}.OpenAPIModelName()},
 	}
 }
 
@@ -10259,7 +13073,7 @@ func schema_k8sio_api_core_v1_PreferredSchedulingTerm(ref common.ReferenceCallba
 						SchemaProps: spec.SchemaProps{
 							Description: "A node selector term, associated with the corresponding weight.",
 							Default:     map[string]interface{}{},
-							Ref:         ref(v1.NodeSelectorTerm{}.OpenAPIModelName()),
+							Ref:         ref(corev1.NodeSelectorTerm{}.OpenAPIModelName()),
 						},
 					},
 				},
@@ -10267,7 +13081,7 @@ func schema_k8sio_api_core_v1_PreferredSchedulingTerm(ref common.ReferenceCallba
 			},
 		},
 		Dependencies: []string{
-			v1.NodeSelectorTerm{}.OpenAPIModelName()},
+			corev1.NodeSelectorTerm{}.OpenAPIModelName()},
 	}
 }
 
@@ -10281,25 +13095,25 @@ func schema_k8sio_api_core_v1_Probe(ref common.ReferenceCallback) common.OpenAPI
 					"exec": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Exec specifies a command to execute in the container.",
-							Ref:         ref(v1.ExecAction{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ExecAction{}.OpenAPIModelName()),
 						},
 					},
 					"httpGet": {
 						SchemaProps: spec.SchemaProps{
 							Description: "HTTPGet specifies an HTTP GET request to perform.",
-							Ref:         ref(v1.HTTPGetAction{}.OpenAPIModelName()),
+							Ref:         ref(corev1.HTTPGetAction{}.OpenAPIModelName()),
 						},
 					},
 					"tcpSocket": {
 						SchemaProps: spec.SchemaProps{
 							Description: "TCPSocket specifies a connection to a TCP port.",
-							Ref:         ref(v1.TCPSocketAction{}.OpenAPIModelName()),
+							Ref:         ref(corev1.TCPSocketAction{}.OpenAPIModelName()),
 						},
 					},
 					"grpc": {
 						SchemaProps: spec.SchemaProps{
 							Description: "GRPC specifies a GRPC HealthCheckRequest.",
-							Ref:         ref(v1.GRPCAction{}.OpenAPIModelName()),
+							Ref:         ref(corev1.GRPCAction{}.OpenAPIModelName()),
 						},
 					},
 					"initialDelaySeconds": {
@@ -10348,7 +13162,7 @@ func schema_k8sio_api_core_v1_Probe(ref common.ReferenceCallback) common.OpenAPI
 			},
 		},
 		Dependencies: []string{
-			v1.ExecAction{}.OpenAPIModelName(), v1.GRPCAction{}.OpenAPIModelName(), v1.HTTPGetAction{}.OpenAPIModelName(), v1.TCPSocketAction{}.OpenAPIModelName()},
+			corev1.ExecAction{}.OpenAPIModelName(), corev1.GRPCAction{}.OpenAPIModelName(), corev1.HTTPGetAction{}.OpenAPIModelName(), corev1.TCPSocketAction{}.OpenAPIModelName()},
 	}
 }
 
@@ -10362,32 +13176,32 @@ func schema_k8sio_api_core_v1_ProbeHandler(ref common.ReferenceCallback) common.
 					"exec": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Exec specifies a command to execute in the container.",
-							Ref:         ref(v1.ExecAction{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ExecAction{}.OpenAPIModelName()),
 						},
 					},
 					"httpGet": {
 						SchemaProps: spec.SchemaProps{
 							Description: "HTTPGet specifies an HTTP GET request to perform.",
-							Ref:         ref(v1.HTTPGetAction{}.OpenAPIModelName()),
+							Ref:         ref(corev1.HTTPGetAction{}.OpenAPIModelName()),
 						},
 					},
 					"tcpSocket": {
 						SchemaProps: spec.SchemaProps{
 							Description: "TCPSocket specifies a connection to a TCP port.",
-							Ref:         ref(v1.TCPSocketAction{}.OpenAPIModelName()),
+							Ref:         ref(corev1.TCPSocketAction{}.OpenAPIModelName()),
 						},
 					},
 					"grpc": {
 						SchemaProps: spec.SchemaProps{
 							Description: "GRPC specifies a GRPC HealthCheckRequest.",
-							Ref:         ref(v1.GRPCAction{}.OpenAPIModelName()),
+							Ref:         ref(corev1.GRPCAction{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			v1.ExecAction{}.OpenAPIModelName(), v1.GRPCAction{}.OpenAPIModelName(), v1.HTTPGetAction{}.OpenAPIModelName(), v1.TCPSocketAction{}.OpenAPIModelName()},
+			corev1.ExecAction{}.OpenAPIModelName(), corev1.GRPCAction{}.OpenAPIModelName(), corev1.HTTPGetAction{}.OpenAPIModelName(), corev1.TCPSocketAction{}.OpenAPIModelName()},
 	}
 }
 
@@ -10411,7 +13225,7 @@ func schema_k8sio_api_core_v1_ProjectedVolumeSource(ref common.ReferenceCallback
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.VolumeProjection{}.OpenAPIModelName()),
+										Ref:     ref(corev1.VolumeProjection{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -10428,7 +13242,7 @@ func schema_k8sio_api_core_v1_ProjectedVolumeSource(ref common.ReferenceCallback
 			},
 		},
 		Dependencies: []string{
-			v1.VolumeProjection{}.OpenAPIModelName()},
+			corev1.VolumeProjection{}.OpenAPIModelName()},
 	}
 }
 
@@ -10559,7 +13373,7 @@ func schema_k8sio_api_core_v1_RBDPersistentVolumeSource(ref common.ReferenceCall
 					"secretRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "secretRef is name of the authentication secret for RBDUser. If provided overrides keyring. Default is nil. More info: https://examples.k8s.io/volumes/rbd/README.md#how-to-use-it",
-							Ref:         ref(v1.SecretReference{}.OpenAPIModelName()),
+							Ref:         ref(corev1.SecretReference{}.OpenAPIModelName()),
 						},
 					},
 					"readOnly": {
@@ -10574,7 +13388,7 @@ func schema_k8sio_api_core_v1_RBDPersistentVolumeSource(ref common.ReferenceCall
 			},
 		},
 		Dependencies: []string{
-			v1.SecretReference{}.OpenAPIModelName()},
+			corev1.SecretReference{}.OpenAPIModelName()},
 	}
 }
 
@@ -10647,7 +13461,7 @@ func schema_k8sio_api_core_v1_RBDVolumeSource(ref common.ReferenceCallback) comm
 					"secretRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "secretRef is name of the authentication secret for RBDUser. If provided overrides keyring. Default is nil. More info: https://examples.k8s.io/volumes/rbd/README.md#how-to-use-it",
-							Ref:         ref(v1.LocalObjectReference{}.OpenAPIModelName()),
+							Ref:         ref(corev1.LocalObjectReference{}.OpenAPIModelName()),
 						},
 					},
 					"readOnly": {
@@ -10662,7 +13476,7 @@ func schema_k8sio_api_core_v1_RBDVolumeSource(ref common.ReferenceCallback) comm
 			},
 		},
 		Dependencies: []string{
-			v1.LocalObjectReference{}.OpenAPIModelName()},
+			corev1.LocalObjectReference{}.OpenAPIModelName()},
 	}
 }
 
@@ -10750,21 +13564,21 @@ func schema_k8sio_api_core_v1_ReplicationController(ref common.ReferenceCallback
 						SchemaProps: spec.SchemaProps{
 							Description: "Spec defines the specification of the desired behavior of the replication controller. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status",
 							Default:     map[string]interface{}{},
-							Ref:         ref(v1.ReplicationControllerSpec{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ReplicationControllerSpec{}.OpenAPIModelName()),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Status is the most recently observed status of the replication controller. This data may be out of date by some window of time. Populated by the system. Read-only. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status",
 							Default:     map[string]interface{}{},
-							Ref:         ref(v1.ReplicationControllerStatus{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ReplicationControllerStatus{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			v1.ReplicationControllerSpec{}.OpenAPIModelName(), v1.ReplicationControllerStatus{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
+			corev1.ReplicationControllerSpec{}.OpenAPIModelName(), corev1.ReplicationControllerStatus{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -10856,7 +13670,7 @@ func schema_k8sio_api_core_v1_ReplicationControllerList(ref common.ReferenceCall
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.ReplicationController{}.OpenAPIModelName()),
+										Ref:     ref(corev1.ReplicationController{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -10867,7 +13681,7 @@ func schema_k8sio_api_core_v1_ReplicationControllerList(ref common.ReferenceCall
 			},
 		},
 		Dependencies: []string{
-			v1.ReplicationController{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
+			corev1.ReplicationController{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -10918,14 +13732,14 @@ func schema_k8sio_api_core_v1_ReplicationControllerSpec(ref common.ReferenceCall
 					"template": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Template is the object that describes the pod that will be created if insufficient replicas are detected. This takes precedence over a TemplateRef. The only allowed template.spec.restartPolicy value is \"Always\". More info: https://kubernetes.io/docs/concepts/workloads/controllers/replicationcontroller#pod-template",
-							Ref:         ref(v1.PodTemplateSpec{}.OpenAPIModelName()),
+							Ref:         ref(corev1.PodTemplateSpec{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			v1.PodTemplateSpec{}.OpenAPIModelName()},
+			corev1.PodTemplateSpec{}.OpenAPIModelName()},
 	}
 }
 
@@ -10990,7 +13804,7 @@ func schema_k8sio_api_core_v1_ReplicationControllerStatus(ref common.ReferenceCa
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.ReplicationControllerCondition{}.OpenAPIModelName()),
+										Ref:     ref(corev1.ReplicationControllerCondition{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -11001,7 +13815,7 @@ func schema_k8sio_api_core_v1_ReplicationControllerStatus(ref common.ReferenceCa
 			},
 		},
 		Dependencies: []string{
-			v1.ReplicationControllerCondition{}.OpenAPIModelName()},
+			corev1.ReplicationControllerCondition{}.OpenAPIModelName()},
 	}
 }
 
@@ -11137,21 +13951,21 @@ func schema_k8sio_api_core_v1_ResourceQuota(ref common.ReferenceCallback) common
 						SchemaProps: spec.SchemaProps{
 							Description: "Spec defines the desired quota. https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status",
 							Default:     map[string]interface{}{},
-							Ref:         ref(v1.ResourceQuotaSpec{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ResourceQuotaSpec{}.OpenAPIModelName()),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Status defines the actual enforced quota and its current usage. https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status",
 							Default:     map[string]interface{}{},
-							Ref:         ref(v1.ResourceQuotaStatus{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ResourceQuotaStatus{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			v1.ResourceQuotaSpec{}.OpenAPIModelName(), v1.ResourceQuotaStatus{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
+			corev1.ResourceQuotaSpec{}.OpenAPIModelName(), corev1.ResourceQuotaStatus{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -11191,7 +14005,7 @@ func schema_k8sio_api_core_v1_ResourceQuotaList(ref common.ReferenceCallback) co
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.ResourceQuota{}.OpenAPIModelName()),
+										Ref:     ref(corev1.ResourceQuota{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -11202,7 +14016,7 @@ func schema_k8sio_api_core_v1_ResourceQuotaList(ref common.ReferenceCallback) co
 			},
 		},
 		Dependencies: []string{
-			v1.ResourceQuota{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
+			corev1.ResourceQuota{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -11251,14 +14065,14 @@ func schema_k8sio_api_core_v1_ResourceQuotaSpec(ref common.ReferenceCallback) co
 					"scopeSelector": {
 						SchemaProps: spec.SchemaProps{
 							Description: "scopeSelector is also a collection of filters like scopes that must match each object tracked by a quota but expressed using ScopeSelectorOperator in combination with possible values. For a resource to match, both scopes AND scopeSelector (if specified in spec), must be matched.",
-							Ref:         ref(v1.ScopeSelector{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ScopeSelector{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			v1.ScopeSelector{}.OpenAPIModelName(), resource.Quantity{}.OpenAPIModelName()},
+			corev1.ScopeSelector{}.OpenAPIModelName(), resource.Quantity{}.OpenAPIModelName()},
 	}
 }
 
@@ -11356,7 +14170,7 @@ func schema_k8sio_api_core_v1_ResourceRequirements(ref common.ReferenceCallback)
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.ResourceClaim{}.OpenAPIModelName()),
+										Ref:     ref(corev1.ResourceClaim{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -11366,7 +14180,7 @@ func schema_k8sio_api_core_v1_ResourceRequirements(ref common.ReferenceCallback)
 			},
 		},
 		Dependencies: []string{
-			v1.ResourceClaim{}.OpenAPIModelName(), resource.Quantity{}.OpenAPIModelName()},
+			corev1.ResourceClaim{}.OpenAPIModelName(), resource.Quantity{}.OpenAPIModelName()},
 	}
 }
 
@@ -11401,7 +14215,7 @@ func schema_k8sio_api_core_v1_ResourceStatus(ref common.ReferenceCallback) commo
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.ResourceHealth{}.OpenAPIModelName()),
+										Ref:     ref(corev1.ResourceHealth{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -11412,7 +14226,7 @@ func schema_k8sio_api_core_v1_ResourceStatus(ref common.ReferenceCallback) commo
 			},
 		},
 		Dependencies: []string{
-			v1.ResourceHealth{}.OpenAPIModelName()},
+			corev1.ResourceHealth{}.OpenAPIModelName()},
 	}
 }
 
@@ -11483,7 +14297,7 @@ func schema_k8sio_api_core_v1_ScaleIOPersistentVolumeSource(ref common.Reference
 					"secretRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "secretRef references to the secret for ScaleIO user and other sensitive information. If this is not provided, Login operation will fail.",
-							Ref:         ref(v1.SecretReference{}.OpenAPIModelName()),
+							Ref:         ref(corev1.SecretReference{}.OpenAPIModelName()),
 						},
 					},
 					"sslEnabled": {
@@ -11542,7 +14356,7 @@ func schema_k8sio_api_core_v1_ScaleIOPersistentVolumeSource(ref common.Reference
 			},
 		},
 		Dependencies: []string{
-			v1.SecretReference{}.OpenAPIModelName()},
+			corev1.SecretReference{}.OpenAPIModelName()},
 	}
 }
 
@@ -11572,7 +14386,7 @@ func schema_k8sio_api_core_v1_ScaleIOVolumeSource(ref common.ReferenceCallback) 
 					"secretRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "secretRef references to the secret for ScaleIO user and other sensitive information. If this is not provided, Login operation will fail.",
-							Ref:         ref(v1.LocalObjectReference{}.OpenAPIModelName()),
+							Ref:         ref(corev1.LocalObjectReference{}.OpenAPIModelName()),
 						},
 					},
 					"sslEnabled": {
@@ -11631,7 +14445,7 @@ func schema_k8sio_api_core_v1_ScaleIOVolumeSource(ref common.ReferenceCallback) 
 			},
 		},
 		Dependencies: []string{
-			v1.LocalObjectReference{}.OpenAPIModelName()},
+			corev1.LocalObjectReference{}.OpenAPIModelName()},
 	}
 }
 
@@ -11655,7 +14469,7 @@ func schema_k8sio_api_core_v1_ScopeSelector(ref common.ReferenceCallback) common
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.ScopedResourceSelectorRequirement{}.OpenAPIModelName()),
+										Ref:     ref(corev1.ScopedResourceSelectorRequirement{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -11670,7 +14484,7 @@ func schema_k8sio_api_core_v1_ScopeSelector(ref common.ReferenceCallback) common
 			},
 		},
 		Dependencies: []string{
-			v1.ScopedResourceSelectorRequirement{}.OpenAPIModelName()},
+			corev1.ScopedResourceSelectorRequirement{}.OpenAPIModelName()},
 	}
 }
 
@@ -11955,7 +14769,7 @@ func schema_k8sio_api_core_v1_SecretList(ref common.ReferenceCallback) common.Op
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.Secret{}.OpenAPIModelName()),
+										Ref:     ref(corev1.Secret{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -11966,7 +14780,7 @@ func schema_k8sio_api_core_v1_SecretList(ref common.ReferenceCallback) common.Op
 			},
 		},
 		Dependencies: []string{
-			v1.Secret{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
+			corev1.Secret{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -11998,7 +14812,7 @@ func schema_k8sio_api_core_v1_SecretProjection(ref common.ReferenceCallback) com
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.KeyToPath{}.OpenAPIModelName()),
+										Ref:     ref(corev1.KeyToPath{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -12015,7 +14829,7 @@ func schema_k8sio_api_core_v1_SecretProjection(ref common.ReferenceCallback) com
 			},
 		},
 		Dependencies: []string{
-			v1.KeyToPath{}.OpenAPIModelName()},
+			corev1.KeyToPath{}.OpenAPIModelName()},
 	}
 }
 
@@ -12078,7 +14892,7 @@ func schema_k8sio_api_core_v1_SecretVolumeSource(ref common.ReferenceCallback) c
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.KeyToPath{}.OpenAPIModelName()),
+										Ref:     ref(corev1.KeyToPath{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -12102,7 +14916,7 @@ func schema_k8sio_api_core_v1_SecretVolumeSource(ref common.ReferenceCallback) c
 			},
 		},
 		Dependencies: []string{
-			v1.KeyToPath{}.OpenAPIModelName()},
+			corev1.KeyToPath{}.OpenAPIModelName()},
 	}
 }
 
@@ -12116,7 +14930,7 @@ func schema_k8sio_api_core_v1_SecurityContext(ref common.ReferenceCallback) comm
 					"capabilities": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The capabilities to add/drop when running containers. Defaults to the default set of capabilities granted by the container runtime. Note that this field cannot be set when spec.os.name is windows.",
-							Ref:         ref(v1.Capabilities{}.OpenAPIModelName()),
+							Ref:         ref(corev1.Capabilities{}.OpenAPIModelName()),
 						},
 					},
 					"privileged": {
@@ -12129,13 +14943,13 @@ func schema_k8sio_api_core_v1_SecurityContext(ref common.ReferenceCallback) comm
 					"seLinuxOptions": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The SELinux context to be applied to the container. If unspecified, the container runtime will allocate a random SELinux context for each container.  May also be set in PodSecurityContext.  If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence. Note that this field cannot be set when spec.os.name is windows.",
-							Ref:         ref(v1.SELinuxOptions{}.OpenAPIModelName()),
+							Ref:         ref(corev1.SELinuxOptions{}.OpenAPIModelName()),
 						},
 					},
 					"windowsOptions": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The Windows specific settings applied to all containers. If unspecified, the options from the PodSecurityContext will be used. If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence. Note that this field cannot be set when spec.os.name is linux.",
-							Ref:         ref(v1.WindowsSecurityContextOptions{}.OpenAPIModelName()),
+							Ref:         ref(corev1.WindowsSecurityContextOptions{}.OpenAPIModelName()),
 						},
 					},
 					"runAsUser": {
@@ -12184,20 +14998,20 @@ func schema_k8sio_api_core_v1_SecurityContext(ref common.ReferenceCallback) comm
 					"seccompProfile": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The seccomp options to use by this container. If seccomp options are provided at both the pod & container level, the container options override the pod options. Note that this field cannot be set when spec.os.name is windows.",
-							Ref:         ref(v1.SeccompProfile{}.OpenAPIModelName()),
+							Ref:         ref(corev1.SeccompProfile{}.OpenAPIModelName()),
 						},
 					},
 					"appArmorProfile": {
 						SchemaProps: spec.SchemaProps{
 							Description: "appArmorProfile is the AppArmor options to use by this container. If set, this profile overrides the pod's appArmorProfile. Note that this field cannot be set when spec.os.name is windows.",
-							Ref:         ref(v1.AppArmorProfile{}.OpenAPIModelName()),
+							Ref:         ref(corev1.AppArmorProfile{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			v1.AppArmorProfile{}.OpenAPIModelName(), v1.Capabilities{}.OpenAPIModelName(), v1.SELinuxOptions{}.OpenAPIModelName(), v1.SeccompProfile{}.OpenAPIModelName(), v1.WindowsSecurityContextOptions{}.OpenAPIModelName()},
+			corev1.AppArmorProfile{}.OpenAPIModelName(), corev1.Capabilities{}.OpenAPIModelName(), corev1.SELinuxOptions{}.OpenAPIModelName(), corev1.SeccompProfile{}.OpenAPIModelName(), corev1.WindowsSecurityContextOptions{}.OpenAPIModelName()},
 	}
 }
 
@@ -12226,14 +15040,14 @@ func schema_k8sio_api_core_v1_SerializedReference(ref common.ReferenceCallback) 
 						SchemaProps: spec.SchemaProps{
 							Description: "The reference to an object in the system.",
 							Default:     map[string]interface{}{},
-							Ref:         ref(v1.ObjectReference{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ObjectReference{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			v1.ObjectReference{}.OpenAPIModelName()},
+			corev1.ObjectReference{}.OpenAPIModelName()},
 	}
 }
 
@@ -12269,21 +15083,21 @@ func schema_k8sio_api_core_v1_Service(ref common.ReferenceCallback) common.OpenA
 						SchemaProps: spec.SchemaProps{
 							Description: "Spec defines the behavior of a service. https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status",
 							Default:     map[string]interface{}{},
-							Ref:         ref(v1.ServiceSpec{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ServiceSpec{}.OpenAPIModelName()),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Most recently observed status of the service. Populated by the system. Read-only. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status",
 							Default:     map[string]interface{}{},
-							Ref:         ref(v1.ServiceStatus{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ServiceStatus{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			v1.ServiceSpec{}.OpenAPIModelName(), v1.ServiceStatus{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
+			corev1.ServiceSpec{}.OpenAPIModelName(), corev1.ServiceStatus{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -12333,7 +15147,7 @@ func schema_k8sio_api_core_v1_ServiceAccount(ref common.ReferenceCallback) commo
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.ObjectReference{}.OpenAPIModelName()),
+										Ref:     ref(corev1.ObjectReference{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -12352,7 +15166,7 @@ func schema_k8sio_api_core_v1_ServiceAccount(ref common.ReferenceCallback) commo
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.LocalObjectReference{}.OpenAPIModelName()),
+										Ref:     ref(corev1.LocalObjectReference{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -12369,7 +15183,7 @@ func schema_k8sio_api_core_v1_ServiceAccount(ref common.ReferenceCallback) commo
 			},
 		},
 		Dependencies: []string{
-			v1.LocalObjectReference{}.OpenAPIModelName(), v1.ObjectReference{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
+			corev1.LocalObjectReference{}.OpenAPIModelName(), corev1.ObjectReference{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -12409,7 +15223,7 @@ func schema_k8sio_api_core_v1_ServiceAccountList(ref common.ReferenceCallback) c
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.ServiceAccount{}.OpenAPIModelName()),
+										Ref:     ref(corev1.ServiceAccount{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -12420,7 +15234,7 @@ func schema_k8sio_api_core_v1_ServiceAccountList(ref common.ReferenceCallback) c
 			},
 		},
 		Dependencies: []string{
-			v1.ServiceAccount{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
+			corev1.ServiceAccount{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -12496,7 +15310,7 @@ func schema_k8sio_api_core_v1_ServiceList(ref common.ReferenceCallback) common.O
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.Service{}.OpenAPIModelName()),
+										Ref:     ref(corev1.Service{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -12507,7 +15321,7 @@ func schema_k8sio_api_core_v1_ServiceList(ref common.ReferenceCallback) common.O
 			},
 		},
 		Dependencies: []string{
-			v1.Service{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
+			corev1.Service{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -12552,7 +15366,7 @@ func schema_k8sio_api_core_v1_ServicePort(ref common.ReferenceCallback) common.O
 					"targetPort": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Number or name of the port to access on the pods targeted by the service. Number must be in the range 1 to 65535. Name must be an IANA_SVC_NAME. If this is a string, it will be looked up as a named port in the target Pod's container ports. If this is not specified, the value of the 'port' field is used (an identity map). This field is ignored for services with clusterIP=None, and should be omitted or set equal to the 'port' field. More info: https://kubernetes.io/docs/concepts/services-networking/service/#defining-a-service",
-							Ref:         ref(intstr.IntOrString{}.OpenAPIModelName()),
+							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
 						},
 					},
 					"nodePort": {
@@ -12567,7 +15381,7 @@ func schema_k8sio_api_core_v1_ServicePort(ref common.ReferenceCallback) common.O
 			},
 		},
 		Dependencies: []string{
-			intstr.IntOrString{}.OpenAPIModelName()},
+			"k8s.io/apimachinery/pkg/util/intstr.IntOrString"},
 	}
 }
 
@@ -12631,7 +15445,7 @@ func schema_k8sio_api_core_v1_ServiceSpec(ref common.ReferenceCallback) common.O
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.ServicePort{}.OpenAPIModelName()),
+										Ref:     ref(corev1.ServicePort{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -12780,7 +15594,7 @@ func schema_k8sio_api_core_v1_ServiceSpec(ref common.ReferenceCallback) common.O
 					"sessionAffinityConfig": {
 						SchemaProps: spec.SchemaProps{
 							Description: "sessionAffinityConfig contains the configurations of session affinity.",
-							Ref:         ref(v1.SessionAffinityConfig{}.OpenAPIModelName()),
+							Ref:         ref(corev1.SessionAffinityConfig{}.OpenAPIModelName()),
 						},
 					},
 					"ipFamilies": {
@@ -12845,7 +15659,7 @@ func schema_k8sio_api_core_v1_ServiceSpec(ref common.ReferenceCallback) common.O
 			},
 		},
 		Dependencies: []string{
-			v1.ServicePort{}.OpenAPIModelName(), v1.SessionAffinityConfig{}.OpenAPIModelName()},
+			corev1.ServicePort{}.OpenAPIModelName(), corev1.SessionAffinityConfig{}.OpenAPIModelName()},
 	}
 }
 
@@ -12860,7 +15674,7 @@ func schema_k8sio_api_core_v1_ServiceStatus(ref common.ReferenceCallback) common
 						SchemaProps: spec.SchemaProps{
 							Description: "LoadBalancer contains the current status of the load-balancer, if one is present.",
 							Default:     map[string]interface{}{},
-							Ref:         ref(v1.LoadBalancerStatus{}.OpenAPIModelName()),
+							Ref:         ref(corev1.LoadBalancerStatus{}.OpenAPIModelName()),
 						},
 					},
 					"conditions": {
@@ -12891,7 +15705,7 @@ func schema_k8sio_api_core_v1_ServiceStatus(ref common.ReferenceCallback) common
 			},
 		},
 		Dependencies: []string{
-			v1.LoadBalancerStatus{}.OpenAPIModelName(), metav1.Condition{}.OpenAPIModelName()},
+			corev1.LoadBalancerStatus{}.OpenAPIModelName(), metav1.Condition{}.OpenAPIModelName()},
 	}
 }
 
@@ -12905,14 +15719,14 @@ func schema_k8sio_api_core_v1_SessionAffinityConfig(ref common.ReferenceCallback
 					"clientIP": {
 						SchemaProps: spec.SchemaProps{
 							Description: "clientIP contains the configurations of Client IP based session affinity.",
-							Ref:         ref(v1.ClientIPConfig{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ClientIPConfig{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			v1.ClientIPConfig{}.OpenAPIModelName()},
+			corev1.ClientIPConfig{}.OpenAPIModelName()},
 	}
 }
 
@@ -12976,14 +15790,14 @@ func schema_k8sio_api_core_v1_StorageOSPersistentVolumeSource(ref common.Referen
 					"secretRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "secretRef specifies the secret to use for obtaining the StorageOS API credentials.  If not specified, default values will be attempted.",
-							Ref:         ref(v1.ObjectReference{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ObjectReference{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			v1.ObjectReference{}.OpenAPIModelName()},
+			corev1.ObjectReference{}.OpenAPIModelName()},
 	}
 }
 
@@ -13025,14 +15839,14 @@ func schema_k8sio_api_core_v1_StorageOSVolumeSource(ref common.ReferenceCallback
 					"secretRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "secretRef specifies the secret to use for obtaining the StorageOS API credentials.  If not specified, default values will be attempted.",
-							Ref:         ref(v1.LocalObjectReference{}.OpenAPIModelName()),
+							Ref:         ref(corev1.LocalObjectReference{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			v1.LocalObjectReference{}.OpenAPIModelName()},
+			corev1.LocalObjectReference{}.OpenAPIModelName()},
 	}
 }
 
@@ -13076,7 +15890,7 @@ func schema_k8sio_api_core_v1_TCPSocketAction(ref common.ReferenceCallback) comm
 					"port": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Number or name of the port to access on the container. Number must be in the range 1 to 65535. Name must be an IANA_SVC_NAME.",
-							Ref:         ref(intstr.IntOrString{}.OpenAPIModelName()),
+							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
 						},
 					},
 					"host": {
@@ -13091,7 +15905,7 @@ func schema_k8sio_api_core_v1_TCPSocketAction(ref common.ReferenceCallback) comm
 			},
 		},
 		Dependencies: []string{
-			intstr.IntOrString{}.OpenAPIModelName()},
+			"k8s.io/apimachinery/pkg/util/intstr.IntOrString"},
 	}
 }
 
@@ -13253,7 +16067,7 @@ func schema_k8sio_api_core_v1_TopologySelectorTerm(ref common.ReferenceCallback)
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(v1.TopologySelectorLabelRequirement{}.OpenAPIModelName()),
+										Ref:     ref(corev1.TopologySelectorLabelRequirement{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -13268,7 +16082,7 @@ func schema_k8sio_api_core_v1_TopologySelectorTerm(ref common.ReferenceCallback)
 			},
 		},
 		Dependencies: []string{
-			v1.TopologySelectorLabelRequirement{}.OpenAPIModelName()},
+			corev1.TopologySelectorLabelRequirement{}.OpenAPIModelName()},
 	}
 }
 
@@ -13466,181 +16280,181 @@ func schema_k8sio_api_core_v1_Volume(ref common.ReferenceCallback) common.OpenAP
 					"hostPath": {
 						SchemaProps: spec.SchemaProps{
 							Description: "hostPath represents a pre-existing file or directory on the host machine that is directly exposed to the container. This is generally used for system agents or other privileged things that are allowed to see the host machine. Most containers will NOT need this. More info: https://kubernetes.io/docs/concepts/storage/volumes#hostpath",
-							Ref:         ref(v1.HostPathVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.HostPathVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"emptyDir": {
 						SchemaProps: spec.SchemaProps{
 							Description: "emptyDir represents a temporary directory that shares a pod's lifetime. More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir",
-							Ref:         ref(v1.EmptyDirVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.EmptyDirVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"gcePersistentDisk": {
 						SchemaProps: spec.SchemaProps{
 							Description: "gcePersistentDisk represents a GCE Disk resource that is attached to a kubelet's host machine and then exposed to the pod. Deprecated: GCEPersistentDisk is deprecated. All operations for the in-tree gcePersistentDisk type are redirected to the pd.csi.storage.gke.io CSI driver. More info: https://kubernetes.io/docs/concepts/storage/volumes#gcepersistentdisk",
-							Ref:         ref(v1.GCEPersistentDiskVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.GCEPersistentDiskVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"awsElasticBlockStore": {
 						SchemaProps: spec.SchemaProps{
 							Description: "awsElasticBlockStore represents an AWS Disk resource that is attached to a kubelet's host machine and then exposed to the pod. Deprecated: AWSElasticBlockStore is deprecated. All operations for the in-tree awsElasticBlockStore type are redirected to the ebs.csi.aws.com CSI driver. More info: https://kubernetes.io/docs/concepts/storage/volumes#awselasticblockstore",
-							Ref:         ref(v1.AWSElasticBlockStoreVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.AWSElasticBlockStoreVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"gitRepo": {
 						SchemaProps: spec.SchemaProps{
 							Description: "gitRepo represents a git repository at a particular revision. Deprecated: GitRepo is deprecated. To provision a container with a git repo, mount an EmptyDir into an InitContainer that clones the repo using git, then mount the EmptyDir into the Pod's container.",
-							Ref:         ref(v1.GitRepoVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.GitRepoVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"secret": {
 						SchemaProps: spec.SchemaProps{
 							Description: "secret represents a secret that should populate this volume. More info: https://kubernetes.io/docs/concepts/storage/volumes#secret",
-							Ref:         ref(v1.SecretVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.SecretVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"nfs": {
 						SchemaProps: spec.SchemaProps{
 							Description: "nfs represents an NFS mount on the host that shares a pod's lifetime More info: https://kubernetes.io/docs/concepts/storage/volumes#nfs",
-							Ref:         ref(v1.NFSVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.NFSVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"iscsi": {
 						SchemaProps: spec.SchemaProps{
 							Description: "iscsi represents an ISCSI Disk resource that is attached to a kubelet's host machine and then exposed to the pod. More info: https://kubernetes.io/docs/concepts/storage/volumes/#iscsi",
-							Ref:         ref(v1.ISCSIVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ISCSIVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"glusterfs": {
 						SchemaProps: spec.SchemaProps{
 							Description: "glusterfs represents a Glusterfs mount on the host that shares a pod's lifetime. Deprecated: Glusterfs is deprecated and the in-tree glusterfs type is no longer supported.",
-							Ref:         ref(v1.GlusterfsVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.GlusterfsVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"persistentVolumeClaim": {
 						SchemaProps: spec.SchemaProps{
 							Description: "persistentVolumeClaimVolumeSource represents a reference to a PersistentVolumeClaim in the same namespace. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims",
-							Ref:         ref(v1.PersistentVolumeClaimVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.PersistentVolumeClaimVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"rbd": {
 						SchemaProps: spec.SchemaProps{
 							Description: "rbd represents a Rados Block Device mount on the host that shares a pod's lifetime. Deprecated: RBD is deprecated and the in-tree rbd type is no longer supported.",
-							Ref:         ref(v1.RBDVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.RBDVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"flexVolume": {
 						SchemaProps: spec.SchemaProps{
 							Description: "flexVolume represents a generic volume resource that is provisioned/attached using an exec based plugin. Deprecated: FlexVolume is deprecated. Consider using a CSIDriver instead.",
-							Ref:         ref(v1.FlexVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.FlexVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"cinder": {
 						SchemaProps: spec.SchemaProps{
 							Description: "cinder represents a cinder volume attached and mounted on kubelets host machine. Deprecated: Cinder is deprecated. All operations for the in-tree cinder type are redirected to the cinder.csi.openstack.org CSI driver. More info: https://examples.k8s.io/mysql-cinder-pd/README.md",
-							Ref:         ref(v1.CinderVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.CinderVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"cephfs": {
 						SchemaProps: spec.SchemaProps{
 							Description: "cephFS represents a Ceph FS mount on the host that shares a pod's lifetime. Deprecated: CephFS is deprecated and the in-tree cephfs type is no longer supported.",
-							Ref:         ref(v1.CephFSVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.CephFSVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"flocker": {
 						SchemaProps: spec.SchemaProps{
 							Description: "flocker represents a Flocker volume attached to a kubelet's host machine. This depends on the Flocker control service being running. Deprecated: Flocker is deprecated and the in-tree flocker type is no longer supported.",
-							Ref:         ref(v1.FlockerVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.FlockerVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"downwardAPI": {
 						SchemaProps: spec.SchemaProps{
 							Description: "downwardAPI represents downward API about the pod that should populate this volume",
-							Ref:         ref(v1.DownwardAPIVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.DownwardAPIVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"fc": {
 						SchemaProps: spec.SchemaProps{
 							Description: "fc represents a Fibre Channel resource that is attached to a kubelet's host machine and then exposed to the pod.",
-							Ref:         ref(v1.FCVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.FCVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"azureFile": {
 						SchemaProps: spec.SchemaProps{
 							Description: "azureFile represents an Azure File Service mount on the host and bind mount to the pod. Deprecated: AzureFile is deprecated. All operations for the in-tree azureFile type are redirected to the file.csi.azure.com CSI driver.",
-							Ref:         ref(v1.AzureFileVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.AzureFileVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"configMap": {
 						SchemaProps: spec.SchemaProps{
 							Description: "configMap represents a configMap that should populate this volume",
-							Ref:         ref(v1.ConfigMapVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ConfigMapVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"vsphereVolume": {
 						SchemaProps: spec.SchemaProps{
 							Description: "vsphereVolume represents a vSphere volume attached and mounted on kubelets host machine. Deprecated: VsphereVolume is deprecated. All operations for the in-tree vsphereVolume type are redirected to the csi.vsphere.vmware.com CSI driver.",
-							Ref:         ref(v1.VsphereVirtualDiskVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.VsphereVirtualDiskVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"quobyte": {
 						SchemaProps: spec.SchemaProps{
 							Description: "quobyte represents a Quobyte mount on the host that shares a pod's lifetime. Deprecated: Quobyte is deprecated and the in-tree quobyte type is no longer supported.",
-							Ref:         ref(v1.QuobyteVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.QuobyteVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"azureDisk": {
 						SchemaProps: spec.SchemaProps{
 							Description: "azureDisk represents an Azure Data Disk mount on the host and bind mount to the pod. Deprecated: AzureDisk is deprecated. All operations for the in-tree azureDisk type are redirected to the disk.csi.azure.com CSI driver.",
-							Ref:         ref(v1.AzureDiskVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.AzureDiskVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"photonPersistentDisk": {
 						SchemaProps: spec.SchemaProps{
 							Description: "photonPersistentDisk represents a PhotonController persistent disk attached and mounted on kubelets host machine. Deprecated: PhotonPersistentDisk is deprecated and the in-tree photonPersistentDisk type is no longer supported.",
-							Ref:         ref(v1.PhotonPersistentDiskVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.PhotonPersistentDiskVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"projected": {
 						SchemaProps: spec.SchemaProps{
 							Description: "projected items for all in one resources secrets, configmaps, and downward API",
-							Ref:         ref(v1.ProjectedVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ProjectedVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"portworxVolume": {
 						SchemaProps: spec.SchemaProps{
 							Description: "portworxVolume represents a portworx volume attached and mounted on kubelets host machine. Deprecated: PortworxVolume is deprecated. All operations for the in-tree portworxVolume type are redirected to the pxd.portworx.com CSI driver when the CSIMigrationPortworx feature-gate is on.",
-							Ref:         ref(v1.PortworxVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.PortworxVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"scaleIO": {
 						SchemaProps: spec.SchemaProps{
 							Description: "scaleIO represents a ScaleIO persistent volume attached and mounted on Kubernetes nodes. Deprecated: ScaleIO is deprecated and the in-tree scaleIO type is no longer supported.",
-							Ref:         ref(v1.ScaleIOVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ScaleIOVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"storageos": {
 						SchemaProps: spec.SchemaProps{
 							Description: "storageOS represents a StorageOS volume attached and mounted on Kubernetes nodes. Deprecated: StorageOS is deprecated and the in-tree storageos type is no longer supported.",
-							Ref:         ref(v1.StorageOSVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.StorageOSVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"csi": {
 						SchemaProps: spec.SchemaProps{
 							Description: "csi (Container Storage Interface) represents ephemeral storage that is handled by certain external CSI drivers.",
-							Ref:         ref(v1.CSIVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.CSIVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"ephemeral": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ephemeral represents a volume that is handled by a cluster storage driver. The volume's lifecycle is tied to the pod that defines it - it will be created before the pod starts, and deleted when the pod is removed.\n\nUse this if: a) the volume is only needed while the pod runs, b) features of normal volumes like restoring from snapshot or capacity\n   tracking are needed,\nc) the storage driver is specified through a storage class, and d) the storage driver supports dynamic volume provisioning through\n   a PersistentVolumeClaim (see EphemeralVolumeSource for more\n   information on the connection between this volume type\n   and PersistentVolumeClaim).\n\nUse PersistentVolumeClaim or one of the vendor-specific APIs for volumes that persist for longer than the lifecycle of an individual pod.\n\nUse CSI for light-weight local ephemeral volumes if the CSI driver is meant to be used that way - see the documentation of the driver for more information.\n\nA pod can use both types of ephemeral volumes and persistent volumes at the same time.",
-							Ref:         ref(v1.EphemeralVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.EphemeralVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"image": {
 						SchemaProps: spec.SchemaProps{
 							Description: "image represents an OCI object (a container image or artifact) pulled and mounted on the kubelet's host machine. The volume is resolved at pod startup depending on which PullPolicy value is provided:\n\n- Always: the kubelet always attempts to pull the reference. Container creation will fail If the pull fails. - Never: the kubelet never pulls the reference and only uses a local image or artifact. Container creation will fail if the reference isn't present. - IfNotPresent: the kubelet pulls if the reference isn't already present on disk. Container creation will fail if the reference isn't present and the pull fails.\n\nThe volume gets re-resolved if the pod gets deleted and recreated, which means that new remote content will become available on pod recreation. A failure to resolve or pull the image during pod startup will block containers from starting and may add significant latency. Failures will be retried using normal volume backoff and will be reported on the pod reason and message. The types of objects that may be mounted by this volume are defined by the container runtime implementation on a host machine and at minimum must include all valid types supported by the container image field. The OCI object gets mounted in a single directory (spec.containers[*].volumeMounts.mountPath) by merging the manifest layers in the same way as for container images. The volume will be mounted read-only (ro) and non-executable files (noexec). Sub path mounts for containers are not supported (spec.containers[*].volumeMounts.subpath) before 1.33. The field spec.securityContext.fsGroupChangePolicy has no effect on this volume type.",
-							Ref:         ref(v1.ImageVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ImageVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 				},
@@ -13648,7 +16462,7 @@ func schema_k8sio_api_core_v1_Volume(ref common.ReferenceCallback) common.OpenAP
 			},
 		},
 		Dependencies: []string{
-			v1.AWSElasticBlockStoreVolumeSource{}.OpenAPIModelName(), v1.AzureDiskVolumeSource{}.OpenAPIModelName(), v1.AzureFileVolumeSource{}.OpenAPIModelName(), v1.CSIVolumeSource{}.OpenAPIModelName(), v1.CephFSVolumeSource{}.OpenAPIModelName(), v1.CinderVolumeSource{}.OpenAPIModelName(), v1.ConfigMapVolumeSource{}.OpenAPIModelName(), v1.DownwardAPIVolumeSource{}.OpenAPIModelName(), v1.EmptyDirVolumeSource{}.OpenAPIModelName(), v1.EphemeralVolumeSource{}.OpenAPIModelName(), v1.FCVolumeSource{}.OpenAPIModelName(), v1.FlexVolumeSource{}.OpenAPIModelName(), v1.FlockerVolumeSource{}.OpenAPIModelName(), v1.GCEPersistentDiskVolumeSource{}.OpenAPIModelName(), v1.GitRepoVolumeSource{}.OpenAPIModelName(), v1.GlusterfsVolumeSource{}.OpenAPIModelName(), v1.HostPathVolumeSource{}.OpenAPIModelName(), v1.ISCSIVolumeSource{}.OpenAPIModelName(), v1.ImageVolumeSource{}.OpenAPIModelName(), v1.NFSVolumeSource{}.OpenAPIModelName(), v1.PersistentVolumeClaimVolumeSource{}.OpenAPIModelName(), v1.PhotonPersistentDiskVolumeSource{}.OpenAPIModelName(), v1.PortworxVolumeSource{}.OpenAPIModelName(), v1.ProjectedVolumeSource{}.OpenAPIModelName(), v1.QuobyteVolumeSource{}.OpenAPIModelName(), v1.RBDVolumeSource{}.OpenAPIModelName(), v1.ScaleIOVolumeSource{}.OpenAPIModelName(), v1.SecretVolumeSource{}.OpenAPIModelName(), v1.StorageOSVolumeSource{}.OpenAPIModelName(), v1.VsphereVirtualDiskVolumeSource{}.OpenAPIModelName()},
+			corev1.AWSElasticBlockStoreVolumeSource{}.OpenAPIModelName(), corev1.AzureDiskVolumeSource{}.OpenAPIModelName(), corev1.AzureFileVolumeSource{}.OpenAPIModelName(), corev1.CSIVolumeSource{}.OpenAPIModelName(), corev1.CephFSVolumeSource{}.OpenAPIModelName(), corev1.CinderVolumeSource{}.OpenAPIModelName(), corev1.ConfigMapVolumeSource{}.OpenAPIModelName(), corev1.DownwardAPIVolumeSource{}.OpenAPIModelName(), corev1.EmptyDirVolumeSource{}.OpenAPIModelName(), corev1.EphemeralVolumeSource{}.OpenAPIModelName(), corev1.FCVolumeSource{}.OpenAPIModelName(), corev1.FlexVolumeSource{}.OpenAPIModelName(), corev1.FlockerVolumeSource{}.OpenAPIModelName(), corev1.GCEPersistentDiskVolumeSource{}.OpenAPIModelName(), corev1.GitRepoVolumeSource{}.OpenAPIModelName(), corev1.GlusterfsVolumeSource{}.OpenAPIModelName(), corev1.HostPathVolumeSource{}.OpenAPIModelName(), corev1.ISCSIVolumeSource{}.OpenAPIModelName(), corev1.ImageVolumeSource{}.OpenAPIModelName(), corev1.NFSVolumeSource{}.OpenAPIModelName(), corev1.PersistentVolumeClaimVolumeSource{}.OpenAPIModelName(), corev1.PhotonPersistentDiskVolumeSource{}.OpenAPIModelName(), corev1.PortworxVolumeSource{}.OpenAPIModelName(), corev1.ProjectedVolumeSource{}.OpenAPIModelName(), corev1.QuobyteVolumeSource{}.OpenAPIModelName(), corev1.RBDVolumeSource{}.OpenAPIModelName(), corev1.ScaleIOVolumeSource{}.OpenAPIModelName(), corev1.SecretVolumeSource{}.OpenAPIModelName(), corev1.StorageOSVolumeSource{}.OpenAPIModelName(), corev1.VsphereVirtualDiskVolumeSource{}.OpenAPIModelName()},
 	}
 }
 
@@ -13802,14 +16616,14 @@ func schema_k8sio_api_core_v1_VolumeNodeAffinity(ref common.ReferenceCallback) c
 					"required": {
 						SchemaProps: spec.SchemaProps{
 							Description: "required specifies hard node constraints that must be met.",
-							Ref:         ref(v1.NodeSelector{}.OpenAPIModelName()),
+							Ref:         ref(corev1.NodeSelector{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			v1.NodeSelector{}.OpenAPIModelName()},
+			corev1.NodeSelector{}.OpenAPIModelName()},
 	}
 }
 
@@ -13823,44 +16637,44 @@ func schema_k8sio_api_core_v1_VolumeProjection(ref common.ReferenceCallback) com
 					"secret": {
 						SchemaProps: spec.SchemaProps{
 							Description: "secret information about the secret data to project",
-							Ref:         ref(v1.SecretProjection{}.OpenAPIModelName()),
+							Ref:         ref(corev1.SecretProjection{}.OpenAPIModelName()),
 						},
 					},
 					"downwardAPI": {
 						SchemaProps: spec.SchemaProps{
 							Description: "downwardAPI information about the downwardAPI data to project",
-							Ref:         ref(v1.DownwardAPIProjection{}.OpenAPIModelName()),
+							Ref:         ref(corev1.DownwardAPIProjection{}.OpenAPIModelName()),
 						},
 					},
 					"configMap": {
 						SchemaProps: spec.SchemaProps{
 							Description: "configMap information about the configMap data to project",
-							Ref:         ref(v1.ConfigMapProjection{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ConfigMapProjection{}.OpenAPIModelName()),
 						},
 					},
 					"serviceAccountToken": {
 						SchemaProps: spec.SchemaProps{
 							Description: "serviceAccountToken is information about the serviceAccountToken data to project",
-							Ref:         ref(v1.ServiceAccountTokenProjection{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ServiceAccountTokenProjection{}.OpenAPIModelName()),
 						},
 					},
 					"clusterTrustBundle": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ClusterTrustBundle allows a pod to access the `.spec.trustBundle` field of ClusterTrustBundle objects in an auto-updating file.\n\nAlpha, gated by the ClusterTrustBundleProjection feature gate.\n\nClusterTrustBundle objects can either be selected by name, or by the combination of signer name and a label selector.\n\nKubelet performs aggressive normalization of the PEM contents written into the pod filesystem.  Esoteric PEM features such as inter-block comments and block headers are stripped.  Certificates are deduplicated. The ordering of certificates within the file is arbitrary, and Kubelet may change the order over time.",
-							Ref:         ref(v1.ClusterTrustBundleProjection{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ClusterTrustBundleProjection{}.OpenAPIModelName()),
 						},
 					},
 					"podCertificate": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Projects an auto-rotating credential bundle (private key and certificate chain) that the pod can use either as a TLS client or server.\n\nKubelet generates a private key and uses it to send a PodCertificateRequest to the named signer.  Once the signer approves the request and issues a certificate chain, Kubelet writes the key and certificate chain to the pod filesystem.  The pod does not start until certificates have been issued for each podCertificate projected volume source in its spec.\n\nKubelet will begin trying to rotate the certificate at the time indicated by the signer using the PodCertificateRequest.Status.BeginRefreshAt timestamp.\n\nKubelet can write a single file, indicated by the credentialBundlePath field, or separate files, indicated by the keyPath and certificateChainPath fields.\n\nThe credential bundle is a single file in PEM format.  The first PEM entry is the private key (in PKCS#8 format), and the remaining PEM entries are the certificate chain issued by the signer (typically, signers will return their certificate chain in leaf-to-root order).\n\nPrefer using the credential bundle format, since your application code can read it atomically.  If you use keyPath and certificateChainPath, your application must make two separate file reads. If these coincide with a certificate rotation, it is possible that the private key and leaf certificate you read may not correspond to each other.  Your application will need to check for this condition, and re-read until they are consistent.\n\nThe named signer controls chooses the format of the certificate it issues; consult the signer implementation's documentation to learn how to use the certificates it issues.",
-							Ref:         ref(v1.PodCertificateProjection{}.OpenAPIModelName()),
+							Ref:         ref(corev1.PodCertificateProjection{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			v1.ClusterTrustBundleProjection{}.OpenAPIModelName(), v1.ConfigMapProjection{}.OpenAPIModelName(), v1.DownwardAPIProjection{}.OpenAPIModelName(), v1.PodCertificateProjection{}.OpenAPIModelName(), v1.SecretProjection{}.OpenAPIModelName(), v1.ServiceAccountTokenProjection{}.OpenAPIModelName()},
+			corev1.ClusterTrustBundleProjection{}.OpenAPIModelName(), corev1.ConfigMapProjection{}.OpenAPIModelName(), corev1.DownwardAPIProjection{}.OpenAPIModelName(), corev1.PodCertificateProjection{}.OpenAPIModelName(), corev1.SecretProjection{}.OpenAPIModelName(), corev1.ServiceAccountTokenProjection{}.OpenAPIModelName()},
 	}
 }
 
@@ -13917,188 +16731,188 @@ func schema_k8sio_api_core_v1_VolumeSource(ref common.ReferenceCallback) common.
 					"hostPath": {
 						SchemaProps: spec.SchemaProps{
 							Description: "hostPath represents a pre-existing file or directory on the host machine that is directly exposed to the container. This is generally used for system agents or other privileged things that are allowed to see the host machine. Most containers will NOT need this. More info: https://kubernetes.io/docs/concepts/storage/volumes#hostpath",
-							Ref:         ref(v1.HostPathVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.HostPathVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"emptyDir": {
 						SchemaProps: spec.SchemaProps{
 							Description: "emptyDir represents a temporary directory that shares a pod's lifetime. More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir",
-							Ref:         ref(v1.EmptyDirVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.EmptyDirVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"gcePersistentDisk": {
 						SchemaProps: spec.SchemaProps{
 							Description: "gcePersistentDisk represents a GCE Disk resource that is attached to a kubelet's host machine and then exposed to the pod. Deprecated: GCEPersistentDisk is deprecated. All operations for the in-tree gcePersistentDisk type are redirected to the pd.csi.storage.gke.io CSI driver. More info: https://kubernetes.io/docs/concepts/storage/volumes#gcepersistentdisk",
-							Ref:         ref(v1.GCEPersistentDiskVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.GCEPersistentDiskVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"awsElasticBlockStore": {
 						SchemaProps: spec.SchemaProps{
 							Description: "awsElasticBlockStore represents an AWS Disk resource that is attached to a kubelet's host machine and then exposed to the pod. Deprecated: AWSElasticBlockStore is deprecated. All operations for the in-tree awsElasticBlockStore type are redirected to the ebs.csi.aws.com CSI driver. More info: https://kubernetes.io/docs/concepts/storage/volumes#awselasticblockstore",
-							Ref:         ref(v1.AWSElasticBlockStoreVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.AWSElasticBlockStoreVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"gitRepo": {
 						SchemaProps: spec.SchemaProps{
 							Description: "gitRepo represents a git repository at a particular revision. Deprecated: GitRepo is deprecated. To provision a container with a git repo, mount an EmptyDir into an InitContainer that clones the repo using git, then mount the EmptyDir into the Pod's container.",
-							Ref:         ref(v1.GitRepoVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.GitRepoVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"secret": {
 						SchemaProps: spec.SchemaProps{
 							Description: "secret represents a secret that should populate this volume. More info: https://kubernetes.io/docs/concepts/storage/volumes#secret",
-							Ref:         ref(v1.SecretVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.SecretVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"nfs": {
 						SchemaProps: spec.SchemaProps{
 							Description: "nfs represents an NFS mount on the host that shares a pod's lifetime More info: https://kubernetes.io/docs/concepts/storage/volumes#nfs",
-							Ref:         ref(v1.NFSVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.NFSVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"iscsi": {
 						SchemaProps: spec.SchemaProps{
 							Description: "iscsi represents an ISCSI Disk resource that is attached to a kubelet's host machine and then exposed to the pod. More info: https://kubernetes.io/docs/concepts/storage/volumes/#iscsi",
-							Ref:         ref(v1.ISCSIVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ISCSIVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"glusterfs": {
 						SchemaProps: spec.SchemaProps{
 							Description: "glusterfs represents a Glusterfs mount on the host that shares a pod's lifetime. Deprecated: Glusterfs is deprecated and the in-tree glusterfs type is no longer supported.",
-							Ref:         ref(v1.GlusterfsVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.GlusterfsVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"persistentVolumeClaim": {
 						SchemaProps: spec.SchemaProps{
 							Description: "persistentVolumeClaimVolumeSource represents a reference to a PersistentVolumeClaim in the same namespace. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims",
-							Ref:         ref(v1.PersistentVolumeClaimVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.PersistentVolumeClaimVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"rbd": {
 						SchemaProps: spec.SchemaProps{
 							Description: "rbd represents a Rados Block Device mount on the host that shares a pod's lifetime. Deprecated: RBD is deprecated and the in-tree rbd type is no longer supported.",
-							Ref:         ref(v1.RBDVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.RBDVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"flexVolume": {
 						SchemaProps: spec.SchemaProps{
 							Description: "flexVolume represents a generic volume resource that is provisioned/attached using an exec based plugin. Deprecated: FlexVolume is deprecated. Consider using a CSIDriver instead.",
-							Ref:         ref(v1.FlexVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.FlexVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"cinder": {
 						SchemaProps: spec.SchemaProps{
 							Description: "cinder represents a cinder volume attached and mounted on kubelets host machine. Deprecated: Cinder is deprecated. All operations for the in-tree cinder type are redirected to the cinder.csi.openstack.org CSI driver. More info: https://examples.k8s.io/mysql-cinder-pd/README.md",
-							Ref:         ref(v1.CinderVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.CinderVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"cephfs": {
 						SchemaProps: spec.SchemaProps{
 							Description: "cephFS represents a Ceph FS mount on the host that shares a pod's lifetime. Deprecated: CephFS is deprecated and the in-tree cephfs type is no longer supported.",
-							Ref:         ref(v1.CephFSVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.CephFSVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"flocker": {
 						SchemaProps: spec.SchemaProps{
 							Description: "flocker represents a Flocker volume attached to a kubelet's host machine. This depends on the Flocker control service being running. Deprecated: Flocker is deprecated and the in-tree flocker type is no longer supported.",
-							Ref:         ref(v1.FlockerVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.FlockerVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"downwardAPI": {
 						SchemaProps: spec.SchemaProps{
 							Description: "downwardAPI represents downward API about the pod that should populate this volume",
-							Ref:         ref(v1.DownwardAPIVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.DownwardAPIVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"fc": {
 						SchemaProps: spec.SchemaProps{
 							Description: "fc represents a Fibre Channel resource that is attached to a kubelet's host machine and then exposed to the pod.",
-							Ref:         ref(v1.FCVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.FCVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"azureFile": {
 						SchemaProps: spec.SchemaProps{
 							Description: "azureFile represents an Azure File Service mount on the host and bind mount to the pod. Deprecated: AzureFile is deprecated. All operations for the in-tree azureFile type are redirected to the file.csi.azure.com CSI driver.",
-							Ref:         ref(v1.AzureFileVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.AzureFileVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"configMap": {
 						SchemaProps: spec.SchemaProps{
 							Description: "configMap represents a configMap that should populate this volume",
-							Ref:         ref(v1.ConfigMapVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ConfigMapVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"vsphereVolume": {
 						SchemaProps: spec.SchemaProps{
 							Description: "vsphereVolume represents a vSphere volume attached and mounted on kubelets host machine. Deprecated: VsphereVolume is deprecated. All operations for the in-tree vsphereVolume type are redirected to the csi.vsphere.vmware.com CSI driver.",
-							Ref:         ref(v1.VsphereVirtualDiskVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.VsphereVirtualDiskVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"quobyte": {
 						SchemaProps: spec.SchemaProps{
 							Description: "quobyte represents a Quobyte mount on the host that shares a pod's lifetime. Deprecated: Quobyte is deprecated and the in-tree quobyte type is no longer supported.",
-							Ref:         ref(v1.QuobyteVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.QuobyteVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"azureDisk": {
 						SchemaProps: spec.SchemaProps{
 							Description: "azureDisk represents an Azure Data Disk mount on the host and bind mount to the pod. Deprecated: AzureDisk is deprecated. All operations for the in-tree azureDisk type are redirected to the disk.csi.azure.com CSI driver.",
-							Ref:         ref(v1.AzureDiskVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.AzureDiskVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"photonPersistentDisk": {
 						SchemaProps: spec.SchemaProps{
 							Description: "photonPersistentDisk represents a PhotonController persistent disk attached and mounted on kubelets host machine. Deprecated: PhotonPersistentDisk is deprecated and the in-tree photonPersistentDisk type is no longer supported.",
-							Ref:         ref(v1.PhotonPersistentDiskVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.PhotonPersistentDiskVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"projected": {
 						SchemaProps: spec.SchemaProps{
 							Description: "projected items for all in one resources secrets, configmaps, and downward API",
-							Ref:         ref(v1.ProjectedVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ProjectedVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"portworxVolume": {
 						SchemaProps: spec.SchemaProps{
 							Description: "portworxVolume represents a portworx volume attached and mounted on kubelets host machine. Deprecated: PortworxVolume is deprecated. All operations for the in-tree portworxVolume type are redirected to the pxd.portworx.com CSI driver when the CSIMigrationPortworx feature-gate is on.",
-							Ref:         ref(v1.PortworxVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.PortworxVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"scaleIO": {
 						SchemaProps: spec.SchemaProps{
 							Description: "scaleIO represents a ScaleIO persistent volume attached and mounted on Kubernetes nodes. Deprecated: ScaleIO is deprecated and the in-tree scaleIO type is no longer supported.",
-							Ref:         ref(v1.ScaleIOVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ScaleIOVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"storageos": {
 						SchemaProps: spec.SchemaProps{
 							Description: "storageOS represents a StorageOS volume attached and mounted on Kubernetes nodes. Deprecated: StorageOS is deprecated and the in-tree storageos type is no longer supported.",
-							Ref:         ref(v1.StorageOSVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.StorageOSVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"csi": {
 						SchemaProps: spec.SchemaProps{
 							Description: "csi (Container Storage Interface) represents ephemeral storage that is handled by certain external CSI drivers.",
-							Ref:         ref(v1.CSIVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.CSIVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"ephemeral": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ephemeral represents a volume that is handled by a cluster storage driver. The volume's lifecycle is tied to the pod that defines it - it will be created before the pod starts, and deleted when the pod is removed.\n\nUse this if: a) the volume is only needed while the pod runs, b) features of normal volumes like restoring from snapshot or capacity\n   tracking are needed,\nc) the storage driver is specified through a storage class, and d) the storage driver supports dynamic volume provisioning through\n   a PersistentVolumeClaim (see EphemeralVolumeSource for more\n   information on the connection between this volume type\n   and PersistentVolumeClaim).\n\nUse PersistentVolumeClaim or one of the vendor-specific APIs for volumes that persist for longer than the lifecycle of an individual pod.\n\nUse CSI for light-weight local ephemeral volumes if the CSI driver is meant to be used that way - see the documentation of the driver for more information.\n\nA pod can use both types of ephemeral volumes and persistent volumes at the same time.",
-							Ref:         ref(v1.EphemeralVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.EphemeralVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 					"image": {
 						SchemaProps: spec.SchemaProps{
 							Description: "image represents an OCI object (a container image or artifact) pulled and mounted on the kubelet's host machine. The volume is resolved at pod startup depending on which PullPolicy value is provided:\n\n- Always: the kubelet always attempts to pull the reference. Container creation will fail If the pull fails. - Never: the kubelet never pulls the reference and only uses a local image or artifact. Container creation will fail if the reference isn't present. - IfNotPresent: the kubelet pulls if the reference isn't already present on disk. Container creation will fail if the reference isn't present and the pull fails.\n\nThe volume gets re-resolved if the pod gets deleted and recreated, which means that new remote content will become available on pod recreation. A failure to resolve or pull the image during pod startup will block containers from starting and may add significant latency. Failures will be retried using normal volume backoff and will be reported on the pod reason and message. The types of objects that may be mounted by this volume are defined by the container runtime implementation on a host machine and at minimum must include all valid types supported by the container image field. The OCI object gets mounted in a single directory (spec.containers[*].volumeMounts.mountPath) by merging the manifest layers in the same way as for container images. The volume will be mounted read-only (ro) and non-executable files (noexec). Sub path mounts for containers are not supported (spec.containers[*].volumeMounts.subpath) before 1.33. The field spec.securityContext.fsGroupChangePolicy has no effect on this volume type.",
-							Ref:         ref(v1.ImageVolumeSource{}.OpenAPIModelName()),
+							Ref:         ref(corev1.ImageVolumeSource{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			v1.AWSElasticBlockStoreVolumeSource{}.OpenAPIModelName(), v1.AzureDiskVolumeSource{}.OpenAPIModelName(), v1.AzureFileVolumeSource{}.OpenAPIModelName(), v1.CSIVolumeSource{}.OpenAPIModelName(), v1.CephFSVolumeSource{}.OpenAPIModelName(), v1.CinderVolumeSource{}.OpenAPIModelName(), v1.ConfigMapVolumeSource{}.OpenAPIModelName(), v1.DownwardAPIVolumeSource{}.OpenAPIModelName(), v1.EmptyDirVolumeSource{}.OpenAPIModelName(), v1.EphemeralVolumeSource{}.OpenAPIModelName(), v1.FCVolumeSource{}.OpenAPIModelName(), v1.FlexVolumeSource{}.OpenAPIModelName(), v1.FlockerVolumeSource{}.OpenAPIModelName(), v1.GCEPersistentDiskVolumeSource{}.OpenAPIModelName(), v1.GitRepoVolumeSource{}.OpenAPIModelName(), v1.GlusterfsVolumeSource{}.OpenAPIModelName(), v1.HostPathVolumeSource{}.OpenAPIModelName(), v1.ISCSIVolumeSource{}.OpenAPIModelName(), v1.ImageVolumeSource{}.OpenAPIModelName(), v1.NFSVolumeSource{}.OpenAPIModelName(), v1.PersistentVolumeClaimVolumeSource{}.OpenAPIModelName(), v1.PhotonPersistentDiskVolumeSource{}.OpenAPIModelName(), v1.PortworxVolumeSource{}.OpenAPIModelName(), v1.ProjectedVolumeSource{}.OpenAPIModelName(), v1.QuobyteVolumeSource{}.OpenAPIModelName(), v1.RBDVolumeSource{}.OpenAPIModelName(), v1.ScaleIOVolumeSource{}.OpenAPIModelName(), v1.SecretVolumeSource{}.OpenAPIModelName(), v1.StorageOSVolumeSource{}.OpenAPIModelName(), v1.VsphereVirtualDiskVolumeSource{}.OpenAPIModelName()},
+			corev1.AWSElasticBlockStoreVolumeSource{}.OpenAPIModelName(), corev1.AzureDiskVolumeSource{}.OpenAPIModelName(), corev1.AzureFileVolumeSource{}.OpenAPIModelName(), corev1.CSIVolumeSource{}.OpenAPIModelName(), corev1.CephFSVolumeSource{}.OpenAPIModelName(), corev1.CinderVolumeSource{}.OpenAPIModelName(), corev1.ConfigMapVolumeSource{}.OpenAPIModelName(), corev1.DownwardAPIVolumeSource{}.OpenAPIModelName(), corev1.EmptyDirVolumeSource{}.OpenAPIModelName(), corev1.EphemeralVolumeSource{}.OpenAPIModelName(), corev1.FCVolumeSource{}.OpenAPIModelName(), corev1.FlexVolumeSource{}.OpenAPIModelName(), corev1.FlockerVolumeSource{}.OpenAPIModelName(), corev1.GCEPersistentDiskVolumeSource{}.OpenAPIModelName(), corev1.GitRepoVolumeSource{}.OpenAPIModelName(), corev1.GlusterfsVolumeSource{}.OpenAPIModelName(), corev1.HostPathVolumeSource{}.OpenAPIModelName(), corev1.ISCSIVolumeSource{}.OpenAPIModelName(), corev1.ImageVolumeSource{}.OpenAPIModelName(), corev1.NFSVolumeSource{}.OpenAPIModelName(), corev1.PersistentVolumeClaimVolumeSource{}.OpenAPIModelName(), corev1.PhotonPersistentDiskVolumeSource{}.OpenAPIModelName(), corev1.PortworxVolumeSource{}.OpenAPIModelName(), corev1.ProjectedVolumeSource{}.OpenAPIModelName(), corev1.QuobyteVolumeSource{}.OpenAPIModelName(), corev1.RBDVolumeSource{}.OpenAPIModelName(), corev1.ScaleIOVolumeSource{}.OpenAPIModelName(), corev1.SecretVolumeSource{}.OpenAPIModelName(), corev1.StorageOSVolumeSource{}.OpenAPIModelName(), corev1.VsphereVirtualDiskVolumeSource{}.OpenAPIModelName()},
 	}
 }
 
@@ -14164,7 +16978,7 @@ func schema_k8sio_api_core_v1_WeightedPodAffinityTerm(ref common.ReferenceCallba
 						SchemaProps: spec.SchemaProps{
 							Description: "Required. A pod affinity term, associated with the corresponding weight.",
 							Default:     map[string]interface{}{},
-							Ref:         ref(v1.PodAffinityTerm{}.OpenAPIModelName()),
+							Ref:         ref(corev1.PodAffinityTerm{}.OpenAPIModelName()),
 						},
 					},
 				},
@@ -14172,7 +16986,7 @@ func schema_k8sio_api_core_v1_WeightedPodAffinityTerm(ref common.ReferenceCallba
 			},
 		},
 		Dependencies: []string{
-			v1.PodAffinityTerm{}.OpenAPIModelName()},
+			corev1.PodAffinityTerm{}.OpenAPIModelName()},
 	}
 }
 
@@ -14251,6 +17065,2953 @@ func schema_k8sio_api_core_v1_WorkloadReference(ref common.ReferenceCallback) co
 				Required: []string{"name", "podGroup"},
 			},
 		},
+	}
+}
+
+func schema_k8sio_api_networking_v1_HTTPIngressPath(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "HTTPIngressPath associates a path with a backend. Incoming urls matching the path are forwarded to the backend.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"path": {
+						SchemaProps: spec.SchemaProps{
+							Description: "path is matched against the path of an incoming request. Currently it can contain characters disallowed from the conventional \"path\" part of a URL as defined by RFC 3986. Paths must begin with a '/' and must be present when using PathType with value \"Exact\" or \"Prefix\".",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"pathType": {
+						SchemaProps: spec.SchemaProps{
+							Description: "pathType determines the interpretation of the path matching. PathType can be one of the following values: * Exact: Matches the URL path exactly. * Prefix: Matches based on a URL path prefix split by '/'. Matching is\n  done on a path element by element basis. A path element refers is the\n  list of labels in the path split by the '/' separator. A request is a\n  match for path p if every p is an element-wise prefix of p of the\n  request path. Note that if the last element of the path is a substring\n  of the last element in request path, it is not a match (e.g. /foo/bar\n  matches /foo/bar/baz, but does not match /foo/barbaz).\n* ImplementationSpecific: Interpretation of the Path matching is up to\n  the IngressClass. Implementations can treat this as a separate PathType\n  or treat it identically to Prefix or Exact path types.\nImplementations are required to support all path types.\n\nPossible enum values:\n - `\"Exact\"` matches the URL path exactly and with case sensitivity.\n - `\"ImplementationSpecific\"` matching is up to the IngressClass. Implementations can treat this as a separate PathType or treat it identically to Prefix or Exact path types.\n - `\"Prefix\"` matches based on a URL path prefix split by '/'. Matching is case sensitive and done on a path element by element basis. A path element refers to the list of labels in the path split by the '/' separator. A request is a match for path p if every p is an element-wise prefix of p of the request path. Note that if the last element of the path is a substring of the last element in request path, it is not a match (e.g. /foo/bar matches /foo/bar/baz, but does not match /foo/barbaz). If multiple matching paths exist in an Ingress spec, the longest matching path is given priority. Examples: - /foo/bar does not match requests to /foo/barbaz - /foo/bar matches request to /foo/bar and /foo/bar/baz - /foo and /foo/ both match requests to /foo and /foo/. If both paths are present in an Ingress spec, the longest matching path (/foo/) is given priority.",
+							Type:        []string{"string"},
+							Format:      "",
+							Enum:        []interface{}{"Exact", "ImplementationSpecific", "Prefix"},
+						},
+					},
+					"backend": {
+						SchemaProps: spec.SchemaProps{
+							Description: "backend defines the referenced service endpoint to which the traffic will be forwarded to.",
+							Default:     map[string]interface{}{},
+							Ref:         ref(networkingv1.IngressBackend{}.OpenAPIModelName()),
+						},
+					},
+				},
+				Required: []string{"pathType", "backend"},
+			},
+		},
+		Dependencies: []string{
+			networkingv1.IngressBackend{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_networking_v1_HTTPIngressRuleValue(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "HTTPIngressRuleValue is a list of http selectors pointing to backends. In the example: http://<host>/<path>?<searchpart> -> backend where where parts of the url correspond to RFC 3986, this resource will be used to match against everything after the last '/' and before the first '?' or '#'.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"paths": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "paths is a collection of paths that map requests to backends.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(networkingv1.HTTPIngressPath{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"paths"},
+			},
+		},
+		Dependencies: []string{
+			networkingv1.HTTPIngressPath{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_networking_v1_IPAddress(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "IPAddress represents a single IP of a single IP Family. The object is designed to be used by APIs that operate on IP addresses. The object is used by the Service core API for allocation of IP addresses. An IP address can be represented in different formats, to guarantee the uniqueness of the IP, the name of the object is the IP address in canonical format, four decimal digits separated by dots suppressing leading zeros for IPv4 and the representation defined by RFC 5952 for IPv6. Valid: 192.168.1.5 or 2001:db8::1 or 2001:db8:aaaa:bbbb:cccc:dddd:eeee:1 Invalid: 10.01.2.3 or 2001:db8:0:0:0::1",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata",
+							Default:     map[string]interface{}{},
+							Ref:         ref(metav1.ObjectMeta{}.OpenAPIModelName()),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Description: "spec is the desired state of the IPAddress. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status",
+							Default:     map[string]interface{}{},
+							Ref:         ref(networkingv1.IPAddressSpec{}.OpenAPIModelName()),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			networkingv1.IPAddressSpec{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_networking_v1_IPAddressList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "IPAddressList contains a list of IPAddress.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata",
+							Default:     map[string]interface{}{},
+							Ref:         ref(metav1.ListMeta{}.OpenAPIModelName()),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Description: "items is the list of IPAddresses.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(networkingv1.IPAddress{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			networkingv1.IPAddress{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_networking_v1_IPAddressSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "IPAddressSpec describe the attributes in an IP Address.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"parentRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ParentRef references the resource that an IPAddress is attached to. An IPAddress must reference a parent object.",
+							Ref:         ref(networkingv1.ParentReference{}.OpenAPIModelName()),
+						},
+					},
+				},
+				Required: []string{"parentRef"},
+			},
+		},
+		Dependencies: []string{
+			networkingv1.ParentReference{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_networking_v1_IPBlock(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "IPBlock describes a particular CIDR (Ex. \"192.168.1.0/24\",\"2001:db8::/64\") that is allowed to the pods matched by a NetworkPolicySpec's podSelector. The except entry describes CIDRs that should not be included within this rule.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"cidr": {
+						SchemaProps: spec.SchemaProps{
+							Description: "cidr is a string representing the IPBlock Valid examples are \"192.168.1.0/24\" or \"2001:db8::/64\"",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"except": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "except is a slice of CIDRs that should not be included within an IPBlock Valid examples are \"192.168.1.0/24\" or \"2001:db8::/64\" Except values will be rejected if they are outside the cidr range",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"cidr"},
+			},
+		},
+	}
+}
+
+func schema_k8sio_api_networking_v1_Ingress(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Ingress is a collection of rules that allow inbound connections to reach the endpoints defined by a backend. An Ingress can be configured to give services externally-reachable urls, load balance traffic, terminate SSL, offer name based virtual hosting etc.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata",
+							Default:     map[string]interface{}{},
+							Ref:         ref(metav1.ObjectMeta{}.OpenAPIModelName()),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Description: "spec is the desired state of the Ingress. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status",
+							Default:     map[string]interface{}{},
+							Ref:         ref(networkingv1.IngressSpec{}.OpenAPIModelName()),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Description: "status is the current state of the Ingress. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status",
+							Default:     map[string]interface{}{},
+							Ref:         ref(networkingv1.IngressStatus{}.OpenAPIModelName()),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			networkingv1.IngressSpec{}.OpenAPIModelName(), networkingv1.IngressStatus{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_networking_v1_IngressBackend(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "IngressBackend describes all endpoints for a given service and port.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"service": {
+						SchemaProps: spec.SchemaProps{
+							Description: "service references a service as a backend. This is a mutually exclusive setting with \"Resource\".",
+							Ref:         ref(networkingv1.IngressServiceBackend{}.OpenAPIModelName()),
+						},
+					},
+					"resource": {
+						SchemaProps: spec.SchemaProps{
+							Description: "resource is an ObjectRef to another Kubernetes resource in the namespace of the Ingress object. If resource is specified, a service.Name and service.Port must not be specified. This is a mutually exclusive setting with \"Service\".",
+							Ref:         ref(corev1.TypedLocalObjectReference{}.OpenAPIModelName()),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			corev1.TypedLocalObjectReference{}.OpenAPIModelName(), networkingv1.IngressServiceBackend{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_networking_v1_IngressClass(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "IngressClass represents the class of the Ingress, referenced by the Ingress Spec. The `ingressclass.kubernetes.io/is-default-class` annotation can be used to indicate that an IngressClass should be considered default. When a single IngressClass resource has this annotation set to true, new Ingress resources without a class specified will be assigned this default class.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata",
+							Default:     map[string]interface{}{},
+							Ref:         ref(metav1.ObjectMeta{}.OpenAPIModelName()),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Description: "spec is the desired state of the IngressClass. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status",
+							Default:     map[string]interface{}{},
+							Ref:         ref(networkingv1.IngressClassSpec{}.OpenAPIModelName()),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			networkingv1.IngressClassSpec{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_networking_v1_IngressClassList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "IngressClassList is a collection of IngressClasses.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Standard list metadata.",
+							Default:     map[string]interface{}{},
+							Ref:         ref(metav1.ListMeta{}.OpenAPIModelName()),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Description: "items is the list of IngressClasses.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(networkingv1.IngressClass{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			networkingv1.IngressClass{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_networking_v1_IngressClassParametersReference(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "IngressClassParametersReference identifies an API object. This can be used to specify a cluster or namespace-scoped resource.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"apiGroup": {
+						SchemaProps: spec.SchemaProps{
+							Description: "apiGroup is the group for the resource being referenced. If APIGroup is not specified, the specified Kind must be in the core API group. For any other third-party types, APIGroup is required.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "kind is the type of resource being referenced.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "name is the name of resource being referenced.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"scope": {
+						SchemaProps: spec.SchemaProps{
+							Description: "scope represents if this refers to a cluster or namespace scoped resource. This may be set to \"Cluster\" (default) or \"Namespace\".",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"namespace": {
+						SchemaProps: spec.SchemaProps{
+							Description: "namespace is the namespace of the resource being referenced. This field is required when scope is set to \"Namespace\" and must be unset when scope is set to \"Cluster\".",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"kind", "name"},
+			},
+		},
+	}
+}
+
+func schema_k8sio_api_networking_v1_IngressClassSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "IngressClassSpec provides information about the class of an Ingress.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"controller": {
+						SchemaProps: spec.SchemaProps{
+							Description: "controller refers to the name of the controller that should handle this class. This allows for different \"flavors\" that are controlled by the same controller. For example, you may have different parameters for the same implementing controller. This should be specified as a domain-prefixed path no more than 250 characters in length, e.g. \"acme.io/ingress-controller\". This field is immutable.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"parameters": {
+						SchemaProps: spec.SchemaProps{
+							Description: "parameters is a link to a custom resource containing additional configuration for the controller. This is optional if the controller does not require extra parameters.",
+							Ref:         ref(networkingv1.IngressClassParametersReference{}.OpenAPIModelName()),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			networkingv1.IngressClassParametersReference{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_networking_v1_IngressList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "IngressList is a collection of Ingress.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata",
+							Default:     map[string]interface{}{},
+							Ref:         ref(metav1.ListMeta{}.OpenAPIModelName()),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Description: "items is the list of Ingress.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(networkingv1.Ingress{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			networkingv1.Ingress{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_networking_v1_IngressLoadBalancerIngress(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "IngressLoadBalancerIngress represents the status of a load-balancer ingress point.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"ip": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ip is set for load-balancer ingress points that are IP based.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"hostname": {
+						SchemaProps: spec.SchemaProps{
+							Description: "hostname is set for load-balancer ingress points that are DNS based.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"ports": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "ports provides information about the ports exposed by this LoadBalancer.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(networkingv1.IngressPortStatus{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			networkingv1.IngressPortStatus{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_networking_v1_IngressLoadBalancerStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "IngressLoadBalancerStatus represents the status of a load-balancer.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"ingress": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "ingress is a list containing ingress points for the load-balancer.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(networkingv1.IngressLoadBalancerIngress{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			networkingv1.IngressLoadBalancerIngress{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_networking_v1_IngressPortStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "IngressPortStatus represents the error condition of a service port",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"port": {
+						SchemaProps: spec.SchemaProps{
+							Description: "port is the port number of the ingress port.",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"protocol": {
+						SchemaProps: spec.SchemaProps{
+							Description: "protocol is the protocol of the ingress port. The supported values are: \"TCP\", \"UDP\", \"SCTP\"\n\nPossible enum values:\n - `\"SCTP\"` is the SCTP protocol.\n - `\"TCP\"` is the TCP protocol.\n - `\"UDP\"` is the UDP protocol.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+							Enum:        []interface{}{"SCTP", "TCP", "UDP"},
+						},
+					},
+					"error": {
+						SchemaProps: spec.SchemaProps{
+							Description: "error is to record the problem with the service port The format of the error shall comply with the following rules: - built-in error values shall be specified in this file and those shall use\n  CamelCase names\n- cloud provider specific error values must have names that comply with the\n  format foo.example.com/CamelCase.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"port", "protocol"},
+			},
+		},
+	}
+}
+
+func schema_k8sio_api_networking_v1_IngressRule(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "IngressRule represents the rules mapping the paths under a specified host to the related backend services. Incoming requests are first evaluated for a host match, then routed to the backend associated with the matching IngressRuleValue.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"host": {
+						SchemaProps: spec.SchemaProps{
+							Description: "host is the fully qualified domain name of a network host, as defined by RFC 3986. Note the following deviations from the \"host\" part of the URI as defined in RFC 3986: 1. IPs are not allowed. Currently an IngressRuleValue can only apply to\n   the IP in the Spec of the parent Ingress.\n2. The `:` delimiter is not respected because ports are not allowed.\n\t  Currently the port of an Ingress is implicitly :80 for http and\n\t  :443 for https.\nBoth these may change in the future. Incoming requests are matched against the host before the IngressRuleValue. If the host is unspecified, the Ingress routes all traffic based on the specified IngressRuleValue.\n\nhost can be \"precise\" which is a domain name without the terminating dot of a network host (e.g. \"foo.bar.com\") or \"wildcard\", which is a domain name prefixed with a single wildcard label (e.g. \"*.foo.com\"). The wildcard character '*' must appear by itself as the first DNS label and matches only a single label. You cannot have a wildcard label by itself (e.g. Host == \"*\"). Requests will be matched against the Host field in the following way: 1. If host is precise, the request matches this rule if the http host header is equal to Host. 2. If host is a wildcard, then the request matches this rule if the http host header is to equal to the suffix (removing the first label) of the wildcard rule.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"http": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref(networkingv1.HTTPIngressRuleValue{}.OpenAPIModelName()),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			networkingv1.HTTPIngressRuleValue{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_networking_v1_IngressRuleValue(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "IngressRuleValue represents a rule to apply against incoming requests. If the rule is satisfied, the request is routed to the specified backend. Currently mixing different types of rules in a single Ingress is disallowed, so exactly one of the following must be set.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"http": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref(networkingv1.HTTPIngressRuleValue{}.OpenAPIModelName()),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			networkingv1.HTTPIngressRuleValue{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_networking_v1_IngressServiceBackend(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "IngressServiceBackend references a Kubernetes Service as a Backend.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "name is the referenced service. The service must exist in the same namespace as the Ingress object.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"port": {
+						SchemaProps: spec.SchemaProps{
+							Description: "port of the referenced service. A port name or port number is required for a IngressServiceBackend.",
+							Default:     map[string]interface{}{},
+							Ref:         ref(networkingv1.ServiceBackendPort{}.OpenAPIModelName()),
+						},
+					},
+				},
+				Required: []string{"name"},
+			},
+		},
+		Dependencies: []string{
+			networkingv1.ServiceBackendPort{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_networking_v1_IngressSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "IngressSpec describes the Ingress the user wishes to exist.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"ingressClassName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ingressClassName is the name of an IngressClass cluster resource. Ingress controller implementations use this field to know whether they should be serving this Ingress resource, by a transitive connection (controller -> IngressClass -> Ingress resource). Although the `kubernetes.io/ingress.class` annotation (simple constant name) was never formally defined, it was widely supported by Ingress controllers to create a direct binding between Ingress controller and Ingress resources. Newly created Ingress resources should prefer using the field. However, even though the annotation is officially deprecated, for backwards compatibility reasons, ingress controllers should still honor that annotation if present.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"defaultBackend": {
+						SchemaProps: spec.SchemaProps{
+							Description: "defaultBackend is the backend that should handle requests that don't match any rule. If Rules are not specified, DefaultBackend must be specified. If DefaultBackend is not set, the handling of requests that do not match any of the rules will be up to the Ingress controller.",
+							Ref:         ref(networkingv1.IngressBackend{}.OpenAPIModelName()),
+						},
+					},
+					"tls": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "tls represents the TLS configuration. Currently the Ingress only supports a single TLS port, 443. If multiple members of this list specify different hosts, they will be multiplexed on the same port according to the hostname specified through the SNI TLS extension, if the ingress controller fulfilling the ingress supports SNI.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(networkingv1.IngressTLS{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+					"rules": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "rules is a list of host rules used to configure the Ingress. If unspecified, or no rule matches, all traffic is sent to the default backend.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(networkingv1.IngressRule{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			networkingv1.IngressBackend{}.OpenAPIModelName(), networkingv1.IngressRule{}.OpenAPIModelName(), networkingv1.IngressTLS{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_networking_v1_IngressStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "IngressStatus describe the current state of the Ingress.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"loadBalancer": {
+						SchemaProps: spec.SchemaProps{
+							Description: "loadBalancer contains the current status of the load-balancer.",
+							Default:     map[string]interface{}{},
+							Ref:         ref(networkingv1.IngressLoadBalancerStatus{}.OpenAPIModelName()),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			networkingv1.IngressLoadBalancerStatus{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_networking_v1_IngressTLS(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "IngressTLS describes the transport layer security associated with an ingress.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"hosts": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "hosts is a list of hosts included in the TLS certificate. The values in this list must match the name/s used in the tlsSecret. Defaults to the wildcard host setting for the loadbalancer controller fulfilling this Ingress, if left unspecified.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"secretName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "secretName is the name of the secret used to terminate TLS traffic on port 443. Field is left optional to allow TLS routing based on SNI hostname alone. If the SNI host in a listener conflicts with the \"Host\" header field used by an IngressRule, the SNI host is used for termination and value of the \"Host\" header is used for routing.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_k8sio_api_networking_v1_NetworkPolicy(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "NetworkPolicy describes what network traffic is allowed for a set of Pods",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata",
+							Default:     map[string]interface{}{},
+							Ref:         ref(metav1.ObjectMeta{}.OpenAPIModelName()),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Description: "spec represents the specification of the desired behavior for this NetworkPolicy.",
+							Default:     map[string]interface{}{},
+							Ref:         ref(networkingv1.NetworkPolicySpec{}.OpenAPIModelName()),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			networkingv1.NetworkPolicySpec{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_networking_v1_NetworkPolicyEgressRule(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "NetworkPolicyEgressRule describes a particular set of traffic that is allowed out of pods matched by a NetworkPolicySpec's podSelector. The traffic must match both ports and to. This type is beta-level in 1.8",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"ports": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "ports is a list of destination ports for outgoing traffic. Each item in this list is combined using a logical OR. If this field is empty or missing, this rule matches all ports (traffic not restricted by port). If this field is present and contains at least one item, then this rule allows traffic only if the traffic matches at least one port in the list.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(networkingv1.NetworkPolicyPort{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+					"to": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "to is a list of destinations for outgoing traffic of pods selected for this rule. Items in this list are combined using a logical OR operation. If this field is empty or missing, this rule matches all destinations (traffic not restricted by destination). If this field is present and contains at least one item, this rule allows traffic only if the traffic matches at least one item in the to list.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(networkingv1.NetworkPolicyPeer{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			networkingv1.NetworkPolicyPeer{}.OpenAPIModelName(), networkingv1.NetworkPolicyPort{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_networking_v1_NetworkPolicyIngressRule(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "NetworkPolicyIngressRule describes a particular set of traffic that is allowed to the pods matched by a NetworkPolicySpec's podSelector. The traffic must match both ports and from.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"ports": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "ports is a list of ports which should be made accessible on the pods selected for this rule. Each item in this list is combined using a logical OR. If this field is empty or missing, this rule matches all ports (traffic not restricted by port). If this field is present and contains at least one item, then this rule allows traffic only if the traffic matches at least one port in the list.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(networkingv1.NetworkPolicyPort{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+					"from": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "from is a list of sources which should be able to access the pods selected for this rule. Items in this list are combined using a logical OR operation. If this field is empty or missing, this rule matches all sources (traffic not restricted by source). If this field is present and contains at least one item, this rule allows traffic only if the traffic matches at least one item in the from list.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(networkingv1.NetworkPolicyPeer{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			networkingv1.NetworkPolicyPeer{}.OpenAPIModelName(), networkingv1.NetworkPolicyPort{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_networking_v1_NetworkPolicyList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "NetworkPolicyList is a list of NetworkPolicy objects.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Standard list metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata",
+							Default:     map[string]interface{}{},
+							Ref:         ref(metav1.ListMeta{}.OpenAPIModelName()),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Description: "items is a list of schema objects.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(networkingv1.NetworkPolicy{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			networkingv1.NetworkPolicy{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_networking_v1_NetworkPolicyPeer(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "NetworkPolicyPeer describes a peer to allow traffic to/from. Only certain combinations of fields are allowed",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"podSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "podSelector is a label selector which selects pods. This field follows standard label selector semantics; if present but empty, it selects all pods.\n\nIf namespaceSelector is also set, then the NetworkPolicyPeer as a whole selects the pods matching podSelector in the Namespaces selected by NamespaceSelector. Otherwise it selects the pods matching podSelector in the policy's own namespace.",
+							Ref:         ref(metav1.LabelSelector{}.OpenAPIModelName()),
+						},
+					},
+					"namespaceSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "namespaceSelector selects namespaces using cluster-scoped labels. This field follows standard label selector semantics; if present but empty, it selects all namespaces.\n\nIf podSelector is also set, then the NetworkPolicyPeer as a whole selects the pods matching podSelector in the namespaces selected by namespaceSelector. Otherwise it selects all pods in the namespaces selected by namespaceSelector.",
+							Ref:         ref(metav1.LabelSelector{}.OpenAPIModelName()),
+						},
+					},
+					"ipBlock": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ipBlock defines policy on a particular IPBlock. If this field is set then neither of the other fields can be.",
+							Ref:         ref(networkingv1.IPBlock{}.OpenAPIModelName()),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			networkingv1.IPBlock{}.OpenAPIModelName(), metav1.LabelSelector{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_networking_v1_NetworkPolicyPort(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "NetworkPolicyPort describes a port to allow traffic on",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"protocol": {
+						SchemaProps: spec.SchemaProps{
+							Description: "protocol represents the protocol (TCP, UDP, or SCTP) which traffic must match. If not specified, this field defaults to TCP.\n\nPossible enum values:\n - `\"SCTP\"` is the SCTP protocol.\n - `\"TCP\"` is the TCP protocol.\n - `\"UDP\"` is the UDP protocol.",
+							Type:        []string{"string"},
+							Format:      "",
+							Enum:        []interface{}{"SCTP", "TCP", "UDP"},
+						},
+					},
+					"port": {
+						SchemaProps: spec.SchemaProps{
+							Description: "port represents the port on the given protocol. This can either be a numerical or named port on a pod. If this field is not provided, this matches all port names and numbers. If present, only traffic on the specified protocol AND port will be matched.",
+							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
+						},
+					},
+					"endPort": {
+						SchemaProps: spec.SchemaProps{
+							Description: "endPort indicates that the range of ports from port to endPort if set, inclusive, should be allowed by the policy. This field cannot be defined if the port field is not defined or if the port field is defined as a named (string) port. The endPort must be equal or greater than port.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/util/intstr.IntOrString"},
+	}
+}
+
+func schema_k8sio_api_networking_v1_NetworkPolicySpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "NetworkPolicySpec provides the specification of a NetworkPolicy",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"podSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "podSelector selects the pods to which this NetworkPolicy object applies. The array of rules is applied to any pods selected by this field. An empty selector matches all pods in the policy's namespace. Multiple network policies can select the same set of pods. In this case, the ingress rules for each are combined additively. This field is optional. If it is not specified, it defaults to an empty selector.",
+							Default:     map[string]interface{}{},
+							Ref:         ref(metav1.LabelSelector{}.OpenAPIModelName()),
+						},
+					},
+					"ingress": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "ingress is a list of ingress rules to be applied to the selected pods. Traffic is allowed to a pod if there are no NetworkPolicies selecting the pod (and cluster policy otherwise allows the traffic), OR if the traffic source is the pod's local node, OR if the traffic matches at least one ingress rule across all of the NetworkPolicy objects whose podSelector matches the pod. If this field is empty then this NetworkPolicy does not allow any traffic (and serves solely to ensure that the pods it selects are isolated by default)",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(networkingv1.NetworkPolicyIngressRule{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+					"egress": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "egress is a list of egress rules to be applied to the selected pods. Outgoing traffic is allowed if there are no NetworkPolicies selecting the pod (and cluster policy otherwise allows the traffic), OR if the traffic matches at least one egress rule across all of the NetworkPolicy objects whose podSelector matches the pod. If this field is empty then this NetworkPolicy limits all outgoing traffic (and serves solely to ensure that the pods it selects are isolated by default). This field is beta-level in 1.8",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(networkingv1.NetworkPolicyEgressRule{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+					"policyTypes": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "policyTypes is a list of rule types that the NetworkPolicy relates to. Valid options are [\"Ingress\"], [\"Egress\"], or [\"Ingress\", \"Egress\"]. If this field is not specified, it will default based on the existence of ingress or egress rules; policies that contain an egress section are assumed to affect egress, and all policies (whether or not they contain an ingress section) are assumed to affect ingress. If you want to write an egress-only policy, you must explicitly specify policyTypes [ \"Egress\" ]. Likewise, if you want to write a policy that specifies that no egress is allowed, you must specify a policyTypes value that include \"Egress\" (since such a policy would not include an egress section and would otherwise default to just [ \"Ingress\" ]). This field is beta-level in 1.8",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+										Enum:    []interface{}{"Egress", "Ingress"},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			networkingv1.NetworkPolicyEgressRule{}.OpenAPIModelName(), networkingv1.NetworkPolicyIngressRule{}.OpenAPIModelName(), metav1.LabelSelector{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_networking_v1_ParentReference(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ParentReference describes a reference to a parent object.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"group": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Group is the group of the object being referenced.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"resource": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Resource is the resource of the object being referenced.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"namespace": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Namespace is the namespace of the object being referenced.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name is the name of the object being referenced.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"resource", "name"},
+			},
+		},
+	}
+}
+
+func schema_k8sio_api_networking_v1_ServiceBackendPort(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ServiceBackendPort is the service port being referenced.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "name is the name of the port on the Service. This is a mutually exclusive setting with \"Number\".",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"number": {
+						SchemaProps: spec.SchemaProps{
+							Description: "number is the numerical port number (e.g. 80) on the Service. This is a mutually exclusive setting with \"Name\".",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+				},
+			},
+			VendorExtensible: spec.VendorExtensible{
+				Extensions: spec.Extensions{
+					"x-kubernetes-map-type": "atomic",
+				},
+			},
+		},
+	}
+}
+
+func schema_k8sio_api_networking_v1_ServiceCIDR(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ServiceCIDR defines a range of IP addresses using CIDR format (e.g. 192.168.0.0/24 or 2001:db2::/64). This range is used to allocate ClusterIPs to Service objects.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata",
+							Default:     map[string]interface{}{},
+							Ref:         ref(metav1.ObjectMeta{}.OpenAPIModelName()),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Description: "spec is the desired state of the ServiceCIDR. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status",
+							Default:     map[string]interface{}{},
+							Ref:         ref(networkingv1.ServiceCIDRSpec{}.OpenAPIModelName()),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Description: "status represents the current state of the ServiceCIDR. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status",
+							Default:     map[string]interface{}{},
+							Ref:         ref(networkingv1.ServiceCIDRStatus{}.OpenAPIModelName()),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			networkingv1.ServiceCIDRSpec{}.OpenAPIModelName(), networkingv1.ServiceCIDRStatus{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_networking_v1_ServiceCIDRList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ServiceCIDRList contains a list of ServiceCIDR objects.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata",
+							Default:     map[string]interface{}{},
+							Ref:         ref(metav1.ListMeta{}.OpenAPIModelName()),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Description: "items is the list of ServiceCIDRs.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(networkingv1.ServiceCIDR{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			networkingv1.ServiceCIDR{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
+	}
+}
+
+func schema_k8sio_api_networking_v1_ServiceCIDRSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ServiceCIDRSpec define the CIDRs the user wants to use for allocating ClusterIPs for Services.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"cidrs": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "CIDRs defines the IP blocks in CIDR notation (e.g. \"192.168.0.0/24\" or \"2001:db8::/64\") from which to assign service cluster IPs. Max of two CIDRs is allowed, one of each IP family. This field is immutable.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_k8sio_api_networking_v1_ServiceCIDRStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ServiceCIDRStatus describes the current state of the ServiceCIDR.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"conditions": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"type",
+								},
+								"x-kubernetes-list-type":       "map",
+								"x-kubernetes-patch-merge-key": "type",
+								"x-kubernetes-patch-strategy":  "merge",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "conditions holds an array of metav1.Condition that describe the state of the ServiceCIDR. Current service state",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(metav1.Condition{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			metav1.Condition{}.OpenAPIModelName()},
+	}
+}
+
+func schema_pkg_apis_apiextensions_v1_ConversionRequest(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ConversionRequest describes the conversion request parameters.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"uid": {
+						SchemaProps: spec.SchemaProps{
+							Description: "uid is an identifier for the individual request/response. It allows distinguishing instances of requests which are otherwise identical (parallel requests, etc). The UID is meant to track the round trip (request/response) between the Kubernetes API server and the webhook, not the user request. It is suitable for correlating log entries between the webhook and apiserver, for either auditing or debugging.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"desiredAPIVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "desiredAPIVersion is the version to convert given objects to. e.g. \"myapi.example.com/v1\"",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"objects": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "objects is the list of custom resource objects to be converted.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref(runtime.RawExtension{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"uid", "desiredAPIVersion", "objects"},
+			},
+		},
+		Dependencies: []string{
+			runtime.RawExtension{}.OpenAPIModelName()},
+	}
+}
+
+func schema_pkg_apis_apiextensions_v1_ConversionResponse(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ConversionResponse describes a conversion response.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"uid": {
+						SchemaProps: spec.SchemaProps{
+							Description: "uid is an identifier for the individual request/response. This should be copied over from the corresponding `request.uid`.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"convertedObjects": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "convertedObjects is the list of converted version of `request.objects` if the `result` is successful, otherwise empty. The webhook is expected to set `apiVersion` of these objects to the `request.desiredAPIVersion`. The list must also have the same size as the input list with the same objects in the same order (equal kind, metadata.uid, metadata.name and metadata.namespace). The webhook is allowed to mutate labels and annotations. Any other change to the metadata is silently ignored.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref(runtime.RawExtension{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+					"result": {
+						SchemaProps: spec.SchemaProps{
+							Description: "result contains the result of conversion with extra details if the conversion failed. `result.status` determines if the conversion failed or succeeded. The `result.status` field is required and represents the success or failure of the conversion. A successful conversion must set `result.status` to `Success`. A failed conversion must set `result.status` to `Failure` and provide more details in `result.message` and return http status 200. The `result.message` will be used to construct an error message for the end user.",
+							Default:     map[string]interface{}{},
+							Ref:         ref(metav1.Status{}.OpenAPIModelName()),
+						},
+					},
+				},
+				Required: []string{"uid", "convertedObjects", "result"},
+			},
+		},
+		Dependencies: []string{
+			metav1.Status{}.OpenAPIModelName(), runtime.RawExtension{}.OpenAPIModelName()},
+	}
+}
+
+func schema_pkg_apis_apiextensions_v1_ConversionReview(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ConversionReview describes a conversion request/response.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"request": {
+						SchemaProps: spec.SchemaProps{
+							Description: "request describes the attributes for the conversion request.",
+							Ref:         ref(apiextensionsv1.ConversionRequest{}.OpenAPIModelName()),
+						},
+					},
+					"response": {
+						SchemaProps: spec.SchemaProps{
+							Description: "response describes the attributes for the conversion response.",
+							Ref:         ref(apiextensionsv1.ConversionResponse{}.OpenAPIModelName()),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			apiextensionsv1.ConversionRequest{}.OpenAPIModelName(), apiextensionsv1.ConversionResponse{}.OpenAPIModelName()},
+	}
+}
+
+func schema_pkg_apis_apiextensions_v1_CustomResourceColumnDefinition(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "CustomResourceColumnDefinition specifies a column for server side printing.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "name is a human readable name for the column.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"type": {
+						SchemaProps: spec.SchemaProps{
+							Description: "type is an OpenAPI type definition for this column. See https://github.com/OAI/OpenAPI-Specification/blob/master/versions/2.0.md#data-types for details.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"format": {
+						SchemaProps: spec.SchemaProps{
+							Description: "format is an optional OpenAPI type definition for this column. The 'name' format is applied to the primary identifier column to assist in clients identifying column is the resource name. See https://github.com/OAI/OpenAPI-Specification/blob/master/versions/2.0.md#data-types for details.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"description": {
+						SchemaProps: spec.SchemaProps{
+							Description: "description is a human readable description of this column.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"priority": {
+						SchemaProps: spec.SchemaProps{
+							Description: "priority is an integer defining the relative importance of this column compared to others. Lower numbers are considered higher priority. Columns that may be omitted in limited space scenarios should be given a priority greater than 0.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"jsonPath": {
+						SchemaProps: spec.SchemaProps{
+							Description: "jsonPath is a simple JSON path (i.e. with array notation) which is evaluated against each custom resource to produce the value for this column.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"name", "type", "jsonPath"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_apiextensions_v1_CustomResourceConversion(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "CustomResourceConversion describes how to convert different versions of a CR.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"strategy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "strategy specifies how custom resources are converted between versions. Allowed values are: - `\"None\"`: The converter only change the apiVersion and would not touch any other field in the custom resource. - `\"Webhook\"`: API Server will call to an external webhook to do the conversion. Additional information\n  is needed for this option. This requires spec.preserveUnknownFields to be false, and spec.conversion.webhook to be set.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"webhook": {
+						SchemaProps: spec.SchemaProps{
+							Description: "webhook describes how to call the conversion webhook. Required when `strategy` is set to `\"Webhook\"`.",
+							Ref:         ref(apiextensionsv1.WebhookConversion{}.OpenAPIModelName()),
+						},
+					},
+				},
+				Required: []string{"strategy"},
+			},
+		},
+		Dependencies: []string{
+			apiextensionsv1.WebhookConversion{}.OpenAPIModelName()},
+	}
+}
+
+func schema_pkg_apis_apiextensions_v1_CustomResourceDefinition(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "CustomResourceDefinition represents a resource that should be exposed on the API server.  Its name MUST be in the format <.spec.name>.<.spec.group>.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Standard object's metadata More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata",
+							Default:     map[string]interface{}{},
+							Ref:         ref(metav1.ObjectMeta{}.OpenAPIModelName()),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Description: "spec describes how the user wants the resources to appear",
+							Default:     map[string]interface{}{},
+							Ref:         ref(apiextensionsv1.CustomResourceDefinitionSpec{}.OpenAPIModelName()),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Description: "status indicates the actual state of the CustomResourceDefinition",
+							Default:     map[string]interface{}{},
+							Ref:         ref(apiextensionsv1.CustomResourceDefinitionStatus{}.OpenAPIModelName()),
+						},
+					},
+				},
+				Required: []string{"spec"},
+			},
+		},
+		Dependencies: []string{
+			apiextensionsv1.CustomResourceDefinitionSpec{}.OpenAPIModelName(), apiextensionsv1.CustomResourceDefinitionStatus{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
+	}
+}
+
+func schema_pkg_apis_apiextensions_v1_CustomResourceDefinitionCondition(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "CustomResourceDefinitionCondition contains details for the current condition of this pod.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"type": {
+						SchemaProps: spec.SchemaProps{
+							Description: "type is the type of the condition. Types include Established, NamesAccepted and Terminating.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Description: "status is the status of the condition. Can be True, False, Unknown.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"lastTransitionTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "lastTransitionTime last time the condition transitioned from one status to another.",
+							Ref:         ref(metav1.Time{}.OpenAPIModelName()),
+						},
+					},
+					"reason": {
+						SchemaProps: spec.SchemaProps{
+							Description: "reason is a unique, one-word, CamelCase reason for the condition's last transition.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"message": {
+						SchemaProps: spec.SchemaProps{
+							Description: "message is a human-readable message indicating details about last transition.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"observedGeneration": {
+						SchemaProps: spec.SchemaProps{
+							Description: "observedGeneration represents the .metadata.generation that the condition was set based upon. For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date with respect to the current state of the instance.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+				},
+				Required: []string{"type", "status"},
+			},
+		},
+		Dependencies: []string{
+			metav1.Time{}.OpenAPIModelName()},
+	}
+}
+
+func schema_pkg_apis_apiextensions_v1_CustomResourceDefinitionList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "CustomResourceDefinitionList is a list of CustomResourceDefinition objects.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Standard object's metadata More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata",
+							Default:     map[string]interface{}{},
+							Ref:         ref(metav1.ListMeta{}.OpenAPIModelName()),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Description: "items list individual CustomResourceDefinition objects",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(apiextensionsv1.CustomResourceDefinition{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			apiextensionsv1.CustomResourceDefinition{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
+	}
+}
+
+func schema_pkg_apis_apiextensions_v1_CustomResourceDefinitionNames(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "CustomResourceDefinitionNames indicates the names to serve this CustomResourceDefinition",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"plural": {
+						SchemaProps: spec.SchemaProps{
+							Description: "plural is the plural name of the resource to serve. The custom resources are served under `/apis/<group>/<version>/.../<plural>`. Must match the name of the CustomResourceDefinition (in the form `<names.plural>.<group>`). Must be all lowercase.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"singular": {
+						SchemaProps: spec.SchemaProps{
+							Description: "singular is the singular name of the resource. It must be all lowercase. Defaults to lowercased `kind`.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"shortNames": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "shortNames are short names for the resource, exposed in API discovery documents, and used by clients to support invocations like `kubectl get <shortname>`. It must be all lowercase.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "kind is the serialized kind of the resource. It is normally CamelCase and singular. Custom resource instances will use this value as the `kind` attribute in API calls.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"listKind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "listKind is the serialized kind of the list for this resource. Defaults to \"`kind`List\".",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"categories": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "categories is a list of grouped resources this custom resource belongs to (e.g. 'all'). This is published in API discovery documents, and used by clients to support invocations like `kubectl get all`.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"plural", "kind"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_apiextensions_v1_CustomResourceDefinitionSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "CustomResourceDefinitionSpec describes how a user wants their resource to appear",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"group": {
+						SchemaProps: spec.SchemaProps{
+							Description: "group is the API group of the defined custom resource. The custom resources are served under `/apis/<group>/...`. Must match the name of the CustomResourceDefinition (in the form `<names.plural>.<group>`).",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"names": {
+						SchemaProps: spec.SchemaProps{
+							Description: "names specify the resource and kind names for the custom resource.",
+							Default:     map[string]interface{}{},
+							Ref:         ref(apiextensionsv1.CustomResourceDefinitionNames{}.OpenAPIModelName()),
+						},
+					},
+					"scope": {
+						SchemaProps: spec.SchemaProps{
+							Description: "scope indicates whether the defined custom resource is cluster- or namespace-scoped. Allowed values are `Cluster` and `Namespaced`.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"versions": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "versions is the list of all API versions of the defined custom resource. Version names are used to compute the order in which served versions are listed in API discovery. If the version string is \"kube-like\", it will sort above non \"kube-like\" version strings, which are ordered lexicographically. \"Kube-like\" versions start with a \"v\", then are followed by a number (the major version), then optionally the string \"alpha\" or \"beta\" and another number (the minor version). These are sorted first by GA > beta > alpha (where GA is a version with no suffix such as beta or alpha), and then by comparing major version, then minor version. An example sorted list of versions: v10, v2, v1, v11beta2, v10beta3, v3beta1, v12alpha1, v11alpha2, foo1, foo10.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(apiextensionsv1.CustomResourceDefinitionVersion{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+					"conversion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "conversion defines conversion settings for the CRD.",
+							Ref:         ref(apiextensionsv1.CustomResourceConversion{}.OpenAPIModelName()),
+						},
+					},
+					"preserveUnknownFields": {
+						SchemaProps: spec.SchemaProps{
+							Description: "preserveUnknownFields indicates that object fields which are not specified in the OpenAPI schema should be preserved when persisting to storage. apiVersion, kind, metadata and known fields inside metadata are always preserved. This field is deprecated in favor of setting `x-preserve-unknown-fields` to true in `spec.versions[*].schema.openAPIV3Schema`. See https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#field-pruning for details.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"group", "names", "scope", "versions"},
+			},
+		},
+		Dependencies: []string{
+			apiextensionsv1.CustomResourceConversion{}.OpenAPIModelName(), apiextensionsv1.CustomResourceDefinitionNames{}.OpenAPIModelName(), apiextensionsv1.CustomResourceDefinitionVersion{}.OpenAPIModelName()},
+	}
+}
+
+func schema_pkg_apis_apiextensions_v1_CustomResourceDefinitionStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "CustomResourceDefinitionStatus indicates the state of the CustomResourceDefinition",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"conditions": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"type",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "conditions indicate state for particular aspects of a CustomResourceDefinition",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(apiextensionsv1.CustomResourceDefinitionCondition{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+					"acceptedNames": {
+						SchemaProps: spec.SchemaProps{
+							Description: "acceptedNames are the names that are actually being used to serve discovery. They may be different than the names in spec.",
+							Default:     map[string]interface{}{},
+							Ref:         ref(apiextensionsv1.CustomResourceDefinitionNames{}.OpenAPIModelName()),
+						},
+					},
+					"storedVersions": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "storedVersions lists all versions of CustomResources that were ever persisted. Tracking these versions allows a migration path for stored versions in etcd. The field is mutable so a migration controller can finish a migration to another version (ensuring no old objects are left in storage), and then remove the rest of the versions from this list. Versions may not be removed from `spec.versions` while they exist in this list.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"observedGeneration": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The generation observed by the CRD controller.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			apiextensionsv1.CustomResourceDefinitionCondition{}.OpenAPIModelName(), apiextensionsv1.CustomResourceDefinitionNames{}.OpenAPIModelName()},
+	}
+}
+
+func schema_pkg_apis_apiextensions_v1_CustomResourceDefinitionVersion(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "CustomResourceDefinitionVersion describes a version for CRD.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "name is the version name, e.g. “v1”, “v2beta1”, etc. The custom resources are served under this version at `/apis/<group>/<version>/...` if `served` is true.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"served": {
+						SchemaProps: spec.SchemaProps{
+							Description: "served is a flag enabling/disabling this version from being served via REST APIs",
+							Default:     false,
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"storage": {
+						SchemaProps: spec.SchemaProps{
+							Description: "storage indicates this version should be used when persisting custom resources to storage. There must be exactly one version with storage=true.",
+							Default:     false,
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"deprecated": {
+						SchemaProps: spec.SchemaProps{
+							Description: "deprecated indicates this version of the custom resource API is deprecated. When set to true, API requests to this version receive a warning header in the server response. Defaults to false.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"deprecationWarning": {
+						SchemaProps: spec.SchemaProps{
+							Description: "deprecationWarning overrides the default warning returned to API clients. May only be set when `deprecated` is true. The default warning indicates this version is deprecated and recommends use of the newest served version of equal or greater stability, if one exists.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"schema": {
+						SchemaProps: spec.SchemaProps{
+							Description: "schema describes the schema used for validation, pruning, and defaulting of this version of the custom resource.",
+							Ref:         ref(apiextensionsv1.CustomResourceValidation{}.OpenAPIModelName()),
+						},
+					},
+					"subresources": {
+						SchemaProps: spec.SchemaProps{
+							Description: "subresources specify what subresources this version of the defined custom resource have.",
+							Ref:         ref(apiextensionsv1.CustomResourceSubresources{}.OpenAPIModelName()),
+						},
+					},
+					"additionalPrinterColumns": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "additionalPrinterColumns specifies additional columns returned in Table output. See https://kubernetes.io/docs/reference/using-api/api-concepts/#receiving-resources-as-tables for details. If no columns are specified, a single column displaying the age of the custom resource is used.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(apiextensionsv1.CustomResourceColumnDefinition{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+					"selectableFields": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "selectableFields specifies paths to fields that may be used as field selectors. A maximum of 8 selectable fields are allowed. See https://kubernetes.io/docs/concepts/overview/working-with-objects/field-selectors",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(apiextensionsv1.SelectableField{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"name", "served", "storage"},
+			},
+		},
+		Dependencies: []string{
+			apiextensionsv1.CustomResourceColumnDefinition{}.OpenAPIModelName(), apiextensionsv1.CustomResourceSubresources{}.OpenAPIModelName(), apiextensionsv1.CustomResourceValidation{}.OpenAPIModelName(), apiextensionsv1.SelectableField{}.OpenAPIModelName()},
+	}
+}
+
+func schema_pkg_apis_apiextensions_v1_CustomResourceSubresourceScale(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "CustomResourceSubresourceScale defines how to serve the scale subresource for CustomResources.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"specReplicasPath": {
+						SchemaProps: spec.SchemaProps{
+							Description: "specReplicasPath defines the JSON path inside of a custom resource that corresponds to Scale `spec.replicas`. Only JSON paths without the array notation are allowed. Must be a JSON Path under `.spec`. If there is no value under the given path in the custom resource, the `/scale` subresource will return an error on GET.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"statusReplicasPath": {
+						SchemaProps: spec.SchemaProps{
+							Description: "statusReplicasPath defines the JSON path inside of a custom resource that corresponds to Scale `status.replicas`. Only JSON paths without the array notation are allowed. Must be a JSON Path under `.status`. If there is no value under the given path in the custom resource, the `status.replicas` value in the `/scale` subresource will default to 0.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"labelSelectorPath": {
+						SchemaProps: spec.SchemaProps{
+							Description: "labelSelectorPath defines the JSON path inside of a custom resource that corresponds to Scale `status.selector`. Only JSON paths without the array notation are allowed. Must be a JSON Path under `.status` or `.spec`. Must be set to work with HorizontalPodAutoscaler. The field pointed by this JSON path must be a string field (not a complex selector struct) which contains a serialized label selector in string form. More info: https://kubernetes.io/docs/tasks/access-kubernetes-api/custom-resources/custom-resource-definitions#scale-subresource If there is no value under the given path in the custom resource, the `status.selector` value in the `/scale` subresource will default to the empty string.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"specReplicasPath", "statusReplicasPath"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_apiextensions_v1_CustomResourceSubresourceStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "CustomResourceSubresourceStatus defines how to serve the status subresource for CustomResources. Status is represented by the `.status` JSON path inside of a CustomResource. When set, * exposes a /status subresource for the custom resource * PUT requests to the /status subresource take a custom resource object, and ignore changes to anything except the status stanza * PUT/POST/PATCH requests to the custom resource ignore changes to the status stanza",
+				Type:        []string{"object"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_apiextensions_v1_CustomResourceSubresources(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "CustomResourceSubresources defines the status and scale subresources for CustomResources.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Description: "status indicates the custom resource should serve a `/status` subresource. When enabled: 1. requests to the custom resource primary endpoint ignore changes to the `status` stanza of the object. 2. requests to the custom resource `/status` subresource ignore changes to anything other than the `status` stanza of the object.",
+							Ref:         ref(apiextensionsv1.CustomResourceSubresourceStatus{}.OpenAPIModelName()),
+						},
+					},
+					"scale": {
+						SchemaProps: spec.SchemaProps{
+							Description: "scale indicates the custom resource should serve a `/scale` subresource that returns an `autoscaling/v1` Scale object.",
+							Ref:         ref(apiextensionsv1.CustomResourceSubresourceScale{}.OpenAPIModelName()),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			apiextensionsv1.CustomResourceSubresourceScale{}.OpenAPIModelName(), apiextensionsv1.CustomResourceSubresourceStatus{}.OpenAPIModelName()},
+	}
+}
+
+func schema_pkg_apis_apiextensions_v1_CustomResourceValidation(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "CustomResourceValidation is a list of validation methods for CustomResources.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"openAPIV3Schema": {
+						SchemaProps: spec.SchemaProps{
+							Description: "openAPIV3Schema is the OpenAPI v3 schema to use for validation and pruning.",
+							Ref:         ref(apiextensionsv1.JSONSchemaProps{}.OpenAPIModelName()),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			apiextensionsv1.JSONSchemaProps{}.OpenAPIModelName()},
+	}
+}
+
+func schema_pkg_apis_apiextensions_v1_ExternalDocumentation(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ExternalDocumentation allows referencing an external resource for extended documentation.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"description": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"url": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_apiextensions_v1_JSON(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "JSON represents any valid JSON value. These types are supported: bool, int64, float64, string, []interface{}, map[string]interface{} and nil.",
+				Type:        apiextensionsv1.JSON{}.OpenAPISchemaType(),
+				Format:      apiextensionsv1.JSON{}.OpenAPISchemaFormat(),
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_apiextensions_v1_JSONSchemaProps(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "JSONSchemaProps is a JSON-Schema following Specification Draft 4 (http://json-schema.org/).",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"id": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"$schema": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"$ref": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"description": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"type": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"format": {
+						SchemaProps: spec.SchemaProps{
+							Description: "format is an OpenAPI v3 format string. Unknown formats are ignored. The following formats are validated:\n\n- bsonobjectid: a bson object ID, i.e. a 24 characters hex string - uri: an URI as parsed by Golang net/url.ParseRequestURI - email: an email address as parsed by Golang net/mail.ParseAddress - hostname: a valid representation for an Internet host name, as defined by RFC 1034, section 3.1 [RFC1034]. - ipv4: an IPv4 IP as parsed by Golang net.ParseIP - ipv6: an IPv6 IP as parsed by Golang net.ParseIP - cidr: a CIDR as parsed by Golang net.ParseCIDR - mac: a MAC address as parsed by Golang net.ParseMAC - uuid: an UUID that allows uppercase defined by the regex (?i)^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$ - uuid3: an UUID3 that allows uppercase defined by the regex (?i)^[0-9a-f]{8}-?[0-9a-f]{4}-?3[0-9a-f]{3}-?[0-9a-f]{4}-?[0-9a-f]{12}$ - uuid4: an UUID4 that allows uppercase defined by the regex (?i)^[0-9a-f]{8}-?[0-9a-f]{4}-?4[0-9a-f]{3}-?[89ab][0-9a-f]{3}-?[0-9a-f]{12}$ - uuid5: an UUID5 that allows uppercase defined by the regex (?i)^[0-9a-f]{8}-?[0-9a-f]{4}-?5[0-9a-f]{3}-?[89ab][0-9a-f]{3}-?[0-9a-f]{12}$ - isbn: an ISBN10 or ISBN13 number string like \"0321751043\" or \"978-0321751041\" - isbn10: an ISBN10 number string like \"0321751043\" - isbn13: an ISBN13 number string like \"978-0321751041\" - creditcard: a credit card number defined by the regex ^(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|6(?:011|5[0-9][0-9])[0-9]{12}|3[47][0-9]{13}|3(?:0[0-5]|[68][0-9])[0-9]{11}|(?:2131|1800|35\\\\d{3})\\\\d{11})$ with any non digit characters mixed in - ssn: a U.S. social security number following the regex ^\\\\d{3}[- ]?\\\\d{2}[- ]?\\\\d{4}$ - hexcolor: an hexadecimal color code like \"#FFFFFF: following the regex ^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$ - rgbcolor: an RGB color code like rgb like \"rgb(255,255,2559\" - byte: base64 encoded binary data - password: any kind of string - date: a date string like \"2006-01-02\" as defined by full-date in RFC3339 - duration: a duration string like \"22 ns\" as parsed by Golang time.ParseDuration or compatible with Scala duration format - datetime: a date time string like \"2014-12-15T19:30:20.000Z\" as defined by date-time in RFC3339.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"title": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"default": {
+						SchemaProps: spec.SchemaProps{
+							Description: "default is a default value for undefined object fields. Defaulting is a beta feature under the CustomResourceDefaulting feature gate. Defaulting requires spec.preserveUnknownFields to be false.",
+							Ref:         ref(apiextensionsv1.JSON{}.OpenAPIModelName()),
+						},
+					},
+					"maximum": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"number"},
+							Format: "double",
+						},
+					},
+					"exclusiveMaximum": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+					"minimum": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"number"},
+							Format: "double",
+						},
+					},
+					"exclusiveMinimum": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+					"maxLength": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int64",
+						},
+					},
+					"minLength": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int64",
+						},
+					},
+					"pattern": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"maxItems": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int64",
+						},
+					},
+					"minItems": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int64",
+						},
+					},
+					"uniqueItems": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+					"multipleOf": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"number"},
+							Format: "double",
+						},
+					},
+					"enum": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref(apiextensionsv1.JSON{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+					"maxProperties": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int64",
+						},
+					},
+					"minProperties": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int64",
+						},
+					},
+					"required": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref(apiextensionsv1.JSONSchemaPropsOrArray{}.OpenAPIModelName()),
+						},
+					},
+					"allOf": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(apiextensionsv1.JSONSchemaProps{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+					"oneOf": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(apiextensionsv1.JSONSchemaProps{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+					"anyOf": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(apiextensionsv1.JSONSchemaProps{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+					"not": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref(apiextensionsv1.JSONSchemaProps{}.OpenAPIModelName()),
+						},
+					},
+					"properties": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(apiextensionsv1.JSONSchemaProps{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+					"additionalProperties": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref(apiextensionsv1.JSONSchemaPropsOrBool{}.OpenAPIModelName()),
+						},
+					},
+					"patternProperties": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(apiextensionsv1.JSONSchemaProps{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+					"dependencies": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref(apiextensionsv1.JSONSchemaPropsOrStringArray{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+					"additionalItems": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref(apiextensionsv1.JSONSchemaPropsOrBool{}.OpenAPIModelName()),
+						},
+					},
+					"definitions": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(apiextensionsv1.JSONSchemaProps{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+					"externalDocs": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref(apiextensionsv1.ExternalDocumentation{}.OpenAPIModelName()),
+						},
+					},
+					"example": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref(apiextensionsv1.JSON{}.OpenAPIModelName()),
+						},
+					},
+					"nullable": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+					"x-kubernetes-preserve-unknown-fields": {
+						SchemaProps: spec.SchemaProps{
+							Description: "x-kubernetes-preserve-unknown-fields stops the API server decoding step from pruning fields which are not specified in the validation schema. This affects fields recursively, but switches back to normal pruning behaviour if nested properties or additionalProperties are specified in the schema. This can either be true or undefined. False is forbidden.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"x-kubernetes-embedded-resource": {
+						SchemaProps: spec.SchemaProps{
+							Description: "x-kubernetes-embedded-resource defines that the value is an embedded Kubernetes runtime.Object, with TypeMeta and ObjectMeta. The type must be object. It is allowed to further restrict the embedded object. kind, apiVersion and metadata are validated automatically. x-kubernetes-preserve-unknown-fields is allowed to be true, but does not have to be if the object is fully specified (up to kind, apiVersion, metadata).",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"x-kubernetes-int-or-string": {
+						SchemaProps: spec.SchemaProps{
+							Description: "x-kubernetes-int-or-string specifies that this value is either an integer or a string. If this is true, an empty type is allowed and type as child of anyOf is permitted if following one of the following patterns:\n\n1) anyOf:\n   - type: integer\n   - type: string\n2) allOf:\n   - anyOf:\n     - type: integer\n     - type: string\n   - ... zero or more",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"x-kubernetes-list-map-keys": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "x-kubernetes-list-map-keys annotates an array with the x-kubernetes-list-type `map` by specifying the keys used as the index of the map.\n\nThis tag MUST only be used on lists that have the \"x-kubernetes-list-type\" extension set to \"map\". Also, the values specified for this attribute must be a scalar typed field of the child structure (no nesting is supported).\n\nThe properties specified must either be required or have a default value, to ensure those properties are present for all list items.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"x-kubernetes-list-type": {
+						SchemaProps: spec.SchemaProps{
+							Description: "x-kubernetes-list-type annotates an array to further describe its topology. This extension must only be used on lists and may have 3 possible values:\n\n1) `atomic`: the list is treated as a single entity, like a scalar.\n     Atomic lists will be entirely replaced when updated. This extension\n     may be used on any type of list (struct, scalar, ...).\n2) `set`:\n     Sets are lists that must not have multiple items with the same value. Each\n     value must be a scalar, an object with x-kubernetes-map-type `atomic` or an\n     array with x-kubernetes-list-type `atomic`.\n3) `map`:\n     These lists are like maps in that their elements have a non-index key\n     used to identify them. Order is preserved upon merge. The map tag\n     must only be used on a list with elements of type object.\nDefaults to atomic for arrays.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"x-kubernetes-map-type": {
+						SchemaProps: spec.SchemaProps{
+							Description: "x-kubernetes-map-type annotates an object to further describe its topology. This extension must only be used when type is object and may have 2 possible values:\n\n1) `granular`:\n     These maps are actual maps (key-value pairs) and each fields are independent\n     from each other (they can each be manipulated by separate actors). This is\n     the default behaviour for all maps.\n2) `atomic`: the list is treated as a single entity, like a scalar.\n     Atomic maps will be entirely replaced when updated.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"x-kubernetes-validations": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"rule",
+								},
+								"x-kubernetes-list-type":       "map",
+								"x-kubernetes-patch-merge-key": "rule",
+								"x-kubernetes-patch-strategy":  "merge",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "x-kubernetes-validations describes a list of validation rules written in the CEL expression language.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(apiextensionsv1.ValidationRule{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			apiextensionsv1.ExternalDocumentation{}.OpenAPIModelName(), apiextensionsv1.JSON{}.OpenAPIModelName(), apiextensionsv1.JSONSchemaProps{}.OpenAPIModelName(), apiextensionsv1.JSONSchemaPropsOrArray{}.OpenAPIModelName(), apiextensionsv1.JSONSchemaPropsOrBool{}.OpenAPIModelName(), apiextensionsv1.JSONSchemaPropsOrStringArray{}.OpenAPIModelName(), apiextensionsv1.ValidationRule{}.OpenAPIModelName()},
+	}
+}
+
+func schema_pkg_apis_apiextensions_v1_JSONSchemaPropsOrArray(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "JSONSchemaPropsOrArray represents a value that can either be a JSONSchemaProps or an array of JSONSchemaProps. Mainly here for serialization purposes.",
+				Type:        apiextensionsv1.JSONSchemaPropsOrArray{}.OpenAPISchemaType(),
+				Format:      apiextensionsv1.JSONSchemaPropsOrArray{}.OpenAPISchemaFormat(),
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_apiextensions_v1_JSONSchemaPropsOrBool(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "JSONSchemaPropsOrBool represents JSONSchemaProps or a boolean value. Defaults to true for the boolean property.",
+				Type:        apiextensionsv1.JSONSchemaPropsOrBool{}.OpenAPISchemaType(),
+				Format:      apiextensionsv1.JSONSchemaPropsOrBool{}.OpenAPISchemaFormat(),
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_apiextensions_v1_JSONSchemaPropsOrStringArray(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "JSONSchemaPropsOrStringArray represents a JSONSchemaProps or a string array.",
+				Type:        apiextensionsv1.JSONSchemaPropsOrStringArray{}.OpenAPISchemaType(),
+				Format:      apiextensionsv1.JSONSchemaPropsOrStringArray{}.OpenAPISchemaFormat(),
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_apiextensions_v1_SelectableField(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SelectableField specifies the JSON path of a field that may be used with field selectors.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"jsonPath": {
+						SchemaProps: spec.SchemaProps{
+							Description: "jsonPath is a simple JSON path which is evaluated against each custom resource to produce a field selector value. Only JSON paths without the array notation are allowed. Must point to a field of type string, boolean or integer. Types with enum values and strings with formats are allowed. If jsonPath refers to absent field in a resource, the jsonPath evaluates to an empty string. Must not point to metdata fields. Required.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"jsonPath"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_apiextensions_v1_ServiceReference(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ServiceReference holds a reference to Service.legacy.k8s.io",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"namespace": {
+						SchemaProps: spec.SchemaProps{
+							Description: "namespace is the namespace of the service. Required",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "name is the name of the service. Required",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"path": {
+						SchemaProps: spec.SchemaProps{
+							Description: "path is an optional URL path at which the webhook will be contacted.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"port": {
+						SchemaProps: spec.SchemaProps{
+							Description: "port is an optional service port at which the webhook will be contacted. `port` should be a valid port number (1-65535, inclusive). Defaults to 443 for backward compatibility.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+				},
+				Required: []string{"namespace", "name"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_apiextensions_v1_ValidationRule(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ValidationRule describes a validation rule written in the CEL expression language.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"rule": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Rule represents the expression which will be evaluated by CEL. ref: https://github.com/google/cel-spec The Rule is scoped to the location of the x-kubernetes-validations extension in the schema. The `self` variable in the CEL expression is bound to the scoped value. Example: - Rule scoped to the root of a resource with a status subresource: {\"rule\": \"self.status.actual <= self.spec.maxDesired\"}\n\nIf the Rule is scoped to an object with properties, the accessible properties of the object are field selectable via `self.field` and field presence can be checked via `has(self.field)`. Null valued fields are treated as absent fields in CEL expressions. If the Rule is scoped to an object with additionalProperties (i.e. a map) the value of the map are accessible via `self[mapKey]`, map containment can be checked via `mapKey in self` and all entries of the map are accessible via CEL macros and functions such as `self.all(...)`. If the Rule is scoped to an array, the elements of the array are accessible via `self[i]` and also by macros and functions. If the Rule is scoped to a scalar, `self` is bound to the scalar value. Examples: - Rule scoped to a map of objects: {\"rule\": \"self.components['Widget'].priority < 10\"} - Rule scoped to a list of integers: {\"rule\": \"self.values.all(value, value >= 0 && value < 100)\"} - Rule scoped to a string value: {\"rule\": \"self.startsWith('kube')\"}\n\nThe `apiVersion`, `kind`, `metadata.name` and `metadata.generateName` are always accessible from the root of the object and from any x-kubernetes-embedded-resource annotated objects. No other metadata properties are accessible.\n\nUnknown data preserved in custom resources via x-kubernetes-preserve-unknown-fields is not accessible in CEL expressions. This includes: - Unknown field values that are preserved by object schemas with x-kubernetes-preserve-unknown-fields. - Object properties where the property schema is of an \"unknown type\". An \"unknown type\" is recursively defined as:\n  - A schema with no type and x-kubernetes-preserve-unknown-fields set to true\n  - An array where the items schema is of an \"unknown type\"\n  - An object where the additionalProperties schema is of an \"unknown type\"\n\nOnly property names of the form `[a-zA-Z_.-/][a-zA-Z0-9_.-/]*` are accessible. Accessible property names are escaped according to the following rules when accessed in the expression: - '__' escapes to '__underscores__' - '.' escapes to '__dot__' - '-' escapes to '__dash__' - '/' escapes to '__slash__' - Property names that exactly match a CEL RESERVED keyword escape to '__{keyword}__'. The keywords are:\n\t  \"true\", \"false\", \"null\", \"in\", \"as\", \"break\", \"const\", \"continue\", \"else\", \"for\", \"function\", \"if\",\n\t  \"import\", \"let\", \"loop\", \"package\", \"namespace\", \"return\".\nExamples:\n  - Rule accessing a property named \"namespace\": {\"rule\": \"self.__namespace__ > 0\"}\n  - Rule accessing a property named \"x-prop\": {\"rule\": \"self.x__dash__prop > 0\"}\n  - Rule accessing a property named \"redact__d\": {\"rule\": \"self.redact__underscores__d > 0\"}\n\nEquality on arrays with x-kubernetes-list-type of 'set' or 'map' ignores element order, i.e. [1, 2] == [2, 1]. Concatenation on arrays with x-kubernetes-list-type use the semantics of the list type:\n  - 'set': `X + Y` performs a union where the array positions of all elements in `X` are preserved and\n    non-intersecting elements in `Y` are appended, retaining their partial order.\n  - 'map': `X + Y` performs a merge where the array positions of all keys in `X` are preserved but the values\n    are overwritten by values in `Y` when the key sets of `X` and `Y` intersect. Elements in `Y` with\n    non-intersecting keys are appended, retaining their partial order.\n\nIf `rule` makes use of the `oldSelf` variable it is implicitly a `transition rule`.\n\nBy default, the `oldSelf` variable is the same type as `self`. When `optionalOldSelf` is true, the `oldSelf` variable is a CEL optional\n variable whose value() is the same type as `self`.\nSee the documentation for the `optionalOldSelf` field for details.\n\nTransition rules by default are applied only on UPDATE requests and are skipped if an old value could not be found. You can opt a transition rule into unconditional evaluation by setting `optionalOldSelf` to true.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"message": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Message represents the message displayed when validation fails. The message is required if the Rule contains line breaks. The message must not contain line breaks. If unset, the message is \"failed rule: {Rule}\". e.g. \"must be a URL with the host matching spec.host\"",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"messageExpression": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MessageExpression declares a CEL expression that evaluates to the validation failure message that is returned when this rule fails. Since messageExpression is used as a failure message, it must evaluate to a string. If both message and messageExpression are present on a rule, then messageExpression will be used if validation fails. If messageExpression results in a runtime error, the runtime error is logged, and the validation failure message is produced as if the messageExpression field were unset. If messageExpression evaluates to an empty string, a string with only spaces, or a string that contains line breaks, then the validation failure message will also be produced as if the messageExpression field were unset, and the fact that messageExpression produced an empty string/string with only spaces/string with line breaks will be logged. messageExpression has access to all the same variables as the rule; the only difference is the return type. Example: \"x must be less than max (\"+string(self.max)+\")\"",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"reason": {
+						SchemaProps: spec.SchemaProps{
+							Description: "reason provides a machine-readable validation failure reason that is returned to the caller when a request fails this validation rule. The HTTP status code returned to the caller will match the reason of the reason of the first failed validation rule. The currently supported reasons are: \"FieldValueInvalid\", \"FieldValueForbidden\", \"FieldValueRequired\", \"FieldValueDuplicate\". If not set, default to use \"FieldValueInvalid\". All future added reasons must be accepted by clients when reading this value and unknown reasons should be treated as FieldValueInvalid.\n\nPossible enum values:\n - `\"FieldValueDuplicate\"` is used to report collisions of values that must be unique (e.g. unique IDs).\n - `\"FieldValueForbidden\"` is used to report valid (as per formatting rules) values which would be accepted under some conditions, but which are not permitted by the current conditions (such as security policy).\n - `\"FieldValueInvalid\"` is used to report malformed values (e.g. failed regex match, too long, out of bounds).\n - `\"FieldValueRequired\"` is used to report required values that are not provided (e.g. empty strings, null values, or empty arrays).",
+							Type:        []string{"string"},
+							Format:      "",
+							Enum:        []interface{}{"FieldValueDuplicate", "FieldValueForbidden", "FieldValueInvalid", "FieldValueRequired"},
+						},
+					},
+					"fieldPath": {
+						SchemaProps: spec.SchemaProps{
+							Description: "fieldPath represents the field path returned when the validation fails. It must be a relative JSON path (i.e. with array notation) scoped to the location of this x-kubernetes-validations extension in the schema and refer to an existing field. e.g. when validation checks if a specific attribute `foo` under a map `testMap`, the fieldPath could be set to `.testMap.foo` If the validation checks two lists must have unique attributes, the fieldPath could be set to either of the list: e.g. `.testList` It does not support list numeric index. It supports child operation to refer to an existing field currently. Refer to [JSONPath support in Kubernetes](https://kubernetes.io/docs/reference/kubectl/jsonpath/) for more info. Numeric index of array is not supported. For field name which contains special characters, use `['specialName']` to refer the field name. e.g. for attribute `foo.34$` appears in a list `testList`, the fieldPath could be set to `.testList['foo.34$']`",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"optionalOldSelf": {
+						SchemaProps: spec.SchemaProps{
+							Description: "optionalOldSelf is used to opt a transition rule into evaluation even when the object is first created, or if the old object is missing the value.\n\nWhen enabled `oldSelf` will be a CEL optional whose value will be `None` if there is no old value, or when the object is initially created.\n\nYou may check for presence of oldSelf using `oldSelf.hasValue()` and unwrap it after checking using `oldSelf.value()`. Check the CEL documentation for Optional types for more information: https://pkg.go.dev/github.com/google/cel-go/cel#OptionalTypes\n\nMay not be set unless `oldSelf` is used in `rule`.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"rule"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_apiextensions_v1_WebhookClientConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "WebhookClientConfig contains the information to make a TLS connection with the webhook.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"url": {
+						SchemaProps: spec.SchemaProps{
+							Description: "url gives the location of the webhook, in standard URL form (`scheme://host:port/path`). Exactly one of `url` or `service` must be specified.\n\nThe `host` should not refer to a service running in the cluster; use the `service` field instead. The host might be resolved via external DNS in some apiservers (e.g., `kube-apiserver` cannot resolve in-cluster DNS as that would be a layering violation). `host` may also be an IP address.\n\nPlease note that using `localhost` or `127.0.0.1` as a `host` is risky unless you take great care to run this webhook on all hosts which run an apiserver which might need to make calls to this webhook. Such installs are likely to be non-portable, i.e., not easy to turn up in a new cluster.\n\nThe scheme must be \"https\"; the URL must begin with \"https://\".\n\nA path is optional, and if present may be any string permissible in a URL. You may use the path to pass an arbitrary string to the webhook, for example, a cluster identifier.\n\nAttempting to use a user or basic auth e.g. \"user:password@\" is not allowed. Fragments (\"#...\") and query parameters (\"?...\") are not allowed, either.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"service": {
+						SchemaProps: spec.SchemaProps{
+							Description: "service is a reference to the service for this webhook. Either service or url must be specified.\n\nIf the webhook is running within the cluster, then you should use `service`.",
+							Ref:         ref(apiextensionsv1.ServiceReference{}.OpenAPIModelName()),
+						},
+					},
+					"caBundle": {
+						SchemaProps: spec.SchemaProps{
+							Description: "caBundle is a PEM encoded CA bundle which will be used to validate the webhook's server certificate. If unspecified, system trust roots on the apiserver are used.",
+							Type:        []string{"string"},
+							Format:      "byte",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			apiextensionsv1.ServiceReference{}.OpenAPIModelName()},
+	}
+}
+
+func schema_pkg_apis_apiextensions_v1_WebhookConversion(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "WebhookConversion describes how to call a conversion webhook",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"clientConfig": {
+						SchemaProps: spec.SchemaProps{
+							Description: "clientConfig is the instructions for how to call the webhook if strategy is `Webhook`.",
+							Ref:         ref(apiextensionsv1.WebhookClientConfig{}.OpenAPIModelName()),
+						},
+					},
+					"conversionReviewVersions": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "conversionReviewVersions is an ordered list of preferred `ConversionReview` versions the Webhook expects. The API server will use the first version in the list which it supports. If none of the versions specified in this list are supported by API server, conversion will fail for the custom resource. If a persisted Webhook configuration specifies allowed versions and does not include any versions known to the API Server, calls to the webhook will fail.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"conversionReviewVersions"},
+			},
+		},
+		Dependencies: []string{
+			apiextensionsv1.WebhookClientConfig{}.OpenAPIModelName()},
 	}
 }
 
@@ -16813,26 +22574,6 @@ func schema_k8sio_apimachinery_pkg_runtime_Unknown(ref common.ReferenceCallback)
 	}
 }
 
-func schema_apimachinery_pkg_util_intstr_IntOrString(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.EmbedOpenAPIDefinitionIntoV2Extension(common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "IntOrString is a type that can hold an int32 or a string.  When used in JSON or YAML marshalling and unmarshalling, it produces or consumes the inner type.  This allows you to have, for example, a JSON field that can accept a name or number.",
-				OneOf:       common.GenerateOpenAPIV3OneOfSchema(intstr.IntOrString{}.OpenAPIV3OneOfTypes()),
-				Format:      intstr.IntOrString{}.OpenAPISchemaFormat(),
-			},
-		},
-	}, common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "IntOrString is a type that can hold an int32 or a string.  When used in JSON or YAML marshalling and unmarshalling, it produces or consumes the inner type.  This allows you to have, for example, a JSON field that can accept a name or number.",
-				Type:        intstr.IntOrString{}.OpenAPISchemaType(),
-				Format:      intstr.IntOrString{}.OpenAPISchemaFormat(),
-			},
-		},
-	})
-}
-
 func schema_k8sio_apimachinery_pkg_version_Info(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -16937,5 +22678,741 @@ func schema_k8sio_apimachinery_pkg_version_Info(ref common.ReferenceCallback) co
 				Required: []string{"major", "minor", "gitVersion", "gitCommit", "gitTreeState", "buildDate", "goVersion", "compiler", "platform"},
 			},
 		},
+	}
+}
+
+func schema_pkg_apis_custom_metrics_v1beta1_MetricListOptions(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "MetricListOptions is used to select metrics by their label selectors",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"labelSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "A selector to restrict the list of returned objects by their labels. Defaults to everything.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metricLabelSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "A selector to restrict the list of returned metrics by their labels",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_custom_metrics_v1beta1_MetricValue(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "MetricValue is a metric value for some object",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"describedObject": {
+						SchemaProps: spec.SchemaProps{
+							Description: "a reference to the described object",
+							Default:     map[string]interface{}{},
+							Ref:         ref(corev1.ObjectReference{}.OpenAPIModelName()),
+						},
+					},
+					"metricName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "the name of the metric",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"timestamp": {
+						SchemaProps: spec.SchemaProps{
+							Description: "indicates the time at which the metrics were produced",
+							Ref:         ref(metav1.Time{}.OpenAPIModelName()),
+						},
+					},
+					"window": {
+						SchemaProps: spec.SchemaProps{
+							Description: "indicates the window ([Timestamp-Window, Timestamp]) from which these metrics were calculated, when returning rate metrics calculated from cumulative metrics (or zero for non-calculated instantaneous metrics).",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"value": {
+						SchemaProps: spec.SchemaProps{
+							Description: "the value of the metric for this",
+							Ref:         ref(resource.Quantity{}.OpenAPIModelName()),
+						},
+					},
+					"selector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "selector represents the label selector that could be used to select this metric, and will generally just be the selector passed in to the query used to fetch this metric. When left blank, only the metric's Name will be used to gather metrics.",
+							Ref:         ref(metav1.LabelSelector{}.OpenAPIModelName()),
+						},
+					},
+				},
+				Required: []string{"describedObject", "metricName", "timestamp", "value"},
+			},
+		},
+		Dependencies: []string{
+			corev1.ObjectReference{}.OpenAPIModelName(), resource.Quantity{}.OpenAPIModelName(), metav1.LabelSelector{}.OpenAPIModelName(), metav1.Time{}.OpenAPIModelName()},
+	}
+}
+
+func schema_pkg_apis_custom_metrics_v1beta1_MetricValueList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "MetricValueList is a list of values for a given metric for some set of objects",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref(metav1.ListMeta{}.OpenAPIModelName()),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Description: "the value of the metric across the described objects",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(v1beta1.MetricValue{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			metav1.ListMeta{}.OpenAPIModelName(), v1beta1.MetricValue{}.OpenAPIModelName()},
+	}
+}
+
+func schema_pkg_apis_custom_metrics_v1beta2_MetricIdentifier(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "MetricIdentifier identifies a metric by name and, optionally, selector",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "name is the name of the given metric",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"selector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "selector represents the label selector that could be used to select this metric, and will generally just be the selector passed in to the query used to fetch this metric. When left blank, only the metric's Name will be used to gather metrics.",
+							Ref:         ref(metav1.LabelSelector{}.OpenAPIModelName()),
+						},
+					},
+				},
+				Required: []string{"name"},
+			},
+		},
+		Dependencies: []string{
+			metav1.LabelSelector{}.OpenAPIModelName()},
+	}
+}
+
+func schema_pkg_apis_custom_metrics_v1beta2_MetricListOptions(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "MetricListOptions is used to select metrics by their label selectors",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"labelSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "A selector to restrict the list of returned objects by their labels. Defaults to everything.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metricLabelSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "A selector to restrict the list of returned metrics by their labels",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_custom_metrics_v1beta2_MetricValue(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "MetricValue is the metric value for some object",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"describedObject": {
+						SchemaProps: spec.SchemaProps{
+							Description: "a reference to the described object",
+							Default:     map[string]interface{}{},
+							Ref:         ref(corev1.ObjectReference{}.OpenAPIModelName()),
+						},
+					},
+					"metric": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref(v1beta2.MetricIdentifier{}.OpenAPIModelName()),
+						},
+					},
+					"timestamp": {
+						SchemaProps: spec.SchemaProps{
+							Description: "indicates the time at which the metrics were produced",
+							Ref:         ref(metav1.Time{}.OpenAPIModelName()),
+						},
+					},
+					"windowSeconds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "indicates the window ([Timestamp-Window, Timestamp]) from which these metrics were calculated, when returning rate metrics calculated from cumulative metrics (or zero for non-calculated instantaneous metrics).",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"value": {
+						SchemaProps: spec.SchemaProps{
+							Description: "the value of the metric for this",
+							Ref:         ref(resource.Quantity{}.OpenAPIModelName()),
+						},
+					},
+				},
+				Required: []string{"describedObject", "metric", "timestamp", "value"},
+			},
+		},
+		Dependencies: []string{
+			corev1.ObjectReference{}.OpenAPIModelName(), resource.Quantity{}.OpenAPIModelName(), metav1.Time{}.OpenAPIModelName(), v1beta2.MetricIdentifier{}.OpenAPIModelName()},
+	}
+}
+
+func schema_pkg_apis_custom_metrics_v1beta2_MetricValueList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "MetricValueList is a list of values for a given metric for some set of objects",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref(metav1.ListMeta{}.OpenAPIModelName()),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Description: "the value of the metric across the described objects",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(v1beta2.MetricValue{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			metav1.ListMeta{}.OpenAPIModelName(), v1beta2.MetricValue{}.OpenAPIModelName()},
+	}
+}
+
+func schema_pkg_apis_external_metrics_v1beta1_ExternalMetricValue(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ExternalMetricValue is a metric value for external metric A single metric value is identified by metric name and a set of string labels. For one metric there can be multiple values with different sets of labels.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metricName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "the name of the metric",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metricLabels": {
+						SchemaProps: spec.SchemaProps{
+							Description: "a set of labels that identify a single time series for the metric",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"timestamp": {
+						SchemaProps: spec.SchemaProps{
+							Description: "indicates the time at which the metrics were produced",
+							Ref:         ref(metav1.Time{}.OpenAPIModelName()),
+						},
+					},
+					"window": {
+						SchemaProps: spec.SchemaProps{
+							Description: "indicates the window ([Timestamp-Window, Timestamp]) from which these metrics were calculated, when returning rate metrics calculated from cumulative metrics (or zero for non-calculated instantaneous metrics).",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"value": {
+						SchemaProps: spec.SchemaProps{
+							Description: "the value of the metric",
+							Ref:         ref(resource.Quantity{}.OpenAPIModelName()),
+						},
+					},
+				},
+				Required: []string{"metricName", "metricLabels", "timestamp", "value"},
+			},
+		},
+		Dependencies: []string{
+			resource.Quantity{}.OpenAPIModelName(), metav1.Time{}.OpenAPIModelName()},
+	}
+}
+
+func schema_pkg_apis_external_metrics_v1beta1_ExternalMetricValueList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ExternalMetricValueList is a list of values for a given metric for some set labels",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref(metav1.ListMeta{}.OpenAPIModelName()),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Description: "value of the metric matching a given set of labels",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(externalmetricsv1beta1.ExternalMetricValue{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			metav1.ListMeta{}.OpenAPIModelName(), externalmetricsv1beta1.ExternalMetricValue{}.OpenAPIModelName()},
+	}
+}
+
+func schema_pkg_apis_metrics_v1beta1_ContainerMetrics(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ContainerMetrics sets resource usage metrics of a container.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Container name corresponding to the one from pod.spec.containers.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"usage": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The memory usage is the memory working set.",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref(resource.Quantity{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"name", "usage"},
+			},
+		},
+		Dependencies: []string{
+			resource.Quantity{}.OpenAPIModelName()},
+	}
+}
+
+func schema_pkg_apis_metrics_v1beta1_NodeMetrics(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "NodeMetrics sets resource usage metrics of a node.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata",
+							Default:     map[string]interface{}{},
+							Ref:         ref(metav1.ObjectMeta{}.OpenAPIModelName()),
+						},
+					},
+					"timestamp": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The following fields define time interval from which metrics were collected from the interval [Timestamp-Window, Timestamp].",
+							Ref:         ref(metav1.Time{}.OpenAPIModelName()),
+						},
+					},
+					"window": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref(metav1.Duration{}.OpenAPIModelName()),
+						},
+					},
+					"usage": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The memory usage is the memory working set.",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref(resource.Quantity{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"timestamp", "window", "usage"},
+			},
+		},
+		Dependencies: []string{
+			resource.Quantity{}.OpenAPIModelName(), metav1.Duration{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName(), metav1.Time{}.OpenAPIModelName()},
+	}
+}
+
+func schema_pkg_apis_metrics_v1beta1_NodeMetricsList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "NodeMetricsList is a list of NodeMetrics.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Standard list metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Default:     map[string]interface{}{},
+							Ref:         ref(metav1.ListMeta{}.OpenAPIModelName()),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Description: "List of node metrics.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(metricsv1beta1.NodeMetrics{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			metav1.ListMeta{}.OpenAPIModelName(), metricsv1beta1.NodeMetrics{}.OpenAPIModelName()},
+	}
+}
+
+func schema_pkg_apis_metrics_v1beta1_PodMetrics(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "PodMetrics sets resource usage metrics of a pod.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata",
+							Default:     map[string]interface{}{},
+							Ref:         ref(metav1.ObjectMeta{}.OpenAPIModelName()),
+						},
+					},
+					"timestamp": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The following fields define time interval from which metrics were collected from the interval [Timestamp-Window, Timestamp].",
+							Ref:         ref(metav1.Time{}.OpenAPIModelName()),
+						},
+					},
+					"window": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref(metav1.Duration{}.OpenAPIModelName()),
+						},
+					},
+					"containers": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Metrics for all containers are collected within the same time window.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(metricsv1beta1.ContainerMetrics{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"timestamp", "window", "containers"},
+			},
+		},
+		Dependencies: []string{
+			metav1.Duration{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName(), metav1.Time{}.OpenAPIModelName(), metricsv1beta1.ContainerMetrics{}.OpenAPIModelName()},
+	}
+}
+
+func schema_pkg_apis_metrics_v1beta1_PodMetricsList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "PodMetricsList is a list of PodMetrics.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Standard list metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Default:     map[string]interface{}{},
+							Ref:         ref(metav1.ListMeta{}.OpenAPIModelName()),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Description: "List of pod metrics.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(metricsv1beta1.PodMetrics{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			metav1.ListMeta{}.OpenAPIModelName(), metricsv1beta1.PodMetrics{}.OpenAPIModelName()},
 	}
 }
