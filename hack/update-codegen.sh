@@ -163,10 +163,31 @@ conversion-gen \
   --output-file=zz_generated.conversion.go \
   github.com/karmada-io/karmada/pkg/apis/search/v1alpha1
 
+K8S_OPENAPI_COMMON_PACKAGES=(
+  "k8s.io/api/core/v1"
+  "k8s.io/apimachinery/pkg/api/resource"
+  "k8s.io/apimachinery/pkg/apis/meta/v1"
+  "k8s.io/apimachinery/pkg/runtime"
+  "k8s.io/apimachinery/pkg/version"
+  "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+  "k8s.io/api/admissionregistration/v1"
+  "k8s.io/api/networking/v1"
+  "k8s.io/metrics/pkg/apis/custom_metrics"
+  "k8s.io/metrics/pkg/apis/custom_metrics/v1beta1"
+  "k8s.io/metrics/pkg/apis/custom_metrics/v1beta2"
+  "k8s.io/metrics/pkg/apis/external_metrics"
+  "k8s.io/metrics/pkg/apis/external_metrics/v1beta1"
+  "k8s.io/metrics/pkg/apis/metrics"
+  "k8s.io/metrics/pkg/apis/metrics/v1beta1"
+  "k8s.io/api/autoscaling/v2"
+)
+
 echo "Generating with openapi-gen"
 openapi-gen \
   --go-header-file hack/boilerplate/boilerplate.go.txt \
   --output-pkg "github.com/karmada-io/karmada/pkg/generated/openapi" \
+  --output-model-name-file "zz_generated.model_name.go" \
+  --readonly-pkg "$(IFS=,; echo "${K8S_OPENAPI_COMMON_PACKAGES[*]}")" \
   --output-dir pkg/generated/openapi \
   --output-file zz_generated.openapi.go \
   "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1" \
@@ -179,34 +200,16 @@ openapi-gen \
   "github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1" \
   "github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1" \
   "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1" \
-  "k8s.io/api/core/v1" \
-  "k8s.io/apimachinery/pkg/api/resource" \
-  "k8s.io/apimachinery/pkg/apis/meta/v1" \
-  "k8s.io/apimachinery/pkg/runtime" \
-  "k8s.io/apimachinery/pkg/version" \
-  "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1" \
-  "k8s.io/api/admissionregistration/v1" \
-  "k8s.io/api/networking/v1" \
-  "k8s.io/metrics/pkg/apis/custom_metrics" \
-  "k8s.io/metrics/pkg/apis/custom_metrics/v1beta1" \
-  "k8s.io/metrics/pkg/apis/custom_metrics/v1beta2" \
-  "k8s.io/metrics/pkg/apis/external_metrics" \
-  "k8s.io/metrics/pkg/apis/external_metrics/v1beta1" \
-  "k8s.io/metrics/pkg/apis/metrics" \
-  "k8s.io/metrics/pkg/apis/metrics/v1beta1" \
-  "k8s.io/api/autoscaling/v2"
+  "${K8S_OPENAPI_COMMON_PACKAGES[@]}"
 openapi-gen \
   --go-header-file hack/boilerplate/boilerplate.go.txt \
   --output-pkg "github.com/karmada-io/karmada/operator/pkg/generated/openapi" \
   --output-dir operator/pkg/generated/openapi \
+  --readonly-pkg "$(IFS=,; echo "${K8S_OPENAPI_COMMON_PACKAGES[*]}")" \
+  --output-model-name-file "zz_generated.model_name.go" \
   --output-file zz_generated.openapi.go \
   "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1" \
-  "k8s.io/api/core/v1" \
-  "k8s.io/apimachinery/pkg/api/resource" \
-  "k8s.io/apimachinery/pkg/apis/meta/v1" \
-  "k8s.io/apimachinery/pkg/util/intstr" \
-  "k8s.io/apimachinery/pkg/runtime" \
-  "k8s.io/apimachinery/pkg/version"
+	"${K8S_OPENAPI_COMMON_PACKAGES[@]}"
 
 EXTERNAL_APPLY_CONFIGS="k8s.io/api/core/v1.Taint:k8s.io/client-go/applyconfigurations/core/v1,\
 k8s.io/api/core/v1.Toleration:k8s.io/client-go/applyconfigurations/core/v1,\

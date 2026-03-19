@@ -22,6 +22,16 @@ limitations under the License.
 package openapi
 
 import (
+	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1"
+	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
+	networkingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	remedyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1"
+	searchv1alpha1 "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	v1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	v1 "k8s.io/api/admissionregistration/v1"
 	v2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
@@ -41,590 +51,590 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1.ObjectReference":                               schema_pkg_apis_apps_v1alpha1_ObjectReference(ref),
-		"github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1.ObservedWorkload":                              schema_pkg_apis_apps_v1alpha1_ObservedWorkload(ref),
-		"github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1.WorkloadRebalancer":                            schema_pkg_apis_apps_v1alpha1_WorkloadRebalancer(ref),
-		"github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1.WorkloadRebalancerList":                        schema_pkg_apis_apps_v1alpha1_WorkloadRebalancerList(ref),
-		"github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1.WorkloadRebalancerSpec":                        schema_pkg_apis_apps_v1alpha1_WorkloadRebalancerSpec(ref),
-		"github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1.WorkloadRebalancerStatus":                      schema_pkg_apis_apps_v1alpha1_WorkloadRebalancerStatus(ref),
-		"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.CronFederatedHPA":                       schema_pkg_apis_autoscaling_v1alpha1_CronFederatedHPA(ref),
-		"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.CronFederatedHPAList":                   schema_pkg_apis_autoscaling_v1alpha1_CronFederatedHPAList(ref),
-		"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.CronFederatedHPARule":                   schema_pkg_apis_autoscaling_v1alpha1_CronFederatedHPARule(ref),
-		"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.CronFederatedHPASpec":                   schema_pkg_apis_autoscaling_v1alpha1_CronFederatedHPASpec(ref),
-		"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.CronFederatedHPAStatus":                 schema_pkg_apis_autoscaling_v1alpha1_CronFederatedHPAStatus(ref),
-		"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.ExecutionHistory":                       schema_pkg_apis_autoscaling_v1alpha1_ExecutionHistory(ref),
-		"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.FailedExecution":                        schema_pkg_apis_autoscaling_v1alpha1_FailedExecution(ref),
-		"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.FederatedHPA":                           schema_pkg_apis_autoscaling_v1alpha1_FederatedHPA(ref),
-		"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.FederatedHPAList":                       schema_pkg_apis_autoscaling_v1alpha1_FederatedHPAList(ref),
-		"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.FederatedHPASpec":                       schema_pkg_apis_autoscaling_v1alpha1_FederatedHPASpec(ref),
-		"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.SuccessfulExecution":                    schema_pkg_apis_autoscaling_v1alpha1_SuccessfulExecution(ref),
-		"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.APIEnablement":                              schema_pkg_apis_cluster_v1alpha1_APIEnablement(ref),
-		"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.APIResource":                                schema_pkg_apis_cluster_v1alpha1_APIResource(ref),
-		"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.AllocatableModeling":                        schema_pkg_apis_cluster_v1alpha1_AllocatableModeling(ref),
-		"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.Cluster":                                    schema_pkg_apis_cluster_v1alpha1_Cluster(ref),
-		"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.ClusterList":                                schema_pkg_apis_cluster_v1alpha1_ClusterList(ref),
-		"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.ClusterProxyOptions":                        schema_pkg_apis_cluster_v1alpha1_ClusterProxyOptions(ref),
-		"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.ClusterSpec":                                schema_pkg_apis_cluster_v1alpha1_ClusterSpec(ref),
-		"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.ClusterStatus":                              schema_pkg_apis_cluster_v1alpha1_ClusterStatus(ref),
-		"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.LocalSecretReference":                       schema_pkg_apis_cluster_v1alpha1_LocalSecretReference(ref),
-		"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.NodeSummary":                                schema_pkg_apis_cluster_v1alpha1_NodeSummary(ref),
-		"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.ResourceModel":                              schema_pkg_apis_cluster_v1alpha1_ResourceModel(ref),
-		"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.ResourceModelRange":                         schema_pkg_apis_cluster_v1alpha1_ResourceModelRange(ref),
-		"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.ResourceSummary":                            schema_pkg_apis_cluster_v1alpha1_ResourceSummary(ref),
-		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ComponentResourceRequirement":                schema_pkg_apis_config_v1alpha1_ComponentResourceRequirement(ref),
-		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.CustomizationRules":                          schema_pkg_apis_config_v1alpha1_CustomizationRules(ref),
-		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.CustomizationTarget":                         schema_pkg_apis_config_v1alpha1_CustomizationTarget(ref),
-		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.DependencyInterpretation":                    schema_pkg_apis_config_v1alpha1_DependencyInterpretation(ref),
-		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.DependentObjectReference":                    schema_pkg_apis_config_v1alpha1_DependentObjectReference(ref),
-		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.HealthInterpretation":                        schema_pkg_apis_config_v1alpha1_HealthInterpretation(ref),
-		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.LocalValueRetention":                         schema_pkg_apis_config_v1alpha1_LocalValueRetention(ref),
-		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ReplicaResourceRequirement":                  schema_pkg_apis_config_v1alpha1_ReplicaResourceRequirement(ref),
-		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ReplicaRevision":                             schema_pkg_apis_config_v1alpha1_ReplicaRevision(ref),
-		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.RequestStatus":                               schema_pkg_apis_config_v1alpha1_RequestStatus(ref),
-		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ResourceInterpreterContext":                  schema_pkg_apis_config_v1alpha1_ResourceInterpreterContext(ref),
-		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ResourceInterpreterCustomization":            schema_pkg_apis_config_v1alpha1_ResourceInterpreterCustomization(ref),
-		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ResourceInterpreterCustomizationList":        schema_pkg_apis_config_v1alpha1_ResourceInterpreterCustomizationList(ref),
-		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ResourceInterpreterCustomizationSpec":        schema_pkg_apis_config_v1alpha1_ResourceInterpreterCustomizationSpec(ref),
-		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ResourceInterpreterRequest":                  schema_pkg_apis_config_v1alpha1_ResourceInterpreterRequest(ref),
-		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ResourceInterpreterResponse":                 schema_pkg_apis_config_v1alpha1_ResourceInterpreterResponse(ref),
-		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ResourceInterpreterWebhook":                  schema_pkg_apis_config_v1alpha1_ResourceInterpreterWebhook(ref),
-		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ResourceInterpreterWebhookConfiguration":     schema_pkg_apis_config_v1alpha1_ResourceInterpreterWebhookConfiguration(ref),
-		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ResourceInterpreterWebhookConfigurationList": schema_pkg_apis_config_v1alpha1_ResourceInterpreterWebhookConfigurationList(ref),
-		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.Rule":                                        schema_pkg_apis_config_v1alpha1_Rule(ref),
-		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.RuleWithOperations":                          schema_pkg_apis_config_v1alpha1_RuleWithOperations(ref),
-		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.StatusAggregation":                           schema_pkg_apis_config_v1alpha1_StatusAggregation(ref),
-		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.StatusReflection":                            schema_pkg_apis_config_v1alpha1_StatusReflection(ref),
-		"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.ClusterSelector":                         schema_pkg_apis_networking_v1alpha1_ClusterSelector(ref),
-		"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.ExposurePort":                            schema_pkg_apis_networking_v1alpha1_ExposurePort(ref),
-		"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.ExposureRange":                           schema_pkg_apis_networking_v1alpha1_ExposureRange(ref),
-		"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.MultiClusterIngress":                     schema_pkg_apis_networking_v1alpha1_MultiClusterIngress(ref),
-		"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.MultiClusterIngressList":                 schema_pkg_apis_networking_v1alpha1_MultiClusterIngressList(ref),
-		"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.MultiClusterIngressStatus":               schema_pkg_apis_networking_v1alpha1_MultiClusterIngressStatus(ref),
-		"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.MultiClusterService":                     schema_pkg_apis_networking_v1alpha1_MultiClusterService(ref),
-		"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.MultiClusterServiceList":                 schema_pkg_apis_networking_v1alpha1_MultiClusterServiceList(ref),
-		"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.MultiClusterServiceSpec":                 schema_pkg_apis_networking_v1alpha1_MultiClusterServiceSpec(ref),
-		"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.ServiceLocation":                         schema_pkg_apis_networking_v1alpha1_ServiceLocation(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ApplicationFailoverBehavior":                 schema_pkg_apis_policy_v1alpha1_ApplicationFailoverBehavior(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinity":                             schema_pkg_apis_policy_v1alpha1_ClusterAffinity(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinityTerm":                         schema_pkg_apis_policy_v1alpha1_ClusterAffinityTerm(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterFailoverBehavior":                     schema_pkg_apis_policy_v1alpha1_ClusterFailoverBehavior(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterOverridePolicy":                       schema_pkg_apis_policy_v1alpha1_ClusterOverridePolicy(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterOverridePolicyList":                   schema_pkg_apis_policy_v1alpha1_ClusterOverridePolicyList(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterPreferences":                          schema_pkg_apis_policy_v1alpha1_ClusterPreferences(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterPropagationPolicy":                    schema_pkg_apis_policy_v1alpha1_ClusterPropagationPolicy(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterPropagationPolicyList":                schema_pkg_apis_policy_v1alpha1_ClusterPropagationPolicyList(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterQuotaStatus":                          schema_pkg_apis_policy_v1alpha1_ClusterQuotaStatus(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterTaintPolicy":                          schema_pkg_apis_policy_v1alpha1_ClusterTaintPolicy(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterTaintPolicyList":                      schema_pkg_apis_policy_v1alpha1_ClusterTaintPolicyList(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterTaintPolicySpec":                      schema_pkg_apis_policy_v1alpha1_ClusterTaintPolicySpec(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.CommandArgsOverrider":                        schema_pkg_apis_policy_v1alpha1_CommandArgsOverrider(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.DecisionConditions":                          schema_pkg_apis_policy_v1alpha1_DecisionConditions(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FailoverBehavior":                            schema_pkg_apis_policy_v1alpha1_FailoverBehavior(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FederatedResourceQuota":                      schema_pkg_apis_policy_v1alpha1_FederatedResourceQuota(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FederatedResourceQuotaList":                  schema_pkg_apis_policy_v1alpha1_FederatedResourceQuotaList(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FederatedResourceQuotaSpec":                  schema_pkg_apis_policy_v1alpha1_FederatedResourceQuotaSpec(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FederatedResourceQuotaStatus":                schema_pkg_apis_policy_v1alpha1_FederatedResourceQuotaStatus(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FieldOverrider":                              schema_pkg_apis_policy_v1alpha1_FieldOverrider(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FieldSelector":                               schema_pkg_apis_policy_v1alpha1_FieldSelector(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ImageOverrider":                              schema_pkg_apis_policy_v1alpha1_ImageOverrider(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ImagePredicate":                              schema_pkg_apis_policy_v1alpha1_ImagePredicate(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.JSONPatchOperation":                          schema_pkg_apis_policy_v1alpha1_JSONPatchOperation(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.LabelAnnotationOverrider":                    schema_pkg_apis_policy_v1alpha1_LabelAnnotationOverrider(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.MatchCondition":                              schema_pkg_apis_policy_v1alpha1_MatchCondition(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.OverridePolicy":                              schema_pkg_apis_policy_v1alpha1_OverridePolicy(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.OverridePolicyList":                          schema_pkg_apis_policy_v1alpha1_OverridePolicyList(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.OverrideSpec":                                schema_pkg_apis_policy_v1alpha1_OverrideSpec(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Overriders":                                  schema_pkg_apis_policy_v1alpha1_Overriders(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Placement":                                   schema_pkg_apis_policy_v1alpha1_Placement(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.PlaintextOverrider":                          schema_pkg_apis_policy_v1alpha1_PlaintextOverrider(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.PropagationPolicy":                           schema_pkg_apis_policy_v1alpha1_PropagationPolicy(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.PropagationPolicyList":                       schema_pkg_apis_policy_v1alpha1_PropagationPolicyList(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.PropagationSpec":                             schema_pkg_apis_policy_v1alpha1_PropagationSpec(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ReplicaSchedulingStrategy":                   schema_pkg_apis_policy_v1alpha1_ReplicaSchedulingStrategy(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ResourceSelector":                            schema_pkg_apis_policy_v1alpha1_ResourceSelector(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.RuleWithCluster":                             schema_pkg_apis_policy_v1alpha1_RuleWithCluster(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.SchedulePriority":                            schema_pkg_apis_policy_v1alpha1_SchedulePriority(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.SpreadConstraint":                            schema_pkg_apis_policy_v1alpha1_SpreadConstraint(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.StatePreservation":                           schema_pkg_apis_policy_v1alpha1_StatePreservation(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.StatePreservationRule":                       schema_pkg_apis_policy_v1alpha1_StatePreservationRule(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.StaticClusterAssignment":                     schema_pkg_apis_policy_v1alpha1_StaticClusterAssignment(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.StaticClusterWeight":                         schema_pkg_apis_policy_v1alpha1_StaticClusterWeight(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.SuspendClusters":                             schema_pkg_apis_policy_v1alpha1_SuspendClusters(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Suspension":                                  schema_pkg_apis_policy_v1alpha1_Suspension(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Taint":                                       schema_pkg_apis_policy_v1alpha1_Taint(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.WorkloadAffinity":                            schema_pkg_apis_policy_v1alpha1_WorkloadAffinity(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.WorkloadAffinityTerm":                        schema_pkg_apis_policy_v1alpha1_WorkloadAffinityTerm(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.WorkloadAntiAffinityTerm":                    schema_pkg_apis_policy_v1alpha1_WorkloadAntiAffinityTerm(ref),
-		"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.YAMLPatchOperation":                          schema_pkg_apis_policy_v1alpha1_YAMLPatchOperation(ref),
-		"github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1.ClusterAffinity":                             schema_pkg_apis_remedy_v1alpha1_ClusterAffinity(ref),
-		"github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1.ClusterConditionRequirement":                 schema_pkg_apis_remedy_v1alpha1_ClusterConditionRequirement(ref),
-		"github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1.DecisionMatch":                               schema_pkg_apis_remedy_v1alpha1_DecisionMatch(ref),
-		"github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1.Remedy":                                      schema_pkg_apis_remedy_v1alpha1_Remedy(ref),
-		"github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1.RemedyList":                                  schema_pkg_apis_remedy_v1alpha1_RemedyList(ref),
-		"github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1.RemedySpec":                                  schema_pkg_apis_remedy_v1alpha1_RemedySpec(ref),
-		"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.BackendStoreConfig":                          schema_pkg_apis_search_v1alpha1_BackendStoreConfig(ref),
-		"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.OpenSearchConfig":                            schema_pkg_apis_search_v1alpha1_OpenSearchConfig(ref),
-		"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.Proxying":                                    schema_pkg_apis_search_v1alpha1_Proxying(ref),
-		"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.ResourceRegistry":                            schema_pkg_apis_search_v1alpha1_ResourceRegistry(ref),
-		"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.ResourceRegistryList":                        schema_pkg_apis_search_v1alpha1_ResourceRegistryList(ref),
-		"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.ResourceRegistrySpec":                        schema_pkg_apis_search_v1alpha1_ResourceRegistrySpec(ref),
-		"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.ResourceRegistryStatus":                      schema_pkg_apis_search_v1alpha1_ResourceRegistryStatus(ref),
-		"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.ResourceSelector":                            schema_pkg_apis_search_v1alpha1_ResourceSelector(ref),
-		"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.Search":                                      schema_pkg_apis_search_v1alpha1_Search(ref),
-		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.AggregatedStatusItem":                          schema_pkg_apis_work_v1alpha1_AggregatedStatusItem(ref),
-		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.ClusterResourceBinding":                        schema_pkg_apis_work_v1alpha1_ClusterResourceBinding(ref),
-		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.ClusterResourceBindingList":                    schema_pkg_apis_work_v1alpha1_ClusterResourceBindingList(ref),
-		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.Manifest":                                      schema_pkg_apis_work_v1alpha1_Manifest(ref),
-		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.ManifestStatus":                                schema_pkg_apis_work_v1alpha1_ManifestStatus(ref),
-		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.ObjectReference":                               schema_pkg_apis_work_v1alpha1_ObjectReference(ref),
-		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.ResourceBinding":                               schema_pkg_apis_work_v1alpha1_ResourceBinding(ref),
-		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.ResourceBindingList":                           schema_pkg_apis_work_v1alpha1_ResourceBindingList(ref),
-		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.ResourceBindingSpec":                           schema_pkg_apis_work_v1alpha1_ResourceBindingSpec(ref),
-		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.ResourceBindingStatus":                         schema_pkg_apis_work_v1alpha1_ResourceBindingStatus(ref),
-		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.ResourceIdentifier":                            schema_pkg_apis_work_v1alpha1_ResourceIdentifier(ref),
-		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.TargetCluster":                                 schema_pkg_apis_work_v1alpha1_TargetCluster(ref),
-		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.Work":                                          schema_pkg_apis_work_v1alpha1_Work(ref),
-		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.WorkList":                                      schema_pkg_apis_work_v1alpha1_WorkList(ref),
-		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.WorkSpec":                                      schema_pkg_apis_work_v1alpha1_WorkSpec(ref),
-		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.WorkStatus":                                    schema_pkg_apis_work_v1alpha1_WorkStatus(ref),
-		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.WorkloadTemplate":                              schema_pkg_apis_work_v1alpha1_WorkloadTemplate(ref),
-		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.AggregatedStatusItem":                          schema_pkg_apis_work_v1alpha2_AggregatedStatusItem(ref),
-		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.BindingSnapshot":                               schema_pkg_apis_work_v1alpha2_BindingSnapshot(ref),
-		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ClusterResourceBinding":                        schema_pkg_apis_work_v1alpha2_ClusterResourceBinding(ref),
-		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ClusterResourceBindingList":                    schema_pkg_apis_work_v1alpha2_ClusterResourceBindingList(ref),
-		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.Component":                                     schema_pkg_apis_work_v1alpha2_Component(ref),
-		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ComponentReplicaRequirements":                  schema_pkg_apis_work_v1alpha2_ComponentReplicaRequirements(ref),
-		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.GracefulEvictionTask":                          schema_pkg_apis_work_v1alpha2_GracefulEvictionTask(ref),
-		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.NodeClaim":                                     schema_pkg_apis_work_v1alpha2_NodeClaim(ref),
-		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ObjectReference":                               schema_pkg_apis_work_v1alpha2_ObjectReference(ref),
-		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ReplicaRequirements":                           schema_pkg_apis_work_v1alpha2_ReplicaRequirements(ref),
-		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ResourceBinding":                               schema_pkg_apis_work_v1alpha2_ResourceBinding(ref),
-		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ResourceBindingList":                           schema_pkg_apis_work_v1alpha2_ResourceBindingList(ref),
-		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ResourceBindingSpec":                           schema_pkg_apis_work_v1alpha2_ResourceBindingSpec(ref),
-		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ResourceBindingStatus":                         schema_pkg_apis_work_v1alpha2_ResourceBindingStatus(ref),
-		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.SchedulePriority":                              schema_pkg_apis_work_v1alpha2_SchedulePriority(ref),
-		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.Suspension":                                    schema_pkg_apis_work_v1alpha2_Suspension(ref),
-		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.TargetCluster":                                 schema_pkg_apis_work_v1alpha2_TargetCluster(ref),
-		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.TaskOptions":                                   schema_pkg_apis_work_v1alpha2_TaskOptions(ref),
-		"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.WorkloadAffinityGroups":                        schema_pkg_apis_work_v1alpha2_WorkloadAffinityGroups(ref),
-		v1.AuditAnnotation{}.OpenAPIModelName():                                                              schema_k8sio_api_admissionregistration_v1_AuditAnnotation(ref),
-		v1.ExpressionWarning{}.OpenAPIModelName():                                                            schema_k8sio_api_admissionregistration_v1_ExpressionWarning(ref),
-		v1.MatchCondition{}.OpenAPIModelName():                                                               schema_k8sio_api_admissionregistration_v1_MatchCondition(ref),
-		v1.MatchResources{}.OpenAPIModelName():                                                               schema_k8sio_api_admissionregistration_v1_MatchResources(ref),
-		v1.MutatingWebhook{}.OpenAPIModelName():                                                              schema_k8sio_api_admissionregistration_v1_MutatingWebhook(ref),
-		v1.MutatingWebhookConfiguration{}.OpenAPIModelName():                                                 schema_k8sio_api_admissionregistration_v1_MutatingWebhookConfiguration(ref),
-		v1.MutatingWebhookConfigurationList{}.OpenAPIModelName():                                             schema_k8sio_api_admissionregistration_v1_MutatingWebhookConfigurationList(ref),
-		v1.NamedRuleWithOperations{}.OpenAPIModelName():                                                      schema_k8sio_api_admissionregistration_v1_NamedRuleWithOperations(ref),
-		v1.ParamKind{}.OpenAPIModelName():                                                                    schema_k8sio_api_admissionregistration_v1_ParamKind(ref),
-		v1.ParamRef{}.OpenAPIModelName():                                                                     schema_k8sio_api_admissionregistration_v1_ParamRef(ref),
-		v1.Rule{}.OpenAPIModelName():                                                                         schema_k8sio_api_admissionregistration_v1_Rule(ref),
-		v1.RuleWithOperations{}.OpenAPIModelName():                                                           schema_k8sio_api_admissionregistration_v1_RuleWithOperations(ref),
-		v1.ServiceReference{}.OpenAPIModelName():                                                             schema_k8sio_api_admissionregistration_v1_ServiceReference(ref),
-		v1.TypeChecking{}.OpenAPIModelName():                                                                 schema_k8sio_api_admissionregistration_v1_TypeChecking(ref),
-		v1.ValidatingAdmissionPolicy{}.OpenAPIModelName():                                                    schema_k8sio_api_admissionregistration_v1_ValidatingAdmissionPolicy(ref),
-		v1.ValidatingAdmissionPolicyBinding{}.OpenAPIModelName():                                             schema_k8sio_api_admissionregistration_v1_ValidatingAdmissionPolicyBinding(ref),
-		v1.ValidatingAdmissionPolicyBindingList{}.OpenAPIModelName():                                         schema_k8sio_api_admissionregistration_v1_ValidatingAdmissionPolicyBindingList(ref),
-		v1.ValidatingAdmissionPolicyBindingSpec{}.OpenAPIModelName():                                         schema_k8sio_api_admissionregistration_v1_ValidatingAdmissionPolicyBindingSpec(ref),
-		v1.ValidatingAdmissionPolicyList{}.OpenAPIModelName():                                                schema_k8sio_api_admissionregistration_v1_ValidatingAdmissionPolicyList(ref),
-		v1.ValidatingAdmissionPolicySpec{}.OpenAPIModelName():                                                schema_k8sio_api_admissionregistration_v1_ValidatingAdmissionPolicySpec(ref),
-		v1.ValidatingAdmissionPolicyStatus{}.OpenAPIModelName():                                              schema_k8sio_api_admissionregistration_v1_ValidatingAdmissionPolicyStatus(ref),
-		v1.ValidatingWebhook{}.OpenAPIModelName():                                                            schema_k8sio_api_admissionregistration_v1_ValidatingWebhook(ref),
-		v1.ValidatingWebhookConfiguration{}.OpenAPIModelName():                                               schema_k8sio_api_admissionregistration_v1_ValidatingWebhookConfiguration(ref),
-		v1.ValidatingWebhookConfigurationList{}.OpenAPIModelName():                                           schema_k8sio_api_admissionregistration_v1_ValidatingWebhookConfigurationList(ref),
-		v1.Validation{}.OpenAPIModelName():                                                                   schema_k8sio_api_admissionregistration_v1_Validation(ref),
-		v1.Variable{}.OpenAPIModelName():                                                                     schema_k8sio_api_admissionregistration_v1_Variable(ref),
-		v1.WebhookClientConfig{}.OpenAPIModelName():                                                          schema_k8sio_api_admissionregistration_v1_WebhookClientConfig(ref),
-		v2.ContainerResourceMetricSource{}.OpenAPIModelName():                                                schema_k8sio_api_autoscaling_v2_ContainerResourceMetricSource(ref),
-		v2.ContainerResourceMetricStatus{}.OpenAPIModelName():                                                schema_k8sio_api_autoscaling_v2_ContainerResourceMetricStatus(ref),
-		v2.CrossVersionObjectReference{}.OpenAPIModelName():                                                  schema_k8sio_api_autoscaling_v2_CrossVersionObjectReference(ref),
-		v2.ExternalMetricSource{}.OpenAPIModelName():                                                         schema_k8sio_api_autoscaling_v2_ExternalMetricSource(ref),
-		v2.ExternalMetricStatus{}.OpenAPIModelName():                                                         schema_k8sio_api_autoscaling_v2_ExternalMetricStatus(ref),
-		v2.HPAScalingPolicy{}.OpenAPIModelName():                                                             schema_k8sio_api_autoscaling_v2_HPAScalingPolicy(ref),
-		v2.HPAScalingRules{}.OpenAPIModelName():                                                              schema_k8sio_api_autoscaling_v2_HPAScalingRules(ref),
-		v2.HorizontalPodAutoscaler{}.OpenAPIModelName():                                                      schema_k8sio_api_autoscaling_v2_HorizontalPodAutoscaler(ref),
-		v2.HorizontalPodAutoscalerBehavior{}.OpenAPIModelName():                                              schema_k8sio_api_autoscaling_v2_HorizontalPodAutoscalerBehavior(ref),
-		v2.HorizontalPodAutoscalerCondition{}.OpenAPIModelName():                                             schema_k8sio_api_autoscaling_v2_HorizontalPodAutoscalerCondition(ref),
-		v2.HorizontalPodAutoscalerList{}.OpenAPIModelName():                                                  schema_k8sio_api_autoscaling_v2_HorizontalPodAutoscalerList(ref),
-		v2.HorizontalPodAutoscalerSpec{}.OpenAPIModelName():                                                  schema_k8sio_api_autoscaling_v2_HorizontalPodAutoscalerSpec(ref),
-		v2.HorizontalPodAutoscalerStatus{}.OpenAPIModelName():                                                schema_k8sio_api_autoscaling_v2_HorizontalPodAutoscalerStatus(ref),
-		v2.MetricIdentifier{}.OpenAPIModelName():                                                             schema_k8sio_api_autoscaling_v2_MetricIdentifier(ref),
-		v2.MetricSpec{}.OpenAPIModelName():                                                                   schema_k8sio_api_autoscaling_v2_MetricSpec(ref),
-		v2.MetricStatus{}.OpenAPIModelName():                                                                 schema_k8sio_api_autoscaling_v2_MetricStatus(ref),
-		v2.MetricTarget{}.OpenAPIModelName():                                                                 schema_k8sio_api_autoscaling_v2_MetricTarget(ref),
-		v2.MetricValueStatus{}.OpenAPIModelName():                                                            schema_k8sio_api_autoscaling_v2_MetricValueStatus(ref),
-		v2.ObjectMetricSource{}.OpenAPIModelName():                                                           schema_k8sio_api_autoscaling_v2_ObjectMetricSource(ref),
-		v2.ObjectMetricStatus{}.OpenAPIModelName():                                                           schema_k8sio_api_autoscaling_v2_ObjectMetricStatus(ref),
-		v2.PodsMetricSource{}.OpenAPIModelName():                                                             schema_k8sio_api_autoscaling_v2_PodsMetricSource(ref),
-		v2.PodsMetricStatus{}.OpenAPIModelName():                                                             schema_k8sio_api_autoscaling_v2_PodsMetricStatus(ref),
-		v2.ResourceMetricSource{}.OpenAPIModelName():                                                         schema_k8sio_api_autoscaling_v2_ResourceMetricSource(ref),
-		v2.ResourceMetricStatus{}.OpenAPIModelName():                                                         schema_k8sio_api_autoscaling_v2_ResourceMetricStatus(ref),
-		corev1.AWSElasticBlockStoreVolumeSource{}.OpenAPIModelName():                                         schema_k8sio_api_core_v1_AWSElasticBlockStoreVolumeSource(ref),
-		corev1.Affinity{}.OpenAPIModelName():                                                                 schema_k8sio_api_core_v1_Affinity(ref),
-		corev1.AppArmorProfile{}.OpenAPIModelName():                                                          schema_k8sio_api_core_v1_AppArmorProfile(ref),
-		corev1.AttachedVolume{}.OpenAPIModelName():                                                           schema_k8sio_api_core_v1_AttachedVolume(ref),
-		corev1.AvoidPods{}.OpenAPIModelName():                                                                schema_k8sio_api_core_v1_AvoidPods(ref),
-		corev1.AzureDiskVolumeSource{}.OpenAPIModelName():                                                    schema_k8sio_api_core_v1_AzureDiskVolumeSource(ref),
-		corev1.AzureFilePersistentVolumeSource{}.OpenAPIModelName():                                          schema_k8sio_api_core_v1_AzureFilePersistentVolumeSource(ref),
-		corev1.AzureFileVolumeSource{}.OpenAPIModelName():                                                    schema_k8sio_api_core_v1_AzureFileVolumeSource(ref),
-		corev1.Binding{}.OpenAPIModelName():                                                                  schema_k8sio_api_core_v1_Binding(ref),
-		corev1.CSIPersistentVolumeSource{}.OpenAPIModelName():                                                schema_k8sio_api_core_v1_CSIPersistentVolumeSource(ref),
-		corev1.CSIVolumeSource{}.OpenAPIModelName():                                                          schema_k8sio_api_core_v1_CSIVolumeSource(ref),
-		corev1.Capabilities{}.OpenAPIModelName():                                                             schema_k8sio_api_core_v1_Capabilities(ref),
-		corev1.CephFSPersistentVolumeSource{}.OpenAPIModelName():                                             schema_k8sio_api_core_v1_CephFSPersistentVolumeSource(ref),
-		corev1.CephFSVolumeSource{}.OpenAPIModelName():                                                       schema_k8sio_api_core_v1_CephFSVolumeSource(ref),
-		corev1.CinderPersistentVolumeSource{}.OpenAPIModelName():                                             schema_k8sio_api_core_v1_CinderPersistentVolumeSource(ref),
-		corev1.CinderVolumeSource{}.OpenAPIModelName():                                                       schema_k8sio_api_core_v1_CinderVolumeSource(ref),
-		corev1.ClientIPConfig{}.OpenAPIModelName():                                                           schema_k8sio_api_core_v1_ClientIPConfig(ref),
-		corev1.ClusterTrustBundleProjection{}.OpenAPIModelName():                                             schema_k8sio_api_core_v1_ClusterTrustBundleProjection(ref),
-		corev1.ComponentCondition{}.OpenAPIModelName():                                                       schema_k8sio_api_core_v1_ComponentCondition(ref),
-		corev1.ComponentStatus{}.OpenAPIModelName():                                                          schema_k8sio_api_core_v1_ComponentStatus(ref),
-		corev1.ComponentStatusList{}.OpenAPIModelName():                                                      schema_k8sio_api_core_v1_ComponentStatusList(ref),
-		corev1.ConfigMap{}.OpenAPIModelName():                                                                schema_k8sio_api_core_v1_ConfigMap(ref),
-		corev1.ConfigMapEnvSource{}.OpenAPIModelName():                                                       schema_k8sio_api_core_v1_ConfigMapEnvSource(ref),
-		corev1.ConfigMapKeySelector{}.OpenAPIModelName():                                                     schema_k8sio_api_core_v1_ConfigMapKeySelector(ref),
-		corev1.ConfigMapList{}.OpenAPIModelName():                                                            schema_k8sio_api_core_v1_ConfigMapList(ref),
-		corev1.ConfigMapNodeConfigSource{}.OpenAPIModelName():                                                schema_k8sio_api_core_v1_ConfigMapNodeConfigSource(ref),
-		corev1.ConfigMapProjection{}.OpenAPIModelName():                                                      schema_k8sio_api_core_v1_ConfigMapProjection(ref),
-		corev1.ConfigMapVolumeSource{}.OpenAPIModelName():                                                    schema_k8sio_api_core_v1_ConfigMapVolumeSource(ref),
-		corev1.Container{}.OpenAPIModelName():                                                                schema_k8sio_api_core_v1_Container(ref),
-		corev1.ContainerExtendedResourceRequest{}.OpenAPIModelName():                                         schema_k8sio_api_core_v1_ContainerExtendedResourceRequest(ref),
-		corev1.ContainerImage{}.OpenAPIModelName():                                                           schema_k8sio_api_core_v1_ContainerImage(ref),
-		corev1.ContainerPort{}.OpenAPIModelName():                                                            schema_k8sio_api_core_v1_ContainerPort(ref),
-		corev1.ContainerResizePolicy{}.OpenAPIModelName():                                                    schema_k8sio_api_core_v1_ContainerResizePolicy(ref),
-		corev1.ContainerRestartRule{}.OpenAPIModelName():                                                     schema_k8sio_api_core_v1_ContainerRestartRule(ref),
-		corev1.ContainerRestartRuleOnExitCodes{}.OpenAPIModelName():                                          schema_k8sio_api_core_v1_ContainerRestartRuleOnExitCodes(ref),
-		corev1.ContainerState{}.OpenAPIModelName():                                                           schema_k8sio_api_core_v1_ContainerState(ref),
-		corev1.ContainerStateRunning{}.OpenAPIModelName():                                                    schema_k8sio_api_core_v1_ContainerStateRunning(ref),
-		corev1.ContainerStateTerminated{}.OpenAPIModelName():                                                 schema_k8sio_api_core_v1_ContainerStateTerminated(ref),
-		corev1.ContainerStateWaiting{}.OpenAPIModelName():                                                    schema_k8sio_api_core_v1_ContainerStateWaiting(ref),
-		corev1.ContainerStatus{}.OpenAPIModelName():                                                          schema_k8sio_api_core_v1_ContainerStatus(ref),
-		corev1.ContainerUser{}.OpenAPIModelName():                                                            schema_k8sio_api_core_v1_ContainerUser(ref),
-		corev1.DaemonEndpoint{}.OpenAPIModelName():                                                           schema_k8sio_api_core_v1_DaemonEndpoint(ref),
-		corev1.DownwardAPIProjection{}.OpenAPIModelName():                                                    schema_k8sio_api_core_v1_DownwardAPIProjection(ref),
-		corev1.DownwardAPIVolumeFile{}.OpenAPIModelName():                                                    schema_k8sio_api_core_v1_DownwardAPIVolumeFile(ref),
-		corev1.DownwardAPIVolumeSource{}.OpenAPIModelName():                                                  schema_k8sio_api_core_v1_DownwardAPIVolumeSource(ref),
-		corev1.EmptyDirVolumeSource{}.OpenAPIModelName():                                                     schema_k8sio_api_core_v1_EmptyDirVolumeSource(ref),
-		corev1.EndpointAddress{}.OpenAPIModelName():                                                          schema_k8sio_api_core_v1_EndpointAddress(ref),
-		corev1.EndpointPort{}.OpenAPIModelName():                                                             schema_k8sio_api_core_v1_EndpointPort(ref),
-		corev1.EndpointSubset{}.OpenAPIModelName():                                                           schema_k8sio_api_core_v1_EndpointSubset(ref),
-		corev1.Endpoints{}.OpenAPIModelName():                                                                schema_k8sio_api_core_v1_Endpoints(ref),
-		corev1.EndpointsList{}.OpenAPIModelName():                                                            schema_k8sio_api_core_v1_EndpointsList(ref),
-		corev1.EnvFromSource{}.OpenAPIModelName():                                                            schema_k8sio_api_core_v1_EnvFromSource(ref),
-		corev1.EnvVar{}.OpenAPIModelName():                                                                   schema_k8sio_api_core_v1_EnvVar(ref),
-		corev1.EnvVarSource{}.OpenAPIModelName():                                                             schema_k8sio_api_core_v1_EnvVarSource(ref),
-		corev1.EphemeralContainer{}.OpenAPIModelName():                                                       schema_k8sio_api_core_v1_EphemeralContainer(ref),
-		corev1.EphemeralContainerCommon{}.OpenAPIModelName():                                                 schema_k8sio_api_core_v1_EphemeralContainerCommon(ref),
-		corev1.EphemeralVolumeSource{}.OpenAPIModelName():                                                    schema_k8sio_api_core_v1_EphemeralVolumeSource(ref),
-		corev1.Event{}.OpenAPIModelName():                                                                    schema_k8sio_api_core_v1_Event(ref),
-		corev1.EventList{}.OpenAPIModelName():                                                                schema_k8sio_api_core_v1_EventList(ref),
-		corev1.EventSeries{}.OpenAPIModelName():                                                              schema_k8sio_api_core_v1_EventSeries(ref),
-		corev1.EventSource{}.OpenAPIModelName():                                                              schema_k8sio_api_core_v1_EventSource(ref),
-		corev1.ExecAction{}.OpenAPIModelName():                                                               schema_k8sio_api_core_v1_ExecAction(ref),
-		corev1.FCVolumeSource{}.OpenAPIModelName():                                                           schema_k8sio_api_core_v1_FCVolumeSource(ref),
-		corev1.FileKeySelector{}.OpenAPIModelName():                                                          schema_k8sio_api_core_v1_FileKeySelector(ref),
-		corev1.FlexPersistentVolumeSource{}.OpenAPIModelName():                                               schema_k8sio_api_core_v1_FlexPersistentVolumeSource(ref),
-		corev1.FlexVolumeSource{}.OpenAPIModelName():                                                         schema_k8sio_api_core_v1_FlexVolumeSource(ref),
-		corev1.FlockerVolumeSource{}.OpenAPIModelName():                                                      schema_k8sio_api_core_v1_FlockerVolumeSource(ref),
-		corev1.GCEPersistentDiskVolumeSource{}.OpenAPIModelName():                                            schema_k8sio_api_core_v1_GCEPersistentDiskVolumeSource(ref),
-		corev1.GRPCAction{}.OpenAPIModelName():                                                               schema_k8sio_api_core_v1_GRPCAction(ref),
-		corev1.GitRepoVolumeSource{}.OpenAPIModelName():                                                      schema_k8sio_api_core_v1_GitRepoVolumeSource(ref),
-		corev1.GlusterfsPersistentVolumeSource{}.OpenAPIModelName():                                          schema_k8sio_api_core_v1_GlusterfsPersistentVolumeSource(ref),
-		corev1.GlusterfsVolumeSource{}.OpenAPIModelName():                                                    schema_k8sio_api_core_v1_GlusterfsVolumeSource(ref),
-		corev1.HTTPGetAction{}.OpenAPIModelName():                                                            schema_k8sio_api_core_v1_HTTPGetAction(ref),
-		corev1.HTTPHeader{}.OpenAPIModelName():                                                               schema_k8sio_api_core_v1_HTTPHeader(ref),
-		corev1.HostAlias{}.OpenAPIModelName():                                                                schema_k8sio_api_core_v1_HostAlias(ref),
-		corev1.HostIP{}.OpenAPIModelName():                                                                   schema_k8sio_api_core_v1_HostIP(ref),
-		corev1.HostPathVolumeSource{}.OpenAPIModelName():                                                     schema_k8sio_api_core_v1_HostPathVolumeSource(ref),
-		corev1.ISCSIPersistentVolumeSource{}.OpenAPIModelName():                                              schema_k8sio_api_core_v1_ISCSIPersistentVolumeSource(ref),
-		corev1.ISCSIVolumeSource{}.OpenAPIModelName():                                                        schema_k8sio_api_core_v1_ISCSIVolumeSource(ref),
-		corev1.ImageVolumeSource{}.OpenAPIModelName():                                                        schema_k8sio_api_core_v1_ImageVolumeSource(ref),
-		corev1.KeyToPath{}.OpenAPIModelName():                                                                schema_k8sio_api_core_v1_KeyToPath(ref),
-		corev1.Lifecycle{}.OpenAPIModelName():                                                                schema_k8sio_api_core_v1_Lifecycle(ref),
-		corev1.LifecycleHandler{}.OpenAPIModelName():                                                         schema_k8sio_api_core_v1_LifecycleHandler(ref),
-		corev1.LimitRange{}.OpenAPIModelName():                                                               schema_k8sio_api_core_v1_LimitRange(ref),
-		corev1.LimitRangeItem{}.OpenAPIModelName():                                                           schema_k8sio_api_core_v1_LimitRangeItem(ref),
-		corev1.LimitRangeList{}.OpenAPIModelName():                                                           schema_k8sio_api_core_v1_LimitRangeList(ref),
-		corev1.LimitRangeSpec{}.OpenAPIModelName():                                                           schema_k8sio_api_core_v1_LimitRangeSpec(ref),
-		corev1.LinuxContainerUser{}.OpenAPIModelName():                                                       schema_k8sio_api_core_v1_LinuxContainerUser(ref),
-		corev1.List{}.OpenAPIModelName():                                                                     schema_k8sio_api_core_v1_List(ref),
-		corev1.LoadBalancerIngress{}.OpenAPIModelName():                                                      schema_k8sio_api_core_v1_LoadBalancerIngress(ref),
-		corev1.LoadBalancerStatus{}.OpenAPIModelName():                                                       schema_k8sio_api_core_v1_LoadBalancerStatus(ref),
-		corev1.LocalObjectReference{}.OpenAPIModelName():                                                     schema_k8sio_api_core_v1_LocalObjectReference(ref),
-		corev1.LocalVolumeSource{}.OpenAPIModelName():                                                        schema_k8sio_api_core_v1_LocalVolumeSource(ref),
-		corev1.ModifyVolumeStatus{}.OpenAPIModelName():                                                       schema_k8sio_api_core_v1_ModifyVolumeStatus(ref),
-		corev1.NFSVolumeSource{}.OpenAPIModelName():                                                          schema_k8sio_api_core_v1_NFSVolumeSource(ref),
-		corev1.Namespace{}.OpenAPIModelName():                                                                schema_k8sio_api_core_v1_Namespace(ref),
-		corev1.NamespaceCondition{}.OpenAPIModelName():                                                       schema_k8sio_api_core_v1_NamespaceCondition(ref),
-		corev1.NamespaceList{}.OpenAPIModelName():                                                            schema_k8sio_api_core_v1_NamespaceList(ref),
-		corev1.NamespaceSpec{}.OpenAPIModelName():                                                            schema_k8sio_api_core_v1_NamespaceSpec(ref),
-		corev1.NamespaceStatus{}.OpenAPIModelName():                                                          schema_k8sio_api_core_v1_NamespaceStatus(ref),
-		corev1.Node{}.OpenAPIModelName():                                                                     schema_k8sio_api_core_v1_Node(ref),
-		corev1.NodeAddress{}.OpenAPIModelName():                                                              schema_k8sio_api_core_v1_NodeAddress(ref),
-		corev1.NodeAffinity{}.OpenAPIModelName():                                                             schema_k8sio_api_core_v1_NodeAffinity(ref),
-		corev1.NodeCondition{}.OpenAPIModelName():                                                            schema_k8sio_api_core_v1_NodeCondition(ref),
-		corev1.NodeConfigSource{}.OpenAPIModelName():                                                         schema_k8sio_api_core_v1_NodeConfigSource(ref),
-		corev1.NodeConfigStatus{}.OpenAPIModelName():                                                         schema_k8sio_api_core_v1_NodeConfigStatus(ref),
-		corev1.NodeDaemonEndpoints{}.OpenAPIModelName():                                                      schema_k8sio_api_core_v1_NodeDaemonEndpoints(ref),
-		corev1.NodeFeatures{}.OpenAPIModelName():                                                             schema_k8sio_api_core_v1_NodeFeatures(ref),
-		corev1.NodeList{}.OpenAPIModelName():                                                                 schema_k8sio_api_core_v1_NodeList(ref),
-		corev1.NodeProxyOptions{}.OpenAPIModelName():                                                         schema_k8sio_api_core_v1_NodeProxyOptions(ref),
-		corev1.NodeRuntimeHandler{}.OpenAPIModelName():                                                       schema_k8sio_api_core_v1_NodeRuntimeHandler(ref),
-		corev1.NodeRuntimeHandlerFeatures{}.OpenAPIModelName():                                               schema_k8sio_api_core_v1_NodeRuntimeHandlerFeatures(ref),
-		corev1.NodeSelector{}.OpenAPIModelName():                                                             schema_k8sio_api_core_v1_NodeSelector(ref),
-		corev1.NodeSelectorRequirement{}.OpenAPIModelName():                                                  schema_k8sio_api_core_v1_NodeSelectorRequirement(ref),
-		corev1.NodeSelectorTerm{}.OpenAPIModelName():                                                         schema_k8sio_api_core_v1_NodeSelectorTerm(ref),
-		corev1.NodeSpec{}.OpenAPIModelName():                                                                 schema_k8sio_api_core_v1_NodeSpec(ref),
-		corev1.NodeStatus{}.OpenAPIModelName():                                                               schema_k8sio_api_core_v1_NodeStatus(ref),
-		corev1.NodeSwapStatus{}.OpenAPIModelName():                                                           schema_k8sio_api_core_v1_NodeSwapStatus(ref),
-		corev1.NodeSystemInfo{}.OpenAPIModelName():                                                           schema_k8sio_api_core_v1_NodeSystemInfo(ref),
-		corev1.ObjectFieldSelector{}.OpenAPIModelName():                                                      schema_k8sio_api_core_v1_ObjectFieldSelector(ref),
-		corev1.ObjectReference{}.OpenAPIModelName():                                                          schema_k8sio_api_core_v1_ObjectReference(ref),
-		corev1.PersistentVolume{}.OpenAPIModelName():                                                         schema_k8sio_api_core_v1_PersistentVolume(ref),
-		corev1.PersistentVolumeClaim{}.OpenAPIModelName():                                                    schema_k8sio_api_core_v1_PersistentVolumeClaim(ref),
-		corev1.PersistentVolumeClaimCondition{}.OpenAPIModelName():                                           schema_k8sio_api_core_v1_PersistentVolumeClaimCondition(ref),
-		corev1.PersistentVolumeClaimList{}.OpenAPIModelName():                                                schema_k8sio_api_core_v1_PersistentVolumeClaimList(ref),
-		corev1.PersistentVolumeClaimSpec{}.OpenAPIModelName():                                                schema_k8sio_api_core_v1_PersistentVolumeClaimSpec(ref),
-		corev1.PersistentVolumeClaimStatus{}.OpenAPIModelName():                                              schema_k8sio_api_core_v1_PersistentVolumeClaimStatus(ref),
-		corev1.PersistentVolumeClaimTemplate{}.OpenAPIModelName():                                            schema_k8sio_api_core_v1_PersistentVolumeClaimTemplate(ref),
-		corev1.PersistentVolumeClaimVolumeSource{}.OpenAPIModelName():                                        schema_k8sio_api_core_v1_PersistentVolumeClaimVolumeSource(ref),
-		corev1.PersistentVolumeList{}.OpenAPIModelName():                                                     schema_k8sio_api_core_v1_PersistentVolumeList(ref),
-		corev1.PersistentVolumeSource{}.OpenAPIModelName():                                                   schema_k8sio_api_core_v1_PersistentVolumeSource(ref),
-		corev1.PersistentVolumeSpec{}.OpenAPIModelName():                                                     schema_k8sio_api_core_v1_PersistentVolumeSpec(ref),
-		corev1.PersistentVolumeStatus{}.OpenAPIModelName():                                                   schema_k8sio_api_core_v1_PersistentVolumeStatus(ref),
-		corev1.PhotonPersistentDiskVolumeSource{}.OpenAPIModelName():                                         schema_k8sio_api_core_v1_PhotonPersistentDiskVolumeSource(ref),
-		corev1.Pod{}.OpenAPIModelName():                                                                      schema_k8sio_api_core_v1_Pod(ref),
-		corev1.PodAffinity{}.OpenAPIModelName():                                                              schema_k8sio_api_core_v1_PodAffinity(ref),
-		corev1.PodAffinityTerm{}.OpenAPIModelName():                                                          schema_k8sio_api_core_v1_PodAffinityTerm(ref),
-		corev1.PodAntiAffinity{}.OpenAPIModelName():                                                          schema_k8sio_api_core_v1_PodAntiAffinity(ref),
-		corev1.PodAttachOptions{}.OpenAPIModelName():                                                         schema_k8sio_api_core_v1_PodAttachOptions(ref),
-		corev1.PodCertificateProjection{}.OpenAPIModelName():                                                 schema_k8sio_api_core_v1_PodCertificateProjection(ref),
-		corev1.PodCondition{}.OpenAPIModelName():                                                             schema_k8sio_api_core_v1_PodCondition(ref),
-		corev1.PodDNSConfig{}.OpenAPIModelName():                                                             schema_k8sio_api_core_v1_PodDNSConfig(ref),
-		corev1.PodDNSConfigOption{}.OpenAPIModelName():                                                       schema_k8sio_api_core_v1_PodDNSConfigOption(ref),
-		corev1.PodExecOptions{}.OpenAPIModelName():                                                           schema_k8sio_api_core_v1_PodExecOptions(ref),
-		corev1.PodExtendedResourceClaimStatus{}.OpenAPIModelName():                                           schema_k8sio_api_core_v1_PodExtendedResourceClaimStatus(ref),
-		corev1.PodIP{}.OpenAPIModelName():                                                                    schema_k8sio_api_core_v1_PodIP(ref),
-		corev1.PodList{}.OpenAPIModelName():                                                                  schema_k8sio_api_core_v1_PodList(ref),
-		corev1.PodLogOptions{}.OpenAPIModelName():                                                            schema_k8sio_api_core_v1_PodLogOptions(ref),
-		corev1.PodOS{}.OpenAPIModelName():                                                                    schema_k8sio_api_core_v1_PodOS(ref),
-		corev1.PodPortForwardOptions{}.OpenAPIModelName():                                                    schema_k8sio_api_core_v1_PodPortForwardOptions(ref),
-		corev1.PodProxyOptions{}.OpenAPIModelName():                                                          schema_k8sio_api_core_v1_PodProxyOptions(ref),
-		corev1.PodReadinessGate{}.OpenAPIModelName():                                                         schema_k8sio_api_core_v1_PodReadinessGate(ref),
-		corev1.PodResourceClaim{}.OpenAPIModelName():                                                         schema_k8sio_api_core_v1_PodResourceClaim(ref),
-		corev1.PodResourceClaimStatus{}.OpenAPIModelName():                                                   schema_k8sio_api_core_v1_PodResourceClaimStatus(ref),
-		corev1.PodSchedulingGate{}.OpenAPIModelName():                                                        schema_k8sio_api_core_v1_PodSchedulingGate(ref),
-		corev1.PodSecurityContext{}.OpenAPIModelName():                                                       schema_k8sio_api_core_v1_PodSecurityContext(ref),
-		corev1.PodSignature{}.OpenAPIModelName():                                                             schema_k8sio_api_core_v1_PodSignature(ref),
-		corev1.PodSpec{}.OpenAPIModelName():                                                                  schema_k8sio_api_core_v1_PodSpec(ref),
-		corev1.PodStatus{}.OpenAPIModelName():                                                                schema_k8sio_api_core_v1_PodStatus(ref),
-		corev1.PodStatusResult{}.OpenAPIModelName():                                                          schema_k8sio_api_core_v1_PodStatusResult(ref),
-		corev1.PodTemplate{}.OpenAPIModelName():                                                              schema_k8sio_api_core_v1_PodTemplate(ref),
-		corev1.PodTemplateList{}.OpenAPIModelName():                                                          schema_k8sio_api_core_v1_PodTemplateList(ref),
-		corev1.PodTemplateSpec{}.OpenAPIModelName():                                                          schema_k8sio_api_core_v1_PodTemplateSpec(ref),
-		corev1.PortStatus{}.OpenAPIModelName():                                                               schema_k8sio_api_core_v1_PortStatus(ref),
-		corev1.PortworxVolumeSource{}.OpenAPIModelName():                                                     schema_k8sio_api_core_v1_PortworxVolumeSource(ref),
-		corev1.PreferAvoidPodsEntry{}.OpenAPIModelName():                                                     schema_k8sio_api_core_v1_PreferAvoidPodsEntry(ref),
-		corev1.PreferredSchedulingTerm{}.OpenAPIModelName():                                                  schema_k8sio_api_core_v1_PreferredSchedulingTerm(ref),
-		corev1.Probe{}.OpenAPIModelName():                                                                    schema_k8sio_api_core_v1_Probe(ref),
-		corev1.ProbeHandler{}.OpenAPIModelName():                                                             schema_k8sio_api_core_v1_ProbeHandler(ref),
-		corev1.ProjectedVolumeSource{}.OpenAPIModelName():                                                    schema_k8sio_api_core_v1_ProjectedVolumeSource(ref),
-		corev1.QuobyteVolumeSource{}.OpenAPIModelName():                                                      schema_k8sio_api_core_v1_QuobyteVolumeSource(ref),
-		corev1.RBDPersistentVolumeSource{}.OpenAPIModelName():                                                schema_k8sio_api_core_v1_RBDPersistentVolumeSource(ref),
-		corev1.RBDVolumeSource{}.OpenAPIModelName():                                                          schema_k8sio_api_core_v1_RBDVolumeSource(ref),
-		corev1.RangeAllocation{}.OpenAPIModelName():                                                          schema_k8sio_api_core_v1_RangeAllocation(ref),
-		corev1.ReplicationController{}.OpenAPIModelName():                                                    schema_k8sio_api_core_v1_ReplicationController(ref),
-		corev1.ReplicationControllerCondition{}.OpenAPIModelName():                                           schema_k8sio_api_core_v1_ReplicationControllerCondition(ref),
-		corev1.ReplicationControllerList{}.OpenAPIModelName():                                                schema_k8sio_api_core_v1_ReplicationControllerList(ref),
-		corev1.ReplicationControllerSpec{}.OpenAPIModelName():                                                schema_k8sio_api_core_v1_ReplicationControllerSpec(ref),
-		corev1.ReplicationControllerStatus{}.OpenAPIModelName():                                              schema_k8sio_api_core_v1_ReplicationControllerStatus(ref),
-		corev1.ResourceClaim{}.OpenAPIModelName():                                                            schema_k8sio_api_core_v1_ResourceClaim(ref),
-		corev1.ResourceFieldSelector{}.OpenAPIModelName():                                                    schema_k8sio_api_core_v1_ResourceFieldSelector(ref),
-		corev1.ResourceHealth{}.OpenAPIModelName():                                                           schema_k8sio_api_core_v1_ResourceHealth(ref),
-		corev1.ResourceQuota{}.OpenAPIModelName():                                                            schema_k8sio_api_core_v1_ResourceQuota(ref),
-		corev1.ResourceQuotaList{}.OpenAPIModelName():                                                        schema_k8sio_api_core_v1_ResourceQuotaList(ref),
-		corev1.ResourceQuotaSpec{}.OpenAPIModelName():                                                        schema_k8sio_api_core_v1_ResourceQuotaSpec(ref),
-		corev1.ResourceQuotaStatus{}.OpenAPIModelName():                                                      schema_k8sio_api_core_v1_ResourceQuotaStatus(ref),
-		corev1.ResourceRequirements{}.OpenAPIModelName():                                                     schema_k8sio_api_core_v1_ResourceRequirements(ref),
-		corev1.ResourceStatus{}.OpenAPIModelName():                                                           schema_k8sio_api_core_v1_ResourceStatus(ref),
-		corev1.SELinuxOptions{}.OpenAPIModelName():                                                           schema_k8sio_api_core_v1_SELinuxOptions(ref),
-		corev1.ScaleIOPersistentVolumeSource{}.OpenAPIModelName():                                            schema_k8sio_api_core_v1_ScaleIOPersistentVolumeSource(ref),
-		corev1.ScaleIOVolumeSource{}.OpenAPIModelName():                                                      schema_k8sio_api_core_v1_ScaleIOVolumeSource(ref),
-		corev1.ScopeSelector{}.OpenAPIModelName():                                                            schema_k8sio_api_core_v1_ScopeSelector(ref),
-		corev1.ScopedResourceSelectorRequirement{}.OpenAPIModelName():                                        schema_k8sio_api_core_v1_ScopedResourceSelectorRequirement(ref),
-		corev1.SeccompProfile{}.OpenAPIModelName():                                                           schema_k8sio_api_core_v1_SeccompProfile(ref),
-		corev1.Secret{}.OpenAPIModelName():                                                                   schema_k8sio_api_core_v1_Secret(ref),
-		corev1.SecretEnvSource{}.OpenAPIModelName():                                                          schema_k8sio_api_core_v1_SecretEnvSource(ref),
-		corev1.SecretKeySelector{}.OpenAPIModelName():                                                        schema_k8sio_api_core_v1_SecretKeySelector(ref),
-		corev1.SecretList{}.OpenAPIModelName():                                                               schema_k8sio_api_core_v1_SecretList(ref),
-		corev1.SecretProjection{}.OpenAPIModelName():                                                         schema_k8sio_api_core_v1_SecretProjection(ref),
-		corev1.SecretReference{}.OpenAPIModelName():                                                          schema_k8sio_api_core_v1_SecretReference(ref),
-		corev1.SecretVolumeSource{}.OpenAPIModelName():                                                       schema_k8sio_api_core_v1_SecretVolumeSource(ref),
-		corev1.SecurityContext{}.OpenAPIModelName():                                                          schema_k8sio_api_core_v1_SecurityContext(ref),
-		corev1.SerializedReference{}.OpenAPIModelName():                                                      schema_k8sio_api_core_v1_SerializedReference(ref),
-		corev1.Service{}.OpenAPIModelName():                                                                  schema_k8sio_api_core_v1_Service(ref),
-		corev1.ServiceAccount{}.OpenAPIModelName():                                                           schema_k8sio_api_core_v1_ServiceAccount(ref),
-		corev1.ServiceAccountList{}.OpenAPIModelName():                                                       schema_k8sio_api_core_v1_ServiceAccountList(ref),
-		corev1.ServiceAccountTokenProjection{}.OpenAPIModelName():                                            schema_k8sio_api_core_v1_ServiceAccountTokenProjection(ref),
-		corev1.ServiceList{}.OpenAPIModelName():                                                              schema_k8sio_api_core_v1_ServiceList(ref),
-		corev1.ServicePort{}.OpenAPIModelName():                                                              schema_k8sio_api_core_v1_ServicePort(ref),
-		corev1.ServiceProxyOptions{}.OpenAPIModelName():                                                      schema_k8sio_api_core_v1_ServiceProxyOptions(ref),
-		corev1.ServiceSpec{}.OpenAPIModelName():                                                              schema_k8sio_api_core_v1_ServiceSpec(ref),
-		corev1.ServiceStatus{}.OpenAPIModelName():                                                            schema_k8sio_api_core_v1_ServiceStatus(ref),
-		corev1.SessionAffinityConfig{}.OpenAPIModelName():                                                    schema_k8sio_api_core_v1_SessionAffinityConfig(ref),
-		corev1.SleepAction{}.OpenAPIModelName():                                                              schema_k8sio_api_core_v1_SleepAction(ref),
-		corev1.StorageOSPersistentVolumeSource{}.OpenAPIModelName():                                          schema_k8sio_api_core_v1_StorageOSPersistentVolumeSource(ref),
-		corev1.StorageOSVolumeSource{}.OpenAPIModelName():                                                    schema_k8sio_api_core_v1_StorageOSVolumeSource(ref),
-		corev1.Sysctl{}.OpenAPIModelName():                                                                   schema_k8sio_api_core_v1_Sysctl(ref),
-		corev1.TCPSocketAction{}.OpenAPIModelName():                                                          schema_k8sio_api_core_v1_TCPSocketAction(ref),
-		corev1.Taint{}.OpenAPIModelName():                                                                    schema_k8sio_api_core_v1_Taint(ref),
-		corev1.Toleration{}.OpenAPIModelName():                                                               schema_k8sio_api_core_v1_Toleration(ref),
-		corev1.TopologySelectorLabelRequirement{}.OpenAPIModelName():                                         schema_k8sio_api_core_v1_TopologySelectorLabelRequirement(ref),
-		corev1.TopologySelectorTerm{}.OpenAPIModelName():                                                     schema_k8sio_api_core_v1_TopologySelectorTerm(ref),
-		corev1.TopologySpreadConstraint{}.OpenAPIModelName():                                                 schema_k8sio_api_core_v1_TopologySpreadConstraint(ref),
-		corev1.TypedLocalObjectReference{}.OpenAPIModelName():                                                schema_k8sio_api_core_v1_TypedLocalObjectReference(ref),
-		corev1.TypedObjectReference{}.OpenAPIModelName():                                                     schema_k8sio_api_core_v1_TypedObjectReference(ref),
-		corev1.Volume{}.OpenAPIModelName():                                                                   schema_k8sio_api_core_v1_Volume(ref),
-		corev1.VolumeDevice{}.OpenAPIModelName():                                                             schema_k8sio_api_core_v1_VolumeDevice(ref),
-		corev1.VolumeMount{}.OpenAPIModelName():                                                              schema_k8sio_api_core_v1_VolumeMount(ref),
-		corev1.VolumeMountStatus{}.OpenAPIModelName():                                                        schema_k8sio_api_core_v1_VolumeMountStatus(ref),
-		corev1.VolumeNodeAffinity{}.OpenAPIModelName():                                                       schema_k8sio_api_core_v1_VolumeNodeAffinity(ref),
-		corev1.VolumeProjection{}.OpenAPIModelName():                                                         schema_k8sio_api_core_v1_VolumeProjection(ref),
-		corev1.VolumeResourceRequirements{}.OpenAPIModelName():                                               schema_k8sio_api_core_v1_VolumeResourceRequirements(ref),
-		corev1.VolumeSource{}.OpenAPIModelName():                                                             schema_k8sio_api_core_v1_VolumeSource(ref),
-		corev1.VsphereVirtualDiskVolumeSource{}.OpenAPIModelName():                                           schema_k8sio_api_core_v1_VsphereVirtualDiskVolumeSource(ref),
-		corev1.WeightedPodAffinityTerm{}.OpenAPIModelName():                                                  schema_k8sio_api_core_v1_WeightedPodAffinityTerm(ref),
-		corev1.WindowsSecurityContextOptions{}.OpenAPIModelName():                                            schema_k8sio_api_core_v1_WindowsSecurityContextOptions(ref),
-		corev1.WorkloadReference{}.OpenAPIModelName():                                                        schema_k8sio_api_core_v1_WorkloadReference(ref),
-		networkingv1.HTTPIngressPath{}.OpenAPIModelName():                                                    schema_k8sio_api_networking_v1_HTTPIngressPath(ref),
-		networkingv1.HTTPIngressRuleValue{}.OpenAPIModelName():                                               schema_k8sio_api_networking_v1_HTTPIngressRuleValue(ref),
-		networkingv1.IPAddress{}.OpenAPIModelName():                                                          schema_k8sio_api_networking_v1_IPAddress(ref),
-		networkingv1.IPAddressList{}.OpenAPIModelName():                                                      schema_k8sio_api_networking_v1_IPAddressList(ref),
-		networkingv1.IPAddressSpec{}.OpenAPIModelName():                                                      schema_k8sio_api_networking_v1_IPAddressSpec(ref),
-		networkingv1.IPBlock{}.OpenAPIModelName():                                                            schema_k8sio_api_networking_v1_IPBlock(ref),
-		networkingv1.Ingress{}.OpenAPIModelName():                                                            schema_k8sio_api_networking_v1_Ingress(ref),
-		networkingv1.IngressBackend{}.OpenAPIModelName():                                                     schema_k8sio_api_networking_v1_IngressBackend(ref),
-		networkingv1.IngressClass{}.OpenAPIModelName():                                                       schema_k8sio_api_networking_v1_IngressClass(ref),
-		networkingv1.IngressClassList{}.OpenAPIModelName():                                                   schema_k8sio_api_networking_v1_IngressClassList(ref),
-		networkingv1.IngressClassParametersReference{}.OpenAPIModelName():                                    schema_k8sio_api_networking_v1_IngressClassParametersReference(ref),
-		networkingv1.IngressClassSpec{}.OpenAPIModelName():                                                   schema_k8sio_api_networking_v1_IngressClassSpec(ref),
-		networkingv1.IngressList{}.OpenAPIModelName():                                                        schema_k8sio_api_networking_v1_IngressList(ref),
-		networkingv1.IngressLoadBalancerIngress{}.OpenAPIModelName():                                         schema_k8sio_api_networking_v1_IngressLoadBalancerIngress(ref),
-		networkingv1.IngressLoadBalancerStatus{}.OpenAPIModelName():                                          schema_k8sio_api_networking_v1_IngressLoadBalancerStatus(ref),
-		networkingv1.IngressPortStatus{}.OpenAPIModelName():                                                  schema_k8sio_api_networking_v1_IngressPortStatus(ref),
-		networkingv1.IngressRule{}.OpenAPIModelName():                                                        schema_k8sio_api_networking_v1_IngressRule(ref),
-		networkingv1.IngressRuleValue{}.OpenAPIModelName():                                                   schema_k8sio_api_networking_v1_IngressRuleValue(ref),
-		networkingv1.IngressServiceBackend{}.OpenAPIModelName():                                              schema_k8sio_api_networking_v1_IngressServiceBackend(ref),
-		networkingv1.IngressSpec{}.OpenAPIModelName():                                                        schema_k8sio_api_networking_v1_IngressSpec(ref),
-		networkingv1.IngressStatus{}.OpenAPIModelName():                                                      schema_k8sio_api_networking_v1_IngressStatus(ref),
-		networkingv1.IngressTLS{}.OpenAPIModelName():                                                         schema_k8sio_api_networking_v1_IngressTLS(ref),
-		networkingv1.NetworkPolicy{}.OpenAPIModelName():                                                      schema_k8sio_api_networking_v1_NetworkPolicy(ref),
-		networkingv1.NetworkPolicyEgressRule{}.OpenAPIModelName():                                            schema_k8sio_api_networking_v1_NetworkPolicyEgressRule(ref),
-		networkingv1.NetworkPolicyIngressRule{}.OpenAPIModelName():                                           schema_k8sio_api_networking_v1_NetworkPolicyIngressRule(ref),
-		networkingv1.NetworkPolicyList{}.OpenAPIModelName():                                                  schema_k8sio_api_networking_v1_NetworkPolicyList(ref),
-		networkingv1.NetworkPolicyPeer{}.OpenAPIModelName():                                                  schema_k8sio_api_networking_v1_NetworkPolicyPeer(ref),
-		networkingv1.NetworkPolicyPort{}.OpenAPIModelName():                                                  schema_k8sio_api_networking_v1_NetworkPolicyPort(ref),
-		networkingv1.NetworkPolicySpec{}.OpenAPIModelName():                                                  schema_k8sio_api_networking_v1_NetworkPolicySpec(ref),
-		networkingv1.ParentReference{}.OpenAPIModelName():                                                    schema_k8sio_api_networking_v1_ParentReference(ref),
-		networkingv1.ServiceBackendPort{}.OpenAPIModelName():                                                 schema_k8sio_api_networking_v1_ServiceBackendPort(ref),
-		networkingv1.ServiceCIDR{}.OpenAPIModelName():                                                        schema_k8sio_api_networking_v1_ServiceCIDR(ref),
-		networkingv1.ServiceCIDRList{}.OpenAPIModelName():                                                    schema_k8sio_api_networking_v1_ServiceCIDRList(ref),
-		networkingv1.ServiceCIDRSpec{}.OpenAPIModelName():                                                    schema_k8sio_api_networking_v1_ServiceCIDRSpec(ref),
-		networkingv1.ServiceCIDRStatus{}.OpenAPIModelName():                                                  schema_k8sio_api_networking_v1_ServiceCIDRStatus(ref),
-		apiextensionsv1.ConversionRequest{}.OpenAPIModelName():                                               schema_pkg_apis_apiextensions_v1_ConversionRequest(ref),
-		apiextensionsv1.ConversionResponse{}.OpenAPIModelName():                                              schema_pkg_apis_apiextensions_v1_ConversionResponse(ref),
-		apiextensionsv1.ConversionReview{}.OpenAPIModelName():                                                schema_pkg_apis_apiextensions_v1_ConversionReview(ref),
-		apiextensionsv1.CustomResourceColumnDefinition{}.OpenAPIModelName():                                  schema_pkg_apis_apiextensions_v1_CustomResourceColumnDefinition(ref),
-		apiextensionsv1.CustomResourceConversion{}.OpenAPIModelName():                                        schema_pkg_apis_apiextensions_v1_CustomResourceConversion(ref),
-		apiextensionsv1.CustomResourceDefinition{}.OpenAPIModelName():                                        schema_pkg_apis_apiextensions_v1_CustomResourceDefinition(ref),
-		apiextensionsv1.CustomResourceDefinitionCondition{}.OpenAPIModelName():                               schema_pkg_apis_apiextensions_v1_CustomResourceDefinitionCondition(ref),
-		apiextensionsv1.CustomResourceDefinitionList{}.OpenAPIModelName():                                    schema_pkg_apis_apiextensions_v1_CustomResourceDefinitionList(ref),
-		apiextensionsv1.CustomResourceDefinitionNames{}.OpenAPIModelName():                                   schema_pkg_apis_apiextensions_v1_CustomResourceDefinitionNames(ref),
-		apiextensionsv1.CustomResourceDefinitionSpec{}.OpenAPIModelName():                                    schema_pkg_apis_apiextensions_v1_CustomResourceDefinitionSpec(ref),
-		apiextensionsv1.CustomResourceDefinitionStatus{}.OpenAPIModelName():                                  schema_pkg_apis_apiextensions_v1_CustomResourceDefinitionStatus(ref),
-		apiextensionsv1.CustomResourceDefinitionVersion{}.OpenAPIModelName():                                 schema_pkg_apis_apiextensions_v1_CustomResourceDefinitionVersion(ref),
-		apiextensionsv1.CustomResourceSubresourceScale{}.OpenAPIModelName():                                  schema_pkg_apis_apiextensions_v1_CustomResourceSubresourceScale(ref),
-		apiextensionsv1.CustomResourceSubresourceStatus{}.OpenAPIModelName():                                 schema_pkg_apis_apiextensions_v1_CustomResourceSubresourceStatus(ref),
-		apiextensionsv1.CustomResourceSubresources{}.OpenAPIModelName():                                      schema_pkg_apis_apiextensions_v1_CustomResourceSubresources(ref),
-		apiextensionsv1.CustomResourceValidation{}.OpenAPIModelName():                                        schema_pkg_apis_apiextensions_v1_CustomResourceValidation(ref),
-		apiextensionsv1.ExternalDocumentation{}.OpenAPIModelName():                                           schema_pkg_apis_apiextensions_v1_ExternalDocumentation(ref),
-		apiextensionsv1.JSON{}.OpenAPIModelName():                                                            schema_pkg_apis_apiextensions_v1_JSON(ref),
-		apiextensionsv1.JSONSchemaProps{}.OpenAPIModelName():                                                 schema_pkg_apis_apiextensions_v1_JSONSchemaProps(ref),
-		apiextensionsv1.JSONSchemaPropsOrArray{}.OpenAPIModelName():                                          schema_pkg_apis_apiextensions_v1_JSONSchemaPropsOrArray(ref),
-		apiextensionsv1.JSONSchemaPropsOrBool{}.OpenAPIModelName():                                           schema_pkg_apis_apiextensions_v1_JSONSchemaPropsOrBool(ref),
-		apiextensionsv1.JSONSchemaPropsOrStringArray{}.OpenAPIModelName():                                    schema_pkg_apis_apiextensions_v1_JSONSchemaPropsOrStringArray(ref),
-		apiextensionsv1.SelectableField{}.OpenAPIModelName():                                                 schema_pkg_apis_apiextensions_v1_SelectableField(ref),
-		apiextensionsv1.ServiceReference{}.OpenAPIModelName():                                                schema_pkg_apis_apiextensions_v1_ServiceReference(ref),
-		apiextensionsv1.ValidationRule{}.OpenAPIModelName():                                                  schema_pkg_apis_apiextensions_v1_ValidationRule(ref),
-		apiextensionsv1.WebhookClientConfig{}.OpenAPIModelName():                                             schema_pkg_apis_apiextensions_v1_WebhookClientConfig(ref),
-		apiextensionsv1.WebhookConversion{}.OpenAPIModelName():                                               schema_pkg_apis_apiextensions_v1_WebhookConversion(ref),
-		resource.Quantity{}.OpenAPIModelName():                                                               schema_apimachinery_pkg_api_resource_Quantity(ref),
-		metav1.APIGroup{}.OpenAPIModelName():                                                                 schema_pkg_apis_meta_v1_APIGroup(ref),
-		metav1.APIGroupList{}.OpenAPIModelName():                                                             schema_pkg_apis_meta_v1_APIGroupList(ref),
-		metav1.APIResource{}.OpenAPIModelName():                                                              schema_pkg_apis_meta_v1_APIResource(ref),
-		metav1.APIResourceList{}.OpenAPIModelName():                                                          schema_pkg_apis_meta_v1_APIResourceList(ref),
-		metav1.APIVersions{}.OpenAPIModelName():                                                              schema_pkg_apis_meta_v1_APIVersions(ref),
-		metav1.ApplyOptions{}.OpenAPIModelName():                                                             schema_pkg_apis_meta_v1_ApplyOptions(ref),
-		metav1.Condition{}.OpenAPIModelName():                                                                schema_pkg_apis_meta_v1_Condition(ref),
-		metav1.CreateOptions{}.OpenAPIModelName():                                                            schema_pkg_apis_meta_v1_CreateOptions(ref),
-		metav1.DeleteOptions{}.OpenAPIModelName():                                                            schema_pkg_apis_meta_v1_DeleteOptions(ref),
-		metav1.Duration{}.OpenAPIModelName():                                                                 schema_pkg_apis_meta_v1_Duration(ref),
-		metav1.FieldSelectorRequirement{}.OpenAPIModelName():                                                 schema_pkg_apis_meta_v1_FieldSelectorRequirement(ref),
-		metav1.FieldsV1{}.OpenAPIModelName():                                                                 schema_pkg_apis_meta_v1_FieldsV1(ref),
-		metav1.GetOptions{}.OpenAPIModelName():                                                               schema_pkg_apis_meta_v1_GetOptions(ref),
-		metav1.GroupKind{}.OpenAPIModelName():                                                                schema_pkg_apis_meta_v1_GroupKind(ref),
-		metav1.GroupResource{}.OpenAPIModelName():                                                            schema_pkg_apis_meta_v1_GroupResource(ref),
-		metav1.GroupVersion{}.OpenAPIModelName():                                                             schema_pkg_apis_meta_v1_GroupVersion(ref),
-		metav1.GroupVersionForDiscovery{}.OpenAPIModelName():                                                 schema_pkg_apis_meta_v1_GroupVersionForDiscovery(ref),
-		metav1.GroupVersionKind{}.OpenAPIModelName():                                                         schema_pkg_apis_meta_v1_GroupVersionKind(ref),
-		metav1.GroupVersionResource{}.OpenAPIModelName():                                                     schema_pkg_apis_meta_v1_GroupVersionResource(ref),
-		metav1.InternalEvent{}.OpenAPIModelName():                                                            schema_pkg_apis_meta_v1_InternalEvent(ref),
-		metav1.LabelSelector{}.OpenAPIModelName():                                                            schema_pkg_apis_meta_v1_LabelSelector(ref),
-		metav1.LabelSelectorRequirement{}.OpenAPIModelName():                                                 schema_pkg_apis_meta_v1_LabelSelectorRequirement(ref),
-		metav1.List{}.OpenAPIModelName():                                                                     schema_pkg_apis_meta_v1_List(ref),
-		metav1.ListMeta{}.OpenAPIModelName():                                                                 schema_pkg_apis_meta_v1_ListMeta(ref),
-		metav1.ListOptions{}.OpenAPIModelName():                                                              schema_pkg_apis_meta_v1_ListOptions(ref),
-		metav1.ManagedFieldsEntry{}.OpenAPIModelName():                                                       schema_pkg_apis_meta_v1_ManagedFieldsEntry(ref),
-		metav1.MicroTime{}.OpenAPIModelName():                                                                schema_pkg_apis_meta_v1_MicroTime(ref),
-		metav1.ObjectMeta{}.OpenAPIModelName():                                                               schema_pkg_apis_meta_v1_ObjectMeta(ref),
-		metav1.OwnerReference{}.OpenAPIModelName():                                                           schema_pkg_apis_meta_v1_OwnerReference(ref),
-		metav1.PartialObjectMetadata{}.OpenAPIModelName():                                                    schema_pkg_apis_meta_v1_PartialObjectMetadata(ref),
-		metav1.PartialObjectMetadataList{}.OpenAPIModelName():                                                schema_pkg_apis_meta_v1_PartialObjectMetadataList(ref),
-		metav1.Patch{}.OpenAPIModelName():                                                                    schema_pkg_apis_meta_v1_Patch(ref),
-		metav1.PatchOptions{}.OpenAPIModelName():                                                             schema_pkg_apis_meta_v1_PatchOptions(ref),
-		metav1.Preconditions{}.OpenAPIModelName():                                                            schema_pkg_apis_meta_v1_Preconditions(ref),
-		metav1.RootPaths{}.OpenAPIModelName():                                                                schema_pkg_apis_meta_v1_RootPaths(ref),
-		metav1.ServerAddressByClientCIDR{}.OpenAPIModelName():                                                schema_pkg_apis_meta_v1_ServerAddressByClientCIDR(ref),
-		metav1.Status{}.OpenAPIModelName():                                                                   schema_pkg_apis_meta_v1_Status(ref),
-		metav1.StatusCause{}.OpenAPIModelName():                                                              schema_pkg_apis_meta_v1_StatusCause(ref),
-		metav1.StatusDetails{}.OpenAPIModelName():                                                            schema_pkg_apis_meta_v1_StatusDetails(ref),
-		metav1.Table{}.OpenAPIModelName():                                                                    schema_pkg_apis_meta_v1_Table(ref),
-		metav1.TableColumnDefinition{}.OpenAPIModelName():                                                    schema_pkg_apis_meta_v1_TableColumnDefinition(ref),
-		metav1.TableOptions{}.OpenAPIModelName():                                                             schema_pkg_apis_meta_v1_TableOptions(ref),
-		metav1.TableRow{}.OpenAPIModelName():                                                                 schema_pkg_apis_meta_v1_TableRow(ref),
-		metav1.TableRowCondition{}.OpenAPIModelName():                                                        schema_pkg_apis_meta_v1_TableRowCondition(ref),
-		metav1.Time{}.OpenAPIModelName():                                                                     schema_pkg_apis_meta_v1_Time(ref),
-		metav1.Timestamp{}.OpenAPIModelName():                                                                schema_pkg_apis_meta_v1_Timestamp(ref),
-		metav1.TypeMeta{}.OpenAPIModelName():                                                                 schema_pkg_apis_meta_v1_TypeMeta(ref),
-		metav1.UpdateOptions{}.OpenAPIModelName():                                                            schema_pkg_apis_meta_v1_UpdateOptions(ref),
-		metav1.WatchEvent{}.OpenAPIModelName():                                                               schema_pkg_apis_meta_v1_WatchEvent(ref),
-		runtime.RawExtension{}.OpenAPIModelName():                                                            schema_k8sio_apimachinery_pkg_runtime_RawExtension(ref),
-		runtime.TypeMeta{}.OpenAPIModelName():                                                                schema_k8sio_apimachinery_pkg_runtime_TypeMeta(ref),
-		runtime.Unknown{}.OpenAPIModelName():                                                                 schema_k8sio_apimachinery_pkg_runtime_Unknown(ref),
-		version.Info{}.OpenAPIModelName():                                                                    schema_k8sio_apimachinery_pkg_version_Info(ref),
-		v1beta1.MetricListOptions{}.OpenAPIModelName():                                                       schema_pkg_apis_custom_metrics_v1beta1_MetricListOptions(ref),
-		v1beta1.MetricValue{}.OpenAPIModelName():                                                             schema_pkg_apis_custom_metrics_v1beta1_MetricValue(ref),
-		v1beta1.MetricValueList{}.OpenAPIModelName():                                                         schema_pkg_apis_custom_metrics_v1beta1_MetricValueList(ref),
-		v1beta2.MetricIdentifier{}.OpenAPIModelName():                                                        schema_pkg_apis_custom_metrics_v1beta2_MetricIdentifier(ref),
-		v1beta2.MetricListOptions{}.OpenAPIModelName():                                                       schema_pkg_apis_custom_metrics_v1beta2_MetricListOptions(ref),
-		v1beta2.MetricValue{}.OpenAPIModelName():                                                             schema_pkg_apis_custom_metrics_v1beta2_MetricValue(ref),
-		v1beta2.MetricValueList{}.OpenAPIModelName():                                                         schema_pkg_apis_custom_metrics_v1beta2_MetricValueList(ref),
-		externalmetricsv1beta1.ExternalMetricValue{}.OpenAPIModelName():                                      schema_pkg_apis_external_metrics_v1beta1_ExternalMetricValue(ref),
-		externalmetricsv1beta1.ExternalMetricValueList{}.OpenAPIModelName():                                  schema_pkg_apis_external_metrics_v1beta1_ExternalMetricValueList(ref),
-		metricsv1beta1.ContainerMetrics{}.OpenAPIModelName():                                                 schema_pkg_apis_metrics_v1beta1_ContainerMetrics(ref),
-		metricsv1beta1.NodeMetrics{}.OpenAPIModelName():                                                      schema_pkg_apis_metrics_v1beta1_NodeMetrics(ref),
-		metricsv1beta1.NodeMetricsList{}.OpenAPIModelName():                                                  schema_pkg_apis_metrics_v1beta1_NodeMetricsList(ref),
-		metricsv1beta1.PodMetrics{}.OpenAPIModelName():                                                       schema_pkg_apis_metrics_v1beta1_PodMetrics(ref),
-		metricsv1beta1.PodMetricsList{}.OpenAPIModelName():                                                   schema_pkg_apis_metrics_v1beta1_PodMetricsList(ref),
+		v1alpha1.ObjectReference{}.OpenAPIModelName():                                   schema_pkg_apis_apps_v1alpha1_ObjectReference(ref),
+		v1alpha1.ObservedWorkload{}.OpenAPIModelName():                                  schema_pkg_apis_apps_v1alpha1_ObservedWorkload(ref),
+		v1alpha1.WorkloadRebalancer{}.OpenAPIModelName():                                schema_pkg_apis_apps_v1alpha1_WorkloadRebalancer(ref),
+		v1alpha1.WorkloadRebalancerList{}.OpenAPIModelName():                            schema_pkg_apis_apps_v1alpha1_WorkloadRebalancerList(ref),
+		v1alpha1.WorkloadRebalancerSpec{}.OpenAPIModelName():                            schema_pkg_apis_apps_v1alpha1_WorkloadRebalancerSpec(ref),
+		v1alpha1.WorkloadRebalancerStatus{}.OpenAPIModelName():                          schema_pkg_apis_apps_v1alpha1_WorkloadRebalancerStatus(ref),
+		autoscalingv1alpha1.CronFederatedHPA{}.OpenAPIModelName():                       schema_pkg_apis_autoscaling_v1alpha1_CronFederatedHPA(ref),
+		autoscalingv1alpha1.CronFederatedHPAList{}.OpenAPIModelName():                   schema_pkg_apis_autoscaling_v1alpha1_CronFederatedHPAList(ref),
+		autoscalingv1alpha1.CronFederatedHPARule{}.OpenAPIModelName():                   schema_pkg_apis_autoscaling_v1alpha1_CronFederatedHPARule(ref),
+		autoscalingv1alpha1.CronFederatedHPASpec{}.OpenAPIModelName():                   schema_pkg_apis_autoscaling_v1alpha1_CronFederatedHPASpec(ref),
+		autoscalingv1alpha1.CronFederatedHPAStatus{}.OpenAPIModelName():                 schema_pkg_apis_autoscaling_v1alpha1_CronFederatedHPAStatus(ref),
+		autoscalingv1alpha1.ExecutionHistory{}.OpenAPIModelName():                       schema_pkg_apis_autoscaling_v1alpha1_ExecutionHistory(ref),
+		autoscalingv1alpha1.FailedExecution{}.OpenAPIModelName():                        schema_pkg_apis_autoscaling_v1alpha1_FailedExecution(ref),
+		autoscalingv1alpha1.FederatedHPA{}.OpenAPIModelName():                           schema_pkg_apis_autoscaling_v1alpha1_FederatedHPA(ref),
+		autoscalingv1alpha1.FederatedHPAList{}.OpenAPIModelName():                       schema_pkg_apis_autoscaling_v1alpha1_FederatedHPAList(ref),
+		autoscalingv1alpha1.FederatedHPASpec{}.OpenAPIModelName():                       schema_pkg_apis_autoscaling_v1alpha1_FederatedHPASpec(ref),
+		autoscalingv1alpha1.SuccessfulExecution{}.OpenAPIModelName():                    schema_pkg_apis_autoscaling_v1alpha1_SuccessfulExecution(ref),
+		clusterv1alpha1.APIEnablement{}.OpenAPIModelName():                              schema_pkg_apis_cluster_v1alpha1_APIEnablement(ref),
+		clusterv1alpha1.APIResource{}.OpenAPIModelName():                                schema_pkg_apis_cluster_v1alpha1_APIResource(ref),
+		clusterv1alpha1.AllocatableModeling{}.OpenAPIModelName():                        schema_pkg_apis_cluster_v1alpha1_AllocatableModeling(ref),
+		clusterv1alpha1.Cluster{}.OpenAPIModelName():                                    schema_pkg_apis_cluster_v1alpha1_Cluster(ref),
+		clusterv1alpha1.ClusterList{}.OpenAPIModelName():                                schema_pkg_apis_cluster_v1alpha1_ClusterList(ref),
+		clusterv1alpha1.ClusterProxyOptions{}.OpenAPIModelName():                        schema_pkg_apis_cluster_v1alpha1_ClusterProxyOptions(ref),
+		clusterv1alpha1.ClusterSpec{}.OpenAPIModelName():                                schema_pkg_apis_cluster_v1alpha1_ClusterSpec(ref),
+		clusterv1alpha1.ClusterStatus{}.OpenAPIModelName():                              schema_pkg_apis_cluster_v1alpha1_ClusterStatus(ref),
+		clusterv1alpha1.LocalSecretReference{}.OpenAPIModelName():                       schema_pkg_apis_cluster_v1alpha1_LocalSecretReference(ref),
+		clusterv1alpha1.NodeSummary{}.OpenAPIModelName():                                schema_pkg_apis_cluster_v1alpha1_NodeSummary(ref),
+		clusterv1alpha1.ResourceModel{}.OpenAPIModelName():                              schema_pkg_apis_cluster_v1alpha1_ResourceModel(ref),
+		clusterv1alpha1.ResourceModelRange{}.OpenAPIModelName():                         schema_pkg_apis_cluster_v1alpha1_ResourceModelRange(ref),
+		clusterv1alpha1.ResourceSummary{}.OpenAPIModelName():                            schema_pkg_apis_cluster_v1alpha1_ResourceSummary(ref),
+		configv1alpha1.ComponentResourceRequirement{}.OpenAPIModelName():                schema_pkg_apis_config_v1alpha1_ComponentResourceRequirement(ref),
+		configv1alpha1.CustomizationRules{}.OpenAPIModelName():                          schema_pkg_apis_config_v1alpha1_CustomizationRules(ref),
+		configv1alpha1.CustomizationTarget{}.OpenAPIModelName():                         schema_pkg_apis_config_v1alpha1_CustomizationTarget(ref),
+		configv1alpha1.DependencyInterpretation{}.OpenAPIModelName():                    schema_pkg_apis_config_v1alpha1_DependencyInterpretation(ref),
+		configv1alpha1.DependentObjectReference{}.OpenAPIModelName():                    schema_pkg_apis_config_v1alpha1_DependentObjectReference(ref),
+		configv1alpha1.HealthInterpretation{}.OpenAPIModelName():                        schema_pkg_apis_config_v1alpha1_HealthInterpretation(ref),
+		configv1alpha1.LocalValueRetention{}.OpenAPIModelName():                         schema_pkg_apis_config_v1alpha1_LocalValueRetention(ref),
+		configv1alpha1.ReplicaResourceRequirement{}.OpenAPIModelName():                  schema_pkg_apis_config_v1alpha1_ReplicaResourceRequirement(ref),
+		configv1alpha1.ReplicaRevision{}.OpenAPIModelName():                             schema_pkg_apis_config_v1alpha1_ReplicaRevision(ref),
+		configv1alpha1.RequestStatus{}.OpenAPIModelName():                               schema_pkg_apis_config_v1alpha1_RequestStatus(ref),
+		configv1alpha1.ResourceInterpreterContext{}.OpenAPIModelName():                  schema_pkg_apis_config_v1alpha1_ResourceInterpreterContext(ref),
+		configv1alpha1.ResourceInterpreterCustomization{}.OpenAPIModelName():            schema_pkg_apis_config_v1alpha1_ResourceInterpreterCustomization(ref),
+		configv1alpha1.ResourceInterpreterCustomizationList{}.OpenAPIModelName():        schema_pkg_apis_config_v1alpha1_ResourceInterpreterCustomizationList(ref),
+		configv1alpha1.ResourceInterpreterCustomizationSpec{}.OpenAPIModelName():        schema_pkg_apis_config_v1alpha1_ResourceInterpreterCustomizationSpec(ref),
+		configv1alpha1.ResourceInterpreterRequest{}.OpenAPIModelName():                  schema_pkg_apis_config_v1alpha1_ResourceInterpreterRequest(ref),
+		configv1alpha1.ResourceInterpreterResponse{}.OpenAPIModelName():                 schema_pkg_apis_config_v1alpha1_ResourceInterpreterResponse(ref),
+		configv1alpha1.ResourceInterpreterWebhook{}.OpenAPIModelName():                  schema_pkg_apis_config_v1alpha1_ResourceInterpreterWebhook(ref),
+		configv1alpha1.ResourceInterpreterWebhookConfiguration{}.OpenAPIModelName():     schema_pkg_apis_config_v1alpha1_ResourceInterpreterWebhookConfiguration(ref),
+		configv1alpha1.ResourceInterpreterWebhookConfigurationList{}.OpenAPIModelName(): schema_pkg_apis_config_v1alpha1_ResourceInterpreterWebhookConfigurationList(ref),
+		configv1alpha1.Rule{}.OpenAPIModelName():                                        schema_pkg_apis_config_v1alpha1_Rule(ref),
+		configv1alpha1.RuleWithOperations{}.OpenAPIModelName():                          schema_pkg_apis_config_v1alpha1_RuleWithOperations(ref),
+		configv1alpha1.StatusAggregation{}.OpenAPIModelName():                           schema_pkg_apis_config_v1alpha1_StatusAggregation(ref),
+		configv1alpha1.StatusReflection{}.OpenAPIModelName():                            schema_pkg_apis_config_v1alpha1_StatusReflection(ref),
+		networkingv1alpha1.ClusterSelector{}.OpenAPIModelName():                         schema_pkg_apis_networking_v1alpha1_ClusterSelector(ref),
+		networkingv1alpha1.ExposurePort{}.OpenAPIModelName():                            schema_pkg_apis_networking_v1alpha1_ExposurePort(ref),
+		networkingv1alpha1.ExposureRange{}.OpenAPIModelName():                           schema_pkg_apis_networking_v1alpha1_ExposureRange(ref),
+		networkingv1alpha1.MultiClusterIngress{}.OpenAPIModelName():                     schema_pkg_apis_networking_v1alpha1_MultiClusterIngress(ref),
+		networkingv1alpha1.MultiClusterIngressList{}.OpenAPIModelName():                 schema_pkg_apis_networking_v1alpha1_MultiClusterIngressList(ref),
+		networkingv1alpha1.MultiClusterIngressStatus{}.OpenAPIModelName():               schema_pkg_apis_networking_v1alpha1_MultiClusterIngressStatus(ref),
+		networkingv1alpha1.MultiClusterService{}.OpenAPIModelName():                     schema_pkg_apis_networking_v1alpha1_MultiClusterService(ref),
+		networkingv1alpha1.MultiClusterServiceList{}.OpenAPIModelName():                 schema_pkg_apis_networking_v1alpha1_MultiClusterServiceList(ref),
+		networkingv1alpha1.MultiClusterServiceSpec{}.OpenAPIModelName():                 schema_pkg_apis_networking_v1alpha1_MultiClusterServiceSpec(ref),
+		networkingv1alpha1.ServiceLocation{}.OpenAPIModelName():                         schema_pkg_apis_networking_v1alpha1_ServiceLocation(ref),
+		policyv1alpha1.ApplicationFailoverBehavior{}.OpenAPIModelName():                 schema_pkg_apis_policy_v1alpha1_ApplicationFailoverBehavior(ref),
+		policyv1alpha1.ClusterAffinity{}.OpenAPIModelName():                             schema_pkg_apis_policy_v1alpha1_ClusterAffinity(ref),
+		policyv1alpha1.ClusterAffinityTerm{}.OpenAPIModelName():                         schema_pkg_apis_policy_v1alpha1_ClusterAffinityTerm(ref),
+		policyv1alpha1.ClusterFailoverBehavior{}.OpenAPIModelName():                     schema_pkg_apis_policy_v1alpha1_ClusterFailoverBehavior(ref),
+		policyv1alpha1.ClusterOverridePolicy{}.OpenAPIModelName():                       schema_pkg_apis_policy_v1alpha1_ClusterOverridePolicy(ref),
+		policyv1alpha1.ClusterOverridePolicyList{}.OpenAPIModelName():                   schema_pkg_apis_policy_v1alpha1_ClusterOverridePolicyList(ref),
+		policyv1alpha1.ClusterPreferences{}.OpenAPIModelName():                          schema_pkg_apis_policy_v1alpha1_ClusterPreferences(ref),
+		policyv1alpha1.ClusterPropagationPolicy{}.OpenAPIModelName():                    schema_pkg_apis_policy_v1alpha1_ClusterPropagationPolicy(ref),
+		policyv1alpha1.ClusterPropagationPolicyList{}.OpenAPIModelName():                schema_pkg_apis_policy_v1alpha1_ClusterPropagationPolicyList(ref),
+		policyv1alpha1.ClusterQuotaStatus{}.OpenAPIModelName():                          schema_pkg_apis_policy_v1alpha1_ClusterQuotaStatus(ref),
+		policyv1alpha1.ClusterTaintPolicy{}.OpenAPIModelName():                          schema_pkg_apis_policy_v1alpha1_ClusterTaintPolicy(ref),
+		policyv1alpha1.ClusterTaintPolicyList{}.OpenAPIModelName():                      schema_pkg_apis_policy_v1alpha1_ClusterTaintPolicyList(ref),
+		policyv1alpha1.ClusterTaintPolicySpec{}.OpenAPIModelName():                      schema_pkg_apis_policy_v1alpha1_ClusterTaintPolicySpec(ref),
+		policyv1alpha1.CommandArgsOverrider{}.OpenAPIModelName():                        schema_pkg_apis_policy_v1alpha1_CommandArgsOverrider(ref),
+		policyv1alpha1.DecisionConditions{}.OpenAPIModelName():                          schema_pkg_apis_policy_v1alpha1_DecisionConditions(ref),
+		policyv1alpha1.FailoverBehavior{}.OpenAPIModelName():                            schema_pkg_apis_policy_v1alpha1_FailoverBehavior(ref),
+		policyv1alpha1.FederatedResourceQuota{}.OpenAPIModelName():                      schema_pkg_apis_policy_v1alpha1_FederatedResourceQuota(ref),
+		policyv1alpha1.FederatedResourceQuotaList{}.OpenAPIModelName():                  schema_pkg_apis_policy_v1alpha1_FederatedResourceQuotaList(ref),
+		policyv1alpha1.FederatedResourceQuotaSpec{}.OpenAPIModelName():                  schema_pkg_apis_policy_v1alpha1_FederatedResourceQuotaSpec(ref),
+		policyv1alpha1.FederatedResourceQuotaStatus{}.OpenAPIModelName():                schema_pkg_apis_policy_v1alpha1_FederatedResourceQuotaStatus(ref),
+		policyv1alpha1.FieldOverrider{}.OpenAPIModelName():                              schema_pkg_apis_policy_v1alpha1_FieldOverrider(ref),
+		policyv1alpha1.FieldSelector{}.OpenAPIModelName():                               schema_pkg_apis_policy_v1alpha1_FieldSelector(ref),
+		policyv1alpha1.ImageOverrider{}.OpenAPIModelName():                              schema_pkg_apis_policy_v1alpha1_ImageOverrider(ref),
+		policyv1alpha1.ImagePredicate{}.OpenAPIModelName():                              schema_pkg_apis_policy_v1alpha1_ImagePredicate(ref),
+		policyv1alpha1.JSONPatchOperation{}.OpenAPIModelName():                          schema_pkg_apis_policy_v1alpha1_JSONPatchOperation(ref),
+		policyv1alpha1.LabelAnnotationOverrider{}.OpenAPIModelName():                    schema_pkg_apis_policy_v1alpha1_LabelAnnotationOverrider(ref),
+		policyv1alpha1.MatchCondition{}.OpenAPIModelName():                              schema_pkg_apis_policy_v1alpha1_MatchCondition(ref),
+		policyv1alpha1.OverridePolicy{}.OpenAPIModelName():                              schema_pkg_apis_policy_v1alpha1_OverridePolicy(ref),
+		policyv1alpha1.OverridePolicyList{}.OpenAPIModelName():                          schema_pkg_apis_policy_v1alpha1_OverridePolicyList(ref),
+		policyv1alpha1.OverrideSpec{}.OpenAPIModelName():                                schema_pkg_apis_policy_v1alpha1_OverrideSpec(ref),
+		policyv1alpha1.Overriders{}.OpenAPIModelName():                                  schema_pkg_apis_policy_v1alpha1_Overriders(ref),
+		policyv1alpha1.Placement{}.OpenAPIModelName():                                   schema_pkg_apis_policy_v1alpha1_Placement(ref),
+		policyv1alpha1.PlaintextOverrider{}.OpenAPIModelName():                          schema_pkg_apis_policy_v1alpha1_PlaintextOverrider(ref),
+		policyv1alpha1.PropagationPolicy{}.OpenAPIModelName():                           schema_pkg_apis_policy_v1alpha1_PropagationPolicy(ref),
+		policyv1alpha1.PropagationPolicyList{}.OpenAPIModelName():                       schema_pkg_apis_policy_v1alpha1_PropagationPolicyList(ref),
+		policyv1alpha1.PropagationSpec{}.OpenAPIModelName():                             schema_pkg_apis_policy_v1alpha1_PropagationSpec(ref),
+		policyv1alpha1.ReplicaSchedulingStrategy{}.OpenAPIModelName():                   schema_pkg_apis_policy_v1alpha1_ReplicaSchedulingStrategy(ref),
+		policyv1alpha1.ResourceSelector{}.OpenAPIModelName():                            schema_pkg_apis_policy_v1alpha1_ResourceSelector(ref),
+		policyv1alpha1.RuleWithCluster{}.OpenAPIModelName():                             schema_pkg_apis_policy_v1alpha1_RuleWithCluster(ref),
+		policyv1alpha1.SchedulePriority{}.OpenAPIModelName():                            schema_pkg_apis_policy_v1alpha1_SchedulePriority(ref),
+		policyv1alpha1.SpreadConstraint{}.OpenAPIModelName():                            schema_pkg_apis_policy_v1alpha1_SpreadConstraint(ref),
+		policyv1alpha1.StatePreservation{}.OpenAPIModelName():                           schema_pkg_apis_policy_v1alpha1_StatePreservation(ref),
+		policyv1alpha1.StatePreservationRule{}.OpenAPIModelName():                       schema_pkg_apis_policy_v1alpha1_StatePreservationRule(ref),
+		policyv1alpha1.StaticClusterAssignment{}.OpenAPIModelName():                     schema_pkg_apis_policy_v1alpha1_StaticClusterAssignment(ref),
+		policyv1alpha1.StaticClusterWeight{}.OpenAPIModelName():                         schema_pkg_apis_policy_v1alpha1_StaticClusterWeight(ref),
+		policyv1alpha1.SuspendClusters{}.OpenAPIModelName():                             schema_pkg_apis_policy_v1alpha1_SuspendClusters(ref),
+		policyv1alpha1.Suspension{}.OpenAPIModelName():                                  schema_pkg_apis_policy_v1alpha1_Suspension(ref),
+		policyv1alpha1.Taint{}.OpenAPIModelName():                                       schema_pkg_apis_policy_v1alpha1_Taint(ref),
+		policyv1alpha1.WorkloadAffinity{}.OpenAPIModelName():                            schema_pkg_apis_policy_v1alpha1_WorkloadAffinity(ref),
+		policyv1alpha1.WorkloadAffinityTerm{}.OpenAPIModelName():                        schema_pkg_apis_policy_v1alpha1_WorkloadAffinityTerm(ref),
+		policyv1alpha1.WorkloadAntiAffinityTerm{}.OpenAPIModelName():                    schema_pkg_apis_policy_v1alpha1_WorkloadAntiAffinityTerm(ref),
+		policyv1alpha1.YAMLPatchOperation{}.OpenAPIModelName():                          schema_pkg_apis_policy_v1alpha1_YAMLPatchOperation(ref),
+		remedyv1alpha1.ClusterAffinity{}.OpenAPIModelName():                             schema_pkg_apis_remedy_v1alpha1_ClusterAffinity(ref),
+		remedyv1alpha1.ClusterConditionRequirement{}.OpenAPIModelName():                 schema_pkg_apis_remedy_v1alpha1_ClusterConditionRequirement(ref),
+		remedyv1alpha1.DecisionMatch{}.OpenAPIModelName():                               schema_pkg_apis_remedy_v1alpha1_DecisionMatch(ref),
+		remedyv1alpha1.Remedy{}.OpenAPIModelName():                                      schema_pkg_apis_remedy_v1alpha1_Remedy(ref),
+		remedyv1alpha1.RemedyList{}.OpenAPIModelName():                                  schema_pkg_apis_remedy_v1alpha1_RemedyList(ref),
+		remedyv1alpha1.RemedySpec{}.OpenAPIModelName():                                  schema_pkg_apis_remedy_v1alpha1_RemedySpec(ref),
+		searchv1alpha1.BackendStoreConfig{}.OpenAPIModelName():                          schema_pkg_apis_search_v1alpha1_BackendStoreConfig(ref),
+		searchv1alpha1.OpenSearchConfig{}.OpenAPIModelName():                            schema_pkg_apis_search_v1alpha1_OpenSearchConfig(ref),
+		searchv1alpha1.Proxying{}.OpenAPIModelName():                                    schema_pkg_apis_search_v1alpha1_Proxying(ref),
+		searchv1alpha1.ResourceRegistry{}.OpenAPIModelName():                            schema_pkg_apis_search_v1alpha1_ResourceRegistry(ref),
+		searchv1alpha1.ResourceRegistryList{}.OpenAPIModelName():                        schema_pkg_apis_search_v1alpha1_ResourceRegistryList(ref),
+		searchv1alpha1.ResourceRegistrySpec{}.OpenAPIModelName():                        schema_pkg_apis_search_v1alpha1_ResourceRegistrySpec(ref),
+		searchv1alpha1.ResourceRegistryStatus{}.OpenAPIModelName():                      schema_pkg_apis_search_v1alpha1_ResourceRegistryStatus(ref),
+		searchv1alpha1.ResourceSelector{}.OpenAPIModelName():                            schema_pkg_apis_search_v1alpha1_ResourceSelector(ref),
+		searchv1alpha1.Search{}.OpenAPIModelName():                                      schema_pkg_apis_search_v1alpha1_Search(ref),
+		workv1alpha1.AggregatedStatusItem{}.OpenAPIModelName():                          schema_pkg_apis_work_v1alpha1_AggregatedStatusItem(ref),
+		workv1alpha1.ClusterResourceBinding{}.OpenAPIModelName():                        schema_pkg_apis_work_v1alpha1_ClusterResourceBinding(ref),
+		workv1alpha1.ClusterResourceBindingList{}.OpenAPIModelName():                    schema_pkg_apis_work_v1alpha1_ClusterResourceBindingList(ref),
+		workv1alpha1.Manifest{}.OpenAPIModelName():                                      schema_pkg_apis_work_v1alpha1_Manifest(ref),
+		workv1alpha1.ManifestStatus{}.OpenAPIModelName():                                schema_pkg_apis_work_v1alpha1_ManifestStatus(ref),
+		workv1alpha1.ObjectReference{}.OpenAPIModelName():                               schema_pkg_apis_work_v1alpha1_ObjectReference(ref),
+		workv1alpha1.ResourceBinding{}.OpenAPIModelName():                               schema_pkg_apis_work_v1alpha1_ResourceBinding(ref),
+		workv1alpha1.ResourceBindingList{}.OpenAPIModelName():                           schema_pkg_apis_work_v1alpha1_ResourceBindingList(ref),
+		workv1alpha1.ResourceBindingSpec{}.OpenAPIModelName():                           schema_pkg_apis_work_v1alpha1_ResourceBindingSpec(ref),
+		workv1alpha1.ResourceBindingStatus{}.OpenAPIModelName():                         schema_pkg_apis_work_v1alpha1_ResourceBindingStatus(ref),
+		workv1alpha1.ResourceIdentifier{}.OpenAPIModelName():                            schema_pkg_apis_work_v1alpha1_ResourceIdentifier(ref),
+		workv1alpha1.TargetCluster{}.OpenAPIModelName():                                 schema_pkg_apis_work_v1alpha1_TargetCluster(ref),
+		workv1alpha1.Work{}.OpenAPIModelName():                                          schema_pkg_apis_work_v1alpha1_Work(ref),
+		workv1alpha1.WorkList{}.OpenAPIModelName():                                      schema_pkg_apis_work_v1alpha1_WorkList(ref),
+		workv1alpha1.WorkSpec{}.OpenAPIModelName():                                      schema_pkg_apis_work_v1alpha1_WorkSpec(ref),
+		workv1alpha1.WorkStatus{}.OpenAPIModelName():                                    schema_pkg_apis_work_v1alpha1_WorkStatus(ref),
+		workv1alpha1.WorkloadTemplate{}.OpenAPIModelName():                              schema_pkg_apis_work_v1alpha1_WorkloadTemplate(ref),
+		v1alpha2.AggregatedStatusItem{}.OpenAPIModelName():                              schema_pkg_apis_work_v1alpha2_AggregatedStatusItem(ref),
+		v1alpha2.BindingSnapshot{}.OpenAPIModelName():                                   schema_pkg_apis_work_v1alpha2_BindingSnapshot(ref),
+		v1alpha2.ClusterResourceBinding{}.OpenAPIModelName():                            schema_pkg_apis_work_v1alpha2_ClusterResourceBinding(ref),
+		v1alpha2.ClusterResourceBindingList{}.OpenAPIModelName():                        schema_pkg_apis_work_v1alpha2_ClusterResourceBindingList(ref),
+		v1alpha2.Component{}.OpenAPIModelName():                                         schema_pkg_apis_work_v1alpha2_Component(ref),
+		v1alpha2.ComponentReplicaRequirements{}.OpenAPIModelName():                      schema_pkg_apis_work_v1alpha2_ComponentReplicaRequirements(ref),
+		v1alpha2.GracefulEvictionTask{}.OpenAPIModelName():                              schema_pkg_apis_work_v1alpha2_GracefulEvictionTask(ref),
+		v1alpha2.NodeClaim{}.OpenAPIModelName():                                         schema_pkg_apis_work_v1alpha2_NodeClaim(ref),
+		v1alpha2.ObjectReference{}.OpenAPIModelName():                                   schema_pkg_apis_work_v1alpha2_ObjectReference(ref),
+		v1alpha2.ReplicaRequirements{}.OpenAPIModelName():                               schema_pkg_apis_work_v1alpha2_ReplicaRequirements(ref),
+		v1alpha2.ResourceBinding{}.OpenAPIModelName():                                   schema_pkg_apis_work_v1alpha2_ResourceBinding(ref),
+		v1alpha2.ResourceBindingList{}.OpenAPIModelName():                               schema_pkg_apis_work_v1alpha2_ResourceBindingList(ref),
+		v1alpha2.ResourceBindingSpec{}.OpenAPIModelName():                               schema_pkg_apis_work_v1alpha2_ResourceBindingSpec(ref),
+		v1alpha2.ResourceBindingStatus{}.OpenAPIModelName():                             schema_pkg_apis_work_v1alpha2_ResourceBindingStatus(ref),
+		v1alpha2.SchedulePriority{}.OpenAPIModelName():                                  schema_pkg_apis_work_v1alpha2_SchedulePriority(ref),
+		v1alpha2.Suspension{}.OpenAPIModelName():                                        schema_pkg_apis_work_v1alpha2_Suspension(ref),
+		v1alpha2.TargetCluster{}.OpenAPIModelName():                                     schema_pkg_apis_work_v1alpha2_TargetCluster(ref),
+		v1alpha2.TaskOptions{}.OpenAPIModelName():                                       schema_pkg_apis_work_v1alpha2_TaskOptions(ref),
+		v1alpha2.WorkloadAffinityGroups{}.OpenAPIModelName():                            schema_pkg_apis_work_v1alpha2_WorkloadAffinityGroups(ref),
+		v1.AuditAnnotation{}.OpenAPIModelName():                                         schema_k8sio_api_admissionregistration_v1_AuditAnnotation(ref),
+		v1.ExpressionWarning{}.OpenAPIModelName():                                       schema_k8sio_api_admissionregistration_v1_ExpressionWarning(ref),
+		v1.MatchCondition{}.OpenAPIModelName():                                          schema_k8sio_api_admissionregistration_v1_MatchCondition(ref),
+		v1.MatchResources{}.OpenAPIModelName():                                          schema_k8sio_api_admissionregistration_v1_MatchResources(ref),
+		v1.MutatingWebhook{}.OpenAPIModelName():                                         schema_k8sio_api_admissionregistration_v1_MutatingWebhook(ref),
+		v1.MutatingWebhookConfiguration{}.OpenAPIModelName():                            schema_k8sio_api_admissionregistration_v1_MutatingWebhookConfiguration(ref),
+		v1.MutatingWebhookConfigurationList{}.OpenAPIModelName():                        schema_k8sio_api_admissionregistration_v1_MutatingWebhookConfigurationList(ref),
+		v1.NamedRuleWithOperations{}.OpenAPIModelName():                                 schema_k8sio_api_admissionregistration_v1_NamedRuleWithOperations(ref),
+		v1.ParamKind{}.OpenAPIModelName():                                               schema_k8sio_api_admissionregistration_v1_ParamKind(ref),
+		v1.ParamRef{}.OpenAPIModelName():                                                schema_k8sio_api_admissionregistration_v1_ParamRef(ref),
+		v1.Rule{}.OpenAPIModelName():                                                    schema_k8sio_api_admissionregistration_v1_Rule(ref),
+		v1.RuleWithOperations{}.OpenAPIModelName():                                      schema_k8sio_api_admissionregistration_v1_RuleWithOperations(ref),
+		v1.ServiceReference{}.OpenAPIModelName():                                        schema_k8sio_api_admissionregistration_v1_ServiceReference(ref),
+		v1.TypeChecking{}.OpenAPIModelName():                                            schema_k8sio_api_admissionregistration_v1_TypeChecking(ref),
+		v1.ValidatingAdmissionPolicy{}.OpenAPIModelName():                               schema_k8sio_api_admissionregistration_v1_ValidatingAdmissionPolicy(ref),
+		v1.ValidatingAdmissionPolicyBinding{}.OpenAPIModelName():                        schema_k8sio_api_admissionregistration_v1_ValidatingAdmissionPolicyBinding(ref),
+		v1.ValidatingAdmissionPolicyBindingList{}.OpenAPIModelName():                    schema_k8sio_api_admissionregistration_v1_ValidatingAdmissionPolicyBindingList(ref),
+		v1.ValidatingAdmissionPolicyBindingSpec{}.OpenAPIModelName():                    schema_k8sio_api_admissionregistration_v1_ValidatingAdmissionPolicyBindingSpec(ref),
+		v1.ValidatingAdmissionPolicyList{}.OpenAPIModelName():                           schema_k8sio_api_admissionregistration_v1_ValidatingAdmissionPolicyList(ref),
+		v1.ValidatingAdmissionPolicySpec{}.OpenAPIModelName():                           schema_k8sio_api_admissionregistration_v1_ValidatingAdmissionPolicySpec(ref),
+		v1.ValidatingAdmissionPolicyStatus{}.OpenAPIModelName():                         schema_k8sio_api_admissionregistration_v1_ValidatingAdmissionPolicyStatus(ref),
+		v1.ValidatingWebhook{}.OpenAPIModelName():                                       schema_k8sio_api_admissionregistration_v1_ValidatingWebhook(ref),
+		v1.ValidatingWebhookConfiguration{}.OpenAPIModelName():                          schema_k8sio_api_admissionregistration_v1_ValidatingWebhookConfiguration(ref),
+		v1.ValidatingWebhookConfigurationList{}.OpenAPIModelName():                      schema_k8sio_api_admissionregistration_v1_ValidatingWebhookConfigurationList(ref),
+		v1.Validation{}.OpenAPIModelName():                                              schema_k8sio_api_admissionregistration_v1_Validation(ref),
+		v1.Variable{}.OpenAPIModelName():                                                schema_k8sio_api_admissionregistration_v1_Variable(ref),
+		v1.WebhookClientConfig{}.OpenAPIModelName():                                     schema_k8sio_api_admissionregistration_v1_WebhookClientConfig(ref),
+		v2.ContainerResourceMetricSource{}.OpenAPIModelName():                           schema_k8sio_api_autoscaling_v2_ContainerResourceMetricSource(ref),
+		v2.ContainerResourceMetricStatus{}.OpenAPIModelName():                           schema_k8sio_api_autoscaling_v2_ContainerResourceMetricStatus(ref),
+		v2.CrossVersionObjectReference{}.OpenAPIModelName():                             schema_k8sio_api_autoscaling_v2_CrossVersionObjectReference(ref),
+		v2.ExternalMetricSource{}.OpenAPIModelName():                                    schema_k8sio_api_autoscaling_v2_ExternalMetricSource(ref),
+		v2.ExternalMetricStatus{}.OpenAPIModelName():                                    schema_k8sio_api_autoscaling_v2_ExternalMetricStatus(ref),
+		v2.HPAScalingPolicy{}.OpenAPIModelName():                                        schema_k8sio_api_autoscaling_v2_HPAScalingPolicy(ref),
+		v2.HPAScalingRules{}.OpenAPIModelName():                                         schema_k8sio_api_autoscaling_v2_HPAScalingRules(ref),
+		v2.HorizontalPodAutoscaler{}.OpenAPIModelName():                                 schema_k8sio_api_autoscaling_v2_HorizontalPodAutoscaler(ref),
+		v2.HorizontalPodAutoscalerBehavior{}.OpenAPIModelName():                         schema_k8sio_api_autoscaling_v2_HorizontalPodAutoscalerBehavior(ref),
+		v2.HorizontalPodAutoscalerCondition{}.OpenAPIModelName():                        schema_k8sio_api_autoscaling_v2_HorizontalPodAutoscalerCondition(ref),
+		v2.HorizontalPodAutoscalerList{}.OpenAPIModelName():                             schema_k8sio_api_autoscaling_v2_HorizontalPodAutoscalerList(ref),
+		v2.HorizontalPodAutoscalerSpec{}.OpenAPIModelName():                             schema_k8sio_api_autoscaling_v2_HorizontalPodAutoscalerSpec(ref),
+		v2.HorizontalPodAutoscalerStatus{}.OpenAPIModelName():                           schema_k8sio_api_autoscaling_v2_HorizontalPodAutoscalerStatus(ref),
+		v2.MetricIdentifier{}.OpenAPIModelName():                                        schema_k8sio_api_autoscaling_v2_MetricIdentifier(ref),
+		v2.MetricSpec{}.OpenAPIModelName():                                              schema_k8sio_api_autoscaling_v2_MetricSpec(ref),
+		v2.MetricStatus{}.OpenAPIModelName():                                            schema_k8sio_api_autoscaling_v2_MetricStatus(ref),
+		v2.MetricTarget{}.OpenAPIModelName():                                            schema_k8sio_api_autoscaling_v2_MetricTarget(ref),
+		v2.MetricValueStatus{}.OpenAPIModelName():                                       schema_k8sio_api_autoscaling_v2_MetricValueStatus(ref),
+		v2.ObjectMetricSource{}.OpenAPIModelName():                                      schema_k8sio_api_autoscaling_v2_ObjectMetricSource(ref),
+		v2.ObjectMetricStatus{}.OpenAPIModelName():                                      schema_k8sio_api_autoscaling_v2_ObjectMetricStatus(ref),
+		v2.PodsMetricSource{}.OpenAPIModelName():                                        schema_k8sio_api_autoscaling_v2_PodsMetricSource(ref),
+		v2.PodsMetricStatus{}.OpenAPIModelName():                                        schema_k8sio_api_autoscaling_v2_PodsMetricStatus(ref),
+		v2.ResourceMetricSource{}.OpenAPIModelName():                                    schema_k8sio_api_autoscaling_v2_ResourceMetricSource(ref),
+		v2.ResourceMetricStatus{}.OpenAPIModelName():                                    schema_k8sio_api_autoscaling_v2_ResourceMetricStatus(ref),
+		corev1.AWSElasticBlockStoreVolumeSource{}.OpenAPIModelName():                    schema_k8sio_api_core_v1_AWSElasticBlockStoreVolumeSource(ref),
+		corev1.Affinity{}.OpenAPIModelName():                                            schema_k8sio_api_core_v1_Affinity(ref),
+		corev1.AppArmorProfile{}.OpenAPIModelName():                                     schema_k8sio_api_core_v1_AppArmorProfile(ref),
+		corev1.AttachedVolume{}.OpenAPIModelName():                                      schema_k8sio_api_core_v1_AttachedVolume(ref),
+		corev1.AvoidPods{}.OpenAPIModelName():                                           schema_k8sio_api_core_v1_AvoidPods(ref),
+		corev1.AzureDiskVolumeSource{}.OpenAPIModelName():                               schema_k8sio_api_core_v1_AzureDiskVolumeSource(ref),
+		corev1.AzureFilePersistentVolumeSource{}.OpenAPIModelName():                     schema_k8sio_api_core_v1_AzureFilePersistentVolumeSource(ref),
+		corev1.AzureFileVolumeSource{}.OpenAPIModelName():                               schema_k8sio_api_core_v1_AzureFileVolumeSource(ref),
+		corev1.Binding{}.OpenAPIModelName():                                             schema_k8sio_api_core_v1_Binding(ref),
+		corev1.CSIPersistentVolumeSource{}.OpenAPIModelName():                           schema_k8sio_api_core_v1_CSIPersistentVolumeSource(ref),
+		corev1.CSIVolumeSource{}.OpenAPIModelName():                                     schema_k8sio_api_core_v1_CSIVolumeSource(ref),
+		corev1.Capabilities{}.OpenAPIModelName():                                        schema_k8sio_api_core_v1_Capabilities(ref),
+		corev1.CephFSPersistentVolumeSource{}.OpenAPIModelName():                        schema_k8sio_api_core_v1_CephFSPersistentVolumeSource(ref),
+		corev1.CephFSVolumeSource{}.OpenAPIModelName():                                  schema_k8sio_api_core_v1_CephFSVolumeSource(ref),
+		corev1.CinderPersistentVolumeSource{}.OpenAPIModelName():                        schema_k8sio_api_core_v1_CinderPersistentVolumeSource(ref),
+		corev1.CinderVolumeSource{}.OpenAPIModelName():                                  schema_k8sio_api_core_v1_CinderVolumeSource(ref),
+		corev1.ClientIPConfig{}.OpenAPIModelName():                                      schema_k8sio_api_core_v1_ClientIPConfig(ref),
+		corev1.ClusterTrustBundleProjection{}.OpenAPIModelName():                        schema_k8sio_api_core_v1_ClusterTrustBundleProjection(ref),
+		corev1.ComponentCondition{}.OpenAPIModelName():                                  schema_k8sio_api_core_v1_ComponentCondition(ref),
+		corev1.ComponentStatus{}.OpenAPIModelName():                                     schema_k8sio_api_core_v1_ComponentStatus(ref),
+		corev1.ComponentStatusList{}.OpenAPIModelName():                                 schema_k8sio_api_core_v1_ComponentStatusList(ref),
+		corev1.ConfigMap{}.OpenAPIModelName():                                           schema_k8sio_api_core_v1_ConfigMap(ref),
+		corev1.ConfigMapEnvSource{}.OpenAPIModelName():                                  schema_k8sio_api_core_v1_ConfigMapEnvSource(ref),
+		corev1.ConfigMapKeySelector{}.OpenAPIModelName():                                schema_k8sio_api_core_v1_ConfigMapKeySelector(ref),
+		corev1.ConfigMapList{}.OpenAPIModelName():                                       schema_k8sio_api_core_v1_ConfigMapList(ref),
+		corev1.ConfigMapNodeConfigSource{}.OpenAPIModelName():                           schema_k8sio_api_core_v1_ConfigMapNodeConfigSource(ref),
+		corev1.ConfigMapProjection{}.OpenAPIModelName():                                 schema_k8sio_api_core_v1_ConfigMapProjection(ref),
+		corev1.ConfigMapVolumeSource{}.OpenAPIModelName():                               schema_k8sio_api_core_v1_ConfigMapVolumeSource(ref),
+		corev1.Container{}.OpenAPIModelName():                                           schema_k8sio_api_core_v1_Container(ref),
+		corev1.ContainerExtendedResourceRequest{}.OpenAPIModelName():                    schema_k8sio_api_core_v1_ContainerExtendedResourceRequest(ref),
+		corev1.ContainerImage{}.OpenAPIModelName():                                      schema_k8sio_api_core_v1_ContainerImage(ref),
+		corev1.ContainerPort{}.OpenAPIModelName():                                       schema_k8sio_api_core_v1_ContainerPort(ref),
+		corev1.ContainerResizePolicy{}.OpenAPIModelName():                               schema_k8sio_api_core_v1_ContainerResizePolicy(ref),
+		corev1.ContainerRestartRule{}.OpenAPIModelName():                                schema_k8sio_api_core_v1_ContainerRestartRule(ref),
+		corev1.ContainerRestartRuleOnExitCodes{}.OpenAPIModelName():                     schema_k8sio_api_core_v1_ContainerRestartRuleOnExitCodes(ref),
+		corev1.ContainerState{}.OpenAPIModelName():                                      schema_k8sio_api_core_v1_ContainerState(ref),
+		corev1.ContainerStateRunning{}.OpenAPIModelName():                               schema_k8sio_api_core_v1_ContainerStateRunning(ref),
+		corev1.ContainerStateTerminated{}.OpenAPIModelName():                            schema_k8sio_api_core_v1_ContainerStateTerminated(ref),
+		corev1.ContainerStateWaiting{}.OpenAPIModelName():                               schema_k8sio_api_core_v1_ContainerStateWaiting(ref),
+		corev1.ContainerStatus{}.OpenAPIModelName():                                     schema_k8sio_api_core_v1_ContainerStatus(ref),
+		corev1.ContainerUser{}.OpenAPIModelName():                                       schema_k8sio_api_core_v1_ContainerUser(ref),
+		corev1.DaemonEndpoint{}.OpenAPIModelName():                                      schema_k8sio_api_core_v1_DaemonEndpoint(ref),
+		corev1.DownwardAPIProjection{}.OpenAPIModelName():                               schema_k8sio_api_core_v1_DownwardAPIProjection(ref),
+		corev1.DownwardAPIVolumeFile{}.OpenAPIModelName():                               schema_k8sio_api_core_v1_DownwardAPIVolumeFile(ref),
+		corev1.DownwardAPIVolumeSource{}.OpenAPIModelName():                             schema_k8sio_api_core_v1_DownwardAPIVolumeSource(ref),
+		corev1.EmptyDirVolumeSource{}.OpenAPIModelName():                                schema_k8sio_api_core_v1_EmptyDirVolumeSource(ref),
+		corev1.EndpointAddress{}.OpenAPIModelName():                                     schema_k8sio_api_core_v1_EndpointAddress(ref),
+		corev1.EndpointPort{}.OpenAPIModelName():                                        schema_k8sio_api_core_v1_EndpointPort(ref),
+		corev1.EndpointSubset{}.OpenAPIModelName():                                      schema_k8sio_api_core_v1_EndpointSubset(ref),
+		corev1.Endpoints{}.OpenAPIModelName():                                           schema_k8sio_api_core_v1_Endpoints(ref),
+		corev1.EndpointsList{}.OpenAPIModelName():                                       schema_k8sio_api_core_v1_EndpointsList(ref),
+		corev1.EnvFromSource{}.OpenAPIModelName():                                       schema_k8sio_api_core_v1_EnvFromSource(ref),
+		corev1.EnvVar{}.OpenAPIModelName():                                              schema_k8sio_api_core_v1_EnvVar(ref),
+		corev1.EnvVarSource{}.OpenAPIModelName():                                        schema_k8sio_api_core_v1_EnvVarSource(ref),
+		corev1.EphemeralContainer{}.OpenAPIModelName():                                  schema_k8sio_api_core_v1_EphemeralContainer(ref),
+		corev1.EphemeralContainerCommon{}.OpenAPIModelName():                            schema_k8sio_api_core_v1_EphemeralContainerCommon(ref),
+		corev1.EphemeralVolumeSource{}.OpenAPIModelName():                               schema_k8sio_api_core_v1_EphemeralVolumeSource(ref),
+		corev1.Event{}.OpenAPIModelName():                                               schema_k8sio_api_core_v1_Event(ref),
+		corev1.EventList{}.OpenAPIModelName():                                           schema_k8sio_api_core_v1_EventList(ref),
+		corev1.EventSeries{}.OpenAPIModelName():                                         schema_k8sio_api_core_v1_EventSeries(ref),
+		corev1.EventSource{}.OpenAPIModelName():                                         schema_k8sio_api_core_v1_EventSource(ref),
+		corev1.ExecAction{}.OpenAPIModelName():                                          schema_k8sio_api_core_v1_ExecAction(ref),
+		corev1.FCVolumeSource{}.OpenAPIModelName():                                      schema_k8sio_api_core_v1_FCVolumeSource(ref),
+		corev1.FileKeySelector{}.OpenAPIModelName():                                     schema_k8sio_api_core_v1_FileKeySelector(ref),
+		corev1.FlexPersistentVolumeSource{}.OpenAPIModelName():                          schema_k8sio_api_core_v1_FlexPersistentVolumeSource(ref),
+		corev1.FlexVolumeSource{}.OpenAPIModelName():                                    schema_k8sio_api_core_v1_FlexVolumeSource(ref),
+		corev1.FlockerVolumeSource{}.OpenAPIModelName():                                 schema_k8sio_api_core_v1_FlockerVolumeSource(ref),
+		corev1.GCEPersistentDiskVolumeSource{}.OpenAPIModelName():                       schema_k8sio_api_core_v1_GCEPersistentDiskVolumeSource(ref),
+		corev1.GRPCAction{}.OpenAPIModelName():                                          schema_k8sio_api_core_v1_GRPCAction(ref),
+		corev1.GitRepoVolumeSource{}.OpenAPIModelName():                                 schema_k8sio_api_core_v1_GitRepoVolumeSource(ref),
+		corev1.GlusterfsPersistentVolumeSource{}.OpenAPIModelName():                     schema_k8sio_api_core_v1_GlusterfsPersistentVolumeSource(ref),
+		corev1.GlusterfsVolumeSource{}.OpenAPIModelName():                               schema_k8sio_api_core_v1_GlusterfsVolumeSource(ref),
+		corev1.HTTPGetAction{}.OpenAPIModelName():                                       schema_k8sio_api_core_v1_HTTPGetAction(ref),
+		corev1.HTTPHeader{}.OpenAPIModelName():                                          schema_k8sio_api_core_v1_HTTPHeader(ref),
+		corev1.HostAlias{}.OpenAPIModelName():                                           schema_k8sio_api_core_v1_HostAlias(ref),
+		corev1.HostIP{}.OpenAPIModelName():                                              schema_k8sio_api_core_v1_HostIP(ref),
+		corev1.HostPathVolumeSource{}.OpenAPIModelName():                                schema_k8sio_api_core_v1_HostPathVolumeSource(ref),
+		corev1.ISCSIPersistentVolumeSource{}.OpenAPIModelName():                         schema_k8sio_api_core_v1_ISCSIPersistentVolumeSource(ref),
+		corev1.ISCSIVolumeSource{}.OpenAPIModelName():                                   schema_k8sio_api_core_v1_ISCSIVolumeSource(ref),
+		corev1.ImageVolumeSource{}.OpenAPIModelName():                                   schema_k8sio_api_core_v1_ImageVolumeSource(ref),
+		corev1.KeyToPath{}.OpenAPIModelName():                                           schema_k8sio_api_core_v1_KeyToPath(ref),
+		corev1.Lifecycle{}.OpenAPIModelName():                                           schema_k8sio_api_core_v1_Lifecycle(ref),
+		corev1.LifecycleHandler{}.OpenAPIModelName():                                    schema_k8sio_api_core_v1_LifecycleHandler(ref),
+		corev1.LimitRange{}.OpenAPIModelName():                                          schema_k8sio_api_core_v1_LimitRange(ref),
+		corev1.LimitRangeItem{}.OpenAPIModelName():                                      schema_k8sio_api_core_v1_LimitRangeItem(ref),
+		corev1.LimitRangeList{}.OpenAPIModelName():                                      schema_k8sio_api_core_v1_LimitRangeList(ref),
+		corev1.LimitRangeSpec{}.OpenAPIModelName():                                      schema_k8sio_api_core_v1_LimitRangeSpec(ref),
+		corev1.LinuxContainerUser{}.OpenAPIModelName():                                  schema_k8sio_api_core_v1_LinuxContainerUser(ref),
+		corev1.List{}.OpenAPIModelName():                                                schema_k8sio_api_core_v1_List(ref),
+		corev1.LoadBalancerIngress{}.OpenAPIModelName():                                 schema_k8sio_api_core_v1_LoadBalancerIngress(ref),
+		corev1.LoadBalancerStatus{}.OpenAPIModelName():                                  schema_k8sio_api_core_v1_LoadBalancerStatus(ref),
+		corev1.LocalObjectReference{}.OpenAPIModelName():                                schema_k8sio_api_core_v1_LocalObjectReference(ref),
+		corev1.LocalVolumeSource{}.OpenAPIModelName():                                   schema_k8sio_api_core_v1_LocalVolumeSource(ref),
+		corev1.ModifyVolumeStatus{}.OpenAPIModelName():                                  schema_k8sio_api_core_v1_ModifyVolumeStatus(ref),
+		corev1.NFSVolumeSource{}.OpenAPIModelName():                                     schema_k8sio_api_core_v1_NFSVolumeSource(ref),
+		corev1.Namespace{}.OpenAPIModelName():                                           schema_k8sio_api_core_v1_Namespace(ref),
+		corev1.NamespaceCondition{}.OpenAPIModelName():                                  schema_k8sio_api_core_v1_NamespaceCondition(ref),
+		corev1.NamespaceList{}.OpenAPIModelName():                                       schema_k8sio_api_core_v1_NamespaceList(ref),
+		corev1.NamespaceSpec{}.OpenAPIModelName():                                       schema_k8sio_api_core_v1_NamespaceSpec(ref),
+		corev1.NamespaceStatus{}.OpenAPIModelName():                                     schema_k8sio_api_core_v1_NamespaceStatus(ref),
+		corev1.Node{}.OpenAPIModelName():                                                schema_k8sio_api_core_v1_Node(ref),
+		corev1.NodeAddress{}.OpenAPIModelName():                                         schema_k8sio_api_core_v1_NodeAddress(ref),
+		corev1.NodeAffinity{}.OpenAPIModelName():                                        schema_k8sio_api_core_v1_NodeAffinity(ref),
+		corev1.NodeCondition{}.OpenAPIModelName():                                       schema_k8sio_api_core_v1_NodeCondition(ref),
+		corev1.NodeConfigSource{}.OpenAPIModelName():                                    schema_k8sio_api_core_v1_NodeConfigSource(ref),
+		corev1.NodeConfigStatus{}.OpenAPIModelName():                                    schema_k8sio_api_core_v1_NodeConfigStatus(ref),
+		corev1.NodeDaemonEndpoints{}.OpenAPIModelName():                                 schema_k8sio_api_core_v1_NodeDaemonEndpoints(ref),
+		corev1.NodeFeatures{}.OpenAPIModelName():                                        schema_k8sio_api_core_v1_NodeFeatures(ref),
+		corev1.NodeList{}.OpenAPIModelName():                                            schema_k8sio_api_core_v1_NodeList(ref),
+		corev1.NodeProxyOptions{}.OpenAPIModelName():                                    schema_k8sio_api_core_v1_NodeProxyOptions(ref),
+		corev1.NodeRuntimeHandler{}.OpenAPIModelName():                                  schema_k8sio_api_core_v1_NodeRuntimeHandler(ref),
+		corev1.NodeRuntimeHandlerFeatures{}.OpenAPIModelName():                          schema_k8sio_api_core_v1_NodeRuntimeHandlerFeatures(ref),
+		corev1.NodeSelector{}.OpenAPIModelName():                                        schema_k8sio_api_core_v1_NodeSelector(ref),
+		corev1.NodeSelectorRequirement{}.OpenAPIModelName():                             schema_k8sio_api_core_v1_NodeSelectorRequirement(ref),
+		corev1.NodeSelectorTerm{}.OpenAPIModelName():                                    schema_k8sio_api_core_v1_NodeSelectorTerm(ref),
+		corev1.NodeSpec{}.OpenAPIModelName():                                            schema_k8sio_api_core_v1_NodeSpec(ref),
+		corev1.NodeStatus{}.OpenAPIModelName():                                          schema_k8sio_api_core_v1_NodeStatus(ref),
+		corev1.NodeSwapStatus{}.OpenAPIModelName():                                      schema_k8sio_api_core_v1_NodeSwapStatus(ref),
+		corev1.NodeSystemInfo{}.OpenAPIModelName():                                      schema_k8sio_api_core_v1_NodeSystemInfo(ref),
+		corev1.ObjectFieldSelector{}.OpenAPIModelName():                                 schema_k8sio_api_core_v1_ObjectFieldSelector(ref),
+		corev1.ObjectReference{}.OpenAPIModelName():                                     schema_k8sio_api_core_v1_ObjectReference(ref),
+		corev1.PersistentVolume{}.OpenAPIModelName():                                    schema_k8sio_api_core_v1_PersistentVolume(ref),
+		corev1.PersistentVolumeClaim{}.OpenAPIModelName():                               schema_k8sio_api_core_v1_PersistentVolumeClaim(ref),
+		corev1.PersistentVolumeClaimCondition{}.OpenAPIModelName():                      schema_k8sio_api_core_v1_PersistentVolumeClaimCondition(ref),
+		corev1.PersistentVolumeClaimList{}.OpenAPIModelName():                           schema_k8sio_api_core_v1_PersistentVolumeClaimList(ref),
+		corev1.PersistentVolumeClaimSpec{}.OpenAPIModelName():                           schema_k8sio_api_core_v1_PersistentVolumeClaimSpec(ref),
+		corev1.PersistentVolumeClaimStatus{}.OpenAPIModelName():                         schema_k8sio_api_core_v1_PersistentVolumeClaimStatus(ref),
+		corev1.PersistentVolumeClaimTemplate{}.OpenAPIModelName():                       schema_k8sio_api_core_v1_PersistentVolumeClaimTemplate(ref),
+		corev1.PersistentVolumeClaimVolumeSource{}.OpenAPIModelName():                   schema_k8sio_api_core_v1_PersistentVolumeClaimVolumeSource(ref),
+		corev1.PersistentVolumeList{}.OpenAPIModelName():                                schema_k8sio_api_core_v1_PersistentVolumeList(ref),
+		corev1.PersistentVolumeSource{}.OpenAPIModelName():                              schema_k8sio_api_core_v1_PersistentVolumeSource(ref),
+		corev1.PersistentVolumeSpec{}.OpenAPIModelName():                                schema_k8sio_api_core_v1_PersistentVolumeSpec(ref),
+		corev1.PersistentVolumeStatus{}.OpenAPIModelName():                              schema_k8sio_api_core_v1_PersistentVolumeStatus(ref),
+		corev1.PhotonPersistentDiskVolumeSource{}.OpenAPIModelName():                    schema_k8sio_api_core_v1_PhotonPersistentDiskVolumeSource(ref),
+		corev1.Pod{}.OpenAPIModelName():                                                 schema_k8sio_api_core_v1_Pod(ref),
+		corev1.PodAffinity{}.OpenAPIModelName():                                         schema_k8sio_api_core_v1_PodAffinity(ref),
+		corev1.PodAffinityTerm{}.OpenAPIModelName():                                     schema_k8sio_api_core_v1_PodAffinityTerm(ref),
+		corev1.PodAntiAffinity{}.OpenAPIModelName():                                     schema_k8sio_api_core_v1_PodAntiAffinity(ref),
+		corev1.PodAttachOptions{}.OpenAPIModelName():                                    schema_k8sio_api_core_v1_PodAttachOptions(ref),
+		corev1.PodCertificateProjection{}.OpenAPIModelName():                            schema_k8sio_api_core_v1_PodCertificateProjection(ref),
+		corev1.PodCondition{}.OpenAPIModelName():                                        schema_k8sio_api_core_v1_PodCondition(ref),
+		corev1.PodDNSConfig{}.OpenAPIModelName():                                        schema_k8sio_api_core_v1_PodDNSConfig(ref),
+		corev1.PodDNSConfigOption{}.OpenAPIModelName():                                  schema_k8sio_api_core_v1_PodDNSConfigOption(ref),
+		corev1.PodExecOptions{}.OpenAPIModelName():                                      schema_k8sio_api_core_v1_PodExecOptions(ref),
+		corev1.PodExtendedResourceClaimStatus{}.OpenAPIModelName():                      schema_k8sio_api_core_v1_PodExtendedResourceClaimStatus(ref),
+		corev1.PodIP{}.OpenAPIModelName():                                               schema_k8sio_api_core_v1_PodIP(ref),
+		corev1.PodList{}.OpenAPIModelName():                                             schema_k8sio_api_core_v1_PodList(ref),
+		corev1.PodLogOptions{}.OpenAPIModelName():                                       schema_k8sio_api_core_v1_PodLogOptions(ref),
+		corev1.PodOS{}.OpenAPIModelName():                                               schema_k8sio_api_core_v1_PodOS(ref),
+		corev1.PodPortForwardOptions{}.OpenAPIModelName():                               schema_k8sio_api_core_v1_PodPortForwardOptions(ref),
+		corev1.PodProxyOptions{}.OpenAPIModelName():                                     schema_k8sio_api_core_v1_PodProxyOptions(ref),
+		corev1.PodReadinessGate{}.OpenAPIModelName():                                    schema_k8sio_api_core_v1_PodReadinessGate(ref),
+		corev1.PodResourceClaim{}.OpenAPIModelName():                                    schema_k8sio_api_core_v1_PodResourceClaim(ref),
+		corev1.PodResourceClaimStatus{}.OpenAPIModelName():                              schema_k8sio_api_core_v1_PodResourceClaimStatus(ref),
+		corev1.PodSchedulingGate{}.OpenAPIModelName():                                   schema_k8sio_api_core_v1_PodSchedulingGate(ref),
+		corev1.PodSecurityContext{}.OpenAPIModelName():                                  schema_k8sio_api_core_v1_PodSecurityContext(ref),
+		corev1.PodSignature{}.OpenAPIModelName():                                        schema_k8sio_api_core_v1_PodSignature(ref),
+		corev1.PodSpec{}.OpenAPIModelName():                                             schema_k8sio_api_core_v1_PodSpec(ref),
+		corev1.PodStatus{}.OpenAPIModelName():                                           schema_k8sio_api_core_v1_PodStatus(ref),
+		corev1.PodStatusResult{}.OpenAPIModelName():                                     schema_k8sio_api_core_v1_PodStatusResult(ref),
+		corev1.PodTemplate{}.OpenAPIModelName():                                         schema_k8sio_api_core_v1_PodTemplate(ref),
+		corev1.PodTemplateList{}.OpenAPIModelName():                                     schema_k8sio_api_core_v1_PodTemplateList(ref),
+		corev1.PodTemplateSpec{}.OpenAPIModelName():                                     schema_k8sio_api_core_v1_PodTemplateSpec(ref),
+		corev1.PortStatus{}.OpenAPIModelName():                                          schema_k8sio_api_core_v1_PortStatus(ref),
+		corev1.PortworxVolumeSource{}.OpenAPIModelName():                                schema_k8sio_api_core_v1_PortworxVolumeSource(ref),
+		corev1.PreferAvoidPodsEntry{}.OpenAPIModelName():                                schema_k8sio_api_core_v1_PreferAvoidPodsEntry(ref),
+		corev1.PreferredSchedulingTerm{}.OpenAPIModelName():                             schema_k8sio_api_core_v1_PreferredSchedulingTerm(ref),
+		corev1.Probe{}.OpenAPIModelName():                                               schema_k8sio_api_core_v1_Probe(ref),
+		corev1.ProbeHandler{}.OpenAPIModelName():                                        schema_k8sio_api_core_v1_ProbeHandler(ref),
+		corev1.ProjectedVolumeSource{}.OpenAPIModelName():                               schema_k8sio_api_core_v1_ProjectedVolumeSource(ref),
+		corev1.QuobyteVolumeSource{}.OpenAPIModelName():                                 schema_k8sio_api_core_v1_QuobyteVolumeSource(ref),
+		corev1.RBDPersistentVolumeSource{}.OpenAPIModelName():                           schema_k8sio_api_core_v1_RBDPersistentVolumeSource(ref),
+		corev1.RBDVolumeSource{}.OpenAPIModelName():                                     schema_k8sio_api_core_v1_RBDVolumeSource(ref),
+		corev1.RangeAllocation{}.OpenAPIModelName():                                     schema_k8sio_api_core_v1_RangeAllocation(ref),
+		corev1.ReplicationController{}.OpenAPIModelName():                               schema_k8sio_api_core_v1_ReplicationController(ref),
+		corev1.ReplicationControllerCondition{}.OpenAPIModelName():                      schema_k8sio_api_core_v1_ReplicationControllerCondition(ref),
+		corev1.ReplicationControllerList{}.OpenAPIModelName():                           schema_k8sio_api_core_v1_ReplicationControllerList(ref),
+		corev1.ReplicationControllerSpec{}.OpenAPIModelName():                           schema_k8sio_api_core_v1_ReplicationControllerSpec(ref),
+		corev1.ReplicationControllerStatus{}.OpenAPIModelName():                         schema_k8sio_api_core_v1_ReplicationControllerStatus(ref),
+		corev1.ResourceClaim{}.OpenAPIModelName():                                       schema_k8sio_api_core_v1_ResourceClaim(ref),
+		corev1.ResourceFieldSelector{}.OpenAPIModelName():                               schema_k8sio_api_core_v1_ResourceFieldSelector(ref),
+		corev1.ResourceHealth{}.OpenAPIModelName():                                      schema_k8sio_api_core_v1_ResourceHealth(ref),
+		corev1.ResourceQuota{}.OpenAPIModelName():                                       schema_k8sio_api_core_v1_ResourceQuota(ref),
+		corev1.ResourceQuotaList{}.OpenAPIModelName():                                   schema_k8sio_api_core_v1_ResourceQuotaList(ref),
+		corev1.ResourceQuotaSpec{}.OpenAPIModelName():                                   schema_k8sio_api_core_v1_ResourceQuotaSpec(ref),
+		corev1.ResourceQuotaStatus{}.OpenAPIModelName():                                 schema_k8sio_api_core_v1_ResourceQuotaStatus(ref),
+		corev1.ResourceRequirements{}.OpenAPIModelName():                                schema_k8sio_api_core_v1_ResourceRequirements(ref),
+		corev1.ResourceStatus{}.OpenAPIModelName():                                      schema_k8sio_api_core_v1_ResourceStatus(ref),
+		corev1.SELinuxOptions{}.OpenAPIModelName():                                      schema_k8sio_api_core_v1_SELinuxOptions(ref),
+		corev1.ScaleIOPersistentVolumeSource{}.OpenAPIModelName():                       schema_k8sio_api_core_v1_ScaleIOPersistentVolumeSource(ref),
+		corev1.ScaleIOVolumeSource{}.OpenAPIModelName():                                 schema_k8sio_api_core_v1_ScaleIOVolumeSource(ref),
+		corev1.ScopeSelector{}.OpenAPIModelName():                                       schema_k8sio_api_core_v1_ScopeSelector(ref),
+		corev1.ScopedResourceSelectorRequirement{}.OpenAPIModelName():                   schema_k8sio_api_core_v1_ScopedResourceSelectorRequirement(ref),
+		corev1.SeccompProfile{}.OpenAPIModelName():                                      schema_k8sio_api_core_v1_SeccompProfile(ref),
+		corev1.Secret{}.OpenAPIModelName():                                              schema_k8sio_api_core_v1_Secret(ref),
+		corev1.SecretEnvSource{}.OpenAPIModelName():                                     schema_k8sio_api_core_v1_SecretEnvSource(ref),
+		corev1.SecretKeySelector{}.OpenAPIModelName():                                   schema_k8sio_api_core_v1_SecretKeySelector(ref),
+		corev1.SecretList{}.OpenAPIModelName():                                          schema_k8sio_api_core_v1_SecretList(ref),
+		corev1.SecretProjection{}.OpenAPIModelName():                                    schema_k8sio_api_core_v1_SecretProjection(ref),
+		corev1.SecretReference{}.OpenAPIModelName():                                     schema_k8sio_api_core_v1_SecretReference(ref),
+		corev1.SecretVolumeSource{}.OpenAPIModelName():                                  schema_k8sio_api_core_v1_SecretVolumeSource(ref),
+		corev1.SecurityContext{}.OpenAPIModelName():                                     schema_k8sio_api_core_v1_SecurityContext(ref),
+		corev1.SerializedReference{}.OpenAPIModelName():                                 schema_k8sio_api_core_v1_SerializedReference(ref),
+		corev1.Service{}.OpenAPIModelName():                                             schema_k8sio_api_core_v1_Service(ref),
+		corev1.ServiceAccount{}.OpenAPIModelName():                                      schema_k8sio_api_core_v1_ServiceAccount(ref),
+		corev1.ServiceAccountList{}.OpenAPIModelName():                                  schema_k8sio_api_core_v1_ServiceAccountList(ref),
+		corev1.ServiceAccountTokenProjection{}.OpenAPIModelName():                       schema_k8sio_api_core_v1_ServiceAccountTokenProjection(ref),
+		corev1.ServiceList{}.OpenAPIModelName():                                         schema_k8sio_api_core_v1_ServiceList(ref),
+		corev1.ServicePort{}.OpenAPIModelName():                                         schema_k8sio_api_core_v1_ServicePort(ref),
+		corev1.ServiceProxyOptions{}.OpenAPIModelName():                                 schema_k8sio_api_core_v1_ServiceProxyOptions(ref),
+		corev1.ServiceSpec{}.OpenAPIModelName():                                         schema_k8sio_api_core_v1_ServiceSpec(ref),
+		corev1.ServiceStatus{}.OpenAPIModelName():                                       schema_k8sio_api_core_v1_ServiceStatus(ref),
+		corev1.SessionAffinityConfig{}.OpenAPIModelName():                               schema_k8sio_api_core_v1_SessionAffinityConfig(ref),
+		corev1.SleepAction{}.OpenAPIModelName():                                         schema_k8sio_api_core_v1_SleepAction(ref),
+		corev1.StorageOSPersistentVolumeSource{}.OpenAPIModelName():                     schema_k8sio_api_core_v1_StorageOSPersistentVolumeSource(ref),
+		corev1.StorageOSVolumeSource{}.OpenAPIModelName():                               schema_k8sio_api_core_v1_StorageOSVolumeSource(ref),
+		corev1.Sysctl{}.OpenAPIModelName():                                              schema_k8sio_api_core_v1_Sysctl(ref),
+		corev1.TCPSocketAction{}.OpenAPIModelName():                                     schema_k8sio_api_core_v1_TCPSocketAction(ref),
+		corev1.Taint{}.OpenAPIModelName():                                               schema_k8sio_api_core_v1_Taint(ref),
+		corev1.Toleration{}.OpenAPIModelName():                                          schema_k8sio_api_core_v1_Toleration(ref),
+		corev1.TopologySelectorLabelRequirement{}.OpenAPIModelName():                    schema_k8sio_api_core_v1_TopologySelectorLabelRequirement(ref),
+		corev1.TopologySelectorTerm{}.OpenAPIModelName():                                schema_k8sio_api_core_v1_TopologySelectorTerm(ref),
+		corev1.TopologySpreadConstraint{}.OpenAPIModelName():                            schema_k8sio_api_core_v1_TopologySpreadConstraint(ref),
+		corev1.TypedLocalObjectReference{}.OpenAPIModelName():                           schema_k8sio_api_core_v1_TypedLocalObjectReference(ref),
+		corev1.TypedObjectReference{}.OpenAPIModelName():                                schema_k8sio_api_core_v1_TypedObjectReference(ref),
+		corev1.Volume{}.OpenAPIModelName():                                              schema_k8sio_api_core_v1_Volume(ref),
+		corev1.VolumeDevice{}.OpenAPIModelName():                                        schema_k8sio_api_core_v1_VolumeDevice(ref),
+		corev1.VolumeMount{}.OpenAPIModelName():                                         schema_k8sio_api_core_v1_VolumeMount(ref),
+		corev1.VolumeMountStatus{}.OpenAPIModelName():                                   schema_k8sio_api_core_v1_VolumeMountStatus(ref),
+		corev1.VolumeNodeAffinity{}.OpenAPIModelName():                                  schema_k8sio_api_core_v1_VolumeNodeAffinity(ref),
+		corev1.VolumeProjection{}.OpenAPIModelName():                                    schema_k8sio_api_core_v1_VolumeProjection(ref),
+		corev1.VolumeResourceRequirements{}.OpenAPIModelName():                          schema_k8sio_api_core_v1_VolumeResourceRequirements(ref),
+		corev1.VolumeSource{}.OpenAPIModelName():                                        schema_k8sio_api_core_v1_VolumeSource(ref),
+		corev1.VsphereVirtualDiskVolumeSource{}.OpenAPIModelName():                      schema_k8sio_api_core_v1_VsphereVirtualDiskVolumeSource(ref),
+		corev1.WeightedPodAffinityTerm{}.OpenAPIModelName():                             schema_k8sio_api_core_v1_WeightedPodAffinityTerm(ref),
+		corev1.WindowsSecurityContextOptions{}.OpenAPIModelName():                       schema_k8sio_api_core_v1_WindowsSecurityContextOptions(ref),
+		corev1.WorkloadReference{}.OpenAPIModelName():                                   schema_k8sio_api_core_v1_WorkloadReference(ref),
+		networkingv1.HTTPIngressPath{}.OpenAPIModelName():                               schema_k8sio_api_networking_v1_HTTPIngressPath(ref),
+		networkingv1.HTTPIngressRuleValue{}.OpenAPIModelName():                          schema_k8sio_api_networking_v1_HTTPIngressRuleValue(ref),
+		networkingv1.IPAddress{}.OpenAPIModelName():                                     schema_k8sio_api_networking_v1_IPAddress(ref),
+		networkingv1.IPAddressList{}.OpenAPIModelName():                                 schema_k8sio_api_networking_v1_IPAddressList(ref),
+		networkingv1.IPAddressSpec{}.OpenAPIModelName():                                 schema_k8sio_api_networking_v1_IPAddressSpec(ref),
+		networkingv1.IPBlock{}.OpenAPIModelName():                                       schema_k8sio_api_networking_v1_IPBlock(ref),
+		networkingv1.Ingress{}.OpenAPIModelName():                                       schema_k8sio_api_networking_v1_Ingress(ref),
+		networkingv1.IngressBackend{}.OpenAPIModelName():                                schema_k8sio_api_networking_v1_IngressBackend(ref),
+		networkingv1.IngressClass{}.OpenAPIModelName():                                  schema_k8sio_api_networking_v1_IngressClass(ref),
+		networkingv1.IngressClassList{}.OpenAPIModelName():                              schema_k8sio_api_networking_v1_IngressClassList(ref),
+		networkingv1.IngressClassParametersReference{}.OpenAPIModelName():               schema_k8sio_api_networking_v1_IngressClassParametersReference(ref),
+		networkingv1.IngressClassSpec{}.OpenAPIModelName():                              schema_k8sio_api_networking_v1_IngressClassSpec(ref),
+		networkingv1.IngressList{}.OpenAPIModelName():                                   schema_k8sio_api_networking_v1_IngressList(ref),
+		networkingv1.IngressLoadBalancerIngress{}.OpenAPIModelName():                    schema_k8sio_api_networking_v1_IngressLoadBalancerIngress(ref),
+		networkingv1.IngressLoadBalancerStatus{}.OpenAPIModelName():                     schema_k8sio_api_networking_v1_IngressLoadBalancerStatus(ref),
+		networkingv1.IngressPortStatus{}.OpenAPIModelName():                             schema_k8sio_api_networking_v1_IngressPortStatus(ref),
+		networkingv1.IngressRule{}.OpenAPIModelName():                                   schema_k8sio_api_networking_v1_IngressRule(ref),
+		networkingv1.IngressRuleValue{}.OpenAPIModelName():                              schema_k8sio_api_networking_v1_IngressRuleValue(ref),
+		networkingv1.IngressServiceBackend{}.OpenAPIModelName():                         schema_k8sio_api_networking_v1_IngressServiceBackend(ref),
+		networkingv1.IngressSpec{}.OpenAPIModelName():                                   schema_k8sio_api_networking_v1_IngressSpec(ref),
+		networkingv1.IngressStatus{}.OpenAPIModelName():                                 schema_k8sio_api_networking_v1_IngressStatus(ref),
+		networkingv1.IngressTLS{}.OpenAPIModelName():                                    schema_k8sio_api_networking_v1_IngressTLS(ref),
+		networkingv1.NetworkPolicy{}.OpenAPIModelName():                                 schema_k8sio_api_networking_v1_NetworkPolicy(ref),
+		networkingv1.NetworkPolicyEgressRule{}.OpenAPIModelName():                       schema_k8sio_api_networking_v1_NetworkPolicyEgressRule(ref),
+		networkingv1.NetworkPolicyIngressRule{}.OpenAPIModelName():                      schema_k8sio_api_networking_v1_NetworkPolicyIngressRule(ref),
+		networkingv1.NetworkPolicyList{}.OpenAPIModelName():                             schema_k8sio_api_networking_v1_NetworkPolicyList(ref),
+		networkingv1.NetworkPolicyPeer{}.OpenAPIModelName():                             schema_k8sio_api_networking_v1_NetworkPolicyPeer(ref),
+		networkingv1.NetworkPolicyPort{}.OpenAPIModelName():                             schema_k8sio_api_networking_v1_NetworkPolicyPort(ref),
+		networkingv1.NetworkPolicySpec{}.OpenAPIModelName():                             schema_k8sio_api_networking_v1_NetworkPolicySpec(ref),
+		networkingv1.ParentReference{}.OpenAPIModelName():                               schema_k8sio_api_networking_v1_ParentReference(ref),
+		networkingv1.ServiceBackendPort{}.OpenAPIModelName():                            schema_k8sio_api_networking_v1_ServiceBackendPort(ref),
+		networkingv1.ServiceCIDR{}.OpenAPIModelName():                                   schema_k8sio_api_networking_v1_ServiceCIDR(ref),
+		networkingv1.ServiceCIDRList{}.OpenAPIModelName():                               schema_k8sio_api_networking_v1_ServiceCIDRList(ref),
+		networkingv1.ServiceCIDRSpec{}.OpenAPIModelName():                               schema_k8sio_api_networking_v1_ServiceCIDRSpec(ref),
+		networkingv1.ServiceCIDRStatus{}.OpenAPIModelName():                             schema_k8sio_api_networking_v1_ServiceCIDRStatus(ref),
+		apiextensionsv1.ConversionRequest{}.OpenAPIModelName():                          schema_pkg_apis_apiextensions_v1_ConversionRequest(ref),
+		apiextensionsv1.ConversionResponse{}.OpenAPIModelName():                         schema_pkg_apis_apiextensions_v1_ConversionResponse(ref),
+		apiextensionsv1.ConversionReview{}.OpenAPIModelName():                           schema_pkg_apis_apiextensions_v1_ConversionReview(ref),
+		apiextensionsv1.CustomResourceColumnDefinition{}.OpenAPIModelName():             schema_pkg_apis_apiextensions_v1_CustomResourceColumnDefinition(ref),
+		apiextensionsv1.CustomResourceConversion{}.OpenAPIModelName():                   schema_pkg_apis_apiextensions_v1_CustomResourceConversion(ref),
+		apiextensionsv1.CustomResourceDefinition{}.OpenAPIModelName():                   schema_pkg_apis_apiextensions_v1_CustomResourceDefinition(ref),
+		apiextensionsv1.CustomResourceDefinitionCondition{}.OpenAPIModelName():          schema_pkg_apis_apiextensions_v1_CustomResourceDefinitionCondition(ref),
+		apiextensionsv1.CustomResourceDefinitionList{}.OpenAPIModelName():               schema_pkg_apis_apiextensions_v1_CustomResourceDefinitionList(ref),
+		apiextensionsv1.CustomResourceDefinitionNames{}.OpenAPIModelName():              schema_pkg_apis_apiextensions_v1_CustomResourceDefinitionNames(ref),
+		apiextensionsv1.CustomResourceDefinitionSpec{}.OpenAPIModelName():               schema_pkg_apis_apiextensions_v1_CustomResourceDefinitionSpec(ref),
+		apiextensionsv1.CustomResourceDefinitionStatus{}.OpenAPIModelName():             schema_pkg_apis_apiextensions_v1_CustomResourceDefinitionStatus(ref),
+		apiextensionsv1.CustomResourceDefinitionVersion{}.OpenAPIModelName():            schema_pkg_apis_apiextensions_v1_CustomResourceDefinitionVersion(ref),
+		apiextensionsv1.CustomResourceSubresourceScale{}.OpenAPIModelName():             schema_pkg_apis_apiextensions_v1_CustomResourceSubresourceScale(ref),
+		apiextensionsv1.CustomResourceSubresourceStatus{}.OpenAPIModelName():            schema_pkg_apis_apiextensions_v1_CustomResourceSubresourceStatus(ref),
+		apiextensionsv1.CustomResourceSubresources{}.OpenAPIModelName():                 schema_pkg_apis_apiextensions_v1_CustomResourceSubresources(ref),
+		apiextensionsv1.CustomResourceValidation{}.OpenAPIModelName():                   schema_pkg_apis_apiextensions_v1_CustomResourceValidation(ref),
+		apiextensionsv1.ExternalDocumentation{}.OpenAPIModelName():                      schema_pkg_apis_apiextensions_v1_ExternalDocumentation(ref),
+		apiextensionsv1.JSON{}.OpenAPIModelName():                                       schema_pkg_apis_apiextensions_v1_JSON(ref),
+		apiextensionsv1.JSONSchemaProps{}.OpenAPIModelName():                            schema_pkg_apis_apiextensions_v1_JSONSchemaProps(ref),
+		apiextensionsv1.JSONSchemaPropsOrArray{}.OpenAPIModelName():                     schema_pkg_apis_apiextensions_v1_JSONSchemaPropsOrArray(ref),
+		apiextensionsv1.JSONSchemaPropsOrBool{}.OpenAPIModelName():                      schema_pkg_apis_apiextensions_v1_JSONSchemaPropsOrBool(ref),
+		apiextensionsv1.JSONSchemaPropsOrStringArray{}.OpenAPIModelName():               schema_pkg_apis_apiextensions_v1_JSONSchemaPropsOrStringArray(ref),
+		apiextensionsv1.SelectableField{}.OpenAPIModelName():                            schema_pkg_apis_apiextensions_v1_SelectableField(ref),
+		apiextensionsv1.ServiceReference{}.OpenAPIModelName():                           schema_pkg_apis_apiextensions_v1_ServiceReference(ref),
+		apiextensionsv1.ValidationRule{}.OpenAPIModelName():                             schema_pkg_apis_apiextensions_v1_ValidationRule(ref),
+		apiextensionsv1.WebhookClientConfig{}.OpenAPIModelName():                        schema_pkg_apis_apiextensions_v1_WebhookClientConfig(ref),
+		apiextensionsv1.WebhookConversion{}.OpenAPIModelName():                          schema_pkg_apis_apiextensions_v1_WebhookConversion(ref),
+		resource.Quantity{}.OpenAPIModelName():                                          schema_apimachinery_pkg_api_resource_Quantity(ref),
+		metav1.APIGroup{}.OpenAPIModelName():                                            schema_pkg_apis_meta_v1_APIGroup(ref),
+		metav1.APIGroupList{}.OpenAPIModelName():                                        schema_pkg_apis_meta_v1_APIGroupList(ref),
+		metav1.APIResource{}.OpenAPIModelName():                                         schema_pkg_apis_meta_v1_APIResource(ref),
+		metav1.APIResourceList{}.OpenAPIModelName():                                     schema_pkg_apis_meta_v1_APIResourceList(ref),
+		metav1.APIVersions{}.OpenAPIModelName():                                         schema_pkg_apis_meta_v1_APIVersions(ref),
+		metav1.ApplyOptions{}.OpenAPIModelName():                                        schema_pkg_apis_meta_v1_ApplyOptions(ref),
+		metav1.Condition{}.OpenAPIModelName():                                           schema_pkg_apis_meta_v1_Condition(ref),
+		metav1.CreateOptions{}.OpenAPIModelName():                                       schema_pkg_apis_meta_v1_CreateOptions(ref),
+		metav1.DeleteOptions{}.OpenAPIModelName():                                       schema_pkg_apis_meta_v1_DeleteOptions(ref),
+		metav1.Duration{}.OpenAPIModelName():                                            schema_pkg_apis_meta_v1_Duration(ref),
+		metav1.FieldSelectorRequirement{}.OpenAPIModelName():                            schema_pkg_apis_meta_v1_FieldSelectorRequirement(ref),
+		metav1.FieldsV1{}.OpenAPIModelName():                                            schema_pkg_apis_meta_v1_FieldsV1(ref),
+		metav1.GetOptions{}.OpenAPIModelName():                                          schema_pkg_apis_meta_v1_GetOptions(ref),
+		metav1.GroupKind{}.OpenAPIModelName():                                           schema_pkg_apis_meta_v1_GroupKind(ref),
+		metav1.GroupResource{}.OpenAPIModelName():                                       schema_pkg_apis_meta_v1_GroupResource(ref),
+		metav1.GroupVersion{}.OpenAPIModelName():                                        schema_pkg_apis_meta_v1_GroupVersion(ref),
+		metav1.GroupVersionForDiscovery{}.OpenAPIModelName():                            schema_pkg_apis_meta_v1_GroupVersionForDiscovery(ref),
+		metav1.GroupVersionKind{}.OpenAPIModelName():                                    schema_pkg_apis_meta_v1_GroupVersionKind(ref),
+		metav1.GroupVersionResource{}.OpenAPIModelName():                                schema_pkg_apis_meta_v1_GroupVersionResource(ref),
+		metav1.InternalEvent{}.OpenAPIModelName():                                       schema_pkg_apis_meta_v1_InternalEvent(ref),
+		metav1.LabelSelector{}.OpenAPIModelName():                                       schema_pkg_apis_meta_v1_LabelSelector(ref),
+		metav1.LabelSelectorRequirement{}.OpenAPIModelName():                            schema_pkg_apis_meta_v1_LabelSelectorRequirement(ref),
+		metav1.List{}.OpenAPIModelName():                                                schema_pkg_apis_meta_v1_List(ref),
+		metav1.ListMeta{}.OpenAPIModelName():                                            schema_pkg_apis_meta_v1_ListMeta(ref),
+		metav1.ListOptions{}.OpenAPIModelName():                                         schema_pkg_apis_meta_v1_ListOptions(ref),
+		metav1.ManagedFieldsEntry{}.OpenAPIModelName():                                  schema_pkg_apis_meta_v1_ManagedFieldsEntry(ref),
+		metav1.MicroTime{}.OpenAPIModelName():                                           schema_pkg_apis_meta_v1_MicroTime(ref),
+		metav1.ObjectMeta{}.OpenAPIModelName():                                          schema_pkg_apis_meta_v1_ObjectMeta(ref),
+		metav1.OwnerReference{}.OpenAPIModelName():                                      schema_pkg_apis_meta_v1_OwnerReference(ref),
+		metav1.PartialObjectMetadata{}.OpenAPIModelName():                               schema_pkg_apis_meta_v1_PartialObjectMetadata(ref),
+		metav1.PartialObjectMetadataList{}.OpenAPIModelName():                           schema_pkg_apis_meta_v1_PartialObjectMetadataList(ref),
+		metav1.Patch{}.OpenAPIModelName():                                               schema_pkg_apis_meta_v1_Patch(ref),
+		metav1.PatchOptions{}.OpenAPIModelName():                                        schema_pkg_apis_meta_v1_PatchOptions(ref),
+		metav1.Preconditions{}.OpenAPIModelName():                                       schema_pkg_apis_meta_v1_Preconditions(ref),
+		metav1.RootPaths{}.OpenAPIModelName():                                           schema_pkg_apis_meta_v1_RootPaths(ref),
+		metav1.ServerAddressByClientCIDR{}.OpenAPIModelName():                           schema_pkg_apis_meta_v1_ServerAddressByClientCIDR(ref),
+		metav1.Status{}.OpenAPIModelName():                                              schema_pkg_apis_meta_v1_Status(ref),
+		metav1.StatusCause{}.OpenAPIModelName():                                         schema_pkg_apis_meta_v1_StatusCause(ref),
+		metav1.StatusDetails{}.OpenAPIModelName():                                       schema_pkg_apis_meta_v1_StatusDetails(ref),
+		metav1.Table{}.OpenAPIModelName():                                               schema_pkg_apis_meta_v1_Table(ref),
+		metav1.TableColumnDefinition{}.OpenAPIModelName():                               schema_pkg_apis_meta_v1_TableColumnDefinition(ref),
+		metav1.TableOptions{}.OpenAPIModelName():                                        schema_pkg_apis_meta_v1_TableOptions(ref),
+		metav1.TableRow{}.OpenAPIModelName():                                            schema_pkg_apis_meta_v1_TableRow(ref),
+		metav1.TableRowCondition{}.OpenAPIModelName():                                   schema_pkg_apis_meta_v1_TableRowCondition(ref),
+		metav1.Time{}.OpenAPIModelName():                                                schema_pkg_apis_meta_v1_Time(ref),
+		metav1.Timestamp{}.OpenAPIModelName():                                           schema_pkg_apis_meta_v1_Timestamp(ref),
+		metav1.TypeMeta{}.OpenAPIModelName():                                            schema_pkg_apis_meta_v1_TypeMeta(ref),
+		metav1.UpdateOptions{}.OpenAPIModelName():                                       schema_pkg_apis_meta_v1_UpdateOptions(ref),
+		metav1.WatchEvent{}.OpenAPIModelName():                                          schema_pkg_apis_meta_v1_WatchEvent(ref),
+		runtime.RawExtension{}.OpenAPIModelName():                                       schema_k8sio_apimachinery_pkg_runtime_RawExtension(ref),
+		runtime.TypeMeta{}.OpenAPIModelName():                                           schema_k8sio_apimachinery_pkg_runtime_TypeMeta(ref),
+		runtime.Unknown{}.OpenAPIModelName():                                            schema_k8sio_apimachinery_pkg_runtime_Unknown(ref),
+		version.Info{}.OpenAPIModelName():                                               schema_k8sio_apimachinery_pkg_version_Info(ref),
+		v1beta1.MetricListOptions{}.OpenAPIModelName():                                  schema_pkg_apis_custom_metrics_v1beta1_MetricListOptions(ref),
+		v1beta1.MetricValue{}.OpenAPIModelName():                                        schema_pkg_apis_custom_metrics_v1beta1_MetricValue(ref),
+		v1beta1.MetricValueList{}.OpenAPIModelName():                                    schema_pkg_apis_custom_metrics_v1beta1_MetricValueList(ref),
+		v1beta2.MetricIdentifier{}.OpenAPIModelName():                                   schema_pkg_apis_custom_metrics_v1beta2_MetricIdentifier(ref),
+		v1beta2.MetricListOptions{}.OpenAPIModelName():                                  schema_pkg_apis_custom_metrics_v1beta2_MetricListOptions(ref),
+		v1beta2.MetricValue{}.OpenAPIModelName():                                        schema_pkg_apis_custom_metrics_v1beta2_MetricValue(ref),
+		v1beta2.MetricValueList{}.OpenAPIModelName():                                    schema_pkg_apis_custom_metrics_v1beta2_MetricValueList(ref),
+		externalmetricsv1beta1.ExternalMetricValue{}.OpenAPIModelName():                 schema_pkg_apis_external_metrics_v1beta1_ExternalMetricValue(ref),
+		externalmetricsv1beta1.ExternalMetricValueList{}.OpenAPIModelName():             schema_pkg_apis_external_metrics_v1beta1_ExternalMetricValueList(ref),
+		metricsv1beta1.ContainerMetrics{}.OpenAPIModelName():                            schema_pkg_apis_metrics_v1beta1_ContainerMetrics(ref),
+		metricsv1beta1.NodeMetrics{}.OpenAPIModelName():                                 schema_pkg_apis_metrics_v1beta1_NodeMetrics(ref),
+		metricsv1beta1.NodeMetricsList{}.OpenAPIModelName():                             schema_pkg_apis_metrics_v1beta1_NodeMetricsList(ref),
+		metricsv1beta1.PodMetrics{}.OpenAPIModelName():                                  schema_pkg_apis_metrics_v1beta1_PodMetrics(ref),
+		metricsv1beta1.PodMetricsList{}.OpenAPIModelName():                              schema_pkg_apis_metrics_v1beta1_PodMetricsList(ref),
 	}
 }
 
@@ -684,7 +694,7 @@ func schema_pkg_apis_apps_v1alpha1_ObservedWorkload(ref common.ReferenceCallback
 						SchemaProps: spec.SchemaProps{
 							Description: "Workload the observed resource.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1.ObjectReference"),
+							Ref:         ref(v1alpha1.ObjectReference{}.OpenAPIModelName()),
 						},
 					},
 					"result": {
@@ -706,7 +716,7 @@ func schema_pkg_apis_apps_v1alpha1_ObservedWorkload(ref common.ReferenceCallback
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1.ObjectReference"},
+			v1alpha1.ObjectReference{}.OpenAPIModelName()},
 	}
 }
 
@@ -741,14 +751,14 @@ func schema_pkg_apis_apps_v1alpha1_WorkloadRebalancer(ref common.ReferenceCallba
 						SchemaProps: spec.SchemaProps{
 							Description: "Spec represents the specification of the desired behavior of WorkloadRebalancer.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1.WorkloadRebalancerSpec"),
+							Ref:         ref(v1alpha1.WorkloadRebalancerSpec{}.OpenAPIModelName()),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Status represents the status of WorkloadRebalancer.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1.WorkloadRebalancerStatus"),
+							Ref:         ref(v1alpha1.WorkloadRebalancerStatus{}.OpenAPIModelName()),
 						},
 					},
 				},
@@ -756,7 +766,7 @@ func schema_pkg_apis_apps_v1alpha1_WorkloadRebalancer(ref common.ReferenceCallba
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1.WorkloadRebalancerSpec", "github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1.WorkloadRebalancerStatus", metav1.ObjectMeta{}.OpenAPIModelName()},
+			v1alpha1.WorkloadRebalancerSpec{}.OpenAPIModelName(), v1alpha1.WorkloadRebalancerStatus{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -795,7 +805,7 @@ func schema_pkg_apis_apps_v1alpha1_WorkloadRebalancerList(ref common.ReferenceCa
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1.WorkloadRebalancer"),
+										Ref:     ref(v1alpha1.WorkloadRebalancer{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -806,7 +816,7 @@ func schema_pkg_apis_apps_v1alpha1_WorkloadRebalancerList(ref common.ReferenceCa
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1.WorkloadRebalancer", metav1.ListMeta{}.OpenAPIModelName()},
+			v1alpha1.WorkloadRebalancer{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -825,7 +835,7 @@ func schema_pkg_apis_apps_v1alpha1_WorkloadRebalancerSpec(ref common.ReferenceCa
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1.ObjectReference"),
+										Ref:     ref(v1alpha1.ObjectReference{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -843,7 +853,7 @@ func schema_pkg_apis_apps_v1alpha1_WorkloadRebalancerSpec(ref common.ReferenceCa
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1.ObjectReference"},
+			v1alpha1.ObjectReference{}.OpenAPIModelName()},
 	}
 }
 
@@ -862,7 +872,7 @@ func schema_pkg_apis_apps_v1alpha1_WorkloadRebalancerStatus(ref common.Reference
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1.ObservedWorkload"),
+										Ref:     ref(v1alpha1.ObservedWorkload{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -885,7 +895,7 @@ func schema_pkg_apis_apps_v1alpha1_WorkloadRebalancerStatus(ref common.Reference
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1.ObservedWorkload", metav1.Time{}.OpenAPIModelName()},
+			v1alpha1.ObservedWorkload{}.OpenAPIModelName(), metav1.Time{}.OpenAPIModelName()},
 	}
 }
 
@@ -920,14 +930,14 @@ func schema_pkg_apis_autoscaling_v1alpha1_CronFederatedHPA(ref common.ReferenceC
 						SchemaProps: spec.SchemaProps{
 							Description: "Spec is the specification of the CronFederatedHPA.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.CronFederatedHPASpec"),
+							Ref:         ref(autoscalingv1alpha1.CronFederatedHPASpec{}.OpenAPIModelName()),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Status is the current status of the CronFederatedHPA.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.CronFederatedHPAStatus"),
+							Ref:         ref(autoscalingv1alpha1.CronFederatedHPAStatus{}.OpenAPIModelName()),
 						},
 					},
 				},
@@ -935,7 +945,7 @@ func schema_pkg_apis_autoscaling_v1alpha1_CronFederatedHPA(ref common.ReferenceC
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.CronFederatedHPASpec", "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.CronFederatedHPAStatus", metav1.ObjectMeta{}.OpenAPIModelName()},
+			autoscalingv1alpha1.CronFederatedHPASpec{}.OpenAPIModelName(), autoscalingv1alpha1.CronFederatedHPAStatus{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -973,7 +983,7 @@ func schema_pkg_apis_autoscaling_v1alpha1_CronFederatedHPAList(ref common.Refere
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.CronFederatedHPA"),
+										Ref:     ref(autoscalingv1alpha1.CronFederatedHPA{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -984,7 +994,7 @@ func schema_pkg_apis_autoscaling_v1alpha1_CronFederatedHPAList(ref common.Refere
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.CronFederatedHPA", metav1.ListMeta{}.OpenAPIModelName()},
+			autoscalingv1alpha1.CronFederatedHPA{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -1089,7 +1099,7 @@ func schema_pkg_apis_autoscaling_v1alpha1_CronFederatedHPASpec(ref common.Refere
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.CronFederatedHPARule"),
+										Ref:     ref(autoscalingv1alpha1.CronFederatedHPARule{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -1100,7 +1110,7 @@ func schema_pkg_apis_autoscaling_v1alpha1_CronFederatedHPASpec(ref common.Refere
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.CronFederatedHPARule", v2.CrossVersionObjectReference{}.OpenAPIModelName()},
+			autoscalingv1alpha1.CronFederatedHPARule{}.OpenAPIModelName(), v2.CrossVersionObjectReference{}.OpenAPIModelName()},
 	}
 }
 
@@ -1119,7 +1129,7 @@ func schema_pkg_apis_autoscaling_v1alpha1_CronFederatedHPAStatus(ref common.Refe
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.ExecutionHistory"),
+										Ref:     ref(autoscalingv1alpha1.ExecutionHistory{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -1129,7 +1139,7 @@ func schema_pkg_apis_autoscaling_v1alpha1_CronFederatedHPAStatus(ref common.Refe
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.ExecutionHistory"},
+			autoscalingv1alpha1.ExecutionHistory{}.OpenAPIModelName()},
 	}
 }
 
@@ -1162,7 +1172,7 @@ func schema_pkg_apis_autoscaling_v1alpha1_ExecutionHistory(ref common.ReferenceC
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.SuccessfulExecution"),
+										Ref:     ref(autoscalingv1alpha1.SuccessfulExecution{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -1176,7 +1186,7 @@ func schema_pkg_apis_autoscaling_v1alpha1_ExecutionHistory(ref common.ReferenceC
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.FailedExecution"),
+										Ref:     ref(autoscalingv1alpha1.FailedExecution{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -1187,7 +1197,7 @@ func schema_pkg_apis_autoscaling_v1alpha1_ExecutionHistory(ref common.ReferenceC
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.FailedExecution", "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.SuccessfulExecution", metav1.Time{}.OpenAPIModelName()},
+			autoscalingv1alpha1.FailedExecution{}.OpenAPIModelName(), autoscalingv1alpha1.SuccessfulExecution{}.OpenAPIModelName(), metav1.Time{}.OpenAPIModelName()},
 	}
 }
 
@@ -1258,7 +1268,7 @@ func schema_pkg_apis_autoscaling_v1alpha1_FederatedHPA(ref common.ReferenceCallb
 						SchemaProps: spec.SchemaProps{
 							Description: "Spec is the specification of the FederatedHPA.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.FederatedHPASpec"),
+							Ref:         ref(autoscalingv1alpha1.FederatedHPASpec{}.OpenAPIModelName()),
 						},
 					},
 					"status": {
@@ -1273,7 +1283,7 @@ func schema_pkg_apis_autoscaling_v1alpha1_FederatedHPA(ref common.ReferenceCallb
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.FederatedHPASpec", v2.HorizontalPodAutoscalerStatus{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
+			autoscalingv1alpha1.FederatedHPASpec{}.OpenAPIModelName(), v2.HorizontalPodAutoscalerStatus{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -1311,7 +1321,7 @@ func schema_pkg_apis_autoscaling_v1alpha1_FederatedHPAList(ref common.ReferenceC
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.FederatedHPA"),
+										Ref:     ref(autoscalingv1alpha1.FederatedHPA{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -1322,7 +1332,7 @@ func schema_pkg_apis_autoscaling_v1alpha1_FederatedHPAList(ref common.ReferenceC
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1.FederatedHPA", metav1.ListMeta{}.OpenAPIModelName()},
+			autoscalingv1alpha1.FederatedHPA{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -1456,7 +1466,7 @@ func schema_pkg_apis_cluster_v1alpha1_APIEnablement(ref common.ReferenceCallback
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.APIResource"),
+										Ref:     ref(clusterv1alpha1.APIResource{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -1467,7 +1477,7 @@ func schema_pkg_apis_cluster_v1alpha1_APIEnablement(ref common.ReferenceCallback
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.APIResource"},
+			clusterv1alpha1.APIResource{}.OpenAPIModelName()},
 	}
 }
 
@@ -1562,14 +1572,14 @@ func schema_pkg_apis_cluster_v1alpha1_Cluster(ref common.ReferenceCallback) comm
 						SchemaProps: spec.SchemaProps{
 							Description: "Spec represents the specification of the desired behavior of member cluster.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.ClusterSpec"),
+							Ref:         ref(clusterv1alpha1.ClusterSpec{}.OpenAPIModelName()),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Status represents the status of member cluster.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.ClusterStatus"),
+							Ref:         ref(clusterv1alpha1.ClusterStatus{}.OpenAPIModelName()),
 						},
 					},
 				},
@@ -1577,7 +1587,7 @@ func schema_pkg_apis_cluster_v1alpha1_Cluster(ref common.ReferenceCallback) comm
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.ClusterSpec", "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.ClusterStatus", metav1.ObjectMeta{}.OpenAPIModelName()},
+			clusterv1alpha1.ClusterSpec{}.OpenAPIModelName(), clusterv1alpha1.ClusterStatus{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -1616,7 +1626,7 @@ func schema_pkg_apis_cluster_v1alpha1_ClusterList(ref common.ReferenceCallback) 
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.Cluster"),
+										Ref:     ref(clusterv1alpha1.Cluster{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -1627,7 +1637,7 @@ func schema_pkg_apis_cluster_v1alpha1_ClusterList(ref common.ReferenceCallback) 
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.Cluster", metav1.ListMeta{}.OpenAPIModelName()},
+			clusterv1alpha1.Cluster{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -1697,13 +1707,13 @@ func schema_pkg_apis_cluster_v1alpha1_ClusterSpec(ref common.ReferenceCallback) 
 					"secretRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "SecretRef represents the secret that contains mandatory credentials to access the member cluster. The secret should hold credentials as follows: - secret.data.token - secret.data.caBundle",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.LocalSecretReference"),
+							Ref:         ref(clusterv1alpha1.LocalSecretReference{}.OpenAPIModelName()),
 						},
 					},
 					"impersonatorSecretRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ImpersonatorSecretRef represents the secret that contains the token of impersonator. The secret should hold credentials as follows: - secret.data.token",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.LocalSecretReference"),
+							Ref:         ref(clusterv1alpha1.LocalSecretReference{}.OpenAPIModelName()),
 						},
 					},
 					"insecureSkipTLSVerification": {
@@ -1794,7 +1804,7 @@ func schema_pkg_apis_cluster_v1alpha1_ClusterSpec(ref common.ReferenceCallback) 
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.ResourceModel"),
+										Ref:     ref(clusterv1alpha1.ResourceModel{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -1805,7 +1815,7 @@ func schema_pkg_apis_cluster_v1alpha1_ClusterSpec(ref common.ReferenceCallback) 
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.LocalSecretReference", "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.ResourceModel", corev1.Taint{}.OpenAPIModelName()},
+			clusterv1alpha1.LocalSecretReference{}.OpenAPIModelName(), clusterv1alpha1.ResourceModel{}.OpenAPIModelName(), corev1.Taint{}.OpenAPIModelName()},
 	}
 }
 
@@ -1831,7 +1841,7 @@ func schema_pkg_apis_cluster_v1alpha1_ClusterStatus(ref common.ReferenceCallback
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.APIEnablement"),
+										Ref:     ref(clusterv1alpha1.APIEnablement{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -1854,13 +1864,13 @@ func schema_pkg_apis_cluster_v1alpha1_ClusterStatus(ref common.ReferenceCallback
 					"nodeSummary": {
 						SchemaProps: spec.SchemaProps{
 							Description: "NodeSummary represents the summary of nodes status in the member cluster.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.NodeSummary"),
+							Ref:         ref(clusterv1alpha1.NodeSummary{}.OpenAPIModelName()),
 						},
 					},
 					"resourceSummary": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ResourceSummary represents the summary of resources in the member cluster.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.ResourceSummary"),
+							Ref:         ref(clusterv1alpha1.ResourceSummary{}.OpenAPIModelName()),
 						},
 					},
 					"remedyActions": {
@@ -1882,7 +1892,7 @@ func schema_pkg_apis_cluster_v1alpha1_ClusterStatus(ref common.ReferenceCallback
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.APIEnablement", "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.NodeSummary", "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.ResourceSummary", metav1.Condition{}.OpenAPIModelName()},
+			clusterv1alpha1.APIEnablement{}.OpenAPIModelName(), clusterv1alpha1.NodeSummary{}.OpenAPIModelName(), clusterv1alpha1.ResourceSummary{}.OpenAPIModelName(), metav1.Condition{}.OpenAPIModelName()},
 	}
 }
 
@@ -1966,7 +1976,7 @@ func schema_pkg_apis_cluster_v1alpha1_ResourceModel(ref common.ReferenceCallback
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.ResourceModelRange"),
+										Ref:     ref(clusterv1alpha1.ResourceModelRange{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -1977,7 +1987,7 @@ func schema_pkg_apis_cluster_v1alpha1_ResourceModel(ref common.ReferenceCallback
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.ResourceModelRange"},
+			clusterv1alpha1.ResourceModelRange{}.OpenAPIModelName()},
 	}
 }
 
@@ -2074,7 +2084,7 @@ func schema_pkg_apis_cluster_v1alpha1_ResourceSummary(ref common.ReferenceCallba
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.AllocatableModeling"),
+										Ref:     ref(clusterv1alpha1.AllocatableModeling{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -2084,7 +2094,7 @@ func schema_pkg_apis_cluster_v1alpha1_ResourceSummary(ref common.ReferenceCallba
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.AllocatableModeling", resource.Quantity{}.OpenAPIModelName()},
+			clusterv1alpha1.AllocatableModeling{}.OpenAPIModelName(), resource.Quantity{}.OpenAPIModelName()},
 	}
 }
 
@@ -2120,56 +2130,56 @@ func schema_pkg_apis_config_v1alpha1_CustomizationRules(ref common.ReferenceCall
 					"retention": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Retention describes the desired behavior that Karmada should react on the changes made by member cluster components. This avoids system running into a meaningless loop that Karmada resource controller and the member cluster component continually applying opposite values of a field. For example, the \"replicas\" of Deployment might be changed by the HPA controller on member cluster. In this case, Karmada should retain the \"replicas\" and not try to change it.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.LocalValueRetention"),
+							Ref:         ref(configv1alpha1.LocalValueRetention{}.OpenAPIModelName()),
 						},
 					},
 					"replicaResource": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ReplicaResource describes the rules for Karmada to discover the resource's replica as well as resource requirements. It would be useful for those CRD resources that declare workload types like Deployment. It is usually not needed for Kubernetes native resources(Deployment, Job) as Karmada knows how to discover info from them. But if it is set, the built-in discovery rules will be ignored.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ReplicaResourceRequirement"),
+							Ref:         ref(configv1alpha1.ReplicaResourceRequirement{}.OpenAPIModelName()),
 						},
 					},
 					"componentResource": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ComponentResource describes the rules for Karmada to discover the resource requirements for multiple components from the given object. This is designed for CRDs with multiple components (e.g., FlinkDeployment), but can also be used for single-component resources like Deployment. If implemented, the controller will use this to obtain per-component replica and resource requirements, and will not call ReplicaResource. If not implemented, the controller will fall back to ReplicaResource for backward compatibility. This will only be used when the feature gate 'MultiplePodTemplatesScheduling' is enabled.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ComponentResourceRequirement"),
+							Ref:         ref(configv1alpha1.ComponentResourceRequirement{}.OpenAPIModelName()),
 						},
 					},
 					"replicaRevision": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ReplicaRevision describes the rules for Karmada to revise the resource's replica. It would be useful for those CRD resources that declare workload types like Deployment. It is usually not needed for Kubernetes native resources(Deployment, Job) as Karmada knows how to revise replicas for them. But if it is set, the built-in revision rules will be ignored.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ReplicaRevision"),
+							Ref:         ref(configv1alpha1.ReplicaRevision{}.OpenAPIModelName()),
 						},
 					},
 					"statusReflection": {
 						SchemaProps: spec.SchemaProps{
 							Description: "StatusReflection describes the rules for Karmada to pick the resource's status. Karmada provides built-in rules for several standard Kubernetes types, see: https://karmada.io/docs/userguide/globalview/customizing-resource-interpreter/#interpretstatus If StatusReflection is set, the built-in rules will be ignored.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.StatusReflection"),
+							Ref:         ref(configv1alpha1.StatusReflection{}.OpenAPIModelName()),
 						},
 					},
 					"statusAggregation": {
 						SchemaProps: spec.SchemaProps{
 							Description: "StatusAggregation describes the rules for Karmada to aggregate status collected from member clusters to resource template. Karmada provides built-in rules for several standard Kubernetes types, see: https://karmada.io/docs/userguide/globalview/customizing-resource-interpreter/#aggregatestatus If StatusAggregation is set, the built-in rules will be ignored.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.StatusAggregation"),
+							Ref:         ref(configv1alpha1.StatusAggregation{}.OpenAPIModelName()),
 						},
 					},
 					"healthInterpretation": {
 						SchemaProps: spec.SchemaProps{
 							Description: "HealthInterpretation describes the health assessment rules by which Karmada can assess the health state of the resource type.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.HealthInterpretation"),
+							Ref:         ref(configv1alpha1.HealthInterpretation{}.OpenAPIModelName()),
 						},
 					},
 					"dependencyInterpretation": {
 						SchemaProps: spec.SchemaProps{
 							Description: "DependencyInterpretation describes the rules for Karmada to analyze the dependent resources. Karmada provides built-in rules for several standard Kubernetes types, see: https://karmada.io/docs/userguide/globalview/customizing-resource-interpreter/#interpretdependency If DependencyInterpretation is set, the built-in rules will be ignored.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.DependencyInterpretation"),
+							Ref:         ref(configv1alpha1.DependencyInterpretation{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ComponentResourceRequirement", "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.DependencyInterpretation", "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.HealthInterpretation", "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.LocalValueRetention", "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ReplicaResourceRequirement", "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ReplicaRevision", "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.StatusAggregation", "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.StatusReflection"},
+			configv1alpha1.ComponentResourceRequirement{}.OpenAPIModelName(), configv1alpha1.DependencyInterpretation{}.OpenAPIModelName(), configv1alpha1.HealthInterpretation{}.OpenAPIModelName(), configv1alpha1.LocalValueRetention{}.OpenAPIModelName(), configv1alpha1.ReplicaResourceRequirement{}.OpenAPIModelName(), configv1alpha1.ReplicaRevision{}.OpenAPIModelName(), configv1alpha1.StatusAggregation{}.OpenAPIModelName(), configv1alpha1.StatusReflection{}.OpenAPIModelName()},
 	}
 }
 
@@ -2416,20 +2426,20 @@ func schema_pkg_apis_config_v1alpha1_ResourceInterpreterContext(ref common.Refer
 					"request": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Request describes the attributes for the interpreter request.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ResourceInterpreterRequest"),
+							Ref:         ref(configv1alpha1.ResourceInterpreterRequest{}.OpenAPIModelName()),
 						},
 					},
 					"response": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Response describes the attributes for the interpreter response.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ResourceInterpreterResponse"),
+							Ref:         ref(configv1alpha1.ResourceInterpreterResponse{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ResourceInterpreterRequest", "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ResourceInterpreterResponse"},
+			configv1alpha1.ResourceInterpreterRequest{}.OpenAPIModelName(), configv1alpha1.ResourceInterpreterResponse{}.OpenAPIModelName()},
 	}
 }
 
@@ -2464,7 +2474,7 @@ func schema_pkg_apis_config_v1alpha1_ResourceInterpreterCustomization(ref common
 						SchemaProps: spec.SchemaProps{
 							Description: "Spec describes the configuration in detail.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ResourceInterpreterCustomizationSpec"),
+							Ref:         ref(configv1alpha1.ResourceInterpreterCustomizationSpec{}.OpenAPIModelName()),
 						},
 					},
 				},
@@ -2472,7 +2482,7 @@ func schema_pkg_apis_config_v1alpha1_ResourceInterpreterCustomization(ref common
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ResourceInterpreterCustomizationSpec", metav1.ObjectMeta{}.OpenAPIModelName()},
+			configv1alpha1.ResourceInterpreterCustomizationSpec{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -2510,7 +2520,7 @@ func schema_pkg_apis_config_v1alpha1_ResourceInterpreterCustomizationList(ref co
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ResourceInterpreterCustomization"),
+										Ref:     ref(configv1alpha1.ResourceInterpreterCustomization{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -2521,7 +2531,7 @@ func schema_pkg_apis_config_v1alpha1_ResourceInterpreterCustomizationList(ref co
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ResourceInterpreterCustomization", metav1.ListMeta{}.OpenAPIModelName()},
+			configv1alpha1.ResourceInterpreterCustomization{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -2536,14 +2546,14 @@ func schema_pkg_apis_config_v1alpha1_ResourceInterpreterCustomizationSpec(ref co
 						SchemaProps: spec.SchemaProps{
 							Description: "CustomizationTarget represents the resource type that the customization applies to.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.CustomizationTarget"),
+							Ref:         ref(configv1alpha1.CustomizationTarget{}.OpenAPIModelName()),
 						},
 					},
 					"customizations": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Customizations describe the interpretation rules.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.CustomizationRules"),
+							Ref:         ref(configv1alpha1.CustomizationRules{}.OpenAPIModelName()),
 						},
 					},
 				},
@@ -2551,7 +2561,7 @@ func schema_pkg_apis_config_v1alpha1_ResourceInterpreterCustomizationSpec(ref co
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.CustomizationRules", "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.CustomizationTarget"},
+			configv1alpha1.CustomizationRules{}.OpenAPIModelName(), configv1alpha1.CustomizationTarget{}.OpenAPIModelName()},
 	}
 }
 
@@ -2627,7 +2637,7 @@ func schema_pkg_apis_config_v1alpha1_ResourceInterpreterRequest(ref common.Refer
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.AggregatedStatusItem"),
+										Ref:     ref(v1alpha2.AggregatedStatusItem{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -2638,7 +2648,7 @@ func schema_pkg_apis_config_v1alpha1_ResourceInterpreterRequest(ref common.Refer
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.AggregatedStatusItem", metav1.GroupVersionKind{}.OpenAPIModelName(), runtime.RawExtension{}.OpenAPIModelName()},
+			v1alpha2.AggregatedStatusItem{}.OpenAPIModelName(), metav1.GroupVersionKind{}.OpenAPIModelName(), runtime.RawExtension{}.OpenAPIModelName()},
 	}
 }
 
@@ -2668,7 +2678,7 @@ func schema_pkg_apis_config_v1alpha1_ResourceInterpreterResponse(ref common.Refe
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Status contains extra details information about why the request not successful. This filed is not consulted in any way if \"Successful\" is \"true\".",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.RequestStatus"),
+							Ref:         ref(configv1alpha1.RequestStatus{}.OpenAPIModelName()),
 						},
 					},
 					"patch": {
@@ -2688,7 +2698,7 @@ func schema_pkg_apis_config_v1alpha1_ResourceInterpreterResponse(ref common.Refe
 					"replicaRequirements": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ReplicaRequirements represents the resource and scheduling requirements for each replica. Required if InterpreterOperation is InterpreterOperationInterpretReplica.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ReplicaRequirements"),
+							Ref:         ref(v1alpha2.ReplicaRequirements{}.OpenAPIModelName()),
 						},
 					},
 					"replicas": {
@@ -2706,7 +2716,7 @@ func schema_pkg_apis_config_v1alpha1_ResourceInterpreterResponse(ref common.Refe
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.Component"),
+										Ref:     ref(v1alpha2.Component{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -2720,7 +2730,7 @@ func schema_pkg_apis_config_v1alpha1_ResourceInterpreterResponse(ref common.Refe
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.DependentObjectReference"),
+										Ref:     ref(configv1alpha1.DependentObjectReference{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -2744,7 +2754,7 @@ func schema_pkg_apis_config_v1alpha1_ResourceInterpreterResponse(ref common.Refe
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.DependentObjectReference", "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.RequestStatus", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.Component", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ReplicaRequirements", runtime.RawExtension{}.OpenAPIModelName()},
+			configv1alpha1.DependentObjectReference{}.OpenAPIModelName(), configv1alpha1.RequestStatus{}.OpenAPIModelName(), v1alpha2.Component{}.OpenAPIModelName(), v1alpha2.ReplicaRequirements{}.OpenAPIModelName(), runtime.RawExtension{}.OpenAPIModelName()},
 	}
 }
 
@@ -2778,7 +2788,7 @@ func schema_pkg_apis_config_v1alpha1_ResourceInterpreterWebhook(ref common.Refer
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.RuleWithOperations"),
+										Ref:     ref(configv1alpha1.RuleWithOperations{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -2811,7 +2821,7 @@ func schema_pkg_apis_config_v1alpha1_ResourceInterpreterWebhook(ref common.Refer
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.RuleWithOperations", v1.WebhookClientConfig{}.OpenAPIModelName()},
+			configv1alpha1.RuleWithOperations{}.OpenAPIModelName(), v1.WebhookClientConfig{}.OpenAPIModelName()},
 	}
 }
 
@@ -2850,7 +2860,7 @@ func schema_pkg_apis_config_v1alpha1_ResourceInterpreterWebhookConfiguration(ref
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ResourceInterpreterWebhook"),
+										Ref:     ref(configv1alpha1.ResourceInterpreterWebhook{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -2861,7 +2871,7 @@ func schema_pkg_apis_config_v1alpha1_ResourceInterpreterWebhookConfiguration(ref
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ResourceInterpreterWebhook", metav1.ObjectMeta{}.OpenAPIModelName()},
+			configv1alpha1.ResourceInterpreterWebhook{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -2900,7 +2910,7 @@ func schema_pkg_apis_config_v1alpha1_ResourceInterpreterWebhookConfigurationList
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ResourceInterpreterWebhookConfiguration"),
+										Ref:     ref(configv1alpha1.ResourceInterpreterWebhookConfiguration{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -2911,7 +2921,7 @@ func schema_pkg_apis_config_v1alpha1_ResourceInterpreterWebhookConfigurationList
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ResourceInterpreterWebhookConfiguration", metav1.ListMeta{}.OpenAPIModelName()},
+			configv1alpha1.ResourceInterpreterWebhookConfiguration{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -3209,14 +3219,14 @@ func schema_pkg_apis_networking_v1alpha1_MultiClusterIngress(ref common.Referenc
 						SchemaProps: spec.SchemaProps{
 							Description: "Status is the current state of the MultiClusterIngress.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.MultiClusterIngressStatus"),
+							Ref:         ref(networkingv1alpha1.MultiClusterIngressStatus{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.MultiClusterIngressStatus", networkingv1.IngressSpec{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
+			networkingv1alpha1.MultiClusterIngressStatus{}.OpenAPIModelName(), networkingv1.IngressSpec{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -3255,7 +3265,7 @@ func schema_pkg_apis_networking_v1alpha1_MultiClusterIngressList(ref common.Refe
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.MultiClusterIngress"),
+										Ref:     ref(networkingv1alpha1.MultiClusterIngress{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -3266,7 +3276,7 @@ func schema_pkg_apis_networking_v1alpha1_MultiClusterIngressList(ref common.Refe
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.MultiClusterIngress", metav1.ListMeta{}.OpenAPIModelName()},
+			networkingv1alpha1.MultiClusterIngress{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -3307,7 +3317,7 @@ func schema_pkg_apis_networking_v1alpha1_MultiClusterIngressStatus(ref common.Re
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.ServiceLocation"),
+										Ref:     ref(networkingv1alpha1.ServiceLocation{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -3317,7 +3327,7 @@ func schema_pkg_apis_networking_v1alpha1_MultiClusterIngressStatus(ref common.Re
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.ServiceLocation", networkingv1.IngressLoadBalancerStatus{}.OpenAPIModelName()},
+			networkingv1alpha1.ServiceLocation{}.OpenAPIModelName(), networkingv1.IngressLoadBalancerStatus{}.OpenAPIModelName()},
 	}
 }
 
@@ -3352,7 +3362,7 @@ func schema_pkg_apis_networking_v1alpha1_MultiClusterService(ref common.Referenc
 						SchemaProps: spec.SchemaProps{
 							Description: "Spec is the desired state of the MultiClusterService.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.MultiClusterServiceSpec"),
+							Ref:         ref(networkingv1alpha1.MultiClusterServiceSpec{}.OpenAPIModelName()),
 						},
 					},
 					"status": {
@@ -3367,7 +3377,7 @@ func schema_pkg_apis_networking_v1alpha1_MultiClusterService(ref common.Referenc
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.MultiClusterServiceSpec", corev1.ServiceStatus{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
+			networkingv1alpha1.MultiClusterServiceSpec{}.OpenAPIModelName(), corev1.ServiceStatus{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -3406,7 +3416,7 @@ func schema_pkg_apis_networking_v1alpha1_MultiClusterServiceList(ref common.Refe
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.MultiClusterService"),
+										Ref:     ref(networkingv1alpha1.MultiClusterService{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -3417,7 +3427,7 @@ func schema_pkg_apis_networking_v1alpha1_MultiClusterServiceList(ref common.Refe
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.MultiClusterService", metav1.ListMeta{}.OpenAPIModelName()},
+			networkingv1alpha1.MultiClusterService{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -3451,7 +3461,7 @@ func schema_pkg_apis_networking_v1alpha1_MultiClusterServiceSpec(ref common.Refe
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.ExposurePort"),
+										Ref:     ref(networkingv1alpha1.ExposurePort{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -3461,7 +3471,7 @@ func schema_pkg_apis_networking_v1alpha1_MultiClusterServiceSpec(ref common.Refe
 						SchemaProps: spec.SchemaProps{
 							Description: "Range specifies the ranges where the referencing service should be exposed. Only valid and optional in case of Types contains CrossCluster. If not set and Types contains CrossCluster, all clusters will be selected, that means the referencing service will be exposed across all registered clusters. Deprecated: in favor of ProviderClusters/ConsumerClusters.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.ExposureRange"),
+							Ref:         ref(networkingv1alpha1.ExposureRange{}.OpenAPIModelName()),
 						},
 					},
 					"serviceProvisionClusters": {
@@ -3502,7 +3512,7 @@ func schema_pkg_apis_networking_v1alpha1_MultiClusterServiceSpec(ref common.Refe
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.ClusterSelector"),
+										Ref:     ref(networkingv1alpha1.ClusterSelector{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -3516,7 +3526,7 @@ func schema_pkg_apis_networking_v1alpha1_MultiClusterServiceSpec(ref common.Refe
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.ClusterSelector"),
+										Ref:     ref(networkingv1alpha1.ClusterSelector{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -3527,7 +3537,7 @@ func schema_pkg_apis_networking_v1alpha1_MultiClusterServiceSpec(ref common.Refe
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.ClusterSelector", "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.ExposurePort", "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1.ExposureRange"},
+			networkingv1alpha1.ClusterSelector{}.OpenAPIModelName(), networkingv1alpha1.ExposurePort{}.OpenAPIModelName(), networkingv1alpha1.ExposureRange{}.OpenAPIModelName()},
 	}
 }
 
@@ -3579,7 +3589,7 @@ func schema_pkg_apis_policy_v1alpha1_ApplicationFailoverBehavior(ref common.Refe
 						SchemaProps: spec.SchemaProps{
 							Description: "DecisionConditions indicates the decision conditions of performing the failover process. Only when all conditions are met can the failover process be performed. Currently, DecisionConditions includes several conditions: - TolerationSeconds (optional)",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.DecisionConditions"),
+							Ref:         ref(policyv1alpha1.DecisionConditions{}.OpenAPIModelName()),
 						},
 					},
 					"purgeMode": {
@@ -3599,7 +3609,7 @@ func schema_pkg_apis_policy_v1alpha1_ApplicationFailoverBehavior(ref common.Refe
 					"statePreservation": {
 						SchemaProps: spec.SchemaProps{
 							Description: "StatePreservation defines the policy for preserving and restoring state data during failover events for stateful applications.\n\nWhen an application fails over from one cluster to another, this policy enables the extraction of critical data from the original resource configuration. Upon successful migration, the extracted data is then re-injected into the new resource, ensuring that the application can resume operation with its previous state intact. This is particularly useful for stateful applications where maintaining data consistency across failover events is crucial. If not specified, means no state data will be preserved.\n\nNote: This requires the StatefulFailoverInjection feature gate to be enabled, which is alpha.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.StatePreservation"),
+							Ref:         ref(policyv1alpha1.StatePreservation{}.OpenAPIModelName()),
 						},
 					},
 				},
@@ -3607,7 +3617,7 @@ func schema_pkg_apis_policy_v1alpha1_ApplicationFailoverBehavior(ref common.Refe
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.DecisionConditions", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.StatePreservation"},
+			policyv1alpha1.DecisionConditions{}.OpenAPIModelName(), policyv1alpha1.StatePreservation{}.OpenAPIModelName()},
 	}
 }
 
@@ -3627,7 +3637,7 @@ func schema_pkg_apis_policy_v1alpha1_ClusterAffinity(ref common.ReferenceCallbac
 					"fieldSelector": {
 						SchemaProps: spec.SchemaProps{
 							Description: "FieldSelector is a filter to select member clusters by fields. The key(field) of the match expression should be 'provider', 'region', or 'zone', and the operator of the match expression should be 'In' or 'NotIn'. If non-nil and non-empty, only the clusters match this filter will be selected.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FieldSelector"),
+							Ref:         ref(policyv1alpha1.FieldSelector{}.OpenAPIModelName()),
 						},
 					},
 					"clusterNames": {
@@ -3664,7 +3674,7 @@ func schema_pkg_apis_policy_v1alpha1_ClusterAffinity(ref common.ReferenceCallbac
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FieldSelector", metav1.LabelSelector{}.OpenAPIModelName()},
+			policyv1alpha1.FieldSelector{}.OpenAPIModelName(), metav1.LabelSelector{}.OpenAPIModelName()},
 	}
 }
 
@@ -3692,7 +3702,7 @@ func schema_pkg_apis_policy_v1alpha1_ClusterAffinityTerm(ref common.ReferenceCal
 					"fieldSelector": {
 						SchemaProps: spec.SchemaProps{
 							Description: "FieldSelector is a filter to select member clusters by fields. The key(field) of the match expression should be 'provider', 'region', or 'zone', and the operator of the match expression should be 'In' or 'NotIn'. If non-nil and non-empty, only the clusters match this filter will be selected.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FieldSelector"),
+							Ref:         ref(policyv1alpha1.FieldSelector{}.OpenAPIModelName()),
 						},
 					},
 					"clusterNames": {
@@ -3730,7 +3740,7 @@ func schema_pkg_apis_policy_v1alpha1_ClusterAffinityTerm(ref common.ReferenceCal
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FieldSelector", metav1.LabelSelector{}.OpenAPIModelName()},
+			policyv1alpha1.FieldSelector{}.OpenAPIModelName(), metav1.LabelSelector{}.OpenAPIModelName()},
 	}
 }
 
@@ -3751,14 +3761,14 @@ func schema_pkg_apis_policy_v1alpha1_ClusterFailoverBehavior(ref common.Referenc
 					"statePreservation": {
 						SchemaProps: spec.SchemaProps{
 							Description: "StatePreservation defines the policy for preserving and restoring state data during failover events for stateful applications.\n\nWhen an application fails over from one cluster to another, this policy enables the extraction of critical data from the original resource configuration. Upon successful migration, the extracted data is then re-injected into the new resource, ensuring that the application can resume operation with its previous state intact. This is particularly useful for stateful applications where maintaining data consistency across failover events is crucial. If not specified, means no state data will be preserved.\n\nNote: This requires the StatefulFailoverInjection feature gate to be enabled, which is alpha.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.StatePreservation"),
+							Ref:         ref(policyv1alpha1.StatePreservation{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.StatePreservation"},
+			policyv1alpha1.StatePreservation{}.OpenAPIModelName()},
 	}
 }
 
@@ -3793,7 +3803,7 @@ func schema_pkg_apis_policy_v1alpha1_ClusterOverridePolicy(ref common.ReferenceC
 						SchemaProps: spec.SchemaProps{
 							Description: "Spec represents the desired behavior of ClusterOverridePolicy.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.OverrideSpec"),
+							Ref:         ref(policyv1alpha1.OverrideSpec{}.OpenAPIModelName()),
 						},
 					},
 				},
@@ -3801,7 +3811,7 @@ func schema_pkg_apis_policy_v1alpha1_ClusterOverridePolicy(ref common.ReferenceC
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.OverrideSpec", metav1.ObjectMeta{}.OpenAPIModelName()},
+			policyv1alpha1.OverrideSpec{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -3840,7 +3850,7 @@ func schema_pkg_apis_policy_v1alpha1_ClusterOverridePolicyList(ref common.Refere
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterOverridePolicy"),
+										Ref:     ref(policyv1alpha1.ClusterOverridePolicy{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -3851,7 +3861,7 @@ func schema_pkg_apis_policy_v1alpha1_ClusterOverridePolicyList(ref common.Refere
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterOverridePolicy", metav1.ListMeta{}.OpenAPIModelName()},
+			policyv1alpha1.ClusterOverridePolicy{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -3870,7 +3880,7 @@ func schema_pkg_apis_policy_v1alpha1_ClusterPreferences(ref common.ReferenceCall
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.StaticClusterWeight"),
+										Ref:     ref(policyv1alpha1.StaticClusterWeight{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -3887,7 +3897,7 @@ func schema_pkg_apis_policy_v1alpha1_ClusterPreferences(ref common.ReferenceCall
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.StaticClusterWeight"},
+			policyv1alpha1.StaticClusterWeight{}.OpenAPIModelName()},
 	}
 }
 
@@ -3922,7 +3932,7 @@ func schema_pkg_apis_policy_v1alpha1_ClusterPropagationPolicy(ref common.Referen
 						SchemaProps: spec.SchemaProps{
 							Description: "Spec represents the desired behavior of ClusterPropagationPolicy.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.PropagationSpec"),
+							Ref:         ref(policyv1alpha1.PropagationSpec{}.OpenAPIModelName()),
 						},
 					},
 				},
@@ -3930,7 +3940,7 @@ func schema_pkg_apis_policy_v1alpha1_ClusterPropagationPolicy(ref common.Referen
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.PropagationSpec", metav1.ObjectMeta{}.OpenAPIModelName()},
+			policyv1alpha1.PropagationSpec{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -3968,7 +3978,7 @@ func schema_pkg_apis_policy_v1alpha1_ClusterPropagationPolicyList(ref common.Ref
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterPropagationPolicy"),
+										Ref:     ref(policyv1alpha1.ClusterPropagationPolicy{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -3979,7 +3989,7 @@ func schema_pkg_apis_policy_v1alpha1_ClusterPropagationPolicyList(ref common.Ref
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterPropagationPolicy", metav1.ListMeta{}.OpenAPIModelName()},
+			policyv1alpha1.ClusterPropagationPolicy{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -4066,7 +4076,7 @@ func schema_pkg_apis_policy_v1alpha1_ClusterTaintPolicy(ref common.ReferenceCall
 						SchemaProps: spec.SchemaProps{
 							Description: "Spec represents the desired behavior of ClusterTaintPolicy.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterTaintPolicySpec"),
+							Ref:         ref(policyv1alpha1.ClusterTaintPolicySpec{}.OpenAPIModelName()),
 						},
 					},
 				},
@@ -4074,7 +4084,7 @@ func schema_pkg_apis_policy_v1alpha1_ClusterTaintPolicy(ref common.ReferenceCall
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterTaintPolicySpec", metav1.ObjectMeta{}.OpenAPIModelName()},
+			policyv1alpha1.ClusterTaintPolicySpec{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -4112,7 +4122,7 @@ func schema_pkg_apis_policy_v1alpha1_ClusterTaintPolicyList(ref common.Reference
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterTaintPolicy"),
+										Ref:     ref(policyv1alpha1.ClusterTaintPolicy{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -4123,7 +4133,7 @@ func schema_pkg_apis_policy_v1alpha1_ClusterTaintPolicyList(ref common.Reference
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterTaintPolicy", metav1.ListMeta{}.OpenAPIModelName()},
+			policyv1alpha1.ClusterTaintPolicy{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -4137,7 +4147,7 @@ func schema_pkg_apis_policy_v1alpha1_ClusterTaintPolicySpec(ref common.Reference
 					"targetClusters": {
 						SchemaProps: spec.SchemaProps{
 							Description: "TargetClusters specifies the clusters that ClusterTaintPolicy needs to pay attention to. For clusters that no longer match the TargetClusters, the taints will be kept unchanged. If targetClusters is not set, any cluster can be selected.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinity"),
+							Ref:         ref(policyv1alpha1.ClusterAffinity{}.OpenAPIModelName()),
 						},
 					},
 					"addOnConditions": {
@@ -4148,7 +4158,7 @@ func schema_pkg_apis_policy_v1alpha1_ClusterTaintPolicySpec(ref common.Reference
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.MatchCondition"),
+										Ref:     ref(policyv1alpha1.MatchCondition{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -4162,7 +4172,7 @@ func schema_pkg_apis_policy_v1alpha1_ClusterTaintPolicySpec(ref common.Reference
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.MatchCondition"),
+										Ref:     ref(policyv1alpha1.MatchCondition{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -4176,7 +4186,7 @@ func schema_pkg_apis_policy_v1alpha1_ClusterTaintPolicySpec(ref common.Reference
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Taint"),
+										Ref:     ref(policyv1alpha1.Taint{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -4187,7 +4197,7 @@ func schema_pkg_apis_policy_v1alpha1_ClusterTaintPolicySpec(ref common.Reference
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinity", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.MatchCondition", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Taint"},
+			policyv1alpha1.ClusterAffinity{}.OpenAPIModelName(), policyv1alpha1.MatchCondition{}.OpenAPIModelName(), policyv1alpha1.Taint{}.OpenAPIModelName()},
 	}
 }
 
@@ -4266,20 +4276,20 @@ func schema_pkg_apis_policy_v1alpha1_FailoverBehavior(ref common.ReferenceCallba
 					"application": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Application indicates failover behaviors in case of application failure. If this value is nil, failover is disabled. If set, the PropagateDeps should be true so that the dependencies could be migrated along with the application.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ApplicationFailoverBehavior"),
+							Ref:         ref(policyv1alpha1.ApplicationFailoverBehavior{}.OpenAPIModelName()),
 						},
 					},
 					"cluster": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Cluster indicates failover behaviors in case of cluster failure. If this value is nil, the failover behavior in case of cluster failure will be controlled by the controller's no-execute-taint-eviction-purge-mode parameter. If set, the failover behavior in case of cluster failure will be defined by this value.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterFailoverBehavior"),
+							Ref:         ref(policyv1alpha1.ClusterFailoverBehavior{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ApplicationFailoverBehavior", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterFailoverBehavior"},
+			policyv1alpha1.ApplicationFailoverBehavior{}.OpenAPIModelName(), policyv1alpha1.ClusterFailoverBehavior{}.OpenAPIModelName()},
 	}
 }
 
@@ -4314,14 +4324,14 @@ func schema_pkg_apis_policy_v1alpha1_FederatedResourceQuota(ref common.Reference
 						SchemaProps: spec.SchemaProps{
 							Description: "Spec defines the desired quota.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FederatedResourceQuotaSpec"),
+							Ref:         ref(policyv1alpha1.FederatedResourceQuotaSpec{}.OpenAPIModelName()),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Status defines the actual enforced quota and its current usage.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FederatedResourceQuotaStatus"),
+							Ref:         ref(policyv1alpha1.FederatedResourceQuotaStatus{}.OpenAPIModelName()),
 						},
 					},
 				},
@@ -4329,7 +4339,7 @@ func schema_pkg_apis_policy_v1alpha1_FederatedResourceQuota(ref common.Reference
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FederatedResourceQuotaSpec", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FederatedResourceQuotaStatus", metav1.ObjectMeta{}.OpenAPIModelName()},
+			policyv1alpha1.FederatedResourceQuotaSpec{}.OpenAPIModelName(), policyv1alpha1.FederatedResourceQuotaStatus{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -4367,7 +4377,7 @@ func schema_pkg_apis_policy_v1alpha1_FederatedResourceQuotaList(ref common.Refer
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FederatedResourceQuota"),
+										Ref:     ref(policyv1alpha1.FederatedResourceQuota{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -4378,7 +4388,7 @@ func schema_pkg_apis_policy_v1alpha1_FederatedResourceQuotaList(ref common.Refer
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FederatedResourceQuota", metav1.ListMeta{}.OpenAPIModelName()},
+			policyv1alpha1.FederatedResourceQuota{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -4411,7 +4421,7 @@ func schema_pkg_apis_policy_v1alpha1_FederatedResourceQuotaSpec(ref common.Refer
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.StaticClusterAssignment"),
+										Ref:     ref(policyv1alpha1.StaticClusterAssignment{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -4422,7 +4432,7 @@ func schema_pkg_apis_policy_v1alpha1_FederatedResourceQuotaSpec(ref common.Refer
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.StaticClusterAssignment", resource.Quantity{}.OpenAPIModelName()},
+			policyv1alpha1.StaticClusterAssignment{}.OpenAPIModelName(), resource.Quantity{}.OpenAPIModelName()},
 	}
 }
 
@@ -4469,7 +4479,7 @@ func schema_pkg_apis_policy_v1alpha1_FederatedResourceQuotaStatus(ref common.Ref
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterQuotaStatus"),
+										Ref:     ref(policyv1alpha1.ClusterQuotaStatus{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -4479,7 +4489,7 @@ func schema_pkg_apis_policy_v1alpha1_FederatedResourceQuotaStatus(ref common.Ref
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterQuotaStatus", resource.Quantity{}.OpenAPIModelName()},
+			policyv1alpha1.ClusterQuotaStatus{}.OpenAPIModelName(), resource.Quantity{}.OpenAPIModelName()},
 	}
 }
 
@@ -4506,7 +4516,7 @@ func schema_pkg_apis_policy_v1alpha1_FieldOverrider(ref common.ReferenceCallback
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.JSONPatchOperation"),
+										Ref:     ref(policyv1alpha1.JSONPatchOperation{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -4520,7 +4530,7 @@ func schema_pkg_apis_policy_v1alpha1_FieldOverrider(ref common.ReferenceCallback
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.YAMLPatchOperation"),
+										Ref:     ref(policyv1alpha1.YAMLPatchOperation{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -4531,7 +4541,7 @@ func schema_pkg_apis_policy_v1alpha1_FieldOverrider(ref common.ReferenceCallback
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.JSONPatchOperation", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.YAMLPatchOperation"},
+			policyv1alpha1.JSONPatchOperation{}.OpenAPIModelName(), policyv1alpha1.YAMLPatchOperation{}.OpenAPIModelName()},
 	}
 }
 
@@ -4574,7 +4584,7 @@ func schema_pkg_apis_policy_v1alpha1_ImageOverrider(ref common.ReferenceCallback
 					"predicate": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Predicate filters images before applying the rule.\n\nDefaults to nil, in that case, the system will automatically detect image fields if the resource type is Pod, ReplicaSet, Deployment, StatefulSet, DaemonSet or Job by following rule:\n  - Pod: /spec/containers/<N>/image\n  - ReplicaSet: /spec/template/spec/containers/<N>/image\n  - Deployment: /spec/template/spec/containers/<N>/image\n  - DaemonSet: /spec/template/spec/containers/<N>/image\n  - StatefulSet: /spec/template/spec/containers/<N>/image\n  - Job: /spec/template/spec/containers/<N>/image\nIn addition, all images will be processed if the resource object has more than one container.\n\nIf not nil, only images matches the filters will be processed.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ImagePredicate"),
+							Ref:         ref(policyv1alpha1.ImagePredicate{}.OpenAPIModelName()),
 						},
 					},
 					"component": {
@@ -4605,7 +4615,7 @@ func schema_pkg_apis_policy_v1alpha1_ImageOverrider(ref common.ReferenceCallback
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ImagePredicate"},
+			policyv1alpha1.ImagePredicate{}.OpenAPIModelName()},
 	}
 }
 
@@ -4783,7 +4793,7 @@ func schema_pkg_apis_policy_v1alpha1_OverridePolicy(ref common.ReferenceCallback
 						SchemaProps: spec.SchemaProps{
 							Description: "Spec represents the desired behavior of OverridePolicy.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.OverrideSpec"),
+							Ref:         ref(policyv1alpha1.OverrideSpec{}.OpenAPIModelName()),
 						},
 					},
 				},
@@ -4791,7 +4801,7 @@ func schema_pkg_apis_policy_v1alpha1_OverridePolicy(ref common.ReferenceCallback
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.OverrideSpec", metav1.ObjectMeta{}.OpenAPIModelName()},
+			policyv1alpha1.OverrideSpec{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -4830,7 +4840,7 @@ func schema_pkg_apis_policy_v1alpha1_OverridePolicyList(ref common.ReferenceCall
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.OverridePolicy"),
+										Ref:     ref(policyv1alpha1.OverridePolicy{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -4841,7 +4851,7 @@ func schema_pkg_apis_policy_v1alpha1_OverridePolicyList(ref common.ReferenceCall
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.OverridePolicy", metav1.ListMeta{}.OpenAPIModelName()},
+			policyv1alpha1.OverridePolicy{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -4860,7 +4870,7 @@ func schema_pkg_apis_policy_v1alpha1_OverrideSpec(ref common.ReferenceCallback) 
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ResourceSelector"),
+										Ref:     ref(policyv1alpha1.ResourceSelector{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -4874,7 +4884,7 @@ func schema_pkg_apis_policy_v1alpha1_OverrideSpec(ref common.ReferenceCallback) 
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.RuleWithCluster"),
+										Ref:     ref(policyv1alpha1.RuleWithCluster{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -4883,21 +4893,21 @@ func schema_pkg_apis_policy_v1alpha1_OverrideSpec(ref common.ReferenceCallback) 
 					"targetCluster": {
 						SchemaProps: spec.SchemaProps{
 							Description: "TargetCluster defines restrictions on this override policy that only applies to resources propagated to the matching clusters. nil means matching all clusters.\n\nDeprecated: This filed is deprecated in v1.0 and please use the OverrideRules instead.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinity"),
+							Ref:         ref(policyv1alpha1.ClusterAffinity{}.OpenAPIModelName()),
 						},
 					},
 					"overriders": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Overriders represents the override rules that would apply on resources\n\nDeprecated: This filed is deprecated in v1.0 and please use the OverrideRules instead.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Overriders"),
+							Ref:         ref(policyv1alpha1.Overriders{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinity", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Overriders", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ResourceSelector", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.RuleWithCluster"},
+			policyv1alpha1.ClusterAffinity{}.OpenAPIModelName(), policyv1alpha1.Overriders{}.OpenAPIModelName(), policyv1alpha1.ResourceSelector{}.OpenAPIModelName(), policyv1alpha1.RuleWithCluster{}.OpenAPIModelName()},
 	}
 }
 
@@ -4916,7 +4926,7 @@ func schema_pkg_apis_policy_v1alpha1_Overriders(ref common.ReferenceCallback) co
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.PlaintextOverrider"),
+										Ref:     ref(policyv1alpha1.PlaintextOverrider{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -4930,7 +4940,7 @@ func schema_pkg_apis_policy_v1alpha1_Overriders(ref common.ReferenceCallback) co
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ImageOverrider"),
+										Ref:     ref(policyv1alpha1.ImageOverrider{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -4944,7 +4954,7 @@ func schema_pkg_apis_policy_v1alpha1_Overriders(ref common.ReferenceCallback) co
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.CommandArgsOverrider"),
+										Ref:     ref(policyv1alpha1.CommandArgsOverrider{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -4958,7 +4968,7 @@ func schema_pkg_apis_policy_v1alpha1_Overriders(ref common.ReferenceCallback) co
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.CommandArgsOverrider"),
+										Ref:     ref(policyv1alpha1.CommandArgsOverrider{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -4972,7 +4982,7 @@ func schema_pkg_apis_policy_v1alpha1_Overriders(ref common.ReferenceCallback) co
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.LabelAnnotationOverrider"),
+										Ref:     ref(policyv1alpha1.LabelAnnotationOverrider{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -4986,7 +4996,7 @@ func schema_pkg_apis_policy_v1alpha1_Overriders(ref common.ReferenceCallback) co
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.LabelAnnotationOverrider"),
+										Ref:     ref(policyv1alpha1.LabelAnnotationOverrider{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -5000,7 +5010,7 @@ func schema_pkg_apis_policy_v1alpha1_Overriders(ref common.ReferenceCallback) co
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FieldOverrider"),
+										Ref:     ref(policyv1alpha1.FieldOverrider{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -5010,7 +5020,7 @@ func schema_pkg_apis_policy_v1alpha1_Overriders(ref common.ReferenceCallback) co
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.CommandArgsOverrider", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FieldOverrider", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ImageOverrider", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.LabelAnnotationOverrider", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.PlaintextOverrider"},
+			policyv1alpha1.CommandArgsOverrider{}.OpenAPIModelName(), policyv1alpha1.FieldOverrider{}.OpenAPIModelName(), policyv1alpha1.ImageOverrider{}.OpenAPIModelName(), policyv1alpha1.LabelAnnotationOverrider{}.OpenAPIModelName(), policyv1alpha1.PlaintextOverrider{}.OpenAPIModelName()},
 	}
 }
 
@@ -5024,7 +5034,7 @@ func schema_pkg_apis_policy_v1alpha1_Placement(ref common.ReferenceCallback) com
 					"clusterAffinity": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ClusterAffinity represents scheduling restrictions to a certain set of clusters. Note:\n  1. ClusterAffinity can not co-exist with ClusterAffinities.\n  2. If both ClusterAffinity and ClusterAffinities are not set, any cluster\n     can be scheduling candidates.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinity"),
+							Ref:         ref(policyv1alpha1.ClusterAffinity{}.OpenAPIModelName()),
 						},
 					},
 					"clusterAffinities": {
@@ -5035,7 +5045,7 @@ func schema_pkg_apis_policy_v1alpha1_Placement(ref common.ReferenceCallback) com
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinityTerm"),
+										Ref:     ref(policyv1alpha1.ClusterAffinityTerm{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -5063,7 +5073,7 @@ func schema_pkg_apis_policy_v1alpha1_Placement(ref common.ReferenceCallback) com
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.SpreadConstraint"),
+										Ref:     ref(policyv1alpha1.SpreadConstraint{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -5072,20 +5082,20 @@ func schema_pkg_apis_policy_v1alpha1_Placement(ref common.ReferenceCallback) com
 					"replicaScheduling": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ReplicaScheduling represents the scheduling policy on dealing with the number of replicas when propagating resources that have replicas in spec (e.g. deployments, statefulsets) to member clusters.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ReplicaSchedulingStrategy"),
+							Ref:         ref(policyv1alpha1.ReplicaSchedulingStrategy{}.OpenAPIModelName()),
 						},
 					},
 					"workloadAffinity": {
 						SchemaProps: spec.SchemaProps{
 							Description: "WorkloadAffinity represents inter-workload affinity and anti-affinity scheduling policies.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.WorkloadAffinity"),
+							Ref:         ref(policyv1alpha1.WorkloadAffinity{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinity", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinityTerm", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ReplicaSchedulingStrategy", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.SpreadConstraint", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.WorkloadAffinity", corev1.Toleration{}.OpenAPIModelName()},
+			policyv1alpha1.ClusterAffinity{}.OpenAPIModelName(), policyv1alpha1.ClusterAffinityTerm{}.OpenAPIModelName(), policyv1alpha1.ReplicaSchedulingStrategy{}.OpenAPIModelName(), policyv1alpha1.SpreadConstraint{}.OpenAPIModelName(), policyv1alpha1.WorkloadAffinity{}.OpenAPIModelName(), corev1.Toleration{}.OpenAPIModelName()},
 	}
 }
 
@@ -5158,7 +5168,7 @@ func schema_pkg_apis_policy_v1alpha1_PropagationPolicy(ref common.ReferenceCallb
 						SchemaProps: spec.SchemaProps{
 							Description: "Spec represents the desired behavior of PropagationPolicy.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.PropagationSpec"),
+							Ref:         ref(policyv1alpha1.PropagationSpec{}.OpenAPIModelName()),
 						},
 					},
 				},
@@ -5166,7 +5176,7 @@ func schema_pkg_apis_policy_v1alpha1_PropagationPolicy(ref common.ReferenceCallb
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.PropagationSpec", metav1.ObjectMeta{}.OpenAPIModelName()},
+			policyv1alpha1.PropagationSpec{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -5204,7 +5214,7 @@ func schema_pkg_apis_policy_v1alpha1_PropagationPolicyList(ref common.ReferenceC
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.PropagationPolicy"),
+										Ref:     ref(policyv1alpha1.PropagationPolicy{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -5215,7 +5225,7 @@ func schema_pkg_apis_policy_v1alpha1_PropagationPolicyList(ref common.ReferenceC
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.PropagationPolicy", metav1.ListMeta{}.OpenAPIModelName()},
+			policyv1alpha1.PropagationPolicy{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -5234,7 +5244,7 @@ func schema_pkg_apis_policy_v1alpha1_PropagationSpec(ref common.ReferenceCallbac
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ResourceSelector"),
+										Ref:     ref(policyv1alpha1.ResourceSelector{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -5258,7 +5268,7 @@ func schema_pkg_apis_policy_v1alpha1_PropagationSpec(ref common.ReferenceCallbac
 						SchemaProps: spec.SchemaProps{
 							Description: "Placement represents the rule for select clusters to propagate resources.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Placement"),
+							Ref:         ref(policyv1alpha1.Placement{}.OpenAPIModelName()),
 						},
 					},
 					"priority": {
@@ -5301,7 +5311,7 @@ func schema_pkg_apis_policy_v1alpha1_PropagationSpec(ref common.ReferenceCallbac
 					"failover": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Failover indicates how Karmada migrates applications in case of failures. If this value is nil, failover is disabled.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FailoverBehavior"),
+							Ref:         ref(policyv1alpha1.FailoverBehavior{}.OpenAPIModelName()),
 						},
 					},
 					"conflictResolution": {
@@ -5321,7 +5331,7 @@ func schema_pkg_apis_policy_v1alpha1_PropagationSpec(ref common.ReferenceCallbac
 					"suspension": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Suspension declares the policy for suspending different aspects of propagation. nil means no suspension. no default values.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Suspension"),
+							Ref:         ref(policyv1alpha1.Suspension{}.OpenAPIModelName()),
 						},
 					},
 					"preserveResourcesOnDeletion": {
@@ -5334,7 +5344,7 @@ func schema_pkg_apis_policy_v1alpha1_PropagationSpec(ref common.ReferenceCallbac
 					"schedulePriority": {
 						SchemaProps: spec.SchemaProps{
 							Description: "SchedulePriority defines how Karmada should resolve the priority and preemption policy for workload scheduling.\n\nThis setting is useful for controlling the scheduling behavior of offline workloads. By setting a higher or lower priority, users can control which workloads are scheduled first. Additionally, it allows specifying a preemption policy where higher-priority workloads can preempt lower-priority ones in scenarios of resource contention.\n\nNote: This feature is currently in the alpha stage. The priority-based scheduling functionality is controlled by the PriorityBasedScheduling feature gate, and preemption is controlled by the PriorityBasedPreemptiveScheduling feature gate. Currently, only priority-based scheduling is supported. Preemption functionality is not yet available and will be introduced in future releases as the feature matures.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.SchedulePriority"),
+							Ref:         ref(policyv1alpha1.SchedulePriority{}.OpenAPIModelName()),
 						},
 					},
 				},
@@ -5342,7 +5352,7 @@ func schema_pkg_apis_policy_v1alpha1_PropagationSpec(ref common.ReferenceCallbac
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FailoverBehavior", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Placement", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ResourceSelector", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.SchedulePriority", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Suspension"},
+			policyv1alpha1.FailoverBehavior{}.OpenAPIModelName(), policyv1alpha1.Placement{}.OpenAPIModelName(), policyv1alpha1.ResourceSelector{}.OpenAPIModelName(), policyv1alpha1.SchedulePriority{}.OpenAPIModelName(), policyv1alpha1.Suspension{}.OpenAPIModelName()},
 	}
 }
 
@@ -5370,14 +5380,14 @@ func schema_pkg_apis_policy_v1alpha1_ReplicaSchedulingStrategy(ref common.Refere
 					"weightPreference": {
 						SchemaProps: spec.SchemaProps{
 							Description: "WeightPreference describes weight for each cluster or for each group of cluster If ReplicaDivisionPreference is set to \"Weighted\", and WeightPreference is not set, scheduler will weight all clusters the same.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterPreferences"),
+							Ref:         ref(policyv1alpha1.ClusterPreferences{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterPreferences"},
+			policyv1alpha1.ClusterPreferences{}.OpenAPIModelName()},
 	}
 }
 
@@ -5443,14 +5453,14 @@ func schema_pkg_apis_policy_v1alpha1_RuleWithCluster(ref common.ReferenceCallbac
 					"targetCluster": {
 						SchemaProps: spec.SchemaProps{
 							Description: "TargetCluster defines restrictions on this override policy that only applies to resources propagated to the matching clusters. nil means matching all clusters.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinity"),
+							Ref:         ref(policyv1alpha1.ClusterAffinity{}.OpenAPIModelName()),
 						},
 					},
 					"overriders": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Overriders represents the override rules that would apply on resources",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Overriders"),
+							Ref:         ref(policyv1alpha1.Overriders{}.OpenAPIModelName()),
 						},
 					},
 				},
@@ -5458,7 +5468,7 @@ func schema_pkg_apis_policy_v1alpha1_RuleWithCluster(ref common.ReferenceCallbac
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinity", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Overriders"},
+			policyv1alpha1.ClusterAffinity{}.OpenAPIModelName(), policyv1alpha1.Overriders{}.OpenAPIModelName()},
 	}
 }
 
@@ -5548,7 +5558,7 @@ func schema_pkg_apis_policy_v1alpha1_StatePreservation(ref common.ReferenceCallb
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.StatePreservationRule"),
+										Ref:     ref(policyv1alpha1.StatePreservationRule{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -5559,7 +5569,7 @@ func schema_pkg_apis_policy_v1alpha1_StatePreservation(ref common.ReferenceCallb
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.StatePreservationRule"},
+			policyv1alpha1.StatePreservationRule{}.OpenAPIModelName()},
 	}
 }
 
@@ -5642,7 +5652,7 @@ func schema_pkg_apis_policy_v1alpha1_StaticClusterWeight(ref common.ReferenceCal
 						SchemaProps: spec.SchemaProps{
 							Description: "TargetCluster describes the filter to select clusters.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinity"),
+							Ref:         ref(policyv1alpha1.ClusterAffinity{}.OpenAPIModelName()),
 						},
 					},
 					"weight": {
@@ -5658,7 +5668,7 @@ func schema_pkg_apis_policy_v1alpha1_StaticClusterWeight(ref common.ReferenceCal
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinity"},
+			policyv1alpha1.ClusterAffinity{}.OpenAPIModelName()},
 	}
 }
 
@@ -5707,14 +5717,14 @@ func schema_pkg_apis_policy_v1alpha1_Suspension(ref common.ReferenceCallback) co
 					"dispatchingOnClusters": {
 						SchemaProps: spec.SchemaProps{
 							Description: "DispatchingOnClusters declares a list of clusters to which the dispatching should be suspended. Note: Can not co-exist with Dispatching which is used to suspend all.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.SuspendClusters"),
+							Ref:         ref(policyv1alpha1.SuspendClusters{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.SuspendClusters"},
+			policyv1alpha1.SuspendClusters{}.OpenAPIModelName()},
 	}
 }
 
@@ -5766,20 +5776,20 @@ func schema_pkg_apis_policy_v1alpha1_WorkloadAffinity(ref common.ReferenceCallba
 					"affinity": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Affinity represents inter-workload affinity scheduling rules. These are hard requirements: workloads will only be scheduled to clusters that satisfy the affinity term if it is specified.\n\nFor the first workload of an affinity group (when no workloads with a matching label value exist in the system), the scheduler will not block scheduling. This allows bootstrapping new workload groups without encountering scheduling deadlocks, providing a better user experience.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.WorkloadAffinityTerm"),
+							Ref:         ref(policyv1alpha1.WorkloadAffinityTerm{}.OpenAPIModelName()),
 						},
 					},
 					"antiAffinity": {
 						SchemaProps: spec.SchemaProps{
 							Description: "AntiAffinity represents inter-workload anti-affinity scheduling rules. These are hard requirements: workloads will be scheduled to avoid clusters where matching workloads are already scheduled.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.WorkloadAntiAffinityTerm"),
+							Ref:         ref(policyv1alpha1.WorkloadAntiAffinityTerm{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.WorkloadAffinityTerm", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.WorkloadAntiAffinityTerm"},
+			policyv1alpha1.WorkloadAffinityTerm{}.OpenAPIModelName(), policyv1alpha1.WorkloadAntiAffinityTerm{}.OpenAPIModelName()},
 	}
 }
 
@@ -5941,14 +5951,14 @@ func schema_pkg_apis_remedy_v1alpha1_DecisionMatch(ref common.ReferenceCallback)
 					"clusterConditionMatch": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ClusterConditionMatch describes the cluster condition requirement.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1.ClusterConditionRequirement"),
+							Ref:         ref(remedyv1alpha1.ClusterConditionRequirement{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1.ClusterConditionRequirement"},
+			remedyv1alpha1.ClusterConditionRequirement{}.OpenAPIModelName()},
 	}
 }
 
@@ -5983,7 +5993,7 @@ func schema_pkg_apis_remedy_v1alpha1_Remedy(ref common.ReferenceCallback) common
 						SchemaProps: spec.SchemaProps{
 							Description: "Spec represents the desired behavior of Remedy.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1.RemedySpec"),
+							Ref:         ref(remedyv1alpha1.RemedySpec{}.OpenAPIModelName()),
 						},
 					},
 				},
@@ -5991,7 +6001,7 @@ func schema_pkg_apis_remedy_v1alpha1_Remedy(ref common.ReferenceCallback) common
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1.RemedySpec", metav1.ObjectMeta{}.OpenAPIModelName()},
+			remedyv1alpha1.RemedySpec{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -6029,7 +6039,7 @@ func schema_pkg_apis_remedy_v1alpha1_RemedyList(ref common.ReferenceCallback) co
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1.Remedy"),
+										Ref:     ref(remedyv1alpha1.Remedy{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -6040,7 +6050,7 @@ func schema_pkg_apis_remedy_v1alpha1_RemedyList(ref common.ReferenceCallback) co
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1.Remedy", metav1.ListMeta{}.OpenAPIModelName()},
+			remedyv1alpha1.Remedy{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -6054,7 +6064,7 @@ func schema_pkg_apis_remedy_v1alpha1_RemedySpec(ref common.ReferenceCallback) co
 					"clusterAffinity": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ClusterAffinity specifies the clusters that Remedy needs to pay attention to. For clusters that meet the DecisionConditions, Actions will be preformed. If empty, all clusters will be selected.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1.ClusterAffinity"),
+							Ref:         ref(remedyv1alpha1.ClusterAffinity{}.OpenAPIModelName()),
 						},
 					},
 					"decisionMatches": {
@@ -6065,7 +6075,7 @@ func schema_pkg_apis_remedy_v1alpha1_RemedySpec(ref common.ReferenceCallback) co
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1.DecisionMatch"),
+										Ref:     ref(remedyv1alpha1.DecisionMatch{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -6090,7 +6100,7 @@ func schema_pkg_apis_remedy_v1alpha1_RemedySpec(ref common.ReferenceCallback) co
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1.ClusterAffinity", "github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1.DecisionMatch"},
+			remedyv1alpha1.ClusterAffinity{}.OpenAPIModelName(), remedyv1alpha1.DecisionMatch{}.OpenAPIModelName()},
 	}
 }
 
@@ -6104,14 +6114,14 @@ func schema_pkg_apis_search_v1alpha1_BackendStoreConfig(ref common.ReferenceCall
 					"openSearch": {
 						SchemaProps: spec.SchemaProps{
 							Description: "OpenSearch is a community-driven, open source search and analytics suite. Refer to website(https://opensearch.org/) for more details about OpenSearch.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.OpenSearchConfig"),
+							Ref:         ref(searchv1alpha1.OpenSearchConfig{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.OpenSearchConfig"},
+			searchv1alpha1.OpenSearchConfig{}.OpenAPIModelName()},
 	}
 }
 
@@ -6141,7 +6151,7 @@ func schema_pkg_apis_search_v1alpha1_OpenSearchConfig(ref common.ReferenceCallba
 						SchemaProps: spec.SchemaProps{
 							Description: "SecretRef represents the secret contains mandatory credentials to access the server. The secret should hold credentials as follows: - secret.data.userName - secret.data.password",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.LocalSecretReference"),
+							Ref:         ref(clusterv1alpha1.LocalSecretReference{}.OpenAPIModelName()),
 						},
 					},
 				},
@@ -6149,7 +6159,7 @@ func schema_pkg_apis_search_v1alpha1_OpenSearchConfig(ref common.ReferenceCallba
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1.LocalSecretReference"},
+			clusterv1alpha1.LocalSecretReference{}.OpenAPIModelName()},
 	}
 }
 
@@ -6211,21 +6221,21 @@ func schema_pkg_apis_search_v1alpha1_ResourceRegistry(ref common.ReferenceCallba
 						SchemaProps: spec.SchemaProps{
 							Description: "Spec represents the desired behavior of ResourceRegistry.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.ResourceRegistrySpec"),
+							Ref:         ref(searchv1alpha1.ResourceRegistrySpec{}.OpenAPIModelName()),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Status represents the status of ResourceRegistry.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.ResourceRegistryStatus"),
+							Ref:         ref(searchv1alpha1.ResourceRegistryStatus{}.OpenAPIModelName()),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.ResourceRegistrySpec", "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.ResourceRegistryStatus", metav1.ObjectMeta{}.OpenAPIModelName()},
+			searchv1alpha1.ResourceRegistrySpec{}.OpenAPIModelName(), searchv1alpha1.ResourceRegistryStatus{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -6264,7 +6274,7 @@ func schema_pkg_apis_search_v1alpha1_ResourceRegistryList(ref common.ReferenceCa
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.ResourceRegistry"),
+										Ref:     ref(searchv1alpha1.ResourceRegistry{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -6275,7 +6285,7 @@ func schema_pkg_apis_search_v1alpha1_ResourceRegistryList(ref common.ReferenceCa
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.ResourceRegistry", metav1.ListMeta{}.OpenAPIModelName()},
+			searchv1alpha1.ResourceRegistry{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -6290,7 +6300,7 @@ func schema_pkg_apis_search_v1alpha1_ResourceRegistrySpec(ref common.ReferenceCa
 						SchemaProps: spec.SchemaProps{
 							Description: "TargetCluster specifies the clusters where the cache system collect resource from.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinity"),
+							Ref:         ref(policyv1alpha1.ClusterAffinity{}.OpenAPIModelName()),
 						},
 					},
 					"resourceSelectors": {
@@ -6301,7 +6311,7 @@ func schema_pkg_apis_search_v1alpha1_ResourceRegistrySpec(ref common.ReferenceCa
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.ResourceSelector"),
+										Ref:     ref(searchv1alpha1.ResourceSelector{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -6310,7 +6320,7 @@ func schema_pkg_apis_search_v1alpha1_ResourceRegistrySpec(ref common.ReferenceCa
 					"backendStore": {
 						SchemaProps: spec.SchemaProps{
 							Description: "BackendStore specifies the location where to store the cached items.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.BackendStoreConfig"),
+							Ref:         ref(searchv1alpha1.BackendStoreConfig{}.OpenAPIModelName()),
 						},
 					},
 				},
@@ -6318,7 +6328,7 @@ func schema_pkg_apis_search_v1alpha1_ResourceRegistrySpec(ref common.ReferenceCa
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.ClusterAffinity", "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.BackendStoreConfig", "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1.ResourceSelector"},
+			policyv1alpha1.ClusterAffinity{}.OpenAPIModelName(), searchv1alpha1.BackendStoreConfig{}.OpenAPIModelName(), searchv1alpha1.ResourceSelector{}.OpenAPIModelName()},
 	}
 }
 
@@ -6490,14 +6500,14 @@ func schema_pkg_apis_work_v1alpha1_ClusterResourceBinding(ref common.ReferenceCa
 						SchemaProps: spec.SchemaProps{
 							Description: "Spec represents the desired behavior.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.ResourceBindingSpec"),
+							Ref:         ref(workv1alpha1.ResourceBindingSpec{}.OpenAPIModelName()),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Status represents the most recently observed status of the ResourceBinding.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.ResourceBindingStatus"),
+							Ref:         ref(workv1alpha1.ResourceBindingStatus{}.OpenAPIModelName()),
 						},
 					},
 				},
@@ -6505,7 +6515,7 @@ func schema_pkg_apis_work_v1alpha1_ClusterResourceBinding(ref common.ReferenceCa
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.ResourceBindingSpec", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.ResourceBindingStatus", metav1.ObjectMeta{}.OpenAPIModelName()},
+			workv1alpha1.ResourceBindingSpec{}.OpenAPIModelName(), workv1alpha1.ResourceBindingStatus{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -6544,7 +6554,7 @@ func schema_pkg_apis_work_v1alpha1_ClusterResourceBindingList(ref common.Referen
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.ClusterResourceBinding"),
+										Ref:     ref(workv1alpha1.ClusterResourceBinding{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -6555,7 +6565,7 @@ func schema_pkg_apis_work_v1alpha1_ClusterResourceBindingList(ref common.Referen
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.ClusterResourceBinding", metav1.ListMeta{}.OpenAPIModelName()},
+			workv1alpha1.ClusterResourceBinding{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -6581,7 +6591,7 @@ func schema_pkg_apis_work_v1alpha1_ManifestStatus(ref common.ReferenceCallback) 
 						SchemaProps: spec.SchemaProps{
 							Description: "Identifier represents the identity of a resource linking to manifests in spec.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.ResourceIdentifier"),
+							Ref:         ref(workv1alpha1.ResourceIdentifier{}.OpenAPIModelName()),
 						},
 					},
 					"status": {
@@ -6602,7 +6612,7 @@ func schema_pkg_apis_work_v1alpha1_ManifestStatus(ref common.ReferenceCallback) 
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.ResourceIdentifier", runtime.RawExtension{}.OpenAPIModelName()},
+			workv1alpha1.ResourceIdentifier{}.OpenAPIModelName(), runtime.RawExtension{}.OpenAPIModelName()},
 	}
 }
 
@@ -6712,14 +6722,14 @@ func schema_pkg_apis_work_v1alpha1_ResourceBinding(ref common.ReferenceCallback)
 						SchemaProps: spec.SchemaProps{
 							Description: "Spec represents the desired behavior.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.ResourceBindingSpec"),
+							Ref:         ref(workv1alpha1.ResourceBindingSpec{}.OpenAPIModelName()),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Status represents the most recently observed status of the ResourceBinding.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.ResourceBindingStatus"),
+							Ref:         ref(workv1alpha1.ResourceBindingStatus{}.OpenAPIModelName()),
 						},
 					},
 				},
@@ -6727,7 +6737,7 @@ func schema_pkg_apis_work_v1alpha1_ResourceBinding(ref common.ReferenceCallback)
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.ResourceBindingSpec", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.ResourceBindingStatus", metav1.ObjectMeta{}.OpenAPIModelName()},
+			workv1alpha1.ResourceBindingSpec{}.OpenAPIModelName(), workv1alpha1.ResourceBindingStatus{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -6766,7 +6776,7 @@ func schema_pkg_apis_work_v1alpha1_ResourceBindingList(ref common.ReferenceCallb
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.ResourceBinding"),
+										Ref:     ref(workv1alpha1.ResourceBinding{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -6777,7 +6787,7 @@ func schema_pkg_apis_work_v1alpha1_ResourceBindingList(ref common.ReferenceCallb
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.ResourceBinding", metav1.ListMeta{}.OpenAPIModelName()},
+			workv1alpha1.ResourceBinding{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -6792,7 +6802,7 @@ func schema_pkg_apis_work_v1alpha1_ResourceBindingSpec(ref common.ReferenceCallb
 						SchemaProps: spec.SchemaProps{
 							Description: "Resource represents the Kubernetes resource to be propagated.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.ObjectReference"),
+							Ref:         ref(workv1alpha1.ObjectReference{}.OpenAPIModelName()),
 						},
 					},
 					"clusters": {
@@ -6803,7 +6813,7 @@ func schema_pkg_apis_work_v1alpha1_ResourceBindingSpec(ref common.ReferenceCallb
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.TargetCluster"),
+										Ref:     ref(workv1alpha1.TargetCluster{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -6814,7 +6824,7 @@ func schema_pkg_apis_work_v1alpha1_ResourceBindingSpec(ref common.ReferenceCallb
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.ObjectReference", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.TargetCluster"},
+			workv1alpha1.ObjectReference{}.OpenAPIModelName(), workv1alpha1.TargetCluster{}.OpenAPIModelName()},
 	}
 }
 
@@ -6847,7 +6857,7 @@ func schema_pkg_apis_work_v1alpha1_ResourceBindingStatus(ref common.ReferenceCal
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.AggregatedStatusItem"),
+										Ref:     ref(workv1alpha1.AggregatedStatusItem{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -6857,7 +6867,7 @@ func schema_pkg_apis_work_v1alpha1_ResourceBindingStatus(ref common.ReferenceCal
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.AggregatedStatusItem", metav1.Condition{}.OpenAPIModelName()},
+			workv1alpha1.AggregatedStatusItem{}.OpenAPIModelName(), metav1.Condition{}.OpenAPIModelName()},
 	}
 }
 
@@ -6989,14 +6999,14 @@ func schema_pkg_apis_work_v1alpha1_Work(ref common.ReferenceCallback) common.Ope
 						SchemaProps: spec.SchemaProps{
 							Description: "Spec represents the desired behavior of Work.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.WorkSpec"),
+							Ref:         ref(workv1alpha1.WorkSpec{}.OpenAPIModelName()),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Status represents the status of PropagationStatus.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.WorkStatus"),
+							Ref:         ref(workv1alpha1.WorkStatus{}.OpenAPIModelName()),
 						},
 					},
 				},
@@ -7004,7 +7014,7 @@ func schema_pkg_apis_work_v1alpha1_Work(ref common.ReferenceCallback) common.Ope
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.WorkSpec", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.WorkStatus", metav1.ObjectMeta{}.OpenAPIModelName()},
+			workv1alpha1.WorkSpec{}.OpenAPIModelName(), workv1alpha1.WorkStatus{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -7043,7 +7053,7 @@ func schema_pkg_apis_work_v1alpha1_WorkList(ref common.ReferenceCallback) common
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.Work"),
+										Ref:     ref(workv1alpha1.Work{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -7054,7 +7064,7 @@ func schema_pkg_apis_work_v1alpha1_WorkList(ref common.ReferenceCallback) common
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.Work", metav1.ListMeta{}.OpenAPIModelName()},
+			workv1alpha1.Work{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -7069,7 +7079,7 @@ func schema_pkg_apis_work_v1alpha1_WorkSpec(ref common.ReferenceCallback) common
 						SchemaProps: spec.SchemaProps{
 							Description: "Workload represents the manifest workload to be deployed on managed cluster.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.WorkloadTemplate"),
+							Ref:         ref(workv1alpha1.WorkloadTemplate{}.OpenAPIModelName()),
 						},
 					},
 					"suspendDispatching": {
@@ -7090,7 +7100,7 @@ func schema_pkg_apis_work_v1alpha1_WorkSpec(ref common.ReferenceCallback) common
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.WorkloadTemplate"},
+			workv1alpha1.WorkloadTemplate{}.OpenAPIModelName()},
 	}
 }
 
@@ -7123,7 +7133,7 @@ func schema_pkg_apis_work_v1alpha1_WorkStatus(ref common.ReferenceCallback) comm
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.ManifestStatus"),
+										Ref:     ref(workv1alpha1.ManifestStatus{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -7133,7 +7143,7 @@ func schema_pkg_apis_work_v1alpha1_WorkStatus(ref common.ReferenceCallback) comm
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.ManifestStatus", metav1.Condition{}.OpenAPIModelName()},
+			workv1alpha1.ManifestStatus{}.OpenAPIModelName(), metav1.Condition{}.OpenAPIModelName()},
 	}
 }
 
@@ -7151,7 +7161,7 @@ func schema_pkg_apis_work_v1alpha1_WorkloadTemplate(ref common.ReferenceCallback
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.Manifest"),
+										Ref: ref(workv1alpha1.Manifest{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -7161,7 +7171,7 @@ func schema_pkg_apis_work_v1alpha1_WorkloadTemplate(ref common.ReferenceCallback
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/work/v1alpha1.Manifest"},
+			workv1alpha1.Manifest{}.OpenAPIModelName()},
 	}
 }
 
@@ -7246,7 +7256,7 @@ func schema_pkg_apis_work_v1alpha2_BindingSnapshot(ref common.ReferenceCallback)
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.TargetCluster"),
+										Ref:     ref(v1alpha2.TargetCluster{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -7257,7 +7267,7 @@ func schema_pkg_apis_work_v1alpha2_BindingSnapshot(ref common.ReferenceCallback)
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.TargetCluster"},
+			v1alpha2.TargetCluster{}.OpenAPIModelName()},
 	}
 }
 
@@ -7292,14 +7302,14 @@ func schema_pkg_apis_work_v1alpha2_ClusterResourceBinding(ref common.ReferenceCa
 						SchemaProps: spec.SchemaProps{
 							Description: "Spec represents the desired behavior.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ResourceBindingSpec"),
+							Ref:         ref(v1alpha2.ResourceBindingSpec{}.OpenAPIModelName()),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Status represents the most recently observed status of the ResourceBinding.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ResourceBindingStatus"),
+							Ref:         ref(v1alpha2.ResourceBindingStatus{}.OpenAPIModelName()),
 						},
 					},
 				},
@@ -7307,7 +7317,7 @@ func schema_pkg_apis_work_v1alpha2_ClusterResourceBinding(ref common.ReferenceCa
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ResourceBindingSpec", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ResourceBindingStatus", metav1.ObjectMeta{}.OpenAPIModelName()},
+			v1alpha2.ResourceBindingSpec{}.OpenAPIModelName(), v1alpha2.ResourceBindingStatus{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -7346,7 +7356,7 @@ func schema_pkg_apis_work_v1alpha2_ClusterResourceBindingList(ref common.Referen
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ClusterResourceBinding"),
+										Ref:     ref(v1alpha2.ClusterResourceBinding{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -7357,7 +7367,7 @@ func schema_pkg_apis_work_v1alpha2_ClusterResourceBindingList(ref common.Referen
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ClusterResourceBinding", metav1.ListMeta{}.OpenAPIModelName()},
+			v1alpha2.ClusterResourceBinding{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -7387,7 +7397,7 @@ func schema_pkg_apis_work_v1alpha2_Component(ref common.ReferenceCallback) commo
 					"replicaRequirements": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ReplicaRequirements represents the resource and scheduling requirements for each replica.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ComponentReplicaRequirements"),
+							Ref:         ref(v1alpha2.ComponentReplicaRequirements{}.OpenAPIModelName()),
 						},
 					},
 				},
@@ -7395,7 +7405,7 @@ func schema_pkg_apis_work_v1alpha2_Component(ref common.ReferenceCallback) commo
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ComponentReplicaRequirements"},
+			v1alpha2.ComponentReplicaRequirements{}.OpenAPIModelName()},
 	}
 }
 
@@ -7409,7 +7419,7 @@ func schema_pkg_apis_work_v1alpha2_ComponentReplicaRequirements(ref common.Refer
 					"nodeClaim": {
 						SchemaProps: spec.SchemaProps{
 							Description: "NodeClaim represents the node claim HardNodeAffinity, NodeSelector and Tolerations required by each replica.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.NodeClaim"),
+							Ref:         ref(v1alpha2.NodeClaim{}.OpenAPIModelName()),
 						},
 					},
 					"resourceRequest": {
@@ -7437,7 +7447,7 @@ func schema_pkg_apis_work_v1alpha2_ComponentReplicaRequirements(ref common.Refer
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.NodeClaim", resource.Quantity{}.OpenAPIModelName()},
+			v1alpha2.NodeClaim{}.OpenAPIModelName(), resource.Quantity{}.OpenAPIModelName()},
 	}
 }
 
@@ -7673,7 +7683,7 @@ func schema_pkg_apis_work_v1alpha2_ReplicaRequirements(ref common.ReferenceCallb
 					"nodeClaim": {
 						SchemaProps: spec.SchemaProps{
 							Description: "NodeClaim represents the node claim HardNodeAffinity, NodeSelector and Tolerations required by each replica.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.NodeClaim"),
+							Ref:         ref(v1alpha2.NodeClaim{}.OpenAPIModelName()),
 						},
 					},
 					"resourceRequest": {
@@ -7708,7 +7718,7 @@ func schema_pkg_apis_work_v1alpha2_ReplicaRequirements(ref common.ReferenceCallb
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.NodeClaim", resource.Quantity{}.OpenAPIModelName()},
+			v1alpha2.NodeClaim{}.OpenAPIModelName(), resource.Quantity{}.OpenAPIModelName()},
 	}
 }
 
@@ -7743,14 +7753,14 @@ func schema_pkg_apis_work_v1alpha2_ResourceBinding(ref common.ReferenceCallback)
 						SchemaProps: spec.SchemaProps{
 							Description: "Spec represents the desired behavior.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ResourceBindingSpec"),
+							Ref:         ref(v1alpha2.ResourceBindingSpec{}.OpenAPIModelName()),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Status represents the most recently observed status of the ResourceBinding.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ResourceBindingStatus"),
+							Ref:         ref(v1alpha2.ResourceBindingStatus{}.OpenAPIModelName()),
 						},
 					},
 				},
@@ -7758,7 +7768,7 @@ func schema_pkg_apis_work_v1alpha2_ResourceBinding(ref common.ReferenceCallback)
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ResourceBindingSpec", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ResourceBindingStatus", metav1.ObjectMeta{}.OpenAPIModelName()},
+			v1alpha2.ResourceBindingSpec{}.OpenAPIModelName(), v1alpha2.ResourceBindingStatus{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -7797,7 +7807,7 @@ func schema_pkg_apis_work_v1alpha2_ResourceBindingList(ref common.ReferenceCallb
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ResourceBinding"),
+										Ref:     ref(v1alpha2.ResourceBinding{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -7808,7 +7818,7 @@ func schema_pkg_apis_work_v1alpha2_ResourceBindingList(ref common.ReferenceCallb
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ResourceBinding", metav1.ListMeta{}.OpenAPIModelName()},
+			v1alpha2.ResourceBinding{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -7823,7 +7833,7 @@ func schema_pkg_apis_work_v1alpha2_ResourceBindingSpec(ref common.ReferenceCallb
 						SchemaProps: spec.SchemaProps{
 							Description: "Resource represents the Kubernetes resource to be propagated.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ObjectReference"),
+							Ref:         ref(v1alpha2.ObjectReference{}.OpenAPIModelName()),
 						},
 					},
 					"propagateDeps": {
@@ -7836,7 +7846,7 @@ func schema_pkg_apis_work_v1alpha2_ResourceBindingSpec(ref common.ReferenceCallb
 					"replicaRequirements": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ReplicaRequirements represents the resource and scheduling requirements for each replica.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ReplicaRequirements"),
+							Ref:         ref(v1alpha2.ReplicaRequirements{}.OpenAPIModelName()),
 						},
 					},
 					"replicas": {
@@ -7854,7 +7864,7 @@ func schema_pkg_apis_work_v1alpha2_ResourceBindingSpec(ref common.ReferenceCallb
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.Component"),
+										Ref:     ref(v1alpha2.Component{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -7868,7 +7878,7 @@ func schema_pkg_apis_work_v1alpha2_ResourceBindingSpec(ref common.ReferenceCallb
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.TargetCluster"),
+										Ref:     ref(v1alpha2.TargetCluster{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -7877,7 +7887,7 @@ func schema_pkg_apis_work_v1alpha2_ResourceBindingSpec(ref common.ReferenceCallb
 					"placement": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Placement represents the rule for select clusters to propagate resources.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Placement"),
+							Ref:         ref(policyv1alpha1.Placement{}.OpenAPIModelName()),
 						},
 					},
 					"gracefulEvictionTasks": {
@@ -7888,7 +7898,7 @@ func schema_pkg_apis_work_v1alpha2_ResourceBindingSpec(ref common.ReferenceCallb
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.GracefulEvictionTask"),
+										Ref:     ref(v1alpha2.GracefulEvictionTask{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -7902,7 +7912,7 @@ func schema_pkg_apis_work_v1alpha2_ResourceBindingSpec(ref common.ReferenceCallb
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.BindingSnapshot"),
+										Ref:     ref(v1alpha2.BindingSnapshot{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -7918,7 +7928,7 @@ func schema_pkg_apis_work_v1alpha2_ResourceBindingSpec(ref common.ReferenceCallb
 					"failover": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Failover indicates how Karmada migrates applications in case of failures. It inherits directly from the associated PropagationPolicy(or ClusterPropagationPolicy).",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FailoverBehavior"),
+							Ref:         ref(policyv1alpha1.FailoverBehavior{}.OpenAPIModelName()),
 						},
 					},
 					"conflictResolution": {
@@ -7937,7 +7947,7 @@ func schema_pkg_apis_work_v1alpha2_ResourceBindingSpec(ref common.ReferenceCallb
 					"suspension": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Suspension declares the policy for suspending different aspects of propagation. nil means no suspension. no default values.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.Suspension"),
+							Ref:         ref(v1alpha2.Suspension{}.OpenAPIModelName()),
 						},
 					},
 					"preserveResourcesOnDeletion": {
@@ -7950,13 +7960,13 @@ func schema_pkg_apis_work_v1alpha2_ResourceBindingSpec(ref common.ReferenceCallb
 					"schedulePriority": {
 						SchemaProps: spec.SchemaProps{
 							Description: "SchedulePriority represents the scheduling priority assigned to workloads.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.SchedulePriority"),
+							Ref:         ref(v1alpha2.SchedulePriority{}.OpenAPIModelName()),
 						},
 					},
 					"workloadAffinityGroups": {
 						SchemaProps: spec.SchemaProps{
 							Description: "WorkloadAffinityGroups represents instantiated grouping results from .spec.placement.workloadAffinity, used to keep workloads with the same affinity group co-located or those with the same anti-affinity group separated across clusters. Populated by controllers, the scheduler consumes it for decisions. Note: Since workloads are namespace-scoped resources, workload affinity only applies to ResourceBinding. Therefore, the WorkloadAffinityGroups field in ClusterResourceBinding will not be set and will not be consumed by the scheduler.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.WorkloadAffinityGroups"),
+							Ref:         ref(v1alpha2.WorkloadAffinityGroups{}.OpenAPIModelName()),
 						},
 					},
 				},
@@ -7964,7 +7974,7 @@ func schema_pkg_apis_work_v1alpha2_ResourceBindingSpec(ref common.ReferenceCallb
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.FailoverBehavior", "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.Placement", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.BindingSnapshot", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.Component", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.GracefulEvictionTask", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ObjectReference", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ReplicaRequirements", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.SchedulePriority", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.Suspension", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.TargetCluster", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.WorkloadAffinityGroups", metav1.Time{}.OpenAPIModelName()},
+			policyv1alpha1.FailoverBehavior{}.OpenAPIModelName(), policyv1alpha1.Placement{}.OpenAPIModelName(), v1alpha2.BindingSnapshot{}.OpenAPIModelName(), v1alpha2.Component{}.OpenAPIModelName(), v1alpha2.GracefulEvictionTask{}.OpenAPIModelName(), v1alpha2.ObjectReference{}.OpenAPIModelName(), v1alpha2.ReplicaRequirements{}.OpenAPIModelName(), v1alpha2.SchedulePriority{}.OpenAPIModelName(), v1alpha2.Suspension{}.OpenAPIModelName(), v1alpha2.TargetCluster{}.OpenAPIModelName(), v1alpha2.WorkloadAffinityGroups{}.OpenAPIModelName(), metav1.Time{}.OpenAPIModelName()},
 	}
 }
 
@@ -8017,7 +8027,7 @@ func schema_pkg_apis_work_v1alpha2_ResourceBindingStatus(ref common.ReferenceCal
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.AggregatedStatusItem"),
+										Ref:     ref(v1alpha2.AggregatedStatusItem{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -8027,7 +8037,7 @@ func schema_pkg_apis_work_v1alpha2_ResourceBindingStatus(ref common.ReferenceCal
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.AggregatedStatusItem", metav1.Condition{}.OpenAPIModelName(), metav1.Time{}.OpenAPIModelName()},
+			v1alpha2.AggregatedStatusItem{}.OpenAPIModelName(), metav1.Condition{}.OpenAPIModelName(), metav1.Time{}.OpenAPIModelName()},
 	}
 }
 
@@ -8068,7 +8078,7 @@ func schema_pkg_apis_work_v1alpha2_Suspension(ref common.ReferenceCallback) comm
 					"dispatchingOnClusters": {
 						SchemaProps: spec.SchemaProps{
 							Description: "DispatchingOnClusters declares a list of clusters to which the dispatching should be suspended. Note: Can not co-exist with Dispatching which is used to suspend all.",
-							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.SuspendClusters"),
+							Ref:         ref(policyv1alpha1.SuspendClusters{}.OpenAPIModelName()),
 						},
 					},
 					"scheduling": {
@@ -8082,7 +8092,7 @@ func schema_pkg_apis_work_v1alpha2_Suspension(ref common.ReferenceCallback) comm
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.SuspendClusters"},
+			policyv1alpha1.SuspendClusters{}.OpenAPIModelName()},
 	}
 }
 

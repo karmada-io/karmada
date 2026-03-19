@@ -19,4 +19,5 @@ limitations under the License.
 // +k8s:deepcopy-gen=package,register
 // +k8s:conversion-gen=github.com/karmada-io/karmada/pkg/apis/cluster
 // +groupName=cluster.karmada.io
+// +k8s:openapi-model-package=com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1
 package v1alpha1
