@@ -28,6 +28,7 @@ import (
 	"k8s.io/klog/v2"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	"github.com/karmada-io/karmada/test/helper"
 )
@@ -113,6 +114,12 @@ var _ = ginkgo.Describe("[OverridePolicy] apply overriders testing", func() {
 
 		ginkgo.It("deployment labelsOverride testing", func() {
 			klog.Infof("check if deployment present on member clusters have correct labels value")
+			ginkgo.By("checking ApplyOverridePolicySucceed event on deployment", func() {
+				framework.WaitEventFitWith(kubeClient, deploymentNamespace, deploymentName,
+					func(event corev1.Event) bool {
+						return event.Reason == events.EventReasonApplyOverridePolicySucceed
+					})
+			})
 			framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name,
 				func(deployment *appsv1.Deployment) bool {
 					_, labelBarExist := deployment.GetLabels()["bar"]
@@ -121,6 +128,7 @@ var _ = ginkgo.Describe("[OverridePolicy] apply overriders testing", func() {
 						deployment.GetLabels()["foo"] == "exist" &&
 						deployment.GetLabels()["app"] == "nginx"
 				})
+
 		})
 	})
 	ginkgo.Context("[AnnotationsOverrider] apply annotations overrider testing", func() {
@@ -284,6 +292,13 @@ var _ = ginkgo.Describe("[OverridePolicy] apply overriders testing", func() {
 					}
 					return true
 				})
+
+			ginkgo.By("checking ApplyOverridePolicySucceed event", func() {
+				framework.WaitEventFitWith(kubeClient, deploymentNamespace, deploymentName,
+					func(event corev1.Event) bool {
+						return event.Reason == events.EventReasonApplyOverridePolicySucceed
+					})
+			})
 		})
 	})
 
@@ -427,6 +442,13 @@ var _ = ginkgo.Describe("[OverridePolicy] apply overriders testing", func() {
 				func(deployment *appsv1.Deployment) bool {
 					return deployment.Spec.Template.Spec.Containers[0].Image == "fictional.registry.us/nginx:1.19.0"
 				})
+
+			ginkgo.By("checking ApplyOverridePolicySucceed event", func() {
+				framework.WaitEventFitWith(kubeClient, deploymentNamespace, deploymentName,
+					func(event corev1.Event) bool {
+						return event.Reason == events.EventReasonApplyOverridePolicySucceed
+					})
+			})
 		})
 	})
 
@@ -708,6 +730,13 @@ var _ = framework.SerialDescribe("OverridePolicy with nil resourceSelector testi
 				func(deployment *appsv1.Deployment) bool {
 					return deployment.Spec.Template.Spec.Containers[0].Image == "fictional.registry.us/nginx:1.19.0"
 				})
+
+			ginkgo.By("checking ApplyOverridePolicySucceed event", func() {
+				framework.WaitEventFitWith(kubeClient, deploymentNamespace, deploymentName,
+					func(event corev1.Event) bool {
+						return event.Reason == events.EventReasonApplyOverridePolicySucceed
+					})
+			})
 		})
 	})
 })
@@ -798,6 +827,12 @@ var _ = ginkgo.Describe("[OverrideRules] apply overriders testing", func() {
 					}
 					return true
 				})
+			ginkgo.By("checking ApplyOverridePolicySucceed event", func() {
+				framework.WaitEventFitWith(kubeClient, deploymentNamespace, deploymentName,
+					func(event corev1.Event) bool {
+						return event.Reason == events.EventReasonApplyOverridePolicySucceed
+					})
+			})
 		})
 	})
 
@@ -881,6 +916,7 @@ var _ = ginkgo.Describe("[OverrideRules] apply overriders testing", func() {
 				return true
 			})
 		})
+
 	})
 
 	ginkgo.Context("Deployment override specific images in container list", func() {
@@ -951,6 +987,12 @@ var _ = ginkgo.Describe("[OverrideRules] apply overriders testing", func() {
 				func(deployment *appsv1.Deployment) bool {
 					return deployment.Spec.Template.Spec.Containers[0].Image == "fictional.registry.us/nginx:1.19.0"
 				})
+			ginkgo.By("checking ApplyOverridePolicySucceed event", func() {
+				framework.WaitEventFitWith(kubeClient, deploymentNamespace, deploymentName,
+					func(event corev1.Event) bool {
+						return event.Reason == events.EventReasonApplyOverridePolicySucceed
+					})
+			})
 		})
 	})
 })

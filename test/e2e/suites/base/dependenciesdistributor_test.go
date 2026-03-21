@@ -113,6 +113,12 @@ var _ = ginkgo.Describe("[DependenciesDistributor] automatically propagate relev
 							return true
 						})
 				})
+				ginkgo.By("checking GetDependenciesSucceed event on deployment", func() {
+					framework.WaitEventFitWith(kubeClient, deployment.Namespace, deployment.Name,
+						func(event corev1.Event) bool {
+							return event.Reason == events.EventReasonGetDependenciesSucceed
+						})
+				})
 
 				ginkgo.By("updating propagation policy's clusterNames", func() {
 					patch := []map[string]any{
@@ -206,6 +212,13 @@ var _ = ginkgo.Describe("[DependenciesDistributor] automatically propagate relev
 						func(*corev1.Secret) bool {
 							return true
 						})
+
+					ginkgo.By("checking GetDependenciesSucceed event on deployment", func() {
+						framework.WaitEventFitWith(kubeClient, deployment.Namespace, deployment.Name,
+							func(event corev1.Event) bool {
+								return event.Reason == events.EventReasonGetDependenciesSucceed
+							})
+					})
 				})
 
 				ginkgo.By("make the secret is not referenced by the deployment ", func() {
@@ -276,10 +289,16 @@ var _ = ginkgo.Describe("[DependenciesDistributor] automatically propagate relev
 						func(*appsv1.Deployment) bool {
 							return true
 						})
-
 					framework.WaitPVCPresentOnClustersFitWith(initClusterNames, pvc.GetNamespace(), pvc.GetName(),
 						func(*corev1.PersistentVolumeClaim) bool {
 							return true
+						})
+				})
+
+				ginkgo.By("checking GetDependenciesSucceed event on deployment", func() {
+					framework.WaitEventFitWith(kubeClient, deployment.Namespace, deployment.Name,
+						func(event corev1.Event) bool {
+							return event.Reason == events.EventReasonGetDependenciesSucceed
 						})
 				})
 
@@ -341,6 +360,12 @@ var _ = ginkgo.Describe("[DependenciesDistributor] automatically propagate relev
 					framework.WaitServiceAccountPresentOnClustersFitWith(initClusterNames, sa.GetNamespace(), sa.GetName(),
 						func(*corev1.ServiceAccount) bool {
 							return true
+						})
+				})
+				ginkgo.By("checking GetDependenciesSucceed event on deployment", func() {
+					framework.WaitEventFitWith(kubeClient, deployment.Namespace, deployment.Name,
+						func(event corev1.Event) bool {
+							return event.Reason == events.EventReasonGetDependenciesSucceed
 						})
 				})
 
@@ -680,6 +705,13 @@ var _ = ginkgo.Describe("[DependenciesDistributor] automatically propagate relev
 					framework.WaitConfigMapPresentOnClustersFitWith(initClusterNames, configMap.Namespace, configMapName,
 						func(*corev1.ConfigMap) bool {
 							return true
+						})
+				})
+
+				ginkgo.By("checking GetDependenciesSucceed event on deployment", func() {
+					framework.WaitEventFitWith(kubeClient, deployment.Namespace, deployment.Name,
+						func(event corev1.Event) bool {
+							return event.Reason == events.EventReasonGetDependenciesSucceed
 						})
 				})
 

@@ -19,11 +19,13 @@ package base
 import (
 	"github.com/onsi/ginkgo/v2"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/utils/ptr"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	testhelper "github.com/karmada-io/karmada/test/helper"
 )
@@ -87,6 +89,12 @@ var _ = ginkgo.Describe("[Preemption] propagation policy preemption testing", fu
 					framework.CreatePropagationPolicy(karmadaClient, highPriorityPolicy)
 					framework.WaitDeploymentPresentOnClusterFitWith(preemptingClusterName, deployment.Namespace, deployment.Name, func(*appsv1.Deployment) bool { return true })
 				})
+				ginkgo.By("checking PreemptPolicySucceed event on deployment", func() {
+					framework.WaitEventFitWith(kubeClient, deployment.Namespace, deployment.Name,
+						func(event corev1.Event) bool {
+							return event.Reason == events.EventReasonPreemptPolicySucceed
+						})
+				})
 
 				ginkgo.By("Delete the high-priority PropagationPolicy to let the low-priority PropagationPolicy preempt the deployment", func() {
 					framework.RemovePropagationPolicy(karmadaClient, highPriorityPolicy.Namespace, highPriorityPolicy.Name)
@@ -139,12 +147,20 @@ var _ = ginkgo.Describe("[Preemption] propagation policy preemption testing", fu
 
 			ginkgo.It("Propagate the deployment with the ClusterPropagationPolicy and then create the PropagationPolicy to preempt it", func() {
 				ginkgo.By("Wait for propagating deployment by the ClusterPropagationPolicy", func() {
+
 					framework.WaitDeploymentPresentOnClusterFitWith(preemptedClusterName, deployment.Namespace, deployment.Name, func(*appsv1.Deployment) bool { return true })
 				})
 
 				ginkgo.By("Create the PropagationPolicy to preempt the ClusterPropagationPolicy", func() {
 					framework.CreatePropagationPolicy(karmadaClient, propagationPolicy)
 					framework.WaitDeploymentPresentOnClusterFitWith(preemptingClusterName, deployment.Namespace, deployment.Name, func(*appsv1.Deployment) bool { return true })
+				})
+
+				ginkgo.By("checking PreemptPolicySucceed event on deployment", func() {
+					framework.WaitEventFitWith(kubeClient, deployment.Namespace, deployment.Name,
+						func(event corev1.Event) bool {
+							return event.Reason == events.EventReasonPreemptPolicySucceed
+						})
 				})
 
 				ginkgo.By("Delete the PropagationPolicy to let the ClusterPropagationPolicy preempt the deployment", func() {
@@ -216,6 +232,13 @@ var _ = ginkgo.Describe("[Preemption] propagation policy preemption testing", fu
 					framework.PatchPropagationPolicy(karmadaClient, highPriorityPolicy.Namespace, highPriorityPolicy.Name, patch, types.JSONPatchType)
 					framework.WaitDeploymentPresentOnClusterFitWith(preemptingClusterName, deployment.Namespace, deployment.Name, func(*appsv1.Deployment) bool { return true })
 				})
+
+				ginkgo.By("checking PreemptPolicySucceed event on deployment", func() {
+					framework.WaitEventFitWith(kubeClient, deployment.Namespace, deployment.Name,
+						func(event corev1.Event) bool {
+							return event.Reason == events.EventReasonPreemptPolicySucceed
+						})
+				})
 			})
 		})
 	})
@@ -270,6 +293,13 @@ var _ = ginkgo.Describe("[Preemption] propagation policy preemption testing", fu
 				ginkgo.By("Create the high-priority ClusterPropagationPolicy to preempt the low-priority ClusterPropagationPolicy", func() {
 					framework.CreateClusterPropagationPolicy(karmadaClient, highPriorityPolicy)
 					framework.WaitDeploymentPresentOnClusterFitWith(preemptingClusterName, deployment.Namespace, deployment.Name, func(*appsv1.Deployment) bool { return true })
+				})
+
+				ginkgo.By("checking PreemptPolicySucceed event on deployment", func() {
+					framework.WaitEventFitWith(kubeClient, deployment.Namespace, deployment.Name,
+						func(event corev1.Event) bool {
+							return event.Reason == events.EventReasonPreemptPolicySucceed
+						})
 				})
 
 				ginkgo.By("Delete the high-priority ClusterPropagationPolicy to let the low-priority ClusterPropagationPolicy preempt the deployment", func() {
@@ -340,6 +370,13 @@ var _ = ginkgo.Describe("[Preemption] propagation policy preemption testing", fu
 					}
 					framework.PatchClusterPropagationPolicy(karmadaClient, highPriorityPolicy.Name, patch, types.JSONPatchType)
 					framework.WaitDeploymentPresentOnClusterFitWith(preemptingClusterName, deployment.Namespace, deployment.Name, func(*appsv1.Deployment) bool { return true })
+				})
+
+				ginkgo.By("checking PreemptPolicySucceed event on deployment", func() {
+					framework.WaitEventFitWith(kubeClient, deployment.Namespace, deployment.Name,
+						func(event corev1.Event) bool {
+							return event.Reason == events.EventReasonPreemptPolicySucceed
+						})
 				})
 			})
 		})
