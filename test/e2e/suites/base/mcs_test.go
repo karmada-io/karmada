@@ -345,7 +345,7 @@ var _ = ginkgo.Describe("Multi-Cluster Service testing", func() {
 			})
 
 			ginkgo.By(fmt.Sprintf("Check ServiceImport(%s/%s) SyncDerivedServiceSucceed event", serviceImport.Namespace, serviceImport.Name), func() {
-				expectEventReason(kubeClient, serviceImport.Namespace, serviceImport.Name, events.EventReasonSyncDerivedServiceSucceed)
+				expectEvent(kubeClient, serviceImport.Namespace, serviceImport.Name, events.EventReasonSyncDerivedServiceSucceed, corev1.EventTypeNormal)
 			})
 
 			ginkgo.By(fmt.Sprintf("Wait EndpointSlices have been imported to %s cluster", serviceImportClusterName), func() {
@@ -445,7 +445,7 @@ var _ = ginkgo.Describe("Multi-Cluster Service testing", func() {
 			})
 
 			ginkgo.By(fmt.Sprintf("Check ServiceImport(%s/%s) SyncDerivedServiceSucceed event", serviceImport.Namespace, serviceImport.Name), func() {
-				expectEventReason(kubeClient, serviceImport.Namespace, serviceImport.Name, events.EventReasonSyncDerivedServiceSucceed)
+				expectEvent(kubeClient, serviceImport.Namespace, serviceImport.Name, events.EventReasonSyncDerivedServiceSucceed, corev1.EventTypeNormal)
 			})
 
 			klog.Infof("Update Deployment's replicas in %s cluster", serviceExportClusterName)
@@ -565,11 +565,11 @@ var _ = ginkgo.Describe("CrossCluster MultiClusterService testing", func() {
 			})
 
 			ginkgo.By(fmt.Sprintf("Check MultiClusterService(%s/%s) SyncServiceSucceed event", testNamespace, mcsName), func() {
-				expectEventReason(kubeClient, testNamespace, mcsName, events.EventReasonSyncServiceSucceed)
+				expectEvent(kubeClient, testNamespace, mcsName, events.EventReasonSyncServiceSucceed, corev1.EventTypeNormal)
 			})
 
 			ginkgo.By(fmt.Sprintf("Check MultiClusterService(%s/%s) DispatchEndpointSliceSucceed event", testNamespace, mcsName), func() {
-				expectEventReason(kubeClient, testNamespace, mcsName, events.EventReasonDispatchEndpointSliceSucceed)
+				expectEvent(kubeClient, testNamespace, mcsName, events.EventReasonDispatchEndpointSliceSucceed, corev1.EventTypeNormal)
 			})
 
 			gomega.Eventually(func() bool {
@@ -780,18 +780,30 @@ var _ = ginkgo.Describe("CrossCluster MultiClusterService testing", func() {
 			})
 
 			ginkgo.By(fmt.Sprintf("Check MultiClusterService(%s/%s) ClusterNotFound event", testNamespace, mcsName), func() {
-				framework.WaitEventFitWith(kubeClient, testNamespace, mcsName, func(event corev1.Event) bool {
-					return event.Reason == events.EventReasonClusterNotFound && event.Type == corev1.EventTypeWarning
-				})
+				expectEvent(kubeClient, testNamespace, mcsName, events.EventReasonClusterNotFound, corev1.EventTypeWarning)
 			})
 		})
 	})
 })
 
-func expectEventReason(kubeClient kubernetes.Interface, namespace, involvedObj, reason string) {
-	framework.WaitEventFitWith(kubeClient, namespace, involvedObj, func(event corev1.Event) bool {
-		return event.Reason == reason
+func expectEvent(kubeClient kubernetes.Interface, namespace, involvedObj, reason, eventType string) {
+	err := wait.PollUntilContextTimeout(context.TODO(), pollInterval, pollTimeout, true, func(ctx context.Context) (bool, error) {
+		eventList, err := kubeClient.CoreV1().Events(namespace).List(ctx, metav1.ListOptions{
+			FieldSelector: fmt.Sprintf("involvedObject.name=%s", involvedObj),
+		})
+		if err != nil {
+			return false, err
+		}
+
+		for _, event := range eventList.Items {
+			if event.Reason == reason && event.Type == eventType {
+				return true, nil
+			}
+		}
+
+		return false, nil
 	})
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 }
 
 func checkEndpointSliceWithMultiClusterService(mcsNamespace, mcsName string, providerClusters, consumerClusters []networkingv1alpha1.ClusterSelector) bool {
