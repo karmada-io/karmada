@@ -53,8 +53,9 @@ const (
 	// CertRotationControllerName is the controller name that will be used when reporting events and metrics.
 	CertRotationControllerName = "cert-rotation-controller"
 
-	// SignerName defines the signer name for csr, 'kubernetes.io/kube-apiserver-client-kubelet' can sign the csr automatically
-	SignerName = "kubernetes.io/kube-apiserver-client-kubelet"
+	// SignerName defines the signer name for csr, 'kubernetes.io/kube-apiserver-client' is used
+	// to match the signer expected by the agent CSR approver (agent_csr_approving).
+	SignerName = certificatesv1.KubeAPIServerClientSignerName
 
 	// KarmadaKubeconfigName is the name of the secret containing karmada-agent certificate.
 	KarmadaKubeconfigName = "karmada-kubeconfig"
