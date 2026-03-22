@@ -138,7 +138,7 @@ func (c *Controller) Start(ctx context.Context) {
 	go func() {
 		<-ctx.Done()
 		genericmanager.StopInstance()
-		klog.Infof("Shutting down karmada search controller")
+		klog.Info("Shutting down karmada search controller")
 	}()
 }
 
@@ -187,7 +187,7 @@ func (c *Controller) getClusterMatchedRegistries(cluster *clusterv1alpha1.Cluste
 		return
 	}
 	if len(registries) == 0 {
-		klog.Infof("No resource registries, no need to reconcile cluster")
+		klog.Info("No resource registries, no need to reconcile cluster")
 		return
 	}
 	indexedByName = make(map[string]*searchv1alpha1.ResourceRegistry, len(registries))
@@ -348,6 +348,9 @@ func (c *Controller) getRegistryBackendHandler(cluster string, matchedRegistries
 	return handler, nil
 }
 
+var controlPlaneClientBuilder = func(restConfig *rest.Config) client.Client {
+	return gclient.NewForConfigOrDie(restConfig)
+}
 var clusterDynamicClientBuilder = func(cluster string, controlPlaneClient client.Client) (*util.DynamicClusterClient, error) {
 	// TODO: Add "--cluster-api-qps" and "--cluster-api-burst" flags to karmada-search and pass them via clientOption， instead of passing a "nil" here
 	return util.NewClusterDynamicClientSet(cluster, controlPlaneClient, nil)
@@ -366,7 +369,7 @@ func (c *Controller) doCacheCluster(cluster string) error {
 		return err
 	}
 
-	// STEP1:  stop informer manager for the cluster which is not referenced by any `SearchRegistry` object.
+	// STEP1: stop informer manager for the cluster which is not referenced by any `SearchRegistry` object.
 	if cr.unregistry() {
 		klog.Infof("Try to stop cluster informer %s", cluster)
 		c.InformerManager.Stop(cluster)
@@ -390,7 +393,7 @@ func (c *Controller) doCacheCluster(cluster string) error {
 	// STEP2: added/updated cluster, builds an informer manager for a specific cluster.
 	if !c.InformerManager.IsManagerExist(cluster) {
 		klog.Info("Try to build informer manager for cluster ", cluster)
-		controlPlaneClient := gclient.NewForConfigOrDie(c.restConfig)
+		controlPlaneClient := controlPlaneClientBuilder(c.restConfig)
 
 		clusterDynamicClient, err := clusterDynamicClientBuilder(cluster, controlPlaneClient)
 		if err != nil {
