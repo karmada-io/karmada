@@ -25,8 +25,8 @@ export GOPATH=${DEFAULT_GOPATH}
 export PATH=$PATH:$GOPATH/bin
 
 GO111MODULE=on go install golang.org/x/tools/cmd/goimports
-GO111MODULE=on go install k8s.io/code-generator/cmd/go-to-protobuf
-GO111MODULE=on go install github.com/gogo/protobuf/protoc-gen-gogo
+GO111MODULE=on go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
+GO111MODULE=on go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
 GO111MODULE=on go install github.com/vektra/mockery/v3
 
 # Make dummy GOPATH for go-to-protobuf to generate the files to repo root.
@@ -54,25 +54,8 @@ if [[ -z "$(which protoc)" || $(protoc --version | sed -r "s/libprotoc ([0-9]+).
   exit 1
 fi
 
-PACKAGES=(
-  github.com/karmada-io/karmada/pkg/estimator/pb
-)
-
-APIMACHINERY_PKGS=(
-  -k8s.io/apimachinery/pkg/util/intstr
-  -k8s.io/apimachinery/pkg/api/resource
-  -k8s.io/apimachinery/pkg/runtime/schema
-  -k8s.io/apimachinery/pkg/runtime
-  -k8s.io/apimachinery/pkg/apis/meta/v1
-  -k8s.io/api/core/v1
-)
-
-go-to-protobuf \
-  --go-header-file=./hack/boilerplate/boilerplate.go.txt \
-  --apimachinery-packages=$(IFS=, ; echo "${APIMACHINERY_PKGS[*]}") \
-  --packages=$(IFS=, ; echo "${PACKAGES[*]}") \
-  --proto-import="${KARMADA_ROOT}/vendor" \
-  --proto-import="${KARMADA_ROOT}/third_party/protobuf" \
-  --output-dir="${GOPATH}/src"
+protoc --go_out=. --go_opt=paths=source_relative \
+  -I . -I "${KARMADA_ROOT}/vendor" \
+  pkg/estimator/pb/generated.proto
 
 go generate ./pkg/estimator/service

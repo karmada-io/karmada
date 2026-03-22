@@ -84,16 +84,17 @@ func (pl *nodeResourceEstimator) Estimate(ctx context.Context, snapshot *schedca
 	)
 
 	if requirements.NodeClaim != nil {
-		tolerations = requirements.NodeClaim.Tolerations
+		tolerations, _ = requirements.NodeClaim.UnmarshalTolerations()
 	}
 
+	requirementsRL, _ := requirements.UnmarshalResourceRequest()
 	var res int32
 	processNode := func(i int) {
 		node := allNodes[i]
 		if !nodeutil.IsNodeAffinityMatched(node.Node(), affinity) || !nodeutil.IsTolerationMatched(node.Node(), tolerations) {
 			return
 		}
-		maxReplica := pl.nodeMaxAvailableReplica(node, requirements.ResourceRequest)
+		maxReplica := pl.nodeMaxAvailableReplica(node, requirementsRL)
 		atomic.AddInt32(&res, maxReplica)
 	}
 	pl.parallelizer.Until(ctx, len(allNodes), processNode)
@@ -113,7 +114,7 @@ func (pl *nodeResourceEstimator) nodeMaxAvailableReplica(node *schedulerframewor
 
 // EstimateComponents estimates the maximum number of complete component sets that can be scheduled.
 // It returns the number of sets that can fit on the available node resources.
-func (pl *nodeResourceEstimator) EstimateComponents(_ context.Context, snapshot *schedcache.Snapshot, components []pb.Component, _ string) (int32, *framework.Result) {
+func (pl *nodeResourceEstimator) EstimateComponents(_ context.Context, snapshot *schedcache.Snapshot, components []*pb.Component, _ string) (int32, *framework.Result) {
 	if !pl.enabled {
 		klog.V(5).Info("Estimator Plugin", "name", Name, "enabled", pl.enabled)
 		return noNodeConstraint, framework.NewResult(framework.Noopperation, fmt.Sprintf("%s is disabled", pl.Name()))

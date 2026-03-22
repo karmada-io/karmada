@@ -47,7 +47,7 @@ func NewSchedulingSimulator(nodes []*schedulerframework.NodeInfo) *SchedulingSim
 // FF Algorithm Steps:
 // 1. For each complete set, try to schedule all components using first-fit strategy
 // 2. Continue until no more complete sets can be scheduled or upper limit is reached
-func (s *SchedulingSimulator) SimulateScheduling(components []pb.Component, upperBound int32) int32 {
+func (s *SchedulingSimulator) SimulateScheduling(components []*pb.Component, upperBound int32) int32 {
 	var completeSets int32
 	// Try to schedule complete component sets until we can no longer do so or reach the upper limit.
 	for {
@@ -62,7 +62,7 @@ func (s *SchedulingSimulator) SimulateScheduling(components []pb.Component, uppe
 }
 
 // scheduleComponentSet attempts to schedule one complete set of all components.
-func (s *SchedulingSimulator) scheduleComponentSet(components []pb.Component) bool {
+func (s *SchedulingSimulator) scheduleComponentSet(components []*pb.Component) bool {
 	for _, component := range components {
 		if !s.scheduleComponent(component) {
 			return false
@@ -72,8 +72,9 @@ func (s *SchedulingSimulator) scheduleComponentSet(components []pb.Component) bo
 	return true
 }
 
-func (s *SchedulingSimulator) scheduleComponent(component pb.Component) bool {
-	requiredPerReplica := util.NewResource(component.ReplicaRequirements.ResourceRequest)
+func (s *SchedulingSimulator) scheduleComponent(component *pb.Component) bool {
+	res, _ := component.ReplicaRequirements.UnmarshalResourceRequest()
+	requiredPerReplica := util.NewResource(res)
 	requiredPerReplica.AllowedPodNumber = 1
 	remaining := component.Replicas
 	nodeClaim := component.ReplicaRequirements.NodeClaim
@@ -113,7 +114,7 @@ func matchNode(nodeClaim *pb.NodeClaim, node *schedulerframework.NodeInfo) bool 
 	var tolerations []corev1.Toleration
 
 	if nodeClaim != nil {
-		tolerations = nodeClaim.Tolerations
+		tolerations, _ = nodeClaim.UnmarshalTolerations()
 	}
 
 	return nodeutil.IsNodeAffinityMatched(node.Node(), affinity) && nodeutil.IsTolerationMatched(node.Node(), tolerations)
