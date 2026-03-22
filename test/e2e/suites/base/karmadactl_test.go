@@ -1542,6 +1542,7 @@ func WriteYamlToFile(obj any, filePath string) error {
 var _ = framework.SerialDescribe("Karmadactl register testing", ginkgo.Ordered, ginkgo.Labels{NeedCreateCluster}, func() {
 	var (
 		newClusterName, clusterContext                 string
+		agentImage                                     string
 		homeDir, kubeConfigPath, controlPlane          string
 		karmadaAPIEndpoint, karmadaAPIEndpointExpected string
 		token, discoveryTokenCACertHash                string
@@ -1559,6 +1560,12 @@ var _ = framework.SerialDescribe("Karmadactl register testing", ginkgo.Ordered, 
 
 		ginkgo.By(fmt.Sprintf("Creating cluster: %s", newClusterName), func() {
 			err := createCluster(newClusterName, kubeConfigPath, controlPlane, clusterContext)
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		})
+
+		ginkgo.By(fmt.Sprintf("Prepare agent image for cluster %s", newClusterName), func() {
+			var err error
+			agentImage, err = framework.PrepareKarmadaAgentImageForKind(newClusterName)
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 		})
 
@@ -1619,7 +1626,7 @@ var _ = framework.SerialDescribe("Karmadactl register testing", ginkgo.Ordered, 
 			cmd := framework.NewKarmadactlCommand(
 				"", karmadaContext, karmadactlPath, "", karmadactlTimeout*5, "register", karmadaAPIEndpoint, "--token", token,
 				"--discovery-token-unsafe-skip-ca-verification="+"true", "--kubeconfig="+kubeConfigPath,
-				"--cluster-name", newClusterName, "--karmada-agent-image", "docker.io/karmada/karmada-agent:latest",
+				"--cluster-name", newClusterName, "--karmada-agent-image", agentImage,
 			)
 			output, err := cmd.ExecOrDie()
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -1639,7 +1646,7 @@ var _ = framework.SerialDescribe("Karmadactl register testing", ginkgo.Ordered, 
 				"", karmadaContext, karmadactlPath, "", karmadactlTimeout*5, "register", karmadaAPIEndpoint,
 				"--token", token, "--discovery-token-ca-cert-hash", discoveryTokenCACertHash,
 				"--kubeconfig="+kubeConfigPath, "--cluster-name", newClusterName,
-				"--karmada-agent-image", "docker.io/karmada/karmada-agent:latest",
+				"--karmada-agent-image", agentImage,
 			)
 			output, err := cmd.ExecOrDie()
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())

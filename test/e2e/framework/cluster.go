@@ -18,9 +18,11 @@ package framework
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -46,6 +48,11 @@ import (
 const (
 	// MinimumCluster represents the minimum number of member clusters to run E2E test.
 	MinimumCluster = 2
+)
+
+const (
+	defaultKarmadaAgentImage = "docker.io/karmada/karmada-agent:latest"
+	localKarmadaAgentImage   = "docker.io/karmada/karmada-agent:e2e-local"
 )
 
 var (
@@ -75,6 +82,62 @@ func ClusterNamesWithSyncMode(mode clusterv1alpha1.ClusterSyncMode) []string {
 		}
 	}
 	return res
+}
+
+// PrepareKarmadaAgentImageForKind prefers a locally built agent image for
+// register e2e. When the default local image exists, it is retagged to a
+// non-latest reference and loaded into kind so the registered cluster can use
+// it without hitting the default PullAlways behavior of :latest.
+func PrepareKarmadaAgentImageForKind(clusterName string) (string, error) {
+	found, err := retagDockerImageIfPresent(defaultKarmadaAgentImage, localKarmadaAgentImage)
+	if err != nil {
+		return "", err
+	}
+	if !found {
+		return defaultKarmadaAgentImage, nil
+	}
+
+	if err := loadDockerImageToKindCluster(localKarmadaAgentImage, clusterName); err != nil {
+		return "", err
+	}
+
+	return localKarmadaAgentImage, nil
+}
+
+func loadDockerImageToKindCluster(imageRef, clusterName string) error {
+	loadCmd := exec.Command("kind", "load", "docker-image", imageRef, "--name", clusterName) //nolint:gosec
+	output, err := loadCmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to load docker image %q into kind cluster %q: %w: %s", imageRef, clusterName, err, strings.TrimSpace(string(output)))
+	}
+
+	return nil
+}
+
+func retagDockerImageIfPresent(sourceRef, targetRef string) (bool, error) {
+	tagCmd := exec.Command("docker", "tag", sourceRef, targetRef) //nolint:gosec
+	output, err := tagCmd.CombinedOutput()
+	if err == nil {
+		return true, nil
+	}
+
+	if isDockerImageMissing(err, output) {
+		return false, nil
+	}
+
+	return false, fmt.Errorf("failed to tag local docker image %q as %q: %w: %s", sourceRef, targetRef, err, strings.TrimSpace(string(output)))
+}
+
+func isDockerImageMissing(err error, output []byte) bool {
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		msg := strings.TrimSpace(string(output))
+		if strings.Contains(msg, "No such image") || strings.Contains(msg, "No such object") {
+			return true
+		}
+	}
+
+	return false
 }
 
 // InitClusterInformation init the E2E test's cluster information.

@@ -31,6 +31,8 @@ import (
 	"k8s.io/client-go/rest"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
+	fakekarmadaclient "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/fake"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
@@ -201,10 +203,10 @@ func TestObtainCredentialsFromMemberCluster(t *testing.T) {
 }
 
 func TestRegisterClusterInControllerPlane(t *testing.T) {
-	fakeClient := fake.NewClientset()
 	type args struct {
 		opts                             ClusterRegisterOption
 		controlPlaneKubeClient           kubernetes.Interface
+		controlPlaneClusterClient        karmadaclientset.Interface
 		generateClusterInControllerPlane generateClusterInControllerPlaneFunc
 	}
 	tests := []struct {
@@ -216,18 +218,19 @@ func TestRegisterClusterInControllerPlane(t *testing.T) {
 			name: "report secret not enabled",
 			args: args{
 				opts: ClusterRegisterOption{
-					ClusterNamespace:   "karmada-cluster",
-					ClusterName:        "member1",
-					ReportSecrets:      []string{"KubeImpersonator"},
-					DryRun:             false,
-					ControlPlaneConfig: &rest.Config{},
-					ClusterConfig:      &rest.Config{},
+					ClusterNamespace: "karmada-cluster",
+					ClusterName:      "member1",
+					ClusterID:        "cluster-id",
+					ReportSecrets:    []string{KubeImpersonator},
+					DryRun:           false,
+					ClusterConfig:    &rest.Config{},
 					ImpersonatorSecret: corev1.Secret{
 						ObjectMeta: metav1.ObjectMeta{Namespace: "karmada-cluster", Name: names.GenerateImpersonationSecretName("member1")},
 						Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("impersonator-secret-token-value")},
 					},
 				},
-				controlPlaneKubeClient: fakeClient,
+				controlPlaneKubeClient:    fake.NewClientset(),
+				controlPlaneClusterClient: fakekarmadaclient.NewClientset(),
 				generateClusterInControllerPlane: func(opts ClusterRegisterOption) (*clusterv1alpha1.Cluster, error) {
 					clusterObj := &clusterv1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: opts.ClusterName}}
 					clusterObj.Spec.SyncMode = clusterv1alpha1.Pull
@@ -245,12 +248,12 @@ func TestRegisterClusterInControllerPlane(t *testing.T) {
 			name: "enable report secret",
 			args: args{
 				opts: ClusterRegisterOption{
-					ClusterNamespace:   "karmada-cluster",
-					ClusterName:        "member1",
-					ReportSecrets:      []string{"KubeImpersonator", "KubeCredentials"},
-					DryRun:             false,
-					ControlPlaneConfig: &rest.Config{},
-					ClusterConfig:      &rest.Config{},
+					ClusterNamespace: "karmada-cluster",
+					ClusterName:      "member1",
+					ClusterID:        "cluster-id",
+					ReportSecrets:    []string{KubeImpersonator, KubeCredentials},
+					DryRun:           false,
+					ClusterConfig:    &rest.Config{},
 					Secret: corev1.Secret{
 						ObjectMeta: metav1.ObjectMeta{Namespace: "karmada-cluster", Name: "member1"},
 						Data:       map[string][]byte{"ca.crt": []byte("ca.crt-values"), clusterv1alpha1.SecretTokenKey: []byte(`secret-token-value`)},
@@ -260,7 +263,8 @@ func TestRegisterClusterInControllerPlane(t *testing.T) {
 						Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte(`impersonator-secret-token-value`)},
 					},
 				},
-				controlPlaneKubeClient: fakeClient,
+				controlPlaneKubeClient:    fake.NewClientset(),
+				controlPlaneClusterClient: fakekarmadaclient.NewClientset(),
 				generateClusterInControllerPlane: func(opts ClusterRegisterOption) (*clusterv1alpha1.Cluster, error) {
 					clusterObj := &clusterv1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: opts.ClusterName}}
 					clusterObj.Spec.SyncMode = clusterv1alpha1.Push
@@ -278,10 +282,63 @@ func TestRegisterClusterInControllerPlane(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "pull cluster already exists for same agent",
+			args: args{
+				opts: ClusterRegisterOption{
+					ClusterNamespace: "karmada-cluster",
+					ClusterName:      "member1",
+					ClusterID:        "cluster-id",
+					DryRun:           false,
+					ClusterConfig:    &rest.Config{},
+				},
+				controlPlaneKubeClient: fake.NewClientset(),
+				controlPlaneClusterClient: fakekarmadaclient.NewClientset(&clusterv1alpha1.Cluster{
+					ObjectMeta: metav1.ObjectMeta{Name: "member1"},
+					Spec: clusterv1alpha1.ClusterSpec{
+						ID:       "cluster-id",
+						SyncMode: clusterv1alpha1.Pull,
+					},
+				}),
+				generateClusterInControllerPlane: func(opts ClusterRegisterOption) (*clusterv1alpha1.Cluster, error) {
+					clusterObj := &clusterv1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: opts.ClusterName}}
+					clusterObj.Spec.ID = opts.ClusterID
+					clusterObj.Spec.SyncMode = clusterv1alpha1.Pull
+					return clusterObj, nil
+				},
+			},
+		},
+		{
+			name: "pull cluster already exists with different id",
+			args: args{
+				opts: ClusterRegisterOption{
+					ClusterNamespace: "karmada-cluster",
+					ClusterName:      "member1",
+					ClusterID:        "cluster-id",
+					DryRun:           false,
+					ClusterConfig:    &rest.Config{},
+				},
+				controlPlaneKubeClient: fake.NewClientset(),
+				controlPlaneClusterClient: fakekarmadaclient.NewClientset(&clusterv1alpha1.Cluster{
+					ObjectMeta: metav1.ObjectMeta{Name: "member1"},
+					Spec: clusterv1alpha1.ClusterSpec{
+						ID:       "other-id",
+						SyncMode: clusterv1alpha1.Pull,
+					},
+				}),
+				generateClusterInControllerPlane: func(opts ClusterRegisterOption) (*clusterv1alpha1.Cluster, error) {
+					clusterObj := &clusterv1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: opts.ClusterName}}
+					clusterObj.Spec.ID = opts.ClusterID
+					clusterObj.Spec.SyncMode = clusterv1alpha1.Pull
+					return clusterObj, nil
+				},
+			},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := RegisterClusterInControllerPlane(tt.args.opts, tt.args.controlPlaneKubeClient, tt.args.generateClusterInControllerPlane); (err != nil) != tt.wantErr {
+			if err := RegisterClusterInControllerPlane(tt.args.opts, tt.args.controlPlaneKubeClient, tt.args.controlPlaneClusterClient, tt.args.generateClusterInControllerPlane); (err != nil) != tt.wantErr {
 				t.Errorf("RegisterClusterInControllerPlane() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

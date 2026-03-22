@@ -174,7 +174,6 @@ func run(ctx context.Context, opts *options.Options) error {
 		ClusterRegion:      opts.ClusterRegion,
 		ClusterZones:       opts.ClusterZones,
 		DryRun:             false,
-		ControlPlaneConfig: controlPlaneRestConfig,
 		ClusterConfig:      clusterConfig,
 	}
 
@@ -197,7 +196,7 @@ func run(ctx context.Context, opts *options.Options) error {
 	if impersonatorSecret != nil {
 		registerOption.ImpersonatorSecret = *impersonatorSecret
 	}
-	err = util.RegisterClusterInControllerPlane(registerOption, controlPlaneKubeClient, generateClusterInControllerPlane)
+	err = util.RegisterClusterInControllerPlane(registerOption, controlPlaneKubeClient, karmadaClient, generateClusterInControllerPlane)
 	if err != nil {
 		return fmt.Errorf("failed to register with karmada control plane: %w", err)
 	}
@@ -447,53 +446,52 @@ func startCertRotationController(ctx controllerscontext.Context) (bool, error) {
 }
 
 func generateClusterInControllerPlane(opts util.ClusterRegisterOption) (*clusterv1alpha1.Cluster, error) {
-	clusterObj := &clusterv1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: opts.ClusterName}}
-	mutateFunc := func(cluster *clusterv1alpha1.Cluster) {
-		cluster.Spec.SyncMode = clusterv1alpha1.Pull
-		cluster.Spec.APIEndpoint = opts.ClusterAPIEndpoint
-		cluster.Spec.ProxyURL = opts.ProxyServerAddress
-		cluster.Spec.ID = opts.ClusterID
-		if opts.ClusterProvider != "" {
-			cluster.Spec.Provider = opts.ClusterProvider
-		}
-
-		if len(opts.ClusterZones) > 0 {
-			cluster.Spec.Zones = opts.ClusterZones
-		}
-
-		if opts.ClusterRegion != "" {
-			cluster.Spec.Region = opts.ClusterRegion
-		}
-
-		cluster.Spec.InsecureSkipTLSVerification = opts.ClusterConfig.TLSClientConfig.Insecure
-
-		if opts.ClusterConfig.Proxy != nil {
-			url, err := opts.ClusterConfig.Proxy(nil)
-			if err != nil {
-				klog.Errorf("clusterConfig.Proxy error, %v", err)
-			} else {
-				cluster.Spec.ProxyURL = url.String()
-			}
-		}
-		if opts.IsKubeCredentialsEnabled() {
-			cluster.Spec.SecretRef = &clusterv1alpha1.LocalSecretReference{
-				Namespace: opts.Secret.Namespace,
-				Name:      opts.Secret.Name,
-			}
-		}
-		if opts.IsKubeImpersonatorEnabled() {
-			cluster.Spec.ImpersonatorSecretRef = &clusterv1alpha1.LocalSecretReference{
-				Namespace: opts.ImpersonatorSecret.Namespace,
-				Name:      opts.ImpersonatorSecret.Name,
-			}
-		}
+	clusterObj := &clusterv1alpha1.Cluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: opts.ClusterName,
+			Annotations: map[string]string{
+				util.ClusterNamespaceAnnotation: opts.ClusterNamespace,
+			},
+		},
 	}
-	controlPlaneKarmadaClient := karmadaclientset.NewForConfigOrDie(opts.ControlPlaneConfig)
-	cluster, err := util.CreateOrUpdateClusterObject(controlPlaneKarmadaClient, clusterObj, mutateFunc)
-	if err != nil {
-		klog.Errorf("Failed to create cluster(%s) object, error: %v", clusterObj.Name, err)
-		return nil, err
+	clusterObj.Spec.SyncMode = clusterv1alpha1.Pull
+	clusterObj.Spec.APIEndpoint = opts.ClusterAPIEndpoint
+	clusterObj.Spec.ProxyURL = opts.ProxyServerAddress
+	clusterObj.Spec.ID = opts.ClusterID
+	if opts.ClusterProvider != "" {
+		clusterObj.Spec.Provider = opts.ClusterProvider
 	}
 
-	return cluster, nil
+	if len(opts.ClusterZones) > 0 {
+		clusterObj.Spec.Zones = opts.ClusterZones
+	}
+
+	if opts.ClusterRegion != "" {
+		clusterObj.Spec.Region = opts.ClusterRegion
+	}
+
+	clusterObj.Spec.InsecureSkipTLSVerification = opts.ClusterConfig.TLSClientConfig.Insecure
+
+	if opts.ClusterConfig.Proxy != nil {
+		url, err := opts.ClusterConfig.Proxy(nil)
+		if err != nil {
+			klog.Errorf("clusterConfig.Proxy error, %v", err)
+		} else {
+			clusterObj.Spec.ProxyURL = url.String()
+		}
+	}
+	if opts.IsKubeCredentialsEnabled() {
+		clusterObj.Spec.SecretRef = &clusterv1alpha1.LocalSecretReference{
+			Namespace: opts.ClusterNamespace,
+			Name:      opts.ClusterName,
+		}
+	}
+	if opts.IsKubeImpersonatorEnabled() {
+		clusterObj.Spec.ImpersonatorSecretRef = &clusterv1alpha1.LocalSecretReference{
+			Namespace: opts.ClusterNamespace,
+			Name:      names.GenerateImpersonationSecretName(opts.ClusterName),
+		}
+	}
+
+	return clusterObj, nil
 }
