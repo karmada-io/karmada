@@ -55,6 +55,7 @@ spec:
             - --service-account-private-key-file=/etc/karmada/pki/service-account-key-pair/sa.key
             - --service-cluster-ip-range=10.96.0.0/12
             - --use-service-account-credentials=true
+            - --logging-format=json
             - --v=4
           image: registry.k8s.io/kube-controller-manager:{{karmada_apiserver_version}}
           imagePullPolicy: IfNotPresent
