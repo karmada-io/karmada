@@ -77,13 +77,8 @@ func TestUpdateEndpointSliceDispatched(t *testing.T) {
 
 			// Expectations Setup
 			mockClient.On("Status").Return(mockStatusWriter)
-			mockClient.On("Get", mock.Anything, mock.AnythingOfType("types.NamespacedName"), mock.AnythingOfType("*v1alpha1.MultiClusterService"), mock.Anything).
-				Run(func(args mock.Arguments) {
-					arg := args.Get(2).(*networkingv1alpha1.MultiClusterService)
-					*arg = *tt.mcs // Copy the input MCS to the output
-				}).Return(nil)
 
-			mockStatusWriter.On("Update", mock.Anything, mock.AnythingOfType("*v1alpha1.MultiClusterService"), mock.Anything).
+			mockStatusWriter.On("Patch", mock.Anything, mock.AnythingOfType("*v1alpha1.MultiClusterService"), mock.Anything, mock.Anything).
 				Run(func(args mock.Arguments) {
 					mcs := args.Get(1).(*networkingv1alpha1.MultiClusterService)
 					mcs.Status.Conditions = []metav1.Condition{tt.expectedCondition}
