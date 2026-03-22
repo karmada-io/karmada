@@ -256,7 +256,11 @@ func compGetResourceList(restClientGetter genericclioptions.RESTClientGetter, cm
 	o.PrintFlags.OutputFormat = ptr.To("name")
 	o.Cached = true
 	o.Verbs = []string{"get"}
-	// TODO: Should set --request-timeout=5s
+	if configFlags, ok := restClientGetter.(*genericclioptions.ConfigFlags); ok {
+		if configFlags.Timeout == nil || len(*configFlags.Timeout) == 0 {
+			configFlags.Timeout = ptr.To("5s")
+		}
+	}
 
 	if err := o.Complete(restClientGetter, cmd, nil); err != nil {
 		return nil
