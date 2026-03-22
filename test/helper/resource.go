@@ -679,6 +679,17 @@ func MakeNodeWithTaints(node string, milliCPU, memory, pods, ephemeralStorage in
 func NewCluster(name string) *clusterv1alpha1.Cluster {
 	return &clusterv1alpha1.Cluster{
 		ObjectMeta: metav1.ObjectMeta{Name: name},
+		Status: clusterv1alpha1.ClusterStatus{
+			Conditions: []metav1.Condition{
+				{
+					Type:               clusterv1alpha1.ClusterConditionReady,
+					Status:             metav1.ConditionTrue,
+					Reason:             "ClusterReady",
+					Message:            "cluster is healthy and ready to accept workloads",
+					LastTransitionTime: metav1.Now(),
+				},
+			},
+		},
 	}
 }
 
@@ -691,6 +702,38 @@ func NewClusterWithResource(name string, allocatable, allocating, allocated core
 				Allocatable: allocatable,
 				Allocating:  allocating,
 				Allocated:   allocated,
+			},
+			Conditions: []metav1.Condition{
+				{
+					Type:               clusterv1alpha1.ClusterConditionReady,
+					Status:             metav1.ConditionTrue,
+					Reason:             "ClusterReady",
+					Message:            "cluster is healthy and ready to accept workloads",
+					LastTransitionTime: metav1.Now(),
+				},
+			},
+		},
+	}
+}
+
+// NewClusterWithUnhealthyStatus will build a Cluster with resource.
+func NewClusterWithUnhealthyStatus(name string, allocatable, allocating, allocated corev1.ResourceList) *clusterv1alpha1.Cluster {
+	return &clusterv1alpha1.Cluster{
+		ObjectMeta: metav1.ObjectMeta{Name: name},
+		Status: clusterv1alpha1.ClusterStatus{
+			ResourceSummary: &clusterv1alpha1.ResourceSummary{
+				Allocatable: allocatable,
+				Allocating:  allocating,
+				Allocated:   allocated,
+			},
+			Conditions: []metav1.Condition{
+				{
+					Type:               clusterv1alpha1.ClusterConditionReady,
+					Status:             metav1.ConditionFalse,
+					Reason:             "ClusterNotReachable",
+					Message:            "cluster is not reachable",
+					LastTransitionTime: metav1.Now(),
+				},
 			},
 		},
 	}
