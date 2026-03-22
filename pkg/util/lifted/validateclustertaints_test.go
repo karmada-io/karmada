@@ -22,6 +22,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 )
 
 func TestValidateClusterTaintEffect(t *testing.T) {
@@ -49,7 +51,7 @@ func TestValidateClusterTaintEffect(t *testing.T) {
 			effect:     corev1.TaintEffect("InvalidEffect"),
 			allowEmpty: false,
 			wantErrors: 1,
-			errorMsg:   "test: Unsupported value: \"InvalidEffect\": supported values: \"NoSchedule\", \"NoExecute\"",
+			errorMsg:   "test: Unsupported value: \"InvalidEffect\": supported values: \"NoSchedule\", \"NoExecute\", \"SelectiveNoExecute\"",
 		},
 		{
 			name:       "empty effect not allowed",
@@ -63,7 +65,7 @@ func TestValidateClusterTaintEffect(t *testing.T) {
 			effect:     corev1.TaintEffect(""),
 			allowEmpty: true,
 			wantErrors: 1,
-			errorMsg:   "test: Unsupported value: \"\": supported values: \"NoSchedule\", \"NoExecute\"",
+			errorMsg:   "test: Unsupported value: \"\": supported values: \"NoSchedule\", \"NoExecute\", \"SelectiveNoExecute\"",
 		},
 	}
 
@@ -81,6 +83,7 @@ func TestValidateClusterTaintEffect(t *testing.T) {
 		})
 	}
 }
+
 func TestValidateClusterTaints(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -92,6 +95,7 @@ func TestValidateClusterTaints(t *testing.T) {
 			taints: []corev1.Taint{
 				{Key: "key1", Value: "value1", Effect: corev1.TaintEffectNoSchedule},
 				{Key: "key2", Value: "value2", Effect: corev1.TaintEffectNoExecute},
+				{Key: "key3", Effect: policyv1alpha1.TaintEffectSelectiveNoExecute},
 			},
 			wantErrors: 0,
 		},
