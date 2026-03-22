@@ -53,7 +53,16 @@ fi
 MEMBER_CLUSTER_NAME=$2
 
 # get deploy yaml
-wget https://github.com/kubernetes-sigs/metrics-server/releases/download/v0.6.3/components.yaml -O "${_tmp}/components.yaml"
+METRICS_SERVER_URL="https://github.com/kubernetes-sigs/metrics-server/releases/download/v0.6.3/components.yaml"
+# Prefer curl (available on macOS + Linux); fall back to wget on failure; fail with a clear error if both fail
+if command -v curl &>/dev/null && curl -fsSL "${METRICS_SERVER_URL}" -o "${_tmp}/components.yaml"; then
+  :
+elif command -v wget &>/dev/null && wget -qO "${_tmp}/components.yaml" "${METRICS_SERVER_URL}"; then
+  :
+else
+  echo "ERROR: failed to download metrics-server components.yaml. Please ensure curl or wget is installed and network access is available."
+  exit 1
+fi
 sed -i'' -e 's/args:/args:\n        - --kubelet-insecure-tls=true/' "${_tmp}/components.yaml"
 
 # deploy metrics-server in member cluster
