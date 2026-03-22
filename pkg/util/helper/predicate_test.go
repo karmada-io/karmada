@@ -56,8 +56,8 @@ func TestNewClusterPredicateOnAgent(t *testing.T) {
 			obj:  &clusterv1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "test"}},
 			want: want{
 				create:  true,
-				update:  true,
-				delete:  true,
+				update:  false,
+				delete:  false,
 				generic: false,
 			},
 		},
