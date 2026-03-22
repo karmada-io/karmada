@@ -144,9 +144,10 @@ func TestMatchNode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := matchNode(tt.replicaRequirements.NodeClaim, tt.node)
+			affinity, tolerations := GetAffinityAndTolerations(tt.replicaRequirements.NodeClaim)
+			result := MatchNode(tt.node, affinity, tolerations)
 			if result != tt.expected {
-				t.Errorf("matchNode() = %v, expected %v", result, tt.expected)
+				t.Errorf("MatchNode() = %v, expected %v", result, tt.expected)
 			}
 		})
 	}

@@ -18,6 +18,7 @@ package estimator
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/component-helpers/scheduling/corev1/nodeaffinity"
 
 	"github.com/karmada-io/karmada/pkg/estimator/pb"
 	nodeutil "github.com/karmada-io/karmada/pkg/estimator/server/nodes"
@@ -76,10 +77,10 @@ func (s *SchedulingSimulator) scheduleComponent(component pb.Component) bool {
 	requiredPerReplica := util.NewResource(component.ReplicaRequirements.ResourceRequest)
 	requiredPerReplica.AllowedPodNumber = 1
 	remaining := component.Replicas
-	nodeClaim := component.ReplicaRequirements.NodeClaim
+	affinity, tolerations := GetAffinityAndTolerations(component.ReplicaRequirements.NodeClaim)
 
 	for _, node := range s.nodes {
-		if !matchNode(nodeClaim, node) {
+		if !MatchNode(node, affinity, tolerations) {
 			continue
 		}
 
@@ -102,18 +103,21 @@ func (s *SchedulingSimulator) scheduleComponent(component pb.Component) bool {
 	return remaining == 0
 }
 
-// matchNode checks whether the node matches the scheduling constraints defined in the replica requirements.
-func matchNode(nodeClaim *pb.NodeClaim, node *schedulerframework.NodeInfo) bool {
+// GetAffinityAndTolerations extracts node affinity and tolerations from a NodeClaim.
+func GetAffinityAndTolerations(nodeClaim *pb.NodeClaim) (nodeaffinity.RequiredNodeAffinity, []corev1.Toleration) {
+	affinity := nodeutil.GetRequiredNodeAffinity(pb.ReplicaRequirements{NodeClaim: nodeClaim})
+	var tolerations []corev1.Toleration
+	if nodeClaim != nil {
+		tolerations = nodeClaim.Tolerations
+	}
+	return affinity, tolerations
+}
+
+// MatchNode checks whether the node matches the node affinity and tolerations specified in the component's replica requirements.
+func MatchNode(node *schedulerframework.NodeInfo, affinity nodeaffinity.RequiredNodeAffinity, tolerations []corev1.Toleration) bool {
 	if node.Node() == nil {
 		// Always match since we lack node affinity/toleration info, so we skip these checks.
 		return true
-	}
-
-	affinity := nodeutil.GetRequiredNodeAffinity(pb.ReplicaRequirements{NodeClaim: nodeClaim})
-	var tolerations []corev1.Toleration
-
-	if nodeClaim != nil {
-		tolerations = nodeClaim.Tolerations
 	}
 
 	return nodeutil.IsNodeAffinityMatched(node.Node(), affinity) && nodeutil.IsTolerationMatched(node.Node(), tolerations)
