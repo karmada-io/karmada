@@ -19,6 +19,7 @@ package dependenciesdistributor
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
@@ -130,13 +131,18 @@ func (d *DependenciesDistributor) OnAdd(obj any, isInInitialList bool) {
 }
 
 // OnUpdate handles object update event and push the object to queue.
+// Note: We don't check DeletionTimestamp in the update handler because:
+// 1. For independent bindings, when they are deleted, the independent binding's
+//    deletion event will trigger cleanup of attached bindings via handleIndependentBindingDeletion.
+// 2. For attached resource templates (e.g., ConfigMap, Secret), when they are deleted,
+//    their corresponding ResourceBindings will also be deleted by the garbage collector,
+//    so there's no need to handle cleanup here.
 func (d *DependenciesDistributor) OnUpdate(oldObj, newObj any) {
 	unstructuredOldObj, err := helper.ToUnstructured(oldObj)
 	if err != nil {
 		klog.Errorf("Failed to transform oldObj, error: %v", err)
 		return
 	}
-
 	unstructuredNewObj, err := helper.ToUnstructured(newObj)
 	if err != nil {
 		klog.Errorf("Failed to transform newObj, error: %v", err)
@@ -144,7 +150,8 @@ func (d *DependenciesDistributor) OnUpdate(oldObj, newObj any) {
 	}
 
 	if !eventfilter.SpecificationChanged(unstructuredOldObj, unstructuredNewObj) {
-		klog.V(4).Infof("Ignore update event of object (%s, kind=%s, %s) as specification no change", unstructuredOldObj.GetAPIVersion(), unstructuredOldObj.GetKind(), names.NamespacedKey(unstructuredOldObj.GetNamespace(), unstructuredOldObj.GetName()))
+		klog.V(4).Infof("Ignore update event of object(%s, kind=%s, %s) as specification no change",
+			unstructuredOldObj.GetAPIVersion(), unstructuredOldObj.GetKind(), names.NamespacedKey(unstructuredOldObj.GetNamespace(), unstructuredOldObj.GetName()))
 		return
 	}
 	if !equality.Semantic.DeepEqual(unstructuredOldObj.GetLabels(), unstructuredNewObj.GetLabels()) {
@@ -365,6 +372,12 @@ func (d *DependenciesDistributor) handleDependentResource(
 			}
 			return err
 		}
+
+		// do nothing if resource template is being deleted.
+		if !rawObject.GetDeletionTimestamp().IsZero() {
+			return nil
+		}
+
 		attachedBinding := buildAttachedBinding(independentBinding, rawObject)
 		return d.createOrUpdateAttachedBinding(ctx, attachedBinding)
 	case dependent.LabelSelector != nil:
@@ -378,6 +391,11 @@ func (d *DependenciesDistributor) handleDependentResource(
 			return err
 		}
 		for _, rawObject := range rawObjects {
+			// do nothing if resource template is being deleted.
+			if !rawObject.GetDeletionTimestamp().IsZero() {
+				continue
+			}
+
 			attachedBinding := buildAttachedBinding(independentBinding, rawObject)
 			if err := d.createOrUpdateAttachedBinding(ctx, attachedBinding); err != nil {
 				return err
@@ -386,7 +404,7 @@ func (d *DependenciesDistributor) handleDependentResource(
 		return nil
 	}
 	// can not reach here
-	return fmt.Errorf("the Name and LabelSelector in the DependentObjectReference cannot be empty at the same time")
+	return errors.New("the Name and LabelSelector in the DependentObjectReference cannot be empty at the same time")
 }
 
 func (d *DependenciesDistributor) syncScheduleResultToAttachedBindings(ctx context.Context, independentBinding *workv1alpha2.ResourceBinding, dependencies []configv1alpha1.DependentObjectReference) (err error) {
@@ -516,6 +534,7 @@ func (d *DependenciesDistributor) isOrphanAttachedBindings(
 			if selector, err = metav1.LabelSelectorAsSelector(dependency.LabelSelector); err != nil {
 				return false, err
 			}
+
 			rawObject, err := helper.FetchResourceTemplate(ctx, d.DynamicClient, d.InformerManager, d.RESTMapper, workv1alpha2.ObjectReference{
 				APIVersion: resource.APIVersion,
 				Kind:       resource.Kind,
@@ -529,6 +548,7 @@ func (d *DependenciesDistributor) isOrphanAttachedBindings(
 				}
 				return false, err
 			}
+
 			if selector.Matches(labels.Set(rawObject.GetLabels())) {
 				return false, nil
 			}
@@ -682,7 +702,9 @@ func (d *DependenciesDistributor) Start(ctx context.Context) error {
 		RateLimiterOptions: d.RateLimiterOptions,
 		UsePriorityQueue:   features.FeatureGate.Enabled(features.ControllerPriorityQueue),
 	}
-	d.eventHandler = fedinformer.NewHandlerOnEvents(d.OnAdd, d.OnUpdate, d.OnDelete)
+	// For attached resource templates, its ResourceBinding will be deleted when it's deleted, any update on its ResourceBinding makes no sense.
+	// So we don't pay attention to deleted attached resource templates.
+	d.eventHandler = fedinformer.NewHandlerOnEvents(d.OnAdd, d.OnUpdate, nil)
 	d.resourceProcessor = util.NewAsyncWorker(resourceWorkerOptions)
 	d.resourceProcessor.Run(ctx, d.ConcurrentDependentResourceSyncs)
 	<-ctx.Done()
