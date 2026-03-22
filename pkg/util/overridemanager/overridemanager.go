@@ -255,9 +255,108 @@ func (o *overrideManagerImpl) getOverridersFromOverridePolicies(policies []Gener
 	}
 
 	// select policy in which at least one PlaintextOverrider matches target resource.
-	// TODO(RainbowMango): check if the overrider instructions can be applied to target resource.
+	// Filter out policies where overrider instructions cannot be applied to target resource.
+	filteredClusterMatchingPolicyOverriders := make([]policyOverriders, 0)
+	for _, policy := range clusterMatchingPolicyOverriders {
+		if canApplyOverridersToResource(policy.overriders, resource) {
+			filteredClusterMatchingPolicyOverriders = append(filteredClusterMatchingPolicyOverriders, policy)
+		} else {
+			klog.V(4).Infof("Skipping policy %s/%s as overriders cannot be applied to resource %s/%s of kind %s", 
+				policy.namespace, policy.name, resource.GetNamespace(), resource.GetName(), resource.GetKind())
+		}
+	}
 
-	return clusterMatchingPolicyOverriders
+	return filteredClusterMatchingPolicyOverriders
+}
+
+// canApplyOverridersToResource checks if the given overriders can be applied to the target resource.
+// This validation helps prevent applying overriders to resources that don't support them.
+func canApplyOverridersToResource(overriders policyv1alpha1.Overriders, resource *unstructured.Unstructured) bool {
+	// Check if resource has the required structure for different overrider types
+	resourceKind := resource.GetKind()
+	resourceAPIVersion := resource.GetAPIVersion()
+
+	// Check ImageOverrider applicability
+	if len(overriders.ImageOverrider) > 0 {
+		if !isImageOverriderApplicable(resourceKind, resourceAPIVersion) {
+			return false
+		}
+	}
+
+	// Check CommandOverrider and ArgsOverrider applicability
+	if len(overriders.CommandOverrider) > 0 || len(overriders.ArgsOverrider) > 0 {
+		if !isCommandArgsOverriderApplicable(resourceKind, resourceAPIVersion) {
+			return false
+		}
+	}
+
+	// Check LabelsOverrider and AnnotationsOverrider applicability
+	// These are generally applicable to all resources as they modify metadata
+	if len(overriders.LabelsOverrider) > 0 || len(overriders.AnnotationsOverrider) > 0 {
+		if !isLabelAnnotationOverriderApplicable(resource) {
+			return false
+		}
+	}
+
+	// Check FieldOverrider applicability
+	if len(overriders.FieldOverrider) > 0 {
+		if !isFieldOverriderApplicable(resource) {
+			return false
+		}
+	}
+
+	// PlaintextOverrider is generally applicable to all resources
+	// as it uses JSON patch operations that can target any field
+
+	return true
+}
+
+// isImageOverriderApplicable checks if the resource kind supports image overrides
+func isImageOverriderApplicable(kind, apiVersion string) bool {
+	// Image overriders are applicable to resources that contain containers
+	imageOverriderSupportedKinds := map[string]bool{
+		"Pod":         true,
+		"ReplicaSet":  true,
+		"Deployment":  true,
+		"StatefulSet": true,
+		"DaemonSet":   true,
+		"Job":         true,
+		"CronJob":     true,
+	}
+
+	return imageOverriderSupportedKinds[kind]
+}
+
+// isCommandArgsOverriderApplicable checks if the resource kind supports command/args overrides
+func isCommandArgsOverriderApplicable(kind, apiVersion string) bool {
+	// Command/args overriders are applicable to resources that contain containers
+	commandArgsOverriderSupportedKinds := map[string]bool{
+		"Pod":         true,
+		"ReplicaSet":  true,
+		"Deployment":  true,
+		"StatefulSet": true,
+		"DaemonSet":   true,
+		"Job":         true,
+		"CronJob":     true,
+	}
+
+	return commandArgsOverriderSupportedKinds[kind]
+}
+
+// isLabelAnnotationOverriderApplicable checks if the resource supports label/annotation overrides
+func isLabelAnnotationOverriderApplicable(resource *unstructured.Unstructured) bool {
+	// All Kubernetes resources have metadata, so label/annotation overriders are generally applicable
+	// However, we should check if the resource has the required metadata structure
+	metadata, exists, _ := unstructured.NestedMap(resource.Object, "metadata")
+	return exists && metadata != nil
+}
+
+// isFieldOverriderApplicable checks if the resource supports field overrides
+func isFieldOverriderApplicable(resource *unstructured.Unstructured) bool {
+	// Field overriders are generally applicable to all resources as they use JSON patch operations
+	// However, we should validate that the resource has the required structure for the specific field paths
+	// For now, we'll consider it applicable to all resources, but this could be enhanced with more specific validation
+	return true
 }
 
 // applyJSONPatch applies the override on to the given unstructured object.
