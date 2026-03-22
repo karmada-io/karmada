@@ -165,6 +165,9 @@ var _ = ginkgo.Describe("Base E2E: deploy a karmada instance by cmd init and do 
 			})
 
 			ginkgo.By("register a pull mode cluster", func() {
+				agentImage, err := framework.PrepareKarmadaAgentImageForKind(pullModeClusterName)
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
 				cmd := framework.NewKarmadactlCommand(
 					karmadaConfigFilePath, "", karmadactlPath, "", karmadactlTimeout,
 					"token", "create", "--print-register-command="+"true",
@@ -191,7 +194,7 @@ var _ = ginkgo.Describe("Base E2E: deploy a karmada instance by cmd init and do 
 				cmd = framework.NewKarmadactlCommand(
 					"", "", karmadactlPath, "", karmadactlTimeout, "register", karmadaAPIEndpoint, "--token", token,
 					"--kubeconfig="+pullModeKubeConfigPath,
-					"--cluster-name", pullModeClusterName, "--context", pullModeClusterName, "--karmada-agent-image", "docker.io/karmada/karmada-agent:latest",
+					"--cluster-name", pullModeClusterName, "--context", pullModeClusterName, "--karmada-agent-image", agentImage,
 					"--discovery-token-ca-cert-hash", discoveryTokenCACertHash, "--namespace", testNamespace,
 				)
 				_, err = cmd.ExecOrDie()

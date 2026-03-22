@@ -62,7 +62,6 @@ type ClusterRegisterOption struct {
 	ClusterZones       []string
 	DryRun             bool
 
-	ControlPlaneConfig *rest.Config
 	ClusterConfig      *rest.Config
 	Secret             corev1.Secret
 	ImpersonatorSecret corev1.Secret
@@ -173,7 +172,7 @@ func CreateOrUpdateClusterObject(controlPlaneClient karmadaclientset.Interface, 
 	if exist {
 		clusterCopy := cluster.DeepCopy()
 		mutate(cluster)
-		if reflect.DeepEqual(clusterCopy.Spec, cluster.Spec) {
+		if reflect.DeepEqual(clusterCopy.Spec, cluster.Spec) && reflect.DeepEqual(clusterCopy.Annotations, cluster.Annotations) {
 			klog.Warningf("Cluster(%s) already exist and newest", clusterObj.Name)
 			return cluster, nil
 		}

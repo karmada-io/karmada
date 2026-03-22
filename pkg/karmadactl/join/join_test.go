@@ -141,7 +141,8 @@ func TestRunJoinCluster(t *testing.T) {
 			},
 		},
 		{
-			name: "RunJoinCluster_RegisterClusterInControllerPlane_ClusterRegisteredInControllerPlane",
+			name:        "RunJoinCluster_RegisterClusterInControllerPlane_ClusterRegisteredInControllerPlane",
+			clusterName: "member1",
 			joinOpts: &CommandJoinOption{
 				ClusterNamespace: options.DefaultKarmadaClusterNamespace,
 			},

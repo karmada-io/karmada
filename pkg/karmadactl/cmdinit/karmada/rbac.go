@@ -23,14 +23,14 @@ import (
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
+	karmadautil "github.com/karmada-io/karmada/pkg/util"
 )
 
 const (
-	karmadaViewClusterRole                      = "karmada-view"
-	karmadaEditClusterRole                      = "karmada-edit"
-	karmadaAgentRBACGeneratorClusterRole        = "system:karmada:agent-rbac-generator"
-	karmadaAgentRBACGeneratorClusterRoleBinding = "system:karmada:agent-rbac-generator"
-	agentRBACGenerator                          = "system:karmada:agent:rbac-generator"
+	karmadaViewClusterRole                        = "karmada-view"
+	karmadaEditClusterRole                        = "karmada-edit"
+	karmadaAgentsClusterCreatorClusterRole        = "system:karmada:agents-cluster-creator"
+	karmadaAgentsClusterCreatorClusterRoleBinding = "system:karmada:agents-cluster-creator"
 )
 
 // grantProxyPermissionToAdmin grants the proxy permission to "system:admin"
@@ -63,13 +63,13 @@ func grantProxyPermissionToAdmin(clientSet kubernetes.Interface) error {
 	return nil
 }
 
-// grantAccessPermissionToAgentRBACGenerator grants the access permission to 'karmada-agent-rbac-generator'
-func grantAccessPermissionToAgentRBACGenerator(clientSet kubernetes.Interface) error {
-	clusterRole := utils.ClusterRoleFromRules(karmadaAgentRBACGeneratorClusterRole, []rbacv1.PolicyRule{
+// grantClusterCreatePermissionToAgents grants the minimal cluster permissions needed before per-cluster RBAC exists.
+func grantClusterCreatePermissionToAgents(clientSet kubernetes.Interface) error {
+	clusterRole := utils.ClusterRoleFromRules(karmadaAgentsClusterCreatorClusterRole, []rbacv1.PolicyRule{
 		{
-			APIGroups: []string{"*"},
-			Resources: []string{"*"},
-			Verbs:     []string{"*"},
+			APIGroups: []string{"cluster.karmada.io"},
+			Resources: []string{"clusters"},
+			Verbs:     []string{"get", "list", "create"},
 		},
 	}, nil, nil)
 	err := cmdutil.CreateOrUpdateClusterRole(clientSet, clusterRole)
@@ -77,14 +77,14 @@ func grantAccessPermissionToAgentRBACGenerator(clientSet kubernetes.Interface) e
 		return err
 	}
 
-	clusterRoleBinding := utils.ClusterRoleBindingFromSubjects(karmadaAgentRBACGeneratorClusterRoleBinding, karmadaAgentRBACGeneratorClusterRole,
+	clusterRoleBinding := utils.ClusterRoleBindingFromSubjects(karmadaAgentsClusterCreatorClusterRoleBinding, karmadaAgentsClusterCreatorClusterRole,
 		[]rbacv1.Subject{
 			{
-				Kind: rbacv1.UserKind,
-				Name: agentRBACGenerator,
+				Kind: rbacv1.GroupKind,
+				Name: karmadautil.ClusterPermissionGroup,
 			}}, nil)
 
-	klog.V(1).Info("Grant the access permission to 'karmada-agent-rbac-generator'")
+	klog.V(1).Info("Grant cluster get/list/create permissions to 'system:karmada:agents'")
 	err = cmdutil.CreateOrUpdateClusterRoleBinding(clientSet, clusterRoleBinding)
 	if err != nil {
 		return err
