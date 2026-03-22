@@ -633,3 +633,430 @@ type fakeManager struct {
 func (f *fakeManager) GetClient() client.Client {
 	return f.client
 }
+
+func TestNewWorkStatusPredicate(t *testing.T) {
+	type args struct {
+		mgr controllerruntime.Manager
+		obj client.Object
+	}
+	type want struct {
+		create, update, delete, generic bool
+	}
+	tests := []struct {
+		name string
+		args args
+		want want
+	}{
+		{
+			name: "get cluster name error",
+			args: args{
+				mgr: &fakeManager{client: fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(
+					&clusterv1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
+						Spec:       clusterv1alpha1.ClusterSpec{SyncMode: clusterv1alpha1.Push},
+					},
+				).Build()},
+				obj: &workv1alpha1.Work{
+					ObjectMeta: metav1.ObjectMeta{Name: "work", Namespace: "cluster"},
+				},
+			},
+			want: want{
+				create:  false,
+				update:  false,
+				delete:  false,
+				generic: false,
+			},
+		},
+		{
+			name: "cluster not found",
+			args: args{
+				mgr: &fakeManager{client: fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects().Build()},
+				obj: &workv1alpha1.Work{
+					ObjectMeta: metav1.ObjectMeta{Name: "work", Namespace: names.ExecutionSpacePrefix + "cluster"},
+				},
+			},
+			want: want{
+				create:  false,
+				update:  false,
+				delete:  false,
+				generic: false,
+			},
+		},
+		{
+			name: "cluster is pull mode",
+			args: args{
+				mgr: &fakeManager{client: fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(
+					&clusterv1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
+						Spec:       clusterv1alpha1.ClusterSpec{SyncMode: clusterv1alpha1.Pull},
+					},
+				).Build()},
+				obj: &workv1alpha1.Work{
+					ObjectMeta: metav1.ObjectMeta{Name: "work", Namespace: names.ExecutionSpacePrefix + "cluster"},
+				},
+			},
+			want: want{
+				create:  false,
+				update:  false,
+				delete:  false,
+				generic: false,
+			},
+		},
+		{
+			name: "matched push cluster",
+			args: args{
+				mgr: &fakeManager{client: fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(
+					&clusterv1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
+						Spec:       clusterv1alpha1.ClusterSpec{SyncMode: clusterv1alpha1.Push},
+					},
+				).Build()},
+				obj: &workv1alpha1.Work{
+					ObjectMeta: metav1.ObjectMeta{Name: "work", Namespace: names.ExecutionSpacePrefix + "cluster"},
+				},
+			},
+			want: want{
+				create:  true,
+				update:  false, // Update only returns true when resource becomes applied
+				delete:  false,
+				generic: false,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pred := NewWorkStatusPredicate(tt.args.mgr)
+			if got := pred.Create(event.CreateEvent{Object: tt.args.obj}); got != tt.want.create {
+				t.Errorf("Create() got = %v, want %v", got, tt.want.create)
+				return
+			}
+			if got := pred.Update(event.UpdateEvent{ObjectOld: tt.args.obj, ObjectNew: tt.args.obj}); got != tt.want.update {
+				t.Errorf("Update() got = %v, want %v", got, tt.want.update)
+				return
+			}
+			if got := pred.Delete(event.DeleteEvent{Object: tt.args.obj}); got != tt.want.delete {
+				t.Errorf("Delete() got = %v, want %v", got, tt.want.delete)
+				return
+			}
+			if got := pred.Generic(event.GenericEvent{Object: tt.args.obj}); got != tt.want.generic {
+				t.Errorf("Generic() got = %v, want %v", got, tt.want.generic)
+				return
+			}
+		})
+	}
+}
+
+func TestNewWorkStatusPredicate_Update(t *testing.T) {
+	mgr := &fakeManager{client: fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(
+		&clusterv1alpha1.Cluster{
+			ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
+			Spec:       clusterv1alpha1.ClusterSpec{SyncMode: clusterv1alpha1.Push},
+		},
+	).Build()}
+
+	// Create work objects with different status conditions
+	workNotApplied := &workv1alpha1.Work{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "work", Namespace: names.ExecutionSpacePrefix + "cluster",
+		},
+		Status: workv1alpha1.WorkStatus{
+			Conditions: []metav1.Condition{
+				{
+					Type:   workv1alpha1.WorkProgressing,
+					Status: metav1.ConditionTrue,
+				},
+			},
+		},
+	}
+
+	workApplied := &workv1alpha1.Work{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "work", Namespace: names.ExecutionSpacePrefix + "cluster",
+		},
+		Status: workv1alpha1.WorkStatus{
+			Conditions: []metav1.Condition{
+				{
+					Type:   workv1alpha1.WorkApplied,
+					Status: metav1.ConditionTrue,
+				},
+			},
+		},
+	}
+
+	// Work in pull cluster (should not match)
+	workInPullCluster := &workv1alpha1.Work{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "work", Namespace: names.ExecutionSpacePrefix + "pull-cluster",
+		},
+		Status: workv1alpha1.WorkStatus{
+			Conditions: []metav1.Condition{
+				{
+					Type:   workv1alpha1.WorkApplied,
+					Status: metav1.ConditionTrue,
+				},
+			},
+		},
+	}
+
+	type args struct {
+		event event.UpdateEvent
+	}
+
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "both old and new are not applied",
+			args: args{
+				event: event.UpdateEvent{ObjectOld: workNotApplied, ObjectNew: workNotApplied},
+			},
+			want: false,
+		},
+		{
+			name: "old is not applied, new is applied - should trigger",
+			args: args{
+				event: event.UpdateEvent{ObjectOld: workNotApplied, ObjectNew: workApplied},
+			},
+			want: true,
+		},
+		{
+			name: "old is applied, new is not applied - should not trigger",
+			args: args{
+				event: event.UpdateEvent{ObjectOld: workApplied, ObjectNew: workNotApplied},
+			},
+			want: false,
+		},
+		{
+			name: "both old and new are applied - should not trigger",
+			args: args{
+				event: event.UpdateEvent{ObjectOld: workApplied, ObjectNew: workApplied},
+			},
+			want: false,
+		},
+		{
+			name: "old is not applied, new is applied but in pull cluster - should not trigger",
+			args: args{
+				event: event.UpdateEvent{ObjectOld: workNotApplied, ObjectNew: workInPullCluster},
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pred := NewWorkStatusPredicate(mgr)
+			if got := pred.Update(tt.args.event); got != tt.want {
+				t.Errorf("Update() got = %v, want %v", got, tt.want)
+				return
+			}
+		})
+	}
+}
+
+func TestNewWorkStatusPredicateOnAgent(t *testing.T) {
+	type args struct {
+		curClusterName string
+		obj            client.Object
+	}
+	type want struct {
+		create, update, delete, generic bool
+	}
+	tests := []struct {
+		name string
+		args args
+		want want
+	}{
+		{
+			name: "get cluster name error",
+			args: args{
+				curClusterName: "cluster",
+				obj: &workv1alpha1.Work{
+					ObjectMeta: metav1.ObjectMeta{Name: "work", Namespace: "cluster"},
+				},
+			},
+			want: want{
+				create:  false,
+				update:  false,
+				delete:  false,
+				generic: false,
+			},
+		},
+		{
+			name: "cluster name unmatched",
+			args: args{
+				curClusterName: "cluster",
+				obj: &workv1alpha1.Work{
+					ObjectMeta: metav1.ObjectMeta{Name: "work", Namespace: names.ExecutionSpacePrefix + "unmatched"},
+				},
+			},
+			want: want{
+				create:  false,
+				update:  false,
+				delete:  false,
+				generic: false,
+			},
+		},
+		{
+			name: "matched cluster",
+			args: args{
+				curClusterName: "cluster",
+				obj: &workv1alpha1.Work{
+					ObjectMeta: metav1.ObjectMeta{Name: "work", Namespace: names.ExecutionSpacePrefix + "cluster"},
+				},
+			},
+			want: want{
+				create:  true,
+				update:  false, // Update only returns true when resource becomes applied
+				delete:  false,
+				generic: false,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pred := NewWorkStatusPredicateOnAgent(tt.args.curClusterName)
+			if got := pred.Create(event.CreateEvent{Object: tt.args.obj}); got != tt.want.create {
+				t.Errorf("Create() got = %v, want %v", got, tt.want.create)
+				return
+			}
+			if got := pred.Update(event.UpdateEvent{ObjectOld: tt.args.obj, ObjectNew: tt.args.obj}); got != tt.want.update {
+				t.Errorf("Update() got = %v, want %v", got, tt.want.update)
+				return
+			}
+			if got := pred.Delete(event.DeleteEvent{Object: tt.args.obj}); got != tt.want.delete {
+				t.Errorf("Delete() got = %v, want %v", got, tt.want.delete)
+				return
+			}
+			if got := pred.Generic(event.GenericEvent{Object: tt.args.obj}); got != tt.want.generic {
+				t.Errorf("Generic() got = %v, want %v", got, tt.want.generic)
+				return
+			}
+		})
+	}
+}
+
+func TestNewWorkStatusPredicateOnAgent_Update(t *testing.T) {
+	curClusterName := "cluster"
+
+	// Create work objects with different status conditions
+	workNotApplied := &workv1alpha1.Work{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "work", Namespace: names.ExecutionSpacePrefix + curClusterName,
+		},
+		Status: workv1alpha1.WorkStatus{
+			Conditions: []metav1.Condition{
+				{
+					Type:   workv1alpha1.WorkProgressing,
+					Status: metav1.ConditionTrue,
+				},
+			},
+		},
+	}
+
+	workApplied := &workv1alpha1.Work{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "work", Namespace: names.ExecutionSpacePrefix + curClusterName,
+		},
+		Status: workv1alpha1.WorkStatus{
+			Conditions: []metav1.Condition{
+				{
+					Type:   workv1alpha1.WorkApplied,
+					Status: metav1.ConditionTrue,
+				},
+			},
+		},
+	}
+
+	// Work in different cluster (should not match)
+	workInDifferentCluster := &workv1alpha1.Work{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "work", Namespace: names.ExecutionSpacePrefix + "different-cluster",
+		},
+		Status: workv1alpha1.WorkStatus{
+			Conditions: []metav1.Condition{
+				{
+					Type:   workv1alpha1.WorkApplied,
+					Status: metav1.ConditionTrue,
+				},
+			},
+		},
+	}
+
+	type args struct {
+		event event.UpdateEvent
+	}
+
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "both old and new are not applied",
+			args: args{
+				event: event.UpdateEvent{ObjectOld: workNotApplied, ObjectNew: workNotApplied},
+			},
+			want: false,
+		},
+		{
+			name: "old is not applied, new is applied - should trigger",
+			args: args{
+				event: event.UpdateEvent{ObjectOld: workNotApplied, ObjectNew: workApplied},
+			},
+			want: true,
+		},
+		{
+			name: "old is applied, new is not applied - should not trigger",
+			args: args{
+				event: event.UpdateEvent{ObjectOld: workApplied, ObjectNew: workNotApplied},
+			},
+			want: false,
+		},
+		{
+			name: "both old and new are applied - should not trigger",
+			args: args{
+				event: event.UpdateEvent{ObjectOld: workApplied, ObjectNew: workApplied},
+			},
+			want: false,
+		},
+		{
+			name: "old is not applied, new is applied but in different cluster - should not trigger",
+			args: args{
+				event: event.UpdateEvent{ObjectOld: workNotApplied, ObjectNew: workInDifferentCluster},
+			},
+			want: false,
+		},
+		{
+			name: "old is not applied, new is applied but cluster name parse error - should not trigger",
+			args: args{
+				event: event.UpdateEvent{
+					ObjectOld: workNotApplied,
+					ObjectNew: &workv1alpha1.Work{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "work", Namespace: "invalid-namespace",
+						},
+						Status: workv1alpha1.WorkStatus{
+							Conditions: []metav1.Condition{
+								{
+									Type:   workv1alpha1.WorkApplied,
+									Status: metav1.ConditionTrue,
+								},
+							},
+						},
+					},
+				},
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pred := NewWorkStatusPredicateOnAgent(curClusterName)
+			if got := pred.Update(tt.args.event); got != tt.want {
+				t.Errorf("Update() got = %v, want %v", got, tt.want)
+				return
+			}
+		})
+	}
+}
