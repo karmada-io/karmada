@@ -56,8 +56,43 @@ fi
 util::cmd_must_exist "go"
 util::verify_go_version
 
-# make sure docker exists
+# make sure docker exists and daemon is running
 util::cmd_must_exist "docker"
+
+# Verify Docker daemon is actually reachable
+DOCKER_INFO_ERROR_OUTPUT=""
+if ! DOCKER_INFO_ERROR_OUTPUT=$(docker info 2>&1 >/dev/null); then
+  echo "ERROR: Cannot connect to Docker (docker info failed)."
+  if [[ -n "${DOCKER_INFO_ERROR_OUTPUT}" ]]; then
+    echo "docker info output:"
+    echo "${DOCKER_INFO_ERROR_OUTPUT}"
+  fi
+  if [[ "$(uname)" == "Darwin" ]]; then
+    echo "On macOS, please start Docker Desktop."
+  else
+    echo "On Linux, this may be a permissions issue (e.g., your user is not in the 'docker' group) or a misconfigured Docker context."
+    echo "Please ensure the Docker daemon is running and that you have permission to access it."
+  fi
+  exit 1
+fi
+
+# Check Docker resources and warn if below recommended levels
+DOCKER_MEM=$(docker system info --format '{{.MemTotal}}' 2>/dev/null || echo "0")
+DOCKER_CPU=$(docker system info --format '{{.NCPU}}' 2>/dev/null || echo "0")
+
+# Convert bytes to GB (4GB = 4294967296 bytes)
+DOCKER_MEM_GB=$(( ${DOCKER_MEM:-0} / 1024 / 1024 / 1024))
+
+# Collect Docker-related warnings to print later
+DOCKER_WARNINGS=""
+
+if [[ ${DOCKER_MEM_GB} -lt 4 ]]; then
+  DOCKER_WARNINGS+="WARNING: Docker memory is ${DOCKER_MEM_GB}GB (recommended: 4GB). This may impact cluster performance.\n"
+fi
+
+if [[ ${DOCKER_CPU:-0} -lt 2 ]]; then
+  DOCKER_WARNINGS+="WARNING: Docker CPU count is ${DOCKER_CPU} (recommended: 2+). This may impact cluster performance.\n"
+fi
 
 # install kind and kubectl
 echo -n "Preparing: 'kind' existence check - "
@@ -171,3 +206,8 @@ echo "cluster networks connected"
 export KUBECONFIG=$(find ${KUBECONFIG_PATH} -maxdepth 1 -type f | grep ${MEMBER_TMP_CONFIG_PREFIX} | tr '\n' ':')
 kubectl config view --flatten > ${MEMBER_CLUSTER_KUBECONFIG}
 rm $(find ${KUBECONFIG_PATH} -maxdepth 1 -type f | grep ${MEMBER_TMP_CONFIG_PREFIX})
+
+# Print any Docker resource warnings
+if [[ -n "${DOCKER_WARNINGS}" ]]; then
+  echo -e "\n${DOCKER_WARNINGS}"
+fi
