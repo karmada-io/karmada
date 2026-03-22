@@ -26,11 +26,12 @@ import (
 
 // Attributes Attributes contains the attributes that call webhook.
 type Attributes struct {
-	Operation        configv1alpha1.InterpreterOperation
-	Object           *unstructured.Unstructured
-	ObservedObj      *unstructured.Unstructured
-	ReplicasSet      int32
-	AggregatedStatus []workv1alpha2.AggregatedStatusItem
+	Operation          configv1alpha1.InterpreterOperation
+	Object             *unstructured.Unstructured
+	ObservedObj        *unstructured.Unstructured
+	ReplicasSet        int32
+	AggregatedStatus   []workv1alpha2.AggregatedStatusItem
+	SchedulingResult   []workv1alpha2.TargetCluster
 }
 
 // ResponseAttributes contains the attributes that response by the webhook.
@@ -45,4 +46,5 @@ type ResponseAttributes struct {
 	RawStatus           runtime.RawExtension
 	Healthy             bool
 	Components          []workv1alpha2.Component
+	SchedulingResult    []workv1alpha2.TargetCluster
 }
