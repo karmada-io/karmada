@@ -111,6 +111,7 @@ func GenerateBindingName(kind, name string) string {
 	// For more information about the DNS subdomain name, please refer to
 	// https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-subdomain-names.
 	if strings.Contains(name, ":") {
+		name = strings.ReplaceAll(name, "::", ".") // `foo..bar` is not valid
 		name = strings.ReplaceAll(name, ":", ".")
 	}
 
