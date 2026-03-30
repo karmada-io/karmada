@@ -39,6 +39,6 @@ func init() {
 	clusterinstall.Install(Scheme)
 
 	// we need to add the options to empty v1
-	// TODO fix the server code to avoid this
+	// TODO: Fix the server code to avoid this
 	metav1.AddToGroupVersion(Scheme, schema.GroupVersion{Version: "v1"})
 }

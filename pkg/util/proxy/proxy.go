@@ -41,6 +41,11 @@ import (
 	clusterapis "github.com/karmada-io/karmada/pkg/apis/cluster"
 )
 
+const (
+	// DefaultUpgradeDialerPingPeriod represents the default ping period for upgrade dialer.
+	DefaultUpgradeDialerPingPeriod = 5 * time.Second
+)
+
 // SecretGetterFunc is a function to get secret.
 type SecretGetterFunc func(context.Context, string, string) (*corev1.Secret, error)
 
@@ -106,7 +111,7 @@ func newProxyHandler(location *url.URL, proxyTransport http.RoundTripper, cluste
 		upgradeDialer := NewUpgradeDialerWithConfig(UpgradeDialerWithConfig{
 			TLS:        tlsConfig,
 			Proxier:    http.ProxyURL(proxyURL),
-			PingPeriod: time.Second * 5,
+			PingPeriod: DefaultUpgradeDialerPingPeriod,
 			Header:     ParseProxyHeaders(cluster.Spec.ProxyHeader),
 		})
 
