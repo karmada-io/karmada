@@ -1,5 +1,5 @@
 /*
-Copyright 2024 The Karmada Authors.
+Copyright 2025 The Karmada Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,10 +20,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/opensearch-project/opensearch-go"
+	"github.com/opensearch-project/opensearch-go/opensearchapi"
+	appsv1 "k8s.io/api/apps/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,6 +36,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -42,6 +47,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/search/backendstore"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
+	testingutil "github.com/karmada-io/karmada/pkg/util/testing"
 )
 
 var apiGroupResources = []*restmapper.APIGroupResources{
@@ -284,7 +290,7 @@ func TestDeleteClusterEventHandler(t *testing.T) {
 					return err
 				}
 
-				if err := upsertResourceRegistry(clientConnector, resourceSelectors, registryName, resourceVersion, []string{clusterName}); err != nil {
+				if err := upsertResourceRegistry(clientConnector, resourceSelectors, nil, registryName, resourceVersion, []string{clusterName}); err != nil {
 					return err
 				}
 				if err := cacheNextWrapper(controller); err != nil {
@@ -328,6 +334,7 @@ func TestDeleteClusterEventHandler(t *testing.T) {
 }
 
 func TestAddResourceRegistryEventHandler(t *testing.T) {
+	secretName, namespace := "opensearch-credentials", "default"
 	tests := []struct {
 		name       string
 		restConfig *rest.Config
@@ -359,11 +366,40 @@ func TestAddResourceRegistryEventHandler(t *testing.T) {
 					}
 				)
 
+				controlPlaneClient := fake.NewFakeClient()
+				controlPlaneClientBuilder = func(*rest.Config) client.Client {
+					return controlPlaneClient
+				}
+
 				clusterDynamicClientBuilder = func(string, client.Client) (*util.DynamicClusterClient, error) {
 					return &util.DynamicClusterClient{
 						DynamicClientSet: fakedynamic.NewSimpleDynamicClient(scheme.Scheme),
 						ClusterName:      clusterName,
 					}, nil
+				}
+
+				// Mock OpenSearch Client Builder.
+				backendstore.OpenSearchClientBuilder = func(opensearch.Config) (*opensearch.Client, error) {
+					mTransport := &testingutil.MockOpenSearchTransport{}
+					mTransport.PerformFunc = func(*http.Request) (*http.Response, error) {
+						return &http.Response{
+							StatusCode: http.StatusOK,
+							Body:       http.NoBody,
+						}, nil
+					}
+					client := &opensearch.Client{Transport: mTransport}
+					client.API = opensearchapi.New(client)
+					return client, nil
+				}
+
+				backendStoreCfg := &searchv1alpha1.BackendStoreConfig{
+					OpenSearch: &searchv1alpha1.OpenSearchConfig{
+						Addresses: []string{fmt.Sprintf("https://%s:9200", apiEndpoint)},
+						SecretRef: clusterv1alpha1.LocalSecretReference{
+							Name:      secretName,
+							Namespace: namespace,
+						},
+					},
 				}
 
 				if err := upsertCluster(clientConnector, labels, apiEndpoint, clusterName, resourceVersion); err != nil {
@@ -373,12 +409,25 @@ func TestAddResourceRegistryEventHandler(t *testing.T) {
 					return err
 				}
 
-				if err := upsertResourceRegistry(clientConnector, resourceSelectors, registryName, resourceVersion, []string{clusterName}); err != nil {
+				err := controlPlaneClient.Create(context.TODO(), &appsv1.Deployment{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-deployment",
+						Namespace: "default",
+					},
+				})
+				if err != nil {
+					return err
+				}
+
+				if err := upsertResourceRegistry(clientConnector, resourceSelectors, backendStoreCfg, registryName, resourceVersion, []string{clusterName}); err != nil {
 					return err
 				}
 				if err := cacheNextWrapper(controller); err != nil {
 					return err
 				}
+
+				// TODO: Why creating that test-deployment object in the control plane client for the resource registry
+				// doesn't trigger the upsert resource registry event handler in OpenSearch?
 
 				return nil
 			},
@@ -459,14 +508,14 @@ func TestUpdateResourceRegistryEventHandler(t *testing.T) {
 					return err
 				}
 
-				if err := upsertResourceRegistry(clientConnector, resourceSelectors, registryName, resourceVersion, []string{clusterName}); err != nil {
+				if err := upsertResourceRegistry(clientConnector, resourceSelectors, nil, registryName, resourceVersion, []string{clusterName}); err != nil {
 					return err
 				}
 				if err := cacheNextWrapper(controller); err != nil {
 					return err
 				}
 
-				if err := upsertResourceRegistry(clientConnector, resourceSelectorsUpdated, registryName, resourceVersion, []string{clusterName}); err != nil {
+				if err := upsertResourceRegistry(clientConnector, resourceSelectorsUpdated, nil, registryName, resourceVersion, []string{clusterName}); err != nil {
 					return err
 				}
 				if err := cacheNextWrapper(controller); err != nil {
@@ -543,7 +592,7 @@ func TestDeleteResourceRegistryEventHandler(t *testing.T) {
 					return err
 				}
 
-				if err := upsertResourceRegistry(clientConnector, resourceSelectors, registryName, resourceVersion, []string{clusterName}); err != nil {
+				if err := upsertResourceRegistry(clientConnector, resourceSelectors, nil, registryName, resourceVersion, []string{clusterName}); err != nil {
 					return err
 				}
 				if err := cacheNextWrapper(controller); err != nil {
@@ -657,7 +706,7 @@ func upsertCluster(client *fakekarmadaclient.Clientset, labels map[string]string
 
 // upsertResourceRegistry creates or updates a ResourceRegistry resource in the Kubernetes API.
 // It uses the provided client, resource selectors, registry name, resource version, and target cluster names.
-func upsertResourceRegistry(client *fakekarmadaclient.Clientset, resourceSelectors []searchv1alpha1.ResourceSelector, registryName, resourceVersion string, clusterNames []string) error {
+func upsertResourceRegistry(client *fakekarmadaclient.Clientset, resourceSelectors []searchv1alpha1.ResourceSelector, backendStoreCfg *searchv1alpha1.BackendStoreConfig, registryName, resourceVersion string, clusterNames []string) error {
 	resourceRegistry := &searchv1alpha1.ResourceRegistry{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            registryName,
@@ -668,6 +717,7 @@ func upsertResourceRegistry(client *fakekarmadaclient.Clientset, resourceSelecto
 				ClusterNames: clusterNames,
 			},
 			ResourceSelectors: resourceSelectors,
+			BackendStore:      backendStoreCfg,
 		},
 	}
 

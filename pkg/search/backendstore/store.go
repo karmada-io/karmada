@@ -35,11 +35,11 @@ type BackendStore interface {
 var (
 	backendLock sync.Mutex
 	backends    map[string]BackendStore
-	k8sClient   *kubernetes.Clientset
+	k8sClient   kubernetes.Interface
 )
 
 // Init init backend store manager
-func Init(cs *kubernetes.Clientset) {
+func Init(cs kubernetes.Interface) {
 	backendLock.Lock()
 	backends = make(map[string]BackendStore)
 	k8sClient = cs
