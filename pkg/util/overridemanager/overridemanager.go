@@ -245,6 +245,10 @@ func (o *overrideManagerImpl) getOverridersFromOverridePolicies(policies []Gener
 		}
 		for _, rule := range overrideRules {
 			if rule.TargetCluster == nil || (rule.TargetCluster != nil && util.ClusterMatches(cluster, *rule.TargetCluster)) {
+				if err := validateOverridersApplicable(resource, rule.Overriders); err != nil {
+					klog.V(2).Infof("Skip overrides(%s/%s) for resource(%s/%s), error: %v", policy.GetNamespace(), policy.GetName(), resource.GetNamespace(), resource.GetName(), err)
+					continue
+				}
 				clusterMatchingPolicyOverriders = append(clusterMatchingPolicyOverriders, policyOverriders{
 					name:       policy.GetName(),
 					namespace:  policy.GetNamespace(),
@@ -258,6 +262,11 @@ func (o *overrideManagerImpl) getOverridersFromOverridePolicies(policies []Gener
 	// TODO(RainbowMango): check if the overrider instructions can be applied to target resource.
 
 	return clusterMatchingPolicyOverriders
+}
+
+func validateOverridersApplicable(resource *unstructured.Unstructured, overriders policyv1alpha1.Overriders) error {
+	objCopy := resource.DeepCopy()
+	return applyPolicyOverriders(objCopy, overriders)
 }
 
 // applyJSONPatch applies the override on to the given unstructured object.

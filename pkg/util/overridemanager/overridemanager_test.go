@@ -281,6 +281,15 @@ func TestGetMatchingOverridePolicies(t *testing.T) {
 			},
 		},
 	}
+	invalidOverriders := policyv1alpha1.Overriders{
+		Plaintext: []policyv1alpha1.PlaintextOverrider{
+			{
+				Path:     "/spec/template/spec/containers/10/image",
+				Operator: policyv1alpha1.OverriderOpReplace,
+				Value:    apiextensionsv1.JSON{Raw: []byte(`"nginx:latest"`)},
+			},
+		},
+	}
 	// high implicit priority
 	overridePolicy1 := &policyv1alpha1.OverridePolicy{
 		ObjectMeta: metav1.ObjectMeta{
@@ -341,6 +350,27 @@ func TestGetMatchingOverridePolicies(t *testing.T) {
 						ClusterNames: []string{cluster1.Name, cluster2.Name},
 					},
 					Overriders: overriders3,
+				},
+			},
+		},
+	}
+	overridePolicyInvalid := &policyv1alpha1.OverridePolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: metav1.NamespaceDefault,
+			Name:      "overridePolicyInvalid",
+		},
+		Spec: policyv1alpha1.OverrideSpec{
+			ResourceSelectors: []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion: deployment.APIVersion,
+					Kind:       deployment.Kind,
+					Name:       deployment.Name,
+				},
+			},
+			OverrideRules: []policyv1alpha1.RuleWithCluster{
+				{
+					TargetCluster: &policyv1alpha1.ClusterAffinity{ClusterNames: []string{cluster1.Name}},
+					Overriders:    invalidOverriders,
 				},
 			},
 		},
@@ -416,6 +446,19 @@ func TestGetMatchingOverridePolicies(t *testing.T) {
 				{
 					name:       overridePolicy3.Name,
 					namespace:  overridePolicy3.Namespace,
+					overriders: overriders3,
+				},
+			},
+		},
+		{
+			name:     "OverrideRules test 4 skip invalid overrider",
+			policies: []GeneralOverridePolicy{overridePolicy2, overridePolicyInvalid},
+			resource: deploymentObj,
+			cluster:  cluster1,
+			wantedOverriders: []policyOverriders{
+				{
+					name:       overridePolicy2.Name,
+					namespace:  overridePolicy2.Namespace,
 					overriders: overriders3,
 				},
 			},
