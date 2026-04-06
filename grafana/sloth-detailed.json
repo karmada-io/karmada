@@ -1,0 +1,1384 @@
+{
+  "__inputs": [
+    {
+      "name": "DS_PROMETHEUS",
+      "label": "prometheus",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "prometheus",
+      "pluginName": "Prometheus"
+    }
+  ],
+  "__elements": [],
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "8.3.0"
+    },
+    {
+      "type": "panel",
+      "id": "heatmap",
+      "name": "Heatmap",
+      "version": ""
+    },
+    {
+      "type": "datasource",
+      "id": "prometheus",
+      "name": "Prometheus",
+      "version": "1.0.0"
+    },
+    {
+      "type": "panel",
+      "id": "stat",
+      "name": "Stat",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "table",
+      "name": "Table",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "timeseries",
+      "name": "Time series",
+      "version": ""
+    }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "https://sloth.dev",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "gnetId": 14348,
+  "graphTooltip": 0,
+  "id": null,
+  "iteration": 1638791238886,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 36,
+      "panels": [],
+      "title": "General",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "The SLOs that currently are burning more error budget that then available",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto",
+            "filterable": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Burning rate %"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "#EAB839",
+                      "value": 1
+                    },
+                    {
+                      "color": "red",
+                      "value": 1.02
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "color-background"
+              },
+              {
+                "id": "unit",
+                "value": "percentunit"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 12,
+        "w": 8,
+        "x": 0,
+        "y": 1
+      },
+      "id": 38,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "frameIndex": 0,
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Burning rate"
+          }
+        ]
+      },
+      "pluginVersion": "8.3.0",
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "slo:current_burn_rate:ratio > ${min_burning_rate}",
+          "format": "table",
+          "instant": true,
+          "interval": "",
+          "legendFormat": "",
+          "queryType": "randomWalk",
+          "refId": "A"
+        }
+      ],
+      "title": "Exceeded burning rate SLOs ",
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "sloth_service",
+                "sloth_slo",
+                "Value #A"
+              ]
+            }
+          }
+        },
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "Value #A",
+            "renamePattern": "Burning rate %"
+          }
+        },
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "sloth_service",
+            "renamePattern": "Service"
+          }
+        },
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "sloth_slo",
+            "renamePattern": "SLO"
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "The burning rate of the all the Service SLOs",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "points",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "graph": false,
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 3,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 12,
+        "w": 16,
+        "x": 8,
+        "y": 1
+      },
+      "id": 56,
+      "options": {
+        "graph": {},
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "right"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "pluginVersion": "7.5.2",
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "slo:current_burn_rate:ratio > ${min_burning_rate}",
+          "interval": "",
+          "legendFormat": "{{sloth_id}}",
+          "queryType": "randomWalk",
+          "refId": "A"
+        }
+      ],
+      "title": "All burning rate (Filtered >${min_burning_rate}x)",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 13
+      },
+      "id": 8,
+      "panels": [],
+      "repeat": "slo",
+      "title": "${service}/${slo}",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 7,
+        "x": 0,
+        "y": 14
+      },
+      "id": 15,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "vertical",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {},
+        "textMode": "name"
+      },
+      "pluginVersion": "8.3.0",
+      "targets": [
+        {
+          "exemplar": false,
+          "expr": "slo:objective:ratio{sloth_service=\"${service}\", sloth_slo=\"${slo}\"}",
+          "format": "time_series",
+          "instant": true,
+          "interval": "",
+          "legendFormat": "{{sloth_id}}",
+          "queryType": "randomWalk",
+          "refId": "A"
+        }
+      ],
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "axisSoftMax": 0.99,
+            "axisSoftMin": 0.99,
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 30,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "graph": false,
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineStyle": {
+              "fill": "solid"
+            },
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Objective"
+            },
+            "properties": [
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "SLI"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 17,
+        "x": 7,
+        "y": 14
+      },
+      "id": 18,
+      "options": {
+        "graph": {},
+        "legend": {
+          "calcs": [],
+          "displayMode": "hidden",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "pluginVersion": "7.5.2",
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "1 - (max(slo:sli_error:ratio_rate${sli_window}{sloth_service=\"${service}\", sloth_slo=\"${slo}\"}) OR on() vector(0))",
+          "interval": "",
+          "legendFormat": "SLI",
+          "queryType": "randomWalk",
+          "refId": "A"
+        },
+        {
+          "exemplar": false,
+          "expr": "slo:objective:ratio{sloth_service=\"${service}\", sloth_slo=\"${slo}\"}",
+          "hide": false,
+          "instant": false,
+          "interval": "",
+          "legendFormat": "Objective",
+          "refId": "B"
+        }
+      ],
+      "title": "SLI",
+      "transformations": [],
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 7,
+        "x": 0,
+        "y": 17
+      },
+      "id": 10,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "vertical",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {},
+        "textMode": "name"
+      },
+      "pluginVersion": "8.3.0",
+      "targets": [
+        {
+          "exemplar": false,
+          "expr": "sloth_slo_info{sloth_service=\"${service}\", sloth_slo=\"${slo}\"}",
+          "instant": true,
+          "interval": "",
+          "legendFormat": "Objective {{sloth_objective}}%",
+          "queryType": "randomWalk",
+          "refId": "A"
+        }
+      ],
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "This moment burning % of the budget.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.9
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 7,
+        "x": 0,
+        "y": 19
+      },
+      "id": 11,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "vertical",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {},
+        "textMode": "value_and_name"
+      },
+      "pluginVersion": "8.3.0",
+      "targets": [
+        {
+          "exemplar": false,
+          "expr": "slo:current_burn_rate:ratio{sloth_service=\"${service}\", sloth_slo=\"${slo}\"} or on() vector(0)",
+          "instant": true,
+          "interval": "",
+          "legendFormat": "Current burning budget %",
+          "queryType": "randomWalk",
+          "refId": "A"
+        }
+      ],
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "This month remaining error budget, starts the 1st of the month and ends  28th-31st (not rolling window)",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "light-yellow",
+                "value": 0.4
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 7,
+        "x": 0,
+        "y": 21
+      },
+      "id": 76,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "vertical",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {},
+        "textMode": "value_and_name"
+      },
+      "pluginVersion": "8.3.0",
+      "targets": [
+        {
+          "exemplar": false,
+          "expr": "1-(\n  sum_over_time(\n    (\n       slo:sli_error:ratio_rate1h{sloth_service=\"${service}\",sloth_slo=\"${slo}\"}\n       * on() group_left() (\n         month() == bool vector(${__to:date:M})\n       )\n    )[32d:1h]\n  )\n  / on(sloth_id)\n  (\n    slo:error_budget:ratio{sloth_service=\"${service}\",sloth_slo=\"${slo}\"} *on() group_left() (24 * days_in_month())\n  )\n)",
+          "instant": true,
+          "interval": "1h",
+          "legendFormat": "Remaining error budget (month)",
+          "queryType": "randomWalk",
+          "refId": "A"
+        }
+      ],
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "A rolling window of the total period (30d) error budget remaining.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "light-yellow",
+                "value": 0.4
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 7,
+        "x": 0,
+        "y": 23
+      },
+      "id": 12,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "vertical",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {},
+        "textMode": "value_and_name"
+      },
+      "pluginVersion": "8.3.0",
+      "targets": [
+        {
+          "exemplar": false,
+          "expr": "slo:period_error_budget_remaining:ratio{sloth_service=\"${service}\", sloth_slo=\"${slo}\"} or on() vector(1)",
+          "instant": true,
+          "interval": "",
+          "legendFormat": "Remaining error budget (30d window)",
+          "queryType": "randomWalk",
+          "refId": "A"
+        }
+      ],
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "This graph shows the month error budget burn down chart (starts the 1st until the end of the month)",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 38,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "graph": false,
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineStyle": {
+              "fill": "solid"
+            },
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "purple",
+                "value": null
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Remaining error budget"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "yellow",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Ideal constant consumption"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "text",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "custom.gradientMode",
+                "value": "none"
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 7,
+        "y": 23
+      },
+      "hideTimeOverride": true,
+      "id": 66,
+      "options": {
+        "graph": {},
+        "legend": {
+          "calcs": [],
+          "displayMode": "hidden",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "pluginVersion": "7.5.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "exemplar": true,
+          "expr": "1-(\n  sum_over_time(\n    (\n       slo:sli_error:ratio_rate1h{sloth_service=\"${service}\",sloth_slo=\"${slo}\"}\n       * on() group_left() (\n         month() == bool vector(${__to:date:M})\n       )\n    )[32d:1h]\n  )\n  / on(sloth_id)\n  (\n    slo:error_budget:ratio{sloth_service=\"${service}\",sloth_slo=\"${slo}\"} *on() group_left() (24 * days_in_month())\n  )\n)",
+          "hide": false,
+          "interval": "1h",
+          "legendFormat": "Remaining error budget",
+          "queryType": "randomWalk",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "exemplar": true,
+          "expr": "1 - sum_over_time(\n  (\n    (1 / (days_in_month() * 24)) *\n    (month() == bool vector(${__to:date:M}))\n  )[32d:1h]\n)",
+          "hide": false,
+          "interval": "",
+          "legendFormat": "Ideal constant consumption",
+          "refId": "B"
+        }
+      ],
+      "timeFrom": "now/M",
+      "timeShift": "0M/M",
+      "title": "Month error budget burn chart",
+      "transformations": [],
+      "type": "timeseries"
+    },
+    {
+      "cards": {},
+      "color": {
+        "cardColor": "#FADE2A",
+        "colorScale": "sqrt",
+        "colorScheme": "interpolateBlues",
+        "exponent": 0.5,
+        "mode": "opacity"
+      },
+      "dataFormat": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 6,
+        "w": 9,
+        "x": 15,
+        "y": 23
+      },
+      "heatmap": {},
+      "hideTimeOverride": true,
+      "hideZeroBuckets": false,
+      "highlightCards": true,
+      "id": 87,
+      "legend": {
+        "show": false
+      },
+      "pluginVersion": "7.5.2",
+      "reverseYBuckets": false,
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "slo:current_burn_rate:ratio{sloth_service=\"${service}\", sloth_slo=\"${slo}\"} > 0",
+          "format": "time_series",
+          "hide": false,
+          "interval": "",
+          "legendFormat": "Burn rate",
+          "queryType": "randomWalk",
+          "refId": "A"
+        }
+      ],
+      "title": "Burn rate (speed) magnitude",
+      "tooltip": {
+        "show": false,
+        "showHistogram": false
+      },
+      "transformations": [],
+      "type": "heatmap",
+      "xAxis": {
+        "show": true
+      },
+      "yAxis": {
+        "format": "short",
+        "logBase": 1,
+        "show": true
+      },
+      "yBucketBound": "auto"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "options": {
+                "from": 1e-10,
+                "result": {
+                  "text": "FIRING"
+                },
+                "to": 1
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": -1,
+                "result": {
+                  "text": "OK"
+                },
+                "to": 0
+              },
+              "type": "range"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 7,
+        "x": 0,
+        "y": 25
+      },
+      "id": 13,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "vertical",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {},
+        "textMode": "value_and_name"
+      },
+      "pluginVersion": "8.3.0",
+      "targets": [
+        {
+          "exemplar": false,
+          "expr": "max(ALERTS{sloth_service=\"${service}\", sloth_slo=\"${slo}\", sloth_severity=\"ticket\"}) OR on() vector(0)",
+          "instant": true,
+          "interval": "",
+          "legendFormat": "Warning alert",
+          "queryType": "randomWalk",
+          "refId": "A"
+        }
+      ],
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "options": {
+                "from": 1e-10,
+                "result": {
+                  "text": "FIRING"
+                },
+                "to": 1
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": -1,
+                "result": {
+                  "text": "OK"
+                },
+                "to": 0
+              },
+              "type": "range"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 7,
+        "x": 0,
+        "y": 27
+      },
+      "id": 14,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "vertical",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {},
+        "textMode": "value_and_name"
+      },
+      "pluginVersion": "8.3.0",
+      "targets": [
+        {
+          "exemplar": false,
+          "expr": "max(ALERTS{sloth_service=\"${service}\", sloth_slo=\"${slo}\", sloth_severity=\"page\"}) or on() vector(0)",
+          "instant": true,
+          "interval": "",
+          "legendFormat": "Critical alert",
+          "queryType": "randomWalk",
+          "refId": "A"
+        }
+      ],
+      "type": "stat"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 33,
+  "style": "dark",
+  "tags": [
+    "service levels",
+    "sli",
+    "slo",
+    "sloth"
+  ],
+  "templating": {
+    "list": [
+      {
+        "type": "datasource",
+        "name": "DS_PROMETHEUS",
+        "label": "Prometheus",
+        "query": "prometheus",
+        "hide": 0
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "prometheus",
+          "value": "prometheus"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "Datasource",
+        "options": [],
+        "query": "prometheus",
+        "queryValue": "",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "type": "datasource"
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "definition": "label_values(slo:objective:ratio, sloth_service)",
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "service",
+        "options": [],
+        "query": {
+          "query": "label_values(slo:objective:ratio, sloth_service)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 2,
+        "tagValuesQuery": "",
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "definition": "label_values(slo:objective:ratio{sloth_service=\"${service}\"}, sloth_slo)",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "slo",
+        "options": [],
+        "query": {
+          "query": "label_values(slo:objective:ratio{sloth_service=\"${service}\"}, sloth_slo)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "tagValuesQuery": "",
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      },
+      {
+        "auto": false,
+        "auto_count": 50,
+        "auto_min": "5m",
+        "current": {
+          "selected": false,
+          "text": "5m",
+          "value": "5m"
+        },
+        "description": "The time window used for the SLIs visualization",
+        "hide": 0,
+        "label": "SLI window",
+        "name": "sli_window",
+        "options": [
+          {
+            "selected": true,
+            "text": "5m",
+            "value": "5m"
+          },
+          {
+            "selected": false,
+            "text": "30m",
+            "value": "30m"
+          },
+          {
+            "selected": false,
+            "text": "1h",
+            "value": "1h"
+          },
+          {
+            "selected": false,
+            "text": "2h",
+            "value": "2h"
+          },
+          {
+            "selected": false,
+            "text": "6h",
+            "value": "6h"
+          },
+          {
+            "selected": false,
+            "text": "1d",
+            "value": "1d"
+          },
+          {
+            "selected": false,
+            "text": "3d",
+            "value": "3d"
+          },
+          {
+            "selected": false,
+            "text": "30d",
+            "value": "30d"
+          }
+        ],
+        "query": "5m,30m,1h,2h,6h,1d,3d,30d",
+        "queryValue": "",
+        "refresh": 2,
+        "skipUrlSync": false,
+        "type": "interval"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "1",
+          "value": "1"
+        },
+        "description": "The minimum burning budget rate (0-1) to show on the general SLOs block",
+        "hide": 0,
+        "label": "Min Burning rate",
+        "name": "min_burning_rate",
+        "options": [
+          {
+            "selected": true,
+            "text": "1",
+            "value": "1"
+          }
+        ],
+        "query": "1",
+        "skipUrlSync": false,
+        "type": "textbox"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "SLO / Detail",
+  "uid": "slo-detail",
+  "version": 1,
+  "weekStart": ""
+}
