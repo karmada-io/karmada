@@ -215,10 +215,10 @@ func validateScalingPolicy(policy autoscalingv2.HPAScalingPolicy, fldPath *field
 // +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/autoscaling/validation/validation.go#L241-L245
 // +lifted:changed
 
-// TODO: Karmada do not support ExternalMetricSourceType currently
 var validMetricSourceTypes = sets.NewString(
 	string(autoscalingv2.ObjectMetricSourceType), string(autoscalingv2.PodsMetricSourceType),
-	string(autoscalingv2.ResourceMetricSourceType), string(autoscalingv2.ContainerResourceMetricSourceType))
+	string(autoscalingv2.ResourceMetricSourceType), string(autoscalingv2.ContainerResourceMetricSourceType),
+	string(autoscalingv2.ExternalMetricSourceType))
 var validMetricSourceTypesList = validMetricSourceTypes.List()
 
 // +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/autoscaling/validation/validation.go#L247-L339
@@ -264,6 +264,13 @@ func validateMetricSpec(spec autoscalingv2.MetricSpec, fldPath *field.Path) fiel
 		}
 	}
 
+	if spec.External != nil {
+		typesPresent.Insert("external")
+		if typesPresent.Len() == 1 {
+			allErrs = append(allErrs, validateExternalSource(spec.External, fldPath.Child("external"))...)
+		}
+	}
+
 	var expectedField string
 	switch spec.Type {
 	case autoscalingv2.ObjectMetricSourceType:
@@ -287,6 +294,11 @@ func validateMetricSpec(spec autoscalingv2.MetricSpec, fldPath *field.Path) fiel
 			allErrs = append(allErrs, field.Required(fldPath.Child("containerResource"), "must populate information for the given metric source"))
 		}
 		expectedField = "containerResource"
+	case autoscalingv2.ExternalMetricSourceType:
+		if spec.External == nil {
+			allErrs = append(allErrs, field.Required(fldPath.Child("external"), "must populate information for the given metric source"))
+		}
+		expectedField = "external"
 	default:
 		allErrs = append(allErrs, field.NotSupported(fldPath.Child("type"), spec.Type, validMetricSourceTypesList))
 	}
@@ -296,6 +308,26 @@ func validateMetricSpec(spec autoscalingv2.MetricSpec, fldPath *field.Path) fiel
 		for typ := range typesPresent {
 			allErrs = append(allErrs, field.Forbidden(fldPath.Child(typ), "must populate the given metric source only"))
 		}
+	}
+
+	return allErrs
+}
+
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/autoscaling/validation/validation.go#L354-L369
+// +lifted:changed
+
+func validateExternalSource(src *autoscalingv2.ExternalMetricSource, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+
+	allErrs = append(allErrs, validateMetricIdentifier(src.Metric, fldPath.Child("metric"))...)
+	allErrs = append(allErrs, validateMetricTarget(src.Target, fldPath.Child("target"))...)
+
+	if src.Target.AverageValue == nil && src.Target.Value == nil {
+		allErrs = append(allErrs, field.Required(fldPath.Child("target").Child("averageValue"), "must set either a target value or averageValue"))
+	}
+
+	if src.Target.AverageValue != nil && src.Target.Value != nil {
+		allErrs = append(allErrs, field.Forbidden(fldPath.Child("target").Child("value"), "may not set both a target value for metric and a per-pod target"))
 	}
 
 	return allErrs
