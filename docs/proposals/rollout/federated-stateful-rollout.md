@@ -32,7 +32,7 @@ Standard multi-cluster failover in Karmada currently faces three technical gaps 
 * Replacing reactive `StatefulFailover`.
 * Managing underlying storage (S3/GCS) bucket permissions.
 
-## Proposal: WorkloadTransitionController
+## Proposal: StatefulMigrationController
 We propose a new controller in `karmada-controller-manager` that orchestrates the migration state machine.
 
 ### Transition State Machine
