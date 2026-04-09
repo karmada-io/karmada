@@ -216,7 +216,9 @@ func TestAccurateSchedulerEstimatorServer_MaxAvailableReplicas(t *testing.T) {
 			ctx := t.Context()
 
 			gvrToListKind := map[schema.GroupVersionResource]string{
-				{Group: "apps", Version: "v1", Resource: "deployments"}: "DeploymentList",
+				{Group: "apps", Version: "v1", Resource: "deployments"}:        "DeploymentList",
+				{Group: "karpenter.sh", Version: "v1", Resource: "nodepools"}:  "NodePoolList",
+				{Group: "karpenter.sh", Version: "v1", Resource: "nodeclaims"}: "NodeClaimList",
 			}
 			dynamicClient := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToListKind)
 			discoveryClient := &discoveryfake.FakeDiscovery{
@@ -348,7 +350,9 @@ func BenchmarkAccurateSchedulerEstimatorServer_MaxAvailableReplicas(b *testing.B
 			ctx = metadata.NewIncomingContext(ctx, metadata.Pairs(string(util.ContextKeyObject), "fake"))
 
 			gvrToListKind := map[schema.GroupVersionResource]string{
-				{Group: "apps", Version: "v1", Resource: "deployments"}: "DeploymentList",
+				{Group: "apps", Version: "v1", Resource: "deployments"}:        "DeploymentList",
+				{Group: "karpenter.sh", Version: "v1", Resource: "nodepools"}:  "NodePoolList",
+				{Group: "karpenter.sh", Version: "v1", Resource: "nodeclaims"}: "NodeClaimList",
 			}
 			dynamicClient := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToListKind)
 			discoveryClient := &discoveryfake.FakeDiscovery{
