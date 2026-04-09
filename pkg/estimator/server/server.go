@@ -44,6 +44,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/estimator/pb"
 	"github.com/karmada-io/karmada/pkg/estimator/server/framework"
 	frameworkplugins "github.com/karmada-io/karmada/pkg/estimator/server/framework/plugins"
+	"github.com/karmada-io/karmada/pkg/estimator/server/framework/plugins/nodeautoscaler"
 	frameworkruntime "github.com/karmada-io/karmada/pkg/estimator/server/framework/runtime"
 	"github.com/karmada-io/karmada/pkg/estimator/server/metrics"
 	"github.com/karmada-io/karmada/pkg/estimator/server/replica"
@@ -132,6 +133,23 @@ func NewEstimatorServer(
 	}
 
 	registry := frameworkplugins.NewInTreeRegistry()
+	if len(opts.Plugins) > 0 {
+		registry = frameworkplugins.NewExtendedRegistry()
+		enabledSet := make(map[string]bool, len(opts.Plugins))
+		for _, name := range opts.Plugins {
+			enabledSet[name] = true
+		}
+		for name := range registry {
+			if !enabledSet[name] {
+				_ = registry.Unregister(name)
+			}
+		}
+	}
+	// Set dynamic client for NodeAutoscalerEstimator's KarpenterProvider
+	if _, ok := registry[nodeautoscaler.Name]; ok {
+		nodeautoscaler.SetDynamicClient(dynamicClient)
+	}
+
 	estimateFramework, err := frameworkruntime.NewFramework(registry,
 		frameworkruntime.WithClientSet(kubeClient),
 		frameworkruntime.WithInformerFactory(informerFactory),
@@ -140,6 +158,7 @@ func NewEstimatorServer(
 	if err != nil {
 		return es, err
 	}
+
 	es.estimateFramework = estimateFramework
 
 	addAllEventHandlers(es, informerFactory)

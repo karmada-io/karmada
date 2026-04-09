@@ -59,6 +59,8 @@ type Options struct {
 	// It can be set to "0" to disable serving the health probe.
 	// Defaults to ":10351".
 	HealthProbeBindAddress string
+	// Plugins is the list of plugins to enable. If empty, all in-tree plugins are enabled.
+	Plugins []string
 }
 
 // NewOptions builds an empty options.
@@ -84,6 +86,7 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	fs.IntVar(&o.Parallelism, "parallelism", o.Parallelism, "Parallelism defines the amount of parallelism in algorithms for estimating. Must be greater than 0. Defaults to 16.")
 	fs.StringVar(&o.MetricsBindAddress, "metrics-bind-address", ":8080", "The TCP address that the server should bind to for serving prometheus metrics(e.g. 127.0.0.1:8080, :8080). It can be set to \"0\" to disable the metrics serving. Defaults to 0.0.0.0:8080.")
 	fs.StringVar(&o.HealthProbeBindAddress, "health-probe-bind-address", ":10351", "The TCP address that the server should bind to for serving health probes(e.g. 127.0.0.1:10351, :10351). It can be set to \"0\" to disable serving the health probe. Defaults to 0.0.0.0:10351.")
+	fs.StringSliceVar(&o.Plugins, "plugins", nil, "Comma-separated list of estimator plugins to enable. If not set, all in-tree plugins are enabled. Example: --plugins=NodeAutoscalerEstimator,ResourceQuotaEstimator")
 	features.FeatureGate.AddFlag(fs)
 
 	o.ProfileOpts.AddFlags(fs)

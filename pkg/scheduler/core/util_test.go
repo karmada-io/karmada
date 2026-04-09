@@ -1,5 +1,5 @@
 /*
-Copyright 2022 The Karmada Authors.
+Copyright 2026 The Karmada Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,64 +17,32 @@ limitations under the License.
 package core
 
 import (
-	"reflect"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	"github.com/karmada-io/karmada/pkg/scheduler/core/spreadconstraint"
-	"github.com/karmada-io/karmada/test/helper"
 )
 
-func Test_attachZeroReplicasCluster(t *testing.T) {
-	type args struct {
-		clusters       []spreadconstraint.ClusterDetailInfo
-		targetClusters []workv1alpha2.TargetCluster
+func TestFindClusterReplicas(t *testing.T) {
+	clusters := []workv1alpha2.TargetCluster{
+		{Name: "member-a", Replicas: 5},
+		{Name: "member-b", Replicas: 3},
 	}
+
 	tests := []struct {
-		name string
-		args args
-		want []workv1alpha2.TargetCluster
+		name     string
+		cluster  string
+		expected int32
 	}{
-		{
-			name: "clusters: member1,member2,member3, targetClusters:member1,member2",
-			args: args{
-				clusters: []spreadconstraint.ClusterDetailInfo{
-					{Name: ClusterMember1, Cluster: helper.NewCluster(ClusterMember1)},
-					{Name: ClusterMember2, Cluster: helper.NewCluster(ClusterMember2)},
-					{Name: ClusterMember3, Cluster: helper.NewCluster(ClusterMember3)},
-				},
-				targetClusters: []workv1alpha2.TargetCluster{
-					{
-						Name:     ClusterMember1,
-						Replicas: 1,
-					},
-					{
-						Name:     ClusterMember2,
-						Replicas: 2,
-					},
-				},
-			},
-			want: []workv1alpha2.TargetCluster{
-				{
-					Name:     ClusterMember1,
-					Replicas: 1,
-				},
-				{
-					Name:     ClusterMember2,
-					Replicas: 2,
-				},
-				{
-					Name:     ClusterMember3,
-					Replicas: 0,
-				},
-			},
-		},
+		{"found member-a", "member-a", 5},
+		{"found member-b", "member-b", 3},
+		{"not found", "member-c", -1},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := attachZeroReplicasCluster(tt.args.clusters, tt.args.targetClusters); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("attachZeroReplicasCluster() = %v, want %v", got, tt.want)
-			}
+			assert.Equal(t, tt.expected, findClusterReplicas(clusters, tt.cluster))
 		})
 	}
 }
