@@ -24,7 +24,7 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
 
-// Attributes Attributes contains the attributes that call webhook.
+// Attributes contains the attributes that call webhook.
 type Attributes struct {
 	Operation        configv1alpha1.InterpreterOperation
 	Object           *unstructured.Unstructured
