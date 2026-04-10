@@ -17,13 +17,13 @@ limitations under the License.
 package kubernetes
 
 import (
-	"fmt"
 	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/component-base/cli/flag"
 	"k8s.io/utils/ptr"
 )
@@ -36,6 +36,8 @@ const (
 	etcdContainerClientPort            = 2379
 	etcdContainerServerPortName        = "server"
 	etcdContainerServerPort            = 2380
+	etcdContainerMetricsPortName       = "metrics"
+	etcdContainerMetricsPort           = 2381
 	etcdContainerDataVolumeMountName   = "etcd-data"
 	etcdContainerDataVolumeMountPath   = "/var/lib/karmada-etcd"
 	etcdContainerConfigVolumeMountName = "etcd-config"
@@ -142,34 +144,34 @@ func (i *CommandInitOption) makeETCDStatefulSet() *appsv1.StatefulSet {
 	}
 
 	// Probes
-	livenesProbe := &corev1.Probe{
+	livenessProbe := &corev1.Probe{
 		ProbeHandler: corev1.ProbeHandler{
-			Exec: &corev1.ExecAction{
-				Command: []string{
-					"/bin/sh",
-					"-ec",
-					fmt.Sprintf("etcdctl endpoint health --endpoints http://127.0.0.1:%v", etcdContainerClientPort),
-				},
+			HTTPGet: &corev1.HTTPGetAction{
+				Path:   "/livez",
+				Port:   intstr.FromInt(etcdContainerMetricsPort),
+				Scheme: corev1.URISchemeHTTP,
 			},
 		},
-		InitialDelaySeconds: 15,
-		FailureThreshold:    3,
-		PeriodSeconds:       60,
+		InitialDelaySeconds: 60,
 		TimeoutSeconds:      5,
+		PeriodSeconds:       10,
+		SuccessThreshold:    1,
+		FailureThreshold:    3,
 	}
-	/*	readinesProbe := &corev1.Probe{
-		Handler: corev1.Handler{
-			TCPSocket: &corev1.TCPSocketAction{
-				Port: intstr.IntOrString{
-					IntVal: etcdContainerClientPort,
-				},
+	readinessProbe := &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path:   "/readyz",
+				Port:   intstr.FromInt(etcdContainerMetricsPort),
+				Scheme: corev1.URISchemeHTTP,
 			},
 		},
-		InitialDelaySeconds: 5,
-		FailureThreshold:    3,
-		PeriodSeconds:       30,
+		InitialDelaySeconds: 10,
 		TimeoutSeconds:      5,
-	}*/
+		PeriodSeconds:       5,
+		SuccessThreshold:    1,
+		FailureThreshold:    30,
+	}
 
 	// etcd Container
 	podSpec := corev1.PodSpec{
@@ -213,6 +215,11 @@ func (i *CommandInitOption) makeETCDStatefulSet() *appsv1.StatefulSet {
 						ContainerPort: etcdContainerServerPort,
 						Protocol:      corev1.ProtocolTCP,
 					},
+					{
+						Name:          etcdContainerMetricsPortName,
+						ContainerPort: etcdContainerMetricsPort,
+						Protocol:      corev1.ProtocolTCP,
+					},
 				},
 				VolumeMounts: []corev1.VolumeMount{
 					{
@@ -231,8 +238,8 @@ func (i *CommandInitOption) makeETCDStatefulSet() *appsv1.StatefulSet {
 						MountPath: karmadaCertsVolumeMountPath,
 					},
 				},
-				LivenessProbe: livenesProbe,
-				//ReadinessProbe: readinesProbe,
+				LivenessProbe:  livenessProbe,
+				ReadinessProbe: readinessProbe,
 				Env: []corev1.EnvVar{
 					{
 						Name: etcdEnvPodName,
