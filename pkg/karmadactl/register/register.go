@@ -36,11 +36,9 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	k8srand "k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/wait"
 	kubeclient "k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	certutil "k8s.io/client-go/util/cert"
@@ -50,7 +48,6 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/util/templates"
 
-	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/apis/cluster/validation"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
@@ -106,10 +103,6 @@ const (
 	DefaultDiscoveryTimeout = 5 * time.Minute
 	// DiscoveryRetryInterval specifies how long register command should wait before retrying to connect to the control-plane when doing discovery
 	DiscoveryRetryInterval = 5 * time.Second
-	// registerFailureCleanupRetryInterval specifies how long register command should wait before retrying to clean up cluster object after rollout failure.
-	registerFailureCleanupRetryInterval = time.Second
-	// registerFailureCleanupTimeout specifies the upper bound for best-effort cluster cleanup after rollout failure.
-	registerFailureCleanupTimeout = 30 * time.Second
 	// DefaultCertExpirationSeconds define the expiration time of certificate
 	DefaultCertExpirationSeconds int32 = 86400 * 365
 )
@@ -254,11 +247,8 @@ type CommandRegisterOption struct {
 	// ProxyServerAddress holds the proxy server address that is used to proxy to the cluster.
 	ProxyServerAddress string
 
-	clusterID             string
-	createdClusterUID     types.UID
 	memberClusterEndpoint string
 	memberClusterClient   *kubeclient.Clientset
-	memberClusterConfig   *rest.Config
 }
 
 // Complete ensures that options are valid and marshals them if necessary.
@@ -288,7 +278,6 @@ func (o *CommandRegisterOption) Complete(args []string) error {
 	}
 
 	o.memberClusterEndpoint = restConfig.Host
-	o.memberClusterConfig = restConfig
 
 	o.memberClusterClient, err = apiclient.NewClientSet(restConfig)
 	if err != nil {
@@ -337,12 +326,6 @@ func (o *CommandRegisterOption) Run(parentCommand string) error {
 		return nil
 	}
 
-	clusterID, err := karmadautil.ObtainClusterID(o.memberClusterClient)
-	if err != nil {
-		return err
-	}
-	o.clusterID = clusterID
-
 	// fetch the bootstrap client to connect to karmada apiserver temporarily
 	fmt.Println("[karmada-agent-start] Waiting to perform the TLS Bootstrap")
 	bootstrapClient, karmadaClusterInfo, err := o.discoveryBootstrapConfigAndClusterInfo(parentCommand)
@@ -350,7 +333,7 @@ func (o *CommandRegisterOption) Run(parentCommand string) error {
 		return err
 	}
 
-	err = o.EnsureNecessaryResourcesExistInMemberCluster(bootstrapClient, karmadaClusterInfo)
+	err = o.EnsureNecessaryResourcesExist(bootstrapClient, karmadaClusterInfo)
 	if err != nil {
 		return err
 	}
@@ -360,29 +343,14 @@ func (o *CommandRegisterOption) Run(parentCommand string) error {
 	return nil
 }
 
-// EnsureNecessaryResourcesExistInMemberCluster ensures that all necessary resources are exist in the registering cluster.
-func (o *CommandRegisterOption) EnsureNecessaryResourcesExistInMemberCluster(bootstrapClient *kubeclient.Clientset, karmadaClusterInfo *clientcmdapi.Cluster) (retErr error) {
+// EnsureNecessaryResourcesExist ensures that all resources required by register exist before karmada-agent starts.
+func (o *CommandRegisterOption) EnsureNecessaryResourcesExist(bootstrapClient *kubeclient.Clientset, karmadaClusterInfo *clientcmdapi.Cluster) error {
 	// construct the final kubeconfig file used by karmada agent to connect to karmada apiserver
 	fmt.Println("[karmada-agent-start] Waiting to construct karmada-agent kubeconfig")
 	karmadaAgentCfg, err := o.constructKarmadaAgentConfig(bootstrapClient, karmadaClusterInfo)
 	if err != nil {
 		return err
 	}
-
-	fmt.Println("[karmada-agent-start] Waiting to create cluster object in control plane")
-	if err = o.ensureClusterExistsInControlPlane(karmadaAgentCfg); err != nil {
-		return err
-	}
-
-	defer func() {
-		if retErr == nil || o.createdClusterUID == "" {
-			return
-		}
-		fmt.Println("karmadactl register failed and started deleting the created cluster object")
-		if cleanupErr := o.cleanupClusterInControlPlaneOnFailure(karmadaAgentCfg); cleanupErr != nil {
-			klog.Warningf("Failed to delete cluster object %s from control plane: %v", o.ClusterName, cleanupErr)
-		}
-	}()
 
 	// It's necessary to set the label of namespace to make sure that the namespace is created by Karmada.
 	labels := map[string]string{
@@ -411,126 +379,6 @@ func (o *CommandRegisterOption) EnsureNecessaryResourcesExistInMemberCluster(boo
 	}
 
 	return nil
-}
-
-func (o *CommandRegisterOption) ensureClusterExistsInControlPlane(karmadaAgentCfg *clientcmdapi.Config) error {
-	karmadaClient, err := ToKarmadaClient(karmadaAgentCfg)
-	if err != nil {
-		return err
-	}
-
-	_, exist, err := karmadautil.GetClusterWithKarmadaClient(karmadaClient, o.ClusterName)
-	if err != nil {
-		return err
-	}
-	if exist {
-		return fmt.Errorf("failed to register as cluster with name %s already exists", o.ClusterName)
-	}
-
-	cluster, err := karmadautil.CreateClusterObject(karmadaClient, o.generateClusterInControlPlane())
-	if err != nil {
-		return fmt.Errorf("failed to create cluster(%s) object. error: %w", o.ClusterName, err)
-	}
-
-	o.createdClusterUID = cluster.UID
-	return nil
-}
-
-func (o *CommandRegisterOption) generateClusterInControlPlane() *clusterv1alpha1.Cluster {
-	clusterObj := &clusterv1alpha1.Cluster{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: o.ClusterName,
-			Annotations: map[string]string{
-				karmadautil.ClusterNamespaceAnnotation: o.ClusterNamespace,
-			},
-		},
-	}
-	clusterObj.Spec.SyncMode = clusterv1alpha1.Pull
-	clusterObj.Spec.APIEndpoint = o.memberClusterEndpoint
-	clusterObj.Spec.ProxyURL = o.ProxyServerAddress
-	clusterObj.Spec.ID = o.clusterID
-	clusterObj.Spec.SecretRef = &clusterv1alpha1.LocalSecretReference{
-		Namespace: o.ClusterNamespace,
-		Name:      o.ClusterName,
-	}
-	clusterObj.Spec.ImpersonatorSecretRef = &clusterv1alpha1.LocalSecretReference{
-		Namespace: o.ClusterNamespace,
-		Name:      names.GenerateImpersonationSecretName(o.ClusterName),
-	}
-
-	if o.ClusterProvider != "" {
-		clusterObj.Spec.Provider = o.ClusterProvider
-	}
-
-	if len(o.ClusterZones) > 0 {
-		clusterObj.Spec.Zones = o.ClusterZones
-	}
-
-	if o.ClusterRegion != "" {
-		clusterObj.Spec.Region = o.ClusterRegion
-	}
-
-	clusterObj.Spec.InsecureSkipTLSVerification = o.memberClusterConfig.TLSClientConfig.Insecure
-
-	if o.memberClusterConfig.Proxy != nil {
-		url, err := o.memberClusterConfig.Proxy(nil)
-		if err == nil {
-			clusterObj.Spec.ProxyURL = url.String()
-		} else {
-			klog.Errorf("memberClusterConfig.Proxy error, %v", err)
-		}
-	}
-
-	return clusterObj
-}
-
-func (o *CommandRegisterOption) cleanupClusterInControlPlaneOnFailure(karmadaAgentCfg *clientcmdapi.Config) error {
-	karmadaClient, err := ToKarmadaClient(karmadaAgentCfg)
-	if err != nil {
-		return err
-	}
-
-	return cleanupCreatedClusterInControlPlane(karmadaClient, o.ClusterName, o.createdClusterUID, o.Timeout)
-}
-
-func cleanupCreatedClusterInControlPlane(karmadaClient karmadaclientset.Interface, clusterName string, createdClusterUID types.UID, timeout time.Duration) error {
-	if createdClusterUID == "" {
-		return nil
-	}
-
-	cleanupTimeout := registerFailureCleanupTimeout
-	if timeout > 0 && timeout < cleanupTimeout {
-		cleanupTimeout = timeout
-	}
-
-	return wait.PollUntilContextTimeout(context.TODO(), registerFailureCleanupRetryInterval, cleanupTimeout, false, func(ctx context.Context) (bool, error) {
-		cluster, getErr := karmadaClient.ClusterV1alpha1().Clusters().Get(ctx, clusterName, metav1.GetOptions{})
-		switch {
-		case apierrors.IsNotFound(getErr):
-			return true, nil
-		case getErr != nil:
-			return false, getErr
-		}
-
-		if cluster.UID != createdClusterUID {
-			return true, nil
-		}
-
-		deleteUID := createdClusterUID
-		deleteErr := karmadaClient.ClusterV1alpha1().Clusters().Delete(ctx, clusterName, metav1.DeleteOptions{
-			Preconditions: &metav1.Preconditions{UID: &deleteUID},
-		})
-		switch {
-		case deleteErr == nil, apierrors.IsNotFound(deleteErr):
-			return true, nil
-		case apierrors.IsForbidden(deleteErr):
-			return false, nil
-		case apierrors.IsConflict(deleteErr):
-			return true, nil
-		default:
-			return false, deleteErr
-		}
-	})
 }
 
 // preflight checks the deployment environment of the member cluster

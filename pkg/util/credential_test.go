@@ -206,7 +206,7 @@ func TestRegisterClusterInControllerPlane(t *testing.T) {
 	type args struct {
 		opts                             ClusterRegisterOption
 		controlPlaneKubeClient           kubernetes.Interface
-		controlPlaneClusterClient        karmadaclientset.Interface
+		controlPlaneKarmadaClient        karmadaclientset.Interface
 		generateClusterInControllerPlane generateClusterInControllerPlaneFunc
 	}
 	tests := []struct {
@@ -230,7 +230,7 @@ func TestRegisterClusterInControllerPlane(t *testing.T) {
 					},
 				},
 				controlPlaneKubeClient:    fake.NewClientset(),
-				controlPlaneClusterClient: fakekarmadaclient.NewClientset(),
+				controlPlaneKarmadaClient: fakekarmadaclient.NewClientset(),
 				generateClusterInControllerPlane: func(opts ClusterRegisterOption) (*clusterv1alpha1.Cluster, error) {
 					clusterObj := &clusterv1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: opts.ClusterName}}
 					clusterObj.Spec.SyncMode = clusterv1alpha1.Pull
@@ -264,7 +264,7 @@ func TestRegisterClusterInControllerPlane(t *testing.T) {
 					},
 				},
 				controlPlaneKubeClient:    fake.NewClientset(),
-				controlPlaneClusterClient: fakekarmadaclient.NewClientset(),
+				controlPlaneKarmadaClient: fakekarmadaclient.NewClientset(),
 				generateClusterInControllerPlane: func(opts ClusterRegisterOption) (*clusterv1alpha1.Cluster, error) {
 					clusterObj := &clusterv1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: opts.ClusterName}}
 					clusterObj.Spec.SyncMode = clusterv1alpha1.Push
@@ -293,7 +293,7 @@ func TestRegisterClusterInControllerPlane(t *testing.T) {
 					ClusterConfig:    &rest.Config{},
 				},
 				controlPlaneKubeClient: fake.NewClientset(),
-				controlPlaneClusterClient: fakekarmadaclient.NewClientset(&clusterv1alpha1.Cluster{
+				controlPlaneKarmadaClient: fakekarmadaclient.NewClientset(&clusterv1alpha1.Cluster{
 					ObjectMeta: metav1.ObjectMeta{Name: "member1"},
 					Spec: clusterv1alpha1.ClusterSpec{
 						ID:       "cluster-id",
@@ -319,7 +319,7 @@ func TestRegisterClusterInControllerPlane(t *testing.T) {
 					ClusterConfig:    &rest.Config{},
 				},
 				controlPlaneKubeClient: fake.NewClientset(),
-				controlPlaneClusterClient: fakekarmadaclient.NewClientset(&clusterv1alpha1.Cluster{
+				controlPlaneKarmadaClient: fakekarmadaclient.NewClientset(&clusterv1alpha1.Cluster{
 					ObjectMeta: metav1.ObjectMeta{Name: "member1"},
 					Spec: clusterv1alpha1.ClusterSpec{
 						ID:       "other-id",
@@ -338,7 +338,7 @@ func TestRegisterClusterInControllerPlane(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := RegisterClusterInControllerPlane(tt.args.opts, tt.args.controlPlaneKubeClient, tt.args.controlPlaneClusterClient, tt.args.generateClusterInControllerPlane); (err != nil) != tt.wantErr {
+			if err := RegisterClusterInControllerPlane(tt.args.opts, tt.args.controlPlaneKubeClient, tt.args.controlPlaneKarmadaClient, tt.args.generateClusterInControllerPlane); (err != nil) != tt.wantErr {
 				t.Errorf("RegisterClusterInControllerPlane() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

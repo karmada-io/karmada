@@ -144,20 +144,20 @@ func ObtainCredentialsFromMemberCluster(clusterKubeClient kubeclient.Interface, 
 }
 
 // RegisterClusterInControllerPlane represents register cluster in controller plane
-func RegisterClusterInControllerPlane(opts ClusterRegisterOption, controlPlaneKubeClient kubeclient.Interface, controlPlaneClusterClient karmadaclientset.Interface, generateClusterInControllerPlane generateClusterInControllerPlaneFunc) error {
+func RegisterClusterInControllerPlane(opts ClusterRegisterOption, controlPlaneKubeClient kubeclient.Interface, controlPlaneKarmadaClient karmadaclientset.Interface, generateClusterInControllerPlane generateClusterInControllerPlaneFunc) error {
 	clusterObj, err := generateClusterInControllerPlane(opts)
 	if err != nil {
 		return err
 	}
 
 	if clusterObj.Spec.SyncMode == clusterv1alpha1.Pull {
-		return registerPullClusterInControllerPlane(opts, controlPlaneKubeClient, controlPlaneClusterClient, clusterObj)
+		return registerPullClusterInControllerPlane(opts, controlPlaneKubeClient, controlPlaneKarmadaClient, clusterObj)
 	}
 
-	return registerPushClusterInControllerPlane(opts, controlPlaneKubeClient, controlPlaneClusterClient, clusterObj)
+	return registerPushClusterInControllerPlane(opts, controlPlaneKubeClient, controlPlaneKarmadaClient, clusterObj)
 }
 
-func registerPushClusterInControllerPlane(opts ClusterRegisterOption, controlPlaneKubeClient kubeclient.Interface, controlPlaneClusterClient karmadaclientset.Interface, clusterObj *clusterv1alpha1.Cluster) error {
+func registerPushClusterInControllerPlane(opts ClusterRegisterOption, controlPlaneKubeClient kubeclient.Interface, controlPlaneKarmadaClient karmadaclientset.Interface, clusterObj *clusterv1alpha1.Cluster) error {
 	// It's necessary to set the label of namespace to make sure that the namespace is created by Karmada.
 	labels := map[string]string{
 		KarmadaSystemLabel: KarmadaSystemLabelValue,
@@ -186,7 +186,7 @@ func registerPushClusterInControllerPlane(opts ClusterRegisterOption, controlPla
 		}
 	}
 
-	cluster, err := CreateClusterObject(controlPlaneClusterClient, clusterObj)
+	cluster, err := CreateClusterObject(controlPlaneKarmadaClient, clusterObj)
 	if err != nil {
 		return fmt.Errorf("failed to create cluster(%s) object. error: %w", opts.ClusterName, err)
 	}
@@ -194,8 +194,8 @@ func registerPushClusterInControllerPlane(opts ClusterRegisterOption, controlPla
 	return bindControlPlaneSecretsToCluster(controlPlaneKubeClient, cluster, secret, impersonatorSecret)
 }
 
-func registerPullClusterInControllerPlane(opts ClusterRegisterOption, controlPlaneKubeClient kubeclient.Interface, controlPlaneClusterClient karmadaclientset.Interface, clusterObj *clusterv1alpha1.Cluster) error {
-	cluster, err := createOrGetPullCluster(controlPlaneClusterClient, clusterObj)
+func registerPullClusterInControllerPlane(opts ClusterRegisterOption, controlPlaneKubeClient kubeclient.Interface, controlPlaneKarmadaClient karmadaclientset.Interface, clusterObj *clusterv1alpha1.Cluster) error {
+	cluster, err := createOrGetPullCluster(controlPlaneKarmadaClient, clusterObj)
 	if err != nil {
 		return fmt.Errorf("failed to create cluster(%s) object. error: %w", opts.ClusterName, err)
 	}
@@ -233,8 +233,8 @@ func registerPullClusterInControllerPlane(opts ClusterRegisterOption, controlPla
 	return nil
 }
 
-func createOrGetPullCluster(controlPlaneClusterClient karmadaclientset.Interface, clusterObj *clusterv1alpha1.Cluster) (*clusterv1alpha1.Cluster, error) {
-	cluster, err := controlPlaneClusterClient.ClusterV1alpha1().Clusters().Create(context.TODO(), clusterObj, metav1.CreateOptions{})
+func createOrGetPullCluster(controlPlaneKarmadaClient karmadaclientset.Interface, clusterObj *clusterv1alpha1.Cluster) (*clusterv1alpha1.Cluster, error) {
+	cluster, err := controlPlaneKarmadaClient.ClusterV1alpha1().Clusters().Create(context.TODO(), clusterObj, metav1.CreateOptions{})
 	if err == nil {
 		return cluster, nil
 	}
@@ -242,7 +242,7 @@ func createOrGetPullCluster(controlPlaneClusterClient karmadaclientset.Interface
 		return nil, err
 	}
 
-	existing, err := controlPlaneClusterClient.ClusterV1alpha1().Clusters().Get(context.TODO(), clusterObj.Name, metav1.GetOptions{})
+	existing, err := controlPlaneKarmadaClient.ClusterV1alpha1().Clusters().Get(context.TODO(), clusterObj.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
