@@ -1,0 +1,647 @@
+version: "prometheus/v1"
+service: "karmada"
+
+slos:
+  - name: "apiserver-availability"
+    objective: 99.9
+    description: "Karmada API Server availability based on HTTP request success rate"
+    labels:
+      category: "availability"
+      component: "karmada-apiserver"
+    sli:
+      events:
+        error_query: |
+          sum(
+            rate(apiserver_request_total{
+              code=~"(5..|429)",
+              verb!~"",
+              subresource!~"healthz|livez|readyz"
+            }[{{.window}}])
+          )
+        total_query: |
+          sum(
+            rate(apiserver_request_total{
+              verb!~"",
+              subresource!~"healthz|livez|readyz"
+            }[{{.window}}])
+          )
+    alerting:
+      name: "KarmadaApiserverAvailabilityBurnRateHigh"
+      page_alert:
+        labels:
+          severity: "critical"
+        annotations:
+          summary: "[KarmadaAlerts][Page] Karmada API Server Availability SLO Error Budget Burn Rate Exceeded"
+          title: "[Page] {{ $labels.sloth_service }} {{ $labels.sloth_slo }} SLO error budget burn rate is too fast."
+          description: |
+            This SLO monitors the availability of the Karmada API Server, which is critical for all Karmada control plane operations. The API server handles all resource management requests. Violations indicate that users cannot interact with the Karmada control plane, preventing workload deployments and updates across member clusters.
+          runbook_url: "https://karmada.io/docs/administrator/monitoring/karmada-observability"
+          dashboard_url: "https://karmada.io/docs/administrator/monitoring/karmada-observability"
+      ticket_alert:
+        labels:
+          severity: "warning"
+        annotations:
+          summary: "[KarmadaAlerts][Ticket] Karmada API Server Availability SLO Error Budget Burn Rate Exceeded"
+          title: "[Ticket] {{ $labels.sloth_service }} {{ $labels.sloth_slo }} SLO error budget burn rate is too fast."
+          description: |
+            This SLO monitors the availability of the Karmada API Server, which is critical for all Karmada control plane operations. The API server handles all resource management requests. Violations indicate that users cannot interact with the Karmada control plane, preventing workload deployments and updates across member clusters.
+          runbook_url: "https://karmada.io/docs/administrator/monitoring/karmada-observability"
+          dashboard_url: "https://karmada.io/docs/administrator/monitoring/karmada-observability"
+
+  - name: "apiserver-latency"
+    objective: 99.9
+    description: "Karmada API Server latency"
+    labels:
+      category: "latency"
+      component: "karmada-apiserver"
+    sli:
+      events:
+        error_query: |
+          (
+            sum(
+              rate(apiserver_request_duration_seconds_count{
+                verb!~"WATCH|APPLY",
+                subresource!~"healthz|livez|readyz"
+              }[{{.window}}])
+            )
+            -
+            sum(
+              rate(apiserver_request_duration_seconds_bucket{
+                le="0.005",
+                verb!~"WATCH|APPLY",
+                subresource!~"healthz|livez|readyz"
+              }[{{.window}}])
+            )
+          )
+        total_query: |
+          sum(
+            rate(apiserver_request_duration_seconds_count{
+              verb!~"WATCH|APPLY",
+              subresource!~"healthz|livez|readyz"
+            }[{{.window}}])
+          )
+    alerting:
+      name: "KarmadaApiserverLatencyBurnRateHigh"
+      # do not generate page alerts for latency; ticket only
+      page_alert:
+        disable: true
+      ticket_alert:
+        labels:
+          severity: "warning"
+        annotations:
+          summary: "[KarmadaAlerts][Ticket] Karmada API Server Latency SLO Error Budget Burn Rate Exceeded"
+          title: "[Ticket] {{ $labels.sloth_service }} {{ $labels.sloth_slo }} SLO error budget burn rate is too fast."
+          description: |
+            This SLO monitors the latency of Karmada API Server requests (excluding WATCH and APPLY operations). High latency degrades user experience when interacting with the Karmada control plane. Violations indicate performance issues that slow down resource operations and CLI interactions.
+          runbook_url: "https://karmada.io/docs/administrator/monitoring/karmada-observability"
+          dashboard_url: "https://karmada.io/docs/administrator/monitoring/karmada-observability"
+
+  # SCHEDULER SLOs
+
+  - name: "scheduler-availability"
+    objective: 99.9
+    description: "Karmada scheduler success rate for ResourceBinding/ClusterResourceBinding scheduling"
+    labels:
+      category: "availability"
+      component: "karmada-scheduler"
+    sli:
+      events:
+        error_query: |
+          (
+            sum(
+              rate(karmada_scheduler_schedule_attempts_total{
+                result="error"
+              }[{{.window}}])
+            )
+            or
+            sum(
+              rate(karmada_scheduler_schedule_attempts_total{}[{{.window}}])
+            ) * 0
+          )
+        total_query: |
+          clamp_min(
+            sum(
+              rate(karmada_scheduler_schedule_attempts_total{}[{{.window}}])
+            )
+            , 0.000001
+          )
+          or
+          (0 * (karmada_scheduler_schedule_attempts_total{})) + 1
+    alerting:
+      name: "KarmadaSchedulerAvailabilityBurnRateHigh"
+      page_alert:
+        labels:
+          severity: "critical"
+        annotations:
+          summary: "[KarmadaAlerts][Page] Karmada Scheduler Availability SLO Error Budget Burn Rate Exceeded"
+          title: "[Page] {{ $labels.sloth_service }} {{ $labels.sloth_slo }} SLO error budget burn rate is too fast."
+          description: |
+            This SLO tracks the success rate of the Karmada scheduler when placing workloads across member clusters. The scheduler determines which clusters should host resources based on policies. Violations mean workloads are failing to be scheduled to appropriate member clusters, preventing resource propagation.
+          runbook_url: "https://karmada.io/docs/administrator/monitoring/karmada-observability"
+          dashboard_url: "https://karmada.io/docs/administrator/monitoring/karmada-observability"
+      ticket_alert:
+        labels:
+          severity: "warning"
+        annotations:
+          summary: "[KarmadaAlerts][Ticket] Karmada Scheduler Availability SLO Error Budget Burn Rate Exceeded"
+          title: "[Ticket] {{ $labels.sloth_service }} {{ $labels.sloth_slo }} SLO error budget burn rate is too fast."
+          description: |
+            This SLO tracks the success rate of the Karmada scheduler when placing workloads across member clusters. The scheduler determines which clusters should host resources based on policies. Violations mean workloads are failing to be scheduled to appropriate member clusters, preventing resource propagation.
+          runbook_url: "https://karmada.io/docs/administrator/monitoring/karmada-observability"
+          dashboard_url: "https://karmada.io/docs/administrator/monitoring/karmada-observability"
+
+  - name: "scheduler-latency"
+    objective: 99.9
+    description: "Karmada scheduler e2e scheduling latency"
+    labels:
+      category: "latency"
+      component: "karmada-scheduler"
+    sli:
+      events:
+        error_query: |
+          (
+            sum(
+              rate(karmada_scheduler_e2e_scheduling_duration_seconds_count{
+                result="scheduled"
+              }[{{.window}}])
+            )
+            -
+            sum(
+              rate(karmada_scheduler_e2e_scheduling_duration_seconds_bucket{
+                le="0.512",
+                result="scheduled"
+              }[{{.window}}])
+            )
+          )
+        total_query: |
+          clamp_min(
+            sum(
+              rate(karmada_scheduler_e2e_scheduling_duration_seconds_count{
+                result="scheduled"
+              }[{{.window}}])
+            )
+            , 0.000001
+          )
+          or
+          (0 * (karmada_scheduler_e2e_scheduling_duration_seconds_count{})) + 1
+    alerting:
+      name: "KarmadaSchedulerLatencyBurnRateHigh"
+      page_alert:
+        disable: true
+      ticket_alert:
+        labels:
+          severity: "warning"
+        annotations:
+          summary: "[KarmadaAlerts][Ticket] Karmada Scheduler Latency SLO Error Budget Burn Rate Exceeded"
+          title: "[Ticket] {{ $labels.sloth_service }} {{ $labels.sloth_slo }} SLO error budget burn rate is too fast."
+          description: |
+            This SLO measures end-to-end scheduling latency for workloads in Karmada. High scheduling latency delays workload placement decisions. Violations indicate performance degradation in the scheduling pipeline that slows down resource propagation to member clusters.
+          runbook_url: "https://karmada.io/docs/administrator/monitoring/karmada-observability"
+          dashboard_url: "https://karmada.io/docs/administrator/monitoring/karmada-observability"
+
+  - name: "scheduler-estimator-availability"
+    objective: 99.9
+    description: "Scheduler estimator request success rate for capacity estimation"
+    labels:
+      category: "availability"
+      component: "karmada-scheduler-estimator"
+    sli:
+      events:
+        error_query: |
+          (
+            sum(
+              rate(karmada_scheduler_estimator_estimating_request_total{
+                result="error"
+              }[{{.window}}])
+            )
+            or
+            sum(
+              rate(karmada_scheduler_estimator_estimating_request_total{}[{{.window}}])
+            ) * 0
+          )
+        total_query: |
+          clamp_min(
+            sum(
+              rate(karmada_scheduler_estimator_estimating_request_total{}[{{.window}}])
+            )
+            , 0.000001
+          )
+          or
+          (0 * (karmada_scheduler_estimator_estimating_request_total{})) + 1
+    alerting:
+      name: "KarmadaSchedulerEstimatorAvailabilityBurnRateHigh"
+      page_alert:
+        labels:
+          severity: "critical"
+        annotations:
+          summary: "[KarmadaAlerts][Page] Karmada Scheduler Estimator Availability SLO Error Budget Burn Rate Exceeded"
+          title: "[Page] {{ $labels.sloth_service }} {{ $labels.sloth_slo }} SLO error budget burn rate is too fast."
+          description: |
+            This SLO monitors the scheduler estimator's ability to provide cluster capacity estimates. The estimator helps the scheduler make informed placement decisions. Violations mean the scheduler lacks accurate capacity information, potentially leading to suboptimal workload placement or scheduling failures.
+          runbook_url: "https://karmada.io/docs/administrator/monitoring/karmada-observability"
+          dashboard_url: "https://karmada.io/docs/administrator/monitoring/karmada-observability"
+      ticket_alert:
+        labels:
+          severity: "warning"
+        annotations:
+          summary: "[KarmadaAlerts][Ticket] Karmada Scheduler Estimator Availability SLO Error Budget Burn Rate Exceeded"
+          title: "[Ticket] {{ $labels.sloth_service }} {{ $labels.sloth_slo }} SLO error budget burn rate is too fast."
+          description: |
+            This SLO monitors the scheduler estimator's ability to provide cluster capacity estimates. The estimator helps the scheduler make informed placement decisions. Violations mean the scheduler lacks accurate capacity information, potentially leading to suboptimal workload placement or scheduling failures.
+          runbook_url: "https://karmada.io/docs/administrator/monitoring/karmada-observability"
+          dashboard_url: "https://karmada.io/docs/administrator/monitoring/karmada-observability"
+
+  - name: "scheduler-estimator-latency"
+    objective: 99.9
+    description: "Scheduler estimator capacity estimation latency"
+    labels:
+      category: "latency"
+      component: "karmada-scheduler-estimator"
+    sli:
+      events:
+        error_query: |
+          (
+            sum(
+              rate(karmada_scheduler_estimator_estimating_algorithm_duration_seconds_count{}[{{.window}}])
+            )
+            -
+            sum(
+              rate(karmada_scheduler_estimator_estimating_algorithm_duration_seconds_bucket{
+                le="0.128"
+              }[{{.window}}])
+            )
+          )
+        total_query: |
+          clamp_min(
+            sum(
+              rate(karmada_scheduler_estimator_estimating_algorithm_duration_seconds_count{}[{{.window}}])
+            )
+            , 0.000001
+          )
+          or
+          (0 * (karmada_scheduler_estimator_estimating_algorithm_duration_seconds_count{})) + 1
+    alerting:
+      name: "KarmadaSchedulerEstimatorLatencyBurnRateHigh"
+      page_alert:
+        disable: true
+      ticket_alert:
+        labels:
+          severity: "warning"
+        annotations:
+          summary: "[KarmadaAlerts][Ticket] Karmada Scheduler Estimator Latency SLO Error Budget Burn Rate Exceeded"
+          title: "[Ticket] {{ $labels.sloth_service }} {{ $labels.sloth_slo }} SLO error budget burn rate is too fast."
+          description: |
+            This SLO tracks the latency of cluster capacity estimation operations. High estimator latency can slow down scheduling decisions. Violations indicate performance issues in the capacity estimation algorithm that may impact overall scheduling performance.
+          runbook_url: "https://karmada.io/docs/administrator/monitoring/karmada-observability"
+          dashboard_url: "https://karmada.io/docs/administrator/monitoring/karmada-observability"
+
+  # RESOURCE PROPAGATION SLOs
+
+  - name: "binding-sync-work-availability"
+    objective: 99.9
+    description: "Success rate of syncing Work resources from ResourceBinding/ClusterResourceBinding"
+    labels:
+      category: "availability"
+      component: "karmada-controller-manager"
+    sli:
+      events:
+        error_query: |
+          (
+            sum(
+              rate(binding_sync_work_duration_seconds_count{
+                result="error"
+              }[{{.window}}])
+            )
+            or
+            sum(
+              rate(binding_sync_work_duration_seconds_count{}[{{.window}}])
+            ) * 0
+          )
+        total_query: |
+          clamp_min(
+            sum(
+              rate(binding_sync_work_duration_seconds_count{}[{{.window}}])
+            )
+            , 0.000001
+          )
+          or
+          (0 * (binding_sync_work_duration_seconds_count{})) + 1
+    alerting:
+      name: "KarmadaBindingSyncWorkAvailabilityBurnRateHigh"
+      page_alert:
+        labels:
+          severity: "critical"
+        annotations:
+          summary: "[KarmadaAlerts][Page] Binding to Work Sync Availability SLO Error Budget Burn Rate Exceeded"
+          title: "[Page] {{ $labels.sloth_service }} {{ $labels.sloth_slo }} SLO error budget burn rate is too fast."
+          description: |
+            This SLO monitors the process of creating Work resources from ResourceBindings. This is a critical step in resource propagation. Violations indicate failures in converting scheduling decisions into propagation tasks, blocking workload deployment to member clusters.
+          runbook_url: "https://karmada.io/docs/administrator/monitoring/karmada-observability"
+          dashboard_url: "https://karmada.io/docs/administrator/monitoring/karmada-observability"
+      ticket_alert:
+        labels:
+          severity: "warning"
+        annotations:
+          summary: "[KarmadaAlerts][Ticket] Binding to Work Sync Availability SLO Error Budget Burn Rate Exceeded"
+          title: "[Ticket] {{ $labels.sloth_service }} {{ $labels.sloth_slo }} SLO error budget burn rate is too fast."
+          description: |
+            This SLO monitors the process of creating Work resources from ResourceBindings. This is a critical step in resource propagation. Violations indicate failures in converting scheduling decisions into propagation tasks, blocking workload deployment to member clusters.
+          runbook_url: "https://karmada.io/docs/administrator/monitoring/karmada-observability"
+          dashboard_url: "https://karmada.io/docs/administrator/monitoring/karmada-observability"
+
+  - name: "binding-sync-work-latency"
+    objective: 99.9
+    description: "Duration to sync Work resources from bindings"
+    labels:
+      category: "latency"
+      component: "karmada-controller-manager"
+    sli:
+      events:
+        error_query: |
+          (
+            sum(
+              rate(binding_sync_work_duration_seconds_count{
+                result="success"
+              }[{{.window}}])
+            )
+            -
+            sum(
+              rate(binding_sync_work_duration_seconds_bucket{
+                le="1.024",
+                result="success"
+              }[{{.window}}])
+            )
+          )
+        total_query: |
+          clamp_min(
+            sum(
+              rate(binding_sync_work_duration_seconds_count{
+                result="success"
+              }[{{.window}}])
+            )
+            , 0.000001
+          )
+          or
+          (0 * (binding_sync_work_duration_seconds_count{})) + 1
+    alerting:
+      name: "KarmadaBindingSyncWorkLatencyBurnRateHigh"
+      page_alert:
+        disable: true
+      ticket_alert:
+        labels:
+          severity: "warning"
+        annotations:
+          summary: "[KarmadaAlerts][Ticket] Binding to Work Sync Latency SLO Error Budget Burn Rate Exceeded"
+          title: "[Ticket] {{ $labels.sloth_service }} {{ $labels.sloth_slo }} SLO error budget burn rate is too fast."
+          description: |
+            This SLO tracks the latency of converting bindings to Work resources. High latency here delays the start of workload propagation. Violations indicate performance issues in the binding controller that slow down the resource propagation pipeline.
+          runbook_url: "https://karmada.io/docs/administrator/monitoring/karmada-observability"
+          dashboard_url: "https://karmada.io/docs/administrator/monitoring/karmada-observability"
+
+  - name: "work-sync-workload-availability"
+    objective: 99.9
+    description: "Success rate of syncing workload to target member clusters"
+    labels:
+      category: "availability"
+      component: "karmada-controller-manager"
+    sli:
+      events:
+        error_query: |
+          (
+            sum(
+              rate(work_sync_workload_duration_seconds_count{
+                result="error"
+              }[{{.window}}])
+            )
+            or
+            sum(
+              rate(work_sync_workload_duration_seconds_count{}[{{.window}}])
+            ) * 0
+          )
+        total_query: |
+          clamp_min(
+            sum(
+              rate(work_sync_workload_duration_seconds_count{}[{{.window}}])
+            )
+            , 0.000001
+          )
+          or
+          (0 * (work_sync_workload_duration_seconds_count{})) + 1
+    alerting:
+      name: "KarmadaWorkSyncWorkloadAvailabilityBurnRateHigh"
+      page_alert:
+        labels:
+          severity: "critical"
+        annotations:
+          summary: "[KarmadaAlerts][Page] Work to Workload Sync Availability SLO Error Budget Burn Rate Exceeded"
+          title: "[Page] {{ $labels.sloth_service }} {{ $labels.sloth_slo }} SLO error budget burn rate is too fast."
+          description: |
+            This SLO monitors the final step of resource propagation - deploying workloads to member clusters. This is where resources actually reach their destination. Violations mean workloads are not being successfully created in member clusters, directly impacting application availability.
+          runbook_url: "https://karmada.io/docs/administrator/monitoring/karmada-observability"
+          dashboard_url: "https://karmada.io/docs/administrator/monitoring/karmada-observability"
+      ticket_alert:
+        labels:
+          severity: "warning"
+        annotations:
+          summary: "[KarmadaAlerts][Ticket] Work to Workload Sync Availability SLO Error Budget Burn Rate Exceeded"
+          title: "[Ticket] {{ $labels.sloth_service }} {{ $labels.sloth_slo }} SLO error budget burn rate is too fast."
+          description: |
+            This SLO monitors the final step of resource propagation - deploying workloads to member clusters. This is where resources actually reach their destination. Violations mean workloads are not being successfully created in member clusters, directly impacting application availability.
+          runbook_url: "https://karmada.io/docs/administrator/monitoring/karmada-observability"
+          dashboard_url: "https://karmada.io/docs/administrator/monitoring/karmada-observability"
+
+  - name: "work-sync-workload-latency"
+    objective: 99.0
+    description: "Duration to sync workload to member clusters"
+    labels:
+      category: "latency"
+      component: "karmada-controller-manager"
+    sli:
+      events:
+        error_query: |
+          (
+            sum(
+              rate(work_sync_workload_duration_seconds_count{
+                result="success"
+              }[{{.window}}])
+            )
+            -
+            sum(
+              rate(work_sync_workload_duration_seconds_bucket{
+                le="2.048",
+                result="success"
+              }[{{.window}}])
+            )
+          )
+        total_query: |
+          clamp_min(
+            sum(
+              rate(work_sync_workload_duration_seconds_count{
+                result="success"
+              }[{{.window}}])
+            )
+            , 0.000001
+          )
+          or
+          (0 * (work_sync_workload_duration_seconds_count{})) + 1
+    alerting:
+      name: "KarmadaWorkSyncWorkloadLatencyBurnRateHigh"
+      page_alert:
+        disable: true
+      ticket_alert:
+        labels:
+          severity: "warning"
+        annotations:
+          summary: "[KarmadaAlerts][Ticket] Work to Workload Sync Latency SLO Error Budget Burn Rate Exceeded"
+          title: "[Ticket] {{ $labels.sloth_service }} {{ $labels.sloth_slo }} SLO error budget burn rate is too fast."
+          description: |
+            This SLO measures the latency of deploying workloads to member clusters. High latency delays application deployment and updates. Violations indicate performance bottlenecks in the workload propagation process that slow down end-to-end deployment time.
+          runbook_url: "https://karmada.io/docs/administrator/monitoring/karmada-observability"
+          dashboard_url: "https://karmada.io/docs/administrator/monitoring/karmada-observability"
+
+  # POLICY APPLICATION SLOs
+
+  - name: "policy-apply-availability"
+    objective: 99.9
+    description: "Success rate of applying PropagationPolicy/ClusterPropagationPolicy to resources"
+    labels:
+      category: "availability"
+      component: "karmada-controller-manager"
+    sli:
+      events:
+        error_query: |
+          (
+            sum(
+              rate(policy_apply_attempts_total{
+                result="error"
+              }[{{.window}}])
+            )
+            or
+            sum(
+              rate(policy_apply_attempts_total{}[{{.window}}])
+            ) * 0
+          )
+        total_query: |
+          clamp_min(
+            sum(
+              rate(policy_apply_attempts_total{}[{{.window}}])
+            )
+            , 0.000001
+          )
+          or
+          (0 * (policy_apply_attempts_total{})) + 1
+    alerting:
+      name: "KarmadaPolicyApplyAvailabilityBurnRateHigh"
+      page_alert:
+        labels:
+          severity: "critical"
+        annotations:
+          summary: "[KarmadaAlerts][Page] Policy Apply Availability SLO Error Budget Burn Rate Exceeded"
+          title: "[Page] {{ $labels.sloth_service }} {{ $labels.sloth_slo }} SLO error budget burn rate is too fast."
+          description: |
+            This SLO tracks the success rate of applying propagation policies to resources. Policies determine how resources are distributed across clusters. Violations mean resources are not being properly associated with their propagation policies, preventing workload distribution.
+          runbook_url: "https://karmada.io/docs/administrator/monitoring/karmada-observability"
+          dashboard_url: "https://karmada.io/docs/administrator/monitoring/karmada-observability"
+      ticket_alert:
+        labels:
+          severity: "warning"
+        annotations:
+          summary: "[KarmadaAlerts][Ticket] Policy Apply Availability SLO Error Budget Burn Rate Exceeded"
+          title: "[Ticket] {{ $labels.sloth_service }} {{ $labels.sloth_slo }} SLO error budget burn rate is too fast."
+          description: |
+            This SLO tracks the success rate of applying propagation policies to resources. Policies determine how resources are distributed across clusters. Violations mean resources are not being properly associated with their propagation policies, preventing workload distribution.
+          runbook_url: "https://karmada.io/docs/administrator/monitoring/karmada-observability"
+          dashboard_url: "https://karmada.io/docs/administrator/monitoring/karmada-observability"
+
+  - name: "policy-apply-latency"
+    objective: 99.9
+    description: "Duration to apply propagation policy to resources"
+    labels:
+      category: "latency"
+      component: "karmada-controller-manager"
+    sli:
+      events:
+        error_query: |
+          (
+            sum(
+              rate(resource_apply_policy_duration_seconds_count{
+                result="success"
+              }[{{.window}}])
+            )
+            -
+            sum(
+              rate(resource_apply_policy_duration_seconds_bucket{
+                le="1.024",
+                result="success"
+              }[{{.window}}])
+            )
+          )
+        total_query: |
+          clamp_min(
+            sum(
+              rate(resource_apply_policy_duration_seconds_count{
+                result="success"
+              }[{{.window}}])
+            )
+            , 0.000001
+          )
+          or
+          (0 * (resource_apply_policy_duration_seconds_count{})) + 1
+    alerting:
+      name: "KarmadaPolicyApplyLatencyBurnRateHigh"
+      page_alert:
+        disable: true
+      ticket_alert:
+        labels:
+          severity: "warning"
+        annotations:
+          summary: "[KarmadaAlerts][Ticket] Policy Apply Latency SLO Error Budget Burn Rate Exceeded"
+          title: "[Ticket] {{ $labels.sloth_service }} {{ $labels.sloth_slo }} SLO error budget burn rate is too fast."
+          description: |
+            This SLO measures the latency of applying propagation policies to resources. High latency delays the start of the resource propagation process. Violations indicate performance issues in policy processing that slow down the overall deployment pipeline.
+          runbook_url: "https://karmada.io/docs/administrator/monitoring/karmada-observability"
+          dashboard_url: "https://karmada.io/docs/administrator/monitoring/karmada-observability"
+
+  # CLUSTER HEALTH SLO
+
+  - name: "cluster-sync-latency"
+    objective: 99.9
+    description: "Duration to sync cluster status from ready member clusters"
+    labels:
+      category: "latency"
+      component: "karmada-controller-manager"
+    sli:
+      events:
+        error_query: |
+          (
+            sum(
+              rate(cluster_sync_status_duration_seconds_count{}[{{.window}}])
+              and on (cluster_name) cluster_ready_state == 1
+            )
+            -
+            sum(
+              rate(cluster_sync_status_duration_seconds_bucket{
+                le="1.0"
+              }[{{.window}}])
+              and on (cluster_name) cluster_ready_state == 1
+            )
+          )
+        total_query: |
+          sum(
+            rate(cluster_sync_status_duration_seconds_count{}[{{.window}}])
+            and on (cluster_name) cluster_ready_state == 1
+          )
+    alerting:
+      name: "KarmadaClusterSyncLatencyBurnRateHigh"
+      page_alert:
+        disable: true
+      ticket_alert:
+        labels:
+          severity: "warning"
+        annotations:
+          summary: "[KarmadaAlerts][Ticket] Cluster Status Sync Latency SLO Error Budget Burn Rate Exceeded"
+          title: "[Ticket] {{ $labels.sloth_service }} {{ $labels.sloth_slo }} SLO error budget burn rate is too fast."
+          description: |
+            This SLO tracks the latency of syncing cluster status information from member clusters. Timely cluster status updates are critical for informed scheduling decisions. Violations indicate delays in cluster health monitoring that may result in stale capacity information and suboptimal scheduling.
+          runbook_url: "https://karmada.io/docs/administrator/monitoring/karmada-observability"
+          dashboard_url: "https://karmada.io/docs/administrator/monitoring/karmada-observability"

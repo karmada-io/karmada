@@ -1,0 +1,1628 @@
+{
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": ">=9.0"
+    },
+    {
+      "type": "panel",
+      "id": "timeseries",
+      "name": "Time series",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "stat",
+      "name": "Stat",
+      "version": ""
+    },
+    {
+      "type": "datasource",
+      "id": "prometheus",
+      "name": "Prometheus",
+      "version": ""
+    }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "graphTooltip": 0,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "id": 1,
+      "type": "row",
+      "title": "Reconciliation Overview",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Total reconcile errors (last 30m)",
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "round(sum(increase(controller_runtime_reconcile_errors_total{controller=~\"$controller\"}[30m])))",
+          "legendFormat": "errors (30m)",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "datasource": "$DS_PROMETHEUS"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 100
+              }
+            ]
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 0,
+        "y": 1
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "graphMode": "none",
+        "colorMode": "value",
+        "noValue": "0"
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Error percentage (last 30m)",
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * (sum(increase(controller_runtime_reconcile_total{controller=~\"$controller\", result=\"error\"}[30m])))/(clamp_min(sum(increase(controller_runtime_reconcile_total{controller=~\"$controller\"}[30m])), 1e-9))",
+          "legendFormat": "error % (30m)",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "datasource": "$DS_PROMETHEUS"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 6,
+        "y": 1
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "graphMode": "none",
+        "colorMode": "value",
+        "noValue": "0"
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Total reconcile errors (last 1h)",
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "round(sum(increase(controller_runtime_reconcile_errors_total{controller=~\"$controller\"}[1h])))",
+          "legendFormat": "errors (1h)",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "datasource": "$DS_PROMETHEUS"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 100
+              }
+            ]
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 12,
+        "y": 1
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "graphMode": "none",
+        "colorMode": "value",
+        "noValue": "0"
+      }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Error percentage (last 1h)",
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * (sum(increase(controller_runtime_reconcile_total{controller=~\"$controller\", result=\"error\"}[1h])))/(clamp_min(sum(increase(controller_runtime_reconcile_total{controller=~\"$controller\"}[1h])), 1e-9))",
+          "legendFormat": "error % (1h)",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "datasource": "$DS_PROMETHEUS"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 18,
+        "y": 1
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "graphMode": "none",
+        "colorMode": "value",
+        "noValue": "0"
+      }
+    },
+    {
+      "type": "piechart",
+      "title": "Reconcile Errors by Controller (last 30m)",
+      "id": 35,
+      "datasource": "$DS_PROMETHEUS",
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 6
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(sum by (controller) (increase(controller_runtime_reconcile_total{controller=~\"$controller\", result=\"error\"}[30m]))) and (sum by (controller) (increase(controller_runtime_reconcile_total{controller=~\"$controller\", result=\"error\"}[30m]))) > 0",
+          "legendFormat": "{{controller}}"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "values": [
+            "value",
+            "percent"
+          ]
+        },
+        "pieType": "pie",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        },
+        "displayLabels": [],
+        "showLabels": false,
+        "labelType": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "displayLabels": []
+          },
+          "mappings": [],
+          "unit": "none",
+          "decimals": 0
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "piechart",
+      "title": "Reconcile Errors by Controller (last 1h)",
+      "id": 36,
+      "datasource": "$DS_PROMETHEUS",
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 6
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(sum by (controller) (increase(controller_runtime_reconcile_total{controller=~\"$controller\", result=\"error\"}[1h]))) and (sum by (controller) (increase(controller_runtime_reconcile_total{controller=~\"$controller\", result=\"error\"}[1h]))) > 0",
+          "legendFormat": "{{controller}}"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "values": [
+            "value",
+            "percent"
+          ]
+        },
+        "pieType": "pie",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        },
+        "displayLabels": [],
+        "showLabels": false,
+        "labelType": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "displayLabels": []
+          },
+          "mappings": [],
+          "unit": "none",
+          "decimals": 0
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Reconciliations per second (by result)",
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by(controller, result) (rate(controller_runtime_reconcile_total{controller=~\"$controller\"}[5m]))",
+          "legendFormat": "{{controller}} {{result}}",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "datasource": "$DS_PROMETHEUS"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 6
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Reconcile duration (p50/p90/p99)",
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.5,  sum by (le, controller) (rate(controller_runtime_reconcile_time_seconds_bucket{controller=~\"$controller\"}[5m])))",
+          "legendFormat": "p50 {{controller}}",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "datasource": "$DS_PROMETHEUS"
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.9,  sum by (le, controller) (rate(controller_runtime_reconcile_time_seconds_bucket{controller=~\"$controller\"}[5m])))",
+          "legendFormat": "p90 {{controller}}",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "datasource": "$DS_PROMETHEUS"
+        },
+        {
+          "refId": "C",
+          "expr": "histogram_quantile(0.99, sum by (le, controller) (rate(controller_runtime_reconcile_time_seconds_bucket{controller=~\"$controller\"}[5m])))",
+          "legendFormat": "p99 {{controller}}",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "datasource": "$DS_PROMETHEUS"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 6
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Reconcile error rate (errors/s)",
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by(controller) (rate(controller_runtime_reconcile_errors_total{controller=~\"$controller\"}[5m]))",
+          "legendFormat": "{{controller}}",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "datasource": "$DS_PROMETHEUS"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 14
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Reconcile panics (per second)",
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by(controller) (rate(controller_runtime_reconcile_panics_total{controller=~\"$controller\"}[5m]))",
+          "legendFormat": "{{controller}}",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "datasource": "$DS_PROMETHEUS"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 14
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Reconcile average duration",
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(sum by(controller) (rate(controller_runtime_reconcile_time_seconds_sum{controller=~\"$controller\"}[5m]))) / (sum by(controller) (rate(controller_runtime_reconcile_time_seconds_count{controller=~\"$controller\"}[5m])))",
+          "legendFormat": "avg {{controller}}",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "datasource": "$DS_PROMETHEUS"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 22
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Workers: active & max",
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "avg by(controller) (controller_runtime_active_workers{controller=~\"$controller\"})",
+          "legendFormat": "active {{controller}}",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "datasource": "$DS_PROMETHEUS"
+        },
+        {
+          "refId": "B",
+          "expr": "max by(controller) (controller_runtime_max_concurrent_reconciles{controller=~\"$controller\"})",
+          "legendFormat": "max {{controller}}",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "datasource": "$DS_PROMETHEUS"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 22
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Worker saturation (%)",
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * avg by(controller) (controller_runtime_active_workers{controller=~\"$controller\"}) / clamp_max(max by(controller) (controller_runtime_max_concurrent_reconciles{controller=~\"$controller\"}), 1e9)",
+          "legendFormat": "{{controller}}",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "datasource": "$DS_PROMETHEUS"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 30
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "Terminal reconcile error rate (errors/s)",
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by(controller) (rate(controller_runtime_terminal_reconcile_errors_total{controller=~\"$controller\"}[5m]))",
+          "legendFormat": "{{controller}}",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "datasource": "$DS_PROMETHEUS"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 30
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 14,
+      "type": "row",
+      "title": "Workqueue Health",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 38
+      }
+    },
+    {
+      "id": 15,
+      "type": "timeseries",
+      "title": "Queue depth",
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by(name, controller) (workqueue_depth{controller=~\"$controller\"})",
+          "legendFormat": "{{controller}}/{{name}}",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "datasource": "$DS_PROMETHEUS"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 39
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 16,
+      "type": "timeseries",
+      "title": "Items added to queue (adds/s)",
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by(name, controller) (rate(workqueue_adds_total{controller=~\"$controller\"}[5m]))",
+          "legendFormat": "{{controller}}/{{name}}",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "datasource": "$DS_PROMETHEUS"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 39
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 17,
+      "type": "timeseries",
+      "title": "Queue wait time (p50/p90/p99)",
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.5,  sum by (le, name, controller) (rate(workqueue_queue_duration_seconds_bucket{controller=~\"$controller\"}[5m])))",
+          "legendFormat": "p50 {{controller}}/{{name}}",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "datasource": "$DS_PROMETHEUS"
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.9,  sum by (le, name, controller) (rate(workqueue_queue_duration_seconds_bucket{controller=~\"$controller\"}[5m])))",
+          "legendFormat": "p90 {{controller}}/{{name}}",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "datasource": "$DS_PROMETHEUS"
+        },
+        {
+          "refId": "C",
+          "expr": "histogram_quantile(0.99, sum by (le, name, controller) (rate(workqueue_queue_duration_seconds_bucket{controller=~\"$controller\"}[5m])))",
+          "legendFormat": "p99 {{controller}}/{{name}}",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "datasource": "$DS_PROMETHEUS"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 47
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 18,
+      "type": "timeseries",
+      "title": "Work duration (p50/p90/p99)",
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.5,  sum by (le, name, controller) (rate(workqueue_work_duration_seconds_bucket{controller=~\"$controller\"}[5m])))",
+          "legendFormat": "p50 {{controller}}/{{name}}",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "datasource": "$DS_PROMETHEUS"
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.9,  sum by (le, name, controller) (rate(workqueue_work_duration_seconds_bucket{controller=~\"$controller\"}[5m])))",
+          "legendFormat": "p90 {{controller}}/{{name}}",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "datasource": "$DS_PROMETHEUS"
+        },
+        {
+          "refId": "C",
+          "expr": "histogram_quantile(0.99, sum by (le, name, controller) (rate(workqueue_work_duration_seconds_bucket{controller=~\"$controller\"}[5m])))",
+          "legendFormat": "p99 {{controller}}/{{name}}",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "datasource": "$DS_PROMETHEUS"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 47
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 19,
+      "type": "timeseries",
+      "title": "Unfinished work seconds (gauge)",
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (name, controller) (workqueue_unfinished_work_seconds{controller=~\"$controller\"})",
+          "legendFormat": "{{controller}}/{{name}}",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "datasource": "$DS_PROMETHEUS"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 55
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 20,
+      "type": "timeseries",
+      "title": "Longest running processor (seconds)",
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by (name, controller) (workqueue_longest_running_processor_seconds{controller=~\"$controller\"})",
+          "legendFormat": "{{controller}}/{{name}}",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "datasource": "$DS_PROMETHEUS"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 55
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 21,
+      "type": "timeseries",
+      "title": "Retries (per second)",
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (name, controller) (rate(workqueue_retries_total{controller=~\"$controller\"}[5m]))",
+          "legendFormat": "{{controller}}/{{name}}",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "datasource": "$DS_PROMETHEUS"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 63
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 22,
+      "type": "row",
+      "title": "Admission Webhooks",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 71
+      }
+    },
+    {
+      "id": 23,
+      "type": "timeseries",
+      "title": "Webhook requests (per second)",
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (webhook, code) (rate(controller_runtime_webhook_requests_total{}[5m]))",
+          "legendFormat": "{{webhook}} {{code}}",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "datasource": "$DS_PROMETHEUS"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 72
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 24,
+      "type": "timeseries",
+      "title": "Webhook requests in flight",
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (webhook) (controller_runtime_webhook_requests_in_flight{})",
+          "legendFormat": "{{webhook}}",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "datasource": "$DS_PROMETHEUS"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 72
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 25,
+      "type": "timeseries",
+      "title": "Webhook latency (p50/p90/p99)",
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.5,  sum by (le, webhook) (rate(controller_runtime_webhook_latency_seconds_bucket{}[5m])))",
+          "legendFormat": "p50 {{webhook}}",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "datasource": "$DS_PROMETHEUS"
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.9,  sum by (le, webhook) (rate(controller_runtime_webhook_latency_seconds_bucket{}[5m])))",
+          "legendFormat": "p90 {{webhook}}",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "datasource": "$DS_PROMETHEUS"
+        },
+        {
+          "refId": "C",
+          "expr": "histogram_quantile(0.99, sum by (le, webhook) (rate(controller_runtime_webhook_latency_seconds_bucket{}[5m])))",
+          "legendFormat": "p99 {{webhook}}",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "datasource": "$DS_PROMETHEUS"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 80
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 26,
+      "type": "row",
+      "title": "Go Runtime & Process",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 88
+      }
+    },
+    {
+      "id": 27,
+      "type": "timeseries",
+      "title": "CPU seconds (process)",
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(process_cpu_seconds_total{}[5m]))",
+          "legendFormat": "cpu/s",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "datasource": "$DS_PROMETHEUS"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 0,
+        "y": 89
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 28,
+      "type": "timeseries",
+      "title": "Resident memory (bytes)",
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(process_resident_memory_bytes{})",
+          "legendFormat": "rss",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "datasource": "$DS_PROMETHEUS"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 6,
+        "y": 89
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 29,
+      "type": "timeseries",
+      "title": "Heap allocated (bytes)",
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(go_memstats_alloc_bytes{})",
+          "legendFormat": "heap_alloc",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "datasource": "$DS_PROMETHEUS"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 12,
+        "y": 89
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 30,
+      "type": "timeseries",
+      "title": "GC pause (p99 over 5m)",
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(go_gc_duration_seconds_bucket{}[5m])))",
+          "legendFormat": "p99",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "datasource": "$DS_PROMETHEUS"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 18,
+        "y": 89
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 31,
+      "type": "timeseries",
+      "title": "Go goroutines",
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(go_goroutines{})",
+          "legendFormat": "goroutines",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "datasource": "$DS_PROMETHEUS"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 0,
+        "y": 95
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 32,
+      "type": "timeseries",
+      "title": "Go threads",
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(go_threads{})",
+          "legendFormat": "threads",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "datasource": "$DS_PROMETHEUS"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 6,
+        "y": 95
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 33,
+      "type": "timeseries",
+      "title": "Open file descriptors",
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(process_open_fds{})",
+          "legendFormat": "fds",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "datasource": "$DS_PROMETHEUS"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 12,
+        "y": 95
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 34,
+      "type": "timeseries",
+      "title": "Total GC cycles / s",
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(go_gc_cycles_total{}[5m]))",
+          "legendFormat": "gc/s",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "datasource": "$DS_PROMETHEUS"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 18,
+        "y": 95
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "style": "dark",
+  "tags": [
+    "controllers",
+    "karmada",
+    "karmada-controller-manager"
+  ],
+  "templating": {
+    "list": [
+      {
+        "type": "datasource",
+        "name": "DS_PROMETHEUS",
+        "label": "Prometheus",
+        "query": "prometheus",
+        "hide": 0
+      },
+      {
+        "name": "controller",
+        "label": "Controller",
+        "type": "query",
+        "datasource": "$DS_PROMETHEUS",
+        "query": "label_values(controller_runtime_reconcile_total, controller)",
+        "refresh": 2,
+        "includeAll": true,
+        "multi": true,
+        "sort": 1,
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": [
+            "$__all"
+          ]
+        }
+      }
+    ]
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h"
+    ],
+    "time_options": [
+      "15m",
+      "1h",
+      "6h",
+      "12h",
+      "24h",
+      "2d",
+      "7d",
+      "30d"
+    ]
+  },
+  "timezone": "browser",
+  "title": "Karmada Controller Manager Insights",
+  "uid": "karmada-controller-manager-insights",
+  "version": 1,
+  "weekStart": ""
+}

@@ -7,11 +7,13 @@
 
 # Test binary, built with `go test -c`
 *.test
+sloth/sloth
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 _tmp/
 _output/
+prompt.md
 
 # Dependency directories (remove the comment below to include it)
 # vendor/

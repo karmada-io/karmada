@@ -1,0 +1,498 @@
+{
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": ">=9.0"
+    },
+    {
+      "type": "panel",
+      "id": "timeseries",
+      "name": "Time series",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "stat",
+      "name": "Stat",
+      "version": ""
+    },
+    {
+      "type": "datasource",
+      "id": "prometheus",
+      "name": "Prometheus",
+      "version": ""
+    }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "graphTooltip": 0,
+  "iteration": 1758411965,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "type": "row",
+      "title": "Overview",
+      "id": 1,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Policy apply success rate %",
+      "id": 2,
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "legendFormat": "success",
+          "expr": "100 * (\n  sum(rate(policy_apply_attempts_total{result=\"success\"}[5m]))\n  or on() vector(0)\n) / clamp_min(\n  (sum(rate(policy_apply_attempts_total{}[5m])) or on() vector(0)),\n  1e-9\n)"
+        }
+      ],
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 0,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 2,
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "hidden",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Policy apply error rate %",
+      "id": 3,
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "legendFormat": "error",
+          "expr": "100 * (\n  sum(rate(policy_apply_attempts_total{result=\"error\"}[5m]))\n  or on() vector(0)\n) / clamp_min(\n  (sum(rate(policy_apply_attempts_total{}[5m])) or on() vector(0)),\n  1e-9\n)"
+        }
+      ],
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 8,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 2,
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "hidden",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Policy apply attempts /s",
+      "id": 4,
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "A",
+          "legendFormat": "attempts",
+          "expr": "(sum(rate(policy_apply_attempts_total{}[5m])) or on() vector(0))"
+        }
+      ],
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 16,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "decimals": 3
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "hidden",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "Policy Matching & Applying (seconds)",
+      "id": 10,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 7
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Find matched policy duration \u2014 avg & p50/p90/p99",
+      "id": 11,
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "avg",
+          "expr": "sum(rate(resource_match_policy_duration_seconds_sum{}[5m])) / clamp_min(sum(rate(resource_match_policy_duration_seconds_count{}[5m])), 1e-9)",
+          "legendFormat": "avg"
+        },
+        {
+          "refId": "p50",
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(resource_match_policy_duration_seconds_bucket{}[5m])))",
+          "legendFormat": "p50"
+        },
+        {
+          "refId": "p90",
+          "expr": "histogram_quantile(0.9, sum by (le) (rate(resource_match_policy_duration_seconds_bucket{}[5m])))",
+          "legendFormat": "p90"
+        },
+        {
+          "refId": "p99",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(resource_match_policy_duration_seconds_bucket{}[5m])))",
+          "legendFormat": "p99"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 3
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Apply policy duration \u2014 avg & p50/p90/p99 (by result)",
+      "id": 12,
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "avg-success",
+          "expr": "sum by (result) (rate(resource_apply_policy_duration_seconds_sum{result=\"success\"}[5m])) / clamp_min(sum by (result) (rate(resource_apply_policy_duration_seconds_count{result=\"success\"}[5m])), 1e-9)",
+          "legendFormat": "avg success"
+        },
+        {
+          "refId": "avg-error",
+          "expr": "sum by (result) (rate(resource_apply_policy_duration_seconds_sum{result=\"error\"}[5m])) / clamp_min(sum by (result) (rate(resource_apply_policy_duration_seconds_count{result=\"error\"}[5m])), 1e-9)",
+          "legendFormat": "avg error"
+        },
+        {
+          "refId": "p50-success",
+          "expr": "histogram_quantile(0.5,  sum by (le, result) (rate(resource_apply_policy_duration_seconds_bucket{result=\"success\"}[5m])))",
+          "legendFormat": "p50 success"
+        },
+        {
+          "refId": "p90-success",
+          "expr": "histogram_quantile(0.9,  sum by (le, result) (rate(resource_apply_policy_duration_seconds_bucket{result=\"success\"}[5m])))",
+          "legendFormat": "p90 success"
+        },
+        {
+          "refId": "p99-success",
+          "expr": "histogram_quantile(0.99, sum by (le, result) (rate(resource_apply_policy_duration_seconds_bucket{result=\"success\"}[5m])))",
+          "legendFormat": "p99 success"
+        },
+        {
+          "refId": "p50-error",
+          "expr": "histogram_quantile(0.5,  sum by (le, result) (rate(resource_apply_policy_duration_seconds_bucket{result=\"error\"}[5m])))",
+          "legendFormat": "p50 error"
+        },
+        {
+          "refId": "p90-error",
+          "expr": "histogram_quantile(0.9,  sum by (le, result) (rate(resource_apply_policy_duration_seconds_bucket{result=\"error\"}[5m])))",
+          "legendFormat": "p90 error"
+        },
+        {
+          "refId": "p99-error",
+          "expr": "histogram_quantile(0.99, sum by (le, result) (rate(resource_apply_policy_duration_seconds_bucket{result=\"error\"}[5m])))",
+          "legendFormat": "p99 error"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 3
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "Work Sync Durations (seconds)",
+      "id": 20,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 16
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Binding sync work \u2014 avg & p50/p90/p99 (by result)",
+      "id": 21,
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "avg-success",
+          "expr": "sum by (result) (rate(binding_sync_work_duration_seconds_sum{result=\"success\"}[5m])) / clamp_min(sum by (result) (rate(binding_sync_work_duration_seconds_count{result=\"success\"}[5m])), 1e-9)",
+          "legendFormat": "avg success"
+        },
+        {
+          "refId": "avg-error",
+          "expr": "sum by (result) (rate(binding_sync_work_duration_seconds_sum{result=\"error\"}[5m])) / clamp_min(sum by (result) (rate(binding_sync_work_duration_seconds_count{result=\"error\"}[5m])), 1e-9)",
+          "legendFormat": "avg error"
+        },
+        {
+          "refId": "p50-success",
+          "expr": "histogram_quantile(0.5,  sum by (le, result) (rate(binding_sync_work_duration_seconds_bucket{result=\"success\"}[5m])))",
+          "legendFormat": "p50 success"
+        },
+        {
+          "refId": "p90-success",
+          "expr": "histogram_quantile(0.9,  sum by (le, result) (rate(binding_sync_work_duration_seconds_bucket{result=\"success\"}[5m])))",
+          "legendFormat": "p90 success"
+        },
+        {
+          "refId": "p99-success",
+          "expr": "histogram_quantile(0.99, sum by (le, result) (rate(binding_sync_work_duration_seconds_bucket{result=\"success\"}[5m])))",
+          "legendFormat": "p99 success"
+        },
+        {
+          "refId": "p50-error",
+          "expr": "histogram_quantile(0.5,  sum by (le, result) (rate(binding_sync_work_duration_seconds_bucket{result=\"error\"}[5m])))",
+          "legendFormat": "p50 error"
+        },
+        {
+          "refId": "p90-error",
+          "expr": "histogram_quantile(0.9,  sum by (le, result) (rate(binding_sync_work_duration_seconds_bucket{result=\"error\"}[5m])))",
+          "legendFormat": "p90 error"
+        },
+        {
+          "refId": "p99-error",
+          "expr": "histogram_quantile(0.99, sum by (le, result) (rate(binding_sync_work_duration_seconds_bucket{result=\"error\"}[5m])))",
+          "legendFormat": "p99 error"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 17
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 3
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Workload sync to member \u2014 avg & p50/p90/p99 (by result)",
+      "id": 22,
+      "datasource": "$DS_PROMETHEUS",
+      "targets": [
+        {
+          "refId": "avg-success",
+          "expr": "sum by (result) (rate(work_sync_workload_duration_seconds_sum{result=\"success\"}[5m])) / clamp_min(sum by (result) (rate(work_sync_workload_duration_seconds_count{result=\"success\"}[5m])), 1e-9)",
+          "legendFormat": "avg success"
+        },
+        {
+          "refId": "avg-error",
+          "expr": "sum by (result) (rate(work_sync_workload_duration_seconds_sum{result=\"error\"}[5m])) / clamp_min(sum by (result) (rate(work_sync_workload_duration_seconds_count{result=\"error\"}[5m])), 1e-9)",
+          "legendFormat": "avg error"
+        },
+        {
+          "refId": "p50-success",
+          "expr": "histogram_quantile(0.5,  sum by (le, result) (rate(work_sync_workload_duration_seconds_bucket{result=\"success\"}[5m])))",
+          "legendFormat": "p50 success"
+        },
+        {
+          "refId": "p90-success",
+          "expr": "histogram_quantile(0.9,  sum by (le, result) (rate(work_sync_workload_duration_seconds_bucket{result=\"success\"}[5m])))",
+          "legendFormat": "p90 success"
+        },
+        {
+          "refId": "p99-success",
+          "expr": "histogram_quantile(0.99, sum by (le, result) (rate(work_sync_workload_duration_seconds_bucket{result=\"success\"}[5m])))",
+          "legendFormat": "p99 success"
+        },
+        {
+          "refId": "p50-error",
+          "expr": "histogram_quantile(0.5,  sum by (le, result) (rate(work_sync_workload_duration_seconds_bucket{result=\"error\"}[5m])))",
+          "legendFormat": "p50 error"
+        },
+        {
+          "refId": "p90-error",
+          "expr": "histogram_quantile(0.9,  sum by (le, result) (rate(work_sync_workload_duration_seconds_bucket{result=\"error\"}[5m])))",
+          "legendFormat": "p90 error"
+        },
+        {
+          "refId": "p99-error",
+          "expr": "histogram_quantile(0.99, sum by (le, result) (rate(work_sync_workload_duration_seconds_bucket{result=\"error\"}[5m])))",
+          "legendFormat": "p99 error"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 17
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 3
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "style": "dark",
+  "tags": [
+    "karmada"
+  ],
+  "templating": {
+    "list": [
+      {
+        "type": "datasource",
+        "name": "DS_PROMETHEUS",
+        "label": "Prometheus",
+        "query": "prometheus",
+        "hide": 0
+      }
+    ]
+  },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h"
+    ],
+    "time_options": [
+      "5m",
+      "15m",
+      "1h",
+      "6h",
+      "12h",
+      "24h",
+      "2d",
+      "7d",
+      "30d"
+    ]
+  },
+  "timezone": "browser",
+  "title": "Karmada Resource Propagation Insights",
+  "uid": "karmada-resource-propagation-insights",
+  "version": 10,
+  "weekStart": ""
+}
