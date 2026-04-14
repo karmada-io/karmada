@@ -262,6 +262,55 @@ func TestValidateFederatedHPASpec(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "invalid external metric target type utilization",
+			spec: &autoscalingv1alpha1.FederatedHPASpec{
+				ScaleTargetRef: autoscalingv2.CrossVersionObjectReference{
+					Kind: "Deployment",
+					Name: "test-deployment",
+				},
+				MinReplicas: ptr.To[int32](1),
+				MaxReplicas: 10,
+				Metrics: []autoscalingv2.MetricSpec{
+					{
+						Type: autoscalingv2.ExternalMetricSourceType,
+						External: &autoscalingv2.ExternalMetricSource{
+							Metric: autoscalingv2.MetricIdentifier{Name: "requests_per_second"},
+							Target: autoscalingv2.MetricTarget{
+								Type:               autoscalingv2.UtilizationMetricType,
+								AverageUtilization: ptr.To[int32](50),
+							},
+						},
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid external metric with averageUtilization",
+			spec: &autoscalingv1alpha1.FederatedHPASpec{
+				ScaleTargetRef: autoscalingv2.CrossVersionObjectReference{
+					Kind: "Deployment",
+					Name: "test-deployment",
+				},
+				MinReplicas: ptr.To[int32](1),
+				MaxReplicas: 10,
+				Metrics: []autoscalingv2.MetricSpec{
+					{
+						Type: autoscalingv2.ExternalMetricSourceType,
+						External: &autoscalingv2.ExternalMetricSource{
+							Metric: autoscalingv2.MetricIdentifier{Name: "requests_per_second"},
+							Target: autoscalingv2.MetricTarget{
+								Type:               autoscalingv2.ValueMetricType,
+								Value:              ptr.To(resource.MustParse("100")),
+								AverageUtilization: ptr.To[int32](50),
+							},
+						},
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
 			name: "invalid behavior",
 			spec: &autoscalingv1alpha1.FederatedHPASpec{
 				ScaleTargetRef: autoscalingv2.CrossVersionObjectReference{

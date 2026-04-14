@@ -316,11 +316,16 @@ func validateMetricSpec(spec autoscalingv2.MetricSpec, fldPath *field.Path) fiel
 // +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/autoscaling/validation/validation.go#L354-L369
 // +lifted:changed
 
+// validateExternalSource validates semantic constraints for an external metric source.
 func validateExternalSource(src *autoscalingv2.ExternalMetricSource, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
 	allErrs = append(allErrs, validateMetricIdentifier(src.Metric, fldPath.Child("metric"))...)
 	allErrs = append(allErrs, validateMetricTarget(src.Target, fldPath.Child("target"))...)
+
+	if src.Target.Type != autoscalingv2.ValueMetricType && src.Target.Type != autoscalingv2.AverageValueMetricType {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("target").Child("type"), src.Target.Type, "must be either Value or AverageValue"))
+	}
 
 	if src.Target.AverageValue == nil && src.Target.Value == nil {
 		allErrs = append(allErrs, field.Required(fldPath.Child("target").Child("averageValue"), "must set either a target value or averageValue"))
@@ -328,6 +333,10 @@ func validateExternalSource(src *autoscalingv2.ExternalMetricSource, fldPath *fi
 
 	if src.Target.AverageValue != nil && src.Target.Value != nil {
 		allErrs = append(allErrs, field.Forbidden(fldPath.Child("target").Child("value"), "may not set both a target value for metric and a per-pod target"))
+	}
+
+	if src.Target.AverageUtilization != nil {
+		allErrs = append(allErrs, field.Forbidden(fldPath.Child("target").Child("averageUtilization"), "may not set a target utilization for an external metric"))
 	}
 
 	return allErrs
