@@ -29,7 +29,7 @@ if [ "$TRACE_ENABLED" = true ]; then
   set -o xtrace
 fi
 
-echo "Applying nginx Deployment..."
+echo "Applying pause Deployment..."
 kubectl --kubeconfig ~/.kube/karmada.config --context karmada-apiserver  apply -f - <<'EOF'
 ---
 apiVersion: policy.karmada.io/v1alpha1
@@ -51,37 +51,35 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: nginx-deployment
+  name: pause-deployment
   labels:
-    app: nginx
+    app: pause
     team: a
 spec:
   replicas: 4
   selector:
     matchLabels:
-      app: nginx
+      app: pause
   template:
     metadata:
       labels:
-        app: nginx
+        app: pause
         team: a
     spec:
       containers:
-        - name: nginx
-          image: docker.io/nginx:latest
-          ports:
-            - containerPort: 80
+        - name: pause
+          image: registry.k8s.io/pause:3.9
 EOF
 
-#echo "Waiting for initial rollout to complete..."
-#kubectl --kubeconfig ~/.kube/karmada.config --context karmada-apiserver  rollout status deployment/nginx-deployment --timeout=180s
+echo "Waiting for initial rollout to complete..."
+kubectl --kubeconfig ~/.kube/karmada.config --context karmada-apiserver  rollout status deployment/pause-deployment --timeout=180s
 
 echo "Starting infinite scale loop: 2 -> (sleep 3s) -> 4 -> repeat. Press Ctrl+C to stop."
 while true; do
   echo "Scaling to 2 replicas..."
-  kubectl --kubeconfig ~/.kube/karmada.config --context karmada-apiserver  scale deployment/nginx-deployment --replicas=2
-  sleep 1
+  kubectl --kubeconfig ~/.kube/karmada.config --context karmada-apiserver  scale deployment/pause-deployment --replicas=2
+  sleep 10
   echo "Scaling to 4 replicas..."
-  kubectl --kubeconfig ~/.kube/karmada.config --context karmada-apiserver scale deployment/nginx-deployment --replicas=4
-  sleep 1
+  kubectl --kubeconfig ~/.kube/karmada.config --context karmada-apiserver scale deployment/pause-deployment --replicas=4
+  sleep 10
 done

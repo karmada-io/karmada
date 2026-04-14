@@ -67,7 +67,7 @@ slos:
             -
             sum(
               rate(apiserver_request_duration_seconds_bucket{
-                le="0.005",
+                le="0.1",
                 verb!~"WATCH|APPLY",
                 subresource!~"healthz|livez|readyz"
               }[{{.window}}])

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM alpine:3.22.2
+FROM public.ecr.aws/docker/library/alpine:3.22
 
 ARG BINARY
 
