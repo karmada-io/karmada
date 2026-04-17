@@ -23,6 +23,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/informers"
 	clientset "k8s.io/client-go/kubernetes"
 
@@ -36,6 +37,7 @@ import (
 type fakeHandle struct{}
 
 func (fakeHandle) ClientSet() clientset.Interface                         { return nil }
+func (fakeHandle) DynamicClient() dynamic.Interface                       { return nil }
 func (fakeHandle) SharedInformerFactory() informers.SharedInformerFactory { return nil }
 func (fakeHandle) Parallelism() int                                       { return 1 }
 

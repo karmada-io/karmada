@@ -23,6 +23,7 @@ import (
 	"reflect"
 	"time"
 
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/informers"
 	clientset "k8s.io/client-go/kubernetes"
 
@@ -47,6 +48,7 @@ type frameworkImpl struct {
 	estimateReplicasPlugins   []framework.EstimateReplicasPlugin
 	estimateComponentsPlugins []framework.EstimateComponentsPlugin
 	clientSet                 clientset.Interface
+	dynamicClient             dynamic.Interface
 	informerFactory           informers.SharedInformerFactory
 	parallelism               int
 }
@@ -55,6 +57,7 @@ var _ framework.Framework = &frameworkImpl{}
 
 type frameworkOptions struct {
 	clientSet       clientset.Interface
+	dynamicClient   dynamic.Interface
 	informerFactory informers.SharedInformerFactory
 	parallelism     int
 }
@@ -70,6 +73,13 @@ func defaultFrameworkOptions() frameworkOptions {
 func WithClientSet(clientSet clientset.Interface) Option {
 	return func(o *frameworkOptions) {
 		o.clientSet = clientSet
+	}
+}
+
+// WithDynamicClient sets dynamic client for the scheduling frameworkImpl.
+func WithDynamicClient(dynamicClient dynamic.Interface) Option {
+	return func(o *frameworkOptions) {
+		o.dynamicClient = dynamicClient
 	}
 }
 
@@ -94,6 +104,7 @@ func NewFramework(r Registry, opts ...Option) (framework.Framework, error) {
 		opt(&options)
 	}
 	f := &frameworkImpl{
+		dynamicClient:   options.dynamicClient,
 		informerFactory: options.informerFactory,
 	}
 	estimateReplicasPluginsList := reflect.ValueOf(&f.estimateReplicasPlugins).Elem()
@@ -123,6 +134,11 @@ func addPluginToList(plugin framework.Plugin, pluginType reflect.Type, pluginLis
 // ClientSet returns a kubernetes clientset.
 func (frw *frameworkImpl) ClientSet() clientset.Interface {
 	return frw.clientSet
+}
+
+// DynamicClient returns a dynamic client.
+func (frw *frameworkImpl) DynamicClient() dynamic.Interface {
+	return frw.dynamicClient
 }
 
 // SharedInformerFactory returns a shared informer factory.

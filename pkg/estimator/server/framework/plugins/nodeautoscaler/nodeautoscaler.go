@@ -21,7 +21,6 @@ import (
 	"sync/atomic"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
 
 	"github.com/karmada-io/karmada/pkg/estimator"
@@ -38,15 +37,6 @@ const (
 	Name = "NodeAutoscalerEstimator"
 )
 
-// dynamicClientForProvider is set before framework creation to inject into New().
-var dynamicClientForProvider dynamic.Interface
-
-// SetDynamicClient sets the dynamic client used by KarpenterProvider.
-// Must be called before NewFramework().
-func SetDynamicClient(client dynamic.Interface) {
-	dynamicClientForProvider = client
-}
-
 // nodeAutoscalerEstimator extends NodeResourceEstimator by adding potential
 // capacity from node autoscalers (e.g. Karpenter).
 type nodeAutoscalerEstimator struct {
@@ -61,8 +51,8 @@ func New(fh framework.Handle) (framework.Plugin, error) {
 	pl := &nodeAutoscalerEstimator{
 		parallelizer: parallelize.NewParallelizer(fh.Parallelism()),
 	}
-	if dynamicClientForProvider != nil {
-		pl.providers = []CapacityProvider{NewKarpenterProvider(dynamicClientForProvider)}
+	if dc := fh.DynamicClient(); dc != nil {
+		pl.providers = []CapacityProvider{NewKarpenterProvider(dc)}
 	}
 	return pl, nil
 }

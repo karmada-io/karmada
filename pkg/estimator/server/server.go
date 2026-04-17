@@ -44,7 +44,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/estimator/pb"
 	"github.com/karmada-io/karmada/pkg/estimator/server/framework"
 	frameworkplugins "github.com/karmada-io/karmada/pkg/estimator/server/framework/plugins"
-	"github.com/karmada-io/karmada/pkg/estimator/server/framework/plugins/nodeautoscaler"
 	frameworkruntime "github.com/karmada-io/karmada/pkg/estimator/server/framework/runtime"
 	"github.com/karmada-io/karmada/pkg/estimator/server/metrics"
 	"github.com/karmada-io/karmada/pkg/estimator/server/replica"
@@ -145,13 +144,10 @@ func NewEstimatorServer(
 			}
 		}
 	}
-	// Set dynamic client for NodeAutoscalerEstimator's KarpenterProvider
-	if _, ok := registry[nodeautoscaler.Name]; ok {
-		nodeautoscaler.SetDynamicClient(dynamicClient)
-	}
 
 	estimateFramework, err := frameworkruntime.NewFramework(registry,
 		frameworkruntime.WithClientSet(kubeClient),
+		frameworkruntime.WithDynamicClient(dynamicClient),
 		frameworkruntime.WithInformerFactory(informerFactory),
 		frameworkruntime.WithParallelism(opts.Parallelism),
 	)
