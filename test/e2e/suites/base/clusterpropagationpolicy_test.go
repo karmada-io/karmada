@@ -544,6 +544,7 @@ var _ = ginkgo.Describe("[AdvancedCase] ClusterPropagationPolicy testing", func(
 		ginkgo.When("cluster scope resource", func() {
 			var policy *policyv1alpha1.ClusterPropagationPolicy
 			var clusterRole *rbacv1.ClusterRole
+			var resourceBindingName string
 			var targetMember, updatedMember string
 
 			ginkgo.BeforeEach(func() {
@@ -552,6 +553,7 @@ var _ = ginkgo.Describe("[AdvancedCase] ClusterPropagationPolicy testing", func(
 				policyName := deploymentNamePrefix + rand.String(RandomStrLength)
 
 				clusterRole = testhelper.NewClusterRole(fmt.Sprintf("system:test-%s-01", policyName), nil)
+				resourceBindingName = names.GenerateBindingName(clusterRole.Kind, clusterRole.Name)
 
 				policy = testhelper.NewClusterPropagationPolicy(policyName, []policyv1alpha1.ResourceSelector{
 					{
@@ -577,6 +579,20 @@ var _ = ginkgo.Describe("[AdvancedCase] ClusterPropagationPolicy testing", func(
 					func(*rbacv1.ClusterRole) bool {
 						return true
 					})
+			})
+
+			ginkgo.It("update policy propagateDeps", func() {
+				patch := []map[string]any{
+					{
+						"op":    "replace",
+						"path":  "/spec/propagateDeps",
+						"value": true,
+					},
+				}
+				framework.PatchClusterPropagationPolicy(karmadaClient, policy.Name, patch, types.JSONPatchType)
+				framework.WaitClusterResourceBindingFitWith(karmadaClient, resourceBindingName, func(binding *workv1alpha2.ClusterResourceBinding) bool {
+					return binding.Spec.PropagateDeps
+				})
 			})
 
 			ginkgo.It("update policy placement", func() {

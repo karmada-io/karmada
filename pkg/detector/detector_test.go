@@ -26,6 +26,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	schedulingv1 "k8s.io/api/scheduling/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -1193,6 +1194,134 @@ func TestApplyClusterPolicy(t *testing.T) {
 	}
 }
 
+func TestApplyClusterPolicyClusterScopedResourceSyncsPropagateDepsAndSchedulePriority(t *testing.T) {
+	scheme := setupTestScheme()
+	priorityClassA := &schedulingv1.PriorityClass{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-priority-a"},
+		Value:      100,
+	}
+	priorityClassB := &schedulingv1.PriorityClass{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-priority-b"},
+		Value:      200,
+	}
+
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(priorityClassA, priorityClassB).Build()
+	fakeRecorder := record.NewFakeRecorder(10)
+	fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme)
+
+	d := &ResourceDetector{
+		Client:              fakeClient,
+		DynamicClient:       fakeDynamicClient,
+		EventRecorder:       fakeRecorder,
+		ResourceInterpreter: &mockResourceInterpreter{},
+		RESTMapper:          &mockRESTMapper{},
+	}
+
+	if err := features.FeatureGate.Set(fmt.Sprintf("%s=true", features.PriorityBasedScheduling)); err != nil {
+		t.Fatalf("Failed to enable feature gate %s: %v", features.PriorityBasedScheduling, err)
+	}
+	t.Cleanup(func() {
+		if err := features.FeatureGate.Set(fmt.Sprintf("%s=false", features.PriorityBasedScheduling)); err != nil {
+			t.Fatalf("Failed to disable feature gate %s: %v", features.PriorityBasedScheduling, err)
+		}
+	})
+
+	object := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "rbac.authorization.k8s.io/v1",
+		"kind":       "ClusterRole",
+		"metadata": map[string]any{
+			"name": "test-cluster-role",
+			"uid":  "test-uid",
+		},
+	}}
+
+	policy := &policyv1alpha1.ClusterPropagationPolicy{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-cluster-policy"},
+		Spec: policyv1alpha1.PropagationSpec{
+			PropagateDeps: false,
+			SchedulePriority: &policyv1alpha1.SchedulePriority{
+				PriorityClassName:   priorityClassA.Name,
+				PriorityClassSource: policyv1alpha1.KubePriorityClass,
+			},
+		},
+	}
+
+	err := d.ApplyClusterPolicy(object, keys.ClusterWideKey{}, false, policy)
+	assert.NoError(t, err)
+
+	bindingName := object.GetName() + "-" + strings.ToLower(object.GetKind())
+	createdBinding := &workv1alpha2.ClusterResourceBinding{}
+	err = fakeClient.Get(context.TODO(), client.ObjectKey{Name: bindingName}, createdBinding)
+	assert.NoError(t, err)
+	assert.False(t, createdBinding.Spec.PropagateDeps)
+	if assert.NotNil(t, createdBinding.Spec.SchedulePriority) {
+		assert.Equal(t, priorityClassA.Value, createdBinding.Spec.SchedulePriority.Priority)
+	}
+
+	policy.Spec.PropagateDeps = true
+	policy.Spec.SchedulePriority = &policyv1alpha1.SchedulePriority{
+		PriorityClassName:   priorityClassB.Name,
+		PriorityClassSource: policyv1alpha1.KubePriorityClass,
+	}
+
+	err = d.ApplyClusterPolicy(object, keys.ClusterWideKey{}, false, policy)
+	assert.NoError(t, err)
+
+	updatedBinding := &workv1alpha2.ClusterResourceBinding{}
+	err = fakeClient.Get(context.TODO(), client.ObjectKey{Name: bindingName}, updatedBinding)
+	assert.NoError(t, err)
+	assert.True(t, updatedBinding.Spec.PropagateDeps)
+	if assert.NotNil(t, updatedBinding.Spec.SchedulePriority) {
+		assert.Equal(t, priorityClassB.Value, updatedBinding.Spec.SchedulePriority.Priority)
+	}
+}
+
+func TestBuildClusterResourceBindingSetsSchedulePriority(t *testing.T) {
+	scheme := setupTestScheme()
+	priorityClass := &schedulingv1.PriorityClass{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-priority-class"},
+		Value:      1000,
+	}
+
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(priorityClass).Build()
+	d := &ResourceDetector{
+		Client:              fakeClient,
+		ResourceInterpreter: &mockResourceInterpreter{},
+	}
+
+	if err := features.FeatureGate.Set(fmt.Sprintf("%s=true", features.PriorityBasedScheduling)); err != nil {
+		t.Fatalf("Failed to enable feature gate %s: %v", features.PriorityBasedScheduling, err)
+	}
+	t.Cleanup(func() {
+		if err := features.FeatureGate.Set(fmt.Sprintf("%s=false", features.PriorityBasedScheduling)); err != nil {
+			t.Fatalf("Failed to disable feature gate %s: %v", features.PriorityBasedScheduling, err)
+		}
+	})
+
+	object := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "rbac.authorization.k8s.io/v1",
+		"kind":       "ClusterRole",
+		"metadata": map[string]any{
+			"name":            "test-cluster-role",
+			"uid":             "test-uid",
+			"resourceVersion": "1",
+		},
+	}}
+
+	policySpec := &policyv1alpha1.PropagationSpec{
+		SchedulePriority: &policyv1alpha1.SchedulePriority{
+			PriorityClassName:   priorityClass.Name,
+			PriorityClassSource: policyv1alpha1.KubePriorityClass,
+		},
+	}
+
+	binding, err := d.BuildClusterResourceBinding(object, policySpec, "policy-id", metav1.ObjectMeta{Name: "policy"})
+	assert.NoError(t, err)
+	if assert.NotNil(t, binding.Spec.SchedulePriority) {
+		assert.Equal(t, priorityClass.Value, binding.Spec.SchedulePriority.Priority)
+	}
+}
+
 func TestEnqueueResourceKeyWithActivationPref(t *testing.T) {
 	testClusterWideKey := keys.ClusterWideKey{
 		Group:     "foo",
@@ -1265,6 +1394,7 @@ func setupTestScheme() *runtime.Scheme {
 	scheme := runtime.NewScheme()
 	_ = workv1alpha2.Install(scheme)
 	_ = corev1.AddToScheme(scheme)
+	_ = schedulingv1.AddToScheme(scheme)
 	_ = policyv1alpha1.Install(scheme)
 	return scheme
 }
