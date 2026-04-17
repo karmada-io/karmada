@@ -21,6 +21,7 @@ import (
 	"errors"
 	"strings"
 
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/informers"
 	clientset "k8s.io/client-go/kubernetes"
 
@@ -97,6 +98,7 @@ type ComponentEstimationContext struct {
 // We follow the design pattern of the Kubernetes scheduler framework.
 type Handle interface {
 	ClientSet() clientset.Interface
+	DynamicClient() dynamic.Interface
 	SharedInformerFactory() informers.SharedInformerFactory
 	Parallelism() int
 }
