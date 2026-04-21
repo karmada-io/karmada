@@ -1,0 +1,101 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: http-probe-app
+  labels:
+    app: http-probe-app
+spec:
+  replicas: 6
+  selector:
+    matchLabels:
+      app: http-probe-app
+  template:
+    metadata:
+      labels:
+        app: http-probe-app
+    spec:
+      containers:
+        - name: http-probe-app
+          image: ghcr.io/cmontemuino/http-probe-test-app:v0.4.0
+          ports:
+            - containerPort: 8080
+          env:
+            - name: CLUSTER_LABEL
+              value: v2
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 25m
+              memory: 64Mi
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: http-probe-app-service
+  labels:
+    app: http-probe-app
+spec:
+  ports:
+    - port: 80
+      targetPort: 8080
+  selector:
+    app: http-probe-app
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: http-probe-app-ingress
+  labels:
+    app: http-probe-app
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: http-probe.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: http-probe-app-service
+                port:
+                  number: 80
+---
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: http-probe-app-propagation
+spec:
+  resourceSelectors:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: http-probe-app
+    - apiVersion: v1
+      kind: Service
+      name: http-probe-app-service
+    - apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      name: http-probe-app-ingress
+  placement:
+    clusterAffinity:
+      clusterNames:
+        - member1
+        - member2
+        - member3
+    replicaScheduling:
+      replicaSchedulingType: Divided

@@ -1,0 +1,30 @@
+apiVersion: policy.karmada.io/v1alpha1
+kind: ClusterPropagationPolicy
+metadata:
+  name: ingress-nginx-cluster-propagation
+spec:
+  resourceSelectors:
+    - apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRole
+      name: ingress-nginx
+    - apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRole
+      name: ingress-nginx-admission
+    - apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRoleBinding
+      name: ingress-nginx
+    - apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRoleBinding
+      name: ingress-nginx-admission
+    - apiVersion: networking.k8s.io/v1
+      kind: IngressClass
+      name: nginx
+    - apiVersion: admissionregistration.k8s.io/v1
+      kind: ValidatingWebhookConfiguration
+      name: ingress-nginx-admission
+  placement:
+    clusterAffinity:
+      clusterNames:
+        - member1
+        - member2
+        - member3
