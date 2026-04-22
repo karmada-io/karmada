@@ -117,6 +117,8 @@ KC="kubectl --context $KARMADA_CONTEXT"
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+# resolve_clusters resolves the target clusters. Returns all clusters if the input is "all",
+# otherwise returns the input cluster name.
 resolve_clusters() {
   if [[ "$1" == "all" ]]; then
     echo "${ALL_CLUSTERS[@]}"
