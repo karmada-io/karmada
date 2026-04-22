@@ -54,6 +54,7 @@ if ! command -v kubectl &> /dev/null; then
 fi
 
 # ── Constants ─────────────────────────────────────────────────────────────────
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # These can be overridden via environment variables to support different environments.
 REPLICAS_PER_CLUSTER=${REPLICAS_PER_CLUSTER:-6}
 NAMESPACE=${NAMESPACE:-default}
@@ -208,9 +209,7 @@ wait_for_ready() {
 # ── Commands ──────────────────────────────────────────────────────────────────
 
 cmd_start() {
-  local script_dir
-  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  local manifests="${script_dir}/../samples/progressive-rollout"
+  local manifests="${SCRIPT_DIR}/../samples/progressive-rollout"
 
   local clusters
   read -ra clusters <<< "$(resolve_clusters "$TARGET")"
@@ -271,17 +270,14 @@ EOF
 }
 
 cmd_finalize() {
-  local script_dir
-  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
   # Use http-probe-app-wave-base-v2.yaml — identical to http-probe-app-wave-base.yaml
   # but with CLUSTER_LABEL: v2. Cannot use http-probe-app-v2.yaml here because it
   # uses Divided scheduling which would drop replicas from 6 to 2 per cluster.
   echo "==> Updating base manifest to v2 (preserving Duplicated scheduling)..."
   echo "--- manifest: samples/progressive-rollout/http-probe-app-wave-base-v2.yaml"
-  cat "${script_dir}/../samples/progressive-rollout/http-probe-app-wave-base-v2.yaml"
+  cat "${SCRIPT_DIR}/../samples/progressive-rollout/http-probe-app-wave-base-v2.yaml"
   echo "---"
-  $KC apply -f "${script_dir}/../samples/progressive-rollout/http-probe-app-wave-base-v2.yaml" -n "$NAMESPACE"
+  $KC apply -f "${SCRIPT_DIR}/../samples/progressive-rollout/http-probe-app-wave-base-v2.yaml" -n "$NAMESPACE"
 
   echo "==> Deleting base-down OverridePolicy — base scales back up to ${REPLICAS_PER_CLUSTER}×v2..."
   $KC delete overridepolicy "$BASE_DOWN_POLICY" -n "$NAMESPACE" --ignore-not-found
