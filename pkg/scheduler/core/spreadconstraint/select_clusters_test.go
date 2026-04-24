@@ -249,3 +249,84 @@ func TestSelectBestClusters(t *testing.T) {
 		})
 	}
 }
+
+func TestIgnoreCalculateAvailableResource(t *testing.T) {
+	tests := []struct {
+		name      string
+		placement *policyv1alpha1.Placement
+		ignore    bool
+	}{
+		{
+			name:      "when ReplicaScheduling is nil",
+			placement: &policyv1alpha1.Placement{ReplicaScheduling: nil},
+			ignore:    true,
+		},
+		{
+			name: "when strategy is duplicated",
+			placement: &policyv1alpha1.Placement{
+				ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDuplicated},
+			},
+			ignore: true,
+		},
+		{
+			name: "when strategy is divided, and ReplicaDivisionPreference is Aggregated",
+			placement: &policyv1alpha1.Placement{
+				ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+					ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+					ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceAggregated,
+				},
+			},
+			ignore: false,
+		},
+		{
+			name: "when strategy is divided, and ReplicaDivisionPreference is Weighted, and WeightPreference is nil",
+			placement: &policyv1alpha1.Placement{
+				ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+					ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+					ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
+					WeightPreference:          nil,
+				},
+			},
+			ignore: true,
+		},
+		{
+			name: "when strategy is divided, and ReplicaDivisionPreference is Weighted, and WeightPreference is DynamicWeight",
+			placement: &policyv1alpha1.Placement{
+				ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+					ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+					ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
+					WeightPreference:          &policyv1alpha1.ClusterPreferences{DynamicWeight: policyv1alpha1.DynamicWeightByAvailableReplicas},
+				},
+			},
+			ignore: false,
+		},
+		{
+			name: "when strategy is divided, and ReplicaDivisionPreference is Weighted, and WeightPreference is StaticWeightList",
+			placement: &policyv1alpha1.Placement{
+				ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+					ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+					ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
+					WeightPreference: &policyv1alpha1.ClusterPreferences{
+						StaticWeightList: []policyv1alpha1.StaticClusterWeight{
+							{
+								TargetCluster: policyv1alpha1.ClusterAffinity{
+									ClusterNames: []string{"member1"},
+								},
+								Weight: 1,
+							},
+						},
+					},
+				},
+			},
+			ignore: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := shouldIgnoreCalculateAvailableResource(tt.placement)
+			if !reflect.DeepEqual(got, tt.ignore) {
+				t.Errorf("shouldIgnoreCalculateAvailableResource() = %v, want %v", got, tt.ignore)
+			}
+		})
+	}
+}

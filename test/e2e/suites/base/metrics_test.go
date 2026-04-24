@@ -22,6 +22,7 @@ import (
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/klog/v2"
 
@@ -79,6 +80,13 @@ var _ = ginkgo.Describe("metrics testing", func() {
 					ClusterAffinity: &policyv1alpha1.ClusterAffinity{
 						ClusterNames: framework.ClusterNames(),
 					},
+					ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+						ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+						ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
+						WeightPreference: &policyv1alpha1.ClusterPreferences{
+							DynamicWeight: policyv1alpha1.DynamicWeightByAvailableReplicas,
+						},
+					},
 				})
 				framework.CreateDeployment(kubeClient, deployment)
 				framework.CreatePropagationPolicy(karmadaClient, policy)
@@ -86,7 +94,23 @@ var _ = ginkgo.Describe("metrics testing", func() {
 					framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
 					framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
 				})
-				framework.WaitDeploymentPresentOnClustersFitWith(framework.ClusterNames(), deployment.Namespace, deployment.Name, func(_ *appsv1.Deployment) bool { return true })
+
+				bindingName := names.GenerateBindingName(deployment.Kind, deployment.Name)
+				var targetClusters []string
+				gomega.Eventually(func() bool {
+					binding, err := karmadaClient.WorkV1alpha2().ResourceBindings(testNamespace).Get(context.TODO(), bindingName, metav1.GetOptions{})
+					if err != nil {
+						return false
+					}
+					if len(binding.Spec.Clusters) == 0 {
+						return false
+					}
+					for _, cluster := range binding.Spec.Clusters {
+						targetClusters = append(targetClusters, cluster.Name)
+					}
+					return true
+				}, framework.PollTimeout, framework.PollInterval).Should(gomega.Equal(true))
+				framework.WaitDeploymentPresentOnClustersFitWith(targetClusters, deployment.Namespace, deployment.Name, func(_ *appsv1.Deployment) bool { return true })
 			})
 
 			for component, metricNameList := range componentMetrics {

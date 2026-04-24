@@ -201,6 +201,7 @@ func Test_GroupClustersWithScore(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			tt.args.spec.Placement = tt.args.placement
 			groupInfo := GroupClustersWithScore(tt.args.clustersScore, tt.args.placement, tt.args.spec, calAvailableReplicasFunc)
 			for i, cluster := range groupInfo.Clusters {
 				if cluster.Name != tt.want.clusters[i] {
