@@ -1,0 +1,104 @@
+{{- if eq .Values.installMode "host" }}
+{{- $name := include "karmada.name" . -}}
+{{- $systemNamespace := .Values.systemNamespace -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}-controller-manager
+  namespace: {{ include "karmada.namespace" . }}
+  labels:
+  {{- include "karmada.cm.labels" . | nindent 4 }}
+spec:
+  replicas: {{  .Values.controllerManager.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "karmada.cm.labels" . | nindent 6 }}
+  {{- with .Values.controllerManager.strategy }}
+  strategy:
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+  template:
+    metadata:
+      {{- with .Values.controllerManager.podAnnotations }}
+      annotations:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "karmada.cm.labels" . | nindent 8 }}
+        {{- include "karmada.cm.podLabels" . | nindent 8 }}
+    spec:
+      {{- include "karmada.controllerManager.imagePullSecrets" . | nindent 6 }}
+      automountServiceAccountToken: false
+      {{- with .Values.controllerManager.nodeSelector }}
+      nodeSelector:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.controllerManager.affinity }}
+      affinity:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.controllerManager.tolerations}}
+      tolerations:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      priorityClassName: {{ .Values.controllerManager.priorityClassName }}
+      volumes:
+      {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
+      initContainers:
+        {{- include "karmada.initContainer.waitStaticResource" . | nindent 8 }}
+      containers:
+        - name: {{ $name }}-controller-manager
+          image: {{ template "karmada.controllerManager.image" . }}
+          imagePullPolicy: {{ .Values.controllerManager.image.pullPolicy }}
+          env:
+            {{- include "karmada.env.podIP" . | nindent 12 }}
+          command:
+            - /bin/karmada-controller-manager
+            - --kubeconfig=/etc/kubeconfig
+            - --cluster-status-update-frequency=10s
+            - --leader-elect-resource-namespace={{ $systemNamespace }}
+            - --metrics-bind-address=$(POD_IP):8080
+            - --health-probe-bind-address=$(POD_IP):10357
+            - --v={{ .Values.controllerManager.logVerbosity }}
+            {{- if .Values.controllerManager.controllers }}
+            - --controllers={{ .Values.controllerManager.controllers }}
+            {{- end }}
+            {{- with (include "karmada.controllerManager.featureGates" .) }}
+            - {{ . }}
+            {{- end }}
+            {{- include "karmada.controllerManager.extraCommandArgs" . | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 10357
+              scheme: HTTP
+            failureThreshold: 3
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            timeoutSeconds: 5
+          ports:
+            - containerPort: 8080
+              name: metrics
+              protocol: TCP
+          volumeMounts:
+          {{- include "karmada.kubeconfig.volumeMount" . | nindent 12 }}
+          resources:
+          {{- toYaml .Values.controllerManager.resources | nindent 12 }}
+
+{{ if .Values.controllerManager.podDisruptionBudget }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $name }}-controller-manager
+  namespace: {{ include "karmada.namespace" . }}
+  labels:
+    {{- include "karmada.cm.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "karmada.cm.labels" . | nindent 6 }}
+  {{ toYaml .Values.controllerManager.podDisruptionBudget | nindent 2 }}
+{{- end -}}
+
+{{- end }}

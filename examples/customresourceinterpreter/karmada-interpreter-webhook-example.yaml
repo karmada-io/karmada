@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: karmada-interpreter-webhook-example
+  namespace: karmada-system
+  labels:
+    app: karmada-interpreter-webhook-example
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: karmada-interpreter-webhook-example
+  template:
+    metadata:
+      labels:
+        app: karmada-interpreter-webhook-example
+    spec:
+      serviceAccountName: karmada-interpreter-webhook-example
+      tolerations:
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+      containers:
+        - name: karmada-interpreter-webhook-example
+          image: docker.io/karmada/karmada-interpreter-webhook-example:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/karmada-interpreter-webhook-example
+            - --kubeconfig=/etc/karmada/config/karmada.config
+            - --bind-address=0.0.0.0
+            - --secure-port=8445
+            - --cert-dir=/etc/karmada/pki/server
+            - --v=4
+          ports:
+            - containerPort: 8445
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8445
+              scheme: HTTPS
+          volumeMounts:
+            - name: karmada-config
+              mountPath: /etc/karmada/config
+            - name: server-cert
+              mountPath: /etc/karmada/pki/server
+              readOnly: true
+      volumes:
+        - name: karmada-config
+          secret:
+            secretName: karmada-interpreter-webhook-example-config
+        - name: server-cert
+          secret:
+            secretName: karmada-interpreter-webhook-example-cert
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: karmada-interpreter-webhook-example
+  namespace: karmada-system
+spec:
+  selector:
+    app: karmada-interpreter-webhook-example
+  ports:
+    - port: 443
+      targetPort: 8445
+  type: LoadBalancer
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: karmada-interpreter-webhook-example
+  namespace: karmada-system

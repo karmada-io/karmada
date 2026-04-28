@@ -1,0 +1,302 @@
+/*
+Copyright 2021 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package kubernetes
+
+import (
+	"fmt"
+	"strings"
+
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/component-base/cli/flag"
+	"k8s.io/utils/ptr"
+)
+
+const (
+	etcdStatefulSetAndServiceName      = "etcd"
+	etcdStatefulSetAPIVersion          = "apps/v1"
+	etcdStatefulSetKind                = "StatefulSet"
+	etcdContainerClientPortName        = "client"
+	etcdContainerClientPort            = 2379
+	etcdContainerServerPortName        = "server"
+	etcdContainerServerPort            = 2380
+	etcdContainerDataVolumeMountName   = "etcd-data"
+	etcdContainerDataVolumeMountPath   = "/var/lib/karmada-etcd"
+	etcdContainerConfigVolumeMountName = "etcd-config"
+	etcdContainerConfigDataMountPath   = "/etc/etcd"
+	etcdConfigName                     = "etcd.conf"
+	etcdEnvPodName                     = "POD_NAME"
+	etcdEnvPodIP                       = "POD_IP"
+	//secrets name
+	etcdCertName = "etcd-cert"
+)
+
+var (
+	// appLabels remove via Labels karmada StatefulSet Deployment
+	appLabels        = map[string]string{"karmada.io/bootstrapping": "app-defaults"}
+	etcdLabels       = map[string]string{"app": etcdStatefulSetAndServiceName}
+	etcdCipherSuites = genEtcdCipherSuites()
+)
+
+func (i *CommandInitOption) etcdVolume() (*[]corev1.Volume, *corev1.PersistentVolumeClaim) {
+	var Volumes []corev1.Volume
+
+	secretVolume := corev1.Volume{
+		Name: etcdCertName,
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
+				SecretName: etcdCertName,
+			},
+		},
+	}
+	configVolume := corev1.Volume{
+		Name: etcdContainerConfigVolumeMountName,
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{},
+		},
+	}
+	Volumes = append(Volumes, secretVolume, configVolume)
+
+	switch i.EtcdStorageMode {
+	case etcdStorageModePVC:
+		mode := corev1.PersistentVolumeFilesystem
+		persistentVolumeClaim := corev1.PersistentVolumeClaim{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "PersistentVolumeClaim",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: i.Namespace,
+				Name:      etcdContainerDataVolumeMountName,
+				Labels:    map[string]string{"karmada.io/bootstrapping": "pvc-defaults"},
+			},
+			Spec: corev1.PersistentVolumeClaimSpec{
+				AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+				StorageClassName: &i.StorageClassesName,
+				VolumeMode:       &mode,
+				Resources: corev1.VolumeResourceRequirements{
+					Requests: corev1.ResourceList{
+						corev1.ResourceStorage: resource.MustParse(i.EtcdPersistentVolumeSize),
+					},
+				},
+			},
+		}
+		return &Volumes, &persistentVolumeClaim
+
+	case etcdStorageModeHostPath:
+		t := corev1.HostPathDirectoryOrCreate
+		hostPath := corev1.Volume{
+			Name: etcdContainerDataVolumeMountName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: i.EtcdHostDataPath,
+					Type: &t,
+				},
+			},
+		}
+		Volumes = append(Volumes, hostPath)
+		return &Volumes, nil
+
+	default:
+		emptyDir := corev1.Volume{
+			Name: etcdContainerDataVolumeMountName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		}
+		Volumes = append(Volumes, emptyDir)
+		return &Volumes, nil
+	}
+}
+
+func (i *CommandInitOption) makeETCDStatefulSet() *appsv1.StatefulSet {
+	Volumes, persistentVolumeClaim := i.etcdVolume()
+
+	// GroupsApiVersionResource
+	etcd := &appsv1.StatefulSet{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: etcdStatefulSetAPIVersion,
+			Kind:       etcdStatefulSetKind,
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      etcdStatefulSetAndServiceName,
+			Namespace: i.Namespace,
+			Labels:    appLabels,
+		},
+	}
+
+	// Probes
+	livenesProbe := &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			Exec: &corev1.ExecAction{
+				Command: []string{
+					"/bin/sh",
+					"-ec",
+					fmt.Sprintf("etcdctl endpoint health --endpoints http://127.0.0.1:%v", etcdContainerClientPort),
+				},
+			},
+		},
+		InitialDelaySeconds: 15,
+		FailureThreshold:    3,
+		PeriodSeconds:       60,
+		TimeoutSeconds:      5,
+	}
+	/*	readinesProbe := &corev1.Probe{
+		Handler: corev1.Handler{
+			TCPSocket: &corev1.TCPSocketAction{
+				Port: intstr.IntOrString{
+					IntVal: etcdContainerClientPort,
+				},
+			},
+		},
+		InitialDelaySeconds: 5,
+		FailureThreshold:    3,
+		PeriodSeconds:       30,
+		TimeoutSeconds:      5,
+	}*/
+
+	// etcd Container
+	podSpec := corev1.PodSpec{
+		ImagePullSecrets:  i.getImagePullSecrets(),
+		PriorityClassName: i.EtcdPriorityClass,
+		Affinity: &corev1.Affinity{
+			PodAntiAffinity: &corev1.PodAntiAffinity{
+				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+					{
+						Weight: 100,
+						PodAffinityTerm: corev1.PodAffinityTerm{
+							TopologyKey: "kubernetes.io/hostname",
+							LabelSelector: &metav1.LabelSelector{
+								MatchExpressions: []metav1.LabelSelectorRequirement{
+									{
+										Key:      "app",
+										Operator: metav1.LabelSelectorOpIn,
+										Values:   []string{etcdStatefulSetAndServiceName},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		AutomountServiceAccountToken: ptr.To[bool](false),
+		Containers: []corev1.Container{
+			{
+				Name:    etcdStatefulSetAndServiceName,
+				Image:   i.etcdImage(),
+				Command: i.EtcdContainerCmd,
+				Ports: []corev1.ContainerPort{
+					{
+						Name:          etcdContainerClientPortName,
+						ContainerPort: etcdContainerClientPort,
+						Protocol:      corev1.ProtocolTCP,
+					},
+					{
+						Name:          etcdContainerServerPortName,
+						ContainerPort: etcdContainerServerPort,
+						Protocol:      corev1.ProtocolTCP,
+					},
+				},
+				VolumeMounts: []corev1.VolumeMount{
+					{
+						Name:      etcdContainerDataVolumeMountName,
+						ReadOnly:  false,
+						MountPath: etcdContainerDataVolumeMountPath,
+					},
+					{
+						Name:      etcdContainerConfigVolumeMountName,
+						ReadOnly:  false,
+						MountPath: etcdContainerConfigDataMountPath,
+					},
+					{
+						Name:      etcdCertName,
+						ReadOnly:  true,
+						MountPath: karmadaCertsVolumeMountPath,
+					},
+				},
+				LivenessProbe: livenesProbe,
+				//ReadinessProbe: readinesProbe,
+				Env: []corev1.EnvVar{
+					{
+						Name: etcdEnvPodName,
+						ValueFrom: &corev1.EnvVarSource{
+							FieldRef: &corev1.ObjectFieldSelector{
+								FieldPath: "metadata.name",
+							},
+						},
+					},
+					{
+						Name: etcdEnvPodIP,
+						ValueFrom: &corev1.EnvVarSource{
+							FieldRef: &corev1.ObjectFieldSelector{
+								FieldPath: "status.podIP",
+							},
+						},
+					},
+				},
+			},
+		},
+		Volumes: *Volumes,
+	}
+
+	if i.EtcdStorageMode == "hostPath" {
+		if i.EtcdNodeSelectorLabelsMap != nil {
+			podSpec.NodeSelector = i.EtcdNodeSelectorLabelsMap
+		} else {
+			podSpec.NodeSelector = map[string]string{"karmada.io/etcd": ""}
+		}
+	}
+
+	// PodTemplateSpec
+	podTemplateSpec := corev1.PodTemplateSpec{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      etcdStatefulSetAndServiceName,
+			Namespace: i.Namespace,
+			Labels:    etcdLabels,
+		},
+		Spec: podSpec,
+	}
+
+	// StatefulSetSpec
+	etcd.Spec = appsv1.StatefulSetSpec{
+		Replicas: &i.EtcdReplicas,
+		Selector: &metav1.LabelSelector{
+			MatchLabels: etcdLabels,
+		},
+		Template:    podTemplateSpec,
+		ServiceName: etcdStatefulSetAndServiceName,
+	}
+
+	// PVC
+	if persistentVolumeClaim != nil {
+		var pvc []corev1.PersistentVolumeClaim
+		pvc = append(pvc, *persistentVolumeClaim)
+		etcd.Spec.VolumeClaimTemplates = pvc
+	}
+
+	return etcd
+}
+
+// Setting Golang's secure cipher suites as etcd's cipher suites.
+// They are obtained by the return value of the function CipherSuites() under the go/src/crypto/tls/cipher_suites.go package.
+// Consistent with the Preferred values of k8s’s default cipher suites.
+func genEtcdCipherSuites() string {
+	return strings.Join(flag.PreferredTLSCipherNames(), ",")
+}

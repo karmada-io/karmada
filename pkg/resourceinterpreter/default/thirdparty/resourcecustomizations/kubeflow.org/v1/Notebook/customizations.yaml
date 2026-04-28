@@ -1,0 +1,155 @@
+apiVersion: config.karmada.io/v1alpha1
+kind: ResourceInterpreterCustomization
+metadata:
+  name: declarative-configuration-notebook
+spec:
+  target:
+    apiVersion: kubeflow.org/v1
+    kind: Notebook
+  customizations:
+    replicaResource:
+      luaScript: >
+        local kube = require("kube")
+        function GetReplicas(obj)
+          local replica = 1
+          local requirement = kube.accuratePodRequirements(obj.spec.template)
+          return replica, requirement
+        end
+    healthInterpretation:
+      luaScript: >
+        function InterpretHealth(observedObj)
+          if observedObj.status == nil or observedObj.status.containerState == nil then
+            return false
+          end
+
+          local state = observedObj.status.containerState
+          if state.running ~= nil then
+            return true
+          end
+
+          if state.waiting ~= nil then
+            local reason = state.waiting.reason or ""
+            if reason == "ContainerCreating" then
+              return true
+            end
+            return false
+          end
+
+          if state.terminated ~= nil then
+            local reason = state.terminated.reason or ""
+            local exitCode = state.terminated.exitCode or 0
+
+            if reason == "Error" or reason == "OOMKilled" or reason == "ContainerCannotRun" or exitCode ~= 0 then
+              return false
+            end
+
+            return true
+          end
+
+          return false
+        end
+    statusAggregation:
+      luaScript: >
+        function AggregateStatus(desiredObj, statusItems)
+          if statusItems == nil then
+            return desiredObj
+          end
+          if desiredObj.status == nil then desiredObj.status = {} end
+          
+          if #statusItems == 1 then
+            desiredObj.status = statusItems[1].status
+            return desiredObj
+          end
+
+          local status = {
+            readyReplicas = 0,
+            containerState = {},
+            conditions = {}
+          }
+          local aggregatedConditions = {}
+          local successfulClustersNum = 0
+          local failedClusters = {}
+          local aggregatedContainerState = nil
+          local latestStartTime = nil
+
+          for i = 1, #statusItems do
+            local s = statusItems[i]
+            if s ~= nil and s.status ~= nil then
+              local st = s.status
+              status.readyReplicas = status.readyReplicas + (st.readyReplicas or 0)
+              local cs = st.containerState
+
+              local isFailed = cs == nil or (type(cs) == "table" and next(cs) == nil) or cs.terminated ~= nil or cs.waiting ~= nil
+              if isFailed then
+                table.insert(failedClusters, s.clusterName)
+                if cs == nil or next(cs) == nil then
+                  aggregatedContainerState ={ waiting = { reason = "Unschedulable" } }
+                else
+                  aggregatedContainerState = cs
+                end
+              else
+                if cs.running ~= nil and #failedClusters == 0 then
+                  successfulClustersNum = successfulClustersNum + 1
+                  local startedAt = cs.running.startedAt
+                  if aggregatedContainerState == nil then
+                    aggregatedContainerState = { running = { startedAt = startedAt } }
+                    latestStartTime = startedAt
+                  else
+                    if startedAt ~= nil and (latestStartTime == nil or startedAt > latestStartTime) then
+                      latestStartTime = startedAt
+                      aggregatedContainerState.running = { startedAt = startedAt }
+                    end
+                  end
+                end
+              end
+            end
+          end
+
+          if #failedClusters > 0 then
+            table.insert(aggregatedConditions, {
+              type = "Failed",
+              status = "True",
+              lastProbeTime = os.date("!%Y-%m-%dT%H:%M:%SZ"),
+              lastTransitionTime = os.date("!%Y-%m-%dT%H:%M:%SZ"),
+              reason = "NotebookFailed",
+              message = "Notebook executed failed in member clusters: " .. table.concat(failedClusters, ", ")
+            })
+          end
+
+          if successfulClustersNum == #statusItems and successfulClustersNum > 0 then
+            table.insert(aggregatedConditions, {
+              type = "Ready",
+              status = "True",
+              lastProbeTime = os.date("!%Y-%m-%dT%H:%M:%SZ"),
+              lastTransitionTime = os.date("!%Y-%m-%dT%H:%M:%SZ"),
+              reason = "Ready",
+              message = "All notebooks are ready"
+            })
+          end
+
+          status.conditions = aggregatedConditions
+          status.containerState = aggregatedContainerState
+          desiredObj.status = status
+          return desiredObj
+        end
+    statusReflection:
+      luaScript: >
+        function ReflectStatus(observedObj)
+          if observedObj.status == nil then
+            return {}
+          end
+          local status = {
+            readyReplicas = 0,
+            containerState = {},
+            conditions = {}
+          }
+
+          local s = observedObj.status
+          status.readyReplicas = s.readyReplicas or 0
+          status.containerState = s.containerState or {}
+          if type(s.conditions) == "table" then
+            status.conditions = s.conditions
+          end
+
+          return status
+        end

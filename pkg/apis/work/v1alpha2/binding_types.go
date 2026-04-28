@@ -1,0 +1,570 @@
+/*
+Copyright 2020 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package v1alpha2
+
+import (
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+)
+
+const (
+	// ResourceKindResourceBinding is kind name of ResourceBinding.
+	ResourceKindResourceBinding = "ResourceBinding"
+	// ResourceSingularResourceBinding is singular name of ResourceBinding.
+	ResourceSingularResourceBinding = "resourcebinding"
+	// ResourcePluralResourceBinding is plural name of ResourceBinding.
+	ResourcePluralResourceBinding = "resourcebindings"
+	// ResourceNamespaceScopedResourceBinding indicates if ResourceBinding is NamespaceScoped.
+	ResourceNamespaceScopedResourceBinding = true
+
+	// ResourceKindClusterResourceBinding is kind name of ClusterResourceBinding.
+	ResourceKindClusterResourceBinding = "ClusterResourceBinding"
+	// ResourceSingularClusterResourceBinding is singular name of ClusterResourceBinding.
+	ResourceSingularClusterResourceBinding = "clusterresourcebinding"
+	// ResourcePluralClusterResourceBinding is kind plural of ClusterResourceBinding.
+	ResourcePluralClusterResourceBinding = "clusterresourcebindings"
+	// ResourceNamespaceScopedClusterResourceBinding indicates if ClusterResourceBinding is NamespaceScoped.
+	ResourceNamespaceScopedClusterResourceBinding = false
+)
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:subresource:status
+// +kubebuilder:resource:path=resourcebindings,scope=Namespaced,shortName=rb,categories={karmada-io}
+// +kubebuilder:storageversion
+// +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="Scheduled")].status`,name="SCHEDULED",type=string
+// +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="FullyApplied")].status`,name="FULLYAPPLIED",type=string
+// +kubebuilder:printcolumn:JSONPath=`.metadata.creationTimestamp`,name="AGE",type=date
+
+// ResourceBinding represents a binding of a kubernetes resource with a propagation policy.
+type ResourceBinding struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	// Spec represents the desired behavior.
+	Spec ResourceBindingSpec `json:"spec"`
+
+	// Status represents the most recently observed status of the ResourceBinding.
+	// +optional
+	Status ResourceBindingStatus `json:"status,omitempty"`
+}
+
+// ResourceBindingSpec represents the expectation of ResourceBinding.
+type ResourceBindingSpec struct {
+	// Resource represents the Kubernetes resource to be propagated.
+	Resource ObjectReference `json:"resource"`
+
+	// PropagateDeps tells if relevant resources should be propagated automatically.
+	// It is inherited from PropagationPolicy or ClusterPropagationPolicy.
+	// default false.
+	// +optional
+	PropagateDeps bool `json:"propagateDeps,omitempty"`
+
+	// ReplicaRequirements represents the resource and scheduling requirements for each replica.
+	// +optional
+	ReplicaRequirements *ReplicaRequirements `json:"replicaRequirements,omitempty"`
+
+	// Replicas represents the replica number of the referencing resource.
+	// +optional
+	Replicas int32 `json:"replicas,omitempty"`
+
+	// Components represents the requirements of multiple pod templates of the referencing resource.
+	// It is designed to support workloads that consist of multiple pod templates,
+	// such as distributed training jobs (e.g., PyTorch, TensorFlow) and big data workloads (e.g., FlinkDeployment),
+	// where each workload is composed of more than one pod template. It is also capable of representing
+	// single-component workloads, such as Deployment.
+	//
+	// Note: This field is intended to replace the legacy ReplicaRequirements and Replicas fields above.
+	// It is only populated when the MultiplePodTemplatesScheduling feature gate is enabled.
+	// +optional
+	Components []Component `json:"components,omitempty"`
+
+	// Clusters represents target member clusters where the resource to be deployed.
+	// +optional
+	Clusters []TargetCluster `json:"clusters,omitempty"`
+
+	// Placement represents the rule for select clusters to propagate resources.
+	// +optional
+	Placement *policyv1alpha1.Placement `json:"placement,omitempty"`
+
+	// GracefulEvictionTasks holds the eviction tasks that are expected to perform
+	// the eviction in a graceful way.
+	// The intended workflow is:
+	// 1. Once the controller(such as 'taint-manager') decided to evict the resource that
+	//    is referenced by current ResourceBinding or ClusterResourceBinding from a target
+	//    cluster, it removes(or scale down the replicas) the target from Clusters(.spec.Clusters)
+	//    and builds a graceful eviction task.
+	// 2. The scheduler may perform a re-scheduler and probably select a substitute cluster
+	//    to take over the evicting workload(resource).
+	// 3. The graceful eviction controller takes care of the graceful eviction tasks and
+	//    performs the final removal after the workload(resource) is available on the substitute
+	//    cluster or exceed the grace termination period(defaults to 10 minutes).
+	//
+	// +optional
+	GracefulEvictionTasks []GracefulEvictionTask `json:"gracefulEvictionTasks,omitempty"`
+
+	// RequiredBy represents the list of Bindings that depend on the referencing resource.
+	// +optional
+	RequiredBy []BindingSnapshot `json:"requiredBy,omitempty"`
+
+	// SchedulerName represents which scheduler to proceed the scheduling.
+	// It inherits directly from the associated PropagationPolicy(or ClusterPropagationPolicy).
+	// +optional
+	SchedulerName string `json:"schedulerName,omitempty"`
+
+	// Failover indicates how Karmada migrates applications in case of failures.
+	// It inherits directly from the associated PropagationPolicy(or ClusterPropagationPolicy).
+	// +optional
+	Failover *policyv1alpha1.FailoverBehavior `json:"failover,omitempty"`
+
+	// ConflictResolution declares how potential conflict should be handled when
+	// a resource that is being propagated already exists in the target cluster.
+	//
+	// It defaults to "Abort" which means stop propagating to avoid unexpected
+	// overwrites. The "Overwrite" might be useful when migrating legacy cluster
+	// resources to Karmada, in which case conflict is predictable and can be
+	// instructed to Karmada take over the resource by overwriting.
+	//
+	// +kubebuilder:default="Abort"
+	// +kubebuilder:validation:Enum=Abort;Overwrite
+	// +optional
+	ConflictResolution policyv1alpha1.ConflictResolution `json:"conflictResolution,omitempty"`
+
+	// RescheduleTriggeredAt is a timestamp representing when the referenced resource is triggered rescheduling.
+	// When this field is updated, it means a rescheduling is manually triggered by user, and the expected behavior
+	// of this action is to do a complete recalculation without referring to last scheduling results.
+	// It works with the status.lastScheduledTime field, and only when this timestamp is later than timestamp in
+	// status.lastScheduledTime will the rescheduling actually execute, otherwise, ignored.
+	//
+	// It is represented in RFC3339 form (like '2006-01-02T15:04:05Z') and is in UTC.
+	// +optional
+	RescheduleTriggeredAt *metav1.Time `json:"rescheduleTriggeredAt,omitempty"`
+
+	// Suspension declares the policy for suspending different aspects of propagation.
+	// nil means no suspension. no default values.
+	// +optional
+	Suspension *Suspension `json:"suspension,omitempty"`
+
+	// PreserveResourcesOnDeletion controls whether resources should be preserved on the
+	// member clusters when the binding object is deleted.
+	// If set to true, resources will be preserved on the member clusters.
+	// Default is false, which means resources will be deleted along with the binding object.
+	// This setting applies to all Work objects created under this binding object.
+	// +optional
+	PreserveResourcesOnDeletion *bool `json:"preserveResourcesOnDeletion,omitempty"`
+
+	// SchedulePriority represents the scheduling priority assigned to workloads.
+	// +optional
+	SchedulePriority *SchedulePriority `json:"schedulePriority,omitempty"`
+
+	// WorkloadAffinityGroups represents instantiated grouping results from .spec.placement.workloadAffinity,
+	// used to keep workloads with the same affinity group co-located or those with the same
+	// anti-affinity group separated across clusters. Populated by controllers, the scheduler
+	// consumes it for decisions.
+	// Note: Since workloads are namespace-scoped resources, workload affinity only applies to
+	// ResourceBinding. Therefore, the WorkloadAffinityGroups field in ClusterResourceBinding
+	// will not be set and will not be consumed by the scheduler.
+	// +optional
+	WorkloadAffinityGroups *WorkloadAffinityGroups `json:"workloadAffinityGroups,omitempty"`
+}
+
+// ObjectReference contains enough information to locate the referenced object inside current cluster.
+type ObjectReference struct {
+	// APIVersion represents the API version of the referent.
+	APIVersion string `json:"apiVersion"`
+
+	// Kind represents the Kind of the referent.
+	Kind string `json:"kind"`
+
+	// Namespace represents the namespace for the referent.
+	// For non-namespace scoped resources(e.g. 'ClusterRole')，do not need specify Namespace,
+	// and for namespace scoped resources, Namespace is required.
+	// If Namespace is not specified, means the resource is non-namespace scoped.
+	// +optional
+	Namespace string `json:"namespace,omitempty"`
+
+	// Name represents the name of the referent.
+	Name string `json:"name"`
+
+	// UID of the referent.
+	// +optional
+	UID types.UID `json:"uid,omitempty"`
+
+	// ResourceVersion represents the internal version of the referenced object, that can be used by clients to
+	// determine when object has changed.
+	// +optional
+	ResourceVersion string `json:"resourceVersion,omitempty"`
+}
+
+// ReplicaRequirements represents the resource and scheduling requirements for each replica.
+type ReplicaRequirements struct {
+	// NodeClaim represents the node claim HardNodeAffinity, NodeSelector and Tolerations required by each replica.
+	// +optional
+	NodeClaim *NodeClaim `json:"nodeClaim,omitempty"`
+
+	// ResourceRequest represents the resources required by each replica.
+	// +optional
+	ResourceRequest corev1.ResourceList `json:"resourceRequest,omitempty"`
+
+	// Namespace represents the resources namespaces
+	// +optional
+	Namespace string `json:"namespace,omitempty"`
+
+	// PriorityClassName represents the resources priorityClassName
+	// +optional
+	PriorityClassName string `json:"priorityClassName,omitempty"`
+}
+
+// Component represents the requirements for a specific component.
+type Component struct {
+	// Name of this component.
+	// It is required when the resource contains multiple components to ensure proper identification,
+	// and must also be unique within the same resource.
+	// +kubebuilder:validation:MaxLength=32
+	// +required
+	Name string `json:"name"`
+
+	// Replicas represents the replica number of the resource's component.
+	// +required
+	Replicas int32 `json:"replicas"`
+
+	// ReplicaRequirements represents the resource and scheduling requirements for each replica.
+	// +optional
+	ReplicaRequirements *ComponentReplicaRequirements `json:"replicaRequirements,omitempty"`
+}
+
+// ComponentReplicaRequirements represents the resource and scheduling requirements for each replica.
+type ComponentReplicaRequirements struct {
+	// NodeClaim represents the node claim HardNodeAffinity, NodeSelector and Tolerations required by each replica.
+	// +optional
+	NodeClaim *NodeClaim `json:"nodeClaim,omitempty"`
+
+	// ResourceRequest represents the resources required by each replica.
+	// +optional
+	ResourceRequest corev1.ResourceList `json:"resourceRequest,omitempty"`
+
+	// PriorityClassName represents the resources priorityClassName
+	// +optional
+	PriorityClassName string `json:"priorityClassName,omitempty"`
+}
+
+// NodeClaim represents the node claim HardNodeAffinity, NodeSelector and Tolerations required by each replica.
+type NodeClaim struct {
+	// A node selector represents the union of the results of one or more label queries over a set of
+	// nodes; that is, it represents the OR of the selectors represented by the node selector terms.
+	// Note that only PodSpec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution
+	// is included here because it has a hard limit on pod scheduling.
+	// +optional
+	HardNodeAffinity *corev1.NodeSelector `json:"hardNodeAffinity,omitempty"`
+	// NodeSelector is a selector which must be true for the pod to fit on a node.
+	// Selector which must match a node's labels for the pod to be scheduled on that node.
+	// +optional
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+	// If specified, the pod's tolerations.
+	// +optional
+	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
+}
+
+// TargetCluster represents the identifier of a member cluster.
+type TargetCluster struct {
+	// Name of target cluster.
+	Name string `json:"name"`
+	// Replicas in target cluster
+	// +optional
+	Replicas int32 `json:"replicas,omitempty"`
+}
+
+// GracefulEvictionTask represents a graceful eviction task.
+type GracefulEvictionTask struct {
+	// FromCluster which cluster the eviction perform from.
+	// +required
+	FromCluster string `json:"fromCluster"`
+
+	// PurgeMode represents how to deal with the legacy applications on the
+	// cluster from which the application is migrated.
+	// Valid options are "Immediately", "Directly", "Graciously", "Gracefully" and "Never".
+	// +kubebuilder:validation:Enum=Immediately;Directly;Graciously;Gracefully;Never
+	// +optional
+	PurgeMode policyv1alpha1.PurgeMode `json:"purgeMode,omitempty"`
+
+	// Replicas indicates the number of replicas should be evicted.
+	// Should be ignored for resource type that doesn't have replica.
+	// +optional
+	Replicas *int32 `json:"replicas,omitempty"`
+
+	// Reason contains a programmatic identifier indicating the reason for the eviction.
+	// Producers may define expected values and meanings for this field,
+	// and whether the values are considered a guaranteed API.
+	// The value should be a CamelCase string.
+	// This field may not be empty.
+	// +required
+	// +kubebuilder:validation:MaxLength=32
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Pattern=`^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$`
+	Reason string `json:"reason"`
+
+	// Message is a human-readable message indicating details about the eviction.
+	// This may be an empty string.
+	// +optional
+	// +kubebuilder:validation:MaxLength=1024
+	Message string `json:"message,omitempty"`
+
+	// Producer indicates the controller who triggered the eviction.
+	// +required
+	Producer string `json:"producer"`
+
+	// GracePeriodSeconds is the maximum waiting duration in seconds before the item
+	// should be deleted. If the application on the new cluster cannot reach a Healthy state,
+	// Karmada will delete the item after GracePeriodSeconds is reached.
+	// Value must be positive integer.
+	// It can not co-exist with SuppressDeletion.
+	// +optional
+	GracePeriodSeconds *int32 `json:"gracePeriodSeconds,omitempty"`
+
+	// SuppressDeletion represents the grace period will be persistent until
+	// the tools or human intervention stops it.
+	// It can not co-exist with GracePeriodSeconds.
+	// +optional
+	SuppressDeletion *bool `json:"suppressDeletion,omitempty"`
+
+	// PreservedLabelState represents the application state information collected from the original cluster,
+	// and it will be injected into the new cluster in form of application labels.
+	// +optional
+	PreservedLabelState map[string]string `json:"preservedLabelState,omitempty"`
+
+	// CreationTimestamp is a timestamp representing the server time when this object was
+	// created.
+	// Clients should not set this value to avoid the time inconsistency issue.
+	// It is represented in RFC3339 form(like '2021-04-25T10:02:10Z') and is in UTC.
+	//
+	// Populated by the system. Read-only.
+	// +optional
+	CreationTimestamp *metav1.Time `json:"creationTimestamp,omitempty"`
+
+	// ClustersBeforeFailover records the clusters where running the application before failover.
+	ClustersBeforeFailover []string `json:"clustersBeforeFailover,omitempty"`
+}
+
+// BindingSnapshot is a snapshot of a ResourceBinding or ClusterResourceBinding.
+type BindingSnapshot struct {
+	// Namespace represents the namespace of the Binding.
+	// It is required for ResourceBinding.
+	// If Namespace is not specified, means the referencing is ClusterResourceBinding.
+	// +optional
+	Namespace string `json:"namespace,omitempty"`
+
+	// Name represents the name of the Binding.
+	// +required
+	Name string `json:"name"`
+
+	// Clusters represents the scheduled result.
+	// +optional
+	Clusters []TargetCluster `json:"clusters,omitempty"`
+}
+
+// Suspension defines the policy for suspending dispatching and scheduling.
+type Suspension struct {
+	policyv1alpha1.Suspension `json:",inline"`
+
+	// Scheduling controls whether scheduling should be suspended, the scheduler will pause scheduling and not
+	// process resource binding when the value is true and resume scheduling when it's false or nil.
+	// This is designed for third-party systems to temporarily pause the scheduling of applications, which enabling
+	// manage resource allocation, prioritize critical workloads, etc.
+	// It is expected that third-party systems use an admission webhook to suspend scheduling at the time of
+	// ResourceBinding creation. Once a ResourceBinding has been scheduled, it cannot be paused afterward, as it may
+	// lead to ineffective suspension.
+	// +optional
+	Scheduling *bool `json:"scheduling,omitempty"`
+}
+
+// SchedulePriority represents the scheduling priority assigned to workloads.
+type SchedulePriority struct {
+	// Priority specifies the scheduling priority for the binding.
+	// Higher values indicate a higher priority.
+	// If not explicitly set, the default value is 0.
+	// +kubebuilder:default=0
+	// +optional
+	Priority int32 `json:"priority,omitempty"`
+}
+
+// WorkloadAffinityGroups stores the instantiated affinity and anti-affinity group names.
+// Each group name is serialized as "<labelKey>=<labelValue>" (for example: "app.group=frontend"),
+// and is used by the scheduler to co-locate workloads in the same affinity group and to separate
+// workloads in the same anti-affinity group.
+// Note: If multiple groups are needed later, prefer adding list-typed fields (e.g., AffinityGroups,
+// AntiAffinityGroups) alongside these fields to keep backward compatibility.
+type WorkloadAffinityGroups struct {
+	// AffinityGroup is the instantiated group name derived from affinity rules.
+	// +optional
+	AffinityGroup string `json:"affinityGroup,omitempty"`
+
+	// AntiAffinityGroup is the instantiated group name derived from anti-affinity rules.
+	// +optional
+	AntiAffinityGroup string `json:"antiAffinityGroup,omitempty"`
+}
+
+// ResourceBindingStatus represents the overall status of the strategy as well as the referenced resources.
+type ResourceBindingStatus struct {
+	// SchedulerObservedGeneration is the generation(.metadata.generation) observed by the scheduler.
+	// If SchedulerObservedGeneration is less than the generation in metadata means the scheduler hasn't confirmed
+	// the scheduling result or hasn't done the schedule yet.
+	// +optional
+	SchedulerObservedGeneration int64 `json:"schedulerObservedGeneration,omitempty"`
+
+	// SchedulerObservedAffinityName is the name of affinity term that is
+	// the basis of current scheduling.
+	// +optional
+	SchedulerObservedAffinityName string `json:"schedulerObservingAffinityName,omitempty"`
+
+	// LastScheduledTime representing the latest timestamp when scheduler successfully finished a scheduling.
+	// It is represented in RFC3339 form (like '2006-01-02T15:04:05Z') and is in UTC.
+	// +optional
+	LastScheduledTime *metav1.Time `json:"lastScheduledTime,omitempty"`
+
+	// Conditions contain the different condition statuses.
+	// +optional
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
+
+	// AggregatedStatus represents status list of the resource running in each member cluster.
+	// +optional
+	AggregatedStatus []AggregatedStatusItem `json:"aggregatedStatus,omitempty"`
+}
+
+// AggregatedStatusItem represents status of the resource running in a member cluster.
+type AggregatedStatusItem struct {
+	// ClusterName represents the member cluster name which the resource deployed on.
+	// +required
+	ClusterName string `json:"clusterName"`
+
+	// Status reflects running status of current manifest.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +optional
+	Status *runtime.RawExtension `json:"status,omitempty"`
+
+	// Applied represents if the resource referencing by ResourceBinding or ClusterResourceBinding
+	// is successfully applied on the cluster.
+	// +optional
+	Applied bool `json:"applied,omitempty"`
+
+	// AppliedMessage is a human readable message indicating details about the applied status.
+	// This is usually holds the error message in case of apply failed.
+	// +optional
+	AppliedMessage string `json:"appliedMessage,omitempty"`
+
+	// Health represents the healthy state of the current resource.
+	// There maybe different rules for different resources to achieve health status.
+	// +kubebuilder:validation:Enum=Healthy;Unhealthy;Unknown
+	// +optional
+	Health ResourceHealth `json:"health,omitempty"`
+}
+
+// Conditions definition
+const (
+	// Scheduled represents the condition that the ResourceBinding or ClusterResourceBinding has been scheduled.
+	Scheduled string = "Scheduled"
+
+	// FullyApplied represents the condition that the resource referencing by ResourceBinding or ClusterResourceBinding
+	// has been applied to all scheduled clusters.
+	FullyApplied string = "FullyApplied"
+)
+
+// These are reasons for a binding's transition to a Scheduled condition.
+const (
+	// BindingReasonSuccess reason in Scheduled condition means that binding has been scheduled successfully.
+	BindingReasonSuccess = "Success"
+
+	// BindingReasonSchedulerError reason in Scheduled condition means that some internal error happens
+	// during scheduling, for example due to api-server connection error.
+	BindingReasonSchedulerError = "SchedulerError"
+
+	// BindingReasonNoClusterFit reason in Scheduled condition means that scheduling has finished
+	// due to no fit cluster.
+	BindingReasonNoClusterFit = "NoClusterFit"
+
+	// BindingReasonUnschedulable reason in Scheduled condition means that the scheduler can't schedule
+	// the binding right now, for example due to insufficient resources in the clusters.
+	BindingReasonUnschedulable = "Unschedulable"
+
+	// BindingReasonQuotaExceeded reason in Scheduled condition means that the scheduler can't schedule
+	// the binding because the resource requirement exceeds one or more of the FederatedResourceQuotas
+	// defined in the namespace.
+	BindingReasonQuotaExceeded = "QuotaExceeded"
+)
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// ResourceBindingList contains a list of ResourceBinding.
+type ResourceBindingList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+
+	// Items is the list of ResourceBinding.
+	Items []ResourceBinding `json:"items"`
+}
+
+// ResourceHealth represents that the health status of the reference resource.
+type ResourceHealth string
+
+const (
+	// ResourceHealthy represents that the health status of the current resource
+	// that applied on the managed cluster is healthy.
+	ResourceHealthy ResourceHealth = "Healthy"
+	// ResourceUnhealthy represents that the health status of the current resource
+	// that applied on the managed cluster is unhealthy.
+	ResourceUnhealthy ResourceHealth = "Unhealthy"
+	// ResourceUnknown represents that the health status of the current resource
+	// that applied on the managed cluster is unknown.
+	ResourceUnknown ResourceHealth = "Unknown"
+)
+
+// +genclient
+// +genclient:nonNamespaced
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:resource:path=clusterresourcebindings,scope="Cluster",shortName=crb,categories={karmada-io}
+// +kubebuilder:subresource:status
+// +kubebuilder:storageversion
+// +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="Scheduled")].status`,name="SCHEDULED",type=string
+// +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="FullyApplied")].status`,name="FULLYAPPLIED",type=string
+// +kubebuilder:printcolumn:JSONPath=`.metadata.creationTimestamp`,name="AGE",type=date
+
+// ClusterResourceBinding represents a binding of a kubernetes resource with a ClusterPropagationPolicy.
+type ClusterResourceBinding struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	// Spec represents the desired behavior.
+	Spec ResourceBindingSpec `json:"spec"`
+
+	// Status represents the most recently observed status of the ResourceBinding.
+	// +optional
+	Status ResourceBindingStatus `json:"status,omitempty"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// ClusterResourceBindingList contains a list of ClusterResourceBinding.
+type ClusterResourceBindingList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+
+	// Items is the list of ClusterResourceBinding.
+	Items []ClusterResourceBinding `json:"items"`
+}

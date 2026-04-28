@@ -1,0 +1,88 @@
+# test cases for interprethealth of helmchart
+# case1: HelmChart with Ready=True and Succeeded is healthy
+# case2: HelmChart with Ready=True and ChartPullSucceeded is healthy
+# case3: HelmChart with Ready=False is not healthy
+# case4: HelmChart without Ready condition is not healthy
+# case5: HelmChart with empty conditions is not healthy
+# case6: HelmChart with nil status is not healthy
+# case7: HelmChart with status.conditions nil
+
+name: "HelmChart Ready Succeeded"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmChart
+  status:
+    conditions:
+      - type: Ready
+        status: "True"
+        reason: Succeeded
+operation: InterpretHealth
+output:
+  healthy: true
+---
+name: "HelmChart Ready ChartPullSucceeded"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmChart
+  status:
+    conditions:
+      - type: Ready
+        status: "True"
+        reason: ChartPullSucceeded
+operation: InterpretHealth
+output:
+  healthy: true
+---
+name: "HelmChart Ready False"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmChart
+  status:
+    conditions:
+      - type: Ready
+        status: "False"
+        reason: Succeeded
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "HelmChart without Ready condition"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmChart
+  status:
+    conditions:
+      - type: ArtifactInStorage
+        status: "True"
+        reason: ChartPullSucceeded
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "HelmChart with empty conditions"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmChart
+  status:
+    conditions: []
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "HelmChart with nil status"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmChart
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "HelmChart with status.conditions nil"
+description: "Health should be false when status.conditions is nil"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmChart
+  status: {}
+operation: InterpretHealth
+output:
+  healthy: false

@@ -1,0 +1,275 @@
+/*
+Copyright 2022 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package deinit
+
+import (
+	"context"
+	"fmt"
+	"strings"
+
+	"github.com/spf13/cobra"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/kubectl/pkg/util/templates"
+
+	"github.com/karmada-io/karmada/pkg/karmadactl/util"
+	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
+	"github.com/karmada-io/karmada/pkg/util/helper"
+)
+
+const (
+	karmadaBootstrappingLabelKey = "karmada.io/bootstrapping"
+	karmadaNodeLabel             = "karmada.io/etcd"
+)
+
+var (
+	deInitLong = templates.LongDesc(`
+		Remove the Karmada control plane from the Kubernetes cluster.`)
+
+	deInitExample = templates.Examples(`
+		# Remove Karmada from the Kubernetes cluster.
+		%[1]s deinit`)
+)
+
+// CommandDeInitOption options for deinit.
+type CommandDeInitOption struct {
+	// KubeConfig holds host cluster KUBECONFIG file path.
+	KubeConfig string
+	Context    string
+	Namespace  string
+
+	// DryRun tells if run the command in dry-run mode, without making any server requests.
+	DryRun         bool
+	Force          bool
+	PurgeNamespace bool
+
+	KubeClientSet kubernetes.Interface
+}
+
+// NewCmdDeInit removes Karmada from Kubernetes
+func NewCmdDeInit(parentCommand string) *cobra.Command {
+	opts := CommandDeInitOption{}
+	cmd := &cobra.Command{
+		Use:                   "deinit",
+		Short:                 "Remove the Karmada control plane from the Kubernetes cluster.",
+		Long:                  deInitLong,
+		Example:               fmt.Sprintf(deInitExample, parentCommand),
+		SilenceUsage:          true,
+		DisableFlagsInUseLine: true,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			if err := opts.Complete(); err != nil {
+				return err
+			}
+			if err := opts.Run(); err != nil {
+				return err
+			}
+			return nil
+		},
+		Annotations: map[string]string{
+			util.TagCommandGroup: util.GroupClusterRegistration,
+		},
+		Args: func(cmd *cobra.Command, args []string) error {
+			for _, arg := range args {
+				if len(arg) > 0 {
+					return fmt.Errorf("%q does not take any arguments, got %q", cmd.CommandPath(), args)
+				}
+			}
+			return nil
+		},
+	}
+
+	flags := cmd.Flags()
+	flags.StringVarP(&opts.Namespace, "namespace", "n", "karmada-system", "namespace where Karmada components are installed.")
+	flags.StringVar(&opts.KubeConfig, "kubeconfig", "", "Path to the host cluster kubeconfig file.")
+	flags.StringVar(&opts.Context, "context", "", "The name of the kubeconfig context to use")
+	flags.BoolVar(&opts.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
+	flags.BoolVarP(&opts.Force, "force", "f", false, "Reset cluster without prompting for confirmation.")
+	flags.BoolVar(&opts.PurgeNamespace, "purge-namespace", false, "Run the command with purge-namespace, the namespace which Karmada components were installed will be deleted.")
+	return cmd
+}
+
+// Complete the conditions required to be able to run deinit.
+func (o *CommandDeInitOption) Complete() error {
+	restConfig, err := apiclient.RestConfig(o.Context, o.KubeConfig)
+	if err != nil {
+		return err
+	}
+
+	o.KubeClientSet, err = apiclient.NewClientSet(restConfig)
+	if err != nil {
+		return err
+	}
+
+	if _, err := o.KubeClientSet.CoreV1().Namespaces().Get(context.TODO(), o.Namespace, metav1.GetOptions{}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// delete removes Karmada from Kubernetes
+func (o *CommandDeInitOption) delete() error {
+	if err := o.deleteWorkload(); err != nil {
+		return err
+	}
+
+	// Delete Service by karmadaBootstrappingLabelKey
+	serviceClient := o.KubeClientSet.CoreV1().Services(o.Namespace)
+	services, err := serviceClient.List(context.TODO(), metav1.ListOptions{LabelSelector: karmadaBootstrappingLabelKey})
+	if err != nil {
+		return err
+	}
+
+	for _, service := range services.Items {
+		fmt.Printf("delete Service %q\n", service.Name)
+		if o.DryRun {
+			continue
+		}
+		if err := serviceClient.Delete(context.TODO(), service.Name, metav1.DeleteOptions{}); err != nil {
+			return err
+		}
+	}
+
+	// Delete Secret by karmadaBootstrappingLabelKey
+	secretClient := o.KubeClientSet.CoreV1().Secrets(o.Namespace)
+	secrets, err := secretClient.List(context.TODO(), metav1.ListOptions{LabelSelector: karmadaBootstrappingLabelKey})
+	if err != nil {
+		return err
+	}
+	for _, secret := range secrets.Items {
+		fmt.Printf("delete Secrets %q\n", secret.Name)
+		if o.DryRun {
+			continue
+		}
+		if err := secretClient.Delete(context.TODO(), secret.Name, metav1.DeleteOptions{}); err != nil {
+			return err
+		}
+	}
+
+	// Delete namespace where Karmada components are installed
+	if o.PurgeNamespace {
+		fmt.Printf("delete Namespace %q\n", o.Namespace)
+		if o.DryRun {
+			return nil
+		}
+		if err = o.KubeClientSet.CoreV1().Namespaces().Delete(context.Background(), o.Namespace, metav1.DeleteOptions{}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (o *CommandDeInitOption) deleteWorkload() error {
+	// Delete deployment by karmadaBootstrappingLabelKey
+	deploymentClient := o.KubeClientSet.AppsV1().Deployments(o.Namespace)
+	deployments, err := deploymentClient.List(context.TODO(), metav1.ListOptions{LabelSelector: karmadaBootstrappingLabelKey})
+	if err != nil {
+		return err
+	}
+	for _, deployment := range deployments.Items {
+		fmt.Printf("delete deployment %q\n", deployment.Name)
+		if o.DryRun {
+			continue
+		}
+		if err := deploymentClient.Delete(context.TODO(), deployment.Name, metav1.DeleteOptions{}); err != nil {
+			return err
+		}
+	}
+
+	// Delete StatefulSet by label LabelSelector
+	statefulSetClient := o.KubeClientSet.AppsV1().StatefulSets(o.Namespace)
+	statefulSets, err := statefulSetClient.List(context.TODO(), metav1.ListOptions{LabelSelector: karmadaBootstrappingLabelKey})
+	if err != nil {
+		return err
+	}
+
+	for _, statefulSet := range statefulSets.Items {
+		fmt.Printf("delete StatefulSet: %q\n", statefulSet.Name)
+		if o.DryRun {
+			continue
+		}
+		if err := statefulSetClient.Delete(context.TODO(), statefulSet.Name, metav1.DeleteOptions{}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// removeNodeLabels removes labels from node which were created by karmadactl init
+func (o *CommandDeInitOption) removeNodeLabels() error {
+	nodeClient := o.KubeClientSet.CoreV1().Nodes()
+	nodes, err := nodeClient.List(context.TODO(), metav1.ListOptions{LabelSelector: karmadaNodeLabel})
+	if err != nil {
+		return err
+	}
+	if len(nodes.Items) == 0 {
+		fmt.Printf("node not found by label %q\n", karmadaNodeLabel)
+		return nil
+	}
+
+	for _, node := range nodes.Items {
+		nodeCopy := node.DeepCopy()
+		removeLabels(nodeCopy, karmadaNodeLabel)
+		fmt.Printf("remove node %q labels %q\n", node.Name, karmadaNodeLabel)
+		if o.DryRun {
+			continue
+		}
+		patchBytes, err := helper.GenMergePatch(node, nodeCopy)
+		if err != nil {
+			return err
+		}
+		if len(patchBytes) == 0 {
+			continue
+		}
+		if _, err = o.KubeClientSet.CoreV1().Nodes().Patch(context.TODO(), node.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func removeLabels(node *corev1.Node, removesLabel string) {
+	for label := range node.Labels {
+		if strings.Contains(label, removesLabel) {
+			delete(node.Labels, label)
+		}
+	}
+}
+
+// Run start delete
+func (o *CommandDeInitOption) Run() error {
+	fmt.Println("removes Karmada from Kubernetes")
+	// delete confirmation,exit the delete action when false.
+	if !o.Force && !util.DeleteConfirmation() {
+		return nil
+	}
+
+	if err := o.delete(); err != nil {
+		return err
+	}
+
+	if err := o.removeNodeLabels(); err != nil {
+		return err
+	}
+
+	fmt.Println("remove Karmada from Kubernetes successfully.\n" +
+		"\ndeinit will not delete etcd data, if the etcd data is persistent, please delete it yourself." +
+		"\nthe default persistence path for etcd data is '/var/lib/karmada-etcd'")
+	return nil
+}

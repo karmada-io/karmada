@@ -1,0 +1,93 @@
+# test case for interpreting health of Bucket
+# case1. Bucket Ready=True Succeeded should be healthy
+# case2. Bucket Ready=True but wrong reason should be unhealthy
+# case3. Bucket Ready=False should be unhealthy
+# case4. Bucket without Ready condition should be unhealthy
+# case5. Bucket with empty conditions should be unhealthy
+# case6. Bucket unhealthy when status is nil
+# case7. Bucket unhealthy when status.conditions is nil
+
+name: "Bucket healthy when Ready=True and reason=Succeeded"
+description: "Health should be true when Ready condition is True and reason is Succeeded"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: Bucket
+  status:
+    conditions:
+      - type: Ready
+        status: "True"
+        reason: Succeeded
+operation: InterpretHealth
+output:
+  healthy: true
+---
+name: "Bucket unhealthy when Ready=True but wrong reason"
+description: "Health should be false when Ready is True but reason is not Succeeded"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: Bucket
+  status:
+    conditions:
+      - type: Ready
+        status: "True"
+        reason: Progressing
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "Bucket unhealthy when Ready=False"
+description: "Health should be false when Ready condition is False"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: Bucket
+  status:
+    conditions:
+      - type: Ready
+        status: "False"
+        reason: Failed
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "Bucket unhealthy without Ready condition"
+description: "Health should be false when Ready condition is missing"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: Bucket
+  status:
+    conditions:
+      - type: Reconciling
+        status: "True"
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "Bucket unhealthy with empty conditions"
+description: "Health should be false when status.conditions is empty"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: Bucket
+  status:
+    conditions: []
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "Bucket unhealthy when status is nil"
+description: "Health should be false when status is nil"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: Bucket
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "Bucket unhealthy when status.conditions is nil"
+description: "Health should be false when status.conditions is nil"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: Bucket
+  status: {}
+operation: InterpretHealth
+output:
+  healthy: false

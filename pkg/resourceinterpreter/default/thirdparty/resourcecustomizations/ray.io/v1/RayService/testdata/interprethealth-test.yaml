@@ -1,0 +1,131 @@
+# Test cases for interpreting health of RayService
+#
+# RayService health interpretation:
+# - Healthy: Ready condition is True
+# - Unhealthy: Ready condition is False, missing, or status/conditions is nil
+# - During upgrades, RayService remains healthy as long as Ready=True
+#
+# Test cases:
+# 1. Ready=True (healthy, includes upgrade scenario)
+# 2. Ready=False (unhealthy)
+# 3. No status or conditions (unhealthy edge cases)
+# 4. Ready not at first position (tests iteration)
+
+name: "RayService with Ready=True is healthy"
+description: "Test that RayService is healthy when Ready=True, including during upgrades"
+observedObj:
+  apiVersion: ray.io/v1
+  kind: RayService
+  metadata:
+    name: rayservice-ready
+    namespace: default
+  spec:
+    rayClusterConfig:
+      headGroupSpec:
+        template:
+          spec:
+            containers:
+              - name: ray-head
+                image: rayproject/ray:2.9.0
+  status:
+    conditions:
+      - type: Ready
+        status: "True"
+        reason: NonZeroServeEndpoints
+        message: "Service is ready"
+      - type: UpgradeInProgress
+        status: "True"
+        reason: BothActivePendingClustersExist
+        message: "Upgrading to new cluster"
+    serviceStatus: Running
+    numServeEndpoints: 3
+operation: InterpretHealth
+output:
+  healthy: true
+
+---
+name: "RayService with Ready=False is unhealthy"
+description: "Test that RayService is unhealthy when Ready=False, even with other conditions present"
+observedObj:
+  apiVersion: ray.io/v1
+  kind: RayService
+  metadata:
+    name: rayservice-not-ready
+    namespace: default
+  spec:
+    rayClusterConfig:
+      headGroupSpec:
+        template:
+          spec:
+            containers:
+              - name: ray-head
+                image: rayproject/ray:2.9.0
+  status:
+    conditions:
+      - type: UpgradeInProgress
+        status: "False"
+        reason: NoPendingCluster
+      - type: Ready
+        status: "False"
+        reason: ZeroServeEndpoints
+        message: "No serve endpoints available"
+    serviceStatus: ""
+    numServeEndpoints: 0
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "RayService with no status or conditions is unhealthy"
+description: "Test that RayService is unhealthy when status or conditions is nil"
+observedObj:
+  apiVersion: ray.io/v1
+  kind: RayService
+  metadata:
+    name: rayservice-no-status
+    namespace: default
+  spec:
+    rayClusterConfig:
+      headGroupSpec:
+        template:
+          spec:
+            containers:
+              - name: ray-head
+                image: rayproject/ray:2.9.0
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "RayService with Ready condition at non-first position"
+description: "Test that Ready=True is found even when not the first condition"
+observedObj:
+  apiVersion: ray.io/v1
+  kind: RayService
+  metadata:
+    name: rayservice-ready-later
+    namespace: default
+  spec:
+    rayClusterConfig:
+      headGroupSpec:
+        template:
+          spec:
+            containers:
+              - name: ray-head
+                image: rayproject/ray:2.9.0
+  status:
+    conditions:
+      - type: UpgradeInProgress
+        status: "False"
+        reason: NoPendingCluster
+      - type: RayClusterReady
+        status: "True"
+        reason: RayClusterRunning
+      - type: Ready
+        status: "True"
+        reason: NonZeroServeEndpoints
+    serviceStatus: Running
+    numServeEndpoints: 5
+operation: InterpretHealth
+output:
+  healthy: true

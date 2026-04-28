@@ -1,0 +1,97 @@
+# test case for retaining suspend field of GitRepository
+# case1. GitRepository: retain suspend=true
+# case2. GitRepository: retain suspend=false
+# case3. GitRepository: retain without suspend
+
+name: "GitRepository retain suspend=true"
+description: "Retain should copy suspend=true from observed to desired"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1
+  kind: GitRepository
+  metadata:
+    name: sample
+    namespace: test-gitrepository
+  spec:
+    interval: 30s
+    url: https://github.com/example/repo
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1
+  kind: GitRepository
+  metadata:
+    name: sample
+    namespace: test-gitrepository
+  spec:
+    suspend: true
+operation: Retain
+output:
+  retained:
+    apiVersion: source.toolkit.fluxcd.io/v1
+    kind: GitRepository
+    metadata:
+      name: sample
+      namespace: test-gitrepository
+    spec:
+      interval: 30s
+      url: https://github.com/example/repo
+      suspend: true
+---
+name: "GitRepository retain suspend=false"
+description: "Retain should copy suspend=false from observed to desired"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1
+  kind: GitRepository
+  metadata:
+    name: sample
+    namespace: test-gitrepository
+  spec:
+    interval: 30s
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1
+  kind: GitRepository
+  metadata:
+    name: sample
+    namespace: test-gitrepository
+  spec:
+    suspend: false
+operation: Retain
+output:
+  retained:
+    apiVersion: source.toolkit.fluxcd.io/v1
+    kind: GitRepository
+    metadata:
+      name: sample
+      namespace: test-gitrepository
+    spec:
+      interval: 30s
+      suspend: false
+---
+name: "GitRepository retain without suspend"
+description: "Retain should not change suspend if observed has none"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1
+  kind: GitRepository
+  metadata:
+    name: sample
+    namespace: test-gitrepository
+  spec:
+    interval: 30s
+    suspend: true
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1
+  kind: GitRepository
+  metadata:
+    name: sample
+    namespace: test-gitrepository
+  spec:
+    interval: 30s
+operation: Retain
+output:
+  retained:
+    apiVersion: source.toolkit.fluxcd.io/v1
+    kind: GitRepository
+    metadata:
+      name: sample
+      namespace: test-gitrepository
+    spec:
+      interval: 30s
+      suspend: true

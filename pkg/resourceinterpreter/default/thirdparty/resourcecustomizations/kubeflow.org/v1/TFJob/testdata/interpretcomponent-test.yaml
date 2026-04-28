@@ -1,0 +1,571 @@
+# test case for interpreting component of TFJob
+# case1. TFJob with both PS and Worker replicas
+# case2. TFJob with only Worker replica
+# case3. TFJob with replicas as string numbers
+# case4. TFJob with nil/empty replicas (should default to 1)
+# case5. TFJob with empty tfReplicaSpecs
+# case6. TFJob with nil template (should handle gracefully)
+# case7. TFJob with multiple containers
+# case8. TFJob with nodeSelector and tolerations
+# case9. TFJob with resources only in limits (no requests)
+# case10. TFJob with all replica types (PS, Worker, Chief, Master, Evaluator)
+
+name: "TFJob with both PS and Worker replicas"
+description: "Test interpreting component of TFJob when both PS and Worker are present"
+observedObj:
+  apiVersion: kubeflow.org/v1
+  kind: TFJob
+  metadata:
+    name: tfjob-full
+    namespace: default
+  spec:
+    tfReplicaSpecs:
+      PS:
+        replicas: 2
+        restartPolicy: Never
+        template:
+          spec:
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+                  requests:
+                    cpu: 500m
+                    memory: 256Mi
+      Worker:
+        replicas: 4
+        restartPolicy: Never
+        template:
+          spec:
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                resources:
+                  limits:
+                    cpu: 2
+                    memory: 1Gi
+                  requests:
+                    cpu: 1
+                    memory: 512Mi
+operation: InterpretComponent
+output:
+  components:
+    - name: ps
+      replicas: 2
+      replicaRequirements:
+        resourceRequest:
+          cpu: 500m
+          memory: 256Mi
+    - name: worker
+      replicas: 4
+      replicaRequirements:
+        resourceRequest:
+          cpu: 1
+          memory: 512Mi
+
+---
+name: "TFJob with only Worker replica"
+description: "Test interpreting component of TFJob when only Worker is present"
+observedObj:
+  apiVersion: kubeflow.org/v1
+  kind: TFJob
+  metadata:
+    name: tfjob-worker-only
+    namespace: default
+  spec:
+    tfReplicaSpecs:
+      Worker:
+        replicas: 3
+        restartPolicy: Never
+        template:
+          spec:
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+                  requests:
+                    cpu: 500m
+                    memory: 256Mi
+operation: InterpretComponent
+output:
+  components:
+    - name: worker
+      replicas: 3
+      replicaRequirements:
+        resourceRequest:
+          cpu: 500m
+          memory: 256Mi
+
+---
+name: "TFJob with replicas as string numbers"
+description: "Test interpreting component of TFJob when replicas are string numbers"
+observedObj:
+  apiVersion: kubeflow.org/v1
+  kind: TFJob
+  metadata:
+    name: tfjob-string-replicas
+    namespace: default
+  spec:
+    tfReplicaSpecs:
+      PS:
+        replicas: "1"
+        restartPolicy: Never
+        template:
+          spec:
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+                  requests:
+                    cpu: 500m
+                    memory: 256Mi
+      Worker:
+        replicas: "2"
+        restartPolicy: Never
+        template:
+          spec:
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+                  requests:
+                    cpu: 500m
+                    memory: 256Mi
+operation: InterpretComponent
+output:
+  components:
+    - name: ps
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          cpu: 500m
+          memory: 256Mi
+    - name: worker
+      replicas: 2
+      replicaRequirements:
+        resourceRequest:
+          cpu: 500m
+          memory: 256Mi
+
+---
+name: "TFJob with nil/empty replicas (should default to 1)"
+description: "Test interpreting component of TFJob when replicas is nil or empty"
+observedObj:
+  apiVersion: kubeflow.org/v1
+  kind: TFJob
+  metadata:
+    name: tfjob-default-replicas
+    namespace: default
+  spec:
+    tfReplicaSpecs:
+      PS:
+        restartPolicy: Never
+        template:
+          spec:
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+                  requests:
+                    cpu: 500m
+                    memory: 256Mi
+      Worker:
+        replicas: ""
+        restartPolicy: Never
+        template:
+          spec:
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+                  requests:
+                    cpu: 500m
+                    memory: 256Mi
+operation: InterpretComponent
+output:
+  components:
+    - name: ps
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          cpu: 500m
+          memory: 256Mi
+    - name: worker
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          cpu: 500m
+          memory: 256Mi
+
+---
+name: "TFJob with empty tfReplicaSpecs"
+description: "Test interpreting component of TFJob when tfReplicaSpecs is empty"
+observedObj:
+  apiVersion: kubeflow.org/v1
+  kind: TFJob
+  metadata:
+    name: tfjob-empty-specs
+    namespace: default
+  spec:
+    tfReplicaSpecs: {}
+operation: InterpretComponent
+output:
+  components: []
+
+---
+name: "TFJob with nil template (should handle gracefully)"
+description: "Test interpreting component of TFJob when template is nil"
+observedObj:
+  apiVersion: kubeflow.org/v1
+  kind: TFJob
+  metadata:
+    name: tfjob-nil-template
+    namespace: default
+  spec:
+    tfReplicaSpecs:
+      PS:
+        replicas: 1
+        restartPolicy: Never
+      Worker:
+        replicas: 2
+        restartPolicy: Never
+operation: InterpretComponent
+output:
+  components:
+    - name: ps
+      replicas: 1
+    - name: worker
+      replicas: 2
+
+---
+name: "TFJob with multiple containers"
+description: "Test interpreting component of TFJob with multiple containers in a pod template"
+observedObj:
+  apiVersion: kubeflow.org/v1
+  kind: TFJob
+  metadata:
+    name: tfjob-multi-container
+    namespace: default
+  spec:
+    tfReplicaSpecs:
+      PS:
+        replicas: 1
+        restartPolicy: Never
+        template:
+          spec:
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+                  requests:
+                    cpu: 500m
+                    memory: 256Mi
+              - name: sidecar
+                image: sidecar:latest
+                resources:
+                  limits:
+                    cpu: 100m
+                    memory: 128Mi
+                  requests:
+                    cpu: 50m
+                    memory: 64Mi
+      Worker:
+        replicas: 2
+        restartPolicy: Never
+        template:
+          spec:
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                resources:
+                  limits:
+                    cpu: 2
+                    memory: 1Gi
+                  requests:
+                    cpu: 1
+                    memory: 512Mi
+operation: InterpretComponent
+output:
+  components:
+    - name: ps
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          cpu: 550m
+          memory: 320Mi
+    - name: worker
+      replicas: 2
+      replicaRequirements:
+        resourceRequest:
+          cpu: 1
+          memory: 512Mi
+
+---
+name: "TFJob with nodeSelector and tolerations"
+description: "Test interpreting component of TFJob with nodeSelector and tolerations"
+observedObj:
+  apiVersion: kubeflow.org/v1
+  kind: TFJob
+  metadata:
+    name: tfjob-node-requirements
+    namespace: default
+  spec:
+    tfReplicaSpecs:
+      PS:
+        replicas: 1
+        restartPolicy: Never
+        template:
+          spec:
+            nodeSelector:
+              accelerator: gpu
+              zone: us-west-1
+            tolerations:
+              - key: nvidia.com/gpu
+                operator: Exists
+                effect: NoSchedule
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+                  requests:
+                    cpu: 500m
+                    memory: 256Mi
+      Worker:
+        replicas: 3
+        restartPolicy: Never
+        template:
+          spec:
+            nodeSelector:
+              accelerator: gpu
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                resources:
+                  limits:
+                    cpu: 2
+                    memory: 1Gi
+                  requests:
+                    cpu: 1
+                    memory: 512Mi
+operation: InterpretComponent
+output:
+  components:
+    - name: ps
+      replicas: 1
+      replicaRequirements:
+        nodeClaim:
+          nodeSelector:
+            accelerator: gpu
+            zone: us-west-1
+          tolerations:
+            - key: nvidia.com/gpu
+              operator: Exists
+              effect: NoSchedule
+        resourceRequest:
+          cpu: 500m
+          memory: 256Mi
+    - name: worker
+      replicas: 3
+      replicaRequirements:
+        nodeClaim:
+          nodeSelector:
+            accelerator: gpu
+        resourceRequest:
+          cpu: 1
+          memory: 512Mi
+
+---
+name: "TFJob with resources only in limits (no requests)"
+description: "Test interpreting component of TFJob when only limits are specified"
+observedObj:
+  apiVersion: kubeflow.org/v1
+  kind: TFJob
+  metadata:
+    name: tfjob-limits-only
+    namespace: default
+  spec:
+    tfReplicaSpecs:
+      PS:
+        replicas: 1
+        restartPolicy: Never
+        template:
+          spec:
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+      Worker:
+        replicas: 2
+        restartPolicy: Never
+        template:
+          spec:
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                resources:
+                  limits:
+                    cpu: 2
+                    memory: 1Gi
+operation: InterpretComponent
+output:
+  components:
+    - name: ps
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          cpu: 1
+          memory: 512Mi
+    - name: worker
+      replicas: 2
+      replicaRequirements:
+        resourceRequest:
+          cpu: 2
+          memory: 1Gi
+
+---
+name: "TFJob with all replica types"
+description: "Test interpreting component of TFJob with all replica types (PS, Worker, Chief, Master, Evaluator)"
+observedObj:
+  apiVersion: kubeflow.org/v1
+  kind: TFJob
+  metadata:
+    name: tfjob-all-replicas
+    namespace: default
+  spec:
+    tfReplicaSpecs:
+      PS:
+        replicas: 2
+        restartPolicy: Never
+        template:
+          spec:
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+                  requests:
+                    cpu: 500m
+                    memory: 256Mi
+      Worker:
+        replicas: 4
+        restartPolicy: Never
+        template:
+          spec:
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+                  requests:
+                    cpu: 500m
+                    memory: 256Mi
+      Chief:
+        replicas: 1
+        restartPolicy: Never
+        template:
+          spec:
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+                  requests:
+                    cpu: 500m
+                    memory: 256Mi
+      Master:
+        replicas: 1
+        restartPolicy: Never
+        template:
+          spec:
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+                  requests:
+                    cpu: 500m
+                    memory: 256Mi
+      Evaluator:
+        replicas: 1
+        restartPolicy: Never
+        template:
+          spec:
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+                  requests:
+                    cpu: 500m
+                    memory: 256Mi
+operation: InterpretComponent
+output:
+  components:
+    - name: ps
+      replicas: 2
+      replicaRequirements:
+        resourceRequest:
+          cpu: 500m
+          memory: 256Mi
+    - name: worker
+      replicas: 4
+      replicaRequirements:
+        resourceRequest:
+          cpu: 500m
+          memory: 256Mi
+    - name: chief
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          cpu: 500m
+          memory: 256Mi
+    - name: master
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          cpu: 500m
+          memory: 256Mi
+    - name: evaluator
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          cpu: 500m
+          memory: 256Mi
+

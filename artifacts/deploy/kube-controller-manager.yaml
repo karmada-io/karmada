@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: karmada-kube-controller-manager
+  namespace: karmada-system
+  labels:
+    app: kube-controller-manager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kube-controller-manager
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: kube-controller-manager
+    spec:
+      automountServiceAccountToken: false
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - kube-controller-manager
+              topologyKey: kubernetes.io/hostname
+      priorityClassName: system-node-critical
+      containers:
+        # --client-ca-file verifies the cert of its client like kubelet and other controller
+        # --cluster-signing-key-file is used for signing certificates
+        # --root-ca-file is stored in service account type secret
+        - command:
+            - kube-controller-manager
+            - --allocate-node-cidrs=true
+            - --kubeconfig=/etc/karmada/config/karmada.config
+            - --authentication-kubeconfig=/etc/karmada/config/karmada.config
+            - --authorization-kubeconfig=/etc/karmada/config/karmada.config
+            - --bind-address=0.0.0.0
+            - --client-ca-file=/etc/karmada/pki/ca/tls.crt
+            - --cluster-cidr=10.244.0.0/16
+            - --cluster-name=karmada
+            - --cluster-signing-cert-file=/etc/karmada/pki/ca/tls.crt
+            - --cluster-signing-key-file=/etc/karmada/pki/ca/tls.key
+            - --controllers=namespace,garbagecollector,serviceaccount-token,ttl-after-finished,bootstrapsigner,tokencleaner,csrcleaner,csrsigning,clusterrole-aggregation
+            - --leader-elect=true
+            - --node-cidr-mask-size=24
+            - --root-ca-file=/etc/karmada/pki/ca/tls.crt
+            - --service-account-private-key-file=/etc/karmada/pki/service-account-key-pair/sa.key
+            - --service-cluster-ip-range=10.96.0.0/12
+            - --use-service-account-credentials=true
+            - --v=4
+          image: registry.k8s.io/kube-controller-manager:{{karmada_apiserver_version}}
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+          livenessProbe:
+            failureThreshold: 8
+            httpGet:
+              path: /healthz
+              port: 10257
+              scheme: HTTPS
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 15
+          name: kube-controller-manager
+          resources:
+            requests:
+              cpu: 200m
+          volumeMounts:
+            - name: karmada-config
+              mountPath: /etc/karmada/config
+            - name: ca-cert
+              mountPath: /etc/karmada/pki/ca
+              readOnly: true
+            - name: service-account-key-pair
+              mountPath: /etc/karmada/pki/service-account-key-pair
+              readOnly: true
+      volumes:
+        - name: karmada-config
+          secret:
+            secretName: kube-controller-manager-config
+        - name: ca-cert
+          secret:
+            secretName: kube-controller-manager-ca-cert
+        - name: service-account-key-pair
+          secret:
+            secretName: kube-controller-manager-service-account-key-pair
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault

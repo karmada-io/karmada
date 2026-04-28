@@ -1,0 +1,295 @@
+apiVersion: config.karmada.io/v1alpha1
+kind: ResourceInterpreterCustomization
+metadata:
+  name: declarative-configuration-job
+spec:
+  target:
+    apiVersion: batch.volcano.sh/v1alpha1
+    kind: Job
+  customizations:
+    healthInterpretation:
+      luaScript: >
+        function InterpretHealth(observedObj)
+          if observedObj.status == nil or observedObj.status.state == nil then
+            return false
+          end
+          local phase = observedObj.status.state.phase
+          if phase == nil or phase == '' then
+            return false
+          end
+          if phase == 'Running' or phase == 'Completed' or phase == "Pending" or
+          phase == "Aborting" or phase == "Aborted" or phase == "Restarting" or
+          phase == "Completing" or phase == "Terminating" or phase == "Terminated" then
+            return true
+          end
+          return false
+        end
+    componentResource:
+      luaScript: |
+        local kube = require("kube")
+        local function get(obj, path)
+          local cur = obj
+          for i = 1, #path do
+            if cur == nil then return nil end
+            cur = cur[path[i]]
+          end
+          return cur
+        end
+
+        local function to_num(v, default)
+          if v == nil or v == '' then
+            return default
+          end
+          local n = tonumber(v)
+          if n ~= nil then return n end
+          return default
+        end
+
+        function GetComponents(observedObj)
+          local components = {}
+
+          local tasks = get(observedObj, {"spec","tasks"})
+          if tasks == nil then
+            return components
+          end
+
+          for i, task in ipairs(tasks) do
+            local replicas = to_num(task.minAvailable, 1)
+            local requires = kube.accuratePodRequirements(task.template)
+            -- Determine a stable component name with sensible defaults
+            local taskName = task.name
+            if taskName == nil or taskName == '' then
+              -- Use zero-based index for uniqueness: task-0, task-1, ...
+              taskName = "task-" .. (i - 1)
+            end
+            table.insert(components, {
+              name = taskName,
+              replicas = replicas,
+              replicaRequirements = requires
+            })
+          end
+          
+          return components
+        end
+    statusAggregation:
+      luaScript: >
+        local function durationVal(d)
+          if type(d) == "number" then
+            return d
+          end
+          if type(d) ~= "string" then
+            return 0
+          end
+          local totalSeconds = 0
+          for num, unit in string.gmatch(d, "([%d%.]+)([hms])") do
+            num = tonumber(num)
+            if unit == "h" then
+              totalSeconds = totalSeconds + num * 3600
+            elseif unit == "m" then
+              totalSeconds = totalSeconds + num * 60
+            elseif unit == "s" then
+              totalSeconds = totalSeconds + num
+            end
+          end
+          if totalSeconds > 0 then
+            return totalSeconds
+          end
+          return tonumber(d) or 0
+        end
+        local function omitEmpty(t)
+          if t == nil then return nil end
+          local out = {}
+          for k, v in pairs(t) do
+            if type(v) == "table" then
+              local inner = omitEmpty(v)
+              if inner ~= nil and next(inner) ~= nil then
+                out[k] = inner
+              end
+            elseif v ~= nil and not (v == 0 or v == "" or v == "0s") then
+              out[k] = v
+            end
+          end
+          if next(out) ~= nil then
+            return out
+          else
+            return nil
+          end
+        end
+
+        function AggregateStatus(desiredObj, statusItems)
+          if statusItems == nil then return desiredObj end
+          if desiredObj.status == nil then desiredObj.status = {} end
+          
+          if #statusItems == 1 then
+            desiredObj.status = statusItems[1].status
+            return desiredObj
+          end
+          
+          local failedClusters = {}
+          local completedClusters = 0
+          local latestTransition = {}
+          local successfulClusters = 0
+          local hasFailed = false
+          local failedConditions = {}
+          local failedPhases = {
+            Failed = true,
+            Aborted = true,
+            Aborting = true,
+            Terminated = true,
+            Terminating = true,
+          }
+          local status = {
+            state = {},
+            minAvailable = 0,
+            taskStatusCount = {},
+            pending = 0,
+            running = 0,
+            succeeded = 0,
+            failed = 0,
+            terminating = 0,
+            unknown = 0,
+            version = 0,
+            retryCount = 0,
+            controlledResources = {},
+            conditions = {},
+            runningDuration = "0s",
+          }
+
+          for i = 1, #statusItems do
+            local s = statusItems[i].status
+            if s ~= nil then
+              status.minAvailable = status.minAvailable + (s.minAvailable or 0)
+              status.pending = status.pending + (s.pending or 0)
+              status.running = status.running + (s.running or 0)
+              status.succeeded = status.succeeded + (s.succeeded or 0)
+              status.failed = status.failed + (s.failed or 0)
+              status.terminating = status.terminating + (s.terminating or 0)
+              status.unknown = status.unknown + (s.unknown or 0)
+              status.version = math.max(status.version, s.version or 0)
+              status.retryCount = status.retryCount + (s.retryCount or 0)
+              if durationVal(s.runningDuration) > durationVal(status.runningDuration) then
+                status.runningDuration = s.runningDuration
+              end
+
+              if s.taskStatusCount ~= nil then
+                for taskName, taskStatus in pairs(s.taskStatusCount) do
+                  if status.taskStatusCount[taskName] == nil then
+                    status.taskStatusCount[taskName] = { phase = {} }
+                  end
+                  if taskStatus.phase ~= nil then
+                    for phaseName, count in pairs(taskStatus.phase) do
+                      status.taskStatusCount[taskName].phase[phaseName] = (status.taskStatusCount[taskName].phase[phaseName] or 0) + count
+                    end
+                  end
+                end
+              end
+
+              if s.controlledResources then
+                for k, v in pairs(s.controlledResources) do
+                  status.controlledResources[k] = v
+                end
+              end
+              
+              if s.conditions then
+                local clusterHasFailed = false
+                for _, c in ipairs(s.conditions) do
+                  if failedPhases[c.status] then
+                    clusterHasFailed = true
+                    hasFailed = true
+                  end
+                  if not clusterHasFailed then
+                    local exist = latestTransition[c.status]
+                    if exist == nil or c.lastTransitionTime > exist.lastTransitionTime then
+                      latestTransition[c.status] = c
+                    end
+                  end
+                end
+                if clusterHasFailed and #failedConditions == 0 then
+                  failedConditions = s.conditions
+                end
+              end
+
+              if s.state ~= nil then
+                local st = s.state
+                if st.phase == "Completed" then
+                  successfulClusters = successfulClusters + 1
+                elseif st.phase == "Failed" or st.phase == "Aborted" then
+                  table.insert(failedClusters, statusItems[i].clusterName)
+                end
+              end
+            end
+          end
+
+          if #failedClusters > 0 then
+            status.state.phase = "Failed"
+            status.state.reason = "VolcanoJobFailed"
+            status.state.message = "Job failed in clusters: " .. table.concat(failedClusters, ",")
+            status.state.lastTransitionTime =  os.date("!%Y-%m-%dT%H:%M:%SZ")
+          end
+
+          if successfulClusters == #statusItems and successfulClusters > 0 then
+            status.state.phase = "Completed"
+            status.state.reason = "Completed"
+            status.state.message = "Job completed successfully"
+            status.state.lastTransitionTime = os.date("!%Y-%m-%dT%H:%M:%SZ")   
+          end
+
+          if hasFailed then
+            status.conditions = failedConditions
+          else
+            for _, v in pairs(latestTransition) do
+              table.insert(status.conditions, v)
+            end
+          end
+
+          desiredObj.status = omitEmpty(status) or {}
+          return desiredObj
+        end
+    statusReflection:
+      luaScript: >
+        function ReflectStatus(observedObj)
+          local status = {}
+
+          if observedObj == nil or observedObj.status == nil then
+            return status
+          end
+
+          local s = observedObj.status
+          status.minAvailable = s.minAvailable
+          status.pending = s.pending
+          status.running = s.running
+          status.succeeded = s.succeeded
+          status.failed = s.failed
+          status.terminating = s.terminating
+          status.unknown = s.unknown
+          status.version = s.version
+          status.retryCount = s.retryCount
+          status.runningDuration = s.runningDuration
+
+          status.taskStatusCount = {}
+          if s.taskStatusCount ~= nil then
+            for k, v in pairs(s.taskStatusCount) do
+              status.taskStatusCount[k] = v
+            end
+          end
+
+          status.controlledResources = {}
+          if s.controlledResources ~= nil then
+            for k, v in pairs(s.controlledResources) do
+              status.controlledResources[k] = v
+            end
+          end
+
+          if s.state ~= nil then
+            status.state = s.state
+          end
+          
+          status.conditions = {}
+          if type(s.conditions) == "table" then
+            for _, cond in ipairs(s.conditions) do
+              table.insert(status.conditions, cond)
+            end
+          end
+
+          return status
+        end

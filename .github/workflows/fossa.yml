@@ -1,0 +1,26 @@
+name: FOSSA
+on:
+  push:
+    # Exclude branches created by Dependabot to avoid triggering current workflow
+    # for PRs initiated by Dependabot.
+    branches-ignore:
+      - 'dependabot/**'
+
+permissions:
+  contents: read # Required by actions/checkout to fetch the repository contents.
+  
+jobs:
+  fossa:
+    name: FOSSA
+    # prevent job running from forked repository, otherwise
+    # 1. running on the forked repository would fail as missing necessary secret.
+    # 2. running on the forked repository would use unnecessary GitHub Action time.
+    if: ${{ github.repository == 'karmada-io/karmada' }}
+    runs-on: ubuntu-22.04
+    steps:
+      - name: checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Run FOSSA scan and upload build data
+        uses: fossas/fossa-action@ff70fe9fe17cbd2040648f1c45e8ec4e4884dcf3 # v1.9.0
+        with:
+          api-key: ${{secrets.FOSSA_API_KEY}}

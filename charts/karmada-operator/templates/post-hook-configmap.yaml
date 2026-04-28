@@ -1,0 +1,17 @@
+{{- if .Values.installCRDs }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-post-manifests
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "1"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+data:
+  crds-configmaps.yaml: |-
+      {{ range $path, $bytes := .Files.Glob (printf "crds/*")}}
+      {{- $.Files.Get $path | nindent 8 }}
+      {{ end }}
+{{- end -}}
+

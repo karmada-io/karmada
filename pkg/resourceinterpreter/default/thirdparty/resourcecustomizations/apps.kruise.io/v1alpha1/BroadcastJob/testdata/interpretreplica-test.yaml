@@ -1,0 +1,42 @@
+# test case for interpreting replica of BroadcastJob
+# case1. BroadcastJob with parallelism set to 3
+# case2. BroadcastJob without parallelism
+
+# Case 1:
+name: "BroadcastJob with parallelism set to 3"
+description: "Test interpreting replica of BroadcastJob with parallelism set to 3"
+desiredObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: BroadcastJob
+  metadata:
+    name: sample
+    namespace: test-bcj
+  spec:
+    parallelism: 3
+    template:
+      spec:
+        containers:
+          - name: nginx
+            image: nginx:alpine
+operation: InterpretReplica
+output:
+  replica: 3
+---
+# Case 2:
+name: "BroadcastJob without parallelism"
+description: "Test interpreting replica when parallelism is not specified"
+desiredObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: BroadcastJob
+  metadata:
+    name: sample
+    namespace: test-bcj
+  spec:
+    template:
+      spec:
+        containers:
+          - name: nginx
+            image: nginx:alpine
+operation: InterpretReplica
+output:
+  replica: 1

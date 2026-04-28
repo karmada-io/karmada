@@ -1,0 +1,41 @@
+apiVersion: policy.karmada.io/v1alpha1
+kind: OverridePolicy
+metadata:
+  name: nginx-op
+spec:
+  resourceSelectors:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: nginx
+  overrideRules:
+    - targetCluster:
+        clusterNames:
+          - member2
+      overriders:
+        labelsOverrider:
+          - operator: add
+            value:
+              env: skoala-dev
+          - operator: add
+            value:
+              env-stat: skoala-stage
+          - operator: remove
+            value:
+              for: for
+          - operator: replace
+            value:
+              bar: test
+    - targetCluster:
+        clusterNames:
+          - member1
+      overriders:
+        annotationsOverrider:
+          - operator: add
+            value:
+              env: skoala-stage
+          - operator: remove
+            value:
+              bom: bom
+          - operator: replace
+            value:
+              emma: sophia

@@ -1,0 +1,102 @@
+site_name: mockery
+site_url: https://vektra.github.io/mockery/
+site_description: >-
+  Create mock implementations of your Golang interfaces using mockery and testify.
+
+repo_name: vektra/mockery
+repo_url: https://github.com/vektra/mockery
+edit_uri: edit/v3/docs
+
+theme:
+  name: material
+  icon:
+    logo: fontawesome/brands/golang
+  palette:
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: green
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: green
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - content.action.edit
+    - content.action.view
+    - content.code.annotate
+    - content.code.copy
+    - content.footnote.tooltips
+    - navigation.indexes
+    - navigation.path
+    - navigation.sections
+    - navigation.tracking
+    - toc.follow
+markdown_extensions:
+  - admonition
+  - attr_list
+  - footnotes
+  - md_in_html
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+      auto_title: true
+  - pymdownx.inlinehilite
+  - pymdownx.magiclink
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Installation: installation.md
+    - Configuration: configuration.md
+  - Templates:
+    - template/index.md
+    - template/testify.md
+    - template/matryer.md
+  - Features:
+    - include-auto-generated.md
+    - inpackage.md
+    - replace-type.md
+  - Notes:
+    - faq.md
+    - v3.md
+    - dev-notes.md
+
+extra_css:
+  - stylesheets/extra.css
+
+extra_javascript:
+  - https://unpkg.com/tablesort@5.3.0/dist/tablesort.min.js
+  - javascripts/tablesort.js
+
+extra:
+  version:
+    provider: mike
+  analytics:
+    provider: google
+    property: G-0ZGMQGZGRN
+
+plugins:
+- glightbox
+- mike:
+    alias_type: symlink
+    canonical_version: null
+- open-in-new-tab
+- search
+- social
+- typeset:
+    enabled: true

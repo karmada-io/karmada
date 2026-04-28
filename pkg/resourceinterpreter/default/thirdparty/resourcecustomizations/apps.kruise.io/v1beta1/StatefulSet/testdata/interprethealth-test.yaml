@@ -1,0 +1,81 @@
+# test case for interpreting health of StatefulSet
+# case1. StatefulSet unhealthy when observedGeneration mismatches
+# case2. StatefulSet unhealthy when rollout is not complete
+# case3. StatefulSet unhealthy when availableReplicas < updatedReplicas
+# case4. StatefulSet healthy when rollout and availability are complete
+
+name: "StatefulSet unhealthy when observedGeneration mismatches"
+description: "Health should be false if observedGeneration != metadata.generation"
+observedObj:
+  apiVersion: apps.kruise.io/v1beta1
+  kind: StatefulSet
+  metadata:
+    name: sample
+    namespace: default
+    generation: 2
+  spec:
+    replicas: 3
+  status:
+    observedGeneration: 1
+    updatedReplicas: 3
+    availableReplicas: 3
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "StatefulSet unhealthy when rollout is not complete"
+description: "Health should be false if updatedReplicas < spec.replicas"
+observedObj:
+  apiVersion: apps.kruise.io/v1beta1
+  kind: StatefulSet
+  metadata:
+    name: sample
+    namespace: default
+    generation: 1
+  spec:
+    replicas: 3
+  status:
+    observedGeneration: 1
+    updatedReplicas: 2
+    availableReplicas: 2
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "StatefulSet unhealthy when availableReplicas < updatedReplicas"
+description: "Health should be false if availability lags rollout"
+observedObj:
+  apiVersion: apps.kruise.io/v1beta1
+  kind: StatefulSet
+  metadata:
+    name: sample
+    namespace: default
+    generation: 1
+  spec:
+    replicas: 3
+  status:
+    observedGeneration: 1
+    updatedReplicas: 3
+    availableReplicas: 2
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "StatefulSet healthy when rollout and availability are complete"
+description: "Health should be true when all conditions are satisfied"
+observedObj:
+  apiVersion: apps.kruise.io/v1beta1
+  kind: StatefulSet
+  metadata:
+    name: sample
+    namespace: default
+    generation: 1
+  spec:
+    replicas: 3
+  status:
+    observedGeneration: 1
+    updatedReplicas: 3
+    availableReplicas: 3
+operation: InterpretHealth
+output:
+  healthy: true

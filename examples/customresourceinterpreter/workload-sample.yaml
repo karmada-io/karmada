@@ -1,0 +1,16 @@
+apiVersion: workload.example.io/v1alpha1
+kind: Workload
+metadata:
+  name: nginx
+  labels:
+    app: nginx
+spec:
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+        - image: nginx
+          name: nginx

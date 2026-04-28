@@ -1,0 +1,31 @@
+apiVersion: search.karmada.io/v1alpha1
+kind: ResourceRegistry
+metadata:
+  name: foo
+spec:
+  resourceSelectors:
+  # cache Deployments from all namespaces
+  - apiVersion: apps/v1
+    kind: Deployment
+  # cache resources from cluster list
+  targetCluster:
+    clusterNames:
+    - member1
+    - member2
+  # store the cached resources to OpenSearch.
+  backendStore:
+    openSearch:
+      addresses:
+        - http://10.240.0.100:9200
+      secretRef:
+        namespace: default
+        name: opensearch-account
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: opensearch-account
+  namespace: default
+stringData:
+  username: admin
+  password: dummy

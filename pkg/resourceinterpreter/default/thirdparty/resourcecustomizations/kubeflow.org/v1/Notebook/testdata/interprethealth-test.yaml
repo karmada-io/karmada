@@ -1,0 +1,272 @@
+# test case for interpreting health of Notebook
+# case1. Notebook with running containerState should be Healthy
+# case2. Notebook with nil status should be Unhealthy
+# case3. Notebook with nil containerState should be Unhealthy
+# case4. Notebook with waiting state and reason ContainerCreating should be Healthy
+# case5. Notebook with waiting state and other reason should be Unhealthy
+# case6. Notebook with terminated state and Error reason should be Unhealthy
+# case7. Notebook with terminated state and OOMKilled reason should be Unhealthy
+# case8. Notebook with terminated state and ContainerCannotRun reason should be Unhealthy
+# case9. Notebook with terminated state and non-zero exitCode should be Unhealthy
+# case10. Notebook with terminated state and zero exitCode and other reason should be Healthy
+# case11. Notebook with empty containerState should be Unhealthy
+
+name: "Notebook with running containerState should be Healthy"
+description: "Test interpreting health of Notebook when containerState is running"
+observedObj:
+  apiVersion: kubeflow.org/v1
+  kind: Notebook
+  metadata:
+    name: notebook-sample-v1
+  spec:
+    template:
+      spec:
+        containers:
+          - name: notebook-sample-v1
+            image: ghcr.io/kubeflow/kubeflow/notebook-servers/jupyter:latest
+  status:
+    containerState:
+      running:
+        startedAt: "2025-10-09T06:58:58Z"
+    readyReplicas: 1
+operation: InterpretHealth
+output:
+  healthy: true
+
+---
+name: "Notebook with nil status should be Unhealthy"
+description: "Test interpreting health of Notebook when status is nil"
+observedObj:
+  apiVersion: kubeflow.org/v1
+  kind: Notebook
+  metadata:
+    name: notebook-sample-v1
+  spec:
+    template:
+      spec:
+        containers:
+          - name: notebook-sample-v1
+            image: ghcr.io/kubeflow/kubeflow/notebook-servers/jupyter:latest
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "Notebook with nil containerState should be Unhealthy"
+description: "Test interpreting health of Notebook when containerState is nil"
+observedObj:
+  apiVersion: kubeflow.org/v1
+  kind: Notebook
+  metadata:
+    name: notebook-sample-v1
+  spec:
+    template:
+      spec:
+        containers:
+          - name: notebook-sample-v1
+            image: ghcr.io/kubeflow/kubeflow/notebook-servers/jupyter:latest
+  status:
+    readyReplicas: 0
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "Notebook with waiting state and reason ContainerCreating should be Healthy"
+description: "Test interpreting health of Notebook when containerState is waiting with ContainerCreating reason"
+observedObj:
+  apiVersion: kubeflow.org/v1
+  kind: Notebook
+  metadata:
+    name: notebook-sample-v1
+  spec:
+    template:
+      spec:
+        containers:
+          - name: notebook-sample-v1
+            image: ghcr.io/kubeflow/kubeflow/notebook-servers/jupyter:latest
+  status:
+    containerState:
+      waiting:
+        reason: "ContainerCreating"
+        message: "Container is being created"
+    readyReplicas: 0
+operation: InterpretHealth
+output:
+  healthy: true
+
+---
+name: "Notebook with waiting state and other reason should be Unhealthy"
+description: "Test interpreting health of Notebook when containerState is waiting with other reason"
+observedObj:
+  apiVersion: kubeflow.org/v1
+  kind: Notebook
+  metadata:
+    name: notebook-sample-v1
+  spec:
+    template:
+      spec:
+        containers:
+          - name: notebook-sample-v1
+            image: ghcr.io/kubeflow/kubeflow/notebook-servers/jupyter:latest
+  status:
+    containerState:
+      waiting:
+        reason: "ImagePullBackOff"
+        message: "Failed to pull image"
+    readyReplicas: 0
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "Notebook with terminated state and Error reason should be Unhealthy"
+description: "Test interpreting health of Notebook when containerState is terminated with Error reason"
+observedObj:
+  apiVersion: kubeflow.org/v1
+  kind: Notebook
+  metadata:
+    name: notebook-sample-v1
+  spec:
+    template:
+      spec:
+        containers:
+          - name: notebook-sample-v1
+            image: ghcr.io/kubeflow/kubeflow/notebook-servers/jupyter:latest
+  status:
+    containerState:
+      terminated:
+        reason: "Error"
+        exitCode: 0
+        finishedAt: "2025-10-09T07:00:00Z"
+        startedAt: "2025-10-09T06:58:58Z"
+    readyReplicas: 0
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "Notebook with terminated state and OOMKilled reason should be Unhealthy"
+description: "Test interpreting health of Notebook when containerState is terminated with OOMKilled reason"
+observedObj:
+  apiVersion: kubeflow.org/v1
+  kind: Notebook
+  metadata:
+    name: notebook-sample-v1
+  spec:
+    template:
+      spec:
+        containers:
+          - name: notebook-sample-v1
+            image: ghcr.io/kubeflow/kubeflow/notebook-servers/jupyter:latest
+  status:
+    containerState:
+      terminated:
+        reason: "OOMKilled"
+        exitCode: 137
+        finishedAt: "2025-10-09T07:00:00Z"
+        startedAt: "2025-10-09T06:58:58Z"
+    readyReplicas: 0
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "Notebook with terminated state and ContainerCannotRun reason should be Unhealthy"
+description: "Test interpreting health of Notebook when containerState is terminated with ContainerCannotRun reason"
+observedObj:
+  apiVersion: kubeflow.org/v1
+  kind: Notebook
+  metadata:
+    name: notebook-sample-v1
+  spec:
+    template:
+      spec:
+        containers:
+          - name: notebook-sample-v1
+            image: ghcr.io/kubeflow/kubeflow/notebook-servers/jupyter:latest
+  status:
+    containerState:
+      terminated:
+        reason: "ContainerCannotRun"
+        exitCode: 0
+        finishedAt: "2025-10-09T07:00:00Z"
+        startedAt: "2025-10-09T06:58:58Z"
+    readyReplicas: 0
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "Notebook with terminated state and non-zero exitCode should be Unhealthy"
+description: "Test interpreting health of Notebook when containerState is terminated with non-zero exitCode"
+observedObj:
+  apiVersion: kubeflow.org/v1
+  kind: Notebook
+  metadata:
+    name: notebook-sample-v1
+  spec:
+    template:
+      spec:
+        containers:
+          - name: notebook-sample-v1
+            image: ghcr.io/kubeflow/kubeflow/notebook-servers/jupyter:latest
+  status:
+    containerState:
+      terminated:
+        reason: "Completed"
+        exitCode: 1
+        finishedAt: "2025-10-09T07:00:00Z"
+        startedAt: "2025-10-09T06:58:58Z"
+    readyReplicas: 0
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "Notebook with terminated state and zero exitCode and other reason should be Healthy"
+description: "Test interpreting health of Notebook when containerState is terminated with zero exitCode and non-error reason"
+observedObj:
+  apiVersion: kubeflow.org/v1
+  kind: Notebook
+  metadata:
+    name: notebook-sample-v1
+  spec:
+    template:
+      spec:
+        containers:
+          - name: notebook-sample-v1
+            image: ghcr.io/kubeflow/kubeflow/notebook-servers/jupyter:latest
+  status:
+    containerState:
+      terminated:
+        reason: "Completed"
+        exitCode: 0
+        finishedAt: "2025-10-09T07:00:00Z"
+        startedAt: "2025-10-09T06:58:58Z"
+    readyReplicas: 0
+operation: InterpretHealth
+output:
+  healthy: true
+
+---
+name: "Notebook with empty containerState should be Unhealthy"
+description: "Test interpreting health of Notebook when containerState is empty"
+observedObj:
+  apiVersion: kubeflow.org/v1
+  kind: Notebook
+  metadata:
+    name: notebook-sample-v1
+  spec:
+    template:
+      spec:
+        containers:
+          - name: notebook-sample-v1
+            image: ghcr.io/kubeflow/kubeflow/notebook-servers/jupyter:latest
+  status:
+    containerState: {}
+    readyReplicas: 0
+operation: InterpretHealth
+output:
+  healthy: false
+

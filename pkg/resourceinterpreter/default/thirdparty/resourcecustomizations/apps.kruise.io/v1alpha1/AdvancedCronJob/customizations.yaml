@@ -1,0 +1,54 @@
+apiVersion: config.karmada.io/v1alpha1
+kind: ResourceInterpreterCustomization
+metadata:
+  name: declarative-configuration-advancedcronjob
+spec:
+  target:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: AdvancedCronJob
+  customizations:
+    statusAggregation:
+      luaScript: >
+        function AggregateStatus(desiredObj, statusItems)
+          if statusItems == nil then
+            return desiredObj
+          end
+          if desiredObj.status == nil then
+            desiredObj.status = {}
+          end
+          active = {}
+          type = ''
+          lastScheduleTime = {}
+          for i = 1, #statusItems do
+            if statusItems[i].status ~= nil and statusItems[i].status.active ~= nil then
+              for statusActiveIndex = 1, #statusItems[i].status.active do
+                nextIndex = #active + 1
+                active[nextIndex] = statusItems[i].status.active[statusActiveIndex]
+              end
+            end
+            if statusItems[i].status ~= nil and statusItems[i].status.type ~= nil then
+              type = statusItems[i].status.type
+            end
+            if statusItems[i].status ~= nil and statusItems[i].status.lastScheduleTime ~= nil then
+              lastScheduleTime = statusItems[i].status.lastScheduleTime
+            end
+          end
+          desiredObj.status.active = active
+          desiredObj.status.type = type
+          desiredObj.status.lastScheduleTime = lastScheduleTime
+          return desiredObj
+        end
+    dependencyInterpretation:
+      luaScript: >
+        local kube = require("kube")
+        function GetDependencies(desiredObj)
+          template = {}
+          if desiredObj.spec.template.jobTemplate ~= nil then
+            template = desiredObj.spec.template.jobTemplate.spec.template
+          end
+          if desiredObj.spec.template.broadcastJobTemplate ~= nil then
+            template = desiredObj.spec.template.broadcastJobTemplate.spec.template
+          end
+          refs = kube.getPodDependencies(template, desiredObj.metadata.namespace)
+          return refs
+        end

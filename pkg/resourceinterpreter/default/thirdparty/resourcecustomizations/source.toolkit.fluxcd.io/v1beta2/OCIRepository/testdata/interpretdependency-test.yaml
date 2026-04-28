@@ -1,0 +1,104 @@
+# test cases for interpretDependency of OCIRepository
+# case1. OCIRepository with secretRef
+# case2. OCIRepository with verify.secretRef
+# case3. OCIRepository with certSecretRef
+# case4. OCIRepository with duplicate secret references
+# case5. OCIRepository with no dependencies
+
+name: "OCIRepository with secretRef"
+description: "Should return Secret dependency from spec.secretRef"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: OCIRepository
+  metadata:
+    name: sample
+    namespace: test-ocirepository
+  spec:
+    secretRef:
+      name: oci-secret
+    serviceAccountName: ""
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: Secret
+      name: oci-secret
+      namespace: test-ocirepository
+---
+name: "OCIRepository with verify.secretRef"
+description: "Should return Secret dependency from spec.verify.secretRef"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: OCIRepository
+  metadata:
+    name: sample
+    namespace: test-ocirepository
+  spec:
+    verify:
+      secretRef:
+        name: verify-secret
+    serviceAccountName: ""
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: Secret
+      name: verify-secret
+      namespace: test-ocirepository
+---
+name: "OCIRepository with certSecretRef"
+description: "Should return Secret dependency from spec.certSecretRef"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: OCIRepository
+  metadata:
+    name: sample
+    namespace: test-ocirepository
+  spec:
+    certSecretRef:
+      name: cert-secret
+    serviceAccountName: ""
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: Secret
+      name: cert-secret
+      namespace: test-ocirepository
+---
+name: "OCIRepository with duplicate secret references"
+description: "Duplicate secrets should appear only once"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: OCIRepository
+  metadata:
+    name: sample
+    namespace: test-ocirepository
+  spec:
+    secretRef:
+      name: shared-secret
+    verify:
+      secretRef:
+        name: shared-secret
+    serviceAccountName: ""
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: Secret
+      name: shared-secret
+      namespace: test-ocirepository
+---
+name: "OCIRepository with no dependencies"
+description: "Should return empty dependency list"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: OCIRepository
+  metadata:
+    name: sample
+    namespace: test-ocirepository
+  spec:
+    serviceAccountName: ""
+operation: InterpretDependency
+output:
+  dependencies: []

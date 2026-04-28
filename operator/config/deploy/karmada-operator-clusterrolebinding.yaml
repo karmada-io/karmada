@@ -1,0 +1,14 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: karmada-operator
+  labels:
+    app.kubernetes.io/name: karmada-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: karmada-operator
+subjects:
+  - kind: ServiceAccount
+    name: karmada-operator
+    namespace: karmada-system

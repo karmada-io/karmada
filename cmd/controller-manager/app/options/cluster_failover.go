@@ -1,0 +1,74 @@
+/*
+Copyright 2025 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package options
+
+import (
+	"github.com/spf13/pflag"
+	"k8s.io/apimachinery/pkg/util/validation/field"
+
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+)
+
+// ClusterFailoverOptions holds the Cluster Failover configurations.
+type ClusterFailoverOptions struct {
+	// EnableNoExecuteTaintEviction enables controller response to NoExecute taints on clusters,
+	// which triggers eviction of workloads without explicit tolerations.
+	EnableNoExecuteTaintEviction bool
+	// NoExecuteTaintEvictionPurgeMode controls resource cleanup behavior for NoExecute-triggered
+	// evictions (only active when --enable-no-execute-taint-eviction=true).
+	// Valid modes:
+	// - "Gracefully": first schedules workloads to new clusters and then cleans up original
+	//                 workloads after successful startup elsewhere to ensure service continuity.
+	// - "Directly": directly evicts workloads first (risking temporary service interruption)
+	//               and then triggers rescheduling to other clusters.
+	// Default: "Gracefully".
+	NoExecuteTaintEvictionPurgeMode string
+	// ResourceEvictionRate is the number of resources to be evicted per second in a cluster failover scenario.
+	ResourceEvictionRate float32
+}
+
+// AddFlags adds flags related to ClusterFailoverOptions for controller manager to the specified FlagSet.
+func (o *ClusterFailoverOptions) AddFlags(flags *pflag.FlagSet) {
+	if o == nil {
+		return
+	}
+
+	flags.BoolVar(&o.EnableNoExecuteTaintEviction, "enable-no-execute-taint-eviction", false, "Enables controller response to NoExecute taints on clusters, which triggers eviction of workloads without explicit tolerations. Given the impact of eviction caused by NoExecute Taint, this parameter is designed to remain disabled by default and requires careful evaluation by administrators before being enabled.\n")
+	flags.StringVar(&o.NoExecuteTaintEvictionPurgeMode, "no-execute-taint-eviction-purge-mode", string(policyv1alpha1.PurgeModeGracefully), "Controls resource cleanup behavior for NoExecute-triggered evictions (only active when --enable-no-execute-taint-eviction=true). Supported values are \"Directly\", and \"Gracefully\". \"Directly\" mode directly evicts workloads first (risking temporary service interruption) and then triggers rescheduling to other clusters, while \"Gracefully\" mode first schedules workloads to new clusters and then cleans up original workloads after successful startup elsewhere to ensure service continuity.")
+	flags.Float32Var(&o.ResourceEvictionRate, "resource-eviction-rate", 0.5, "This is the number of resources to be evicted per second in a cluster failover scenario.")
+}
+
+// Validate checks ClusterFailoverOptions and return a slice of found errs.
+func (o *ClusterFailoverOptions) Validate() field.ErrorList {
+	errs := field.ErrorList{}
+	rootPath := field.NewPath("ClusterFailoverOptions")
+
+	if o.EnableNoExecuteTaintEviction &&
+		o.NoExecuteTaintEvictionPurgeMode != string(policyv1alpha1.PurgeModeGracefully) &&
+		o.NoExecuteTaintEvictionPurgeMode != string(policyv1alpha1.PurgeModeDirectly) {
+		errs = append(errs, field.Invalid(rootPath.Child("NoExecuteTaintEvictionPurgeMode"),
+			o.NoExecuteTaintEvictionPurgeMode, "Invalid mode"))
+	}
+
+	if o.ResourceEvictionRate < 0 {
+		errs = append(errs,
+			field.Invalid(rootPath.Child("ResourceEvictionRate"),
+				o.ResourceEvictionRate,
+				"must be non-negative"))
+	}
+	return errs
+}

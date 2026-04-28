@@ -1,0 +1,42 @@
+apiVersion: v2
+name: karmada
+description: A Helm chart for karmada
+
+# A chart can be either an 'application' or a 'library' chart.
+#
+# Application charts are a collection of templates that can be packaged into versioned archives
+# to be deployed.
+#
+# Library charts provide useful utilities or functions for the chart developer. They're included as
+# a dependency of application charts to inject those utilities and functions into the rendering
+# pipeline. Library charts do not define any templates and therefore cannot be deployed.
+type: application
+
+# The optional kubeVersion field can define semver constraints on supported Kubernetes versions.
+# Helm will validate the version constraints when installing the chart and fail if the cluster
+# runs an unsupported Kubernetes version.
+kubeVersion: ">= 1.16.0-0"
+
+# This is the chart version. This version number should be incremented each time you make changes
+# to the chart and its templates, including the app version.
+# Versions are expected to follow Semantic Versioning (https://semver.org/)
+# We use `0.0.0` as the latest chart version.
+version: 0.0.0
+
+# This is the version number of the application being deployed. This version number should be
+# incremented each time you make changes to the application. Versions are not expected to
+# follow Semantic Versioning. They should reflect the version the application is using.
+appVersion: v1.1.0
+
+# This is karmada dependencies
+dependencies:
+  - name: common
+    repository: https://charts.bitnami.com/bitnami
+    version: 2.x.x
+
+# This is karmada maintainers
+maintainers:
+  - email: chaosi@zju.edu.cn
+    name: chaosi-zju
+  - email: amiralavi7@gmail.com
+    name: a7i

@@ -1,0 +1,5 @@
+rules:
+  - selectorRegexp: sigs[.]k8s[.]io/controller-runtime
+    allowedPrefixes: []
+    forbiddenPrefixes:
+      - "sigs.k8s.io/controller-runtime"

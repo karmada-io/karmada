@@ -1,0 +1,166 @@
+name: CI Workflow
+on:
+  # Run this workflow every time a new commit pushed to upstream/fork repository.
+  # Run workflow on fork repository will help contributors find and resolve issues before sending a PR.
+  push:
+    # Exclude branches created by Dependabot to avoid triggering current workflow
+    # for PRs initiated by Dependabot.
+    branches-ignore:
+      - 'dependabot/**'
+  pull_request:
+# https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#concurrency
+concurrency:
+  group: ${{ github.workflow }}-${{ github.actor }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+permissions:
+  contents: read  # for actions/checkout to fetch code  
+jobs:
+  golangci:
+    name: lint
+    runs-on: ubuntu-22.04
+    steps:
+      - name: checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: install Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: go.mod
+      - name: verify license
+        run: hack/verify-license.sh
+      - name: vendor
+        run: hack/verify-vendor.sh
+      - name: lint
+        run: hack/verify-staticcheck.sh
+      - name: import alias
+        run: hack/verify-import-aliases.sh
+  codegen:
+    name: codegen
+    runs-on: ubuntu-22.04
+    steps:
+      - name: checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: install Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: go.mod
+      - name: Install Protoc
+        uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
+        with:
+          version: '23.4'
+          # Use the automatic token, so that this task can be run in the forked repo.
+          # https://docs.github.com/en/actions/security-guides/automatic-token-authentication
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: verify codegen
+        run: hack/verify-codegen.sh
+      - name: verify crdgen
+        run: hack/verify-crdgen.sh
+      - name: verify protobuf
+        run: hack/verify-estimator-protobuf.sh
+      - name: verify swagger docs
+        run: hack/verify-swagger-docs.sh
+      - name: verify command line flags
+        run: hack/verify-command-line-flags.sh
+      - name: verify lifted docs
+        run: hack/verify-lifted.sh
+  build:
+    name: compile
+    needs: codegen # rely on codegen successful completion
+    runs-on: ubuntu-22.04
+    steps:
+      - name: checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          # Number of commits to fetch. 0 indicates all history for all branches and tags.
+          # We need to guess version via git tags.
+          fetch-depth: 0
+      - name: install Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: go.mod
+      - name: compile
+        run: make all
+  test:
+    name: unit test
+    needs: build
+    runs-on: ubuntu-22.04
+    env:
+      GOTESTSUM_ENABLED: enabled
+    steps:
+      - name: checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: install Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: go.mod
+      - name: make test
+        run: make test
+      - name: Upload coverage to Codecov
+        # Prevent running from the forked repository that doesn't need to upload coverage.
+        # In addition, running on the forked repository would fail as missing the necessary secret.
+        if: ${{ github.repository == 'karmada-io/karmada' }}
+        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6.0.0
+        with:
+          # Even though token upload token is not required for public repos,
+          # but adding a token might increase successful uploads as per:
+          # https://community.codecov.com/t/upload-issues-unable-to-locate-build-via-github-actions-api/3954
+          token: ${{secrets.CODECOV_UPLOAD_TOKEN}}
+          files: ./_output/coverage/coverage_pkg.txt,./_output/coverage/coverage_cmd.txt,./_output/coverage/coverage_examples.txt,./_output/coverage/coverage_operator.txt
+          flags: unittests
+          fail_ci_if_error: false
+          verbose: true
+  e2e:
+    name: e2e test
+    needs: build
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        # Here support the latest three minor releases of Kubernetes, this can be considered to be roughly
+        # the same as the End of Life of the Kubernetes release: https://kubernetes.io/releases/
+        # Please remember to update the CI Schedule Workflow when we add a new version.
+        k8s: [ v1.33.0, v1.34.0, v1.35.0 ]
+    steps:
+      # Free up disk space on Ubuntu
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+        with:
+          # this might remove tools that are actually needed, if set to "true" but frees about 6 GB
+          tool-cache: false
+          # all of these default to true, but feel free to set to "false" if necessary for your workflow
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          docker-images: false
+          swap-storage: false
+      - name: checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          # Number of commits to fetch. 0 indicates all history for all branches and tags.
+          # We need to guess version via git tags.
+          fetch-depth: 0
+      - name: install Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: go.mod
+      - name: setup e2e test environment
+        run: |
+          export CLUSTER_VERSION=kindest/node:${{ matrix.k8s }}
+          export KUBE_CACHE_MUTATION_DETECTOR=true
+          hack/local-up-karmada.sh
+      - name: run e2e
+        run: |
+          export ARTIFACTS_PATH=${{ github.workspace }}/karmada-e2e-logs/${{ matrix.k8s }}/
+          hack/run-e2e.sh
+      - name: upload logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: karmada_e2e_log_${{ matrix.k8s }}
+          path: ${{ github.workspace }}/karmada-e2e-logs/${{ matrix.k8s }}/
+      - name: upload kind logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: karmada_kind_log_${{ matrix.k8s }}
+          path: /tmp/karmada/

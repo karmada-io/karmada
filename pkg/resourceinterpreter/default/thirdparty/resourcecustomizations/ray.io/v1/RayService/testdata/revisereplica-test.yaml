@@ -1,0 +1,391 @@
+# Test cases for revising replica of RayService
+#
+# RayService replica revision:
+# - Head group always has 1 replica (not scalable)
+# - Worker replicas = desiredReplica - 1
+# - Single worker group: gets all worker replicas
+# - Multiple groups with 0 total: distribute equally
+# - Multiple groups with existing workers: distribute proportionally
+#
+# Test cases:
+# 1. Single worker group scaling
+# 2. Multiple worker groups with proportional distribution
+# 3. Scale from 0 workers (equal distribution)
+# 4. Scale to 0 or 1 (workers become 0)
+# 5. Head only (no worker groups)
+# 6. Partial zero group (one group has 0 replicas, preserve ratio)
+
+name: "Single worker group scaling"
+description: "Test scaling a single worker group from 3 to 6 workers (7 total with head)"
+desiredObj:
+  apiVersion: ray.io/v1
+  kind: RayService
+  metadata:
+    name: rayservice-single
+    namespace: default
+  spec:
+    rayClusterConfig:
+      headGroupSpec:
+        rayStartParams: {}
+        template:
+          spec:
+            containers:
+              - name: ray-head
+                image: rayproject/ray:2.9.0
+      workerGroupSpecs:
+        - groupName: workers
+          replicas: 3
+          rayStartParams: {}
+          template:
+            spec:
+              containers:
+                - name: ray-worker
+                  image: rayproject/ray:2.9.0
+inputReplicas: 7
+operation: ReviseReplica
+output:
+  revised:
+    apiVersion: ray.io/v1
+    kind: RayService
+    metadata:
+      name: rayservice-single
+      namespace: default
+    spec:
+      rayClusterConfig:
+        headGroupSpec:
+          rayStartParams: {}
+          template:
+            spec:
+              containers:
+                - name: ray-head
+                  image: rayproject/ray:2.9.0
+        workerGroupSpecs:
+          - groupName: workers
+            replicas: 6
+            rayStartParams: {}
+            template:
+              spec:
+                containers:
+                  - name: ray-worker
+                    image: rayproject/ray:2.9.0
+
+---
+name: "Multiple worker groups with proportional distribution"
+description: "Test scaling 3 groups with 1:2:3 ratio from 7 to 13 total (workers 2:4:6)"
+desiredObj:
+  apiVersion: ray.io/v1
+  kind: RayService
+  metadata:
+    name: rayservice-multi
+    namespace: default
+  spec:
+    rayClusterConfig:
+      headGroupSpec:
+        rayStartParams: {}
+        template:
+          spec:
+            containers:
+              - name: ray-head
+                image: rayproject/ray:2.9.0
+      workerGroupSpecs:
+        - groupName: group-small
+          replicas: 1
+          rayStartParams: {}
+          template:
+            spec:
+              containers:
+                - name: ray-worker
+                  image: rayproject/ray:2.9.0
+        - groupName: group-medium
+          replicas: 2
+          rayStartParams: {}
+          template:
+            spec:
+              containers:
+                - name: ray-worker
+                  image: rayproject/ray:2.9.0
+        - groupName: group-large
+          replicas: 3
+          rayStartParams: {}
+          template:
+            spec:
+              containers:
+                - name: ray-worker
+                  image: rayproject/ray:2.9.0
+inputReplicas: 13
+operation: ReviseReplica
+output:
+  revised:
+    apiVersion: ray.io/v1
+    kind: RayService
+    metadata:
+      name: rayservice-multi
+      namespace: default
+    spec:
+      rayClusterConfig:
+        headGroupSpec:
+          rayStartParams: {}
+          template:
+            spec:
+              containers:
+                - name: ray-head
+                  image: rayproject/ray:2.9.0
+        workerGroupSpecs:
+          - groupName: group-small
+            replicas: 2
+            rayStartParams: {}
+            template:
+              spec:
+                containers:
+                  - name: ray-worker
+                    image: rayproject/ray:2.9.0
+          - groupName: group-medium
+            replicas: 4
+            rayStartParams: {}
+            template:
+              spec:
+                containers:
+                  - name: ray-worker
+                    image: rayproject/ray:2.9.0
+          - groupName: group-large
+            replicas: 6
+            rayStartParams: {}
+            template:
+              spec:
+                containers:
+                  - name: ray-worker
+                    image: rayproject/ray:2.9.0
+
+---
+name: "Scale from 0 workers with equal distribution"
+description: "Test scaling from 0 workers to 7 total with 2 groups (3+3 workers)"
+desiredObj:
+  apiVersion: ray.io/v1
+  kind: RayService
+  metadata:
+    name: rayservice-from-zero
+    namespace: default
+  spec:
+    rayClusterConfig:
+      headGroupSpec:
+        rayStartParams: {}
+        template:
+          spec:
+            containers:
+              - name: ray-head
+                image: rayproject/ray:2.9.0
+      workerGroupSpecs:
+        - groupName: group-a
+          replicas: 0
+          rayStartParams: {}
+          template:
+            spec:
+              containers:
+                - name: ray-worker
+                  image: rayproject/ray:2.9.0
+        - groupName: group-b
+          replicas: 0
+          rayStartParams: {}
+          template:
+            spec:
+              containers:
+                - name: ray-worker
+                  image: rayproject/ray:2.9.0
+inputReplicas: 7
+operation: ReviseReplica
+output:
+  revised:
+    apiVersion: ray.io/v1
+    kind: RayService
+    metadata:
+      name: rayservice-from-zero
+      namespace: default
+    spec:
+      rayClusterConfig:
+        headGroupSpec:
+          rayStartParams: {}
+          template:
+            spec:
+              containers:
+                - name: ray-head
+                  image: rayproject/ray:2.9.0
+        workerGroupSpecs:
+          - groupName: group-a
+            replicas: 3
+            rayStartParams: {}
+            template:
+              spec:
+                containers:
+                  - name: ray-worker
+                    image: rayproject/ray:2.9.0
+          - groupName: group-b
+            replicas: 3
+            rayStartParams: {}
+            template:
+              spec:
+                containers:
+                  - name: ray-worker
+                    image: rayproject/ray:2.9.0
+
+---
+name: "Scale to 0 sets worker replicas to 0"
+description: "Test that scaling to 0 total sets all workers to 0 (head remains 1)"
+desiredObj:
+  apiVersion: ray.io/v1
+  kind: RayService
+  metadata:
+    name: rayservice-to-zero
+    namespace: default
+  spec:
+    rayClusterConfig:
+      headGroupSpec:
+        rayStartParams: {}
+        template:
+          spec:
+            containers:
+              - name: ray-head
+                image: rayproject/ray:2.9.0
+      workerGroupSpecs:
+        - groupName: workers
+          replicas: 5
+          rayStartParams: {}
+          template:
+            spec:
+              containers:
+                - name: ray-worker
+                  image: rayproject/ray:2.9.0
+inputReplicas: 0
+operation: ReviseReplica
+output:
+  revised:
+    apiVersion: ray.io/v1
+    kind: RayService
+    metadata:
+      name: rayservice-to-zero
+      namespace: default
+    spec:
+      rayClusterConfig:
+        headGroupSpec:
+          rayStartParams: {}
+          template:
+            spec:
+              containers:
+                - name: ray-head
+                  image: rayproject/ray:2.9.0
+        workerGroupSpecs:
+          - groupName: workers
+            replicas: 0
+            rayStartParams: {}
+            template:
+              spec:
+                containers:
+                  - name: ray-worker
+                    image: rayproject/ray:2.9.0
+
+---
+name: "Head only with no worker groups"
+description: "Test that RayService with no worker groups remains unchanged"
+desiredObj:
+  apiVersion: ray.io/v1
+  kind: RayService
+  metadata:
+    name: rayservice-head-only
+    namespace: default
+  spec:
+    rayClusterConfig:
+      headGroupSpec:
+        rayStartParams: {}
+        template:
+          spec:
+            containers:
+              - name: ray-head
+                image: rayproject/ray:2.9.0
+inputReplicas: 5
+operation: ReviseReplica
+output:
+  revised:
+    apiVersion: ray.io/v1
+    kind: RayService
+    metadata:
+      name: rayservice-head-only
+      namespace: default
+    spec:
+      rayClusterConfig:
+        headGroupSpec:
+          rayStartParams: {}
+          template:
+            spec:
+              containers:
+                - name: ray-head
+                  image: rayproject/ray:2.9.0
+
+---
+name: "Partial zero group preserves ratio"
+description: "Test that a group with 0 replicas stays at 0 while active group scales proportionally"
+desiredObj:
+  apiVersion: ray.io/v1
+  kind: RayService
+  metadata:
+    name: rayservice-partial-zero
+    namespace: default
+  spec:
+    rayClusterConfig:
+      headGroupSpec:
+        rayStartParams: {}
+        template:
+          spec:
+            containers:
+              - name: ray-head
+                image: rayproject/ray:2.9.0
+      workerGroupSpecs:
+        - groupName: active-group
+          replicas: 4
+          rayStartParams: {}
+          template:
+            spec:
+              containers:
+                - name: ray-worker
+                  image: rayproject/ray:2.9.0
+        - groupName: dormant-group
+          replicas: 0
+          rayStartParams: {}
+          template:
+            spec:
+              containers:
+                - name: ray-worker
+                  image: rayproject/ray:2.9.0
+inputReplicas: 9
+operation: ReviseReplica
+output:
+  revised:
+    apiVersion: ray.io/v1
+    kind: RayService
+    metadata:
+      name: rayservice-partial-zero
+      namespace: default
+    spec:
+      rayClusterConfig:
+        headGroupSpec:
+          rayStartParams: {}
+          template:
+            spec:
+              containers:
+                - name: ray-head
+                  image: rayproject/ray:2.9.0
+        workerGroupSpecs:
+          - groupName: active-group
+            replicas: 8
+            rayStartParams: {}
+            template:
+              spec:
+                containers:
+                  - name: ray-worker
+                    image: rayproject/ray:2.9.0
+          - groupName: dormant-group
+            replicas: 0
+            rayStartParams: {}
+            template:
+              spec:
+                containers:
+                  - name: ray-worker
+                    image: rayproject/ray:2.9.0

@@ -1,0 +1,164 @@
+# test case for aggregating status of BroadcastJob
+# case1. BroadcastJob with two status items
+# case2. BroadcastJob completed in all clusters
+# case3. BroadcastJob with active and succeeded jobs
+# case4. BroadcastJob with no status items
+
+# Case 1:
+name: "BroadcastJob with two status items"
+description: "Test aggregating status of BroadcastJob with two status items"
+desiredObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: BroadcastJob
+  metadata:
+    labels:
+      app: sample
+    name: sample
+    namespace: test-bcj
+statusItems:
+  - applied: true
+    clusterName: member1
+    health: Healthy
+    status:
+      active: 0
+      completionTime: "2023-04-06T15:01:47Z"
+      conditions:
+        - lastProbeTime: "2023-04-06T15:01:47Z"
+          lastTransitionTime: "2023-04-06T15:01:47Z"
+          message: Job test-bcj/sample was active longer than specified deadline
+          reason: Failed
+          status: "True"
+          type: Failed
+      desired: 1
+      failed: 1
+      phase: failed
+      startTime: "2023-04-06T15:01:37Z"
+      succeeded: 0
+  - applied: true
+    clusterName: member3
+    health: Healthy
+    status:
+      active: 0
+      completionTime: "2023-04-06T15:01:47Z"
+      conditions:
+        - lastProbeTime: "2023-04-06T15:01:47Z"
+          lastTransitionTime: "2023-04-06T15:01:47Z"
+          message: Job test-bcj/sample was active longer than specified deadline
+          reason: Failed
+          status: "True"
+          type: Failed
+      desired: 1
+      failed: 1
+      phase: failed
+      startTime: "2023-04-06T15:01:37Z"
+      succeeded: 0
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: BroadcastJob
+    metadata:
+      labels:
+        app: sample
+      name: sample
+      namespace: test-bcj
+    status:
+      active: 0
+      conditions:
+        - type: Failed
+          status: "True"
+          reason: JobFailed
+          message: 'Job executed failed in member clusters: member1, member3'
+      desired: 2
+      failed: 2
+      phase: failed
+      succeeded: 0
+---
+# Case 2:
+name: "BroadcastJob completed in all clusters"
+description: "AggregateStatus when all jobs succeed"
+desiredObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: BroadcastJob
+  metadata:
+    name: sample
+    namespace: test-bcj
+statusItems:
+  - clusterName: member1
+    status:
+      succeeded: 1
+      desired: 1
+      conditions:
+        - type: Complete
+          status: "True"
+  - clusterName: member2
+    status:
+      succeeded: 1
+      desired: 1
+      conditions:
+        - type: Complete
+          status: "True"
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: BroadcastJob
+    metadata:
+      name: sample
+      namespace: test-bcj
+    status:
+      active: 0
+      conditions:
+        - type: Completed
+          status: "True"
+          reason: Completed
+          message: 'Job completed'
+      desired: 2
+      failed: 0
+      phase: ""
+      succeeded: 2
+---
+# Case 3:
+name: "BroadcastJob with active and succeeded jobs"
+description: "AggregateStatus aggregates counters without terminal state"
+desiredObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: BroadcastJob
+  metadata:
+    name: sample
+    namespace: test-bcj
+statusItems:
+  - clusterName: member1
+    status:
+      active: 1
+      desired: 1
+  - clusterName: member2
+    status:
+      succeeded: 1
+      desired: 1
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: BroadcastJob
+    metadata:
+      name: sample
+      namespace: test-bcj
+    status:
+      active: 1
+      desired: 2
+      phase: ""
+      failed: 0
+      succeeded: 1
+---
+# Case 4:
+name: "BroadcastJob with no status items"
+description: "AggregateStatus when job is not propagated"
+desiredObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: BroadcastJob
+  metadata:
+    name: sample
+    namespace: test-bcj
+operation: AggregateStatus
+output: {}

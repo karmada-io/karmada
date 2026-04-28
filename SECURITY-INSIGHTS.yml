@@ -1,0 +1,76 @@
+# This file reports information about security in a machine-processable way, and is adopted by
+# Linux Foundation's CLOMonitor to determine whether projects have reported on select security
+# factors prioritized by the foundation. More info: https://github.com/ossf/security-insights-spec/blob/v1.0.0/specification.md
+header:
+  expiration-date: '2025-07-04T00:00:00.000Z'
+  project-url: 'https://github.com/karmada-io/karmada'
+  schema-version: '1.0.0'
+  last-updated: '2024-07-17'
+  last-reviewed: '2024-07-17'
+  changelog: 'https://github.com/karmada-io/karmada/tree/master/docs/CHANGELOG'
+  license: 'https://github.com/karmada-io/karmada/blob/master/LICENSE'
+project-lifecycle:
+  status: 'active'
+  bug-fixes-only: False
+  core-maintainers:
+    - 'https://github.com/karmada-io/karmada/blob/master/MAINTAINERS.md'
+  roadmap: 'https://github.com/karmada-io/karmada/blob/master/ROADMAP.md'
+  release-process: 'https://karmada.io/docs/releases'
+contribution-policy:
+  accepts-pull-requests: True
+  accepts-automated-pull-requests: True
+  automated-tools-list:
+    - automated-tool: 'dependabot'
+      action: 'allowed'
+      path:
+        - /
+        - /cluster/images/
+  contributing-policy: 'https://github.com/karmada-io/community/blob/main/CONTRIBUTING.md'
+  code-of-conduct: 'https://github.com/karmada-io/community/blob/main/CODE_OF_CONDUCT.md'
+documentation:
+  - 'https://karmada.io/'
+distribution-points:
+  - 'https://hub.docker.com/u/karmada'
+  - 'https://github.com/karmada-io/karmada/releases'
+security-testing:
+  - tool-type: 'sca'
+    tool-name: 'Dependabot'
+    tool-version: '2'
+    integration:
+      ad-hoc: False
+      ci: False
+      before-release: False
+    tool-rulesets:
+      - 'https://github.com/karmada-io/karmada/blob/master/.github/dependabot.yml'
+    tool-url: 'https://github.com/dependabot'
+  - tool-type: 'sca'
+    tool-name: 'trivy'
+    tool-version: 'v0.53.0'
+    integration:
+      ad-hoc: False
+      ci: True
+      before-release: False
+    tool-rulesets:
+      - 'https://github.com/karmada-io/karmada/blob/master/.github/workflows/ci-image-scanning.yaml'
+    tool-url: 'https://github.com/aquasecurity/trivy-action'
+    comment: 'trivy is integrated into GitHub Actions through trivy-action, facilitating automated security scans in CI/CD pipelines.'
+security-contacts:
+  - type: 'email'
+    value: 'wangzefeng@huawei.com'
+  - type: 'email'
+    value: 'renhongcai@huawei.com'
+vulnerability-reporting:
+  accepts-vulnerability-reports: True
+  email-contact: 'renhongcai@huawei.com'
+  security-policy: 'https://github.com/karmada-io/community/blob/main/security-team/SECURITY.md#security-policy'
+dependencies:
+  dependencies-lists:
+    - 'https://github.com/karmada-io/karmada/blob/master/go.mod'
+    - 'https://github.com/karmada-io/karmada/blob/master/.go-version'
+    - 'https://github.com/karmada-io/karmada/blob/master/cluster/images/Dockerfile'
+  third-party-packages: True
+  sbom:
+    - sbom-file: 'https://github.com/karmada-io/karmada/releases' # Starting from v1.10.2, every release's assets include SBOMs.
+      sbom-format: 'SPDX'
+  env-dependencies-policy:
+    policy-url: 'https://github.com/karmada-io/community/blob/main/security-team/SECURITY.md#dependencies-policy'

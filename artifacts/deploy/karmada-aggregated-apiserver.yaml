@@ -1,0 +1,109 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: karmada-aggregated-apiserver
+  namespace: karmada-system
+  labels:
+    app: karmada-aggregated-apiserver
+    apiserver: "true"
+spec:
+  selector:
+    matchLabels:
+      app: karmada-aggregated-apiserver
+      apiserver: "true"
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: karmada-aggregated-apiserver
+        apiserver: "true"
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: karmada-aggregated-apiserver
+          image: docker.io/karmada/karmada-aggregated-apiserver:latest
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          command:
+            - /bin/karmada-aggregated-apiserver
+            - --kubeconfig=/etc/karmada/config/karmada.config
+            - --authentication-kubeconfig=/etc/karmada/config/karmada.config
+            - --authorization-kubeconfig=/etc/karmada/config/karmada.config
+            - --etcd-servers=https://etcd-client.karmada-system.svc.cluster.local:2379
+            - --etcd-cafile=/etc/karmada/pki/etcd-client/ca.crt
+            - --etcd-certfile=/etc/karmada/pki/etcd-client/tls.crt
+            - --etcd-keyfile=/etc/karmada/pki/etcd-client/tls.key
+            - --tls-cert-file=/etc/karmada/pki/server/tls.crt
+            - --tls-private-key-file=/etc/karmada/pki/server/tls.key
+            - --audit-log-path=-
+            - --audit-log-maxage=0
+            - --audit-log-maxbackup=0
+            - --tls-min-version=VersionTLS13
+            - --logging-format=json
+            - --bind-address=$(POD_IP)
+          resources:
+            requests:
+              cpu: 100m
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 443
+              scheme: HTTPS
+            initialDelaySeconds: 1
+            periodSeconds: 3
+            timeoutSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 443
+              scheme: HTTPS
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 15
+          volumeMounts:
+            - name: karmada-config
+              mountPath: /etc/karmada/config
+            - name: server-cert
+              mountPath: /etc/karmada/pki/server
+              readOnly: true
+            - name: etcd-client-cert
+              mountPath: /etc/karmada/pki/etcd-client
+              readOnly: true
+      volumes:
+        - name: karmada-config
+          secret:
+            secretName: karmada-aggregated-apiserver-config
+        - name: server-cert
+          secret:
+            secretName: karmada-aggregated-apiserver-cert
+        - name: etcd-client-cert
+          secret:
+            secretName: karmada-aggregated-apiserver-etcd-client-cert
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      priorityClassName: system-node-critical
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: karmada-aggregated-apiserver
+  namespace: karmada-system
+  labels:
+    app: karmada-aggregated-apiserver
+    apiserver: "true"
+spec:
+  ports:
+    - port: 443
+      protocol: TCP
+      targetPort: 443
+  selector:
+    app: karmada-aggregated-apiserver

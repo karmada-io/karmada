@@ -1,0 +1,17 @@
+apiVersion: config.karmada.io/v1alpha1
+kind: ResourceInterpreterCustomization
+metadata:
+  name: customization-check
+spec:
+  target:
+    apiVersion: apps/v1
+    kind: Deployment
+  customizations:
+    retention:
+      luaScript: >
+        function Retain(desiredObj, runtimeObj)
+          return desiredObj
+        end
+    replicaResource:
+      luaScript: >
+        bad format

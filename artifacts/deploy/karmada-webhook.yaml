@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: karmada-webhook
+  namespace: karmada-system
+  labels:
+    app: karmada-webhook
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: karmada-webhook
+  template:
+    metadata:
+      labels:
+        app: karmada-webhook
+    spec:
+      automountServiceAccountToken: false
+      tolerations:
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+      containers:
+        - name: karmada-webhook
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+          image: docker.io/karmada/karmada-webhook:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          command:
+            - /bin/karmada-webhook
+            - --kubeconfig=/etc/karmada/config/karmada.config
+            - --bind-address=$(POD_IP)
+            - --metrics-bind-address=$(POD_IP):8080
+            - --health-probe-bind-address=$(POD_IP):8000
+            - --secure-port=8443
+            - --cert-dir=/etc/karmada/pki/server
+            - --feature-gates=AllAlpha=true,AllBeta=true
+            - --allow-no-execute-taint-policy=true
+            - --logging-format=json
+            - --v=4
+          ports:
+            - containerPort: 8443
+            - containerPort: 8080
+              name: metrics
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8443
+              scheme: HTTPS
+          volumeMounts:
+            - name: karmada-config
+              mountPath: /etc/karmada/config
+            - name: server-cert
+              mountPath: /etc/karmada/pki/server
+              readOnly: true
+      volumes:
+        - name: karmada-config
+          secret:
+            secretName: karmada-webhook-config
+        - name: server-cert
+          secret:
+            secretName: karmada-webhook-cert
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      priorityClassName: system-node-critical
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: karmada-webhook
+  namespace: karmada-system
+spec:
+  selector:
+    app: karmada-webhook
+  ports:
+    - port: 443
+      targetPort: 8443

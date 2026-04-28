@@ -1,0 +1,24 @@
+# test case for revise replica
+# case1. BroadcastJob revise replica should update parallelism
+
+name: "BroadcastJob revise replica should update parallelism"
+description: "ReviseReplica updates spec.parallelism"
+desiredObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: BroadcastJob
+  metadata:
+    name: sample
+    namespace: test-bcj
+  spec:
+    parallelism: 1
+inputReplicas: 3
+operation: ReviseReplica
+output:
+  revised:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: BroadcastJob
+    metadata:
+      name: sample
+      namespace: test-bcj
+    spec:
+      parallelism: 3

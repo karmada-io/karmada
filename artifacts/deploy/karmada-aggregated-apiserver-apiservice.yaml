@@ -1,0 +1,25 @@
+apiVersion: apiregistration.k8s.io/v1
+kind: APIService
+metadata:
+  name: v1alpha1.cluster.karmada.io
+  labels:
+    app: karmada-aggregated-apiserver
+    apiserver: "true"
+spec:
+  caBundle: {{caBundle}}
+  group: cluster.karmada.io
+  groupPriorityMinimum: 2000
+  service:
+    name: karmada-aggregated-apiserver
+    namespace: karmada-system
+  version: v1alpha1
+  versionPriority: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: karmada-aggregated-apiserver
+  namespace: karmada-system
+spec:
+  type: ExternalName
+  externalName: karmada-aggregated-apiserver.karmada-system.svc.cluster.local

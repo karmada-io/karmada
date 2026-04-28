@@ -1,0 +1,12 @@
+reviewers:
+- chaunceyjiang
+- Garrybest
+- kevin-wangzefeng
+- RainbowMango
+- whitewindmills
+- XiShanYongYe-Chang
+approvers:
+- kevin-wangzefeng
+- RainbowMango
+options:
+  no_parent_owners: true

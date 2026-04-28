@@ -1,0 +1,159 @@
+{{- if and (or (eq .Values.installMode "component") (eq .Values.installMode "host")) (has "schedulerEstimator" .Values.components) }}
+
+{{ $namespace := include "karmada.namespace" .}}
+{{- range $index, $member := .Values.schedulerEstimator.memberClusters }}
+
+{{ $clusterName := $member.clusterName }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: karmada-scheduler-estimator-{{ $clusterName }}
+  namespace: {{ $namespace }}
+  labels:
+    cluster: {{ $clusterName }}
+    {{- include "karmada.schedulerEstimator.labels" $ | nindent 4 }}
+spec:
+  replicas: {{  $member.replicaCount }}
+  selector:
+    matchLabels:
+      cluster: {{ $clusterName }}
+      {{- include "karmada.schedulerEstimator.labels" $ | nindent 6 }}
+  {{- with $.Values.schedulerEstimator.strategy }}
+  strategy:
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+  template:
+    metadata:
+      {{- with $.Values.schedulerEstimator.podAnnotations }}
+      annotations:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        cluster: {{ $clusterName }}
+        {{- include "karmada.schedulerEstimator.labels" $ | nindent 8 }}
+        {{- include "karmada.schedulerEstimator.podLabels" $ | nindent 8 }}
+    spec:
+      {{- include "karmada.schedulerEstimator.imagePullSecrets" $ | nindent 6 }}
+      {{- with $.Values.schedulerEstimator.tolerations }}
+      tolerations:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      automountServiceAccountToken: false
+      containers:
+        - name: karmada-scheduler-estimator
+          image: {{ template "karmada.schedulerEstimator.image" $ }}
+          imagePullPolicy: {{ $.Values.schedulerEstimator.image.pullPolicy }}
+          env:
+            {{- include "karmada.env.podIP" . | nindent 12 }}
+          command:
+            - /bin/karmada-scheduler-estimator
+            - --kubeconfig=/etc/{{ $clusterName }}-kubeconfig
+            - --cluster-name={{ $clusterName }}
+            - --grpc-auth-cert-file=/etc/karmada/pki/karmada.crt
+            - --grpc-auth-key-file=/etc/karmada/pki/karmada.key
+            - --grpc-client-ca-file=/etc/karmada/pki/server-ca.crt
+            - --metrics-bind-address=$(POD_IP):8080
+            - --health-probe-bind-address=$(POD_IP):10351
+            - --v={{ $.Values.schedulerEstimator.logVerbosity }}
+            {{- /*
+            We use '$' to refer to the root context.
+            Inside this 'range' loop, '.' refers to the current item from '.Values.schedulerEstimator.memberClusters'.
+            Using '$' ensures that we can access the top-level '.Values.schedulerEstimator.featureGates'.
+            */}}
+            {{- with (include "karmada.schedulerEstimator.featureGates" $) }}
+            - {{ . }}
+            {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 10351
+              scheme: HTTP
+            failureThreshold: 3
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            timeoutSeconds: 5
+          ports:
+            - containerPort: 8080
+              name: metrics
+              protocol: TCP
+          volumeMounts:
+            - name: karmada-certs
+              mountPath: /etc/karmada/pki
+              readOnly: true
+            - name: member-kubeconfig
+              subPath: {{ $clusterName }}-kubeconfig
+              mountPath: /etc/{{ $clusterName }}-kubeconfig
+          resources:
+          {{- toYaml $.Values.schedulerEstimator.resources | nindent 12 }}
+      priorityClassName: {{ $.Values.schedulerEstimator.priorityClassName }}
+      volumes:
+      {{- include "karmada.scheduler.cert.volume" $ | nindent 8 }}
+        - name: member-kubeconfig
+          secret:
+            secretName: {{ $clusterName }}-kubeconfig
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: karmada-scheduler-estimator-{{ $clusterName }}
+  namespace: {{ $namespace }}
+  labels:
+    cluster: {{ $clusterName }}
+spec:
+  selector:
+    cluster: {{ $clusterName }}
+    {{- include "karmada.schedulerEstimator.labels" $ | nindent 4 }}
+  ports:
+    - protocol: TCP
+      port: 10352
+      targetPort: 10352
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $clusterName }}-kubeconfig
+  namespace: {{ $namespace }}
+stringData:
+  {{ $clusterName }}-kubeconfig: |-
+    apiVersion: v1
+    kind: Config
+    clusters:
+      - cluster:
+          certificate-authority-data: {{ b64enc $member.kubeconfig.caCrt }}
+          insecure-skip-tls-verify: false
+          server: {{ $member.kubeconfig.server }}
+        name: {{ $clusterName }}-apiserver
+    users:
+      - user:
+          client-certificate-data: {{ b64enc $member.kubeconfig.crt }}
+          client-key-data: {{ b64enc $member.kubeconfig.key }}
+        name: {{ $clusterName }}-apiserver
+    contexts:
+      - context:
+          cluster: {{ $clusterName }}-apiserver
+          user: {{ $clusterName }}-apiserver
+        name: {{ $clusterName }}-apiserver
+    current-context: {{ $clusterName }}-apiserver
+
+{{ if $.Values.schedulerEstimator.podDisruptionBudget }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: karmada-scheduler-estimator-{{ $clusterName }}
+  namespace: {{ include "karmada.namespace" $ }}
+  labels:
+    cluster: {{ $clusterName }}
+    {{- include "karmada.schedulerEstimator.labels" $ | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      cluster: {{ $clusterName }}
+      {{- include "karmada.schedulerEstimator.labels" $ | nindent 6 }}
+  {{ toYaml $.Values.schedulerEstimator.podDisruptionBudget | nindent 2 }}
+{{- end -}}
+
+{{- end }}
+
+{{- end }}

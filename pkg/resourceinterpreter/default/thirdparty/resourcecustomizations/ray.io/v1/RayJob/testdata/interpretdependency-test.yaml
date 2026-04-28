@@ -1,0 +1,280 @@
+# test case for interpreting dependency of RayJob
+# case1. RayJob with no dependencies
+# case2. RayJob with single ConfigMap dependency
+# case3. RayJob with single Secret dependency
+# case4. RayJob with ServiceAccount dependency
+# case5. RayJob with PVC dependency
+# case6. RayJob with submitter pod template dependencies
+# case7. RayJob with worker group dependencies
+# case8. RayJob with image pull secrets
+
+name: "RayJob with no dependencies"
+description: "Test interpreting dependency of simple RayJob with no dependencies"
+desiredObj:
+  apiVersion: ray.io/v1
+  kind: RayJob
+  metadata:
+    name: simple-rayjob
+    namespace: default
+  spec:
+    entrypoint: python /home/ray/script.py
+    rayClusterSpec:
+      rayVersion: '2.9.0'
+      headGroupSpec:
+        template:
+          spec:
+            containers:
+            - name: ray-head
+              image: rayproject/ray:2.9.0
+              resources:
+                requests:
+                  cpu: "1"
+                  memory: "2Gi"
+      workerGroupSpecs:
+      - groupName: small-workers
+        replicas: 2
+        template:
+          spec:
+            containers:
+            - name: ray-worker
+              image: rayproject/ray:2.9.0
+              resources:
+                requests:
+                  cpu: "1"
+                  memory: "1Gi"
+operation: InterpretDependency
+output:
+  dependencies: []
+
+---
+name: "RayJob with single ConfigMap dependency"
+description: "Test interpreting dependency of RayJob with ConfigMap volume"
+desiredObj:
+  apiVersion: ray.io/v1
+  kind: RayJob
+  metadata:
+    name: rayjob-configmap
+    namespace: test-namespace
+  spec:
+    entrypoint: python /home/ray/script.py
+    rayClusterSpec:
+      rayVersion: '2.9.0'
+      headGroupSpec:
+        template:
+          spec:
+            volumes:
+            - name: config-volume
+              configMap:
+                name: ray-config
+            containers:
+            - name: ray-head
+              image: rayproject/ray:2.9.0
+              volumeMounts:
+              - name: config-volume
+                mountPath: /config
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: ConfigMap
+      name: ray-config
+      namespace: test-namespace
+
+---
+name: "RayJob with single Secret dependency"
+description: "Test interpreting dependency of RayJob with Secret env"
+desiredObj:
+  apiVersion: ray.io/v1
+  kind: RayJob
+  metadata:
+    name: rayjob-secret
+    namespace: test-namespace
+  spec:
+    entrypoint: python /home/ray/script.py
+    rayClusterSpec:
+      rayVersion: '2.9.0'
+      headGroupSpec:
+        template:
+          spec:
+            containers:
+            - name: ray-head
+              image: rayproject/ray:2.9.0
+              env:
+              - name: API_KEY
+                valueFrom:
+                  secretKeyRef:
+                    name: api-credentials
+                    key: api-key
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: Secret
+      name: api-credentials
+      namespace: test-namespace
+
+---
+name: "RayJob with ServiceAccount dependency"
+description: "Test interpreting dependency of RayJob with ServiceAccount"
+desiredObj:
+  apiVersion: ray.io/v1
+  kind: RayJob
+  metadata:
+    name: rayjob-sa
+    namespace: production
+  spec:
+    entrypoint: python /home/ray/script.py
+    rayClusterSpec:
+      rayVersion: '2.9.0'
+      headGroupSpec:
+        template:
+          spec:
+            serviceAccountName: ray-operator-sa
+            containers:
+            - name: ray-head
+              image: rayproject/ray:2.9.0
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: ServiceAccount
+      name: ray-operator-sa
+      namespace: production
+
+---
+name: "RayJob with PVC dependency"
+description: "Test interpreting dependency of RayJob with PersistentVolumeClaim"
+desiredObj:
+  apiVersion: ray.io/v1
+  kind: RayJob
+  metadata:
+    name: rayjob-pvc
+    namespace: default
+  spec:
+    entrypoint: python /home/ray/script.py
+    rayClusterSpec:
+      rayVersion: '2.9.0'
+      headGroupSpec:
+        template:
+          spec:
+            volumes:
+            - name: data-volume
+              persistentVolumeClaim:
+                claimName: ray-data-pvc
+            containers:
+            - name: ray-head
+              image: rayproject/ray:2.9.0
+              volumeMounts:
+              - name: data-volume
+                mountPath: /data
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: ray-data-pvc
+      namespace: default
+
+---
+name: "RayJob with submitter pod template dependencies"
+description: "Test interpreting dependency of RayJob with dependencies in submitter pod template"
+desiredObj:
+  apiVersion: ray.io/v1
+  kind: RayJob
+  metadata:
+    name: rayjob-submitter
+    namespace: test-ns
+  spec:
+    entrypoint: python /home/ray/script.py
+    submitterPodTemplate:
+      spec:
+        serviceAccountName: submitter-sa
+        containers:
+        - name: ray-job-submitter
+          image: rayproject/ray:2.9.0
+    rayClusterSpec:
+      rayVersion: '2.9.0'
+      headGroupSpec:
+        template:
+          spec:
+            containers:
+            - name: ray-head
+              image: rayproject/ray:2.9.0
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: ServiceAccount
+      name: submitter-sa
+      namespace: test-ns
+
+---
+name: "RayJob with worker group dependencies"
+description: "Test interpreting dependency of RayJob with dependencies in worker pod templates"
+desiredObj:
+  apiVersion: ray.io/v1
+  kind: RayJob
+  metadata:
+    name: rayjob-worker-deps
+    namespace: default
+  spec:
+    entrypoint: python /home/ray/script.py
+    rayClusterSpec:
+      rayVersion: '2.9.0'
+      headGroupSpec:
+        template:
+          spec:
+            containers:
+            - name: ray-head
+              image: rayproject/ray:2.9.0
+      workerGroupSpecs:
+      - groupName: compute-workers
+        replicas: 2
+        template:
+          spec:
+            volumes:
+            - name: worker-config
+              configMap:
+                name: worker-settings
+            containers:
+            - name: ray-worker
+              image: rayproject/ray:2.9.0
+              volumeMounts:
+              - name: worker-config
+                mountPath: /config
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: ConfigMap
+      name: worker-settings
+      namespace: default
+
+---
+name: "RayJob with image pull secrets"
+description: "Test interpreting dependency of RayJob with image pull secrets"
+desiredObj:
+  apiVersion: ray.io/v1
+  kind: RayJob
+  metadata:
+    name: rayjob-image-pull
+    namespace: private-registry
+  spec:
+    entrypoint: python /home/ray/script.py
+    rayClusterSpec:
+      rayVersion: '2.9.0'
+      headGroupSpec:
+        template:
+          spec:
+            imagePullSecrets:
+            - name: docker-registry-secret
+            containers:
+            - name: ray-head
+              image: private-registry.io/ray:2.9.0
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: Secret
+      name: docker-registry-secret
+      namespace: private-registry

@@ -1,0 +1,48 @@
+# test case for interpreting health of VCJob
+# case1. VCJob with healthy phases (Running, Completed, Pending, Aborting, Aborted, Restarting, Completing, Terminating, Terminated)
+# case2. VCJob with Failed phase should be Unhealthy
+# case3. VCJob with nil/empty status should be Unhealthy
+
+name: "VCJob with healthy phases"
+description: "Test interpreting health of VCJob with various healthy phases"
+observedObj:
+  apiVersion: batch.volcano.sh/v1alpha1
+  kind: Job
+  metadata:
+    name: test-job
+  status:
+    state:
+      phase: Running
+operation: InterpretHealth
+output:
+  healthy: true
+
+---
+name: "VCJob with Failed phase should be Unhealthy"
+description: "Test interpreting health of VCJob when phase is Failed"
+observedObj:
+  apiVersion: batch.volcano.sh/v1alpha1
+  kind: Job
+  metadata:
+    name: test-job
+  status:
+    state:
+      phase: Failed
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "VCJob with nil/empty status should be Unhealthy"
+description: "Test interpreting health of VCJob when status is nil or phase is empty"
+observedObj:
+  apiVersion: batch.volcano.sh/v1alpha1
+  kind: Job
+  metadata:
+    name: test-job
+  status:
+    state: {}
+operation: InterpretHealth
+output:
+  healthy: false
+

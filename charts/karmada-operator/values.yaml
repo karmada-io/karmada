@@ -1,0 +1,137 @@
+## Default values for charts.
+## This is a YAML-formatted file.
+## Declare variables to be passed into your templates.
+
+## @param global karmada global config
+global:
+  ## @param global.imageRegistry Global Docker image registry
+  imageRegistry: ""
+  ## E.g.
+  ## imagePullSecrets:
+  ##   - myRegistryKeySecretName
+  imagePullSecrets: []
+
+## @karmadaOperatorImageVersion the image version of karmada operator
+## "latest" is a default value for local installation.
+## If update this anchors("&karmadaOperatorImageVersion"), also update hack/package-helm-chart.sh.
+## See https://yaml.org/spec/1.2/spec.html#id2765878 and
+## https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_advanced_syntax.html#yaml-anchors-and-aliases-sharing-variable-values
+## for more details about yaml anchors and aliases.
+karmadaOperatorImageVersion: &karmadaOperatorImageVersion latest
+
+## @param installCRDs define flag whether to install CRD resources
+##
+installCRDs: true
+
+kubectl:
+  ## @param image.registry karmada kubectl image registry
+  ## @param image.repository karmada kubectl image repository
+  ## @param image.tag karmada kubectl image tag (immutable tags are recommended)
+  ##
+  image:
+    registry: docker.io
+    repository: bitnamisecure/kubectl
+    tag: latest
+    ## Specify a imagePullPolicy, defaults to 'IfNotPresent'
+    pullPolicy: IfNotPresent
+
+## operator manager config
+operator:
+  ## @param operator.labels
+  labels: {}
+  ## @param operator.replicaCount target replicas
+  replicaCount: 1
+  ## @param operator.podAnnotations
+  podAnnotations: {}
+  ## @param operator.podLabels
+  podLabels: {}
+  ## @param image.registry operator image registry
+  ## @param image.repository operator image repository
+  ## @param image.tag operator image tag (immutable tags are recommended)
+  ## @param image.pullPolicy operator image pull policy
+  ## @param image.pullSecrets Specify docker-registry secret names as an array
+  ##
+  image:
+    registry: docker.io
+    repository: karmada/karmada-operator
+    tag: *karmadaOperatorImageVersion
+    ## Specify a imagePullPolicy
+    ##
+    pullPolicy: IfNotPresent
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## Example:
+    ## pullSecrets:
+    ##   - myRegistryKeySecretName
+    ##
+    pullSecrets: []
+
+  ## @param operator.env List of environment variables to inject
+  ##
+  ## - Each entry must be a valid Kubernetes EnvVar object.
+  ## - Supports both literal values and valueFrom references (ConfigMap, Secret, fieldRef, etc.).
+  ## - If omitted or set to an empty array (`[]`), no env stanza will be included.
+  ##
+  ## A sample stanza is shown below.
+  ##
+#  env:
+#    - name: http_proxy
+#      value: "http://best-awesome-proxy.com:8080"
+#    - name: https_proxy
+#      value: "http://best-awesome-proxy.com:8080"
+#    - name: no_proxy
+#      value: "localhost,127.0.0.1,*.svc,*.cluster.local"
+
+  ## @param operator.extraArgs List of extra arguments for the operator binary
+  ##
+  ## A sample stanza is shown below.
+  ##
+#  extraArgs:
+#    - --arg1=val1
+#    - --arg2
+
+  resources: {}
+    # If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+  ## @param.nodeSelector
+  nodeSelector: {}
+  ## @param.affinity
+  affinity: {}
+  ## @param.tolerations
+  tolerations: []
+  ## @param scheduler.strategy strategy of the scheduler
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 50%
+
+  ## @param operator.priorityClassName Priority class name for the operator pods
+  ## This ensures the operator is scheduled ahead of standard workloads
+  ## Example: "system-cluster-critical"
+  ## When empty, no priorityClassName will be set
+  priorityClassName: ""
+
+  ## @param operator.pdb PodDisruptionBudget configuration for the operator
+  ## Ensures high availability during voluntary disruptions (node drains, cluster-autoscaler actions, etc.)
+  pdb:
+    ## @param operator.pdb.enabled Enable PodDisruptionBudget for the operator
+    enabled: false
+    ## @param operator.pdb.minAvailable Minimum number of pods that must be available
+    ## Can be an integer (e.g., 1) or a percentage (e.g., "50%")
+    ## Mutually exclusive with maxUnavailable
+    ## When both minAvailable and maxUnavailable are set, only minAvailable will be used
+    ## To have maxUnavailable be the value that is used instead, set minAvailable to an empty string
+    minAvailable: 1
+    ## @param operator.pdb.maxUnavailable Maximum number of pods that can be unavailable
+    ## Can be an integer (e.g., 1) or a percentage (e.g., "50%")
+    ## Mutually exclusive with minAvailable
+    ## When both minAvailable and maxUnavailable are set, only minAvailable will be used
+    ## To have maxUnavailable be the value that is used instead, set minAvailable to an empty string
+    maxUnavailable: ""

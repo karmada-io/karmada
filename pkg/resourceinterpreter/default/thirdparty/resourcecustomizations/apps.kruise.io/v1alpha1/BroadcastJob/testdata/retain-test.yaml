@@ -1,0 +1,40 @@
+# test case for retaining BroadcastJob
+# case1. BroadcastJob retain should preserve observed labels
+
+name: "BroadcastJob retain should preserve observed labels"
+description: "Retain should copy pod template labels from observedObj"
+desiredObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: BroadcastJob
+  metadata:
+    name: sample
+    namespace: test-bcj
+  spec:
+    template:
+      metadata:
+        labels:
+          app: old-label
+observedObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: BroadcastJob
+  metadata:
+    name: sample
+    namespace: test-bcj
+  spec:
+    template:
+      metadata:
+        labels:
+          app: new-label
+operation: Retain
+output:
+  retained:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: BroadcastJob
+    metadata:
+      name: sample
+      namespace: test-bcj
+    spec:
+      template:
+        metadata:
+          labels:
+            app: new-label

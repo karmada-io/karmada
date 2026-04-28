@@ -1,0 +1,460 @@
+# test case for interpreting dependency of TFJob
+# case1. TFJob with multiple dependencies from both PS and Worker
+# case2. TFJob with empty tfReplicaSpecs
+# case3. TFJob with multiple ConfigMaps and Secrets
+# case4. TFJob with multiple PersistentVolumeClaims
+# case5. TFJob with default ServiceAccount (should not be included)
+# case6. TFJob with envFrom for ConfigMap and Secret
+# case7. TFJob with all replica types (PS, Worker, Chief, Master, Evaluator)
+
+name: "TFJob with multiple dependencies from both PS and Worker"
+description: "Test interpreting dependency of TFJob with multiple dependencies from both replicas"
+desiredObj:
+  apiVersion: kubeflow.org/v1
+  kind: TFJob
+  metadata:
+    name: tfjob-multi-deps
+    namespace: default
+  spec:
+    tfReplicaSpecs:
+      PS:
+        replicas: 1
+        restartPolicy: Never
+        template:
+          spec:
+            serviceAccountName: tfjob-service-account
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                env:
+                  - name: CONFIG_DATA
+                    valueFrom:
+                      configMapKeyRef:
+                        name: tfjob-config
+                        key: config
+                volumeMounts:
+                  - mountPath: "/train"
+                    name: training-data
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+            volumes:
+              - name: training-data
+                persistentVolumeClaim:
+                  claimName: training-data-pvc
+      Worker:
+        replicas: 2
+        restartPolicy: Never
+        template:
+          spec:
+            serviceAccountName: tfjob-service-account
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                env:
+                  - name: SECRET_DATA
+                    valueFrom:
+                      secretKeyRef:
+                        name: tfjob-secret
+                        key: secret
+                volumeMounts:
+                  - mountPath: "/train"
+                    name: training-data
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+            volumes:
+              - name: training-data
+                persistentVolumeClaim:
+                  claimName: training-data-pvc
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: ServiceAccount
+      name: tfjob-service-account
+      namespace: default
+    - apiVersion: v1
+      kind: ConfigMap
+      name: tfjob-config
+      namespace: default
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: training-data-pvc
+      namespace: default
+    - apiVersion: v1
+      kind: Secret
+      name: tfjob-secret
+      namespace: default
+
+---
+name: "TFJob with empty tfReplicaSpecs"
+description: "Test interpreting dependency of TFJob when tfReplicaSpecs is empty"
+desiredObj:
+  apiVersion: kubeflow.org/v1
+  kind: TFJob
+  metadata:
+    name: tfjob-empty-specs
+    namespace: default
+  spec:
+    tfReplicaSpecs: {}
+operation: InterpretDependency
+output:
+  dependencies: []
+
+---
+name: "TFJob with multiple ConfigMaps and Secrets"
+description: "Test interpreting dependency of TFJob with multiple ConfigMaps and Secrets"
+desiredObj:
+  apiVersion: kubeflow.org/v1
+  kind: TFJob
+  metadata:
+    name: tfjob-multi-config-secret
+    namespace: default
+  spec:
+    tfReplicaSpecs:
+      PS:
+        replicas: 1
+        restartPolicy: Never
+        template:
+          spec:
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                env:
+                  - name: CONFIG1
+                    valueFrom:
+                      configMapKeyRef:
+                        name: config1
+                        key: key1
+                  - name: CONFIG2
+                    valueFrom:
+                      configMapKeyRef:
+                        name: config2
+                        key: key2
+                  - name: SECRET1
+                    valueFrom:
+                      secretKeyRef:
+                        name: secret1
+                        key: key1
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+      Worker:
+        replicas: 2
+        restartPolicy: Never
+        template:
+          spec:
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                env:
+                  - name: SECRET2
+                    valueFrom:
+                      secretKeyRef:
+                        name: secret2
+                        key: key1
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: ConfigMap
+      name: config1
+      namespace: default
+    - apiVersion: v1
+      kind: ConfigMap
+      name: config2
+      namespace: default
+    - apiVersion: v1
+      kind: Secret
+      name: secret1
+      namespace: default
+    - apiVersion: v1
+      kind: Secret
+      name: secret2
+      namespace: default
+
+---
+name: "TFJob with multiple PersistentVolumeClaims"
+description: "Test interpreting dependency of TFJob with multiple PersistentVolumeClaims"
+desiredObj:
+  apiVersion: kubeflow.org/v1
+  kind: TFJob
+  metadata:
+    name: tfjob-multi-pvc
+    namespace: default
+  spec:
+    tfReplicaSpecs:
+      PS:
+        replicas: 1
+        restartPolicy: Never
+        template:
+          spec:
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                volumeMounts:
+                  - mountPath: "/data"
+                    name: data-volume
+                  - mountPath: "/cache"
+                    name: cache-volume
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+            volumes:
+              - name: data-volume
+                persistentVolumeClaim:
+                  claimName: data-pvc
+              - name: cache-volume
+                persistentVolumeClaim:
+                  claimName: cache-pvc
+      Worker:
+        replicas: 2
+        restartPolicy: Never
+        template:
+          spec:
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                volumeMounts:
+                  - mountPath: "/data"
+                    name: data-volume
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+            volumes:
+              - name: data-volume
+                persistentVolumeClaim:
+                  claimName: data-pvc
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: data-pvc
+      namespace: default
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: cache-pvc
+      namespace: default
+
+---
+name: "TFJob with default ServiceAccount (should not be included)"
+description: "Test interpreting dependency of TFJob with default ServiceAccount"
+desiredObj:
+  apiVersion: kubeflow.org/v1
+  kind: TFJob
+  metadata:
+    name: tfjob-default-sa
+    namespace: default
+  spec:
+    tfReplicaSpecs:
+      PS:
+        replicas: 1
+        restartPolicy: Never
+        template:
+          spec:
+            serviceAccountName: default
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+      Worker:
+        replicas: 2
+        restartPolicy: Never
+        template:
+          spec:
+            serviceAccountName: default
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+operation: InterpretDependency
+output:
+  dependencies: []
+
+---
+name: "TFJob with envFrom for ConfigMap and Secret"
+description: "Test interpreting dependency of TFJob with envFrom referencing ConfigMap and Secret"
+desiredObj:
+  apiVersion: kubeflow.org/v1
+  kind: TFJob
+  metadata:
+    name: tfjob-envfrom
+    namespace: default
+  spec:
+    tfReplicaSpecs:
+      PS:
+        replicas: 1
+        restartPolicy: Never
+        template:
+          spec:
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                envFrom:
+                  - configMapRef:
+                      name: tfjob-config
+                  - secretRef:
+                      name: tfjob-secret
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+      Worker:
+        replicas: 2
+        restartPolicy: Never
+        template:
+          spec:
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                envFrom:
+                  - configMapRef:
+                      name: tfjob-config
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: ConfigMap
+      name: tfjob-config
+      namespace: default
+    - apiVersion: v1
+      kind: Secret
+      name: tfjob-secret
+      namespace: default
+
+---
+name: "TFJob with all replica types"
+description: "Test interpreting dependency of TFJob with all replica types (PS, Worker, Chief, Master, Evaluator)"
+desiredObj:
+  apiVersion: kubeflow.org/v1
+  kind: TFJob
+  metadata:
+    name: tfjob-all-replicas
+    namespace: default
+  spec:
+    tfReplicaSpecs:
+      PS:
+        replicas: 1
+        restartPolicy: Never
+        template:
+          spec:
+            serviceAccountName: tfjob-sa
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                env:
+                  - name: CONFIG_DATA
+                    valueFrom:
+                      configMapKeyRef:
+                        name: tfjob-config
+                        key: config
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+      Worker:
+        replicas: 2
+        restartPolicy: Never
+        template:
+          spec:
+            serviceAccountName: tfjob-sa
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                env:
+                  - name: SECRET_DATA
+                    valueFrom:
+                      secretKeyRef:
+                        name: tfjob-secret
+                        key: secret
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+      Chief:
+        replicas: 1
+        restartPolicy: Never
+        template:
+          spec:
+            serviceAccountName: tfjob-sa
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                volumeMounts:
+                  - mountPath: "/data"
+                    name: data-volume
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+            volumes:
+              - name: data-volume
+                persistentVolumeClaim:
+                  claimName: data-pvc
+      Master:
+        replicas: 1
+        restartPolicy: Never
+        template:
+          spec:
+            serviceAccountName: tfjob-sa
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+      Evaluator:
+        replicas: 1
+        restartPolicy: Never
+        template:
+          spec:
+            serviceAccountName: tfjob-sa
+            containers:
+              - image: kubeflow/tf-dist-mnist-test:latest
+                name: tensorflow
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: ServiceAccount
+      name: tfjob-sa
+      namespace: default
+    - apiVersion: v1
+      kind: ConfigMap
+      name: tfjob-config
+      namespace: default
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: data-pvc
+      namespace: default
+    - apiVersion: v1
+      kind: Secret
+      name: tfjob-secret
+      namespace: default
+

@@ -1,0 +1,41 @@
+name: latest chart to DockerHub
+on:
+  push:
+    branches:
+      - master
+
+permissions: read-all      
+
+jobs:
+  publish-chart-to-dockerhub:
+    name: publish to DockerHub
+    # prevent job running from forked repository, otherwise
+    # 1. running on the forked repository would fail as missing necessary secret.
+    # 2. running on the forked repository would use unnecessary GitHub Action time.
+    if: ${{ github.repository == 'karmada-io/karmada' && github.ref == 'refs/heads/master' }}
+    runs-on: ubuntu-22.04
+    steps:
+      - name: checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          # fetch-depth:
+          # 0 indicates all history for all branches and tags.
+          # for `git describe --tags` in Makefile.
+          fetch-depth: 0
+      - name: install Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: go.mod
+      - name: login to DockerHub
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USER_NAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: package chart
+        env:
+          VERSION: 0.0.0
+        run: make package-chart
+      - name: push chart
+        env:
+          VERSION: 0.0.0
+        run: make push-chart

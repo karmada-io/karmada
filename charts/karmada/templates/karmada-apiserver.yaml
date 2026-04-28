@@ -1,0 +1,236 @@
+{{- if eq .Values.installMode "host" }}
+{{- $name := include "karmada.name" . -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}-apiserver
+  namespace: {{ include "karmada.namespace" . }}
+  labels:
+  {{- include "karmada.apiserver.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.apiServer.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "karmada.apiserver.labels" . | nindent 6 }}
+  {{- with .Values.apiServer.strategy }}
+  strategy:
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+  template:
+    metadata:
+      {{- with .Values.apiServer.podAnnotations }}
+      annotations:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "karmada.apiserver.labels" . | nindent 8 }}
+        {{- include "karmada.apiserver.podLabels" . | nindent 8 }}
+    spec:
+      {{- include "karmada.apiServer.imagePullSecrets" . | nindent 6 }}
+      automountServiceAccountToken: false
+      initContainers:
+        {{- include "karmada.initContainer.waitEtcd" . | nindent 8 }}
+      containers:
+        - name: {{ $name }}-apiserver
+          image: {{ template "karmada.apiServer.image" . }}
+          imagePullPolicy: {{ .Values.apiServer.image.pullPolicy }}
+          command:
+            - kube-apiserver
+            - --allow-privileged=true
+            - --authorization-mode=Node,RBAC
+            - --client-ca-file=/etc/kubernetes/pki/server-ca.crt
+            - --disable-admission-plugins=StorageObjectInUseProtection,ServiceAccount
+            - --enable-bootstrap-token-auth=true
+            {{- if eq .Values.etcd.mode "external" }}
+            - --etcd-cafile=/etc/etcd/pki/ca.crt
+            - --etcd-certfile=/etc/etcd/pki/tls.crt
+            - --etcd-keyfile=/etc/etcd/pki/tls.key
+            - --etcd-servers={{ .Values.etcd.external.servers }}
+            - --etcd-prefix={{ .Values.etcd.external.registryPrefix }}
+            {{- end }}
+            {{- if eq .Values.etcd.mode "internal" }}
+            - --etcd-cafile=/etc/etcd/pki/server-ca.crt
+            - --etcd-certfile=/etc/etcd/pki/karmada.crt
+            - --etcd-keyfile=/etc/etcd/pki/karmada.key
+            - --etcd-servers=https://etcd-client.{{ include "karmada.namespace" . }}.svc.{{ .Values.clusterDomain }}:2379
+            {{- end }}
+            - --bind-address=0.0.0.0
+            - --runtime-config=
+            - --secure-port=5443
+            - --service-account-issuer=https://kubernetes.default.svc.{{ .Values.clusterDomain }}
+            - --service-account-key-file=/etc/kubernetes/pki/karmada.key
+            - --service-account-signing-key-file=/etc/kubernetes/pki/karmada.key
+            - --service-cluster-ip-range={{ .Values.apiServer.serviceClusterIPRange }}
+            - --proxy-client-cert-file=/etc/kubernetes/pki/front-proxy-client.crt
+            - --proxy-client-key-file=/etc/kubernetes/pki/front-proxy-client.key
+            - --requestheader-allowed-names=front-proxy-client
+            - --requestheader-client-ca-file=/etc/kubernetes/pki/front-proxy-ca.crt
+            - --requestheader-extra-headers-prefix=X-Remote-Extra-
+            - --requestheader-group-headers=X-Remote-Group
+            - --requestheader-username-headers=X-Remote-User
+            - --tls-cert-file=/etc/kubernetes/pki/karmada.crt
+            - --tls-private-key-file=/etc/kubernetes/pki/karmada.key
+            - --max-requests-inflight={{ .Values.apiServer.maxRequestsInflight }}
+            - --max-mutating-requests-inflight={{ .Values.apiServer.maxMutatingRequestsInflight }}
+            - --tls-min-version=VersionTLS13
+            - --v={{ .Values.apiServer.logVerbosity }}
+            {{- if .Values.apiServer.encryptionAtRest.enabled }}
+            - --encryption-provider-config={{ .Values.apiServer.encryptionAtRest.configFile }}
+            {{- end }}
+            {{- with .Values.apiServer.oidc }}
+            {{- if .caFile }}
+            - --oidc-ca-file={{ .caFile }}
+            {{- end }}
+            {{- if .clientId }}
+            - --oidc-client-id={{ .clientId }}
+            {{- end }}
+            {{- if .groupsClaim }}
+            - --oidc-groups-claim={{ .groupsClaim }}
+            {{- end }}
+            {{- if .groupsPrefix }}
+            - --oidc-groups-prefix={{ .groupsPrefix }}
+            {{- end }}
+            {{- if .issuerUrl }}
+            - --oidc-issuer-url={{ .issuerUrl }}
+            {{- end }}
+            {{- if .requiredClaim }}
+            - --oidc-required-claim={{ .requiredClaim }}
+            {{- end }}
+            {{- if .signingAlgs }}
+            - --oidc-signing-algs={{ .signingAlgs }}
+            {{- end }}
+            {{- if .usernameClaim }}
+            - --oidc-username-claim={{ .usernameClaim }}
+            {{- end }}
+            {{- if .usernamePrefix }}
+            - --oidc-username-prefix={{ .usernamePrefix }}
+            {{- end }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: 5443
+              protocol: TCP
+          livenessProbe:
+            failureThreshold: 8
+            httpGet:
+              path: /livez
+              port: 5443
+              scheme: HTTPS
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 15
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /readyz
+              port: 5443
+              scheme: HTTPS
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 15
+          resources:
+          {{- toYaml .Values.apiServer.resources | nindent 12 }}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - name: apiserver-cert
+              mountPath: /etc/kubernetes/pki
+              readOnly: true
+            - name: etcd-cert
+              mountPath: /etc/etcd/pki
+              readOnly: true
+            {{- if .Values.apiServer.encryptionAtRest.enabled }}
+            - name: encryption-config
+              mountPath: {{ .Values.apiServer.encryptionAtRest.configFile }}
+              subPath: {{ .Values.apiServer.encryptionAtRest.existingSecret.key }}
+              readOnly: true
+            {{- end }}
+      {{- if .Values.apiServer.hostNetwork }}
+      dnsPolicy: ClusterFirstWithHostNet
+      {{- end }}
+      enableServiceLinks: true
+      {{- if .Values.apiServer.hostNetwork }}
+      hostNetwork: true
+      {{- end }}
+      preemptionPolicy: PreemptLowerPriority
+      priority: 2000001000
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      terminationGracePeriodSeconds: 30
+      {{- with .Values.apiServer.nodeSelector }}
+      nodeSelector:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.apiServer.affinity }}
+      affinity:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.apiServer.tolerations }}
+      tolerations:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      priorityClassName: {{ .Values.apiServer.priorityClassName }}
+      volumes:
+        - name: apiserver-cert
+          secret:
+            secretName: {{ $name }}-cert
+        - name: etcd-cert
+          secret:
+          {{- if eq .Values.etcd.mode "internal" }}
+            secretName: {{ $name }}-cert
+          {{- end }}
+          {{- if eq .Values.etcd.mode "external" }}
+            secretName: {{ $name }}-external-etcd-cert
+          {{- end }}
+        {{- if .Values.apiServer.encryptionAtRest.enabled }}
+        - name: encryption-config
+          secret:
+            secretName: {{ .Values.apiServer.encryptionAtRest.existingSecret.name }}
+            items:
+              - key: {{ .Values.apiServer.encryptionAtRest.existingSecret.key }}
+                path: {{ .Values.apiServer.encryptionAtRest.existingSecret.key }}
+        {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}-apiserver
+  namespace: {{ include "karmada.namespace" . }}
+  labels:
+  {{- include "karmada.apiserver.labels" . | nindent 4 }}
+  {{- with .Values.apiServer.serviceAnnotations }}
+  annotations:
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.apiServer.serviceType }}
+  ports:
+    - name: {{ $name }}-apiserver
+      {{- if and (eq .Values.apiServer.serviceType "NodePort") (.Values.apiServer.nodePort) }}
+      nodePort: {{ .Values.apiServer.nodePort }}
+      {{- end }}
+      port: 5443
+      protocol: TCP
+      targetPort: 5443
+  selector:
+  {{- include "karmada.apiserver.labels" . | nindent 4}}
+
+{{ if .Values.apiServer.podDisruptionBudget }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $name }}-apiserver
+  namespace: {{ include "karmada.namespace" . }}
+  labels:
+    {{- include "karmada.apiserver.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "karmada.apiserver.labels" . | nindent 6}}
+  {{ toYaml .Values.apiServer.podDisruptionBudget | nindent 2 }}
+{{- end -}}
+
+{{- end }}

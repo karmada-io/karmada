@@ -1,0 +1,342 @@
+apiVersion: config.karmada.io/v1alpha1
+kind: ResourceInterpreterCustomization
+metadata:
+  name: declarative-configuration-sparkapplication
+spec:
+  target:
+    apiVersion: sparkoperator.k8s.io/v1beta2
+    kind: SparkApplication
+  customizations:
+    healthInterpretation:
+      luaScript: >
+        function InterpretHealth(observedObj)
+          if not observedObj or
+             not observedObj.status or
+             not observedObj.status.applicationState or
+             not observedObj.status.applicationState.state then
+            return false
+          end
+        
+          -- Only the 'FAILED' state is considered unhealthy. All other states are treated
+          -- as healthy or recoverable.
+          local state = observedObj.status.applicationState.state
+          if state == 'FAILED' then
+            return false
+          end
+          return true
+        end
+    componentResource:
+      luaScript: |
+        local kube = require("kube")
+
+        local function isempty(s)
+          return s == nil or s == ''
+        end
+
+        -- Safe fetch of deeply nested table fields.
+        local function get(obj, path)
+          local cur = obj
+          for i = 1, #path do
+            if cur == nil then
+              return nil
+            end
+            cur = cur[path[i]]
+          end
+          return cur
+        end
+
+        -- Normalize possibly-string numbers with a default.
+        local function to_num(v, default)
+          if v == nil or v == '' then
+            return default
+          end
+          local n = tonumber(v)
+          if n ~= nil then
+            return n
+          end
+          return default
+        end
+
+        -- JSON-safe deep clone: strings/numbers/booleans/tables. Needed to prevent shared table references.
+        local function clone_plain(val, seen)
+          local tv = type(val)
+          if tv ~= "table" then
+            if tv == "string" or tv == "number" or tv == "boolean" or tv == "nil" then
+              return val
+            end
+            return nil
+          end
+          seen = seen or {}
+          if seen[val] then return nil end
+          seen[val] = true
+          local out = {}
+          for k, v in pairs(val) do
+            local tk = type(k)
+            if tk == "string" or tk == "number" then
+              local cv = clone_plain(v, seen)
+              if cv ~= nil then out[k] = cv end
+            end
+          end
+          seen[val] = nil
+          return out
+        end
+
+        local function apply_pod_template(pt_spec, requires)
+          if pt_spec == nil then
+            return
+          end
+
+          local nodeSelector = clone_plain(pt_spec.nodeSelector)
+          local tolerations  = clone_plain(pt_spec.tolerations)
+          local priority     = pt_spec.priorityClassName
+          local hardNodeAffinity = nil
+          if pt_spec.affinity and pt_spec.affinity.nodeAffinity then
+            hardNodeAffinity = clone_plain(pt_spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution)
+          end
+
+          -- Only create nodeClaim if there is content
+          if nodeSelector ~= nil or tolerations ~= nil or hardNodeAffinity ~= nil then
+            requires.nodeClaim = requires.nodeClaim or {}
+            requires.nodeClaim.nodeSelector = nodeSelector
+            requires.nodeClaim.tolerations  = tolerations
+            requires.nodeClaim.hardNodeAffinity = hardNodeAffinity
+          end
+
+          if not isempty(priority) then
+            requires.priorityClassName = priority
+          end
+        end
+
+        local MIN_MEMORY_OVERHEAD = "384m"
+        local JVM_DEFAULT_OVERHEAD_FACTOR = 0.10
+        local NON_JVM_DEFAULT_OVERHEAD_FACTOR = 0.40
+
+        local kube_unit_order = { B = 0, Ki = 1, Mi = 2, Gi = 3, Ti = 4, Pi = 5 }
+        local kube_unit_scale = { B = 1, Ki = 1024, Mi = 1024^2, Gi = 1024^3, Ti = 1024^4, Pi = 1024^5 }
+
+        local function parse_java_memory(java_mem_str)
+          local value_str, unit = tostring(java_mem_str):lower():match("^(%d+%.?%d*)([a-z]*)$")
+          local unit_map = {
+            b = "B",
+            kb = "Ki", k = "Ki",
+            mb = "Mi", m = "Mi",
+            gb = "Gi", g = "Gi",
+            tb = "Ti", t = "Ti",
+            pb = "Pi", p = "Pi",
+          }
+          local value = tonumber(value_str)
+          return value, unit_map[unit]
+        end
+        
+        local function convert_unit(value, from_unit, to_unit)
+          if from_unit == to_unit then return value end
+          local scale = kube_unit_scale[from_unit] / kube_unit_scale[to_unit]
+          return value * scale
+        end
+
+        local function smaller_unit(u1, u2)
+          return kube_unit_order[u1] < kube_unit_order[u2] and u1 or u2
+        end
+
+        local function calculate_total_memory_request(memory_str, overhead_str, memory_overhead_factor, min_memory_overhead)
+          local mem_value, mem_unit = parse_java_memory(memory_str)
+          local over_value, over_unit
+
+          if overhead_str then
+            over_value, over_unit = parse_java_memory(overhead_str)
+          else
+            local overhead_calc = mem_value * memory_overhead_factor
+            local min_over_value, min_over_unit = parse_java_memory(min_memory_overhead)
+
+            local smaller_u = smaller_unit(mem_unit, min_over_unit)
+            local overhead_calc_in_smaller = convert_unit(overhead_calc, mem_unit, smaller_u)
+            local min_over_in_smaller = convert_unit(min_over_value, min_over_unit, smaller_u)
+
+            over_value, over_unit = math.max(overhead_calc_in_smaller, min_over_in_smaller), smaller_u
+          end
+
+          local final_unit = smaller_unit(mem_unit, over_unit)
+          local mem_in_final = convert_unit(mem_value, mem_unit, final_unit)
+          local over_in_final = convert_unit(over_value, over_unit, final_unit)
+          local total_value = mem_in_final + over_in_final
+
+          return string.format("%f%s", total_value, final_unit)
+        end
+
+        function GetComponents(observedObj)
+          local components = {}
+
+          local job_type = get(observedObj, {"spec","type"})
+          local job = job_type:lower()
+          local is_jvm_job = (job == "java" or job == "scala")
+          local default_overhead_factor = is_jvm_job and JVM_DEFAULT_OVERHEAD_FACTOR or NON_JVM_DEFAULT_OVERHEAD_FACTOR
+          local memory_overhead_factor = to_num(get(observedObj, {"spec", "memoryOverheadFactor"}), default_overhead_factor)
+
+          -- Driver
+          local drv_replicas = 1  -- Spark Driver always has 1 instance
+          local drv_requires = {
+            resourceRequest = {}
+          }
+
+          local drv_cpu    = get(observedObj, {"spec","driver","cores"}) or 1
+          local drv_memory_str = get(observedObj, {"spec", "driver", "memory"}) or "1g"
+          local drv_overhead_str = get(observedObj, {"spec", "driver", "memoryOverhead"})
+          drv_requires.resourceRequest.cpu    = drv_cpu
+          drv_requires.resourceRequest.memory = calculate_total_memory_request(drv_memory_str, drv_overhead_str, memory_overhead_factor, MIN_MEMORY_OVERHEAD)
+
+          local drv_gpu = get(observedObj, {"spec","driver","gpu"})
+          if drv_gpu ~= nil then
+            local gpu_name = drv_gpu.name
+            local gpu_qty = to_num(drv_gpu.quantity, 0)
+            if not isempty(gpu_name) and gpu_qty > 0 then
+              drv_requires.resourceRequest[gpu_name] = gpu_qty
+            end
+          end
+    
+          apply_pod_template(get(observedObj, {"spec","driver"}), drv_requires)
+
+          local driverComponent = {
+            name = "driver",
+            replicas = drv_replicas,
+            replicaRequirements = drv_requires
+          }
+          table.insert(components, driverComponent)
+
+          -- Executor
+          local exe_replicas = to_num(get(observedObj, {"spec","executor","instances"}), 1)
+          local dynamic_enabled = get(observedObj, {"spec", "dynamicAllocation", "enabled"}) or false
+          if dynamic_enabled then
+            local initial_exec = to_num(get(observedObj, {"spec", "dynamicAllocation", "initialExecutors"}), 1)
+            local min_exec = to_num(get(observedObj, {"spec", "dynamicAllocation", "minExecutors"}), 1)
+            if initial_exec > exe_replicas then
+              exe_replicas = initial_exec
+            end
+            if min_exec > exe_replicas then
+              exe_replicas = min_exec
+            end
+          end
+
+          local exe_requires = {
+            resourceRequest = {}
+          }
+
+          local exe_cpu    = get(observedObj, {"spec","executor","cores"}) or 1
+          local exe_memory_str = get(observedObj, {"spec", "executor", "memory"}) or "1g"
+          local exe_overhead_str = get(observedObj, {"spec", "executor", "memoryOverhead"})
+          exe_requires.resourceRequest.cpu    = exe_cpu
+          exe_requires.resourceRequest.memory = calculate_total_memory_request(exe_memory_str, exe_overhead_str, memory_overhead_factor, MIN_MEMORY_OVERHEAD)
+
+          local exe_gpu = get(observedObj, {"spec","executor","gpu"})
+          if exe_gpu ~= nil then
+            local gpu_name = exe_gpu.name
+            local gpu_qty = to_num(exe_gpu.quantity, 0)
+            if not isempty(gpu_name) and gpu_qty > 0 then
+              exe_requires.resourceRequest[gpu_name] = gpu_qty
+            end
+          end
+
+          apply_pod_template(get(observedObj, {"spec","executor"}), exe_requires)
+
+          local executorComponent = {
+            name = "executor",
+            replicas = exe_replicas,
+            replicaRequirements = exe_requires
+          }
+          table.insert(components, executorComponent)
+ 
+          return components
+        end
+    statusAggregation:
+      luaScript: >
+        function AggregateStatus(desiredObj, statusItems)
+          if statusItems == nil then
+            return desiredObj
+          end
+          if desiredObj.status == nil then
+            desiredObj.status = {}
+          end
+
+          if #statusItems == 1 then
+            desiredObj.status = statusItems[1].status
+            return desiredObj
+          end
+
+          local statePriority = {
+            ["UNKNOWN"] = 0,
+            [""] = 0,
+            ["SUBMITTED"] = 1,
+            ["PENDING_RERUN"] = 1,
+            ["COMPLETED"] = 2,
+            ["SUSPENDING"] = 3,
+            ["SUSPENDED"] = 3,
+            ["RUNNING"] = 4,
+            ["RESUMING"] = 4,
+            ["SUCCEEDING"] = 4,
+            ["INVALIDATING"] = 5,
+            ["FAILING"] = 6,
+            ["FAILED"] = 6,
+            ["SUBMISSION_FAILED"] = 6,
+          }
+
+          local applicationState = {}
+          local executionAttempts = 0
+          local executorState = {}
+          local submissionAttempts = 0
+          local lastSubmissionAttemptTime = ""
+          local terminationTime = ""
+          local worstPriority = -1
+
+          for i = 1, #statusItems do
+            local currentStatus = statusItems[i].status
+            if currentStatus ~= nil then
+              if currentStatus.applicationState ~= nil then
+                local s = currentStatus.applicationState.state
+                local p = statePriority[s]
+                if p > worstPriority then
+                  worstPriority = p
+                  applicationState = currentStatus.applicationState
+                end
+              end
+              executionAttempts = executionAttempts + (currentStatus.executionAttempts or 0)
+              submissionAttempts = submissionAttempts + (currentStatus.submissionAttempts or 0)
+              if currentStatus.lastSubmissionAttemptTime and (lastSubmissionAttemptTime == "" or currentStatus.lastSubmissionAttemptTime > lastSubmissionAttemptTime) then
+                lastSubmissionAttemptTime = currentStatus.lastSubmissionAttemptTime
+              end
+              if currentStatus.terminationTime and (terminationTime == "" or currentStatus.terminationTime > terminationTime) then
+                terminationTime = currentStatus.terminationTime
+              end
+              if currentStatus.executorState ~= nil then
+                for exec, state in pairs(currentStatus.executorState) do
+                  executorState[exec] = state
+                end
+              end
+            end
+          end
+
+          desiredObj.status.applicationState = applicationState
+          desiredObj.status.executionAttempts = executionAttempts
+          desiredObj.status.executorState = executorState
+          desiredObj.status.submissionAttempts = submissionAttempts
+          desiredObj.status.lastSubmissionAttemptTime = lastSubmissionAttemptTime
+          desiredObj.status.terminationTime = terminationTime
+          return desiredObj
+        end
+    statusReflection:
+      luaScript: >
+        function ReflectStatus(observedObj)
+          local status = {}
+          if observedObj == nil or observedObj.status == nil then
+            return status
+          end
+
+          status.applicationState = observedObj.status.applicationState
+          status.driverInfo = observedObj.status.driverInfo
+          status.executorState = observedObj.status.executorState
+          status.sparkApplicationId = observedObj.status.sparkApplicationId
+          status.lastSubmissionAttemptTime = observedObj.status.lastSubmissionAttemptTime
+          status.submissionAttempts = observedObj.status.submissionAttempts
+          status.executionAttempts = observedObj.status.executionAttempts
+          status.submissionID = observedObj.status.submissionID
+          status.terminationTime = observedObj.status.terminationTime
+          return status
+        end

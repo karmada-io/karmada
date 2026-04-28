@@ -1,0 +1,204 @@
+/*
+Copyright 2022 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package util
+
+import (
+	"reflect"
+	"testing"
+
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/fake"
+)
+
+func TestCreateSecret(t *testing.T) {
+	type args struct {
+		client kubernetes.Interface
+		secret *corev1.Secret
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    *corev1.Secret
+		wantErr bool
+	}{
+		{
+			name: "already exist",
+			args: args{
+				client: fake.NewClientset(makeSecret("test")),
+				secret: makeSecret("test"),
+			},
+			want:    makeSecret("test"),
+			wantErr: false,
+		},
+		{
+			name: "create error",
+			args: args{
+				client: alwaysErrorKubeClient,
+				secret: makeSecret("test"),
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "create success",
+			args: args{
+				client: fake.NewClientset(),
+				secret: makeSecret("test"),
+			},
+			want:    makeSecret("test"),
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := CreateSecret(tt.args.client, tt.args.secret)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("CreateSecret() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != nil {
+				// remove fields injected by fake client
+				got.TypeMeta = metav1.TypeMeta{}
+				got.ResourceVersion = ""
+				got.UID = ""
+				got.Generation = 0
+				got.ManagedFields = nil
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("CreateSecret() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetSecret(t *testing.T) {
+	type args struct {
+		client    kubernetes.Interface
+		namespace string
+		name      string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    *corev1.Secret
+		wantErr bool
+	}{
+		{
+			name: "not found error",
+			args: args{
+				client:    fake.NewClientset(),
+				namespace: metav1.NamespaceDefault,
+				name:      "test",
+			},
+			wantErr: true,
+		},
+		{
+			name: "get success",
+			args: args{
+				client:    fake.NewClientset(makeSecret("test")),
+				namespace: metav1.NamespaceDefault,
+				name:      "test",
+			},
+			want:    makeSecret("test"),
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := GetSecret(tt.args.client, tt.args.namespace, tt.args.name)
+			if (err != nil) && tt.wantErr {
+				return
+			}
+
+			if (err != nil) && !tt.wantErr {
+				t.Fatalf("GetSecret() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetSecret() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPatchSecret(t *testing.T) {
+	type args struct {
+		client          kubernetes.Interface
+		namespace       string
+		name            string
+		pt              types.PatchType
+		patchSecretBody *corev1.Secret
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "not found error",
+			args: args{
+				client:          fake.NewClientset(),
+				namespace:       metav1.NamespaceDefault,
+				name:            "test",
+				pt:              types.MergePatchType,
+				patchSecretBody: makeSecret("test"),
+			},
+			wantErr: true,
+		},
+		{
+			name: "patchType is not supported",
+			args: args{
+				client:          fake.NewClientset(makeSecret("test")),
+				namespace:       metav1.NamespaceDefault,
+				name:            "test",
+				pt:              "",
+				patchSecretBody: makeSecret("test"),
+			},
+			wantErr: true,
+		},
+		{
+			name: "patch success",
+			args: args{
+				client:          fake.NewClientset(makeSecret("test")),
+				namespace:       metav1.NamespaceDefault,
+				name:            "test",
+				pt:              types.MergePatchType,
+				patchSecretBody: makeSecret("test"),
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := PatchSecret(tt.args.client, tt.args.namespace, tt.args.name, tt.args.pt, tt.args.patchSecretBody); (err != nil) != tt.wantErr {
+				t.Errorf("PatchSecret() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func makeSecret(name string) *corev1.Secret {
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: metav1.NamespaceDefault,
+			Name:      name,
+		},
+	}
+}

@@ -1,0 +1,461 @@
+# test case for interpreting component of PyTorchJob
+# case1. PyTorchJob with both Master and Worker replicas
+# case2. PyTorchJob with only Worker replica
+# case3. PyTorchJob with replicas as string numbers
+# case4. PyTorchJob with nil/empty replicas (should default to 1)
+# case5. PyTorchJob with empty pytorchReplicaSpecs
+# case6. PyTorchJob with nil template (should handle gracefully)
+# case7. PyTorchJob with multiple containers
+# case8. PyTorchJob with nodeSelector and tolerations
+# case9. PyTorchJob with resources only in limits (no requests)
+
+name: "PyTorchJob with both Master and Worker replicas"
+description: "Test interpreting component of PyTorchJob when both Master and Worker are present"
+observedObj:
+  apiVersion: kubeflow.org/v1
+  kind: PyTorchJob
+  metadata:
+    name: pytorch-full
+    namespace: kubeflow
+  spec:
+    pytorchReplicaSpecs:
+      Master:
+        replicas: 2
+        restartPolicy: OnFailure
+        template:
+          spec:
+            containers:
+              - name: pytorch
+                image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
+                imagePullPolicy: Always
+                command:
+                  - "python3"
+                  - "/opt/pytorch-mnist/mnist.py"
+                  - "--epochs=1"
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+                  requests:
+                    cpu: 500m
+                    memory: 256Mi
+      Worker:
+        replicas: 4
+        restartPolicy: OnFailure
+        template:
+          spec:
+            containers:
+              - name: pytorch
+                image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
+                imagePullPolicy: Always
+                command:
+                  - "python3"
+                  - "/opt/pytorch-mnist/mnist.py"
+                  - "--epochs=1"
+                resources:
+                  limits:
+                    cpu: 2
+                    memory: 1Gi
+                  requests:
+                    cpu: 1
+                    memory: 512Mi
+operation: InterpretComponent
+output:
+  components:
+    - name: master
+      replicas: 2
+      replicaRequirements:
+        resourceRequest:
+          cpu: 500m
+          memory: 256Mi
+    - name: worker
+      replicas: 4
+      replicaRequirements:
+        resourceRequest:
+          cpu: 1
+          memory: 512Mi
+
+---
+name: "PyTorchJob with only Worker replica"
+description: "Test interpreting component of PyTorchJob when only Worker is present"
+observedObj:
+  apiVersion: kubeflow.org/v1
+  kind: PyTorchJob
+  metadata:
+    name: pytorch-worker-only
+    namespace: kubeflow
+  spec:
+    pytorchReplicaSpecs:
+      Worker:
+        replicas: 3
+        restartPolicy: OnFailure
+        template:
+          spec:
+            containers:
+              - name: pytorch
+                image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+                  requests:
+                    cpu: 500m
+                    memory: 256Mi
+operation: InterpretComponent
+output:
+  components:
+    - name: worker
+      replicas: 3
+      replicaRequirements:
+        resourceRequest:
+          cpu: 500m
+          memory: 256Mi
+
+---
+name: "PyTorchJob with replicas as string numbers"
+description: "Test interpreting component of PyTorchJob when replicas are string numbers"
+observedObj:
+  apiVersion: kubeflow.org/v1
+  kind: PyTorchJob
+  metadata:
+    name: pytorch-string-replicas
+    namespace: kubeflow
+  spec:
+    pytorchReplicaSpecs:
+      Master:
+        replicas: "1"
+        restartPolicy: OnFailure
+        template:
+          spec:
+            containers:
+              - name: pytorch
+                image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+                  requests:
+                    cpu: 500m
+                    memory: 256Mi
+      Worker:
+        replicas: "2"
+        restartPolicy: OnFailure
+        template:
+          spec:
+            containers:
+              - name: pytorch
+                image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+                  requests:
+                    cpu: 500m
+                    memory: 256Mi
+operation: InterpretComponent
+output:
+  components:
+    - name: master
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          cpu: 500m
+          memory: 256Mi
+    - name: worker
+      replicas: 2
+      replicaRequirements:
+        resourceRequest:
+          cpu: 500m
+          memory: 256Mi
+
+---
+name: "PyTorchJob with nil/empty replicas (should default to 1)"
+description: "Test interpreting component of PyTorchJob when replicas is nil or empty"
+observedObj:
+  apiVersion: kubeflow.org/v1
+  kind: PyTorchJob
+  metadata:
+    name: pytorch-default-replicas
+    namespace: kubeflow
+  spec:
+    pytorchReplicaSpecs:
+      Master:
+        restartPolicy: OnFailure
+        template:
+          spec:
+            containers:
+              - name: pytorch
+                image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+                  requests:
+                    cpu: 500m
+                    memory: 256Mi
+      Worker:
+        replicas: ""
+        restartPolicy: OnFailure
+        template:
+          spec:
+            containers:
+              - name: pytorch
+                image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+                  requests:
+                    cpu: 500m
+                    memory: 256Mi
+operation: InterpretComponent
+output:
+  components:
+    - name: master
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          cpu: 500m
+          memory: 256Mi
+    - name: worker
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          cpu: 500m
+          memory: 256Mi
+
+---
+name: "PyTorchJob with empty pytorchReplicaSpecs"
+description: "Test interpreting component of PyTorchJob when pytorchReplicaSpecs is empty"
+observedObj:
+  apiVersion: kubeflow.org/v1
+  kind: PyTorchJob
+  metadata:
+    name: pytorch-empty-specs
+    namespace: kubeflow
+  spec:
+    pytorchReplicaSpecs: {}
+operation: InterpretComponent
+output:
+  components: []
+
+---
+name: "PyTorchJob with nil template (should handle gracefully)"
+description: "Test interpreting component of PyTorchJob when template is nil"
+observedObj:
+  apiVersion: kubeflow.org/v1
+  kind: PyTorchJob
+  metadata:
+    name: pytorch-nil-template
+    namespace: kubeflow
+  spec:
+    pytorchReplicaSpecs:
+      Master:
+        replicas: 1
+        restartPolicy: OnFailure
+      Worker:
+        replicas: 2
+        restartPolicy: OnFailure
+operation: InterpretComponent
+output:
+  components:
+    - name: master
+      replicas: 1
+    - name: worker
+      replicas: 2
+
+---
+name: "PyTorchJob with multiple containers"
+description: "Test interpreting component of PyTorchJob with multiple containers in a pod template"
+observedObj:
+  apiVersion: kubeflow.org/v1
+  kind: PyTorchJob
+  metadata:
+    name: pytorch-multi-container
+    namespace: kubeflow
+  spec:
+    pytorchReplicaSpecs:
+      Master:
+        replicas: 1
+        restartPolicy: OnFailure
+        template:
+          spec:
+            containers:
+              - name: pytorch
+                image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+                  requests:
+                    cpu: 500m
+                    memory: 256Mi
+              - name: sidecar
+                image: sidecar:latest
+                resources:
+                  limits:
+                    cpu: 100m
+                    memory: 128Mi
+                  requests:
+                    cpu: 50m
+                    memory: 64Mi
+      Worker:
+        replicas: 2
+        restartPolicy: OnFailure
+        template:
+          spec:
+            containers:
+              - name: pytorch
+                image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
+                resources:
+                  limits:
+                    cpu: 2
+                    memory: 1Gi
+                  requests:
+                    cpu: 1
+                    memory: 512Mi
+operation: InterpretComponent
+output:
+  components:
+    - name: master
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          cpu: 550m
+          memory: 320Mi
+    - name: worker
+      replicas: 2
+      replicaRequirements:
+        resourceRequest:
+          cpu: 1
+          memory: 512Mi
+
+---
+name: "PyTorchJob with nodeSelector and tolerations"
+description: "Test interpreting component of PyTorchJob with nodeSelector and tolerations"
+observedObj:
+  apiVersion: kubeflow.org/v1
+  kind: PyTorchJob
+  metadata:
+    name: pytorch-node-requirements
+    namespace: kubeflow
+  spec:
+    pytorchReplicaSpecs:
+      Master:
+        replicas: 1
+        restartPolicy: OnFailure
+        template:
+          spec:
+            nodeSelector:
+              accelerator: gpu
+              zone: us-west-1
+            tolerations:
+              - key: nvidia.com/gpu
+                operator: Exists
+                effect: NoSchedule
+            containers:
+              - name: pytorch
+                image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+                  requests:
+                    cpu: 500m
+                    memory: 256Mi
+      Worker:
+        replicas: 3
+        restartPolicy: OnFailure
+        template:
+          spec:
+            nodeSelector:
+              accelerator: gpu
+            containers:
+              - name: pytorch
+                image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
+                resources:
+                  limits:
+                    cpu: 2
+                    memory: 1Gi
+                  requests:
+                    cpu: 1
+                    memory: 512Mi
+operation: InterpretComponent
+output:
+  components:
+    - name: master
+      replicas: 1
+      replicaRequirements:
+        nodeClaim:
+          nodeSelector:
+            accelerator: gpu
+            zone: us-west-1
+          tolerations:
+            - key: nvidia.com/gpu
+              operator: Exists
+              effect: NoSchedule
+        resourceRequest:
+          cpu: 500m
+          memory: 256Mi
+    - name: worker
+      replicas: 3
+      replicaRequirements:
+        nodeClaim:
+          nodeSelector:
+            accelerator: gpu
+        resourceRequest:
+          cpu: 1
+          memory: 512Mi
+
+---
+name: "PyTorchJob with resources only in limits (no requests)"
+description: "Test interpreting component of PyTorchJob when only limits are specified"
+observedObj:
+  apiVersion: kubeflow.org/v1
+  kind: PyTorchJob
+  metadata:
+    name: pytorch-limits-only
+    namespace: kubeflow
+  spec:
+    pytorchReplicaSpecs:
+      Master:
+        replicas: 1
+        restartPolicy: OnFailure
+        template:
+          spec:
+            containers:
+              - name: pytorch
+                image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
+                resources:
+                  limits:
+                    cpu: 1
+                    memory: 512Mi
+      Worker:
+        replicas: 2
+        restartPolicy: OnFailure
+        template:
+          spec:
+            containers:
+              - name: pytorch
+                image: docker.io/kubeflowkatib/pytorch-mnist:v1beta1-45c5727
+                resources:
+                  limits:
+                    cpu: 2
+                    memory: 1Gi
+operation: InterpretComponent
+output:
+  components:
+    - name: master
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          cpu: 1
+          memory: 512Mi
+    - name: worker
+      replicas: 2
+      replicaRequirements:
+        resourceRequest:
+          cpu: 2
+          memory: 1Gi
+
+

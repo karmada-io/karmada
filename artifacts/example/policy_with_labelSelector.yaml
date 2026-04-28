@@ -1,0 +1,25 @@
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: example-policy
+  namespace: default
+spec:
+  resourceSelectors:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: nginx
+      labelSelector:
+        matchLabels:
+          a: b
+  association: false
+  placement:
+    clusterAffinity:
+      clusterNames:
+        - cluster1
+        - cluster2
+        - cluster3
+    spreadConstraints:
+      - spreadByLabel: failuredomain.kubernetes.io/zone
+        maxGroups: 2
+        minGroups: 2
+  schedulerName: default

@@ -1,0 +1,26 @@
+apiVersion: cluster.karmada.io/v1alpha1
+kind: Cluster
+metadata:
+  name: cluster-foo
+  namespace: karmada-cluster
+spec:
+  syncMode: Push
+  apiEndpoint: https://10.10.10.10:6339
+  secretRef:
+    namespace: karmada-cluster
+    name: secret-foo
+  provider: huaweicloud
+  region: ap-southeast-1
+  zone: az-1
+
+---
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: secret-foo
+  namespace: karmada-cluster
+type: Opaque
+stringData:
+  token: dummy
+  caBundle: dummy

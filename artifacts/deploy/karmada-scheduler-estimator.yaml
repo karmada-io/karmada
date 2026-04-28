@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: karmada-scheduler-estimator-{{member_cluster_name}}
+  namespace: karmada-system
+  labels:
+    cluster: {{member_cluster_name}}
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: karmada-scheduler-estimator-{{member_cluster_name}}
+  template:
+    metadata:
+      labels:
+        app: karmada-scheduler-estimator-{{member_cluster_name}}
+    spec:
+      automountServiceAccountToken: false
+      tolerations:
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+      containers:
+        - name: karmada-scheduler-estimator
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+          image: docker.io/karmada/karmada-scheduler-estimator:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: KUBE_CACHE_MUTATION_DETECTOR
+              value: "{{KUBE_CACHE_MUTATION_DETECTOR}}"
+          command:
+            - /bin/karmada-scheduler-estimator
+            - --kubeconfig=/etc/{{member_cluster_name}}-kubeconfig
+            - --cluster-name={{member_cluster_name}}
+            - --grpc-auth-cert-file=/etc/karmada/pki/server/tls.crt
+            - --grpc-auth-key-file=/etc/karmada/pki/server/tls.key
+            - --grpc-client-ca-file=/etc/karmada/pki/server/ca.crt
+            - --metrics-bind-address=$(POD_IP):8080
+            - --health-probe-bind-address=$(POD_IP):10351
+            - --feature-gates=AllAlpha=true,AllBeta=true
+            - --logging-format=json
+            - --v=4
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 10351
+              scheme: HTTP
+            failureThreshold: 3
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            timeoutSeconds: 5
+          ports:
+            - containerPort: 8080
+              name: metrics
+              protocol: TCP
+          volumeMounts:
+            - name: server-cert
+              mountPath: /etc/karmada/pki/server
+              readOnly: true
+            - name: member-kubeconfig
+              subPath: {{member_cluster_name}}-kubeconfig
+              mountPath: /etc/{{member_cluster_name}}-kubeconfig
+      volumes:
+        - name: server-cert
+          secret:
+            secretName: karmada-scheduler-estimator-cert
+        - name: member-kubeconfig
+          secret:
+            secretName: {{member_cluster_name}}-kubeconfig
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      priorityClassName: system-node-critical
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: karmada-scheduler-estimator-{{member_cluster_name}}
+  namespace: karmada-system
+  labels:
+    cluster: {{member_cluster_name}}
+spec:
+  selector:
+    app: karmada-scheduler-estimator-{{member_cluster_name}}
+  ports:
+    - protocol: TCP
+      port: 10352
+      targetPort: 10352

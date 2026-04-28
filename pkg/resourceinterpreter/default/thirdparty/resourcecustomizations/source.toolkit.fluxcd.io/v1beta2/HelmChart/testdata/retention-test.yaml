@@ -1,0 +1,90 @@
+# test case for retaining suspend field of HelmChart
+# case1. HelmChart: retain suspend=true
+# case2. HelmChart: retain suspend=false
+# case3. HelmChart: retain without suspend
+
+name: "HelmChart retain suspend=true"
+description: "Retain should copy suspend=true from observed object"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmChart
+  metadata:
+    name: sample
+    namespace: test-helmchart
+  spec:
+    suspend: false
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmChart
+  metadata:
+    name: sample
+    namespace: test-helmchart
+  spec:
+    suspend: true
+operation: Retain
+output:
+  retained:
+    apiVersion: source.toolkit.fluxcd.io/v1beta2
+    kind: HelmChart
+    metadata:
+      name: sample
+      namespace: test-helmchart
+    spec:
+      suspend: true
+---
+name: "HelmChart retain suspend=false"
+description: "Retain should copy suspend=false from observed object"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmChart
+  metadata:
+    name: sample
+    namespace: test-helmchart
+  spec:
+    suspend: true
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmChart
+  metadata:
+    name: sample
+    namespace: test-helmchart
+  spec:
+    suspend: false
+operation: Retain
+output:
+  retained:
+    apiVersion: source.toolkit.fluxcd.io/v1beta2
+    kind: HelmChart
+    metadata:
+      name: sample
+      namespace: test-helmchart
+    spec:
+      suspend: false
+---
+name: "HelmChart retain without suspend"
+description: "Retain should keep desired suspend when observed suspend is missing"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmChart
+  metadata:
+    name: sample
+    namespace: test-helmchart
+  spec:
+    suspend: true
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmChart
+  metadata:
+    name: sample
+    namespace: test-helmchart
+  spec: {}
+operation: Retain
+output:
+  retained:
+    apiVersion: source.toolkit.fluxcd.io/v1beta2
+    kind: HelmChart
+    metadata:
+      name: sample
+      namespace: test-helmchart
+    spec:
+      suspend: true

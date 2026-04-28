@@ -1,0 +1,20 @@
+apiVersion: policy.karmada.io/v1alpha1
+kind: OverridePolicy
+metadata:
+  name: example-override
+  namespace: default
+spec:
+  resourceSelectors:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: nginx
+  overrideRules:
+    - targetCluster:
+        clusterNames:
+          - member1
+      overriders:
+        plaintext:
+          - path: "/metadata/annotations"
+            operator: add
+            value:
+              foo: bar

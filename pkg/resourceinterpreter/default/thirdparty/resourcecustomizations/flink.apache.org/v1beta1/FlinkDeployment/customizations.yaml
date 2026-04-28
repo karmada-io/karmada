@@ -1,0 +1,337 @@
+apiVersion: config.karmada.io/v1alpha1
+kind: ResourceInterpreterCustomization
+metadata:
+  name: declarative-configuration-flinkdeployment
+spec:
+  target:
+    apiVersion: flink.apache.org/v1beta1
+    kind: FlinkDeployment
+  customizations:
+# FlinkDeployment health is interpreted based on the application's state.
+#
+# Health Rules:
+# 1. If the job is in a terminal state [Failed, Finished, Canceled, Suspended] or in the Running state, it is considered healthy.
+# 2. If the job is in an ephemeral state [Reconciling, Initializing, Created]:
+#    - It is treated as healthy ONLY if there is a published error (e.g., user-related issues like an incorrect image path).
+#    - Otherwise, it is treated as unhealthy and may be rescheduled.
+# 3. Short-lived states [Cancelling, Failing, Restarting] are treated as healthy because they will directly transition to their respective terminal states:
+#    - Cancelling -> Canceled / Suspended
+#    - Failing -> Failed
+#    - Restarting triggers a restart, bringing the job back to the Created state.
+#
+# For more information on the Flink state diagram, refer to the official documentation: https://nightlies.apache.org/flink/flink-docs-release-1.20/docs/internals/job_scheduling/
+    healthInterpretation:
+      luaScript: >
+        function InterpretHealth(observedObj)
+          if observedObj.status ~= nil and observedObj.status.jobStatus ~= nil and observedObj.status.jobStatus.state ~= nil then
+            if observedObj.status.jobStatus.state ~= 'CREATED' and observedObj.status.jobStatus.state ~= 'INITIALIZING' and observedObj.status.jobStatus.state ~= 'RECONCILING' then
+              return true
+            else
+              return observedObj.status.error ~= nil or observedObj.status.jobManagerDeploymentStatus == 'ERROR'
+            end
+          end
+          return observedObj.status.error ~= nil
+        end
+    componentResource:
+      luaScript: |
+        local kube = require("kube")
+
+        local function isempty(s)
+          return s == nil or s == ''
+        end
+
+        -- Safe fetch of deeply nested table fields.
+        local function get(obj, path)
+          local cur = obj
+          for i = 1, #path do
+            if cur == nil then
+              return nil
+            end
+            cur = cur[path[i]]
+          end
+          return cur
+        end
+
+        -- Normalize possibly-string numbers with a default.
+        local function to_num(v, default)
+          if v == nil or v == '' then
+            return default
+          end
+          local n = tonumber(v)
+          if n ~= nil then
+            return n
+          end
+          return default
+        end
+
+        -- JSON-safe deep clone: strings/numbers/booleans/tables. Needed to prevent shared table references.
+        local function clone_plain(val, seen)
+          local tv = type(val)
+          if tv ~= "table" then
+            if tv == "string" or tv == "number" or tv == "boolean" or tv == "nil" then
+              return val
+            end
+            return nil
+          end
+          seen = seen or {}
+          if seen[val] then return nil end
+          seen[val] = true
+          local out = {}
+          for k, v in pairs(val) do
+            local tk = type(k)
+            if tk == "string" or tk == "number" then
+              local cv = clone_plain(v, seen)
+              if cv ~= nil then out[k] = cv end
+            end
+          end
+          seen[val] = nil
+          return out
+        end
+
+        local function apply_pod_template(pt_spec, requires)
+          if pt_spec == nil then
+            return
+          end
+
+          local nodeSelector = clone_plain(pt_spec.nodeSelector)
+          local tolerations  = clone_plain(pt_spec.tolerations)
+          local priority     = pt_spec.priorityClassName
+
+          -- Only create nodeClaim if there is content
+          if nodeSelector ~= nil or tolerations ~= nil then
+            requires.nodeClaim = requires.nodeClaim or {}
+            requires.nodeClaim.nodeSelector = nodeSelector
+            requires.nodeClaim.tolerations  = tolerations
+          end
+
+          if not isempty(priority) then
+            requires.priorityClassName = priority
+          end
+        end
+
+        function GetComponents(observedObj)
+          local components = {}
+          local pt_spec = get(observedObj, {"spec","podTemplate","spec"})
+
+          -- JobManager
+
+          local jm_replicas = to_num(get(observedObj, {"spec","jobManager","replicas"}), 1)
+
+          local jm_requires = {
+            resourceRequest = {}
+          }
+
+          local jm_cpu    = get(observedObj, {"spec","jobManager","resource","cpu"})
+          local jm_memory = get(observedObj, {"spec","jobManager","resource","memory"})
+          if jm_cpu ~= nil then
+            jm_requires.resourceRequest.cpu = jm_cpu
+          end
+          if jm_memory ~= nil then
+            jm_requires.resourceRequest.memory = kube.getResourceQuantity(jm_memory)
+          end
+          apply_pod_template(pt_spec, jm_requires)
+
+          local jobManagerComponent = {
+            name = "jobmanager",
+            replicas = jm_replicas,
+            replicaRequirements = jm_requires
+          }
+          table.insert(components, jobManagerComponent)
+
+          -- TaskManager
+
+          local tm_replicas = to_num(get(observedObj, {"spec","taskManager","replicas"}), nil)
+          if tm_replicas == nil then
+            local parallelism = to_num(get(observedObj, {"spec","job","parallelism"}), nil)
+            local task_slots  = to_num(get(observedObj, {"spec","flinkConfiguration","taskmanager.numberOfTaskSlots"}), nil)
+            if parallelism == nil or task_slots == nil or task_slots == 0 then
+              tm_replicas = 1
+            else
+              tm_replicas = math.ceil(parallelism / task_slots)
+            end
+          end
+
+          local tm_requires = {
+            resourceRequest = {}
+          }
+
+          local tm_cpu    = get(observedObj, {"spec","taskManager","resource","cpu"})
+          local tm_memory = get(observedObj, {"spec","taskManager","resource","memory"})
+          if tm_cpu ~= nil then
+            tm_requires.resourceRequest.cpu = tm_cpu
+          end
+          if tm_memory ~= nil then
+            tm_requires.resourceRequest.memory = kube.getResourceQuantity(tm_memory)
+          end
+          apply_pod_template(pt_spec, tm_requires)
+
+          local taskManagerComponent = {
+            name = "taskmanager",
+            replicas = tm_replicas,
+            replicaRequirements = tm_requires
+          }
+          table.insert(components, taskManagerComponent)
+
+          return components
+        end
+    replicaResource:
+      luaScript: |
+        local kube = require("kube")
+
+        local function isempty(s)
+          return s == nil or s == ''
+        end
+
+        -- Safe fetch of deeply nested table fields.
+        local function get(obj, path)
+          local cur = obj
+          for i = 1, #path do
+            if cur == nil then
+              return nil
+            end
+            cur = cur[path[i]]
+          end
+          return cur
+        end
+
+        -- Normalize possibly-string numbers with a default.
+        local function to_num(v, default)
+          if v == nil or v == '' then
+            return default
+          end
+          local n = tonumber(v)
+          if n ~= nil then
+            return n
+          end
+          return default
+        end
+
+        function GetReplicas(observedObj)
+          requires = {
+            resourceRequest = {},
+            nodeClaim = {},
+          }
+
+          local jm_replicas = to_num(get(observedObj, {"spec","jobManager","replicas"}), 1)
+
+          -- TaskManager replica setting takes precedence over parallelism setting
+
+          local tm_replicas = to_num(get(observedObj, {"spec","taskManager","replicas"}), nil)
+          if tm_replicas == nil then
+            local parallelism = to_num(get(observedObj, {"spec","job","parallelism"}), nil)
+            local task_slots = to_num(get(observedObj, {"spec","flinkConfiguration","taskmanager.numberOfTaskSlots"}), nil)
+            if parallelism == nil or task_slots == nil or task_slots == 0 then
+              tm_replicas = 1
+            else
+              tm_replicas = math.ceil(parallelism / task_slots)
+            end
+          end
+
+          local replica = jm_replicas + tm_replicas
+
+          -- Until multiple podTemplates are supported in replicaRequirements, take max of cpu + memory values as requirement
+
+          local tm_cpu = get(observedObj, {"spec","taskManager","resource","cpu"})
+          local jm_cpu = get(observedObj, {"spec","jobManager","resource","cpu"})
+          if tm_cpu ~= nil and jm_cpu ~= nil then
+            requires.resourceRequest.cpu = math.max(tm_cpu, jm_cpu)
+          elseif tm_cpu ~= nil then
+            requires.resourceRequest.cpu = tm_cpu
+          elseif jm_cpu ~= nil then
+            requires.resourceRequest.cpu = jm_cpu
+          end
+
+          local jm_memory = get(observedObj, {"spec","jobManager","resource","memory"})
+          local tm_memory = get(observedObj, {"spec","taskManager","resource","memory"})
+          if jm_memory ~= nil and tm_memory ~= nil then
+            local jm_memory_value = kube.getResourceQuantity(jm_memory)
+            local tm_memory_value = kube.getResourceQuantity(tm_memory)
+            if jm_memory_value > tm_memory_value then
+              requires.resourceRequest.memory = jm_memory
+            else
+              requires.resourceRequest.memory = tm_memory
+            end
+          elseif jm_memory ~= nil then
+            requires.resourceRequest.memory = jm_memory
+          elseif tm_memory ~= nil then
+            requires.resourceRequest.memory = tm_memory
+          end
+
+          -- Until multiple podTemplates are supported, interpreter will only take affinity, toleration, and priorityclass input to common podTemplate
+
+          local pod_template_spec = get(observedObj, {"spec","podTemplate","spec"})
+          if pod_template_spec ~= nil then
+            requires.nodeClaim.nodeSelector = pod_template_spec.nodeSelector
+            requires.nodeClaim.tolerations = pod_template_spec.tolerations
+            local priorityclass = pod_template_spec.priorityClassName
+            if not isempty(priorityclass) then
+              requires.priorityClassName = priorityclass
+            end
+          end
+
+          local namespace = get(observedObj, {"metadata","namespace"})
+          if not isempty(namespace) then
+            requires.namespace = namespace
+          end
+
+          return replica, requires
+        end
+    statusAggregation:
+      luaScript: >
+        function AggregateStatus(desiredObj, statusItems)
+          if statusItems == nil then
+            return desiredObj
+          end
+          if desiredObj.status == nil then
+            desiredObj.status = {}
+          end
+          clusterInfo = {}
+          error = ''
+          jobManagerDeploymentStatus = ''
+          jobStatus = {}
+          lifecycleState = ''
+          observedGeneration = 0
+          reconciliationStatus = {}
+          taskManager = {}
+
+          for i = 1, #statusItems do
+            currentStatus = statusItems[i].status
+            if currentStatus ~= nil then
+              clusterInfo = currentStatus.clusterInfo
+              error = currentStatus.error
+              jobManagerDeploymentStatus = currentStatus.jobManagerDeploymentStatus
+              jobStatus = currentStatus.jobStatus
+              observedGeneration = currentStatus.observedGeneration
+              lifecycleState = currentStatus.lifecycleState
+              reconciliationStatus = currentStatus.reconciliationStatus
+              taskManager = currentStatus.taskManager
+            end
+          end
+
+          desiredObj.status.clusterInfo = clusterInfo
+          desiredObj.status.error = error
+          desiredObj.status.jobManagerDeploymentStatus = jobManagerDeploymentStatus
+          desiredObj.status.jobStatus = jobStatus
+          desiredObj.status.lifecycleState = lifecycleState
+          desiredObj.status.observedGeneration = observedGeneration
+          desiredObj.status.reconciliationStatus = reconciliationStatus
+          desiredObj.status.taskManager = taskManager
+          return desiredObj
+        end
+    statusReflection:
+      luaScript: >
+        function ReflectStatus(observedObj)
+          status = {}
+          if observedObj == nil or observedObj.status == nil then
+            return status
+          end
+          status.clusterInfo = observedObj.status.clusterInfo
+          status.error = observedObj.status.error
+          status.jobManagerDeploymentStatus = observedObj.status.jobManagerDeploymentStatus
+          status.jobStatus = observedObj.status.jobStatus
+          status.observedGeneration = observedObj.status.observedGeneration
+          status.lifecycleState = observedObj.status.lifecycleState
+          status.reconciliationStatus = observedObj.status.reconciliationStatus
+          status.taskManager = observedObj.status.taskManager
+          return status
+        end

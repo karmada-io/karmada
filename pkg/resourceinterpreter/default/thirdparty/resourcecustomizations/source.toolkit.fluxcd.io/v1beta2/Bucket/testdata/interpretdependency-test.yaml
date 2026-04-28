@@ -1,0 +1,47 @@
+# test case for interpreting dependencies of Bucket
+# case1. Bucket with secretRef dependency
+# case2. Bucket without secretRef
+# case3. Bucket with empty secretRef name
+
+name: "Bucket with secretRef dependency"
+description: "InterpretDependency returns Secret reference"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: Bucket
+  metadata:
+    namespace: default
+  spec:
+    secretRef:
+      name: bucket-secret
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: Secret
+      name: bucket-secret
+      namespace: default
+---
+name: "Bucket without secretRef"
+description: "No dependencies when secretRef missing"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: Bucket
+  spec: {}
+operation: InterpretDependency
+output:
+  dependencies: []
+---
+name: "Bucket with empty secretRef name"
+description: "Empty secretRef name should be ignored"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: Bucket
+  metadata:
+    name: sample
+    namespace: test-bucket
+  spec:
+    secretRef:
+      name: ""
+operation: InterpretDependency
+output:
+  dependencies: []

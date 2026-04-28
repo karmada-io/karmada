@@ -1,0 +1,23 @@
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: test-flinkdeployment
+  namespace: user-ns
+spec:
+  failover:
+    application:
+      decisionConditions:
+        tolerationSeconds: 150
+      purgeMode: Immediately
+      statePreservation:
+        rules:
+        - aliasLabelName: resourcebinding.karmada.io/failover-jobid
+          jsonPath: '{ .jobStatus.jobId }'
+...
+
+
+
+
+
+
+

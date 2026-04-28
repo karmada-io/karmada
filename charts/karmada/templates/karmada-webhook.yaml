@@ -1,0 +1,116 @@
+{{- $name := include "karmada.name" . -}}
+
+{{- if eq .Values.installMode "host" }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}-webhook
+  namespace: {{ include "karmada.namespace" . }}
+  labels:
+  {{- include "karmada.webhook.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.webhook.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "karmada.webhook.labels" . | nindent 6 }}
+  {{- with .Values.webhook.strategy }}
+  strategy:
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+  template:
+    metadata:
+      {{- with .Values.webhook.podAnnotations }}
+      annotations:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "karmada.webhook.labels" . | nindent 8 }}
+        {{- include "karmada.webhook.podLabels" . | nindent 8 }}
+    spec:
+      {{- include "karmada.webhook.imagePullSecrets" . | nindent 6 }}
+      automountServiceAccountToken: false
+      {{- with .Values.webhook.nodeSelector }}
+      nodeSelector:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.webhook.affinity }}
+      affinity:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.webhook.tolerations}}
+      tolerations:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      initContainers:
+        {{- include "karmada.initContainer.waitStaticResource" . | nindent 8 }}
+      containers:
+        - name: {{ $name }}-webhook
+          image: {{ template "karmada.webhook.image" . }}
+          imagePullPolicy: {{ .Values.webhook.image.pullPolicy }}
+          env:
+            {{- include "karmada.env.podIP" . | nindent 12 }}
+          command:
+            - /bin/karmada-webhook
+            - --kubeconfig=/etc/kubeconfig
+            - --bind-address=$(POD_IP)
+            - --metrics-bind-address=$(POD_IP):8080
+            - --health-probe-bind-address=$(POD_IP):8000
+            - --secure-port=8443
+            - --cert-dir=/var/serving-cert
+            - --v={{ .Values.webhook.logVerbosity }}
+            {{- with (include "karmada.webhook.featureGates" .) }}
+            - {{ . }}
+            {{- end }}
+          ports:
+            - containerPort: 8443
+            - containerPort: 8080
+              name: metrics
+              protocol: TCP
+          volumeMounts:
+          {{- include "karmada.kubeconfig.volumeMount" . | nindent 12 }}
+            - name: {{ $name }}-webhook-cert-secret
+              mountPath: /var/serving-cert
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8443
+              scheme: HTTPS
+          resources:
+          {{- toYaml .Values.webhook.resources | nindent 12 }}
+      priorityClassName: {{ .Values.webhook.priorityClassName }}
+      volumes:
+      {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
+        - name: {{ $name }}-webhook-cert-secret
+          secret:
+            secretName: {{ $name }}-webhook-cert
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}-webhook
+  namespace: {{ include "karmada.namespace" . }}
+spec:
+  selector:
+    {{- include "karmada.webhook.labels" . | nindent 8 }}
+  ports:
+    - port: 443
+      targetPort: 8443
+
+{{ if .Values.webhook.podDisruptionBudget }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $name }}-webhook
+  namespace: {{ include "karmada.namespace" . }}
+  labels:
+    {{- include "karmada.webhook.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "karmada.webhook.labels" . | nindent 6 }}
+  {{ toYaml .Values.webhook.podDisruptionBudget | nindent 2 }}
+{{- end -}}
+
+{{- end }}

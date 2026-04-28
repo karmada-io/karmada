@@ -1,0 +1,26 @@
+# Configuration for generating mocks using mockery v3
+# This file defines which interfaces to mock and their output settings
+
+# Disable automatic mocking of all interfaces in the package (default is false)
+all: False
+
+# Custom template data configuration
+template-data:
+  # Path to the boilerplate file containing license headers for generated code
+  boilerplate-file: ../../../hack/boilerplate/boilerplate.go.txt
+
+# Use the testify template for generating mock structs
+template: testify
+
+# Define specific packages and interfaces to generate mocks for
+packages:
+  # Target package containing the interface to mock
+  github.com/karmada-io/karmada/pkg/estimator/service:
+    interfaces:
+      # Interface to generate a mock for
+      EstimatorClient:
+        config:
+          # Output filename for the generated mock
+          filename: "mock_EstimatorClient.go"
+          # Name of the generated mock struct
+          structname: "MockEstimatorClient"

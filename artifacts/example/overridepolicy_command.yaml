@@ -1,0 +1,19 @@
+apiVersion: policy.karmada.io/v1alpha1
+kind: OverridePolicy
+metadata:
+  name: example-override
+  namespace: default
+spec:
+  resourceSelectors:
+    - apiVersion: apps/v1
+      kind: Deployment
+  overrideRules:
+    - targetCluster:
+        clusterNames:
+          - member1
+      overriders:
+        commandOverrider:
+          - containerName: alpine
+            operator: add
+            value:
+              - test

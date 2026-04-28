@@ -1,0 +1,36 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: karmada-operator
+  labels:
+    app.kubernetes.io/name: karmada-operator
+rules:
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"] # karmada-operator requires access to the Lease resource for leader election
+    verbs: ["get", "create", "update"]
+  - apiGroups: ["operator.karmada.io"]
+    resources: ["karmadas"] # to manage karmada instances
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["operator.karmada.io"]
+    resources: ["karmadas/status"] # to update the status subresource of karmada instances
+    verbs: ["update"]
+  - apiGroups: [""]
+    resources: ["events"] # allows karmada-operator to record events in the kubernetes api-server
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["nodes", "pods"] # list cluster nodes and pods to get node information and for health checks
+    verbs: ["list"]
+  - apiGroups: [""]
+    resources: ["namespaces"] # to get information about namespaces, and deploy resources into specific namespaces
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["secrets", "services"] # to manage secrets which might contain sensitive data like credentials and services to expose applications within the cluster
+    verbs: ["get", "create", "update", "delete"]
+  - apiGroups: ["apps"]
+    resources: ["statefulsets", "deployments"] # to manage statefulsets, e.g. etcd, and deployments, e.g. karmada-operator
+    verbs: ["get", "create", "update", "delete"]
+  - apiGroups: ["policy"]
+    resources: ["poddisruptionbudgets"] # to manage pod disruption budgets for karmada components
+    verbs: ["get", "create", "update", "delete"]
+  - nonResourceURLs: ["/healthz"] # used to check whether the karmada apiserver is health
+    verbs: ["get"]

@@ -1,0 +1,11 @@
+.idea/
+.DS_Store
+*~
+*.out
+vendor/
+dist/
+.env
+bin/
+*.php
+test/*.go
+*.txt

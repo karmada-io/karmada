@@ -1,0 +1,53 @@
+{{- if and (eq .Values.installMode "host") (eq .Values.certs.mode "custom") }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "karmada.name" . }}-cert
+  namespace: {{ include "karmada.namespace" . }}
+type: Opaque
+data:
+  server-ca.crt: |
+    {{ b64enc .Values.certs.custom.caCrt }}
+  server-ca.key: |
+    {{ b64enc .Values.certs.custom.caKey }}
+  karmada.crt: |
+    {{ b64enc .Values.certs.custom.crt }}
+  karmada.key: |
+    {{ b64enc .Values.certs.custom.key }}
+  front-proxy-ca.crt: |
+    {{ b64enc .Values.certs.custom.frontProxyCaCrt }}
+  front-proxy-client.crt: |
+    {{ b64enc .Values.certs.custom.frontProxyCrt }}
+  front-proxy-client.key: |
+    {{ b64enc .Values.certs.custom.frontProxyKey }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "karmada.name" . }}-webhook-cert
+  namespace: {{ include "karmada.namespace" . }}
+type: kubernetes.io/tls
+data:
+  tls.crt: |
+    {{ b64enc .Values.certs.custom.crt }}
+  tls.key: |
+    {{ b64enc .Values.certs.custom.key }}
+---
+{{- end }}
+
+{{- if and (eq .Values.installMode "host") (eq .Values.etcd.mode "external") }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "karmada.name" . }}-external-etcd-cert
+  namespace: {{ include "karmada.namespace" . }}
+type: Opaque
+data:
+  ca.crt: |
+    {{ b64enc .Values.etcd.external.certs.caCrt }}
+  tls.crt: |
+    {{ b64enc .Values.etcd.external.certs.crt }}
+  tls.key: |
+    {{ b64enc .Values.etcd.external.certs.key }}
+---
+{{- end }}

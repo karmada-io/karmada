@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: karmada-opensearch-dashboards
+  name: karmada-opensearch-dashboards
+  namespace: karmada-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: karmada-opensearch-dashboards
+  template:
+    metadata:
+      labels:
+        app: karmada-opensearch-dashboards
+    spec:
+      containers:
+      - env:
+        - name: DISABLE_SECURITY_DASHBOARDS_PLUGIN
+          value: "true"
+        - name: OPENSEARCH_HOSTS
+          value: '["http://karmada-opensearch:9200"]'
+        image: opensearchproject/opensearch-dashboards:2.0.0
+        imagePullPolicy: IfNotPresent
+        name: karmada-opensearch-dashboards
+        ports:
+        - containerPort: 5601
+          protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: karmada-opensearch-dashboards
+  name: karmada-opensearch-dashboards
+  namespace: karmada-system
+spec:
+  ports:
+  - name: http
+    port: 5601
+    protocol: TCP
+    targetPort: 5601
+  selector:
+    app: karmada-opensearch-dashboards
+  type: ClusterIP

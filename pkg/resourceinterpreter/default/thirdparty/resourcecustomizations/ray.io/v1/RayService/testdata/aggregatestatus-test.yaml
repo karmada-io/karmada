@@ -1,0 +1,273 @@
+# test case for aggregating status of RayService
+# case1. Single status item (passthrough)
+# case2. Multi-cluster with mixed app statuses (tests endpoint summing, worst-status logic)
+# case3. Upgrade in progress with pending cluster
+
+name: "RayService with single status item"
+description: "Single cluster passthrough - status should be returned unchanged"
+desiredObj:
+  apiVersion: ray.io/v1
+  kind: RayService
+  metadata:
+    name: rayservice-single
+    namespace: default
+  spec:
+    serveConfigV2: |
+      applications:
+        - name: simple-app
+          route_prefix: /
+          import_path: simple:app
+    rayClusterConfig:
+      rayVersion: "2.9.0"
+      headGroupSpec:
+        template:
+          spec:
+            containers:
+            - name: ray-head
+              image: rayproject/ray:2.9.0
+statusItems:
+  - applied: true
+    clusterName: member1
+    status:
+      conditions:
+      - type: Ready
+        status: "False"
+        reason: ZeroServeEndpoints
+        message: "No serve endpoints available"
+        lastTransitionTime: "2024-01-15T11:00:00Z"
+      serviceStatus: ""
+      numServeEndpoints: 0
+      lastUpdateTime: "2024-01-15T11:00:00Z"
+      observedGeneration: 2
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: ray.io/v1
+    kind: RayService
+    metadata:
+      name: rayservice-single
+      namespace: default
+    status:
+      conditions:
+      - type: Ready
+        status: "False"
+        reason: ZeroServeEndpoints
+        message: "No serve endpoints available"
+        lastTransitionTime: "2024-01-15T11:00:00Z"
+      serviceStatus: ""
+      numServeEndpoints: 0
+      lastUpdateTime: "2024-01-15T11:00:00Z"
+      observedGeneration: 2
+
+---
+name: "RayService multi-cluster with mixed app statuses"
+description: "Tests endpoint summing, condition collection, lastUpdateTime selection, and worst-status app aggregation"
+desiredObj:
+  apiVersion: ray.io/v1
+  kind: RayService
+  metadata:
+    name: rayservice-multi
+    namespace: production
+  spec:
+    serveConfigV2: |
+      applications:
+        - name: model-serving
+          route_prefix: /predict
+          import_path: model:app
+        - name: data-processing
+          route_prefix: /process
+          import_path: processor:app
+    rayClusterConfig:
+      rayVersion: "2.9.0"
+      headGroupSpec:
+        template:
+          spec:
+            containers:
+            - name: ray-head
+              image: rayproject/ray:2.9.0
+statusItems:
+  - applied: true
+    clusterName: member1
+    status:
+      conditions:
+      - type: Ready
+        status: "True"
+        reason: NonZeroServeEndpoints
+        message: "Service is ready"
+        lastTransitionTime: "2024-01-15T12:00:00Z"
+      serviceStatus: Running
+      numServeEndpoints: 4
+      lastUpdateTime: "2024-01-15T12:00:00Z"
+      observedGeneration: 3
+      activeServiceStatus:
+        rayClusterName: "rayservice-multi-cluster1"
+        applicationStatuses:
+          model-serving:
+            status: RUNNING
+            message: "Model serving is running"
+          data-processing:
+            status: DEPLOYING
+            message: "Data processing is deploying"
+  - applied: true
+    clusterName: member2
+    status:
+      conditions:
+      - type: Ready
+        status: "True"
+        reason: NonZeroServeEndpoints
+        message: "Service is ready on member2"
+        lastTransitionTime: "2024-01-15T12:01:00Z"
+      serviceStatus: Running
+      numServeEndpoints: 6
+      lastUpdateTime: "2024-01-15T12:01:00Z"
+      observedGeneration: 2
+      activeServiceStatus:
+        rayClusterName: "rayservice-multi-cluster2"
+        applicationStatuses:
+          model-serving:
+            status: RUNNING
+            message: "Model serving is running"
+          data-processing:
+            status: UNHEALTHY
+            message: "Data processing is unhealthy"
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: ray.io/v1
+    kind: RayService
+    metadata:
+      name: rayservice-multi
+      namespace: production
+    status:
+      # Conditions collected from all clusters
+      conditions:
+      - type: Ready
+        status: "True"
+        reason: NonZeroServeEndpoints
+        message: "Service is ready"
+        lastTransitionTime: "2024-01-15T12:00:00Z"
+      - type: Ready
+        status: "True"
+        reason: NonZeroServeEndpoints
+        message: "Service is ready on member2"
+        lastTransitionTime: "2024-01-15T12:01:00Z"
+      serviceStatus: Running
+      # Endpoints summed: 4 + 6 = 10
+      numServeEndpoints: 10
+      # Takes most recent lastUpdateTime
+      lastUpdateTime: "2024-01-15T12:01:00Z"
+      # Takes highest observedGeneration
+      observedGeneration: 3
+      # Takes first cluster's base, merges apps with worst-status logic
+      activeServiceStatus:
+        rayClusterName: "rayservice-multi-cluster1"
+        applicationStatuses:
+          # RUNNING from both clusters = RUNNING
+          model-serving:
+            status: RUNNING
+            message: "Model serving is running"
+          # DEPLOYING vs UNHEALTHY = UNHEALTHY (priority 4 > 2)
+          data-processing:
+            status: UNHEALTHY
+            message: "Data processing is unhealthy"
+
+---
+name: "RayService upgrade in progress"
+description: "Tests activeServiceStatus and pendingServiceStatus during NewCluster upgrade"
+desiredObj:
+  apiVersion: ray.io/v1
+  kind: RayService
+  metadata:
+    name: rayservice-upgrading
+    namespace: default
+  spec:
+    serveConfigV2: |
+      applications:
+        - name: api-service
+          route_prefix: /api
+          import_path: api:service
+    upgradeStrategy:
+      type: NewCluster
+    rayClusterConfig:
+      rayVersion: "2.9.0"
+      headGroupSpec:
+        template:
+          spec:
+            containers:
+            - name: ray-head
+              image: rayproject/ray:2.9.0
+statusItems:
+  - applied: true
+    clusterName: member1
+    status:
+      conditions:
+      - type: Ready
+        status: "True"
+        reason: NonZeroServeEndpoints
+        message: "Service is ready"
+        lastTransitionTime: "2024-01-15T13:00:00Z"
+      - type: UpgradeInProgress
+        status: "True"
+        reason: BothActivePendingClustersExist
+        message: "Upgrading to new cluster"
+        lastTransitionTime: "2024-01-15T13:10:00Z"
+      serviceStatus: Running
+      numServeEndpoints: 5
+      lastUpdateTime: "2024-01-15T13:10:00Z"
+      observedGeneration: 3
+      activeServiceStatus:
+        rayClusterName: "rayservice-upgrading-old"
+        targetCapacity: 100
+        trafficRoutedPercent: 70
+        applicationStatuses:
+          api-service:
+            status: RUNNING
+            message: "API service is running"
+      pendingServiceStatus:
+        rayClusterName: "rayservice-upgrading-new"
+        targetCapacity: 100
+        trafficRoutedPercent: 30
+        applicationStatuses:
+          api-service:
+            status: DEPLOYING
+            message: "API service is deploying on new cluster"
+operation: AggregateStatus
+output:
+  aggregatedStatus:
+    apiVersion: ray.io/v1
+    kind: RayService
+    metadata:
+      name: rayservice-upgrading
+      namespace: default
+    status:
+      conditions:
+      - type: Ready
+        status: "True"
+        reason: NonZeroServeEndpoints
+        message: "Service is ready"
+        lastTransitionTime: "2024-01-15T13:00:00Z"
+      - type: UpgradeInProgress
+        status: "True"
+        reason: BothActivePendingClustersExist
+        message: "Upgrading to new cluster"
+        lastTransitionTime: "2024-01-15T13:10:00Z"
+      serviceStatus: Running
+      numServeEndpoints: 5
+      lastUpdateTime: "2024-01-15T13:10:00Z"
+      observedGeneration: 3
+      activeServiceStatus:
+        rayClusterName: "rayservice-upgrading-old"
+        targetCapacity: 100
+        trafficRoutedPercent: 70
+        applicationStatuses:
+          api-service:
+            status: RUNNING
+            message: "API service is running"
+      pendingServiceStatus:
+        rayClusterName: "rayservice-upgrading-new"
+        targetCapacity: 100
+        trafficRoutedPercent: 30
+        applicationStatuses:
+          api-service:
+            status: DEPLOYING
+            message: "API service is deploying on new cluster"

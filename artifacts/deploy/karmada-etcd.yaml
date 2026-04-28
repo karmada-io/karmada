@@ -1,0 +1,148 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: etcd
+  namespace: karmada-system
+  labels:
+    app: etcd
+spec:
+  replicas: 1
+  serviceName: etcd
+  selector:
+    matchLabels:
+      app: etcd
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: etcd
+    spec:
+      automountServiceAccountToken: false
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - etcd
+              topologyKey: kubernetes.io/hostname
+      tolerations:
+        - operator: Exists
+      containers:
+        - name: etcd
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+          image: registry.k8s.io/etcd:3.6.6-0
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -ec
+                - 'etcdctl endpoint health --endpoints https://127.0.0.1:2379  --cacert /etc/karmada/pki/etcd-client/ca.crt --cert /etc/karmada/pki/etcd-client/tls.crt --key /etc/karmada/pki/etcd-client/tls.key'
+            failureThreshold: 3
+            initialDelaySeconds: 600
+            periodSeconds: 60
+            successThreshold: 1
+            timeoutSeconds: 10
+          ports:
+            - containerPort: 2379
+              name: client
+              protocol: TCP
+            - containerPort: 2380
+              name: server
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 500m
+              memory: 500Mi
+          command:
+            - /usr/local/bin/etcd
+            - --name
+            - etcd0
+            - --listen-peer-urls
+            - http://0.0.0.0:2380
+            - --listen-client-urls
+            - https://0.0.0.0:2379
+            - --advertise-client-urls
+            - https://etcd-client.karmada-system.svc.cluster.local:2379
+            - --initial-cluster
+            - etcd0=http://etcd-0.etcd.karmada-system.svc.cluster.local:2380
+            - --initial-cluster-state
+            - new
+            - --client-cert-auth=true
+            - --cert-file=/etc/karmada/pki/server/tls.crt
+            - --key-file=/etc/karmada/pki/server/tls.key
+            - --trusted-ca-file=/etc/karmada/pki/server/ca.crt
+            - --data-dir=/var/lib/etcd
+            - --snapshot-count=10000
+            # Setting Golang's secure cipher suites as etcd's cipher suites.
+            # They are obtained by the return value of the function CipherSuites() under the go/src/crypto/tls/cipher_suites.go package.
+            # Consistent with the Preferred values of k8s’s default cipher suites.
+            - --cipher-suites=TLS_RSA_WITH_AES_128_CBC_SHA,TLS_RSA_WITH_AES_256_CBC_SHA,TLS_RSA_WITH_AES_128_GCM_SHA256,TLS_RSA_WITH_AES_256_GCM_SHA384,TLS_AES_128_GCM_SHA256,TLS_AES_256_GCM_SHA384,TLS_CHACHA20_POLY1305_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305
+          volumeMounts:
+            - name: etcd-data
+              mountPath: /var/lib/etcd
+            - name: server-cert
+              mountPath: /etc/karmada/pki/server
+            - name: etcd-client-cert
+              mountPath: /etc/karmada/pki/etcd-client
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      volumes:
+        - name: etcd-data
+          hostPath:
+            path: /var/lib/karmada-etcd
+            type: DirectoryOrCreate
+        - name: server-cert
+          secret:
+            secretName: etcd-cert
+        - name: etcd-client-cert
+          secret:
+            secretName: etcd-etcd-client-cert
+      priorityClassName: system-node-critical
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: etcd
+  name: etcd-client
+  namespace: karmada-system
+spec:
+  ports:
+    - name: etcd-client-port
+      port: 2379
+      protocol: TCP
+      targetPort: 2379
+  selector:
+    app: etcd
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: etcd
+  name: etcd
+  namespace: karmada-system
+spec:
+  ports:
+    - name: client
+      port: 2379
+      protocol: TCP
+      targetPort: 2379
+    - name: server
+      port: 2380
+      protocol: TCP
+      targetPort: 2380
+  clusterIP: None
+  selector:
+    app: etcd

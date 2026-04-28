@@ -1,0 +1,90 @@
+# test cases for retaining suspend field of HelmRepository
+# case1. HelmRepository: retain suspend=true
+# case2. HelmRepository: retain suspend=false
+# case3. HelmRepository: retain without suspend
+
+name: "HelmRepository retain suspend=true"
+description: "Retain should copy suspend=true from observed object"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmRepository
+  metadata:
+    name: sample
+    namespace: test-helmrepo
+  spec:
+    suspend: false
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmRepository
+  metadata:
+    name: sample
+    namespace: test-helmrepo
+  spec:
+    suspend: true
+operation: Retain
+output:
+  retained:
+    apiVersion: source.toolkit.fluxcd.io/v1beta2
+    kind: HelmRepository
+    metadata:
+      name: sample
+      namespace: test-helmrepo
+    spec:
+      suspend: true
+---
+name: "HelmRepository retain suspend=false"
+description: "Retain should copy suspend=false from observed object"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmRepository
+  metadata:
+    name: sample
+    namespace: test-helmrepo
+  spec:
+    suspend: true
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmRepository
+  metadata:
+    name: sample
+    namespace: test-helmrepo
+  spec:
+    suspend: false
+operation: Retain
+output:
+  retained:
+    apiVersion: source.toolkit.fluxcd.io/v1beta2
+    kind: HelmRepository
+    metadata:
+      name: sample
+      namespace: test-helmrepo
+    spec:
+      suspend: false
+---
+name: "HelmRepository retain without suspend"
+description: "Retain should not modify suspend if observed spec.suspend is missing"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmRepository
+  metadata:
+    name: sample
+    namespace: test-helmrepo
+  spec:
+    suspend: true
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmRepository
+  metadata:
+    name: sample
+    namespace: test-helmrepo
+  spec: {}
+operation: Retain
+output:
+  retained:
+    apiVersion: source.toolkit.fluxcd.io/v1beta2
+    kind: HelmRepository
+    metadata:
+      name: sample
+      namespace: test-helmrepo
+    spec:
+      suspend: true

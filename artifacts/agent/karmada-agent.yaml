@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: karmada-agent
+  namespace: karmada-system
+  labels:
+    app: karmada-agent
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: karmada-agent
+  template:
+    metadata:
+      labels:
+        app: karmada-agent
+    spec:
+      priorityClassName: system-node-critical
+      serviceAccountName: karmada-agent-sa
+      tolerations:
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+      containers:
+        - name: karmada-agent
+          image: docker.io/karmada/karmada-agent:latest
+          imagePullPolicy: {{image_pull_policy}}
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          command:
+            - /bin/karmada-agent
+            - --karmada-kubeconfig=/etc/karmada/config/karmada.config
+            - --karmada-context={{karmada_context}}
+            - --cluster-name={{member_cluster_name}}
+            - --cluster-api-endpoint={{member_cluster_api_endpoint}}
+            - --cluster-status-update-frequency=10s
+            - --metrics-bind-address=$(POD_IP):8080
+            - --health-probe-bind-address=$(POD_IP):10357
+            - --feature-gates=CustomizedClusterResourceModeling=true,MultiClusterService=true
+            - --logging-format=json
+            - --v=4
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 10357
+              scheme: HTTP
+            failureThreshold: 3
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            timeoutSeconds: 5
+          ports:
+            - containerPort: 8080
+              name: metrics
+              protocol: TCP
+          volumeMounts:
+            - name: karmada-config
+              mountPath: /etc/karmada/config
+      volumes:
+        - name: karmada-config
+          secret:
+            secretName: karmada-agent-config

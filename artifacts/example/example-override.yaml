@@ -1,0 +1,35 @@
+apiVersion: policy.karmada.io/v1alpha1
+kind: OverridePolicy
+metadata:
+  name: example-override
+  namespace: default
+spec:
+  # restrict resource types that this override policy applies to
+  resourceSelectors:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: nginx             # user can either select resource by name or by labelselector
+      labelSelector:
+        matchLabels:
+          image: nginx
+  # this override policy will only apply to resources propagated to the matching clusters
+  overrideRules:
+    - targetCluster:
+        clusterNames:             # user can either select cluster by names or by labelselector
+          - dc-1-cluster-1
+          - dc-1-cluster-2
+        labelSelector:
+          matchLabels:
+            failuredomain.kubernetes.io/region: dc1
+      # all matching targetClusters would share the same set of overrides below
+      overriders:
+        plaintext:
+        - path: "/spec/template/spec/containers/0/image"
+          operator: replace
+          value: "dc-1.registry.io/nginx:1.17.0-alpine"
+        - path: "/metadata/annotations"
+          operator: add
+          value:
+            foo: bar
+        - path: "/metadata/annotations/foo"
+          operator: remove

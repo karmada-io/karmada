@@ -1,0 +1,80 @@
+# test case for interpreting health of HelmRepository
+# case1. HelmRepository with Ready=True and Succeeded is healthy
+# case2. HelmRepository with Ready=False is not healthy
+# case3. HelmRepository without Ready conditions is not healthy
+# case4. HelmRepository with empty conditions is not healthy
+# case5. HelmRepository with nil status is not healthy
+# case6. HelmRepository with status.conditions nil
+
+name: "HelmRepository healthy when Ready=True and reason=Succeeded"
+description: "Health should be true when Ready condition is True and reason is Succeeded"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmRepository
+  status:
+    conditions:
+      - type: Ready
+        status: "True"
+        reason: Succeeded
+operation: InterpretHealth
+output:
+  healthy: true
+---
+name: "HelmRepository unhealthy when Ready=False"
+description: "Health should be false when Ready condition is False"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmRepository
+  status:
+    conditions:
+      - type: Ready
+        status: "False"
+        reason: Failed
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "HelmRepository unhealthy when Ready condition is absent"
+description: "Health should be false when conditions exist but Ready condition is missing"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmRepository
+  status:
+    conditions:
+      - type: ArtifactInStorage
+        status: "True"
+        reason: Succeeded
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "HelmRepository unhealthy when conditions are empty"
+description: "Health is false when status.conditions is empty"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmRepository
+  status:
+    conditions: []
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "HelmRepository unhealthy when status is nil"
+description: "Health is false when status is missing"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmRepository
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "HelmRepository unhealthy when status.conditions is nil"
+description: "Health should be false when status.conditions is nil"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: HelmRepository
+  status:
+    conditions: null
+operation: InterpretHealth
+output:
+  healthy: false

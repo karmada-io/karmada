@@ -1,0 +1,371 @@
+/*
+Copyright 2022 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package util
+
+import (
+	"fmt"
+	"reflect"
+	"testing"
+
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/fake"
+	kubetesting "k8s.io/client-go/testing"
+)
+
+func TestCreateServiceAccount(t *testing.T) {
+	type args struct {
+		client kubernetes.Interface
+		sa     *corev1.ServiceAccount
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    *corev1.ServiceAccount
+		wantErr bool
+	}{
+		{
+			name: "service account already exist",
+			args: args{
+				client: fake.NewClientset(makeServiceAccount("test")),
+				sa:     makeServiceAccount("test"),
+			},
+			want:    makeServiceAccount("test"),
+			wantErr: false,
+		},
+		{
+			name: "service account create error",
+			args: args{
+				client: alwaysErrorKubeClient,
+				sa:     makeServiceAccount("test"),
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "service account create success",
+			args: args{
+				client: fake.NewClientset(),
+				sa:     makeServiceAccount("test"),
+			},
+			want:    makeServiceAccount("test"),
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := CreateServiceAccount(tt.args.client, tt.args.sa)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("CreateServiceAccount() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("CreateServiceAccount() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestDeleteServiceAccount(t *testing.T) {
+	type args struct {
+		client    kubernetes.Interface
+		namespace string
+		name      string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "service account not found",
+			args: args{
+				client:    fake.NewClientset(),
+				namespace: metav1.NamespaceDefault,
+				name:      "test",
+			},
+			wantErr: false,
+		},
+		{
+			name: "service account delete failed",
+			args: args{
+				client:    alwaysErrorKubeClient,
+				namespace: metav1.NamespaceDefault,
+				name:      "test",
+			},
+			wantErr: true,
+		},
+		{
+			name: "service account delete success",
+			args: args{
+				client:    fake.NewClientset(makeServiceAccount("test")),
+				namespace: metav1.NamespaceDefault,
+				name:      "test",
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := DeleteServiceAccount(tt.args.client, tt.args.namespace, tt.args.name); (err != nil) != tt.wantErr {
+				t.Errorf("DeleteServiceAccount() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestEnsureServiceAccountExist(t *testing.T) {
+	type args struct {
+		client            kubernetes.Interface
+		serviceAccountObj *corev1.ServiceAccount
+		dryRun            bool
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    *corev1.ServiceAccount
+		wantErr bool
+	}{
+		{
+			name: "dry run",
+			args: args{
+				client:            fake.NewClientset(),
+				serviceAccountObj: makeServiceAccount("test"),
+				dryRun:            true,
+			},
+			want:    makeServiceAccount("test"),
+			wantErr: false,
+		},
+		{
+			name: "service account already exist",
+			args: args{
+				client:            fake.NewClientset(makeServiceAccount("test")),
+				serviceAccountObj: makeServiceAccount("test"),
+				dryRun:            false,
+			},
+			want:    makeServiceAccount("test"),
+			wantErr: false,
+		},
+		{
+			name: "service account not exists",
+			args: args{
+				client:            fake.NewClientset(),
+				serviceAccountObj: makeServiceAccount("test"),
+				dryRun:            false,
+			},
+			want:    makeServiceAccount("test"),
+			wantErr: false,
+		},
+		{
+			name: "get service account error",
+			args: args{
+				client: func() kubernetes.Interface {
+					c := fake.NewClientset()
+					c.PrependReactor("get", "*", errorAction)
+					return c
+				}(),
+				serviceAccountObj: makeServiceAccount("test"),
+				dryRun:            false,
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "create service account error",
+			args: args{
+				client: func() kubernetes.Interface {
+					c := fake.NewClientset()
+					c.PrependReactor("create", "*", errorAction)
+					return c
+				}(),
+				serviceAccountObj: makeServiceAccount("test"),
+				dryRun:            false,
+			},
+			want:    nil,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := EnsureServiceAccountExist(tt.args.client, tt.args.serviceAccountObj, tt.args.dryRun)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("EnsureServiceAccountExist() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("EnsureServiceAccountExist() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsServiceAccountExist(t *testing.T) {
+	type args struct {
+		client    kubernetes.Interface
+		namespace string
+		name      string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    bool
+		wantErr bool
+	}{
+		{
+			name: "service account not found",
+			args: args{
+				client:    fake.NewClientset(),
+				namespace: metav1.NamespaceDefault,
+				name:      "test",
+			},
+			want:    false,
+			wantErr: false,
+		},
+		{
+			name: "kube client return error",
+			args: args{
+				client:    alwaysErrorKubeClient,
+				namespace: metav1.NamespaceDefault,
+				name:      "test",
+			},
+			want:    false,
+			wantErr: true,
+		},
+		{
+			name: "service account already exist",
+			args: args{
+				client:    fake.NewClientset(makeServiceAccount("test")),
+				namespace: metav1.NamespaceDefault,
+				name:      "test",
+			},
+			want:    true,
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := IsServiceAccountExist(tt.args.client, tt.args.namespace, tt.args.name)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("IsServiceAccountExist() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("IsServiceAccountExist() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestWaitForServiceAccountSecretCreation(t *testing.T) {
+	sa := makeServiceAccount("test")
+	saVisitCount, secretVisitCount := 0, 0
+
+	// ROUND1: get serviceAccount returns not found
+	// ROUND2: get secret not found
+	//         create secret
+	//         token is empty
+	// ROUND3: token exist
+	injectSecretToken := func(client *fake.Clientset, secret *corev1.Secret) error {
+		secret = secret.DeepCopy()
+		secret.Data = map[string][]byte{
+			"token": []byte("test token"),
+		}
+		return client.Tracker().Update(schema.GroupVersionResource{Version: "v1", Resource: "secrets"}, secret, metav1.NamespaceDefault)
+	}
+
+	client := fake.NewClientset(makeServiceAccount("test"))
+	client.PrependReactor("get", "serviceaccounts", func(action kubetesting.Action) (bool, runtime.Object, error) {
+		saVisitCount++
+		if saVisitCount == 1 {
+			return true, nil, apierrors.NewNotFound(action.GetResource().GroupResource(), "test")
+		}
+		return false, nil, nil
+	})
+	client.PrependReactor("get", "secrets", func(action kubetesting.Action) (bool, runtime.Object, error) {
+		secretVisitCount++
+		if secretVisitCount == 2 {
+			s, err := client.Tracker().Get(action.GetResource(), action.GetNamespace(), "test")
+			if err != nil {
+				return true, nil, fmt.Errorf("secret shall be found: %v", err)
+			}
+
+			// We inject token here, so that next round will see the token
+			if err := injectSecretToken(client, s.(*corev1.Secret)); err != nil {
+				return true, nil, err
+			}
+			return true, s, nil
+		}
+		return false, nil, nil
+	})
+
+	got, err := WaitForServiceAccountSecretCreation(client, sa)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if got != nil {
+		// remove fields injected by fake client
+		got.TypeMeta = metav1.TypeMeta{}
+		got.ResourceVersion = ""
+		got.UID = ""
+		got.Generation = 0
+		got.ManagedFields = nil
+	}
+
+	want := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: sa.Namespace,
+			Name:      sa.Name,
+			Annotations: map[string]string{
+				corev1.ServiceAccountNameKey: sa.Name,
+			},
+		},
+		Type: corev1.SecretTypeServiceAccountToken,
+		Data: map[string][]byte{
+			"token": []byte("test token"),
+		},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("WaitForServiceAccountSecretCreation() got = %v, want %v", got, want)
+	}
+}
+
+var (
+	alwaysErrorKubeClient kubernetes.Interface
+	errorAction           = func(kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, nil, fmt.Errorf("always error")
+	}
+)
+
+func init() {
+	c := fake.NewClientset()
+	c.PrependReactor("*", "*", errorAction)
+	alwaysErrorKubeClient = c
+}
+
+func makeServiceAccount(name string) *corev1.ServiceAccount {
+	return &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: metav1.NamespaceDefault,
+		},
+	}
+}

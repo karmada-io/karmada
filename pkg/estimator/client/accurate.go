@@ -1,0 +1,270 @@
+/*
+Copyright 2021 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package client
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"google.golang.org/grpc/metadata"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/estimator/pb"
+	"github.com/karmada-io/karmada/pkg/util"
+)
+
+// RegisterSchedulerEstimator will register a SchedulerEstimator.
+func RegisterSchedulerEstimator(se *SchedulerEstimator) {
+	replicaEstimators["scheduler-estimator"] = se
+	unschedulableReplicaEstimators["scheduler-estimator"] = se
+}
+
+type getClusterReplicasFunc func(ctx context.Context, cluster string) (int32, error)
+
+// SchedulerEstimator is an estimator that calls karmada-scheduler-estimator for estimation.
+type SchedulerEstimator struct {
+	cache   *SchedulerEstimatorCache
+	timeout time.Duration
+}
+
+// NewSchedulerEstimator builds a new SchedulerEstimator.
+func NewSchedulerEstimator(cache *SchedulerEstimatorCache, timeout time.Duration) *SchedulerEstimator {
+	return &SchedulerEstimator{
+		cache:   cache,
+		timeout: timeout,
+	}
+}
+
+// MaxAvailableReplicas estimates the maximum replicas that can be applied to the target cluster by calling karmada-scheduler-estimator.
+func (se *SchedulerEstimator) MaxAvailableReplicas(
+	parentCtx context.Context,
+	clusters []*clusterv1alpha1.Cluster,
+	replicaRequirements *workv1alpha2.ReplicaRequirements,
+) ([]workv1alpha2.TargetCluster, error) {
+	clusterNames := make([]string, len(clusters))
+	for i, cluster := range clusters {
+		clusterNames[i] = cluster.Name
+	}
+	return getClusterReplicasConcurrently(parentCtx, clusterNames, se.timeout, func(ctx context.Context, cluster string) (int32, error) {
+		return se.maxAvailableReplicas(ctx, cluster, replicaRequirements.DeepCopy())
+	})
+}
+
+// MaxAvailableComponentSets returns the maximum number of complete multi-component sets (in terms of replicas) that each cluster can host.
+func (se *SchedulerEstimator) MaxAvailableComponentSets(
+	parentCtx context.Context,
+	req ComponentSetEstimationRequest,
+) ([]ComponentSetEstimationResponse, error) {
+	return getClusterComponentSetsConcurrently(parentCtx, req.Clusters, se.timeout, func(ctx context.Context, cluster string) (int32, error) {
+		return se.maxAvailableComponentSets(ctx, cluster, req.Namespace, req.Components)
+	})
+}
+
+// GetUnschedulableReplicas gets the unschedulable replicas which belong to a specified workload by calling karmada-scheduler-estimator.
+func (se *SchedulerEstimator) GetUnschedulableReplicas(
+	parentCtx context.Context,
+	clusters []string,
+	reference *workv1alpha2.ObjectReference,
+	unscheduableThreshold time.Duration,
+) ([]workv1alpha2.TargetCluster, error) {
+	return getClusterReplicasConcurrently(parentCtx, clusters, se.timeout, func(ctx context.Context, cluster string) (int32, error) {
+		return se.maxUnscheduableReplicas(ctx, cluster, reference.DeepCopy(), unscheduableThreshold)
+	})
+}
+
+func (se *SchedulerEstimator) maxAvailableComponentSets(ctx context.Context, cluster string, namespace string, components []workv1alpha2.Component) (int32, error) {
+	client, err := se.cache.GetClient(cluster)
+	if err != nil {
+		return 0, err
+	}
+
+	pbReq := &pb.MaxAvailableComponentSetsRequest{
+		Cluster:    cluster,
+		Components: make([]*pb.Component, 0, len(components)),
+		Namespace:  namespace,
+	}
+
+	for _, comp := range components {
+		// Deep-copy so that pointer is not shared between goroutines
+		var cr *workv1alpha2.ComponentReplicaRequirements
+		if comp.ReplicaRequirements != nil {
+			cr = comp.ReplicaRequirements.DeepCopy()
+		}
+
+		replicaRequirements, err := toPBReplicaRequirements(cr)
+		if err != nil {
+			return 0, err
+		}
+		pbReq.Components = append(pbReq.Components, &pb.Component{
+			Name:                comp.Name,
+			Replicas:            comp.Replicas,
+			ReplicaRequirements: replicaRequirements,
+		})
+	}
+
+	res, err := client.MaxAvailableComponentSets(ctx, pbReq)
+	if err != nil {
+		return 0, fmt.Errorf("gRPC request cluster(%s) estimator error when calling MaxAvailableComponentSets: %v", cluster, err)
+	}
+	return res.MaxSets, nil
+}
+
+// toPBReplicaRequirements converts the API ComponentReplicaRequirements to the pb.ComponentReplicaRequirements pointer.
+func toPBReplicaRequirements(cr *workv1alpha2.ComponentReplicaRequirements) (*pb.ComponentReplicaRequirements, error) {
+	if cr == nil {
+		return nil, nil
+	}
+	out := &pb.ComponentReplicaRequirements{
+		PriorityClassName: cr.PriorityClassName,
+	}
+	if err := out.SetResourceRequest(cr.ResourceRequest); err != nil {
+		return nil, err
+	}
+	if cr.NodeClaim != nil {
+		out.NodeClaim = &pb.NodeClaim{
+			NodeSelector: cr.NodeClaim.NodeSelector,
+		}
+		if err := out.NodeClaim.SetNodeAffinity(cr.NodeClaim.HardNodeAffinity); err != nil {
+			return nil, err
+		}
+		if err := out.NodeClaim.SetTolerations(cr.NodeClaim.Tolerations); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}
+
+func (se *SchedulerEstimator) maxAvailableReplicas(ctx context.Context, cluster string, replicaRequirements *workv1alpha2.ReplicaRequirements) (int32, error) {
+	client, err := se.cache.GetClient(cluster)
+	if err != nil {
+		return UnauthenticReplica, err
+	}
+
+	req := &pb.MaxAvailableReplicasRequest{
+		Cluster: cluster,
+	}
+	if replicaRequirements != nil {
+		req.ReplicaRequirements = &pb.ReplicaRequirements{
+			Namespace:         replicaRequirements.Namespace,
+			PriorityClassName: replicaRequirements.PriorityClassName,
+		}
+		if err = req.ReplicaRequirements.SetResourceRequest(replicaRequirements.ResourceRequest); err != nil {
+			return UnauthenticReplica, err
+		}
+		if replicaRequirements.NodeClaim != nil {
+			req.ReplicaRequirements.NodeClaim = &pb.NodeClaim{
+				NodeSelector: replicaRequirements.NodeClaim.NodeSelector,
+			}
+			if err = req.ReplicaRequirements.NodeClaim.SetNodeAffinity(replicaRequirements.NodeClaim.HardNodeAffinity); err != nil {
+				return UnauthenticReplica, err
+			}
+			if err = req.ReplicaRequirements.NodeClaim.SetTolerations(replicaRequirements.NodeClaim.Tolerations); err != nil {
+				return UnauthenticReplica, err
+			}
+		}
+	}
+	res, err := client.MaxAvailableReplicas(ctx, req)
+	if err != nil {
+		return UnauthenticReplica, fmt.Errorf("gRPC request cluster(%s) estimator error when calling MaxAvailableReplicas: %v", cluster, err)
+	}
+	return res.MaxReplicas, nil
+}
+
+func (se *SchedulerEstimator) maxUnscheduableReplicas(
+	ctx context.Context,
+	cluster string,
+	reference *workv1alpha2.ObjectReference,
+	threshold time.Duration,
+) (int32, error) {
+	client, err := se.cache.GetClient(cluster)
+	if err != nil {
+		return UnauthenticReplica, err
+	}
+
+	req := &pb.UnschedulableReplicasRequest{
+		Cluster: cluster,
+		Resource: &pb.ObjectReference{
+			ApiVersion: reference.APIVersion,
+			Kind:       reference.Kind,
+			Namespace:  reference.Namespace,
+			Name:       reference.Name,
+		},
+		UnschedulableThreshold: int64(threshold),
+	}
+	res, err := client.GetUnschedulableReplicas(ctx, req)
+	if err != nil {
+		return UnauthenticReplica, fmt.Errorf("gRPC request cluster(%s) estimator error when calling UnschedulableReplicas: %v", cluster, err)
+	}
+	return res.UnschedulableReplicas, nil
+}
+
+func getClusterReplicasConcurrently(parentCtx context.Context, clusters []string,
+	timeout time.Duration, getClusterReplicas getClusterReplicasFunc) ([]workv1alpha2.TargetCluster, error) {
+	// add object information into gRPC metadata
+	if u, ok := parentCtx.Value(util.ContextKeyObject).(string); ok {
+		parentCtx = metadata.AppendToOutgoingContext(parentCtx, string(util.ContextKeyObject), u)
+	}
+	ctx, cancel := context.WithTimeout(parentCtx, timeout)
+	defer cancel()
+
+	clusterReplicas := make([]workv1alpha2.TargetCluster, len(clusters))
+	funcs := make([]func() error, len(clusters))
+	for index, cluster := range clusters {
+		localIndex, localCluster := index, cluster
+		funcs[index] = func() error {
+			replicas, err := getClusterReplicas(ctx, localCluster)
+			if err != nil {
+				return err
+			}
+			clusterReplicas[localIndex] = workv1alpha2.TargetCluster{Name: localCluster, Replicas: replicas}
+			return nil
+		}
+	}
+	return clusterReplicas, utilerrors.AggregateGoroutines(funcs...)
+}
+
+func getClusterComponentSetsConcurrently(
+	parentCtx context.Context,
+	clusters []*clusterv1alpha1.Cluster,
+	timeout time.Duration,
+	getClusterSetsEstimation func(ctx context.Context, cluster string) (int32, error),
+) ([]ComponentSetEstimationResponse, error) {
+	// add object info to gRPC metadata
+	if u, ok := parentCtx.Value(util.ContextKeyObject).(string); ok {
+		parentCtx = metadata.AppendToOutgoingContext(parentCtx, string(util.ContextKeyObject), u)
+	}
+	ctx, cancel := context.WithTimeout(parentCtx, timeout)
+	defer cancel()
+
+	results := make([]ComponentSetEstimationResponse, len(clusters))
+	funcs := make([]func() error, len(clusters))
+	for i, cluster := range clusters {
+		localIndex, localCluster := i, cluster
+		funcs[i] = func() error {
+			sets, err := getClusterSetsEstimation(ctx, localCluster.Name)
+			if err != nil {
+				return err
+			}
+			results[localIndex] = ComponentSetEstimationResponse{Name: localCluster.Name, Sets: sets}
+			return nil
+		}
+	}
+	return results, utilerrors.AggregateGoroutines(funcs...)
+}

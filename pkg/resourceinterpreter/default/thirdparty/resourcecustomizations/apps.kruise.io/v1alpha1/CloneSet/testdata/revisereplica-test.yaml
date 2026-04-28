@@ -1,0 +1,48 @@
+# test case for revise replica
+# case1. CloneSet: revise replica test
+
+name: "CloneSet: revise replica test"
+description: "Test revising replica of CloneSet"
+desiredObj:
+  apiVersion: apps.kruise.io/v1alpha1
+  kind: CloneSet
+  metadata:
+    labels:
+      app: sample
+    name: sample
+    namespace: test-cloneset
+    generation: 1
+  spec:
+    replicas: 4
+    selector:
+      matchLabels:
+        app: sample
+        test: cloneset
+    template:
+      metadata:
+        labels:
+          app: sample
+          test: cloneset
+inputReplicas: 1
+operation: ReviseReplica
+output:
+  revised:
+    apiVersion: apps.kruise.io/v1alpha1
+    kind: CloneSet
+    metadata:
+      labels:
+        app: sample
+      name: sample
+      namespace: test-cloneset
+      generation: 1
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app: sample
+          test: cloneset
+      template:
+        metadata:
+          labels:
+            app: sample
+            test: cloneset

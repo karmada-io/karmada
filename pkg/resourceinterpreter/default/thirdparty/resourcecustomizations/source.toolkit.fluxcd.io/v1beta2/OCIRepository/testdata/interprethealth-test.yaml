@@ -1,0 +1,71 @@
+# test cases for interpretHealth of OCIRepository
+# case1. OCIRepository with Ready=True and reason=Succeeded is healthy
+# case2. OCIRepository with Ready=False is not healthy
+# case3. OCIRepository without Ready condition is not healthy
+# case4. OCIRepository with Ready=True but reason != Succeeded is not healthy
+# case5. OCIRepository unhealthy when status or conditions are missing
+
+name: "OCIRepository healthy when Ready=True and reason=Succeeded"
+description: "Health should be true when Ready condition is True and reason is Succeeded"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: OCIRepository
+  status:
+    conditions:
+      - type: Ready
+        status: "True"
+        reason: Succeeded
+operation: InterpretHealth
+output:
+  healthy: true
+---
+name: "OCIRepository unhealthy when Ready=False"
+description: "Health should be false when Ready condition status is False"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: OCIRepository
+  status:
+    conditions:
+      - type: Ready
+        status: "False"
+        reason: Failed
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "OCIRepository unhealthy when Ready condition is missing"
+description: "Health should be false when Ready condition does not exist"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: OCIRepository
+  status:
+    conditions:
+      - type: ArtifactInStorage
+        status: "True"
+        reason: Succeeded
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "OCIRepository unhealthy when Ready=True but reason is not Succeeded"
+description: "Health should be false when Ready condition reason is not Succeeded"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: OCIRepository
+  status:
+    conditions:
+      - type: Ready
+        status: "True"
+        reason: Progressing
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "OCIRepository unhealthy when status or conditions are missing"
+description: "Health should be false when status is nil, conditions are nil, or conditions are empty"
+observedObj:
+  apiVersion: source.toolkit.fluxcd.io/v1beta2
+  kind: OCIRepository
+operation: InterpretHealth
+output:
+  healthy: false

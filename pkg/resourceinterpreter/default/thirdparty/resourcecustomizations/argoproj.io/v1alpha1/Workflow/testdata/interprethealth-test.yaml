@@ -1,0 +1,120 @@
+# test case for interpreting health of Workflow
+# case1. Workflow interpreting health test (Succeeded)
+# case2. Workflow interpreting health test (Failed)
+# case3. Workflow interpreting health test (Error)
+
+name: "Workflow interpreting health test - Succeeded"
+description: "Test interpreting health of succeeded Workflow"
+observedObj:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Workflow
+  metadata:
+    labels:
+      app: sample
+    name: sample-succeeded
+    namespace: test-workflow
+  spec:
+    parallelism: 1
+    entrypoint: volumes-existing-example
+    suspend: true
+    volumes:
+      - name: workdir
+        persistentVolumeClaim:
+          claimName: my-existing-volume
+    serviceAccountName: my-service-account
+    imagePullSecrets:
+      - name: my-secret
+    tolerations:
+      - key: 'key'
+        operation: 'Equal'
+        value: 'value'
+        effect: 'NoSchedule'
+    templates:
+      - name: volumes-existing-example
+        steps:
+          - - name: hello
+              template: whalesay
+      - name: whalesay
+        container:
+          image: docker/whalesay:latest
+          command: [ cowsay ]
+          args: [ "hello world" ]
+          volumeMounts:
+            - name: workdir
+              mountPath: /mnt/vol
+          resources:
+            limits:
+              memory: 1Gi
+            requests:
+              memory: 1Mi
+  status:
+    phase: Succeeded
+    progress: 1/1
+    conditions:
+      - status: "True"
+        type: Completed
+    startedAt: "2023-04-20T11:26:17Z"
+    finishedAt: "2023-04-20T11:26:47Z"
+operation: InterpretHealth
+output:
+  healthy: true
+
+---
+name: "Workflow interpreting health test - Failed"
+description: "Test interpreting health of failed Workflow"
+observedObj:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Workflow
+  metadata:
+    labels:
+      app: sample
+    name: sample-failed
+    namespace: test-workflow
+  spec:
+    parallelism: 1
+    entrypoint: volumes-existing-example
+    volumes:
+      - name: workdir
+        persistentVolumeClaim:
+          claimName: my-existing-volume
+    serviceAccountName: my-service-account
+  status:
+    phase: Failed
+    progress: 0/1
+    conditions:
+      - status: "False"
+        type: Completed
+        message: "step failed"
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "Workflow interpreting health test - Error"
+description: "Test interpreting health of error Workflow"
+observedObj:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Workflow
+  metadata:
+    labels:
+      app: sample
+    name: sample-error
+    namespace: test-workflow
+  spec:
+    parallelism: 1
+    entrypoint: volumes-existing-example
+    volumes:
+      - name: workdir
+        persistentVolumeClaim:
+          claimName: my-existing-volume
+    serviceAccountName: my-service-account
+  status:
+    phase: Error
+    progress: 0/1
+    conditions:
+      - status: "False"
+        type: Completed
+        message: "step errored"
+operation: InterpretHealth
+output:
+  healthy: false

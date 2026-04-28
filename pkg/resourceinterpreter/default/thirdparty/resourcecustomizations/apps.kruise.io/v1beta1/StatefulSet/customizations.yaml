@@ -1,0 +1,182 @@
+apiVersion: config.karmada.io/v1alpha1
+kind: ResourceInterpreterCustomization
+metadata:
+  name: declarative-configuration-statefulset
+spec:
+  target:
+    apiVersion: apps.kruise.io/v1beta1
+    kind: StatefulSet
+  customizations:
+    replicaResource:
+      luaScript: >
+        local kube = require("kube")
+        function GetReplicas(obj)
+          replica = obj.spec.replicas
+          requirement = kube.accuratePodRequirements(obj.spec.template)
+          return replica, requirement
+        end
+    replicaRevision:
+      luaScript: >
+        function ReviseReplica(obj, desiredReplica)
+          obj.spec.replicas = desiredReplica
+          return obj
+        end
+    statusAggregation:
+      luaScript: >
+        function AggregateStatus(desiredObj, statusItems)
+          if desiredObj.status == nil then
+            desiredObj.status = {}
+          end
+          if desiredObj.metadata.generation == nil then
+            desiredObj.metadata.generation = 0
+          end
+          if desiredObj.status.observedGeneration == nil then
+            desiredObj.status.observedGeneration = 0
+          end
+        
+          -- Initialize status fields if status doest not exist
+          -- If the StatefulSet is not spread to any cluster, its status also should be aggregated
+          if statusItems == nil then
+            desiredObj.status.observedGeneration = desiredObj.metadata.generation 
+            desiredObj.status.replicas = 0
+            desiredObj.status.readyReplicas = 0
+            desiredObj.status.currentReplicas = 0
+            desiredObj.status.updatedReplicas = 0
+            desiredObj.status.availableReplicas = 0
+            desiredObj.status.updatedReadyReplicas = 0
+            desiredObj.status.updateRevision = ''
+            desiredObj.status.currentRevision = ''
+            return desiredObj
+          end
+        
+          local generation = desiredObj.metadata.generation
+          local observedGeneration = desiredObj.status.observedGeneration
+          local replicas = 0
+          local readyReplicas = 0
+          local currentReplicas = 0
+          local updatedReplicas = 0
+          local availableReplicas = 0
+          local updatedReadyReplicas = 0
+          local updateRevision = ''
+          local currentRevision = ''
+          local labelSelector = ''
+        
+          -- Count all members that their status is updated to the latest generation
+          local observedResourceTemplateGenerationCount = 0
+        
+          for i = 1, #statusItems do
+            if statusItems[i].status ~= nil and statusItems[i].status.replicas ~= nil then
+              replicas = replicas + statusItems[i].status.replicas
+            end
+            if statusItems[i].status ~= nil and statusItems[i].status.readyReplicas ~= nil then
+              readyReplicas = readyReplicas + statusItems[i].status.readyReplicas
+            end
+            if statusItems[i].status ~= nil and statusItems[i].status.currentReplicas ~= nil then
+              currentReplicas = currentReplicas + statusItems[i].status.currentReplicas
+            end
+            if statusItems[i].status ~= nil and statusItems[i].status.updatedReplicas ~= nil then
+              updatedReplicas = updatedReplicas + statusItems[i].status.updatedReplicas
+            end
+            if statusItems[i].status ~= nil and statusItems[i].status.availableReplicas ~= nil then
+              availableReplicas = availableReplicas + statusItems[i].status.availableReplicas
+            end
+            if statusItems[i].status ~= nil and statusItems[i].status.updatedReadyReplicas ~= nil then
+              updatedReadyReplicas = updatedReadyReplicas + statusItems[i].status.updatedReadyReplicas
+            end            
+            if statusItems[i].status ~= nil and statusItems[i].status.updateRevision ~= nil and statusItems[i].status.updateRevision ~= '' then
+              updateRevision = statusItems[i].status.updateRevision
+            end
+            if statusItems[i].status ~= nil and statusItems[i].status.currentRevision ~= nil and statusItems[i].status.currentRevision ~= '' then
+              currentRevision = statusItems[i].status.currentRevision
+            end
+          
+            -- Check if the member's status is updated to the latest generation
+            local resourceTemplateGeneration = 0
+            if statusItems[i].status ~= nil and statusItems[i].status.resourceTemplateGeneration ~= nil then 
+               resourceTemplateGeneration = statusItems[i].status.resourceTemplateGeneration
+            end
+            local memberGeneration = 0
+            if statusItems[i].status ~= nil and statusItems[i].status.generation ~= nil then
+              memberGeneration = statusItems[i].status.generation
+            end
+            local memberObservedGeneration = 0
+            if statusItems[i].status ~= nil and statusItems[i].status.observedGeneration ~= nil then
+              memberObservedGeneration = statusItems[i].status.observedGeneration
+            end
+            if resourceTemplateGeneration == generation and memberGeneration == memberObservedGeneration then
+              observedResourceTemplateGenerationCount = observedResourceTemplateGenerationCount + 1
+            end           
+          end
+        
+          -- Update the observed generation based on the observedResourceTemplateGenerationCount
+          if observedResourceTemplateGenerationCount == #statusItems then
+            desiredObj.status.observedGeneration = generation
+          else
+            desiredObj.status.observedGeneration = observedGeneration 
+          end
+        
+          desiredObj.status.replicas = replicas
+          desiredObj.status.readyReplicas = readyReplicas
+          desiredObj.status.currentReplicas = currentReplicas
+          desiredObj.status.updatedReplicas = updatedReplicas
+          desiredObj.status.availableReplicas = availableReplicas
+          desiredObj.status.updatedReadyReplicas = updatedReadyReplicas
+          desiredObj.status.updateRevision = updateRevision
+          desiredObj.status.currentRevision = currentRevision
+          return desiredObj
+        end
+    statusReflection:
+      luaScript: >
+        function ReflectStatus(observedObj)
+          local status = {}
+          if observedObj == nil or observedObj.status == nil then
+            return status
+          end
+          status.replicas = observedObj.status.replicas
+          status.readyReplicas = observedObj.status.readyReplicas
+          status.currentReplicas = observedObj.status.currentReplicas
+          status.updatedReplicas = observedObj.status.updatedReplicas
+          status.availableReplicas = observedObj.status.availableReplicas
+          status.updateRevision = observedObj.status.updateRevision
+          status.currentRevision = observedObj.status.currentRevision
+          status.updatedReadyReplicas = observedObj.status.updatedReadyReplicas
+          status.observedGeneration = observedObj.status.observedGeneration
+          
+          -- handle resource generation report
+          if observedObj.metadata == nil then
+            return status
+          end
+          status.generation = observedObj.metadata.generation
+        
+          if observedObj.metadata.annotations == nil then
+            return status
+          end
+          local resourceTemplateGeneration = tonumber(observedObj.metadata.annotations["resourcetemplate.karmada.io/generation"])
+          if resourceTemplateGeneration ~= nil then
+            status.resourceTemplateGeneration = resourceTemplateGeneration
+          end
+          return status
+        end
+    healthInterpretation:
+      luaScript: >
+        function InterpretHealth(observedObj)
+          if observedObj.status.observedGeneration ~= observedObj.metadata.generation then
+            return false
+          end
+          if observedObj.spec.replicas ~= nil then
+            if observedObj.status.updatedReplicas < observedObj.spec.replicas then
+              return false
+            end
+          end
+          if observedObj.status.availableReplicas < observedObj.status.updatedReplicas then
+            return false
+          end
+          return true
+        end
+    dependencyInterpretation:
+      luaScript: >
+        local kube = require("kube")
+        function GetDependencies(desiredObj)
+          refs = kube.getPodDependencies(desiredObj.spec.template, desiredObj.metadata.namespace)
+          return refs
+        end

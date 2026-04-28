@@ -1,0 +1,785 @@
+/*
+Copyright 2022 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package native
+
+import (
+	"testing"
+
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+)
+
+func Test_interpretDeploymentHealth(t *testing.T) {
+	tests := []struct {
+		name    string
+		object  *unstructured.Unstructured
+		want    bool
+		wantErr bool
+	}{
+		{
+			name: "deployment healthy",
+			object: &unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]any{
+						"name":       "fake-deployment",
+						"generation": 1,
+					},
+					"spec": map[string]any{
+						"replicas": 3,
+					},
+					"status": map[string]any{
+						"availableReplicas":  3,
+						"updatedReplicas":    3,
+						"observedGeneration": 1,
+					},
+				},
+			},
+			want:    true,
+			wantErr: false,
+		},
+		{
+			name: "generation not equal to observedGeneration",
+			object: &unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]any{
+						"name":       "fake-deployment",
+						"generation": 1,
+					},
+					"spec": map[string]any{
+						"replicas": 3,
+					},
+					"status": map[string]any{
+						"availableReplicas":  3,
+						"updatedReplicas":    3,
+						"observedGeneration": 2,
+					},
+				},
+			},
+			want:    false,
+			wantErr: false,
+		},
+		{
+			name: "replicas not equal to updatedReplicas",
+			object: &unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]any{
+						"name":       "fake-deployment",
+						"generation": 1,
+					},
+					"spec": map[string]any{
+						"replicas": 3,
+					},
+					"status": map[string]any{
+						"updatedReplicas":    1,
+						"observedGeneration": 1,
+					},
+				},
+			},
+			want:    false,
+			wantErr: false,
+		},
+		{
+			name: "availableReplicas not equal to updatedReplicas",
+			object: &unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]any{
+						"name":       "fake-deployment",
+						"generation": 1,
+					},
+					"spec": map[string]any{
+						"replicas": 3,
+					},
+					"status": map[string]any{
+						"availableReplicas":  0,
+						"updatedReplicas":    3,
+						"observedGeneration": 1,
+					},
+				},
+			},
+			want:    false,
+			wantErr: false,
+		},
+	}
+	for i := range tests {
+		tt := tests[i]
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := interpretDeploymentHealth(tt.object)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("interpretDeploymentHealth() err = %v, wantErr %v", err, tt.wantErr)
+			}
+			if got != tt.want {
+				t.Errorf("interpretDeploymentHealth() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_interpretStatefulSetHealth(t *testing.T) {
+	tests := []struct {
+		name    string
+		object  *unstructured.Unstructured
+		want    bool
+		wantErr bool
+	}{
+		{
+			name: "statefulSet healthy",
+			object: &unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "apps/v1",
+					"kind":       "StatefulSet",
+					"metadata": map[string]any{
+						"name":       "fake-statefulSet",
+						"generation": 1,
+					},
+					"spec": map[string]any{
+						"replicas": 3,
+					},
+					"status": map[string]any{
+						"availableReplicas":  3,
+						"updatedReplicas":    3,
+						"observedGeneration": 1,
+					},
+				},
+			},
+			want:    true,
+			wantErr: false,
+		},
+		{
+			name: "generation not equal to observedGeneration",
+			object: &unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "apps/v1",
+					"kind":       "StatefulSet",
+					"metadata": map[string]any{
+						"name":       "fake-statefulSet",
+						"generation": 1,
+					},
+					"spec": map[string]any{
+						"replicas": 3,
+					},
+					"status": map[string]any{
+						"availableReplicas":  3,
+						"updatedReplicas":    3,
+						"observedGeneration": 2,
+					},
+				},
+			},
+			want:    false,
+			wantErr: false,
+		},
+		{
+			name: "replicas not equal to updatedReplicas",
+			object: &unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "apps/v1",
+					"kind":       "StatefulSet",
+					"metadata": map[string]any{
+						"name":       "fake-statefulSet",
+						"generation": 1,
+					},
+					"spec": map[string]any{
+						"replicas": 3,
+					},
+					"status": map[string]any{
+						"updatedReplicas":    1,
+						"observedGeneration": 1,
+					},
+				},
+			},
+			want:    false,
+			wantErr: false,
+		},
+		{
+			name: "availableReplicas not equal to updatedReplicas",
+			object: &unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "apps/v1",
+					"kind":       "StatefulSet",
+					"metadata": map[string]any{
+						"name":       "fake-statefulSet",
+						"generation": 1,
+					},
+					"spec": map[string]any{
+						"replicas": 3,
+					},
+					"status": map[string]any{
+						"availableReplicas":  1,
+						"updatedReplicas":    3,
+						"observedGeneration": 1,
+					},
+				},
+			},
+			want:    false,
+			wantErr: false,
+		},
+	}
+	for i := range tests {
+		tt := tests[i]
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := interpretStatefulSetHealth(tt.object)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("interpretStatefulSetHealth() err = %v, wantErr %v", err, tt.wantErr)
+			}
+			if got != tt.want {
+				t.Errorf("interpretStatefulSetHealth() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_interpretReplicaSetHealth(t *testing.T) {
+	tests := []struct {
+		name    string
+		object  *unstructured.Unstructured
+		want    bool
+		wantErr bool
+	}{
+		{
+			name: "replicaSet healthy",
+			object: &unstructured.Unstructured{
+				Object: map[string]any{
+					"metadata": map[string]any{
+						"generation": 1,
+					},
+					"spec": map[string]any{
+						"replicas": 3,
+					},
+					"status": map[string]any{
+						"availableReplicas":  3,
+						"observedGeneration": 1,
+					},
+				},
+			},
+			want:    true,
+			wantErr: false,
+		},
+		{
+			name: "generation not equal to observedGeneration",
+			object: &unstructured.Unstructured{
+				Object: map[string]any{
+					"metadata": map[string]any{
+						"generation": 1,
+					},
+					"spec": map[string]any{
+						"replicas": 3,
+					},
+					"status": map[string]any{
+						"availableReplicas":  3,
+						"observedGeneration": 2,
+					},
+				},
+			},
+			want:    false,
+			wantErr: false,
+		},
+		{
+			name: "replicas not equal to availableReplicas",
+			object: &unstructured.Unstructured{
+				Object: map[string]any{
+					"metadata": map[string]any{
+						"generation": 1,
+					},
+					"spec": map[string]any{
+						"replicas": 3,
+					},
+					"status": map[string]any{
+						"availableReplicas":  2,
+						"observedGeneration": 2,
+					},
+				},
+			},
+		},
+	}
+	for i := range tests {
+		tt := tests[i]
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := interpretReplicaSetHealth(tt.object)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("interpretReplicaSetHealth() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("interpretReplicaSetHealth() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_interpretDaemonSetHealth(t *testing.T) {
+	tests := []struct {
+		name    string
+		object  *unstructured.Unstructured
+		want    bool
+		wantErr bool
+	}{
+		{
+			name: "daemonSet healthy",
+			object: &unstructured.Unstructured{
+				Object: map[string]any{
+					"metadata": map[string]any{
+						"generation": 1,
+					},
+					"status": map[string]any{
+						"observedGeneration": 1,
+					},
+				},
+			},
+			want:    true,
+			wantErr: false,
+		},
+		{
+			name: "generation not equal to observedGeneration",
+			object: &unstructured.Unstructured{
+				Object: map[string]any{
+					"metadata": map[string]any{
+						"generation": 1,
+					},
+					"status": map[string]any{
+						"observedGeneration": 2,
+					},
+				},
+			},
+			want:    false,
+			wantErr: false,
+		},
+		{
+			name: "updatedNumberScheduled < desiredNumberScheduled",
+			object: &unstructured.Unstructured{
+				Object: map[string]any{
+					"status": map[string]any{
+						"updatedNumberScheduled": 3,
+						"desiredNumberScheduled": 5,
+					},
+				},
+			},
+			want:    false,
+			wantErr: false,
+		},
+		{
+			name: "numberAvailable < updatedNumberScheduled",
+			object: &unstructured.Unstructured{
+				Object: map[string]any{
+					"status": map[string]any{
+						"updatedNumberScheduled": 5,
+						"numberAvailable":        3,
+					},
+				},
+			},
+			want:    false,
+			wantErr: false,
+		},
+	}
+	for i := range tests {
+		tt := tests[i]
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := interpretDaemonSetHealth(tt.object)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("interpretDaemonSetHealth() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("interpretDaemonSetHealth() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_interpretServiceHealth(t *testing.T) {
+	tests := []struct {
+		name    string
+		object  *unstructured.Unstructured
+		want    bool
+		wantErr bool
+	}{
+		{
+			name: "service healthy",
+			object: &unstructured.Unstructured{
+				Object: map[string]any{
+					"spec": map[string]any{
+						"type": corev1.ServiceTypeLoadBalancer,
+					},
+					"status": map[string]any{
+						"loadBalancer": map[string]any{
+							"ingress": []map[string]any{{"ip": "localhost"}},
+						},
+					},
+				},
+			},
+			want:    true,
+			wantErr: false,
+		},
+		{
+			name: "not loadBalancer type",
+			object: &unstructured.Unstructured{
+				Object: map[string]any{
+					"spec": map[string]any{
+						"type": corev1.ServiceTypeNodePort,
+					},
+					"status": map[string]any{
+						"loadBalancer": map[string]any{
+							"ingress": []map[string]any{{"ip": "localhost"}},
+						},
+					},
+				},
+			},
+			want:    true,
+			wantErr: false,
+		},
+		{
+			name: "status.loadBalancer.ingress list is empty",
+			object: &unstructured.Unstructured{
+				Object: map[string]any{
+					"spec": map[string]any{
+						"type": corev1.ServiceTypeLoadBalancer,
+					},
+					"status": map[string]any{
+						"loadBalancer": map[string]any{
+							"ingress": []map[string]any{},
+						},
+					},
+				},
+			},
+			want:    false,
+			wantErr: false,
+		},
+	}
+	for i := range tests {
+		tt := tests[i]
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := interpretServiceHealth(tt.object)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("interpretServiceHealth() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("interpretServiceHealth() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_interpretIngressHealth(t *testing.T) {
+	tests := []struct {
+		name    string
+		object  *unstructured.Unstructured
+		want    bool
+		wantErr bool
+	}{
+		{
+			name: "ingress healthy",
+			object: &unstructured.Unstructured{
+				Object: map[string]any{
+					"status": map[string]any{
+						"loadBalancer": map[string]any{
+							"ingress": []map[string]any{{"ip": "localhost"}},
+						},
+					},
+				},
+			},
+			want:    true,
+			wantErr: false,
+		},
+		{
+			name: "status.loadBalancer.ingress list is empty",
+			object: &unstructured.Unstructured{
+				Object: map[string]any{
+					"status": map[string]any{
+						"loadBalancer": map[string]any{
+							"ingress": []map[string]any{},
+						},
+					},
+				},
+			},
+			want:    false,
+			wantErr: false,
+		},
+	}
+	for i := range tests {
+		tt := tests[i]
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := interpretIngressHealth(tt.object)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("interpretIngressHealth() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("interpretIngressHealth() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_interpretPersistentVolumeClaimHealth(t *testing.T) {
+	tests := []struct {
+		name    string
+		object  *unstructured.Unstructured
+		want    bool
+		wantErr bool
+	}{
+		{
+			name: "persistentVolumeClaim healthy",
+			object: &unstructured.Unstructured{
+				Object: map[string]any{
+					"status": map[string]any{
+						"phase": corev1.ClaimBound,
+					},
+				},
+			},
+			want:    true,
+			wantErr: false,
+		},
+		{
+			name: "status.phase not equals to Bound",
+			object: &unstructured.Unstructured{
+				Object: map[string]any{
+					"status": map[string]any{
+						"phase": corev1.ClaimPending,
+					},
+				},
+			},
+			want:    false,
+			wantErr: false,
+		},
+	}
+	for i := range tests {
+		tt := tests[i]
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := interpretPersistentVolumeClaimHealth(tt.object)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("interpretPersistentVolumeClaimHealth() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("interpretPersistentVolumeClaimHealth() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_interpretPodHealth(t *testing.T) {
+	tests := []struct {
+		name    string
+		object  *unstructured.Unstructured
+		want    bool
+		wantErr bool
+	}{
+		{
+			name: "service type pod healthy",
+			object: &unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "v1",
+					"kind":       "Pod",
+					"metadata": map[string]any{
+						"name": "fake-pod",
+					},
+					"status": map[string]any{
+						"conditions": []map[string]string{
+							{
+								"type":   "Ready",
+								"status": "True",
+							},
+						},
+						"phase": "Running",
+					},
+				},
+			},
+			want:    true,
+			wantErr: false,
+		},
+		{
+			name: "job type pod healthy",
+			object: &unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "v1",
+					"kind":       "Pod",
+					"metadata": map[string]any{
+						"name": "fake-pod",
+					},
+					"status": map[string]any{
+						"phase": "Succeeded",
+					},
+				},
+			},
+			want:    true,
+			wantErr: false,
+		},
+		{
+			name: "pod condition ready false",
+			object: &unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "v1",
+					"kind":       "Pod",
+					"metadata": map[string]any{
+						"name": "fake-pod",
+					},
+					"status": map[string]any{
+						"conditions": []map[string]string{
+							{
+								"type":   "Ready",
+								"status": "Unknown",
+							},
+						},
+						"phase": "Running",
+					},
+				},
+			},
+			want:    false,
+			wantErr: false,
+		},
+		{
+			name: "pod phase not running and not succeeded",
+			object: &unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "v1",
+					"kind":       "Pod",
+					"metadata": map[string]any{
+						"name": "fake-pod",
+					},
+					"status": map[string]any{
+						"phase": "Failed",
+					},
+				},
+			},
+			want:    false,
+			wantErr: false,
+		},
+		{
+			name: "condition or phase nil",
+			object: &unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "v1",
+					"kind":       "Pod",
+					"metadata": map[string]any{
+						"name": "fake-pod",
+					},
+				},
+			},
+			want:    false,
+			wantErr: false,
+		},
+	}
+	for i := range tests {
+		tt := tests[i]
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := interpretPodHealth(tt.object)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("interpretPodHealth() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("interpretPodHealth() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_interpretPodDisruptionBudgetHealth(t *testing.T) {
+	tests := []struct {
+		name   string
+		object *unstructured.Unstructured
+		want   bool
+	}{
+		{
+			name: "podDisruptionBudget healthy",
+			object: &unstructured.Unstructured{
+				Object: map[string]any{
+					"status": map[string]any{
+						"desiredHealthy": 2,
+						"currentHealthy": 3,
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "podDisruptionBudget healthy when desired healthy equals to current healthy pods",
+			object: &unstructured.Unstructured{
+				Object: map[string]any{
+					"status": map[string]any{
+						"desiredHealthy": 2,
+						"currentHealthy": 2,
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "podDisruptionBudget does not allow further disruption when number of healthy pods is less than desired",
+			object: &unstructured.Unstructured{
+				Object: map[string]any{
+					"status": map[string]any{
+						"desiredHealthy": 2,
+						"currentHealthy": 1,
+					},
+				},
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, _ := interpretPodDisruptionBudgetHealth(tt.object)
+			if got != tt.want {
+				t.Errorf("interpretPodDisruptionBudgetHealth() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_getAllDefaultHealthInterpreter(t *testing.T) {
+	expectedKinds := []schema.GroupVersionKind{
+		{Group: "apps", Version: "v1", Kind: "Deployment"},
+		{Group: "apps", Version: "v1", Kind: "StatefulSet"},
+		{Group: "apps", Version: "v1", Kind: "ReplicaSet"},
+		{Group: "apps", Version: "v1", Kind: "DaemonSet"},
+		{Group: "", Version: "v1", Kind: "Service"},
+		{Group: "networking.k8s.io", Version: "v1", Kind: "Ingress"},
+		{Group: "", Version: "v1", Kind: "PersistentVolumeClaim"},
+		{Group: "", Version: "v1", Kind: "Pod"},
+		{Group: "policy", Version: "v1", Kind: "PodDisruptionBudget"},
+	}
+
+	got := getAllDefaultHealthInterpreter()
+
+	if len(got) != len(expectedKinds) {
+		t.Errorf("getAllDefaultHealthInterpreter() length = %d, want %d", len(got), len(expectedKinds))
+	}
+
+	for _, key := range expectedKinds {
+		_, exists := got[key]
+		if !exists {
+			t.Errorf("getAllDefaultHealthInterpreter() missing key %v", key)
+		}
+	}
+}

@@ -1,0 +1,139 @@
+# test case for interpreting health of HelmRelease
+# case1. HelmRelease with Ready=True, reason=ReconciliationSucceeded should be Healthy
+# case2. HelmRelease with Ready=True, reason=OtherReason should be Unhealthy
+# case3. HelmRelease with Ready=False should be Unhealthy
+# case4. HelmRelease with Ready condition missing should be Unhealthy
+# case5. HelmRelease without conditions should be Unhealthy
+# case6. HelmRelease without status should be Unhealthy
+# case7. HelmRelease with Ready condition at different position should be Healthy
+
+name: "HelmRelease with Ready=True, reason=ReconciliationSucceeded should be Healthy"
+description: "Test interpreting health of HelmRelease when Ready condition is True with ReconciliationSucceeded reason"
+observedObj:
+  apiVersion: helm.toolkit.fluxcd.io/v2beta1
+  kind: HelmRelease
+  metadata:
+    name: sample
+    namespace: default
+  status:
+    conditions:
+      - type: Ready
+        status: "True"
+        reason: ReconciliationSucceeded
+        message: Release reconciliation succeeded
+operation: InterpretHealth
+output:
+  healthy: true
+
+---
+name: "HelmRelease with Ready=True, reason=OtherReason should be Unhealthy"
+description: "Test interpreting health of HelmRelease when Ready condition is True but reason is not ReconciliationSucceeded"
+observedObj:
+  apiVersion: helm.toolkit.fluxcd.io/v2beta1
+  kind: HelmRelease
+  metadata:
+    name: sample
+    namespace: default
+  status:
+    conditions:
+      - type: Ready
+        status: "True"
+        reason: InstallSucceeded
+        message: Helm install succeeded
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "HelmRelease with Ready=False should be Unhealthy"
+description: "Test interpreting health of HelmRelease when Ready condition is False"
+observedObj:
+  apiVersion: helm.toolkit.fluxcd.io/v2beta1
+  kind: HelmRelease
+  metadata:
+    name: sample
+    namespace: default
+  status:
+    conditions:
+      - type: Ready
+        status: "False"
+        reason: ReconciliationFailed
+        message: Release reconciliation failed
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "HelmRelease with Ready condition missing should be Unhealthy"
+description: "Test interpreting health of HelmRelease when Ready condition is missing"
+observedObj:
+  apiVersion: helm.toolkit.fluxcd.io/v2beta1
+  kind: HelmRelease
+  metadata:
+    name: sample
+    namespace: default
+  status:
+    conditions:
+      - type: Released
+        status: "True"
+        reason: InstallSucceeded
+        message: Helm install succeeded
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "HelmRelease without conditions should be Unhealthy"
+description: "Test interpreting health of HelmRelease when conditions array is empty"
+observedObj:
+  apiVersion: helm.toolkit.fluxcd.io/v2beta1
+  kind: HelmRelease
+  metadata:
+    name: sample
+    namespace: default
+  status:
+    conditions: []
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "HelmRelease without status should be Unhealthy"
+description: "Test interpreting health of HelmRelease when status is nil"
+observedObj:
+  apiVersion: helm.toolkit.fluxcd.io/v2beta1
+  kind: HelmRelease
+  metadata:
+    name: sample
+    namespace: default
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "HelmRelease with Ready condition at different position should be Healthy"
+description: "Test interpreting health of HelmRelease when Ready condition is not the first one"
+observedObj:
+  apiVersion: helm.toolkit.fluxcd.io/v2beta1
+  kind: HelmRelease
+  metadata:
+    name: sample
+    namespace: default
+  status:
+    conditions:
+      - type: Released
+        status: "True"
+        reason: InstallSucceeded
+        message: Helm install succeeded
+      - type: Ready
+        status: "True"
+        reason: ReconciliationSucceeded
+        message: Release reconciliation succeeded
+      - type: Test
+        status: "True"
+        reason: TestSucceeded
+        message: Helm test succeeded
+operation: InterpretHealth
+output:
+  healthy: true
+

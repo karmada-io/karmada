@@ -1,0 +1,28 @@
+apiVersion: policy.karmada.io/v1alpha1
+kind: OverridePolicy
+metadata:
+  name: example-override
+  namespace: default
+spec:
+  resourceSelectors:
+    - apiVersion: apps/v1
+      kind: Deployment
+  overrideRules:
+    - targetCluster:
+        labelSelector:
+          matchLabels:
+            location: us
+      overriders:
+        imageOverrider:
+          - component: Registry
+            operator: replace
+            value: fictional.registry.us
+    - targetCluster:
+        labelSelector:
+          matchLabels:
+            location: cn
+      overriders:
+        imageOverrider:
+          - component: Registry
+            operator: replace
+            value: fictional.registry.cn

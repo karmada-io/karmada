@@ -1,0 +1,13 @@
+apiVersion: work.karmada.io/v1alpha1
+kind: ResourceBinding
+metadata:
+  name: binding-foo
+spec:
+  resource:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: nginx
+    namespace: default
+  clusters:
+    - name: cluster1
+    - name: cluster3

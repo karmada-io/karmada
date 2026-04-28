@@ -1,0 +1,1067 @@
+## Default values for charts.
+## This is a YAML-formatted file.
+## Declare variables to be passed into your templates.
+
+## @param global karmada global config
+global:
+  ## @param global.imageRegistry Global Docker image registry
+  imageRegistry: ""
+  ## E.g.
+  ## imagePullSecrets:
+  ##   - myRegistryKeySecretName
+  imagePullSecrets: []
+
+  ## #param global.commonLabels Common labels applied to all resources
+  ## E.g.
+  ## commonLabels:
+  ##   team: infra
+  commonLabels: {}
+
+## @karmadaImageVersion the image version of each karmada components
+## "latest" is a default value for local installation.
+## If update this anchors("&karmadaImageVersion"), also update hack/package-helm-chart.sh.
+## See https://yaml.org/spec/1.2/spec.html#id2765878 and
+## https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_advanced_syntax.html#yaml-anchors-and-aliases-sharing-variable-values
+## for more details about yaml anchors and aliases.
+karmadaImageVersion: &karmadaImageVersion latest
+
+## Specify the imagePullPolicy of karmada images
+## Defaults to 'IfNotPresent', you can set to 'Always' in cases of special needs
+karmadaImagePullPolicy: &karmadaImagePullPolicy IfNotPresent
+
+podDisruptionBudget: &podDisruptionBudget {}
+  # maxUnavailable: 20%
+
+## @param installMode "host" and "agent" are provided
+## "host" means install karmada in the control-cluster
+## "agent" means install agent client in the member cluster
+## "component" means install selected components in the control-cluster
+installMode: "host"
+
+## @param clusterDomain default domain for karmada
+clusterDomain: "cluster.local"
+
+systemNamespace: "karmada-system"
+
+## @param components component list
+components: []
+  # components: [
+  #   "schedulerEstimator"
+  #   "descheduler"
+  #   "search"
+  # ]
+
+cfssl:
+  ## @param image.registry karmada cfssl image registry
+  ## @param image.repository karmada cfssl image repository
+  ## @param image.tag karmada cfssl image tag (immutable tags are recommended)
+  ## @param image.pullSecrets Specify docker-registry secret names as an array
+  ##
+  image:
+    registry: docker.io
+    repository: cfssl/cfssl
+    tag: latest
+    ## Specify a imagePullPolicy, defaults to 'IfNotPresent'
+    pullPolicy: IfNotPresent
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## Example:
+    ## pullSecrets:
+    ##   - myRegistryKeySecretName
+    ##
+    pullSecrets: []
+
+kubectl:
+  ## @param image.registry karmada kubectl image registry
+  ## @param image.repository karmada kubectl image repository
+  ## @param image.tag karmada kubectl image tag (immutable tags are recommended)
+  ## @param image.pullSecrets Specify docker-registry secret names as an array
+  ##
+  image:
+    registry: docker.io
+    repository: bitnamisecure/kubectl
+    tag: latest
+    ## Specify a imagePullPolicy, defaults to 'IfNotPresent'
+    pullPolicy: IfNotPresent
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## Example:
+    ## pullSecrets:
+    ##   - myRegistryKeySecretName
+    ##
+    pullSecrets: []
+
+## pre-install job config
+preInstallJob:
+  tolerations: []
+  nodeSelector: {}
+  ## Define policies that determine when to delete corresponding hook resources: before-hook-creation,hook-succeeded,hook-failed
+  hookDeletePolicy: "hook-succeeded"
+
+preUpdateJob:
+  tolerations: []
+  nodeSelector: {}
+  ## Define policies that determine when to delete corresponding hook resources: before-hook-creation,hook-succeeded,hook-failed
+  hookDeletePolicy: "hook-succeeded"
+
+## static-resource job config
+staticResourceJob:
+  tolerations: []
+  nodeSelector: {}
+  ## Set a TTL for the static-resource Job, the Job will be automatically cleaned up after this time.
+  ## This only works on Kubernetes version 1.23 or higher.
+  ttlSecondsAfterFinished: 10
+
+## post-install job config
+postInstallJob:
+  tolerations: []
+  nodeSelector: {}
+  ## Define policies that determine when to delete corresponding hook resources: before-hook-creation,hook-succeeded,hook-failed
+  hookDeletePolicy: "hook-succeeded"
+
+## post-delete job config
+postDeleteJob:
+  tolerations: []
+  nodeSelector: {}
+  ## Define policies that determine when to delete corresponding hook resources: before-hook-creation,hook-succeeded,hook-failed
+  hookDeletePolicy: "hook-succeeded"
+
+## karmada certificate config
+certs:
+  ## @param certs.mode "auto" and "custom" are provided
+  ## "auto" means auto generate certificate
+  ## "custom" means use user certificate
+  mode: auto
+  auto:
+    ## @param certs.auto.expiry expiry of the certificate
+    ## Note: The expiry value should not exceed the rootCA expiry time (rootCAExpiryDays * 24h)
+    expiry: 43800h
+    ## @param certs.auto.rootCAExpiryDays expiry of the root CA certificate in days, defaults to 3650 days (10 years)
+    rootCAExpiryDays: 3650
+    ## @param certs.auto.hosts hosts of the certificate
+    hosts: [
+      "kubernetes.default.svc",
+      "*.etcd.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}",
+      "*.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}",
+      "*.{{ .Release.Namespace }}.svc",
+      "localhost",
+      "127.0.0.1"
+    ]
+    ## @param certs.auto.rsaSize rsa key size of the certificate
+    rsaSize: 3072
+  custom:
+    ## @param certs.custom.caCrt ca of the certificate
+    caCrt: |
+      -----BEGIN CERTIFICATE-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END CERTIFICATE-----
+    ## @param certs.custom.caKey key of the ca
+    caKey: |
+      -----BEGIN RSA PRIVATE KEY-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END RSA PRIVATE KEY-----
+    ## @param certs.custom.crt crt of the certificate
+    crt: |
+      -----BEGIN CERTIFICATE-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END CERTIFICATE-----
+    ## @param certs.custom.key key of the certificate
+    key: |
+      -----BEGIN RSA PRIVATE KEY-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END RSA PRIVATE KEY-----
+    ## @param certs.custom.frontProxyCaCrt ca of the front proxy certificate
+    frontProxyCaCrt: |
+      -----BEGIN CERTIFICATE-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END CERTIFICATE-----
+    ## @param certs.custom.frontProxyCrt crt of the front proxy certificate
+    frontProxyCrt: |
+      -----BEGIN CERTIFICATE-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END CERTIFICATE-----
+    ## @param certs.custom.frontProxyKey key of the front proxy certificate
+    frontProxyKey: |
+      -----BEGIN RSA PRIVATE KEY-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END RSA PRIVATE KEY-----
+
+## scheduler config
+scheduler:
+  ## @param scheduler.labels labels of the schedeler deployment
+  labels:
+    app: karmada-scheduler
+  ## @param scheduler.replicaCount target replicas of the scheduler
+  replicaCount: 1
+  ## @param scheduler.logVerbosity log verbosity level for the scheduler
+  logVerbosity: 2
+  ## @param scheduler.podAnnotations annotations of the scheduler pods
+  podAnnotations: {}
+  ## @param scheduler.podLabels labels of the scheduler pods
+  podLabels: {}
+  ## @param image.registry karmada scheduler image registry
+  ## @param image.repository karmada scheduler image repository
+  ## @param image.tag karmada scheduler image tag (immutable tags are recommended)
+  ## @param image.pullPolicy karmada scheduler image pull policy
+  ## @param image.pullSecrets Specify docker-registry secret names as an array
+  ##
+  image:
+    registry: docker.io
+    repository: karmada/karmada-scheduler
+    tag: *karmadaImageVersion
+    pullPolicy: *karmadaImagePullPolicy
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## Example:
+    ## pullSecrets:
+    ##   - myRegistryKeySecretName
+    ##
+    pullSecrets: []
+  ## @param scheduler.resources resource quota of the scheduler
+  resources: {}
+    # If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+  ## @param scheduler.nodeSelector node selector of the scheduler
+  nodeSelector: {}
+  ## @param scheduler.affinity affinity of the scheduler
+  affinity: {}
+  ## @param scheduler.tolerations tolerations of the scheduler
+  tolerations: []
+    # - key: node-role.kubernetes.io/master
+    #   operator: Exists
+  ## @param scheduler.strategy strategy of the scheduler
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 50%
+  ## @param apiServer.podDisruptionBudget
+  podDisruptionBudget: *podDisruptionBudget
+  ## @param scheduler.priorityClassName the priority class name for the karmada-scheduler
+  priorityClassName: "system-node-critical"
+  ## @param scheduler.enableSchedulerEstimator enable scheduler estimator
+  enableSchedulerEstimator: false
+  ## @param scheduler.featureGates A set of key=value pairs that describe feature gates for karmada-scheduler
+  featureGates: {}
+
+## webhook config
+webhook:
+  ## @param webhook.labels labels of the webhook deployment
+  labels:
+    app: karmada-webhook
+  ## @param webhook.replicaCount target replicas
+  replicaCount: 1
+  ## @param webhook.logVerbosity log verbosity level for the webhook
+  logVerbosity: 2
+  ## @param webhook.podAnnotations annotations of the webhook pods
+  podAnnotations: {}
+  ## @param webhook.podLabels labels of the webhook pods
+  podLabels: {}
+  ## @param image.registry karmada webhook image registry
+  ## @param image.repository karmada webhook image repository
+  ## @param image.tag karmada webhook image tag (immutable tags are recommended)
+  ## @param image.pullPolicy karmada webhook image pull policy
+  ## @param image.pullSecrets Specify docker-registry secret names as an array
+  ##
+  image:
+    registry: docker.io
+    repository: karmada/karmada-webhook
+    tag: *karmadaImageVersion
+    pullPolicy: *karmadaImagePullPolicy
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## Example:
+    ## pullSecrets:
+    ##   - myRegistryKeySecretName
+    ##
+    pullSecrets: []
+  ## @param webhook.resources resource quota of the webhook
+  resources: {}
+    # If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+  ## @param webhook.nodeSelector node selector of the webhook
+  nodeSelector: {}
+  ## @param webhook.affinity affinity of the webhook
+  affinity: {}
+  ## @param webhook.tolerations tolerations of the webhook
+  tolerations: []
+    # - key: node-role.kubernetes.io/master
+    #   operator: Exists
+  ## @param webhook.strategy strategy of the webhook
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 50%
+  ## @param webhook.podDisruptionBudget
+  podDisruptionBudget: *podDisruptionBudget
+  ## @param webhook.priorityClassName the priority class name for the karmada-webhook
+  priorityClassName: "system-node-critical"
+  ## @param webhook.featureGates A set of key=value pairs that describe feature gates for karmada-webhook
+  featureGates: {}
+
+## controller manager config
+controllerManager:
+  ## @param controllerManager.labels labels of the karmada-controller-manager deployment
+  labels:
+    app: karmada-controller-manager
+  ## @param controllerManager.replicaCount target replicas of the karmada-controller-manager
+  replicaCount: 1
+  ## @param controllerManager.logVerbosity log verbosity level for the controller manager
+  logVerbosity: 2
+  ## @param controllerManager.podAnnotations annotations of the karmada-controller-manager pods
+  podAnnotations: {}
+  ## @param controllerManager.podLabels labels of the karmada-controller-manager pods
+  podLabels: {}
+  ## @param image.registry karmada controller manager image registry
+  ## @param image.repository karmada controller manager image repository
+  ## @param image.tag karmada controller manager image tag (immutable tags are recommended)
+  ## @param image.pullPolicy karmada controller manager image pull policy
+  ## @param image.pullSecrets Specify docker-registry secret names as an array
+  ##
+  image:
+    registry: docker.io
+    repository: karmada/karmada-controller-manager
+    tag: *karmadaImageVersion
+    pullPolicy: *karmadaImagePullPolicy
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## Example:
+    ## pullSecrets:
+    ##   - myRegistryKeySecretName
+    ##
+    pullSecrets: []
+
+  ## @param controllerManager.resources resource quota of the karmada-controller-manager
+  resources: {}
+    # If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+  ## @param controllerManager.nodeSelector node selector of the karmada-controller-manager
+  nodeSelector: {}
+  ## @param controllerManager.affinity affinity of the karmada-controller-manager
+  affinity: {}
+  ## @param controllerManager.tolerations tolerations of the karmada-controller-manager
+  tolerations: []
+    # - key: node-role.kubernetes.io/master
+    #   operator: Exists
+  ## @param controllerManager.strategy strategy of the controller manager
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 50%
+  ## @param featureGate to controllerManager
+  featureGates:
+    ## @param PropagateDeps is a feature gate for the controllerManager to allow propagate dependent respurce to workloads.
+    PropagateDeps: false
+  controllers: ""
+  ## @param extraCommandArgs to extraCommandArgs
+  extraCommandArgs: {}
+  ## @param apiServer.podDisruptionBudget
+  podDisruptionBudget: *podDisruptionBudget
+  ## @param controllerManager.priorityClassName the priority class name for the karmada-controller-manager
+  priorityClassName: "system-node-critical"
+
+## karmada apiserver config
+apiServer:
+  ## @param apiServer.labels labels of the karmada-apiserver deployment
+  labels:
+    app: karmada-apiserver
+  serviceAnnotations: {}
+  ## @param apiServer.replicaCount target replicas of the karmada-apiserver
+  replicaCount: 1
+  ## @param apiServer.logVerbosity log verbosity level for the apiserver
+  logVerbosity: 2
+  ## @param apiServer.podAnnotations annotations of the karmada-apiserver pods
+  podAnnotations: {}
+  ## @param apiServer.podLabels labels of the karmada-apiserver pods
+  podLabels: {}
+  ## @param image.registry keube-apiserver image registry
+  ## @param image.repository keube-apiserver image repository
+  ## @param image.tag keube-apiserver image tag (immutable tags are recommended)
+  ## @param image.pullPolicy keube-apiserver image pull policy
+  ## @param image.pullSecrets Specify docker-registry secret names as an array
+  ##
+  image:
+    registry: registry.k8s.io
+    repository: kube-apiserver
+    tag: "v1.35.2"
+    ## Specify a imagePullPolicy, defaults to 'IfNotPresent'
+    pullPolicy: IfNotPresent
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## Example:
+    ## pullSecrets:
+    ##   - myRegistryKeySecretName
+    ##
+    pullSecrets: []
+  ## @param apiServer.resources resource quota of the karmada-apiserver
+  resources: {}
+    # If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+  ## @param apiServer.hostNetwork
+  ## "true" means using hostNetwork
+  ## "false" means normal network
+  hostNetwork: false
+  ## @param apiServer.nodeSelector node selector of the karmada-apiserver
+  nodeSelector: {}
+  ## @param apiServer.affinity affinity of the karmada-apiserver
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - karmada-apiserver
+          topologyKey: kubernetes.io/hostname
+  ## @param apiServer.tolerations tolerations of the karmada-apiserver
+  tolerations: []
+    # - key: node-role.kubernetes.io/master
+    #   operator: Exists
+  ## @param apiServer.serviceType default service type for apiserver
+  ## "LoadBalancer" means using LoadBalancer
+  ## "ClusterIP" means using ClusterIP
+  ## "NodePort" means using NodePort
+  serviceType: ClusterIP
+  ## @param apiServer.nodePort node port for apiserver service,
+  ## will take effect when 'apiServer.serviceType' is 'NodePort'.
+  ## If no port is specified, the nodePort will be automatically assigned.
+  nodePort: 0
+  serviceClusterIPRange: "10.96.0.0/12"
+  maxRequestsInflight: 1500
+  maxMutatingRequestsInflight: 500
+  ## @param apiserver.strategy strategy of the apiserver
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  ## @param apiServer.podDisruptionBudget
+  podDisruptionBudget: *podDisruptionBudget
+  ## @param apiServer.priorityClassName the priority class name for the karmada-apiserver
+  priorityClassName: "system-node-critical"
+  oidc:
+    caFile: ""
+    clientId: ""
+    groupsClaim: ""
+    groupsPrefix: ""
+    issuerUrl: ""
+    # @param apiServer.oidc.requiredClaim comma separated 'key=value' pairs that describe required claims in the ID token
+    requiredClaim: ""
+    signingAlgs: ""
+    usernameClaim: ""
+    usernamePrefix: ""
+  ## @param apiServer.encryptionAtRest encryption at rest configuration
+  ## This feature enables Karmada API server encryption-at-rest by mounting a user-provided
+  ## Secret containing an EncryptionConfiguration file and passing --encryption-provider-config to karmada-apiserver.
+  ## SECURITY WARNING: Do NOT store encryption keys or config in Git or Helm values.
+  ## Use a secret management solution (Vault, External Secrets Operator, SealedSecrets, etc.) to provision the Secret.
+  encryptionAtRest:
+    ## @param apiServer.encryptionAtRest.enabled enable encryption at rest for karmada-apiserver
+    enabled: false
+    ## @param apiServer.encryptionAtRest.existingSecret reference to an existing Secret containing the encryption config
+    existingSecret:
+      ## @param apiServer.encryptionAtRest.existingSecret.name name of the existing Secret
+      name: ""
+      ## @param apiServer.encryptionAtRest.existingSecret.key key in the Secret that contains the EncryptionConfiguration YAML
+      key: "encryption-config.yaml"
+    ## @param apiServer.encryptionAtRest.configFile path where the encryption config file will be mounted in the container
+    configFile: "/etc/karmada/encryption/encryption-config.yaml"
+
+## karmada aggregated apiserver config
+aggregatedApiServer:
+  ## @param aggregatedApiServer.labels labels of the karmada-aggregated-apiserver pods
+  labels:
+    app: karmada-aggregated-apiserver
+  ## @param aggregatedApiServer.replicaCount target replicas of the karmada-aggregated-apiserver
+  replicaCount: 1
+  ## @param aggregatedApiServer.logVerbosity log verbosity level for the aggregated apiserver
+  logVerbosity: 2
+  ## @param aggregatedApiServer.podAnnotations annotations of the karmada-aggregated-apiserver pods
+  podAnnotations: {}
+  ## @param aggregatedApiServer.podLabels labels of the karmada-aggregated-apiserver pods
+  podLabels: {}
+  ## @param image.registry karmada aggregatedApiServer image registry
+  ## @param image.repository karmada aggregatedApiServer image repository
+  ## @param image.tag karmada aggregatedApiServer image tag (immutable tags are recommended)
+  ## @param image.pullPolicy karmada aggregatedApiServer image pull policy
+  ## @param image.pullSecrets Specify docker-registry secret names as an array
+  ##
+  image:
+    registry: docker.io
+    repository: karmada/karmada-aggregated-apiserver
+    tag: *karmadaImageVersion
+    pullPolicy: *karmadaImagePullPolicy
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## Example:
+    ## pullSecrets:
+    ##   - myRegistryKeySecretName
+    ##
+    pullSecrets: []
+  ## @param aggregatedApiServer.resources resource quota of the karmada-aggregated-apiserver
+  resources:
+    requests:
+      cpu: 100m
+    # If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+  ## @param aggregatedApiServer.nodeSelector node selector of the karmada-aggregated-apiserver
+  nodeSelector: {}
+  ## @param aggregatedApiServer.affinity affinity of the karmada-aggregated-apiserver
+  affinity: {}
+  ## @param aggregatedApiServer.tolerations tolerations of the karmada-aggregated-apiserver
+  tolerations: []
+    # - key: node-role.kubernetes.io/master
+    #   operator: Exists
+  ## @param aggregatedApiServer.strategy strategy of the karmada-aggregated-apiserver
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 50%
+  ## @param apiServer.podDisruptionBudget
+  podDisruptionBudget: *podDisruptionBudget
+  ## @param aggregatedApiServer.priorityClassName the priority class name for the karmada-aggregated-apiserver.
+  priorityClassName: "system-node-critical"
+
+## karmada metrics adapter config
+metricsAdapter:
+  ## @param metricsAdapter.labels labels of the karmada-metrics-adapter pods
+  labels:
+    app: karmada-metrics-adapter
+  ## @param metricsAadpter.replicaCount target replicas of the karmada-mertics-adapter
+  replicaCount: 1
+  ## @param metricsAdapter.logVerbosity log verbosity level for the metrics adapter
+  logVerbosity: 2
+  ## @param metricsAadpter.podAnnotations annotations of the karmada-mertics-adapter pods
+  podAnnotations: {}
+  ## @param metricsAadpter.podLabels labels of the karmada-mertics-adapter pods
+  podLabels: {}
+  ## @param image.registry karmada metricsAadpter image registry
+  ## @param image.repository karmada metricsAadpter image repository
+  ## @param image.tag karmada metricsAadpter image tag (immutable tags are recommended)
+  ## @param image.pullPolicy karmada metricsAadpter image pull policy
+  ## @param image.pullSecrets Specify docker-registry secret names as an array
+  ##
+  image:
+    registry: docker.io
+    repository: karmada/karmada-metrics-adapter
+    tag: *karmadaImageVersion
+    pullPolicy: *karmadaImagePullPolicy
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## Example:
+    ## pullSecrets:
+    ##   - myRegistryKeySecretName
+    ##
+    pullSecrets: []
+  ## @param metricsAadpter.resources resource quota of the karmada-mertics-adapter
+  resources:
+    requests:
+      cpu: 100m
+    # If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+  ## @param metricsAadpter.nodeSelector node selector of the karmada-mertics-adapter
+  nodeSelector: {}
+  ## @param metricsAadpter.affinity affinity of the karmada-mertics-adapter
+  affinity: {}
+  ## @param metricsAadpter.tolerations tolerations of the karmada-mertics-adapter
+  tolerations: []
+    # - key: node-role.kubernetes.io/master
+    #   operator: Exists
+  ## @param metricsAadpter.strategy strategy of the karmada-mertics-adapter
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 50%
+  ## @param apiServer.podDisruptionBudget
+  podDisruptionBudget: *podDisruptionBudget
+  ## @param metricsAadpter.priorityClassName the priority class name for the karmada-mertics-adapter
+  priorityClassName: "system-node-critical"
+
+## kubernetes controller manager config
+kubeControllerManager:
+  ## @param kubeControllerManager.labels labels of the kube-controller-manager deployment
+  labels:
+    app: kube-controller-manager
+  ## @param kubeControllerManager.replicaCount target replicas of the kube-controller-manager
+  replicaCount: 1
+  ## @param kubeControllerManager.logVerbosity log verbosity level for the kube-controller-manager
+  logVerbosity: 2
+  ## @param kubeControllerManager.podAnnotations annotations of the kube-controller-manager pods
+  podAnnotations: {}
+  ## @param kubeControllerManager.podLabels labels of the kube-controller-manager pods
+  podLabels: {}
+  ## @param image.registry kubeControllerManager image registry
+  ## @param image.repository kubeControllerManager image repository
+  ## @param image.tag kubeControllerManager image tag (immutable tags are recommended)
+  ## @param image.pullPolicy kubeControllerManager image pull policy
+  ## @param image.pullSecrets Specify docker-registry secret names as an array
+  ##
+  image:
+    registry: registry.k8s.io
+    repository: kube-controller-manager
+    tag: "v1.35.2"
+    ## Specify a imagePullPolicy, defaults to 'IfNotPresent'
+    pullPolicy: IfNotPresent
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## Example:
+    ## pullSecrets:
+    ##   - myRegistryKeySecretName
+    ##
+    pullSecrets: []
+
+  ## @param kubeControllerManager.resources resource quota of the kube-controller-manager
+  resources:
+    # If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+  ## @param kubeControllerManager.nodeSelector node selector of the kube-controller-manager
+  nodeSelector: {}
+  ## @param kubeControllerManager.affinity affinity of the kube-controller-manager
+  affinity: {}
+  ## @param kubeControllerManager.tolerations tolerations of the kube-controller-manager
+  tolerations: []
+    # - key: node-role.kubernetes.io/master
+    #   operator: Exists
+  ## @param kubeControllerManager.strategy strategy of the kube controller manager
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 50%
+  controllers: namespace,garbagecollector,serviceaccount-token,ttl-after-finished,bootstrapsigner,tokencleaner,csrcleaner,csrsigning,clusterrole-aggregation
+  ## @param apiServer.podDisruptionBudget
+  podDisruptionBudget: *podDisruptionBudget
+  serviceClusterIPRange: "10.96.0.0/12"
+  clusterCIDR: "10.244.0.0/16"
+  ## @param kubeControllerManager.priorityClassName the priority class name for the kube-controller-manager
+  priorityClassName: "system-node-critical"
+
+## etcd config
+etcd:
+  ## @param etcd.labels labels of the etcd statefulset
+  labels:
+    app: etcd
+  ## @param etcd.labels labels of the etcd pods
+  podLabels: {}
+  ## @param etcd.affinity affinity of the etcd
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - etcd
+          topologyKey: kubernetes.io/hostname
+  ## @param etcd.mode "external" and "internal" are provided
+  ## "external" means use external ectd
+  ## "internal" means install a etcd in the cluster
+  mode: "internal"
+  external:
+    ## @param etcd.external.servers servers of etcd
+    ## such as "https://192.168.1.1:2379,https://192.168.1.2:2379,https://192.168.1.3:2379"
+    servers: ""
+    ## @param etcd.external.registryPrefix use to registry prefix of etcd
+    registryPrefix: "/registry/karmada"
+    certs:
+      ## @param etcd.external.certs.caCrt ca of the certificate
+      caCrt: |
+        -----BEGIN CERTIFICATE-----
+        XXXXXXXXXXXXXXXXXXXXXXXXXXX
+        -----END CERTIFICATE-----
+      ## @param etcd.external.certs.crt crt of the certificate
+      crt: |
+        -----BEGIN CERTIFICATE-----
+        XXXXXXXXXXXXXXXXXXXXXXXXXXX
+        -----END CERTIFICATE-----
+      ## @param etcd.external.certs.key key of the certificate
+      key: |
+        -----BEGIN RSA PRIVATE KEY-----
+        XXXXXXXXXXXXXXXXXXXXXXXXXXX
+        -----END RSA PRIVATE KEY-----
+  internal:
+    ## @param etcd.internal.logLevel log level for the internal etcd (debug, info, warn, error, panic, fatal)
+    logLevel: "info"
+    ## @param etcd.internal.replicaCount target replicas
+    replicaCount: 1
+    ## @param image.registry etcd image registry
+    ## @param image.repository etcd image repository
+    ## @param image.tag etcd image tag (immutable tags are recommended)
+    ## @param image.pullPolicy etcd image pull policy
+    ##
+    image:
+      registry: registry.k8s.io
+      repository: etcd
+      tag: "3.6.6-0"
+      ## Specify a imagePullPolicy, defaults to 'IfNotPresent'
+      pullPolicy: IfNotPresent
+    ## @param etcd.internal.storageType storage type for etcd data
+    ## "pvc" means using volumeClaimTemplates
+    ## "hostPath" means using hostPath
+    storageType: "hostPath"
+    pvc:
+      ## @param etcd.internal.pvc.storageClass storageClass name of PVC
+      storageClass: ""
+      ## @param etcd.internal.pvc.size size of PVC
+      size: ""
+    ## @param etcd.internal.nodeSelector node selector of the etcd
+    nodeSelector: {}
+    ## @param etcd.internal.tolerations tolerations of the internal etcd
+    tolerations: []
+      # - key: node-role.kubernetes.io/master
+      #   operator: Exists
+    ## @param etcd.internal.resources
+    resources: {}
+      # If you do want to specify resources, uncomment the following
+      # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+      # limits:
+      #   cpu: 100m
+      #   memory: 128Mi
+      # requests:
+      #   cpu: 100m
+      #   memory: 128Mi
+    ## @param etcd.internal.priorityClassName the priority class name for the etcd
+    priorityClassName: "system-node-critical"
+
+## agent client config
+agent:
+  ## @param agent.clusterName name of the member cluster
+  clusterName: ""
+  ## @param agent.clusterEndpoint server endpoint of the member cluster
+  clusterEndpoint: ""
+  ## kubeconfig of the karmada
+  kubeconfig:
+    ## @param agent.kubeconfig.caCrt ca of the certificate
+    caCrt: |
+      -----BEGIN CERTIFICATE-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END CERTIFICATE-----
+    ## @param agent.kubeconfig.crt crt of the certificate
+    crt: |
+      -----BEGIN CERTIFICATE-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END CERTIFICATE-----
+    ## @param agent.kubeconfig.key key of the certificate
+    key: |
+      -----BEGIN RSA PRIVATE KEY-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END RSA PRIVATE KEY-----
+    ## @param agent.kubeconfig.server apiserver of the karmada
+    server: ""
+  ## @param agent.labels labels of the agent deployment
+  labels:
+    app: karmada-agent
+  ## @param agent.replicaCount target replicas
+  replicaCount: 1
+  ## @param agent.logVerbosity log verbosity level for the agent
+  logVerbosity: 2
+  ## @param agent.podAnnotations annotations of the agent pods
+  podAnnotations: {}
+  ## @param agent.podLabels labels of the agent pods
+  podLabels: {}
+  ## @param image.registry karmada agent image registry
+  ## @param image.repository karmada agent image repository
+  ## @param image.tag karmada agent image tag (immutable tags are recommended)
+  ## @param image.pullPolicy karmada agent image pull policy
+  ## @param image.pullSecrets Specify docker-registry secret names as an array
+  ##
+  image:
+    registry: docker.io
+    repository: karmada/karmada-agent
+    tag: *karmadaImageVersion
+    pullPolicy: *karmadaImagePullPolicy
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## Example:
+    ## pullSecrets:
+    ##   - myRegistryKeySecretName
+    ##
+    pullSecrets: []
+  ## @param agent.resources
+  resources: {}
+    # If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+  ## @param agent.nodeSelector node selector of the agent
+  nodeSelector: {}
+  ## @param agent.affinity affinity of the agent
+  affinity: {}
+  ## @param agent.tolerations tolerations of the agent
+  tolerations: []
+    # - key: node-role.kubernetes.io/master
+    #   operator: Exists
+  ## @param agent.strategy strategy of the agent
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 50%
+  ## @param apiServer.podDisruptionBudget
+  podDisruptionBudget: *podDisruptionBudget
+  ## @param agent.priorityClassName the priority class name for the karmada-agent
+  priorityClassName: "system-node-critical"
+
+## karmada scheduler estimator
+schedulerEstimator:
+  ## @param schedulerEstimator.memberClusters each cluster requires an estimator component, fill in the information for each cluster
+  memberClusters:
+      ## @param schedulerEstimator.memberClusterInfo[0].clusterName the name of the member cluster
+    - clusterName: ""
+      ## @param schedulerEstimator.memberClusterInfo[0].replicaCount target replicas
+      replicaCount: 1
+      ## kubeconfig of the member cluster
+      kubeconfig:
+        ## @param schedulerEstimator.memberClusterInfo[0].kubeconfig.server apiserver of the member cluster
+        server: ""
+        ## @param schedulerEstimator.memberClusterInfo[0].kubeconfig.caCrt ca of the certificate
+        caCrt: |
+          -----BEGIN CERTIFICATE-----
+          XXXXXXXXXXXXXXXXXXXXXXXXXXX
+          -----END CERTIFICATE-----
+        ## @param schedulerEstimator.memberClusterInfo[0].kubeconfig.crt crt of the certificate
+        crt: |
+          -----BEGIN CERTIFICATE-----
+          XXXXXXXXXXXXXXXXXXXXXXXXXXX
+          -----END CERTIFICATE-----
+        ## @param schedulerEstimator.memberClusterInfo[0].kubeconfig.key key of the certificate
+        key: |
+          -----BEGIN RSA PRIVATE KEY-----
+          XXXXXXXXXXXXXXXXXXXXXXXXXXX
+          -----END RSA PRIVATE KEY-----
+  ## @param schedulerEstimator.labels labels of the scheduler-estimator deployment
+  labels:
+    app: karmada-scheduler-estimator
+  ## @param schedulerEstimator.logVerbosity log verbosity level for the scheduler estimator
+  logVerbosity: 2
+  ## @param schedulerEstimator.podAnnotations annotations of the scheduler-estimator pods
+  podAnnotations: {}
+  ## @param schedulerEstimator.podLabels labels of the scheduler-estimator pods
+  podLabels: {}
+  ## @param image.registry karmada schedulerEstimator image registry
+  ## @param image.repository karmada schedulerEstimator image repository
+  ## @param image.tag karmada schedulerEstimator image tag (immutable tags are recommended)
+  ## @param image.pullPolicy karmada schedulerEstimator image pull policy
+  ## @param image.pullSecrets Specify docker-registry secret names as an array
+  ##
+  image:
+    registry: docker.io
+    repository: karmada/karmada-scheduler-estimator
+    tag: *karmadaImageVersion
+    pullPolicy: *karmadaImagePullPolicy
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## Example:
+    ## pullSecrets:
+    ##   - myRegistryKeySecretName
+    ##
+    pullSecrets: []
+  ## @param schedulerEstimator.resources resource quota of the scheduler-estimator
+  resources: {}
+    # If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+  ## @param schedulerEstimator.nodeSelector node selector of the scheduler-estimator
+  nodeSelector: {}
+  ## @param schedulerEstimator.affinity affinity of the scheduler-estimator
+  affinity: {}
+  ## @param schedulerEstimator.tolerations tolerations of the scheduler-estimator
+  tolerations: []
+    # - key: node-role.kubernetes.io/master
+    #   operator: Exists
+  ## @param schedulerEstimator.strategy strategy of the scheduler-estimator
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 50%
+  ## @param apiServer.podDisruptionBudget
+  podDisruptionBudget: *podDisruptionBudget
+  ## @param featureGate to schedulerEstimator
+  # FooPluginName: true
+  featureGates: {}
+  ## @param schedulerEstimator.priorityClassName the priority class name for the scheduler-estimator
+  priorityClassName: "system-node-critical"
+
+## descheduler config
+descheduler:
+  ## @param descheduler.labels labels of the descheduler deployment
+  labels:
+    app: karmada-descheduler
+  ## @param descheduler.replicaCount target replicas of the descheduler
+  replicaCount: 2
+  ## @param descheduler.logVerbosity log verbosity level for the descheduler
+  logVerbosity: 2
+  ## @param descheduler.podAnnotations annotations of the descheduler pods
+  podAnnotations: {}
+  ## @param descheduler.podLabels labels of the descheduler pods
+  podLabels: {}
+  ## @param image.registry karmada descheduler image registry
+  ## @param image.repository karmada descheduler image repository
+  ## @param image.tag karmada descheduler image tag (immutable tags are recommended)
+  ## @param image.pullPolicy karmada descheduler image pull policy
+  ## @param image.pullSecrets Specify docker-registry secret names as an array
+  ##
+  image:
+    registry: docker.io
+    repository: karmada/karmada-descheduler
+    tag: *karmadaImageVersion
+    pullPolicy: *karmadaImagePullPolicy
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## Example:
+    ## pullSecrets:
+    ##   - myRegistryKeySecretName
+    ##
+    pullSecrets: []
+  ## @param descheduler.resources resource quota of the descheduler
+  resources: {}
+    # If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+  ## @param descheduler.nodeSelector node selector of the descheduler
+  nodeSelector: {}
+  ## @param descheduler.affinity affinity of the descheduler
+  affinity: {}
+  ## @param descheduler.tolerations tolerations of the descheduler
+  tolerations: []
+    # - key: node-role.kubernetes.io/master
+    #   operator: Exists
+  ## @param descheduler.strategy strategy of the descheduler
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 50%
+  ## @param descheduler.kubeconfig kubeconfig of the descheduler
+  kubeconfig: karmada-kubeconfig
+  ## @param apiServer.podDisruptionBudget
+  podDisruptionBudget: *podDisruptionBudget
+  ## @param descheduler.priorityClassName the priority class name for the descheduler
+  priorityClassName: "system-node-critical"
+
+## karmada-search config
+search:
+  ## @param search.labels labels of the search deployment
+  labels:
+    app: karmada-search
+  ## @param search.replicaCount target replicas
+  replicaCount: 2
+  ## @param search.logVerbosity log verbosity level for the search
+  logVerbosity: 2
+  ## @param search.podAnnotations annotations of the search pods
+  podAnnotations: {}
+  ## @param search.podLabels labels of the search pods
+  podLabels: {}
+  ## @param image.registry karmada search image registry
+  ## @param image.repository karmada search image repository
+  ## @param image.tag karmada search image tag (immutable tags are recommended)
+  ## @param image.pullPolicy karmada search image pull policy
+  ## @param image.pullSecrets Specify docker-registry secret names as an array
+  ##
+  image:
+    registry: docker.io
+    repository: karmada/karmada-search
+    tag: *karmadaImageVersion
+    pullPolicy: *karmadaImagePullPolicy
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## Example:
+    ## pullSecrets:
+    ##   - myRegistryKeySecretName
+    ##
+    pullSecrets: []
+  ## @param search.resources resource quota of the search
+  resources: {}
+    # If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+  #   memory: 128Mi
+  ## @param search.nodeSelector node selector of the search
+  nodeSelector: {}
+  ## @param search.affinity affinity of the search
+  affinity: {}
+  ## @param search.tolerations tolerations of the search
+  tolerations: []
+    # - key: node-role.kubernetes.io/master
+  #   operator: Exists
+  ## @param search.strategy strategy of the search
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 50%
+  ## @param search.certs certs of the search
+  certs: karmada-cert
+  ## @param search.kubeconfig kubeconfig of the search
+  kubeconfig: karmada-kubeconfig
+  ## @param apiServer.podDisruptionBudget
+  podDisruptionBudget: *podDisruptionBudget
+  ## @param search.priorityClassName the priority class name for the karmada-search
+  priorityClassName: "system-node-critical"

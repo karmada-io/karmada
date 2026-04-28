@@ -1,0 +1,11 @@
+kind: Cluster
+apiVersion: "kind.x-k8s.io/v1alpha4"
+networking:
+  apiServerAddress: "{{host_ipaddress}}"
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      - containerPort: 5443
+        hostPort: 5443
+        protocol: TCP
+        listenAddress: "{{host_ipaddress}}"

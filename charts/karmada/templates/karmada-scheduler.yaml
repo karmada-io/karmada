@@ -1,0 +1,111 @@
+{{- $name := include "karmada.name" . -}}
+{{- $systemNamespace := .Values.systemNamespace -}}
+{{- if eq .Values.installMode "host" }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}-scheduler
+  namespace: {{ include "karmada.namespace" . }}
+  labels:
+  {{- include "karmada.scheduler.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.scheduler.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "karmada.scheduler.labels" . | nindent 6 }}
+  {{- with .Values.scheduler.strategy }}
+  strategy:
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+  template:
+    metadata:
+      {{- with .Values.scheduler.podAnnotations }}
+      annotations:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "karmada.scheduler.labels" . | nindent 8 }}
+        {{- include "karmada.scheduler.podLabels" . | nindent 8 }}
+    spec:
+      {{- include "karmada.scheduler.imagePullSecrets" . | nindent 6 }}
+      {{- with .Values.scheduler.nodeSelector }}
+      nodeSelector:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.scheduler.affinity }}
+      affinity:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.scheduler.tolerations}}
+      tolerations:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      automountServiceAccountToken: false
+      initContainers:
+        {{- include "karmada.initContainer.waitStaticResource" . | nindent 8 }}
+      containers:
+        - name: {{ $name }}-scheduler
+          image: {{ template "karmada.scheduler.image" .}}
+          imagePullPolicy: {{ .Values.scheduler.image.pullPolicy }}
+          env:
+            {{- include "karmada.env.podIP" . | nindent 12 }}
+          command:
+            - /bin/karmada-scheduler
+            - --kubeconfig=/etc/kubeconfig
+            - --metrics-bind-address=$(POD_IP):8080
+            - --health-probe-bind-address=$(POD_IP):10351
+            - --leader-elect-resource-namespace={{ $systemNamespace }}
+            - --scheduler-estimator-ca-file=/etc/karmada/pki/server-ca.crt
+            - --scheduler-estimator-cert-file=/etc/karmada/pki/karmada.crt
+            - --scheduler-estimator-key-file=/etc/karmada/pki/karmada.key
+            - --v={{ .Values.scheduler.logVerbosity }}
+            {{- if .Values.scheduler.enableSchedulerEstimator }}
+            - --enable-scheduler-estimator=true
+            {{- end }}
+            {{- with (include "karmada.scheduler.featureGates" .) }}
+            - {{ . }}
+            {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 10351
+              scheme: HTTP
+            failureThreshold: 3
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            timeoutSeconds: 5
+          ports:
+            - containerPort: 8080
+              name: metrics
+              protocol: TCP
+          volumeMounts:
+            - name: karmada-certs
+              mountPath: /etc/karmada/pki
+              readOnly: true
+          {{- include "karmada.kubeconfig.volumeMount" . | nindent 12 }}
+          resources:
+          {{- toYaml .Values.scheduler.resources | nindent 12 }}
+      priorityClassName: {{ .Values.scheduler.priorityClassName }}
+      volumes:
+      {{- include "karmada.kubeconfig.volume" . | nindent 8 }}
+      {{- include "karmada.scheduler.cert.volume" . | nindent 8 }}
+
+{{ if .Values.scheduler.podDisruptionBudget }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $name }}-scheduler
+  namespace: {{ include "karmada.namespace" . }}
+  labels:
+    {{- include "karmada.scheduler.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "karmada.scheduler.labels" . | nindent 6 }}
+  {{ toYaml .Values.scheduler.podDisruptionBudget | nindent 2 }}
+{{- end }}
+
+---
+
+{{- end }}

@@ -1,0 +1,150 @@
+# test cases for interpreting dependency of GitRepository
+# case1: GitRepository with secretRef dependency
+# case2: GitRepository with certSecretRef only (not supported)
+# case3: GitRepository with both secretRef and certSecretRef
+# case4: GitRepository with verify.secretRef dependency
+# case5. GitRepository with empty secretRef names
+# case6. GitRepository with secretRef and verify.secretRef different names
+# case7. GitRepository with secretRef and verify.secretRef same name
+
+name: "GitRepository with secretRef dependency"
+description: "Should return Secret dependency from spec.secretRef"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1
+  kind: GitRepository
+  metadata:
+    name: sample
+    namespace: test-gitrepository
+  spec:
+    secretRef:
+      name: git-secret
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: Secret
+      name: git-secret
+      namespace: test-gitrepository
+---
+name: "GitRepository with certSecretRef only"
+description: "certSecretRef is not interpreted by current logic"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1
+  kind: GitRepository
+  metadata:
+    name: sample
+    namespace: test-gitrepository
+  spec:
+    certSecretRef:
+      name: cert-secret
+operation: InterpretDependency
+output:
+  dependencies: []
+---
+name: "GitRepository with secretRef and certSecretRef"
+description: "Only secretRef should be returned"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1
+  kind: GitRepository
+  metadata:
+    name: sample
+    namespace: test-gitrepository
+  spec:
+    secretRef:
+      name: git-secret
+    certSecretRef:
+      name: cert-secret
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: Secret
+      name: git-secret
+      namespace: test-gitrepository
+---
+name: "GitRepository with verify.secretRef dependency"
+description: "Should return Secret dependency from spec.verify.secretRef"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1
+  kind: GitRepository
+  metadata:
+    name: sample
+    namespace: test-gitrepository
+  spec:
+    verify:
+      secretRef:
+        name: verify-secret
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: Secret
+      name: verify-secret
+      namespace: test-gitrepository
+---
+name: "GitRepository with empty secretRef names"
+description: "Empty secretRef and verify.secretRef names should be ignored"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1
+  kind: GitRepository
+  metadata:
+    name: sample
+    namespace: test-gitrepository
+  spec:
+    secretRef:
+      name: ""
+    verify:
+      secretRef:
+        name: ""
+operation: InterpretDependency
+output:
+  dependencies: []
+---
+name: "GitRepository with secretRef and verify.secretRef different names"
+description: "Two different secret names should return two dependencies"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1
+  kind: GitRepository
+  metadata:
+    name: sample
+    namespace: test-gitrepository
+  spec:
+    secretRef:
+      name: repo-secret
+    verify:
+      secretRef:
+        name: verify-secret
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: Secret
+      name: repo-secret
+      namespace: test-gitrepository
+    - apiVersion: v1
+      kind: Secret
+      name: verify-secret
+      namespace: test-gitrepository
+---
+name: "GitRepository with secretRef and verify.secretRef same name"
+description: "Same secret name should be deduplicated"
+desiredObj:
+  apiVersion: source.toolkit.fluxcd.io/v1
+  kind: GitRepository
+  metadata:
+    name: sample
+    namespace: test-gitrepository
+  spec:
+    secretRef:
+      name: shared-secret
+    verify:
+      secretRef:
+        name: shared-secret
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: Secret
+      name: shared-secret
+      namespace: test-gitrepository
+

@@ -1,0 +1,115 @@
+# testcases for interprethealth of Policy
+# case1. Policy with status.ready = true
+# case2. Policy with status.ready false
+# case3. Policy with Ready=True and Succeeded condition
+# case4. Policy with Ready=True but non-succeeded reason
+# case5. Policy with empty status
+# case6. Policy without status
+# case7. Policy with conditions but no Ready condition
+
+name: "Policy with status.ready true"
+description: "InterpretHealth should return true when status.ready is true"
+observedObj:
+  apiVersion: kyverno.io/v1
+  kind: Policy
+  metadata:
+    name: sample
+    namespace: test-policy
+  status:
+    ready: true
+operation: InterpretHealth
+output:
+  healthy: true
+---
+name: "Policy with status.ready false"
+description: "InterpretHealth should return false when status.ready is false"
+observedObj:
+  apiVersion: kyverno.io/v1
+  kind: Policy
+  metadata:
+    name: sample
+    namespace: test-policy
+  status:
+    ready: false
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "Policy with Ready condition succeeded"
+description: "InterpretHealth should return true when Ready condition is True and Succeeded"
+observedObj:
+  apiVersion: kyverno.io/v1
+  kind: Policy
+  metadata:
+    name: sample
+    namespace: test-policy
+  status:
+    conditions:
+      - type: Ready
+        status: "True"
+        reason: Succeeded
+operation: InterpretHealth
+output:
+  healthy: true
+---
+name: "Policy with Ready condition but failed reason"
+description: "InterpretHealth should return false if Ready condition reason is not Succeeded"
+observedObj:
+  apiVersion: kyverno.io/v1
+  kind: Policy
+  metadata:
+    name: sample
+    namespace: test-policy
+  status:
+    conditions:
+      - type: Ready
+        status: "True"
+        reason: Failed
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "Policy with empty status"
+description: "InterpretHealth should return false when status has no ready or conditions"
+observedObj:
+  apiVersion: kyverno.io/v1
+  kind: Policy
+  metadata:
+    name: sample
+    namespace: test-policy
+  status: {}
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "Policy without status"
+description: "InterpretHealth should return false when status is nil"
+observedObj:
+  apiVersion: kyverno.io/v1
+  kind: Policy
+  metadata:
+    name: sample
+    namespace: test-policy
+operation: InterpretHealth
+output:
+  healthy: false
+---
+name: "Policy with conditions but no Ready condition"
+description: "InterpretHealth should return false when conditions exist but no Ready type is present"
+observedObj:
+  apiVersion: kyverno.io/v1
+  kind: Policy
+  metadata:
+    name: sample
+    namespace: test-policy
+  status:
+    conditions:
+      - type: Progressing
+        status: "True"
+        reason: InProgress
+      - type: Validating
+        status: "True"
+        reason: Ongoing
+operation: InterpretHealth
+output:
+  healthy: false

@@ -1,0 +1,65 @@
+{{- if semverCompare "<1.23.0-0" .Capabilities.KubeVersion.GitVersion }}
+{{- $name := include "karmada.name" . -}}
+{{- $namespace := include "karmada.namespace" . -}}
+{{- if eq .Values.installMode "host" }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "{{ $name }}-post-install"
+  namespace: {{ $namespace }}
+  labels:
+    app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+    app.kubernetes.io/instance: {{ $name | quote }}
+    app.kubernetes.io/version: {{ .Chart.AppVersion }}
+    helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    {{- include "karmada.postInstallJob.labels" . | nindent 4 }}
+  annotations:
+    # This is what defines this resource as a hook. Without this line, the
+    # job is considered part of the release.
+    "helm.sh/hook": post-install
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": {{ .Values.postInstallJob.hookDeletePolicy }}
+spec:
+  parallelism: 1
+  completions: 1
+  template:
+    metadata:
+      name: {{ $name }}
+      labels:
+        app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+        app.kubernetes.io/instance: {{ $name | quote }}
+        helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    spec:
+      {{- include "karmada.imagePullSecrets" . | nindent 6 }}
+      {{- with .Values.postInstallJob.tolerations}}
+      tolerations:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.postInstallJob.nodeSelector }}
+      nodeSelector:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ $name }}-hook-job
+      restartPolicy: Never
+      containers:
+      - name: post-install
+        image: {{ template "karmada.kubectl.image" . }}
+        imagePullPolicy: {{ .Values.kubectl.image.pullPolicy }}
+        command:
+        - /bin/sh
+        - -c
+        - |
+          bash <<'EOF'
+          set -ex
+
+          # The `post-install hook job` may be applied before all karmada components are ready that rely on `static-resource job`.
+          # So, we have to postpone the deletion of the `static-resource job` until all karmada components are up and running.
+          while [[ $(kubectl get pods -n {{ $namespace }} --field-selector=status.phase!=Running,status.phase!=Succeeded -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep -v static-resource | wc -l) > 0 ]];
+          do
+            echo "waiting for all pods of karmada control plane ready..."; sleep 1;
+          done
+
+          kubectl delete job {{ $name }}-static-resource -n {{ $namespace }}
+          EOF
+{{- end }}
+{{- end }}

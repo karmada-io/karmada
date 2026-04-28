@@ -1,0 +1,42 @@
+# test case for interpreting dependency of StatefulSet
+# case1. StatefulSet with configmap and secret dependency
+
+name: "StatefulSet with configmap and secret dependency"
+description: "InterpretDependency should return configmap and secret references"
+desiredObj:
+  apiVersion: apps.kruise.io/v1beta1
+  kind: StatefulSet
+  metadata:
+    name: sample
+    namespace: test-ns
+  spec:
+    replicas: 1
+    template:
+      metadata:
+        labels:
+          app: sample
+      spec:
+        volumes:
+          - name: config-vol
+            configMap:
+              name: my-config
+        containers:
+          - name: nginx
+            image: nginx:alpine
+            env:
+              - name: SECRET_KEY
+                valueFrom:
+                  secretKeyRef:
+                    name: my-secret
+                    key: password
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: ConfigMap
+      name: my-config
+      namespace: test-ns
+    - apiVersion: v1
+      kind: Secret
+      name: my-secret
+      namespace: test-ns
