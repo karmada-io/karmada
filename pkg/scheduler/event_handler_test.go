@@ -32,6 +32,7 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/features"
 	schedulercache "github.com/karmada-io/karmada/pkg/scheduler/cache"
+	internalqueue "github.com/karmada-io/karmada/pkg/scheduler/internal/queue"
 )
 
 func TestResourceBindingEventFilter(t *testing.T) {
@@ -148,55 +149,71 @@ func TestResourceBindingEventFilter(t *testing.T) {
 
 func TestAddCluster(t *testing.T) {
 	tests := []struct {
-		name                     string
-		enableSchedulerEstimator bool
-		obj                      any
-		expectedAdded            bool
-		expectedClusterName      string
+		name                         string
+		enableSchedulerEstimator     bool
+		obj                          any
+		priorityQueue                internalqueue.SchedulingQueue
+		expectedEstimatorAdded       bool
+		expectedEstimatorClusterName string
+		expectedMoveAllToActive      bool
 	}{
 		{
-			name:                     "valid cluster object with estimator enabled",
-			enableSchedulerEstimator: true,
-			obj:                      createCluster("test-cluster", 0, nil),
-			expectedAdded:            true,
-			expectedClusterName:      "test-cluster",
+			name:                         "valid cluster, estimator enabled, no priority queue",
+			enableSchedulerEstimator:     true,
+			obj:                          createCluster("test-cluster", 0, nil),
+			priorityQueue:                nil,
+			expectedEstimatorAdded:       true,
+			expectedEstimatorClusterName: "test-cluster",
+			expectedMoveAllToActive:      false,
 		},
 		{
-			name:                     "valid cluster object with estimator disabled",
+			name:                         "valid cluster, estimator enabled, with priority queue",
+			enableSchedulerEstimator:     true,
+			obj:                          createCluster("test-cluster", 0, nil),
+			priorityQueue:                &mockSchedulingQueue{},
+			expectedEstimatorAdded:       true,
+			expectedEstimatorClusterName: "test-cluster",
+			expectedMoveAllToActive:      true,
+		},
+		{
+			name:                     "valid cluster, estimator disabled, with priority queue",
 			enableSchedulerEstimator: false,
 			obj:                      createCluster("test-cluster-2", 0, nil),
-			expectedAdded:            false,
-			expectedClusterName:      "",
+			priorityQueue:            &mockSchedulingQueue{},
+			expectedEstimatorAdded:   false,
+			expectedMoveAllToActive:  true,
 		},
 		{
 			name:                     "invalid object type",
 			enableSchedulerEstimator: true,
 			obj:                      &corev1.Pod{},
-			expectedAdded:            false,
-			expectedClusterName:      "",
+			expectedEstimatorAdded:   false,
+			expectedMoveAllToActive:  false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockWorker := &mockAsyncWorker{}
+			estimatorWorker := &mockAsyncWorker{}
 			s := &Scheduler{
 				enableSchedulerEstimator: tt.enableSchedulerEstimator,
-				schedulerEstimatorWorker: mockWorker,
+				schedulerEstimatorWorker: estimatorWorker,
+				priorityQueue:            tt.priorityQueue,
 			}
 
 			s.addCluster(tt.obj)
 
-			if tt.expectedAdded {
-				assert.Equal(t, 1, mockWorker.addCount, "Worker Add should have been called once")
-				assert.Equal(t, tt.expectedClusterName, mockWorker.lastAdded, "Incorrect cluster name added")
+			if tt.expectedEstimatorAdded {
+				assert.Equal(t, 1, estimatorWorker.addCount, "Estimator worker Add should have been called once")
+				assert.Equal(t, tt.expectedEstimatorClusterName, estimatorWorker.lastAdded, "Incorrect cluster name added to estimator worker")
 			} else {
-				assert.Equal(t, 0, mockWorker.addCount, "Worker Add should not have been called")
-				assert.Nil(t, mockWorker.lastAdded, "No cluster name should have been added")
+				assert.Equal(t, 0, estimatorWorker.addCount, "Estimator worker Add should not have been called")
 			}
 
-			assert.Equal(t, 0, mockWorker.enqueueCount, "Worker Enqueue should not have been called")
-			assert.Nil(t, mockWorker.lastEnqueued, "No item should have been enqueued")
+			if tt.priorityQueue != nil {
+				mock := tt.priorityQueue.(*mockSchedulingQueue)
+				assert.Equal(t, tt.expectedMoveAllToActive, mock.moveAllToActiveCalled, "MoveAllToActive called state mismatch")
+			}
 		})
 	}
 }
@@ -207,8 +224,10 @@ func TestUpdateCluster(t *testing.T) {
 		enableSchedulerEstimator bool
 		oldObj                   any
 		newObj                   any
+		priorityQueue            internalqueue.SchedulingQueue
 		expectedEstimatorAdded   bool
 		expectedReconcileAdded   int
+		expectedMoveAllToActive  bool
 	}{
 		{
 			name:                     "valid cluster update with generation change",
@@ -258,6 +277,163 @@ func TestUpdateCluster(t *testing.T) {
 			expectedEstimatorAdded:   false,
 			expectedReconcileAdded:   0,
 		},
+		{
+			name:                     "cluster update with ResourceSummary change, priorityQueue nil",
+			enableSchedulerEstimator: true,
+			oldObj:                   createCluster("test-cluster", 0, nil),
+			newObj: createClusterWithStatus("test-cluster", 0, nil, clusterv1alpha1.ClusterStatus{
+				ResourceSummary: &clusterv1alpha1.ResourceSummary{},
+			}),
+			expectedEstimatorAdded: true,
+			expectedReconcileAdded: 0,
+		},
+		{
+			name:                     "cluster update with ResourceSummary change, with priority queue",
+			enableSchedulerEstimator: true,
+			oldObj:                   createCluster("test-cluster", 0, nil),
+			newObj: createClusterWithStatus("test-cluster", 0, nil, clusterv1alpha1.ClusterStatus{
+				ResourceSummary: &clusterv1alpha1.ResourceSummary{},
+			}),
+			priorityQueue:           &mockSchedulingQueue{},
+			expectedEstimatorAdded:  true,
+			expectedReconcileAdded:  0,
+			expectedMoveAllToActive: true,
+		},
+		{
+			name:                     "ResourceSummary and Ready condition change simultaneously — single merged case fires",
+			enableSchedulerEstimator: false,
+			oldObj:                   createCluster("test-cluster", 0, nil),
+			newObj: createClusterWithStatus("test-cluster", 0, nil, clusterv1alpha1.ClusterStatus{
+				ResourceSummary: &clusterv1alpha1.ResourceSummary{},
+				Conditions: []metav1.Condition{
+					{Type: clusterv1alpha1.ClusterConditionReady, Status: metav1.ConditionTrue},
+				},
+			}),
+			priorityQueue:           &mockSchedulingQueue{},
+			expectedEstimatorAdded:  false,
+			expectedReconcileAdded:  0,
+			expectedMoveAllToActive: true,
+		},
+		{
+			name:                     "generation and status change simultaneously — generation case takes precedence",
+			enableSchedulerEstimator: false,
+			oldObj:                   createCluster("test-cluster", 1, nil),
+			newObj: createClusterWithStatus("test-cluster", 2, nil, clusterv1alpha1.ClusterStatus{
+				Conditions: []metav1.Condition{
+					{Type: clusterv1alpha1.ClusterConditionReady, Status: metav1.ConditionTrue},
+				},
+			}),
+			expectedEstimatorAdded: false,
+			// Generation case fires and adds both old+new → 2, not 3
+			expectedReconcileAdded: 2,
+		},
+		{
+			name:                     "DeletionTimestamp and status change simultaneously — deletion case takes precedence",
+			enableSchedulerEstimator: false,
+			oldObj:                   createCluster("test-cluster", 0, nil),
+			newObj: func() *clusterv1alpha1.Cluster {
+				c := createClusterWithStatus("test-cluster", 0, nil, clusterv1alpha1.ClusterStatus{
+					Conditions: []metav1.Condition{
+						{Type: clusterv1alpha1.ClusterConditionReady, Status: metav1.ConditionTrue},
+					},
+				})
+				now := metav1.Now()
+				c.DeletionTimestamp = &now
+				return c
+			}(),
+			expectedEstimatorAdded: false,
+			// Deletion case fires → only 1 add, status case is skipped
+			expectedReconcileAdded: 1,
+		},
+		{
+			name:                     "identical non-nil ResourceSummary — DeepEqual true, no reconcile triggered",
+			enableSchedulerEstimator: false,
+			oldObj: createClusterWithStatus("test-cluster", 0, nil, clusterv1alpha1.ClusterStatus{
+				ResourceSummary: &clusterv1alpha1.ResourceSummary{},
+			}),
+			newObj: createClusterWithStatus("test-cluster", 0, nil, clusterv1alpha1.ClusterStatus{
+				ResourceSummary: &clusterv1alpha1.ResourceSummary{},
+			}),
+			priorityQueue:          &mockSchedulingQueue{},
+			expectedEstimatorAdded: false,
+			expectedReconcileAdded: 0,
+		},
+		{
+			name:                     "cluster update with Ready condition transition, with priority queue",
+			enableSchedulerEstimator: true,
+			oldObj:                   createCluster("test-cluster", 0, nil),
+			newObj: createClusterWithStatus("test-cluster", 0, nil, clusterv1alpha1.ClusterStatus{
+				Conditions: []metav1.Condition{
+					{Type: clusterv1alpha1.ClusterConditionReady, Status: metav1.ConditionTrue},
+				},
+			}),
+			priorityQueue:           &mockSchedulingQueue{},
+			expectedEstimatorAdded:  true,
+			expectedReconcileAdded:  0,
+			expectedMoveAllToActive: true,
+		},
+		{
+			name:                     "APIEnablements diff while CompleteAPIEnablements is True triggers requeue",
+			enableSchedulerEstimator: true,
+			oldObj:                   createCluster("test-cluster", 0, nil),
+			newObj: createClusterWithStatus("test-cluster", 0, nil, clusterv1alpha1.ClusterStatus{
+				APIEnablements: []clusterv1alpha1.APIEnablement{
+					{GroupVersion: "apps/v1"},
+				},
+				Conditions: []metav1.Condition{
+					{Type: clusterv1alpha1.ClusterConditionCompleteAPIEnablements, Status: metav1.ConditionTrue},
+				},
+			}),
+			priorityQueue:           &mockSchedulingQueue{},
+			expectedEstimatorAdded:  true,
+			expectedReconcileAdded:  0,
+			expectedMoveAllToActive: true,
+		},
+		{
+			name:                     "APIEnablements diff while CompleteAPIEnablements is False is ignored",
+			enableSchedulerEstimator: true,
+			oldObj:                   createCluster("test-cluster", 0, nil),
+			newObj: createClusterWithStatus("test-cluster", 0, nil, clusterv1alpha1.ClusterStatus{
+				APIEnablements: []clusterv1alpha1.APIEnablement{
+					{GroupVersion: "apps/v1"},
+				},
+				Conditions: []metav1.Condition{
+					{Type: clusterv1alpha1.ClusterConditionCompleteAPIEnablements, Status: metav1.ConditionFalse},
+				},
+			}),
+			priorityQueue:           &mockSchedulingQueue{},
+			expectedEstimatorAdded:  true,
+			expectedReconcileAdded:  0,
+			expectedMoveAllToActive: false,
+		},
+		{
+			name:                     "cluster update with non-relevant condition change is ignored",
+			enableSchedulerEstimator: true,
+			oldObj:                   createCluster("test-cluster", 0, nil),
+			newObj: createClusterWithStatus("test-cluster", 0, nil, clusterv1alpha1.ClusterStatus{
+				Conditions: []metav1.Condition{
+					{Type: "SomeOtherCondition", Status: metav1.ConditionTrue},
+				},
+			}),
+			priorityQueue:           &mockSchedulingQueue{},
+			expectedEstimatorAdded:  true,
+			expectedReconcileAdded:  0,
+			expectedMoveAllToActive: false,
+		},
+		{
+			name:                     "cluster update with raw APIEnablements diff but no CompleteAPIEnablements condition is ignored",
+			enableSchedulerEstimator: true,
+			oldObj:                   createCluster("test-cluster", 0, nil),
+			newObj: createClusterWithStatus("test-cluster", 0, nil, clusterv1alpha1.ClusterStatus{
+				APIEnablements: []clusterv1alpha1.APIEnablement{
+					{GroupVersion: "apps/v1"},
+				},
+			}),
+			priorityQueue:           &mockSchedulingQueue{},
+			expectedEstimatorAdded:  true,
+			expectedReconcileAdded:  0,
+			expectedMoveAllToActive: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -268,6 +444,7 @@ func TestUpdateCluster(t *testing.T) {
 				enableSchedulerEstimator: tt.enableSchedulerEstimator,
 				schedulerEstimatorWorker: estimatorWorker,
 				clusterReconcileWorker:   reconcileWorker,
+				priorityQueue:            tt.priorityQueue,
 			}
 
 			s.updateCluster(tt.oldObj, tt.newObj)
@@ -300,6 +477,12 @@ func TestUpdateCluster(t *testing.T) {
 				}
 			} else {
 				assert.Nil(t, reconcileWorker.lastAdded, "No cluster should have been added to reconcile worker")
+			}
+
+			// Check MoveAllToActive
+			if tt.priorityQueue != nil {
+				mock := tt.priorityQueue.(*mockSchedulingQueue)
+				assert.Equal(t, tt.expectedMoveAllToActive, mock.moveAllToActiveCalled, "MoveAllToActive called state mismatch")
 			}
 		})
 	}
@@ -421,6 +604,17 @@ func createCluster(name string, generation int64, labels map[string]string) *clu
 			Generation: generation,
 			Labels:     labels,
 		},
+	}
+}
+
+func createClusterWithStatus(name string, generation int64, labels map[string]string, status clusterv1alpha1.ClusterStatus) *clusterv1alpha1.Cluster {
+	return &clusterv1alpha1.Cluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       name,
+			Generation: generation,
+			Labels:     labels,
+		},
+		Status: status,
 	}
 }
 
