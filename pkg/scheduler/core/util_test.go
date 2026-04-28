@@ -141,9 +141,6 @@ func Test_removeZeroReplicasCluster(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := removeZeroReplicasCluster(tt.assignResults)
-			if len(got) == 0 && len(tt.want) == 0 {
-				return
-			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("removeZeroReplicasCluster() = %v, want %v", got, tt.want)
 			}
