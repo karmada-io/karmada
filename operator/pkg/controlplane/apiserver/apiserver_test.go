@@ -319,6 +319,88 @@ func TestInstallKarmadaAggregatedAPIServer(t *testing.T) {
 	}
 }
 
+func TestInstallKarmadaAggregatedAPIServerWithTolerationsAndAffinity(t *testing.T) {
+	var replicas int32 = 2
+	image := "karmada-aggregated-apiserver-image"
+	imagePullPolicy := corev1.PullIfNotPresent
+	name := "test-agg-server"
+	namespace := "test-namespace"
+
+	tolerations := []corev1.Toleration{
+		{
+			Key:      "node-role.kubernetes.io/master",
+			Operator: corev1.TolerationOpExists,
+			Effect:   corev1.TaintEffectNoSchedule,
+		},
+	}
+	affinity := &corev1.Affinity{
+		NodeAffinity: &corev1.NodeAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+				NodeSelectorTerms: []corev1.NodeSelectorTerm{
+					{
+						MatchExpressions: []corev1.NodeSelectorRequirement{
+							{
+								Key:      "kubernetes.io/os",
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{"linux"},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	cfg := &operatorv1alpha1.KarmadaAggregatedAPIServer{
+		CommonSettings: operatorv1alpha1.CommonSettings{
+			Image:           operatorv1alpha1.Image{ImageTag: image},
+			Replicas:        ptr.To[int32](replicas),
+			Resources:       corev1.ResourceRequirements{},
+			ImagePullPolicy: imagePullPolicy,
+			Tolerations:     tolerations,
+			Affinity:        affinity,
+		},
+		ExtraArgs: map[string]string{},
+	}
+
+	fakeClient := fakeclientset.NewClientset()
+	etcdCfg := &operatorv1alpha1.Etcd{
+		Local: &operatorv1alpha1.LocalEtcd{},
+	}
+
+	err := installKarmadaAggregatedAPIServer(fakeClient, cfg, etcdCfg, name, namespace, map[string]bool{})
+	if err != nil {
+		t.Fatalf("failed to install karmada aggregated apiserver: %v", err)
+	}
+
+	deployment, err := verifyDeploymentCreation(fakeClient)
+	if err != nil {
+		t.Fatalf("failed to verify deployment creation: %v", err)
+	}
+
+	if len(deployment.Spec.Template.Spec.Tolerations) != 1 {
+		t.Fatalf("expected 1 toleration, but got %d", len(deployment.Spec.Template.Spec.Tolerations))
+	}
+	if deployment.Spec.Template.Spec.Tolerations[0].Key != "node-role.kubernetes.io/master" {
+		t.Errorf("expected toleration key 'node-role.kubernetes.io/master', but got '%s'", deployment.Spec.Template.Spec.Tolerations[0].Key)
+	}
+
+	if deployment.Spec.Template.Spec.Affinity == nil {
+		t.Fatal("expected affinity to be set, but it was nil")
+	}
+	nodeAffinity := deployment.Spec.Template.Spec.Affinity.NodeAffinity
+	if nodeAffinity == nil || nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
+		t.Fatal("expected node affinity with required scheduling terms, but it was nil")
+	}
+	terms := nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
+	if len(terms) != 1 {
+		t.Fatalf("expected 1 node selector term, but got %d", len(terms))
+	}
+	if terms[0].MatchExpressions[0].Key != "kubernetes.io/os" {
+		t.Errorf("expected match expression key 'kubernetes.io/os', but got '%s'", terms[0].MatchExpressions[0].Key)
+	}
+}
+
 func TestCreateKarmadaAggregatedAPIServerService(t *testing.T) {
 	// Initialize fake clientset.
 	client := fakeclientset.NewClientset()
