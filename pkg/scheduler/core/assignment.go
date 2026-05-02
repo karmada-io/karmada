@@ -72,6 +72,11 @@ type assignState struct {
 	strategy   *policyv1alpha1.ReplicaSchedulingStrategy
 	spec       *workv1alpha2.ResourceBindingSpec
 
+	// assigningBindings holds bindings that have been scheduled but not yet
+	// reflected in member clusters. Their allocated replicas are deducted from
+	// available capacity to prevent overscheduling during concurrent placement.
+	assigningBindings map[string]*workv1alpha2.ResourceBinding
+
 	// fields below are indirect results
 	strategyType string
 
@@ -92,7 +97,7 @@ type assignState struct {
 	targetReplicas int32
 }
 
-func newAssignState(candidates []spreadconstraint.ClusterDetailInfo, spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus) *assignState {
+func newAssignState(candidates []spreadconstraint.ClusterDetailInfo, spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus, assigningBindings map[string]*workv1alpha2.ResourceBinding) *assignState {
 	var strategyType string
 
 	switch spec.Placement.ReplicaSchedulingType() {
@@ -119,7 +124,7 @@ func newAssignState(candidates []spreadconstraint.ClusterDetailInfo, spec *workv
 		expectAssignmentMode = Fresh
 	}
 
-	return &assignState{candidates: candidates, strategy: spec.Placement.ReplicaScheduling, spec: spec, strategyType: strategyType, assignmentMode: expectAssignmentMode}
+	return &assignState{candidates: candidates, strategy: spec.Placement.ReplicaScheduling, spec: spec, strategyType: strategyType, assignmentMode: expectAssignmentMode, assigningBindings: assigningBindings}
 }
 
 func (as *assignState) buildScheduledClusters() {
@@ -143,6 +148,31 @@ func (as *assignState) buildScheduledClusters() {
 
 func (as *assignState) buildAvailableClusters(c calculator) {
 	as.availableClusters = c(as.candidates, as.spec)
+	as.availableReplicas = util.GetSumOfReplicas(as.availableClusters)
+
+	// Deduct replicas that are already assigned to in-flight bindings (bindings
+	// that have been scheduled but not yet applied on member clusters). Without
+	// this deduction, two concurrent scheduling decisions can both claim the same
+	// resources, causing overscheduling.
+	//
+	// Use a map for O(B+C) amortized complexity instead of O(B*C*K) nested loops.
+	assignedReplicas := make(map[string]int32)
+	for _, binding := range as.assigningBindings {
+		if binding.Spec.Resource.UID == as.spec.Resource.UID {
+			continue // skip the binding currently being scheduled
+		}
+		for _, assigned := range binding.Spec.Clusters {
+			assignedReplicas[assigned.Name] += assigned.Replicas
+		}
+	}
+	for i := range as.availableClusters {
+		if replicas, ok := assignedReplicas[as.availableClusters[i].Name]; ok {
+			as.availableClusters[i].Replicas -= replicas
+			if as.availableClusters[i].Replicas < 0 {
+				as.availableClusters[i].Replicas = 0
+			}
+		}
+	}
 	as.availableReplicas = util.GetSumOfReplicas(as.availableClusters)
 }
 

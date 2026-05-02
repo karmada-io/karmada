@@ -685,9 +685,9 @@ func (s *Scheduler) patchScheduleResultForResourceBinding(oldBinding *workv1alph
 		klog.Errorf("Failed to patch schedule to ResourceBinding(%s/%s): %v", oldBinding.Namespace, oldBinding.Name, err)
 		return err
 	}
-	if features.FeatureGate.Enabled(features.WorkloadAffinity) {
-		// TODO(@zhzhuang-zju): Consider race condition where Informer's event for 'result' arrives before this Add call,
-		// leading to a potential memory leak in AssigningResourceBindings cache if no further updates occur.
+	// TODO(@zhzhuang-zju): Consider race condition where Informer's event for 'result' arrives before this Add call,
+	// leading to a potential memory leak in AssigningResourceBindings cache if no further updates occur.
+	if s.schedulerCache != nil {
 		s.schedulerCache.AssigningResourceBindings().Add(result)
 	}
 

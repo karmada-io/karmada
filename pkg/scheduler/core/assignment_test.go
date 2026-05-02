@@ -635,7 +635,7 @@ func Test_dynamicScale(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			state := newAssignState(tt.candidates, tt.object, &workv1alpha2.ResourceBindingStatus{})
+			state := newAssignState(tt.candidates, tt.object, &workv1alpha2.ResourceBindingStatus{}, nil)
 			got, err := assignByDynamicStrategy(state)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("assignByDynamicStrategy() error = %v, wantErr %v", err, tt.wantErr)
@@ -860,7 +860,7 @@ func Test_dynamicScaleUp(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			state := newAssignState(tt.candidates, tt.object, &workv1alpha2.ResourceBindingStatus{})
+			state := newAssignState(tt.candidates, tt.object, &workv1alpha2.ResourceBindingStatus{}, nil)
 			state.buildScheduledClusters()
 			got, err := dynamicScaleUp(state)
 			if (err != nil) != tt.wantErr {
@@ -967,7 +967,7 @@ func Test_assignByDynamicStrategy_UnschedulableErrorPreserved(t *testing.T) {
 		},
 	}
 
-	state := newAssignState(candidates, spec, &workv1alpha2.ResourceBindingStatus{})
+	state := newAssignState(candidates, spec, &workv1alpha2.ResourceBindingStatus{}, nil)
 	_, err := assignByDynamicStrategy(state)
 	if err == nil {
 		t.Fatal("assignByDynamicStrategy() expected error, got nil")

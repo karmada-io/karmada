@@ -198,7 +198,10 @@ func (g *genericScheduler) selectClusters(clustersScore framework.ClusterScoreLi
 	return SelectClusters(clustersScore, placement, spec, status)
 }
 
-func (g *genericScheduler) assignReplicas(clusters []spreadconstraint.ClusterDetailInfo, spec *workv1alpha2.ResourceBindingSpec,
-	status *workv1alpha2.ResourceBindingStatus) ([]workv1alpha2.TargetCluster, error) {
-	return AssignReplicas(clusters, spec, status)
+func (g *genericScheduler) assignReplicas(clusters []spreadconstraint.ClusterDetailInfo, spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus) ([]workv1alpha2.TargetCluster, error) {
+	var assigningBindings map[string]*workv1alpha2.ResourceBinding
+	if g.schedulerCache != nil {
+		assigningBindings = g.schedulerCache.AssigningResourceBindings().GetBindings()
+	}
+	return AssignReplicas(clusters, spec, status, assigningBindings)
 }

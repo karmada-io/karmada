@@ -37,7 +37,7 @@ func SelectClusters(clustersScore framework.ClusterScoreList, placement *policyv
 }
 
 // AssignReplicas assigns replicas to clusters based on the placement and resource binding spec.
-func AssignReplicas(clusters []spreadconstraint.ClusterDetailInfo, spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus) ([]workv1alpha2.TargetCluster, error) {
+func AssignReplicas(clusters []spreadconstraint.ClusterDetailInfo, spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus, assigningBindings map[string]*workv1alpha2.ResourceBinding) ([]workv1alpha2.TargetCluster, error) {
 	startTime := time.Now()
 	defer metrics.ScheduleStep(metrics.ScheduleStepAssignReplicas, startTime)
 
@@ -55,7 +55,7 @@ func AssignReplicas(clusters []spreadconstraint.ClusterDetailInfo, spec *workv1a
 	// the deprecation of binding.spec.replicas and binding.spec.ReplicaRequirements. After that, the check should be changed to
 	// len(spec.Components) == 1.
 	if (spec.Replicas > 0 || spec.ReplicaRequirements != nil) && len(spec.Components) <= 1 {
-		return assignWorkloadReplicas(clusters, spec, status)
+		return assignWorkloadReplicas(clusters, spec, status, assigningBindings)
 	}
 
 	// For non-workloads (e.g., Service, Config) and multi-component workloads (e.g., FlinkDeployment), propagate to all candidate clusters.
@@ -67,7 +67,7 @@ func AssignReplicas(clusters []spreadconstraint.ClusterDetailInfo, spec *workv1a
 }
 
 // assignWorkloadReplicas assigns replicas to clusters for workloads, supporting overflow if enabled.
-func assignWorkloadReplicas(clusters []spreadconstraint.ClusterDetailInfo, spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus) ([]workv1alpha2.TargetCluster, error) {
+func assignWorkloadReplicas(clusters []spreadconstraint.ClusterDetailInfo, spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus, assigningBindings map[string]*workv1alpha2.ResourceBinding) ([]workv1alpha2.TargetCluster, error) {
 	if enableOverflow(spec, status) {
 		clusterTiers := make(map[int][]spreadconstraint.ClusterDetailInfo)
 		availableReplicasPerTier := make(map[int]int64)
@@ -90,7 +90,7 @@ func assignWorkloadReplicas(clusters []spreadconstraint.ClusterDetailInfo, spec 
 
 			// Safe conversion int64 -> int32: min(...) is always bounded by remaining, which is int32.
 			specCopy.Replicas = int32(min(int64(remaining), availableReplicasPerTier[i])) // #nosec G115: integer overflow conversion int64 -> int32
-			results, err := assignReplicasToClusters(clusterTiers[i], specCopy, status)
+			results, err := assignReplicasToClusters(clusterTiers[i], specCopy, status, assigningBindings)
 			if err != nil {
 				return nil, err
 			}
@@ -108,11 +108,11 @@ func assignWorkloadReplicas(clusters []spreadconstraint.ClusterDetailInfo, spec 
 		return finalResults, nil
 	}
 
-	return assignReplicasToClusters(clusters, spec, status)
+	return assignReplicasToClusters(clusters, spec, status, assigningBindings)
 }
 
-func assignReplicasToClusters(clusters []spreadconstraint.ClusterDetailInfo, spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus) ([]workv1alpha2.TargetCluster, error) {
-	state := newAssignState(clusters, spec, status)
+func assignReplicasToClusters(clusters []spreadconstraint.ClusterDetailInfo, spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus, assigningBindings map[string]*workv1alpha2.ResourceBinding) ([]workv1alpha2.TargetCluster, error) {
+	state := newAssignState(clusters, spec, status, assigningBindings)
 	assignFunc, ok := assignFuncMap[state.strategyType]
 	if !ok {
 		// should never happen at present

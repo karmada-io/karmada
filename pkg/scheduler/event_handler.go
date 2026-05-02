@@ -172,7 +172,7 @@ func (s *Scheduler) onResourceBindingUpdate(old, cur any) {
 	}
 
 	newResourceBinding, ok := cur.(*workv1alpha2.ResourceBinding)
-	if ok && features.FeatureGate.Enabled(features.WorkloadAffinity) {
+	if ok {
 		s.schedulerCache.AssigningResourceBindings().OnBindingUpdate(newResourceBinding)
 	}
 
@@ -208,25 +208,23 @@ func (s *Scheduler) onResourceBindingUpdate(old, cur any) {
 
 // onResourceBindingDelete is called when a delete event for a ResourceBinding is received from the Informer.
 func (s *Scheduler) onResourceBindingDelete(obj any) {
-	if features.FeatureGate.Enabled(features.WorkloadAffinity) {
-		var binding *workv1alpha2.ResourceBinding
-		switch t := obj.(type) {
-		case *workv1alpha2.ResourceBinding:
-			binding = t
-		case cache.DeletedFinalStateUnknown:
-			var ok bool
-			binding, ok = t.Obj.(*workv1alpha2.ResourceBinding)
-			if !ok {
-				klog.Errorf("cannot convert to workv1alpha2.ResourceBinding: %v", t.Obj)
-				return
-			}
-		default:
-			klog.Errorf("cannot convert to workv1alpha2.ResourceBinding: %v", t)
+	var binding *workv1alpha2.ResourceBinding
+	switch t := obj.(type) {
+	case *workv1alpha2.ResourceBinding:
+		binding = t
+	case cache.DeletedFinalStateUnknown:
+		var ok bool
+		binding, ok = t.Obj.(*workv1alpha2.ResourceBinding)
+		if !ok {
+			klog.Errorf("cannot convert to workv1alpha2.ResourceBinding: %v", t.Obj)
 			return
 		}
-
-		s.schedulerCache.AssigningResourceBindings().OnBindingDelete(binding)
+	default:
+		klog.Errorf("cannot convert to workv1alpha2.ResourceBinding: %v", t)
+		return
 	}
+
+	s.schedulerCache.AssigningResourceBindings().OnBindingDelete(binding)
 }
 
 func (s *Scheduler) onResourceBindingRequeue(binding *workv1alpha2.ResourceBinding, event string) {

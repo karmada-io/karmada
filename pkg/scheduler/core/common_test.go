@@ -423,7 +423,7 @@ func TestAssignReplicas(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := AssignReplicas(tt.clusters, tt.spec, tt.status)
+			result, err := AssignReplicas(tt.clusters, tt.spec, tt.status, nil)
 
 			if tt.expectedError {
 				assert.Error(t, err)
