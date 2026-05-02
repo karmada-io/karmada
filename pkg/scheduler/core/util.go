@@ -109,8 +109,21 @@ func calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha
 		}
 	}
 
+	applyUnhealthyClusterPolicy(clusters, availableTargetClusters)
+
 	klog.V(4).Infof("Target cluster calculated by estimators (available cluster && maxAvailableReplicas): %v", availableTargetClusters)
 	return availableTargetClusters
+}
+
+// applyUnhealthyClusterPolicy sets available replicas to 0 for clusters that
+// are not in Ready condition, preventing the scheduler from distributing new
+// replicas to unhealthy clusters during scale-up.
+func applyUnhealthyClusterPolicy(clusters []*clusterv1alpha1.Cluster, availableTargetClusters []workv1alpha2.TargetCluster) {
+	for i := range availableTargetClusters {
+		if !util.IsClusterReady(&clusters[i].Status) {
+			availableTargetClusters[i].Replicas = 0
+		}
+	}
 }
 
 // attachZeroReplicasCluster  attach cluster in clusters into targetCluster
