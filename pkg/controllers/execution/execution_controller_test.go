@@ -38,6 +38,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
@@ -86,14 +87,18 @@ const (
 
 func TestExecutionController_Reconcile(t *testing.T) {
 	tests := []struct {
-		name               string
-		work               *workv1alpha1.Work
-		ns                 string
-		expectRes          controllerruntime.Result
-		expectCondition    *metav1.Condition
-		expectEventMessage string
-		existErr           bool
-		resourceExists     *bool
+		name                   string
+		work                   *workv1alpha1.Work
+		ns                     string
+		expectRes              controllerruntime.Result
+		expectCondition        *metav1.Condition
+		expectEventMessage     string
+		existErr               bool
+		resourceExists         *bool
+		expectFinalizerRemoved bool
+		// noClusterResource indicates the member cluster informer cache should have no pre-seeded
+		// resources. Used to test cleanup behavior when the resource is already absent from the cluster.
+		noClusterResource bool
 	}{
 		{
 			name:      "work dispatching is suspended, no error, no apply",
@@ -190,6 +195,20 @@ func TestExecutionController_Reconcile(t *testing.T) {
 				work.SetFinalizers([]string{util.ExecutionControllerFinalizer})
 			}),
 		},
+		{
+			name:                   "PreserveResourcesOnDeletion=true, resource already absent from member cluster, finalizer removed without error",
+			ns:                     "karmada-es-cluster",
+			expectRes:              controllerruntime.Result{},
+			existErr:               false,
+			expectFinalizerRemoved: true,
+			noClusterResource:      true,
+			work: newWork(func(work *workv1alpha1.Work) {
+				now := metav1.Now()
+				work.SetDeletionTimestamp(&now)
+				work.SetFinalizers([]string{util.ExecutionControllerFinalizer})
+				work.Spec.PreserveResourcesOnDeletion = ptr.To(true)
+			}),
+		},
 	}
 
 	for _, tt := range tests {
@@ -206,7 +225,12 @@ func TestExecutionController_Reconcile(t *testing.T) {
 			}
 
 			eventRecorder := record.NewFakeRecorder(1)
-			c := newController(tt.work, eventRecorder)
+			var c Controller
+			if tt.noClusterResource {
+				c = newControllerWithNoClusterResource(tt.work, eventRecorder)
+			} else {
+				c = newController(tt.work, eventRecorder)
+			}
 			res, err := c.Reconcile(context.Background(), req)
 			assert.Equal(t, tt.expectRes, res)
 			if tt.existErr {
@@ -236,11 +260,28 @@ func TestExecutionController_Reconcile(t *testing.T) {
 					assert.True(t, apierrors.IsNotFound(err), "pod (%s/%s) was not deleted", podNamespace, podName)
 				}
 			}
+
+			if tt.expectFinalizerRemoved {
+				updatedWork := &workv1alpha1.Work{}
+				err = c.Client.Get(context.Background(), req.NamespacedName, updatedWork)
+				if !apierrors.IsNotFound(err) {
+					assert.NoError(t, err)
+					assert.False(t, controllerutil.ContainsFinalizer(updatedWork, util.ExecutionControllerFinalizer))
+				}
+			}
 		})
 	}
 }
 
 func newController(work *workv1alpha1.Work, recorder *record.FakeRecorder) Controller {
+	return newControllerWithMemberResource(work, recorder, true)
+}
+
+func newControllerWithNoClusterResource(work *workv1alpha1.Work, recorder *record.FakeRecorder) Controller {
+	return newControllerWithMemberResource(work, recorder, false)
+}
+
+func newControllerWithMemberResource(work *workv1alpha1.Work, recorder *record.FakeRecorder, seedMemberResource bool) Controller {
 	cluster := newCluster(clusterName, clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)
 	pod := testhelper.NewPod(podNamespace, podName)
 	pod.SetLabels(map[string]string{util.ManagedByKarmadaLabel: util.ManagedByKarmadaLabelValue})
@@ -254,7 +295,13 @@ func newController(work *workv1alpha1.Work, recorder *record.FakeRecorder) Contr
 		WithRESTMapper(restMapper).
 		WithInterceptorFuncs(withGVKInterceptor(clientScheme)).
 		Build()
-	dynamicClientSet := dynamicfake.NewSimpleDynamicClient(scheme.Scheme, pod)
+	var dynamicClientSet *dynamicfake.FakeDynamicClient
+	if seedMemberResource {
+		dynamicClientSet = dynamicfake.NewSimpleDynamicClient(scheme.Scheme, pod)
+	} else {
+		// No objects seeded — simulates resource already deleted from member cluster.
+		dynamicClientSet = dynamicfake.NewSimpleDynamicClient(scheme.Scheme)
+	}
 	informerManager := genericmanager.GetInstance()
 	informerManager.ForCluster(cluster.Name, dynamicClientSet, 0).Lister(corev1.SchemeGroupVersion.WithResource("pods"))
 	informerManager.Start(cluster.Name)
