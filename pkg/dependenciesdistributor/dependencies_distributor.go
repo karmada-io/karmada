@@ -633,6 +633,8 @@ func (d *DependenciesDistributor) createOrUpdateAttachedBinding(ctx context.Cont
 				// Update with effective results.
 				existBinding.Spec.ConflictResolution = effectiveCR
 				existBinding.Spec.PreserveResourcesOnDeletion = ptr.To(effectivePreserve)
+				existBinding.Spec.Replicas = attachedBinding.Spec.Replicas
+				existBinding.Spec.SchedulerName = attachedBinding.Spec.SchedulerName
 			}
 
 			existBinding.Spec.RequiredBy = mergedRequiredBy
@@ -782,8 +784,10 @@ func buildAttachedBinding(independentBinding *workv1alpha2.ResourceBinding, obje
 				ResourceVersion: object.GetResourceVersion(),
 			},
 			RequiredBy:                  result,
+			Replicas:                    independentBinding.Spec.Replicas,
 			PreserveResourcesOnDeletion: independentBinding.Spec.PreserveResourcesOnDeletion,
 			ConflictResolution:          independentBinding.Spec.ConflictResolution,
+			SchedulerName:               independentBinding.Spec.SchedulerName,
 		},
 	}
 }

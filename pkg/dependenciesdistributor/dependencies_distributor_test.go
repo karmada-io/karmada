@@ -3569,12 +3569,14 @@ func Test_buildAttachedBinding(t *testing.T) {
 					Labels:    map[string]string{workv1alpha2.ResourceBindingPermanentIDLabel: "93162d3c-ee8e-4995-9034-05f4d5d2c2b9"},
 				},
 				Spec: workv1alpha2.ResourceBindingSpec{
+					Replicas: 5,
 					Clusters: []workv1alpha2.TargetCluster{
 						{
 							Name:     "member1",
 							Replicas: 2,
 						},
 					},
+					SchedulerName: "test-scheduler",
 				},
 			},
 			object: &unstructured.Unstructured{
@@ -3615,6 +3617,8 @@ func Test_buildAttachedBinding(t *testing.T) {
 						UID:             "db56a4a6-0dff-465a-b046-2c1dea42a42b",
 						ResourceVersion: "22222",
 					},
+					Replicas:      5,
+					SchedulerName: "test-scheduler",
 					RequiredBy: []workv1alpha2.BindingSnapshot{
 						{
 							Namespace: "test",
