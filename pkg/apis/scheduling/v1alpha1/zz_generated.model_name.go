@@ -22,17 +22,16 @@ limitations under the License.
 package v1alpha1
 
 // OpenAPIModelName returns the OpenAPI model name for this type.
-func (in SchedulerQueue) OpenAPIModelName() string {
-	return "com.github.karmada-io.karmada.pkg.apis.scheduling.v1alpha1.SchedulerQueue"
+func (in TenantQueue) OpenAPIModelName() string {
+	return "com.github.karmada-io.karmada.pkg.apis.scheduling.v1alpha1.TenantQueue"
 }
 
 // OpenAPIModelName returns the OpenAPI model name for this type.
-func (in SchedulerQueueList) OpenAPIModelName() string {
-	return "com.github.karmada-io.karmada.pkg.apis.scheduling.v1alpha1.SchedulerQueueList"
+func (in TenantQueueList) OpenAPIModelName() string {
+	return "com.github.karmada-io.karmada.pkg.apis.scheduling.v1alpha1.TenantQueueList"
 }
 
 // OpenAPIModelName returns the OpenAPI model name for this type.
-func (in SchedulerQueueSpec) OpenAPIModelName() string {
-	return "com.github.karmada-io.karmada.pkg.apis.scheduling.v1alpha1.SchedulerQueueSpec"
+func (in TenantQueueSpec) OpenAPIModelName() string {
+	return "com.github.karmada-io.karmada.pkg.apis.scheduling.v1alpha1.TenantQueueSpec"
 }
-

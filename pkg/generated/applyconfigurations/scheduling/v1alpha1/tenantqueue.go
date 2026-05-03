@@ -27,70 +27,70 @@ import (
 	v1 "k8s.io/client-go/applyconfigurations/meta/v1"
 )
 
-// SchedulerQueueApplyConfiguration represents a declarative configuration of the SchedulerQueue type for use
+// TenantQueueApplyConfiguration represents a declarative configuration of the TenantQueue type for use
 // with apply.
 //
-// SchedulerQueue configures per-tenant scheduling queue settings.
+// TenantQueue configures per-tenant scheduling queue settings.
 // It is cluster-scoped so that only cluster admins can create it.
 // ResourceBindings in namespaces matching the NamespaceSelector are
 // routed to this queue for scheduling.
-type SchedulerQueueApplyConfiguration struct {
+type TenantQueueApplyConfiguration struct {
 	v1.TypeMetaApplyConfiguration    `json:",inline"`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
 	// Spec defines the desired queue configuration.
-	Spec *SchedulerQueueSpecApplyConfiguration `json:"spec,omitempty"`
+	Spec *TenantQueueSpecApplyConfiguration `json:"spec,omitempty"`
 }
 
-// SchedulerQueue constructs a declarative configuration of the SchedulerQueue type for use with
+// TenantQueue constructs a declarative configuration of the TenantQueue type for use with
 // apply.
-func SchedulerQueue(name string) *SchedulerQueueApplyConfiguration {
-	b := &SchedulerQueueApplyConfiguration{}
+func TenantQueue(name string) *TenantQueueApplyConfiguration {
+	b := &TenantQueueApplyConfiguration{}
 	b.WithName(name)
-	b.WithKind("SchedulerQueue")
+	b.WithKind("TenantQueue")
 	b.WithAPIVersion("scheduling.karmada.io/v1alpha1")
 	return b
 }
 
-// ExtractSchedulerQueueFrom extracts the applied configuration owned by fieldManager from
-// schedulerQueue for the specified subresource. Pass an empty string for subresource to extract
+// ExtractTenantQueueFrom extracts the applied configuration owned by fieldManager from
+// tenantQueue for the specified subresource. Pass an empty string for subresource to extract
 // the main resource. Common subresources include "status", "scale", etc.
-// schedulerQueue must be a unmodified SchedulerQueue API object that was retrieved from the Kubernetes API.
-// ExtractSchedulerQueueFrom provides a way to perform a extract/modify-in-place/apply workflow.
+// tenantQueue must be a unmodified TenantQueue API object that was retrieved from the Kubernetes API.
+// ExtractTenantQueueFrom provides a way to perform a extract/modify-in-place/apply workflow.
 // Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
 // applied if another fieldManager has updated or force applied any of the previously applied fields.
-func ExtractSchedulerQueueFrom(schedulerQueue *schedulingv1alpha1.SchedulerQueue, fieldManager string, subresource string) (*SchedulerQueueApplyConfiguration, error) {
-	b := &SchedulerQueueApplyConfiguration{}
-	err := managedfields.ExtractInto(schedulerQueue, internal.Parser().Type("com.github.karmada-io.karmada.pkg.apis.scheduling.v1alpha1.SchedulerQueue"), fieldManager, b, subresource)
+func ExtractTenantQueueFrom(tenantQueue *schedulingv1alpha1.TenantQueue, fieldManager string, subresource string) (*TenantQueueApplyConfiguration, error) {
+	b := &TenantQueueApplyConfiguration{}
+	err := managedfields.ExtractInto(tenantQueue, internal.Parser().Type("com.github.karmada-io.karmada.pkg.apis.scheduling.v1alpha1.TenantQueue"), fieldManager, b, subresource)
 	if err != nil {
 		return nil, err
 	}
-	b.WithName(schedulerQueue.Name)
+	b.WithName(tenantQueue.Name)
 
-	b.WithKind("SchedulerQueue")
+	b.WithKind("TenantQueue")
 	b.WithAPIVersion("scheduling.karmada.io/v1alpha1")
 	return b, nil
 }
 
-// ExtractSchedulerQueue extracts the applied configuration owned by fieldManager from
-// schedulerQueue. If no managedFields are found in schedulerQueue for fieldManager, a
-// SchedulerQueueApplyConfiguration is returned with only the Name, Namespace (if applicable),
+// ExtractTenantQueue extracts the applied configuration owned by fieldManager from
+// tenantQueue. If no managedFields are found in tenantQueue for fieldManager, a
+// TenantQueueApplyConfiguration is returned with only the Name, Namespace (if applicable),
 // APIVersion and Kind populated. It is possible that no managed fields were found for because other
 // field managers have taken ownership of all the fields previously owned by fieldManager, or because
 // the fieldManager never owned fields any fields.
-// schedulerQueue must be a unmodified SchedulerQueue API object that was retrieved from the Kubernetes API.
-// ExtractSchedulerQueue provides a way to perform a extract/modify-in-place/apply workflow.
+// tenantQueue must be a unmodified TenantQueue API object that was retrieved from the Kubernetes API.
+// ExtractTenantQueue provides a way to perform a extract/modify-in-place/apply workflow.
 // Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
 // applied if another fieldManager has updated or force applied any of the previously applied fields.
-func ExtractSchedulerQueue(schedulerQueue *schedulingv1alpha1.SchedulerQueue, fieldManager string) (*SchedulerQueueApplyConfiguration, error) {
-	return ExtractSchedulerQueueFrom(schedulerQueue, fieldManager, "")
+func ExtractTenantQueue(tenantQueue *schedulingv1alpha1.TenantQueue, fieldManager string) (*TenantQueueApplyConfiguration, error) {
+	return ExtractTenantQueueFrom(tenantQueue, fieldManager, "")
 }
 
-func (b SchedulerQueueApplyConfiguration) IsApplyConfiguration() {}
+func (b TenantQueueApplyConfiguration) IsApplyConfiguration() {}
 
 // WithKind sets the Kind field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Kind field is set to the value of the last call.
-func (b *SchedulerQueueApplyConfiguration) WithKind(value string) *SchedulerQueueApplyConfiguration {
+func (b *TenantQueueApplyConfiguration) WithKind(value string) *TenantQueueApplyConfiguration {
 	b.TypeMetaApplyConfiguration.Kind = &value
 	return b
 }
@@ -98,7 +98,7 @@ func (b *SchedulerQueueApplyConfiguration) WithKind(value string) *SchedulerQueu
 // WithAPIVersion sets the APIVersion field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the APIVersion field is set to the value of the last call.
-func (b *SchedulerQueueApplyConfiguration) WithAPIVersion(value string) *SchedulerQueueApplyConfiguration {
+func (b *TenantQueueApplyConfiguration) WithAPIVersion(value string) *TenantQueueApplyConfiguration {
 	b.TypeMetaApplyConfiguration.APIVersion = &value
 	return b
 }
@@ -106,7 +106,7 @@ func (b *SchedulerQueueApplyConfiguration) WithAPIVersion(value string) *Schedul
 // WithName sets the Name field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Name field is set to the value of the last call.
-func (b *SchedulerQueueApplyConfiguration) WithName(value string) *SchedulerQueueApplyConfiguration {
+func (b *TenantQueueApplyConfiguration) WithName(value string) *TenantQueueApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
 	b.ObjectMetaApplyConfiguration.Name = &value
 	return b
@@ -115,7 +115,7 @@ func (b *SchedulerQueueApplyConfiguration) WithName(value string) *SchedulerQueu
 // WithGenerateName sets the GenerateName field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the GenerateName field is set to the value of the last call.
-func (b *SchedulerQueueApplyConfiguration) WithGenerateName(value string) *SchedulerQueueApplyConfiguration {
+func (b *TenantQueueApplyConfiguration) WithGenerateName(value string) *TenantQueueApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
 	b.ObjectMetaApplyConfiguration.GenerateName = &value
 	return b
@@ -124,7 +124,7 @@ func (b *SchedulerQueueApplyConfiguration) WithGenerateName(value string) *Sched
 // WithNamespace sets the Namespace field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Namespace field is set to the value of the last call.
-func (b *SchedulerQueueApplyConfiguration) WithNamespace(value string) *SchedulerQueueApplyConfiguration {
+func (b *TenantQueueApplyConfiguration) WithNamespace(value string) *TenantQueueApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
 	b.ObjectMetaApplyConfiguration.Namespace = &value
 	return b
@@ -133,7 +133,7 @@ func (b *SchedulerQueueApplyConfiguration) WithNamespace(value string) *Schedule
 // WithUID sets the UID field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the UID field is set to the value of the last call.
-func (b *SchedulerQueueApplyConfiguration) WithUID(value types.UID) *SchedulerQueueApplyConfiguration {
+func (b *TenantQueueApplyConfiguration) WithUID(value types.UID) *TenantQueueApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
 	b.ObjectMetaApplyConfiguration.UID = &value
 	return b
@@ -142,7 +142,7 @@ func (b *SchedulerQueueApplyConfiguration) WithUID(value types.UID) *SchedulerQu
 // WithResourceVersion sets the ResourceVersion field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the ResourceVersion field is set to the value of the last call.
-func (b *SchedulerQueueApplyConfiguration) WithResourceVersion(value string) *SchedulerQueueApplyConfiguration {
+func (b *TenantQueueApplyConfiguration) WithResourceVersion(value string) *TenantQueueApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
 	b.ObjectMetaApplyConfiguration.ResourceVersion = &value
 	return b
@@ -151,7 +151,7 @@ func (b *SchedulerQueueApplyConfiguration) WithResourceVersion(value string) *Sc
 // WithGeneration sets the Generation field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Generation field is set to the value of the last call.
-func (b *SchedulerQueueApplyConfiguration) WithGeneration(value int64) *SchedulerQueueApplyConfiguration {
+func (b *TenantQueueApplyConfiguration) WithGeneration(value int64) *TenantQueueApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
 	b.ObjectMetaApplyConfiguration.Generation = &value
 	return b
@@ -160,7 +160,7 @@ func (b *SchedulerQueueApplyConfiguration) WithGeneration(value int64) *Schedule
 // WithCreationTimestamp sets the CreationTimestamp field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the CreationTimestamp field is set to the value of the last call.
-func (b *SchedulerQueueApplyConfiguration) WithCreationTimestamp(value metav1.Time) *SchedulerQueueApplyConfiguration {
+func (b *TenantQueueApplyConfiguration) WithCreationTimestamp(value metav1.Time) *TenantQueueApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
 	b.ObjectMetaApplyConfiguration.CreationTimestamp = &value
 	return b
@@ -169,7 +169,7 @@ func (b *SchedulerQueueApplyConfiguration) WithCreationTimestamp(value metav1.Ti
 // WithDeletionTimestamp sets the DeletionTimestamp field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the DeletionTimestamp field is set to the value of the last call.
-func (b *SchedulerQueueApplyConfiguration) WithDeletionTimestamp(value metav1.Time) *SchedulerQueueApplyConfiguration {
+func (b *TenantQueueApplyConfiguration) WithDeletionTimestamp(value metav1.Time) *TenantQueueApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
 	b.ObjectMetaApplyConfiguration.DeletionTimestamp = &value
 	return b
@@ -178,7 +178,7 @@ func (b *SchedulerQueueApplyConfiguration) WithDeletionTimestamp(value metav1.Ti
 // WithDeletionGracePeriodSeconds sets the DeletionGracePeriodSeconds field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the DeletionGracePeriodSeconds field is set to the value of the last call.
-func (b *SchedulerQueueApplyConfiguration) WithDeletionGracePeriodSeconds(value int64) *SchedulerQueueApplyConfiguration {
+func (b *TenantQueueApplyConfiguration) WithDeletionGracePeriodSeconds(value int64) *TenantQueueApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
 	b.ObjectMetaApplyConfiguration.DeletionGracePeriodSeconds = &value
 	return b
@@ -188,7 +188,7 @@ func (b *SchedulerQueueApplyConfiguration) WithDeletionGracePeriodSeconds(value 
 // and returns the receiver, so that objects can be build by chaining "With" function invocations.
 // If called multiple times, the entries provided by each call will be put on the Labels field,
 // overwriting an existing map entries in Labels field with the same key.
-func (b *SchedulerQueueApplyConfiguration) WithLabels(entries map[string]string) *SchedulerQueueApplyConfiguration {
+func (b *TenantQueueApplyConfiguration) WithLabels(entries map[string]string) *TenantQueueApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
 	if b.ObjectMetaApplyConfiguration.Labels == nil && len(entries) > 0 {
 		b.ObjectMetaApplyConfiguration.Labels = make(map[string]string, len(entries))
@@ -203,7 +203,7 @@ func (b *SchedulerQueueApplyConfiguration) WithLabels(entries map[string]string)
 // and returns the receiver, so that objects can be build by chaining "With" function invocations.
 // If called multiple times, the entries provided by each call will be put on the Annotations field,
 // overwriting an existing map entries in Annotations field with the same key.
-func (b *SchedulerQueueApplyConfiguration) WithAnnotations(entries map[string]string) *SchedulerQueueApplyConfiguration {
+func (b *TenantQueueApplyConfiguration) WithAnnotations(entries map[string]string) *TenantQueueApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
 	if b.ObjectMetaApplyConfiguration.Annotations == nil && len(entries) > 0 {
 		b.ObjectMetaApplyConfiguration.Annotations = make(map[string]string, len(entries))
@@ -217,7 +217,7 @@ func (b *SchedulerQueueApplyConfiguration) WithAnnotations(entries map[string]st
 // WithOwnerReferences adds the given value to the OwnerReferences field in the declarative configuration
 // and returns the receiver, so that objects can be build by chaining "With" function invocations.
 // If called multiple times, values provided by each call will be appended to the OwnerReferences field.
-func (b *SchedulerQueueApplyConfiguration) WithOwnerReferences(values ...*v1.OwnerReferenceApplyConfiguration) *SchedulerQueueApplyConfiguration {
+func (b *TenantQueueApplyConfiguration) WithOwnerReferences(values ...*v1.OwnerReferenceApplyConfiguration) *TenantQueueApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
 	for i := range values {
 		if values[i] == nil {
@@ -231,7 +231,7 @@ func (b *SchedulerQueueApplyConfiguration) WithOwnerReferences(values ...*v1.Own
 // WithFinalizers adds the given value to the Finalizers field in the declarative configuration
 // and returns the receiver, so that objects can be build by chaining "With" function invocations.
 // If called multiple times, values provided by each call will be appended to the Finalizers field.
-func (b *SchedulerQueueApplyConfiguration) WithFinalizers(values ...string) *SchedulerQueueApplyConfiguration {
+func (b *TenantQueueApplyConfiguration) WithFinalizers(values ...string) *TenantQueueApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
 	for i := range values {
 		b.ObjectMetaApplyConfiguration.Finalizers = append(b.ObjectMetaApplyConfiguration.Finalizers, values[i])
@@ -239,7 +239,7 @@ func (b *SchedulerQueueApplyConfiguration) WithFinalizers(values ...string) *Sch
 	return b
 }
 
-func (b *SchedulerQueueApplyConfiguration) ensureObjectMetaApplyConfigurationExists() {
+func (b *TenantQueueApplyConfiguration) ensureObjectMetaApplyConfigurationExists() {
 	if b.ObjectMetaApplyConfiguration == nil {
 		b.ObjectMetaApplyConfiguration = &v1.ObjectMetaApplyConfiguration{}
 	}
@@ -248,29 +248,29 @@ func (b *SchedulerQueueApplyConfiguration) ensureObjectMetaApplyConfigurationExi
 // WithSpec sets the Spec field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Spec field is set to the value of the last call.
-func (b *SchedulerQueueApplyConfiguration) WithSpec(value *SchedulerQueueSpecApplyConfiguration) *SchedulerQueueApplyConfiguration {
+func (b *TenantQueueApplyConfiguration) WithSpec(value *TenantQueueSpecApplyConfiguration) *TenantQueueApplyConfiguration {
 	b.Spec = value
 	return b
 }
 
 // GetKind retrieves the value of the Kind field in the declarative configuration.
-func (b *SchedulerQueueApplyConfiguration) GetKind() *string {
+func (b *TenantQueueApplyConfiguration) GetKind() *string {
 	return b.TypeMetaApplyConfiguration.Kind
 }
 
 // GetAPIVersion retrieves the value of the APIVersion field in the declarative configuration.
-func (b *SchedulerQueueApplyConfiguration) GetAPIVersion() *string {
+func (b *TenantQueueApplyConfiguration) GetAPIVersion() *string {
 	return b.TypeMetaApplyConfiguration.APIVersion
 }
 
 // GetName retrieves the value of the Name field in the declarative configuration.
-func (b *SchedulerQueueApplyConfiguration) GetName() *string {
+func (b *TenantQueueApplyConfiguration) GetName() *string {
 	b.ensureObjectMetaApplyConfigurationExists()
 	return b.ObjectMetaApplyConfiguration.Name
 }
 
 // GetNamespace retrieves the value of the Namespace field in the declarative configuration.
-func (b *SchedulerQueueApplyConfiguration) GetNamespace() *string {
+func (b *TenantQueueApplyConfiguration) GetNamespace() *string {
 	b.ensureObjectMetaApplyConfigurationExists()
 	return b.ObjectMetaApplyConfiguration.Namespace
 }

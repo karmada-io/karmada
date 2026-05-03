@@ -1,0 +1,115 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.20.0
+  name: tenantqueues.scheduling.karmada.io
+spec:
+  group: scheduling.karmada.io
+  names:
+    categories:
+    - karmada-io
+    kind: TenantQueue
+    listKind: TenantQueueList
+    plural: tenantqueues
+    shortNames:
+    - tq
+    singular: tenantqueue
+  scope: Cluster
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          TenantQueue configures per-tenant scheduling queue settings.
+          It is cluster-scoped so that only cluster admins can create it.
+          ResourceBindings in namespaces matching the NamespaceSelector are
+          routed to this queue for scheduling.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: Spec defines the desired queue configuration.
+            properties:
+              namespaceSelector:
+                description: |-
+                  NamespaceSelector selects the namespaces whose ResourceBindings
+                  this queue governs. An empty selector ({}) matches all namespaces.
+                  A nil selector matches no namespaces.
+                properties:
+                  matchExpressions:
+                    description: matchExpressions is a list of label selector requirements.
+                      The requirements are ANDed.
+                    items:
+                      description: |-
+                        A label selector requirement is a selector that contains values, a key, and an operator that
+                        relates the key and values.
+                      properties:
+                        key:
+                          description: key is the label key that the selector applies
+                            to.
+                          type: string
+                        operator:
+                          description: |-
+                            operator represents a key's relationship to a set of values.
+                            Valid operators are In, NotIn, Exists and DoesNotExist.
+                          type: string
+                        values:
+                          description: |-
+                            values is an array of string values. If the operator is In or NotIn,
+                            the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                            the values array must be empty. This array is replaced during a strategic
+                            merge patch.
+                          items:
+                            type: string
+                          type: array
+                          x-kubernetes-list-type: atomic
+                      required:
+                      - key
+                      - operator
+                      type: object
+                    type: array
+                    x-kubernetes-list-type: atomic
+                  matchLabels:
+                    additionalProperties:
+                      type: string
+                    description: |-
+                      matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+                      map is equivalent to an element of matchExpressions, whose key field is "key", the
+                      operator is "In", and the values array contains only "value". The requirements are ANDed.
+                    type: object
+                type: object
+                x-kubernetes-map-type: atomic
+              queueingStrategy:
+                default: BestEffortFIFO
+                description: |-
+                  QueueingStrategy controls the ordering and blocking behavior of
+                  bindings in the active queue.
+                enum:
+                - BestEffortFIFO
+                - StrictFIFO
+                type: string
+            required:
+            - namespaceSelector
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true

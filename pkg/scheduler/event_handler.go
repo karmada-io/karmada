@@ -84,14 +84,14 @@ func (s *Scheduler) addAllEventHandlers() {
 	}
 
 	if features.FeatureGate.Enabled(features.SchedulerQueueManagement) {
-		sqInformer := s.informerFactory.Scheduling().V1alpha1().SchedulerQueues().Informer()
+		sqInformer := s.informerFactory.Scheduling().V1alpha1().TenantQueues().Informer()
 		_, err = sqInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-			AddFunc:    s.onSchedulerQueueAdd,
-			UpdateFunc: s.onSchedulerQueueUpdate,
-			DeleteFunc: s.onSchedulerQueueDelete,
+			AddFunc:    s.onTenantQueueAdd,
+			UpdateFunc: s.onTenantQueueUpdate,
+			DeleteFunc: s.onTenantQueueDelete,
 		})
 		if err != nil {
-			klog.Errorf("Failed to add handlers for SchedulerQueues: %v", err)
+			klog.Errorf("Failed to add handlers for TenantQueues: %v", err)
 		}
 	}
 
@@ -460,9 +460,9 @@ func (s *Scheduler) enqueueAffectedCRBs(cluster *clusterv1alpha1.Cluster) error 
 	return nil
 }
 
-// onSchedulerQueueAdd handles the creation of a SchedulerQueue object.
-func (s *Scheduler) onSchedulerQueueAdd(obj interface{}) {
-	sq, ok := obj.(*schedulingv1alpha1.SchedulerQueue)
+// onTenantQueueAdd handles the creation of a TenantQueue object.
+func (s *Scheduler) onTenantQueueAdd(obj interface{}) {
+	sq, ok := obj.(*schedulingv1alpha1.TenantQueue)
 	if !ok {
 		klog.Errorf("unexpected object type: %T", obj)
 		return
@@ -480,12 +480,12 @@ func (s *Scheduler) onSchedulerQueueAdd(obj interface{}) {
 	s.tenantQueue.AddTenant(sq.Name, strategy)
 	namespaces := s.resolveNamespaceSelector(sq.Spec.NamespaceSelector)
 	s.tenantQueue.SetNamespaceMappings(sq.Name, namespaces)
-	klog.V(2).InfoS("SchedulerQueue added", "name", sq.Name, "namespaces", namespaces)
+	klog.V(2).InfoS("TenantQueue added", "name", sq.Name, "namespaces", namespaces)
 }
 
-// onSchedulerQueueUpdate handles updates to a SchedulerQueue object.
-func (s *Scheduler) onSchedulerQueueUpdate(oldObj, newObj interface{}) {
-	sq, ok := newObj.(*schedulingv1alpha1.SchedulerQueue)
+// onTenantQueueUpdate handles updates to a TenantQueue object.
+func (s *Scheduler) onTenantQueueUpdate(oldObj, newObj interface{}) {
+	sq, ok := newObj.(*schedulingv1alpha1.TenantQueue)
 	if !ok {
 		klog.Errorf("unexpected object type: %T", newObj)
 		return
@@ -497,19 +497,19 @@ func (s *Scheduler) onSchedulerQueueUpdate(oldObj, newObj interface{}) {
 
 	namespaces := s.resolveNamespaceSelector(sq.Spec.NamespaceSelector)
 	s.tenantQueue.SetNamespaceMappings(sq.Name, namespaces)
-	klog.V(2).InfoS("SchedulerQueue updated", "name", sq.Name, "namespaces", namespaces)
+	klog.V(2).InfoS("TenantQueue updated", "name", sq.Name, "namespaces", namespaces)
 }
 
-// onSchedulerQueueDelete handles the deletion of a SchedulerQueue object.
-func (s *Scheduler) onSchedulerQueueDelete(obj interface{}) {
-	sq, ok := obj.(*schedulingv1alpha1.SchedulerQueue)
+// onTenantQueueDelete handles the deletion of a TenantQueue object.
+func (s *Scheduler) onTenantQueueDelete(obj interface{}) {
+	sq, ok := obj.(*schedulingv1alpha1.TenantQueue)
 	if !ok {
 		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
 		if !ok {
 			klog.Errorf("unexpected object type: %T", obj)
 			return
 		}
-		sq, ok = tombstone.Obj.(*schedulingv1alpha1.SchedulerQueue)
+		sq, ok = tombstone.Obj.(*schedulingv1alpha1.TenantQueue)
 		if !ok {
 			klog.Errorf("unexpected tombstone object type: %T", tombstone.Obj)
 			return
@@ -521,7 +521,7 @@ func (s *Scheduler) onSchedulerQueueDelete(obj interface{}) {
 	}
 
 	s.tenantQueue.RemoveTenant(sq.Name)
-	klog.V(2).InfoS("SchedulerQueue deleted", "name", sq.Name)
+	klog.V(2).InfoS("TenantQueue deleted", "name", sq.Name)
 }
 
 // resolveNamespaceSelector converts a LabelSelector into a list of matching

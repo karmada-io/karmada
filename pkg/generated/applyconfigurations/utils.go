@@ -268,10 +268,10 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &applyconfigurationsremedyv1alpha1.RemedySpecApplyConfiguration{}
 
 		// Group=scheduling.karmada.io, Version=v1alpha1
-	case schedulingv1alpha1.SchemeGroupVersion.WithKind("SchedulerQueue"):
-		return &applyconfigurationsschedulingv1alpha1.SchedulerQueueApplyConfiguration{}
-	case schedulingv1alpha1.SchemeGroupVersion.WithKind("SchedulerQueueSpec"):
-		return &applyconfigurationsschedulingv1alpha1.SchedulerQueueSpecApplyConfiguration{}
+	case schedulingv1alpha1.SchemeGroupVersion.WithKind("TenantQueue"):
+		return &applyconfigurationsschedulingv1alpha1.TenantQueueApplyConfiguration{}
+	case schedulingv1alpha1.SchemeGroupVersion.WithKind("TenantQueueSpec"):
+		return &applyconfigurationsschedulingv1alpha1.TenantQueueSpecApplyConfiguration{}
 
 		// Group=search.karmada.io, Version=v1alpha1
 	case searchv1alpha1.SchemeGroupVersion.WithKind("BackendStoreConfig"):

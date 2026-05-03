@@ -32,70 +32,70 @@ import (
 	cache "k8s.io/client-go/tools/cache"
 )
 
-// SchedulerQueueInformer provides access to a shared informer and lister for
-// SchedulerQueues.
-type SchedulerQueueInformer interface {
+// TenantQueueInformer provides access to a shared informer and lister for
+// TenantQueues.
+type TenantQueueInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() schedulingv1alpha1.SchedulerQueueLister
+	Lister() schedulingv1alpha1.TenantQueueLister
 }
 
-type schedulerQueueInformer struct {
+type tenantQueueInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 }
 
-// NewSchedulerQueueInformer constructs a new informer for SchedulerQueue type.
+// NewTenantQueueInformer constructs a new informer for TenantQueue type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewSchedulerQueueInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredSchedulerQueueInformer(client, resyncPeriod, indexers, nil)
+func NewTenantQueueInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredTenantQueueInformer(client, resyncPeriod, indexers, nil)
 }
 
-// NewFilteredSchedulerQueueInformer constructs a new informer for SchedulerQueue type.
+// NewFilteredTenantQueueInformer constructs a new informer for TenantQueue type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredSchedulerQueueInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredTenantQueueInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.SchedulingV1alpha1().SchedulerQueues().List(context.Background(), options)
+				return client.SchedulingV1alpha1().TenantQueues().List(context.Background(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.SchedulingV1alpha1().SchedulerQueues().Watch(context.Background(), options)
+				return client.SchedulingV1alpha1().TenantQueues().Watch(context.Background(), options)
 			},
 			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.SchedulingV1alpha1().SchedulerQueues().List(ctx, options)
+				return client.SchedulingV1alpha1().TenantQueues().List(ctx, options)
 			},
 			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.SchedulingV1alpha1().SchedulerQueues().Watch(ctx, options)
+				return client.SchedulingV1alpha1().TenantQueues().Watch(ctx, options)
 			},
 		}, client),
-		&apisschedulingv1alpha1.SchedulerQueue{},
+		&apisschedulingv1alpha1.TenantQueue{},
 		resyncPeriod,
 		indexers,
 	)
 }
 
-func (f *schedulerQueueInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredSchedulerQueueInformer(client, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+func (f *tenantQueueInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+	return NewFilteredTenantQueueInformer(client, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
-func (f *schedulerQueueInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apisschedulingv1alpha1.SchedulerQueue{}, f.defaultInformer)
+func (f *tenantQueueInformer) Informer() cache.SharedIndexInformer {
+	return f.factory.InformerFor(&apisschedulingv1alpha1.TenantQueue{}, f.defaultInformer)
 }
 
-func (f *schedulerQueueInformer) Lister() schedulingv1alpha1.SchedulerQueueLister {
-	return schedulingv1alpha1.NewSchedulerQueueLister(f.Informer().GetIndexer())
+func (f *tenantQueueInformer) Lister() schedulingv1alpha1.TenantQueueLister {
+	return schedulingv1alpha1.NewTenantQueueLister(f.Informer().GetIndexer())
 }

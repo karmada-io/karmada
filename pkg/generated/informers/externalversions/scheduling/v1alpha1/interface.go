@@ -24,8 +24,8 @@ import (
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
-	// SchedulerQueues returns a SchedulerQueueInformer.
-	SchedulerQueues() SchedulerQueueInformer
+	// TenantQueues returns a TenantQueueInformer.
+	TenantQueues() TenantQueueInformer
 }
 
 type version struct {
@@ -39,7 +39,7 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
-// SchedulerQueues returns a SchedulerQueueInformer.
-func (v *version) SchedulerQueues() SchedulerQueueInformer {
-	return &schedulerQueueInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
+// TenantQueues returns a TenantQueueInformer.
+func (v *version) TenantQueues() TenantQueueInformer {
+	return &tenantQueueInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }

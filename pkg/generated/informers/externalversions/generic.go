@@ -107,8 +107,8 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Remedy().V1alpha1().Remedies().Informer()}, nil
 
 		// Group=scheduling.karmada.io, Version=v1alpha1
-	case schedulingv1alpha1.SchemeGroupVersion.WithResource("schedulerqueues"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Scheduling().V1alpha1().SchedulerQueues().Informer()}, nil
+	case schedulingv1alpha1.SchemeGroupVersion.WithResource("tenantqueues"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Scheduling().V1alpha1().TenantQueues().Informer()}, nil
 
 		// Group=search.karmada.io, Version=v1alpha1
 	case searchv1alpha1.SchemeGroupVersion.WithResource("resourceregistries"):

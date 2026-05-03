@@ -28,7 +28,7 @@ import (
 
 type SchedulingV1alpha1Interface interface {
 	RESTClient() rest.Interface
-	SchedulerQueuesGetter
+	TenantQueuesGetter
 }
 
 // SchedulingV1alpha1Client is used to interact with features provided by the scheduling.karmada.io group.
@@ -36,8 +36,8 @@ type SchedulingV1alpha1Client struct {
 	restClient rest.Interface
 }
 
-func (c *SchedulingV1alpha1Client) SchedulerQueues() SchedulerQueueInterface {
-	return newSchedulerQueues(c)
+func (c *SchedulingV1alpha1Client) TenantQueues() TenantQueueInterface {
+	return newTenantQueues(c)
 }
 
 // NewForConfig creates a new SchedulingV1alpha1Client for the given config.

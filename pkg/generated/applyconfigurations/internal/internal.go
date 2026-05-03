@@ -1669,7 +1669,7 @@ var schemaYAML = typed.YAMLObject(`types:
           elementType:
             namedType: com.github.karmada-io.karmada.pkg.apis.remedy.v1alpha1.DecisionMatch
           elementRelationship: atomic
-- name: com.github.karmada-io.karmada.pkg.apis.scheduling.v1alpha1.SchedulerQueue
+- name: com.github.karmada-io.karmada.pkg.apis.scheduling.v1alpha1.TenantQueue
   map:
     fields:
     - name: apiVersion
@@ -1684,15 +1684,14 @@ var schemaYAML = typed.YAMLObject(`types:
       default: {}
     - name: spec
       type:
-        namedType: com.github.karmada-io.karmada.pkg.apis.scheduling.v1alpha1.SchedulerQueueSpec
+        namedType: com.github.karmada-io.karmada.pkg.apis.scheduling.v1alpha1.TenantQueueSpec
       default: {}
-- name: com.github.karmada-io.karmada.pkg.apis.scheduling.v1alpha1.SchedulerQueueSpec
+- name: com.github.karmada-io.karmada.pkg.apis.scheduling.v1alpha1.TenantQueueSpec
   map:
     fields:
     - name: namespaceSelector
       type:
         namedType: io.k8s.apimachinery.pkg.apis.meta.v1.LabelSelector
-      default: {}
     - name: queueingStrategy
       type:
         scalar: string
@@ -3008,8 +3007,6 @@ var schemaYAML = typed.YAMLObject(`types:
       type:
         scalar: string
       default: ""
-- name: io.k8s.apimachinery.pkg.apis.meta.v1.Duration
-  scalar: string
 - name: io.k8s.apimachinery.pkg.apis.meta.v1.FieldsV1
   map:
     elementType:

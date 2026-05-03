@@ -174,9 +174,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		remedyv1alpha1.Remedy{}.OpenAPIModelName():                                      schema_pkg_apis_remedy_v1alpha1_Remedy(ref),
 		remedyv1alpha1.RemedyList{}.OpenAPIModelName():                                  schema_pkg_apis_remedy_v1alpha1_RemedyList(ref),
 		remedyv1alpha1.RemedySpec{}.OpenAPIModelName():                                  schema_pkg_apis_remedy_v1alpha1_RemedySpec(ref),
-		schedulingv1alpha1.SchedulerQueue{}.OpenAPIModelName():                          schema_pkg_apis_scheduling_v1alpha1_SchedulerQueue(ref),
-		schedulingv1alpha1.SchedulerQueueList{}.OpenAPIModelName():                      schema_pkg_apis_scheduling_v1alpha1_SchedulerQueueList(ref),
-		schedulingv1alpha1.SchedulerQueueSpec{}.OpenAPIModelName():                      schema_pkg_apis_scheduling_v1alpha1_SchedulerQueueSpec(ref),
+		schedulingv1alpha1.TenantQueue{}.OpenAPIModelName():                             schema_pkg_apis_scheduling_v1alpha1_TenantQueue(ref),
+		schedulingv1alpha1.TenantQueueList{}.OpenAPIModelName():                         schema_pkg_apis_scheduling_v1alpha1_TenantQueueList(ref),
+		schedulingv1alpha1.TenantQueueSpec{}.OpenAPIModelName():                         schema_pkg_apis_scheduling_v1alpha1_TenantQueueSpec(ref),
 		searchv1alpha1.BackendStoreConfig{}.OpenAPIModelName():                          schema_pkg_apis_search_v1alpha1_BackendStoreConfig(ref),
 		searchv1alpha1.OpenSearchConfig{}.OpenAPIModelName():                            schema_pkg_apis_search_v1alpha1_OpenSearchConfig(ref),
 		searchv1alpha1.Proxying{}.OpenAPIModelName():                                    schema_pkg_apis_search_v1alpha1_Proxying(ref),
@@ -6189,11 +6189,11 @@ func schema_pkg_apis_remedy_v1alpha1_RemedySpec(ref common.ReferenceCallback) co
 	}
 }
 
-func schema_pkg_apis_scheduling_v1alpha1_SchedulerQueue(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_scheduling_v1alpha1_TenantQueue(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "SchedulerQueue configures per-tenant scheduling queue settings. It is cluster-scoped so that only cluster admins can create it. ResourceBindings in namespaces matching the NamespaceSelector are routed to this queue for scheduling.",
+				Description: "TenantQueue configures per-tenant scheduling queue settings. It is cluster-scoped so that only cluster admins can create it. ResourceBindings in namespaces matching the NamespaceSelector are routed to this queue for scheduling.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
@@ -6220,7 +6220,7 @@ func schema_pkg_apis_scheduling_v1alpha1_SchedulerQueue(ref common.ReferenceCall
 						SchemaProps: spec.SchemaProps{
 							Description: "Spec defines the desired queue configuration.",
 							Default:     map[string]interface{}{},
-							Ref:         ref(schedulingv1alpha1.SchedulerQueueSpec{}.OpenAPIModelName()),
+							Ref:         ref(schedulingv1alpha1.TenantQueueSpec{}.OpenAPIModelName()),
 						},
 					},
 				},
@@ -6228,15 +6228,15 @@ func schema_pkg_apis_scheduling_v1alpha1_SchedulerQueue(ref common.ReferenceCall
 			},
 		},
 		Dependencies: []string{
-			schedulingv1alpha1.SchedulerQueueSpec{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
+			schedulingv1alpha1.TenantQueueSpec{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
-func schema_pkg_apis_scheduling_v1alpha1_SchedulerQueueList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_scheduling_v1alpha1_TenantQueueList(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "SchedulerQueueList contains a list of SchedulerQueue.",
+				Description: "TenantQueueList contains a list of TenantQueue.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
@@ -6266,7 +6266,7 @@ func schema_pkg_apis_scheduling_v1alpha1_SchedulerQueueList(ref common.Reference
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref(schedulingv1alpha1.SchedulerQueue{}.OpenAPIModelName()),
+										Ref:     ref(schedulingv1alpha1.TenantQueue{}.OpenAPIModelName()),
 									},
 								},
 							},
@@ -6277,21 +6277,20 @@ func schema_pkg_apis_scheduling_v1alpha1_SchedulerQueueList(ref common.Reference
 			},
 		},
 		Dependencies: []string{
-			schedulingv1alpha1.SchedulerQueue{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
+			schedulingv1alpha1.TenantQueue{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
 	}
 }
 
-func schema_pkg_apis_scheduling_v1alpha1_SchedulerQueueSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_scheduling_v1alpha1_TenantQueueSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "SchedulerQueueSpec defines the configuration for a tenant's scheduling queue.",
+				Description: "TenantQueueSpec defines the configuration for a tenant's scheduling queue.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"namespaceSelector": {
 						SchemaProps: spec.SchemaProps{
-							Description: "NamespaceSelector selects the namespaces whose ResourceBindings this queue governs.",
-							Default:     map[string]interface{}{},
+							Description: "NamespaceSelector selects the namespaces whose ResourceBindings this queue governs. An empty selector ({}) matches all namespaces. A nil selector matches no namespaces.",
 							Ref:         ref(metav1.LabelSelector{}.OpenAPIModelName()),
 						},
 					},

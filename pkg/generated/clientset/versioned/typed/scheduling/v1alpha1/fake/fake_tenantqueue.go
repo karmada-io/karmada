@@ -25,26 +25,26 @@ import (
 	gentype "k8s.io/client-go/gentype"
 )
 
-// fakeSchedulerQueues implements SchedulerQueueInterface
-type fakeSchedulerQueues struct {
-	*gentype.FakeClientWithListAndApply[*v1alpha1.SchedulerQueue, *v1alpha1.SchedulerQueueList, *schedulingv1alpha1.SchedulerQueueApplyConfiguration]
+// fakeTenantQueues implements TenantQueueInterface
+type fakeTenantQueues struct {
+	*gentype.FakeClientWithListAndApply[*v1alpha1.TenantQueue, *v1alpha1.TenantQueueList, *schedulingv1alpha1.TenantQueueApplyConfiguration]
 	Fake *FakeSchedulingV1alpha1
 }
 
-func newFakeSchedulerQueues(fake *FakeSchedulingV1alpha1) typedschedulingv1alpha1.SchedulerQueueInterface {
-	return &fakeSchedulerQueues{
-		gentype.NewFakeClientWithListAndApply[*v1alpha1.SchedulerQueue, *v1alpha1.SchedulerQueueList, *schedulingv1alpha1.SchedulerQueueApplyConfiguration](
+func newFakeTenantQueues(fake *FakeSchedulingV1alpha1) typedschedulingv1alpha1.TenantQueueInterface {
+	return &fakeTenantQueues{
+		gentype.NewFakeClientWithListAndApply[*v1alpha1.TenantQueue, *v1alpha1.TenantQueueList, *schedulingv1alpha1.TenantQueueApplyConfiguration](
 			fake.Fake,
 			"",
-			v1alpha1.SchemeGroupVersion.WithResource("schedulerqueues"),
-			v1alpha1.SchemeGroupVersion.WithKind("SchedulerQueue"),
-			func() *v1alpha1.SchedulerQueue { return &v1alpha1.SchedulerQueue{} },
-			func() *v1alpha1.SchedulerQueueList { return &v1alpha1.SchedulerQueueList{} },
-			func(dst, src *v1alpha1.SchedulerQueueList) { dst.ListMeta = src.ListMeta },
-			func(list *v1alpha1.SchedulerQueueList) []*v1alpha1.SchedulerQueue {
+			v1alpha1.SchemeGroupVersion.WithResource("tenantqueues"),
+			v1alpha1.SchemeGroupVersion.WithKind("TenantQueue"),
+			func() *v1alpha1.TenantQueue { return &v1alpha1.TenantQueue{} },
+			func() *v1alpha1.TenantQueueList { return &v1alpha1.TenantQueueList{} },
+			func(dst, src *v1alpha1.TenantQueueList) { dst.ListMeta = src.ListMeta },
+			func(list *v1alpha1.TenantQueueList) []*v1alpha1.TenantQueue {
 				return gentype.ToPointerSlice(list.Items)
 			},
-			func(list *v1alpha1.SchedulerQueueList, items []*v1alpha1.SchedulerQueue) {
+			func(list *v1alpha1.TenantQueueList, items []*v1alpha1.TenantQueue) {
 				list.Items = gentype.FromPointerSlice(items)
 			},
 		),

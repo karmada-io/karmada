@@ -18,6 +18,6 @@ limitations under the License.
 
 package v1alpha1
 
-// SchedulerQueueListerExpansion allows custom methods to be added to
-// SchedulerQueueLister.
-type SchedulerQueueListerExpansion interface{}
+// TenantQueueListerExpansion allows custom methods to be added to
+// TenantQueueLister.
+type TenantQueueListerExpansion interface{}

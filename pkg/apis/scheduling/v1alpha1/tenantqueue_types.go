@@ -21,37 +21,37 @@ import (
 )
 
 const (
-	// ResourceKindSchedulerQueue is kind name of SchedulerQueue.
-	ResourceKindSchedulerQueue = "SchedulerQueue"
-	// ResourceSingularSchedulerQueue is singular name of SchedulerQueue.
-	ResourceSingularSchedulerQueue = "schedulerqueue"
-	// ResourcePluralSchedulerQueue is plural name of SchedulerQueue.
-	ResourcePluralSchedulerQueue = "schedulerqueues"
-	// ResourceNamespaceScopedSchedulerQueue indicates if SchedulerQueue is NamespaceScoped.
-	ResourceNamespaceScopedSchedulerQueue = false
+	// ResourceKindTenantQueue is kind name of TenantQueue.
+	ResourceKindTenantQueue = "TenantQueue"
+	// ResourceSingularTenantQueue is singular name of TenantQueue.
+	ResourceSingularTenantQueue = "tenantqueue"
+	// ResourcePluralTenantQueue is plural name of TenantQueue.
+	ResourcePluralTenantQueue = "tenantqueues"
+	// ResourceNamespaceScopedTenantQueue indicates if TenantQueue is NamespaceScoped.
+	ResourceNamespaceScopedTenantQueue = false
 )
 
 // +genclient
 // +genclient:nonNamespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +kubebuilder:resource:path=schedulerqueues,scope="Cluster",shortName=sq,categories={karmada-io}
+// +kubebuilder:resource:path=tenantqueues,scope="Cluster",shortName=tq,categories={karmada-io}
 // +kubebuilder:storageversion
 
-// SchedulerQueue configures per-tenant scheduling queue settings.
+// TenantQueue configures per-tenant scheduling queue settings.
 // It is cluster-scoped so that only cluster admins can create it.
 // ResourceBindings in namespaces matching the NamespaceSelector are
 // routed to this queue for scheduling.
-type SchedulerQueue struct {
+type TenantQueue struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	// Spec defines the desired queue configuration.
 	// +required
-	Spec SchedulerQueueSpec `json:"spec"`
+	Spec TenantQueueSpec `json:"spec"`
 }
 
-// SchedulerQueueSpec defines the configuration for a tenant's scheduling queue.
-type SchedulerQueueSpec struct {
+// TenantQueueSpec defines the configuration for a tenant's scheduling queue.
+type TenantQueueSpec struct {
 	// NamespaceSelector selects the namespaces whose ResourceBindings
 	// this queue governs. An empty selector ({}) matches all namespaces.
 	// A nil selector matches no namespaces.
@@ -85,9 +85,9 @@ const (
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// SchedulerQueueList contains a list of SchedulerQueue.
-type SchedulerQueueList struct {
+// TenantQueueList contains a list of TenantQueue.
+type TenantQueueList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []SchedulerQueue `json:"items"`
+	Items           []TenantQueue `json:"items"`
 }

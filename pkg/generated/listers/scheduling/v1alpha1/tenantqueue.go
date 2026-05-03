@@ -25,24 +25,24 @@ import (
 	cache "k8s.io/client-go/tools/cache"
 )
 
-// SchedulerQueueLister helps list SchedulerQueues.
+// TenantQueueLister helps list TenantQueues.
 // All objects returned here must be treated as read-only.
-type SchedulerQueueLister interface {
-	// List lists all SchedulerQueues in the indexer.
+type TenantQueueLister interface {
+	// List lists all TenantQueues in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*schedulingv1alpha1.SchedulerQueue, err error)
-	// Get retrieves the SchedulerQueue from the index for a given name.
+	List(selector labels.Selector) (ret []*schedulingv1alpha1.TenantQueue, err error)
+	// Get retrieves the TenantQueue from the index for a given name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*schedulingv1alpha1.SchedulerQueue, error)
-	SchedulerQueueListerExpansion
+	Get(name string) (*schedulingv1alpha1.TenantQueue, error)
+	TenantQueueListerExpansion
 }
 
-// schedulerQueueLister implements the SchedulerQueueLister interface.
-type schedulerQueueLister struct {
-	listers.ResourceIndexer[*schedulingv1alpha1.SchedulerQueue]
+// tenantQueueLister implements the TenantQueueLister interface.
+type tenantQueueLister struct {
+	listers.ResourceIndexer[*schedulingv1alpha1.TenantQueue]
 }
 
-// NewSchedulerQueueLister returns a new SchedulerQueueLister.
-func NewSchedulerQueueLister(indexer cache.Indexer) SchedulerQueueLister {
-	return &schedulerQueueLister{listers.New[*schedulingv1alpha1.SchedulerQueue](indexer, schedulingv1alpha1.Resource("schedulerqueue"))}
+// NewTenantQueueLister returns a new TenantQueueLister.
+func NewTenantQueueLister(indexer cache.Indexer) TenantQueueLister {
+	return &tenantQueueLister{listers.New[*schedulingv1alpha1.TenantQueue](indexer, schedulingv1alpha1.Resource("tenantqueue"))}
 }
