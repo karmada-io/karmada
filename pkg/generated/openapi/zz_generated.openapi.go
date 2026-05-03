@@ -174,12 +174,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		remedyv1alpha1.Remedy{}.OpenAPIModelName():                                      schema_pkg_apis_remedy_v1alpha1_Remedy(ref),
 		remedyv1alpha1.RemedyList{}.OpenAPIModelName():                                  schema_pkg_apis_remedy_v1alpha1_RemedyList(ref),
 		remedyv1alpha1.RemedySpec{}.OpenAPIModelName():                                  schema_pkg_apis_remedy_v1alpha1_RemedySpec(ref),
-		schedulingv1alpha1.BackoffConfig{}.OpenAPIModelName():                           schema_pkg_apis_scheduling_v1alpha1_BackoffConfig(ref),
-		schedulingv1alpha1.NamespaceSelector{}.OpenAPIModelName():                       schema_pkg_apis_scheduling_v1alpha1_NamespaceSelector(ref),
 		schedulingv1alpha1.SchedulerQueue{}.OpenAPIModelName():                          schema_pkg_apis_scheduling_v1alpha1_SchedulerQueue(ref),
 		schedulingv1alpha1.SchedulerQueueList{}.OpenAPIModelName():                      schema_pkg_apis_scheduling_v1alpha1_SchedulerQueueList(ref),
 		schedulingv1alpha1.SchedulerQueueSpec{}.OpenAPIModelName():                      schema_pkg_apis_scheduling_v1alpha1_SchedulerQueueSpec(ref),
-		schedulingv1alpha1.UnschedulableConfig{}.OpenAPIModelName():                     schema_pkg_apis_scheduling_v1alpha1_UnschedulableConfig(ref),
 		searchv1alpha1.BackendStoreConfig{}.OpenAPIModelName():                          schema_pkg_apis_search_v1alpha1_BackendStoreConfig(ref),
 		searchv1alpha1.OpenSearchConfig{}.OpenAPIModelName():                            schema_pkg_apis_search_v1alpha1_OpenSearchConfig(ref),
 		searchv1alpha1.Proxying{}.OpenAPIModelName():                                    schema_pkg_apis_search_v1alpha1_Proxying(ref),
@@ -6192,77 +6189,6 @@ func schema_pkg_apis_remedy_v1alpha1_RemedySpec(ref common.ReferenceCallback) co
 	}
 }
 
-func schema_pkg_apis_scheduling_v1alpha1_BackoffConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "BackoffConfig controls exponential backoff for failed scheduling attempts.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"initialDuration": {
-						SchemaProps: spec.SchemaProps{
-							Description: "InitialDuration is the backoff duration for the first retry.",
-							Ref:         ref(metav1.Duration{}.OpenAPIModelName()),
-						},
-					},
-					"maxDuration": {
-						SchemaProps: spec.SchemaProps{
-							Description: "MaxDuration is the maximum backoff duration.",
-							Ref:         ref(metav1.Duration{}.OpenAPIModelName()),
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{
-			metav1.Duration{}.OpenAPIModelName()},
-	}
-}
-
-func schema_pkg_apis_scheduling_v1alpha1_NamespaceSelector(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "NamespaceSelector selects namespaces for a tenant queue.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"names": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Names is a list of exact namespace names.",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
-									},
-								},
-							},
-						},
-					},
-					"matchLabels": {
-						SchemaProps: spec.SchemaProps{
-							Description: "MatchLabels selects namespaces by label. Reserved for Phase 2.",
-							Type:        []string{"object"},
-							AdditionalProperties: &spec.SchemaOrBool{
-								Allows: true,
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-}
-
 func schema_pkg_apis_scheduling_v1alpha1_SchedulerQueue(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -6366,7 +6292,7 @@ func schema_pkg_apis_scheduling_v1alpha1_SchedulerQueueSpec(ref common.Reference
 						SchemaProps: spec.SchemaProps{
 							Description: "NamespaceSelector selects the namespaces whose ResourceBindings this queue governs.",
 							Default:     map[string]interface{}{},
-							Ref:         ref(schedulingv1alpha1.NamespaceSelector{}.OpenAPIModelName()),
+							Ref:         ref(metav1.LabelSelector{}.OpenAPIModelName()),
 						},
 					},
 					"queueingStrategy": {
@@ -6376,45 +6302,12 @@ func schema_pkg_apis_scheduling_v1alpha1_SchedulerQueueSpec(ref common.Reference
 							Format:      "",
 						},
 					},
-					"backoffConfig": {
-						SchemaProps: spec.SchemaProps{
-							Description: "BackoffConfig tunes the retry backoff for this tenant's backoff queue.",
-							Ref:         ref(schedulingv1alpha1.BackoffConfig{}.OpenAPIModelName()),
-						},
-					},
-					"unschedulableConfig": {
-						SchemaProps: spec.SchemaProps{
-							Description: "UnschedulableConfig tunes how long bindings may sit in the unschedulable set before being flushed back to the active queue.",
-							Ref:         ref(schedulingv1alpha1.UnschedulableConfig{}.OpenAPIModelName()),
-						},
-					},
 				},
 				Required: []string{"namespaceSelector"},
 			},
 		},
 		Dependencies: []string{
-			schedulingv1alpha1.BackoffConfig{}.OpenAPIModelName(), schedulingv1alpha1.NamespaceSelector{}.OpenAPIModelName(), schedulingv1alpha1.UnschedulableConfig{}.OpenAPIModelName()},
-	}
-}
-
-func schema_pkg_apis_scheduling_v1alpha1_UnschedulableConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "UnschedulableConfig controls how long a binding waits in the unschedulable set before being re-queued.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"maxDuration": {
-						SchemaProps: spec.SchemaProps{
-							Description: "MaxDuration is the maximum time a binding may remain in the unschedulable set. After this, it is moved to the backoff or active queue.",
-							Ref:         ref(metav1.Duration{}.OpenAPIModelName()),
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{
-			metav1.Duration{}.OpenAPIModelName()},
+			metav1.LabelSelector{}.OpenAPIModelName()},
 	}
 }
 

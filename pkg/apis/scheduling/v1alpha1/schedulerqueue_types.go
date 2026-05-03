@@ -53,9 +53,10 @@ type SchedulerQueue struct {
 // SchedulerQueueSpec defines the configuration for a tenant's scheduling queue.
 type SchedulerQueueSpec struct {
 	// NamespaceSelector selects the namespaces whose ResourceBindings
-	// this queue governs.
+	// this queue governs. An empty selector ({}) matches all namespaces.
+	// A nil selector matches no namespaces.
 	// +required
-	NamespaceSelector NamespaceSelector `json:"namespaceSelector"`
+	NamespaceSelector *metav1.LabelSelector `json:"namespaceSelector"`
 
 	// QueueingStrategy controls the ordering and blocking behavior of
 	// bindings in the active queue.
@@ -63,26 +64,6 @@ type SchedulerQueueSpec struct {
 	// +kubebuilder:validation:Enum=BestEffortFIFO;StrictFIFO
 	// +optional
 	QueueingStrategy QueueingStrategy `json:"queueingStrategy,omitempty"`
-
-	// BackoffConfig tunes the retry backoff for this tenant's backoff queue.
-	// +optional
-	BackoffConfig *BackoffConfig `json:"backoffConfig,omitempty"`
-
-	// UnschedulableConfig tunes how long bindings may sit in the
-	// unschedulable set before being flushed back to the active queue.
-	// +optional
-	UnschedulableConfig *UnschedulableConfig `json:"unschedulableConfig,omitempty"`
-}
-
-// NamespaceSelector selects namespaces for a tenant queue.
-type NamespaceSelector struct {
-	// Names is a list of exact namespace names.
-	// +optional
-	Names []string `json:"names,omitempty"`
-
-	// MatchLabels selects namespaces by label. Reserved for Phase 2.
-	// +optional
-	MatchLabels map[string]string `json:"matchLabels,omitempty"`
 }
 
 // QueueingStrategy determines how bindings are ordered and whether
@@ -101,29 +82,6 @@ const (
 	// (head-of-line blocking).
 	StrictFIFO QueueingStrategy = "StrictFIFO"
 )
-
-// BackoffConfig controls exponential backoff for failed scheduling attempts.
-type BackoffConfig struct {
-	// InitialDuration is the backoff duration for the first retry.
-	// +kubebuilder:default="1s"
-	// +optional
-	InitialDuration *metav1.Duration `json:"initialDuration,omitempty"`
-
-	// MaxDuration is the maximum backoff duration.
-	// +kubebuilder:default="10s"
-	// +optional
-	MaxDuration *metav1.Duration `json:"maxDuration,omitempty"`
-}
-
-// UnschedulableConfig controls how long a binding waits in the
-// unschedulable set before being re-queued.
-type UnschedulableConfig struct {
-	// MaxDuration is the maximum time a binding may remain in the
-	// unschedulable set. After this, it is moved to the backoff or active queue.
-	// +kubebuilder:default="5m"
-	// +optional
-	MaxDuration *metav1.Duration `json:"maxDuration,omitempty"`
-}
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 

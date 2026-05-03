@@ -20,6 +20,7 @@ package v1alpha1
 
 import (
 	schedulingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/scheduling/v1alpha1"
+	v1 "k8s.io/client-go/applyconfigurations/meta/v1"
 )
 
 // SchedulerQueueSpecApplyConfiguration represents a declarative configuration of the SchedulerQueueSpec type for use
@@ -29,15 +30,10 @@ import (
 type SchedulerQueueSpecApplyConfiguration struct {
 	// NamespaceSelector selects the namespaces whose ResourceBindings
 	// this queue governs.
-	NamespaceSelector *NamespaceSelectorApplyConfiguration `json:"namespaceSelector,omitempty"`
+	NamespaceSelector *v1.LabelSelectorApplyConfiguration `json:"namespaceSelector,omitempty"`
 	// QueueingStrategy controls the ordering and blocking behavior of
 	// bindings in the active queue.
 	QueueingStrategy *schedulingv1alpha1.QueueingStrategy `json:"queueingStrategy,omitempty"`
-	// BackoffConfig tunes the retry backoff for this tenant's backoff queue.
-	BackoffConfig *BackoffConfigApplyConfiguration `json:"backoffConfig,omitempty"`
-	// UnschedulableConfig tunes how long bindings may sit in the
-	// unschedulable set before being flushed back to the active queue.
-	UnschedulableConfig *UnschedulableConfigApplyConfiguration `json:"unschedulableConfig,omitempty"`
 }
 
 // SchedulerQueueSpecApplyConfiguration constructs a declarative configuration of the SchedulerQueueSpec type for use with
@@ -49,7 +45,7 @@ func SchedulerQueueSpec() *SchedulerQueueSpecApplyConfiguration {
 // WithNamespaceSelector sets the NamespaceSelector field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the NamespaceSelector field is set to the value of the last call.
-func (b *SchedulerQueueSpecApplyConfiguration) WithNamespaceSelector(value *NamespaceSelectorApplyConfiguration) *SchedulerQueueSpecApplyConfiguration {
+func (b *SchedulerQueueSpecApplyConfiguration) WithNamespaceSelector(value *v1.LabelSelectorApplyConfiguration) *SchedulerQueueSpecApplyConfiguration {
 	b.NamespaceSelector = value
 	return b
 }
@@ -59,21 +55,5 @@ func (b *SchedulerQueueSpecApplyConfiguration) WithNamespaceSelector(value *Name
 // If called multiple times, the QueueingStrategy field is set to the value of the last call.
 func (b *SchedulerQueueSpecApplyConfiguration) WithQueueingStrategy(value schedulingv1alpha1.QueueingStrategy) *SchedulerQueueSpecApplyConfiguration {
 	b.QueueingStrategy = &value
-	return b
-}
-
-// WithBackoffConfig sets the BackoffConfig field in the declarative configuration to the given value
-// and returns the receiver, so that objects can be built by chaining "With" function invocations.
-// If called multiple times, the BackoffConfig field is set to the value of the last call.
-func (b *SchedulerQueueSpecApplyConfiguration) WithBackoffConfig(value *BackoffConfigApplyConfiguration) *SchedulerQueueSpecApplyConfiguration {
-	b.BackoffConfig = value
-	return b
-}
-
-// WithUnschedulableConfig sets the UnschedulableConfig field in the declarative configuration to the given value
-// and returns the receiver, so that objects can be built by chaining "With" function invocations.
-// If called multiple times, the UnschedulableConfig field is set to the value of the last call.
-func (b *SchedulerQueueSpecApplyConfiguration) WithUnschedulableConfig(value *UnschedulableConfigApplyConfiguration) *SchedulerQueueSpecApplyConfiguration {
-	b.UnschedulableConfig = value
 	return b
 }

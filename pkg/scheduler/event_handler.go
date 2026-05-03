@@ -17,6 +17,7 @@ limitations under the License.
 package scheduler
 
 import (
+	"context"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
@@ -477,8 +478,9 @@ func (s *Scheduler) onSchedulerQueueAdd(obj interface{}) {
 	}
 
 	s.tenantQueue.AddTenant(sq.Name, strategy)
-	s.tenantQueue.SetNamespaceMappings(sq.Name, sq.Spec.NamespaceSelector.Names)
-	klog.V(2).InfoS("SchedulerQueue added", "name", sq.Name, "namespaces", sq.Spec.NamespaceSelector.Names)
+	namespaces := s.resolveNamespaceSelector(sq.Spec.NamespaceSelector)
+	s.tenantQueue.SetNamespaceMappings(sq.Name, namespaces)
+	klog.V(2).InfoS("SchedulerQueue added", "name", sq.Name, "namespaces", namespaces)
 }
 
 // onSchedulerQueueUpdate handles updates to a SchedulerQueue object.
@@ -493,8 +495,9 @@ func (s *Scheduler) onSchedulerQueueUpdate(oldObj, newObj interface{}) {
 		return
 	}
 
-	s.tenantQueue.SetNamespaceMappings(sq.Name, sq.Spec.NamespaceSelector.Names)
-	klog.V(2).InfoS("SchedulerQueue updated", "name", sq.Name, "namespaces", sq.Spec.NamespaceSelector.Names)
+	namespaces := s.resolveNamespaceSelector(sq.Spec.NamespaceSelector)
+	s.tenantQueue.SetNamespaceMappings(sq.Name, namespaces)
+	klog.V(2).InfoS("SchedulerQueue updated", "name", sq.Name, "namespaces", namespaces)
 }
 
 // onSchedulerQueueDelete handles the deletion of a SchedulerQueue object.
@@ -519,4 +522,27 @@ func (s *Scheduler) onSchedulerQueueDelete(obj interface{}) {
 
 	s.tenantQueue.RemoveTenant(sq.Name)
 	klog.V(2).InfoS("SchedulerQueue deleted", "name", sq.Name)
+}
+
+// resolveNamespaceSelector converts a LabelSelector into a list of matching
+// namespace names by listing all namespaces and evaluating the selector.
+func (s *Scheduler) resolveNamespaceSelector(selector *metav1.LabelSelector) []string {
+	if selector == nil {
+		return nil
+	}
+	parsed, err := metav1.LabelSelectorAsSelector(selector)
+	if err != nil {
+		klog.ErrorS(err, "Failed to parse namespace label selector")
+		return nil
+	}
+	nsList, err := s.KubeClient.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{LabelSelector: parsed.String()})
+	if err != nil {
+		klog.ErrorS(err, "Failed to list namespaces for selector")
+		return nil
+	}
+	names := make([]string, 0, len(nsList.Items))
+	for i := range nsList.Items {
+		names = append(names, nsList.Items[i].Name)
+	}
+	return names
 }
