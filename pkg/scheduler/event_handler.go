@@ -82,7 +82,7 @@ func (s *Scheduler) addAllEventHandlers() {
 		klog.Errorf("Failed to add handlers for Clusters: %v", err)
 	}
 
-	if features.FeatureGate.Enabled(features.SchedulerQueueManagement) {
+	if features.FeatureGate.Enabled(features.TenantQueueManagement) {
 		sqInformer := s.informerFactory.Scheduling().V1alpha1().TenantQueues().Informer()
 		_, err = sqInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 			AddFunc:    s.onTenantQueueAdd,

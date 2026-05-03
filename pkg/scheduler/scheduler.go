@@ -104,7 +104,7 @@ type Scheduler struct {
 	queue workqueue.TypedRateLimitingInterface[any]
 
 	priorityQueue  internalqueue.SchedulingQueue
-	// tenantQueue is the concrete TenantSchedulingQueue when SchedulerQueueManagement
+	// tenantQueue is the concrete TenantSchedulingQueue when TenantQueueManagement
 	// is enabled. Used by event handlers to add/remove tenants and update namespace mappings.
 	tenantQueue    *internalqueue.TenantSchedulingQueue
 	Algorithm      core.ScheduleAlgorithm
@@ -254,7 +254,7 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 	var priorityQueue internalqueue.SchedulingQueue
 	var tenantQueue *internalqueue.TenantSchedulingQueue
 	if features.FeatureGate.Enabled(features.PriorityBasedScheduling) {
-		if features.FeatureGate.Enabled(features.SchedulerQueueManagement) {
+		if features.FeatureGate.Enabled(features.TenantQueueManagement) {
 			tenantQueue = internalqueue.NewTenantSchedulingQueue()
 			priorityQueue = tenantQueue
 		} else {
