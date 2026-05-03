@@ -21,6 +21,8 @@ import (
 
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
+
+	schedulingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/scheduling/v1alpha1"
 )
 
 const defaultTenantName = "__default__"
@@ -58,23 +60,12 @@ func newTenantPriorityQueue(opts ...Option) (*prioritySchedulingQueue, *tenantAc
 	return q, taq
 }
 
-// QueueingStrategy determines how bindings are ordered and whether
-// head-of-line blocking is applied within a tenant queue.
-type QueueingStrategy string
-
-const (
-	// BestEffortFIFO skips a blocked head and tries the next binding.
-	BestEffortFIFO QueueingStrategy = "BestEffortFIFO"
-	// StrictFIFO blocks the entire tenant queue when the head fails.
-	StrictFIFO QueueingStrategy = "StrictFIFO"
-)
-
 // tenantEntry represents a single tenant queue with its metadata.
 type tenantEntry struct {
 	name     string
 	queue    *prioritySchedulingQueue
 	activeQ  *tenantActiveQueue
-	strategy QueueingStrategy
+	strategy schedulingv1alpha1.QueueingStrategy
 	// blocked is set when the head of a StrictFIFO queue fails scheduling.
 	// While blocked, collectHeads() skips this tenant.
 	blocked bool
@@ -119,7 +110,7 @@ func NewTenantSchedulingQueue(opts ...Option) *TenantSchedulingQueue {
 		name:     defaultTenantName,
 		queue:    defaultQ,
 		activeQ:  taq,
-		strategy: BestEffortFIFO,
+		strategy: schedulingv1alpha1.BestEffortFIFO,
 	}
 	defaultQ.onActiveQPush = func() { tq.cond.Broadcast() }
 	tq.tenants = append(tq.tenants, entry)
@@ -231,7 +222,7 @@ func (tq *TenantSchedulingQueue) PushUnschedulableIfNotPresent(bindingInfo *Queu
 	q.PushUnschedulableIfNotPresent(bindingInfo)
 
 	tq.mu.Lock()
-	if entry, ok := tq.tenantMap[tenantName]; ok && entry.strategy == StrictFIFO {
+	if entry, ok := tq.tenantMap[tenantName]; ok && entry.strategy == schedulingv1alpha1.StrictFIFO {
 		entry.blocked = true
 		klog.V(4).InfoS("StrictFIFO tenant queue blocked", "tenant", tenantName, "binding", bindingInfo.NamespacedKey)
 	}
@@ -246,7 +237,7 @@ func (tq *TenantSchedulingQueue) PushBackoffIfNotPresent(bindingInfo *QueuedBind
 	q.PushBackoffIfNotPresent(bindingInfo)
 
 	tq.mu.Lock()
-	if entry, ok := tq.tenantMap[tenantName]; ok && entry.strategy == StrictFIFO {
+	if entry, ok := tq.tenantMap[tenantName]; ok && entry.strategy == schedulingv1alpha1.StrictFIFO {
 		entry.blocked = true
 		klog.V(4).InfoS("StrictFIFO tenant queue blocked", "tenant", tenantName, "binding", bindingInfo.NamespacedKey)
 	}
@@ -303,7 +294,7 @@ func (tq *TenantSchedulingQueue) Close() {
 
 // AddTenant creates a new tenant queue with the given strategy.
 // If the tenant already exists, this is a no-op.
-func (tq *TenantSchedulingQueue) AddTenant(name string, strategy QueueingStrategy, opts ...Option) {
+func (tq *TenantSchedulingQueue) AddTenant(name string, strategy schedulingv1alpha1.QueueingStrategy, opts ...Option) {
 	tq.mu.Lock()
 	defer tq.mu.Unlock()
 	if _, exists := tq.tenantMap[name]; exists {
@@ -319,7 +310,7 @@ func (tq *TenantSchedulingQueue) AddTenant(name string, strategy QueueingStrateg
 	}
 	q.onActiveQPush = func() {
 		tq.mu.Lock()
-		if entry.strategy == StrictFIFO && entry.blocked {
+		if entry.strategy == schedulingv1alpha1.StrictFIFO && entry.blocked {
 			entry.blocked = false
 			klog.V(4).InfoS("StrictFIFO tenant queue unblocked", "tenant", name)
 		}

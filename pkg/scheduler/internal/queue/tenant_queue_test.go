@@ -19,6 +19,8 @@ package queue
 import (
 	"testing"
 	"time"
+
+	schedulingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/scheduling/v1alpha1"
 )
 
 func newBindingInfo(namespace, name string, priority int32) *QueuedBindingInfo {
@@ -67,8 +69,8 @@ func TestTenantSchedulingQueue_SingleTenant(t *testing.T) {
 func TestTenantSchedulingQueue_MultiTenantRouting(t *testing.T) {
 	tq := NewTenantSchedulingQueue()
 	// Tenant name = namespace name.
-	tq.AddTenant("ns-a", BestEffortFIFO)
-	tq.AddTenant("ns-b", BestEffortFIFO)
+	tq.AddTenant("ns-a", schedulingv1alpha1.BestEffortFIFO)
+	tq.AddTenant("ns-b", schedulingv1alpha1.BestEffortFIFO)
 	tq.Run()
 	defer tq.Close()
 
@@ -88,8 +90,8 @@ func TestTenantSchedulingQueue_MultiTenantRouting(t *testing.T) {
 
 func TestTenantSchedulingQueue_RoundRobinFairness(t *testing.T) {
 	tq := NewTenantSchedulingQueue()
-	tq.AddTenant("ns-a", BestEffortFIFO)
-	tq.AddTenant("ns-b", BestEffortFIFO)
+	tq.AddTenant("ns-a", schedulingv1alpha1.BestEffortFIFO)
+	tq.AddTenant("ns-b", schedulingv1alpha1.BestEffortFIFO)
 	tq.Run()
 	defer tq.Close()
 
@@ -118,7 +120,7 @@ func TestTenantSchedulingQueue_RoundRobinFairness(t *testing.T) {
 
 func TestTenantSchedulingQueue_ClusterResourceBindingGoesToDefault(t *testing.T) {
 	tq := NewTenantSchedulingQueue()
-	tq.AddTenant("ns-a", BestEffortFIFO)
+	tq.AddTenant("ns-a", schedulingv1alpha1.BestEffortFIFO)
 	tq.Run()
 	defer tq.Close()
 
@@ -135,7 +137,7 @@ func TestTenantSchedulingQueue_ClusterResourceBindingGoesToDefault(t *testing.T)
 
 func TestTenantSchedulingQueue_UnmatchedNamespaceGoesToDefault(t *testing.T) {
 	tq := NewTenantSchedulingQueue()
-	tq.AddTenant("ns-a", BestEffortFIFO)
+	tq.AddTenant("ns-a", schedulingv1alpha1.BestEffortFIFO)
 	tq.Run()
 	defer tq.Close()
 
@@ -159,13 +161,13 @@ func TestTenantSchedulingQueue_AddRemoveTenant(t *testing.T) {
 		t.Fatalf("expected 1 tenant (default), got %d", len(tq.tenants))
 	}
 
-	tq.AddTenant("ns-a", BestEffortFIFO)
+	tq.AddTenant("ns-a", schedulingv1alpha1.BestEffortFIFO)
 	if len(tq.tenants) != 2 {
 		t.Fatalf("expected 2 tenants, got %d", len(tq.tenants))
 	}
 
 	// Duplicate add is a no-op.
-	tq.AddTenant("ns-a", StrictFIFO)
+	tq.AddTenant("ns-a", schedulingv1alpha1.StrictFIFO)
 	if len(tq.tenants) != 2 {
 		t.Fatalf("expected 2 tenants after duplicate add, got %d", len(tq.tenants))
 	}
@@ -184,8 +186,8 @@ func TestTenantSchedulingQueue_AddRemoveTenant(t *testing.T) {
 
 func TestTenantSchedulingQueue_StrictFIFOBlocking(t *testing.T) {
 	tq := NewTenantSchedulingQueue()
-	tq.AddTenant("ns-strict", StrictFIFO)
-	tq.AddTenant("ns-best", BestEffortFIFO)
+	tq.AddTenant("ns-strict", schedulingv1alpha1.StrictFIFO)
+	tq.AddTenant("ns-best", schedulingv1alpha1.BestEffortFIFO)
 	tq.Run()
 	defer tq.Close()
 
@@ -231,7 +233,7 @@ func TestTenantSchedulingQueue_StrictFIFOBlocking(t *testing.T) {
 
 func TestTenantSchedulingQueue_StrictFIFOUnblocking(t *testing.T) {
 	tq := NewTenantSchedulingQueue()
-	tq.AddTenant("ns-strict", StrictFIFO)
+	tq.AddTenant("ns-strict", schedulingv1alpha1.StrictFIFO)
 	tq.Run()
 	defer tq.Close()
 
@@ -285,7 +287,7 @@ func TestTenantSchedulingQueue_Shutdown(t *testing.T) {
 
 func TestTenantSchedulingQueue_Len(t *testing.T) {
 	tq := NewTenantSchedulingQueue()
-	tq.AddTenant("ns-a", BestEffortFIFO)
+	tq.AddTenant("ns-a", schedulingv1alpha1.BestEffortFIFO)
 	tq.Run()
 	defer tq.Close()
 

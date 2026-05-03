@@ -473,12 +473,7 @@ func (s *Scheduler) onTenantQueueAdd(obj interface{}) {
 		return
 	}
 
-	strategy := internalqueue.BestEffortFIFO
-	if tq.Spec.QueueingStrategy == schedulingv1alpha1.StrictFIFO {
-		strategy = internalqueue.StrictFIFO
-	}
-
-	s.tenantQueue.AddTenant(tq.Namespace, strategy)
+	s.tenantQueue.AddTenant(tq.Namespace, tq.Spec.QueueingStrategy)
 	klog.V(2).InfoS("TenantQueue added", "namespace", tq.Namespace, "strategy", tq.Spec.QueueingStrategy)
 }
 
