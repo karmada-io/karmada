@@ -21,3 +21,7 @@ package v1alpha1
 // TenantQueueListerExpansion allows custom methods to be added to
 // TenantQueueLister.
 type TenantQueueListerExpansion interface{}
+
+// TenantQueueNamespaceListerExpansion allows custom methods to be added to
+// TenantQueueNamespaceLister.
+type TenantQueueNamespaceListerExpansion interface{}

@@ -28,19 +28,17 @@ const (
 	// ResourcePluralTenantQueue is plural name of TenantQueue.
 	ResourcePluralTenantQueue = "tenantqueues"
 	// ResourceNamespaceScopedTenantQueue indicates if TenantQueue is NamespaceScoped.
-	ResourceNamespaceScopedTenantQueue = false
+	ResourceNamespaceScopedTenantQueue = true
 )
 
 // +genclient
-// +genclient:nonNamespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +kubebuilder:resource:path=tenantqueues,scope="Cluster",shortName=tq,categories={karmada-io}
+// +kubebuilder:resource:path=tenantqueues,scope=Namespaced,shortName=tq,categories={karmada-io}
 // +kubebuilder:storageversion
 
 // TenantQueue configures per-tenant scheduling queue settings.
-// It is cluster-scoped so that only cluster admins can create it.
-// ResourceBindings in namespaces matching the NamespaceSelector are
-// routed to this queue for scheduling.
+// It is namespace-scoped — one TenantQueue per namespace. ResourceBindings
+// in the same namespace are routed to this queue for scheduling.
 type TenantQueue struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -52,12 +50,6 @@ type TenantQueue struct {
 
 // TenantQueueSpec defines the configuration for a tenant's scheduling queue.
 type TenantQueueSpec struct {
-	// NamespaceSelector selects the namespaces whose ResourceBindings
-	// this queue governs. An empty selector ({}) matches all namespaces.
-	// A nil selector matches no namespaces.
-	// +required
-	NamespaceSelector *metav1.LabelSelector `json:"namespaceSelector"`
-
 	// QueueingStrategy controls the ordering and blocking behavior of
 	// bindings in the active queue.
 	// +kubebuilder:default=BestEffortFIFO

@@ -36,8 +36,8 @@ type SchedulingV1alpha1Client struct {
 	restClient rest.Interface
 }
 
-func (c *SchedulingV1alpha1Client) TenantQueues() TenantQueueInterface {
-	return newTenantQueues(c)
+func (c *SchedulingV1alpha1Client) TenantQueues(namespace string) TenantQueueInterface {
+	return newTenantQueues(c, namespace)
 }
 
 // NewForConfig creates a new SchedulingV1alpha1Client for the given config.

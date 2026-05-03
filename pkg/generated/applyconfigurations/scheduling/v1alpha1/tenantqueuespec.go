@@ -20,7 +20,6 @@ package v1alpha1
 
 import (
 	schedulingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/scheduling/v1alpha1"
-	v1 "k8s.io/client-go/applyconfigurations/meta/v1"
 )
 
 // TenantQueueSpecApplyConfiguration represents a declarative configuration of the TenantQueueSpec type for use
@@ -28,10 +27,6 @@ import (
 //
 // TenantQueueSpec defines the configuration for a tenant's scheduling queue.
 type TenantQueueSpecApplyConfiguration struct {
-	// NamespaceSelector selects the namespaces whose ResourceBindings
-	// this queue governs. An empty selector ({}) matches all namespaces.
-	// A nil selector matches no namespaces.
-	NamespaceSelector *v1.LabelSelectorApplyConfiguration `json:"namespaceSelector,omitempty"`
 	// QueueingStrategy controls the ordering and blocking behavior of
 	// bindings in the active queue.
 	QueueingStrategy *schedulingv1alpha1.QueueingStrategy `json:"queueingStrategy,omitempty"`
@@ -41,14 +36,6 @@ type TenantQueueSpecApplyConfiguration struct {
 // apply.
 func TenantQueueSpec() *TenantQueueSpecApplyConfiguration {
 	return &TenantQueueSpecApplyConfiguration{}
-}
-
-// WithNamespaceSelector sets the NamespaceSelector field in the declarative configuration to the given value
-// and returns the receiver, so that objects can be built by chaining "With" function invocations.
-// If called multiple times, the NamespaceSelector field is set to the value of the last call.
-func (b *TenantQueueSpecApplyConfiguration) WithNamespaceSelector(value *v1.LabelSelectorApplyConfiguration) *TenantQueueSpecApplyConfiguration {
-	b.NamespaceSelector = value
-	return b
 }
 
 // WithQueueingStrategy sets the QueueingStrategy field in the declarative configuration to the given value

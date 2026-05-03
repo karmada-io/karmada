@@ -1689,9 +1689,6 @@ var schemaYAML = typed.YAMLObject(`types:
 - name: com.github.karmada-io.karmada.pkg.apis.scheduling.v1alpha1.TenantQueueSpec
   map:
     fields:
-    - name: namespaceSelector
-      type:
-        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.LabelSelector
     - name: queueingStrategy
       type:
         scalar: string

@@ -17,7 +17,6 @@ limitations under the License.
 package scheduler
 
 import (
-	"context"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
@@ -461,8 +460,10 @@ func (s *Scheduler) enqueueAffectedCRBs(cluster *clusterv1alpha1.Cluster) error 
 }
 
 // onTenantQueueAdd handles the creation of a TenantQueue object.
+// The TenantQueue's namespace is the tenant — bindings in that namespace
+// are routed to this queue.
 func (s *Scheduler) onTenantQueueAdd(obj interface{}) {
-	sq, ok := obj.(*schedulingv1alpha1.TenantQueue)
+	tq, ok := obj.(*schedulingv1alpha1.TenantQueue)
 	if !ok {
 		klog.Errorf("unexpected object type: %T", obj)
 		return
@@ -473,43 +474,37 @@ func (s *Scheduler) onTenantQueueAdd(obj interface{}) {
 	}
 
 	strategy := internalqueue.BestEffortFIFO
-	if sq.Spec.QueueingStrategy == schedulingv1alpha1.StrictFIFO {
+	if tq.Spec.QueueingStrategy == schedulingv1alpha1.StrictFIFO {
 		strategy = internalqueue.StrictFIFO
 	}
 
-	s.tenantQueue.AddTenant(sq.Name, strategy)
-	namespaces := s.resolveNamespaceSelector(sq.Spec.NamespaceSelector)
-	s.tenantQueue.SetNamespaceMappings(sq.Name, namespaces)
-	klog.V(2).InfoS("TenantQueue added", "name", sq.Name, "namespaces", namespaces)
+	s.tenantQueue.AddTenant(tq.Namespace, strategy)
+	s.tenantQueue.UpdateNamespaceMapping(tq.Namespace, tq.Namespace)
+	klog.V(2).InfoS("TenantQueue added", "namespace", tq.Namespace, "strategy", tq.Spec.QueueingStrategy)
 }
 
 // onTenantQueueUpdate handles updates to a TenantQueue object.
 func (s *Scheduler) onTenantQueueUpdate(oldObj, newObj interface{}) {
-	sq, ok := newObj.(*schedulingv1alpha1.TenantQueue)
+	// QueueingStrategy changes require removing and re-adding the tenant.
+	// For now, log the update — strategy is set at creation time.
+	tq, ok := newObj.(*schedulingv1alpha1.TenantQueue)
 	if !ok {
 		klog.Errorf("unexpected object type: %T", newObj)
 		return
 	}
-
-	if s.tenantQueue == nil {
-		return
-	}
-
-	namespaces := s.resolveNamespaceSelector(sq.Spec.NamespaceSelector)
-	s.tenantQueue.SetNamespaceMappings(sq.Name, namespaces)
-	klog.V(2).InfoS("TenantQueue updated", "name", sq.Name, "namespaces", namespaces)
+	klog.V(2).InfoS("TenantQueue updated", "namespace", tq.Namespace)
 }
 
 // onTenantQueueDelete handles the deletion of a TenantQueue object.
 func (s *Scheduler) onTenantQueueDelete(obj interface{}) {
-	sq, ok := obj.(*schedulingv1alpha1.TenantQueue)
+	tq, ok := obj.(*schedulingv1alpha1.TenantQueue)
 	if !ok {
 		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
 		if !ok {
 			klog.Errorf("unexpected object type: %T", obj)
 			return
 		}
-		sq, ok = tombstone.Obj.(*schedulingv1alpha1.TenantQueue)
+		tq, ok = tombstone.Obj.(*schedulingv1alpha1.TenantQueue)
 		if !ok {
 			klog.Errorf("unexpected tombstone object type: %T", tombstone.Obj)
 			return
@@ -520,29 +515,6 @@ func (s *Scheduler) onTenantQueueDelete(obj interface{}) {
 		return
 	}
 
-	s.tenantQueue.RemoveTenant(sq.Name)
-	klog.V(2).InfoS("TenantQueue deleted", "name", sq.Name)
-}
-
-// resolveNamespaceSelector converts a LabelSelector into a list of matching
-// namespace names by listing all namespaces and evaluating the selector.
-func (s *Scheduler) resolveNamespaceSelector(selector *metav1.LabelSelector) []string {
-	if selector == nil {
-		return nil
-	}
-	parsed, err := metav1.LabelSelectorAsSelector(selector)
-	if err != nil {
-		klog.ErrorS(err, "Failed to parse namespace label selector")
-		return nil
-	}
-	nsList, err := s.KubeClient.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{LabelSelector: parsed.String()})
-	if err != nil {
-		klog.ErrorS(err, "Failed to list namespaces for selector")
-		return nil
-	}
-	names := make([]string, 0, len(nsList.Items))
-	for i := range nsList.Items {
-		names = append(names, nsList.Items[i].Name)
-	}
-	return names
+	s.tenantQueue.RemoveTenant(tq.Namespace)
+	klog.V(2).InfoS("TenantQueue deleted", "namespace", tq.Namespace)
 }

@@ -6193,7 +6193,7 @@ func schema_pkg_apis_scheduling_v1alpha1_TenantQueue(ref common.ReferenceCallbac
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "TenantQueue configures per-tenant scheduling queue settings. It is cluster-scoped so that only cluster admins can create it. ResourceBindings in namespaces matching the NamespaceSelector are routed to this queue for scheduling.",
+				Description: "TenantQueue configures per-tenant scheduling queue settings. It is namespace-scoped — one TenantQueue per namespace. ResourceBindings in the same namespace are routed to this queue for scheduling.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
@@ -6288,12 +6288,6 @@ func schema_pkg_apis_scheduling_v1alpha1_TenantQueueSpec(ref common.ReferenceCal
 				Description: "TenantQueueSpec defines the configuration for a tenant's scheduling queue.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"namespaceSelector": {
-						SchemaProps: spec.SchemaProps{
-							Description: "NamespaceSelector selects the namespaces whose ResourceBindings this queue governs. An empty selector ({}) matches all namespaces. A nil selector matches no namespaces.",
-							Ref:         ref(metav1.LabelSelector{}.OpenAPIModelName()),
-						},
-					},
 					"queueingStrategy": {
 						SchemaProps: spec.SchemaProps{
 							Description: "QueueingStrategy controls the ordering and blocking behavior of bindings in the active queue.",
@@ -6302,11 +6296,8 @@ func schema_pkg_apis_scheduling_v1alpha1_TenantQueueSpec(ref common.ReferenceCal
 						},
 					},
 				},
-				Required: []string{"namespaceSelector"},
 			},
 		},
-		Dependencies: []string{
-			metav1.LabelSelector{}.OpenAPIModelName()},
 	}
 }
 

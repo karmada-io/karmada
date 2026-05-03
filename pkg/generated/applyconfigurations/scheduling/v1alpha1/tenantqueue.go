@@ -31,9 +31,8 @@ import (
 // with apply.
 //
 // TenantQueue configures per-tenant scheduling queue settings.
-// It is cluster-scoped so that only cluster admins can create it.
-// ResourceBindings in namespaces matching the NamespaceSelector are
-// routed to this queue for scheduling.
+// It is namespace-scoped — one TenantQueue per namespace. ResourceBindings
+// in the same namespace are routed to this queue for scheduling.
 type TenantQueueApplyConfiguration struct {
 	v1.TypeMetaApplyConfiguration    `json:",inline"`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
@@ -43,9 +42,10 @@ type TenantQueueApplyConfiguration struct {
 
 // TenantQueue constructs a declarative configuration of the TenantQueue type for use with
 // apply.
-func TenantQueue(name string) *TenantQueueApplyConfiguration {
+func TenantQueue(name, namespace string) *TenantQueueApplyConfiguration {
 	b := &TenantQueueApplyConfiguration{}
 	b.WithName(name)
+	b.WithNamespace(namespace)
 	b.WithKind("TenantQueue")
 	b.WithAPIVersion("scheduling.karmada.io/v1alpha1")
 	return b
@@ -65,6 +65,7 @@ func ExtractTenantQueueFrom(tenantQueue *schedulingv1alpha1.TenantQueue, fieldMa
 		return nil, err
 	}
 	b.WithName(tenantQueue.Name)
+	b.WithNamespace(tenantQueue.Namespace)
 
 	b.WithKind("TenantQueue")
 	b.WithAPIVersion("scheduling.karmada.io/v1alpha1")

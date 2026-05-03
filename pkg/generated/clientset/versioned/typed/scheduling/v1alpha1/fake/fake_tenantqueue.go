@@ -31,11 +31,11 @@ type fakeTenantQueues struct {
 	Fake *FakeSchedulingV1alpha1
 }
 
-func newFakeTenantQueues(fake *FakeSchedulingV1alpha1) typedschedulingv1alpha1.TenantQueueInterface {
+func newFakeTenantQueues(fake *FakeSchedulingV1alpha1, namespace string) typedschedulingv1alpha1.TenantQueueInterface {
 	return &fakeTenantQueues{
 		gentype.NewFakeClientWithListAndApply[*v1alpha1.TenantQueue, *v1alpha1.TenantQueueList, *schedulingv1alpha1.TenantQueueApplyConfiguration](
 			fake.Fake,
-			"",
+			namespace,
 			v1alpha1.SchemeGroupVersion.WithResource("tenantqueues"),
 			v1alpha1.SchemeGroupVersion.WithKind("TenantQueue"),
 			func() *v1alpha1.TenantQueue { return &v1alpha1.TenantQueue{} },

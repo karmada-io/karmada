@@ -33,7 +33,7 @@ import (
 // TenantQueuesGetter has a method to return a TenantQueueInterface.
 // A group's client should implement this interface.
 type TenantQueuesGetter interface {
-	TenantQueues() TenantQueueInterface
+	TenantQueues(namespace string) TenantQueueInterface
 }
 
 // TenantQueueInterface has methods to work with TenantQueue resources.
@@ -56,13 +56,13 @@ type tenantQueues struct {
 }
 
 // newTenantQueues returns a TenantQueues
-func newTenantQueues(c *SchedulingV1alpha1Client) *tenantQueues {
+func newTenantQueues(c *SchedulingV1alpha1Client, namespace string) *tenantQueues {
 	return &tenantQueues{
 		gentype.NewClientWithListAndApply[*schedulingv1alpha1.TenantQueue, *schedulingv1alpha1.TenantQueueList, *applyconfigurationsschedulingv1alpha1.TenantQueueApplyConfiguration](
 			"tenantqueues",
 			c.RESTClient(),
 			scheme.ParameterCodec,
-			"",
+			namespace,
 			func() *schedulingv1alpha1.TenantQueue { return &schedulingv1alpha1.TenantQueue{} },
 			func() *schedulingv1alpha1.TenantQueueList { return &schedulingv1alpha1.TenantQueueList{} },
 		),

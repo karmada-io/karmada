@@ -31,9 +31,8 @@ type TenantQueueLister interface {
 	// List lists all TenantQueues in the indexer.
 	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*schedulingv1alpha1.TenantQueue, err error)
-	// Get retrieves the TenantQueue from the index for a given name.
-	// Objects returned here must be treated as read-only.
-	Get(name string) (*schedulingv1alpha1.TenantQueue, error)
+	// TenantQueues returns an object that can list and get TenantQueues.
+	TenantQueues(namespace string) TenantQueueNamespaceLister
 	TenantQueueListerExpansion
 }
 
@@ -45,4 +44,27 @@ type tenantQueueLister struct {
 // NewTenantQueueLister returns a new TenantQueueLister.
 func NewTenantQueueLister(indexer cache.Indexer) TenantQueueLister {
 	return &tenantQueueLister{listers.New[*schedulingv1alpha1.TenantQueue](indexer, schedulingv1alpha1.Resource("tenantqueue"))}
+}
+
+// TenantQueues returns an object that can list and get TenantQueues.
+func (s *tenantQueueLister) TenantQueues(namespace string) TenantQueueNamespaceLister {
+	return tenantQueueNamespaceLister{listers.NewNamespaced[*schedulingv1alpha1.TenantQueue](s.ResourceIndexer, namespace)}
+}
+
+// TenantQueueNamespaceLister helps list and get TenantQueues.
+// All objects returned here must be treated as read-only.
+type TenantQueueNamespaceLister interface {
+	// List lists all TenantQueues in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
+	List(selector labels.Selector) (ret []*schedulingv1alpha1.TenantQueue, err error)
+	// Get retrieves the TenantQueue from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
+	Get(name string) (*schedulingv1alpha1.TenantQueue, error)
+	TenantQueueNamespaceListerExpansion
+}
+
+// tenantQueueNamespaceLister implements the TenantQueueNamespaceLister
+// interface.
+type tenantQueueNamespaceLister struct {
+	listers.ResourceIndexer[*schedulingv1alpha1.TenantQueue]
 }
