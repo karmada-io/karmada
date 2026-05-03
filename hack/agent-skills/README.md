@@ -4,11 +4,11 @@ A repository of structured "skills" that teach AI coding agents how to work
 with Karmada — generating policies, auditing them, explaining placement, and
 debugging propagation across multi-cluster Kubernetes deployments.
 
-> **Status:** Working slice for LFX Mentorship CNCF Term 02 (2026), tracking
-> [PR #7466](https://github.com/karmada-io/karmada/pull/7466). Five of seven
-> planned skills are implemented end-to-end with a deterministic generator,
-> a lint-style validator, regenerable worked examples, unit tests, and an
-> integration shell test.
+> **Status:** Working slice for LFX Mentorship CNCF Term 02 (2026), part of
+> [karmada-io/community#190](https://github.com/karmada-io/community/issues/190).
+> Five of seven planned skills are implemented end-to-end with a
+> deterministic generator, a lint-style validator, regenerable worked
+> examples, unit tests, and an integration shell test.
 
 ## Why agent skills?
 
