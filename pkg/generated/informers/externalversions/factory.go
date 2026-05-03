@@ -32,6 +32,7 @@ import (
 	networking "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/networking"
 	policy "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/policy"
 	remedy "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/remedy"
+	scheduling "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/scheduling"
 	search "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/search"
 	work "github.com/karmada-io/karmada/pkg/generated/informers/externalversions/work"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -270,6 +271,7 @@ type SharedInformerFactory interface {
 	Networking() networking.Interface
 	Policy() policy.Interface
 	Remedy() remedy.Interface
+	Scheduling() scheduling.Interface
 	Search() search.Interface
 	Work() work.Interface
 }
@@ -300,6 +302,10 @@ func (f *sharedInformerFactory) Policy() policy.Interface {
 
 func (f *sharedInformerFactory) Remedy() remedy.Interface {
 	return remedy.New(f, f.namespace, f.tweakListOptions)
+}
+
+func (f *sharedInformerFactory) Scheduling() scheduling.Interface {
+	return scheduling.New(f, f.namespace, f.tweakListOptions)
 }
 
 func (f *sharedInformerFactory) Search() search.Interface {

@@ -32,6 +32,7 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	schedulingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/scheduling/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/features"
 	internalqueue "github.com/karmada-io/karmada/pkg/scheduler/internal/queue"
@@ -79,6 +80,18 @@ func (s *Scheduler) addAllEventHandlers() {
 	)
 	if err != nil {
 		klog.Errorf("Failed to add handlers for Clusters: %v", err)
+	}
+
+	if features.FeatureGate.Enabled(features.SchedulerQueueManagement) {
+		sqInformer := s.informerFactory.Scheduling().V1alpha1().SchedulerQueues().Informer()
+		_, err = sqInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+			AddFunc:    s.onSchedulerQueueAdd,
+			UpdateFunc: s.onSchedulerQueueUpdate,
+			DeleteFunc: s.onSchedulerQueueDelete,
+		})
+		if err != nil {
+			klog.Errorf("Failed to add handlers for SchedulerQueues: %v", err)
+		}
 	}
 
 	// ignore the error here because the informers haven't been started
@@ -444,4 +457,66 @@ func (s *Scheduler) enqueueAffectedCRBs(cluster *clusterv1alpha1.Cluster) error 
 	}
 
 	return nil
+}
+
+// onSchedulerQueueAdd handles the creation of a SchedulerQueue object.
+func (s *Scheduler) onSchedulerQueueAdd(obj interface{}) {
+	sq, ok := obj.(*schedulingv1alpha1.SchedulerQueue)
+	if !ok {
+		klog.Errorf("unexpected object type: %T", obj)
+		return
+	}
+
+	if s.tenantQueue == nil {
+		return
+	}
+
+	strategy := internalqueue.BestEffortFIFO
+	if sq.Spec.QueueingStrategy == schedulingv1alpha1.StrictFIFO {
+		strategy = internalqueue.StrictFIFO
+	}
+
+	s.tenantQueue.AddTenant(sq.Name, strategy)
+	s.tenantQueue.SetNamespaceMappings(sq.Name, sq.Spec.NamespaceSelector.Names)
+	klog.V(2).InfoS("SchedulerQueue added", "name", sq.Name, "namespaces", sq.Spec.NamespaceSelector.Names)
+}
+
+// onSchedulerQueueUpdate handles updates to a SchedulerQueue object.
+func (s *Scheduler) onSchedulerQueueUpdate(oldObj, newObj interface{}) {
+	sq, ok := newObj.(*schedulingv1alpha1.SchedulerQueue)
+	if !ok {
+		klog.Errorf("unexpected object type: %T", newObj)
+		return
+	}
+
+	if s.tenantQueue == nil {
+		return
+	}
+
+	s.tenantQueue.SetNamespaceMappings(sq.Name, sq.Spec.NamespaceSelector.Names)
+	klog.V(2).InfoS("SchedulerQueue updated", "name", sq.Name, "namespaces", sq.Spec.NamespaceSelector.Names)
+}
+
+// onSchedulerQueueDelete handles the deletion of a SchedulerQueue object.
+func (s *Scheduler) onSchedulerQueueDelete(obj interface{}) {
+	sq, ok := obj.(*schedulingv1alpha1.SchedulerQueue)
+	if !ok {
+		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+		if !ok {
+			klog.Errorf("unexpected object type: %T", obj)
+			return
+		}
+		sq, ok = tombstone.Obj.(*schedulingv1alpha1.SchedulerQueue)
+		if !ok {
+			klog.Errorf("unexpected tombstone object type: %T", tombstone.Obj)
+			return
+		}
+	}
+
+	if s.tenantQueue == nil {
+		return
+	}
+
+	s.tenantQueue.RemoveTenant(sq.Name)
+	klog.V(2).InfoS("SchedulerQueue deleted", "name", sq.Name)
 }

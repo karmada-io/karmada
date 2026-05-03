@@ -28,6 +28,7 @@ import (
 	networkingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	remedyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1"
+	schedulingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/scheduling/v1alpha1"
 	searchv1alpha1 "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	v1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -104,6 +105,10 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		// Group=remedy.karmada.io, Version=v1alpha1
 	case remedyv1alpha1.SchemeGroupVersion.WithResource("remedies"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Remedy().V1alpha1().Remedies().Informer()}, nil
+
+		// Group=scheduling.karmada.io, Version=v1alpha1
+	case schedulingv1alpha1.SchemeGroupVersion.WithResource("schedulerqueues"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Scheduling().V1alpha1().SchedulerQueues().Informer()}, nil
 
 		// Group=search.karmada.io, Version=v1alpha1
 	case searchv1alpha1.SchemeGroupVersion.WithResource("resourceregistries"):

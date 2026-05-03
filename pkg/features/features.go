@@ -139,6 +139,16 @@ const (
 	// owner: @mszacillo, @RainbowMango, @kevin-wangzefeng
 	// alpha: v1.17
 	WorkloadAffinity featuregate.Feature = "WorkloadAffinity"
+
+	// SchedulerQueueManagement enables per-tenant queue sharding in the scheduler.
+	// When enabled, the scheduler creates per-tenant queues based on SchedulerQueue objects
+	// and routes ResourceBindings to the appropriate queue based on namespace matching.
+	// Pop() uses round-robin across tenant queues for fair scheduling.
+	// Requires PriorityBasedScheduling to be enabled.
+	//
+	// owner: @hzheng182
+	// alpha: v1.18
+	SchedulerQueueManagement featuregate.Feature = "SchedulerQueueManagement"
 )
 
 var (
@@ -167,6 +177,7 @@ var (
 		MultiplePodTemplatesScheduling:    {Default: false, PreRelease: featuregate.Alpha},
 		ControllerPriorityQueue:           {Default: true, PreRelease: featuregate.Beta},
 		WorkloadAffinity:                  {Default: false, PreRelease: featuregate.Alpha},
+		SchedulerQueueManagement:          {Default: false, PreRelease: featuregate.Alpha},
 	}
 )
 

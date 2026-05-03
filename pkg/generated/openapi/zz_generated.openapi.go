@@ -29,6 +29,7 @@ import (
 	networkingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	remedyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1"
+	schedulingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/scheduling/v1alpha1"
 	searchv1alpha1 "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	v1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -173,6 +174,12 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		remedyv1alpha1.Remedy{}.OpenAPIModelName():                                      schema_pkg_apis_remedy_v1alpha1_Remedy(ref),
 		remedyv1alpha1.RemedyList{}.OpenAPIModelName():                                  schema_pkg_apis_remedy_v1alpha1_RemedyList(ref),
 		remedyv1alpha1.RemedySpec{}.OpenAPIModelName():                                  schema_pkg_apis_remedy_v1alpha1_RemedySpec(ref),
+		schedulingv1alpha1.BackoffConfig{}.OpenAPIModelName():                           schema_pkg_apis_scheduling_v1alpha1_BackoffConfig(ref),
+		schedulingv1alpha1.NamespaceSelector{}.OpenAPIModelName():                       schema_pkg_apis_scheduling_v1alpha1_NamespaceSelector(ref),
+		schedulingv1alpha1.SchedulerQueue{}.OpenAPIModelName():                          schema_pkg_apis_scheduling_v1alpha1_SchedulerQueue(ref),
+		schedulingv1alpha1.SchedulerQueueList{}.OpenAPIModelName():                      schema_pkg_apis_scheduling_v1alpha1_SchedulerQueueList(ref),
+		schedulingv1alpha1.SchedulerQueueSpec{}.OpenAPIModelName():                      schema_pkg_apis_scheduling_v1alpha1_SchedulerQueueSpec(ref),
+		schedulingv1alpha1.UnschedulableConfig{}.OpenAPIModelName():                     schema_pkg_apis_scheduling_v1alpha1_UnschedulableConfig(ref),
 		searchv1alpha1.BackendStoreConfig{}.OpenAPIModelName():                          schema_pkg_apis_search_v1alpha1_BackendStoreConfig(ref),
 		searchv1alpha1.OpenSearchConfig{}.OpenAPIModelName():                            schema_pkg_apis_search_v1alpha1_OpenSearchConfig(ref),
 		searchv1alpha1.Proxying{}.OpenAPIModelName():                                    schema_pkg_apis_search_v1alpha1_Proxying(ref),
@@ -6182,6 +6189,232 @@ func schema_pkg_apis_remedy_v1alpha1_RemedySpec(ref common.ReferenceCallback) co
 		},
 		Dependencies: []string{
 			remedyv1alpha1.ClusterAffinity{}.OpenAPIModelName(), remedyv1alpha1.DecisionMatch{}.OpenAPIModelName()},
+	}
+}
+
+func schema_pkg_apis_scheduling_v1alpha1_BackoffConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "BackoffConfig controls exponential backoff for failed scheduling attempts.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"initialDuration": {
+						SchemaProps: spec.SchemaProps{
+							Description: "InitialDuration is the backoff duration for the first retry.",
+							Ref:         ref(metav1.Duration{}.OpenAPIModelName()),
+						},
+					},
+					"maxDuration": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MaxDuration is the maximum backoff duration.",
+							Ref:         ref(metav1.Duration{}.OpenAPIModelName()),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			metav1.Duration{}.OpenAPIModelName()},
+	}
+}
+
+func schema_pkg_apis_scheduling_v1alpha1_NamespaceSelector(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "NamespaceSelector selects namespaces for a tenant queue.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"names": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Names is a list of exact namespace names.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"matchLabels": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MatchLabels selects namespaces by label. Reserved for Phase 2.",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_scheduling_v1alpha1_SchedulerQueue(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SchedulerQueue configures per-tenant scheduling queue settings. It is cluster-scoped so that only cluster admins can create it. ResourceBindings in namespaces matching the NamespaceSelector are routed to this queue for scheduling.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref(metav1.ObjectMeta{}.OpenAPIModelName()),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Spec defines the desired queue configuration.",
+							Default:     map[string]interface{}{},
+							Ref:         ref(schedulingv1alpha1.SchedulerQueueSpec{}.OpenAPIModelName()),
+						},
+					},
+				},
+				Required: []string{"spec"},
+			},
+		},
+		Dependencies: []string{
+			schedulingv1alpha1.SchedulerQueueSpec{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
+	}
+}
+
+func schema_pkg_apis_scheduling_v1alpha1_SchedulerQueueList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SchedulerQueueList contains a list of SchedulerQueue.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref(metav1.ListMeta{}.OpenAPIModelName()),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref(schedulingv1alpha1.SchedulerQueue{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			schedulingv1alpha1.SchedulerQueue{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
+	}
+}
+
+func schema_pkg_apis_scheduling_v1alpha1_SchedulerQueueSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SchedulerQueueSpec defines the configuration for a tenant's scheduling queue.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"namespaceSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NamespaceSelector selects the namespaces whose ResourceBindings this queue governs.",
+							Default:     map[string]interface{}{},
+							Ref:         ref(schedulingv1alpha1.NamespaceSelector{}.OpenAPIModelName()),
+						},
+					},
+					"queueingStrategy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "QueueingStrategy controls the ordering and blocking behavior of bindings in the active queue.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"backoffConfig": {
+						SchemaProps: spec.SchemaProps{
+							Description: "BackoffConfig tunes the retry backoff for this tenant's backoff queue.",
+							Ref:         ref(schedulingv1alpha1.BackoffConfig{}.OpenAPIModelName()),
+						},
+					},
+					"unschedulableConfig": {
+						SchemaProps: spec.SchemaProps{
+							Description: "UnschedulableConfig tunes how long bindings may sit in the unschedulable set before being flushed back to the active queue.",
+							Ref:         ref(schedulingv1alpha1.UnschedulableConfig{}.OpenAPIModelName()),
+						},
+					},
+				},
+				Required: []string{"namespaceSelector"},
+			},
+		},
+		Dependencies: []string{
+			schedulingv1alpha1.BackoffConfig{}.OpenAPIModelName(), schedulingv1alpha1.NamespaceSelector{}.OpenAPIModelName(), schedulingv1alpha1.UnschedulableConfig{}.OpenAPIModelName()},
+	}
+}
+
+func schema_pkg_apis_scheduling_v1alpha1_UnschedulableConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "UnschedulableConfig controls how long a binding waits in the unschedulable set before being re-queued.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"maxDuration": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MaxDuration is the maximum time a binding may remain in the unschedulable set. After this, it is moved to the backoff or active queue.",
+							Ref:         ref(metav1.Duration{}.OpenAPIModelName()),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			metav1.Duration{}.OpenAPIModelName()},
 	}
 }
 

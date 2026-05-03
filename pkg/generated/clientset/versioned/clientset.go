@@ -29,6 +29,7 @@ import (
 	networkingv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/networking/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/policy/v1alpha1"
 	remedyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/remedy/v1alpha1"
+	schedulingv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/scheduling/v1alpha1"
 	searchv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/search/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/work/v1alpha2"
@@ -46,6 +47,7 @@ type Interface interface {
 	NetworkingV1alpha1() networkingv1alpha1.NetworkingV1alpha1Interface
 	PolicyV1alpha1() policyv1alpha1.PolicyV1alpha1Interface
 	RemedyV1alpha1() remedyv1alpha1.RemedyV1alpha1Interface
+	SchedulingV1alpha1() schedulingv1alpha1.SchedulingV1alpha1Interface
 	SearchV1alpha1() searchv1alpha1.SearchV1alpha1Interface
 	WorkV1alpha1() workv1alpha1.WorkV1alpha1Interface
 	WorkV1alpha2() workv1alpha2.WorkV1alpha2Interface
@@ -61,6 +63,7 @@ type Clientset struct {
 	networkingV1alpha1  *networkingv1alpha1.NetworkingV1alpha1Client
 	policyV1alpha1      *policyv1alpha1.PolicyV1alpha1Client
 	remedyV1alpha1      *remedyv1alpha1.RemedyV1alpha1Client
+	schedulingV1alpha1  *schedulingv1alpha1.SchedulingV1alpha1Client
 	searchV1alpha1      *searchv1alpha1.SearchV1alpha1Client
 	workV1alpha1        *workv1alpha1.WorkV1alpha1Client
 	workV1alpha2        *workv1alpha2.WorkV1alpha2Client
@@ -99,6 +102,11 @@ func (c *Clientset) PolicyV1alpha1() policyv1alpha1.PolicyV1alpha1Interface {
 // RemedyV1alpha1 retrieves the RemedyV1alpha1Client
 func (c *Clientset) RemedyV1alpha1() remedyv1alpha1.RemedyV1alpha1Interface {
 	return c.remedyV1alpha1
+}
+
+// SchedulingV1alpha1 retrieves the SchedulingV1alpha1Client
+func (c *Clientset) SchedulingV1alpha1() schedulingv1alpha1.SchedulingV1alpha1Interface {
+	return c.schedulingV1alpha1
 }
 
 // SearchV1alpha1 retrieves the SearchV1alpha1Client
@@ -188,6 +196,10 @@ func NewForConfigAndClient(c *rest.Config, httpClient *http.Client) (*Clientset,
 	if err != nil {
 		return nil, err
 	}
+	cs.schedulingV1alpha1, err = schedulingv1alpha1.NewForConfigAndClient(&configShallowCopy, httpClient)
+	if err != nil {
+		return nil, err
+	}
 	cs.searchV1alpha1, err = searchv1alpha1.NewForConfigAndClient(&configShallowCopy, httpClient)
 	if err != nil {
 		return nil, err
@@ -228,6 +240,7 @@ func New(c rest.Interface) *Clientset {
 	cs.networkingV1alpha1 = networkingv1alpha1.New(c)
 	cs.policyV1alpha1 = policyv1alpha1.New(c)
 	cs.remedyV1alpha1 = remedyv1alpha1.New(c)
+	cs.schedulingV1alpha1 = schedulingv1alpha1.New(c)
 	cs.searchV1alpha1 = searchv1alpha1.New(c)
 	cs.workV1alpha1 = workv1alpha1.New(c)
 	cs.workV1alpha2 = workv1alpha2.New(c)

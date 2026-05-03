@@ -102,6 +102,10 @@ deepcopy-gen \
   --go-header-file hack/boilerplate/boilerplate.go.txt \
   --output-file=zz_generated.deepcopy.go \
   github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1
+deepcopy-gen \
+  --go-header-file hack/boilerplate/boilerplate.go.txt \
+  --output-file=zz_generated.deepcopy.go \
+  github.com/karmada-io/karmada/pkg/apis/scheduling/v1alpha1
 
 echo "Generating with register-gen"
 register-gen \
@@ -152,6 +156,10 @@ register-gen \
   --go-header-file hack/boilerplate/boilerplate.go.txt \
   --output-file=zz_generated.register.go \
   github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1
+register-gen \
+  --go-header-file hack/boilerplate/boilerplate.go.txt \
+  --output-file=zz_generated.register.go \
+  github.com/karmada-io/karmada/pkg/apis/scheduling/v1alpha1
 
 echo "Generating with conversion-gen"
 conversion-gen \
@@ -199,6 +207,7 @@ openapi-gen \
   "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1" \
   "github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1" \
   "github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1" \
+  "github.com/karmada-io/karmada/pkg/apis/scheduling/v1alpha1" \
   "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1" \
   "${K8S_OPENAPI_COMMON_PACKAGES[@]}"
 openapi-gen \
@@ -259,7 +268,8 @@ applyconfiguration-gen \
   github.com/karmada-io/karmada/pkg/apis/search/v1alpha1 \
   github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1 \
   github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1 \
-  github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1
+  github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1 \
+  github.com/karmada-io/karmada/pkg/apis/scheduling/v1alpha1
 applyconfiguration-gen \
   --go-header-file hack/boilerplate/boilerplate.go.txt \
   --output-pkg=github.com/karmada-io/karmada/operator/pkg/generated/applyconfigurations \
@@ -272,7 +282,7 @@ echo "Generating with client-gen"
 client-gen \
   --go-header-file hack/boilerplate/boilerplate.go.txt \
   --input-base="" \
-  --input=github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1,github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1,github.com/karmada-io/karmada/pkg/apis/work/v1alpha1,github.com/karmada-io/karmada/pkg/apis/work/v1alpha2,github.com/karmada-io/karmada/pkg/apis/config/v1alpha1,github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1,github.com/karmada-io/karmada/pkg/apis/search/v1alpha1,github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1,github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1,github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1 \
+  --input=github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1,github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1,github.com/karmada-io/karmada/pkg/apis/work/v1alpha1,github.com/karmada-io/karmada/pkg/apis/work/v1alpha2,github.com/karmada-io/karmada/pkg/apis/config/v1alpha1,github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1,github.com/karmada-io/karmada/pkg/apis/search/v1alpha1,github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1,github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1,github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1,github.com/karmada-io/karmada/pkg/apis/scheduling/v1alpha1 \
   --output-pkg=github.com/karmada-io/karmada/pkg/generated/clientset \
   --output-dir=pkg/generated/clientset \
   --clientset-name=versioned \
@@ -300,7 +310,8 @@ lister-gen \
   github.com/karmada-io/karmada/pkg/apis/search/v1alpha1 \
   github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1 \
   github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1 \
-  github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1
+  github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1 \
+  github.com/karmada-io/karmada/pkg/apis/scheduling/v1alpha1
 lister-gen \
   --go-header-file hack/boilerplate/boilerplate.go.txt \
   --output-pkg=github.com/karmada-io/karmada/operator/pkg/generated/listers \
@@ -323,7 +334,8 @@ informer-gen \
   github.com/karmada-io/karmada/pkg/apis/search/v1alpha1 \
   github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1 \
   github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1 \
-  github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1
+  github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1 \
+  github.com/karmada-io/karmada/pkg/apis/scheduling/v1alpha1
 informer-gen \
   --go-header-file hack/boilerplate/boilerplate.go.txt \
   --versioned-clientset-package=github.com/karmada-io/karmada/operator/pkg/generated/clientset/versioned \

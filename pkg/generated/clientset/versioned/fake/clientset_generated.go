@@ -35,6 +35,8 @@ import (
 	fakepolicyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/policy/v1alpha1/fake"
 	remedyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/remedy/v1alpha1"
 	fakeremedyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/remedy/v1alpha1/fake"
+	schedulingv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/scheduling/v1alpha1"
+	fakeschedulingv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/scheduling/v1alpha1/fake"
 	searchv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/search/v1alpha1"
 	fakesearchv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/search/v1alpha1/fake"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/typed/work/v1alpha1"
@@ -187,6 +189,11 @@ func (c *Clientset) PolicyV1alpha1() policyv1alpha1.PolicyV1alpha1Interface {
 // RemedyV1alpha1 retrieves the RemedyV1alpha1Client
 func (c *Clientset) RemedyV1alpha1() remedyv1alpha1.RemedyV1alpha1Interface {
 	return &fakeremedyv1alpha1.FakeRemedyV1alpha1{Fake: &c.Fake}
+}
+
+// SchedulingV1alpha1 retrieves the SchedulingV1alpha1Client
+func (c *Clientset) SchedulingV1alpha1() schedulingv1alpha1.SchedulingV1alpha1Interface {
+	return &fakeschedulingv1alpha1.FakeSchedulingV1alpha1{Fake: &c.Fake}
 }
 
 // SearchV1alpha1 retrieves the SearchV1alpha1Client

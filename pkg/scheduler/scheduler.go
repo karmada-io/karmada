@@ -104,6 +104,9 @@ type Scheduler struct {
 	queue workqueue.TypedRateLimitingInterface[any]
 
 	priorityQueue  internalqueue.SchedulingQueue
+	// tenantQueue is the concrete TenantSchedulingQueue when SchedulerQueueManagement
+	// is enabled. Used by event handlers to add/remove tenants and update namespace mappings.
+	tenantQueue    *internalqueue.TenantSchedulingQueue
 	Algorithm      core.ScheduleAlgorithm
 	schedulerCache schedulercache.Cache
 
@@ -249,8 +252,14 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 	}
 	var legacyQueue workqueue.TypedRateLimitingInterface[any]
 	var priorityQueue internalqueue.SchedulingQueue
+	var tenantQueue *internalqueue.TenantSchedulingQueue
 	if features.FeatureGate.Enabled(features.PriorityBasedScheduling) {
-		priorityQueue = internalqueue.NewSchedulingQueue()
+		if features.FeatureGate.Enabled(features.SchedulerQueueManagement) {
+			tenantQueue = internalqueue.NewTenantSchedulingQueue()
+			priorityQueue = tenantQueue
+		} else {
+			priorityQueue = internalqueue.NewSchedulingQueue()
+		}
 	} else {
 		legacyQueue = workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiterflag.DefaultControllerRateLimiter[any](options.RateLimiterOptions), workqueue.TypedRateLimitingQueueConfig[any]{Name: "scheduler-queue"})
 	}
@@ -274,6 +283,7 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 		informerFactory:      factory,
 		queue:                legacyQueue,
 		priorityQueue:        priorityQueue,
+		tenantQueue:          tenantQueue,
 		Algorithm:            algorithm,
 		schedulerCache:       schedulerCache,
 	}

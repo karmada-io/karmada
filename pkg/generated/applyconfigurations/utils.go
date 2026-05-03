@@ -26,6 +26,7 @@ import (
 	networkingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	remedyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/remedy/v1alpha1"
+	schedulingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/scheduling/v1alpha1"
 	searchv1alpha1 "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	v1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -37,6 +38,7 @@ import (
 	applyconfigurationsnetworkingv1alpha1 "github.com/karmada-io/karmada/pkg/generated/applyconfigurations/networking/v1alpha1"
 	applyconfigurationspolicyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/applyconfigurations/policy/v1alpha1"
 	applyconfigurationsremedyv1alpha1 "github.com/karmada-io/karmada/pkg/generated/applyconfigurations/remedy/v1alpha1"
+	applyconfigurationsschedulingv1alpha1 "github.com/karmada-io/karmada/pkg/generated/applyconfigurations/scheduling/v1alpha1"
 	applyconfigurationssearchv1alpha1 "github.com/karmada-io/karmada/pkg/generated/applyconfigurations/search/v1alpha1"
 	applyconfigurationsworkv1alpha1 "github.com/karmada-io/karmada/pkg/generated/applyconfigurations/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/generated/applyconfigurations/work/v1alpha2"
@@ -264,6 +266,18 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &applyconfigurationsremedyv1alpha1.RemedyApplyConfiguration{}
 	case remedyv1alpha1.SchemeGroupVersion.WithKind("RemedySpec"):
 		return &applyconfigurationsremedyv1alpha1.RemedySpecApplyConfiguration{}
+
+		// Group=scheduling.karmada.io, Version=v1alpha1
+	case schedulingv1alpha1.SchemeGroupVersion.WithKind("BackoffConfig"):
+		return &applyconfigurationsschedulingv1alpha1.BackoffConfigApplyConfiguration{}
+	case schedulingv1alpha1.SchemeGroupVersion.WithKind("NamespaceSelector"):
+		return &applyconfigurationsschedulingv1alpha1.NamespaceSelectorApplyConfiguration{}
+	case schedulingv1alpha1.SchemeGroupVersion.WithKind("SchedulerQueue"):
+		return &applyconfigurationsschedulingv1alpha1.SchedulerQueueApplyConfiguration{}
+	case schedulingv1alpha1.SchemeGroupVersion.WithKind("SchedulerQueueSpec"):
+		return &applyconfigurationsschedulingv1alpha1.SchedulerQueueSpecApplyConfiguration{}
+	case schedulingv1alpha1.SchemeGroupVersion.WithKind("UnschedulableConfig"):
+		return &applyconfigurationsschedulingv1alpha1.UnschedulableConfigApplyConfiguration{}
 
 		// Group=search.karmada.io, Version=v1alpha1
 	case searchv1alpha1.SchemeGroupVersion.WithKind("BackendStoreConfig"):

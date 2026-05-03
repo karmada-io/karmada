@@ -126,6 +126,12 @@ var defaultSchedulingQueueOptions = schedulingQueueOptions{
 
 // NewSchedulingQueue builds a SchedulingQueue instance.
 func NewSchedulingQueue(opts ...Option) SchedulingQueue {
+	return newPrioritySchedulingQueue(opts...)
+}
+
+// newPrioritySchedulingQueue creates a prioritySchedulingQueue and returns
+// the concrete type. Used internally by TenantSchedulingQueue.
+func newPrioritySchedulingQueue(opts ...Option) *prioritySchedulingQueue {
 	options := defaultSchedulingQueueOptions
 	for _, opt := range opts {
 		opt(&options)
@@ -179,6 +185,10 @@ type prioritySchedulingQueue struct {
 	backoffQ *heap.Heap[*QueuedBindingInfo]
 	// unschedulableBindings holds bindings that have been tried and determined unschedulable.
 	unschedulableBindings *UnschedulableBindings
+
+	// onActiveQPush is called whenever a binding is moved to activeQ.
+	// Used by TenantSchedulingQueue to wake up its Pop() goroutine.
+	onActiveQPush func()
 }
 
 // Run starts the goroutine to flush backoffQ and unschedulableBindings.
@@ -298,6 +308,12 @@ func (bq *prioritySchedulingQueue) Pop() (*QueuedBindingInfo, bool) {
 	return bq.activeQ.Pop()
 }
 
+// TryPop returns the head of the active queue without blocking.
+// Returns nil, false if the queue is empty.
+func (bq *prioritySchedulingQueue) TryPop() (*QueuedBindingInfo, bool) {
+	return bq.activeQ.TryPop()
+}
+
 func (bq *prioritySchedulingQueue) PushUnschedulableIfNotPresent(bindingInfo *QueuedBindingInfo) {
 	bq.lock.Lock()
 	defer bq.lock.Unlock()
@@ -345,6 +361,9 @@ func (bq *prioritySchedulingQueue) moveToActiveQ(bindingInfo *QueuedBindingInfo)
 	_ = bq.backoffQ.Delete(bindingInfo) // just ignore this not-found error
 	bq.unschedulableBindings.delete(bindingInfo.NamespacedKey)
 	klog.V(4).InfoS("Binding moved to an internal scheduling queue", "binding", bindingInfo.NamespacedKey, "queue", activeQ)
+	if bq.onActiveQPush != nil {
+		bq.onActiveQPush()
+	}
 }
 
 // UnschedulableBindings holds bindings that cannot be scheduled. This data structure

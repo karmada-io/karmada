@@ -1669,6 +1669,68 @@ var schemaYAML = typed.YAMLObject(`types:
           elementType:
             namedType: com.github.karmada-io.karmada.pkg.apis.remedy.v1alpha1.DecisionMatch
           elementRelationship: atomic
+- name: com.github.karmada-io.karmada.pkg.apis.scheduling.v1alpha1.BackoffConfig
+  map:
+    fields:
+    - name: initialDuration
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.Duration
+    - name: maxDuration
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.Duration
+- name: com.github.karmada-io.karmada.pkg.apis.scheduling.v1alpha1.NamespaceSelector
+  map:
+    fields:
+    - name: matchLabels
+      type:
+        map:
+          elementType:
+            scalar: string
+    - name: names
+      type:
+        list:
+          elementType:
+            scalar: string
+          elementRelationship: atomic
+- name: com.github.karmada-io.karmada.pkg.apis.scheduling.v1alpha1.SchedulerQueue
+  map:
+    fields:
+    - name: apiVersion
+      type:
+        scalar: string
+    - name: kind
+      type:
+        scalar: string
+    - name: metadata
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta
+      default: {}
+    - name: spec
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.scheduling.v1alpha1.SchedulerQueueSpec
+      default: {}
+- name: com.github.karmada-io.karmada.pkg.apis.scheduling.v1alpha1.SchedulerQueueSpec
+  map:
+    fields:
+    - name: backoffConfig
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.scheduling.v1alpha1.BackoffConfig
+    - name: namespaceSelector
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.scheduling.v1alpha1.NamespaceSelector
+      default: {}
+    - name: queueingStrategy
+      type:
+        scalar: string
+    - name: unschedulableConfig
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.scheduling.v1alpha1.UnschedulableConfig
+- name: com.github.karmada-io.karmada.pkg.apis.scheduling.v1alpha1.UnschedulableConfig
+  map:
+    fields:
+    - name: maxDuration
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.Duration
 - name: com.github.karmada-io.karmada.pkg.apis.search.v1alpha1.BackendStoreConfig
   map:
     fields:
@@ -2981,6 +3043,8 @@ var schemaYAML = typed.YAMLObject(`types:
       type:
         scalar: string
       default: ""
+- name: io.k8s.apimachinery.pkg.apis.meta.v1.Duration
+  scalar: string
 - name: io.k8s.apimachinery.pkg.apis.meta.v1.FieldsV1
   map:
     elementType:
