@@ -30,10 +30,6 @@ import (
 type ActiveQueue interface {
 	Push(bindingInfo *QueuedBindingInfo)
 	Pop() (*QueuedBindingInfo, bool)
-	// TryPop returns the head of the queue without blocking. Returns nil, false
-	// if the queue is empty. Used by TenantSchedulingQueue to collect heads
-	// from multiple tenant queues without blocking.
-	TryPop() (*QueuedBindingInfo, bool)
 	Len() int
 	Done(bindingInfo *QueuedBindingInfo)
 	Has(key string) bool
@@ -127,23 +123,6 @@ func (q *activequeue) Pop() (bindingInfo *QueuedBindingInfo, shutdown bool) {
 	q.dirtyBindings.Delete(bindingInfo.NamespacedKey)
 
 	return bindingInfo, false
-}
-
-// TryPop returns the head of the queue without blocking. Returns nil, false if
-// the queue is empty or shutting down.
-func (q *activequeue) TryPop() (bindingInfo *QueuedBindingInfo, ok bool) {
-	q.cond.L.Lock()
-	defer q.cond.L.Unlock()
-	if q.activeBindings.Len() == 0 || q.shuttingDown {
-		return nil, false
-	}
-
-	bindingInfo, _ = q.activeBindings.Pop()
-	bindingInfo.Attempts++
-	q.processingBindings.Insert(bindingInfo.NamespacedKey)
-	q.dirtyBindings.Delete(bindingInfo.NamespacedKey)
-
-	return bindingInfo, true
 }
 
 // Done marks item as done processing, and if it has been marked as dirty again

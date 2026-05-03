@@ -308,12 +308,6 @@ func (bq *prioritySchedulingQueue) Pop() (*QueuedBindingInfo, bool) {
 	return bq.activeQ.Pop()
 }
 
-// TryPop returns the head of the active queue without blocking.
-// Returns nil, false if the queue is empty.
-func (bq *prioritySchedulingQueue) TryPop() (*QueuedBindingInfo, bool) {
-	return bq.activeQ.TryPop()
-}
-
 func (bq *prioritySchedulingQueue) PushUnschedulableIfNotPresent(bindingInfo *QueuedBindingInfo) {
 	bq.lock.Lock()
 	defer bq.lock.Unlock()

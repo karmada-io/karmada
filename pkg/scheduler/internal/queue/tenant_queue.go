@@ -26,6 +26,39 @@ import (
 
 const defaultTenantName = "__default__"
 
+// tenantActiveQueue embeds activequeue and adds a non-blocking TryPop
+// method used by TenantSchedulingQueue to collect heads without blocking.
+type tenantActiveQueue struct {
+	*activequeue
+}
+
+// TryPop returns the head of the queue without blocking. Returns nil, false
+// if the queue is empty or shutting down.
+func (q *tenantActiveQueue) TryPop() (bindingInfo *QueuedBindingInfo, ok bool) {
+	q.cond.L.Lock()
+	defer q.cond.L.Unlock()
+	if q.activeBindings.Len() == 0 || q.shuttingDown {
+		return nil, false
+	}
+
+	bindingInfo, _ = q.activeBindings.Pop()
+	bindingInfo.Attempts++
+	q.processingBindings.Insert(bindingInfo.NamespacedKey)
+	q.dirtyBindings.Delete(bindingInfo.NamespacedKey)
+
+	return bindingInfo, true
+}
+
+// newTenantPriorityQueue creates a prioritySchedulingQueue whose activeQ is a
+// tenantActiveQueue, returning both so the caller can use TryPop via the
+// tenantActiveQueue without modifying the prioritySchedulingQueue type.
+func newTenantPriorityQueue(opts ...Option) (*prioritySchedulingQueue, *tenantActiveQueue) {
+	q := newPrioritySchedulingQueue(opts...)
+	taq := &tenantActiveQueue{q.activeQ.(*activequeue)}
+	q.activeQ = taq
+	return q, taq
+}
+
 // QueueingStrategy determines how bindings are ordered and whether
 // head-of-line blocking is applied within a tenant queue.
 type QueueingStrategy string
@@ -41,6 +74,7 @@ const (
 type tenantEntry struct {
 	name     string
 	queue    *prioritySchedulingQueue
+	activeQ  *tenantActiveQueue
 	strategy QueueingStrategy
 	// blocked is set when the head of a StrictFIFO queue fails scheduling.
 	// While blocked, collectHeads() skips this tenant.
@@ -84,10 +118,11 @@ func NewTenantSchedulingQueue(opts ...Option) *TenantSchedulingQueue {
 	tq.cond = sync.NewCond(&tq.mu)
 
 	// Always create the default queue for unmatched namespaces.
-	defaultQ := newPrioritySchedulingQueue(opts...)
+	defaultQ, taq := newTenantPriorityQueue(opts...)
 	entry := &tenantEntry{
 		name:     defaultTenantName,
 		queue:    defaultQ,
+		activeQ:  taq,
 		strategy: BestEffortFIFO,
 	}
 	defaultQ.onActiveQPush = func() { tq.cond.Broadcast() }
@@ -179,7 +214,7 @@ func (tq *TenantSchedulingQueue) collectHeadsLocked() {
 		}
 		// Release outer lock while popping from inner queue to avoid deadlock.
 		tq.mu.Unlock()
-		item, ok := entry.queue.TryPop()
+		item, ok := entry.activeQ.TryPop()
 		tq.mu.Lock()
 		if ok && item != nil {
 			tq.heads = append(tq.heads, item)
@@ -278,10 +313,11 @@ func (tq *TenantSchedulingQueue) AddTenant(name string, strategy QueueingStrateg
 		return
 	}
 
-	q := newPrioritySchedulingQueue(opts...)
+	q, taq := newTenantPriorityQueue(opts...)
 	entry := &tenantEntry{
 		name:     name,
 		queue:    q,
+		activeQ:  taq,
 		strategy: strategy,
 	}
 	q.onActiveQPush = func() {
