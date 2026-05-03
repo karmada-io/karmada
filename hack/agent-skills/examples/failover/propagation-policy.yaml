@@ -1,0 +1,36 @@
+# PropagationPolicy with comprehensive failover configuration.
+# Demonstrates application-level and cluster-level failover with state preservation.
+
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: stateful-app-failover
+  namespace: default
+spec:
+  resourceSelectors:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: stateful-app
+
+  placement:
+    clusterAffinity:
+      clusterNames:
+        - member1
+    # member2 will be used as failover target when member1 fails
+
+  # Dependency propagation ensures ConfigMaps/Secrets migrate with the app
+  propagateDeps: true
+
+  # Comprehensive failover configuration
+  failover:
+    # Application-level failover (app becomes unhealthy on a cluster)
+    application:
+      decisionConditions:
+        tolerationSeconds: 60  # Wait 60s before triggering failover
+      purgeMode: Directly      # Immediate eviction (exactly-once consistency)
+      # gracePeriodSeconds is not needed for Directly mode
+
+    # Cluster-level failover (whole cluster goes down)
+    cluster:
+      purgeMode: Gracefully    # Wait for app to become healthy before cleanup
+      # Default gracePeriodSeconds is 600 for Gracefully mode

@@ -1,0 +1,30 @@
+# ClusterPropagationPolicy Template
+# For cluster-scoped resources or resources in any namespace (except system namespaces).
+# System reserved namespaces: karmada-system, karmada-cluster, karmada-es-*
+
+apiVersion: policy.karmada.io/v1alpha1
+kind: ClusterPropagationPolicy
+metadata:
+  name: <workload-name>-cluster-propagation
+spec:
+  resourceSelectors:
+    - apiVersion: rbac.authorization.k8s.io/v1  # <apiVersion of the target resource>
+      kind: ClusterRole                          # <Kind of the target resource>
+      # name: <resource-name>    # Optional: target a specific resource
+      # labelSelector:           # Optional: select resources by labels
+      #   matchLabels:
+      #     app: <label-value>
+
+  # Placement rules (same as PropagationPolicy)
+  placement:
+    clusterAffinity:
+      clusterNames:
+        - member1
+        - member2
+
+  # All other fields are identical to PropagationPolicy.
+  # See templates/propagation-policy.yaml for full field reference.
+  #
+  # Key difference: ClusterPropagationPolicy can match:
+  #   - Cluster-scoped resources (ClusterRole, CRD, etc.)
+  #   - Namespace-scoped resources in any namespace (except karmada-system, karmada-cluster, karmada-es-*)

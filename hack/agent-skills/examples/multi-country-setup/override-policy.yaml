@@ -1,0 +1,71 @@
+# OverridePolicy for multi-country web application
+# Country-specific CDN routing, environment labels, and replica counts.
+
+apiVersion: policy.karmada.io/v1alpha1
+kind: OverridePolicy
+metadata:
+  name: webapp-multi-country-override
+  namespace: default
+spec:
+  resourceSelectors:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: webapp
+
+  overrideRules:
+
+    # Singapore: production, APAC CDN
+    - targetCluster:
+        clusterNames:
+          - asia-southeast1-sg
+      overriders:
+        labelsOverrider:
+          - operator: add
+            value:
+              environment: production
+              region: apac
+              cdn-endpoint: cdn-apac.example.com
+        annotationsOverrider:
+          - operator: add
+            value:
+              deployment-tier: tier-1
+
+    # Indonesia: staging, APAC CDN
+    - targetCluster:
+        clusterNames:
+          - asia-southeast2-id
+      overriders:
+        labelsOverrider:
+          - operator: add
+            value:
+              environment: staging
+              region: apac
+              cdn-endpoint: cdn-apac.example.com
+
+    # Germany: production, EU CDN
+    - targetCluster:
+        clusterNames:
+          - europe-west1-de
+      overriders:
+        labelsOverrider:
+          - operator: add
+            value:
+              environment: production
+              region: europe
+              cdn-endpoint: cdn-eu.example.com
+        annotationsOverrider:
+          - operator: add
+            value:
+              deployment-tier: tier-1
+
+    # Brazil: staging, LATAM CDN
+    - targetCluster:
+        clusterNames:
+          - southamerica-east1-br
+      overriders:
+        labelsOverrider:
+          - operator: add
+            value:
+              environment: staging
+              region: latam
+              cdn-endpoint: cdn-latam.example.com

@@ -1,0 +1,74 @@
+# PropagationPolicy for multi-country web application
+# Places workload across 4 countries with weighted replica distribution
+# and region-aware failover.
+
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: webapp-multi-country-propagation
+  namespace: default
+spec:
+  resourceSelectors:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: webapp
+
+  placement:
+    clusterAffinity:
+      clusterNames:
+        - asia-southeast1-sg
+        - asia-southeast2-id
+        - europe-west1-de
+        - southamerica-east1-br
+
+    # Spread across all 4 clusters
+    spreadConstraints:
+      - spreadByField: cluster
+        maxGroups: 4
+        minGroups: 4
+
+    # Weighted replica distribution based on traffic expectations
+    replicaScheduling:
+      replicaSchedulingType: Divided
+      replicaDivisionPreference: Weighted
+      weightPreference:
+        staticWeightList:
+          - targetCluster:
+              clusterNames:
+                - asia-southeast1-sg
+            weight: 4    # Highest traffic
+          - targetCluster:
+              clusterNames:
+                - europe-west1-de
+            weight: 4    # Highest traffic
+          - targetCluster:
+              clusterNames:
+                - asia-southeast2-id
+            weight: 2    # Medium traffic
+          - targetCluster:
+              clusterNames:
+                - southamerica-east1-br
+            weight: 2    # Medium traffic
+
+    # Cluster tolerations for gracefully handling cluster issues
+    clusterTolerations:
+      - key: "cluster.karmada.io/not-ready"
+        operator: "Exists"
+        effect: "NoSchedule"
+        tolerationSeconds: 300
+
+  # Failover: if application fails on a cluster, wait 5 min then evict gracefully
+  failover:
+    application:
+      decisionConditions:
+        tolerationSeconds: 300
+      purgeMode: Gracefully
+      gracePeriodSeconds: 600
+    cluster:
+      purgeMode: Gracefully
+
+  # Auto-propagate referenced ConfigMaps and Secrets
+  propagateDeps: true
+
+  # Conflict resolution: overwrite if resource already exists (migration scenario)
+  conflictResolution: Overwrite

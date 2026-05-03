@@ -1,0 +1,29 @@
+# ClusterOverridePolicy Template
+# For cluster-scoped resources or cross-namespace overrides.
+
+apiVersion: policy.karmada.io/v1alpha1
+kind: ClusterOverridePolicy
+metadata:
+  name: <workload-name>-cluster-override
+spec:
+  resourceSelectors:
+    - apiVersion: rbac.authorization.k8s.io/v1  # <apiVersion of the target resource>
+      kind: ClusterRole                          # <Kind of the target resource>
+      # name: <resource-name>
+
+  overrideRules:
+    - targetCluster:
+        clusterNames:
+          - member2
+      overriders:
+        labelsOverrider:
+          - operator: add
+            value:
+              cluster: member2
+
+  # Same OverrideSpec as OverridePolicy.
+  # See templates/override-policy.yaml for full field reference.
+  #
+  # Key difference: ClusterOverridePolicy can match:
+  #   - Cluster-scoped resources
+  #   - Namespace-scoped resources in any namespace

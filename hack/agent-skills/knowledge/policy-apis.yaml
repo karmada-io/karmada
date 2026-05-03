@@ -1,0 +1,288 @@
+# Karmada Policy API Reference
+# Source: pkg/apis/policy/v1alpha1/ and pkg/apis/work/v1alpha{1,2}/
+
+api_groups:
+  policy: policy.karmada.io/v1alpha1
+  work_v1alpha1: work.karmada.io/v1alpha1
+  work_v1alpha2: work.karmada.io/v1alpha2  # storage version
+
+# ── PropagationPolicy ──────────────────────────────────────────
+propagation_policy:
+  kind: PropagationPolicy
+  scope: Namespaced
+  shortName: pp
+  required_fields:
+    - spec.resourceSelectors  # MinItems: 1
+  spec_fields:
+    resourceSelectors:
+      - apiVersion: string (required)
+        kind: string (required)
+        namespace: string (optional, inherits from parent)
+        name: string (optional, selects specific resource)
+        labelSelector: metav1.LabelSelector (optional, ignored if name set)
+
+    placement:
+      clusterAffinity: # mutually exclusive with clusterAffinities
+        labelSelector: metav1.LabelSelector
+        fieldSelector: # keys: provider, region, zone; operators: In, NotIn
+            matchExpressions: []
+        clusterNames: [string]
+        exclude: [string]
+      clusterAffinities: [ClusterAffinityTerm] # mutually exclusive with clusterAffinity
+        - affinityName: string (required, 1-32 chars)
+          labelSelector: metav1.LabelSelector
+          fieldSelector: FieldSelector
+          clusterNames: [string]
+          exclude: [string]
+          overflowAffinities: [OverflowClusterAffinity]
+            - affinityName: string
+              labelSelector: metav1.LabelSelector
+              fieldSelector: FieldSelector
+              clusterNames: [string]
+              exclude: [string]
+      clusterTolerations: [corev1.Toleration]
+      spreadConstraints:
+        - spreadByField: cluster | region | zone | provider
+          spreadByLabel: string (mutually exclusive with spreadByField)
+          maxGroups: int
+          minGroups: int (default 1)
+      replicaScheduling:
+        replicaSchedulingType: Duplicated | Divided (default Divided)
+        replicaDivisionPreference: Aggregated | Weighted
+        weightPreference:
+          staticWeightList:
+            - targetCluster: ClusterAffinity
+              weight: int (min 1)
+          dynamicWeight: AvailableReplicas
+      workloadAffinity:
+        affinity:
+          groupByLabelKey: string
+        antiAffinity:
+          groupByLabelKey: string
+
+    propagateDeps: bool (default false)
+    priority: *int32 (default 0, higher = higher priority)
+    preemption: Always | Never (default Never)
+    schedulerName: string (default "default-scheduler")
+    dependentOverrides: [string]
+    conflictResolution: Abort | Overwrite (default Abort)
+    activationPreference: Lazy
+    failover:
+      application:
+        decisionConditions:
+          tolerationSeconds: *int32 (default 300)
+        purgeMode: Directly | Gracefully | Never (default Gracefully)
+        gracePeriodSeconds: *int32 (default 600)
+        statePreservation:
+          rules:
+            - aliasLabelName: string
+              jsonPath: string
+      cluster:
+        purgeMode: Directly | Gracefully (default Gracefully)
+        statePreservation:
+          rules:
+            - aliasLabelName: string
+              jsonPath: string
+    suspension:
+      dispatching: *bool
+      dispatchingOnClusters:
+        clusterNames: [string]
+    preserveResourcesOnDeletion: *bool
+    schedulePriority:
+      priorityClassSource: KubePriorityClass | PodPriorityClass | FederatedPriorityClass
+      priorityClassName: string
+
+# ── ClusterPropagationPolicy ───────────────────────────────────
+cluster_propagation_policy:
+  kind: ClusterPropagationPolicy
+  scope: Cluster
+  shortName: cpp
+  note: Same PropagationSpec. Works on cluster-scoped resources and all namespaces
+        except system namespaces (karmada-system, karmada-cluster, karmada-es-*).
+
+# ── OverridePolicy ─────────────────────────────────────────────
+override_policy:
+  kind: OverridePolicy
+  scope: Namespaced
+  shortName: op
+  spec_fields:
+    resourceSelectors: [ResourceSelector] # nil means match all
+    overrideRules:
+      - targetCluster: ClusterAffinity
+        overriders:
+          imageOverrider:
+            - predicate:
+                path: string
+              component: Registry | Repository | Tag
+              operator: add | remove | replace
+              value: string
+          commandOverrider:
+            - containerName: string
+              operator: add | remove
+              value: [string]
+          argsOverrider:
+            - containerName: string
+              operator: add | remove
+              value: [string]
+          labelsOverrider:
+            - operator: add | remove | replace
+              value: {string: string}
+          annotationsOverrider:
+            - operator: add | remove | replace
+              value: {string: string}
+          plaintext:
+            - path: string (e.g. /spec/replicas)
+              operator: add | remove | replace
+              value: any JSON
+          fieldOverrider:
+            - fieldPath: string (RFC 6901)
+              json:
+                - subPath: string
+                  operator: add | remove | replace
+                  value: any JSON
+              yaml:
+                - subPath: string
+                  operator: add | remove | replace
+                  value: any JSON
+    # Deprecated fields (use overrideRules instead):
+    targetCluster: ClusterAffinity
+    overriders: Overriders
+
+  override_order: >
+    ImageOverrider → CommandOverrider → ArgsOverrider →
+    LabelsOverrider → AnnotationsOverrider → FieldOverrider → Plaintext
+
+# ── ClusterOverridePolicy ─────────────────────────────────────
+cluster_override_policy:
+  kind: ClusterOverridePolicy
+  scope: Cluster
+  shortName: cop
+  note: Same OverrideSpec. Works on cluster-scoped resources and all namespaces.
+
+# ── ResourceBinding (v1alpha2 - storage version) ───────────────
+resource_binding:
+  kind: ResourceBinding
+  scope: Namespaced
+  shortName: rb
+  spec_fields:
+    resource:
+      apiVersion: string
+      kind: string
+      namespace: string
+      name: string
+      uid: string
+      resourceVersion: string
+    clusters:
+      - name: string
+        replicas: int32
+    placement: Placement (from PropagationSpec)
+    schedulerName: string
+    failover: FailoverBehavior
+    conflictResolution: Abort | Overwrite
+    gracefulEvictionTasks:
+      - fromCluster: string
+        purgeMode: Immediately|Directly|Graciously|Gracefully|Never
+        replicas: *int32
+        reason: string
+        message: string
+        producer: string
+        gracePeriodSeconds: *int32
+        suppressDeletion: *bool
+        preservedLabelState: {string: string}
+  status:
+    conditions:
+      - type: Scheduled | FullyApplied
+        status: True | False | Unknown
+        reason: Success | SchedulerError | NoClusterFit | Unschedulable | QuotaExceeded
+    aggregatedStatus:
+      - clusterName: string
+        status: RawExtension
+        applied: bool
+        appliedMessage: string
+        health: Healthy | Unhealthy | Unknown
+
+# ── ClusterResourceBinding (v1alpha2 - storage version) ────────
+cluster_resource_binding:
+  kind: ClusterResourceBinding
+  scope: Cluster
+  shortName: crb
+  note: Same spec as ResourceBinding. Created from ClusterPropagationPolicy.
+
+# ── Work (v1alpha1) ────────────────────────────────────────────
+work:
+  kind: Work
+  scope: Namespaced
+  shortName: wk
+  spec_fields:
+    workload:
+      manifests:
+        - RawExtension (inline Kubernetes resource)
+    suspendDispatching: *bool
+    preserveResourcesOnDeletion: *bool
+  status:
+    conditions:
+      - type: Applied | Progressing | Available | Degraded | Dispatching
+    manifestStatuses:
+      - identifier:
+          ordinal: int
+          group: string
+          version: string
+          kind: string
+          resource: string
+          namespace: string
+          name: string
+        status: RawExtension
+        health: Healthy | Unhealthy | Unknown
+
+# ── Well-Known Labels/Annotations ─────────────────────────────
+well_known:
+  labels:
+    - key: propagationpolicy.karmada.io/permanent-id
+      desc: Unique identifier linking PropagationPolicy to ResourceBinding
+    - key: clusterpropagationpolicy.karmada.io/permanent-id
+      desc: Unique identifier linking ClusterPropagationPolicy to ClusterResourceBinding
+    - key: namespace.karmada.io/skip-auto-propagation
+      desc: When "true", namespace is excluded from auto-propagation
+  annotations:
+    - key: propagationpolicy.karmada.io/namespace
+      desc: Associated PropagationPolicy namespace
+    - key: propagationpolicy.karmada.io/name
+      desc: Associated PropagationPolicy name
+    - key: clusterpropagationpolicy.karmada.io/name
+      desc: Associated ClusterPropagationPolicy name
+
+# ── Spread Fields ─────────────────────────────────────────────
+spread_fields:
+  - cluster
+  - region
+  - zone
+  - provider
+
+# ── Replica Scheduling Modes ──────────────────────────────────
+replica_scheduling_types:
+  Duplicated: Each cluster gets full replica count
+  Divided: Replicas divided across clusters
+
+replica_division_preferences:
+  Aggregated: Divide into as few clusters as possible
+  Weighted: Divide by weight according to WeightPreference
+
+# ── Purge Modes ───────────────────────────────────────────────
+purge_modes:
+  Directly: Immediately evict (was "Immediately", deprecated)
+  Gracefully: Wait for healthy state or timeout (was "Graciously", deprecated)
+  Never: Leave to manual cleanup
+  Immediately: Deprecated alias for Directly
+  Graciously: Deprecated alias for Gracefully
+
+# ── Kinds Summary ─────────────────────────────────────────────
+kinds:
+  policy:
+    - PropagationPolicy (pp, Namespaced)
+    - ClusterPropagationPolicy (cpp, Cluster)
+    - OverridePolicy (op, Namespaced)
+    - ClusterOverridePolicy (cop, Cluster)
+  work:
+    - ResourceBinding (rb, Namespaced, v1alpha2 storage)
+    - ClusterResourceBinding (crb, Cluster, v1alpha2 storage)
+    - Work (wk, Namespaced, v1alpha1)

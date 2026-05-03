@@ -1,0 +1,62 @@
+# OverridePolicy for image-override example
+# Different image registries and tags per cluster, including predicate-based
+# overrides for specific containers in multi-container Pods.
+
+apiVersion: policy.karmada.io/v1alpha1
+kind: OverridePolicy
+metadata:
+  name: microservice-image-override
+  namespace: default
+spec:
+  resourceSelectors:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: microservice
+
+  overrideRules:
+
+    # member1: Production registry
+    - targetCluster:
+        clusterNames:
+          - member1
+      overriders:
+        imageOverrider:
+          - component: Registry
+            operator: replace
+            value: registry.example.com/prod
+
+    # member2: Staging registry
+    - targetCluster:
+        clusterNames:
+          - member2
+      overriders:
+        imageOverrider:
+          - component: Registry
+            operator: replace
+            value: registry.example.com/staging
+
+    # member3: Canary tag + same production registry
+    - targetCluster:
+        clusterNames:
+          - member3
+      overriders:
+        imageOverrider:
+          - component: Registry
+            operator: replace
+            value: registry.example.com/prod
+          - component: Tag
+            operator: replace
+            value: v2-canary
+
+    # Example: Override only a specific sidecar container image
+    # (commented out — uncomment when using a multi-container Pod)
+    # - targetCluster:
+    #     clusterNames:
+    #       - member2
+    #   overriders:
+    #     imageOverrider:
+    #       - predicate:
+    #           path: /spec/template/spec/containers/1/image
+    #         component: Registry
+    #         operator: replace
+    #         value: sidecar-registry.example.com

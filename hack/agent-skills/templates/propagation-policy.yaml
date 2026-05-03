@@ -1,0 +1,119 @@
+# PropagationPolicy Template
+# Replace placeholders with your workload details and placement rules.
+
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: <workload-name>-propagation
+  # namespace: <namespace>  # required; must match the workload namespace
+spec:
+  resourceSelectors:
+    - apiVersion: apps/v1       # <apiVersion of the target resource>
+      kind: Deployment           # <Kind of the target resource>
+      # name: <resource-name>    # Optional: target a specific resource by name
+      # namespace: <namespace>   # Optional: defaults to policy namespace
+      # labelSelector:           # Optional: select resources by labels (ignored if name is set)
+      #   matchLabels:
+      #     app: <label-value>
+
+  # Placement rules (choose one approach):
+  placement:
+    # Option A: Static cluster name list
+    clusterAffinity:
+      clusterNames:
+        - member1
+        - member2
+      # exclude:                   # Optional: exclude specific clusters
+      #   - member3
+
+    # Option B: Label-based cluster selection
+    # clusterAffinity:
+    #   labelSelector:
+    #     matchLabels:
+    #       region: us-west
+    #   fieldSelector:
+    #     matchExpressions:
+    #       - key: provider
+    #         operator: In
+    #         values:
+    #           - aws
+
+    # Option C: Multi-group affinity with overflow (can't coexist with clusterAffinity)
+    # clusterAffinities:
+    #   - affinityName: primary
+    #     clusterNames:
+    #       - member1
+    #     overflowAffinities:
+    #       - affinityName: overflow-1
+    #         clusterNames:
+    #           - member2
+
+    # Optional: Cluster tolerations
+    # clusterTolerations:
+    #   - key: "node.karmada.io/not-ready"
+    #     operator: "Exists"
+    #     effect: "NoSchedule"
+
+    # Optional: Spread constraints
+    # spreadConstraints:
+    #   - spreadByField: region
+    #     maxGroups: 2
+    #     minGroups: 2
+
+    # Optional: Replica scheduling (for workloads with replicas)
+    # replicaScheduling:
+    #   replicaSchedulingType: Divided       # Duplicated | Divided (default)
+    #   replicaDivisionPreference: Weighted  # Aggregated | Weighted
+    #   weightPreference:
+    #     staticWeightList:
+    #       - targetCluster:
+    #           clusterNames:
+    #             - member1
+    #         weight: 1
+    #       - targetCluster:
+    #           clusterNames:
+    #             - member2
+    #         weight: 1
+
+    # Optional: Workload affinity/anti-affinity
+    # workloadAffinity:
+    #   affinity:
+    #     groupByLabelKey: app.group
+    #   antiAffinity:
+    #     groupByLabelKey: app.group
+
+  # Optional: Additional settings
+  # propagateDeps: true                          # Auto-propagate ConfigMaps/Secrets
+  # priority: 0                                  # Higher = higher priority
+  # preemption: Never                            # Always | Never
+  # schedulerName: default-scheduler
+  # conflictResolution: Abort                    # Abort | Overwrite
+  # activationPreference: Lazy                   # Defer policy changes to resource template changes
+  # dependentOverrides:
+  #   - <override-policy-name>
+
+  # Optional: Failover configuration
+  # failover:
+  #   application:
+  #     decisionConditions:
+  #       tolerationSeconds: 300
+  #     purgeMode: Gracefully
+  #     gracePeriodSeconds: 600
+  #   cluster:
+  #     purgeMode: Gracefully
+
+  # Optional: Suspension
+  # suspension:
+  #   dispatching: true                          # Suspend all dispatching
+  #   # OR per-cluster:
+  #   # dispatchingOnClusters:
+  #   #   clusterNames:
+  #   #     - member1
+
+  # Optional: Preserve on deletion
+  # preserveResourcesOnDeletion: true
+
+  # Optional: Schedule priority
+  # schedulePriority:
+  #   priorityClassSource: KubePriorityClass
+  #   priorityClassName: high-priority

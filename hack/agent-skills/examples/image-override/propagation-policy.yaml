@@ -1,0 +1,38 @@
+# PropagationPolicy for image-override example
+# Propagates the microservice to all three clusters.
+
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: microservice-propagation
+  namespace: default
+spec:
+  resourceSelectors:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: microservice
+
+  placement:
+    clusterAffinity:
+      clusterNames:
+        - member1
+        - member2
+        - member3
+
+    replicaScheduling:
+      replicaSchedulingType: Divided
+      replicaDivisionPreference: Weighted
+      weightPreference:
+        staticWeightList:
+          - targetCluster:
+              clusterNames:
+                - member1
+            weight: 5
+          - targetCluster:
+              clusterNames:
+                - member2
+            weight: 2
+          - targetCluster:
+              clusterNames:
+                - member3
+            weight: 1

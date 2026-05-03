@@ -1,0 +1,101 @@
+# OverridePolicy Template
+# Replace placeholders with your override rules per target cluster.
+
+apiVersion: policy.karmada.io/v1alpha1
+kind: OverridePolicy
+metadata:
+  name: <workload-name>-override
+  # namespace: <namespace>  # required; must match the workload namespace
+spec:
+  resourceSelectors:
+    - apiVersion: apps/v1       # <apiVersion of the target resource>
+      kind: Deployment           # <Kind of the target resource>
+      # name: <resource-name>    # Optional: target a specific resource
+      # labelSelector:           # Optional: select resources by labels
+      #   matchLabels:
+      #     app: <label-value>
+
+  # Override rules per target cluster
+  overrideRules:
+
+    # Rule 1: Override for member2
+    - targetCluster:
+        clusterNames:
+          - member2
+        # labelSelector:          # Alternative: select clusters by labels
+        #   matchLabels:
+        #     region: us-east
+
+      overriders:
+        # Image overrides (applies to all containers by default)
+        # imageOverrider:
+        #   - component: Registry     # Registry | Repository | Tag
+        #     operator: replace       # add | remove | replace
+        #     value: registry.member2.example.com
+        #   - predicate:              # Optional: target specific container images
+        #       path: /spec/template/spec/containers/0/image
+        #     component: Registry
+        #     operator: replace
+        #     value: private-registry.example.com
+
+        # Label overrides
+        # labelsOverrider:
+        #   - operator: add           # add | remove | replace
+        #     value:
+        #       env: production
+        #   - operator: remove
+        #     value:
+        #       deprecated-label: "true"
+
+        # Annotation overrides
+        # annotationsOverrider:
+        #   - operator: add
+        #     value:
+        #       team: platform
+
+        # Command overrides (specific container)
+        # commandOverrider:
+        #   - containerName: main
+        #     operator: add
+        #     value:
+        #       - "--debug"
+
+        # Args overrides (specific container)
+        # argsOverrider:
+        #   - containerName: main
+        #     operator: add
+        #     value:
+        #       - "--verbose"
+
+        # Plaintext overrides (arbitrary JSONPath)
+        # plaintext:
+        #   - path: /spec/replicas
+        #     operator: replace
+        #     value: 3
+
+        # Field overrides (structured fields like ConfigMap data)
+        # fieldOverrider:
+        #   - fieldPath: /data/config.yaml
+        #     yaml:
+        #       - subPath: /database/host
+        #         operator: replace
+        #         value: "db.member2.internal"
+        #     json:
+        #       - subPath: /logging/level
+        #         operator: replace
+        #         value: "debug"
+
+    # Rule 2: Override for member1
+    - targetCluster:
+        clusterNames:
+          - member1
+      overriders:
+        labelsOverrider:
+          - operator: add
+            value:
+              env: staging
+
+# Notes:
+# - Override application order: Image → Command → Args → Labels → Annotations → Field → Plaintext
+# - Multiple OverridePolicies for the same resource/field: last writer wins
+# - Use ClusterOverridePolicy for cluster-scoped resources or cross-namespace overrides
