@@ -19,7 +19,6 @@ package queue
 import (
 	"sync"
 
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 )
@@ -89,10 +88,8 @@ type TenantSchedulingQueue struct {
 
 	// tenants is the ordered list of tenant queues for iteration.
 	tenants []*tenantEntry
-	// tenantMap provides O(1) lookup by tenant name.
+	// tenantMap provides O(1) lookup by tenant name (= namespace name).
 	tenantMap map[string]*tenantEntry
-	// namespaceToTenant maps namespace name -> tenant name.
-	namespaceToTenant map[string]string
 
 	// rrIndex is the current round-robin index for Pop().
 	rrIndex int
@@ -112,8 +109,7 @@ type TenantSchedulingQueue struct {
 // NewTenantSchedulingQueue creates a TenantSchedulingQueue with a default queue.
 func NewTenantSchedulingQueue(opts ...Option) *TenantSchedulingQueue {
 	tq := &TenantSchedulingQueue{
-		tenantMap:         make(map[string]*tenantEntry),
-		namespaceToTenant: make(map[string]string),
+		tenantMap: make(map[string]*tenantEntry),
 	}
 	tq.cond = sync.NewCond(&tq.mu)
 
@@ -133,19 +129,20 @@ func NewTenantSchedulingQueue(opts ...Option) *TenantSchedulingQueue {
 }
 
 // resolveTenant returns the tenant name for a given namespaced key.
-// ClusterResourceBindings (no namespace) always go to the default tenant.
+// The tenant name is the namespace itself. ClusterResourceBindings
+// (no namespace) always go to the default tenant.
 func (tq *TenantSchedulingQueue) resolveTenant(namespacedKey string) string {
 	namespace, _, _ := cache.SplitMetaNamespaceKey(namespacedKey)
 	if namespace == "" {
 		return defaultTenantName
 	}
 	tq.mu.Lock()
-	tenant, ok := tq.namespaceToTenant[namespace]
+	_, ok := tq.tenantMap[namespace]
 	tq.mu.Unlock()
 	if !ok {
 		return defaultTenantName
 	}
-	return tenant
+	return namespace
 }
 
 // getTenantQueue returns the inner queue for the given tenant name.
@@ -359,13 +356,6 @@ func (tq *TenantSchedulingQueue) RemoveTenant(name string) {
 		}
 	}
 
-	// Clean up namespace mappings pointing to this tenant.
-	for ns, tenant := range tq.namespaceToTenant {
-		if tenant == name {
-			delete(tq.namespaceToTenant, ns)
-		}
-	}
-
 	// Reset round-robin index if it's now out of bounds.
 	if tq.rrIndex >= len(tq.tenants) {
 		tq.rrIndex = 0
@@ -374,33 +364,3 @@ func (tq *TenantSchedulingQueue) RemoveTenant(name string) {
 	klog.V(2).InfoS("Removed tenant queue", "tenant", name)
 }
 
-// UpdateNamespaceMapping maps a namespace to a tenant. Pass an empty tenant
-// name to remove the mapping (namespace will fall back to default).
-func (tq *TenantSchedulingQueue) UpdateNamespaceMapping(namespace, tenant string) {
-	tq.mu.Lock()
-	defer tq.mu.Unlock()
-	if tenant == "" {
-		delete(tq.namespaceToTenant, namespace)
-	} else {
-		tq.namespaceToTenant[namespace] = tenant
-	}
-}
-
-// SetNamespaceMappings replaces all namespace-to-tenant mappings for a tenant.
-func (tq *TenantSchedulingQueue) SetNamespaceMappings(tenant string, namespaces []string) {
-	tq.mu.Lock()
-	defer tq.mu.Unlock()
-
-	// Remove old mappings for this tenant.
-	for ns, t := range tq.namespaceToTenant {
-		if t == tenant {
-			delete(tq.namespaceToTenant, ns)
-		}
-	}
-
-	// Set new mappings.
-	newNs := sets.New[string](namespaces...)
-	for ns := range newNs {
-		tq.namespaceToTenant[ns] = tenant
-	}
-}

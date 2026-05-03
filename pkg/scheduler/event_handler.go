@@ -479,7 +479,6 @@ func (s *Scheduler) onTenantQueueAdd(obj interface{}) {
 	}
 
 	s.tenantQueue.AddTenant(tq.Namespace, strategy)
-	s.tenantQueue.UpdateNamespaceMapping(tq.Namespace, tq.Namespace)
 	klog.V(2).InfoS("TenantQueue added", "namespace", tq.Namespace, "strategy", tq.Spec.QueueingStrategy)
 }
 

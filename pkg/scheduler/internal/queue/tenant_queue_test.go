@@ -44,7 +44,7 @@ func TestTenantSchedulingQueue_SingleTenant(t *testing.T) {
 	tq.Push(b1)
 	tq.Push(b2)
 
-	// Higher priority should come first.
+	// Higher priority should come first (default queue).
 	got, shutdown := tq.Pop()
 	if shutdown {
 		t.Fatal("unexpected shutdown")
@@ -66,18 +66,15 @@ func TestTenantSchedulingQueue_SingleTenant(t *testing.T) {
 
 func TestTenantSchedulingQueue_MultiTenantRouting(t *testing.T) {
 	tq := NewTenantSchedulingQueue()
-	tq.AddTenant("team-a", BestEffortFIFO)
-	tq.AddTenant("team-b", BestEffortFIFO)
-	tq.SetNamespaceMappings("team-a", []string{"ns-a"})
-	tq.SetNamespaceMappings("team-b", []string{"ns-b"})
+	// Tenant name = namespace name.
+	tq.AddTenant("ns-a", BestEffortFIFO)
+	tq.AddTenant("ns-b", BestEffortFIFO)
 	tq.Run()
 	defer tq.Close()
 
-	// Push bindings for different tenants.
 	tq.Push(newBindingInfo("ns-a", "a1", 10))
 	tq.Push(newBindingInfo("ns-b", "b1", 10))
 
-	// Both tenants should be served.
 	got1, _ := tq.Pop()
 	tq.Done(got1)
 	got2, _ := tq.Pop()
@@ -91,35 +88,29 @@ func TestTenantSchedulingQueue_MultiTenantRouting(t *testing.T) {
 
 func TestTenantSchedulingQueue_RoundRobinFairness(t *testing.T) {
 	tq := NewTenantSchedulingQueue()
-	tq.AddTenant("team-a", BestEffortFIFO)
-	tq.AddTenant("team-b", BestEffortFIFO)
-	tq.SetNamespaceMappings("team-a", []string{"ns-a"})
-	tq.SetNamespaceMappings("team-b", []string{"ns-b"})
+	tq.AddTenant("ns-a", BestEffortFIFO)
+	tq.AddTenant("ns-b", BestEffortFIFO)
 	tq.Run()
 	defer tq.Close()
 
-	// Push 3 bindings for team-a, 1 for team-b.
+	// Push 3 bindings for ns-a, 1 for ns-b.
 	tq.Push(newBindingInfo("ns-a", "a1", 10))
 	tq.Push(newBindingInfo("ns-a", "a2", 10))
 	tq.Push(newBindingInfo("ns-a", "a3", 10))
 	tq.Push(newBindingInfo("ns-b", "b1", 10))
 
-	// First batch: should get one from each tenant (heads pattern).
+	// First batch: one head per tenant.
 	got1, _ := tq.Pop()
 	tq.Done(got1)
 	got2, _ := tq.Pop()
 	tq.Done(got2)
 
-	// Verify we got one from each tenant in the first batch.
 	namespaces := map[string]bool{}
 	ns1, _, _ := splitKey(got1.NamespacedKey)
 	ns2, _, _ := splitKey(got2.NamespacedKey)
 	namespaces[ns1] = true
 	namespaces[ns2] = true
 
-	// The first batch should include items from both the default queue and tenant queues.
-	// Since ns-a and ns-b each have their own tenant, plus the default,
-	// we should see items from at least 2 different sources.
 	if len(namespaces) < 2 {
 		t.Errorf("expected items from at least 2 namespaces in first batch, got %v", namespaces)
 	}
@@ -127,12 +118,11 @@ func TestTenantSchedulingQueue_RoundRobinFairness(t *testing.T) {
 
 func TestTenantSchedulingQueue_ClusterResourceBindingGoesToDefault(t *testing.T) {
 	tq := NewTenantSchedulingQueue()
-	tq.AddTenant("team-a", BestEffortFIFO)
-	tq.SetNamespaceMappings("team-a", []string{"ns-a"})
+	tq.AddTenant("ns-a", BestEffortFIFO)
 	tq.Run()
 	defer tq.Close()
 
-	// ClusterResourceBinding has no namespace.
+	// ClusterResourceBinding has no namespace — goes to default.
 	crb := newBindingInfo("", "cluster-binding", 10)
 	tq.Push(crb)
 
@@ -145,12 +135,11 @@ func TestTenantSchedulingQueue_ClusterResourceBindingGoesToDefault(t *testing.T)
 
 func TestTenantSchedulingQueue_UnmatchedNamespaceGoesToDefault(t *testing.T) {
 	tq := NewTenantSchedulingQueue()
-	tq.AddTenant("team-a", BestEffortFIFO)
-	tq.SetNamespaceMappings("team-a", []string{"ns-a"})
+	tq.AddTenant("ns-a", BestEffortFIFO)
 	tq.Run()
 	defer tq.Close()
 
-	// ns-unknown is not mapped to any tenant.
+	// ns-unknown has no TenantQueue — falls back to default.
 	b := newBindingInfo("ns-unknown", "binding1", 10)
 	tq.Push(b)
 
@@ -166,23 +155,22 @@ func TestTenantSchedulingQueue_AddRemoveTenant(t *testing.T) {
 	tq.Run()
 	defer tq.Close()
 
-	// Initially no tenants besides default.
 	if len(tq.tenants) != 1 {
 		t.Fatalf("expected 1 tenant (default), got %d", len(tq.tenants))
 	}
 
-	tq.AddTenant("team-a", BestEffortFIFO)
+	tq.AddTenant("ns-a", BestEffortFIFO)
 	if len(tq.tenants) != 2 {
 		t.Fatalf("expected 2 tenants, got %d", len(tq.tenants))
 	}
 
-	// Adding the same tenant again is a no-op.
-	tq.AddTenant("team-a", StrictFIFO)
+	// Duplicate add is a no-op.
+	tq.AddTenant("ns-a", StrictFIFO)
 	if len(tq.tenants) != 2 {
 		t.Fatalf("expected 2 tenants after duplicate add, got %d", len(tq.tenants))
 	}
 
-	tq.RemoveTenant("team-a")
+	tq.RemoveTenant("ns-a")
 	if len(tq.tenants) != 1 {
 		t.Fatalf("expected 1 tenant after remove, got %d", len(tq.tenants))
 	}
@@ -196,23 +184,18 @@ func TestTenantSchedulingQueue_AddRemoveTenant(t *testing.T) {
 
 func TestTenantSchedulingQueue_StrictFIFOBlocking(t *testing.T) {
 	tq := NewTenantSchedulingQueue()
-	tq.AddTenant("strict-team", StrictFIFO)
-	tq.AddTenant("besteffort-team", BestEffortFIFO)
-	tq.SetNamespaceMappings("strict-team", []string{"ns-strict"})
-	tq.SetNamespaceMappings("besteffort-team", []string{"ns-best"})
+	tq.AddTenant("ns-strict", StrictFIFO)
+	tq.AddTenant("ns-best", BestEffortFIFO)
 	tq.Run()
 	defer tq.Close()
 
-	// Push items to both queues.
 	tq.Push(newBindingInfo("ns-strict", "s1", 10))
 	tq.Push(newBindingInfo("ns-strict", "s2", 10))
 	tq.Push(newBindingInfo("ns-best", "b1", 10))
 
-	// Pop first batch — should get heads from both tenants + default.
 	got1, _ := tq.Pop()
 	got2, _ := tq.Pop()
 
-	// Find which is from strict-team.
 	var strictBinding *QueuedBindingInfo
 	for _, g := range []*QueuedBindingInfo{got1, got2} {
 		ns, _, _ := splitKey(g.NamespacedKey)
@@ -227,34 +210,28 @@ func TestTenantSchedulingQueue_StrictFIFOBlocking(t *testing.T) {
 		t.Fatal("expected a binding from ns-strict in first batch")
 	}
 
-	// Simulate scheduling failure for the strict binding — push to unschedulable.
 	tq.PushUnschedulableIfNotPresent(strictBinding)
 
-	// Verify strict-team is blocked.
 	tq.mu.Lock()
-	entry := tq.tenantMap["strict-team"]
-	blocked := entry.blocked
+	blocked := tq.tenantMap["ns-strict"].blocked
 	tq.mu.Unlock()
 	if !blocked {
-		t.Error("expected strict-team to be blocked after PushUnschedulableIfNotPresent")
+		t.Error("expected ns-strict to be blocked after PushUnschedulableIfNotPresent")
 	}
 
-	// Push more items to strict-team.
 	tq.Push(newBindingInfo("ns-best", "b2", 10))
 
-	// Pop should only return from besteffort-team (strict is blocked).
 	got3, _ := tq.Pop()
 	tq.Done(got3)
 	ns3, _, _ := splitKey(got3.NamespacedKey)
 	if ns3 == "ns-strict" {
-		t.Error("strict-team should be blocked, but got an item from it")
+		t.Error("ns-strict should be blocked, but got an item from it")
 	}
 }
 
 func TestTenantSchedulingQueue_StrictFIFOUnblocking(t *testing.T) {
 	tq := NewTenantSchedulingQueue()
-	tq.AddTenant("strict-team", StrictFIFO)
-	tq.SetNamespaceMappings("strict-team", []string{"ns-strict"})
+	tq.AddTenant("ns-strict", StrictFIFO)
 	tq.Run()
 	defer tq.Close()
 
@@ -264,25 +241,22 @@ func TestTenantSchedulingQueue_StrictFIFOUnblocking(t *testing.T) {
 	got, _ := tq.Pop()
 	tq.Done(got)
 
-	// Simulate failure.
 	tq.PushUnschedulableIfNotPresent(got)
 
 	tq.mu.Lock()
-	blocked := tq.tenantMap["strict-team"].blocked
+	blocked := tq.tenantMap["ns-strict"].blocked
 	tq.mu.Unlock()
 	if !blocked {
-		t.Fatal("expected strict-team to be blocked")
+		t.Fatal("expected ns-strict to be blocked")
 	}
 
-	// Re-push the binding (simulating backoff completion → moveToActiveQ).
-	// The onActiveQPush callback should unblock.
 	tq.Push(got)
 
 	tq.mu.Lock()
-	blocked = tq.tenantMap["strict-team"].blocked
+	blocked = tq.tenantMap["ns-strict"].blocked
 	tq.mu.Unlock()
 	if blocked {
-		t.Error("expected strict-team to be unblocked after re-push to activeQ")
+		t.Error("expected ns-strict to be unblocked after re-push to activeQ")
 	}
 }
 
@@ -299,7 +273,6 @@ func TestTenantSchedulingQueue_Shutdown(t *testing.T) {
 		close(done)
 	}()
 
-	// Give Pop() time to block.
 	time.Sleep(50 * time.Millisecond)
 	tq.Close()
 
@@ -312,8 +285,7 @@ func TestTenantSchedulingQueue_Shutdown(t *testing.T) {
 
 func TestTenantSchedulingQueue_Len(t *testing.T) {
 	tq := NewTenantSchedulingQueue()
-	tq.AddTenant("team-a", BestEffortFIFO)
-	tq.SetNamespaceMappings("team-a", []string{"ns-a"})
+	tq.AddTenant("ns-a", BestEffortFIFO)
 	tq.Run()
 	defer tq.Close()
 
