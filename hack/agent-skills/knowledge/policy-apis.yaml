@@ -1,0 +1,113 @@
+# Field-level summary of Karmada policy APIs.
+# Source of truth: pkg/apis/policy/v1alpha1/{propagation,override}_types.go
+# This file is consumed by skills, not by the controllers.
+
+PropagationPolicy:
+  group: policy.karmada.io
+  version: v1alpha1
+  scope: Namespaced
+  spec:
+    resourceSelectors:
+      required: true
+      description: List of workloads matched by this policy.
+      item:
+        apiVersion: { required: true, example: apps/v1 }
+        kind:       { required: true, example: Deployment }
+        namespace:  { required: false, note: defaults to the policy's namespace }
+        name:       { required: false, note: omit to match by labelSelector }
+        labelSelector: { required: false, type: metav1.LabelSelector }
+    placement:
+      clusterAffinity:
+        description: Single affinity group; mutually exclusive with clusterAffinities.
+        fields: [labelSelector, fieldSelector, clusterNames, exclude]
+      clusterAffinities:
+        description: |
+          Ordered list. Scheduler tries entries top-down; later entries act
+          as fallbacks. Use this for cluster-level failover, not for "AND".
+        item: { affinityName, labelSelector, fieldSelector, clusterNames, exclude }
+      clusterTolerations:
+        description: Standard corev1.Toleration semantics, evaluated against cluster taints.
+      spreadConstraints:
+        item:
+          spreadByField: { enum: [cluster, region, zone, provider] }
+          spreadByLabel: { note: mutually exclusive with spreadByField in same item }
+          maxGroups: int
+          minGroups: int
+      replicaScheduling:
+        replicaSchedulingType: { enum: [Duplicated, Divided], required_when: workload_has_replicas }
+        replicaDivisionPreference: { enum: [Aggregated, Weighted] }
+        weightPreference: { fields: [staticWeightList, dynamicWeight] }
+    priority: { type: int32, note: higher wins on conflict }
+    preemption: { enum: [Always, Never] }
+    failover:
+      application:
+        decisionConditions: { tolerationSeconds: int32 }
+        purgeMode: { enum: [Immediately, Graciously, Never, Directly, Gracefully] }
+        gracePeriodSeconds: int32
+        statePreservation: { rules: [{ aliasLabelName, jsonPath }] }
+      cluster:
+        purgeMode: ...
+    propagateDeps: { type: bool, note: also propagate ConfigMaps/Secrets/PVCs referenced by the workload }
+    conflictResolution: { enum: [Abort, Overwrite] }
+    suspension:
+      dispatching: { type: bool }
+      dispatchingOnClusters: { clusterNames: [string] }
+    preserveResourcesOnDeletion: { type: bool }
+
+ClusterPropagationPolicy:
+  scope: Cluster
+  spec: same as PropagationPolicy.spec
+  note: Use only for cluster-scoped resources or org-wide rules.
+
+OverridePolicy:
+  group: policy.karmada.io
+  version: v1alpha1
+  scope: Namespaced
+  spec:
+    resourceSelectors: same as PropagationPolicy.spec.resourceSelectors
+    overrideRules:
+      item:
+        targetCluster:
+          fields: [labelSelector, fieldSelector, clusterNames, exclude]
+        overriders:
+          plaintext:
+            item:
+              path:     { required: true, format: JSON Pointer (RFC 6901), example: /spec/replicas }
+              operator: { enum: [add, remove, replace] }
+              value:    { type: any }
+          imageOverrider:    # NOTE: field name has -r, not "imageOverride"
+            item:
+              predicate: { path: JSON Pointer to image string, optional }
+              component: { enum: [Registry, Repository, Tag] }
+              operator:  { enum: [add, remove, replace] }
+              value:     string
+          commandOverrider:    { item: { containerName, operator, value } }
+          argsOverrider:       { item: { containerName, operator, value } }
+          labelsOverrider:     { item: { operator, value } }
+          annotationsOverrider: { item: { operator, value } }
+          fieldOverrider:
+            item:
+              fieldPath: JSON Pointer to a structured field (e.g., embedded YAML in ConfigMap)
+              json:  [{ subPath, operator, value }]
+              yaml:  [{ subPath, operator, value }]
+
+ClusterOverridePolicy:
+  scope: Cluster
+  spec: same as OverridePolicy.spec
+
+# Common pitfalls keyed for skill consumption
+pitfalls:
+  - id: jsonpointer-vs-jsonpath
+    bad:  "spec.template.spec.containers[0].image"
+    good: "/spec/template/spec/containers/0/image"
+    why:  "plaintext.path is JSON Pointer (RFC 6901), not JSONPath."
+  - id: duplicated-vs-divided
+    bad:  "Setting replicas: 3 in the Deployment expecting 3 total across clusters."
+    good: "replicaSchedulingType: Divided splits the 3 replicas; Duplicated puts 3 on EACH cluster."
+  - id: imageoverride-typo
+    bad:  "imageOverride: [...]"
+    good: "imageOverrider: [...]   # JSON tag is 'imageOverrider' (with -r)"
+    why:  "The Go field is ImageOverrider; the JSON tag is `imageOverrider`. The trailing -r is easy to miss and the API server rejects unknown fields."
+  - id: affinity-singular-vs-plural
+    bad:  "Filling both clusterAffinity and clusterAffinities."
+    good: "Pick one. Plural form is for ordered failover groups."

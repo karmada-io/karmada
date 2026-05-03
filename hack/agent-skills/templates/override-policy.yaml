@@ -1,0 +1,28 @@
+# Minimal valid OverridePolicy template.
+# Use imageOverride for registry/repository/tag changes — not plaintext.
+apiVersion: policy.karmada.io/v1alpha1
+kind: OverridePolicy
+metadata:
+  name: ${NAME}
+  namespace: ${NAMESPACE}
+spec:
+  resourceSelectors:
+    - apiVersion: ${TARGET_API_VERSION}
+      kind: ${TARGET_KIND}
+      name: ${TARGET_NAME}
+  overrideRules:
+    - targetCluster:
+        clusterNames:
+          - ${CLUSTER}
+      overriders:
+        # Example A — image registry swap (preferred for image edits).
+        # NOTE: field is `imageOverrider` (with -r), not `imageOverride`.
+        imageOverrider:
+          - component: Registry
+            operator: replace
+            value: ${REGISTRY}
+        # Example B — patch any field via JSON Pointer (RFC 6901).
+        # plaintext:
+        #   - path: /spec/replicas
+        #     operator: replace
+        #     value: 5

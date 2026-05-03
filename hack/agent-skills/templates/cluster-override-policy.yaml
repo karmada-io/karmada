@@ -1,0 +1,22 @@
+# Minimal valid ClusterOverridePolicy template.
+# Cluster-scoped — do NOT add metadata.namespace.
+apiVersion: policy.karmada.io/v1alpha1
+kind: ClusterOverridePolicy
+metadata:
+  name: ${NAME}
+spec:
+  resourceSelectors:
+    - apiVersion: ${TARGET_API_VERSION}
+      kind: ${TARGET_KIND}
+      name: ${TARGET_NAME}
+  overrideRules:
+    - targetCluster:
+        labelSelector:
+          matchLabels:
+            ${LABEL_KEY}: ${LABEL_VALUE}
+      overriders:
+        # Field name is `imageOverrider` (with -r), not `imageOverride`.
+        imageOverrider:
+          - component: Registry
+            operator: replace
+            value: ${REGISTRY}

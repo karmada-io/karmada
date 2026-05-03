@@ -1,0 +1,25 @@
+# Minimal valid PropagationPolicy template.
+# Replace ${...} placeholders. Fields marked OPTIONAL can be deleted entirely.
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: ${NAME}
+  namespace: ${NAMESPACE}
+spec:
+  resourceSelectors:
+    - apiVersion: ${TARGET_API_VERSION}      # e.g., apps/v1
+      kind: ${TARGET_KIND}                   # e.g., Deployment
+      name: ${TARGET_NAME}
+  placement:
+    # Pick ONE of: clusterNames, labelSelector, or spreadConstraints.
+    clusterAffinity:
+      clusterNames:
+        - ${CLUSTER_1}
+        - ${CLUSTER_2}
+    # OPTIONAL — only needed for workloads with replicas.
+    replicaScheduling:
+      replicaSchedulingType: ${REPLICA_SCHEDULING_TYPE}   # Duplicated | Divided
+  # OPTIONAL — propagate referenced ConfigMaps/Secrets/PVCs.
+  # propagateDeps: true
+  # OPTIONAL — Abort (default, safe) | Overwrite.
+  # conflictResolution: Abort

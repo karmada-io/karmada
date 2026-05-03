@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webapp
+  namespace: default
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: webapp }
+  template:
+    metadata:
+      labels: { app: webapp }
+    spec:
+      initContainers:
+        - name: init
+          image: docker.io/busybox:1.36
+          command: ["/bin/sh", "-c", "echo init done"]
+      containers:
+        - name: sidecar
+          image: ghcr.io/vendor/log-shipper:2.1
+          ports: [{ containerPort: 9000 }]
+        - name: app
+          image: docker.io/myorg/webapp:3.5.0
+          ports: [{ containerPort: 8080 }]

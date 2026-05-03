@@ -1,0 +1,26 @@
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: api-failover
+  namespace: default
+spec:
+  resourceSelectors:
+  - apiVersion: apps/v1
+    kind: Deployment
+    name: api
+  placement:
+    clusterAffinities:
+    - affinityName: primary
+      clusterNames:
+      - member-prod-east
+    - affinityName: backup
+      clusterNames:
+      - member-prod-west
+    replicaScheduling:
+      replicaSchedulingType: Duplicated
+  failover:
+    application:
+      decisionConditions:
+        tolerationSeconds: 120
+      purgeMode: Graciously
+      gracePeriodSeconds: 60
