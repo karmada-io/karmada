@@ -236,8 +236,5 @@ func (c *RBApplicationFailoverController) bindingFilter(rb *workv1alpha2.Resourc
 		return false
 	}
 
-	if !rb.Spec.PropagateDeps {
-		return false
-	}
 	return true
 }
