@@ -175,12 +175,12 @@ func TestRBGracefulEvictionController_syncBinding(t *testing.T) {
 	now := metav1.Now()
 
 	testCases := []struct {
-		name                        string
-		binding                     *workv1alpha2.ResourceBinding
-		expectedRetryAfter          time.Duration
-		expectedRetryAfterPositive  bool
-		expectedEvictionLen         int
-		expectedError               bool
+		name                       string
+		binding                    *workv1alpha2.ResourceBinding
+		expectedRetryAfter         time.Duration
+		expectedRetryAfterPositive bool
+		expectedEvictionLen        int
+		expectedError              bool
 	}{
 		{
 			name: "no eviction tasks",
