@@ -29,7 +29,7 @@ python3 hack/agent-skills/scripts/policy-generator.py \
   --affinity-group backup=member-prod-west \
   --replica-scheduling Duplicated \
   --failover-toleration-seconds 120 \
-  --failover-purge-mode Graciously \
+  --failover-purge-mode Gracefully \
   --failover-grace-period-seconds 60 \
   --output hack/agent-skills/examples/failover/propagation-policy.yaml
 ```

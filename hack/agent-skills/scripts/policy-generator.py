@@ -45,7 +45,10 @@ ALL_KINDS = PROPAGATION_KINDS | OVERRIDE_KINDS
 
 REPLICA_SCHEDULING_TYPES = {"Duplicated", "Divided"}
 SPREAD_FIELDS = {"cluster", "region", "zone", "provider"}
-PURGE_MODES = {"Immediately", "Graciously", "Never", "Directly", "Gracefully"}
+# Directly/Gracefully are the current preferred values.
+# Immediately/Graciously are deprecated aliases (still accepted by the API).
+# Source: +kubebuilder:validation:Enum=Directly;Gracefully;Never;Immediately;Graciously
+PURGE_MODES = {"Directly", "Gracefully", "Never", "Immediately", "Graciously"}
 CONFLICT_RESOLUTIONS = {"Abort", "Overwrite"}
 
 

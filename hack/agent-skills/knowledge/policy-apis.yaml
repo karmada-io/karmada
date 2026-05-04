@@ -42,11 +42,22 @@ PropagationPolicy:
     failover:
       application:
         decisionConditions: { tolerationSeconds: int32 }
-        purgeMode: { enum: [Immediately, Graciously, Never, Directly, Gracefully] }
+        purgeMode:
+          enum: [Directly, Gracefully, Never, Immediately, Graciously]
+          note: >
+            Directly and Gracefully are the current preferred values.
+            Immediately (deprecated alias for Directly) and Graciously
+            (deprecated alias for Gracefully) are still accepted by the
+            API server for backwards compatibility.
+            Source: +kubebuilder:validation:Enum=Directly;Gracefully;Never;Immediately;Graciously
         gracePeriodSeconds: int32
         statePreservation: { rules: [{ aliasLabelName, jsonPath }] }
       cluster:
-        purgeMode: ...
+        purgeMode:
+          enum: [Directly, Gracefully]
+          note: >
+            Cluster-level failover only supports Directly and Gracefully.
+            Source: +kubebuilder:validation:Enum=Directly;Gracefully
     propagateDeps: { type: bool, note: also propagate ConfigMaps/Secrets/PVCs referenced by the workload }
     conflictResolution: { enum: [Abort, Overwrite] }
     suspension:

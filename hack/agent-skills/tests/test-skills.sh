@@ -58,7 +58,7 @@ assert_clean "$TMP/pp1.yaml" "PropagationPolicy (clusters) lint-clean"
   --affinity-group backup=member-prod-west \
   --replica-scheduling Duplicated \
   --failover-toleration-seconds 120 \
-  --failover-purge-mode Graciously \
+  --failover-purge-mode Gracefully \
   --failover-grace-period-seconds 60 \
   --output "$TMP/pp2.yaml"
 assert_clean "$TMP/pp2.yaml" "PropagationPolicy (failover) lint-clean"

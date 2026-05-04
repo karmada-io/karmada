@@ -51,7 +51,7 @@ failover:
   application:
     decisionConditions:
       tolerationSeconds: 120
-    purgeMode: Graciously
+    purgeMode: Gracefully
     gracePeriodSeconds: 60
 ```
 
@@ -60,7 +60,7 @@ failover:
 **When:** China clusters need a mirrored registry, EU clusters use the
 upstream registry.
 
-Use `imageOverride`, **not** a raw plaintext patch. It applies to every
+Use `imageOverrider`, **not** a raw plaintext patch. It applies to every
 container without you having to enumerate JSON Pointer paths.
 
 ```yaml

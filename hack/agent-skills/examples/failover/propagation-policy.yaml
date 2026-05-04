@@ -22,5 +22,5 @@ spec:
     application:
       decisionConditions:
         tolerationSeconds: 120
-      purgeMode: Graciously
+      purgeMode: Gracefully
       gracePeriodSeconds: 60
