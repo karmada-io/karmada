@@ -87,7 +87,7 @@ func TestRBGracefulEvictionController_Reconcile(t *testing.T) {
 			},
 			expectedResult:  controllerruntime.Result{},
 			expectedError:   false,
-			expectedRequeue: false,
+			expectedRequeue: true,
 		},
 		{
 			name: "binding marked for deletion",
@@ -148,11 +148,10 @@ func TestRBGracefulEvictionController_Reconcile(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
-			assert.Equal(t, tc.expectedResult, result)
-
 			if tc.expectedRequeue {
 				assert.True(t, result.RequeueAfter > 0, "Expected requeue, but got no requeue")
 			} else {
+				assert.Equal(t, tc.expectedResult, result)
 				assert.Zero(t, result.RequeueAfter, "Expected no requeue, but got requeue")
 			}
 
@@ -176,11 +175,12 @@ func TestRBGracefulEvictionController_syncBinding(t *testing.T) {
 	now := metav1.Now()
 
 	testCases := []struct {
-		name                string
-		binding             *workv1alpha2.ResourceBinding
-		expectedRetryAfter  time.Duration
-		expectedEvictionLen int
-		expectedError       bool
+		name                        string
+		binding                     *workv1alpha2.ResourceBinding
+		expectedRetryAfter          time.Duration
+		expectedRetryAfterPositive  bool
+		expectedEvictionLen         int
+		expectedError               bool
 	}{
 		{
 			name: "no eviction tasks",
@@ -198,7 +198,7 @@ func TestRBGracefulEvictionController_syncBinding(t *testing.T) {
 			expectedError:       false,
 		},
 		{
-			name: "active eviction task",
+			name: "active eviction task, no replacement clusters, task must be kept",
 			binding: &workv1alpha2.ResourceBinding{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-binding",
@@ -213,9 +213,9 @@ func TestRBGracefulEvictionController_syncBinding(t *testing.T) {
 					},
 				},
 			},
-			expectedRetryAfter:  0,
-			expectedEvictionLen: 0,
-			expectedError:       false,
+			expectedRetryAfterPositive: true,
+			expectedEvictionLen:        1,
+			expectedError:              false,
 		},
 		{
 			name: "expired eviction task",
@@ -258,7 +258,11 @@ func TestRBGracefulEvictionController_syncBinding(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
-			assert.Equal(t, tc.expectedRetryAfter, retryAfter)
+			if tc.expectedRetryAfterPositive {
+				assert.Positive(t, retryAfter, "expected a positive retryAfter duration")
+			} else {
+				assert.Equal(t, tc.expectedRetryAfter, retryAfter)
+			}
 
 			// Check the updated binding
 			updatedBinding := &workv1alpha2.ResourceBinding{}

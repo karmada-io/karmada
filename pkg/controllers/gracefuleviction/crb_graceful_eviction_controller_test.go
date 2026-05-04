@@ -84,7 +84,7 @@ func TestCRBGracefulEvictionController_Reconcile(t *testing.T) {
 			},
 			expectedResult:  controllerruntime.Result{},
 			expectedError:   false,
-			expectedRequeue: false,
+			expectedRequeue: true,
 		},
 		{
 			name: "binding marked for deletion",
@@ -137,10 +137,10 @@ func TestCRBGracefulEvictionController_Reconcile(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 			}
-			assert.Equal(t, tc.expectedResult, result)
 			if tc.expectedRequeue {
 				assert.True(t, result.RequeueAfter > 0, "Expected requeue, but got no requeue")
 			} else {
+				assert.Equal(t, tc.expectedResult, result)
 				assert.Zero(t, result.RequeueAfter, "Expected no requeue, but got requeue")
 			}
 			// Verify the binding was updated, unless it's the "not found" case
