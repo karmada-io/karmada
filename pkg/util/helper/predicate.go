@@ -194,6 +194,20 @@ func NewPredicateForServiceExportControllerOnAgent(curClusterName string) predic
 	}
 }
 
+// NewBindingPredicate returns a predicate for ResourceBinding and ClusterResourceBinding
+// controllers. It triggers reconcile when the spec generation changes or when the
+// DeletionTimestamp transitions from zero to non-zero, ensuring finalizer cleanup runs.
+func NewBindingPredicate() predicate.Funcs {
+	return predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			if e.ObjectOld.GetGeneration() != e.ObjectNew.GetGeneration() {
+				return true
+			}
+			return e.ObjectOld.GetDeletionTimestamp().IsZero() && !e.ObjectNew.GetDeletionTimestamp().IsZero()
+		},
+	}
+}
+
 // NewPredicateForEndpointSliceCollectControllerOnAgent generates an event filter function for EndpointSliceCollectController running by karmada-agent.
 func NewPredicateForEndpointSliceCollectControllerOnAgent(curClusterName string) predicate.Funcs {
 	predFunc := func(_ string, object client.Object) bool {

@@ -34,9 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -186,18 +184,10 @@ func (c *ResourceBindingController) checkDirectPurgeOrphanWorks(ctx context.Cont
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *ResourceBindingController) SetupWithManager(mgr controllerruntime.Manager) error {
-	rbPredicate := predicate.Funcs{
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			if e.ObjectOld.GetGeneration() != e.ObjectNew.GetGeneration() {
-				return true
-			}
-			return e.ObjectOld.GetDeletionTimestamp().IsZero() && !e.ObjectNew.GetDeletionTimestamp().IsZero()
-		},
-	}
 	return controllerruntime.NewControllerManagedBy(mgr).
 		Named(ControllerName).
 		For(&workv1alpha2.ResourceBinding{}).
-		WithEventFilter(rbPredicate).
+		WithEventFilter(helper.NewBindingPredicate()).
 		Watches(&policyv1alpha1.OverridePolicy{}, handler.EnqueueRequestsFromMapFunc(c.newOverridePolicyFunc())).
 		Watches(&policyv1alpha1.ClusterOverridePolicy{}, handler.EnqueueRequestsFromMapFunc(c.newOverridePolicyFunc())).
 		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RateLimiterOptions)}).
