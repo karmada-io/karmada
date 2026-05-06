@@ -61,7 +61,7 @@ almost always one of:
 1. Label mismatch (selector wants `region=eu`, cluster has no `region` label).
 2. Taint without matching toleration (cluster has `NoSchedule` taint).
 3. `Ready=False` condition on the cluster.
-4. `cluster.spec.id` excluded by `clusterAffinity.exclude`.
+4. Cluster name in `clusterAffinity.exclude` list (field is `exclude: [<clusterName>]` under `clusterAffinity`).
 
 ### Step 4 — explain in this exact structure
 

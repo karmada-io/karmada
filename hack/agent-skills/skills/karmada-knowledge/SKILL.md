@@ -67,7 +67,7 @@ full field map. The fields agents most often get wrong:
 - For region-aware spread, prefer `spreadConstraints` with
   `spreadByField: region` over hand-listing cluster names — see
   [`knowledge/policy-patterns.md`](../../knowledge/policy-patterns.md).
-- For image-registry overrides, prefer `imagePredicate` + `imageOverride`
+- For image-registry overrides, prefer `imageOverrider` (with `-r`)
   over a raw JSON-Pointer plaintext patch — it survives image tag bumps.
 
 ## Skill workflow
