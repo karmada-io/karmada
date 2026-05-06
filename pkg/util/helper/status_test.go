@@ -368,3 +368,261 @@ type mockClient struct {
 func (m *mockClient) Status() client.StatusWriter {
 	return &mockStatusWriter{shouldError: m.shouldError}
 }
+
+type getTrackingClient struct {
+	client.Client
+	getCalls int
+}
+
+func (c *getTrackingClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+	c.getCalls++
+	return c.Client.Get(ctx, key, obj, opts...)
+}
+
+func TestUpdateStatusFromExisting(t *testing.T) {
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+
+	tests := []struct {
+		name          string
+		setupObj      *corev1.Pod
+		buildObj      func(*corev1.Pod) *corev1.Pod
+		mutateStatus  func(*corev1.Pod)
+		statusError   bool
+		wrapClient    func(client.Client) client.Client
+		expectedOp    controllerutil.OperationResult
+		expectedError string
+		expectedPhase corev1.PodPhase
+		assertExtra   func(t *testing.T, kubeClient client.Client)
+	}{
+		{
+			name: "successful status update",
+			setupObj: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-pod",
+					Namespace: "default",
+				},
+				Status: corev1.PodStatus{
+					Phase: corev1.PodPending,
+				},
+			},
+			mutateStatus: func(pod *corev1.Pod) {
+				pod.Status.Phase = corev1.PodRunning
+			},
+			statusError:   false,
+			expectedOp:    controllerutil.OperationResultUpdatedStatusOnly,
+			expectedError: "",
+			expectedPhase: corev1.PodRunning,
+		},
+		{
+			name: "status update error",
+			setupObj: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-pod",
+					Namespace: "default",
+				},
+				Status: corev1.PodStatus{
+					Phase: corev1.PodPending,
+				},
+			},
+			mutateStatus: func(pod *corev1.Pod) {
+				pod.Status.Phase = corev1.PodRunning
+			},
+			statusError:   true,
+			expectedOp:    controllerutil.OperationResultNone,
+			expectedError: "Internal error occurred: status update failed",
+		},
+		{
+			name: "no changes needed",
+			setupObj: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-pod",
+					Namespace: "default",
+				},
+				Status: corev1.PodStatus{
+					Phase: corev1.PodRunning,
+				},
+			},
+			mutateStatus: func(_ *corev1.Pod) {
+				// No changes to status
+			},
+			statusError:   false,
+			expectedOp:    controllerutil.OperationResultNone,
+			expectedError: "",
+		},
+		{
+			name:     "object not found",
+			setupObj: nil, // Not create the object
+			mutateStatus: func(pod *corev1.Pod) {
+				pod.Status.Phase = corev1.PodRunning
+			},
+			statusError:   false,
+			expectedOp:    controllerutil.OperationResultNone,
+			expectedError: "not found",
+		},
+		{
+			name: "mutation error",
+			setupObj: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-pod",
+					Namespace: "default",
+				},
+			},
+			mutateStatus: func(pod *corev1.Pod) {
+				// Simulate mutation error by changing name
+				pod.Name = "different-name"
+			},
+			statusError:   false,
+			expectedOp:    controllerutil.OperationResultNone,
+			expectedError: "cannot mutate object name",
+		},
+		{
+			name: "does not refetch object",
+			setupObj: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-pod",
+					Namespace: "default",
+				},
+				Status: corev1.PodStatus{
+					Phase: corev1.PodPending,
+				},
+			},
+			mutateStatus: func(pod *corev1.Pod) {
+				pod.Status.Phase = corev1.PodRunning
+			},
+			wrapClient: func(kubeClient client.Client) client.Client {
+				return &getTrackingClient{Client: kubeClient}
+			},
+			expectedOp:    controllerutil.OperationResultUpdatedStatusOnly,
+			expectedError: "",
+			expectedPhase: corev1.PodRunning,
+			assertExtra: func(t *testing.T, kubeClient client.Client) {
+				trackingClient, ok := kubeClient.(*getTrackingClient)
+				assert.True(t, ok)
+				assert.Equal(t, 0, trackingClient.getCalls, "UpdateStatusFromExisting should not refetch the object")
+			},
+		},
+		{
+			name: "uses provided snapshot instead of refetched state",
+			setupObj: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-pod",
+					Namespace: "default",
+				},
+				Status: corev1.PodStatus{
+					Phase: corev1.PodRunning,
+				},
+			},
+			buildObj: func(setupObj *corev1.Pod) *corev1.Pod {
+				observedPod := setupObj.DeepCopy()
+				observedPod.Status.Phase = corev1.PodPending
+				return observedPod
+			},
+			mutateStatus: func(pod *corev1.Pod) {
+				if pod.Status.Phase == corev1.PodPending {
+					pod.Status.Phase = corev1.PodSucceeded
+					return
+				}
+
+				pod.Status.Phase = corev1.PodFailed
+			},
+			expectedOp:    controllerutil.OperationResultUpdatedStatusOnly,
+			expectedError: "",
+			expectedPhase: corev1.PodSucceeded,
+			assertExtra: func(t *testing.T, _ client.Client) {
+				refetchingClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects((&corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-pod",
+						Namespace: "default",
+					},
+					Status: corev1.PodStatus{
+						Phase: corev1.PodRunning,
+					},
+				}).DeepCopy()).Build()
+				obj := &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-pod",
+						Namespace: "default",
+					},
+				}
+
+				op, err := UpdateStatus(context.TODO(), refetchingClient, obj, func() error {
+					if obj.Status.Phase == corev1.PodPending {
+						obj.Status.Phase = corev1.PodSucceeded
+						return nil
+					}
+
+					obj.Status.Phase = corev1.PodFailed
+					return nil
+				})
+
+				assert.NoError(t, err)
+				assert.Equal(t, controllerutil.OperationResultUpdatedStatusOnly, op)
+
+				updatedWithRefetch := &corev1.Pod{}
+				err = refetchingClient.Get(context.TODO(), types.NamespacedName{Name: "test-pod", Namespace: "default"}, updatedWithRefetch)
+				assert.NoError(t, err)
+				assert.Equal(t, corev1.PodFailed, updatedWithRefetch.Status.Phase)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			clientBuilder := fake.NewClientBuilder().WithScheme(scheme)
+			if tt.setupObj != nil {
+				clientBuilder = clientBuilder.WithObjects(tt.setupObj)
+			}
+			fakeClient := clientBuilder.Build()
+
+			var kubeClient client.Client
+			if tt.statusError {
+				kubeClient = &mockClient{
+					Client:      fakeClient,
+					shouldError: true,
+				}
+			} else {
+				kubeClient = fakeClient
+			}
+			if tt.wrapClient != nil {
+				kubeClient = tt.wrapClient(kubeClient)
+			}
+
+			obj := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "test-pod", Namespace: "default"}}
+			if tt.buildObj != nil {
+				obj = tt.buildObj(tt.setupObj)
+			}
+
+			// Run the update
+			op, err := UpdateStatusFromExisting(context.TODO(), kubeClient, obj, func() error {
+				if tt.mutateStatus != nil {
+					tt.mutateStatus(obj)
+				}
+				return nil
+			})
+
+			// Check error
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+			}
+
+			// Check operation result
+			assert.Equal(t, tt.expectedOp, op)
+
+			// If successful update, verify the status was actually changed
+			if tt.expectedOp == controllerutil.OperationResultUpdatedStatusOnly {
+				updatedPod := &corev1.Pod{}
+				err := fakeClient.Get(context.TODO(), types.NamespacedName{Name: "test-pod", Namespace: "default"}, updatedPod)
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedPhase, updatedPod.Status.Phase)
+			}
+
+			if tt.assertExtra != nil {
+				tt.assertExtra(t, kubeClient)
+			}
+		})
+	}
+}
