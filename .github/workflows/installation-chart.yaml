@@ -41,7 +41,7 @@ jobs:
           large-packages: false
           docker-images: false
           swap-storage: false
-      
+
       - name: Checkout
         uses: actions/checkout@v6
         with:
