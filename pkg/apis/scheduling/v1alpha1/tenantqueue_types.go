@@ -29,6 +29,9 @@ const (
 	ResourcePluralTenantQueue = "tenantqueues"
 	// ResourceNamespaceScopedTenantQueue indicates if TenantQueue is NamespaceScoped.
 	ResourceNamespaceScopedTenantQueue = true
+	// TenantQueueSingletonName is the well-known name for TenantQueue objects.
+	// The scheduler only recognizes TenantQueue objects with this name.
+	TenantQueueSingletonName = "queue"
 )
 
 // +genclient
@@ -37,8 +40,8 @@ const (
 // +kubebuilder:storageversion
 
 // TenantQueue configures per-tenant scheduling queue settings.
-// It is namespace-scoped — one TenantQueue per namespace. ResourceBindings
-// in the same namespace are routed to this queue for scheduling.
+// It is namespace-scoped with a singleton name "queue" (TenantQueueSingletonName).
+// ResourceBindings in the same namespace are routed to this queue for scheduling.
 type TenantQueue struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -64,11 +67,11 @@ type QueueingStrategy string
 
 const (
 	// BestEffortFIFO orders bindings by priority, breaking ties by
-	// creation timestamp. When the head of the queue cannot be scheduled,
+	// enqueue timestamp. When the head of the queue cannot be scheduled,
 	// the scheduler skips it and tries the next binding.
 	BestEffortFIFO QueueingStrategy = "BestEffortFIFO"
 
-	// StrictFIFO orders bindings by priority, breaking ties by creation
+	// StrictFIFO orders bindings by priority, breaking ties by enqueue
 	// timestamp. If the head-of-queue binding cannot be scheduled, no later
 	// binding in the same tenant is attempted until the head is resolved
 	// (head-of-line blocking).

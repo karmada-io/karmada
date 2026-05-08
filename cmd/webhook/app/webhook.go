@@ -62,6 +62,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/webhook/propagationpolicy"
 	"github.com/karmada-io/karmada/pkg/webhook/resourcebinding"
 	"github.com/karmada-io/karmada/pkg/webhook/resourcedeletionprotection"
+	"github.com/karmada-io/karmada/pkg/webhook/tenantqueue"
 	"github.com/karmada-io/karmada/pkg/webhook/resourceinterpretercustomization"
 	"github.com/karmada-io/karmada/pkg/webhook/work"
 )
@@ -211,6 +212,8 @@ func Run(ctx context.Context, opts *options.Options) error {
 	hookServer.Register("/validate-clustertaintpolicy", &webhook.Admission{Handler: &clustertaintpolicy.ValidatingAdmission{Decoder: decoder, AllowNoExecuteTaintPolicy: opts.AllowNoExecuteTaintPolicy}})
 	// FederatedResourceQuota
 	hookServer.Register("/validate-federatedresourcequota", &webhook.Admission{Handler: &federatedresourcequota.ValidatingAdmission{Decoder: decoder}})
+	// TenantQueue
+	hookServer.Register("/validate-tenantqueue", &webhook.Admission{Handler: &tenantqueue.ValidatingAdmission{Decoder: decoder}})
 	// OverridePolicy
 	hookServer.Register("/mutate-overridepolicy", &webhook.Admission{Handler: &overridepolicy.MutatingAdmission{Decoder: decoder}})
 	hookServer.Register("/validate-overridepolicy", &webhook.Admission{Handler: &overridepolicy.ValidatingAdmission{Decoder: decoder}})
