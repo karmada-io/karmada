@@ -57,7 +57,7 @@ Making the existing queues per-tenant, with a `TenantQueue` object in each names
 
 ### New API: `TenantQueue`
 
-`TenantQueue` is a **namespace-scoped** resource with a singleton name `queue`. A namespace admin creates a `TenantQueue` named `queue` in their namespace to configure scheduling queue behavior for that namespace's `ResourceBinding` objects. The scheduler only looks for this well-known name — any other name is ignored. The namespace itself defines the tenant — no selector is needed.
+`TenantQueue` is a **namespace-scoped** resource with a singleton name `queue`. A namespace admin creates a `TenantQueue` named `queue` in their namespace to configure scheduling queue behavior for that namespace's `ResourceBinding` objects. A validating webhook rejects objects with any other name. The namespace itself defines the tenant — no selector is needed.
 
 ```go
 // +genclient
@@ -212,12 +212,13 @@ Gated behind `TenantQueueManagement` (alpha, disabled by default). Requires `Pri
 
 ### Phase 1: Queue Sharding with BestEffortFIFO and StrictFIFO (Alpha)
 
-1. Add `TenantQueue` API type under `scheduling.karmada.io/v1alpha1` (namespace-scoped).
-2. Implement `TenantSchedulingQueue` wrapping multiple `prioritySchedulingQueue` instances.
-3. Implement Heads-pattern `Pop()` with round-robin across tenant queues.
-4. Implement `StrictFIFO` with `blocked` flag and `onActiveQPush` unblocking callback.
-5. Add informer watch for `TenantQueue` in the scheduler; route bindings by namespace.
-6. Feature gate: `TenantQueueManagement` (disabled by default).
+1. Add `TenantQueue` API type under `scheduling.karmada.io/v1alpha1` (namespace-scoped, singleton name `queue`).
+2. Add validating webhook to enforce the singleton name.
+3. Implement `TenantSchedulingQueue` wrapping multiple `prioritySchedulingQueue` instances.
+4. Implement Heads-pattern `Pop()` with round-robin across tenant queues.
+5. Implement `StrictFIFO` with `blocked` flag and `onActiveQPush` unblocking callback.
+6. Add informer watch for `TenantQueue` in the scheduler; route bindings by namespace.
+7. Feature gate: `TenantQueueManagement` (disabled by default).
 
 ### Phase 2: Weighted Round-Robin (Alpha)
 
