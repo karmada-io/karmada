@@ -25,7 +25,7 @@ Karmada's scheduler already maintains three internal queues for `ResourceBinding
 - **`backoffQ`** — bindings waiting out an exponential backoff after a failed scheduling attempt
 - **`unschedulableBindings`** — bindings that could not be scheduled and are awaiting a cluster state change
 
-Today these three queues are global singletons. This proposal makes them **per-tenant**, and introduces a namespace-scoped `TenantQueue` API object that configures queue settings for a namespace. Since tenant = namespace = `FederatedResourceQuota` scope, no separate namespace selector is needed — one `TenantQueue` per namespace governs the queue behavior for all `ResourceBinding` objects in that namespace.
+Today these three queues are global singletons. This proposal introduces a namespace-scoped `TenantQueue` API object that enables **opt-in per-tenant queue isolation**. Namespaces that create a `TenantQueue` get their own isolated set of queues; namespaces without one continue to share a global default queue (backward compatible). Since tenant = namespace = `FederatedResourceQuota` scope, no separate namespace selector is needed — one `TenantQueue` per namespace governs the queue behavior for all `ResourceBinding` objects in that namespace.
 
 ---
 
@@ -57,7 +57,7 @@ Making the existing queues per-tenant, with a `TenantQueue` object in each names
 
 ### New API: `TenantQueue`
 
-`TenantQueue` is a **namespace-scoped** resource. A namespace admin can create one `TenantQueue` in their namespace to configure scheduling queue behavior for that namespace's `ResourceBinding` objects. The namespace itself defines the tenant — no selector is needed.
+`TenantQueue` is a **namespace-scoped** resource with a singleton name `queue`. A namespace admin creates a `TenantQueue` named `queue` in their namespace to configure scheduling queue behavior for that namespace's `ResourceBinding` objects. The scheduler only looks for this well-known name — any other name is ignored. The namespace itself defines the tenant — no selector is needed.
 
 ```go
 // +genclient
@@ -83,10 +83,13 @@ type TenantQueueSpec struct {
     QueueingStrategy QueueingStrategy `json:"queueingStrategy,omitempty"`
 }
 
+// QueueingStrategy defines the ordering and blocking behavior of bindings in the active queue.
 type QueueingStrategy string
 
 const (
+    // BestEffortFIFO skips unschedulable head bindings and tries the next one.
     BestEffortFIFO QueueingStrategy = "BestEffortFIFO"
+    // StrictFIFO blocks the entire tenant queue when the head binding fails (head-of-line blocking).
     StrictFIFO     QueueingStrategy = "StrictFIFO"
 )
 ```
@@ -157,7 +160,7 @@ This ensures each tenant gets one scheduling turn per cycle regardless of how ma
 
 ### StrictFIFO Mode
 
-Both modes order bindings identically: **priority descending, then creation timestamp ascending**. The difference is in blocking behavior:
+Both modes order bindings identically: **priority descending, then enqueue timestamp ascending** (using `QueuedBindingInfo.Timestamp`, set when the binding is enqueued or re-enqueued). The difference is in blocking behavior:
 
 - **`BestEffortFIFO`** (default): if the head-of-queue binding fails scheduling, it is moved to `backoffQ` or `unschedulableBindings`. The next binding in that tenant's queue is tried in the following cycle.
 - **`StrictFIFO`**: if the head-of-queue binding fails scheduling, the **entire tenant queue is blocked** — no later binding from that tenant is considered until the head is re-promoted to `activeQ`. This is head-of-line (HOL) blocking, matching Kueue's semantics.
@@ -170,7 +173,7 @@ HOL blocking is tracked via a `blocked bool` flag on the tenant entry. The flag 
 
 | Property | BestEffortFIFO | StrictFIFO |
 |---|---|---|
-| `activeQ` sort key | Priority desc, then timestamp asc | Priority desc, then timestamp asc |
+| `activeQ` sort key | Priority desc, then enqueue timestamp asc | Priority desc, then enqueue timestamp asc |
 | Head-of-queue blocked? | Skip, try next binding | Block entire tenant queue (HOL blocking) |
 | Throughput | Higher | Lower (head-of-line blocking) |
 | Ordering guarantee | Best effort | Deterministic within tenant |
@@ -223,8 +226,7 @@ Cluster admins configure per-tenant weights (e.g., via a separate cluster-scoped
 ### Phase 3: Stabilization (Beta)
 
 1. Promote `TenantQueue` API to `v1beta1`.
-2. Add validation webhooks (reject multiple `TenantQueue` objects per namespace).
-3. Graduation of `TenantQueueManagement` feature gate to beta.
+2. Graduation of `TenantQueueManagement` feature gate to beta.
 
 ---
 
