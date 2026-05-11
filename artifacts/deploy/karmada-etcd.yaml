@@ -39,22 +39,34 @@ spec:
           image: registry.k8s.io/etcd:3.6.6-0
           imagePullPolicy: IfNotPresent
           livenessProbe:
-            exec:
-              command:
-                - /bin/sh
-                - -ec
-                - 'etcdctl endpoint health --endpoints https://127.0.0.1:2379  --cacert /etc/karmada/pki/etcd-client/ca.crt --cert /etc/karmada/pki/etcd-client/tls.crt --key /etc/karmada/pki/etcd-client/tls.key'
-            failureThreshold: 3
-            initialDelaySeconds: 600
-            periodSeconds: 60
+            httpGet:
+              path: /livez
+              port: 2381
+              scheme: HTTP
+            initialDelaySeconds: 60
+            timeoutSeconds: 5
+            periodSeconds: 10
             successThreshold: 1
-            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 2381
+              scheme: HTTP
+            initialDelaySeconds: 10
+            timeoutSeconds: 5
+            periodSeconds: 5
+            successThreshold: 1
+            failureThreshold: 30
           ports:
             - containerPort: 2379
               name: client
               protocol: TCP
             - containerPort: 2380
               name: server
+              protocol: TCP
+            - containerPort: 2381
+              name: metrics
               protocol: TCP
           resources:
             requests:
@@ -68,6 +80,8 @@ spec:
             - http://0.0.0.0:2380
             - --listen-client-urls
             - https://0.0.0.0:2379
+            - --listen-metrics-urls
+            - http://0.0.0.0:2381
             - --advertise-client-urls
             - https://etcd-client.karmada-system.svc.cluster.local:2379
             - --initial-cluster
