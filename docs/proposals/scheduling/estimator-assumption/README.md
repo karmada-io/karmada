@@ -1,5 +1,5 @@
 ---
-title: Multi-Cluster Workload Scheduling with Resource Reservation
+title: Multi-Cluster Workload Scheduling with Resource Assumption
 authors:
 - "@XiShanYongYe-Chang"
 reviewers:
@@ -14,7 +14,7 @@ creation-date: 2026-04-15
 
 ---
 
-# Multi-Cluster Workload Scheduling with Resource Reservation
+# Multi-Cluster Workload Scheduling with Resource Assumption
 
 ## Summary
 
@@ -40,8 +40,8 @@ This proposal addresses the problem through two cooperative mechanisms:
 
 1. **Scheduler-side cache reservation for submitted-but-not-yet-landed resources**: After
    karmada-scheduler successfully patches a ResourceBinding to karmada-apiserver, it immediately
-   records reservation information for the target ResourceBinding.
-2. **Estimator-side reservation deduction**: Extend the estimator gRPC interface to carry reserved
+   records assumption information for the target ResourceBinding.
+2. **Estimator-side assumption deduction**: Extend the estimator gRPC interface to carry reserved
    workload information in `MaxAvailableComponentSets` requests. Before
    computing available replicas, the Estimator deducts the reserved workloads' resource consumption
    from available nodes/quotas using the **existing First Fit (FF) algorithm**, then computes the
@@ -74,7 +74,7 @@ kube-scheduler.
 The same cluster capacity is consumed by multiple scheduling decisions in succession, leading to
 over-commitment of cluster resources.
 
-This proposal introduces a **scheduler-side reservation cache + Estimator-side reservation
+This proposal introduces a **scheduler-side assumption cache + Estimator-side assumption
 deduction** mechanism to prevent over-commitment of cluster resources.
 
 ### Goals
@@ -108,44 +108,44 @@ error — not for both to be scheduled to the same cluster, leaving Pods silentl
 karmada-scheduler (leader election, single active instance)
 │
 ├── AssigningResourceBindingCache               [EXTENDED]
-│     Added: bindingKey → BindingReservation{entries, expiresAt}
+│     Added: bindingKey → BindingAssumption{entries, expiresAt}
 │
 ├── calculateMultiTemplateAvailableSets()         [MODIFIED]
-│     Passes the current cluster's submitted-but-not-yet-landed reservations
-│     as reservedWorkloads in the ComponentSetEstimationRequest
+│     Passes the current cluster's submitted-but-not-yet-landed assumptions
+│     as assumedWorkloads in the ComponentSetEstimationRequest
 │
 ├── patchScheduleResultForResourceBinding()      [MODIFIED]
 │   After successful Patch → delta = newReplicas - oldReplicas
-│   delta > 0  → Reserve(bindingKey, clusterName, entry)  // REPLACE semantics
+│   delta > 0  → Assume(bindingKey, clusterName, entry)  // REPLACE semantics
 │   delta <= 0 → no-op
-│   cluster removed → ReleaseClusterReservation(bindingKey, clusterName)
+│   cluster removed → ReleaseClusterAssumption(bindingKey, clusterName)
 │
 event_handler.go                                [MODIFIED]
-ResourceBinding AggregatedStatus Healthy → ReleaseClusterReservation(bindingKey, clusterName)
+ResourceBinding AggregatedStatus Healthy → ReleaseClusterAssumption(bindingKey, clusterName)
 TTL GC fallback
 
 karmada-scheduler-estimator
 │
-├── gRPC MaxAvailableComponentSets()[MODIFIED: MaxAvailableComponentSetsRequest adds reservedWorkloads]
+├── gRPC MaxAvailableComponentSets()[MODIFIED: MaxAvailableComponentSetsRequest adds assumedWorkloads]
 │
 ├── nodeResource plugin (EXTENDED)
 │     1. Obtain available nodes (cloned, Allocatable = Allocatable - Requested)
-│     2. Convert reservedWorkloads to Component list; consume node resources via FF algorithm
+│     2. Convert assumedWorkloads to Component list; consume node resources via FF algorithm
 │     3. Compute available replicas on the post-deduction node state
 │
 └── resourcequota plugin (EXTENDED)
-      1. Compute total resource consumption of reservedWorkloads (replicas × resourceRequest)
+      1. Compute total resource consumption of assumedWorkloads (replicas × resourceRequest)
       2. Subtract reserved consumption from ResourceQuota available capacity
       3. Compute available replicas on the post-deduction quota state
 ```
 
 ### 1. Extend gRPC Interface (`pkg/estimator/pb/generated.proto`)
 
-Add `ReservedWorkload` message and a `reservedWorkloads` field to
+Add `AssumedWorkload` message and a `assumedWorkloads` field to
 `MaxAvailableComponentSetsRequest` in the proto definition:
 
 ```protobuf
-message ReservedWorkload {
+message AssumedWorkload {
     // namespace is the namespace to which this reservation belongs.
     // The resourcequota plugin uses this field to determine which ResourceQuota objects
     // should have this reservation's resource consumption deducted from their available capacity.
@@ -154,12 +154,12 @@ message ReservedWorkload {
     repeated Component components = 2;
 }
 
-// MaxAvailableComponentSetsRequest extended: new reservedWorkloads field.
+// MaxAvailableComponentSetsRequest extended: new assumedWorkloads field.
 message MaxAvailableComponentSetsRequest {
     ...
-    // reservedWorkloads represents the scheduling commitments that have been
+    // assumedWorkloads represents the scheduling commitments that have been
     // patched to the API server but not yet reflected in the member cluster's real resource state.
-    repeated ReservedWorkload reservedWorkloads = 4;
+    repeated AssumedWorkload assumedWorkloads = 4;
 }
 ```
 
@@ -169,23 +169,24 @@ message MaxAvailableComponentSetsRequest {
 Also update the estimator client interface (`pkg/estimator/client/interface.go`). The
 `ReplicaEstimator` interface's `MaxAvailableComponentSets` method already uses
 `ComponentSetEstimationRequest` which is designed for field extension without signature changes.
-Add a `ReservedWorkloads` field to that request struct:
+Add a `AssumedWorkloads` field to that request struct:
 
 ```go
-// ComponentSetEstimationRequest extended: new ReservedWorkloads field.
+// ComponentSetEstimationRequest extended: new AssumedWorkloads field.
 type ComponentSetEstimationRequest struct {
     ...
 
-    // ReservedWorkloads carries in-flight scheduling commitments that have not yet been
+    // AssumedWorkloads carries in-flight scheduling commitments that have not yet been
     // reflected in the estimator's node snapshot.
     // +optional
-    ReservedWorkloads []pb.ReservedWorkload
+    AssumedWorkloads []AssumedWorkload
 }
 ```
 
-> `SchedulerEstimator` (`pkg/estimator/client/accurate.go`) implements this interface. It receives
-> `reservedWorkloads` from the scheduler and populates the corresponding gRPC request field
-> directly, without performing any cache read/write of its own.
+> To avoid tight coupling between the scheduler/core modules (and all other callers) and the
+> gRPC/protocol layer, it is necessary to define a `AssumedWorkload` structure on the client side,
+> and perform the conversion while constructing the gRPC request within the implementation of
+> `SchedulerEstimator` (`pkg/estimator/client/accurate.go`).
 
 ### 2. Scheduler Side: Extend `AssigningResourceBindingCache` (`pkg/scheduler/cache/cache.go`)
 
@@ -194,40 +195,40 @@ API Server but not yet caught up by the Informer". Its lifecycle closely matches
 lifecycle required by this proposal, so we extend it directly rather than introducing a new cache
 structure.
 
-**Extension strategy: add an independent `reservations` field alongside the existing `items`
+**Extension strategy: add an independent `assumptions` field alongside the existing `items`
 field, with two separate lifecycle management paths:**
 
 - `items` (existing): stores full ResourceBinding objects, serving the `WorkloadAffinity` feature.
   Deleted immediately when the Informer catches up and `FullyApplied = True`. Lifecycle logic is
   **unchanged**.
-- `reservations` (new): stores incremental reservation data per ResourceBinding, serving this
-  proposal. Released via `ReleaseReservation()` when the ResourceBinding's AggregatedStatus
+- `assumptions` (new): stores incremental assumption data per ResourceBinding, serving this
+  proposal. Released via `ReleaseAssumption()` when the ResourceBinding's AggregatedStatus
   reaches Healthy, or via TTL GC as a fallback. Lifecycle is **independent of** `items`.
 
 ```go
-// BindingReservation stores the submitted-but-not-yet-landed replica increments for a
+// BindingAssumption stores the submitted-but-not-yet-landed replica increments for a
 // ResourceBinding across its target clusters.
-type BindingReservation struct {
-    // entries: clusterName → ReservedWorkload
+type BindingAssumption struct {
+    // entries: clusterName → AssumedWorkload
     // The entry key is always clusterName.
-    entries   map[string]*ReservedWorkload
+    entries   map[string]*AssumedWorkload
     // ExpiresAt is the TTL deadline for this binding's reservation, set when the entry is
-    // written or updated (default: now + 5 minutes). Under normal conditions the reservation is
+    // written or updated (default: now + 5 minutes). Under normal conditions the assumption is
     // proactively released when the ResourceBinding's AggregatedStatus for the corresponding
-    // cluster reaches Healthy via ReleaseReservation().
+    // cluster reaches Healthy via ReleaseAssumption().
     // However, if a downstream failure (e.g. persistent work distribution failure) prevents the
     // Healthy state from ever being reached, the proactive release is never triggered.
     // ExpiresAt serves as a safety net: a background GC() periodically scans and removes all
-    // expired entries, ensuring that stale reservations do not linger in the cache and skew
+    // expired entries, ensuring that stale assumptions do not linger in the cache and skew
     // subsequent scheduling estimates.
     ExpiresAt time.Time
 }
 
-// ReservedWorkload represents the submitted-but-not-yet-landed scheduling reservation for a
+// AssumedWorkload represents the submitted-but-not-yet-landed scheduling reservation for a
 // specific cluster.
-type ReservedWorkload struct {
-    // Namespace is the namespace of the reserved workload. GetReservedWorkloads() copies this
-    // value into ReservedWorkload.Namespace so that the resourcequota plugin can determine
+type AssumedWorkload struct {
+    // Namespace is the namespace of the reserved workload. GetAssumedWorkloads() copies this
+    // value into AssumedWorkload.Namespace so that the resourcequota plugin can determine
     // which ResourceQuota objects should have this reservation deducted.
     Namespace string
     // Components contains per-component replica and resource requirements.
@@ -239,24 +240,24 @@ type ReservedWorkload struct {
 type AssigningResourceBindingCache struct {
     ...
 
-    // reservations: bindingKey → *BindingReservation (new field, serves this proposal)
-    reservations map[string]*BindingReservation
-    // ttl is the lifetime of a reservation entry, used by Reserve() to compute ExpiresAt.
-    // Default 5 minutes; configurable via scheduler flag --reservation-ttl.
+    // assumptions: bindingKey → *BindingAssumption (new field, serves this proposal)
+    assumptions map[string]*BindingAssumption
+    // ttl is the lifetime of a assumption entry, used by Assume() to compute ExpiresAt.
+    // Default 5 minutes; configurable via scheduler flag --assumption-ttl.
     ttl          time.Duration
 }
 ```
 
 **Why TTL is necessary.**
-Releasing a reservation depends on the entire downstream pipeline completing successfully. If a
-downstream failure prevents the workload from ever reaching `Healthy` state, the reservation can
+Releasing an assumption depends on the entire downstream pipeline completing successfully. If a
+downstream failure prevents the workload from ever reaching `Healthy` state, the assumption can
 never be proactively released, continuously skewing subsequent scheduling estimates. Example
 failure scenarios (non-exhaustive):
 
 1. **Persistent Work distribution failure**: If the work controller cannot apply the manifest to
    the member cluster (e.g. RBAC misconfiguration, member cluster unreachable, APIServer
    connection timeout), the resource is never created in the member cluster, the ResourceBinding's
-   AggregatedStatus for that cluster never transitions to `Healthy`, and the reservation is never
+   AggregatedStatus for that cluster never transitions to `Healthy`, and the assumption is never
    proactively released.
 2. **Workload fails to generate Pods**: The manifest has been successfully applied to the member
    cluster, but the workload controller cannot create Pods (e.g. the Deployment references a
@@ -266,66 +267,66 @@ failure scenarios (non-exhaustive):
    the `Healthy` state is never reached.
 3. **Pods fail to run normally**: Pods have been created and bound to nodes but never reach
    Running+Ready (e.g. image pull failure, CrashLoopBackOff, readiness probe persistent failure,
-   init container stuck). The `Healthy` condition cannot be satisfied, so the reservation lingers
+   init container stuck). The `Healthy` condition cannot be satisfied, so the assumption lingers
    in the cache. Note: in this scenario, the Estimator snapshot **already** reflects the Pod's
-   resource consumption (because `pod.Spec.NodeName != ""`), so the reservation is effectively
+   resource consumption (because `pod.Spec.NodeName != ""`), so the assumption is effectively
    no longer necessary — TTL expiration cleans it up automatically.
 
-Without TTL, any of the above scenarios would cause the reservation to persist indefinitely,
+Without TTL, any of the above scenarios would cause the assumption to persist indefinitely,
 continuously deducting from the cluster's estimated available capacity and progressively reducing
 the scheduler's willingness to place workloads on that cluster — effectively creating a resource
 "leak" in the scheduling view. TTL acts as a bounded-time safety net: even in the worst case, a
-stale reservation is automatically cleaned up within a predictable time window (default 5 minutes),
+stale assumption is automatically cleaned up within a predictable time window (default 5 minutes),
 ensuring the scheduling view self-heals.
 
 **New methods:**
 
 | Method | Description |
 |--------|-------------|
-| `Reserve(bindingKey, clusterName string, entry *ReservedWorkload)` | Called when delta > 0 after a successful Patch; refreshes ExpiresAt; writes with REPLACE semantics |
-| `ReleaseClusterReservation(bindingKey, clusterName string)` | Called immediately when a cluster is removed from the placement; deletes that cluster's reservation entry |
-| `ReleaseReservation(bindingKey string)` | Triggered when the ResourceBinding's `AggregatedStatus` entries for all reserved clusters reach `Healthy`; deletes all reservations for the binding |
-| `GetReservedWorkloads(clusterName string) []ReservedWorkload` | Called by `calculateMultiTemplateAvailableSets()` when constructing the gRPC request |
-| `GC()` | Runs in the background every minute; removes all entries in `reservations` whose `ExpiresAt` has passed |
+| `Assume(bindingKey, clusterName string, entry *AssumedWorkload)` | Called when delta > 0 after a successful Patch; refreshes ExpiresAt; writes with REPLACE semantics |
+| `ReleaseClusterAssumption(bindingKey, clusterName string)` | Called immediately when a cluster is removed from the placement; deletes that cluster's assumption entry |
+| `ReleaseAssumption(bindingKey string)` | Triggered when the ResourceBinding's `AggregatedStatus` entries for all reserved clusters reach `Healthy`; deletes all assumptions for the binding |
+| `GetAssumedWorkloads(clusterName string) []AssumedWorkload` | Called by `calculateMultiTemplateAvailableSets()` when constructing the gRPC request |
+| `GC()` | Runs in the background every minute; removes all entries in `assumptions` whose `ExpiresAt` has passed |
 
 ### 3. Scheduler Side: Modify `calculateMultiTemplateAvailableSets()` (`pkg/scheduler/core/estimation.go`)
 
-`ReservedWorkloads` is obtained by the scheduler before calling the Estimator via
-`AssigningResourceBindings().GetReservedWorkloads(cluster)`. It is populated in
-`ComponentSetEstimationRequest.ReservedWorkloads` and forwarded to the gRPC request body by
+`AssumedWorkloads` is obtained by the scheduler before calling the Estimator via
+`AssigningResourceBindings().GetAssumedWorkloads(cluster)`. It is populated in
+`ComponentSetEstimationRequest.AssumedWorkloads` and forwarded to the gRPC request body by
 `SchedulerEstimator`.
 
 > Note: `calAvailableReplicas` (`pkg/scheduler/core/util.go`) is the scheduling entry point that
 > dispatches to `calculateMultiTemplateAvailableSets` for multi-template workloads.
 > `calAvailableReplicas` is currently a plain function with no direct access to `schedulerCache`.
-> It can be refactored into a method on Scheduler, or the reservation data can be threaded through
+> It can be refactored into a method on Scheduler, or the assumption data can be threaded through
 > as a parameter further up the call chain.
 
 ### 4. Scheduler Side: Modify `patchScheduleResultForResourceBinding()` (`pkg/scheduler/scheduler.go`)
 
-After a successful API Server Patch, update the reservation based on
+After a successful API Server Patch, update the assumption based on
 `delta = newReplicas - oldReplicas`:
 
-- **delta > 0**: Construct a `ReservedWorkload` and call `Reserve()` with REPLACE semantics to
+- **delta > 0**: Construct a `AssumedWorkload` and call `Assume()` with REPLACE semantics to
   record the newly committed but not-yet-landed replicas (increments only, to avoid
   double-counting with already-running replicas in the Estimator snapshot):
   iterate `spec.Components`, compute the replica increment for each Component
   (new allocated − old allocated), and populate `entry.Components`.
-- **delta ≤ 0**: No-op; any existing reservation is cleaned up by the TTL GC within 5 minutes.
-- **Cluster removed from placement**: Call `ReleaseClusterReservation()` to immediately clear the
+- **delta ≤ 0**: No-op; any existing assumption is cleaned up by the TTL GC within 5 minutes.
+- **Cluster removed from placement**: Call `ReleaseClusterAssumption()` to immediately clear the
   old reservation for that cluster.
 
-### 5. Scheduler Side: Release Reservations (`pkg/scheduler/event_handler.go`)
+### 5. Scheduler Side: Release Assumptions (`pkg/scheduler/event_handler.go`)
 
 #### Choosing the Release Trigger
 
-When to release reservations is a critical design decision. The core question is: **when can the
+When to release assumptions is a critical design decision. The core question is: **when can the
 Estimator's node snapshot be expected to naturally reflect the resource consumption of the
-workload, making the reservation no longer necessary?**
+workload, making the assumption no longer necessary?**
 
 The Estimator's Pod informer caches only Pods where `pod.Spec.NodeName != ""`. Once a Pod is bound
 to a node by the member cluster's kube-scheduler — regardless of whether it is Running — its
-resource consumption is counted in `node.Requested`. Therefore, the reservation can be safely
+resource consumption is counted in `node.Requested`. Therefore, the assumption can be safely
 released when: **the member cluster's kube-scheduler has bound the Pod to a node and the Estimator
 informer has observed that event**.
 
@@ -341,7 +342,7 @@ kube-apiserver, but the Pod may not yet have been bound to a node by kube-schedu
 Pros: Simple to implement; no additional resource watches required.
 Cons:
 1. Δt is an empirical value that is hard to set correctly: too small (e.g. 5s) leaves a window
-   under resource pressure or slow image pulls; too large (e.g. 60s) causes reservations to
+   under resource pressure or slow image pulls; too large (e.g. 60s) causes assumptions to
    unnecessarily consume estimation headroom for an extended period.
 2. Actual scheduling latency varies significantly across clusters, scales, and network environments;
    a single fixed value cannot cover all scenarios.
@@ -369,7 +370,7 @@ cluster are all Running, and it is safe to release the reservation.
 
 **Assessment:**
 
-From a safety standpoint, this option guarantees that releasing the reservation does not cause
+From a safety standpoint, this option guarantees that releasing the assumption does not cause
 over-commitment — when `health=Healthy`, all Pods are Running, whereas the Estimator only
 requires `pod.Spec.NodeName != ""` to count resource consumption, so the Estimator snapshot will
 already reflect the actual consumption well before this point. Option C's safety argument holds,
@@ -392,25 +393,25 @@ Pros: Release is driven by a clear business-semantic signal; behavior is determi
       requires no tuning; safety is guaranteed; no additional informer needed (reuses existing
       ResourceBinding watch).
 Cons:
-1. More conservative than strictly required by the Estimator; reservation window may be several
+1. More conservative than strictly required by the Estimator; assumption window may be several
    minutes when Pod startup is slow.
 ```
 
-### 6. Estimator Side: Reservation Deduction
+### 6. Estimator Side: Assumption Deduction
 
-Reservation deduction logic is implemented inside the existing estimation framework plugins
+Assumption deduction logic is implemented inside the existing estimation framework plugins
 (`pkg/estimator/server/framework/plugins/`). Two plugins are currently involved: **nodeResource**
-and **resourcequota**. The plugin interface is extended with a uniform `reservedWorkloads`
+and **resourcequota**. The plugin interface is extended with a uniform `assumedWorkloads`
 parameter; each plugin independently performs deduction in its `EstimateComponents`
 method before computing the final estimate.
 
 > For the autoscale plugin currently under discussion (https://github.com/karmada-io/karmada/issues/7375),
-its reservation deduction logic is largely consistent with the nodeResource plugin. Adaptation
+its assumption deduction logic is largely consistent with the nodeResource plugin. Adaptation
 will be addressed separately once that plugin is added.
 
-#### 6.1 `ReservedWorkload` and `Component` Representation
+#### 6.1 `AssumedWorkload` and `Component` Representation
 
-`ReservedWorkload` uses `Components` (a `[]pb.Component` list) as its representation.
+`AssumedWorkload` uses `Components` (a `[]pb.Component` list) as its representation.
 The Estimator can use `rw.Components` directly — no additional conversion is needed.
 
 #### 6.2 nodeResource Plugin Deduction
@@ -424,7 +425,7 @@ The `nodeResource` plugin uses the First Fit (FF) algorithm to consume reserved 
 1. Call `getNodesAvailableResources(snapshot)` to obtain a cloned node list. Each node's
    `Allocatable` has already been adjusted to `Allocatable − Requested`, reflecting the true
    available resources.
-2. If `reservedWorkloads` is non-empty, collect the `Components` from each entry into a flat list,
+2. If `assumedWorkloads` is non-empty, collect the `Components` from each entry into a flat list,
    and call `SchedulingSimulator{nodes}.SimulateScheduling(reservedComponents, 1)` to
    consume reserved resources on nodes (the FF algorithm selects nodes in first-fit order and
    modifies `node.Allocatable`).
@@ -452,7 +453,7 @@ Implementation is in
 
 **Deduction approach:**
 
-For each `ReservedWorkload`, compute the total resource consumption and subtract it from the
+For each `AssumedWorkload`, compute the total resource consumption and subtract it from the
 ResourceQuota's available capacity:
 
 `totalConsumed = Σ (Component.Replicas × Component.ResourceRequest)` summed over all components
@@ -465,7 +466,7 @@ After subtracting `totalConsumed` from the available resources (`Hard − Used`)
 
 1. List all ResourceQuotas in the namespace.
 2. For each ResourceQuota, compute `freeResources = Hard − Used`.
-3. Iterate over `reservedWorkloads`; for entries whose `Namespace` matches the quota's namespace
+3. Iterate over `assumedWorkloads`; for entries whose `Namespace` matches the quota's namespace
    and that match this quota's scope (e.g. priorityClass from each component's
    `ReplicaRequirements.PriorityClassName`), subtract the sum of each component's
    `Replicas × ResourceRequest` from `freeResources`.
@@ -484,7 +485,7 @@ For `GeneralEstimator`, **cluster-level aggregate deduction** (the approach in A
 used as a fallback:
 
 - **`MaxAvailableComponentSets`**: Accumulate each Component's
-  `Replicas × ResourceRequest` across all `reservedWorkloads`; subtract from cluster-wide
+  `Replicas × ResourceRequest` across all `assumedWorkloads`; subtract from cluster-wide
   available resources, then estimate the number of schedulable complete component sets.
 
 Cluster-level aggregate deduction has a tendency toward over-conservatism (see Alternative 2
@@ -493,22 +494,22 @@ no deduction at all. When `karmada-scheduler-estimator` is deployed for a cluste
 prefers `SchedulerEstimator` (node-level FF deduction); `GeneralEstimator` serves only as a
 fallback path when the estimator service is unavailable.
 
-### 7. Reservation Lifecycle
+### 7. Assumption Lifecycle
 
 ```
 ResourceBinding enters the scheduling queue
 │
 ▼
 calculateMultiTemplateAvailableSets()
-  Scheduler obtains ReservedWorkloads; passes them in the gRPC request to the Estimator
+  Scheduler obtains AssumedWorkloads; passes them in the gRPC request to the Estimator
       │
       ▼ (Estimator side — nodeResource plugin)
       Obtain cloned nodes (Allocatable = Allocatable - Requested)
-      FF algorithm consumes node resources for reservedWorkloads
+      FF algorithm consumes node resources for assumedWorkloads
       Compute available replicas on post-deduction node state
       │
       ▼ (Estimator side — resourcequota plugin)
-      Compute total resource consumption of reservedWorkloads
+      Compute total resource consumption of assumedWorkloads
       Subtract reserved consumption from ResourceQuota available capacity
       Compute available replicas on post-deduction quota state
       │
@@ -516,16 +517,16 @@ calculateMultiTemplateAvailableSets()
 │
 ▼ (Scheduler side)
 patchScheduleResultForResourceBinding()
-Patch succeeds, delta > 0 → Reserve(bindingKey, clusterName, entry)
+Patch succeeds, delta > 0 → Assume(bindingKey, clusterName, entry)
 │
 ├──────────────────────────────────────────────┐
 ▼                                              ▼
 ResourceBinding AggregatedStatus Healthy       TTL expires (5 minutes)
-ReleaseClusterReservation(bindingKey,          GC removes reservations entry
+ReleaseClusterAssumption(bindingKey,          GC removes assumptions entry
 clusterName) (released per cluster)
 │
 ▼
-Reservation removed; cluster capacity is fully reflected in the Estimator's next snapshot
+Assumption removed; cluster capacity is fully reflected in the Estimator's next snapshot
 ```
 
 ### Notes and Constraints
@@ -538,8 +539,8 @@ resources on exactly one node per replica, avoiding the broadcast deduction acro
 constraint-matching nodes, and is significantly more accurate than cluster-level aggregate
 deduction.
 
-**Reservation release and TTL.**
-Reservations are released per cluster when the corresponding ResourceBinding's
+**Assumption release and TTL.**
+Assumptions are released per cluster when the corresponding ResourceBinding's
 `AggregatedStatus[].Health` for that cluster reaches `Healthy` — using the workload being fully
 healthy (all Pods Running+Ready) as the release signal ensures no over-commitment is introduced.
 The scheduler already watches ResourceBinding objects, so no additional informer is needed; the
@@ -547,18 +548,18 @@ release logic is added to the existing ResourceBinding update event handler. The
 5 minutes) serves as a fallback for scenarios where health status never transitions normally.
 
 **CRD workloads require `InterpretHealth` hook for effective reservation.**
-The reservation release mechanism relies on the `Healthy` signal from the resource interpreter. For
+The assumption release mechanism relies on the `Healthy` signal from the resource interpreter. For
 Kubernetes built-in resources (Deployment, StatefulSet, Job, DaemonSet, etc.), Karmada provides
 default `InterpretHealth` implementations. However, for CRD workloads, if no `InterpretHealth` hook
 is registered (neither via the default interpreter nor a customized/configurable interpreter), the
 resource interpreter defaults to reporting the resource as healthy. This causes the ResourceBinding's
 AggregatedStatus to reach `Healthy` shortly after distribution — before Pods are actually running
-and bound to nodes — effectively rendering the reservation ineffective for that workload. CRD users
-who rely on reservation-based scheduling protection should ensure their resource types have a proper
+and bound to nodes — effectively rendering the assumption ineffective for that workload. CRD users
+who rely on assumption-based scheduling protection should ensure their resource types have a proper
 `InterpretHealth` implementation.
 
-**Reservation state is lost on scheduler restart.**
-After a restart the in-process cache is cleared; the `reservations` in
+**Assumption state is lost on scheduler restart.**
+After a restart the in-process cache is cleared; the `assumptions` in
 `AssigningResourceBindingCache` are not rebuilt from the informer resync. In the window between a
 restart and the point where member cluster Pods are Running and observed by the Estimator's node
 snapshot, new concurrent scheduling decisions may see stale cluster capacity, resulting in a brief
@@ -570,33 +571,33 @@ represents an acceptable engineering trade-off.
 
 | Risk | Mitigation |
 |------|------------|
-| FF deduction is overly conservative, causing legitimate workloads to be rejected | FF consumes resources on exactly one node per replica; greedy placement is more accurate than cluster-level aggregate deduction; reservation count is bounded (TTL fallback) |
-| Reservation released too late for slow-starting workloads, causing overly pessimistic estimates | Resources that take longer to become healthy (e.g., long image pulls, slow readiness probes) keep the reservation active even after their Pods have been assigned to nodes. During this window, the resource consumption is counted twice — once in the Estimator's node snapshot and once in the reservation deduction — making the scheduler underestimate the cluster's available capacity. **Mitigation**: This is a conservative trade-off that avoids over-commitment; the double-counting window is bounded by the TTL (default 5 minutes) and self-resolves once health is reached. The secondary verification extension (see Future Extensions) can further narrow this window. |
-| Premature release for CRD workloads without `InterpretHealth` implementation | When a CRD resource type has no registered `InterpretHealth` hook, the resource interpreter defaults to reporting healthy status. This causes the ResourceBinding's AggregatedStatus to reach Healthy shortly after the resource is distributed — before Pods are actually running and bound to nodes — effectively rendering the reservation ineffective. **Mitigation**: For CRD workloads that require reservation protection, users should implement the `InterpretHealth` hook (via customized or configurable interpreter) to accurately reflect the actual health status. Document this requirement clearly so CRD users are aware of the limitation. |
-| Scheduler restart causes loss of submitted-but-not-yet-landed reservations | As Pods come up, the Estimator snapshot naturally reflects actual consumption and self-heals; acceptable engineering trade-off |
-| gRPC request size increases due to reservation payload, causing performance degradation | Each `ReservedWorkload` entry encodes to roughly 56–270 bytes depending on the number of components and resource dimensions. `GetReservedWorkloads(clusterName)` returns only reservations for a specific cluster, and the live reservation count is bounded by the TTL window (default 5 minutes). Even under extreme scheduling throughput, per-request payload stays well below the default 4 MB gRPC message size limit; this risk is negligible in practice. |
+| FF deduction is overly conservative, causing legitimate workloads to be rejected | FF consumes resources on exactly one node per replica; greedy placement is more accurate than cluster-level aggregate deduction; assumption count is bounded (TTL fallback) |
+| Assumption released too late for slow-starting workloads, causing overly pessimistic estimates | Resources that take longer to become healthy (e.g., long image pulls, slow readiness probes) keep the assumption active even after their Pods have been assigned to nodes. During this window, the resource consumption is counted twice — once in the Estimator's node snapshot and once in the assumption deduction — making the scheduler underestimate the cluster's available capacity. **Mitigation**: This is a conservative trade-off that avoids over-commitment; the double-counting window is bounded by the TTL (default 5 minutes) and self-resolves once health is reached. The secondary verification extension (see Future Extensions) can further narrow this window. |
+| Premature release for CRD workloads without `InterpretHealth` implementation | When a CRD resource type has no registered `InterpretHealth` hook, the resource interpreter defaults to reporting healthy status. This causes the ResourceBinding's AggregatedStatus to reach Healthy shortly after the resource is distributed — before Pods are actually running and bound to nodes — effectively rendering the assumption ineffective. **Mitigation**: For CRD workloads that require assumption protection, users should implement the `InterpretHealth` hook (via customized or configurable interpreter) to accurately reflect the actual health status. Document this requirement clearly so CRD users are aware of the limitation. |
+| Scheduler restart causes loss of submitted-but-not-yet-landed assumptions | As Pods come up, the Estimator snapshot naturally reflects actual consumption and self-heals; acceptable engineering trade-off |
+| gRPC request size increases due to assumption payload, causing performance degradation | Each `AssumedWorkload` entry encodes to roughly 56–270 bytes depending on the number of components and resource dimensions. `GetAssumedWorkloads(clusterName)` returns only assumptions for a specific cluster, and the live assumption count is bounded by the TTL window (default 5 minutes). Even under extreme scheduling throughput, per-request payload stays well below the default 4 MB gRPC message size limit; this risk is negligible in practice. |
 
 ### Test Plan
 
 **Unit tests:**
-- `AssigningResourceBindingCache` (new reservation-related methods): Reserve /
-  ReleaseReservation / ReleaseClusterReservation / GetReservedWorkloads / GC, TTL expiry,
-  concurrency safety (`reservations` and `items` lifecycles are independent and do not interfere;
+- `AssigningResourceBindingCache` (new assumption-related methods): Assume /
+  ReleaseAssumption / ReleaseClusterAssumption / GetAssumedWorkloads / GC, TTL expiry,
+  concurrency safety (`assumptions` and `items` lifecycles are independent and do not interfere;
   OnBindingDelete cleans up both).
 - `nodeResource` plugin deduction:
-  - A single reserved replica consumed via FF reduces the subsequent estimate correctly
-  - Multiple reserved entries consumed by FF in sequence verify cumulative deduction
-  - When reserved replicas exceed total node capacity, the estimate is 0
-  - When reserved workloads have affinity/toleration constraints, FF only consumes matching nodes
-  - With no `reservedWorkloads`, behavior is identical to pre-change (backward compatible)
+  - A single assumed replica consumed via FF reduces the subsequent estimate correctly
+  - Multiple assumed entries consumed by FF in sequence verify cumulative deduction
+  - When assumed replicas exceed total node capacity, the estimate is 0
+  - When assumed workloads have affinity/toleration constraints, FF only consumes matching nodes
+  - With no `assumedWorkloads`, behavior is identical to pre-change (backward compatible)
 - `resourcequota` plugin deduction:
-  - Reservation correctly subtracts the sum of all component resources from quota
+  - Assumption correctly subtracts the sum of all component resources from quota
     available capacity
   - When post-deduction quota is exhausted (≤ 0), the estimate is 0
-  - priorityClass scope filtering: only deduct for reservation entries matching the scope
-  - With no `reservedWorkloads`, behavior is identical to pre-change (backward compatible)
+  - priorityClass scope filtering: only deduct for assumption entries matching the scope
+  - With no `assumedWorkloads`, behavior is identical to pre-change (backward compatible)
 - End-to-end `EstimateComponents`: nodeResource and resourcequota plugins work
-  together; when `reservedWorkloads` is present, both plugins deduct correctly and the minimum of
+  together; when `assumedWorkloads` is present, both plugins deduct correctly and the minimum of
   their results is used as the final answer.
 
 **E2E tests:**
@@ -610,7 +611,7 @@ represents an acceptable engineering trade-off.
 ### Alternative 1: Notify Estimator to Reserve Resources After Scheduling
 
 **Description:** After a scheduling decision succeeds, the scheduler sends an additional gRPC call
-to the Estimator to reserve the allocated resources.
+to the Estimator to assume the allocated resources.
 
 **Analysis:**
 
@@ -623,14 +624,14 @@ Connections between the scheduler and the estimator go through a Kubernetes Serv
 load-balanced to any replica.
 
 If a Reserve call lands on replica A but the subsequent `MaxAvailableReplicas` call lands on
-replica B, replica B has no knowledge of the reservation — there is no shared state between
+replica B, replica B has no knowledge of the assumption — there is no shared state between
 replicas. Making this work would require an external shared store (Redis, etcd) or inter-replica
 gossip, turning the estimator from a **stateless service** into a **stateful service**, which
 fundamentally contradicts its core design philosophy.
 
 ### Alternative 2: Cluster-Level Aggregate Deduction on the Scheduler Side Only (Insufficient Precision)
 
-**Description:** The scheduler maintains a reservation cache and subtracts an equivalent number of
+**Description:** The scheduler maintains a assumption cache and subtracts an equivalent number of
 replicas at the cluster level after calling the Estimator, without modifying the Estimator
 interface.
 
@@ -659,7 +660,7 @@ greater the error.
 
 This alternative can serve as a degraded fallback strategy when the Estimator is unavailable (e.g.
 when the Estimator version does not support the new interface). In that scenario, the scheduler can
-detect whether the Estimator supports the `ReservedWorkloads` field and fall back to cluster-level
+detect whether the Estimator supports the `AssumedWorkloads` field and fall back to cluster-level
 deduction if not.
 
 
@@ -667,15 +668,15 @@ deduction if not.
 
 ### Estimator-Side Secondary Verification
 
-The current reservation deduction mechanism has a **double-counting window**: between the time a
+The current assumption deduction mechanism has a **double-counting window**: between the time a
 Pod is bound to a node (reflected in the Estimator's `NodeInfo.Requested`) and the time the
-ResourceBinding's AggregatedStatus reaches `Healthy` (reservation released), the Pod's resource
+ResourceBinding's AggregatedStatus reaches `Healthy` (assumption released), the Pod's resource
 consumption is counted twice — once in the node snapshot and once in the FF simulation deduction.
 This causes cluster available capacity to be underestimated, especially for slow-starting
 workloads where the window can last several minutes.
 
 A secondary verification step can be introduced on the Estimator side: before performing
-reservation deduction, check how many Pods of the reserved workload have already been bound to
+assumption deduction, check how many Pods of the reserved workload have already been bound to
 nodes, and reduce the effective deduction amount accordingly. This would require additional
 information in the gRPC interface (e.g., the workload's previous Components before modification)
 to distinguish old Pods from newly reserved ones, and the calculation should operate at the
