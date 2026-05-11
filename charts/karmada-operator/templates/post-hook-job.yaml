@@ -30,6 +30,10 @@ spec:
           bash <<'EOF'
           set -ex
           kubectl apply --server-side -f /crds --force-conflicts
+          kubectl label crd karmadas.operator.karmada.io app.kubernetes.io/managed-by=Helm --overwrite
+          kubectl annotate crd karmadas.operator.karmada.io meta.helm.sh/release-name={{ .Release.Name }} --overwrite
+          kubectl annotate crd karmadas.operator.karmada.io meta.helm.sh/release-namespace={{ .Release.Namespace }} --overwrite
+          kubectl annotate crd karmadas.operator.karmada.io helm.sh/resource-policy=keep --overwrite
           EOF
         volumeMounts:
         - name: crds
