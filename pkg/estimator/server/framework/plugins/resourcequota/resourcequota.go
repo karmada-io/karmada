@@ -143,17 +143,19 @@ func (pl *resourceQuotaEstimator) Estimate(_ context.Context, _ *schedcache.Snap
 // selectors (e.g., priorityClassName), aggregates their resource requirements, and calculates how
 // many complete component sets can fit within the quota. The function returns the minimum allowed
 // sets across all ResourceQuotas to ensure all quota constraints are satisfied.
-func (pl *resourceQuotaEstimator) EstimateComponents(_ context.Context, _ *schedcache.Snapshot, components []*pb.Component, namespace string) (int32, *framework.Result) {
+func (pl *resourceQuotaEstimator) EstimateComponents(_ context.Context, estCtx framework.ComponentEstimationContext) (int32, *framework.Result) {
 	if !pl.enabled {
 		klog.V(5).Info("Estimator Plugin", "name", Name, "enabled", pl.enabled)
 		return noQuotaConstraint, framework.NewResult(framework.Noopperation, fmt.Sprintf("%s is disabled", pl.Name()))
 	}
 
+	components := estCtx.Components
 	if len(components) == 0 {
 		klog.V(5).Infof("%s: components list is empty, skipping resource quota check", pl.Name())
 		return noQuotaConstraint, framework.NewResult(framework.Success, fmt.Sprintf("%s received empty components list", pl.Name()))
 	}
 
+	namespace := estCtx.Namespace
 	if namespace == "" {
 		klog.V(5).Infof("%s: namespace is empty, skipping resource quota check", pl.Name())
 		return noQuotaConstraint, framework.NewResult(framework.Success)

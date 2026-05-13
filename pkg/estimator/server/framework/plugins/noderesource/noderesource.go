@@ -127,17 +127,18 @@ func getNodeAvailableResource(node *schedulerframework.NodeInfo) *util.Resource 
 
 // EstimateComponents estimates the maximum number of complete component sets that can be scheduled.
 // It returns the number of sets that can fit on the available node resources.
-func (pl *nodeResourceEstimator) EstimateComponents(_ context.Context, snapshot *schedcache.Snapshot, components []*pb.Component, _ string) (int32, *framework.Result) {
+func (pl *nodeResourceEstimator) EstimateComponents(_ context.Context, estCtx framework.ComponentEstimationContext) (int32, *framework.Result) {
 	if !pl.enabled {
 		return pl.disabledResult()
 	}
 
+	components := estCtx.Components
 	if len(components) == 0 {
 		klog.V(5).Infof("%s: received empty components list", pl.Name())
 		return noNodeConstraint, framework.NewResult(framework.Noopperation, fmt.Sprintf("%s received empty components list", pl.Name()))
 	}
 
-	nodes, err := getNodesAvailableResources(snapshot)
+	nodes, err := getNodesAvailableResources(estCtx.Snapshot)
 	if err != nil {
 		return 0, framework.AsResult(err)
 	}

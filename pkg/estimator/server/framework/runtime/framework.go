@@ -178,10 +178,11 @@ func (frw *frameworkImpl) runEstimateReplicasPlugins(
 }
 
 // RunEstimateComponentsPlugins runs the set of configured EstimateComponentsPlugins
-// for estimating the maximum number of complete component sets based on the given components.
+// for estimating the maximum number of complete component sets based on the given
+// components estimation request, including its components, namespace, and assumptions.
 // It returns an integer and a Result.
 // The integer represents the minimum calculated value of estimated component sets from each EstimateComponentsPlugin.
-func (frw *frameworkImpl) RunEstimateComponentsPlugins(ctx context.Context, snapshot *schedcache.Snapshot, components []*pb.Component, namespace string) (int32, *framework.Result) {
+func (frw *frameworkImpl) RunEstimateComponentsPlugins(ctx context.Context, estCtx framework.ComponentEstimationContext) (int32, *framework.Result) {
 	startTime := time.Now()
 	defer func() {
 		metrics.FrameworkExtensionPointDuration.WithLabelValues(estimateComponentsExtension).Observe(utilmetrics.DurationInSeconds(startTime))
@@ -189,7 +190,7 @@ func (frw *frameworkImpl) RunEstimateComponentsPlugins(ctx context.Context, snap
 	var sets int32 = math.MaxInt32
 	results := make(framework.PluginToResult)
 	for _, pl := range frw.estimateComponentsPlugins {
-		plSets, ret := frw.runEstimateComponentsPlugins(ctx, pl, snapshot, components, namespace)
+		plSets, ret := frw.runEstimateComponentsPlugins(ctx, pl, estCtx)
 		if (ret.IsSuccess() || ret.IsUnschedulable()) && plSets < sets {
 			sets = plSets
 		}
@@ -198,9 +199,9 @@ func (frw *frameworkImpl) RunEstimateComponentsPlugins(ctx context.Context, snap
 	return sets, results.Merge()
 }
 
-func (frw *frameworkImpl) runEstimateComponentsPlugins(ctx context.Context, pl framework.EstimateComponentsPlugin, snapshot *schedcache.Snapshot, components []*pb.Component, namespace string) (int32, *framework.Result) {
+func (frw *frameworkImpl) runEstimateComponentsPlugins(ctx context.Context, pl framework.EstimateComponentsPlugin, estCtx framework.ComponentEstimationContext) (int32, *framework.Result) {
 	startTime := time.Now()
-	sets, ret := pl.EstimateComponents(ctx, snapshot, components, namespace)
+	sets, ret := pl.EstimateComponents(ctx, estCtx)
 	metrics.PluginExecutionDuration.WithLabelValues(pl.Name(), estimateComponentsExtension).Observe(utilmetrics.DurationInSeconds(startTime))
 	return sets, ret
 }
