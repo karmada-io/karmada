@@ -62,6 +62,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/grpcconnection"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	utilmetrics "github.com/karmada-io/karmada/pkg/util/metrics"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 // ScheduleType defines the schedule type of a binding object should be performed.
@@ -690,9 +691,58 @@ func (s *Scheduler) patchScheduleResultForResourceBinding(oldBinding *workv1alph
 		// leading to a potential memory leak in AssigningResourceBindings cache if no further updates occur.
 		s.schedulerCache.AssigningResourceBindings().Add(result)
 	}
+	s.updateAssumptionsCache(oldBinding, scheduleResult)
 
 	klog.V(4).Infof("Patch schedule to ResourceBinding(%s/%s) succeed", oldBinding.Namespace, oldBinding.Name)
 	return nil
+}
+
+// updateAssumptionsCache maintains the assumption cache after the schedule result is
+// successfully patched to the API server.
+// For workloads with at least one Component entry:
+//   - Stale assumptions are released for clusters removed from the placement.
+//   - The full current Components are assumed for every cluster in the new schedule result.
+//     This is intentionally conservative, which may over-subtract during reschedules with
+//     no replica change, but ensures that newly created pods are visible to the estimator.
+//
+// Resources with no Components (e.g. non-workloads) are skipped.
+func (s *Scheduler) updateAssumptionsCache(oldBinding *workv1alpha2.ResourceBinding, scheduleResult []workv1alpha2.TargetCluster) {
+	if s.schedulerCache == nil || s.schedulerCache.AssigningResourceBindings() == nil {
+		return
+	}
+
+	// Skip resources that carry no Components (e.g. non-workloads).
+	if len(oldBinding.Spec.Components) == 0 {
+		return
+	}
+
+	bindingKey := names.NamespacedKey(oldBinding.Namespace, oldBinding.Name)
+	assigningCache := s.schedulerCache.AssigningResourceBindings()
+
+	oldClusters := make(map[string]struct{}, len(oldBinding.Spec.Clusters))
+	for _, tc := range oldBinding.Spec.Clusters {
+		oldClusters[tc.Name] = struct{}{}
+	}
+
+	newClusters := make(map[string]struct{}, len(scheduleResult))
+	for _, tc := range scheduleResult {
+		newClusters[tc.Name] = struct{}{}
+	}
+
+	// Release assumptions for clusters removed from the placement.
+	for clusterName := range oldClusters {
+		if _, stillExists := newClusters[clusterName]; !stillExists {
+			assigningCache.ReleaseClusterAssumption(bindingKey, clusterName)
+		}
+	}
+
+	// Write the full component footprint for every cluster in the new schedule result.
+	for clusterName := range newClusters {
+		assigningCache.Assume(bindingKey, clusterName, schedulercache.AssumedWorkload{
+			Namespace:  oldBinding.Spec.Resource.Namespace,
+			Components: oldBinding.Spec.Components,
+		})
+	}
 }
 
 func (s *Scheduler) scheduleClusterResourceBinding(crb *workv1alpha2.ClusterResourceBinding) (err error) {
