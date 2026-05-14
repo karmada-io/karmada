@@ -62,6 +62,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/grpcconnection"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	utilmetrics "github.com/karmada-io/karmada/pkg/util/metrics"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 // ScheduleType defines the schedule type of a binding object should be performed.
@@ -690,9 +691,88 @@ func (s *Scheduler) patchScheduleResultForResourceBinding(oldBinding *workv1alph
 		// leading to a potential memory leak in AssigningResourceBindings cache if no further updates occur.
 		s.schedulerCache.AssigningResourceBindings().Add(result)
 	}
+	s.updateAssumptionsCache(oldBinding, scheduleResult)
 
 	klog.V(4).Infof("Patch schedule to ResourceBinding(%s/%s) succeed", oldBinding.Namespace, oldBinding.Name)
 	return nil
+}
+
+// updateAssumptionsCache maintains the assumption cache after the schedule result is
+// successfully patched to the API server (e.g. on first scheduling or after a scale event).
+//
+// Both single-template and multi-template workloads record the full current resource
+// footprint for every cluster in the new schedule result.
+//
+// Assumptions for clusters removed from the placement are released.
+// Non-workload resources (e.g. ConfigMap, Service) are skipped.
+func (s *Scheduler) updateAssumptionsCache(oldBinding *workv1alpha2.ResourceBinding, scheduleResult []workv1alpha2.TargetCluster) {
+	// can not reach here
+	if s.schedulerCache == nil || s.schedulerCache.AssigningResourceBindings() == nil {
+		return
+	}
+
+	// Skip non-workload resources.
+	if !oldBinding.Spec.IsWorkload() {
+		return
+	}
+
+	bindingKey := names.NamespacedKey(oldBinding.Namespace, oldBinding.Name)
+	assigningCache := s.schedulerCache.AssigningResourceBindings()
+
+	oldClusters := make(map[string]struct{}, len(oldBinding.Spec.Clusters))
+	for _, tc := range oldBinding.Spec.Clusters {
+		oldClusters[tc.Name] = struct{}{}
+	}
+
+	newClusters := make(map[string]struct{}, len(scheduleResult))
+	for _, tc := range scheduleResult {
+		newClusters[tc.Name] = struct{}{}
+	}
+
+	// Release assumptions for clusters removed from the placement.
+	for clusterName := range oldClusters {
+		if _, stillExists := newClusters[clusterName]; !stillExists {
+			assigningCache.ReleaseClusterAssumption(bindingKey, clusterName)
+		}
+	}
+
+	if len(oldBinding.Spec.Components) > 0 {
+		for clusterName := range newClusters {
+			assigningCache.Assume(bindingKey, clusterName, schedulercache.AssumedWorkload{
+				Namespace:  oldBinding.Spec.Resource.Namespace,
+				Components: oldBinding.Spec.Components,
+			})
+		}
+		return
+	}
+
+	// Single-template workload: each cluster has its own replica count; wrap into a
+	// synthetic Component so the estimator can deduct the correct resource footprint.
+	reqs := oldBinding.Spec.ReplicaRequirements
+	for _, tc := range scheduleResult {
+		components := singleTemplateAsComponents(oldBinding.Spec.Resource.Name, tc.Replicas, reqs)
+		assigningCache.Assume(bindingKey, tc.Name, schedulercache.AssumedWorkload{
+			Namespace:  oldBinding.Spec.Resource.Namespace,
+			Components: components,
+		})
+	}
+}
+
+// singleTemplateAsComponents wraps a single-template workload assignment into a Component slice
+// so it can be stored and consumed by the estimator in the same way as multi-template workloads.
+func singleTemplateAsComponents(name string, replicas int32, reqs *workv1alpha2.ReplicaRequirements) []workv1alpha2.Component {
+	c := workv1alpha2.Component{
+		Name:     name,
+		Replicas: replicas,
+	}
+	if reqs != nil {
+		c.ReplicaRequirements = &workv1alpha2.ComponentReplicaRequirements{
+			NodeClaim:         reqs.NodeClaim,
+			ResourceRequest:   reqs.ResourceRequest,
+			PriorityClassName: reqs.PriorityClassName,
+		}
+	}
+	return []workv1alpha2.Component{c}
 }
 
 func (s *Scheduler) scheduleClusterResourceBinding(crb *workv1alpha2.ClusterResourceBinding) (err error) {
