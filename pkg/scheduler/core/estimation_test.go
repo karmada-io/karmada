@@ -27,6 +27,7 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	estimatorclient "github.com/karmada-io/karmada/pkg/estimator/client"
+	schedulercache "github.com/karmada-io/karmada/pkg/scheduler/cache"
 	"github.com/karmada-io/karmada/test/helper"
 )
 
@@ -34,13 +35,15 @@ import (
 type mockReplicaEstimator struct {
 	maxAvailableComponentSetsResponse []estimatorclient.ComponentSetEstimationResponse
 	maxAvailableComponentSetsError    error
+	lastComponentSetRequest           estimatorclient.ComponentSetEstimationRequest
 }
 
 func (m *mockReplicaEstimator) MaxAvailableReplicas(_ context.Context, _ []*clusterv1alpha1.Cluster, _ *workv1alpha2.ReplicaRequirements) ([]workv1alpha2.TargetCluster, error) {
 	return nil, nil
 }
 
-func (m *mockReplicaEstimator) MaxAvailableComponentSets(_ context.Context, _ estimatorclient.ComponentSetEstimationRequest) ([]estimatorclient.ComponentSetEstimationResponse, error) {
+func (m *mockReplicaEstimator) MaxAvailableComponentSets(_ context.Context, req estimatorclient.ComponentSetEstimationRequest) ([]estimatorclient.ComponentSetEstimationResponse, error) {
+	m.lastComponentSetRequest = req
 	return m.maxAvailableComponentSetsResponse, m.maxAvailableComponentSetsError
 }
 
@@ -384,7 +387,14 @@ func Test_calculateMultiTemplateAvailableSets(t *testing.T) {
 				maxAvailableComponentSetsError:    tt.mockError,
 			}
 
-			result, err := calculateMultiTemplateAvailableSets(ctx, mockEstimator, estimatorName, clusters, spec, tt.availableTargetClusters)
+			result, err := calculateMultiTemplateAvailableSets(ctx, multiTemplateEstimationContext{
+				estimator:               mockEstimator,
+				estimatorName:           estimatorName,
+				clusters:                clusters,
+				spec:                    spec,
+				availableTargetClusters: tt.availableTargetClusters,
+				assigningCache:          nil,
+			})
 
 			if tt.expectedError {
 				assert.Error(t, err)
@@ -395,4 +405,63 @@ func Test_calculateMultiTemplateAvailableSets(t *testing.T) {
 			assert.Equal(t, tt.expectedResult, result)
 		})
 	}
+}
+
+func Test_buildAssumedWorkloadsByCluster(t *testing.T) {
+	t.Run("nil cache returns empty map", func(t *testing.T) {
+		clusters := []*clusterv1alpha1.Cluster{
+			helper.NewCluster("cluster1"),
+		}
+		got := buildAssumedWorkloadsByCluster(clusters, nil)
+		assert.NotNil(t, got)
+		assert.Empty(t, got)
+	})
+
+	t.Run("returns assumptions only for requested clusters", func(t *testing.T) {
+		cache := schedulercache.NewCache(nil, nil, 0).AssigningResourceBindings()
+		cache.Assume("default/rb1", "cluster1", schedulercache.AssumedWorkload{
+			Namespace: "default",
+			Components: []workv1alpha2.Component{
+				{Name: "jobmanager", Replicas: 1},
+			},
+		})
+		cache.Assume("default/rb2", "cluster2", schedulercache.AssumedWorkload{
+			Namespace: "default",
+			Components: []workv1alpha2.Component{
+				{Name: "taskmanager", Replicas: 2},
+			},
+		})
+
+		clusters := []*clusterv1alpha1.Cluster{
+			helper.NewCluster("cluster1"),
+			helper.NewCluster("cluster3"), // no assumption
+		}
+		got := buildAssumedWorkloadsByCluster(clusters, cache)
+
+		assert.Len(t, got, 1)
+		assert.Contains(t, got, "cluster1")
+		assert.NotContains(t, got, "cluster2")
+		assert.NotContains(t, got, "cluster3")
+
+		cluster1Assumed := got["cluster1"]
+		assert.Len(t, cluster1Assumed, 1)
+		assert.Equal(t, "default", cluster1Assumed[0].Namespace)
+		assert.Len(t, cluster1Assumed[0].Components, 1)
+		assert.Equal(t, "jobmanager", cluster1Assumed[0].Components[0].Name)
+		assert.Equal(t, int32(1), cluster1Assumed[0].Components[0].Replicas)
+	})
+
+	t.Run("empty clusters returns empty map", func(t *testing.T) {
+		cache := schedulercache.NewCache(nil, nil, 0).AssigningResourceBindings()
+		cache.Assume("default/rb1", "cluster1", schedulercache.AssumedWorkload{
+			Namespace: "default",
+			Components: []workv1alpha2.Component{
+				{Name: "jobmanager", Replicas: 1},
+			},
+		})
+
+		got := buildAssumedWorkloadsByCluster(nil, cache)
+		assert.NotNil(t, got)
+		assert.Empty(t, got)
+	})
 }

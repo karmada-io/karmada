@@ -66,12 +66,12 @@ type ComponentSetEstimationRequest struct {
 	// It is used by the accurate estimator to check the quota configurations
 	// in the target member cluster. This field is required for quota-aware estimation.
 	Namespace string
-	// AssumedWorkloads lists in-flight workloads that have already been assigned
-	// to a cluster but whose pods have not yet been bound to nodes.
-	// The estimator deducts their resource footprint from the available capacity
+	// AssumedWorkloads maps cluster name to the in-flight workloads that have already
+	// been assigned to that cluster but whose pods have not yet been bound to nodes.
+	// The estimator deducts each cluster's assumed footprint from available capacity
 	// to avoid over-commitment during back-to-back scheduling cycles.
 	// +optional
-	AssumedWorkloads []AssumedWorkload
+	AssumedWorkloads map[string][]AssumedWorkload
 }
 
 // ComponentSetEstimationResponse represents how many complete component sets a cluster can accommodate.
