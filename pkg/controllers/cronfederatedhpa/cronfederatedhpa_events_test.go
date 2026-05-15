@@ -26,8 +26,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/klog/v2"
 	clientgoevents "k8s.io/client-go/tools/events"
+	"k8s.io/klog/v2"
 
 	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/events"
@@ -46,7 +46,7 @@ type capturingRecorder struct {
 	called    int
 }
 
-func (c *capturingRecorder) Eventf(regarding, related runtime.Object, eventtype, reason, action, note string, args ...interface{}) {
+func (c *capturingRecorder) Eventf(regarding, related runtime.Object, eventtype, reason, action, note string, args ...any) {
 	c.regarding = regarding
 	c.related = related
 	c.eventType = eventtype
