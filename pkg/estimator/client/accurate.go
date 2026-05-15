@@ -73,7 +73,7 @@ func (se *SchedulerEstimator) MaxAvailableComponentSets(
 	req ComponentSetEstimationRequest,
 ) ([]ComponentSetEstimationResponse, error) {
 	return getClusterComponentSetsConcurrently(parentCtx, req.Clusters, se.timeout, func(ctx context.Context, cluster string) (int32, error) {
-		return se.maxAvailableComponentSets(ctx, cluster, req.Namespace, req.Components)
+		return se.maxAvailableComponentSets(ctx, cluster, req.Namespace, req.Components, req.AssumedWorkloads[cluster])
 	})
 }
 
@@ -89,34 +89,35 @@ func (se *SchedulerEstimator) GetUnschedulableReplicas(
 	})
 }
 
-func (se *SchedulerEstimator) maxAvailableComponentSets(ctx context.Context, cluster string, namespace string, components []workv1alpha2.Component) (int32, error) {
+func (se *SchedulerEstimator) maxAvailableComponentSets(ctx context.Context, cluster string, namespace string, components []workv1alpha2.Component, assumedWorkloads []AssumedWorkload) (int32, error) {
 	client, err := se.cache.GetClient(cluster)
+	if err != nil {
+		return 0, err
+	}
+
+	pbComponents, err := toPBComponents(components)
 	if err != nil {
 		return 0, err
 	}
 
 	pbReq := &pb.MaxAvailableComponentSetsRequest{
 		Cluster:    cluster,
-		Components: make([]*pb.Component, 0, len(components)),
+		Components: pbComponents,
 		Namespace:  namespace,
 	}
 
-	for _, comp := range components {
-		// Deep-copy so that pointer is not shared between goroutines
-		var cr *workv1alpha2.ComponentReplicaRequirements
-		if comp.ReplicaRequirements != nil {
-			cr = comp.ReplicaRequirements.DeepCopy()
+	if len(assumedWorkloads) > 0 {
+		pbReq.AssumedWorkloads = make([]*pb.AssumedWorkload, len(assumedWorkloads))
+		for i, aw := range assumedWorkloads {
+			awComponents, err := toPBComponents(aw.Components)
+			if err != nil {
+				return 0, err
+			}
+			pbReq.AssumedWorkloads[i] = &pb.AssumedWorkload{
+				Namespace:  aw.Namespace,
+				Components: awComponents,
+			}
 		}
-
-		replicaRequirements, err := toPBReplicaRequirements(cr)
-		if err != nil {
-			return 0, err
-		}
-		pbReq.Components = append(pbReq.Components, &pb.Component{
-			Name:                comp.Name,
-			Replicas:            comp.Replicas,
-			ReplicaRequirements: replicaRequirements,
-		})
 	}
 
 	res, err := client.MaxAvailableComponentSets(ctx, pbReq)
@@ -124,6 +125,32 @@ func (se *SchedulerEstimator) maxAvailableComponentSets(ctx context.Context, clu
 		return 0, fmt.Errorf("gRPC request cluster(%s) estimator error when calling MaxAvailableComponentSets: %v", cluster, err)
 	}
 	return res.MaxSets, nil
+}
+
+// toPBComponents converts a slice of API Component objects to their protobuf
+// representation. Returns nil when the input is empty to avoid empty objects
+// in serialized output.
+func toPBComponents(components []workv1alpha2.Component) ([]*pb.Component, error) {
+	if len(components) == 0 {
+		return nil, nil
+	}
+	out := make([]*pb.Component, len(components))
+	for i, comp := range components {
+		var cr *workv1alpha2.ComponentReplicaRequirements
+		if comp.ReplicaRequirements != nil {
+			cr = comp.ReplicaRequirements.DeepCopy()
+		}
+		replicaRequirements, err := toPBReplicaRequirements(cr)
+		if err != nil {
+			return nil, err
+		}
+		out[i] = &pb.Component{
+			Name:                comp.Name,
+			Replicas:            comp.Replicas,
+			ReplicaRequirements: replicaRequirements,
+		}
+	}
+	return out, nil
 }
 
 // toPBReplicaRequirements converts the API ComponentReplicaRequirements to the pb.ComponentReplicaRequirements pointer.
