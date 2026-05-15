@@ -143,7 +143,7 @@ func (pl *resourceQuotaEstimator) Estimate(_ context.Context, _ *schedcache.Snap
 // selectors (e.g., priorityClassName), aggregates their resource requirements, and calculates how
 // many complete component sets can fit within the quota. The function returns the minimum allowed
 // sets across all ResourceQuotas to ensure all quota constraints are satisfied.
-func (pl *resourceQuotaEstimator) EstimateComponents(_ context.Context, _ *schedcache.Snapshot, components []*pb.Component, namespace string) (int32, *framework.Result) {
+func (pl *resourceQuotaEstimator) EstimateComponents(_ context.Context, _ *schedcache.Snapshot, components []*pb.Component, namespace string, _ []*pb.AssumedWorkload) (int32, *framework.Result) {
 	if !pl.enabled {
 		klog.V(5).Info("Estimator Plugin", "name", Name, "enabled", pl.enabled)
 		return noQuotaConstraint, framework.NewResult(framework.Noopperation, fmt.Sprintf("%s is disabled", pl.Name()))
