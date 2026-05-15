@@ -1,7 +1,6 @@
 # Progressive Rollout — Sample Manifests
 
-Static YAML manifests used in the
-[Progressive Rollout Strategies with Karmada][tutorial] tutorial.
+Static YAML manifests used in the [Progressive Rollout Strategies[tutorial] tutorial.
 
 The tutorial demonstrates three rollout strategies across multiple clusters using only
 Karmada `PropagationPolicy` and `OverridePolicy` — no additional controllers required.
@@ -63,4 +62,4 @@ See the [Progressive Rollout Strategies with Karmada][tutorial] tutorial for ful
 step-by-step instructions including inline YAML, dashboard observations, and sequence
 diagrams for each strategy and demo.
 
-[tutorial]: https://karmada.io/docs/tutorials/karmada-primitive-rollout-strategies
+[tutorial]: https://karmada.io/docs/tutorials/rollout/overview
