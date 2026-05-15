@@ -1058,7 +1058,7 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			testCtx := setup(t, tt.resourceQuotaList, tt.enabled)
-			sets, ret := testCtx.p.EstimateComponents(testCtx.ctx, nil, tt.components, tt.namespace)
+			sets, ret := testCtx.p.EstimateComponents(testCtx.ctx, nil, tt.components, tt.namespace, nil)
 
 			require.Equal(t, tt.expect.ret.Code(), ret.Code())
 			assert.ElementsMatch(t, tt.expect.ret.Reasons(), ret.Reasons())

@@ -127,7 +127,7 @@ func getNodeAvailableResource(node *schedulerframework.NodeInfo) *util.Resource 
 
 // EstimateComponents estimates the maximum number of complete component sets that can be scheduled.
 // It returns the number of sets that can fit on the available node resources.
-func (pl *nodeResourceEstimator) EstimateComponents(_ context.Context, snapshot *schedcache.Snapshot, components []*pb.Component, _ string) (int32, *framework.Result) {
+func (pl *nodeResourceEstimator) EstimateComponents(_ context.Context, snapshot *schedcache.Snapshot, components []*pb.Component, _ string, _ []*pb.AssumedWorkload) (int32, *framework.Result) {
 	if !pl.enabled {
 		return pl.disabledResult()
 	}
