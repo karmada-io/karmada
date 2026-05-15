@@ -48,10 +48,11 @@ Karmada `PropagationPolicy` and `OverridePolicy` — no additional controllers r
 | File | Purpose |
 |------|---------|
 | `http-probe-app-wave-base.yaml` | Base app at `v1`, `replicaSchedulingType: Duplicated` (6 replicas per cluster) — required for meaningful percentage steps |
-| `http-probe-app-wave-base-v2.yaml` | Same as above but at `v2` — applied by `hack/wave-rollout.sh finalize` |
-| `http-probe-app-wave-deployment.yaml` | Wave `Deployment` at `v2` — created by `hack/wave-rollout.sh start` |
+| `http-probe-app-wave-base-v2.yaml` | Same as above but at `v2` — applied by `wave-rollout.sh finalize` |
+| `http-probe-app-wave-deployment.yaml` | Wave `Deployment` at `v2` — created by `wave-rollout.sh start` |
+| `wave-rollout.sh` | Orchestration script for the wave rollout strategy |
 
-The wave rollout is orchestrated by [`hack/wave-rollout.sh`](../../hack/wave-rollout.sh).
+The wave rollout is orchestrated by [`wave-rollout.sh`](./wave-rollout.sh).
 The `OverridePolicy` resources that scale the base down and the wave up are generated
 dynamically by the script at runtime, since their replica counts depend on the target
 percentage and the `--wait` interval supplied by the operator.

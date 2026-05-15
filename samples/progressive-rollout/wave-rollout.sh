@@ -211,7 +211,7 @@ wait_for_ready() {
 # ── Commands ──────────────────────────────────────────────────────────────────
 
 cmd_start() {
-  local manifests="${SCRIPT_DIR}/../samples/progressive-rollout"
+  local manifests="${SCRIPT_DIR}"
 
   local clusters
   read -ra clusters <<< "$(resolve_clusters "$TARGET")"
@@ -268,7 +268,7 @@ EOF
   done
 
   echo ""
-  echo "==> All steps complete. Run './hack/wave-rollout.sh finalize' to promote or './hack/wave-rollout.sh abort' to restore."
+  echo "==> All steps complete. Run './wave-rollout.sh finalize' to promote or './wave-rollout.sh abort' to restore."
 }
 
 cmd_finalize() {
@@ -277,9 +277,9 @@ cmd_finalize() {
   # uses Divided scheduling which would drop replicas from 6 to 2 per cluster.
   echo "==> Updating base manifest to v2 (preserving Duplicated scheduling)..."
   echo "--- manifest: samples/progressive-rollout/http-probe-app-wave-base-v2.yaml"
-  cat "${SCRIPT_DIR}/../samples/progressive-rollout/http-probe-app-wave-base-v2.yaml"
+  cat "${SCRIPT_DIR}/http-probe-app-wave-base-v2.yaml"
   echo "---"
-  $KC apply -f "${SCRIPT_DIR}/../samples/progressive-rollout/http-probe-app-wave-base-v2.yaml" -n "$NAMESPACE"
+  $KC apply -f "${SCRIPT_DIR}/http-probe-app-wave-base-v2.yaml" -n "$NAMESPACE"
 
   echo "==> Deleting base-down OverridePolicy — base scales back up to ${REPLICAS_PER_CLUSTER}×v2..."
   $KC delete overridepolicy "$BASE_DOWN_POLICY" -n "$NAMESPACE" --ignore-not-found
