@@ -26,6 +26,7 @@ import (
 	"strings"
 	"testing"
 
+	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apiserver/pkg/authentication/user"
@@ -36,8 +37,7 @@ import (
 	"github.com/karmada-io/karmada/operator/pkg/certs"
 )
 
-func TestCreateBootstrapConfigMapIfNotExists(t *testing.T) {
-	kubeAdminConfig := `
+const kubeAdminConfig = `
 apiVersion: v1
 clusters:
 - cluster:
@@ -58,11 +58,13 @@ users:
     client-certificate-data: %s
     client-key-data: %s
 `
+
+func TestCreateBootstrapConfigMapIfNotExists(t *testing.T) {
 	tests := []struct {
 		name    string
 		client  kubernetes.Interface
 		cfgFile string
-		prep    func(cfgFile string) error
+		prep    func(cfgFile string, client kubernetes.Interface) error
 		verify  func(kubernetes.Interface) error
 		cleanup func(cfgFile string) error
 		wantErr bool
@@ -70,7 +72,7 @@ users:
 	}{
 		{
 			name:    "CreateBootstrapConfigMapIfNotExists_NonExistentConfigFile_FailedToLoadAdminKubeConfig",
-			prep:    func(string) error { return nil },
+			prep:    func(string, kubernetes.Interface) error { return nil },
 			verify:  func(kubernetes.Interface) error { return nil },
 			cleanup: func(string) error { return nil },
 			wantErr: true,
@@ -80,42 +82,55 @@ users:
 			name:    "CreateBootstrapConfigMapIfNotExists_WithConfigFile_ConfigMapCreatedInKubePublicNamespace",
 			client:  fakeclientset.NewClientset(),
 			cfgFile: filepath.Join(os.TempDir(), "config-temp.txt"),
-			prep: func(cfgFile string) error {
-				caKarmadaCert, err := certs.NewCertificateAuthority(certs.KarmadaCertAdmin())
-				if err != nil {
-					t.Fatalf("NewCertificateAuthority() returned an error: %v", err)
-				}
-
-				kubeAdminConfig = fmt.Sprintf(
-					kubeAdminConfig,
-					base64.StdEncoding.EncodeToString(caKarmadaCert.CertData()),
-					base64.StdEncoding.EncodeToString(caKarmadaCert.CertData()),
-					base64.StdEncoding.EncodeToString(caKarmadaCert.KeyData()),
-				)
-
-				err = os.WriteFile(cfgFile, []byte(kubeAdminConfig), 0600)
-				if err != nil {
-					return fmt.Errorf("failed to write kubeAdminConfig to file, got error: %v", err)
-				}
-
-				return nil
-			},
-			cleanup: func(cfgFile string) error {
-				if err := os.Remove(cfgFile); err != nil {
-					return fmt.Errorf("failed to remove config file %s, got an error: %v", cfgFile, err)
-				}
-				return nil
-			},
+			prep:    prepKubeAdminConfigFile(t),
+			cleanup: removeKubeAdminConfigFile,
 			verify: func(c kubernetes.Interface) error {
 				return verifyKubeAdminKubeConfig(c)
 			},
 			wantErr: false,
 		},
-		// TODO: Update ConfigMap if it exists.
+		{
+			name:    "CreateBootstrapConfigMapIfNotExists_ConfigMapAlreadyExists_Updated",
+			client:  fakeclientset.NewClientset(),
+			cfgFile: filepath.Join(os.TempDir(), "config-temp-update.txt"),
+			prep: func(cfgFile string, client kubernetes.Interface) error {
+				if err := prepKubeAdminConfigFile(t)(cfgFile, client); err != nil {
+					return err
+				}
+				_, err := client.CoreV1().ConfigMaps(metav1.NamespacePublic).Create(context.TODO(), &corev1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      bootstrapapi.ConfigMapClusterInfo,
+						Namespace: metav1.NamespacePublic,
+					},
+					Data: map[string]string{
+						bootstrapapi.KubeConfigKey: staleBootstrapKubeConfig,
+					},
+				}, metav1.CreateOptions{})
+				if err != nil {
+					return fmt.Errorf("failed to create stale cluster-info ConfigMap, got error: %v", err)
+				}
+				return nil
+			},
+			cleanup: removeKubeAdminConfigFile,
+			verify: func(c kubernetes.Interface) error {
+				if err := verifyKubeAdminKubeConfig(c); err != nil {
+					return err
+				}
+				configMap, err := c.CoreV1().ConfigMaps(metav1.NamespacePublic).Get(context.TODO(), bootstrapapi.ConfigMapClusterInfo, metav1.GetOptions{})
+				if err != nil {
+					return fmt.Errorf("failed to get configmap %s, got an error: %v", bootstrapapi.ConfigMapClusterInfo, err)
+				}
+				if configMap.Data[bootstrapapi.KubeConfigKey] == staleBootstrapKubeConfig {
+					return fmt.Errorf("expected cluster-info ConfigMap to be updated, but stale data remains")
+				}
+				return nil
+			},
+			wantErr: false,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if err := test.prep(test.cfgFile); err != nil {
+			if err := test.prep(test.cfgFile, test.client); err != nil {
 				t.Fatalf("failed prep before creating bootstrap config map, got error: %v", err)
 			}
 			defer func() {
@@ -194,6 +209,38 @@ func TestCreateClusterInfoRBACRules(t *testing.T) {
 			}
 		})
 	}
+}
+
+const staleBootstrapKubeConfig = "stale-bootstrap-kubeconfig"
+
+func prepKubeAdminConfigFile(t *testing.T) func(cfgFile string, _ kubernetes.Interface) error {
+	t.Helper()
+	return func(cfgFile string, _ kubernetes.Interface) error {
+		caKarmadaCert, err := certs.NewCertificateAuthority(certs.KarmadaCertAdmin())
+		if err != nil {
+			t.Fatalf("NewCertificateAuthority() returned an error: %v", err)
+		}
+
+		kubeAdminConfigLocal := fmt.Sprintf(
+			kubeAdminConfig,
+			base64.StdEncoding.EncodeToString(caKarmadaCert.CertData()),
+			base64.StdEncoding.EncodeToString(caKarmadaCert.CertData()),
+			base64.StdEncoding.EncodeToString(caKarmadaCert.KeyData()),
+		)
+
+		if err = os.WriteFile(cfgFile, []byte(kubeAdminConfigLocal), 0600); err != nil {
+			return fmt.Errorf("failed to write kubeAdminConfig to file, got error: %v", err)
+		}
+
+		return nil
+	}
+}
+
+func removeKubeAdminConfigFile(cfgFile string) error {
+	if err := os.Remove(cfgFile); err != nil {
+		return fmt.Errorf("failed to remove config file %s, got an error: %v", cfgFile, err)
+	}
+	return nil
 }
 
 func verifyKubeAdminKubeConfig(client kubernetes.Interface) error {
