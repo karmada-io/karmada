@@ -59,17 +59,19 @@ users:
     client-key-data: %s
 `
 
+type bootstrapConfigMapTestCase struct {
+	name    string
+	client  kubernetes.Interface
+	cfgFile string
+	prep    func(cfgFile string, client kubernetes.Interface) error
+	verify  func(kubernetes.Interface) error
+	cleanup func(cfgFile string) error
+	wantErr bool
+	errMsg  string
+}
+
 func TestCreateBootstrapConfigMapIfNotExists(t *testing.T) {
-	tests := []struct {
-		name    string
-		client  kubernetes.Interface
-		cfgFile string
-		prep    func(cfgFile string, client kubernetes.Interface) error
-		verify  func(kubernetes.Interface) error
-		cleanup func(cfgFile string) error
-		wantErr bool
-		errMsg  string
-	}{
+	tests := []bootstrapConfigMapTestCase{
 		{
 			name:    "CreateBootstrapConfigMapIfNotExists_NonExistentConfigFile_FailedToLoadAdminKubeConfig",
 			prep:    func(string, kubernetes.Interface) error { return nil },
@@ -84,75 +86,49 @@ func TestCreateBootstrapConfigMapIfNotExists(t *testing.T) {
 			cfgFile: filepath.Join(os.TempDir(), "config-temp.txt"),
 			prep:    prepKubeAdminConfigFile,
 			cleanup: removeKubeAdminConfigFile,
-			verify: func(c kubernetes.Interface) error {
-				return verifyKubeAdminKubeConfig(c)
-			},
+			verify:  verifyKubeAdminKubeConfig,
 			wantErr: false,
 		},
 		{
 			name:    "CreateBootstrapConfigMapIfNotExists_ConfigMapAlreadyExists_Updated",
 			client:  fakeclientset.NewClientset(),
 			cfgFile: filepath.Join(os.TempDir(), "config-temp-update.txt"),
-			prep: func(cfgFile string, client kubernetes.Interface) error {
-				if err := prepKubeAdminConfigFile(cfgFile, client); err != nil {
-					return err
-				}
-				_, err := client.CoreV1().ConfigMaps(metav1.NamespacePublic).Create(context.TODO(), &corev1.ConfigMap{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      bootstrapapi.ConfigMapClusterInfo,
-						Namespace: metav1.NamespacePublic,
-					},
-					Data: map[string]string{
-						bootstrapapi.KubeConfigKey: staleBootstrapKubeConfig,
-					},
-				}, metav1.CreateOptions{})
-				if err != nil {
-					return fmt.Errorf("failed to create stale cluster-info ConfigMap, got error: %v", err)
-				}
-				return nil
-			},
+			prep:    prepStaleClusterInfoConfigMap,
 			cleanup: removeKubeAdminConfigFile,
-			verify: func(c kubernetes.Interface) error {
-				if err := verifyKubeAdminKubeConfig(c); err != nil {
-					return err
-				}
-				configMap, err := c.CoreV1().ConfigMaps(metav1.NamespacePublic).Get(context.TODO(), bootstrapapi.ConfigMapClusterInfo, metav1.GetOptions{})
-				if err != nil {
-					return fmt.Errorf("failed to get configmap %s, got an error: %v", bootstrapapi.ConfigMapClusterInfo, err)
-				}
-				if configMap.Data[bootstrapapi.KubeConfigKey] == staleBootstrapKubeConfig {
-					return fmt.Errorf("expected cluster-info ConfigMap to be updated, but stale data remains")
-				}
-				return nil
-			},
+			verify:  verifyClusterInfoConfigMapUpdated,
 			wantErr: false,
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if err := test.prep(test.cfgFile, test.client); err != nil {
-				t.Fatalf("failed prep before creating bootstrap config map, got error: %v", err)
-			}
-			defer func() {
-				if err := test.cleanup(test.cfgFile); err != nil {
-					t.Errorf("deferred cleanup failed: %v", err)
-				}
-			}()
-
-			err := CreateBootstrapConfigMapIfNotExists(test.client, test.cfgFile)
-			if err == nil && test.wantErr {
-				t.Fatal("expected and error, but got none")
-			}
-			if err != nil && !test.wantErr {
-				t.Errorf("unexpected error, got: %v", err)
-			}
-			if err != nil && test.wantErr && !strings.Contains(err.Error(), test.errMsg) {
-				t.Errorf("expected error message %s to be in %s", test.errMsg, err.Error())
-			}
-			if err := test.verify(test.client); err != nil {
-				t.Errorf("failed to verify creating bootstrap config map, got an error: %v", err)
-			}
+			runBootstrapConfigMapTest(t, test)
 		})
+	}
+}
+
+func runBootstrapConfigMapTest(t *testing.T, test bootstrapConfigMapTestCase) {
+	t.Helper()
+	if err := test.prep(test.cfgFile, test.client); err != nil {
+		t.Fatalf("failed prep before creating bootstrap config map, got error: %v", err)
+	}
+	defer func() {
+		if err := test.cleanup(test.cfgFile); err != nil {
+			t.Errorf("deferred cleanup failed: %v", err)
+		}
+	}()
+
+	err := CreateBootstrapConfigMapIfNotExists(test.client, test.cfgFile)
+	if err == nil && test.wantErr {
+		t.Fatal("expected and error, but got none")
+	}
+	if err != nil && !test.wantErr {
+		t.Errorf("unexpected error, got: %v", err)
+	}
+	if err != nil && test.wantErr && !strings.Contains(err.Error(), test.errMsg) {
+		t.Errorf("expected error message %s to be in %s", test.errMsg, err.Error())
+	}
+	if err := test.verify(test.client); err != nil {
+		t.Errorf("failed to verify creating bootstrap config map, got an error: %v", err)
 	}
 }
 
@@ -231,6 +207,41 @@ func prepKubeAdminConfigFile(cfgFile string, _ kubernetes.Interface) error {
 		return fmt.Errorf("failed to write kubeAdminConfig to file, got error: %v", err)
 	}
 
+	return nil
+}
+
+// prepStaleClusterInfoConfigMap prepares kubeconfig and seeds a stale cluster-info ConfigMap.
+func prepStaleClusterInfoConfigMap(cfgFile string, client kubernetes.Interface) error {
+	if err := prepKubeAdminConfigFile(cfgFile, client); err != nil {
+		return err
+	}
+	_, err := client.CoreV1().ConfigMaps(metav1.NamespacePublic).Create(context.TODO(), &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      bootstrapapi.ConfigMapClusterInfo,
+			Namespace: metav1.NamespacePublic,
+		},
+		Data: map[string]string{
+			bootstrapapi.KubeConfigKey: staleBootstrapKubeConfig,
+		},
+	}, metav1.CreateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to create stale cluster-info ConfigMap, got error: %v", err)
+	}
+	return nil
+}
+
+// verifyClusterInfoConfigMapUpdated checks the cluster-info ConfigMap was refreshed.
+func verifyClusterInfoConfigMapUpdated(c kubernetes.Interface) error {
+	if err := verifyKubeAdminKubeConfig(c); err != nil {
+		return err
+	}
+	configMap, err := c.CoreV1().ConfigMaps(metav1.NamespacePublic).Get(context.TODO(), bootstrapapi.ConfigMapClusterInfo, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get configmap %s, got an error: %v", bootstrapapi.ConfigMapClusterInfo, err)
+	}
+	if configMap.Data[bootstrapapi.KubeConfigKey] == staleBootstrapKubeConfig {
+		return fmt.Errorf("expected cluster-info ConfigMap to be updated, but stale data remains")
+	}
 	return nil
 }
 
