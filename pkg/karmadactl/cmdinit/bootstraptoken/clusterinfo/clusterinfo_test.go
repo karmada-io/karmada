@@ -82,7 +82,7 @@ func TestCreateBootstrapConfigMapIfNotExists(t *testing.T) {
 			name:    "CreateBootstrapConfigMapIfNotExists_WithConfigFile_ConfigMapCreatedInKubePublicNamespace",
 			client:  fakeclientset.NewClientset(),
 			cfgFile: filepath.Join(os.TempDir(), "config-temp.txt"),
-			prep:    prepKubeAdminConfigFile(t),
+			prep:    prepKubeAdminConfigFile,
 			cleanup: removeKubeAdminConfigFile,
 			verify: func(c kubernetes.Interface) error {
 				return verifyKubeAdminKubeConfig(c)
@@ -94,7 +94,7 @@ func TestCreateBootstrapConfigMapIfNotExists(t *testing.T) {
 			client:  fakeclientset.NewClientset(),
 			cfgFile: filepath.Join(os.TempDir(), "config-temp-update.txt"),
 			prep: func(cfgFile string, client kubernetes.Interface) error {
-				if err := prepKubeAdminConfigFile(t)(cfgFile, client); err != nil {
+				if err := prepKubeAdminConfigFile(cfgFile, client); err != nil {
 					return err
 				}
 				_, err := client.CoreV1().ConfigMaps(metav1.NamespacePublic).Create(context.TODO(), &corev1.ConfigMap{
@@ -213,29 +213,28 @@ func TestCreateClusterInfoRBACRules(t *testing.T) {
 
 const staleBootstrapKubeConfig = "stale-bootstrap-kubeconfig"
 
-func prepKubeAdminConfigFile(t *testing.T) func(cfgFile string, _ kubernetes.Interface) error {
-	t.Helper()
-	return func(cfgFile string, _ kubernetes.Interface) error {
-		caKarmadaCert, err := certs.NewCertificateAuthority(certs.KarmadaCertAdmin())
-		if err != nil {
-			t.Fatalf("NewCertificateAuthority() returned an error: %v", err)
-		}
-
-		kubeAdminConfigLocal := fmt.Sprintf(
-			kubeAdminConfig,
-			base64.StdEncoding.EncodeToString(caKarmadaCert.CertData()),
-			base64.StdEncoding.EncodeToString(caKarmadaCert.CertData()),
-			base64.StdEncoding.EncodeToString(caKarmadaCert.KeyData()),
-		)
-
-		if err = os.WriteFile(cfgFile, []byte(kubeAdminConfigLocal), 0600); err != nil {
-			return fmt.Errorf("failed to write kubeAdminConfig to file, got error: %v", err)
-		}
-
-		return nil
+// prepKubeAdminConfigFile prepares a temporary kubeconfig file for testing.
+func prepKubeAdminConfigFile(cfgFile string, _ kubernetes.Interface) error {
+	caKarmadaCert, err := certs.NewCertificateAuthority(certs.KarmadaCertAdmin())
+	if err != nil {
+		return fmt.Errorf("failed to create certificate authority: %v", err)
 	}
+
+	kubeAdminConfigLocal := fmt.Sprintf(
+		kubeAdminConfig,
+		base64.StdEncoding.EncodeToString(caKarmadaCert.CertData()),
+		base64.StdEncoding.EncodeToString(caKarmadaCert.CertData()),
+		base64.StdEncoding.EncodeToString(caKarmadaCert.KeyData()),
+	)
+
+	if err = os.WriteFile(cfgFile, []byte(kubeAdminConfigLocal), 0600); err != nil {
+		return fmt.Errorf("failed to write kubeAdminConfig to file, got error: %v", err)
+	}
+
+	return nil
 }
 
+// removeKubeAdminConfigFile removes the temporary kubeconfig file.
 func removeKubeAdminConfigFile(cfgFile string) error {
 	if err := os.Remove(cfgFile); err != nil {
 		return fmt.Errorf("failed to remove config file %s, got an error: %v", cfgFile, err)
