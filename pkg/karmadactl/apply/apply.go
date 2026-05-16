@@ -65,7 +65,7 @@ var (
 		Alpha Disclaimer: the --prune functionality is not yet complete. Do not use unless you are aware of what the current state is. See https://issues.k8s.io/34274.
 
 		Note: It implements the function of 'kubectl apply' by default.
-		If you want to propagate them into member clusters, please use %[1]s apply --all-clusters'.`)
+		If you want to propagate them into member clusters, please use %[1]s apply --all-clusters.`)
 
 	applyExample = templates.Examples(`
 		# Apply the configuration without propagation into member clusters. It acts as 'kubectl apply'.
@@ -91,7 +91,7 @@ func NewCmdApply(f util.Factory, parentCommand string, streams genericiooptions.
 	cmd := &cobra.Command{
 		Use:                   "apply (-f FILENAME | -k DIRECTORY)",
 		Short:                 "Apply a configuration to a resource by file name or stdin and propagate them into member clusters",
-		Long:                  applyLong,
+		Long:                  fmt.Sprintf(applyLong, parentCommand),
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
 		Example:               fmt.Sprintf(applyExample, parentCommand),
