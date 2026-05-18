@@ -325,6 +325,19 @@ func (s *Scheduler) Run(ctx context.Context) {
 
 	go wait.Until(s.worker, time.Second, ctx.Done())
 
+	if s.schedulerCache != nil && s.schedulerCache.AssigningResourceBindings() != nil {
+		assumptionCache := s.schedulerCache.AssigningResourceBindings()
+		// Periodically clean up stale assumptions in the cache to prevent memory leaks.
+		// This serves as a safety net for assumptions whose normal release path (e.g., Healthy signal)
+		// was never triggered.
+		go wait.Until(func() {
+			removed := assumptionCache.GC()
+			if removed > 0 {
+				klog.V(4).Infof("Assumption cache GC: removed %d expired entries", removed)
+			}
+		}, time.Minute, ctx.Done())
+	}
+
 	if features.FeatureGate.Enabled(features.PriorityBasedScheduling) {
 		s.priorityQueue.Run()
 		<-ctx.Done()

@@ -428,19 +428,6 @@ func TestGC(t *testing.T) {
 	assert.Contains(t, c.assumptions, "ns/rb3", "non-expired entry should be kept")
 }
 
-func TestOnBindingDelete_CleansAssumptions(t *testing.T) {
-	c := newTestAssumptionCache(time.Minute)
-	c.Assume("ns/rb1", "cluster1", makeAssumedWorkload("ns"))
-
-	binding := &workv1alpha2.ResourceBinding{}
-	binding.Namespace = "ns"
-	binding.Name = "rb1"
-	c.OnBindingDelete(binding)
-
-	assert.NotContains(t, c.assumptions, "ns/rb1", "OnBindingDelete should remove corresponding reservation")
-	assert.NotContains(t, c.items, "ns/rb1")
-}
-
 // BenchmarkGetAssumedWorkloads measures the performance of GetAssumedWorkloads under
 // varying cache sizes.  The benchmark covers the realistic operating range (N ≤ 50,
 // governed by the reservation TTL) as well as stress sizes to quantify O(N) scaling.

@@ -202,7 +202,6 @@ func (b *AssigningResourceBindingCache) OnBindingDelete(binding *workv1alpha2.Re
 
 	key := names.NamespacedKey(binding.Namespace, binding.Name)
 	delete(b.items, key)
-	delete(b.assumptions, key)
 }
 
 // Add records a ResourceBinding that has a new scheduling decision committed to the API server.
