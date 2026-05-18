@@ -18,6 +18,8 @@ package luavm
 
 import (
 	"math"
+	"strconv"
+	"strings"
 
 	lua "github.com/yuin/gopher-lua"
 	corev1 "k8s.io/api/core/v1"
@@ -56,10 +58,12 @@ func KubeLoader(ls *lua.LState) int {
 }
 
 var kubeFuncs = map[string]lua.LGFunction{
-	"resourceAdd":             resourceAdd,
-	"accuratePodRequirements": accuratePodRequirements,
-	"getPodDependencies":      getPodDependencies,
-	"getResourceQuantity":     getResourceQuantity,
+	"resourceAdd":               resourceAdd,
+	"accuratePodRequirements":   accuratePodRequirements,
+	"getPodDependencies":        getPodDependencies,
+	"getResourceQuantity":       getResourceQuantity,
+	"getResourceQuantityString": getResourceQuantityString,
+	"parseFlinkMemory":          parseFlinkMemory,
 }
 
 func resourceAdd(ls *lua.LState) int {
@@ -151,6 +155,86 @@ func getResourceQuantity(ls *lua.LState) int {
 	}
 
 	ls.Push(lua.LNumber(num))
+	return 1
+}
+
+func getResourceQuantityString(ls *lua.LState) int {
+	if ls.GetTop() != 1 {
+		ls.RaiseError("getResourceQuantityString only accepts one argument")
+		return 0
+	}
+
+	q := checkResourceQuantity(ls, 1)
+	ls.Push(lua.LString(q.String())) // preserves suffix/format
+	return 1
+}
+
+// flinkMemoryMultipliers maps Flink MemorySize suffixes to byte multipliers.
+// Flink uses binary (1024-based) multipliers: b=1, k=1024, m=1024^2, g=1024^3, t=1024^4.
+// See: org.apache.flink.configuration.MemorySize.MemoryUnit
+var flinkMemoryMultipliers = map[string]int64{
+	"":           1,
+	"b":          1,
+	"bytes":      1,
+	"k":          1024,
+	"kb":         1024,
+	"kibibytes":  1024,
+	"m":          1048576,
+	"mb":         1048576,
+	"mebibytes":  1048576,
+	"g":          1073741824,
+	"gb":         1073741824,
+	"gibibytes":  1073741824,
+	"t":          1099511627776,
+	"tb":         1099511627776,
+	"tebibytes":  1099511627776,
+}
+
+// parseFlinkMemory parses a Flink memory string (e.g., "4096m", "2g") and returns
+// the value in bytes as a Lua number. This is needed because Flink's "m" suffix means
+// mebibytes (1024^2), while Kubernetes' resource.MustParse interprets "m" as milli (10^-3).
+func parseFlinkMemory(ls *lua.LState) int {
+	if ls.GetTop() != 1 {
+		ls.RaiseError("parseFlinkMemory only accepts one argument")
+		return 0
+	}
+
+	v := ls.Get(1)
+	if v.Type() == lua.LTNil {
+		ls.Push(lua.LNumber(0))
+		return 1
+	}
+
+	s := strings.TrimSpace(ls.CheckString(1))
+	if len(s) == 0 {
+		ls.Push(lua.LNumber(0))
+		return 1
+	}
+
+	// Extract leading digits.
+	i := 0
+	for i < len(s) && s[i] >= '0' && s[i] <= '9' {
+		i++
+	}
+	if i == 0 {
+		ls.Push(lua.LNumber(0))
+		return 1
+	}
+
+	value, err := strconv.ParseInt(s[:i], 10, 64)
+	if err != nil {
+		ls.RaiseError("parseFlinkMemory: invalid number %q: %v", s[:i], err)
+		return 0
+	}
+
+	suffix := strings.ToLower(strings.TrimSpace(s[i:]))
+	mult, ok := flinkMemoryMultipliers[suffix]
+	if !ok {
+		ls.RaiseError("parseFlinkMemory: unrecognized suffix %q", suffix)
+		return 0
+	}
+
+	ls.Push(lua.LNumber(value * mult))
 	return 1
 }
 
