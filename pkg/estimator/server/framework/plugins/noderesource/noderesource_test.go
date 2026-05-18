@@ -327,7 +327,10 @@ func TestNodeResourceEstimator_EstimateComponents(t *testing.T) {
 			}
 
 			// Execute test
-			result, status := pl.EstimateComponents(context.Background(), snapshot, tt.components, "")
+			result, status := pl.EstimateComponents(context.Background(), framework.ComponentEstimationContext{
+				Snapshot:   snapshot,
+				Components: tt.components,
+			})
 
 			// Verify results
 			if result != tt.expected {

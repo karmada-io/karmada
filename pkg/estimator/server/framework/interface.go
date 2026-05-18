@@ -39,12 +39,12 @@ type Framework interface {
 	// It is merged from all plugins' returned result codes.
 	RunEstimateReplicasPlugins(ctx context.Context, snapshot *schedcache.Snapshot, replicaRequirements *pb.ReplicaRequirements) (int32, *Result)
 	// RunEstimateComponentsPlugins runs the set of configured EstimateComponentsPlugins
-	// for estimating the maximum number of complete component sets based on the given components.
+	// for estimating the maximum number of complete component sets based on the given estCtx.
 	// It returns an integer and a Result.
 	// The integer represents the minimum calculated value of estimated component sets from each EstimateComponentsPlugin.
 	// The Result contains code, reasons and error.
 	// It is merged from all plugins' returned result codes.
-	RunEstimateComponentsPlugins(ctx context.Context, snapshot *schedcache.Snapshot, components []*pb.Component, namespace string) (int32, *Result)
+	RunEstimateComponentsPlugins(ctx context.Context, estCtx ComponentEstimationContext) (int32, *Result)
 	// TODO(wengyao04): we can add filter and score plugin extension points if needed in the future
 }
 
@@ -75,7 +75,20 @@ type EstimateComponentsPlugin interface {
 	// The integer represents the estimated number of complete component sets that can be scheduled.
 	// The Result contains code, reasons and error.
 	// It is merged from all plugins' returned result codes.
-	EstimateComponents(ctx context.Context, snapshot *schedcache.Snapshot, components []*pb.Component, namespace string) (int32, *Result)
+	EstimateComponents(ctx context.Context, estCtx ComponentEstimationContext) (int32, *Result)
+}
+
+// ComponentEstimationContext contains the business context required by component-set estimators.
+// It intentionally keeps framework/plugin interfaces decoupled from transport-level request objects.
+type ComponentEstimationContext struct {
+	// Snapshot is the scheduler cache snapshot used for estimation.
+	Snapshot *schedcache.Snapshot
+	// Components is the workload component template of one complete set.
+	Components []*pb.Component
+	// Namespace is the workload namespace (used by quota-aware plugins).
+	Namespace string
+	// AssumedWorkloads are in-flight workloads already assigned to this target cluster.
+	AssumedWorkloads []*pb.AssumedWorkload
 }
 
 // Handle provides data and some tools that plugins can use. It is
