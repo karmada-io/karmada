@@ -24,6 +24,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -1330,8 +1331,272 @@ func TestGetMaxAvailableComponentSetsGeneral(t *testing.T) {
 	estimator := NewGeneralEstimator()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := estimator.maxAvailableComponentSets(tt.cluster, tt.components)
+			result := estimator.maxAvailableComponentSets(tt.cluster, tt.components, nil)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+func TestMaxAvailableComponentSets_AssumedWorkloadDeduction(t *testing.T) {
+	// Base cluster: 100 pods, 10 CPU, 8Gi memory available.
+	baseCluster := func(cpuAlloc, memAllocGi string) *clusterv1alpha1.Cluster {
+		return &clusterv1alpha1.Cluster{
+			Status: clusterv1alpha1.ClusterStatus{
+				ResourceSummary: &clusterv1alpha1.ResourceSummary{
+					Allocatable: corev1.ResourceList{
+						corev1.ResourcePods:   resource.MustParse("100"),
+						corev1.ResourceCPU:    resource.MustParse(cpuAlloc),
+						corev1.ResourceMemory: resource.MustParse(memAllocGi),
+					},
+				},
+			},
+		}
+	}
+
+	// Component set: 1 jobmanager (1 CPU) + 2 taskmanagers (1.5 CPU each) = 4 CPU per set
+	finkComponents := []workv1alpha2.Component{
+		{
+			Name:     "jobmanager",
+			Replicas: 1,
+			ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+				ResourceRequest: corev1.ResourceList{
+					corev1.ResourceCPU: resource.MustParse("1"),
+				},
+			},
+		},
+		{
+			Name:     "taskmanager",
+			Replicas: 2,
+			ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+				ResourceRequest: corev1.ResourceList{
+					corev1.ResourceCPU: resource.MustParse("1500m"),
+				},
+			},
+		},
+	}
+
+	tests := []struct {
+		name             string
+		cluster          *clusterv1alpha1.Cluster
+		components       []workv1alpha2.Component
+		assumedWorkloads []AssumedWorkload
+		expected         int32
+	}{
+		{
+			name:       "no assumed workloads — baseline unchanged",
+			cluster:    baseCluster("10", "8Gi"),
+			components: finkComponents,
+			// 10 CPU / 4 CPU-per-set = 2 sets
+			expected: 2,
+		},
+		{
+			name:       "assumed workload deducts CPU, reduces set count",
+			cluster:    baseCluster("10", "8Gi"),
+			components: finkComponents,
+			assumedWorkloads: []AssumedWorkload{
+				{
+					Namespace: "ns",
+					Components: []workv1alpha2.Component{
+						{
+							Name:     "jobmanager",
+							Replicas: 1,
+							ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+								ResourceRequest: corev1.ResourceList{
+									corev1.ResourceCPU: resource.MustParse("1"),
+								},
+							},
+						},
+						{
+							Name:     "taskmanager",
+							Replicas: 2,
+							ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+								ResourceRequest: corev1.ResourceList{
+									corev1.ResourceCPU: resource.MustParse("1500m"),
+								},
+							},
+						},
+					},
+				},
+			},
+			// Assumed uses 4 CPU → remaining 6 CPU / 4 per-set = 1 set
+			expected: 1,
+		},
+		{
+			name:       "assumed workload exhausts all CPU → 0 sets",
+			cluster:    baseCluster("8", "8Gi"),
+			components: finkComponents,
+			assumedWorkloads: []AssumedWorkload{
+				{
+					Namespace: "ns",
+					Components: []workv1alpha2.Component{
+						{
+							Name:     "taskmanager",
+							Replicas: 4,
+							ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+								ResourceRequest: corev1.ResourceList{
+									corev1.ResourceCPU: resource.MustParse("2"),
+								},
+							},
+						},
+					},
+				},
+			},
+			// Assumed uses 8 CPU → 0 remaining → 0 sets
+			expected: 0,
+		},
+		{
+			name: "assumed workload exhausts pod budget → 0 sets",
+			cluster: &clusterv1alpha1.Cluster{
+				Status: clusterv1alpha1.ClusterStatus{
+					ResourceSummary: &clusterv1alpha1.ResourceSummary{
+						Allocatable: corev1.ResourceList{
+							corev1.ResourcePods: resource.MustParse("3"),
+							corev1.ResourceCPU:  resource.MustParse("100"),
+						},
+					},
+				},
+			},
+			components: finkComponents, // 3 pods per set
+			assumedWorkloads: []AssumedWorkload{
+				{
+					Components: []workv1alpha2.Component{
+						{Name: "worker", Replicas: 3},
+					},
+				},
+			},
+			// 3 pods assumed, 0 remaining → 0 sets
+			expected: 0,
+		},
+		{
+			name:       "multiple assumed workloads — cumulative deduction",
+			cluster:    baseCluster("12", "8Gi"),
+			components: finkComponents,
+			assumedWorkloads: []AssumedWorkload{
+				{
+					Namespace: "ns-a",
+					Components: []workv1alpha2.Component{
+						{
+							Name:     "jobmanager",
+							Replicas: 1,
+							ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+								ResourceRequest: corev1.ResourceList{
+									corev1.ResourceCPU: resource.MustParse("1"),
+								},
+							},
+						},
+					},
+				},
+				{
+					Namespace: "ns-b",
+					Components: []workv1alpha2.Component{
+						{
+							Name:     "taskmanager",
+							Replicas: 2,
+							ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+								ResourceRequest: corev1.ResourceList{
+									corev1.ResourceCPU: resource.MustParse("1500m"),
+								},
+							},
+						},
+					},
+				},
+			},
+			// Assumed total: 1 CPU + 3 CPU = 4 CPU → remaining 8 CPU / 4 per-set = 2 sets
+			expected: 2,
+		},
+		{
+			name:       "assumed workload with no resource requirements — only pod deduction",
+			cluster:    baseCluster("10", "8Gi"),
+			components: finkComponents,
+			assumedWorkloads: []AssumedWorkload{
+				{
+					Components: []workv1alpha2.Component{
+						{Name: "no-req-worker", Replicas: 3},
+					},
+				},
+			},
+			// Pods: 100 - 3 = 97; 97/3 = 32 pod-bound sets; CPU: 10/4 = 2 sets → min = 2
+			expected: 2,
+		},
+	}
+
+	ge := NewGeneralEstimator()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ge.maxAvailableComponentSets(tt.cluster, tt.components, tt.assumedWorkloads)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+// TestMaxAvailableComponentSets_PerClusterRouting verifies that AssumedWorkloads are routed
+// per-cluster: each cluster only sees its own assumed workloads, not those of other clusters.
+func TestMaxAvailableComponentSets_PerClusterRouting(t *testing.T) {
+	// Both clusters have identical capacity: 100 pods, 8 CPU.
+	makeCluster := func(name string) *clusterv1alpha1.Cluster {
+		return &clusterv1alpha1.Cluster{
+			ObjectMeta: metav1.ObjectMeta{Name: name},
+			Status: clusterv1alpha1.ClusterStatus{
+				ResourceSummary: &clusterv1alpha1.ResourceSummary{
+					Allocatable: corev1.ResourceList{
+						corev1.ResourcePods: resource.MustParse("100"),
+						corev1.ResourceCPU:  resource.MustParse("8"),
+					},
+				},
+			},
+		}
+	}
+
+	// 1 set = 4 CPU; 8 CPU → 2 sets without any assumed workloads.
+	components := []workv1alpha2.Component{
+		{
+			Name:     "worker",
+			Replicas: 2,
+			ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+				ResourceRequest: corev1.ResourceList{
+					corev1.ResourceCPU: resource.MustParse("2"),
+				},
+			},
+		},
+	}
+
+	// Only cluster-a has 4 CPU assumed; cluster-b has none.
+	assumed4CPU := []AssumedWorkload{
+		{
+			Components: []workv1alpha2.Component{
+				{
+					Name:     "assumed-worker",
+					Replicas: 2,
+					ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+						ResourceRequest: corev1.ResourceList{
+							corev1.ResourceCPU: resource.MustParse("2"),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	req := ComponentSetEstimationRequest{
+		Clusters:   []*clusterv1alpha1.Cluster{makeCluster("cluster-a"), makeCluster("cluster-b")},
+		Components: components,
+		AssumedWorkloads: map[string][]AssumedWorkload{
+			"cluster-a": assumed4CPU,
+			// cluster-b intentionally absent
+		},
+	}
+
+	ge := NewGeneralEstimator()
+	resp, err := ge.MaxAvailableComponentSets(context.Background(), req)
+	assert.NoError(t, err)
+	assert.Len(t, resp, 2)
+
+	byName := map[string]int32{}
+	for _, r := range resp {
+		byName[r.Name] = r.Sets
+	}
+	// cluster-a: 8 CPU - 4 assumed = 4 remaining → 4/4 = 1 set
+	assert.Equal(t, int32(1), byName["cluster-a"], "cluster-a should have 1 set after deduction")
+	// cluster-b: no assumptions → 8/4 = 2 sets
+	assert.Equal(t, int32(2), byName["cluster-b"], "cluster-b should have 2 sets (unaffected)")
 }
