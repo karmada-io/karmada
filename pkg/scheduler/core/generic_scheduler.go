@@ -195,7 +195,7 @@ func (g *genericScheduler) prioritizeClusters(
 
 func (g *genericScheduler) selectClusters(clustersScore framework.ClusterScoreList,
 	placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus) ([]spreadconstraint.ClusterDetailInfo, error) {
-	return SelectClusters(clustersScore, placement, spec, status)
+	return SelectClusters(clustersScore, placement, spec, status, g.schedulerCache.AssigningResourceBindings())
 }
 
 func (g *genericScheduler) assignReplicas(clusters []spreadconstraint.ClusterDetailInfo, spec *workv1alpha2.ResourceBindingSpec,

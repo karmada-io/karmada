@@ -29,6 +29,7 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	estimatorclient "github.com/karmada-io/karmada/pkg/estimator/client"
 	"github.com/karmada-io/karmada/pkg/features"
+	schedulercache "github.com/karmada-io/karmada/pkg/scheduler/cache"
 	"github.com/karmada-io/karmada/pkg/scheduler/core/spreadconstraint"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
@@ -53,7 +54,7 @@ func getDefaultWeightPreference(clusters []spreadconstraint.ClusterDetailInfo) *
 	}
 }
 
-func calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster {
+func calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec, assigningCache *schedulercache.AssigningResourceBindingCache) []workv1alpha2.TargetCluster {
 	availableTargetClusters := make([]workv1alpha2.TargetCluster, len(clusters))
 
 	// Set the boundary.
@@ -78,7 +79,14 @@ func calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha
 	for name, estimator := range estimators {
 		if features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) && isMultiTemplateSchedulingApplicable(spec) {
 			var err error
-			availableTargetClusters, err = calculateMultiTemplateAvailableSets(ctx, estimator, name, clusters, spec, availableTargetClusters)
+			availableTargetClusters, err = calculateMultiTemplateAvailableSets(ctx, multiTemplateEstimationContext{
+				estimator:               estimator,
+				estimatorName:           name,
+				clusters:                clusters,
+				spec:                    spec,
+				availableTargetClusters: availableTargetClusters,
+				assigningCache:          assigningCache,
+			})
 			if err != nil {
 				continue
 			}
