@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: http-probe-app-canary-member3
+  labels:
+    app: http-probe-app
+    version: canary
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: http-probe-app
+      version: canary-member3
+  template:
+    metadata:
+      labels:
+        app: http-probe-app
+        version: canary-member3
+    spec:
+      containers:
+        - name: http-probe-app
+          image: ghcr.io/cmontemuino/http-probe-test-app:v0.5.0
+          ports:
+            - containerPort: 8080
+          env:
+            - name: ROLLOUT_LABEL
+              value: v2
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 25m
+              memory: 64Mi
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+---
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: http-probe-app-canary-member3-propagation
+spec:
+  resourceSelectors:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: http-probe-app-canary-member3
+  placement:
+    clusterAffinity:
+      clusterNames:
+        - member3

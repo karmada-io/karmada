@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: http-probe-app-wave
+  labels:
+    app: http-probe-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: http-probe-app
+      version: wave
+  template:
+    metadata:
+      labels:
+        app: http-probe-app
+        version: wave
+    spec:
+      containers:
+        - name: http-probe-app
+          image: ghcr.io/cmontemuino/http-probe-test-app:v0.5.0
+          ports:
+            - containerPort: 8080
+          env:
+            - name: ROLLOUT_LABEL
+              value: v2
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 25m
+              memory: 64Mi
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5

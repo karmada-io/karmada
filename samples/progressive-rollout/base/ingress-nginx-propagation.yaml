@@ -1,0 +1,49 @@
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: ingress-nginx-propagation
+  namespace: ingress-nginx
+spec:
+  resourceSelectors:
+    - apiVersion: v1
+      kind: ServiceAccount
+      name: ingress-nginx
+    - apiVersion: v1
+      kind: ServiceAccount
+      name: ingress-nginx-admission
+    - apiVersion: rbac.authorization.k8s.io/v1
+      kind: Role
+      name: ingress-nginx
+    - apiVersion: rbac.authorization.k8s.io/v1
+      kind: Role
+      name: ingress-nginx-admission
+    - apiVersion: rbac.authorization.k8s.io/v1
+      kind: RoleBinding
+      name: ingress-nginx
+    - apiVersion: rbac.authorization.k8s.io/v1
+      kind: RoleBinding
+      name: ingress-nginx-admission
+    - apiVersion: v1
+      kind: ConfigMap
+      name: ingress-nginx-controller
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: ingress-nginx-controller
+    - apiVersion: v1
+      kind: Service
+      name: ingress-nginx-controller
+    - apiVersion: v1
+      kind: Service
+      name: ingress-nginx-controller-admission
+    - apiVersion: batch/v1
+      kind: Job
+      name: ingress-nginx-admission-create
+    - apiVersion: batch/v1
+      kind: Job
+      name: ingress-nginx-admission-patch
+  placement:
+    clusterAffinity:
+      clusterNames:
+        - member1
+        - member2
+        - member3
