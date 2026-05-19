@@ -1,0 +1,161 @@
+# This workflow automates cherry-picking merged PRs to release branches, complementing
+# the manual hack/cherry_pick_pull.sh script which remains useful for complex cases.
+#
+# Any contributor can trigger a backport by adding a "backport-to-<branch>" label to a PR.
+# The target branch is extracted from the label (e.g., "backport-to-release-1.17" creates a
+# backport PR against "release-1.17"). This is dynamic, no config update needed for new branches.
+#
+# The workflow runs on two events: "closed" (PR merged with labels already applied) and
+# "labeled" (label added after the PR is already merged). Unmerged PRs with backport labels
+# are skipped, the PR must be merged for the backport to proceed.
+#
+# Identity: The backport PRs are created by the github-actions[bot] using the GITHUB_TOKEN.
+# The cherry-picked commit preserves the original author, but the committer is the bot.
+#
+# Conflicts: When commitConflicts is true in .backportrc.json, the backport PR is still
+# created even if cherry-pick conflicts occur. Conflict markers are left in the files.
+# Two options to resolve:
+#   1. Fix in-place: resolve conflict markers directly in the backport PR branch, commit, push.
+#   2. Start fresh: close the conflicted backport PR and use hack/cherry_pick_pull.sh locally
+#      for interactive resolution, which creates a new clean cherry-pick PR.
+#
+# Under the hood, it uses sorenlouv/backport-github-action, which reads .backportrc.json
+# for configuration (label-to-branch mapping, PR title template, conflict handling, etc.).
+#
+# .backportrc.json field reference (all available options with defaults):
+#
+# Required fields:
+#   - repoOwner (required): GitHub org or username that owns the repository.
+#   - repoName (required): Name of the GitHub repository.
+#   - targetBranchChoices (required for CLI): Branches shown in interactive CLI prompt. Not needed for GitHub Action when branchLabelMapping is used.
+#
+# Branch & label mapping:
+#   - branchLabelMapping (default: {}): Regex map from PR label to target branch. E.g., "^backport-to-(.+)$": "$1" means label "backport-to-release-1.17" maps to branch "release-1.17". No config update needed for new branches.
+#   - targetBranches (default: []): Hardcoded list of branches to backport to, bypassing interactive selection. Overrides targetBranchChoices.
+#   - sourceBranch (default: repo default branch): Branch to source commits from.
+#
+# PR creation:
+#   - prTitle (default: "[{{targetBranch}}] {{commitMessages}}"): Template for backport PR title. Supports {{sourceBranch}}, {{targetBranch}}, {{commitMessages}}, {{sourcePullRequest}}, {{commits}}.
+#   - prDescription (default: auto-generated): Template for backport PR body. Supports {{sourceBranch}}, {{targetBranch}}, {{commitMessages}}, {{defaultPrDescription}}, {{commits}}.
+#   - backportBranchName (default: "backport/{{targetBranch}}/{{refValues}}"): Branch name for backport PRs. Supports {{targetBranch}}, {{sourcePullRequest}}, {{refValues}}.
+#
+# Labels:
+#   - targetPRLabels (default: []): Labels added to the backport (target) PR.
+#   - sourcePRLabels (default: []): Labels added to the original (source) PR after backporting.
+#   - copySourcePRLabels (default: false): Copy labels from source PR to backport PR. Can be true/false or array of regex patterns.
+#
+# Assignees & reviewers:
+#   - assignees (default: []): Users to assign to the backport PR.
+#   - autoAssign (default: false): Auto-assign the current user to the backport PR.
+#   - reviewers (default: []): Users to add as reviewers on the backport PR.
+#   - copySourcePRReviewers (default: false): Copy reviewers from the source PR to the backport PR.
+#
+# Auto-merge:
+#   - autoMerge (default: false): Automatically merge the backport PR when created.
+#   - autoMergeMethod (default: "merge"): Merge method when autoMerge is true. Options: "merge", "rebase", "squash".
+#
+# Conflict handling:
+#   - commitConflicts (default: false): When true, creates backport PR even with conflicts (conflict markers left in files for manual resolution). Disables auto-merge for that PR.
+#   - autoResolveConflictsWithTheirs (default: false): Resolves conflicts using --strategy-option=theirs (keeps source version). Creates clean PR but disables auto-merge.
+#
+# Status comments:
+#   - publishStatusCommentOnSuccess (default: true): Post comment on source PR when backport succeeds.
+#   - publishStatusCommentOnFailure (default: false): Post comment on source PR when backport fails.
+#   - publishStatusCommentOnAbort (default: false): Post comment on source PR when backport is aborted.
+#
+# Filtering:
+#   - author (default: authenticated user): Filter commits by author. Set to null for all users.
+#   - maxNumber (default: 10): Max commits shown in interactive prompt.
+#   - prFilter (default: ""): GitHub search query to filter source PRs.
+#   - commitPaths (default: []): Only list commits touching files under these paths.
+#   - dateSince / dateUntil: Filter commits by date range.
+#
+# Git options:
+#   - fork (default: true): Create backport branch in user's fork (true) or origin repo (false).
+#   - mainline: Parent ID for cherry-picking merge commits. Passed to git cherry-pick --mainline.
+#   - resetAuthor (default: false): Change backported commit author to the current user.
+#   - signoff (default: false): Append an additional Signed-off-by line from the committer to the cherry-picked commit. The original author's sign-off is always preserved by git cherry-pick regardless of this setting. Karmada requires DCO sign-off on all commits, but since the original commit already carries it, this can remain false.
+#   - dir (default: "~/.backport/repositories/"): Directory to clone repository into.
+#
+# Misc:
+#   - backportBinary (default: "backport"): Command shown in GitHub status comments.
+#   - gitHostname (default: "github.com"): GitHub hostname (for GitHub Enterprise).
+#   - githubApiBaseUrlV3 (default: "https://api.github.com"): GitHub REST API base URL.
+#   - githubApiBaseUrlV4 (default: "https://api.github.com/graphql"): GitHub GraphQL API base URL.
+#   - multipleCommits (default: false): Allow selecting multiple commits in interactive mode.
+#   - multipleBranches (default: true): Allow selecting multiple branches in interactive mode.
+
+name: Backport
+
+on:
+  pull_request_target:
+    types: ["labeled", "closed"]
+
+permissions:
+  # It needs write access to push cherry-picked branches to the repository.
+  contents: write
+  # It needs write access to create backport PRs and post status comments on source PRs.
+  pull-requests: write
+
+# When multiple labels are added, each triggers a separate run. This ensures only the last
+# run (which sees all labels) completes, cancelling earlier runs for the same PR.
+concurrency:
+  group: backport-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  backport:
+    name: "Backport PR #${{ github.event.pull_request.number }}"
+    if: >
+      github.event.pull_request.merged == true
+      && contains(join(github.event.pull_request.labels.*.name, ','), 'backport-to-')
+    runs-on: ubuntu-latest
+    steps:
+      # Idempotency check: the backport tool creates branches named
+      # "backport/{targetBranch}/pr-{number}" (matching the backportBranchName config).
+      # If all target branches already have a corresponding backport branch, skip the action.
+      - name: Check for existing backport branches
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+
+          # Extract target branches from backport labels.
+          LABELS=$(echo '${{ toJSON(github.event.pull_request.labels.*.name) }}' | jq -r '.[] | select(startswith("backport-to-"))' | sed 's/^backport-to-//')
+
+          PENDING=""
+          for BRANCH in $LABELS; do
+            # Check if the backport branch already exists on the remote.
+            BACKPORT_BRANCH="backport/${BRANCH}/pr-${PR_NUMBER}"
+            # URL-encode slashes in the branch name, otherwise the API interprets them as path segments.
+            ENCODED_BRANCH=$(echo "$BACKPORT_BRANCH" | sed 's/\//%2F/g')
+            if gh api "repos/${{ github.repository }}/branches/${ENCODED_BRANCH}" --silent 2>/dev/null; then
+              echo "Branch $BACKPORT_BRANCH already exists, skipping."
+            else
+              PENDING="$PENDING $BRANCH"
+              echo "Branch $BACKPORT_BRANCH does not exist, will create."
+            fi
+          done
+
+          if [ -z "$PENDING" ]; then
+            echo "All backport branches already exist. Nothing to do."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Backport Action
+        if: steps.check.outputs.skip != 'true'
+        uses: sorenlouv/backport-github-action@v10.4.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          auto_backport_label_prefix: backport-to-
+
+      - name: Info log
+        if: steps.check.outputs.skip != 'true' && success()
+        run: cat ~/.backport/backport.info.log
+
+      - name: Debug log
+        if: steps.check.outputs.skip != 'true' && failure()
+        run: cat ~/.backport/backport.debug.log
