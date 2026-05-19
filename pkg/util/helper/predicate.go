@@ -29,10 +29,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
-// WorkWithinPushClusterPredicate generates the event filter function to skip events that the controllers are uninterested.
-// Used by controllers:
-// - execution controller working in karmada-controller-manager
-// - work status controller working in karmada-controller-manager
+// WorkWithinPushClusterPredicate generates the event filter function for execution-controller in karmada-controller-manager
 func WorkWithinPushClusterPredicate(mgr controllerruntime.Manager) predicate.Funcs {
 	predFunc := func(object client.Object) bool {
 		obj := object.(*workv1alpha1.Work)
@@ -66,6 +63,65 @@ func WorkWithinPushClusterPredicate(mgr controllerruntime.Manager) predicate.Fun
 			return false
 		},
 	}
+}
+
+func newWorkStatusPredicate(predFunc func(object client.Object) bool) predicate.Funcs {
+	return predicate.Funcs{
+		CreateFunc: func(createEvent event.CreateEvent) bool {
+			return predFunc(createEvent.Object)
+		},
+		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
+			workOld := updateEvent.ObjectOld.(*workv1alpha1.Work)
+			workNew := updateEvent.ObjectNew.(*workv1alpha1.Work)
+			workOldApplied := IsResourceApplied(&workOld.Status)
+			workNewApplied := IsResourceApplied(&workNew.Status)
+			if !workOldApplied && workNewApplied {
+				return predFunc(updateEvent.ObjectNew)
+			}
+			return false
+		},
+		DeleteFunc: func(event.DeleteEvent) bool {
+			return false
+		},
+		GenericFunc: func(event.GenericEvent) bool {
+			return false
+		},
+	}
+}
+
+// NewWorkStatusPredicate generates the event filter function for work-status-controller in karmada-controller-manager
+func NewWorkStatusPredicate(mgr controllerruntime.Manager) predicate.Funcs {
+	predFunc := func(object client.Object) bool {
+		obj := object.(*workv1alpha1.Work)
+
+		clusterName, err := names.GetClusterName(obj.Namespace)
+		if err != nil {
+			klog.Errorf("Failed to get member cluster name for work %s/%s", obj.Namespace, obj.Name)
+			return false
+		}
+
+		clusterObj, err := util.GetCluster(mgr.GetClient(), clusterName)
+		if err != nil {
+			klog.Errorf("Failed to get the given member cluster %s", clusterName)
+			return false
+		}
+
+		return clusterObj.Spec.SyncMode == clusterv1alpha1.Push
+	}
+	return newWorkStatusPredicate(predFunc)
+}
+
+// NewWorkStatusPredicateOnAgent generates the event filter function for work-status-controller in karmada-agent
+func NewWorkStatusPredicateOnAgent(curClusterName string) predicate.Funcs {
+	predFunc := func(object client.Object) bool {
+		clusterName, err := names.GetClusterName(object.GetNamespace())
+		if err != nil {
+			klog.Errorf("Failed to get member cluster name for work %s/%s", object.GetNamespace(), object.GetName())
+			return false
+		}
+		return clusterName == curClusterName
+	}
+	return newWorkStatusPredicate(predFunc)
 }
 
 // NewPredicateForServiceExportController generates an event filter function for ServiceExport controller running by karmada-controller-manager.
