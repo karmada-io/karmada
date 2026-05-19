@@ -273,7 +273,7 @@ EOF
 
 cmd_finalize() {
   # Use http-probe-app-wave-base-v2.yaml — identical to http-probe-app-wave-base.yaml
-  # but with CLUSTER_LABEL: v2. Cannot use http-probe-app-v2.yaml here because it
+  # but with ROLLOUT_LABEL: v2. Cannot use http-probe-app-v2.yaml here because it
   # uses Divided scheduling which would drop replicas from 6 to 2 per cluster.
   echo "==> Updating base manifest to v2 (preserving Duplicated scheduling)..."
   echo "--- manifest: samples/progressive-rollout/wave/http-probe-app-wave-base-v2.yaml"

@@ -25,11 +25,11 @@ spec:
     spec:
       containers:
         - name: http-probe-app
-          image: ghcr.io/cmontemuino/http-probe-test-app:v0.4.0
+          image: ghcr.io/cmontemuino/http-probe-test-app:v0.5.0
           ports:
             - containerPort: 8080
           env:
-            - name: CLUSTER_LABEL
+            - name: ROLLOUT_LABEL
               value: v1
           resources:
             requests:
