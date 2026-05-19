@@ -55,6 +55,7 @@ Generic flags:
       --cluster-startup-grace-period duration                          Specifies the grace period of allowing a cluster to be unresponsive during startup before marking it unhealthy. (default 1m0s)
       --cluster-status-update-frequency duration                       Specifies how often karmada-controller-manager posts cluster status to karmada-apiserver. (default 10s)
       --cluster-success-threshold duration                             The duration of successes for the cluster to be considered healthy after recovery. (default 30s)
+      --concurrent-binding-eviction-syncs int                          The number of taint-manager binding-eviction reconciles that are allowed to run concurrently across both the ResourceBinding and ClusterResourceBinding eviction queues. Raising this lifts the cap on how quickly Karmada can append GracefulEvictionTasks during a cluster-failover storm. (default 5)
       --concurrent-cluster-propagation-policy-syncs int                The number of ClusterPropagationPolicy that are allowed to sync concurrently. (default 1)
       --concurrent-cluster-syncs int                                   The number of Clusters that are allowed to sync concurrently. (default 5)
       --concurrent-clusterresourcebinding-syncs int                    The number of ClusterResourceBindings that are allowed to sync concurrently. (default 5)
