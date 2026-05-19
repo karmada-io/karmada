@@ -19,16 +19,20 @@ package cluster
 import (
 	"context"
 	"reflect"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -987,5 +991,267 @@ func Test_extractStateForEviction(t *testing.T) {
 				assert.Equal(t, tt.expectedState, preservedState)
 			}
 		})
+	}
+}
+
+// newNoExecuteTaintManagerWithClient builds a NoExecuteTaintManager around a
+// caller-supplied client.Client so tests can inject behavior (e.g. transient
+// optimistic-lock conflicts) via interceptor.Funcs.
+func newNoExecuteTaintManagerWithClient(c client.Client) *NoExecuteTaintManager {
+	mgr := &NoExecuteTaintManager{
+		Client:                          c,
+		EnableNoExecuteTaintEviction:    true,
+		NoExecuteTaintEvictionPurgeMode: "Gracefully",
+	}
+	mgr.bindingEvictionWorker = util.NewAsyncWorker(util.Options{
+		Name:          "binding-eviction",
+		KeyFunc:       nil,
+		ReconcileFunc: mgr.syncBindingEviction,
+	})
+	mgr.clusterBindingEvictionWorker = util.NewAsyncWorker(util.Options{
+		Name:          "cluster-binding-eviction",
+		KeyFunc:       nil,
+		ReconcileFunc: mgr.syncClusterBindingEviction,
+	})
+	return mgr
+}
+
+// conflictOnFirstNUpdates returns an interceptor that injects a Conflict error
+// on the first n Update calls for the given GroupResource and lets subsequent
+// Update calls pass through untouched. It is used to verify that the
+// retry-on-conflict wrapper around the read-modify-write sequence transparently
+// recovers from optimistic-lock collisions with peer writers.
+func conflictOnFirstNUpdates(gr schema.GroupResource, name string, n int32) interceptor.Funcs {
+	var remaining = n
+	return interceptor.Funcs{
+		Update: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.UpdateOption) error {
+			if atomic.LoadInt32(&remaining) > 0 {
+				atomic.AddInt32(&remaining, -1)
+				// Bump the cached object's resourceVersion so the next Get inside
+				// the retry loop observes a "newer" version, mirroring what
+				// happens in production when a peer controller lands a write
+				// between our Get and Update.
+				if err := c.Get(ctx, client.ObjectKeyFromObject(obj), obj); err == nil {
+					return apierrors.NewConflict(gr, name, errOptimisticLock)
+				}
+				return apierrors.NewConflict(gr, name, errOptimisticLock)
+			}
+			return c.Update(ctx, obj, opts...)
+		},
+	}
+}
+
+// errOptimisticLock matches the wording the apiserver uses for the
+// stale-resourceVersion case so log messages remain familiar.
+var errOptimisticLock = &errString{"the object has been modified; please apply your changes to the latest version and try again"}
+
+type errString struct{ s string }
+
+func (e *errString) Error() string { return e.s }
+
+func TestNoExecuteTaintManager_syncBindingEviction_retryOnConflict(t *testing.T) {
+	replica := int32(1)
+	rb := &workv1alpha2.ResourceBinding{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ResourceBinding",
+			APIVersion: "work.karmada.io/v1alpha2",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        "conflict-rb",
+			Namespace:   "default",
+			Annotations: map[string]string{"policy.karmada.io/applied-placement": `{"clusterAffinity":{"clusterNames":["test-cluster"]},"clusterTolerations":[{"key":"cluster.karmada.io/unreachable","operator":"Exists","effect":"NoExecute","tolerationSeconds":30}],"replicaScheduling":{"replicaSchedulingType":"Divided","replicaDivisionPreference":"Weighted","weightPreference":{"staticWeightList":[{"targetCluster":{"clusterNames":["test-cluster"]},"weight":1}]}}}`},
+		},
+		Spec: workv1alpha2.ResourceBindingSpec{
+			Clusters: []workv1alpha2.TargetCluster{
+				{Name: "test-cluster", Replicas: replica},
+			},
+		},
+	}
+	cluster := &clusterv1alpha1.Cluster{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-cluster"},
+		Spec: clusterv1alpha1.ClusterSpec{
+			Taints: []corev1.Taint{
+				{Key: "cluster.karmada.io/not-ready", Effect: corev1.TaintEffectNoExecute},
+			},
+		},
+	}
+
+	rbIndexerFunc := func(obj client.Object) []string {
+		rb, ok := obj.(*workv1alpha2.ResourceBinding)
+		if !ok {
+			return nil
+		}
+		return util.GetBindingClusterNames(&rb.Spec)
+	}
+	gr := schema.GroupResource{Group: "work.karmada.io", Resource: "resourcebindings"}
+	fakeClient := fake.NewClientBuilder().
+		WithScheme(gclient.NewSchema()).
+		WithObjects(rb, cluster).
+		WithIndex(&workv1alpha2.ResourceBinding{}, indexregistry.ResourceBindingIndexByFieldCluster, rbIndexerFunc).
+		WithInterceptorFuncs(conflictOnFirstNUpdates(gr, rb.Name, 2)).
+		Build()
+	tc := newNoExecuteTaintManagerWithClient(fakeClient)
+
+	key := keys.FederatedKey{
+		Cluster: "test-cluster",
+		ClusterWideKey: keys.ClusterWideKey{
+			Kind:      "ResourceBinding",
+			Name:      rb.Name,
+			Namespace: rb.Namespace,
+		},
+	}
+	if err := tc.syncBindingEviction(key); err != nil {
+		t.Fatalf("syncBindingEviction returned error after transient conflicts: %v", err)
+	}
+
+	got := &workv1alpha2.ResourceBinding{}
+	if err := fakeClient.Get(context.Background(), types.NamespacedName{Namespace: rb.Namespace, Name: rb.Name}, got); err != nil {
+		t.Fatalf("failed to fetch binding after sync: %v", err)
+	}
+	if len(got.Spec.GracefulEvictionTasks) != 1 {
+		t.Fatalf("expected exactly one graceful eviction task to be appended, got %d", len(got.Spec.GracefulEvictionTasks))
+	}
+	task := got.Spec.GracefulEvictionTasks[0]
+	if task.FromCluster != "test-cluster" {
+		t.Errorf("expected eviction task FromCluster=%q, got %q", "test-cluster", task.FromCluster)
+	}
+	if task.Producer != workv1alpha2.EvictionProducerTaintManager {
+		t.Errorf("expected eviction task Producer=%q, got %q", workv1alpha2.EvictionProducerTaintManager, task.Producer)
+	}
+	if task.PurgeMode != policyv1alpha1.PurgeModeGracefully {
+		t.Errorf("expected eviction task PurgeMode=%q, got %q", policyv1alpha1.PurgeModeGracefully, task.PurgeMode)
+	}
+}
+
+func TestNoExecuteTaintManager_syncClusterBindingEviction_retryOnConflict(t *testing.T) {
+	replica := int32(1)
+	crb := &workv1alpha2.ClusterResourceBinding{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ClusterResourceBinding",
+			APIVersion: "work.karmada.io/v1alpha2",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        "conflict-crb",
+			Annotations: map[string]string{"policy.karmada.io/applied-placement": `{"clusterAffinity":{"clusterNames":["test-cluster"]},"clusterTolerations":[{"key":"cluster.karmada.io/unreachable","operator":"Exists","effect":"NoExecute","tolerationSeconds":30}],"replicaScheduling":{"replicaSchedulingType":"Divided","replicaDivisionPreference":"Weighted","weightPreference":{"staticWeightList":[{"targetCluster":{"clusterNames":["test-cluster"]},"weight":1}]}}}`},
+		},
+		Spec: workv1alpha2.ResourceBindingSpec{
+			Clusters: []workv1alpha2.TargetCluster{
+				{Name: "test-cluster", Replicas: replica},
+			},
+		},
+	}
+	cluster := &clusterv1alpha1.Cluster{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-cluster"},
+		Spec: clusterv1alpha1.ClusterSpec{
+			Taints: []corev1.Taint{
+				{Key: "cluster.karmada.io/not-ready", Effect: corev1.TaintEffectNoExecute},
+			},
+		},
+	}
+
+	crbIndexerFunc := func(obj client.Object) []string {
+		crb, ok := obj.(*workv1alpha2.ClusterResourceBinding)
+		if !ok {
+			return nil
+		}
+		return util.GetBindingClusterNames(&crb.Spec)
+	}
+	gr := schema.GroupResource{Group: "work.karmada.io", Resource: "clusterresourcebindings"}
+	fakeClient := fake.NewClientBuilder().
+		WithScheme(gclient.NewSchema()).
+		WithObjects(crb, cluster).
+		WithIndex(&workv1alpha2.ClusterResourceBinding{}, indexregistry.ClusterResourceBindingIndexByFieldCluster, crbIndexerFunc).
+		WithInterceptorFuncs(conflictOnFirstNUpdates(gr, crb.Name, 2)).
+		Build()
+	tc := newNoExecuteTaintManagerWithClient(fakeClient)
+
+	key := keys.FederatedKey{
+		Cluster: "test-cluster",
+		ClusterWideKey: keys.ClusterWideKey{
+			Kind: "ClusterResourceBinding",
+			Name: crb.Name,
+		},
+	}
+	if err := tc.syncClusterBindingEviction(key); err != nil {
+		t.Fatalf("syncClusterBindingEviction returned error after transient conflicts: %v", err)
+	}
+
+	got := &workv1alpha2.ClusterResourceBinding{}
+	if err := fakeClient.Get(context.Background(), types.NamespacedName{Name: crb.Name}, got); err != nil {
+		t.Fatalf("failed to fetch cluster binding after sync: %v", err)
+	}
+	if len(got.Spec.GracefulEvictionTasks) != 1 {
+		t.Fatalf("expected exactly one graceful eviction task to be appended, got %d", len(got.Spec.GracefulEvictionTasks))
+	}
+}
+
+// TestNoExecuteTaintManager_syncBindingEviction_idempotent verifies that
+// repeated reconciles for a binding that already has an eviction task for the
+// target cluster do not stack duplicate tasks. This guards the safety of the
+// retry-on-conflict refetch loop, which calls Spec.GracefulEvictCluster on
+// each iteration.
+func TestNoExecuteTaintManager_syncBindingEviction_idempotent(t *testing.T) {
+	replica := int32(1)
+	existingTask := workv1alpha2.GracefulEvictionTask{
+		FromCluster: "test-cluster",
+		PurgeMode:   policyv1alpha1.PurgeModeGracefully,
+		Replicas:    &replica,
+		Reason:      workv1alpha2.EvictionReasonTaintUntolerated,
+		Producer:    workv1alpha2.EvictionProducerTaintManager,
+	}
+	rb := &workv1alpha2.ResourceBinding{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ResourceBinding",
+			APIVersion: "work.karmada.io/v1alpha2",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        "idempotent-rb",
+			Namespace:   "default",
+			Annotations: map[string]string{"policy.karmada.io/applied-placement": `{"clusterAffinity":{"clusterNames":["test-cluster"]},"clusterTolerations":[{"key":"cluster.karmada.io/unreachable","operator":"Exists","effect":"NoExecute","tolerationSeconds":30}],"replicaScheduling":{"replicaSchedulingType":"Divided","replicaDivisionPreference":"Weighted","weightPreference":{"staticWeightList":[{"targetCluster":{"clusterNames":["test-cluster"]},"weight":1}]}}}`},
+		},
+		Spec: workv1alpha2.ResourceBindingSpec{
+			Clusters: []workv1alpha2.TargetCluster{
+				{Name: "test-cluster", Replicas: replica},
+			},
+			GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{existingTask},
+		},
+	}
+	cluster := &clusterv1alpha1.Cluster{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-cluster"},
+		Spec: clusterv1alpha1.ClusterSpec{
+			Taints: []corev1.Taint{
+				{Key: "cluster.karmada.io/not-ready", Effect: corev1.TaintEffectNoExecute},
+			},
+		},
+	}
+
+	tc := newNoExecuteTaintManager()
+	if err := tc.Create(context.Background(), rb); err != nil {
+		t.Fatalf("failed to seed binding: %v", err)
+	}
+	if err := tc.Create(context.Background(), cluster); err != nil {
+		t.Fatalf("failed to seed cluster: %v", err)
+	}
+
+	key := keys.FederatedKey{
+		Cluster: "test-cluster",
+		ClusterWideKey: keys.ClusterWideKey{
+			Kind:      "ResourceBinding",
+			Name:      rb.Name,
+			Namespace: rb.Namespace,
+		},
+	}
+	for i := range 3 {
+		if err := tc.syncBindingEviction(key); err != nil {
+			t.Fatalf("syncBindingEviction iteration %d returned error: %v", i, err)
+		}
+	}
+
+	got := &workv1alpha2.ResourceBinding{}
+	if err := tc.Get(context.Background(), types.NamespacedName{Namespace: rb.Namespace, Name: rb.Name}, got); err != nil {
+		t.Fatalf("failed to refetch binding: %v", err)
+	}
+	if len(got.Spec.GracefulEvictionTasks) != 1 {
+		t.Errorf("expected eviction task to remain a single entry across repeated reconciles, got %d tasks", len(got.Spec.GracefulEvictionTasks))
 	}
 }
