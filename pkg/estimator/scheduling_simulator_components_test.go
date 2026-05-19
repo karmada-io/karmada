@@ -17,6 +17,7 @@ limitations under the License.
 package estimator
 
 import (
+	"fmt"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
@@ -353,6 +354,76 @@ func TestSchedulingSimulator_SimulateSchedulingFF(t *testing.T) {
 			}
 			if result != tt.expectedSets {
 				t.Errorf("SimulateScheduling() = %d, expected %d", result, tt.expectedSets)
+			}
+		})
+	}
+}
+
+// BenchmarkSimulateScheduling_AssumedWorkloadDeduction benchmarks the deduction loop
+// used in the noderesource estimator plugin: for each assumed workload, call
+// SimulateScheduling with upperBound=1 to consume its node resources.
+//
+// Scenario assumptions:
+//   - Scheduler throughput ~100 RB/min, TTL 5 min → up to 500 assumed workloads in cache
+//   - Each assumed workload has 2 components (typical multi-template app: web + db)
+//   - Node clusters of 100 / 500 / 1000 nodes
+func BenchmarkSimulateScheduling_AssumedWorkloadDeduction(b *testing.B) {
+	nodeSizes := []int{100, 500, 1000}
+	const assumedCount = 500
+
+	// Build a typical 2-component assumed workload (web + db pattern)
+	makeAssumedComponents := func() []*pb.Component {
+		return []*pb.Component{
+			{
+				Name:     "web",
+				Replicas: 2,
+				ReplicaRequirements: (&pb.ComponentReplicaRequirements{}).MustSetResourceRequest(corev1.ResourceList{
+					corev1.ResourceCPU:    resource.MustParse("500m"),
+					corev1.ResourceMemory: resource.MustParse("512Mi"),
+				}),
+			},
+			{
+				Name:     "db",
+				Replicas: 1,
+				ReplicaRequirements: (&pb.ComponentReplicaRequirements{}).MustSetResourceRequest(corev1.ResourceList{
+					corev1.ResourceCPU:    resource.MustParse("1"),
+					corev1.ResourceMemory: resource.MustParse("1Gi"),
+				}),
+			},
+		}
+	}
+
+	// Build 500 assumed workloads
+	assumedWorkloads := make([][]*pb.Component, assumedCount)
+	for i := range assumedWorkloads {
+		assumedWorkloads[i] = makeAssumedComponents()
+	}
+
+	// makeNodes returns fresh node clones (nodes are mutated during simulation)
+	makeNodes := func(n int) []*schedulerframework.NodeInfo {
+		nodes := make([]*schedulerframework.NodeInfo, n)
+		for i := range nodes {
+			allocatable := corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("16"),
+				corev1.ResourceMemory: resource.MustParse("32Gi"),
+				corev1.ResourcePods:   resource.MustParse("110"),
+			}
+			nodes[i] = createNodeInfo(fmt.Sprintf("node-%d", i), allocatable)
+		}
+		return nodes
+	}
+
+	for _, nodeCount := range nodeSizes {
+		b.Run(fmt.Sprintf("nodes=%d/assumedWorkloads=%d", nodeCount, assumedCount), func(b *testing.B) {
+			b.ReportAllocs()
+			for range b.N {
+				// Each benchmark iteration simulates one EstimateComponents call:
+				// clone fresh nodes (mimics getNodesAvailableResources) then deduct all assumed workloads
+				nodes := makeNodes(nodeCount)
+				simulator := NewSchedulingSimulator(nodes)
+				for _, components := range assumedWorkloads {
+					_, _ = simulator.SimulateScheduling(components, 1)
+				}
 			}
 		})
 	}
