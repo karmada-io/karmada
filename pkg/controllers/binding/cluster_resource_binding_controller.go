@@ -31,9 +31,11 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -185,7 +187,7 @@ func (c *ClusterResourceBindingController) checkDirectPurgeOrphanWorks(ctx conte
 func (c *ClusterResourceBindingController) SetupWithManager(mgr controllerruntime.Manager) error {
 	return controllerruntime.NewControllerManagedBy(mgr).
 		Named(ClusterResourceBindingControllerName).
-		For(&workv1alpha2.ClusterResourceBinding{}).
+		For(&workv1alpha2.ClusterResourceBinding{}, builder.WithPredicates(clusterResourceBindingPredicateFn)).
 		Watches(&policyv1alpha1.ClusterOverridePolicy{}, handler.EnqueueRequestsFromMapFunc(c.newOverridePolicyFunc())).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RateLimiterOptions)}).
@@ -235,4 +237,29 @@ func (c *ClusterResourceBindingController) newOverridePolicyFunc() handler.MapFu
 		}
 		return requests
 	}
+}
+
+var clusterResourceBindingPredicateFn = predicate.Funcs{
+	CreateFunc: func(tce event.TypedCreateEvent[client.Object]) bool {
+		crBinding, ok := tce.Object.(*workv1alpha2.ClusterResourceBinding)
+		if !ok {
+			return false
+		}
+		return crBinding.Status.SchedulerObservedGeneration == crBinding.Generation
+	},
+	UpdateFunc: func(tue event.TypedUpdateEvent[client.Object]) bool {
+		newBinding, ok := tue.ObjectNew.(*workv1alpha2.ClusterResourceBinding)
+		if !ok {
+			return false
+		}
+		_, ok = tue.ObjectOld.(*workv1alpha2.ClusterResourceBinding)
+		if !ok {
+			return false
+		}
+
+		return newBinding.Status.SchedulerObservedGeneration == newBinding.Generation
+	},
+	DeleteFunc: func(tde event.TypedDeleteEvent[client.Object]) bool {
+		return true
+	},
 }
