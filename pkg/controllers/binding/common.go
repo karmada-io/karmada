@@ -243,17 +243,19 @@ func mergeTargetClusters(targetClusters []workv1alpha2.TargetCluster, requiredBy
 	}
 
 	scheduledClusterNames := util.ConvertToClusterNames(targetClusters)
+	// Create a copy to avoid mutating the input slice
+	result := append([]workv1alpha2.TargetCluster{}, targetClusters...)
 
 	for _, requiredByBinding := range requiredByBindingSnapshot {
 		for _, targetCluster := range requiredByBinding.Clusters {
 			if !scheduledClusterNames.Has(targetCluster.Name) {
 				scheduledClusterNames.Insert(targetCluster.Name)
-				targetClusters = append(targetClusters, targetCluster)
+				result = append(result, targetCluster)
 			}
 		}
 	}
 
-	return targetClusters
+	return result
 }
 
 func mergeLabel(workload *unstructured.Unstructured, binding metav1.Object, scope apiextensionsv1.ResourceScope) map[string]string {
