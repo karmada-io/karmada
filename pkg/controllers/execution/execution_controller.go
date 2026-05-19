@@ -82,6 +82,17 @@ type Controller struct {
 func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
 	klog.V(4).InfoS("Reconciling Work", "work", req.NamespacedName.String())
 
+	var result controllerruntime.Result
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		var err error
+		result, err = c.reconcile(ctx, req)
+		return err
+	})
+	return result, err
+}
+
+// reconcile performs the actual reconciliation logic for the Work.
+func (c *Controller) reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
 	work := &workv1alpha1.Work{}
 	if err := c.Client.Get(ctx, req.NamespacedName, work); err != nil {
 		// The resource may no longer exist, in which case we stop processing.
@@ -275,9 +286,7 @@ func (c *Controller) syncToClusters(ctx context.Context, clusterName string, wor
 			continue
 		}
 
-		err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			return c.tryCreateOrUpdateWorkload(ctx, clusterName, workload)
-		})
+		err = c.tryCreateOrUpdateWorkload(ctx, clusterName, workload)
 		if err != nil {
 			klog.ErrorS(err, "Failed to create or update resource in the given member cluster", "namespace", workload.GetNamespace(), "name", workload.GetName(), "cluster", clusterName)
 			c.eventf(workload, corev1.EventTypeWarning, events.EventReasonSyncWorkloadFailed, "Failed to create or update resource(%s) in member cluster(%s): %v", klog.KObj(workload), clusterName, err)
@@ -379,13 +388,11 @@ func (c *Controller) updateAppliedCondition(ctx context.Context, work *workv1alp
 }
 
 func (c *Controller) setStatusCondition(ctx context.Context, work *workv1alpha1.Work, statusCondition metav1.Condition) error {
-	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-		_, err = helper.UpdateStatus(ctx, c.Client, work, func() error {
-			meta.SetStatusCondition(&work.Status.Conditions, statusCondition)
-			return nil
-		})
-		return err
+	_, err := helper.UpdateStatusFromExisting(ctx, c.Client, work, func() error {
+		meta.SetStatusCondition(&work.Status.Conditions, statusCondition)
+		return nil
 	})
+	return err
 }
 
 func (c *Controller) eventf(object *unstructured.Unstructured, eventType, reason, messageFmt string, args ...any) {

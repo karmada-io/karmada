@@ -57,6 +57,35 @@ func UpdateStatus(ctx context.Context, c client.Client, obj client.Object, f con
 	return controllerutil.OperationResultUpdatedStatusOnly, nil
 }
 
+// UpdateStatusFromExisting updates the status subresource of obj.
+//
+// The object is mutated in place by f. If the resulting object is semantically
+// equal to the original object, no update is made and OperationResultNone is
+// returned. Otherwise, the status subresource is updated and
+// OperationResultUpdatedStatusOnly is returned.
+//
+// Note: unlike UpdateStatus, this helper does not re-fetch obj from the API
+// server or informer cache before applying f. It is intended for cases where
+// status should be computed against the object version already observed by the
+// current reconciliation.
+func UpdateStatusFromExisting(ctx context.Context, c client.Client, obj client.Object, f controllerutil.MutateFn) (controllerutil.OperationResult, error) {
+	key := client.ObjectKeyFromObject(obj)
+
+	existing := obj.DeepCopyObject()
+	if err := mutate(f, key, obj); err != nil {
+		return controllerutil.OperationResultNone, err
+	}
+
+	if equality.Semantic.DeepEqual(existing, obj) {
+		return controllerutil.OperationResultNone, nil
+	}
+
+	if err := c.Status().Update(ctx, obj); err != nil {
+		return controllerutil.OperationResultNone, err
+	}
+	return controllerutil.OperationResultUpdatedStatusOnly, nil
+}
+
 // mutate wraps a MutateFn and applies validation to its result.
 func mutate(f controllerutil.MutateFn, key client.ObjectKey, obj client.Object) error {
 	if err := f(); err != nil {
