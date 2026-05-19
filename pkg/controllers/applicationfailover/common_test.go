@@ -99,11 +99,11 @@ func TestWorkloadUnhealthyMap_deleteIrrelevantClusters(t *testing.T) {
 
 func TestDistinguishUnhealthyClustersWithOthers(t *testing.T) {
 	tests := []struct {
-		name                  string
-		aggregatedStatusItems []workv1alpha2.AggregatedStatusItem
-		resourceBindingSpec   workv1alpha2.ResourceBindingSpec
-		expectedClusters      []string
-		expectedOthers        []string
+		name                    string
+		aggregatedStatusItems   []workv1alpha2.AggregatedStatusItem
+		resourceBindingSpec     workv1alpha2.ResourceBindingSpec
+		expectedClusters        []string
+		expectedHealthyClusters []string
 	}{
 		{
 			name: "all applications are healthy",
@@ -117,9 +117,9 @@ func TestDistinguishUnhealthyClustersWithOthers(t *testing.T) {
 					Health:      workv1alpha2.ResourceHealthy,
 				},
 			},
-			resourceBindingSpec: workv1alpha2.ResourceBindingSpec{},
-			expectedClusters:    nil,
-			expectedOthers:      []string{"member1", "member2"},
+			resourceBindingSpec:     workv1alpha2.ResourceBindingSpec{},
+			expectedClusters:        nil,
+			expectedHealthyClusters: []string{"member1", "member2"},
 		},
 		{
 			name: "all applications are unknown",
@@ -133,9 +133,9 @@ func TestDistinguishUnhealthyClustersWithOthers(t *testing.T) {
 					Health:      workv1alpha2.ResourceUnknown,
 				},
 			},
-			resourceBindingSpec: workv1alpha2.ResourceBindingSpec{},
-			expectedClusters:    nil,
-			expectedOthers:      []string{"member1", "member2"},
+			resourceBindingSpec:     workv1alpha2.ResourceBindingSpec{},
+			expectedClusters:        nil,
+			expectedHealthyClusters: nil,
 		},
 		{
 			name: "one application is unhealthy and not in gracefulEvictionTasks",
@@ -149,9 +149,9 @@ func TestDistinguishUnhealthyClustersWithOthers(t *testing.T) {
 					Health:      workv1alpha2.ResourceUnhealthy,
 				},
 			},
-			resourceBindingSpec: workv1alpha2.ResourceBindingSpec{},
-			expectedClusters:    []string{"member2"},
-			expectedOthers:      []string{"member1"},
+			resourceBindingSpec:     workv1alpha2.ResourceBindingSpec{},
+			expectedClusters:        []string{"member2"},
+			expectedHealthyClusters: []string{"member1"},
 		},
 		{
 			name: "one application is unhealthy and in gracefulEvictionTasks",
@@ -172,18 +172,43 @@ func TestDistinguishUnhealthyClustersWithOthers(t *testing.T) {
 					},
 				},
 			},
-			expectedClusters: nil,
-			expectedOthers:   []string{"member1"},
+			expectedClusters:        nil,
+			expectedHealthyClusters: []string{"member1"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got, gotOthers := distinguishUnhealthyClustersWithOthers(tt.aggregatedStatusItems, tt.resourceBindingSpec); !reflect.DeepEqual(got, tt.expectedClusters) || !reflect.DeepEqual(gotOthers, tt.expectedOthers) {
-				t.Errorf("distinguishUnhealthyClustersWithOthers() = (%v, %v), want (%v, %v)", got, gotOthers, tt.expectedClusters, tt.expectedOthers)
+			if got, gotHealthyClusters := distinguishUnhealthyClustersWithOthers(tt.aggregatedStatusItems, tt.resourceBindingSpec); !reflect.DeepEqual(got, tt.expectedClusters) || !reflect.DeepEqual(gotHealthyClusters, tt.expectedHealthyClusters) {
+				t.Errorf("distinguishUnhealthyClustersWithOthers() = (%v, %v), want (%v, %v)", got, gotHealthyClusters, tt.expectedClusters, tt.expectedHealthyClusters)
 			}
 		})
 	}
+}
+
+func TestPreserveTimestampAcrossUnknownTransitions(t *testing.T) {
+	key := types.NamespacedName{Namespace: "default", Name: "test"}
+	cluster := "member1"
+	allClusters := sets.New[string](cluster)
+
+	m := newWorkloadUnhealthyMap()
+
+	// T=0: cluster first observed unhealthy; toleration window starts.
+	m.setTimeStamp(key, cluster)
+	originalTimestamp := m.getTimeStamp(key, cluster)
+	assert.True(t, m.hasWorkloadBeenUnhealthy(key, cluster))
+
+	// Health transitions to Unknown (e.g. karmada-agent restarts).
+	// With the fix, Unknown clusters must not appear in healthyClusters.
+	_, healthyClusters := distinguishUnhealthyClustersWithOthers(
+		[]workv1alpha2.AggregatedStatusItem{{ClusterName: cluster, Health: workv1alpha2.ResourceUnknown}},
+		workv1alpha2.ResourceBindingSpec{},
+	)
+	m.deleteIrrelevantClusters(key, allClusters, healthyClusters)
+
+	// Timestamp must be preserved so the toleration window continues from T=0.
+	assert.True(t, m.hasWorkloadBeenUnhealthy(key, cluster), "failover timer must survive Unknown health transitions")
+	assert.Equal(t, originalTimestamp, m.getTimeStamp(key, cluster), "failover timestamp must not be reset by Unknown health transitions")
 }
 
 func Test_getClusterNamesFromTargetClusters(t *testing.T) {
