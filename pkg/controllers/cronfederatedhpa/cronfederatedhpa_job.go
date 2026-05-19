@@ -29,13 +29,14 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	clientgoevents "k8s.io/client-go/tools/events"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -44,16 +45,29 @@ import (
 // ScalingJob is a job to handle CronFederatedHPA.
 type ScalingJob struct {
 	client        client.Client
-	eventRecorder record.EventRecorder
+	eventRecorder clientgoevents.EventRecorder
 	scheduler     *gocron.Scheduler
 
 	namespaceName types.NamespacedName
 	rule          autoscalingv1alpha1.CronFederatedHPARule
 }
 
+// targetReferenceFor returns the scale target as an ObjectReference suitable
+// for use as the 'related' argument on Eventf. The reference is built from
+// the cronFHPA's ScaleTargetRef and namespace; no API call is made and the
+// returned object is intentionally minimal — it carries enough identity for
+// an event consumer to locate the target, not a fully-loaded copy.
+func targetReferenceFor(cronFHPA *autoscalingv1alpha1.CronFederatedHPA) *corev1.ObjectReference {
+	return &corev1.ObjectReference{
+		APIVersion: cronFHPA.Spec.ScaleTargetRef.APIVersion,
+		Kind:       cronFHPA.Spec.ScaleTargetRef.Kind,
+		Name:       cronFHPA.Spec.ScaleTargetRef.Name,
+		Namespace:  cronFHPA.Namespace,
+	}
+}
+
 // NewCronFederatedHPAJob creates a new CronFederatedHPAJob.
-func NewCronFederatedHPAJob(client client.Client, eventRecorder record.EventRecorder, scheduler *gocron.Scheduler,
-	cronFHPA *autoscalingv1alpha1.CronFederatedHPA, rule autoscalingv1alpha1.CronFederatedHPARule) *ScalingJob {
+func NewCronFederatedHPAJob(client client.Client, eventRecorder clientgoevents.EventRecorder, scheduler *gocron.Scheduler, cronFHPA *autoscalingv1alpha1.CronFederatedHPA, rule autoscalingv1alpha1.CronFederatedHPARule) *ScalingJob {
 	return &ScalingJob{
 		client:        client,
 		eventRecorder: eventRecorder,
@@ -96,13 +110,15 @@ func RunCronFederatedHPARule(c *ScalingJob) {
 	defer func() {
 		metrics.ObserveProcessCronFederatedHPARuleLatency(scaleErr, start)
 		if scaleErr != nil {
-			c.eventRecorder.Event(cronFHPA, corev1.EventTypeWarning, "ScaleFailed", scaleErr.Error())
+			c.eventRecorder.Eventf(cronFHPA, targetReferenceFor(cronFHPA), corev1.EventTypeWarning,
+				events.EventReasonScaleCronFederatedHPAFailed, events.EventActionScaleCronFederatedHPA,
+				"failed to scale %s %s/%s: %v", cronFHPA.Spec.ScaleTargetRef.Kind, cronFHPA.Namespace, cronFHPA.Spec.ScaleTargetRef.Name, scaleErr)
 			err = c.addFailedExecutionHistory(cronFHPA, scaleErr.Error())
 		} else {
 			err = c.addSuccessExecutionHistory(cronFHPA, c.rule.TargetReplicas, c.rule.TargetMinReplicas, c.rule.TargetMaxReplicas)
 		}
 		if err != nil {
-			c.eventRecorder.Event(cronFHPA, corev1.EventTypeWarning, "UpdateStatusFailed", err.Error())
+			c.eventRecorder.Eventf(cronFHPA, nil, corev1.EventTypeWarning, events.EventReasonUpdateCronFederatedHPAStatusFailed, events.EventActionUpdateCronFederatedHPAStatus, "%v", err)
 		}
 	}()
 

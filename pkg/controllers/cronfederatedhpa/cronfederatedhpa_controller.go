@@ -25,14 +25,16 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/client-go/tools/record"
+	clientgoevents "k8s.io/client-go/tools/events"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -43,10 +45,13 @@ const (
 	ControllerName = "cronfederatedhpa-controller"
 )
 
+// Check if our CronFHPAController implements necessary interface
+var _ reconcile.Reconciler = &CronFHPAController{}
+
 // CronFHPAController is used to operate CronFederatedHPA.
 type CronFHPAController struct {
 	client.Client // used to operate Cron resources.
-	EventRecorder record.EventRecorder
+	EventRecorder clientgoevents.EventRecorder
 
 	RateLimiterOptions ratelimiterflag.Options
 	CronHandler        *CronHandler
@@ -118,7 +123,7 @@ func (c *CronFHPAController) Reconcile(ctx context.Context, req controllerruntim
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *CronFHPAController) SetupWithManager(mgr controllerruntime.Manager) error {
-	c.CronHandler = NewCronHandler(mgr.GetClient(), mgr.GetEventRecorderFor(ControllerName)) //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
+	c.CronHandler = NewCronHandler(mgr.GetClient(), mgr.GetEventRecorder(ControllerName))
 	return controllerruntime.NewControllerManagedBy(mgr).
 		Named(ControllerName).
 		For(&autoscalingv1alpha1.CronFederatedHPA{}).
@@ -139,14 +144,14 @@ func (c *CronFHPAController) processCronRule(ctx context.Context, cronFHPA *auto
 
 	if !helper.IsCronFederatedHPARuleSuspend(rule) {
 		if err := c.CronHandler.CreateCronJobForExecutor(cronFHPA, rule); err != nil {
-			c.EventRecorder.Event(cronFHPA, corev1.EventTypeWarning, "StartRuleFailed", err.Error())
+			c.EventRecorder.Eventf(cronFHPA, nil, corev1.EventTypeWarning, events.EventReasonStartCronFederatedHPARuleFailed, events.EventActionStartCronFederatedHPARule, "%v", err)
 			klog.ErrorS(err, "Fail to start cron for CronFederatedHPA rule", "cronFederatedHPA", cronFHPAKey, "rule", rule.Name)
 			return err
 		}
 	}
 
 	if err := c.updateRuleHistory(ctx, cronFHPA, rule); err != nil {
-		c.EventRecorder.Event(cronFHPA, corev1.EventTypeWarning, "UpdateCronFederatedHPAFailed", err.Error())
+		c.EventRecorder.Eventf(cronFHPA, nil, corev1.EventTypeWarning, events.EventReasonUpdateCronFederatedHPAFailed, events.EventActionUpdateCronFederatedHPA, "%v", err)
 		return err
 	}
 	return nil
@@ -207,7 +212,7 @@ func (c *CronFHPAController) removeCronFHPAHistory(ctx context.Context, cronFHPA
 		return nil
 	}
 	if err := c.Client.Status().Update(ctx, cronFHPA); err != nil {
-		c.EventRecorder.Event(cronFHPA, corev1.EventTypeWarning, "UpdateCronFederatedHPAFailed", err.Error())
+		c.EventRecorder.Eventf(cronFHPA, nil, corev1.EventTypeWarning, events.EventReasonUpdateCronFederatedHPAFailed, events.EventActionUpdateCronFederatedHPA, "%v", err)
 		klog.ErrorS(err, "Fail to remove CronFederatedHPA rule history", "namespace", cronFHPA.Namespace, "name", cronFHPA.Name, "rule", ruleName)
 		return err
 	}

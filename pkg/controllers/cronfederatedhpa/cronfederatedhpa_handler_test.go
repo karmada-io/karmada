@@ -24,7 +24,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -85,7 +85,7 @@ func TestCronFHPAScaleTargetRefUpdates(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			handler := NewCronHandler(fake.NewClientBuilder().Build(), record.NewFakeRecorder(100))
+			handler := NewCronHandler(fake.NewClientBuilder().Build(), events.NewFakeRecorder(100))
 
 			// Empty initialTarget will be skipped
 			if tt.initialTarget != (autoscalingv2.CrossVersionObjectReference{}) {
@@ -100,7 +100,7 @@ func TestCronFHPAScaleTargetRefUpdates(t *testing.T) {
 }
 
 func TestAddCronExecutorIfNotExist(t *testing.T) {
-	handler := NewCronHandler(fake.NewClientBuilder().Build(), record.NewFakeRecorder(100))
+	handler := NewCronHandler(fake.NewClientBuilder().Build(), events.NewFakeRecorder(100))
 
 	cronFHPAKey := "default/test-cronhpa"
 
@@ -115,7 +115,7 @@ func TestAddCronExecutorIfNotExist(t *testing.T) {
 }
 
 func TestRuleCronExecutorExists(t *testing.T) {
-	handler := NewCronHandler(fake.NewClientBuilder().Build(), record.NewFakeRecorder(100))
+	handler := NewCronHandler(fake.NewClientBuilder().Build(), events.NewFakeRecorder(100))
 
 	cronFHPAKey := "default/test-cronhpa"
 	ruleName := "test-rule"
@@ -138,7 +138,7 @@ func TestRuleCronExecutorExists(t *testing.T) {
 }
 
 func TestStopRuleExecutor(t *testing.T) {
-	handler := NewCronHandler(fake.NewClientBuilder().Build(), record.NewFakeRecorder(100))
+	handler := NewCronHandler(fake.NewClientBuilder().Build(), events.NewFakeRecorder(100))
 
 	cronFHPAKey := "default/test-cronhpa"
 	ruleName := "test-rule"
@@ -160,7 +160,7 @@ func TestStopRuleExecutor(t *testing.T) {
 }
 
 func TestStopCronFHPAExecutor(t *testing.T) {
-	handler := NewCronHandler(fake.NewClientBuilder().Build(), record.NewFakeRecorder(100))
+	handler := NewCronHandler(fake.NewClientBuilder().Build(), events.NewFakeRecorder(100))
 
 	cronFHPAKey := "default/test-cronhpa"
 	ruleName1 := "test-rule-1"
@@ -193,7 +193,7 @@ func TestStopCronFHPAExecutor(t *testing.T) {
 }
 
 func TestCreateCronJobForExecutor(t *testing.T) {
-	handler := NewCronHandler(fake.NewClientBuilder().Build(), record.NewFakeRecorder(100))
+	handler := NewCronHandler(fake.NewClientBuilder().Build(), events.NewFakeRecorder(100))
 
 	cronFHPA := &autoscalingv1alpha1.CronFederatedHPA{
 		ObjectMeta: metav1.ObjectMeta{
@@ -265,7 +265,7 @@ func TestCreateCronJobForExecutor(t *testing.T) {
 }
 
 func TestGetRuleNextExecuteTime(t *testing.T) {
-	handler := NewCronHandler(fake.NewClientBuilder().Build(), record.NewFakeRecorder(100))
+	handler := NewCronHandler(fake.NewClientBuilder().Build(), events.NewFakeRecorder(100))
 
 	cronFHPA := &autoscalingv1alpha1.CronFederatedHPA{
 		ObjectMeta: metav1.ObjectMeta{
