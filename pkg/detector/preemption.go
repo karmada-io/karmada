@@ -143,7 +143,7 @@ func (d *ResourceDetector) preemptPropagationPolicy(resourceTemplate *unstructur
 			"Propagation policy(%s/%s) preempted propagation policy(%s/%s) successfully", policy.Namespace, policy.Name, claimedPolicyNamespace, claimedPolicyName)
 	}()
 
-	if _, err = d.ClaimPolicyForObject(resourceTemplate, policy); err != nil {
+	if _, _, err = d.ClaimPolicyForObject(resourceTemplate, policy); err != nil {
 		klog.Errorf("Failed to claim new propagation policy(%s/%s) on resource template(%s, kind=%s, %s): %v.", policy.Namespace, policy.Name,
 			resourceTemplate.GetAPIVersion(), resourceTemplate.GetKind(), names.NamespacedKey(resourceTemplate.GetNamespace(), resourceTemplate.GetName()), err)
 		return err
@@ -171,7 +171,7 @@ func (d *ResourceDetector) preemptClusterPropagationPolicyDirectly(resourceTempl
 			"Propagation policy(%s/%s) preempted cluster propagation policy(%s) successfully", policy.Namespace, policy.Name, claimedPolicyName)
 	}()
 
-	if _, err = d.ClaimPolicyForObject(resourceTemplate, policy); err != nil {
+	if _, _, err = d.ClaimPolicyForObject(resourceTemplate, policy); err != nil {
 		klog.Errorf("Failed to claim new propagation policy(%s/%s) on resource template(%s, kind=%s, %s) directly: %v.", policy.Namespace, policy.Name,
 			resourceTemplate.GetAPIVersion(), resourceTemplate.GetKind(), names.NamespacedKey(resourceTemplate.GetNamespace(), resourceTemplate.GetName()), err)
 		return err
@@ -215,7 +215,7 @@ func (d *ResourceDetector) preemptClusterPropagationPolicy(resourceTemplate *uns
 			"Cluster propagation policy(%s) preempted cluster propagation policy(%s) successfully", policy.Name, claimedPolicyName)
 	}()
 
-	if _, err = d.ClaimClusterPolicyForObject(resourceTemplate, policy); err != nil {
+	if _, _, err = d.ClaimClusterPolicyForObject(resourceTemplate, policy); err != nil {
 		klog.Errorf("Failed to claim new cluster propagation policy(%s) on resource template(%s, kind=%s, %s): %v.", policy.Name,
 			resourceTemplate.GetAPIVersion(), resourceTemplate.GetKind(), names.NamespacedKey(resourceTemplate.GetNamespace(), resourceTemplate.GetName()), err)
 		return err
