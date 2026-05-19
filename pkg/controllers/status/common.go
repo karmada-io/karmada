@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/record"
@@ -39,6 +40,8 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
 
@@ -148,6 +151,7 @@ var workPredicateFn = builder.WithPredicates(predicate.Funcs{
 func updateResourceStatus(
 	ctx context.Context,
 	dynamicClient dynamic.Interface,
+	informerManager genericmanager.SingleClusterInformerManager,
 	restMapper meta.RESTMapper,
 	interpreter resourceinterpreter.ResourceInterpreter,
 	eventRecorder record.EventRecorder,
@@ -166,6 +170,52 @@ func updateResourceStatus(
 	}
 
 	var resource *unstructured.Unstructured
+
+	// 1. try to fetch resource from cache to avoid expensive API calls.
+	var object runtime.Object
+	if len(objRef.Namespace) == 0 {
+		object, err = informerManager.Lister(gvr).Get(objRef.Name)
+	} else {
+		object, err = informerManager.Lister(gvr).ByNamespace(objRef.Namespace).Get(objRef.Name)
+	}
+
+	if err == nil {
+		resource, err = helper.ToUnstructured(object)
+		if err != nil {
+			klog.Errorf("Failed to transform object(%s/%s), Error: %v", objRef.Namespace, objRef.Name, err)
+			return err
+		}
+
+		// We should not modify the object in cache, so we need to deep copy it.
+		resource = resource.DeepCopy()
+		newObj, err := interpreter.AggregateStatus(resource, bindingStatus.AggregatedStatus)
+		if err != nil {
+			klog.Errorf("Failed to aggregate status for resource template(%s/%s/%s), Error: %v", gvr, resource.GetNamespace(), resource.GetName(), err)
+			return err
+		}
+
+		oldStatus, _, _ := unstructured.NestedFieldNoCopy(resource.Object, "status")
+		newStatus, _, _ := unstructured.NestedFieldNoCopy(newObj.Object, "status")
+		if reflect.DeepEqual(oldStatus, newStatus) {
+			klog.V(3).Infof("Ignore update resource(%s/%s/%s) status as up to date.", gvr, resource.GetNamespace(), resource.GetName())
+			return nil
+		}
+
+		_, err = dynamicClient.Resource(gvr).Namespace(resource.GetNamespace()).UpdateStatus(ctx, newObj, metav1.UpdateOptions{})
+		if err == nil {
+			eventRecorder.Event(resource, corev1.EventTypeNormal, events.EventReasonAggregateStatusSucceed, "Update Resource with AggregatedStatus successfully.")
+			klog.V(3).Infof("Update resource(%s/%s/%s) status successfully.", gvr, resource.GetNamespace(), resource.GetName())
+			return nil
+		}
+
+		if !apierrors.IsConflict(err) {
+			klog.Errorf("Failed to update resource(%s/%s/%s), Error: %v", gvr, resource.GetNamespace(), resource.GetName(), err)
+			return err
+		}
+		// If conflict happens, we will retry to fetch the latest resource from apiserver and update again.
+		klog.V(3).Infof("Conflict updating resource(%s/%s/%s) from cache, falling back to API server.", gvr, resource.GetNamespace(), resource.GetName())
+	}
+
 	if err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		// Fetch resource template from karmada-apiserver instead of informer cache, to avoid retry due to
 		// resource conflict which often happens, especially with a huge amount of resource templates and
