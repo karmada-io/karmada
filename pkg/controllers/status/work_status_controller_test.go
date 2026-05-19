@@ -777,6 +777,18 @@ func newWorkStatusController(cluster *clusterv1alpha1.Cluster, dynamicClientSets
 	return c
 }
 
+// newMockClusterDynamicClientSetFunc creates a mock ClusterDynamicClientSetFunc that returns a DynamicClusterClient
+// with the provided dynamicClientSet and clusterName. This is useful for testing when we don't want to build
+// a real kubeconfig.
+func newMockClusterDynamicClientSetFunc(clusterName string, dynamicClientSet *dynamicfake.FakeDynamicClient) func(string, client.Client, *util.ClientOption) (*util.DynamicClusterClient, error) {
+	return func(_ string, _ client.Client, _ *util.ClientOption) (*util.DynamicClusterClient, error) {
+		return &util.DynamicClusterClient{
+			ClusterName:      clusterName,
+			DynamicClientSet: dynamicClientSet,
+		}, nil
+	}
+}
+
 func TestWorkStatusController_getSingleClusterManager(t *testing.T) {
 	clusterName := "cluster"
 	cluster := newCluster(clusterName, clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)
@@ -1020,6 +1032,7 @@ func TestWorkStatusController_registerInformersAndStart(t *testing.T) {
 		m.Start(clusterName)
 		m.WaitForCacheSync(clusterName)
 		c.InformerManager = m
+		c.ClusterDynamicClientSetFunc = newMockClusterDynamicClientSetFunc(clusterName, dynamicClientSet)
 
 		err := c.registerInformersAndStart(cluster, work)
 		assert.Empty(t, err)
@@ -1046,6 +1059,7 @@ func TestWorkStatusController_registerInformersAndStart(t *testing.T) {
 		m.Start(clusterName)
 		m.WaitForCacheSync(clusterName)
 		c.InformerManager = m
+		c.ClusterDynamicClientSetFunc = newMockClusterDynamicClientSetFunc(clusterName, dynamicClientSet)
 
 		err := c.registerInformersAndStart(cluster, work)
 		assert.NotEmpty(t, err)
