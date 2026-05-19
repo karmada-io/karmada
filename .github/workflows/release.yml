@@ -70,8 +70,7 @@ jobs:
       actions: read # for detecting the Github Actions environment
       id-token: write # Needed for provenance signing and ID
       contents: write #  Needed for release uploads
-    # Must be referenced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@f7dd8c54c2067bafc12ca7a55595d5ee9b75204a # v2.1.0
     with:
       base64-subjects: "${{ needs.generate-subject-for-cli-provenance.outputs.hashes }}"
       provenance-name: "karmada-cli.intoto.jsonl"
@@ -112,8 +111,7 @@ jobs:
       actions: read # for detecting the Github Actions environment
       id-token: write # Needed for provenance signing and ID
       contents: write #  Needed for release uploads
-    # Must be referenced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@f7dd8c54c2067bafc12ca7a55595d5ee9b75204a # v2.1.0
     with:
       base64-subjects: "${{ needs.release-crds-assests.outputs.hashes }}"
       provenance-name: "karmada-crds.intoto.jsonl"
@@ -151,8 +149,7 @@ jobs:
       actions: read # for detecting the Github Actions environment
       id-token: write # Needed for provenance signing and ID
       contents: write #  Needed for release uploads
-    # Must be referenced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@f7dd8c54c2067bafc12ca7a55595d5ee9b75204a # v2.1.0
     with:
       base64-subjects: "${{ needs.release-charts.outputs.hashes }}"
       provenance-name: "karmada-charts.intoto.jsonl"
@@ -194,8 +191,7 @@ jobs:
       actions: read # for detecting the Github Actions environment
       id-token: write # Needed for provenance signing and ID
       contents: write #  Needed for release uploads
-    # Must be referenced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@f7dd8c54c2067bafc12ca7a55595d5ee9b75204a # v2.1.0
     with:
       base64-subjects: "${{ needs.sbom-assests.outputs.hashes }}"
       provenance-name: "karmada-sbom.intoto.jsonl"
