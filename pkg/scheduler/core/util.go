@@ -76,6 +76,12 @@ func calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha
 	estimators := estimatorclient.GetReplicaEstimators()
 	ctx := context.WithValue(context.TODO(), util.ContextKeyObject,
 		fmt.Sprintf("kind=%s, name=%s/%s", spec.Resource.Kind, spec.Resource.Namespace, spec.Resource.Name))
+
+	// Collect results from all estimators, then merge.
+	// When scheduler-estimator is available, prefer its result over general-estimator
+	// because it has more accurate cluster-level information (e.g., autoscaler potential capacity).
+	var allResults []estimatorResult
+
 	for name, estimator := range estimators {
 		if features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) && isMultiTemplateSchedulingApplicable(spec) {
 			var err error
@@ -98,16 +104,12 @@ func calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha
 			}
 			klog.V(4).Infof("Invoked MaxAvailableReplicas of estimator %s for workload(%s, kind=%s, %s): %v", name,
 				spec.Resource.APIVersion, spec.Resource.Kind, namespacedKey, res)
-			for i := range res {
-				if res[i].Replicas == estimatorclient.UnauthenticReplica {
-					continue
-				}
-				if availableTargetClusters[i].Name == res[i].Name && availableTargetClusters[i].Replicas > res[i].Replicas {
-					availableTargetClusters[i].Replicas = res[i].Replicas
-				}
-			}
+			allResults = append(allResults, estimatorResult{name: name, clusters: res})
 		}
 	}
+
+	// Merge results: skip general-estimator's value when scheduler-estimator reports higher
+	mergeEstimatorResults(allResults, availableTargetClusters)
 
 	// In most cases, the target cluster max available replicas should not be MaxInt32 unless the workload is best-effort
 	// and the scheduler-estimator has not been enabled. So we set the replicas to spec.Replicas for avoiding overflow.
@@ -119,6 +121,50 @@ func calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha
 
 	klog.V(4).Infof("Target cluster calculated by estimators (available cluster && maxAvailableReplicas): %v", availableTargetClusters)
 	return availableTargetClusters
+}
+
+type estimatorResult struct {
+	name     string
+	clusters []workv1alpha2.TargetCluster
+}
+
+// mergeEstimatorResults applies estimator results to availableTargetClusters using min.
+// When scheduler-estimator reports higher availability than general-estimator,
+// the general-estimator value is skipped to avoid masking autoscaler capacity.
+func mergeEstimatorResults(allResults []estimatorResult, availableTargetClusters []workv1alpha2.TargetCluster) {
+	var schedulerEstimatorResult []workv1alpha2.TargetCluster
+	for _, r := range allResults {
+		if r.name == "scheduler-estimator" {
+			schedulerEstimatorResult = r.clusters
+			break
+		}
+	}
+
+	for _, r := range allResults {
+		for i := range r.clusters {
+			if r.clusters[i].Replicas == estimatorclient.UnauthenticReplica {
+				continue
+			}
+			if schedulerEstimatorResult != nil && r.name == "general-estimator" {
+				if seReplicas := findClusterReplicas(schedulerEstimatorResult, r.clusters[i].Name); seReplicas > r.clusters[i].Replicas {
+					continue
+				}
+			}
+			if availableTargetClusters[i].Name == r.clusters[i].Name && availableTargetClusters[i].Replicas > r.clusters[i].Replicas {
+				availableTargetClusters[i].Replicas = r.clusters[i].Replicas
+			}
+		}
+	}
+}
+
+// findClusterReplicas returns the replica count for the named cluster, or -1 if not found.
+func findClusterReplicas(clusters []workv1alpha2.TargetCluster, name string) int32 {
+	for _, c := range clusters {
+		if c.Name == name {
+			return c.Replicas
+		}
+	}
+	return -1
 }
 
 // attachZeroReplicasCluster  attach cluster in clusters into targetCluster

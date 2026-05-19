@@ -133,14 +133,29 @@ func NewEstimatorServer(
 	}
 
 	registry := frameworkplugins.NewInTreeRegistry()
+	if len(opts.Plugins) > 0 {
+		registry = frameworkplugins.NewExtendedRegistry()
+		enabledSet := make(map[string]bool, len(opts.Plugins))
+		for _, name := range opts.Plugins {
+			enabledSet[name] = true
+		}
+		for name := range registry {
+			if !enabledSet[name] {
+				_ = registry.Unregister(name)
+			}
+		}
+	}
+
 	estimateFramework, err := frameworkruntime.NewFramework(registry,
 		frameworkruntime.WithClientSet(kubeClient),
+		frameworkruntime.WithDynamicClient(dynamicClient),
 		frameworkruntime.WithInformerFactory(informerFactory),
 		frameworkruntime.WithParallelism(opts.Parallelism),
 	)
 	if err != nil {
 		return es, err
 	}
+
 	es.estimateFramework = estimateFramework
 
 	addAllEventHandlers(es, informerFactory)

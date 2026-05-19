@@ -17,16 +17,26 @@ limitations under the License.
 package plugins
 
 import (
+	"github.com/karmada-io/karmada/pkg/estimator/server/framework/plugins/nodeautoscaler"
 	"github.com/karmada-io/karmada/pkg/estimator/server/framework/plugins/noderesource"
 	"github.com/karmada-io/karmada/pkg/estimator/server/framework/plugins/resourcequota"
 	"github.com/karmada-io/karmada/pkg/estimator/server/framework/runtime"
 )
 
 // NewInTreeRegistry builds the registry with all the in-tree plugins.
+// Note: NodeAutoscalerEstimator is registered in NewExtendedRegistry and must be
+// explicitly enabled via --plugins flag to avoid duplicate calculation with NodeResourceEstimator.
 func NewInTreeRegistry() runtime.Registry {
 	registry := runtime.Registry{
 		noderesource.Name:  noderesource.New,
 		resourcequota.Name: resourcequota.New,
 	}
+	return registry
+}
+
+// NewExtendedRegistry builds the registry with all plugins including optional ones.
+func NewExtendedRegistry() runtime.Registry {
+	registry := NewInTreeRegistry()
+	registry[nodeautoscaler.Name] = nodeautoscaler.New
 	return registry
 }
