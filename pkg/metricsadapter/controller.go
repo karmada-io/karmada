@@ -42,6 +42,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/typedmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
+	listcorev1 "k8s.io/client-go/listers/core/v1"
 )
 
 var (
@@ -56,6 +57,7 @@ type MetricsController struct {
 	InformerManager       genericmanager.MultiClusterInformerManager
 	TypedInformerManager  typedmanager.MultiClusterInformerManager
 	MultiClusterDiscovery multiclient.MultiClusterDiscoveryInterface
+	SecretLister          listcorev1.SecretLister
 	queue                 workqueue.TypedRateLimitingInterface[any]
 	restConfig            *rest.Config
 	clusterClientOption   *util.ClientOption
@@ -70,6 +72,7 @@ func NewMetricsController(ctx context.Context, restConfig *rest.Config, factory 
 		MultiClusterDiscovery: multiclient.NewMultiClusterDiscoveryClient(clusterLister, kubeFactory, clusterClientOption),
 		InformerManager:       genericmanager.GetInstance(),
 		TypedInformerManager:  newInstance(ctx),
+		SecretLister:          kubeFactory.Core().V1().Secrets().Lister(),
 		restConfig:            restConfig,
 		queue: workqueue.NewTypedRateLimitingQueueWithConfig(workqueue.DefaultTypedControllerRateLimiter[any](), workqueue.TypedRateLimitingQueueConfig[any]{
 			Name: "metrics-adapter",
