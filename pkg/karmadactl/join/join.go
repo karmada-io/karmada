@@ -233,7 +233,7 @@ func (j *CommandJoinOption) RunJoinCluster(controlPlaneRestConfig, clusterConfig
 		return err
 	}
 
-	if err = registerOption.Validate(karmadaClient, false); err != nil {
+	if err = registerOption.Validate(karmadaClient, true); err != nil {
 		return err
 	}
 
