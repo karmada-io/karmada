@@ -14,13 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package nodeautoscaler
+package karpenter
 
 import (
 	"context"
 	"sync"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -29,9 +30,15 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/karmada-io/karmada/pkg/estimator/pb"
+	"github.com/karmada-io/karmada/pkg/estimator/server/framework"
+	"github.com/karmada-io/karmada/pkg/estimator/server/framework/plugins/noderesource"
+	schedcache "github.com/karmada-io/karmada/pkg/util/lifted/scheduler/cache"
 )
 
 const (
+	// ProviderName is the name of this capacity provider.
+	ProviderName = "karpenter"
+
 	defaultFailureThreshold = 3 * time.Minute
 	defaultRecoveryInterval = 10 * time.Minute
 )
@@ -41,37 +48,68 @@ var (
 	karpenterNodeClaimGVR = schema.GroupVersionResource{Group: "karpenter.sh", Version: "v1", Resource: "nodeclaims"}
 )
 
-// KarpenterProvider implements CapacityProvider using Karpenter NodePool/NodeClaim CRDs.
-type KarpenterProvider struct {
-	client           dynamic.Interface
-	failureThreshold time.Duration // how long Pending+no NodeClaim before marking failed
-	recoveryInterval time.Duration // how long to wait before retrying a failed pool
-	mu               sync.Mutex
-	failedPools      map[string]time.Time // poolName → time marked failed
-	zeroClaimsSince  map[string]time.Time // poolName → first time observed with 0 NodeClaims
+func init() {
+	noderesource.RegisterProvider(ProviderName, New)
 }
 
-// NewKarpenterProvider creates a KarpenterProvider.
-func NewKarpenterProvider(client dynamic.Interface) *KarpenterProvider {
-	return &KarpenterProvider{
-		client:           client,
+// karpenterProvider implements CapacityProvider using Karpenter NodePool/NodeClaim CRDs.
+type karpenterProvider struct {
+	client           dynamic.Interface
+	failureThreshold time.Duration
+	recoveryInterval time.Duration
+	mu               sync.Mutex
+	failedPools      map[string]time.Time
+	zeroClaimsSince  map[string]time.Time
+}
+
+// New creates a karpenter CapacityProvider.
+func New(fh framework.Handle) (noderesource.CapacityProvider, error) {
+	dc := fh.DynamicClient()
+	if dc == nil {
+		return &karpenterProvider{
+			failedPools:     make(map[string]time.Time),
+			zeroClaimsSince: make(map[string]time.Time),
+		}, nil
+	}
+	return &karpenterProvider{
+		client:           dc,
 		failureThreshold: defaultFailureThreshold,
 		recoveryInterval: defaultRecoveryInterval,
 		failedPools:      make(map[string]time.Time),
 		zeroClaimsSince:  make(map[string]time.Time),
-	}
+	}, nil
 }
 
-// IsAvailable returns true if Karpenter NodePool CRD exists in the cluster.
-func (k *KarpenterProvider) IsAvailable(ctx context.Context) bool {
+func (k *karpenterProvider) Name() string {
+	return ProviderName
+}
+
+// Estimate calculates potential replicas from Karpenter NodePools.
+// If Karpenter is not available, returns NoOperation.
+func (k *karpenterProvider) Estimate(ctx context.Context, snapshot *schedcache.Snapshot, req *pb.ReplicaRequirements) (int32, *framework.Result) {
+	if k.client == nil {
+		return 0, framework.NewResult(framework.Noopperation, "karpenter: no dynamic client")
+	}
+	if !k.isAvailable(ctx) {
+		return 0, framework.NewResult(framework.Noopperation, "karpenter: not available")
+	}
+	hasPending := hasPendingPods(snapshot)
+	replicas, err := k.getPotentialReplicas(ctx, req, hasPending)
+	if err != nil {
+		return 0, framework.AsResult(err)
+	}
+	return replicas, framework.NewResult(framework.Success)
+}
+
+// isAvailable returns true if Karpenter NodePool CRD exists in the cluster.
+func (k *karpenterProvider) isAvailable(ctx context.Context) bool {
 	_, err := k.client.Resource(karpenterNodePoolGVR).List(ctx, metav1.ListOptions{Limit: 1})
 	return err == nil
 }
 
-// GetPotentialReplicas calculates how many additional replicas could be scheduled
+// getPotentialReplicas calculates how many additional replicas could be scheduled
 // based on NodePool limits minus current NodeClaim usage.
-// Pools marked as failed are skipped until recoveryInterval elapses.
-func (k *KarpenterProvider) GetPotentialReplicas(ctx context.Context, req *pb.ReplicaRequirements, hasPendingPods bool) (int32, error) {
+func (k *karpenterProvider) getPotentialReplicas(ctx context.Context, req *pb.ReplicaRequirements, hasPendingPods bool) (int32, error) {
 	npList, err := k.client.Resource(karpenterNodePoolGVR).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return 0, err
@@ -140,8 +178,7 @@ func aggregateNodeClaims(ncList *unstructured.UnstructuredList) (usagePerPool ma
 
 // isPoolSkipped returns true if the pool should be skipped due to failure detection.
 // Must be called with k.mu held.
-func (k *KarpenterProvider) isPoolSkipped(poolName string, claimCount int64, hasPendingPods bool) bool {
-	// Check if pool is marked as failed
+func (k *karpenterProvider) isPoolSkipped(poolName string, claimCount int64, hasPendingPods bool) bool {
 	if failedAt, ok := k.failedPools[poolName]; ok {
 		if time.Since(failedAt) < k.recoveryInterval {
 			klog.V(4).Infof("NodePool %s: skipping (failed %s ago, recovery in %s)",
@@ -153,8 +190,6 @@ func (k *KarpenterProvider) isPoolSkipped(poolName string, claimCount int64, has
 		delete(k.zeroClaimsSince, poolName)
 	}
 
-	// Auto-detect failure: NodeClaim=0 for longer than failureThreshold.
-	// Only track when there are Pending pods to avoid false positives.
 	if claimCount == 0 && hasPendingPods {
 		if first, ok := k.zeroClaimsSince[poolName]; ok {
 			if time.Since(first) > k.failureThreshold {
@@ -173,8 +208,8 @@ func (k *KarpenterProvider) isPoolSkipped(poolName string, claimCount int64, has
 	return false
 }
 
-// MarkPoolFailed marks a NodePool as failed provisioning.
-func (k *KarpenterProvider) MarkPoolFailed(poolName string) {
+// markPoolFailed marks a NodePool as failed provisioning.
+func (k *karpenterProvider) markPoolFailed(poolName string) {
 	k.mu.Lock()
 	defer k.mu.Unlock()
 	k.failedPools[poolName] = time.Now()
@@ -182,10 +217,14 @@ func (k *KarpenterProvider) MarkPoolFailed(poolName string) {
 }
 
 // calcPotentialFromLimits calculates potential replicas by matching workload resource
-// requests against NodePool spec.limits. For each requested resource that has a
-// corresponding limit, it computes (limit - used) / request and returns the min.
+// requests against NodePool spec.limits.
 func calcPotentialFromLimits(npObj map[string]any, usedResources map[string]int64, req *pb.ReplicaRequirements) int32 {
-	if req == nil || len(req.ResourceRequest) == 0 {
+	if req == nil {
+		return 0
+	}
+
+	resourceRequest, err := req.UnmarshalResourceRequest()
+	if err != nil || len(resourceRequest) == 0 {
 		return 0
 	}
 
@@ -197,7 +236,7 @@ func calcPotentialFromLimits(npObj map[string]any, usedResources map[string]int6
 	var minPotential int32 = -1
 	matched := false
 
-	for resName, quantity := range req.ResourceRequest {
+	for resName, quantity := range resourceRequest {
 		perReplica := quantity.MilliValue()
 		if perReplica <= 0 {
 			continue
@@ -257,4 +296,20 @@ func nestedStringMap(obj map[string]any, fields ...string) (map[string]string, b
 		}
 	}
 	return result, true, nil
+}
+
+// hasPendingPods checks if there are any Pending pods in the snapshot.
+func hasPendingPods(snapshot *schedcache.Snapshot) bool {
+	nodes, err := snapshot.NodeInfos().List()
+	if err != nil {
+		return false
+	}
+	for _, node := range nodes {
+		for _, pod := range node.Pods {
+			if pod.Pod.Status.Phase == corev1.PodPending {
+				return true
+			}
+		}
+	}
+	return false
 }

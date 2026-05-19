@@ -20,6 +20,9 @@ import (
 	"testing"
 
 	"k8s.io/apimachinery/pkg/util/validation/field"
+
+	// Register providers for validation testing.
+	_ "github.com/karmada-io/karmada/pkg/estimator/server/framework/plugins/noderesource/providers/karpenter"
 )
 
 // a callback function to modify options
@@ -64,6 +67,34 @@ func TestValidateKarmadaSchedulerEstimator(t *testing.T) {
 				option.ServerPort = 80888
 			}),
 			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("ServerPort"), 80888, "must be a valid port between 0 and 65535 inclusive")},
+		},
+		"unknown node capacity provider": {
+			opt: New(func(option *Options) {
+				option.NodeCapacityProviders = []string{"nonexistent"}
+			}),
+			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("NodeCapacityProviders"), "nonexistent",
+				`unknown node capacity provider "nonexistent" (available: [karpenter])`)},
+		},
+		"duplicate node capacity provider": {
+			opt: New(func(option *Options) {
+				option.NodeCapacityProviders = []string{"karpenter", "karpenter"}
+			}),
+			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("NodeCapacityProviders"), "karpenter",
+				`duplicate node capacity provider "karpenter"`)},
+		},
+		"valid node capacity provider": {
+			opt: New(func(option *Options) {
+				option.NodeCapacityProviders = []string{"karpenter"}
+			}),
+			expectedErrs: field.ErrorList{},
+		},
+		"node capacity providers without NodeResourceEstimator": {
+			opt: New(func(option *Options) {
+				option.Plugins = []string{"ResourceQuotaEstimator"}
+				option.NodeCapacityProviders = []string{"karpenter"}
+			}),
+			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("NodeCapacityProviders"), []string{"karpenter"},
+				"--node-capacity-providers requires NodeResourceEstimator to be enabled in --plugins")},
 		},
 	}
 	for _, testCase := range testCases {

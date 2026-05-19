@@ -51,15 +51,17 @@ type frameworkImpl struct {
 	dynamicClient             dynamic.Interface
 	informerFactory           informers.SharedInformerFactory
 	parallelism               int
+	nodeCapacityProviders     []string
 }
 
 var _ framework.Framework = &frameworkImpl{}
 
 type frameworkOptions struct {
-	clientSet       clientset.Interface
-	dynamicClient   dynamic.Interface
-	informerFactory informers.SharedInformerFactory
-	parallelism     int
+	clientSet             clientset.Interface
+	dynamicClient         dynamic.Interface
+	informerFactory       informers.SharedInformerFactory
+	parallelism           int
+	nodeCapacityProviders []string
 }
 
 // Option for the frameworkImpl.
@@ -97,6 +99,13 @@ func WithParallelism(parallelism int) Option {
 	}
 }
 
+// WithNodeCapacityProviders sets the list of node capacity provider names.
+func WithNodeCapacityProviders(providers []string) Option {
+	return func(o *frameworkOptions) {
+		o.nodeCapacityProviders = providers
+	}
+}
+
 // NewFramework creates a scheduling framework by registry.
 func NewFramework(r Registry, opts ...Option) (framework.Framework, error) {
 	options := defaultFrameworkOptions()
@@ -104,8 +113,9 @@ func NewFramework(r Registry, opts ...Option) (framework.Framework, error) {
 		opt(&options)
 	}
 	f := &frameworkImpl{
-		dynamicClient:   options.dynamicClient,
-		informerFactory: options.informerFactory,
+		dynamicClient:         options.dynamicClient,
+		informerFactory:       options.informerFactory,
+		nodeCapacityProviders: options.nodeCapacityProviders,
 	}
 	estimateReplicasPluginsList := reflect.ValueOf(&f.estimateReplicasPlugins).Elem()
 	estimateReplicasType := estimateReplicasPluginsList.Type().Elem()
@@ -149,6 +159,11 @@ func (frw *frameworkImpl) SharedInformerFactory() informers.SharedInformerFactor
 // Parallelism returns the amount of parallelism in algorithms for estimating.
 func (frw *frameworkImpl) Parallelism() int {
 	return frw.parallelism
+}
+
+// NodeCapacityProviders returns the list of enabled node capacity provider names.
+func (frw *frameworkImpl) NodeCapacityProviders() []string {
+	return frw.nodeCapacityProviders
 }
 
 // RunEstimateReplicasPlugins runs the set of configured EstimateReplicasPlugins

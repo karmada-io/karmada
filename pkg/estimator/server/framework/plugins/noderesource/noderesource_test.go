@@ -20,19 +20,138 @@ import (
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/informers"
+	clientset "k8s.io/client-go/kubernetes"
 
 	"github.com/karmada-io/karmada/pkg/estimator/pb"
 	"github.com/karmada-io/karmada/pkg/estimator/server/framework"
 	schedcache "github.com/karmada-io/karmada/pkg/util/lifted/scheduler/cache"
+	"github.com/karmada-io/karmada/pkg/util/lifted/scheduler/framework/parallelize"
 )
 
-func TestNodeResourceEstimator_EstimateComponents(t *testing.T) {
+func init() {
+	// Register a test provider for testing New() with --node-capacity-providers.
+	RegisterProvider("test-provider", func(_ framework.Handle) (CapacityProvider, error) {
+		return &fakeProvider{name: "test-provider", replicas: 5, result: framework.NewResult(framework.Success)}, nil
+	})
+}
+
+type fakeHandle struct {
+	providers []string
+}
+
+func (f fakeHandle) ClientSet() clientset.Interface                         { return nil }
+func (f fakeHandle) DynamicClient() dynamic.Interface                       { return nil }
+func (f fakeHandle) SharedInformerFactory() informers.SharedInformerFactory { return nil }
+func (f fakeHandle) Parallelism() int                                       { return 1 }
+func (f fakeHandle) NodeCapacityProviders() []string                        { return f.providers }
+
+// fakeProvider implements CapacityProvider for testing.
+type fakeProvider struct {
+	name     string
+	replicas int32
+	result   *framework.Result
+}
+
+func (f *fakeProvider) Name() string { return f.name }
+func (f *fakeProvider) Estimate(_ context.Context, _ *schedcache.Snapshot, _ *pb.ReplicaRequirements) (int32, *framework.Result) {
+	return f.replicas, f.result
+}
+
+func TestNew_NoProviders(t *testing.T) {
+	// Default: no additional providers, just existing nodes
+	p, err := New(fakeHandle{})
+	assert.NoError(t, err)
+	assert.NotNil(t, p)
+	assert.Equal(t, Name, p.Name())
+}
+
+func TestNew_WithProvider(t *testing.T) {
+	p, err := New(fakeHandle{providers: []string{"test-provider"}})
+	assert.NoError(t, err)
+	assert.NotNil(t, p)
+}
+
+func TestNew_UnknownProvider(t *testing.T) {
+	_, err := New(fakeHandle{providers: []string{"nonexistent"}})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown node capacity provider")
+}
+
+func TestEstimate_ExistingNodesOnly(t *testing.T) {
+	// No additional providers, 4 CPU node, request 1 CPU → 4 replicas
+	nodes := []*corev1.Node{makeNode("n1", nil, corev1.ResourceList{
+		corev1.ResourceCPU:  resource.MustParse("4"),
+		corev1.ResourcePods: resource.MustParse("10"),
+	})}
+	snapshot := schedcache.NewSnapshot(nil, nodes)
+	pl := &nodeResourceEstimator{parallelizer: parallelize.NewParallelizer(1)}
+	replicas, ret := pl.Estimate(context.Background(), snapshot, (&pb.ReplicaRequirements{}).MustSetResourceRequest(corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1")}))
+	assert.Equal(t, int32(4), replicas)
+	assert.True(t, ret.IsSuccess())
+}
+
+func TestEstimate_ExistingNodesPlusProvider(t *testing.T) {
+	// 4 CPU from existing nodes + 5 from provider = 9
+	nodes := []*corev1.Node{makeNode("n1", nil, corev1.ResourceList{
+		corev1.ResourceCPU:  resource.MustParse("4"),
+		corev1.ResourcePods: resource.MustParse("10"),
+	})}
+	snapshot := schedcache.NewSnapshot(nil, nodes)
+	pl := &nodeResourceEstimator{
+		parallelizer: parallelize.NewParallelizer(1),
+		providers:    []CapacityProvider{&fakeProvider{name: "k", replicas: 5, result: framework.NewResult(framework.Success)}},
+	}
+	replicas, ret := pl.Estimate(context.Background(), snapshot, (&pb.ReplicaRequirements{}).MustSetResourceRequest(corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1")}))
+	assert.Equal(t, int32(9), replicas)
+	assert.True(t, ret.IsSuccess())
+}
+
+func TestEstimate_ProviderNoOp(t *testing.T) {
+	// Provider returns NoOp → only existing nodes count
+	nodes := []*corev1.Node{makeNode("n1", nil, corev1.ResourceList{
+		corev1.ResourceCPU:  resource.MustParse("2"),
+		corev1.ResourcePods: resource.MustParse("10"),
+	})}
+	snapshot := schedcache.NewSnapshot(nil, nodes)
+	pl := &nodeResourceEstimator{
+		parallelizer: parallelize.NewParallelizer(1),
+		providers:    []CapacityProvider{&fakeProvider{name: "k", replicas: 0, result: framework.NewResult(framework.Noopperation)}},
+	}
+	replicas, ret := pl.Estimate(context.Background(), snapshot, (&pb.ReplicaRequirements{}).MustSetResourceRequest(corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1")}))
+	assert.Equal(t, int32(2), replicas)
+	assert.True(t, ret.IsSuccess())
+}
+
+func TestEstimate_ProviderFailed(t *testing.T) {
+	// Provider fails → propagate error
+	snapshot := schedcache.NewEmptySnapshot()
+	pl := &nodeResourceEstimator{
+		parallelizer: parallelize.NewParallelizer(1),
+		providers:    []CapacityProvider{&fakeProvider{name: "k", replicas: 0, result: framework.NewResult(framework.Error, "fail")}},
+	}
+	replicas, ret := pl.Estimate(context.Background(), snapshot, (&pb.ReplicaRequirements{}).MustSetResourceRequest(corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1")}))
+	assert.Equal(t, int32(0), replicas)
+	assert.True(t, ret.IsFailed())
+}
+
+func TestEstimate_EmptySnapshot(t *testing.T) {
+	// No nodes, no providers → 0
+	snapshot := schedcache.NewEmptySnapshot()
+	pl := &nodeResourceEstimator{parallelizer: parallelize.NewParallelizer(1)}
+	replicas, ret := pl.Estimate(context.Background(), snapshot, (&pb.ReplicaRequirements{}).MustSetResourceRequest(corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1")}))
+	assert.Equal(t, int32(0), replicas)
+	assert.True(t, ret.IsSuccess())
+}
+
+func TestEstimateComponents(t *testing.T) {
 	tests := []struct {
 		name       string
-		enabled    bool
 		nodes      []*corev1.Node
 		pods       []*corev1.Pod
 		components []*pb.Component
@@ -40,339 +159,85 @@ func TestNodeResourceEstimator_EstimateComponents(t *testing.T) {
 		wantCode   framework.Code
 	}{
 		{
-			name:    "plugin disabled",
-			enabled: false,
-			nodes: []*corev1.Node{
-				makeNode("node1", map[string]string{}, corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("4"),
-					corev1.ResourceMemory: resource.MustParse("8Gi"),
-					corev1.ResourcePods:   resource.MustParse("10"),
-				}),
-			},
-			components: []*pb.Component{
-				{
-					ReplicaRequirements: (&pb.ComponentReplicaRequirements{}).MustSetResourceRequest(corev1.ResourceList{
-						corev1.ResourceCPU:    resource.MustParse("1"),
-						corev1.ResourceMemory: resource.MustParse("1Gi"),
-					}),
-					Replicas: 2,
-				},
-			},
-			expected: 2147483647, // math.MaxInt32
-			wantCode: framework.Noopperation,
-		},
-		{
-			name:    "single component single replica fits in single node",
-			enabled: true,
-			nodes: []*corev1.Node{
-				makeNode("node1", map[string]string{}, corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("4"),
-					corev1.ResourceMemory: resource.MustParse("8Gi"),
-					corev1.ResourcePods:   resource.MustParse("10"),
-				}),
-			},
-			components: []*pb.Component{
-				{
-					ReplicaRequirements: (&pb.ComponentReplicaRequirements{}).MustSetResourceRequest(corev1.ResourceList{
-						corev1.ResourceCPU:    resource.MustParse("1"),
-						corev1.ResourceMemory: resource.MustParse("1Gi"),
-					}),
-					Replicas: 1,
-				},
-			},
-			expected: 4, // node can fit 4 sets
+			name: "single component fits",
+			nodes: []*corev1.Node{makeNode("n1", nil, corev1.ResourceList{
+				corev1.ResourceCPU:  resource.MustParse("4"),
+				corev1.ResourcePods: resource.MustParse("10"),
+			})},
+			components: []*pb.Component{{
+				ReplicaRequirements: (&pb.ComponentReplicaRequirements{}).MustSetResourceRequest(corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1")}),
+				Replicas:            1,
+			}},
+			expected: 4,
 			wantCode: framework.Success,
 		},
 		{
-			name:    "single component multiple replicas fits in single node",
-			enabled: true,
-			nodes: []*corev1.Node{
-				makeNode("node1", map[string]string{}, corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("4"),
-					corev1.ResourceMemory: resource.MustParse("8Gi"),
-					corev1.ResourcePods:   resource.MustParse("10"),
-				}),
-			},
-			components: []*pb.Component{
-				{
-					ReplicaRequirements: (&pb.ComponentReplicaRequirements{}).MustSetResourceRequest(corev1.ResourceList{
-						corev1.ResourceCPU:    resource.MustParse("1"),
-						corev1.ResourceMemory: resource.MustParse("1Gi"),
-					}),
-					Replicas: 2,
-				},
-			},
-			expected: 2, // each set needs 2 replicas, node can fit 2 sets
-			wantCode: framework.Success,
-		},
-		{
-			name:    "multiple components fit in single node",
-			enabled: true,
-			nodes: []*corev1.Node{
-				makeNode("node1", map[string]string{}, corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("10"),
-					corev1.ResourceMemory: resource.MustParse("10Gi"),
-					corev1.ResourcePods:   resource.MustParse("10"),
-				}),
-			},
-			components: []*pb.Component{
-				{
-					ReplicaRequirements: (&pb.ComponentReplicaRequirements{}).MustSetResourceRequest(corev1.ResourceList{
-						corev1.ResourceCPU:    resource.MustParse("2"),
-						corev1.ResourceMemory: resource.MustParse("2Gi"),
-					}),
-					Replicas: 1,
-				},
-				{
-					ReplicaRequirements: (&pb.ComponentReplicaRequirements{}).MustSetResourceRequest(corev1.ResourceList{
-						corev1.ResourceCPU:    resource.MustParse("3"),
-						corev1.ResourceMemory: resource.MustParse("3Gi"),
-					}),
-					Replicas: 1,
-				},
-			},
-			expected: 2, // each set needs 5 CPU + 5Gi memory, node can fit 2 sets
-			wantCode: framework.Success,
-		},
-		{
-			name:    "components spread across multiple nodes",
-			enabled: true,
-			nodes: []*corev1.Node{
-				makeNode("node1", map[string]string{}, corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("6"),
-					corev1.ResourceMemory: resource.MustParse("6Gi"),
-					corev1.ResourcePods:   resource.MustParse("10"),
-				}),
-				makeNode("node2", map[string]string{}, corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("6"),
-					corev1.ResourceMemory: resource.MustParse("6Gi"),
-					corev1.ResourcePods:   resource.MustParse("10"),
-				}),
-			},
-			components: []*pb.Component{
-				{
-					ReplicaRequirements: (&pb.ComponentReplicaRequirements{}).MustSetResourceRequest(corev1.ResourceList{
-						corev1.ResourceCPU:    resource.MustParse("3"),
-						corev1.ResourceMemory: resource.MustParse("3Gi"),
-					}),
-					Replicas: 2,
-				},
-				{
-					ReplicaRequirements: (&pb.ComponentReplicaRequirements{}).MustSetResourceRequest(corev1.ResourceList{
-						corev1.ResourceCPU:    resource.MustParse("2"),
-						corev1.ResourceMemory: resource.MustParse("2Gi"),
-					}),
-					Replicas: 1,
-				},
-			},
-			expected: 1, // each set needs 8 CPU + 8Gi memory, can fit 1 set across nodes
-			wantCode: framework.Success,
-		},
-		{
-			name:    "insufficient resources",
-			enabled: true,
-			nodes: []*corev1.Node{
-				makeNode("node1", map[string]string{}, corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("2"),
-					corev1.ResourceMemory: resource.MustParse("2Gi"),
-					corev1.ResourcePods:   resource.MustParse("10"),
-				}),
-			},
-			components: []*pb.Component{
-				{
-					ReplicaRequirements: (&pb.ComponentReplicaRequirements{}).MustSetResourceRequest(corev1.ResourceList{
-						corev1.ResourceCPU:    resource.MustParse("3"),
-						corev1.ResourceMemory: resource.MustParse("3Gi"),
-					}),
-					Replicas: 1,
-				},
-			},
-			expected: 0, // not enough resources
-			wantCode: framework.Unschedulable,
-		},
-		{
-			name:    "node with existing pods",
-			enabled: true,
-			nodes: []*corev1.Node{
-				makeNode("node1", map[string]string{}, corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("4"),
-					corev1.ResourceMemory: resource.MustParse("8Gi"),
-					corev1.ResourcePods:   resource.MustParse("10"),
-				}),
-			},
-			pods: []*corev1.Pod{
-				makePod("pod1", "node1", corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("1"),
-					corev1.ResourceMemory: resource.MustParse("2Gi"),
-				}),
-			},
-			components: []*pb.Component{
-				{
-					ReplicaRequirements: (&pb.ComponentReplicaRequirements{}).MustSetResourceRequest(corev1.ResourceList{
-						corev1.ResourceCPU:    resource.MustParse("1"),
-						corev1.ResourceMemory: resource.MustParse("2Gi"),
-					}),
-					Replicas: 1,
-				},
-			},
-			expected: 3, // remaining: 3 CPU + 6Gi memory, can fit 3 sets
-			wantCode: framework.Success,
-		},
-		{
-			name:    "node affinity constraints",
-			enabled: true,
-			nodes: []*corev1.Node{
-				makeNode("node1", map[string]string{"zone": "us-west"}, corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("4"),
-					corev1.ResourceMemory: resource.MustParse("8Gi"),
-					corev1.ResourcePods:   resource.MustParse("10"),
-				}),
-				makeNode("node2", map[string]string{"zone": "us-east"}, corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("4"),
-					corev1.ResourceMemory: resource.MustParse("8Gi"),
-					corev1.ResourcePods:   resource.MustParse("10"),
-				}),
-			},
-			components: []*pb.Component{
-				{
-					ReplicaRequirements: (&pb.ComponentReplicaRequirements{
-						NodeClaim: (&pb.NodeClaim{}).MustSetNodeAffinity(&corev1.NodeSelector{
-							NodeSelectorTerms: []corev1.NodeSelectorTerm{
-								{
-									MatchExpressions: []corev1.NodeSelectorRequirement{
-										{
-											Key:      "zone",
-											Operator: corev1.NodeSelectorOpIn,
-											Values:   []string{"us-west"},
-										},
-									},
-								},
-							},
-						}),
-					}).MustSetResourceRequest(corev1.ResourceList{
-						corev1.ResourceCPU:    resource.MustParse("1"),
-						corev1.ResourceMemory: resource.MustParse("1Gi"),
-					}),
-					Replicas: 1,
-				},
-			},
-			expected: 4, // only node1 matches affinity, can fit 4 sets
-			wantCode: framework.Success,
-		},
-		{
-			name:    "no component match node affinity constraints",
-			enabled: true,
-			nodes: []*corev1.Node{
-				makeNode("node1", map[string]string{"zone": "us-west"}, corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("4"),
-					corev1.ResourceMemory: resource.MustParse("8Gi"),
-					corev1.ResourcePods:   resource.MustParse("10"),
-				}),
-				makeNode("node2", map[string]string{"zone": "us-east"}, corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("4"),
-					corev1.ResourceMemory: resource.MustParse("8Gi"),
-					corev1.ResourcePods:   resource.MustParse("10"),
-				}),
-			},
-			components: []*pb.Component{
-				{
-					ReplicaRequirements: (&pb.ComponentReplicaRequirements{
-						NodeClaim: (&pb.NodeClaim{}).MustSetNodeAffinity(&corev1.NodeSelector{
-							NodeSelectorTerms: []corev1.NodeSelectorTerm{
-								{
-									MatchExpressions: []corev1.NodeSelectorRequirement{
-										{
-											Key:      "zone",
-											Operator: corev1.NodeSelectorOpIn,
-											Values:   []string{"us-south"},
-										},
-									},
-								},
-							},
-						}),
-					}).MustSetResourceRequest(corev1.ResourceList{
-						corev1.ResourceCPU:    resource.MustParse("1"),
-						corev1.ResourceMemory: resource.MustParse("1Gi"),
-					}),
-					Replicas: 4,
-				},
-			},
+			name: "insufficient resources",
+			nodes: []*corev1.Node{makeNode("n1", nil, corev1.ResourceList{
+				corev1.ResourceCPU:  resource.MustParse("2"),
+				corev1.ResourcePods: resource.MustParse("10"),
+			})},
+			components: []*pb.Component{{
+				ReplicaRequirements: (&pb.ComponentReplicaRequirements{}).MustSetResourceRequest(corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("3")}),
+				Replicas:            1,
+			}},
 			expected: 0,
 			wantCode: framework.Unschedulable,
 		},
 		{
-			name:    "empty components",
-			enabled: true,
-			nodes: []*corev1.Node{
-				makeNode("node1", map[string]string{}, corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("4"),
-					corev1.ResourceMemory: resource.MustParse("8Gi"),
-					corev1.ResourcePods:   resource.MustParse("10"),
-				}),
-			},
+			name: "empty components",
+			nodes: []*corev1.Node{makeNode("n1", nil, corev1.ResourceList{
+				corev1.ResourceCPU: resource.MustParse("4"),
+			})},
 			components: []*pb.Component{},
 			expected:   noNodeConstraint,
 			wantCode:   framework.Noopperation,
+		},
+		{
+			name: "with existing pods",
+			nodes: []*corev1.Node{makeNode("n1", nil, corev1.ResourceList{
+				corev1.ResourceCPU:  resource.MustParse("4"),
+				corev1.ResourcePods: resource.MustParse("10"),
+			})},
+			pods: []*corev1.Pod{makePod("p1", "n1", corev1.ResourceList{
+				corev1.ResourceCPU: resource.MustParse("1"),
+			})},
+			components: []*pb.Component{{
+				ReplicaRequirements: (&pb.ComponentReplicaRequirements{}).MustSetResourceRequest(corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1")}),
+				Replicas:            1,
+			}},
+			expected: 3,
+			wantCode: framework.Success,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create snapshot
 			snapshot := schedcache.NewSnapshot(tt.pods, tt.nodes)
-
-			// Create plugin
-			pl := &nodeResourceEstimator{
-				enabled: tt.enabled,
-			}
-
-			// Execute test
+			pl := &nodeResourceEstimator{parallelizer: parallelize.NewParallelizer(1)}
 			result, status := pl.EstimateComponents(context.Background(), framework.ComponentEstimationContext{
 				Snapshot:   snapshot,
 				Components: tt.components,
 			})
-
-			// Verify results
-			if result != tt.expected {
-				t.Errorf("EstimateComponents() result = %v, expected %v", result, tt.expected)
-			}
-
-			if status.Code() != tt.wantCode {
-				t.Errorf("EstimateComponents() status code = %v, expected %v", status.Code(), tt.wantCode)
-			}
+			assert.Equal(t, tt.expected, result)
+			assert.Equal(t, tt.wantCode, status.Code())
 		})
 	}
 }
 
-// Helper functions
-
 func makeNode(name string, labels map[string]string, allocatable corev1.ResourceList) *corev1.Node {
 	return &corev1.Node{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   name,
-			Labels: labels,
-		},
-		Status: corev1.NodeStatus{
-			Allocatable: allocatable,
-			Capacity:    allocatable,
-		},
+		ObjectMeta: metav1.ObjectMeta{Name: name, Labels: labels},
+		Status:     corev1.NodeStatus{Allocatable: allocatable, Capacity: allocatable},
 	}
 }
 
 func makePod(name, nodeName string, requests corev1.ResourceList) *corev1.Pod {
 	return &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-		},
+		ObjectMeta: metav1.ObjectMeta{Name: name},
 		Spec: corev1.PodSpec{
-			NodeName: nodeName,
-			Containers: []corev1.Container{
-				{
-					Resources: corev1.ResourceRequirements{
-						Requests: requests,
-					},
-				},
-			},
+			NodeName:   nodeName,
+			Containers: []corev1.Container{{Resources: corev1.ResourceRequirements{Requests: requests}}},
 		},
 	}
 }

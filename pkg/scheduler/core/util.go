@@ -79,7 +79,8 @@ func calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha
 
 	// Collect results from all estimators, then merge.
 	// When scheduler-estimator is available, prefer its result over general-estimator
-	// because it has more accurate cluster-level information (e.g., autoscaler potential capacity).
+	// because it has more accurate cluster-level information (e.g., potential capacity
+	// from node autoscaler providers configured in NodeResourceEstimator).
 	var allResults []estimatorResult
 
 	for name, estimator := range estimators {
@@ -130,7 +131,8 @@ type estimatorResult struct {
 
 // mergeEstimatorResults applies estimator results to availableTargetClusters using min.
 // When scheduler-estimator reports higher availability than general-estimator,
-// the general-estimator value is skipped to avoid masking autoscaler capacity.
+// the general-estimator value is skipped to avoid masking capacity from node
+// autoscaler providers (e.g., Karpenter) configured in NodeResourceEstimator.
 func mergeEstimatorResults(allResults []estimatorResult, availableTargetClusters []workv1alpha2.TargetCluster) {
 	var schedulerEstimatorResult []workv1alpha2.TargetCluster
 	for _, r := range allResults {

@@ -134,7 +134,6 @@ func NewEstimatorServer(
 
 	registry := frameworkplugins.NewInTreeRegistry()
 	if len(opts.Plugins) > 0 {
-		registry = frameworkplugins.NewExtendedRegistry()
 		enabledSet := make(map[string]bool, len(opts.Plugins))
 		for _, name := range opts.Plugins {
 			enabledSet[name] = true
@@ -151,6 +150,7 @@ func NewEstimatorServer(
 		frameworkruntime.WithDynamicClient(dynamicClient),
 		frameworkruntime.WithInformerFactory(informerFactory),
 		frameworkruntime.WithParallelism(opts.Parallelism),
+		frameworkruntime.WithNodeCapacityProviders(opts.NodeCapacityProviders),
 	)
 	if err != nil {
 		return es, err
