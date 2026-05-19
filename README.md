@@ -49,7 +49,7 @@ Karmada is an incubation project of the [Cloud Native Computing Foundation](http
     - Multi-Dimension HA: Region/AZ/Cluster/Provider
 
 - __Open and Neutral__
-    - Jointly initiated by Internet, finance, manufacturing, teleco, cloud providers, etc.
+    - Jointly initiated by Internet, finance, manufacturing, telecom, cloud providers, etc.
     - Target for open governance with CNCF
 
 
@@ -69,7 +69,7 @@ The Karmada Control Plane consists of the following components:
 
 ETCD stores the Karmada API objects, the API Server is the REST endpoint all other components talk to, and the Karmada Controller Manager performs operations based on the API objects you create through the API server.
 
-The Karmada Controller Manager runs the various controllers,  the controllers watch Karmada objects and then talk to the underlying clusters' API servers to create regular Kubernetes resources.
+The Karmada Controller Manager runs the various controllers, the controllers watch Karmada objects and then talk to the underlying clusters' API servers to create regular Kubernetes resources.
 
 1. Cluster Controller: attach Kubernetes clusters to Karmada for managing the lifecycle of the clusters by creating cluster objects.
 2. Policy Controller: the controller watches PropagationPolicy objects. When the PropagationPolicy object is added, it selects a group of resources matching the resourceSelector and creates ResourceBinding with each single resource object.

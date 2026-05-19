@@ -121,8 +121,8 @@ func calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha
 	return availableTargetClusters
 }
 
-// attachZeroReplicasCluster  attach cluster in clusters into targetCluster
-// The purpose is to avoid workload not appeared in rb's spec.clusters field
+// attachZeroReplicasCluster ensures all clusters from the input list are present in the targetClusters list.
+// If a cluster is not present, it's added with 0 replicas to ensure it appears in the ResourceBinding's spec.clusters field.
 func attachZeroReplicasCluster(clusters []spreadconstraint.ClusterDetailInfo,
 	targetClusters []workv1alpha2.TargetCluster) []workv1alpha2.TargetCluster {
 	targetClusterSet := sets.NewString()
@@ -137,7 +137,7 @@ func attachZeroReplicasCluster(clusters []spreadconstraint.ClusterDetailInfo,
 	return targetClusters
 }
 
-// removeZeroReplicasCLuster remove the cluster with 0 replicas in assignResults
+// removeZeroReplicasCluster filters out clusters with 0 replicas from the assignment results.
 func removeZeroReplicasCluster(assignResults []workv1alpha2.TargetCluster) []workv1alpha2.TargetCluster {
 	targetClusters := make([]workv1alpha2.TargetCluster, 0, len(assignResults))
 	for _, cluster := range assignResults {
