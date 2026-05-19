@@ -41,5 +41,11 @@ func runRBAC(r workflow.RunData) error {
 
 	klog.V(4).InfoS("[RBAC] Running rbac task", "karmada", klog.KObj(data))
 
-	return rbac.EnsureKarmadaRBAC(data.KarmadaClient())
+	if err := rbac.EnsureKarmadaRBAC(data.KarmadaClient()); err != nil {
+		klog.ErrorS(err, "[RBAC] Failed to ensure karmada rbac resources", "karmada", klog.KObj(data))
+		return err
+	}
+
+	klog.InfoS("[RBAC] Successfully ensured karmada rbac resources", "karmada", klog.KObj(data))
+	return nil
 }
