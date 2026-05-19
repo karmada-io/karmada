@@ -39,6 +39,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 // addAllEventHandlers is a helper function used in Scheduler
@@ -174,6 +175,19 @@ func (s *Scheduler) onResourceBindingUpdate(old, cur any) {
 	newResourceBinding, ok := cur.(*workv1alpha2.ResourceBinding)
 	if ok && features.FeatureGate.Enabled(features.WorkloadAffinity) {
 		s.schedulerCache.AssigningResourceBindings().OnBindingUpdate(newResourceBinding)
+	}
+
+	// Release per-cluster assumptions for any cluster whose workload just became Healthy.
+	// This must run before the generation check below because AggregatedStatus is a status
+	// field that does not bump the generation.
+	if ok && s.schedulerCache != nil && s.schedulerCache.AssigningResourceBindings() != nil {
+		if oldRB, ok2 := old.(*workv1alpha2.ResourceBinding); ok2 {
+			bindingKey := names.NamespacedKey(newResourceBinding.Namespace, newResourceBinding.Name)
+			for _, clusterName := range newlyHealthyClusters(oldRB.Status.AggregatedStatus, newResourceBinding.Status.AggregatedStatus) {
+				s.schedulerCache.AssigningResourceBindings().ReleaseClusterAssumption(bindingKey, clusterName)
+				klog.V(4).Infof("Released assumption for ResourceBinding(%s) on cluster(%s): workload became Healthy", bindingKey, clusterName)
+			}
+		}
 	}
 
 	if oldMeta.GetGeneration() == newMeta.GetGeneration() {
@@ -444,4 +458,25 @@ func (s *Scheduler) enqueueAffectedCRBs(cluster *clusterv1alpha1.Cluster) error 
 	}
 
 	return nil
+}
+
+// newlyHealthyClusters returns the cluster names that transitioned to Healthy
+// in newStatus compared to oldStatus. It is used to release per-cluster
+// assumptions once the workload has reached a stable running state.
+func newlyHealthyClusters(oldStatus, newStatus []workv1alpha2.AggregatedStatusItem) []string {
+	oldHealthy := make(map[string]struct{}, len(oldStatus))
+	for _, item := range oldStatus {
+		if item.Health == workv1alpha2.ResourceHealthy {
+			oldHealthy[item.ClusterName] = struct{}{}
+		}
+	}
+	var result []string
+	for _, item := range newStatus {
+		if item.Health == workv1alpha2.ResourceHealthy {
+			if _, alreadyHealthy := oldHealthy[item.ClusterName]; !alreadyHealthy {
+				result = append(result, item.ClusterName)
+			}
+		}
+	}
+	return result
 }
