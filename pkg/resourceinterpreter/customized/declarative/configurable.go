@@ -263,6 +263,25 @@ func (c *ConfigurableInterpreter) InterpretHealth(object *unstructured.Unstructu
 	return
 }
 
+// InterpretSchedulingResult allows customizing the scheduling result for distributing replicas among clusters.
+func (c *ConfigurableInterpreter) InterpretSchedulingResult(object *unstructured.Unstructured, schedulingResult []workv1alpha2.TargetCluster) (result []workv1alpha2.TargetCluster, enabled bool, err error) {
+	klog.V(4).Infof("Interpret scheduling result for object: %v %s/%s with configurable interpreter.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
+
+	accessor, enabled := c.getCustomAccessor(object.GroupVersionKind())
+	if !enabled {
+		return
+	}
+
+	script := accessor.GetSchedulingResultInterpretationLuaScript()
+	if len(script) == 0 {
+		enabled = false
+		return
+	}
+
+	result, err = c.luaVM.InterpretSchedulingResult(object, schedulingResult, script)
+	return
+}
+
 func (c *ConfigurableInterpreter) getCustomAccessor(kind schema.GroupVersionKind) (configmanager.CustomAccessor, bool) {
 	if !c.configManager.HasSynced() {
 		klog.Errorf("not yet ready to handle request")
