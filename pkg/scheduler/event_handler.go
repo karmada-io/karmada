@@ -39,6 +39,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 // addAllEventHandlers is a helper function used in Scheduler
@@ -208,25 +209,28 @@ func (s *Scheduler) onResourceBindingUpdate(old, cur any) {
 
 // onResourceBindingDelete is called when a delete event for a ResourceBinding is received from the Informer.
 func (s *Scheduler) onResourceBindingDelete(obj any) {
-	if features.FeatureGate.Enabled(features.WorkloadAffinity) {
-		var binding *workv1alpha2.ResourceBinding
-		switch t := obj.(type) {
-		case *workv1alpha2.ResourceBinding:
-			binding = t
-		case cache.DeletedFinalStateUnknown:
-			var ok bool
-			binding, ok = t.Obj.(*workv1alpha2.ResourceBinding)
-			if !ok {
-				klog.Errorf("cannot convert to workv1alpha2.ResourceBinding: %v", t.Obj)
-				return
-			}
-		default:
-			klog.Errorf("cannot convert to workv1alpha2.ResourceBinding: %v", t)
+	var binding *workv1alpha2.ResourceBinding
+	switch t := obj.(type) {
+	case *workv1alpha2.ResourceBinding:
+		binding = t
+	case cache.DeletedFinalStateUnknown:
+		var ok bool
+		binding, ok = t.Obj.(*workv1alpha2.ResourceBinding)
+		if !ok {
+			klog.Errorf("cannot convert to workv1alpha2.ResourceBinding: %v", t.Obj)
 			return
 		}
+	default:
+		klog.Errorf("cannot convert to workv1alpha2.ResourceBinding: %v", t)
+		return
+	}
 
+	if features.FeatureGate.Enabled(features.WorkloadAffinity) {
 		s.schedulerCache.AssigningResourceBindings().OnBindingDelete(binding)
 	}
+
+	bindingKey := names.NamespacedKey(binding.Namespace, binding.Name)
+	s.schedulerCache.AssigningResourceBindings().ReleaseAssumption(bindingKey)
 }
 
 func (s *Scheduler) onResourceBindingRequeue(binding *workv1alpha2.ResourceBinding, event string) {
