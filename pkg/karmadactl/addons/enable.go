@@ -100,7 +100,7 @@ func NewCmdAddonsEnable(parentCommand string) *cobra.Command {
 	// Karmada-metrics-adapter config
 	flags.Int32Var(&opts.KarmadaMetricsAdapterReplicas, "karmada-metrics-adapter-replicas", 1, "karmada-metrics-adapter replica set")
 	flags.StringVar(&opts.KarmadaMetricsAdapterImage, "karmada-metrics-adapter-image", addoninit.DefaultKarmadaMetricsAdapterImage, "karmada-metrics-adapter image")
-	flags.StringVar(&opts.KarmadaMetricsAdapterPriorityClass, "metrics-adapter-priority-class", "system-node-critical", "The priority class name for the component karmada-metrics-adaptor.")
+	flags.StringVar(&opts.KarmadaMetricsAdapterPriorityClass, "metrics-adapter-priority-class", "system-node-critical", "The priority class name for the component karmada-metrics-adapter.")
 
 	// Karmada-search config
 	flags.Int32Var(&opts.KarmadaSearchReplicas, "karmada-search-replicas", 1, "Karmada-search replica set")

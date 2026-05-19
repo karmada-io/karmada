@@ -47,7 +47,7 @@ func PrintCLIByTag(cmd *cobra.Command, all []*cobra.Command, tag string) string 
 		cname := cmd.Name() + " " + c.Name()
 		link := cname
 		link = strings.ReplaceAll(link, " ", "_") + ".md"
-		pl = append(pl, fmt.Sprintf("* [%s](%s)\t - %s\n", cname, link, c.Long))
+		pl = append(pl, fmt.Sprintf("* [%s](%s)\t - ", cname, link)+c.Long+"\n")
 	}
 
 	for _, v := range pl {
