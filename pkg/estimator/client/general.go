@@ -107,26 +107,33 @@ func (ge *GeneralEstimator) maxAvailableReplicas(cluster *clusterv1alpha1.Cluste
 func (ge *GeneralEstimator) MaxAvailableComponentSets(_ context.Context, req ComponentSetEstimationRequest) ([]ComponentSetEstimationResponse, error) {
 	responses := make([]ComponentSetEstimationResponse, len(req.Clusters))
 	for i, cluster := range req.Clusters {
-		maxComponentSets := ge.maxAvailableComponentSets(cluster, req.Components)
+		maxComponentSets := ge.maxAvailableComponentSets(cluster, req.Components, req.AssumedWorkloads[cluster.Name])
 		responses[i] = ComponentSetEstimationResponse{Name: cluster.Name, Sets: maxComponentSets}
 	}
 	return responses, nil
 }
 
-func (ge *GeneralEstimator) maxAvailableComponentSets(cluster *clusterv1alpha1.Cluster, components []workv1alpha2.Component) int32 {
+func (ge *GeneralEstimator) maxAvailableComponentSets(cluster *clusterv1alpha1.Cluster, components []workv1alpha2.Component, assumedWorkloads []AssumedWorkload) int32 {
 	resourceSummary := cluster.Status.ResourceSummary.DeepCopy()
 	if resourceSummary == nil {
 		return 0
 	}
 
-	// Aggregate per-set resource requirements
-	perSet := perSetRequirement(components)
-
-	// Check pod constraint
 	available := availableResourceMap(resourceSummary)
 	allowedPods := getAllowedPodNumber(resourceSummary)
 	if allowedPods <= 0 {
 		return 0
+	}
+
+	// Deduct assumed workloads from cluster-wide available resources.
+	// GeneralEstimator has no per-node view, so cluster-level aggregate deduction is used as a
+	// fallback: accumulate each assumed component's Replicas × ResourceRequest, subtract from the
+	// available resource map, and also reduce the allowed pod budget.
+	if len(assumedWorkloads) > 0 {
+		allowedPods, available = deductAssumedWorkloads(allowedPods, available, assumedWorkloads)
+		if allowedPods <= 0 {
+			return 0
+		}
 	}
 
 	podsPerSet := podsInSet(components)
@@ -136,36 +143,66 @@ func (ge *GeneralEstimator) maxAvailableComponentSets(cluster *clusterv1alpha1.C
 	}
 
 	podBound := int32(allowedPods / podsPerSet) // #nosec G115: integer overflow conversion int64 -> int32
-	if len(perSet) == 0 || allZero(perSet) {
-		return podBound
+
+	perSet := perSetRequirement(components)
+	maxSets, ok := resourceBoundedSets(podBound, perSet, available)
+	if !ok {
+		return 0
 	}
 
-	// Find limiting resource requirement, which will bound maxSet calculation
+	return applyResourceModelBound(cluster, components, maxSets)
+}
+
+// deductAssumedWorkloads subtracts the resource demands of assumed workloads from the
+// pod budget and available resource map, returning the updated values.
+func deductAssumedWorkloads(allowedPods int64, available map[corev1.ResourceName]int64, assumedWorkloads []AssumedWorkload) (int64, map[corev1.ResourceName]int64) {
+	assumedPods, assumedResources := sumAssumedWorkloadDemands(assumedWorkloads)
+	allowedPods -= assumedPods
+	for resName, qty := range assumedResources {
+		available[resName] -= qty
+	}
+	return allowedPods, available
+}
+
+// resourceBoundedSets returns the maximum number of component sets that fit within the
+// available resource map, starting from podBound as the upper limit.
+// Returns (maxSets, true) on success, or (0, false) when any resource is exhausted.
+func resourceBoundedSets(podBound int32, perSet map[corev1.ResourceName]int64, available map[corev1.ResourceName]int64) (int32, bool) {
+	if len(perSet) == 0 || allZero(perSet) {
+		return podBound, true
+	}
 	maxSets := podBound
 	for resName, req := range perSet {
 		if req <= 0 {
 			continue
 		}
-
-		resAvail := available[resName]
-		if resAvail <= 0 {
-			return 0 // no capacity for this resource
+		if available[resName] <= 0 {
+			return 0, false
 		}
 
-		resBound := int32(resAvail / req) // #nosec G115: integer overflow conversion int64 -> int32
+		resBound := int32(available[resName] / req) // #nosec G115: integer overflow conversion int64 -> int32
 		if resBound < maxSets {
 			maxSets = resBound
 		}
 	}
+	return maxSets, true
+}
 
-	if features.FeatureGate.Enabled(features.CustomizedClusterResourceModeling) && len(cluster.Status.ResourceSummary.AllocatableModelings) > 0 {
-		if num, err := getMaximumSetsBasedOnResourceModels(cluster, components, maxSets); err != nil {
-			klog.Warningf("Failed to get maximum sets based on resource models, skipping: %v", err)
-		} else if num < maxSets {
-			maxSets = num
-		}
+// applyResourceModelBound refines maxSets using cluster ResourceModels when the feature is
+// enabled and model data is available.  Returns the original maxSets if the feature is off
+// or the model-based calculation fails.
+func applyResourceModelBound(cluster *clusterv1alpha1.Cluster, components []workv1alpha2.Component, maxSets int32) int32 {
+	if !features.FeatureGate.Enabled(features.CustomizedClusterResourceModeling) || len(cluster.Status.ResourceSummary.AllocatableModelings) == 0 {
+		return maxSets
 	}
-
+	num, err := getMaximumSetsBasedOnResourceModels(cluster, components, maxSets)
+	if err != nil {
+		klog.Warningf("Failed to get maximum sets based on resource models, skipping: %v", err)
+		return maxSets
+	}
+	if num < maxSets {
+		return num
+	}
 	return maxSets
 }
 
@@ -271,6 +308,26 @@ func podsInSet(components []workv1alpha2.Component) int64 {
 		sum += int64(c.Replicas)
 	}
 	return sum
+}
+
+// sumAssumedWorkloadDemands computes the total pod count and aggregate per-resource demand
+// across all assumed workloads. GeneralEstimator uses this to deduct reserved capacity from
+// the cluster-wide available budget before estimating the remaining component-set count.
+func sumAssumedWorkloadDemands(assumedWorkloads []AssumedWorkload) (pods int64, resources map[corev1.ResourceName]int64) {
+	resources = make(map[corev1.ResourceName]int64)
+	for _, aw := range assumedWorkloads {
+		for _, c := range aw.Components {
+			replicas := int64(c.Replicas)
+			pods += replicas
+			if c.ReplicaRequirements == nil {
+				continue
+			}
+			for resName, qty := range c.ReplicaRequirements.ResourceRequest {
+				resources[resName] += quantityAsInt64(qty) * replicas
+			}
+		}
+	}
+	return pods, resources
 }
 
 // perSetRequirement computes the aggregate resource(such as CPU, Memory, GPU, etc) demand of one set of components.
