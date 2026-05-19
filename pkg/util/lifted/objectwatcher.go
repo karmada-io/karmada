@@ -24,11 +24,12 @@ package lifted
 
 import (
 	"fmt"
-	"reflect"
 	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
 
 const (
@@ -72,17 +73,56 @@ func ObjectNeedsUpdate(desiredObj, clusterObj *unstructured.Unstructured, record
 // objectMetaObjEquivalent checks if cluster-independent, user provided data in two given ObjectMeta are equal. If in
 // the future the ObjectMeta structure is expanded then any field that is not populated
 // by the api server should be included here.
-func objectMetaObjEquivalent(a, b metav1.Object) bool {
-	if a.GetName() != b.GetName() {
+func objectMetaObjEquivalent(desiredObj, clusterObj metav1.Object) bool {
+	if desiredObj.GetName() != clusterObj.GetName() {
 		return false
 	}
-	if a.GetNamespace() != b.GetNamespace() {
+	if desiredObj.GetNamespace() != clusterObj.GetNamespace() {
 		return false
 	}
-	aLabels := a.GetLabels()
-	bLabels := b.GetLabels()
-	if !reflect.DeepEqual(aLabels, bLabels) && (len(aLabels) != 0 || len(bLabels) != 0) {
+
+	return !(propagateAnnotationsChanged(desiredObj.GetAnnotations(), clusterObj.GetAnnotations()) ||
+		propagateLabelsChange(desiredObj.GetLabels(), clusterObj.GetLabels(),
+			strings.Split(clusterObj.GetAnnotations()[workv1alpha2.ManagedLabels], ",")))
+}
+
+func propagateAnnotationsChanged(desireMaps, clusterMaps map[string]string) bool {
+	if desireMaps == nil {
 		return false
 	}
-	return true
+
+	keysStr, exist := clusterMaps[workv1alpha2.ManagedAnnotation]
+	if !exist {
+		_, exist = desireMaps[workv1alpha2.ManagedAnnotation]
+		return exist
+	}
+
+	keys := strings.Split(keysStr, ",")
+	for _, key := range keys {
+		clusterValue, exist := clusterMaps[key]
+		if !exist {
+			return true
+		}
+		if clusterValue != desireMaps[key] {
+			return true
+		}
+	}
+	return false
+}
+
+func propagateLabelsChange(desireLabels, clusterLabels map[string]string, keys []string) bool {
+	if desireLabels == nil {
+		return false
+	}
+
+	for _, key := range keys {
+		clusterValue, exist := clusterLabels[key]
+		if !exist {
+			return true
+		}
+		if clusterValue != desireLabels[key] {
+			return true
+		}
+	}
+	return false
 }
