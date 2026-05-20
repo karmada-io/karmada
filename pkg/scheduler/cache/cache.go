@@ -227,7 +227,7 @@ func (b *AssigningResourceBindingCache) GetBindings() map[string]*workv1alpha2.R
 // Assume records (or replaces) the resource footprint for the given binding+cluster pair.
 // Calling Assume again for the same pair overwrites the previous entry and resets the TTL,
 // reflecting the latest scheduling decision.
-// entry.Components is deep-copied before storage to prevent callers from unintentionally
+// entry.Components are deep-copied before storage to prevent callers from unintentionally
 // mutating the cache's internal state via shared slice backing arrays.
 func (b *AssigningResourceBindingCache) Assume(bindingKey, clusterName string, entry AssumedWorkload) {
 	b.Lock()
