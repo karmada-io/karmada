@@ -33,7 +33,7 @@ require (
 	golang.org/x/time v0.14.0
 	golang.org/x/tools v0.41.0
 	gomodules.xyz/jsonpatch/v2 v2.4.0
-	google.golang.org/grpc v1.78.0
+	google.golang.org/grpc v1.79.3
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.5.1
 	google.golang.org/protobuf v1.36.11
 	k8s.io/api v0.35.3
