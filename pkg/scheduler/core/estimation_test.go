@@ -38,7 +38,7 @@ type mockReplicaEstimator struct {
 	lastComponentSetRequest           estimatorclient.ComponentSetEstimationRequest
 }
 
-func (m *mockReplicaEstimator) MaxAvailableReplicas(_ context.Context, _ []*clusterv1alpha1.Cluster, _ *workv1alpha2.ReplicaRequirements) ([]workv1alpha2.TargetCluster, error) {
+func (m *mockReplicaEstimator) MaxAvailableReplicas(_ context.Context, _ estimatorclient.ReplicaEstimationRequest) ([]workv1alpha2.TargetCluster, error) {
 	return nil, nil
 }
 

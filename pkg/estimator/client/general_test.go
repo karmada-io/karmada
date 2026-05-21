@@ -623,7 +623,10 @@ func TestMaxAvailableReplicas(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			estimator := NewGeneralEstimator()
-			targets, err := estimator.MaxAvailableReplicas(context.Background(), tt.clusters, tt.replicaRequirements)
+			targets, err := estimator.MaxAvailableReplicas(context.Background(), ReplicaEstimationRequest{
+				Clusters:            tt.clusters,
+				ReplicaRequirements: tt.replicaRequirements,
+			})
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expectedTargets, targets)
 		})
