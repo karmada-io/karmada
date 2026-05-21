@@ -58,12 +58,11 @@ func KubeLoader(ls *lua.LState) int {
 }
 
 var kubeFuncs = map[string]lua.LGFunction{
-	"resourceAdd":               resourceAdd,
-	"accuratePodRequirements":   accuratePodRequirements,
-	"getPodDependencies":        getPodDependencies,
-	"getResourceQuantity":       getResourceQuantity,
-	"getResourceQuantityString": getResourceQuantityString,
-	"parseFlinkMemory":          parseFlinkMemory,
+	"resourceAdd":             resourceAdd,
+	"accuratePodRequirements": accuratePodRequirements,
+	"getPodDependencies":      getPodDependencies,
+	"getResourceQuantity":     getResourceQuantity,
+	"parseFlinkMemory":        parseFlinkMemory,
 }
 
 func resourceAdd(ls *lua.LState) int {
@@ -158,36 +157,25 @@ func getResourceQuantity(ls *lua.LState) int {
 	return 1
 }
 
-func getResourceQuantityString(ls *lua.LState) int {
-	if ls.GetTop() != 1 {
-		ls.RaiseError("getResourceQuantityString only accepts one argument")
-		return 0
-	}
-
-	q := checkResourceQuantity(ls, 1)
-	ls.Push(lua.LString(q.String())) // preserves suffix/format
-	return 1
-}
-
 // flinkMemoryMultipliers maps Flink MemorySize suffixes to byte multipliers.
 // Flink uses binary (1024-based) multipliers: b=1, k=1024, m=1024^2, g=1024^3, t=1024^4.
 // See: org.apache.flink.configuration.MemorySize.MemoryUnit
 var flinkMemoryMultipliers = map[string]int64{
-	"":           1,
-	"b":          1,
-	"bytes":      1,
-	"k":          1024,
-	"kb":         1024,
-	"kibibytes":  1024,
-	"m":          1048576,
-	"mb":         1048576,
-	"mebibytes":  1048576,
-	"g":          1073741824,
-	"gb":         1073741824,
-	"gibibytes":  1073741824,
-	"t":          1099511627776,
-	"tb":         1099511627776,
-	"tebibytes":  1099511627776,
+	"":          1,
+	"b":         1,
+	"bytes":     1,
+	"k":         1024,
+	"kb":        1024,
+	"kibibytes": 1024,
+	"m":         1048576,
+	"mb":        1048576,
+	"mebibytes": 1048576,
+	"g":         1073741824,
+	"gb":        1073741824,
+	"gibibytes": 1073741824,
+	"t":         1099511627776,
+	"tb":        1099511627776,
+	"tebibytes": 1099511627776,
 }
 
 // parseFlinkMemory parses a Flink memory string (e.g., "4096m", "2g") and returns
