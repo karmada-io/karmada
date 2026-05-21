@@ -55,7 +55,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	cmds, err := generateCMDs(module)
+	cmds, err := generateCMDsForDocs(module)
 	if err != nil {
 		fmt.Fprint(os.Stderr, err.Error())
 		os.Exit(1)
@@ -74,6 +74,25 @@ func main() {
 			os.Exit(1)
 		}
 	}
+}
+
+// generateCMDsForDocs builds commands with non-TTY stdout to make environment consistent.
+func generateCMDsForDocs(module string) ([]*cobra.Command, error) {
+	devNull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
+	if err != nil {
+		return nil, err
+	}
+	defer devNull.Close()
+
+	oldStdout := os.Stdout
+	os.Stdout = devNull
+	cmds, err := generateCMDs(module)
+	os.Stdout = oldStdout
+	if err != nil {
+		return nil, err
+	}
+
+	return cmds, nil
 }
 
 func generateCMDs(module string) ([]*cobra.Command, error) {
