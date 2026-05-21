@@ -303,6 +303,15 @@ func (b *AssigningResourceBindingCache) GetAssumedWorkloads(clusterName string) 
 	return result
 }
 
+// IsAssumptionExist checks if there is an existing assumption for the given binding key.
+func (b *AssigningResourceBindingCache) IsAssumptionExist(bindingKey string) bool {
+	b.RLock()
+	defer b.RUnlock()
+
+	_, ok := b.assumptions[bindingKey]
+	return ok
+}
+
 // GC removes all assumptions whose TTL has expired.
 // It is intended to be called periodically (e.g., every minute) as a safety net for
 // assumptions whose normal release path (Healthy signal) was never triggered.

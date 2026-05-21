@@ -25,6 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/apimachinery/pkg/util/sets"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
@@ -39,6 +40,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 // addAllEventHandlers is a helper function used in Scheduler
@@ -190,6 +192,11 @@ func (s *Scheduler) onResourceBindingUpdate(old, cur any) {
 	if features.FeatureGate.Enabled(features.WorkloadAffinity) {
 		s.schedulerCache.AssigningResourceBindings().OnBindingUpdate(newRB)
 	}
+
+	// Release per-cluster assumptions for any cluster whose workload just became Healthy.
+	// This must run before the generation check below because AggregatedStatus is a status
+	// field that does not bump the generation.
+	s.releaseHealthyClusterAssumptions(oldRB, newRB)
 
 	if oldRB.GetGeneration() == newRB.GetGeneration() {
 		klog.V(4).Infof("Ignore update event of resourceBinding %s/%s as specification no change", newRB.GetNamespace(), newRB.GetName())
@@ -474,4 +481,51 @@ func (s *Scheduler) enqueueAffectedCRBs(cluster *clusterv1alpha1.Cluster) error 
 	}
 
 	return nil
+}
+
+// releaseHealthyClusterAssumptions releases per-cluster assumptions for any cluster
+// whose workload transitioned to Healthy between the old and new ResourceBinding.
+// It is a no-op when the assumption cache is not initialized or old is not a ResourceBinding.
+func (s *Scheduler) releaseHealthyClusterAssumptions(oldRB, newRB *workv1alpha2.ResourceBinding) {
+	// Defensive check: schedulerCache is expected to be always initialized.
+	if s.schedulerCache == nil || s.schedulerCache.AssigningResourceBindings() == nil {
+		return
+	}
+
+	// Skip non-workload resources.
+	if !oldRB.Spec.IsWorkload() {
+		return
+	}
+
+	bindingKey := names.NamespacedKey(newRB.Namespace, newRB.Name)
+	// Skip when the target assumption does not exist.
+	if !s.schedulerCache.AssigningResourceBindings().IsAssumptionExist(bindingKey) {
+		return
+	}
+
+	for _, clusterName := range newlyHealthyClusters(oldRB.Status.AggregatedStatus, newRB.Status.AggregatedStatus) {
+		s.schedulerCache.AssigningResourceBindings().ReleaseClusterAssumption(bindingKey, clusterName)
+		klog.V(4).Infof("Released assumption for ResourceBinding(%s) on cluster(%s): workload became Healthy", bindingKey, clusterName)
+	}
+}
+
+// newlyHealthyClusters returns the cluster names that transitioned to Healthy
+// in newStatus compared to oldStatus. It is used to release per-cluster
+// assumptions once the workload has reached a stable running state.
+func newlyHealthyClusters(oldStatus, newStatus []workv1alpha2.AggregatedStatusItem) []string {
+	oldHealthy := sets.New[string]()
+	for _, item := range oldStatus {
+		if item.Health == workv1alpha2.ResourceHealthy {
+			oldHealthy.Insert(item.ClusterName)
+		}
+	}
+	var result []string
+	for _, item := range newStatus {
+		if item.Health == workv1alpha2.ResourceHealthy {
+			if !oldHealthy.Has(item.ClusterName) {
+				result = append(result, item.ClusterName)
+			}
+		}
+	}
+	return result
 }
