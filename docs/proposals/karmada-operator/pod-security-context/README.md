@@ -16,7 +16,7 @@ creation-date: 2026-05-21
 
 ## Summary
 
-This proposal adds a `SecurityContext` field to the `CommonSettings` struct in the `Karmada` CRD. This allows users to configure [Pod Security Context](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/) settings for all control plane components provisioned by the operator, enabling deployments in environments that enforce Kubernetes Pod Security Standards, CIS benchmarks, and organizational compliance policies.
+This proposal adds a `PodSecurityContext` field to the `CommonSettings` struct in the `Karmada` CRD. This allows users to configure [Pod Security Context](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/) settings for all control plane components provisioned by the operator, enabling deployments in environments that enforce Kubernetes Pod Security Standards, CIS benchmarks, and organizational compliance policies.
 
 
 ## Motivation
@@ -31,13 +31,15 @@ Beyond PSA, many organizations operating in regulated industries (finance, healt
 
 - Allow users to configure pod-level security contexts on any Karmada control plane component via the `Karmada` CR.
 - Follow the existing patcher pattern used for `Tolerations` and `Affinity`.
+- Expose the API as an opt-in configuration surface that defers all policy decisions to the user; the operator does not set defaults or validate values beyond what the Kubernetes API server enforces.
 
 
 ## Non-Goals
 
 - Exposing container-level `SecurityContext` (as distinct from pod-level `PodSecurityContext`) in this initial iteration. Container-level settings such as `capabilities`, `readOnlyRootFilesystem`, and `allowPrivilegeEscalation` are valuable but may be addressed in a follow-up proposal.
-- Providing defaulting logic that automatically sets security context fields. Components that currently ship without security context settings will continue that behavior as the baseline.
-- Enforcing or validating security context values against any specific Pod Security Standard. If the user specifies `securityContext`, their value is used as-is (consistent with how `Tolerations` and `Affinity` work today).
+- Providing defaulting logic that automatically sets security context fields. Components that currently ship without security context settings will continue that behavior as the baseline. Introducing operator-managed defaults is a broader effort that requires per-component compatibility testing and should be addressed in a dedicated follow-up proposal.
+- Enforcing or validating security context values against any specific Pod Security Standard. If the user specifies `podSecurityContext`, their value is used as-is (consistent with how `Tolerations` and `Affinity` work today).
+- Guaranteeing that every combination of pod security context settings is compatible with every Karmada component. Some settings (e.g., `runAsUser`, `runAsNonRoot`) may require component-level changes (such as adjusting file permissions or default listening ports) to function correctly. This proposal provides the configuration surface; component-level hardening is tracked separately.
 
 
 ## Proposal
@@ -56,7 +58,7 @@ Beyond PSA, many organizations operating in regulated industries (finance, healt
    spec:
      components:
        karmadaAPIServer:
-         securityContext:
+         podSecurityContext:
            runAsUser: 1000
            runAsGroup: 3000
            runAsNonRoot: true
@@ -77,7 +79,7 @@ Beyond PSA, many organizations operating in regulated industries (finance, healt
      components:
        etcd:
          local:
-           securityContext:
+           podSecurityContext:
              runAsUser: 1000
              fsGroup: 1000
              runAsNonRoot: true
@@ -93,36 +95,43 @@ Beyond PSA, many organizations operating in regulated industries (finance, healt
 Add the following field to `CommonSettings`:
 
 ```go
-// SecurityContext holds pod-level security attributes and common container settings
-// for the component's pods. When specified, the operator applies these settings to the
-// PodSpec of the workload (Deployment or StatefulSet) managing the component.
-// This enables compliance with Pod Security Standards (e.g., Restricted profile),
-// CIS benchmarks, and organizational security policies.
+// PodSecurityContext holds pod-level security attributes for the component's pods.
+// When specified, the operator applies these settings to the PodSpec of the workload
+// (Deployment or StatefulSet) managing the component. This enables compliance with
+// Pod Security Standards (e.g., Restricted profile), CIS benchmarks, and
+// organizational security policies.
 // More info: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
 // +optional
-SecurityContext *corev1.PodSecurityContext `json:"securityContext,omitempty"`
+PodSecurityContext *corev1.PodSecurityContext `json:"podSecurityContext,omitempty"`
 ```
 
 #### Patcher Change
 
-Add a `WithSecurityContext` builder method to the patcher and apply it in both `ForDeployment` and `ForStatefulSet`:
+Add a `WithPodSecurityContext` builder method to the patcher and apply it in both `ForDeployment` and `ForStatefulSet`:
 
 ```go
-func (p *Patcher) WithSecurityContext(sc *corev1.PodSecurityContext) *Patcher {
-    p.securityContext = sc
+func (p *Patcher) WithPodSecurityContext(sc *corev1.PodSecurityContext) *Patcher {
+    p.podSecurityContext = sc
     return p
 }
 ```
 
 ```go
 // In ForDeployment and ForStatefulSet:
-if p.securityContext != nil {
-    podSpec.SecurityContext = p.securityContext
+if p.podSecurityContext != nil {
+    podSpec.SecurityContext = p.podSecurityContext
 }
 ```
 
 
+### Risks and Mitigations
+
+**Risk: Certain pod security context settings may cause component failures.**
+Some Karmada components may not function correctly under specific security settings. For example, prior testing has shown that `runAsUser` and `runAsNonRoot` can cause functional issues with certain components that assume root privileges or write to directories owned by root.
+
+*Mitigation:* This proposal intentionally exposes `PodSecurityContext` as an opt-in, per-component field with no operator-managed defaults. Users who configure these settings are expected to validate their values against the target component. The operator does not apply any security context unless explicitly specified, preserving the existing behavior as the baseline. Known compatibility constraints should be documented as they are identified. A future proposal can introduce vetted defaults for individual components once the necessary component-level changes (e.g., adjusting file permissions, non-root-compatible base images, binding to non-privileged ports) have been completed and validated.
+
 ### Test Plan
 
-- **Unit tests:** Extend patcher unit tests to verify `SecurityContext` is correctly applied to both Deployment and StatefulSet pod specs, and that a nil value results in no change.
+- **Unit tests:** Extend patcher unit tests to verify `PodSecurityContext` is correctly applied to both Deployment and StatefulSet pod specs, and that a nil value results in no change.
 - **Integration tests:** Add test cases for at least one Deployment-based component and the etcd StatefulSet to verify end-to-end wiring.
