@@ -18,15 +18,16 @@ package plugins
 
 import (
 	"github.com/karmada-io/karmada/pkg/estimator/server/framework/plugins/noderesource"
+	// Register node capacity providers via side-effect imports.
+	_ "github.com/karmada-io/karmada/pkg/estimator/server/framework/plugins/noderesource/providers/karpenter"
 	"github.com/karmada-io/karmada/pkg/estimator/server/framework/plugins/resourcequota"
 	"github.com/karmada-io/karmada/pkg/estimator/server/framework/runtime"
 )
 
 // NewInTreeRegistry builds the registry with all the in-tree plugins.
 func NewInTreeRegistry() runtime.Registry {
-	registry := runtime.Registry{
+	return runtime.Registry{
 		noderesource.Name:  noderesource.New,
 		resourcequota.Name: resourcequota.New,
 	}
-	return registry
 }

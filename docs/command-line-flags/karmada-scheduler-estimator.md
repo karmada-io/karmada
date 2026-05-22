@@ -74,7 +74,9 @@ Generic flags:
       --kubeconfig string                  Path to member cluster's kubeconfig file.
       --master string                      The address of the member Kubernetes API server. Overrides any value in KubeConfig. Only required if out-of-cluster.
       --metrics-bind-address string        The TCP address that the server should bind to for serving prometheus metrics(e.g. 127.0.0.1:8080, :8080). It can be set to "0" to disable the metrics serving. Defaults to 0.0.0.0:8080. (default ":8080")
+      --node-capacity-providers strings    Comma-separated list of additional node capacity providers for NodeResourceEstimator. Existing node capacity is always calculated. Providers add potential capacity on top. Example: --node-capacity-providers=karpenter
       --parallelism int                    Parallelism defines the amount of parallelism in algorithms for estimating. Must be greater than 0. Defaults to 16.
+      --plugins strings                    Comma-separated list of estimator plugins to enable. If not set, all in-tree plugins are enabled. Example: --plugins=NodeResourceEstimator,ResourceQuotaEstimator
       --profiling-bind-address string      The TCP address for serving profiling(e.g. 127.0.0.1:6060, :6060). This is only applicable if profiling is enabled. (default ":6060")
       --server-port int                    The secure port on which to serve gRPC. (default 10352)
 ```

@@ -38,44 +38,78 @@ import (
 const (
 	// Name is the name of the plugin used in Registry and configurations.
 	Name = "NodeResourceEstimator"
-	// nodeResourceEstimator is enabled by default.
-	enabled = true
 
 	// noNodeConstraint represents the value when there is no node resource constraint.
 	noNodeConstraint = math.MaxInt32
 )
 
-// nodeResourceEstimator is to estimate how many replicas/sets allowed by the node resources for a given pb.ReplicaRequirements.
+// nodeResourceEstimator estimates replicas/sets allowed by node resources.
+// It always calculates capacity from existing nodes, and optionally adds
+// potential capacity from additional providers (e.g., karpenter).
 type nodeResourceEstimator struct {
-	enabled      bool
 	parallelizer parallelize.Parallelizer
+	providers    []CapacityProvider // additional providers (potential capacity)
 }
 
 var _ framework.EstimateReplicasPlugin = &nodeResourceEstimator{}
 var _ framework.EstimateComponentsPlugin = &nodeResourceEstimator{}
 
 // New initializes a new plugin and returns it.
+// --node-capacity-providers specifies additional providers beyond the built-in
+// existing-node calculation. If empty, only existing nodes are used.
 func New(fh framework.Handle) (framework.Plugin, error) {
-	return &nodeResourceEstimator{
-		enabled:      enabled,
+	pl := &nodeResourceEstimator{
 		parallelizer: parallelize.NewParallelizer(fh.Parallelism()),
-	}, nil
+	}
+	for _, name := range fh.NodeCapacityProviders() {
+		factory, ok := LookupProvider(name)
+		if !ok {
+			return nil, fmt.Errorf("unknown node capacity provider %q (registered: %v)", name, RegisteredProviders())
+		}
+		p, err := factory(fh)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize node capacity provider %q: %w", name, err)
+		}
+		pl.providers = append(pl.providers, p)
+	}
+	return pl, nil
 }
 
-// Name returns name of the plugin. It is used in logs, etc.
+// Name returns name of the plugin.
 func (pl *nodeResourceEstimator) Name() string {
 	return Name
 }
 
-// Estimate the replica allowed by the node resources for a given pb.ReplicaRequirements.
+// Estimate calculates available replicas from existing nodes (always) plus
+// any additional capacity from configured providers (summed).
 func (pl *nodeResourceEstimator) Estimate(ctx context.Context, snapshot *schedcache.Snapshot, requirements *pb.ReplicaRequirements) (int32, *framework.Result) {
-	if !pl.enabled {
-		return pl.disabledResult()
+	current, ret := pl.estimateFromExistingNodes(ctx, snapshot, requirements)
+	if ret.IsFailed() {
+		return 0, ret
 	}
 
+	var additional int32
+	for _, p := range pl.providers {
+		replicas, ret := p.Estimate(ctx, snapshot, requirements)
+		if ret.IsFailed() {
+			return 0, ret
+		}
+		if !ret.IsNoOperation() {
+			additional += replicas
+		}
+	}
+
+	return current + additional, framework.NewResult(framework.Success)
+}
+
+// estimateFromExistingNodes calculates available replicas from current nodes.
+func (pl *nodeResourceEstimator) estimateFromExistingNodes(ctx context.Context, snapshot *schedcache.Snapshot, requirements *pb.ReplicaRequirements) (int32, *framework.Result) {
 	allNodes, err := snapshot.NodeInfos().List()
 	if err != nil {
 		return 0, framework.AsResult(err)
+	}
+	if len(allNodes) == 0 {
+		return 0, framework.NewResult(framework.Success)
 	}
 
 	var affinity nodeaffinity.RequiredNodeAffinity
@@ -99,43 +133,22 @@ func (pl *nodeResourceEstimator) Estimate(ctx context.Context, snapshot *schedca
 		if !estimator.MatchNode(node, affinity, tolerations) {
 			return
 		}
-		maxReplica := pl.nodeMaxAvailableReplica(node, resourceRequest)
+		rest := getNodeAvailableResource(node)
+		maxReplica := int32(rest.MaxDivided(resourceRequest)) // #nosec G115
 		atomic.AddInt32(&res, maxReplica)
 	}
 	pl.parallelizer.Until(ctx, len(allNodes), processNode)
-
 	return res, framework.NewResult(framework.Success)
 }
 
-func (pl *nodeResourceEstimator) nodeMaxAvailableReplica(node *schedulerframework.NodeInfo, rl corev1.ResourceList) int32 {
-	rest := getNodeAvailableResource(node)
-	return int32(rest.MaxDivided(rl)) // #nosec G115: integer overflow conversion int64 -> int32
-}
-
-// getNodeAvailableResource calculates a node's available resources after deducting requested resources
-// and adjusting the pod-count capacity, which isn't included in node.Requested.
-func getNodeAvailableResource(node *schedulerframework.NodeInfo) *util.Resource {
-	rest := node.Allocatable
-	rest = rest.SubResource(node.Requested)
-	// The number of pods in a node is a kind of resource in node allocatable resources.
-	// However, total requested resources of all pods on this node, i.e. `node.Requested`,
-	// do not contain pod resources. So after subtraction, we should cope with allowed pod
-	// number manually which is the upper bound of this node available replicas.
-	rest.AllowedPodNumber = util.MaxInt64(rest.AllowedPodNumber-int64(len(node.Pods)), 0)
-	return rest
-}
-
-// EstimateComponents estimates the maximum number of complete component sets that can be scheduled.
-// It returns the number of sets that can fit on the available node resources.
+// EstimateComponents estimates the maximum number of complete component sets.
+// This uses only existing node resources (additional providers cannot simulate
+// bin-packing across nodes that don't yet exist).
 func (pl *nodeResourceEstimator) EstimateComponents(_ context.Context, estCtx framework.ComponentEstimationContext) (int32, *framework.Result) {
-	if !pl.enabled {
-		return pl.disabledResult()
-	}
-
 	components := estCtx.Components
 	if len(components) == 0 {
-		klog.V(5).Infof("%s: received empty components list", pl.Name())
-		return noNodeConstraint, framework.NewResult(framework.Noopperation, fmt.Sprintf("%s received empty components list", pl.Name()))
+		klog.V(5).Infof("%s: received empty components list", Name)
+		return noNodeConstraint, framework.NewResult(framework.Noopperation, fmt.Sprintf("%s received empty components list", Name))
 	}
 
 	nodes, err := getNodesAvailableResources(estCtx.Snapshot)
@@ -153,14 +166,7 @@ func (pl *nodeResourceEstimator) EstimateComponents(_ context.Context, estCtx fr
 	return sets, framework.NewResult(framework.Success)
 }
 
-func (pl *nodeResourceEstimator) disabledResult() (int32, *framework.Result) {
-	klog.V(5).Info("Estimator Plugin", "name", Name, "enabled", pl.enabled)
-	return noNodeConstraint, framework.NewResult(framework.Noopperation, fmt.Sprintf("%s is disabled", pl.Name()))
-}
-
 // getNodesAvailableResources retrieves and prepares the list of node information from the snapshot.
-// It clones each node's info and adjusts the allocatable resources by subtracting the requested resources.
-// So that the returned node infos reflect the actual available resources for scheduling.
 func getNodesAvailableResources(snapshot *schedcache.Snapshot) ([]*schedulerframework.NodeInfo, error) {
 	allNodes, err := snapshot.NodeInfos().List()
 	if err != nil {
@@ -175,4 +181,12 @@ func getNodesAvailableResources(snapshot *schedcache.Snapshot) ([]*schedulerfram
 	}
 
 	return rest, nil
+}
+
+// getNodeAvailableResource calculates a node's available resources after deducting requested resources.
+func getNodeAvailableResource(node *schedulerframework.NodeInfo) *util.Resource {
+	rest := node.Allocatable
+	rest = rest.SubResource(node.Requested)
+	rest.AllowedPodNumber = util.MaxInt64(rest.AllowedPodNumber-int64(len(node.Pods)), 0)
+	return rest
 }

@@ -17,7 +17,12 @@ limitations under the License.
 package options
 
 import (
+	"fmt"
+	"slices"
+
 	"k8s.io/apimachinery/pkg/util/validation/field"
+
+	"github.com/karmada-io/karmada/pkg/estimator/server/framework/plugins/noderesource"
 )
 
 // Validate checks Options and return a slice of found errs.
@@ -31,6 +36,29 @@ func (o *Options) Validate() field.ErrorList {
 
 	if o.ServerPort < 0 || o.ServerPort > 65535 {
 		errs = append(errs, field.Invalid(newPath.Child("ServerPort"), o.ServerPort, "must be a valid port between 0 and 65535 inclusive"))
+	}
+
+	// Validate node capacity provider names: no unknowns, no duplicates.
+	seen := make(map[string]bool, len(o.NodeCapacityProviders))
+	for _, name := range o.NodeCapacityProviders {
+		if seen[name] {
+			errs = append(errs, field.Invalid(newPath.Child("NodeCapacityProviders"), name,
+				fmt.Sprintf("duplicate node capacity provider %q", name)))
+			continue
+		}
+		seen[name] = true
+		if _, ok := noderesource.LookupProvider(name); !ok {
+			errs = append(errs, field.Invalid(newPath.Child("NodeCapacityProviders"), name,
+				fmt.Sprintf("unknown node capacity provider %q (available: %v)", name, noderesource.RegisteredProviders())))
+		}
+	}
+
+	// --node-capacity-providers requires NodeResourceEstimator to be enabled.
+	if len(o.NodeCapacityProviders) > 0 && len(o.Plugins) > 0 {
+		if !slices.Contains(o.Plugins, "NodeResourceEstimator") {
+			errs = append(errs, field.Invalid(newPath.Child("NodeCapacityProviders"), o.NodeCapacityProviders,
+				"--node-capacity-providers requires NodeResourceEstimator to be enabled in --plugins"))
+		}
 	}
 
 	return errs

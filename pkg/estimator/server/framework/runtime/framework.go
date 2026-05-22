@@ -23,6 +23,7 @@ import (
 	"reflect"
 	"time"
 
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/informers"
 	clientset "k8s.io/client-go/kubernetes"
 
@@ -47,16 +48,20 @@ type frameworkImpl struct {
 	estimateReplicasPlugins   []framework.EstimateReplicasPlugin
 	estimateComponentsPlugins []framework.EstimateComponentsPlugin
 	clientSet                 clientset.Interface
+	dynamicClient             dynamic.Interface
 	informerFactory           informers.SharedInformerFactory
 	parallelism               int
+	nodeCapacityProviders     []string
 }
 
 var _ framework.Framework = &frameworkImpl{}
 
 type frameworkOptions struct {
-	clientSet       clientset.Interface
-	informerFactory informers.SharedInformerFactory
-	parallelism     int
+	clientSet             clientset.Interface
+	dynamicClient         dynamic.Interface
+	informerFactory       informers.SharedInformerFactory
+	parallelism           int
+	nodeCapacityProviders []string
 }
 
 // Option for the frameworkImpl.
@@ -70,6 +75,13 @@ func defaultFrameworkOptions() frameworkOptions {
 func WithClientSet(clientSet clientset.Interface) Option {
 	return func(o *frameworkOptions) {
 		o.clientSet = clientSet
+	}
+}
+
+// WithDynamicClient sets dynamic client for the scheduling frameworkImpl.
+func WithDynamicClient(dynamicClient dynamic.Interface) Option {
+	return func(o *frameworkOptions) {
+		o.dynamicClient = dynamicClient
 	}
 }
 
@@ -87,6 +99,13 @@ func WithParallelism(parallelism int) Option {
 	}
 }
 
+// WithNodeCapacityProviders sets the list of node capacity provider names.
+func WithNodeCapacityProviders(providers []string) Option {
+	return func(o *frameworkOptions) {
+		o.nodeCapacityProviders = providers
+	}
+}
+
 // NewFramework creates a scheduling framework by registry.
 func NewFramework(r Registry, opts ...Option) (framework.Framework, error) {
 	options := defaultFrameworkOptions()
@@ -94,7 +113,9 @@ func NewFramework(r Registry, opts ...Option) (framework.Framework, error) {
 		opt(&options)
 	}
 	f := &frameworkImpl{
-		informerFactory: options.informerFactory,
+		dynamicClient:         options.dynamicClient,
+		informerFactory:       options.informerFactory,
+		nodeCapacityProviders: options.nodeCapacityProviders,
 	}
 	estimateReplicasPluginsList := reflect.ValueOf(&f.estimateReplicasPlugins).Elem()
 	estimateReplicasType := estimateReplicasPluginsList.Type().Elem()
@@ -125,6 +146,11 @@ func (frw *frameworkImpl) ClientSet() clientset.Interface {
 	return frw.clientSet
 }
 
+// DynamicClient returns a dynamic client.
+func (frw *frameworkImpl) DynamicClient() dynamic.Interface {
+	return frw.dynamicClient
+}
+
 // SharedInformerFactory returns a shared informer factory.
 func (frw *frameworkImpl) SharedInformerFactory() informers.SharedInformerFactory {
 	return frw.informerFactory
@@ -133,6 +159,11 @@ func (frw *frameworkImpl) SharedInformerFactory() informers.SharedInformerFactor
 // Parallelism returns the amount of parallelism in algorithms for estimating.
 func (frw *frameworkImpl) Parallelism() int {
 	return frw.parallelism
+}
+
+// NodeCapacityProviders returns the list of enabled node capacity provider names.
+func (frw *frameworkImpl) NodeCapacityProviders() []string {
+	return frw.nodeCapacityProviders
 }
 
 // RunEstimateReplicasPlugins runs the set of configured EstimateReplicasPlugins
