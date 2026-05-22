@@ -1,0 +1,21 @@
+# Minimal valid OverridePolicy. The plaintext path is a JSON Pointer (RFC 6901), not
+# JSONPath. The audit-policy skill enforces this distinction; see knowledge/04-hard-rules.md R5.
+apiVersion: policy.karmada.io/v1alpha1
+kind: OverridePolicy
+metadata:
+  name: example-override
+  namespace: default
+spec:
+  resourceSelectors:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: example
+  overrideRules:
+    - targetCluster:
+        clusterNames:
+          - member2
+      overriders:
+        plaintext:
+          - path: /spec/replicas
+            operator: replace
+            value: 3

@@ -1,0 +1,46 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-config
+  namespace: default
+data:
+  theme: dark-mode
+  currency: USD
+  locale: en-US
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: global-frontend
+  namespace: default
+  labels:
+    app: global-frontend
+spec:
+  replicas: 10
+  selector:
+    matchLabels:
+      app: global-frontend
+  template:
+    metadata:
+      labels:
+        app: global-frontend
+    spec:
+      containers:
+        - name: web
+          image: docker.io/library/nginx:1.27
+          envFrom:
+            - configMapRef:
+                name: frontend-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: global-frontend
+  namespace: default
+spec:
+  selector:
+    app: global-frontend
+  ports:
+    - port: 80
+      targetPort: 80

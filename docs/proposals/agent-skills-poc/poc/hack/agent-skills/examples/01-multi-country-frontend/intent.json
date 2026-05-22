@@ -1,0 +1,46 @@
+{
+  "policy_name": "global-frontend",
+  "namespace": "default",
+  "kind_scope": "namespaced",
+  "resources": [
+    {"apiVersion": "apps/v1", "kind": "Deployment", "name": "global-frontend"},
+    {"apiVersion": "v1",      "kind": "Service",    "name": "global-frontend"}
+  ],
+  "placement": {
+    "mode": "ordered-groups",
+    "groups": [
+      {"name": "apac-primary",   "clusters": ["sg-prod-1", "sg-prod-2"]},
+      {"name": "apac-backup",    "clusters": ["id-prod-1"]},
+      {"name": "europe-primary", "clusters": ["de-prod-1"]},
+      {"name": "latam-primary",  "clusters": ["br-prod-1"]}
+    ]
+  },
+  "replica_strategy": "divided-weighted",
+  "weights": [
+    {"clusters": ["sg-prod-1", "sg-prod-2"], "weight": 4},
+    {"clusters": ["id-prod-1"], "weight": 2},
+    {"clusters": ["de-prod-1"], "weight": 2},
+    {"clusters": ["br-prod-1"], "weight": 2}
+  ],
+  "propagate_deps": true,
+  "overrides": [
+    {
+      "target_clusters": ["id-prod-1"],
+      "image": {"component": "Registry", "operator": "replace", "value": "mirror.id.internal"}
+    },
+    {
+      "target_clusters": ["br-prod-1"],
+      "plaintext": [
+        {"path": "/data/currency", "operator": "replace", "value": "BRL"},
+        {"path": "/data/locale",   "operator": "replace", "value": "pt-BR"}
+      ]
+    },
+    {
+      "target_clusters": ["de-prod-1"],
+      "plaintext": [
+        {"path": "/data/currency", "operator": "replace", "value": "EUR"},
+        {"path": "/data/locale",   "operator": "replace", "value": "de-DE"}
+      ]
+    }
+  ]
+}

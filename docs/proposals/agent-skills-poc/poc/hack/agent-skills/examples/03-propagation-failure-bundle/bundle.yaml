@@ -1,0 +1,65 @@
+---
+# The target resource template in the Karmada control plane
+apiVersion: v1
+kind: Service
+metadata:
+  name: checkout
+  namespace: default
+  labels:
+    app: checkout
+spec:
+  selector: {app: checkout}
+  ports: [{port: 80, targetPort: 8080}]
+---
+# A PropagationPolicy whose selector matches the Service
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: checkout-pp
+  namespace: default
+spec:
+  resourceSelectors:
+    - apiVersion: v1
+      kind: Service
+      name: checkout
+  placement:
+    clusterAffinity:
+      labelSelector:
+        matchLabels:
+          environment: production
+---
+# The scheduler created an RB but failed to bind any cluster
+apiVersion: work.karmada.io/v1alpha2
+kind: ResourceBinding
+metadata:
+  name: checkout-service
+  namespace: default
+spec:
+  resource:
+    apiVersion: v1
+    kind: Service
+    namespace: default
+    name: checkout
+status:
+  conditions:
+    - type: Scheduled
+      status: "False"
+      reason: NoClusterFit
+      message: "no cluster matches affinity environment=production"
+---
+# Member cluster registrations — neither carries the expected label.
+apiVersion: cluster.karmada.io/v1alpha1
+kind: Cluster
+metadata:
+  name: member1
+  labels:
+    environment: staging
+spec: {syncMode: Push}
+---
+apiVersion: cluster.karmada.io/v1alpha1
+kind: Cluster
+metadata:
+  name: member2
+  labels:
+    environment: dev
+spec: {syncMode: Push}

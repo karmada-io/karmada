@@ -1,0 +1,52 @@
+# This is a representative "generic LLM" output for the prompt in prompt.md.
+# It exhibits five real hallucinations observed in stock LLM responses to Karmada
+# policy requests. The auditor flags four of them mechanically (R1, R3, R5, R14);
+# the fifth (missing propagateDeps for a Deployment that envFrom's a ConfigMap)
+# is a semantic issue the skill catches via judgment, not the linter.
+---
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: global-frontend
+  namespace: default
+spec:
+  resourceSelectors:
+    - apiVersion: Apps/v1                          # ✗ R3 — apiVersion group must be lowercase
+      kind: Deployment
+      name: global-frontend
+  association: true                                # ✗ R14 — deprecated in favor of propagateDeps
+  replicaScheduling:                               # ✗ R1 — must live under spec.placement, not spec root
+    replicaSchedulingType: Divided
+    replicaDivisionPreference: Weighted
+    weightPreference:
+      staticWeightList:
+        - targetCluster:
+            clusterNames: [member1]
+          weight: 1
+        - targetCluster:
+            clusterNames: [member2]
+          weight: 1
+  placement:
+    clusterAffinity:
+      clusterNames:
+        - member1
+        - member2
+---
+apiVersion: policy.karmada.io/v1alpha1
+kind: OverridePolicy
+metadata:
+  name: global-frontend-override
+  namespace: default
+spec:
+  resourceSelectors:
+    - apiVersion: Apps/v1                          # ✗ R3 again
+      kind: Deployment
+      name: global-frontend
+  overrideRules:
+    - targetCluster:
+        clusterNames: [member2]
+      overriders:
+        plaintext:
+          - path: $.spec.template.spec.containers[0].image   # ✗ R5 — JSONPath, must be JSON Pointer
+            operator: replace
+            value: mirror.id.internal/library/nginx:1.27

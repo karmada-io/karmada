@@ -1,0 +1,36 @@
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: global-frontend
+  namespace: default
+spec:
+  resourceSelectors:
+  - apiVersion: apps/v1
+    kind: Deployment
+    name: global-frontend
+  placement:
+    clusterAffinity:
+      clusterNames:
+      - member1
+      - member2
+  propagateDeps: true
+---
+apiVersion: policy.karmada.io/v1alpha1
+kind: OverridePolicy
+metadata:
+  name: global-frontend-override
+  namespace: default
+spec:
+  resourceSelectors:
+  - apiVersion: apps/v1
+    kind: Deployment
+    name: global-frontend
+  overrideRules:
+  - targetCluster:
+      clusterNames:
+      - member2
+    overriders:
+      imageOverrider:
+      - component: Registry
+        operator: replace
+        value: mirror.id.internal

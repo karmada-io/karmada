@@ -1,0 +1,96 @@
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: global-frontend
+  namespace: default
+spec:
+  resourceSelectors:
+  - apiVersion: apps/v1
+    kind: Deployment
+    name: global-frontend
+  - apiVersion: v1
+    kind: Service
+    name: global-frontend
+  placement:
+    clusterAffinities:
+    - affinityName: apac-primary
+      clusterNames:
+      - sg-prod-1
+      - sg-prod-2
+    - affinityName: apac-backup
+      clusterNames:
+      - id-prod-1
+    - affinityName: europe-primary
+      clusterNames:
+      - de-prod-1
+    - affinityName: latam-primary
+      clusterNames:
+      - br-prod-1
+    replicaScheduling:
+      replicaSchedulingType: Divided
+      replicaDivisionPreference: Weighted
+      weightPreference:
+        staticWeightList:
+        - targetCluster:
+            clusterNames:
+            - sg-prod-1
+            - sg-prod-2
+          weight: 4
+        - targetCluster:
+            clusterNames:
+            - id-prod-1
+          weight: 2
+        - targetCluster:
+            clusterNames:
+            - de-prod-1
+          weight: 2
+        - targetCluster:
+            clusterNames:
+            - br-prod-1
+          weight: 2
+  propagateDeps: true
+---
+apiVersion: policy.karmada.io/v1alpha1
+kind: OverridePolicy
+metadata:
+  name: global-frontend-override
+  namespace: default
+spec:
+  resourceSelectors:
+  - apiVersion: apps/v1
+    kind: Deployment
+    name: global-frontend
+  - apiVersion: v1
+    kind: Service
+    name: global-frontend
+  overrideRules:
+  - targetCluster:
+      clusterNames:
+      - id-prod-1
+    overriders:
+      imageOverrider:
+      - component: Registry
+        operator: replace
+        value: mirror.id.internal
+  - targetCluster:
+      clusterNames:
+      - br-prod-1
+    overriders:
+      plaintext:
+      - path: /data/currency
+        operator: replace
+        value: BRL
+      - path: /data/locale
+        operator: replace
+        value: pt-BR
+  - targetCluster:
+      clusterNames:
+      - de-prod-1
+    overriders:
+      plaintext:
+      - path: /data/currency
+        operator: replace
+        value: EUR
+      - path: /data/locale
+        operator: replace
+        value: de-DE

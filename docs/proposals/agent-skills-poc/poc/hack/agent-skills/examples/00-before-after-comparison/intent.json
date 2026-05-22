@@ -1,0 +1,23 @@
+{
+  "policy_name": "global-frontend",
+  "namespace": "default",
+  "kind_scope": "namespaced",
+  "resources": [
+    {"apiVersion": "apps/v1", "kind": "Deployment", "name": "global-frontend"}
+  ],
+  "placement": {
+    "mode": "name-list",
+    "clusters": ["member1", "member2"]
+  },
+  "propagate_deps": true,
+  "overrides": [
+    {
+      "target_clusters": ["member2"],
+      "image": {
+        "component": "Registry",
+        "operator": "replace",
+        "value": "mirror.id.internal"
+      }
+    }
+  ]
+}

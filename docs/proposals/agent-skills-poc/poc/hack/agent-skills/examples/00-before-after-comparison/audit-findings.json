@@ -1,0 +1,33 @@
+{
+  "findings": [
+    {
+      "severity": "error",
+      "rule": "R3",
+      "path": "docs[0].spec.resourceSelectors[0].apiVersion",
+      "message": "apiVersion 'Apps/v1' looks malformed (group must be lowercase, version like v1, v1alpha1, etc.)"
+    },
+    {
+      "severity": "error",
+      "rule": "R1",
+      "path": "docs[0].spec.replicaScheduling",
+      "message": "replicaScheduling is misplaced; move it under spec.placement.replicaScheduling"
+    },
+    {
+      "severity": "warn",
+      "rule": "R14",
+      "path": "docs[0].spec.association",
+      "message": "field 'association' is deprecated in favor of 'propagateDeps'"
+    },
+    {
+      "severity": "error",
+      "rule": "R5",
+      "path": "docs[1].spec.overrideRules[0].overriders.plaintext[0].path",
+      "message": "path '$.spec.template.spec.containers[0].image' is JSONPath; OverridePolicy requires JSON Pointer (RFC 6901, starts with '/')"
+    }
+  ],
+  "summary": {
+    "error": 3,
+    "warn": 1,
+    "info": 0
+  }
+}

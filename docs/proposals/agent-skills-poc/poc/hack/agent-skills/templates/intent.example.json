@@ -1,0 +1,39 @@
+{
+  "_comment": "Reference intent for scripts/generate_policy.py. Strip _* keys before piping.",
+  "_use_case": "global-frontend deployment placed across two clusters with a per-cluster image registry override",
+
+  "policy_name": "global-frontend",
+  "namespace": "default",
+  "kind_scope": "namespaced",
+
+  "resources": [
+    {"apiVersion": "apps/v1", "kind": "Deployment", "name": "global-frontend"},
+    {"apiVersion": "v1",       "kind": "Service",    "name": "global-frontend"}
+  ],
+
+  "placement": {
+    "mode": "label-selector",
+    "labels": {"environment": "production"}
+  },
+
+  "replica_strategy": "divided-weighted",
+  "weights": [
+    {"clusters": ["member1"], "weight": 3},
+    {"clusters": ["member2"], "weight": 2}
+  ],
+
+  "propagate_deps": true,
+
+  "overrides": [
+    {
+      "target_clusters": ["member2"],
+      "image": {"component": "Registry", "operator": "replace", "value": "mirror.id.internal"}
+    },
+    {
+      "target_clusters": ["member2"],
+      "plaintext": [
+        {"path": "/data/theme", "operator": "replace", "value": "light-mode"}
+      ]
+    }
+  ]
+}

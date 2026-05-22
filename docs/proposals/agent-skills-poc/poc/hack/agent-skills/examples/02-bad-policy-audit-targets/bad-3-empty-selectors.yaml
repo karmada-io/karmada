@@ -1,0 +1,10 @@
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: bad-3
+  namespace: default
+spec:
+  resourceSelectors: []
+  placement:
+    clusterAffinity:
+      clusterNames: [member1]

@@ -1,0 +1,17 @@
+# Minimal valid PropagationPolicy. Skills should treat this as the lowest-effort
+# starting point — anything fancier (replica scheduling, multiple selectors, fallback
+# affinities) is layered on top by the generator script.
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: example
+  namespace: default
+spec:
+  resourceSelectors:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: example
+  placement:
+    clusterAffinity:
+      clusterNames:
+        - member1
