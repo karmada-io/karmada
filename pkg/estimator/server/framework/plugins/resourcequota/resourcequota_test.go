@@ -432,6 +432,7 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 	tests := map[string]struct {
 		resourceQuotaList []*corev1.ResourceQuota
 		components        []*pb.Component
+		assumedWorkloads  []*pb.AssumedWorkload
 		namespace         string
 		enabled           bool
 		expect            expect
@@ -1053,14 +1054,300 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 				ret:     framework.NewResult(framework.Unschedulable, "zero component sets estimated by ResourceQuotaEstimator"),
 			},
 		},
+
+		// ============================================
+		// Assumed workload deduction
+		// ============================================
+		"assumed-workload-reduces-available-capacity": {
+			resourceQuotaList: []*corev1.ResourceQuota{fooResourceQuota},
+			components: []*pb.Component{
+				{
+					Name: "app",
+					ReplicaRequirements: (&pb.ComponentReplicaRequirements{
+						PriorityClassName: fooPriorityClassName,
+					}).MustSetResourceRequest(corev1.ResourceList{
+						corev1.ResourceCPU: *resource.NewMilliQuantity(200, resource.DecimalSI),
+					}),
+					Replicas: 1,
+				},
+			},
+			assumedWorkloads: []*pb.AssumedWorkload{
+				{
+					Namespace: fooNamespace,
+					Components: []*pb.Component{
+						{
+							Name: "in-flight-app",
+							ReplicaRequirements: (&pb.ComponentReplicaRequirements{
+								PriorityClassName: fooPriorityClassName,
+							}).MustSetResourceRequest(corev1.ResourceList{
+								corev1.ResourceCPU: *resource.NewMilliQuantity(400, resource.DecimalSI),
+							}),
+							Replicas: 1,
+						},
+					},
+				},
+			},
+			namespace: fooNamespace,
+			enabled:   true,
+			expect: expect{
+				// Available: 800m CPU (1000m - 200m used)
+				// Assumed: 400m CPU
+				// Effective available: 400m CPU
+				// Per set: 200m CPU
+				// Max sets: 400m/200m = 2
+				replica: 2,
+				ret:     framework.NewResult(framework.Success),
+			},
+		},
+		"assumed-workload-different-namespace-ignored": {
+			resourceQuotaList: []*corev1.ResourceQuota{fooResourceQuota},
+			components: []*pb.Component{
+				{
+					Name: "app",
+					ReplicaRequirements: (&pb.ComponentReplicaRequirements{
+						PriorityClassName: fooPriorityClassName,
+					}).MustSetResourceRequest(corev1.ResourceList{
+						corev1.ResourceCPU: *resource.NewMilliQuantity(200, resource.DecimalSI),
+					}),
+					Replicas: 1,
+				},
+			},
+			assumedWorkloads: []*pb.AssumedWorkload{
+				{
+					Namespace: barNamespace,
+					Components: []*pb.Component{
+						{
+							Name: "in-flight-app",
+							ReplicaRequirements: (&pb.ComponentReplicaRequirements{
+								PriorityClassName: fooPriorityClassName,
+							}).MustSetResourceRequest(corev1.ResourceList{
+								corev1.ResourceCPU: *resource.NewMilliQuantity(400, resource.DecimalSI),
+							}),
+							Replicas: 1,
+						},
+					},
+				},
+			},
+			namespace: fooNamespace,
+			enabled:   true,
+			expect: expect{
+				// Assumed workload is in barNamespace, quota is in fooNamespace → ignored
+				// Available: 800m CPU
+				// Per set: 200m CPU
+				// Max sets: 800m/200m = 4
+				replica: 4,
+				ret:     framework.NewResult(framework.Success),
+			},
+		},
+		"assumed-workload-different-priority-ignored": {
+			resourceQuotaList: []*corev1.ResourceQuota{fooResourceQuota},
+			components: []*pb.Component{
+				{
+					Name: "app",
+					ReplicaRequirements: (&pb.ComponentReplicaRequirements{
+						PriorityClassName: fooPriorityClassName,
+					}).MustSetResourceRequest(corev1.ResourceList{
+						corev1.ResourceCPU: *resource.NewMilliQuantity(200, resource.DecimalSI),
+					}),
+					Replicas: 1,
+				},
+			},
+			assumedWorkloads: []*pb.AssumedWorkload{
+				{
+					Namespace: fooNamespace,
+					Components: []*pb.Component{
+						{
+							Name: "in-flight-app",
+							ReplicaRequirements: (&pb.ComponentReplicaRequirements{
+								PriorityClassName: barPriorityClassName,
+							}).MustSetResourceRequest(corev1.ResourceList{
+								corev1.ResourceCPU: *resource.NewMilliQuantity(400, resource.DecimalSI),
+							}),
+							Replicas: 1,
+						},
+					},
+				},
+			},
+			namespace: fooNamespace,
+			enabled:   true,
+			expect: expect{
+				// Assumed workload has barPriorityClassName, quota scoped to fooPriorityClassName → ignored
+				// Available: 800m CPU
+				// Per set: 200m CPU
+				// Max sets: 800m/200m = 4
+				replica: 4,
+				ret:     framework.NewResult(framework.Success),
+			},
+		},
+		"assumed-workload-exhausts-capacity": {
+			resourceQuotaList: []*corev1.ResourceQuota{fooResourceQuota},
+			components: []*pb.Component{
+				{
+					Name: "app",
+					ReplicaRequirements: (&pb.ComponentReplicaRequirements{
+						PriorityClassName: fooPriorityClassName,
+					}).MustSetResourceRequest(corev1.ResourceList{
+						corev1.ResourceCPU: *resource.NewMilliQuantity(200, resource.DecimalSI),
+					}),
+					Replicas: 1,
+				},
+			},
+			assumedWorkloads: []*pb.AssumedWorkload{
+				{
+					Namespace: fooNamespace,
+					Components: []*pb.Component{
+						{
+							Name: "in-flight-app",
+							ReplicaRequirements: (&pb.ComponentReplicaRequirements{
+								PriorityClassName: fooPriorityClassName,
+							}).MustSetResourceRequest(corev1.ResourceList{
+								corev1.ResourceCPU: *resource.NewQuantity(1, resource.DecimalSI),
+							}),
+							Replicas: 1,
+						},
+					},
+				},
+			},
+			namespace: fooNamespace,
+			enabled:   true,
+			expect: expect{
+				// Available: 800m CPU
+				// Assumed: 1000m CPU → exceeds available → 0 sets
+				replica: 0,
+				ret:     framework.NewResult(framework.Unschedulable, "zero component sets estimated by ResourceQuotaEstimator"),
+			},
+		},
+		"assumed-workload-no-scope-quota": {
+			resourceQuotaList: []*corev1.ResourceQuota{noScopeSelectorResourceQuota},
+			components: []*pb.Component{
+				{
+					Name: "app",
+					ReplicaRequirements: (&pb.ComponentReplicaRequirements{
+						PriorityClassName: fooPriorityClassName,
+					}).MustSetResourceRequest(corev1.ResourceList{
+						corev1.ResourceCPU: *resource.NewMilliQuantity(100, resource.DecimalSI),
+					}),
+					Replicas: 1,
+				},
+			},
+			assumedWorkloads: []*pb.AssumedWorkload{
+				{
+					Namespace: fooNamespace,
+					Components: []*pb.Component{
+						{
+							Name: "in-flight-app",
+							ReplicaRequirements: (&pb.ComponentReplicaRequirements{
+								PriorityClassName: barPriorityClassName,
+							}).MustSetResourceRequest(corev1.ResourceList{
+								corev1.ResourceCPU: *resource.NewMilliQuantity(300, resource.DecimalSI),
+							}),
+							Replicas: 1,
+						},
+					},
+				},
+			},
+			namespace: fooNamespace,
+			enabled:   true,
+			expect: expect{
+				// No scope selector → both scheduling and assumed workload components match
+				// Available: 800m CPU
+				// Assumed: 300m CPU
+				// Effective available: 500m CPU
+				// Per set: 100m CPU
+				// Max sets: 500m/100m = 5
+				replica: 5,
+				ret:     framework.NewResult(framework.Success),
+			},
+		},
+		"assumed-workload-multiple-workloads-aggregated": {
+			resourceQuotaList: []*corev1.ResourceQuota{fooResourceQuota},
+			components: []*pb.Component{
+				{
+					Name: "app",
+					ReplicaRequirements: (&pb.ComponentReplicaRequirements{
+						PriorityClassName: fooPriorityClassName,
+					}).MustSetResourceRequest(corev1.ResourceList{
+						corev1.ResourceCPU: *resource.NewMilliQuantity(100, resource.DecimalSI),
+					}),
+					Replicas: 1,
+				},
+			},
+			assumedWorkloads: []*pb.AssumedWorkload{
+				{
+					Namespace: fooNamespace,
+					Components: []*pb.Component{
+						{
+							Name: "in-flight-1",
+							ReplicaRequirements: (&pb.ComponentReplicaRequirements{
+								PriorityClassName: fooPriorityClassName,
+							}).MustSetResourceRequest(corev1.ResourceList{
+								corev1.ResourceCPU: *resource.NewMilliQuantity(200, resource.DecimalSI),
+							}),
+							Replicas: 1,
+						},
+					},
+				},
+				{
+					Namespace: fooNamespace,
+					Components: []*pb.Component{
+						{
+							Name: "in-flight-2",
+							ReplicaRequirements: (&pb.ComponentReplicaRequirements{
+								PriorityClassName: fooPriorityClassName,
+							}).MustSetResourceRequest(corev1.ResourceList{
+								corev1.ResourceCPU: *resource.NewMilliQuantity(200, resource.DecimalSI),
+							}),
+							Replicas: 2,
+						},
+					},
+				},
+			},
+			namespace: fooNamespace,
+			enabled:   true,
+			expect: expect{
+				// Available: 800m CPU
+				// Assumed: 200m (1 replica) + 400m (2 replicas) = 600m CPU
+				// Effective available: 200m CPU
+				// Per set: 100m CPU
+				// Max sets: 200m/100m = 2
+				replica: 2,
+				ret:     framework.NewResult(framework.Success),
+			},
+		},
+		"empty-assumed-workloads-no-effect": {
+			resourceQuotaList: []*corev1.ResourceQuota{fooResourceQuota},
+			components: []*pb.Component{
+				{
+					Name: "app",
+					ReplicaRequirements: (&pb.ComponentReplicaRequirements{
+						PriorityClassName: fooPriorityClassName,
+					}).MustSetResourceRequest(corev1.ResourceList{
+						corev1.ResourceCPU: *resource.NewMilliQuantity(200, resource.DecimalSI),
+					}),
+					Replicas: 1,
+				},
+			},
+			assumedWorkloads: []*pb.AssumedWorkload{},
+			namespace:        fooNamespace,
+			enabled:          true,
+			expect: expect{
+				// No assumed workloads → same as without assumed workloads
+				// Available: 800m CPU
+				// Per set: 200m CPU
+				// Max sets: 800m/200m = 4
+				replica: 4,
+				ret:     framework.NewResult(framework.Success),
+			},
+		},
 	}
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			testCtx := setup(t, tt.resourceQuotaList, tt.enabled)
 			sets, ret := testCtx.p.EstimateComponents(testCtx.ctx, framework.ComponentEstimationContext{
-				Components: tt.components,
-				Namespace:  tt.namespace,
+				Components:       tt.components,
+				Namespace:        tt.namespace,
+				AssumedWorkloads: tt.assumedWorkloads,
 			})
 
 			require.Equal(t, tt.expect.ret.Code(), ret.Code())
