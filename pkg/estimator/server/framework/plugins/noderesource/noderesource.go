@@ -127,6 +127,8 @@ func getNodeAvailableResource(node *schedulerframework.NodeInfo) *util.Resource 
 
 // EstimateComponents estimates the maximum number of complete component sets that can be scheduled.
 // It returns the number of sets that can fit on the available node resources.
+// Before running the main estimation, it deducts any assumed (in-flight) workloads so that
+// pods already assigned but not yet reflected in cluster metrics are accounted for.
 func (pl *nodeResourceEstimator) EstimateComponents(_ context.Context, estCtx framework.ComponentEstimationContext) (int32, *framework.Result) {
 	if !pl.enabled {
 		return pl.disabledResult()
@@ -143,7 +145,28 @@ func (pl *nodeResourceEstimator) EstimateComponents(_ context.Context, estCtx fr
 		return 0, framework.AsResult(err)
 	}
 
-	sets, err := estimator.NewSchedulingSimulator(nodes).SimulateScheduling(components, math.MaxInt32)
+	simulator := estimator.NewSchedulingSimulator(nodes)
+
+	// Deduct assumed (in-flight) workloads before running the main estimation.
+	// Each assumed workload represents pods that are being started but may not yet
+	// be reflected in the cluster's node resource accounting.
+	for _, assumed := range estCtx.AssumedWorkloads {
+		if len(assumed.GetComponents()) == 0 {
+			continue
+		}
+		deductedSets, deductErr := simulator.SimulateScheduling(assumed.GetComponents(), 1)
+		if deductErr != nil {
+			return 0, framework.AsResult(deductErr)
+		}
+		if deductedSets == 0 {
+			// The assumed workload could not be placed in the simulation. This is expected when
+			// the workload has already been admitted by the cluster and its resource usage is
+			// already reflected in node.Requested, so no additional deduction is needed.
+			klog.V(4).Infof("%s: could not deduct assumed workload (namespace=%s) from node resources", pl.Name(), assumed.GetNamespace())
+		}
+	}
+
+	sets, err := simulator.SimulateScheduling(components, math.MaxInt32)
 	if err != nil {
 		return 0, framework.AsResult(err)
 	}
