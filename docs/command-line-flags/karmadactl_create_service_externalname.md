@@ -18,7 +18,7 @@ karmadactl create service externalname NAME --external-name external.name [--dry
 
 ```
   # Create a new ExternalName service named my-ns
-  kubectl create service externalname my-ns --external-name bar.com
+  karmadactl create service externalname my-ns --external-name bar.com
 ```
 
 ### Options

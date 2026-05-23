@@ -16,7 +16,7 @@ karmadactl create service nodeport NAME [--tcp=port:targetPort] [--dry-run=serve
 
 ```
   # Create a new NodePort service named my-ns
-  kubectl create service nodeport my-ns --tcp=5678:8080
+  karmadactl create service nodeport my-ns --tcp=5678:8080
 ```
 
 ### Options

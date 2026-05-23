@@ -16,10 +16,10 @@ karmadactl create cronjob NAME --image=image --schedule='0/5 * * * ?' -- [COMMAN
 
 ```
   # Create a cron job
-  kubectl create cronjob my-job --image=busybox --schedule="*/1 * * * *"
+  karmadactl create cronjob my-job --image=busybox --schedule="*/1 * * * *"
   
   # Create a cron job with a command
-  kubectl create cronjob my-job --image=busybox --schedule="*/1 * * * *" -- date
+  karmadactl create cronjob my-job --image=busybox --schedule="*/1 * * * *" -- date
 ```
 
 ### Options

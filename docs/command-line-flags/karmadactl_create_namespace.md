@@ -16,7 +16,7 @@ karmadactl create namespace NAME [--dry-run=server|client|none]
 
 ```
   # Create a new namespace named my-namespace
-  kubectl create namespace my-namespace
+  karmadactl create namespace my-namespace
 ```
 
 ### Options

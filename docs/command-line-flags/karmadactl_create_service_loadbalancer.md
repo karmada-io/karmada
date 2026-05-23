@@ -16,7 +16,7 @@ karmadactl create service loadbalancer NAME [--tcp=port:targetPort] [--dry-run=s
 
 ```
   # Create a new LoadBalancer service named my-lbs
-  kubectl create service loadbalancer my-lbs --tcp=5678:8080
+  karmadactl create service loadbalancer my-lbs --tcp=5678:8080
 ```
 
 ### Options

@@ -16,7 +16,7 @@ karmadactl create clusterrolebinding NAME --clusterrole=NAME [--user=username] [
 
 ```
   # Create a cluster role binding for user1, user2, and group1 using the cluster-admin cluster role
-  kubectl create clusterrolebinding cluster-admin --clusterrole=cluster-admin --user=user1 --user=user2 --group=group1
+  karmadactl create clusterrolebinding cluster-admin --clusterrole=cluster-admin --user=user1 --user=user2 --group=group1
 ```
 
 ### Options
