@@ -153,7 +153,7 @@ func (j *CommandUnjoinOption) AddFlags(flags *pflag.FlagSet) {
 		"Path of the cluster's kubeconfig.")
 	flags.BoolVar(&j.forceDeletion, "force", false,
 		"When set, the unjoin command will attempt to clean up resources in the member cluster before deleting the Cluster object. If the cleanup fails within the timeout period, the Cluster object will still be deleted, potentially leaving some resources behind in the member cluster.")
-	flags.DurationVar(&j.Wait, "wait", 60*time.Second, "wait for the unjoin command execution process(default 60s), if there is no success after this time, timeout will be returned.")
+	flags.DurationVar(&j.Wait, "wait", 60*time.Second, "wait for the unjoin command execution process (default 60s); A timeout error occurs if it fails to complete within the period.")
 	flags.BoolVar(&j.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
 }
 

@@ -151,7 +151,7 @@ func (j *CommandUnregisterOption) AddFlags(flags *pflag.FlagSet) {
 	flags.StringVarP(&j.Namespace, "namespace", "n", "karmada-system", "Namespace of the karmada-agent component deployed.")
 	flags.StringVarP(&j.AgentName, "agent-name", "", names.KarmadaAgentComponentName, "Deployment name of the karmada-agent component deployed.")
 	flags.StringVar(&j.ClusterNamespace, "cluster-namespace", options.DefaultKarmadaClusterNamespace, "Namespace in the control plane where member cluster secrets are stored.")
-	flags.DurationVar(&j.Wait, "wait", 60*time.Second, "wait for the unjoin command execution process(default 60s), if there is no success after this time, timeout will be returned.")
+	flags.DurationVar(&j.Wait, "wait", 60*time.Second, "wait for the unregister command execution process (default 60s); A timeout error occurs if it fails to complete within the period.")
 	flags.BoolVar(&j.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
 }
 

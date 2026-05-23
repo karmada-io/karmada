@@ -40,7 +40,7 @@ var (
 	%[1]s disable karmada-search karmada-scheduler-estimator --cluster member1
 
 	# Specify the host cluster kubeconfig
-	%[1]s disable Karmada-search --kubeconfig /root/.kube/config
+	%[1]s disable karmada-search --kubeconfig /root/.kube/config
 
 	# Specify the Karmada control plane kubeconfig
 	%[1]s disable karmada-search --karmada-kubeconfig /etc/karmada/karmada-apiserver.config
