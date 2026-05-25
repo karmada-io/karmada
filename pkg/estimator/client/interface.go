@@ -38,7 +38,7 @@ var (
 // based on resource availability and node constraints.
 type ReplicaEstimator interface {
 	// MaxAvailableReplicas returns the maximum number of replicas of a single-component workload that each cluster can host.
-	MaxAvailableReplicas(ctx context.Context, clusters []*clusterv1alpha1.Cluster, replicaRequirements *workv1alpha2.ReplicaRequirements) ([]workv1alpha2.TargetCluster, error)
+	MaxAvailableReplicas(ctx context.Context, req ReplicaEstimationRequest) ([]workv1alpha2.TargetCluster, error)
 	// MaxAvailableComponentSets returns the maximum number of complete multi-component sets (in terms of replicas) that each cluster can host.
 	MaxAvailableComponentSets(ctx context.Context, req ComponentSetEstimationRequest) ([]ComponentSetEstimationResponse, error)
 }
@@ -53,6 +53,21 @@ type AssumedWorkload struct {
 	// Components lists the component types and their per-replica resource requirements
 	// that are assumed on the target cluster.
 	Components []workv1alpha2.Component
+}
+
+// ReplicaEstimationRequest carries input parameters for estimating single-template workload
+// replica availability per cluster.
+type ReplicaEstimationRequest struct {
+	// Clusters represents a list of feasible clusters to estimate against.
+	Clusters []*clusterv1alpha1.Cluster
+	// ReplicaRequirements describes the resource requirements of a single-template workload replica.
+	ReplicaRequirements *workv1alpha2.ReplicaRequirements
+	// AssumedWorkloads maps cluster name to the in-flight workloads that have already
+	// been assigned to that cluster but whose pods have not yet been bound to nodes.
+	// The estimator deducts each cluster's assumed footprint from available capacity
+	// to avoid over-commitment during back-to-back scheduling cycles.
+	// +optional
+	AssumedWorkloads map[string][]AssumedWorkload
 }
 
 // ComponentSetEstimationRequest carries input parameters for estimating multi-component set availability per cluster.

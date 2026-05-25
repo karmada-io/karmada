@@ -55,15 +55,14 @@ func NewSchedulerEstimator(cache *SchedulerEstimatorCache, timeout time.Duration
 // MaxAvailableReplicas estimates the maximum replicas that can be applied to the target cluster by calling karmada-scheduler-estimator.
 func (se *SchedulerEstimator) MaxAvailableReplicas(
 	parentCtx context.Context,
-	clusters []*clusterv1alpha1.Cluster,
-	replicaRequirements *workv1alpha2.ReplicaRequirements,
+	req ReplicaEstimationRequest,
 ) ([]workv1alpha2.TargetCluster, error) {
-	clusterNames := make([]string, len(clusters))
-	for i, cluster := range clusters {
+	clusterNames := make([]string, len(req.Clusters))
+	for i, cluster := range req.Clusters {
 		clusterNames[i] = cluster.Name
 	}
 	return getClusterReplicasConcurrently(parentCtx, clusterNames, se.timeout, func(ctx context.Context, cluster string) (int32, error) {
-		return se.maxAvailableReplicas(ctx, cluster, replicaRequirements.DeepCopy())
+		return se.maxAvailableReplicas(ctx, cluster, req.ReplicaRequirements, req.AssumedWorkloads[cluster])
 	})
 }
 
@@ -178,7 +177,7 @@ func toPBReplicaRequirements(cr *workv1alpha2.ComponentReplicaRequirements) (*pb
 	return out, nil
 }
 
-func (se *SchedulerEstimator) maxAvailableReplicas(ctx context.Context, cluster string, replicaRequirements *workv1alpha2.ReplicaRequirements) (int32, error) {
+func (se *SchedulerEstimator) maxAvailableReplicas(ctx context.Context, cluster string, replicaRequirements *workv1alpha2.ReplicaRequirements, assumedWorkloads []AssumedWorkload) (int32, error) {
 	client, err := se.cache.GetClient(cluster)
 	if err != nil {
 		return UnauthenticReplica, err
@@ -205,6 +204,16 @@ func (se *SchedulerEstimator) maxAvailableReplicas(ctx context.Context, cluster 
 			if err = req.ReplicaRequirements.NodeClaim.SetTolerations(replicaRequirements.NodeClaim.Tolerations); err != nil {
 				return UnauthenticReplica, err
 			}
+		}
+	}
+	if len(assumedWorkloads) > 0 {
+		req.AssumedWorkloads = make([]*pb.AssumedWorkload, 0, len(assumedWorkloads))
+		for _, aw := range assumedWorkloads {
+			pbAW, err := toAssumedWorkload(aw)
+			if err != nil {
+				return UnauthenticReplica, err
+			}
+			req.AssumedWorkloads = append(req.AssumedWorkloads, pbAW)
 		}
 	}
 	res, err := client.MaxAvailableReplicas(ctx, req)
@@ -294,4 +303,24 @@ func getClusterComponentSetsConcurrently(
 		}
 	}
 	return results, utilerrors.AggregateGoroutines(funcs...)
+}
+
+// toAssumedWorkload converts an AssumedWorkload client value to its pb wire representation.
+func toAssumedWorkload(aw AssumedWorkload) (*pb.AssumedWorkload, error) {
+	out := &pb.AssumedWorkload{
+		Namespace:  aw.Namespace,
+		Components: make([]*pb.Component, 0, len(aw.Components)),
+	}
+	for _, comp := range aw.Components {
+		reqs, err := toPBReplicaRequirements(comp.ReplicaRequirements)
+		if err != nil {
+			return nil, err
+		}
+		out.Components = append(out.Components, &pb.Component{
+			Name:                comp.Name,
+			Replicas:            comp.Replicas,
+			ReplicaRequirements: reqs,
+		})
+	}
+	return out, nil
 }

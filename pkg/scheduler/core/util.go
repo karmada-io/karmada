@@ -76,6 +76,9 @@ func calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha
 	estimators := estimatorclient.GetReplicaEstimators()
 	ctx := context.WithValue(context.TODO(), util.ContextKeyObject,
 		fmt.Sprintf("kind=%s, name=%s/%s", spec.Resource.Kind, spec.Resource.Namespace, spec.Resource.Name))
+	// Build assumed workloads once outside the estimator loop as it only depends on
+	// clusters and assigningCache, both of which are constant for the entire loop.
+	assumedWorkloads := buildAssumedWorkloadsByCluster(clusters, assigningCache)
 	for name, estimator := range estimators {
 		if features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) && isMultiTemplateSchedulingApplicable(spec) {
 			var err error
@@ -91,7 +94,11 @@ func calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha
 				continue
 			}
 		} else {
-			res, err := estimator.MaxAvailableReplicas(ctx, clusters, spec.ReplicaRequirements)
+			res, err := estimator.MaxAvailableReplicas(ctx, estimatorclient.ReplicaEstimationRequest{
+				Clusters:            clusters,
+				ReplicaRequirements: spec.ReplicaRequirements,
+				AssumedWorkloads:    assumedWorkloads,
+			})
 			if err != nil {
 				klog.Errorf("Max cluster available replicas error: %v", err)
 				continue

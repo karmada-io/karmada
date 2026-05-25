@@ -396,8 +396,14 @@ type MaxAvailableReplicasRequest struct {
 	// ReplicaRequirements represents the resource and scheduling requirements for each replica.
 	// +required
 	ReplicaRequirements *ReplicaRequirements `protobuf:"bytes,2,opt,name=replicaRequirements,proto3" json:"replicaRequirements,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// AssumedWorkloads lists in-flight workloads that have already been assigned
+	// to this cluster but whose pods have not yet been bound to nodes.
+	// The estimator deducts their resource footprint from the available capacity
+	// to avoid over-commitment during back-to-back scheduling cycles.
+	// +optional
+	AssumedWorkloads []*AssumedWorkload `protobuf:"bytes,3,rep,name=assumedWorkloads,proto3" json:"assumedWorkloads,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *MaxAvailableReplicasRequest) Reset() {
@@ -440,6 +446,13 @@ func (x *MaxAvailableReplicasRequest) GetCluster() string {
 func (x *MaxAvailableReplicasRequest) GetReplicaRequirements() *ReplicaRequirements {
 	if x != nil {
 		return x.ReplicaRequirements
+	}
+	return nil
+}
+
+func (x *MaxAvailableReplicasRequest) GetAssumedWorkloads() []*AssumedWorkload {
+	if x != nil {
+		return x.AssumedWorkloads
 	}
 	return nil
 }
@@ -921,10 +934,11 @@ const file_pkg_estimator_pb_estimator_proto_rawDesc = "" +
 	"\tnamespace\x18\x03 \x01(\tR\tnamespace\x12k\n" +
 	"\x10assumedWorkloads\x18\x04 \x03(\v2?.github.com.karmada_io.karmada.pkg.estimator.pb.AssumedWorkloadR\x10assumedWorkloads\"=\n" +
 	"!MaxAvailableComponentSetsResponse\x12\x18\n" +
-	"\amaxSets\x18\x01 \x01(\x05R\amaxSets\"\xae\x01\n" +
+	"\amaxSets\x18\x01 \x01(\x05R\amaxSets\"\x9b\x02\n" +
 	"\x1bMaxAvailableReplicasRequest\x12\x18\n" +
 	"\acluster\x18\x01 \x01(\tR\acluster\x12u\n" +
-	"\x13replicaRequirements\x18\x02 \x01(\v2C.github.com.karmada_io.karmada.pkg.estimator.pb.ReplicaRequirementsR\x13replicaRequirements\"@\n" +
+	"\x13replicaRequirements\x18\x02 \x01(\v2C.github.com.karmada_io.karmada.pkg.estimator.pb.ReplicaRequirementsR\x13replicaRequirements\x12k\n" +
+	"\x10assumedWorkloads\x18\x03 \x03(\v2?.github.com.karmada_io.karmada.pkg.estimator.pb.AssumedWorkloadR\x10assumedWorkloads\"@\n" +
 	"\x1cMaxAvailableReplicasResponse\x12 \n" +
 	"\vmaxReplicas\x18\x01 \x01(\x05R\vmaxReplicas\"\xbd\x03\n" +
 	"\tNodeClaim\x12M\n" +
@@ -1009,20 +1023,21 @@ var file_pkg_estimator_pb_estimator_proto_depIdxs = []int32{
 	0,  // 5: github.com.karmada_io.karmada.pkg.estimator.pb.MaxAvailableComponentSetsRequest.components:type_name -> github.com.karmada_io.karmada.pkg.estimator.pb.Component
 	2,  // 6: github.com.karmada_io.karmada.pkg.estimator.pb.MaxAvailableComponentSetsRequest.assumedWorkloads:type_name -> github.com.karmada_io.karmada.pkg.estimator.pb.AssumedWorkload
 	9,  // 7: github.com.karmada_io.karmada.pkg.estimator.pb.MaxAvailableReplicasRequest.replicaRequirements:type_name -> github.com.karmada_io.karmada.pkg.estimator.pb.ReplicaRequirements
-	17, // 8: github.com.karmada_io.karmada.pkg.estimator.pb.NodeClaim.nodeAffinity:type_name -> k8s.io.api.core.v1.NodeSelector
-	14, // 9: github.com.karmada_io.karmada.pkg.estimator.pb.NodeClaim.nodeSelector:type_name -> github.com.karmada_io.karmada.pkg.estimator.pb.NodeClaim.NodeSelectorEntry
-	18, // 10: github.com.karmada_io.karmada.pkg.estimator.pb.NodeClaim.tolerations:type_name -> k8s.io.api.core.v1.Toleration
-	7,  // 11: github.com.karmada_io.karmada.pkg.estimator.pb.ReplicaRequirements.nodeClaim:type_name -> github.com.karmada_io.karmada.pkg.estimator.pb.NodeClaim
-	15, // 12: github.com.karmada_io.karmada.pkg.estimator.pb.ReplicaRequirements.resourceRequest:type_name -> github.com.karmada_io.karmada.pkg.estimator.pb.ReplicaRequirements.ResourceRequestEntry
-	16, // 13: github.com.karmada_io.karmada.pkg.estimator.pb.ReplicaRequirements.resourceRequestBytes:type_name -> github.com.karmada_io.karmada.pkg.estimator.pb.ReplicaRequirements.ResourceRequestBytesEntry
-	8,  // 14: github.com.karmada_io.karmada.pkg.estimator.pb.UnschedulableReplicasRequest.resource:type_name -> github.com.karmada_io.karmada.pkg.estimator.pb.ObjectReference
-	19, // 15: github.com.karmada_io.karmada.pkg.estimator.pb.ComponentReplicaRequirements.ResourceRequestEntry.value:type_name -> k8s.io.apimachinery.pkg.api.resource.Quantity
-	19, // 16: github.com.karmada_io.karmada.pkg.estimator.pb.ReplicaRequirements.ResourceRequestEntry.value:type_name -> k8s.io.apimachinery.pkg.api.resource.Quantity
-	17, // [17:17] is the sub-list for method output_type
-	17, // [17:17] is the sub-list for method input_type
-	17, // [17:17] is the sub-list for extension type_name
-	17, // [17:17] is the sub-list for extension extendee
-	0,  // [0:17] is the sub-list for field type_name
+	2,  // 8: github.com.karmada_io.karmada.pkg.estimator.pb.MaxAvailableReplicasRequest.assumedWorkloads:type_name -> github.com.karmada_io.karmada.pkg.estimator.pb.AssumedWorkload
+	17, // 9: github.com.karmada_io.karmada.pkg.estimator.pb.NodeClaim.nodeAffinity:type_name -> k8s.io.api.core.v1.NodeSelector
+	14, // 10: github.com.karmada_io.karmada.pkg.estimator.pb.NodeClaim.nodeSelector:type_name -> github.com.karmada_io.karmada.pkg.estimator.pb.NodeClaim.NodeSelectorEntry
+	18, // 11: github.com.karmada_io.karmada.pkg.estimator.pb.NodeClaim.tolerations:type_name -> k8s.io.api.core.v1.Toleration
+	7,  // 12: github.com.karmada_io.karmada.pkg.estimator.pb.ReplicaRequirements.nodeClaim:type_name -> github.com.karmada_io.karmada.pkg.estimator.pb.NodeClaim
+	15, // 13: github.com.karmada_io.karmada.pkg.estimator.pb.ReplicaRequirements.resourceRequest:type_name -> github.com.karmada_io.karmada.pkg.estimator.pb.ReplicaRequirements.ResourceRequestEntry
+	16, // 14: github.com.karmada_io.karmada.pkg.estimator.pb.ReplicaRequirements.resourceRequestBytes:type_name -> github.com.karmada_io.karmada.pkg.estimator.pb.ReplicaRequirements.ResourceRequestBytesEntry
+	8,  // 15: github.com.karmada_io.karmada.pkg.estimator.pb.UnschedulableReplicasRequest.resource:type_name -> github.com.karmada_io.karmada.pkg.estimator.pb.ObjectReference
+	19, // 16: github.com.karmada_io.karmada.pkg.estimator.pb.ComponentReplicaRequirements.ResourceRequestEntry.value:type_name -> k8s.io.apimachinery.pkg.api.resource.Quantity
+	19, // 17: github.com.karmada_io.karmada.pkg.estimator.pb.ReplicaRequirements.ResourceRequestEntry.value:type_name -> k8s.io.apimachinery.pkg.api.resource.Quantity
+	18, // [18:18] is the sub-list for method output_type
+	18, // [18:18] is the sub-list for method input_type
+	18, // [18:18] is the sub-list for extension type_name
+	18, // [18:18] is the sub-list for extension extendee
+	0,  // [0:18] is the sub-list for field type_name
 }
 
 func init() { file_pkg_estimator_pb_estimator_proto_init() }

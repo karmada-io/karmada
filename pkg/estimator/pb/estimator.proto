@@ -125,6 +125,13 @@ message MaxAvailableReplicasRequest {
   // ReplicaRequirements represents the resource and scheduling requirements for each replica.
   // +required
   ReplicaRequirements replicaRequirements = 2;
+
+  // AssumedWorkloads lists in-flight workloads that have already been assigned
+  // to this cluster but whose pods have not yet been bound to nodes.
+  // The estimator deducts their resource footprint from the available capacity
+  // to avoid over-commitment during back-to-back scheduling cycles.
+  // +optional
+  repeated AssumedWorkload assumedWorkloads = 3;
 }
 
 // MaxAvailableReplicasResponse represents the response that sent by gRPC server to calculate max available replicas.
