@@ -23,6 +23,7 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/features"
 	schedulercache "github.com/karmada-io/karmada/pkg/scheduler/cache"
 	"github.com/karmada-io/karmada/pkg/scheduler/core/spreadconstraint"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
@@ -38,6 +39,11 @@ func SelectClusters(clustersScore framework.ClusterScoreList, placement *policyv
 		return calAvailableReplicas(clusters, spec, assigningCache)
 	}
 	groupClustersInfo := spreadconstraint.GroupClustersWithScore(clustersScore, placement, spec, status, calAvailableReplicasFunc)
+	if features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) && isMultiTemplateSchedulingApplicable(spec) {
+		// For multi-component workloads, they are scheduled as a whole and do not support replica division.
+		// The scheduling unit is 1 (i.e., 1 instance of the multi-component template), so we require 1 available replica.
+		return spreadconstraint.SelectBestClusters(placement, groupClustersInfo, 1)
+	}
 	return spreadconstraint.SelectBestClusters(placement, groupClustersInfo, spec.Replicas)
 }
 
