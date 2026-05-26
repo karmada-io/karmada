@@ -193,14 +193,14 @@ func TestInstallKarmadaEtcdWithTopologySpreadConstraints(t *testing.T) {
 	if len(got) != 1 {
 		t.Fatalf("expected 1 topology spread constraint, but got %d", len(got))
 	}
-	if got[0].MaxSkew != topologySpreadConstraints[0].MaxSkew {
-		t.Errorf("expected maxSkew %d, but got %d", topologySpreadConstraints[0].MaxSkew, got[0].MaxSkew)
+	if got[0].MaxSkew != 1 {
+		t.Errorf("expected maxSkew %d, but got %d", 1, got[0].MaxSkew)
 	}
-	if got[0].TopologyKey != topologySpreadConstraints[0].TopologyKey {
-		t.Errorf("expected topologyKey %q, but got %q", topologySpreadConstraints[0].TopologyKey, got[0].TopologyKey)
+	if got[0].TopologyKey != corev1.LabelTopologyZone {
+		t.Errorf("expected topologyKey %q, but got %q", corev1.LabelTopologyZone, got[0].TopologyKey)
 	}
-	if got[0].WhenUnsatisfiable != topologySpreadConstraints[0].WhenUnsatisfiable {
-		t.Errorf("expected whenUnsatisfiable %q, but got %q", topologySpreadConstraints[0].WhenUnsatisfiable, got[0].WhenUnsatisfiable)
+	if got[0].WhenUnsatisfiable != corev1.DoNotSchedule {
+		t.Errorf("expected whenUnsatisfiable %q, but got %q", corev1.DoNotSchedule, got[0].WhenUnsatisfiable)
 	}
 	if got[0].LabelSelector == nil || got[0].LabelSelector.MatchLabels["app.kubernetes.io/name"] != "etcd" {
 		t.Errorf("expected topology spread labelSelector to match etcd pods, but got %#v", got[0].LabelSelector)
