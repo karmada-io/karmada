@@ -80,6 +80,28 @@ func WaitCRDPresentOnClusters(client karmada.Interface, clusters []string, crdAP
 	})
 }
 
+// WaitCRDEstablished waits until the CustomResourceDefinition has the Established condition on the control plane.
+func WaitCRDEstablished(client dynamic.Interface, name string) {
+	WaitCRDFitWith(client, name, func(crd *apiextensionsv1.CustomResourceDefinition) bool {
+		for _, cond := range crd.Status.Conditions {
+			if cond.Type == apiextensionsv1.Established && cond.Status == apiextensionsv1.ConditionTrue {
+				return true
+			}
+		}
+		return false
+	})
+}
+
+// WaitCRDDisappeared waits for the CustomResourceDefinition to be absent from the control plane until timeout.
+func WaitCRDDisappeared(client dynamic.Interface, name string) {
+	ginkgo.By(fmt.Sprintf("Waiting for crd(%s) to be absent from control plane", name), func() {
+		gomega.Eventually(func() bool {
+			_, err := client.Resource(crdGVR).Get(context.TODO(), name, metav1.GetOptions{})
+			return apierrors.IsNotFound(err)
+		}, PollTimeout, PollInterval).Should(gomega.Equal(true))
+	})
+}
+
 // WaitCRDDisappearedOnClusters wait CustomResourceDefinition disappear on clusters until timeout.
 func WaitCRDDisappearedOnClusters(clusters []string, crdName string) {
 	ginkgo.By("Check if crd disappeared on member clusters", func() {

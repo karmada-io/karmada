@@ -27,10 +27,8 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
-	"github.com/karmada-io/karmada/pkg/estimator/pb"
 	"github.com/karmada-io/karmada/pkg/estimator/server/framework"
 	"github.com/karmada-io/karmada/pkg/estimator/server/metrics"
-	schedcache "github.com/karmada-io/karmada/pkg/util/lifted/scheduler/cache"
 	utilmetrics "github.com/karmada-io/karmada/pkg/util/metrics"
 )
 
@@ -137,10 +135,10 @@ func (frw *frameworkImpl) Parallelism() int {
 }
 
 // RunEstimateReplicasPlugins runs the set of configured EstimateReplicasPlugins
-// for estimating replicas based on the given replicaRequirements.
-// It returns an integer and an error.
+// for estimating replicas based on the given estCtx.
+// It returns an integer and a Result.
 // The integer represents the minimum calculated value of estimated replicas from each EstimateReplicasPlugin.
-func (frw *frameworkImpl) RunEstimateReplicasPlugins(ctx context.Context, snapshot *schedcache.Snapshot, replicaRequirements *pb.ReplicaRequirements) (int32, *framework.Result) {
+func (frw *frameworkImpl) RunEstimateReplicasPlugins(ctx context.Context, estCtx framework.ReplicaEstimationContext) (int32, *framework.Result) {
 	startTime := time.Now()
 	defer func() {
 		// Emit metrics with both old and new labels for backward compatibility
@@ -151,7 +149,7 @@ func (frw *frameworkImpl) RunEstimateReplicasPlugins(ctx context.Context, snapsh
 	var replica int32 = math.MaxInt32
 	results := make(framework.PluginToResult)
 	for _, pl := range frw.estimateReplicasPlugins {
-		plReplica, ret := frw.runEstimateReplicasPlugins(ctx, pl, snapshot, replicaRequirements)
+		plReplica, ret := frw.runEstimateReplicasPlugins(ctx, pl, estCtx)
 		if (ret.IsSuccess() || ret.IsUnschedulable()) && plReplica < replica {
 			replica = plReplica
 		}
@@ -167,11 +165,10 @@ func (frw *frameworkImpl) RunEstimateReplicasPlugins(ctx context.Context, snapsh
 func (frw *frameworkImpl) runEstimateReplicasPlugins(
 	ctx context.Context,
 	pl framework.EstimateReplicasPlugin,
-	snapshot *schedcache.Snapshot,
-	replicaRequirements *pb.ReplicaRequirements,
+	estCtx framework.ReplicaEstimationContext,
 ) (int32, *framework.Result) {
 	startTime := time.Now()
-	replica, ret := pl.Estimate(ctx, snapshot, replicaRequirements)
+	replica, ret := pl.Estimate(ctx, estCtx)
 	// Emit metrics with both old and new labels for backward compatibility
 	// TODO: Remove estimator label in a future release (deprecated)
 	metrics.PluginExecutionDuration.WithLabelValues(pl.Name(), estimator).Observe(utilmetrics.DurationInSeconds(startTime))

@@ -27,7 +27,6 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/karmada-io/karmada/pkg/estimator"
-	"github.com/karmada-io/karmada/pkg/estimator/pb"
 	"github.com/karmada-io/karmada/pkg/estimator/server/framework"
 	"github.com/karmada-io/karmada/pkg/util"
 	schedcache "github.com/karmada-io/karmada/pkg/util/lifted/scheduler/cache"
@@ -67,49 +66,68 @@ func (pl *nodeResourceEstimator) Name() string {
 	return Name
 }
 
-// Estimate the replica allowed by the node resources for a given pb.ReplicaRequirements.
-func (pl *nodeResourceEstimator) Estimate(ctx context.Context, snapshot *schedcache.Snapshot, requirements *pb.ReplicaRequirements) (int32, *framework.Result) {
+// Estimate the replica allowed by the node resources for a given ReplicaEstimationContext.
+func (pl *nodeResourceEstimator) Estimate(ctx context.Context, estCtx framework.ReplicaEstimationContext) (int32, *framework.Result) {
 	if !pl.enabled {
 		return pl.disabledResult()
 	}
 
-	allNodes, err := snapshot.NodeInfos().List()
-	if err != nil {
-		return 0, framework.AsResult(err)
-	}
-
+	requirements := estCtx.ReplicaRequirements
 	var affinity nodeaffinity.RequiredNodeAffinity
 	var tolerations []corev1.Toleration
 	var resourceRequest corev1.ResourceList
+	var err error
 	if requirements != nil {
 		affinity, tolerations, err = estimator.GetAffinityAndTolerations(requirements.NodeClaim)
 		if err != nil {
 			return 0, framework.AsResult(err)
 		}
-
 		resourceRequest, err = requirements.UnmarshalResourceRequest()
 		if err != nil {
 			return 0, framework.AsResult(err)
 		}
 	}
 
+	if estCtx.Snapshot == nil {
+		return 0, framework.AsResult(fmt.Errorf("snapshot is nil"))
+	}
+	nodes, err := getNodesAvailableResources(estCtx.Snapshot)
+	if err != nil {
+		return 0, framework.AsResult(err)
+	}
+
+	// Deduct assumed (in-flight) workloads before running main estimation.
+	// Each assumed workload represents pods being started that may not yet be
+	// reflected in the cluster's node resource accounting.
+	// Note: SimulateScheduling mutates nodes in-place by consuming their Allocatable
+	// resources as it places components. The subsequent per-node MaxDivided calls
+	// therefore operate on the already-reduced node capacity.
+	if len(estCtx.AssumedWorkloads) > 0 {
+		sim := estimator.NewSchedulingSimulator(nodes)
+		for _, assumed := range estCtx.AssumedWorkloads {
+			if len(assumed.GetComponents()) == 0 {
+				continue
+			}
+			deductedSets, deductErr := sim.SimulateScheduling(assumed.GetComponents(), 1)
+			if deductErr != nil {
+				return 0, framework.AsResult(deductErr)
+			}
+			if deductedSets == 0 {
+				klog.V(4).Infof("%s: could not deduct assumed workload (namespace=%s) from node resources", pl.Name(), assumed.GetNamespace())
+			}
+		}
+	}
+
 	var res int32
 	processNode := func(i int) {
-		node := allNodes[i].Clone()
+		node := nodes[i]
 		if !estimator.MatchNode(node, affinity, tolerations) {
 			return
 		}
-		maxReplica := pl.nodeMaxAvailableReplica(node, resourceRequest)
-		atomic.AddInt32(&res, maxReplica)
+		atomic.AddInt32(&res, int32(node.Allocatable.MaxDivided(resourceRequest))) // #nosec G115
 	}
-	pl.parallelizer.Until(ctx, len(allNodes), processNode)
-
+	pl.parallelizer.Until(ctx, len(nodes), processNode)
 	return res, framework.NewResult(framework.Success)
-}
-
-func (pl *nodeResourceEstimator) nodeMaxAvailableReplica(node *schedulerframework.NodeInfo, rl corev1.ResourceList) int32 {
-	rest := getNodeAvailableResource(node)
-	return int32(rest.MaxDivided(rl)) // #nosec G115: integer overflow conversion int64 -> int32
 }
 
 // getNodeAvailableResource calculates a node's available resources after deducting requested resources

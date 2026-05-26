@@ -32,12 +32,12 @@ import (
 type Framework interface {
 	Handle
 	// RunEstimateReplicasPlugins runs the set of configured EstimateReplicasPlugins
-	// for estimating replicas based on the given replicaRequirements.
+	// for estimating replicas based on the given estCtx.
 	// It returns an integer and a Result.
 	// The integer represents the minimum calculated value of estimated replicas from each EstimateReplicasPlugin.
 	// The Result contains code, reasons and error.
 	// It is merged from all plugins' returned result codes.
-	RunEstimateReplicasPlugins(ctx context.Context, snapshot *schedcache.Snapshot, replicaRequirements *pb.ReplicaRequirements) (int32, *Result)
+	RunEstimateReplicasPlugins(ctx context.Context, estCtx ReplicaEstimationContext) (int32, *Result)
 	// RunEstimateComponentsPlugins runs the set of configured EstimateComponentsPlugins
 	// for estimating the maximum number of complete component sets based on the given estCtx.
 	// It returns an integer and a Result.
@@ -62,7 +62,7 @@ type EstimateReplicasPlugin interface {
 	// The integer represents the number of calculated replicas for the given replicaRequirements.
 	// The Result contains code, reasons and error.
 	// It is merged from all plugins' returned result codes.
-	Estimate(ctx context.Context, snapshot *schedcache.Snapshot, replicaRequirements *pb.ReplicaRequirements) (int32, *Result)
+	Estimate(ctx context.Context, estCtx ReplicaEstimationContext) (int32, *Result)
 }
 
 // EstimateComponentsPlugin is an interface for component set estimation plugins.
@@ -87,6 +87,17 @@ type ComponentEstimationContext struct {
 	Components []*pb.Component
 	// Namespace is the workload namespace (used by quota-aware plugins).
 	Namespace string
+	// AssumedWorkloads are in-flight workloads already assigned to this target cluster.
+	AssumedWorkloads []*pb.AssumedWorkload
+}
+
+// ReplicaEstimationContext contains the business context required by replica estimators.
+// It decouples plugin interfaces from transport-level request objects.
+type ReplicaEstimationContext struct {
+	// Snapshot is the scheduler cache snapshot used for estimation.
+	Snapshot *schedcache.Snapshot
+	// ReplicaRequirements describes the resource requirements of a single-template workload replica.
+	ReplicaRequirements *pb.ReplicaRequirements
 	// AssumedWorkloads are in-flight workloads already assigned to this target cluster.
 	AssumedWorkloads []*pb.AssumedWorkload
 }
