@@ -23,6 +23,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	fakeclientset "k8s.io/client-go/kubernetes/fake"
 	coretesting "k8s.io/client-go/testing"
 	"k8s.io/utils/ptr"
@@ -398,6 +399,118 @@ func TestInstallKarmadaAggregatedAPIServerWithTolerationsAndAffinity(t *testing.
 	}
 	if terms[0].MatchExpressions[0].Key != "kubernetes.io/os" {
 		t.Errorf("expected match expression key 'kubernetes.io/os', but got '%s'", terms[0].MatchExpressions[0].Key)
+	}
+}
+
+func TestInstallKarmadaAPIServerWithTopologySpreadConstraints(t *testing.T) {
+	var replicas int32 = 3
+	image := "karmada-apiserver-image"
+	imagePullPolicy := corev1.PullIfNotPresent
+	name := "karmada-apiserver"
+	namespace := "test-namespace"
+	serviceSubnet := "10.96.0.0/12"
+	priorityClassName := "system-cluster-critical"
+
+	topologySpreadConstraints := []corev1.TopologySpreadConstraint{
+		{
+			MaxSkew:           1,
+			TopologyKey:       "topology.kubernetes.io/zone",
+			WhenUnsatisfiable: corev1.DoNotSchedule,
+			LabelSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": "karmada-apiserver",
+				},
+			},
+		},
+	}
+
+	cfg := &operatorv1alpha1.KarmadaAPIServer{
+		CommonSettings: operatorv1alpha1.CommonSettings{
+			Image:                     operatorv1alpha1.Image{ImageTag: image},
+			Replicas:                  ptr.To[int32](replicas),
+			Resources:                 corev1.ResourceRequirements{},
+			ImagePullPolicy:           imagePullPolicy,
+			PriorityClassName:         priorityClassName,
+			TopologySpreadConstraints: topologySpreadConstraints,
+		},
+		ServiceSubnet: ptr.To(serviceSubnet),
+		ExtraArgs:     map[string]string{},
+	}
+
+	fakeClient := fakeclientset.NewClientset()
+	etcdCfg := &operatorv1alpha1.Etcd{
+		Local: &operatorv1alpha1.LocalEtcd{},
+	}
+
+	err := installKarmadaAPIServer(fakeClient, cfg, etcdCfg, name, namespace, map[string]bool{})
+	if err != nil {
+		t.Fatalf("failed to install karmada apiserver: %v", err)
+	}
+
+	deployment, err := verifyDeploymentCreation(fakeClient)
+	if err != nil {
+		t.Fatalf("failed to verify deployment creation: %v", err)
+	}
+
+	if len(deployment.Spec.Template.Spec.TopologySpreadConstraints) != 1 {
+		t.Fatalf("expected 1 topology spread constraint, but got %d", len(deployment.Spec.Template.Spec.TopologySpreadConstraints))
+	}
+	if deployment.Spec.Template.Spec.TopologySpreadConstraints[0].TopologyKey != "topology.kubernetes.io/zone" {
+		t.Errorf("expected topology key 'topology.kubernetes.io/zone', but got '%s'", deployment.Spec.Template.Spec.TopologySpreadConstraints[0].TopologyKey)
+	}
+}
+
+func TestInstallKarmadaAggregatedAPIServerWithTopologySpreadConstraints(t *testing.T) {
+	var replicas int32 = 2
+	image := "karmada-aggregated-apiserver-image"
+	imagePullPolicy := corev1.PullIfNotPresent
+	name := "test-agg-server"
+	namespace := "test-namespace"
+
+	topologySpreadConstraints := []corev1.TopologySpreadConstraint{
+		{
+			MaxSkew:           1,
+			TopologyKey:       "topology.kubernetes.io/zone",
+			WhenUnsatisfiable: corev1.DoNotSchedule,
+			LabelSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": "karmada-aggregated-apiserver",
+				},
+			},
+		},
+	}
+
+	cfg := &operatorv1alpha1.KarmadaAggregatedAPIServer{
+		CommonSettings: operatorv1alpha1.CommonSettings{
+			Image:                     operatorv1alpha1.Image{ImageTag: image},
+			Replicas:                  ptr.To[int32](replicas),
+			Resources:                 corev1.ResourceRequirements{},
+			ImagePullPolicy:           imagePullPolicy,
+			TopologySpreadConstraints: topologySpreadConstraints,
+		},
+		ExtraArgs: map[string]string{},
+	}
+
+	fakeClient := fakeclientset.NewClientset()
+	etcdCfg := &operatorv1alpha1.Etcd{
+		Local: &operatorv1alpha1.LocalEtcd{},
+	}
+
+	err := installKarmadaAggregatedAPIServer(fakeClient, cfg, etcdCfg, name, namespace, map[string]bool{})
+	if err != nil {
+		t.Fatalf("failed to install karmada aggregated apiserver: %v", err)
+	}
+
+	deployment, err := verifyDeploymentCreation(fakeClient)
+	if err != nil {
+		t.Fatalf("failed to verify deployment creation: %v", err)
+	}
+
+	if len(deployment.Spec.Template.Spec.TopologySpreadConstraints) != 1 {
+		t.Fatalf("expected 1 topology spread constraint, but got %d", len(deployment.Spec.Template.Spec.TopologySpreadConstraints))
+	}
+	if deployment.Spec.Template.Spec.TopologySpreadConstraints[0].TopologyKey != "topology.kubernetes.io/zone" {
+		t.Errorf("expected topology key 'topology.kubernetes.io/zone', but got '%s'", deployment.Spec.Template.Spec.TopologySpreadConstraints[0].TopologyKey)
 	}
 }
 

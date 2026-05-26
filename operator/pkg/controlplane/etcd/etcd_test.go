@@ -25,6 +25,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	fakeclientset "k8s.io/client-go/kubernetes/fake"
 	coretesting "k8s.io/client-go/testing"
@@ -141,6 +142,68 @@ func TestInstallKarmadaEtcd(t *testing.T) {
 	// Verify statefulset details using the existing function
 	if err := verifyStatefulSetDetails(statefulset, replicas, imagePullPolicy, name, namespace, image, imageTag); err != nil {
 		t.Fatalf("failed to verify statefulset details: %v", err)
+	}
+}
+
+func TestInstallKarmadaEtcdWithTopologySpreadConstraints(t *testing.T) {
+	var replicas int32 = 3
+	image, imageTag := "registry.k8s.io/etcd", "latest"
+	name := "karmada-demo"
+	namespace := "test"
+	imagePullPolicy := corev1.PullIfNotPresent
+	topologySpreadConstraints := []corev1.TopologySpreadConstraint{
+		{
+			MaxSkew:           1,
+			TopologyKey:       corev1.LabelTopologyZone,
+			WhenUnsatisfiable: corev1.DoNotSchedule,
+			LabelSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app.kubernetes.io/name": "etcd",
+				},
+			},
+		},
+	}
+
+	cfg := &operatorv1alpha1.LocalEtcd{
+		CommonSettings: operatorv1alpha1.CommonSettings{
+			Image: operatorv1alpha1.Image{
+				ImageRepository: image,
+				ImageTag:        imageTag,
+			},
+			Replicas:                  ptr.To[int32](replicas),
+			Resources:                 corev1.ResourceRequirements{},
+			ImagePullPolicy:           imagePullPolicy,
+			TopologySpreadConstraints: topologySpreadConstraints,
+		},
+	}
+
+	fakeClient := fakeclientset.NewClientset()
+
+	err := installKarmadaEtcd(fakeClient, name, namespace, cfg)
+	if err != nil {
+		t.Fatalf("failed to install karmada etcd, got: %v", err)
+	}
+
+	statefulSet, err := verifyStatefulSetCreation(fakeClient)
+	if err != nil {
+		t.Fatalf("failed to verify statefulset creation: %v", err)
+	}
+
+	got := statefulSet.Spec.Template.Spec.TopologySpreadConstraints
+	if len(got) != 1 {
+		t.Fatalf("expected 1 topology spread constraint, but got %d", len(got))
+	}
+	if got[0].MaxSkew != topologySpreadConstraints[0].MaxSkew {
+		t.Errorf("expected maxSkew %d, but got %d", topologySpreadConstraints[0].MaxSkew, got[0].MaxSkew)
+	}
+	if got[0].TopologyKey != topologySpreadConstraints[0].TopologyKey {
+		t.Errorf("expected topologyKey %q, but got %q", topologySpreadConstraints[0].TopologyKey, got[0].TopologyKey)
+	}
+	if got[0].WhenUnsatisfiable != topologySpreadConstraints[0].WhenUnsatisfiable {
+		t.Errorf("expected whenUnsatisfiable %q, but got %q", topologySpreadConstraints[0].WhenUnsatisfiable, got[0].WhenUnsatisfiable)
+	}
+	if got[0].LabelSelector == nil || got[0].LabelSelector.MatchLabels["app.kubernetes.io/name"] != "etcd" {
+		t.Errorf("expected topology spread labelSelector to match etcd pods, but got %#v", got[0].LabelSelector)
 	}
 }
 
