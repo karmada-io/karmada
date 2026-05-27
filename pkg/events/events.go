@@ -96,14 +96,18 @@ const (
 
 // Define events for FederatedResourceQuota.
 const (
-	// EventReasonSyncFederatedResourceQuotaFailed indicates that Sync work failed.
-	EventReasonSyncFederatedResourceQuotaFailed = "SyncWorkFailed"
-	// EventReasonSyncFederatedResourceQuotaSucceed indicates that Sync work succeed.
-	EventReasonSyncFederatedResourceQuotaSucceed = "SyncWorkSucceed"
-	// EventReasonCollectFederatedResourceQuotaStatusFailed indicates that aggregate status failed.
-	EventReasonCollectFederatedResourceQuotaStatusFailed = "AggregateStatusFailed"
-	// EventReasonCollectFederatedResourceQuotaStatusSucceed indicates that aggregate status succeed.
-	EventReasonCollectFederatedResourceQuotaStatusSucceed = "AggregateStatusSucceed"
+	// EventReasonSyncFederatedResourceQuotaFailed indicates that syncing a
+	// FederatedResourceQuota to the relevant member clusters failed.
+	EventReasonSyncFederatedResourceQuotaFailed = "SyncFederatedResourceQuotaFailed"
+	// EventReasonSyncFederatedResourceQuotaSucceed indicates that syncing a
+	// FederatedResourceQuota to the relevant member clusters succeeded.
+	EventReasonSyncFederatedResourceQuotaSucceed = "SyncFederatedResourceQuotaSucceed"
+	// EventReasonCollectFederatedResourceQuotaStatusFailed indicates that
+	// collecting per-cluster status for a FederatedResourceQuota failed.
+	EventReasonCollectFederatedResourceQuotaStatusFailed = "CollectFederatedResourceQuotaStatusFailed"
+	// EventReasonCollectFederatedResourceQuotaStatusSucceed indicates that
+	// collecting per-cluster status for a FederatedResourceQuota succeeded.
+	EventReasonCollectFederatedResourceQuotaStatusSucceed = "CollectFederatedResourceQuotaStatusSucceed"
 	// EventReasonCollectFederatedResourceQuotaOverallStatusFailed indicates that Collect Overall Status failed.
 	EventReasonCollectFederatedResourceQuotaOverallStatusFailed = "CollectOverallStatusFailed"
 	// EventReasonCollectFederatedResourceQuotaOverallStatusSucceed indicates that Collect Overall Status succeed.
