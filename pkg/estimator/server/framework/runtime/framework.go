@@ -25,6 +25,7 @@ import (
 
 	"k8s.io/client-go/informers"
 	clientset "k8s.io/client-go/kubernetes"
+	"k8s.io/klog/v2"
 
 	"github.com/karmada-io/karmada/pkg/estimator/pb"
 	"github.com/karmada-io/karmada/pkg/estimator/server/framework"
@@ -159,6 +160,7 @@ func (frw *frameworkImpl) RunEstimateReplicasPlugins(ctx context.Context, snapsh
 		}
 		results[pl.Name()] = ret
 	}
+	klog.V(4).InfoS("EstimateReplicas final result", "replicas", replica)
 	return replica, results.Merge()
 }
 
@@ -174,6 +176,7 @@ func (frw *frameworkImpl) runEstimateReplicasPlugins(
 	// TODO: Remove estimator label in a future release (deprecated)
 	metrics.PluginExecutionDuration.WithLabelValues(pl.Name(), estimator).Observe(utilmetrics.DurationInSeconds(startTime))
 	metrics.PluginExecutionDuration.WithLabelValues(pl.Name(), estimateReplicasExtension).Observe(utilmetrics.DurationInSeconds(startTime))
+	klog.V(4).InfoS("EstimateReplicas plugin result", "plugin", pl.Name(), "replicas", replica, "status", ret.Code())
 	return replica, ret
 }
 
@@ -196,6 +199,7 @@ func (frw *frameworkImpl) RunEstimateComponentsPlugins(ctx context.Context, estC
 		}
 		results[pl.Name()] = ret
 	}
+	klog.V(4).InfoS("EstimateComponents final result", "sets", sets)
 	return sets, results.Merge()
 }
 
@@ -203,5 +207,6 @@ func (frw *frameworkImpl) runEstimateComponentsPlugins(ctx context.Context, pl f
 	startTime := time.Now()
 	sets, ret := pl.EstimateComponents(ctx, estCtx)
 	metrics.PluginExecutionDuration.WithLabelValues(pl.Name(), estimateComponentsExtension).Observe(utilmetrics.DurationInSeconds(startTime))
+	klog.V(4).InfoS("EstimateComponents plugin result", "plugin", pl.Name(), "sets", sets, "status", ret.Code())
 	return sets, ret
 }
