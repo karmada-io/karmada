@@ -108,10 +108,12 @@ const (
 	// EventReasonCollectFederatedResourceQuotaStatusSucceed indicates that
 	// collecting per-cluster status for a FederatedResourceQuota succeeded.
 	EventReasonCollectFederatedResourceQuotaStatusSucceed = "CollectFederatedResourceQuotaStatusSucceed"
-	// EventReasonCollectFederatedResourceQuotaOverallStatusFailed indicates that Collect Overall Status failed.
-	EventReasonCollectFederatedResourceQuotaOverallStatusFailed = "CollectOverallStatusFailed"
-	// EventReasonCollectFederatedResourceQuotaOverallStatusSucceed indicates that Collect Overall Status succeed.
-	EventReasonCollectFederatedResourceQuotaOverallStatusSucceed = "CollectOverallStatusSucceed"
+	// EventReasonCollectFederatedResourceQuotaOverallStatusFailed indicates that
+	// collecting the overall cluster-wide status of a FederatedResourceQuota failed.
+	EventReasonCollectFederatedResourceQuotaOverallStatusFailed = "CollectFederatedResourceQuotaOverallStatusFailed"
+	// EventReasonCollectFederatedResourceQuotaOverallStatusSucceed indicates that
+	// collecting the overall cluster-wide status of a FederatedResourceQuota succeeded.
+	EventReasonCollectFederatedResourceQuotaOverallStatusSucceed = "CollectFederatedResourceQuotaOverallStatusSucceed"
 )
 
 // Define events for resource templates.
