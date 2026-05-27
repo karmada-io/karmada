@@ -155,10 +155,11 @@ func (c *EndpointsliceDispatchController) SetupWithManager(mgr controllerruntime
 				util.GetLabelValue(updateEvent.ObjectNew.GetLabels(), util.ServiceNameLabel) != "") &&
 				util.GetAnnotationValue(updateEvent.ObjectNew.GetAnnotations(), util.EndpointSliceProvisionClusterAnnotation) == ""
 		},
-		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-			// We only care about the EndpointSlice work from provider clusters
-			return util.GetLabelValue(deleteEvent.Object.GetLabels(), util.MultiClusterServiceNameLabel) != "" &&
-				util.GetAnnotationValue(deleteEvent.Object.GetAnnotations(), util.EndpointSliceProvisionClusterAnnotation) == ""
+		DeleteFunc: func(event.DeleteEvent) bool {
+			// Work uses a finalizer (MCSEndpointSliceDispatchControllerFinalizer)
+			// and the controller already cleans up via DeletionTimestamp in the
+			// update path, so the final delete event is redundant.
+			return false
 		},
 		GenericFunc: func(event.GenericEvent) bool {
 			return false
