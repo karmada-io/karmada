@@ -18,16 +18,19 @@ package client
 
 import (
 	"context"
-	"math"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	runtimeutil "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/component-base/featuregate"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/features"
 )
 
 func TestGetMaximumReplicasBasedOnResourceModels(t *testing.T) {
@@ -219,7 +222,7 @@ func TestGetMaximumReplicasBasedOnResourceModels(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			replicas, err := getMaximumReplicasBasedOnResourceModels(&tt.cluster, &tt.replicaRequirements)
+			replicas, err := getMaximumReplicasBasedOnResourceModels(&tt.cluster, &tt.replicaRequirements, nil)
 			if tt.expectError {
 				assert.Error(t, err)
 			} else {
@@ -548,7 +551,7 @@ func TestGetMaximumSetsBasedOnResourceModels(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := getMaximumSetsBasedOnResourceModels(&tt.cluster, tt.components, tt.upperBound)
+			got, err := getMaximumSetsBasedOnResourceModels(&tt.cluster, tt.components, nil, tt.upperBound)
 			if tt.expectError {
 				assert.Error(t, err)
 				assert.Equal(t, tt.expectedSets, got)
@@ -1012,6 +1015,103 @@ func TestMaxAvailableReplicasGeneral(t *testing.T) {
 	}
 }
 
+// setFeatureGateDuringTest temporarily sets a feature gate to the given value
+// and returns a cleanup function that restores the original value.
+func setFeatureGateDuringTest(tb testing.TB, gate featuregate.FeatureGate, f featuregate.Feature, value bool) func() {
+	originalValue := gate.Enabled(f)
+	if err := gate.(featuregate.MutableFeatureGate).Set(fmt.Sprintf("%s=%v", f, value)); err != nil {
+		tb.Errorf("error setting %s=%v: %v", f, value, err)
+	}
+	return func() {
+		if err := gate.(featuregate.MutableFeatureGate).Set(fmt.Sprintf("%s=%v", f, originalValue)); err != nil {
+			tb.Errorf("error restoring %s=%v: %v", f, originalValue, err)
+		}
+	}
+}
+
+// TestMaxAvailableReplicasGeneralWithResourceModels verifies that when
+// CustomizedClusterResourceModeling is enabled and assumed workloads are
+// present, the cluster-summary bound (computed from the deducted
+// resourceSummary) is applied in addition to the model-based result so that
+// in-flight resource demands are not overlooked.
+func TestMaxAvailableReplicasGeneralWithResourceModels(t *testing.T) {
+	// Cluster topology:
+	//   3 nodes each at Grade 1 (CPU min=1 core).
+	//   Per-node capacity: 1 CPU → fits 2 replicas of 500m each.
+	//   Total cluster capacity: 3 CPU, 100 pod slots.
+	//
+	// Assumed workload: 4 replicas × 500m CPU each → 2 CPU in-flight.
+	//   After deduction: 1 CPU remaining → only 2 replicas fit.
+	//
+	// Without the fix the ResourceModels path would return 6 (3 nodes × 2)
+	// and exit early, ignoring the assumed workload deduction.
+	// With the fix, the cluster-summary bound (2) is also applied → result 2.
+	cluster := &clusterv1alpha1.Cluster{
+		Spec: clusterv1alpha1.ClusterSpec{
+			ResourceModels: []clusterv1alpha1.ResourceModel{
+				{
+					Grade: 0,
+					Ranges: []clusterv1alpha1.ResourceModelRange{
+						{Name: corev1.ResourceCPU, Min: resource.MustParse("0"), Max: resource.MustParse("1")},
+					},
+				},
+				{
+					Grade: 1,
+					Ranges: []clusterv1alpha1.ResourceModelRange{
+						{Name: corev1.ResourceCPU, Min: resource.MustParse("1"), Max: resource.MustParse("2")},
+					},
+				},
+			},
+		},
+		Status: clusterv1alpha1.ClusterStatus{
+			ResourceSummary: &clusterv1alpha1.ResourceSummary{
+				Allocatable: corev1.ResourceList{
+					corev1.ResourcePods: resource.MustParse("100"),
+					corev1.ResourceCPU:  resource.MustParse("3"),
+				},
+				AllocatableModelings: []clusterv1alpha1.AllocatableModeling{
+					{Grade: 0, Count: 0},
+					{Grade: 1, Count: 3},
+				},
+			},
+		},
+	}
+	reqs := &workv1alpha2.ReplicaRequirements{
+		ResourceRequest: corev1.ResourceList{
+			corev1.ResourceCPU: resource.MustParse("500m"),
+		},
+	}
+	assumed := []AssumedWorkload{
+		{
+			Namespace: "default",
+			Components: []workv1alpha2.Component{
+				{
+					Replicas: 4,
+					ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+						ResourceRequest: corev1.ResourceList{
+							corev1.ResourceCPU: resource.MustParse("500m"),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	mutableFeatureGate := features.FeatureGate
+	runtimeutil.Must(mutableFeatureGate.Add(features.DefaultFeatureGates))
+	defer setFeatureGateDuringTest(t, mutableFeatureGate, features.CustomizedClusterResourceModeling, true)()
+
+	estimator := NewGeneralEstimator()
+
+	// Without assumed workloads: model path returns 6 (3 nodes × 2 replicas/node).
+	assert.Equal(t, int32(6), estimator.maxAvailableReplicas(cluster, reqs, nil),
+		"baseline without assumed workloads should equal model result")
+
+	// With assumed workloads: cluster-summary bound (1 CPU left → 2 replicas) must win.
+	assert.Equal(t, int32(2), estimator.maxAvailableReplicas(cluster, reqs, assumed),
+		"assumed workloads should reduce result via cluster-summary bound")
+}
+
 func TestGetAllowedPodNumber(t *testing.T) {
 	tests := []struct {
 		name            string
@@ -1062,268 +1162,6 @@ func TestGetAllowedPodNumber(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := getAllowedPodNumber(tt.resourceSummary)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
-
-func TestConvertToResourceModelsMinMap(t *testing.T) {
-	tests := []struct {
-		name              string
-		models            []clusterv1alpha1.ResourceModel
-		expectedMinRanges map[corev1.ResourceName][]resource.Quantity
-	}{
-		{
-			name:              "empty models",
-			models:            []clusterv1alpha1.ResourceModel{},
-			expectedMinRanges: map[corev1.ResourceName][]resource.Quantity{},
-		},
-		{
-			name: "single resource type across models",
-			models: []clusterv1alpha1.ResourceModel{
-				{
-					Grade: 0,
-					Ranges: []clusterv1alpha1.ResourceModelRange{
-						{
-							Name: corev1.ResourceCPU,
-							Min:  resource.MustParse("1"),
-							Max:  resource.MustParse("2"),
-						},
-					},
-				},
-				{
-					Grade: 1,
-					Ranges: []clusterv1alpha1.ResourceModelRange{
-						{
-							Name: corev1.ResourceCPU,
-							Min:  resource.MustParse("2"),
-							Max:  resource.MustParse("4"),
-						},
-					},
-				},
-			},
-			expectedMinRanges: map[corev1.ResourceName][]resource.Quantity{
-				corev1.ResourceCPU: {
-					resource.MustParse("1"),
-					resource.MustParse("2"),
-				},
-			},
-		},
-		{
-			name: "multiple resource types",
-			models: []clusterv1alpha1.ResourceModel{
-				{
-					Grade: 0,
-					Ranges: []clusterv1alpha1.ResourceModelRange{
-						{
-							Name: corev1.ResourceCPU,
-							Min:  resource.MustParse("1"),
-							Max:  resource.MustParse("2"),
-						},
-						{
-							Name: corev1.ResourceMemory,
-							Min:  resource.MustParse("1Gi"),
-							Max:  resource.MustParse("2Gi"),
-						},
-					},
-				},
-				{
-					Grade: 1,
-					Ranges: []clusterv1alpha1.ResourceModelRange{
-						{
-							Name: corev1.ResourceCPU,
-							Min:  resource.MustParse("2"),
-							Max:  resource.MustParse("4"),
-						},
-						{
-							Name: corev1.ResourceMemory,
-							Min:  resource.MustParse("2Gi"),
-							Max:  resource.MustParse("4Gi"),
-						},
-					},
-				},
-			},
-			expectedMinRanges: map[corev1.ResourceName][]resource.Quantity{
-				corev1.ResourceCPU: {
-					resource.MustParse("1"),
-					resource.MustParse("2"),
-				},
-				corev1.ResourceMemory: {
-					resource.MustParse("1Gi"),
-					resource.MustParse("2Gi"),
-				},
-			},
-		},
-		{
-			name: "models with missing resource types",
-			models: []clusterv1alpha1.ResourceModel{
-				{
-					Grade: 0,
-					Ranges: []clusterv1alpha1.ResourceModelRange{
-						{
-							Name: corev1.ResourceCPU,
-							Min:  resource.MustParse("1"),
-							Max:  resource.MustParse("2"),
-						},
-					},
-				},
-				{
-					Grade: 1,
-					Ranges: []clusterv1alpha1.ResourceModelRange{
-						{
-							Name: corev1.ResourceMemory,
-							Min:  resource.MustParse("1Gi"),
-							Max:  resource.MustParse("2Gi"),
-						},
-					},
-				},
-			},
-			expectedMinRanges: map[corev1.ResourceName][]resource.Quantity{
-				corev1.ResourceCPU: {
-					resource.MustParse("1"),
-				},
-				corev1.ResourceMemory: {
-					resource.MustParse("1Gi"),
-				},
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := convertToResourceModelsMinMap(tt.models)
-
-			// Check map length matches
-			assert.Equal(t, len(tt.expectedMinRanges), len(result))
-
-			// Check each resource type and its quantities
-			for resourceName, expectedQuantities := range tt.expectedMinRanges {
-				resultQuantities, exists := result[resourceName]
-				assert.True(t, exists, "Resource %v should exist in result", resourceName)
-
-				// Check quantities length matches
-				assert.Equal(t, len(expectedQuantities), len(resultQuantities))
-
-				// Check each quantity matches
-				for i, expectedQty := range expectedQuantities {
-					assert.True(t, expectedQty.Equal(resultQuantities[i]),
-						"Quantity mismatch for resource %v at index %d: expected %v, got %v",
-						resourceName, i, expectedQty.String(), resultQuantities[i].String())
-				}
-			}
-		})
-	}
-}
-
-func TestGetNodeAvailableReplicas(t *testing.T) {
-	tests := []struct {
-		name                 string
-		modelIndex           int
-		replicaRequirements  *workv1alpha2.ReplicaRequirements
-		resourceModelsMinMap map[corev1.ResourceName][]resource.Quantity
-		expected             int64
-	}{
-		{
-			name:       "empty resource request",
-			modelIndex: 0,
-			replicaRequirements: &workv1alpha2.ReplicaRequirements{
-				ResourceRequest: corev1.ResourceList{},
-			},
-			resourceModelsMinMap: map[corev1.ResourceName][]resource.Quantity{},
-			expected:             math.MaxInt64,
-		},
-		{
-			name:       "zero requested quantity should be ignored",
-			modelIndex: 0,
-			replicaRequirements: &workv1alpha2.ReplicaRequirements{
-				ResourceRequest: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("0"),
-					corev1.ResourceMemory: resource.MustParse("1Gi"),
-				},
-			},
-			resourceModelsMinMap: map[corev1.ResourceName][]resource.Quantity{
-				corev1.ResourceCPU:    {resource.MustParse("2")},
-				corev1.ResourceMemory: {resource.MustParse("4Gi")},
-			},
-			expected: 4,
-		},
-		{
-			name:       "CPU resource calculation in millicores",
-			modelIndex: 0,
-			replicaRequirements: &workv1alpha2.ReplicaRequirements{
-				ResourceRequest: corev1.ResourceList{
-					corev1.ResourceCPU: resource.MustParse("500m"),
-				},
-			},
-			resourceModelsMinMap: map[corev1.ResourceName][]resource.Quantity{
-				corev1.ResourceCPU: {resource.MustParse("2")},
-			},
-			expected: 4, // 2000m / 500m = 4
-		},
-		{
-			name:       "multiple resources with different ratios",
-			modelIndex: 0,
-			replicaRequirements: &workv1alpha2.ReplicaRequirements{
-				ResourceRequest: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("500m"),
-					corev1.ResourceMemory: resource.MustParse("2Gi"),
-				},
-			},
-			resourceModelsMinMap: map[corev1.ResourceName][]resource.Quantity{
-				corev1.ResourceCPU:    {resource.MustParse("2")},   // 4 replicas possible (2000m/500m)
-				corev1.ResourceMemory: {resource.MustParse("8Gi")}, // 4 replicas possible (8Gi/2Gi)
-			},
-			expected: 4,
-		},
-		{
-			name:       "memory limited scenario",
-			modelIndex: 0,
-			replicaRequirements: &workv1alpha2.ReplicaRequirements{
-				ResourceRequest: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("500m"),
-					corev1.ResourceMemory: resource.MustParse("3Gi"),
-				},
-			},
-			resourceModelsMinMap: map[corev1.ResourceName][]resource.Quantity{
-				corev1.ResourceCPU:    {resource.MustParse("2")},   // 4 replicas possible (2000m/500m)
-				corev1.ResourceMemory: {resource.MustParse("8Gi")}, // 2 replicas possible (8Gi/3Gi)
-			},
-			expected: 2,
-		},
-		{
-			name:       "zero replicas possible but first model",
-			modelIndex: 0,
-			replicaRequirements: &workv1alpha2.ReplicaRequirements{
-				ResourceRequest: corev1.ResourceList{
-					corev1.ResourceCPU: resource.MustParse("3"),
-				},
-			},
-			resourceModelsMinMap: map[corev1.ResourceName][]resource.Quantity{
-				corev1.ResourceCPU: {resource.MustParse("2")},
-			},
-			expected: 1, // Although 2/3=0, return 1 since it's the first model
-		},
-		{
-			name:       "different model index",
-			modelIndex: 1,
-			replicaRequirements: &workv1alpha2.ReplicaRequirements{
-				ResourceRequest: corev1.ResourceList{
-					corev1.ResourceCPU: resource.MustParse("1"),
-				},
-			},
-			resourceModelsMinMap: map[corev1.ResourceName][]resource.Quantity{
-				corev1.ResourceCPU: {
-					resource.MustParse("2"),
-					resource.MustParse("4"),
-				},
-			},
-			expected: 4,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := getNodeAvailableReplicas(tt.modelIndex, tt.replicaRequirements, tt.resourceModelsMinMap)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
@@ -1381,53 +1219,6 @@ func TestGetMaximumReplicasBasedOnClusterSummary(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := getMaximumReplicasBasedOnClusterSummary(tt.resourceSummary, tt.replicaRequirements)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
-
-func TestMinimumModelIndex(t *testing.T) {
-	tests := []struct {
-		name          string
-		minimumGrades []resource.Quantity
-		requestValue  resource.Quantity
-		expected      int
-	}{
-		{
-			name: "first grade sufficient",
-			minimumGrades: []resource.Quantity{
-				resource.MustParse("2"),
-				resource.MustParse("4"),
-				resource.MustParse("8"),
-			},
-			requestValue: resource.MustParse("1"),
-			expected:     0,
-		},
-		{
-			name: "middle grade sufficient",
-			minimumGrades: []resource.Quantity{
-				resource.MustParse("1"),
-				resource.MustParse("4"),
-				resource.MustParse("8"),
-			},
-			requestValue: resource.MustParse("2"),
-			expected:     1,
-		},
-		{
-			name: "no sufficient grade",
-			minimumGrades: []resource.Quantity{
-				resource.MustParse("1"),
-				resource.MustParse("2"),
-				resource.MustParse("4"),
-			},
-			requestValue: resource.MustParse("8"),
-			expected:     -1,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := minimumModelIndex(tt.minimumGrades, tt.requestValue)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
@@ -1829,6 +1620,104 @@ func TestMaxAvailableComponentSets_AssumedWorkloadDeduction(t *testing.T) {
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+// TestMaxAvailableComponentSets_ResourceModelsWithAssumedWorkloads verifies that
+// when CustomizedClusterResourceModeling is enabled, assumed workloads are
+// pre-simulated onto the virtual model nodes before estimating how many target
+// component sets can still be placed. Without the fix the model simulation
+// would run on fresh (full-capacity) nodes and ignore assumed workload resource
+// consumption, potentially returning a result larger than what the cluster can
+// actually accommodate.
+func TestMaxAvailableComponentSets_ResourceModelsWithAssumedWorkloads(t *testing.T) {
+	// Cluster topology:
+	//   2 nodes each at Grade 1 (CPU min=2 cores, pods=110).
+	//   Total aggregate capacity: 4 CPU.
+	//
+	// Target component set: 1 × 1-CPU replica → 1 CPU per set.
+	//   Without assumed workloads:   4 CPU / 1 = 4 sets.
+	//   podBound: 220 pods / 1 = 220. resourceBound = 4. maxSets = 4.
+	//   Model simulation (nodes at full capacity): fits 4 sets (2 per node × 2 nodes).
+	//
+	// Assumed workload: 1 set of 2 replicas × 1 CPU each → 2 CPU consumed.
+	//   After aggregate deduction: 2 CPU remaining → maxSets = 2.
+	//   Model simulation AFTER pre-consuming assumed workload: should also give 2.
+	//
+	// The bug (before fix): model simulation ignores assumed workloads and returns
+	// 4, which is then bounded to maxSets=2, giving a correct final answer only
+	// because of the aggregate bound. After the fix, the model itself returns 2,
+	// which is consistent and would also handle fragmentation correctly.
+	cluster := &clusterv1alpha1.Cluster{
+		Spec: clusterv1alpha1.ClusterSpec{
+			ResourceModels: []clusterv1alpha1.ResourceModel{
+				{
+					Grade: 0,
+					Ranges: []clusterv1alpha1.ResourceModelRange{
+						{Name: corev1.ResourceCPU, Min: resource.MustParse("0"), Max: resource.MustParse("2")},
+					},
+				},
+				{
+					Grade: 1,
+					Ranges: []clusterv1alpha1.ResourceModelRange{
+						{Name: corev1.ResourceCPU, Min: resource.MustParse("2"), Max: resource.MustParse("4")},
+					},
+				},
+			},
+		},
+		Status: clusterv1alpha1.ClusterStatus{
+			ResourceSummary: &clusterv1alpha1.ResourceSummary{
+				Allocatable: corev1.ResourceList{
+					corev1.ResourcePods: resource.MustParse("220"),
+					corev1.ResourceCPU:  resource.MustParse("4"),
+				},
+				AllocatableModelings: []clusterv1alpha1.AllocatableModeling{
+					{Grade: 0, Count: 0},
+					{Grade: 1, Count: 2}, // 2 nodes × 2 CPU min each
+				},
+			},
+		},
+	}
+	components := []workv1alpha2.Component{
+		{
+			Name:     "worker",
+			Replicas: 1,
+			ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+				ResourceRequest: corev1.ResourceList{
+					corev1.ResourceCPU: resource.MustParse("1"),
+				},
+			},
+		},
+	}
+	// Assumed workload consumes 2 replicas × 1 CPU = 2 CPU in total (one full node's worth).
+	assumed := []AssumedWorkload{
+		{
+			Components: []workv1alpha2.Component{
+				{
+					Name:     "assumed-worker",
+					Replicas: 2,
+					ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+						ResourceRequest: corev1.ResourceList{
+							corev1.ResourceCPU: resource.MustParse("1"),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	mutableFeatureGate := features.FeatureGate
+	runtimeutil.Must(mutableFeatureGate.Add(features.DefaultFeatureGates))
+	defer setFeatureGateDuringTest(t, mutableFeatureGate, features.CustomizedClusterResourceModeling, true)()
+
+	ge := NewGeneralEstimator()
+
+	// Baseline: no assumed workloads → model simulation gives 4 sets (2 per node × 2 nodes).
+	assert.Equal(t, int32(4), ge.maxAvailableComponentSets(cluster, components, nil),
+		"baseline without assumed workloads should equal model capacity")
+
+	// With assumed workload: 2 CPU consumed on one node, leaving 2 CPU (1 node) → 2 sets.
+	assert.Equal(t, int32(2), ge.maxAvailableComponentSets(cluster, components, assumed),
+		"assumed workloads must reduce model simulation result")
 }
 
 // TestMaxAvailableComponentSets_PerClusterRouting verifies that AssumedWorkloads are routed
