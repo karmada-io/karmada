@@ -406,11 +406,21 @@ func TestGetKubeControllerManagerManifestWithTopologySpreadConstraints(t *testin
 		t.Fatalf("failed to get kube controller manager manifest: %v", err)
 	}
 
-	if len(deployment.Spec.Template.Spec.TopologySpreadConstraints) != 1 {
-		t.Fatalf("expected 1 topology spread constraint, but got %d", len(deployment.Spec.Template.Spec.TopologySpreadConstraints))
+	got := deployment.Spec.Template.Spec.TopologySpreadConstraints
+	if len(got) != 1 {
+		t.Fatalf("expected 1 topology spread constraint, but got %d", len(got))
 	}
-	if deployment.Spec.Template.Spec.TopologySpreadConstraints[0].TopologyKey != "topology.kubernetes.io/zone" {
-		t.Errorf("expected topology key 'topology.kubernetes.io/zone', but got '%s'", deployment.Spec.Template.Spec.TopologySpreadConstraints[0].TopologyKey)
+	if got[0].MaxSkew != 1 {
+		t.Errorf("expected maxSkew %d, but got %d", 1, got[0].MaxSkew)
+	}
+	if got[0].TopologyKey != "topology.kubernetes.io/zone" {
+		t.Errorf("expected topology key 'topology.kubernetes.io/zone', but got '%s'", got[0].TopologyKey)
+	}
+	if got[0].WhenUnsatisfiable != corev1.DoNotSchedule {
+		t.Errorf("expected whenUnsatisfiable %q, but got %q", corev1.DoNotSchedule, got[0].WhenUnsatisfiable)
+	}
+	if got[0].LabelSelector == nil || got[0].LabelSelector.MatchLabels["app"] != "kube-controller-manager" {
+		t.Errorf("expected topology spread labelSelector to match kube-controller-manager, but got %#v", got[0].LabelSelector)
 	}
 }
 
@@ -452,11 +462,21 @@ func TestGetKarmadaControllerManagerManifestWithTopologySpreadConstraints(t *tes
 		t.Fatalf("failed to get karmada controller manager manifest: %v", err)
 	}
 
-	if len(deployment.Spec.Template.Spec.TopologySpreadConstraints) != 1 {
-		t.Fatalf("expected 1 topology spread constraint, but got %d", len(deployment.Spec.Template.Spec.TopologySpreadConstraints))
+	got := deployment.Spec.Template.Spec.TopologySpreadConstraints
+	if len(got) != 1 {
+		t.Fatalf("expected 1 topology spread constraint, but got %d", len(got))
 	}
-	if deployment.Spec.Template.Spec.TopologySpreadConstraints[0].TopologyKey != "topology.kubernetes.io/zone" {
-		t.Errorf("expected topology key 'topology.kubernetes.io/zone', but got '%s'", deployment.Spec.Template.Spec.TopologySpreadConstraints[0].TopologyKey)
+	if got[0].MaxSkew != 1 {
+		t.Errorf("expected maxSkew %d, but got %d", 1, got[0].MaxSkew)
+	}
+	if got[0].TopologyKey != "topology.kubernetes.io/zone" {
+		t.Errorf("expected topology key 'topology.kubernetes.io/zone', but got '%s'", got[0].TopologyKey)
+	}
+	if got[0].WhenUnsatisfiable != corev1.DoNotSchedule {
+		t.Errorf("expected whenUnsatisfiable %q, but got %q", corev1.DoNotSchedule, got[0].WhenUnsatisfiable)
+	}
+	if got[0].LabelSelector == nil || got[0].LabelSelector.MatchLabels["app"] != "karmada-controller-manager" {
+		t.Errorf("expected topology spread labelSelector to match karmada-controller-manager, but got %#v", got[0].LabelSelector)
 	}
 }
 
@@ -499,11 +519,21 @@ func TestGetKarmadaSchedulerManifestWithTopologySpreadConstraints(t *testing.T) 
 		t.Fatalf("failed to get karmada scheduler manifest: %v", err)
 	}
 
-	if len(deployment.Spec.Template.Spec.TopologySpreadConstraints) != 1 {
-		t.Fatalf("expected 1 topology spread constraint, but got %d", len(deployment.Spec.Template.Spec.TopologySpreadConstraints))
+	got := deployment.Spec.Template.Spec.TopologySpreadConstraints
+	if len(got) != 1 {
+		t.Fatalf("expected 1 topology spread constraint, but got %d", len(got))
 	}
-	if deployment.Spec.Template.Spec.TopologySpreadConstraints[0].TopologyKey != "topology.kubernetes.io/zone" {
-		t.Errorf("expected topology key 'topology.kubernetes.io/zone', but got '%s'", deployment.Spec.Template.Spec.TopologySpreadConstraints[0].TopologyKey)
+	if got[0].MaxSkew != 1 {
+		t.Errorf("expected maxSkew %d, but got %d", 1, got[0].MaxSkew)
+	}
+	if got[0].TopologyKey != "topology.kubernetes.io/zone" {
+		t.Errorf("expected topology key 'topology.kubernetes.io/zone', but got '%s'", got[0].TopologyKey)
+	}
+	if got[0].WhenUnsatisfiable != corev1.DoNotSchedule {
+		t.Errorf("expected whenUnsatisfiable %q, but got %q", corev1.DoNotSchedule, got[0].WhenUnsatisfiable)
+	}
+	if got[0].LabelSelector == nil || got[0].LabelSelector.MatchLabels["app"] != "karmada-scheduler" {
+		t.Errorf("expected topology spread labelSelector to match karmada-scheduler, but got %#v", got[0].LabelSelector)
 	}
 }
 
@@ -546,11 +576,21 @@ func TestGetKarmadaDeschedulerManifestWithTopologySpreadConstraints(t *testing.T
 		t.Fatalf("failed to get karmada descheduler manifest: %v", err)
 	}
 
-	if len(deployment.Spec.Template.Spec.TopologySpreadConstraints) != 1 {
-		t.Fatalf("expected 1 topology spread constraint, but got %d", len(deployment.Spec.Template.Spec.TopologySpreadConstraints))
+	got := deployment.Spec.Template.Spec.TopologySpreadConstraints
+	if len(got) != 1 {
+		t.Fatalf("expected 1 topology spread constraint, but got %d", len(got))
 	}
-	if deployment.Spec.Template.Spec.TopologySpreadConstraints[0].TopologyKey != "topology.kubernetes.io/zone" {
-		t.Errorf("expected topology key 'topology.kubernetes.io/zone', but got '%s'", deployment.Spec.Template.Spec.TopologySpreadConstraints[0].TopologyKey)
+	if got[0].MaxSkew != 1 {
+		t.Errorf("expected maxSkew %d, but got %d", 1, got[0].MaxSkew)
+	}
+	if got[0].TopologyKey != "topology.kubernetes.io/zone" {
+		t.Errorf("expected topology key 'topology.kubernetes.io/zone', but got '%s'", got[0].TopologyKey)
+	}
+	if got[0].WhenUnsatisfiable != corev1.DoNotSchedule {
+		t.Errorf("expected whenUnsatisfiable %q, but got %q", corev1.DoNotSchedule, got[0].WhenUnsatisfiable)
+	}
+	if got[0].LabelSelector == nil || got[0].LabelSelector.MatchLabels["app"] != "karmada-descheduler" {
+		t.Errorf("expected topology spread labelSelector to match karmada-descheduler, but got %#v", got[0].LabelSelector)
 	}
 }
 

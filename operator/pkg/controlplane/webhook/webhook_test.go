@@ -199,11 +199,21 @@ func TestInstallKarmadaWebhookWithTopologySpreadConstraints(t *testing.T) {
 		t.Fatalf("failed to verify karmada webhook deployment creation: %v", err)
 	}
 
-	if len(deployment.Spec.Template.Spec.TopologySpreadConstraints) != 1 {
-		t.Fatalf("expected 1 topology spread constraint, but got %d", len(deployment.Spec.Template.Spec.TopologySpreadConstraints))
+	got := deployment.Spec.Template.Spec.TopologySpreadConstraints
+	if len(got) != 1 {
+		t.Fatalf("expected 1 topology spread constraint, but got %d", len(got))
 	}
-	if deployment.Spec.Template.Spec.TopologySpreadConstraints[0].TopologyKey != "topology.kubernetes.io/zone" {
-		t.Errorf("expected topology key 'topology.kubernetes.io/zone', but got '%s'", deployment.Spec.Template.Spec.TopologySpreadConstraints[0].TopologyKey)
+	if got[0].MaxSkew != 1 {
+		t.Errorf("expected maxSkew %d, but got %d", 1, got[0].MaxSkew)
+	}
+	if got[0].TopologyKey != "topology.kubernetes.io/zone" {
+		t.Errorf("expected topology key 'topology.kubernetes.io/zone', but got '%s'", got[0].TopologyKey)
+	}
+	if got[0].WhenUnsatisfiable != corev1.DoNotSchedule {
+		t.Errorf("expected whenUnsatisfiable %q, but got %q", corev1.DoNotSchedule, got[0].WhenUnsatisfiable)
+	}
+	if got[0].LabelSelector == nil || got[0].LabelSelector.MatchLabels["app"] != "karmada-webhook" {
+		t.Errorf("expected topology spread labelSelector to match karmada-webhook, but got %#v", got[0].LabelSelector)
 	}
 }
 
