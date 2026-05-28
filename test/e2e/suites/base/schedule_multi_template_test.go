@@ -91,8 +91,10 @@ var _ = ginkgo.Describe("[ScheduleMultiTemplate] schedule multi template resourc
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 				framework.CreateCRD(dynamicClient, &flinkDeploymentCRD)
+				framework.WaitCRDEstablished(dynamicClient, flinkDeploymentCRD.Name)
 				ginkgo.DeferCleanup(func() {
 					framework.RemoveCRD(dynamicClient, flinkDeploymentCRD.Name)
+					framework.WaitCRDDisappeared(dynamicClient, flinkDeploymentCRD.Name)
 				})
 			})
 		})

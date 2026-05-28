@@ -213,8 +213,10 @@ var _ = framework.SerialDescribe("[EstimatorAssumption] ResourceQuota plugin ass
 			err := yaml.Unmarshal([]byte(flinkDeploymentCRDYAML), &flinkCRD)
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			framework.CreateCRD(dynamicClient, &flinkCRD)
+			framework.WaitCRDEstablished(dynamicClient, flinkCRD.Name)
 			ginkgo.DeferCleanup(func() {
 				framework.RemoveCRD(dynamicClient, flinkCRD.Name)
+				framework.WaitCRDDisappeared(dynamicClient, flinkCRD.Name)
 			})
 		})
 
@@ -376,8 +378,10 @@ var _ = framework.SerialDescribe("[EstimatorAssumption] NodeResource plugin assu
 			err := yaml.Unmarshal([]byte(flinkDeploymentCRDYAML), &flinkCRD)
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			framework.CreateCRD(dynamicClient, &flinkCRD)
+			framework.WaitCRDEstablished(dynamicClient, flinkCRD.Name)
 			ginkgo.DeferCleanup(func() {
 				framework.RemoveCRD(dynamicClient, flinkCRD.Name)
+				framework.WaitCRDDisappeared(dynamicClient, flinkCRD.Name)
 			})
 		})
 	})

@@ -57,17 +57,21 @@ func NewGeneralEstimator() *GeneralEstimator {
 func (ge *GeneralEstimator) MaxAvailableReplicas(_ context.Context, req ReplicaEstimationRequest) ([]workv1alpha2.TargetCluster, error) {
 	availableTargetClusters := make([]workv1alpha2.TargetCluster, len(req.Clusters))
 	for i, cluster := range req.Clusters {
-		maxReplicas := ge.maxAvailableReplicas(cluster, req.ReplicaRequirements)
+		maxReplicas := ge.maxAvailableReplicas(cluster, req.ReplicaRequirements, req.AssumedWorkloads[cluster.Name])
 		availableTargetClusters[i] = workv1alpha2.TargetCluster{Name: cluster.Name, Replicas: maxReplicas}
 	}
 	return availableTargetClusters, nil
 }
 
-func (ge *GeneralEstimator) maxAvailableReplicas(cluster *clusterv1alpha1.Cluster, replicaRequirements *workv1alpha2.ReplicaRequirements) int32 {
+func (ge *GeneralEstimator) maxAvailableReplicas(cluster *clusterv1alpha1.Cluster, replicaRequirements *workv1alpha2.ReplicaRequirements, assumedWorkloads []AssumedWorkload) int32 {
 	// Note: resourceSummary must be deep-copied before using in the function to avoid modifying the original data structure.
 	resourceSummary := cluster.Status.ResourceSummary.DeepCopy()
 	if resourceSummary == nil {
 		return 0
+	}
+	// Deduct assumed in-flight workloads before computing max replicas.
+	if len(assumedWorkloads) > 0 {
+		deductAssumedWorkloadsFromSummary(resourceSummary, assumedWorkloads)
 	}
 
 	maximumReplicas := getAllowedPodNumber(resourceSummary)
@@ -101,6 +105,49 @@ func (ge *GeneralEstimator) maxAvailableReplicas(cluster *clusterv1alpha1.Cluste
 	}
 
 	return int32(maximumReplicas) // #nosec G115: integer overflow conversion int64 -> int32
+}
+
+// deductAssumedWorkloadsFromSummary adds the resource demands of assumed in-flight workloads
+// to resourceSummary.Allocating so that existing estimation functions account for them.
+// It also deducts the pod count from the allowed pod budget.
+func deductAssumedWorkloadsFromSummary(resourceSummary *clusterv1alpha1.ResourceSummary, assumedWorkloads []AssumedWorkload) {
+	if resourceSummary.Allocating == nil {
+		resourceSummary.Allocating = make(corev1.ResourceList)
+	}
+	for _, aw := range assumedWorkloads {
+		for _, comp := range aw.Components {
+			replicas := int64(comp.Replicas)
+			if replicas <= 0 {
+				continue
+			}
+			// Deduct pod count.
+			existingPods := resourceSummary.Allocating.Pods()
+			resourceSummary.Allocating[corev1.ResourcePods] = *resource.NewQuantity(existingPods.Value()+replicas, resource.DecimalSI)
+
+			if comp.ReplicaRequirements == nil {
+				continue
+			}
+			// Deduct per-resource demands.
+			for resName, qty := range comp.ReplicaRequirements.ResourceRequest {
+				// Use MilliValue only for CPU (millicores are its natural unit).
+				// For all other resources (memory, extended resources, etc.) use Value() to
+				// avoid the ×1000 amplification that MilliValue introduces, which can overflow
+				// int64 for large quantities (e.g. 1Ti memory × 10000 replicas).
+				var total resource.Quantity
+				if resName == corev1.ResourceCPU {
+					total = *resource.NewMilliQuantity(qty.MilliValue()*replicas, qty.Format)
+				} else {
+					total = *resource.NewQuantity(qty.Value()*replicas, qty.Format)
+				}
+				if existing, ok := resourceSummary.Allocating[resName]; ok {
+					existing.Add(total)
+					resourceSummary.Allocating[resName] = existing
+				} else {
+					resourceSummary.Allocating[resName] = total
+				}
+			}
+		}
+	}
 }
 
 // MaxAvailableComponentSets (generic estimator) – resourceSummary only.
