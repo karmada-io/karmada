@@ -87,7 +87,7 @@ func (ge *GeneralEstimator) maxAvailableReplicas(cluster *clusterv1alpha1.Cluste
 	// users have not set the models or the state has not been collected,
 	// we consider to use another way to calculate the max replicas.
 	if features.FeatureGate.Enabled(features.CustomizedClusterResourceModeling) && len(cluster.Status.ResourceSummary.AllocatableModelings) > 0 {
-		num, err := getMaximumReplicasBasedOnResourceModels(cluster, replicaRequirements)
+		num, err := getMaximumReplicasBasedOnResourceModels(cluster, replicaRequirements, assumedWorkloads)
 		if err == nil {
 			klog.Infof("cluster %s has max available replicas: %d according to cluster resource models", cluster.GetName(), num)
 			if num < maximumReplicas {
@@ -197,7 +197,7 @@ func (ge *GeneralEstimator) maxAvailableComponentSets(cluster *clusterv1alpha1.C
 		return 0
 	}
 
-	return applyResourceModelBound(cluster, components, maxSets)
+	return applyResourceModelBound(cluster, components, assumedWorkloads, maxSets)
 }
 
 // deductAssumedWorkloads subtracts the resource demands of assumed workloads from the
@@ -238,11 +238,11 @@ func resourceBoundedSets(podBound int32, perSet map[corev1.ResourceName]int64, a
 // applyResourceModelBound refines maxSets using cluster ResourceModels when the feature is
 // enabled and model data is available.  Returns the original maxSets if the feature is off
 // or the model-based calculation fails.
-func applyResourceModelBound(cluster *clusterv1alpha1.Cluster, components []workv1alpha2.Component, maxSets int32) int32 {
+func applyResourceModelBound(cluster *clusterv1alpha1.Cluster, components []workv1alpha2.Component, assumedWorkloads []AssumedWorkload, maxSets int32) int32 {
 	if !features.FeatureGate.Enabled(features.CustomizedClusterResourceModeling) || len(cluster.Status.ResourceSummary.AllocatableModelings) == 0 {
 		return maxSets
 	}
-	num, err := getMaximumSetsBasedOnResourceModels(cluster, components, maxSets)
+	num, err := getMaximumSetsBasedOnResourceModels(cluster, components, assumedWorkloads, maxSets)
 	if err != nil {
 		klog.Warningf("Failed to get maximum sets based on resource models, skipping: %v", err)
 		return maxSets
@@ -256,27 +256,39 @@ func applyResourceModelBound(cluster *clusterv1alpha1.Cluster, components []work
 // getMaximumSetsBasedOnResourceModels computes the maximum number of full sets that can be
 // placed on a cluster using the cluster's ResourceModels. It expands one set into
 // replica kinds (demand + count) and performs a first-fit-decreasing placement onto model-grade nodes.
-// `upperBound` caps the search. We can set this using the podBound (allowedPods / podsPerSet)
-func getMaximumSetsBasedOnResourceModels(cluster *clusterv1alpha1.Cluster, components []workv1alpha2.Component, upperBound int32) (int32, error) {
+// `upperBound` caps the search. We can set this using the podBound (allowedPods / podsPerSet).
+// Assumed in-flight workloads are pre-simulated onto the model nodes so that their resource
+// consumption is reflected before placing the target component sets.
+func getMaximumSetsBasedOnResourceModels(cluster *clusterv1alpha1.Cluster, components []workv1alpha2.Component, assumedWorkloads []AssumedWorkload, upperBound int32) (int32, error) {
 	nodes, err := buildModelNodes(cluster)
 	if err != nil {
 		return -1, err
 	}
 
-	pbComponents := make([]*pb.Component, 0, len(components))
-	for _, comp := range components {
-		component := &pb.Component{
-			Name:     comp.Name,
-			Replicas: comp.Replicas,
+	sim := estimator.NewSchedulingSimulator(nodes)
+
+	// Pre-simulate assumed in-flight workloads to consume their share of node capacity
+	// before estimating how many target component sets can still be placed.
+	// This mirrors the approach used in noderesource.EstimateComponents.
+	for _, aw := range assumedWorkloads {
+		if len(aw.Components) == 0 {
+			continue
 		}
-		component.ReplicaRequirements, err = toPBReplicaRequirements(comp.ReplicaRequirements)
-		if err != nil {
-			return -1, err
+		pbAssumed, convErr := toPBComponents(aw.Components)
+		if convErr != nil {
+			return -1, convErr
 		}
-		pbComponents = append(pbComponents, component)
+		if _, deductErr := sim.SimulateScheduling(pbAssumed, 1); deductErr != nil {
+			return -1, deductErr
+		}
 	}
 
-	return estimator.NewSchedulingSimulator(nodes).SimulateScheduling(pbComponents, upperBound)
+	pbComponents, err := toPBComponents(components)
+	if err != nil {
+		return -1, err
+	}
+
+	return sim.SimulateScheduling(pbComponents, upperBound)
 }
 
 // buildModelNodes constructs identical nodes for each model grade using its Min vector,
@@ -450,46 +462,6 @@ func getAllowedPodNumber(resourceSummary *clusterv1alpha1.ResourceSummary) int64
 	return allowedPodNumber
 }
 
-func convertToResourceModelsMinMap(models []clusterv1alpha1.ResourceModel) map[corev1.ResourceName][]resource.Quantity {
-	resourceModelsMinMap := make(map[corev1.ResourceName][]resource.Quantity)
-	for _, model := range models {
-		for _, resourceModelRange := range model.Ranges {
-			resourceModelsMinMap[resourceModelRange.Name] = append(resourceModelsMinMap[resourceModelRange.Name], resourceModelRange.Min)
-		}
-	}
-
-	return resourceModelsMinMap
-}
-
-func getNodeAvailableReplicas(modelIndex int, replicaRequirements *workv1alpha2.ReplicaRequirements, resourceModelsMinMap map[corev1.ResourceName][]resource.Quantity) int64 {
-	var maximumReplicasOneNode int64 = math.MaxInt64
-	for key, value := range replicaRequirements.ResourceRequest {
-		requestedQuantity := value.Value()
-		if requestedQuantity <= 0 {
-			continue
-		}
-
-		availableMinBoundary := resourceModelsMinMap[key][modelIndex]
-
-		availableQuantity := availableMinBoundary.Value()
-		if key == corev1.ResourceCPU {
-			requestedQuantity = value.MilliValue()
-			availableQuantity = availableMinBoundary.MilliValue()
-		}
-
-		maximumReplicasForResource := availableQuantity / requestedQuantity
-		if maximumReplicasForResource < maximumReplicasOneNode {
-			maximumReplicasOneNode = maximumReplicasForResource
-		}
-	}
-
-	// if it is the first suitable model, we consider this case to be able to deploy a Pod.
-	if maximumReplicasOneNode == 0 {
-		return 1
-	}
-	return maximumReplicasOneNode
-}
-
 func getMaximumReplicasBasedOnClusterSummary(resourceSummary *clusterv1alpha1.ResourceSummary, replicaRequirements *workv1alpha2.ReplicaRequirements) int64 {
 	var maximumReplicas int64 = math.MaxInt64
 	for key, value := range replicaRequirements.ResourceRequest {
@@ -532,55 +504,50 @@ func getMaximumReplicasBasedOnClusterSummary(resourceSummary *clusterv1alpha1.Re
 	return maximumReplicas
 }
 
-func getMaximumReplicasBasedOnResourceModels(cluster *clusterv1alpha1.Cluster, replicaRequirements *workv1alpha2.ReplicaRequirements) (int64, error) {
-	resourceModelsMinMap := convertToResourceModelsMinMap(cluster.Spec.ResourceModels)
+func getMaximumReplicasBasedOnResourceModels(cluster *clusterv1alpha1.Cluster, replicaRequirements *workv1alpha2.ReplicaRequirements, assumedWorkloads []AssumedWorkload) (int64, error) {
+	nodes, err := buildModelNodes(cluster)
+	if err != nil {
+		return -1, err
+	}
 
-	minCompliantModelIndex := 0
-	for key, value := range replicaRequirements.ResourceRequest {
-		requestedQuantity := value.Value()
-		if requestedQuantity <= 0 {
+	// Model single-template scheduling as a one-pod component so that the same
+	// SchedulingSimulator used for multi-template can handle node affinity,
+	// tolerations, and fragmentation correctly.
+	pbReq, err := toPBReplicaRequirements(&workv1alpha2.ComponentReplicaRequirements{
+		ResourceRequest: replicaRequirements.ResourceRequest,
+		NodeClaim:       replicaRequirements.NodeClaim,
+	})
+	if err != nil {
+		return -1, err
+	}
+	pbComp := []*pb.Component{{
+		Name:                "replica",
+		Replicas:            1,
+		ReplicaRequirements: pbReq,
+	}}
+
+	sim := estimator.NewSchedulingSimulator(nodes)
+
+	// Pre-simulate assumed in-flight workloads to consume their share of node
+	// capacity before estimating how many target replicas can still be placed.
+	// This mirrors the approach used in noderesource.EstimateComponents and
+	// getMaximumSetsBasedOnResourceModels.
+	for _, aw := range assumedWorkloads {
+		if len(aw.Components) == 0 {
 			continue
 		}
-
-		quantityArray, ok := resourceModelsMinMap[key]
-		if !ok {
-			return -1, fmt.Errorf("resource model is inapplicable as missing resource: %s", string(key))
+		pbAssumed, convErr := toPBComponents(aw.Components)
+		if convErr != nil {
+			return -1, convErr
 		}
-
-		// Find the minimum model grade for each type of resource quest, if no
-		// suitable model is found indicates that there is no appropriate model
-		// grade and return immediately.
-		minCompliantModelIndexForResource := minimumModelIndex(quantityArray, value)
-		if minCompliantModelIndexForResource == -1 {
-			return 0, nil
-		}
-		if minCompliantModelIndex <= minCompliantModelIndexForResource {
-			minCompliantModelIndex = minCompliantModelIndexForResource
+		if _, deductErr := sim.SimulateScheduling(pbAssumed, 1); deductErr != nil {
+			return -1, deductErr
 		}
 	}
 
-	var maximumReplicasForResource int64
-	for i := minCompliantModelIndex; i < len(cluster.Spec.ResourceModels); i++ {
-		if cluster.Status.ResourceSummary.AllocatableModelings[i].Count == 0 {
-			continue
-		}
-		maximumReplicasForResource += int64(cluster.Status.ResourceSummary.AllocatableModelings[i].Count) * getNodeAvailableReplicas(i, replicaRequirements, resourceModelsMinMap)
+	count, err := sim.SimulateScheduling(pbComp, math.MaxInt32)
+	if err != nil {
+		return -1, err
 	}
-
-	return maximumReplicasForResource, nil
-}
-
-func minimumModelIndex(minimumGrades []resource.Quantity, requestValue resource.Quantity) int {
-	for index, minValue := range minimumGrades {
-		// Suppose there is the following resource model:
-		// Grade1: cpu [1C,2C)
-		// Grade2: cpu [2C,3C)
-		// If a Pod requests 1.5C of CPU, grade1 may not be able to provide sufficient resources,
-		// so we will choose grade2.
-		if minValue.Cmp(requestValue) >= 0 {
-			return index
-		}
-	}
-
-	return -1
+	return int64(count), nil
 }
