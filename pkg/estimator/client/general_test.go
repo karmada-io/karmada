@@ -25,13 +25,26 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	runtimeutil "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/component-base/featuregate"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/features"
 )
+
+// setFeatureGateDuringTest temporarily sets a feature gate to the given value
+// and returns a cleanup function that restores the original value.
+func setFeatureGateDuringTest(tb testing.TB, gate featuregate.FeatureGate, f featuregate.Feature, value bool) func() {
+	originalValue := gate.Enabled(f)
+	if err := gate.(featuregate.MutableFeatureGate).Set(fmt.Sprintf("%s=%v", f, value)); err != nil {
+		tb.Errorf("error setting %s=%v: %v", f, value, err)
+	}
+	return func() {
+		if err := gate.(featuregate.MutableFeatureGate).Set(fmt.Sprintf("%s=%v", f, originalValue)); err != nil {
+			tb.Errorf("error restoring %s=%v: %v", f, originalValue, err)
+		}
+	}
+}
 
 func TestGetMaximumReplicasBasedOnResourceModels(t *testing.T) {
 	tests := []struct {
@@ -563,6 +576,7 @@ func TestGetMaximumSetsBasedOnResourceModels(t *testing.T) {
 	}
 }
 func TestMaxAvailableReplicas(t *testing.T) {
+	defer setFeatureGateDuringTest(t, features.FeatureGate, features.SchedulingOvercommitProtection, true)()
 	tests := []struct {
 		name                string
 		clusters            []*clusterv1alpha1.Cluster
@@ -893,6 +907,7 @@ func TestDeductAssumedWorkloadsFromSummary(t *testing.T) {
 }
 
 func TestMaxAvailableReplicasGeneral(t *testing.T) {
+	defer setFeatureGateDuringTest(t, features.FeatureGate, features.SchedulingOvercommitProtection, true)()
 	tests := []struct {
 		name                string
 		cluster             *clusterv1alpha1.Cluster
@@ -1015,20 +1030,6 @@ func TestMaxAvailableReplicasGeneral(t *testing.T) {
 	}
 }
 
-// setFeatureGateDuringTest temporarily sets a feature gate to the given value
-// and returns a cleanup function that restores the original value.
-func setFeatureGateDuringTest(tb testing.TB, gate featuregate.FeatureGate, f featuregate.Feature, value bool) func() {
-	originalValue := gate.Enabled(f)
-	if err := gate.(featuregate.MutableFeatureGate).Set(fmt.Sprintf("%s=%v", f, value)); err != nil {
-		tb.Errorf("error setting %s=%v: %v", f, value, err)
-	}
-	return func() {
-		if err := gate.(featuregate.MutableFeatureGate).Set(fmt.Sprintf("%s=%v", f, originalValue)); err != nil {
-			tb.Errorf("error restoring %s=%v: %v", f, originalValue, err)
-		}
-	}
-}
-
 // TestMaxAvailableReplicasGeneralWithResourceModels verifies that when
 // CustomizedClusterResourceModeling is enabled and assumed workloads are
 // present, the cluster-summary bound (computed from the deducted
@@ -1042,10 +1043,8 @@ func TestMaxAvailableReplicasGeneralWithResourceModels(t *testing.T) {
 	//
 	// Assumed workload: 4 replicas × 500m CPU each → 2 CPU in-flight.
 	//   After deduction: 1 CPU remaining → only 2 replicas fit.
-	//
-	// Without the fix the ResourceModels path would return 6 (3 nodes × 2)
-	// and exit early, ignoring the assumed workload deduction.
-	// With the fix, the cluster-summary bound (2) is also applied → result 2.
+	//   The ResourceModels path returns 6 (3 nodes × 2) but the cluster-summary
+	//   bound (2) is also applied, so the result is 2.
 	cluster := &clusterv1alpha1.Cluster{
 		Spec: clusterv1alpha1.ClusterSpec{
 			ResourceModels: []clusterv1alpha1.ResourceModel{
@@ -1097,9 +1096,7 @@ func TestMaxAvailableReplicasGeneralWithResourceModels(t *testing.T) {
 		},
 	}
 
-	mutableFeatureGate := features.FeatureGate
-	runtimeutil.Must(mutableFeatureGate.Add(features.DefaultFeatureGates))
-	defer setFeatureGateDuringTest(t, mutableFeatureGate, features.CustomizedClusterResourceModeling, true)()
+	defer setFeatureGateDuringTest(t, features.FeatureGate, features.CustomizedClusterResourceModeling, true)()
 
 	estimator := NewGeneralEstimator()
 
@@ -1431,6 +1428,7 @@ func TestGetMaxAvailableComponentSetsGeneral(t *testing.T) {
 }
 
 func TestMaxAvailableComponentSets_AssumedWorkloadDeduction(t *testing.T) {
+	defer setFeatureGateDuringTest(t, features.FeatureGate, features.SchedulingOvercommitProtection, true)()
 	// Base cluster: 100 pods, 10 CPU, 8Gi memory available.
 	baseCluster := func(cpuAlloc, memAllocGi string) *clusterv1alpha1.Cluster {
 		return &clusterv1alpha1.Cluster{
@@ -1625,10 +1623,7 @@ func TestMaxAvailableComponentSets_AssumedWorkloadDeduction(t *testing.T) {
 // TestMaxAvailableComponentSets_ResourceModelsWithAssumedWorkloads verifies that
 // when CustomizedClusterResourceModeling is enabled, assumed workloads are
 // pre-simulated onto the virtual model nodes before estimating how many target
-// component sets can still be placed. Without the fix the model simulation
-// would run on fresh (full-capacity) nodes and ignore assumed workload resource
-// consumption, potentially returning a result larger than what the cluster can
-// actually accommodate.
+// component sets can still be placed.
 func TestMaxAvailableComponentSets_ResourceModelsWithAssumedWorkloads(t *testing.T) {
 	// Cluster topology:
 	//   2 nodes each at Grade 1 (CPU min=2 cores, pods=110).
@@ -1641,12 +1636,7 @@ func TestMaxAvailableComponentSets_ResourceModelsWithAssumedWorkloads(t *testing
 	//
 	// Assumed workload: 1 set of 2 replicas × 1 CPU each → 2 CPU consumed.
 	//   After aggregate deduction: 2 CPU remaining → maxSets = 2.
-	//   Model simulation AFTER pre-consuming assumed workload: should also give 2.
-	//
-	// The bug (before fix): model simulation ignores assumed workloads and returns
-	// 4, which is then bounded to maxSets=2, giving a correct final answer only
-	// because of the aggregate bound. After the fix, the model itself returns 2,
-	// which is consistent and would also handle fragmentation correctly.
+	//   Model simulation pre-consuming assumed workload also gives 2.
 	cluster := &clusterv1alpha1.Cluster{
 		Spec: clusterv1alpha1.ClusterSpec{
 			ResourceModels: []clusterv1alpha1.ResourceModel{
@@ -1705,9 +1695,7 @@ func TestMaxAvailableComponentSets_ResourceModelsWithAssumedWorkloads(t *testing
 		},
 	}
 
-	mutableFeatureGate := features.FeatureGate
-	runtimeutil.Must(mutableFeatureGate.Add(features.DefaultFeatureGates))
-	defer setFeatureGateDuringTest(t, mutableFeatureGate, features.CustomizedClusterResourceModeling, true)()
+	defer setFeatureGateDuringTest(t, features.FeatureGate, features.CustomizedClusterResourceModeling, true)()
 
 	ge := NewGeneralEstimator()
 
@@ -1723,6 +1711,7 @@ func TestMaxAvailableComponentSets_ResourceModelsWithAssumedWorkloads(t *testing
 // TestMaxAvailableComponentSets_PerClusterRouting verifies that AssumedWorkloads are routed
 // per-cluster: each cluster only sees its own assumed workloads, not those of other clusters.
 func TestMaxAvailableComponentSets_PerClusterRouting(t *testing.T) {
+	defer setFeatureGateDuringTest(t, features.FeatureGate, features.SchedulingOvercommitProtection, true)()
 	// Both clusters have identical capacity: 100 pods, 8 CPU.
 	makeCluster := func(name string) *clusterv1alpha1.Cluster {
 		return &clusterv1alpha1.Cluster{

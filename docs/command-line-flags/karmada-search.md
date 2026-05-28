@@ -154,6 +154,7 @@ Generic flags:
                                                                 kube:PropagationPolicyPreemption=true|false (ALPHA - default=false)
                                                                 kube:RemoteRequestHeaderUID=true|false (BETA - default=true)
                                                                 kube:ResourceQuotaEstimate=true|false (ALPHA - default=false)
+                                                                kube:SchedulingOvercommitProtection=true|false (ALPHA - default=false)
                                                                 kube:SizeBasedListCostEstimate=true|false (BETA - default=true)
                                                                 kube:StatefulFailoverInjection=true|false (ALPHA - default=false)
                                                                 kube:StorageVersionAPI=true|false (ALPHA - default=false)

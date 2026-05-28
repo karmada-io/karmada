@@ -327,7 +327,8 @@ func (s *Scheduler) Run(ctx context.Context) {
 	go wait.Until(s.worker, time.Second, ctx.Done())
 
 	// Defensive check: schedulerCache is expected to be always initialized.
-	if s.schedulerCache != nil && s.schedulerCache.AssigningResourceBindings() != nil {
+	if s.schedulerCache != nil && s.schedulerCache.AssigningResourceBindings() != nil &&
+		features.FeatureGate.Enabled(features.SchedulingOvercommitProtection) {
 		assumptionCache := s.schedulerCache.AssigningResourceBindings()
 		// Periodically clean up stale assumptions in the cache to prevent memory leaks.
 		// This serves as a safety net for assumptions whose normal release path (e.g., Healthy signal)
@@ -705,7 +706,9 @@ func (s *Scheduler) patchScheduleResultForResourceBinding(oldBinding *workv1alph
 		// leading to a potential memory leak in AssigningResourceBindings cache if no further updates occur.
 		s.schedulerCache.AssigningResourceBindings().Add(result)
 	}
-	s.updateAssumptionsCache(oldBinding, scheduleResult)
+	if features.FeatureGate.Enabled(features.SchedulingOvercommitProtection) {
+		s.updateAssumptionsCache(oldBinding, scheduleResult)
+	}
 
 	klog.V(4).Infof("Patch schedule to ResourceBinding(%s/%s) succeed", oldBinding.Namespace, oldBinding.Name)
 	return nil

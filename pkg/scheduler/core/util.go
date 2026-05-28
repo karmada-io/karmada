@@ -73,47 +73,28 @@ func calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha
 	}
 
 	// Get the minimum value of MaxAvailableReplicas in terms of all estimators.
-	estimators := estimatorclient.GetReplicaEstimators()
 	ctx := context.WithValue(context.TODO(), util.ContextKeyObject,
 		fmt.Sprintf("kind=%s, name=%s/%s", spec.Resource.Kind, spec.Resource.Namespace, spec.Resource.Name))
 	// Build assumed workloads once outside the estimator loop as it only depends on
 	// clusters and assigningCache, both of which are constant for the entire loop.
-	assumedWorkloads := buildAssumedWorkloadsByCluster(clusters, assigningCache)
-	for name, estimator := range estimators {
-		if features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) && isMultiTemplateSchedulingApplicable(spec) {
-			var err error
-			availableTargetClusters, err = calculateMultiTemplateAvailableSets(ctx, multiTemplateEstimationContext{
-				estimator:               estimator,
-				estimatorName:           name,
-				clusters:                clusters,
-				spec:                    spec,
-				availableTargetClusters: availableTargetClusters,
-				assigningCache:          assigningCache,
-			})
-			if err != nil {
-				continue
-			}
-		} else {
-			res, err := estimator.MaxAvailableReplicas(ctx, estimatorclient.ReplicaEstimationRequest{
-				Clusters:            clusters,
-				ReplicaRequirements: spec.ReplicaRequirements,
-				AssumedWorkloads:    assumedWorkloads,
-			})
-			if err != nil {
-				klog.Errorf("Max cluster available replicas error: %v", err)
-				continue
-			}
-			klog.V(4).Infof("Invoked MaxAvailableReplicas of estimator %s for workload(%s, kind=%s, %s): %v", name,
-				spec.Resource.APIVersion, spec.Resource.Kind, namespacedKey, res)
-			for i := range res {
-				if res[i].Replicas == estimatorclient.UnauthenticReplica {
-					continue
-				}
-				if availableTargetClusters[i].Name == res[i].Name && availableTargetClusters[i].Replicas > res[i].Replicas {
-					availableTargetClusters[i].Replicas = res[i].Replicas
-				}
-			}
+	// When SchedulingOvercommitProtection is disabled the map stays empty so the
+	// estimator behaves as if no in-flight assumptions exist.
+	var assumedWorkloads map[string][]estimatorclient.AssumedWorkload
+	if features.FeatureGate.Enabled(features.SchedulingOvercommitProtection) {
+		assumedWorkloads = buildAssumedWorkloadsByCluster(clusters, assigningCache)
+	}
+	for name, estimator := range estimatorclient.GetReplicaEstimators() {
+		res, err := runReplicaEstimator(ctx, replicaEstimationContext{
+			estimatorName:    name,
+			estimator:        estimator,
+			clusters:         clusters,
+			spec:             spec,
+			assumedWorkloads: assumedWorkloads,
+		})
+		if err != nil {
+			continue
 		}
+		availableTargetClusters = mergeReplicaResults(availableTargetClusters, res)
 	}
 
 	// In most cases, the target cluster max available replicas should not be MaxInt32 unless the workload is best-effort
@@ -126,6 +107,66 @@ func calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha
 
 	klog.V(4).Infof("Target cluster calculated by estimators (available cluster && maxAvailableReplicas): %v", availableTargetClusters)
 	return availableTargetClusters
+}
+
+// runReplicaEstimator dispatches to the multi-template or single-template estimation path.
+func runReplicaEstimator(ctx context.Context, in replicaEstimationContext) ([]workv1alpha2.TargetCluster, error) {
+	if features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) && isMultiTemplateSchedulingApplicable(in.spec) {
+		return runMultiTemplateEstimator(ctx, in)
+	}
+	return runSingleTemplateEstimator(ctx, in)
+}
+
+// replicaEstimationContext bundles the per-estimator inputs for runReplicaEstimator.
+type replicaEstimationContext struct {
+	estimatorName    string
+	estimator        estimatorclient.ReplicaEstimator
+	clusters         []*clusterv1alpha1.Cluster
+	spec             *workv1alpha2.ResourceBindingSpec
+	assumedWorkloads map[string][]estimatorclient.AssumedWorkload
+}
+
+// runMultiTemplateEstimator handles estimation for workloads with multiple pod templates.
+func runMultiTemplateEstimator(ctx context.Context, in replicaEstimationContext) ([]workv1alpha2.TargetCluster, error) {
+	return calculateMultiTemplateAvailableSets(ctx, multiTemplateEstimationContext{
+		estimator:        in.estimator,
+		estimatorName:    in.estimatorName,
+		clusters:         in.clusters,
+		spec:             in.spec,
+		assumedWorkloads: in.assumedWorkloads,
+	})
+}
+
+// runSingleTemplateEstimator handles estimation for workloads with a single pod template.
+func runSingleTemplateEstimator(ctx context.Context, in replicaEstimationContext) ([]workv1alpha2.TargetCluster, error) {
+	res, err := in.estimator.MaxAvailableReplicas(ctx, estimatorclient.ReplicaEstimationRequest{
+		Clusters:            in.clusters,
+		ReplicaRequirements: in.spec.ReplicaRequirements,
+		AssumedWorkloads:    in.assumedWorkloads,
+	})
+	if err != nil {
+		klog.Errorf("Max cluster available replicas error: %v", err)
+		return nil, err
+	}
+	klog.V(4).Infof("Invoked MaxAvailableReplicas of estimator %s for workload(%s, kind=%s, %s): %v", in.estimatorName,
+		in.spec.Resource.APIVersion, in.spec.Resource.Kind, names.NamespacedKey(in.spec.Resource.Namespace, in.spec.Resource.Name), res)
+	return res, nil
+}
+
+// mergeReplicaResults takes the minimum replicas across estimators for each cluster.
+func mergeReplicaResults(available []workv1alpha2.TargetCluster, res []workv1alpha2.TargetCluster) []workv1alpha2.TargetCluster {
+	resMap := make(map[string]int32, len(res))
+	for i := range res {
+		if res[i].Replicas != estimatorclient.UnauthenticReplica {
+			resMap[res[i].Name] = res[i].Replicas
+		}
+	}
+	for i := range available {
+		if newReplicas, ok := resMap[available[i].Name]; ok && available[i].Replicas > newReplicas {
+			available[i].Replicas = newReplicas
+		}
+	}
+	return available
 }
 
 // attachZeroReplicasCluster  attach cluster in clusters into targetCluster

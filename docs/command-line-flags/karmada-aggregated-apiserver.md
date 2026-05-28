@@ -141,6 +141,7 @@ Generic flags:
                                                                 PropagationPolicyPreemption=true|false (ALPHA - default=false)
                                                                 RemoteRequestHeaderUID=true|false (BETA - default=true)
                                                                 ResourceQuotaEstimate=true|false (ALPHA - default=false)
+                                                                SchedulingOvercommitProtection=true|false (ALPHA - default=false)
                                                                 SizeBasedListCostEstimate=true|false (BETA - default=true)
                                                                 StatefulFailoverInjection=true|false (ALPHA - default=false)
                                                                 StorageVersionAPI=true|false (ALPHA - default=false)

@@ -70,7 +70,7 @@ func (ge *GeneralEstimator) maxAvailableReplicas(cluster *clusterv1alpha1.Cluste
 		return 0
 	}
 	// Deduct assumed in-flight workloads before computing max replicas.
-	if len(assumedWorkloads) > 0 {
+	if features.FeatureGate.Enabled(features.SchedulingOvercommitProtection) && len(assumedWorkloads) > 0 {
 		deductAssumedWorkloadsFromSummary(resourceSummary, assumedWorkloads)
 	}
 
@@ -176,7 +176,7 @@ func (ge *GeneralEstimator) maxAvailableComponentSets(cluster *clusterv1alpha1.C
 	// GeneralEstimator has no per-node view, so cluster-level aggregate deduction is used as a
 	// fallback: accumulate each assumed component's Replicas × ResourceRequest, subtract from the
 	// available resource map, and also reduce the allowed pod budget.
-	if len(assumedWorkloads) > 0 {
+	if features.FeatureGate.Enabled(features.SchedulingOvercommitProtection) && len(assumedWorkloads) > 0 {
 		allowedPods, available = deductAssumedWorkloads(allowedPods, available, assumedWorkloads)
 		if allowedPods <= 0 {
 			return 0

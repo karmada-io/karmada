@@ -65,6 +65,7 @@ Generic flags:
                                            PropagateDeps=true|false (BETA - default=true)
                                            PropagationPolicyPreemption=true|false (ALPHA - default=false)
                                            ResourceQuotaEstimate=true|false (ALPHA - default=false)
+                                           SchedulingOvercommitProtection=true|false (ALPHA - default=false)
                                            StatefulFailoverInjection=true|false (ALPHA - default=false)
                                            WorkloadAffinity=true|false (ALPHA - default=false)
       --health-probe-bind-address string   The TCP address that the controller should bind to for serving health probes(e.g. 127.0.0.1:8000, :8000) (default ":8000")
