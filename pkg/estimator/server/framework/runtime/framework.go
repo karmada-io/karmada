@@ -33,10 +33,12 @@ import (
 )
 
 const (
-	// estimator is the legacy label for replica estimation metrics.
-	// Deprecated: Use estimateReplicasExtension instead. This will be removed in a future release.
-	estimator                   = "Estimator"
-	estimateReplicasExtension   = "estimate_replicas"
+	// estimateReplicasExtension is used as the metric label value to identify
+	// the "estimate replicas" extension point when recording framework and plugin durations.
+	estimateReplicasExtension = "estimate_replicas"
+
+	// estimateComponentsExtension is used as the metric label value to identify
+	// the "estimate components" extension point when recording framework and plugin durations.
 	estimateComponentsExtension = "estimate_components"
 )
 
@@ -141,11 +143,9 @@ func (frw *frameworkImpl) Parallelism() int {
 func (frw *frameworkImpl) RunEstimateReplicasPlugins(ctx context.Context, estCtx framework.ReplicaEstimationContext) (int32, *framework.Result) {
 	startTime := time.Now()
 	defer func() {
-		// Emit metrics with both old and new labels for backward compatibility
-		// TODO: Remove estimator label in a future release (deprecated)
-		metrics.FrameworkExtensionPointDuration.WithLabelValues(estimator).Observe(utilmetrics.DurationInSeconds(startTime))
 		metrics.FrameworkExtensionPointDuration.WithLabelValues(estimateReplicasExtension).Observe(utilmetrics.DurationInSeconds(startTime))
 	}()
+
 	var replica int32 = math.MaxInt32
 	results := make(framework.PluginToResult)
 	for _, pl := range frw.estimateReplicasPlugins {
@@ -162,16 +162,10 @@ func (frw *frameworkImpl) RunEstimateReplicasPlugins(ctx context.Context, estCtx
 	return replica, results.Merge()
 }
 
-func (frw *frameworkImpl) runEstimateReplicasPlugins(
-	ctx context.Context,
-	pl framework.EstimateReplicasPlugin,
-	estCtx framework.ReplicaEstimationContext,
-) (int32, *framework.Result) {
+func (frw *frameworkImpl) runEstimateReplicasPlugins(ctx context.Context, pl framework.EstimateReplicasPlugin, estCtx framework.ReplicaEstimationContext) (int32, *framework.Result) {
 	startTime := time.Now()
 	replica, ret := pl.Estimate(ctx, estCtx)
-	// Emit metrics with both old and new labels for backward compatibility
-	// TODO: Remove estimator label in a future release (deprecated)
-	metrics.PluginExecutionDuration.WithLabelValues(pl.Name(), estimator).Observe(utilmetrics.DurationInSeconds(startTime))
+
 	metrics.PluginExecutionDuration.WithLabelValues(pl.Name(), estimateReplicasExtension).Observe(utilmetrics.DurationInSeconds(startTime))
 	klog.V(4).InfoS("EstimateReplicas plugin result", "plugin", pl.Name(), "replicas", replica, "status", ret.Code())
 	return replica, ret
@@ -187,6 +181,7 @@ func (frw *frameworkImpl) RunEstimateComponentsPlugins(ctx context.Context, estC
 	defer func() {
 		metrics.FrameworkExtensionPointDuration.WithLabelValues(estimateComponentsExtension).Observe(utilmetrics.DurationInSeconds(startTime))
 	}()
+
 	var sets int32 = math.MaxInt32
 	results := make(framework.PluginToResult)
 	for _, pl := range frw.estimateComponentsPlugins {
