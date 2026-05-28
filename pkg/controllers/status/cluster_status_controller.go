@@ -191,7 +191,10 @@ func (c *ClusterStatusController) syncClusterStatus(ctx context.Context, cluster
 	clusterClient, err := c.ClusterClientSetFunc(cluster.Name, c.Client, c.ClusterClientOption)
 	if err != nil {
 		klog.ErrorS(err, "Failed to create a ClusterClient for the given member cluster", "cluster", cluster.Name)
-		return setStatusCollectionFailedCondition(ctx, c.Client, cluster, fmt.Sprintf("failed to create a ClusterClient: %v", err))
+		observedReadyCondition := util.NewCondition(clusterv1alpha1.ClusterConditionReady, statusCollectionFailed,
+			fmt.Sprintf("failed to create a ClusterClient: %v", err), metav1.ConditionFalse)
+		readyCondition := c.clusterConditionCache.thresholdAdjustedReadyCondition(cluster, &observedReadyCondition)
+		return updateStatusCondition(ctx, c.Client, cluster, *readyCondition)
 	}
 
 	online, healthy := getClusterHealthStatus(clusterClient)
@@ -283,11 +286,6 @@ func (c *ClusterStatusController) setCurrentClusterStatus(clusterClient *util.Cl
 		}
 	}
 	return conditions, nil
-}
-
-func setStatusCollectionFailedCondition(ctx context.Context, c client.Client, cluster *clusterv1alpha1.Cluster, message string) error {
-	readyCondition := util.NewCondition(clusterv1alpha1.ClusterConditionReady, statusCollectionFailed, message, metav1.ConditionFalse)
-	return updateStatusCondition(ctx, c, cluster, readyCondition)
 }
 
 // updateStatusIfNeeded calls updateStatus only if the status of the member cluster is not the same as the old status
