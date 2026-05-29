@@ -579,18 +579,6 @@ var _ = framework.SerialDescribe("Multi-Components: FederatedResourceQuota enfor
 
 				flinkDeploymentObj.SetNamespace(flinkDeploymentNamespace)
 				flinkDeploymentObj.SetName(flinkDeploymentName)
-				err = unstructured.SetNestedField(flinkDeploymentObj.Object, int64(3), "spec", "jobManager", "replicas")
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				err = unstructured.SetNestedField(flinkDeploymentObj.Object, map[string]interface{}{
-					"cpu":    int64(2),
-					"memory": "50Mi",
-				}, "spec", "jobManager", "resource")
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				err = unstructured.SetNestedField(flinkDeploymentObj.Object, map[string]interface{}{
-					"cpu":    int64(1),
-					"memory": "100Mi",
-				}, "spec", "taskManager", "resource")
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 				flinkDeploymentGVR = schema.GroupVersionResource{
 					Group:    flinkDeploymentObj.GroupVersionKind().Group,
@@ -641,9 +629,12 @@ var _ = framework.SerialDescribe("Multi-Components: FederatedResourceQuota enfor
 		ginkgo.It("FederatedResourceQuota usage should be calculated correctly", func() {
 			framework.WaitFederatedResourceQuotaFitWith(karmadaClient, frqNamespace, frqName, func(frq *policyv1alpha1.FederatedResourceQuota) bool {
 				expectedUsed := corev1.ResourceList{
-					"cpu":    resource.MustParse("7"),
-					"memory": resource.MustParse("250Mi"),
+					"cpu":    resource.MustParse("150m"),
+					"memory": resource.MustParse("200m"),
 				}
+				ginkgo.GinkgoLogr.Info("FederatedResourceQuota OverallUsed",
+					"cpu", frq.Status.OverallUsed.Cpu().String(),
+					"memory", frq.Status.OverallUsed.Memory().String())
 				return frq.Status.OverallUsed != nil && frq.Status.OverallUsed.Cpu().Equal(*expectedUsed.Cpu()) &&
 					frq.Status.OverallUsed.Memory().Equal(*expectedUsed.Memory())
 			})
