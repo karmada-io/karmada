@@ -35,6 +35,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	clienttesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/component-base/featuregate"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -49,6 +50,18 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/grpcconnection"
 )
+
+func setFeatureGateDuringTest(tb testing.TB, gate featuregate.FeatureGate, f featuregate.Feature, value bool) func() {
+	originalValue := gate.Enabled(f)
+	if err := gate.(featuregate.MutableFeatureGate).Set(fmt.Sprintf("%s=%v", f, value)); err != nil {
+		tb.Errorf("error setting %s=%v: %v", f, value, err)
+	}
+	return func() {
+		if err := gate.(featuregate.MutableFeatureGate).Set(fmt.Sprintf("%s=%v", f, originalValue)); err != nil {
+			tb.Errorf("error restoring %s=%v: %v", f, originalValue, err)
+		}
+	}
+}
 
 func TestDoSchedule(t *testing.T) {
 	tests := []struct {
@@ -797,6 +810,7 @@ func TestPatchScheduleResultForResourceBinding(t *testing.T) {
 }
 
 func TestUpdatesAssumptions(t *testing.T) {
+	defer setFeatureGateDuringTest(t, features.FeatureGate, features.SchedulingOvercommitProtection, true)()
 	multiTemplateComponents := []workv1alpha2.Component{
 		{Name: "jobmanager", Replicas: 1},
 		{Name: "taskmanager", Replicas: 2},

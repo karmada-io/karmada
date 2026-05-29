@@ -233,150 +233,73 @@ func Test_calculateMultiTemplateAvailableSets(t *testing.T) {
 	}
 
 	tests := []struct {
-		name                    string
-		availableTargetClusters []workv1alpha2.TargetCluster
-		mockResponse            []estimatorclient.ComponentSetEstimationResponse
-		mockError               error
-		expectedResult          []workv1alpha2.TargetCluster
-		expectedError           bool
+		name           string
+		mockResponse   []estimatorclient.ComponentSetEstimationResponse
+		mockError      error
+		expectedResult []workv1alpha2.TargetCluster
+		expectedError  bool
 	}{
 		{
-			name: "successful calculation with reduced replicas",
-			availableTargetClusters: []workv1alpha2.TargetCluster{
-				{Name: "cluster1", Replicas: 100},
-				{Name: "cluster2", Replicas: 200},
-				{Name: "cluster3", Replicas: 300},
-			},
+			name: "all clusters in response — returns converted results",
 			mockResponse: []estimatorclient.ComponentSetEstimationResponse{
 				{Name: "cluster1", Sets: 50},
 				{Name: "cluster2", Sets: 150},
 				{Name: "cluster3", Sets: 250},
 			},
-			mockError: nil,
 			expectedResult: []workv1alpha2.TargetCluster{
 				{Name: "cluster1", Replicas: 50},
 				{Name: "cluster2", Replicas: 150},
 				{Name: "cluster3", Replicas: 250},
 			},
-			expectedError: false,
 		},
 		{
-			name: "successful calculation with some clusters having higher replicas",
-			availableTargetClusters: []workv1alpha2.TargetCluster{
-				{Name: "cluster1", Replicas: 100},
-				{Name: "cluster2", Replicas: 200},
-				{Name: "cluster3", Replicas: 300},
-			},
+			name: "response in different order — result follows clusters slice order",
 			mockResponse: []estimatorclient.ComponentSetEstimationResponse{
-				{Name: "cluster1", Sets: 150}, // Higher than current, should not change
-				{Name: "cluster2", Sets: 100}, // Lower than current, should change
-				{Name: "cluster3", Sets: 250}, // Lower than current, should change
-			},
-			mockError: nil,
-			expectedResult: []workv1alpha2.TargetCluster{
-				{Name: "cluster1", Replicas: 100}, // Unchanged
-				{Name: "cluster2", Replicas: 100}, // Changed
-				{Name: "cluster3", Replicas: 250}, // Changed
-			},
-			expectedError: false,
-		},
-		{
-			name: "successful calculation with unauthentic replica",
-			availableTargetClusters: []workv1alpha2.TargetCluster{
-				{Name: "cluster1", Replicas: 100},
-				{Name: "cluster2", Replicas: 200},
-				{Name: "cluster3", Replicas: 300},
-			},
-			mockResponse: []estimatorclient.ComponentSetEstimationResponse{
-				{Name: "cluster1", Sets: estimatorclient.UnauthenticReplica}, // Should be skipped
-				{Name: "cluster2", Sets: 150},
 				{Name: "cluster3", Sets: 250},
-			},
-			mockError: nil,
-			expectedResult: []workv1alpha2.TargetCluster{
-				{Name: "cluster1", Replicas: 100}, // Unchanged due to unauthentic replica
-				{Name: "cluster2", Replicas: 150}, // Changed
-				{Name: "cluster3", Replicas: 250}, // Changed
-			},
-			expectedError: false,
-		},
-		{
-			name: "successful calculation with different cluster order",
-			availableTargetClusters: []workv1alpha2.TargetCluster{
-				{Name: "cluster1", Replicas: 100},
-				{Name: "cluster2", Replicas: 200},
-				{Name: "cluster3", Replicas: 300},
-			},
-			mockResponse: []estimatorclient.ComponentSetEstimationResponse{
-				{Name: "cluster3", Sets: 250}, // Different order
 				{Name: "cluster1", Sets: 50},
 				{Name: "cluster2", Sets: 150},
 			},
-			mockError: nil,
 			expectedResult: []workv1alpha2.TargetCluster{
 				{Name: "cluster1", Replicas: 50},
 				{Name: "cluster2", Replicas: 150},
 				{Name: "cluster3", Replicas: 250},
 			},
-			expectedError: false,
 		},
 		{
-			name: "successful calculation with missing cluster in response",
-			availableTargetClusters: []workv1alpha2.TargetCluster{
-				{Name: "cluster1", Replicas: 100},
-				{Name: "cluster2", Replicas: 200},
-				{Name: "cluster3", Replicas: 300},
+			name: "unauthentic replica — cluster skipped in result",
+			mockResponse: []estimatorclient.ComponentSetEstimationResponse{
+				{Name: "cluster1", Sets: estimatorclient.UnauthenticReplica},
+				{Name: "cluster2", Sets: 150},
+				{Name: "cluster3", Sets: 250},
 			},
+			expectedResult: []workv1alpha2.TargetCluster{
+				{Name: "cluster2", Replicas: 150},
+				{Name: "cluster3", Replicas: 250},
+			},
+		},
+		{
+			name: "cluster missing from response — cluster absent from result",
 			mockResponse: []estimatorclient.ComponentSetEstimationResponse{
 				{Name: "cluster1", Sets: 50},
 				// cluster2 missing from response
 				{Name: "cluster3", Sets: 250},
 			},
-			mockError: nil,
 			expectedResult: []workv1alpha2.TargetCluster{
 				{Name: "cluster1", Replicas: 50},
-				{Name: "cluster2", Replicas: 200}, // Unchanged due to missing response
 				{Name: "cluster3", Replicas: 250},
 			},
-			expectedError: false,
 		},
 		{
-			name: "estimator error",
-			availableTargetClusters: []workv1alpha2.TargetCluster{
-				{Name: "cluster1", Replicas: 100},
-				{Name: "cluster2", Replicas: 200},
-			},
-			mockResponse: nil,
-			mockError:    errors.New("estimator error"),
-			expectedResult: []workv1alpha2.TargetCluster{
-				{Name: "cluster1", Replicas: 100}, // Unchanged due to error
-				{Name: "cluster2", Replicas: 200}, // Unchanged due to error
-			},
-			expectedError: true,
+			name:           "estimator error — returns nil result",
+			mockResponse:   nil,
+			mockError:      errors.New("estimator error"),
+			expectedResult: nil,
+			expectedError:  true,
 		},
 		{
-			name:                    "empty available target clusters",
-			availableTargetClusters: []workv1alpha2.TargetCluster{},
-			mockResponse: []estimatorclient.ComponentSetEstimationResponse{
-				{Name: "cluster1", Sets: 50},
-			},
-			mockError:      nil,
-			expectedResult: []workv1alpha2.TargetCluster{}, // Empty result
-			expectedError:  false,
-		},
-		{
-			name: "empty estimator response",
-			availableTargetClusters: []workv1alpha2.TargetCluster{
-				{Name: "cluster1", Replicas: 100},
-				{Name: "cluster2", Replicas: 200},
-			},
-			mockResponse: []estimatorclient.ComponentSetEstimationResponse{}, // Empty response
-			mockError:    nil,
-			expectedResult: []workv1alpha2.TargetCluster{
-				{Name: "cluster1", Replicas: 100}, // Unchanged
-				{Name: "cluster2", Replicas: 200}, // Unchanged
-			},
-			expectedError: false,
+			name:           "empty estimator response — returns empty result",
+			mockResponse:   []estimatorclient.ComponentSetEstimationResponse{},
+			expectedResult: []workv1alpha2.TargetCluster{},
 		},
 	}
 
@@ -388,12 +311,11 @@ func Test_calculateMultiTemplateAvailableSets(t *testing.T) {
 			}
 
 			result, err := calculateMultiTemplateAvailableSets(ctx, multiTemplateEstimationContext{
-				estimator:               mockEstimator,
-				estimatorName:           estimatorName,
-				clusters:                clusters,
-				spec:                    spec,
-				availableTargetClusters: tt.availableTargetClusters,
-				assigningCache:          nil,
+				estimator:        mockEstimator,
+				estimatorName:    estimatorName,
+				clusters:         clusters,
+				spec:             spec,
+				assumedWorkloads: nil,
 			})
 
 			if tt.expectedError {

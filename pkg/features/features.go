@@ -139,6 +139,19 @@ const (
 	// owner: @mszacillo, @RainbowMango, @kevin-wangzefeng
 	// alpha: v1.17
 	WorkloadAffinity featuregate.Feature = "WorkloadAffinity"
+
+	// SchedulingOvercommitProtection prevents scheduler overcommit by tracking in-flight
+	// workload assumptions. When enabled, the karmada-scheduler records each successfully
+	// scheduled workload in an in-memory assumption cache and forwards those assumed workloads
+	// to karmada-scheduler-estimator, which deducts their resource demand before computing
+	// how many additional replicas/component-sets can still be placed on each cluster.
+	// This eliminates the scheduling gap between when a workload is first placed and when its
+	// real resource consumption becomes visible in the cluster status, preventing multiple
+	// workloads from being simultaneously scheduled into the same resource slot.
+	//
+	// owner: @XiShanYongYe-Chang, @RainbowMango, @mszacillo
+	// alpha: v1.18
+	SchedulingOvercommitProtection featuregate.Feature = "SchedulingOvercommitProtection"
 )
 
 var (
@@ -167,6 +180,7 @@ var (
 		MultiplePodTemplatesScheduling:    {Default: false, PreRelease: featuregate.Alpha},
 		ControllerPriorityQueue:           {Default: true, PreRelease: featuregate.Beta},
 		WorkloadAffinity:                  {Default: false, PreRelease: featuregate.Alpha},
+		SchedulingOvercommitProtection:    {Default: false, PreRelease: featuregate.Alpha},
 	}
 )
 

@@ -196,7 +196,9 @@ func (s *Scheduler) onResourceBindingUpdate(old, cur any) {
 	// Release per-cluster assumptions for any cluster whose workload just became Healthy.
 	// This must run before the generation check below because AggregatedStatus is a status
 	// field that does not bump the generation.
-	s.releaseHealthyClusterAssumptions(oldRB, newRB)
+	if features.FeatureGate.Enabled(features.SchedulingOvercommitProtection) {
+		s.releaseHealthyClusterAssumptions(oldRB, newRB)
+	}
 
 	if oldRB.GetGeneration() == newRB.GetGeneration() {
 		klog.V(4).Infof("Ignore update event of resourceBinding %s/%s as specification no change", newRB.GetNamespace(), newRB.GetName())
@@ -266,7 +268,9 @@ func (s *Scheduler) onResourceBindingDelete(obj any) {
 	}
 
 	bindingKey := names.NamespacedKey(binding.Namespace, binding.Name)
-	s.schedulerCache.AssigningResourceBindings().ReleaseAssumption(bindingKey)
+	if features.FeatureGate.Enabled(features.SchedulingOvercommitProtection) {
+		s.schedulerCache.AssigningResourceBindings().ReleaseAssumption(bindingKey)
+	}
 }
 
 func (s *Scheduler) onResourceBindingRequeue(binding *workv1alpha2.ResourceBinding, event string) {

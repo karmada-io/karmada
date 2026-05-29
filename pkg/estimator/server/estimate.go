@@ -25,6 +25,7 @@ import (
 
 	"github.com/karmada-io/karmada/pkg/estimator/pb"
 	"github.com/karmada-io/karmada/pkg/estimator/server/framework"
+	"github.com/karmada-io/karmada/pkg/features"
 	schedcache "github.com/karmada-io/karmada/pkg/util/lifted/scheduler/cache"
 )
 
@@ -46,7 +47,9 @@ func (es *AccurateSchedulerEstimatorServer) EstimateReplicas(ctx context.Context
 	estCtx := framework.ReplicaEstimationContext{
 		Snapshot:            snapShot,
 		ReplicaRequirements: request.GetReplicaRequirements(),
-		AssumedWorkloads:    request.GetAssumedWorkloads(),
+	}
+	if features.FeatureGate.Enabled(features.SchedulingOvercommitProtection) {
+		estCtx.AssumedWorkloads = request.GetAssumedWorkloads()
 	}
 	maxAvailableReplicas, err := es.estimateReplicas(ctx, estCtx)
 	if err != nil {
@@ -87,12 +90,15 @@ func (es *AccurateSchedulerEstimatorServer) EstimateComponents(ctx context.Conte
 		return 0, nil
 	}
 
-	maxAvailableComponentSets, err := es.estimateComponents(ctx, framework.ComponentEstimationContext{
-		Snapshot:         snapShot,
-		Components:       request.Components,
-		Namespace:        request.Namespace,
-		AssumedWorkloads: request.GetAssumedWorkloads(),
-	})
+	estCtx := framework.ComponentEstimationContext{
+		Snapshot:   snapShot,
+		Components: request.Components,
+		Namespace:  request.Namespace,
+	}
+	if features.FeatureGate.Enabled(features.SchedulingOvercommitProtection) {
+		estCtx.AssumedWorkloads = request.GetAssumedWorkloads()
+	}
+	maxAvailableComponentSets, err := es.estimateComponents(ctx, estCtx)
 	if err != nil {
 		return 0, err
 	}

@@ -62,6 +62,7 @@ Generic flags:
                                            PropagateDeps=true|false (BETA - default=true)
                                            PropagationPolicyPreemption=true|false (ALPHA - default=false)
                                            ResourceQuotaEstimate=true|false (ALPHA - default=false)
+                                           SchedulingOvercommitProtection=true|false (ALPHA - default=false)
                                            StatefulFailoverInjection=true|false (ALPHA - default=false)
                                            WorkloadAffinity=true|false (ALPHA - default=false)
       --grpc-auth-cert-file string         SSL certification file used for grpc SSL/TLS connections.

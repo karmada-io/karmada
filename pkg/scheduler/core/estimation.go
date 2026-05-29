@@ -65,12 +65,11 @@ func isMultiTemplateSchedulingApplicable(spec *workv1alpha2.ResourceBindingSpec)
 }
 
 type multiTemplateEstimationContext struct {
-	estimator               estimatorclient.ReplicaEstimator
-	estimatorName           string
-	clusters                []*clusterv1alpha1.Cluster
-	spec                    *workv1alpha2.ResourceBindingSpec
-	availableTargetClusters []workv1alpha2.TargetCluster
-	assigningCache          *schedulercache.AssigningResourceBindingCache
+	estimator        estimatorclient.ReplicaEstimator
+	estimatorName    string
+	clusters         []*clusterv1alpha1.Cluster
+	spec             *workv1alpha2.ResourceBindingSpec
+	assumedWorkloads map[string][]estimatorclient.AssumedWorkload
 }
 
 // calculateMultiTemplateAvailableSets calculates available sets for multi-template scheduling.
@@ -80,7 +79,7 @@ func calculateMultiTemplateAvailableSets(ctx context.Context, estCtx multiTempla
 		Clusters:         estCtx.clusters,
 		Components:       estCtx.spec.Components,
 		Namespace:        estCtx.spec.Resource.Namespace,
-		AssumedWorkloads: buildAssumedWorkloadsByCluster(estCtx.clusters, estCtx.assigningCache),
+		AssumedWorkloads: estCtx.assumedWorkloads,
 	}
 
 	namespacedKey := names.NamespacedKey(estCtx.spec.Resource.Namespace, estCtx.spec.Resource.Name)
@@ -88,7 +87,7 @@ func calculateMultiTemplateAvailableSets(ctx context.Context, estCtx multiTempla
 	if err != nil {
 		klog.Errorf("Failed to calculate available component set with estimator(%s) for workload(%s, kind=%s, %s): %v",
 			estCtx.estimatorName, estCtx.spec.Resource.APIVersion, estCtx.spec.Resource.Kind, namespacedKey, err)
-		return estCtx.availableTargetClusters, err
+		return nil, err
 	}
 
 	// Use a map to safely update replicas regardless of order.
@@ -100,19 +99,17 @@ func calculateMultiTemplateAvailableSets(ctx context.Context, estCtx multiTempla
 		resMap[resp[i].Name] = resp[i].Sets
 	}
 
-	availableTargetClusters := estCtx.availableTargetClusters
-	for i := range availableTargetClusters {
-		if newReplicas, ok := resMap[availableTargetClusters[i].Name]; ok {
-			if availableTargetClusters[i].Replicas > newReplicas {
-				availableTargetClusters[i].Replicas = newReplicas
-			}
-		} else {
+	result := make([]workv1alpha2.TargetCluster, 0, len(estCtx.clusters))
+	for _, cluster := range estCtx.clusters {
+		sets, ok := resMap[cluster.Name]
+		if !ok {
 			klog.Warningf("The estimator(%s) missed estimation from cluster(%s) when estimating for workload(%s, kind=%s, %s).",
-				estCtx.estimatorName, availableTargetClusters[i].Name, estCtx.spec.Resource.APIVersion, estCtx.spec.Resource.Kind, namespacedKey)
+				estCtx.estimatorName, cluster.Name, estCtx.spec.Resource.APIVersion, estCtx.spec.Resource.Kind, namespacedKey)
+			continue
 		}
+		result = append(result, workv1alpha2.TargetCluster{Name: cluster.Name, Replicas: sets})
 	}
-
-	return availableTargetClusters, nil
+	return result, nil
 }
 
 // buildAssumedWorkloadsByCluster builds a map of assumed workloads for each cluster based on the assigning cache.

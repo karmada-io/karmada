@@ -89,6 +89,7 @@ Generic flags:
                                                                        PropagateDeps=true|false (BETA - default=true)
                                                                        PropagationPolicyPreemption=true|false (ALPHA - default=false)
                                                                        ResourceQuotaEstimate=true|false (ALPHA - default=false)
+                                                                       SchedulingOvercommitProtection=true|false (ALPHA - default=false)
                                                                        StatefulFailoverInjection=true|false (ALPHA - default=false)
                                                                        WorkloadAffinity=true|false (ALPHA - default=false)
       --federated-resource-quota-sync-period duration                  The interval for periodic full resynchronization of FederatedResourceQuota resources. This ensures quota recalculations occur at regular intervals to correct potential inaccuracies, particularly when webhook validation side effects. (default 5m0s)
