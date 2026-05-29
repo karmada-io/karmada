@@ -4270,7 +4270,7 @@ func schema_pkg_apis_policy_v1alpha1_DecisionConditions(ref common.ReferenceCall
 				Properties: map[string]spec.Schema{
 					"tolerationSeconds": {
 						SchemaProps: spec.SchemaProps{
-							Description: "TolerationSeconds represents the period of time Karmada should wait after reaching the desired state before performing failover process. If not specified, Karmada will immediately perform failover process. Defaults to 300s.",
+							Description: "TolerationSeconds represents the period of time Karmada should wait after reaching the desired state before performing failover process.\n\nDefaults to 300s if not specified. Set it to 0 to perform failover immediately.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
