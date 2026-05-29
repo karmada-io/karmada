@@ -422,3 +422,40 @@ This lightweight setup is useful for:
 
 It provides a significantly simpler environment for new contributors compared to the default multi-cluster local setup.
 
+
+
+## Tested Environment
+
+The lightweight setup was validated using:
+
+- Windows 11
+- WSL2 Ubuntu
+- Docker Desktop
+- 4 GB WSL2 memory limit
+- 2 vCPUs
+- 2 GB swap
+
+Using a minimal topology consisting of:
+- 1 Karmada host cluster
+- 1 member cluster
+
+Successfully verified:
+- Karmada control plane startup
+- Member cluster registration
+- Workload propagation
+- ResourceBinding creation
+- Deployment scheduling
+- Workload execution on the member cluster
+
+Observed resource usage:
+- WSL2 memory limit: ~3.8 GiB
+- Memory used after startup: ~2.2 GiB
+- Available memory: ~1.6 GiB
+- Swap usage: ~114 MiB
+
+Docker container memory consumption:
+- karmada-host-control-plane: ~1.4 GiB
+- member1-control-plane: ~686 MiB
+
+Note:
+This setup is intended for contributor onboarding, local development, and debugging workflows. It has not been evaluated as a replacement for the full CI-equivalent e2e environment.
