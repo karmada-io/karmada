@@ -29,6 +29,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -227,6 +228,124 @@ func TestClusterStatusController_syncClusterStatus(t *testing.T) {
 		}
 		err := c.syncClusterStatus(context.Background(), cluster)
 		assert.Empty(t, err)
+	})
+	t.Run("ClusterClientSetFunc error within threshold retains Ready=True", func(t *testing.T) {
+		server := mockServer(http.StatusOK, false)
+		defer server.Close()
+		serverAddress = server.URL
+		cluster := &clusterv1alpha1.Cluster{
+			ObjectMeta: metav1.ObjectMeta{Name: "test"},
+			Spec: clusterv1alpha1.ClusterSpec{
+				APIEndpoint: server.URL,
+				SecretRef:   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
+			},
+			Status: clusterv1alpha1.ClusterStatus{
+				Conditions: []metav1.Condition{
+					{
+						Type:               clusterv1alpha1.ClusterConditionReady,
+						Status:             metav1.ConditionTrue,
+						Reason:             "ClusterReady",
+						LastTransitionTime: metav1.Now(),
+					},
+				},
+			},
+		}
+		c := &ClusterStatusController{
+			Client:                  fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithStatusSubresource(cluster).Build(),
+			GenericInformerManager:  genericmanager.GetInstance(),
+			TypedInformerManager:    typedmanager.GetInstance(),
+			ClusterSuccessThreshold: metav1.Duration{Duration: 30 * time.Second},
+			ClusterFailureThreshold: metav1.Duration{Duration: 30 * time.Second},
+			clusterConditionCache: clusterConditionStore{
+				failureThreshold: 30 * time.Second,
+				successThreshold: 30 * time.Second,
+			},
+			PredicateFunc: helper.NewClusterPredicateOnAgent("test"),
+			RateLimiterOptions: ratelimiterflag.Options{
+				RateLimiterBaseDelay:  time.Duration(1000),
+				RateLimiterMaxDelay:   time.Duration(1000),
+				RateLimiterQPS:        10,
+				RateLimiterBucketSize: 10,
+			},
+			ClusterClientSetFunc:        clusterClientSetFuncWithError,
+			ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
+		}
+		// seed cache so the controller knows the cluster was previously Ready=True
+		c.clusterConditionCache.update(cluster.Name, &clusterData{readyCondition: metav1.ConditionTrue})
+		if err := c.Client.Create(context.Background(), cluster); err != nil {
+			t.Fatalf("Failed to create cluster: %v", err)
+		}
+		err := c.syncClusterStatus(context.Background(), cluster)
+		assert.Empty(t, err)
+
+		updated := &clusterv1alpha1.Cluster{}
+		if err := c.Client.Get(context.Background(), types.NamespacedName{Name: cluster.Name}, updated); err != nil {
+			t.Fatalf("Failed to get cluster: %v", err)
+		}
+		readyCond := meta.FindStatusCondition(updated.Status.Conditions, clusterv1alpha1.ClusterConditionReady)
+		assert.NotNil(t, readyCond)
+		assert.Equal(t, metav1.ConditionTrue, readyCond.Status, "Ready=True should be retained within threshold")
+	})
+	t.Run("ClusterClientSetFunc error beyond threshold writes Ready=False", func(t *testing.T) {
+		server := mockServer(http.StatusOK, false)
+		defer server.Close()
+		serverAddress = server.URL
+		cluster := &clusterv1alpha1.Cluster{
+			ObjectMeta: metav1.ObjectMeta{Name: "test"},
+			Spec: clusterv1alpha1.ClusterSpec{
+				APIEndpoint: server.URL,
+				SecretRef:   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
+			},
+			Status: clusterv1alpha1.ClusterStatus{
+				Conditions: []metav1.Condition{
+					{
+						Type:               clusterv1alpha1.ClusterConditionReady,
+						Status:             metav1.ConditionTrue,
+						Reason:             "ClusterReady",
+						LastTransitionTime: metav1.Now(),
+					},
+				},
+			},
+		}
+		c := &ClusterStatusController{
+			Client:                  fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithStatusSubresource(cluster).Build(),
+			GenericInformerManager:  genericmanager.GetInstance(),
+			TypedInformerManager:    typedmanager.GetInstance(),
+			ClusterSuccessThreshold: metav1.Duration{Duration: time.Millisecond},
+			ClusterFailureThreshold: metav1.Duration{Duration: time.Millisecond},
+			clusterConditionCache: clusterConditionStore{
+				failureThreshold: time.Millisecond,
+				successThreshold: time.Millisecond,
+			},
+			PredicateFunc: helper.NewClusterPredicateOnAgent("test"),
+			RateLimiterOptions: ratelimiterflag.Options{
+				RateLimiterBaseDelay:  time.Duration(1000),
+				RateLimiterMaxDelay:   time.Duration(1000),
+				RateLimiterQPS:        10,
+				RateLimiterBucketSize: 10,
+			},
+			ClusterClientSetFunc:        clusterClientSetFuncWithError,
+			ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
+		}
+		// seed cache with a failure that started well before the threshold
+		c.clusterConditionCache.update(cluster.Name, &clusterData{
+			readyCondition:     metav1.ConditionFalse,
+			thresholdStartTime: time.Now().Add(-time.Hour),
+		})
+		if err := c.Client.Create(context.Background(), cluster); err != nil {
+			t.Fatalf("Failed to create cluster: %v", err)
+		}
+		err := c.syncClusterStatus(context.Background(), cluster)
+		assert.Empty(t, err)
+
+		updated := &clusterv1alpha1.Cluster{}
+		if err := c.Client.Get(context.Background(), types.NamespacedName{Name: cluster.Name}, updated); err != nil {
+			t.Fatalf("Failed to get cluster: %v", err)
+		}
+		readyCond := meta.FindStatusCondition(updated.Status.Conditions, clusterv1alpha1.ClusterConditionReady)
+		assert.NotNil(t, readyCond)
+		assert.Equal(t, metav1.ConditionFalse, readyCond.Status, "Ready=False should be written after threshold expires")
+		assert.Equal(t, statusCollectionFailed, readyCond.Reason)
 	})
 	t.Run("online is false, readyCondition.Status isn't true", func(t *testing.T) {
 		server := mockServer(http.StatusNotFound, true)
