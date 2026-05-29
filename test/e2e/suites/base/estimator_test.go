@@ -365,6 +365,14 @@ var _ = framework.SerialDescribe("[EstimatorAssumption] ResourceQuota plugin ass
 						strings.Contains(cond.Message, "no enough resource")
 				})
 		})
+
+		// At this point, 6 FlinkDeployments are in the assumption cache (6 × 150m = 900m assumed).
+		// A single-template Deployment requesting 200m CPU would push the total to 1100m,
+		// exceeding the 1000m ResourceQuota. This step verifies that the assumption cache also
+		// protects against over-scheduling of single-template workloads.
+		ginkgo.By("verifying a single-template Deployment requesting 200m CPU is also unschedulable due to assumed workloads", func() {
+			assertSingleTemplateDeploymentUnschedulable(quotaNamespace, targetCluster)
+		})
 	})
 })
 
@@ -497,5 +505,73 @@ var _ = framework.SerialDescribe("[EstimatorAssumption] NodeResource plugin assu
 			gomega.Expect(assumptionExhausted).Should(gomega.BeTrue(),
 				"expected assumption to exhaust cluster resources within %d FlinkDeployments", maxFlinkCount)
 		})
+
+		// At this point the assumption cache has consumed all available node CPU on member1.
+		// A single-template Deployment requesting 200m CPU should also fail to schedule,
+		// verifying that the assumption cache protects against over-scheduling of
+		// single-template workloads as well.
+		ginkgo.By("verifying a single-template Deployment requesting 200m CPU is also unschedulable due to assumed workloads", func() {
+			assertSingleTemplateDeploymentUnschedulable(testNamespace, targetCluster)
+		})
 	})
 })
+
+// assertSingleTemplateDeploymentUnschedulable creates a single-replica Deployment requesting
+// 200m CPU in the given namespace, propagates it to targetCluster, and asserts that the
+// ResourceBinding transitions to an unschedulable state because the assumption cache has
+// already exhausted the available resources.
+func assertSingleTemplateDeploymentUnschedulable(namespace, targetCluster string) {
+	const cpuRequest = "200m"
+
+	deployName := fmt.Sprintf("deploy-%s", rand.String(RandomStrLength))
+	deploy := helper.NewDeployment(namespace, deployName)
+	deploy.Spec.Replicas = ptr.To[int32](1)
+	deploy.Spec.Template.Spec.Containers[0].Resources = corev1.ResourceRequirements{
+		Requests: corev1.ResourceList{
+			corev1.ResourceCPU: resource.MustParse(cpuRequest),
+		},
+		Limits: corev1.ResourceList{
+			corev1.ResourceCPU: resource.MustParse(cpuRequest),
+		},
+	}
+	framework.CreateDeployment(kubeClient, deploy)
+	ginkgo.DeferCleanup(func() {
+		framework.RemoveDeployment(kubeClient, namespace, deployName)
+	})
+
+	pp := helper.NewPropagationPolicy(namespace, ppNamePrefix+rand.String(RandomStrLength),
+		[]policyv1alpha1.ResourceSelector{{
+			APIVersion: deploy.APIVersion,
+			Kind:       deploy.Kind,
+			Name:       deployName,
+		}},
+		policyv1alpha1.Placement{
+			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+				ClusterNames: []string{targetCluster},
+			},
+			SpreadConstraints: []policyv1alpha1.SpreadConstraint{
+				{
+					SpreadByField: policyv1alpha1.SpreadByFieldCluster,
+					MaxGroups:     1,
+					MinGroups:     1,
+				},
+			},
+			ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+				ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+				ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceAggregated,
+			},
+		})
+	framework.CreatePropagationPolicy(karmadaClient, pp)
+	ginkgo.DeferCleanup(func() {
+		framework.RemovePropagationPolicy(karmadaClient, namespace, pp.Name)
+	})
+
+	bindingName := names.GenerateBindingName(util.DeploymentKind, deployName)
+	framework.WaitResourceBindingFitWith(karmadaClient, namespace, bindingName,
+		func(binding *workv1alpha2.ResourceBinding) bool {
+			cond := meta.FindStatusCondition(binding.Status.Conditions, workv1alpha2.Scheduled)
+			return cond != nil && cond.Status == metav1.ConditionFalse &&
+				cond.Reason == workv1alpha2.BindingReasonSchedulerError &&
+				strings.Contains(cond.Message, "no enough resource")
+		})
+}
