@@ -200,8 +200,8 @@ var _ = ginkgo.Describe("[ScheduleMultiTemplate] schedule multi template resourc
 				gomega.Expect(jobManagerComponent).ShouldNot(gomega.BeNil(), "jobmanager component should exist")
 				gomega.Expect(taskManagerComponent).ShouldNot(gomega.BeNil(), "taskmanager component should exist")
 				// Verify the detailed content of components (including ReplicaRequirements and resource values)
-				verifyComponentResources(jobManagerComponent, 1, "1", "100m")
-				verifyComponentResources(taskManagerComponent, 1, "1", "100m")
+				verifyComponentResources(jobManagerComponent, 1, "50m", "100m")
+				verifyComponentResources(taskManagerComponent, 1, "100m", "100m")
 			})
 
 			var targetClusterName string
