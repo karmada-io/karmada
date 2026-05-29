@@ -98,7 +98,7 @@ func TestMutatingAdmission_Handle_FullCoverage(t *testing.T) {
 	name := "test-app"
 	namespace := "test-namespace"
 
-	// Mock an admission request request.
+	// Mock an admission request.
 	req := admission.Request{
 		AdmissionRequest: admissionv1.AdmissionRequest{
 			Operation: admissionv1.Create,

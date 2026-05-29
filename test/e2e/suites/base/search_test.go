@@ -549,7 +549,7 @@ var _ = ginkgo.Describe("[karmada-search] karmada search testing", ginkgo.Ordere
 						data := []byte(`{"metadata": {"annotations": {"` + anno + `":null}}}`)
 						_, err := c.CoreV1().Nodes().Patch(context.TODO(), name, types.StrategicMergePatchType, data, metav1.PatchOptions{})
 						if err != nil {
-							klog.Warningf("Failed to clean annotation for node: %s, left annoation: %v, error: %v", name, anno, err)
+							klog.Warningf("Failed to clean annotation for node: %s, left annotation: %v, error: %v", name, anno, err)
 						}
 					}
 				)
