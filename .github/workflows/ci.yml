@@ -43,13 +43,6 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
-      - name: Install Protoc
-        uses: arduino/setup-protoc@v3
-        with:
-          version: '23.4'
-          # Use the automatic token, so that this task can be run in the forked repo.
-          # https://docs.github.com/en/actions/security-guides/automatic-token-authentication
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: verify codegen
         run: hack/verify-codegen.sh
       - name: verify crdgen
@@ -96,7 +89,7 @@ jobs:
         # Prevent running from the forked repository that doesn't need to upload coverage.
         # In addition, running on the forked repository would fail as missing the necessary secret.
         if: ${{ github.repository == 'karmada-io/karmada' }}
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           # Even though token upload token is not required for public repos,
           # but adding a token might increase successful uploads as per:
@@ -152,13 +145,13 @@ jobs:
           hack/run-e2e.sh
       - name: upload logs
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: karmada_e2e_log_${{ matrix.k8s }}
           path: ${{ github.workspace }}/karmada-e2e-logs/${{ matrix.k8s }}/
       - name: upload kind logs
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: karmada_kind_log_${{ matrix.k8s }}
           path: /tmp/karmada/
@@ -210,13 +203,13 @@ jobs:
           hack/run-e2e-init.sh
       - name: upload logs
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: karmada_init_e2e_log_${{ matrix.k8s }}
           path: ${{ github.workspace }}/karmada-init-e2e-logs/${{ matrix.k8s }}/
       - name: upload kind logs
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: karmada_init_kind_log_${{ matrix.k8s }}
           path: /tmp/karmada/
