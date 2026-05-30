@@ -19,6 +19,7 @@ package util
 import (
 	"context"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 
@@ -59,7 +60,10 @@ func TestObtainCredentialsFromMemberCluster(t *testing.T) {
 				},
 				aop: func(t *testing.T, clusterKubeClient kubernetes.Interface) func() {
 					ctx, cancel := context.WithCancel(context.TODO())
+					var wg sync.WaitGroup
+					wg.Add(1)
 					go func(clusterKubeClient kubernetes.Interface) {
+						defer wg.Done()
 						_ = wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
 							impersonationSA, err := clusterKubeClient.CoreV1().ServiceAccounts("karmada-cluster").Get(ctx, names.GenerateServiceAccountName("impersonator"), metav1.GetOptions{})
 							if err != nil {
@@ -86,6 +90,7 @@ func TestObtainCredentialsFromMemberCluster(t *testing.T) {
 					}(clusterKubeClient)
 					return func() {
 						cancel()
+						wg.Wait()
 					}
 				},
 			},
@@ -103,7 +108,10 @@ func TestObtainCredentialsFromMemberCluster(t *testing.T) {
 				},
 				aop: func(t *testing.T, clusterKubeClient kubernetes.Interface) func() {
 					ctx, cancel := context.WithCancel(context.TODO())
+					var wg sync.WaitGroup
+					wg.Add(1)
 					go func(clusterKubeClient kubernetes.Interface) {
+						defer wg.Done()
 						_ = wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
 							impersonationSA, err := clusterKubeClient.CoreV1().ServiceAccounts("karmada-cluster").Get(ctx, names.GenerateServiceAccountName("impersonator"), metav1.GetOptions{})
 							if err != nil {
@@ -151,6 +159,7 @@ func TestObtainCredentialsFromMemberCluster(t *testing.T) {
 					}(clusterKubeClient)
 					return func() {
 						cancel()
+						wg.Wait()
 					}
 				},
 			},
