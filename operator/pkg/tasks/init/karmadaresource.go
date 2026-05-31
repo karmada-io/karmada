@@ -206,7 +206,7 @@ func runWebhookConfiguration(r workflow.RunData) error {
 func runAPIService(r workflow.RunData) error {
 	data, ok := r.(InitData)
 	if !ok {
-		return errors.New("webhookConfiguration task invoked with an invalid data struct")
+		return errors.New("APIService task invoked with an invalid data struct")
 	}
 
 	config := data.ControlplaneConfig()
