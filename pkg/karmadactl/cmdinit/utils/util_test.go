@@ -137,3 +137,34 @@ func TestListFiles(t *testing.T) {
 		})
 	}
 }
+
+func TestPathExists(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+		want bool
+	}{
+		{
+			name: "path exist",
+			path: "./",
+			want: true,
+		},
+		{
+			name: "path is not exist",
+			path: "for-a-not-exist-path" + randString(),
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := PathExists(tt.path)
+			if err != nil {
+				t.Errorf("PathExists() error = %v", err)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("PathExists() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

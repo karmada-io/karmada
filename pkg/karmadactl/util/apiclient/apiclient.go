@@ -28,6 +28,8 @@ import (
 	"k8s.io/client-go/util/homedir"
 	aggregator "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset"
 	"k8s.io/utils/env"
+
+	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 )
 
 var (
@@ -45,7 +47,12 @@ var (
 // RestConfig is to create a rest config from the context and kubeconfig passed as arguments.
 func RestConfig(context, kubeconfigPath string) (*rest.Config, error) {
 	kubeconfigPath = KubeConfigPath(kubeconfigPath)
-	if !Exists(kubeconfigPath) {
+	exist, err := utils.PathExists(kubeconfigPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check kubeconfig path %q: %w", kubeconfigPath, err)
+	}
+
+	if !exist {
 		// Given no kubeconfig is provided, give it a try to load the config by
 		// in-cluster mode if the client running inside a pod running on kubernetes.
 		host, port := os.Getenv("KUBERNETES_SERVICE_HOST"), os.Getenv("KUBERNETES_SERVICE_PORT")
@@ -103,12 +110,4 @@ func NewCRDsClient(c *rest.Config) (clientset.Interface, error) {
 // NewAPIRegistrationClient is to create an apiregistration ClientSet
 func NewAPIRegistrationClient(c *rest.Config) (aggregator.Interface, error) {
 	return aggregator.NewForConfig(c)
-}
-
-// Exists determine if path exists
-func Exists(path string) bool {
-	if _, err := os.Stat(path); err != nil {
-		return os.IsExist(err)
-	}
-	return true
 }
