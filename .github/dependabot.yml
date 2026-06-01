@@ -26,6 +26,16 @@ updates:
 
   - package-ecosystem: docker
     directory: /cluster/images/
+    target-branch: "release-1.18"
+    schedule:
+      # Check for updates every Monday at 00:00 UTC
+      interval: "weekly"
+      day: "monday"
+      time: "00:00"
+      timezone: "UTC"
+
+  - package-ecosystem: docker
+    directory: /cluster/images/
     target-branch: "release-1.17"
     schedule:
       # Check for updates every Monday at 00:00 UTC
@@ -37,16 +47,6 @@ updates:
   - package-ecosystem: docker
     directory: /cluster/images/
     target-branch: "release-1.16"
-    schedule:
-      # Check for updates every Monday at 00:00 UTC
-      interval: "weekly"
-      day: "monday"
-      time: "00:00"
-      timezone: "UTC"
-
-  - package-ecosystem: docker
-    directory: /cluster/images/
-    target-branch: "release-1.15"
     schedule:
       # Check for updates every Monday at 00:00 UTC
       interval: "weekly"
