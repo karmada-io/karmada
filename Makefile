@@ -116,8 +116,8 @@ GOTEST=gotestsum ${GOTESTSUM_FLAGS} --
 endif
 
 .PHONY: test
-# TODO: remove the tag `kubernetes_protomessage_one_more_release` once the estimator grpc totally remove the dependency of kubernetes protomessage.
-test: GO_TEST_FLAGS ?= --race --v -covermode=atomic -tags kubernetes_protomessage_one_more_release
+
+test: GO_TEST_FLAGS ?= --race --v -covermode=atomic
 test: install_gotestsum
 	mkdir -p ./_output/coverage/
 	$(GOTEST) $(GO_TEST_FLAGS) ./pkg/... -coverprofile=./_output/coverage/coverage_pkg.txt

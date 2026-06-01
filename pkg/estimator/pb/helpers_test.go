@@ -46,7 +46,6 @@ func makeNodeSelector(key, value string) *corev1.NodeSelector {
 
 func TestNodeClaim_UnmarshalNodeAffinity(t *testing.T) {
 	nsA := makeNodeSelector("zone", "us-east-1")
-	nsB := makeNodeSelector("zone", "eu-west-1")
 
 	tests := []struct {
 		name     string
@@ -67,19 +66,6 @@ func TestNodeClaim_UnmarshalNodeAffinity(t *testing.T) {
 		{
 			name:     "reads from NodeAffinityBytes when set",
 			claim:    &NodeClaim{NodeAffinityBytes: marshalNodeSelector(t, nsA)},
-			expected: nsA,
-		},
-		{
-			name:     "fallback to deprecated NodeAffinity when bytes empty",
-			claim:    &NodeClaim{NodeAffinity: nsB},
-			expected: nsB,
-		},
-		{
-			name: "bytes takes precedence when both fields disagree",
-			claim: &NodeClaim{
-				NodeAffinityBytes: marshalNodeSelector(t, nsA),
-				NodeAffinity:      nsB,
-			},
 			expected: nsA,
 		},
 		{
@@ -137,21 +123,6 @@ func TestNodeClaim_UnmarshalTolerations(t *testing.T) {
 			expected: []corev1.Toleration{tolA, tolB},
 		},
 		{
-			name: "fallback to deprecated Tolerations when bytes empty",
-			claim: &NodeClaim{
-				Tolerations: []*corev1.Toleration{&tolA, &tolB},
-			},
-			expected: []corev1.Toleration{tolA, tolB},
-		},
-		{
-			name: "bytes takes precedence when both fields disagree",
-			claim: &NodeClaim{
-				TolerationsBytes: [][]byte{marshalToleration(t, tolA)},
-				Tolerations:      []*corev1.Toleration{&tolB},
-			},
-			expected: []corev1.Toleration{tolA},
-		},
-		{
 			name: "ordering is preserved in round-trip",
 			claim: &NodeClaim{
 				TolerationsBytes: [][]byte{marshalToleration(t, tolB), marshalToleration(t, tolA)},
@@ -164,13 +135,6 @@ func TestNodeClaim_UnmarshalTolerations(t *testing.T) {
 				TolerationsBytes: [][]byte{[]byte("invalid")},
 			},
 			wantErr: true,
-		},
-		{
-			name: "nil pointer in deprecated field treated as zero value",
-			claim: &NodeClaim{
-				Tolerations: []*corev1.Toleration{nil, &tolA},
-			},
-			expected: []corev1.Toleration{{}, tolA},
 		},
 	}
 
@@ -228,32 +192,6 @@ func TestReplicaRequirements_UnmarshalResourceRequest(t *testing.T) {
 			},
 		},
 		{
-			name: "fallback to deprecated ResourceRequest when bytes empty",
-			req: &ReplicaRequirements{
-				ResourceRequest: map[string]*resource.Quantity{
-					"cpu": &cpu100m,
-				},
-			},
-			expected: corev1.ResourceList{
-				corev1.ResourceCPU: cpu100m,
-			},
-		},
-		{
-			name: "bytes takes precedence when both fields disagree",
-			req: &ReplicaRequirements{
-				ResourceRequestBytes: map[string][]byte{
-					"cpu": marshalQuantity(t, cpu100m),
-				},
-				ResourceRequest: map[string]*resource.Quantity{
-					"cpu":    &mem256Mi,
-					"memory": &mem256Mi,
-				},
-			},
-			expected: corev1.ResourceList{
-				corev1.ResourceCPU: cpu100m,
-			},
-		},
-		{
 			name: "invalid bytes returns error",
 			req: &ReplicaRequirements{
 				ResourceRequestBytes: map[string][]byte{
@@ -261,18 +199,6 @@ func TestReplicaRequirements_UnmarshalResourceRequest(t *testing.T) {
 				},
 			},
 			wantErr: true,
-		},
-		{
-			name: "nil pointer in deprecated field is skipped",
-			req: &ReplicaRequirements{
-				ResourceRequest: map[string]*resource.Quantity{
-					"cpu":    &cpu100m,
-					"memory": nil,
-				},
-			},
-			expected: corev1.ResourceList{
-				corev1.ResourceCPU: cpu100m,
-			},
 		},
 	}
 
@@ -323,32 +249,6 @@ func TestComponentReplicaRequirements_UnmarshalResourceRequest(t *testing.T) {
 			},
 		},
 		{
-			name: "fallback to deprecated ResourceRequest when bytes empty",
-			req: &ComponentReplicaRequirements{
-				ResourceRequest: map[string]*resource.Quantity{
-					"cpu": &cpu100m,
-				},
-			},
-			expected: corev1.ResourceList{
-				corev1.ResourceCPU: cpu100m,
-			},
-		},
-		{
-			name: "bytes takes precedence when both fields disagree",
-			req: &ComponentReplicaRequirements{
-				ResourceRequestBytes: map[string][]byte{
-					"cpu": marshalQuantity(t, cpu100m),
-				},
-				ResourceRequest: map[string]*resource.Quantity{
-					"cpu":    &mem256Mi,
-					"memory": &mem256Mi,
-				},
-			},
-			expected: corev1.ResourceList{
-				corev1.ResourceCPU: cpu100m,
-			},
-		},
-		{
 			name: "invalid bytes returns error",
 			req: &ComponentReplicaRequirements{
 				ResourceRequestBytes: map[string][]byte{
@@ -356,18 +256,6 @@ func TestComponentReplicaRequirements_UnmarshalResourceRequest(t *testing.T) {
 				},
 			},
 			wantErr: true,
-		},
-		{
-			name: "nil pointer in deprecated field is skipped",
-			req: &ComponentReplicaRequirements{
-				ResourceRequest: map[string]*resource.Quantity{
-					"cpu":    &cpu100m,
-					"memory": nil,
-				},
-			},
-			expected: corev1.ResourceList{
-				corev1.ResourceCPU: cpu100m,
-			},
 		},
 	}
 
