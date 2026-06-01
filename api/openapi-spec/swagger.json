@@ -19626,7 +19626,7 @@
       "type": "object",
       "properties": {
         "tolerationSeconds": {
-          "description": "TolerationSeconds represents the period of time Karmada should wait after reaching the desired state before performing failover process. If not specified, Karmada will immediately perform failover process. Defaults to 300s.",
+          "description": "TolerationSeconds represents the period of time Karmada should wait after reaching the desired state before performing failover process.\n\nDefaults to 300s if not specified. Set it to 0 to perform failover immediately.",
           "type": "integer",
           "format": "int32"
         }

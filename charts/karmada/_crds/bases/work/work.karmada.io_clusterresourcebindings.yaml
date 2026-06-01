@@ -493,8 +493,9 @@ spec:
                             description: |-
                               TolerationSeconds represents the period of time Karmada should wait
                               after reaching the desired state before performing failover process.
-                              If not specified, Karmada will immediately perform failover process.
-                              Defaults to 300s.
+
+                              Defaults to 300s if not specified.
+                              Set it to 0 to perform failover immediately.
                             format: int32
                             type: integer
                         type: object
