@@ -187,6 +187,78 @@ end`,
 	}
 }
 
+func TestCompileScriptCaching(t *testing.T) {
+	vm := New(false, 1)
+	script := `function TestFunc(obj) return 42 end`
+
+	proto1, err := vm.compileScript(script)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	proto2, err := vm.compileScript(script)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if proto1 != proto2 {
+		t.Fatalf("expected cached proto pointer to be reused")
+	}
+
+	count := 0
+	vm.funcCache.Range(func(key, value any) bool {
+		count++
+		return true
+	})
+	if count != 1 {
+		t.Fatalf("expected 1 entry in funcCache, got %d", count)
+	}
+}
+
+func TestRunScriptCaching(t *testing.T) {
+	vm := New(false, 1)
+	script := `function TestFunc() return 42 end`
+
+	results1, err := vm.RunScript(script, "TestFunc", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results1) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results1))
+	}
+	value1, ok := results1[0].(lua.LNumber)
+	if !ok {
+		t.Fatalf("expected lua.LNumber, got %T", results1[0])
+	}
+	if value1 != 42 {
+		t.Fatalf("expected 42, got %v", value1)
+	}
+
+	results2, err := vm.RunScript(script, "TestFunc", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results2) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results2))
+	}
+	value2, ok := results2[0].(lua.LNumber)
+	if !ok {
+		t.Fatalf("expected lua.LNumber, got %T", results2[0])
+	}
+	if value2 != 42 {
+		t.Fatalf("expected 42, got %v", value2)
+	}
+
+	count := 0
+	vm.funcCache.Range(func(key, value any) bool {
+		count++
+		return true
+	})
+	if count != 1 {
+		t.Fatalf("expected 1 entry in funcCache after repeated RunScript calls, got %d", count)
+	}
+}
+
 // MockMultiPodTemplateWorkload simulates a CRD with multiple pod templates,
 // mirroring the structure of a real-world Kubernetes object.
 type MockMultiPodTemplateWorkload struct {

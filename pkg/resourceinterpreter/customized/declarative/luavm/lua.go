@@ -21,9 +21,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strings"
+	"sync"
 	"time"
 
 	lua "github.com/yuin/gopher-lua"
+	"github.com/yuin/gopher-lua/parse"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
@@ -40,6 +43,8 @@ type VM struct {
 	// UseOpenLibs flag to enable open libraries. Libraries are disabled by default while running, but enabled during testing to allow the use of print statements.
 	UseOpenLibs bool
 	Pool        *fixedpool.FixedPool
+	// TODO(user): Implement a garbage collection or eviction policy for funcCache to prevent memory leaks if scripts are updated or dynamically generated.
+	funcCache sync.Map // map[string]*lua.FunctionProto
 }
 
 // New creates a manager for lua VM
@@ -53,6 +58,26 @@ func New(useOpenLibs bool, poolSize int) *VM {
 		func(a any) { a.(*lua.LState).Close() },
 		poolSize)
 	return vm
+}
+
+// compileScript parses and compiles the Lua script into a FunctionProto, caching the result to avoid redundant compilation.
+func (vm *VM) compileScript(script string) (*lua.FunctionProto, error) {
+	if value, ok := vm.funcCache.Load(script); ok {
+		return value.(*lua.FunctionProto), nil
+	}
+
+	chunk, err := parse.Parse(strings.NewReader(script), "<string>")
+	if err != nil {
+		return nil, err
+	}
+
+	proto, err := lua.Compile(chunk, "<string>")
+	if err != nil {
+		return nil, err
+	}
+
+	vm.funcCache.Store(script, proto)
+	return proto, nil
 }
 
 // NewLuaState creates a new lua state.
@@ -85,8 +110,14 @@ func (vm *VM) RunScript(script string, fnName string, nRets int, args ...any) ([
 	defer cancel()
 	l.SetContext(ctx)
 
-	err = l.DoString(script)
+	proto, err := vm.compileScript(script)
 	if err != nil {
+		return nil, err
+	}
+
+	chunkFn := l.NewFunctionFromProto(proto)
+	l.Push(chunkFn)
+	if err := l.PCall(0, lua.MultRet, nil); err != nil {
 		return nil, err
 	}
 
