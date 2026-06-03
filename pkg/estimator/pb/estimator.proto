@@ -44,7 +44,9 @@ message ComponentReplicaRequirements {
   // +optional
   optional NodeClaim nodeClaim = 1;
 
-  // reserved for deprecated resourceRequest, use resourceRequestBytes instead.
+  // Field 2 "resourceRequest" (map<string, k8s Quantity>) carried the per-replica resource
+  // requests. To drop the dependency on the K8s Quantity type, it was replaced by
+  // resourceRequestBytes. Deprecated in release-1.18 and removed in release-1.19.
   reserved 2;
   reserved "resourceRequest";
 
@@ -139,7 +141,9 @@ message MaxAvailableReplicasResponse {
 
 // NodeClaim represents the NodeAffinity, NodeSelector and Tolerations required by each replica.
 message NodeClaim {
-  // reserved for deprecated nodeAffinity, use nodeAffinityBytes instead.
+  // Field 1 "nodeAffinity" (k8s NodeSelector) carried the required node affinity.
+  // To drop the dependency on the K8s NodeSelector type, it was replaced by
+  // nodeAffinityBytes. Deprecated in release-1.18 and removed in release-1.19.
   reserved 1;
   reserved "nodeAffinity";
 
@@ -148,7 +152,9 @@ message NodeClaim {
   // +optional
   map<string, string> nodeSelector = 2;
 
-  // reserved for deprecated tolerations, use tolerationsBytes instead.
+  // Field 3 "tolerations" (repeated k8s Toleration) carried the pod tolerations.
+  // To drop the dependency on the K8s Toleration type, it was replaced by
+  // tolerationsBytes. Deprecated in release-1.18 and removed in release-1.19.
   reserved 3;
   reserved "tolerations";
 
@@ -195,7 +201,9 @@ message ReplicaRequirements {
   // +optional
   optional NodeClaim nodeClaim = 1;
 
-  // reserved for deprecated resourceRequest, use resourceRequestBytes instead.
+  // Field 2 "resourceRequest" (map<string, k8s Quantity>) carried the per-replica resource
+  // requests. To drop the dependency on the K8s Quantity type, it was replaced by
+  // resourceRequestBytes. Deprecated in release-1.18 and removed in release-1.19.
   reserved 2;
   reserved "resourceRequest";
 
