@@ -279,7 +279,7 @@ func setupControllers(ctx context.Context, mgr controllerruntime.Manager, opts *
 	rateLimiterGetter := util.GetClusterRateLimiterGetter().SetDefaultLimits(opts.ClusterAPIQPS, opts.ClusterAPIBurst)
 	clusterClientOption := &util.ClientOption{RateLimiterGetter: rateLimiterGetter.GetRateLimiter}
 
-	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSetForAgent, clusterClientOption, resourceInterpreter)
+	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSetForAgent, clusterClientOption, resourceInterpreter, genericmanager.GetInstance())
 	controllerContext := controllerscontext.Context{
 		Mgr:           mgr,
 		ObjectWatcher: objectWatcher,
@@ -345,12 +345,13 @@ func startClusterStatusController(ctx controllerscontext.Context) (bool, error) 
 
 func startExecutionController(ctx controllerscontext.Context) (bool, error) {
 	executionController := &execution.Controller{
-		Client:             ctx.Mgr.GetClient(),
-		EventRecorder:      ctx.Mgr.GetEventRecorderFor(execution.ControllerName), //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
-		RESTMapper:         ctx.Mgr.GetRESTMapper(),
-		ObjectWatcher:      ctx.ObjectWatcher,
-		InformerManager:    genericmanager.GetInstance(),
-		RateLimiterOptions: ctx.Opts.RateLimiterOptions,
+		Client:               ctx.Mgr.GetClient(),
+		EventRecorder:        ctx.Mgr.GetEventRecorderFor(execution.ControllerName), //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
+		RESTMapper:           ctx.Mgr.GetRESTMapper(),
+		ObjectWatcher:        ctx.ObjectWatcher,
+		InformerManager:      genericmanager.GetInstance(),
+		RateLimiterOptions:   ctx.Opts.RateLimiterOptions,
+		ClusterClientSetFunc: util.NewClusterDynamicClientSetForAgent,
 	}
 	if err := executionController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
@@ -365,9 +366,7 @@ func startWorkStatusController(ctx controllerscontext.Context) (bool, error) {
 		RESTMapper:                  ctx.Mgr.GetRESTMapper(),
 		InformerManager:             genericmanager.GetInstance(),
 		Context:                     ctx.Context,
-		ObjectWatcher:               ctx.ObjectWatcher,
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
-		ClusterCacheSyncTimeout:     ctx.Opts.ClusterCacheSyncTimeout,
 		ConcurrentWorkStatusSyncs:   ctx.Opts.ConcurrentWorkSyncs,
 		RateLimiterOptions:          ctx.Opts.RateLimiterOptions,
 		ResourceInterpreter:         ctx.ResourceInterpreter,

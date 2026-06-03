@@ -41,6 +41,7 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
@@ -50,10 +51,8 @@ import (
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
-	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/helper"
-	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
 	testhelper "github.com/karmada-io/karmada/test/helper"
 )
 
@@ -77,7 +76,7 @@ func newCluster(name string, clusterType string, clusterStatus metav1.ConditionS
 func TestWorkStatusController_Reconcile(t *testing.T) {
 	tests := []struct {
 		name      string
-		c         WorkStatusController
+		c         *WorkStatusController
 		work      *workv1alpha1.Work
 		ns        string
 		expectRes controllerruntime.Result
@@ -85,7 +84,7 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 	}{
 		{
 			name: "normal case",
-			c: WorkStatusController{
+			c: &WorkStatusController{
 				Client: fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(
 					&clusterv1alpha1.Cluster{
 						ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
@@ -106,10 +105,9 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 						ObjectMeta: metav1.ObjectMeta{Namespace: "ns1", Name: "secret1"},
 						Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token"), clusterv1alpha1.SecretCADataKey: testCA},
 					}).Build(),
-				InformerManager:             genericmanager.GetInstance(),
+				InformerManager:             genericmanager.NewMultiClusterInformerManager(context.Background()),
 				WorkPredicateFunc:           helper.NewClusterPredicateOnAgent("test"),
 				ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSet,
-				ClusterCacheSyncTimeout:     metav1.Duration{},
 				RateLimiterOptions:          ratelimiterflag.Options{},
 			},
 			work: &workv1alpha1.Work{
@@ -132,12 +130,11 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 		},
 		{
 			name: "work not exists",
-			c: WorkStatusController{
+			c: &WorkStatusController{
 				Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)).Build(),
-				InformerManager:             genericmanager.GetInstance(),
+				InformerManager:             genericmanager.NewMultiClusterInformerManager(context.Background()),
 				WorkPredicateFunc:           helper.NewClusterPredicateOnAgent("test"),
 				ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
-				ClusterCacheSyncTimeout:     metav1.Duration{},
 				RateLimiterOptions:          ratelimiterflag.Options{},
 			},
 			work: &workv1alpha1.Work{
@@ -160,12 +157,11 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 		},
 		{
 			name: "work's DeletionTimestamp isn't zero",
-			c: WorkStatusController{
+			c: &WorkStatusController{
 				Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)).Build(),
-				InformerManager:             genericmanager.GetInstance(),
+				InformerManager:             genericmanager.NewMultiClusterInformerManager(context.Background()),
 				WorkPredicateFunc:           helper.NewClusterPredicateOnAgent("test"),
 				ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
-				ClusterCacheSyncTimeout:     metav1.Duration{},
 				RateLimiterOptions:          ratelimiterflag.Options{},
 			},
 			work: &workv1alpha1.Work{
@@ -173,6 +169,7 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 					Name:              "work",
 					Namespace:         "karmada-es-cluster",
 					DeletionTimestamp: &metav1.Time{Time: time.Now()},
+					Finalizers:        []string{"karmada.io/block-deletion"},
 				},
 				Status: workv1alpha1.WorkStatus{
 					Conditions: []metav1.Condition{
@@ -189,12 +186,11 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 		},
 		{
 			name: "work's status is not applied",
-			c: WorkStatusController{
+			c: &WorkStatusController{
 				Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)).Build(),
-				InformerManager:             genericmanager.GetInstance(),
+				InformerManager:             genericmanager.NewMultiClusterInformerManager(context.Background()),
 				WorkPredicateFunc:           helper.NewClusterPredicateOnAgent("test"),
 				ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
-				ClusterCacheSyncTimeout:     metav1.Duration{},
 				RateLimiterOptions:          ratelimiterflag.Options{},
 			},
 			work: &workv1alpha1.Work{
@@ -217,12 +213,11 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 		},
 		{
 			name: "failed to get cluster name",
-			c: WorkStatusController{
+			c: &WorkStatusController{
 				Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)).Build(),
-				InformerManager:             genericmanager.GetInstance(),
+				InformerManager:             genericmanager.NewMultiClusterInformerManager(context.Background()),
 				WorkPredicateFunc:           helper.NewClusterPredicateOnAgent("test"),
 				ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
-				ClusterCacheSyncTimeout:     metav1.Duration{},
 				RateLimiterOptions:          ratelimiterflag.Options{},
 			},
 			work: &workv1alpha1.Work{
@@ -245,12 +240,11 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 		},
 		{
 			name: "failed to get cluster",
-			c: WorkStatusController{
+			c: &WorkStatusController{
 				Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(newCluster("cluster1", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)).Build(),
-				InformerManager:             genericmanager.GetInstance(),
+				InformerManager:             genericmanager.NewMultiClusterInformerManager(context.Background()),
 				WorkPredicateFunc:           helper.NewClusterPredicateOnAgent("test"),
 				ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
-				ClusterCacheSyncTimeout:     metav1.Duration{},
 				RateLimiterOptions:          ratelimiterflag.Options{},
 			},
 			work: &workv1alpha1.Work{
@@ -273,12 +267,11 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 		},
 		{
 			name: "cluster is not ready",
-			c: WorkStatusController{
+			c: &WorkStatusController{
 				Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse)).Build(),
-				InformerManager:             genericmanager.GetInstance(),
+				InformerManager:             genericmanager.NewMultiClusterInformerManager(context.Background()),
 				WorkPredicateFunc:           helper.NewClusterPredicateOnAgent("test"),
 				ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
-				ClusterCacheSyncTimeout:     metav1.Duration{},
 				RateLimiterOptions:          ratelimiterflag.Options{},
 			},
 			work: &workv1alpha1.Work{
@@ -310,8 +303,19 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 				},
 			}
 
+			wantDeleted := !tt.work.DeletionTimestamp.IsZero()
 			if err := tt.c.Client.Create(context.Background(), tt.work); err != nil {
 				t.Fatalf("Failed to create cluster: %v", err)
+			}
+
+			// The fake client strips DeletionTimestamp during Create. When the test
+			// case wants the Work to be in terminating state, issue a Delete after
+			// Create — the preset finalizer keeps the object around and the fake
+			// client sets DeletionTimestamp on the stored copy.
+			if wantDeleted {
+				if err := tt.c.Client.Delete(context.Background(), tt.work); err != nil {
+					t.Fatalf("Failed to delete work to set DeletionTimestamp: %v", err)
+				}
 			}
 
 			res, err := tt.c.Reconcile(context.Background(), req)
@@ -334,10 +338,9 @@ func TestWorkStatusController_getEventHandler(t *testing.T) {
 
 	c := WorkStatusController{
 		Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse)).Build(),
-		InformerManager:             genericmanager.GetInstance(),
+		InformerManager:             genericmanager.NewMultiClusterInformerManager(context.Background()),
 		WorkPredicateFunc:           helper.NewClusterPredicateOnAgent("test"),
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
-		ClusterCacheSyncTimeout:     metav1.Duration{},
 		RateLimiterOptions:          ratelimiterflag.Options{},
 		eventHandler:                nil,
 		worker:                      util.NewAsyncWorker(opt),
@@ -350,10 +353,9 @@ func TestWorkStatusController_getEventHandler(t *testing.T) {
 func TestWorkStatusController_RunWorkQueue(_ *testing.T) {
 	c := WorkStatusController{
 		Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse)).Build(),
-		InformerManager:             genericmanager.GetInstance(),
+		InformerManager:             genericmanager.NewMultiClusterInformerManager(context.Background()),
 		WorkPredicateFunc:           helper.NewClusterPredicateOnAgent("test"),
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
-		ClusterCacheSyncTimeout:     metav1.Duration{},
 		RateLimiterOptions:          ratelimiterflag.Options{},
 		eventHandler:                nil,
 		Context:                     context.Background(),
@@ -565,138 +567,123 @@ func newPod(workNs, workName string, wrongAnnotations ...bool) *corev1.Pod {
 	return pod
 }
 
+func newPodWithoutWorkNS(workName string) *corev1.Pod {
+	return &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "pod",
+			Namespace: "default",
+			Annotations: map[string]string{
+				workv1alpha2.WorkNameAnnotation: workName,
+			},
+		},
+	}
+}
+
 func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 	cluster := newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse)
 	workName := "work"
 	workNs := "karmada-es-cluster"
 	workUID := "92345678-1234-5678-1234-567812345678"
+	matchingManifest := []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`)
+	mismatchedManifest := []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod1","namespace":"default"}}`)
 
 	tests := []struct {
-		name                      string
-		obj                       *unstructured.Unstructured
-		pod                       *corev1.Pod
-		raw                       []byte
-		controllerWithoutInformer bool
-		expectedError             bool
-		wrongWorkNS               bool
-		workApplyFunc             func(work *workv1alpha1.Work)
-		assertFunc                func(t *testing.T, dynamicClientSets *dynamicfake.FakeDynamicClient)
+		name                 string
+		obj                  *unstructured.Unstructured
+		pod                  *corev1.Pod
+		raw                  []byte
+		registerInformer     bool
+		invalidKey           util.QueueKey
+		clientGetError       error
+		workApplyFunc        func(work *workv1alpha1.Work)
+		expectedError        bool
+		expectManifestStatus bool
 	}{
 		{
-			name:                      "failed to exec NeedUpdate",
-			obj:                       newPodObj("karmada-es-cluster"),
-			pod:                       newPod(workNs, workName),
-			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
-			controllerWithoutInformer: true,
-			expectedError:             true,
+			name:             "key is not a FederatedKey, returns error",
+			invalidKey:       util.QueueKey("not-a-federated-key"),
+			obj:              newPodObj(workNs),
+			pod:              newPod(workNs, workName),
+			raw:              matchingManifest,
+			registerInformer: true,
+			expectedError:    true,
 		},
 		{
-			name:                      "invalid key, wrong WorkNamespaceLabel in obj",
-			obj:                       newPodObj("karmada-cluster"),
-			pod:                       newPod(workNs, workName),
-			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
-			controllerWithoutInformer: true,
-			expectedError:             true,
+			name:             "informer manager has no cluster, returns error",
+			obj:              newPodObj(workNs),
+			pod:              newPod(workNs, workName),
+			raw:              matchingManifest,
+			registerInformer: false,
+			expectedError:    true,
 		},
 		{
-			name:                      "failed to GetObjectFromCache, wrong InformerManager in WorkStatusController",
-			obj:                       newPodObj("karmada-es-cluster"),
-			pod:                       newPod(workNs, workName),
-			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
-			controllerWithoutInformer: false,
-			expectedError:             true,
+			name:             "obj not found in informer cache, returns nil",
+			obj:              newPodObj(workNs),
+			raw:              matchingManifest,
+			registerInformer: true,
+			expectedError:    false,
 		},
 		{
-			name:                      "obj not found in informer, wrong dynamicClientSet without pod",
-			obj:                       newPodObj("karmada-es-cluster"),
-			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
-			controllerWithoutInformer: true,
-			expectedError:             false,
+			name:             "obj missing WorkNamespaceAnnotation, ignored",
+			obj:              newPodObj(workNs),
+			pod:              newPodWithoutWorkNS(workName),
+			raw:              matchingManifest,
+			registerInformer: true,
+			expectedError:    false,
 		},
 		{
-			name:                      "workNamespace is zero, set wrong label 'test' in pod",
-			obj:                       newPodObj("karmada-es-cluster"),
-			pod:                       newPod(workNs, workName, true),
-			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
-			controllerWithoutInformer: true,
-			expectedError:             false,
-		},
-		{
-			name:                      "failed to exec Client.Get, set wrong name in work",
-			obj:                       newPodObj("karmada-es-cluster"),
-			pod:                       newPod(workNs, workName),
-			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
-			controllerWithoutInformer: true,
-			expectedError:             false,
+			name:             "work not found in client, returns nil",
+			obj:              newPodObj(workNs),
+			pod:              newPod(workNs, workName),
+			raw:              matchingManifest,
+			registerInformer: true,
+			expectedError:    false,
 			workApplyFunc: func(work *workv1alpha1.Work) {
 				work.SetName(fmt.Sprintf("%v-test", workNs))
 			},
 		},
 		{
-			name:                      "failed to getRawManifest, wrong Manifests in work",
-			obj:                       newPodObj("karmada-es-cluster"),
-			pod:                       newPod(workNs, workName),
-			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod1","namespace":"default"}}`),
-			controllerWithoutInformer: true,
-			expectedError:             true,
+			name:             "client.Get returns non-NotFound error, propagates",
+			obj:              newPodObj(workNs),
+			pod:              newPod(workNs, workName),
+			raw:              matchingManifest,
+			registerInformer: true,
+			clientGetError:   apierrors.NewServiceUnavailable("api down"),
+			expectedError:    true,
 		},
 		{
-			name:                      "failed to exec GetClusterName, wrong workNamespace",
-			obj:                       newPodObj("karmada-es-cluster"),
-			pod:                       newPod(workNs, workName),
-			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
-			controllerWithoutInformer: true,
-			expectedError:             true,
-			wrongWorkNS:               true,
+			name:             "reflectStatus fails when manifest does not match observed object",
+			obj:              newPodObj(workNs),
+			pod:              newPod(workNs, workName),
+			raw:              mismatchedManifest,
+			registerInformer: true,
+			expectedError:    true,
 		},
 		{
-			name:                      "skips work with suspend dispatching",
-			obj:                       newPodObj("karmada-es-cluster"),
-			pod:                       newPod(workNs, workName),
-			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
-			controllerWithoutInformer: true,
-			expectedError:             false,
-			workApplyFunc: func(work *workv1alpha1.Work) {
-				work.Spec.SuspendDispatching = new(true)
-			},
-		},
-		{
-			name:                      "skips work with deletion timestamp",
-			obj:                       newPodObj("karmada-es-cluster"),
-			pod:                       newPod(workNs, workName),
-			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
-			controllerWithoutInformer: true,
-			expectedError:             false,
+
+			name:             "skips work with deletion timestamp",
+			obj:              newPodObj(workNs),
+			pod:              newPod(workNs, workName),
+			raw:              matchingManifest,
+			registerInformer: true,
+			expectedError:    false,
 			workApplyFunc: func(work *workv1alpha1.Work) {
 				work.SetDeletionTimestamp(new(metav1.Now()))
 			},
 		},
 		{
-			name:                      "resource not found, work suspendDispatching true, should not recreate resource",
-			obj:                       newPodObj("karmada-es-cluster"),
-			pod:                       nil, // Simulate the resource does not exist in the member cluster
-			raw:                       []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`),
-			controllerWithoutInformer: true,
-			expectedError:             false,
-			workApplyFunc: func(work *workv1alpha1.Work) {
-				work.Spec.SuspendDispatching = new(true)
-			},
-			assertFunc: func(t *testing.T, dynamicClientSets *dynamicfake.FakeDynamicClient) {
-				gvr := corev1.SchemeGroupVersion.WithResource("pods")
-				obj, err := dynamicClientSets.Resource(gvr).Namespace("default").Get(context.Background(), "pod", metav1.GetOptions{})
-				assert.True(t, apierrors.IsNotFound(err), "expected a NotFound error but got: %s", err)
-				assert.Nil(t, obj)
-			},
+			name:                 "happy path updates work ManifestStatuses",
+			obj:                  newPodObj(workNs),
+			pod:                  newPod(workNs, workName),
+			raw:                  matchingManifest,
+			registerInformer:     true,
+			expectedError:        false,
+			expectManifestStatus: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.wrongWorkNS {
-				workNs = "karmada-cluster"
-				tt.pod = newPod(workNs, workName)
-			}
-
 			var dynamicClientSet *dynamicfake.FakeDynamicClient
 			if tt.pod != nil {
 				dynamicClientSet = dynamicfake.NewSimpleDynamicClient(scheme.Scheme, tt.pod)
@@ -704,8 +691,8 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 				dynamicClientSet = dynamicfake.NewSimpleDynamicClient(scheme.Scheme)
 			}
 
-			var c WorkStatusController
-			if tt.controllerWithoutInformer {
+			var c *WorkStatusController
+			if tt.registerInformer {
 				c = newWorkStatusController(cluster, dynamicClientSet)
 			} else {
 				c = newWorkStatusController(cluster)
@@ -715,11 +702,30 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 			if tt.workApplyFunc != nil {
 				tt.workApplyFunc(work)
 			}
-
-			key, _ := generateKey(tt.obj)
-
 			if err := c.Client.Create(context.Background(), work); err != nil {
 				t.Fatalf("Failed to create work: %v", err)
+			}
+
+			if tt.clientGetError != nil {
+				c.Client = fake.NewClientBuilder().
+					WithScheme(gclient.NewSchema()).
+					WithObjects(cluster, work).
+					WithStatusSubresource(&workv1alpha1.Work{}).
+					WithInterceptorFuncs(interceptor.Funcs{
+						Get: func(_ context.Context, _ client.WithWatch, _ client.ObjectKey, obj client.Object, _ ...client.GetOption) error {
+							if _, ok := obj.(*workv1alpha1.Work); ok {
+								return tt.clientGetError
+							}
+							return nil
+						},
+					}).Build()
+			}
+
+			var key util.QueueKey
+			if tt.invalidKey != nil {
+				key = tt.invalidKey
+			} else {
+				key, _ = generateKey(tt.obj)
 			}
 
 			err := c.syncWorkStatus(key)
@@ -729,20 +735,54 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
-			if tt.assertFunc != nil {
-				tt.assertFunc(t, dynamicClientSet)
+			if tt.expectManifestStatus {
+				updated := &workv1alpha1.Work{}
+				assert.NoError(t, c.Client.Get(context.Background(), client.ObjectKey{Namespace: workNs, Name: workName}, updated))
+				assert.Lenf(t, updated.Status.ManifestStatuses, 1, "expected one manifest status")
+				assert.Equal(t, "Pod", updated.Status.ManifestStatuses[0].Identifier.Kind)
+				assert.Equal(t, "pod", updated.Status.ManifestStatuses[0].Identifier.Name)
 			}
 		})
 	}
 }
 
-func newWorkStatusController(cluster *clusterv1alpha1.Cluster, dynamicClientSets ...*dynamicfake.FakeDynamicClient) WorkStatusController {
-	c := WorkStatusController{
-		Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(cluster).WithStatusSubresource().Build(),
-		InformerManager:             genericmanager.GetInstance(),
+func TestWorkStatusController_buildResourceInformers(t *testing.T) {
+	cluster := newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)
+	raw := []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`)
+	work := testhelper.NewWork("work", "karmada-es-cluster", "92345678-1234-5678-1234-567812345678", raw)
+	dynamicClientSet := dynamicfake.NewSimpleDynamicClient(scheme.Scheme, newPod("karmada-es-cluster", "work"))
+
+	t.Run("registers informer and requeues before cache sync", func(t *testing.T) {
+		c := newWorkStatusController(cluster)
+		c.ClusterDynamicClientSetFunc = func(clusterName string, _ client.Client, _ *util.ClientOption) (*util.DynamicClusterClient, error) {
+			return &util.DynamicClusterClient{ClusterName: clusterName, DynamicClientSet: dynamicClientSet}, nil
+		}
+
+		res, err := c.buildResourceInformers(cluster, work)
+		assert.NoError(t, err)
+		assert.Equal(t, controllerruntime.Result{RequeueAfter: memberInformerNotSyncedRequeueAfter}, res)
+
+		singleClusterManager := c.InformerManager.GetSingleClusterManager(cluster.Name)
+		assert.NotNil(t, singleClusterManager)
+		assert.True(t, singleClusterManager.IsHandlerExist(corev1.SchemeGroupVersion.WithResource("pods"), c.getEventHandler()))
+	})
+
+	t.Run("returns error for invalid manifest", func(t *testing.T) {
+		c := newWorkStatusController(cluster, dynamicClientSet)
+		invalidWork := testhelper.NewWork("work", "karmada-es-cluster", "92345678-1234-5678-1234-567812345678", []byte(`{"apiVersion":"v1","kind":"Pod"},`))
+
+		res, err := c.buildResourceInformers(cluster, invalidWork)
+		assert.Error(t, err)
+		assert.Equal(t, controllerruntime.Result{}, res)
+	})
+}
+
+func newWorkStatusController(cluster *clusterv1alpha1.Cluster, dynamicClientSets ...*dynamicfake.FakeDynamicClient) *WorkStatusController {
+	c := &WorkStatusController{
+		Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(cluster).WithStatusSubresource(&workv1alpha1.Work{}).Build(),
+		InformerManager:             genericmanager.NewMultiClusterInformerManager(context.Background()),
 		WorkPredicateFunc:           helper.NewClusterPredicateOnAgent("test"),
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
-		ClusterCacheSyncTimeout:     metav1.Duration{},
 		RateLimiterOptions:          ratelimiterflag.Options{},
 		eventHandler:                nil,
 		EventRecorder:               record.NewFakeRecorder(1024),
@@ -755,10 +795,14 @@ func newWorkStatusController(cluster *clusterv1alpha1.Cluster, dynamicClientSets
 			DefaultInterpreter: native.NewDefaultInterpreter(),
 		},
 	}
+	c.worker = util.NewAsyncWorker(util.Options{
+		Name:          "work-status-test",
+		KeyFunc:       generateKey,
+		ReconcileFunc: c.syncWorkStatus,
+	})
 
 	if len(dynamicClientSets) > 0 {
 		c.ResourceInterpreter = FakeResourceInterpreter{DefaultInterpreter: native.NewDefaultInterpreter()}
-		c.ObjectWatcher = objectwatcher.NewObjectWatcher(c.Client, c.RESTMapper, util.NewClusterDynamicClientSetForAgent, nil, c.ResourceInterpreter)
 
 		// Generate InformerManager
 		clusterName := cluster.Name
@@ -776,153 +820,12 @@ func newWorkStatusController(cluster *clusterv1alpha1.Cluster, dynamicClientSets
 	return c
 }
 
-func TestWorkStatusController_getSingleClusterManager(t *testing.T) {
-	clusterName := "cluster"
-	cluster := newCluster(clusterName, clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)
-
-	// Generate InformerManager
-	ctx := t.Context()
-
-	dynamicClientSet := dynamicfake.NewSimpleDynamicClient(scheme.Scheme)
-
-	tests := []struct {
-		name                             string
-		rightClusterName                 bool
-		expectInformer                   bool
-		expectError                      bool
-		wrongClusterDynamicClientSetFunc bool
-	}{
-		{
-			name:             "normal case",
-			rightClusterName: true,
-			expectInformer:   true,
-			expectError:      false,
-		},
-		{
-			name:                             "failed to build dynamic cluster client",
-			rightClusterName:                 false,
-			expectInformer:                   false,
-			expectError:                      true,
-			wrongClusterDynamicClientSetFunc: true,
-		},
-		{
-			name:             "failed to get single cluster",
-			rightClusterName: false,
-			expectInformer:   true,
-			expectError:      false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c := newWorkStatusController(cluster)
-			m := genericmanager.NewMultiClusterInformerManager(ctx)
-			if tt.rightClusterName {
-				m.ForCluster(clusterName, dynamicClientSet, 0).Lister(corev1.SchemeGroupVersion.WithResource("pods"))
-			} else {
-				m.ForCluster("test", dynamicClientSet, 0).Lister(corev1.SchemeGroupVersion.WithResource("pods"))
-			}
-			m.Start(clusterName)
-			m.WaitForCacheSync(clusterName)
-			c.InformerManager = m
-
-			if tt.wrongClusterDynamicClientSetFunc {
-				c.ClusterDynamicClientSetFunc = NewClusterDynamicClientSetForAgentWithError
-			} else {
-				c.ClusterDynamicClientSetFunc = util.NewClusterDynamicClientSet
-				c.Client = fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(
-					&clusterv1alpha1.Cluster{
-						ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
-						Spec: clusterv1alpha1.ClusterSpec{
-							APIEndpoint: "https://127.0.0.1",
-							SecretRef:   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
-						},
-						Status: clusterv1alpha1.ClusterStatus{
-							Conditions: []metav1.Condition{
-								{
-									Type:   clusterv1alpha1.ClusterConditionReady,
-									Status: metav1.ConditionTrue,
-								},
-							},
-						},
-					},
-					&corev1.Secret{
-						ObjectMeta: metav1.ObjectMeta{Namespace: "ns1", Name: "secret1"},
-						Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token"), clusterv1alpha1.SecretCADataKey: testCA},
-					}).Build()
-			}
-
-			informerManager, err := c.getSingleClusterManager(cluster)
-
-			if tt.expectInformer {
-				assert.NotEmpty(t, informerManager)
-			} else {
-				assert.Empty(t, informerManager)
-			}
-
-			if tt.expectError {
-				assert.NotEmpty(t, err)
-			} else {
-				assert.Empty(t, err)
-			}
-		})
-	}
-}
-
-func TestWorkStatusController_recreateResourceIfNeeded(t *testing.T) {
-	c := WorkStatusController{
-		Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)).Build(),
-		InformerManager:             genericmanager.GetInstance(),
-		WorkPredicateFunc:           helper.NewClusterPredicateOnAgent("test"),
-		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
-		ClusterCacheSyncTimeout:     metav1.Duration{},
-		RateLimiterOptions:          ratelimiterflag.Options{},
-	}
-
-	workUID := "92345678-1234-5678-1234-567812345678"
-	raw := []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`)
-	work := testhelper.NewWork("work", "default", workUID, raw)
-
-	obj := &unstructured.Unstructured{
-		Object: map[string]any{
-			"apiVersion": "v1",
-			"kind":       "Pod",
-			"metadata": map[string]any{
-				"name":      "pod1",
-				"namespace": "default",
-				"annotations": map[string]any{
-					workv1alpha2.WorkNamespaceAnnotation: "karmada-es-cluster",
-				},
-			},
-		},
-	}
-
-	key, _ := generateKey(obj)
-
-	fedKey, ok := key.(keys.FederatedKey)
-	if !ok {
-		t.Fatalf("Invalid key, key: %v", key)
-	}
-
-	t.Run("normal case", func(t *testing.T) {
-		err := c.recreateResourceIfNeeded(context.Background(), work, fedKey)
-		assert.Empty(t, err)
-	})
-
-	t.Run("failed to UnmarshalJSON", func(t *testing.T) {
-		work.Spec.Workload.Manifests[0].RawExtension.Raw = []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}},`)
-		err := c.recreateResourceIfNeeded(context.Background(), work, fedKey)
-		assert.NotEmpty(t, err)
-	})
-}
-
 func TestWorkStatusController_buildStatusIdentifier(t *testing.T) {
 	c := WorkStatusController{
 		Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)).Build(),
-		InformerManager:             genericmanager.GetInstance(),
+		InformerManager:             genericmanager.NewMultiClusterInformerManager(context.Background()),
 		WorkPredicateFunc:           helper.NewClusterPredicateOnAgent("test"),
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
-		ClusterCacheSyncTimeout:     metav1.Duration{},
 		RateLimiterOptions:          ratelimiterflag.Options{},
 	}
 
@@ -980,10 +883,9 @@ func TestWorkStatusController_buildStatusIdentifier(t *testing.T) {
 func TestWorkStatusController_mergeStatus(t *testing.T) {
 	c := WorkStatusController{
 		Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)).Build(),
-		InformerManager:             genericmanager.GetInstance(),
+		InformerManager:             genericmanager.NewMultiClusterInformerManager(context.Background()),
 		WorkPredicateFunc:           helper.NewClusterPredicateOnAgent("test"),
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
-		ClusterCacheSyncTimeout:     metav1.Duration{},
 		RateLimiterOptions:          ratelimiterflag.Options{},
 	}
 
@@ -992,63 +894,6 @@ func TestWorkStatusController_mergeStatus(t *testing.T) {
 	}
 	actual := c.mergeStatus([]workv1alpha1.ManifestStatus{}, newStatus)
 	assert.Equal(t, []workv1alpha1.ManifestStatus{newStatus}, actual)
-}
-
-func TestWorkStatusController_registerInformersAndStart(t *testing.T) {
-	clusterName := "cluster"
-	cluster := newCluster(clusterName, clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)
-
-	// Generate InformerManager
-	ctx := t.Context()
-	dynamicClientSet := dynamicfake.NewSimpleDynamicClient(scheme.Scheme)
-	c := newWorkStatusController(cluster)
-	opt := util.Options{
-		Name:          "opt",
-		KeyFunc:       nil,
-		ReconcileFunc: nil,
-	}
-	c.worker = util.NewAsyncWorker(opt)
-
-	workUID := "92345678-1234-5678-1234-567812345678"
-	raw := []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}}`)
-	work := testhelper.NewWork("work", "default", workUID, raw)
-
-	t.Run("normal case", func(t *testing.T) {
-		m := genericmanager.NewMultiClusterInformerManager(ctx)
-		m.ForCluster(clusterName, dynamicClientSet, 0).Lister(corev1.SchemeGroupVersion.WithResource("pods")) // register pod informer
-		m.Start(clusterName)
-		m.WaitForCacheSync(clusterName)
-		c.InformerManager = m
-
-		err := c.registerInformersAndStart(cluster, work)
-		assert.Empty(t, err)
-	})
-
-	t.Run("failed to getSingleClusterManager", func(t *testing.T) {
-		c := newWorkStatusController(cluster)
-		m := genericmanager.NewMultiClusterInformerManager(ctx)
-		m.ForCluster("test", dynamicClientSet, 0).Lister(corev1.SchemeGroupVersion.WithResource("pods")) // register pod informer
-		m.Start(clusterName)
-		m.WaitForCacheSync(clusterName)
-		c.InformerManager = m
-		c.ClusterDynamicClientSetFunc = NewClusterDynamicClientSetForAgentWithError
-
-		err := c.registerInformersAndStart(cluster, work)
-		assert.NotEmpty(t, err)
-	})
-
-	t.Run("failed to getGVRsFromWork", func(t *testing.T) {
-		work.Spec.Workload.Manifests[0].RawExtension.Raw = []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}},`)
-
-		m := genericmanager.NewMultiClusterInformerManager(ctx)
-		m.ForCluster(clusterName, dynamicClientSet, 0).Lister(corev1.SchemeGroupVersion.WithResource("pods")) // register pod informer
-		m.Start(clusterName)
-		m.WaitForCacheSync(clusterName)
-		c.InformerManager = m
-
-		err := c.registerInformersAndStart(cluster, work)
-		assert.NotEmpty(t, err)
-	})
 }
 
 func TestWorkStatusController_interpretHealth(t *testing.T) {
