@@ -206,7 +206,7 @@ func TestCompileScriptCaching(t *testing.T) {
 	}
 
 	count := 0
-	vm.funcCache.Range(func(key, value any) bool {
+	vm.funcCache.Range(func(_, _ any) bool {
 		count++
 		return true
 	})
@@ -250,7 +250,7 @@ func TestRunScriptCaching(t *testing.T) {
 	}
 
 	count := 0
-	vm.funcCache.Range(func(key, value any) bool {
+	vm.funcCache.Range(func(_, _ any) bool {
 		count++
 		return true
 	})
