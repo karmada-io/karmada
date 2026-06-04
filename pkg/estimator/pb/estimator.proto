@@ -18,9 +18,6 @@ syntax = "proto3";
 
 package github.com.karmada_io.karmada.pkg.estimator.pb;
 
-import "k8s.io/api/core/v1/generated.proto";
-import "k8s.io/apimachinery/pkg/api/resource/generated.proto";
-
 // Package-wide variables.
 option go_package = "github.com/karmada-io/karmada/pkg/estimator/pb";
 
@@ -47,10 +44,11 @@ message ComponentReplicaRequirements {
   // +optional
   optional NodeClaim nodeClaim = 1;
 
-  // ResourceRequest represents the resources required by each replica.
-  // Deprecated: Writers should set this field and resourceRequestBytes. Readers should prefer resourceRequestBytes if set.
-  // +optional
-  map<string, .k8s.io.apimachinery.pkg.api.resource.Quantity> resourceRequest = 2 [deprecated = true];
+  // Field 2 "resourceRequest" (map<string, k8s Quantity>) carried the per-replica resource
+  // requests. To drop the dependency on the K8s Quantity type, it was replaced by
+  // resourceRequestBytes. Deprecated in release-1.18 and removed in release-1.19.
+  reserved 2;
+  reserved "resourceRequest";
 
   // PriorityClassName represents the priority class name for a given ResourceRequest.
   // It is used by the resource quota estimator to check quota constraints, as ResourceQuota supports priority class as a scope.
@@ -143,23 +141,22 @@ message MaxAvailableReplicasResponse {
 
 // NodeClaim represents the NodeAffinity, NodeSelector and Tolerations required by each replica.
 message NodeClaim {
-  // A node selector represents the union of the results of one or more label queries over a set of
-  // nodes; that is, it represents the OR of the selectors represented by the node selector terms.
-  // Note that only PodSpec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution
-  // is included here because it has a hard limit on pod scheduling.
-  // Deprecated: Writers should set this field and nodeAffinityBytes. Readers should prefer nodeAffinityBytes if set.
-  // +optional
-  optional .k8s.io.api.core.v1.NodeSelector nodeAffinity = 1 [deprecated = true];
+  // Field 1 "nodeAffinity" (k8s NodeSelector) carried the required node affinity.
+  // To drop the dependency on the K8s NodeSelector type, it was replaced by
+  // nodeAffinityBytes. Deprecated in release-1.18 and removed in release-1.19.
+  reserved 1;
+  reserved "nodeAffinity";
 
   // NodeSelector is a selector which must be true for the pod to fit on a node.
   // Selector which must match a node's labels for the pod to be scheduled on that node.
   // +optional
   map<string, string> nodeSelector = 2;
 
-  // If specified, the pod's tolerations.
-  // Deprecated: Writers should set this field and tolerationsBytes. Readers should prefer tolerationsBytes if set.
-  // +optional
-  repeated .k8s.io.api.core.v1.Toleration tolerations = 3 [deprecated = true];
+  // Field 3 "tolerations" (repeated k8s Toleration) carried the pod tolerations.
+  // To drop the dependency on the K8s Toleration type, it was replaced by
+  // tolerationsBytes. Deprecated in release-1.18 and removed in release-1.19.
+  reserved 3;
+  reserved "tolerations";
 
   // NodeAffinityBytes represents the node affinity in bytes.
   // NodeAffinityBytes is a proto-serialized corev1.NodeSelector object.
@@ -204,10 +201,11 @@ message ReplicaRequirements {
   // +optional
   optional NodeClaim nodeClaim = 1;
 
-  // ResourceRequest represents the resources required by each replica.
-  // Deprecated: Writers should set this field and resourceRequestBytes. Readers should prefer resourceRequestBytes if set.
-  // +optional
-  map<string, .k8s.io.apimachinery.pkg.api.resource.Quantity> resourceRequest = 2 [deprecated = true];
+  // Field 2 "resourceRequest" (map<string, k8s Quantity>) carried the per-replica resource
+  // requests. To drop the dependency on the K8s Quantity type, it was replaced by
+  // resourceRequestBytes. Deprecated in release-1.18 and removed in release-1.19.
+  reserved 2;
+  reserved "resourceRequest";
 
   // Namespace represents the namespaces belonged to a ResourceRequest
   // +optional

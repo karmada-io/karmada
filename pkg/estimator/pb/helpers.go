@@ -21,15 +21,12 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
-// SetNodeAffinity marshals the given NodeSelector into both NodeAffinity (deprecated) and NodeAffinityBytes fields.
+// SetNodeAffinity marshals the given NodeSelector into NodeAffinityBytes field.
 func (n *NodeClaim) SetNodeAffinity(s *corev1.NodeSelector) error {
 	if s == nil {
-		n.NodeAffinity = nil
 		n.NodeAffinityBytes = nil
 		return nil
 	}
-	// Set the old field directly
-	n.NodeAffinity = s
 
 	// Set the new field by marshaling
 	b, err := s.Marshal()
@@ -40,12 +37,12 @@ func (n *NodeClaim) SetNodeAffinity(s *corev1.NodeSelector) error {
 	return nil
 }
 
-// UnmarshalNodeAffinity unmarshals the NodeAffinityBytes field (or NodeAffinity field as fallback) into a NodeSelector.
+// UnmarshalNodeAffinity unmarshals the NodeAffinityBytes field into a NodeSelector.
 func (n *NodeClaim) UnmarshalNodeAffinity() (*corev1.NodeSelector, error) {
 	if n == nil {
 		return nil, nil
 	}
-	// 1. Try new field first
+
 	if len(n.NodeAffinityBytes) > 0 {
 		s := &corev1.NodeSelector{}
 		if err := s.Unmarshal(n.NodeAffinityBytes); err != nil {
@@ -54,33 +51,16 @@ func (n *NodeClaim) UnmarshalNodeAffinity() (*corev1.NodeSelector, error) {
 		return s, nil
 	}
 
-	// 2. Fallback to old field
-	if n.NodeAffinity != nil {
-		return n.NodeAffinity, nil
-	}
-
 	return nil, nil
 }
 
-// SetTolerations marshals the given Tolerations into both Tolerations (deprecated) and TolerationsBytes fields.
+// SetTolerations marshals the given Tolerations into TolerationsBytes field.
 func (n *NodeClaim) SetTolerations(ts []corev1.Toleration) error {
-	if ts == nil {
-		n.Tolerations = nil
+	if len(ts) == 0 {
 		n.TolerationsBytes = nil
 		return nil
 	}
 
-	// Set old field
-	// Note: In the generated code, repeated message fields are slices of pointers ([]*corev1.Toleration)
-	// We need to convert []corev1.Toleration to []*corev1.Toleration
-	n.Tolerations = make([]*corev1.Toleration, len(ts))
-	for i := range ts {
-		// Deep copy to avoid sharing pointers if necessary, or just take address
-		t := ts[i]
-		n.Tolerations[i] = &t
-	}
-
-	// Set new field
 	n.TolerationsBytes = make([][]byte, len(ts))
 	for i, t := range ts {
 		b, err := t.Marshal()
@@ -92,12 +72,12 @@ func (n *NodeClaim) SetTolerations(ts []corev1.Toleration) error {
 	return nil
 }
 
-// UnmarshalTolerations unmarshals the TolerationsBytes field (or Tolerations field as fallback) into a slice of Tolerations.
+// UnmarshalTolerations unmarshals the TolerationsBytes field into a slice of Tolerations.
 func (n *NodeClaim) UnmarshalTolerations() ([]corev1.Toleration, error) {
 	if n == nil {
 		return nil, nil
 	}
-	// 1. Try new field first
+
 	if len(n.TolerationsBytes) > 0 {
 		ts := make([]corev1.Toleration, len(n.TolerationsBytes))
 		for i, b := range n.TolerationsBytes {
@@ -108,33 +88,14 @@ func (n *NodeClaim) UnmarshalTolerations() ([]corev1.Toleration, error) {
 		return ts, nil
 	}
 
-	// 2. Fallback to old field
-	if len(n.Tolerations) > 0 {
-		ts := make([]corev1.Toleration, len(n.Tolerations))
-		for i, t := range n.Tolerations {
-			if t != nil {
-				ts[i] = *t
-			}
-		}
-		return ts, nil
-	}
-
 	return nil, nil
 }
 
-// SetResourceRequest marshals the given ResourceList into both ResourceRequest (deprecated) and ResourceRequestBytes fields.
+// SetResourceRequest marshals the given ResourceList into ResourceRequestBytes field.
 func (r *ReplicaRequirements) SetResourceRequest(res corev1.ResourceList) error {
-	if res == nil {
-		r.ResourceRequest = nil
+	if len(res) == 0 {
 		r.ResourceRequestBytes = nil
 		return nil
-	}
-
-	// Set old field
-	r.ResourceRequest = make(map[string]*resource.Quantity)
-	for k, v := range res {
-		q := v // copy
-		r.ResourceRequest[string(k)] = &q
 	}
 
 	// Set new field
@@ -149,12 +110,12 @@ func (r *ReplicaRequirements) SetResourceRequest(res corev1.ResourceList) error 
 	return nil
 }
 
-// UnmarshalResourceRequest unmarshals the ResourceRequestBytes field (or ResourceRequest field as fallback) into a ResourceList.
+// UnmarshalResourceRequest unmarshals the ResourceRequestBytes field into a ResourceList.
 func (r *ReplicaRequirements) UnmarshalResourceRequest() (corev1.ResourceList, error) {
 	if r == nil {
 		return nil, nil
 	}
-	// 1. Try new field first
+
 	if len(r.ResourceRequestBytes) > 0 {
 		res := make(corev1.ResourceList)
 		for k, v := range r.ResourceRequestBytes {
@@ -167,36 +128,16 @@ func (r *ReplicaRequirements) UnmarshalResourceRequest() (corev1.ResourceList, e
 		return res, nil
 	}
 
-	// 2. Fallback to old field
-	if len(r.ResourceRequest) > 0 {
-		res := make(corev1.ResourceList)
-		for k, v := range r.ResourceRequest {
-			if v != nil {
-				res[corev1.ResourceName(k)] = *v
-			}
-		}
-		return res, nil
-	}
-
 	return nil, nil
 }
 
-// SetResourceRequest marshals the given ResourceList into both ResourceRequest (deprecated) and ResourceRequestBytes fields.
+// SetResourceRequest marshals the given ResourceList into ResourceRequestBytes field.
 func (m *ComponentReplicaRequirements) SetResourceRequest(res corev1.ResourceList) error {
-	if res == nil {
-		m.ResourceRequest = nil
+	if len(res) == 0 {
 		m.ResourceRequestBytes = nil
 		return nil
 	}
 
-	// Set old field
-	m.ResourceRequest = make(map[string]*resource.Quantity)
-	for k, v := range res {
-		q := v
-		m.ResourceRequest[string(k)] = &q
-	}
-
-	// Set new field
 	m.ResourceRequestBytes = make(map[string][]byte)
 	for k, v := range res {
 		b, err := v.Marshal()
@@ -208,12 +149,12 @@ func (m *ComponentReplicaRequirements) SetResourceRequest(res corev1.ResourceLis
 	return nil
 }
 
-// UnmarshalResourceRequest unmarshals the ResourceRequestBytes field (or ResourceRequest field as fallback) into a ResourceList.
+// UnmarshalResourceRequest unmarshals the ResourceRequestBytes field into a ResourceList.
 func (m *ComponentReplicaRequirements) UnmarshalResourceRequest() (corev1.ResourceList, error) {
 	if m == nil {
 		return nil, nil
 	}
-	// 1. Try new field first
+
 	if len(m.ResourceRequestBytes) > 0 {
 		res := make(corev1.ResourceList)
 		for k, v := range m.ResourceRequestBytes {
@@ -225,18 +166,6 @@ func (m *ComponentReplicaRequirements) UnmarshalResourceRequest() (corev1.Resour
 		}
 		return res, nil
 	}
-
-	// 2. Fallback to old field
-	if len(m.ResourceRequest) > 0 {
-		res := make(corev1.ResourceList)
-		for k, v := range m.ResourceRequest {
-			if v != nil {
-				res[corev1.ResourceName(k)] = *v
-			}
-		}
-		return res, nil
-	}
-
 	return nil, nil
 }
 
