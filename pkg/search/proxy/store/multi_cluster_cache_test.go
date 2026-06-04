@@ -1248,9 +1248,12 @@ func noError(err error) bool {
 
 func buildMultiClusterRV(clusterAndRV ...string) string {
 	m := newMultiClusterResourceVersionWithCapacity(len(clusterAndRV) / 2)
-	for i := 0; i < len(clusterAndRV); {
+	// Iterate over (cluster, rv) pairs. The condition i+1 < len guarantees that
+	// both clusterAndRV[i] and clusterAndRV[i+1] are in bounds, so static
+	// analyzers won't flag a potential index overflow, and a trailing unpaired
+	// element (odd-length input) is safely ignored.
+	for i := 0; i+1 < len(clusterAndRV); i += 2 {
 		m.set(clusterAndRV[i], clusterAndRV[i+1])
-		i += 2
 	}
 	return m.String()
 }

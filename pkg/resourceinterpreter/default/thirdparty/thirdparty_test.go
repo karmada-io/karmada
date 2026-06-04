@@ -144,7 +144,7 @@ func getAllTestCases(t *testing.T, testDataDir string) TestStructure {
 			return nil
 		}
 
-		data, err := os.ReadFile(path)
+		data, err := os.ReadFile(path) // #nosec G122 -- path comes from walking a fixed testdata directory in a unit test, not external input.
 		if err != nil {
 			t.Fatal(fmt.Errorf("failed to read file %s: %v", path, err))
 		}
@@ -338,7 +338,7 @@ func TestThirdPartyCustomizationsFile(t *testing.T) {
 			return nil
 		}
 
-		data, err := os.ReadFile(path)
+		data, err := os.ReadFile(path) // #nosec G122 -- path comes from walking a fixed testdata directory in a unit test, not external input.
 		if err != nil {
 			// cannot happen
 			return err

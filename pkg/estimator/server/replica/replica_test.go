@@ -28,7 +28,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	listappsv1 "k8s.io/client-go/listers/apps/v1"
 	listcorev1 "k8s.io/client-go/listers/core/v1"
-	"k8s.io/utils/ptr"
 )
 
 func TestGetUnschedulablePodsOfWorkload(t *testing.T) {
@@ -86,7 +85,7 @@ func TestGetUnschedulablePodsOfWorkload(t *testing.T) {
 								Kind:       "ReplicaSet",
 								Name:       "test-rs",
 								UID:        "test-rs-uid",
-								Controller: ptr.To[bool](true),
+								Controller: new(true),
 							},
 						},
 					},
@@ -118,7 +117,7 @@ func TestGetUnschedulablePodsOfWorkload(t *testing.T) {
 								Kind:       "Deployment",
 								Name:       "test-deployment",
 								UID:        "test-deployment-uid",
-								Controller: ptr.To[bool](true),
+								Controller: new(true),
 							},
 						},
 					},
@@ -188,7 +187,7 @@ func TestGetUnschedulablePodsOfWorkload(t *testing.T) {
 								Kind:       "ReplicaSet",
 								Name:       "test-rs",
 								UID:        "test-rs-uid",
-								Controller: ptr.To[bool](true),
+								Controller: new(true),
 							},
 						},
 					},
@@ -221,7 +220,7 @@ func TestGetUnschedulablePodsOfWorkload(t *testing.T) {
 								Kind:       "Deployment",
 								Name:       "test-deployment",
 								UID:        "test-deployment-uid",
-								Controller: ptr.To[bool](true),
+								Controller: new(true),
 							},
 						},
 					},
@@ -308,7 +307,7 @@ func TestGetUnschedulablePodsOfWorkload(t *testing.T) {
 								Kind:       "ReplicaSet",
 								Name:       "test-rs",
 								UID:        "test-rs-uid",
-								Controller: ptr.To[bool](true),
+								Controller: new(true),
 							},
 						},
 					},
@@ -342,7 +341,7 @@ func TestGetUnschedulablePodsOfWorkload(t *testing.T) {
 								Kind:       "Deployment",
 								Name:       "test-deployment",
 								UID:        "test-deployment-uid",
-								Controller: ptr.To[bool](true),
+								Controller: new(true),
 							},
 						},
 					},

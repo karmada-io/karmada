@@ -26,7 +26,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 )
@@ -320,11 +319,11 @@ func Test_asyncWorker_AddWithOpts(t *testing.T) {
 
 		worker := newTestAsyncWorker(nil, true)
 
-		worker.AddWithOpts(AddOpts{Priority: ptr.To(LowPriority)}, node1)
+		worker.AddWithOpts(AddOpts{Priority: new(LowPriority)}, node1)
 		worker.AddWithOpts(AddOpts{}, node2)
-		worker.AddWithOpts(AddOpts{Priority: ptr.To(LowPriority)}, node3)
+		worker.AddWithOpts(AddOpts{Priority: new(LowPriority)}, node3)
 		worker.AddWithOpts(AddOpts{}, node3)
-		worker.AddWithOpts(AddOpts{Priority: ptr.To(LowPriority)}, node4)
+		worker.AddWithOpts(AddOpts{Priority: new(LowPriority)}, node4)
 		worker.AddWithOpts(AddOpts{}, node5)
 
 		item, _ := worker.queue.Get()
@@ -364,7 +363,7 @@ func Test_asyncWorker_EnqueueWithOpts(t *testing.T) {
 		node1 := &corev1.Node{
 			ObjectMeta: metav1.ObjectMeta{Name: nodeName1},
 		}
-		worker.EnqueueWithOpts(AddOpts{Priority: ptr.To(LowPriority)}, node1)
+		worker.EnqueueWithOpts(AddOpts{Priority: new(LowPriority)}, node1)
 		node2 := &corev1.Node{
 			ObjectMeta: metav1.ObjectMeta{Name: nodeName2},
 		}

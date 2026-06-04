@@ -90,7 +90,7 @@ func TestScaleFHPA(t *testing.T) {
 				},
 			},
 			rule: autoscalingv1alpha1.CronFederatedHPARule{
-				TargetMaxReplicas: intPtr(10),
+				TargetMaxReplicas: new(int32(10)),
 			},
 			expectedUpdate: true,
 			expectedErr:    false,
@@ -114,11 +114,11 @@ func TestScaleFHPA(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: autoscalingv1alpha1.FederatedHPASpec{
-					MinReplicas: intPtr(2),
+					MinReplicas: new(int32(2)),
 				},
 			},
 			rule: autoscalingv1alpha1.CronFederatedHPARule{
-				TargetMinReplicas: intPtr(3),
+				TargetMinReplicas: new(int32(3)),
 			},
 			expectedUpdate: true,
 			expectedErr:    false,
@@ -142,13 +142,13 @@ func TestScaleFHPA(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: autoscalingv1alpha1.FederatedHPASpec{
-					MinReplicas: intPtr(2),
+					MinReplicas: new(int32(2)),
 					MaxReplicas: 5,
 				},
 			},
 			rule: autoscalingv1alpha1.CronFederatedHPARule{
-				TargetMinReplicas: intPtr(2),
-				TargetMaxReplicas: intPtr(5),
+				TargetMinReplicas: new(int32(2)),
+				TargetMaxReplicas: new(int32(5)),
 			},
 			expectedUpdate: false,
 			expectedErr:    false,
@@ -187,10 +187,6 @@ func TestScaleFHPA(t *testing.T) {
 			}
 		})
 	}
-}
-
-func intPtr(i int32) *int32 {
-	return &i
 }
 
 func TestFindExecutionHistory(t *testing.T) {

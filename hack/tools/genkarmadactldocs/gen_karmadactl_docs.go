@@ -61,7 +61,7 @@ func PrintCLIByTag(cmd *cobra.Command, all []*cobra.Command, tag string) string 
 func GenMarkdownTreeForIndex(cmd *cobra.Command, dir string) error {
 	basename := strings.ReplaceAll(cmd.CommandPath(), " ", "_") + "_index" + ".md"
 	filename := filepath.Join(dir, basename)
-	f, err := os.OpenFile(filename, os.O_CREATE|os.O_RDWR, pkgutil.DefaultFilePerm)
+	f, err := os.OpenFile(filename, os.O_CREATE|os.O_RDWR, pkgutil.DefaultFilePerm) // #nosec G703 -- filename is derived from the trusted output directory and the cobra command path, not external input (documentation generator tool).
 	if err != nil {
 		return err
 	}
@@ -125,14 +125,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	err = filepath.Walk(outDir, func(path string, info fs.FileInfo, err error) error {
+	err = filepath.Walk(outDir, func(path string, info fs.FileInfo, err error) error { // #nosec G703 -- outDir is the trusted output directory provided to the documentation generator tool, not external input.
 		if err != nil {
 			return err
 		}
 		if info.IsDir() {
 			return nil
 		}
-		data, err := os.ReadFile(path)
+		data, err := os.ReadFile(path) // #nosec G122 -- path comes from walking the trusted output directory of the documentation generator tool.
 		if err != nil {
 			return err
 		}
@@ -154,7 +154,7 @@ func main() {
 
 		newlines = append(newlines, lines...)
 		newContent := strings.Join(newlines, "\n")
-		return os.WriteFile(path, []byte(newContent), info.Mode())
+		return os.WriteFile(path, []byte(newContent), info.Mode()) // #nosec G703 G122 -- path comes from walking the trusted output directory of the documentation generator tool, not external input.
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to process docs: %v\n", err)

@@ -42,7 +42,7 @@ func TestProxyREST_Connect(t *testing.T) {
 		if req.URL.Path == "/proxy" {
 			_, _ = io.WriteString(rw, "ok")
 		} else {
-			_, _ = io.WriteString(rw, "bad request: "+req.URL.Path)
+			_, _ = io.WriteString(rw, "bad request: "+req.URL.Path) // #nosec G705 -- test HTTP handler echoing the request path back in a unit test, not production code.
 		}
 	}))
 	defer s.Close()

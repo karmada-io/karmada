@@ -215,7 +215,7 @@ func TestRunKarmadaAPIServer(t *testing.T) {
 							Resources:       corev1.ResourceRequirements{},
 							ImagePullPolicy: corev1.PullIfNotPresent,
 						},
-						ServiceSubnet: ptr.To("10.96.0.0/12"),
+						ServiceSubnet: new("10.96.0.0/12"),
 					},
 					Etcd: &operatorv1alpha1.Etcd{
 						Local: &operatorv1alpha1.LocalEtcd{},

@@ -30,7 +30,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/ptr"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -106,7 +105,7 @@ var _ = ginkgo.Describe("Seamless migration and rollback testing", func() {
 			// Step 2, Update PropagationPolicy in karmada control plane with conflictResolution=Overwrite and preserveResourcesOnDeletion=true
 			ginkgo.By(fmt.Sprintf("Update PropagationPolicy %s in karmada control plane with conflictResolution=Overwrite", propagationPolicy.Name), func() {
 				propagationPolicy.Spec.ConflictResolution = policyv1alpha1.ConflictOverwrite
-				propagationPolicy.Spec.PreserveResourcesOnDeletion = ptr.To[bool](true)
+				propagationPolicy.Spec.PreserveResourcesOnDeletion = new(true)
 				framework.UpdatePropagationPolicyWithSpec(karmadaClient, propagationPolicy.Namespace, propagationPolicy.Name, propagationPolicy.Spec)
 			})
 
@@ -165,7 +164,7 @@ var _ = ginkgo.Describe("Seamless migration and rollback testing", func() {
 				ClusterAffinity: &policyv1alpha1.ClusterAffinity{ClusterNames: []string{member1}},
 			})
 			cpp.Spec.ConflictResolution = policyv1alpha1.ConflictOverwrite
-			cpp.Spec.PreserveResourcesOnDeletion = ptr.To[bool](true)
+			cpp.Spec.PreserveResourcesOnDeletion = new(true)
 			bindingName = names.GenerateBindingName(clusterRole.Kind, clusterRole.Name)
 			workName = names.GenerateWorkName(clusterRole.Kind, clusterRole.Name, clusterRole.Namespace)
 			workNamespace = names.GenerateExecutionSpaceName(member1)
@@ -234,7 +233,7 @@ var _ = ginkgo.Describe("Seamless migration and rollback testing", func() {
 				ClusterAffinity: &policyv1alpha1.ClusterAffinity{ClusterNames: []string{member1}},
 			})
 			pp.Spec.ConflictResolution = policyv1alpha1.ConflictOverwrite
-			pp.Spec.PreserveResourcesOnDeletion = ptr.To[bool](true)
+			pp.Spec.PreserveResourcesOnDeletion = new(true)
 			bindingName = names.GenerateBindingName(service.Kind, service.Name)
 			workName = names.GenerateWorkName(service.Kind, service.Name, service.Namespace)
 			workNamespace = names.GenerateExecutionSpaceName(member1)
@@ -312,7 +311,7 @@ var _ = ginkgo.Describe("Seamless migration and rollback testing", func() {
 			})
 			propagationPolicy.Spec.PropagateDeps = true
 			propagationPolicy.Spec.ConflictResolution = policyv1alpha1.ConflictOverwrite
-			propagationPolicy.Spec.PreserveResourcesOnDeletion = ptr.To[bool](true)
+			propagationPolicy.Spec.PreserveResourcesOnDeletion = new(true)
 			bindingName = names.GenerateBindingName(secret.Kind, secret.Name)
 			workName = names.GenerateWorkName(secret.Kind, secret.Name, secret.Namespace)
 			workNamespace = names.GenerateExecutionSpaceName(member1)

@@ -1333,7 +1333,7 @@ var _ = ginkgo.Describe("Suspension: PropagationPolicy testing", func() {
 			})
 		ginkgo.By("update the pp suspension dispatching to true", func() {
 			policy.Spec.Suspension = &policyv1alpha1.Suspension{
-				Dispatching: ptr.To(true),
+				Dispatching: new(true),
 			}
 			framework.UpdatePropagationPolicyWithSpec(karmadaClient, policy.Namespace, policy.Name, policy.Spec)
 		})

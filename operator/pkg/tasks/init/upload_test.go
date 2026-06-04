@@ -168,7 +168,7 @@ func TestRunUploadAdminKubeconfig(t *testing.T) {
 							Resources:       corev1.ResourceRequirements{},
 							ImagePullPolicy: corev1.PullIfNotPresent,
 						},
-						ServiceSubnet: ptr.To("10.96.0.0/12"),
+						ServiceSubnet: new("10.96.0.0/12"),
 						ExtraArgs:     map[string]string{"cmd1": "arg1", "cmd2": "arg2"},
 						ServiceType:   corev1.ServiceTypeNodePort,
 					},

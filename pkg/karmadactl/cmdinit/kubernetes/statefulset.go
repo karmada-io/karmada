@@ -25,7 +25,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/component-base/cli/flag"
-	"k8s.io/utils/ptr"
 )
 
 const (
@@ -198,7 +197,7 @@ func (i *CommandInitOption) makeETCDStatefulSet() *appsv1.StatefulSet {
 				},
 			},
 		},
-		AutomountServiceAccountToken: ptr.To[bool](false),
+		AutomountServiceAccountToken: new(false),
 		Containers: []corev1.Container{
 			{
 				Name:    etcdStatefulSetAndServiceName,

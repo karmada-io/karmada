@@ -29,7 +29,6 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/ptr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -211,12 +210,12 @@ func (c *ResourceBindingController) newOverridePolicyFunc() handler.MapFunc {
 
 		readonlyBindingList := &workv1alpha2.ResourceBindingList{}
 		listOption := &client.ListOptions{
-			UnsafeDisableDeepCopy: ptr.To(true),
+			UnsafeDisableDeepCopy: new(true),
 		}
 		if len(namespace) > 0 {
 			listOption = &client.ListOptions{
 				Namespace:             namespace,
-				UnsafeDisableDeepCopy: ptr.To(true),
+				UnsafeDisableDeepCopy: new(true),
 			}
 		}
 		if err := c.Client.List(ctx, readonlyBindingList, listOption); err != nil {

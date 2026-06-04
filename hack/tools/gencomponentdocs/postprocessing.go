@@ -85,10 +85,10 @@ func MarkdownPostProcessing(cmd *cobra.Command, dir string, processor func(strin
 
 	// Remove the markdown file for the version subcommand
 	if strings.Contains(basename, "version") {
-		return os.Remove(filename)
+		return os.Remove(filename) // #nosec G703 -- filename is derived from the trusted output directory and the cobra command path, not external input (documentation generator tool).
 	}
 
-	markdownBytes, err := os.ReadFile(filename)
+	markdownBytes, err := os.ReadFile(filename) // #nosec G703 -- filename is derived from the trusted output directory and the cobra command path, not external input (documentation generator tool).
 	if err != nil {
 		return err
 	}
@@ -96,7 +96,7 @@ func MarkdownPostProcessing(cmd *cobra.Command, dir string, processor func(strin
 	md := patchOptsFromHelp(string(markdownBytes), cmd)
 	processedMarkDown := processor(md)
 
-	return os.WriteFile(filename, []byte(processedMarkDown), 0600)
+	return os.WriteFile(filename, []byte(processedMarkDown), 0600) // #nosec G703 -- filename is derived from the trusted output directory and the cobra command path, not external input (documentation generator tool).
 }
 
 // cleanupForInclude parts of markdown that will make difficult to use it as include in the website:

@@ -868,7 +868,7 @@ func Test_decodeValue(t *testing.T) {
 		{
 			name: "int pointer",
 			args: args{
-				value: ptr.To[int](1),
+				value: new(1),
 			},
 			want: lua.LNumber(1),
 		},

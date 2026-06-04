@@ -1134,7 +1134,7 @@ func mapToString(m map[string]string) string {
 		if builder.Len() > 0 {
 			builder.WriteString(",")
 		}
-		builder.WriteString(fmt.Sprintf("%s=%s", k, v))
+		fmt.Fprintf(&builder, "%s=%s", k, v)
 	}
 	return builder.String()
 }
