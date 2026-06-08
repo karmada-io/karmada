@@ -438,10 +438,14 @@ func (c *WorkStatusController) buildStatusIdentifier(work *workv1alpha1.Work, cl
 	return identifier, nil
 }
 
-func (c *WorkStatusController) mergeStatus(_ []workv1alpha1.ManifestStatus, newStatus workv1alpha1.ManifestStatus) []workv1alpha1.ManifestStatus {
-	// TODO(RainbowMango): update 'statuses' if 'newStatus' already exist.
-	// For now, we only have at most one manifest in Work, so just override current 'statuses'.
-	return []workv1alpha1.ManifestStatus{newStatus}
+func (c *WorkStatusController) mergeStatus(statuses []workv1alpha1.ManifestStatus, newStatus workv1alpha1.ManifestStatus) []workv1alpha1.ManifestStatus {
+	for i, status := range statuses {
+		if status.Identifier.Ordinal == newStatus.Identifier.Ordinal {
+			statuses[i] = newStatus
+			return statuses
+		}
+	}
+	return append(statuses, newStatus)
 }
 
 func (c *WorkStatusController) getRawManifest(manifests []workv1alpha1.Manifest, clusterObj *unstructured.Unstructured) (*unstructured.Unstructured, error) {

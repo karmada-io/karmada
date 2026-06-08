@@ -988,11 +988,26 @@ func TestWorkStatusController_mergeStatus(t *testing.T) {
 		RateLimiterOptions:          ratelimiterflag.Options{},
 	}
 
-	newStatus := workv1alpha1.ManifestStatus{
-		Health: "health",
-	}
-	actual := c.mergeStatus([]workv1alpha1.ManifestStatus{}, newStatus)
-	assert.Equal(t, []workv1alpha1.ManifestStatus{newStatus}, actual)
+	t.Run("empty statuses", func(t *testing.T) {
+		newStatus := workv1alpha1.ManifestStatus{Identifier: workv1alpha1.ResourceIdentifier{Ordinal: 0}, Health: workv1alpha1.ResourceHealthy}
+		actual := c.mergeStatus([]workv1alpha1.ManifestStatus{}, newStatus)
+		assert.Equal(t, []workv1alpha1.ManifestStatus{newStatus}, actual)
+	})
+
+	t.Run("same ordinal updates existing entry", func(t *testing.T) {
+		existing := []workv1alpha1.ManifestStatus{{Identifier: workv1alpha1.ResourceIdentifier{Ordinal: 0}, Health: workv1alpha1.ResourceUnhealthy}}
+		newStatus := workv1alpha1.ManifestStatus{Identifier: workv1alpha1.ResourceIdentifier{Ordinal: 0}, Health: workv1alpha1.ResourceHealthy}
+		actual := c.mergeStatus(existing, newStatus)
+		assert.Equal(t, 1, len(actual))
+		assert.Equal(t, workv1alpha1.ResourceHealthy, actual[0].Health)
+	})
+
+	t.Run("different ordinal appends without losing existing entry", func(t *testing.T) {
+		existing := []workv1alpha1.ManifestStatus{{Identifier: workv1alpha1.ResourceIdentifier{Ordinal: 0}, Health: workv1alpha1.ResourceHealthy}}
+		newStatus := workv1alpha1.ManifestStatus{Identifier: workv1alpha1.ResourceIdentifier{Ordinal: 1}, Health: workv1alpha1.ResourceUnhealthy}
+		actual := c.mergeStatus(existing, newStatus)
+		assert.Equal(t, 2, len(actual))
+	})
 }
 
 func TestWorkStatusController_registerInformersAndStart(t *testing.T) {
