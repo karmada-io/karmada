@@ -26,6 +26,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -903,6 +904,332 @@ func Test_getPurgeMode(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_enqueueBinding(t *testing.T) {
+	fixedTime := time.Date(2025, 9, 23, 12, 0, 0, 0, time.UTC)
+	oneSecondAgo := metav1.Time{Time: fixedTime.Add(-1 * time.Second)}
+	dummyKey := keys.FederatedKey{ClusterWideKey: keys.ClusterWideKey{Name: "test-binding"}}
+
+	tests := []struct {
+		name        string
+		taints      []corev1.Taint
+		annotations map[string]string
+		wantAction  string // "skip" (not enqueued), "immediate" (delay=0), "delayed" (delay>0)
+	}{
+		{
+			name:        "no taints - skip",
+			taints:      nil,
+			annotations: map[string]string{},
+			wantAction:  "skip",
+		},
+		{
+			name: "no placement annotation (fail-safe: immediate)",
+			taints: []corev1.Taint{
+				{Key: "test-key", Effect: corev1.TaintEffectNoExecute, TimeAdded: &oneSecondAgo},
+			},
+			annotations: map[string]string{},
+			wantAction:  "immediate",
+		},
+		{
+			name: "invalid placement JSON (fail-safe: immediate)",
+			taints: []corev1.Taint{
+				{Key: "test-key", Effect: corev1.TaintEffectNoExecute, TimeAdded: &oneSecondAgo},
+			},
+			annotations: map[string]string{
+				"policy.karmada.io/applied-placement": "invalid-json",
+			},
+			wantAction: "immediate",
+		},
+		{
+			name: "no tolerations - immediate eviction",
+			taints: []corev1.Taint{
+				{Key: "test-key", Effect: corev1.TaintEffectNoExecute, TimeAdded: &oneSecondAgo},
+			},
+			annotations: map[string]string{
+				"policy.karmada.io/applied-placement": `{"clusterAffinity":{"clusterNames":["member1"]},"clusterTolerations":[]}`,
+			},
+			wantAction: "immediate",
+		},
+		{
+			name: "finite tolerationSeconds unexpired - delayed eviction",
+			taints: []corev1.Taint{
+				{Key: "test-key", Effect: corev1.TaintEffectNoExecute, TimeAdded: &oneSecondAgo},
+			},
+			annotations: map[string]string{
+				"policy.karmada.io/applied-placement": `{"clusterAffinity":{"clusterNames":["member1"]},"clusterTolerations":[{"key":"test-key","operator":"Exists","effect":"NoExecute","tolerationSeconds":60}]}`,
+			},
+			wantAction: "delayed",
+		},
+		{
+			name: "infinite toleration (no tolerationSeconds) - skip",
+			taints: []corev1.Taint{
+				{Key: "test-key", Effect: corev1.TaintEffectNoExecute, TimeAdded: &oneSecondAgo},
+			},
+			annotations: map[string]string{
+				"policy.karmada.io/applied-placement": `{"clusterAffinity":{"clusterNames":["member1"]},"clusterTolerations":[{"key":"test-key","operator":"Exists","effect":"NoExecute"}]}`,
+			},
+			wantAction: "skip",
+		},
+		{
+			name: "multiple taints - one not tolerated - immediate",
+			taints: []corev1.Taint{
+				{Key: "tolerated-key", Effect: corev1.TaintEffectNoExecute, TimeAdded: &oneSecondAgo},
+				{Key: "not-tolerated-key", Effect: corev1.TaintEffectNoExecute, TimeAdded: &oneSecondAgo},
+			},
+			annotations: map[string]string{
+				"policy.karmada.io/applied-placement": `{"clusterAffinity":{"clusterNames":["member1"]},"clusterTolerations":[{"key":"tolerated-key","operator":"Exists","effect":"NoExecute"}]}`,
+			},
+			wantAction: "immediate",
+		},
+		{
+			name: "multiple taints - all tolerated indefinitely - skip",
+			taints: []corev1.Taint{
+				{Key: "key1", Effect: corev1.TaintEffectNoExecute, TimeAdded: &oneSecondAgo},
+				{Key: "key2", Effect: corev1.TaintEffectNoExecute, TimeAdded: &oneSecondAgo},
+			},
+			annotations: map[string]string{
+				"policy.karmada.io/applied-placement": `{"clusterAffinity":{"clusterNames":["member1"]},"clusterTolerations":[{"key":"key1","operator":"Exists","effect":"NoExecute"},{"key":"key2","operator":"Exists","effect":"NoExecute"}]}`,
+			},
+			wantAction: "skip",
+		},
+		{
+			name: "multiple taints - one tolerated with finite seconds - delayed",
+			taints: []corev1.Taint{
+				{Key: "key1", Effect: corev1.TaintEffectNoExecute, TimeAdded: &oneSecondAgo},
+				{Key: "key2", Effect: corev1.TaintEffectNoExecute, TimeAdded: &oneSecondAgo},
+			},
+			annotations: map[string]string{
+				"policy.karmada.io/applied-placement": `{"clusterAffinity":{"clusterNames":["member1"]},"clusterTolerations":[{"key":"key1","operator":"Exists","effect":"NoExecute"},{"key":"key2","operator":"Exists","effect":"NoExecute","tolerationSeconds":120}]}`,
+			},
+			wantAction: "delayed",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			type enqueueRecord struct {
+				delay time.Duration
+			}
+			var records []enqueueRecord
+			recorder := &recordingWorker{
+				addAfterFunc: func(_ any, delay time.Duration) {
+					records = append(records, enqueueRecord{delay: delay})
+				},
+			}
+
+			tc := &NoExecuteTaintManager{
+				bindingEvictionWorker: recorder,
+			}
+			tc.enqueueBinding(tc.bindingEvictionWorker, tt.taints, tt.annotations, dummyKey, fixedTime)
+
+			var gotAction string
+			switch {
+			case len(records) == 0:
+				gotAction = "skip"
+			case records[0].delay == 0:
+				gotAction = "immediate"
+			default:
+				gotAction = "delayed"
+			}
+			if gotAction != tt.wantAction {
+				t.Errorf("enqueueBinding() action=%s, want %s (records=%v)", gotAction, tt.wantAction, records)
+			}
+		})
+	}
+}
+
+func Test_syncCluster_enqueuesBindingsCorrectly(t *testing.T) {
+	oneSecondAgo := metav1.Time{Time: time.Now().Add(-1 * time.Second)}
+
+	cluster := &clusterv1alpha1.Cluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test-cluster",
+		},
+		Spec: clusterv1alpha1.ClusterSpec{
+			Taints: []corev1.Taint{
+				{
+					Key:       "cluster.karmada.io/maintenance",
+					Effect:    corev1.TaintEffectNoExecute,
+					TimeAdded: &oneSecondAgo,
+				},
+			},
+		},
+	}
+
+	rbInfinite := &workv1alpha2.ResourceBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "infinite-rb",
+			Namespace: "default",
+			Annotations: map[string]string{
+				"policy.karmada.io/applied-placement": `{"clusterAffinity":{"clusterNames":["test-cluster"]},"clusterTolerations":[{"key":"cluster.karmada.io/maintenance","operator":"Exists","effect":"NoExecute"}]}`,
+			},
+		},
+		Spec: workv1alpha2.ResourceBindingSpec{
+			Clusters: []workv1alpha2.TargetCluster{{Name: "test-cluster", Replicas: 1}},
+		},
+	}
+
+	rbFinite := &workv1alpha2.ResourceBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "finite-rb",
+			Namespace: "default",
+			Annotations: map[string]string{
+				"policy.karmada.io/applied-placement": `{"clusterAffinity":{"clusterNames":["test-cluster"]},"clusterTolerations":[{"key":"cluster.karmada.io/maintenance","operator":"Exists","effect":"NoExecute","tolerationSeconds":142}]}`,
+			},
+		},
+		Spec: workv1alpha2.ResourceBindingSpec{
+			Clusters: []workv1alpha2.TargetCluster{{Name: "test-cluster", Replicas: 1}},
+		},
+	}
+
+	rbNoToleration := &workv1alpha2.ResourceBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "no-toleration-rb",
+			Namespace: "default",
+			Annotations: map[string]string{
+				"policy.karmada.io/applied-placement": `{"clusterAffinity":{"clusterNames":["test-cluster"]},"clusterTolerations":[]}`,
+			},
+		},
+		Spec: workv1alpha2.ResourceBindingSpec{
+			Clusters: []workv1alpha2.TargetCluster{{Name: "test-cluster", Replicas: 1}},
+		},
+	}
+
+	crbNoToleration := &workv1alpha2.ClusterResourceBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "no-toleration-crb",
+			Annotations: map[string]string{
+				"policy.karmada.io/applied-placement": `{"clusterAffinity":{"clusterNames":["test-cluster"]},"clusterTolerations":[]}`,
+			},
+		},
+		Spec: workv1alpha2.ResourceBindingSpec{
+			Clusters: []workv1alpha2.TargetCluster{{Name: "test-cluster", Replicas: 1}},
+		},
+	}
+
+	scheme := gclient.NewSchema()
+	rbIndexerFunc := func(obj client.Object) []string {
+		rb, ok := obj.(*workv1alpha2.ResourceBinding)
+		if !ok {
+			return nil
+		}
+		return util.GetBindingClusterNames(&rb.Spec)
+	}
+	crbIndexerFunc := func(obj client.Object) []string {
+		crb, ok := obj.(*workv1alpha2.ClusterResourceBinding)
+		if !ok {
+			return nil
+		}
+		return util.GetBindingClusterNames(&crb.Spec)
+	}
+
+	innerClient := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithIndex(&workv1alpha2.ResourceBinding{}, indexregistry.ResourceBindingIndexByFieldCluster, rbIndexerFunc).
+		WithIndex(&workv1alpha2.ClusterResourceBinding{}, indexregistry.ClusterResourceBindingIndexByFieldCluster, crbIndexerFunc).
+		WithObjects(cluster, rbInfinite, rbFinite, rbNoToleration, crbNoToleration).
+		Build()
+	fakeClient := &gvkSettingClient{Client: innerClient}
+
+	type enqueueRecord struct {
+		name  string
+		delay time.Duration
+	}
+	var bindingRecords []enqueueRecord
+	bindingRecorder := &recordingWorker{
+		addAfterFunc: func(item any, delay time.Duration) {
+			if k, ok := item.(keys.FederatedKey); ok {
+				bindingRecords = append(bindingRecords, enqueueRecord{name: k.Name, delay: delay})
+			}
+		},
+	}
+	var clusterBindingRecords []enqueueRecord
+	clusterBindingRecorder := &recordingWorker{
+		addAfterFunc: func(item any, delay time.Duration) {
+			if k, ok := item.(keys.FederatedKey); ok {
+				clusterBindingRecords = append(clusterBindingRecords, enqueueRecord{name: k.Name, delay: delay})
+			}
+		},
+	}
+
+	tc := &NoExecuteTaintManager{
+		Client:                       fakeClient,
+		EnableNoExecuteTaintEviction: true,
+		bindingEvictionWorker:        bindingRecorder,
+		clusterBindingEvictionWorker: clusterBindingRecorder,
+	}
+
+	_, err := tc.syncCluster(context.Background(), cluster)
+	if err != nil {
+		t.Fatalf("syncCluster() error = %v", err)
+	}
+
+	enqueued := make(map[string]time.Duration)
+	for _, r := range bindingRecords {
+		enqueued[r.name] = r.delay
+	}
+
+	if _, ok := enqueued["infinite-rb"]; ok {
+		t.Error("binding with infinite toleration should NOT have been enqueued")
+	}
+	if delay, ok := enqueued["finite-rb"]; !ok {
+		t.Error("binding with finite toleration should have been enqueued")
+	} else if delay <= 0 {
+		t.Errorf("binding with finite toleration should have delay > 0, got %v", delay)
+	}
+	if delay, ok := enqueued["no-toleration-rb"]; !ok {
+		t.Error("binding with no toleration should have been enqueued")
+	} else if delay != 0 {
+		t.Errorf("binding with no toleration should have delay == 0 (immediate), got %v", delay)
+	}
+	if len(bindingRecords) != 2 {
+		t.Errorf("expected 2 ResourceBindings enqueued to bindingEvictionWorker, got %d", len(bindingRecords))
+	}
+
+	// ClusterResourceBindings must be routed to the clusterBindingEvictionWorker,
+	// not the bindingEvictionWorker.
+	if len(clusterBindingRecords) != 1 {
+		t.Fatalf("expected 1 ClusterResourceBinding enqueued to clusterBindingEvictionWorker, got %d", len(clusterBindingRecords))
+	}
+	if clusterBindingRecords[0].name != "no-toleration-crb" {
+		t.Errorf("expected no-toleration-crb enqueued, got %s", clusterBindingRecords[0].name)
+	}
+	if clusterBindingRecords[0].delay != 0 {
+		t.Errorf("ClusterResourceBinding with no toleration should have delay == 0 (immediate), got %v", clusterBindingRecords[0].delay)
+	}
+}
+
+type recordingWorker struct {
+	addAfterFunc func(item any, delay time.Duration)
+}
+
+func (r *recordingWorker) Add(item any)                           { r.addAfterFunc(item, 0) }
+func (r *recordingWorker) AddAfter(item any, delay time.Duration) { r.addAfterFunc(item, delay) }
+func (r *recordingWorker) Enqueue(any)                            {}
+func (r *recordingWorker) Run(_ context.Context, _ int)           {}
+
+// gvkSettingClient wraps a client.Client and sets GVK on ResourceBinding items
+// returned by List, working around the fake client stripping TypeMeta.
+type gvkSettingClient struct {
+	client.Client
+}
+
+func (c *gvkSettingClient) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+	if err := c.Client.List(ctx, list, opts...); err != nil {
+		return err
+	}
+	if rbList, ok := list.(*workv1alpha2.ResourceBindingList); ok {
+		for i := range rbList.Items {
+			rbList.Items[i].SetGroupVersionKind(schema.GroupVersionKind{Group: workv1alpha2.GroupVersion.Group, Version: workv1alpha2.GroupVersion.Version, Kind: "ResourceBinding"})
+		}
+	}
+	if crbList, ok := list.(*workv1alpha2.ClusterResourceBindingList); ok {
+		for i := range crbList.Items {
+			crbList.Items[i].SetGroupVersionKind(schema.GroupVersionKind{Group: workv1alpha2.GroupVersion.Group, Version: workv1alpha2.GroupVersion.Version, Kind: "ClusterResourceBinding"})
+		}
+	}
+	return nil
 }
 
 func Test_extractStateForEviction(t *testing.T) {
