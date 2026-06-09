@@ -21,6 +21,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -208,6 +209,76 @@ func TestIsWorkContains(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := IsWorkContains(tt.manifests, tt.targetResource)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestGetGVRsFromWork(t *testing.T) {
+	restMapper := meta.NewDefaultRESTMapper([]schema.GroupVersion{corev1.SchemeGroupVersion})
+	restMapper.Add(corev1.SchemeGroupVersion.WithKind("Pod"), meta.RESTScopeNamespace)
+	restMapper.Add(corev1.SchemeGroupVersion.WithKind("Service"), meta.RESTScopeNamespace)
+
+	pod := unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "v1",
+			"kind":       "Pod",
+		},
+	}
+	podData, _ := pod.MarshalJSON()
+
+	service := unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "v1",
+			"kind":       "Service",
+		},
+	}
+	serviceData, _ := service.MarshalJSON()
+
+	tests := []struct {
+		name    string
+		work    *workv1alpha1.Work
+		want    []schema.GroupVersionResource
+		wantErr bool
+	}{
+		{
+			name: "returns distinct GVRs in manifest order",
+			work: &workv1alpha1.Work{Spec: workv1alpha1.WorkSpec{Workload: workv1alpha1.WorkloadTemplate{Manifests: []workv1alpha1.Manifest{
+				{RawExtension: runtime.RawExtension{Raw: podData}},
+				{RawExtension: runtime.RawExtension{Raw: serviceData}},
+				{RawExtension: runtime.RawExtension{Raw: podData}},
+			}}}},
+			want: []schema.GroupVersionResource{
+				corev1.SchemeGroupVersion.WithResource("pods"),
+				corev1.SchemeGroupVersion.WithResource("services"),
+			},
+		},
+		{
+			name: "returns error for invalid manifest",
+			work: &workv1alpha1.Work{Spec: workv1alpha1.WorkSpec{Workload: workv1alpha1.WorkloadTemplate{Manifests: []workv1alpha1.Manifest{
+				{RawExtension: runtime.RawExtension{Raw: []byte(`{"apiVersion":"v1","kind":"Pod"},`)}},
+			}}}},
+			wantErr: true,
+		},
+		{
+			name: "returns error for unknown kind",
+			work: &workv1alpha1.Work{Spec: workv1alpha1.WorkSpec{Workload: workv1alpha1.WorkloadTemplate{Manifests: []workv1alpha1.Manifest{
+				{RawExtension: runtime.RawExtension{Raw: []byte(`{"apiVersion":"apps/v1","kind":"Deployment"}`)}},
+			}}}},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := GetGVRsFromWork(restMapper, tt.work)
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Nil(t, got)
+				return
+			}
+
+			assert.NoError(t, err)
 			assert.Equal(t, tt.want, got)
 		})
 	}

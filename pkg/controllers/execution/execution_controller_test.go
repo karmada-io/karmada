@@ -20,27 +20,33 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/scheme"
+	toolscache "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/ptr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/default/native"
@@ -194,10 +200,6 @@ func TestExecutionController_Reconcile(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Cleanup(func() {
-				genericmanager.GetInstance().Stop(clusterName)
-			})
-
 			req := controllerruntime.Request{
 				NamespacedName: types.NamespacedName{
 					Name:      "work",
@@ -255,7 +257,7 @@ func newController(work *workv1alpha1.Work, recorder *record.FakeRecorder) Contr
 		WithInterceptorFuncs(withGVKInterceptor(clientScheme)).
 		Build()
 	dynamicClientSet := dynamicfake.NewSimpleDynamicClient(scheme.Scheme, pod)
-	informerManager := genericmanager.GetInstance()
+	informerManager := genericmanager.NewMultiClusterInformerManager(context.Background())
 	informerManager.ForCluster(cluster.Name, dynamicClientSet, 0).Lister(corev1.SchemeGroupVersion.WithResource("pods"))
 	informerManager.Start(cluster.Name)
 	informerManager.WaitForCacheSync(cluster.Name)
@@ -271,7 +273,7 @@ func newController(work *workv1alpha1.Work, recorder *record.FakeRecorder) Contr
 		InformerManager: informerManager,
 		EventRecorder:   recorder,
 		RESTMapper:      restMapper,
-		ObjectWatcher:   objectwatcher.NewObjectWatcher(fakeClient, restMapper, clusterClientSetFunc, nil, resourceInterpreter),
+		ObjectWatcher:   objectwatcher.NewObjectWatcher(fakeClient, restMapper, clusterClientSetFunc, nil, resourceInterpreter, informerManager),
 	}
 }
 
@@ -304,4 +306,277 @@ func newCluster(name string, clusterType string, clusterStatus metav1.ConditionS
 
 func (f FakeResourceInterpreter) Start(context.Context) error {
 	return nil
+}
+
+func TestController_getEventHandlerIsMemoized(t *testing.T) {
+	c := &Controller{}
+	first := c.getEventHandler()
+	second := c.getEventHandler()
+	assert.NotNil(t, first)
+	assert.Same(t, first, second, "getEventHandler should return the same handler instance across calls")
+}
+
+// stubObjectWatcher implements objectwatcher.ObjectWatcher for testing.
+type stubObjectWatcher struct {
+	versionRecord string
+	recordExists  bool
+}
+
+func (s *stubObjectWatcher) Create(_ context.Context, _ string, _ *unstructured.Unstructured) error {
+	return nil
+}
+func (s *stubObjectWatcher) Update(_ context.Context, _ string, _, _ *unstructured.Unstructured) (objectwatcher.OperationResult, error) {
+	return objectwatcher.OperationResultNone, nil
+}
+func (s *stubObjectWatcher) Delete(_ context.Context, _ string, _ *unstructured.Unstructured) error {
+	return nil
+}
+func (s *stubObjectWatcher) GetVersionRecord(_ string, _ *unstructured.Unstructured) (string, bool) {
+	return s.versionRecord, s.recordExists
+}
+
+func TestController_mapWorkloadToWork(t *testing.T) {
+	tests := []struct {
+		name        string
+		labels      map[string]string
+		annotations map[string]string
+		want        []reconcile.Request
+	}{
+		{
+			name:   "non-Karmada managed resource is ignored",
+			labels: nil,
+			want:   nil,
+		},
+		{
+			name:   "Karmada managed but missing both annotations returns nil",
+			labels: map[string]string{util.ManagedByKarmadaLabel: util.ManagedByKarmadaLabelValue},
+			want:   nil,
+		},
+		{
+			name:   "Karmada managed but missing name annotation returns nil",
+			labels: map[string]string{util.ManagedByKarmadaLabel: util.ManagedByKarmadaLabelValue},
+			annotations: map[string]string{
+				workv1alpha2.WorkNamespaceAnnotation: "karmada-es-cluster",
+			},
+			want: nil,
+		},
+		{
+			name:   "Karmada managed but missing namespace annotation returns nil",
+			labels: map[string]string{util.ManagedByKarmadaLabel: util.ManagedByKarmadaLabelValue},
+			annotations: map[string]string{
+				workv1alpha2.WorkNameAnnotation: "work",
+			},
+			want: nil,
+		},
+		{
+			name:   "both annotations present returns reconcile request",
+			labels: map[string]string{util.ManagedByKarmadaLabel: util.ManagedByKarmadaLabelValue},
+			annotations: map[string]string{
+				workv1alpha2.WorkNamespaceAnnotation: "karmada-es-cluster",
+				workv1alpha2.WorkNameAnnotation:      "work",
+			},
+			want: []reconcile.Request{{NamespacedName: types.NamespacedName{Namespace: "karmada-es-cluster", Name: "work"}}},
+		},
+	}
+
+	c := &Controller{}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pod := testhelper.NewPod(podNamespace, podName)
+			pod.SetLabels(tt.labels)
+			pod.SetAnnotations(tt.annotations)
+			got := c.mapWorkloadToWork(context.Background(), pod)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestController_enqueueWorkload(t *testing.T) {
+	t.Run("nil channel drops event without panic", func(_ *testing.T) {
+		c := &Controller{}
+		c.enqueueWorkload(testhelper.NewPod(podNamespace, podName))
+	})
+
+	t.Run("nil runtime.Object is ignored", func(t *testing.T) {
+		ch := make(chan event.TypedGenericEvent[client.Object], 10)
+		c := &Controller{eventChannel: ch}
+		c.enqueueWorkload(nil)
+		assert.Equal(t, 0, len(ch))
+	})
+
+	t.Run("non-client.Object input is ignored", func(t *testing.T) {
+		ch := make(chan event.TypedGenericEvent[client.Object], 10)
+		c := &Controller{eventChannel: ch}
+		c.enqueueWorkload(&corev1.PodList{})
+		assert.Equal(t, 0, len(ch))
+	})
+
+	t.Run("client.Object is forwarded to eventChannel", func(t *testing.T) {
+		ch := make(chan event.TypedGenericEvent[client.Object], 10)
+		c := &Controller{eventChannel: ch}
+		pod := testhelper.NewPod(podNamespace, podName)
+		c.enqueueWorkload(pod)
+		select {
+		case ev := <-ch:
+			assert.Equal(t, pod.GetName(), ev.Object.GetName())
+			assert.Equal(t, pod.GetNamespace(), ev.Object.GetNamespace())
+		case <-time.After(time.Second):
+			t.Fatal("timeout waiting for enqueued event")
+		}
+	})
+}
+
+func TestController_onUpdate(t *testing.T) {
+	// newManagedUnstructuredPod creates an Unstructured Pod pre-configured with
+	// labels, annotations, and ResourceVersion required to pass the guard chain.
+	newManagedUnstructuredPod := func(rv string, spec, status map[string]any) *unstructured.Unstructured {
+		obj := &unstructured.Unstructured{}
+		obj.SetAPIVersion("v1")
+		obj.SetKind("Pod")
+		obj.SetNamespace(podNamespace)
+		obj.SetName(podName)
+		obj.SetResourceVersion(rv)
+		obj.SetLabels(map[string]string{util.ManagedByKarmadaLabel: util.ManagedByKarmadaLabelValue})
+		obj.SetAnnotations(map[string]string{
+			workv1alpha2.WorkNamespaceAnnotation: "karmada-es-cluster",
+			workv1alpha2.WorkNameAnnotation:      "work",
+		})
+		if spec != nil {
+			_ = unstructured.SetNestedMap(obj.Object, spec, "spec")
+		}
+		if status != nil {
+			_ = unstructured.SetNestedMap(obj.Object, status, "status")
+		}
+		return obj
+	}
+
+	guardController := func() *Controller {
+		return &Controller{eventChannel: make(chan event.TypedGenericEvent[client.Object], 10)}
+	}
+
+	versionedController := func(recordRV string) *Controller {
+		return &Controller{
+			eventChannel:  make(chan event.TypedGenericEvent[client.Object], 10),
+			ObjectWatcher: &stubObjectWatcher{versionRecord: recordRV, recordExists: true},
+		}
+	}
+
+	t.Run("non-Unstructured old is ignored", func(t *testing.T) {
+		c := guardController()
+		c.onUpdate(testhelper.NewPod(podNamespace, podName), nil)
+		assert.Equal(t, 0, len(c.eventChannel))
+	})
+
+	t.Run("non-Karmada resource is skipped", func(t *testing.T) {
+		c := guardController()
+		obj := newManagedUnstructuredPod("v1", nil, nil)
+		obj.SetLabels(nil)
+		c.onUpdate(obj, obj)
+		assert.Equal(t, 0, len(c.eventChannel))
+	})
+
+	t.Run("resource missing work annotations is skipped", func(t *testing.T) {
+		c := guardController()
+		obj := newManagedUnstructuredPod("v1", nil, nil)
+		obj.SetAnnotations(nil)
+		c.onUpdate(obj, obj)
+		assert.Equal(t, 0, len(c.eventChannel))
+	})
+
+	t.Run("non-Unstructured cur is ignored", func(t *testing.T) {
+		c := guardController()
+		oldObj := newManagedUnstructuredPod("v1", nil, nil)
+		c.onUpdate(oldObj, testhelper.NewPod(podNamespace, podName))
+		assert.Equal(t, 0, len(c.eventChannel))
+	})
+
+	t.Run("resource without version record is skipped", func(t *testing.T) {
+		c := &Controller{
+			eventChannel:  make(chan event.TypedGenericEvent[client.Object], 10),
+			ObjectWatcher: &stubObjectWatcher{recordExists: false},
+		}
+		oldObj := newManagedUnstructuredPod("v1", nil, nil)
+		curObj := newManagedUnstructuredPod("v2", map[string]any{"nodeName": "n1"}, nil)
+		c.onUpdate(oldObj, curObj)
+		assert.Equal(t, 0, len(c.eventChannel))
+	})
+
+	t.Run("matching resource version is skipped", func(t *testing.T) {
+		c := versionedController("v1")
+		oldObj := newManagedUnstructuredPod("v1", nil, nil)
+		curObj := newManagedUnstructuredPod("v1", map[string]any{"nodeName": "n2"}, nil)
+		c.onUpdate(oldObj, curObj)
+		assert.Equal(t, 0, len(c.eventChannel))
+	})
+
+	t.Run("identical old and cur is skipped", func(t *testing.T) {
+		c := versionedController("v1")
+		oldObj := newManagedUnstructuredPod("v2", map[string]any{"nodeName": "n1"}, nil)
+		curObj := newManagedUnstructuredPod("v2", map[string]any{"nodeName": "n1"}, nil)
+		c.onUpdate(oldObj, curObj)
+		assert.Equal(t, 0, len(c.eventChannel))
+	})
+
+	t.Run("status-only diff is ignored", func(t *testing.T) {
+		c := versionedController("v1")
+		oldObj := newManagedUnstructuredPod("v2", map[string]any{"nodeName": "n1"}, map[string]any{"phase": "Pending"})
+		curObj := newManagedUnstructuredPod("v3", map[string]any{"nodeName": "n1"}, map[string]any{"phase": "Running"})
+		c.onUpdate(oldObj, curObj)
+		assert.Equal(t, 0, len(c.eventChannel))
+	})
+
+	t.Run("non-status diff enqueues current object", func(t *testing.T) {
+		c := versionedController("v1")
+		oldObj := newManagedUnstructuredPod("v2", map[string]any{"nodeName": "n1"}, nil)
+		curObj := newManagedUnstructuredPod("v3", map[string]any{"nodeName": "n2"}, nil)
+		c.onUpdate(oldObj, curObj)
+		select {
+		case ev := <-c.eventChannel:
+			assert.Equal(t, podName, ev.Object.GetName())
+		case <-time.After(time.Second):
+			t.Fatal("timeout waiting for enqueued event")
+		}
+	})
+}
+
+func TestController_onDelete(t *testing.T) {
+	t.Run("non-runtime.Object old is ignored", func(t *testing.T) {
+		ch := make(chan event.TypedGenericEvent[client.Object], 10)
+		c := &Controller{eventChannel: ch}
+		c.onDelete("not a runtime object")
+		assert.Equal(t, 0, len(ch))
+	})
+
+	t.Run("plain object is enqueued", func(t *testing.T) {
+		ch := make(chan event.TypedGenericEvent[client.Object], 10)
+		c := &Controller{eventChannel: ch}
+		pod := testhelper.NewPod(podNamespace, podName)
+		c.onDelete(pod)
+		select {
+		case ev := <-ch:
+			assert.Equal(t, podName, ev.Object.GetName())
+		case <-time.After(time.Second):
+			t.Fatal("timeout waiting for enqueued event")
+		}
+	})
+
+	t.Run("DeletedFinalStateUnknown wrapper is unwrapped", func(t *testing.T) {
+		ch := make(chan event.TypedGenericEvent[client.Object], 10)
+		c := &Controller{eventChannel: ch}
+		pod := testhelper.NewPod(podNamespace, podName)
+		c.onDelete(toolscache.DeletedFinalStateUnknown{Key: "k", Obj: pod})
+		select {
+		case ev := <-ch:
+			assert.Equal(t, podName, ev.Object.GetName())
+		case <-time.After(time.Second):
+			t.Fatal("timeout waiting for enqueued event")
+		}
+	})
+
+	t.Run("DeletedFinalStateUnknown with nil Obj is dropped", func(t *testing.T) {
+		ch := make(chan event.TypedGenericEvent[client.Object], 10)
+		c := &Controller{eventChannel: ch}
+		c.onDelete(toolscache.DeletedFinalStateUnknown{Key: "k", Obj: nil})
+		assert.Equal(t, 0, len(ch))
+	})
 }
