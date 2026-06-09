@@ -40,6 +40,7 @@ const (
 	clusterSyncStatusDurationMetricsName = "cluster_sync_status_duration_seconds"
 	clusterHealthProbeSuccessName        = "cluster_health_probe_success"
 	clusterReadySinceName                = "cluster_ready_since_timestamp_seconds"
+	clusterConditionLastTransitionName   = "cluster_condition_last_transition_timestamp_seconds"
 	evictionQueueDepthMetricsName        = "eviction_queue_depth"
 	evictionKindTotalMetricsName         = "eviction_kind_total"
 	evictionProcessingLatencyMetricsName = "eviction_processing_latency_seconds"
@@ -125,6 +126,12 @@ var (
 			"Set to 0 when the cluster is not Ready.",
 	}, []string{memberClusterLabel})
 
+	// clusterConditionLastTransition records the unix timestamp of the last condition state transition.
+	clusterConditionLastTransition = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: clusterConditionLastTransitionName,
+		Help: "Unix timestamp of the last condition state transition for the member cluster.",
+	}, []string{memberClusterLabel})
+
 	evictionQueueMetrics = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: evictionQueueDepthMetricsName,
 		Help: "Current depth of the eviction queue",
@@ -201,6 +208,15 @@ func RecordClusterReadySince(clusterName string, prevStatus, currentStatus metav
 	}
 }
 
+// RecordClusterConditionLastTransition records the timestamp of a condition state transition.
+// No-op when the status hasn't changed.
+func RecordClusterConditionLastTransition(clusterName string, prevStatus, currentStatus metav1.ConditionStatus, timestamp time.Time) {
+	if prevStatus == currentStatus {
+		return
+	}
+	clusterConditionLastTransition.WithLabelValues(clusterName).Set(float64(timestamp.Unix()))
+}
+
 // RecordClusterSyncStatusDuration records the duration of the given cluster syncing status
 func RecordClusterSyncStatusDuration(cluster *v1alpha1.Cluster, startTime time.Time) {
 	labels := []string{cluster.Name}
@@ -223,6 +239,7 @@ func CleanupMetricsForCluster(clusterName string) {
 	clusterSyncStatusDuration.DeleteLabelValues(labels...)
 	clusterHealthProbeSuccess.DeleteLabelValues(labels...)
 	clusterReadySince.DeleteLabelValues(labels...)
+	clusterConditionLastTransition.DeleteLabelValues(labels...)
 }
 
 // RecordEvictionQueueMetrics record the depth Of the EvictionQueue
@@ -269,6 +286,7 @@ func ClusterCollectors() []prometheus.Collector {
 		clusterSyncStatusDuration,
 		clusterHealthProbeSuccess,
 		clusterReadySince,
+		clusterConditionLastTransition,
 		evictionQueueMetrics,
 		evictionKindTotalMetrics,
 		evictionProcessingLatency,

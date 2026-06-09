@@ -17,6 +17,7 @@ limitations under the License.
 package metrics
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -430,6 +431,34 @@ cluster_ready_since_timestamp_seconds{member_cluster="foo"} 0
 # TYPE cluster_ready_since_timestamp_seconds gauge
 `
 		if err := testutil.CollectAndCompare(clusterReadySince, strings.NewReader(want), clusterReadySinceName); err != nil {
+			t.Errorf("unexpected collecting result:\n%s", err)
+		}
+	})
+}
+
+func TestRecordClusterConditionLastTransition(t *testing.T) {
+	t.Run("transition records timestamp", func(t *testing.T) {
+		clusterConditionLastTransition.Reset()
+		ts := time.Now()
+		RecordClusterConditionLastTransition("foo", metav1.ConditionFalse, metav1.ConditionTrue, ts)
+		want := fmt.Sprintf(`
+# HELP cluster_condition_last_transition_timestamp_seconds Unix timestamp of the last condition state transition for the member cluster.
+# TYPE cluster_condition_last_transition_timestamp_seconds gauge
+cluster_condition_last_transition_timestamp_seconds{member_cluster="foo"} %d
+`, ts.Unix())
+		if err := testutil.CollectAndCompare(clusterConditionLastTransition, strings.NewReader(want), clusterConditionLastTransitionName); err != nil {
+			t.Errorf("unexpected collecting result:\n%s", err)
+		}
+	})
+
+	t.Run("no change is no-op", func(t *testing.T) {
+		clusterConditionLastTransition.Reset()
+		RecordClusterConditionLastTransition("foo", metav1.ConditionTrue, metav1.ConditionTrue, time.Now())
+		want := `
+# HELP cluster_condition_last_transition_timestamp_seconds Unix timestamp of the last condition state transition for the member cluster.
+# TYPE cluster_condition_last_transition_timestamp_seconds gauge
+`
+		if err := testutil.CollectAndCompare(clusterConditionLastTransition, strings.NewReader(want), clusterConditionLastTransitionName); err != nil {
 			t.Errorf("unexpected collecting result:\n%s", err)
 		}
 	})
