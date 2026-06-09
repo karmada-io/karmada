@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -38,6 +39,7 @@ const (
 	clusterPodAllocatedMetricsName       = "cluster_pod_allocated_number"
 	clusterSyncStatusDurationMetricsName = "cluster_sync_status_duration_seconds"
 	clusterHealthProbeSuccessName        = "cluster_health_probe_success"
+	clusterReadySinceName                = "cluster_ready_since_timestamp_seconds"
 	evictionQueueDepthMetricsName        = "eviction_queue_depth"
 	evictionKindTotalMetricsName         = "eviction_kind_total"
 	evictionProcessingLatencyMetricsName = "eviction_processing_latency_seconds"
@@ -115,6 +117,14 @@ var (
 			"Reflects the raw probe outcome before threshold adjustment.",
 	}, []string{memberClusterLabel})
 
+	// clusterReadySince records the unix timestamp when the cluster last became Ready.
+	// Set to 0 when the cluster is not Ready.
+	clusterReadySince = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: clusterReadySinceName,
+		Help: "Unix timestamp when the member cluster last became Ready. " +
+			"Set to 0 when the cluster is not Ready.",
+	}, []string{memberClusterLabel})
+
 	evictionQueueMetrics = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: evictionQueueDepthMetricsName,
 		Help: "Current depth of the eviction queue",
@@ -177,6 +187,20 @@ func RecordClusterHealthProbeSuccess(clusterName string, online, healthy bool) {
 	clusterHealthProbeSuccess.WithLabelValues(clusterName).Set(val)
 }
 
+// RecordClusterReadySince updates the ready-since timestamp based on the threshold-adjusted condition.
+// On transition to Ready, sets the timestamp to the provided time. On transition away from Ready, sets to 0.
+// No-op when the status hasn't changed.
+func RecordClusterReadySince(clusterName string, prevStatus, currentStatus metav1.ConditionStatus, timestamp time.Time) {
+	if prevStatus == currentStatus {
+		return
+	}
+	if currentStatus == metav1.ConditionTrue {
+		clusterReadySince.WithLabelValues(clusterName).Set(float64(timestamp.Unix()))
+	} else {
+		clusterReadySince.WithLabelValues(clusterName).Set(0)
+	}
+}
+
 // RecordClusterSyncStatusDuration records the duration of the given cluster syncing status
 func RecordClusterSyncStatusDuration(cluster *v1alpha1.Cluster, startTime time.Time) {
 	labels := []string{cluster.Name}
@@ -198,6 +222,7 @@ func CleanupMetricsForCluster(clusterName string) {
 	clusterPodAllocatedGauge.DeleteLabelValues(labels...)
 	clusterSyncStatusDuration.DeleteLabelValues(labels...)
 	clusterHealthProbeSuccess.DeleteLabelValues(labels...)
+	clusterReadySince.DeleteLabelValues(labels...)
 }
 
 // RecordEvictionQueueMetrics record the depth Of the EvictionQueue
@@ -243,6 +268,7 @@ func ClusterCollectors() []prometheus.Collector {
 		clusterPodAllocatedGauge,
 		clusterSyncStatusDuration,
 		clusterHealthProbeSuccess,
+		clusterReadySince,
 		evictionQueueMetrics,
 		evictionKindTotalMetrics,
 		evictionProcessingLatency,

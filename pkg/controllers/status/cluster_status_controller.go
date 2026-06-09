@@ -181,10 +181,21 @@ func (c *ClusterStatusController) SetupWithManager(mgr controllerruntime.Manager
 func (c *ClusterStatusController) syncClusterStatus(ctx context.Context, cluster *clusterv1alpha1.Cluster) error {
 	start := time.Now()
 	var online, healthy bool
+	var readyCondition *metav1.Condition
+
+	// record the previous ready condition status
+	prevReadyStatus := metav1.ConditionFalse
+	if prev := meta.FindStatusCondition(cluster.Status.Conditions, clusterv1alpha1.ClusterConditionReady); prev != nil {
+		prevReadyStatus = prev.Status
+	}
+
 	defer func() {
 		metrics.RecordClusterStatus(cluster)
 		metrics.RecordClusterSyncStatusDuration(cluster, start)
 		metrics.RecordClusterHealthProbeSuccess(cluster.Name, online, healthy)
+		if readyCondition != nil {
+			metrics.RecordClusterReadySince(cluster.Name, prevReadyStatus, readyCondition.Status, start)
+		}
 	}()
 
 	currentClusterStatus := *cluster.Status.DeepCopy()
@@ -195,13 +206,13 @@ func (c *ClusterStatusController) syncClusterStatus(ctx context.Context, cluster
 		klog.ErrorS(err, "Failed to create a ClusterClient for the given member cluster", "cluster", cluster.Name)
 		observedReadyCondition := util.NewCondition(clusterv1alpha1.ClusterConditionReady, statusCollectionFailed,
 			fmt.Sprintf("failed to create a ClusterClient: %v", err), metav1.ConditionFalse)
-		readyCondition := c.clusterConditionCache.thresholdAdjustedReadyCondition(cluster, &observedReadyCondition)
+		readyCondition = c.clusterConditionCache.thresholdAdjustedReadyCondition(cluster, &observedReadyCondition)
 		return updateStatusCondition(ctx, c.Client, cluster, *readyCondition)
 	}
 
 	online, healthy = getClusterHealthStatus(clusterClient)
 	observedReadyCondition := generateReadyCondition(online, healthy)
-	readyCondition := c.clusterConditionCache.thresholdAdjustedReadyCondition(cluster, &observedReadyCondition)
+	readyCondition = c.clusterConditionCache.thresholdAdjustedReadyCondition(cluster, &observedReadyCondition)
 
 	// cluster is offline after retry timeout, update cluster status immediately and return.
 	if !online && readyCondition.Status != metav1.ConditionTrue {

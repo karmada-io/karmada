@@ -19,6 +19,7 @@ package metrics
 import (
 	"strings"
 	"testing"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -405,4 +406,31 @@ cluster_pod_allocated_number{member_cluster="foo"} 110
 	if err := testutil.CollectAndCompare(clusterPodAllocatedGauge, strings.NewReader(want), clusterPodAllocatedMetricsName); err != nil {
 		t.Errorf("unexpected collecting result:\n%s", err)
 	}
+}
+
+func TestRecordClusterReadySince(t *testing.T) {
+	t.Run("transition away from Ready sets 0", func(t *testing.T) {
+		clusterReadySince.Reset()
+		RecordClusterReadySince("foo", metav1.ConditionTrue, metav1.ConditionFalse, time.Now())
+		want := `
+# HELP cluster_ready_since_timestamp_seconds Unix timestamp when the member cluster last became Ready. Set to 0 when the cluster is not Ready.
+# TYPE cluster_ready_since_timestamp_seconds gauge
+cluster_ready_since_timestamp_seconds{member_cluster="foo"} 0
+`
+		if err := testutil.CollectAndCompare(clusterReadySince, strings.NewReader(want), clusterReadySinceName); err != nil {
+			t.Errorf("unexpected collecting result:\n%s", err)
+		}
+	})
+
+	t.Run("no change is no-op", func(t *testing.T) {
+		clusterReadySince.Reset()
+		RecordClusterReadySince("foo", metav1.ConditionTrue, metav1.ConditionTrue, time.Now())
+		want := `
+# HELP cluster_ready_since_timestamp_seconds Unix timestamp when the member cluster last became Ready. Set to 0 when the cluster is not Ready.
+# TYPE cluster_ready_since_timestamp_seconds gauge
+`
+		if err := testutil.CollectAndCompare(clusterReadySince, strings.NewReader(want), clusterReadySinceName); err != nil {
+			t.Errorf("unexpected collecting result:\n%s", err)
+		}
+	})
 }
