@@ -737,7 +737,7 @@ func startFederatedHorizontalPodAutoscalerController(ctx controllerscontext.Cont
 func startCronFederatedHorizontalPodAutoscalerController(ctx controllerscontext.Context) (enabled bool, err error) {
 	cronFHPAController := cronfederatedhpa.CronFHPAController{
 		Client:             ctx.Mgr.GetClient(),
-		EventRecorder:      ctx.Mgr.GetEventRecorderFor(cronfederatedhpa.ControllerName), //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
+		EventRecorder:      ctx.Mgr.GetEventRecorder(cronfederatedhpa.ControllerName),
 		RateLimiterOptions: ctx.Opts.RateLimiterOptions,
 	}
 	if err = cronFHPAController.SetupWithManager(ctx.Mgr); err != nil {

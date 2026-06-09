@@ -27,7 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
@@ -35,7 +35,7 @@ import (
 
 func TestNewCronFederatedHPAJob(t *testing.T) {
 	client := fake.NewClientBuilder().Build()
-	eventRecorder := record.NewFakeRecorder(100)
+	eventRecorder := events.NewFakeRecorder(100)
 	scheduler := gocron.NewScheduler(time.UTC)
 	cronFHPA := &autoscalingv1alpha1.CronFederatedHPA{
 		ObjectMeta: metav1.ObjectMeta{

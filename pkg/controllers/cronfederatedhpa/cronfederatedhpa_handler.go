@@ -25,7 +25,7 @@ import (
 	"github.com/go-co-op/gocron"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	"k8s.io/apimachinery/pkg/api/equality"
-	"k8s.io/client-go/tools/record"
+	clientgoevents "k8s.io/client-go/tools/events"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -42,7 +42,7 @@ type RuleCron struct {
 // CronHandler is the handler for CronFederatedHPA
 type CronHandler struct {
 	client        client.Client
-	eventRecorder record.EventRecorder
+	eventRecorder clientgoevents.EventRecorder
 
 	// cronExecutorMap is [cronFederatedHPA name][rule name]RuleCron
 	cronExecutorMap map[string]map[string]RuleCron
@@ -54,7 +54,7 @@ type CronHandler struct {
 }
 
 // NewCronHandler creates new cron handler
-func NewCronHandler(client client.Client, eventRecorder record.EventRecorder) *CronHandler {
+func NewCronHandler(client client.Client, eventRecorder clientgoevents.EventRecorder) *CronHandler {
 	return &CronHandler{
 		client:                 client,
 		eventRecorder:          eventRecorder,

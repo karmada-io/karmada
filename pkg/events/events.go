@@ -161,3 +161,115 @@ const (
 	// EventReasonAPIIncompatible indicates that the MultiClusterService may not function properly as some member clusters do not support EndpointSlice.
 	EventReasonAPIIncompatible = "APIIncompatible"
 )
+
+// Define event reasons for CronFederatedHPA. Values are kept byte-identical
+// to the strings previously emitted as inline literals, so any external
+// watcher keyed on these strings continues to match.
+const (
+	// EventReasonStartCronFederatedHPARuleFailed indicates that starting the
+	// cron executor for a CronFederatedHPA rule failed.
+	EventReasonStartCronFederatedHPARuleFailed = "StartRuleFailed"
+	// EventReasonUpdateCronFederatedHPAFailed indicates that updating the
+	// CronFederatedHPA object failed.
+	EventReasonUpdateCronFederatedHPAFailed = "UpdateCronFederatedHPAFailed"
+	// EventReasonScaleCronFederatedHPAFailed indicates that scaling the target
+	// referenced by a CronFederatedHPA failed.
+	EventReasonScaleCronFederatedHPAFailed = "ScaleFailed"
+	// EventReasonUpdateCronFederatedHPAStatusFailed indicates that updating the
+	// CronFederatedHPA status with execution history failed.
+	EventReasonUpdateCronFederatedHPAStatusFailed = "UpdateStatusFailed"
+)
+
+// Event actions for events.k8s.io/v1 Events, established by issue #7251.
+//
+// Action describes the operation a controller performed, independent of
+// outcome (e.g. "ScheduleBinding" pairs with both "ScheduleBindingSucceed"
+// and "ScheduleBindingFailed" reasons). The events.k8s.io/v1 API requires
+// action as a machine-readable string, unlike the deprecated core/v1 Event.
+// A single action may be paired with multiple reasons over time as new
+// failure modes are surfaced; reusing one action across those reasons is
+// the intended pattern, matching upstream Kubernetes (e.g. kube-scheduler
+// emits reason "Scheduled" or "FailedScheduling" with action "Binding").
+//
+// Action names derive from paired reasons by dropping the Failed/Succeed
+// suffix; singleton reasons (no paired success/failure variant) get an
+// action named after the emitting operation.
+const (
+	// EventActionCreateExecutionSpace indicates the action of creating an execution space for a cluster.
+	EventActionCreateExecutionSpace = "CreateExecutionSpace"
+	// EventActionRemoveExecutionSpace indicates the action of removing the execution space of a cluster.
+	EventActionRemoveExecutionSpace = "RemoveExecutionSpace"
+	// EventActionTaintCluster indicates the action of tainting or untainting a cluster.
+	EventActionTaintCluster = "TaintCluster"
+	// EventActionSyncImpersonationConfig indicates the action of syncing impersonation config for a cluster.
+	EventActionSyncImpersonationConfig = "SyncImpersonationConfig"
+
+	// EventActionReflectStatus indicates the action of reflecting member-cluster status into a Work.
+	EventActionReflectStatus = "ReflectStatus"
+	// EventActionInterpretHealth indicates the action of interpreting workload health.
+	EventActionInterpretHealth = "InterpretHealth"
+
+	// EventActionSyncWorkload indicates the action of syncing a workload into a member cluster.
+	EventActionSyncWorkload = "SyncWorkload"
+	// EventActionDispatchWork indicates the action of dispatching a Work to a member cluster.
+	EventActionDispatchWork = "DispatchWork"
+
+	// EventActionCleanupWork indicates the action of cleaning up Work objects for a binding.
+	EventActionCleanupWork = "CleanupWork"
+	// EventActionSyncScheduleResultToDependencies indicates the action of syncing a schedule result to dependent bindings.
+	EventActionSyncScheduleResultToDependencies = "SyncScheduleResultToDependencies"
+	// EventActionResolveDependencyPolicy indicates the action of resolving the policy governing a dependency relationship.
+	EventActionResolveDependencyPolicy = "ResolveDependencyPolicy"
+
+	// EventActionSyncWork indicates the action of syncing a Work derived from a (Cluster)ResourceBinding.
+	EventActionSyncWork = "SyncWork"
+	// EventActionAggregateStatus indicates the action of aggregating per-cluster status into a binding.
+	EventActionAggregateStatus = "AggregateStatus"
+	// EventActionScheduleBinding indicates the action of scheduling a (Cluster)ResourceBinding to member clusters.
+	EventActionScheduleBinding = "ScheduleBinding"
+	// EventActionDescheduleBinding indicates the action of descheduling a (Cluster)ResourceBinding from a member cluster.
+	EventActionDescheduleBinding = "DescheduleBinding"
+	// EventActionEvictWorkloadFromCluster indicates the action of evicting a workload from a member cluster.
+	EventActionEvictWorkloadFromCluster = "EvictWorkloadFromCluster"
+
+	// EventActionSyncFederatedResourceQuota indicates the action of syncing a FederatedResourceQuota into member clusters.
+	EventActionSyncFederatedResourceQuota = "SyncFederatedResourceQuota"
+	// EventActionCollectFederatedResourceQuotaStatus indicates the action of collecting per-cluster status of a FederatedResourceQuota.
+	EventActionCollectFederatedResourceQuotaStatus = "CollectFederatedResourceQuotaStatus"
+	// EventActionCollectFederatedResourceQuotaOverallStatus indicates the action of computing the overall status of a FederatedResourceQuota.
+	EventActionCollectFederatedResourceQuotaOverallStatus = "CollectFederatedResourceQuotaOverallStatus"
+
+	// EventActionApplyPolicy indicates the action of applying a (Cluster)PropagationPolicy to a resource template.
+	EventActionApplyPolicy = "ApplyPolicy"
+	// EventActionApplyOverridePolicy indicates the action of applying a (Cluster)OverridePolicy.
+	EventActionApplyOverridePolicy = "ApplyOverridePolicy"
+	// EventActionPreemptPolicy indicates the action of one policy preempting another's resource template selection.
+	EventActionPreemptPolicy = "PreemptPolicy"
+	// EventActionGetDependencies indicates the action of resolving dependent resources via the interpreter.
+	EventActionGetDependencies = "GetDependencies"
+	// EventActionGetComponents indicates the action of resolving components of a resource template via the interpreter.
+	EventActionGetComponents = "GetComponents"
+	// EventActionGetReplicas indicates the action of resolving the replica count of a resource template via the interpreter.
+	EventActionGetReplicas = "GetReplicas"
+
+	// EventActionSyncDerivedService indicates the action of syncing a derived service for a ServiceImport.
+	EventActionSyncDerivedService = "SyncDerivedService"
+
+	// EventActionSyncService indicates the action of syncing a MultiClusterService across member clusters.
+	EventActionSyncService = "SyncService"
+	// EventActionDispatchEndpointSlice indicates the action of dispatching EndpointSlices for a MultiClusterService.
+	EventActionDispatchEndpointSlice = "DispatchEndpointSlice"
+	// EventActionResolveCluster indicates the action of resolving the member clusters configured on a MultiClusterService.
+	EventActionResolveCluster = "ResolveCluster"
+	// EventActionValidateClusterAPI indicates the action of validating that member clusters expose the APIs required by a MultiClusterService.
+	EventActionValidateClusterAPI = "ValidateClusterAPI"
+
+	// EventActionStartCronFederatedHPARule indicates the action of starting the cron executor for a CronFederatedHPA rule.
+	EventActionStartCronFederatedHPARule = "StartCronFederatedHPARule"
+	// EventActionUpdateCronFederatedHPA indicates the action of updating a CronFederatedHPA object.
+	EventActionUpdateCronFederatedHPA = "UpdateCronFederatedHPA"
+	// EventActionScaleCronFederatedHPA indicates the action of scaling the target referenced by a CronFederatedHPA.
+	EventActionScaleCronFederatedHPA = "ScaleCronFederatedHPA"
+	// EventActionUpdateCronFederatedHPAStatus indicates the action of updating a CronFederatedHPA's status with execution history.
+	EventActionUpdateCronFederatedHPAStatus = "UpdateCronFederatedHPAStatus"
+)
