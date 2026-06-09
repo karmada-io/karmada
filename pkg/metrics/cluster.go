@@ -37,6 +37,7 @@ const (
 	clusterCPUAllocatedMetricsName       = "cluster_cpu_allocated_number"
 	clusterPodAllocatedMetricsName       = "cluster_pod_allocated_number"
 	clusterSyncStatusDurationMetricsName = "cluster_sync_status_duration_seconds"
+	clusterHealthProbeSuccessName        = "cluster_health_probe_success"
 	evictionQueueDepthMetricsName        = "eviction_queue_depth"
 	evictionKindTotalMetricsName         = "eviction_kind_total"
 	evictionProcessingLatencyMetricsName = "eviction_processing_latency_seconds"
@@ -107,6 +108,13 @@ var (
 		Help: "Duration in seconds for syncing the status of the cluster once.",
 	}, []string{memberClusterLabel})
 
+	// clusterHealthProbeSuccess reports the raw health probe result before threshold adjustment.
+	clusterHealthProbeSuccess = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: clusterHealthProbeSuccessName,
+		Help: "Result of the last health probe for the member cluster (1 for success, 0 for failure). " +
+			"Reflects the raw probe outcome before threshold adjustment.",
+	}, []string{memberClusterLabel})
+
 	evictionQueueMetrics = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: evictionQueueDepthMetricsName,
 		Help: "Current depth of the eviction queue",
@@ -160,6 +168,15 @@ func RecordClusterStatus(cluster *v1alpha1.Cluster) {
 	}
 }
 
+// RecordClusterHealthProbeSuccess records the raw health probe result before threshold adjustment.
+func RecordClusterHealthProbeSuccess(clusterName string, online, healthy bool) {
+	val := float64(0)
+	if online && healthy {
+		val = 1
+	}
+	clusterHealthProbeSuccess.WithLabelValues(clusterName).Set(val)
+}
+
 // RecordClusterSyncStatusDuration records the duration of the given cluster syncing status
 func RecordClusterSyncStatusDuration(cluster *v1alpha1.Cluster, startTime time.Time) {
 	labels := []string{cluster.Name}
@@ -180,6 +197,7 @@ func CleanupMetricsForCluster(clusterName string) {
 	clusterCPUAllocatedGauge.DeleteLabelValues(labels...)
 	clusterPodAllocatedGauge.DeleteLabelValues(labels...)
 	clusterSyncStatusDuration.DeleteLabelValues(labels...)
+	clusterHealthProbeSuccess.DeleteLabelValues(labels...)
 }
 
 // RecordEvictionQueueMetrics record the depth Of the EvictionQueue
@@ -224,6 +242,7 @@ func ClusterCollectors() []prometheus.Collector {
 		clusterCPUAllocatedGauge,
 		clusterPodAllocatedGauge,
 		clusterSyncStatusDuration,
+		clusterHealthProbeSuccess,
 		evictionQueueMetrics,
 		evictionKindTotalMetrics,
 		evictionProcessingLatency,

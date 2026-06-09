@@ -324,6 +324,55 @@ cluster_cpu_allocated_number{member_cluster="foo"} 0.2
 	}
 }
 
+func TestRecordClusterHealthProbeSuccess(t *testing.T) {
+	tests := []struct {
+		name    string
+		online  bool
+		healthy bool
+		want    string
+	}{
+		{
+			name:    "online and healthy",
+			online:  true,
+			healthy: true,
+			want: `
+# HELP cluster_health_probe_success Result of the last health probe for the member cluster (1 for success, 0 for failure). Reflects the raw probe outcome before threshold adjustment.
+# TYPE cluster_health_probe_success gauge
+cluster_health_probe_success{member_cluster="foo"} 1
+`,
+		},
+		{
+			name:    "unreachable",
+			online:  false,
+			healthy: false,
+			want: `
+# HELP cluster_health_probe_success Result of the last health probe for the member cluster (1 for success, 0 for failure). Reflects the raw probe outcome before threshold adjustment.
+# TYPE cluster_health_probe_success gauge
+cluster_health_probe_success{member_cluster="foo"} 0
+`,
+		},
+		{
+			name:    "online but unhealthy",
+			online:  true,
+			healthy: false,
+			want: `
+# HELP cluster_health_probe_success Result of the last health probe for the member cluster (1 for success, 0 for failure). Reflects the raw probe outcome before threshold adjustment.
+# TYPE cluster_health_probe_success gauge
+cluster_health_probe_success{member_cluster="foo"} 0
+`,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			clusterHealthProbeSuccess.Reset()
+			RecordClusterHealthProbeSuccess("foo", test.online, test.healthy)
+			if err := testutil.CollectAndCompare(clusterHealthProbeSuccess, strings.NewReader(test.want), clusterHealthProbeSuccessName); err != nil {
+				t.Errorf("unexpected collecting result:\n%s", err)
+			}
+		})
+	}
+}
+
 func TestClusterPodAllocatedMetrics(t *testing.T) {
 	testCluster := &clusterv1alpha1.Cluster{
 		ObjectMeta: metav1.ObjectMeta{

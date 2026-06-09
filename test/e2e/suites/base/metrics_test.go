@@ -38,6 +38,7 @@ var _ = ginkgo.Describe("metrics testing", func() {
 		names.KarmadaControllerManagerComponentName: {
 			"workqueue_queue_duration_seconds_sum",    // workqueue metrics
 			"cluster_ready_state",                     // custom ClusterCollectors metrics
+			"cluster_health_probe_success",            // raw health probe result metric
 			"work_sync_workload_duration_seconds_sum", // custom ResourceCollectors metrics
 		},
 		names.KarmadaSchedulerComponentName: {

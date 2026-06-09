@@ -198,6 +198,7 @@ func (c *ClusterStatusController) syncClusterStatus(ctx context.Context, cluster
 	}
 
 	online, healthy := getClusterHealthStatus(clusterClient)
+	metrics.RecordClusterHealthProbeSuccess(cluster.Name, online, healthy)
 	observedReadyCondition := generateReadyCondition(online, healthy)
 	readyCondition := c.clusterConditionCache.thresholdAdjustedReadyCondition(cluster, &observedReadyCondition)
 
