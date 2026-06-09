@@ -180,9 +180,11 @@ func (c *ClusterStatusController) SetupWithManager(mgr controllerruntime.Manager
 
 func (c *ClusterStatusController) syncClusterStatus(ctx context.Context, cluster *clusterv1alpha1.Cluster) error {
 	start := time.Now()
+	var online, healthy bool
 	defer func() {
 		metrics.RecordClusterStatus(cluster)
 		metrics.RecordClusterSyncStatusDuration(cluster, start)
+		metrics.RecordClusterHealthProbeSuccess(cluster.Name, online, healthy)
 	}()
 
 	currentClusterStatus := *cluster.Status.DeepCopy()
@@ -197,8 +199,7 @@ func (c *ClusterStatusController) syncClusterStatus(ctx context.Context, cluster
 		return updateStatusCondition(ctx, c.Client, cluster, *readyCondition)
 	}
 
-	online, healthy := getClusterHealthStatus(clusterClient)
-	metrics.RecordClusterHealthProbeSuccess(cluster.Name, online, healthy)
+	online, healthy = getClusterHealthStatus(clusterClient)
 	observedReadyCondition := generateReadyCondition(online, healthy)
 	readyCondition := c.clusterConditionCache.thresholdAdjustedReadyCondition(cluster, &observedReadyCondition)
 
