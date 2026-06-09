@@ -152,7 +152,7 @@ func TestCommandTokenOptions_runDeleteTokens(t *testing.T) {
 			tokenInCache: []string{},
 			wantErr:      true,
 		},
-		{
+		{ // #nosec G101 -- not a credential; this is a fake token ID used purely as a test fixture.
 			name:         "invalid format token id but match BootstrapTokenPattern",
 			tokenID:      "foo0id.foo0secret0foofo",
 			tokenInCache: []string{},

@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -295,7 +294,7 @@ func TestNewPredicateForServiceExportController(t *testing.T) {
 						Name: "work", Namespace: names.ExecutionSpacePrefix + "cluster",
 					},
 					Spec: workv1alpha1.WorkSpec{
-						SuspendDispatching: ptr.To(true),
+						SuspendDispatching: new(true),
 					},
 				},
 			},
@@ -417,7 +416,7 @@ func TestNewPredicateForServiceExportController_Update(t *testing.T) {
 			Name: "work", Namespace: names.ExecutionSpacePrefix + "cluster",
 		},
 		Spec: workv1alpha1.WorkSpec{
-			SuspendDispatching: ptr.To(true),
+			SuspendDispatching: new(true),
 		},
 	}
 	matched := &workv1alpha1.Work{
@@ -492,7 +491,7 @@ func TestNewPredicateForServiceExportControllerOnAgent(t *testing.T) {
 					Name: "work", Namespace: names.ExecutionSpacePrefix + "cluster",
 				},
 				Spec: workv1alpha1.WorkSpec{
-					SuspendDispatching: ptr.To(true),
+					SuspendDispatching: new(true),
 				},
 			},
 			want: want{
@@ -567,7 +566,7 @@ func TestNewPredicateForServiceExportControllerOnAgent_Update(t *testing.T) {
 			Name: "work", Namespace: names.ExecutionSpacePrefix + "cluster",
 		},
 		Spec: workv1alpha1.WorkSpec{
-			SuspendDispatching: ptr.To(true),
+			SuspendDispatching: new(true),
 		},
 	}
 	matched := &workv1alpha1.Work{

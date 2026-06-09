@@ -20,8 +20,6 @@ import (
 	"reflect"
 	"testing"
 
-	"k8s.io/utils/ptr"
-
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 )
 
@@ -160,7 +158,7 @@ func Test_sortClusters(t *testing.T) {
 			},
 			compareFunction: func(i *ClusterDetailInfo, j *ClusterDetailInfo) *bool {
 				if i.AvailableReplicas != j.AvailableReplicas {
-					return ptr.To(i.AvailableReplicas > j.AvailableReplicas)
+					return new(i.AvailableReplicas > j.AvailableReplicas)
 				}
 				return nil
 			},

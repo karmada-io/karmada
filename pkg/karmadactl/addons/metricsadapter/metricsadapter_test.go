@@ -31,7 +31,6 @@ import (
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	aggregator "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset"
 	fakeAggregator "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset/fake"
-	"k8s.io/utils/ptr"
 
 	addoninit "github.com/karmada-io/karmada/pkg/karmadactl/addons/init"
 	addonutils "github.com/karmada-io/karmada/pkg/karmadactl/addons/utils"
@@ -173,7 +172,7 @@ func TestStatus(t *testing.T) {
 func createKarmadaMetricsDeployment(c clientset.Interface, replicas int32, namespace, priorityClass string) error {
 	karmadaMetricsAdapterDeploymentBytes, err := addonutils.ParseTemplate(karmadaMetricsAdapterDeployment, DeploymentReplace{
 		Namespace:         namespace,
-		Replicas:          ptr.To[int32](replicas),
+		Replicas:          new(replicas),
 		PriorityClassName: priorityClass,
 	})
 	if err != nil {

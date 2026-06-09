@@ -387,7 +387,7 @@ func (d *ResourceDetector) LookForMatchedPolicy(object *unstructured.Unstructure
 	policyList := &policyv1alpha1.PropagationPolicyList{}
 	err := d.Client.List(context.TODO(), policyList, &client.ListOptions{
 		Namespace:             objectKey.Namespace,
-		UnsafeDisableDeepCopy: ptr.To(true),
+		UnsafeDisableDeepCopy: new(true),
 	})
 	if err != nil {
 		klog.Errorf("Failed to list propagation policy: %v", err)
@@ -414,7 +414,7 @@ func (d *ResourceDetector) LookForMatchedClusterPolicy(object *unstructured.Unst
 	klog.V(2).Infof("Attempts to match cluster policy for resource(%s)", objectKey)
 	policyList := &policyv1alpha1.ClusterPropagationPolicyList{}
 	err := d.Client.List(context.TODO(), policyList, &client.ListOptions{
-		UnsafeDisableDeepCopy: ptr.To(true),
+		UnsafeDisableDeepCopy: new(true),
 	})
 	if err != nil {
 		klog.Errorf("Failed to list cluster propagation policy: %v", err)

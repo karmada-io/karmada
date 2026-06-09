@@ -22,7 +22,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	webhookutil "k8s.io/apiserver/pkg/util/webhook"
-	"k8s.io/utils/ptr"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 )
@@ -56,12 +55,12 @@ func TestResourceExploringAccessor_Getters(t *testing.T) {
 			webhook: &configv1alpha1.ResourceInterpreterWebhook{
 				Name: "test-webhook",
 				ClientConfig: admissionregistrationv1.WebhookClientConfig{
-					URL: ptr.To("https://test-webhook.example.com"),
+					URL: new("https://test-webhook.example.com"),
 					Service: &admissionregistrationv1.ServiceReference{
 						Name:      "test-service",
 						Namespace: "test-namespace",
-						Port:      ptr.To(int32(443)),
-						Path:      ptr.To("/validate"),
+						Port:      new(int32(443)),
+						Path:      new("/validate"),
 					},
 					CABundle: []byte("test-ca-bundle"),
 				},
@@ -110,7 +109,7 @@ func TestHookClientConfigForWebhook(t *testing.T) {
 			name:     "URL configuration",
 			hookName: "test-webhook",
 			clientConfig: admissionregistrationv1.WebhookClientConfig{
-				URL:      ptr.To("https://test-webhook.example.com"),
+				URL:      new("https://test-webhook.example.com"),
 				CABundle: []byte("test-ca-bundle"),
 			},
 			expected: webhookutil.ClientConfig{
@@ -146,8 +145,8 @@ func TestHookClientConfigForWebhook(t *testing.T) {
 				Service: &admissionregistrationv1.ServiceReference{
 					Name:      "test-service",
 					Namespace: "test-namespace",
-					Port:      ptr.To(int32(8443)),
-					Path:      ptr.To("/validate"),
+					Port:      new(int32(8443)),
+					Path:      new("/validate"),
 				},
 				CABundle: []byte("test-ca-bundle"),
 			},

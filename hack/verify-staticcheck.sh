@@ -19,7 +19,7 @@ set -o nounset
 set -o pipefail
 
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
-GOLANGCI_LINT_VER="v2.8.0"
+GOLANGCI_LINT_VER="v2.12.2"
 
 cd "${REPO_ROOT}"
 source "hack/util.sh"
@@ -29,8 +29,8 @@ if util::cmd_exist golangci-lint ; then
   golangci-lint version
 else
   echo "Installing golangci-lint ${GOLANGCI_LINT_VER}"
-  # https://golangci-lint.run/usage/install/#other-ci
-  curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin ${GOLANGCI_LINT_VER}
+  # https://golangci-lint.run/docs/welcome/install/local/
+  curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b $(go env GOPATH)/bin ${GOLANGCI_LINT_VER}
 fi
 
 if golangci-lint run; then

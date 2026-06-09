@@ -418,7 +418,7 @@ func TestResourceBindingSpec_SchedulingSuspended(t *testing.T) {
 			name: "false Scheduling results in not suspended",
 			rbSpec: &ResourceBindingSpec{
 				Suspension: &Suspension{
-					Scheduling: ptr.To(false),
+					Scheduling: new(false),
 				},
 			},
 			Suspended: false,
@@ -427,7 +427,7 @@ func TestResourceBindingSpec_SchedulingSuspended(t *testing.T) {
 			name: "true Scheduling results in suspended",
 			rbSpec: &ResourceBindingSpec{
 				Suspension: &Suspension{
-					Scheduling: ptr.To(true),
+					Scheduling: new(true),
 				},
 			},
 			Suspended: true,

@@ -25,7 +25,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/utils/ptr"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -122,7 +121,7 @@ func TestResourceBindingEventFilter(t *testing.T) {
 			schedulerName: "test-scheduler",
 			obj: createResourceBinding("test-rb", "test-scheduler", map[string]string{
 				workv1alpha2.BindingManagedByLabel: "test-manager",
-			}, &workv1alpha2.Suspension{Scheduling: ptr.To(true)}),
+			}, &workv1alpha2.Suspension{Scheduling: new(true)}),
 			expectedResult: false,
 		},
 		{
@@ -130,7 +129,7 @@ func TestResourceBindingEventFilter(t *testing.T) {
 			schedulerName: "test-scheduler",
 			obj: createClusterResourceBinding("test-crb", "test-scheduler", map[string]string{
 				policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "test-id",
-			}, &workv1alpha2.Suspension{Scheduling: ptr.To(true)}),
+			}, &workv1alpha2.Suspension{Scheduling: new(true)}),
 			expectedResult: false,
 		},
 	}

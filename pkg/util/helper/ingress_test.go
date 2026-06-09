@@ -21,7 +21,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	networkingv1 "k8s.io/api/networking/v1"
-	"k8s.io/utils/ptr"
 )
 
 func TestDedupeAndSortIngressLoadBalancerIngress(t *testing.T) {
@@ -116,13 +115,13 @@ func TestDedupeAndSortIngressLoadBalancerIngress(t *testing.T) {
 			args: args{
 				ingresses: []networkingv1.IngressLoadBalancerIngress{
 					{Hostname: "hostname-1", Ports: []networkingv1.IngressPortStatus{
-						{Port: 80, Protocol: "TCP", Error: ptr.To("error-1")},
+						{Port: 80, Protocol: "TCP", Error: new("error-1")},
 					}},
 					{Hostname: "hostname-1", Ports: []networkingv1.IngressPortStatus{
-						{Port: 80, Protocol: "TCP", Error: ptr.To("error-1")},
+						{Port: 80, Protocol: "TCP", Error: new("error-1")},
 					}},
 					{Hostname: "hostname-1", Ports: []networkingv1.IngressPortStatus{
-						{Port: 80, Protocol: "TCP", Error: ptr.To("error-2")},
+						{Port: 80, Protocol: "TCP", Error: new("error-2")},
 					}},
 					{Hostname: "hostname-1", Ports: []networkingv1.IngressPortStatus{
 						{Port: 80, Protocol: "TCP"},
@@ -132,8 +131,8 @@ func TestDedupeAndSortIngressLoadBalancerIngress(t *testing.T) {
 			want: []networkingv1.IngressLoadBalancerIngress{
 				{Hostname: "hostname-1", Ports: []networkingv1.IngressPortStatus{
 					{Port: 80, Protocol: "TCP"},
-					{Port: 80, Protocol: "TCP", Error: ptr.To("error-1")},
-					{Port: 80, Protocol: "TCP", Error: ptr.To("error-2")},
+					{Port: 80, Protocol: "TCP", Error: new("error-1")},
+					{Port: 80, Protocol: "TCP", Error: new("error-2")},
 				}},
 			},
 		},

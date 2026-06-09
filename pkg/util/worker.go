@@ -24,7 +24,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/priorityqueue"
 
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
@@ -249,5 +248,5 @@ func ItemPriorityIfInInitialList(isInInitialList bool) *int {
 	if !isInInitialList {
 		return nil
 	}
-	return ptr.To(LowPriority)
+	return new(LowPriority)
 }

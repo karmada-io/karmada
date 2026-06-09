@@ -28,7 +28,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/rand"
-	"k8s.io/utils/ptr"
 
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	"github.com/karmada-io/karmada/operator/pkg/controlplane/apiserver"
@@ -121,8 +120,8 @@ var _ = ginkgo.Describe("PodDisruptionBudget configuration testing", func() {
 				gomega.Expect(len(etcdPDB.ObjectMeta.OwnerReferences)).Should(gomega.Equal(1))
 				// object etcd has no gvk info, so cannot use etcd.GroupVersionKind() to get StatefulSet gvk.
 				expectedOwnerReferences := *metav1.NewControllerRef(etcd, controlplaneetcd.StatefulSetGVK)
-				expectedOwnerReferences.Controller = ptr.To(true)
-				expectedOwnerReferences.BlockOwnerDeletion = ptr.To(true)
+				expectedOwnerReferences.Controller = new(true)
+				expectedOwnerReferences.BlockOwnerDeletion = new(true)
 				gomega.Expect(etcdPDB.ObjectMeta.OwnerReferences[0]).Should(gomega.Equal(expectedOwnerReferences))
 			})
 
@@ -141,8 +140,8 @@ var _ = ginkgo.Describe("PodDisruptionBudget configuration testing", func() {
 				gomega.Expect(len(cmPDB.ObjectMeta.OwnerReferences)).Should(gomega.Equal(1))
 				// object karmadaControllerManager has no gvk info, so cannot use karmadaControllerManager.GroupVersionKind() to get Deployment gvk.
 				expectedOwnerReferences := *metav1.NewControllerRef(karmadaControllerManager, apiserver.DeploymentGVK)
-				expectedOwnerReferences.Controller = ptr.To(true)
-				expectedOwnerReferences.BlockOwnerDeletion = ptr.To(true)
+				expectedOwnerReferences.Controller = new(true)
+				expectedOwnerReferences.BlockOwnerDeletion = new(true)
 				gomega.Expect(cmPDB.ObjectMeta.OwnerReferences[0]).Should(gomega.Equal(expectedOwnerReferences))
 			})
 

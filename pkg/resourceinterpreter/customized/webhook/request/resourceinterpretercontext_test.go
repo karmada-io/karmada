@@ -253,7 +253,7 @@ func TestVerifyResourceInterpreterContext(t *testing.T) {
 				Response: &configv1alpha1.ResourceInterpreterResponse{
 					UID:        uid,
 					Successful: true,
-					Replicas:   ptr.To(int32(3)),
+					Replicas:   new(int32(3)),
 				},
 			},
 			wantError:   false,
@@ -272,7 +272,7 @@ func TestVerifyResourceInterpreterContext(t *testing.T) {
 				Response: &configv1alpha1.ResourceInterpreterResponse{
 					UID:        "wrong-uid",
 					Successful: true,
-					Replicas:   ptr.To(int32(3)),
+					Replicas:   new(int32(3)),
 				},
 			},
 			wantError: true,
@@ -454,7 +454,7 @@ func TestVerifyResourceInterpreterContextByOperation(t *testing.T) {
 			response: &configv1alpha1.ResourceInterpreterResponse{
 				UID:        types.UID(testUID),
 				Successful: true,
-				Healthy:    ptr.To(true),
+				Healthy:    new(true),
 			},
 			checkFunc: func(t *testing.T, attr *ResponseAttributes) {
 				require.NotNil(t, attr.Healthy)

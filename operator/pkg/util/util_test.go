@@ -29,7 +29,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
 
 	"github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
@@ -206,7 +205,7 @@ func TestUnpack(t *testing.T) {
 		{
 			name:       "Unpack_InvalidGzipFileHeader_InvalidHeader",
 			tarFile:    "invalid.tar.gz",
-			targetPath: ptr.To(""),
+			targetPath: new(""),
 			prep: func(tarFile, _ string, targetPath *string) error {
 				var err error
 				*targetPath, err = os.MkdirTemp("", "test-unpack-*")
@@ -231,7 +230,7 @@ func TestUnpack(t *testing.T) {
 			name:        "Unpack_ValidTarGzipped_UnpackedSuccessfully",
 			tarFile:     "valid.tar.gz",
 			regularFile: "test-file.txt",
-			targetPath:  ptr.To(""),
+			targetPath:  new(""),
 			prep:        verifyValidTarGzipped,
 			verify: func(regularFile string, targetPath string) error {
 				fileExpected := filepath.Join(targetPath, "test", regularFile)
