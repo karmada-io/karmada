@@ -27,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -1824,6 +1825,184 @@ func TestObtainClustersWithPurgeModeDirectly(t *testing.T) {
 			gotClusters := ObtainClustersWithPurgeModeDirectly(tt.bindingSpec)
 			if !gotClusters.Equal(tt.wantClusters) {
 				t.Errorf("ObtainClustersWithPurgeModeDirectly() = %v, want %v", gotClusters.UnsortedList(), tt.wantClusters.UnsortedList())
+			}
+		})
+	}
+}
+func TestGetClusterResourceBindings(t *testing.T) {
+	tests := []struct {
+		name    string
+		labels  labels.Set
+		objects []client.Object
+		wantLen int
+		wantErr bool
+	}{
+		{
+			name:    "no bindings found",
+			labels:  labels.Set{"app": "test"},
+			objects: []client.Object{},
+			wantLen: 0,
+			wantErr: false,
+		},
+		{
+			name:   "matching binding found",
+			labels: labels.Set{"app": "test"},
+			objects: []client.Object{
+				&workv1alpha2.ClusterResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:   "crb1",
+						Labels: map[string]string{"app": "test"},
+					},
+				},
+			},
+			wantLen: 1,
+			wantErr: false,
+		},
+		{
+			name:   "non matching binding not returned",
+			labels: labels.Set{"app": "test"},
+			objects: []client.Object{
+				&workv1alpha2.ClusterResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:   "crb1",
+						Labels: map[string]string{"app": "other"},
+					},
+				},
+			},
+			wantLen: 0,
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(tt.objects...).Build()
+			got, err := GetClusterResourceBindings(c, tt.labels)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetClusterResourceBindings() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if len(got.Items) != tt.wantLen {
+				t.Errorf("GetClusterResourceBindings() got %d items, want %d", len(got.Items), tt.wantLen)
+			}
+		})
+	}
+}
+
+func TestGetResourceBindings(t *testing.T) {
+	tests := []struct {
+		name    string
+		labels  labels.Set
+		objects []client.Object
+		wantLen int
+		wantErr bool
+	}{
+		{
+			name:    "no bindings found",
+			labels:  labels.Set{"app": "test"},
+			objects: []client.Object{},
+			wantLen: 0,
+			wantErr: false,
+		},
+		{
+			name:   "matching binding found",
+			labels: labels.Set{"app": "test"},
+			objects: []client.Object{
+				&workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "rb1",
+						Namespace: "default",
+						Labels:    map[string]string{"app": "test"},
+					},
+				},
+			},
+			wantLen: 1,
+			wantErr: false,
+		},
+		{
+			name:   "non matching binding not returned",
+			labels: labels.Set{"app": "test"},
+			objects: []client.Object{
+				&workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "rb1",
+						Namespace: "default",
+						Labels:    map[string]string{"app": "other"},
+					},
+				},
+			},
+			wantLen: 0,
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(tt.objects...).Build()
+			got, err := GetResourceBindings(c, tt.labels)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetResourceBindings() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if len(got.Items) != tt.wantLen {
+				t.Errorf("GetResourceBindings() got %d items, want %d", len(got.Items), tt.wantLen)
+			}
+		})
+	}
+}
+
+func TestGetResourceBindingsByNamespace(t *testing.T) {
+	tests := []struct {
+		name      string
+		namespace string
+		objects   []client.Object
+		wantLen   int
+		wantErr   bool
+	}{
+		{
+			name:      "no bindings in namespace",
+			namespace: "default",
+			objects:   []client.Object{},
+			wantLen:   0,
+			wantErr:   false,
+		},
+		{
+			name:      "binding found in namespace",
+			namespace: "default",
+			objects: []client.Object{
+				&workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "rb1",
+						Namespace: "default",
+					},
+				},
+			},
+			wantLen: 1,
+			wantErr: false,
+		},
+		{
+			name:      "binding in different namespace not returned",
+			namespace: "default",
+			objects: []client.Object{
+				&workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "rb1",
+						Namespace: "other",
+					},
+				},
+			},
+			wantLen: 0,
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(tt.objects...).Build()
+			got, err := GetResourceBindingsByNamespace(c, tt.namespace)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetResourceBindingsByNamespace() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if len(got.Items) != tt.wantLen {
+				t.Errorf("GetResourceBindingsByNamespace() got %d items, want %d", len(got.Items), tt.wantLen)
 			}
 		})
 	}
