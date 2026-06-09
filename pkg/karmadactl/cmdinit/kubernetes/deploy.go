@@ -415,7 +415,11 @@ func (i *CommandInitOption) initializeCommandLineArgs() {
 
 // initializeDirectory initializes a directory and makes sure it's empty.
 func initializeDirectory(path string) error {
-	if utils.IsExist(path) {
+	exist, err := utils.PathExists(path)
+	if err != nil {
+		return fmt.Errorf("failed to check path %q: %w", path, err)
+	}
+	if exist {
 		if err := os.RemoveAll(path); err != nil {
 			return err
 		}
@@ -518,7 +522,10 @@ func (i *CommandInitOption) prepareCRD() error {
 
 	for _, archive := range validation.CrdsArchive {
 		expectedDir := filepath.Join(i.KarmadaDataPath, archive)
-		exist, _ := utils.PathExists(expectedDir)
+		exist, err := utils.PathExists(expectedDir)
+		if err != nil {
+			return fmt.Errorf("failed to check path %q: %w", expectedDir, err)
+		}
 		if !exist {
 			return fmt.Errorf("lacking the necessary file path: %s", expectedDir)
 		}
