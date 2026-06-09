@@ -39,6 +39,7 @@ const (
 	clusterPodAllocatedMetricsName       = "cluster_pod_allocated_number"
 	clusterSyncStatusDurationMetricsName = "cluster_sync_status_duration_seconds"
 	clusterHealthProbeSuccessName        = "cluster_health_probe_success"
+	clusterHealthProbeDurationName       = "cluster_health_probe_duration_seconds"
 	clusterReadySinceName                = "cluster_ready_since_timestamp_seconds"
 	clusterConditionLastTransitionName   = "cluster_condition_last_transition_timestamp_seconds"
 	evictionQueueDepthMetricsName        = "eviction_queue_depth"
@@ -118,6 +119,13 @@ var (
 			"Reflects the raw probe outcome before threshold adjustment.",
 	}, []string{memberClusterLabel})
 
+	// clusterHealthProbeDuration reports the duration of the health probe HTTP call only.
+	clusterHealthProbeDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    clusterHealthProbeDurationName,
+		Help:    "Duration in seconds of the health probe to the member cluster.",
+		Buckets: []float64{0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10},
+	}, []string{memberClusterLabel})
+
 	// clusterReadySince records the unix timestamp when the cluster last became Ready.
 	// Set to 0 when the cluster is not Ready.
 	clusterReadySince = prometheus.NewGaugeVec(prometheus.GaugeOpts{
@@ -194,6 +202,11 @@ func RecordClusterHealthProbeSuccess(clusterName string, online, healthy bool) {
 	clusterHealthProbeSuccess.WithLabelValues(clusterName).Set(val)
 }
 
+// RecordClusterHealthProbeDuration records the duration of the health probe HTTP call.
+func RecordClusterHealthProbeDuration(clusterName string, startTime time.Time) {
+	clusterHealthProbeDuration.WithLabelValues(clusterName).Observe(utilmetrics.DurationInSeconds(startTime))
+}
+
 // RecordClusterReadySince updates the ready-since timestamp based on the threshold-adjusted condition.
 // On transition to Ready, sets the timestamp to the provided time. On transition away from Ready, sets to 0.
 // No-op when the status hasn't changed.
@@ -238,6 +251,7 @@ func CleanupMetricsForCluster(clusterName string) {
 	clusterPodAllocatedGauge.DeleteLabelValues(labels...)
 	clusterSyncStatusDuration.DeleteLabelValues(labels...)
 	clusterHealthProbeSuccess.DeleteLabelValues(labels...)
+	clusterHealthProbeDuration.DeleteLabelValues(labels...)
 	clusterReadySince.DeleteLabelValues(labels...)
 	clusterConditionLastTransition.DeleteLabelValues(labels...)
 }
@@ -285,6 +299,7 @@ func ClusterCollectors() []prometheus.Collector {
 		clusterPodAllocatedGauge,
 		clusterSyncStatusDuration,
 		clusterHealthProbeSuccess,
+		clusterHealthProbeDuration,
 		clusterReadySince,
 		clusterConditionLastTransition,
 		evictionQueueMetrics,
