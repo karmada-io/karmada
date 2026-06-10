@@ -477,3 +477,65 @@ func TestRecordClusterHealthProbeDuration(t *testing.T) {
 		t.Logf("histogram comparison (expected non-exact match): %s", err)
 	}
 }
+
+func TestProbeResultLabel(t *testing.T) {
+	tests := []struct {
+		name    string
+		online  bool
+		healthy bool
+		want    string
+	}{
+		{"online and healthy", true, true, "success"},
+		{"unreachable", false, false, "error_unreachable"},
+		{"online but unhealthy", true, false, "error_unhealthy"},
+		{"not online not healthy", false, true, "error_unreachable"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ProbeResultLabel(tt.online, tt.healthy); got != tt.want {
+				t.Errorf("ProbeResultLabel(%v, %v) = %q, want %q", tt.online, tt.healthy, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestRecordClusterHealthProbeTotal(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		clusterHealthProbeTotal.Reset()
+		RecordClusterHealthProbeTotal("foo", true, true)
+		want := `
+# HELP cluster_health_probe_total Total number of health probes to the member cluster, categorized by result.
+# TYPE cluster_health_probe_total counter
+cluster_health_probe_total{member_cluster="foo",result="success"} 1
+`
+		if err := testutil.CollectAndCompare(clusterHealthProbeTotal, strings.NewReader(want), clusterHealthProbeTotalName); err != nil {
+			t.Errorf("unexpected collecting result:\n%s", err)
+		}
+	})
+
+	t.Run("unreachable", func(t *testing.T) {
+		clusterHealthProbeTotal.Reset()
+		RecordClusterHealthProbeTotal("foo", false, false)
+		want := `
+# HELP cluster_health_probe_total Total number of health probes to the member cluster, categorized by result.
+# TYPE cluster_health_probe_total counter
+cluster_health_probe_total{member_cluster="foo",result="error_unreachable"} 1
+`
+		if err := testutil.CollectAndCompare(clusterHealthProbeTotal, strings.NewReader(want), clusterHealthProbeTotalName); err != nil {
+			t.Errorf("unexpected collecting result:\n%s", err)
+		}
+	})
+
+	t.Run("unhealthy", func(t *testing.T) {
+		clusterHealthProbeTotal.Reset()
+		RecordClusterHealthProbeTotal("foo", true, false)
+		want := `
+# HELP cluster_health_probe_total Total number of health probes to the member cluster, categorized by result.
+# TYPE cluster_health_probe_total counter
+cluster_health_probe_total{member_cluster="foo",result="error_unhealthy"} 1
+`
+		if err := testutil.CollectAndCompare(clusterHealthProbeTotal, strings.NewReader(want), clusterHealthProbeTotalName); err != nil {
+			t.Errorf("unexpected collecting result:\n%s", err)
+		}
+	})
+}

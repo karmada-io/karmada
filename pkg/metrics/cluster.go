@@ -40,6 +40,7 @@ const (
 	clusterSyncStatusDurationMetricsName = "cluster_sync_status_duration_seconds"
 	clusterHealthProbeSuccessName        = "cluster_health_probe_success"
 	clusterHealthProbeDurationName       = "cluster_health_probe_duration_seconds"
+	clusterHealthProbeTotalName          = "cluster_health_probe_total"
 	clusterReadySinceName                = "cluster_ready_since_timestamp_seconds"
 	clusterConditionLastTransitionName   = "cluster_condition_last_transition_timestamp_seconds"
 	evictionQueueDepthMetricsName        = "eviction_queue_depth"
@@ -49,6 +50,11 @@ const (
 
 	// Canonical label for Karmada member clusters.
 	memberClusterLabel = "member_cluster"
+
+	// Probe result labels for cluster_health_probe_total.
+	ProbeResultSuccess          = "success"
+	ProbeResultErrorUnreachable = "error_unreachable"
+	ProbeResultErrorUnhealthy   = "error_unhealthy"
 )
 
 var (
@@ -126,6 +132,12 @@ var (
 		Buckets: []float64{0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10},
 	}, []string{memberClusterLabel})
 
+	// clusterHealthProbeTotal counts probes by result type.
+	clusterHealthProbeTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: clusterHealthProbeTotalName,
+		Help: "Total number of health probes to the member cluster, categorized by result.",
+	}, []string{memberClusterLabel, "result"})
+
 	// clusterReadySince records the unix timestamp when the cluster last became Ready.
 	// Set to 0 when the cluster is not Ready.
 	clusterReadySince = prometheus.NewGaugeVec(prometheus.GaugeOpts{
@@ -202,6 +214,22 @@ func RecordClusterHealthProbeSuccess(clusterName string, online, healthy bool) {
 	clusterHealthProbeSuccess.WithLabelValues(clusterName).Set(val)
 }
 
+// ProbeResultLabel returns the result label for a health probe.
+func ProbeResultLabel(online, healthy bool) string {
+	if online && healthy {
+		return ProbeResultSuccess
+	}
+	if !online {
+		return ProbeResultErrorUnreachable
+	}
+	return ProbeResultErrorUnhealthy
+}
+
+// RecordClusterHealthProbeTotal increments the probe counter with the appropriate result label.
+func RecordClusterHealthProbeTotal(clusterName string, online, healthy bool) {
+	clusterHealthProbeTotal.WithLabelValues(clusterName, ProbeResultLabel(online, healthy)).Inc()
+}
+
 // RecordClusterHealthProbeDuration records the duration of the health probe HTTP call.
 func RecordClusterHealthProbeDuration(clusterName string, startTime time.Time) {
 	clusterHealthProbeDuration.WithLabelValues(clusterName).Observe(utilmetrics.DurationInSeconds(startTime))
@@ -252,6 +280,7 @@ func CleanupMetricsForCluster(clusterName string) {
 	clusterSyncStatusDuration.DeleteLabelValues(labels...)
 	clusterHealthProbeSuccess.DeleteLabelValues(labels...)
 	clusterHealthProbeDuration.DeleteLabelValues(labels...)
+	clusterHealthProbeTotal.DeletePartialMatch(prometheus.Labels{memberClusterLabel: clusterName})
 	clusterReadySince.DeleteLabelValues(labels...)
 	clusterConditionLastTransition.DeleteLabelValues(labels...)
 }
@@ -300,6 +329,7 @@ func ClusterCollectors() []prometheus.Collector {
 		clusterSyncStatusDuration,
 		clusterHealthProbeSuccess,
 		clusterHealthProbeDuration,
+		clusterHealthProbeTotal,
 		clusterReadySince,
 		clusterConditionLastTransition,
 		evictionQueueMetrics,

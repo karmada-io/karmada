@@ -193,6 +193,7 @@ func (c *ClusterStatusController) syncClusterStatus(ctx context.Context, cluster
 		metrics.RecordClusterStatus(cluster)
 		metrics.RecordClusterSyncStatusDuration(cluster, start)
 		metrics.RecordClusterHealthProbeSuccess(cluster.Name, online, healthy)
+		metrics.RecordClusterHealthProbeTotal(cluster.Name, online, healthy)
 		if readyCondition != nil {
 			metrics.RecordClusterReadySince(cluster.Name, prevReadyStatus, readyCondition.Status, start)
 			metrics.RecordClusterConditionLastTransition(cluster.Name, prevReadyStatus, readyCondition.Status, start)
