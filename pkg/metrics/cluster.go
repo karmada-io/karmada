@@ -43,6 +43,7 @@ const (
 	clusterHealthProbeTotalName          = "cluster_health_probe_total"
 	clusterReadySinceName                = "cluster_ready_since_timestamp_seconds"
 	clusterConditionLastTransitionName   = "cluster_condition_last_transition_timestamp_seconds"
+	clusterHealthTransitionsTotalName    = "cluster_health_transitions_total"
 	evictionQueueDepthMetricsName        = "eviction_queue_depth"
 	evictionKindTotalMetricsName         = "eviction_kind_total"
 	evictionProcessingLatencyMetricsName = "eviction_processing_latency_seconds"
@@ -51,12 +52,10 @@ const (
 	// Canonical label for Karmada member clusters.
 	memberClusterLabel = "member_cluster"
 
-	// ProbeResultSuccess indicates the cluster is online and healthy.
-	ProbeResultSuccess = "success"
-	// ProbeResultErrorUnreachable indicates the cluster is not reachable.
-	ProbeResultErrorUnreachable = "error_unreachable"
-	// ProbeResultErrorUnhealthy indicates the cluster is reachable but not healthy.
-	ProbeResultErrorUnhealthy = "error_unhealthy"
+	// HealthStateSuccess indicates the cluster is online and healthy.
+	HealthStateSuccess = "success"
+	// HealthStateError indicates the cluster is not healthy or not reachable.
+	HealthStateError = "error"
 )
 
 var (
@@ -154,6 +153,12 @@ var (
 		Help: "Unix timestamp of the last condition state transition for the member cluster.",
 	}, []string{memberClusterLabel})
 
+	// clusterHealthTransitionsTotal counts health state transitions.
+	clusterHealthTransitionsTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: clusterHealthTransitionsTotalName,
+		Help: "Total number of health state transitions for the member cluster.",
+	}, []string{memberClusterLabel, "from_state", "to_state"})
+
 	evictionQueueMetrics = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: evictionQueueDepthMetricsName,
 		Help: "Current depth of the eviction queue",
@@ -219,12 +224,9 @@ func RecordClusterHealthProbeSuccess(clusterName string, online, healthy bool) {
 // ProbeResultLabel returns the result label for a health probe.
 func ProbeResultLabel(online, healthy bool) string {
 	if online && healthy {
-		return ProbeResultSuccess
+		return HealthStateSuccess
 	}
-	if !online {
-		return ProbeResultErrorUnreachable
-	}
-	return ProbeResultErrorUnhealthy
+	return HealthStateError
 }
 
 // RecordClusterHealthProbeTotal increments the probe counter with the appropriate result label.
@@ -260,6 +262,27 @@ func RecordClusterConditionLastTransition(clusterName string, prevStatus, curren
 	clusterConditionLastTransition.WithLabelValues(clusterName).Set(float64(timestamp.Unix()))
 }
 
+// conditionToTransitionState maps a threshold-adjusted condition status to a transition state label.
+func conditionToTransitionState(status metav1.ConditionStatus) string {
+	if status == metav1.ConditionTrue {
+		return HealthStateSuccess
+	}
+	return HealthStateError
+}
+
+// RecordClusterHealthTransition increments the transition counter when the threshold-adjusted state changes.
+// No-op when the state hasn't changed.
+func RecordClusterHealthTransition(clusterName string, prevStatus, currentStatus metav1.ConditionStatus) {
+	if prevStatus == currentStatus {
+		return
+	}
+	clusterHealthTransitionsTotal.WithLabelValues(
+		clusterName,
+		conditionToTransitionState(prevStatus),
+		conditionToTransitionState(currentStatus),
+	).Inc()
+}
+
 // RecordClusterSyncStatusDuration records the duration of the given cluster syncing status
 func RecordClusterSyncStatusDuration(cluster *v1alpha1.Cluster, startTime time.Time) {
 	labels := []string{cluster.Name}
@@ -285,6 +308,7 @@ func CleanupMetricsForCluster(clusterName string) {
 	clusterHealthProbeTotal.DeletePartialMatch(prometheus.Labels{memberClusterLabel: clusterName})
 	clusterReadySince.DeleteLabelValues(labels...)
 	clusterConditionLastTransition.DeleteLabelValues(labels...)
+	clusterHealthTransitionsTotal.DeletePartialMatch(prometheus.Labels{memberClusterLabel: clusterName})
 }
 
 // RecordEvictionQueueMetrics record the depth Of the EvictionQueue
@@ -334,6 +358,7 @@ func ClusterCollectors() []prometheus.Collector {
 		clusterHealthProbeTotal,
 		clusterReadySince,
 		clusterConditionLastTransition,
+		clusterHealthTransitionsTotal,
 		evictionQueueMetrics,
 		evictionKindTotalMetrics,
 		evictionProcessingLatency,
