@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	promtestutil "github.com/prometheus/client_golang/prometheus/testutil"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -496,6 +497,19 @@ func TestProbeResultLabel(t *testing.T) {
 				t.Errorf("ProbeResultLabel(%v, %v) = %q, want %q", tt.online, tt.healthy, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestClusterCollectorsLint(t *testing.T) {
+	for _, c := range ClusterCollectors() {
+		problems, err := promtestutil.CollectAndLint(c)
+		if err != nil {
+			t.Errorf("failed to lint collector: %v", err)
+			continue
+		}
+		for _, p := range problems {
+			t.Errorf("lint problem: %s: %s", p.Metric, p.Text)
+		}
 	}
 }
 

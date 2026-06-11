@@ -51,10 +51,12 @@ const (
 	// Canonical label for Karmada member clusters.
 	memberClusterLabel = "member_cluster"
 
-	// Probe result labels for cluster_health_probe_total.
-	ProbeResultSuccess          = "success"
+	// ProbeResultSuccess indicates the cluster is online and healthy.
+	ProbeResultSuccess = "success"
+	// ProbeResultErrorUnreachable indicates the cluster is not reachable.
 	ProbeResultErrorUnreachable = "error_unreachable"
-	ProbeResultErrorUnhealthy   = "error_unhealthy"
+	// ProbeResultErrorUnhealthy indicates the cluster is reachable but not healthy.
+	ProbeResultErrorUnhealthy = "error_unhealthy"
 )
 
 var (
