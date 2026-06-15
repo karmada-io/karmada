@@ -26,6 +26,8 @@ Logs flags:
 
       --add-dir-header                       If true, adds the file directory to the header of the log messages
       --alsologtostderr                      log to standard error as well as files (no effect when -logtostderr=true)
+      --alsologtostderrthreshold severity    logs at or above this threshold go to stderr when -alsologtostderr=true (no effect when -logtostderr=true)
+      --legacy-stderr-threshold-behavior     If true, stderrthreshold is ignored when logtostderr=true (legacy behavior). If false, stderrthreshold is honored even when logtostderr=true (default true)
       --log-backtrace-at traceLocation       when logging hits line file:N, emit a stack trace (default :0)
       --log-dir string                       If non-empty, write log files in this directory (no effect when -logtostderr=true)
       --log-file string                      If non-empty, use this log file (no effect when -logtostderr=true)
@@ -38,7 +40,7 @@ Logs flags:
       --one-output                           If true, only write logs to their native severity level (vs also writing to each lower severity level; no effect when -logtostderr=true)
       --skip-headers                         If true, avoid header prefixes in the log messages
       --skip-log-headers                     If true, avoid headers when opening log files (no effect when -logtostderr=true)
-      --stderrthreshold severity             logs at or above this threshold go to stderr when writing to files and stderr (no effect when -logtostderr=true or -alsologtostderr=true) (default 2)
+      --stderrthreshold severity             logs at or above this threshold go to stderr when writing to files and stderr (no effect when -logtostderr=true or -alsologtostderr=true unless -legacy_stderr_threshold_behavior=false) (default 2)
   -v, --v Level                              number for the log level verbosity
       --vmodule pattern=N,...                comma-separated list of pattern=N settings for file-filtered logging (only works for text log format)
 
@@ -52,9 +54,9 @@ Generic flags:
       --audit-log-batch-throttle-qps float32                    Maximum average number of batches per second. Only used in batch mode.
       --audit-log-compress                                      If set, the rotated log files will be compressed using gzip.
       --audit-log-format string                                 Format of saved audits. "legacy" indicates 1-line text format for each event. "json" indicates structured json format. Known formats are legacy,json. (default "json")
-      --audit-log-maxage int                                    The maximum number of days to retain old audit log files based on the timestamp encoded in their filename.
-      --audit-log-maxbackup int                                 The maximum number of old audit log files to retain. Setting a value of 0 will mean there's no restriction on the number of files.
-      --audit-log-maxsize int                                   The maximum size in megabytes of the audit log file before it gets rotated.
+      --audit-log-maxage int                                    The maximum number of days to retain old audit log files based on the timestamp encoded in their filename. Setting a value of 0 means old audit log files are not removed based on age. (default 366)
+      --audit-log-maxbackup int                                 The maximum number of old audit log files to retain. Setting a value of 0 will mean there's no restriction on the number of files. (default 100)
+      --audit-log-maxsize int                                   The maximum size in megabytes of the audit log file before it gets rotated. Setting to 0 disables rotation (not recommended). (default 100)
       --audit-log-mode string                                   Strategy for sending audit events. Blocking indicates sending events should block server responses. Batch causes the backend to buffer and write events asynchronously. Known modes are batch,blocking,blocking-strict. (default "blocking")
       --audit-log-path string                                   If set, all requests coming to the apiserver will be logged to this file.  '-' means standard out.
       --audit-log-truncate-enabled                              Whether event and batch truncating is enabled.
@@ -115,16 +117,15 @@ Generic flags:
                                                                 AllowParsingUserUIDFromCertAuth=true|false (BETA - default=true)
                                                                 AllowUnsafeMalformedObjectDeletion=true|false (ALPHA - default=false)
                                                                 CBORServingAndStorage=true|false (ALPHA - default=false)
-                                                                ComponentFlagz=true|false (ALPHA - default=false)
-                                                                ComponentStatusz=true|false (ALPHA - default=false)
+                                                                ComponentFlagz=true|false (BETA - default=true)
+                                                                ComponentStatusz=true|false (BETA - default=true)
                                                                 ConcurrentWatchObjectDecode=true|false (BETA - default=false)
-                                                                ConstrainedImpersonation=true|false (ALPHA - default=false)
+                                                                ConstrainedImpersonation=true|false (BETA - default=true)
                                                                 ContextualLogging=true|false (BETA - default=true)
                                                                 ControllerPriorityQueue=true|false (BETA - default=true)
                                                                 CoordinatedLeaderElection=true|false (BETA - default=false)
                                                                 CustomizedClusterResourceModeling=true|false (BETA - default=true)
-                                                                DeclarativeValidation=true|false (BETA - default=true)
-                                                                DeclarativeValidationTakeover=true|false (BETA - default=false)
+                                                                DeclarativeValidationBeta=true|false (BETA - default=true)
                                                                 DetectCacheInconsistency=true|false (BETA - default=true)
                                                                 Failover=true|false (BETA - default=false)
                                                                 FederatedQuotaEnforcement=true|false (ALPHA - default=false)
@@ -132,9 +133,10 @@ Generic flags:
                                                                 ListFromCacheSnapshot=true|false (BETA - default=true)
                                                                 LoggingAlphaOptions=true|false (ALPHA - default=false)
                                                                 LoggingBetaOptions=true|false (BETA - default=true)
+                                                                ManifestBasedAdmissionControlConfig=true|false (ALPHA - default=false)
                                                                 MultiClusterService=true|false (ALPHA - default=false)
                                                                 MultiplePodTemplatesScheduling=true|false (ALPHA - default=false)
-                                                                MutatingAdmissionPolicy=true|false (BETA - default=false)
+                                                                NativeHistograms=true|false (ALPHA - default=false)
                                                                 OpenAPIEnums=true|false (BETA - default=true)
                                                                 PriorityBasedScheduling=true|false (ALPHA - default=false)
                                                                 PropagateDeps=true|false (BETA - default=true)
@@ -142,6 +144,7 @@ Generic flags:
                                                                 RemoteRequestHeaderUID=true|false (BETA - default=true)
                                                                 ResourceQuotaEstimate=true|false (ALPHA - default=false)
                                                                 SchedulingOvercommitProtection=true|false (ALPHA - default=false)
+                                                                ShardedListAndWatch=true|false (ALPHA - default=false)
                                                                 SizeBasedListCostEstimate=true|false (BETA - default=true)
                                                                 StatefulFailoverInjection=true|false (ALPHA - default=false)
                                                                 StorageVersionAPI=true|false (ALPHA - default=false)
@@ -150,8 +153,8 @@ Generic flags:
                                                                 StructuredAuthenticationConfigurationJWKSMetrics=true|false (BETA - default=true)
                                                                 TokenRequestServiceAccountUIDValidation=true|false (BETA - default=true)
                                                                 UnauthenticatedHTTP2DOSMitigation=true|false (BETA - default=true)
-                                                                UnknownVersionInteroperabilityProxy=true|false (ALPHA - default=false)
-                                                                WatchCacheInitializationPostStartHook=true|false (BETA - default=false)
+                                                                UnknownVersionInteroperabilityProxy=true|false (BETA - default=true)
+                                                                WatchCacheInitializationPostStartHook=true|false (BETA - default=true)
                                                                 WatchList=true|false (BETA - default=true)
                                                                 WorkloadAffinity=true|false (ALPHA - default=false)
       --http2-max-streams-per-connection int                    The limit that the server gives to clients for the maximum number of streams in an HTTP/2 connection. Zero means to use golang's default.
@@ -176,6 +179,7 @@ Generic flags:
       --tls-cipher-suites strings                               Comma-separated list of cipher suites for the server. If omitted, the default Go cipher suites will be used. 
                                                                 Preferred values: TLS_AES_128_GCM_SHA256, TLS_AES_256_GCM_SHA384, TLS_CHACHA20_POLY1305_SHA256, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305, TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256. 
                                                                 Insecure values: TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_ECDSA_WITH_RC4_128_SHA, TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_RC4_128_SHA, TLS_RSA_WITH_3DES_EDE_CBC_SHA, TLS_RSA_WITH_AES_128_CBC_SHA, TLS_RSA_WITH_AES_128_CBC_SHA256, TLS_RSA_WITH_AES_128_GCM_SHA256, TLS_RSA_WITH_AES_256_CBC_SHA, TLS_RSA_WITH_AES_256_GCM_SHA384, TLS_RSA_WITH_RC4_128_SHA.
+      --tls-curve-preferences int32Slice                        Comma-separated list of numeric Go crypto/tls CurveID values, as the allowed key exchange mechanisms for the server. The supported values depend on the Go version used. See https://pkg.go.dev/crypto/tls#CurveID for values supported for each Go version. The order of the list is ignored, and key exchange mechanisms are chosen by Go from this list using an internal preference order. If omitted, the default Go curves will be used. (default [])
       --tls-min-version string                                  Minimum TLS version supported. Possible values: VersionTLS10, VersionTLS11, VersionTLS12, VersionTLS13
       --tls-private-key-file string                             File containing the default x509 private key matching --tls-cert-file.
       --tls-sni-cert-key namedCertKey                           A pair of x509 certificate and private key file paths, optionally suffixed with a list of domain patterns which are fully qualified domain names, possibly with prefixed wildcard segments. The domain patterns also allow IP addresses, but IPs should only be used if the apiserver has visibility to the IP address requested by a client. If no domain patterns are provided, the names of the certificate are extracted. Non-wildcard matches trump over wildcard matches, explicit domain patterns trump over extracted names. For multiple key/certificate pairs, use the --tls-sni-cert-key multiple times. Examples: "example.crt,example.key" or "foo.crt,foo.key:*.foo.com,foo.com". (default [])
