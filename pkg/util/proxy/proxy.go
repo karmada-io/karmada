@@ -30,13 +30,13 @@ import (
 
 	authenticationv1 "k8s.io/api/authentication/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/httpstream"
 	utilnet "k8s.io/apimachinery/pkg/util/net"
 	proxyutil "k8s.io/apimachinery/pkg/util/proxy"
 	"k8s.io/apiserver/pkg/authentication/user"
 	"k8s.io/apiserver/pkg/endpoints/handlers/responsewriters"
 	"k8s.io/apiserver/pkg/endpoints/request"
 	registryrest "k8s.io/apiserver/pkg/registry/rest"
+	"k8s.io/streaming/pkg/httpstream"
 
 	clusterapis "github.com/karmada-io/karmada/pkg/apis/cluster"
 )

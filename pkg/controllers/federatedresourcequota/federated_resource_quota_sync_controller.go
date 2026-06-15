@@ -91,7 +91,7 @@ func (c *SyncController) Reconcile(ctx context.Context, req controllerruntime.Re
 
 	if err := c.buildWorks(ctx, quota, clusterList.Items); err != nil {
 		klog.ErrorS(err, "Failed to build works for federatedResourceQuota", "namespacedName", req.NamespacedName.String())
-		c.EventRecorder.Eventf(quota, corev1.EventTypeWarning, events.EventReasonSyncFederatedResourceQuotaFailed, err.Error())
+		c.EventRecorder.Eventf(quota, corev1.EventTypeWarning, events.EventReasonSyncFederatedResourceQuotaFailed, "%s", err.Error())
 		return controllerruntime.Result{}, err
 	}
 	c.EventRecorder.Eventf(quota, corev1.EventTypeNormal, events.EventReasonSyncFederatedResourceQuotaSucceed, "Sync works for FederatedResourceQuota(%s) succeed.", req.NamespacedName.String())

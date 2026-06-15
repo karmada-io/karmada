@@ -83,7 +83,7 @@ func (c *StatusController) Reconcile(ctx context.Context, req controllerruntime.
 
 	if err := c.collectQuotaStatus(ctx, quota); err != nil {
 		klog.ErrorS(err, "Failed to collect status from works to federatedResourceQuota", "federatedResourceQuota", req.NamespacedName.String())
-		c.EventRecorder.Eventf(quota, corev1.EventTypeWarning, events.EventReasonCollectFederatedResourceQuotaStatusFailed, err.Error())
+		c.EventRecorder.Eventf(quota, corev1.EventTypeWarning, events.EventReasonCollectFederatedResourceQuotaStatusFailed, "%s", err.Error())
 		return controllerruntime.Result{}, err
 	}
 	c.EventRecorder.Eventf(quota, corev1.EventTypeNormal, events.EventReasonCollectFederatedResourceQuotaStatusSucceed, "Collect status of FederatedResourceQuota(%s) succeed.", req.NamespacedName.String())
