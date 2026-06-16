@@ -36,6 +36,19 @@ import (
 // Note: changes to any sub-resource other than status will be ignored.
 // Changes to the status sub-resource will only be applied if the object
 // already exist.
+//
+// WARNING: This helper fetches the object via the client's cache (an informer),
+// which may be stale. The desired status produced by MutateFn is compared
+// (DeepEqual) against this possibly-stale cached object, and the update is
+// skipped when they are equal. If the cache lags behind the API server, a
+// needed update can be silently skipped.
+//
+// Because of the above, callers MUST ensure the problem can eventually
+// converge even if a single update is skipped. In particular, a caller MUST
+// NOT filter out (ignore) reconcile events without also having a periodic
+// reconcile, otherwise a skipped update may never be retried and the status
+// stays stale forever.
+// See https://github.com/karmada-io/karmada/issues/6858 for the background.
 func UpdateStatus(ctx context.Context, c client.Client, obj client.Object, f controllerutil.MutateFn) (controllerutil.OperationResult, error) {
 	key := client.ObjectKeyFromObject(obj)
 	if err := c.Get(ctx, key, obj); err != nil {

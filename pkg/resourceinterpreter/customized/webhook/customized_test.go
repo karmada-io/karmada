@@ -28,7 +28,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	webhookutil "k8s.io/apiserver/pkg/util/webhook"
 	"k8s.io/client-go/rest"
-	"k8s.io/utils/ptr"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -1188,7 +1187,7 @@ func (m *mockWebhookAccessor) GetTimeoutSeconds() *int32                     { r
 func (m *mockWebhookAccessor) GetInterpreterContextVersions() []string       { return m.contextVersions }
 func (m *mockWebhookAccessor) GetClientConfig() admissionregistrationv1.WebhookClientConfig {
 	return admissionregistrationv1.WebhookClientConfig{
-		URL: ptr.To("https://test-webhook"),
+		URL: new("https://test-webhook"),
 	}
 }
 func (m *mockWebhookAccessor) GetRESTClient(_ *webhookutil.ClientManager) (*rest.RESTClient, error) {

@@ -19,8 +19,6 @@ package spreadconstraint
 import (
 	"fmt"
 
-	"k8s.io/utils/ptr"
-
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 )
 
@@ -53,7 +51,7 @@ func selectBestClustersByRegion(spreadConstraintMap map[policyv1alpha1.SpreadFie
 	if restCnt > 0 {
 		sortClusters(candidateClusters, func(i *ClusterDetailInfo, j *ClusterDetailInfo) *bool {
 			if i.AvailableReplicas != j.AvailableReplicas {
-				return ptr.To[bool](i.AvailableReplicas > j.AvailableReplicas)
+				return new(i.AvailableReplicas > j.AvailableReplicas)
 			}
 			return nil
 		})

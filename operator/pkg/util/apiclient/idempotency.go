@@ -39,7 +39,6 @@ import (
 	"k8s.io/klog/v2"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	aggregator "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset"
-	"k8s.io/utils/ptr"
 
 	"github.com/karmada-io/karmada/operator/pkg/constants"
 )
@@ -233,7 +232,7 @@ func ApplyCRD(client *crdsclient.Clientset, obj *apiextensionsv1.CustomResourceD
 		data,
 		metav1.PatchOptions{
 			FieldManager: "karmada-operator",
-			Force:        ptr.To(true),
+			Force:        new(true),
 		},
 	)
 	if err != nil {

@@ -247,6 +247,8 @@ scheduler:
   priorityClassName: "system-node-critical"
   ## @param scheduler.enableSchedulerEstimator enable scheduler estimator
   enableSchedulerEstimator: false
+  ## @param scheduler.enableEmptyWorkloadPropagation enable propagation of zero-replica workloads
+  enableEmptyWorkloadPropagation: false
   ## @param scheduler.featureGates A set of key=value pairs that describe feature gates for karmada-scheduler
   featureGates: {}
 

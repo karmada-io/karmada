@@ -36,7 +36,6 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/ptr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -179,7 +178,7 @@ func (d *DependenciesDistributor) reconcileResourceTemplate(key util.QueueKey) e
 	err := d.Client.List(context.TODO(), readonlyBindingList, &client.ListOptions{
 		Namespace:             resourceTemplateKey.Namespace,
 		LabelSelector:         labels.Everything(),
-		UnsafeDisableDeepCopy: ptr.To(true),
+		UnsafeDisableDeepCopy: new(true),
 	})
 	if err != nil {
 		return err
@@ -586,7 +585,7 @@ func (d *DependenciesDistributor) removeScheduleResultFromAttachedBindings(bindi
 				attachedBindings[index].Spec.ConflictResolution = effectiveCR
 
 				_, effectivePreserve := d.detectAndResolvePreserveOnDeletion(rbs)
-				attachedBindings[index].Spec.PreserveResourcesOnDeletion = ptr.To(effectivePreserve)
+				attachedBindings[index].Spec.PreserveResourcesOnDeletion = new(effectivePreserve)
 			}
 		}
 		if err := d.Client.Update(context.TODO(), attachedBindings[index]); err != nil {
@@ -632,7 +631,7 @@ func (d *DependenciesDistributor) createOrUpdateAttachedBinding(ctx context.Cont
 
 				// Update with effective results.
 				existBinding.Spec.ConflictResolution = effectiveCR
-				existBinding.Spec.PreserveResourcesOnDeletion = ptr.To(effectivePreserve)
+				existBinding.Spec.PreserveResourcesOnDeletion = new(effectivePreserve)
 			}
 
 			existBinding.Spec.RequiredBy = mergedRequiredBy

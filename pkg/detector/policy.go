@@ -27,7 +27,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -321,7 +320,7 @@ func (d *ResourceDetector) listPPDerivedRBs(policyID, policyNamespace, policyNam
 	bindings := &workv1alpha2.ResourceBindingList{}
 	listOpt := &client.ListOptions{
 		Namespace:             policyNamespace,
-		UnsafeDisableDeepCopy: ptr.To(true),
+		UnsafeDisableDeepCopy: new(true),
 		LabelSelector: labels.SelectorFromSet(labels.Set{
 			policyv1alpha1.PropagationPolicyPermanentIDLabel: policyID,
 		}),
@@ -341,7 +340,7 @@ func (d *ResourceDetector) listCPPDerivedRBs(policyID, policyName string) (*work
 		LabelSelector: labels.SelectorFromSet(labels.Set{
 			policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: policyID,
 		}),
-		UnsafeDisableDeepCopy: ptr.To(true),
+		UnsafeDisableDeepCopy: new(true),
 	}
 	err := d.Client.List(context.TODO(), bindings, listOpt)
 	if err != nil {
@@ -358,7 +357,7 @@ func (d *ResourceDetector) listCPPDerivedCRBs(policyID, policyName string) (*wor
 		LabelSelector: labels.SelectorFromSet(labels.Set{
 			policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: policyID,
 		}),
-		UnsafeDisableDeepCopy: ptr.To(true),
+		UnsafeDisableDeepCopy: new(true),
 	}
 	err := d.Client.List(context.TODO(), bindings, listOpt)
 	if err != nil {

@@ -24,7 +24,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/ptr"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -171,7 +170,7 @@ func buildTaskOptions(failoverBehavior *policyv1alpha1.ApplicationFailoverBehavi
 			return nil, err
 		}
 	case policyv1alpha1.Never:
-		taskOpts = append(taskOpts, workv1alpha2.WithSuppressDeletion(ptr.To[bool](true)))
+		taskOpts = append(taskOpts, workv1alpha2.WithSuppressDeletion(new(true)))
 	}
 
 	return taskOpts, nil

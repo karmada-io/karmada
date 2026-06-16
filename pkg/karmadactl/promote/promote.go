@@ -39,7 +39,6 @@ import (
 	"k8s.io/klog/v2"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
-	"k8s.io/utils/ptr"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -770,7 +769,7 @@ func buildPropagationPolicy(resourceName, policyName, namespace, cluster string,
 				},
 			},
 			ConflictResolution:          policyv1alpha1.ConflictOverwrite,
-			PreserveResourcesOnDeletion: ptr.To[bool](true),
+			PreserveResourcesOnDeletion: new(true),
 		},
 	}
 	return pp
@@ -797,7 +796,7 @@ func buildClusterPropagationPolicy(resourceName, policyName, cluster string, gvr
 				},
 			},
 			ConflictResolution:          policyv1alpha1.ConflictOverwrite,
-			PreserveResourcesOnDeletion: ptr.To[bool](true),
+			PreserveResourcesOnDeletion: new(true),
 		},
 	}
 	return cpp

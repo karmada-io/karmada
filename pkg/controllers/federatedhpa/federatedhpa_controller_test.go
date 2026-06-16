@@ -34,7 +34,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
@@ -808,7 +807,7 @@ func TestStoreScaleEvent(t *testing.T) {
 			name: "Scale up event",
 			behavior: &autoscalingv2.HorizontalPodAutoscalerBehavior{
 				ScaleUp: &autoscalingv2.HPAScalingRules{
-					StabilizationWindowSeconds: ptr.To[int32](int32(60)),
+					StabilizationWindowSeconds: new(int32(60)),
 				},
 			},
 			key:          "test-hpa",
@@ -821,7 +820,7 @@ func TestStoreScaleEvent(t *testing.T) {
 			name: "Scale down event",
 			behavior: &autoscalingv2.HorizontalPodAutoscalerBehavior{
 				ScaleDown: &autoscalingv2.HPAScalingRules{
-					StabilizationWindowSeconds: ptr.To[int32](int32(60)),
+					StabilizationWindowSeconds: new(int32(60)),
 				},
 			},
 			key:          "test-hpa",

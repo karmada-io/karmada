@@ -38,7 +38,6 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/utils/ptr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -658,7 +657,7 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 			controllerWithoutInformer: true,
 			expectedError:             false,
 			workApplyFunc: func(work *workv1alpha1.Work) {
-				work.Spec.SuspendDispatching = ptr.To(true)
+				work.Spec.SuspendDispatching = new(true)
 			},
 		},
 		{
@@ -669,7 +668,7 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 			controllerWithoutInformer: true,
 			expectedError:             false,
 			workApplyFunc: func(work *workv1alpha1.Work) {
-				work.SetDeletionTimestamp(ptr.To(metav1.Now()))
+				work.SetDeletionTimestamp(new(metav1.Now()))
 			},
 		},
 		{
@@ -680,7 +679,7 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 			controllerWithoutInformer: true,
 			expectedError:             false,
 			workApplyFunc: func(work *workv1alpha1.Work) {
-				work.Spec.SuspendDispatching = ptr.To(true)
+				work.Spec.SuspendDispatching = new(true)
 			},
 			assertFunc: func(t *testing.T, dynamicClientSets *dynamicfake.FakeDynamicClient) {
 				gvr := corev1.SchemeGroupVersion.WithResource("pods")

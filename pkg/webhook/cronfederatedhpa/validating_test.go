@@ -174,7 +174,7 @@ func Test_validateCronFederatedHPASpec(t *testing.T) {
 					{
 						Name:           "bar",
 						Schedule:       "0 0 13 * 1",
-						TimeZone:       ptr.To("A/B"),
+						TimeZone:       new("A/B"),
 						TargetReplicas: ptr.To[int32](1),
 					},
 				},

@@ -141,13 +141,13 @@ func Test_assessSingleTask(t *testing.T) {
 			args: args{
 				task: workv1alpha2.GracefulEvictionTask{
 					FromCluster:       "member1",
-					SuppressDeletion:  ptr.To[bool](true),
+					SuppressDeletion:  new(true),
 					CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -1)},
 				},
 			},
 			want: &workv1alpha2.GracefulEvictionTask{
 				FromCluster:       "member1",
-				SuppressDeletion:  ptr.To[bool](true),
+				SuppressDeletion:  new(true),
 				CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -1)},
 			},
 		},
@@ -156,7 +156,7 @@ func Test_assessSingleTask(t *testing.T) {
 			args: args{
 				task: workv1alpha2.GracefulEvictionTask{
 					FromCluster:       "member1",
-					SuppressDeletion:  ptr.To[bool](false),
+					SuppressDeletion:  new(false),
 					CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -1)},
 				},
 			},
@@ -575,7 +575,7 @@ func Test_nextRetry(t *testing.T) {
 					{
 						FromCluster:       "member1",
 						CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -60)},
-						SuppressDeletion:  ptr.To[bool](true),
+						SuppressDeletion:  new(true),
 					},
 					{
 						FromCluster:       "member2",
@@ -594,12 +594,12 @@ func Test_nextRetry(t *testing.T) {
 					{
 						FromCluster:       "member1",
 						CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -60)},
-						SuppressDeletion:  ptr.To[bool](true),
+						SuppressDeletion:  new(true),
 					},
 					{
 						FromCluster:       "member2",
 						CreationTimestamp: &metav1.Time{Time: timeNow.Add(time.Minute * -5)},
-						SuppressDeletion:  ptr.To[bool](true),
+						SuppressDeletion:  new(true),
 					},
 				},
 				timeout: timeout,

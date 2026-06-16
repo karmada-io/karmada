@@ -28,7 +28,6 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	fakeclientset "k8s.io/client-go/kubernetes/fake"
 	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/utils/ptr"
 
 	addoninit "github.com/karmada-io/karmada/pkg/karmadactl/addons/init"
 	addonutils "github.com/karmada-io/karmada/pkg/karmadactl/addons/utils"
@@ -250,7 +249,7 @@ func TestDisableDescheduler(t *testing.T) {
 func createKarmadaDeschedulerDeployment(c clientset.Interface, replicas int32, namespace, priorityClass string) error {
 	karmadaDeschedulerDeploymentBytes, err := addonutils.ParseTemplate(karmadaDeschedulerDeployment, DeploymentReplace{
 		Namespace:         namespace,
-		Replicas:          ptr.To[int32](replicas),
+		Replicas:          new(replicas),
 		PriorityClassName: priorityClass,
 	})
 	if err != nil {

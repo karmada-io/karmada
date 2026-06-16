@@ -21,7 +21,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	fakeclientset "k8s.io/client-go/kubernetes/fake"
-	"k8s.io/utils/ptr"
 
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	"github.com/karmada-io/karmada/operator/pkg/constants"
@@ -43,7 +42,7 @@ func TestEnsureAllControlPlaneComponents(t *testing.T) {
 					ImageRepository: "registry.k8s.io/kube-controller-manager",
 					ImageTag:        "latest",
 				},
-				Replicas:        ptr.To[int32](replicas),
+				Replicas:        new(replicas),
 				Annotations:     annotations,
 				Labels:          labels,
 				Resources:       corev1.ResourceRequirements{},
@@ -57,7 +56,7 @@ func TestEnsureAllControlPlaneComponents(t *testing.T) {
 					ImageRepository: "docker.io/karmada/karmada-controller-manager",
 					ImageTag:        "latest",
 				},
-				Replicas:        ptr.To[int32](replicas),
+				Replicas:        new(replicas),
 				Annotations:     annotations,
 				Labels:          labels,
 				ImagePullPolicy: imagePullPolicy,
@@ -70,7 +69,7 @@ func TestEnsureAllControlPlaneComponents(t *testing.T) {
 					ImageRepository: "docker.io/karmada/karmada-scheduler",
 					ImageTag:        "latest",
 				},
-				Replicas:        ptr.To[int32](replicas),
+				Replicas:        new(replicas),
 				Annotations:     annotations,
 				Labels:          labels,
 				Resources:       corev1.ResourceRequirements{},
@@ -84,7 +83,7 @@ func TestEnsureAllControlPlaneComponents(t *testing.T) {
 					ImageRepository: "docker.io/karmada/karmada-descheduler",
 					ImageTag:        "latest",
 				},
-				Replicas:        ptr.To[int32](replicas),
+				Replicas:        new(replicas),
 				Annotations:     annotations,
 				Labels:          labels,
 				Resources:       corev1.ResourceRequirements{},
@@ -154,7 +153,7 @@ func TestGetKubeControllerManagerManifest(t *testing.T) {
 				ImageRepository: image,
 				ImageTag:        imageTag,
 			},
-			Replicas:          ptr.To[int32](replicas),
+			Replicas:          new(replicas),
 			Annotations:       annotations,
 			Labels:            labels,
 			Resources:         corev1.ResourceRequirements{},
@@ -203,7 +202,7 @@ func TestGetKarmadaControllerManagerManifest(t *testing.T) {
 				ImageRepository: image,
 				ImageTag:        imageTag,
 			},
-			Replicas:          ptr.To[int32](replicas),
+			Replicas:          new(replicas),
 			Annotations:       annotations,
 			Labels:            labels,
 			ImagePullPolicy:   imagePullPolicy,
@@ -260,7 +259,7 @@ func TestGetKarmadaSchedulerManifest(t *testing.T) {
 				ImageRepository: image,
 				ImageTag:        imageTag,
 			},
-			Replicas:          ptr.To[int32](replicas),
+			Replicas:          new(replicas),
 			Annotations:       annotations,
 			Labels:            labels,
 			Resources:         corev1.ResourceRequirements{},
@@ -321,7 +320,7 @@ func TestGetKarmadaDeschedulerManifest(t *testing.T) {
 				ImageRepository: image,
 				ImageTag:        imageTag,
 			},
-			Replicas:          ptr.To[int32](replicas),
+			Replicas:          new(replicas),
 			Annotations:       annotations,
 			Labels:            labels,
 			Resources:         corev1.ResourceRequirements{},

@@ -24,7 +24,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	fakeclientset "k8s.io/client-go/kubernetes/fake"
 	coretesting "k8s.io/client-go/testing"
-	"k8s.io/utils/ptr"
 
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	"github.com/karmada-io/karmada/operator/pkg/util"
@@ -46,7 +45,7 @@ func TestEnsureKarmadaMetricAdapter(t *testing.T) {
 				ImageRepository: image,
 				ImageTag:        imageTag,
 			},
-			Replicas:          ptr.To[int32](replicas),
+			Replicas:          new(replicas),
 			Annotations:       annotations,
 			Labels:            labels,
 			Resources:         corev1.ResourceRequirements{},
@@ -112,7 +111,7 @@ func TestInstallKarmadaMetricAdapter(t *testing.T) {
 				ImageRepository: image,
 				ImageTag:        imageTag,
 			},
-			Replicas:          ptr.To[int32](replicas),
+			Replicas:          new(replicas),
 			Annotations:       annotations,
 			Labels:            labels,
 			Resources:         corev1.ResourceRequirements{},

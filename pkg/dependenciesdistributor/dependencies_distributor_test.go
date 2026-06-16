@@ -38,7 +38,6 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -1142,7 +1141,7 @@ func Test_handleIndependentBindingDeletion(t *testing.T) {
 								ResourceVersion: "22222",
 							},
 							ConflictResolution:          policyv1alpha1.ConflictAbort,
-							PreserveResourcesOnDeletion: ptr.To(false),
+							PreserveResourcesOnDeletion: new(false),
 							RequiredBy: []workv1alpha2.BindingSnapshot{
 								{
 									Namespace: "default-1",
@@ -2584,7 +2583,7 @@ func Test_removeScheduleResultFromAttachedBindings(t *testing.T) {
 								ResourceVersion: "22222",
 							},
 							ConflictResolution:          policyv1alpha1.ConflictAbort,
-							PreserveResourcesOnDeletion: ptr.To(false),
+							PreserveResourcesOnDeletion: new(false),
 							RequiredBy: []workv1alpha2.BindingSnapshot{
 								{
 									Namespace: "default-1",
@@ -2825,7 +2824,7 @@ func Test_createOrUpdateAttachedBinding(t *testing.T) {
 					OwnerReferences: []metav1.OwnerReference{
 						{
 							UID:        "foo-bar",
-							Controller: ptr.To[bool](true),
+							Controller: new(true),
 						},
 					},
 				},
@@ -2881,7 +2880,7 @@ func Test_createOrUpdateAttachedBinding(t *testing.T) {
 					OwnerReferences: []metav1.OwnerReference{
 						{
 							UID:        "foo-bar",
-							Controller: ptr.To[bool](true),
+							Controller: new(true),
 						},
 					},
 				},
@@ -2894,7 +2893,7 @@ func Test_createOrUpdateAttachedBinding(t *testing.T) {
 						ResourceVersion: "22222",
 					},
 					ConflictResolution:          policyv1alpha1.ConflictAbort,
-					PreserveResourcesOnDeletion: ptr.To(false),
+					PreserveResourcesOnDeletion: new(false),
 					RequiredBy: []workv1alpha2.BindingSnapshot{
 						{
 							Namespace: "default-1",
@@ -2959,7 +2958,7 @@ func Test_createOrUpdateAttachedBinding(t *testing.T) {
 						OwnerReferences: []metav1.OwnerReference{
 							{
 								UID:        "foo-bar",
-								Controller: ptr.To[bool](true),
+								Controller: new(true),
 							},
 						},
 					},
@@ -3019,7 +3018,7 @@ func Test_createOrUpdateAttachedBinding(t *testing.T) {
 					OwnerReferences: []metav1.OwnerReference{
 						{
 							UID:        "foo-bar",
-							Controller: ptr.To[bool](true),
+							Controller: new(true),
 						},
 					},
 				},
@@ -3063,7 +3062,7 @@ func Test_createOrUpdateAttachedBinding(t *testing.T) {
 							},
 						},
 					},
-					PreserveResourcesOnDeletion: ptr.To[bool](false),
+					PreserveResourcesOnDeletion: new(false),
 				},
 			},
 			wantErr: false,
@@ -3076,7 +3075,7 @@ func Test_createOrUpdateAttachedBinding(t *testing.T) {
 					OwnerReferences: []metav1.OwnerReference{
 						{
 							UID:        "foo-bar",
-							Controller: ptr.To[bool](true),
+							Controller: new(true),
 						},
 					},
 				},
@@ -3121,7 +3120,7 @@ func Test_createOrUpdateAttachedBinding(t *testing.T) {
 						},
 					},
 					ConflictResolution:          policyv1alpha1.ConflictAbort,
-					PreserveResourcesOnDeletion: ptr.To[bool](false),
+					PreserveResourcesOnDeletion: new(false),
 				},
 			},
 			setupClient: func() client.Client {
@@ -3146,7 +3145,7 @@ func Test_createOrUpdateAttachedBinding(t *testing.T) {
 					OwnerReferences: []metav1.OwnerReference{
 						{
 							UID:        "foo-bar",
-							Controller: ptr.To[bool](true),
+							Controller: new(true),
 						},
 					},
 				},
@@ -3203,7 +3202,7 @@ func Test_createOrUpdateAttachedBinding(t *testing.T) {
 					OwnerReferences: []metav1.OwnerReference{
 						{
 							UID:        "foo-bar",
-							Controller: ptr.To[bool](true),
+							Controller: new(true),
 						},
 					},
 				},
@@ -3268,7 +3267,7 @@ func Test_createOrUpdateAttachedBinding(t *testing.T) {
 						},
 					},
 					ConflictResolution:          policyv1alpha1.ConflictOverwrite,
-					PreserveResourcesOnDeletion: ptr.To(false),
+					PreserveResourcesOnDeletion: new(false),
 				},
 			},
 			setupClient: func() client.Client {
@@ -3281,7 +3280,7 @@ func Test_createOrUpdateAttachedBinding(t *testing.T) {
 						OwnerReferences: []metav1.OwnerReference{
 							{
 								UID:        "foo-bar",
-								Controller: ptr.To[bool](true),
+								Controller: new(true),
 							},
 						},
 					},
@@ -3342,7 +3341,7 @@ func Test_createOrUpdateAttachedBinding(t *testing.T) {
 					OwnerReferences: []metav1.OwnerReference{
 						{
 							UID:        "foo-bar",
-							Controller: ptr.To[bool](true),
+							Controller: new(true),
 						},
 					},
 				},
@@ -3379,7 +3378,7 @@ func Test_createOrUpdateAttachedBinding(t *testing.T) {
 					OwnerReferences: []metav1.OwnerReference{
 						{
 							UID:        "foo-bar",
-							Controller: ptr.To[bool](true),
+							Controller: new(true),
 						},
 					},
 				},
@@ -3416,7 +3415,7 @@ func Test_createOrUpdateAttachedBinding(t *testing.T) {
 						OwnerReferences: []metav1.OwnerReference{
 							{
 								UID:        "bar-foo",
-								Controller: ptr.To[bool](true),
+								Controller: new(true),
 							},
 						},
 					},
@@ -3483,7 +3482,7 @@ func Test_createOrUpdateAttachedBinding_emitsConflictEvent(t *testing.T) {
 			ResourceVersion: "1000",
 			OwnerReferences: []metav1.OwnerReference{{
 				UID:        "uid-1",
-				Controller: ptr.To[bool](true),
+				Controller: new(true),
 			}},
 		},
 		Spec: workv1alpha2.ResourceBindingSpec{},
@@ -3493,14 +3492,14 @@ func Test_createOrUpdateAttachedBinding_emitsConflictEvent(t *testing.T) {
 	rb1 := &workv1alpha2.ResourceBinding{
 		ObjectMeta: metav1.ObjectMeta{Name: "rb-1", Namespace: "ns-a"},
 		Spec: workv1alpha2.ResourceBindingSpec{
-			PreserveResourcesOnDeletion: ptr.To(true),
+			PreserveResourcesOnDeletion: new(true),
 			ConflictResolution:          policyv1alpha1.ConflictOverwrite,
 		},
 	}
 	rb2 := &workv1alpha2.ResourceBinding{
 		ObjectMeta: metav1.ObjectMeta{Name: "rb-2", Namespace: "ns-b"},
 		Spec: workv1alpha2.ResourceBindingSpec{
-			PreserveResourcesOnDeletion: ptr.To(false),
+			PreserveResourcesOnDeletion: new(false),
 		},
 	}
 
@@ -3510,7 +3509,7 @@ func Test_createOrUpdateAttachedBinding_emitsConflictEvent(t *testing.T) {
 			Namespace: "test",
 			OwnerReferences: []metav1.OwnerReference{{
 				UID:        "uid-1",
-				Controller: ptr.To[bool](true),
+				Controller: new(true),
 			}},
 		},
 		Spec: workv1alpha2.ResourceBindingSpec{
@@ -4076,8 +4075,8 @@ func Test_detectAndResolvePreserveOnDeletion_DetectsAndResolvesConflict(t *testi
 	d := &DependenciesDistributor{}
 
 	rbs := []*workv1alpha2.ResourceBinding{
-		{Spec: workv1alpha2.ResourceBindingSpec{PreserveResourcesOnDeletion: ptr.To(true)}},
-		{Spec: workv1alpha2.ResourceBindingSpec{PreserveResourcesOnDeletion: ptr.To(false)}},
+		{Spec: workv1alpha2.ResourceBindingSpec{PreserveResourcesOnDeletion: new(true)}},
+		{Spec: workv1alpha2.ResourceBindingSpec{PreserveResourcesOnDeletion: new(false)}},
 	}
 
 	conflicted, effective := d.detectAndResolvePreserveOnDeletion(rbs)

@@ -27,10 +27,6 @@ import (
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 )
 
-func strPtr(s string) *string { return &s }
-
-func int32Ptr(i int32) *int32 { return &i }
-
 func TestHasWildcardOperation(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -231,7 +227,7 @@ func TestValidateWebhook(t *testing.T) {
 		{
 			name: "invalid timeout",
 			hook: &configv1alpha1.ResourceInterpreterWebhook{
-				TimeoutSeconds: int32Ptr(60),
+				TimeoutSeconds: new(int32(60)),
 			},
 			expectedError: "the timeout value must be between 1 and 30 seconds",
 		},
@@ -246,7 +242,7 @@ func TestValidateWebhook(t *testing.T) {
 			name: "ClientConfig: invalid URL",
 			hook: &configv1alpha1.ResourceInterpreterWebhook{
 				ClientConfig: admissionregistrationv1.WebhookClientConfig{
-					URL: strPtr(""),
+					URL: new(""),
 				},
 			},
 			expectedError: "host must be specified",
@@ -257,8 +253,8 @@ func TestValidateWebhook(t *testing.T) {
 				ClientConfig: admissionregistrationv1.WebhookClientConfig{
 					Service: &admissionregistrationv1.ServiceReference{
 						Name: "",
-						Port: int32Ptr(8080),
-						Path: strPtr(""),
+						Port: new(int32(8080)),
+						Path: new(""),
 					},
 				},
 			},
@@ -279,7 +275,7 @@ func TestValidateWebhook(t *testing.T) {
 					Service: &admissionregistrationv1.ServiceReference{
 						Namespace: "default",
 						Name:      "svc",
-						Path:      strPtr("/interpreter"),
+						Path:      new("/interpreter"),
 					},
 				},
 				InterpreterContextVersions: []string{"v1alpha1"},

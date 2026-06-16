@@ -25,7 +25,6 @@ import (
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	autoscalingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/autoscaling/v1alpha1"
@@ -223,7 +222,7 @@ func TestCreateCronJobForExecutor(t *testing.T) {
 				Name:     "test-rule-tz",
 				Schedule: "*/5 * * * *",
 			},
-			timeZone: ptr.To[string]("America/New_York"),
+			timeZone: new("America/New_York"),
 			wantErr:  false,
 		},
 		{
@@ -232,7 +231,7 @@ func TestCreateCronJobForExecutor(t *testing.T) {
 				Name:     "test-rule-invalid-tz",
 				Schedule: "*/5 * * * *",
 			},
-			timeZone: ptr.To[string]("Invalid/TimeZone"),
+			timeZone: new("Invalid/TimeZone"),
 			wantErr:  true,
 		},
 	}

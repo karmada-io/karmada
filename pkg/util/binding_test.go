@@ -24,7 +24,6 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/utils/ptr"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -501,31 +500,31 @@ func TestMergePolicySuspension(t *testing.T) {
 		{
 			name: "binding suspension only preserves scheduling when policy suspension nil",
 			bindingSuspension: &workv1alpha2.Suspension{
-				Scheduling: ptr.To(true),
+				Scheduling: new(true),
 			},
 			policySuspension: nil,
 			want: &workv1alpha2.Suspension{
-				Scheduling: ptr.To(true),
+				Scheduling: new(true),
 			},
 		},
 		{
 			name: "cleanup of binding suspension preserves scheduling field",
 			bindingSuspension: &workv1alpha2.Suspension{
 				Suspension: policyv1alpha1.Suspension{
-					Dispatching: ptr.To(true),
+					Dispatching: new(true),
 				},
-				Scheduling: ptr.To(true),
+				Scheduling: new(true),
 			},
 			policySuspension: nil,
 			want: &workv1alpha2.Suspension{
-				Scheduling: ptr.To(true),
+				Scheduling: new(true),
 			},
 		},
 		{
 			name: "if the scheduling not set and policy suspension nil, will return nil",
 			bindingSuspension: &workv1alpha2.Suspension{
 				Suspension: policyv1alpha1.Suspension{
-					Dispatching: ptr.To(true),
+					Dispatching: new(true),
 				},
 			},
 			policySuspension: nil,
@@ -535,27 +534,27 @@ func TestMergePolicySuspension(t *testing.T) {
 			name:              "policy suspension set and no existing binding creates new suspension from policy",
 			bindingSuspension: nil,
 			policySuspension: &policyv1alpha1.Suspension{
-				Dispatching: ptr.To(true),
+				Dispatching: new(true),
 			},
 			want: &workv1alpha2.Suspension{
 				Suspension: policyv1alpha1.Suspension{
-					Dispatching: ptr.To(true),
+					Dispatching: new(true),
 				},
 			},
 		},
 		{
 			name: "should merge policy suspension and binding suspension",
 			bindingSuspension: &workv1alpha2.Suspension{
-				Scheduling: ptr.To(true),
+				Scheduling: new(true),
 			},
 			policySuspension: &policyv1alpha1.Suspension{
-				Dispatching: ptr.To(true),
+				Dispatching: new(true),
 			},
 			want: &workv1alpha2.Suspension{
 				Suspension: policyv1alpha1.Suspension{
-					Dispatching: ptr.To(true),
+					Dispatching: new(true),
 				},
-				Scheduling: ptr.To(true),
+				Scheduling: new(true),
 			},
 		},
 	}
