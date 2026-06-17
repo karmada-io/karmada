@@ -4,7 +4,7 @@ kind: CustomResourceDefinition
 metadata:
   name: "karmadas.operator.karmada.io"
   annotations:
-    controller-gen.kubebuilder.io/version: v0.20.0
+    controller-gen.kubebuilder.io/version: v0.21.0
     {{- if .Values.crds.keep }}
     helm.sh/resource-policy: keep
     {{- end }}

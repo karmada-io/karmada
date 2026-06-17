@@ -19,7 +19,7 @@ set -o nounset
 set -o pipefail
 
 CONTROLLER_GEN_PKG="sigs.k8s.io/controller-tools/cmd/controller-gen"
-CONTROLLER_GEN_VER="v0.20.0"
+CONTROLLER_GEN_VER="v0.21.0"
 YQ_PKG="github.com/mikefarah/yq/v4"
 YQ_VER="v4.44.6"
 
