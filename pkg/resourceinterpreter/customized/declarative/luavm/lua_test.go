@@ -187,16 +187,16 @@ end`,
 	}
 }
 
-func TestCompileScriptCaching(t *testing.T) {
+func TestLoadOrCompileScriptCaching(t *testing.T) {
 	vm := New(false, 1)
 	script := `function TestFunc(obj) return 42 end`
 
-	proto1, err := vm.compileScript(script)
+	proto1, err := vm.loadOrCompileScript(script)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	proto2, err := vm.compileScript(script)
+	proto2, err := vm.loadOrCompileScript(script)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -60,8 +60,8 @@ func New(useOpenLibs bool, poolSize int) *VM {
 	return vm
 }
 
-// compileScript parses and compiles the Lua script into a FunctionProto, caching the result to avoid redundant compilation.
-func (vm *VM) compileScript(script string) (*lua.FunctionProto, error) {
+// loadOrCompileScript returns a cached FunctionProto for script, compiling it on first use.
+func (vm *VM) loadOrCompileScript(script string) (*lua.FunctionProto, error) {
 	if value, ok := vm.funcCache.Load(script); ok {
 		return value.(*lua.FunctionProto), nil
 	}
@@ -110,7 +110,7 @@ func (vm *VM) RunScript(script string, fnName string, nRets int, args ...any) ([
 	defer cancel()
 	l.SetContext(ctx)
 
-	proto, err := vm.compileScript(script)
+	proto, err := vm.loadOrCompileScript(script)
 	if err != nil {
 		return nil, err
 	}
