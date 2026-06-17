@@ -16,13 +16,13 @@ karmadactl create job NAME --image=image [--from=cronjob/name] -- [COMMAND] [arg
 
 ```
   # Create a job
-  kubectl create job my-job --image=busybox
+  karmadactl create job my-job --image=busybox
   
   # Create a job with a command
-  kubectl create job my-job --image=busybox -- date
+  karmadactl create job my-job --image=busybox -- date
   
   # Create a job from a cron job named "a-cronjob"
-  kubectl create job test-job --from=cronjob/a-cronjob
+  karmadactl create job test-job --from=cronjob/a-cronjob
 ```
 
 ### Options

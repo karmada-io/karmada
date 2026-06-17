@@ -18,7 +18,7 @@ karmadactl create secret tls NAME --cert=path/to/cert/file --key=path/to/key/fil
 
 ```
   # Create a new TLS secret named tls-secret with the given key pair
-  kubectl create secret tls tls-secret --cert=path/to/tls.crt --key=path/to/tls.key
+  karmadactl create secret tls tls-secret --cert=path/to/tls.crt --key=path/to/tls.key
 ```
 
 ### Options

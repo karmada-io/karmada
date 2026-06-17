@@ -16,10 +16,10 @@ karmadactl create service clusterip NAME [--tcp=<port>:<targetPort>] [--dry-run=
 
 ```
   # Create a new ClusterIP service named my-cs
-  kubectl create service clusterip my-cs --tcp=5678:8080
+  karmadactl create service clusterip my-cs --tcp=5678:8080
   
   # Create a new ClusterIP service named my-cs (in headless mode)
-  kubectl create service clusterip my-cs --clusterip="None"
+  karmadactl create service clusterip my-cs --clusterip="None"
 ```
 
 ### Options
