@@ -656,8 +656,8 @@ func TestMultiClusterCache_List(t *testing.T) {
 				options: &metainternalversion.ListOptions{},
 			},
 			want: want{
-				// fakeDynamic returns list with resourceVersion=""
-				resourceVersion: buildMultiClusterRV("cluster1", "", "cluster2", ""),
+				// fakeDynamic returns list with resourceVersion="6"
+				resourceVersion: buildMultiClusterRV("cluster1", "6", "cluster2", "6"),
 				names:           sets.New[string]("pod11", "pod12", "pod13", "pod14", "pod15", "pod21", "pod22", "pod23", "pod24", "pod25"),
 				errAssert:       noError,
 			},
@@ -676,8 +676,8 @@ func TestMultiClusterCache_List(t *testing.T) {
 				},
 			},
 			want: want{
-				// fakeDynamic returns list with resourceVersion=""
-				resourceVersion: buildMultiClusterRV("cluster1", "", "cluster2", ""),
+				// fakeDynamic returns list with resourceVersion="6"
+				resourceVersion: buildMultiClusterRV("cluster1", "6", "cluster2", "6"),
 				names:           sets.New[string]("pod11", "pod13", "pod21", "pod23"),
 				errAssert:       noError,
 			},

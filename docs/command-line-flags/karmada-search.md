@@ -25,6 +25,8 @@ Logs flags:
 
       --add-dir-header                       If true, adds the file directory to the header of the log messages
       --alsologtostderr                      log to standard error as well as files (no effect when -logtostderr=true)
+      --alsologtostderrthreshold severity    logs at or above this threshold go to stderr when -alsologtostderr=true (no effect when -logtostderr=true)
+      --legacy-stderr-threshold-behavior     If true, stderrthreshold is ignored when logtostderr=true (legacy behavior). If false, stderrthreshold is honored even when logtostderr=true (default true)
       --log-backtrace-at traceLocation       when logging hits line file:N, emit a stack trace (default :0)
       --log-dir string                       If non-empty, write log files in this directory (no effect when -logtostderr=true)
       --log-file string                      If non-empty, use this log file (no effect when -logtostderr=true)
@@ -37,7 +39,7 @@ Logs flags:
       --one-output                           If true, only write logs to their native severity level (vs also writing to each lower severity level; no effect when -logtostderr=true)
       --skip-headers                         If true, avoid header prefixes in the log messages
       --skip-log-headers                     If true, avoid headers when opening log files (no effect when -logtostderr=true)
-      --stderrthreshold severity             logs at or above this threshold go to stderr when writing to files and stderr (no effect when -logtostderr=true or -alsologtostderr=true) (default 2)
+      --stderrthreshold severity             logs at or above this threshold go to stderr when writing to files and stderr (no effect when -logtostderr=true or -alsologtostderr=true unless -legacy_stderr_threshold_behavior=false) (default 2)
   -v, --v Level                              number for the log level verbosity
       --vmodule pattern=N,...                comma-separated list of pattern=N settings for file-filtered logging (only works for text log format)
 
@@ -52,9 +54,9 @@ Generic flags:
       --audit-log-batch-throttle-qps float32                    Maximum average number of batches per second. Only used in batch mode.
       --audit-log-compress                                      If set, the rotated log files will be compressed using gzip.
       --audit-log-format string                                 Format of saved audits. "legacy" indicates 1-line text format for each event. "json" indicates structured json format. Known formats are legacy,json. (default "json")
-      --audit-log-maxage int                                    The maximum number of days to retain old audit log files based on the timestamp encoded in their filename.
-      --audit-log-maxbackup int                                 The maximum number of old audit log files to retain. Setting a value of 0 will mean there's no restriction on the number of files.
-      --audit-log-maxsize int                                   The maximum size in megabytes of the audit log file before it gets rotated.
+      --audit-log-maxage int                                    The maximum number of days to retain old audit log files based on the timestamp encoded in their filename. Setting a value of 0 means old audit log files are not removed based on age. (default 366)
+      --audit-log-maxbackup int                                 The maximum number of old audit log files to retain. Setting a value of 0 will mean there's no restriction on the number of files. (default 100)
+      --audit-log-maxsize int                                   The maximum size in megabytes of the audit log file before it gets rotated. Setting to 0 disables rotation (not recommended). (default 100)
       --audit-log-mode string                                   Strategy for sending audit events. Blocking indicates sending events should block server responses. Batch causes the backend to buffer and write events asynchronously. Known modes are batch,blocking,blocking-strict. (default "blocking")
       --audit-log-path string                                   If set, all requests coming to the apiserver will be logged to this file.  '-' means standard out.
       --audit-log-truncate-enabled                              Whether event and batch truncating is enabled.
@@ -98,7 +100,7 @@ Generic flags:
       --emulated-version strings                                The versions different components emulate their capabilities (APIs, features, ...) of.
                                                                 If set, the component will emulate the behavior of this version instead of the underlying binary version.
                                                                 Version format could only be major.minor, for example: '--emulated-version=wardle=1.2,kube=1.31'.
-                                                                Options are: kube=1.32..1.35(default:1.35)
+                                                                Options are: kube=1.33..1.36(default:1.36)
                                                                 If the component is not specified, defaults to "kube"
       --emulation-forward-compatible                            If true, for any beta+ APIs enabled by default or by --runtime-config at the emulation version, their future versions with higher priority/stability will be auto enabled even if they introduced after the emulation version. Can only be set to true if the emulation version is lower than the binary version.
       --enable-garbage-collector                                Enables the generic garbage collector. MUST be synced with the corresponding flag of the kube-controller-manager. (default true)
@@ -128,16 +130,15 @@ Generic flags:
                                                                 kube:AllowParsingUserUIDFromCertAuth=true|false (BETA - default=true)
                                                                 kube:AllowUnsafeMalformedObjectDeletion=true|false (ALPHA - default=false)
                                                                 kube:CBORServingAndStorage=true|false (ALPHA - default=false)
-                                                                kube:ComponentFlagz=true|false (ALPHA - default=false)
-                                                                kube:ComponentStatusz=true|false (ALPHA - default=false)
+                                                                kube:ComponentFlagz=true|false (BETA - default=true)
+                                                                kube:ComponentStatusz=true|false (BETA - default=true)
                                                                 kube:ConcurrentWatchObjectDecode=true|false (BETA - default=false)
-                                                                kube:ConstrainedImpersonation=true|false (ALPHA - default=false)
+                                                                kube:ConstrainedImpersonation=true|false (BETA - default=true)
                                                                 kube:ContextualLogging=true|false (BETA - default=true)
                                                                 kube:ControllerPriorityQueue=true|false (BETA - default=true)
                                                                 kube:CoordinatedLeaderElection=true|false (BETA - default=false)
                                                                 kube:CustomizedClusterResourceModeling=true|false (BETA - default=true)
-                                                                kube:DeclarativeValidation=true|false (BETA - default=true)
-                                                                kube:DeclarativeValidationTakeover=true|false (BETA - default=false)
+                                                                kube:DeclarativeValidationBeta=true|false (BETA - default=true)
                                                                 kube:DetectCacheInconsistency=true|false (BETA - default=true)
                                                                 kube:Failover=true|false (BETA - default=false)
                                                                 kube:FederatedQuotaEnforcement=true|false (ALPHA - default=false)
@@ -145,9 +146,10 @@ Generic flags:
                                                                 kube:ListFromCacheSnapshot=true|false (BETA - default=true)
                                                                 kube:LoggingAlphaOptions=true|false (ALPHA - default=false)
                                                                 kube:LoggingBetaOptions=true|false (BETA - default=true)
+                                                                kube:ManifestBasedAdmissionControlConfig=true|false (ALPHA - default=false)
                                                                 kube:MultiClusterService=true|false (ALPHA - default=false)
                                                                 kube:MultiplePodTemplatesScheduling=true|false (ALPHA - default=false)
-                                                                kube:MutatingAdmissionPolicy=true|false (BETA - default=false)
+                                                                kube:NativeHistograms=true|false (ALPHA - default=false)
                                                                 kube:OpenAPIEnums=true|false (BETA - default=true)
                                                                 kube:PriorityBasedScheduling=true|false (ALPHA - default=false)
                                                                 kube:PropagateDeps=true|false (BETA - default=true)
@@ -155,6 +157,7 @@ Generic flags:
                                                                 kube:RemoteRequestHeaderUID=true|false (BETA - default=true)
                                                                 kube:ResourceQuotaEstimate=true|false (ALPHA - default=false)
                                                                 kube:SchedulingOvercommitProtection=true|false (ALPHA - default=false)
+                                                                kube:ShardedListAndWatch=true|false (ALPHA - default=false)
                                                                 kube:SizeBasedListCostEstimate=true|false (BETA - default=true)
                                                                 kube:StatefulFailoverInjection=true|false (ALPHA - default=false)
                                                                 kube:StorageVersionAPI=true|false (ALPHA - default=false)
@@ -163,8 +166,8 @@ Generic flags:
                                                                 kube:StructuredAuthenticationConfigurationJWKSMetrics=true|false (BETA - default=true)
                                                                 kube:TokenRequestServiceAccountUIDValidation=true|false (BETA - default=true)
                                                                 kube:UnauthenticatedHTTP2DOSMitigation=true|false (BETA - default=true)
-                                                                kube:UnknownVersionInteroperabilityProxy=true|false (ALPHA - default=false)
-                                                                kube:WatchCacheInitializationPostStartHook=true|false (BETA - default=false)
+                                                                kube:UnknownVersionInteroperabilityProxy=true|false (BETA - default=true)
+                                                                kube:WatchCacheInitializationPostStartHook=true|false (BETA - default=true)
                                                                 kube:WatchList=true|false (BETA - default=true)
                                                                 kube:WorkloadAffinity=true|false (ALPHA - default=false)
       --goaway-chance float                                     To prevent HTTP/2 clients from getting stuck on a single apiserver, randomly close a connection (GOAWAY). The client's other in-flight requests won't be affected, and the client will reconnect, likely landing on a different apiserver after going through the load balancer again. This argument sets the fraction of requests that will be sent a GOAWAY. Clusters with single apiservers, or which don't use a load balancer, should NOT enable this. Min is 0 (off), Max is .02 (1/50 requests); .001 (1/1000) is a recommended starting point.
@@ -178,7 +181,7 @@ Generic flags:
       --max-requests-inflight int                               This and --max-mutating-requests-inflight are summed to determine the server's total concurrency limit (which must be positive) if --enable-priority-and-fairness is true. Otherwise, this flag limits the maximum number of non-mutating requests in flight, or a zero value disables the limit completely. (default 400)
       --min-compatibility-version strings                       The min version of control plane components the server should be compatible with.
                                                                 Must be less or equal to the emulated-version. Version format could only be major.minor, for example: '--min-compatibility-version=wardle=1.2,kube=1.31'.
-                                                                Options are: kube=1.32..1.35(default:1.34)
+                                                                Options are: kube=1.33..1.36(default:1.35)
                                                                 If the component is not specified, defaults to "kube"
       --min-request-timeout int                                 An optional field indicating the minimum number of seconds a handler must keep a request open before timing it out. Currently only honored by the watch request handler, which picks a randomized value above this number as the connection timeout, to spread out load. (default 1800)
       --permit-address-sharing                                  If true, SO_REUSEADDR will be used when binding the port. This allows binding to wildcard IPs like 0.0.0.0 and specific IPs in parallel, and it avoids waiting for the kernel to release sockets in TIME_WAIT state. [default=false]
@@ -205,6 +208,7 @@ Generic flags:
       --tls-cipher-suites strings                               Comma-separated list of cipher suites for the server. If omitted, the default Go cipher suites will be used. 
                                                                 Preferred values: TLS_AES_128_GCM_SHA256, TLS_AES_256_GCM_SHA384, TLS_CHACHA20_POLY1305_SHA256, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305, TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256. 
                                                                 Insecure values: TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_ECDSA_WITH_RC4_128_SHA, TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_RC4_128_SHA, TLS_RSA_WITH_3DES_EDE_CBC_SHA, TLS_RSA_WITH_AES_128_CBC_SHA, TLS_RSA_WITH_AES_128_CBC_SHA256, TLS_RSA_WITH_AES_128_GCM_SHA256, TLS_RSA_WITH_AES_256_CBC_SHA, TLS_RSA_WITH_AES_256_GCM_SHA384, TLS_RSA_WITH_RC4_128_SHA.
+      --tls-curve-preferences int32Slice                        Comma-separated list of numeric Go crypto/tls CurveID values, as the allowed key exchange mechanisms for the server. The supported values depend on the Go version used. See https://pkg.go.dev/crypto/tls#CurveID for values supported for each Go version. The order of the list is ignored, and key exchange mechanisms are chosen by Go from this list using an internal preference order. If omitted, the default Go curves will be used. (default [])
       --tls-min-version string                                  Minimum TLS version supported. Possible values: VersionTLS10, VersionTLS11, VersionTLS12, VersionTLS13
       --tls-private-key-file string                             File containing the default x509 private key matching --tls-cert-file.
       --tls-sni-cert-key namedCertKey                           A pair of x509 certificate and private key file paths, optionally suffixed with a list of domain patterns which are fully qualified domain names, possibly with prefixed wildcard segments. The domain patterns also allow IP addresses, but IPs should only be used if the apiserver has visibility to the IP address requested by a client. If no domain patterns are provided, the names of the certificate are extracted. Non-wildcard matches trump over wildcard matches, explicit domain patterns trump over extracted names. For multiple key/certificate pairs, use the --tls-sni-cert-key multiple times. Examples: "example.crt,example.key" or "foo.crt,foo.key:*.foo.com,foo.com". (default [])

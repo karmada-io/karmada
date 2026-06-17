@@ -89,7 +89,7 @@ func (c *MCSController) Reconcile(ctx context.Context, req controllerruntime.Req
 	defer func() {
 		if err != nil {
 			_ = c.updateMultiClusterServiceStatus(ctx, mcs, metav1.ConditionFalse, "ServiceAppliedFailed", err.Error())
-			c.EventRecorder.Eventf(mcs, corev1.EventTypeWarning, events.EventReasonSyncServiceFailed, err.Error())
+			c.EventRecorder.Eventf(mcs, corev1.EventTypeWarning, events.EventReasonSyncServiceFailed, "%s", err.Error())
 			return
 		}
 		_ = c.updateMultiClusterServiceStatus(ctx, mcs, metav1.ConditionTrue, "ServiceAppliedSucceed", "Service is propagated to target clusters.")

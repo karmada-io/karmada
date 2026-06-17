@@ -25,6 +25,8 @@ Logs flags:
 
       --add-dir-header                       If true, adds the file directory to the header of the log messages
       --alsologtostderr                      log to standard error as well as files (no effect when -logtostderr=true)
+      --alsologtostderrthreshold severity    logs at or above this threshold go to stderr when -alsologtostderr=true (no effect when -logtostderr=true)
+      --legacy-stderr-threshold-behavior     If true, stderrthreshold is ignored when logtostderr=true (legacy behavior). If false, stderrthreshold is honored even when logtostderr=true (default true)
       --log-backtrace-at traceLocation       when logging hits line file:N, emit a stack trace (default :0)
       --log-dir string                       If non-empty, write log files in this directory (no effect when -logtostderr=true)
       --log-file string                      If non-empty, use this log file (no effect when -logtostderr=true)
@@ -37,7 +39,7 @@ Logs flags:
       --one-output                           If true, only write logs to their native severity level (vs also writing to each lower severity level; no effect when -logtostderr=true)
       --skip-headers                         If true, avoid header prefixes in the log messages
       --skip-log-headers                     If true, avoid headers when opening log files (no effect when -logtostderr=true)
-      --stderrthreshold severity             logs at or above this threshold go to stderr when writing to files and stderr (no effect when -logtostderr=true or -alsologtostderr=true) (default 2)
+      --stderrthreshold severity             logs at or above this threshold go to stderr when writing to files and stderr (no effect when -logtostderr=true or -alsologtostderr=true unless -legacy_stderr_threshold_behavior=false) (default 2)
   -v, --v Level                              number for the log level verbosity
       --vmodule pattern=N,...                comma-separated list of pattern=N settings for file-filtered logging (only works for text log format)
 

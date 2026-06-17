@@ -291,7 +291,7 @@ func (d *DependenciesDistributor) Reconcile(ctx context.Context, request reconci
 	dependencies, err := d.ResourceInterpreter.GetDependencies(workload)
 	if err != nil {
 		klog.Errorf("Failed to customize dependencies for %s(%s), %v", workload.GroupVersionKind(), workload.GetName(), err)
-		d.EventRecorder.Eventf(workload, corev1.EventTypeWarning, events.EventReasonGetDependenciesFailed, err.Error())
+		d.EventRecorder.Eventf(workload, corev1.EventTypeWarning, events.EventReasonGetDependenciesFailed, "%s", err.Error())
 		return reconcile.Result{}, err
 	}
 	d.EventRecorder.Eventf(workload, corev1.EventTypeNormal, events.EventReasonGetDependenciesSucceed, "Get dependencies(%+v) succeed.", dependencies)
@@ -391,7 +391,7 @@ func (d *DependenciesDistributor) handleDependentResource(
 func (d *DependenciesDistributor) syncScheduleResultToAttachedBindings(ctx context.Context, independentBinding *workv1alpha2.ResourceBinding, dependencies []configv1alpha1.DependentObjectReference) (err error) {
 	defer func() {
 		if err != nil {
-			d.EventRecorder.Eventf(independentBinding, corev1.EventTypeWarning, events.EventReasonSyncScheduleResultToDependenciesFailed, err.Error())
+			d.EventRecorder.Eventf(independentBinding, corev1.EventTypeWarning, events.EventReasonSyncScheduleResultToDependenciesFailed, "%s", err.Error())
 		} else {
 			d.EventRecorder.Eventf(independentBinding, corev1.EventTypeNormal, events.EventReasonSyncScheduleResultToDependenciesSucceed, "Sync schedule results to dependencies succeed.")
 		}

@@ -17,8 +17,10 @@ limitations under the License.
 package server
 
 import (
+	"context"
 	"reflect"
 	"testing"
+	"time"
 
 	"google.golang.org/grpc/metadata"
 	appsv1 "k8s.io/api/apps/v1"
@@ -26,6 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/wait"
 	discoveryfake "k8s.io/client-go/discovery/fake"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/fake"
@@ -237,6 +240,12 @@ func TestAccurateSchedulerEstimatorServer_MaxAvailableReplicas(t *testing.T) {
 			es.informerFactory.WaitForCacheSync(ctx.Done())
 			es.informerManager.WaitForCacheSync()
 
+			// WaitForCacheSync only guarantees the informer store is synced, not that
+			// the registered event handlers have finished populating es.Cache (which is
+			// what EstimateReplicas reads). Wait until the expected nodes and assigned
+			// pods are present in es.Cache to avoid a flaky read of a partially-filled cache.
+			waitForEstimatorCacheSync(t, es, tt.objs)
+
 			gotResponse, err := es.MaxAvailableReplicas(ctx, tt.args.request)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("MaxAvailableReplicas() error = %v, wantErr %v", err, tt.wantErr)
@@ -246,6 +255,37 @@ func TestAccurateSchedulerEstimatorServer_MaxAvailableReplicas(t *testing.T) {
 				t.Errorf("MaxAvailableReplicas() gotResponse = %v, want %v", gotResponse, tt.wantResponse)
 			}
 		})
+	}
+}
+
+// waitForEstimatorCacheSync waits until es.Cache has been populated with the
+// expected number of nodes and assigned pods. The estimator cache is filled
+// asynchronously by informer event handlers, so informerFactory.WaitForCacheSync
+// alone is not enough to guarantee EstimateReplicas reads a fully-synced cache.
+func waitForEstimatorCacheSync(t *testing.T, es *AccurateSchedulerEstimatorServer, objs []runtime.Object) {
+	t.Helper()
+
+	wantNodes, wantPods := 0, 0
+	for _, obj := range objs {
+		switch o := obj.(type) {
+		case *corev1.Node:
+			wantNodes++
+		case *corev1.Pod:
+			if o.Spec.NodeName != "" {
+				wantPods++
+			}
+		}
+	}
+
+	if err := wait.PollUntilContextTimeout(t.Context(), 10*time.Millisecond, 10*time.Second, true,
+		func(context.Context) (bool, error) {
+			podCount, err := es.Cache.PodCount()
+			if err != nil {
+				return false, nil
+			}
+			return es.Cache.NodeCount() >= wantNodes && podCount >= wantPods, nil
+		}); err != nil {
+		t.Fatalf("timed out waiting for estimator cache to sync: %v", err)
 	}
 }
 
