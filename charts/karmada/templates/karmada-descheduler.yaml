@@ -59,6 +59,7 @@ spec:
             - --scheduler-estimator-cert-file=/etc/karmada/pki/karmada.crt
             - --scheduler-estimator-key-file=/etc/karmada/pki/karmada.key
             - --v={{ .Values.descheduler.logVerbosity }}
+            {{- include "karmada.descheduler.extraCommandArgs" . | nindent 12 }}
           livenessProbe:
             httpGet:
               path: /healthz
