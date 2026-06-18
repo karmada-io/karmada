@@ -644,6 +644,79 @@ If none are set, outputs nothing.
 {{- end }}
 {{- end -}}
 
+{{- define "karmada.scheduler.extraCommandArgs" -}}
+{{- if .Values.scheduler.extraCommandArgs }}
+{{- range $key, $value := .Values.scheduler.extraCommandArgs }}
+- --{{ $key }}={{ $value }}
+{{- end }}
+{{- end }}
+{{- end -}}
+
+{{- define "karmada.descheduler.extraCommandArgs" -}}
+{{- if .Values.descheduler.extraCommandArgs }}
+{{- range $key, $value := .Values.descheduler.extraCommandArgs }}
+- --{{ $key }}={{ $value }}
+{{- end }}
+{{- end }}
+{{- end -}}
+
+{{- define "karmada.schedulerEstimator.extraCommandArgs" -}}
+{{- if .Values.schedulerEstimator.extraCommandArgs }}
+{{- range $key, $value := .Values.schedulerEstimator.extraCommandArgs }}
+- --{{ $key }}={{ $value }}
+{{- end }}
+{{- end }}
+{{- end -}}
+
+{{- define "karmada.webhook.extraCommandArgs" -}}
+{{- if .Values.webhook.extraCommandArgs }}
+{{- range $key, $value := .Values.webhook.extraCommandArgs }}
+- --{{ $key }}={{ $value }}
+{{- end }}
+{{- end }}
+{{- end -}}
+
+{{- define "karmada.agent.extraCommandArgs" -}}
+{{- if .Values.agent.extraCommandArgs }}
+{{- range $key, $value := .Values.agent.extraCommandArgs }}
+- --{{ $key }}={{ $value }}
+{{- end }}
+{{- end }}
+{{- end -}}
+
+{{- define "karmada.aggregatedApiServer.extraCommandArgs" -}}
+{{- if .Values.aggregatedApiServer.extraCommandArgs }}
+{{- range $key, $value := .Values.aggregatedApiServer.extraCommandArgs }}
+- --{{ $key }}={{ $value }}
+{{- end }}
+{{- end }}
+{{- end -}}
+
+{{- define "karmada.apiServer.extraCommandArgs" -}}
+{{- if .Values.apiServer.extraCommandArgs }}
+{{- range $key, $value := .Values.apiServer.extraCommandArgs }}
+- --{{ $key }}={{ $value }}
+{{- end }}
+{{- end }}
+{{- end -}}
+
+{{- define "karmada.metricsAdapter.extraCommandArgs" -}}
+{{- if .Values.metricsAdapter.extraCommandArgs }}
+{{- range $key, $value := .Values.metricsAdapter.extraCommandArgs }}
+- --{{ $key }}={{ $value }}
+{{- end }}
+{{- end }}
+{{- end -}}
+
+{{- define "karmada.search.extraCommandArgs" -}}
+{{- if .Values.search.extraCommandArgs }}
+{{- range $key, $value := .Values.search.extraCommandArgs }}
+- --{{ $key }}={{ $value }}
+{{- end }}
+{{- end }}
+{{- end -}}
+
+
 {{- define "karmada.initContainer.waitEtcd" -}}
 - name: wait
   image: {{ include "karmada.cfssl.image" . }}
