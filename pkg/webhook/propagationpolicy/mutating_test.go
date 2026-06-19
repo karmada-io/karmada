@@ -213,3 +213,51 @@ func TestMutatingAdmission_Handle_FullCoverage(t *testing.T) {
 		t.Errorf("Handle() got.Allowed = false, want true")
 	}
 }
+
+func TestMutatingAdmission_Handle_EmptyPlacement(t *testing.T) {
+	// Use a namespaced PropagationPolicy to verify empty placement handling.
+	policyName := "test-propagation-policy"
+	namespace := "test-namespace"
+
+	// Build a create admission request, which is the path that adds defaults.
+	req := admission.Request{
+		AdmissionRequest: admissionv1.AdmissionRequest{
+			Namespace: namespace,
+			Operation: admissionv1.Create,
+		},
+	}
+
+	// Create a policy without Spec.Placement. Placement is optional, so this
+	// produces an empty Placement value rather than a nil pointer.
+	pp := &policyv1alpha1.PropagationPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: policyName,
+		},
+		Spec: policyv1alpha1.PropagationSpec{
+			// Keep the selector namespace empty so the webhook can default it.
+			ResourceSelectors: []policyv1alpha1.ResourceSelector{
+				{
+					Namespace:  "",
+					Kind:       util.ServiceImportKind,
+					APIVersion: mcsv1alpha1.GroupVersion.String(),
+				},
+			},
+		},
+	}
+
+	// Store the original object in the admission request for patch generation.
+	raw, err := json.Marshal(pp)
+	if err != nil {
+		t.Fatalf("Failed to marshal propagation policy: %v", err)
+	}
+	req.Object.Raw = raw
+
+	// Use the fake decoder to pass the policy directly into the webhook.
+	mutatingHandler := NewMutatingHandler(&fakeMutationDecoder{obj: pp})
+
+	// Empty placement is valid and should not block admission.
+	got := mutatingHandler.Handle(context.Background(), req)
+	if !got.Allowed {
+		t.Errorf("Handle() got.Allowed = false, want true")
+	}
+}

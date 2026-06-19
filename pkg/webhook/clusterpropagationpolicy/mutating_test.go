@@ -207,3 +207,48 @@ func TestMutatingAdmission_Handle_FullCoverage(t *testing.T) {
 		t.Errorf("Handle() got.Allowed = false, want true")
 	}
 }
+
+func TestMutatingAdmission_Handle_EmptyPlacement(t *testing.T) {
+	// Use a cluster-scoped policy to verify empty placement handling.
+	policyName := "test-cp-policy"
+
+	// Build a create admission request, which is the path that adds defaults.
+	req := admission.Request{
+		AdmissionRequest: admissionv1.AdmissionRequest{
+			Operation: admissionv1.Create,
+		},
+	}
+
+	// Create a policy without Spec.Placement. Placement is optional, so this
+	// produces an empty Placement value rather than a nil pointer.
+	cpPolicy := &policyv1alpha1.ClusterPropagationPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: policyName,
+		},
+		Spec: policyv1alpha1.PropagationSpec{
+			ResourceSelectors: []policyv1alpha1.ResourceSelector{
+				{
+					Namespace:  "",
+					Kind:       util.ServiceImportKind,
+					APIVersion: mcsv1alpha1.GroupVersion.String(),
+				},
+			},
+		},
+	}
+
+	// Store the original object in the admission request for patch generation.
+	raw, err := json.Marshal(cpPolicy)
+	if err != nil {
+		t.Fatalf("Failed to marshal cluster propagation policy: %v", err)
+	}
+	req.Object.Raw = raw
+
+	// Use the fake decoder to pass the policy directly into the webhook.
+	mutatingHandler := NewMutatingHandler(&fakeMutationDecoder{obj: cpPolicy})
+
+	// Empty placement is valid and should not block admission.
+	got := mutatingHandler.Handle(context.Background(), req)
+	if !got.Allowed {
+		t.Errorf("Handle() got.Allowed = false, want true")
+	}
+}
