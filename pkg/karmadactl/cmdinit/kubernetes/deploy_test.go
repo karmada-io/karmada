@@ -85,6 +85,39 @@ func TestCommandInitOption_Validate(t *testing.T) {
 			errorMsg: "CommandInitOption.Validate() does not return err when KarmadaAPIServerAdvertiseAddress is wrong",
 		},
 		{
+			name: "Invalid cert-external-ip",
+			opt: CommandInitOption{
+				ExternalIP:      "192.168.1.300",
+				EtcdStorageMode: etcdStorageModeEmptyDir,
+				ImagePullPolicy: string(corev1.PullIfNotPresent),
+			},
+			wantErr:  true,
+			errorMsg: "CommandInitOption.Validate() does not return err when cert-external-ip is not a valid IP",
+		},
+		{
+			name: "cert-external-ip with spaces is rejected",
+			opt: CommandInitOption{
+				// A space after the comma is not tolerated by net.ParseIP, which is
+				// how the value is consumed during cert generation, so it must be
+				// rejected here rather than silently becoming 127.0.0.1.
+				ExternalIP:      "192.0.2.1, 192.0.2.2",
+				EtcdStorageMode: etcdStorageModeEmptyDir,
+				ImagePullPolicy: string(corev1.PullIfNotPresent),
+			},
+			wantErr:  true,
+			errorMsg: "CommandInitOption.Validate() does not return err when cert-external-ip contains a space",
+		},
+		{
+			name: "Valid cert-external-ip",
+			opt: CommandInitOption{
+				ExternalIP:      "192.0.2.1,192.0.2.2",
+				EtcdStorageMode: etcdStorageModeEmptyDir,
+				ImagePullPolicy: string(corev1.PullIfNotPresent),
+			},
+			wantErr:  false,
+			errorMsg: "CommandInitOption.Validate() returns err when cert-external-ip is a valid IP list",
+		},
+		{
 			name: "Empty EtcdHostDataPath",
 			opt: CommandInitOption{
 				KarmadaAPIServerAdvertiseAddress: "192.0.2.1",
