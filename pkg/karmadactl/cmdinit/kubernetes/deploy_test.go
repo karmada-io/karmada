@@ -135,6 +135,32 @@ func TestCommandInitOption_Validate(t *testing.T) {
 			errorMsg: "CommandInitOption.Validate() does not return err when StorageClassesName is empty",
 		},
 		{
+			name: "Invalid EtcdPersistentVolumeSize",
+			opt: CommandInitOption{
+				KarmadaAPIServerAdvertiseAddress: "192.0.2.1",
+				EtcdStorageMode:                  etcdStorageModePVC,
+				StorageClassesName:               "fast",
+				EtcdReplicas:                     1,
+				EtcdPersistentVolumeSize:         "abc",
+				ImagePullPolicy:                  string(corev1.PullIfNotPresent),
+			},
+			wantErr:  true,
+			errorMsg: "CommandInitOption.Validate() does not return err when etcd-pvc-size is not a valid quantity",
+		},
+		{
+			name: "Valid EtcdPersistentVolumeSize",
+			opt: CommandInitOption{
+				KarmadaAPIServerAdvertiseAddress: "192.0.2.1",
+				EtcdStorageMode:                  etcdStorageModePVC,
+				StorageClassesName:               "fast",
+				EtcdReplicas:                     1,
+				EtcdPersistentVolumeSize:         "5Gi",
+				ImagePullPolicy:                  string(corev1.PullIfNotPresent),
+			},
+			wantErr:  false,
+			errorMsg: "CommandInitOption.Validate() returns err when etcd-pvc-size is a valid quantity",
+		},
+		{
 			name: "Invalid EtcdStorageMode",
 			opt: CommandInitOption{
 				KarmadaAPIServerAdvertiseAddress: "192.0.2.1",
