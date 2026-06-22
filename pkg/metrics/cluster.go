@@ -262,17 +262,13 @@ func RecordClusterConditionLastTransition(clusterName string, prevStatus, curren
 	clusterConditionLastTransition.WithLabelValues(clusterName).Set(float64(timestamp.Unix()))
 }
 
-// RecordClusterHealthTransition increments the transition counter when the threshold-adjusted state changes.
+// RecordClusterHealthTransition increments the transition counter when the raw probe state changes.
 // No-op when the state hasn't changed.
-func RecordClusterHealthTransition(clusterName string, prevStatus, currentStatus metav1.ConditionStatus) {
-	if prevStatus == currentStatus {
+func RecordClusterHealthTransition(clusterName string, fromState, toState metav1.ConditionStatus) {
+	if fromState == toState {
 		return
 	}
-	clusterHealthTransitionsTotal.WithLabelValues(
-		clusterName,
-		string(prevStatus),
-		string(currentStatus),
-	).Inc()
+	clusterHealthTransitionsTotal.WithLabelValues(clusterName, string(fromState), string(toState)).Inc()
 }
 
 // RecordClusterSyncStatusDuration records the duration of the given cluster syncing status

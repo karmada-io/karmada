@@ -110,6 +110,8 @@ type ClusterStatusController struct {
 	ClusterFailureThreshold metav1.Duration
 	// clusterConditionCache stores the condition status of each cluster.
 	clusterConditionCache clusterConditionStore
+	// prevProbeResults caches the previous raw probe result per cluster for transition detection.
+	prevProbeResults sync.Map
 
 	ClusterCacheSyncTimeout metav1.Duration
 	RateLimiterOptions      ratelimiterflag.Options
@@ -134,6 +136,7 @@ func (c *ClusterStatusController) Reconcile(ctx context.Context, req controllerr
 			c.GenericInformerManager.Stop(req.NamespacedName.Name)
 			c.TypedInformerManager.Stop(req.NamespacedName.Name)
 			c.clusterConditionCache.delete(req.NamespacedName.Name)
+			c.prevProbeResults.Delete(req.NamespacedName.Name)
 			metrics.CleanupMetricsForCluster(req.NamespacedName.Name)
 
 			// stop lease controller after the cluster is gone.
@@ -197,7 +200,6 @@ func (c *ClusterStatusController) syncClusterStatus(ctx context.Context, cluster
 		if readyCondition != nil {
 			metrics.RecordClusterReadySince(cluster.Name, prevReadyStatus, readyCondition.Status, start)
 			metrics.RecordClusterConditionLastTransition(cluster.Name, prevReadyStatus, readyCondition.Status, start)
-			metrics.RecordClusterHealthTransition(cluster.Name, prevReadyStatus, readyCondition.Status)
 		}
 	}()
 
@@ -216,7 +218,15 @@ func (c *ClusterStatusController) syncClusterStatus(ctx context.Context, cluster
 	probeStart := time.Now()
 	online, healthy = getClusterHealthStatus(clusterClient)
 	metrics.RecordClusterHealthProbeDuration(cluster.Name, probeStart) // time the health probe duration and record the metric
+
+	// Record raw probe state transitions (before threshold adjustment)
 	observedReadyCondition := generateReadyCondition(online, healthy)
+	if prev, ok := c.prevProbeResults.Load(cluster.Name); ok {
+		metrics.RecordClusterHealthTransition(cluster.Name, prev.(metav1.ConditionStatus), observedReadyCondition.Status)
+	}
+	c.prevProbeResults.Store(cluster.Name, observedReadyCondition.Status)
+
+	// generate ready condition with threshold adjustment based on the probe result and previous condition status.
 	readyCondition = c.clusterConditionCache.thresholdAdjustedReadyCondition(cluster, &observedReadyCondition)
 
 	// cluster is offline after retry timeout, update cluster status immediately and return.
