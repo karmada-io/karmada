@@ -542,26 +542,26 @@ cluster_health_probe_total{member_cluster="foo",result="error"} 1
 }
 
 func TestRecordClusterHealthTransition(t *testing.T) {
-	t.Run("success to error", func(t *testing.T) {
+	t.Run("True to False", func(t *testing.T) {
 		clusterHealthTransitionsTotal.Reset()
 		RecordClusterHealthTransition("foo", metav1.ConditionTrue, metav1.ConditionFalse)
 		want := `
 # HELP cluster_health_transitions_total Total number of health state transitions for the member cluster.
 # TYPE cluster_health_transitions_total counter
-cluster_health_transitions_total{from_state="success",member_cluster="foo",to_state="error"} 1
+cluster_health_transitions_total{from_state="True",member_cluster="foo",to_state="False"} 1
 `
 		if err := testutil.CollectAndCompare(clusterHealthTransitionsTotal, strings.NewReader(want), clusterHealthTransitionsTotalName); err != nil {
 			t.Errorf("unexpected collecting result:\n%s", err)
 		}
 	})
 
-	t.Run("error to success", func(t *testing.T) {
+	t.Run("False to True", func(t *testing.T) {
 		clusterHealthTransitionsTotal.Reset()
 		RecordClusterHealthTransition("foo", metav1.ConditionFalse, metav1.ConditionTrue)
 		want := `
 # HELP cluster_health_transitions_total Total number of health state transitions for the member cluster.
 # TYPE cluster_health_transitions_total counter
-cluster_health_transitions_total{from_state="error",member_cluster="foo",to_state="success"} 1
+cluster_health_transitions_total{from_state="False",member_cluster="foo",to_state="True"} 1
 `
 		if err := testutil.CollectAndCompare(clusterHealthTransitionsTotal, strings.NewReader(want), clusterHealthTransitionsTotalName); err != nil {
 			t.Errorf("unexpected collecting result:\n%s", err)

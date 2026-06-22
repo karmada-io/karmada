@@ -262,14 +262,6 @@ func RecordClusterConditionLastTransition(clusterName string, prevStatus, curren
 	clusterConditionLastTransition.WithLabelValues(clusterName).Set(float64(timestamp.Unix()))
 }
 
-// conditionToTransitionState maps a threshold-adjusted condition status to a transition state label.
-func conditionToTransitionState(status metav1.ConditionStatus) string {
-	if status == metav1.ConditionTrue {
-		return HealthStateSuccess
-	}
-	return HealthStateError
-}
-
 // RecordClusterHealthTransition increments the transition counter when the threshold-adjusted state changes.
 // No-op when the state hasn't changed.
 func RecordClusterHealthTransition(clusterName string, prevStatus, currentStatus metav1.ConditionStatus) {
@@ -278,8 +270,8 @@ func RecordClusterHealthTransition(clusterName string, prevStatus, currentStatus
 	}
 	clusterHealthTransitionsTotal.WithLabelValues(
 		clusterName,
-		conditionToTransitionState(prevStatus),
-		conditionToTransitionState(currentStatus),
+		string(prevStatus),
+		string(currentStatus),
 	).Inc()
 }
 
