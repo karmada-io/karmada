@@ -92,7 +92,10 @@ func calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha
 			assumedWorkloads: assumedWorkloads,
 		})
 		if err != nil {
-			continue
+			// On a partial failure res still holds the clusters that succeeded; failed ones
+			// are marked UnauthenticReplica and skipped by mergeReplicaResults. Keep merging
+			// instead of discarding the estimator for every cluster.
+			klog.Errorf("Estimator %s returned an error, merging any partial results: %v", name, err)
 		}
 		availableTargetClusters = mergeReplicaResults(availableTargetClusters, res)
 	}
@@ -145,8 +148,10 @@ func runSingleTemplateEstimator(ctx context.Context, in replicaEstimationContext
 		AssumedWorkloads:    in.assumedWorkloads,
 	})
 	if err != nil {
+		// Return res alongside the error so the caller can still use the clusters that
+		// succeeded; failed clusters are marked UnauthenticReplica.
 		klog.Errorf("Max cluster available replicas error: %v", err)
-		return nil, err
+		return res, err
 	}
 	klog.V(4).Infof("Invoked MaxAvailableReplicas of estimator %s for workload(%s, kind=%s, %s): %v", in.estimatorName,
 		in.spec.Resource.APIVersion, in.spec.Resource.Kind, names.NamespacedKey(in.spec.Resource.Namespace, in.spec.Resource.Name), res)
