@@ -267,6 +267,9 @@ func getClusterReplicasConcurrently(parentCtx context.Context, clusters []string
 		funcs[index] = func() error {
 			replicas, err := getClusterReplicas(ctx, localCluster)
 			if err != nil {
+				// Mark the failed cluster instead of dropping the whole batch, so one
+				// cluster's failure does not discard the replicas estimated for the others.
+				clusterReplicas[localIndex] = workv1alpha2.TargetCluster{Name: localCluster, Replicas: UnauthenticReplica}
 				return err
 			}
 			clusterReplicas[localIndex] = workv1alpha2.TargetCluster{Name: localCluster, Replicas: replicas}
@@ -296,6 +299,9 @@ func getClusterComponentSetsConcurrently(
 		funcs[i] = func() error {
 			sets, err := getClusterSetsEstimation(ctx, localCluster.Name)
 			if err != nil {
+				// Mark the failed cluster instead of dropping the whole batch, so one
+				// cluster's failure does not discard the sets estimated for the others.
+				results[localIndex] = ComponentSetEstimationResponse{Name: localCluster.Name, Sets: UnauthenticReplica}
 				return err
 			}
 			results[localIndex] = ComponentSetEstimationResponse{Name: localCluster.Name, Sets: sets}

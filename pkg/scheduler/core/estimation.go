@@ -85,31 +85,47 @@ func calculateMultiTemplateAvailableSets(ctx context.Context, estCtx multiTempla
 	namespacedKey := names.NamespacedKey(estCtx.spec.Resource.Namespace, estCtx.spec.Resource.Name)
 	resp, err := estCtx.estimator.MaxAvailableComponentSets(ctx, req)
 	if err != nil {
+		// Don't return early: on a partial failure resp still carries the clusters that
+		// succeeded, so fall through and build a result from what is available.
 		klog.Errorf("Failed to calculate available component set with estimator(%s) for workload(%s, kind=%s, %s): %v",
 			estCtx.estimatorName, estCtx.spec.Resource.APIVersion, estCtx.spec.Resource.Kind, namespacedKey, err)
-		return nil, err
 	}
 
-	// Use a map to safely update replicas regardless of order.
+	// Use a map to safely update replicas regardless of order. Clusters the estimator
+	// responded for but could not estimate are recorded separately so they are not later
+	// reported as a missed estimation.
 	resMap := make(map[string]int32, len(resp))
+	unauthentic := make(map[string]struct{})
 	for i := range resp {
 		if resp[i].Sets == estimatorclient.UnauthenticReplica {
+			unauthentic[resp[i].Name] = struct{}{}
 			continue
 		}
 		resMap[resp[i].Name] = resp[i].Sets
+	}
+
+	// No cluster produced a usable estimation. Return the error without walking every
+	// cluster below, which would otherwise log a missed-estimation warning for each one
+	// when the estimator returned nothing at all.
+	if len(resMap) == 0 {
+		return []workv1alpha2.TargetCluster{}, err
 	}
 
 	result := make([]workv1alpha2.TargetCluster, 0, len(estCtx.clusters))
 	for _, cluster := range estCtx.clusters {
 		sets, ok := resMap[cluster.Name]
 		if !ok {
-			klog.Warningf("The estimator(%s) missed estimation from cluster(%s) when estimating for workload(%s, kind=%s, %s).",
-				estCtx.estimatorName, cluster.Name, estCtx.spec.Resource.APIVersion, estCtx.spec.Resource.Kind, namespacedKey)
+			if _, failed := unauthentic[cluster.Name]; !failed {
+				// Only a cluster genuinely absent from the response is a missed estimation;
+				// a cluster that failed was already reported by the estimator.
+				klog.Warningf("The estimator(%s) missed estimation from cluster(%s) when estimating for workload(%s, kind=%s, %s).",
+					estCtx.estimatorName, cluster.Name, estCtx.spec.Resource.APIVersion, estCtx.spec.Resource.Kind, namespacedKey)
+			}
 			continue
 		}
 		result = append(result, workv1alpha2.TargetCluster{Name: cluster.Name, Replicas: sets})
 	}
-	return result, nil
+	return result, err
 }
 
 // buildAssumedWorkloadsByCluster builds a map of assumed workloads for each cluster based on the assigning cache.
