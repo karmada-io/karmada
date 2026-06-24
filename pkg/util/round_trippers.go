@@ -20,8 +20,14 @@ import (
 	"net/http"
 	"net/textproto"
 	"strings"
+	"sync"
+	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/transport"
+	"k8s.io/klog/v2"
+
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 )
 
 type proxyHeaderRoundTripper struct {
@@ -64,4 +70,91 @@ func parseProxyHeaders(headers map[string]string) http.Header {
 		proxyHeaders[textproto.CanonicalMIMEHeaderKey(key)] = strings.Split(values, ",")
 	}
 	return proxyHeaders
+}
+
+// tokenCacheTTL controls how often the token is re-read from the Secret.
+var tokenCacheTTL = 30 * time.Second
+
+// tokenErrorRetryInterval is a shorter TTL used after a failed Secret read,
+// so recovery happens faster than a full tokenCacheTTL cycle.
+var tokenErrorRetryInterval = 5 * time.Second
+
+// tokenRefreshingRoundTripper re-reads the member cluster token from the Karmada
+// Secret on a TTL so long-lived informer clients survive token rotation.
+type tokenRefreshingRoundTripper struct {
+	inner        http.RoundTripper
+	secretGetter func(namespace, name string) (*corev1.Secret, error)
+	secretNS     string
+	secretName   string
+
+	mu          sync.RWMutex
+	cachedToken string
+	cacheExpiry time.Time
+}
+
+var _ http.RoundTripper = &tokenRefreshingRoundTripper{}
+
+// WrappedRoundTripper implements utilnet.RoundTripperWrapper.
+func (t *tokenRefreshingRoundTripper) WrappedRoundTripper() http.RoundTripper { return t.inner }
+
+// NewTokenRefreshingRoundTripperWrapperConstructor returns a WrapperFunc that injects a TTL-refreshed bearer token.
+// secretGetter is expected to be informer-backed (in-memory read, not a live API call).
+func NewTokenRefreshingRoundTripperWrapperConstructor(
+	secretGetter func(string, string) (*corev1.Secret, error),
+	secretNS, secretName, initialToken string,
+) transport.WrapperFunc {
+	return func(rt http.RoundTripper) http.RoundTripper {
+		return &tokenRefreshingRoundTripper{
+			inner:        rt,
+			secretGetter: secretGetter,
+			secretNS:     secretNS,
+			secretName:   secretName,
+			cachedToken:  initialToken,
+			cacheExpiry:  time.Now().Add(tokenCacheTTL),
+		}
+	}
+}
+
+// RoundTrip implements the http.RoundTripper interface.
+func (t *tokenRefreshingRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	req = req.Clone(req.Context())
+	req.Header.Set("Authorization", "Bearer "+t.getToken())
+	return t.inner.RoundTrip(req)
+}
+
+func (t *tokenRefreshingRoundTripper) getToken() string {
+	t.mu.RLock()
+	if time.Now().Before(t.cacheExpiry) {
+		token := t.cachedToken
+		t.mu.RUnlock()
+		return token
+	}
+	t.mu.RUnlock()
+	return t.forceRefresh()
+}
+
+func (t *tokenRefreshingRoundTripper) forceRefresh() string {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	if time.Now().Before(t.cacheExpiry) {
+		return t.cachedToken
+	}
+
+	secret, err := t.secretGetter(t.secretNS, t.secretName)
+	if err != nil {
+		klog.Warningf("tokenRefreshingRoundTripper: failed to refresh token from secret %s/%s, keeping last known token: %v",
+			t.secretNS, t.secretName, err)
+		t.cacheExpiry = time.Now().Add(tokenErrorRetryInterval)
+		return t.cachedToken
+	}
+
+	if token := string(secret.Data[clusterv1alpha1.SecretTokenKey]); token != "" {
+		t.cachedToken = token
+	} else {
+		klog.Warningf("tokenRefreshingRoundTripper: secret %s/%s has empty token key, keeping last known token",
+			t.secretNS, t.secretName)
+	}
+	t.cacheExpiry = time.Now().Add(tokenCacheTTL)
+	return t.cachedToken
 }
