@@ -150,7 +150,7 @@ karmadactl init
       --karmada-webhook-replicas int32                          Karmada webhook replica set (default 1)
       --kube-image-mirror-country string                        Country code of the kube image registry to be used. For Chinese mainland users, set it to cn
       --kube-image-registry string                              Kube image registry. For Chinese mainland users, you may use local gcr.io mirrors such as registry.cn-hangzhou.aliyuncs.com/google_containers to override default kube image registry
-      --kube-image-tag string                                   Choose a specific Kubernetes version for the control plane. (default "v1.35.2")
+      --kube-image-tag string                                   Choose a specific Kubernetes version for the control plane. (default "v1.36.2")
       --kubeconfig string                                       absolute path to the kubeconfig file
   -n, --namespace string                                        Kubernetes namespace (default "karmada-system")
   -p, --port int32                                              Karmada apiserver service node port (default 32443)
