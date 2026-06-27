@@ -358,7 +358,7 @@ func FetchResourceTemplatesByLabelSelector(
 	}
 	var objects []*unstructured.Unstructured
 	if err != nil || len(objectList) == 0 {
-		// fall back to call api server in case the cache has not been synchronized yet
+		// fall back to call api server
 		klog.Warningf("Failed to get resource template (%s/%s/%s) from cache, Error: %v. Fall back to call api server.",
 			resource.Kind, resource.Namespace, resource.Name, err)
 		unstructuredList, err := dynamicClient.Resource(gvr).Namespace(resource.Namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: selector.String()})
@@ -370,8 +370,10 @@ func FetchResourceTemplatesByLabelSelector(
 		for i := range unstructuredList.Items {
 			objects = append(objects, &unstructuredList.Items[i])
 		}
+		return objects, nil
 	}
 
+	// Process cache objects
 	for i := range objectList {
 		unstructuredObj, err := ToUnstructured(objectList[i])
 		if err != nil {
