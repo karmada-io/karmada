@@ -17,9 +17,9 @@ spec:
     replicas: 1
     resource:
       cpu: 0.05
-      memory: 100m
+      memory: 100Mi
   serviceAccount: flink
   taskManager:
     resource:
       cpu: 0.1
-      memory: 100m
+      memory: 100Mi
