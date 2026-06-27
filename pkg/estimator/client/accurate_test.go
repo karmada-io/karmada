@@ -18,6 +18,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -157,6 +158,64 @@ func Test_toAssumedWorkload(t *testing.T) {
 			assert.Len(t, got.Components, tt.wantLen)
 			if tt.wantComponents != nil {
 				tt.wantComponents(t, got.Components)
+			}
+		})
+	}
+}
+
+func Test_getClusterReplicasConcurrently_partialFailure(t *testing.T) {
+	clusters := []string{"cluster1", "cluster2", "cluster3"}
+
+	tests := []struct {
+		name         string
+		getReplicas  getClusterReplicasFunc
+		wantReplicas map[string]int32
+		wantErr      bool
+	}{
+		{
+			name: "all clusters succeed",
+			getReplicas: func(_ context.Context, cluster string) (int32, error) {
+				return map[string]int32{"cluster1": 10, "cluster2": 20, "cluster3": 30}[cluster], nil
+			},
+			wantReplicas: map[string]int32{"cluster1": 10, "cluster2": 20, "cluster3": 30},
+			wantErr:      false,
+		},
+		{
+			name: "one cluster fails — others keep their replicas, failed one is UnauthenticReplica",
+			getReplicas: func(_ context.Context, cluster string) (int32, error) {
+				if cluster == "cluster2" {
+					return 0, errors.New("estimator unavailable")
+				}
+				return map[string]int32{"cluster1": 10, "cluster3": 30}[cluster], nil
+			},
+			wantReplicas: map[string]int32{"cluster1": 10, "cluster2": UnauthenticReplica, "cluster3": 30},
+			wantErr:      true,
+		},
+		{
+			name: "all clusters fail — every cluster marked UnauthenticReplica with error",
+			getReplicas: func(_ context.Context, _ string) (int32, error) {
+				return 0, errors.New("estimator unavailable")
+			},
+			wantReplicas: map[string]int32{"cluster1": UnauthenticReplica, "cluster2": UnauthenticReplica, "cluster3": UnauthenticReplica},
+			wantErr:      true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := getClusterReplicasConcurrently(context.Background(), clusters, 5*time.Second, tt.getReplicas)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+
+			// Every cluster keeps a named slot in the result, even on failure.
+			require.Len(t, got, len(clusters))
+			for _, tc := range got {
+				want, ok := tt.wantReplicas[tc.Name]
+				require.True(t, ok, "unexpected cluster %q in result", tc.Name)
+				assert.Equal(t, want, tc.Replicas, "cluster %q replicas", tc.Name)
 			}
 		})
 	}

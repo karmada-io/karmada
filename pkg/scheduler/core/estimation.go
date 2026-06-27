@@ -85,9 +85,10 @@ func calculateMultiTemplateAvailableSets(ctx context.Context, estCtx multiTempla
 	namespacedKey := names.NamespacedKey(estCtx.spec.Resource.Namespace, estCtx.spec.Resource.Name)
 	resp, err := estCtx.estimator.MaxAvailableComponentSets(ctx, req)
 	if err != nil {
+		// Don't return early: on a partial failure resp still carries the clusters that
+		// succeeded, so fall through and build a result from what is available.
 		klog.Errorf("Failed to calculate available component set with estimator(%s) for workload(%s, kind=%s, %s): %v",
 			estCtx.estimatorName, estCtx.spec.Resource.APIVersion, estCtx.spec.Resource.Kind, namespacedKey, err)
-		return nil, err
 	}
 
 	// Use a map to safely update replicas regardless of order.
@@ -109,7 +110,7 @@ func calculateMultiTemplateAvailableSets(ctx context.Context, estCtx multiTempla
 		}
 		result = append(result, workv1alpha2.TargetCluster{Name: cluster.Name, Replicas: sets})
 	}
-	return result, nil
+	return result, err
 }
 
 // buildAssumedWorkloadsByCluster builds a map of assumed workloads for each cluster based on the assigning cache.
