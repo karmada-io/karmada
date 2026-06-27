@@ -550,3 +550,73 @@ func TestObtainClusterID(t *testing.T) {
 		})
 	}
 }
+
+func TestClusterConditionStatusChanged(t *testing.T) {
+	cluster := func(conds ...metav1.Condition) *clusterv1alpha1.Cluster {
+		return &clusterv1alpha1.Cluster{
+			Status: clusterv1alpha1.ClusterStatus{Conditions: conds},
+		}
+	}
+	ready := func(s metav1.ConditionStatus) metav1.Condition {
+		return metav1.Condition{Type: clusterv1alpha1.ClusterConditionReady, Status: s}
+	}
+
+	tests := []struct {
+		name          string
+		oldCluster    *clusterv1alpha1.Cluster
+		newCluster    *clusterv1alpha1.Cluster
+		conditionType string
+		want          bool
+	}{
+		{
+			name:          "both missing",
+			oldCluster:    cluster(),
+			newCluster:    cluster(),
+			conditionType: clusterv1alpha1.ClusterConditionReady,
+			want:          false,
+		},
+		{
+			name:          "old missing, new True",
+			oldCluster:    cluster(),
+			newCluster:    cluster(ready(metav1.ConditionTrue)),
+			conditionType: clusterv1alpha1.ClusterConditionReady,
+			want:          true,
+		},
+		{
+			name:          "old True, new False",
+			oldCluster:    cluster(ready(metav1.ConditionTrue)),
+			newCluster:    cluster(ready(metav1.ConditionFalse)),
+			conditionType: clusterv1alpha1.ClusterConditionReady,
+			want:          true,
+		},
+		{
+			name:          "old True, new True",
+			oldCluster:    cluster(ready(metav1.ConditionTrue)),
+			newCluster:    cluster(ready(metav1.ConditionTrue)),
+			conditionType: clusterv1alpha1.ClusterConditionReady,
+			want:          false,
+		},
+		{
+			name:          "old True, new missing",
+			oldCluster:    cluster(ready(metav1.ConditionTrue)),
+			newCluster:    cluster(),
+			conditionType: clusterv1alpha1.ClusterConditionReady,
+			want:          true,
+		},
+		{
+			name:          "unrelated condition change is ignored",
+			oldCluster:    cluster(ready(metav1.ConditionTrue)),
+			newCluster:    cluster(ready(metav1.ConditionTrue), metav1.Condition{Type: "Other", Status: metav1.ConditionTrue}),
+			conditionType: clusterv1alpha1.ClusterConditionReady,
+			want:          false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ClusterConditionStatusChanged(tt.oldCluster, tt.newCluster, tt.conditionType); got != tt.want {
+				t.Errorf("ClusterConditionStatusChanged() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

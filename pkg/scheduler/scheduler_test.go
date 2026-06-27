@@ -2315,12 +2315,14 @@ type mockSchedulingQueue struct {
 	pushUnschedulableCalled bool
 	pushBackoffCalled       bool
 	forgetCalled            bool
+	moveAllToActiveCalled   bool
 }
 
 func (m *mockSchedulingQueue) Push(_ *internalqueue.QueuedBindingInfo)       {}
 func (m *mockSchedulingQueue) Pop() (*internalqueue.QueuedBindingInfo, bool) { return nil, false }
 func (m *mockSchedulingQueue) Done(_ *internalqueue.QueuedBindingInfo)       {}
 func (m *mockSchedulingQueue) Len() int                                      { return 0 }
+func (m *mockSchedulingQueue) MoveAllToActiveQ()                             { m.moveAllToActiveCalled = true }
 func (m *mockSchedulingQueue) Run()                                          {}
 func (m *mockSchedulingQueue) Close()                                        {}
 
