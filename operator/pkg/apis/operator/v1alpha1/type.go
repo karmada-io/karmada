@@ -699,6 +699,10 @@ type CommonSettings struct {
 	// Affinity to apply to the pods for this component.
 	// +optional
 	Affinity *corev1.Affinity `json:"affinity,omitempty"`
+
+	// TopologySpreadConstraints describes the topology spread constraints to apply to the pods for this component.
+	// +optional
+	TopologySpreadConstraints []corev1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
 }
 
 // Image allows to customize the image used for components.
