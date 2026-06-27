@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
@@ -119,6 +120,8 @@ func (tc *NoExecuteTaintManager) Reconcile(ctx context.Context, req reconcile.Re
 }
 
 func (tc *NoExecuteTaintManager) syncCluster(ctx context.Context, cluster *clusterv1alpha1.Cluster) (reconcile.Result, error) {
+	noExecuteTaints := helper.GetNoExecuteTaints(cluster.Spec.Taints)
+
 	// List all ResourceBindings which are assigned to this cluster.
 	rbList := &workv1alpha2.ResourceBindingList{}
 	if err := tc.List(ctx, rbList, client.MatchingFieldsSelector{
@@ -128,6 +131,9 @@ func (tc *NoExecuteTaintManager) syncCluster(ctx context.Context, cluster *clust
 		return controllerruntime.Result{}, err
 	}
 	for i := range rbList.Items {
+		if toleratesAllTaintsIndefinitely(noExecuteTaints, rbList.Items[i].Annotations) {
+			continue
+		}
 		key, err := keys.FederatedKeyFunc(cluster.Name, &rbList.Items[i])
 		if err != nil {
 			klog.ErrorS(err, "Failed to generate federated key for ResourceBinding", "gvk", rbList.Items[i].GetObjectKind().GroupVersionKind())
@@ -145,6 +151,9 @@ func (tc *NoExecuteTaintManager) syncCluster(ctx context.Context, cluster *clust
 		return controllerruntime.Result{}, err
 	}
 	for i := range crbList.Items {
+		if toleratesAllTaintsIndefinitely(noExecuteTaints, crbList.Items[i].Annotations) {
+			continue
+		}
 		key, err := keys.FederatedKeyFunc(cluster.Name, &crbList.Items[i])
 		if err != nil {
 			klog.ErrorS(err, "Failed to generate federated key for ClusterResourceBinding", "gvk", crbList.Items[i].GetObjectKind().GroupVersionKind())
@@ -412,6 +421,40 @@ func (tc *NoExecuteTaintManager) needEvictionWithCurrentTime(clusterName string,
 	}
 
 	return false, minTolerationTime, nil
+}
+
+// toleratesAllTaintsIndefinitely checks whether a binding's tolerations match all
+// given NoExecute taints with TolerationSeconds == nil (i.e., tolerate forever).
+// Returns true if the binding will never need eviction for these taints.
+// On any error (missing/invalid placement), returns false so the binding is added to
+// the eviction queue as a fail-safe.
+func toleratesAllTaintsIndefinitely(taints []corev1.Taint, annotations map[string]string) bool {
+	if len(taints) == 0 {
+		return true
+	}
+
+	placement, err := helper.GetAppliedPlacement(annotations)
+	if err != nil || placement == nil {
+		return false
+	}
+
+	for i := range taints {
+		if !hasIndefiniteToleration(&taints[i], placement.ClusterTolerations) {
+			return false
+		}
+	}
+	return true
+}
+
+// hasIndefiniteToleration returns true if any toleration matches the taint
+// with no finite TolerationSeconds (nil means tolerate forever).
+func hasIndefiniteToleration(taint *corev1.Taint, tolerations []corev1.Toleration) bool {
+	for i := range tolerations {
+		if tolerations[i].TolerationSeconds == nil && tolerations[i].ToleratesTaint(klog.Background(), taint, false) {
+			return true
+		}
+	}
+	return false
 }
 
 // extractStateForEviction extracts preserved label state from binding
