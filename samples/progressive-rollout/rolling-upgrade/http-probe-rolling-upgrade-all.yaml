@@ -1,0 +1,20 @@
+apiVersion: policy.karmada.io/v1alpha1
+kind: OverridePolicy
+metadata:
+  name: http-probe-rolling-upgrade
+spec:
+  resourceSelectors:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: http-probe-app
+  overrideRules:
+    - targetCluster:
+        clusterNames:
+          - member1
+          - member2
+          - member3
+      overriders:
+        plaintext:
+          - path: /spec/template/spec/containers/0/env/0/value
+            operator: replace
+            value: v2
