@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/cache"
 
@@ -118,6 +119,11 @@ func (m *FakeMultiClusterInformerManager) ForCluster(_ string, _ dynamic.Interfa
 	return nil
 }
 
+// ForClusterWithUID adds a cluster event handler to the informer with UID tracking.
+func (m *FakeMultiClusterInformerManager) ForClusterWithUID(_ string, _ types.UID, _ dynamic.Interface, _ time.Duration) genericmanager.SingleClusterInformerManager {
+	return nil
+}
+
 // Start starts the informer.
 func (m *FakeMultiClusterInformerManager) Start(_ string) {}
 
@@ -126,6 +132,9 @@ func (m *FakeMultiClusterInformerManager) Stop(_ string) {}
 
 // IsManagerExist returns true if the manager exists for the given cluster name.
 func (m *FakeMultiClusterInformerManager) IsManagerExist(_ string) bool { return false }
+
+// IsManagerExistWithUID returns true if the manager exists for the given cluster name with the specified UID.
+func (m *FakeMultiClusterInformerManager) IsManagerExistWithUID(_ string, _ types.UID) bool { return false }
 
 // WaitForCacheSync waits for the cache to sync.
 func (m *FakeMultiClusterInformerManager) WaitForCacheSync(_ string) map[schema.GroupVersionResource]bool {
