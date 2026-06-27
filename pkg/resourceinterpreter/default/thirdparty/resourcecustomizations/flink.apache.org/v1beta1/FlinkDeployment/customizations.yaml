@@ -377,3 +377,24 @@ spec:
           status.taskManager = observedObj.status.taskManager
           return status
         end
+    retention:
+      luaScript: |
+        -- For failing over flink applications, if initialSavepointPath is injected in member clusters, we will need to 
+        -- retain it to avoid being overwritten by karmada control plane
+        -- For example, the following script retains initialSavepointPath if resourcebinding.karmada.io/failover-jobid
+        -- label present, this label is set by defining StatePreservation in propagation policy 
+        ---------------------------- Code Example ----------------------------------------------------------------------
+        -- function Retain(desiredObj, observedObj)
+        --   local ocfg = observedObj.spec and observedObj.spec.flinkConfiguration or nil
+        --   local labels = observedObj.metadata and observedObj.metadata.labels or {}
+        --   -- Retain initialSavepointPath only when failover label present
+        --   if labels["resourcebinding.karmada.io/failover-jobid"] ~= nil then
+        --     if observedObj.spec and observedObj.spec.job then
+        --       if observedObj.spec.job.initialSavepointPath ~= nil then
+        --         desiredObj.spec = desiredObj.spec or {}
+        --         desiredObj.spec.job = desiredObj.spec.job or {}
+        --         desiredObj.spec.job.initialSavepointPath = observedObj.spec.job.initialSavepointPath
+        --       end
+        --     end
+        --   end
+        -- end
