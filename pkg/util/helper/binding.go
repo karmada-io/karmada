@@ -357,8 +357,10 @@ func FetchResourceTemplatesByLabelSelector(
 		objectList, err = informerManager.Lister(gvr).ByNamespace(resource.Namespace).List(selector)
 	}
 	var objects []*unstructured.Unstructured
+	usedFallback := false
 	if err != nil || len(objectList) == 0 {
 		// fall back to call api server in case the cache has not been synchronized yet
+		usedFallback = true
 		klog.Warningf("Failed to get resource template (%s/%s/%s) from cache, Error: %v. Fall back to call api server.",
 			resource.Kind, resource.Namespace, resource.Name, err)
 		unstructuredList, err := dynamicClient.Resource(gvr).Namespace(resource.Namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: selector.String()})
@@ -372,13 +374,15 @@ func FetchResourceTemplatesByLabelSelector(
 		}
 	}
 
-	for i := range objectList {
-		unstructuredObj, err := ToUnstructured(objectList[i])
-		if err != nil {
-			klog.Errorf("Failed to transform object(%s/%s), Error: %v", resource.Namespace, resource.Name, err)
-			return nil, err
+	if !usedFallback {
+		for i := range objectList {
+			unstructuredObj, err := ToUnstructured(objectList[i])
+			if err != nil {
+				klog.Errorf("Failed to transform object(%s/%s), Error: %v", resource.Namespace, resource.Name, err)
+				return nil, err
+			}
+			objects = append(objects, unstructuredObj)
 		}
-		objects = append(objects, unstructuredObj)
 	}
 	return objects, nil
 }
