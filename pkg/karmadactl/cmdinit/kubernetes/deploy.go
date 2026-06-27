@@ -320,6 +320,13 @@ func (i *CommandInitOption) Validate(parentCommand string) error {
 			return fmt.Errorf("karmada apiserver advertise address is not valid")
 		}
 	}
+	if i.ExternalIP != "" {
+		for ip := range strings.SplitSeq(i.ExternalIP, ",") {
+			if net.ParseIP(ip) == nil {
+				return fmt.Errorf("cert-external-ip %q is not a valid IP address", ip)
+			}
+		}
+	}
 	if (i.CaCertFile != "") != (i.CaKeyFile != "") {
 		return fmt.Errorf("ca-cert-file and ca-key-file must be used together")
 	}
