@@ -51,7 +51,7 @@ func (v *ValidatingAdmission) Handle(_ context.Context, req admission.Request) a
 	if err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
-	klog.V(2).Infof("Validating FederatedResourceQuote(%s) for request: %s", klog.KObj(quota).String(), req.Operation)
+	klog.V(2).Infof("Validating FederatedResourceQuota(%s) for request: %s", klog.KObj(quota).String(), req.Operation)
 
 	if errs := validateFederatedResourceQuota(quota); len(errs) != 0 {
 		klog.Errorf("%v", errs)
