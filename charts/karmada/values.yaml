@@ -139,6 +139,10 @@ certs:
     ## @param certs.auto.rootCAExpiryDays expiry of the root CA certificate in days, defaults to 3650 days (10 years)
     rootCAExpiryDays: 3650
     ## @param certs.auto.hosts hosts of the certificate
+    ## Note: When the release namespace differs from systemNamespace, SANs for
+    ## systemNamespace are automatically added by the karmada.certHosts helper, including:
+    ## - "*.{{ .Values.systemNamespace }}.svc.{{ .Values.clusterDomain }}"
+    ## - "*.{{ .Values.systemNamespace }}.svc"
     hosts: [
       "kubernetes.default.svc",
       "*.etcd.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}",
