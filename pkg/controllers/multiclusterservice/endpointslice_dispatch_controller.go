@@ -139,34 +139,37 @@ func (c *EndpointsliceDispatchController) updateEndpointSliceDispatched(ctx cont
 	})
 }
 
-// SetupWithManager creates a controller and register to controller manager.
-func (c *EndpointsliceDispatchController) SetupWithManager(mgr controllerruntime.Manager) error {
-	workPredicateFun := predicate.Funcs{
+// workPredicateFunc returns the event filter for the Work objects watched by
+// this controller. We only care about the EndpointSlice work from provider
+// clusters, and we skip delete events because the controller cleans up via the
+// finalizer and the DeletionTimestamp transition handled in the update path.
+func (c *EndpointsliceDispatchController) workPredicateFunc() predicate.Funcs {
+	return predicate.Funcs{
 		CreateFunc: func(createEvent event.CreateEvent) bool {
-			// We only care about the EndpointSlice work from provider clusters
 			return util.GetLabelValue(createEvent.Object.GetLabels(), util.MultiClusterServiceNameLabel) != "" &&
 				util.GetAnnotationValue(createEvent.Object.GetAnnotations(), util.EndpointSliceProvisionClusterAnnotation) == ""
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-			// We only care about the EndpointSlice work from provider clusters
 			// TBD: We care about the work with label util.ServiceNameLabel because now service-export-controller and endpointslice-collect-controller
 			// will manage the work together, should delete this after the conflict is fixed
 			return (util.GetLabelValue(updateEvent.ObjectNew.GetLabels(), util.MultiClusterServiceNameLabel) != "" ||
 				util.GetLabelValue(updateEvent.ObjectNew.GetLabels(), util.ServiceNameLabel) != "") &&
 				util.GetAnnotationValue(updateEvent.ObjectNew.GetAnnotations(), util.EndpointSliceProvisionClusterAnnotation) == ""
 		},
-		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-			// We only care about the EndpointSlice work from provider clusters
-			return util.GetLabelValue(deleteEvent.Object.GetLabels(), util.MultiClusterServiceNameLabel) != "" &&
-				util.GetAnnotationValue(deleteEvent.Object.GetAnnotations(), util.EndpointSliceProvisionClusterAnnotation) == ""
+		DeleteFunc: func(event.DeleteEvent) bool {
+			return false
 		},
 		GenericFunc: func(event.GenericEvent) bool {
 			return false
 		},
 	}
+}
+
+// SetupWithManager creates a controller and register to controller manager.
+func (c *EndpointsliceDispatchController) SetupWithManager(mgr controllerruntime.Manager) error {
 	return controllerruntime.NewControllerManagedBy(mgr).
 		Named(EndpointsliceDispatchControllerName).
-		For(&workv1alpha1.Work{}, builder.WithPredicates(workPredicateFun)).
+		For(&workv1alpha1.Work{}, builder.WithPredicates(c.workPredicateFunc())).
 		Watches(&networkingv1alpha1.MultiClusterService{}, handler.EnqueueRequestsFromMapFunc(c.newMultiClusterServiceFunc())).
 		Watches(&clusterv1alpha1.Cluster{}, handler.EnqueueRequestsFromMapFunc(c.newClusterFunc())).
 		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RateLimiterOptions)}).
