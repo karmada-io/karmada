@@ -304,31 +304,45 @@ func (h *UpgradeAwareHandler) tryUpgrade(w http.ResponseWriter, req *http.Reques
 	readerComplete := make(chan struct{})
 
 	go func() {
+		defer close(writerComplete)
+		
 		var writer io.WriteCloser
 		if h.MaxBytesPerSec > 0 {
 			writer = flowrate.NewWriter(backendConn, h.MaxBytesPerSec)
 		} else {
 			writer = backendConn
 		}
+		
 		_, err := io.Copy(writer, requestHijackedConn)
-		if err != nil && !strings.Contains(err.Error(), "use of closed network connection") {
-			klog.Errorf("Error proxying data from client to backend: %v", err)
+		if err != nil {
+			// Check for expected connection closure errors
+			if !isExpectedConnectionError(err) {
+				klog.Errorf("Error proxying data from client to backend: %v", err)
+			} else {
+				klog.V(4).Infof("Connection closed during client to backend proxy: %v", err)
+			}
 		}
-		close(writerComplete)
 	}()
 
 	go func() {
+		defer close(readerComplete)
+		
 		var reader io.ReadCloser
 		if h.MaxBytesPerSec > 0 {
 			reader = flowrate.NewReader(backendConn, h.MaxBytesPerSec)
 		} else {
 			reader = backendConn
 		}
+		
 		_, err := io.Copy(requestHijackedConn, reader)
-		if err != nil && !strings.Contains(err.Error(), "use of closed network connection") {
-			klog.Errorf("Error proxying data from backend to client: %v", err)
+		if err != nil {
+			// Check for expected connection closure errors
+			if !isExpectedConnectionError(err) {
+				klog.Errorf("Error proxying data from backend to client: %v", err)
+			} else {
+				klog.V(4).Infof("Connection closed during backend to client proxy: %v", err)
+			}
 		}
-		close(readerComplete)
 	}()
 
 	// Wait for one half the connection to exit. Once it does the defer will
@@ -342,18 +356,60 @@ func (h *UpgradeAwareHandler) tryUpgrade(w http.ResponseWriter, req *http.Reques
 	return true
 }
 
-// FIXME: Taken from net/http/httputil/reverseproxy.go as singleJoiningSlash is not exported to be re-used.
-// See-also: https://github.com/golang/go/issues/44290
+// isExpectedConnectionError checks if an error is an expected connection closure error
+// that should not be logged as an error (e.g., normal connection termination).
+func isExpectedConnectionError(err error) bool {
+	if err == nil {
+		return false
+	}
+	
+	errorMsg := err.Error()
+	// Common expected connection errors
+	expectedErrors := []string{
+		"use of closed network connection",
+		"connection reset by peer",
+		"broken pipe",
+		"EOF",
+	}
+	
+	for _, expected := range expectedErrors {
+		if strings.Contains(errorMsg, expected) {
+			return true
+		}
+	}
+	
+	// Check for io.EOF specifically
+	if err == io.EOF {
+		return true
+	}
+	
+	return false
+}
+
+
 func singleJoiningSlash(a, b string) string {
+	// Handle empty strings
+	if a == "" {
+		return b
+	}
+	if b == "" {
+		return a
+	}
+	
 	aslash := strings.HasSuffix(a, "/")
 	bslash := strings.HasPrefix(b, "/")
+	
 	switch {
 	case aslash && bslash:
+		// Both have slashes: "path/" + "/file" -> "path/file"
 		return a + b[1:]
 	case !aslash && !bslash:
+		// Neither has slashes: "path" + "file" -> "path/file"
 		return a + "/" + b
+	default:
+		// One has slash: "path/" + "file" or "path" + "/file" -> "path/file"
+		return a + b
 	}
-	return a + b
 }
 
 // getResponseCode reads a http response from the given reader, returns the response,
