@@ -641,7 +641,7 @@ var _ = framework.SerialDescribe("Multi-Components: FederatedResourceQuota enfor
 			framework.WaitFederatedResourceQuotaFitWith(karmadaClient, frqNamespace, frqName, func(frq *policyv1alpha1.FederatedResourceQuota) bool {
 				expectedUsed := corev1.ResourceList{
 					"cpu":    resource.MustParse("150m"),
-					"memory": resource.MustParse("200m"),
+					"memory": resource.MustParse("200Mi"),
 				}
 				ginkgo.GinkgoLogr.Info("FederatedResourceQuota OverallUsed",
 					"cpu", frq.Status.OverallUsed.Cpu().String(),
