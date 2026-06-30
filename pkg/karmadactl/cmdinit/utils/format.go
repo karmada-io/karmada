@@ -25,6 +25,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"sigs.k8s.io/yaml"
 
@@ -39,6 +40,9 @@ const (
 	labelSeparator = "="
 	// MaxRespBodyLength is the max length of http response body
 	MaxRespBodyLength = 1 << 20 // 1 MiB
+	// internetIPTimeout bounds the best-effort public IP lookup so that init
+	// does not hang when egress to the lookup service is blocked or slow.
+	internetIPTimeout = 10 * time.Second
 )
 
 // StringToNetIP String To NetIP
@@ -67,12 +71,26 @@ func FlagsDNS(dns string) []string {
 
 // InternetIP Current host Internet IP.
 func InternetIP() (net.IP, error) {
-	resp, err := http.Get(getInternetIPUrl)
+	return internetIP(getInternetIPUrl)
+}
+
+// internetIP looks up the host public IP from the given URL. The URL is a
+// parameter so the behavior can be unit tested with an httptest server instead
+// of reaching the live external service.
+func internetIP(url string) (net.IP, error) {
+	httpClient := http.Client{
+		Timeout: internetIPTimeout,
+	}
+	resp, err := httpClient.Get(url)
 	if err != nil {
 		return nil, err
 	}
 
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to get internet IP, status code: %v", resp.StatusCode)
+	}
 
 	content, err := io.ReadAll(io.LimitReader(resp.Body, MaxRespBodyLength))
 	if err != nil {
