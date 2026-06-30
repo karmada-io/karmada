@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
@@ -119,6 +120,9 @@ func (tc *NoExecuteTaintManager) Reconcile(ctx context.Context, req reconcile.Re
 }
 
 func (tc *NoExecuteTaintManager) syncCluster(ctx context.Context, cluster *clusterv1alpha1.Cluster) (reconcile.Result, error) {
+	noExecuteTaints := helper.GetNoExecuteTaints(cluster.Spec.Taints)
+	now := time.Now()
+
 	// List all ResourceBindings which are assigned to this cluster.
 	rbList := &workv1alpha2.ResourceBindingList{}
 	if err := tc.List(ctx, rbList, client.MatchingFieldsSelector{
@@ -133,7 +137,7 @@ func (tc *NoExecuteTaintManager) syncCluster(ctx context.Context, cluster *clust
 			klog.ErrorS(err, "Failed to generate federated key for ResourceBinding", "gvk", rbList.Items[i].GetObjectKind().GroupVersionKind())
 			continue
 		}
-		tc.bindingEvictionWorker.Add(key)
+		tc.enqueueBinding(noExecuteTaints, rbList.Items[i].Annotations, key, now)
 	}
 
 	// List all ClusterResourceBindings which are assigned to this cluster.
@@ -150,9 +154,41 @@ func (tc *NoExecuteTaintManager) syncCluster(ctx context.Context, cluster *clust
 			klog.ErrorS(err, "Failed to generate federated key for ClusterResourceBinding", "gvk", crbList.Items[i].GetObjectKind().GroupVersionKind())
 			continue
 		}
-		tc.clusterBindingEvictionWorker.Add(key)
+		tc.enqueueBinding(noExecuteTaints, crbList.Items[i].Annotations, key, now)
 	}
 	return controllerruntime.Result{RequeueAfter: tc.ClusterTaintEvictionRetryFrequency}, nil
+}
+
+// enqueueBinding computes the remaining toleration time for a binding against the
+// given taints and enqueues it appropriately:
+//   - Toleration expired or not tolerated: Add() immediately
+//   - Temporary toleration still active: AddAfter(remainingTime)
+//   - Indefinite toleration: skip entirely
+func (tc *NoExecuteTaintManager) enqueueBinding(taints []corev1.Taint, annotations map[string]string, key keys.FederatedKey, now time.Time) {
+	if len(taints) == 0 {
+		return
+	}
+
+	placement, err := helper.GetAppliedPlacement(annotations)
+	if err != nil || placement == nil {
+		tc.bindingEvictionWorker.Add(key)
+		return
+	}
+
+	allTolerated, usedTolerations := helper.GetMatchingTolerations(taints, placement.ClusterTolerations)
+	if !allTolerated {
+		tc.bindingEvictionWorker.Add(key)
+		return
+	}
+
+	minTolerationTime := helper.GetMinTolerationTimeWithCurrentTime(taints, usedTolerations, now)
+	switch {
+	case minTolerationTime == 0:
+		tc.bindingEvictionWorker.Add(key)
+	case minTolerationTime > 0:
+		tc.bindingEvictionWorker.AddAfter(key, minTolerationTime)
+	}
+	// minTolerationTime < 0 means indefinite toleration; skip.
 }
 
 // Start starts an asynchronous loop that handle evictions.
