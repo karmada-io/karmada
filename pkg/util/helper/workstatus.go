@@ -61,18 +61,18 @@ func AggregateResourceBindingWorkStatus(
 	binding *workv1alpha2.ResourceBinding,
 	eventRecorder record.EventRecorder,
 ) error {
-	workList, err := GetWorksByBindingID(ctx, c, binding.Labels[workv1alpha2.ResourceBindingPermanentIDLabel], true)
-	if err != nil {
-		return err
-	}
-	aggregatedStatuses, err := assembleWorkStatus(workList.Items, binding.Spec.Resource)
-	if err != nil {
-		return err
-	}
-
 	var operationResult controllerutil.OperationResult
+	var err error
 	if err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		operationResult, err = UpdateStatus(ctx, c, binding, func() error {
+			workList, err := GetWorksByBindingID(ctx, c, binding.Labels[workv1alpha2.ResourceBindingPermanentIDLabel], true)
+			if err != nil {
+				return err
+			}
+			aggregatedStatuses, err := assembleWorkStatus(workList.Items, binding.Spec.Resource)
+			if err != nil {
+				return err
+			}
 			binding.Status.AggregatedStatus = aggregatedStatuses
 			// set binding status with the newest condition
 			meta.SetStatusCondition(&binding.Status.Conditions, generateFullyAppliedCondition(binding.Spec, aggregatedStatuses))
@@ -101,18 +101,18 @@ func AggregateClusterResourceBindingWorkStatus(
 	binding *workv1alpha2.ClusterResourceBinding,
 	eventRecorder record.EventRecorder,
 ) error {
-	workList, err := GetWorksByBindingID(ctx, c, binding.Labels[workv1alpha2.ClusterResourceBindingPermanentIDLabel], false)
-	if err != nil {
-		return err
-	}
-	aggregatedStatuses, err := assembleWorkStatus(workList.Items, binding.Spec.Resource)
-	if err != nil {
-		return err
-	}
-
 	var operationResult controllerutil.OperationResult
+	var err error
 	if err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		operationResult, err = UpdateStatus(ctx, c, binding, func() error {
+			workList, err := GetWorksByBindingID(ctx, c, binding.Labels[workv1alpha2.ClusterResourceBindingPermanentIDLabel], false)
+			if err != nil {
+				return err
+			}
+			aggregatedStatuses, err := assembleWorkStatus(workList.Items, binding.Spec.Resource)
+			if err != nil {
+				return err
+			}
 			binding.Status.AggregatedStatus = aggregatedStatuses
 			// set binding status with the newest condition
 			meta.SetStatusCondition(&binding.Status.Conditions, generateFullyAppliedCondition(binding.Spec, aggregatedStatuses))
