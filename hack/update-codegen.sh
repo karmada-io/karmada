@@ -35,6 +35,7 @@ export PATH=$PATH:$GOPATH/bin
 
 go_path="${REPO_ROOT}/_go"
 cleanup() {
+  chmod -R u+w "${go_path}" 2>/dev/null || true
   rm -rf "${go_path}"
 }
 trap "cleanup" EXIT SIGINT
