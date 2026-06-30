@@ -550,3 +550,67 @@ func TestObtainClusterID(t *testing.T) {
 		})
 	}
 }
+
+func TestClusterAccessCredentialChanged(t *testing.T) {
+	tests := []struct {
+		name    string
+		newSpec clusterv1alpha1.ClusterSpec
+		oldSpec clusterv1alpha1.ClusterSpec
+		want    bool
+	}{
+		{
+			name:    "no change",
+			newSpec: clusterv1alpha1.ClusterSpec{APIEndpoint: "https://1.2.3.4:6443"},
+			oldSpec: clusterv1alpha1.ClusterSpec{APIEndpoint: "https://1.2.3.4:6443"},
+			want:    false,
+		},
+		{
+			name:    "APIEndpoint changed",
+			newSpec: clusterv1alpha1.ClusterSpec{APIEndpoint: "https://5.6.7.8:6443"},
+			oldSpec: clusterv1alpha1.ClusterSpec{APIEndpoint: "https://1.2.3.4:6443"},
+			want:    true,
+		},
+		{
+			name:    "InsecureSkipTLSVerification changed",
+			newSpec: clusterv1alpha1.ClusterSpec{APIEndpoint: "https://1.2.3.4:6443", InsecureSkipTLSVerification: true},
+			oldSpec: clusterv1alpha1.ClusterSpec{APIEndpoint: "https://1.2.3.4:6443", InsecureSkipTLSVerification: false},
+			want:    true,
+		},
+		{
+			name:    "ProxyURL changed",
+			newSpec: clusterv1alpha1.ClusterSpec{APIEndpoint: "https://1.2.3.4:6443", ProxyURL: "https://proxy.example.com"},
+			oldSpec: clusterv1alpha1.ClusterSpec{APIEndpoint: "https://1.2.3.4:6443"},
+			want:    true,
+		},
+		{
+			name: "ProxyHeader changed",
+			newSpec: clusterv1alpha1.ClusterSpec{
+				APIEndpoint: "https://1.2.3.4:6443",
+				ProxyHeader: map[string]string{"Authorization": "Bearer token1"},
+			},
+			oldSpec: clusterv1alpha1.ClusterSpec{
+				APIEndpoint: "https://1.2.3.4:6443",
+				ProxyHeader: map[string]string{"Authorization": "Bearer token2"},
+			},
+			want: true,
+		},
+		{
+			name: "ProxyHeader nil vs empty",
+			newSpec: clusterv1alpha1.ClusterSpec{
+				APIEndpoint: "https://1.2.3.4:6443",
+				ProxyHeader: map[string]string{},
+			},
+			oldSpec: clusterv1alpha1.ClusterSpec{
+				APIEndpoint: "https://1.2.3.4:6443",
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ClusterAccessCredentialChanged(tt.newSpec, tt.oldSpec); got != tt.want {
+				t.Errorf("ClusterAccessCredentialChanged() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
