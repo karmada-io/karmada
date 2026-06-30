@@ -71,6 +71,7 @@ spec:
             - --tls-min-version=VersionTLS13
             - --v={{ .Values.aggregatedApiServer.logVerbosity }}
             - --bind-address=$(POD_IP)
+            {{- include "karmada.aggregatedApiServer.extraCommandArgs" . | nindent 12 }}
           resources:
             {{- toYaml .Values.aggregatedApiServer.resources | nindent 12 }}
           readinessProbe:

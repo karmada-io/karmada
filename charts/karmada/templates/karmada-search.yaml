@@ -84,6 +84,7 @@ spec:
             - --tls-min-version=VersionTLS13
             - --v={{ .Values.search.logVerbosity }}
             - --bind-address=$(POD_IP)
+            {{- include "karmada.search.extraCommandArgs" . | nindent 12 }}
           livenessProbe:
             httpGet:
               path: /livez
