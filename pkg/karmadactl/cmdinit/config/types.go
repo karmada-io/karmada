@@ -39,6 +39,10 @@ type KarmadaInitConfig struct {
 
 // KarmadaInitSpec is the specification part of KarmadaInitConfig, containing all configurable options
 type KarmadaInitSpec struct {
+	// CertMode configures the certificate operation mode.
+	// +optional
+	CertMode string `json:"certMode,omitempty" yaml:"certMode,omitempty"`
+
 	// Certificates configures the certificate information required by Karmada
 	// +optional
 	Certificates Certificates `json:"certificates,omitempty" yaml:"certificates,omitempty"`

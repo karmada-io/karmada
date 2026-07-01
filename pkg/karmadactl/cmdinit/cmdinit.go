@@ -78,6 +78,8 @@ var (
 		# Specify external IPs(load balancer or HA IP) which used to sign the certificate
 		%[1]s init --cert-external-ip 10.235.1.2 --cert-external-dns www.karmada.io
 
+		# Rotate certificates that are managed by karmadactl init
+		%[1]s init --cert-mode=rotate
 		# Install Karmada using a configuration file
 		%[1]s init --config /path/to/your/config/file.yaml
 		
@@ -163,6 +165,7 @@ func NewCmdInit(parentCommand string) *cobra.Command {
 	flags.StringVar(&opts.ExternalIP, "cert-external-ip", "", "the external IP of Karmada certificate (e.g 192.168.1.2,172.16.1.2)")
 	flags.StringVar(&opts.ExternalDNS, "cert-external-dns", "", "the external DNS of Karmada certificate (e.g localhost,localhost.com)")
 	flags.DurationVar(&opts.CertValidity, "cert-validity-period", cert.Duration365d, "the validity period of Karmada certificate (e.g 8760h0m0s, that is 365 days)")
+	flags.StringVar(&opts.CertMode, "cert-mode", kubernetes.CertModeInstall, fmt.Sprintf("The certificate operation mode. Supported values are %s and %s.", kubernetes.CertModeInstall, kubernetes.CertModeRotate))
 	flags.StringVarP(&opts.CaCertFile, "ca-cert-file", "", "", "The root CA certificate file which will be used to issue new certificates for Karmada components. If not set, a new self-signed root CA certificate will be generated. This must be used together with --ca-key-file.")
 	flags.StringVarP(&opts.CaKeyFile, "ca-key-file", "", "", "The root CA private key file which will be used to issue new certificates for Karmada components. If not set, a new self-signed root CA key will be generated. This must be used together with --ca-cert-file.")
 	// Kubernetes

@@ -25,6 +25,9 @@ func TestNewCmdInit(t *testing.T) {
 	if cmdinit == nil {
 		t.Errorf("NewCmdInit() want return not nil, but return nil")
 	}
+	if cmdinit.Flags().Lookup("cert-mode") == nil {
+		t.Errorf("NewCmdInit() should include cert-mode flag")
+	}
 }
 
 func Test_initExample(t *testing.T) {
