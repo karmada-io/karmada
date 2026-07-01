@@ -24,6 +24,7 @@ import (
 	"maps"
 	"net"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -349,6 +350,50 @@ func TestCommandInitOption_runCertRotateUpdatesSecretsOnly(t *testing.T) {
 	assertNoInstallResourceActions(t, clientset.Actions())
 }
 
+func TestCommandInitOption_runCertRotateRenewsExpiringLeafCertificates(t *testing.T) {
+	namespace := "karmada-system"
+	now := time.Now().UTC()
+	oldCertData := buildTestCertAndKeyDataWithLeafNotAfter(t, now.Add(time.Minute))
+	clientset := fake.NewClientset(buildExistingRotateSecrets(namespace, oldCertData)...)
+	opt := &CommandInitOption{
+		CertMode:                 CertModeRotate,
+		CertValidity:             365 * 24 * time.Hour,
+		EtcdReplicas:             1,
+		EtcdStorageMode:          etcdStorageModeEmptyDir,
+		Namespace:                namespace,
+		HostClusterDomain:        "cluster.local",
+		KarmadaAPIServerIP:       []net.IP{utils.StringToNetIP("192.0.2.11")},
+		KarmadaAPIServerNodePort: 32443,
+		KubeClientSet:            clientset,
+	}
+
+	oldKarmadaCert := loadTestCertFromData(t, oldCertData, options.KarmadaCertAndKeyName)
+	oldEtcdServerCert := loadTestCertFromData(t, oldCertData, options.EtcdServerCertAndKeyName)
+	assert.WithinDuration(t, now.Add(time.Minute), oldKarmadaCert.NotAfter, 10*time.Second)
+	assert.WithinDuration(t, now.Add(time.Minute), oldEtcdServerCert.NotAfter, 10*time.Second)
+
+	err := opt.runCertRotate()
+	assert.NoError(t, err)
+
+	updatedKarmadaSecret, err := clientset.CoreV1().Secrets(namespace).Get(context.TODO(), globaloptions.KarmadaCertsName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	updatedEtcdSecret, err := clientset.CoreV1().Secrets(namespace).Get(context.TODO(), etcdCertName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	rootCA := loadTestCertFromSecret(t, updatedKarmadaSecret, globaloptions.CaCertAndKeyName)
+	etcdCA := loadTestCertFromSecret(t, updatedEtcdSecret, options.EtcdCaCertAndKeyName)
+	rotatedKarmadaCert := loadTestCertFromSecret(t, updatedKarmadaSecret, options.KarmadaCertAndKeyName)
+	rotatedEtcdServerCert := loadTestCertFromSecret(t, updatedEtcdSecret, options.EtcdServerCertAndKeyName)
+
+	assert.Equal(t, oldCertData[certFileName(globaloptions.CaCertAndKeyName)], updatedKarmadaSecret.StringData[certFileName(globaloptions.CaCertAndKeyName)])
+	assert.Equal(t, oldCertData[certFileName(options.EtcdCaCertAndKeyName)], updatedEtcdSecret.StringData[certFileName(options.EtcdCaCertAndKeyName)])
+	assert.NoError(t, rotatedKarmadaCert.CheckSignatureFrom(rootCA))
+	assert.NoError(t, rotatedEtcdServerCert.CheckSignatureFrom(etcdCA))
+	assert.True(t, rotatedKarmadaCert.NotAfter.After(now.Add(300*24*time.Hour)))
+	assert.True(t, rotatedEtcdServerCert.NotAfter.After(now.Add(300*24*time.Hour)))
+	assert.True(t, rotatedKarmadaCert.NotAfter.After(oldKarmadaCert.NotAfter.Add(300*24*time.Hour)))
+	assert.True(t, rotatedEtcdServerCert.NotAfter.After(oldEtcdServerCert.NotAfter.Add(300*24*time.Hour)))
+}
+
 func TestCommandInitOption_runCertRotatePreservesExistingSecretMetadata(t *testing.T) {
 	namespace := "karmada-system"
 	oldCertData := buildTestCertAndKeyData(t)
@@ -407,17 +452,7 @@ func TestCommandInitOption_runCertRotateRejectsEtcdModeSwitch(t *testing.T) {
 func TestCommandInitOption_runCertRotateRejectsExternalEtcdModeSwitch(t *testing.T) {
 	namespace := "karmada-system"
 	oldCertData := buildTestCertAndKeyData(t)
-	objects := buildExistingRotateSecrets(namespace, oldCertData)
-	for _, object := range objects {
-		secret := object.(*corev1.Secret)
-		if secret.Name != etcdCertName {
-			continue
-		}
-		delete(secret.StringData, certFileName(options.EtcdServerCertAndKeyName))
-		delete(secret.StringData, keyFileName(options.EtcdServerCertAndKeyName))
-		delete(secret.Data, certFileName(options.EtcdServerCertAndKeyName))
-		delete(secret.Data, keyFileName(options.EtcdServerCertAndKeyName))
-	}
+	objects := buildExistingExternalEtcdRotateSecrets(namespace, oldCertData)
 	clientset := fake.NewClientset(objects...)
 	opt := &CommandInitOption{
 		CertMode:                 CertModeRotate,
@@ -434,6 +469,133 @@ func TestCommandInitOption_runCertRotateRejectsExternalEtcdModeSwitch(t *testing
 	err := opt.runCertRotate()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "internal etcd parameters cannot be used")
+	assertNoSecretUpdateActions(t, clientset.Actions())
+}
+
+func TestCommandInitOption_runCertRotateWithExistingExternalEtcdCerts(t *testing.T) {
+	namespace := "karmada-system"
+	oldCertData := buildTestCertAndKeyData(t)
+	clientset := fake.NewClientset(buildExistingExternalEtcdRotateSecrets(namespace, oldCertData)...)
+	opt := &CommandInitOption{
+		CertMode:                 CertModeRotate,
+		CertValidity:             365 * 24 * time.Hour,
+		ExternalEtcdServers:      "https://external-etcd.example.com:2379",
+		Namespace:                namespace,
+		HostClusterDomain:        "cluster.local",
+		KarmadaAPIServerIP:       []net.IP{utils.StringToNetIP("192.0.2.11")},
+		KarmadaAPIServerNodePort: 32443,
+		KubeClientSet:            clientset,
+	}
+
+	err := opt.runCertRotate()
+	assert.NoError(t, err)
+
+	updatedEtcdSecret, err := clientset.CoreV1().Secrets(namespace).Get(context.TODO(), etcdCertName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Empty(t, updatedEtcdSecret.StringData[certFileName(options.EtcdServerCertAndKeyName)])
+	assert.Empty(t, updatedEtcdSecret.StringData[keyFileName(options.EtcdServerCertAndKeyName)])
+	assert.Equal(t, oldCertData[certFileName(options.EtcdCaCertAndKeyName)], updatedEtcdSecret.StringData[certFileName(options.EtcdCaCertAndKeyName)])
+
+	updatedKarmadaSecret, err := clientset.CoreV1().Secrets(namespace).Get(context.TODO(), globaloptions.KarmadaCertsName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, oldCertData[certFileName(options.EtcdClientCertAndKeyName)], updatedKarmadaSecret.StringData[certFileName(options.EtcdClientCertAndKeyName)])
+	assert.Equal(t, oldCertData[keyFileName(options.EtcdClientCertAndKeyName)], updatedKarmadaSecret.StringData[keyFileName(options.EtcdClientCertAndKeyName)])
+	assertNoInstallResourceActions(t, clientset.Actions())
+}
+
+func TestCommandInitOption_runCertRotateWithExternalEtcdCertFiles(t *testing.T) {
+	namespace := "karmada-system"
+	oldCertData := buildTestCertAndKeyData(t)
+	externalEtcdCertData := buildTestCertAndKeyData(t)
+	certDir := t.TempDir()
+	etcdCAFile := writeTestFile(t, certDir, certFileName(options.EtcdCaCertAndKeyName), externalEtcdCertData[certFileName(options.EtcdCaCertAndKeyName)])
+	etcdClientCertFile := writeTestFile(t, certDir, certFileName(options.EtcdClientCertAndKeyName), externalEtcdCertData[certFileName(options.EtcdClientCertAndKeyName)])
+	etcdClientKeyFile := writeTestFile(t, certDir, keyFileName(options.EtcdClientCertAndKeyName), externalEtcdCertData[keyFileName(options.EtcdClientCertAndKeyName)])
+	clientset := fake.NewClientset(buildExistingExternalEtcdRotateSecrets(namespace, oldCertData)...)
+	opt := &CommandInitOption{
+		CertMode:                   CertModeRotate,
+		CertValidity:               365 * 24 * time.Hour,
+		ExternalEtcdServers:        "https://external-etcd.example.com:2379",
+		ExternalEtcdCACertPath:     etcdCAFile,
+		ExternalEtcdClientCertPath: etcdClientCertFile,
+		ExternalEtcdClientKeyPath:  etcdClientKeyFile,
+		Namespace:                  namespace,
+		HostClusterDomain:          "cluster.local",
+		KarmadaAPIServerIP:         []net.IP{utils.StringToNetIP("192.0.2.11")},
+		KarmadaAPIServerNodePort:   32443,
+		KubeClientSet:              clientset,
+	}
+
+	err := opt.runCertRotate()
+	assert.NoError(t, err)
+
+	updatedEtcdSecret, err := clientset.CoreV1().Secrets(namespace).Get(context.TODO(), etcdCertName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, externalEtcdCertData[certFileName(options.EtcdCaCertAndKeyName)], updatedEtcdSecret.StringData[certFileName(options.EtcdCaCertAndKeyName)])
+	assert.Empty(t, updatedEtcdSecret.StringData[keyFileName(options.EtcdCaCertAndKeyName)])
+
+	updatedKarmadaSecret, err := clientset.CoreV1().Secrets(namespace).Get(context.TODO(), globaloptions.KarmadaCertsName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, externalEtcdCertData[certFileName(options.EtcdClientCertAndKeyName)], updatedKarmadaSecret.StringData[certFileName(options.EtcdClientCertAndKeyName)])
+	assert.Equal(t, externalEtcdCertData[keyFileName(options.EtcdClientCertAndKeyName)], updatedKarmadaSecret.StringData[keyFileName(options.EtcdClientCertAndKeyName)])
+}
+
+func TestCommandInitOption_runCertRotateWithCAFiles(t *testing.T) {
+	namespace := "karmada-system"
+	oldCertData := buildTestCertAndKeyData(t)
+	certDir := t.TempDir()
+	caCertFile := writeTestFile(t, certDir, certFileName(globaloptions.CaCertAndKeyName), oldCertData[certFileName(globaloptions.CaCertAndKeyName)])
+	caKeyFile := writeTestFile(t, certDir, keyFileName(globaloptions.CaCertAndKeyName), oldCertData[keyFileName(globaloptions.CaCertAndKeyName)])
+	clientset := fake.NewClientset(buildExistingRotateSecrets(namespace, oldCertData)...)
+	opt := &CommandInitOption{
+		CertMode:                 CertModeRotate,
+		CertValidity:             365 * 24 * time.Hour,
+		CaCertFile:               caCertFile,
+		CaKeyFile:                caKeyFile,
+		EtcdReplicas:             1,
+		EtcdStorageMode:          etcdStorageModeEmptyDir,
+		Namespace:                namespace,
+		HostClusterDomain:        "cluster.local",
+		KarmadaAPIServerIP:       []net.IP{utils.StringToNetIP("192.0.2.11")},
+		KarmadaAPIServerNodePort: 32443,
+		KubeClientSet:            clientset,
+	}
+
+	err := opt.runCertRotate()
+	assert.NoError(t, err)
+
+	updatedKarmadaSecret, err := clientset.CoreV1().Secrets(namespace).Get(context.TODO(), globaloptions.KarmadaCertsName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, oldCertData[certFileName(globaloptions.CaCertAndKeyName)], updatedKarmadaSecret.StringData[certFileName(globaloptions.CaCertAndKeyName)])
+	assert.Equal(t, oldCertData[keyFileName(globaloptions.CaCertAndKeyName)], updatedKarmadaSecret.StringData[keyFileName(globaloptions.CaCertAndKeyName)])
+	assert.NotEqual(t, oldCertData[certFileName(options.KarmadaCertAndKeyName)], updatedKarmadaSecret.StringData[certFileName(options.KarmadaCertAndKeyName)])
+}
+
+func TestCommandInitOption_runCertRotateRejectsMismatchedCAFile(t *testing.T) {
+	namespace := "karmada-system"
+	oldCertData := buildTestCertAndKeyData(t)
+	otherCertData := buildTestCertAndKeyData(t)
+	certDir := t.TempDir()
+	caCertFile := writeTestFile(t, certDir, certFileName(globaloptions.CaCertAndKeyName), otherCertData[certFileName(globaloptions.CaCertAndKeyName)])
+	caKeyFile := writeTestFile(t, certDir, keyFileName(globaloptions.CaCertAndKeyName), otherCertData[keyFileName(globaloptions.CaCertAndKeyName)])
+	clientset := fake.NewClientset(buildExistingRotateSecrets(namespace, oldCertData)...)
+	opt := &CommandInitOption{
+		CertMode:                 CertModeRotate,
+		CertValidity:             365 * 24 * time.Hour,
+		CaCertFile:               caCertFile,
+		CaKeyFile:                caKeyFile,
+		EtcdReplicas:             1,
+		EtcdStorageMode:          etcdStorageModeEmptyDir,
+		Namespace:                namespace,
+		HostClusterDomain:        "cluster.local",
+		KarmadaAPIServerIP:       []net.IP{utils.StringToNetIP("192.0.2.11")},
+		KarmadaAPIServerNodePort: 32443,
+		KubeClientSet:            clientset,
+	}
+
+	err := opt.runCertRotate()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "ca-cert-file must match")
 	assertNoSecretUpdateActions(t, clientset.Actions())
 }
 
@@ -1002,8 +1164,12 @@ func TestParseInitConfig_MissingFields(t *testing.T) {
 
 func buildTestCertAndKeyData(t *testing.T) map[string]string {
 	t.Helper()
+	return buildTestCertAndKeyDataWithLeafNotAfter(t, time.Now().Add(365*24*time.Hour).UTC())
+}
 
-	notAfter := time.Now().Add(365 * 24 * time.Hour).UTC()
+func buildTestCertAndKeyDataWithLeafNotAfter(t *testing.T, leafNotAfter time.Time) map[string]string {
+	t.Helper()
+
 	rootCA, rootKey := newTestCA(t, "karmada")
 	frontProxyCA, frontProxyKey := newTestCA(t, "front-proxy-ca")
 	etcdCA, etcdKey := newTestCA(t, "etcd-ca")
@@ -1012,11 +1178,11 @@ func buildTestCertAndKeyData(t *testing.T) map[string]string {
 	setTestCertAndKeyData(t, certData, globaloptions.CaCertAndKeyName, rootCA, rootKey)
 	setTestCertAndKeyData(t, certData, options.FrontProxyCaCertAndKeyName, frontProxyCA, frontProxyKey)
 	setTestCertAndKeyData(t, certData, options.EtcdCaCertAndKeyName, etcdCA, etcdKey)
-	setTestLeafCertAndKeyData(t, certData, options.KarmadaCertAndKeyName, rootCA, rootKey, certpkg.NewCertConfig("system:admin", []string{"system:masters"}, certutil.AltNames{}, &notAfter))
-	setTestLeafCertAndKeyData(t, certData, options.ApiserverCertAndKeyName, rootCA, rootKey, certpkg.NewCertConfig("karmada-apiserver", []string{}, certutil.AltNames{}, &notAfter))
-	setTestLeafCertAndKeyData(t, certData, options.FrontProxyClientCertAndKeyName, frontProxyCA, frontProxyKey, certpkg.NewCertConfig("front-proxy-client", []string{}, certutil.AltNames{}, &notAfter))
-	setTestLeafCertAndKeyData(t, certData, options.EtcdServerCertAndKeyName, etcdCA, etcdKey, certpkg.NewCertConfig("karmada-etcd-server", []string{}, certutil.AltNames{}, &notAfter))
-	setTestLeafCertAndKeyData(t, certData, options.EtcdClientCertAndKeyName, etcdCA, etcdKey, certpkg.NewCertConfig("karmada-etcd-client", []string{}, certutil.AltNames{}, &notAfter))
+	setTestLeafCertAndKeyData(t, certData, options.KarmadaCertAndKeyName, rootCA, rootKey, certpkg.NewCertConfig("system:admin", []string{"system:masters"}, certutil.AltNames{}, &leafNotAfter))
+	setTestLeafCertAndKeyData(t, certData, options.ApiserverCertAndKeyName, rootCA, rootKey, certpkg.NewCertConfig("karmada-apiserver", []string{}, certutil.AltNames{}, &leafNotAfter))
+	setTestLeafCertAndKeyData(t, certData, options.FrontProxyClientCertAndKeyName, frontProxyCA, frontProxyKey, certpkg.NewCertConfig("front-proxy-client", []string{}, certutil.AltNames{}, &leafNotAfter))
+	setTestLeafCertAndKeyData(t, certData, options.EtcdServerCertAndKeyName, etcdCA, etcdKey, certpkg.NewCertConfig("karmada-etcd-server", []string{}, certutil.AltNames{}, &leafNotAfter))
+	setTestLeafCertAndKeyData(t, certData, options.EtcdClientCertAndKeyName, etcdCA, etcdKey, certpkg.NewCertConfig("karmada-etcd-client", []string{}, certutil.AltNames{}, &leafNotAfter))
 	return certData
 }
 
@@ -1065,6 +1231,42 @@ func buildExistingRotateSecrets(namespace string, certData map[string]string) []
 		objects = append(objects, testSecret(namespace, name, map[string]string{util.KarmadaConfigFieldName: "old-config"}))
 	}
 	return objects
+}
+
+func buildExistingExternalEtcdRotateSecrets(namespace string, certData map[string]string) []runtime.Object {
+	objects := buildExistingRotateSecrets(namespace, certData)
+	for _, object := range objects {
+		secret := object.(*corev1.Secret)
+		if secret.Name != etcdCertName {
+			continue
+		}
+		delete(secret.StringData, certFileName(options.EtcdServerCertAndKeyName))
+		delete(secret.StringData, keyFileName(options.EtcdServerCertAndKeyName))
+		delete(secret.Data, certFileName(options.EtcdServerCertAndKeyName))
+		delete(secret.Data, keyFileName(options.EtcdServerCertAndKeyName))
+	}
+	return objects
+}
+
+func writeTestFile(t *testing.T, dir, name, data string) string {
+	t.Helper()
+	path := filepath.Join(dir, name)
+	assert.NoError(t, os.WriteFile(path, []byte(data), 0600))
+	return path
+}
+
+func loadTestCertFromData(t *testing.T, certData map[string]string, name string) *x509.Certificate {
+	t.Helper()
+	certificate, err := certpkg.LoadCertificatePEM([]byte(certData[certFileName(name)]))
+	assert.NoError(t, err)
+	return certificate
+}
+
+func loadTestCertFromSecret(t *testing.T, secret *corev1.Secret, name string) *x509.Certificate {
+	t.Helper()
+	certificate, err := certpkg.LoadCertificatePEM([]byte(secret.StringData[certFileName(name)]))
+	assert.NoError(t, err)
+	return certificate
 }
 
 func testSecret(namespace, name string, data map[string]string) *corev1.Secret {
