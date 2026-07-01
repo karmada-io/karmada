@@ -225,6 +225,7 @@ type CommandInitOption struct {
 	ExternalDNS        string
 	PullSecrets        []string
 	CertValidity       time.Duration
+	// CertMode configures the certificate operation mode, such as "install" or "rotate".
 	CertMode           string
 	KubeClientSet      kubernetes.Interface
 	CertAndKeyFileData map[string][]byte
@@ -283,6 +284,7 @@ func (i *CommandInitOption) certMode() string {
 	return i.CertMode
 }
 
+// validateCertMode validates that the configured certificate mode is supported.
 func (i *CommandInitOption) validateCertMode() error {
 	switch i.certMode() {
 	case CertModeInstall, CertModeRotate:
@@ -434,6 +436,7 @@ func (i *CommandInitOption) completeInstall() error {
 	return initializeDirectory(i.KarmadaDataPath)
 }
 
+// completeRotate completes the options required by certificate rotation.
 func (i *CommandInitOption) completeRotate() error {
 	if err := i.getKarmadaAPIServerIP(); err != nil {
 		return err
@@ -500,6 +503,7 @@ func (i *CommandInitOption) genCerts() error {
 	return nil
 }
 
+// buildInitCertConfigs builds certificate configs shared by install and rotation flows.
 func (i *CommandInitOption) buildInitCertConfigs() (*initCertConfigs, error) {
 	notAfter := time.Now().Add(i.CertValidity).UTC()
 
@@ -604,6 +608,7 @@ func (i *CommandInitOption) prepareCRD() error {
 	return nil
 }
 
+// certSecretSpecs builds the Secret specs that contain init-managed certificate data.
 func (i *CommandInitOption) certSecretSpecs() ([]*corev1.Secret, error) {
 	// Create karmada-config Secret
 	karmadaServerURL := fmt.Sprintf("https://%s.%s.svc.%s:%v", karmadaAPIServerDeploymentAndServiceName, i.Namespace, i.HostClusterDomain, karmadaAPIServerContainerPort)
@@ -661,26 +666,28 @@ func (i *CommandInitOption) createCertsSecrets() error {
 	return nil
 }
 
+// updateCertsSecrets updates existing certificate Secrets without creating new ones.
 func (i *CommandInitOption) updateCertsSecrets() error {
 	secrets, err := i.certSecretSpecs()
 	if err != nil {
 		return err
 	}
 	for _, secret := range secrets {
-		if err := i.setExistingSecretResourceVersion(secret); err != nil {
+		if err := i.setExistingSecretMetadata(secret); err != nil {
 			return err
 		}
 	}
 
 	for _, secret := range secrets {
 		if _, err := i.KubeClientSet.CoreV1().Secrets(secret.Namespace).Update(context.TODO(), secret, metav1.UpdateOptions{}); err != nil {
-			return fmt.Errorf("unable to update Secret: %v", err)
+			return fmt.Errorf("unable to update Secret %s/%s: %w", secret.Namespace, secret.Name, err)
 		}
 	}
 	return nil
 }
 
-func (i *CommandInitOption) setExistingSecretResourceVersion(secret *corev1.Secret) error {
+// setExistingSecretMetadata copies metadata from the existing Secret before update.
+func (i *CommandInitOption) setExistingSecretMetadata(secret *corev1.Secret) error {
 	existingSecret, err := i.KubeClientSet.CoreV1().Secrets(secret.Namespace).Get(context.TODO(), secret.Name, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -688,6 +695,7 @@ func (i *CommandInitOption) setExistingSecretResourceVersion(secret *corev1.Secr
 		}
 		return err
 	}
+	secret.ObjectMeta = existingSecret.ObjectMeta
 	secret.ResourceVersion = existingSecret.ResourceVersion
 	return nil
 }

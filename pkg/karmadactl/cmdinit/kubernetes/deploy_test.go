@@ -20,15 +20,18 @@ import (
 	"context"
 	"crypto"
 	"crypto/x509"
+	"errors"
 	"maps"
 	"net"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
@@ -344,6 +347,132 @@ func TestCommandInitOption_runCertRotateUpdatesSecretsOnly(t *testing.T) {
 	assert.Equal(t, updatedKarmadaSecret.StringData[certFileName(options.KarmadaCertAndKeyName)], updatedWebhookSecret.StringData["tls.crt"])
 
 	assertNoInstallResourceActions(t, clientset.Actions())
+}
+
+func TestCommandInitOption_runCertRotatePreservesExistingSecretMetadata(t *testing.T) {
+	namespace := "karmada-system"
+	oldCertData := buildTestCertAndKeyData(t)
+	objects := buildExistingRotateSecrets(namespace, oldCertData)
+	for _, object := range objects {
+		secret := object.(*corev1.Secret)
+		secret.Labels = map[string]string{
+			"karmada.io/bootstrapping": "secret-defaults",
+			"backup.example.io/name":   "daily",
+		}
+		secret.Annotations = map[string]string{"policy.example.io/managed": "true"}
+	}
+	clientset := fake.NewClientset(objects...)
+	opt := &CommandInitOption{
+		CertMode:                 CertModeRotate,
+		CertValidity:             365 * 24 * time.Hour,
+		EtcdReplicas:             1,
+		EtcdStorageMode:          etcdStorageModeEmptyDir,
+		Namespace:                namespace,
+		HostClusterDomain:        "cluster.local",
+		KarmadaAPIServerIP:       []net.IP{utils.StringToNetIP("192.0.2.11")},
+		KarmadaAPIServerNodePort: 32443,
+		KubeClientSet:            clientset,
+	}
+
+	err := opt.runCertRotate()
+	assert.NoError(t, err)
+
+	updatedSecret, err := clientset.CoreV1().Secrets(namespace).Get(context.TODO(), globaloptions.KarmadaCertsName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, "daily", updatedSecret.Labels["backup.example.io/name"])
+	assert.Equal(t, "true", updatedSecret.Annotations["policy.example.io/managed"])
+}
+
+func TestCommandInitOption_runCertRotateRejectsEtcdModeSwitch(t *testing.T) {
+	namespace := "karmada-system"
+	oldCertData := buildTestCertAndKeyData(t)
+	clientset := fake.NewClientset(buildExistingRotateSecrets(namespace, oldCertData)...)
+	opt := &CommandInitOption{
+		CertMode:                 CertModeRotate,
+		CertValidity:             365 * 24 * time.Hour,
+		ExternalEtcdServers:      "https://external-etcd.example.com:2379",
+		Namespace:                namespace,
+		HostClusterDomain:        "cluster.local",
+		KarmadaAPIServerIP:       []net.IP{utils.StringToNetIP("192.0.2.11")},
+		KarmadaAPIServerNodePort: 32443,
+		KubeClientSet:            clientset,
+	}
+
+	err := opt.runCertRotate()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "external etcd parameters cannot be used")
+	assertNoSecretUpdateActions(t, clientset.Actions())
+}
+
+func TestCommandInitOption_runCertRotateRejectsExternalEtcdModeSwitch(t *testing.T) {
+	namespace := "karmada-system"
+	oldCertData := buildTestCertAndKeyData(t)
+	objects := buildExistingRotateSecrets(namespace, oldCertData)
+	for _, object := range objects {
+		secret := object.(*corev1.Secret)
+		if secret.Name != etcdCertName {
+			continue
+		}
+		delete(secret.StringData, certFileName(options.EtcdServerCertAndKeyName))
+		delete(secret.StringData, keyFileName(options.EtcdServerCertAndKeyName))
+		delete(secret.Data, certFileName(options.EtcdServerCertAndKeyName))
+		delete(secret.Data, keyFileName(options.EtcdServerCertAndKeyName))
+	}
+	clientset := fake.NewClientset(objects...)
+	opt := &CommandInitOption{
+		CertMode:                 CertModeRotate,
+		CertValidity:             365 * 24 * time.Hour,
+		EtcdReplicas:             1,
+		EtcdStorageMode:          etcdStorageModeEmptyDir,
+		Namespace:                namespace,
+		HostClusterDomain:        "cluster.local",
+		KarmadaAPIServerIP:       []net.IP{utils.StringToNetIP("192.0.2.11")},
+		KarmadaAPIServerNodePort: 32443,
+		KubeClientSet:            clientset,
+	}
+
+	err := opt.runCertRotate()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "internal etcd parameters cannot be used")
+	assertNoSecretUpdateActions(t, clientset.Actions())
+}
+
+func TestCommandInitOption_updateCertsSecretsIncludesSecretIdentityOnUpdateFailure(t *testing.T) {
+	namespace := "karmada-system"
+	oldCertData := buildTestCertAndKeyData(t)
+	clientset := fake.NewClientset(buildExistingRotateSecrets(namespace, oldCertData)...)
+	clientset.PrependReactor("update", "secrets", func(_ k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, apierrors.NewInternalError(errors.New("forced update failure"))
+	})
+	opt := &CommandInitOption{
+		Namespace:         namespace,
+		HostClusterDomain: "cluster.local",
+		KubeClientSet:     clientset,
+		CertAndKeyFileData: stringMapToByteMap(map[string]string{
+			certFileName(globaloptions.CaCertAndKeyName):         oldCertData[certFileName(globaloptions.CaCertAndKeyName)],
+			keyFileName(globaloptions.CaCertAndKeyName):          oldCertData[keyFileName(globaloptions.CaCertAndKeyName)],
+			certFileName(options.EtcdCaCertAndKeyName):           oldCertData[certFileName(options.EtcdCaCertAndKeyName)],
+			keyFileName(options.EtcdCaCertAndKeyName):            oldCertData[keyFileName(options.EtcdCaCertAndKeyName)],
+			certFileName(options.EtcdServerCertAndKeyName):       oldCertData[certFileName(options.EtcdServerCertAndKeyName)],
+			keyFileName(options.EtcdServerCertAndKeyName):        oldCertData[keyFileName(options.EtcdServerCertAndKeyName)],
+			certFileName(options.EtcdClientCertAndKeyName):       oldCertData[certFileName(options.EtcdClientCertAndKeyName)],
+			keyFileName(options.EtcdClientCertAndKeyName):        oldCertData[keyFileName(options.EtcdClientCertAndKeyName)],
+			certFileName(options.KarmadaCertAndKeyName):          oldCertData[certFileName(options.KarmadaCertAndKeyName)],
+			keyFileName(options.KarmadaCertAndKeyName):           oldCertData[keyFileName(options.KarmadaCertAndKeyName)],
+			certFileName(options.ApiserverCertAndKeyName):        oldCertData[certFileName(options.ApiserverCertAndKeyName)],
+			keyFileName(options.ApiserverCertAndKeyName):         oldCertData[keyFileName(options.ApiserverCertAndKeyName)],
+			certFileName(options.FrontProxyCaCertAndKeyName):     oldCertData[certFileName(options.FrontProxyCaCertAndKeyName)],
+			keyFileName(options.FrontProxyCaCertAndKeyName):      oldCertData[keyFileName(options.FrontProxyCaCertAndKeyName)],
+			certFileName(options.FrontProxyClientCertAndKeyName): oldCertData[certFileName(options.FrontProxyClientCertAndKeyName)],
+			keyFileName(options.FrontProxyClientCertAndKeyName):  oldCertData[keyFileName(options.FrontProxyClientCertAndKeyName)],
+		}),
+	}
+
+	err := opt.updateCertsSecrets()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "unable to update Secret")
+	assert.True(t, strings.Contains(err.Error(), namespace+"/"))
+	assert.True(t, apierrors.IsInternalError(err))
 }
 
 func TestCommandInitOption_runCertRotateRequiresExistingSecrets(t *testing.T) {

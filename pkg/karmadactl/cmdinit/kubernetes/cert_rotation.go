@@ -40,6 +40,7 @@ type caMaterial struct {
 	keyPEM  []byte
 }
 
+// runCertRotate executes certificate rotation for the cert material managed by karmadactl init.
 func (i *CommandInitOption) runCertRotate() error {
 	certConfigs, err := i.buildInitCertConfigs()
 	if err != nil {
@@ -59,6 +60,7 @@ func (i *CommandInitOption) runCertRotate() error {
 	return nil
 }
 
+// prepareRotatedCertAndKeyData rebuilds CertAndKeyFileData from existing CA material.
 func (i *CommandInitOption) prepareRotatedCertAndKeyData(certConfigs *initCertConfigs) error {
 	karmadaSecret, err := i.getExistingSecret(globaloptions.KarmadaCertsName)
 	if err != nil {
@@ -98,6 +100,9 @@ func (i *CommandInitOption) prepareInternalEtcdCertAndKeyData(karmadaSecret *cor
 	if err != nil {
 		return err
 	}
+	if !hasExistingEtcdServerCert(etcdSecret) {
+		return fmt.Errorf("internal etcd parameters cannot be used to rotate certificates for an existing external etcd installation")
+	}
 
 	etcdCA, err := loadCAMaterialFromSecret(etcdSecret, options.EtcdCaCertAndKeyName)
 	if err != nil {
@@ -118,6 +123,9 @@ func (i *CommandInitOption) prepareExternalEtcdCertAndKeyData(karmadaSecret *cor
 	etcdSecret, err := i.getExistingSecret(etcdCertName)
 	if err != nil {
 		return err
+	}
+	if hasExistingEtcdServerCert(etcdSecret) {
+		return fmt.Errorf("external etcd parameters cannot be used to rotate certificates for an existing internal etcd installation")
 	}
 
 	if i.ExternalEtcdCACertPath != "" {
@@ -155,6 +163,7 @@ func (i *CommandInitOption) prepareExternalEtcdCertAndKeyData(karmadaSecret *cor
 	return nil
 }
 
+// loadRootCAMaterial loads the root CA from files or the existing karmada-cert Secret.
 func (i *CommandInitOption) loadRootCAMaterial(karmadaSecret *corev1.Secret) (*caMaterial, error) {
 	existingCert, err := loadCertificateFromSecret(karmadaSecret, globaloptions.CaCertAndKeyName)
 	if err != nil {
@@ -175,6 +184,7 @@ func (i *CommandInitOption) loadRootCAMaterial(karmadaSecret *corev1.Secret) (*c
 	return loadCAMaterialFromSecret(karmadaSecret, globaloptions.CaCertAndKeyName)
 }
 
+// signLeafCert signs one leaf certificate using existing CA material.
 func (i *CommandInitOption) signLeafCert(name string, ca *caMaterial, certConfig *cert.CertsConfig) error {
 	if certConfig == nil {
 		return fmt.Errorf("certificate config for %s is nil", name)
@@ -205,6 +215,7 @@ func (i *CommandInitOption) getExistingSecret(name string) (*corev1.Secret, erro
 	return existingSecret, nil
 }
 
+// loadCAMaterialFromFiles loads a CA certificate and private key from local files.
 func loadCAMaterialFromFiles(certFile, keyFile string) (*caMaterial, error) {
 	certPEM, err := os.ReadFile(certFile)
 	if err != nil {
@@ -226,6 +237,7 @@ func loadCAMaterialFromFiles(certFile, keyFile string) (*caMaterial, error) {
 	}, nil
 }
 
+// loadCAMaterialFromSecret loads a CA certificate and private key from a Secret.
 func loadCAMaterialFromSecret(secret *corev1.Secret, name string) (*caMaterial, error) {
 	certPEM, err := secretDataValue(secret, certFileName(name))
 	if err != nil {
@@ -253,6 +265,19 @@ func loadCertificateFromSecret(secret *corev1.Secret, name string) (*x509.Certif
 		return nil, err
 	}
 	return cert.LoadCertificatePEM(certPEM)
+}
+
+// hasExistingEtcdServerCert checks whether an existing etcd-cert Secret belongs to an internal etcd installation.
+func hasExistingEtcdServerCert(secret *corev1.Secret) bool {
+	if secret == nil {
+		return false
+	}
+	cert, err := secretDataValue(secret, certFileName(options.EtcdServerCertAndKeyName))
+	if err != nil || len(cert) == 0 {
+		return false
+	}
+	key, err := secretDataValue(secret, keyFileName(options.EtcdServerCertAndKeyName))
+	return err == nil && len(key) > 0
 }
 
 func firstSecretDataValue(key string, secrets ...*corev1.Secret) ([]byte, error) {
