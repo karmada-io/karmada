@@ -185,6 +185,43 @@ func TestRemoveIrrelevantField(t *testing.T) {
 			},
 		},
 		{
+			name: "remove consecutive serviceaccount token secrets",
+			workload: &unstructured.Unstructured{
+				Object: map[string]any{
+					"kind": util.ServiceAccountKind,
+					"metadata": map[string]any{
+						"name": "foo",
+					},
+					"secrets": []any{
+						map[string]any{
+							"name": "foo-token-aaaaa",
+						},
+						map[string]any{
+							"name": "foo-token-bbbbb",
+						},
+						map[string]any{
+							"name": "foo-dockercfg-zdr2j",
+						},
+					},
+				},
+			},
+			extraHooks:              nil,
+			unexpectedFields:        []field{{"secrets"}},
+			unexpectedResource:      "foo-token-bbbbb",
+			shouldNotRemoveFields:   []field{{"secrets"}},
+			shouldNotRemoveResource: "foo-dockercfg-zdr2j",
+			containsFunc: func(obj any, resource string) bool {
+				maps, _ := obj.([]any)
+
+				for _, m := range maps {
+					if m.(map[string]any)["name"] == resource {
+						return true
+					}
+				}
+				return false
+			},
+		},
+		{
 			name: "remove service-account token secret irrelevant fields",
 			workload: &unstructured.Unstructured{
 				Object: map[string]any{
