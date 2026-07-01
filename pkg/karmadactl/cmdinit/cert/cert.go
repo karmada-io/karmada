@@ -86,6 +86,46 @@ func EncodeCertPEM(cert *x509.Certificate) []byte {
 	return pem.EncodeToMemory(&block)
 }
 
+// EncodePrivateKeyPEM returns PEM-encoded private key data.
+func EncodePrivateKeyPEM(key crypto.Signer) ([]byte, error) {
+	if key == nil {
+		return nil, errors.New("private key cannot be nil when encoding to PEM")
+	}
+	return keyutil.MarshalPrivateKeyToPEM(key)
+}
+
+// LoadCertificatePEM loads a certificate from PEM-encoded bytes.
+func LoadCertificatePEM(certPEM []byte) (*x509.Certificate, error) {
+	block, _ := pem.Decode(certPEM)
+	if block == nil {
+		return nil, errors.New("failed to decode certificate PEM")
+	}
+	if block.Type != certificateBlockType {
+		return nil, fmt.Errorf("expected PEM block type %q, got %q", certificateBlockType, block.Type)
+	}
+	return x509.ParseCertificate(block.Bytes)
+}
+
+// LoadCertAndKeyPEM loads a certificate and private key from PEM-encoded bytes.
+func LoadCertAndKeyPEM(certPEM, keyPEM []byte) (*x509.Certificate, crypto.Signer, error) {
+	keyPair, err := tls.X509KeyPair(certPEM, keyPEM)
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(keyPair.Certificate) == 0 {
+		return nil, nil, errors.New("certificate PEM does not contain certificates")
+	}
+	loadedCert, err := x509.ParseCertificate(keyPair.Certificate[0])
+	if err != nil {
+		return nil, nil, err
+	}
+	loadedKey, ok := keyPair.PrivateKey.(crypto.Signer)
+	if !ok {
+		return nil, nil, errors.New("private key does not implement crypto.Signer")
+	}
+	return loadedCert, loadedKey, nil
+}
+
 // NewCertificateAuthority creates new certificate and private key for the certificate authority
 func NewCertificateAuthority(config *CertsConfig) (*x509.Certificate, crypto.Signer, error) {
 	key, err := NewPrivateKey(config.PublicKeyAlgorithm)
@@ -230,7 +270,7 @@ func WriteKey(pkiPath, name string, key crypto.Signer) error {
 	}
 
 	privateKeyPath := PathForKey(pkiPath, name)
-	encoded, err := keyutil.MarshalPrivateKeyToPEM(key)
+	encoded, err := EncodePrivateKeyPEM(key)
 	if err != nil {
 		return fmt.Errorf("unable to marshal private key to PEM %v", err)
 	}

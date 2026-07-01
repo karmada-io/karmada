@@ -18,6 +18,9 @@ package kubernetes
 
 import (
 	"context"
+	"crypto"
+	"crypto/x509"
+	"maps"
 	"net"
 	"os"
 	"reflect"
@@ -27,10 +30,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
+	certutil "k8s.io/client-go/util/cert"
 
+	certpkg "github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/cert"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/config"
+	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/options"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
+	globaloptions "github.com/karmada-io/karmada/pkg/karmadactl/options"
+	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 )
 
 func Test_initializeDirectory(t *testing.T) {
@@ -207,6 +217,26 @@ func TestCommandInitOption_Validate(t *testing.T) {
 			wantErr:  true,
 			errorMsg: "CommandInitOption.Validate() returns err when invalid ImagePullPolicy",
 		},
+		{
+			name: "Invalid CertMode",
+			opt: CommandInitOption{
+				CertMode:        "unknown",
+				EtcdStorageMode: "",
+				ImagePullPolicy: string(corev1.PullIfNotPresent),
+			},
+			wantErr:  true,
+			errorMsg: "CommandInitOption.Validate() does not return err when cert-mode is invalid",
+		},
+		{
+			name: "Valid rotate CertMode",
+			opt: CommandInitOption{
+				CertMode:        CertModeRotate,
+				EtcdStorageMode: "",
+				ImagePullPolicy: string(corev1.PullIfNotPresent),
+			},
+			wantErr:  false,
+			errorMsg: "CommandInitOption.Validate() returns err when cert-mode is rotate",
+		},
 	}
 
 	for _, tt := range tests {
@@ -215,6 +245,47 @@ func TestCommandInitOption_Validate(t *testing.T) {
 				t.Errorf("%s err = %v, want %v", tt.name, err.Error(), tt.errorMsg)
 			}
 		})
+	}
+}
+
+func TestCommandInitOption_completeRotateSkipsInstallOnlyChecks(t *testing.T) {
+	clientset := fake.NewClientset(
+		&corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   "node-1",
+				Labels: map[string]string{"node-role.kubernetes.io/control-plane": ""},
+			},
+			Status: corev1.NodeStatus{
+				Addresses: []corev1.NodeAddress{{Address: "192.0.2.10"}},
+			},
+		},
+		&corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "existing-node-port-service",
+				Namespace: "default",
+			},
+			Spec: corev1.ServiceSpec{
+				Type: corev1.ServiceTypeNodePort,
+				Ports: []corev1.ServicePort{{
+					NodePort: 32443,
+				}},
+			},
+		},
+	)
+	opt := &CommandInitOption{
+		CertMode:                         CertModeRotate,
+		KubeClientSet:                    clientset,
+		KarmadaAPIServerNodePort:         32443,
+		EtcdStorageMode:                  etcdStorageModeHostPath,
+		KarmadaAPIServerAdvertiseAddress: "",
+	}
+
+	err := opt.completeRotate()
+	assert.NoError(t, err)
+
+	for _, action := range clientset.Actions() {
+		assert.NotEqual(t, "services", action.GetResource().Resource)
+		assert.NotEqual(t, "patch", action.GetVerb())
 	}
 }
 
@@ -235,6 +306,92 @@ func TestCommandInitOption_genCerts(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
+}
+
+func TestCommandInitOption_runCertRotateUpdatesSecretsOnly(t *testing.T) {
+	namespace := "karmada-system"
+	oldCertData := buildTestCertAndKeyData(t)
+	clientset := fake.NewClientset(buildExistingRotateSecrets(namespace, oldCertData)...)
+	opt := &CommandInitOption{
+		CertMode:                 CertModeRotate,
+		CertValidity:             365 * 24 * time.Hour,
+		EtcdReplicas:             1,
+		EtcdStorageMode:          etcdStorageModeEmptyDir,
+		Namespace:                namespace,
+		HostClusterDomain:        "cluster.local",
+		KarmadaAPIServerIP:       []net.IP{utils.StringToNetIP("192.0.2.11")},
+		KarmadaAPIServerNodePort: 32443,
+		KubeClientSet:            clientset,
+	}
+
+	err := opt.runCertRotate()
+	assert.NoError(t, err)
+
+	updatedKarmadaSecret, err := clientset.CoreV1().Secrets(namespace).Get(context.TODO(), globaloptions.KarmadaCertsName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, oldCertData[certFileName(globaloptions.CaCertAndKeyName)], updatedKarmadaSecret.StringData[certFileName(globaloptions.CaCertAndKeyName)])
+	assert.Equal(t, oldCertData[keyFileName(globaloptions.CaCertAndKeyName)], updatedKarmadaSecret.StringData[keyFileName(globaloptions.CaCertAndKeyName)])
+	assert.NotEqual(t, oldCertData[certFileName(options.KarmadaCertAndKeyName)], updatedKarmadaSecret.StringData[certFileName(options.KarmadaCertAndKeyName)])
+
+	rotatedKarmadaCert, err := certpkg.LoadCertificatePEM([]byte(updatedKarmadaSecret.StringData[certFileName(options.KarmadaCertAndKeyName)]))
+	assert.NoError(t, err)
+	rootCA, err := certpkg.LoadCertificatePEM([]byte(updatedKarmadaSecret.StringData[certFileName(globaloptions.CaCertAndKeyName)]))
+	assert.NoError(t, err)
+	assert.NoError(t, rotatedKarmadaCert.CheckSignatureFrom(rootCA))
+
+	updatedWebhookSecret, err := clientset.CoreV1().Secrets(namespace).Get(context.TODO(), webhookCertsName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, updatedKarmadaSecret.StringData[certFileName(options.KarmadaCertAndKeyName)], updatedWebhookSecret.StringData["tls.crt"])
+
+	assertNoInstallResourceActions(t, clientset.Actions())
+}
+
+func TestCommandInitOption_runCertRotateRequiresExistingSecrets(t *testing.T) {
+	namespace := "karmada-system"
+	oldCertData := buildTestCertAndKeyData(t)
+	secrets := buildExistingRotateSecrets(namespace, oldCertData)
+	clientset := fake.NewClientset(secrets[0])
+	opt := &CommandInitOption{
+		CertMode:                 CertModeRotate,
+		CertValidity:             365 * 24 * time.Hour,
+		EtcdReplicas:             1,
+		EtcdStorageMode:          etcdStorageModeEmptyDir,
+		Namespace:                namespace,
+		HostClusterDomain:        "cluster.local",
+		KarmadaAPIServerIP:       []net.IP{utils.StringToNetIP("192.0.2.11")},
+		KarmadaAPIServerNodePort: 32443,
+		KubeClientSet:            clientset,
+	}
+
+	err := opt.runCertRotate()
+	assert.Error(t, err)
+	for _, action := range clientset.Actions() {
+		assert.NotEqual(t, "create", action.GetVerb())
+		assert.NotEqual(t, "update", action.GetVerb())
+	}
+}
+
+func TestCommandInitOption_runCertRotateRequiresExistingCAKey(t *testing.T) {
+	namespace := "karmada-system"
+	oldCertData := buildTestCertAndKeyData(t)
+	delete(oldCertData, keyFileName(globaloptions.CaCertAndKeyName))
+	clientset := fake.NewClientset(buildExistingRotateSecrets(namespace, oldCertData)...)
+	opt := &CommandInitOption{
+		CertMode:                 CertModeRotate,
+		CertValidity:             365 * 24 * time.Hour,
+		EtcdReplicas:             1,
+		EtcdStorageMode:          etcdStorageModeEmptyDir,
+		Namespace:                namespace,
+		HostClusterDomain:        "cluster.local",
+		KarmadaAPIServerIP:       []net.IP{utils.StringToNetIP("192.0.2.11")},
+		KarmadaAPIServerNodePort: 32443,
+		KubeClientSet:            clientset,
+	}
+
+	err := opt.runCertRotate()
+	assert.Error(t, err)
+	assertNoInstallResourceActions(t, clientset.Actions())
+	assertNoSecretUpdateActions(t, clientset.Actions())
 }
 
 func TestInitKarmadaAPIServer(t *testing.T) {
@@ -553,6 +710,7 @@ func TestParseInitConfig(t *testing.T) {
 			KarmadaDataPath:           "/etc/karmada",
 			KarmadaPKIPath:            "/etc/karmada/pki",
 			KarmadaCRDs:               "https://github.com/karmada-io/karmada/releases/download/test/crds.tar.gz",
+			CertMode:                  CertModeRotate,
 			Certificates: config.Certificates{
 				CACertFile:     "/path/to/ca.crt",
 				CAKeyFile:      "/path/to/ca.key",
@@ -667,6 +825,7 @@ func TestParseInitConfig(t *testing.T) {
 	opt := &CommandInitOption{}
 	err := opt.parseInitConfig(cfg)
 	assert.NoError(t, err)
+	assert.Equal(t, CertModeRotate, opt.CertMode)
 	assert.Equal(t, "test-namespace", opt.Namespace)
 	assert.Equal(t, "/path/to/kubeconfig", opt.KubeConfig)
 	assert.Equal(t, "test-registry", opt.ImageRegistry)
@@ -710,6 +869,112 @@ func TestParseInitConfig_MissingFields(t *testing.T) {
 	assert.Equal(t, "test-namespace", opt.Namespace)
 	assert.Empty(t, opt.KubeConfig)
 	assert.Empty(t, opt.KubeImageTag)
+}
+
+func buildTestCertAndKeyData(t *testing.T) map[string]string {
+	t.Helper()
+
+	notAfter := time.Now().Add(365 * 24 * time.Hour).UTC()
+	rootCA, rootKey := newTestCA(t, "karmada")
+	frontProxyCA, frontProxyKey := newTestCA(t, "front-proxy-ca")
+	etcdCA, etcdKey := newTestCA(t, "etcd-ca")
+
+	certData := map[string]string{}
+	setTestCertAndKeyData(t, certData, globaloptions.CaCertAndKeyName, rootCA, rootKey)
+	setTestCertAndKeyData(t, certData, options.FrontProxyCaCertAndKeyName, frontProxyCA, frontProxyKey)
+	setTestCertAndKeyData(t, certData, options.EtcdCaCertAndKeyName, etcdCA, etcdKey)
+	setTestLeafCertAndKeyData(t, certData, options.KarmadaCertAndKeyName, rootCA, rootKey, certpkg.NewCertConfig("system:admin", []string{"system:masters"}, certutil.AltNames{}, &notAfter))
+	setTestLeafCertAndKeyData(t, certData, options.ApiserverCertAndKeyName, rootCA, rootKey, certpkg.NewCertConfig("karmada-apiserver", []string{}, certutil.AltNames{}, &notAfter))
+	setTestLeafCertAndKeyData(t, certData, options.FrontProxyClientCertAndKeyName, frontProxyCA, frontProxyKey, certpkg.NewCertConfig("front-proxy-client", []string{}, certutil.AltNames{}, &notAfter))
+	setTestLeafCertAndKeyData(t, certData, options.EtcdServerCertAndKeyName, etcdCA, etcdKey, certpkg.NewCertConfig("karmada-etcd-server", []string{}, certutil.AltNames{}, &notAfter))
+	setTestLeafCertAndKeyData(t, certData, options.EtcdClientCertAndKeyName, etcdCA, etcdKey, certpkg.NewCertConfig("karmada-etcd-client", []string{}, certutil.AltNames{}, &notAfter))
+	return certData
+}
+
+func newTestCA(t *testing.T, commonName string) (*x509.Certificate, crypto.Signer) {
+	t.Helper()
+	caCert, caKey, err := certpkg.NewCACertAndKey(commonName)
+	assert.NoError(t, err)
+	return caCert, *caKey
+}
+
+func setTestCertAndKeyData(t *testing.T, certData map[string]string, name string, certificate *x509.Certificate, key crypto.Signer) {
+	t.Helper()
+	keyPEM, err := certpkg.EncodePrivateKeyPEM(key)
+	assert.NoError(t, err)
+	certData[certFileName(name)] = string(certpkg.EncodeCertPEM(certificate))
+	certData[keyFileName(name)] = string(keyPEM)
+}
+
+func setTestLeafCertAndKeyData(t *testing.T, certData map[string]string, name string, caCert *x509.Certificate, caKey crypto.Signer, certConfig *certpkg.CertsConfig) {
+	t.Helper()
+	leafCert, leafKey, err := certpkg.NewCertAndKey(caCert, caKey, certConfig)
+	assert.NoError(t, err)
+	setTestCertAndKeyData(t, certData, name, leafCert, leafKey)
+}
+
+func buildExistingRotateSecrets(namespace string, certData map[string]string) []runtime.Object {
+	karmadaCertData := map[string]string{}
+	maps.Copy(karmadaCertData, certData)
+	etcdCertData := map[string]string{
+		certFileName(options.EtcdCaCertAndKeyName):     certData[certFileName(options.EtcdCaCertAndKeyName)],
+		keyFileName(options.EtcdCaCertAndKeyName):      certData[keyFileName(options.EtcdCaCertAndKeyName)],
+		certFileName(options.EtcdServerCertAndKeyName): certData[certFileName(options.EtcdServerCertAndKeyName)],
+		keyFileName(options.EtcdServerCertAndKeyName):  certData[keyFileName(options.EtcdServerCertAndKeyName)],
+	}
+
+	objects := []runtime.Object{
+		testSecret(namespace, globaloptions.KarmadaCertsName, karmadaCertData),
+		testSecret(namespace, etcdCertName, etcdCertData),
+		testSecret(namespace, webhookCertsName, map[string]string{
+			"tls.crt": certData[certFileName(options.KarmadaCertAndKeyName)],
+			"tls.key": certData[keyFileName(options.KarmadaCertAndKeyName)],
+		}),
+	}
+
+	for _, name := range karmadaConfigList {
+		objects = append(objects, testSecret(namespace, name, map[string]string{util.KarmadaConfigFieldName: "old-config"}))
+	}
+	return objects
+}
+
+func testSecret(namespace, name string, data map[string]string) *corev1.Secret {
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      name,
+		},
+		Type:       corev1.SecretTypeOpaque,
+		StringData: data,
+		Data:       stringMapToByteMap(data),
+	}
+}
+
+func stringMapToByteMap(data map[string]string) map[string][]byte {
+	result := map[string][]byte{}
+	for key, value := range data {
+		result[key] = []byte(value)
+	}
+	return result
+}
+
+func assertNoInstallResourceActions(t *testing.T, actions []k8stesting.Action) {
+	t.Helper()
+	for _, action := range actions {
+		switch action.GetResource().Resource {
+		case "deployments", "statefulsets", "services":
+			t.Fatalf("unexpected %s action for %s during certificate rotation", action.GetVerb(), action.GetResource().Resource)
+		}
+	}
+}
+
+func assertNoSecretUpdateActions(t *testing.T, actions []k8stesting.Action) {
+	t.Helper()
+	for _, action := range actions {
+		if action.GetResource().Resource == "secrets" && action.GetVerb() == "update" {
+			t.Fatalf("unexpected secret update action during failed certificate rotation")
+		}
+	}
 }
 
 // parseDuration parses a duration string and returns the corresponding time.Duration value.

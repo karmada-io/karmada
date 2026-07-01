@@ -29,6 +29,7 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -111,6 +112,13 @@ var (
 	DefaultKarmadaWebhookImage string
 	// DefaultKarmadaAggregatedAPIServerImage Karmada aggregated apiserver image
 	DefaultKarmadaAggregatedAPIServerImage string
+)
+
+const (
+	// CertModeInstall instructs karmadactl init to run the default installation flow.
+	CertModeInstall = "install"
+	// CertModeRotate instructs karmadactl init to rotate init-managed certificates.
+	CertModeRotate = "rotate"
 )
 
 const (
@@ -217,6 +225,7 @@ type CommandInitOption struct {
 	ExternalDNS        string
 	PullSecrets        []string
 	CertValidity       time.Duration
+	CertMode           string
 	KubeClientSet      kubernetes.Interface
 	CertAndKeyFileData map[string][]byte
 	RestConfig         *rest.Config
@@ -265,6 +274,22 @@ func (i *CommandInitOption) validateExternalEtcd(_ string) error {
 
 func (i *CommandInitOption) isExternalEtcdProvided() bool {
 	return i.ExternalEtcdServers != ""
+}
+
+func (i *CommandInitOption) certMode() string {
+	if i.CertMode == "" {
+		return CertModeInstall
+	}
+	return i.CertMode
+}
+
+func (i *CommandInitOption) validateCertMode() error {
+	switch i.certMode() {
+	case CertModeInstall, CertModeRotate:
+		return nil
+	default:
+		return fmt.Errorf("unsupported cert-mode %q, supported values are %q and %q", i.CertMode, CertModeInstall, CertModeRotate)
+	}
 }
 
 // validateCommandLineArgs The parameters that are successfully validated will be reassigned to the corresponding xxxExtraArgs.
@@ -330,6 +355,9 @@ func (i *CommandInitOption) Validate(parentCommand string) error {
 	if (i.CaCertFile != "") != (i.CaKeyFile != "") {
 		return fmt.Errorf("ca-cert-file and ca-key-file must be used together")
 	}
+	if err := i.validateCertMode(); err != nil {
+		return err
+	}
 
 	switch i.ImagePullPolicy {
 	case string(corev1.PullAlways), string(corev1.PullIfNotPresent), string(corev1.PullNever):
@@ -346,6 +374,16 @@ func (i *CommandInitOption) Validate(parentCommand string) error {
 
 // Complete Initialize k8s client
 func (i *CommandInitOption) Complete() error {
+	if err := i.completeCommon(); err != nil {
+		return err
+	}
+	if i.certMode() == CertModeRotate {
+		return i.completeRotate()
+	}
+	return i.completeInstall()
+}
+
+func (i *CommandInitOption) completeCommon() error {
 	restConfig, err := apiclient.RestConfig(i.Context, i.KubeConfig)
 	if err != nil {
 		return err
@@ -359,6 +397,10 @@ func (i *CommandInitOption) Complete() error {
 	}
 	i.KubeClientSet = clientSet
 
+	return nil
+}
+
+func (i *CommandInitOption) completeInstall() error {
 	if i.isNodePortExist() {
 		return fmt.Errorf("nodePort of karmada apiserver %v already exist", i.KarmadaAPIServerNodePort)
 	}
@@ -390,6 +432,14 @@ func (i *CommandInitOption) Complete() error {
 	i.initializeCommandLineArgs()
 
 	return initializeDirectory(i.KarmadaDataPath)
+}
+
+func (i *CommandInitOption) completeRotate() error {
+	if err := i.getKarmadaAPIServerIP(); err != nil {
+		return err
+	}
+	klog.Infof("karmada apiserver ip: %s", i.KarmadaAPIServerIP)
+	return nil
 }
 
 // initializeCommandLineArgs Merge default parameters and validated user parameters.
@@ -440,6 +490,17 @@ func initializeDirectory(path string) error {
 
 // genCerts create ca etcd karmada cert
 func (i *CommandInitOption) genCerts() error {
+	certConfigs, err := i.buildInitCertConfigs()
+	if err != nil {
+		return err
+	}
+	if err = cert.GenCerts(i.KarmadaPkiPath, i.CaCertFile, i.CaKeyFile, certConfigs.etcdServer, certConfigs.etcdClient, certConfigs.karmada, certConfigs.apiserver, certConfigs.frontProxyClient); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (i *CommandInitOption) buildInitCertConfigs() (*initCertConfigs, error) {
 	notAfter := time.Now().Add(i.CertValidity).UTC()
 
 	var etcdServerCertConfig, etcdClientCertCfg *cert.CertsConfig
@@ -499,10 +560,13 @@ func (i *CommandInitOption) genCerts() error {
 	apiserverCertCfg := cert.NewCertConfig("karmada-apiserver", []string{""}, karmadaAltNames, &notAfter)
 
 	frontProxyClientCertCfg := cert.NewCertConfig("front-proxy-client", []string{}, certutil.AltNames{}, &notAfter)
-	if err = cert.GenCerts(i.KarmadaPkiPath, i.CaCertFile, i.CaKeyFile, etcdServerCertConfig, etcdClientCertCfg, karmadaCertCfg, apiserverCertCfg, frontProxyClientCertCfg); err != nil {
-		return err
-	}
-	return nil
+	return &initCertConfigs{
+		etcdServer:       etcdServerCertConfig,
+		etcdClient:       etcdClientCertCfg,
+		karmada:          karmadaCertCfg,
+		apiserver:        apiserverCertCfg,
+		frontProxyClient: frontProxyClientCertCfg,
+	}, nil
 }
 
 // prepareCRD download or unzip `crds.tar.gz` to `options.DataPath`
@@ -540,21 +604,20 @@ func (i *CommandInitOption) prepareCRD() error {
 	return nil
 }
 
-func (i *CommandInitOption) createCertsSecrets() error {
+func (i *CommandInitOption) certSecretSpecs() ([]*corev1.Secret, error) {
 	// Create karmada-config Secret
 	karmadaServerURL := fmt.Sprintf("https://%s.%s.svc.%s:%v", karmadaAPIServerDeploymentAndServiceName, i.Namespace, i.HostClusterDomain, karmadaAPIServerContainerPort)
 	config := utils.CreateWithCerts(karmadaServerURL, options.UserName, options.UserName, i.CertAndKeyFileData[fmt.Sprintf("%s.crt", globaloptions.CaCertAndKeyName)],
 		i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.KarmadaCertAndKeyName)], i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.KarmadaCertAndKeyName)])
 	configBytes, err := clientcmd.Write(*config)
 	if err != nil {
-		return fmt.Errorf("failure while serializing admin kubeConfig. %v", err)
+		return nil, fmt.Errorf("failure while serializing admin kubeConfig. %v", err)
 	}
 
+	var secrets []*corev1.Secret
 	for _, karmadaConfigSecretName := range karmadaConfigList {
 		karmadaConfigSecret := i.SecretFromSpec(karmadaConfigSecretName, corev1.SecretTypeOpaque, map[string]string{util.KarmadaConfigFieldName: string(configBytes)})
-		if err = util.CreateOrUpdateSecret(i.KubeClientSet, karmadaConfigSecret); err != nil {
-			return err
-		}
+		secrets = append(secrets, karmadaConfigSecret)
 	}
 
 	// Create certs Secret
@@ -565,9 +628,7 @@ func (i *CommandInitOption) createCertsSecrets() error {
 		fmt.Sprintf("%s.key", options.EtcdServerCertAndKeyName): string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.EtcdServerCertAndKeyName)]),
 	}
 	etcdSecret := i.SecretFromSpec(etcdCertName, corev1.SecretTypeOpaque, etcdCert)
-	if err := util.CreateOrUpdateSecret(i.KubeClientSet, etcdSecret); err != nil {
-		return err
-	}
+	secrets = append(secrets, etcdSecret)
 
 	karmadaCert := map[string]string{}
 	for _, v := range certList {
@@ -575,19 +636,59 @@ func (i *CommandInitOption) createCertsSecrets() error {
 		karmadaCert[fmt.Sprintf("%s.key", v)] = string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", v)])
 	}
 	karmadaSecret := i.SecretFromSpec(globaloptions.KarmadaCertsName, corev1.SecretTypeOpaque, karmadaCert)
-	if err := util.CreateOrUpdateSecret(i.KubeClientSet, karmadaSecret); err != nil {
-		return err
-	}
+	secrets = append(secrets, karmadaSecret)
 
 	karmadaWebhookCert := map[string]string{
 		"tls.crt": string(i.CertAndKeyFileData[fmt.Sprintf("%s.crt", options.KarmadaCertAndKeyName)]),
 		"tls.key": string(i.CertAndKeyFileData[fmt.Sprintf("%s.key", options.KarmadaCertAndKeyName)]),
 	}
 	karmadaWebhookSecret := i.SecretFromSpec(webhookCertsName, corev1.SecretTypeOpaque, karmadaWebhookCert)
-	if err := util.CreateOrUpdateSecret(i.KubeClientSet, karmadaWebhookSecret); err != nil {
+	secrets = append(secrets, karmadaWebhookSecret)
+
+	return secrets, nil
+}
+
+func (i *CommandInitOption) createCertsSecrets() error {
+	secrets, err := i.certSecretSpecs()
+	if err != nil {
 		return err
 	}
+	for _, secret := range secrets {
+		if err := util.CreateOrUpdateSecret(i.KubeClientSet, secret); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
+func (i *CommandInitOption) updateCertsSecrets() error {
+	secrets, err := i.certSecretSpecs()
+	if err != nil {
+		return err
+	}
+	for _, secret := range secrets {
+		if err := i.setExistingSecretResourceVersion(secret); err != nil {
+			return err
+		}
+	}
+
+	for _, secret := range secrets {
+		if _, err := i.KubeClientSet.CoreV1().Secrets(secret.Namespace).Update(context.TODO(), secret, metav1.UpdateOptions{}); err != nil {
+			return fmt.Errorf("unable to update Secret: %v", err)
+		}
+	}
+	return nil
+}
+
+func (i *CommandInitOption) setExistingSecretResourceVersion(secret *corev1.Secret) error {
+	existingSecret, err := i.KubeClientSet.CoreV1().Secrets(secret.Namespace).Get(context.TODO(), secret.Name, metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return fmt.Errorf("secret %s/%s must exist before certificate rotation", secret.Namespace, secret.Name)
+		}
+		return err
+	}
+	secret.ResourceVersion = existingSecret.ResourceVersion
 	return nil
 }
 
@@ -686,8 +787,15 @@ func (i *CommandInitOption) readExternalEtcdCert(name string) (isExternalEtcdCer
 	return
 }
 
-// RunInit Deploy karmada in kubernetes
+// RunInit deploys Karmada or rotates init-managed certificates in Kubernetes.
 func (i *CommandInitOption) RunInit(parentCommand string) error {
+	if i.certMode() == CertModeRotate {
+		return i.runCertRotate()
+	}
+	return i.runInstall(parentCommand)
+}
+
+func (i *CommandInitOption) runInstall(parentCommand string) error {
 	// generate certificate
 	if err := i.genCerts(); err != nil {
 		return fmt.Errorf("certificate generation failed.%v", err)
@@ -862,6 +970,14 @@ func (i *CommandInitOption) getImagePullSecrets() []corev1.LocalObjectReference 
 	return imagePullSecrets
 }
 
+type initCertConfigs struct {
+	etcdServer       *cert.CertsConfig
+	etcdClient       *cert.CertsConfig
+	karmada          *cert.CertsConfig
+	apiserver        *cert.CertsConfig
+	frontProxyClient *cert.CertsConfig
+}
+
 func (i *CommandInitOption) handleEtcdNodeSelectorLabels() error {
 	if i.EtcdStorageMode == etcdStorageModeHostPath && i.EtcdNodeSelectorLabels != "" {
 		selector, err := metav1.ParseToLabelSelector(i.EtcdNodeSelectorLabels)
@@ -940,6 +1056,7 @@ func (i *CommandInitOption) parseInitConfig(cfg *initConfig.KarmadaInitConfig) e
 // parseGeneralConfig parses basic configuration related to the host cluster,
 // such as namespace, kubeconfig, and image settings from the KarmadaInitConfigSpec.
 func (i *CommandInitOption) parseGeneralConfig(spec initConfig.KarmadaInitSpec) {
+	setIfNotEmpty(&i.CertMode, spec.CertMode)
 	setIfNotEmpty(&i.KubeConfig, spec.HostCluster.Kubeconfig)
 	setIfNotEmpty(&i.KubeImageTag, spec.Images.KubeImageTag)
 	setIfNotEmpty(&i.KubeImageRegistry, spec.Images.KubeImageRegistry)

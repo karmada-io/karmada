@@ -32,6 +32,7 @@ const testConfig = `
 apiVersion: config.karmada.io/v1alpha1
 kind: KarmadaInitConfig
 spec:
+ certMode: "rotate"
  certificates:
    caCertFile: "/etc/karmada/pki/ca.crt"
    caKeyFile: "/etc/karmada/pki/ca.key"
@@ -131,6 +132,7 @@ func TestLoadInitConfiguration(t *testing.T) {
 			KarmadaDataPath:           "/etc/karmada",
 			KarmadaPKIPath:            "/etc/karmada/pki",
 			KarmadaCRDs:               "https://github.com/karmada-io/karmada/releases/download/test/crds.tar.gz",
+			CertMode:                  "rotate",
 			Certificates: Certificates{
 				CACertFile: "/etc/karmada/pki/ca.crt",
 				CAKeyFile:  "/etc/karmada/pki/ca.key",
