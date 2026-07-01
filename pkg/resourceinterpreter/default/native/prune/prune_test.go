@@ -46,6 +46,7 @@ type test struct {
 	containsFunc            func(any, string) bool
 }
 
+//nolint:gocyclo
 func TestRemoveIrrelevantField(t *testing.T) {
 	var tests = []*test{
 		{
