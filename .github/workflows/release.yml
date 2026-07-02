@@ -40,7 +40,7 @@ jobs:
         path: _output/release/${{ matrix.target }}-${{ matrix.os }}-${{ matrix.arch }}.tgz
     - name: Uploading assets...
       if: ${{ !env.ACT }}
-      uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1
+      uses: softprops/action-gh-release@v4.0.0
       with:
         files: |
           _output/release/${{ matrix.target }}-${{ matrix.os }}-${{ matrix.arch }}.tgz
@@ -89,12 +89,7 @@ jobs:
       run: |
         mv ./charts/karmada/_crds ./charts/karmada/crds
     - name: Tar the crds
-      uses: a7ul/tar-action@ed9cbd44fc9276db29ea2fb1f8adf3d7e0691589 # v1.2.0
-      with:
-        command: c
-        cwd: ./charts/karmada/
-        files: crds
-        outPath: crds.tar.gz
+      run: tar -czf crds.tar.gz -C ./charts/karmada crds
     - name: generate crds hash
       id: hash
       run: |
@@ -102,7 +97,7 @@ jobs:
         # base64 -w0 encodes to base64 and outputs on a single line.
         echo "hashes=$(sha256sum crds.tar.gz | base64 -w0)" >> "$GITHUB_OUTPUT"
     - name: Uploading crd assets...
-      uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1
+      uses: softprops/action-gh-release@v4.0.0
       with:
         files: |
           crds.tar.gz
@@ -133,7 +128,7 @@ jobs:
       run: make package-chart
     - name: Uploading assets...
       if: ${{ !env.ACT }}
-      uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1
+      uses: softprops/action-gh-release@v4.0.0
       with:
         files: |
           _output/charts/karmada-chart-${{ github.ref_name }}.tgz
@@ -184,7 +179,7 @@ jobs:
         # base64 -w0 encodes to base64 and outputs on a single line.
         echo "hashes=$(sha256sum sbom.tar.gz | base64 -w0)" >> "$GITHUB_OUTPUT"
     - name: Uploading sbom assets...
-      uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1
+      uses: softprops/action-gh-release@v4.0.0
       with:
         files: |
           sbom.tar.gz
@@ -224,4 +219,68 @@ jobs:
       if: steps.get-latest-tag.outputs.latestTag == github.event.release.tag_name
     - name: Update new version in krew-index
       if: steps.get-latest-tag.outputs.latestTag == github.event.release.tag_name
-      uses: rajatjindal/krew-release-bot@c970b8a8f6dbc2f2285a26e3ae160903b87002c3 # v0.0.51
+      run: |
+        # Install krew if not already installed
+        if ! command -v kubectl-krew &> /dev/null; then
+          cd "$(mktemp -d)" &&
+          OS="$(uname | tr '[:upper:]' '[:lower:]')" &&
+          ARCH="$(uname -m | sed -e 's/x86_64/amd64/' -e 's/arm64/arm64/')" &&
+          curl -fsSLO "https://github.com/kubernetes-sigs/krew/releases/latest/download/krew-${OS}_${ARCH}.tar.gz" &&
+          tar zxvf krew-${OS}_${ARCH}.tar.gz &&
+          KREW=./krew-"${OS}_${ARCH}" &&
+          "$KREW" install krew
+        fi
+        
+        # Add karmada plugin to krew-index
+        export KREW_ROOT=~/.krew
+        export PATH="${KREW_ROOT}/bin:${PATH}"
+        
+        # Clone krew-index
+        git clone https://github.com/kubernetes-sigs/krew-index.git /tmp/krew-index
+        cd /tmp/krew-index
+        
+        # Create or update the karmada plugin entry
+        cat > plugins/karmada.yaml <<EOF
+        apiVersion: krew.googlecontainertools.github.com/v1alpha2
+        kind: Plugin
+        metadata:
+          name: karmada
+        spec:
+        version: "${{ github.event.release.tag_name }}"
+        platforms:
+        - selector:
+            matchLabels:
+              os: linux
+              arch: amd64
+          uri: https://github.com/karmada-io/karmada/releases/download/${{ github.event.release.tag_name }}/kubectl-karmada-linux-amd64.tgz
+          sha256: $(curl -sL https://github.com/karmada-io/karmada/releases/download/${{ github.event.release.tag_name }}/kubectl-karmada-linux-amd64.tgz.sha256)
+          bin: kubectl-karmada
+        - selector:
+            matchLabels:
+              os: linux
+              arch: arm64
+          uri: https://github.com/karmada-io/karmada/releases/download/${{ github.event.release.tag_name }}/kubectl-karmada-linux-arm64.tgz
+          sha256: $(curl -sL https://github.com/karmada-io/karmada/releases/download/${{ github.event.release.tag_name }}/kubectl-karmada-linux-arm64.tgz.sha256)
+          bin: kubectl-karmada
+        - selector:
+            matchLabels:
+              os: darwin
+              arch: amd64
+          uri: https://github.com/karmada-io/karmada/releases/download/${{ github.event.release.tag_name }}/kubectl-karmada-darwin-amd64.tgz
+          sha256: $(curl -sL https://github.com/karmada-io/karmada/releases/download/${{ github.event.release.tag_name }}/kubectl-karmada-darwin-amd64.tgz.sha256)
+          bin: kubectl-karmada
+        - selector:
+            matchLabels:
+              os: darwin
+              arch: arm64
+          uri: https://github.com/karmada-io/karmada/releases/download/${{ github.event.release.tag_name }}/kubectl-karmada-darwin-arm64.tgz
+          sha256: $(curl -sL https://github.com/karmada-io/karmada/releases/download/${{ github.event.release.tag_name }}/kubectl-karmada-darwin-arm64.tgz.sha256)
+          bin: kubectl-karmada
+        EOF
+        
+        # Commit and push changes
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add plugins/karmada.yaml
+        git commit -m "Add karmada plugin v${{ github.event.release.tag_name }}"
+        git push origin main
