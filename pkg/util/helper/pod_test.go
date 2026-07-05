@@ -767,3 +767,133 @@ func Test_getServiceAccountNames(t *testing.T) {
 		})
 	}
 }
+
+func TestGetPodReadyCondition(t *testing.T) {
+	readyTrue := corev1.PodCondition{Type: corev1.PodReady, Status: corev1.ConditionTrue}
+	tests := []struct {
+		name   string
+		status corev1.PodStatus
+		want   *corev1.PodCondition
+	}{
+		{
+			name:   "no conditions returns nil",
+			status: corev1.PodStatus{},
+			want:   nil,
+		},
+		{
+			name: "returns PodReady condition",
+			status: corev1.PodStatus{
+				Conditions: []corev1.PodCondition{readyTrue},
+			},
+			want: &readyTrue,
+		},
+		{
+			name: "no PodReady condition returns nil",
+			status: corev1.PodStatus{
+				Conditions: []corev1.PodCondition{
+					{Type: corev1.PodScheduled, Status: corev1.ConditionTrue},
+				},
+			},
+			want: nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := GetPodReadyCondition(tt.status)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetPodReadyCondition() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsPodReadyConditionTrue(t *testing.T) {
+	tests := []struct {
+		name   string
+		status corev1.PodStatus
+		want   bool
+	}{
+		{
+			name:   "no Ready condition returns false",
+			status: corev1.PodStatus{},
+			want:   false,
+		},
+		{
+			name: "Ready condition True returns true",
+			status: corev1.PodStatus{
+				Conditions: []corev1.PodCondition{
+					{Type: corev1.PodReady, Status: corev1.ConditionTrue},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "Ready condition False returns false",
+			status: corev1.PodStatus{
+				Conditions: []corev1.PodCondition{
+					{Type: corev1.PodReady, Status: corev1.ConditionFalse},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "Ready condition Unknown returns false",
+			status: corev1.PodStatus{
+				Conditions: []corev1.PodCondition{
+					{Type: corev1.PodReady, Status: corev1.ConditionUnknown},
+				},
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsPodReadyConditionTrue(tt.status); got != tt.want {
+				t.Errorf("IsPodReadyConditionTrue() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsPodReady(t *testing.T) {
+	tests := []struct {
+		name string
+		pod  *corev1.Pod
+		want bool
+	}{
+		{
+			name: "no conditions returns false",
+			pod:  &corev1.Pod{},
+			want: false,
+		},
+		{
+			name: "Ready True returns true",
+			pod: &corev1.Pod{
+				Status: corev1.PodStatus{
+					Conditions: []corev1.PodCondition{
+						{Type: corev1.PodReady, Status: corev1.ConditionTrue},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "Ready False returns false",
+			pod: &corev1.Pod{
+				Status: corev1.PodStatus{
+					Conditions: []corev1.PodCondition{
+						{Type: corev1.PodReady, Status: corev1.ConditionFalse},
+					},
+				},
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsPodReady(tt.pod); got != tt.want {
+				t.Errorf("IsPodReady() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
