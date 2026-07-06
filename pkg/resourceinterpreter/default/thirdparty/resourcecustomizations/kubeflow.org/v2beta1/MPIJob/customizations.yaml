@@ -219,3 +219,29 @@ spec:
 
           return status
         end
+    dependencyInterpretation:
+      luaScript: >
+        local kube = require("kube")
+        function GetDependencies(desiredObj)
+          local refs = {}
+
+          if desiredObj.spec == nil or desiredObj.spec.mpiReplicaSpecs == nil then
+            return refs
+          end
+
+          -- Iterate all MPIJob replica types
+          local replicaTypes = {"Launcher", "Worker"}
+          for _, replicaType in ipairs(replicaTypes) do
+            local spec = desiredObj.spec.mpiReplicaSpecs[replicaType]
+            if spec ~= nil and spec.template ~= nil then
+              local deps = kube.getPodDependencies(spec.template, desiredObj.metadata.namespace)
+              if deps ~= nil then
+                for _, dep in ipairs(deps) do
+                  table.insert(refs, dep)
+                end
+              end
+            end
+          end
+
+          return refs
+        end
