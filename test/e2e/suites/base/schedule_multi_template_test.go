@@ -95,6 +95,9 @@ var _ = ginkgo.Describe("[ScheduleMultiTemplate] schedule multi template resourc
 				ginkgo.DeferCleanup(func() {
 					framework.RemoveCRD(dynamicClient, flinkDeploymentCRD.Name)
 					framework.WaitCRDDisappeared(dynamicClient, flinkDeploymentCRD.Name)
+					framework.WaitCRDDisappearedOnClusters(framework.ClusterNames(), flinkDeploymentCRD.Name)
+					framework.WaitCRDDisappearedFromClusterStatus(karmadaClient, framework.ClusterNames(),
+						fmt.Sprintf("%s/%s", flinkDeploymentCRD.Spec.Group, "v1beta1"), flinkDeploymentCRD.Spec.Names.Kind)
 				})
 			})
 		})
