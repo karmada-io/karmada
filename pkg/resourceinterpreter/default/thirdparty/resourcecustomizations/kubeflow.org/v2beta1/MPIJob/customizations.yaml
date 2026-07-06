@@ -229,10 +229,7 @@ spec:
             return refs
           end
 
-          -- Iterate all MPIJob replica types
-          local replicaTypes = {"Launcher", "Worker"}
-          for _, replicaType in ipairs(replicaTypes) do
-            local spec = desiredObj.spec.mpiReplicaSpecs[replicaType]
+          for _, spec in pairs(desiredObj.spec.mpiReplicaSpecs) do
             if spec ~= nil and spec.template ~= nil then
               local deps = kube.getPodDependencies(spec.template, desiredObj.metadata.namespace)
               if deps ~= nil then
