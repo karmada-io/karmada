@@ -145,8 +145,9 @@ func (c *ScalingJob) ScaleFHPA(cronFHPA *autoscalingv1alpha1.CronFederatedHPA) e
 		fhpa.Spec.MaxReplicas = *c.rule.TargetMaxReplicas
 		update = true
 	}
-	if c.rule.TargetMinReplicas != nil && *fhpa.Spec.MinReplicas != *c.rule.TargetMinReplicas {
-		*fhpa.Spec.MinReplicas = *c.rule.TargetMinReplicas
+	if c.rule.TargetMinReplicas != nil && (fhpa.Spec.MinReplicas == nil || *fhpa.Spec.MinReplicas != *c.rule.TargetMinReplicas) {
+		targetMinReplicas := *c.rule.TargetMinReplicas
+		fhpa.Spec.MinReplicas = &targetMinReplicas
 		update = true
 	}
 
