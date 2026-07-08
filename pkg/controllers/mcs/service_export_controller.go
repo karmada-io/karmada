@@ -179,6 +179,7 @@ func (c *ServiceExportController) enqueueReportedEpsServiceExport() {
 	workList := &workv1alpha1.WorkList{}
 	ctx := c.Context
 	if ctx == nil {
+		klog.Warning("ServiceExportController.Context is nil, falling back to context.Background() which may cause goroutine leaks on shutdown")
 		ctx = context.Background()
 	}
 
