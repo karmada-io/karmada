@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	discoveryv1 "k8s.io/api/discovery/v1"
@@ -190,6 +191,31 @@ func TestCleanEndpointSliceWork(t *testing.T) {
 			err := cleanEndpointSliceWork(ctx, c, work)
 			tt.verify(t, c, work, err)
 		})
+	}
+}
+
+func TestEnqueueReportedEpsServiceExportStopsOnControllerShutdown(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	controller := &ServiceExportController{
+		Client: &mockErrorClient{
+			Client:    fake.NewClientBuilder().WithScheme(newTestScheme()).Build(),
+			listError: fmt.Errorf("transient list failure"),
+		},
+		Context: ctx,
+	}
+
+	doneCh := make(chan struct{})
+	go func() {
+		controller.enqueueReportedEpsServiceExport()
+		close(doneCh)
+	}()
+
+	cancel()
+
+	select {
+	case <-doneCh:
+	case <-time.After(2 * time.Second):
+		t.Fatal("enqueueReportedEpsServiceExport did not stop after controller context cancellation")
 	}
 }
 
