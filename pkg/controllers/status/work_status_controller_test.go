@@ -34,7 +34,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/uuid"
-	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
@@ -49,6 +48,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/default/native"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
+	dynamicfake "github.com/karmada-io/karmada/pkg/util/dynamic/adapter/fake"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
@@ -565,6 +565,10 @@ func newPod(workNs, workName string, wrongAnnotations ...bool) *corev1.Pod {
 	return pod
 }
 
+type fakeDynamicClusterClients struct {
+	dynamic *dynamicfake.FakeDynamicClient
+}
+
 func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 	cluster := newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse)
 	workName := "work"
@@ -706,7 +710,7 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 
 			var c WorkStatusController
 			if tt.controllerWithoutInformer {
-				c = newWorkStatusController(cluster, dynamicClientSet)
+				c = newWorkStatusController(cluster, fakeDynamicClusterClients{dynamic: dynamicClientSet})
 			} else {
 				c = newWorkStatusController(cluster)
 			}
@@ -736,7 +740,7 @@ func TestWorkStatusController_syncWorkStatus(t *testing.T) {
 	}
 }
 
-func newWorkStatusController(cluster *clusterv1alpha1.Cluster, dynamicClientSets ...*dynamicfake.FakeDynamicClient) WorkStatusController {
+func newWorkStatusController(cluster *clusterv1alpha1.Cluster, dynamicClientSets ...fakeDynamicClusterClients) WorkStatusController {
 	c := WorkStatusController{
 		Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(cluster).WithStatusSubresource().Build(),
 		InformerManager:             genericmanager.GetInstance(),
@@ -762,7 +766,7 @@ func newWorkStatusController(cluster *clusterv1alpha1.Cluster, dynamicClientSets
 
 		// Generate InformerManager
 		clusterName := cluster.Name
-		dynamicClientSet := dynamicClientSets[0]
+		dynamicClientSet := dynamicClientSets[0].dynamic
 		// Generate ResourceInterpreter and ObjectWatcher
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()

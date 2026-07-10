@@ -42,6 +42,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/util"
+	utildynamic "github.com/karmada-io/karmada/pkg/util/dynamic"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 	"github.com/karmada-io/karmada/pkg/util/names"
@@ -343,7 +344,7 @@ func FetchResourceTemplatesByLabelSelector(
 	restMapper meta.RESTMapper,
 	resource workv1alpha2.ObjectReference,
 	selector labels.Selector,
-) ([]*unstructured.Unstructured, error) {
+) ([]utildynamic.Metadata, error) {
 	gvr, err := restmapper.GetGroupVersionResource(restMapper, schema.FromAPIVersionAndKind(resource.APIVersion, resource.Kind))
 	if err != nil {
 		klog.Errorf("Failed to get GVR from GVK(%s/%s), Error: %v", resource.APIVersion, resource.Kind, err)
@@ -356,7 +357,7 @@ func FetchResourceTemplatesByLabelSelector(
 	} else {
 		objectList, err = informerManager.Lister(gvr).ByNamespace(resource.Namespace).List(selector)
 	}
-	var objects []*unstructured.Unstructured
+	var objects []utildynamic.Metadata
 	if err != nil || len(objectList) == 0 {
 		// fall back to call api server in case the cache has not been synchronized yet
 		klog.Warningf("Failed to get resource template (%s/%s/%s) from cache, Error: %v. Fall back to call api server.",
@@ -373,14 +374,21 @@ func FetchResourceTemplatesByLabelSelector(
 	}
 
 	for i := range objectList {
-		unstructuredObj, err := ToUnstructured(objectList[i])
+		object, err := toResourceTemplateObject(objectList[i])
 		if err != nil {
 			klog.Errorf("Failed to transform object(%s/%s), Error: %v", resource.Namespace, resource.Name, err)
 			return nil, err
 		}
-		objects = append(objects, unstructuredObj)
+		objects = append(objects, object)
 	}
 	return objects, nil
+}
+
+func toResourceTemplateObject(object runtime.Object) (utildynamic.Metadata, error) {
+	if object, ok := object.(utildynamic.Metadata); ok {
+		return object, nil
+	}
+	return ToUnstructured(object)
 }
 
 // GetClusterResourceBindings returns a ClusterResourceBindingList by labels.

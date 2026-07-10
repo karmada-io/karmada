@@ -48,6 +48,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/dynamic"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
@@ -158,8 +159,15 @@ func (c *WorkStatusController) RunWorkQueue() {
 
 // generateKey generates a key from obj, the key contains cluster, GVK, namespace and name.
 func generateKey(obj any) (util.QueueKey, error) {
-	resource := obj.(*unstructured.Unstructured)
-	cluster, err := getClusterNameFromAnnotation(resource)
+	o, ok := obj.(dynamic.Metadata)
+	if !ok {
+		resource, err := helper.ToUnstructured(obj)
+		if err != nil {
+			return nil, err
+		}
+		o = resource
+	}
+	cluster, err := getClusterNameFromAnnotation(o)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +180,7 @@ func generateKey(obj any) (util.QueueKey, error) {
 }
 
 // getClusterNameFromAnnotation gets cluster name from ownerLabel, if label not exist, means resource is not created by karmada.
-func getClusterNameFromAnnotation(resource *unstructured.Unstructured) (string, error) {
+func getClusterNameFromAnnotation(resource dynamic.Metadata) (string, error) {
 	workNamespace, exist := resource.GetAnnotations()[workv1alpha2.WorkNamespaceAnnotation]
 	if !exist {
 		klog.V(5).InfoS("Ignore resource which is not managed by Karmada.", "kind", resource.GetKind(), "namespace", resource.GetNamespace(), "name", resource.GetName())

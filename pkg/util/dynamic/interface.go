@@ -20,6 +20,7 @@ import (
 	"context"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
@@ -52,4 +53,17 @@ type ResourceInterface interface {
 type NamespaceableResourceInterface interface {
 	Namespace(string) ResourceInterface
 	ResourceInterface
+}
+
+// Metadata provides access to Kubernetes type and object metadata.
+type Metadata interface {
+	metav1.Type
+	metav1.Object
+}
+
+// Object is a full Kubernetes runtime object with metadata access.
+type Object interface {
+	metav1.Type
+	metav1.Object
+	runtime.Object
 }

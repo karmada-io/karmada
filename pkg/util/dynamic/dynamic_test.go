@@ -119,6 +119,18 @@ func TestRawObjectMetadataAndListSemantics(t *testing.T) {
 	if rawItem.APIVersion != "apps/v1" || rawItem.Kind != "Deployment" {
 		t.Fatalf("unexpected inferred item gvk: %s", rawItem.GroupVersionKind())
 	}
+
+	withoutGVK, err := dynamic.NewRawObjectList([]byte(`{"apiVersion":"apps/v1","kind":"DeploymentList","metadata":{"resourceVersion":"11"},"items":[{"metadata":{"namespace":"default","name":"demo"},"spec":{"replicas":3}}]}`))
+	if err != nil {
+		t.Fatalf("NewRawObjectList() item without gvk error = %v", err)
+	}
+	u, err := withoutGVK.Items[0].ToUnstructured()
+	if err != nil {
+		t.Fatalf("ToUnstructured() item without gvk error = %v", err)
+	}
+	if u.GetAPIVersion() != "apps/v1" || u.GetKind() != "Deployment" {
+		t.Fatalf("ToUnstructured() lost inferred item gvk: %s", u.GroupVersionKind())
+	}
 }
 
 func TestRawObjectToUnstructuredPreservesIntegerNumbers(t *testing.T) {
