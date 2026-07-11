@@ -26,6 +26,7 @@ import (
 	"strings"
 	"testing"
 
+	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apiserver/pkg/authentication/user"
@@ -111,7 +112,72 @@ users:
 			},
 			wantErr: false,
 		},
-		// TODO: Update ConfigMap if it exists.
+		{
+			name:    "CreateBootstrapConfigMapIfNotExists_ConfigMapAlreadyExists_ConfigMapUpdated",
+			client: fakeclientset.NewClientset(&corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      bootstrapapi.ConfigMapClusterInfo,
+					Namespace: metav1.NamespacePublic,
+				},
+				Data: map[string]string{
+					bootstrapapi.KubeConfigKey: "stale-kubeconfig-data",
+				},
+			}),
+			cfgFile: filepath.Join(os.TempDir(), "config-update-temp.txt"),
+			prep: func(cfgFile string) error {
+				caKarmadaCert, err := certs.NewCertificateAuthority(certs.KarmadaCertAdmin())
+				if err != nil {
+					return fmt.Errorf("NewCertificateAuthority() returned an error: %v", err)
+				}
+
+				cfg := fmt.Sprintf(
+					`apiVersion: v1
+clusters:
+- cluster:
+    certificate-authority-data: %s
+    server: https://test-cluster:6443
+  name: test-cluster
+contexts:
+- context:
+    cluster: test-cluster
+    user: test-user
+  name: test-context
+current-context: test-context
+kind: Config
+preferences: {}
+users:
+- name: test-user
+  user:
+    client-certificate-data: %s
+    client-key-data: %s
+`,
+					base64.StdEncoding.EncodeToString(caKarmadaCert.CertData()),
+					base64.StdEncoding.EncodeToString(caKarmadaCert.CertData()),
+					base64.StdEncoding.EncodeToString(caKarmadaCert.KeyData()),
+				)
+
+				return os.WriteFile(cfgFile, []byte(cfg), 0600)
+			},
+			cleanup: func(cfgFile string) error {
+				return os.Remove(cfgFile)
+			},
+			verify: func(c kubernetes.Interface) error {
+				configMap, err := c.CoreV1().ConfigMaps(metav1.NamespacePublic).Get(
+					context.TODO(), bootstrapapi.ConfigMapClusterInfo, metav1.GetOptions{})
+				if err != nil {
+					return fmt.Errorf("failed to get configmap %s: %v", bootstrapapi.ConfigMapClusterInfo, err)
+				}
+				kubeconfig, ok := configMap.Data[bootstrapapi.KubeConfigKey]
+				if !ok {
+					return fmt.Errorf("expected key %s in configmap data", bootstrapapi.KubeConfigKey)
+				}
+				if kubeconfig == "stale-kubeconfig-data" {
+					return fmt.Errorf("configmap was not updated: still contains stale data")
+				}
+				return nil
+			},
+			wantErr: false,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
