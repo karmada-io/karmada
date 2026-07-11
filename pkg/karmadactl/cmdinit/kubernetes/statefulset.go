@@ -263,6 +263,7 @@ func (i *CommandInitOption) makeETCDStatefulSet() *appsv1.StatefulSet {
 	}
 
 	if i.EtcdStorageMode == "hostPath" {
+		podSpec.Tolerations = append([]corev1.Toleration{}, defaultEtcdTolerations...)
 		if i.EtcdNodeSelectorLabelsMap != nil {
 			podSpec.NodeSelector = i.EtcdNodeSelectorLabelsMap
 		} else {
