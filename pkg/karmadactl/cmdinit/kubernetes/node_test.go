@@ -101,6 +101,11 @@ func Test_nodeStatus(t *testing.T) {
 		isHealth       bool
 	}{
 		{
+			name:           "node is missing ready condition",
+			nodeConditions: nil,
+			isHealth:       false,
+		},
+		{
 			name: "node is ready",
 			nodeConditions: []corev1.NodeCondition{
 				{Type: corev1.NodeReady, Status: corev1.ConditionTrue},
@@ -117,6 +122,7 @@ func Test_nodeStatus(t *testing.T) {
 		{
 			name: "node's memory pressure is true",
 			nodeConditions: []corev1.NodeCondition{
+				{Type: corev1.NodeReady, Status: corev1.ConditionTrue},
 				{Type: corev1.NodeMemoryPressure, Status: corev1.ConditionTrue},
 			},
 			isHealth: false,
@@ -124,6 +130,7 @@ func Test_nodeStatus(t *testing.T) {
 		{
 			name: "node's memory pressure is false",
 			nodeConditions: []corev1.NodeCondition{
+				{Type: corev1.NodeReady, Status: corev1.ConditionTrue},
 				{Type: corev1.NodeMemoryPressure, Status: corev1.ConditionFalse},
 			},
 			isHealth: true,
@@ -131,6 +138,7 @@ func Test_nodeStatus(t *testing.T) {
 		{
 			name: "node's disk pressure is true",
 			nodeConditions: []corev1.NodeCondition{
+				{Type: corev1.NodeReady, Status: corev1.ConditionTrue},
 				{Type: corev1.NodeDiskPressure, Status: corev1.ConditionTrue},
 			},
 			isHealth: false,
@@ -138,6 +146,7 @@ func Test_nodeStatus(t *testing.T) {
 		{
 			name: "node's disk pressure is false",
 			nodeConditions: []corev1.NodeCondition{
+				{Type: corev1.NodeReady, Status: corev1.ConditionTrue},
 				{Type: corev1.NodeDiskPressure, Status: corev1.ConditionFalse},
 			},
 			isHealth: true,
@@ -145,6 +154,7 @@ func Test_nodeStatus(t *testing.T) {
 		{
 			name: "node's network unavailable is false",
 			nodeConditions: []corev1.NodeCondition{
+				{Type: corev1.NodeReady, Status: corev1.ConditionTrue},
 				{Type: corev1.NodeNetworkUnavailable, Status: corev1.ConditionFalse},
 			},
 			isHealth: true,
@@ -152,6 +162,7 @@ func Test_nodeStatus(t *testing.T) {
 		{
 			name: "node's network unavailable is true",
 			nodeConditions: []corev1.NodeCondition{
+				{Type: corev1.NodeReady, Status: corev1.ConditionTrue},
 				{Type: corev1.NodeNetworkUnavailable, Status: corev1.ConditionTrue},
 			},
 			isHealth: false,
@@ -159,6 +170,7 @@ func Test_nodeStatus(t *testing.T) {
 		{
 			name: "node's pid pressure is false",
 			nodeConditions: []corev1.NodeCondition{
+				{Type: corev1.NodeReady, Status: corev1.ConditionTrue},
 				{Type: corev1.NodePIDPressure, Status: corev1.ConditionFalse},
 			},
 			isHealth: true,
@@ -166,6 +178,7 @@ func Test_nodeStatus(t *testing.T) {
 		{
 			name: "node's pid pressure is true",
 			nodeConditions: []corev1.NodeCondition{
+				{Type: corev1.NodeReady, Status: corev1.ConditionTrue},
 				{Type: corev1.NodePIDPressure, Status: corev1.ConditionTrue},
 			},
 			isHealth: false,
@@ -182,18 +195,20 @@ func Test_nodeStatus(t *testing.T) {
 
 func TestCommandInitOption_AddNodeSelectorLabels(t *testing.T) {
 	tests := []struct {
-		name    string
-		option  CommandInitOption
-		status  corev1.ConditionStatus
-		spec    corev1.NodeSpec
-		wantErr bool
+		name       string
+		option     CommandInitOption
+		conditions []corev1.NodeCondition
+		spec       corev1.NodeSpec
+		wantErr    bool
 	}{
 		{
 			name: "there is healthy node",
 			option: CommandInitOption{
 				KubeClientSet: fake.NewClientset(),
 			},
-			status:  corev1.ConditionTrue,
+			conditions: []corev1.NodeCondition{
+				{Type: corev1.NodeReady, Status: corev1.ConditionTrue},
+			},
 			spec:    corev1.NodeSpec{},
 			wantErr: false,
 		},
@@ -202,7 +217,20 @@ func TestCommandInitOption_AddNodeSelectorLabels(t *testing.T) {
 			option: CommandInitOption{
 				KubeClientSet: fake.NewClientset(),
 			},
-			status:  corev1.ConditionFalse,
+			conditions: []corev1.NodeCondition{
+				{Type: corev1.NodeReady, Status: corev1.ConditionFalse},
+			},
+			spec:    corev1.NodeSpec{},
+			wantErr: true,
+		},
+		{
+			name: "there is node missing ready condition",
+			option: CommandInitOption{
+				KubeClientSet: fake.NewClientset(),
+			},
+			conditions: []corev1.NodeCondition{
+				{Type: corev1.NodeMemoryPressure, Status: corev1.ConditionFalse},
+			},
 			spec:    corev1.NodeSpec{},
 			wantErr: true,
 		},
@@ -211,7 +239,9 @@ func TestCommandInitOption_AddNodeSelectorLabels(t *testing.T) {
 			option: CommandInitOption{
 				KubeClientSet: fake.NewClientset(),
 			},
-			status: corev1.ConditionTrue,
+			conditions: []corev1.NodeCondition{
+				{Type: corev1.NodeReady, Status: corev1.ConditionTrue},
+			},
 			spec: corev1.NodeSpec{
 				Taints: []corev1.Taint{
 					{
@@ -227,9 +257,7 @@ func TestCommandInitOption_AddNodeSelectorLabels(t *testing.T) {
 			_, err := tt.option.KubeClientSet.CoreV1().Nodes().Create(context.Background(), &corev1.Node{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-node"},
 				Status: corev1.NodeStatus{
-					Conditions: []corev1.NodeCondition{
-						{Type: corev1.NodeReady, Status: tt.status},
-					},
+					Conditions: tt.conditions,
 				},
 				Spec: tt.spec,
 			}, metav1.CreateOptions{})
