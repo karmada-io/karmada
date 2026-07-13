@@ -217,6 +217,9 @@ var _ = framework.SerialDescribe("[EstimatorAssumption] ResourceQuota plugin ass
 			ginkgo.DeferCleanup(func() {
 				framework.RemoveCRD(dynamicClient, flinkCRD.Name)
 				framework.WaitCRDDisappeared(dynamicClient, flinkCRD.Name)
+				framework.WaitCRDDisappearedOnClusters([]string{targetCluster}, flinkCRD.Name)
+				framework.WaitCRDDisappearedFromClusterStatus(karmadaClient, []string{targetCluster},
+					fmt.Sprintf("%s/%s", flinkCRD.Spec.Group, "v1beta1"), flinkCRD.Spec.Names.Kind)
 			})
 		})
 
@@ -390,6 +393,9 @@ var _ = framework.SerialDescribe("[EstimatorAssumption] NodeResource plugin assu
 			ginkgo.DeferCleanup(func() {
 				framework.RemoveCRD(dynamicClient, flinkCRD.Name)
 				framework.WaitCRDDisappeared(dynamicClient, flinkCRD.Name)
+				framework.WaitCRDDisappearedOnClusters([]string{targetCluster}, flinkCRD.Name)
+				framework.WaitCRDDisappearedFromClusterStatus(karmadaClient, []string{targetCluster},
+					fmt.Sprintf("%s/%s", flinkCRD.Spec.Group, "v1beta1"), flinkCRD.Spec.Names.Kind)
 			})
 		})
 	})

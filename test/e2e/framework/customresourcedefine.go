@@ -118,6 +118,22 @@ func WaitCRDDisappearedOnClusters(clusters []string, crdName string) {
 	})
 }
 
+// WaitCRDDisappearedFromClusterStatus waits until the APIEnablements collected from member clusters
+// no longer report the specified CRD as enabled.
+func WaitCRDDisappearedFromClusterStatus(client karmada.Interface, clusters []string, crdAPIVersion, crdKind string) {
+	ginkgo.By(fmt.Sprintf("Check if crd(%s/%s) disappeared from cluster APIEnablements", crdAPIVersion, crdKind), func() {
+		gvk := schema.FromAPIVersionAndKind(crdAPIVersion, crdKind)
+		for _, clusterName := range clusters {
+			klog.Infof("Waiting for crd(%s/%s) disappeared from cluster(%s) APIEnablements", crdAPIVersion, crdKind, clusterName)
+			gomega.Eventually(func(g gomega.Gomega) (bool, error) {
+				cluster, err := FetchCluster(client, clusterName)
+				g.Expect(err).NotTo(gomega.HaveOccurred())
+				return cluster.APIEnablement(gvk) != clusterv1alpha1.APIEnabled, nil
+			}, PollTimeout, PollInterval).Should(gomega.Equal(true))
+		}
+	})
+}
+
 // WaitCRDFitWith wait crd fit with util timeout
 func WaitCRDFitWith(client dynamic.Interface, crdName string, fit func(crd *apiextensionsv1.CustomResourceDefinition) bool) {
 	gomega.Eventually(func() bool {
