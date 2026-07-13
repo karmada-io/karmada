@@ -664,7 +664,7 @@ func getAllocatableModelings(cluster *clusterv1alpha1.Cluster, nodes []*corev1.N
 	for _, node := range nodes {
 		nodeAvailable := getNodeAvailable(node.Status.Allocatable.DeepCopy(), nodePodResourcesMap[node.Name])
 		if nodeAvailable == nil {
-			break
+			continue
 		}
 		modelingSummary.AddToResourceSummary(modeling.NewClusterResourceNode(nodeAvailable))
 	}
