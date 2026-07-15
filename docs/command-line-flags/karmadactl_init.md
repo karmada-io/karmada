@@ -54,6 +54,8 @@ karmadactl init
   # Specify external IPs(load balancer or HA IP) which used to sign the certificate
   karmadactl init --cert-external-ip 10.235.1.2 --cert-external-dns www.karmada.io
   
+  # Rotate certificates that are managed by karmadactl init, keeping other flags consistent with the original installation
+  karmadactl init --cert-mode=rotate
   # Install Karmada using a configuration file
   karmadactl init --config /path/to/your/config/file.yaml
   
@@ -96,10 +98,11 @@ karmadactl init
 ### Options
 
 ```
-      --ca-cert-file string                                     The root CA certificate file which will be used to issue new certificates for Karmada components. If not set, a new self-signed root CA certificate will be generated. This must be used together with --ca-key-file.
-      --ca-key-file string                                      The root CA private key file which will be used to issue new certificates for Karmada components. If not set, a new self-signed root CA key will be generated. This must be used together with --ca-cert-file.
+      --ca-cert-file string                                     The root CA certificate file used to issue Karmada component certificates. In install mode, a new self-signed CA is generated when omitted. In rotate mode, the file must match the existing CA; when omitted, the CA is loaded from the existing Secret. This must be used together with --ca-key-file.
+      --ca-key-file string                                      The root CA private key file used to issue Karmada component certificates. In install mode, a new self-signed CA key is generated when omitted. In rotate mode, the existing CA key is loaded from the Secret when omitted. This must be used together with --ca-cert-file.
       --cert-external-dns string                                the external DNS of Karmada certificate (e.g localhost,localhost.com)
       --cert-external-ip string                                 the external IP of Karmada certificate (e.g 192.168.1.2,172.16.1.2)
+      --cert-mode string                                        The certificate operation mode. Supported values are install and rotate. In rotate mode, external etcd CA and client credentials are preserved and must be rotated separately. (default "install")
       --cert-validity-period duration                           the validity period of Karmada certificate (e.g 8760h0m0s, that is 365 days) (default 8760h0m0s)
       --config string                                           Karmada init file path
       --context string                                          The name of the kubeconfig context to use
