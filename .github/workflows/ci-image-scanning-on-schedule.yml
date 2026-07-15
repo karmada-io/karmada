@@ -11,7 +11,7 @@ jobs:
       security-events: write  # for github/codeql-action/upload-sarif to upload SARIF results
     name: image-scanning
     if: ${{ github.repository == 'karmada-io/karmada' }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -76,7 +76,7 @@ jobs:
           cache: false
           vuln-type: 'os,library'
       - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
+        uses: github/codeql-action/upload-sarif@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4.37.0
         with:
           sarif_file: '${{ matrix.target }}:${{ matrix.karmada-version }}.trivy-results.sarif'
           ref: ${{steps.gen_git_info.outputs.ref}}

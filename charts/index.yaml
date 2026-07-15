@@ -42,6 +42,26 @@ entries:
     - https://github.com/karmada-io/karmada/releases/download/v1.18.0/karmada-chart-v1.18.0.tgz
     version: v1.18.0
   - apiVersion: v2
+    appVersion: v1.17.4
+    created: "2026-07-02T08:50:59.719985551Z"
+    dependencies:
+    - name: common
+      repository: https://charts.bitnami.com/bitnami
+      version: 2.x.x
+    description: A Helm chart for karmada
+    digest: 99969e443934e59d1c49f26cfc937d46717ae13ec0e1b00d175d3f2b223fbd54
+    kubeVersion: '>= 1.16.0-0'
+    maintainers:
+    - email: chaosi@zju.edu.cn
+      name: chaosi-zju
+    - email: amiralavi7@gmail.com
+      name: a7i
+    name: karmada
+    type: application
+    urls:
+    - https://github.com/karmada-io/karmada/releases/download/v1.17.4/karmada-chart-v1.17.4.tgz
+    version: v1.17.4
+  - apiVersion: v2
     appVersion: v1.17.3
     created: "2026-05-30T08:43:06.758217549Z"
     dependencies:
@@ -543,6 +563,28 @@ entries:
     - https://github.com/karmada-io/karmada/releases/download/v1.18.0/karmada-operator-chart-v1.18.0.tgz
     version: v1.18.0
   - apiVersion: v2
+    appVersion: v1.17.4
+    created: "2026-07-02T08:51:00.104009571Z"
+    dependencies:
+    - name: common
+      repository: https://charts.bitnami.com/bitnami
+      version: 2.x.x
+    description: A Helm chart for karmada-operator
+    digest: d012c8d72cfd796fbec1651d965a9880cb409071751c4070424f29722fdad8cb
+    kubeVersion: '>= 1.16.0-0'
+    maintainers:
+    - email: wen.chen@daocloud.io
+      name: calvin0327
+    - email: chaosi@zju.edu.cn
+      name: chaosi-zju
+    - email: amiralavi7@gmail.com
+      name: a7i
+    name: karmada-operator
+    type: application
+    urls:
+    - https://github.com/karmada-io/karmada/releases/download/v1.17.4/karmada-operator-chart-v1.17.4.tgz
+    version: v1.17.4
+  - apiVersion: v2
     appVersion: v1.17.3
     created: "2026-05-30T08:43:07.070395653Z"
     dependencies:
@@ -820,4 +862,4 @@ entries:
     urls:
     - https://github.com/karmada-io/karmada/releases/download/v1.8.0/karmada-operator-chart-v1.8.0.tgz
     version: v1.8.0
-generated: "2026-07-02T07:44:01.069728236Z"
+generated: "2026-07-02T08:51:00.097873921Z"

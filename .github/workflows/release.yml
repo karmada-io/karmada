@@ -10,7 +10,7 @@ jobs:
     permissions:
       contents: write  # for softprops/action-gh-release to create GitHub release
     name: release kubectl-karmada
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         target:
@@ -47,7 +47,7 @@ jobs:
           _output/release/${{ matrix.target }}-${{ matrix.os }}-${{ matrix.arch }}.tgz.sha256
   generate-subject-for-cli-provenance:
     needs: [release-assests]
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     outputs:
       hashes: ${{ steps.hash.outputs.hashes }}
     steps:
@@ -82,7 +82,7 @@ jobs:
     name: release crds
     outputs:
       hashes: ${{ steps.hash.outputs.hashes }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
     - name: Rename the crds directory
@@ -119,7 +119,7 @@ jobs:
     name: Release charts
     outputs:
       hashes: ${{ steps.hash.outputs.hashes }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
     - name: Making helm charts
@@ -158,7 +158,7 @@ jobs:
     name: Release sbom
     outputs:
       hashes: ${{ steps.sbom-hash.outputs.hashes}}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
     - name: Generate sbom for karmada file system
@@ -206,7 +206,7 @@ jobs:
     # 2. running on the forked repository would open a PR to publish an inaccurate version of karmada in repo kubernetes-sigs/krew-index.
     if: ${{ github.repository == 'karmada-io/karmada' }}
     name: Update krew-index
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
     - name: get latest tag
       id: get-latest-tag
