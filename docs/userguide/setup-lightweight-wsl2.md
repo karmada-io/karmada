@@ -426,36 +426,46 @@ It provides a significantly simpler environment for new contributors compared to
 
 ## Tested Environment
 
-The lightweight setup was validated using:
+The lightweight setup was validated using the following environment:
 
-- Windows 11
-- WSL2 Ubuntu
-- Docker Desktop
-- 4 GB WSL2 memory limit
-- 2 vCPUs
-- 2 GB swap
+* Windows 11
+* WSL2 Ubuntu
+* Docker Desktop
+* 4 GB WSL2 memory limit
+* 2 vCPUs
+* 2 GB swap
 
-Using a minimal topology consisting of:
-- 1 Karmada host cluster
-- 1 member cluster
+### Cluster Topology
 
-Successfully verified:
-- Karmada control plane startup
-- Member cluster registration
-- Workload propagation
-- ResourceBinding creation
-- Deployment scheduling
-- Workload execution on the member cluster
+The validation used a minimal topology consisting of:
 
-Observed resource usage:
-- WSL2 memory limit: ~3.8 GiB
-- Memory used after startup: ~2.2 GiB
-- Available memory: ~1.6 GiB
-- Swap usage: ~114 MiB
+* 1 Karmada host cluster
+* 1 member cluster
 
-Docker container memory consumption:
-- karmada-host-control-plane: ~1.4 GiB
-- member1-control-plane: ~686 MiB
+### Validation Results
 
-Note:
-This setup is intended for contributor onboarding, local development, and debugging workflows. It has not been evaluated as a replacement for the full CI-equivalent e2e environment.
+The following functionality was successfully verified:
+
+* Karmada control plane startup
+* Member cluster registration
+* Workload propagation
+* ResourceBinding creation
+* Deployment scheduling
+* Successful workload execution on the member cluster
+
+### Resource Observations
+
+| Resource                      | Observed |
+| ----------------------------- | -------- |
+| WSL2 Memory Limit             | ~3.8 GiB |
+| Memory Used After Startup     | ~2.2 GiB |
+| Available Memory              | ~1.6 GiB |
+| Swap Used                     | ~114 MiB |
+| Host Cluster CPU Usage        | ~20%     |
+| Member Cluster CPU Usage      | ~7%      |
+| Host Cluster Memory           | ~1.4 GiB |
+| Member Cluster Memory         | ~686 MiB |
+| Host Cluster Writable Layer   | ~105 MB  |
+| Member Cluster Writable Layer | ~3.6 MB  |
+
+> **Note:** The lightweight setup was validated for contributor onboarding, local development, and debugging workflows. Overall Docker image cache and filesystem usage depend on the developer's local environment and are therefore not included as baseline requirements. This configuration has not been evaluated as a replacement for the full CI-equivalent end-to-end (e2e) test environment.
