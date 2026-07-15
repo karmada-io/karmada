@@ -422,8 +422,6 @@ This lightweight setup is useful for:
 
 It provides a significantly simpler environment for new contributors compared to the default multi-cluster local setup.
 
-
-
 ## Tested Environment
 
 The lightweight setup was validated using the following environment:
