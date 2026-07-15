@@ -48,6 +48,7 @@ type Patcher struct {
 	resources         corev1.ResourceRequirements
 	tolerations       []corev1.Toleration
 	affinity          *corev1.Affinity
+	schedulingGates   []corev1.PodSchedulingGate
 }
 
 // NewPatcher returns a patcher.
@@ -127,6 +128,12 @@ func (p *Patcher) WithAffinity(affinity *corev1.Affinity) *Patcher {
 	return p
 }
 
+// WithSchedulingGates sets schedulingGates to the patcher.
+func (p *Patcher) WithSchedulingGates(schedulingGates []corev1.PodSchedulingGate) *Patcher {
+	p.schedulingGates = schedulingGates
+	return p
+}
+
 // ForDeployment patches the deployment manifest.
 func (p *Patcher) ForDeployment(deployment *appsv1.Deployment) {
 	deployment.Labels = labels.Merge(deployment.Labels, p.labels)
@@ -141,6 +148,9 @@ func (p *Patcher) ForDeployment(deployment *appsv1.Deployment) {
 	}
 	if len(p.tolerations) > 0 {
 		deployment.Spec.Template.Spec.Tolerations = p.tolerations
+	}
+	if len(p.schedulingGates) > 0 {
+		deployment.Spec.Template.Spec.SchedulingGates = p.schedulingGates
 	}
 
 	if p.resources.Size() > 0 {
@@ -192,6 +202,9 @@ func (p *Patcher) ForStatefulSet(sts *appsv1.StatefulSet) {
 	}
 	if len(p.tolerations) > 0 {
 		sts.Spec.Template.Spec.Tolerations = p.tolerations
+	}
+	if len(p.schedulingGates) > 0 {
+		sts.Spec.Template.Spec.SchedulingGates = p.schedulingGates
 	}
 
 	if p.volume != nil {
