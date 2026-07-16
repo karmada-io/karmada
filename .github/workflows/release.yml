@@ -89,12 +89,7 @@ jobs:
       run: |
         mv ./charts/karmada/_crds ./charts/karmada/crds
     - name: Tar the crds
-      uses: a7ul/tar-action@ed9cbd44fc9276db29ea2fb1f8adf3d7e0691589 # v1.2.0
-      with:
-        command: c
-        cwd: ./charts/karmada/
-        files: crds
-        outPath: crds.tar.gz
+      run: tar -czf crds.tar.gz -C ./charts/karmada crds
     - name: generate crds hash
       id: hash
       run: |
