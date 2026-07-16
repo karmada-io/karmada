@@ -1136,28 +1136,23 @@ func Test_syncCluster_enqueuesBindingsCorrectly(t *testing.T) {
 		name  string
 		delay time.Duration
 	}
-	var bindingRecords []enqueueRecord
-	bindingRecorder := &recordingWorker{
-		addAfterFunc: func(item any, delay time.Duration) {
-			if k, ok := item.(keys.FederatedKey); ok {
-				bindingRecords = append(bindingRecords, enqueueRecord{name: k.Name, delay: delay})
-			}
-		},
+	// recordEnqueues builds a worker that records enqueued keys into the given slice.
+	recordEnqueues := func(records *[]enqueueRecord) *recordingWorker {
+		return &recordingWorker{
+			addAfterFunc: func(item any, delay time.Duration) {
+				if k, ok := item.(keys.FederatedKey); ok {
+					*records = append(*records, enqueueRecord{name: k.Name, delay: delay})
+				}
+			},
+		}
 	}
-	var clusterBindingRecords []enqueueRecord
-	clusterBindingRecorder := &recordingWorker{
-		addAfterFunc: func(item any, delay time.Duration) {
-			if k, ok := item.(keys.FederatedKey); ok {
-				clusterBindingRecords = append(clusterBindingRecords, enqueueRecord{name: k.Name, delay: delay})
-			}
-		},
-	}
+	var bindingRecords, clusterBindingRecords []enqueueRecord
 
 	tc := &NoExecuteTaintManager{
 		Client:                       fakeClient,
 		EnableNoExecuteTaintEviction: true,
-		bindingEvictionWorker:        bindingRecorder,
-		clusterBindingEvictionWorker: clusterBindingRecorder,
+		bindingEvictionWorker:        recordEnqueues(&bindingRecords),
+		clusterBindingEvictionWorker: recordEnqueues(&clusterBindingRecords),
 	}
 
 	_, err := tc.syncCluster(context.Background(), cluster)
@@ -1165,38 +1160,44 @@ func Test_syncCluster_enqueuesBindingsCorrectly(t *testing.T) {
 		t.Fatalf("syncCluster() error = %v", err)
 	}
 
-	enqueued := make(map[string]time.Duration)
-	for _, r := range bindingRecords {
-		enqueued[r.name] = r.delay
+	tests := []struct {
+		bindingName string
+		records     *[]enqueueRecord
+		wantAction  string // "skip" (not enqueued), "immediate" (delay=0), "delayed" (delay>0)
+	}{
+		{bindingName: "infinite-rb", records: &bindingRecords, wantAction: "skip"},
+		{bindingName: "finite-rb", records: &bindingRecords, wantAction: "delayed"},
+		{bindingName: "no-toleration-rb", records: &bindingRecords, wantAction: "immediate"},
+		// ClusterResourceBindings must be routed to the clusterBindingEvictionWorker,
+		// not the bindingEvictionWorker.
+		{bindingName: "no-toleration-crb", records: &clusterBindingRecords, wantAction: "immediate"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.bindingName, func(t *testing.T) {
+			gotAction := "skip"
+			for _, r := range *tt.records {
+				if r.name != tt.bindingName {
+					continue
+				}
+				if r.delay > 0 {
+					gotAction = "delayed"
+				} else {
+					gotAction = "immediate"
+				}
+				break
+			}
+			if gotAction != tt.wantAction {
+				t.Errorf("binding %s: enqueue action = %s, want %s", tt.bindingName, gotAction, tt.wantAction)
+			}
+		})
 	}
 
-	if _, ok := enqueued["infinite-rb"]; ok {
-		t.Error("binding with infinite toleration should NOT have been enqueued")
-	}
-	if delay, ok := enqueued["finite-rb"]; !ok {
-		t.Error("binding with finite toleration should have been enqueued")
-	} else if delay <= 0 {
-		t.Errorf("binding with finite toleration should have delay > 0, got %v", delay)
-	}
-	if delay, ok := enqueued["no-toleration-rb"]; !ok {
-		t.Error("binding with no toleration should have been enqueued")
-	} else if delay != 0 {
-		t.Errorf("binding with no toleration should have delay == 0 (immediate), got %v", delay)
-	}
+	// No unexpected extra items should be enqueued.
 	if len(bindingRecords) != 2 {
 		t.Errorf("expected 2 ResourceBindings enqueued to bindingEvictionWorker, got %d", len(bindingRecords))
 	}
-
-	// ClusterResourceBindings must be routed to the clusterBindingEvictionWorker,
-	// not the bindingEvictionWorker.
 	if len(clusterBindingRecords) != 1 {
-		t.Fatalf("expected 1 ClusterResourceBinding enqueued to clusterBindingEvictionWorker, got %d", len(clusterBindingRecords))
-	}
-	if clusterBindingRecords[0].name != "no-toleration-crb" {
-		t.Errorf("expected no-toleration-crb enqueued, got %s", clusterBindingRecords[0].name)
-	}
-	if clusterBindingRecords[0].delay != 0 {
-		t.Errorf("ClusterResourceBinding with no toleration should have delay == 0 (immediate), got %v", clusterBindingRecords[0].delay)
+		t.Errorf("expected 1 ClusterResourceBinding enqueued to clusterBindingEvictionWorker, got %d", len(clusterBindingRecords))
 	}
 }
 
