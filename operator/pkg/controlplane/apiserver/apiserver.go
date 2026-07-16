@@ -91,7 +91,7 @@ func installKarmadaAPIServer(client clientset.Interface, cfg *operatorv1alpha1.K
 		WithTolerations(cfg.CommonSettings.Tolerations).WithAffinity(cfg.CommonSettings.Affinity).ForDeployment(apiserverDeployment)
 
 	if apiserverDeployment, err = apiclient.CreateOrUpdateDeployment(client, apiserverDeployment); err != nil {
-		return fmt.Errorf("error when creating deployment for %s, err: %w", apiserverDeployment.Name, err)
+		return fmt.Errorf("error when creating deployment for %s, err: %w", util.KarmadaAPIServerName(name), err)
 	}
 
 	ownerRef := *metav1.NewControllerRef(apiserverDeployment, DeploymentGVK)
@@ -169,7 +169,7 @@ func installKarmadaAggregatedAPIServer(client clientset.Interface, cfg *operator
 		WithTolerations(cfg.CommonSettings.Tolerations).WithAffinity(cfg.CommonSettings.Affinity).ForDeployment(aggregatedAPIServerDeployment)
 
 	if aggregatedAPIServerDeployment, err = apiclient.CreateOrUpdateDeployment(client, aggregatedAPIServerDeployment); err != nil {
-		return fmt.Errorf("error when creating deployment for %s, err: %w", aggregatedAPIServerDeployment.Name, err)
+		return fmt.Errorf("error when creating deployment for %s, err: %w", util.KarmadaAggregatedAPIServerName(name), err)
 	}
 
 	ownerRef := *metav1.NewControllerRef(aggregatedAPIServerDeployment, DeploymentGVK)

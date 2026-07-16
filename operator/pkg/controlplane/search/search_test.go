@@ -16,10 +16,14 @@ package search
 import (
 	"fmt"
 	"slices"
+	"strings"
 	"testing"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	fakeclientset "k8s.io/client-go/kubernetes/fake"
 	coretesting "k8s.io/client-go/testing"
 
@@ -27,6 +31,51 @@ import (
 	"github.com/karmada-io/karmada/operator/pkg/constants"
 	"github.com/karmada-io/karmada/operator/pkg/util"
 )
+
+// TestEnsureKarmadaSearch_CreateDeploymentError verifies that a deployment
+// creation failure (e.g. rejected by the API server due to an invalid spec)
+// is returned as a wrapped error instead of causing a nil pointer panic.
+func TestEnsureKarmadaSearch_CreateDeploymentError(t *testing.T) {
+	var replicas int32 = 2
+	image, imageTag := "docker.io/karmada/karmada-search", "latest"
+	name := "karmada-demo"
+	namespace := "test"
+	imagePullPolicy := corev1.PullIfNotPresent
+	annotations := map[string]string{"annotationKey": "annotationValue"}
+	labels := map[string]string{"labelKey": "labelValue"}
+	extraArgs := map[string]string{"cmd1": "arg1", "cmd2": "arg2"}
+
+	cfg := &operatorv1alpha1.KarmadaSearch{
+		CommonSettings: operatorv1alpha1.CommonSettings{
+			Image: operatorv1alpha1.Image{
+				ImageRepository: image,
+				ImageTag:        imageTag,
+			},
+			Replicas:        new(replicas),
+			Annotations:     annotations,
+			Labels:          labels,
+			Resources:       corev1.ResourceRequirements{},
+			ImagePullPolicy: imagePullPolicy,
+		},
+		ExtraArgs: extraArgs,
+	}
+	etcdCfg := &operatorv1alpha1.Etcd{
+		Local: &operatorv1alpha1.LocalEtcd{},
+	}
+
+	fakeClient := fakeclientset.NewClientset()
+	fakeClient.PrependReactor("create", "deployments", func(coretesting.Action) (bool, runtime.Object, error) {
+		return true, nil, apierrors.NewInvalid(schema.GroupKind{Group: "apps", Kind: "Deployment"}, util.KarmadaSearchName(name), nil)
+	})
+
+	err := EnsureKarmadaSearch(fakeClient, cfg, etcdCfg, name, namespace, map[string]bool{})
+	if err == nil {
+		t.Fatalf("expected an error, but got nil")
+	}
+	if !strings.Contains(err.Error(), util.KarmadaSearchName(name)) {
+		t.Errorf("expected error to reference deployment name %q, got: %v", util.KarmadaSearchName(name), err)
+	}
+}
 
 func TestEnsureKarmadaSearch(t *testing.T) {
 	var replicas int32 = 2

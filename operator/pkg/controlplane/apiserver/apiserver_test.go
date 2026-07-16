@@ -19,10 +19,14 @@ package apiserver
 import (
 	"fmt"
 	"slices"
+	"strings"
 	"testing"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	fakeclientset "k8s.io/client-go/kubernetes/fake"
 	coretesting "k8s.io/client-go/testing"
 
@@ -96,6 +100,51 @@ func TestEnsureKarmadaAPIServer(t *testing.T) {
 
 	if pdbCount != 1 {
 		t.Errorf("expected 1 PDB action, but got %d", pdbCount)
+	}
+}
+
+// TestEnsureKarmadaAPIServer_CreateDeploymentError verifies that a deployment
+// creation failure (e.g. rejected by the API server due to an invalid spec)
+// is returned as a wrapped error instead of causing a nil pointer panic.
+func TestEnsureKarmadaAPIServer_CreateDeploymentError(t *testing.T) {
+	var replicas int32 = 3
+	image := "karmada-apiserver-image"
+	imagePullPolicy := corev1.PullIfNotPresent
+	annotations := map[string]string{"annotationKey": "annotationValue"}
+	labels := map[string]string{"labelKey": "labelValue"}
+	name := "karmada-apiserver"
+	namespace := "test-namespace"
+	serviceSubnet := "10.96.0.0/12"
+
+	cfg := &operatorv1alpha1.KarmadaComponents{
+		KarmadaAPIServer: &operatorv1alpha1.KarmadaAPIServer{
+			CommonSettings: operatorv1alpha1.CommonSettings{
+				Image:           operatorv1alpha1.Image{ImageTag: image},
+				Replicas:        new(replicas),
+				Annotations:     annotations,
+				Labels:          labels,
+				Resources:       corev1.ResourceRequirements{},
+				ImagePullPolicy: imagePullPolicy,
+			},
+			ServiceSubnet: new(serviceSubnet),
+			ExtraArgs:     map[string]string{"cmd1": "arg1", "cmd2": "arg2"},
+		},
+		Etcd: &operatorv1alpha1.Etcd{
+			Local: &operatorv1alpha1.LocalEtcd{},
+		},
+	}
+
+	fakeClient := fakeclientset.NewClientset()
+	fakeClient.PrependReactor("create", "deployments", func(coretesting.Action) (bool, runtime.Object, error) {
+		return true, nil, apierrors.NewInvalid(schema.GroupKind{Group: "apps", Kind: "Deployment"}, util.KarmadaAPIServerName(name), nil)
+	})
+
+	err := EnsureKarmadaAPIServer(fakeClient, cfg, name, namespace, map[string]bool{})
+	if err == nil {
+		t.Fatalf("expected an error, but got nil")
+	}
+	if !strings.Contains(err.Error(), util.KarmadaAPIServerName(name)) {
+		t.Errorf("expected error to reference deployment name %q, got: %v", util.KarmadaAPIServerName(name), err)
 	}
 }
 
