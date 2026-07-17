@@ -75,6 +75,9 @@ func TestEnsureKarmadaSearch_CreateDeploymentError(t *testing.T) {
 	if !strings.Contains(err.Error(), util.KarmadaSearchName(name)) {
 		t.Errorf("expected error to reference deployment name %q, got: %v", util.KarmadaSearchName(name), err)
 	}
+	if !apierrors.IsInvalid(err) {
+		t.Errorf("expected the wrapped error to preserve the underlying Invalid error, got: %v", err)
+	}
 }
 
 func TestEnsureKarmadaSearch(t *testing.T) {
