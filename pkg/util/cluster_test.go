@@ -510,6 +510,95 @@ func TestGetCluster(t *testing.T) {
 	}
 }
 
+func TestGetClusterSet(t *testing.T) {
+	tests := []struct {
+		name       string
+		hostClient client.Client
+		want       []string
+		wantErr    bool
+	}{
+		{
+			name:       "no clusters returns empty set",
+			hostClient: fakeclient.NewClientBuilder().WithScheme(gclient.NewSchema()).Build(),
+			want:       []string{},
+			wantErr:    false,
+		},
+		{
+			name: "returns all cluster names",
+			hostClient: fakeclient.NewClientBuilder().WithScheme(gclient.NewSchema()).
+				WithObjects(newCluster("cluster-a"), newCluster("cluster-b")).Build(),
+			want:    []string{"cluster-a", "cluster-b"},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := GetClusterSet(tt.hostClient)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetClusterSet() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err != nil {
+				return
+			}
+			for _, name := range tt.want {
+				if !got.Has(name) {
+					t.Errorf("GetClusterSet() missing cluster %q, got %v", name, got)
+				}
+			}
+			if got.Len() != len(tt.want) {
+				t.Errorf("GetClusterSet() got %d clusters, want %d", got.Len(), len(tt.want))
+			}
+		})
+	}
+}
+
+func TestGetClusterWithKarmadaClient(t *testing.T) {
+	tests := []struct {
+		name        string
+		client      karmadaclientset.Interface
+		clusterName string
+		wantCluster bool
+		wantExist   bool
+		wantErr     bool
+	}{
+		{
+			name:        "cluster exists",
+			client:      karmadaclientsetfake.NewSimpleClientset(newCluster("member1")),
+			clusterName: "member1",
+			wantCluster: true,
+			wantExist:   true,
+			wantErr:     false,
+		},
+		{
+			name:        "cluster not found",
+			client:      karmadaclientsetfake.NewSimpleClientset(),
+			clusterName: "nonexistent",
+			wantCluster: false,
+			wantExist:   false,
+			wantErr:     false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, exist, err := GetClusterWithKarmadaClient(tt.client, tt.clusterName)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetClusterWithKarmadaClient() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if exist != tt.wantExist {
+				t.Errorf("GetClusterWithKarmadaClient() exist = %v, want %v", exist, tt.wantExist)
+			}
+			if tt.wantCluster && got == nil {
+				t.Error("GetClusterWithKarmadaClient() expected non-nil cluster, got nil")
+			}
+			if !tt.wantCluster && got != nil {
+				t.Errorf("GetClusterWithKarmadaClient() expected nil cluster, got %v", got)
+			}
+		})
+	}
+}
+
 func TestObtainClusterID(t *testing.T) {
 	type args struct {
 		clusterKubeClient kubernetes.Interface
