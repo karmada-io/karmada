@@ -32,7 +32,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 )
 
-
 const (
 	// A split symbol that receives multiple values from a command flag
 	separator      = ","
