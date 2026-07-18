@@ -25,21 +25,29 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"sigs.k8s.io/yaml"
 
 	"github.com/karmada-io/karmada/pkg/util"
 )
 
+
 const (
-	// Query the IP address of the current host accessing the Internet
-	getInternetIPUrl = "https://myexternalip.com/raw"
 	// A split symbol that receives multiple values from a command flag
 	separator      = ","
 	labelSeparator = "="
 	// MaxRespBodyLength is the max length of http response body
 	MaxRespBodyLength = 1 << 20 // 1 MiB
 )
+
+// getInternetIPUrl is the endpoint used to discover the host's public IP.
+// It is a variable so that tests can substitute a local httptest.Server.
+var getInternetIPUrl = "https://myexternalip.com/raw"
+
+// InternetIPTimeout is the maximum time allowed to fetch the host's public IP.
+// It is a variable so that tests can substitute a short value.
+var InternetIPTimeout = 5 * time.Second
 
 // StringToNetIP String To NetIP
 func StringToNetIP(addr string) net.IP {
@@ -67,7 +75,8 @@ func FlagsDNS(dns string) []string {
 
 // InternetIP Current host Internet IP.
 func InternetIP() (net.IP, error) {
-	resp, err := http.Get(getInternetIPUrl)
+	client := &http.Client{Timeout: InternetIPTimeout}
+	resp, err := client.Get(getInternetIPUrl)
 	if err != nil {
 		return nil, err
 	}
