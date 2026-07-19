@@ -428,6 +428,48 @@ func TestGC(t *testing.T) {
 	assert.Contains(t, c.assumptions, "ns/rb3", "non-expired entry should be kept")
 }
 
+func makeBinding(ns, name, resourceVersion string) *workv1alpha2.ResourceBinding {
+	return &workv1alpha2.ResourceBinding{
+		ObjectMeta: metav1.ObjectMeta{Namespace: ns, Name: name, ResourceVersion: resourceVersion},
+	}
+}
+
+func TestRemove(t *testing.T) {
+	c := newTestAssumptionCache(time.Minute)
+	binding := makeBinding("ns", "rb1", "1000")
+	c.Add(binding)
+	assert.Contains(t, c.items, "ns/rb1")
+
+	c.Remove(binding)
+
+	assert.NotContains(t, c.items, "ns/rb1")
+}
+
+func TestRemove_NoOp(t *testing.T) {
+	c := newTestAssumptionCache(time.Minute)
+	// Should not panic when called on a non-existent key
+	c.Remove(makeBinding("ns", "rb1", "1000"))
+	assert.Empty(t, c.items)
+}
+
+func TestUpdateIfExist(t *testing.T) {
+	c := newTestAssumptionCache(time.Minute)
+	c.Add(makeBinding("ns", "rb1", "1000"))
+
+	updated := makeBinding("ns", "rb1", "1001")
+	c.UpdateIfExist(updated)
+
+	assert.Same(t, updated, c.items["ns/rb1"], "existing entry should be replaced")
+}
+
+func TestUpdateIfExist_SkipsAbsentEntry(t *testing.T) {
+	c := newTestAssumptionCache(time.Minute)
+
+	c.UpdateIfExist(makeBinding("ns", "rb1", "1001"))
+
+	assert.Empty(t, c.items, "UpdateIfExist must not resurrect an entry the Informer has already cleaned up")
+}
+
 // BenchmarkGetAssumedWorkloads measures the performance of GetAssumedWorkloads under
 // varying cache sizes.  The benchmark covers the realistic operating range (N ≤ 50,
 // governed by the reservation TTL) as well as stress sizes to quantify O(N) scaling.

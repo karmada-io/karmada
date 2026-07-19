@@ -214,6 +214,32 @@ func (b *AssigningResourceBindingCache) Add(binding *workv1alpha2.ResourceBindin
 	b.items[names.NamespacedKey(binding.Namespace, binding.Name)] = binding
 }
 
+// Remove deletes the cached entry for the given ResourceBinding, if any.
+// It is used to roll back an entry recorded by Add when committing the scheduling
+// decision to the API server fails.
+func (b *AssigningResourceBindingCache) Remove(binding *workv1alpha2.ResourceBinding) {
+	b.Lock()
+	defer b.Unlock()
+
+	delete(b.items, names.NamespacedKey(binding.Namespace, binding.Name))
+}
+
+// UpdateIfExist replaces the cached entry for the given ResourceBinding only if an entry
+// is still present. It is used to refresh an entry recorded by Add before the API server
+// commit with the authoritative object returned by the API server (carrying the new
+// resourceVersion), without resurrecting an entry that the Informer has already cleaned
+// up in the meantime.
+func (b *AssigningResourceBindingCache) UpdateIfExist(binding *workv1alpha2.ResourceBinding) {
+	b.Lock()
+	defer b.Unlock()
+
+	key := names.NamespacedKey(binding.Namespace, binding.Name)
+	if _, ok := b.items[key]; !ok {
+		return
+	}
+	b.items[key] = binding
+}
+
 // GetBindings returns all currently cached ResourceBindings that are in the "assigning" state,
 // providing the scheduler with the most up-to-date view of pending assignments.
 func (b *AssigningResourceBindingCache) GetBindings() map[string]*workv1alpha2.ResourceBinding {

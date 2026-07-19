@@ -1010,6 +1010,89 @@ func TestUpdatesAssumptions(t *testing.T) {
 	})
 }
 
+func TestAssigningCacheLifecycleOnPatch(t *testing.T) {
+	defer setFeatureGateDuringTest(t, features.FeatureGate, features.WorkloadAffinity, true)()
+
+	newTestBinding := func() *workv1alpha2.ResourceBinding {
+		return &workv1alpha2.ResourceBinding{
+			ObjectMeta: metav1.ObjectMeta{Name: "test-binding", Namespace: "default", ResourceVersion: "1000"},
+			Spec: workv1alpha2.ResourceBindingSpec{
+				Resource: workv1alpha2.ObjectReference{Namespace: "work-ns"},
+			},
+		}
+	}
+	scheduleResult := []workv1alpha2.TargetCluster{{Name: "cluster1", Replicas: 1}}
+	bindingKey := "default/test-binding"
+
+	t.Run("patch success records the assigning entry", func(t *testing.T) {
+		oldBinding := newTestBinding()
+		cache := schedulercache.NewCache(nil, nil, 0)
+		s := &Scheduler{
+			KarmadaClient:  karmadafake.NewClientset(oldBinding),
+			schedulerCache: cache,
+		}
+
+		err := s.patchScheduleResultForResourceBinding(oldBinding, "test-placement", scheduleResult)
+		assert.NoError(t, err)
+
+		bindings := cache.AssigningResourceBindings().GetBindings()
+		assert.Contains(t, bindings, bindingKey)
+		assert.Equal(t, scheduleResult, bindings[bindingKey].Spec.Clusters)
+	})
+
+	t.Run("patch failure rolls back the assigning entry", func(t *testing.T) {
+		oldBinding := newTestBinding()
+		cache := schedulercache.NewCache(nil, nil, 0)
+		karmadaClient := karmadafake.NewClientset(oldBinding)
+		karmadaClient.PrependReactor("patch", "resourcebindings", func(clienttesting.Action) (bool, runtime.Object, error) {
+			return true, nil, errors.New("patch failed")
+		})
+		s := &Scheduler{
+			KarmadaClient:  karmadaClient,
+			schedulerCache: cache,
+		}
+
+		err := s.patchScheduleResultForResourceBinding(oldBinding, "test-placement", scheduleResult)
+		assert.Error(t, err)
+
+		assert.Empty(t, cache.AssigningResourceBindings().GetBindings(),
+			"assigning entry must be rolled back when the patch fails")
+	})
+
+	t.Run("informer cleanup racing with the patch is not undone", func(t *testing.T) {
+		// Regression test for the race where the Informer's event for the patched binding
+		// arrives before the scheduler records the binding in the assigning cache: the event
+		// found nothing to clean up and the entry recorded afterwards leaked. Now the entry
+		// is recorded before the patch, so the event always finds it, and the post-patch
+		// refresh must not resurrect an entry the event already cleaned up.
+		oldBinding := newTestBinding()
+		cache := schedulercache.NewCache(nil, nil, 0)
+		karmadaClient := karmadafake.NewClientset(oldBinding)
+		karmadaClient.PrependReactor("patch", "resourcebindings", func(clienttesting.Action) (bool, runtime.Object, error) {
+			// Simulate the Informer delivering the update event for the patched binding
+			// (newer resourceVersion, FullyApplied) while the patch call is still in flight.
+			eventBinding := newTestBinding()
+			eventBinding.ResourceVersion = "1001"
+			eventBinding.Spec.Clusters = scheduleResult
+			eventBinding.Status.Conditions = []metav1.Condition{
+				{Type: workv1alpha2.FullyApplied, Status: metav1.ConditionTrue},
+			}
+			cache.AssigningResourceBindings().OnBindingUpdate(eventBinding)
+			return false, nil, nil
+		})
+		s := &Scheduler{
+			KarmadaClient:  karmadaClient,
+			schedulerCache: cache,
+		}
+
+		err := s.patchScheduleResultForResourceBinding(oldBinding, "test-placement", scheduleResult)
+		assert.NoError(t, err)
+
+		assert.Empty(t, cache.AssigningResourceBindings().GetBindings(),
+			"an entry cleaned up by the Informer during the patch must not be resurrected")
+	})
+}
+
 func TestScheduleClusterResourceBindingWithClusterAffinity(t *testing.T) {
 	tests := []struct {
 		name           string
