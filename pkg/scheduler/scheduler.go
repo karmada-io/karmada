@@ -696,28 +696,33 @@ func (s *Scheduler) patchScheduleResultForResourceBinding(oldBinding *workv1alph
 		return nil
 	}
 
-	if features.FeatureGate.Enabled(features.WorkloadAffinity) {
+	var assigningCache *schedulercache.AssigningResourceBindingCache
+	if features.FeatureGate.Enabled(features.WorkloadAffinity) && s.schedulerCache != nil && s.schedulerCache.AssigningResourceBindings() != nil {
+		assigningCache = s.schedulerCache.AssigningResourceBindings()
+	}
+
+	if assigningCache != nil {
 		// Record the binding in the AssigningResourceBindings cache before sending the patch,
 		// so the Informer event triggered by the patch can never arrive before the cache entry
 		// exists. Otherwise the event would find nothing to clean up, and an entry added
 		// afterwards would leak if no further updates occur.
-		s.schedulerCache.AssigningResourceBindings().Add(newBinding)
+		assigningCache.Add(newBinding)
 	}
 
 	result, err := s.KarmadaClient.WorkV1alpha2().ResourceBindings(newBinding.Namespace).Patch(context.TODO(), newBinding.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{})
 	if err != nil {
-		if features.FeatureGate.Enabled(features.WorkloadAffinity) {
+		if assigningCache != nil {
 			// The scheduling decision was not committed; roll back the entry recorded above.
-			s.schedulerCache.AssigningResourceBindings().Remove(newBinding)
+			assigningCache.Remove(newBinding)
 		}
 		klog.Errorf("Failed to patch schedule to ResourceBinding(%s/%s): %v", oldBinding.Namespace, oldBinding.Name, err)
 		return err
 	}
-	if features.FeatureGate.Enabled(features.WorkloadAffinity) {
+	if assigningCache != nil {
 		// Refresh the entry with the authoritative object returned by the API server, which
-		// carries the new resourceVersion. UpdateIfExist skips the refresh if the Informer
+		// carries the new resourceVersion. UpdateIfExists skips the refresh if the Informer
 		// has already cleaned the entry up, so the cleanup cannot be undone.
-		s.schedulerCache.AssigningResourceBindings().UpdateIfExist(result)
+		assigningCache.UpdateIfExists(result)
 	}
 	if features.FeatureGate.Enabled(features.SchedulingOvercommitProtection) {
 		s.updateAssumptionsCache(oldBinding, scheduleResult)
