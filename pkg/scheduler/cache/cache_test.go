@@ -452,12 +452,12 @@ func TestRemove_NoOp(t *testing.T) {
 	assert.Empty(t, c.items)
 }
 
-func TestUpdateIfExist(t *testing.T) {
+func TestUpdateIfExists(t *testing.T) {
 	c := newTestAssumptionCache(time.Minute)
 	c.Add(makeBinding("ns", "rb1", "1000"))
 
 	updated := makeBinding("ns", "rb1", "1001")
-	c.UpdateIfExist(updated)
+	c.UpdateIfExists(updated)
 
 	assert.Same(t, updated, c.items["ns/rb1"], "existing entry should be replaced")
 }
@@ -465,9 +465,9 @@ func TestUpdateIfExist(t *testing.T) {
 func TestUpdateIfExist_SkipsAbsentEntry(t *testing.T) {
 	c := newTestAssumptionCache(time.Minute)
 
-	c.UpdateIfExist(makeBinding("ns", "rb1", "1001"))
+	c.UpdateIfExists(makeBinding("ns", "rb1", "1001"))
 
-	assert.Empty(t, c.items, "UpdateIfExist must not resurrect an entry the Informer has already cleaned up")
+	assert.Empty(t, c.items, "UpdateIfExists must not resurrect an entry the Informer has already cleaned up")
 }
 
 // BenchmarkGetAssumedWorkloads measures the performance of GetAssumedWorkloads under
