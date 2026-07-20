@@ -40,7 +40,7 @@ jobs:
         path: _output/release/${{ matrix.target }}-${{ matrix.os }}-${{ matrix.arch }}.tgz
     - name: Uploading assets...
       if: ${{ !env.ACT }}
-      uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1
+      uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
       with:
         files: |
           _output/release/${{ matrix.target }}-${{ matrix.os }}-${{ matrix.arch }}.tgz
@@ -97,7 +97,7 @@ jobs:
         # base64 -w0 encodes to base64 and outputs on a single line.
         echo "hashes=$(sha256sum crds.tar.gz | base64 -w0)" >> "$GITHUB_OUTPUT"
     - name: Uploading crd assets...
-      uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1
+      uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
       with:
         files: |
           crds.tar.gz
@@ -128,7 +128,7 @@ jobs:
       run: make package-chart
     - name: Uploading assets...
       if: ${{ !env.ACT }}
-      uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1
+      uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
       with:
         files: |
           _output/charts/karmada-chart-${{ github.ref_name }}.tgz
@@ -179,7 +179,7 @@ jobs:
         # base64 -w0 encodes to base64 and outputs on a single line.
         echo "hashes=$(sha256sum sbom.tar.gz | base64 -w0)" >> "$GITHUB_OUTPUT"
     - name: Uploading sbom assets...
-      uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1
+      uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
       with:
         files: |
           sbom.tar.gz
