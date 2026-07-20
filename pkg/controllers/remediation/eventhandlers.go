@@ -49,7 +49,12 @@ func (h *clusterEventHandler) Create(context.Context, event.TypedCreateEvent[*cl
 
 func (h *clusterEventHandler) Update(_ context.Context, e event.TypedUpdateEvent[*clusterv1alpha1.Cluster], queue workqueue.TypedRateLimitingInterface[controllerruntime.Request]) {
 	if reflect.DeepEqual(e.ObjectOld.Status.Conditions, e.ObjectNew.Status.Conditions) {
-		return
+		if len(e.ObjectOld.Status.RemedyActions) == 0 && len(e.ObjectNew.Status.RemedyActions) == 0 {
+			return
+		}
+		if sets.New(e.ObjectOld.Status.RemedyActions...).Equal(sets.New(e.ObjectNew.Status.RemedyActions...)) {
+			return
+		}
 	}
 
 	queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{
