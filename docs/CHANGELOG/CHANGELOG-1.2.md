@@ -1,9 +1,25 @@
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-* [v1.2.0](#v120)
-  * [Downloads for v1.2.0](#downloads-for-v120)
-  * [Karmada v1.2 Release Notes](#karmada-v12-release-notes)
-    * [1.2 What's New](#whats-new)
-    * [Other Notable Changes](#other-notable-changes)
+- [v1.2.0](#v120)
+  - [Downloads for v1.2.0](#downloads-for-v120)
+  - [Karmada v1.2 Release Notes](#karmada-v12-release-notes)
+    - [What's New](#whats-new)
+      - [Significant improvement on scheduling capability and scalability](#significant-improvement-on-scheduling-capability-and-scalability)
+        - [1. Karmada Descheduler](#1-karmada-descheduler)
+        - [2. Multi region HA support](#2-multi-region-ha-support)
+      - [Fully adopted aggregated API](#fully-adopted-aggregated-api)
+      - [Distributed search and analytics engine for Kubernetes resources (`alpha`)](#distributed-search-and-analytics-engine-for-kubernetes-resources-alpha)
+      - [Resource Interpreter Webhook enhancement](#resource-interpreter-webhook-enhancement)
+      - [Integrating verification with the ecosystem](#integrating-verification-with-the-ecosystem)
+    - [Other Notable Changes](#other-notable-changes)
+      - [Bug Fixes](#bug-fixes)
+      - [Features & Enhancements](#features--enhancements)
+      - [Other (Dependencies)](#other-dependencies)
+      - [Deprecation](#deprecation)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 # v1.2.0
 
