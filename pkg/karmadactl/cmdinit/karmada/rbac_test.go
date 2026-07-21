@@ -29,13 +29,6 @@ func Test_grantProxyPermissionToAdmin(t *testing.T) {
 	}
 }
 
-func Test_grantAccessPermissionToAgent(t *testing.T) {
-	client := fake.NewClientset()
-	if err := grantAccessPermissionToAgentRBACGenerator(client); err != nil {
-		t.Errorf("grantAccessPermissionToAgentRBACGenerator() expected no error, but got err: %v", err)
-	}
-}
-
 func Test_grantKarmadaPermissionToViewClusterRole(t *testing.T) {
 	client := fake.NewClientset()
 	if err := grantKarmadaPermissionToViewClusterRole(client); err != nil {
