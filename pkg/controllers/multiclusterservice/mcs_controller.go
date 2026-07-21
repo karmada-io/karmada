@@ -58,6 +58,11 @@ import (
 // ControllerName is the controller name that will be used when reporting events and metrics.
 const ControllerName = "multiclusterservice-controller"
 
+const (
+	multiClusterServiceClusterIndexKey = "spec.clusterNames"
+	allClustersIndexValue              = "*"
+)
+
 // MCSController is to sync MultiClusterService.
 type MCSController struct {
 	client.Client
@@ -528,6 +533,10 @@ func (c *MCSController) updateMultiClusterServiceStatus(ctx context.Context, mcs
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *MCSController) SetupWithManager(mgr controllerruntime.Manager) error {
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &networkingv1alpha1.MultiClusterService{}, multiClusterServiceClusterIndexKey, multiClusterServiceClusterIndexValues); err != nil {
+		return err
+	}
+
 	mcsPredicateFunc := predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
 			mcs := e.Object.(*networkingv1alpha1.MultiClusterService)
@@ -628,24 +637,48 @@ func (c *MCSController) clusterMapFunc() handler.MapFunc {
 		}
 
 		klog.V(4).InfoS("Begin to sync mcs with cluster", "cluster", clusterName)
-		mcsList := &networkingv1alpha1.MultiClusterServiceList{}
-		if err := c.Client.List(ctx, mcsList, &client.ListOptions{}); err != nil {
-			klog.ErrorS(err, "Failed to list MultiClusterService")
-			return nil
-		}
-
+		requestSet := make(map[types.NamespacedName]struct{})
 		var requests []reconcile.Request
-		for index := range mcsList.Items {
-			if need, err := c.needSyncMultiClusterService(&mcsList.Items[index], clusterName); err != nil || !need {
-				continue
+		for _, indexValue := range []string{clusterName, allClustersIndexValue} {
+			mcsList := &networkingv1alpha1.MultiClusterServiceList{}
+			if err := c.Client.List(ctx, mcsList, client.MatchingFields{multiClusterServiceClusterIndexKey: indexValue}); err != nil {
+				klog.ErrorS(err, "Failed to list indexed MultiClusterServices", "cluster", clusterName, "indexValue", indexValue)
+				return nil
 			}
 
-			requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Namespace: mcsList.Items[index].Namespace,
-				Name: mcsList.Items[index].Name}})
+			for index := range mcsList.Items {
+				namespacedName := types.NamespacedName{Namespace: mcsList.Items[index].Namespace, Name: mcsList.Items[index].Name}
+				if _, exists := requestSet[namespacedName]; exists {
+					continue
+				}
+
+				requestSet[namespacedName] = struct{}{}
+				requests = append(requests, reconcile.Request{NamespacedName: namespacedName})
+			}
 		}
 
 		return requests
 	}
+}
+
+func multiClusterServiceClusterIndexValues(obj client.Object) []string {
+	mcs, ok := obj.(*networkingv1alpha1.MultiClusterService)
+	if !ok || !helper.MultiClusterServiceCrossClusterEnabled(mcs) {
+		return nil
+	}
+
+	indexValues := sets.New[string]()
+	for _, providerCluster := range mcs.Spec.ProviderClusters {
+		indexValues.Insert(providerCluster.Name)
+	}
+	for _, consumerCluster := range mcs.Spec.ConsumerClusters {
+		indexValues.Insert(consumerCluster.Name)
+	}
+	if len(mcs.Spec.ProviderClusters) == 0 || len(mcs.Spec.ConsumerClusters) == 0 {
+		indexValues.Insert(allClustersIndexValue)
+	}
+
+	return sets.List(indexValues)
 }
 
 func (c *MCSController) needSyncMultiClusterService(mcs *networkingv1alpha1.MultiClusterService, clusterName string) (bool, error) {
