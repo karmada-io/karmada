@@ -1,0 +1,435 @@
+apiVersion: config.karmada.io/v1alpha1
+kind: ResourceInterpreterCustomization
+metadata:
+  name: declarative-configuration-rollout
+spec:
+  target:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+  customizations:
+    # Health interpretation for Argo Rollout.
+    #
+    # A Rollout is considered healthy when:
+    # 1. Phase is 'Healthy' and all pods are available, OR
+    # 2. Phase is 'Progressing' with a recent rollout ID change (normal during upgrade), OR
+    # 3. Phase is 'Paused' (user-initiated pause, not an error state).
+    #
+    # A Rollout is unhealthy when:
+    # 1. Phase is 'Degraded' or 'HealthCheckFailed', OR
+    # 2. Phase is 'Progressing' with no recent progress but pods are not fully available.
+    healthInterpretation:
+      luaScript: |
+        local function isempty(s)
+          return s == nil or s == ''
+        end
+
+        local healthyPhase = {
+          Healthy = true,
+          Progressing = true,
+          Paused = true,
+        }
+
+        local degradedPhase = {
+          Degraded = true,
+          HealthCheckFailed = true,
+        }
+
+        function InterpretHealth(observedObj)
+          if observedObj.status == nil then
+            return false
+          end
+
+          local phase = observedObj.status.phase
+
+          -- No phase information yet — consider healthy if pods are available
+          if isempty(phase) then
+            local available = observedObj.status.availableReplicas
+            local ready = observedObj.status.readyReplicas
+            if available ~= nil and available > 0 then
+              return true
+            end
+            if ready ~= nil and ready > 0 then
+              return true
+            end
+            return false
+          end
+
+          -- Explicitly degraded phases are unhealthy
+          if degradedPhase[phase] then
+            return false
+          end
+
+          -- Known-good phases
+          if healthyPhase[phase] then
+            return true
+          end
+
+          -- Fallback: treat any other phase conservatively as healthy but watch
+          return true
+        end
+    # Component resource interpretation for Argo Rollout.
+    #
+    # Argo Rollout manages two parallel pod topologies depending on strategy:
+    #
+    # CANARY STRATEGY:
+    #   - "stable": the stable (baseline) version, scaled to spec.replicas
+    #   - "canary": the new version being canary-tested, scaled to canaryReplicas
+    #
+    # BLUE-GREEN STRATEGY:
+    #   - "active": the currently live version, scaled to spec.replicas
+    #   - "preview": the pre-release version, scaled to 1 (controlled by Rollout controller)
+    #
+    # Each component maps to a distinct Pod template with its own resource profile,
+    # allowing Karmada's multi-component scheduler to place stable and canary/preview
+    # pods on optimal clusters.
+    componentResource:
+      luaScript: |
+        local kube = require("kube")
+
+        local function isempty(s)
+          return s == nil or s == ''
+        end
+
+        -- Safe fetch of deeply nested table fields.
+        local function get(obj, path)
+          local cur = obj
+          for i = 1, #path do
+            if cur == nil then
+              return nil
+            end
+            cur = cur[path[i]]
+          end
+          return cur
+        end
+
+        -- Normalize possibly-string numbers with a default.
+        local function to_num(v, default)
+          if v == nil or v == '' then
+            return default
+          end
+          local n = tonumber(v)
+          if n ~= nil then
+            return n
+          end
+          return default
+        end
+
+        -- JSON-safe deep clone: strings/numbers/booleans/tables.
+        local function clone_plain(val, seen)
+          local tv = type(val)
+          if tv ~= "table" then
+            if tv == "string" or tv == "number" or tv == "boolean" or tv == "nil" then
+              return val
+            end
+            return nil
+          end
+          seen = seen or {}
+          if seen[val] then return nil end
+          seen[val] = true
+          local out = {}
+          for k, v in pairs(val) do
+            local tk = type(k)
+            if tk == "string" or tk == "number" then
+              local cv = clone_plain(v, seen)
+              if cv ~= nil then out[k] = cv end
+            end
+          end
+          seen[val] = nil
+          return out
+        end
+
+        -- Extract requirements from a pod template (nil-safe).
+        -- Builds a replicaRequirements object: {resourceRequest, nodeClaim, priorityClassName}.
+        -- Returns nil when the template has no meaningful requirements.
+        local function requirements_from_template(template)
+          if template == nil then
+            return nil
+          end
+
+          local spec = template.spec
+          if spec == nil then
+            return nil
+          end
+
+          local requires = {
+            resourceRequest = {}
+          }
+          local has_content = false
+
+          -- Extract resource requests via the standard kube helper.
+          local pod_req = kube.accuratePodRequirements(template)
+          if pod_req ~= nil then
+            if pod_req.resourceRequest ~= nil then
+              for k, v in pairs(pod_req.resourceRequest) do
+                requires.resourceRequest[k] = v
+              end
+              has_content = true
+            end
+            if pod_req.nodeClaim ~= nil then
+              requires.nodeClaim = clone_plain(pod_req.nodeClaim)
+              has_content = true
+            end
+            -- priorityClassName is only populated by accuratePodRequirements when the
+            -- ResourceQuotaEstimate feature gate is enabled. Always check the pod spec
+            -- directly so it is available regardless of the feature gate state.
+            local priorityClass = spec.priorityClassName
+            if priorityClass ~= nil and priorityClass ~= '' then
+              requires.priorityClassName = priorityClass
+              has_content = true
+            end
+          end
+
+          -- Also fill in from containers directly when kube helper returned nothing.
+          local containers = spec.containers
+          if containers ~= nil then
+            for _, container in ipairs(containers) do
+              if container.resources ~= nil and container.resources.requests ~= nil then
+                local reqs = container.resources.requests
+                for k, v in pairs(reqs) do
+                  if requires.resourceRequest[k] == nil then
+                    requires.resourceRequest[k] = v
+                    has_content = true
+                  end
+                end
+              end
+            end
+          end
+
+          if not has_content then
+            return nil
+          end
+          return requires
+        end
+
+        -- Add a named component to the component list.
+        -- replicaRequirements may be nil (omitted from output) when template has no requirements.
+        local function add_component(components, name, replicas, template)
+          local comp = {
+            name = name,
+            replicas = replicas,
+          }
+          local reqs = requirements_from_template(template)
+          if reqs ~= nil then
+            comp.replicaRequirements = reqs
+          end
+          table.insert(components, comp)
+        end
+
+        function GetComponents(observedObj)
+          local components = {}
+          local strategy = get(observedObj, {"spec", "strategy"})
+
+          if strategy == nil then
+            return components
+          end
+
+          local replicas = to_num(get(observedObj, {"spec", "replicas"}), 1)
+
+          -- CANARY STRATEGY
+          if strategy.canary ~= nil then
+            local canary = strategy.canary
+            local canary_replicas = to_num(get(canary, {"canaryReplicas"}), 1)
+
+            -- Stable component: scaled to the main replicas, uses stableTemplate.
+            -- If stableTemplate is not set, fall back to the Rollout's root template.
+            local stable_template = get(canary, {"stableTemplate"})
+            if stable_template == nil then
+              stable_template = get(observedObj, {"spec", "template"})
+            end
+            add_component(components, "stable", replicas, stable_template)
+
+            -- Canary component: scaled to canaryReplicas, uses canaryTemplate.
+            local canary_template = get(canary, {"canaryTemplate"})
+            add_component(components, "canary", canary_replicas, canary_template)
+
+          -- BLUE-GREEN STRATEGY
+          elseif strategy.blueGreen ~= nil then
+            local bluegreen = strategy.blueGreen
+
+            -- Active component: scaled to the main replicas, uses activeTemplate.
+            -- If activeTemplate is not set, fall back to the Rollout's root template.
+            local active_template = get(bluegreen, {"activeTemplate"})
+            if active_template == nil then
+              active_template = get(observedObj, {"spec", "template"})
+            end
+            add_component(components, "active", replicas, active_template)
+
+            -- Preview component: scaled to 1 (the Rollout controller manages preview replicas).
+            local preview_template = get(bluegreen, {"previewTemplate"})
+            add_component(components, "preview", 1, preview_template)
+
+          end
+
+          return components
+        end
+    # Replica interpretation for Rollout (fallback when componentResource is not used).
+    #
+    # Returns the total replica count (stable/active replicas) and aggregates resource
+    # requirements from the root template.
+    replicaResource:
+      luaScript: |
+        local kube = require("kube")
+
+        local function isempty(s)
+          return s == nil or s == ''
+        end
+
+        local function get(obj, path)
+          local cur = obj
+          for i = 1, #path do
+            if cur == nil then
+              return nil
+            end
+            cur = cur[path[i]]
+          end
+          return cur
+        end
+
+        local function to_num(v, default)
+          if v == nil or v == '' then
+            return default
+          end
+          local n = tonumber(v)
+          if n ~= nil then
+            return n
+          end
+          return default
+        end
+
+        function GetReplicas(obj)
+          local replicas = to_num(get(obj, {"spec", "replicas"}), 1)
+          local requirement = kube.accuratePodRequirements(get(obj, {"spec", "template"}))
+          return replicas, requirement
+        end
+    # Retain the 'paused' and 'spec.strategy' fields during propagation.
+    retention:
+      luaScript: |
+        function Retain(desiredObj, observedObj)
+          -- Keep the paused state so the Rollout doesn't auto-promote during propagation.
+          if observedObj.spec ~= nil and observedObj.spec.paused ~= nil then
+            desiredObj.spec.paused = observedObj.spec.paused
+          end
+          -- Keep selector label changes managed by the Rollout controller.
+          if observedObj.spec ~= nil and observedObj.spec.selector ~= nil then
+            desiredObj.spec.selector = observedObj.spec.selector
+          end
+          return desiredObj
+        end
+    # Dependency interpretation for Rollout.
+    #
+    # Tracks ConfigMaps, Secrets, and PVCs referenced in both the root template
+    # and the strategy-specific templates (canaryTemplate, stableTemplate, etc.).
+    dependencyInterpretation:
+      luaScript: |
+        local function get(obj, path)
+          local cur = obj
+          for i = 1, #path do
+            if cur == nil then
+              return nil
+            end
+            cur = cur[path[i]]
+          end
+          return cur
+        end
+
+        local function deps_from_template(deps, template, namespace)
+          if template == nil or template.spec == nil then
+            return
+          end
+          local spec = template.spec
+
+          -- Image pull secrets
+          if spec.imagePullSecrets ~= nil then
+            for _, ips in ipairs(spec.imagePullSecrets) do
+              if ips.name ~= nil and ips.name ~= '' then
+                deps['Secret:' .. namespace .. ':' .. ips.name] = true
+              end
+            end
+          end
+
+          -- Volumes -> ConfigMaps, Secrets, PVCs
+          if spec.volumes ~= nil then
+            for _, vol in ipairs(spec.volumes) do
+              if vol.configMap ~= nil and vol.configMap.name ~= '' then
+                deps['ConfigMap:' .. namespace .. ':' .. vol.configMap.name] = true
+              end
+              if vol.secret ~= nil and vol.secret.secretName ~= '' then
+                deps['Secret:' .. namespace .. ':' .. vol.secret.secretName] = true
+              end
+              if vol.persistentVolumeClaim ~= nil and vol.persistentVolumeClaim.claimName ~= '' then
+                deps['PersistentVolumeClaim:' .. namespace .. ':' .. vol.persistentVolumeClaim.claimName] = true
+              end
+            end
+          end
+
+          -- Containers -> env -> ConfigMap/Secret refs
+          local containers = spec.containers or {}
+          for _, c in ipairs(containers) do
+            if c.envFrom ~= nil then
+              for _, ef in ipairs(c.envFrom) do
+                if ef.configMapRef ~= nil and ef.configMapRef.name ~= '' then
+                  deps['ConfigMap:' .. namespace .. ':' .. ef.configMapRef.name] = true
+                end
+                if ef.secretRef ~= nil and ef.secretRef.name ~= '' then
+                  deps['Secret:' .. namespace .. ':' .. ef.secretRef.name] = true
+                end
+              end
+            end
+            if c.env ~= nil then
+              for _, e in ipairs(c.env) do
+                if e.valueFrom ~= nil then
+                  if e.valueFrom.configMapKeyRef ~= nil and e.valueFrom.configMapKeyRef.name ~= '' then
+                    deps['ConfigMap:' .. namespace .. ':' .. e.valueFrom.configMapKeyRef.name] = true
+                  end
+                  if e.valueFrom.secretKeyRef ~= nil and e.valueFrom.secretKeyRef.name ~= '' then
+                    deps['Secret:' .. namespace .. ':' .. e.valueFrom.secretKeyRef.name] = true
+                  end
+                end
+              end
+            end
+          end
+        end
+
+        function GetDependencies(desiredObj)
+          local deps = {}
+          local namespace = desiredObj.metadata.namespace or "default"
+          local spec = desiredObj.spec
+          if spec == nil then
+            return {}
+          end
+
+          -- Root template
+          deps_from_template(deps, get(spec, {"template"}), namespace)
+
+          -- Strategy templates
+          local strategy = spec.strategy
+          if strategy ~= nil then
+            if strategy.canary ~= nil then
+              deps_from_template(deps, strategy.canary.canaryTemplate, namespace)
+              deps_from_template(deps, strategy.canary.stableTemplate, namespace)
+            elseif strategy.blueGreen ~= nil then
+              deps_from_template(deps, strategy.blueGreen.activeTemplate, namespace)
+              deps_from_template(deps, strategy.blueGreen.previewTemplate, namespace)
+            end
+          end
+
+          -- Convert dep map to ref list
+          local refs = {}
+          local idx = 1
+          for key, _ in pairs(deps) do
+            local parts = {}
+            for part in string.gmatch(key, "([^:]+)") do
+              table.insert(parts, part)
+            end
+            if #parts >= 3 then
+              refs[idx] = {
+                apiVersion = 'v1',
+                kind = parts[1],
+                name = parts[3],
+                namespace = parts[2],
+              }
+              idx = idx + 1
+            end
+          end
+          return refs
+        end
