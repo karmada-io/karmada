@@ -749,7 +749,8 @@ func (g *CommandGetOptions) watchMultiClusterObj(watchObjs []WatchObj, mapping *
 		go func(watchObj WatchObj) {
 			obj, err := watchObj.r.Object()
 			if err != nil {
-				panic(err)
+				klog.Errorf("Failed to get object: %v", err)
+				return
 			}
 
 			rv := "0"
@@ -759,7 +760,8 @@ func (g *CommandGetOptions) watchMultiClusterObj(watchObjs []WatchObj, mapping *
 				// an initial watch event
 				rv, err = meta.NewAccessor().ResourceVersion(obj)
 				if err != nil {
-					panic(err)
+					klog.Errorf("Failed to get resource version: %v", err)
+					return
 				}
 				// we can start outputting objects now, watches started from lists don't emit synthetic added events
 				*outputObjects = true
@@ -771,7 +773,8 @@ func (g *CommandGetOptions) watchMultiClusterObj(watchObjs []WatchObj, mapping *
 			// print watched changes
 			w, err := watchObj.r.Watch(rv)
 			if err != nil {
-				panic(err)
+				klog.Errorf("Failed to start watch: %v", err)
+				return
 			}
 
 			ctx, cancel := context.WithCancel(context.Background())

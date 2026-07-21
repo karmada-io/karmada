@@ -200,7 +200,9 @@ func NewDetectorInitializers() map[string]InitFunc {
 		if _, ok := detectors[name]; !ok {
 			detectors[name] = fn
 		} else {
-			panic(fmt.Sprintf("detector name %q was registered twice", name))
+			klog.Errorf("Detector name %q was registered twice", name)
+			// Return error instead of panic for better error handling
+			return
 		}
 	}
 
