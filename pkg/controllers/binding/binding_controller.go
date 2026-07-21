@@ -25,6 +25,7 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/record"
@@ -39,6 +40,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/metrics"
@@ -47,6 +49,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/helper"
+	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
 )
 
@@ -109,6 +112,18 @@ func (c *ResourceBindingController) removeFinalizer(ctx context.Context, rb *wor
 
 // syncBinding will sync resourceBinding to Works.
 func (c *ResourceBindingController) syncBinding(ctx context.Context, binding *workv1alpha2.ResourceBinding) (controllerruntime.Result, error) {
+	// Handle sequential rollout if enabled
+	if binding.Spec.Placement != nil && binding.Spec.Placement.RolloutStrategy != nil &&
+		binding.Spec.Placement.RolloutStrategy.Type == policyv1alpha1.RolloutStrategyTypeSequential {
+		result, err := c.handleSequentialRollout(ctx, binding)
+		if err != nil {
+			return controllerruntime.Result{}, err
+		}
+		if result.RequeueAfter > 0 {
+			return result, nil
+		}
+	}
+
 	if err := c.removeOrphanWorks(ctx, binding); err != nil {
 		return controllerruntime.Result{}, err
 	}
@@ -181,6 +196,172 @@ func (c *ResourceBindingController) checkDirectPurgeOrphanWorks(ctx context.Cont
 	}
 
 	return len(works) > 0, nil
+}
+
+// handleSequentialRollout handles the sequential rollout logic for ResourceBinding.
+func (c *ResourceBindingController) handleSequentialRollout(ctx context.Context, binding *workv1alpha2.ResourceBinding) (controllerruntime.Result, error) {
+	// Check if rollout is complete
+	if binding.Status.RolloutStatus != nil && binding.Status.RolloutStatus.Phase == workv1alpha2.RolloutPhaseCompleted {
+		return controllerruntime.Result{}, nil
+	}
+
+	// Initialize rollout status if not present
+	if binding.Status.RolloutStatus == nil {
+		if binding.Annotations == nil {
+			binding.Annotations = make(map[string]string)
+		}
+		binding.Annotations["rollout.karmada.io/stage"] = "0"
+		binding.Annotations["rollout.karmada.io/startTime"] = time.Now().Format(time.RFC3339)
+
+		binding.Status.RolloutStatus = &workv1alpha2.RolloutStatus{
+			CurrentStage:       0,
+			TotalStages:        int32(len(binding.Spec.Placement.RolloutStrategy.Sequential.Order)),
+			Phase:              workv1alpha2.RolloutPhaseProgressing,
+			Message:            "Rollout started",
+			LastTransitionTime: &metav1.Time{Time: time.Now()},
+		}
+
+		if err := c.Client.Status().Update(ctx, binding); err != nil {
+			return controllerruntime.Result{}, err
+		}
+		if err := c.Client.Update(ctx, binding); err != nil {
+			return controllerruntime.Result{}, err
+		}
+		return controllerruntime.Result{}, nil
+	}
+
+	// Check if current cluster is healthy
+	currentStage := binding.Status.RolloutStatus.CurrentStage
+	if currentStage >= int32(len(binding.Spec.Placement.RolloutStrategy.Sequential.Order)) {
+		// All stages completed
+		now := metav1.Now()
+		binding.Status.RolloutStatus.Phase = workv1alpha2.RolloutPhaseCompleted
+		binding.Status.RolloutStatus.Message = "Rollout completed successfully"
+		binding.Status.RolloutStatus.LastTransitionTime = &now
+		if err := c.Client.Status().Update(ctx, binding); err != nil {
+			return controllerruntime.Result{}, err
+		}
+		return controllerruntime.Result{}, nil
+	}
+
+	currentCluster := binding.Spec.Placement.RolloutStrategy.Sequential.Order[currentStage]
+	healthy, err := c.checkClusterHealth(ctx, binding, currentCluster)
+	if err != nil {
+		return controllerruntime.Result{}, err
+	}
+
+	if !healthy {
+		// Check timeout
+		timeout := binding.Spec.Placement.RolloutStrategy.Sequential.HealthCheck.Timeout.Duration
+		startTimeStr, exists := binding.Annotations["rollout.karmada.io/startTime"]
+		if !exists {
+			return controllerruntime.Result{}, fmt.Errorf("rollout start time not found")
+		}
+		startTime, err := time.Parse(time.RFC3339, startTimeStr)
+		if err != nil {
+			return controllerruntime.Result{}, err
+		}
+
+		if time.Since(startTime) > timeout {
+			// Handle timeout based on OnFailure policy
+			return c.handleRolloutFailure(ctx, binding, int(currentStage), "timeout")
+		}
+		// Requeue to check again
+		return controllerruntime.Result{RequeueAfter: 10 * time.Second}, nil
+	}
+
+	// Current cluster is healthy, advance to next stage
+	return c.advanceRolloutStage(ctx, binding, int(currentStage))
+}
+
+// checkClusterHealth checks if a cluster is healthy based on Work status.
+func (c *ResourceBindingController) checkClusterHealth(ctx context.Context, binding *workv1alpha2.ResourceBinding, clusterName string) (bool, error) {
+	workNamespace := names.GenerateExecutionSpaceName(clusterName)
+	workName := names.GenerateWorkName(binding.Namespace, binding.Name, binding.Labels[workv1alpha2.ResourceBindingPermanentIDLabel])
+
+	work := &workv1alpha1.Work{}
+	err := c.Client.Get(ctx, types.NamespacedName{Namespace: workNamespace, Name: workName}, work)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			// Work not created yet, not healthy
+			return false, nil
+		}
+		return false, err
+	}
+
+	// Check health condition
+	condition := binding.Spec.Placement.RolloutStrategy.Sequential.HealthCheck.Condition
+	for _, cond := range work.Status.Conditions {
+		if cond.Type == condition && cond.Status == metav1.ConditionTrue {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+// advanceRolloutStage advances the rollout to the next stage.
+func (c *ResourceBindingController) advanceRolloutStage(ctx context.Context, binding *workv1alpha2.ResourceBinding, currentStage int) (controllerruntime.Result, error) {
+	nextStage := currentStage + 1
+	if binding.Annotations == nil {
+		binding.Annotations = make(map[string]string)
+	}
+	binding.Annotations["rollout.karmada.io/stage"] = fmt.Sprintf("%d", nextStage)
+
+	// Update rollout status
+	now := metav1.Now()
+	binding.Status.RolloutStatus.CurrentStage = int32(nextStage)
+	binding.Status.RolloutStatus.LastTransitionTime = &now
+
+	if nextStage >= len(binding.Spec.Placement.RolloutStrategy.Sequential.Order) {
+		binding.Status.RolloutStatus.Phase = workv1alpha2.RolloutPhaseCompleted
+		binding.Status.RolloutStatus.Message = "Rollout completed successfully"
+	} else {
+		binding.Status.RolloutStatus.Message = fmt.Sprintf("Rollout progressing to stage %d", nextStage)
+	}
+
+	// Trigger rescheduling by updating RescheduleTriggeredAt
+	binding.Spec.RescheduleTriggeredAt = &now
+
+	if err := c.Client.Status().Update(ctx, binding); err != nil {
+		return controllerruntime.Result{}, err
+	}
+	if err := c.Client.Update(ctx, binding); err != nil {
+		return controllerruntime.Result{}, err
+	}
+
+	return controllerruntime.Result{}, nil
+}
+
+// handleRolloutFailure handles rollout failure based on OnFailure policy.
+func (c *ResourceBindingController) handleRolloutFailure(ctx context.Context, binding *workv1alpha2.ResourceBinding, stage int, reason string) (controllerruntime.Result, error) {
+	onFailure := binding.Spec.Placement.RolloutStrategy.Sequential.OnFailure
+
+	switch onFailure {
+	case policyv1alpha1.OnFailurePause:
+		return c.markRolloutPaused(ctx, binding, stage, reason)
+	case policyv1alpha1.OnFailureRollbackAll:
+		// TODO: Implement rollback logic
+		return c.markRolloutPaused(ctx, binding, stage, fmt.Sprintf("Rollback not yet implemented: %s", reason))
+	case policyv1alpha1.OnFailureContinue:
+		return c.advanceRolloutStage(ctx, binding, stage)
+	default:
+		return c.markRolloutPaused(ctx, binding, stage, reason)
+	}
+}
+
+// markRolloutPaused marks the rollout as paused.
+func (c *ResourceBindingController) markRolloutPaused(ctx context.Context, binding *workv1alpha2.ResourceBinding, stage int, reason string) (controllerruntime.Result, error) {
+	now := metav1.Now()
+	binding.Status.RolloutStatus.Phase = workv1alpha2.RolloutPhasePaused
+	binding.Status.RolloutStatus.Message = fmt.Sprintf("Rollout paused at stage %d: %s", stage, reason)
+	binding.Status.RolloutStatus.LastTransitionTime = &now
+
+	if err := c.Client.Status().Update(ctx, binding); err != nil {
+		return controllerruntime.Result{}, err
+	}
+
+	return controllerruntime.Result{}, nil
 }
 
 // SetupWithManager creates a controller and register to controller manager.

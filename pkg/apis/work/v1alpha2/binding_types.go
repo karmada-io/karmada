@@ -446,6 +446,10 @@ type ResourceBindingStatus struct {
 	// AggregatedStatus represents status list of the resource running in each member cluster.
 	// +optional
 	AggregatedStatus []AggregatedStatusItem `json:"aggregatedStatus,omitempty"`
+
+	// RolloutStatus tracks the status of sequential rollout.
+	// +optional
+	RolloutStatus *RolloutStatus `json:"rolloutStatus,omitempty"`
 }
 
 // AggregatedStatusItem represents status of the resource running in a member cluster.
@@ -475,6 +479,44 @@ type AggregatedStatusItem struct {
 	// +optional
 	Health ResourceHealth `json:"health,omitempty"`
 }
+
+// RolloutStatus tracks the status of sequential rollout.
+type RolloutStatus struct {
+	// CurrentStage is the current stage of the rollout (0-indexed).
+	// +optional
+	CurrentStage int32 `json:"currentStage,omitempty"`
+
+	// TotalStages is the total number of stages in the rollout.
+	// +optional
+	TotalStages int32 `json:"totalStages,omitempty"`
+
+	// Phase is the current phase of the rollout.
+	// +kubebuilder:validation:Enum=Progressing;Paused;Completed;Failed
+	// +optional
+	Phase RolloutPhase `json:"phase,omitempty"`
+
+	// Message provides human-readable information about the rollout status.
+	// +optional
+	Message string `json:"message,omitempty"`
+
+	// LastTransitionTime is the last time the phase transitioned.
+	// +optional
+	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty"`
+}
+
+// RolloutPhase defines the phase of a rollout.
+type RolloutPhase string
+
+const (
+	// RolloutPhaseProgressing indicates the rollout is in progress.
+	RolloutPhaseProgressing RolloutPhase = "Progressing"
+	// RolloutPhasePaused indicates the rollout is paused.
+	RolloutPhasePaused RolloutPhase = "Paused"
+	// RolloutPhaseCompleted indicates the rollout completed successfully.
+	RolloutPhaseCompleted RolloutPhase = "Completed"
+	// RolloutPhaseFailed indicates the rollout failed.
+	RolloutPhaseFailed RolloutPhase = "Failed"
+)
 
 // Conditions definition
 const (

@@ -591,11 +591,15 @@ func (s *Scheduler) scheduleResourceBindingWithClusterAffinity(rb *workv1alpha2.
 	}
 
 	klog.V(4).Infof("ResourceBinding(%s/%s) scheduled to clusters %v", rb.Namespace, rb.Name, scheduleResult.SuggestedClusters)
-	patchErr := s.patchScheduleResultForResourceBinding(rb, string(placementBytes), scheduleResult.SuggestedClusters)
+
+	// Apply rollout strategy to filter clusters if sequential rollout is enabled
+	filteredClusters := s.applyRolloutStrategy(rb, scheduleResult.SuggestedClusters)
+
+	patchErr := s.patchScheduleResultForResourceBinding(rb, string(placementBytes), filteredClusters)
 	if patchErr != nil {
 		err = utilerrors.NewAggregate([]error{err, patchErr})
 	}
-	s.recordScheduleResultEventForResourceBinding(rb, scheduleResult.SuggestedClusters, err)
+	s.recordScheduleResultEventForResourceBinding(rb, filteredClusters, err)
 	return err
 }
 

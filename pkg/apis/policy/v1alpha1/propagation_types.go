@@ -526,7 +526,87 @@ type Placement struct {
 	// scheduling policies.
 	// +optional
 	WorkloadAffinity *WorkloadAffinity `json:"workloadAffinity,omitempty"`
+
+	// RolloutStrategy defines the strategy for rolling out resources across clusters.
+	// If not specified, resources are propagated to all clusters simultaneously.
+	// +optional
+	RolloutStrategy *RolloutStrategy `json:"rolloutStrategy,omitempty"`
 }
+
+// RolloutStrategy defines the strategy for rolling out resources across clusters.
+type RolloutStrategy struct {
+	// Type determines the rollout strategy type.
+	// Valid options are "Sequential" and "Parallel".
+	// "Sequential" rolls out to clusters one by one in the specified order.
+	// "Parallel" rolls out to all clusters simultaneously (default behavior).
+	// +kubebuilder:validation:Enum=Sequential;Parallel
+	// +optional
+	Type RolloutStrategyType `json:"type,omitempty"`
+
+	// Sequential configuration for sequential rollout.
+	// Required when Type is "Sequential".
+	// +optional
+	Sequential *SequentialRolloutConfig `json:"sequential,omitempty"`
+}
+
+// RolloutStrategyType defines the type of rollout strategy.
+type RolloutStrategyType string
+
+const (
+	// RolloutStrategyTypeSequential rolls out to clusters sequentially.
+	RolloutStrategyTypeSequential RolloutStrategyType = "Sequential"
+	// RolloutStrategyTypeParallel rolls out to clusters in parallel.
+	RolloutStrategyTypeParallel RolloutStrategyType = "Parallel"
+)
+
+// SequentialRolloutConfig defines the configuration for sequential rollout.
+type SequentialRolloutConfig struct {
+	// Order defines the order in which clusters should be updated.
+	// Clusters not in this list will not be updated.
+	// +required
+	// +kubebuilder:validation:MinItems=1
+	Order []string `json:"order"`
+
+	// HealthCheck defines the health check configuration.
+	// +required
+	HealthCheck HealthCheckConfig `json:"healthCheck"`
+
+	// OnFailure defines the behavior when a cluster fails health check or timeout.
+	// Valid options are "Pause", "RollbackAll", "Continue".
+	// Defaults to "Pause".
+	// +kubebuilder:validation:Enum=Pause;RollbackAll;Continue
+	// +kubebuilder:default=Pause
+	// +optional
+	OnFailure OnFailureBehavior `json:"onFailure,omitempty"`
+}
+
+// HealthCheckConfig defines the health check configuration.
+type HealthCheckConfig struct {
+	// Timeout is the maximum time to wait for the cluster to become healthy.
+	// Defaults to 300s.
+	// +kubebuilder:default="300s"
+	// +optional
+	Timeout metav1.Duration `json:"timeout,omitempty"`
+
+	// Condition is the condition type to check for health.
+	// Common values: "Ready", "Available", "Healthy".
+	// Defaults to "Ready".
+	// +kubebuilder:default=Ready
+	// +optional
+	Condition string `json:"condition,omitempty"`
+}
+
+// OnFailureBehavior defines the behavior when rollout fails.
+type OnFailureBehavior string
+
+const (
+	// OnFailurePause pauses the rollout and does not update remaining clusters.
+	OnFailurePause OnFailureBehavior = "Pause"
+	// OnFailureRollbackAll rolls back all clusters to the previous version.
+	OnFailureRollbackAll OnFailureBehavior = "RollbackAll"
+	// OnFailureContinue continues to update remaining clusters despite failure.
+	OnFailureContinue OnFailureBehavior = "Continue"
+)
 
 // SpreadFieldValue is the type to define valid values for SpreadConstraint.SpreadByField
 type SpreadFieldValue string

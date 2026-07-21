@@ -19,6 +19,7 @@ package scheduler
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"reflect"
 
@@ -143,4 +144,48 @@ func getConditionByError(err error) (metav1.Condition, bool) {
 		}
 	}
 	return util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonSchedulerError, err.Error(), metav1.ConditionFalse), false
+}
+
+// applyRolloutStrategy applies the rollout strategy to filter clusters for sequential rollout.
+func (s *Scheduler) applyRolloutStrategy(rb *workv1alpha2.ResourceBinding, candidateClusters []workv1alpha2.TargetCluster) []workv1alpha2.TargetCluster {
+	if rb.Spec.Placement == nil || rb.Spec.Placement.RolloutStrategy == nil {
+		return candidateClusters
+	}
+
+	if rb.Spec.Placement.RolloutStrategy.Type != policyv1alpha1.RolloutStrategyTypeSequential {
+		return candidateClusters
+	}
+
+	// For sequential rollout, only include the next cluster in the order
+	currentStage := getCurrentRolloutStage(rb)
+	if currentStage >= len(rb.Spec.Placement.RolloutStrategy.Sequential.Order) {
+		// All stages completed, return all clusters
+		return candidateClusters
+	}
+
+	nextCluster := rb.Spec.Placement.RolloutStrategy.Sequential.Order[currentStage]
+	for _, cluster := range candidateClusters {
+		if cluster.Name == nextCluster {
+			return []workv1alpha2.TargetCluster{cluster}
+		}
+	}
+
+	// If the next cluster is not in the candidate list, return empty
+	return nil
+}
+
+// getCurrentRolloutStage gets the current rollout stage from ResourceBinding annotations.
+func getCurrentRolloutStage(rb *workv1alpha2.ResourceBinding) int {
+	if rb.Annotations == nil {
+		return 0
+	}
+	stage, exists := rb.Annotations["rollout.karmada.io/stage"]
+	if !exists {
+		return 0
+	}
+	stageInt := 0
+	if _, err := fmt.Sscanf(stage, "%d", &stageInt); err == nil {
+		return stageInt
+	}
+	return 0
 }

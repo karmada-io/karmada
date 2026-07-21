@@ -139,6 +139,14 @@ const (
 	// owner: @mszacillo, @RainbowMango, @kevin-wangzefeng
 	// alpha: v1.17
 	WorkloadAffinity featuregate.Feature = "WorkloadAffinity"
+
+	// SequentialRollout controls whether the sequential rollout strategy is enabled.
+	// When enabled, PropagationPolicy can specify a rolloutStrategy to propagate
+	// resources to clusters sequentially with health checks between stages.
+	//
+	// owner: @your-github-username
+	// alpha: v1.18
+	SequentialRollout featuregate.Feature = "SequentialRollout"
 )
 
 var (
@@ -167,6 +175,7 @@ var (
 		MultiplePodTemplatesScheduling:    {Default: false, PreRelease: featuregate.Alpha},
 		ControllerPriorityQueue:           {Default: true, PreRelease: featuregate.Beta},
 		WorkloadAffinity:                  {Default: false, PreRelease: featuregate.Alpha},
+		SequentialRollout:                 {Default: false, PreRelease: featuregate.Alpha},
 	}
 )
 

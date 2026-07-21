@@ -119,6 +119,7 @@ func ValidatePlacement(placement policyv1alpha1.Placement, fldPath *field.Path) 
 	allErrs = append(allErrs, ValidateSpreadConstraint(placement.SpreadConstraints, fldPath.Child("spreadConstraints"))...)
 	allErrs = append(allErrs, ValidateWorkloadAffinity(placement.WorkloadAffinity, fldPath.Child("workloadAffinity"))...)
 	allErrs = append(allErrs, validateClusterTolerations(placement.ClusterTolerations, fldPath.Child("clusterTolerations"))...)
+	allErrs = append(allErrs, ValidateRolloutStrategy(placement.RolloutStrategy, fldPath.Child("rolloutStrategy"))...)
 	return allErrs
 }
 
@@ -165,6 +166,43 @@ func ValidateWorkloadAffinity(workloadAffinity *policyv1alpha1.WorkloadAffinity,
 		allErrs = append(allErrs, field.Invalid(fldPath, workloadAffinity,
 			"affinity and antiAffinity must not use the same groupByLabelKey"))
 	}
+	return allErrs
+}
+
+// ValidateRolloutStrategy validates a rolloutStrategy before creation or update.
+func ValidateRolloutStrategy(rolloutStrategy *policyv1alpha1.RolloutStrategy, fldPath *field.Path) field.ErrorList {
+	var allErrs field.ErrorList
+	if rolloutStrategy == nil {
+		return allErrs
+	}
+
+	if rolloutStrategy.Type == policyv1alpha1.RolloutStrategyTypeSequential {
+		if rolloutStrategy.Sequential == nil {
+			allErrs = append(allErrs, field.Invalid(
+				fldPath.Child("sequential"),
+				nil,
+				"sequential config is required when type is Sequential",
+			))
+			return allErrs
+		}
+
+		if len(rolloutStrategy.Sequential.Order) == 0 {
+			allErrs = append(allErrs, field.Invalid(
+				fldPath.Child("sequential").Child("order"),
+				rolloutStrategy.Sequential.Order,
+				"order must have at least one cluster",
+			))
+		}
+
+		if rolloutStrategy.Sequential.HealthCheck.Timeout.Duration <= 0 {
+			allErrs = append(allErrs, field.Invalid(
+				fldPath.Child("sequential").Child("healthCheck").Child("timeout"),
+				rolloutStrategy.Sequential.HealthCheck.Timeout,
+				"timeout must be positive",
+			))
+		}
+	}
+
 	return allErrs
 }
 
