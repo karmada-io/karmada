@@ -73,11 +73,7 @@ func parseProxyHeaders(headers map[string]string) http.Header {
 }
 
 // tokenCacheTTL controls how often the token is re-read from the Secret.
-var tokenCacheTTL = 30 * time.Second
-
-// tokenErrorRetryInterval is a shorter TTL used after a failed Secret read,
-// so recovery happens faster than a full tokenCacheTTL cycle.
-var tokenErrorRetryInterval = 5 * time.Second
+var tokenCacheTTL = 5 * time.Minute
 
 // tokenRefreshingRoundTripper re-reads the member cluster token from the Karmada
 // Secret on a TTL so long-lived informer clients survive token rotation.
@@ -145,7 +141,7 @@ func (t *tokenRefreshingRoundTripper) forceRefresh() string {
 	if err != nil {
 		klog.Warningf("tokenRefreshingRoundTripper: failed to refresh token from secret %s/%s, keeping last known token: %v",
 			t.secretNS, t.secretName, err)
-		t.cacheExpiry = time.Now().Add(tokenErrorRetryInterval)
+		t.cacheExpiry = time.Now().Add(tokenCacheTTL)
 		return t.cachedToken
 	}
 

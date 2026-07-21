@@ -66,6 +66,11 @@ const (
 	tokenRotatePollRate = 5 * time.Millisecond
 )
 
+// TestBuildClusterConfig_LongLivedClientPicksUpRotatedToken checks that a client built once (as
+// informers are) picks up a rotated token on its own. It:
+//  1. builds the client once,
+//  2. rotates the token in the Secret and the fake API server,
+//  3. asserts the client sends the new token without being rebuilt.
 func TestBuildClusterConfig_LongLivedClientPicksUpRotatedToken(t *testing.T) {
 	origTTL := tokenCacheTTL
 	tokenCacheTTL = testTokenCacheTTL

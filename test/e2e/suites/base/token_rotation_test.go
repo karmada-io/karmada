@@ -44,19 +44,11 @@ import (
 const (
 	// Time for the apiserver's SA token cache to flush after revocation.
 	revocationCacheFlushWait = 15 * time.Second
-	// Timeout for the cluster to return to Ready after container restart.
-	clusterReadyTimeout = 90 * time.Second
 	// Duration to assert the cluster remains Ready (short-lived path unaffected).
 	clusterStableWindow = 15 * time.Second
-	// Timeout for the informer to observe scaled status after rotation.
-	informerRecoveryTimeout = 120 * time.Second
 )
 
-// Verifies that push-mode informers recover after a member cluster token rotation.
-// Trade-offs to keep the test fast (~60s vs 10+ min for natural expiry):
-//   - Token revocation (instant) instead of waiting for natural token expiry.
-//   - Docker restart to force watch reconnection — an open watch survives
-//     revocation since the API server only re-validates auth on reconnection.
+// Verifies push-mode informers recover after a member cluster token rotation.
 var _ = framework.SerialDescribe("push-mode token rotation", func() {
 	var (
 		targetCluster  string
@@ -93,6 +85,18 @@ var _ = framework.SerialDescribe("push-mode token rotation", func() {
 		})
 	})
 
+	// Verifies a push-mode informer starts using a rotated member-cluster token.
+	// Observing this naturally takes two ~10 min waits, which the test fakes to stay fast:
+	//   1. The old token must become invalid. We revoke it (recreate the SA) instead of waiting
+	//      for it to expire.
+	//   2. The long-lived watch must reconnect. An open watch keeps the token it opened with,
+	//      because the API server checks the token only at connect time, not per event. So if we
+	//      don't force a reconnect, the watch keeps working on the old token and the test would
+	//      pass even without the fix. We force it by restarting the member's node container.
+	//
+	//      NOTE: kubectl can't force this reconnect. The member API server is a static pod, so
+	//      deleting its mirror pod leaves the process running and the connection never drops.
+	//      Only a container restart drops it.
 	ginkgo.It("informers recover after member cluster token rotates", func() {
 		ginkgo.By("1. verify workload propagated and status collected (baseline)", func() {
 			framework.WaitDeploymentPresentOnClusterFitWith(targetCluster, deploymentNS, deploymentName,
@@ -150,6 +154,8 @@ var _ = framework.SerialDescribe("push-mode token rotation", func() {
 			containerName := targetCluster + "-control-plane"
 			klog.Infof("restarting kind container %s to force watch reconnection", containerName)
 
+			// Restart the container, not `kubectl delete pod`: the API server is a static pod, so
+			// only a container restart drops the watch connection.
 			cmd := kindexec.Command("docker", "restart", containerName)
 			output, err := kindexec.CombinedOutputLines(cmd)
 			if err != nil {
@@ -169,7 +175,7 @@ var _ = framework.SerialDescribe("push-mode token rotation", func() {
 					}
 				}
 				return false
-			}, clusterReadyTimeout, 2*time.Second).Should(gomega.BeTrue(),
+			}, framework.PollTimeout, framework.PollInterval).Should(gomega.BeTrue(),
 				"cluster must return to Ready after container restart")
 		})
 
@@ -185,7 +191,7 @@ var _ = framework.SerialDescribe("push-mode token rotation", func() {
 					}
 				}
 				return false
-			}, clusterStableWindow, pollInterval).Should(gomega.BeTrue(),
+			}, clusterStableWindow, framework.PollInterval).Should(gomega.BeTrue(),
 				"cluster must remain Ready (short-lived health check unaffected)")
 		})
 
@@ -209,7 +215,7 @@ var _ = framework.SerialDescribe("push-mode token rotation", func() {
 				klog.Infof("karmada collected readyReplicas=%d (target %d)",
 					dep.Status.ReadyReplicas, targetReplicas)
 				return dep.Status.ReadyReplicas == targetReplicas
-			}, informerRecoveryTimeout, pollInterval).Should(gomega.BeTrue(),
+			}, framework.PollTimeout, framework.PollInterval).Should(gomega.BeTrue(),
 				"informer must observe scaled status after token rotation")
 		})
 	})

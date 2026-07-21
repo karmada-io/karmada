@@ -247,7 +247,7 @@ func BuildClusterConfig(clusterName string,
 		}
 	}
 
-	// Token-refreshing transport — replaces the built-in bearerAuthRoundTripper
+	// Token-refreshing transport: replaces the built-in bearerAuthRoundTripper
 	// position (outermost) so inner wrappers see auth already set.
 	clusterConfig.Wrap(NewTokenRefreshingRoundTripperWrapperConstructor(
 		secretGetter,
