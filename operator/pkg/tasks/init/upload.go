@@ -76,7 +76,10 @@ func runUploadAdminKubeconfig(r workflow.RunData) error {
 		if err != nil {
 			return err
 		}
-		nodePort := getNodePortFromAPIServerService(service)
+		nodePort, err := getNodePortFromAPIServerService(service)
+		if err != nil {
+			return err
+		}
 		endpoint = fmt.Sprintf("https://%s:%d", data.ControlplaneAddress(), nodePort)
 	case corev1.ServiceTypeLoadBalancer:
 		service, err := apiclient.GetService(data.RemoteClient(), util.KarmadaAPIServerName(data.GetName()), data.GetNamespace())
@@ -125,18 +128,22 @@ func runUploadAdminKubeconfig(r workflow.RunData) error {
 	return nil
 }
 
-func getNodePortFromAPIServerService(service *corev1.Service) int32 {
-	var nodePort int32
-	if service.Spec.Type == corev1.ServiceTypeNodePort {
-		for _, port := range service.Spec.Ports {
-			if port.Name != "client" {
-				continue
-			}
-			nodePort = port.NodePort
-		}
+func getNodePortFromAPIServerService(service *corev1.Service) (int32, error) {
+	if service.Spec.Type != corev1.ServiceTypeNodePort {
+		return 0, fmt.Errorf("service (%s/%s) is not a NodePort service", service.Namespace, service.Name)
 	}
 
-	return nodePort
+	for _, port := range service.Spec.Ports {
+		if port.Name != "client" {
+			continue
+		}
+		if port.NodePort == 0 {
+			return 0, fmt.Errorf("service (%s/%s) has no valid client NodePort", service.Namespace, service.Name)
+		}
+		return port.NodePort, nil
+	}
+
+	return 0, fmt.Errorf("service (%s/%s) has no client NodePort", service.Namespace, service.Name)
 }
 
 func getLoadbalancerAddress(ingress []corev1.LoadBalancerIngress) string {
