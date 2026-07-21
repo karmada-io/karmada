@@ -76,7 +76,7 @@ spec:
         end
     componentResource:
       luaScript: |
-        local kube = require("kube")
+
 
         local function isempty(s)
           return s == nil or s == ''
@@ -169,7 +169,7 @@ spec:
             jm_requires.resourceRequest.cpu = jm_cpu
           end
           if jm_memory ~= nil then
-            jm_requires.resourceRequest.memory = kube.getResourceQuantity(jm_memory)
+            jm_requires.resourceRequest.memory = jm_memory
           end
           apply_pod_template(pt_spec, jm_requires)
 
@@ -203,7 +203,7 @@ spec:
             tm_requires.resourceRequest.cpu = tm_cpu
           end
           if tm_memory ~= nil then
-            tm_requires.resourceRequest.memory = kube.getResourceQuantity(tm_memory)
+            tm_requires.resourceRequest.memory = tm_memory
           end
           apply_pod_template(pt_spec, tm_requires)
 
