@@ -124,6 +124,31 @@ func TestScaleFHPA(t *testing.T) {
 			expectedErr:    false,
 		},
 		{
+			name: "Initialize Nil MinReplicas",
+			cronFHPA: &autoscalingv1alpha1.CronFederatedHPA{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-cron-fhpa",
+					Namespace: "default",
+				},
+				Spec: autoscalingv1alpha1.CronFederatedHPASpec{
+					ScaleTargetRef: autoscalingv2.CrossVersionObjectReference{
+						Name: "test-fhpa",
+					},
+				},
+			},
+			existingFHPA: &autoscalingv1alpha1.FederatedHPA{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-fhpa",
+					Namespace: "default",
+				},
+			},
+			rule: autoscalingv1alpha1.CronFederatedHPARule{
+				TargetMinReplicas: new(int32(3)),
+			},
+			expectedUpdate: true,
+			expectedErr:    false,
+		},
+		{
 			name: "No Updates Needed",
 			cronFHPA: &autoscalingv1alpha1.CronFederatedHPA{
 				ObjectMeta: metav1.ObjectMeta{
