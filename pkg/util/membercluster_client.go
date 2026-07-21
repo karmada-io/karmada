@@ -216,11 +216,10 @@ func BuildClusterConfig(clusterName string,
 		return nil, fmt.Errorf("the secret for cluster %s is missing a non-empty value for %q", clusterName, clusterv1alpha1.SecretTokenKey)
 	}
 
-	// Initialize cluster configuration.
 	clusterConfig := &rest.Config{
-		BearerToken: string(token),
-		Host:        apiEndpoint,
-		Timeout:     defaultTimeout,
+		// BearerToken omitted: injected by the token-refreshing transport below.
+		Host:    apiEndpoint,
+		Timeout: defaultTimeout,
 	}
 
 	// Handle TLS configuration.
@@ -247,6 +246,15 @@ func BuildClusterConfig(clusterName string,
 			clusterConfig.Wrap(NewProxyHeaderRoundTripperWrapperConstructor(clusterConfig.WrapTransport, cluster.Spec.ProxyHeader))
 		}
 	}
+
+	// Token-refreshing transport: replaces the built-in bearerAuthRoundTripper
+	// position (outermost) so inner wrappers see auth already set.
+	clusterConfig.Wrap(NewTokenRefreshingRoundTripperWrapperConstructor(
+		secretGetter,
+		cluster.Spec.SecretRef.Namespace,
+		cluster.Spec.SecretRef.Name,
+		string(token),
+	))
 
 	return clusterConfig, nil
 }
