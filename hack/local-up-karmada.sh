@@ -74,7 +74,11 @@ ${KARMADACTL_BIN} join --karmada-context="${KARMADA_APISERVER_CLUSTER_NAME}" ${M
 "${REPO_ROOT}"/hack/deploy-scheduler-estimator.sh "${MAIN_KUBECONFIG}" "${HOST_CLUSTER_NAME}" "${MEMBER_CLUSTER_KUBECONFIG}" "${MEMBER_CLUSTER_2_NAME}"
 
 # step4. register pull mode member clusters and install scheduler-estimator
-"${REPO_ROOT}"/hack/deploy-agent-and-estimator.sh "${MAIN_KUBECONFIG}" "${HOST_CLUSTER_NAME}" "${MAIN_KUBECONFIG}" "${KARMADA_APISERVER_CLUSTER_NAME}" "${MEMBER_CLUSTER_KUBECONFIG}" "${PULL_MODE_CLUSTER_NAME}"
+export VERSION="latest"
+export REGISTRY="docker.io/karmada"
+KARMADA_REGISTER_COMMAND=$(${KARMADACTL_BIN} token create --print-register-command  --kubeconfig ${MAIN_KUBECONFIG} --karmada-context ${KARMADA_APISERVER_CLUSTER_NAME})
+eval ${KARMADA_REGISTER_COMMAND} --kubeconfig "${MEMBER_CLUSTER_KUBECONFIG}" --context "${PULL_MODE_CLUSTER_NAME}" --cluster-name "${PULL_MODE_CLUSTER_NAME}" --karmada-agent-image "${REGISTRY}/karmada-agent:${VERSION}" --feature-gates CustomizedClusterResourceModeling=true,MultiClusterService=true
+"${REPO_ROOT}"/hack/deploy-scheduler-estimator.sh "${MAIN_KUBECONFIG}" "${HOST_CLUSTER_NAME}" "${MEMBER_CLUSTER_KUBECONFIG}" "${PULL_MODE_CLUSTER_NAME}"
 
 # step5. deploy metrics-server in member clusters
 "${REPO_ROOT}"/hack/deploy-k8s-metrics-server.sh "${MEMBER_CLUSTER_KUBECONFIG}" "${MEMBER_CLUSTER_1_NAME}"
