@@ -55,6 +55,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
+	utildynamic "github.com/karmada-io/karmada/pkg/util/dynamic"
 	"github.com/karmada-io/karmada/pkg/util/eventfilter"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
@@ -1197,8 +1198,9 @@ func (d *ResourceDetector) handlePolicyDeletion(claimMetadata labels.Set, resour
 	return errors.NewAggregate(errs)
 }
 
-func (d *ResourceDetector) handleResourceTemplateAndBindingCleanup(template *unstructured.Unstructured, objRef workv1alpha2.ObjectReference, targetClaimMetadata map[string]string, cleanupFunc func(obj metav1.Object)) error {
-	bindingName := names.GenerateBindingName(template.GetKind(), template.GetName())
+func (d *ResourceDetector) handleResourceTemplateAndBindingCleanup(template utildynamic.Metadata, objRef workv1alpha2.ObjectReference, targetClaimMetadata map[string]string, cleanupFunc func(obj metav1.Object)) error {
+	templateKind := template.GetKind()
+	bindingName := names.GenerateBindingName(templateKind, template.GetName())
 	if template.GetNamespace() != "" {
 		// Clean up the claim metadata from the reference binding so that the karmada scheduler won't reschedule the binding.
 		// Must remove the claim metadata, such as labels and annotations, from the ResourceBinding ahead of resource template,
@@ -1221,9 +1223,14 @@ func (d *ResourceDetector) handleResourceTemplateAndBindingCleanup(template *uns
 		}
 	}
 
-	if err := d.CleanupResourceTemplateClaimMetadata(template, objRef, targetClaimMetadata, cleanupFunc); err != nil {
+	unstructuredTemplate, err := helper.ToUnstructured(template)
+	if err != nil {
+		klog.Errorf("Failed to transform resource(%s-%s/%s), error: %v", templateKind, template.GetNamespace(), template.GetName(), err)
+		return err
+	}
+	if err := d.CleanupResourceTemplateClaimMetadata(unstructuredTemplate, objRef, targetClaimMetadata, cleanupFunc); err != nil {
 		klog.Errorf("Failed to clean up claim metadata from resource(%s-%s/%s) when propagationPolicy removed, error: %v",
-			template.GetKind(), template.GetNamespace(), template.GetName(), err)
+			templateKind, template.GetNamespace(), template.GetName(), err)
 		return err
 	}
 

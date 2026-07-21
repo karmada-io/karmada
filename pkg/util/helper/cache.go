@@ -72,7 +72,7 @@ func GetObjectFromCache(
 		klog.Errorf("Failed to get obj %s. error: %v.", fedKey.String(), err)
 		return nil, err
 	}
-	return obj.(*unstructured.Unstructured), nil
+	return ToUnstructured(obj)
 }
 
 // GetObjectFromSingleClusterCache gets full object information from single cluster cache by key in worker queue.
@@ -101,7 +101,7 @@ func GetObjectFromSingleClusterCache(restMapper meta.RESTMapper, manager generic
 
 		return nil, err
 	}
-	return obj.(*unstructured.Unstructured), nil
+	return ToUnstructured(obj)
 }
 
 // getObjectFromSingleCluster will try to get resource from single cluster by DynamicClientSet.

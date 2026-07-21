@@ -22,7 +22,8 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/dynamic"
+
+	dynamic "github.com/karmada-io/karmada/pkg/util/dynamic/adapter"
 )
 
 var (
