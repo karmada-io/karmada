@@ -252,3 +252,115 @@ func TestIsWorkSuspendDispatching(t *testing.T) {
 		})
 	}
 }
+
+func TestGetWorkSuspendDispatching(t *testing.T) {
+	trueVal := true
+	falseVal := false
+	tests := []struct {
+		name string
+		spec *workv1alpha1.WorkSpec
+		want []string
+	}{
+		{
+			name: "SuspendDispatching is true",
+			spec: &workv1alpha1.WorkSpec{SuspendDispatching: &trueVal},
+			want: []string{"true"},
+		},
+		{
+			name: "SuspendDispatching is false",
+			spec: &workv1alpha1.WorkSpec{SuspendDispatching: &falseVal},
+			want: []string{"false"},
+		},
+		{
+			name: "SuspendDispatching is nil, defaults to false",
+			spec: &workv1alpha1.WorkSpec{},
+			want: []string{"false"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := GetWorkSuspendDispatching(tt.spec)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestSetLabelsAndAnnotationsForWorkload(t *testing.T) {
+	tests := []struct {
+		name              string
+		workload          *unstructured.Unstructured
+		work              *workv1alpha1.Work
+		wantLabelKey      string
+		wantLabelValue    string
+		wantAnnotationKey string
+	}{
+		{
+			name: "work has permanent ID label — propagated to workload",
+			workload: &unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]any{
+						"name":      "demo",
+						"namespace": "default",
+					},
+				},
+			},
+			work: &workv1alpha1.Work{
+				Spec: workv1alpha1.WorkSpec{},
+			},
+		},
+		{
+			name: "work has permanent ID label set",
+			workload: &unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]any{
+						"name":      "demo",
+						"namespace": "default",
+					},
+				},
+			},
+			work: &workv1alpha1.Work{
+				Spec: workv1alpha1.WorkSpec{},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			SetLabelsAndAnnotationsForWorkload(tt.workload, tt.work)
+			// RecordManagedAnnotations should always set the managed-annotations annotation.
+			annotations := tt.workload.GetAnnotations()
+			assert.NotNil(t, annotations)
+			assert.Contains(t, annotations, workv1alpha2.ManagedAnnotation)
+			// RecordManagedLabels should always set the managed-labels annotation.
+			assert.Contains(t, annotations, workv1alpha2.ManagedLabels)
+		})
+	}
+}
+
+func TestSetLabelsAndAnnotationsForWorkload_WithPermanentID(t *testing.T) {
+	const permanentID = "test-permanent-id-123"
+	workload := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "apps/v1",
+			"kind":       "Deployment",
+			"metadata": map[string]any{
+				"name":      "demo",
+				"namespace": "default",
+			},
+		},
+	}
+	work := &workv1alpha1.Work{}
+	work.Labels = map[string]string{
+		workv1alpha2.WorkPermanentIDLabel: permanentID,
+	}
+
+	SetLabelsAndAnnotationsForWorkload(workload, work)
+
+	labels := workload.GetLabels()
+	assert.Equal(t, permanentID, labels[workv1alpha2.WorkPermanentIDLabel])
+}
