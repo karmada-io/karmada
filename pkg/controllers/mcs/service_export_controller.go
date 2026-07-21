@@ -177,7 +177,13 @@ func (c *ServiceExportController) RunWorkQueue() {
 
 func (c *ServiceExportController) enqueueReportedEpsServiceExport() {
 	workList := &workv1alpha1.WorkList{}
-	err := wait.PollUntilContextCancel(context.TODO(), 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
+	ctx := c.Context
+	if ctx == nil {
+		klog.Warning("ServiceExportController.Context is nil, falling back to context.Background() which may cause goroutine leaks on shutdown")
+		ctx = context.Background()
+	}
+
+	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
 		err = c.List(ctx, workList, client.MatchingFields{
 			indexregistry.WorkIndexByFieldSuspendDispatching: "true",
 		})
