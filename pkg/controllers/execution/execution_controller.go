@@ -50,6 +50,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
+	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
 
 const (
@@ -204,8 +205,21 @@ func (c *Controller) cleanupPolicyClaimMetadata(ctx context.Context, work *workv
 
 		clusterObj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, fedKey)
 		if err != nil {
-			klog.ErrorS(err, "Failed to get the resource from member cluster cache", "kind", workload.GetKind(), "namespace", workload.GetNamespace(), "name", workload.GetName(), "cluster", cluster.Name)
-			return err
+			if apierrors.IsNotFound(err) {
+				clusterObj, err = c.getObjectFromMemberCluster(ctx, cluster.Name, workload)
+				if err != nil {
+					if apierrors.IsNotFound(err) {
+						klog.V(4).InfoS("Resource not found in member cluster, skip cleaning up policy claim metadata",
+							"kind", workload.GetKind(), "namespace", workload.GetNamespace(), "name", workload.GetName(), "cluster", cluster.Name)
+						continue
+					}
+					klog.ErrorS(err, "Failed to get the resource from member cluster API", "kind", workload.GetKind(), "namespace", workload.GetNamespace(), "name", workload.GetName(), "cluster", cluster.Name)
+					return err
+				}
+			} else {
+				klog.ErrorS(err, "Failed to get the resource from member cluster cache", "kind", workload.GetKind(), "namespace", workload.GetNamespace(), "name", workload.GetName(), "cluster", cluster.Name)
+				return err
+			}
 		}
 
 		if workload.GetNamespace() == corev1.NamespaceAll {
@@ -219,12 +233,43 @@ func (c *Controller) cleanupPolicyClaimMetadata(ctx context.Context, work *workv
 		operationResult, err := c.ObjectWatcher.Update(ctx, cluster.Name, workload, clusterObj)
 		metrics.CountUpdateResourceToCluster(err, workload.GetAPIVersion(), workload.GetKind(), cluster.Name, string(operationResult))
 		if err != nil {
+			if apierrors.IsNotFound(err) {
+				clusterObj, getErr := c.getObjectFromMemberCluster(ctx, cluster.Name, workload)
+				if getErr != nil {
+					if apierrors.IsNotFound(getErr) {
+						klog.V(4).InfoS("Resource gone during metadata cleanup update, skip it",
+							"kind", workload.GetKind(), "namespace", workload.GetNamespace(), "name", workload.GetName(), "cluster", cluster.Name)
+						continue
+					}
+					klog.ErrorS(getErr, "Failed to re-check resource in member cluster API after update not found", "kind", workload.GetKind(), "namespace", workload.GetNamespace(), "name", workload.GetName(), "cluster", cluster.Name)
+					return getErr
+				}
+				operationResult, err = c.ObjectWatcher.Update(ctx, cluster.Name, workload, clusterObj)
+				metrics.CountUpdateResourceToCluster(err, workload.GetAPIVersion(), workload.GetKind(), cluster.Name, string(operationResult))
+				if err == nil {
+					continue
+				}
+			}
 			klog.ErrorS(err, "Failed to update metadata in the given member cluster", "cluster", cluster.Name)
 			return err
 		}
 	}
 
 	return nil
+}
+
+func (c *Controller) getObjectFromMemberCluster(ctx context.Context, clusterName string, workload *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+	gvr, err := restmapper.GetGroupVersionResource(c.RESTMapper, workload.GroupVersionKind())
+	if err != nil {
+		return nil, err
+	}
+
+	singleClusterManager := c.InformerManager.GetSingleClusterManager(clusterName)
+	if singleClusterManager == nil {
+		return nil, fmt.Errorf("the informer of cluster(%s) has not been initialized", clusterName)
+	}
+
+	return singleClusterManager.GetClient().Resource(gvr).Namespace(workload.GetNamespace()).Get(ctx, workload.GetName(), metav1.GetOptions{})
 }
 
 // tryDeleteWorkload tries to delete resources in the given member cluster.
