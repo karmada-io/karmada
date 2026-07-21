@@ -22,6 +22,7 @@ import (
 	"net"
 	"net/url"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	clientset "k8s.io/client-go/kubernetes"
@@ -63,10 +64,27 @@ func GetAPIServiceIP(clientset clientset.Interface) (string, error) {
 		ls := labels.Set(node.GetLabels())
 
 		if masterLabel.AsSelector().Matches(ls) || controlplaneLabel.AsSelector().Matches(ls) {
-			if ip := netutils.ParseIPSloppy(node.Status.Addresses[0].Address); ip != nil {
-				return ip.String(), nil
+			if ip := getValidNodeAddress(node.Status.Addresses); ip != "" {
+				return ip, nil
 			}
 		}
 	}
-	return nodes.Items[0].Status.Addresses[0].Address, nil
+
+	for _, node := range nodes.Items {
+		if ip := getValidNodeAddress(node.Status.Addresses); ip != "" {
+			return ip, nil
+		}
+	}
+
+	return "", fmt.Errorf("there are no nodes with valid addresses in cluster")
+}
+
+func getValidNodeAddress(addresses []corev1.NodeAddress) string {
+	for _, address := range addresses {
+		if ip := netutils.ParseIPSloppy(address.Address); ip != nil {
+			return ip.String()
+		}
+	}
+
+	return ""
 }

@@ -66,22 +66,13 @@ func TestGetControlPlaneEndpoint(t *testing.T) {
 	}
 }
 
-func TestGetAPIServiceIP(t *testing.T) {
+func TestGetAPIServiceIPSuccess(t *testing.T) {
 	tests := []struct {
 		name             string
 		client           clientset.Interface
 		prep             func(clientset.Interface) error
 		wantAPIServiceIP string
-		wantErr          bool
-		errMsg           string
 	}{
-		{
-			name:    "GetAPIServiceIP_WithNoNodesInTheCluster_FailedToGetAPIServiceIP",
-			client:  fakeclientset.NewClientset(),
-			prep:    func(clientset.Interface) error { return nil },
-			wantErr: true,
-			errMsg:  "there are no nodes in cluster",
-		},
 		{
 			name:   "GetAPIServiceIP_WithoutMasterNode_WorkerNodeAPIServiceIPReturned",
 			client: fakeclientset.NewClientset(),
@@ -109,7 +100,6 @@ func TestGetAPIServiceIP(t *testing.T) {
 				}
 				return nil
 			},
-			wantErr:          false,
 			wantAPIServiceIP: "192.168.1.2",
 		},
 		{
@@ -155,8 +145,44 @@ func TestGetAPIServiceIP(t *testing.T) {
 				}
 				return nil
 			},
-			wantErr:          false,
 			wantAPIServiceIP: "192.168.1.1",
+		},
+		{
+			name:   "GetAPIServiceIP_WithControlPlaneNodeWithoutAddresses_WorkerNodeAPIServiceIPReturned",
+			client: fakeclientset.NewClientset(),
+			prep: func(client clientset.Interface) error {
+				nodes := []*corev1.Node{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "node-1",
+							Labels: map[string]string{
+								"node-role.kubernetes.io/control-plane": "",
+							},
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "node-2",
+						},
+						Status: corev1.NodeStatus{
+							Addresses: []corev1.NodeAddress{
+								{
+									Type:    corev1.NodeInternalIP,
+									Address: "192.168.1.2",
+								},
+							},
+						},
+					},
+				}
+				for _, node := range nodes {
+					_, err := client.CoreV1().Nodes().Create(context.TODO(), node, metav1.CreateOptions{})
+					if err != nil {
+						return fmt.Errorf("failed to create node %s: %v", node.Name, err)
+					}
+				}
+				return nil
+			},
+			wantAPIServiceIP: "192.168.1.2",
 		},
 	}
 	for _, test := range tests {
@@ -165,17 +191,70 @@ func TestGetAPIServiceIP(t *testing.T) {
 				t.Errorf("failed to prep before getting API service IP: %v", err)
 			}
 			apiServiceIP, err := GetAPIServiceIP(test.client)
-			if err == nil && test.wantErr {
-				t.Errorf("expected an error, but got none")
-			}
-			if err != nil && !test.wantErr {
+			if err != nil {
 				t.Errorf("unexpected error, got: %v", err)
-			}
-			if err != nil && test.wantErr && !strings.Contains(err.Error(), test.errMsg) {
-				t.Errorf("expected error message %s to be in %s", test.errMsg, err.Error())
 			}
 			if apiServiceIP != test.wantAPIServiceIP {
 				t.Errorf("expected API service IP %s, but got %s", test.wantAPIServiceIP, apiServiceIP)
+			}
+		})
+	}
+}
+
+func TestGetAPIServiceIPErrors(t *testing.T) {
+	tests := []struct {
+		name   string
+		client clientset.Interface
+		prep   func(clientset.Interface) error
+		errMsg string
+	}{
+		{
+			name:   "GetAPIServiceIP_WithNoNodesInTheCluster_FailedToGetAPIServiceIP",
+			client: fakeclientset.NewClientset(),
+			prep:   func(clientset.Interface) error { return nil },
+			errMsg: "there are no nodes in cluster",
+		},
+		{
+			name:   "GetAPIServiceIP_WithNodesWithoutAddresses_ReturnsError",
+			client: fakeclientset.NewClientset(),
+			prep: func(client clientset.Interface) error {
+				nodes := []*corev1.Node{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "node-1",
+							Labels: map[string]string{
+								"node-role.kubernetes.io/control-plane": "",
+							},
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "node-2",
+						},
+					},
+				}
+				for _, node := range nodes {
+					_, err := client.CoreV1().Nodes().Create(context.TODO(), node, metav1.CreateOptions{})
+					if err != nil {
+						return fmt.Errorf("failed to create node %s: %v", node.Name, err)
+					}
+				}
+				return nil
+			},
+			errMsg: "there are no nodes with valid addresses in cluster",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if err := test.prep(test.client); err != nil {
+				t.Errorf("failed to prep before getting API service IP: %v", err)
+			}
+			_, err := GetAPIServiceIP(test.client)
+			if err == nil {
+				t.Fatalf("expected an error, but got none")
+			}
+			if !strings.Contains(err.Error(), test.errMsg) {
+				t.Errorf("expected error message %s to be in %s", test.errMsg, err.Error())
 			}
 		})
 	}
