@@ -159,9 +159,7 @@ func buildTaskOptions(failoverBehavior *policyv1alpha1.ApplicationFailoverBehavi
 	}
 
 	switch failoverBehavior.PurgeMode {
-	//nolint:staticcheck
-	// disable `deprecation` check for backward compatibility.
-	case policyv1alpha1.Graciously, policyv1alpha1.PurgeModeGracefully:
+	case policyv1alpha1.PurgeModeGracefully:
 		if features.FeatureGate.Enabled(features.GracefulEviction) {
 			taskOpts = append(taskOpts, workv1alpha2.WithGracePeriodSeconds(failoverBehavior.GracePeriodSeconds))
 		} else {

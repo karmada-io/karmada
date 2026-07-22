@@ -200,10 +200,7 @@ func ObtainBindingSpecExistingClusters(bindingSpec workv1alpha2.ResourceBindingS
 		// EvictionTasks with Directly PurgeMode should not be treated as existing clusters
 		// Work on those clusters should be removed directly and treated as orphans.
 		//
-		//nolint:staticcheck
-		// disable `deprecation` check for backward compatibility.
-		if task.PurgeMode != policyv1alpha1.Immediately &&
-			task.PurgeMode != policyv1alpha1.PurgeModeDirectly {
+		if task.PurgeMode != policyv1alpha1.PurgeModeDirectly {
 			clusterNames.Insert(task.FromCluster)
 		}
 	}
@@ -215,10 +212,7 @@ func ObtainBindingSpecExistingClusters(bindingSpec workv1alpha2.ResourceBindingS
 func ObtainClustersWithPurgeModeDirectly(bindingSpec workv1alpha2.ResourceBindingSpec) sets.Set[string] {
 	clusterNames := sets.New[string]()
 	for _, task := range bindingSpec.GracefulEvictionTasks {
-		//nolint:staticcheck
-		// disable `deprecation` check for backward compatibility.
-		if task.PurgeMode == policyv1alpha1.PurgeModeDirectly ||
-			task.PurgeMode == policyv1alpha1.Immediately {
+		if task.PurgeMode == policyv1alpha1.PurgeModeDirectly {
 			clusterNames.Insert(task.FromCluster)
 		}
 	}

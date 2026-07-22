@@ -337,18 +337,12 @@ func ValidateApplicationFailover(applicationFailoverBehavior *policyv1alpha1.App
 		allErrs = append(allErrs, field.Invalid(fldPath.Child("decisionConditions").Child("tolerationSeconds"), *applicationFailoverBehavior.DecisionConditions.TolerationSeconds, "must be greater than or equal to 0"))
 	}
 
-	//nolint:staticcheck
-	// disable `deprecation` check for backward compatibility.
-	if applicationFailoverBehavior.PurgeMode != policyv1alpha1.Graciously &&
-		applicationFailoverBehavior.PurgeMode != policyv1alpha1.PurgeModeGracefully &&
+	if applicationFailoverBehavior.PurgeMode != policyv1alpha1.PurgeModeGracefully &&
 		applicationFailoverBehavior.GracePeriodSeconds != nil {
 		allErrs = append(allErrs, field.Invalid(fldPath.Child("gracePeriodSeconds"), *applicationFailoverBehavior.GracePeriodSeconds, "only takes effect when purgeMode is gracefully"))
 	}
 
-	//nolint:staticcheck
-	// disable `deprecation` check for backward compatibility.
-	if (applicationFailoverBehavior.PurgeMode == policyv1alpha1.Graciously ||
-		applicationFailoverBehavior.PurgeMode == policyv1alpha1.PurgeModeGracefully) &&
+	if applicationFailoverBehavior.PurgeMode == policyv1alpha1.PurgeModeGracefully &&
 		applicationFailoverBehavior.GracePeriodSeconds == nil {
 		allErrs = append(allErrs, field.Invalid(fldPath.Child("gracePeriodSeconds"), applicationFailoverBehavior.GracePeriodSeconds, "should not be empty when purgeMode is gracefully"))
 	}
