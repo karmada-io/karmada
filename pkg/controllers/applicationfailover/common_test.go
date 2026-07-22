@@ -300,7 +300,7 @@ func Test_buildTaskOptions(t *testing.T) {
 			wantErr: assert.NoError,
 		},
 		{
-			name: "Immediately purgeMode with ClusterResourceBinding",
+			name: "Directly purgeMode with ClusterResourceBinding",
 			args: args{
 				failoverBehavior: &policyv1alpha1.ApplicationFailoverBehavior{
 					DecisionConditions: policyv1alpha1.DecisionConditions{
