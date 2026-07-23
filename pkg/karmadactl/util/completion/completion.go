@@ -31,11 +31,11 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
+	"k8s.io/client-go/rest"
 	"k8s.io/kubectl/pkg/cmd/apiresources"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/polymorphichelpers"
 	"k8s.io/kubectl/pkg/scheme"
-	"k8s.io/utils/ptr"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/get"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
@@ -45,6 +45,20 @@ import (
 const completionRequestTimeout = 5 * time.Second
 
 var factory util.Factory
+
+type timeoutRESTClientGetter struct {
+	genericclioptions.RESTClientGetter
+	timeout time.Duration
+}
+
+func (g *timeoutRESTClientGetter) ToRESTConfig() (*rest.Config, error) {
+	cfg, err := g.RESTClientGetter.ToRESTConfig()
+	if err != nil {
+		return nil, err
+	}
+	cfg.Timeout = g.timeout
+	return cfg, nil
+}
 
 // SetFactoryForCompletion Store the factory which is needed by the completion functions.
 // Not all commands have access to the factory, so cannot pass it to the completion functions.
@@ -255,7 +269,7 @@ func compGetResourceList(restClientGetter genericclioptions.RESTClientGetter, cm
 	o := apiresources.NewAPIResourceOptions(streams)
 
 	// Get the list of resources
-	o.PrintFlags.OutputFormat = ptr.To("name")
+	o.PrintFlags.OutputFormat = new("name")
 	o.Cached = true
 	o.Verbs = []string{"get"}
 

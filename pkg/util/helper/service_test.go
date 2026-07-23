@@ -141,13 +141,13 @@ func TestDedupeAndSortServiceLoadBalancerIngress(t *testing.T) {
 			args: args{
 				ingresses: []corev1.LoadBalancerIngress{
 					{Hostname: "hostname-1", Ports: []corev1.PortStatus{
-						{Port: 80, Protocol: "TCP", Error: ptr.To("error-1")},
+						{Port: 80, Protocol: "TCP", Error: new("error-1")},
 					}},
 					{Hostname: "hostname-1", Ports: []corev1.PortStatus{
-						{Port: 80, Protocol: "TCP", Error: ptr.To("error-1")},
+						{Port: 80, Protocol: "TCP", Error: new("error-1")},
 					}},
 					{Hostname: "hostname-1", Ports: []corev1.PortStatus{
-						{Port: 80, Protocol: "TCP", Error: ptr.To("error-2")},
+						{Port: 80, Protocol: "TCP", Error: new("error-2")},
 					}},
 					{Hostname: "hostname-1", Ports: []corev1.PortStatus{
 						{Port: 80, Protocol: "TCP"},
@@ -157,8 +157,8 @@ func TestDedupeAndSortServiceLoadBalancerIngress(t *testing.T) {
 			want: []corev1.LoadBalancerIngress{
 				{Hostname: "hostname-1", Ports: []corev1.PortStatus{
 					{Port: 80, Protocol: "TCP"},
-					{Port: 80, Protocol: "TCP", Error: ptr.To("error-1")},
-					{Port: 80, Protocol: "TCP", Error: ptr.To("error-2")},
+					{Port: 80, Protocol: "TCP", Error: new("error-1")},
+					{Port: 80, Protocol: "TCP", Error: new("error-2")},
 				}},
 			},
 		},

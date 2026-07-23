@@ -38,6 +38,7 @@ func (i *CommandInitOption) defaultEtcdContainerCommand() []string {
 		fmt.Sprintf("--name=$(%s)", etcdEnvPodName),
 		fmt.Sprintf("--listen-peer-urls=http://$(%s):%v", etcdEnvPodIP, etcdContainerServerPort),
 		fmt.Sprintf("--listen-client-urls=https://$(%s):%v,http://127.0.0.1:%v", etcdEnvPodIP, etcdContainerClientPort, etcdContainerClientPort),
+		fmt.Sprintf("--listen-metrics-urls=http://$(%s):%v", etcdEnvPodIP, etcdContainerMetricsPort),
 		fmt.Sprintf("--advertise-client-urls=https://$(%s).%s.%s.svc.%s:%v", etcdEnvPodName, etcdStatefulSetAndServiceName, i.Namespace, i.HostClusterDomain, etcdContainerClientPort),
 		fmt.Sprintf("--initial-cluster=%s", strings.TrimRight(etcdClusterConfig.String(), ",")),
 		"--initial-cluster-state=new",

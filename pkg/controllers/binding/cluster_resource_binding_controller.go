@@ -29,7 +29,6 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/ptr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -203,7 +202,7 @@ func (c *ClusterResourceBindingController) newOverridePolicyFunc() handler.MapFu
 		}
 
 		readonlyBindingList := &workv1alpha2.ClusterResourceBindingList{}
-		if err := c.Client.List(ctx, readonlyBindingList, &client.ListOptions{UnsafeDisableDeepCopy: ptr.To(true)}); err != nil {
+		if err := c.Client.List(ctx, readonlyBindingList, &client.ListOptions{UnsafeDisableDeepCopy: new(true)}); err != nil {
 			klog.ErrorS(err, "Failed to list ClusterResourceBindings")
 			return nil
 		}

@@ -107,7 +107,7 @@ func NewCronFederatedHPARule(name, cron string, suspend bool, targetReplicas, ta
 		TargetReplicas:    targetReplicas,
 		TargetMinReplicas: targetMinReplicas,
 		TargetMaxReplicas: targetMaxReplicas,
-		Suspend:           ptr.To[bool](suspend),
+		Suspend:           new(suspend),
 	}
 }
 

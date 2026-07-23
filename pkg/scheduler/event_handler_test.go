@@ -25,11 +25,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/utils/ptr"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/features"
+	schedulercache "github.com/karmada-io/karmada/pkg/scheduler/cache"
 )
 
 func TestResourceBindingEventFilter(t *testing.T) {
@@ -120,7 +121,7 @@ func TestResourceBindingEventFilter(t *testing.T) {
 			schedulerName: "test-scheduler",
 			obj: createResourceBinding("test-rb", "test-scheduler", map[string]string{
 				workv1alpha2.BindingManagedByLabel: "test-manager",
-			}, &workv1alpha2.Suspension{Scheduling: ptr.To(true)}),
+			}, &workv1alpha2.Suspension{Scheduling: new(true)}),
 			expectedResult: false,
 		},
 		{
@@ -128,7 +129,7 @@ func TestResourceBindingEventFilter(t *testing.T) {
 			schedulerName: "test-scheduler",
 			obj: createClusterResourceBinding("test-crb", "test-scheduler", map[string]string{
 				policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "test-id",
-			}, &workv1alpha2.Suspension{Scheduling: ptr.To(true)}),
+			}, &workv1alpha2.Suspension{Scheduling: new(true)}),
 			expectedResult: false,
 		},
 	}
@@ -471,3 +472,137 @@ func (m *mockAsyncWorker) Enqueue(item any) {
 func (m *mockAsyncWorker) AddAfter(_ any, _ time.Duration) {}
 
 func (m *mockAsyncWorker) Run(_ context.Context, _ int) {}
+
+func TestNewlyHealthyClusters(t *testing.T) {
+	tests := []struct {
+		name      string
+		oldStatus []workv1alpha2.AggregatedStatusItem
+		newStatus []workv1alpha2.AggregatedStatusItem
+		want      []string
+	}{
+		{
+			name:      "no status entries: nothing released",
+			oldStatus: nil,
+			newStatus: nil,
+			want:      nil,
+		},
+		{
+			name: "cluster newly becomes Healthy",
+			oldStatus: []workv1alpha2.AggregatedStatusItem{
+				{ClusterName: "cluster1", Health: workv1alpha2.ResourceUnknown},
+			},
+			newStatus: []workv1alpha2.AggregatedStatusItem{
+				{ClusterName: "cluster1", Health: workv1alpha2.ResourceHealthy},
+			},
+			want: []string{"cluster1"},
+		},
+		{
+			name: "cluster already Healthy: not returned again",
+			oldStatus: []workv1alpha2.AggregatedStatusItem{
+				{ClusterName: "cluster1", Health: workv1alpha2.ResourceHealthy},
+			},
+			newStatus: []workv1alpha2.AggregatedStatusItem{
+				{ClusterName: "cluster1", Health: workv1alpha2.ResourceHealthy},
+			},
+			want: nil,
+		},
+		{
+			name: "cluster transitions from Healthy to Unhealthy: not returned",
+			oldStatus: []workv1alpha2.AggregatedStatusItem{
+				{ClusterName: "cluster1", Health: workv1alpha2.ResourceHealthy},
+			},
+			newStatus: []workv1alpha2.AggregatedStatusItem{
+				{ClusterName: "cluster1", Health: workv1alpha2.ResourceUnhealthy},
+			},
+			want: nil,
+		},
+		{
+			name: "one new Healthy cluster among multiple",
+			oldStatus: []workv1alpha2.AggregatedStatusItem{
+				{ClusterName: "cluster1", Health: workv1alpha2.ResourceHealthy},
+				{ClusterName: "cluster2", Health: workv1alpha2.ResourceUnknown},
+			},
+			newStatus: []workv1alpha2.AggregatedStatusItem{
+				{ClusterName: "cluster1", Health: workv1alpha2.ResourceHealthy},
+				{ClusterName: "cluster2", Health: workv1alpha2.ResourceHealthy},
+			},
+			want: []string{"cluster2"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := newlyHealthyClusters(tt.oldStatus, tt.newStatus)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestOnResourceBindingUpdate_ReleasesAssumptionOnHealthy(t *testing.T) {
+	defer setFeatureGateDuringTest(t, features.FeatureGate, features.SchedulingOvercommitProtection, true)()
+	components := []workv1alpha2.Component{
+		{Name: "jobmanager", Replicas: 1},
+		{Name: "taskmanager", Replicas: 2},
+	}
+	oldBinding := &workv1alpha2.ResourceBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test-binding", Namespace: "default", Generation: 1,
+		},
+		Spec: workv1alpha2.ResourceBindingSpec{
+			Components: components,
+			Clusters:   []workv1alpha2.TargetCluster{{Name: "cluster1"}},
+		},
+		Status: workv1alpha2.ResourceBindingStatus{
+			AggregatedStatus: []workv1alpha2.AggregatedStatusItem{
+				{ClusterName: "cluster1", Health: workv1alpha2.ResourceUnknown},
+			},
+		},
+	}
+	// Only status changed (AggregatedStatus); generation stays the same.
+	newBinding := oldBinding.DeepCopy()
+	newBinding.Status.AggregatedStatus = []workv1alpha2.AggregatedStatusItem{
+		{ClusterName: "cluster1", Health: workv1alpha2.ResourceHealthy},
+	}
+
+	sc := schedulercache.NewCache(nil, nil, 0)
+	bindingKey := "default/test-binding"
+	sc.AssigningResourceBindings().Assume(bindingKey, "cluster1", schedulercache.AssumedWorkload{
+		Namespace:  "default",
+		Components: components,
+	})
+
+	s := &Scheduler{schedulerCache: sc}
+	s.onResourceBindingUpdate(oldBinding, newBinding)
+
+	assert.Empty(t, sc.AssigningResourceBindings().GetAssumedWorkloads("cluster1"),
+		"assumption should be released when workload becomes Healthy")
+}
+
+func TestReleaseHealthyClusterAssumptions_SkipsNonWorkload(t *testing.T) {
+	// Non-workload binding: no Replicas, no ReplicaRequirements, no Components.
+	oldBinding := &workv1alpha2.ResourceBinding{
+		ObjectMeta: metav1.ObjectMeta{Name: "cm-binding", Namespace: "default", Generation: 1},
+		Spec:       workv1alpha2.ResourceBindingSpec{},
+		Status: workv1alpha2.ResourceBindingStatus{
+			AggregatedStatus: []workv1alpha2.AggregatedStatusItem{
+				{ClusterName: "cluster1", Health: workv1alpha2.ResourceUnknown},
+			},
+		},
+	}
+	newBinding := oldBinding.DeepCopy()
+	newBinding.Status.AggregatedStatus = []workv1alpha2.AggregatedStatusItem{
+		{ClusterName: "cluster1", Health: workv1alpha2.ResourceHealthy},
+	}
+
+	sc := schedulercache.NewCache(nil, nil, 0)
+	// Manually plant an entry to verify it is NOT released.
+	sc.AssigningResourceBindings().Assume("default/cm-binding", "cluster1", schedulercache.AssumedWorkload{
+		Namespace: "default",
+	})
+
+	s := &Scheduler{schedulerCache: sc}
+	s.releaseHealthyClusterAssumptions(oldBinding, newBinding)
+
+	assert.Len(t, sc.AssigningResourceBindings().GetAssumedWorkloads("cluster1"), 1,
+		"non-workload assumption should NOT be released")
+}

@@ -93,7 +93,7 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 	err := c.syncImpersonationConfig(ctx, cluster)
 	if err != nil {
 		klog.ErrorS(err, "Failed to sync impersonation config", "cluster", cluster.Name)
-		c.EventRecorder.Eventf(cluster, corev1.EventTypeWarning, events.EventReasonSyncImpersonationConfigFailed, err.Error())
+		c.EventRecorder.Eventf(cluster, corev1.EventTypeWarning, events.EventReasonSyncImpersonationConfigFailed, "%s", err.Error())
 		return controllerruntime.Result{}, err
 	}
 	c.EventRecorder.Eventf(cluster, corev1.EventTypeNormal, events.EventReasonSyncImpersonationConfigSucceed, "Sync impersonation config succeed.")

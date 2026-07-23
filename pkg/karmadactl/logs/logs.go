@@ -17,6 +17,7 @@ limitations under the License.
 package logs
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -89,7 +90,7 @@ func NewCmdLogs(f util.Factory, parentCommand string, streams genericiooptions.I
 			if err := o.Validate(); err != nil {
 				return err
 			}
-			if err := o.Run(); err != nil {
+			if err := o.Run(cmd.Context()); err != nil {
 				return err
 			}
 			return nil
@@ -152,6 +153,6 @@ func (o *CommandLogsOptions) Validate() error {
 }
 
 // Run retrieves a pod log
-func (o *CommandLogsOptions) Run() error {
-	return o.KubectlLogsOptions.RunLogs()
+func (o *CommandLogsOptions) Run(ctx context.Context) error {
+	return o.KubectlLogsOptions.RunLogsContext(ctx)
 }

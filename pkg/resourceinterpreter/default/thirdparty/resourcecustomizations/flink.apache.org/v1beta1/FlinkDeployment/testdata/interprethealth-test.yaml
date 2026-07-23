@@ -1,16 +1,20 @@
 # test case for interpreting health of FlinkDeployment
 # case1. FlinkDeployment with RUNNING state should be Healthy
 # case2. FlinkDeployment with CREATED state without error should be Unhealthy
-# case3. FlinkDeployment with CREATED state with error should be Healthy
-# case4. FlinkDeployment with INITIALIZING state without error should be Unhealthy
-# case5. FlinkDeployment with INITIALIZING state with error should be Healthy
-# case6. FlinkDeployment with RECONCILING state without error should be Unhealthy
-# case7. FlinkDeployment with RECONCILING state with error should be Healthy
-# case8. FlinkDeployment with CREATED state and jobManagerDeploymentStatus ERROR should be Healthy
-# case9. FlinkDeployment with terminal states (FAILED, FINISHED, CANCELED, SUSPENDED) should be Healthy
-# case10. FlinkDeployment with short-lived states (CANCELLING, FAILING, RESTARTING) should be Healthy
-# case11. FlinkDeployment without jobStatus but with error should be Healthy
-# case12. FlinkDeployment without jobStatus and without error should be Unhealthy
+# case3. FlinkDeployment with CREATED state with allowlisted error should be Healthy
+# case4.  FlinkDeployment with CREATED state with non-allowlisted error should be Unhealthy
+# case5. FlinkDeployment with INITIALIZING state without error should be Unhealthy
+# case6. FlinkDeployment with INITIALIZING state with allowlisted error should be Healthy
+# case7. FlinkDeployment with INITIALIZING state with non-allowlisted error should be Unhealthy
+# case8. FlinkDeployment with RECONCILING state without error should be Unhealthy
+# case9. FlinkDeployment with RECONCILING state with allowlisted error should be Healthy
+# case10. FlinkDeployment with RECONCILING state with non-allowlisted error should be Unhealthy
+# case11. FlinkDeployment with CREATED state and jobManagerDeploymentStatus ERROR (no allowlisted error) should be Unhealthy
+# case12. FlinkDeployment with terminal states (FAILED, FINISHED, CANCELED, SUSPENDED) should be Healthy
+# case13. FlinkDeployment with short-lived states (CANCELLING, FAILING, RESTARTING) should be Healthy
+# case14. FlinkDeployment without jobStatus but with error should be Unhealthy
+# case15. FlinkDeployment without jobStatus and without error should be Unhealthy
+# case16. FlinkDeployment without jobStatus but with READY jobManagerDeploymentStatus and STABLE lifecycleState should be Healthy
 
 name: "FlinkDeployment with RUNNING state should be Healthy"
 description: "Test interpreting health of FlinkDeployment when jobStatus.state is RUNNING"
@@ -58,8 +62,8 @@ output:
   healthy: false
 
 ---
-name: "FlinkDeployment with CREATED state with error should be Healthy"
-description: "Test interpreting health of FlinkDeployment when jobStatus.state is CREATED and has error"
+name: "FlinkDeployment with CREATED state with allowlisted error should be Healthy"
+description: "Test interpreting health of FlinkDeployment when jobStatus.state is CREATED and has allowlisted error"
 observedObj:
   apiVersion: flink.apache.org/v1beta1
   kind: FlinkDeployment
@@ -81,12 +85,43 @@ observedObj:
         cpu: 1
         memory: 2048m
   status:
-    error: "Image pull failed"
+    error: "ErrImagePull"
     jobStatus:
       state: CREATED
 operation: InterpretHealth
 output:
   healthy: true
+
+---
+name: "FlinkDeployment with CREATED state with non-allowlisted error should be Unhealthy"
+description: "Test interpreting health of FlinkDeployment when jobStatus.state is CREATED and has non-allowlisted error"
+observedObj:
+  apiVersion: flink.apache.org/v1beta1
+  kind: FlinkDeployment
+  metadata:
+    name: basic-example
+    namespace: test-namespace
+  spec:
+    flinkConfiguration:
+      taskmanager.numberOfTaskSlots: "2"
+    flinkVersion: v1_17
+    image: flink:1.17
+    jobManager:
+      replicas: 1
+      resource:
+        cpu: 1
+        memory: 2048m
+    taskManager:
+      resource:
+        cpu: 1
+        memory: 2048m
+  status:
+    error: "Unknown"
+    jobStatus:
+      state: CREATED
+operation: InterpretHealth
+output:
+  healthy: false
 
 ---
 name: "FlinkDeployment with INITIALIZING state without error should be Unhealthy"
@@ -119,8 +154,8 @@ output:
   healthy: false
 
 ---
-name: "FlinkDeployment with INITIALIZING state with error should be Healthy"
-description: "Test interpreting health of FlinkDeployment when jobStatus.state is INITIALIZING and has error"
+name: "FlinkDeployment with INITIALIZING state with allowlisted error should be Healthy"
+description: "Test interpreting health of FlinkDeployment when jobStatus.state is INITIALIZING and has allowlisted error"
 observedObj:
   apiVersion: flink.apache.org/v1beta1
   kind: FlinkDeployment
@@ -142,12 +177,43 @@ observedObj:
         cpu: 1
         memory: 2048m
   status:
-    error: "Configuration validation failed"
+    error: "ImagePullBackOff"
     jobStatus:
       state: INITIALIZING
 operation: InterpretHealth
 output:
   healthy: true
+
+---
+name: "FlinkDeployment with INITIALIZING state with non-allowlisted error should be Unhealthy"
+description: "Test interpreting health of FlinkDeployment when jobStatus.state is INITIALIZING and has non-allowlisted error"
+observedObj:
+  apiVersion: flink.apache.org/v1beta1
+  kind: FlinkDeployment
+  metadata:
+    name: basic-example
+    namespace: test-namespace
+  spec:
+    flinkConfiguration:
+      taskmanager.numberOfTaskSlots: "2"
+    flinkVersion: v1_17
+    image: flink:1.17
+    jobManager:
+      replicas: 1
+      resource:
+        cpu: 1
+        memory: 2048m
+    taskManager:
+      resource:
+        cpu: 1
+        memory: 2048m
+  status:
+    error: "Unknown"
+    jobStatus:
+      state: INITIALIZING
+operation: InterpretHealth
+output:
+  healthy: false
 
 ---
 name: "FlinkDeployment with RECONCILING state without error should be Unhealthy"
@@ -180,8 +246,8 @@ output:
   healthy: false
 
 ---
-name: "FlinkDeployment with RECONCILING state with error should be Healthy"
-description: "Test interpreting health of FlinkDeployment when jobStatus.state is RECONCILING and has error"
+name: "FlinkDeployment with RECONCILING state with allowlisted error should be Healthy"
+description: "Test interpreting health of FlinkDeployment when jobStatus.state is RECONCILING and has allowlisted error"
 observedObj:
   apiVersion: flink.apache.org/v1beta1
   kind: FlinkDeployment
@@ -203,7 +269,7 @@ observedObj:
         cpu: 1
         memory: 2048m
   status:
-    error: "Resource quota exceeded"
+    error: "ErrImagePull"
     jobStatus:
       state: RECONCILING
 operation: InterpretHealth
@@ -211,8 +277,39 @@ output:
   healthy: true
 
 ---
-name: "FlinkDeployment with CREATED state and jobManagerDeploymentStatus ERROR should be Healthy"
-description: "Test interpreting health of FlinkDeployment when jobStatus.state is CREATED and jobManagerDeploymentStatus is ERROR"
+name: "FlinkDeployment with RECONCILING state with non-allowlisted error should be Unhealthy"
+description: "Test interpreting health of FlinkDeployment when jobStatus.state is RECONCILING and has allowlisted error"
+observedObj:
+  apiVersion: flink.apache.org/v1beta1
+  kind: FlinkDeployment
+  metadata:
+    name: basic-example
+    namespace: test-namespace
+  spec:
+    flinkConfiguration:
+      taskmanager.numberOfTaskSlots: "2"
+    flinkVersion: v1_17
+    image: flink:1.17
+    jobManager:
+      replicas: 1
+      resource:
+        cpu: 1
+        memory: 2048m
+    taskManager:
+      resource:
+        cpu: 1
+        memory: 2048m
+  status:
+    error: "Unknown"
+    jobStatus:
+      state: RECONCILING
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "FlinkDeployment with CREATED state and jobManagerDeploymentStatus ERROR (no allowlisted error) should be Unhealthy"
+description: "Test interpreting health of FlinkDeployment when jobStatus.state is CREATED and jobManagerDeploymentStatus is ERROR but no allowlisted error"
 observedObj:
   apiVersion: flink.apache.org/v1beta1
   kind: FlinkDeployment
@@ -239,7 +336,7 @@ observedObj:
       state: CREATED
 operation: InterpretHealth
 output:
-  healthy: true
+  healthy: false
 
 ---
 name: "FlinkDeployment with FAILED state should be Healthy"
@@ -302,8 +399,8 @@ output:
   healthy: true
 
 ---
-name: "FlinkDeployment without jobStatus but with error should be Healthy"
-description: "Test interpreting health of FlinkDeployment when there is no jobStatus but has error"
+name: "FlinkDeployment without jobStatus but with error should be Unhealthy"
+description: "Test interpreting health of FlinkDeployment when there is no jobStatus and error"
 observedObj:
   apiVersion: flink.apache.org/v1beta1
   kind: FlinkDeployment
@@ -328,7 +425,7 @@ observedObj:
     error: "Deployment failed"
 operation: InterpretHealth
 output:
-  healthy: true
+  healthy: false
 
 ---
 name: "FlinkDeployment without jobStatus and without error should be Unhealthy"
@@ -357,3 +454,33 @@ observedObj:
 operation: InterpretHealth
 output:
   healthy: false
+
+---
+name: "FlinkDeployment without jobStatus but with READY jobManagerDeploymentStatus and STABLE lifecycleState should be Healthy"
+description: "Test interpreting health of FlinkDeployment when there is no jobStatus but jobManagerDeploymentStatus is READY and lifecycleState is STABLE"
+observedObj:
+  apiVersion: flink.apache.org/v1beta1
+  kind: FlinkDeployment
+  metadata:
+    name: basic-example
+    namespace: test-namespace
+  spec:
+    flinkConfiguration:
+      taskmanager.numberOfTaskSlots: "2"
+    flinkVersion: v1_17
+    image: flink:1.17
+    jobManager:
+      replicas: 1
+      resource:
+        cpu: 1
+        memory: 2048m
+    taskManager:
+      resource:
+        cpu: 1
+        memory: 2048m
+  status:
+    jobManagerDeploymentStatus: READY
+    lifecycleState: STABLE
+operation: InterpretHealth
+output:
+  healthy: true

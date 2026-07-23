@@ -26,6 +26,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -34,12 +35,14 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	clienttesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/component-base/featuregate"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/features"
 	karmadafake "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/fake"
 	workv1alpha2lister "github.com/karmada-io/karmada/pkg/generated/listers/work/v1alpha2"
+	schedulercache "github.com/karmada-io/karmada/pkg/scheduler/cache"
 	"github.com/karmada-io/karmada/pkg/scheduler/core"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 	internalqueue "github.com/karmada-io/karmada/pkg/scheduler/internal/queue"
@@ -47,6 +50,18 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/grpcconnection"
 )
+
+func setFeatureGateDuringTest(tb testing.TB, gate featuregate.FeatureGate, f featuregate.Feature, value bool) func() {
+	originalValue := gate.Enabled(f)
+	if err := gate.(featuregate.MutableFeatureGate).Set(fmt.Sprintf("%s=%v", f, value)); err != nil {
+		tb.Errorf("error setting %s=%v: %v", f, value, err)
+	}
+	return func() {
+		if err := gate.(featuregate.MutableFeatureGate).Set(fmt.Sprintf("%s=%v", f, originalValue)); err != nil {
+			tb.Errorf("error restoring %s=%v: %v", f, originalValue, err)
+		}
+	}
+}
 
 func TestDoSchedule(t *testing.T) {
 	tests := []struct {
@@ -772,8 +787,10 @@ func TestPatchScheduleResultForResourceBinding(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			cache := schedulercache.NewCache(nil, nil, 0)
 			s := &Scheduler{
-				KarmadaClient: karmadafake.NewClientset(tt.oldBinding),
+				KarmadaClient:  karmadafake.NewClientset(tt.oldBinding),
+				schedulerCache: cache,
 			}
 
 			err := s.patchScheduleResultForResourceBinding(tt.oldBinding, tt.placement, tt.scheduleResult)
@@ -790,6 +807,207 @@ func TestPatchScheduleResultForResourceBinding(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestUpdatesAssumptions(t *testing.T) {
+	defer setFeatureGateDuringTest(t, features.FeatureGate, features.SchedulingOvercommitProtection, true)()
+	multiTemplateComponents := []workv1alpha2.Component{
+		{Name: "jobmanager", Replicas: 1},
+		{Name: "taskmanager", Replicas: 2},
+	}
+
+	t.Run("multi-template: writes full components on first scheduling", func(t *testing.T) {
+		oldBinding := &workv1alpha2.ResourceBinding{
+			ObjectMeta: metav1.ObjectMeta{Name: "test-binding", Namespace: "default"},
+			Spec: workv1alpha2.ResourceBindingSpec{
+				Resource:   workv1alpha2.ObjectReference{Namespace: "work-ns"},
+				Components: multiTemplateComponents,
+				Clusters:   nil,
+			},
+		}
+
+		cache := schedulercache.NewCache(nil, nil, 0)
+		s := &Scheduler{
+			KarmadaClient:  karmadafake.NewClientset(oldBinding),
+			schedulerCache: cache,
+		}
+
+		err := s.patchScheduleResultForResourceBinding(oldBinding, "test-placement", []workv1alpha2.TargetCluster{
+			{Name: "cluster1"},
+		})
+		assert.NoError(t, err)
+
+		assumed := cache.AssigningResourceBindings().GetAssumedWorkloads("cluster1")
+		assert.Len(t, assumed, 1)
+		assert.Equal(t, "work-ns", assumed[0].Namespace)
+		assert.Len(t, assumed[0].Components, 2)
+		assert.Equal(t, int32(1), assumed[0].Components[0].Replicas)
+		assert.Equal(t, int32(2), assumed[0].Components[1].Replicas)
+	})
+
+	t.Run("multi-template: always writes full components on reschedule", func(t *testing.T) {
+		// Components scaled up; Option B always writes the full current components.
+		scaledComponents := []workv1alpha2.Component{
+			{Name: "jobmanager", Replicas: 1},
+			{Name: "taskmanager", Replicas: 4},
+		}
+		oldBinding := &workv1alpha2.ResourceBinding{
+			ObjectMeta: metav1.ObjectMeta{Name: "test-binding", Namespace: "default"},
+			Spec: workv1alpha2.ResourceBindingSpec{
+				Resource:   workv1alpha2.ObjectReference{Namespace: "work-ns"},
+				Components: scaledComponents,
+				Clusters:   []workv1alpha2.TargetCluster{{Name: "cluster1"}},
+			},
+		}
+
+		cache := schedulercache.NewCache(nil, nil, 0)
+		s := &Scheduler{
+			KarmadaClient:  karmadafake.NewClientset(oldBinding),
+			schedulerCache: cache,
+		}
+
+		err := s.patchScheduleResultForResourceBinding(oldBinding, "test-placement", []workv1alpha2.TargetCluster{
+			{Name: "cluster1"},
+		})
+		assert.NoError(t, err)
+
+		assumed := cache.AssigningResourceBindings().GetAssumedWorkloads("cluster1")
+		assert.Len(t, assumed, 1)
+		// Full components are written, not just the delta.
+		assert.Len(t, assumed[0].Components, 2)
+		assert.Equal(t, int32(1), assumed[0].Components[0].Replicas)
+		assert.Equal(t, int32(4), assumed[0].Components[1].Replicas)
+	})
+
+	t.Run("multi-template: removed cluster releases assumption", func(t *testing.T) {
+		oldBinding := &workv1alpha2.ResourceBinding{
+			ObjectMeta: metav1.ObjectMeta{Name: "test-binding", Namespace: "default"},
+			Spec: workv1alpha2.ResourceBindingSpec{
+				Resource:   workv1alpha2.ObjectReference{Namespace: "work-ns"},
+				Components: multiTemplateComponents,
+				Clusters: []workv1alpha2.TargetCluster{
+					{Name: "cluster1"},
+					{Name: "cluster2"},
+				},
+			},
+		}
+
+		cache := schedulercache.NewCache(nil, nil, 0)
+		bindingKey := "default/test-binding"
+		cache.AssigningResourceBindings().Assume(bindingKey, "cluster2", schedulercache.AssumedWorkload{
+			Namespace:  "work-ns",
+			Components: multiTemplateComponents,
+		})
+
+		s := &Scheduler{
+			KarmadaClient:  karmadafake.NewClientset(oldBinding),
+			schedulerCache: cache,
+		}
+
+		err := s.patchScheduleResultForResourceBinding(oldBinding, "test-placement", []workv1alpha2.TargetCluster{
+			{Name: "cluster1"}, // cluster2 removed
+		})
+		assert.NoError(t, err)
+		assert.Empty(t, cache.AssigningResourceBindings().GetAssumedWorkloads("cluster2"))
+	})
+
+	t.Run("single-template: wraps per-cluster replicas as component", func(t *testing.T) {
+		oldBinding := &workv1alpha2.ResourceBinding{
+			ObjectMeta: metav1.ObjectMeta{Name: "deploy-binding", Namespace: "default"},
+			Spec: workv1alpha2.ResourceBindingSpec{
+				Resource: workv1alpha2.ObjectReference{Name: "my-deploy", Namespace: "work-ns"},
+				ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
+					ResourceRequest: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("500m"),
+						corev1.ResourceMemory: resource.MustParse("256Mi"),
+					},
+				},
+				Clusters: []workv1alpha2.TargetCluster{{Name: "cluster1", Replicas: 2}},
+			},
+		}
+
+		cache := schedulercache.NewCache(nil, nil, 0)
+		s := &Scheduler{
+			KarmadaClient:  karmadafake.NewClientset(oldBinding),
+			schedulerCache: cache,
+		}
+
+		err := s.patchScheduleResultForResourceBinding(oldBinding, "test-placement", []workv1alpha2.TargetCluster{
+			{Name: "cluster1", Replicas: 5},
+		})
+		assert.NoError(t, err)
+
+		assumed := cache.AssigningResourceBindings().GetAssumedWorkloads("cluster1")
+		assert.Len(t, assumed, 1)
+		assert.Equal(t, "work-ns", assumed[0].Namespace)
+		assert.Len(t, assumed[0].Components, 1)
+		assert.Equal(t, "my-deploy", assumed[0].Components[0].Name)
+		// replicas come from the new scheduleResult, not from oldBinding.Spec.Clusters
+		assert.Equal(t, int32(5), assumed[0].Components[0].Replicas)
+		assert.NotNil(t, assumed[0].Components[0].ReplicaRequirements)
+		assert.Equal(t, resource.MustParse("500m"), assumed[0].Components[0].ReplicaRequirements.ResourceRequest[corev1.ResourceCPU])
+	})
+
+	t.Run("single-template: per-cluster replica counts are independent", func(t *testing.T) {
+		oldBinding := &workv1alpha2.ResourceBinding{
+			ObjectMeta: metav1.ObjectMeta{Name: "deploy-binding", Namespace: "default"},
+			Spec: workv1alpha2.ResourceBindingSpec{
+				Resource: workv1alpha2.ObjectReference{Name: "my-deploy", Namespace: "work-ns"},
+				ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
+					ResourceRequest: corev1.ResourceList{
+						corev1.ResourceCPU: resource.MustParse("1"),
+					},
+				},
+				Clusters: []workv1alpha2.TargetCluster{
+					{Name: "cluster1", Replicas: 3},
+					{Name: "cluster2", Replicas: 3},
+				},
+			},
+		}
+
+		cache := schedulercache.NewCache(nil, nil, 0)
+		s := &Scheduler{
+			KarmadaClient:  karmadafake.NewClientset(oldBinding),
+			schedulerCache: cache,
+		}
+
+		err := s.patchScheduleResultForResourceBinding(oldBinding, "test-placement", []workv1alpha2.TargetCluster{
+			{Name: "cluster1", Replicas: 4},
+			{Name: "cluster2", Replicas: 2},
+		})
+		assert.NoError(t, err)
+
+		assumed1 := cache.AssigningResourceBindings().GetAssumedWorkloads("cluster1")
+		assert.Len(t, assumed1, 1)
+		assert.Equal(t, int32(4), assumed1[0].Components[0].Replicas)
+
+		assumed2 := cache.AssigningResourceBindings().GetAssumedWorkloads("cluster2")
+		assert.Len(t, assumed2, 1)
+		assert.Equal(t, int32(2), assumed2[0].Components[0].Replicas)
+	})
+
+	t.Run("no-components: no assumption written", func(t *testing.T) {
+		oldBinding := &workv1alpha2.ResourceBinding{
+			ObjectMeta: metav1.ObjectMeta{Name: "test-binding", Namespace: "default"},
+			Spec: workv1alpha2.ResourceBindingSpec{
+				Resource:   workv1alpha2.ObjectReference{Namespace: "work-ns"},
+				Components: nil,
+				Clusters:   []workv1alpha2.TargetCluster{{Name: "cluster1"}},
+			},
+		}
+
+		cache := schedulercache.NewCache(nil, nil, 0)
+		s := &Scheduler{
+			KarmadaClient:  karmadafake.NewClientset(oldBinding),
+			schedulerCache: cache,
+		}
+
+		err := s.patchScheduleResultForResourceBinding(oldBinding, "test-placement", []workv1alpha2.TargetCluster{
+			{Name: "cluster1"},
+		})
+		assert.NoError(t, err)
+		assert.Empty(t, cache.AssigningResourceBindings().GetAssumedWorkloads("cluster1"))
+	})
 }
 
 func TestScheduleClusterResourceBindingWithClusterAffinity(t *testing.T) {

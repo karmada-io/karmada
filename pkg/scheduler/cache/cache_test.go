@@ -18,7 +18,9 @@ package cache
 
 import (
 	"errors"
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	clusterlister "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
 )
 
@@ -50,7 +53,7 @@ func TestNewCache(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cache := NewCache(tt.clusterLister, nil)
+			cache := NewCache(tt.clusterLister, nil, 0)
 
 			assert.NotNil(t, cache, "NewCache() returned nil cache")
 
@@ -136,7 +139,7 @@ func TestSnapshot(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockLister := &mockClusterLister{clusters: tt.clusters}
-			cache := NewCache(mockLister, nil)
+			cache := NewCache(mockLister, nil, 0)
 			snapshot := cache.Snapshot()
 
 			assert.Equal(t, tt.wantTotal, snapshot.NumOfClusters(), "Incorrect number of total clusters")
@@ -200,7 +203,7 @@ func TestAddUpdateDeleteCluster(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockLister := &mockClusterLister{}
-			cache := NewCache(mockLister, nil).(*schedulerCache)
+			cache := NewCache(mockLister, nil, 0).(*schedulerCache)
 
 			cluster := &clusterv1alpha1.Cluster{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-cluster"},
@@ -223,7 +226,7 @@ func TestSnapshotError(t *testing.T) {
 		err:      mockError,
 	}
 
-	cache := NewCache(mockLister, nil)
+	cache := NewCache(mockLister, nil, 0)
 
 	snapshot := cache.Snapshot()
 
@@ -253,4 +256,222 @@ func (m *mockClusterLister) Get(name string) (*clusterv1alpha1.Cluster, error) {
 		}
 	}
 	return nil, nil
+}
+
+// newTestAssumptionCache returns an AssigningResourceBindingCache pre-configured for reservation tests.
+func newTestAssumptionCache(ttl time.Duration) *AssigningResourceBindingCache {
+	return &AssigningResourceBindingCache{
+		items:       make(map[string]*workv1alpha2.ResourceBinding),
+		assumptions: make(map[string]*BindingAssumption),
+		ttl:         ttl,
+	}
+}
+
+func makeAssumedWorkload(ns string) AssumedWorkload {
+	return AssumedWorkload{
+		Namespace: ns,
+		Components: []workv1alpha2.Component{
+			{Name: "worker", Replicas: 2},
+		},
+	}
+}
+
+func TestAssume(t *testing.T) {
+	c := newTestAssumptionCache(time.Minute)
+
+	c.Assume("ns/rb1", "cluster1", makeAssumedWorkload("ns"))
+
+	assert.Len(t, c.assumptions, 1)
+	br := c.assumptions["ns/rb1"]
+	assert.NotNil(t, br)
+	assert.Contains(t, br.entries, "cluster1")
+	assert.True(t, br.ExpiresAt.After(time.Now()), "ExpiresAt should be in the future")
+}
+
+func TestAssume_Replace(t *testing.T) {
+	c := newTestAssumptionCache(time.Minute)
+
+	first := makeAssumedWorkload("ns")
+	first.Components[0].Replicas = 1
+	c.Assume("ns/rb1", "cluster1", first)
+
+	second := makeAssumedWorkload("ns")
+	second.Components[0].Replicas = 3
+	c.Assume("ns/rb1", "cluster1", second)
+
+	entry := c.assumptions["ns/rb1"].entries["cluster1"]
+	assert.Equal(t, int32(3), entry.Components[0].Replicas, "Assume should replace the previous entry")
+}
+
+func TestAssume_MultipleBindings(t *testing.T) {
+	c := newTestAssumptionCache(time.Minute)
+
+	c.Assume("ns/rb1", "cluster1", makeAssumedWorkload("ns"))
+	c.Assume("ns/rb2", "cluster1", makeAssumedWorkload("ns"))
+
+	assert.Len(t, c.assumptions, 2)
+}
+
+func TestAssume_IsolatesCallerMutation(t *testing.T) {
+	c := newTestAssumptionCache(time.Minute)
+
+	entry := makeAssumedWorkload("ns")
+	c.Assume("ns/rb1", "cluster1", entry)
+
+	// Mutate the original slice after Assume — cache should be unaffected.
+	entry.Components[0].Replicas = 999
+
+	stored := c.assumptions["ns/rb1"].entries["cluster1"]
+	assert.Equal(t, int32(2), stored.Components[0].Replicas, "Assume should deep-copy Components; caller mutation must not affect cached value")
+}
+
+func TestReleaseClusterAssumption(t *testing.T) {
+	c := newTestAssumptionCache(time.Minute)
+	c.Assume("ns/rb1", "cluster1", makeAssumedWorkload("ns"))
+	c.Assume("ns/rb1", "cluster2", makeAssumedWorkload("ns"))
+
+	c.ReleaseClusterAssumption("ns/rb1", "cluster1")
+
+	br := c.assumptions["ns/rb1"]
+	assert.NotNil(t, br, "binding entry should remain while other clusters still have assumptions")
+	assert.NotContains(t, br.entries, "cluster1")
+	assert.Contains(t, br.entries, "cluster2")
+}
+
+func TestReleaseClusterAssumption_RemovesBindingWhenEmpty(t *testing.T) {
+	c := newTestAssumptionCache(time.Minute)
+	c.Assume("ns/rb1", "cluster1", makeAssumedWorkload("ns"))
+
+	c.ReleaseClusterAssumption("ns/rb1", "cluster1")
+
+	assert.NotContains(t, c.assumptions, "ns/rb1", "binding entry should be removed when all clusters are released")
+}
+
+func TestReleaseClusterAssumption_NoOp(t *testing.T) {
+	c := newTestAssumptionCache(time.Minute)
+	// Should not panic when called on a non-existent key
+	c.ReleaseClusterAssumption("ns/nonexistent", "cluster1")
+	assert.Empty(t, c.assumptions)
+}
+
+func TestReleaseAssumption(t *testing.T) {
+	c := newTestAssumptionCache(time.Minute)
+	c.Assume("ns/rb1", "cluster1", makeAssumedWorkload("ns"))
+	c.Assume("ns/rb1", "cluster2", makeAssumedWorkload("ns"))
+
+	c.ReleaseAssumption("ns/rb1")
+
+	assert.NotContains(t, c.assumptions, "ns/rb1")
+}
+
+func TestGetAssumedWorkloads(t *testing.T) {
+	c := newTestAssumptionCache(time.Minute)
+	c.Assume("ns/rb1", "cluster1", makeAssumedWorkload("ns"))
+	c.Assume("ns/rb2", "cluster1", makeAssumedWorkload("ns"))
+	c.Assume("ns/rb3", "cluster2", makeAssumedWorkload("ns"))
+
+	result := c.GetAssumedWorkloads("cluster1")
+
+	assert.Len(t, result, 2, "should return assumptions from all bindings for the given cluster")
+}
+
+func TestGetAssumedWorkloads_IsolatesCallerMutation(t *testing.T) {
+	c := newTestAssumptionCache(time.Minute)
+	c.Assume("ns/rb1", "cluster1", makeAssumedWorkload("ns"))
+
+	result := c.GetAssumedWorkloads("cluster1")
+	// Mutate the returned value — cache should be unaffected.
+	result[0].Components[0].Replicas = 999
+
+	stored := c.assumptions["ns/rb1"].entries["cluster1"]
+	assert.Equal(t, int32(2), stored.Components[0].Replicas, "GetAssumedWorkloads should return deep copies; caller mutation must not affect cached value")
+}
+
+func TestGetAssumedWorkloads_SkipsExpired(t *testing.T) {
+	c := newTestAssumptionCache(time.Minute)
+	c.Assume("ns/rb1", "cluster1", makeAssumedWorkload("ns"))
+	// Directly set ExpiresAt to the past to avoid time.Sleep flakiness.
+	c.assumptions["ns/rb1"].ExpiresAt = time.Now().Add(-time.Second)
+
+	result := c.GetAssumedWorkloads("cluster1")
+
+	assert.Empty(t, result, "expired assumptions should not be returned")
+}
+
+func TestGetAssumedWorkloads_EmptyForUnknownCluster(t *testing.T) {
+	c := newTestAssumptionCache(time.Minute)
+	c.Assume("ns/rb1", "cluster1", makeAssumedWorkload("ns"))
+
+	result := c.GetAssumedWorkloads("cluster99")
+	assert.Empty(t, result)
+}
+
+func TestGC(t *testing.T) {
+	c := newTestAssumptionCache(time.Minute)
+	c.Assume("ns/rb1", "cluster1", makeAssumedWorkload("ns"))
+	c.Assume("ns/rb2", "cluster2", makeAssumedWorkload("ns"))
+	// Directly set ExpiresAt to the past to avoid time.Sleep flakiness.
+	c.assumptions["ns/rb1"].ExpiresAt = time.Now().Add(-time.Second)
+	c.assumptions["ns/rb2"].ExpiresAt = time.Now().Add(-time.Second)
+
+	// Add a fresh entry that should NOT be collected
+	c.assumptions["ns/rb3"] = &BindingAssumption{
+		entries:   map[string]AssumedWorkload{"cluster3": makeAssumedWorkload("ns")},
+		ExpiresAt: time.Now().Add(time.Minute),
+	}
+
+	removed := c.GC()
+
+	assert.Equal(t, 2, removed)
+	assert.NotContains(t, c.assumptions, "ns/rb1")
+	assert.NotContains(t, c.assumptions, "ns/rb2")
+	assert.Contains(t, c.assumptions, "ns/rb3", "non-expired entry should be kept")
+}
+
+// BenchmarkGetAssumedWorkloads measures the performance of GetAssumedWorkloads under
+// varying cache sizes.  The benchmark covers the realistic operating range (N ≤ 50,
+// governed by the reservation TTL) as well as stress sizes to quantify O(N) scaling.
+//
+// Run with:
+//
+//	go test ./pkg/scheduler/cache/... -bench=BenchmarkGetAssumedWorkloads -benchmem
+func BenchmarkGetAssumedWorkloads(b *testing.B) {
+	// totalBindings is the total number of in-flight bindings in the cache.
+	// targetClusterFraction controls the ratio of bindings that are assigned to
+	// the cluster being queried; the rest are assigned to "other-cluster".
+	cases := []struct {
+		totalBindings     int
+		targetClusterFrac float64 // fraction of bindings hitting "cluster1"
+	}{
+		// Realistic: TTL = 5 min, moderate scheduling rate → O(10) bindings
+		{totalBindings: 10, targetClusterFrac: 0.5},
+		// Upper realistic bound
+		{totalBindings: 50, targetClusterFrac: 0.5},
+		// Stress: worst-case if TTL window is very long or scheduling rate is high
+		{totalBindings: 200, targetClusterFrac: 0.5},
+		{totalBindings: 1000, targetClusterFrac: 0.5},
+	}
+
+	for _, tc := range cases {
+		name := fmt.Sprintf("N=%d/frac=%.1f", tc.totalBindings, tc.targetClusterFrac)
+		b.Run(name, func(b *testing.B) {
+			c := newTestAssumptionCache(time.Hour) // large TTL so nothing expires during bench
+
+			targetCount := int(float64(tc.totalBindings) * tc.targetClusterFrac)
+			for i := 0; i < tc.totalBindings; i++ {
+				bindingKey := fmt.Sprintf("ns/rb%d", i)
+				clusterName := "other-cluster"
+				if i < targetCount {
+					clusterName = "cluster1"
+				}
+				c.Assume(bindingKey, clusterName, makeAssumedWorkload("ns"))
+			}
+
+			b.ResetTimer()
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				_ = c.GetAssumedWorkloads("cluster1")
+			}
+		})
+	}
 }

@@ -25,6 +25,7 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	estimatorclient "github.com/karmada-io/karmada/pkg/estimator/client"
+	schedulercache "github.com/karmada-io/karmada/pkg/scheduler/cache"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
@@ -63,21 +64,30 @@ func isMultiTemplateSchedulingApplicable(spec *workv1alpha2.ResourceBindingSpec)
 	return false
 }
 
+type multiTemplateEstimationContext struct {
+	estimator        estimatorclient.ReplicaEstimator
+	estimatorName    string
+	clusters         []*clusterv1alpha1.Cluster
+	spec             *workv1alpha2.ResourceBindingSpec
+	assumedWorkloads map[string][]estimatorclient.AssumedWorkload
+}
+
 // calculateMultiTemplateAvailableSets calculates available sets for multi-template scheduling.
 // It uses MaxAvailableComponentSets to estimate capacity for workloads with multiple pod templates.
-func calculateMultiTemplateAvailableSets(ctx context.Context, estimator estimatorclient.ReplicaEstimator, name string, clusters []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec, availableTargetClusters []workv1alpha2.TargetCluster) ([]workv1alpha2.TargetCluster, error) {
+func calculateMultiTemplateAvailableSets(ctx context.Context, estCtx multiTemplateEstimationContext) ([]workv1alpha2.TargetCluster, error) {
 	req := estimatorclient.ComponentSetEstimationRequest{
-		Clusters:   clusters,
-		Components: spec.Components,
-		Namespace:  spec.Resource.Namespace,
+		Clusters:         estCtx.clusters,
+		Components:       estCtx.spec.Components,
+		Namespace:        estCtx.spec.Resource.Namespace,
+		AssumedWorkloads: estCtx.assumedWorkloads,
 	}
 
-	namespacedKey := names.NamespacedKey(spec.Resource.Namespace, spec.Resource.Name)
-	resp, err := estimator.MaxAvailableComponentSets(ctx, req)
+	namespacedKey := names.NamespacedKey(estCtx.spec.Resource.Namespace, estCtx.spec.Resource.Name)
+	resp, err := estCtx.estimator.MaxAvailableComponentSets(ctx, req)
 	if err != nil {
 		klog.Errorf("Failed to calculate available component set with estimator(%s) for workload(%s, kind=%s, %s): %v",
-			name, spec.Resource.APIVersion, spec.Resource.Kind, namespacedKey, err)
-		return availableTargetClusters, err
+			estCtx.estimatorName, estCtx.spec.Resource.APIVersion, estCtx.spec.Resource.Kind, namespacedKey, err)
+		return nil, err
 	}
 
 	// Use a map to safely update replicas regardless of order.
@@ -88,16 +98,42 @@ func calculateMultiTemplateAvailableSets(ctx context.Context, estimator estimato
 		}
 		resMap[resp[i].Name] = resp[i].Sets
 	}
-	for i := range availableTargetClusters {
-		if newReplicas, ok := resMap[availableTargetClusters[i].Name]; ok {
-			if availableTargetClusters[i].Replicas > newReplicas {
-				availableTargetClusters[i].Replicas = newReplicas
-			}
-		} else {
+
+	result := make([]workv1alpha2.TargetCluster, 0, len(estCtx.clusters))
+	for _, cluster := range estCtx.clusters {
+		sets, ok := resMap[cluster.Name]
+		if !ok {
 			klog.Warningf("The estimator(%s) missed estimation from cluster(%s) when estimating for workload(%s, kind=%s, %s).",
-				name, availableTargetClusters[i].Name, spec.Resource.APIVersion, spec.Resource.Kind, namespacedKey)
+				estCtx.estimatorName, cluster.Name, estCtx.spec.Resource.APIVersion, estCtx.spec.Resource.Kind, namespacedKey)
+			continue
 		}
+		result = append(result, workv1alpha2.TargetCluster{Name: cluster.Name, Replicas: sets})
+	}
+	return result, nil
+}
+
+// buildAssumedWorkloadsByCluster builds a map of assumed workloads for each cluster based on the assigning cache.
+func buildAssumedWorkloadsByCluster(clusters []*clusterv1alpha1.Cluster, assigningCache *schedulercache.AssigningResourceBindingCache) map[string][]estimatorclient.AssumedWorkload {
+	assumedWorkloads := make(map[string][]estimatorclient.AssumedWorkload, len(clusters))
+	if assigningCache == nil {
+		return assumedWorkloads
 	}
 
-	return availableTargetClusters, nil
+	for _, cluster := range clusters {
+		clusterAssumptions := assigningCache.GetAssumedWorkloads(cluster.Name)
+		if len(clusterAssumptions) == 0 {
+			continue
+		}
+
+		assumed := make([]estimatorclient.AssumedWorkload, len(clusterAssumptions))
+		for i := range clusterAssumptions {
+			assumed[i] = estimatorclient.AssumedWorkload{
+				Namespace:  clusterAssumptions[i].Namespace,
+				Components: clusterAssumptions[i].Components,
+			}
+		}
+		assumedWorkloads[cluster.Name] = assumed
+	}
+
+	return assumedWorkloads
 }

@@ -65,7 +65,7 @@ func (c *ServiceImportController) Reconcile(ctx context.Context, req controllerr
 	}
 
 	if err := c.deriveServiceFromServiceImport(ctx, svcImport); err != nil {
-		c.EventRecorder.Eventf(svcImport, corev1.EventTypeWarning, events.EventReasonSyncDerivedServiceFailed, err.Error())
+		c.EventRecorder.Eventf(svcImport, corev1.EventTypeWarning, events.EventReasonSyncDerivedServiceFailed, "%s", err.Error())
 		return controllerruntime.Result{}, err
 	}
 	c.EventRecorder.Eventf(svcImport, corev1.EventTypeNormal, events.EventReasonSyncDerivedServiceSucceed, "Sync derived service for serviceImport(%s) succeed.", svcImport.Name)

@@ -754,7 +754,7 @@ func TestValidatePropagationSpec(t *testing.T) {
 			name: "suspension dispatching cannot co-exist with dispatchingOnClusters",
 			spec: policyv1alpha1.PropagationSpec{
 				Suspension: &policyv1alpha1.Suspension{
-					Dispatching: ptr.To(true),
+					Dispatching: new(true),
 					DispatchingOnClusters: &policyv1alpha1.SuspendClusters{
 						ClusterNames: []string{"cluster-name"},
 					},
@@ -766,7 +766,7 @@ func TestValidatePropagationSpec(t *testing.T) {
 			name: "suspension dispatching with nil dispatchingOnClusters is valid",
 			spec: policyv1alpha1.PropagationSpec{
 				Suspension: &policyv1alpha1.Suspension{
-					Dispatching: ptr.To(true),
+					Dispatching: new(true),
 				},
 			},
 			expectedErr: "",
@@ -775,7 +775,7 @@ func TestValidatePropagationSpec(t *testing.T) {
 			name: "suspension dispatching with empty dispatching clusters is valid",
 			spec: policyv1alpha1.PropagationSpec{
 				Suspension: &policyv1alpha1.Suspension{
-					Dispatching: ptr.To(true),
+					Dispatching: new(true),
 					DispatchingOnClusters: &policyv1alpha1.SuspendClusters{
 						ClusterNames: []string{},
 					},
@@ -798,7 +798,7 @@ func TestValidatePropagationSpec(t *testing.T) {
 			name: "dispatchingOnClusters.clusterNames with dispatching false is valid",
 			spec: policyv1alpha1.PropagationSpec{
 				Suspension: &policyv1alpha1.Suspension{
-					Dispatching: ptr.To(false),
+					Dispatching: new(false),
 					DispatchingOnClusters: &policyv1alpha1.SuspendClusters{
 						ClusterNames: []string{"cluster-name"},
 					},

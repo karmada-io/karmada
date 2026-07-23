@@ -84,7 +84,7 @@ func (c *QuotaEnforcementController) Reconcile(ctx context.Context, req controll
 
 	if err := c.collectQuotaStatus(quota); err != nil {
 		klog.ErrorS(err, "Failed to collect status for FederatedResourceQuota", "federatedResourceQuota", req.NamespacedName.String())
-		c.EventRecorder.Eventf(quota, corev1.EventTypeWarning, events.EventReasonCollectFederatedResourceQuotaOverallStatusFailed, err.Error())
+		c.EventRecorder.Eventf(quota, corev1.EventTypeWarning, events.EventReasonCollectFederatedResourceQuotaOverallStatusFailed, "%s", err.Error())
 		return controllerruntime.Result{}, err
 	}
 

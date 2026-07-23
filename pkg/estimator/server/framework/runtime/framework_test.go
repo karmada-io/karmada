@@ -27,7 +27,6 @@ import (
 
 	"github.com/karmada-io/karmada/pkg/estimator/pb"
 	"github.com/karmada-io/karmada/pkg/estimator/server/framework"
-	schedcache "github.com/karmada-io/karmada/pkg/util/lifted/scheduler/cache"
 )
 
 type estimateReplicaResult struct {
@@ -55,11 +54,11 @@ func (pl *TestPlugin) Name() string {
 	return pl.name
 }
 
-func (pl *TestPlugin) Estimate(_ context.Context, _ *schedcache.Snapshot, _ *pb.ReplicaRequirements) (int32, *framework.Result) {
+func (pl *TestPlugin) Estimate(_ context.Context, _ framework.ReplicaEstimationContext) (int32, *framework.Result) {
 	return pl.inj.estimateReplicaResult.replica, pl.inj.estimateReplicaResult.ret
 }
 
-func (pl *TestPlugin) EstimateComponents(_ context.Context, _ *schedcache.Snapshot, _ []*pb.Component, _ string) (int32, *framework.Result) {
+func (pl *TestPlugin) EstimateComponents(_ context.Context, _ framework.ComponentEstimationContext) (int32, *framework.Result) {
 	return pl.inj.estimateComponentsResult.sets, pl.inj.estimateComponentsResult.ret
 }
 
@@ -253,7 +252,7 @@ func Test_frameworkImpl_RunEstimateReplicasPlugins(t *testing.T) {
 			if err != nil {
 				t.Errorf("create frame work error:%v", err)
 			}
-			replica, ret := f.RunEstimateReplicasPlugins(ctx, nil, &pb.ReplicaRequirements{})
+			replica, ret := f.RunEstimateReplicasPlugins(ctx, framework.ReplicaEstimationContext{})
 
 			require.Equal(t, tt.expected.ret.Code(), ret.Code())
 			assert.ElementsMatch(t, tt.expected.ret.Reasons(), ret.Reasons())
@@ -452,7 +451,9 @@ func Test_frameworkImpl_RunEstimateComponentsPlugins(t *testing.T) {
 			if err != nil {
 				t.Errorf("create frame work error:%v", err)
 			}
-			sets, ret := f.RunEstimateComponentsPlugins(ctx, nil, []*pb.Component{}, "")
+			sets, ret := f.RunEstimateComponentsPlugins(ctx, framework.ComponentEstimationContext{
+				Components: []*pb.Component{},
+			})
 
 			require.Equal(t, tt.expected.ret.Code(), ret.Code())
 			assert.ElementsMatch(t, tt.expected.ret.Reasons(), ret.Reasons())

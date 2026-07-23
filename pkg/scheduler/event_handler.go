@@ -25,6 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/apimachinery/pkg/util/sets"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
@@ -39,6 +40,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 // addAllEventHandlers is a helper function used in Scheduler
@@ -61,8 +63,8 @@ func (s *Scheduler) addAllEventHandlers() {
 	_, err = clusterBindingInformer.AddEventHandler(cache.FilteringResourceEventHandler{
 		FilterFunc: s.resourceBindingEventFilter,
 		Handler: cache.ResourceEventHandlerFuncs{
-			AddFunc:    s.onResourceBindingAdd,
-			UpdateFunc: s.onResourceBindingUpdate,
+			AddFunc:    s.onClusterResourceBindingAdd,
+			UpdateFunc: s.onClusterResourceBindingUpdate,
 		},
 	})
 	if err != nil {
@@ -120,37 +122,36 @@ func (s *Scheduler) resourceBindingEventFilter(obj any) bool {
 		util.GetLabelValue(accessor.GetLabels(), workv1alpha2.BindingManagedByLabel) != ""
 }
 
-func newQueuedBindingInfo(obj any) *internalqueue.QueuedBindingInfo {
-	switch t := obj.(type) {
-	case *workv1alpha2.ResourceBinding:
-		return &internalqueue.QueuedBindingInfo{
-			NamespacedKey: cache.ObjectName{Namespace: t.GetNamespace(), Name: t.GetName()}.String(),
-			Priority:      t.Spec.SchedulePriorityValue(),
-		}
-	case *workv1alpha2.ClusterResourceBinding:
-		return &internalqueue.QueuedBindingInfo{
-			NamespacedKey: t.GetName(),
-			Priority:      t.Spec.SchedulePriorityValue(),
-		}
+// newQueuedBindingInfoFromRB converts a ResourceBinding to a QueuedBindingInfo.
+func newQueuedBindingInfoFromRB(rb *workv1alpha2.ResourceBinding) *internalqueue.QueuedBindingInfo {
+	return &internalqueue.QueuedBindingInfo{
+		NamespacedKey: cache.ObjectName{Namespace: rb.GetNamespace(), Name: rb.GetName()}.String(),
+		Priority:      rb.Spec.SchedulePriorityValue(),
 	}
-
-	return nil
 }
 
-func (s *Scheduler) onResourceBindingAdd(obj any) {
-	if features.FeatureGate.Enabled(features.PriorityBasedScheduling) {
-		bindingInfo := newQueuedBindingInfo(obj)
-		if bindingInfo == nil {
-			// shouldn't happen
-			klog.Errorf("couldn't convert to QueuedBindingInfo %#v", obj)
-			return
-		}
+// newQueuedBindingInfoFromCRB converts a ClusterResourceBinding to a QueuedBindingInfo.
+func newQueuedBindingInfoFromCRB(crb *workv1alpha2.ClusterResourceBinding) *internalqueue.QueuedBindingInfo {
+	return &internalqueue.QueuedBindingInfo{
+		NamespacedKey: crb.GetName(),
+		Priority:      crb.Spec.SchedulePriorityValue(),
+	}
+}
 
-		s.priorityQueue.Push(bindingInfo)
+// onResourceBindingAdd is called when an add event for a ResourceBinding is received from the Informer.
+func (s *Scheduler) onResourceBindingAdd(obj any) {
+	rb, ok := obj.(*workv1alpha2.ResourceBinding)
+	if !ok {
+		klog.Errorf("onResourceBindingAdd: unexpected object type %T", obj)
+		return
+	}
+
+	if features.FeatureGate.Enabled(features.PriorityBasedScheduling) {
+		s.priorityQueue.Push(newQueuedBindingInfoFromRB(rb))
 	} else {
-		key, err := cache.MetaNamespaceKeyFunc(obj)
+		key, err := cache.MetaNamespaceKeyFunc(rb)
 		if err != nil {
-			klog.Errorf("couldn't get key for object %#v: %v", obj, err)
+			klog.Errorf("couldn't get key for object %#v: %v", rb, err)
 			return
 		}
 		s.queue.Add(key)
@@ -158,49 +159,87 @@ func (s *Scheduler) onResourceBindingAdd(obj any) {
 	metrics.CountSchedulerBindings(metrics.BindingAdd)
 }
 
-func (s *Scheduler) onResourceBindingUpdate(old, cur any) {
-	oldMeta, err := meta.Accessor(old)
-	if err != nil {
-		klog.Errorf("Failed to transform oldObj as metav1.Object, error: %v", err)
-		return
-	}
-
-	newMeta, err := meta.Accessor(cur)
-	if err != nil {
-		klog.Errorf("Failed to transform newObj as metav1.Object, error: %v", err)
-		return
-	}
-
-	newResourceBinding, ok := cur.(*workv1alpha2.ResourceBinding)
-	if ok && features.FeatureGate.Enabled(features.WorkloadAffinity) {
-		s.schedulerCache.AssigningResourceBindings().OnBindingUpdate(newResourceBinding)
-	}
-
-	if oldMeta.GetGeneration() == newMeta.GetGeneration() {
-		if oldMeta.GetNamespace() != "" {
-			klog.V(4).Infof("Ignore update event of resourceBinding %s/%s as specification no change", oldMeta.GetNamespace(), oldMeta.GetName())
-		} else {
-			klog.V(4).Infof("Ignore update event of clusterResourceBinding %s as specification no change", oldMeta.GetName())
-		}
+// onClusterResourceBindingAdd is called when an add event for a ClusterResourceBinding is received from the Informer.
+func (s *Scheduler) onClusterResourceBindingAdd(obj any) {
+	crb, ok := obj.(*workv1alpha2.ClusterResourceBinding)
+	if !ok {
+		klog.Errorf("onClusterResourceBindingAdd: unexpected object type %T", obj)
 		return
 	}
 
 	if features.FeatureGate.Enabled(features.PriorityBasedScheduling) {
-		bindingInfo := newQueuedBindingInfo(cur)
-		if bindingInfo == nil {
-			// shouldn't happen
-			klog.Errorf("couldn't convert to QueuedBindingInfo %#v", cur)
-			return
-		}
-
-		s.priorityQueue.Push(bindingInfo)
+		s.priorityQueue.Push(newQueuedBindingInfoFromCRB(crb))
 	} else {
-		key, err := cache.MetaNamespaceKeyFunc(cur)
+		key, err := cache.MetaNamespaceKeyFunc(crb)
 		if err != nil {
-			klog.Errorf("couldn't get key for object %#v: %v", cur, err)
+			klog.Errorf("couldn't get key for object %#v: %v", crb, err)
 			return
 		}
+		s.queue.Add(key)
+	}
+	metrics.CountSchedulerBindings(metrics.BindingAdd)
+}
 
+// onResourceBindingUpdate is called when an update event for a ResourceBinding is received from the Informer.
+func (s *Scheduler) onResourceBindingUpdate(old, cur any) {
+	oldRB, ok1 := old.(*workv1alpha2.ResourceBinding)
+	newRB, ok2 := cur.(*workv1alpha2.ResourceBinding)
+	if !ok1 || !ok2 {
+		klog.Errorf("onResourceBindingUpdate: unexpected object type, old=%T cur=%T", old, cur)
+		return
+	}
+
+	if features.FeatureGate.Enabled(features.WorkloadAffinity) {
+		s.schedulerCache.AssigningResourceBindings().OnBindingUpdate(newRB)
+	}
+
+	// Release per-cluster assumptions for any cluster whose workload just became Healthy.
+	// This must run before the generation check below because AggregatedStatus is a status
+	// field that does not bump the generation.
+	if features.FeatureGate.Enabled(features.SchedulingOvercommitProtection) {
+		s.releaseHealthyClusterAssumptions(oldRB, newRB)
+	}
+
+	if oldRB.GetGeneration() == newRB.GetGeneration() {
+		klog.V(4).Infof("Ignore update event of resourceBinding %s/%s as specification no change", newRB.GetNamespace(), newRB.GetName())
+		return
+	}
+
+	if features.FeatureGate.Enabled(features.PriorityBasedScheduling) {
+		s.priorityQueue.Push(newQueuedBindingInfoFromRB(newRB))
+	} else {
+		key, err := cache.MetaNamespaceKeyFunc(newRB)
+		if err != nil {
+			klog.Errorf("couldn't get key for object %#v: %v", newRB, err)
+			return
+		}
+		s.queue.Add(key)
+	}
+	metrics.CountSchedulerBindings(metrics.BindingUpdate)
+}
+
+// onClusterResourceBindingUpdate is called when an update event for a ClusterResourceBinding is received from the Informer.
+func (s *Scheduler) onClusterResourceBindingUpdate(old, cur any) {
+	oldCRB, ok1 := old.(*workv1alpha2.ClusterResourceBinding)
+	newCRB, ok2 := cur.(*workv1alpha2.ClusterResourceBinding)
+	if !ok1 || !ok2 {
+		klog.Errorf("onClusterResourceBindingUpdate: unexpected object type, old=%T cur=%T", old, cur)
+		return
+	}
+
+	if oldCRB.GetGeneration() == newCRB.GetGeneration() {
+		klog.V(4).Infof("Ignore update event of clusterResourceBinding %s as specification no change", newCRB.GetName())
+		return
+	}
+
+	if features.FeatureGate.Enabled(features.PriorityBasedScheduling) {
+		s.priorityQueue.Push(newQueuedBindingInfoFromCRB(newCRB))
+	} else {
+		key, err := cache.MetaNamespaceKeyFunc(newCRB)
+		if err != nil {
+			klog.Errorf("couldn't get key for object %#v: %v", newCRB, err)
+			return
+		}
 		s.queue.Add(key)
 	}
 	metrics.CountSchedulerBindings(metrics.BindingUpdate)
@@ -208,24 +247,29 @@ func (s *Scheduler) onResourceBindingUpdate(old, cur any) {
 
 // onResourceBindingDelete is called when a delete event for a ResourceBinding is received from the Informer.
 func (s *Scheduler) onResourceBindingDelete(obj any) {
-	if features.FeatureGate.Enabled(features.WorkloadAffinity) {
-		var binding *workv1alpha2.ResourceBinding
-		switch t := obj.(type) {
-		case *workv1alpha2.ResourceBinding:
-			binding = t
-		case cache.DeletedFinalStateUnknown:
-			var ok bool
-			binding, ok = t.Obj.(*workv1alpha2.ResourceBinding)
-			if !ok {
-				klog.Errorf("cannot convert to workv1alpha2.ResourceBinding: %v", t.Obj)
-				return
-			}
-		default:
-			klog.Errorf("cannot convert to workv1alpha2.ResourceBinding: %v", t)
+	var binding *workv1alpha2.ResourceBinding
+	switch t := obj.(type) {
+	case *workv1alpha2.ResourceBinding:
+		binding = t
+	case cache.DeletedFinalStateUnknown:
+		var ok bool
+		binding, ok = t.Obj.(*workv1alpha2.ResourceBinding)
+		if !ok {
+			klog.Errorf("cannot convert to workv1alpha2.ResourceBinding: %v", t.Obj)
 			return
 		}
+	default:
+		klog.Errorf("cannot convert to workv1alpha2.ResourceBinding: %v", t)
+		return
+	}
 
+	if features.FeatureGate.Enabled(features.WorkloadAffinity) {
 		s.schedulerCache.AssigningResourceBindings().OnBindingDelete(binding)
+	}
+
+	bindingKey := names.NamespacedKey(binding.Namespace, binding.Name)
+	if features.FeatureGate.Enabled(features.SchedulingOvercommitProtection) {
+		s.schedulerCache.AssigningResourceBindings().ReleaseAssumption(bindingKey)
 	}
 }
 
@@ -444,4 +488,51 @@ func (s *Scheduler) enqueueAffectedCRBs(cluster *clusterv1alpha1.Cluster) error 
 	}
 
 	return nil
+}
+
+// releaseHealthyClusterAssumptions releases per-cluster assumptions for any cluster
+// whose workload transitioned to Healthy between the old and new ResourceBinding.
+// It is a no-op when the assumption cache is not initialized or old is not a ResourceBinding.
+func (s *Scheduler) releaseHealthyClusterAssumptions(oldRB, newRB *workv1alpha2.ResourceBinding) {
+	// Defensive check: schedulerCache is expected to be always initialized.
+	if s.schedulerCache == nil || s.schedulerCache.AssigningResourceBindings() == nil {
+		return
+	}
+
+	// Skip non-workload resources.
+	if !oldRB.Spec.IsWorkload() {
+		return
+	}
+
+	bindingKey := names.NamespacedKey(newRB.Namespace, newRB.Name)
+	// Skip when the target assumption does not exist.
+	if !s.schedulerCache.AssigningResourceBindings().IsAssumptionExist(bindingKey) {
+		return
+	}
+
+	for _, clusterName := range newlyHealthyClusters(oldRB.Status.AggregatedStatus, newRB.Status.AggregatedStatus) {
+		s.schedulerCache.AssigningResourceBindings().ReleaseClusterAssumption(bindingKey, clusterName)
+		klog.V(4).Infof("Released assumption for ResourceBinding(%s) on cluster(%s): workload became Healthy", bindingKey, clusterName)
+	}
+}
+
+// newlyHealthyClusters returns the cluster names that transitioned to Healthy
+// in newStatus compared to oldStatus. It is used to release per-cluster
+// assumptions once the workload has reached a stable running state.
+func newlyHealthyClusters(oldStatus, newStatus []workv1alpha2.AggregatedStatusItem) []string {
+	oldHealthy := sets.New[string]()
+	for _, item := range oldStatus {
+		if item.Health == workv1alpha2.ResourceHealthy {
+			oldHealthy.Insert(item.ClusterName)
+		}
+	}
+	var result []string
+	for _, item := range newStatus {
+		if item.Health == workv1alpha2.ResourceHealthy {
+			if !oldHealthy.Has(item.ClusterName) {
+				result = append(result, item.ClusterName)
+			}
+		}
+	}
+	return result
 }

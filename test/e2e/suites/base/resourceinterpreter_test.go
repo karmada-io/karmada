@@ -152,7 +152,7 @@ var _ = ginkgo.Describe("Resource interpreter webhook testing", func() {
 				sumWeight += index + 1
 				staticWeightLists = append(staticWeightLists, staticWeightList)
 			}
-			workload.Spec.Replicas = ptr.To[int32](int32(sumWeight))
+			workload.Spec.Replicas = new(int32(sumWeight))
 			policy = testhelper.NewPropagationPolicy(policyNamespace, policyName, []policyv1alpha1.ResourceSelector{
 				{
 					APIVersion: workload.APIVersion,
@@ -698,7 +698,7 @@ var _ = framework.SerialDescribe("Resource interpreter customization testing", f
 					sumWeight += index + 1
 					staticWeightLists = append(staticWeightLists, staticWeightList)
 				}
-				deployment.Spec.Replicas = ptr.To[int32](int32(sumWeight))
+				deployment.Spec.Replicas = new(int32(sumWeight))
 				policy.Spec.Placement = policyv1alpha1.Placement{
 					ClusterAffinity: &policyv1alpha1.ClusterAffinity{
 						ClusterNames: framework.ClusterNames(),

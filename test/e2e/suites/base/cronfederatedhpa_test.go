@@ -189,7 +189,7 @@ var _ = ginkgo.Describe("[CronFederatedHPA] CronFederatedHPA testing", func() {
 			framework.UpdateDeploymentReplicas(kubeClient, deployment, *deployment.Spec.Replicas)
 
 			// Step 4. Suspend rule
-			rule.Suspend = ptr.To[bool](true)
+			rule.Suspend = new(true)
 			framework.UpdateCronFederatedHPAWithRule(karmadaClient, testNamespace, cronFHPAName, []autoscalingv1alpha1.CronFederatedHPARule{rule})
 
 			// Step 5. Check the replicas, which should not be changed

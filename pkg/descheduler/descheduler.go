@@ -226,14 +226,14 @@ func (d *Descheduler) updateScheduleResult(h *core.SchedulingResultHelper) error
 			binding.Spec.Clusters[i].Replicas = target
 			unschedulable := cluster.Spec - target
 			unschedulableSum += unschedulable
-			message.WriteString(fmt.Sprintf(", %d replica(s) in cluster(%s)", unschedulable, cluster.ClusterName))
+			fmt.Fprintf(&message, ", %d replica(s) in cluster(%s)", unschedulable, cluster.ClusterName)
 		}
 	}
 	if unschedulableSum == 0 {
 		// Nothing changed; skip API update and event recording logic.
 		return nil
 	}
-	message.WriteString(fmt.Sprintf(", %d total descheduled replica(s)", unschedulableSum))
+	fmt.Fprintf(&message, ", %d total descheduled replica(s)", unschedulableSum)
 
 	var err error
 	defer func() {

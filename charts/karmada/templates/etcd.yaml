@@ -48,16 +48,25 @@ spec:
           image: {{ template "karmada.internal.etcd.image" . }}
           imagePullPolicy: {{ .Values.etcd.internal.image.pullPolicy }}
           livenessProbe:
-            exec:
-              command:
-                - /bin/sh
-                - -ec
-                - 'etcdctl endpoint health --endpoints https://127.0.0.1:2379  --cacert /etc/kubernetes/pki/etcd/server-ca.crt --cert /etc/kubernetes/pki/etcd/karmada.crt --key /etc/kubernetes/pki/etcd/karmada.key'
-            failureThreshold: 3
-            initialDelaySeconds: 600
-            periodSeconds: 60
+            httpGet:
+              path: /livez
+              port: 2381
+              scheme: HTTP
+            initialDelaySeconds: 60
+            timeoutSeconds: 5
+            periodSeconds: 10
             successThreshold: 1
-            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 2381
+              scheme: HTTP
+            initialDelaySeconds: 10
+            timeoutSeconds: 5
+            periodSeconds: 5
+            successThreshold: 1
+            failureThreshold: 30
           env:
             - name: KARMADA_ETCD_NAME
               valueFrom:
@@ -69,6 +78,9 @@ spec:
               protocol: TCP
             - containerPort: 2380
               name: server
+              protocol: TCP
+            - containerPort: 2381
+              name: metrics
               protocol: TCP
           resources:
           {{- toYaml .Values.etcd.internal.resources | nindent 12 }}
@@ -86,6 +98,8 @@ spec:
             - http://0.0.0.0:2380
             - --listen-client-urls
             - https://0.0.0.0:2379
+            - --listen-metrics-urls
+            - http://0.0.0.0:2381
             - --advertise-client-urls
             - https://etcd-client.{{ include "karmada.namespace" . }}.svc.{{ .Values.clusterDomain }}:2379
             - --initial-cluster

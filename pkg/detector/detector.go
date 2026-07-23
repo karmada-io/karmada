@@ -387,7 +387,7 @@ func (d *ResourceDetector) LookForMatchedPolicy(object *unstructured.Unstructure
 	policyList := &policyv1alpha1.PropagationPolicyList{}
 	err := d.Client.List(context.TODO(), policyList, &client.ListOptions{
 		Namespace:             objectKey.Namespace,
-		UnsafeDisableDeepCopy: ptr.To(true),
+		UnsafeDisableDeepCopy: new(true),
 	})
 	if err != nil {
 		klog.Errorf("Failed to list propagation policy: %v", err)
@@ -414,7 +414,7 @@ func (d *ResourceDetector) LookForMatchedClusterPolicy(object *unstructured.Unst
 	klog.V(2).Infof("Attempts to match cluster policy for resource(%s)", objectKey)
 	policyList := &policyv1alpha1.ClusterPropagationPolicyList{}
 	err := d.Client.List(context.TODO(), policyList, &client.ListOptions{
-		UnsafeDisableDeepCopy: ptr.To(true),
+		UnsafeDisableDeepCopy: new(true),
 	})
 	if err != nil {
 		klog.Errorf("Failed to list cluster propagation policy: %v", err)
@@ -991,6 +991,20 @@ func (d *ResourceDetector) OnPropagationPolicyAdd(obj any, isInInitialList bool)
 
 // OnPropagationPolicyUpdate handles object update event and push the object to queue.
 func (d *ResourceDetector) OnPropagationPolicyUpdate(oldObj, newObj any) {
+	oldPolicyObj := oldObj.(*policyv1alpha1.PropagationPolicy)
+	policyObj := newObj.(*policyv1alpha1.PropagationPolicy)
+
+	// When karmada-apiserver restarts, the reflector's watch stream may break and the list/watch cycle is re-established.
+	// The reflector may resume the watch from the last observed resourceVersion, but the apiserver can return a too old resource version error,
+	// causing the reflector to relist objects.
+	// After the relist, the reflector will produce Replaced deltas to DeltaFIFO, which are surfaced as update callbacks
+	// when the object already exists in the local store.
+	// For this controller path, an unchanged generation means no spec change relevant to reconciliation,
+	// so skip enqueuing to avoid unnecessary reconciles.
+	if oldPolicyObj.Generation == policyObj.Generation {
+		klog.V(4).Infof("Skip enqueue PropagationPolicy(%s/%s) since generation is not changed.", policyObj.Namespace, policyObj.Name)
+		return
+	}
 	d.policyReconcileWorker.Enqueue(newObj)
 
 	// Temporary solution of corner case: After the priority(.spec.priority) of
@@ -1008,8 +1022,6 @@ func (d *ResourceDetector) OnPropagationPolicyUpdate(oldObj, newObj any) {
 	// a status, in that case we can record the observed priority(.status.observedPriority)
 	// which can be used to detect priority changes during reconcile logic.
 	if features.FeatureGate.Enabled(features.PolicyPreemption) {
-		oldPolicyObj := oldObj.(*policyv1alpha1.PropagationPolicy)
-		policyObj := newObj.(*policyv1alpha1.PropagationPolicy)
 		if policyObj.ExplicitPriority() < oldPolicyObj.ExplicitPriority() {
 			d.HandleDeprioritizedPropagationPolicy(*oldPolicyObj, *policyObj)
 		}
@@ -1066,6 +1078,21 @@ func (d *ResourceDetector) OnClusterPropagationPolicyAdd(obj any, isInInitialLis
 
 // OnClusterPropagationPolicyUpdate handles object update event and push the object to queue.
 func (d *ResourceDetector) OnClusterPropagationPolicyUpdate(oldObj, newObj any) {
+	oldPolicy := oldObj.(*policyv1alpha1.ClusterPropagationPolicy)
+	policyObj := newObj.(*policyv1alpha1.ClusterPropagationPolicy)
+
+	// When karmada-apiserver restarts, the reflector's watch stream may break and the list/watch cycle is re-established.
+	// The reflector may resume the watch from the last observed resourceVersion, but the apiserver can return a too old resource version error,
+	// causing the reflector to relist objects.
+	// After the relist, the reflector will produce Replaced deltas to DeltaFIFO, which are surfaced as update callbacks
+	// when the object already exists in the local store.
+	// For this controller path, an unchanged generation means no spec change relevant to reconciliation,
+	// so skip enqueuing to avoid unnecessary reconciles.
+	if oldPolicy.Generation == policyObj.Generation {
+		klog.V(4).Infof("Skip enqueue ClusterPropagationPolicy(%s) since generation is not changed.", policyObj.Name)
+		return
+	}
+
 	d.clusterPolicyReconcileWorker.Enqueue(newObj)
 
 	// Temporary solution of corner case: After the priority(.spec.priority) of
@@ -1083,8 +1110,6 @@ func (d *ResourceDetector) OnClusterPropagationPolicyUpdate(oldObj, newObj any) 
 	// a status, in that case we can record the observed priority(.status.observedPriority)
 	// which can be used to detect priority changes during reconcile logic.
 	if features.FeatureGate.Enabled(features.PolicyPreemption) {
-		oldPolicy := oldObj.(*policyv1alpha1.ClusterPropagationPolicy)
-		policyObj := newObj.(*policyv1alpha1.ClusterPropagationPolicy)
 		if policyObj.ExplicitPriority() < oldPolicy.ExplicitPriority() {
 			d.HandleDeprioritizedClusterPropagationPolicy(*oldPolicy, *policyObj)
 		}

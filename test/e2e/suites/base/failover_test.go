@@ -36,6 +36,7 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	testhelper "github.com/karmada-io/karmada/test/helper"
@@ -184,6 +185,13 @@ var _ = framework.SerialDescribe("cluster failover testing", func() {
 
 					return len(currentClusters)
 				}, pollTimeout, pollInterval).Should(gomega.Equal(minGroups))
+			})
+
+			ginkgo.By("checking EvictWorkloadFromClusterSucceed event on deployment", func() {
+				framework.WaitEventFitWith(kubeClient, deploymentNamespace, deploymentName,
+					func(event corev1.Event) bool {
+						return event.Reason == events.EventReasonEvictWorkloadFromClusterSucceed
+					})
 			})
 
 			ginkgo.By(fmt.Sprintf("remove taint %v from the target clusters", taint), func() {
@@ -364,10 +372,10 @@ var _ = ginkgo.Describe("application failover testing", func() {
 			policy.Spec.Failover = &policyv1alpha1.FailoverBehavior{
 				Application: &policyv1alpha1.ApplicationFailoverBehavior{
 					DecisionConditions: policyv1alpha1.DecisionConditions{
-						TolerationSeconds: ptr.To[int32](tolerationSeconds),
+						TolerationSeconds: new(tolerationSeconds),
 					},
 					PurgeMode:          policyv1alpha1.PurgeModeGracefully,
-					GracePeriodSeconds: ptr.To[int32](gracePeriodSeconds),
+					GracePeriodSeconds: new(gracePeriodSeconds),
 				},
 			}
 		})
@@ -443,7 +451,7 @@ var _ = ginkgo.Describe("application failover testing", func() {
 					{
 						"op":    policyv1alpha1.OverriderOpReplace,
 						"path":  "/spec/failover/application/gracePeriodSeconds",
-						"value": ptr.To[int32](gracePeriodSeconds),
+						"value": new(gracePeriodSeconds),
 					},
 				}
 				framework.PatchPropagationPolicy(karmadaClient, policy.Namespace, policy.Name, patch, types.JSONPatchType)
@@ -511,7 +519,7 @@ var _ = ginkgo.Describe("application failover testing", func() {
 			policy.Spec.Failover = &policyv1alpha1.FailoverBehavior{
 				Application: &policyv1alpha1.ApplicationFailoverBehavior{
 					DecisionConditions: policyv1alpha1.DecisionConditions{
-						TolerationSeconds: ptr.To[int32](tolerationSeconds),
+						TolerationSeconds: new(tolerationSeconds),
 					},
 					PurgeMode: policyv1alpha1.Never,
 				},
@@ -561,7 +569,7 @@ var _ = ginkgo.Describe("application failover testing", func() {
 			policy.Spec.Failover = &policyv1alpha1.FailoverBehavior{
 				Application: &policyv1alpha1.ApplicationFailoverBehavior{
 					DecisionConditions: policyv1alpha1.DecisionConditions{
-						TolerationSeconds: ptr.To[int32](tolerationSeconds),
+						TolerationSeconds: new(tolerationSeconds),
 					},
 					PurgeMode: policyv1alpha1.PurgeModeDirectly,
 					StatePreservation: &policyv1alpha1.StatePreservation{

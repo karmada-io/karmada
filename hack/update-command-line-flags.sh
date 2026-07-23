@@ -13,8 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Regenerate component command-line flag reference Markdown:
-#   - docs/command-line-flags/   (karmada-controller-manager, karmada-scheduler, ...)
+# Regenerate command-line flag reference Markdown under docs/command-line-flags/
 #
 # Usage:
 #   hack/update-command-line-flags.sh
@@ -34,3 +33,4 @@ mkdir -p "${COMPONENT_OUT}"
 
 cd "${SCRIPT_ROOT}"
 go run ./hack/tools/gencomponentdocs/ "${COMPONENT_OUT}" all
+go run ./hack/tools/genkarmadactldocs/ "${COMPONENT_OUT}"

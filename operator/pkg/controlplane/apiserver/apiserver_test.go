@@ -25,7 +25,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	fakeclientset "k8s.io/client-go/kubernetes/fake"
 	coretesting "k8s.io/client-go/testing"
-	"k8s.io/utils/ptr"
 
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	"github.com/karmada-io/karmada/operator/pkg/constants"
@@ -46,13 +45,13 @@ func TestEnsureKarmadaAPIServer(t *testing.T) {
 		KarmadaAPIServer: &operatorv1alpha1.KarmadaAPIServer{
 			CommonSettings: operatorv1alpha1.CommonSettings{
 				Image:           operatorv1alpha1.Image{ImageTag: image},
-				Replicas:        ptr.To[int32](replicas),
+				Replicas:        new(replicas),
 				Annotations:     annotations,
 				Labels:          labels,
 				Resources:       corev1.ResourceRequirements{},
 				ImagePullPolicy: imagePullPolicy,
 			},
-			ServiceSubnet: ptr.To(serviceSubnet),
+			ServiceSubnet: new(serviceSubnet),
 			ExtraArgs:     map[string]string{"cmd1": "arg1", "cmd2": "arg2"},
 		},
 		Etcd: &operatorv1alpha1.Etcd{
@@ -113,7 +112,7 @@ func TestEnsureKarmadaAggregatedAPIServer(t *testing.T) {
 		KarmadaAggregatedAPIServer: &operatorv1alpha1.KarmadaAggregatedAPIServer{
 			CommonSettings: operatorv1alpha1.CommonSettings{
 				Image:           operatorv1alpha1.Image{ImageTag: image},
-				Replicas:        ptr.To[int32](replicas),
+				Replicas:        new(replicas),
 				Annotations:     annotationValues,
 				Labels:          labelValues,
 				Resources:       corev1.ResourceRequirements{},
@@ -186,14 +185,14 @@ func TestInstallKarmadaAPIServer(t *testing.T) {
 	cfg := &operatorv1alpha1.KarmadaAPIServer{
 		CommonSettings: operatorv1alpha1.CommonSettings{
 			Image:             operatorv1alpha1.Image{ImageTag: image},
-			Replicas:          ptr.To[int32](replicas),
+			Replicas:          new(replicas),
 			Annotations:       annotations,
 			Labels:            labels,
 			Resources:         corev1.ResourceRequirements{},
 			ImagePullPolicy:   imagePullPolicy,
 			PriorityClassName: priorityClassName,
 		},
-		ServiceSubnet: ptr.To(serviceSubnet),
+		ServiceSubnet: new(serviceSubnet),
 		ExtraArgs:     map[string]string{"cmd1": "arg1", "cmd2": "arg2"},
 	}
 	etcdCfg := &operatorv1alpha1.Etcd{
@@ -289,7 +288,7 @@ func TestInstallKarmadaAggregatedAPIServer(t *testing.T) {
 	cfg := &operatorv1alpha1.KarmadaAggregatedAPIServer{
 		CommonSettings: operatorv1alpha1.CommonSettings{
 			Image:             operatorv1alpha1.Image{ImageTag: image},
-			Replicas:          ptr.To[int32](replicas),
+			Replicas:          new(replicas),
 			Annotations:       annotationValues,
 			Labels:            labelValues,
 			Resources:         corev1.ResourceRequirements{},
@@ -354,7 +353,7 @@ func TestInstallKarmadaAggregatedAPIServerWithTolerationsAndAffinity(t *testing.
 	cfg := &operatorv1alpha1.KarmadaAggregatedAPIServer{
 		CommonSettings: operatorv1alpha1.CommonSettings{
 			Image:           operatorv1alpha1.Image{ImageTag: image},
-			Replicas:        ptr.To[int32](replicas),
+			Replicas:        new(replicas),
 			Resources:       corev1.ResourceRequirements{},
 			ImagePullPolicy: imagePullPolicy,
 			Tolerations:     tolerations,

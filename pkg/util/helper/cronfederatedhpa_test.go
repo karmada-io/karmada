@@ -40,14 +40,14 @@ func TestIsCronFederatedHPARuleSuspend(t *testing.T) {
 		{
 			name: "suspend is true",
 			rule: autoscalingv1alpha1.CronFederatedHPARule{
-				Suspend: ptr.To(true),
+				Suspend: new(true),
 			},
 			expected: true,
 		},
 		{
 			name: "suspend is false",
 			rule: autoscalingv1alpha1.CronFederatedHPARule{
-				Suspend: ptr.To(false),
+				Suspend: new(false),
 			},
 			expected: false,
 		},

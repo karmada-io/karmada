@@ -28,32 +28,6 @@ func stringInslice(target string, strArray []string) bool {
 	return slices.Contains(strArray, target)
 }
 
-func TestIsExist(t *testing.T) {
-	tests := []struct {
-		name string
-		path string
-		want bool
-	}{
-		{
-			name: "path exist",
-			path: "./",
-			want: true,
-		},
-		{
-			name: "path is not exist",
-			path: "for-a-not-exist-path" + randString(),
-			want: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := IsExist(tt.path); got != tt.want {
-				t.Errorf("IsExist() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestStringToNetIP(t *testing.T) {
 	tests := []struct {
 		name string

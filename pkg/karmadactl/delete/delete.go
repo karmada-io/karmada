@@ -57,36 +57,36 @@ var (
 		rest of the resource.
 
 		After a CustomResourceDefinition is deleted, invalidation of discovery cache may take up
-		to 6 hours. If you don't want to wait, you might want to run "[1]%s api-resources" to refresh
+		to 6 hours. If you don't want to wait, you might want to run "%[1]s api-resources" to refresh
 		the discovery cache.`)
 
 	deleteExample = templates.Examples(`
 		# Delete a propagationpolicy using the type and name specified in propagationpolicy.json
-		[1]%s delete -f ./propagationpolicy.json
+		%[1]s delete -f ./propagationpolicy.json
 
 		# Delete resources from a directory containing kustomization.yaml - e.g. dir/kustomization.yaml
-		[1]%s delete -k dir
+		%[1]s delete -k dir
 
 		# Delete resources from all files that end with '.json'
-		[1]%s delete -f '*.json'
+		%[1]s delete -f '*.json'
 
 		# Delete a propagationpolicy based on the type and name in the JSON passed into stdin
-		cat propagationpolicy.json | [1]%s delete -f -
+		cat propagationpolicy.json | %[1]s delete -f -
 
 		# Delete propagationpolicies and services with same names "baz" and "foo"
-		[1]%s delete propagationpolicy,service baz foo
+		%[1]s delete propagationpolicy,service baz foo
 
 		# Delete propagationpolicies and services with label name=myLabel
-		[1]%s delete propagationpolicies,services -l name=myLabel
+		%[1]s delete propagationpolicies,services -l name=myLabel
 
 		# Delete a propagationpolicy with minimal delay
-		[1]%s delete propagationpolicy foo --now
+		%[1]s delete propagationpolicy foo --now
 
 		# Force delete a propagationpolicy on a dead node
-		[1]%s delete propagationpolicy foo --force
+		%[1]s delete propagationpolicy foo --force
 
 		# Delete all propagationpolicies
-		[1]%s delete propagationpolicies --all`)
+		%[1]s delete propagationpolicies --all`)
 )
 
 // NewCmdDelete returns new initialized instance of delete sub command

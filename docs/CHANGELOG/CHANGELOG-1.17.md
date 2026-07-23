@@ -2,18 +2,30 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.17.2](#v1172)
-  - [Downloads for v1.17.2](#downloads-for-v1172)
-  - [Changelog since v1.17.1](#changelog-since-v1171)
+- [v1.17.4](#v1174)
+  - [Downloads for v1.17.4](#downloads-for-v1174)
+  - [Changelog since v1.17.3](#changelog-since-v1173)
     - [Changes by Kind](#changes-by-kind)
       - [Bug Fixes](#bug-fixes)
       - [Others](#others)
-- [v1.17.1](#v1171)
-  - [Downloads for v1.17.1](#downloads-for-v1171)
-  - [Changelog since v1.17.0](#changelog-since-v1170)
+- [v1.17.3](#v1173)
+  - [Downloads for v1.17.3](#downloads-for-v1173)
+  - [Changelog since v1.17.2](#changelog-since-v1172)
     - [Changes by Kind](#changes-by-kind-1)
       - [Bug Fixes](#bug-fixes-1)
       - [Others](#others-1)
+- [v1.17.2](#v1172)
+  - [Downloads for v1.17.2](#downloads-for-v1172)
+  - [Changelog since v1.17.1](#changelog-since-v1171)
+    - [Changes by Kind](#changes-by-kind-2)
+      - [Bug Fixes](#bug-fixes-2)
+      - [Others](#others-2)
+- [v1.17.1](#v1171)
+  - [Downloads for v1.17.1](#downloads-for-v1171)
+  - [Changelog since v1.17.0](#changelog-since-v1170)
+    - [Changes by Kind](#changes-by-kind-3)
+      - [Bug Fixes](#bug-fixes-3)
+      - [Others](#others-3)
 - [v1.17.0](#v1170)
   - [Downloads for v1.17.0](#downloads-for-v1170)
   - [Urgent Update Notes](#urgent-update-notes)
@@ -26,7 +38,7 @@
     - [API Changes](#api-changes)
     - [Features & Enhancements](#features--enhancements)
     - [Deprecation](#deprecation)
-    - [Bug Fixes](#bug-fixes-2)
+    - [Bug Fixes](#bug-fixes-4)
     - [Security](#security)
   - [Other](#other)
     - [Dependencies](#dependencies)
@@ -38,11 +50,11 @@
   - [Downloads for v1.17.0-rc.0](#downloads-for-v1170-rc0)
   - [Changelog since v1.17.0-beta.0](#changelog-since-v1170-beta0)
   - [Urgent Update Notes](#urgent-update-notes-1)
-  - [Changes by Kind](#changes-by-kind-2)
+  - [Changes by Kind](#changes-by-kind-4)
     - [API Changes](#api-changes-1)
     - [Features & Enhancements](#features--enhancements-1)
     - [Deprecation](#deprecation-1)
-    - [Bug Fixes](#bug-fixes-3)
+    - [Bug Fixes](#bug-fixes-5)
     - [Security](#security-1)
   - [Other](#other-1)
     - [Dependencies](#dependencies-1)
@@ -53,11 +65,11 @@
   - [Downloads for v1.17.0-beta.0](#downloads-for-v1170-beta0)
   - [Changelog since v1.17.0-alpha.2](#changelog-since-v1170-alpha2)
   - [Urgent Update Notes](#urgent-update-notes-2)
-  - [Changes by Kind](#changes-by-kind-3)
+  - [Changes by Kind](#changes-by-kind-5)
     - [API Changes](#api-changes-2)
     - [Features & Enhancements](#features--enhancements-2)
     - [Deprecation](#deprecation-2)
-    - [Bug Fixes](#bug-fixes-4)
+    - [Bug Fixes](#bug-fixes-6)
     - [Security](#security-2)
   - [Other](#other-2)
     - [Dependencies](#dependencies-2)
@@ -68,11 +80,11 @@
   - [Downloads for v1.17.0-alpha.2](#downloads-for-v1170-alpha2)
   - [Changelog since v1.17.0-alpha.1](#changelog-since-v1170-alpha1)
   - [Urgent Update Notes](#urgent-update-notes-3)
-  - [Changes by Kind](#changes-by-kind-4)
+  - [Changes by Kind](#changes-by-kind-6)
     - [API Changes](#api-changes-3)
     - [Features & Enhancements](#features--enhancements-3)
     - [Deprecation](#deprecation-3)
-    - [Bug Fixes](#bug-fixes-5)
+    - [Bug Fixes](#bug-fixes-7)
     - [Security](#security-3)
   - [Other](#other-3)
     - [Dependencies](#dependencies-3)
@@ -83,11 +95,11 @@
   - [Downloads for v1.17.0-alpha.1](#downloads-for-v1170-alpha1)
   - [Changelog since v1.17.0-alpha.0](#changelog-since-v1170-alpha0)
   - [Urgent Update Notes](#urgent-update-notes-4)
-  - [Changes by Kind](#changes-by-kind-5)
+  - [Changes by Kind](#changes-by-kind-7)
     - [API Changes](#api-changes-4)
     - [Features & Enhancements](#features--enhancements-4)
     - [Deprecation](#deprecation-4)
-    - [Bug Fixes](#bug-fixes-6)
+    - [Bug Fixes](#bug-fixes-8)
     - [Security](#security-4)
   - [Other](#other-4)
     - [Dependencies](#dependencies-4)
@@ -96,6 +108,39 @@
     - [Performance](#performance-4)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.17.4
+## Downloads for v1.17.4
+
+Download v1.17.4 in the [v1.17.4 release page](https://github.com/karmada-io/karmada/releases/tag/v1.17.4).
+
+## Changelog since v1.17.3
+
+### Changes by Kind
+
+#### Bug Fixes
+- `helm chart`: Fixed TLS certificate SAN mismatch when deploying to a custom namespace by adding systemNamespace SANs to certs.auto.hosts. ([#7687](https://github.com/karmada-io/karmada/pull/7687), @karmada-bot)
+
+#### Others
+- The base image `alpine` has been promoted from `alpine:3.23.4` to `alpine:3.24.1` to address security concerns. ([#7629](https://github.com/karmada-io/karmada/pull/7629), @dependabot; [#7653](https://github.com/karmada-io/karmada/pull/7653), @dependabot)
+
+# v1.17.3
+## Downloads for v1.17.3
+
+Download v1.17.3 in the [v1.17.3 release page](https://github.com/karmada-io/karmada/releases/tag/v1.17.3).
+
+## Changelog since v1.17.2
+
+### Changes by Kind
+
+#### Bug Fixes
+- `karmada-operator-chart`: Fixed issue with embedding the `Karmada` CRD, which has exceeded the config map size limit, into a config map used by the chart CRD installation/upgrade job, that prevented users from upgrading the chart. ([#7484](https://github.com/karmada-io/karmada/pull/7484), @jabellard)
+- `karmada-search`: Fixed the issue that watch connect cannot reflect resources from recovered clusters immediately. ([#7523](https://github.com/karmada-io/karmada/pull/7523), @Ady0333)
+- `karmada-scheduler`: Fixed the issue when cluster resources are insufficient, multiple template resources can still be scheduled. ([#7579](https://github.com/karmada-io/karmada/pull/7579), @jabellard)
+- `karmada-controller-manager`: Fixed the issue that a transient `ClusterClientSetFunc` failure (e.g. missing `SecretRef` during credential rotation) would immediately set the cluster `Ready=False` without respecting `ClusterFailureThreshold`, potentially triggering unnecessary workload failover. ([#7569](https://github.com/karmada-io/karmada/pull/7569), @zhangsquared)
+
+#### Others
+None.
 
 # v1.17.2
 ## Downloads for v1.17.2

@@ -67,10 +67,10 @@ func installKarmadaEtcd(client clientset.Interface, name, namespace string, cfg 
 	}
 
 	etcdStatefulSetBytes, err := util.ParseTemplate(KarmadaEtcdStatefulSet, struct {
-		KarmadaInstanceName, StatefulSetName, Namespace, Image string
-		ImagePullPolicy, EtcdClientService, CertsSecretName    string
-		InitialCluster, EtcdDataVolumeName, EtcdCipherSuites   string
-		Replicas, EtcdListenClientPort, EtcdListenPeerPort     int32
+		KarmadaInstanceName, StatefulSetName, Namespace, Image              string
+		ImagePullPolicy, EtcdClientService, CertsSecretName                 string
+		InitialCluster, EtcdDataVolumeName, EtcdCipherSuites                string
+		Replicas, EtcdListenClientPort, EtcdListenPeerPort, EtcdMetricsPort int32
 	}{
 		KarmadaInstanceName:  name,
 		StatefulSetName:      util.KarmadaEtcdName(name),
@@ -85,6 +85,7 @@ func installKarmadaEtcd(client clientset.Interface, name, namespace string, cfg 
 		Replicas:             *cfg.Replicas,
 		EtcdListenClientPort: constants.EtcdListenClientPort,
 		EtcdListenPeerPort:   constants.EtcdListenPeerPort,
+		EtcdMetricsPort:      constants.EtcdMetricsPort,
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing Etcd statefuelset template: %w", err)

@@ -20,8 +20,6 @@ import (
 	"fmt"
 	"math"
 
-	"k8s.io/utils/ptr"
-
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -373,7 +371,7 @@ func (info *GroupClustersInfo) generateClustersInfo(clustersScore framework.Clus
 
 	sortClusters(info.Clusters, func(i *ClusterDetailInfo, j *ClusterDetailInfo) *bool {
 		if i.AvailableReplicas != j.AvailableReplicas {
-			return ptr.To(i.AvailableReplicas > j.AvailableReplicas)
+			return new(i.AvailableReplicas > j.AvailableReplicas)
 		}
 		return nil
 	})

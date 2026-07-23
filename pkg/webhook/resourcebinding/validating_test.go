@@ -183,9 +183,6 @@ func makeTestFRQ(namespace, name string, opts ...FRQOption) *policyv1alpha1.Fede
 	return frq
 }
 
-// boolPtr returns a pointer to a boolean value.
-func boolPtr(b bool) *bool { return &b }
-
 // quotaExceededResponse creates an admission response for quota exceeded errors.
 func quotaExceededResponse(message string) admission.Response {
 	return admission.Response{
@@ -233,7 +230,7 @@ func (b *admissionRequestBuilder) WithOldObject(oldObj runtime.Object) *admissio
 }
 
 func (b *admissionRequestBuilder) WithDryRun(isDryRun bool) *admissionRequestBuilder {
-	b.dryRun = boolPtr(isDryRun)
+	b.dryRun = new(isDryRun)
 	return b
 }
 

@@ -52,6 +52,7 @@ spec:
         - --name=$(KARMADA_ETCD_NAME)
         - --listen-client-urls=https://0.0.0.0:{{ .EtcdListenClientPort }}
         - --listen-peer-urls=http://0.0.0.0:{{ .EtcdListenPeerPort }}
+        - --listen-metrics-urls=http://0.0.0.0:{{ .EtcdMetricsPort }}
         - --advertise-client-urls=https://{{ .EtcdClientService }}.{{ .Namespace }}.svc.cluster.local:{{ .EtcdListenClientPort }}
         - --initial-cluster={{ .InitialCluster }}
         - --initial-cluster-state=new
@@ -70,22 +71,34 @@ spec:
               apiVersion: v1
               fieldPath: metadata.name
         livenessProbe:
-          exec:
-            command:
-            - /bin/sh
-            - -ec
-            - etcdctl endpoint health --endpoints https://127.0.0.1:{{ .EtcdListenClientPort }} --cacert=/etc/karmada/pki/etcd/etcd-ca.crt --cert=/etc/karmada/pki/etcd/etcd-server.crt --key=/etc/karmada/pki/etcd/etcd-server.key
-          failureThreshold: 3
-          initialDelaySeconds: 600
-          periodSeconds: 60
+          httpGet:
+            path: /livez
+            port: {{ .EtcdMetricsPort }}
+            scheme: HTTP
+          initialDelaySeconds: 60
+          timeoutSeconds: 5
+          periodSeconds: 10
           successThreshold: 1
-          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: {{ .EtcdMetricsPort }}
+            scheme: HTTP
+          initialDelaySeconds: 10
+          timeoutSeconds: 5
+          periodSeconds: 5
+          successThreshold: 1
+          failureThreshold: 30
         ports:
         - containerPort: {{ .EtcdListenClientPort }}
           name: client
           protocol: TCP
         - containerPort: {{ .EtcdListenPeerPort }}
           name: server
+          protocol: TCP
+        - containerPort: {{ .EtcdMetricsPort }}
+          name: metrics
           protocol: TCP
         volumeMounts:
         - mountPath: /var/lib/etcd

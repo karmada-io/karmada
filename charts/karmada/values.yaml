@@ -139,6 +139,10 @@ certs:
     ## @param certs.auto.rootCAExpiryDays expiry of the root CA certificate in days, defaults to 3650 days (10 years)
     rootCAExpiryDays: 3650
     ## @param certs.auto.hosts hosts of the certificate
+    ## Note: When the release namespace differs from systemNamespace, SANs for
+    ## systemNamespace are automatically added by the karmada.certHosts helper, including:
+    ## - "*.{{ .Values.systemNamespace }}.svc.{{ .Values.clusterDomain }}"
+    ## - "*.{{ .Values.systemNamespace }}.svc"
     hosts: [
       "kubernetes.default.svc",
       "*.etcd.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}",
@@ -247,6 +251,8 @@ scheduler:
   priorityClassName: "system-node-critical"
   ## @param scheduler.enableSchedulerEstimator enable scheduler estimator
   enableSchedulerEstimator: false
+  ## @param scheduler.enableEmptyWorkloadPropagation enable propagation of zero-replica workloads
+  enableEmptyWorkloadPropagation: false
   ## @param scheduler.featureGates A set of key=value pairs that describe feature gates for karmada-scheduler
   featureGates: {}
 
@@ -403,7 +409,7 @@ apiServer:
   image:
     registry: registry.k8s.io
     repository: kube-apiserver
-    tag: "v1.35.2"
+    tag: "v1.36.2"
     ## Specify a imagePullPolicy, defaults to 'IfNotPresent'
     pullPolicy: IfNotPresent
     ## Optionally specify an array of imagePullSecrets.
@@ -640,7 +646,7 @@ kubeControllerManager:
   image:
     registry: registry.k8s.io
     repository: kube-controller-manager
-    tag: "v1.35.2"
+    tag: "v1.36.2"
     ## Specify a imagePullPolicy, defaults to 'IfNotPresent'
     pullPolicy: IfNotPresent
     ## Optionally specify an array of imagePullSecrets.
@@ -740,7 +746,7 @@ etcd:
     image:
       registry: registry.k8s.io
       repository: etcd
-      tag: "3.6.6-0"
+      tag: "3.6.8-0"
       ## Specify a imagePullPolicy, defaults to 'IfNotPresent'
       pullPolicy: IfNotPresent
     ## @param etcd.internal.storageType storage type for etcd data

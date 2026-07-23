@@ -28,7 +28,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	fakeclientset "k8s.io/client-go/kubernetes/fake"
 	coretesting "k8s.io/client-go/testing"
-	"k8s.io/utils/ptr"
 
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
 	"github.com/karmada-io/karmada/operator/pkg/constants"
@@ -50,7 +49,7 @@ func TestEnsureKarmadaEtcd(t *testing.T) {
 				ImageRepository: image,
 				ImageTag:        imageTag,
 			},
-			Replicas:        ptr.To[int32](replicas),
+			Replicas:        new(replicas),
 			Annotations:     annotations,
 			Labels:          labels,
 			Resources:       corev1.ResourceRequirements{},
@@ -116,7 +115,7 @@ func TestInstallKarmadaEtcd(t *testing.T) {
 				ImageRepository: image,
 				ImageTag:        imageTag,
 			},
-			Replicas:          ptr.To[int32](replicas),
+			Replicas:          new(replicas),
 			Annotations:       annotations,
 			Labels:            labels,
 			Resources:         corev1.ResourceRequirements{},

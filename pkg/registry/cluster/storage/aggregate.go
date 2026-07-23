@@ -252,7 +252,7 @@ func requestWithoutResourceNameHandlerFunc(
 				setRequestHeader(simpleRequest, requester, impersonateToken)
 
 				httpClient := &http.Client{Transport: transport}
-				resp, err := httpClient.Do(simpleRequest)
+				resp, err := httpClient.Do(simpleRequest) // #nosec G704 -- the request targets a member cluster location derived from the trusted Cluster resource, not an arbitrary user-supplied URL; this is the aggregated API proxy by design.
 				if err != nil {
 					klog.Errorf("failed to do request for cluster %s: %v", cluster.Name, err)
 					return

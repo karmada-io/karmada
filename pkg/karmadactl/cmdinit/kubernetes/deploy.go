@@ -99,7 +99,7 @@ var (
 
 	karmadaRelease string
 
-	defaultEtcdImage = "etcd:3.6.6-0"
+	defaultEtcdImage = "etcd:3.6.8-0"
 
 	// DefaultCrdURL Karmada crds resource
 	DefaultCrdURL string
@@ -320,6 +320,13 @@ func (i *CommandInitOption) Validate(parentCommand string) error {
 			return fmt.Errorf("karmada apiserver advertise address is not valid")
 		}
 	}
+	if i.ExternalIP != "" {
+		for ip := range strings.SplitSeq(i.ExternalIP, ",") {
+			if net.ParseIP(ip) == nil {
+				return fmt.Errorf("cert-external-ip %q is not a valid IP address", ip)
+			}
+		}
+	}
 	if (i.CaCertFile != "") != (i.CaKeyFile != "") {
 		return fmt.Errorf("ca-cert-file and ca-key-file must be used together")
 	}
@@ -415,7 +422,11 @@ func (i *CommandInitOption) initializeCommandLineArgs() {
 
 // initializeDirectory initializes a directory and makes sure it's empty.
 func initializeDirectory(path string) error {
-	if utils.IsExist(path) {
+	exist, err := utils.PathExists(path)
+	if err != nil {
+		return fmt.Errorf("failed to check path %q: %w", path, err)
+	}
+	if exist {
 		if err := os.RemoveAll(path); err != nil {
 			return err
 		}
@@ -518,7 +529,10 @@ func (i *CommandInitOption) prepareCRD() error {
 
 	for _, archive := range validation.CrdsArchive {
 		expectedDir := filepath.Join(i.KarmadaDataPath, archive)
-		exist, _ := utils.PathExists(expectedDir)
+		exist, err := utils.PathExists(expectedDir)
+		if err != nil {
+			return fmt.Errorf("failed to check path %q: %w", expectedDir, err)
+		}
 		if !exist {
 			return fmt.Errorf("lacking the necessary file path: %s", expectedDir)
 		}
@@ -1134,7 +1148,7 @@ func mapToString(m map[string]string) string {
 		if builder.Len() > 0 {
 			builder.WriteString(",")
 		}
-		builder.WriteString(fmt.Sprintf("%s=%s", k, v))
+		fmt.Fprintf(&builder, "%s=%s", k, v)
 	}
 	return builder.String()
 }

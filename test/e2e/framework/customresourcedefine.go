@@ -80,6 +80,28 @@ func WaitCRDPresentOnClusters(client karmada.Interface, clusters []string, crdAP
 	})
 }
 
+// WaitCRDEstablished waits until the CustomResourceDefinition has the Established condition on the control plane.
+func WaitCRDEstablished(client dynamic.Interface, name string) {
+	WaitCRDFitWith(client, name, func(crd *apiextensionsv1.CustomResourceDefinition) bool {
+		for _, cond := range crd.Status.Conditions {
+			if cond.Type == apiextensionsv1.Established && cond.Status == apiextensionsv1.ConditionTrue {
+				return true
+			}
+		}
+		return false
+	})
+}
+
+// WaitCRDDisappeared waits for the CustomResourceDefinition to be absent from the control plane until timeout.
+func WaitCRDDisappeared(client dynamic.Interface, name string) {
+	ginkgo.By(fmt.Sprintf("Waiting for crd(%s) to be absent from control plane", name), func() {
+		gomega.Eventually(func() bool {
+			_, err := client.Resource(crdGVR).Get(context.TODO(), name, metav1.GetOptions{})
+			return apierrors.IsNotFound(err)
+		}, PollTimeout, PollInterval).Should(gomega.Equal(true))
+	})
+}
+
 // WaitCRDDisappearedOnClusters wait CustomResourceDefinition disappear on clusters until timeout.
 func WaitCRDDisappearedOnClusters(clusters []string, crdName string) {
 	ginkgo.By("Check if crd disappeared on member clusters", func() {
@@ -91,6 +113,22 @@ func WaitCRDDisappearedOnClusters(clusters []string, crdName string) {
 			gomega.Eventually(func() bool {
 				_, err := clusterDynamicClient.Resource(crdGVR).Get(context.TODO(), crdName, metav1.GetOptions{})
 				return apierrors.IsNotFound(err)
+			}, PollTimeout, PollInterval).Should(gomega.Equal(true))
+		}
+	})
+}
+
+// WaitCRDDisappearedFromClusterStatus waits until the APIEnablements collected from member clusters
+// no longer report the specified CRD as enabled.
+func WaitCRDDisappearedFromClusterStatus(client karmada.Interface, clusters []string, crdAPIVersion, crdKind string) {
+	ginkgo.By(fmt.Sprintf("Check if crd(%s/%s) disappeared from cluster APIEnablements", crdAPIVersion, crdKind), func() {
+		gvk := schema.FromAPIVersionAndKind(crdAPIVersion, crdKind)
+		for _, clusterName := range clusters {
+			klog.Infof("Waiting for crd(%s/%s) disappeared from cluster(%s) APIEnablements", crdAPIVersion, crdKind, clusterName)
+			gomega.Eventually(func(g gomega.Gomega) (bool, error) {
+				cluster, err := FetchCluster(client, clusterName)
+				g.Expect(err).NotTo(gomega.HaveOccurred())
+				return cluster.APIEnablement(gvk) != clusterv1alpha1.APIEnabled, nil
 			}, PollTimeout, PollInterval).Should(gomega.Equal(true))
 		}
 	})

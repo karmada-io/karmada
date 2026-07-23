@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.20.0
+    controller-gen.kubebuilder.io/version: v0.21.0
   name: resourceinterpreterwebhookconfigurations.config.karmada.io
 spec:
   group: config.karmada.io
@@ -71,35 +71,35 @@ spec:
                   properties:
                     caBundle:
                       description: |-
-                        `caBundle` is a PEM encoded CA bundle which will be used to validate the webhook's server certificate.
+                        caBundle is a PEM encoded CA bundle which will be used to validate the webhook's server certificate.
                         If unspecified, system trust roots on the apiserver are used.
                       format: byte
                       type: string
                     service:
                       description: |-
-                        `service` is a reference to the service for this webhook. Either
+                        service is a reference to the service for this webhook. Either
                         `service` or `url` must be specified.
 
                         If the webhook is running within the cluster, then you should use `service`.
                       properties:
                         name:
                           description: |-
-                            `name` is the name of the service.
+                            name is the name of the service.
                             Required
                           type: string
                         namespace:
                           description: |-
-                            `namespace` is the namespace of the service.
+                            namespace is the namespace of the service.
                             Required
                           type: string
                         path:
                           description: |-
-                            `path` is an optional URL path which will be sent in any request to
+                            path is an optional URL path which will be sent in any request to
                             this service.
                           type: string
                         port:
                           description: |-
-                            If specified, the port on the service that hosting webhook.
+                            port is the port on the service that hosts the webhook.
                             Default to 443 for backward compatibility.
                             `port` should be a valid port number (1-65535, inclusive).
                           format: int32
@@ -110,7 +110,7 @@ spec:
                       type: object
                     url:
                       description: |-
-                        `url` gives the location of the webhook, in standard URL form
+                        url gives the location of the webhook, in standard URL form
                         (`scheme://host:port/path`). Exactly one of `url` or `service`
                         must be specified.
 

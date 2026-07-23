@@ -17,17 +17,23 @@ limitations under the License.
 package base
 
 import (
+	"context"
 	"fmt"
+	"strings"
 
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/yaml"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -178,3 +184,400 @@ var _ = ginkgo.Describe("Quota plugin Testing", func() {
 		})
 	})
 })
+
+// flinkDeploymentGVR is the GroupVersionResource for FlinkDeployment.
+var flinkDeploymentGVR = schema.GroupVersionResource{
+	Group:    "flink.apache.org",
+	Version:  "v1beta1",
+	Resource: "flinkdeployments",
+}
+
+var _ = framework.SerialDescribe("[EstimatorAssumption] ResourceQuota plugin assumption testing", func() {
+	const targetCluster = "member1"
+
+	var flinkCRD apiextensionsv1.CustomResourceDefinition
+	var quotaNamespace, rqName string
+
+	ginkgo.BeforeEach(func() {
+		// Use a dedicated namespace so the ResourceQuota only constrains this test's workloads.
+		quotaNamespace = fmt.Sprintf("karmadatest-%s", rand.String(RandomStrLength))
+		err := setupTestNamespace(quotaNamespace, kubeClient)
+		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		ginkgo.DeferCleanup(func() {
+			framework.RemoveNamespace(kubeClient, quotaNamespace)
+		})
+	})
+
+	ginkgo.BeforeEach(func() {
+		ginkgo.By("creating FlinkDeployment CRD on karmada control plane", func() {
+			err := yaml.Unmarshal([]byte(flinkDeploymentCRDYAML), &flinkCRD)
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			framework.CreateCRD(dynamicClient, &flinkCRD)
+			framework.WaitCRDEstablished(dynamicClient, flinkCRD.Name)
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveCRD(dynamicClient, flinkCRD.Name)
+				framework.WaitCRDDisappeared(dynamicClient, flinkCRD.Name)
+				framework.WaitCRDDisappearedOnClusters([]string{targetCluster}, flinkCRD.Name)
+				framework.WaitCRDDisappearedFromClusterStatus(karmadaClient, []string{targetCluster},
+					fmt.Sprintf("%s/%s", flinkCRD.Spec.Group, "v1beta1"), flinkCRD.Spec.Names.Kind)
+			})
+		})
+
+		ginkgo.By("propagating FlinkDeployment CRD to member1", func() {
+			cpp := helper.NewClusterPropagationPolicy(cppNamePrefix+rand.String(RandomStrLength),
+				[]policyv1alpha1.ResourceSelector{{
+					APIVersion: flinkCRD.APIVersion,
+					Kind:       flinkCRD.Kind,
+					Name:       flinkCRD.Name,
+				}},
+				policyv1alpha1.Placement{
+					ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+						ClusterNames: []string{targetCluster},
+					},
+				})
+			framework.CreateClusterPropagationPolicy(karmadaClient, cpp)
+			framework.WaitCRDPresentOnClusters(karmadaClient, []string{targetCluster},
+				fmt.Sprintf("%s/%s", flinkCRD.Spec.Group, "v1beta1"), flinkCRD.Spec.Names.Kind)
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveClusterPropagationPolicy(karmadaClient, cpp.Name)
+			})
+		})
+	})
+
+	ginkgo.BeforeEach(func() {
+		ginkgo.By("creating ResourceQuota with cpu=1 and propagating to member1", func() {
+			rqName = resourceQuotaPrefix + rand.String(RandomStrLength)
+			rq := &corev1.ResourceQuota{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "v1",
+					Kind:       "ResourceQuota",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      rqName,
+					Namespace: quotaNamespace,
+				},
+				Spec: corev1.ResourceQuotaSpec{
+					Hard: corev1.ResourceList{
+						corev1.ResourceCPU: resource.MustParse("1"),
+					},
+				},
+			}
+			framework.CreateResourceQuota(kubeClient, rq)
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveResourceQuota(kubeClient, quotaNamespace, rqName)
+			})
+
+			pp := helper.NewPropagationPolicy(quotaNamespace, ppNamePrefix+rand.String(RandomStrLength),
+				[]policyv1alpha1.ResourceSelector{{
+					APIVersion: rq.TypeMeta.APIVersion,
+					Kind:       rq.TypeMeta.Kind,
+					Name:       rqName,
+				}},
+				policyv1alpha1.Placement{
+					ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+						ClusterNames: []string{targetCluster},
+					},
+				})
+			framework.CreatePropagationPolicy(karmadaClient, pp)
+			ginkgo.DeferCleanup(func() {
+				framework.RemovePropagationPolicy(karmadaClient, quotaNamespace, pp.Name)
+			})
+
+			// Ensure the quota exists on member1 before creating any FlinkDeployments.
+			framework.WaitResourceQuotaPresentOnCluster(targetCluster, quotaNamespace, rqName)
+		})
+	})
+
+	ginkgo.It("FlinkDeployment should be unschedulable when assumed workloads exhaust ResourceQuota", func(ctx context.Context) {
+		// Each FlinkDeployment uses jobManager(50m) + taskManager(100m) = 150m CPU (from manifest).
+		// With ResourceQuota of 1000m and no real pods running (ResourceQuota.Status.Used stays at 0),
+		// the resourcequota estimator deducts in-flight assumed workloads:
+		//   - FlinkDeployments 1-6: 6 × 150m = 900m assumed → each is schedulable.
+		//   - FlinkDeployment 7:  900m + 150m = 1050m > 1000m → estimator returns 0 → unschedulable.
+		const schedulableCount = 6
+
+		// createFlinkDeployment creates a FlinkDeployment in quotaNamespace with a PropagationPolicy
+		// targeting member1 using the cpu values already set in flinkDeploymentCRYAML,
+		// and returns the corresponding ResourceBinding name.
+		createFlinkDeployment := func() string {
+			flinkName := fmt.Sprintf("flinkdeployment-%s", rand.String(RandomStrLength))
+
+			flinkObj := &unstructured.Unstructured{}
+			err := yaml.Unmarshal([]byte(flinkDeploymentCRYAML), flinkObj)
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			flinkObj.SetNamespace(quotaNamespace)
+			flinkObj.SetName(flinkName)
+			_, err = dynamicClient.Resource(flinkDeploymentGVR).Namespace(quotaNamespace).
+				Create(ctx, flinkObj, metav1.CreateOptions{})
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			ginkgo.DeferCleanup(func() {
+				_ = dynamicClient.Resource(flinkDeploymentGVR).Namespace(quotaNamespace).
+					Delete(ctx, flinkName, metav1.DeleteOptions{})
+			})
+
+			pp := helper.NewPropagationPolicy(quotaNamespace, ppNamePrefix+rand.String(RandomStrLength),
+				[]policyv1alpha1.ResourceSelector{{
+					APIVersion: "flink.apache.org/v1beta1",
+					Kind:       "FlinkDeployment",
+					Name:       flinkName,
+				}},
+				policyv1alpha1.Placement{
+					ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+						ClusterNames: []string{targetCluster},
+					},
+					SpreadConstraints: []policyv1alpha1.SpreadConstraint{
+						{
+							SpreadByField: policyv1alpha1.SpreadByFieldCluster,
+							MaxGroups:     1,
+							MinGroups:     1,
+						},
+					},
+					ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+						ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+						ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceAggregated,
+					},
+				})
+			framework.CreatePropagationPolicy(karmadaClient, pp)
+			ginkgo.DeferCleanup(func() {
+				framework.RemovePropagationPolicy(karmadaClient, quotaNamespace, pp.Name)
+			})
+
+			return names.GenerateBindingName("FlinkDeployment", flinkName)
+		}
+
+		ginkgo.By(fmt.Sprintf("creating %d FlinkDeployments that fit within the ResourceQuota", schedulableCount), func() {
+			for range schedulableCount {
+				bindingName := createFlinkDeployment()
+				// Wait for successful scheduling before creating the next one so that each
+				// workload is recorded as an assumed workload before the quota is re-evaluated.
+				framework.WaitResourceBindingFitWith(karmadaClient, quotaNamespace, bindingName,
+					func(binding *workv1alpha2.ResourceBinding) bool {
+						cond := meta.FindStatusCondition(binding.Status.Conditions, workv1alpha2.Scheduled)
+						return cond != nil && cond.Status == metav1.ConditionTrue
+					})
+			}
+		})
+
+		ginkgo.By("verifying the 7th FlinkDeployment is unschedulable because ResourceQuota is exhausted by assumed workloads", func() {
+			bindingName := createFlinkDeployment()
+			framework.WaitResourceBindingFitWith(karmadaClient, quotaNamespace, bindingName,
+				func(binding *workv1alpha2.ResourceBinding) bool {
+					cond := meta.FindStatusCondition(binding.Status.Conditions, workv1alpha2.Scheduled)
+					return cond != nil && cond.Status == metav1.ConditionFalse &&
+						cond.Reason == workv1alpha2.BindingReasonSchedulerError &&
+						strings.Contains(cond.Message, "no enough resource")
+				})
+		})
+
+		// At this point, 6 FlinkDeployments are in the assumption cache (6 × 150m = 900m assumed).
+		// A single-template Deployment requesting 200m CPU would push the total to 1100m,
+		// exceeding the 1000m ResourceQuota. This step verifies that the assumption cache also
+		// protects against over-scheduling of single-template workloads.
+		ginkgo.By("verifying a single-template Deployment requesting 200m CPU is also unschedulable due to assumed workloads", func() {
+			assertSingleTemplateDeploymentUnschedulable(quotaNamespace, targetCluster)
+		})
+	})
+})
+
+var _ = framework.SerialDescribe("[EstimatorAssumption] NodeResource plugin assumption testing", func() {
+	const targetCluster = "member1"
+
+	var flinkCRD apiextensionsv1.CustomResourceDefinition
+
+	ginkgo.BeforeEach(func() {
+		ginkgo.By("creating FlinkDeployment CRD on karmada control plane", func() {
+			err := yaml.Unmarshal([]byte(flinkDeploymentCRDYAML), &flinkCRD)
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			framework.CreateCRD(dynamicClient, &flinkCRD)
+			framework.WaitCRDEstablished(dynamicClient, flinkCRD.Name)
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveCRD(dynamicClient, flinkCRD.Name)
+				framework.WaitCRDDisappeared(dynamicClient, flinkCRD.Name)
+				framework.WaitCRDDisappearedOnClusters([]string{targetCluster}, flinkCRD.Name)
+				framework.WaitCRDDisappearedFromClusterStatus(karmadaClient, []string{targetCluster},
+					fmt.Sprintf("%s/%s", flinkCRD.Spec.Group, "v1beta1"), flinkCRD.Spec.Names.Kind)
+			})
+		})
+	})
+
+	ginkgo.BeforeEach(func() {
+		ginkgo.By("propagating FlinkDeployment CRD to member1", func() {
+			cpp := helper.NewClusterPropagationPolicy(cppNamePrefix+rand.String(RandomStrLength),
+				[]policyv1alpha1.ResourceSelector{{
+					APIVersion: flinkCRD.APIVersion,
+					Kind:       flinkCRD.Kind,
+					Name:       flinkCRD.Name,
+				}},
+				policyv1alpha1.Placement{
+					ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+						ClusterNames: []string{targetCluster},
+					},
+				})
+			framework.CreateClusterPropagationPolicy(karmadaClient, cpp)
+			framework.WaitCRDPresentOnClusters(karmadaClient, []string{targetCluster},
+				fmt.Sprintf("%s/%s", flinkCRD.Spec.Group, "v1beta1"), flinkCRD.Spec.Names.Kind)
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveClusterPropagationPolicy(karmadaClient, cpp.Name)
+			})
+		})
+	})
+
+	ginkgo.It("FlinkDeployment should be unschedulable when assumed workloads exhaust cluster resources", func(ctx context.Context) {
+		// Each FlinkDeployment has jobManager (100m) + taskManager (100m) = 200m total assumed CPU.
+		// We create FlinkDeployments sequentially (each scheduled before the next is created) so the
+		// assumption cache accumulates in-flight CPU on member1. Since no Flink Operator is installed,
+		// no pods are created and no real CPU is consumed, but karmada-scheduler treats these as
+		// assumed workloads. Within maxFlinkCount attempts, at least one must get NoClusterFit,
+		// which proves the assumption feature is working correctly.
+		const (
+			componentCPU  = 0.1 // 0.1 core (100m) as a number, matching the CRD schema type
+			maxFlinkCount = 50
+		)
+
+		// createFlinkDeployment creates a FlinkDeployment with fixed 100m per component and its
+		// PropagationPolicy targeting member1, then returns the ResourceBinding name.
+		createFlinkDeployment := func() string {
+			flinkName := fmt.Sprintf("flinkdeployment-%s", rand.String(RandomStrLength))
+
+			flinkObj := &unstructured.Unstructured{}
+			err := yaml.Unmarshal([]byte(flinkDeploymentCRYAML), flinkObj)
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			flinkObj.SetNamespace(testNamespace)
+			flinkObj.SetName(flinkName)
+			err = unstructured.SetNestedField(flinkObj.Object, float64(componentCPU), "spec", "jobManager", "resource", "cpu")
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			err = unstructured.SetNestedField(flinkObj.Object, float64(componentCPU), "spec", "taskManager", "resource", "cpu")
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			_, err = dynamicClient.Resource(flinkDeploymentGVR).Namespace(testNamespace).
+				Create(ctx, flinkObj, metav1.CreateOptions{})
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			ginkgo.DeferCleanup(func() {
+				_ = dynamicClient.Resource(flinkDeploymentGVR).Namespace(testNamespace).
+					Delete(ctx, flinkName, metav1.DeleteOptions{})
+			})
+
+			pp := helper.NewPropagationPolicy(testNamespace, ppNamePrefix+rand.String(RandomStrLength),
+				[]policyv1alpha1.ResourceSelector{{
+					APIVersion: "flink.apache.org/v1beta1",
+					Kind:       "FlinkDeployment",
+					Name:       flinkName,
+				}},
+				policyv1alpha1.Placement{
+					ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+						ClusterNames: []string{targetCluster},
+					},
+					SpreadConstraints: []policyv1alpha1.SpreadConstraint{
+						{
+							SpreadByField: policyv1alpha1.SpreadByFieldCluster,
+							MaxGroups:     1,
+							MinGroups:     1,
+						},
+					},
+					ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+						ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+						ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceAggregated,
+					},
+				})
+			framework.CreatePropagationPolicy(karmadaClient, pp)
+			ginkgo.DeferCleanup(func() {
+				framework.RemovePropagationPolicy(karmadaClient, testNamespace, pp.Name)
+			})
+
+			return names.GenerateBindingName("FlinkDeployment", flinkName)
+		}
+
+		ginkgo.By(fmt.Sprintf("creating FlinkDeployments one by one (up to %d) until assumption exhausts cluster resources", maxFlinkCount), func() {
+			assumptionExhausted := false
+			for range maxFlinkCount {
+				bindingName := createFlinkDeployment()
+				// Wait for a definitive scheduling result before creating the next one,
+				// ensuring the assumption is recorded before the next workload is evaluated.
+				framework.WaitResourceBindingFitWith(karmadaClient, testNamespace, bindingName,
+					func(binding *workv1alpha2.ResourceBinding) bool {
+						cond := meta.FindStatusCondition(binding.Status.Conditions, workv1alpha2.Scheduled)
+						if cond == nil {
+							return false
+						}
+						if cond.Status == metav1.ConditionFalse && cond.Reason == workv1alpha2.BindingReasonSchedulerError &&
+							strings.Contains(cond.Message, "no enough resource") {
+							assumptionExhausted = true
+						}
+						return true
+					})
+				if assumptionExhausted {
+					break
+				}
+			}
+			gomega.Expect(assumptionExhausted).Should(gomega.BeTrue(),
+				"expected assumption to exhaust cluster resources within %d FlinkDeployments", maxFlinkCount)
+		})
+
+		// At this point the assumption cache has consumed all available node CPU on member1.
+		// A single-template Deployment requesting 200m CPU should also fail to schedule,
+		// verifying that the assumption cache protects against over-scheduling of
+		// single-template workloads as well.
+		ginkgo.By("verifying a single-template Deployment requesting 200m CPU is also unschedulable due to assumed workloads", func() {
+			assertSingleTemplateDeploymentUnschedulable(testNamespace, targetCluster)
+		})
+	})
+})
+
+// assertSingleTemplateDeploymentUnschedulable creates a single-replica Deployment requesting
+// 200m CPU in the given namespace, propagates it to targetCluster, and asserts that the
+// ResourceBinding transitions to an unschedulable state because the assumption cache has
+// already exhausted the available resources.
+func assertSingleTemplateDeploymentUnschedulable(namespace, targetCluster string) {
+	const cpuRequest = "200m"
+
+	deployName := fmt.Sprintf("deploy-%s", rand.String(RandomStrLength))
+	deploy := helper.NewDeployment(namespace, deployName)
+	deploy.Spec.Replicas = ptr.To[int32](1)
+	deploy.Spec.Template.Spec.Containers[0].Resources = corev1.ResourceRequirements{
+		Requests: corev1.ResourceList{
+			corev1.ResourceCPU: resource.MustParse(cpuRequest),
+		},
+		Limits: corev1.ResourceList{
+			corev1.ResourceCPU: resource.MustParse(cpuRequest),
+		},
+	}
+	framework.CreateDeployment(kubeClient, deploy)
+	ginkgo.DeferCleanup(func() {
+		framework.RemoveDeployment(kubeClient, namespace, deployName)
+	})
+
+	pp := helper.NewPropagationPolicy(namespace, ppNamePrefix+rand.String(RandomStrLength),
+		[]policyv1alpha1.ResourceSelector{{
+			APIVersion: deploy.APIVersion,
+			Kind:       deploy.Kind,
+			Name:       deployName,
+		}},
+		policyv1alpha1.Placement{
+			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+				ClusterNames: []string{targetCluster},
+			},
+			SpreadConstraints: []policyv1alpha1.SpreadConstraint{
+				{
+					SpreadByField: policyv1alpha1.SpreadByFieldCluster,
+					MaxGroups:     1,
+					MinGroups:     1,
+				},
+			},
+			ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+				ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+				ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceAggregated,
+			},
+		})
+	framework.CreatePropagationPolicy(karmadaClient, pp)
+	ginkgo.DeferCleanup(func() {
+		framework.RemovePropagationPolicy(karmadaClient, namespace, pp.Name)
+	})
+
+	bindingName := names.GenerateBindingName(util.DeploymentKind, deployName)
+	framework.WaitResourceBindingFitWith(karmadaClient, namespace, bindingName,
+		func(binding *workv1alpha2.ResourceBinding) bool {
+			cond := meta.FindStatusCondition(binding.Status.Conditions, workv1alpha2.Scheduled)
+			return cond != nil && cond.Status == metav1.ConditionFalse &&
+				cond.Reason == workv1alpha2.BindingReasonSchedulerError &&
+				strings.Contains(cond.Message, "no enough resource")
+		})
+}

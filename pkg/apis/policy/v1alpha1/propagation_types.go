@@ -424,8 +424,9 @@ type ClusterFailoverBehavior struct {
 type DecisionConditions struct {
 	// TolerationSeconds represents the period of time Karmada should wait
 	// after reaching the desired state before performing failover process.
-	// If not specified, Karmada will immediately perform failover process.
-	// Defaults to 300s.
+	//
+	// Defaults to 300s if not specified.
+	// Set it to 0 to perform failover immediately.
 	// +kubebuilder:default=300
 	// +optional
 	TolerationSeconds *int32 `json:"tolerationSeconds,omitempty"`

@@ -27,7 +27,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/ptr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -68,7 +67,7 @@ func (c *ClusterTaintPolicyController) Reconcile(ctx context.Context, req contro
 	}
 
 	clusterTaintPolicyList := &policyv1alpha1.ClusterTaintPolicyList{}
-	listOption := &client.ListOptions{UnsafeDisableDeepCopy: ptr.To(true)}
+	listOption := &client.ListOptions{UnsafeDisableDeepCopy: new(true)}
 	if err := c.Client.List(ctx, clusterTaintPolicyList, listOption); err != nil {
 		klog.ErrorS(err, "Failed to list ClusterTaintPolicy")
 		return controllerruntime.Result{}, err
@@ -229,7 +228,7 @@ func (c *ClusterTaintPolicyController) SetupWithManager(mgr controllerruntime.Ma
 	clusterTaintPolicyMapFunc := handler.MapFunc(
 		func(ctx context.Context, policyObj client.Object) []reconcile.Request {
 			clusterList := &clusterv1alpha1.ClusterList{}
-			listOption := &client.ListOptions{UnsafeDisableDeepCopy: ptr.To(true)}
+			listOption := &client.ListOptions{UnsafeDisableDeepCopy: new(true)}
 			if err := c.Client.List(ctx, clusterList, listOption); err != nil {
 				klog.ErrorS(err, "Failed to list Cluster")
 				return nil

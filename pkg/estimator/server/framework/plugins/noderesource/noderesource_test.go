@@ -31,13 +31,14 @@ import (
 
 func TestNodeResourceEstimator_EstimateComponents(t *testing.T) {
 	tests := []struct {
-		name       string
-		enabled    bool
-		nodes      []*corev1.Node
-		pods       []*corev1.Pod
-		components []*pb.Component
-		expected   int32
-		wantCode   framework.Code
+		name             string
+		enabled          bool
+		nodes            []*corev1.Node
+		pods             []*corev1.Pod
+		components       []*pb.Component
+		assumedWorkloads []*pb.AssumedWorkload
+		expected         int32
+		wantCode         framework.Code
 	}{
 		{
 			name:    "plugin disabled",
@@ -314,6 +315,155 @@ func TestNodeResourceEstimator_EstimateComponents(t *testing.T) {
 			expected:   noNodeConstraint,
 			wantCode:   framework.Noopperation,
 		},
+		{
+			name:    "assumed workload reduces available capacity",
+			enabled: true,
+			nodes: []*corev1.Node{
+				makeNode("node1", map[string]string{}, corev1.ResourceList{
+					corev1.ResourceCPU:    resource.MustParse("4"),
+					corev1.ResourceMemory: resource.MustParse("8Gi"),
+					corev1.ResourcePods:   resource.MustParse("10"),
+				}),
+			},
+			components: []*pb.Component{
+				{
+					ReplicaRequirements: (&pb.ComponentReplicaRequirements{}).MustSetResourceRequest(corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("1"),
+						corev1.ResourceMemory: resource.MustParse("1Gi"),
+					}),
+					Replicas: 1,
+				},
+			},
+			assumedWorkloads: []*pb.AssumedWorkload{
+				{
+					Namespace: "default",
+					Components: []*pb.Component{
+						{
+							ReplicaRequirements: (&pb.ComponentReplicaRequirements{}).MustSetResourceRequest(corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("1"),
+								corev1.ResourceMemory: resource.MustParse("1Gi"),
+							}),
+							Replicas: 1,
+						},
+					},
+				},
+			},
+			// node has 4 CPU; assumed workload consumes 1 CPU, leaving 3 CPU for 3 sets
+			expected: 3,
+			wantCode: framework.Success,
+		},
+		{
+			name:    "multiple assumed workloads reduce capacity",
+			enabled: true,
+			nodes: []*corev1.Node{
+				makeNode("node1", map[string]string{}, corev1.ResourceList{
+					corev1.ResourceCPU:    resource.MustParse("6"),
+					corev1.ResourceMemory: resource.MustParse("6Gi"),
+					corev1.ResourcePods:   resource.MustParse("10"),
+				}),
+			},
+			components: []*pb.Component{
+				{
+					ReplicaRequirements: (&pb.ComponentReplicaRequirements{}).MustSetResourceRequest(corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("1"),
+						corev1.ResourceMemory: resource.MustParse("1Gi"),
+					}),
+					Replicas: 1,
+				},
+			},
+			assumedWorkloads: []*pb.AssumedWorkload{
+				{
+					Namespace: "ns1",
+					Components: []*pb.Component{
+						{
+							ReplicaRequirements: (&pb.ComponentReplicaRequirements{}).MustSetResourceRequest(corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("1"),
+								corev1.ResourceMemory: resource.MustParse("1Gi"),
+							}),
+							Replicas: 1,
+						},
+					},
+				},
+				{
+					Namespace: "ns2",
+					Components: []*pb.Component{
+						{
+							ReplicaRequirements: (&pb.ComponentReplicaRequirements{}).MustSetResourceRequest(corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("2"),
+								corev1.ResourceMemory: resource.MustParse("2Gi"),
+							}),
+							Replicas: 1,
+						},
+					},
+				},
+			},
+			// node has 6 CPU; assumed workloads consume 1+2=3 CPU, leaving 3 CPU for 3 sets
+			expected: 3,
+			wantCode: framework.Success,
+		},
+		{
+			name:    "assumed workload cannot be placed - deduction skipped, capacity unchanged",
+			enabled: true,
+			nodes: []*corev1.Node{
+				makeNode("node1", map[string]string{}, corev1.ResourceList{
+					corev1.ResourceCPU:    resource.MustParse("4"),
+					corev1.ResourceMemory: resource.MustParse("4Gi"),
+					corev1.ResourcePods:   resource.MustParse("10"),
+				}),
+			},
+			components: []*pb.Component{
+				{
+					ReplicaRequirements: (&pb.ComponentReplicaRequirements{}).MustSetResourceRequest(corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("1"),
+						corev1.ResourceMemory: resource.MustParse("1Gi"),
+					}),
+					Replicas: 1,
+				},
+			},
+			assumedWorkloads: []*pb.AssumedWorkload{
+				{
+					Namespace: "default",
+					Components: []*pb.Component{
+						{
+							// This assumed workload is too large to fit on any node; deduction is skipped.
+							ReplicaRequirements: (&pb.ComponentReplicaRequirements{}).MustSetResourceRequest(corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("100"),
+								corev1.ResourceMemory: resource.MustParse("100Gi"),
+							}),
+							Replicas: 1,
+						},
+					},
+				},
+			},
+			// assumed workload can't fit, deduction is skipped; node capacity is unchanged: 4 sets
+			expected: 4,
+			wantCode: framework.Success,
+		},
+		{
+			name:    "assumed workload with empty components is ignored",
+			enabled: true,
+			nodes: []*corev1.Node{
+				makeNode("node1", map[string]string{}, corev1.ResourceList{
+					corev1.ResourceCPU:    resource.MustParse("4"),
+					corev1.ResourceMemory: resource.MustParse("4Gi"),
+					corev1.ResourcePods:   resource.MustParse("10"),
+				}),
+			},
+			components: []*pb.Component{
+				{
+					ReplicaRequirements: (&pb.ComponentReplicaRequirements{}).MustSetResourceRequest(corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("1"),
+						corev1.ResourceMemory: resource.MustParse("1Gi"),
+					}),
+					Replicas: 1,
+				},
+			},
+			assumedWorkloads: []*pb.AssumedWorkload{
+				{Namespace: "default", Components: nil},
+			},
+			expected: 4,
+			wantCode: framework.Success,
+		},
 	}
 
 	for _, tt := range tests {
@@ -327,7 +477,11 @@ func TestNodeResourceEstimator_EstimateComponents(t *testing.T) {
 			}
 
 			// Execute test
-			result, status := pl.EstimateComponents(context.Background(), snapshot, tt.components, "")
+			result, status := pl.EstimateComponents(context.Background(), framework.ComponentEstimationContext{
+				Snapshot:         snapshot,
+				Components:       tt.components,
+				AssumedWorkloads: tt.assumedWorkloads,
+			})
 
 			// Verify results
 			if result != tt.expected {

@@ -2,6 +2,86 @@ apiVersion: v1
 entries:
   karmada:
   - apiVersion: v2
+    appVersion: v1.18.1
+    created: "2026-07-02T07:44:00.565085311Z"
+    dependencies:
+    - name: common
+      repository: https://charts.bitnami.com/bitnami
+      version: 2.x.x
+    description: A Helm chart for karmada
+    digest: 2ca8c6ce70cb257b6423a26b5f66e674effe45a44b693eceb8363ae3cd7a48e8
+    kubeVersion: '>= 1.16.0-0'
+    maintainers:
+    - email: qazwsx0939059006@gmail.com
+      name: seanlaii
+    - email: m17799853869@163.com
+      name: zhzhuang-zju
+    name: karmada
+    type: application
+    urls:
+    - https://github.com/karmada-io/karmada/releases/download/v1.18.1/karmada-chart-v1.18.1.tgz
+    version: v1.18.1
+  - apiVersion: v2
+    appVersion: v1.18.0
+    created: "2026-05-30T07:13:13.990104392Z"
+    dependencies:
+    - name: common
+      repository: https://charts.bitnami.com/bitnami
+      version: 2.x.x
+    description: A Helm chart for karmada
+    digest: 8ef06a8a4616b15978434f8c3ea7efb22a5a29eb507981a48efa76b82f7961cd
+    kubeVersion: '>= 1.16.0-0'
+    maintainers:
+    - email: qazwsx0939059006@gmail.com
+      name: seanlaii
+    - email: m17799853869@163.com
+      name: zhzhuang-zju
+    name: karmada
+    type: application
+    urls:
+    - https://github.com/karmada-io/karmada/releases/download/v1.18.0/karmada-chart-v1.18.0.tgz
+    version: v1.18.0
+  - apiVersion: v2
+    appVersion: v1.17.4
+    created: "2026-07-02T08:50:59.719985551Z"
+    dependencies:
+    - name: common
+      repository: https://charts.bitnami.com/bitnami
+      version: 2.x.x
+    description: A Helm chart for karmada
+    digest: 99969e443934e59d1c49f26cfc937d46717ae13ec0e1b00d175d3f2b223fbd54
+    kubeVersion: '>= 1.16.0-0'
+    maintainers:
+    - email: chaosi@zju.edu.cn
+      name: chaosi-zju
+    - email: amiralavi7@gmail.com
+      name: a7i
+    name: karmada
+    type: application
+    urls:
+    - https://github.com/karmada-io/karmada/releases/download/v1.17.4/karmada-chart-v1.17.4.tgz
+    version: v1.17.4
+  - apiVersion: v2
+    appVersion: v1.17.3
+    created: "2026-05-30T08:43:06.758217549Z"
+    dependencies:
+    - name: common
+      repository: https://charts.bitnami.com/bitnami
+      version: 2.x.x
+    description: A Helm chart for karmada
+    digest: 3e521ce0017db7b0b7ffdfb946a458eefc7f20c98ce3ddee08493abcb1db6525
+    kubeVersion: '>= 1.16.0-0'
+    maintainers:
+    - email: chaosi@zju.edu.cn
+      name: chaosi-zju
+    - email: amiralavi7@gmail.com
+      name: a7i
+    name: karmada
+    type: application
+    urls:
+    - https://github.com/karmada-io/karmada/releases/download/v1.17.3/karmada-chart-v1.17.3.tgz
+    version: v1.17.3
+  - apiVersion: v2
     appVersion: v1.17.2
     created: "2026-04-30T09:11:12.406626635Z"
     dependencies:
@@ -443,6 +523,90 @@ entries:
     version: v1.2.0
   karmada-operator:
   - apiVersion: v2
+    appVersion: v1.18.1
+    created: "2026-07-02T07:44:01.075715652Z"
+    dependencies:
+    - name: common
+      repository: https://charts.bitnami.com/bitnami
+      version: 2.x.x
+    description: A Helm chart for karmada-operator
+    digest: b91f1735d86ff154e316291db0afa0f29e64337560d0bfbcb522cc77057d76f8
+    kubeVersion: '>= 1.16.0-0'
+    maintainers:
+    - email: qazwsx0939059006@gmail.com
+      name: seanlaii
+    - email: m17799853869@163.com
+      name: zhzhuang-zju
+    name: karmada-operator
+    type: application
+    urls:
+    - https://github.com/karmada-io/karmada/releases/download/v1.18.1/karmada-operator-chart-v1.18.1.tgz
+    version: v1.18.1
+  - apiVersion: v2
+    appVersion: v1.18.0
+    created: "2026-05-30T07:13:14.266415306Z"
+    dependencies:
+    - name: common
+      repository: https://charts.bitnami.com/bitnami
+      version: 2.x.x
+    description: A Helm chart for karmada-operator
+    digest: 831a42ef9fd03b71c53f3a2e1e1f475a38dc5ddcda795c529dc6e686649693aa
+    kubeVersion: '>= 1.16.0-0'
+    maintainers:
+    - email: qazwsx0939059006@gmail.com
+      name: seanlaii
+    - email: m17799853869@163.com
+      name: zhzhuang-zju
+    name: karmada-operator
+    type: application
+    urls:
+    - https://github.com/karmada-io/karmada/releases/download/v1.18.0/karmada-operator-chart-v1.18.0.tgz
+    version: v1.18.0
+  - apiVersion: v2
+    appVersion: v1.17.4
+    created: "2026-07-02T08:51:00.104009571Z"
+    dependencies:
+    - name: common
+      repository: https://charts.bitnami.com/bitnami
+      version: 2.x.x
+    description: A Helm chart for karmada-operator
+    digest: d012c8d72cfd796fbec1651d965a9880cb409071751c4070424f29722fdad8cb
+    kubeVersion: '>= 1.16.0-0'
+    maintainers:
+    - email: wen.chen@daocloud.io
+      name: calvin0327
+    - email: chaosi@zju.edu.cn
+      name: chaosi-zju
+    - email: amiralavi7@gmail.com
+      name: a7i
+    name: karmada-operator
+    type: application
+    urls:
+    - https://github.com/karmada-io/karmada/releases/download/v1.17.4/karmada-operator-chart-v1.17.4.tgz
+    version: v1.17.4
+  - apiVersion: v2
+    appVersion: v1.17.3
+    created: "2026-05-30T08:43:07.070395653Z"
+    dependencies:
+    - name: common
+      repository: https://charts.bitnami.com/bitnami
+      version: 2.x.x
+    description: A Helm chart for karmada-operator
+    digest: f678d6739e44773750cb0cdf76a9a5d4da2ee9bba66b9b04a1471796b384993c
+    kubeVersion: '>= 1.16.0-0'
+    maintainers:
+    - email: wen.chen@daocloud.io
+      name: calvin0327
+    - email: chaosi@zju.edu.cn
+      name: chaosi-zju
+    - email: amiralavi7@gmail.com
+      name: a7i
+    name: karmada-operator
+    type: application
+    urls:
+    - https://github.com/karmada-io/karmada/releases/download/v1.17.3/karmada-operator-chart-v1.17.3.tgz
+    version: v1.17.3
+  - apiVersion: v2
     appVersion: v1.17.2
     created: "2026-04-30T09:11:12.904788327Z"
     dependencies:
@@ -698,4 +862,4 @@ entries:
     urls:
     - https://github.com/karmada-io/karmada/releases/download/v1.8.0/karmada-operator-chart-v1.8.0.tgz
     version: v1.8.0
-generated: "2026-04-30T09:11:12.900824939Z"
+generated: "2026-07-02T08:51:00.097873921Z"

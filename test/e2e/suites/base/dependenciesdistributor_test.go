@@ -119,6 +119,13 @@ var _ = ginkgo.Describe("[DependenciesDistributor] automatically propagate relev
 							return event.Reason == events.EventReasonGetDependenciesSucceed
 						})
 				})
+				ginkgo.By("checking SyncScheduleResultToDependenciesSucceed event on binding", func() {
+					bindingName := names.GenerateBindingName("Deployment", deployment.Name)
+					framework.WaitEventFitWith(kubeClient, deployment.Namespace, bindingName,
+						func(event corev1.Event) bool {
+							return event.Reason == events.EventReasonSyncScheduleResultToDependenciesSucceed
+						})
+				})
 
 				ginkgo.By("updating propagation policy's clusterNames", func() {
 					patch := []map[string]any{
@@ -219,6 +226,13 @@ var _ = ginkgo.Describe("[DependenciesDistributor] automatically propagate relev
 								return event.Reason == events.EventReasonGetDependenciesSucceed
 							})
 					})
+					ginkgo.By("checking SyncScheduleResultToDependenciesSucceed event on binding", func() {
+						bindingName := names.GenerateBindingName("Deployment", deployment.Name)
+						framework.WaitEventFitWith(kubeClient, deployment.Namespace, bindingName,
+							func(event corev1.Event) bool {
+								return event.Reason == events.EventReasonSyncScheduleResultToDependenciesSucceed
+							})
+					})
 				})
 
 				ginkgo.By("make the secret is not referenced by the deployment ", func() {
@@ -301,6 +315,13 @@ var _ = ginkgo.Describe("[DependenciesDistributor] automatically propagate relev
 							return event.Reason == events.EventReasonGetDependenciesSucceed
 						})
 				})
+				ginkgo.By("checking SyncScheduleResultToDependenciesSucceed event on binding", func() {
+					bindingName := names.GenerateBindingName("Deployment", deployment.Name)
+					framework.WaitEventFitWith(kubeClient, deployment.Namespace, bindingName,
+						func(event corev1.Event) bool {
+							return event.Reason == events.EventReasonSyncScheduleResultToDependenciesSucceed
+						})
+				})
 
 				ginkgo.By("make the persistentVolumeClaim is not referenced by the deployment ", func() {
 					updateVolumes := []corev1.Volume{
@@ -366,6 +387,13 @@ var _ = ginkgo.Describe("[DependenciesDistributor] automatically propagate relev
 					framework.WaitEventFitWith(kubeClient, deployment.Namespace, deployment.Name,
 						func(event corev1.Event) bool {
 							return event.Reason == events.EventReasonGetDependenciesSucceed
+						})
+				})
+				ginkgo.By("checking SyncScheduleResultToDependenciesSucceed event on binding", func() {
+					bindingName := names.GenerateBindingName("Deployment", deployment.Name)
+					framework.WaitEventFitWith(kubeClient, deployment.Namespace, bindingName,
+						func(event corev1.Event) bool {
+							return event.Reason == events.EventReasonSyncScheduleResultToDependenciesSucceed
 						})
 				})
 
@@ -712,6 +740,13 @@ var _ = ginkgo.Describe("[DependenciesDistributor] automatically propagate relev
 					framework.WaitEventFitWith(kubeClient, deployment.Namespace, deployment.Name,
 						func(event corev1.Event) bool {
 							return event.Reason == events.EventReasonGetDependenciesSucceed
+						})
+				})
+				ginkgo.By("checking SyncScheduleResultToDependenciesSucceed event on binding", func() {
+					bindingName := names.GenerateBindingName("Deployment", deployment.Name)
+					framework.WaitEventFitWith(kubeClient, deployment.Namespace, bindingName,
+						func(event corev1.Event) bool {
+							return event.Reason == events.EventReasonSyncScheduleResultToDependenciesSucceed
 						})
 				})
 

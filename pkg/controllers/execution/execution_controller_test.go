@@ -33,7 +33,6 @@ import (
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/utils/ptr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -101,7 +100,7 @@ func TestExecutionController_Reconcile(t *testing.T) {
 			expectRes: controllerruntime.Result{},
 			existErr:  false,
 			work: newWork(func(work *workv1alpha1.Work) {
-				work.Spec.SuspendDispatching = ptr.To(true)
+				work.Spec.SuspendDispatching = new(true)
 			}),
 		},
 		{
@@ -112,7 +111,7 @@ func TestExecutionController_Reconcile(t *testing.T) {
 			existErr:        false,
 
 			work: newWork(func(w *workv1alpha1.Work) {
-				w.Spec.SuspendDispatching = ptr.To(true)
+				w.Spec.SuspendDispatching = new(true)
 			}),
 		},
 		{
@@ -122,7 +121,7 @@ func TestExecutionController_Reconcile(t *testing.T) {
 			expectEventMessage: fmt.Sprintf("%s %s %s", corev1.EventTypeNormal, events.EventReasonWorkDispatching, WorkSuspendDispatchingConditionMessage),
 			existErr:           false,
 			work: newWork(func(w *workv1alpha1.Work) {
-				w.Spec.SuspendDispatching = ptr.To(true)
+				w.Spec.SuspendDispatching = new(true)
 			}),
 		},
 		{
@@ -132,7 +131,7 @@ func TestExecutionController_Reconcile(t *testing.T) {
 			expectCondition: &metav1.Condition{Type: workv1alpha1.WorkDispatching, Status: metav1.ConditionFalse},
 			existErr:        false,
 			work: newWork(func(w *workv1alpha1.Work) {
-				w.Spec.SuspendDispatching = ptr.To(true)
+				w.Spec.SuspendDispatching = new(true)
 				meta.SetStatusCondition(&w.Status.Conditions, metav1.Condition{
 					Type:   workv1alpha1.WorkDispatching,
 					Status: metav1.ConditionTrue,
@@ -149,7 +148,7 @@ func TestExecutionController_Reconcile(t *testing.T) {
 				now := metav1.Now()
 				work.SetDeletionTimestamp(&now)
 				work.SetFinalizers([]string{util.ExecutionControllerFinalizer})
-				work.Spec.SuspendDispatching = ptr.To(true)
+				work.Spec.SuspendDispatching = new(true)
 			}),
 		},
 		{
@@ -157,12 +156,12 @@ func TestExecutionController_Reconcile(t *testing.T) {
 			ns:             "karmada-es-cluster",
 			expectRes:      controllerruntime.Result{},
 			existErr:       false,
-			resourceExists: ptr.To(true),
+			resourceExists: new(true),
 			work: newWork(func(work *workv1alpha1.Work) {
 				now := metav1.Now()
 				work.SetDeletionTimestamp(&now)
 				work.SetFinalizers([]string{util.ExecutionControllerFinalizer})
-				work.Spec.PreserveResourcesOnDeletion = ptr.To(true)
+				work.Spec.PreserveResourcesOnDeletion = new(true)
 			}),
 		},
 		{
@@ -170,12 +169,12 @@ func TestExecutionController_Reconcile(t *testing.T) {
 			ns:             "karmada-es-cluster",
 			expectRes:      controllerruntime.Result{},
 			existErr:       false,
-			resourceExists: ptr.To(false),
+			resourceExists: new(false),
 			work: newWork(func(work *workv1alpha1.Work) {
 				now := metav1.Now()
 				work.SetDeletionTimestamp(&now)
 				work.SetFinalizers([]string{util.ExecutionControllerFinalizer})
-				work.Spec.PreserveResourcesOnDeletion = ptr.To(false)
+				work.Spec.PreserveResourcesOnDeletion = new(false)
 			}),
 		},
 		{
@@ -183,7 +182,7 @@ func TestExecutionController_Reconcile(t *testing.T) {
 			ns:             "karmada-es-cluster",
 			expectRes:      controllerruntime.Result{},
 			existErr:       false,
-			resourceExists: ptr.To(false),
+			resourceExists: new(false),
 			work: newWork(func(work *workv1alpha1.Work) {
 				now := metav1.Now()
 				work.SetDeletionTimestamp(&now)

@@ -83,6 +83,9 @@ var _ = framework.SerialDescribe("FederatedResourceQuota auto-provision testing"
 		ginkgo.By("[Create] federatedResourceQuota should be propagated to member clusters", func() {
 			framework.CreateFederatedResourceQuota(karmadaClient, federatedResourceQuota)
 			framework.WaitResourceQuotaPresentOnClusters(clusters, frqNamespace, frqName)
+			framework.WaitEventFitWith(kubeClient, frqNamespace, frqName, func(event corev1.Event) bool {
+				return event.Reason == events.EventReasonSyncFederatedResourceQuotaSucceed
+			})
 		})
 
 		ginkgo.By("[Update] FederatedResourceQuota should be propagated to member clusters according to the new staticAssignments", func() {
@@ -256,6 +259,12 @@ var _ = framework.SerialDescribe("[FederatedResourceQuota] status collection tes
 		ginkgo.It("FederatedResourceQuota status should be collect correctly", func() {
 			framework.CreateFederatedResourceQuota(karmadaClient, federatedResourceQuota)
 			framework.WaitFederatedResourceQuotaCollectStatus(karmadaClient, frqNamespace, frqName)
+			framework.WaitEventFitWith(kubeClient, frqNamespace, frqName, func(event corev1.Event) bool {
+				return event.Reason == events.EventReasonCollectFederatedResourceQuotaStatusSucceed
+			})
+			framework.WaitEventFitWith(kubeClient, frqNamespace, frqName, func(event corev1.Event) bool {
+				return event.Reason == events.EventReasonCollectFederatedResourceQuotaOverallStatusSucceed
+			})
 
 			patch := []map[string]any{
 				{
@@ -521,8 +530,13 @@ var _ = framework.SerialDescribe("Multi-Components: FederatedResourceQuota enfor
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 				framework.CreateCRD(dynamicClient, &flinkDeploymentCRD)
+				framework.WaitCRDEstablished(dynamicClient, flinkDeploymentCRD.Name)
 				ginkgo.DeferCleanup(func() {
 					framework.RemoveCRD(dynamicClient, flinkDeploymentCRD.Name)
+					framework.WaitCRDDisappeared(dynamicClient, flinkDeploymentCRD.Name)
+					framework.WaitCRDDisappearedOnClusters(framework.ClusterNames(), flinkDeploymentCRD.Name)
+					framework.WaitCRDDisappearedFromClusterStatus(karmadaClient, framework.ClusterNames(),
+						fmt.Sprintf("%s/%s", flinkDeploymentCRD.Spec.Group, "v1beta1"), flinkDeploymentCRD.Spec.Names.Kind)
 				})
 			})
 
@@ -579,18 +593,6 @@ var _ = framework.SerialDescribe("Multi-Components: FederatedResourceQuota enfor
 
 				flinkDeploymentObj.SetNamespace(flinkDeploymentNamespace)
 				flinkDeploymentObj.SetName(flinkDeploymentName)
-				err = unstructured.SetNestedField(flinkDeploymentObj.Object, int64(3), "spec", "jobManager", "replicas")
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				err = unstructured.SetNestedField(flinkDeploymentObj.Object, map[string]any{
-					"cpu":    int64(2),
-					"memory": "50Mi",
-				}, "spec", "jobManager", "resource")
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				err = unstructured.SetNestedField(flinkDeploymentObj.Object, map[string]any{
-					"cpu":    int64(1),
-					"memory": "100Mi",
-				}, "spec", "taskManager", "resource")
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 				flinkDeploymentGVR = schema.GroupVersionResource{
 					Group:    flinkDeploymentObj.GroupVersionKind().Group,
@@ -641,9 +643,12 @@ var _ = framework.SerialDescribe("Multi-Components: FederatedResourceQuota enfor
 		ginkgo.It("FederatedResourceQuota usage should be calculated correctly", func() {
 			framework.WaitFederatedResourceQuotaFitWith(karmadaClient, frqNamespace, frqName, func(frq *policyv1alpha1.FederatedResourceQuota) bool {
 				expectedUsed := corev1.ResourceList{
-					"cpu":    resource.MustParse("7"),
-					"memory": resource.MustParse("250Mi"),
+					"cpu":    resource.MustParse("150m"),
+					"memory": resource.MustParse("200m"),
 				}
+				ginkgo.GinkgoLogr.Info("FederatedResourceQuota OverallUsed",
+					"cpu", frq.Status.OverallUsed.Cpu().String(),
+					"memory", frq.Status.OverallUsed.Memory().String())
 				return frq.Status.OverallUsed != nil && frq.Status.OverallUsed.Cpu().Equal(*expectedUsed.Cpu()) &&
 					frq.Status.OverallUsed.Memory().Equal(*expectedUsed.Memory())
 			})

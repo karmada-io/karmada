@@ -295,7 +295,7 @@ func ValidateSpreadConstraint(spreadConstraints []policyv1alpha1.SpreadConstrain
 				*marked = true
 			}
 			if marked == nil {
-				spreadByFieldsWithErrorMark[constraint.SpreadByField] = ptr.To[bool](false)
+				spreadByFieldsWithErrorMark[constraint.SpreadByField] = new(false)
 			}
 		}
 	}

@@ -18,6 +18,7 @@ package create
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
@@ -60,5 +61,16 @@ func NewCmdCreate(f util.Factory, parentCommand string, ioStreams genericiooptio
 	utilcomp.RegisterCompletionFuncForKarmadaContextFlag(cmd)
 	utilcomp.RegisterCompletionFuncForNamespaceFlag(cmd, f)
 
+	replaceCreateSubcommandExamples(cmd, parentCommand)
+
 	return cmd
+}
+
+func replaceCreateSubcommandExamples(cmd *cobra.Command, parentCommand string) {
+	for _, subCmd := range cmd.Commands() {
+		if subCmd.Example != "" {
+			subCmd.Example = strings.ReplaceAll(subCmd.Example, "kubectl create", parentCommand+" create")
+		}
+		replaceCreateSubcommandExamples(subCmd, parentCommand)
+	}
 }

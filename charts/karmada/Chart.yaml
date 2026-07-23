@@ -28,15 +28,15 @@ version: 0.0.0
 # follow Semantic Versioning. They should reflect the version the application is using.
 appVersion: v1.1.0
 
-# This is karmada dependencies
+# This is the list of karmada dependencies
 dependencies:
   - name: common
     repository: https://charts.bitnami.com/bitnami
     version: 2.x.x
 
-# This is karmada maintainers
+# This is the list of karmada maintainers
 maintainers:
-  - email: chaosi@zju.edu.cn
-    name: chaosi-zju
-  - email: amiralavi7@gmail.com
-    name: a7i
+  - email: qazwsx0939059006@gmail.com
+    name: seanlaii
+  - email: m17799853869@163.com
+    name: zhzhuang-zju

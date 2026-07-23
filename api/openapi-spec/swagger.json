@@ -164,6 +164,9 @@
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
         },
         {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
+        },
+        {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
         },
         {
@@ -243,6 +246,9 @@
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
         },
         {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
+        },
+        {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
         },
         {
@@ -294,6 +300,9 @@
           },
           {
             "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+          },
+          {
+            "$ref": "#/parameters/shardSelector-Kgyki_3_"
           },
           {
             "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -448,6 +457,9 @@
           },
           {
             "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+          },
+          {
+            "$ref": "#/parameters/shardSelector-Kgyki_3_"
           },
           {
             "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -1016,6 +1028,9 @@
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
         },
         {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
+        },
+        {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
         },
         {
@@ -1087,6 +1102,9 @@
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
         },
         {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
+        },
+        {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
         },
         {
@@ -1138,6 +1156,9 @@
           },
           {
             "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+          },
+          {
+            "$ref": "#/parameters/shardSelector-Kgyki_3_"
           },
           {
             "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -1292,6 +1313,9 @@
           },
           {
             "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+          },
+          {
+            "$ref": "#/parameters/shardSelector-Kgyki_3_"
           },
           {
             "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -1791,6 +1815,9 @@
             "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
           },
           {
+            "$ref": "#/parameters/shardSelector-Kgyki_3_"
+          },
+          {
             "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
           },
           {
@@ -1943,6 +1970,9 @@
           },
           {
             "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+          },
+          {
+            "$ref": "#/parameters/shardSelector-Kgyki_3_"
           },
           {
             "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -2460,6 +2490,9 @@
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
         },
         {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
+        },
+        {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
         },
         {
@@ -2529,6 +2562,9 @@
         },
         {
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+        },
+        {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
         },
         {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -2603,6 +2639,9 @@
         },
         {
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+        },
+        {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
         },
         {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -2687,6 +2726,9 @@
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
         },
         {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
+        },
+        {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
         },
         {
@@ -2759,6 +2801,9 @@
         },
         {
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+        },
+        {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
         },
         {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -2841,6 +2886,9 @@
         },
         {
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+        },
+        {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
         },
         {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -2954,6 +3002,9 @@
           },
           {
             "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+          },
+          {
+            "$ref": "#/parameters/shardSelector-Kgyki_3_"
           },
           {
             "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -3108,6 +3159,9 @@
           },
           {
             "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+          },
+          {
+            "$ref": "#/parameters/shardSelector-Kgyki_3_"
           },
           {
             "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -4069,6 +4123,9 @@
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
         },
         {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
+        },
+        {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
         },
         {
@@ -4146,6 +4203,9 @@
         },
         {
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+        },
+        {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
         },
         {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -4259,6 +4319,9 @@
           },
           {
             "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+          },
+          {
+            "$ref": "#/parameters/shardSelector-Kgyki_3_"
           },
           {
             "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -4413,6 +4476,9 @@
           },
           {
             "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+          },
+          {
+            "$ref": "#/parameters/shardSelector-Kgyki_3_"
           },
           {
             "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -4903,6 +4969,9 @@
             "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
           },
           {
+            "$ref": "#/parameters/shardSelector-Kgyki_3_"
+          },
+          {
             "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
           },
           {
@@ -5055,6 +5124,9 @@
           },
           {
             "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+          },
+          {
+            "$ref": "#/parameters/shardSelector-Kgyki_3_"
           },
           {
             "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -5563,6 +5635,9 @@
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
         },
         {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
+        },
+        {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
         },
         {
@@ -5642,6 +5717,9 @@
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
         },
         {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
+        },
+        {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
         },
         {
@@ -5711,6 +5789,9 @@
         },
         {
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+        },
+        {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
         },
         {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -5790,6 +5871,9 @@
         },
         {
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+        },
+        {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
         },
         {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -5923,6 +6007,9 @@
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
         },
         {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
+        },
+        {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
         },
         {
@@ -5994,6 +6081,9 @@
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
         },
         {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
+        },
+        {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
         },
         {
@@ -6045,6 +6135,9 @@
           },
           {
             "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+          },
+          {
+            "$ref": "#/parameters/shardSelector-Kgyki_3_"
           },
           {
             "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -6199,6 +6292,9 @@
           },
           {
             "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+          },
+          {
+            "$ref": "#/parameters/shardSelector-Kgyki_3_"
           },
           {
             "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -6698,6 +6794,9 @@
             "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
           },
           {
+            "$ref": "#/parameters/shardSelector-Kgyki_3_"
+          },
+          {
             "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
           },
           {
@@ -6850,6 +6949,9 @@
           },
           {
             "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+          },
+          {
+            "$ref": "#/parameters/shardSelector-Kgyki_3_"
           },
           {
             "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -7367,6 +7469,9 @@
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
         },
         {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
+        },
+        {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
         },
         {
@@ -7436,6 +7541,9 @@
         },
         {
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+        },
+        {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
         },
         {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -7510,6 +7618,9 @@
         },
         {
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+        },
+        {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
         },
         {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -7594,6 +7705,9 @@
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
         },
         {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
+        },
+        {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
         },
         {
@@ -7666,6 +7780,9 @@
         },
         {
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+        },
+        {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
         },
         {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -7748,6 +7865,9 @@
         },
         {
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+        },
+        {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
         },
         {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -7861,6 +7981,9 @@
           },
           {
             "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+          },
+          {
+            "$ref": "#/parameters/shardSelector-Kgyki_3_"
           },
           {
             "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -8015,6 +8138,9 @@
           },
           {
             "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+          },
+          {
+            "$ref": "#/parameters/shardSelector-Kgyki_3_"
           },
           {
             "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -8505,6 +8631,9 @@
             "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
           },
           {
+            "$ref": "#/parameters/shardSelector-Kgyki_3_"
+          },
+          {
             "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
           },
           {
@@ -8657,6 +8786,9 @@
           },
           {
             "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+          },
+          {
+            "$ref": "#/parameters/shardSelector-Kgyki_3_"
           },
           {
             "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -9147,6 +9279,9 @@
             "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
           },
           {
+            "$ref": "#/parameters/shardSelector-Kgyki_3_"
+          },
+          {
             "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
           },
           {
@@ -9299,6 +9434,9 @@
           },
           {
             "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+          },
+          {
+            "$ref": "#/parameters/shardSelector-Kgyki_3_"
           },
           {
             "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -9807,6 +9945,9 @@
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
         },
         {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
+        },
+        {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
         },
         {
@@ -9858,6 +9999,9 @@
           },
           {
             "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+          },
+          {
+            "$ref": "#/parameters/shardSelector-Kgyki_3_"
           },
           {
             "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -10012,6 +10156,9 @@
           },
           {
             "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+          },
+          {
+            "$ref": "#/parameters/shardSelector-Kgyki_3_"
           },
           {
             "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -10511,6 +10658,9 @@
             "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
           },
           {
+            "$ref": "#/parameters/shardSelector-Kgyki_3_"
+          },
+          {
             "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
           },
           {
@@ -10663,6 +10813,9 @@
           },
           {
             "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+          },
+          {
+            "$ref": "#/parameters/shardSelector-Kgyki_3_"
           },
           {
             "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -11162,6 +11315,9 @@
             "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
           },
           {
+            "$ref": "#/parameters/shardSelector-Kgyki_3_"
+          },
+          {
             "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
           },
           {
@@ -11314,6 +11470,9 @@
           },
           {
             "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+          },
+          {
+            "$ref": "#/parameters/shardSelector-Kgyki_3_"
           },
           {
             "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -11831,6 +11990,9 @@
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
         },
         {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
+        },
+        {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
         },
         {
@@ -11902,6 +12064,9 @@
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
         },
         {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
+        },
+        {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
         },
         {
@@ -11971,6 +12136,9 @@
         },
         {
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+        },
+        {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
         },
         {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -12052,6 +12220,9 @@
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
         },
         {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
+        },
+        {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
         },
         {
@@ -12121,6 +12292,9 @@
         },
         {
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+        },
+        {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
         },
         {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -12202,6 +12376,9 @@
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
         },
         {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
+        },
+        {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
         },
         {
@@ -12271,6 +12448,9 @@
         },
         {
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+        },
+        {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
         },
         {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -12352,6 +12532,9 @@
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
         },
         {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
+        },
+        {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
         },
         {
@@ -12421,6 +12604,9 @@
         },
         {
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+        },
+        {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
         },
         {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -12495,6 +12681,9 @@
         },
         {
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+        },
+        {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
         },
         {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -12579,6 +12768,9 @@
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
         },
         {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
+        },
+        {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
         },
         {
@@ -12651,6 +12843,9 @@
         },
         {
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+        },
+        {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
         },
         {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -12735,6 +12930,9 @@
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
         },
         {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
+        },
+        {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
         },
         {
@@ -12807,6 +13005,9 @@
         },
         {
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+        },
+        {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
         },
         {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -12891,6 +13092,9 @@
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
         },
         {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
+        },
+        {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
         },
         {
@@ -12962,6 +13166,9 @@
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
         },
         {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
+        },
+        {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
         },
         {
@@ -13031,6 +13238,9 @@
         },
         {
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+        },
+        {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
         },
         {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -13144,6 +13354,9 @@
           },
           {
             "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+          },
+          {
+            "$ref": "#/parameters/shardSelector-Kgyki_3_"
           },
           {
             "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -13298,6 +13511,9 @@
           },
           {
             "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+          },
+          {
+            "$ref": "#/parameters/shardSelector-Kgyki_3_"
           },
           {
             "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -13806,6 +14022,9 @@
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
         },
         {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
+        },
+        {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
         },
         {
@@ -13883,6 +14102,9 @@
         },
         {
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+        },
+        {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
         },
         {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -13996,6 +14218,9 @@
           },
           {
             "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+          },
+          {
+            "$ref": "#/parameters/shardSelector-Kgyki_3_"
           },
           {
             "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -14150,6 +14375,9 @@
           },
           {
             "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+          },
+          {
+            "$ref": "#/parameters/shardSelector-Kgyki_3_"
           },
           {
             "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -14658,6 +14886,9 @@
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
         },
         {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
+        },
+        {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
         },
         {
@@ -14735,6 +14966,9 @@
         },
         {
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+        },
+        {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
         },
         {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -14848,6 +15082,9 @@
           },
           {
             "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+          },
+          {
+            "$ref": "#/parameters/shardSelector-Kgyki_3_"
           },
           {
             "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -15002,6 +15239,9 @@
           },
           {
             "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+          },
+          {
+            "$ref": "#/parameters/shardSelector-Kgyki_3_"
           },
           {
             "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -15522,6 +15762,9 @@
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
         },
         {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
+        },
+        {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
         },
         {
@@ -15604,6 +15847,9 @@
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
         },
         {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
+        },
+        {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
         },
         {
@@ -15675,6 +15921,9 @@
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
         },
         {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
+        },
+        {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
         },
         {
@@ -15744,6 +15993,9 @@
         },
         {
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+        },
+        {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
         },
         {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -15827,6 +16079,9 @@
           },
           {
             "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+          },
+          {
+            "$ref": "#/parameters/shardSelector-Kgyki_3_"
           },
           {
             "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -15981,6 +16236,9 @@
           },
           {
             "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+          },
+          {
+            "$ref": "#/parameters/shardSelector-Kgyki_3_"
           },
           {
             "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -16471,6 +16729,9 @@
             "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
           },
           {
+            "$ref": "#/parameters/shardSelector-Kgyki_3_"
+          },
+          {
             "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
           },
           {
@@ -16623,6 +16884,9 @@
           },
           {
             "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+          },
+          {
+            "$ref": "#/parameters/shardSelector-Kgyki_3_"
           },
           {
             "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -17140,6 +17404,9 @@
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
         },
         {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
+        },
+        {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
         },
         {
@@ -17209,6 +17476,9 @@
         },
         {
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+        },
+        {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
         },
         {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -17290,6 +17560,9 @@
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
         },
         {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
+        },
+        {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
         },
         {
@@ -17362,6 +17635,9 @@
         },
         {
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+        },
+        {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
         },
         {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -17446,6 +17722,9 @@
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
         },
         {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
+        },
+        {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
         },
         {
@@ -17515,6 +17794,9 @@
         },
         {
           "$ref": "#/parameters/sendInitialEvents-rLXlEK_k"
+        },
+        {
+          "$ref": "#/parameters/shardSelector-Kgyki_3_"
         },
         {
           "$ref": "#/parameters/timeoutSeconds-yvYezaOC"
@@ -17657,7 +17939,6 @@
           "description": "Items holds a list of WorkloadRebalancer.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.WorkloadRebalancer"
           }
         },
@@ -17694,7 +17975,6 @@
           "description": "Workloads used to specify the list of expected resource. Nil or empty list is not allowed.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.ObjectReference"
           }
         }
@@ -17717,7 +17997,6 @@
           "description": "ObservedWorkloads contains information about the execution states and messages of target resources.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.apps.v1alpha1.ObservedWorkload"
           }
         }
@@ -17775,7 +18054,6 @@
         "items": {
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.autoscaling.v1alpha1.CronFederatedHPA"
           }
         },
@@ -17861,7 +18139,6 @@
           "description": "Rules contains a collection of schedules that declares when and how the referencing target resource should be scaled.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.autoscaling.v1alpha1.CronFederatedHPARule"
           }
         },
@@ -17880,7 +18157,6 @@
           "description": "ExecutionHistories record the execution histories of CronFederatedHPARule.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.autoscaling.v1alpha1.ExecutionHistory"
           }
         }
@@ -17897,7 +18173,6 @@
           "description": "FailedExecutions records failed executions.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.autoscaling.v1alpha1.FailedExecution"
           }
         },
@@ -17914,7 +18189,6 @@
           "description": "SuccessfulExecutions records successful executions.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.autoscaling.v1alpha1.SuccessfulExecution"
           }
         }
@@ -17996,7 +18270,6 @@
         "items": {
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.autoscaling.v1alpha1.FederatedHPA"
           }
         },
@@ -18039,7 +18312,6 @@
           "description": "Metrics contains the specifications for which to use to calculate the desired replica count (the maximum replica count across all metrics will be used). The desired replica count is calculated multiplying the ratio between the target value and the current value by the current number of pods. Ergo, metrics used must decrease as the pod count is increased, and vice-versa. See the individual metric source types for more information about how each type of metric must respond. If not set, the default metric will be set to 80% average CPU utilization.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/io.k8s.api.autoscaling.v2.MetricSpec"
           }
         },
@@ -18104,7 +18376,6 @@
           "description": "Resources is a list of APIResource.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.APIResource"
           }
         }
@@ -18205,7 +18476,6 @@
           "description": "Items holds a list of Cluster.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.Cluster"
           }
         },
@@ -18257,8 +18527,7 @@
           "description": "ProxyHeader is the HTTP header required by proxy server. The key in the key-value pair is HTTP header key and the value is the associated header payloads. For the header with multiple values, the values should be separated by comma(e.g. 'k1': 'v1,v2,v3').",
           "type": "object",
           "additionalProperties": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           }
         },
         "proxyURL": {
@@ -18273,7 +18542,6 @@
           "description": "ResourceModels is the list of resource modeling in this cluster. Each modeling quota can be customized by the user. Modeling name must be one of the following: cpu, memory, storage, ephemeral-storage. If the user does not define the modeling name and modeling quota, it will be the default model. The default model grade from 0 to 8. When grade = 0 or grade = 1, the default model's cpu quota and memory quota is a fix value. When grade greater than or equal to 2, each default model's cpu quota is [2^(grade-1), 2^grade), 2 \u003c= grade \u003c= 7 Each default model's memory quota is [2^(grade + 2), 2^(grade + 3)), 2 \u003c= grade \u003c= 7 E.g. grade 0 likes this: - grade: 0\n  ranges:\n  - name: \"cpu\"\n    min: 0 C\n    max: 1 C\n  - name: \"memory\"\n    min: 0 GB\n    max: 4 GB\n\n- grade: 1\n  ranges:\n  - name: \"cpu\"\n    min: 1 C\n    max: 2 C\n  - name: \"memory\"\n    min: 4 GB\n    max: 16 GB\n\n- grade: 2\n  ranges:\n  - name: \"cpu\"\n    min: 2 C\n    max: 4 C\n  - name: \"memory\"\n    min: 16 GB\n    max: 32 GB\n\n- grade: 7\n  range:\n  - name: \"cpu\"\n    min: 64 C\n    max: 128 C\n  - name: \"memory\"\n    min: 512 GB\n    max: 1024 GB\n\ngrade 8, the last one likes below. No matter what Max value you pass, the meaning of Max value in this grade is infinite. You can pass any number greater than Min value. - grade: 8\n  range:\n  - name: \"cpu\"\n    min: 128 C\n    max: MAXINT\n  - name: \"memory\"\n    min: 1024 GB\n    max: MAXINT",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.ResourceModel"
           }
         },
@@ -18290,7 +18558,6 @@
           "description": "Taints are attached to the member cluster. Taints on the cluster have the \"effect\" on any resource that does not tolerate the Taint.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/io.k8s.api.core.v1.Taint"
           }
         },
@@ -18302,8 +18569,7 @@
           "description": "Zones represents the failure zones(also called availability zones) of the member cluster. The zones are presented as a slice to support the case that cluster runs across multiple failure zones. Refer https://kubernetes.io/docs/setup/best-practices/multiple-zones/ for more details about running Kubernetes in multiple zones.",
           "type": "array",
           "items": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           }
         }
       }
@@ -18316,7 +18582,6 @@
           "description": "APIEnablements represents the list of APIs installed on the member cluster.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.APIEnablement"
           }
         },
@@ -18324,7 +18589,6 @@
           "description": "Conditions is an array of current cluster conditions.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Condition"
           }
         },
@@ -18340,8 +18604,7 @@
           "description": "RemedyActions represents the remedy actions that needs to be performed on the cluster.",
           "type": "array",
           "items": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           }
         },
         "resourceSummary": {
@@ -18404,7 +18667,6 @@
           "description": "Ranges describes the resource quota ranges.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.ResourceModelRange"
           }
         }
@@ -18449,7 +18711,6 @@
           "description": "AllocatableModelings represents the statistical resource modeling.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.cluster.v1alpha1.AllocatableModeling"
           }
         },
@@ -18658,7 +18919,6 @@
         "items": {
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.ResourceInterpreterCustomization"
           }
         },
@@ -18717,8 +18977,7 @@
           "description": "InterpreterContextVersions is an ordered list of preferred `ResourceInterpreterContext` versions the Webhook expects. Karmada will try to use first version in the list which it supports. If none of the versions specified in this list supported by Karmada, validation will fail for this object. If a persisted webhook configuration specifies allowed versions and does not include any versions known to the Karmada, calls to the webhook will fail and be subject to the failure policy.",
           "type": "array",
           "items": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           }
         },
         "name": {
@@ -18730,7 +18989,6 @@
           "description": "Rules describes what operations on what resources the webhook cares about. The webhook cares about an operation if it matches any Rule.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.RuleWithOperations"
           }
         },
@@ -18764,7 +19022,6 @@
           "description": "Webhooks is a list of webhooks and the affected resources and operations.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.ResourceInterpreterWebhook"
           }
         }
@@ -18792,7 +19049,6 @@
           "description": "Items holds a list of ResourceInterpreterWebhookConfiguration.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.ResourceInterpreterWebhookConfiguration"
           }
         },
@@ -18827,32 +19083,28 @@
           "description": "APIGroups is the API groups the resources belong to. '*' is all groups. If '*' is present, the length of the slice must be one. For example:\n [\"apps\", \"batch\", \"example.io\"] means matches 3 groups.\n [\"*\"] means matches all group\n\nNote: The group could be empty, e.g the 'core' group of kubernetes, in that case use [\"\"].",
           "type": "array",
           "items": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           }
         },
         "apiVersions": {
           "description": "APIVersions is the API versions the resources belong to. '*' is all versions. If '*' is present, the length of the slice must be one. For example:\n [\"v1alpha1\", \"v1beta1\"] means matches 2 versions.\n [\"*\"] means matches all versions.",
           "type": "array",
           "items": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           }
         },
         "kinds": {
           "description": "Kinds is a list of resources this rule applies to. If '*' is present, the length of the slice must be one. For example:\n [\"Deployment\", \"Pod\"] means matches Deployment and Pod.\n [\"*\"] means apply to all resources.",
           "type": "array",
           "items": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           }
         },
         "operations": {
           "description": "Operations is the operations the hook cares about. If '*' is present, the length of the slice must be one.",
           "type": "array",
           "items": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           }
         }
       }
@@ -18926,8 +19178,7 @@
           "description": "ClusterNames is the list of clusters to be selected.",
           "type": "array",
           "items": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           }
         }
       }
@@ -18982,7 +19233,6 @@
           "description": "Items is the list of MultiClusterIngress.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.networking.v1alpha1.MultiClusterIngress"
           }
         },
@@ -19016,7 +19266,6 @@
           "description": "ServiceLocations records the locations of MulticlusterIngress's backend Service resources. It will be set by the system controller.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.networking.v1alpha1.ServiceLocation"
           }
         },
@@ -19024,8 +19273,7 @@
           "description": "TrafficBlockClusters records the cluster name list that needs to perform traffic block. When the cloud provider implements its multicluster-cloud-provider and refreshes the service backend address to the LoadBalancer Service, it needs to filter out the backend addresses in these clusters.",
           "type": "array",
           "items": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           }
         }
       }
@@ -19083,7 +19331,6 @@
           "description": "Items is the list of MultiClusterService.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.networking.v1alpha1.MultiClusterService"
           }
         },
@@ -19115,7 +19362,6 @@
           "description": "ConsumerClusters specifies the clusters where the service will be exposed, for clients. If leave it empty, the service will be exposed to all clusters.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.networking.v1alpha1.ClusterSelector"
           }
         },
@@ -19123,7 +19369,6 @@
           "description": "Ports is the list of ports that are exposed by this MultiClusterService. No specified port will be filtered out during the service exposure and discovery process. All ports in the referencing service will be exposed by default.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.networking.v1alpha1.ExposurePort"
           }
         },
@@ -19131,7 +19376,6 @@
           "description": "ProviderClusters specifies the clusters which will provide the service backend. If leave it empty, we will collect the backend endpoints from all clusters and sync them to the ConsumerClusters.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.networking.v1alpha1.ClusterSelector"
           }
         },
@@ -19144,24 +19388,21 @@
           "description": "ServiceConsumptionClusters specifies the clusters where the service will be exposed, for clients. If leave it empty, the service will be exposed to all clusters. Deprecated: in favor of ProviderClusters/ConsumerClusters.",
           "type": "array",
           "items": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           }
         },
         "serviceProvisionClusters": {
           "description": "ServiceProvisionClusters specifies the clusters which will provision the service backend. If leave it empty, we will collect the backend endpoints from all clusters and sync them to the ServiceConsumptionClusters. Deprecated: in favor of ProviderClusters/ConsumerClusters.",
           "type": "array",
           "items": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           }
         },
         "types": {
           "description": "Types specifies how to expose the service referencing by this MultiClusterService.",
           "type": "array",
           "items": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           }
         }
       }
@@ -19177,8 +19418,7 @@
           "description": "Clusters records the cluster list where the Service is located.",
           "type": "array",
           "items": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           }
         },
         "name": {
@@ -19223,16 +19463,14 @@
           "description": "ClusterNames is the list of clusters to be selected.",
           "type": "array",
           "items": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           }
         },
         "exclude": {
           "description": "ExcludedClusters is the list of clusters to be ignored.",
           "type": "array",
           "items": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           }
         },
         "fieldSelector": {
@@ -19261,16 +19499,14 @@
           "description": "ClusterNames is the list of clusters to be selected.",
           "type": "array",
           "items": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           }
         },
         "exclude": {
           "description": "ExcludedClusters is the list of clusters to be ignored.",
           "type": "array",
           "items": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           }
         },
         "fieldSelector": {
@@ -19285,7 +19521,6 @@
           "description": "OverflowAffinities defines additional cluster groups that the scheduler can progressively include when the primary group (defined by the inline ClusterAffinity) has insufficient resources. Groups are expanded in order and contracted in reverse during scale-down. Can only be used together with the inline ClusterAffinity (the inline ClusterAffinity serves as the primary/preferred group). If a cluster appears in multiple OverflowClusterAffinity entries, it is scheduled according to the first entry in which it appears; subsequent occurrences of the same cluster are ignored.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.OverflowClusterAffinity"
           }
         }
@@ -19353,7 +19588,6 @@
           "description": "Items holds a list of ClusterOverridePolicy.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ClusterOverridePolicy"
           }
         },
@@ -19386,7 +19620,6 @@
           "description": "StaticWeightList defines the static cluster weight.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.StaticClusterWeight"
           }
         }
@@ -19439,7 +19672,6 @@
         "items": {
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ClusterPropagationPolicy"
           }
         },
@@ -19535,7 +19767,6 @@
         "items": {
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ClusterTaintPolicy"
           }
         },
@@ -19567,7 +19798,6 @@
           "description": "AddOnConditions defines the conditions to match for triggering the controller to add taints on the cluster object. The match conditions are ANDed. If AddOnConditions is empty, no taints will be added.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.MatchCondition"
           }
         },
@@ -19575,7 +19805,6 @@
           "description": "RemoveOnConditions defines the conditions to match for triggering the controller to remove taints from the cluster object. The match conditions are ANDed. If RemoveOnConditions is empty, no taints will be removed.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.MatchCondition"
           }
         },
@@ -19583,7 +19812,6 @@
           "description": "Taints specifies the taints that need to be added or removed on the cluster object which match with TargetClusters. If the Taints is modified, the system will process the taints based on the latest value of Taints during the next condition-triggered execution, regardless of whether the taint has been added or removed.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.Taint"
           }
         },
@@ -19615,8 +19843,7 @@
           "description": "Value to be applied to command/args. Items in Value which will be appended after command/args when Operator is 'add'. Items in Value which match in command/args will be deleted when Operator is 'remove'. If Value is empty, then the command/args will remain the same.",
           "type": "array",
           "items": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           }
         }
       }
@@ -19626,7 +19853,7 @@
       "type": "object",
       "properties": {
         "tolerationSeconds": {
-          "description": "TolerationSeconds represents the period of time Karmada should wait after reaching the desired state before performing failover process. If not specified, Karmada will immediately perform failover process. Defaults to 300s.",
+          "description": "TolerationSeconds represents the period of time Karmada should wait after reaching the desired state before performing failover process.\n\nDefaults to 300s if not specified. Set it to 0 to perform failover immediately.",
           "type": "integer",
           "format": "int32"
         }
@@ -19698,7 +19925,6 @@
         "items": {
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.FederatedResourceQuota"
           }
         },
@@ -19737,7 +19963,6 @@
           "description": "StaticAssignments specifies ResourceQuota settings for specific clusters. If non-empty, Karmada will create ResourceQuotas in the corresponding clusters. Clusters not listed here or when StaticAssignments is empty will have no ResourceQuotas created.\n\nThis field addresses multi-cluster configuration management challenges by allowing centralized control over ResourceQuotas across clusters.\n\nNote: The Karmada scheduler currently does NOT use this configuration for scheduling decisions. Future updates may integrate it into the scheduling logic.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.StaticClusterAssignment"
           }
         }
@@ -19751,7 +19976,6 @@
           "description": "AggregatedStatus is the observed quota usage of each cluster.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ClusterQuotaStatus"
           }
         },
@@ -19787,7 +20011,6 @@
           "description": "JSON represents the operations performed on the JSON document specified by the FieldPath.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.JSONPatchOperation"
           }
         },
@@ -19795,7 +20018,6 @@
           "description": "YAML represents the operations performed on the YAML document specified by the FieldPath.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.YAMLPatchOperation"
           }
         }
@@ -19809,7 +20031,6 @@
           "description": "A list of field selector requirements.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/io.k8s.api.core.v1.NodeSelectorRequirement"
           }
         }
@@ -19898,8 +20119,7 @@
           "description": "Value to be applied to annotations/labels of workload. Items in Value which will be appended after annotations/labels when Operator is 'add'. Items in Value which match in annotations/labels will be deleted when Operator is 'remove'. Items in Value which match in annotations/labels will be replaced when Operator is 'replace'.",
           "type": "object",
           "additionalProperties": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           }
         }
       }
@@ -19927,8 +20147,7 @@
           "description": "StatusValues is an array of metav1.ConditionStatus values. The item specifies the ClusterStatus condition status.",
           "type": "array",
           "items": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           }
         }
       }
@@ -19949,16 +20168,14 @@
           "description": "ClusterNames is the list of clusters to be selected.",
           "type": "array",
           "items": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           }
         },
         "exclude": {
           "description": "ExcludedClusters is the list of clusters to be ignored.",
           "type": "array",
           "items": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           }
         },
         "fieldSelector": {
@@ -20019,7 +20236,6 @@
           "description": "Items holds a list of OverridePolicy.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.OverridePolicy"
           }
         },
@@ -20048,7 +20264,6 @@
           "description": "OverrideRules defines a collection of override rules on target clusters.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.RuleWithCluster"
           }
         },
@@ -20061,7 +20276,6 @@
           "description": "ResourceSelectors restricts resource types that this override policy applies to. nil means matching all resources.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ResourceSelector"
           }
         },
@@ -20079,7 +20293,6 @@
           "description": "AnnotationsOverrider represents the rules dedicated to handling workload annotations",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.LabelAnnotationOverrider"
           }
         },
@@ -20087,7 +20300,6 @@
           "description": "ArgsOverrider represents the rules dedicated to handling container args",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.CommandArgsOverrider"
           }
         },
@@ -20095,7 +20307,6 @@
           "description": "CommandOverrider represents the rules dedicated to handling container command",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.CommandArgsOverrider"
           }
         },
@@ -20103,7 +20314,6 @@
           "description": "FieldOverrider represents the rules dedicated to modifying a specific field in any Kubernetes resource. This allows changing a single field within the resource with multiple operations. It is designed to handle structured field values such as those found in ConfigMaps or Secrets. The current implementation supports JSON and YAML formats, but can easily be extended to support XML in the future.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.FieldOverrider"
           }
         },
@@ -20111,7 +20321,6 @@
           "description": "ImageOverrider represents the rules dedicated to handling image overrides.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ImageOverrider"
           }
         },
@@ -20119,7 +20328,6 @@
           "description": "LabelsOverrider represents the rules dedicated to handling workload labels",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.LabelAnnotationOverrider"
           }
         },
@@ -20127,7 +20335,6 @@
           "description": "Plaintext represents override rules defined with plaintext overriders.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.PlaintextOverrider"
           }
         }
@@ -20141,7 +20348,6 @@
           "description": "ClusterAffinities represents scheduling restrictions to multiple cluster groups that indicated by ClusterAffinityTerm.\n\nThe scheduler will evaluate these groups one by one in the order they appear in the spec, the group that does not satisfy scheduling restrictions will be ignored which means all clusters in this group will not be selected unless it also belongs to the next group(a cluster could belong to multiple groups).\n\nIf none of the groups satisfy the scheduling restrictions, then scheduling fails, which means no cluster will be selected.\n\nNote:\n  1. ClusterAffinities can not co-exist with ClusterAffinity.\n  2. If both ClusterAffinity and ClusterAffinities are not set, any cluster\n     can be scheduling candidates.\n\nPotential use case 1: The private clusters in the local data center could be the main group, and the managed clusters provided by cluster providers could be the secondary group. So that the Karmada scheduler would prefer to schedule workloads to the main group and the second group will only be considered in case of the main group does not satisfy restrictions(like, lack of resources).\n\nPotential use case 2: For the disaster recovery scenario, the clusters could be organized to primary and backup groups, the workloads would be scheduled to primary clusters firstly, and when primary cluster fails(like data center power off), Karmada scheduler could migrate workloads to the backup clusters.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ClusterAffinityTerm"
           }
         },
@@ -20153,7 +20359,6 @@
           "description": "ClusterTolerations represents the tolerations.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
           }
         },
@@ -20165,7 +20370,6 @@
           "description": "SpreadConstraints represents a list of the scheduling constraints.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.SpreadConstraint"
           }
         },
@@ -20246,7 +20450,6 @@
         "items": {
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.PropagationPolicy"
           }
         },
@@ -20290,8 +20493,7 @@
           "description": "DependentOverrides represents the list of overrides(OverridePolicy) which must present before the current PropagationPolicy takes effect.\n\nIt used to explicitly specify overrides which current PropagationPolicy rely on. A typical scenario is the users create OverridePolicy(ies) and resources at the same time, they want to ensure the new-created policies would be adopted.\n\nNote: For the overrides, OverridePolicy(ies) in current namespace and ClusterOverridePolicy(ies), which not present in this list will still be applied if they matches the resources.",
           "type": "array",
           "items": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           }
         },
         "failover": {
@@ -20328,7 +20530,6 @@
           "description": "ResourceSelectors used to select resources. Nil or empty selector is not allowed and doesn't mean match all kinds of resources for security concerns that sensitive resources(like Secret) might be accidentally propagated.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.ResourceSelector"
           }
         },
@@ -20469,7 +20670,6 @@
           "description": "Rules contains a list of StatePreservationRule configurations. Each rule specifies a JSONPath expression targeting specific pieces of state data to be preserved during failover events. An AliasLabelName is associated with each rule, serving as a label key when the preserved data is passed to the new cluster.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.StatePreservationRule"
           }
         }
@@ -20546,8 +20746,7 @@
           "description": "ClusterNames is the list of clusters to be selected.",
           "type": "array",
           "items": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           }
         }
       }
@@ -20669,8 +20868,7 @@
           "description": "ClusterNames is the list of clusters to be selected.",
           "type": "array",
           "items": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           }
         }
       }
@@ -20758,7 +20956,6 @@
         "items": {
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.remedy.v1alpha1.Remedy"
           }
         },
@@ -20787,8 +20984,7 @@
           "description": "Actions specifies the actions that remedy system needs to perform. If empty, no action will be performed.",
           "type": "array",
           "items": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           }
         },
         "clusterAffinity": {
@@ -20799,7 +20995,6 @@
           "description": "DecisionMatches indicates the decision matches of triggering the remedy system to perform the actions. As long as any one DecisionMatch matches, the Actions will be preformed. If empty, the Actions will be performed immediately.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.remedy.v1alpha1.DecisionMatch"
           }
         }
@@ -20827,8 +21022,7 @@
           "description": "Addresses is a list of node endpoint(e.g. 'https://localhost:9200') to use. For the 'node' concept, please refer to: https://opensearch.org/docs/latest/opensearch/index/#clusters-and-nodes",
           "type": "array",
           "items": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           }
         },
         "secretRef": {
@@ -20888,7 +21082,6 @@
           "description": "Items holds a list of ResourceRegistry.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.search.v1alpha1.ResourceRegistry"
           }
         },
@@ -20925,7 +21118,6 @@
           "description": "ResourceSelectors specifies the resources type that should be cached by cache system.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.search.v1alpha1.ResourceSelector"
           }
         },
@@ -20944,7 +21136,6 @@
           "description": "Conditions contain the different condition statuses.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Condition"
           }
         }
@@ -21100,7 +21291,6 @@
           "description": "Items holds a list of Work.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha1.Work"
           }
         },
@@ -21148,7 +21338,6 @@
           "description": "Conditions contain the different condition statuses for this work. Valid condition types are: 1. Applied represents workload in Work is applied successfully on a managed cluster. 2. Progressing represents workload in Work is being applied on a managed cluster. 3. Available represents workload in Work exists on the managed cluster. 4. Degraded represents the current state of workload does not match the desired state for a certain period.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Condition"
           }
         },
@@ -21156,7 +21345,6 @@
           "description": "ManifestStatuses contains running status of manifests in spec.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha1.ManifestStatus"
           }
         }
@@ -21216,7 +21404,6 @@
           "description": "Clusters represents the scheduled result.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.TargetCluster"
           }
         },
@@ -21284,7 +21471,6 @@
           "description": "Items is the list of ClusterResourceBinding.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.ClusterResourceBinding"
           }
         },
@@ -21364,8 +21550,7 @@
           "description": "ClustersBeforeFailover records the clusters where running the application before failover.",
           "type": "array",
           "items": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           }
         },
         "creationTimestamp": {
@@ -21390,8 +21575,7 @@
           "description": "PreservedLabelState represents the application state information collected from the original cluster, and it will be injected into the new cluster in form of application labels.",
           "type": "object",
           "additionalProperties": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           }
         },
         "producer": {
@@ -21431,15 +21615,13 @@
           "description": "NodeSelector is a selector which must be true for the pod to fit on a node. Selector which must match a node's labels for the pod to be scheduled on that node.",
           "type": "object",
           "additionalProperties": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           }
         },
         "tolerations": {
           "description": "If specified, the pod's tolerations.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
           }
         }
@@ -21561,7 +21743,6 @@
           "description": "Items is the list of ResourceBinding.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.ResourceBinding"
           }
         },
@@ -21593,7 +21774,6 @@
           "description": "Clusters represents target member clusters where the resource to be deployed.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.TargetCluster"
           }
         },
@@ -21601,7 +21781,6 @@
           "description": "Components represents the requirements of multiple pod templates of the referencing resource. It is designed to support workloads that consist of multiple pod templates, such as distributed training jobs (e.g., PyTorch, TensorFlow) and big data workloads (e.g., FlinkDeployment), where each workload is composed of more than one pod template. It is also capable of representing single-component workloads, such as Deployment.\n\nNote: This field is intended to replace the legacy ReplicaRequirements and Replicas fields above. It is only populated when the MultiplePodTemplatesScheduling feature gate is enabled.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.Component"
           }
         },
@@ -21617,7 +21796,6 @@
           "description": "GracefulEvictionTasks holds the eviction tasks that are expected to perform the eviction in a graceful way. The intended workflow is: 1. Once the controller(such as 'taint-manager') decided to evict the resource that\n   is referenced by current ResourceBinding or ClusterResourceBinding from a target\n   cluster, it removes(or scale down the replicas) the target from Clusters(.spec.Clusters)\n   and builds a graceful eviction task.\n2. The scheduler may perform a re-scheduler and probably select a substitute cluster\n   to take over the evicting workload(resource).\n3. The graceful eviction controller takes care of the graceful eviction tasks and\n   performs the final removal after the workload(resource) is available on the substitute\n   cluster or exceed the grace termination period(defaults to 10 minutes).",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.GracefulEvictionTask"
           }
         },
@@ -21646,7 +21824,6 @@
           "description": "RequiredBy represents the list of Bindings that depend on the referencing resource.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.BindingSnapshot"
           }
         },
@@ -21685,7 +21862,6 @@
           "description": "AggregatedStatus represents status list of the resource running in each member cluster.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.AggregatedStatusItem"
           }
         },
@@ -21693,7 +21869,6 @@
           "description": "Conditions contain the different condition statuses.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Condition"
           }
         },
@@ -21783,21 +21958,21 @@
       ],
       "properties": {
         "name": {
-          "description": "`name` is the name of the service. Required",
+          "description": "name is the name of the service. Required",
           "type": "string",
           "default": ""
         },
         "namespace": {
-          "description": "`namespace` is the namespace of the service. Required",
+          "description": "namespace is the namespace of the service. Required",
           "type": "string",
           "default": ""
         },
         "path": {
-          "description": "`path` is an optional URL path which will be sent in any request to this service.",
+          "description": "path is an optional URL path which will be sent in any request to this service.",
           "type": "string"
         },
         "port": {
-          "description": "If specified, the port on the service that hosting webhook. Default to 443 for backward compatibility. `port` should be a valid port number (1-65535, inclusive).",
+          "description": "port is the port on the service that hosts the webhook. Default to 443 for backward compatibility. `port` should be a valid port number (1-65535, inclusive).",
           "type": "integer",
           "format": "int32"
         }
@@ -21808,16 +21983,16 @@
       "type": "object",
       "properties": {
         "caBundle": {
-          "description": "`caBundle` is a PEM encoded CA bundle which will be used to validate the webhook's server certificate. If unspecified, system trust roots on the apiserver are used.",
+          "description": "caBundle is a PEM encoded CA bundle which will be used to validate the webhook's server certificate. If unspecified, system trust roots on the apiserver are used.",
           "type": "string",
           "format": "byte"
         },
         "service": {
-          "description": "`service` is a reference to the service for this webhook. Either `service` or `url` must be specified.\n\nIf the webhook is running within the cluster, then you should use `service`.",
+          "description": "service is a reference to the service for this webhook. Either `service` or `url` must be specified.\n\nIf the webhook is running within the cluster, then you should use `service`.",
           "$ref": "#/definitions/io.k8s.api.admissionregistration.v1.ServiceReference"
         },
         "url": {
-          "description": "`url` gives the location of the webhook, in standard URL form (`scheme://host:port/path`). Exactly one of `url` or `service` must be specified.\n\nThe `host` should not refer to a service running in the cluster; use the `service` field instead. The host might be resolved via external DNS in some apiservers (e.g., `kube-apiserver` cannot resolve in-cluster DNS as that would be a layering violation). `host` may also be an IP address.\n\nPlease note that using `localhost` or `127.0.0.1` as a `host` is risky unless you take great care to run this webhook on all hosts which run an apiserver which might need to make calls to this webhook. Such installs are likely to be non-portable, i.e., not easy to turn up in a new cluster.\n\nThe scheme must be \"https\"; the URL must begin with \"https://\".\n\nA path is optional, and if present may be any string permissible in a URL. You may use the path to pass an arbitrary string to the webhook, for example, a cluster identifier.\n\nAttempting to use a user or basic auth e.g. \"user:password@\" is not allowed. Fragments (\"#...\") and query parameters (\"?...\") are not allowed, either.",
+          "description": "url gives the location of the webhook, in standard URL form (`scheme://host:port/path`). Exactly one of `url` or `service` must be specified.\n\nThe `host` should not refer to a service running in the cluster; use the `service` field instead. The host might be resolved via external DNS in some apiservers (e.g., `kube-apiserver` cannot resolve in-cluster DNS as that would be a layering violation). `host` may also be an IP address.\n\nPlease note that using `localhost` or `127.0.0.1` as a `host` is risky unless you take great care to run this webhook on all hosts which run an apiserver which might need to make calls to this webhook. Such installs are likely to be non-portable, i.e., not easy to turn up in a new cluster.\n\nThe scheme must be \"https\"; the URL must begin with \"https://\".\n\nA path is optional, and if present may be any string permissible in a URL. You may use the path to pass an arbitrary string to the webhook, for example, a cluster identifier.\n\nAttempting to use a user or basic auth e.g. \"user:password@\" is not allowed. Fragments (\"#...\") and query parameters (\"?...\") are not allowed, either.",
           "type": "string"
         }
       }
@@ -21974,7 +22149,6 @@
           "description": "policies is a list of potential scaling polices which can be used during scaling. If not set, use the default values: - For scale up: allow doubling the number of pods, or an absolute change of 4 pods in a 15s window. - For scale down: allow all pods to be removed in a 15s window.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/io.k8s.api.autoscaling.v2.HPAScalingPolicy"
           },
           "x-kubernetes-list-type": "atomic"
@@ -22051,7 +22225,6 @@
           "description": "conditions is the set of conditions required for this autoscaler to scale its target, and indicates whether or not those conditions are met.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/io.k8s.api.autoscaling.v2.HorizontalPodAutoscalerCondition"
           },
           "x-kubernetes-list-map-keys": [
@@ -22065,7 +22238,6 @@
           "description": "currentMetrics is the last read state of the metrics used by this autoscaler.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/io.k8s.api.autoscaling.v2.MetricStatus"
           },
           "x-kubernetes-list-type": "atomic"
@@ -22376,7 +22548,6 @@
           "description": "Ports is a list of records of service ports If used, every port defined in the service should have an entry in it",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/io.k8s.api.core.v1.PortStatus"
           },
           "x-kubernetes-list-type": "atomic"
@@ -22391,7 +22562,6 @@
           "description": "Ingress is a list containing ingress points for the load-balancer. Traffic intended for the service should be sent to these ingress points.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/io.k8s.api.core.v1.LoadBalancerIngress"
           },
           "x-kubernetes-list-type": "atomic"
@@ -22409,7 +22579,6 @@
           "description": "Required. A list of node selector terms. The terms are ORed.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/io.k8s.api.core.v1.NodeSelectorTerm"
           },
           "x-kubernetes-list-type": "atomic"
@@ -22447,8 +22616,7 @@
           "description": "An array of string values. If the operator is In or NotIn, the values array must be non-empty. If the operator is Exists or DoesNotExist, the values array must be empty. If the operator is Gt or Lt, the values array must have a single element, which will be interpreted as an integer. This array is replaced during a strategic merge patch.",
           "type": "array",
           "items": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           },
           "x-kubernetes-list-type": "atomic"
         }
@@ -22462,7 +22630,6 @@
           "description": "A list of node selector requirements by node's labels.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/io.k8s.api.core.v1.NodeSelectorRequirement"
           },
           "x-kubernetes-list-type": "atomic"
@@ -22471,7 +22638,6 @@
           "description": "A list of node selector requirements by node's fields.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/io.k8s.api.core.v1.NodeSelectorRequirement"
           },
           "x-kubernetes-list-type": "atomic"
@@ -22517,7 +22683,6 @@
           "description": "Current service state",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Condition"
           },
           "x-kubernetes-list-map-keys": [
@@ -22669,7 +22834,6 @@
           "description": "paths is a collection of paths that map requests to backends.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/io.k8s.api.networking.v1.HTTPIngressPath"
           },
           "x-kubernetes-list-type": "atomic"
@@ -22706,7 +22870,6 @@
           "description": "ports provides information about the ports exposed by this LoadBalancer.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/io.k8s.api.networking.v1.IngressPortStatus"
           },
           "x-kubernetes-list-type": "atomic"
@@ -22721,7 +22884,6 @@
           "description": "ingress is a list containing ingress points for the load-balancer.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/io.k8s.api.networking.v1.IngressLoadBalancerIngress"
           },
           "x-kubernetes-list-type": "atomic"
@@ -22806,7 +22968,6 @@
           "description": "rules is a list of host rules used to configure the Ingress. If unspecified, or no rule matches, all traffic is sent to the default backend.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/io.k8s.api.networking.v1.IngressRule"
           },
           "x-kubernetes-list-type": "atomic"
@@ -22815,7 +22976,6 @@
           "description": "tls represents the TLS configuration. Currently the Ingress only supports a single TLS port, 443. If multiple members of this list specify different hosts, they will be multiplexed on the same port according to the hostname specified through the SNI TLS extension, if the ingress controller fulfilling the ingress supports SNI.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/io.k8s.api.networking.v1.IngressTLS"
           },
           "x-kubernetes-list-type": "atomic"
@@ -22830,8 +22990,7 @@
           "description": "hosts is a list of hosts included in the TLS certificate. The values in this list must match the name/s used in the tlsSecret. Defaults to the wildcard host setting for the loadbalancer controller fulfilling this Ingress, if left unspecified.",
           "type": "array",
           "items": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           },
           "x-kubernetes-list-type": "atomic"
         },
@@ -22894,7 +23053,6 @@
           "description": "a map of client CIDR to server address that is serving this group. This is to help clients reach servers in the most network-efficient way possible. Clients can use the appropriate server address as per the CIDR that they match. In case of multiple matches, clients should use the longest matching CIDR. The server returns only those CIDRs that it thinks that the client can match. For example: the master will return an internal IP CIDR only, if the client reaches the server using an internal IP. Server looks at X-Forwarded-For header or X-Real-Ip header or request.RemoteAddr (in that order) to get the client IP.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.ServerAddressByClientCIDR"
           },
           "x-kubernetes-list-type": "atomic"
@@ -22903,7 +23061,6 @@
           "description": "versions are the versions supported in this group.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.GroupVersionForDiscovery"
           },
           "x-kubernetes-list-type": "atomic"
@@ -22932,7 +23089,6 @@
           "description": "groups is a list of APIGroup.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.APIGroup"
           },
           "x-kubernetes-list-type": "atomic"
@@ -22965,8 +23121,7 @@
           "description": "categories is a list of the grouped resources this resource belongs to (e.g. 'all')",
           "type": "array",
           "items": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           },
           "x-kubernetes-list-type": "atomic"
         },
@@ -22993,8 +23148,7 @@
           "description": "shortNames is a list of suggested short names of the resource.",
           "type": "array",
           "items": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           },
           "x-kubernetes-list-type": "atomic"
         },
@@ -23011,8 +23165,7 @@
           "description": "verbs is a list of supported kube verbs (this includes get, list, watch, create, update, patch, delete, deletecollection, and proxy)",
           "type": "array",
           "items": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           }
         },
         "version": {
@@ -23046,7 +23199,6 @@
           "description": "resources contains the name of the resources and if they are namespaced.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.APIResource"
           },
           "x-kubernetes-list-type": "atomic"
@@ -23114,8 +23266,7 @@
           "description": "When present, indicates that modifications should not be persisted. An invalid or unrecognized dryRun directive will result in an error response and no further processing of the request. Valid values are: - All: all dry run stages will be processed",
           "type": "array",
           "items": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           },
           "x-kubernetes-list-type": "atomic"
         },
@@ -23220,16 +23371,6 @@
           "group": "autoscaling",
           "kind": "DeleteOptions",
           "version": "v2"
-        },
-        {
-          "group": "autoscaling",
-          "kind": "DeleteOptions",
-          "version": "v2beta1"
-        },
-        {
-          "group": "autoscaling",
-          "kind": "DeleteOptions",
-          "version": "v2beta2"
         },
         {
           "group": "autoscaling.karmada.io",
@@ -23439,7 +23580,7 @@
         {
           "group": "scheduling.k8s.io",
           "kind": "DeleteOptions",
-          "version": "v1alpha1"
+          "version": "v1alpha2"
         },
         {
           "group": "scheduling.k8s.io",
@@ -23515,7 +23656,6 @@
           "description": "matchExpressions is a list of label selector requirements. The requirements are ANDed.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.LabelSelectorRequirement"
           },
           "x-kubernetes-list-type": "atomic"
@@ -23524,8 +23664,7 @@
           "description": "matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels map is equivalent to an element of matchExpressions, whose key field is \"key\", the operator is \"In\", and the values array contains only \"value\". The requirements are ANDed.",
           "type": "object",
           "additionalProperties": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           }
         }
       },
@@ -23553,8 +23692,7 @@
           "description": "values is an array of string values. If the operator is In or NotIn, the values array must be non-empty. If the operator is Exists or DoesNotExist, the values array must be empty. This array is replaced during a strategic merge patch.",
           "type": "array",
           "items": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           },
           "x-kubernetes-list-type": "atomic"
         }
@@ -23580,6 +23718,10 @@
         "selfLink": {
           "description": "Deprecated: selfLink is a legacy read-only field that is no longer populated by the system.",
           "type": "string"
+        },
+        "shardInfo": {
+          "description": "shardInfo is set when the list is a filtered subset of the full collection, as selected by a shard selector on the request. It echoes back the selector so clients can verify which shard they received and merge sharded responses. Clients should not cache sharded list responses as a full representation of the collection.\n\nThis is an alpha field and requires enabling the ShardedListAndWatch feature gate.",
+          "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.ShardInfo"
         }
       }
     },
@@ -23625,8 +23767,7 @@
           "description": "Annotations is an unstructured key value map stored with a resource that may be set by external tools to store and retrieve arbitrary metadata. They are not queryable and should be preserved when modifying objects. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations",
           "type": "object",
           "additionalProperties": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           }
         },
         "creationTimestamp": {
@@ -23646,8 +23787,7 @@
           "description": "Must be empty before the object is deleted from the registry. Each entry is an identifier for the responsible component that will remove the entry from the list. If the deletionTimestamp of the object is non-nil, entries in this list can only be removed. Finalizers may be processed and removed in any order.  Order is NOT enforced because it introduces significant risk of stuck finalizers. finalizers is a shared field, any actor with permission can reorder it. If the finalizer list is processed in order, then this can lead to a situation in which the component responsible for the first finalizer in the list is waiting for a signal (field value, external system, or other) produced by a component responsible for a finalizer later in the list, resulting in a deadlock. Without enforced ordering finalizers are free to order amongst themselves and are not vulnerable to ordering changes in the list.",
           "type": "array",
           "items": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           },
           "x-kubernetes-list-type": "set",
           "x-kubernetes-patch-strategy": "merge"
@@ -23665,15 +23805,13 @@
           "description": "Map of string keys and values that can be used to organize and categorize (scope and select) objects. May match selectors of replication controllers and services. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels",
           "type": "object",
           "additionalProperties": {
-            "type": "string",
-            "default": ""
+            "type": "string"
           }
         },
         "managedFields": {
           "description": "ManagedFields maps workflow-id and version to the set of fields that are managed by that workflow. This is mostly for internal housekeeping, and users typically shouldn't need to set or understand this field. A workflow can be the user's name, a controller's name, or the name of a specific apply path like \"ci-cd\". The set of fields is always in the version that the workflow used when modifying the object.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.ManagedFieldsEntry"
           },
           "x-kubernetes-list-type": "atomic"
@@ -23690,7 +23828,6 @@
           "description": "List of objects depended by this object. If ALL objects in the list have been deleted, this object will be garbage collected. If this object is managed by a controller, then an entry in this list will point to this controller, with the controller field set to true. There cannot be more than one managing controller.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.OwnerReference"
           },
           "x-kubernetes-list-map-keys": [
@@ -23793,6 +23930,20 @@
         }
       }
     },
+    "io.k8s.apimachinery.pkg.apis.meta.v1.ShardInfo": {
+      "description": "ShardInfo describes the shard selector that was applied to produce a list response. Its presence on a list response indicates the list is a filtered subset.",
+      "type": "object",
+      "required": [
+        "selector"
+      ],
+      "properties": {
+        "selector": {
+          "description": "selector is the shard selector string from the request, echoed back so clients can verify which shard they received and merge responses from multiple shards.",
+          "type": "string",
+          "default": ""
+        }
+      }
+    },
     "io.k8s.apimachinery.pkg.apis.meta.v1.Status": {
       "description": "Status is a return value for calls that don't return other objects.",
       "type": "object",
@@ -23866,7 +24017,6 @@
           "description": "The Causes array includes more details associated with the StatusReason failure. Not all StatusReasons may provide detailed causes.",
           "type": "array",
           "items": {
-            "default": {},
             "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.StatusCause"
           },
           "x-kubernetes-list-type": "atomic"
@@ -23993,16 +24143,6 @@
           "version": "v2"
         },
         {
-          "group": "autoscaling",
-          "kind": "WatchEvent",
-          "version": "v2beta1"
-        },
-        {
-          "group": "autoscaling",
-          "kind": "WatchEvent",
-          "version": "v2beta2"
-        },
-        {
           "group": "autoscaling.karmada.io",
           "kind": "WatchEvent",
           "version": "v1alpha1"
@@ -24210,7 +24350,7 @@
         {
           "group": "scheduling.k8s.io",
           "kind": "WatchEvent",
-          "version": "v1alpha1"
+          "version": "v1alpha2"
         },
         {
           "group": "scheduling.k8s.io",
@@ -24478,6 +24618,13 @@
       "type": "boolean",
       "description": "`sendInitialEvents=true` may be set together with `watch=true`. In that case, the watch stream will begin with synthetic events to produce the current state of objects in the collection. Once all such events have been sent, a synthetic \"Bookmark\" event  will be sent. The bookmark will report the ResourceVersion (RV) corresponding to the set of objects, and be marked with `\"k8s.io/initial-events-end\": \"true\"` annotation. Afterwards, the watch stream will proceed as usual, sending watch events corresponding to changes (subsequent to the RV) to objects watched.\n\nWhen `sendInitialEvents` option is set, we require `resourceVersionMatch` option to also be set. The semantic of the watch request is as following: - `resourceVersionMatch` = NotOlderThan\n  is interpreted as \"data at least as new as the provided `resourceVersion`\"\n  and the bookmark event is send when the state is synced\n  to a `resourceVersion` at least as fresh as the one provided by the ListOptions.\n  If `resourceVersion` is unset, this is interpreted as \"consistent read\" and the\n  bookmark event is send when the state is synced at least to the moment\n  when request started being processed.\n- `resourceVersionMatch` set to any other value or unset\n  Invalid error is returned.\n\nDefaults to true if `resourceVersion=\"\"` or `resourceVersion=\"0\"` (for backward compatibility reasons) and to false otherwise.",
       "name": "sendInitialEvents",
+      "in": "query"
+    },
+    "shardSelector-Kgyki_3_": {
+      "uniqueItems": true,
+      "type": "string",
+      "description": "shardSelector restricts the list of returned objects using a CEL-based shard selector expression. The format uses the shardRange() function combined with || (logical OR) to specify one or more hash ranges:\n\n  shardRange(object.metadata.uid, '0x0', '0x8000000000000000')\n  shardRange(object.metadata.uid, '0x0', '0x8000000000000000') || shardRange(object.metadata.uid, '0x8000000000000000', '0x10000000000000000')\n\nField paths use CEL-style object-rooted syntax (e.g. \"object.metadata.uid\"), NOT the fieldSelector format (\"metadata.uid\"). Currently supported paths:\n  - object.metadata.uid\n  - object.metadata.namespace\n\nhexStart and hexEnd are single-quoted CEL string literals with a '0x' prefix, defining the inclusive lower and exclusive upper bounds over the 64-bit FNV-1a hash space. The full range is [0x0, 0x10000000000000000), where the exclusive upper bound equals 2^64.\n\nExamples:\n  2-shard split:\n    shard 0: shardRange(object.metadata.uid, '0x0000000000000000', '0x8000000000000000')\n    shard 1: shardRange(object.metadata.uid, '0x8000000000000000', '0x10000000000000000')\n  4-shard split:\n    shard 0: shardRange(object.metadata.uid, '0x0000000000000000', '0x4000000000000000')\n    shard 1: shardRange(object.metadata.uid, '0x4000000000000000', '0x8000000000000000')\n    shard 2: shardRange(object.metadata.uid, '0x8000000000000000', '0xc000000000000000')\n    shard 3: shardRange(object.metadata.uid, '0xc000000000000000', '0x10000000000000000')\n\nThis is an alpha field and requires enabling the ShardedListAndWatch feature gate.",
+      "name": "shardSelector",
       "in": "query"
     },
     "timeoutSeconds-yvYezaOC": {

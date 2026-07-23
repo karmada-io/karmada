@@ -29,19 +29,19 @@ import (
 var (
 	patchExample = templates.Examples(`
 		# Partially update a deployment using a strategic merge patch, specifying the patch as JSON
-		[1]%s patch deployment nginx-deployment -p '{"spec":{"replicas":2}}'
+		%[1]s patch deployment nginx-deployment -p '{"spec":{"replicas":2}}'
 
 		# Partially update a deployment using a strategic merge patch, specifying the patch as YAML
-		[1]%s patch deployment nginx-deployment -p $'spec:\n replicas: 2'
+		%[1]s patch deployment nginx-deployment -p $'spec:\n replicas: 2'
 
 		# Partially update a deployment identified by the type and name specified in "deployment.json" using strategic merge patch
-		[1]%s patch -f deployment.json -p '{"spec":{"replicas":2}}'
+		%[1]s patch -f deployment.json -p '{"spec":{"replicas":2}}'
 
 		# Update a propagationpolicy's conflictResolution using a JSON patch with positional arrays
-		[1]%s patch pp nginx-propagation --type='json' -p='[{"op": "replace", "path": "/spec/conflictResolution", "value":"Overwrite"}]'
+		%[1]s patch pp nginx-propagation --type='json' -p='[{"op": "replace", "path": "/spec/conflictResolution", "value":"Overwrite"}]'
 
 		# Update a deployment's replicas through the 'scale' subresource using a merge patch
-		[1]%s patch deployment nginx-deployment --subresource='scale' --type='merge' -p '{"spec":{"replicas":2}}'`)
+		%[1]s patch deployment nginx-deployment --subresource='scale' --type='merge' -p '{"spec":{"replicas":2}}'`)
 )
 
 // NewCmdPatch returns new initialized instance of patch sub command

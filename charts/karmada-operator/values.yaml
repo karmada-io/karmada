@@ -23,6 +23,12 @@ karmadaOperatorImageVersion: &karmadaOperatorImageVersion latest
 ##
 installCRDs: true
 
+## @param crds CRD management configuration
+crds:
+  ## @param crds.keep When true, adds the "helm.sh/resource-policy: keep" annotation to CRDs.
+  ## This prevents Helm from deleting CRDs (and all custom resources) on helm uninstall.
+  keep: true
+
 kubectl:
   ## @param image.registry karmada kubectl image registry
   ## @param image.repository karmada kubectl image repository

@@ -83,19 +83,36 @@ func newAnalyzer() *analyzer {
 }
 
 func (a *analyzer) collect(dir string) {
-	pkgs, err := parser.ParseDir(a.fset, dir, a.filter, parser.AllErrors|parser.ParseComments)
+	entries, err := os.ReadDir(dir)
 	if err != nil {
-		a.errorf("syntax error: %v", err)
+		a.errorf("read dir %s error: %v", dir, err)
 		return
 	}
 
-	for _, pkg := range pkgs {
-		sortedFilenames := a.sortFilenames(pkg.Files)
-		for _, filename := range sortedFilenames {
-			file := pkg.Files[filename]
-			basename := filepath.Base(filename)
-			a.collectFile(basename, file)
+	filenames := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") {
+			continue
 		}
+		info, err := entry.Info()
+		if err != nil {
+			a.errorf("stat %s error: %v", entry.Name(), err)
+			continue
+		}
+		if !a.filter(info) {
+			continue
+		}
+		filenames = append(filenames, filepath.Join(dir, entry.Name()))
+	}
+	sort.Strings(filenames)
+
+	for _, filename := range filenames {
+		file, err := parser.ParseFile(a.fset, filename, nil, parser.AllErrors|parser.ParseComments)
+		if err != nil {
+			a.errorf("syntax error: %v", err)
+			continue
+		}
+		a.collectFile(filepath.Base(filename), file)
 	}
 }
 
@@ -111,15 +128,6 @@ func (a *analyzer) filter(info fs.FileInfo) bool {
 		}
 	}
 	return true
-}
-
-func (a *analyzer) sortFilenames(m map[string]*ast.File) []string {
-	files := make([]string, 0, len(m))
-	for n := range m {
-		files = append(files, n)
-	}
-	sort.Strings(files)
-	return files
 }
 
 func (a *analyzer) collectFile(filename string, file *ast.File) {

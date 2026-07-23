@@ -32,11 +32,11 @@ import (
 
 	"github.com/mxk/go-flowrate/flowrate"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/util/httpstream"
 	utilnet "k8s.io/apimachinery/pkg/util/net"
 	proxyutil "k8s.io/apimachinery/pkg/util/proxy"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/klog/v2"
+	"k8s.io/streaming/pkg/httpstream"
 )
 
 // UpgradeAwareHandler is an interface for dialing a backend for an upgrade request

@@ -25,19 +25,20 @@ import (
 
 	"k8s.io/client-go/informers"
 	clientset "k8s.io/client-go/kubernetes"
+	"k8s.io/klog/v2"
 
-	"github.com/karmada-io/karmada/pkg/estimator/pb"
 	"github.com/karmada-io/karmada/pkg/estimator/server/framework"
 	"github.com/karmada-io/karmada/pkg/estimator/server/metrics"
-	schedcache "github.com/karmada-io/karmada/pkg/util/lifted/scheduler/cache"
 	utilmetrics "github.com/karmada-io/karmada/pkg/util/metrics"
 )
 
 const (
-	// estimator is the legacy label for replica estimation metrics.
-	// Deprecated: Use estimateReplicasExtension instead. This will be removed in a future release.
-	estimator                   = "Estimator"
-	estimateReplicasExtension   = "estimate_replicas"
+	// estimateReplicasExtension is used as the metric label value to identify
+	// the "estimate replicas" extension point when recording framework and plugin durations.
+	estimateReplicasExtension = "estimate_replicas"
+
+	// estimateComponentsExtension is used as the metric label value to identify
+	// the "estimate components" extension point when recording framework and plugin durations.
 	estimateComponentsExtension = "estimate_components"
 )
 
@@ -136,21 +137,19 @@ func (frw *frameworkImpl) Parallelism() int {
 }
 
 // RunEstimateReplicasPlugins runs the set of configured EstimateReplicasPlugins
-// for estimating replicas based on the given replicaRequirements.
-// It returns an integer and an error.
+// for estimating replicas based on the given estCtx.
+// It returns an integer and a Result.
 // The integer represents the minimum calculated value of estimated replicas from each EstimateReplicasPlugin.
-func (frw *frameworkImpl) RunEstimateReplicasPlugins(ctx context.Context, snapshot *schedcache.Snapshot, replicaRequirements *pb.ReplicaRequirements) (int32, *framework.Result) {
+func (frw *frameworkImpl) RunEstimateReplicasPlugins(ctx context.Context, estCtx framework.ReplicaEstimationContext) (int32, *framework.Result) {
 	startTime := time.Now()
 	defer func() {
-		// Emit metrics with both old and new labels for backward compatibility
-		// TODO: Remove estimator label in a future release (deprecated)
-		metrics.FrameworkExtensionPointDuration.WithLabelValues(estimator).Observe(utilmetrics.DurationInSeconds(startTime))
 		metrics.FrameworkExtensionPointDuration.WithLabelValues(estimateReplicasExtension).Observe(utilmetrics.DurationInSeconds(startTime))
 	}()
+
 	var replica int32 = math.MaxInt32
 	results := make(framework.PluginToResult)
 	for _, pl := range frw.estimateReplicasPlugins {
-		plReplica, ret := frw.runEstimateReplicasPlugins(ctx, pl, snapshot, replicaRequirements)
+		plReplica, ret := frw.runEstimateReplicasPlugins(ctx, pl, estCtx)
 		if (ret.IsSuccess() || ret.IsUnschedulable()) && plReplica < replica {
 			replica = plReplica
 		}
@@ -159,48 +158,47 @@ func (frw *frameworkImpl) RunEstimateReplicasPlugins(ctx context.Context, snapsh
 		}
 		results[pl.Name()] = ret
 	}
+	klog.V(4).InfoS("EstimateReplicas final result", "replicas", replica)
 	return replica, results.Merge()
 }
 
-func (frw *frameworkImpl) runEstimateReplicasPlugins(
-	ctx context.Context,
-	pl framework.EstimateReplicasPlugin,
-	snapshot *schedcache.Snapshot,
-	replicaRequirements *pb.ReplicaRequirements,
-) (int32, *framework.Result) {
+func (frw *frameworkImpl) runEstimateReplicasPlugins(ctx context.Context, pl framework.EstimateReplicasPlugin, estCtx framework.ReplicaEstimationContext) (int32, *framework.Result) {
 	startTime := time.Now()
-	replica, ret := pl.Estimate(ctx, snapshot, replicaRequirements)
-	// Emit metrics with both old and new labels for backward compatibility
-	// TODO: Remove estimator label in a future release (deprecated)
-	metrics.PluginExecutionDuration.WithLabelValues(pl.Name(), estimator).Observe(utilmetrics.DurationInSeconds(startTime))
+	replica, ret := pl.Estimate(ctx, estCtx)
+
 	metrics.PluginExecutionDuration.WithLabelValues(pl.Name(), estimateReplicasExtension).Observe(utilmetrics.DurationInSeconds(startTime))
+	klog.V(4).InfoS("EstimateReplicas plugin result", "plugin", pl.Name(), "replicas", replica, "status", ret.Code())
 	return replica, ret
 }
 
 // RunEstimateComponentsPlugins runs the set of configured EstimateComponentsPlugins
-// for estimating the maximum number of complete component sets based on the given components.
+// for estimating the maximum number of complete component sets based on the given
+// components estimation request, including its components, namespace, and assumptions.
 // It returns an integer and a Result.
 // The integer represents the minimum calculated value of estimated component sets from each EstimateComponentsPlugin.
-func (frw *frameworkImpl) RunEstimateComponentsPlugins(ctx context.Context, snapshot *schedcache.Snapshot, components []*pb.Component, namespace string) (int32, *framework.Result) {
+func (frw *frameworkImpl) RunEstimateComponentsPlugins(ctx context.Context, estCtx framework.ComponentEstimationContext) (int32, *framework.Result) {
 	startTime := time.Now()
 	defer func() {
 		metrics.FrameworkExtensionPointDuration.WithLabelValues(estimateComponentsExtension).Observe(utilmetrics.DurationInSeconds(startTime))
 	}()
+
 	var sets int32 = math.MaxInt32
 	results := make(framework.PluginToResult)
 	for _, pl := range frw.estimateComponentsPlugins {
-		plSets, ret := frw.runEstimateComponentsPlugins(ctx, pl, snapshot, components, namespace)
+		plSets, ret := frw.runEstimateComponentsPlugins(ctx, pl, estCtx)
 		if (ret.IsSuccess() || ret.IsUnschedulable()) && plSets < sets {
 			sets = plSets
 		}
 		results[pl.Name()] = ret
 	}
+	klog.V(4).InfoS("EstimateComponents final result", "sets", sets)
 	return sets, results.Merge()
 }
 
-func (frw *frameworkImpl) runEstimateComponentsPlugins(ctx context.Context, pl framework.EstimateComponentsPlugin, snapshot *schedcache.Snapshot, components []*pb.Component, namespace string) (int32, *framework.Result) {
+func (frw *frameworkImpl) runEstimateComponentsPlugins(ctx context.Context, pl framework.EstimateComponentsPlugin, estCtx framework.ComponentEstimationContext) (int32, *framework.Result) {
 	startTime := time.Now()
-	sets, ret := pl.EstimateComponents(ctx, snapshot, components, namespace)
+	sets, ret := pl.EstimateComponents(ctx, estCtx)
 	metrics.PluginExecutionDuration.WithLabelValues(pl.Name(), estimateComponentsExtension).Observe(utilmetrics.DurationInSeconds(startTime))
+	klog.V(4).InfoS("EstimateComponents plugin result", "plugin", pl.Name(), "sets", sets, "status", ret.Code())
 	return sets, ret
 }

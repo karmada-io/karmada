@@ -30,23 +30,23 @@ var (
 	annotateExample = templates.Examples(`
     # Update deployment 'foo' with the annotation 'work.karmada.io/conflict-resolution' and the value 'overwrite'
     # If the same annotation is set multiple times, only the last value will be applied
-    [1]%s annotate deployment foo work.karmada.io/conflict-resolution='overwrite'
+    %[1]s annotate deployment foo work.karmada.io/conflict-resolution='overwrite'
 
     # Update a deployment identified by type and name in "deployment.json"
-    [1]%s annotate -f deployment.json work.karmada.io/conflict-resolution='overwrite'
+    %[1]s annotate -f deployment.json work.karmada.io/conflict-resolution='overwrite'
 
     # Update deployment 'foo' with the annotation 'work.karmada.io/conflict-resolution' and the value 'abort', overwriting any existing value
-    [1]%s annotate --overwrite deployment foo work.karmada.io/conflict-resolution='abort'
+    %[1]s annotate --overwrite deployment foo work.karmada.io/conflict-resolution='abort'
 
     # Update all deployments in the namespace
-    [1]%s annotate deployment --all work.karmada.io/conflict-resolution='abort'
+    %[1]s annotate deployment --all work.karmada.io/conflict-resolution='abort'
 
     # Update deployment 'foo' only if the resource is unchanged from version 1
-    [1]%s annotate deployment foo work.karmada.io/conflict-resolution='abort' --resource-version=1
+    %[1]s annotate deployment foo work.karmada.io/conflict-resolution='abort' --resource-version=1
 
     # Update deployment 'foo' by removing an annotation named 'work.karmada.io/conflict-resolution' if it exists
     # Does not require the --overwrite flag
-    [1]%s annotate deployment foo work.karmada.io/conflict-resolution-`)
+    %[1]s annotate deployment foo work.karmada.io/conflict-resolution-`)
 )
 
 // NewCmdAnnotate returns new initialized instance of annotate sub command

@@ -157,7 +157,6 @@ func newRunData(opt *InitOptions) (*initData, error) {
 		return nil, fmt.Errorf("unexpected karmada invalid version %s", opt.KarmadaVersion)
 	}
 
-	// TODO: Verify whether important values of initData is valid
 	var address string
 	if opt.Karmada.Spec.Components.KarmadaAPIServer.ServiceType == corev1.ServiceTypeNodePort {
 		address, err = util.GetAPIServiceIP(remoteClient)

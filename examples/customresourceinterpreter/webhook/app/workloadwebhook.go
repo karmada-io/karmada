@@ -24,7 +24,6 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/ptr"
 
 	workloadv1alpha1 "github.com/karmada-io/karmada/examples/customresourceinterpreter/apis/workload/v1alpha1"
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
@@ -80,7 +79,7 @@ func (e *workloadInterpreter) InjectDecoder(d *interpreter.Decoder) {
 
 func (e *workloadInterpreter) responseWithExploreReplica(workload *workloadv1alpha1.Workload) interpreter.Response {
 	res := interpreter.Succeeded("")
-	replicas := ptr.To(int32(1))
+	replicas := new(int32(1))
 	if workload.Spec.Replicas != nil {
 		replicas = workload.Spec.Replicas
 	}
@@ -164,9 +163,9 @@ func (e *workloadInterpreter) responseWithExploreAggregateStatus(workload *workl
 }
 
 func (e *workloadInterpreter) responseWithExploreInterpretHealth(workload *workloadv1alpha1.Workload) interpreter.Response {
-	healthy := ptr.To[bool](false)
+	healthy := new(false)
 	if workload.Status.ReadyReplicas == *workload.Spec.Replicas {
-		healthy = ptr.To[bool](true)
+		healthy = new(true)
 	}
 
 	res := interpreter.Succeeded("")

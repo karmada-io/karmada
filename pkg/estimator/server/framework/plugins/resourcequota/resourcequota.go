@@ -35,7 +35,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/util"
 	corev1helper "github.com/karmada-io/karmada/pkg/util/lifted"
-	schedcache "github.com/karmada-io/karmada/pkg/util/lifted/scheduler/cache"
 )
 
 const (
@@ -93,12 +92,15 @@ func (pl *resourceQuotaEstimator) Name() string {
 }
 
 // Estimate estimates the replicas allowed by the ResourceQuota constraints.
-func (pl *resourceQuotaEstimator) Estimate(_ context.Context, _ *schedcache.Snapshot, replicaRequirements *pb.ReplicaRequirements) (int32, *framework.Result) {
+// Before computing the maximum allowed replicas it deducts any assumed (in-flight) workloads
+// so that pods already assigned but not yet reflected in ResourceQuota status are accounted for.
+func (pl *resourceQuotaEstimator) Estimate(_ context.Context, estCtx framework.ReplicaEstimationContext) (int32, *framework.Result) {
 	var replica int32 = noQuotaConstraint
 	if !pl.enabled {
 		klog.V(5).Info("Estimator Plugin", "name", Name, "enabled", pl.enabled)
 		return replica, framework.NewResult(framework.Noopperation, fmt.Sprintf("%s is disabled", pl.Name()))
 	}
+	replicaRequirements := estCtx.ReplicaRequirements
 	if replicaRequirements == nil {
 		return noQuotaConstraint, framework.NewResult(framework.Success, fmt.Sprintf("%s found no quota constraints", pl.Name()))
 	}
@@ -117,11 +119,17 @@ func (pl *resourceQuotaEstimator) Estimate(_ context.Context, _ *schedcache.Snap
 	if err != nil {
 		return 0, framework.AsResult(err)
 	}
+
+	// Flatten all assumed workload components for this namespace once, then filter per-quota.
+	assumedComponents := flattenAssumedWorkloadComponents(estCtx.AssumedWorkloads, namespace)
+
 	for _, rq := range rqList {
-		rqEvaluator := newResourceQuotaEvaluator(rq, priorityClassName)
-		replicaFromRqEvaluator := rqEvaluator.evaluate(requirements)
-		if replicaFromRqEvaluator < replica {
-			replica = replicaFromRqEvaluator
+		replicaFromRq, err := pl.evaluateReplicasAgainstQuota(rq, priorityClassName, requirements, assumedComponents)
+		if err != nil {
+			return 0, framework.AsResult(err)
+		}
+		if replicaFromRq < replica {
+			replica = replicaFromRq
 		}
 	}
 
@@ -143,19 +151,23 @@ func (pl *resourceQuotaEstimator) Estimate(_ context.Context, _ *schedcache.Snap
 // selectors (e.g., priorityClassName), aggregates their resource requirements, and calculates how
 // many complete component sets can fit within the quota. The function returns the minimum allowed
 // sets across all ResourceQuotas to ensure all quota constraints are satisfied.
-func (pl *resourceQuotaEstimator) EstimateComponents(_ context.Context, _ *schedcache.Snapshot, components []*pb.Component, namespace string) (int32, *framework.Result) {
+// Before running the resource quota estimation, it deducts any assumed (in-flight) workloads so that
+// pods already assigned but not yet reflected in ResourceQuota status or the informer cache are accounted for.
+func (pl *resourceQuotaEstimator) EstimateComponents(_ context.Context, estCtx framework.ComponentEstimationContext) (int32, *framework.Result) {
 	if !pl.enabled {
 		klog.V(5).Info("Estimator Plugin", "name", Name, "enabled", pl.enabled)
 		return noQuotaConstraint, framework.NewResult(framework.Noopperation, fmt.Sprintf("%s is disabled", pl.Name()))
 	}
 
+	components := estCtx.Components
 	if len(components) == 0 {
-		klog.V(5).Infof("%s: components list is empty, skipping resource quota check", pl.Name())
+		klog.V(5).InfoS("Components list is empty, skipping resource quota check", "plugin", pl.Name())
 		return noQuotaConstraint, framework.NewResult(framework.Success, fmt.Sprintf("%s received empty components list", pl.Name()))
 	}
 
+	namespace := estCtx.Namespace
 	if namespace == "" {
-		klog.V(5).Infof("%s: namespace is empty, skipping resource quota check", pl.Name())
+		klog.V(5).InfoS("Namespace is empty, skipping resource quota check", "plugin", pl.Name())
 		return noQuotaConstraint, framework.NewResult(framework.Success)
 	}
 
@@ -167,22 +179,25 @@ func (pl *resourceQuotaEstimator) EstimateComponents(_ context.Context, _ *sched
 	}
 
 	if len(rqList) == 0 {
-		klog.V(5).Infof("%s: no ResourceQuota found in namespace %s", pl.Name(), namespace)
+		klog.V(5).InfoS("No ResourceQuota found in namespace", "plugin", pl.Name(), "namespace", namespace)
 		// No quotas exist - resources are schedulable without restrictions
 		return noQuotaConstraint, framework.NewResult(framework.Success, fmt.Sprintf("%s found no quota constraints", pl.Name()))
 	}
+
+	// Flatten assumed workload components once — all quotas share the same namespace.
+	assumedComponents := flattenAssumedWorkloadComponents(estCtx.AssumedWorkloads, namespace)
 
 	// Evaluate all components together against each ResourceQuota.
 	// Each ResourceQuota will filter components based on its scope selectors.
 	var maxSets int32 = noQuotaConstraint
 	for _, rq := range rqList {
-		setsFromRq, err := pl.evaluateComponentsAgainstQuota(rq, components)
+		setsFromRq, err := pl.evaluateComponentsAgainstQuota(rq, components, assumedComponents)
 		if err != nil {
 			return 0, framework.AsResult(err)
 		}
 
-		klog.V(5).Infof("%s: ResourceQuota %s/%s allows %d component sets",
-			pl.Name(), rq.Namespace, rq.Name, setsFromRq)
+		klog.V(5).InfoS("ResourceQuota allows component sets",
+			"plugin", pl.Name(), "namespace", rq.Namespace, "name", rq.Name, "sets", setsFromRq)
 
 		if setsFromRq < maxSets {
 			maxSets = setsFromRq
@@ -206,8 +221,8 @@ func (pl *resourceQuotaEstimator) EstimateComponents(_ context.Context, _ *sched
 		result = framework.NewResult(framework.Success)
 	}
 
-	klog.V(5).Infof("%s: final estimation result: %d component sets, status: %s",
-		pl.Name(), maxSets, result.Code())
+	klog.V(5).InfoS("Final estimation result",
+		"plugin", pl.Name(), "sets", maxSets, "status", result.Code())
 
 	return maxSets, result
 }
@@ -217,30 +232,34 @@ func (pl *resourceQuotaEstimator) EstimateComponents(_ context.Context, _ *sched
 // Steps:
 //  1. Filter components that match this quota's scope selectors
 //  2. If no components match → quota doesn't constrain workload → return noQuotaConstraint
-//  3. Aggregate resource requirements for one complete component set
-//  4. Calculate: sets = quota.available / aggregated_requirements
+//  3. Filter and deduct resource requirements of assumed workload components that match this quota
+//  4. Aggregate resource requirements for one complete component set
+//  5. Calculate: sets = quota.available / aggregated_requirements
 func (pl *resourceQuotaEstimator) evaluateComponentsAgainstQuota(rq *corev1.ResourceQuota,
-	components []*pb.Component) (int32, error) {
+	components []*pb.Component, assumedComponents []*pb.Component) (int32, error) {
 	selectors := getScopeSelectorsFromQuota(rq)
-	var matchedComponents []*pb.Component
-
-	if len(selectors) == 0 {
-		matchedComponents = components
-	} else {
-		for _, component := range components {
-			if component != nil && component.ReplicaRequirements != nil && quotaAppliesToPriority(selectors, component.ReplicaRequirements.PriorityClassName) {
-				matchedComponents = append(matchedComponents, component)
-			}
-		}
-	}
+	matchedComponents := filterComponentsBySelectors(components, selectors)
 
 	if len(matchedComponents) == 0 {
 		return noQuotaConstraint, nil
 	}
 
+	matchedAssumedComponents := filterComponentsBySelectors(assumedComponents, selectors)
+
 	availableResources := calculateFreeResources(rq, matchingResources(resourceNames(rq.Status.Hard)))
 	if len(availableResources) == 0 {
 		return noQuotaConstraint, nil
+	}
+
+	if len(matchedAssumedComponents) > 0 {
+		available, err := pl.deductAssumedResources(availableResources, matchedAssumedComponents, rq)
+		if err != nil {
+			return 0, err
+		}
+		if available == nil {
+			return 0, nil
+		}
+		availableResources = available
 	}
 
 	perSetRequirements, err := pl.aggregateComponentRequirements(matchedComponents)
@@ -248,6 +267,59 @@ func (pl *resourceQuotaEstimator) evaluateComponentsAgainstQuota(rq *corev1.Reso
 		return 0, err
 	}
 	return pl.evaluateResourcesAgainstQuota(availableResources, perSetRequirements), nil
+}
+
+// filterComponentsBySelectors returns components that match the given scope selectors.
+// If selectors is empty, all components are returned.
+func filterComponentsBySelectors(components []*pb.Component, selectors []corev1.ScopedResourceSelectorRequirement) []*pb.Component {
+	if len(selectors) == 0 {
+		return components
+	}
+	var matched []*pb.Component
+	for _, component := range components {
+		if component != nil && component.ReplicaRequirements != nil && quotaAppliesToPriority(selectors, component.ReplicaRequirements.PriorityClassName) {
+			matched = append(matched, component)
+		}
+	}
+	return matched
+}
+
+// flattenAssumedWorkloadComponents returns all non-nil components from assumed workloads
+// that belong to the given namespace. Scope-selector filtering is done separately per quota.
+func flattenAssumedWorkloadComponents(assumedWorkloads []*pb.AssumedWorkload, namespace string) []*pb.Component {
+	var result []*pb.Component
+	for _, aw := range assumedWorkloads {
+		if aw.Namespace != namespace {
+			continue
+		}
+		for _, component := range aw.Components {
+			if component != nil && component.ReplicaRequirements != nil {
+				result = append(result, component)
+			}
+		}
+	}
+	return result
+}
+
+// deductAssumedResources subtracts the resource requirements of assumed workload components
+// from availableResources. Returns nil if any resource goes negative (quota exhausted).
+func (pl *resourceQuotaEstimator) deductAssumedResources(availableResources corev1.ResourceList, assumedComponents []*pb.Component, rq *corev1.ResourceQuota) (corev1.ResourceList, error) {
+	assumedRequirements, err := pl.aggregateComponentRequirements(assumedComponents)
+	if err != nil {
+		return nil, err
+	}
+	for resourceName, assumed := range assumedRequirements {
+		if available, ok := availableResources[resourceName]; ok {
+			available.Sub(assumed)
+			if available.Sign() < 0 {
+				klog.V(5).InfoS("Negative available resource after deducting assumed workloads",
+					"plugin", pl.Name(), "namespace", rq.Namespace, "name", rq.Name, "resource", resourceName)
+				return nil, nil
+			}
+			availableResources[resourceName] = available
+		}
+	}
+	return availableResources, nil
 }
 
 func quotaAppliesToPriority(selectors []corev1.ScopedResourceSelectorRequirement, priorityClassName string) bool {
@@ -327,79 +399,82 @@ func (pl *resourceQuotaEstimator) evaluateResourcesAgainstQuota(
 	return int32(allowed) // #nosec G115: integer overflow conversion int64 -> int32
 }
 
-type resourceQuotaEvaluator struct {
-	// key (string) is the name of the resource quota
-	// value (ResourceList) is the free resources calculated by (hard - used) from the resource quota status
-	resourceRequest map[string]corev1.ResourceList
-}
-
-func newResourceQuotaEvaluator(rq *corev1.ResourceQuota, priorityClassName string) *resourceQuotaEvaluator {
+// evaluateReplicasAgainstQuota evaluates per-replica resource requirements against a single ResourceQuota.
+// Steps:
+//  1. Check if the quota applies based on scope selectors and priorityClassName
+//  2. If not applicable → return noQuotaConstraint
+//  3. Compute free resources (Hard - Used)
+//  4. Deduct assumed in-flight workload resources from free resources
+//  5. Calculate replicas = freeResources / per-replica-requirements
+func (pl *resourceQuotaEstimator) evaluateReplicasAgainstQuota(
+	rq *corev1.ResourceQuota,
+	priorityClassName string,
+	requirements corev1.ResourceList,
+	assumedComponents []*pb.Component,
+) (int32, error) {
 	selectors := getScopeSelectorsFromQuota(rq)
-	resources := make(map[string]corev1.ResourceList)
 
-	// Determine if this quota applies based on scope selectors
-	quotaApplies := false
-	if len(selectors) == 0 {
-		// If there are no scope selectors, the quota applies to all pods
-		quotaApplies = true
-	} else {
-		quotaApplies = quotaAppliesToPriority(selectors, priorityClassName)
+	// Determine if this quota applies based on scope selectors.
+	// If there are no scope selectors, the quota applies to all pods.
+	quotaApplies := len(selectors) == 0 || quotaAppliesToPriority(selectors, priorityClassName)
+	if !quotaApplies {
+		return noQuotaConstraint, nil
 	}
 
-	// If the quota applies, extract the free resources
-	if quotaApplies {
-		matchResource := matchingResources(resourceNames(rq.Status.Hard))
-		if len(matchResource) != 0 {
-			freeResource := calculateFreeResources(rq, matchResource)
-			resources[rq.Name] = freeResource
+	// If the quota applies, extract the free resources.
+	matchResource := matchingResources(resourceNames(rq.Status.Hard))
+	if len(matchResource) == 0 {
+		return noQuotaConstraint, nil
+	}
+
+	availableResources := calculateFreeResources(rq, matchResource)
+	if len(availableResources) == 0 {
+		return noQuotaConstraint, nil
+	}
+
+	// Deduct assumed in-flight workload demands before estimating replicas.
+	if len(assumedComponents) > 0 {
+		matchedAssumed := filterComponentsBySelectors(assumedComponents, selectors)
+		if len(matchedAssumed) > 0 {
+			available, err := pl.deductAssumedResources(availableResources, matchedAssumed, rq)
+			if err != nil {
+				return 0, err
+			}
+			if available == nil {
+				// Quota already exhausted by assumed workloads.
+				return 0, nil
+			}
+			availableResources = available
 		}
 	}
 
-	return &resourceQuotaEvaluator{
-		resourceRequest: resources,
-	}
-}
+	// Filter to only include resources that are constrained by this ResourceQuota.
+	filteredRequirements := filterConstrainedResources(availableResources, requirements)
 
-// evaluate evaluates resource requirements against all applicable ResourceQuotas
-// and returns the most restrictive constraint (minimum allowed replicas).
-func (e *resourceQuotaEvaluator) evaluate(requirements corev1.ResourceList) int32 {
-	var result int32 = noQuotaConstraint
-
-	for _, availableResources := range e.resourceRequest {
-		// Filter to only include resources that are constrained by this ResourceQuota
-		filteredRequirements := filterConstrainedResources(availableResources, requirements)
-
-		// If no resources are constrained by this quota, skip it
-		if len(filteredRequirements) == 0 {
-			continue
-		}
-
-		// Create a Resource object with available quota
-		availableResource := util.NewResource(availableResources)
-
-		// Pod quota is not supported in the current implementation.
-		// To add pod quota support in the future:
-		// 1. Include pod count in aggregateComponentRequirements()
-		// 2. Remove this line to let AllowedPodNumber be calculated from availableResources
-		// 3. Add test cases for pod quota constraints
-		availableResource.AllowedPodNumber = math.MaxInt64
-
-		// Calculate how many replicas/sets can fit within the quota
-		allowed := availableResource.MaxDivided(filteredRequirements)
-
-		// Handle integer overflow: treat very large numbers as no constraint for this quota
-		if allowed > math.MaxInt32 {
-			continue
-		}
-
-		// Take the minimum across all ResourceQuotas (most restrictive)
-		count := int32(allowed) // #nosec G115: integer overflow conversion int64 -> int32
-		if count < result {
-			result = count
-		}
+	// If no resources are constrained by this quota, skip it.
+	if len(filteredRequirements) == 0 {
+		return noQuotaConstraint, nil
 	}
 
-	return result
+	// Create a Resource object with available quota.
+	availableResource := util.NewResource(availableResources)
+
+	// Pod quota is not supported in the current implementation.
+	// To add pod quota support in the future:
+	// 1. Include pod count in aggregateComponentRequirements()
+	// 2. Remove this line to let AllowedPodNumber be calculated from availableResources
+	// 3. Add test cases for pod quota constraints
+	availableResource.AllowedPodNumber = math.MaxInt64
+
+	// Calculate how many replicas can fit within the quota.
+	allowed := availableResource.MaxDivided(filteredRequirements)
+
+	// Handle integer overflow: treat very large numbers as no constraint for this quota.
+	if allowed > math.MaxInt32 {
+		return noQuotaConstraint, nil
+	}
+
+	return int32(allowed), nil // #nosec G115: integer overflow conversion int64 -> int32
 }
 
 // filterConstrainedResources returns only the resources from requirements that are actually

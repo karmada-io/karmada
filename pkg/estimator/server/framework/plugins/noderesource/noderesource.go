@@ -27,7 +27,6 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/karmada-io/karmada/pkg/estimator"
-	"github.com/karmada-io/karmada/pkg/estimator/pb"
 	"github.com/karmada-io/karmada/pkg/estimator/server/framework"
 	"github.com/karmada-io/karmada/pkg/util"
 	schedcache "github.com/karmada-io/karmada/pkg/util/lifted/scheduler/cache"
@@ -67,49 +66,68 @@ func (pl *nodeResourceEstimator) Name() string {
 	return Name
 }
 
-// Estimate the replica allowed by the node resources for a given pb.ReplicaRequirements.
-func (pl *nodeResourceEstimator) Estimate(ctx context.Context, snapshot *schedcache.Snapshot, requirements *pb.ReplicaRequirements) (int32, *framework.Result) {
+// Estimate the replica allowed by the node resources for a given ReplicaEstimationContext.
+func (pl *nodeResourceEstimator) Estimate(ctx context.Context, estCtx framework.ReplicaEstimationContext) (int32, *framework.Result) {
 	if !pl.enabled {
 		return pl.disabledResult()
 	}
 
-	allNodes, err := snapshot.NodeInfos().List()
-	if err != nil {
-		return 0, framework.AsResult(err)
-	}
-
+	requirements := estCtx.ReplicaRequirements
 	var affinity nodeaffinity.RequiredNodeAffinity
 	var tolerations []corev1.Toleration
 	var resourceRequest corev1.ResourceList
+	var err error
 	if requirements != nil {
 		affinity, tolerations, err = estimator.GetAffinityAndTolerations(requirements.NodeClaim)
 		if err != nil {
 			return 0, framework.AsResult(err)
 		}
-
 		resourceRequest, err = requirements.UnmarshalResourceRequest()
 		if err != nil {
 			return 0, framework.AsResult(err)
 		}
 	}
 
+	if estCtx.Snapshot == nil {
+		return 0, framework.AsResult(fmt.Errorf("snapshot is nil"))
+	}
+	nodes, err := getNodesAvailableResources(estCtx.Snapshot)
+	if err != nil {
+		return 0, framework.AsResult(err)
+	}
+
+	// Deduct assumed (in-flight) workloads before running main estimation.
+	// Each assumed workload represents pods being started that may not yet be
+	// reflected in the cluster's node resource accounting.
+	// Note: SimulateScheduling mutates nodes in-place by consuming their Allocatable
+	// resources as it places components. The subsequent per-node MaxDivided calls
+	// therefore operate on the already-reduced node capacity.
+	if len(estCtx.AssumedWorkloads) > 0 {
+		sim := estimator.NewSchedulingSimulator(nodes)
+		for _, assumed := range estCtx.AssumedWorkloads {
+			if len(assumed.GetComponents()) == 0 {
+				continue
+			}
+			deductedSets, deductErr := sim.SimulateScheduling(assumed.GetComponents(), 1)
+			if deductErr != nil {
+				return 0, framework.AsResult(deductErr)
+			}
+			if deductedSets == 0 {
+				klog.V(4).Infof("%s: could not deduct assumed workload (namespace=%s) from node resources", pl.Name(), assumed.GetNamespace())
+			}
+		}
+	}
+
 	var res int32
 	processNode := func(i int) {
-		node := allNodes[i].Clone()
+		node := nodes[i]
 		if !estimator.MatchNode(node, affinity, tolerations) {
 			return
 		}
-		maxReplica := pl.nodeMaxAvailableReplica(node, resourceRequest)
-		atomic.AddInt32(&res, maxReplica)
+		atomic.AddInt32(&res, int32(node.Allocatable.MaxDivided(resourceRequest))) // #nosec G115
 	}
-	pl.parallelizer.Until(ctx, len(allNodes), processNode)
-
+	pl.parallelizer.Until(ctx, len(nodes), processNode)
 	return res, framework.NewResult(framework.Success)
-}
-
-func (pl *nodeResourceEstimator) nodeMaxAvailableReplica(node *schedulerframework.NodeInfo, rl corev1.ResourceList) int32 {
-	rest := getNodeAvailableResource(node)
-	return int32(rest.MaxDivided(rl)) // #nosec G115: integer overflow conversion int64 -> int32
 }
 
 // getNodeAvailableResource calculates a node's available resources after deducting requested resources
@@ -127,22 +145,46 @@ func getNodeAvailableResource(node *schedulerframework.NodeInfo) *util.Resource 
 
 // EstimateComponents estimates the maximum number of complete component sets that can be scheduled.
 // It returns the number of sets that can fit on the available node resources.
-func (pl *nodeResourceEstimator) EstimateComponents(_ context.Context, snapshot *schedcache.Snapshot, components []*pb.Component, _ string) (int32, *framework.Result) {
+// Before running the main estimation, it deducts any assumed (in-flight) workloads so that
+// pods already assigned but not yet reflected in cluster metrics are accounted for.
+func (pl *nodeResourceEstimator) EstimateComponents(_ context.Context, estCtx framework.ComponentEstimationContext) (int32, *framework.Result) {
 	if !pl.enabled {
 		return pl.disabledResult()
 	}
 
+	components := estCtx.Components
 	if len(components) == 0 {
 		klog.V(5).Infof("%s: received empty components list", pl.Name())
 		return noNodeConstraint, framework.NewResult(framework.Noopperation, fmt.Sprintf("%s received empty components list", pl.Name()))
 	}
 
-	nodes, err := getNodesAvailableResources(snapshot)
+	nodes, err := getNodesAvailableResources(estCtx.Snapshot)
 	if err != nil {
 		return 0, framework.AsResult(err)
 	}
 
-	sets, err := estimator.NewSchedulingSimulator(nodes).SimulateScheduling(components, math.MaxInt32)
+	simulator := estimator.NewSchedulingSimulator(nodes)
+
+	// Deduct assumed (in-flight) workloads before running the main estimation.
+	// Each assumed workload represents pods that are being started but may not yet
+	// be reflected in the cluster's node resource accounting.
+	for _, assumed := range estCtx.AssumedWorkloads {
+		if len(assumed.GetComponents()) == 0 {
+			continue
+		}
+		deductedSets, deductErr := simulator.SimulateScheduling(assumed.GetComponents(), 1)
+		if deductErr != nil {
+			return 0, framework.AsResult(deductErr)
+		}
+		if deductedSets == 0 {
+			// The assumed workload could not be placed in the simulation. This is expected when
+			// the workload has already been admitted by the cluster and its resource usage is
+			// already reflected in node.Requested, so no additional deduction is needed.
+			klog.V(4).Infof("%s: could not deduct assumed workload (namespace=%s) from node resources", pl.Name(), assumed.GetNamespace())
+		}
+	}
+
+	sets, err := simulator.SimulateScheduling(components, math.MaxInt32)
 	if err != nil {
 		return 0, framework.AsResult(err)
 	}

@@ -24,7 +24,6 @@ import (
 	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/utils/ptr"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -344,14 +343,14 @@ func Test_shouldSuspendDispatching(t *testing.T) {
 		{
 			name: "false for not suspension",
 			args: args{
-				suspension: &workv1alpha2.Suspension{Suspension: policyv1alpha1.Suspension{Dispatching: ptr.To(false)}},
+				suspension: &workv1alpha2.Suspension{Suspension: policyv1alpha1.Suspension{Dispatching: new(false)}},
 			},
 			want: false,
 		},
 		{
 			name: "true for suspension",
 			args: args{
-				suspension: &workv1alpha2.Suspension{Suspension: policyv1alpha1.Suspension{Dispatching: ptr.To(true)}},
+				suspension: &workv1alpha2.Suspension{Suspension: policyv1alpha1.Suspension{Dispatching: new(true)}},
 			},
 			want: true,
 		},

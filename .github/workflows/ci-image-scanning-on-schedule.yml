@@ -11,7 +11,7 @@ jobs:
       security-events: write  # for github/codeql-action/upload-sarif to upload SARIF results
     name: image-scanning
     if: ${{ github.repository == 'karmada-io/karmada' }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -27,14 +27,14 @@ jobs:
           - karmada-search
           - karmada-operator
           - karmada-metrics-adapter
-        karmada-version: [ release-1.17, release-1.16, release-1.15 ]
+        karmada-version: [ release-1.18, release-1.17, release-1.16 ]
     steps:
       - name: checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: ${{ matrix.karmada-version }}
       - name: install Go
-        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
       - id: gen_git_info
@@ -69,7 +69,7 @@ jobs:
           cache: false
           vuln-type: 'os,library'
       - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@e46ed2cbd01164d986452f91f178727624ae40d7 # v4.35.3
+        uses: github/codeql-action/upload-sarif@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
         with:
           sarif_file: '${{ matrix.target }}:${{ matrix.karmada-version }}.trivy-results.sarif'
           ref: ${{steps.gen_git_info.outputs.ref}}

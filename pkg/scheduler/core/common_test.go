@@ -151,7 +151,7 @@ func TestSelectClusters(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.spec.Placement = tt.placement
-			result, err := SelectClusters(tt.clustersScore, tt.placement, tt.spec, tt.status)
+			result, err := SelectClusters(tt.clustersScore, tt.placement, tt.spec, tt.status, nil)
 
 			if tt.expectedError {
 				assert.Error(t, err)

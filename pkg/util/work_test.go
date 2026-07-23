@@ -24,7 +24,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/utils/ptr"
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -223,7 +222,7 @@ func TestIsWorkSuspendDispatching(t *testing.T) {
 			name: "dispatching is suspended",
 			work: &workv1alpha1.Work{
 				Spec: workv1alpha1.WorkSpec{
-					SuspendDispatching: ptr.To(true),
+					SuspendDispatching: new(true),
 				},
 			},
 			want: true,
@@ -232,7 +231,7 @@ func TestIsWorkSuspendDispatching(t *testing.T) {
 			name: "dispatching is not suspended",
 			work: &workv1alpha1.Work{
 				Spec: workv1alpha1.WorkSpec{
-					SuspendDispatching: ptr.To(false),
+					SuspendDispatching: new(false),
 				},
 			},
 			want: false,
