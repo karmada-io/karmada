@@ -281,31 +281,6 @@ type SuspendClusters struct {
 type PurgeMode string
 
 const (
-	// Immediately represents that Karmada will immediately evict the legacy
-	// application. This is useful in scenarios where an application can not
-	// tolerate two instances running simultaneously.
-	// For example, the Flink application supports exactly-once state consistency,
-	// which means it requires that no two instances of the application are running
-	// at the same time. During a failover, it is crucial to ensure that the old
-	// application is removed before creating a new one to avoid duplicate
-	// processing and maintaining state consistency.
-	//
-	// Deprecated: The term `Immediately` may be confusing when used alongside
-	// `GracePeriodSeconds`, which specifies that resources are removed after
-	// a grace period rather than at once.
-	// `Immediately` is replaced by `Directly` for clarity. This term remains
-	// functional in the current API version for backward compatibility and will
-	// be removed when PropagationPolicy advances to alpha2 or beta.
-	Immediately PurgeMode = "Immediately"
-	// Graciously represents that Karmada will wait for the application to
-	// come back to healthy on the new cluster or after a timeout is reached
-	// before evicting the application.
-	//
-	// Deprecated: The term `Graciously` is replaced by `Gracefully` for correct
-	// English usage. This term remains functional in the current API version for
-	// backward compatibility and will be removed when PropagationPolicy advances
-	// to alpha2 or beta.
-	Graciously PurgeMode = "Graciously"
 	// Never represents that Karmada will not evict the application and
 	// users manually confirms how to clean up redundant copies.
 	Never PurgeMode = "Never"

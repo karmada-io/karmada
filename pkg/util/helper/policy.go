@@ -128,9 +128,7 @@ func SetReplicaDivisionPreferenceWeighted(placement *policyv1alpha1.Placement) {
 
 // SetDefaultGracePeriodSeconds sets the default value of GracePeriodSeconds in ApplicationFailoverBehavior
 func SetDefaultGracePeriodSeconds(behavior *policyv1alpha1.ApplicationFailoverBehavior) {
-	//nolint:staticcheck
-	// disable `deprecation` check for backward compatibility.
-	if (behavior.PurgeMode == policyv1alpha1.Graciously || behavior.PurgeMode == policyv1alpha1.PurgeModeGracefully) &&
+	if behavior.PurgeMode == policyv1alpha1.PurgeModeGracefully &&
 		behavior.GracePeriodSeconds == nil {
 		behavior.GracePeriodSeconds = ptr.To[int32](600)
 	}
