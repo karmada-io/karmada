@@ -288,10 +288,7 @@ func compGetResourceList(restClientGetter genericclioptions.RESTClientGetter, cm
 		}
 
 		// Ignore errors as the output may still be valid
-		if err := o.RunAPIResources(); err != nil {
-			errorChan <- err
-			return
-		}
+		_ = o.RunAPIResources()
 
 		// Resources can be a comma-separated list.  The last element is then
 		// the one we should complete.  For example if toComplete=="pods,secre"
