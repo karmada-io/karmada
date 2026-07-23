@@ -579,13 +579,51 @@ var _ = ginkgo.Describe("Karmadactl top testing", func() {
 	})
 
 	ginkgo.Context("Karmadactl top pod", func() {
+		type podRuntimeState struct {
+			uid          string
+			containerIDs map[string]string
+		}
+
 		var policyName string
 		var pod *corev1.Pod
 		var policy *policyv1alpha1.PropagationPolicy
+		var initialPodStates map[string]podRuntimeState
+
+		getPodRuntimeStates := func() map[string]podRuntimeState {
+			states := make(map[string]podRuntimeState, len(framework.ClusterNames()))
+			for _, clusterName := range framework.ClusterNames() {
+				clusterClient := framework.GetClusterClient(clusterName)
+				gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
+				memberPod, err := clusterClient.CoreV1().Pods(pod.Namespace).Get(context.TODO(), pod.Name, metav1.GetOptions{})
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				gomega.Expect(khelper.IsPodReady(memberPod)).Should(gomega.BeTrue())
+				gomega.Expect(memberPod.Status.ContainerStatuses).Should(gomega.HaveLen(len(memberPod.Spec.Containers)))
+
+				containerIDs := make(map[string]string, len(memberPod.Status.ContainerStatuses))
+				for _, status := range memberPod.Status.ContainerStatuses {
+					gomega.Expect(status.Ready).Should(gomega.BeTrue())
+					gomega.Expect(status.State.Running).ShouldNot(gomega.BeNil())
+					gomega.Expect(status.ContainerID).ShouldNot(gomega.BeEmpty())
+					gomega.Expect(status.RestartCount).Should(gomega.BeZero())
+					containerIDs[status.Name] = status.ContainerID
+				}
+				states[clusterName] = podRuntimeState{uid: string(memberPod.UID), containerIDs: containerIDs}
+			}
+			return states
+		}
+
 		ginkgo.BeforeEach(func() {
 			// create a pod and a propagationPolicy
 			policyName = podNamePrefix + rand.String(RandomStrLength)
 			pod = helper.NewPod(testNamespace, podNamePrefix+rand.String(RandomStrLength))
+			busyboxFound := false
+			for index := range pod.Spec.Containers {
+				if pod.Spec.Containers[index].Name == "busybox" {
+					pod.Spec.Containers[index].Command = []string{"sleep", "3600"}
+					busyboxFound = true
+				}
+			}
+			gomega.Expect(busyboxFound).Should(gomega.BeTrue())
 			policy = helper.NewPropagationPolicy(testNamespace, policyName, []policyv1alpha1.ResourceSelector{
 				{
 					APIVersion: pod.APIVersion,
@@ -608,11 +646,12 @@ var _ = ginkgo.Describe("Karmadactl top testing", func() {
 			// wait for pod and metrics ready
 			framework.WaitPodPresentOnClustersFitWith(framework.ClusterNames(), pod.Namespace, pod.Name,
 				func(pod *corev1.Pod) bool {
-					return pod.Status.Phase == corev1.PodRunning
+					return khelper.IsPodReady(pod)
 				})
 			for _, cluster := range framework.ClusterNames() {
 				framework.WaitPodMetricsReady(kubeClient, karmadaClient, cluster, pod.Namespace, pod.Name)
 			}
+			initialPodStates = getPodRuntimeStates()
 		})
 
 		ginkgo.It("Karmadactl top existing pod", func() {
@@ -639,6 +678,10 @@ var _ = ginkgo.Describe("Karmadactl top testing", func() {
 					_, err := cmd.ExecOrDie()
 					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 				}
+			})
+
+			ginkgo.By("Verify pod containers remained stable during metrics queries", func() {
+				gomega.Expect(getPodRuntimeStates()).Should(gomega.Equal(initialPodStates))
 			})
 		})
 	})
