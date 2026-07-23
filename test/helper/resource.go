@@ -350,7 +350,7 @@ func NewService(namespace string, name string, svcType corev1.ServiceType) *core
 	}
 }
 
-// NewPod will build a service object.
+// NewPod will build a Pod object with long-running containers.
 func NewPod(namespace string, name string) *corev1.Pod {
 	return &corev1.Pod{
 		TypeMeta: metav1.TypeMeta{
@@ -376,8 +376,9 @@ func NewPod(namespace string, name string) *corev1.Pod {
 					},
 				},
 				{
-					Name:  "busybox",
-					Image: "busybox:1.36.0",
+					Name:    "busybox",
+					Image:   "busybox:1.36.0",
+					Command: []string{"sleep", "3600"},
 					Ports: []corev1.ContainerPort{
 						{
 							Name:          "web",

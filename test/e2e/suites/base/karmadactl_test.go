@@ -608,7 +608,7 @@ var _ = ginkgo.Describe("Karmadactl top testing", func() {
 			// wait for pod and metrics ready
 			framework.WaitPodPresentOnClustersFitWith(framework.ClusterNames(), pod.Namespace, pod.Name,
 				func(pod *corev1.Pod) bool {
-					return pod.Status.Phase == corev1.PodRunning
+					return khelper.IsPodReady(pod)
 				})
 			for _, cluster := range framework.ClusterNames() {
 				framework.WaitPodMetricsReady(kubeClient, karmadaClient, cluster, pod.Namespace, pod.Name)
