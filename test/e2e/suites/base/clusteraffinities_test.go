@@ -29,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/utils/ptr"
 
+	appsv1alpha1 "github.com/karmada-io/karmada/pkg/apis/apps/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -99,6 +100,93 @@ var _ = ginkgo.Describe("[ClusterAffinities] propagation testing", func() {
 
 				// 3. wait for deployment present on member2 cluster
 				framework.WaitDeploymentPresentOnClusterFitWith(member2, deployment.Namespace, deployment.Name, func(*appsv1.Deployment) bool { return true })
+			})
+
+			ginkgo.It("reschedule from the first cluster affinity", func() {
+				bindingName := names.GenerateBindingName(util.DeploymentKind, deployment.Name)
+				bindingFits := func(cluster, affinityName string) func(*workv1alpha2.ResourceBinding) bool {
+					return func(binding *workv1alpha2.ResourceBinding) bool {
+						return len(binding.Spec.Clusters) == 1 &&
+							binding.Spec.Clusters[0].Name == cluster &&
+							binding.Status.SchedulerObservedAffinityName == affinityName &&
+							binding.Status.SchedulerObservedGeneration == binding.Generation
+					}
+				}
+				waitForClockAfter := func(timestamp metav1.Time) {
+					gomega.Eventually(func() bool {
+						return metav1.Now().Rfc3339Copy().Time.After(timestamp.Time)
+					}, pollTimeout, pollInterval).Should(gomega.BeTrue())
+				}
+
+				framework.WaitDeploymentPresentOnClusterFitWith(member1, deployment.Namespace, deployment.Name, func(*appsv1.Deployment) bool { return true })
+				var group1ScheduledAt metav1.Time
+				framework.WaitResourceBindingFitWith(karmadaClient, deployment.Namespace, bindingName, func(binding *workv1alpha2.ResourceBinding) bool {
+					if bindingFits(member1, "group1")(binding) && binding.Status.LastScheduledTime != nil {
+						group1ScheduledAt = *binding.Status.LastScheduledTime
+						return true
+					}
+					return false
+				})
+
+				waitForClockAfter(group1ScheduledAt)
+				framework.UpdateClusterLabels(karmadaClient, member1, map[string]string{member1LabelKey: "not-ok"})
+				framework.WaitDeploymentDisappearOnCluster(member1, deployment.Namespace, deployment.Name)
+				framework.WaitDeploymentPresentOnClusterFitWith(member2, deployment.Namespace, deployment.Name, func(*appsv1.Deployment) bool { return true })
+
+				var group2ScheduledAt metav1.Time
+				framework.WaitResourceBindingFitWith(karmadaClient, deployment.Namespace, bindingName, func(binding *workv1alpha2.ResourceBinding) bool {
+					if bindingFits(member2, "group2")(binding) &&
+						binding.Status.LastScheduledTime != nil &&
+						binding.Status.LastScheduledTime.After(group1ScheduledAt.Time) {
+						group2ScheduledAt = *binding.Status.LastScheduledTime
+						return true
+					}
+					return false
+				})
+
+				// metav1.Time is persisted at second precision, so cross a clock tick before each causal timestamp.
+				waitForClockAfter(group2ScheduledAt)
+				// Synchronize the scheduler's cluster cache after restoring group1 without relying on a fixed delay.
+				framework.UpdateClusterLabels(karmadaClient, member1, map[string]string{member1LabelKey: "ok"})
+				syncLabelKey := fmt.Sprintf("%s-sync-%s", member2, rand.String(RandomStrLength))
+				framework.UpdateClusterLabels(karmadaClient, member2, map[string]string{syncLabelKey: "ok"})
+				ginkgo.DeferCleanup(func() {
+					framework.DeleteClusterLabels(karmadaClient, member2, map[string]string{syncLabelKey: ""})
+				})
+				framework.WaitResourceBindingFitWith(karmadaClient, deployment.Namespace, bindingName, func(binding *workv1alpha2.ResourceBinding) bool {
+					if bindingFits(member2, "group2")(binding) &&
+						binding.Status.LastScheduledTime != nil &&
+						binding.Status.LastScheduledTime.After(group2ScheduledAt.Time) {
+						group2ScheduledAt = *binding.Status.LastScheduledTime
+						return true
+					}
+					return false
+				})
+				waitForClockAfter(group2ScheduledAt)
+
+				workload := appsv1alpha1.ObjectReference{
+					APIVersion: deployment.APIVersion,
+					Kind:       deployment.Kind,
+					Namespace:  deployment.Namespace,
+					Name:       deployment.Name,
+				}
+				rebalancer := testhelper.NewWorkloadRebalancer(workloadRebalancerPrefix+rand.String(RandomStrLength), []appsv1alpha1.ObjectReference{workload})
+				framework.CreateWorkloadRebalancer(karmadaClient, rebalancer)
+				ginkgo.DeferCleanup(func() {
+					framework.RemoveWorkloadRebalancer(karmadaClient, rebalancer.Name)
+				})
+				framework.WaitRebalancerObservedWorkloads(karmadaClient, rebalancer.Name, []appsv1alpha1.ObservedWorkload{
+					{Workload: workload, Result: appsv1alpha1.RebalanceSuccessful},
+				})
+
+				framework.WaitResourceBindingFitWith(karmadaClient, deployment.Namespace, bindingName, func(binding *workv1alpha2.ResourceBinding) bool {
+					return bindingFits(member1, "group1")(binding) &&
+						binding.Spec.RescheduleTriggeredAt != nil &&
+						binding.Status.LastScheduledTime != nil &&
+						bindingHasRescheduled(binding.Spec, binding.Status, rebalancer.CreationTimestamp)
+				})
+				framework.WaitDeploymentPresentOnClusterFitWith(member1, deployment.Namespace, deployment.Name, func(*appsv1.Deployment) bool { return true })
+				framework.WaitDeploymentDisappearOnCluster(member2, deployment.Namespace, deployment.Name)
 			})
 		})
 
