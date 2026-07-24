@@ -536,13 +536,14 @@ func TestScheduleResourceBindingWithClusterAffinity(t *testing.T) {
 
 func TestScheduleResourceBindingWithClusterAffinities(t *testing.T) {
 	tests := []struct {
-		name            string
-		binding         *workv1alpha2.ResourceBinding
-		scheduleResults []core.ScheduleResult
-		scheduleErrors  []error
-		expectError     bool
-		expectedPatches []string
-		expectedEvent   string
+		name                  string
+		binding               *workv1alpha2.ResourceBinding
+		scheduleResults       []core.ScheduleResult
+		scheduleErrors        []error
+		expectError           bool
+		expectedPatches       []string
+		expectedEvent         string
+		expectedAffinityCalls []string
 	}{
 		{
 			name: "successful scheduling with first affinity",
@@ -584,6 +585,98 @@ func TestScheduleResourceBindingWithClusterAffinities(t *testing.T) {
 				`{"status":{"schedulerObservingAffinityName":"affinity1"}}`,
 			},
 			expectedEvent: fmt.Sprintf("Normal ScheduleBindingSucceed %s Result: {cluster1:1}", successfulSchedulingMessage),
+		},
+		{
+			name: "explicit rescheduling restarts from first affinity",
+			binding: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-binding-reschedule",
+					Namespace: "default",
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					RescheduleTriggeredAt: &metav1.Time{Time: time.Unix(2, 0)},
+					Placement: &policyv1alpha1.Placement{
+						ClusterAffinities: []policyv1alpha1.ClusterAffinityTerm{
+							{
+								AffinityName: "affinity1",
+								ClusterAffinity: policyv1alpha1.ClusterAffinity{
+									ClusterNames: []string{"cluster1"},
+								},
+							},
+							{
+								AffinityName: "affinity2",
+								ClusterAffinity: policyv1alpha1.ClusterAffinity{
+									ClusterNames: []string{"cluster2"},
+								},
+							},
+						},
+					},
+				},
+				Status: workv1alpha2.ResourceBindingStatus{
+					LastScheduledTime:             &metav1.Time{Time: time.Unix(1, 0)},
+					SchedulerObservedAffinityName: "affinity2",
+				},
+			},
+			scheduleResults: []core.ScheduleResult{
+				{
+					SuggestedClusters: []workv1alpha2.TargetCluster{
+						{Name: "cluster1", Replicas: 1},
+					},
+				},
+			},
+			scheduleErrors: []error{nil},
+			expectError:    false,
+			expectedPatches: []string{
+				`{"metadata":{"annotations":{"policy.karmada.io/applied-placement":"{\"clusterAffinities\":[{\"affinityName\":\"affinity1\",\"clusterNames\":[\"cluster1\"]},{\"affinityName\":\"affinity2\",\"clusterNames\":[\"cluster2\"]}]}"}},"spec":{"clusters":[{"name":"cluster1","replicas":1}]}}`,
+				`{"status":{"schedulerObservingAffinityName":"affinity1"}}`,
+			},
+			expectedEvent:         fmt.Sprintf("Normal ScheduleBindingSucceed %s Result: {cluster1:1}", successfulSchedulingMessage),
+			expectedAffinityCalls: []string{"affinity1"},
+		},
+		{
+			name: "without explicit rescheduling resumes from observed affinity",
+			binding: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-binding-resume",
+					Namespace: "default",
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Placement: &policyv1alpha1.Placement{
+						ClusterAffinities: []policyv1alpha1.ClusterAffinityTerm{
+							{
+								AffinityName: "affinity1",
+								ClusterAffinity: policyv1alpha1.ClusterAffinity{
+									ClusterNames: []string{"cluster1"},
+								},
+							},
+							{
+								AffinityName: "affinity2",
+								ClusterAffinity: policyv1alpha1.ClusterAffinity{
+									ClusterNames: []string{"cluster2"},
+								},
+							},
+						},
+					},
+				},
+				Status: workv1alpha2.ResourceBindingStatus{
+					SchedulerObservedAffinityName: "affinity2",
+				},
+			},
+			scheduleResults: []core.ScheduleResult{
+				{},
+				{
+					SuggestedClusters: []workv1alpha2.TargetCluster{
+						{Name: "cluster2", Replicas: 1},
+					},
+				},
+			},
+			scheduleErrors: []error{nil, nil},
+			expectError:    false,
+			expectedPatches: []string{
+				`{"metadata":{"annotations":{"policy.karmada.io/applied-placement":"{\"clusterAffinities\":[{\"affinityName\":\"affinity1\",\"clusterNames\":[\"cluster1\"]},{\"affinityName\":\"affinity2\",\"clusterNames\":[\"cluster2\"]}]}"}},"spec":{"clusters":[{"name":"cluster2","replicas":1}]}}`,
+			},
+			expectedEvent:         fmt.Sprintf("Normal ScheduleBindingSucceed %s Result: {cluster2:1}", successfulSchedulingMessage),
+			expectedAffinityCalls: []string{"affinity2"},
 		},
 		{
 			name: "successful scheduling with second affinity",
@@ -665,8 +758,10 @@ func TestScheduleResourceBindingWithClusterAffinities(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			fakeClient := karmadafake.NewClientset(tt.binding)
 			fakeRecorder := record.NewFakeRecorder(10)
+			var affinityCalls []string
 			mockAlgorithm := &mockAlgorithm{
 				scheduleFunc: func(_ context.Context, spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus, _ *core.ScheduleAlgorithmOption) (core.ScheduleResult, error) {
+					affinityCalls = append(affinityCalls, status.SchedulerObservedAffinityName)
 					index := getAffinityIndex(spec.Placement.ClusterAffinities, status.SchedulerObservedAffinityName)
 					if index < len(tt.scheduleResults) {
 						return tt.scheduleResults[index], tt.scheduleErrors[index]
@@ -684,6 +779,9 @@ func TestScheduleResourceBindingWithClusterAffinities(t *testing.T) {
 
 			if (err != nil) != tt.expectError {
 				t.Errorf("scheduleResourceBindingWithClusterAffinities() error = %v, expectError %v", err, tt.expectError)
+			}
+			if tt.expectedAffinityCalls != nil {
+				assert.Equal(t, tt.expectedAffinityCalls, affinityCalls, "Schedule affinity calls do not match expected")
 			}
 
 			actions := fakeClient.Actions()
@@ -1108,12 +1206,13 @@ func TestScheduleClusterResourceBindingWithClusterAffinity(t *testing.T) {
 
 func TestScheduleClusterResourceBindingWithClusterAffinities(t *testing.T) {
 	tests := []struct {
-		name            string
-		binding         *workv1alpha2.ClusterResourceBinding
-		scheduleResults []core.ScheduleResult
-		scheduleErrors  []error
-		expectError     bool
-		expectedEvent   string
+		name                  string
+		binding               *workv1alpha2.ClusterResourceBinding
+		scheduleResults       []core.ScheduleResult
+		scheduleErrors        []error
+		expectError           bool
+		expectedEvent         string
+		expectedAffinityCalls []string
 	}{
 		{
 			name: "successful scheduling with first affinity",
@@ -1150,6 +1249,89 @@ func TestScheduleClusterResourceBindingWithClusterAffinities(t *testing.T) {
 			scheduleErrors: []error{nil},
 			expectError:    false,
 			expectedEvent:  fmt.Sprintf("Normal ScheduleBindingSucceed %s Result {cluster1:1}", successfulSchedulingMessage),
+		},
+		{
+			name: "explicit rescheduling restarts from first affinity",
+			binding: &workv1alpha2.ClusterResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-cluster-binding-reschedule",
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					RescheduleTriggeredAt: &metav1.Time{Time: time.Unix(2, 0)},
+					Placement: &policyv1alpha1.Placement{
+						ClusterAffinities: []policyv1alpha1.ClusterAffinityTerm{
+							{
+								AffinityName: "affinity1",
+								ClusterAffinity: policyv1alpha1.ClusterAffinity{
+									ClusterNames: []string{"cluster1"},
+								},
+							},
+							{
+								AffinityName: "affinity2",
+								ClusterAffinity: policyv1alpha1.ClusterAffinity{
+									ClusterNames: []string{"cluster2"},
+								},
+							},
+						},
+					},
+				},
+				Status: workv1alpha2.ResourceBindingStatus{
+					LastScheduledTime:             &metav1.Time{Time: time.Unix(1, 0)},
+					SchedulerObservedAffinityName: "affinity2",
+				},
+			},
+			scheduleResults: []core.ScheduleResult{
+				{
+					SuggestedClusters: []workv1alpha2.TargetCluster{
+						{Name: "cluster1", Replicas: 1},
+					},
+				},
+			},
+			scheduleErrors:        []error{nil},
+			expectError:           false,
+			expectedEvent:         fmt.Sprintf("Normal ScheduleBindingSucceed %s Result {cluster1:1}", successfulSchedulingMessage),
+			expectedAffinityCalls: []string{"affinity1"},
+		},
+		{
+			name: "without explicit rescheduling resumes from observed affinity",
+			binding: &workv1alpha2.ClusterResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-cluster-binding-resume",
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Placement: &policyv1alpha1.Placement{
+						ClusterAffinities: []policyv1alpha1.ClusterAffinityTerm{
+							{
+								AffinityName: "affinity1",
+								ClusterAffinity: policyv1alpha1.ClusterAffinity{
+									ClusterNames: []string{"cluster1"},
+								},
+							},
+							{
+								AffinityName: "affinity2",
+								ClusterAffinity: policyv1alpha1.ClusterAffinity{
+									ClusterNames: []string{"cluster2"},
+								},
+							},
+						},
+					},
+				},
+				Status: workv1alpha2.ResourceBindingStatus{
+					SchedulerObservedAffinityName: "affinity2",
+				},
+			},
+			scheduleResults: []core.ScheduleResult{
+				{},
+				{
+					SuggestedClusters: []workv1alpha2.TargetCluster{
+						{Name: "cluster2", Replicas: 1},
+					},
+				},
+			},
+			scheduleErrors:        []error{nil, nil},
+			expectError:           false,
+			expectedEvent:         fmt.Sprintf("Normal ScheduleBindingSucceed %s Result {cluster2:1}", successfulSchedulingMessage),
+			expectedAffinityCalls: []string{"affinity2"},
 		},
 		{
 			name: "successful scheduling with second affinity",
@@ -1224,8 +1406,10 @@ func TestScheduleClusterResourceBindingWithClusterAffinities(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			fakeClient := karmadafake.NewClientset(tt.binding)
 			fakeRecorder := record.NewFakeRecorder(10)
+			var affinityCalls []string
 			mockAlgorithm := &mockAlgorithm{
 				scheduleFunc: func(_ context.Context, spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus, _ *core.ScheduleAlgorithmOption) (core.ScheduleResult, error) {
+					affinityCalls = append(affinityCalls, status.SchedulerObservedAffinityName)
 					index := getAffinityIndex(spec.Placement.ClusterAffinities, status.SchedulerObservedAffinityName)
 					if index < len(tt.scheduleResults) {
 						return tt.scheduleResults[index], tt.scheduleErrors[index]
@@ -1243,6 +1427,9 @@ func TestScheduleClusterResourceBindingWithClusterAffinities(t *testing.T) {
 
 			if (err != nil) != tt.expectError {
 				t.Errorf("scheduleClusterResourceBindingWithClusterAffinities() error = %v, expectError %v", err, tt.expectError)
+			}
+			if tt.expectedAffinityCalls != nil {
+				assert.Equal(t, tt.expectedAffinityCalls, affinityCalls, "Schedule affinity calls do not match expected")
 			}
 
 			// Check if an event was recorded
