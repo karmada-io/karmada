@@ -88,7 +88,8 @@ func installKarmadaAPIServer(client clientset.Interface, cfg *operatorv1alpha1.K
 		WithPriorityClassName(cfg.CommonSettings.PriorityClassName).
 		WithExtraArgs(cfg.ExtraArgs).WithExtraVolumeMounts(cfg.ExtraVolumeMounts).
 		WithExtraVolumes(cfg.ExtraVolumes).WithSidecarContainers(cfg.SidecarContainers).WithResources(cfg.Resources).
-		WithTolerations(cfg.CommonSettings.Tolerations).WithAffinity(cfg.CommonSettings.Affinity).ForDeployment(apiserverDeployment)
+		WithTolerations(cfg.CommonSettings.Tolerations).WithAffinity(cfg.CommonSettings.Affinity).
+		WithSchedulingGates(cfg.CommonSettings.SchedulingGates).ForDeployment(apiserverDeployment)
 
 	if apiserverDeployment, err = apiclient.CreateOrUpdateDeployment(client, apiserverDeployment); err != nil {
 		return fmt.Errorf("error when creating deployment for %s, err: %w", apiserverDeployment.Name, err)
@@ -166,7 +167,8 @@ func installKarmadaAggregatedAPIServer(client clientset.Interface, cfg *operator
 	patcher.NewPatcher().WithAnnotations(cfg.Annotations).WithLabels(cfg.Labels).
 		WithPriorityClassName(cfg.CommonSettings.PriorityClassName).
 		WithExtraArgs(cfg.ExtraArgs).WithFeatureGates(featureGates).WithResources(cfg.Resources).
-		WithTolerations(cfg.CommonSettings.Tolerations).WithAffinity(cfg.CommonSettings.Affinity).ForDeployment(aggregatedAPIServerDeployment)
+		WithTolerations(cfg.CommonSettings.Tolerations).WithAffinity(cfg.CommonSettings.Affinity).
+		WithSchedulingGates(cfg.CommonSettings.SchedulingGates).ForDeployment(aggregatedAPIServerDeployment)
 
 	if aggregatedAPIServerDeployment, err = apiclient.CreateOrUpdateDeployment(client, aggregatedAPIServerDeployment); err != nil {
 		return fmt.Errorf("error when creating deployment for %s, err: %w", aggregatedAPIServerDeployment.Name, err)

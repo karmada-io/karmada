@@ -699,6 +699,12 @@ type CommonSettings struct {
 	// Affinity to apply to the pods for this component.
 	// +optional
 	Affinity *corev1.Affinity `json:"affinity,omitempty"`
+
+	// SchedulingGates to apply to the pods for this component.
+	// SchedulingGates can be used to delay Pod scheduling until certain conditions are met.
+	// This field is only available on Kubernetes v1.26+.
+	// +optional
+	SchedulingGates []corev1.PodSchedulingGate `json:"schedulingGates,omitempty"`
 }
 
 // Image allows to customize the image used for components.

@@ -272,6 +272,10 @@ type CommonSettings struct {
 	// +optional
 	Affinity *corev1.Affinity `json:"affinity,omitempty" yaml:"affinity,omitempty"`
 
+	// SchedulingGates defines pod scheduling gates to delay scheduling
+	// +optional
+	SchedulingGates []corev1.PodSchedulingGate `json:"schedulingGates,omitempty" yaml:"schedulingGates,omitempty"`
+
 	// ExtraArgs are additional command line for the Component pods.
 	// An argument name in this list is the flag name as it appears on the command line except without
 	// leading dash(es). Extra arguments will override existing default arguments. Duplicate extra arguments are allowed.
