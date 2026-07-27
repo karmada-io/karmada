@@ -23,7 +23,7 @@ jobs:
           - amd64
           - arm64
     steps:
-    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - name: Set up Go
       uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
       with:
@@ -84,7 +84,7 @@ jobs:
       hashes: ${{ steps.hash.outputs.hashes }}
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - name: Rename the crds directory
       run: |
         mv ./charts/karmada/_crds ./charts/karmada/crds
@@ -121,7 +121,7 @@ jobs:
       hashes: ${{ steps.hash.outputs.hashes }}
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - name: Making helm charts
       env:
         VERSION: ${{ github.ref_name }}
@@ -160,7 +160,7 @@ jobs:
       hashes: ${{ steps.sbom-hash.outputs.hashes}}
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - name: Generate sbom for karmada file system
       uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
       with:
@@ -215,7 +215,7 @@ jobs:
         echo "Got the latest tag:$LATEST_TAG"
         echo "event.tag:"${{ github.event.release.tag_name }}
         echo "latestTag=$LATEST_TAG" >> "$GITHUB_OUTPUT"
-    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       if: steps.get-latest-tag.outputs.latestTag == github.event.release.tag_name
     - name: Update new version in krew-index
       if: steps.get-latest-tag.outputs.latestTag == github.event.release.tag_name
