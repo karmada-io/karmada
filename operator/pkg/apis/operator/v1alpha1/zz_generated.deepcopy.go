@@ -111,6 +111,11 @@ func (in *CommonSettings) DeepCopyInto(out *CommonSettings) {
 		*out = new(v1.Affinity)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.SchedulingGates != nil {
+		in, out := &in.SchedulingGates, &out.SchedulingGates
+		*out = make([]v1.PodSchedulingGate, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

@@ -255,6 +255,63 @@ func TestPatchForDeployment(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "PatchForDeployment_WithSchedulingGates_Patched",
+			patcher: &Patcher{
+				schedulingGates: []corev1.PodSchedulingGate{
+					{
+						Name: "example.com/scheduling-gate",
+					},
+				},
+			},
+			deployment: &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-deployment",
+					Namespace: "test",
+				},
+				Spec: appsv1.DeploymentSpec{
+					Template: corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{
+									Name:  "test-container",
+									Image: "nginx:latest",
+								},
+							},
+						},
+					},
+				},
+			},
+			want: &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "test-deployment",
+					Namespace:   "test",
+					Labels:      map[string]string{},
+					Annotations: map[string]string{},
+				},
+				Spec: appsv1.DeploymentSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels:      map[string]string{},
+							Annotations: map[string]string{},
+						},
+						Spec: corev1.PodSpec{
+							SchedulingGates: []corev1.PodSchedulingGate{
+								{
+									Name: "example.com/scheduling-gate",
+								},
+							},
+							Containers: []corev1.Container{
+								{
+									Name:  "test-container",
+									Image: "nginx:latest",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -502,6 +559,64 @@ func TestPatchForStatefulSet(t *testing.T) {
 											corev1.ResourceMemory: resource.MustParse("128Mi"),
 										},
 									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "PatchForStatefulSet_WithSchedulingGates_Patched",
+			patcher: &Patcher{
+				schedulingGates: []corev1.PodSchedulingGate{
+					{
+						Name: "example.com/scheduling-gate",
+					},
+				},
+			},
+			statefulSet: &appsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-statefulset",
+					Namespace: "test",
+				},
+				Spec: appsv1.StatefulSetSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{},
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{
+									Name:  "test-container",
+									Image: "nginx:latest",
+								},
+							},
+						},
+					},
+				},
+			},
+			want: &appsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "test-statefulset",
+					Namespace:   "test",
+					Labels:      map[string]string{},
+					Annotations: map[string]string{},
+				},
+				Spec: appsv1.StatefulSetSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels:      map[string]string{},
+							Annotations: map[string]string{},
+						},
+						Spec: corev1.PodSpec{
+							SchedulingGates: []corev1.PodSchedulingGate{
+								{
+									Name: "example.com/scheduling-gate",
+								},
+							},
+							Containers: []corev1.Container{
+								{
+									Name:  "test-container",
+									Image: "nginx:latest",
 								},
 							},
 						},

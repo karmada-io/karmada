@@ -163,6 +163,16 @@ func (b *KarmadaAggregatedAPIServerApplyConfiguration) WithAffinity(value *corev
 	return b
 }
 
+// WithSchedulingGates adds the given value to the SchedulingGates field in the declarative configuration
+// and returns the receiver, so that objects can be build by chaining "With" function invocations.
+// If called multiple times, values provided by each call will be appended to the SchedulingGates field.
+func (b *KarmadaAggregatedAPIServerApplyConfiguration) WithSchedulingGates(values ...v1.PodSchedulingGate) *KarmadaAggregatedAPIServerApplyConfiguration {
+	for i := range values {
+		b.CommonSettingsApplyConfiguration.SchedulingGates = append(b.CommonSettingsApplyConfiguration.SchedulingGates, values[i])
+	}
+	return b
+}
+
 // WithExtraArgs puts the entries into the ExtraArgs field in the declarative configuration
 // and returns the receiver, so that objects can be build by chaining "With" function invocations.
 // If called multiple times, the entries provided by each call will be put on the ExtraArgs field,

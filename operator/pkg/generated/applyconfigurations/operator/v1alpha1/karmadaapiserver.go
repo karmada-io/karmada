@@ -199,6 +199,16 @@ func (b *KarmadaAPIServerApplyConfiguration) WithAffinity(value *corev1.Affinity
 	return b
 }
 
+// WithSchedulingGates adds the given value to the SchedulingGates field in the declarative configuration
+// and returns the receiver, so that objects can be build by chaining "With" function invocations.
+// If called multiple times, values provided by each call will be appended to the SchedulingGates field.
+func (b *KarmadaAPIServerApplyConfiguration) WithSchedulingGates(values ...v1.PodSchedulingGate) *KarmadaAPIServerApplyConfiguration {
+	for i := range values {
+		b.CommonSettingsApplyConfiguration.SchedulingGates = append(b.CommonSettingsApplyConfiguration.SchedulingGates, values[i])
+	}
+	return b
+}
+
 // WithServiceSubnet sets the ServiceSubnet field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the ServiceSubnet field is set to the value of the last call.

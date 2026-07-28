@@ -150,6 +150,16 @@ func (b *LocalEtcdApplyConfiguration) WithAffinity(value *corev1.AffinityApplyCo
 	return b
 }
 
+// WithSchedulingGates adds the given value to the SchedulingGates field in the declarative configuration
+// and returns the receiver, so that objects can be build by chaining "With" function invocations.
+// If called multiple times, values provided by each call will be appended to the SchedulingGates field.
+func (b *LocalEtcdApplyConfiguration) WithSchedulingGates(values ...v1.PodSchedulingGate) *LocalEtcdApplyConfiguration {
+	for i := range values {
+		b.CommonSettingsApplyConfiguration.SchedulingGates = append(b.CommonSettingsApplyConfiguration.SchedulingGates, values[i])
+	}
+	return b
+}
+
 // WithVolumeData sets the VolumeData field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the VolumeData field is set to the value of the last call.

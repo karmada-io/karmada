@@ -59,6 +59,10 @@ type CommonSettingsApplyConfiguration struct {
 	Tolerations []corev1.TolerationApplyConfiguration `json:"tolerations,omitempty"`
 	// Affinity to apply to the pods for this component.
 	Affinity *corev1.AffinityApplyConfiguration `json:"affinity,omitempty"`
+	// SchedulingGates to apply to the pods for this component.
+	// SchedulingGates can be used to delay Pod scheduling until certain conditions are met.
+	// PodSchedulingGate is GA since Kubernetes v1.30 (earlier versions may require PodSchedulingReadiness).
+	SchedulingGates []v1.PodSchedulingGate `json:"schedulingGates,omitempty"`
 }
 
 // CommonSettingsApplyConfiguration constructs a declarative configuration of the CommonSettings type for use with
@@ -169,5 +173,15 @@ func (b *CommonSettingsApplyConfiguration) WithTolerations(values ...*corev1.Tol
 // If called multiple times, the Affinity field is set to the value of the last call.
 func (b *CommonSettingsApplyConfiguration) WithAffinity(value *corev1.AffinityApplyConfiguration) *CommonSettingsApplyConfiguration {
 	b.Affinity = value
+	return b
+}
+
+// WithSchedulingGates adds the given value to the SchedulingGates field in the declarative configuration
+// and returns the receiver, so that objects can be build by chaining "With" function invocations.
+// If called multiple times, values provided by each call will be appended to the SchedulingGates field.
+func (b *CommonSettingsApplyConfiguration) WithSchedulingGates(values ...v1.PodSchedulingGate) *CommonSettingsApplyConfiguration {
+	for i := range values {
+		b.SchedulingGates = append(b.SchedulingGates, values[i])
+	}
 	return b
 }

@@ -176,6 +176,16 @@ func (b *KarmadaControllerManagerApplyConfiguration) WithAffinity(value *corev1.
 	return b
 }
 
+// WithSchedulingGates adds the given value to the SchedulingGates field in the declarative configuration
+// and returns the receiver, so that objects can be build by chaining "With" function invocations.
+// If called multiple times, values provided by each call will be appended to the SchedulingGates field.
+func (b *KarmadaControllerManagerApplyConfiguration) WithSchedulingGates(values ...v1.PodSchedulingGate) *KarmadaControllerManagerApplyConfiguration {
+	for i := range values {
+		b.CommonSettingsApplyConfiguration.SchedulingGates = append(b.CommonSettingsApplyConfiguration.SchedulingGates, values[i])
+	}
+	return b
+}
+
 // WithControllers adds the given value to the Controllers field in the declarative configuration
 // and returns the receiver, so that objects can be build by chaining "With" function invocations.
 // If called multiple times, values provided by each call will be appended to the Controllers field.

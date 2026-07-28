@@ -702,7 +702,7 @@ type CommonSettings struct {
 
 	// SchedulingGates to apply to the pods for this component.
 	// SchedulingGates can be used to delay Pod scheduling until certain conditions are met.
-	// This field is only available on Kubernetes v1.26+.
+	// PodSchedulingGate is GA since Kubernetes v1.30 (earlier versions may require PodSchedulingReadiness).
 	// +optional
 	SchedulingGates []corev1.PodSchedulingGate `json:"schedulingGates,omitempty"`
 }

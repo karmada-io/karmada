@@ -1165,6 +1165,24 @@ spec:
                                   More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                 type: object
                             type: object
+                          schedulingGates:
+                            description: |-
+                              SchedulingGates to apply to the pods for this component.
+                              SchedulingGates can be used to delay Pod scheduling until certain conditions are met.
+                              PodSchedulingGate is GA since Kubernetes v1.30 (earlier versions may require PodSchedulingReadiness).
+                            items:
+                              description: PodSchedulingGate is associated to a Pod
+                                to guard its scheduling.
+                              properties:
+                                name:
+                                  description: |-
+                                    Name of the scheduling gate.
+                                    Each scheduling gate must have a unique name field.
+                                  type: string
+                              required:
+                              - name
+                              type: object
+                            type: array
                           serverCertSANs:
                             description: ServerCertSANs sets extra Subject Alternative
                               Names for the etcd server signing cert.
@@ -4625,6 +4643,24 @@ spec:
                               More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                             type: object
                         type: object
+                      schedulingGates:
+                        description: |-
+                          SchedulingGates to apply to the pods for this component.
+                          SchedulingGates can be used to delay Pod scheduling until certain conditions are met.
+                          PodSchedulingGate is GA since Kubernetes v1.30 (earlier versions may require PodSchedulingReadiness).
+                        items:
+                          description: PodSchedulingGate is associated to a Pod to
+                            guard its scheduling.
+                          properties:
+                            name:
+                              description: |-
+                                Name of the scheduling gate.
+                                Each scheduling gate must have a unique name field.
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
                       serviceAnnotations:
                         additionalProperties:
                           type: string
@@ -7325,6 +7361,24 @@ spec:
                               More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                             type: object
                         type: object
+                      schedulingGates:
+                        description: |-
+                          SchedulingGates to apply to the pods for this component.
+                          SchedulingGates can be used to delay Pod scheduling until certain conditions are met.
+                          PodSchedulingGate is GA since Kubernetes v1.30 (earlier versions may require PodSchedulingReadiness).
+                        items:
+                          description: PodSchedulingGate is associated to a Pod to
+                            guard its scheduling.
+                          properties:
+                            name:
+                              description: |-
+                                Name of the scheduling gate.
+                                Each scheduling gate must have a unique name field.
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
                       tolerations:
                         description: Tolerations to apply to the pods for this component.
                         items:
@@ -8475,6 +8529,24 @@ spec:
                               More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                             type: object
                         type: object
+                      schedulingGates:
+                        description: |-
+                          SchedulingGates to apply to the pods for this component.
+                          SchedulingGates can be used to delay Pod scheduling until certain conditions are met.
+                          PodSchedulingGate is GA since Kubernetes v1.30 (earlier versions may require PodSchedulingReadiness).
+                        items:
+                          description: PodSchedulingGate is associated to a Pod to
+                            guard its scheduling.
+                          properties:
+                            name:
+                              description: |-
+                                Name of the scheduling gate.
+                                Each scheduling gate must have a unique name field.
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
                       tolerations:
                         description: Tolerations to apply to the pods for this component.
                         items:
@@ -9598,6 +9670,24 @@ spec:
                               More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                             type: object
                         type: object
+                      schedulingGates:
+                        description: |-
+                          SchedulingGates to apply to the pods for this component.
+                          SchedulingGates can be used to delay Pod scheduling until certain conditions are met.
+                          PodSchedulingGate is GA since Kubernetes v1.30 (earlier versions may require PodSchedulingReadiness).
+                        items:
+                          description: PodSchedulingGate is associated to a Pod to
+                            guard its scheduling.
+                          properties:
+                            name:
+                              description: |-
+                                Name of the scheduling gate.
+                                Each scheduling gate must have a unique name field.
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
                       tolerations:
                         description: Tolerations to apply to the pods for this component.
                         items:
@@ -10721,6 +10811,24 @@ spec:
                               More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                             type: object
                         type: object
+                      schedulingGates:
+                        description: |-
+                          SchedulingGates to apply to the pods for this component.
+                          SchedulingGates can be used to delay Pod scheduling until certain conditions are met.
+                          PodSchedulingGate is GA since Kubernetes v1.30 (earlier versions may require PodSchedulingReadiness).
+                        items:
+                          description: PodSchedulingGate is associated to a Pod to
+                            guard its scheduling.
+                          properties:
+                            name:
+                              description: |-
+                                Name of the scheduling gate.
+                                Each scheduling gate must have a unique name field.
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
                       tolerations:
                         description: Tolerations to apply to the pods for this component.
                         items:
@@ -11852,6 +11960,24 @@ spec:
                               More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                             type: object
                         type: object
+                      schedulingGates:
+                        description: |-
+                          SchedulingGates to apply to the pods for this component.
+                          SchedulingGates can be used to delay Pod scheduling until certain conditions are met.
+                          PodSchedulingGate is GA since Kubernetes v1.30 (earlier versions may require PodSchedulingReadiness).
+                        items:
+                          description: PodSchedulingGate is associated to a Pod to
+                            guard its scheduling.
+                          properties:
+                            name:
+                              description: |-
+                                Name of the scheduling gate.
+                                Each scheduling gate must have a unique name field.
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
                       tolerations:
                         description: Tolerations to apply to the pods for this component.
                         items:
@@ -12975,6 +13101,24 @@ spec:
                               More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                             type: object
                         type: object
+                      schedulingGates:
+                        description: |-
+                          SchedulingGates to apply to the pods for this component.
+                          SchedulingGates can be used to delay Pod scheduling until certain conditions are met.
+                          PodSchedulingGate is GA since Kubernetes v1.30 (earlier versions may require PodSchedulingReadiness).
+                        items:
+                          description: PodSchedulingGate is associated to a Pod to
+                            guard its scheduling.
+                          properties:
+                            name:
+                              description: |-
+                                Name of the scheduling gate.
+                                Each scheduling gate must have a unique name field.
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
                       tolerations:
                         description: Tolerations to apply to the pods for this component.
                         items:
@@ -14098,6 +14242,24 @@ spec:
                               More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                             type: object
                         type: object
+                      schedulingGates:
+                        description: |-
+                          SchedulingGates to apply to the pods for this component.
+                          SchedulingGates can be used to delay Pod scheduling until certain conditions are met.
+                          PodSchedulingGate is GA since Kubernetes v1.30 (earlier versions may require PodSchedulingReadiness).
+                        items:
+                          description: PodSchedulingGate is associated to a Pod to
+                            guard its scheduling.
+                          properties:
+                            name:
+                              description: |-
+                                Name of the scheduling gate.
+                                Each scheduling gate must have a unique name field.
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
                       tolerations:
                         description: Tolerations to apply to the pods for this component.
                         items:
@@ -15267,6 +15429,24 @@ spec:
                               More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                             type: object
                         type: object
+                      schedulingGates:
+                        description: |-
+                          SchedulingGates to apply to the pods for this component.
+                          SchedulingGates can be used to delay Pod scheduling until certain conditions are met.
+                          PodSchedulingGate is GA since Kubernetes v1.30 (earlier versions may require PodSchedulingReadiness).
+                        items:
+                          description: PodSchedulingGate is associated to a Pod to
+                            guard its scheduling.
+                          properties:
+                            name:
+                              description: |-
+                                Name of the scheduling gate.
+                                Each scheduling gate must have a unique name field.
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
                       tolerations:
                         description: Tolerations to apply to the pods for this component.
                         items:
