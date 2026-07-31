@@ -2,12 +2,18 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [v1.17.4](#v1174)
-  - [Downloads for v1.17.4](#downloads-for-v1174)
-  - [Changelog since v1.17.3](#changelog-since-v1173)
+- [v1.17.5](#v1175)
+  - [Downloads for v1.17.5](#downloads-for-v1175)
+  - [Changelog since v1.17.4](#changelog-since-v1174)
     - [Changes by Kind](#changes-by-kind)
       - [Bug Fixes](#bug-fixes)
       - [Others](#others)
+- [v1.17.4](#v1174)
+  - [Downloads for v1.17.4](#downloads-for-v1174)
+  - [Changelog since v1.17.3](#changelog-since-v1173)
+    - [Changes by Kind](#changes-by-kind-1)
+      - [Bug Fixes](#bug-fixes-1)
+      - [Others](#others-1)
 - [v1.17.3](#v1173)
   - [Downloads for v1.17.3](#downloads-for-v1173)
   - [Changelog since v1.17.2](#changelog-since-v1172)
@@ -108,6 +114,22 @@
     - [Performance](#performance-4)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.17.5
+## Downloads for v1.17.5
+
+Download v1.17.5 in the [v1.17.5 release page](https://github.com/karmada-io/karmada/releases/tag/v1.17.5).
+
+## Changelog since v1.17.4
+
+### Changes by Kind
+
+#### Bug Fixes
+- `karmada-controller-manager`: Fixed an issue where the taint-manager eviction queue would enqueue bindings with indefinite taint tolerations. ([#7773](https://github.com/karmada-io/karmada/pull/7773), @karmada-bot)
+- `karmada-controller-manager`: Fixed an issue where `Cluster.status.remedyActions` could remain stale after an associated `Remedy` resource was removed. ([#7789](https://github.com/karmada-io/karmada/pull/7789), @karmada-bot)
+
+#### Others
+None.
 
 # v1.17.4
 ## Downloads for v1.17.4
