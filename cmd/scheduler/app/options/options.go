@@ -104,6 +104,10 @@ type Options struct {
 
 	// RateLimiterOpts contains the options for rate limiter.
 	RateLimiterOpts ratelimiterflag.Options
+
+	// BindingUpdateDebounce delays scheduling after a ResourceBinding spec
+	// update so that updates arriving close together are handled in one pass.
+	BindingUpdateDebounce metav1.Duration
 }
 
 // NewOptions builds an default scheduler options.
@@ -164,6 +168,12 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 		fmt.Sprintf("A list of plugins to enable. '*' enables all build-in and customized plugins, 'foo' enables the plugin named 'foo', '*,-foo' disables the plugin named 'foo'.\nAll build-in plugins: %s.", strings.Join(frameworkplugins.NewInTreeRegistry().FactoryNames(), ",")))
 	fs.StringVar(&o.SchedulerName, "scheduler-name", scheduler.DefaultScheduler, "SchedulerName represents the name of the scheduler. default is 'default-scheduler'.")
 	features.FeatureGate.AddFlag(fs)
+	fs.DurationVar(&o.BindingUpdateDebounce.Duration, "binding-update-debounce", 0,
+		"Wait this long after a ResourceBinding spec update before scheduling it, so that "+
+			"updates arriving close together are collapsed into a single scheduling pass. "+
+			"Useful when a GitOps tool applies the workload and its PropagationPolicy in "+
+			"separate requests, which can otherwise expose a transient mismatch between "+
+			"replica count and placement. 0 disables the delay.")
 	o.ProfileOpts.AddFlags(fs)
 	o.RateLimiterOpts.AddFlags(fs)
 }
