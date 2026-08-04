@@ -853,7 +853,7 @@ func setupControllers(ctx context.Context, mgr controllerruntime.Manager, opts *
 		return
 	}
 
-	controlPlaneInformerManager := genericmanager.NewSingleClusterInformerManager(ctx, dynamicClientSet, opts.ResyncPeriod.Duration)
+	controlPlaneInformerManager := genericmanager.NewSingleClusterInformerManager(ctx, dynamicClientSet, opts.ResyncPeriod.Duration, fedinformer.StripUnusedFields)
 	// We need a service lister to build a resource interpreter with `ClusterIPServiceResolver`
 	// witch allows connection to the customized interpreter webhook without a cluster DNS service.
 	sharedFactory := informers.NewSharedInformerFactory(kubeClientSet, opts.ResyncPeriod.Duration)
@@ -969,7 +969,7 @@ func setupClusterAPIClusterDetector(ctx context.Context, mgr controllerruntime.M
 		ControllerPlaneConfig: mgr.GetConfig(),
 		ClusterAPIConfig:      clusterAPIRestConfig,
 		ClusterAPIClient:      clusterAPIClient,
-		InformerManager:       genericmanager.NewSingleClusterInformerManager(ctx, dynamic.NewForConfigOrDie(clusterAPIRestConfig), 0),
+		InformerManager:       genericmanager.NewSingleClusterInformerManager(ctx, dynamic.NewForConfigOrDie(clusterAPIRestConfig), 0, fedinformer.StripUnusedFields),
 		ConcurrentReconciles:  3,
 	}
 	if err := mgr.Add(clusterAPIClusterDetector); err != nil {

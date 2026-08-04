@@ -49,6 +49,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/default/native"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
@@ -766,7 +767,7 @@ func newWorkStatusController(cluster *clusterv1alpha1.Cluster, dynamicClientSets
 		// Generate ResourceInterpreter and ObjectWatcher
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		m := genericmanager.NewMultiClusterInformerManager(ctx)
+		m := genericmanager.NewMultiClusterInformerManager(ctx, fedinformer.StripUnusedFields)
 		m.ForCluster(clusterName, dynamicClientSet, 0).Lister(corev1.SchemeGroupVersion.WithResource("pods")) // register pod informer
 		m.Start(clusterName)
 		m.WaitForCacheSync(clusterName)
@@ -816,7 +817,7 @@ func TestWorkStatusController_getSingleClusterManager(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := newWorkStatusController(cluster)
-			m := genericmanager.NewMultiClusterInformerManager(ctx)
+			m := genericmanager.NewMultiClusterInformerManager(ctx, fedinformer.StripUnusedFields)
 			if tt.rightClusterName {
 				m.ForCluster(clusterName, dynamicClientSet, 0).Lister(corev1.SchemeGroupVersion.WithResource("pods"))
 			} else {
@@ -1014,7 +1015,7 @@ func TestWorkStatusController_registerInformersAndStart(t *testing.T) {
 	work := testhelper.NewWork("work", "default", workUID, raw)
 
 	t.Run("normal case", func(t *testing.T) {
-		m := genericmanager.NewMultiClusterInformerManager(ctx)
+		m := genericmanager.NewMultiClusterInformerManager(ctx, fedinformer.StripUnusedFields)
 		m.ForCluster(clusterName, dynamicClientSet, 0).Lister(corev1.SchemeGroupVersion.WithResource("pods")) // register pod informer
 		m.Start(clusterName)
 		m.WaitForCacheSync(clusterName)
@@ -1026,7 +1027,7 @@ func TestWorkStatusController_registerInformersAndStart(t *testing.T) {
 
 	t.Run("failed to getSingleClusterManager", func(t *testing.T) {
 		c := newWorkStatusController(cluster)
-		m := genericmanager.NewMultiClusterInformerManager(ctx)
+		m := genericmanager.NewMultiClusterInformerManager(ctx, fedinformer.StripUnusedFields)
 		m.ForCluster("test", dynamicClientSet, 0).Lister(corev1.SchemeGroupVersion.WithResource("pods")) // register pod informer
 		m.Start(clusterName)
 		m.WaitForCacheSync(clusterName)
@@ -1040,7 +1041,7 @@ func TestWorkStatusController_registerInformersAndStart(t *testing.T) {
 	t.Run("failed to getGVRsFromWork", func(t *testing.T) {
 		work.Spec.Workload.Manifests[0].RawExtension.Raw = []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"pod","namespace":"default"}},`)
 
-		m := genericmanager.NewMultiClusterInformerManager(ctx)
+		m := genericmanager.NewMultiClusterInformerManager(ctx, fedinformer.StripUnusedFields)
 		m.ForCluster(clusterName, dynamicClientSet, 0).Lister(corev1.SchemeGroupVersion.WithResource("pods")) // register pod informer
 		m.Start(clusterName)
 		m.WaitForCacheSync(clusterName)
