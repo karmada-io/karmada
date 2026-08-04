@@ -281,31 +281,6 @@ type SuspendClusters struct {
 type PurgeMode string
 
 const (
-	// Immediately represents that Karmada will immediately evict the legacy
-	// application. This is useful in scenarios where an application can not
-	// tolerate two instances running simultaneously.
-	// For example, the Flink application supports exactly-once state consistency,
-	// which means it requires that no two instances of the application are running
-	// at the same time. During a failover, it is crucial to ensure that the old
-	// application is removed before creating a new one to avoid duplicate
-	// processing and maintaining state consistency.
-	//
-	// Deprecated: The term `Immediately` may be confusing when used alongside
-	// `GracePeriodSeconds`, which specifies that resources are removed after
-	// a grace period rather than at once.
-	// `Immediately` is replaced by `Directly` for clarity. This term remains
-	// functional in the current API version for backward compatibility and will
-	// be removed when PropagationPolicy advances to alpha2 or beta.
-	Immediately PurgeMode = "Immediately"
-	// Graciously represents that Karmada will wait for the application to
-	// come back to healthy on the new cluster or after a timeout is reached
-	// before evicting the application.
-	//
-	// Deprecated: The term `Graciously` is replaced by `Gracefully` for correct
-	// English usage. This term remains functional in the current API version for
-	// backward compatibility and will be removed when PropagationPolicy advances
-	// to alpha2 or beta.
-	Graciously PurgeMode = "Graciously"
 	// Never represents that Karmada will not evict the application and
 	// users manually confirms how to clean up redundant copies.
 	Never PurgeMode = "Never"
@@ -356,17 +331,16 @@ type ApplicationFailoverBehavior struct {
 
 	// PurgeMode represents how to deal with the legacy applications on the
 	// cluster from which the application is migrated.
-	// Valid options are "Directly", "Gracefully", "Never", "Immediately"(deprecated),
-	// and "Graciously"(deprecated).
+	// Valid options are "Directly", "Gracefully", "Never".
 	// Defaults to "Gracefully".
-	// +kubebuilder:validation:Enum=Directly;Gracefully;Never;Immediately;Graciously
+	// +kubebuilder:validation:Enum=Directly;Gracefully;Never
 	// +kubebuilder:default=Gracefully
 	// +optional
 	PurgeMode PurgeMode `json:"purgeMode,omitempty"`
 
 	// GracePeriodSeconds is the maximum waiting duration in seconds before
 	// application on the migrated cluster should be deleted.
-	// Required only when PurgeMode is "Graciously" and defaults to 600s.
+	// Required only when PurgeMode is "Gracefully" and defaults to 600s.
 	// If the application on the new cluster cannot reach a Healthy state,
 	// Karmada will delete the application after GracePeriodSeconds is reached.
 	// Value must be positive integer.

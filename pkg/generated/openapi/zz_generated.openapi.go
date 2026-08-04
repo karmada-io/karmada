@@ -3560,14 +3560,14 @@ func schema_pkg_apis_policy_v1alpha1_ApplicationFailoverBehavior(ref common.Refe
 					},
 					"purgeMode": {
 						SchemaProps: spec.SchemaProps{
-							Description: "PurgeMode represents how to deal with the legacy applications on the cluster from which the application is migrated. Valid options are \"Directly\", \"Gracefully\", \"Never\", \"Immediately\"(deprecated), and \"Graciously\"(deprecated). Defaults to \"Gracefully\".",
+							Description: "PurgeMode represents how to deal with the legacy applications on the cluster from which the application is migrated. Valid options are \"Directly\", \"Gracefully\", \"Never\". Defaults to \"Gracefully\".",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"gracePeriodSeconds": {
 						SchemaProps: spec.SchemaProps{
-							Description: "GracePeriodSeconds is the maximum waiting duration in seconds before application on the migrated cluster should be deleted. Required only when PurgeMode is \"Graciously\" and defaults to 600s. If the application on the new cluster cannot reach a Healthy state, Karmada will delete the application after GracePeriodSeconds is reached. Value must be positive integer.",
+							Description: "GracePeriodSeconds is the maximum waiting duration in seconds before application on the migrated cluster should be deleted. Required only when PurgeMode is \"Gracefully\" and defaults to 600s. If the application on the new cluster cannot reach a Healthy state, Karmada will delete the application after GracePeriodSeconds is reached. Value must be positive integer.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -7455,7 +7455,7 @@ func schema_pkg_apis_work_v1alpha2_GracefulEvictionTask(ref common.ReferenceCall
 					},
 					"purgeMode": {
 						SchemaProps: spec.SchemaProps{
-							Description: "PurgeMode represents how to deal with the legacy applications on the cluster from which the application is migrated. Valid options are \"Immediately\", \"Directly\", \"Graciously\", \"Gracefully\" and \"Never\".",
+							Description: "PurgeMode represents how to deal with the legacy applications on the cluster from which the application is migrated. Valid options are \"Directly\", \"Gracefully\" and \"Never\".",
 							Type:        []string{"string"},
 							Format:      "",
 						},

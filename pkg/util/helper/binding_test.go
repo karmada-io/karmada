@@ -529,7 +529,7 @@ func TestObtainBindingSpecExistingClusters(t *testing.T) {
 			want: sets.New("member1", "member2", "member3"),
 		},
 		{
-			name: "unique cluster names with GracefulEvictionTasks with PurgeMode Immediately",
+			name: "unique cluster names with GracefulEvictionTasks with PurgeMode Directly",
 			bindingSpec: workv1alpha2.ResourceBindingSpec{
 				Clusters: []workv1alpha2.TargetCluster{
 					{
