@@ -27,12 +27,37 @@ import (
 )
 
 // ActiveQueue defines the interface of activeQ related operations.
+// It is a priority work queue for bindings waiting to be scheduled:
+// bindings are popped in priority order, duplicates are ignored, and
+// the same binding is never processed by two workers at the same time.
 type ActiveQueue interface {
+	// Push adds a binding to the queue, marking it as needing processing.
+	// Pushing a binding that is already queued is a no-op. Pushing a binding
+	// that is being processed only marks it dirty, so it will be re-queued
+	// automatically when Done is called.
 	Push(bindingInfo *QueuedBindingInfo)
+
+	// Pop blocks until a binding is available, then returns the one with the
+	// highest priority. It returns shutdown = true if the queue is shutting
+	// down and the caller should exit. The caller must call Done with the
+	// returned binding after finishing processing it.
 	Pop() (*QueuedBindingInfo, bool)
+
+	// Len returns the number of bindings currently waiting in the queue,
+	// for informational purposes only (e.g. metrics or logging).
 	Len() int
+
+	// Done tells the queue that processing of the binding has finished.
+	// If the binding was pushed again while being processed, it will be
+	// re-added to the queue for re-processing.
 	Done(bindingInfo *QueuedBindingInfo)
+
+	// Has returns true if the binding is marked as needing processing,
+	// i.e. it is waiting in the queue, or it was updated while being processed.
 	Has(key string) bool
+
+	// ShutDown shuts down the queue: new Push calls are ignored, and blocked
+	// Pop callers return immediately with shutdown = true.
 	ShutDown()
 }
 
@@ -48,28 +73,47 @@ func NewActiveQueue(metricRecorder metrics.MetricRecorder) ActiveQueue {
 	return q
 }
 
-// activequeue is a priority work queue, which implements a ActiveQueue.
+// activequeue implements ActiveQueue. It is a priority work queue: bindings
+// are popped in priority order (highest first) instead of FIFO order.
+// Besides ordering, it gives three guarantees:
+//   - No duplicates: the same binding is never queued twice (dirtyBindings).
+//   - No concurrent processing: the same binding is never handled by two
+//     workers at the same time (processingBindings).
+//   - No lost updates: a binding pushed while being processed will be
+//     re-queued exactly once after Done() is called.
 type activequeue struct {
-	// activeBindings defines the order in which we will work on items. Every
-	// element of queue should be in the dirtyBindings set and not in the
-	// processing set.
+	// activeBindings is a priority heap that holds bindings waiting to be
+	// scheduled, ordered by priority. Pop() always returns the binding with
+	// the highest priority. Every element in this heap must also be in the
+	// dirtyBindings set, and must not be in the processingBindings set.
 	activeBindings *heap.Heap[*QueuedBindingInfo]
 
-	// dirtyBindings defines all of the items that need to be processed.
+	// dirtyBindings marks all bindings that need to be processed. It is used
+	// for deduplication: pushing a binding that is already dirty is a no-op,
+	// so the same binding never shows up in the queue twice. It also remembers
+	// bindings that got updated while being processed, so they can be re-queued
+	// once Done() is called.
 	dirtyBindings sets.Set[string]
 
-	// Things that are currently being processed are in the processingBindings set.
-	// These things may be simultaneously in the dirtyBindings set. When we finish
-	// processingBindings something and remove it from this set, we'll check if
-	// it's in the dirtyBindings set, and if so, add it to the queue.
+	// processingBindings holds bindings that are currently being processed by
+	// scheduler workers. It prevents the same binding from being scheduled by
+	// two workers at the same time: while a binding is in this set, a new Push()
+	// only marks it dirty instead of adding it to the heap. When Done() removes
+	// a binding from this set, it is re-added to the heap if it is still dirty.
 	processingBindings sets.Set[string]
 
+	// cond protects all fields above and is used to wake up Pop() callers
+	// that are blocked waiting for a binding to arrive.
 	cond *sync.Cond
 
+	// shuttingDown, when true, makes Push() a no-op and causes blocked Pop()
+	// callers to return with shutdown = true.
 	shuttingDown bool
 }
 
-// Push marks item as needing processing.
+// Push marks the binding as needing processing. If the binding is already
+// queued (dirty), this is a no-op. If the binding is currently being
+// processed, it is only marked dirty and will be re-queued by Done().
 func (q *activequeue) Push(bindingInfo *QueuedBindingInfo) {
 	q.cond.L.Lock()
 	defer q.cond.L.Unlock()
@@ -152,7 +196,7 @@ func (q *activequeue) ShutDown() {
 	q.cond.Broadcast()
 }
 
-// Has inform if bindingInfo exists in the queue.
+// Has tells if binding exists in the queue.
 func (q *activequeue) Has(key string) bool {
 	q.cond.L.Lock()
 	defer q.cond.L.Unlock()
