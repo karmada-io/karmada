@@ -2,6 +2,7 @@ reviewers:
 - a7i
 - chaosi-zju
 - calvin0327
+- jabellard
 - jrkeen
 - pidb
 - Poor12
@@ -10,6 +11,7 @@ reviewers:
 approvers:
 - a7i
 - chaosi-zju
+- jabellard
 - pidb
 - Poor12
 - seanlaii
