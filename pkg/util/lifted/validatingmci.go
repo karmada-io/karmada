@@ -297,13 +297,26 @@ func validateTLSSecretName(name string) []string {
 }
 
 // +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/networking/validation/validation.go#L357-L377
+// +lifted:changed
 
-// ValidateIngressLoadBalancerStatus validates required fields on an IngressLoadBalancerStatus
-func ValidateIngressLoadBalancerStatus(status *networkingv1.IngressLoadBalancerStatus, fldPath *field.Path) field.ErrorList {
+// ValidateIngressLoadBalancerStatus validates required fields on an IngressLoadBalancerStatus.
+// An address that is already present in oldStatus is tolerated, so that an object which
+// already holds an invalid address can still be updated. See kubernetes/kubernetes@ad22c0d4.
+func ValidateIngressLoadBalancerStatus(status, oldStatus *networkingv1.IngressLoadBalancerStatus, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
+
+	existingIngressIPs := sets.New[string]()
+	if oldStatus != nil {
+		for _, ingress := range oldStatus.Ingress {
+			if len(ingress.IP) > 0 {
+				existingIngressIPs.Insert(ingress.IP)
+			}
+		}
+	}
+
 	for i, ingress := range status.Ingress {
 		idxPath := fldPath.Child("ingress").Index(i)
-		if len(ingress.IP) > 0 {
+		if len(ingress.IP) > 0 && !existingIngressIPs.Has(ingress.IP) {
 			if isIP := netutils.ParseIPSloppy(ingress.IP) != nil; !isIP {
 				allErrs = append(allErrs, field.Invalid(idxPath.Child("ip"), ingress.IP, "must be a valid IP address"))
 			}
