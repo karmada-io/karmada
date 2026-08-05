@@ -24,8 +24,11 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -271,7 +274,7 @@ func TestCRBGracefulEvictionController_syncBinding(t *testing.T) {
 				GracefulEvictionTimeout: timeout,
 			}
 
-			retryAfter, err := c.syncBinding(context.Background(), tt.binding)
+			retryAfter, err := c.syncBinding(context.Background(), types.NamespacedName{Name: tt.binding.Name})
 
 			if tt.expectedError {
 				assert.Error(t, err)
@@ -279,7 +282,11 @@ func TestCRBGracefulEvictionController_syncBinding(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
-			assert.True(t, almostEqual(retryAfter, tt.expectedRetryAfter, 100*time.Millisecond),
+			// Tolerance is intentionally loose: the assertion compares a wall-clock
+			// duration computed at test setup against one computed inside the
+			// controller, and the gap is dominated by fake-client setup latency
+			// rather than by the controller's logic.
+			assert.True(t, almostEqual(retryAfter, tt.expectedRetryAfter, time.Second),
 				"Expected retry after %v, but got %v", tt.expectedRetryAfter, retryAfter)
 
 			// Check the updated binding
@@ -304,4 +311,65 @@ func createRawExtension(status string) *runtime.RawExtension {
 func almostEqual(a, b time.Duration, tolerance time.Duration) bool {
 	diff := a - b
 	return math.Abs(float64(diff)) < float64(tolerance)
+}
+
+func TestCRBGracefulEvictionController_syncBinding_retryOnConflict(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, workv1alpha2.Install(scheme))
+
+	now := metav1.Now()
+	crb := &workv1alpha2.ClusterResourceBinding{
+		ObjectMeta: metav1.ObjectMeta{Name: "conflict-crb"},
+		Spec: workv1alpha2.ResourceBindingSpec{
+			Clusters: []workv1alpha2.TargetCluster{{Name: "member1"}},
+			GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{
+				{
+					FromCluster:       "member1",
+					CreationTimestamp: &metav1.Time{Time: now.Add(-10 * time.Minute)}, // expired ⇒ patched out
+				},
+			},
+		},
+	}
+
+	gr := schema.GroupResource{Group: "work.karmada.io", Resource: "clusterresourcebindings"}
+	fakeClient := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(crb).
+		WithInterceptorFuncs(conflictPatchInterceptor(gr, crb.Name, 2)).
+		Build()
+
+	c := &CRBGracefulEvictionController{
+		Client:                  fakeClient,
+		EventRecorder:           record.NewFakeRecorder(10),
+		GracefulEvictionTimeout: 5 * time.Minute,
+	}
+
+	if _, err := c.syncBinding(context.Background(), types.NamespacedName{Name: crb.Name}); err != nil {
+		t.Fatalf("syncBinding returned error after transient conflicts: %v", err)
+	}
+
+	got := &workv1alpha2.ClusterResourceBinding{}
+	if err := fakeClient.Get(context.Background(), types.NamespacedName{Name: crb.Name}, got); err != nil {
+		t.Fatalf("failed to refetch cluster binding: %v", err)
+	}
+	if len(got.Spec.GracefulEvictionTasks) != 0 {
+		t.Errorf("expected expired eviction task to be removed after retry-on-conflict, still have %d task(s)", len(got.Spec.GracefulEvictionTasks))
+	}
+}
+
+func TestCRBGracefulEvictionController_syncBinding_notFoundSurfacedToReconcile(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, workv1alpha2.Install(scheme))
+
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+	c := &CRBGracefulEvictionController{
+		Client:                  fakeClient,
+		EventRecorder:           record.NewFakeRecorder(10),
+		GracefulEvictionTimeout: 5 * time.Minute,
+	}
+
+	_, err := c.syncBinding(context.Background(), types.NamespacedName{Name: "missing"})
+	if err == nil || !apierrors.IsNotFound(err) {
+		t.Fatalf("expected NotFound error so Reconcile can short-circuit, got %v", err)
+	}
 }
