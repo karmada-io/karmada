@@ -42,6 +42,8 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 )
 
+const completionRequestTimeout = 5 * time.Second
+
 var factory util.Factory
 
 type timeoutRESTClientGetter struct {
@@ -270,35 +272,55 @@ func compGetResourceList(restClientGetter genericclioptions.RESTClientGetter, cm
 	o.PrintFlags.OutputFormat = new("name")
 	o.Cached = true
 	o.Verbs = []string{"get"}
-	restClientGetter = &timeoutRESTClientGetter{RESTClientGetter: restClientGetter, timeout: 5 * time.Second}
 
-	if err := o.Complete(restClientGetter, cmd, nil); err != nil {
-		return nil
-	}
+	// Use a context with timeout to prevent indefinite waiting during shell completion
+	ctx, cancel := context.WithTimeout(context.Background(), completionRequestTimeout)
+	defer cancel()
 
-	// Ignore errors as the output may still be valid
-	if err := o.RunAPIResources(); err != nil {
-		return nil
-	}
+	// Run the completion operations with timeout protection
+	resultChan := make(chan []string, 1)
+	errorChan := make(chan error, 1)
 
-	// Resources can be a comma-separated list.  The last element is then
-	// the one we should complete.  For example if toComplete=="pods,secre"
-	// we should return "pods,secrets"
-	prefix := ""
-	suffix := toComplete
-	lastIdx := strings.LastIndex(toComplete, ",")
-	if lastIdx != -1 {
-		prefix = toComplete[0 : lastIdx+1]
-		suffix = toComplete[lastIdx+1:]
-	}
-	var comps []string
-	resources := strings.SplitSeq(buf.String(), "\n")
-	for res := range resources {
-		if res != "" && strings.HasPrefix(res, suffix) {
-			comps = append(comps, fmt.Sprintf("%s%s", prefix, res))
+	go func() {
+		if err := o.Complete(restClientGetter, cmd, nil); err != nil {
+			errorChan <- err
+			return
 		}
+
+		// Ignore errors as the output may still be valid
+		_ = o.RunAPIResources()
+
+		// Resources can be a comma-separated list.  The last element is then
+		// the one we should complete.  For example if toComplete=="pods,secre"
+		// we should return "pods,secrets"
+		prefix := ""
+		suffix := toComplete
+		lastIdx := strings.LastIndex(toComplete, ",")
+		if lastIdx != -1 {
+			prefix = toComplete[0 : lastIdx+1]
+			suffix = toComplete[lastIdx+1:]
+		}
+		var comps []string
+		resources := strings.SplitSeq(buf.String(), "\n")
+		for res := range resources {
+			if res != "" && strings.HasPrefix(res, suffix) {
+				comps = append(comps, fmt.Sprintf("%s%s", prefix, res))
+			}
+		}
+		resultChan <- comps
+	}()
+
+	// Wait for either completion or timeout
+	select {
+	case comps := <-resultChan:
+		return comps
+	case <-errorChan:
+		// Error occurred, return nil to fail gracefully during completion
+		return nil
+	case <-ctx.Done():
+		// Timeout occurred, return empty completion list to prevent shell hang
+		return nil
 	}
-	return comps
 }
 
 // resourceTypeAndNameCompletionFunc Returns a completion function that completes resource types
