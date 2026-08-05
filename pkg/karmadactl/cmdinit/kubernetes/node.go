@@ -30,6 +30,29 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 )
 
+var defaultEtcdTolerations = []corev1.Toleration{
+	{
+		Key:      "node-role.kubernetes.io/master",
+		Operator: corev1.TolerationOpExists,
+		Effect:   corev1.TaintEffectNoSchedule,
+	},
+	{
+		Key:      "node-role.kubernetes.io/master",
+		Operator: corev1.TolerationOpExists,
+		Effect:   corev1.TaintEffectNoExecute,
+	},
+	{
+		Key:      "node-role.kubernetes.io/control-plane",
+		Operator: corev1.TolerationOpExists,
+		Effect:   corev1.TaintEffectNoSchedule,
+	},
+	{
+		Key:      "node-role.kubernetes.io/control-plane",
+		Operator: corev1.TolerationOpExists,
+		Effect:   corev1.TaintEffectNoExecute,
+	},
+}
+
 func (i *CommandInitOption) getKarmadaAPIServerIP() error {
 	if i.KarmadaAPIServerAdvertiseAddress != "" {
 		i.KarmadaAPIServerIP = append(i.KarmadaAPIServerIP, utils.StringToNetIP(i.KarmadaAPIServerAdvertiseAddress))
@@ -105,6 +128,35 @@ func nodeStatus(nodeConditions []corev1.NodeCondition) bool {
 	return true
 }
 
+func tolerationToleratesTaint(toleration corev1.Toleration, taint corev1.Taint) bool {
+	if toleration.Operator != corev1.TolerationOpExists {
+		return false
+	}
+	if toleration.Key != "" && toleration.Key != taint.Key {
+		return false
+	}
+	if toleration.Effect != "" && toleration.Effect != taint.Effect {
+		return false
+	}
+	return true
+}
+
+func tolerationsTolerateTaints(tolerations []corev1.Toleration, taints []corev1.Taint) bool {
+	for _, taint := range taints {
+		tolerated := false
+		for _, toleration := range tolerations {
+			if tolerationToleratesTaint(toleration, taint) {
+				tolerated = true
+				break
+			}
+		}
+		if !tolerated {
+			return false
+		}
+	}
+	return true
+}
+
 // AddNodeSelectorLabels When EtcdStorageMode is hostPath, and EtcdNodeSelectorLabels is empty.
 // Select a healthy node to add labels, and schedule etcd to that node
 func (i *CommandInitOption) AddNodeSelectorLabels() error {
@@ -116,7 +168,7 @@ func (i *CommandInitOption) AddNodeSelectorLabels() error {
 	var etcdNodeName string
 	var etcdSelectorLabels map[string]string
 	for _, v := range nodes.Items {
-		if v.Spec.Taints != nil {
+		if !tolerationsTolerateTaints(defaultEtcdTolerations, v.Spec.Taints) {
 			continue
 		}
 
