@@ -153,9 +153,6 @@ var _ = framework.SerialDescribe("push-mode token rotation", func() {
 		ginkgo.By("3. force watch reconnection (docker restart member node)", func() {
 			containerName := targetCluster + "-control-plane"
 			klog.Infof("restarting kind container %s to force watch reconnection", containerName)
-
-			// Restart the container, not `kubectl delete pod`: the API server is a static pod, so
-			// only a container restart drops the watch connection.
 			cmd := kindexec.Command("docker", "restart", containerName)
 			output, err := kindexec.CombinedOutputLines(cmd)
 			if err != nil {
