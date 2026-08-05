@@ -78,9 +78,11 @@ func (i *CommandInitOption) getKarmadaAPIServerIP() error {
 
 // nodeStatus Check the node status, if it is an unhealthy node, return false.
 func nodeStatus(nodeConditions []corev1.NodeCondition) bool {
+	hasReady := false
 	for _, v := range nodeConditions {
 		switch v.Type {
 		case corev1.NodeReady:
+			hasReady = true
 			if v.Status != corev1.ConditionTrue {
 				return false
 			}
@@ -102,7 +104,7 @@ func nodeStatus(nodeConditions []corev1.NodeCondition) bool {
 			}
 		}
 	}
-	return true
+	return hasReady
 }
 
 // AddNodeSelectorLabels When EtcdStorageMode is hostPath, and EtcdNodeSelectorLabels is empty.
