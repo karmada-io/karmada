@@ -33,6 +33,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 )
@@ -128,7 +129,7 @@ func Test_interpreterConfigManager_LuaScriptAccessors(t *testing.T) {
 			defer cancel()
 
 			client := fake.NewSimpleDynamicClient(gclient.NewSchema(), tt.args.customizations...)
-			informer := genericmanager.NewSingleClusterInformerManager(ctx, client, 0)
+			informer := genericmanager.NewSingleClusterInformerManager(ctx, client, 0, fedinformer.StripUnusedFields)
 			configManager := NewInterpreterConfigManager(informer)
 
 			informer.Start()

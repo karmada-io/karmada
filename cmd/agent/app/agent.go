@@ -262,7 +262,7 @@ func run(ctx context.Context, opts *options.Options) error {
 func setupControllers(ctx context.Context, mgr controllerruntime.Manager, opts *options.Options) error {
 	restConfig := mgr.GetConfig()
 	dynamicClientSet := dynamic.NewForConfigOrDie(restConfig)
-	controlPlaneInformerManager := genericmanager.NewSingleClusterInformerManager(ctx, dynamicClientSet, 0)
+	controlPlaneInformerManager := genericmanager.NewSingleClusterInformerManager(ctx, dynamicClientSet, 0, fedinformer.StripUnusedFields)
 	controlPlaneKubeClientSet := kubeclientset.NewForConfigOrDie(restConfig)
 
 	// We need a service lister to build a resource interpreter with `ClusterIPServiceResolver`

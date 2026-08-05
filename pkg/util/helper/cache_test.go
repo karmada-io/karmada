@@ -29,6 +29,7 @@ import (
 	"k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/scheme"
 
+	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 )
@@ -50,7 +51,7 @@ func TestGetObjectFromCache(t *testing.T) {
 			args: args{
 				restMapper: meta.NewDefaultRESTMapper(nil),
 				manager: func(ctx context.Context) genericmanager.MultiClusterInformerManager {
-					return genericmanager.NewMultiClusterInformerManager(ctx)
+					return genericmanager.NewMultiClusterInformerManager(ctx, fedinformer.StripUnusedFields)
 				},
 				fedKey: keys.FederatedKey{Cluster: "cluster", ClusterWideKey: keys.ClusterWideKey{
 					Version: "v1", Kind: "Pod", Namespace: "default", Name: "pod",
@@ -68,7 +69,7 @@ func TestGetObjectFromCache(t *testing.T) {
 					return m
 				}(),
 				manager: func(ctx context.Context) genericmanager.MultiClusterInformerManager {
-					return genericmanager.NewMultiClusterInformerManager(ctx)
+					return genericmanager.NewMultiClusterInformerManager(ctx, fedinformer.StripUnusedFields)
 				},
 				fedKey: keys.FederatedKey{Cluster: "cluster", ClusterWideKey: keys.ClusterWideKey{
 					Version: "v1", Kind: "Pod", Namespace: "default", Name: "pod",
@@ -86,7 +87,7 @@ func TestGetObjectFromCache(t *testing.T) {
 					return m
 				}(),
 				manager: func(ctx context.Context) genericmanager.MultiClusterInformerManager {
-					m := genericmanager.NewMultiClusterInformerManager(ctx)
+					m := genericmanager.NewMultiClusterInformerManager(ctx, fedinformer.StripUnusedFields)
 					m.ForCluster("cluster", fake.NewSimpleDynamicClient(scheme.Scheme), 0)
 					return m
 				},
@@ -106,7 +107,7 @@ func TestGetObjectFromCache(t *testing.T) {
 					return m
 				}(),
 				manager: func(ctx context.Context) genericmanager.MultiClusterInformerManager {
-					m := genericmanager.NewMultiClusterInformerManager(ctx)
+					m := genericmanager.NewMultiClusterInformerManager(ctx, fedinformer.StripUnusedFields)
 					m.ForCluster("cluster", fake.NewSimpleDynamicClient(scheme.Scheme,
 						&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default"}},
 					), 0)
@@ -133,7 +134,7 @@ func TestGetObjectFromCache(t *testing.T) {
 					return m
 				}(),
 				manager: func(ctx context.Context) genericmanager.MultiClusterInformerManager {
-					m := genericmanager.NewMultiClusterInformerManager(ctx)
+					m := genericmanager.NewMultiClusterInformerManager(ctx, fedinformer.StripUnusedFields)
 					m.ForCluster("cluster", fake.NewSimpleDynamicClient(scheme.Scheme), 0).
 						Lister(corev1.SchemeGroupVersion.WithResource("pods")) // register pod informer
 					m.Start("cluster")
@@ -156,7 +157,7 @@ func TestGetObjectFromCache(t *testing.T) {
 					return m
 				}(),
 				manager: func(ctx context.Context) genericmanager.MultiClusterInformerManager {
-					m := genericmanager.NewMultiClusterInformerManager(ctx)
+					m := genericmanager.NewMultiClusterInformerManager(ctx, fedinformer.StripUnusedFields)
 					m.ForCluster("cluster", fake.NewSimpleDynamicClient(scheme.Scheme,
 						&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default"}},
 					), 0).Lister(corev1.SchemeGroupVersion.WithResource("pods")) // register pod informer
@@ -210,7 +211,7 @@ func TestGetObjectFromSingleClusterCache(t *testing.T) {
 			args: args{
 				restMapper: meta.NewDefaultRESTMapper(nil),
 				manager: func(ctx context.Context) genericmanager.SingleClusterInformerManager {
-					return genericmanager.NewSingleClusterInformerManager(ctx, fake.NewSimpleDynamicClient(scheme.Scheme), 0)
+					return genericmanager.NewSingleClusterInformerManager(ctx, fake.NewSimpleDynamicClient(scheme.Scheme), 0, fedinformer.StripUnusedFields)
 				},
 				cwk: &keys.ClusterWideKey{Version: "v1", Kind: "Pod", Namespace: "default", Name: "pod"},
 			},
@@ -226,7 +227,7 @@ func TestGetObjectFromSingleClusterCache(t *testing.T) {
 					return m
 				}(),
 				manager: func(ctx context.Context) genericmanager.SingleClusterInformerManager {
-					return genericmanager.NewSingleClusterInformerManager(ctx, fake.NewSimpleDynamicClient(scheme.Scheme), 0)
+					return genericmanager.NewSingleClusterInformerManager(ctx, fake.NewSimpleDynamicClient(scheme.Scheme), 0, fedinformer.StripUnusedFields)
 				},
 				cwk: &keys.ClusterWideKey{Version: "v1", Kind: "Pod", Namespace: "default", Name: "pod"},
 			},
@@ -243,7 +244,7 @@ func TestGetObjectFromSingleClusterCache(t *testing.T) {
 				}(),
 				manager: func(ctx context.Context) genericmanager.SingleClusterInformerManager {
 					c := fake.NewSimpleDynamicClient(scheme.Scheme, &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default"}})
-					return genericmanager.NewSingleClusterInformerManager(ctx, c, 0)
+					return genericmanager.NewSingleClusterInformerManager(ctx, c, 0, fedinformer.StripUnusedFields)
 				},
 				cwk: &keys.ClusterWideKey{Version: "v1", Kind: "Pod", Namespace: "default", Name: "pod"},
 			},
@@ -264,7 +265,7 @@ func TestGetObjectFromSingleClusterCache(t *testing.T) {
 					return m
 				}(),
 				manager: func(ctx context.Context) genericmanager.SingleClusterInformerManager {
-					m := genericmanager.NewSingleClusterInformerManager(ctx, fake.NewSimpleDynamicClient(scheme.Scheme), 0)
+					m := genericmanager.NewSingleClusterInformerManager(ctx, fake.NewSimpleDynamicClient(scheme.Scheme), 0, fedinformer.StripUnusedFields)
 					m.Lister(corev1.SchemeGroupVersion.WithResource("pods")) // register pod informer
 					m.Start()
 					m.WaitForCacheSync()
@@ -285,7 +286,7 @@ func TestGetObjectFromSingleClusterCache(t *testing.T) {
 				}(),
 				manager: func(ctx context.Context) genericmanager.SingleClusterInformerManager {
 					c := fake.NewSimpleDynamicClient(scheme.Scheme, &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default"}})
-					m := genericmanager.NewSingleClusterInformerManager(ctx, c, 0)
+					m := genericmanager.NewSingleClusterInformerManager(ctx, c, 0, fedinformer.StripUnusedFields)
 					m.Lister(corev1.SchemeGroupVersion.WithResource("pods")) // register pod informer
 					m.Start()
 					m.WaitForCacheSync()
