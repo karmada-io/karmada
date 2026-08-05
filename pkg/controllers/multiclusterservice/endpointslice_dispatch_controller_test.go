@@ -33,6 +33,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -917,4 +918,42 @@ func (f *fakeClient) List(ctx context.Context, list client.ObjectList, opts ...c
 		return f.listError
 	}
 	return f.Client.List(ctx, list, opts...)
+}
+
+func TestWorkPredicateFunc(t *testing.T) {
+	c := &EndpointsliceDispatchController{}
+	predicateFuncs := c.workPredicateFunc()
+
+	providerWork := &workv1alpha1.Work{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: map[string]string{util.MultiClusterServiceNameLabel: "foo"},
+		},
+	}
+	consumerWork := &workv1alpha1.Work{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels:      map[string]string{util.MultiClusterServiceNameLabel: "foo"},
+			Annotations: map[string]string{util.EndpointSliceProvisionClusterAnnotation: "member1"},
+		},
+	}
+	unrelatedWork := &workv1alpha1.Work{ObjectMeta: metav1.ObjectMeta{}}
+
+	t.Run("CreateFunc keeps provider work only", func(t *testing.T) {
+		assert.True(t, predicateFuncs.Create(event.CreateEvent{Object: providerWork}))
+		assert.False(t, predicateFuncs.Create(event.CreateEvent{Object: consumerWork}))
+		assert.False(t, predicateFuncs.Create(event.CreateEvent{Object: unrelatedWork}))
+	})
+
+	t.Run("UpdateFunc keeps provider work only", func(t *testing.T) {
+		assert.True(t, predicateFuncs.Update(event.UpdateEvent{ObjectNew: providerWork}))
+		assert.False(t, predicateFuncs.Update(event.UpdateEvent{ObjectNew: consumerWork}))
+		assert.False(t, predicateFuncs.Update(event.UpdateEvent{ObjectNew: unrelatedWork}))
+	})
+
+	t.Run("DeleteFunc drops all delete events", func(t *testing.T) {
+		assert.False(t, predicateFuncs.Delete(event.DeleteEvent{Object: providerWork}))
+	})
+
+	t.Run("GenericFunc drops all generic events", func(t *testing.T) {
+		assert.False(t, predicateFuncs.Generic(event.GenericEvent{Object: providerWork}))
+	})
 }
