@@ -76,6 +76,10 @@ type SchedulingQueue interface {
 	// Len returns the length of activeQ.
 	Len() int
 
+	// MoveAllToActiveQ moves all bindings from unschedulableBindings directly to activeQ.
+	// Safe to call when unschedulableBindings are empty; it is a no-op in that case.
+	MoveAllToActiveQ()
+
 	// Forget indicates that an item is finished being retried.  Doesn't matter whether it's for perm failing
 	// or for success, we'll remove it from backoffQ, but you still have to call `Done` on the queue.
 	Forget(bindingInfo *QueuedBindingInfo)
@@ -330,6 +334,15 @@ func (bq *prioritySchedulingQueue) Done(bindingInfo *QueuedBindingInfo) {
 
 func (bq *prioritySchedulingQueue) Len() int {
 	return bq.activeQ.Len()
+}
+
+func (bq *prioritySchedulingQueue) MoveAllToActiveQ() {
+	bq.lock.Lock()
+	defer bq.lock.Unlock()
+
+	for _, bInfo := range bq.unschedulableBindings.bindingInfoMap {
+		bq.moveToActiveQ(bInfo)
+	}
 }
 
 func (bq *prioritySchedulingQueue) Forget(bindingInfo *QueuedBindingInfo) {
