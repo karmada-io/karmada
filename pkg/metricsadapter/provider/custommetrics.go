@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 	"sync"
 
@@ -142,7 +143,6 @@ func (c *CustomMetricsProvider) GetMetricBySelector(ctx context.Context, namespa
 		if !ok {
 			break
 		}
-		// TODO(chaunceyjiang) The MetricValue items need to be sorted.
 		for _, metric := range metrics.Items {
 			// metrics is unique in one cluster, but it may exist in multiple clusters.
 			// for this situation, we need to add the value of all clusters.
@@ -155,6 +155,9 @@ func (c *CustomMetricsProvider) GetMetricBySelector(ctx context.Context, namespa
 	for _, metric := range sameMetrics {
 		metricValueList.Items = append(metricValueList.Items, metric)
 	}
+	sort.Slice(metricValueList.Items, func(i, j int) bool {
+		return metricValueList.Items[i].DescribedObject.Name < metricValueList.Items[j].DescribedObject.Name
+	})
 	if len(metricValueList.Items) == 0 {
 		return nil, provider.NewMetricNotFoundError(info.GroupResource, info.Metric)
 	}
