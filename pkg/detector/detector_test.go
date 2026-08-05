@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -1381,4 +1382,83 @@ func (m *mockResourceInterpreter) ReflectStatus(_ *unstructured.Unstructured) (*
 
 func (m *mockResourceInterpreter) InterpretHealth(_ *unstructured.Unstructured) (bool, error) {
 	return true, nil
+}
+
+// TestApplyClusterPolicy_PropagatesFieldUpdates verifies that PropagateDeps and SchedulePriority
+// are correctly synced to an existing ClusterResourceBinding when a ClusterPropagationPolicy is updated.
+// This is a regression test for the bug where these fields were omitted from the CRB mutation function.
+func TestApplyClusterPolicy_PropagatesFieldUpdates(t *testing.T) {
+	scheme := setupTestScheme()
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+	fakeRecorder := record.NewFakeRecorder(10)
+	fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme)
+
+	d := &ResourceDetector{
+		Client:              fakeClient,
+		DynamicClient:       fakeDynamicClient,
+		EventRecorder:       fakeRecorder,
+		ResourceInterpreter: &mockResourceInterpreter{},
+		RESTMapper:          &mockRESTMapper{},
+	}
+
+	// cluster-scoped object (empty namespace → triggers ClusterResourceBinding path)
+	object := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "rbac.authorization.k8s.io/v1",
+			"kind":       "ClusterRole",
+			"metadata": map[string]any{
+				"name": "test-cluster-role",
+				"uid":  "test-uid",
+			},
+		},
+	}
+
+	policy := &policyv1alpha1.ClusterPropagationPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test-policy",
+		},
+		Spec: policyv1alpha1.PropagationSpec{
+			PropagateDeps: false,
+			Placement: policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+					ClusterNames: []string{"member1"},
+				},
+			},
+		},
+	}
+
+	// First call: creates the CRB with PropagateDeps=false.
+	err := d.ApplyClusterPolicy(object, keys.ClusterWideKey{}, false, policy)
+	require.NoError(t, err)
+
+	crbList := &workv1alpha2.ClusterResourceBindingList{}
+	err = fakeClient.List(context.TODO(), crbList)
+	require.NoError(t, err)
+	require.Len(t, crbList.Items, 1, "expected one ClusterResourceBinding after first apply")
+
+	assert.False(t, crbList.Items[0].Spec.PropagateDeps, "initial PropagateDeps should be false")
+	assert.Nil(t, crbList.Items[0].Spec.SchedulePriority, "initial SchedulePriority should be nil")
+
+	// Simulate a SchedulePriority having been written on the CRB by another actor (e.g. an older code path).
+	// The fix ensures this stale value is overwritten on the next policy reconcile.
+	existingCRB := crbList.Items[0].DeepCopy()
+	existingCRB.Spec.SchedulePriority = &workv1alpha2.SchedulePriority{Priority: 999}
+	err = fakeClient.Update(context.TODO(), existingCRB)
+	require.NoError(t, err)
+
+	// Update the policy: flip PropagateDeps to true.
+	policy.Spec.PropagateDeps = true
+
+	// Second call: should update the existing CRB.
+	err = d.ApplyClusterPolicy(object, keys.ClusterWideKey{}, false, policy)
+	require.NoError(t, err)
+
+	crbList = &workv1alpha2.ClusterResourceBindingList{}
+	err = fakeClient.List(context.TODO(), crbList)
+	require.NoError(t, err)
+	require.Len(t, crbList.Items, 1, "expected exactly one ClusterResourceBinding after second apply")
+
+	updatedCRB := crbList.Items[0]
+	assert.True(t, updatedCRB.Spec.PropagateDeps, "PropagateDeps should propagate to true after policy update")
+	assert.Nil(t, updatedCRB.Spec.SchedulePriority, "SchedulePriority should be synced from the newly-built binding (nil when no PriorityClass is configured)")
 }
