@@ -22,6 +22,7 @@ import (
 	"net"
 	"net/url"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	clientset "k8s.io/client-go/kubernetes"
@@ -49,8 +50,11 @@ func formatURL(host, port string) *url.URL {
 // GetAPIServiceIP returns a valid node IP address.
 func GetAPIServiceIP(clientset clientset.Interface) (string, error) {
 	nodes, err := clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
-	if err != nil || len(nodes.Items) == 0 {
-		return "", fmt.Errorf("there are no nodes in cluster, err: %w", err)
+	if err != nil {
+		return "", fmt.Errorf("failed to list nodes, err: %w", err)
+	}
+	if len(nodes.Items) == 0 {
+		return "", fmt.Errorf("there are no nodes in cluster")
 	}
 
 	var (
@@ -63,10 +67,24 @@ func GetAPIServiceIP(clientset clientset.Interface) (string, error) {
 		ls := labels.Set(node.GetLabels())
 
 		if masterLabel.AsSelector().Matches(ls) || controlplaneLabel.AsSelector().Matches(ls) {
-			if ip := netutils.ParseIPSloppy(node.Status.Addresses[0].Address); ip != nil {
-				return ip.String(), nil
+			if ip := getValidNodeIP(node.Status.Addresses); ip != "" {
+				return ip, nil
 			}
 		}
 	}
-	return nodes.Items[0].Status.Addresses[0].Address, nil
+	for _, node := range nodes.Items {
+		if ip := getValidNodeIP(node.Status.Addresses); ip != "" {
+			return ip, nil
+		}
+	}
+	return "", fmt.Errorf("there are no valid node IPs in cluster")
+}
+
+func getValidNodeIP(addresses []corev1.NodeAddress) string {
+	for _, address := range addresses {
+		if ip := netutils.ParseIPSloppy(address.Address); ip != nil {
+			return ip.String()
+		}
+	}
+	return ""
 }
