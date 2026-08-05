@@ -34,6 +34,7 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	searchv1alpha1 "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 var defaultPrefix = "kubernetes"
@@ -164,9 +165,8 @@ func (os *OpenSearch) Close() {}
 
 // TODO: bulk delete
 func (os *OpenSearch) delete(obj any) {
-	us, ok := obj.(*unstructured.Unstructured)
-	if !ok {
-		klog.Errorf("unexpected type %T", obj)
+	us, err := helper.ToUnstructured(obj)
+	if err != nil {
 		return
 	}
 
@@ -191,9 +191,8 @@ func (os *OpenSearch) delete(obj any) {
 
 // TODO: bulk upsert
 func (os *OpenSearch) upsert(obj any) {
-	us, ok := obj.(*unstructured.Unstructured)
-	if !ok {
-		klog.Errorf("unexpected type %T", obj)
+	us, err := helper.ToUnstructured(obj)
+	if err != nil {
 		return
 	}
 

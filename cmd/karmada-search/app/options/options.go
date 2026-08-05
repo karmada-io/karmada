@@ -20,13 +20,18 @@ import (
 	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	genericoptions "k8s.io/apiserver/pkg/server/options"
 	"k8s.io/apiserver/pkg/storage/storagebackend"
+	apiservercompatibility "k8s.io/apiserver/pkg/util/compatibility"
+	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/client-go/kubernetes"
+	basecompatibility "k8s.io/component-base/compatibility"
 
 	searchscheme "github.com/karmada-io/karmada/pkg/apis/search/scheme"
 	searchv1alpha1 "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
 )
 
@@ -68,11 +73,20 @@ func NewOptions() *Options {
 		Audit:            genericoptions.NewAuditOptions(),
 		Features:         genericoptions.NewFeatureOptions(),
 		CoreAPI:          genericoptions.NewCoreAPIOptions(),
-		ServerRunOptions: genericoptions.NewServerRunOptions(),
+		ServerRunOptions: genericoptions.NewServerRunOptionsForComponent(basecompatibility.DefaultKubeComponent, newComponentGlobalsRegistry()),
 	}
 	o.Etcd.StorageConfig.EncodeVersioner = runtime.NewMultiGroupVersioner(schema.GroupVersion{Group: searchv1alpha1.GroupVersion.Group, Version: searchv1alpha1.GroupVersion.Version},
 		schema.GroupKind{Group: searchv1alpha1.GroupName})
 	return o
+}
+
+func newComponentGlobalsRegistry() basecompatibility.ComponentGlobalsRegistry {
+	featureGate := utilfeature.DefaultMutableFeatureGate.DeepCopyAndReset()
+	utilruntime.Must(featureGate.Add(features.RawDynamicInformerFeatureGates()))
+
+	registry := basecompatibility.NewComponentGlobalsRegistry()
+	utilruntime.Must(registry.Register(basecompatibility.DefaultKubeComponent, apiservercompatibility.DefaultBuildEffectiveVersion(), featureGate))
+	return registry
 }
 
 // AddFlags adds flags to the specified FlagSet.
@@ -119,6 +133,9 @@ func (o *Options) ApplyTo(config *genericapiserver.RecommendedConfig) error {
 		return err
 	}
 	if err := o.ServerRunOptions.ApplyTo(&config.Config); err != nil {
+		return err
+	}
+	if err := features.SetRawDynamicInformerFeatureGate(config.Config.FeatureGate.Enabled(features.RawDynamicInformer)); err != nil {
 		return err
 	}
 	kubeClient, err := kubernetes.NewForConfig(config.ClientConfig)

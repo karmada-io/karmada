@@ -17,9 +17,10 @@ limitations under the License.
 package backendstore
 
 import (
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
+
+	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 // Default is the default BackendStore
@@ -33,18 +34,16 @@ func NewDefaultBackend(cluster string) *Default {
 	return &Default{
 		resourceEventHandler: &cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj any) {
-				us, ok := obj.(*unstructured.Unstructured)
-				if !ok {
-					klog.Errorf("unexpected type %T", obj)
+				us, err := helper.ToUnstructured(obj)
+				if err != nil {
 					return
 				}
 				klog.V(4).Infof("AddFunc Cluster(%s) GVK(%s) Name(%s/%s)",
 					cluster, us.GroupVersionKind().String(), us.GetNamespace(), us.GetName())
 			},
 			UpdateFunc: func(_, curObj any) {
-				us, ok := curObj.(*unstructured.Unstructured)
-				if !ok {
-					klog.Errorf("unexpected type %T", curObj)
+				us, err := helper.ToUnstructured(curObj)
+				if err != nil {
 					return
 				}
 				klog.V(4).Infof("UpdateFunc Cluster(%s) GVK(%s) Name(%s/%s)",
@@ -58,9 +57,8 @@ func NewDefaultBackend(cluster string) *Default {
 						return
 					}
 				}
-				us, ok := obj.(*unstructured.Unstructured)
-				if !ok {
-					klog.Errorf("unexpected type %T", obj)
+				us, err := helper.ToUnstructured(obj)
+				if err != nil {
 					return
 				}
 				klog.V(4).Infof("DeleteFunc Cluster(%s) GVK(%s) Name(%s/%s)",

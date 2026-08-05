@@ -30,7 +30,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	fakedynamic "k8s.io/client-go/dynamic/fake"
+	clientgodynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -44,6 +44,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/events"
 	testing2 "github.com/karmada-io/karmada/pkg/search/proxy/testing"
 	"github.com/karmada-io/karmada/pkg/util"
+	fakedynamic "github.com/karmada-io/karmada/pkg/util/dynamic/adapter/fake"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/indexregistry"
@@ -57,13 +58,16 @@ func makeFakeCRBCByResource(rs *workv1alpha2.ObjectReference) (*ClusterResourceB
 		indexregistry.WorkIndexByLabelClusterResourceBindingID,
 		indexregistry.GenLabelIndexerFunc(workv1alpha2.ClusterResourceBindingPermanentIDLabel),
 	).Build()
-	tempDyClient := fakedynamic.NewSimpleDynamicClient(scheme.Scheme)
+	tempDyClient := clientgodynamicfake.NewSimpleDynamicClient(scheme.Scheme)
 	if rs == nil {
 		return &ClusterResourceBindingController{
-			Client:          c,
-			RESTMapper:      testing2.RestMapper,
-			InformerManager: genericmanager.NewSingleClusterInformerManager(context.TODO(), tempDyClient, 0),
-			DynamicClient:   tempDyClient,
+			Client:     c,
+			RESTMapper: testing2.RestMapper,
+			InformerManager: func() genericmanager.SingleClusterInformerManager {
+				dynamicClient := fakedynamic.NewSimpleDynamicClient(scheme.Scheme)
+				return genericmanager.NewSingleClusterInformerManager(context.TODO(), dynamicClient, 0)
+			}(),
+			DynamicClient: tempDyClient,
 		}, nil
 	}
 

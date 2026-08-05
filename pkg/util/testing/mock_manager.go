@@ -21,9 +21,9 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	fakedynamic "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/scheme"
 
+	fakedynamic "github.com/karmada-io/karmada/pkg/util/dynamic/adapter/fake"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 )
 

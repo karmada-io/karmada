@@ -152,6 +152,13 @@ const (
 	// owner: @XiShanYongYe-Chang, @RainbowMango, @mszacillo
 	// alpha: v1.18
 	SchedulingOvercommitProtection featuregate.Feature = "SchedulingOvercommitProtection"
+
+	// RawDynamicInformer controls whether Karmada uses its raw dynamic informer
+	// implementation for dynamic list/watch caches.
+	//
+	// owner: @zach593
+	// alpha: v1.18
+	RawDynamicInformer featuregate.Feature = "RawDynamicInformer"
 )
 
 var (
@@ -181,9 +188,22 @@ var (
 		ControllerPriorityQueue:           {Default: true, PreRelease: featuregate.Beta},
 		WorkloadAffinity:                  {Default: false, PreRelease: featuregate.Alpha},
 		SchedulingOvercommitProtection:    {Default: false, PreRelease: featuregate.Alpha},
+		RawDynamicInformer:                {Default: true, PreRelease: featuregate.Alpha},
 	}
 )
 
 func init() {
 	runtime.Must(FeatureGate.Add(DefaultFeatureGates))
+}
+
+// RawDynamicInformerFeatureGates returns a feature-gate set containing only RawDynamicInformer.
+func RawDynamicInformerFeatureGates() map[featuregate.Feature]featuregate.FeatureSpec {
+	return map[featuregate.Feature]featuregate.FeatureSpec{
+		RawDynamicInformer: DefaultFeatureGates[RawDynamicInformer],
+	}
+}
+
+// SetRawDynamicInformerFeatureGate sets the shared RawDynamicInformer feature gate.
+func SetRawDynamicInformerFeatureGate(enabled bool) error {
+	return FeatureGate.SetFromMap(map[string]bool{string(RawDynamicInformer): enabled})
 }

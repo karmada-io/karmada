@@ -22,6 +22,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	"github.com/karmada-io/karmada/pkg/util/dynamic"
 )
 
 func TestConvertToTypedObject(t *testing.T) {
@@ -67,6 +69,18 @@ func TestConvertToTypedObject(t *testing.T) {
 					"name": "some-pod",
 				},
 			},
+			out:         &corev1.Pod{},
+			expectedErr: false,
+		},
+		{
+			name: "convert raw object success",
+			in: func() *dynamic.RawObject {
+				obj, err := dynamic.NewRawObject([]byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"some-pod"}}`))
+				if err != nil {
+					t.Fatal(err)
+				}
+				return obj
+			}(),
 			out:         &corev1.Pod{},
 			expectedErr: false,
 		},

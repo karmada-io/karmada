@@ -23,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/dynamic"
 )
 
 // ConvertToTypedObject converts an unstructured object to typed.
@@ -34,10 +35,12 @@ func ConvertToTypedObject(in, out any) error {
 	switch v := in.(type) {
 	case *unstructured.Unstructured:
 		return runtime.DefaultUnstructuredConverter.FromUnstructured(v.UnstructuredContent(), out)
+	case *dynamic.RawObject:
+		return v.ConvertTo(out)
 	case map[string]any:
 		return runtime.DefaultUnstructuredConverter.FromUnstructured(v, out)
 	default:
-		return fmt.Errorf("convert object must be pointer of unstructured or map[string]interface{}")
+		return fmt.Errorf("convert object must be pointer of unstructured, raw object, or map[string]interface{}")
 	}
 }
 
@@ -69,6 +72,12 @@ func ApplyReplicaAlways(workload *unstructured.Unstructured, desireReplica int64
 
 // ToUnstructured converts a typed object to an unstructured object.
 func ToUnstructured(obj any) (*unstructured.Unstructured, error) {
+	if u, ok := obj.(*unstructured.Unstructured); ok {
+		return u, nil
+	}
+	if rawObj, ok := obj.(*dynamic.RawObject); ok {
+		return rawObj.ToUnstructured()
+	}
 	uncastObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
 	if err != nil {
 		return nil, err
