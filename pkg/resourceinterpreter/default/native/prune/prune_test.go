@@ -46,6 +46,7 @@ type test struct {
 	containsFunc            func(any, string) bool
 }
 
+//nolint:gocyclo
 func TestRemoveIrrelevantField(t *testing.T) {
 	var tests = []*test{
 		{
@@ -178,6 +179,89 @@ func TestRemoveIrrelevantField(t *testing.T) {
 
 				for _, m := range maps {
 					if m.(map[string]any)["name"] == resource {
+						return true
+					}
+				}
+				return false
+			},
+		},
+		{
+			name: "remove consecutive serviceaccount token secrets",
+			workload: &unstructured.Unstructured{
+				Object: map[string]any{
+					"kind": util.ServiceAccountKind,
+					"metadata": map[string]any{
+						"name": "foo",
+					},
+					"secrets": []any{
+						map[string]any{
+							"name": "foo-token-aaaaa",
+						},
+						map[string]any{
+							"name": "foo-token-bbbbb",
+						},
+						map[string]any{
+							"name": "foo-dockercfg-zdr2j",
+						},
+					},
+				},
+			},
+			extraHooks:              nil,
+			unexpectedFields:        []field{{"secrets"}},
+			unexpectedResource:      "foo-token-bbbbb",
+			shouldNotRemoveFields:   []field{{"secrets"}},
+			shouldNotRemoveResource: "foo-dockercfg-zdr2j",
+			containsFunc: func(obj any, resource string) bool {
+				maps, _ := obj.([]any)
+
+				for _, m := range maps {
+					entry, ok := m.(map[string]any)
+					if !ok {
+						continue
+					}
+					if name, ok := entry["name"].(string); ok && name == resource {
+						return true
+					}
+				}
+				return false
+			},
+		},
+		{
+			name: "remove token secrets while tolerating malformed secret entries",
+			workload: &unstructured.Unstructured{
+				Object: map[string]any{
+					"kind": util.ServiceAccountKind,
+					"metadata": map[string]any{
+						"name": "foo",
+					},
+					"secrets": []any{
+						"malformed-non-map-entry",
+						map[string]any{
+							"kind": "Secret",
+						},
+						map[string]any{
+							"name": "foo-token-ccccc",
+						},
+						map[string]any{
+							"name": "foo-dockercfg-mmmmm",
+						},
+					},
+				},
+			},
+			extraHooks:              nil,
+			unexpectedFields:        []field{{"secrets"}},
+			unexpectedResource:      "foo-token-ccccc",
+			shouldNotRemoveFields:   []field{{"secrets"}},
+			shouldNotRemoveResource: "foo-dockercfg-mmmmm",
+			containsFunc: func(obj any, resource string) bool {
+				maps, _ := obj.([]any)
+
+				for _, m := range maps {
+					entry, ok := m.(map[string]any)
+					if !ok {
+						continue
+					}
+					if name, ok := entry["name"].(string); ok && name == resource {
 						return true
 					}
 				}
