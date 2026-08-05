@@ -57,6 +57,7 @@ spec:
             - --tls-min-version=VersionTLS13
             - --v={{ .Values.metricsAdapter.logVerbosity }}
             - --bind-address=$(POD_IP)
+            {{- include "karmada.metricsAdapter.extraCommandArgs" . | nindent 12 }}
           resources:
             {{- toYaml .Values.metricsAdapter.resources | nindent 12 }}
           readinessProbe:

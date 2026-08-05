@@ -68,6 +68,7 @@ spec:
             {{- with (include "karmada.scheduler.featureGates" .) }}
             - {{ . }}
             {{- end }}
+            {{- include "karmada.scheduler.extraCommandArgs" . | nindent 12 }}
           livenessProbe:
             httpGet:
               path: /healthz
