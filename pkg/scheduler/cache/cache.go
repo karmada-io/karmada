@@ -204,14 +204,46 @@ func (b *AssigningResourceBindingCache) OnBindingDelete(binding *workv1alpha2.Re
 	delete(b.items, key)
 }
 
-// Add records a ResourceBinding that has a new scheduling decision committed to the API server.
-// This binding is considered to be in an "assigning" state and will be served by the scheduler
-// as the intended state until its full reflection in the Informer cache and member clusters.
+// Add records a ResourceBinding that is about to have a new scheduling decision committed to
+// the API server, before the commit is issued, so that an Informer event for the commit can
+// never arrive before the cache entry exists. This binding is considered to be in an "assigning"
+// state and will be served by the scheduler as the intended state until its full reflection in
+// the Informer cache and member clusters.
 func (b *AssigningResourceBindingCache) Add(binding *workv1alpha2.ResourceBinding) {
 	b.Lock()
 	defer b.Unlock()
 
 	b.items[names.NamespacedKey(binding.Namespace, binding.Name)] = binding
+}
+
+// Remove deletes the cached entry for the given ResourceBinding, if any.
+// It is used to roll back an entry recorded by Add when committing the scheduling
+// decision to the API server fails.
+func (b *AssigningResourceBindingCache) Remove(binding *workv1alpha2.ResourceBinding) {
+	if binding == nil {
+		return
+	}
+
+	b.Lock()
+	defer b.Unlock()
+
+	delete(b.items, names.NamespacedKey(binding.Namespace, binding.Name))
+}
+
+// UpdateIfExists replaces the cached entry for the given ResourceBinding only if an entry
+// is still present. It is used to refresh an entry recorded by Add before the API server
+// commit with the authoritative object returned by the API server (carrying the new
+// resourceVersion), without resurrecting an entry that the Informer has already cleaned
+// up in the meantime.
+func (b *AssigningResourceBindingCache) UpdateIfExists(binding *workv1alpha2.ResourceBinding) {
+	b.Lock()
+	defer b.Unlock()
+
+	key := names.NamespacedKey(binding.Namespace, binding.Name)
+	if _, ok := b.items[key]; !ok {
+		return
+	}
+	b.items[key] = binding
 }
 
 // GetBindings returns all currently cached ResourceBindings that are in the "assigning" state,
