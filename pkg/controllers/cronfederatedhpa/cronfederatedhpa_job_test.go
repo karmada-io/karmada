@@ -189,6 +189,27 @@ func TestScaleFHPA(t *testing.T) {
 	}
 }
 
+func TestScaleWorkloadsNilTargetReplicas(t *testing.T) {
+	job := &ScalingJob{
+		client: fake.NewClientBuilder().Build(),
+		rule: autoscalingv1alpha1.CronFederatedHPARule{
+			Name: "missing-target-replicas",
+		},
+	}
+
+	cronFHPA := &autoscalingv1alpha1.CronFederatedHPA{
+		Spec: autoscalingv1alpha1.CronFederatedHPASpec{
+			ScaleTargetRef: autoscalingv2.CrossVersionObjectReference{
+				Kind: "Deployment",
+			},
+		},
+	}
+
+	err := job.ScaleWorkloads(cronFHPA)
+
+	assert.EqualError(t, err, "targetReplicas cannot be nil if you want to scale Deployment")
+}
+
 func TestFindExecutionHistory(t *testing.T) {
 	tests := []struct {
 		name          string
