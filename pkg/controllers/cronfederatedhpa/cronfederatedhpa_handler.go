@@ -74,7 +74,12 @@ func (c *CronHandler) CronFHPAScaleTargetRefUpdates(cronFHPAKey string, scaleTar
 		return false
 	}
 
-	return !equality.Semantic.DeepEqual(origTarget, scaleTarget)
+	if !equality.Semantic.DeepEqual(origTarget, scaleTarget) {
+		c.cronFHPAScaleTargetMap[cronFHPAKey] = scaleTarget
+		return true
+	}
+
+	return false
 }
 
 // AddCronExecutorIfNotExist creates the executor for CronFederatedHPA if not exist
