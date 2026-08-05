@@ -46,6 +46,9 @@ func (o *Options) Validate() field.ErrorList {
 	if o.ClusterStartupGracePeriod.Duration <= 0 {
 		errs = append(errs, field.Invalid(newPath.Child("ClusterStartupGracePeriod"), o.ClusterStartupGracePeriod, "must be greater than 0"))
 	}
+	if o.ConcurrentBindingEvictionSyncs <= 0 {
+		errs = append(errs, field.Invalid(newPath.Child("ConcurrentBindingEvictionSyncs"), o.ConcurrentBindingEvictionSyncs, "must be greater than 0"))
+	}
 	for index, ns := range o.SkippedPropagatingNamespaces {
 		if _, err := regexp.Compile(fmt.Sprintf("^%s$", ns)); err != nil {
 			errs = append(errs, field.Invalid(newPath.Child("SkippedPropagatingNamespaces").Index(index), ns, "Invalid namespace regular expression"))
