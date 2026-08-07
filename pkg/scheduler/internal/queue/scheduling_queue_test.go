@@ -234,3 +234,90 @@ func TestBackoffQueueOrdering(t *testing.T) {
 		})
 	}
 }
+
+// recordingActiveQueue is a test double for ActiveQueue that records the order in which
+// bindings are pushed, so tests can assert the insertion order produced by the flush funcs.
+type recordingActiveQueue struct {
+	pushed []*QueuedBindingInfo
+}
+
+func (r *recordingActiveQueue) Push(bindingInfo *QueuedBindingInfo) {
+	r.pushed = append(r.pushed, bindingInfo)
+}
+func (r *recordingActiveQueue) Pop() (*QueuedBindingInfo, bool) { return nil, false }
+func (r *recordingActiveQueue) Len() int                        { return len(r.pushed) }
+func (r *recordingActiveQueue) Done(*QueuedBindingInfo)         {}
+func (r *recordingActiveQueue) Has(string) bool                 { return false }
+func (r *recordingActiveQueue) ShutDown()                       {}
+
+func (r *recordingActiveQueue) pushedKeys() []string {
+	keys := make([]string, 0, len(r.pushed))
+	for _, bInfo := range r.pushed {
+		keys = append(keys, bInfo.NamespacedKey)
+	}
+	return keys
+}
+
+// TestFlushBackoffQCompletedPriorityOrder verifies that within a single flush, backoff-completed
+// bindings are moved into activeQ in priority order (not backoff-expiry order), while bindings
+// still within their backoff period stay in backoffQ.
+func TestFlushBackoffQCompletedPriorityOrder(t *testing.T) {
+	fakeClock := testingclock.NewFakeClock(time.Now())
+	activeQ := &recordingActiveQueue{}
+	bq := &prioritySchedulingQueue{
+		clock:                         fakeClock,
+		bindingInitialBackoffDuration: DefaultBindingInitialBackoffDuration,
+		bindingMaxBackoffDuration:     DefaultBindingMaxBackoffDuration,
+		activeQ:                       activeQ,
+		unschedulableBindings:         newUnschedulableBindings(metrics.NewUnschedulableBindingsRecorder()),
+	}
+	bq.backoffQ = heap.NewWithRecorder(BindingKeyFunc, bq.lessBackoffCompletedWithPriority, metrics.NewBackoffBindingsRecorder())
+
+	// lowEarly completes its backoff earliest but has the lowest priority; highLate completes
+	// later but has the highest priority. Without priority-ordering the flush, lowEarly (earlier
+	// expiry) would be moved to activeQ first.
+	lowEarly := &QueuedBindingInfo{NamespacedKey: "lowEarly", Priority: 1, Timestamp: fakeClock.Now().Add(-10 * time.Second), Attempts: 1}
+	highLate := &QueuedBindingInfo{NamespacedKey: "highLate", Priority: 10, Timestamp: fakeClock.Now().Add(-2 * time.Second), Attempts: 1}
+	// notReady is still within its backoff period and must stay in backoffQ.
+	notReady := &QueuedBindingInfo{NamespacedKey: "notReady", Priority: 100, Timestamp: fakeClock.Now(), Attempts: 3}
+	bq.backoffQ.AddOrUpdate(lowEarly)
+	bq.backoffQ.AddOrUpdate(highLate)
+	bq.backoffQ.AddOrUpdate(notReady)
+
+	bq.flushBackoffQCompleted()
+
+	assert.Equal(t, []string{"highLate", "lowEarly"}, activeQ.pushedKeys(), "completed bindings should enter activeQ in priority order")
+	assert.Equal(t, 1, bq.backoffQ.Len(), "binding still backing off should remain in backoffQ")
+	assert.True(t, bq.backoffQ.Has(notReady), "notReady should remain in backoffQ")
+}
+
+// TestFlushUnschedulableBindingsLeftoverPriorityOrder verifies that bindings which have exceeded
+// the unschedulable timeout are moved into activeQ in priority order, while bindings still within
+// the timeout are left in unschedulableBindings.
+func TestFlushUnschedulableBindingsLeftoverPriorityOrder(t *testing.T) {
+	fakeClock := testingclock.NewFakeClock(time.Now())
+	activeQ := &recordingActiveQueue{}
+	bq := &prioritySchedulingQueue{
+		clock:                 fakeClock,
+		activeQ:               activeQ,
+		unschedulableBindings: newUnschedulableBindings(metrics.NewUnschedulableBindingsRecorder()),
+	}
+	bq.bindingMaxInUnschedulableBindingsDuration = DefaultBindingMaxInUnschedulableBindingsDuration
+	bq.backoffQ = heap.NewWithRecorder(BindingKeyFunc, bq.lessBackoffCompletedWithPriority, metrics.NewBackoffBindingsRecorder())
+
+	stale := fakeClock.Now().Add(-10 * time.Minute)
+	low := &QueuedBindingInfo{NamespacedKey: "low", Priority: 1, Timestamp: stale}
+	med := &QueuedBindingInfo{NamespacedKey: "med", Priority: 5, Timestamp: stale}
+	high := &QueuedBindingInfo{NamespacedKey: "high", Priority: 10, Timestamp: stale}
+	// fresh is still within the timeout and must not be moved.
+	fresh := &QueuedBindingInfo{NamespacedKey: "fresh", Priority: 100, Timestamp: fakeClock.Now()}
+	for _, bInfo := range []*QueuedBindingInfo{low, med, high, fresh} {
+		bq.unschedulableBindings.addOrUpdate(bInfo)
+	}
+
+	bq.flushUnschedulableBindingsLeftover()
+
+	assert.Equal(t, []string{"high", "med", "low"}, activeQ.pushedKeys(), "leftover bindings should enter activeQ in priority order")
+	assert.NotNil(t, bq.unschedulableBindings.get("fresh"), "binding within the timeout should remain in unschedulableBindings")
+	assert.Nil(t, bq.unschedulableBindings.get("high"), "moved binding should be removed from unschedulableBindings")
+}

@@ -17,6 +17,7 @@ limitations under the License.
 package queue
 
 import (
+	"sort"
 	"sync"
 	"time"
 
@@ -202,6 +203,7 @@ func (bq *prioritySchedulingQueue) flushBackoffQCompleted() {
 	bq.lock.Lock()
 	defer bq.lock.Unlock()
 
+	var bindingsToMove []*QueuedBindingInfo
 	for {
 		bInfo, ok := bq.backoffQ.Peek()
 		if !ok || bInfo == nil {
@@ -210,11 +212,21 @@ func (bq *prioritySchedulingQueue) flushBackoffQCompleted() {
 		if bq.isBindingBackingoff(bInfo) {
 			break
 		}
-		_, err := bq.backoffQ.Pop()
+		popped, err := bq.backoffQ.Pop()
 		if err != nil {
 			klog.ErrorS(err, "Unable to pop binding from backoff queue despite backoff completion", "binding", bInfo.NamespacedKey)
 			break
 		}
+		bindingsToMove = append(bindingsToMove, popped)
+	}
+
+	// backoffQ is ordered by backoff-completion time (see lessBackoffCompletedWithPriority),
+	// so the bindings above are collected in expiry order. Re-order the eligible batch by the
+	// same Less function as activeQ before inserting, so that within a single flush a
+	// higher-priority binding is pushed (and therefore popped by the worker) before
+	// lower-priority ones. This keeps the backoffQ readiness gating unchanged.
+	sortBindingsByPriority(bindingsToMove)
+	for _, bInfo := range bindingsToMove {
 		bq.moveToActiveQ(bInfo)
 	}
 }
@@ -280,9 +292,23 @@ func (bq *prioritySchedulingQueue) flushUnschedulableBindingsLeftover() {
 		}
 	}
 
+	// Order the eligible batch by the same Less function as activeQ before inserting, so that
+	// higher-priority bindings are pushed first within a single flush. Iterating the map above
+	// yields a non-deterministic order, so without this the batch could enter activeQ in an
+	// arbitrary order.
+	sortBindingsByPriority(bindingsToMove)
 	for _, bInfo := range bindingsToMove {
 		bq.moveToActiveQ(bInfo)
 	}
+}
+
+// sortBindingsByPriority orders bindings using the same Less function as activeQ so that,
+// within a single flush, higher-priority bindings are inserted into activeQ (and therefore
+// popped by the scheduler worker) before lower-priority ones.
+func sortBindingsByPriority(bindings []*QueuedBindingInfo) {
+	sort.Slice(bindings, func(i, j int) bool {
+		return Less(bindings[i], bindings[j])
+	})
 }
 
 func (bq *prioritySchedulingQueue) Push(bindingInfo *QueuedBindingInfo) {
