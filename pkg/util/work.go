@@ -21,6 +21,7 @@ import (
 	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -29,6 +30,7 @@ import (
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
 
 // GenEventRef returns the event reference. sets the UID(.spec.uid) that might be missing for fire events.
@@ -77,6 +79,41 @@ func IsWorkContains(manifests []workv1alpha1.Manifest, targetResource schema.Gro
 		}
 	}
 	return false
+}
+
+// GetGVRsFromWork returns the distinct GroupVersionResources referenced by Work manifests.
+func GetGVRsFromWork(restMapper meta.RESTMapper, work *workv1alpha1.Work) ([]schema.GroupVersionResource, error) {
+	var gvrTargets []schema.GroupVersionResource
+	gvrSet := map[schema.GroupVersionResource]bool{}
+	for _, manifest := range work.Spec.Workload.Manifests {
+		workload := &unstructured.Unstructured{}
+		if err := workload.UnmarshalJSON(manifest.Raw); err != nil {
+			klog.ErrorS(err, "Failed to unmarshal workload.",
+				"workNamespace", work.GetNamespace(),
+				"workName", work.GetName(),
+			)
+			return nil, err
+		}
+		gvk := workload.GroupVersionKind()
+		gvr, err := restmapper.GetGroupVersionResource(restMapper, gvk)
+		if err != nil {
+			klog.ErrorS(err, "Failed to get GVR from GVK for resource.",
+				"workNamespace", work.GetNamespace(),
+				"workName", work.GetName(),
+				"gvk", gvk.String(),
+				"apiVersion", gvk.GroupVersion().String(),
+				"kind", gvk.Kind,
+				"namespace", workload.GetNamespace(),
+				"name", workload.GetName(),
+			)
+			return nil, err
+		}
+		if !gvrSet[gvr] {
+			gvrSet[gvr] = true
+			gvrTargets = append(gvrTargets, gvr)
+		}
+	}
+	return gvrTargets, nil
 }
 
 // IsWorkSuspendDispatching checks if the work is suspended from dispatching.
