@@ -106,6 +106,7 @@ spec:
             - --oidc-username-prefix={{ .usernamePrefix }}
             {{- end }}
             {{- end }}
+            {{- include "karmada.apiServer.extraCommandArgs" . | nindent 12 }}
           ports:
             - name: http
               containerPort: 5443
