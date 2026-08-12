@@ -18,10 +18,14 @@ package karmada
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/url"
 	"path"
 
+	authenticationv1 "k8s.io/api/authentication/v1"
+	"k8s.io/apiserver/pkg/endpoints/handlers/responsewriters"
+	"k8s.io/apiserver/pkg/endpoints/request"
 	restclient "k8s.io/client-go/rest"
 
 	"github.com/karmada-io/karmada/pkg/search/proxy/framework"
@@ -78,14 +82,31 @@ func (p *Karmada) SupportRequest(_ framework.ProxyRequest) bool {
 }
 
 // Connect implements Plugin
-func (p *Karmada) Connect(_ context.Context, request framework.ProxyRequest) (http.Handler, error) {
+func (p *Karmada) Connect(_ context.Context, proxyRequest framework.ProxyRequest) (http.Handler, error) {
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		requester, exist := request.UserFrom(req.Context())
+		if !exist {
+			responsewriters.InternalError(rw, req, errors.New("no user found for request"))
+			return
+		}
+
+		// Impersonate the original requester instead of proxying with this
+		// plugin's own (usually highly privileged) credentials, so that the
+		// karmada-apiserver enforces the requester's own RBAC permissions
+		// rather than amplifying them.
+		req.Header.Set(authenticationv1.ImpersonateUserHeader, requester.GetName())
+		for _, group := range requester.GetGroups() {
+			if !proxy.SkipGroup(group) {
+				req.Header.Add(authenticationv1.ImpersonateGroupHeader, group)
+			}
+		}
+
 		location, transport := p.resourceLocation()
-		location.Path = path.Join(location.Path, request.ProxyPath)
+		location.Path = path.Join(location.Path, proxyRequest.ProxyPath)
 		location.RawQuery = req.URL.RawQuery
 
 		handler := proxy.NewThrottledUpgradeAwareProxyHandler(
-			location, transport, true, false, request.Responder)
+			location, transport, true, false, proxyRequest.Responder)
 		handler.ServeHTTP(rw, req)
 	}), nil
 }
