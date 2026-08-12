@@ -596,6 +596,13 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 
 		ginkgo.BeforeEach(func() {
 			framework.CreateDeployment(kubeClient, deployment)
+			ginkgo.DeferCleanup(func() {
+				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
+				framework.WaitDeploymentDisappear(kubeClient, deployment.Namespace, deployment.Name)
+				framework.WaitResourceBindingDisappear(karmadaClient, deployment.Namespace,
+					names.GenerateBindingName(deployment.Kind, deployment.Name))
+			})
+
 			framework.CreatePodDisruptionBudget(kubeClient, pdb)
 
 			ginkgo.DeferCleanup(func() {

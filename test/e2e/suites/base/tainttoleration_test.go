@@ -31,6 +31,7 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	"github.com/karmada-io/karmada/test/helper"
 )
@@ -78,6 +79,28 @@ var _ = framework.SerialDescribe("propagation with taint and toleration testing"
 		})
 
 		ginkgo.BeforeEach(func() {
+			ginkgo.DeferCleanup(func() {
+				ginkgo.By("removing taints in cluster", func() {
+					for _, clusterName := range framework.ClusterNames() {
+						gomega.Eventually(func(g gomega.Gomega) (bool, error) {
+							clusterObj := &clusterv1alpha1.Cluster{}
+							err := controlPlaneClient.Get(context.TODO(), client.ObjectKey{Name: clusterName}, clusterObj)
+							g.Expect(err).NotTo(gomega.HaveOccurred())
+
+							clusterObj.Spec.Taints = removeTargetFromSource(clusterObj.Spec.Taints, constructAddedTaints(tolerationKey, clusterName))
+							klog.Infof("update taints(%s) of cluster(%s)", clusterObj.Spec.Taints, clusterName)
+
+							err = controlPlaneClient.Update(context.TODO(), clusterObj)
+							if err != nil {
+								klog.Errorf("Failed to update cluster(%s), err: %v", clusterName, err)
+								return false, err
+							}
+							return true, nil
+						}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+					}
+				})
+			})
+
 			ginkgo.By("adding taints to clusters", func() {
 				for _, clusterName := range framework.ClusterNames() {
 					taints := constructAddedTaints(tolerationKey, clusterName)
@@ -101,28 +124,6 @@ var _ = framework.SerialDescribe("propagation with taint and toleration testing"
 			})
 		})
 
-		ginkgo.AfterEach(func() {
-			ginkgo.By("removing taints in cluster", func() {
-				for _, clusterName := range framework.ClusterNames() {
-					gomega.Eventually(func(g gomega.Gomega) (bool, error) {
-						clusterObj := &clusterv1alpha1.Cluster{}
-						err := controlPlaneClient.Get(context.TODO(), client.ObjectKey{Name: clusterName}, clusterObj)
-						g.Expect(err).NotTo(gomega.HaveOccurred())
-
-						clusterObj.Spec.Taints = removeTargetFromSource(clusterObj.Spec.Taints, constructAddedTaints(tolerationKey, clusterName))
-						klog.Infof("update taints(%s) of cluster(%s)", clusterObj.Spec.Taints, clusterName)
-
-						err = controlPlaneClient.Update(context.TODO(), clusterObj)
-						if err != nil {
-							klog.Errorf("Failed to update cluster(%s), err: %v", clusterName, err)
-							return false, err
-						}
-						return true, nil
-					}, pollTimeout, pollInterval).Should(gomega.Equal(true))
-				}
-			})
-		})
-
 		ginkgo.BeforeEach(func() {
 			// wait a little while for the karmada-scheduler to sync the cluster changes
 			// before deploying the workload.
@@ -130,10 +131,14 @@ var _ = framework.SerialDescribe("propagation with taint and toleration testing"
 			time.Sleep(time.Second)
 
 			framework.CreatePropagationPolicy(karmadaClient, policy)
+			ginkgo.DeferCleanup(framework.RemovePropagationPolicy, karmadaClient, policy.Namespace, policy.Name)
+
 			framework.CreateDeployment(kubeClient, deployment)
 			ginkgo.DeferCleanup(func() {
 				framework.RemoveDeployment(kubeClient, deployment.Namespace, deployment.Name)
-				framework.RemovePropagationPolicy(karmadaClient, policy.Namespace, policy.Name)
+				framework.WaitDeploymentDisappear(kubeClient, deployment.Namespace, deployment.Name)
+				framework.WaitResourceBindingDisappear(karmadaClient, deployment.Namespace,
+					names.GenerateBindingName(deployment.Kind, deployment.Name))
 			})
 		})
 
