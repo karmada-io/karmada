@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"reflect"
 	"testing"
 	"time"
@@ -374,7 +375,7 @@ func TestScheduleReturnsPreemptionResult(t *testing.T) {
 		t.Fatalf("Schedule().SuggestedClusters = %v, want nil", got.SuggestedClusters)
 	}
 
-	claim, ok := scheduler.preemptionClaims.Get("resourcebinding/default/preemptor-binding")
+	claim, ok := scheduler.preemptionClaims.get("resourcebinding/default/preemptor-binding")
 	if !ok {
 		t.Fatal("expected preemption claim to be recorded")
 	}
@@ -428,7 +429,7 @@ func TestScheduleHandlesActiveClaimsByPriority(t *testing.T) {
 				if got.PreemptionResult == nil {
 					t.Fatal("expected preemption result")
 				}
-				if _, ok := scheduler.preemptionClaims.Get("default/other-preemptor"); ok {
+				if _, ok := scheduler.preemptionClaims.get("default/other-preemptor"); ok {
 					t.Fatal("expected lower-priority claim to be superseded")
 				}
 				return
@@ -467,7 +468,7 @@ func TestScheduleSkipsPreemptionWhenMultipleTargetsSelected(t *testing.T) {
 	if got.PreemptionResult != nil {
 		t.Fatalf("Schedule().PreemptionResult = %+v, want nil", got.PreemptionResult)
 	}
-	if _, ok := scheduler.preemptionClaims.Get("resourcebinding/default/preemptor"); ok {
+	if _, ok := scheduler.preemptionClaims.get("resourcebinding/default/preemptor"); ok {
 		t.Fatal("expected no preemption claim to be recorded")
 	}
 }
@@ -498,7 +499,7 @@ func TestScheduleDoesNotPreemptNonUnschedulableSelectClusterError(t *testing.T) 
 	if estimator.calls != 1 {
 		t.Fatalf("MaxAvailableReplicas calls = %d, want 1", estimator.calls)
 	}
-	if _, ok := scheduler.preemptionClaims.Get("resourcebinding/default/preemptor"); ok {
+	if _, ok := scheduler.preemptionClaims.get("resourcebinding/default/preemptor"); ok {
 		t.Fatal("expected no preemption claim to be recorded")
 	}
 }
@@ -670,9 +671,7 @@ func withPreemptionTestEstimator(t *testing.T, available []workv1alpha2.TargetCl
 		for name := range estimators {
 			delete(estimators, name)
 		}
-		for name, estimator := range previous {
-			estimators[name] = estimator
-		}
+		maps.Copy(estimators, previous)
 	})
 }
 
@@ -692,9 +691,7 @@ func withCountingPreemptionTestEstimator(t *testing.T, available []workv1alpha2.
 		for name := range estimators {
 			delete(estimators, name)
 		}
-		for name, estimator := range previous {
-			estimators[name] = estimator
-		}
+		maps.Copy(estimators, previous)
 	})
 
 	return estimator

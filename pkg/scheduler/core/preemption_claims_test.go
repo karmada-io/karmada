@@ -42,7 +42,7 @@ func TestPreemptionClaimStoreSetGetClearAndReplace(t *testing.T) {
 	store.Set(claim)
 	claim.resourceNeed[corev1.ResourceCPU] = resource.MustParse("2")
 
-	got, ok := store.Get("default/preemptor")
+	got, ok := store.get("default/preemptor")
 	if !ok {
 		t.Fatal("expected claim to exist")
 	}
@@ -53,7 +53,7 @@ func TestPreemptionClaimStoreSetGetClearAndReplace(t *testing.T) {
 		t.Fatalf("resourceNeed was not copied on Set, got CPU %s", got.resourceNeed.Cpu().String())
 	}
 	got.resourceNeed[corev1.ResourceCPU] = resource.MustParse("3")
-	gotAgain, ok := store.Get("default/preemptor")
+	gotAgain, ok := store.get("default/preemptor")
 	if !ok {
 		t.Fatal("expected claim to exist")
 	}
@@ -67,7 +67,7 @@ func TestPreemptionClaimStoreSetGetClearAndReplace(t *testing.T) {
 		priority:   200,
 		replicas:   5,
 	})
-	replaced, ok := store.Get("default/preemptor")
+	replaced, ok := store.get("default/preemptor")
 	if !ok {
 		t.Fatal("expected replacement claim to exist")
 	}
@@ -76,7 +76,7 @@ func TestPreemptionClaimStoreSetGetClearAndReplace(t *testing.T) {
 	}
 
 	store.Clear("default/preemptor")
-	if _, ok := store.Get("default/preemptor"); ok {
+	if _, ok := store.get("default/preemptor"); ok {
 		t.Fatal("expected claim to be cleared")
 	}
 }
@@ -93,7 +93,7 @@ func TestPreemptionClaimStoreExpiresClaims(t *testing.T) {
 	})
 	now = now.Add(defaultPreemptionClaimTTL)
 
-	if _, ok := store.Get("default/preemptor"); ok {
+	if _, ok := store.get("default/preemptor"); ok {
 		t.Fatal("expected expired claim to be swept")
 	}
 	if store.HasClaimOnCluster("member1") {
@@ -152,16 +152,16 @@ func TestPreemptionClaimStoreSetSupersedesLowerPriorityClaimsOnCluster(t *testin
 
 	store.Set(preemptionClaim{bindingKey: "default/requester", cluster: "member1", priority: 100, replicas: 1})
 
-	if _, ok := store.Get("default/lower"); ok {
+	if _, ok := store.get("default/lower"); ok {
 		t.Fatal("expected lower-priority claim on same cluster to be superseded")
 	}
-	if _, ok := store.Get("default/equal"); !ok {
+	if _, ok := store.get("default/equal"); !ok {
 		t.Fatal("expected equal-priority claim on same cluster to remain")
 	}
-	if _, ok := store.Get("default/other-cluster"); !ok {
+	if _, ok := store.get("default/other-cluster"); !ok {
 		t.Fatal("expected lower-priority claim on another cluster to remain")
 	}
-	if _, ok := store.Get("default/requester"); !ok {
+	if _, ok := store.get("default/requester"); !ok {
 		t.Fatal("expected requester claim to be stored")
 	}
 }

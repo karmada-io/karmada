@@ -74,8 +74,7 @@ func (s *PreemptionClaimStore) Set(claim preemptionClaim) {
 	s.claims[claim.bindingKey] = clonePreemptionClaim(claim)
 }
 
-// Get returns the active claim for a binding.
-func (s *PreemptionClaimStore) Get(bindingKey string) (preemptionClaim, bool) {
+func (s *PreemptionClaimStore) get(bindingKey string) (preemptionClaim, bool) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 

@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"reflect"
 	"strings"
 	"testing"
@@ -691,7 +692,7 @@ func TestScheduleResourceBindingRecordsPreemptionAttemptWhenPreemptErrors(t *tes
 	}
 
 	victims := make([]*workv1alpha2.ResourceBinding, 0, 1001)
-	for i := 0; i < 1001; i++ {
+	for i := range 1001 {
 		victims = append(victims, newSchedulerPreemptionTestBinding("default", fmt.Sprintf("victim-%d", i), 50, []workv1alpha2.TargetCluster{{Name: "member1", Replicas: 1}}, time.Unix(int64(i), 0)))
 	}
 
@@ -2943,9 +2944,7 @@ func withSchedulerPreemptionTestEstimator(t *testing.T, available []workv1alpha2
 		for name := range estimators {
 			delete(estimators, name)
 		}
-		for name, estimator := range previous {
-			estimators[name] = estimator
-		}
+		maps.Copy(estimators, previous)
 	})
 }
 
