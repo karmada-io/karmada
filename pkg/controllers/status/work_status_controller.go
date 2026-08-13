@@ -528,19 +528,29 @@ func (c *WorkStatusController) getGVRsFromWork(work *workv1alpha1.Work) (map[sch
 }
 
 // getSingleClusterManager gets singleClusterInformerManager with clusterName.
-// If manager is not exist, create it, otherwise gets it from map.
+// If manager does not exist, create it, otherwise gets it from map.
+// Uses the cluster's UID to detect when a cluster with the same name but different identity
+// is registered (e.g., after cluster removal and re-registration), ensuring stale cache is invalidated.
 func (c *WorkStatusController) getSingleClusterManager(cluster *clusterv1alpha1.Cluster) (genericmanager.SingleClusterInformerManager, error) {
-	// TODO(chenxianpao): If cluster A is removed, then a new cluster that name also is A joins karmada,
-	//  the cache in informer manager should be updated.
-	singleClusterInformerManager := c.InformerManager.GetSingleClusterManager(cluster.Name)
-	if singleClusterInformerManager == nil {
-		dynamicClusterClient, err := c.ClusterDynamicClientSetFunc(cluster.Name, c.Client, c.ClusterClientOption)
-		if err != nil {
-			klog.ErrorS(err, "Failed to build dynamic cluster client for cluster.", "cluster", cluster.Name)
-			return nil, err
-		}
-		singleClusterInformerManager = c.InformerManager.ForCluster(dynamicClusterClient.ClusterName, dynamicClusterClient.DynamicClientSet, 0)
+	// Check if a manager already exists with the correct UID to avoid unnecessary client creation
+	if c.InformerManager.IsManagerExistWithUID(cluster.Name, cluster.UID) {
+		return c.InformerManager.GetSingleClusterManager(cluster.Name), nil
 	}
+
+	// Manager doesn't exist or has different UID - need to build client and create/recreate manager
+	dynamicClusterClient, err := c.ClusterDynamicClientSetFunc(cluster.Name, c.Client, c.ClusterClientOption)
+	if err != nil {
+		klog.ErrorS(err, "Failed to build dynamic cluster client for cluster.", "cluster", cluster.Name)
+		return nil, err
+	}
+	// Use ForClusterWithUID to ensure proper cache invalidation when a cluster with
+	// the same name but different UID is registered.
+	singleClusterInformerManager := c.InformerManager.ForClusterWithUID(
+		dynamicClusterClient.ClusterName,
+		cluster.UID,
+		dynamicClusterClient.DynamicClientSet,
+		0,
+	)
 	return singleClusterInformerManager, nil
 }
 
