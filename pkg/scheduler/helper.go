@@ -120,6 +120,11 @@ func getConditionByError(err error) (metav1.Condition, bool) {
 		return util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonUnschedulable, err.Error(), metav1.ConditionFalse), false
 	}
 
+	var preemptingErr *framework.PreemptingError
+	if errors.As(err, &preemptingErr) {
+		return util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonPreempting, err.Error(), metav1.ConditionFalse), false
+	}
+
 	fitErrMatcher := func(e error) bool {
 		var fitErr *framework.FitError
 		return errors.As(e, &fitErr)

@@ -31,6 +31,7 @@ const SchedulerSubsystem = "karmada_scheduler"
 const (
 	scheduledResult = "scheduled"
 	errorResult     = "error"
+	successResult   = "success"
 )
 
 const (
@@ -112,6 +113,22 @@ var (
 		},
 		[]string{"plugin", "extension_point", "result"})
 
+	// PreemptionAttempts is the number of binding preemption attempts by result.
+	PreemptionAttempts = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Subsystem: SchedulerSubsystem,
+			Name:      "preemption_attempts_total",
+			Help:      "Number of binding preemption attempts.",
+		}, []string{"result"})
+
+	// PreemptionVictims is the number of lower-priority binding victims selected by preemption.
+	PreemptionVictims = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Subsystem: SchedulerSubsystem,
+			Name:      "preemption_victims_total",
+			Help:      "Number of lower-priority bindings selected as preemption victims.",
+		}, []string{})
+
 	metrics = []prometheus.Collector{
 		scheduleAttempts,
 		e2eSchedulingLatency,
@@ -119,6 +136,8 @@ var (
 		SchedulerQueueIncomingBindings,
 		FrameworkExtensionPointDuration,
 		PluginExecutionDuration,
+		PreemptionAttempts,
+		PreemptionVictims,
 	}
 )
 
@@ -151,4 +170,21 @@ func ScheduleStep(action string, startTime time.Time) {
 // CountSchedulerBindings records the number of binding added to scheduling queues by event type.
 func CountSchedulerBindings(event string) {
 	SchedulerQueueIncomingBindings.WithLabelValues(event).Inc()
+}
+
+// RecordPreemptionAttempt records whether a preemption attempt completed.
+func RecordPreemptionAttempt(err error) {
+	if err != nil {
+		PreemptionAttempts.WithLabelValues(errorResult).Inc()
+		return
+	}
+	PreemptionAttempts.WithLabelValues(successResult).Inc()
+}
+
+// RecordPreemptionVictims records the number of selected preemption victims.
+func RecordPreemptionVictims(victims int) {
+	if victims <= 0 {
+		return
+	}
+	PreemptionVictims.WithLabelValues().Add(float64(victims))
 }

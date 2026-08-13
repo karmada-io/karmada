@@ -487,11 +487,52 @@ func TestScheduleResourceBindingWithClusterAffinity(t *testing.T) {
 			expectError:    true,
 			expectedEvent:  "Warning ScheduleBindingFailed scheduling error",
 		},
+		{
+			name: "preemption result",
+			binding: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-preemptor",
+					Namespace: "default",
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Placement: &policyv1alpha1.Placement{
+						ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+							ClusterNames: []string{"cluster1"},
+						},
+					},
+				},
+			},
+			scheduleResult: core.ScheduleResult{
+				PreemptionResult: &core.PreemptionResult{
+					Cluster: "cluster1",
+					Victims: []core.VictimBinding{
+						{Namespace: "default", Name: "test-victim", Replicas: 3, Priority: 50},
+					},
+				},
+			},
+			expectError:   true,
+			expectedPatch: `{"spec":{"clusters":null,"gracefulEvictionTasks":[{"fromCluster":"cluster1","producer":"Scheduler","reason":"BindingPreempted","replicas":3,"purgeMode":"Gracefully","gracePeriodSeconds":30}]}}`,
+			expectedEvent: "Normal PreemptionInitiated ResourceBinding default/test-preemptor initiated preemption on cluster \"cluster1\" for 1 victim(s)",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fakeClient := karmadafake.NewClientset(tt.binding)
+			fakeClientObjects := []runtime.Object{tt.binding}
+			if tt.name == "preemption result" {
+				fakeClientObjects = append(fakeClientObjects, &workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-victim",
+						Namespace: "default",
+					},
+					Spec: workv1alpha2.ResourceBindingSpec{
+						Clusters: []workv1alpha2.TargetCluster{
+							{Name: "cluster1", Replicas: 3},
+						},
+					},
+				})
+			}
+			fakeClient := karmadafake.NewClientset(fakeClientObjects...)
 			fakeRecorder := record.NewFakeRecorder(10)
 			mockAlgorithm := &mockAlgorithm{
 				scheduleFunc: func(context.Context, *workv1alpha2.ResourceBindingSpec, *workv1alpha2.ResourceBindingStatus, *core.ScheduleAlgorithmOption) (core.ScheduleResult, error) {
@@ -513,7 +554,7 @@ func TestScheduleResourceBindingWithClusterAffinity(t *testing.T) {
 			actions := fakeClient.Actions()
 			patchActions := filterPatchActions(actions)
 
-			if tt.expectError {
+			if tt.expectError && tt.scheduleResult.PreemptionResult == nil {
 				assert.Empty(t, patchActions, "Expected no patch actions for error case")
 			} else {
 				assert.Len(t, patchActions, 1, "Expected one patch action")
@@ -529,6 +570,15 @@ func TestScheduleResourceBindingWithClusterAffinity(t *testing.T) {
 				assert.Contains(t, event, tt.expectedEvent, "Event does not match expected")
 			default:
 				t.Errorf("Expected an event to be recorded")
+			}
+
+			if tt.scheduleResult.PreemptionResult != nil {
+				select {
+				case event := <-fakeRecorder.Events:
+					assert.Contains(t, event, "Warning Preempted ResourceBinding default/test-victim was preempted by higher-priority ResourceBinding default/test-preemptor on cluster \"cluster1\"", "Victim event does not match expected")
+				default:
+					t.Errorf("Expected victim event to be recorded")
+				}
 			}
 		})
 	}
@@ -2551,6 +2601,11 @@ func TestHandleErr(t *testing.T) {
 			err: fmt.Errorf("failed to assign replicas: %w",
 				fmt.Errorf("failed to scale up: %w",
 					&framework.UnschedulableError{Message: "insufficient replicas"})),
+			expectPushUnschedulable: true,
+		},
+		{
+			name:                    "PreemptingError calls PushUnschedulableIfNotPresent",
+			err:                     &framework.PreemptingError{Message: "preemption initiated"},
 			expectPushUnschedulable: true,
 		},
 	}

@@ -97,3 +97,13 @@ type UnschedulableError struct {
 func (u *UnschedulableError) Error() string {
 	return u.Message
 }
+
+// PreemptingError indicates scheduling initiated preemption and the binding should
+// wait until victim eviction creates capacity.
+type PreemptingError struct {
+	Message string
+}
+
+func (p *PreemptingError) Error() string {
+	return p.Message
+}

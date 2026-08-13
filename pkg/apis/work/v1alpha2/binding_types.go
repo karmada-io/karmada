@@ -535,6 +535,10 @@ const (
 	// the binding right now, for example due to insufficient resources in the clusters.
 	BindingReasonUnschedulable = "Unschedulable"
 
+	// BindingReasonPreempting reason in Scheduled condition means that the scheduler has initiated
+	// preemption and the binding is waiting for victim eviction to release enough resources.
+	BindingReasonPreempting = "Preempting"
+
 	// BindingReasonQuotaExceeded reason in Scheduled condition means that the scheduler can't schedule
 	// the binding because the resource requirement exceeds one or more of the FederatedResourceQuotas
 	// defined in the namespace.

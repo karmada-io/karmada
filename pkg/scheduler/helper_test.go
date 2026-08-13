@@ -494,6 +494,12 @@ func Test_getConditionByError(t *testing.T) {
 			expectedCondition: metav1.Condition{Type: workv1alpha2.Scheduled, Reason: workv1alpha2.BindingReasonUnschedulable, Status: metav1.ConditionFalse},
 			ignoreErr:         false,
 		},
+		{
+			name:              "preempting error",
+			err:               &framework.PreemptingError{Message: "preemption initiated"},
+			expectedCondition: metav1.Condition{Type: workv1alpha2.Scheduled, Reason: workv1alpha2.BindingReasonPreempting, Status: metav1.ConditionFalse},
+			ignoreErr:         false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

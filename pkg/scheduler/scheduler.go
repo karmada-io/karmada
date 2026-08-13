@@ -39,6 +39,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -605,6 +606,16 @@ func (s *Scheduler) scheduleResourceBindingWithClusterAffinity(rb *workv1alpha2.
 		klog.Errorf("Failed scheduling ResourceBinding(%s/%s): %v", rb.Namespace, rb.Name, err)
 		return err
 	}
+	if scheduleResult.PreemptionResult != nil {
+		err = s.handlePreemptionResult(rb, scheduleResult.PreemptionResult)
+		metrics.RecordPreemptionAttempt(err)
+		if err != nil {
+			klog.Errorf("Failed to initiate preemption for ResourceBinding(%s/%s): %v", rb.Namespace, rb.Name, err)
+			return err
+		}
+		metrics.RecordPreemptionVictims(len(scheduleResult.PreemptionResult.Victims))
+		return &framework.PreemptingError{Message: fmt.Sprintf("preemption initiated on cluster %q for %d victim(s)", scheduleResult.PreemptionResult.Cluster, len(scheduleResult.PreemptionResult.Victims))}
+	}
 
 	klog.V(4).Infof("ResourceBinding(%s/%s) scheduled to clusters %v", rb.Namespace, rb.Name, scheduleResult.SuggestedClusters)
 	patchErr := s.patchScheduleResultForResourceBinding(rb, string(placementBytes), scheduleResult.SuggestedClusters)
@@ -714,6 +725,53 @@ func (s *Scheduler) patchScheduleResultForResourceBinding(oldBinding *workv1alph
 	}
 
 	klog.V(4).Infof("Patch schedule to ResourceBinding(%s/%s) succeed", oldBinding.Namespace, oldBinding.Name)
+	return nil
+}
+
+func (s *Scheduler) handlePreemptionResult(preemptor *workv1alpha2.ResourceBinding, preemptionResult *core.PreemptionResult) error {
+	if preemptionResult == nil {
+		return nil
+	}
+
+	message := fmt.Sprintf("ResourceBinding %s/%s initiated preemption on cluster %q for %d victim(s)",
+		preemptor.Namespace, preemptor.Name, preemptionResult.Cluster, len(preemptionResult.Victims))
+	s.eventRecorder.Event(preemptor, corev1.EventTypeNormal, events.EventReasonPreemptionInitiated, message)
+
+	for _, victim := range preemptionResult.Victims {
+		if err := s.preemptVictimBinding(preemptor, preemptionResult.Cluster, victim); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Scheduler) preemptVictimBinding(preemptor *workv1alpha2.ResourceBinding, cluster string, victim core.VictimBinding) error {
+	oldVictim, err := s.KarmadaClient.WorkV1alpha2().ResourceBindings(victim.Namespace).Get(context.TODO(), victim.Name, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get preemption victim ResourceBinding(%s/%s): %w", victim.Namespace, victim.Name, err)
+	}
+
+	newVictim := oldVictim.DeepCopy()
+	newVictim.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(
+		workv1alpha2.WithPurgeMode(policyv1alpha1.PurgeModeGracefully),
+		workv1alpha2.WithReason(workv1alpha2.EvictionReasonBindingPreempted),
+		workv1alpha2.WithProducer(workv1alpha2.EvictionProducerScheduler),
+		workv1alpha2.WithGracePeriodSeconds(ptr.To[int32](30)),
+	))
+
+	patchBytes, err := helper.GenMergePatch(oldVictim, newVictim)
+	if err != nil {
+		return err
+	}
+	if len(patchBytes) != 0 {
+		if _, err = s.KarmadaClient.WorkV1alpha2().ResourceBindings(newVictim.Namespace).Patch(context.TODO(), newVictim.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}); err != nil {
+			return fmt.Errorf("failed to patch preemption victim ResourceBinding(%s/%s): %w", victim.Namespace, victim.Name, err)
+		}
+	}
+
+	message := fmt.Sprintf("ResourceBinding %s/%s was preempted by higher-priority ResourceBinding %s/%s on cluster %q",
+		victim.Namespace, victim.Name, preemptor.Namespace, preemptor.Name, cluster)
+	s.eventRecorder.Event(newVictim, corev1.EventTypeWarning, events.EventReasonBindingPreempted, message)
 	return nil
 }
 
@@ -943,7 +1001,8 @@ func (s *Scheduler) handleErr(err error, bindingInfo *internalqueue.QueuedBindin
 	}
 
 	var unschedulableErr *framework.UnschedulableError
-	if errors.As(err, &unschedulableErr) {
+	var preemptingErr *framework.PreemptingError
+	if errors.As(err, &unschedulableErr) || errors.As(err, &preemptingErr) {
 		s.priorityQueue.PushUnschedulableIfNotPresent(bindingInfo)
 	} else {
 		s.priorityQueue.PushBackoffIfNotPresent(bindingInfo)

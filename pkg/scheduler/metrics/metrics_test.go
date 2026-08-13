@@ -18,8 +18,11 @@ package metrics
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
+
+	"k8s.io/component-base/metrics/testutil"
 )
 
 func TestBindingSchedule(t *testing.T) {
@@ -98,5 +101,33 @@ func TestCountSchedulerBindings(t *testing.T) {
 			// Ensure the function doesn't panic
 			CountSchedulerBindings(tt.event)
 		})
+	}
+}
+
+func TestPreemptionMetrics(t *testing.T) {
+	PreemptionAttempts.Reset()
+	PreemptionVictims.Reset()
+
+	RecordPreemptionAttempt(nil)
+	RecordPreemptionAttempt(errors.New("failed"))
+	RecordPreemptionVictims(3)
+
+	attemptsWant := `
+		# HELP karmada_scheduler_preemption_attempts_total Number of binding preemption attempts.
+		# TYPE karmada_scheduler_preemption_attempts_total counter
+		karmada_scheduler_preemption_attempts_total{result="error"} 1
+		karmada_scheduler_preemption_attempts_total{result="success"} 1
+	`
+	if err := testutil.CollectAndCompare(PreemptionAttempts, strings.NewReader(attemptsWant), SchedulerSubsystem+"_preemption_attempts_total"); err != nil {
+		t.Fatalf("unexpected preemption attempts metric:\n%s", err)
+	}
+
+	victimsWant := `
+		# HELP karmada_scheduler_preemption_victims_total Number of lower-priority bindings selected as preemption victims.
+		# TYPE karmada_scheduler_preemption_victims_total counter
+		karmada_scheduler_preemption_victims_total 3
+	`
+	if err := testutil.CollectAndCompare(PreemptionVictims, strings.NewReader(victimsWant), SchedulerSubsystem+"_preemption_victims_total"); err != nil {
+		t.Fatalf("unexpected preemption victims metric:\n%s", err)
 	}
 }
