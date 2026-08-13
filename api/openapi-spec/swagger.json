@@ -21891,6 +21891,10 @@
       "description": "SchedulePriority represents the scheduling priority assigned to workloads.",
       "type": "object",
       "properties": {
+        "preemptionPolicy": {
+          "description": "PreemptionPolicy specifies whether the binding can preempt lower-priority bindings. If not explicitly set, the binding will not preempt others.",
+          "type": "string"
+        },
         "priority": {
           "description": "Priority specifies the scheduling priority for the binding. Higher values indicate a higher priority. If not explicitly set, the default value is 0.",
           "type": "integer",

@@ -135,10 +135,17 @@ const (
 	// EvictionReasonApplicationFailure describes the eviction is triggered
 	// because the application fails and reaches the condition of ApplicationFailoverBehavior.
 	EvictionReasonApplicationFailure = "ApplicationFailure"
+
+	// EvictionReasonBindingPreempted describes the eviction is triggered
+	// because a higher-priority binding preempted this binding.
+	EvictionReasonBindingPreempted = "BindingPreempted"
 )
 
 // Define eviction producers.
 const (
 	// EvictionProducerTaintManager represents the name of taint manager.
 	EvictionProducerTaintManager = "TaintManager"
+
+	// EvictionProducerScheduler represents the name of scheduler.
+	EvictionProducerScheduler = "Scheduler"
 )

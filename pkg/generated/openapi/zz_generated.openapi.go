@@ -8032,6 +8032,13 @@ func schema_pkg_apis_work_v1alpha2_SchedulePriority(ref common.ReferenceCallback
 							Format:      "int32",
 						},
 					},
+					"preemptionPolicy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PreemptionPolicy specifies whether the binding can preempt lower-priority bindings. If not explicitly set, the binding will not preempt others.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},

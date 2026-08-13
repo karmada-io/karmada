@@ -1781,6 +1781,13 @@ spec:
                       If not explicitly set, the default value is 0.
                     format: int32
                     type: integer
+                  preemptionPolicy:
+                    description: |-
+                      PreemptionPolicy specifies whether the binding can preempt lower-priority bindings.
+                      If not explicitly set, the binding will not preempt others.
+                    enum:
+                    - PreemptLowerPriority
+                    type: string
                 type: object
               schedulerName:
                 description: |-
