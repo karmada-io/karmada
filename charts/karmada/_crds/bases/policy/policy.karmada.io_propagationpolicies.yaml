@@ -1149,9 +1149,8 @@ spec:
 
                   Note: This feature is currently in the alpha stage. The priority-based scheduling functionality is
                   controlled by the PriorityBasedScheduling feature gate, and preemption is controlled by the
-                  PriorityBasedPreemptiveScheduling feature gate. Currently, only priority-based scheduling is
-                  supported. Preemption functionality is not yet available and will be introduced in future
-                  releases as the feature matures.
+                  PriorityBasedPreemptiveScheduling feature gate. Preemption takes effect only when both gates are
+                  enabled and the resolved priority class allows preempting lower-priority bindings.
                 properties:
                   priorityClassName:
                     description: |-
