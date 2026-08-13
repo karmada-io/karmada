@@ -207,7 +207,7 @@ func TestCommandInitOption_AddNodeSelectorLabels(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "there is taint node",
+			name: "there is control-plane tainted node",
 			option: CommandInitOption{
 				KubeClientSet: fake.NewClientset(),
 			},
@@ -215,6 +215,24 @@ func TestCommandInitOption_AddNodeSelectorLabels(t *testing.T) {
 			spec: corev1.NodeSpec{
 				Taints: []corev1.Taint{
 					{
+						Key:    "node-role.kubernetes.io/control-plane",
+						Effect: corev1.TaintEffectNoSchedule,
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "there is incompatible tainted node",
+			option: CommandInitOption{
+				KubeClientSet: fake.NewClientset(),
+			},
+			status: corev1.ConditionTrue,
+			spec: corev1.NodeSpec{
+				Taints: []corev1.Taint{
+					{
+						Key:    "dedicated",
+						Value:  "gpu",
 						Effect: corev1.TaintEffectNoSchedule,
 					},
 				},

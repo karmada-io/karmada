@@ -16,7 +16,12 @@ limitations under the License.
 
 package kubernetes
 
-import "testing"
+import (
+	"slices"
+	"testing"
+
+	corev1 "k8s.io/api/core/v1"
+)
 
 func TestCommandInitIOption_etcdVolume(t *testing.T) {
 	tests := []struct {
@@ -64,6 +69,63 @@ func TestCommandInitIOption_etcdVolume(t *testing.T) {
 			_, got := tt.opt.etcdVolume()
 			if (got == nil) != tt.claimIsNil {
 				t.Error(tt.errorMsg)
+			}
+		})
+	}
+}
+
+func TestCommandInitIOption_makeETCDStatefulSet_HostPathTolerations(t *testing.T) {
+	opt := &CommandInitOption{
+		EtcdStorageMode: etcdStorageModeHostPath,
+		Namespace:       "karmada",
+	}
+	etcd := opt.makeETCDStatefulSet()
+
+	if len(etcd.Spec.Template.Spec.Tolerations) != len(defaultEtcdTolerations) {
+		t.Fatalf("CommandInitOption.makeETCDStatefulSet() tolerations = %d, want %d", len(etcd.Spec.Template.Spec.Tolerations), len(defaultEtcdTolerations))
+	}
+
+	for _, expected := range defaultEtcdTolerations {
+		if !slices.Contains(etcd.Spec.Template.Spec.Tolerations, expected) {
+			t.Fatalf("CommandInitOption.makeETCDStatefulSet() missing toleration %+v", expected)
+		}
+	}
+
+	pvcOpt := &CommandInitOption{
+		EtcdStorageMode:          etcdStorageModePVC,
+		Namespace:                "karmada",
+		EtcdPersistentVolumeSize: "1Gi",
+	}
+	if pvc := pvcOpt.makeETCDStatefulSet(); len(pvc.Spec.Template.Spec.Tolerations) != 0 {
+		t.Fatalf("CommandInitOption.makeETCDStatefulSet() PVC tolerations = %v, want none", pvc.Spec.Template.Spec.Tolerations)
+	}
+}
+
+func TestTolerationsTolerateTaints(t *testing.T) {
+	tests := []struct {
+		name        string
+		taints      []corev1.Taint
+		tolerations []corev1.Toleration
+		want        bool
+	}{
+		{
+			name:        "control-plane taints are tolerated",
+			taints:      []corev1.Taint{{Key: "node-role.kubernetes.io/control-plane", Effect: corev1.TaintEffectNoSchedule}},
+			tolerations: defaultEtcdTolerations,
+			want:        true,
+		},
+		{
+			name:        "mixed custom taints are not tolerated",
+			taints:      []corev1.Taint{{Key: "node-role.kubernetes.io/control-plane", Effect: corev1.TaintEffectNoSchedule}, {Key: "dedicated", Value: "gpu", Effect: corev1.TaintEffectNoSchedule}},
+			tolerations: defaultEtcdTolerations,
+			want:        false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tolerationsTolerateTaints(tt.tolerations, tt.taints); got != tt.want {
+				t.Fatalf("tolerationsTolerateTaints() = %v, want %v", got, tt.want)
 			}
 		})
 	}
