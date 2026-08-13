@@ -964,6 +964,56 @@ func TestNeedSyncMultiClusterService(t *testing.T) {
 	}
 }
 
+func TestMultiClusterServiceClusterIndexValues(t *testing.T) {
+	tests := []struct {
+		name           string
+		object         client.Object
+		expectedValues []string
+	}{
+		{
+			name: "Cross-cluster MCS with provider and consumer clusters",
+			object: &networkingv1alpha1.MultiClusterService{
+				Spec: networkingv1alpha1.MultiClusterServiceSpec{
+					Types:            []networkingv1alpha1.ExposureType{networkingv1alpha1.ExposureType("CrossCluster")},
+					ProviderClusters: []networkingv1alpha1.ClusterSelector{{Name: "cluster1"}},
+					ConsumerClusters: []networkingv1alpha1.ClusterSelector{{Name: "cluster2"}},
+				},
+			},
+			expectedValues: []string{"cluster1", "cluster2"},
+		},
+		{
+			name: "Cross-cluster MCS with all providers",
+			object: &networkingv1alpha1.MultiClusterService{
+				Spec: networkingv1alpha1.MultiClusterServiceSpec{
+					Types:            []networkingv1alpha1.ExposureType{networkingv1alpha1.ExposureType("CrossCluster")},
+					ConsumerClusters: []networkingv1alpha1.ClusterSelector{{Name: "cluster2"}},
+				},
+			},
+			expectedValues: []string{allClustersIndexValue, "cluster2"},
+		},
+		{
+			name: "Non cross-cluster MCS is not indexed",
+			object: &networkingv1alpha1.MultiClusterService{
+				Spec: networkingv1alpha1.MultiClusterServiceSpec{
+					Types: []networkingv1alpha1.ExposureType{networkingv1alpha1.ExposureType("LoadBalancer")},
+				},
+			},
+			expectedValues: nil,
+		},
+		{
+			name:           "Non-MCS object is ignored",
+			object:         &corev1.Pod{},
+			expectedValues: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.ElementsMatch(t, tt.expectedValues, multiClusterServiceClusterIndexValues(tt.object))
+		})
+	}
+}
+
 // Helper Functions
 
 // Helper function to create fake Cluster objects based on the MCS spec
@@ -997,7 +1047,11 @@ func setupScheme() *runtime.Scheme {
 // Helper function to create a new MCSController with a fake client
 func newFakeController(objs ...runtime.Object) *MCSController {
 	s := setupScheme()
-	fakeClient := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objs...).Build()
+	fakeClient := fake.NewClientBuilder().
+		WithScheme(s).
+		WithRuntimeObjects(objs...).
+		WithIndex(&networkingv1alpha1.MultiClusterService{}, multiClusterServiceClusterIndexKey, multiClusterServiceClusterIndexValues).
+		Build()
 	return &MCSController{
 		Client:        fakeClient,
 		EventRecorder: record.NewFakeRecorder(100),
