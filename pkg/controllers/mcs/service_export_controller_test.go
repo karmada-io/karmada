@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	discoveryv1 "k8s.io/api/discovery/v1"
@@ -58,6 +59,7 @@ type mockErrorClient struct {
 	client.Client
 	getError    error
 	listError   error
+	listFunc    func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error
 	deleteError error
 	updateError error
 }
@@ -70,6 +72,9 @@ func (e *mockErrorClient) Get(ctx context.Context, key types.NamespacedName, obj
 }
 
 func (e *mockErrorClient) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+	if e.listFunc != nil {
+		return e.listFunc(ctx, list, opts...)
+	}
 	if e.listError != nil {
 		return e.listError
 	}
@@ -190,6 +195,59 @@ func TestCleanEndpointSliceWork(t *testing.T) {
 			err := cleanEndpointSliceWork(ctx, c, work)
 			tt.verify(t, c, work, err)
 		})
+	}
+}
+
+func TestEnqueueReportedEpsServiceExportStopsOnControllerShutdown(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	controller := &ServiceExportController{
+		Client: &mockErrorClient{
+			Client:    fake.NewClientBuilder().WithScheme(newTestScheme()).Build(),
+			listError: fmt.Errorf("transient list failure"),
+		},
+		Context: ctx,
+	}
+
+	doneCh := make(chan struct{})
+	go func() {
+		controller.enqueueReportedEpsServiceExport()
+		close(doneCh)
+	}()
+
+	cancel()
+
+	select {
+	case <-doneCh:
+	case <-time.After(2 * time.Second):
+		t.Fatal("enqueueReportedEpsServiceExport did not stop after controller context cancellation")
+	}
+}
+
+func TestEnqueueReportedEpsServiceExportWithNilContext(t *testing.T) {
+	controller := &ServiceExportController{
+		Client: &mockErrorClient{
+			Client: fake.NewClientBuilder().WithScheme(newTestScheme()).Build(),
+			listFunc: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
+				workList, ok := list.(*workv1alpha1.WorkList)
+				if !ok {
+					t.Fatalf("expected WorkList, got %T", list)
+				}
+				workList.Items = nil
+				return nil
+			},
+		},
+	}
+
+	doneCh := make(chan struct{})
+	go func() {
+		controller.enqueueReportedEpsServiceExport()
+		close(doneCh)
+	}()
+
+	select {
+	case <-doneCh:
+	case <-time.After(2 * time.Second):
+		t.Fatal("enqueueReportedEpsServiceExport did not finish with nil controller context")
 	}
 }
 
