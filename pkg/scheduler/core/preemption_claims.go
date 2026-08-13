@@ -65,6 +65,11 @@ func (s *PreemptionClaimStore) Set(claim preemptionClaim) {
 	defer s.lock.Unlock()
 
 	s.sweepExpiredLocked()
+	for bindingKey, existing := range s.claims {
+		if bindingKey != claim.bindingKey && existing.cluster == claim.cluster && existing.priority < claim.priority {
+			delete(s.claims, bindingKey)
+		}
+	}
 	claim.expiry = s.now().Add(s.ttl)
 	s.claims[claim.bindingKey] = clonePreemptionClaim(claim)
 }
@@ -98,6 +103,21 @@ func (s *PreemptionClaimStore) HasClaimOnCluster(cluster string) bool {
 	s.sweepExpiredLocked()
 	for _, claim := range s.claims {
 		if claim.cluster == cluster {
+			return true
+		}
+	}
+	return false
+}
+
+// HasBlockingClaimOnCluster reports whether an active claim by another binding
+// has equal or higher priority on cluster.
+func (s *PreemptionClaimStore) HasBlockingClaimOnCluster(cluster, requesterBindingKey string, requesterPriority int32) bool {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	s.sweepExpiredLocked()
+	for _, claim := range s.claims {
+		if claim.bindingKey != requesterBindingKey && claim.cluster == cluster && claim.priority >= requesterPriority {
 			return true
 		}
 	}

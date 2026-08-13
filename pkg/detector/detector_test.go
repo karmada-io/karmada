@@ -1216,11 +1216,13 @@ func TestBuildResourceBindingWithSchedulePriorityPreemptionPolicy(t *testing.T) 
 			wantPreemptionPolicy:    workv1alpha2.PreemptLowerPriority,
 		},
 		{
-			name:                    "never maps to empty binding preemption policy",
+			name:                    "never maps to binding preemption policy",
 			priorityClassPreemption: &preemptNever,
+			wantPreemptionPolicy:    workv1alpha2.PreemptNever,
 		},
 		{
-			name: "nil maps to empty binding preemption policy",
+			name:                 "nil maps to never binding preemption policy",
+			wantPreemptionPolicy: workv1alpha2.PreemptNever,
 		},
 	}
 

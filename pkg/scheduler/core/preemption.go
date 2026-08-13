@@ -45,6 +45,20 @@ type PreemptionResult struct {
 	Victims []VictimBinding
 }
 
+// PreemptionError wraps failures that happen after scheduling has decided to
+// attempt preemption.
+type PreemptionError struct {
+	Err error
+}
+
+func (e *PreemptionError) Error() string {
+	return fmt.Sprintf("failed to preempt: %v", e.Err)
+}
+
+func (e *PreemptionError) Unwrap() error {
+	return e.Err
+}
+
 // VictimBinding identifies a lower-priority binding selected for preemption.
 type VictimBinding struct {
 	Namespace string
@@ -194,8 +208,8 @@ func (g *genericScheduler) preempt(_ context.Context, clustersScore framework.Cl
 	}
 
 	target := targets[0]
-	if g.preemptionClaims.HasClaimOnCluster(target.Name) {
-		klog.V(4).Infof("Preemption skipped for %s: cluster %q already has an active preemption claim", option.BindingIdentity.Key(), target.Name)
+	if g.preemptionClaims.HasBlockingClaimOnCluster(target.Name, option.BindingIdentity.Key(), spec.SchedulePriorityValue()) {
+		klog.V(4).Infof("Preemption skipped for %s: cluster %q already has an equal-or-higher-priority active preemption claim", option.BindingIdentity.Key(), target.Name)
 		return nil, nil
 	}
 
@@ -249,17 +263,9 @@ func isPreemptionApplicable(spec *workv1alpha2.ResourceBindingSpec, option *Sche
 }
 
 func usesAggregatedSingleClusterScheduling(placement *policyv1alpha1.Placement) bool {
-	if placement.ReplicaScheduling == nil ||
-		placement.ReplicaScheduling.ReplicaSchedulingType != policyv1alpha1.ReplicaSchedulingTypeDivided ||
-		placement.ReplicaScheduling.ReplicaDivisionPreference != policyv1alpha1.ReplicaDivisionPreferenceAggregated {
-		return false
-	}
-	for _, constraint := range placement.SpreadConstraints {
-		if constraint.SpreadByField == policyv1alpha1.SpreadByFieldCluster && constraint.MaxGroups == 1 {
-			return true
-		}
-	}
-	return false
+	return placement.ReplicaScheduling != nil &&
+		placement.ReplicaScheduling.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDivided &&
+		placement.ReplicaScheduling.ReplicaDivisionPreference == policyv1alpha1.ReplicaDivisionPreferenceAggregated
 }
 
 func bindingResourceRequest(spec *workv1alpha2.ResourceBindingSpec) corev1.ResourceList {

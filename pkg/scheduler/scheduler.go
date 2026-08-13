@@ -603,6 +603,10 @@ func (s *Scheduler) scheduleResourceBindingWithClusterAffinity(rb *workv1alpha2.
 	}
 
 	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &rb.Spec, &rb.Status, s.scheduleOptionForResourceBinding(rb))
+	var preemptionErr *core.PreemptionError
+	if errors.As(err, &preemptionErr) {
+		metrics.RecordPreemptionAttempt(err)
+	}
 	var fitErr *framework.FitError
 	// in case of no cluster error, can not return but continue to patch(cleanup) the result.
 	if err != nil && !errors.As(err, &fitErr) {
@@ -657,6 +661,17 @@ func (s *Scheduler) scheduleResourceBindingWithClusterAffinities(rb *workv1alpha
 		klog.V(4).Infof("Schedule ResourceBinding(%s/%s) with clusterAffiliates index(%d)", rb.Namespace, rb.Name, affinityIndex)
 		updatedStatus.SchedulerObservedAffinityName = rb.Spec.Placement.ClusterAffinities[affinityIndex].AffinityName
 		scheduleResult, err = s.Algorithm.Schedule(context.TODO(), &rb.Spec, updatedStatus, s.scheduleOptionForResourceBinding(rb))
+		if err == nil && scheduleResult.PreemptionResult != nil {
+			err = s.handlePreemptionResult(rb, scheduleResult.PreemptionResult)
+			metrics.RecordPreemptionAttempt(err)
+			if err != nil {
+				s.clearPreemptionClaim(core.ResourceBindingIdentity(rb))
+				klog.Errorf("Failed to initiate preemption for ResourceBinding(%s/%s): %v", rb.Namespace, rb.Name, err)
+				return err
+			}
+			metrics.RecordPreemptionVictims(len(scheduleResult.PreemptionResult.Victims))
+			return &framework.PreemptingError{Message: fmt.Sprintf("preemption initiated on cluster %q for %d victim(s)", scheduleResult.PreemptionResult.Cluster, len(scheduleResult.PreemptionResult.Victims))}
+		}
 		if err == nil {
 			break
 		}

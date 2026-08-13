@@ -20,6 +20,7 @@ import (
 	"fmt"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 )
 
 func selectBestClustersByCluster(spreadConstraint policyv1alpha1.SpreadConstraint, groupClustersInfo *GroupClustersInfo,
@@ -37,7 +38,7 @@ func selectBestClustersByCluster(spreadConstraint policyv1alpha1.SpreadConstrain
 	} else {
 		selectedClusters = selectClustersByAvailableResource(groupClustersInfo.Clusters, int32(needCnt), needReplicas) // #nosec G115: integer overflow conversion int -> int32
 		if len(selectedClusters) == 0 {
-			return nil, fmt.Errorf("no enough resource when selecting %d clusters", needCnt)
+			return nil, &framework.UnschedulableError{Message: fmt.Sprintf("no enough resource when selecting %d clusters", needCnt)}
 		}
 	}
 	return selectedClusters, nil

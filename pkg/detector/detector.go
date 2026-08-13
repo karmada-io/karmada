@@ -894,7 +894,7 @@ func mapPreemptionPolicy(preemptionPolicy *corev1.PreemptionPolicy) workv1alpha2
 	if preemptionPolicy != nil && *preemptionPolicy == corev1.PreemptLowerPriority {
 		return workv1alpha2.PreemptLowerPriority
 	}
-	return ""
+	return workv1alpha2.PreemptNever
 }
 
 // BuildClusterResourceBinding builds a desired ClusterResourceBinding for object.

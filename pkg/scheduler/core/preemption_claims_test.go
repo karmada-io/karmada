@@ -120,10 +120,65 @@ func TestPreemptionClaimStoreHasClaimOnCluster(t *testing.T) {
 	}
 }
 
+func TestPreemptionClaimStoreHasBlockingClaimOnCluster(t *testing.T) {
+	now := time.Now()
+	store := newPreemptionClaimStore(defaultPreemptionClaimTTL, func() time.Time { return now })
+	for _, claim := range []preemptionClaim{
+		{bindingKey: "default/requester", cluster: "member1", priority: 100, replicas: 1},
+		{bindingKey: "default/lower", cluster: "member1", priority: 50, replicas: 1},
+		{bindingKey: "default/equal", cluster: "member2", priority: 100, replicas: 1},
+		{bindingKey: "default/higher", cluster: "member3", priority: 200, replicas: 1},
+	} {
+		store.Set(claim)
+	}
+
+	if store.HasBlockingClaimOnCluster("member1", "default/requester", 100) {
+		t.Fatal("did not expect requester or lower-priority claim to block")
+	}
+	if !store.HasBlockingClaimOnCluster("member2", "default/requester", 100) {
+		t.Fatal("expected equal-priority claim to block")
+	}
+	if !store.HasBlockingClaimOnCluster("member3", "default/requester", 100) {
+		t.Fatal("expected higher-priority claim to block")
+	}
+}
+
+func TestPreemptionClaimStoreSetSupersedesLowerPriorityClaimsOnCluster(t *testing.T) {
+	now := time.Now()
+	store := newPreemptionClaimStore(defaultPreemptionClaimTTL, func() time.Time { return now })
+	store.Set(preemptionClaim{bindingKey: "default/lower", cluster: "member1", priority: 50, replicas: 1})
+	store.Set(preemptionClaim{bindingKey: "default/equal", cluster: "member1", priority: 100, replicas: 1})
+	store.Set(preemptionClaim{bindingKey: "default/other-cluster", cluster: "member2", priority: 50, replicas: 1})
+
+	store.Set(preemptionClaim{bindingKey: "default/requester", cluster: "member1", priority: 100, replicas: 1})
+
+	if _, ok := store.Get("default/lower"); ok {
+		t.Fatal("expected lower-priority claim on same cluster to be superseded")
+	}
+	if _, ok := store.Get("default/equal"); !ok {
+		t.Fatal("expected equal-priority claim on same cluster to remain")
+	}
+	if _, ok := store.Get("default/other-cluster"); !ok {
+		t.Fatal("expected lower-priority claim on another cluster to remain")
+	}
+	if _, ok := store.Get("default/requester"); !ok {
+		t.Fatal("expected requester claim to be stored")
+	}
+}
+
 func TestWithClaimDeductions(t *testing.T) {
 	now := time.Now()
 	store := newPreemptionClaimStore(defaultPreemptionClaimTTL, func() time.Time { return now })
 	for _, claim := range []preemptionClaim{
+		{
+			bindingKey: "default/higher-priority",
+			cluster:    "member1",
+			priority:   200,
+			replicas:   2,
+			resourceNeed: corev1.ResourceList{
+				corev1.ResourceCPU: resource.MustParse("1"),
+			},
+		},
 		{
 			bindingKey: "default/requester",
 			cluster:    "member1",
@@ -138,15 +193,6 @@ func TestWithClaimDeductions(t *testing.T) {
 			cluster:    "member1",
 			priority:   100,
 			replicas:   3,
-			resourceNeed: corev1.ResourceList{
-				corev1.ResourceCPU: resource.MustParse("1"),
-			},
-		},
-		{
-			bindingKey: "default/higher-priority",
-			cluster:    "member1",
-			priority:   200,
-			replicas:   2,
 			resourceNeed: corev1.ResourceList{
 				corev1.ResourceCPU: resource.MustParse("1"),
 			},

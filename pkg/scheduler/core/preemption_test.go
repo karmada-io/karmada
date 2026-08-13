@@ -18,6 +18,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"testing"
@@ -34,6 +35,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/features"
 	clusterv1alpha1lister "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
 	schedulercache "github.com/karmada-io/karmada/pkg/scheduler/cache"
+	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/runtime"
 	"github.com/karmada-io/karmada/pkg/util/indexregistry"
 	"github.com/karmada-io/karmada/test/helper"
@@ -262,10 +264,18 @@ func TestIsPreemptionApplicable(t *testing.T) {
 			},
 		},
 		{
-			name: "multi cluster spread",
+			name: "multi cluster spread is applicable but skipped when multiple targets are selected",
 			mutate: func(spec *workv1alpha2.ResourceBindingSpec) {
 				spec.Placement.SpreadConstraints[0].MaxGroups = 2
 			},
+			want: true,
+		},
+		{
+			name: "missing cluster spread",
+			mutate: func(spec *workv1alpha2.ResourceBindingSpec) {
+				spec.Placement.SpreadConstraints = nil
+			},
+			want: true,
 		},
 		{
 			name: "duplicated scheduling",
@@ -373,27 +383,123 @@ func TestScheduleReturnsPreemptionResult(t *testing.T) {
 	}
 }
 
-func TestScheduleSuppressesPreemptionWhenClusterHasActiveClaim(t *testing.T) {
+func TestScheduleHandlesActiveClaimsByPriority(t *testing.T) {
+	tests := []struct {
+		name          string
+		claimPriority int32
+		wantPreempt   bool
+	}{
+		{
+			name:          "lower priority claim does not block",
+			claimPriority: 50,
+			wantPreempt:   true,
+		},
+		{
+			name:          "equal priority claim blocks",
+			claimPriority: 100,
+		},
+		{
+			name:          "higher priority claim blocks",
+			claimPriority: 200,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			enablePreemptionFeatureGates(t)
+			withPreemptionTestEstimator(t, []workv1alpha2.TargetCluster{{Name: "member1", Replicas: 2}})
+
+			scheduler := newPreemptionTestScheduler(t,
+				[]string{"member1"},
+				newPreemptionTestBinding("default", "lower-priority", 40, []workv1alpha2.TargetCluster{{Name: "member1", Replicas: 5}}, time.Unix(1, 0)),
+			)
+			scheduler.preemptionClaims.Set(preemptionClaim{
+				bindingKey: "default/other-preemptor",
+				cluster:    "member1",
+				priority:   tt.claimPriority,
+				replicas:   5,
+			})
+
+			got, err := scheduler.Schedule(context.Background(), newApplicablePreemptionTestSpec("default", "preemptor", 5, 100), &workv1alpha2.ResourceBindingStatus{}, newResourceBindingScheduleOption("default", "preemptor"))
+			if tt.wantPreempt {
+				if err != nil {
+					t.Fatalf("Schedule() error = %v", err)
+				}
+				if got.PreemptionResult == nil {
+					t.Fatal("expected preemption result")
+				}
+				if _, ok := scheduler.preemptionClaims.Get("default/other-preemptor"); ok {
+					t.Fatal("expected lower-priority claim to be superseded")
+				}
+				return
+			}
+
+			if err == nil {
+				t.Fatal("expected scheduling to fail when active claim suppresses preemption")
+			}
+			if got.PreemptionResult != nil {
+				t.Fatalf("Schedule().PreemptionResult = %+v, want nil", got.PreemptionResult)
+			}
+		})
+	}
+}
+
+func TestScheduleSkipsPreemptionWhenMultipleTargetsSelected(t *testing.T) {
 	enablePreemptionFeatureGates(t)
-	withPreemptionTestEstimator(t, []workv1alpha2.TargetCluster{{Name: "member1", Replicas: 2}})
+	withPreemptionTestEstimator(t, []workv1alpha2.TargetCluster{
+		{Name: "member1", Replicas: 2},
+		{Name: "member2", Replicas: 2},
+	})
+
+	scheduler := newPreemptionTestScheduler(t,
+		[]string{"member1", "member2"},
+		newPreemptionTestBinding("default", "lower-on-member1", 50, []workv1alpha2.TargetCluster{{Name: "member1", Replicas: 5}}, time.Unix(1, 0)),
+		newPreemptionTestBinding("default", "lower-on-member2", 50, []workv1alpha2.TargetCluster{{Name: "member2", Replicas: 5}}, time.Unix(2, 0)),
+	)
+	spec := newApplicablePreemptionTestSpec("default", "preemptor", 5, 100)
+	spec.Placement.ClusterAffinity.ClusterNames = []string{"member1", "member2"}
+	spec.Placement.SpreadConstraints[0].MaxGroups = 2
+
+	got, err := scheduler.Schedule(context.Background(), spec, &workv1alpha2.ResourceBindingStatus{}, newResourceBindingScheduleOption("default", "preemptor"))
+	if err == nil {
+		t.Fatal("expected scheduling to fail")
+	}
+	if got.PreemptionResult != nil {
+		t.Fatalf("Schedule().PreemptionResult = %+v, want nil", got.PreemptionResult)
+	}
+	if _, ok := scheduler.preemptionClaims.Get("resourcebinding/default/preemptor"); ok {
+		t.Fatal("expected no preemption claim to be recorded")
+	}
+}
+
+func TestScheduleDoesNotPreemptNonUnschedulableSelectClusterError(t *testing.T) {
+	enablePreemptionFeatureGates(t)
+	estimator := withCountingPreemptionTestEstimator(t, []workv1alpha2.TargetCluster{{Name: "member1", Replicas: 10}})
 
 	scheduler := newPreemptionTestScheduler(t,
 		[]string{"member1"},
 		newPreemptionTestBinding("default", "lower-priority", 50, []workv1alpha2.TargetCluster{{Name: "member1", Replicas: 5}}, time.Unix(1, 0)),
 	)
-	scheduler.preemptionClaims.Set(preemptionClaim{
-		bindingKey: "default/other-preemptor",
-		cluster:    "member1",
-		priority:   100,
-		replicas:   5,
-	})
+	spec := newApplicablePreemptionTestSpec("default", "preemptor", 5, 100)
+	spec.Placement.SpreadConstraints[0].MinGroups = 2
 
-	got, err := scheduler.Schedule(context.Background(), newApplicablePreemptionTestSpec("default", "preemptor", 5, 100), &workv1alpha2.ResourceBindingStatus{}, newResourceBindingScheduleOption("default", "preemptor"))
+	got, err := scheduler.Schedule(context.Background(), spec, &workv1alpha2.ResourceBindingStatus{}, newResourceBindingScheduleOption("default", "preemptor"))
+
 	if err == nil {
-		t.Fatal("expected scheduling to fail when active claim suppresses preemption")
+		t.Fatal("expected scheduling to fail")
+	}
+	var unschedulableErr *framework.UnschedulableError
+	if errors.As(err, &unschedulableErr) {
+		t.Fatalf("Schedule() error = %v, want non-UnschedulableError", err)
 	}
 	if got.PreemptionResult != nil {
 		t.Fatalf("Schedule().PreemptionResult = %+v, want nil", got.PreemptionResult)
+	}
+	if estimator.calls != 1 {
+		t.Fatalf("MaxAvailableReplicas calls = %d, want 1", estimator.calls)
+	}
+	if _, ok := scheduler.preemptionClaims.Get("resourcebinding/default/preemptor"); ok {
+		t.Fatal("expected no preemption claim to be recorded")
 	}
 }
 
@@ -570,6 +676,30 @@ func withPreemptionTestEstimator(t *testing.T, available []workv1alpha2.TargetCl
 	})
 }
 
+func withCountingPreemptionTestEstimator(t *testing.T, available []workv1alpha2.TargetCluster) *countingPreemptionTestReplicaEstimator {
+	t.Helper()
+
+	estimators := estimatorclient.GetReplicaEstimators()
+	previous := make(map[string]estimatorclient.ReplicaEstimator, len(estimators))
+	for name, estimator := range estimators {
+		previous[name] = estimator
+		delete(estimators, name)
+	}
+	estimator := &countingPreemptionTestReplicaEstimator{available: available}
+	estimators["preemption-test"] = estimator
+
+	t.Cleanup(func() {
+		for name := range estimators {
+			delete(estimators, name)
+		}
+		for name, estimator := range previous {
+			estimators[name] = estimator
+		}
+	})
+
+	return estimator
+}
+
 type preemptionTestReplicaEstimator struct {
 	available []workv1alpha2.TargetCluster
 }
@@ -579,5 +709,19 @@ func (e *preemptionTestReplicaEstimator) MaxAvailableReplicas(context.Context, e
 }
 
 func (e *preemptionTestReplicaEstimator) MaxAvailableComponentSets(context.Context, estimatorclient.ComponentSetEstimationRequest) ([]estimatorclient.ComponentSetEstimationResponse, error) {
+	return nil, nil
+}
+
+type countingPreemptionTestReplicaEstimator struct {
+	available []workv1alpha2.TargetCluster
+	calls     int
+}
+
+func (e *countingPreemptionTestReplicaEstimator) MaxAvailableReplicas(context.Context, estimatorclient.ReplicaEstimationRequest) ([]workv1alpha2.TargetCluster, error) {
+	e.calls++
+	return e.available, nil
+}
+
+func (e *countingPreemptionTestReplicaEstimator) MaxAvailableComponentSets(context.Context, estimatorclient.ComponentSetEstimationRequest) ([]estimatorclient.ComponentSetEstimationResponse, error) {
 	return nil, nil
 }

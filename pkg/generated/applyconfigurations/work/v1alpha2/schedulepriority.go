@@ -31,8 +31,8 @@ type SchedulePriorityApplyConfiguration struct {
 	// Higher values indicate a higher priority.
 	// If not explicitly set, the default value is 0.
 	Priority *int32 `json:"priority,omitempty"`
-	// PreemptionPolicy specifies whether the binding can preempt lower-priority bindings.
-	// If not explicitly set, the binding will not preempt others.
+	// PreemptionPolicy describes the policy of if and when to preempt bindings.
+	// One of Never, PreemptLowerPriority.
 	PreemptionPolicy *workv1alpha2.PreemptionPolicy `json:"preemptionPolicy,omitempty"`
 }
 

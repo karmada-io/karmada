@@ -152,8 +152,11 @@ func (g *genericScheduler) Schedule(
 
 	selectedClusters, err := g.selectClusters(clustersScore, spec.Placement, spec, status, scheduleAlgorithmOption)
 	if err != nil {
-		if res, handled, preemptErr := g.tryPreempt(ctx, clustersScore, spec, status, scheduleAlgorithmOption); handled {
-			return res, preemptErr
+		var unschedulableErr *framework.UnschedulableError
+		if errors.As(err, &unschedulableErr) {
+			if res, handled, preemptErr := g.tryPreempt(ctx, clustersScore, spec, status, scheduleAlgorithmOption); handled {
+				return res, preemptErr
+			}
 		}
 		return result, fmt.Errorf("failed to select clusters: %w", err)
 	}
@@ -193,7 +196,7 @@ func (g *genericScheduler) tryPreempt(
 ) (result ScheduleResult, handled bool, err error) {
 	preemptionResult, err := g.preempt(ctx, clustersScore, spec, status, option)
 	if err != nil {
-		return result, true, fmt.Errorf("failed to preempt: %w", err)
+		return result, true, &PreemptionError{Err: err}
 	}
 	if preemptionResult != nil {
 		result.PreemptionResult = preemptionResult
