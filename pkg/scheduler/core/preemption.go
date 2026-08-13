@@ -152,10 +152,10 @@ func selectVictimsByReplicaCount(preemptor *workv1alpha2.ResourceBindingSpec, ca
 	})
 
 	reprieved := make([]bool, len(filtered))
-	remainingVictimResources := cloneResourceList(totalCandidateResources)
+	remainingVictimResources := totalCandidateResources.DeepCopy()
 	for i, candidate := range filtered {
 		candidateResources := resourceListForReplicas(candidate.resourceRequest, int64(candidate.replicas))
-		afterReprieve := cloneResourceList(remainingVictimResources)
+		afterReprieve := remainingVictimResources.DeepCopy()
 		subtractResourceList(afterReprieve, candidateResources)
 		if resourceListCovers(afterReprieve, deficitResources) {
 			reprieved[i] = true
@@ -217,7 +217,7 @@ func (g *genericScheduler) preempt(_ context.Context, clustersScore framework.Cl
 		cluster:      target.Name,
 		priority:     spec.SchedulePriorityValue(),
 		replicas:     spec.Replicas,
-		resourceNeed: preemptionResourceNeed(spec),
+		resourceNeed: bindingResourceRequest(spec),
 	})
 
 	return &PreemptionResult{
@@ -260,10 +260,6 @@ func usesAggregatedSingleClusterScheduling(placement *policyv1alpha1.Placement) 
 		}
 	}
 	return false
-}
-
-func preemptionResourceNeed(spec *workv1alpha2.ResourceBindingSpec) corev1.ResourceList {
-	return bindingResourceRequest(spec)
 }
 
 func bindingResourceRequest(spec *workv1alpha2.ResourceBindingSpec) corev1.ResourceList {
@@ -330,11 +326,4 @@ func resourceListCovers(available, needed corev1.ResourceList) bool {
 		}
 	}
 	return true
-}
-
-func cloneResourceList(in corev1.ResourceList) corev1.ResourceList {
-	if in == nil {
-		return nil
-	}
-	return in.DeepCopy()
 }

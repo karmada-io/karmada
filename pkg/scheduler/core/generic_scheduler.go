@@ -152,11 +152,8 @@ func (g *genericScheduler) Schedule(
 
 	selectedClusters, err := g.selectClusters(clustersScore, spec.Placement, spec, status, scheduleAlgorithmOption)
 	if err != nil {
-		if preemptionResult, preemptionErr := g.preempt(ctx, clustersScore, spec, status, scheduleAlgorithmOption); preemptionErr != nil {
-			return result, fmt.Errorf("failed to preempt: %w", preemptionErr)
-		} else if preemptionResult != nil {
-			result.PreemptionResult = preemptionResult
-			return result, nil
+		if res, handled, preemptErr := g.tryPreempt(ctx, clustersScore, spec, status, scheduleAlgorithmOption); handled {
+			return res, preemptErr
 		}
 		return result, fmt.Errorf("failed to select clusters: %w", err)
 	}
@@ -166,11 +163,8 @@ func (g *genericScheduler) Schedule(
 	if err != nil {
 		var unschedulableErr *framework.UnschedulableError
 		if errors.As(err, &unschedulableErr) {
-			if preemptionResult, preemptionErr := g.preempt(ctx, clustersScore, spec, status, scheduleAlgorithmOption); preemptionErr != nil {
-				return result, fmt.Errorf("failed to preempt: %w", preemptionErr)
-			} else if preemptionResult != nil {
-				result.PreemptionResult = preemptionResult
-				return result, nil
+			if res, handled, preemptErr := g.tryPreempt(ctx, clustersScore, spec, status, scheduleAlgorithmOption); handled {
+				return res, preemptErr
 			}
 		}
 		return result, fmt.Errorf("failed to assign replicas: %w", err)
@@ -183,6 +177,29 @@ func (g *genericScheduler) Schedule(
 	result.SuggestedClusters = clustersWithReplicas
 
 	return result, nil
+}
+
+// tryPreempt runs preemption for a failed scheduling attempt. When handled is
+// true the caller must return (result, err) directly: either preemption failed
+// (err set) or it produced a PreemptionResult to propagate. When handled is
+// false preemption was not applicable and the caller should surface the original
+// scheduling failure.
+func (g *genericScheduler) tryPreempt(
+	ctx context.Context,
+	clustersScore framework.ClusterScoreList,
+	spec *workv1alpha2.ResourceBindingSpec,
+	status *workv1alpha2.ResourceBindingStatus,
+	option *ScheduleAlgorithmOption,
+) (result ScheduleResult, handled bool, err error) {
+	preemptionResult, err := g.preempt(ctx, clustersScore, spec, status, option)
+	if err != nil {
+		return result, true, fmt.Errorf("failed to preempt: %w", err)
+	}
+	if preemptionResult != nil {
+		result.PreemptionResult = preemptionResult
+		return result, true, nil
+	}
+	return result, false, nil
 }
 
 // findClustersThatFit finds the clusters that are fit for the placement based on running the filter plugins.

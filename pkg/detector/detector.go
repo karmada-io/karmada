@@ -891,14 +891,9 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 }
 
 func mapPreemptionPolicy(preemptionPolicy *corev1.PreemptionPolicy) workv1alpha2.PreemptionPolicy {
-	if preemptionPolicy == nil {
-		return ""
-	}
-
-	if *preemptionPolicy == corev1.PreemptLowerPriority {
+	if preemptionPolicy != nil && *preemptionPolicy == corev1.PreemptLowerPriority {
 		return workv1alpha2.PreemptLowerPriority
 	}
-
 	return ""
 }
 

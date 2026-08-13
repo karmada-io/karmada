@@ -985,10 +985,8 @@ func (s *Scheduler) scheduleClusterResourceBindingWithClusterAffinities(crb *wor
 		klog.V(4).Infof("Schedule ClusterResourceBinding(%s) with clusterAffiliates index(%d)", crb.Name, affinityIndex)
 		updatedStatus.SchedulerObservedAffinityName = crb.Spec.Placement.ClusterAffinities[affinityIndex].AffinityName
 		scheduleResult, err = s.Algorithm.Schedule(context.TODO(), &crb.Spec, updatedStatus, s.scheduleOptionForClusterResourceBinding(crb))
-		if err == nil {
-			if scheduleResult.PreemptionResult != nil {
-				err = fmt.Errorf("ClusterResourceBinding(%s) preemption is not supported", crb.Name)
-			}
+		if err == nil && scheduleResult.PreemptionResult != nil {
+			err = fmt.Errorf("ClusterResourceBinding(%s) preemption is not supported", crb.Name)
 		}
 		if err == nil {
 			break
