@@ -43,9 +43,15 @@ type ScheduleAlgorithmOption struct {
 	EnableEmptyWorkloadPropagation bool
 }
 
-// ScheduleResult includes the clusters selected.
+// ScheduleResult describes either selected clusters or initiated preemption.
 type ScheduleResult struct {
+	// SuggestedClusters is nil when PreemptionResult is set because the preemptor
+	// has not been scheduled yet.
 	SuggestedClusters []workv1alpha2.TargetCluster
+
+	// PreemptionResult is set when scheduling initiated preemption instead of
+	// assigning the binding to target clusters.
+	PreemptionResult *PreemptionResult
 }
 
 type genericScheduler struct {
