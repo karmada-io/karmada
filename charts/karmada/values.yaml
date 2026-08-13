@@ -943,6 +943,8 @@ schedulerEstimator:
   featureGates: {}
   ## @param schedulerEstimator.priorityClassName the priority class name for the scheduler-estimator
   priorityClassName: "system-node-critical"
+  ## @param schedulerEstimator.certs certs of the scheduler-estimator, only used when installMode is not "host"
+  certs: karmada-cert
 
 ## descheduler config
 descheduler:

@@ -357,6 +357,17 @@ app: {{- include "karmada.name" .}}-search
     secretName: {{ $name }}-cert
 {{- end -}}
 
+{{- define "karmada.schedulerEstimator.cert.volume" -}}
+{{ $name :=  include "karmada.name" . }}
+- name: karmada-certs
+  secret:
+  {{- if eq .Values.installMode "host" }}
+    secretName: {{ $name }}-cert
+  {{- else }}
+    secretName: {{ .Values.schedulerEstimator.certs }}
+  {{- end }}
+{{- end -}}
+
 {{/*
 Common env for POD_IP
 */}}
