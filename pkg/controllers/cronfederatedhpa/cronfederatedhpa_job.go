@@ -168,6 +168,10 @@ func (c *ScalingJob) ScaleFHPA(cronFHPA *autoscalingv1alpha1.CronFederatedHPA) e
 func (c *ScalingJob) ScaleWorkloads(cronFHPA *autoscalingv1alpha1.CronFederatedHPA) error {
 	ctx := context.Background()
 
+	if c.rule.TargetReplicas == nil {
+		return fmt.Errorf("targetReplicas cannot be nil if you want to scale %s", cronFHPA.Spec.ScaleTargetRef.Kind)
+	}
+
 	scaleClient := c.client.SubResource("scale")
 
 	targetGV, err := schema.ParseGroupVersion(cronFHPA.Spec.ScaleTargetRef.APIVersion)
