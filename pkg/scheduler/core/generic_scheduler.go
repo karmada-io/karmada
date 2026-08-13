@@ -18,6 +18,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -26,6 +27,7 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/scheduler/cache"
 	"github.com/karmada-io/karmada/pkg/scheduler/core/spreadconstraint"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
@@ -57,6 +59,7 @@ type ScheduleResult struct {
 type genericScheduler struct {
 	schedulerCache    cache.Cache
 	scheduleFramework framework.Framework
+	preemptionClaims  *PreemptionClaimStore
 }
 
 // NewGenericScheduler creates a genericScheduler object.
@@ -71,6 +74,7 @@ func NewGenericScheduler(
 	return &genericScheduler{
 		schedulerCache:    schedCache,
 		scheduleFramework: f,
+		preemptionClaims:  NewPreemptionClaimStore(),
 	}, nil
 }
 
@@ -103,12 +107,27 @@ func (g *genericScheduler) Schedule(
 
 	selectedClusters, err := g.selectClusters(clustersScore, spec.Placement, spec, status)
 	if err != nil {
+		if preemptionResult, preemptionErr := g.preempt(ctx, clustersScore, spec, status); preemptionErr != nil {
+			return result, fmt.Errorf("failed to preempt: %w", preemptionErr)
+		} else if preemptionResult != nil {
+			result.PreemptionResult = preemptionResult
+			return result, nil
+		}
 		return result, fmt.Errorf("failed to select clusters: %w", err)
 	}
 	klog.V(4).Infof("Selected clusters: %v", selectedClusters)
 
 	clustersWithReplicas, err := g.assignReplicas(selectedClusters, spec, status)
 	if err != nil {
+		var unschedulableErr *framework.UnschedulableError
+		if errors.As(err, &unschedulableErr) {
+			if preemptionResult, preemptionErr := g.preempt(ctx, clustersScore, spec, status); preemptionErr != nil {
+				return result, fmt.Errorf("failed to preempt: %w", preemptionErr)
+			} else if preemptionResult != nil {
+				result.PreemptionResult = preemptionResult
+				return result, nil
+			}
+		}
 		return result, fmt.Errorf("failed to assign replicas: %w", err)
 	}
 	klog.V(4).Infof("Assigned Replicas: %v", clustersWithReplicas)
@@ -201,10 +220,22 @@ func (g *genericScheduler) prioritizeClusters(
 
 func (g *genericScheduler) selectClusters(clustersScore framework.ClusterScoreList,
 	placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus) ([]spreadconstraint.ClusterDetailInfo, error) {
-	return SelectClusters(clustersScore, placement, spec, status, g.schedulerCache.AssigningResourceBindings())
+	return selectClusters(clustersScore, placement, spec, status, g.schedulerCache.AssigningResourceBindings(), g.activePreemptionClaims(), spec.Replicas)
+}
+
+func (g *genericScheduler) selectClustersForPreemption(clustersScore framework.ClusterScoreList,
+	placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus) ([]spreadconstraint.ClusterDetailInfo, error) {
+	return selectClusters(clustersScore, placement, spec, status, g.schedulerCache.AssigningResourceBindings(), g.activePreemptionClaims(), spreadconstraint.InvalidReplicas)
 }
 
 func (g *genericScheduler) assignReplicas(clusters []spreadconstraint.ClusterDetailInfo, spec *workv1alpha2.ResourceBindingSpec,
 	status *workv1alpha2.ResourceBindingStatus) ([]workv1alpha2.TargetCluster, error) {
 	return AssignReplicas(clusters, spec, status)
+}
+
+func (g *genericScheduler) activePreemptionClaims() *PreemptionClaimStore {
+	if !features.PreemptionEnabled() {
+		return nil
+	}
+	return g.preemptionClaims
 }

@@ -17,12 +17,18 @@ limitations under the License.
 package core
 
 import (
+	"context"
 	"fmt"
 	"sort"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/klog/v2"
 
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/features"
+	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
@@ -145,4 +151,93 @@ func selectVictimsByReplicaCount(preemptor *workv1alpha2.ResourceBindingSpec, ca
 		})
 	}
 	return victims, nil
+}
+
+func (g *genericScheduler) preempt(_ context.Context, clustersScore framework.ClusterScoreList, spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus) (*PreemptionResult, error) {
+	if !isPreemptionApplicable(spec) || g.preemptionClaims == nil {
+		return nil, nil
+	}
+
+	targets, err := g.selectClustersForPreemption(clustersScore, spec.Placement, spec, status)
+	if err != nil {
+		klog.V(4).Infof("Preemption skipped for %s: failed to select target cluster ignoring available replicas: %v", preemptionClaimBindingKey(spec), err)
+		return nil, nil
+	}
+	if len(targets) != 1 {
+		klog.V(4).Infof("Preemption skipped for %s: expected one target cluster, got %d", preemptionClaimBindingKey(spec), len(targets))
+		return nil, nil
+	}
+
+	target := targets[0]
+	if g.preemptionClaims.HasClaimOnCluster(target.Name) {
+		klog.V(4).Infof("Preemption skipped for %s: cluster %q already has an active preemption claim", preemptionClaimBindingKey(spec), target.Name)
+		return nil, nil
+	}
+
+	candidates, err := listPreemptionVictimCandidates(g.schedulerCache.ResourceBindingIndexer(), spec, target.Name)
+	if err != nil {
+		return nil, err
+	}
+	victims, err := selectVictimsByReplicaCount(spec, candidates, int32(target.AvailableReplicas)) // #nosec G115: available replicas are derived from int32 replica counts.
+	if err != nil {
+		klog.V(4).Infof("Preemption skipped for %s on cluster %q: %v", preemptionClaimBindingKey(spec), target.Name, err)
+		return nil, nil
+	}
+	if len(victims) == 0 {
+		return nil, nil
+	}
+
+	g.preemptionClaims.Set(preemptionClaim{
+		bindingKey:   preemptionClaimBindingKey(spec),
+		cluster:      target.Name,
+		priority:     spec.SchedulePriorityValue(),
+		replicas:     spec.Replicas,
+		resourceNeed: preemptionResourceNeed(spec),
+	})
+
+	return &PreemptionResult{
+		Cluster: target.Name,
+		Victims: victims,
+	}, nil
+}
+
+func isPreemptionApplicable(spec *workv1alpha2.ResourceBindingSpec) bool {
+	if !features.PreemptionEnabled() || spec == nil || !spec.IsWorkload() || len(spec.Components) > 1 {
+		return false
+	}
+	if spec.SchedulePriority == nil || spec.SchedulePriority.PreemptionPolicy != workv1alpha2.PreemptLowerPriority {
+		return false
+	}
+	if spec.Placement == nil || spec.Placement.ClusterAffinity == nil || len(spec.Placement.ClusterAffinities) != 0 {
+		return false
+	}
+	if !usesAggregatedSingleClusterScheduling(spec.Placement) {
+		return false
+	}
+	return true
+}
+
+func usesAggregatedSingleClusterScheduling(placement *policyv1alpha1.Placement) bool {
+	if placement.ReplicaScheduling == nil ||
+		placement.ReplicaScheduling.ReplicaSchedulingType != policyv1alpha1.ReplicaSchedulingTypeDivided ||
+		placement.ReplicaScheduling.ReplicaDivisionPreference != policyv1alpha1.ReplicaDivisionPreferenceAggregated {
+		return false
+	}
+	for _, constraint := range placement.SpreadConstraints {
+		if constraint.SpreadByField == policyv1alpha1.SpreadByFieldCluster && constraint.MaxGroups == 1 {
+			return true
+		}
+	}
+	return false
+}
+
+func preemptionClaimBindingKey(spec *workv1alpha2.ResourceBindingSpec) string {
+	return names.NamespacedKey(spec.Resource.Namespace, spec.Resource.Name)
+}
+
+func preemptionResourceNeed(spec *workv1alpha2.ResourceBindingSpec) corev1.ResourceList {
+	if spec.ReplicaRequirements == nil || spec.ReplicaRequirements.ResourceRequest == nil {
+		return nil
+	}
+	return spec.ReplicaRequirements.ResourceRequest.DeepCopy()
 }
