@@ -151,6 +151,7 @@ Generic flags:
                                                                 kube:MultiplePodTemplatesScheduling=true|false (ALPHA - default=false)
                                                                 kube:NativeHistograms=true|false (ALPHA - default=false)
                                                                 kube:OpenAPIEnums=true|false (BETA - default=true)
+                                                                kube:PriorityBasedPreemptiveScheduling=true|false (ALPHA - default=false)
                                                                 kube:PriorityBasedScheduling=true|false (ALPHA - default=false)
                                                                 kube:PropagateDeps=true|false (BETA - default=true)
                                                                 kube:PropagationPolicyPreemption=true|false (ALPHA - default=false)
