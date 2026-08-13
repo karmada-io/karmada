@@ -495,6 +495,7 @@ func TestScheduleResourceBindingWithClusterAffinity(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: workv1alpha2.ResourceBindingSpec{
+					SchedulePriority: &workv1alpha2.SchedulePriority{Priority: 100},
 					Placement: &policyv1alpha1.Placement{
 						ClusterAffinity: &policyv1alpha1.ClusterAffinity{
 							ClusterNames: []string{"cluster1"},
@@ -529,6 +530,7 @@ func TestScheduleResourceBindingWithClusterAffinity(t *testing.T) {
 						Clusters: []workv1alpha2.TargetCluster{
 							{Name: "cluster1", Replicas: 3},
 						},
+						SchedulePriority: &workv1alpha2.SchedulePriority{Priority: 50},
 					},
 				})
 			}
@@ -579,6 +581,172 @@ func TestScheduleResourceBindingWithClusterAffinity(t *testing.T) {
 				default:
 					t.Errorf("Expected victim event to be recorded")
 				}
+			}
+		})
+	}
+}
+
+func TestScheduleResourceBindingClearsPreemptionClaimOnSuccess(t *testing.T) {
+	binding := &workv1alpha2.ResourceBinding{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-binding", Namespace: "default"},
+		Spec: workv1alpha2.ResourceBindingSpec{
+			Placement: &policyv1alpha1.Placement{ClusterAffinity: &policyv1alpha1.ClusterAffinity{ClusterNames: []string{"cluster1"}}},
+		},
+	}
+	algorithm := &mockAlgorithmWithCleaner{
+		mockAlgorithm: mockAlgorithm{
+			scheduleFunc: func(context.Context, *workv1alpha2.ResourceBindingSpec, *workv1alpha2.ResourceBindingStatus, *core.ScheduleAlgorithmOption) (core.ScheduleResult, error) {
+				return core.ScheduleResult{SuggestedClusters: []workv1alpha2.TargetCluster{{Name: "cluster1", Replicas: 1}}}, nil
+			},
+		},
+	}
+	s := &Scheduler{
+		KarmadaClient: karmadafake.NewClientset(binding),
+		eventRecorder: record.NewFakeRecorder(10),
+		Algorithm:     algorithm,
+	}
+
+	if err := s.scheduleResourceBindingWithClusterAffinity(binding); err != nil {
+		t.Fatalf("scheduleResourceBindingWithClusterAffinity() error = %v", err)
+	}
+	if got := algorithm.cleared; !reflect.DeepEqual(got, []core.BindingIdentity{core.ResourceBindingIdentity(binding)}) {
+		t.Fatalf("cleared claims = %+v, want ResourceBinding identity", got)
+	}
+}
+
+func TestScheduleResourceBindingClearsPreemptionClaimOnPreemptionFailure(t *testing.T) {
+	binding := &workv1alpha2.ResourceBinding{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-preemptor", Namespace: "default"},
+		Spec: workv1alpha2.ResourceBindingSpec{
+			SchedulePriority: &workv1alpha2.SchedulePriority{Priority: 100},
+			Placement:        &policyv1alpha1.Placement{ClusterAffinity: &policyv1alpha1.ClusterAffinity{ClusterNames: []string{"cluster1"}}},
+		},
+	}
+	algorithm := &mockAlgorithmWithCleaner{
+		mockAlgorithm: mockAlgorithm{
+			scheduleFunc: func(context.Context, *workv1alpha2.ResourceBindingSpec, *workv1alpha2.ResourceBindingStatus, *core.ScheduleAlgorithmOption) (core.ScheduleResult, error) {
+				return core.ScheduleResult{PreemptionResult: &core.PreemptionResult{
+					Cluster: "cluster1",
+					Victims: []core.VictimBinding{{Namespace: "default", Name: "missing-victim", Replicas: 1, Priority: 50}},
+				}}, nil
+			},
+		},
+	}
+	s := &Scheduler{
+		KarmadaClient: karmadafake.NewClientset(binding),
+		eventRecorder: record.NewFakeRecorder(10),
+		Algorithm:     algorithm,
+	}
+
+	if err := s.scheduleResourceBindingWithClusterAffinity(binding); err == nil {
+		t.Fatal("expected preemption failure")
+	}
+	if got := algorithm.cleared; !reflect.DeepEqual(got, []core.BindingIdentity{core.ResourceBindingIdentity(binding)}) {
+		t.Fatalf("cleared claims = %+v, want ResourceBinding identity", got)
+	}
+}
+
+func TestResourceBindingDeleteClearsPreemptionClaim(t *testing.T) {
+	binding := &workv1alpha2.ResourceBinding{ObjectMeta: metav1.ObjectMeta{Name: "test-binding", Namespace: "default"}}
+	algorithm := &mockAlgorithmWithCleaner{}
+	s := &Scheduler{Algorithm: algorithm}
+
+	s.onResourceBindingDelete(binding)
+
+	if got := algorithm.cleared; !reflect.DeepEqual(got, []core.BindingIdentity{core.ResourceBindingIdentity(binding)}) {
+		t.Fatalf("cleared claims = %+v, want ResourceBinding identity", got)
+	}
+}
+
+func TestPreemptVictimBindingRevalidatesCurrentVictim(t *testing.T) {
+	preemptor := &workv1alpha2.ResourceBinding{
+		ObjectMeta: metav1.ObjectMeta{Name: "preemptor", Namespace: "default"},
+		Spec:       workv1alpha2.ResourceBindingSpec{SchedulePriority: &workv1alpha2.SchedulePriority{Priority: 100}},
+	}
+	tests := []struct {
+		name      string
+		victim    *workv1alpha2.ResourceBinding
+		scheduler string
+		wantErr   bool
+		wantPatch bool
+	}{
+		{
+			name: "valid victim patched",
+			victim: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{Name: "victim", Namespace: "default"},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Clusters:         []workv1alpha2.TargetCluster{{Name: "cluster1", Replicas: 1}},
+					SchedulePriority: &workv1alpha2.SchedulePriority{Priority: 50},
+				},
+			},
+			wantPatch: true,
+		},
+		{
+			name: "priority no longer lower",
+			victim: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{Name: "victim", Namespace: "default"},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Clusters:         []workv1alpha2.TargetCluster{{Name: "cluster1", Replicas: 1}},
+					SchedulePriority: &workv1alpha2.SchedulePriority{Priority: 100},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "cluster removed",
+			victim: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{Name: "victim", Namespace: "default"},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Clusters:         []workv1alpha2.TargetCluster{{Name: "cluster2", Replicas: 1}},
+					SchedulePriority: &workv1alpha2.SchedulePriority{Priority: 50},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "scheduler mismatch",
+			victim: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{Name: "victim", Namespace: "default"},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					SchedulerName:    "other-scheduler",
+					Clusters:         []workv1alpha2.TargetCluster{{Name: "cluster1", Replicas: 1}},
+					SchedulePriority: &workv1alpha2.SchedulePriority{Priority: 50},
+				},
+			},
+			scheduler: "custom-scheduler",
+			wantErr:   true,
+		},
+		{
+			name: "already evicting skipped",
+			victim: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{Name: "victim", Namespace: "default"},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Clusters:              []workv1alpha2.TargetCluster{{Name: "cluster1", Replicas: 1}},
+					GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{{FromCluster: "cluster1"}},
+					SchedulePriority:      &workv1alpha2.SchedulePriority{Priority: 50},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fakeClient := karmadafake.NewClientset(tt.victim)
+			s := &Scheduler{
+				KarmadaClient: fakeClient,
+				eventRecorder: record.NewFakeRecorder(10),
+				schedulerName: tt.scheduler,
+			}
+			err := s.preemptVictimBinding(preemptor, "cluster1", core.VictimBinding{Namespace: "default", Name: "victim", Replicas: 1, Priority: 50})
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("preemptVictimBinding() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			patches := filterPatchActions(fakeClient.Actions())
+			if tt.wantPatch && len(patches) != 1 {
+				t.Fatalf("patch actions = %d, want 1", len(patches))
+			}
+			if !tt.wantPatch && len(patches) != 0 {
+				t.Fatalf("patch actions = %d, want 0", len(patches))
 			}
 		})
 	}
@@ -1206,6 +1374,25 @@ func TestScheduleClusterResourceBindingWithClusterAffinity(t *testing.T) {
 			scheduleResult: core.ScheduleResult{},
 			scheduleError:  errors.New("scheduling error"),
 			expectError:    true,
+		},
+		{
+			name: "preemption result rejected",
+			binding: &workv1alpha2.ClusterResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-cluster-binding-preemption",
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Placement: &policyv1alpha1.Placement{
+						ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+							ClusterNames: []string{"cluster1"},
+						},
+					},
+				},
+			},
+			scheduleResult: core.ScheduleResult{
+				PreemptionResult: &core.PreemptionResult{Cluster: "cluster1"},
+			},
+			expectError: true,
 		},
 	}
 
@@ -2509,6 +2696,15 @@ type mockAlgorithm struct {
 
 func (m *mockAlgorithm) Schedule(ctx context.Context, spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus, option *core.ScheduleAlgorithmOption) (core.ScheduleResult, error) {
 	return m.scheduleFunc(ctx, spec, status, option)
+}
+
+type mockAlgorithmWithCleaner struct {
+	mockAlgorithm
+	cleared []core.BindingIdentity
+}
+
+func (m *mockAlgorithmWithCleaner) ClearPreemptionClaim(identity core.BindingIdentity) {
+	m.cleared = append(m.cleared, identity)
 }
 
 type fakeBindingLister struct {

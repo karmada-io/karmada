@@ -35,6 +35,7 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/features"
+	"github.com/karmada-io/karmada/pkg/scheduler/core"
 	internalqueue "github.com/karmada-io/karmada/pkg/scheduler/internal/queue"
 	"github.com/karmada-io/karmada/pkg/scheduler/metrics"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -271,6 +272,7 @@ func (s *Scheduler) onResourceBindingDelete(obj any) {
 	if features.FeatureGate.Enabled(features.SchedulingOvercommitProtection) {
 		s.schedulerCache.AssigningResourceBindings().ReleaseAssumption(bindingKey)
 	}
+	s.clearPreemptionClaim(core.ResourceBindingIdentity(binding))
 }
 
 func (s *Scheduler) onResourceBindingRequeue(binding *workv1alpha2.ResourceBinding, event string) {
@@ -378,6 +380,9 @@ func (s *Scheduler) deleteCluster(obj any) {
 }
 
 func schedulerNameFilter(schedulerNameFromOptions, schedulerName string) bool {
+	if schedulerNameFromOptions == "" {
+		schedulerNameFromOptions = DefaultScheduler
+	}
 	if schedulerName == "" {
 		schedulerName = DefaultScheduler
 	}

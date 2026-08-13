@@ -23,6 +23,8 @@ import (
 	"testing"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
 
@@ -33,11 +35,12 @@ import (
 	clusterv1alpha1lister "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
 	schedulercache "github.com/karmada-io/karmada/pkg/scheduler/cache"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/runtime"
+	"github.com/karmada-io/karmada/pkg/util/indexregistry"
 	"github.com/karmada-io/karmada/test/helper"
 )
 
 func TestListPreemptionVictimCandidates(t *testing.T) {
-	indexer := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{})
+	indexer := newPreemptionTestBindingIndexer()
 	for _, binding := range []*workv1alpha2.ResourceBinding{
 		newPreemptionTestBinding("default", "lower-on-target", 50, []workv1alpha2.TargetCluster{{Name: "member1", Replicas: 3}}, time.Unix(1, 0)),
 		newPreemptionTestBinding("default", "lower-on-other", 50, []workv1alpha2.TargetCluster{{Name: "member2", Replicas: 3}}, time.Unix(2, 0)),
@@ -55,7 +58,7 @@ func TestListPreemptionVictimCandidates(t *testing.T) {
 		}
 	}
 
-	got, err := listPreemptionVictimCandidates(indexer, newPreemptionTestSpec(10, 100), "member1")
+	got, err := listPreemptionVictimCandidates(indexer, newPreemptionTestSpec(10, 100), "member1", "")
 	if err != nil {
 		t.Fatalf("listPreemptionVictimCandidates() error = %v", err)
 	}
@@ -65,6 +68,7 @@ func TestListPreemptionVictimCandidates(t *testing.T) {
 			name:              "lower-on-target",
 			replicas:          3,
 			priority:          50,
+			resourceRequest:   testResourceRequest("1"),
 			creationTimestamp: time.Unix(1, 0).UnixNano(),
 		},
 	}
@@ -74,7 +78,7 @@ func TestListPreemptionVictimCandidates(t *testing.T) {
 }
 
 func TestListPreemptionVictimCandidatesRejectsInvalidInputs(t *testing.T) {
-	if _, err := listPreemptionVictimCandidates(nil, newPreemptionTestSpec(10, 100), "member1"); err == nil {
+	if _, err := listPreemptionVictimCandidates(nil, newPreemptionTestSpec(10, 100), "member1", ""); err == nil {
 		t.Fatal("expected nil indexer to fail")
 	}
 
@@ -82,8 +86,46 @@ func TestListPreemptionVictimCandidatesRejectsInvalidInputs(t *testing.T) {
 	if err := indexer.Add("not-a-binding"); err != nil {
 		t.Fatalf("failed to add object: %v", err)
 	}
-	if _, err := listPreemptionVictimCandidates(indexer, newPreemptionTestSpec(10, 100), "member1"); err == nil {
+	if _, err := listPreemptionVictimCandidates(indexer, newPreemptionTestSpec(10, 100), "member1", ""); err == nil {
 		t.Fatal("expected invalid cached object to fail")
+	}
+}
+
+func TestListPreemptionVictimCandidatesFiltersSchedulerName(t *testing.T) {
+	indexer := newPreemptionTestBindingIndexer()
+	for _, binding := range []*workv1alpha2.ResourceBinding{
+		func() *workv1alpha2.ResourceBinding {
+			binding := newPreemptionTestBinding("default", "custom-owned", 50, []workv1alpha2.TargetCluster{{Name: "member1", Replicas: 1}}, time.Unix(1, 0))
+			binding.Spec.SchedulerName = "custom-scheduler"
+			return binding
+		}(),
+		newPreemptionTestBinding("default", "default-owned", 50, []workv1alpha2.TargetCluster{{Name: "member1", Replicas: 1}}, time.Unix(2, 0)),
+	} {
+		if err := indexer.Add(binding); err != nil {
+			t.Fatalf("failed to add binding %s/%s: %v", binding.Namespace, binding.Name, err)
+		}
+	}
+
+	got, err := listPreemptionVictimCandidates(indexer, newPreemptionTestSpec(1, 100), "member1", "custom-scheduler")
+	if err != nil {
+		t.Fatalf("listPreemptionVictimCandidates() error = %v", err)
+	}
+	if len(got) != 1 || got[0].name != "custom-owned" {
+		t.Fatalf("listPreemptionVictimCandidates() = %+v, want custom-owned only", got)
+	}
+}
+
+func TestListPreemptionVictimCandidatesCapsCandidates(t *testing.T) {
+	indexer := newPreemptionTestBindingIndexer()
+	for i := 0; i <= maxPreemptionVictimCandidates; i++ {
+		binding := newPreemptionTestBinding("default", fmt.Sprintf("victim-%d", i), 50, []workv1alpha2.TargetCluster{{Name: "member1", Replicas: 1}}, time.Unix(int64(i), 0))
+		if err := indexer.Add(binding); err != nil {
+			t.Fatalf("failed to add binding %s/%s: %v", binding.Namespace, binding.Name, err)
+		}
+	}
+
+	if _, err := listPreemptionVictimCandidates(indexer, newPreemptionTestSpec(1, 100), "member1", ""); err == nil {
+		t.Fatal("expected candidate cap error")
 	}
 }
 
@@ -105,9 +147,9 @@ func TestSelectVictimsByReplicaCount(t *testing.T) {
 			name:      "reprieves higher-priority candidates first",
 			preemptor: newPreemptionTestSpec(10, 100),
 			candidates: []preemptionVictimCandidate{
-				{namespace: "default", name: "highest-lower", replicas: 4, priority: 90, creationTimestamp: time.Unix(1, 0).UnixNano()},
-				{namespace: "default", name: "middle", replicas: 5, priority: 70, creationTimestamp: time.Unix(2, 0).UnixNano()},
-				{namespace: "default", name: "lowest", replicas: 5, priority: 60, creationTimestamp: time.Unix(3, 0).UnixNano()},
+				{namespace: "default", name: "highest-lower", replicas: 4, priority: 90, resourceRequest: testResourceRequest("1"), creationTimestamp: time.Unix(1, 0).UnixNano()},
+				{namespace: "default", name: "middle", replicas: 5, priority: 70, resourceRequest: testResourceRequest("1"), creationTimestamp: time.Unix(2, 0).UnixNano()},
+				{namespace: "default", name: "lowest", replicas: 5, priority: 60, resourceRequest: testResourceRequest("1"), creationTimestamp: time.Unix(3, 0).UnixNano()},
 			},
 			clusterAvailable: 2,
 			want: []VictimBinding{
@@ -119,8 +161,8 @@ func TestSelectVictimsByReplicaCount(t *testing.T) {
 			name:      "uses creation timestamp as reprieve tiebreaker",
 			preemptor: newPreemptionTestSpec(10, 100),
 			candidates: []preemptionVictimCandidate{
-				{namespace: "default", name: "younger", replicas: 5, priority: 50, creationTimestamp: time.Unix(2, 0).UnixNano()},
-				{namespace: "default", name: "older", replicas: 5, priority: 50, creationTimestamp: time.Unix(1, 0).UnixNano()},
+				{namespace: "default", name: "younger", replicas: 5, priority: 50, resourceRequest: testResourceRequest("1"), creationTimestamp: time.Unix(2, 0).UnixNano()},
+				{namespace: "default", name: "older", replicas: 5, priority: 50, resourceRequest: testResourceRequest("1"), creationTimestamp: time.Unix(1, 0).UnixNano()},
 			},
 			clusterAvailable: 5,
 			want: []VictimBinding{
@@ -131,9 +173,9 @@ func TestSelectVictimsByReplicaCount(t *testing.T) {
 			name:      "candidates at or above preemptor priority are ignored",
 			preemptor: newPreemptionTestSpec(10, 100),
 			candidates: []preemptionVictimCandidate{
-				{namespace: "default", name: "equal", replicas: 10, priority: 100, creationTimestamp: time.Unix(1, 0).UnixNano()},
-				{namespace: "default", name: "higher", replicas: 10, priority: 200, creationTimestamp: time.Unix(2, 0).UnixNano()},
-				{namespace: "default", name: "lower", replicas: 6, priority: 50, creationTimestamp: time.Unix(3, 0).UnixNano()},
+				{namespace: "default", name: "equal", replicas: 10, priority: 100, resourceRequest: testResourceRequest("1"), creationTimestamp: time.Unix(1, 0).UnixNano()},
+				{namespace: "default", name: "higher", replicas: 10, priority: 200, resourceRequest: testResourceRequest("1"), creationTimestamp: time.Unix(2, 0).UnixNano()},
+				{namespace: "default", name: "lower", replicas: 6, priority: 50, resourceRequest: testResourceRequest("1"), creationTimestamp: time.Unix(3, 0).UnixNano()},
 			},
 			clusterAvailable: 4,
 			want: []VictimBinding{
@@ -144,7 +186,7 @@ func TestSelectVictimsByReplicaCount(t *testing.T) {
 			name:      "infeasible returns error",
 			preemptor: newPreemptionTestSpec(10, 100),
 			candidates: []preemptionVictimCandidate{
-				{namespace: "default", name: "small", replicas: 3, priority: 50, creationTimestamp: time.Unix(1, 0).UnixNano()},
+				{namespace: "default", name: "small", replicas: 3, priority: 50, resourceRequest: testResourceRequest("1"), creationTimestamp: time.Unix(1, 0).UnixNano()},
 			},
 			clusterAvailable: 2,
 			wantErr:          true,
@@ -161,6 +203,23 @@ func TestSelectVictimsByReplicaCount(t *testing.T) {
 				t.Fatalf("selectVictimsByReplicaCount() = %+v, want %+v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestSelectVictimsByReplicaCountUsesResourceRequests(t *testing.T) {
+	preemptor := newPreemptionTestSpec(1, 100)
+	candidates := []preemptionVictimCandidate{
+		{namespace: "default", name: "small", replicas: 1, priority: 40, resourceRequest: testResourceRequest("100m"), creationTimestamp: time.Unix(1, 0).UnixNano()},
+		{namespace: "default", name: "exact", replicas: 1, priority: 50, resourceRequest: testResourceRequest("1"), creationTimestamp: time.Unix(2, 0).UnixNano()},
+	}
+
+	got, err := selectVictimsByReplicaCount(preemptor, candidates, 0)
+	if err != nil {
+		t.Fatalf("selectVictimsByReplicaCount() error = %v", err)
+	}
+	want := []VictimBinding{{Namespace: "default", Name: "exact", Replicas: 1, Priority: 50}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("selectVictimsByReplicaCount() = %+v, want %+v", got, want)
 	}
 }
 
@@ -232,6 +291,12 @@ func TestIsPreemptionApplicable(t *testing.T) {
 			},
 		},
 		{
+			name: "missing resource request",
+			mutate: func(spec *workv1alpha2.ResourceBindingSpec) {
+				spec.ReplicaRequirements = nil
+			},
+		},
+		{
 			name: "preemption policy unset",
 			mutate: func(spec *workv1alpha2.ResourceBindingSpec) {
 				spec.SchedulePriority.PreemptionPolicy = ""
@@ -245,10 +310,22 @@ func TestIsPreemptionApplicable(t *testing.T) {
 			if tt.mutate != nil {
 				tt.mutate(spec)
 			}
-			if got := isPreemptionApplicable(spec); got != tt.want {
+			if got := isPreemptionApplicable(spec, newResourceBindingScheduleOption("default", "preemptor")); got != tt.want {
 				t.Fatalf("isPreemptionApplicable() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestIsPreemptionApplicableRequiresResourceBindingIdentity(t *testing.T) {
+	enablePreemptionFeatureGates(t)
+
+	spec := newApplicablePreemptionTestSpec("default", "preemptor", 10, 100)
+	if isPreemptionApplicable(spec, &ScheduleAlgorithmOption{BindingIdentity: BindingIdentity{Name: "cluster-preemptor", ClusterScoped: true}}) {
+		t.Fatal("expected ClusterResourceBinding identity to disable preemption")
+	}
+	if isPreemptionApplicable(spec, &ScheduleAlgorithmOption{}) {
+		t.Fatal("expected missing binding identity to disable preemption")
 	}
 }
 
@@ -256,7 +333,7 @@ func TestIsPreemptionApplicableFeatureGateDisabled(t *testing.T) {
 	disablePreemptionFeatureGates(t)
 
 	spec := newApplicablePreemptionTestSpec("default", "preemptor", 10, 100)
-	if got := isPreemptionApplicable(spec); got {
+	if got := isPreemptionApplicable(spec, newResourceBindingScheduleOption("default", "preemptor")); got {
 		t.Fatalf("isPreemptionApplicable() = %v, want false", got)
 	}
 }
@@ -270,7 +347,7 @@ func TestScheduleReturnsPreemptionResult(t *testing.T) {
 		newPreemptionTestBinding("default", "lower-priority", 50, []workv1alpha2.TargetCluster{{Name: "member1", Replicas: 5}}, time.Unix(1, 0)),
 	)
 
-	got, err := scheduler.Schedule(context.Background(), newApplicablePreemptionTestSpec("default", "preemptor", 5, 100), &workv1alpha2.ResourceBindingStatus{}, &ScheduleAlgorithmOption{})
+	got, err := scheduler.Schedule(context.Background(), newApplicablePreemptionTestSpec("default", "preemptor", 5, 100), &workv1alpha2.ResourceBindingStatus{}, newResourceBindingScheduleOption("default", "preemptor-binding"))
 	if err != nil {
 		t.Fatalf("Schedule() error = %v", err)
 	}
@@ -287,7 +364,7 @@ func TestScheduleReturnsPreemptionResult(t *testing.T) {
 		t.Fatalf("Schedule().SuggestedClusters = %v, want nil", got.SuggestedClusters)
 	}
 
-	claim, ok := scheduler.preemptionClaims.Get("default/preemptor")
+	claim, ok := scheduler.preemptionClaims.Get("resourcebinding/default/preemptor-binding")
 	if !ok {
 		t.Fatal("expected preemption claim to be recorded")
 	}
@@ -311,7 +388,7 @@ func TestScheduleSuppressesPreemptionWhenClusterHasActiveClaim(t *testing.T) {
 		replicas:   5,
 	})
 
-	got, err := scheduler.Schedule(context.Background(), newApplicablePreemptionTestSpec("default", "preemptor", 5, 100), &workv1alpha2.ResourceBindingStatus{}, &ScheduleAlgorithmOption{})
+	got, err := scheduler.Schedule(context.Background(), newApplicablePreemptionTestSpec("default", "preemptor", 5, 100), &workv1alpha2.ResourceBindingStatus{}, newResourceBindingScheduleOption("default", "preemptor"))
 	if err == nil {
 		t.Fatal("expected scheduling to fail when active claim suppresses preemption")
 	}
@@ -323,6 +400,9 @@ func TestScheduleSuppressesPreemptionWhenClusterHasActiveClaim(t *testing.T) {
 func newPreemptionTestSpec(replicas, priority int32) *workv1alpha2.ResourceBindingSpec {
 	return &workv1alpha2.ResourceBindingSpec{
 		Replicas: replicas,
+		ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
+			ResourceRequest: testResourceRequest("1"),
+		},
 		SchedulePriority: &workv1alpha2.SchedulePriority{
 			Priority: priority,
 		},
@@ -338,6 +418,9 @@ func newApplicablePreemptionTestSpec(namespace, name string, replicas, priority 
 			Name:       name,
 		},
 		Replicas: replicas,
+		ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
+			ResourceRequest: testResourceRequest("1"),
+		},
 		Placement: &policyv1alpha1.Placement{
 			ClusterAffinity: &policyv1alpha1.ClusterAffinity{
 				ClusterNames: []string{"member1"},
@@ -370,6 +453,9 @@ func newPreemptionTestBinding(namespace, name string, priority int32, clusters [
 		},
 		Spec: workv1alpha2.ResourceBindingSpec{
 			Clusters: clusters,
+			ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
+				ResourceRequest: testResourceRequest("1"),
+			},
 			SchedulePriority: &workv1alpha2.SchedulePriority{
 				Priority: priority,
 			},
@@ -417,7 +503,7 @@ func newPreemptionTestScheduler(t *testing.T, clusterNames []string, bindings ..
 		}
 	}
 
-	bindingIndexer := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{})
+	bindingIndexer := newPreemptionTestBindingIndexer()
 	for _, binding := range bindings {
 		if err := bindingIndexer.Add(binding); err != nil {
 			t.Fatalf("failed to add binding %s/%s: %v", binding.Namespace, binding.Name, err)
@@ -433,6 +519,34 @@ func newPreemptionTestScheduler(t *testing.T, clusterNames []string, bindings ..
 		t.Fatalf("scheduler type = %T, want *genericScheduler", algorithm)
 	}
 	return scheduler
+}
+
+func newResourceBindingScheduleOption(namespace, name string) *ScheduleAlgorithmOption {
+	return &ScheduleAlgorithmOption{
+		BindingIdentity: BindingIdentity{Namespace: namespace, Name: name},
+	}
+}
+
+func newPreemptionTestBindingIndexer() cache.Indexer {
+	return cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{
+		indexregistry.ResourceBindingIndexByFieldCluster: func(obj any) ([]string, error) {
+			binding, ok := obj.(*workv1alpha2.ResourceBinding)
+			if !ok {
+				return nil, fmt.Errorf("object is not a ResourceBinding: %v", obj)
+			}
+			clusters := make([]string, 0, len(binding.Spec.Clusters))
+			for _, cluster := range binding.Spec.Clusters {
+				clusters = append(clusters, cluster.Name)
+			}
+			return clusters, nil
+		},
+	})
+}
+
+func testResourceRequest(cpu string) corev1.ResourceList {
+	return corev1.ResourceList{
+		corev1.ResourceCPU: resource.MustParse(cpu),
+	}
 }
 
 func withPreemptionTestEstimator(t *testing.T, available []workv1alpha2.TargetCluster) {

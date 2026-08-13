@@ -21,11 +21,13 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
 
 const defaultPreemptionClaimTTL = 10 * time.Minute
+const maxInt32 = int64(1<<31 - 1)
 
 type preemptionClaim struct {
 	bindingKey   string
@@ -130,7 +132,7 @@ func clonePreemptionClaim(claim preemptionClaim) preemptionClaim {
 	return claim
 }
 
-func withClaimDeductions(available []workv1alpha2.TargetCluster, claims *PreemptionClaimStore, requesterBindingKey string, requesterPriority int32) []workv1alpha2.TargetCluster {
+func withClaimDeductions(available []workv1alpha2.TargetCluster, claims *PreemptionClaimStore, requesterBindingKey string, requesterPriority int32, requesterRequirements *workv1alpha2.ReplicaRequirements) []workv1alpha2.TargetCluster {
 	result := append([]workv1alpha2.TargetCluster(nil), available...)
 	if claims == nil {
 		return result
@@ -141,7 +143,7 @@ func withClaimDeductions(available []workv1alpha2.TargetCluster, claims *Preempt
 		if claim.bindingKey == requesterBindingKey || claim.priority < requesterPriority || claim.replicas <= 0 {
 			continue
 		}
-		claimsByCluster[claim.cluster] += claim.replicas
+		claimsByCluster[claim.cluster] += claimReplicaDeduction(claim, requesterRequirements)
 	}
 
 	for i := range result {
@@ -153,4 +155,47 @@ func withClaimDeductions(available []workv1alpha2.TargetCluster, claims *Preempt
 		result[i].Replicas -= deduction
 	}
 	return result
+}
+
+func claimReplicaDeduction(claim preemptionClaim, requesterRequirements *workv1alpha2.ReplicaRequirements) int32 {
+	if requesterRequirements == nil || len(requesterRequirements.ResourceRequest) == 0 || len(claim.resourceNeed) == 0 {
+		return claim.replicas
+	}
+
+	var deduction int64
+	for resourceName, requesterQuantity := range requesterRequirements.ResourceRequest {
+		if !positiveQuantity(requesterQuantity) {
+			continue
+		}
+		claimedQuantity, ok := claim.resourceNeed[resourceName]
+		if !ok || !positiveQuantity(claimedQuantity) {
+			continue
+		}
+		totalClaimed := claimedQuantity.DeepCopy()
+		totalClaimed.Mul(int64(claim.replicas))
+		replicas := ceilQuantityRatio(totalClaimed, requesterQuantity)
+		if replicas > deduction {
+			deduction = replicas
+		}
+	}
+	if deduction <= 0 {
+		return 0
+	}
+	if deduction > maxInt32 {
+		return int32(maxInt32)
+	}
+	return int32(deduction)
+}
+
+func positiveQuantity(q resource.Quantity) bool {
+	return q.Sign() > 0
+}
+
+func ceilQuantityRatio(numerator, denominator resource.Quantity) int64 {
+	n := numerator.MilliValue()
+	d := denominator.MilliValue()
+	if n <= 0 || d <= 0 {
+		return 0
+	}
+	return (n + d - 1) / d
 }

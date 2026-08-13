@@ -129,18 +129,27 @@ func TestWithClaimDeductions(t *testing.T) {
 			cluster:    "member1",
 			priority:   100,
 			replicas:   4,
+			resourceNeed: corev1.ResourceList{
+				corev1.ResourceCPU: resource.MustParse("1"),
+			},
 		},
 		{
 			bindingKey: "default/equal-priority",
 			cluster:    "member1",
 			priority:   100,
 			replicas:   3,
+			resourceNeed: corev1.ResourceList{
+				corev1.ResourceCPU: resource.MustParse("1"),
+			},
 		},
 		{
 			bindingKey: "default/higher-priority",
 			cluster:    "member1",
 			priority:   200,
 			replicas:   2,
+			resourceNeed: corev1.ResourceList{
+				corev1.ResourceCPU: resource.MustParse("1"),
+			},
 		},
 		{
 			bindingKey: "default/lower-priority",
@@ -153,6 +162,9 @@ func TestWithClaimDeductions(t *testing.T) {
 			cluster:    "member2",
 			priority:   100,
 			replicas:   10,
+			resourceNeed: corev1.ResourceList{
+				corev1.ResourceCPU: resource.MustParse("1"),
+			},
 		},
 	} {
 		store.Set(claim)
@@ -163,7 +175,11 @@ func TestWithClaimDeductions(t *testing.T) {
 		{Name: "member2", Replicas: 5},
 		{Name: "member3", Replicas: 3},
 	}
-	got := withClaimDeductions(available, store, "default/requester", 100)
+	got := withClaimDeductions(available, store, "default/requester", 100, &workv1alpha2.ReplicaRequirements{
+		ResourceRequest: corev1.ResourceList{
+			corev1.ResourceCPU: resource.MustParse("1"),
+		},
+	})
 	want := []workv1alpha2.TargetCluster{
 		{Name: "member1", Replicas: 5},
 		{Name: "member2", Replicas: 0},
@@ -184,7 +200,7 @@ func TestWithClaimDeductions(t *testing.T) {
 
 func TestWithClaimDeductionsNilStore(t *testing.T) {
 	available := []workv1alpha2.TargetCluster{{Name: "member1", Replicas: 10}}
-	got := withClaimDeductions(available, nil, "default/requester", 100)
+	got := withClaimDeductions(available, nil, "default/requester", 100, nil)
 
 	if len(got) != 1 || got[0] != available[0] {
 		t.Fatalf("got %+v, want %+v", got, available)
@@ -192,5 +208,30 @@ func TestWithClaimDeductionsNilStore(t *testing.T) {
 	got[0].Replicas = 1
 	if available[0].Replicas != 10 {
 		t.Fatalf("withClaimDeductions mutated input: %+v", available)
+	}
+}
+
+func TestWithClaimDeductionsUsesBindingIdentity(t *testing.T) {
+	now := time.Now()
+	store := newPreemptionClaimStore(defaultPreemptionClaimTTL, func() time.Time { return now })
+	store.Set(preemptionClaim{
+		bindingKey: "resourcebinding/default/deployment-foo",
+		cluster:    "member1",
+		priority:   100,
+		replicas:   2,
+		resourceNeed: corev1.ResourceList{
+			corev1.ResourceCPU: resource.MustParse("1"),
+		},
+	})
+
+	got := withClaimDeductions(
+		[]workv1alpha2.TargetCluster{{Name: "member1", Replicas: 5}},
+		store,
+		"resourcebinding/default/statefulset-foo",
+		100,
+		&workv1alpha2.ReplicaRequirements{ResourceRequest: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1")}},
+	)
+	if got[0].Replicas != 3 {
+		t.Fatalf("withClaimDeductions() replicas = %d, want 3", got[0].Replicas)
 	}
 }

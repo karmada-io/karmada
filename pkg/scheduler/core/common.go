@@ -28,21 +28,20 @@ import (
 	"github.com/karmada-io/karmada/pkg/scheduler/core/spreadconstraint"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 	"github.com/karmada-io/karmada/pkg/scheduler/metrics"
-	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 // SelectClusters selects clusters based on the placement and resource binding spec.
 func SelectClusters(clustersScore framework.ClusterScoreList, placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus, assigningCache *schedulercache.AssigningResourceBindingCache) ([]spreadconstraint.ClusterDetailInfo, error) {
-	return selectClusters(clustersScore, placement, spec, status, assigningCache, nil, spec.Replicas)
+	return selectClusters(clustersScore, placement, spec, status, assigningCache, nil, "", spec.SchedulePriorityValue(), spec.ReplicaRequirements, spec.Replicas)
 }
 
-func selectClusters(clustersScore framework.ClusterScoreList, placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus, assigningCache *schedulercache.AssigningResourceBindingCache, preemptionClaims *PreemptionClaimStore, needReplicas int32) ([]spreadconstraint.ClusterDetailInfo, error) {
+func selectClusters(clustersScore framework.ClusterScoreList, placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus, assigningCache *schedulercache.AssigningResourceBindingCache, preemptionClaims *PreemptionClaimStore, requesterBindingKey string, requesterPriority int32, requesterRequirements *workv1alpha2.ReplicaRequirements, needReplicas int32) ([]spreadconstraint.ClusterDetailInfo, error) {
 	startTime := time.Now()
 	defer metrics.ScheduleStep(metrics.ScheduleStepSelect, startTime)
 
 	calAvailableReplicasFunc := func(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster {
 		available := calAvailableReplicas(clusters, spec, assigningCache)
-		return withClaimDeductions(available, preemptionClaims, names.NamespacedKey(spec.Resource.Namespace, spec.Resource.Name), spec.SchedulePriorityValue())
+		return withClaimDeductions(available, preemptionClaims, requesterBindingKey, requesterPriority, requesterRequirements)
 	}
 	groupClustersInfo := spreadconstraint.GroupClustersWithScore(clustersScore, placement, spec, status, calAvailableReplicasFunc)
 	if features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) && isMultiTemplateSchedulingApplicable(spec) {

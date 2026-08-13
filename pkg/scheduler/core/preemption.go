@@ -29,8 +29,11 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
-	"github.com/karmada-io/karmada/pkg/util/names"
+	"github.com/karmada-io/karmada/pkg/util/indexregistry"
 )
+
+const maxPreemptionVictimCandidates = 1000
+const defaultSchedulerName = "default-scheduler"
 
 // PreemptionResult describes the lower-priority bindings selected for eviction
 // so that a higher-priority binding can be scheduled later.
@@ -55,10 +58,12 @@ type preemptionVictimCandidate struct {
 	name              string
 	replicas          int32
 	priority          int32
+	schedulerName     string
+	resourceRequest   corev1.ResourceList
 	creationTimestamp int64
 }
 
-func listPreemptionVictimCandidates(indexer cache.Indexer, preemptor *workv1alpha2.ResourceBindingSpec, targetCluster string) ([]preemptionVictimCandidate, error) {
+func listPreemptionVictimCandidates(indexer cache.Indexer, preemptor *workv1alpha2.ResourceBindingSpec, targetCluster, schedulerName string) ([]preemptionVictimCandidate, error) {
 	if indexer == nil {
 		return nil, fmt.Errorf("resource binding indexer is nil")
 	}
@@ -68,10 +73,20 @@ func listPreemptionVictimCandidates(indexer cache.Indexer, preemptor *workv1alph
 
 	preemptorPriority := preemptor.SchedulePriorityValue()
 	candidates := make([]preemptionVictimCandidate, 0)
-	for _, obj := range indexer.List() {
+	objs, err := indexer.ByIndex(indexregistry.ResourceBindingIndexByFieldCluster, targetCluster)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list ResourceBindings by cluster index %q: %w", targetCluster, err)
+	}
+	if len(objs) > maxPreemptionVictimCandidates {
+		return nil, fmt.Errorf("too many preemption victim candidates on cluster %q: %d exceeds cap %d", targetCluster, len(objs), maxPreemptionVictimCandidates)
+	}
+	for _, obj := range objs {
 		binding, ok := obj.(*workv1alpha2.ResourceBinding)
 		if !ok {
 			return nil, fmt.Errorf("object is not a ResourceBinding: %v", obj)
+		}
+		if !schedulerNameMatches(schedulerName, binding.Spec.SchedulerName) {
+			continue
 		}
 		if binding.Spec.SchedulePriorityValue() >= preemptorPriority {
 			continue
@@ -89,6 +104,8 @@ func listPreemptionVictimCandidates(indexer cache.Indexer, preemptor *workv1alph
 			name:              binding.Name,
 			replicas:          replicas,
 			priority:          binding.Spec.SchedulePriorityValue(),
+			schedulerName:     binding.Spec.SchedulerName,
+			resourceRequest:   bindingResourceRequest(&binding.Spec),
 			creationTimestamp: binding.CreationTimestamp.UnixNano(),
 		})
 	}
@@ -106,17 +123,22 @@ func selectVictimsByReplicaCount(preemptor *workv1alpha2.ResourceBindingSpec, ca
 	}
 
 	preemptorPriority := preemptor.SchedulePriorityValue()
+	deficitResources := resourceListForReplicas(bindingResourceRequest(preemptor), deficit)
+	if len(deficitResources) == 0 {
+		return nil, fmt.Errorf("preemptor resource request is empty")
+	}
+
 	filtered := make([]preemptionVictimCandidate, 0, len(candidates))
-	var totalCandidateReplicas int64
+	totalCandidateResources := corev1.ResourceList{}
 	for _, candidate := range candidates {
-		if candidate.priority >= preemptorPriority || candidate.replicas <= 0 {
+		if candidate.priority >= preemptorPriority || candidate.replicas <= 0 || len(candidate.resourceRequest) == 0 {
 			continue
 		}
 		filtered = append(filtered, candidate)
-		totalCandidateReplicas += int64(candidate.replicas)
+		addResourceList(totalCandidateResources, resourceListForReplicas(candidate.resourceRequest, int64(candidate.replicas)))
 	}
-	if totalCandidateReplicas < deficit {
-		return nil, fmt.Errorf("candidate replicas %d are not enough to cover deficit %d", totalCandidateReplicas, deficit)
+	if !resourceListCovers(totalCandidateResources, deficitResources) {
+		return nil, fmt.Errorf("candidate resources are not enough to cover deficit resources")
 	}
 
 	sort.SliceStable(filtered, func(i, j int) bool {
@@ -126,15 +148,18 @@ func selectVictimsByReplicaCount(preemptor *workv1alpha2.ResourceBindingSpec, ca
 		if filtered[i].creationTimestamp != filtered[j].creationTimestamp {
 			return filtered[i].creationTimestamp < filtered[j].creationTimestamp
 		}
-		return names.NamespacedKey(filtered[i].namespace, filtered[i].name) < names.NamespacedKey(filtered[j].namespace, filtered[j].name)
+		return filtered[i].namespace+"/"+filtered[i].name < filtered[j].namespace+"/"+filtered[j].name
 	})
 
 	reprieved := make([]bool, len(filtered))
-	remainingVictimReplicas := totalCandidateReplicas
+	remainingVictimResources := cloneResourceList(totalCandidateResources)
 	for i, candidate := range filtered {
-		if remainingVictimReplicas-int64(candidate.replicas) >= deficit {
+		candidateResources := resourceListForReplicas(candidate.resourceRequest, int64(candidate.replicas))
+		afterReprieve := cloneResourceList(remainingVictimResources)
+		subtractResourceList(afterReprieve, candidateResources)
+		if resourceListCovers(afterReprieve, deficitResources) {
 			reprieved[i] = true
-			remainingVictimReplicas -= int64(candidate.replicas)
+			remainingVictimResources = afterReprieve
 		}
 	}
 
@@ -153,34 +178,34 @@ func selectVictimsByReplicaCount(preemptor *workv1alpha2.ResourceBindingSpec, ca
 	return victims, nil
 }
 
-func (g *genericScheduler) preempt(_ context.Context, clustersScore framework.ClusterScoreList, spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus) (*PreemptionResult, error) {
-	if !isPreemptionApplicable(spec) || g.preemptionClaims == nil {
+func (g *genericScheduler) preempt(_ context.Context, clustersScore framework.ClusterScoreList, spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus, option *ScheduleAlgorithmOption) (*PreemptionResult, error) {
+	if !isPreemptionApplicable(spec, option) || g.preemptionClaims == nil {
 		return nil, nil
 	}
 
 	targets, err := g.selectClustersForPreemption(clustersScore, spec.Placement, spec, status)
 	if err != nil {
-		klog.V(4).Infof("Preemption skipped for %s: failed to select target cluster ignoring available replicas: %v", preemptionClaimBindingKey(spec), err)
+		klog.V(4).Infof("Preemption skipped for %s: failed to select target cluster ignoring available replicas: %v", option.BindingIdentity.Key(), err)
 		return nil, nil
 	}
 	if len(targets) != 1 {
-		klog.V(4).Infof("Preemption skipped for %s: expected one target cluster, got %d", preemptionClaimBindingKey(spec), len(targets))
+		klog.V(4).Infof("Preemption skipped for %s: expected one target cluster, got %d", option.BindingIdentity.Key(), len(targets))
 		return nil, nil
 	}
 
 	target := targets[0]
 	if g.preemptionClaims.HasClaimOnCluster(target.Name) {
-		klog.V(4).Infof("Preemption skipped for %s: cluster %q already has an active preemption claim", preemptionClaimBindingKey(spec), target.Name)
+		klog.V(4).Infof("Preemption skipped for %s: cluster %q already has an active preemption claim", option.BindingIdentity.Key(), target.Name)
 		return nil, nil
 	}
 
-	candidates, err := listPreemptionVictimCandidates(g.schedulerCache.ResourceBindingIndexer(), spec, target.Name)
+	candidates, err := listPreemptionVictimCandidates(g.schedulerCache.ResourceBindingIndexer(), spec, target.Name, option.SchedulerName)
 	if err != nil {
 		return nil, err
 	}
 	victims, err := selectVictimsByReplicaCount(spec, candidates, int32(target.AvailableReplicas)) // #nosec G115: available replicas are derived from int32 replica counts.
 	if err != nil {
-		klog.V(4).Infof("Preemption skipped for %s on cluster %q: %v", preemptionClaimBindingKey(spec), target.Name, err)
+		klog.V(4).Infof("Preemption skipped for %s on cluster %q: %v", option.BindingIdentity.Key(), target.Name, err)
 		return nil, nil
 	}
 	if len(victims) == 0 {
@@ -188,7 +213,7 @@ func (g *genericScheduler) preempt(_ context.Context, clustersScore framework.Cl
 	}
 
 	g.preemptionClaims.Set(preemptionClaim{
-		bindingKey:   preemptionClaimBindingKey(spec),
+		bindingKey:   option.BindingIdentity.Key(),
 		cluster:      target.Name,
 		priority:     spec.SchedulePriorityValue(),
 		replicas:     spec.Replicas,
@@ -201,11 +226,17 @@ func (g *genericScheduler) preempt(_ context.Context, clustersScore framework.Cl
 	}, nil
 }
 
-func isPreemptionApplicable(spec *workv1alpha2.ResourceBindingSpec) bool {
+func isPreemptionApplicable(spec *workv1alpha2.ResourceBindingSpec, option *ScheduleAlgorithmOption) bool {
 	if !features.PreemptionEnabled() || spec == nil || !spec.IsWorkload() || len(spec.Components) > 1 {
 		return false
 	}
+	if option == nil || !option.BindingIdentity.IsResourceBinding() {
+		return false
+	}
 	if spec.SchedulePriority == nil || spec.SchedulePriority.PreemptionPolicy != workv1alpha2.PreemptLowerPriority {
+		return false
+	}
+	if len(bindingResourceRequest(spec)) == 0 {
 		return false
 	}
 	if spec.Placement == nil || spec.Placement.ClusterAffinity == nil || len(spec.Placement.ClusterAffinities) != 0 {
@@ -231,13 +262,79 @@ func usesAggregatedSingleClusterScheduling(placement *policyv1alpha1.Placement) 
 	return false
 }
 
-func preemptionClaimBindingKey(spec *workv1alpha2.ResourceBindingSpec) string {
-	return names.NamespacedKey(spec.Resource.Namespace, spec.Resource.Name)
+func preemptionResourceNeed(spec *workv1alpha2.ResourceBindingSpec) corev1.ResourceList {
+	return bindingResourceRequest(spec)
 }
 
-func preemptionResourceNeed(spec *workv1alpha2.ResourceBindingSpec) corev1.ResourceList {
-	if spec.ReplicaRequirements == nil || spec.ReplicaRequirements.ResourceRequest == nil {
+func bindingResourceRequest(spec *workv1alpha2.ResourceBindingSpec) corev1.ResourceList {
+	if spec == nil || spec.ReplicaRequirements == nil || len(spec.ReplicaRequirements.ResourceRequest) == 0 {
 		return nil
 	}
 	return spec.ReplicaRequirements.ResourceRequest.DeepCopy()
+}
+
+func schedulerNameMatches(expected, actual string) bool {
+	return normalizeSchedulerName(expected) == normalizeSchedulerName(actual)
+}
+
+func normalizeSchedulerName(name string) string {
+	if name == "" {
+		return defaultSchedulerName
+	}
+	return name
+}
+
+func resourceListForReplicas(request corev1.ResourceList, replicas int64) corev1.ResourceList {
+	if replicas <= 0 || len(request) == 0 {
+		return nil
+	}
+	out := make(corev1.ResourceList, len(request))
+	for name, quantity := range request {
+		if !positiveQuantity(quantity) {
+			continue
+		}
+		q := quantity.DeepCopy()
+		q.Mul(replicas)
+		out[name] = q
+	}
+	return out
+}
+
+func addResourceList(dst, add corev1.ResourceList) {
+	for name, quantity := range add {
+		existing := dst[name]
+		existing.Add(quantity)
+		dst[name] = existing
+	}
+}
+
+func subtractResourceList(dst, sub corev1.ResourceList) {
+	for name, quantity := range sub {
+		existing := dst[name]
+		existing.Sub(quantity)
+		dst[name] = existing
+	}
+}
+
+func resourceListCovers(available, needed corev1.ResourceList) bool {
+	if len(needed) == 0 {
+		return false
+	}
+	for name, neededQuantity := range needed {
+		if !positiveQuantity(neededQuantity) {
+			continue
+		}
+		availableQuantity := available[name]
+		if availableQuantity.Cmp(neededQuantity) < 0 {
+			return false
+		}
+	}
+	return true
+}
+
+func cloneResourceList(in corev1.ResourceList) corev1.ResourceList {
+	if in == nil {
+		return nil
+	}
+	return in.DeepCopy()
 }
