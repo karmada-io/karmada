@@ -21890,9 +21890,12 @@
     "com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.SchedulePriority": {
       "description": "SchedulePriority represents the scheduling priority assigned to workloads.",
       "type": "object",
+      "required": [
+        "preemptionPolicy"
+      ],
       "properties": {
         "preemptionPolicy": {
-          "description": "PreemptionPolicy specifies whether the binding can preempt lower-priority bindings. If not explicitly set, the binding will not preempt others.",
+          "description": "PreemptionPolicy describes the policy of if and when to preempt bindings. One of Never, PreemptLowerPriority.",
           "type": "string"
         },
         "priority": {
