@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	fakeclientset "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/clientcmd"
@@ -179,7 +180,7 @@ func TestRunUploadAdminKubeconfig(t *testing.T) {
 				RemoteClientConnector: fakeclientset.NewClientset(),
 				ControlplaneAddr:      controlPlaneAddress,
 			},
-			endpoingExpected: fmt.Sprintf("https://%s:0", controlPlaneAddress),
+			endpoingExpected: fmt.Sprintf("https://%s:32443", controlPlaneAddress),
 			prep: func(rd workflow.RunData) error {
 				// Create a certificate authority to generate the Karmada admin kubeconfig.
 				if err := createCA(rd); err != nil {
@@ -195,6 +196,15 @@ func TestRunUploadAdminKubeconfig(t *testing.T) {
 					return fmt.Errorf("failed to install karmada api server: %v", err)
 				}
 
+				service, err := client.CoreV1().Services(namespace).Get(context.TODO(), apiServerComponentName, metav1.GetOptions{})
+				if err != nil {
+					return fmt.Errorf("failed to get karmada api server service: %v", err)
+				}
+				service.Spec.Ports[0].NodePort = 32443
+				if _, err := client.CoreV1().Services(namespace).Update(context.TODO(), service, metav1.UpdateOptions{}); err != nil {
+					return fmt.Errorf("failed to update karmada api server service: %v", err)
+				}
+
 				return nil
 			},
 			verify: func(rd workflow.RunData, endpoint string) error {
@@ -207,27 +217,132 @@ func TestRunUploadAdminKubeconfig(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "WithKarmadaAPIServerNodePortServiceType_MissingClientPort_ReturnsError",
+			runData: &TestInitData{
+				Name:      name,
+				Namespace: namespace,
+				ComponentsUnits: &operatorv1alpha1.KarmadaComponents{
+					KarmadaAPIServer: &operatorv1alpha1.KarmadaAPIServer{
+						ServiceType: corev1.ServiceTypeNodePort,
+					},
+				},
+				RemoteClientConnector: fakeclientset.NewClientset(),
+				ControlplaneAddr:      controlPlaneAddress,
+			},
+			prep: func(rd workflow.RunData) error {
+				if err := createCA(rd); err != nil {
+					return err
+				}
+
+				data := rd.(*TestInitData)
+				service := &corev1.Service{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      apiServerComponentName,
+						Namespace: namespace,
+					},
+					Spec: corev1.ServiceSpec{
+						Type: corev1.ServiceTypeNodePort,
+						Ports: []corev1.ServicePort{
+							{
+								Name:     "metrics",
+								NodePort: 32444,
+							},
+						},
+					},
+				}
+				_, err := data.RemoteClient().CoreV1().Services(namespace).Create(context.TODO(), service, metav1.CreateOptions{})
+				return err
+			},
+			verify: func(rd workflow.RunData, _ string) error {
+				data := rd.(*TestInitData)
+				client := data.RemoteClient().(*fakeclientset.Clientset)
+				return verifySecretNotCreated(client, name, namespace)
+			},
+			wantErr: true,
+			errMsg:  fmt.Sprintf("service (%s/%s) has no client NodePort", namespace, apiServerComponentName),
+		},
+		{
+			name: "WithKarmadaAPIServerNodePortServiceType_ZeroClientNodePort_ReturnsError",
+			runData: &TestInitData{
+				Name:      name,
+				Namespace: namespace,
+				ComponentsUnits: &operatorv1alpha1.KarmadaComponents{
+					KarmadaAPIServer: &operatorv1alpha1.KarmadaAPIServer{
+						ServiceType: corev1.ServiceTypeNodePort,
+					},
+				},
+				RemoteClientConnector: fakeclientset.NewClientset(),
+				ControlplaneAddr:      controlPlaneAddress,
+			},
+			prep: func(rd workflow.RunData) error {
+				if err := createCA(rd); err != nil {
+					return err
+				}
+
+				data := rd.(*TestInitData)
+				service := &corev1.Service{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      apiServerComponentName,
+						Namespace: namespace,
+					},
+					Spec: corev1.ServiceSpec{
+						Type: corev1.ServiceTypeNodePort,
+						Ports: []corev1.ServicePort{
+							{
+								Name:     "client",
+								NodePort: 0,
+							},
+						},
+					},
+				}
+				_, err := data.RemoteClient().CoreV1().Services(namespace).Create(context.TODO(), service, metav1.CreateOptions{})
+				return err
+			},
+			verify: func(rd workflow.RunData, _ string) error {
+				data := rd.(*TestInitData)
+				client := data.RemoteClient().(*fakeclientset.Clientset)
+				return verifySecretNotCreated(client, name, namespace)
+			},
+			wantErr: true,
+			errMsg:  fmt.Sprintf("service (%s/%s) has no valid client NodePort", namespace, apiServerComponentName),
+		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if err := test.prep(test.runData); err != nil {
-				t.Errorf("failed tp prep uploading admin kubeconfig: %v", err)
-			}
-			err := runUploadAdminKubeconfig(test.runData)
-			if err == nil && test.wantErr {
-				t.Errorf("expected error, but got none")
-			}
-			if err != nil && !test.wantErr {
-				t.Errorf("unexpected error: %v", err)
-			}
-			if err != nil && test.wantErr && !strings.Contains(err.Error(), test.errMsg) {
-				t.Errorf("expected %s error msg to contain %s", err.Error(), test.errMsg)
-			}
-			if err := test.verify(test.runData, test.endpoingExpected); err != nil {
-				t.Errorf("failed to run upload admin kubeconfig task: %v", err)
-			}
+			runUploadAdminKubeconfigTestCase(t, test)
 		})
+	}
+}
+
+func runUploadAdminKubeconfigTestCase(t *testing.T, test struct {
+	name             string
+	runData          workflow.RunData
+	endpoingExpected string
+	prep             func(workflow.RunData) error
+	verify           func(workflow.RunData, string) error
+	wantErr          bool
+	errMsg           string
+}) {
+	t.Helper()
+
+	if err := test.prep(test.runData); err != nil {
+		t.Fatalf("failed tp prep uploading admin kubeconfig: %v", err)
+	}
+
+	err := runUploadAdminKubeconfig(test.runData)
+	switch {
+	case err == nil && test.wantErr:
+		t.Fatal("expected error, but got none")
+	case err != nil && !test.wantErr:
+		t.Fatalf("unexpected error: %v", err)
+	case err != nil && test.wantErr && !strings.Contains(err.Error(), test.errMsg):
+		t.Fatalf("expected %s error msg to contain %s", err.Error(), test.errMsg)
+	}
+
+	if err := test.verify(test.runData, test.endpoingExpected); err != nil {
+		t.Fatalf("failed to run upload admin kubeconfig task: %v", err)
 	}
 }
 
@@ -280,6 +395,19 @@ func verifySecret(client *fakeclientset.Clientset, karmadaInstanceName, namespac
 	}
 
 	return nil
+}
+
+func verifySecretNotCreated(client *fakeclientset.Clientset, karmadaInstanceName, namespace string) error {
+	secretName := util.AdminKarmadaConfigSecretName(karmadaInstanceName)
+	_, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
+	if apierrors.IsNotFound(err) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("failed to get %s secret in %s namespace: %v", secretName, namespace, err)
+	}
+
+	return fmt.Errorf("expected %s secret not to be created in %s namespace", secretName, namespace)
 }
 
 // createCA creates a new certificate authority and append it to the cert store.
