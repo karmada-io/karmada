@@ -374,7 +374,7 @@ var _ = framework.SerialDescribe("[EstimatorAssumption] ResourceQuota plugin ass
 		// exceeding the 1000m ResourceQuota. This step verifies that the assumption cache also
 		// protects against over-scheduling of single-template workloads.
 		ginkgo.By("verifying a single-template Deployment requesting 200m CPU is also unschedulable due to assumed workloads", func() {
-			assertSingleTemplateDeploymentUnschedulable(quotaNamespace, targetCluster)
+			assertSingleTemplateDeploymentUnschedulable(quotaNamespace, targetCluster, 200)
 		})
 	})
 })
@@ -423,19 +423,17 @@ var _ = framework.SerialDescribe("[EstimatorAssumption] NodeResource plugin assu
 	})
 
 	ginkgo.It("FlinkDeployment should be unschedulable when assumed workloads exhaust cluster resources", func(ctx context.Context) {
-		// Each FlinkDeployment has jobManager (100m) + taskManager (100m) = 200m total assumed CPU.
-		// We create FlinkDeployments sequentially (each scheduled before the next is created) so the
-		// assumption cache accumulates in-flight CPU on member1. Since no Flink Operator is installed,
-		// no pods are created and no real CPU is consumed, but karmada-scheduler treats these as
-		// assumed workloads. Within maxFlinkCount attempts, at least one must get NoClusterFit,
-		// which proves the assumption feature is working correctly.
-		const (
-			componentCPU  = 0.1 // 0.1 core (100m) as a number, matching the CRD schema type
-			maxFlinkCount = 50
-		)
+		targetNodeName, targetNodeHostname, availableMilliCPU := mostAvailableSchedulableNodeCPU(ctx, targetCluster)
+		componentMilliCPU := availableMilliCPU/4 + 1
+		componentCPU := float64(componentMilliCPU) / 1000
+		const maxFlinkCount = 5
 
-		// createFlinkDeployment creates a FlinkDeployment with fixed 100m per component and its
-		// PropagationPolicy targeting member1, then returns the ResourceBinding name.
+		ginkgo.By(fmt.Sprintf("targeting node %q with %dm available CPU and %dm per Flink component",
+			targetNodeName, availableMilliCPU, componentMilliCPU))
+
+		// Each FlinkDeployment has one JobManager and two TaskManager components. The CPU request is
+		// derived from member1 capacity so one FlinkDeployment can schedule, while accumulated
+		// assumptions make a later one unschedulable without depending on CI runner size.
 		createFlinkDeployment := func() string {
 			flinkName := fmt.Sprintf("flinkdeployment-%s", rand.String(RandomStrLength))
 
@@ -444,9 +442,15 @@ var _ = framework.SerialDescribe("[EstimatorAssumption] NodeResource plugin assu
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			flinkObj.SetNamespace(testNamespace)
 			flinkObj.SetName(flinkName)
-			err = unstructured.SetNestedField(flinkObj.Object, float64(componentCPU), "spec", "jobManager", "resource", "cpu")
+			err = unstructured.SetNestedField(flinkObj.Object, componentCPU, "spec", "jobManager", "resource", "cpu")
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			err = unstructured.SetNestedField(flinkObj.Object, float64(componentCPU), "spec", "taskManager", "resource", "cpu")
+			err = unstructured.SetNestedField(flinkObj.Object, componentCPU, "spec", "taskManager", "resource", "cpu")
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			err = unstructured.SetNestedField(flinkObj.Object, int64(2), "spec", "taskManager", "replicas")
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			err = unstructured.SetNestedStringMap(flinkObj.Object, map[string]string{
+				corev1.LabelHostname: targetNodeHostname,
+			}, "spec", "podTemplate", "spec", "nodeSelector")
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			_, err = dynamicClient.Resource(flinkDeploymentGVR).Namespace(testNamespace).
 				Create(ctx, flinkObj, metav1.CreateOptions{})
@@ -488,6 +492,7 @@ var _ = framework.SerialDescribe("[EstimatorAssumption] NodeResource plugin assu
 
 		ginkgo.By(fmt.Sprintf("creating FlinkDeployments one by one (up to %d) until assumption exhausts cluster resources", maxFlinkCount), func() {
 			assumptionExhausted := false
+			scheduledCount := 0
 			for range maxFlinkCount {
 				bindingName := createFlinkDeployment()
 				// Wait for a definitive scheduling result before creating the next one,
@@ -501,34 +506,94 @@ var _ = framework.SerialDescribe("[EstimatorAssumption] NodeResource plugin assu
 						if cond.Status == metav1.ConditionFalse && cond.Reason == workv1alpha2.BindingReasonSchedulerError &&
 							strings.Contains(cond.Message, "no enough resource") {
 							assumptionExhausted = true
+							return true
 						}
-						return true
+						if cond.Status == metav1.ConditionTrue {
+							scheduledCount++
+							return true
+						}
+						return false
 					})
 				if assumptionExhausted {
 					break
 				}
 			}
+			gomega.Expect(scheduledCount).Should(gomega.BeNumerically(">", 0),
+				"expected at least one FlinkDeployment to schedule before assumptions exhaust node resources")
 			gomega.Expect(assumptionExhausted).Should(gomega.BeTrue(),
 				"expected assumption to exhaust cluster resources within %d FlinkDeployments", maxFlinkCount)
 		})
 
-		// At this point the assumption cache has consumed all available node CPU on member1.
-		// A single-template Deployment requesting 200m CPU should also fail to schedule,
-		// verifying that the assumption cache protects against over-scheduling of
+		// At this point the assumption cache has less than one Flink component worth of CPU
+		// remaining on member1. A single-template Deployment with the same CPU request should also
+		// fail to schedule, verifying that the assumption cache protects against over-scheduling of
 		// single-template workloads as well.
-		ginkgo.By("verifying a single-template Deployment requesting 200m CPU is also unschedulable due to assumed workloads", func() {
-			assertSingleTemplateDeploymentUnschedulable(testNamespace, targetCluster)
+		ginkgo.By("verifying a single-template Deployment is also unschedulable due to assumed workloads", func() {
+			assertSingleTemplateDeploymentUnschedulable(testNamespace, targetCluster, componentMilliCPU)
 		})
 	})
 })
 
+func mostAvailableSchedulableNodeCPU(ctx context.Context, cluster string) (string, string, int64) {
+	clusterClient := framework.GetClusterClient(cluster)
+	gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
+
+	nodeList, err := clusterClient.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+	podList, err := clusterClient.CoreV1().Pods(metav1.NamespaceAll).List(ctx, metav1.ListOptions{})
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	requestedCPUByNode := make(map[string]int64)
+	for i := range podList.Items {
+		pod := &podList.Items[i]
+		if pod.Spec.NodeName == "" || pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
+			continue
+		}
+		requestedCPUByNode[pod.Spec.NodeName] += util.EmptyResource().AddPodRequest(&pod.Spec).MilliCPU
+	}
+
+	var selectedNodeName, selectedHostname string
+	var maxAvailableMilliCPU int64
+	for i := range nodeList.Items {
+		node := &nodeList.Items[i]
+		if !nodeSchedulableByDefault(node) {
+			continue
+		}
+		hostname := node.Labels[corev1.LabelHostname]
+		if hostname == "" {
+			continue
+		}
+		availableMilliCPU := node.Status.Allocatable.Cpu().MilliValue() - requestedCPUByNode[node.Name]
+		if availableMilliCPU > maxAvailableMilliCPU {
+			selectedNodeName = node.Name
+			selectedHostname = hostname
+			maxAvailableMilliCPU = availableMilliCPU
+		}
+	}
+
+	gomega.Expect(selectedNodeName).ShouldNot(gomega.BeEmpty(), "expected at least one schedulable node in cluster %q", cluster)
+	gomega.Expect(maxAvailableMilliCPU).Should(gomega.BeNumerically(">", 0), "expected positive available CPU on node %q", selectedNodeName)
+	return selectedNodeName, selectedHostname, maxAvailableMilliCPU
+}
+
+func nodeSchedulableByDefault(node *corev1.Node) bool {
+	if node.Spec.Unschedulable {
+		return false
+	}
+	for _, taint := range node.Spec.Taints {
+		if taint.Effect == corev1.TaintEffectNoSchedule || taint.Effect == corev1.TaintEffectNoExecute {
+			return false
+		}
+	}
+	return true
+}
+
 // assertSingleTemplateDeploymentUnschedulable creates a single-replica Deployment requesting
-// 200m CPU in the given namespace, propagates it to targetCluster, and asserts that the
+// cpuRequestMilliCPU in the given namespace, propagates it to targetCluster, and asserts that the
 // ResourceBinding transitions to an unschedulable state because the assumption cache has
 // already exhausted the available resources.
-func assertSingleTemplateDeploymentUnschedulable(namespace, targetCluster string) {
-	const cpuRequest = "200m"
-
+func assertSingleTemplateDeploymentUnschedulable(namespace, targetCluster string, cpuRequestMilliCPU int64) {
+	cpuRequest := fmt.Sprintf("%dm", cpuRequestMilliCPU)
 	deployName := fmt.Sprintf("deploy-%s", rand.String(RandomStrLength))
 	deploy := helper.NewDeployment(namespace, deployName)
 	deploy.Spec.Replicas = ptr.To[int32](1)
