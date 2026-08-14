@@ -581,6 +581,16 @@ func nodeSchedulableByDefault(node *corev1.Node) bool {
 	if node.Spec.Unschedulable {
 		return false
 	}
+	ready := false
+	for _, cond := range node.Status.Conditions {
+		if cond.Type == corev1.NodeReady {
+			ready = cond.Status == corev1.ConditionTrue
+			break
+		}
+	}
+	if !ready {
+		return false
+	}
 	for _, taint := range node.Spec.Taints {
 		if taint.Effect == corev1.TaintEffectNoSchedule || taint.Effect == corev1.TaintEffectNoExecute {
 			return false
