@@ -25,7 +25,6 @@ import (
 
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -46,23 +45,6 @@ func WaitResourceBindingFitWith(client karmada.Interface, namespace, name string
 		}
 		return fit(resourceBinding)
 	}, PollTimeout, PollInterval).Should(gomega.Equal(true))
-}
-
-// WaitResourceBindingDisappear waits for a ResourceBinding to be removed.
-func WaitResourceBindingDisappear(client karmada.Interface, namespace, name string) {
-	klog.Infof("Waiting for ResourceBinding(%s/%s) to disappear", namespace, name)
-	gomega.Eventually(func() bool {
-		_, err := client.WorkV1alpha2().ResourceBindings(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-		if err == nil {
-			return false
-		}
-		if apierrors.IsNotFound(err) {
-			return true
-		}
-
-		klog.Errorf("Failed to get ResourceBinding(%s/%s), err: %v", namespace, name, err)
-		return false
-	}, PollTimeout, PollInterval).Should(gomega.BeTrue())
 }
 
 // AssertBindingScheduledClusters wait deployment present on member clusters sync with fit func.
