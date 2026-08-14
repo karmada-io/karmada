@@ -424,6 +424,7 @@ var _ = framework.SerialDescribe("[EstimatorAssumption] NodeResource plugin assu
 
 	ginkgo.It("FlinkDeployment should be unschedulable when assumed workloads exhaust cluster resources", func(ctx context.Context) {
 		targetNodeName, targetNodeHostname, availableMilliCPU := mostAvailableSchedulableNodeCPU(ctx, targetCluster)
+		targetNodeSelector := map[string]string{corev1.LabelHostname: targetNodeHostname}
 		const flinkComponentsPerDeployment int64 = 2
 		componentMilliCPU := max(int64(50), availableMilliCPU/12)
 		flinkDeploymentMilliCPU := flinkComponentsPerDeployment * componentMilliCPU
@@ -450,9 +451,7 @@ var _ = framework.SerialDescribe("[EstimatorAssumption] NodeResource plugin assu
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			err = unstructured.SetNestedField(flinkObj.Object, componentCPU, "spec", "taskManager", "resource", "cpu")
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			err = unstructured.SetNestedStringMap(flinkObj.Object, map[string]string{
-				corev1.LabelHostname: targetNodeHostname,
-			}, "spec", "podTemplate", "spec", "nodeSelector")
+			err = unstructured.SetNestedStringMap(flinkObj.Object, targetNodeSelector, "spec", "podTemplate", "spec", "nodeSelector")
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			_, err = dynamicClient.Resource(flinkDeploymentGVR).Namespace(testNamespace).
 				Create(ctx, flinkObj, metav1.CreateOptions{})
@@ -531,9 +530,7 @@ var _ = framework.SerialDescribe("[EstimatorAssumption] NodeResource plugin assu
 		// fail to schedule, verifying that the assumption cache protects against over-scheduling of
 		// single-template workloads as well.
 		ginkgo.By("verifying a single-template Deployment is also unschedulable due to assumed workloads", func() {
-			assertSingleTemplateDeploymentUnschedulable(testNamespace, targetCluster, componentMilliCPU, map[string]string{
-				corev1.LabelHostname: targetNodeHostname,
-			})
+			assertSingleTemplateDeploymentUnschedulable(testNamespace, targetCluster, componentMilliCPU, targetNodeSelector)
 		})
 	})
 })
