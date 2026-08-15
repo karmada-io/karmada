@@ -340,6 +340,8 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &workv1alpha2.SuspensionApplyConfiguration{}
 	case v1alpha2.SchemeGroupVersion.WithKind("TargetCluster"):
 		return &workv1alpha2.TargetClusterApplyConfiguration{}
+	case v1alpha2.SchemeGroupVersion.WithKind("TargetComponent"):
+		return &workv1alpha2.TargetComponentApplyConfiguration{}
 	case v1alpha2.SchemeGroupVersion.WithKind("WorkloadAffinityGroups"):
 		return &workv1alpha2.WorkloadAffinityGroupsApplyConfiguration{}
 

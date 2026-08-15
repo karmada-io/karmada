@@ -28,7 +28,10 @@ func IsScheduleResultEqual(tc1, tc2 []workv1alpha2.TargetCluster) bool {
 		return false
 	}
 	for _, c1 := range tc1 {
-		found := slices.Contains(tc2, c1)
+		found := slices.ContainsFunc(tc2, func(c2 workv1alpha2.TargetCluster) bool {
+			return c1.Name == c2.Name && c1.Replicas == c2.Replicas &&
+				slices.Equal(c1.Components, c2.Components)
+		})
 		if !found {
 			return false
 		}

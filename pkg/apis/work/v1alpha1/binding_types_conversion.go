@@ -90,7 +90,10 @@ func ConvertBindingSpecToHub(src *ResourceBindingSpec, dst *workv1alpha2.Resourc
 	dst.Replicas = src.Resource.Replicas
 
 	for i := range src.Clusters {
-		dst.Clusters = append(dst.Clusters, workv1alpha2.TargetCluster(src.Clusters[i]))
+		dst.Clusters = append(dst.Clusters, workv1alpha2.TargetCluster{
+			Name:     src.Clusters[i].Name,
+			Replicas: src.Clusters[i].Replicas,
+		})
 	}
 }
 
@@ -122,7 +125,12 @@ func ConvertBindingSpecFromHub(src *workv1alpha2.ResourceBindingSpec, dst *Resou
 	dst.Resource.Replicas = src.Replicas
 
 	for i := range src.Clusters {
-		dst.Clusters = append(dst.Clusters, TargetCluster(src.Clusters[i]))
+		// Note: The Components field is introduced in v1alpha2 and has no
+		// counterpart in v1alpha1, so it is dropped during the conversion.
+		dst.Clusters = append(dst.Clusters, TargetCluster{
+			Name:     src.Clusters[i].Name,
+			Replicas: src.Clusters[i].Replicas,
+		})
 	}
 }
 

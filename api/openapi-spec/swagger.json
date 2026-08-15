@@ -21923,6 +21923,13 @@
         "name"
       ],
       "properties": {
+        "components": {
+          "description": "Components represents the per-component replica assignment in this cluster. It is populated only for workloads with multiple pod templates, and only when the MultiplePodTemplatesScheduling feature gate is enabled. Each entry corresponds to an entry in spec.Components by Name.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.TargetComponent"
+          }
+        },
         "name": {
           "description": "Name of target cluster.",
           "type": "string",
@@ -21932,6 +21939,27 @@
           "description": "Replicas in target cluster",
           "type": "integer",
           "format": "int32"
+        }
+      }
+    },
+    "com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.TargetComponent": {
+      "description": "TargetComponent represents the replica assignment of a component in a cluster.",
+      "type": "object",
+      "required": [
+        "name",
+        "replicas"
+      ],
+      "properties": {
+        "name": {
+          "description": "Name of the component, matching spec.components[*].name.",
+          "type": "string",
+          "default": ""
+        },
+        "replicas": {
+          "description": "Replicas of this component assigned to the cluster.",
+          "type": "integer",
+          "format": "int32",
+          "default": 0
         }
       }
     },
