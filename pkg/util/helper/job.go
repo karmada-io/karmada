@@ -101,6 +101,9 @@ func ParsingJobStatus(obj *batchv1.Job, status []workv1alpha2.AggregatedStatusIt
 	}
 
 	if len(jobFailed) != 0 {
+		now := metav1.Now()
+		failedMessage := fmt.Sprintf("Job executed failed in member clusters %s", strings.Join(jobFailed, ","))
+
 		// Kubernetes (>= v1.31) rejects a Failed=True update unless the FailureTarget
 		// condition is already present, so surface it first when a member cluster
 		// reported it, mirroring the JobSuccessCriteriaMet handling below.
@@ -108,20 +111,20 @@ func ParsingJobStatus(obj *batchv1.Job, status []workv1alpha2.AggregatedStatusIt
 			newStatus.Conditions = append(newStatus.Conditions, batchv1.JobCondition{
 				Type:               batchv1.JobFailureTarget,
 				Status:             corev1.ConditionTrue,
-				LastProbeTime:      metav1.Now(),
-				LastTransitionTime: metav1.Now(),
+				LastProbeTime:      now,
+				LastTransitionTime: now,
 				Reason:             "JobFailed",
-				Message:            fmt.Sprintf("Job executed failed in member clusters %s", strings.Join(jobFailed, ",")),
+				Message:            failedMessage,
 			})
 		}
 
 		newStatus.Conditions = append(newStatus.Conditions, batchv1.JobCondition{
 			Type:               batchv1.JobFailed,
 			Status:             corev1.ConditionTrue,
-			LastProbeTime:      metav1.Now(),
-			LastTransitionTime: metav1.Now(),
+			LastProbeTime:      now,
+			LastTransitionTime: now,
 			Reason:             "JobFailed",
-			Message:            fmt.Sprintf("Job executed failed in member clusters %s", strings.Join(jobFailed, ",")),
+			Message:            failedMessage,
 		})
 	}
 

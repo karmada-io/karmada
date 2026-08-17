@@ -176,7 +176,7 @@ func TestParsingJobStatus(t *testing.T) {
 			},
 		},
 		{
-			name: "",
+			name: "member clusters reporting FailureTarget=true carries the condition through",
 			job: &batchv1.Job{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "foo",
