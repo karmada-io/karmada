@@ -2,6 +2,22 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
+- [v1.19.0-rc.0](#v1190-rc0)
+  - [Downloads for v1.19.0-rc.0](#downloads-for-v1190-rc0)
+  - [Changelog since v1.19.0-beta.0](#changelog-since-v1190-beta0)
+  - [Urgent Update Notes](#urgent-update-notes)
+  - [Changes by Kind](#changes-by-kind)
+    - [API Changes](#api-changes)
+    - [Features & Enhancements](#features--enhancements)
+    - [Deprecation](#deprecation)
+    - [Bug Fixes](#bug-fixes)
+    - [Security](#security)
+  - [Other](#other)
+    - [Dependencies](#dependencies)
+    - [Helm Charts](#helm-charts)
+    - [Instrumentation](#instrumentation)
+    - [Performance](#performance)
+
 - [v1.19.0-beta.0](#v1190-beta0)
   - [Downloads for v1.19.0-beta.0](#downloads-for-v1190-beta0)
   - [Changelog since v1.19.0-alpha.1](#changelog-since-v1190-alpha1)
@@ -35,6 +51,49 @@
     - [Performance](#performance)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.19.0-rc.0
+
+## Downloads for v1.19.0-rc.0
+
+Download v1.19.0-rc.0 from the [v1.19.0-rc.0 release page](https://github.com/karmada-io/karmada/releases/tag/v1.19.0-rc.0).
+
+## Changelog since v1.19.0-beta.0
+
+## Urgent Update Notes
+None.
+
+## Changes by Kind
+
+### API Changes
+- `Karmada API`: Removed the deprecated `PurgeMode` values `Immediately` and `Graciously`. Use `Directly` and `Gracefully` instead. ([#7792](https://github.com/karmada-io/karmada/pull/7792), @FengyuanYin)
+
+### Features & Enhancements
+- `karmada-controller-manager`: Added support for automatically refreshing member cluster credentials for push-mode informers, ensuring long-lived resource watches continue working after token rotation. ([#7663](https://github.com/karmada-io/karmada/pull/7663), @zhuyulicfc49)
+- `karmada-scheduler`: Moved bindings whose backoff or unschedulable timeout completed into the active queue in priority order within a single flush, so higher-priority bindings were retried first on a best-effort basis. ([#7814](https://github.com/karmada-io/karmada/pull/7814), @CaesarTY)
+
+### Deprecation
+None.
+
+### Bug Fixes
+- `karmada-scheduler-estimator`: Fixed the issue that installing `schedulerEstimator` as a standalone component (`installMode: component`) failed to mount its certificate Secret because the Secret name was derived from the component release name instead of the host-mode release that created it. Added `schedulerEstimator.certs` (default `karmada-cert`) to configure the Secret name explicitly. ([#7815](https://github.com/karmada-io/karmada/pull/7815), @pujitha24)
+
+### Security
+None.
+
+## Other
+
+### Dependencies
+None.
+
+### Helm Charts
+None.
+
+### Instrumentation
+None.
+
+### Performance
+None.
 
 # v1.19.0-beta.0
 ## Downloads for v1.19.0-beta.0
