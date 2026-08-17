@@ -72,6 +72,7 @@ const (
 	//
 	// owner: @LeonZh0u, @seanlaii, @wengyao04, @whitewindmills, @zclyne
 	// alpha: v1.13
+	// beta: v1.19
 	PriorityBasedScheduling featuregate.Feature = "PriorityBasedScheduling"
 
 	// FederatedQuotaEnforcement controls whether the existing FederatedResourceQuota enhancement feature is enabled.
@@ -172,7 +173,7 @@ var (
 		MultiClusterService:               {Default: false, PreRelease: featuregate.Alpha},
 		ResourceQuotaEstimate:             {Default: false, PreRelease: featuregate.Alpha},
 		StatefulFailoverInjection:         {Default: false, PreRelease: featuregate.Alpha},
-		PriorityBasedScheduling:           {Default: false, PreRelease: featuregate.Alpha},
+		PriorityBasedScheduling:           {Default: true, PreRelease: featuregate.Beta},
 		FederatedQuotaEnforcement:         {Default: false, PreRelease: featuregate.Alpha},
 		LoggingAlphaOptions:               {Default: false, PreRelease: featuregate.Alpha},
 		LoggingBetaOptions:                {Default: true, PreRelease: featuregate.Beta},

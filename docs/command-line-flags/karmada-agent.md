@@ -82,7 +82,7 @@ Generic flags:
                                                        LoggingBetaOptions=true|false (BETA - default=true)
                                                        MultiClusterService=true|false (ALPHA - default=false)
                                                        MultiplePodTemplatesScheduling=true|false (ALPHA - default=false)
-                                                       PriorityBasedScheduling=true|false (ALPHA - default=false)
+                                                       PriorityBasedScheduling=true|false (BETA - default=true)
                                                        PropagateDeps=true|false (BETA - default=true)
                                                        PropagationPolicyPreemption=true|false (ALPHA - default=false)
                                                        ResourceQuotaEstimate=true|false (ALPHA - default=false)
