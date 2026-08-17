@@ -27,6 +27,11 @@ type TargetClusterApplyConfiguration struct {
 	Name *string `json:"name,omitempty"`
 	// Replicas in target cluster
 	Replicas *int32 `json:"replicas,omitempty"`
+	// Components represents the per-component replica assignment in this cluster.
+	// It is populated only for workloads with multiple pod templates, and only
+	// when the MultiplePodTemplatesScheduling feature gate is enabled.
+	// Each entry corresponds to an entry in spec.Components by Name.
+	Components []TargetComponentApplyConfiguration `json:"components,omitempty"`
 }
 
 // TargetClusterApplyConfiguration constructs a declarative configuration of the TargetCluster type for use with
@@ -48,5 +53,18 @@ func (b *TargetClusterApplyConfiguration) WithName(value string) *TargetClusterA
 // If called multiple times, the Replicas field is set to the value of the last call.
 func (b *TargetClusterApplyConfiguration) WithReplicas(value int32) *TargetClusterApplyConfiguration {
 	b.Replicas = &value
+	return b
+}
+
+// WithComponents adds the given value to the Components field in the declarative configuration
+// and returns the receiver, so that objects can be build by chaining "With" function invocations.
+// If called multiple times, values provided by each call will be appended to the Components field.
+func (b *TargetClusterApplyConfiguration) WithComponents(values ...*TargetComponentApplyConfiguration) *TargetClusterApplyConfiguration {
+	for i := range values {
+		if values[i] == nil {
+			panic("nil value passed to WithComponents")
+		}
+		b.Components = append(b.Components, *values[i])
+	}
 	return b
 }

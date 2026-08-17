@@ -216,6 +216,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		v1alpha2.SchedulePriority{}.OpenAPIModelName():                                  schema_pkg_apis_work_v1alpha2_SchedulePriority(ref),
 		v1alpha2.Suspension{}.OpenAPIModelName():                                        schema_pkg_apis_work_v1alpha2_Suspension(ref),
 		v1alpha2.TargetCluster{}.OpenAPIModelName():                                     schema_pkg_apis_work_v1alpha2_TargetCluster(ref),
+		v1alpha2.TargetComponent{}.OpenAPIModelName():                                   schema_pkg_apis_work_v1alpha2_TargetComponent(ref),
 		v1alpha2.TaskOptions{}.OpenAPIModelName():                                       schema_pkg_apis_work_v1alpha2_TaskOptions(ref),
 		v1alpha2.WorkloadAffinityGroups{}.OpenAPIModelName():                            schema_pkg_apis_work_v1alpha2_WorkloadAffinityGroups(ref),
 		v1.ApplyConfiguration{}.OpenAPIModelName():                                      schema_k8sio_api_admissionregistration_v1_ApplyConfiguration(ref),
@@ -8094,8 +8095,53 @@ func schema_pkg_apis_work_v1alpha2_TargetCluster(ref common.ReferenceCallback) c
 							Format:      "int32",
 						},
 					},
+					"components": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Components represents the per-component replica assignment in this cluster. It is populated only for workloads with multiple pod templates, and only when the MultiplePodTemplatesScheduling feature gate is enabled. Each entry corresponds to an entry in spec.Components by Name.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref(v1alpha2.TargetComponent{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
 				},
 				Required: []string{"name"},
+			},
+		},
+		Dependencies: []string{
+			v1alpha2.TargetComponent{}.OpenAPIModelName()},
+	}
+}
+
+func schema_pkg_apis_work_v1alpha2_TargetComponent(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "TargetComponent represents the replica assignment of a component in a cluster.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name of the component, matching spec.components[*].name.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"replicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Replicas of this component assigned to the cluster.",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+				},
+				Required: []string{"name", "replicas"},
 			},
 		},
 	}

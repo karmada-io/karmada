@@ -250,6 +250,29 @@ spec:
                   description: TargetCluster represents the identifier of a member
                     cluster.
                   properties:
+                    components:
+                      description: |-
+                        Components represents the per-component replica assignment in this cluster.
+                        It is populated only for workloads with multiple pod templates, and only
+                        when the MultiplePodTemplatesScheduling feature gate is enabled.
+                        Each entry corresponds to an entry in spec.Components by Name.
+                      items:
+                        description: TargetComponent represents the replica assignment
+                          of a component in a cluster.
+                        properties:
+                          name:
+                            description: Name of the component, matching spec.components[*].name.
+                            type: string
+                          replicas:
+                            description: Replicas of this component assigned to the
+                              cluster.
+                            format: int32
+                            type: integer
+                        required:
+                        - name
+                        - replicas
+                        type: object
+                      type: array
                     name:
                       description: Name of target cluster.
                       type: string
@@ -1656,6 +1679,29 @@ spec:
                         description: TargetCluster represents the identifier of a
                           member cluster.
                         properties:
+                          components:
+                            description: |-
+                              Components represents the per-component replica assignment in this cluster.
+                              It is populated only for workloads with multiple pod templates, and only
+                              when the MultiplePodTemplatesScheduling feature gate is enabled.
+                              Each entry corresponds to an entry in spec.Components by Name.
+                            items:
+                              description: TargetComponent represents the replica
+                                assignment of a component in a cluster.
+                              properties:
+                                name:
+                                  description: Name of the component, matching spec.components[*].name.
+                                  type: string
+                                replicas:
+                                  description: Replicas of this component assigned
+                                    to the cluster.
+                                  format: int32
+                                  type: integer
+                              required:
+                              - name
+                              - replicas
+                              type: object
+                            type: array
                           name:
                             description: Name of target cluster.
                             type: string

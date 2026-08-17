@@ -290,6 +290,24 @@ type TargetCluster struct {
 	// Replicas in target cluster
 	// +optional
 	Replicas int32 `json:"replicas,omitempty"`
+
+	// Components represents the per-component replica assignment in this cluster.
+	// It is populated only for workloads with multiple pod templates, and only
+	// when the MultiplePodTemplatesScheduling feature gate is enabled.
+	// Each entry corresponds to an entry in spec.Components by Name.
+	// +optional
+	Components []TargetComponent `json:"components,omitempty"`
+}
+
+// TargetComponent represents the replica assignment of a component in a cluster.
+type TargetComponent struct {
+	// Name of the component, matching spec.components[*].name.
+	// +required
+	Name string `json:"name"`
+
+	// Replicas of this component assigned to the cluster.
+	// +required
+	Replicas int32 `json:"replicas"`
 }
 
 // GracefulEvictionTask represents a graceful eviction task.
