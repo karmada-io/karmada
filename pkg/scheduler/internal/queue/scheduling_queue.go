@@ -308,6 +308,35 @@ func (bq *prioritySchedulingQueue) Pop() (*QueuedBindingInfo, bool) {
 	return bq.activeQ.Pop()
 }
 
+// drainPending removes and returns every binding waiting in activeQ, backoffQ and
+// unschedulableBindings. Bindings that were already handed out by Pop but not yet
+// Done are not returned, since their owner is still processing them.
+//
+// It is used by TenantSchedulingQueue to rescue a tenant's pending work before the
+// tenant queue is closed.
+func (bq *prioritySchedulingQueue) drainPending() []*QueuedBindingInfo {
+	bq.lock.Lock()
+	defer bq.lock.Unlock()
+
+	var drained []*QueuedBindingInfo
+	if dq, ok := bq.activeQ.(drainableActiveQueue); ok {
+		drained = append(drained, dq.Drain()...)
+	}
+	for {
+		bindingInfo, err := bq.backoffQ.Pop()
+		if err != nil {
+			break
+		}
+		drained = append(drained, bindingInfo)
+	}
+	for _, bindingInfo := range bq.unschedulableBindings.bindingInfoMap {
+		drained = append(drained, bindingInfo)
+	}
+	bq.unschedulableBindings.clear()
+
+	return drained
+}
+
 func (bq *prioritySchedulingQueue) PushUnschedulableIfNotPresent(bindingInfo *QueuedBindingInfo) {
 	bq.lock.Lock()
 	defer bq.lock.Unlock()

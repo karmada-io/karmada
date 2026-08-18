@@ -17,6 +17,8 @@ limitations under the License.
 package queue
 
 import (
+	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -297,6 +299,222 @@ func TestTenantSchedulingQueue_Len(t *testing.T) {
 
 	if tq.Len() != 3 {
 		t.Errorf("expected Len()=3, got %d", tq.Len())
+	}
+}
+
+// TestTenantSchedulingQueue_RemoveTenantRequeuesBindings verifies that deleting a
+// TenantQueue does not strand the bindings still waiting in its queue.
+func TestTenantSchedulingQueue_RemoveTenantRequeuesBindings(t *testing.T) {
+	tq := NewTenantSchedulingQueue()
+	tq.AddTenant("ns-a", schedulingv1alpha1.BestEffortFIFO)
+	tq.Run()
+	defer tq.Close()
+
+	// One binding in each of the three internal sub-queues.
+	tq.Push(newBindingInfo("ns-a", "active", 10))
+	tq.PushBackoffIfNotPresent(newBindingInfo("ns-a", "backoff", 10))
+	tq.PushUnschedulableIfNotPresent(newBindingInfo("ns-a", "unschedulable", 10))
+
+	tq.RemoveTenant("ns-a")
+
+	if got := tq.Len(); got != 3 {
+		t.Fatalf("expected all 3 bindings to be requeued on the default queue, got Len()=%d", got)
+	}
+
+	got := map[string]bool{}
+	for i := 0; i < 3; i++ {
+		bindingInfo, shutdown := tq.Pop()
+		if shutdown {
+			t.Fatal("unexpected shutdown")
+		}
+		got[bindingInfo.NamespacedKey] = true
+		tq.Done(bindingInfo)
+	}
+	for _, key := range []string{"ns-a/active", "ns-a/backoff", "ns-a/unschedulable"} {
+		if !got[key] {
+			t.Errorf("binding %s was dropped by RemoveTenant", key)
+		}
+	}
+}
+
+// TestTenantSchedulingQueue_RoutingSurvivesTenantChange verifies that a binding
+// popped from one queue is completed against that same queue even when the tenant
+// set changes while it is in flight.
+//
+// If Done() is routed by re-resolving the namespace instead, it lands on the
+// newly created tenant queue while the default queue is still holding the key in
+// its processing set. Nothing ever clears it, so once the tenant queue goes away
+// again and routing falls back to the default queue, every later push of that key
+// is silently swallowed and the binding is never scheduled again.
+func TestTenantSchedulingQueue_RoutingSurvivesTenantChange(t *testing.T) {
+	tq := NewTenantSchedulingQueue()
+	tq.Run()
+	defer tq.Close()
+
+	// ns-a has no TenantQueue yet, so this lands on the default queue.
+	tq.Push(newBindingInfo("ns-a", "b1", 10))
+	inFlight, shutdown := tq.Pop()
+	if shutdown {
+		t.Fatal("unexpected shutdown")
+	}
+
+	// A TenantQueue for ns-a shows up while the binding is being scheduled, and is
+	// deleted again after it completes.
+	tq.AddTenant("ns-a", schedulingv1alpha1.BestEffortFIFO)
+	tq.Done(inFlight)
+	tq.RemoveTenant("ns-a")
+
+	// Routing is back to the default queue, which must not still believe the
+	// binding is being processed.
+	tq.Push(newBindingInfo("ns-a", "b1", 10))
+	if got := tq.Len(); got != 1 {
+		t.Fatalf("expected the re-pushed binding to be queued, got Len()=%d", got)
+	}
+
+	popped := make(chan string, 1)
+	go func() {
+		bindingInfo, _ := tq.Pop()
+		if bindingInfo != nil {
+			popped <- bindingInfo.NamespacedKey
+			tq.Done(bindingInfo)
+		}
+	}()
+	select {
+	case key := <-popped:
+		if key != "ns-a/b1" {
+			t.Errorf("expected ns-a/b1, got %s", key)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("binding was swallowed after the tenant set changed mid-flight")
+	}
+}
+
+// TestTenantSchedulingQueue_PopWakesOnPushDuringCollect covers the wakeup race:
+// collecting heads releases the outer lock, so a push landing in that window
+// broadcasts before Pop() reaches cond.Wait(). Pop() must notice and re-collect
+// rather than sleep on a non-empty queue.
+func TestTenantSchedulingQueue_PopWakesOnPushDuringCollect(t *testing.T) {
+	tq := NewTenantSchedulingQueue()
+	for i := 0; i < 200; i++ {
+		tq.AddTenant(fmt.Sprintf("ns%d", i), schedulingv1alpha1.BestEffortFIFO)
+	}
+	tq.Run()
+	defer tq.Close()
+
+	popped := make(chan struct{}, 1)
+	go func() {
+		for {
+			bindingInfo, shutdown := tq.Pop()
+			if shutdown {
+				return
+			}
+			tq.Done(bindingInfo)
+			popped <- struct{}{}
+		}
+	}()
+
+	// Give the popper time to settle into cond.Wait(), then feed it one binding at
+	// a time so every push has to wake it up on its own.
+	time.Sleep(10 * time.Millisecond)
+	for round := 0; round < 200; round++ {
+		tq.Push(newBindingInfo(fmt.Sprintf("ns%d", round), "only", 10))
+		select {
+		case <-popped:
+		case <-time.After(5 * time.Second):
+			t.Fatalf("round %d: Pop() did not return although a binding is queued (Len=%d)", round, tq.Len())
+		}
+	}
+}
+
+// TestTenantSchedulingQueue_ConcurrentTenantChurn exercises the queue the way the
+// scheduler does: a single Pop loop against concurrent pushes while TenantQueue
+// objects are created and deleted. Run under -race, it covers the lock ordering
+// between the outer queue and the per-tenant queues, and the tenant list being
+// mutated while heads are collected.
+func TestTenantSchedulingQueue_ConcurrentTenantChurn(t *testing.T) {
+	const tenants = 40
+
+	tq := NewTenantSchedulingQueue()
+	tq.Run()
+
+	popperDone := make(chan struct{})
+	go func() {
+		defer close(popperDone)
+		for {
+			bindingInfo, shutdown := tq.Pop()
+			if shutdown {
+				return
+			}
+			tq.Done(bindingInfo)
+		}
+	}()
+
+	var wg sync.WaitGroup
+	wg.Add(3)
+	go func() {
+		defer wg.Done()
+		for i := 0; i < tenants; i++ {
+			tq.AddTenant(fmt.Sprintf("ns%d", i), schedulingv1alpha1.BestEffortFIFO)
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		for i := 0; i < tenants; i++ {
+			for j := 0; j < 25; j++ {
+				tq.Push(newBindingInfo(fmt.Sprintf("ns%d", i), fmt.Sprintf("b%d", j), 10))
+			}
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		for i := 0; i < tenants; i++ {
+			tq.RemoveTenant(fmt.Sprintf("ns%d", i))
+		}
+	}()
+
+	waited := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(waited)
+	}()
+	select {
+	case <-waited:
+	case <-time.After(30 * time.Second):
+		t.Fatal("deadlock: producers did not finish within 30s")
+	}
+
+	tq.Close()
+	select {
+	case <-popperDone:
+	case <-time.After(10 * time.Second):
+		t.Fatal("Pop() did not return after Close()")
+	}
+}
+
+// TestTenantSchedulingQueue_TenantsStartedOnce guards against a tenant discovered
+// before Run() ending up with two sets of flush goroutines.
+func TestTenantSchedulingQueue_TenantsStartedOnce(t *testing.T) {
+	tq := NewTenantSchedulingQueue()
+	tq.AddTenant("ns-early", schedulingv1alpha1.BestEffortFIFO)
+
+	tq.mu.Lock()
+	early := tq.tenantMap["ns-early"].started
+	tq.mu.Unlock()
+	if early {
+		t.Error("tenant added before Run() should not have been started yet")
+	}
+
+	tq.Run()
+	defer tq.Close()
+
+	tq.AddTenant("ns-late", schedulingv1alpha1.BestEffortFIFO)
+
+	tq.mu.Lock()
+	defer tq.mu.Unlock()
+	for _, name := range []string{defaultTenantName, "ns-early", "ns-late"} {
+		if !tq.tenantMap[name].started {
+			t.Errorf("tenant %s was never started", name)
+		}
 	}
 }
 

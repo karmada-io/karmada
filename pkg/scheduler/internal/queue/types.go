@@ -40,6 +40,17 @@ type QueuedBindingInfo struct {
 	// Number of schedule attempts before successfully scheduled.
 	// It's used to record the attempts metric and calculate the backoff time this Binding is obliged to get before retrying.
 	Attempts int
+
+	// tenant is the name of the tenant queue this binding was routed to when it
+	// was first pushed. It is only set by TenantSchedulingQueue and is empty for
+	// every other SchedulingQueue implementation.
+	//
+	// The routing decision has to be pinned to the binding rather than recomputed
+	// on every call: a TenantQueue may be created or deleted while the binding is
+	// in flight, and Done() landing on a different queue than Pop() came from
+	// would leave the binding stuck in the original queue's processing set,
+	// silently dropping every future push of the same key.
+	tenant string
 }
 
 // DeepCopy returns a deep copy of the QueuedBindingInfo object.
@@ -50,6 +61,7 @@ func (qbi *QueuedBindingInfo) DeepCopy() *QueuedBindingInfo {
 		Timestamp:               qbi.Timestamp,
 		Attempts:                qbi.Attempts,
 		InitialAttemptTimestamp: qbi.InitialAttemptTimestamp,
+		tenant:                  qbi.tenant,
 	}
 }
 
