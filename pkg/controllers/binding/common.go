@@ -23,6 +23,7 @@ import (
 	"strconv"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -39,6 +40,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/eventfilter"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
@@ -48,6 +50,58 @@ const (
 	// requeueIntervalForDirectlyPurge is the requeue interval for binding when there are works in clusters with PurgeMode 'Directly'.
 	requeueIntervalForDirectlyPurge = 5 * time.Second
 )
+
+func componentSchedulingManagedByDefaultScheduler(bindingSpec *workv1alpha2.ResourceBindingSpec) bool {
+	if bindingSpec == nil {
+		return false
+	}
+	schedulerName := bindingSpec.SchedulerName
+	if schedulerName == "" {
+		schedulerName = corev1.DefaultSchedulerName
+	}
+	return schedulerName == corev1.DefaultSchedulerName
+}
+
+func shouldWaitForComponentScheduleResult(bindingSpec *workv1alpha2.ResourceBindingSpec, annotations map[string]string) bool {
+	return componentSchedulingManagedByDefaultScheduler(bindingSpec) && util.IsBindingComponentResultPending(bindingSpec, annotations)
+}
+
+func componentsRequiringAcceptedResult(bindingSpec *workv1alpha2.ResourceBindingSpec, targetCluster workv1alpha2.TargetCluster) []workv1alpha2.Component {
+	if !features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) || !componentSchedulingManagedByDefaultScheduler(bindingSpec) ||
+		len(targetCluster.Components) == 0 {
+		return nil
+	}
+	return bindingSpec.Components
+}
+
+func targetClusterForWorkloadRevision(bindingSpec *workv1alpha2.ResourceBindingSpec, targetCluster workv1alpha2.TargetCluster) workv1alpha2.TargetCluster {
+	if !features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) && componentSchedulingManagedByDefaultScheduler(bindingSpec) {
+		targetCluster.Components = nil
+	}
+	return targetCluster
+}
+
+func resourceTemplateMatchesBindingSnapshot(bindingSpec *workv1alpha2.ResourceBindingSpec, annotations map[string]string, workload *unstructured.Unstructured) (bool, error) {
+	if !features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) ||
+		!componentSchedulingManagedByDefaultScheduler(bindingSpec) || !util.HasBindingComponentResult(bindingSpec) {
+		return true, nil
+	}
+	if bindingSpec.Resource.UID == "" || workload.GetUID() == "" || bindingSpec.Resource.UID != workload.GetUID() {
+		return false, nil
+	}
+	if bindingSpec.Resource.ResourceVersion != "" && bindingSpec.Resource.ResourceVersion == workload.GetResourceVersion() {
+		return true, nil
+	}
+	snapshotHash := annotations[util.ResourceTemplateSpecificationHashAnnotation]
+	if snapshotHash == "" {
+		return false, nil
+	}
+	currentHash, err := eventfilter.GenerateResourceTemplateSpecificationHash(workload)
+	if err != nil {
+		return false, err
+	}
+	return snapshotHash == currentHash, nil
+}
 
 // ensureWork ensure Work to be created or updated.
 func ensureWork(
@@ -84,7 +138,8 @@ func ensureWork(
 		// Failing to do so could allow workloads to bypass the quota checks performed by the scheduler
 		// (especially during scale-up operations) or skip queue validation when scheduling is suspended.
 		if bindingSpec.IsWorkload() {
-			clonedWorkload, err = reviseWorkloadReplicas(resourceInterpreter, clonedWorkload, targetCluster)
+			targetCluster = targetClusterForWorkloadRevision(&bindingSpec, targetCluster)
+			clonedWorkload, err = reviseWorkloadReplicas(resourceInterpreter, clonedWorkload, targetCluster, componentsRequiringAcceptedResult(&bindingSpec, targetCluster))
 			if err != nil {
 				klog.ErrorS(err, "Failed to revise replicas for workload in cluster.", "workloadKind", workload.GetKind(),
 					"workloadNamespace", workload.GetNamespace(), "workloadName", workload.GetName(), "cluster", targetCluster.Name)
@@ -153,7 +208,10 @@ func ensureWork(
 	return errors.NewAggregate(errs)
 }
 
-func reviseWorkloadReplicas(resourceInterpreter resourceinterpreter.ResourceInterpreter, workload *unstructured.Unstructured, targetCluster workv1alpha2.TargetCluster) (*unstructured.Unstructured, error) {
+func reviseWorkloadReplicas(resourceInterpreter resourceinterpreter.ResourceInterpreter, workload *unstructured.Unstructured, targetCluster workv1alpha2.TargetCluster, desiredComponents []workv1alpha2.Component) (*unstructured.Unstructured, error) {
+	if len(desiredComponents) > 1 && len(targetCluster.Components) == 0 {
+		return nil, fmt.Errorf("component scheduling result is not available for %s", workload.GroupVersionKind())
+	}
 	if len(targetCluster.Components) > 0 {
 		if resourceInterpreter.HookEnabled(workload.GroupVersionKind(), configv1alpha1.InterpreterOperationReviseComponents) {
 			return resourceInterpreter.ReviseComponents(workload, targetCluster.Components)

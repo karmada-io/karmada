@@ -23,47 +23,12 @@ import (
 	"k8s.io/klog/v2"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
-	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	estimatorclient "github.com/karmada-io/karmada/pkg/estimator/client"
 	schedulercache "github.com/karmada-io/karmada/pkg/scheduler/cache"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
-
-// isMultiTemplateSchedulingApplicable checks if the given ResourceBindingSpec
-// meets the criteria for component-based scheduling:
-//  1. The referenced resource has at least one component populated.
-//  2. The placement configuration schedules the resource to exactly one cluster.
-//     This is currently determined by checking if spread constraints is set and requires exactly one cluster.
-//
-// Returns true if both conditions are satisfied, false otherwise.
-// Note: We do not infer required cluster number from placement.clusterAffinity and
-// placement.clusterAffinities because it's impossible to determine without cluster metadata
-// whether the affinity rule matches exactly one cluster in the current environment, and the
-// only reliable way is spread constraints.
-func isMultiTemplateSchedulingApplicable(spec *workv1alpha2.ResourceBindingSpec) bool {
-	if spec == nil {
-		return false
-	}
-
-	if len(spec.Components) == 0 {
-		return false
-	}
-
-	// Check if placement targets exactly one cluster
-	if spec.Placement == nil {
-		return false
-	}
-	for i := range spec.Placement.SpreadConstraints {
-		if spec.Placement.SpreadConstraints[i].SpreadByField == policyv1alpha1.SpreadByFieldCluster &&
-			spec.Placement.SpreadConstraints[i].MinGroups == 1 &&
-			spec.Placement.SpreadConstraints[i].MaxGroups == 1 {
-			return true
-		}
-	}
-
-	return false
-}
 
 type multiTemplateEstimationContext struct {
 	estimator        estimatorclient.ReplicaEstimator
@@ -91,15 +56,17 @@ func calculateMultiTemplateAvailableSetsForScale(ctx context.Context, estCtx mul
 	result := make([]workv1alpha2.TargetCluster, 0, len(estCtx.clusters))
 	fullDesiredClusters := make([]*clusterv1alpha1.Cluster, 0, len(estCtx.clusters))
 	for i := range plans {
-		switch plans[i].direction {
-		case componentScaleNewCandidate:
+		if plans[i].newCandidate {
 			fullDesiredClusters = append(fullDesiredClusters, plans[i].cluster)
-		case componentScaleDown:
+			continue
+		}
+		switch plans[i].direction {
+		case util.ComponentScaleDown:
 			result = append(result, workv1alpha2.TargetCluster{
 				Name:     plans[i].cluster.Name,
-				Replicas: scaleDownAvailableComponentSets,
+				Replicas: minimumAvailableComponentSets,
 			})
-		case componentScaleUp:
+		case util.ComponentScaleUp:
 			delta := positiveComponentDelta(estCtx.spec.Components, plans[i].accepted)
 			estimated, err := estimateMultiTemplateAvailableSets(ctx, estCtx, []*clusterv1alpha1.Cluster{plans[i].cluster}, delta)
 			if err != nil {
@@ -131,9 +98,10 @@ func calculateMultiTemplateAvailableSetsForScale(ctx context.Context, estCtx mul
 }
 
 type componentScalePlan struct {
-	cluster   *clusterv1alpha1.Cluster
-	direction componentScaleDirection
-	accepted  []workv1alpha2.TargetComponent
+	cluster      *clusterv1alpha1.Cluster
+	direction    util.ComponentScaleDirection
+	accepted     []workv1alpha2.TargetComponent
+	newCandidate bool
 }
 
 func buildComponentScalePlans(estCtx multiTemplateEstimationContext) ([]componentScalePlan, error) {
@@ -145,17 +113,17 @@ func buildComponentScalePlans(estCtx multiTemplateEstimationContext) ([]componen
 	for _, cluster := range estCtx.clusters {
 		accepted, found := acceptedComponentsForCluster(estCtx.spec.Clusters, cluster.Name)
 		if !found {
-			plans = append(plans, componentScalePlan{cluster: cluster, direction: componentScaleNewCandidate})
+			plans = append(plans, componentScalePlan{cluster: cluster, newCandidate: true})
 			continue
 		}
 
-		direction := componentReplicaScaleDirection(estCtx.spec.Components, accepted)
+		direction := util.ClassifyComponentReplicaTransition(estCtx.spec.Components, accepted)
 		switch direction {
-		case componentScaleUnknown:
+		case util.ComponentScaleUnknown:
 			return nil, fmt.Errorf("component scale planning for cluster %q requires a comparable accepted component snapshot", cluster.Name)
-		case componentScaleEqual:
+		case util.ComponentScaleEqual:
 			return nil, fmt.Errorf("component scale planning for cluster %q requires a replica change", cluster.Name)
-		case componentScaleMixed:
+		case util.ComponentScaleMixed:
 			return nil, fmt.Errorf("mixed component scaling is not supported for cluster %q", cluster.Name)
 		}
 		plans = append(plans, componentScalePlan{cluster: cluster, direction: direction, accepted: accepted})
@@ -229,57 +197,11 @@ func positiveComponentDelta(desired []workv1alpha2.Component, accepted []workv1a
 	return delta
 }
 
-type componentScaleDirection int
-
-const (
-	componentScaleUnknown componentScaleDirection = iota
-	componentScaleNewCandidate
-	componentScaleEqual
-	componentScaleUp
-	componentScaleDown
-	componentScaleMixed
-)
-
 // A scale-down requires no additional capacity. One available set keeps the
 // current target eligible; AssignReplicas constructs the final assignment.
-const scaleDownAvailableComponentSets int32 = 1
-
-func componentReplicaScaleDirection(desired []workv1alpha2.Component, accepted []workv1alpha2.TargetComponent) componentScaleDirection {
-	if len(desired) != len(accepted) || !componentNamesAreValidAndUnique(desired) {
-		return componentScaleUnknown
-	}
-
-	acceptedReplicas := make(map[string]int32, len(accepted))
-	for i := range accepted {
-		if _, exists := acceptedReplicas[accepted[i].Name]; exists {
-			return componentScaleUnknown
-		}
-		acceptedReplicas[accepted[i].Name] = accepted[i].Replicas
-	}
-	var scaleUp, scaleDown bool
-	for i := range desired {
-		replicas, exists := acceptedReplicas[desired[i].Name]
-		if !exists {
-			return componentScaleUnknown
-		}
-		switch {
-		case desired[i].Replicas > replicas:
-			scaleUp = true
-		case desired[i].Replicas < replicas:
-			scaleDown = true
-		}
-	}
-	switch {
-	case scaleUp && scaleDown:
-		return componentScaleMixed
-	case scaleUp:
-		return componentScaleUp
-	case scaleDown:
-		return componentScaleDown
-	default:
-		return componentScaleEqual
-	}
-}
+// minimumAvailableComponentSets is capacity evidence that one atomic component
+// set may stay on a cluster. AssignReplicas constructs the persisted result.
+const minimumAvailableComponentSets int32 = 1
 
 func componentNamesAreValidAndUnique(components []workv1alpha2.Component) bool {
 	if len(components) == 0 {

@@ -17,11 +17,13 @@ limitations under the License.
 package eventfilter
 
 import (
+	"strings"
 	"testing"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 
@@ -316,6 +318,130 @@ func TestSpecificationChanged(t *testing.T) {
 				t.Fatalf("SpecificationChanged() got %v, want %v", got, tt.wantChange)
 			}
 		})
+	}
+}
+
+func TestGenerateResourceTemplateSpecificationHash(t *testing.T) {
+	base := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "apps/v1",
+		"kind":       "Deployment",
+		"metadata": map[string]any{
+			"name":              "demo",
+			"namespace":         "default",
+			"uid":               "uid-1",
+			"resourceVersion":   "1",
+			"generation":        int64(1),
+			"creationTimestamp": "2026-08-18T00:00:00Z",
+			"managedFields":     []any{map[string]any{"manager": "test"}},
+			"labels": map[string]any{
+				"example.com/tier":                 "backend",
+				"scheduler.karmada.io/bookkeeping": "old",
+			},
+			"annotations": map[string]any{
+				"example.com/input":              "stable",
+				"binding.karmada.io/bookkeeping": "old",
+			},
+		},
+		"spec":   map[string]any{"replicas": int64(2)},
+		"status": map[string]any{"readyReplicas": int64(1)},
+	}}
+
+	baseHash, err := GenerateResourceTemplateSpecificationHash(base)
+	if err != nil {
+		t.Fatalf("GenerateResourceTemplateSpecificationHash() error = %v", err)
+	}
+	if !strings.HasPrefix(baseHash, specificationHashPrefix) {
+		t.Fatalf("hash %q does not use prefix %q", baseHash, specificationHashPrefix)
+	}
+
+	tests := []struct {
+		name      string
+		mutate    func(*unstructured.Unstructured)
+		wantEqual bool
+	}{
+		{
+			name: "status and server metadata do not change identity",
+			mutate: func(object *unstructured.Unstructured) {
+				object.SetResourceVersion("2")
+				object.SetGeneration(2)
+				object.SetManagedFields(nil)
+				_ = unstructured.SetNestedField(object.Object, int64(2), "status", "readyReplicas")
+			},
+			wantEqual: true,
+		},
+		{
+			name: "Karmada-domain metadata remains part of identity",
+			mutate: func(object *unstructured.Unstructured) {
+				labels := object.GetLabels()
+				labels["scheduler.karmada.io/bookkeeping"] = "new"
+				object.SetLabels(labels)
+				annotations := object.GetAnnotations()
+				annotations["binding.karmada.io/bookkeeping"] = "new"
+				object.SetAnnotations(annotations)
+			},
+		},
+		{
+			name: "conflict resolution annotation changes identity",
+			mutate: func(object *unstructured.Unstructured) {
+				annotations := object.GetAnnotations()
+				annotations["work.karmada.io/conflict-resolution"] = "overwrite"
+				object.SetAnnotations(annotations)
+			},
+		},
+		{
+			name: "retain replicas label changes identity",
+			mutate: func(object *unstructured.Unstructured) {
+				labels := object.GetLabels()
+				labels["resourcetemplate.karmada.io/retain-replicas"] = "true"
+				object.SetLabels(labels)
+			},
+		},
+		{
+			name: "finalizers change identity",
+			mutate: func(object *unstructured.Unstructured) {
+				object.SetFinalizers([]string{"example.com/finalizer"})
+			},
+		},
+		{
+			name: "specification changes identity",
+			mutate: func(object *unstructured.Unstructured) {
+				_ = unstructured.SetNestedField(object.Object, int64(3), "spec", "replicas")
+			},
+		},
+		{
+			name: "user label changes identity",
+			mutate: func(object *unstructured.Unstructured) {
+				labels := object.GetLabels()
+				labels["example.com/tier"] = "frontend"
+				object.SetLabels(labels)
+			},
+		},
+		{
+			name: "user annotation changes identity",
+			mutate: func(object *unstructured.Unstructured) {
+				annotations := object.GetAnnotations()
+				annotations["example.com/input"] = "changed"
+				object.SetAnnotations(annotations)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			object := base.DeepCopy()
+			tt.mutate(object)
+			got, err := GenerateResourceTemplateSpecificationHash(object)
+			if err != nil {
+				t.Fatalf("GenerateResourceTemplateSpecificationHash() error = %v", err)
+			}
+			if (got == baseHash) != tt.wantEqual {
+				t.Fatalf("hash equality = %v, want %v", got == baseHash, tt.wantEqual)
+			}
+		})
+	}
+
+	if _, err := GenerateResourceTemplateSpecificationHash(nil); err == nil {
+		t.Fatal("GenerateResourceTemplateSpecificationHash(nil) returned no error")
 	}
 }
 

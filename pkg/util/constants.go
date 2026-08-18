@@ -94,6 +94,14 @@ const (
 	// The placement could be either PropagationPolicy's or ClusterPropagationPolicy's.
 	PolicyPlacementAnnotation = "policy.karmada.io/applied-placement"
 
+	// AcceptedComponentRequirementsHashAnnotation records the component replica requirements
+	// accepted with the persisted component scheduling result.
+	AcceptedComponentRequirementsHashAnnotation = "scheduler.karmada.io/accepted-component-requirements-hash"
+
+	// ResourceTemplateSpecificationHashAnnotation records the detector-observed source
+	// specification used to build a ResourceBinding or ClusterResourceBinding.
+	ResourceTemplateSpecificationHashAnnotation = "binding.karmada.io/resource-template-specification-hash"
+
 	// AppliedOverrides is the annotation which used to record override items an object applied.
 	// It is intended to set on Work objects to record applied overrides.
 	// The overrides items should be sorted alphabetically in ascending order by OverridePolicy's name.

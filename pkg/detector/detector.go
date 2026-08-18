@@ -861,6 +861,14 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 	if err := d.applyReplicaInterpretation(object, &propagationBinding.Spec); err != nil {
 		return nil, err
 	}
+	specificationHash, err := eventfilter.GenerateResourceTemplateSpecificationHash(object)
+	if err != nil {
+		return nil, fmt.Errorf("failed to hash resource template specification: %w", err)
+	}
+	if propagationBinding.Annotations == nil {
+		propagationBinding.Annotations = make(map[string]string)
+	}
+	propagationBinding.Annotations[util.ResourceTemplateSpecificationHashAnnotation] = specificationHash
 
 	if features.FeatureGate.Enabled(features.PriorityBasedScheduling) && policySpec.SchedulePriority != nil {
 		var bindingSchedulePriority *workv1alpha2.SchedulePriority
@@ -928,6 +936,14 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 	if err := d.applyReplicaInterpretation(object, &binding.Spec); err != nil {
 		return nil, err
 	}
+	specificationHash, err := eventfilter.GenerateResourceTemplateSpecificationHash(object)
+	if err != nil {
+		return nil, fmt.Errorf("failed to hash resource template specification: %w", err)
+	}
+	if binding.Annotations == nil {
+		binding.Annotations = make(map[string]string)
+	}
+	binding.Annotations[util.ResourceTemplateSpecificationHashAnnotation] = specificationHash
 
 	return binding, nil
 }

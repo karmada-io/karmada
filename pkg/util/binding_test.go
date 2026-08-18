@@ -19,9 +19,12 @@ package util
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 
@@ -253,6 +256,251 @@ func TestIsBindingReplicasChanged(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestClassifyComponentReplicaTransition(t *testing.T) {
+	tests := []struct {
+		name     string
+		desired  []workv1alpha2.Component
+		accepted []workv1alpha2.TargetComponent
+		want     ComponentScaleDirection
+	}{
+		{
+			name:     "equal snapshots ignore order",
+			desired:  []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
+			accepted: []workv1alpha2.TargetComponent{{Name: "taskmanager", Replicas: 4}, {Name: "jobmanager", Replicas: 1}},
+			want:     ComponentScaleEqual,
+		},
+		{
+			name:     "pure scale up",
+			desired:  []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 6}},
+			accepted: []workv1alpha2.TargetComponent{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
+			want:     ComponentScaleUp,
+		},
+		{
+			name:     "pure scale down",
+			desired:  []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 2}},
+			accepted: []workv1alpha2.TargetComponent{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
+			want:     ComponentScaleDown,
+		},
+		{
+			name:     "mixed directions",
+			desired:  []workv1alpha2.Component{{Name: "jobmanager", Replicas: 2}, {Name: "taskmanager", Replicas: 3}},
+			accepted: []workv1alpha2.TargetComponent{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
+			want:     ComponentScaleMixed,
+		},
+		{
+			name:    "missing accepted snapshot",
+			desired: []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
+			want:    ComponentScaleUnknown,
+		},
+		{
+			name:     "duplicate desired name",
+			desired:  []workv1alpha2.Component{{Name: "worker", Replicas: 2}, {Name: "worker", Replicas: 3}},
+			accepted: []workv1alpha2.TargetComponent{{Name: "worker", Replicas: 2}, {Name: "server", Replicas: 1}},
+			want:     ComponentScaleUnknown,
+		},
+		{
+			name:     "duplicate accepted name",
+			desired:  []workv1alpha2.Component{{Name: "worker", Replicas: 2}, {Name: "server", Replicas: 1}},
+			accepted: []workv1alpha2.TargetComponent{{Name: "worker", Replicas: 2}, {Name: "worker", Replicas: 3}},
+			want:     ComponentScaleUnknown,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ClassifyComponentReplicaTransition(tt.desired, tt.accepted); got != tt.want {
+				t.Fatalf("ClassifyComponentReplicaTransition() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsMultiTemplateSchedulingApplicable(t *testing.T) {
+	placement := &policyv1alpha1.Placement{SpreadConstraints: []policyv1alpha1.SpreadConstraint{{
+		SpreadByField: policyv1alpha1.SpreadByFieldCluster,
+		MinGroups:     1,
+		MaxGroups:     1,
+	}}}
+	spec := &workv1alpha2.ResourceBindingSpec{
+		Components: []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
+		Placement:  placement,
+	}
+	if !IsMultiTemplateSchedulingApplicable(spec) {
+		t.Fatal("single-cluster component placement should be applicable")
+	}
+
+	spec.Placement = placement.DeepCopy()
+	spec.Placement.ClusterAffinities = []policyv1alpha1.ClusterAffinityTerm{{AffinityName: "primary"}}
+	if IsMultiTemplateSchedulingApplicable(spec) {
+		t.Fatal("ordered cluster affinities must remain outside the component-result protocol")
+	}
+}
+
+func TestGenerateComponentRequirementsHash(t *testing.T) {
+	requirements := &workv1alpha2.ComponentReplicaRequirements{
+		NodeClaim: &workv1alpha2.NodeClaim{
+			NodeSelector: map[string]string{"zone": "zone-a", "disk": "ssd"},
+			Tolerations:  []corev1.Toleration{{Key: "dedicated", Operator: corev1.TolerationOpEqual, Value: "batch"}},
+		},
+		ResourceRequest: corev1.ResourceList{
+			corev1.ResourceMemory: resource.MustParse("128Mi"),
+			corev1.ResourceCPU:    resource.MustParse("500m"),
+		},
+		PriorityClassName: "high-priority",
+	}
+	components := []workv1alpha2.Component{
+		{Name: "taskmanager", Replicas: 4, ReplicaRequirements: requirements},
+		{Name: "jobmanager", Replicas: 1},
+	}
+
+	hash, err := GenerateComponentRequirementsHash(components)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const goldenHash = "v1:sha256:e2b8de82572efc96f29ac7a4dcc9f65b426df2c85d9374eb288bdb861444b40d"
+	if hash != goldenHash {
+		t.Fatalf("GenerateComponentRequirementsHash() = %q, want %q", hash, goldenHash)
+	}
+	if !strings.HasPrefix(hash, "v1:sha256:") {
+		t.Fatalf("GenerateComponentRequirementsHash() = %q, want versioned SHA-256", hash)
+	}
+
+	reordered := []workv1alpha2.Component{
+		{Name: "jobmanager", Replicas: 10},
+		{Name: "taskmanager", Replicas: 8, ReplicaRequirements: requirements.DeepCopy()},
+	}
+	reorderedHash, err := GenerateComponentRequirementsHash(reordered)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hash != reorderedHash {
+		t.Fatal("requirements hash must ignore component order and replica counts")
+	}
+
+	changed := []workv1alpha2.Component{*components[0].DeepCopy(), components[1]}
+	changed[0].ReplicaRequirements.ResourceRequest[corev1.ResourceCPU] = resource.MustParse("1")
+	changedHash, err := GenerateComponentRequirementsHash(changed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hash == changedHash {
+		t.Fatal("requirements hash must change with scheduling requirements")
+	}
+}
+
+func TestIsBindingComponentResultPending(t *testing.T) {
+	originalFeatureGates := features.FeatureGate.DeepCopy()
+	if err := features.FeatureGate.Set(fmt.Sprintf("%s=true", features.MultiplePodTemplatesScheduling)); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { features.FeatureGate = originalFeatureGates })
+
+	components := []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}}
+	hash, err := GenerateComponentRequirementsHash(components)
+	if err != nil {
+		t.Fatal(err)
+	}
+	acceptedComponents := []workv1alpha2.TargetComponent{{Name: "taskmanager", Replicas: 4}, {Name: "jobmanager", Replicas: 1}}
+	accepted := []workv1alpha2.TargetCluster{{Name: ClusterMember1, Components: acceptedComponents}}
+	matchingAnnotations := map[string]string{AcceptedComponentRequirementsHashAnnotation: hash}
+	placement := componentSchedulingPlacement()
+
+	tests := []struct {
+		name        string
+		placement   *policyv1alpha1.Placement
+		components  []workv1alpha2.Component
+		clusters    []workv1alpha2.TargetCluster
+		annotations map[string]string
+		want        bool
+	}{
+		{name: "no scheduling result", placement: placement, components: components, want: true},
+		{name: "legacy result", placement: placement, components: components, clusters: []workv1alpha2.TargetCluster{{Name: ClusterMember1}}, want: true},
+		{name: "replica mismatch", placement: placement, components: []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 6}}, clusters: accepted, annotations: matchingAnnotations, want: true},
+		{name: "accepted result missing hash", placement: placement, components: components, clusters: accepted, want: true},
+		{name: "accepted result and requirements", placement: placement, components: components, clusters: accepted, annotations: matchingAnnotations},
+		{name: "accepted result transitioning to one component", placement: placement, components: components[:1], clusters: accepted, annotations: matchingAnnotations, want: true},
+		{name: "accepted result transitioning to zero components", placement: placement, clusters: accepted, annotations: matchingAnnotations, want: true},
+		{name: "accepted result leaving supported placement", placement: &policyv1alpha1.Placement{}, components: components, clusters: accepted, annotations: matchingAnnotations, want: true},
+		{name: "multiple component-bearing targets", placement: placement, components: components, clusters: []workv1alpha2.TargetCluster{{Name: ClusterMember1, Components: acceptedComponents}, {Name: ClusterMember2, Components: acceptedComponents}}, annotations: matchingAnnotations, want: true},
+		{name: "ordinary placement without component result", placement: &policyv1alpha1.Placement{}, components: components, clusters: []workv1alpha2.TargetCluster{{Name: ClusterMember1}}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			spec := &workv1alpha2.ResourceBindingSpec{Placement: tt.placement, Components: tt.components, Clusters: tt.clusters}
+			if got := IsBindingComponentResultPending(spec, tt.annotations); got != tt.want {
+				t.Fatalf("IsBindingComponentResultPending() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsBindingComponentScaleSupported(t *testing.T) {
+	originalFeatureGates := features.FeatureGate.DeepCopy()
+	if err := features.FeatureGate.Set(fmt.Sprintf("%s=true", features.MultiplePodTemplatesScheduling)); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { features.FeatureGate = originalFeatureGates })
+
+	newSpec := func(desired []workv1alpha2.Component, accepted []workv1alpha2.TargetComponent) *workv1alpha2.ResourceBindingSpec {
+		return &workv1alpha2.ResourceBindingSpec{
+			Placement:  componentSchedulingPlacement(),
+			Components: desired,
+			Clusters:   []workv1alpha2.TargetCluster{{Name: ClusterMember1, Components: accepted}},
+		}
+	}
+	tests := []struct {
+		name string
+		spec *workv1alpha2.ResourceBindingSpec
+		want bool
+	}{
+		{
+			name: "pure scale up",
+			spec: newSpec(
+				[]workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 6}},
+				[]workv1alpha2.TargetComponent{{Name: "taskmanager", Replicas: 4}, {Name: "jobmanager", Replicas: 1}},
+			),
+			want: true,
+		},
+		{
+			name: "pure scale down",
+			spec: newSpec(
+				[]workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 2}},
+				[]workv1alpha2.TargetComponent{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
+			),
+			want: true,
+		},
+		{
+			name: "mixed scale is unsupported",
+			spec: newSpec(
+				[]workv1alpha2.Component{{Name: "jobmanager", Replicas: 2}, {Name: "taskmanager", Replicas: 3}},
+				[]workv1alpha2.TargetComponent{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
+			),
+		},
+		{
+			name: "legacy result is unknown",
+			spec: newSpec(
+				[]workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}}, nil,
+			),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsBindingComponentScaleSupported(tt.spec); got != tt.want {
+				t.Fatalf("IsBindingComponentScaleSupported() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func componentSchedulingPlacement() *policyv1alpha1.Placement {
+	return &policyv1alpha1.Placement{SpreadConstraints: []policyv1alpha1.SpreadConstraint{{
+		SpreadByField: policyv1alpha1.SpreadByFieldCluster,
+		MinGroups:     1,
+		MaxGroups:     1,
+	}}}
 }
 
 func TestGetSumOfReplicas(t *testing.T) {

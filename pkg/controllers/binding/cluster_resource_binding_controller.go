@@ -34,7 +34,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -108,17 +107,9 @@ func (c *ClusterResourceBindingController) removeFinalizer(ctx context.Context, 
 
 // syncBinding will sync clusterResourceBinding to Works.
 func (c *ClusterResourceBindingController) syncBinding(ctx context.Context, binding *workv1alpha2.ClusterResourceBinding) (controllerruntime.Result, error) {
-	if err := c.removeOrphanWorks(ctx, binding); err != nil {
-		return controllerruntime.Result{}, err
-	}
-	needWaitForCleanup, err := c.checkDirectPurgeOrphanWorks(ctx, binding)
-	if err != nil {
-		return controllerruntime.Result{}, err
-	}
-	if needWaitForCleanup {
-		msg := fmt.Sprintf("There are works in clusters with PurgeMode 'Directly' not deleted yet for ClusterResourceBinding(%s).", binding.Name)
-		klog.V(4).InfoS(msg, "ClusterResourceBinding", binding.Name)
-		return controllerruntime.Result{RequeueAfter: requeueIntervalForDirectlyPurge}, nil
+	if shouldWaitForComponentScheduleResult(&binding.Spec, binding.Annotations) {
+		klog.V(4).InfoS("Skip syncing works while the component scheduling result is pending", "ClusterResourceBinding", binding.Name)
+		return controllerruntime.Result{}, nil
 	}
 
 	workload, err := helper.FetchResourceTemplate(ctx, c.DynamicClient, c.InformerManager, c.RESTMapper, binding.Spec.Resource)
@@ -131,6 +122,28 @@ func (c *ClusterResourceBindingController) syncBinding(ctx context.Context, bind
 		}
 		klog.ErrorS(err, "Failed to fetch workload for ClusterResourceBinding.", "ClusterResourceBinding", binding.Name)
 		return controllerruntime.Result{}, err
+	}
+	sourceMatches, err := resourceTemplateMatchesBindingSnapshot(&binding.Spec, binding.Annotations, workload)
+	if err != nil {
+		return controllerruntime.Result{}, err
+	}
+	if !sourceMatches {
+		klog.V(4).InfoS("Skip syncing works until ClusterResourceBinding reflects the fetched resource template",
+			"ClusterResourceBinding", binding.Name)
+		return controllerruntime.Result{}, nil
+	}
+
+	if err := c.removeOrphanWorks(ctx, binding); err != nil {
+		return controllerruntime.Result{}, err
+	}
+	needWaitForCleanup, err := c.checkDirectPurgeOrphanWorks(ctx, binding)
+	if err != nil {
+		return controllerruntime.Result{}, err
+	}
+	if needWaitForCleanup {
+		msg := fmt.Sprintf("There are works in clusters with PurgeMode 'Directly' not deleted yet for ClusterResourceBinding(%s).", binding.Name)
+		klog.V(4).InfoS(msg, "ClusterResourceBinding", binding.Name)
+		return controllerruntime.Result{RequeueAfter: requeueIntervalForDirectlyPurge}, nil
 	}
 
 	start := time.Now()
@@ -186,7 +199,7 @@ func (c *ClusterResourceBindingController) SetupWithManager(mgr controllerruntim
 		Named(ClusterResourceBindingControllerName).
 		For(&workv1alpha2.ClusterResourceBinding{}).
 		Watches(&policyv1alpha1.ClusterOverridePolicy{}, handler.EnqueueRequestsFromMapFunc(c.newOverridePolicyFunc())).
-		WithEventFilter(predicate.GenerationChangedPredicate{}).
+		WithEventFilter(bindingEventPredicate()).
 		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RateLimiterOptions)}).
 		Complete(c)
 }

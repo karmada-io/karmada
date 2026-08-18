@@ -17,6 +17,11 @@ limitations under the License.
 package util
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"sort"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 
@@ -24,6 +29,13 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/features"
 )
+
+const componentRequirementsHashPrefix = "v1:sha256:"
+
+type componentRequirementsSnapshot struct {
+	Name                string                                     `json:"name"`
+	ReplicaRequirements *workv1alpha2.ComponentReplicaRequirements `json:"replicaRequirements,omitempty"`
+}
 
 // GetBindingClusterNames will get clusterName list from bind clusters field
 func GetBindingClusterNames(spec *workv1alpha2.ResourceBindingSpec) []string {
@@ -66,6 +78,210 @@ func IsBindingReplicasChanged(bindingSpec *workv1alpha2.ResourceBindingSpec, str
 		return replicasSum != bindingSpec.Replicas
 	}
 	return false
+}
+
+// ComponentScaleDirection classifies a name-keyed desired/accepted replica transition.
+type ComponentScaleDirection int
+
+const (
+	// ComponentScaleUnknown means the desired and accepted snapshots cannot be compared safely.
+	ComponentScaleUnknown ComponentScaleDirection = iota
+	// ComponentScaleEqual means every desired component matches its accepted replica count.
+	ComponentScaleEqual
+	// ComponentScaleUp means at least one component grows and none shrink.
+	ComponentScaleUp
+	// ComponentScaleDown means at least one component shrinks and none grow.
+	ComponentScaleDown
+	// ComponentScaleMixed means some components grow while others shrink.
+	ComponentScaleMixed
+)
+
+// IsMultiTemplateSchedulingApplicable reports whether component scheduling can
+// currently produce one complete assignment on exactly one target cluster.
+func IsMultiTemplateSchedulingApplicable(bindingSpec *workv1alpha2.ResourceBindingSpec) bool {
+	if bindingSpec == nil || len(bindingSpec.Components) <= 1 || bindingSpec.Placement == nil ||
+		bindingSpec.Placement.ClusterAffinities != nil {
+		return false
+	}
+	for i := range bindingSpec.Placement.SpreadConstraints {
+		constraint := bindingSpec.Placement.SpreadConstraints[i]
+		if constraint.SpreadByField == policyv1alpha1.SpreadByFieldCluster && constraint.MinGroups == 1 && constraint.MaxGroups == 1 {
+			return true
+		}
+	}
+	return false
+}
+
+// ClassifyComponentReplicaTransition compares complete desired and accepted
+// component snapshots. Invalid, incomplete, or differently named snapshots are unknown.
+func ClassifyComponentReplicaTransition(desired []workv1alpha2.Component, accepted []workv1alpha2.TargetComponent) ComponentScaleDirection {
+	if len(desired) == 0 || len(desired) != len(accepted) {
+		return ComponentScaleUnknown
+	}
+
+	acceptedReplicas, valid := acceptedComponentReplicasByName(accepted)
+	if !valid {
+		return ComponentScaleUnknown
+	}
+
+	seen := make(map[string]struct{}, len(desired))
+	var scaleUp, scaleDown bool
+	for i := range desired {
+		component := desired[i]
+		if component.Name == "" {
+			return ComponentScaleUnknown
+		}
+		if _, exists := seen[component.Name]; exists {
+			return ComponentScaleUnknown
+		}
+		seen[component.Name] = struct{}{}
+		replicas, exists := acceptedReplicas[component.Name]
+		if !exists {
+			return ComponentScaleUnknown
+		}
+		switch {
+		case component.Replicas > replicas:
+			scaleUp = true
+		case component.Replicas < replicas:
+			scaleDown = true
+		}
+	}
+
+	switch {
+	case scaleUp && scaleDown:
+		return ComponentScaleMixed
+	case scaleUp:
+		return ComponentScaleUp
+	case scaleDown:
+		return ComponentScaleDown
+	default:
+		return ComponentScaleEqual
+	}
+}
+
+func acceptedComponentReplicasByName(accepted []workv1alpha2.TargetComponent) (map[string]int32, bool) {
+	replicasByName := make(map[string]int32, len(accepted))
+	for i := range accepted {
+		if accepted[i].Name == "" {
+			return nil, false
+		}
+		if _, exists := replicasByName[accepted[i].Name]; exists {
+			return nil, false
+		}
+		replicasByName[accepted[i].Name] = accepted[i].Replicas
+	}
+	return replicasByName, true
+}
+
+// IsBindingComponentScaleSupported reports whether the persisted result can be
+// updated in place using the component scale planner.
+func IsBindingComponentScaleSupported(bindingSpec *workv1alpha2.ResourceBindingSpec) bool {
+	if bindingSpec == nil || !features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) ||
+		!IsMultiTemplateSchedulingApplicable(bindingSpec) || len(bindingSpec.Clusters) != 1 ||
+		bindingSpec.Placement.ClusterAffinities != nil {
+		return false
+	}
+	direction := ClassifyComponentReplicaTransition(bindingSpec.Components, bindingSpec.Clusters[0].Components)
+	return direction == ComponentScaleUp || direction == ComponentScaleDown
+}
+
+// HasBindingComponentResult reports whether any owned target carries a component assignment.
+func HasBindingComponentResult(bindingSpec *workv1alpha2.ResourceBindingSpec) bool {
+	if bindingSpec == nil {
+		return false
+	}
+	for i := range bindingSpec.Clusters {
+		if len(bindingSpec.Clusters[i].Components) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// IsBindingComponentResultChanged reports whether the persisted component result
+// differs from the desired replica snapshot.
+func IsBindingComponentResultChanged(bindingSpec *workv1alpha2.ResourceBindingSpec) bool {
+	if bindingSpec == nil || !HasBindingComponentResult(bindingSpec) || len(bindingSpec.Clusters) != 1 {
+		return false
+	}
+	return ClassifyComponentReplicaTransition(bindingSpec.Components, bindingSpec.Clusters[0].Components) != ComponentScaleEqual
+}
+
+// IsBindingComponentsAccepted reports whether the persisted single-cluster
+// component result is a complete snapshot of the current desired replicas.
+func IsBindingComponentsAccepted(bindingSpec *workv1alpha2.ResourceBindingSpec) bool {
+	return bindingSpec != nil && features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) &&
+		IsMultiTemplateSchedulingApplicable(bindingSpec) && len(bindingSpec.Clusters) == 1 &&
+		ClassifyComponentReplicaTransition(bindingSpec.Components, bindingSpec.Clusters[0].Components) == ComponentScaleEqual
+}
+
+// GenerateComponentRequirementsHash returns a stable identity for the name-keyed
+// replica requirements used by component scheduling. Replica counts are excluded
+// because they are persisted separately in TargetComponent.
+func GenerateComponentRequirementsHash(components []workv1alpha2.Component) (string, error) {
+	snapshot := make([]componentRequirementsSnapshot, len(components))
+	for i := range components {
+		snapshot[i] = componentRequirementsSnapshot{
+			Name:                components[i].Name,
+			ReplicaRequirements: components[i].ReplicaRequirements,
+		}
+	}
+	sort.Slice(snapshot, func(i, j int) bool {
+		return snapshot[i].Name < snapshot[j].Name
+	})
+
+	data, err := json.Marshal(snapshot)
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(data)
+	return componentRequirementsHashPrefix + hex.EncodeToString(sum[:]), nil
+}
+
+// IsBindingComponentRequirementsHashMissing reports whether no accepted
+// component requirements identity has been persisted yet.
+func IsBindingComponentRequirementsHashMissing(annotations map[string]string) bool {
+	return annotations == nil || annotations[AcceptedComponentRequirementsHashAnnotation] == ""
+}
+
+// IsBindingComponentRequirementsHashMatched reports whether the current component
+// requirements are the same requirements accepted with the scheduling result.
+func IsBindingComponentRequirementsHashMatched(components []workv1alpha2.Component, annotations map[string]string) bool {
+	if IsBindingComponentRequirementsHashMissing(annotations) {
+		return false
+	}
+	hash, err := GenerateComponentRequirementsHash(components)
+	return err == nil && annotations[AcceptedComponentRequirementsHashAnnotation] == hash
+}
+
+// IsBindingComponentRequirementsHashMismatch reports whether a persisted accepted
+// requirements identity differs from the current component requirements.
+func IsBindingComponentRequirementsHashMismatch(components []workv1alpha2.Component, annotations map[string]string) bool {
+	return !IsBindingComponentRequirementsHashMissing(annotations) &&
+		!IsBindingComponentRequirementsHashMatched(components, annotations)
+}
+
+// IsBindingComponentResultPending reports whether Work delivery must wait for a
+// complete result that matches the desired replicas and accepted requirements.
+func IsBindingComponentResultPending(bindingSpec *workv1alpha2.ResourceBindingSpec, annotations map[string]string) bool {
+	if bindingSpec == nil || !features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) {
+		return false
+	}
+
+	hasResult := HasBindingComponentResult(bindingSpec)
+	if !hasResult {
+		// Ordinary multi-component placements do not produce a component result.
+		return IsMultiTemplateSchedulingApplicable(bindingSpec)
+	}
+	// Once an accepted component result exists, transitions out of the supported
+	// shape stay frozen until the scheduler commits a replacement result.
+	if !IsMultiTemplateSchedulingApplicable(bindingSpec) || len(bindingSpec.Clusters) != 1 {
+		return true
+	}
+	if ClassifyComponentReplicaTransition(bindingSpec.Components, bindingSpec.Clusters[0].Components) != ComponentScaleEqual {
+		return true
+	}
+	return !IsBindingComponentRequirementsHashMatched(bindingSpec.Components, annotations)
 }
 
 // GetSumOfReplicas will get the sum of replicas in target clusters

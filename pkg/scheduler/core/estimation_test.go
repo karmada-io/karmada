@@ -28,6 +28,7 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	estimatorclient "github.com/karmada-io/karmada/pkg/estimator/client"
 	schedulercache "github.com/karmada-io/karmada/pkg/scheduler/cache"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/test/helper"
 )
 
@@ -135,7 +136,7 @@ func Test_isMultiTemplateSchedulingApplicable(t *testing.T) {
 			want: false,
 		},
 		{
-			name: "spec with single component and valid spread constraint should be applicable",
+			name: "spec with single component remains on the legacy path",
 			spec: &workv1alpha2.ResourceBindingSpec{
 				Components: []workv1alpha2.Component{
 					{Name: "component1"},
@@ -150,7 +151,7 @@ func Test_isMultiTemplateSchedulingApplicable(t *testing.T) {
 					},
 				},
 			},
-			want: true,
+			want: false,
 		},
 		{
 			name: "spec with valid cluster spread constraint should be applicable",
@@ -199,7 +200,7 @@ func Test_isMultiTemplateSchedulingApplicable(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := isMultiTemplateSchedulingApplicable(tt.spec)
+			got := util.IsMultiTemplateSchedulingApplicable(tt.spec)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -333,75 +334,75 @@ func Test_calculateMultiTemplateAvailableSets(t *testing.T) {
 	}
 }
 
-func Test_componentReplicaScaleDirection(t *testing.T) {
+func TestClassifyComponentReplicaTransition(t *testing.T) {
 	tests := []struct {
 		name     string
 		desired  []workv1alpha2.Component
 		accepted []workv1alpha2.TargetComponent
-		want     componentScaleDirection
+		want     util.ComponentScaleDirection
 	}{
 		{
 			name:     "equal snapshots ignore order",
 			desired:  []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
 			accepted: []workv1alpha2.TargetComponent{{Name: "taskmanager", Replicas: 4}, {Name: "jobmanager", Replicas: 1}},
-			want:     componentScaleEqual,
+			want:     util.ComponentScaleEqual,
 		},
 		{
 			name:     "pure scale up",
 			desired:  []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 6}},
 			accepted: []workv1alpha2.TargetComponent{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
-			want:     componentScaleUp,
+			want:     util.ComponentScaleUp,
 		},
 		{
 			name:     "pure scale down",
 			desired:  []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 2}},
 			accepted: []workv1alpha2.TargetComponent{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
-			want:     componentScaleDown,
+			want:     util.ComponentScaleDown,
 		},
 		{
 			name:     "mixed scale",
 			desired:  []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 6}},
 			accepted: []workv1alpha2.TargetComponent{{Name: "jobmanager", Replicas: 2}, {Name: "taskmanager", Replicas: 4}},
-			want:     componentScaleMixed,
+			want:     util.ComponentScaleMixed,
 		},
 		{
 			name:    "missing accepted snapshot",
 			desired: []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}},
-			want:    componentScaleUnknown,
+			want:    util.ComponentScaleUnknown,
 		},
 		{
 			name:     "component names differ",
 			desired:  []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
 			accepted: []workv1alpha2.TargetComponent{{Name: "jobmanager", Replicas: 1}, {Name: "historyserver", Replicas: 4}},
-			want:     componentScaleUnknown,
+			want:     util.ComponentScaleUnknown,
 		},
 		{
 			name:     "accepted names are duplicated",
 			desired:  []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
 			accepted: []workv1alpha2.TargetComponent{{Name: "jobmanager", Replicas: 1}, {Name: "jobmanager", Replicas: 4}},
-			want:     componentScaleUnknown,
+			want:     util.ComponentScaleUnknown,
 		},
 		{
 			name:     "desired names are duplicated",
 			desired:  []workv1alpha2.Component{{Name: "worker", Replicas: 2}, {Name: "worker", Replicas: 3}},
 			accepted: []workv1alpha2.TargetComponent{{Name: "worker", Replicas: 2}, {Name: "server", Replicas: 1}},
-			want:     componentScaleUnknown,
+			want:     util.ComponentScaleUnknown,
 		},
 		{
 			name:     "desired name is empty",
 			desired:  []workv1alpha2.Component{{Name: "", Replicas: 1}},
 			accepted: []workv1alpha2.TargetComponent{{Name: "", Replicas: 1}},
-			want:     componentScaleUnknown,
+			want:     util.ComponentScaleUnknown,
 		},
 		{
 			name: "empty snapshots",
-			want: componentScaleUnknown,
+			want: util.ComponentScaleUnknown,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, componentReplicaScaleDirection(tt.desired, tt.accepted))
+			assert.Equal(t, tt.want, util.ClassifyComponentReplicaTransition(tt.desired, tt.accepted))
 		})
 	}
 }
@@ -447,7 +448,7 @@ func Test_calculateMultiTemplateAvailableSetsForScale(t *testing.T) {
 				[]workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 2}},
 				[]workv1alpha2.TargetComponent{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
 			),
-			wantResult: []workv1alpha2.TargetCluster{{Name: "cluster1", Replicas: scaleDownAvailableComponentSets}},
+			wantResult: []workv1alpha2.TargetCluster{{Name: "cluster1", Replicas: minimumAvailableComponentSets}},
 		},
 		{
 			name: "existing target without accepted snapshot is unknown",
@@ -612,6 +613,34 @@ func Test_calculateMultiTemplateAvailableSetsForScaleRejectsBeforeCallingEstimat
 	}
 	assert.Nil(t, got)
 	assert.Empty(t, estimator.componentSetRequests)
+}
+
+func Test_runMultiTemplateEstimatorUsesScalePlanner(t *testing.T) {
+	cluster := helper.NewCluster("cluster1")
+	estimator := &mockReplicaEstimator{
+		maxAvailableComponentSetsResponse: []estimatorclient.ComponentSetEstimationResponse{{Name: "cluster1", Sets: 1}},
+	}
+	spec := &workv1alpha2.ResourceBindingSpec{
+		Resource: workv1alpha2.ObjectReference{Namespace: "default", Name: "flink"},
+		Components: []workv1alpha2.Component{
+			{Name: "jobmanager", Replicas: 1},
+			{Name: "taskmanager", Replicas: 6},
+		},
+		Clusters: []workv1alpha2.TargetCluster{{Name: "cluster1", Components: []workv1alpha2.TargetComponent{
+			{Name: "jobmanager", Replicas: 1},
+			{Name: "taskmanager", Replicas: 4},
+		}}},
+	}
+
+	_, err := runMultiTemplateEstimator(context.Background(), replicaEstimationContext{
+		estimator:      estimator,
+		clusters:       []*clusterv1alpha1.Cluster{cluster},
+		spec:           spec,
+		componentScale: true,
+	})
+	assert.NoError(t, err)
+	assert.Len(t, estimator.componentSetRequests, 1)
+	assert.Equal(t, []workv1alpha2.Component{{Name: "taskmanager", Replicas: 2}}, estimator.componentSetRequests[0].Components)
 }
 
 func Test_buildAssumedWorkloadsByCluster(t *testing.T) {

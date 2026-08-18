@@ -33,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -108,6 +109,32 @@ func (c *ResourceBindingController) removeFinalizer(ctx context.Context, rb *wor
 
 // syncBinding will sync resourceBinding to Works.
 func (c *ResourceBindingController) syncBinding(ctx context.Context, binding *workv1alpha2.ResourceBinding) (controllerruntime.Result, error) {
+	if shouldWaitForComponentScheduleResult(&binding.Spec, binding.Annotations) {
+		klog.V(4).InfoS("Skip syncing works while the component scheduling result is pending", "namespace", binding.Namespace, "binding", binding.Name)
+		return controllerruntime.Result{}, nil
+	}
+
+	workload, err := helper.FetchResourceTemplate(ctx, c.DynamicClient, c.InformerManager, c.RESTMapper, binding.Spec.Resource)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			// It might happen when the resource template has been removed but the garbage collector hasn't removed
+			// the ResourceBinding which dependent on resource template.
+			// So, just return without retry(requeue) would save unnecessary loop.
+			return controllerruntime.Result{}, nil
+		}
+		klog.ErrorS(err, "Failed to fetch workload for ResourceBinding", "namespace", binding.GetNamespace(), "binding", binding.GetName())
+		return controllerruntime.Result{}, err
+	}
+	sourceMatches, err := resourceTemplateMatchesBindingSnapshot(&binding.Spec, binding.Annotations, workload)
+	if err != nil {
+		return controllerruntime.Result{}, err
+	}
+	if !sourceMatches {
+		klog.V(4).InfoS("Skip syncing works until ResourceBinding reflects the fetched resource template",
+			"namespace", binding.Namespace, "binding", binding.Name)
+		return controllerruntime.Result{}, nil
+	}
+
 	if err := c.removeOrphanWorks(ctx, binding); err != nil {
 		return controllerruntime.Result{}, err
 	}
@@ -123,17 +150,6 @@ func (c *ResourceBindingController) syncBinding(ctx context.Context, binding *wo
 		return controllerruntime.Result{RequeueAfter: requeueIntervalForDirectlyPurge}, nil
 	}
 
-	workload, err := helper.FetchResourceTemplate(ctx, c.DynamicClient, c.InformerManager, c.RESTMapper, binding.Spec.Resource)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			// It might happen when the resource template has been removed but the garbage collector hasn't removed
-			// the ResourceBinding which dependent on resource template.
-			// So, just return without retry(requeue) would save unnecessary loop.
-			return controllerruntime.Result{}, nil
-		}
-		klog.ErrorS(err, "Failed to fetch workload for ResourceBinding", "namespace", binding.GetNamespace(), "binding", binding.GetName())
-		return controllerruntime.Result{}, err
-	}
 	start := time.Now()
 	err = ensureWork(ctx, c.Client, c.ResourceInterpreter, workload, c.OverrideManager, binding, apiextensionsv1.NamespaceScoped)
 	metrics.ObserveSyncWorkLatency(err, start)
@@ -187,11 +203,46 @@ func (c *ResourceBindingController) SetupWithManager(mgr controllerruntime.Manag
 	return controllerruntime.NewControllerManagedBy(mgr).
 		Named(ControllerName).
 		For(&workv1alpha2.ResourceBinding{}).
-		WithEventFilter(predicate.GenerationChangedPredicate{}).
+		WithEventFilter(bindingEventPredicate()).
 		Watches(&policyv1alpha1.OverridePolicy{}, handler.EnqueueRequestsFromMapFunc(c.newOverridePolicyFunc())).
 		Watches(&policyv1alpha1.ClusterOverridePolicy{}, handler.EnqueueRequestsFromMapFunc(c.newOverridePolicyFunc())).
 		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RateLimiterOptions)}).
 		Complete(c)
+}
+
+func bindingEventPredicate() predicate.Predicate {
+	return predicate.Or(predicate.GenerationChangedPredicate{}, predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			if e.ObjectOld == nil || e.ObjectNew == nil {
+				return false
+			}
+			switch e.ObjectOld.(type) {
+			case *workv1alpha2.ResourceBinding, *workv1alpha2.ClusterResourceBinding:
+			default:
+				return false
+			}
+			oldAnnotations := e.ObjectOld.GetAnnotations()
+			newAnnotations := e.ObjectNew.GetAnnotations()
+			if oldAnnotations[util.AcceptedComponentRequirementsHashAnnotation] != newAnnotations[util.AcceptedComponentRequirementsHashAnnotation] {
+				return true
+			}
+			return oldAnnotations[util.ResourceTemplateSpecificationHashAnnotation] != newAnnotations[util.ResourceTemplateSpecificationHashAnnotation] &&
+				(bindingUsesComponentSchedulingState(e.ObjectOld) || bindingUsesComponentSchedulingState(e.ObjectNew))
+		},
+	})
+}
+
+func bindingUsesComponentSchedulingState(object client.Object) bool {
+	var spec *workv1alpha2.ResourceBindingSpec
+	switch binding := object.(type) {
+	case *workv1alpha2.ResourceBinding:
+		spec = &binding.Spec
+	case *workv1alpha2.ClusterResourceBinding:
+		spec = &binding.Spec
+	default:
+		return false
+	}
+	return util.HasBindingComponentResult(spec) || util.IsMultiTemplateSchedulingApplicable(spec)
 }
 
 func (c *ResourceBindingController) newOverridePolicyFunc() handler.MapFunc {

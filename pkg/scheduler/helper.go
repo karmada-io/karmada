@@ -46,7 +46,7 @@ func placementChanged(
 	err := json.Unmarshal([]byte(appliedPlacementStr), &appliedPlacement)
 	if err != nil {
 		klog.Errorf("Failed to unmarshal applied placement string: %v", err)
-		return false
+		return true
 	}
 
 	// first check: entire placement does not change
@@ -113,6 +113,11 @@ func getAffinityIndex(affinities []policyv1alpha1.ClusterAffinityTerm, observedN
 func getConditionByError(err error) (metav1.Condition, bool) {
 	if err == nil {
 		return util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonSuccess, successfulSchedulingMessage, metav1.ConditionTrue), true
+	}
+
+	var unsupportedScaleErr *unsupportedComponentScaleError
+	if errors.As(err, &unsupportedScaleErr) {
+		return util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonUnschedulable, err.Error(), metav1.ConditionFalse), true
 	}
 
 	var unschedulableErr *framework.UnschedulableError
