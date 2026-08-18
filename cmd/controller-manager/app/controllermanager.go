@@ -456,13 +456,15 @@ func startBindingStatusController(ctx controllerscontext.Context) (enabled bool,
 
 func startExecutionController(ctx controllerscontext.Context) (enabled bool, err error) {
 	executionController := &execution.Controller{
-		Client:             ctx.Mgr.GetClient(),
-		EventRecorder:      ctx.Mgr.GetEventRecorderFor(execution.ControllerName), //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
-		RESTMapper:         ctx.Mgr.GetRESTMapper(),
-		ObjectWatcher:      ctx.ObjectWatcher,
-		WorkPredicateFunc:  helper.WorkWithinPushClusterPredicate(ctx.Mgr),
-		InformerManager:    genericmanager.GetInstance(),
-		RateLimiterOptions: ctx.Opts.RateLimiterOptions,
+		Client:               ctx.Mgr.GetClient(),
+		EventRecorder:        ctx.Mgr.GetEventRecorderFor(execution.ControllerName), //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
+		RESTMapper:           ctx.Mgr.GetRESTMapper(),
+		ObjectWatcher:        ctx.ObjectWatcher,
+		WorkPredicateFunc:    helper.WorkWithinPushClusterPredicate(ctx.Mgr),
+		InformerManager:      genericmanager.GetInstance(),
+		RateLimiterOptions:   ctx.Opts.RateLimiterOptions,
+		ClusterClientSetFunc: util.NewClusterDynamicClientSet,
+		ClusterClientOption:  ctx.ClusterClientOption,
 	}
 	if err := executionController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
@@ -478,11 +480,9 @@ func startWorkStatusController(ctx controllerscontext.Context) (enabled bool, er
 		RESTMapper:                  ctx.Mgr.GetRESTMapper(),
 		InformerManager:             genericmanager.GetInstance(),
 		Context:                     ctx.Context,
-		ObjectWatcher:               ctx.ObjectWatcher,
 		WorkPredicateFunc:           helper.WorkWithinPushClusterPredicate(ctx.Mgr),
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSet,
 		ClusterClientOption:         ctx.ClusterClientOption,
-		ClusterCacheSyncTimeout:     opts.ClusterCacheSyncTimeout,
 		ConcurrentWorkStatusSyncs:   opts.ConcurrentWorkSyncs,
 		RateLimiterOptions:          ctx.Opts.RateLimiterOptions,
 		ResourceInterpreter:         ctx.ResourceInterpreter,
@@ -867,7 +867,7 @@ func setupControllers(ctx context.Context, mgr controllerruntime.Manager, opts *
 	}
 	rateLimiterGetter := util.GetClusterRateLimiterGetter().SetDefaultLimits(opts.ClusterAPIQPS, opts.ClusterAPIBurst)
 	clusterClientOption := &util.ClientOption{RateLimiterGetter: rateLimiterGetter.GetRateLimiter}
-	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSet, clusterClientOption, resourceInterpreter)
+	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSet, clusterClientOption, resourceInterpreter, genericmanager.GetInstance())
 
 	resourceDetector := &detector.ResourceDetector{
 		DiscoveryClientSet:                      discoverClientSet,

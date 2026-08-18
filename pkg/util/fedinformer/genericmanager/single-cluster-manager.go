@@ -175,13 +175,29 @@ func (s *singleClusterInformerManagerImpl) WaitForCacheSyncWithTimeout(cacheSync
 }
 
 func (s *singleClusterInformerManagerImpl) waitForCacheSync(ctx context.Context) map[schema.GroupVersionResource]bool {
+	res := s.informerFactory.WaitForCacheSync(ctx.Done())
+
+	var newlySynced []schema.GroupVersionResource
+
+	s.lock.RLock()
+	for resource, synced := range res {
+		if !synced {
+			continue
+		}
+		if _, exists := s.syncedInformers[resource]; !exists {
+			newlySynced = append(newlySynced, resource)
+		}
+	}
+	s.lock.RUnlock()
+
+	if len(newlySynced) == 0 {
+		return res
+	}
+
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	res := s.informerFactory.WaitForCacheSync(ctx.Done())
-	for resource, synced := range res {
-		if _, exist := s.syncedInformers[resource]; !exist && synced {
-			s.syncedInformers[resource] = struct{}{}
-		}
+	for _, resource := range newlySynced {
+		s.syncedInformers[resource] = struct{}{}
 	}
 	return res
 }
