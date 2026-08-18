@@ -36,6 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
@@ -139,10 +140,15 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 			RateLimiter: ratelimiterflag.DefaultControllerRateLimiter[controllerruntime.Request](c.RateLimiterOptions),
 		})
 
+	// Ignore delete events; the deletion process will be handled by the deletion timestamp set.
+	deleteIgnorePred := predicate.Funcs{
+		DeleteFunc: func(event.DeleteEvent) bool { return false },
+	}
+
 	if c.WorkPredicateFunc != nil {
-		ctrlBuilder.For(&workv1alpha1.Work{}, builder.WithPredicates(c.WorkPredicateFunc))
+		ctrlBuilder.For(&workv1alpha1.Work{}, builder.WithPredicates(c.WorkPredicateFunc, deleteIgnorePred))
 	} else {
-		ctrlBuilder.For(&workv1alpha1.Work{})
+		ctrlBuilder.For(&workv1alpha1.Work{}, builder.WithPredicates(deleteIgnorePred))
 	}
 
 	return ctrlBuilder.Complete(c)
