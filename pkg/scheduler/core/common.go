@@ -71,10 +71,26 @@ func AssignReplicas(clusters []spreadconstraint.ClusterDetailInfo, spec *workv1a
 
 	// For non-workloads (e.g., Service, Config) and multi-component workloads (e.g., FlinkDeployment), propagate to all candidate clusters.
 	targetClusters := make([]workv1alpha2.TargetCluster, len(clusters))
+	recordComponentResult := features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) &&
+		len(spec.Components) > 1 && isMultiTemplateSchedulingApplicable(spec)
 	for i, cluster := range clusters {
 		targetClusters[i] = workv1alpha2.TargetCluster{Name: cluster.Cluster.Name}
+		if recordComponentResult {
+			targetClusters[i].Components = buildTargetComponents(spec.Components)
+		}
 	}
 	return targetClusters, nil
+}
+
+func buildTargetComponents(components []workv1alpha2.Component) []workv1alpha2.TargetComponent {
+	result := make([]workv1alpha2.TargetComponent, len(components))
+	for i := range components {
+		result[i] = workv1alpha2.TargetComponent{
+			Name:     components[i].Name,
+			Replicas: components[i].Replicas,
+		}
+	}
+	return result
 }
 
 // assignWorkloadReplicas assigns replicas to clusters for workloads, supporting overflow if enabled.
