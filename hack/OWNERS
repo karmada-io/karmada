@@ -1,13 +1,12 @@
 reviewers:
 - chaosi-zju
 - ikaven1024
-- lfbear
 - liangyuanpeng
-- mrlihanbo
 - zhzhuang-zju
 approvers:
 - ikaven1024
 - liangyuanpeng
+- zhzhuang-zju
+emeritus_approvers:
 - lfbear
 - mrlihanbo
-- zhzhuang-zju
