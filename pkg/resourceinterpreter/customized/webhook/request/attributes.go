@@ -30,6 +30,7 @@ type Attributes struct {
 	Object           *unstructured.Unstructured
 	ObservedObj      *unstructured.Unstructured
 	ReplicasSet      int32
+	ComponentsSet    []workv1alpha2.TargetComponent
 	AggregatedStatus []workv1alpha2.AggregatedStatusItem
 }
 

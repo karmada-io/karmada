@@ -510,12 +510,22 @@ var schemaYAML = typed.YAMLObject(`types:
       type:
         scalar: string
       default: ""
+- name: com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.ComponentRevision
+  map:
+    fields:
+    - name: luaScript
+      type:
+        scalar: string
+      default: ""
 - name: com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.CustomizationRules
   map:
     fields:
     - name: componentResource
       type:
         namedType: com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.ComponentResourceRequirement
+    - name: componentRevision
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.ComponentRevision
     - name: dependencyInterpretation
       type:
         namedType: com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.DependencyInterpretation

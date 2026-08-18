@@ -17,7 +17,11 @@ limitations under the License.
 package interpret
 
 import (
+	"strings"
 	"testing"
+
+	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util/interpreter"
 )
 
 func TestOptions_Validate(t *testing.T) {
@@ -30,6 +34,15 @@ func TestOptions_Validate(t *testing.T) {
 			name: "operation is unknown",
 			options: &Options{
 				Operation: "unknown-operation",
+				Rules:     interpreter.AllResourceInterpreterCustomizationRules,
+			},
+			wantErr: true,
+		},
+		{
+			name: "component revision requires unsupported input",
+			options: &Options{
+				Operation: string(configv1alpha1.InterpreterOperationReviseComponents),
+				Rules:     interpreter.AllResourceInterpreterCustomizationRules,
 			},
 			wantErr: true,
 		},
@@ -40,5 +53,15 @@ func TestOptions_Validate(t *testing.T) {
 				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
+	}
+}
+
+func TestExecutableRulesExcludeComponentRevision(t *testing.T) {
+	rules := executableRules(interpreter.AllResourceInterpreterCustomizationRules)
+	if rules.GetByOperation(string(configv1alpha1.InterpreterOperationReviseComponents)) != nil {
+		t.Fatal("ReviseComponents is executable without a component assignment input")
+	}
+	if got := strings.Join(rules.Names(), ","); strings.Contains(got, string(configv1alpha1.InterpreterOperationReviseComponents)) {
+		t.Fatalf("executable rule names = %q, unexpectedly include ReviseComponents", got)
 	}
 }

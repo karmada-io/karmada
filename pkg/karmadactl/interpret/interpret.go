@@ -124,7 +124,7 @@ func NewCmdInterpret(f util.Factory, parentCommand string, streams genericioopti
 	options.AddKubeConfigFlags(flags)
 	o.EditOptions.RecordFlags.AddFlags(cmd)
 	o.EditOptions.PrintFlags.AddFlags(cmd)
-	flags.StringVar(&o.Operation, "operation", o.Operation, "The interpret operation to use. One of: ("+strings.Join(o.Rules.Names(), ",")+")")
+	flags.StringVar(&o.Operation, "operation", o.Operation, "The interpret operation to use. One of: ("+strings.Join(executableRules(o.Rules).Names(), ",")+")")
 	flags.BoolVar(&o.Check, "check", false, "Validates the given ResourceInterpreterCustomization configuration(s)")
 	flags.BoolVar(&o.Edit, "edit", false, "Edit customizations")
 	flags.BoolVar(&o.ShowDoc, "show-doc", false, "Show document of rules when editing")
@@ -190,9 +190,12 @@ func (o *Options) Complete(f util.Factory, _ *cobra.Command, args []string) erro
 // Validate validates Options.
 func (o *Options) Validate() error {
 	if o.Operation != "" {
-		r := o.Rules.GetByOperation(o.Operation)
+		r := executableRules(o.Rules).GetByOperation(o.Operation)
 		if r == nil {
-			return fmt.Errorf("operation %s is not supported. Use one of: %s", o.Operation, strings.Join(o.Rules.Names(), ", "))
+			if strings.EqualFold(o.Operation, string(configv1alpha1.InterpreterOperationReviseComponents)) {
+				return fmt.Errorf("operation %s requires a component assignment input, which karmadactl interpret does not support", o.Operation)
+			}
+			return fmt.Errorf("operation %s is not supported. Use one of: %s", o.Operation, strings.Join(executableRules(o.Rules).Names(), ", "))
 		}
 	}
 	if o.Edit {
@@ -202,6 +205,17 @@ func (o *Options) Validate() error {
 		}
 	}
 	return nil
+}
+
+func executableRules(rules interpreter.Rules) interpreter.Rules {
+	result := make(interpreter.Rules, 0, len(rules))
+	for _, rule := range rules {
+		if rule.Name() == string(configv1alpha1.InterpreterOperationReviseComponents) {
+			continue
+		}
+		result = append(result, rule)
+	}
+	return result
 }
 
 // Run describe information of resources

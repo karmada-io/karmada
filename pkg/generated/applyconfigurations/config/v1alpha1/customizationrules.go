@@ -55,6 +55,8 @@ type CustomizationRulesApplyConfiguration struct {
 	// Karmada knows how to revise replicas for them. But if it is set, the built-in
 	// revision rules will be ignored.
 	ReplicaRevision *ReplicaRevisionApplyConfiguration `json:"replicaRevision,omitempty"`
+	// ComponentRevision describes the rules for Karmada to revise component replicas.
+	ComponentRevision *ComponentRevisionApplyConfiguration `json:"componentRevision,omitempty"`
 	// StatusReflection describes the rules for Karmada to pick the resource's status.
 	// Karmada provides built-in rules for several standard Kubernetes types, see:
 	// https://karmada.io/docs/userguide/globalview/customizing-resource-interpreter/#interpretstatus
@@ -112,6 +114,14 @@ func (b *CustomizationRulesApplyConfiguration) WithComponentResource(value *Comp
 // If called multiple times, the ReplicaRevision field is set to the value of the last call.
 func (b *CustomizationRulesApplyConfiguration) WithReplicaRevision(value *ReplicaRevisionApplyConfiguration) *CustomizationRulesApplyConfiguration {
 	b.ReplicaRevision = value
+	return b
+}
+
+// WithComponentRevision sets the ComponentRevision field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the ComponentRevision field is set to the value of the last call.
+func (b *CustomizationRulesApplyConfiguration) WithComponentRevision(value *ComponentRevisionApplyConfiguration) *CustomizationRulesApplyConfiguration {
+	b.ComponentRevision = value
 	return b
 }
 
