@@ -27,6 +27,11 @@ func (in ComponentResourceRequirement) OpenAPIModelName() string {
 }
 
 // OpenAPIModelName returns the OpenAPI model name for this type.
+func (in ComponentRevision) OpenAPIModelName() string {
+	return "com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.ComponentRevision"
+}
+
+// OpenAPIModelName returns the OpenAPI model name for this type.
 func (in CustomizationRules) OpenAPIModelName() string {
 	return "com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.CustomizationRules"
 }

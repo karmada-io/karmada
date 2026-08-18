@@ -117,6 +117,10 @@ type CustomizationRules struct {
 	// +optional
 	ReplicaRevision *ReplicaRevision `json:"replicaRevision,omitempty"`
 
+	// ComponentRevision describes the rules for Karmada to revise component replicas.
+	// +optional
+	ComponentRevision *ComponentRevision `json:"componentRevision,omitempty"`
+
 	// StatusReflection describes the rules for Karmada to pick the resource's status.
 	// Karmada provides built-in rules for several standard Kubernetes types, see:
 	// https://karmada.io/docs/userguide/globalview/customizing-resource-interpreter/#interpretstatus
@@ -279,6 +283,32 @@ type ReplicaRevision struct {
 	//   - desiredObj: the object represents the configuration to be applied
 	//       to the member cluster.
 	//   - desiredReplica: the replica number should be applied with.
+	//
+	// The returned object should be a revised configuration which will be
+	// applied to member cluster eventually.
+	// +required
+	LuaScript string `json:"luaScript"`
+}
+
+// ComponentRevision holds the script for revising component replicas.
+type ComponentRevision struct {
+	// LuaScript holds the Lua script that is used to revise component replicas in the desired specification.
+	// The script should implement a function as follows:
+	//
+	// ```
+	//   luaScript: >
+	//       function ReviseComponents(desiredObj, components)
+	//           for i = 1, #components do
+	//               -- Revise the replica field identified by components[i].name.
+	//           end
+	//           return desiredObj
+	//       end
+	// ```
+	//
+	// The parameters will be supplied by the system:
+	//   - desiredObj: the object represents the configuration to be applied
+	//       to the member cluster.
+	//   - components: the per-component replica assignment to apply.
 	//
 	// The returned object should be a revised configuration which will be
 	// applied to member cluster eventually.

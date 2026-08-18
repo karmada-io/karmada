@@ -148,8 +148,36 @@ func TestCreateV1alpha1ResourceInterpreterContext(t *testing.T) {
 				assert.Equal(t, testNamespace, ctx.Request.Namespace)
 				assert.Equal(t, int32(3), *ctx.Request.DesiredReplicas)
 				assert.Equal(t, configv1alpha1.InterpreterOperationInterpretReplica, ctx.Request.Operation)
+				assert.Empty(t, ctx.Request.DesiredComponents)
 				assert.NotNil(t, ctx.Request.Object.Object)
 				assert.Nil(t, ctx.Request.ObservedObject)
+			},
+		},
+		{
+			name: "with desired components",
+			attributes: &Attributes{
+				Object: &unstructured.Unstructured{
+					Object: map[string]any{
+						"apiVersion": "flink.apache.org/v1beta1",
+						"kind":       "FlinkDeployment",
+						"metadata": map[string]any{
+							"name": testName,
+						},
+					},
+				},
+				Operation: configv1alpha1.InterpreterOperationReviseComponents,
+				ComponentsSet: []workv1alpha2.TargetComponent{
+					{Name: "jobmanager", Replicas: 1},
+					{Name: "taskmanager", Replicas: 3},
+				},
+				ReplicasSet: 99,
+			},
+			checkFunc: func(t *testing.T, ctx *configv1alpha1.ResourceInterpreterContext) {
+				assert.Nil(t, ctx.Request.DesiredReplicas)
+				assert.Equal(t, []workv1alpha2.TargetComponent{
+					{Name: "jobmanager", Replicas: 1},
+					{Name: "taskmanager", Replicas: 3},
+				}, ctx.Request.DesiredComponents)
 			},
 		},
 		{
@@ -219,6 +247,7 @@ func TestCreateV1alpha1ResourceInterpreterContext(t *testing.T) {
 				assert.Nil(t, ctx.Request.ObservedObject)
 				assert.Empty(t, ctx.Request.Operation)
 				assert.Equal(t, int32(0), *ctx.Request.DesiredReplicas)
+				assert.Empty(t, ctx.Request.DesiredComponents)
 			},
 		},
 	}

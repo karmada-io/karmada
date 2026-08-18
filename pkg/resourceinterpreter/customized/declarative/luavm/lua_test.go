@@ -489,6 +489,44 @@ func TestReviseDeploymentReplica(t *testing.T) {
 	}
 }
 
+func TestReviseComponents(t *testing.T) {
+	object := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "testing.karmada.io/v1alpha1",
+		"kind":       "MockMultiPodTemplateWorkload",
+		"spec": map[string]any{
+			"master": map[string]any{"replicas": int64(1)},
+			"worker": map[string]any{"replicas": int64(2)},
+		},
+	}}
+	components := []workv1alpha2.TargetComponent{{Name: "worker", Replicas: 5}, {Name: "master", Replicas: 3}}
+	script := `
+function ReviseComponents(desiredObj, desiredComponents)
+  for i = 1, #desiredComponents do
+    desiredObj.spec[desiredComponents[i].name].replicas = desiredComponents[i].replicas
+  end
+  return desiredObj
+end`
+
+	vm := New(false, 1)
+	revised, err := vm.ReviseComponents(object, components, script)
+	if err != nil {
+		t.Fatalf("ReviseComponents() error = %v", err)
+	}
+	master, _, _ := unstructured.NestedInt64(revised.Object, "spec", "master", "replicas")
+	worker, _, _ := unstructured.NestedInt64(revised.Object, "spec", "worker", "replicas")
+	if master != 3 || worker != 5 {
+		t.Fatalf("revised replicas = (%d, %d), want (3, 5)", master, worker)
+	}
+	originalMaster, _, _ := unstructured.NestedInt64(object.Object, "spec", "master", "replicas")
+	if originalMaster != 1 {
+		t.Fatalf("original master replicas = %d, want 1", originalMaster)
+	}
+
+	if _, err := vm.ReviseComponents(object, components, `function ReviseComponents() return 1 end`); err == nil {
+		t.Fatal("ReviseComponents() error = nil for non-table return")
+	}
+}
+
 func TestAggregateDeploymentStatus(t *testing.T) {
 	statusMap := map[string]any{
 		"replicas":            0,

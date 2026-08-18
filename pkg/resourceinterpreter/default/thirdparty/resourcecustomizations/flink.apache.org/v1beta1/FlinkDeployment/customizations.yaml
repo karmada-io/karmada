@@ -216,6 +216,34 @@ spec:
 
           return components
         end
+
+    componentRevision:
+      luaScript: |
+        function ReviseComponents(desiredObj, components)
+          if components == nil or #components ~= 2 then
+            error("expected a complete FlinkDeployment component result")
+          end
+
+          local replicas = {}
+          for i = 1, #components do
+            local component = components[i]
+            if component.name ~= "jobmanager" and component.name ~= "taskmanager" then
+              error("unknown FlinkDeployment component: " .. tostring(component.name))
+            end
+            if replicas[component.name] ~= nil then
+              error("duplicate FlinkDeployment component: " .. component.name)
+            end
+            replicas[component.name] = component.replicas
+          end
+
+          if replicas.jobmanager == nil or replicas.taskmanager == nil then
+            error("missing FlinkDeployment component")
+          end
+
+          desiredObj.spec.jobManager.replicas = replicas.jobmanager
+          desiredObj.spec.taskManager.replicas = replicas.taskmanager
+          return desiredObj
+        end
     replicaResource:
       luaScript: |
         local kube = require("kube")

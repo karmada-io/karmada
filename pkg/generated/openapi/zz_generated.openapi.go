@@ -82,6 +82,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		clusterv1alpha1.ResourceModelRange{}.OpenAPIModelName():                         schema_pkg_apis_cluster_v1alpha1_ResourceModelRange(ref),
 		clusterv1alpha1.ResourceSummary{}.OpenAPIModelName():                            schema_pkg_apis_cluster_v1alpha1_ResourceSummary(ref),
 		configv1alpha1.ComponentResourceRequirement{}.OpenAPIModelName():                schema_pkg_apis_config_v1alpha1_ComponentResourceRequirement(ref),
+		configv1alpha1.ComponentRevision{}.OpenAPIModelName():                           schema_pkg_apis_config_v1alpha1_ComponentRevision(ref),
 		configv1alpha1.CustomizationRules{}.OpenAPIModelName():                          schema_pkg_apis_config_v1alpha1_CustomizationRules(ref),
 		configv1alpha1.CustomizationTarget{}.OpenAPIModelName():                         schema_pkg_apis_config_v1alpha1_CustomizationTarget(ref),
 		configv1alpha1.DependencyInterpretation{}.OpenAPIModelName():                    schema_pkg_apis_config_v1alpha1_DependencyInterpretation(ref),
@@ -2114,6 +2115,28 @@ func schema_pkg_apis_config_v1alpha1_ComponentResourceRequirement(ref common.Ref
 	}
 }
 
+func schema_pkg_apis_config_v1alpha1_ComponentRevision(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ComponentRevision holds the script for revising component replicas.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"luaScript": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LuaScript holds the Lua script that is used to revise component replicas in the desired specification. The script should implement a function as follows:\n\n```\n  luaScript: >\n      function ReviseComponents(desiredObj, components)\n          for i = 1, #components do\n              -- Revise the replica field identified by components[i].name.\n          end\n          return desiredObj\n      end\n```\n\nThe parameters will be supplied by the system:\n  - desiredObj: the object represents the configuration to be applied\n      to the member cluster.\n  - components: the per-component replica assignment to apply.\n\nThe returned object should be a revised configuration which will be applied to member cluster eventually.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"luaScript"},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_config_v1alpha1_CustomizationRules(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -2145,6 +2168,12 @@ func schema_pkg_apis_config_v1alpha1_CustomizationRules(ref common.ReferenceCall
 							Ref:         ref(configv1alpha1.ReplicaRevision{}.OpenAPIModelName()),
 						},
 					},
+					"componentRevision": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ComponentRevision describes the rules for Karmada to revise component replicas.",
+							Ref:         ref(configv1alpha1.ComponentRevision{}.OpenAPIModelName()),
+						},
+					},
 					"statusReflection": {
 						SchemaProps: spec.SchemaProps{
 							Description: "StatusReflection describes the rules for Karmada to pick the resource's status. Karmada provides built-in rules for several standard Kubernetes types, see: https://karmada.io/docs/userguide/globalview/customizing-resource-interpreter/#interpretstatus If StatusReflection is set, the built-in rules will be ignored.",
@@ -2173,7 +2202,7 @@ func schema_pkg_apis_config_v1alpha1_CustomizationRules(ref common.ReferenceCall
 			},
 		},
 		Dependencies: []string{
-			configv1alpha1.ComponentResourceRequirement{}.OpenAPIModelName(), configv1alpha1.DependencyInterpretation{}.OpenAPIModelName(), configv1alpha1.HealthInterpretation{}.OpenAPIModelName(), configv1alpha1.LocalValueRetention{}.OpenAPIModelName(), configv1alpha1.ReplicaResourceRequirement{}.OpenAPIModelName(), configv1alpha1.ReplicaRevision{}.OpenAPIModelName(), configv1alpha1.StatusAggregation{}.OpenAPIModelName(), configv1alpha1.StatusReflection{}.OpenAPIModelName()},
+			configv1alpha1.ComponentResourceRequirement{}.OpenAPIModelName(), configv1alpha1.ComponentRevision{}.OpenAPIModelName(), configv1alpha1.DependencyInterpretation{}.OpenAPIModelName(), configv1alpha1.HealthInterpretation{}.OpenAPIModelName(), configv1alpha1.LocalValueRetention{}.OpenAPIModelName(), configv1alpha1.ReplicaResourceRequirement{}.OpenAPIModelName(), configv1alpha1.ReplicaRevision{}.OpenAPIModelName(), configv1alpha1.StatusAggregation{}.OpenAPIModelName(), configv1alpha1.StatusReflection{}.OpenAPIModelName()},
 	}
 }
 
@@ -2622,6 +2651,27 @@ func schema_pkg_apis_config_v1alpha1_ResourceInterpreterRequest(ref common.Refer
 							Format:      "int32",
 						},
 					},
+					"components": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"name",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "DesiredComponents contains the component replica assignment that the webhook should apply to Object. It'll be set only if InterpreterOperation is InterpreterOperationReviseComponents.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref(v1alpha2.TargetComponent{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
 					"aggregatedStatus": {
 						SchemaProps: spec.SchemaProps{
 							Description: "AggregatedStatus represents status list of the resource running in each member cluster. It'll be set only if InterpreterOperation is InterpreterOperationAggregateStatus.",
@@ -2640,7 +2690,7 @@ func schema_pkg_apis_config_v1alpha1_ResourceInterpreterRequest(ref common.Refer
 			},
 		},
 		Dependencies: []string{
-			v1alpha2.AggregatedStatusItem{}.OpenAPIModelName(), metav1.GroupVersionKind{}.OpenAPIModelName(), runtime.RawExtension{}.OpenAPIModelName()},
+			v1alpha2.AggregatedStatusItem{}.OpenAPIModelName(), v1alpha2.TargetComponent{}.OpenAPIModelName(), metav1.GroupVersionKind{}.OpenAPIModelName(), runtime.RawExtension{}.OpenAPIModelName()},
 	}
 }
 

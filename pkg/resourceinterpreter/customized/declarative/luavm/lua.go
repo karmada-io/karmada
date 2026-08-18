@@ -201,6 +201,25 @@ func (vm *VM) ReviseReplica(object *unstructured.Unstructured, replica int64, sc
 	return nil, fmt.Errorf("expect the returned requires type is table but got %s", luaResult.Type())
 }
 
+// ReviseComponents revises component replicas of the given object by lua.
+func (vm *VM) ReviseComponents(object *unstructured.Unstructured, components []workv1alpha2.TargetComponent, script string) (*unstructured.Unstructured, error) {
+	results, err := vm.RunScript(script, "ReviseComponents", 1, object, components)
+	if err != nil {
+		return nil, err
+	}
+
+	luaResult := results[0]
+	revised := &unstructured.Unstructured{}
+	if luaResult.Type() == lua.LTTable {
+		if err := ConvertLuaResultInto(luaResult.(*lua.LTable), revised, object); err != nil {
+			return nil, err
+		}
+		return revised, nil
+	}
+
+	return nil, fmt.Errorf("expect the returned requires type is table but got %s", luaResult.Type())
+}
+
 func (vm *VM) setLib(l *lua.LState) error {
 	for _, pair := range []struct {
 		n string

@@ -77,6 +77,13 @@ type ResourceInterpreterRequest struct {
 	// +optional
 	DesiredReplicas *int32 `json:"replicas,omitempty"`
 
+	// DesiredComponents contains the component replica assignment that the webhook should apply to Object.
+	// It'll be set only if InterpreterOperation is InterpreterOperationReviseComponents.
+	// +listType=map
+	// +listMapKey=name
+	// +optional
+	DesiredComponents []workv1alpha2.TargetComponent `json:"components,omitempty"`
+
 	// AggregatedStatus represents status list of the resource running in each member cluster.
 	// It'll be set only if InterpreterOperation is InterpreterOperationAggregateStatus.
 	// +optional
