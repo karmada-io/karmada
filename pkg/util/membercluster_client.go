@@ -23,12 +23,14 @@ import (
 	"net/url"
 	"time"
 
+	"golang.org/x/oauth2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 	kubeclientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/scale"
+	"k8s.io/client-go/transport"
 	"k8s.io/client-go/util/flowcontrol"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -41,6 +43,9 @@ import (
 const (
 	defaultTimeout = 32 * time.Second
 )
+
+// tokenRefreshPeriod is how often the cached bearer token is re-read from the Secret.
+var tokenRefreshPeriod = 5 * time.Minute
 
 // ClusterClient stands for a cluster Clientset for the given member cluster
 type ClusterClient struct {
@@ -211,16 +216,15 @@ func BuildClusterConfig(clusterName string,
 		return nil, err
 	}
 
-	token, ok := secret.Data[clusterv1alpha1.SecretTokenKey]
-	if !ok || len(token) == 0 {
-		return nil, fmt.Errorf("the secret for cluster %s is missing a non-empty value for %q", clusterName, clusterv1alpha1.SecretTokenKey)
+	// Validate the token is present; the token source below reads it lazily.
+	if _, err := tokenFromSecret(secret, clusterName); err != nil {
+		return nil, err
 	}
 
 	// Initialize cluster configuration.
 	clusterConfig := &rest.Config{
-		BearerToken: string(token),
-		Host:        apiEndpoint,
-		Timeout:     defaultTimeout,
+		Host:    apiEndpoint,
+		Timeout: defaultTimeout,
 	}
 
 	// Handle TLS configuration.
@@ -248,7 +252,49 @@ func BuildClusterConfig(clusterName string,
 		}
 	}
 
+	// Uses a token source that re-reads the Secret instead of a static token; a 401
+	// clears the cache so a revoked token refreshes immediately.
+	// Wrap after the proxy so the proxy round tripper stays innermost.
+	tokenSource := newSecretTokenSource(clusterName, cluster.Spec.SecretRef.Namespace, cluster.Spec.SecretRef.Name, secretGetter)
+	cachedTokenSource := transport.NewCachedTokenSource(tokenSource)
+	clusterConfig.Wrap(transport.ResettableTokenSourceWrapTransport(cachedTokenSource))
+
 	return clusterConfig, nil
+}
+
+// secretTokenSource reads the bearer token from the cluster's Secret, with a
+// tokenRefreshPeriod expiry so the caching wrapper re-reads it periodically.
+type secretTokenSource struct {
+	clusterName     string
+	secretNamespace string
+	secretName      string
+	secretGetter    func(namespace, name string) (*corev1.Secret, error)
+}
+
+func newSecretTokenSource(clusterName, secretNamespace, secretName string,
+	secretGetter func(string, string) (*corev1.Secret, error)) *secretTokenSource {
+	return &secretTokenSource{
+		clusterName:     clusterName,
+		secretNamespace: secretNamespace,
+		secretName:      secretName,
+		secretGetter:    secretGetter,
+	}
+}
+
+// Token implements oauth2.TokenSource.
+func (s *secretTokenSource) Token() (*oauth2.Token, error) {
+	secret, err := s.secretGetter(s.secretNamespace, s.secretName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get secret for cluster %s: %v", s.clusterName, err)
+	}
+	token, err := tokenFromSecret(secret, s.clusterName)
+	if err != nil {
+		return nil, err
+	}
+	return &oauth2.Token{
+		AccessToken: string(token),
+		Expiry:      time.Now().Add(tokenRefreshPeriod),
+	}, nil
 }
 
 func clusterGetter(client client.Client) func(string) (*clusterv1alpha1.Cluster, error) {
@@ -263,4 +309,12 @@ func secretGetter(client client.Client) func(string, string) (*corev1.Secret, er
 		err := client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, secret)
 		return secret, err
 	}
+}
+
+func tokenFromSecret(secret *corev1.Secret, clusterName string) ([]byte, error) {
+	token, ok := secret.Data[clusterv1alpha1.SecretTokenKey]
+	if !ok || len(token) == 0 {
+		return nil, fmt.Errorf("the secret for cluster %s is missing a non-empty value for %q", clusterName, clusterv1alpha1.SecretTokenKey)
+	}
+	return token, nil
 }
