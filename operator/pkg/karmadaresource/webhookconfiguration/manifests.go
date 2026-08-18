@@ -334,5 +334,19 @@ webhooks:
     sideEffects: NoneOnDryRun
     admissionReviewVersions: ["v1"]
     timeoutSeconds: 3
+  - name: tenantqueue.karmada.io
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["scheduling.karmada.io"]
+        apiVersions: ["*"]
+        resources: ["tenantqueues"]
+        scope: "Namespaced"
+    clientConfig:
+      url: https://{{ .Service }}.{{ .Namespace }}.svc:443/validate-tenantqueue
+      caBundle: {{ .CaBundle }}
+    failurePolicy: Fail
+    sideEffects: None
+    admissionReviewVersions: ["v1"]
+    timeoutSeconds: 3
 `
 )
