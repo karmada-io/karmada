@@ -103,7 +103,7 @@ type Scheduler struct {
 	// in the future releases.
 	queue workqueue.TypedRateLimitingInterface[any]
 
-	priorityQueue  internalqueue.SchedulingQueue
+	priorityQueue internalqueue.SchedulingQueue
 	// tenantQueue is the concrete TenantSchedulingQueue when TenantQueueManagement
 	// is enabled. Used by event handlers to add/remove tenants and update namespace mappings.
 	tenantQueue    *internalqueue.TenantSchedulingQueue

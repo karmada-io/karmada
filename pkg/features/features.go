@@ -177,7 +177,7 @@ var (
 		MultiplePodTemplatesScheduling:    {Default: false, PreRelease: featuregate.Alpha},
 		ControllerPriorityQueue:           {Default: true, PreRelease: featuregate.Beta},
 		WorkloadAffinity:                  {Default: false, PreRelease: featuregate.Alpha},
-		TenantQueueManagement:          {Default: false, PreRelease: featuregate.Alpha},
+		TenantQueueManagement:             {Default: false, PreRelease: featuregate.Alpha},
 	}
 )
 

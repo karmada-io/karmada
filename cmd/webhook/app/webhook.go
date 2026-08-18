@@ -62,8 +62,8 @@ import (
 	"github.com/karmada-io/karmada/pkg/webhook/propagationpolicy"
 	"github.com/karmada-io/karmada/pkg/webhook/resourcebinding"
 	"github.com/karmada-io/karmada/pkg/webhook/resourcedeletionprotection"
-	"github.com/karmada-io/karmada/pkg/webhook/tenantqueue"
 	"github.com/karmada-io/karmada/pkg/webhook/resourceinterpretercustomization"
+	"github.com/karmada-io/karmada/pkg/webhook/tenantqueue"
 	"github.com/karmada-io/karmada/pkg/webhook/work"
 )
 
