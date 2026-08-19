@@ -1025,7 +1025,7 @@ var _ = framework.SerialDescribe("[MultiComponentRescheduling] focused workload 
 		})
 	})
 
-	ginkgo.It("moves a complete RayCluster result when the accepted target becomes ineligible", func(ctx context.Context) {
+	ginkgo.It("recovers a complete RayCluster result after the accepted target becomes ineligible", func(ctx context.Context) {
 		var crd apiextensionsv1.CustomResourceDefinition
 		gomega.Expect(yaml.Unmarshal([]byte(rayClusterCRDYAML), &crd)).Should(gomega.Succeed())
 		installMultiComponentCRD(&crd, "v1")
@@ -1070,7 +1070,11 @@ var _ = framework.SerialDescribe("[MultiComponentRescheduling] focused workload 
 		})
 		gomega.Expect(framework.AddClusterTaint(controlPlaneClient, originalTarget, firstTaint)).Should(gomega.Succeed())
 
-		ginkgo.By("move the complete result to the eligible alternative", func() {
+		ginkgo.By("explicitly recover the complete result on the eligible alternative", func() {
+			// Ordinary Duplicated reconciliation does not promise migration for a
+			// taint-only Cluster update. An explicit recovery is the supported
+			// full-scheduling escape hatch when the accepted target is still present.
+			triggerExplicitComponentRecovery(ctx, namespace, bindingName)
 			waitForComponentBinding(ctx, namespace, bindingName, alternativeTarget, expected, expected,
 				metav1.ConditionTrue, workv1alpha2.BindingReasonSuccess, "")
 			migrated := waitForComponentDelivery(ctx, gvr, namespace, name, workload.GetKind(), alternativeTarget, bindingName, assertRay)
@@ -1093,9 +1097,10 @@ var _ = framework.SerialDescribe("[MultiComponentRescheduling] focused workload 
 		acceptedRevision := waitForComponentDelivery(ctx, gvr, namespace, name, workload.GetKind(), alternativeTarget, bindingName, assertRay)
 		gomega.Expect(framework.AddClusterTaint(controlPlaneClient, alternativeTarget, secondTaint)).Should(gomega.Succeed())
 
-		ginkgo.By("retain the accepted target when the only eligible alternative cannot fit", func() {
+		ginkgo.By("retain the accepted result when explicit recovery has no fitting alternative", func() {
+			triggerExplicitComponentRecovery(ctx, namespace, bindingName)
 			waitForComponentBinding(ctx, namespace, bindingName, alternativeTarget, expected, expected,
-				metav1.ConditionFalse, workv1alpha2.BindingReasonUnschedulable, "")
+				metav1.ConditionFalse, workv1alpha2.BindingReasonUnschedulable, "zero component sets")
 			assertComponentDeliveryFrozen(ctx, gvr, namespace, name, workload.GetKind(), alternativeTarget, bindingName, acceptedRevision, assertRay)
 			assertComponentNotDeliveredElsewhere(ctx, gvr, namespace, name, workload.GetKind(), alternativeTarget)
 		})
