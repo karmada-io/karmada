@@ -29,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/utils/ptr"
 
@@ -122,13 +123,30 @@ var _ = framework.SerialDescribe("[BindingPreemption] binding-level priority pre
 
 			framework.WaitResourceBindingFitWith(karmadaClient, namespace, highBindingName, func(binding *workv1alpha2.ResourceBinding) bool {
 				cond := meta.FindStatusCondition(binding.Status.Conditions, workv1alpha2.Scheduled)
-				return cond != nil && cond.Status == metav1.ConditionFalse && cond.Reason == workv1alpha2.BindingReasonUnschedulable
+				return cond != nil && (cond.Status == metav1.ConditionTrue ||
+					(cond.Status == metav1.ConditionFalse && cond.Reason != workv1alpha2.BindingReasonPreempting))
 			})
-			gomega.Consistently(func(g gomega.Gomega) bool {
+			gomega.Consistently(func(g gomega.Gomega) {
 				binding, err := karmadaClient.WorkV1alpha2().ResourceBindings(namespace).Get(context.TODO(), lowBindingName, metav1.GetOptions{})
 				g.Expect(err).ShouldNot(gomega.HaveOccurred())
-				return len(binding.Spec.GracefulEvictionTasks) == 0
-			}, 20*time.Second, pollInterval).Should(gomega.BeTrue())
+				g.Expect(binding.Spec.GracefulEvictionTasks).Should(gomega.BeEmpty())
+
+				for _, eventCheck := range []struct {
+					involvedObjectName string
+					reason             string
+				}{
+					{highBindingName, events.EventReasonPreemptionInitiated},
+					{lowBindingName, events.EventReasonBindingPreempted},
+				} {
+					eventList, err := kubeClient.CoreV1().Events(namespace).List(context.TODO(), metav1.ListOptions{
+						FieldSelector: fields.OneTermEqualSelector("involvedObject.name", eventCheck.involvedObjectName).String(),
+					})
+					g.Expect(err).ShouldNot(gomega.HaveOccurred())
+					for _, event := range eventList.Items {
+						g.Expect(event.Reason).ShouldNot(gomega.Equal(eventCheck.reason))
+					}
+				}
+			}, 20*time.Second, pollInterval).Should(gomega.Succeed())
 		},
 		ginkgo.Entry("preemptionPolicy is Never", ptr.To(corev1.PreemptNever), nil),
 		ginkgo.Entry("replica scheduling is Duplicated", ptr.To(corev1.PreemptLowerPriority), func(placement *policyv1alpha1.Placement) {
