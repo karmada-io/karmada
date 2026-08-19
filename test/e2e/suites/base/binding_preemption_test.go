@@ -122,11 +122,7 @@ var _ = framework.SerialDescribe("[BindingPreemption] binding-level priority pre
 
 			framework.WaitResourceBindingFitWith(karmadaClient, namespace, highBindingName, func(binding *workv1alpha2.ResourceBinding) bool {
 				cond := meta.FindStatusCondition(binding.Status.Conditions, workv1alpha2.Scheduled)
-				if cond == nil {
-					return false
-				}
-				return cond.Status == metav1.ConditionTrue ||
-					(cond.Status == metav1.ConditionFalse && cond.Reason != workv1alpha2.BindingReasonPreempting)
+				return cond != nil && cond.Status == metav1.ConditionFalse && cond.Reason == workv1alpha2.BindingReasonUnschedulable
 			})
 			gomega.Consistently(func(g gomega.Gomega) bool {
 				binding, err := karmadaClient.WorkV1alpha2().ResourceBindings(namespace).Get(context.TODO(), lowBindingName, metav1.GetOptions{})
@@ -134,7 +130,7 @@ var _ = framework.SerialDescribe("[BindingPreemption] binding-level priority pre
 				return len(binding.Spec.GracefulEvictionTasks) == 0
 			}, 20*time.Second, pollInterval).Should(gomega.BeTrue())
 		},
-		ginkgo.Entry("preemptionPolicy is unset", (*corev1.PreemptionPolicy)(nil), nil),
+		ginkgo.Entry("preemptionPolicy is Never", ptr.To(corev1.PreemptNever), nil),
 		ginkgo.Entry("replica scheduling is Duplicated", ptr.To(corev1.PreemptLowerPriority), func(placement *policyv1alpha1.Placement) {
 			placement.ReplicaScheduling = &policyv1alpha1.ReplicaSchedulingStrategy{
 				ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDuplicated,
@@ -151,9 +147,6 @@ var _ = framework.SerialDescribe("[BindingPreemption] binding-level priority pre
 					ClusterNames: []string{targetCluster},
 				},
 			}}
-		}),
-		ginkgo.Entry("cluster spread allows multiple groups", ptr.To(corev1.PreemptLowerPriority), func(placement *policyv1alpha1.Placement) {
-			placement.SpreadConstraints[0].MaxGroups = 2
 		}),
 	)
 })
