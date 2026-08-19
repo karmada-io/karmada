@@ -19,6 +19,8 @@ package execution
 import (
 	"context"
 	"fmt"
+	"reflect"
+	"sync"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -27,6 +29,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
@@ -36,15 +39,22 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/detector"
 	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/metrics"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter/default/native/prune"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -67,13 +77,18 @@ const (
 
 // Controller is to sync Work.
 type Controller struct {
-	client.Client      // used to operate Work resources.
-	EventRecorder      record.EventRecorder
-	RESTMapper         meta.RESTMapper
-	ObjectWatcher      objectwatcher.ObjectWatcher
-	WorkPredicateFunc  predicate.Predicate
-	InformerManager    genericmanager.MultiClusterInformerManager
-	RateLimiterOptions ratelimiterflag.Options
+	client.Client        // used to operate Work resources.
+	EventRecorder        record.EventRecorder
+	RESTMapper           meta.RESTMapper
+	ObjectWatcher        objectwatcher.ObjectWatcher
+	WorkPredicateFunc    predicate.Predicate
+	InformerManager      genericmanager.MultiClusterInformerManager
+	eventHandlerOnce     sync.Once
+	eventHandler         cache.ResourceEventHandler
+	eventChannel         chan event.TypedGenericEvent[client.ObjectKey]
+	RateLimiterOptions   ratelimiterflag.Options
+	ClusterClientSetFunc util.NewClusterDynamicClientSetFunc
+	ClusterClientOption  *util.ClientOption
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the Request.
@@ -128,11 +143,29 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 		return controllerruntime.Result{}, err
 	}
 
+	gvrTargets, err := util.GetGVRsFromWork(c.RESTMapper, work)
+	if err != nil {
+		return controllerruntime.Result{}, err
+	}
+
+	informersSynced, err := helper.RegisterInformerHandlerAndCheckSynced(cluster, gvrTargets, c.getEventHandler(), c.InformerManager, c.ClusterClientSetFunc, c.Client, c.ClusterClientOption)
+	if err != nil {
+		klog.ErrorS(err, "Failed to register informers for Work.", "namespace", work.GetNamespace(), "name", work.GetName())
+		return controllerruntime.Result{}, err
+	}
+	if !informersSynced {
+		klog.V(4).InfoS("Member cluster informers are not synced yet.", "namespace", work.GetNamespace(), "name", work.GetName(), "cluster", cluster.Name)
+		// Do not return when informers are not synced; the following logic can proceed with the dynamic client.
+	}
+
 	return c.syncWork(ctx, clusterName, work)
 }
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
+	// The buffer size follows the default used by source.Channel.
+	c.eventChannel = make(chan event.TypedGenericEvent[client.ObjectKey], 1024)
+
 	ctrlBuilder := controllerruntime.NewControllerManagedBy(mgr).Named(ControllerName).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		WithOptions(controller.Options{
@@ -145,7 +178,12 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 		ctrlBuilder.For(&workv1alpha1.Work{})
 	}
 
-	return ctrlBuilder.Complete(c)
+	return ctrlBuilder.WatchesRawSource(source.Channel[client.ObjectKey](
+		c.eventChannel,
+		handler.TypedEnqueueRequestsFromMapFunc(func(_ context.Context, objectKey client.ObjectKey) []reconcile.Request {
+			return []reconcile.Request{{NamespacedName: objectKey}}
+		}),
+	)).Complete(c)
 }
 
 func (c *Controller) syncWork(ctx context.Context, clusterName string, work *workv1alpha1.Work) (controllerruntime.Result, error) {
@@ -395,4 +433,178 @@ func (c *Controller) eventf(object *unstructured.Unstructured, eventType, reason
 		return
 	}
 	c.EventRecorder.Eventf(ref, eventType, reason, messageFmt, args...)
+}
+
+func workKeyFromWorkload(object client.Object) (client.ObjectKey, bool) {
+	if object.GetLabels()[util.ManagedByKarmadaLabel] != util.ManagedByKarmadaLabelValue {
+		klog.V(5).InfoS("Ignore resource which is not managed by Karmada",
+			"apiVersion", object.GetObjectKind().GroupVersionKind().GroupVersion().String(),
+			"kind", object.GetObjectKind().GroupVersionKind().Kind,
+			"namespace", object.GetNamespace(),
+			"name", object.GetName())
+		return client.ObjectKey{}, false
+	}
+
+	annotations := object.GetAnnotations()
+	workNamespace := annotations[workv1alpha2.WorkNamespaceAnnotation]
+	workName := annotations[workv1alpha2.WorkNameAnnotation]
+	if workNamespace == "" || workName == "" {
+		klog.V(5).InfoS("Ignore resource missing Karmada Work reference",
+			"apiVersion", object.GetObjectKind().GroupVersionKind().GroupVersion().String(),
+			"kind", object.GetObjectKind().GroupVersionKind().Kind,
+			"namespace", object.GetNamespace(),
+			"name", object.GetName(),
+			"workNamespace", workNamespace,
+			"workName", workName)
+		return client.ObjectKey{}, false
+	}
+
+	return client.ObjectKey{Namespace: workNamespace, Name: workName}, true
+}
+
+func (c *Controller) enqueueWork(workKey client.ObjectKey) {
+	if c.eventChannel == nil {
+		klog.ErrorS(nil, "Failed to enqueue Work as event channel is not initialized",
+			"workNamespace", workKey.Namespace,
+			"workName", workKey.Name)
+		return
+	}
+	c.eventChannel <- event.TypedGenericEvent[client.ObjectKey]{Object: workKey}
+}
+
+// getEventHandler return callback function that knows how to handle events from the member cluster.
+func (c *Controller) getEventHandler() cache.ResourceEventHandler {
+	c.eventHandlerOnce.Do(func() {
+		if c.eventHandler == nil {
+			c.eventHandler = fedinformer.NewHandlerOnEvents(c.onAdd, c.onUpdate, c.onDelete)
+		}
+	})
+	return c.eventHandler
+}
+
+func (c *Controller) onAdd(obj any, _ bool) {
+	addedObj, ok := obj.(client.Object)
+	if !ok {
+		klog.ErrorS(nil, "Failed to assert added object as Unstructured", "object", obj)
+		return
+	}
+	workKey, ok := workKeyFromWorkload(addedObj)
+	if !ok {
+		return
+	}
+
+	clusterName, err := names.GetClusterName(workKey.Namespace)
+	if err != nil {
+		klog.ErrorS(err, "Failed to get cluster name from work namespace",
+			"workNamespace", workKey.Namespace,
+			"workName", workKey.Name,
+			"apiVersion", addedObj.GetObjectKind().GroupVersionKind().GroupVersion(),
+			"kind", addedObj.GetObjectKind().GroupVersionKind().Kind,
+			"namespace", addedObj.GetNamespace(),
+			"name", addedObj.GetName())
+		return
+	}
+	versionRecord, ok := c.ObjectWatcher.GetVersionRecord(clusterName, addedObj)
+	if !ok {
+		// Wait for the initial Reconcile to establish a version record before processing events.
+		// The version record is set after the first successful sync.
+		return
+	}
+	if addedObj.GetResourceVersion() == versionRecord {
+		return
+	}
+
+	c.enqueueWork(workKey)
+}
+
+func (c *Controller) onUpdate(old, cur any) {
+	oldObj, ok := old.(*unstructured.Unstructured)
+	if !ok {
+		klog.ErrorS(nil, "Failed to assert old object as Unstructured", "old", old)
+		return
+	}
+	workKey, ok := workKeyFromWorkload(oldObj)
+	if !ok {
+		return
+	}
+
+	clusterName, err := names.GetClusterName(workKey.Namespace)
+	if err != nil {
+		klog.ErrorS(err, "Failed to get cluster name from work namespace",
+			"workNamespace", workKey.Namespace,
+			"workName", workKey.Name,
+			"apiVersion", oldObj.GetAPIVersion(),
+			"kind", oldObj.GetKind(),
+			"namespace", oldObj.GetNamespace(),
+			"name", oldObj.GetName())
+		return
+	}
+	curObj, ok := cur.(*unstructured.Unstructured)
+	if !ok {
+		klog.ErrorS(nil, "Failed to assert cur object as Unstructured", "cur", cur)
+		return
+	}
+	// Skip events generated by our own sync. However, this assessment is not always accurate, as the update event
+	// may reach the informer faster than the act of recording the version.
+	versionRecord, ok := c.ObjectWatcher.GetVersionRecord(clusterName, curObj)
+	if !ok {
+		// Wait for the initial Reconcile to establish a version record before processing events.
+		// The version record is set after the first successful sync.
+		return
+	}
+	if curObj.GetResourceVersion() == versionRecord {
+		return
+	}
+
+	oldCopy := oldObj.DeepCopy()
+	// Remove irrelevant fields (e.g., managedFields, status) before comparing content.
+	// TODO: Consider a dedicated RemoveIrrelevantFields variant that preserves
+	//       relevant changes like ownerReferences.
+	err = prune.RemoveIrrelevantFields(oldCopy, prune.RemoveJobTTLSeconds)
+	if err != nil {
+		klog.ErrorS(err, "Failed to remove irrelevant fields from old resource",
+			"apiVersion", oldObj.GetAPIVersion(),
+			"kind", oldObj.GetKind(),
+			"namespace", oldObj.GetNamespace(),
+			"name", oldObj.GetName(),
+			"clusterName", clusterName)
+		return
+	}
+	curCopy := curObj.DeepCopy()
+	err = prune.RemoveIrrelevantFields(curCopy, prune.RemoveJobTTLSeconds)
+	if err != nil {
+		klog.ErrorS(err, "Failed to remove irrelevant fields from current resource",
+			"apiVersion", curObj.GetAPIVersion(),
+			"kind", curObj.GetKind(),
+			"namespace", curObj.GetNamespace(),
+			"name", curObj.GetName(),
+			"clusterName", clusterName)
+		return
+	}
+
+	// No meaningful content difference after pruning irrelevant fields.
+	if reflect.DeepEqual(oldCopy, curCopy) {
+		return
+	}
+
+	c.enqueueWork(workKey)
+}
+
+func (c *Controller) onDelete(old any) {
+	if deleted, ok := old.(cache.DeletedFinalStateUnknown); ok {
+		old = deleted.Obj
+		if old == nil {
+			return
+		}
+	}
+	oldObj, ok := old.(client.Object)
+	if !ok {
+		klog.ErrorS(nil, "Failed to assert old object as client.Object", "old", old)
+		return
+	}
+	workKey, ok := workKeyFromWorkload(oldObj)
+	if !ok {
+		return
+	}
+	c.enqueueWork(workKey)
 }
