@@ -1,0 +1,39 @@
+apiVersion: ray.io/v1
+kind: RayCluster
+metadata:
+  name: to-be-defined
+spec:
+  rayVersion: "2.9.0"
+  headGroupSpec:
+    template:
+      spec:
+        containers:
+        - name: ray-head
+          image: rayproject/ray:2.9.0
+          resources:
+            requests:
+              cpu: 50m
+              memory: 100Mi
+  workerGroupSpecs:
+  - groupName: worker-a
+    replicas: 1
+    template:
+      spec:
+        containers:
+        - name: ray-worker
+          image: rayproject/ray:2.9.0
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100Mi
+  - groupName: worker-b
+    replicas: 1
+    template:
+      spec:
+        containers:
+        - name: ray-worker
+          image: rayproject/ray:2.9.0
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100Mi

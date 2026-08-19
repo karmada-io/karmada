@@ -135,7 +135,7 @@ var _ = framework.SerialDescribe("[ScheduleMultiTemplate] schedule multi templat
 			})
 		})
 
-		ginkgo.It("reschedules FlinkDeployment components without migrating or propagating rejected updates", func(ctx context.Context) {
+		ginkgo.It("[MultiComponentRescheduling] reschedules FlinkDeployment components without migrating or propagating rejected updates", func(ctx context.Context) {
 			flinkDeploymentNamespace = fmt.Sprintf("karmadatest-flink-scale-%s", rand.String(RandomStrLength))
 			flinkDeploymentName = fmt.Sprintf("flinkdeployment-%s", rand.String(RandomStrLength))
 
@@ -149,9 +149,9 @@ var _ = framework.SerialDescribe("[ScheduleMultiTemplate] schedule multi templat
 				framework.WaitNamespacePresentOnClusters(framework.ClusterNames(), flinkDeploymentNamespace)
 			})
 
-			ginkgo.By("limit every candidate cluster to 250m CPU in the isolated namespace", func() {
+			ginkgo.By("limit every candidate cluster to 200m CPU in the isolated namespace", func() {
 				const quotaName = "flink-component-scale"
-				expectedCPU := resource.MustParse("250m")
+				expectedCPU := resource.MustParse("200m")
 				for _, clusterName := range framework.ClusterNames() {
 					clusterClient := framework.GetClusterClient(clusterName)
 					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
