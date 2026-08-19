@@ -1113,9 +1113,9 @@ var _ = framework.SerialDescribe("[MultiComponentRescheduling] focused workload 
 		setMultiComponentClusterLabel(ctx, originalTarget, failoverLabelKey, failoverLabelValue, false)
 
 		ginkgo.By("explicitly recover the complete result on the eligible alternative", func() {
-			// Ordinary Duplicated reconciliation does not promise migration for a
-			// taint-only Cluster update. An explicit recovery is the supported
-			// full-scheduling escape hatch when the accepted target is still present.
+			// Ordinary Duplicated reconciliation does not promise migration when the
+			// accepted target stops matching the policy. Explicit recovery is the
+			// supported full-scheduling escape hatch while that target still exists.
 			triggerExplicitComponentRecovery(ctx, namespace, bindingName)
 			waitForComponentBinding(ctx, namespace, bindingName, alternativeTarget, expected, expected,
 				metav1.ConditionTrue, workv1alpha2.BindingReasonSuccess, "")
@@ -1126,23 +1126,34 @@ var _ = framework.SerialDescribe("[MultiComponentRescheduling] focused workload 
 		})
 
 		setMultiComponentClusterLabel(ctx, originalTarget, failoverLabelKey, failoverLabelValue, true)
-		setMultiComponentCPUQuota(ctx, originalTarget, namespace, quotaName, "200m")
-
-		setMultiComponentClusterLabel(ctx, alternativeTarget, failoverLabelKey, failoverLabelValue, false)
 		acceptedRevision := waitForComponentDelivery(ctx, gvr, namespace, name, workload.GetKind(), alternativeTarget, bindingName, assertRay)
 
-		ginkgo.By("retain the accepted result when explicit recovery has no fitting alternative", func() {
-			triggerExplicitComponentRecovery(ctx, namespace, bindingName)
-			waitForComponentBinding(ctx, namespace, bindingName, alternativeTarget, expected, expected,
-				metav1.ConditionFalse, workv1alpha2.BindingReasonUnschedulable, "zero component sets")
+		ginkgo.By("retain the accepted result when a pinned scale-up cannot fit", func() {
+			setMultiComponentCPUQuota(ctx, alternativeTarget, namespace, quotaName, "0m")
+			updateMultiComponentWorkload(ctx, gvr, namespace, name, func(object *unstructured.Unstructured) error {
+				return updateRayWorkerGroups(object, func(groups []any) ([]any, error) {
+					return setRayWorkerReplicas(groups, map[string]int64{"worker-a": 2})
+				})
+			})
+			desired := map[string]componentE2EExpectation{
+				"ray-head": {replicas: 1, cpu: "50m"},
+				"worker-a": {replicas: 2, cpu: "100m"},
+				"worker-b": {replicas: 1, cpu: "100m"},
+			}
+			waitForComponentBinding(ctx, namespace, bindingName, alternativeTarget, desired, expected,
+				metav1.ConditionFalse, workv1alpha2.BindingReasonUnschedulable,
+				"the current target cluster has insufficient resource for component scale")
 			assertComponentDeliveryFrozen(ctx, gvr, namespace, name, workload.GetKind(), alternativeTarget, bindingName, acceptedRevision, assertRay)
 			assertComponentNotDeliveredElsewhere(ctx, gvr, namespace, name, workload.GetKind(), alternativeTarget)
 		})
 
-		setMultiComponentClusterLabel(ctx, alternativeTarget, failoverLabelKey, failoverLabelValue, true)
-		setMultiComponentCPUQuota(ctx, originalTarget, namespace, quotaName, "500m")
-		triggerExplicitComponentRecovery(ctx, namespace, bindingName)
-		recovered := waitForComponentBinding(ctx, namespace, bindingName, "", expected, expected,
+		setMultiComponentCPUQuota(ctx, alternativeTarget, namespace, quotaName, "500m")
+		updateMultiComponentWorkload(ctx, gvr, namespace, name, func(object *unstructured.Unstructured) error {
+			return updateRayWorkerGroups(object, func(groups []any) ([]any, error) {
+				return setRayWorkerReplicas(groups, map[string]int64{"worker-a": 1})
+			})
+		})
+		recovered := waitForComponentBinding(ctx, namespace, bindingName, alternativeTarget, expected, expected,
 			metav1.ConditionTrue, workv1alpha2.BindingReasonSuccess, "")
 		waitForComponentDelivery(ctx, gvr, namespace, name, workload.GetKind(), recovered.Spec.Clusters[0].Name, bindingName, assertRay)
 	})
