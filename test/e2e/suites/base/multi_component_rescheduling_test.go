@@ -245,6 +245,25 @@ func setMultiComponentCPUQuota(ctx context.Context, clusterName, namespace, quot
 	}, framework.PollTimeout, framework.PollInterval).Should(gomega.Succeed())
 }
 
+func setMultiComponentClusterLabel(ctx context.Context, clusterName, key, value string, present bool) {
+	gomega.Expect(retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		cluster, err := karmadaClient.ClusterV1alpha1().Clusters().Get(ctx, clusterName, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		if cluster.Labels == nil {
+			cluster.Labels = make(map[string]string)
+		}
+		if present {
+			cluster.Labels[key] = value
+		} else {
+			delete(cluster.Labels, key)
+		}
+		_, err = karmadaClient.ClusterV1alpha1().Clusters().Update(ctx, cluster, metav1.UpdateOptions{})
+		return err
+	})).Should(gomega.Succeed())
+}
+
 func installComponentRevision(apiVersion, kind, script string) {
 	customization := testhelper.NewResourceInterpreterCustomization(
 		"multi-component-revision-"+rand.String(RandomStrLength),
@@ -287,6 +306,27 @@ func createMultiComponentPolicyWithSchedulingType(namespace string, workload *un
 		APIVersion: workload.GetAPIVersion(), Kind: workload.GetKind(), Name: workload.GetName(),
 	}}, policyv1alpha1.Placement{
 		ClusterAffinity: &policyv1alpha1.ClusterAffinity{ClusterNames: clusters},
+		SpreadConstraints: []policyv1alpha1.SpreadConstraint{{
+			SpreadByField: policyv1alpha1.SpreadByFieldCluster, MinGroups: 1, MaxGroups: 1,
+		}},
+		ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+			ReplicaSchedulingType:     schedulingType,
+			ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceAggregated,
+		},
+	})
+	framework.CreatePropagationPolicy(karmadaClient, policy)
+	ginkgo.DeferCleanup(func() {
+		framework.RemovePropagationPolicy(karmadaClient, namespace, policy.Name)
+	})
+}
+
+func createMultiComponentLabelPolicy(namespace string, workload *unstructured.Unstructured, labelKey, labelValue string,
+	schedulingType policyv1alpha1.ReplicaSchedulingType,
+) {
+	policy := testhelper.NewPropagationPolicy(namespace, "multi-component-"+rand.String(RandomStrLength), []policyv1alpha1.ResourceSelector{{
+		APIVersion: workload.GetAPIVersion(), Kind: workload.GetKind(), Name: workload.GetName(),
+	}}, policyv1alpha1.Placement{
+		ClusterAffinity: &policyv1alpha1.ClusterAffinity{LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{labelKey: labelValue}}},
 		SpreadConstraints: []policyv1alpha1.SpreadConstraint{{
 			SpreadByField: policyv1alpha1.SpreadByFieldCluster, MinGroups: 1, MaxGroups: 1,
 		}},
@@ -1041,7 +1081,16 @@ var _ = framework.SerialDescribe("[MultiComponentRescheduling] focused workload 
 		allClusters := framework.ClusterNames()
 		gomega.Expect(len(allClusters)).Should(gomega.BeNumerically(">=", 2))
 		candidates := allClusters[:2]
-		createMultiComponentPolicyWithSchedulingType(namespace, workload, candidates, policyv1alpha1.ReplicaSchedulingTypeDuplicated)
+		failoverLabelKey := "e2e.karmada.io/multi-component-failover-" + rand.String(RandomStrLength)
+		failoverLabelValue := "eligible"
+		for _, candidate := range candidates {
+			candidateName := candidate
+			ginkgo.DeferCleanup(func() {
+				setMultiComponentClusterLabel(context.Background(), candidateName, failoverLabelKey, failoverLabelValue, false)
+			})
+			setMultiComponentClusterLabel(ctx, candidateName, failoverLabelKey, failoverLabelValue, true)
+		}
+		createMultiComponentLabelPolicy(namespace, workload, failoverLabelKey, failoverLabelValue, policyv1alpha1.ReplicaSchedulingTypeDuplicated)
 
 		bindingName := names.GenerateBindingName(workload.GetKind(), name)
 		expected := map[string]componentE2EExpectation{
@@ -1061,14 +1110,7 @@ var _ = framework.SerialDescribe("[MultiComponentRescheduling] focused workload 
 		originalRevision := waitForComponentDelivery(ctx, gvr, namespace, name, workload.GetKind(), originalTarget, bindingName, assertRay)
 		assertComponentNotDeliveredElsewhere(ctx, gvr, namespace, name, workload.GetKind(), originalTarget)
 
-		firstTaint := corev1.Taint{Key: "e2e.karmada.io/multi-component-failover", Value: "first", Effect: corev1.TaintEffectNoSchedule}
-		firstTaintActive := true
-		ginkgo.DeferCleanup(func() {
-			if firstTaintActive {
-				gomega.Expect(framework.RemoveClusterTaint(controlPlaneClient, originalTarget, firstTaint)).Should(gomega.Succeed())
-			}
-		})
-		gomega.Expect(framework.AddClusterTaint(controlPlaneClient, originalTarget, firstTaint)).Should(gomega.Succeed())
+		setMultiComponentClusterLabel(ctx, originalTarget, failoverLabelKey, failoverLabelValue, false)
 
 		ginkgo.By("explicitly recover the complete result on the eligible alternative", func() {
 			// Ordinary Duplicated reconciliation does not promise migration for a
@@ -1083,19 +1125,11 @@ var _ = framework.SerialDescribe("[MultiComponentRescheduling] focused workload 
 			assertComponentNotDeliveredElsewhere(ctx, gvr, namespace, name, workload.GetKind(), alternativeTarget)
 		})
 
-		gomega.Expect(framework.RemoveClusterTaint(controlPlaneClient, originalTarget, firstTaint)).Should(gomega.Succeed())
-		firstTaintActive = false
+		setMultiComponentClusterLabel(ctx, originalTarget, failoverLabelKey, failoverLabelValue, true)
 		setMultiComponentCPUQuota(ctx, originalTarget, namespace, quotaName, "200m")
 
-		secondTaint := corev1.Taint{Key: "e2e.karmada.io/multi-component-failover", Value: "second", Effect: corev1.TaintEffectNoSchedule}
-		secondTaintActive := true
-		ginkgo.DeferCleanup(func() {
-			if secondTaintActive {
-				gomega.Expect(framework.RemoveClusterTaint(controlPlaneClient, alternativeTarget, secondTaint)).Should(gomega.Succeed())
-			}
-		})
+		setMultiComponentClusterLabel(ctx, alternativeTarget, failoverLabelKey, failoverLabelValue, false)
 		acceptedRevision := waitForComponentDelivery(ctx, gvr, namespace, name, workload.GetKind(), alternativeTarget, bindingName, assertRay)
-		gomega.Expect(framework.AddClusterTaint(controlPlaneClient, alternativeTarget, secondTaint)).Should(gomega.Succeed())
 
 		ginkgo.By("retain the accepted result when explicit recovery has no fitting alternative", func() {
 			triggerExplicitComponentRecovery(ctx, namespace, bindingName)
@@ -1105,9 +1139,11 @@ var _ = framework.SerialDescribe("[MultiComponentRescheduling] focused workload 
 			assertComponentNotDeliveredElsewhere(ctx, gvr, namespace, name, workload.GetKind(), alternativeTarget)
 		})
 
-		gomega.Expect(framework.RemoveClusterTaint(controlPlaneClient, alternativeTarget, secondTaint)).Should(gomega.Succeed())
-		secondTaintActive = false
-		waitForComponentBinding(ctx, namespace, bindingName, alternativeTarget, expected, expected,
+		setMultiComponentClusterLabel(ctx, alternativeTarget, failoverLabelKey, failoverLabelValue, true)
+		setMultiComponentCPUQuota(ctx, originalTarget, namespace, quotaName, "500m")
+		triggerExplicitComponentRecovery(ctx, namespace, bindingName)
+		recovered := waitForComponentBinding(ctx, namespace, bindingName, "", expected, expected,
 			metav1.ConditionTrue, workv1alpha2.BindingReasonSuccess, "")
+		waitForComponentDelivery(ctx, gvr, namespace, name, workload.GetKind(), recovered.Spec.Clusters[0].Name, bindingName, assertRay)
 	})
 })
