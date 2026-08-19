@@ -149,9 +149,9 @@ var _ = framework.SerialDescribe("[ScheduleMultiTemplate] schedule multi templat
 				framework.WaitNamespacePresentOnClusters(framework.ClusterNames(), flinkDeploymentNamespace)
 			})
 
-			ginkgo.By("limit every candidate cluster to 200m CPU in the isolated namespace", func() {
+			ginkgo.By("limit every candidate cluster to 300m CPU so delta fits but full desired double-counting does not", func() {
 				const quotaName = "flink-component-scale"
-				expectedCPU := resource.MustParse("200m")
+				expectedCPU := resource.MustParse("300m")
 				for _, clusterName := range framework.ClusterNames() {
 					clusterClient := framework.GetClusterClient(clusterName)
 					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
