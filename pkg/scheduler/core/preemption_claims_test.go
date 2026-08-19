@@ -17,6 +17,7 @@ limitations under the License.
 package core
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
@@ -231,13 +232,8 @@ func TestWithClaimDeductions(t *testing.T) {
 		{Name: "member2", Replicas: 0},
 		{Name: "member3", Replicas: 3},
 	}
-	if len(got) != len(want) {
-		t.Fatalf("got %d clusters, want %d", len(got), len(want))
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("cluster %d = %+v, want %+v", i, got[i], want[i])
-		}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %+v, want %+v", got, want)
 	}
 	if available[0].Replicas != 10 || available[1].Replicas != 5 {
 		t.Fatalf("withClaimDeductions mutated input: %+v", available)
@@ -248,7 +244,7 @@ func TestWithClaimDeductionsNilStore(t *testing.T) {
 	available := []workv1alpha2.TargetCluster{{Name: "member1", Replicas: 10}}
 	got := withClaimDeductions(available, nil, "default/requester", 100, nil)
 
-	if len(got) != 1 || got[0] != available[0] {
+	if !reflect.DeepEqual(got, available) {
 		t.Fatalf("got %+v, want %+v", got, available)
 	}
 	got[0].Replicas = 1
