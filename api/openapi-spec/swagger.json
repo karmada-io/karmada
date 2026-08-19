@@ -20534,7 +20534,7 @@
           }
         },
         "schedulePriority": {
-          "description": "SchedulePriority defines how Karmada should resolve the priority and preemption policy for workload scheduling.\n\nThis setting is useful for controlling the scheduling behavior of offline workloads. By setting a higher or lower priority, users can control which workloads are scheduled first. Additionally, it allows specifying a preemption policy where higher-priority workloads can preempt lower-priority ones in scenarios of resource contention.\n\nNote: This feature is currently in the alpha stage. The priority-based scheduling functionality is controlled by the PriorityBasedScheduling feature gate, and preemption is controlled by the PriorityBasedPreemptiveScheduling feature gate. Currently, only priority-based scheduling is supported. Preemption functionality is not yet available and will be introduced in future releases as the feature matures.",
+          "description": "SchedulePriority defines how Karmada should resolve the priority and preemption policy for workload scheduling.\n\nThis setting is useful for controlling the scheduling behavior of offline workloads. By setting a higher or lower priority, users can control which workloads are scheduled first. Additionally, it allows specifying a preemption policy where higher-priority workloads can preempt lower-priority ones in scenarios of resource contention.\n\nNote: This feature is currently in the alpha stage. The priority-based scheduling functionality is controlled by the PriorityBasedScheduling feature gate, and preemption is controlled by the PriorityBasedPreemptiveScheduling feature gate. Preemption takes effect only when both gates are enabled and the resolved priority class allows preempting lower-priority bindings.",
           "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.SchedulePriority"
         },
         "schedulerName": {
@@ -21890,7 +21890,14 @@
     "com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.SchedulePriority": {
       "description": "SchedulePriority represents the scheduling priority assigned to workloads.",
       "type": "object",
+      "required": [
+        "preemptionPolicy"
+      ],
       "properties": {
+        "preemptionPolicy": {
+          "description": "PreemptionPolicy describes the policy of if and when to preempt bindings. One of Never, PreemptLowerPriority.",
+          "type": "string"
+        },
         "priority": {
           "description": "Priority specifies the scheduling priority for the binding. Higher values indicate a higher priority. If not explicitly set, the default value is 0.",
           "type": "integer",

@@ -84,6 +84,10 @@ const (
 	EventReasonScheduleBindingFailed = "ScheduleBindingFailed"
 	// EventReasonScheduleBindingSucceed indicates that schedule binding succeed.
 	EventReasonScheduleBindingSucceed = "ScheduleBindingSucceed"
+	// EventReasonPreemptionInitiated indicates that binding preemption has been initiated.
+	EventReasonPreemptionInitiated = "PreemptionInitiated"
+	// EventReasonBindingPreempted indicates that a binding was preempted by a higher-priority binding.
+	EventReasonBindingPreempted = "Preempted"
 	// EventReasonDescheduleBindingFailed indicates that deschedule binding failed.
 	EventReasonDescheduleBindingFailed = "DescheduleBindingFailed"
 	// EventReasonDescheduleBindingSucceed indicates that deschedule binding succeed.

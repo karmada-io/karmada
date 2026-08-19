@@ -364,7 +364,7 @@ var _ = framework.SerialDescribe("[EstimatorAssumption] ResourceQuota plugin ass
 				func(binding *workv1alpha2.ResourceBinding) bool {
 					cond := meta.FindStatusCondition(binding.Status.Conditions, workv1alpha2.Scheduled)
 					return cond != nil && cond.Status == metav1.ConditionFalse &&
-						cond.Reason == workv1alpha2.BindingReasonSchedulerError &&
+						cond.Reason == workv1alpha2.BindingReasonUnschedulable &&
 						strings.Contains(cond.Message, "no enough resource")
 				})
 		})
@@ -498,7 +498,7 @@ var _ = framework.SerialDescribe("[EstimatorAssumption] NodeResource plugin assu
 						if cond == nil {
 							return false
 						}
-						if cond.Status == metav1.ConditionFalse && cond.Reason == workv1alpha2.BindingReasonSchedulerError &&
+						if cond.Status == metav1.ConditionFalse && cond.Reason == workv1alpha2.BindingReasonUnschedulable &&
 							strings.Contains(cond.Message, "no enough resource") {
 							assumptionExhausted = true
 						}
@@ -577,7 +577,7 @@ func assertSingleTemplateDeploymentUnschedulable(namespace, targetCluster string
 		func(binding *workv1alpha2.ResourceBinding) bool {
 			cond := meta.FindStatusCondition(binding.Status.Conditions, workv1alpha2.Scheduled)
 			return cond != nil && cond.Status == metav1.ConditionFalse &&
-				cond.Reason == workv1alpha2.BindingReasonSchedulerError &&
+				cond.Reason == workv1alpha2.BindingReasonUnschedulable &&
 				strings.Contains(cond.Message, "no enough resource")
 		})
 }

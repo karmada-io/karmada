@@ -32,11 +32,16 @@ import (
 
 // SelectClusters selects clusters based on the placement and resource binding spec.
 func SelectClusters(clustersScore framework.ClusterScoreList, placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus, assigningCache *schedulercache.AssigningResourceBindingCache) ([]spreadconstraint.ClusterDetailInfo, error) {
+	return selectClusters(clustersScore, placement, spec, status, assigningCache, nil, "", spec.SchedulePriorityValue(), spec.ReplicaRequirements, spec.Replicas)
+}
+
+func selectClusters(clustersScore framework.ClusterScoreList, placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus, assigningCache *schedulercache.AssigningResourceBindingCache, preemptionClaims *PreemptionClaimStore, requesterBindingKey string, requesterPriority int32, requesterRequirements *workv1alpha2.ReplicaRequirements, needReplicas int32) ([]spreadconstraint.ClusterDetailInfo, error) {
 	startTime := time.Now()
 	defer metrics.ScheduleStep(metrics.ScheduleStepSelect, startTime)
 
 	calAvailableReplicasFunc := func(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster {
-		return calAvailableReplicas(clusters, spec, assigningCache)
+		available := calAvailableReplicas(clusters, spec, assigningCache)
+		return withClaimDeductions(available, preemptionClaims, requesterBindingKey, requesterPriority, requesterRequirements)
 	}
 	groupClustersInfo := spreadconstraint.GroupClustersWithScore(clustersScore, placement, spec, status, calAvailableReplicasFunc)
 	if features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) && isMultiTemplateSchedulingApplicable(spec) {
@@ -44,7 +49,7 @@ func SelectClusters(clustersScore framework.ClusterScoreList, placement *policyv
 		// The scheduling unit is 1 (i.e., 1 instance of the multi-component template), so we require 1 available replica.
 		return spreadconstraint.SelectBestClusters(placement, groupClustersInfo, 1)
 	}
-	return spreadconstraint.SelectBestClusters(placement, groupClustersInfo, spec.Replicas)
+	return spreadconstraint.SelectBestClusters(placement, groupClustersInfo, needReplicas)
 }
 
 // AssignReplicas assigns replicas to clusters based on the placement and resource binding spec.

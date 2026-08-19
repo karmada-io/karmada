@@ -5351,7 +5351,7 @@ func schema_pkg_apis_policy_v1alpha1_PropagationSpec(ref common.ReferenceCallbac
 					},
 					"schedulePriority": {
 						SchemaProps: spec.SchemaProps{
-							Description: "SchedulePriority defines how Karmada should resolve the priority and preemption policy for workload scheduling.\n\nThis setting is useful for controlling the scheduling behavior of offline workloads. By setting a higher or lower priority, users can control which workloads are scheduled first. Additionally, it allows specifying a preemption policy where higher-priority workloads can preempt lower-priority ones in scenarios of resource contention.\n\nNote: This feature is currently in the alpha stage. The priority-based scheduling functionality is controlled by the PriorityBasedScheduling feature gate, and preemption is controlled by the PriorityBasedPreemptiveScheduling feature gate. Currently, only priority-based scheduling is supported. Preemption functionality is not yet available and will be introduced in future releases as the feature matures.",
+							Description: "SchedulePriority defines how Karmada should resolve the priority and preemption policy for workload scheduling.\n\nThis setting is useful for controlling the scheduling behavior of offline workloads. By setting a higher or lower priority, users can control which workloads are scheduled first. Additionally, it allows specifying a preemption policy where higher-priority workloads can preempt lower-priority ones in scenarios of resource contention.\n\nNote: This feature is currently in the alpha stage. The priority-based scheduling functionality is controlled by the PriorityBasedScheduling feature gate, and preemption is controlled by the PriorityBasedPreemptiveScheduling feature gate. Preemption takes effect only when both gates are enabled and the resolved priority class allows preempting lower-priority bindings.",
 							Ref:         ref(policyv1alpha1.SchedulePriority{}.OpenAPIModelName()),
 						},
 					},
@@ -8032,7 +8032,15 @@ func schema_pkg_apis_work_v1alpha2_SchedulePriority(ref common.ReferenceCallback
 							Format:      "int32",
 						},
 					},
+					"preemptionPolicy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PreemptionPolicy describes the policy of if and when to preempt bindings. One of Never, PreemptLowerPriority.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
+				Required: []string{"preemptionPolicy"},
 			},
 		},
 	}

@@ -18,6 +18,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -26,6 +27,7 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/scheduler/cache"
 	"github.com/karmada-io/karmada/pkg/scheduler/core/spreadconstraint"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
@@ -41,16 +43,64 @@ type ScheduleAlgorithm interface {
 // ScheduleAlgorithmOption represents the option for ScheduleAlgorithm.
 type ScheduleAlgorithmOption struct {
 	EnableEmptyWorkloadPropagation bool
+	BindingIdentity                BindingIdentity
+	SchedulerName                  string
 }
 
-// ScheduleResult includes the clusters selected.
+// BindingIdentity identifies the binding object currently being scheduled.
+type BindingIdentity struct {
+	Namespace     string
+	Name          string
+	ClusterScoped bool
+}
+
+// Key returns a stable key for internal scheduler bookkeeping.
+func (b BindingIdentity) Key() string {
+	if b.Name == "" {
+		return ""
+	}
+	if b.ClusterScoped {
+		return "clusterresourcebinding/" + b.Name
+	}
+	return "resourcebinding/" + b.Namespace + "/" + b.Name
+}
+
+// IsResourceBinding reports whether the identity refers to a namespaced ResourceBinding.
+func (b BindingIdentity) IsResourceBinding() bool {
+	return !b.ClusterScoped && b.Name != ""
+}
+
+// ResourceBindingIdentity returns the scheduler identity for a namespaced ResourceBinding.
+func ResourceBindingIdentity(rb *workv1alpha2.ResourceBinding) BindingIdentity {
+	if rb == nil {
+		return BindingIdentity{}
+	}
+	return BindingIdentity{Namespace: rb.Namespace, Name: rb.Name}
+}
+
+// ClusterResourceBindingIdentity returns the scheduler identity for a ClusterResourceBinding.
+func ClusterResourceBindingIdentity(crb *workv1alpha2.ClusterResourceBinding) BindingIdentity {
+	if crb == nil {
+		return BindingIdentity{}
+	}
+	return BindingIdentity{Name: crb.Name, ClusterScoped: true}
+}
+
+// ScheduleResult describes either selected clusters or initiated preemption.
 type ScheduleResult struct {
+	// SuggestedClusters is nil when PreemptionResult is set because the preemptor
+	// has not been scheduled yet.
 	SuggestedClusters []workv1alpha2.TargetCluster
+
+	// PreemptionResult is set when scheduling initiated preemption instead of
+	// assigning the binding to target clusters.
+	PreemptionResult *PreemptionResult
 }
 
 type genericScheduler struct {
 	schedulerCache    cache.Cache
 	scheduleFramework framework.Framework
+	preemptionClaims  *PreemptionClaimStore
 }
 
 // NewGenericScheduler creates a genericScheduler object.
@@ -65,6 +115,7 @@ func NewGenericScheduler(
 	return &genericScheduler{
 		schedulerCache:    schedCache,
 		scheduleFramework: f,
+		preemptionClaims:  NewPreemptionClaimStore(),
 	}, nil
 }
 
@@ -74,6 +125,10 @@ func (g *genericScheduler) Schedule(
 	status *workv1alpha2.ResourceBindingStatus,
 	scheduleAlgorithmOption *ScheduleAlgorithmOption,
 ) (result ScheduleResult, err error) {
+	if scheduleAlgorithmOption == nil {
+		scheduleAlgorithmOption = &ScheduleAlgorithmOption{}
+	}
+
 	clusterInfoSnapshot := g.schedulerCache.Snapshot()
 	feasibleClusters, diagnosis, err := g.findClustersThatFit(ctx, spec, status, &clusterInfoSnapshot)
 	if err != nil {
@@ -95,14 +150,26 @@ func (g *genericScheduler) Schedule(
 	}
 	klog.V(4).Infof("Feasible clusters scores: %v", clustersScore)
 
-	selectedClusters, err := g.selectClusters(clustersScore, spec.Placement, spec, status)
+	selectedClusters, err := g.selectClusters(clustersScore, spec.Placement, spec, status, scheduleAlgorithmOption)
 	if err != nil {
+		var unschedulableErr *framework.UnschedulableError
+		if errors.As(err, &unschedulableErr) {
+			if res, handled, preemptErr := g.tryPreempt(ctx, clustersScore, spec, status, scheduleAlgorithmOption); handled {
+				return res, preemptErr
+			}
+		}
 		return result, fmt.Errorf("failed to select clusters: %w", err)
 	}
 	klog.V(4).Infof("Selected clusters: %v", selectedClusters)
 
 	clustersWithReplicas, err := g.assignReplicas(selectedClusters, spec, status)
 	if err != nil {
+		var unschedulableErr *framework.UnschedulableError
+		if errors.As(err, &unschedulableErr) {
+			if res, handled, preemptErr := g.tryPreempt(ctx, clustersScore, spec, status, scheduleAlgorithmOption); handled {
+				return res, preemptErr
+			}
+		}
 		return result, fmt.Errorf("failed to assign replicas: %w", err)
 	}
 	klog.V(4).Infof("Assigned Replicas: %v", clustersWithReplicas)
@@ -113,6 +180,29 @@ func (g *genericScheduler) Schedule(
 	result.SuggestedClusters = clustersWithReplicas
 
 	return result, nil
+}
+
+// tryPreempt runs preemption for a failed scheduling attempt. When handled is
+// true the caller must return (result, err) directly: either preemption failed
+// (err set) or it produced a PreemptionResult to propagate. When handled is
+// false preemption was not applicable and the caller should surface the original
+// scheduling failure.
+func (g *genericScheduler) tryPreempt(
+	ctx context.Context,
+	clustersScore framework.ClusterScoreList,
+	spec *workv1alpha2.ResourceBindingSpec,
+	status *workv1alpha2.ResourceBindingStatus,
+	option *ScheduleAlgorithmOption,
+) (result ScheduleResult, handled bool, err error) {
+	preemptionResult, err := g.preempt(ctx, clustersScore, spec, status, option)
+	if err != nil {
+		return result, true, &PreemptionError{Err: err}
+	}
+	if preemptionResult != nil {
+		result.PreemptionResult = preemptionResult
+		return result, true, nil
+	}
+	return result, false, nil
 }
 
 // findClustersThatFit finds the clusters that are fit for the placement based on running the filter plugins.
@@ -194,11 +284,31 @@ func (g *genericScheduler) prioritizeClusters(
 }
 
 func (g *genericScheduler) selectClusters(clustersScore framework.ClusterScoreList,
+	placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus, option *ScheduleAlgorithmOption) ([]spreadconstraint.ClusterDetailInfo, error) {
+	return selectClusters(clustersScore, placement, spec, status, g.schedulerCache.AssigningResourceBindings(), g.activePreemptionClaims(), option.BindingIdentity.Key(), spec.SchedulePriorityValue(), spec.ReplicaRequirements, spec.Replicas)
+}
+
+func (g *genericScheduler) selectClustersForPreemption(clustersScore framework.ClusterScoreList,
 	placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus) ([]spreadconstraint.ClusterDetailInfo, error) {
-	return SelectClusters(clustersScore, placement, spec, status, g.schedulerCache.AssigningResourceBindings())
+	return selectClusters(clustersScore, placement, spec, status, g.schedulerCache.AssigningResourceBindings(), nil, "", 0, nil, spreadconstraint.InvalidReplicas)
 }
 
 func (g *genericScheduler) assignReplicas(clusters []spreadconstraint.ClusterDetailInfo, spec *workv1alpha2.ResourceBindingSpec,
 	status *workv1alpha2.ResourceBindingStatus) ([]workv1alpha2.TargetCluster, error) {
 	return AssignReplicas(clusters, spec, status)
+}
+
+func (g *genericScheduler) activePreemptionClaims() *PreemptionClaimStore {
+	if !features.PreemptionEnabled() {
+		return nil
+	}
+	return g.preemptionClaims
+}
+
+// ClearPreemptionClaim clears an in-flight preemption claim for the provided binding.
+func (g *genericScheduler) ClearPreemptionClaim(identity BindingIdentity) {
+	if g.preemptionClaims == nil {
+		return
+	}
+	g.preemptionClaims.Clear(identity.Key())
 }

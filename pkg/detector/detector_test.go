@@ -26,6 +26,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	schedulingv1 "k8s.io/api/scheduling/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -1193,6 +1194,80 @@ func TestApplyClusterPolicy(t *testing.T) {
 	}
 }
 
+func TestBuildResourceBindingWithSchedulePriorityPreemptionPolicy(t *testing.T) {
+	originalFeatureGate := features.FeatureGate.DeepCopy()
+	t.Cleanup(func() {
+		features.FeatureGate = originalFeatureGate
+	})
+	if err := features.FeatureGate.Set(fmt.Sprintf("%s=true", features.PriorityBasedScheduling)); err != nil {
+		t.Fatalf("failed to set feature gate %s: %v", features.PriorityBasedScheduling, err)
+	}
+
+	preemptLowerPriority := corev1.PreemptLowerPriority
+	preemptNever := corev1.PreemptNever
+	tests := []struct {
+		name                    string
+		priorityClassPreemption *corev1.PreemptionPolicy
+		wantPreemptionPolicy    workv1alpha2.PreemptionPolicy
+	}{
+		{
+			name:                    "preempt lower priority maps to binding preemption policy",
+			priorityClassPreemption: &preemptLowerPriority,
+			wantPreemptionPolicy:    workv1alpha2.PreemptLowerPriority,
+		},
+		{
+			name:                    "never maps to binding preemption policy",
+			priorityClassPreemption: &preemptNever,
+			wantPreemptionPolicy:    workv1alpha2.PreemptNever,
+		},
+		{
+			name:                 "nil maps to never binding preemption policy",
+			wantPreemptionPolicy: workv1alpha2.PreemptNever,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			const priorityClassName = "high-priority"
+			scheme := setupTestScheme()
+			fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&schedulingv1.PriorityClass{
+				ObjectMeta:       metav1.ObjectMeta{Name: priorityClassName},
+				Value:            1000,
+				PreemptionPolicy: tt.priorityClassPreemption,
+			}).Build()
+
+			d := &ResourceDetector{
+				Client:              fakeClient,
+				EventRecorder:       record.NewFakeRecorder(10),
+				ResourceInterpreter: &mockResourceInterpreter{},
+			}
+			object := &unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]any{
+						"name":      "test-deployment",
+						"namespace": "default",
+						"uid":       "test-uid",
+					},
+				},
+			}
+			policySpec := &policyv1alpha1.PropagationSpec{
+				SchedulePriority: &policyv1alpha1.SchedulePriority{
+					PriorityClassSource: policyv1alpha1.KubePriorityClass,
+					PriorityClassName:   priorityClassName,
+				},
+			}
+
+			binding, err := d.BuildResourceBinding(object, policySpec, "policy-id", metav1.ObjectMeta{}, func(_ metav1.Object, _ string, _ metav1.ObjectMeta) {})
+			assert.NoError(t, err)
+			assert.NotNil(t, binding.Spec.SchedulePriority)
+			assert.Equal(t, int32(1000), binding.Spec.SchedulePriority.Priority)
+			assert.Equal(t, tt.wantPreemptionPolicy, binding.Spec.SchedulePriority.PreemptionPolicy)
+		})
+	}
+}
+
 func TestEnqueueResourceKeyWithActivationPref(t *testing.T) {
 	testClusterWideKey := keys.ClusterWideKey{
 		Group:     "foo",
@@ -1265,6 +1340,7 @@ func setupTestScheme() *runtime.Scheme {
 	scheme := runtime.NewScheme()
 	_ = workv1alpha2.Install(scheme)
 	_ = corev1.AddToScheme(scheme)
+	_ = schedulingv1.AddToScheme(scheme)
 	_ = policyv1alpha1.Install(scheme)
 	return scheme
 }

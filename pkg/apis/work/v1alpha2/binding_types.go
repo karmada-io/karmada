@@ -413,6 +413,16 @@ type Suspension struct {
 	Scheduling *bool `json:"scheduling,omitempty"`
 }
 
+// PreemptionPolicy describes a policy for if/when to preempt a binding.
+type PreemptionPolicy string
+
+const (
+	// PreemptLowerPriority means that binding can preempt other bindings with lower priority.
+	PreemptLowerPriority PreemptionPolicy = "PreemptLowerPriority"
+	// PreemptNever means that binding never preempts other bindings with lower priority.
+	PreemptNever PreemptionPolicy = "Never"
+)
+
 // SchedulePriority represents the scheduling priority assigned to workloads.
 type SchedulePriority struct {
 	// Priority specifies the scheduling priority for the binding.
@@ -421,6 +431,12 @@ type SchedulePriority struct {
 	// +kubebuilder:default=0
 	// +optional
 	Priority int32 `json:"priority,omitempty"`
+
+	// PreemptionPolicy describes the policy of if and when to preempt bindings.
+	// One of Never, PreemptLowerPriority.
+	// +kubebuilder:validation:Enum=Never;PreemptLowerPriority
+	// +required
+	PreemptionPolicy PreemptionPolicy `json:"preemptionPolicy,omitempty"`
 }
 
 // WorkloadAffinityGroups stores the instantiated affinity and anti-affinity group names.
@@ -520,6 +536,10 @@ const (
 	// BindingReasonUnschedulable reason in Scheduled condition means that the scheduler can't schedule
 	// the binding right now, for example due to insufficient resources in the clusters.
 	BindingReasonUnschedulable = "Unschedulable"
+
+	// BindingReasonPreempting reason in Scheduled condition means that the scheduler has initiated
+	// preemption and the binding is waiting for victim eviction to release enough resources.
+	BindingReasonPreempting = "Preempting"
 
 	// BindingReasonQuotaExceeded reason in Scheduled condition means that the scheduler can't schedule
 	// the binding because the resource requirement exceeds one or more of the FederatedResourceQuotas

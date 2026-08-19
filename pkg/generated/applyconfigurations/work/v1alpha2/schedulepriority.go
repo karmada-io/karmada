@@ -18,6 +18,10 @@ limitations under the License.
 
 package v1alpha2
 
+import (
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+)
+
 // SchedulePriorityApplyConfiguration represents a declarative configuration of the SchedulePriority type for use
 // with apply.
 //
@@ -27,6 +31,9 @@ type SchedulePriorityApplyConfiguration struct {
 	// Higher values indicate a higher priority.
 	// If not explicitly set, the default value is 0.
 	Priority *int32 `json:"priority,omitempty"`
+	// PreemptionPolicy describes the policy of if and when to preempt bindings.
+	// One of Never, PreemptLowerPriority.
+	PreemptionPolicy *workv1alpha2.PreemptionPolicy `json:"preemptionPolicy,omitempty"`
 }
 
 // SchedulePriorityApplyConfiguration constructs a declarative configuration of the SchedulePriority type for use with
@@ -40,5 +47,13 @@ func SchedulePriority() *SchedulePriorityApplyConfiguration {
 // If called multiple times, the Priority field is set to the value of the last call.
 func (b *SchedulePriorityApplyConfiguration) WithPriority(value int32) *SchedulePriorityApplyConfiguration {
 	b.Priority = &value
+	return b
+}
+
+// WithPreemptionPolicy sets the PreemptionPolicy field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the PreemptionPolicy field is set to the value of the last call.
+func (b *SchedulePriorityApplyConfiguration) WithPreemptionPolicy(value workv1alpha2.PreemptionPolicy) *SchedulePriorityApplyConfiguration {
+	b.PreemptionPolicy = &value
 	return b
 }

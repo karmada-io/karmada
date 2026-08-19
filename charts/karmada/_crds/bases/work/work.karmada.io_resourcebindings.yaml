@@ -1773,6 +1773,14 @@ spec:
                 description: SchedulePriority represents the scheduling priority assigned
                   to workloads.
                 properties:
+                  preemptionPolicy:
+                    description: |-
+                      PreemptionPolicy describes the policy of if and when to preempt bindings.
+                      One of Never, PreemptLowerPriority.
+                    enum:
+                    - Never
+                    - PreemptLowerPriority
+                    type: string
                   priority:
                     default: 0
                     description: |-
@@ -1781,6 +1789,8 @@ spec:
                       If not explicitly set, the default value is 0.
                     format: int32
                     type: integer
+                required:
+                - preemptionPolicy
                 type: object
               schedulerName:
                 description: |-

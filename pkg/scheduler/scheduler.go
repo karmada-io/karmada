@@ -39,6 +39,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -120,6 +121,10 @@ type Scheduler struct {
 	schedulerName                       string
 
 	enableEmptyWorkloadPropagation bool
+}
+
+type preemptionClaimCleaner interface {
+	ClearPreemptionClaim(core.BindingIdentity)
 }
 
 type schedulerOptions struct {
@@ -597,7 +602,11 @@ func (s *Scheduler) scheduleResourceBindingWithClusterAffinity(rb *workv1alpha2.
 		return fmt.Errorf("failed to marshal placement of ResourceBinding %s: %w", rb.GetName(), err)
 	}
 
-	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &rb.Spec, &rb.Status, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
+	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &rb.Spec, &rb.Status, s.scheduleOptionForResourceBinding(rb))
+	var preemptionErr *core.PreemptionError
+	if errors.As(err, &preemptionErr) {
+		metrics.RecordPreemptionAttempt(err)
+	}
 	var fitErr *framework.FitError
 	// in case of no cluster error, can not return but continue to patch(cleanup) the result.
 	if err != nil && !errors.As(err, &fitErr) {
@@ -605,11 +614,24 @@ func (s *Scheduler) scheduleResourceBindingWithClusterAffinity(rb *workv1alpha2.
 		klog.Errorf("Failed scheduling ResourceBinding(%s/%s): %v", rb.Namespace, rb.Name, err)
 		return err
 	}
+	if scheduleResult.PreemptionResult != nil {
+		err = s.handlePreemptionResult(rb, scheduleResult.PreemptionResult)
+		metrics.RecordPreemptionAttempt(err)
+		if err != nil {
+			s.clearPreemptionClaim(core.ResourceBindingIdentity(rb))
+			klog.Errorf("Failed to initiate preemption for ResourceBinding(%s/%s): %v", rb.Namespace, rb.Name, err)
+			return err
+		}
+		metrics.RecordPreemptionVictims(len(scheduleResult.PreemptionResult.Victims))
+		return &framework.PreemptingError{Message: fmt.Sprintf("preemption initiated on cluster %q for %d victim(s)", scheduleResult.PreemptionResult.Cluster, len(scheduleResult.PreemptionResult.Victims))}
+	}
 
 	klog.V(4).Infof("ResourceBinding(%s/%s) scheduled to clusters %v", rb.Namespace, rb.Name, scheduleResult.SuggestedClusters)
 	patchErr := s.patchScheduleResultForResourceBinding(rb, string(placementBytes), scheduleResult.SuggestedClusters)
 	if patchErr != nil {
 		err = utilerrors.NewAggregate([]error{err, patchErr})
+	} else {
+		s.clearPreemptionClaim(core.ResourceBindingIdentity(rb))
 	}
 	s.recordScheduleResultEventForResourceBinding(rb, scheduleResult.SuggestedClusters, err)
 	return err
@@ -638,7 +660,18 @@ func (s *Scheduler) scheduleResourceBindingWithClusterAffinities(rb *workv1alpha
 	for affinityIndex < len(rb.Spec.Placement.ClusterAffinities) {
 		klog.V(4).Infof("Schedule ResourceBinding(%s/%s) with clusterAffiliates index(%d)", rb.Namespace, rb.Name, affinityIndex)
 		updatedStatus.SchedulerObservedAffinityName = rb.Spec.Placement.ClusterAffinities[affinityIndex].AffinityName
-		scheduleResult, err = s.Algorithm.Schedule(context.TODO(), &rb.Spec, updatedStatus, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
+		scheduleResult, err = s.Algorithm.Schedule(context.TODO(), &rb.Spec, updatedStatus, s.scheduleOptionForResourceBinding(rb))
+		if err == nil && scheduleResult.PreemptionResult != nil {
+			err = s.handlePreemptionResult(rb, scheduleResult.PreemptionResult)
+			metrics.RecordPreemptionAttempt(err)
+			if err != nil {
+				s.clearPreemptionClaim(core.ResourceBindingIdentity(rb))
+				klog.Errorf("Failed to initiate preemption for ResourceBinding(%s/%s): %v", rb.Namespace, rb.Name, err)
+				return err
+			}
+			metrics.RecordPreemptionVictims(len(scheduleResult.PreemptionResult.Victims))
+			return &framework.PreemptingError{Message: fmt.Sprintf("preemption initiated on cluster %q for %d victim(s)", scheduleResult.PreemptionResult.Cluster, len(scheduleResult.PreemptionResult.Victims))}
+		}
 		if err == nil {
 			break
 		}
@@ -679,8 +712,35 @@ func (s *Scheduler) scheduleResourceBindingWithClusterAffinities(rb *workv1alpha
 	patchErr := s.patchScheduleResultForResourceBinding(rb, string(placementBytes), scheduleResult.SuggestedClusters)
 	patchStatusErr := patchBindingStatusWithAffinityName(s.KarmadaClient, rb, updatedStatus.SchedulerObservedAffinityName)
 	scheduleErr := utilerrors.NewAggregate([]error{patchErr, patchStatusErr})
+	if scheduleErr == nil {
+		s.clearPreemptionClaim(core.ResourceBindingIdentity(rb))
+	}
 	s.recordScheduleResultEventForResourceBinding(rb, scheduleResult.SuggestedClusters, scheduleErr)
 	return scheduleErr
+}
+
+func (s *Scheduler) scheduleOptionForResourceBinding(rb *workv1alpha2.ResourceBinding) *core.ScheduleAlgorithmOption {
+	return &core.ScheduleAlgorithmOption{
+		EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation,
+		BindingIdentity:                core.ResourceBindingIdentity(rb),
+		SchedulerName:                  s.schedulerName,
+	}
+}
+
+func (s *Scheduler) scheduleOptionForClusterResourceBinding(crb *workv1alpha2.ClusterResourceBinding) *core.ScheduleAlgorithmOption {
+	return &core.ScheduleAlgorithmOption{
+		EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation,
+		BindingIdentity:                core.ClusterResourceBindingIdentity(crb),
+		SchedulerName:                  s.schedulerName,
+	}
+}
+
+func (s *Scheduler) clearPreemptionClaim(identity core.BindingIdentity) {
+	cleaner, ok := s.Algorithm.(preemptionClaimCleaner)
+	if !ok {
+		return
+	}
+	cleaner.ClearPreemptionClaim(identity)
 }
 
 func (s *Scheduler) patchScheduleResultForResourceBinding(oldBinding *workv1alpha2.ResourceBinding, placement string, scheduleResult []workv1alpha2.TargetCluster) error {
@@ -714,6 +774,75 @@ func (s *Scheduler) patchScheduleResultForResourceBinding(oldBinding *workv1alph
 	}
 
 	klog.V(4).Infof("Patch schedule to ResourceBinding(%s/%s) succeed", oldBinding.Namespace, oldBinding.Name)
+	return nil
+}
+
+func (s *Scheduler) handlePreemptionResult(preemptor *workv1alpha2.ResourceBinding, preemptionResult *core.PreemptionResult) error {
+	if preemptionResult == nil {
+		return nil
+	}
+
+	message := fmt.Sprintf("ResourceBinding %s/%s initiated preemption on cluster %q for %d victim(s)",
+		preemptor.Namespace, preemptor.Name, preemptionResult.Cluster, len(preemptionResult.Victims))
+	s.eventRecorder.Event(preemptor, corev1.EventTypeNormal, events.EventReasonPreemptionInitiated, message)
+
+	for _, victim := range preemptionResult.Victims {
+		if err := s.preemptVictimBinding(preemptor, preemptionResult.Cluster, victim); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Scheduler) preemptVictimBinding(preemptor *workv1alpha2.ResourceBinding, cluster string, victim core.VictimBinding) error {
+	oldVictim, err := s.KarmadaClient.WorkV1alpha2().ResourceBindings(victim.Namespace).Get(context.TODO(), victim.Name, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get preemption victim ResourceBinding(%s/%s): %w", victim.Namespace, victim.Name, err)
+	}
+	if oldVictim.Spec.ClusterInGracefulEvictionTasks(cluster) {
+		klog.V(4).Infof("Preemption victim ResourceBinding(%s/%s) is already evicting from cluster %q", victim.Namespace, victim.Name, cluster)
+		return nil
+	}
+	if err := s.validateCurrentPreemptionVictim(preemptor, oldVictim, cluster); err != nil {
+		return err
+	}
+
+	newVictim := oldVictim.DeepCopy()
+	newVictim.Spec.GracefulEvictCluster(cluster, workv1alpha2.NewTaskOptions(
+		workv1alpha2.WithPurgeMode(policyv1alpha1.PurgeModeGracefully),
+		workv1alpha2.WithReason(workv1alpha2.EvictionReasonBindingPreempted),
+		workv1alpha2.WithProducer(workv1alpha2.EvictionProducerScheduler),
+		workv1alpha2.WithGracePeriodSeconds(ptr.To[int32](30)),
+	))
+
+	patchBytes, err := helper.GenMergePatch(oldVictim, newVictim)
+	if err != nil {
+		return err
+	}
+	if len(patchBytes) != 0 {
+		if _, err = s.KarmadaClient.WorkV1alpha2().ResourceBindings(newVictim.Namespace).Patch(context.TODO(), newVictim.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}); err != nil {
+			return fmt.Errorf("failed to patch preemption victim ResourceBinding(%s/%s): %w", victim.Namespace, victim.Name, err)
+		}
+	}
+
+	message := fmt.Sprintf("ResourceBinding %s/%s was preempted by higher-priority ResourceBinding %s/%s on cluster %q",
+		victim.Namespace, victim.Name, preemptor.Namespace, preemptor.Name, cluster)
+	s.eventRecorder.Event(newVictim, corev1.EventTypeWarning, events.EventReasonBindingPreempted, message)
+	return nil
+}
+
+func (s *Scheduler) validateCurrentPreemptionVictim(preemptor, victim *workv1alpha2.ResourceBinding, cluster string) error {
+	if victim.Spec.SchedulePriorityValue() >= preemptor.Spec.SchedulePriorityValue() {
+		return fmt.Errorf("preemption victim ResourceBinding(%s/%s) priority %d is not lower than preemptor priority %d",
+			victim.Namespace, victim.Name, victim.Spec.SchedulePriorityValue(), preemptor.Spec.SchedulePriorityValue())
+	}
+	if victim.Spec.AssignedReplicasForCluster(cluster) <= 0 {
+		return fmt.Errorf("preemption victim ResourceBinding(%s/%s) is no longer assigned to cluster %q", victim.Namespace, victim.Name, cluster)
+	}
+	if !schedulerNameFilter(s.schedulerName, victim.Spec.SchedulerName) {
+		return fmt.Errorf("preemption victim ResourceBinding(%s/%s) is owned by scheduler %q, not scheduler %q",
+			victim.Namespace, victim.Name, victim.Spec.SchedulerName, s.schedulerName)
+	}
 	return nil
 }
 
@@ -824,12 +953,17 @@ func (s *Scheduler) scheduleClusterResourceBindingWithClusterAffinity(crb *workv
 		return fmt.Errorf("failed to marshal placement of ClusterResourceBinding %s: %w", crb.GetName(), err)
 	}
 
-	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &crb.Spec, &crb.Status, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
+	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &crb.Spec, &crb.Status, s.scheduleOptionForClusterResourceBinding(crb))
 	var fitErr *framework.FitError
 	// in case of no cluster error, can not return but continue to patch(cleanup) the result.
 	if err != nil && !errors.As(err, &fitErr) {
 		s.recordScheduleResultEventForClusterResourceBinding(crb, nil, err)
 		klog.Errorf("Failed scheduling clusterResourceBinding(%s): %v", crb.Name, err)
+		return err
+	}
+	if scheduleResult.PreemptionResult != nil {
+		err = fmt.Errorf("ClusterResourceBinding(%s) preemption is not supported", crb.Name)
+		s.recordScheduleResultEventForClusterResourceBinding(crb, nil, err)
 		return err
 	}
 
@@ -865,7 +999,10 @@ func (s *Scheduler) scheduleClusterResourceBindingWithClusterAffinities(crb *wor
 	for affinityIndex < len(crb.Spec.Placement.ClusterAffinities) {
 		klog.V(4).Infof("Schedule ClusterResourceBinding(%s) with clusterAffiliates index(%d)", crb.Name, affinityIndex)
 		updatedStatus.SchedulerObservedAffinityName = crb.Spec.Placement.ClusterAffinities[affinityIndex].AffinityName
-		scheduleResult, err = s.Algorithm.Schedule(context.TODO(), &crb.Spec, updatedStatus, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
+		scheduleResult, err = s.Algorithm.Schedule(context.TODO(), &crb.Spec, updatedStatus, s.scheduleOptionForClusterResourceBinding(crb))
+		if err == nil && scheduleResult.PreemptionResult != nil {
+			err = fmt.Errorf("ClusterResourceBinding(%s) preemption is not supported", crb.Name)
+		}
 		if err == nil {
 			break
 		}
@@ -943,7 +1080,8 @@ func (s *Scheduler) handleErr(err error, bindingInfo *internalqueue.QueuedBindin
 	}
 
 	var unschedulableErr *framework.UnschedulableError
-	if errors.As(err, &unschedulableErr) {
+	var preemptingErr *framework.PreemptingError
+	if errors.As(err, &unschedulableErr) || errors.As(err, &preemptingErr) {
 		s.priorityQueue.PushUnschedulableIfNotPresent(bindingInfo)
 	} else {
 		s.priorityQueue.PushBackoffIfNotPresent(bindingInfo)

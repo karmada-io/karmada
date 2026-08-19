@@ -23,6 +23,7 @@ import (
 
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/features"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/indexregistry"
 )
 
@@ -50,12 +51,23 @@ func resourceBindingAntiAffinityGroupIndexer(obj any) ([]string, error) {
 	return []string{rb.Spec.WorkloadAffinityGroups.AntiAffinityGroup}, nil
 }
 
+func resourceBindingClusterIndexer(obj any) ([]string, error) {
+	rb, ok := obj.(*workv1alpha2.ResourceBinding)
+	if !ok {
+		return []string{}, fmt.Errorf("object is not a ResourceBinding: %v", obj)
+	}
+	return util.GetBindingClusterNames(&rb.Spec), nil
+}
+
 // addIndexers adds indexers for ResourceBindings to support efficient lookups.
 func (s *Scheduler) addIndexers() {
 	rbIndexers := cache.Indexers{}
 	if features.FeatureGate.Enabled(features.WorkloadAffinity) {
 		rbIndexers[indexregistry.ResourceBindingIndexByAffinityGroup] = resourceBindingAffinityGroupIndexer
 		rbIndexers[indexregistry.ResourceBindingIndexByAntiAffinityGroup] = resourceBindingAntiAffinityGroupIndexer
+	}
+	if features.PreemptionEnabled() {
+		rbIndexers[indexregistry.ResourceBindingIndexByFieldCluster] = resourceBindingClusterIndexer
 	}
 
 	if len(rbIndexers) == 0 {

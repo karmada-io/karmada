@@ -874,9 +874,8 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 				return nil, err
 			}
 			bindingSchedulePriority = &workv1alpha2.SchedulePriority{
-				Priority: kubePriorityClass.Value,
-				// TODO add preemptionpolicy
-				// PreemptionPolicy: kubePriorityClass.PreemptionPolicy,
+				Priority:         kubePriorityClass.Value,
+				PreemptionPolicy: mapPreemptionPolicy(kubePriorityClass.PreemptionPolicy),
 			}
 		case policyv1alpha1.PodPriorityClass:
 			return nil, fmt.Errorf("priority class source is PodPriorityClass, but PodPriorityClass is not supported yet")
@@ -889,6 +888,13 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 	}
 
 	return propagationBinding, nil
+}
+
+func mapPreemptionPolicy(preemptionPolicy *corev1.PreemptionPolicy) workv1alpha2.PreemptionPolicy {
+	if preemptionPolicy != nil && *preemptionPolicy == corev1.PreemptLowerPriority {
+		return workv1alpha2.PreemptLowerPriority
+	}
+	return workv1alpha2.PreemptNever
 }
 
 // BuildClusterResourceBinding builds a desired ClusterResourceBinding for object.
