@@ -32,7 +32,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/dynamic"
-	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -40,6 +39,8 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	utildynamic "github.com/karmada-io/karmada/pkg/util/dynamic"
+	dynamicfake "github.com/karmada-io/karmada/pkg/util/dynamic/adapter/fake"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
@@ -1193,10 +1194,11 @@ func TestFetchWorkloadByLabelSelector(t *testing.T) {
 		selector        *metav1.LabelSelector
 	}
 	tests := []struct {
-		name    string
-		args    args
-		want    int
-		wantErr bool
+		name          string
+		args          args
+		want          int
+		wantRawObject bool
+		wantErr       bool
 	}{
 		{
 			name: "kind is not registered",
@@ -1260,8 +1262,9 @@ func TestFetchWorkloadByLabelSelector(t *testing.T) {
 				},
 				selector: &metav1.LabelSelector{MatchLabels: map[string]string{"bar": "foo"}},
 			},
-			want:    1,
-			wantErr: false,
+			want:          1,
+			wantRawObject: true,
+			wantErr:       false,
 		},
 		{
 			name: "cluster scope: get from client",
@@ -1311,8 +1314,9 @@ func TestFetchWorkloadByLabelSelector(t *testing.T) {
 				},
 				selector: &metav1.LabelSelector{MatchLabels: map[string]string{"bar": "foo"}},
 			},
-			want:    1,
-			wantErr: false,
+			want:          1,
+			wantRawObject: true,
+			wantErr:       false,
 		},
 	}
 	for _, tt := range tests {
@@ -1327,6 +1331,12 @@ func TestFetchWorkloadByLabelSelector(t *testing.T) {
 			}
 			if len(got) != tt.want {
 				t.Errorf("FetchResourceTemplate() got = %v, want %v", got, tt.want)
+				return
+			}
+			if tt.wantRawObject {
+				if _, ok := got[0].(*utildynamic.RawObject); !ok {
+					t.Errorf("FetchResourceTemplate() returned %T, want *dynamic.RawObject", got[0])
+				}
 			}
 		})
 	}

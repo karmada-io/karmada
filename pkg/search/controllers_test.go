@@ -27,7 +27,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	fakedynamic "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
@@ -41,6 +40,7 @@ import (
 	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 	"github.com/karmada-io/karmada/pkg/search/backendstore"
 	"github.com/karmada-io/karmada/pkg/util"
+	fakedynamic "github.com/karmada-io/karmada/pkg/util/dynamic/adapter/fake"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 )
 
@@ -271,10 +271,7 @@ func TestDeleteClusterEventHandler(t *testing.T) {
 				)
 
 				clusterDynamicClientBuilder = func(string, client.Client, *util.ClientOption) (*util.DynamicClusterClient, error) {
-					return &util.DynamicClusterClient{
-						DynamicClientSet: fakedynamic.NewSimpleDynamicClient(scheme.Scheme),
-						ClusterName:      clusterName,
-					}, nil
+					return newTestDynamicClusterClient(clusterName), nil
 				}
 
 				if err := upsertCluster(clientConnector, labels, apiEndpoint, clusterName, resourceVersion); err != nil {
@@ -360,10 +357,7 @@ func TestAddResourceRegistryEventHandler(t *testing.T) {
 				)
 
 				clusterDynamicClientBuilder = func(string, client.Client, *util.ClientOption) (*util.DynamicClusterClient, error) {
-					return &util.DynamicClusterClient{
-						DynamicClientSet: fakedynamic.NewSimpleDynamicClient(scheme.Scheme),
-						ClusterName:      clusterName,
-					}, nil
+					return newTestDynamicClusterClient(clusterName), nil
 				}
 
 				if err := upsertCluster(clientConnector, labels, apiEndpoint, clusterName, resourceVersion); err != nil {
@@ -446,10 +440,7 @@ func TestUpdateResourceRegistryEventHandler(t *testing.T) {
 				)
 
 				clusterDynamicClientBuilder = func(string, client.Client, *util.ClientOption) (*util.DynamicClusterClient, error) {
-					return &util.DynamicClusterClient{
-						DynamicClientSet: fakedynamic.NewSimpleDynamicClient(scheme.Scheme),
-						ClusterName:      clusterName,
-					}, nil
+					return newTestDynamicClusterClient(clusterName), nil
 				}
 
 				if err := upsertCluster(clientConnector, labels, apiEndpoint, clusterName, resourceVersion); err != nil {
@@ -530,10 +521,7 @@ func TestDeleteResourceRegistryEventHandler(t *testing.T) {
 				)
 
 				clusterDynamicClientBuilder = func(string, client.Client, *util.ClientOption) (*util.DynamicClusterClient, error) {
-					return &util.DynamicClusterClient{
-						DynamicClientSet: fakedynamic.NewSimpleDynamicClient(scheme.Scheme),
-						ClusterName:      clusterName,
-					}, nil
+					return newTestDynamicClusterClient(clusterName), nil
 				}
 
 				if err := upsertCluster(clientConnector, labels, apiEndpoint, clusterName, resourceVersion); err != nil {
@@ -591,6 +579,14 @@ func createController(ctx context.Context, restConfig *rest.Config, factory info
 	}
 	newController.InformerManager = genericmanager.NewMultiClusterInformerManager(ctx)
 	return newController, nil
+}
+
+func newTestDynamicClusterClient(clusterName string) *util.DynamicClusterClient {
+	dynamicClient := fakedynamic.NewSimpleDynamicClient(scheme.Scheme)
+	return &util.DynamicClusterClient{
+		DynamicClientSet: dynamicClient,
+		ClusterName:      clusterName,
+	}
 }
 
 // upsertCluster creates or updates a Cluster resource in the Kubernetes API using the provided

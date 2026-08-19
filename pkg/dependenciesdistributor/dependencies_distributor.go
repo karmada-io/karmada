@@ -26,7 +26,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -54,6 +53,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
+	utildynamic "github.com/karmada-io/karmada/pkg/util/dynamic"
 	"github.com/karmada-io/karmada/pkg/util/eventfilter"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
@@ -750,7 +750,7 @@ func generateDependencyKey(kind, apiVersion, namespace string) string {
 	return kind + "-" + apiVersion + "-" + namespace
 }
 
-func buildAttachedBinding(independentBinding *workv1alpha2.ResourceBinding, object *unstructured.Unstructured) *workv1alpha2.ResourceBinding {
+func buildAttachedBinding(independentBinding *workv1alpha2.ResourceBinding, object utildynamic.Metadata) *workv1alpha2.ResourceBinding {
 	dependedLabels := generateBindingDependedLabels(independentBinding.Labels[workv1alpha2.ResourceBindingPermanentIDLabel],
 		independentBinding.Namespace, independentBinding.Name)
 
@@ -766,7 +766,7 @@ func buildAttachedBinding(independentBinding *workv1alpha2.ResourceBinding, obje
 			Name:      names.GenerateBindingName(object.GetKind(), object.GetName()),
 			Namespace: independentBinding.GetNamespace(),
 			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(object, object.GroupVersionKind()),
+				*metav1.NewControllerRef(object, schema.FromAPIVersionAndKind(object.GetAPIVersion(), object.GetKind())),
 			},
 			Labels:     dependedLabels,
 			Finalizers: []string{util.BindingControllerFinalizer},

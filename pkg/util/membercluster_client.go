@@ -26,7 +26,7 @@ import (
 	"golang.org/x/oauth2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/dynamic"
+	clientgodynamic "k8s.io/client-go/dynamic"
 	kubeclientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/scale"
@@ -38,6 +38,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	dynamic "github.com/karmada-io/karmada/pkg/util/dynamic/adapter"
 )
 
 const (
@@ -97,7 +98,7 @@ func NewClusterScaleClientSet(clusterName string, client client.Client) (*Cluste
 			return nil, err
 		}
 
-		scaleClient, err := scale.NewForConfig(clusterConfig, mapper, dynamic.LegacyAPIPathResolverFunc, scaleKindResolver)
+		scaleClient, err := scale.NewForConfig(clusterConfig, mapper, clientgodynamic.LegacyAPIPathResolverFunc, scaleKindResolver)
 		if err != nil {
 			return nil, err
 		}

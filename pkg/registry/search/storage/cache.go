@@ -24,13 +24,13 @@ import (
 	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
 	metainternalversionvalidation "k8s.io/apimachinery/pkg/apis/meta/internalversion/validation"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	genericrequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	searchscheme "github.com/karmada-io/karmada/pkg/apis/search/scheme"
@@ -164,7 +164,11 @@ func (r *SearchREST) getObjectItemsFromClusters(
 func addAnnotationWithClusterName(resourceObjects []runtime.Object, clusterName string) []runtime.Object {
 	resources := make([]runtime.Object, 0)
 	for index := range resourceObjects {
-		resource := resourceObjects[index].(*unstructured.Unstructured)
+		resource, ok := resourceObjects[index].(client.Object)
+		if !ok {
+			resources = append(resources, resourceObjects[index])
+			continue
+		}
 
 		annotations := resource.GetAnnotations()
 		if annotations == nil {

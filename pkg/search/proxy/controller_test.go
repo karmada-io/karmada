@@ -26,20 +26,25 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/diff"
+	clientgodynamic "k8s.io/client-go/dynamic"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/kubernetes/scheme"
+	listcorev1 "k8s.io/client-go/listers/core/v1"
 	restclient "k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/cache"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	searchv1alpha1 "github.com/karmada-io/karmada/pkg/apis/search/v1alpha1"
 	karmadafake "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/fake"
 	karmadainformers "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
+	clusterlisters "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/search/proxy/framework"
 	pluginruntime "github.com/karmada-io/karmada/pkg/search/proxy/framework/runtime"
 	"github.com/karmada-io/karmada/pkg/search/proxy/store"
@@ -97,6 +102,46 @@ func TestController(t *testing.T) {
 	if !hasPod {
 		t.Error("has no pod resource")
 		return
+	}
+}
+
+func TestDynamicClientForClusterFuncUsesClientGoDynamic(t *testing.T) {
+	const (
+		clusterName = "member1"
+		namespace   = "karmada-system"
+		secretName  = "member1-token"
+	)
+
+	clusterIndexer := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{})
+	if err := clusterIndexer.Add(&clusterv1alpha1.Cluster{
+		ObjectMeta: metav1.ObjectMeta{Name: clusterName},
+		Spec: clusterv1alpha1.ClusterSpec{
+			APIEndpoint:                 "https://127.0.0.1:6443",
+			SecretRef:                   &clusterv1alpha1.LocalSecretReference{Namespace: namespace, Name: secretName},
+			InsecureSkipTLSVerification: true,
+		},
+	}); err != nil {
+		t.Fatalf("failed to add cluster to indexer: %v", err)
+	}
+
+	secretIndexer := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{})
+	if err := secretIndexer.Add(&corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: secretName},
+		Data: map[string][]byte{
+			clusterv1alpha1.SecretTokenKey: []byte("token"),
+		},
+	}); err != nil {
+		t.Fatalf("failed to add secret to indexer: %v", err)
+	}
+
+	newClient := dynamicClientForClusterFunc(clusterlisters.NewClusterLister(clusterIndexer), listcorev1.NewSecretLister(secretIndexer))
+	client, err := newClient(clusterName)
+	if err != nil {
+		t.Fatalf("dynamicClientForClusterFunc() error = %v", err)
+	}
+
+	if _, ok := client.(*clientgodynamic.DynamicClient); !ok {
+		t.Fatalf("dynamicClientForClusterFunc() returned %T, want client-go dynamic client", client)
 	}
 }
 

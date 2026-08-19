@@ -141,6 +141,7 @@ Generic flags:
                                                                 PriorityBasedScheduling=true|false (ALPHA - default=false)
                                                                 PropagateDeps=true|false (BETA - default=true)
                                                                 PropagationPolicyPreemption=true|false (ALPHA - default=false)
+                                                                RawDynamicInformer=true|false (ALPHA - default=true)
                                                                 RemoteRequestHeaderUID=true|false (BETA - default=true)
                                                                 ResourceQuotaEstimate=true|false (ALPHA - default=false)
                                                                 SchedulingOvercommitProtection=true|false (ALPHA - default=false)

@@ -154,6 +154,7 @@ Generic flags:
                                                                 kube:PriorityBasedScheduling=true|false (ALPHA - default=false)
                                                                 kube:PropagateDeps=true|false (BETA - default=true)
                                                                 kube:PropagationPolicyPreemption=true|false (ALPHA - default=false)
+                                                                kube:RawDynamicInformer=true|false (ALPHA - default=true)
                                                                 kube:RemoteRequestHeaderUID=true|false (BETA - default=true)
                                                                 kube:ResourceQuotaEstimate=true|false (ALPHA - default=false)
                                                                 kube:SchedulingOvercommitProtection=true|false (ALPHA - default=false)
