@@ -17,8 +17,10 @@ limitations under the License.
 package genericresource
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -105,7 +107,7 @@ func TestBuilderErrors(t *testing.T) {
 			wantErrMatch: "is not valid",
 		},
 		{
-			name: "directory without recursion still reads its own files",
+			name: "single valid file",
 			// Included as a control: this one must succeed.
 			build:        func() *Builder { return NewBuilder().Filename(false, valid) },
 			wantErrMatch: "",
@@ -123,6 +125,49 @@ func TestBuilderErrors(t *testing.T) {
 			assert.Contains(t, err.Error(), tt.wantErrMatch)
 		})
 	}
+}
+
+// TestBuilderDirectoryRecursion covers passing a directory rather than a file.
+// ExpandPathsToFileVisitors walks the tree, and without recursion it returns
+// filepath.SkipDir for every directory below the one it was given, so files in a
+// subdirectory are only picked up when recursive is true.
+func TestBuilderDirectoryRecursion(t *testing.T) {
+	const doc = `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: %s
+`
+
+	dir := t.TempDir()
+	writeFile(t, dir, "top.yaml", fmt.Sprintf(doc, "top"))
+
+	nested := filepath.Join(dir, "nested")
+	require.NoError(t, os.Mkdir(nested, 0750))
+	writeFile(t, nested, "deep.yaml", fmt.Sprintf(doc, "deep"))
+
+	// A file whose extension is not in resource.FileExtensions is ignored when the
+	// path is reached through a directory walk rather than named explicitly.
+	writeFile(t, dir, "notes.txt", fmt.Sprintf(doc, "ignored"))
+
+	names := func(t *testing.T, recursive bool) []string {
+		t.Helper()
+		objects, err := NewBuilder().Filename(recursive, dir).Do().Objects()
+		require.NoError(t, err)
+
+		got := make([]string, 0, len(objects))
+		for _, o := range objects {
+			obj, ok := o.(*map[string]any)
+			require.True(t, ok, "unexpected object type %T", o)
+			metadata, ok := (*obj)["metadata"].(map[string]any)
+			require.True(t, ok, "unexpected metadata type %T", (*obj)["metadata"])
+			got = append(got, metadata["name"].(string))
+		}
+		sort.Strings(got)
+		return got
+	}
+
+	assert.Equal(t, []string{"top"}, names(t, false), "non-recursive must skip subdirectories")
+	assert.Equal(t, []string{"deep", "top"}, names(t, true), "recursive must include subdirectories")
 }
 
 // TestExpandIfFilePattern covers the non-glob paths only. Whether a glob pattern
