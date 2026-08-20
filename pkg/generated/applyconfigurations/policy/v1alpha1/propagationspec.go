@@ -138,7 +138,7 @@ type PropagationSpecApplyConfiguration struct {
 	// Additionally, it allows specifying a preemption policy where higher-priority workloads can
 	// preempt lower-priority ones in scenarios of resource contention.
 	//
-	// Note: This feature is currently in the alpha stage. The priority-based scheduling functionality is
+	// Note: This feature is currently in the beta stage. The priority-based scheduling functionality is
 	// controlled by the PriorityBasedScheduling feature gate, and preemption is controlled by the
 	// PriorityBasedPreemptiveScheduling feature gate. Currently, only priority-based scheduling is
 	// supported. Preemption functionality is not yet available and will be introduced in future

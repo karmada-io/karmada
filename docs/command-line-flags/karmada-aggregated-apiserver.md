@@ -138,7 +138,7 @@ Generic flags:
                                                                 MultiplePodTemplatesScheduling=true|false (ALPHA - default=false)
                                                                 NativeHistograms=true|false (ALPHA - default=false)
                                                                 OpenAPIEnums=true|false (BETA - default=true)
-                                                                PriorityBasedScheduling=true|false (ALPHA - default=false)
+                                                                PriorityBasedScheduling=true|false (BETA - default=true)
                                                                 PropagateDeps=true|false (BETA - default=true)
                                                                 PropagationPolicyPreemption=true|false (ALPHA - default=false)
                                                                 RemoteRequestHeaderUID=true|false (BETA - default=true)
