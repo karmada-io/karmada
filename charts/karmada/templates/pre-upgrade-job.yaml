@@ -2,6 +2,7 @@
 {{- $namespace := include "karmada.namespace" . -}}
 {{- if eq .Values.installMode "host" }}
 {{- if eq .Values.certs.mode "auto" }}
+{{- if not .Values.certs.rotateWhenUpgrade }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -94,5 +95,6 @@ spec:
           limits:
             cpu: 100m
             memory: 128Mi
+{{- end }}
 {{- end }}
 {{- end }}
