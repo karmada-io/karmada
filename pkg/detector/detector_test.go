@@ -1363,6 +1363,10 @@ func (m *mockResourceInterpreter) ReviseReplica(object *unstructured.Unstructure
 	return object, nil
 }
 
+func (m *mockResourceInterpreter) ReviseComponents(object *unstructured.Unstructured, _ []workv1alpha2.TargetComponent) (*unstructured.Unstructured, error) {
+	return object, nil
+}
+
 func (m *mockResourceInterpreter) Retain(desired *unstructured.Unstructured, _ *unstructured.Unstructured) (*unstructured.Unstructured, error) {
 	return desired, nil
 }

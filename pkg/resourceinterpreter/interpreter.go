@@ -53,6 +53,9 @@ type ResourceInterpreter interface {
 	// ReviseReplica revises the replica of the given object.
 	ReviseReplica(object *unstructured.Unstructured, replica int64) (*unstructured.Unstructured, error)
 
+	// ReviseComponents revises the per-component replicas of the given object.
+	ReviseComponents(object *unstructured.Unstructured, components []workv1alpha2.TargetComponent) (*unstructured.Unstructured, error)
+
 	// GetComponents extracts the resource requirements for multiple components from the given object.
 	// This hook is designed for CRDs with multiple components (e.g., FlinkDeployment), but can
 	// also be used for single-component resources like Deployment.
@@ -197,6 +200,39 @@ func (i *customResourceInterpreterImpl) ReviseReplica(object *unstructured.Unstr
 	}
 
 	return i.defaultInterpreter.ReviseReplica(object, replica)
+}
+
+// ReviseComponents revises the per-component replicas of the given object.
+func (i *customResourceInterpreterImpl) ReviseComponents(object *unstructured.Unstructured, components []workv1alpha2.TargetComponent) (*unstructured.Unstructured, error) {
+	obj, hookEnabled, err := i.configurableInterpreter.ReviseComponents(object, components)
+	if err != nil {
+		return nil, err
+	}
+	if hookEnabled {
+		return obj, nil
+	}
+
+	obj, hookEnabled, err = i.customizedInterpreter.Patch(context.TODO(), &request.Attributes{
+		Operation:     configv1alpha1.InterpreterOperationReviseComponents,
+		Object:        object,
+		ComponentsSet: components,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if hookEnabled {
+		return obj, nil
+	}
+
+	obj, hookEnabled, err = i.thirdpartyInterpreter.ReviseComponents(object, components)
+	if err != nil {
+		return nil, err
+	}
+	if hookEnabled {
+		return obj, nil
+	}
+
+	return i.defaultInterpreter.ReviseComponents(object, components)
 }
 
 // GetComponents returns the requirements for each component of the given object.

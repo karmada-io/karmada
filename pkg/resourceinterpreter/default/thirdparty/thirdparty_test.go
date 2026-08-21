@@ -373,3 +373,101 @@ func TestThirdPartyCustomizationsFile(t *testing.T) {
 		t.Fatalf("expected nil, but got: %v", err)
 	}
 }
+
+func TestReviseFlinkDeploymentComponents(t *testing.T) {
+	interpreter := NewConfigurableInterpreter()
+	workload := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "flink.apache.org/v1beta1",
+		"kind":       "FlinkDeployment",
+		"metadata": map[string]any{
+			"name": "basic-example",
+		},
+		"spec": map[string]any{
+			"image": "flink:1.17",
+			"jobManager": map[string]any{
+				"replicas": int64(1),
+			},
+			"taskManager": map[string]any{
+				"replicas": int64(1),
+			},
+		},
+	}}
+
+	tests := []struct {
+		name       string
+		components []workv1alpha2.TargetComponent
+		wantJM     int64
+		wantTM     int64
+		wantErr    bool
+	}{
+		{
+			name: "complete result is matched by name",
+			components: []workv1alpha2.TargetComponent{
+				{Name: "taskmanager", Replicas: 4},
+				{Name: "jobmanager", Replicas: 2},
+			},
+			wantJM: 2,
+			wantTM: 4,
+		},
+		{
+			name: "explicit zero replicas are preserved",
+			components: []workv1alpha2.TargetComponent{
+				{Name: "jobmanager", Replicas: 0},
+				{Name: "taskmanager", Replicas: 0},
+			},
+			wantJM: 0,
+			wantTM: 0,
+		},
+		{
+			name:       "missing component",
+			components: []workv1alpha2.TargetComponent{{Name: "jobmanager", Replicas: 2}},
+			wantErr:    true,
+		},
+		{
+			name: "unknown component",
+			components: []workv1alpha2.TargetComponent{
+				{Name: "jobmanager", Replicas: 2},
+				{Name: "worker", Replicas: 4},
+			},
+			wantErr: true,
+		},
+		{
+			name: "duplicate component",
+			components: []workv1alpha2.TargetComponent{
+				{Name: "jobmanager", Replicas: 2},
+				{Name: "jobmanager", Replicas: 4},
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			revised, enabled, err := interpreter.ReviseComponents(workload.DeepCopy(), tt.components)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("ReviseComponents() error = %v, wantErr %t", err, tt.wantErr)
+			}
+			if !enabled {
+				t.Fatal("ReviseComponents() enabled = false, want true")
+			}
+			if tt.wantErr {
+				return
+			}
+
+			jobManagerReplicas, _, err := unstructured.NestedInt64(revised.Object, "spec", "jobManager", "replicas")
+			if err != nil {
+				t.Fatalf("read jobManager replicas: %v", err)
+			}
+			taskManagerReplicas, _, err := unstructured.NestedInt64(revised.Object, "spec", "taskManager", "replicas")
+			if err != nil {
+				t.Fatalf("read taskManager replicas: %v", err)
+			}
+			if jobManagerReplicas != tt.wantJM || taskManagerReplicas != tt.wantTM {
+				t.Fatalf("revised replicas = (%d, %d), want (%d, %d)", jobManagerReplicas, taskManagerReplicas, tt.wantJM, tt.wantTM)
+			}
+			if image, _, _ := unstructured.NestedString(revised.Object, "spec", "image"); image != "flink:1.17" {
+				t.Fatalf("unrelated field spec.image = %q, want flink:1.17", image)
+			}
+		})
+	}
+}

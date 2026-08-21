@@ -51,6 +51,14 @@ spec:
           obj.spec.replicas = desiredReplica
           return obj
         end
+    componentRevision:
+      luaScript: >
+        function ReviseComponents(obj, components)
+          for i = 1, #components do
+            obj.spec[components[i].name].replicas = components[i].replicas
+          end
+          return obj
+        end
     statusReflection:
       luaScript: >
         function ReflectStatus(observedObj)

@@ -64,6 +64,8 @@ func (p *ConfigurableInterpreter) HookEnabled(kind schema.GroupVersionKind, oper
 		script = customAccessor.GetRetentionLuaScript()
 	case configv1alpha1.InterpreterOperationReviseReplica:
 		script = customAccessor.GetReplicaRevisionLuaScript()
+	case configv1alpha1.InterpreterOperationReviseComponents:
+		script = customAccessor.GetComponentRevisionLuaScript()
 	}
 	return len(script) > 0
 }
@@ -122,6 +124,25 @@ func (p *ConfigurableInterpreter) ReviseReplica(object *unstructured.Unstructure
 	klog.V(4).Infof("Running operation %s for object: %v %s/%s with thirdparty configurable interpreter.",
 		configv1alpha1.InterpreterOperationReviseReplica, object.GroupVersionKind(), object.GetNamespace(), object.GetName())
 	revised, err = p.luaVM.ReviseReplica(object, replica, script)
+	return
+}
+
+// ReviseComponents revises component replicas of the given object.
+func (p *ConfigurableInterpreter) ReviseComponents(object *unstructured.Unstructured, components []workv1alpha2.TargetComponent) (revised *unstructured.Unstructured, enabled bool, err error) {
+	customAccessor, enabled := p.getCustomAccessor(object.GroupVersionKind())
+	if !enabled {
+		return
+	}
+
+	script := customAccessor.GetComponentRevisionLuaScript()
+	if len(script) == 0 {
+		enabled = false
+		return
+	}
+
+	klog.V(4).Infof("Running operation %s for object: %v %s/%s with thirdparty configurable interpreter.",
+		configv1alpha1.InterpreterOperationReviseComponents, object.GroupVersionKind(), object.GetNamespace(), object.GetName())
+	revised, err = p.luaVM.ReviseComponents(object, components, script)
 	return
 }
 
