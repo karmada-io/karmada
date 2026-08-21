@@ -17,7 +17,6 @@ limitations under the License.
 package metrics
 
 import (
-	"strconv"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -73,8 +72,8 @@ var (
 
 	createResourceWhenSyncWork = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: createResourceToCluster,
-		Help: "Number of creation operations against a target member cluster. The 'result' label indicates outcome ('success' or 'error'), 'recreate' indicates whether the operation is recreated (true/false). Labels 'apiversion', 'kind', and 'member_cluster' specify the resource type, API version, and target cluster respectively.",
-	}, []string{"result", "apiversion", "kind", memberClusterLabel, "recreate"})
+		Help: "Number of creation operations against a target member cluster. The 'result' label indicates outcome ('success' or 'error'). Labels 'apiversion', 'kind', and 'member_cluster' specify the resource type, API version, and target cluster respectively.",
+	}, []string{"result", "apiversion", "kind", memberClusterLabel})
 
 	updateResourceWhenSyncWork = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: updateResourceToCluster,
@@ -138,13 +137,12 @@ func ObserveSyncWorkloadLatency(err error, start time.Time) {
 }
 
 // CountCreateResourceToCluster records the number of creation operations of the resource for a target member cluster.
-func CountCreateResourceToCluster(err error, apiVersion, kind, cluster string, recreate bool) {
+func CountCreateResourceToCluster(err error, apiVersion, kind, cluster string) {
 	createResourceWhenSyncWork.WithLabelValues(
 		utilmetrics.GetResultByError(err),
 		apiVersion,
 		kind,
 		cluster,
-		strconv.FormatBool(recreate),
 	).Inc()
 }
 
