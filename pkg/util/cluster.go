@@ -122,6 +122,20 @@ func IsClusterReady(clusterStatus *clusterv1alpha1.ClusterStatus) bool {
 	return meta.IsStatusConditionTrue(clusterStatus.Conditions, clusterv1alpha1.ClusterConditionReady)
 }
 
+// ClusterConditionStatusChanged reports whether the named condition's Status
+// differs between old and new. A missing condition is treated as having an
+// empty status, so first-time appearance also counts as a change.
+func ClusterConditionStatusChanged(oldCluster, newCluster *clusterv1alpha1.Cluster, conditionType string) bool {
+	var oldStatus, newStatus metav1.ConditionStatus
+	if c := meta.FindStatusCondition(oldCluster.Status.Conditions, conditionType); c != nil {
+		oldStatus = c.Status
+	}
+	if c := meta.FindStatusCondition(newCluster.Status.Conditions, conditionType); c != nil {
+		newStatus = c.Status
+	}
+	return oldStatus != newStatus
+}
+
 // GetCluster returns the given Cluster resource
 func GetCluster(hostClient client.Client, clusterName string) (*clusterv1alpha1.Cluster, error) {
 	cluster := &clusterv1alpha1.Cluster{}
