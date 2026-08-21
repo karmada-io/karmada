@@ -107,6 +107,11 @@ func (in TargetCluster) OpenAPIModelName() string {
 }
 
 // OpenAPIModelName returns the OpenAPI model name for this type.
+func (in TargetComponent) OpenAPIModelName() string {
+	return "com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.TargetComponent"
+}
+
+// OpenAPIModelName returns the OpenAPI model name for this type.
 func (in TaskOptions) OpenAPIModelName() string {
 	return "com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.TaskOptions"
 }

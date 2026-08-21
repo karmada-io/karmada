@@ -1,6 +1,6 @@
 module github.com/karmada-io/karmada
 
-go 1.26.4 // keep in sync with .go-version
+go 1.26.6 // keep in sync with .go-version
 
 require (
 	github.com/adhocore/gronx v1.6.3
@@ -28,6 +28,7 @@ require (
 	github.com/yuin/gopher-lua v1.1.1
 	go.uber.org/mock v0.4.0
 	golang.org/x/net v0.55.0
+	golang.org/x/oauth2 v0.36.0
 	golang.org/x/term v0.43.0
 	golang.org/x/text v0.37.0
 	golang.org/x/time v0.15.0
@@ -188,7 +189,6 @@ require (
 	golang.org/x/crypto v0.52.0 // indirect
 	golang.org/x/exp v0.0.0-20260529124908-c761662dc8c9 // indirect
 	golang.org/x/mod v0.36.0 // indirect
-	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.45.0 // indirect
 	golang.org/x/telemetry v0.0.0-20260508192327-42602be52be6 // indirect

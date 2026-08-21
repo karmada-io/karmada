@@ -17,6 +17,7 @@ limitations under the License.
 package core
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -25,6 +26,7 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/scheduler/core/spreadconstraint"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 	"github.com/karmada-io/karmada/test/helper"
@@ -171,6 +173,90 @@ func TestSelectClusters(t *testing.T) {
 
 				assert.ElementsMatch(t, expectedNames, actualNames)
 			}
+		})
+	}
+}
+
+func TestAssignComponentSchedulingResults(t *testing.T) {
+	applicablePlacement := &policyv1alpha1.Placement{SpreadConstraints: []policyv1alpha1.SpreadConstraint{{
+		SpreadByField: policyv1alpha1.SpreadByFieldCluster,
+		MinGroups:     1,
+		MaxGroups:     1,
+	}}}
+
+	tests := []struct {
+		name        string
+		featureGate bool
+		clusters    []spreadconstraint.ClusterDetailInfo
+		spec        *workv1alpha2.ResourceBindingSpec
+		want        []workv1alpha2.TargetCluster
+	}{
+		{
+			name:        "multi-component workload writes complete result",
+			featureGate: true,
+			clusters:    []spreadconstraint.ClusterDetailInfo{{Name: ClusterMember1, Cluster: helper.NewCluster(ClusterMember1)}},
+			spec: &workv1alpha2.ResourceBindingSpec{
+				Components: []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
+				Placement:  applicablePlacement,
+			},
+			want: []workv1alpha2.TargetCluster{{
+				Name: ClusterMember1,
+				Components: []workv1alpha2.TargetComponent{
+					{Name: "jobmanager", Replicas: 1},
+					{Name: "taskmanager", Replicas: 4},
+				},
+			}},
+		},
+		{
+			name:        "feature disabled keeps legacy result",
+			featureGate: false,
+			clusters:    []spreadconstraint.ClusterDetailInfo{{Name: ClusterMember1, Cluster: helper.NewCluster(ClusterMember1)}},
+			spec: &workv1alpha2.ResourceBindingSpec{
+				Components: []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
+				Placement:  applicablePlacement,
+			},
+			want: []workv1alpha2.TargetCluster{{Name: ClusterMember1}},
+		},
+		{
+			name:        "unsupported placement keeps legacy result",
+			featureGate: true,
+			clusters:    []spreadconstraint.ClusterDetailInfo{{Name: ClusterMember1, Cluster: helper.NewCluster(ClusterMember1)}},
+			spec: &workv1alpha2.ResourceBindingSpec{
+				Components: []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
+				Placement:  &policyv1alpha1.Placement{},
+			},
+			want: []workv1alpha2.TargetCluster{{Name: ClusterMember1}},
+		},
+		{
+			name:        "ordinary workload keeps scalar result",
+			featureGate: true,
+			clusters:    []spreadconstraint.ClusterDetailInfo{{Name: ClusterMember1, Cluster: helper.NewCluster(ClusterMember1)}},
+			spec: &workv1alpha2.ResourceBindingSpec{
+				Replicas: 3,
+				Placement: &policyv1alpha1.Placement{
+					ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+						ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+						ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
+					},
+				},
+			},
+			want: []workv1alpha2.TargetCluster{{Name: ClusterMember1, Replicas: 3}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			originalFeatureGates := features.FeatureGate.DeepCopy()
+			if err := features.FeatureGate.Set(fmt.Sprintf("%s=%t", features.MultiplePodTemplatesScheduling, tt.featureGate)); err != nil {
+				t.Fatalf("failed to set feature gate %s: %v", features.MultiplePodTemplatesScheduling, err)
+			}
+			t.Cleanup(func() {
+				features.FeatureGate = originalFeatureGates
+			})
+
+			got, err := AssignReplicas(tt.clusters, tt.spec, &workv1alpha2.ResourceBindingStatus{})
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

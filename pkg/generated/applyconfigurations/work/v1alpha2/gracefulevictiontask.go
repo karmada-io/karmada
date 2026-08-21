@@ -32,7 +32,7 @@ type GracefulEvictionTaskApplyConfiguration struct {
 	FromCluster *string `json:"fromCluster,omitempty"`
 	// PurgeMode represents how to deal with the legacy applications on the
 	// cluster from which the application is migrated.
-	// Valid options are "Immediately", "Directly", "Graciously", "Gracefully" and "Never".
+	// Valid options are "Directly", "Gracefully" and "Never".
 	PurgeMode *v1alpha1.PurgeMode `json:"purgeMode,omitempty"`
 	// Replicas indicates the number of replicas should be evicted.
 	// Should be ignored for resource type that doesn't have replica.

@@ -34,13 +34,12 @@ type ApplicationFailoverBehaviorApplyConfiguration struct {
 	DecisionConditions *DecisionConditionsApplyConfiguration `json:"decisionConditions,omitempty"`
 	// PurgeMode represents how to deal with the legacy applications on the
 	// cluster from which the application is migrated.
-	// Valid options are "Directly", "Gracefully", "Never", "Immediately"(deprecated),
-	// and "Graciously"(deprecated).
+	// Valid options are "Directly", "Gracefully", "Never".
 	// Defaults to "Gracefully".
 	PurgeMode *policyv1alpha1.PurgeMode `json:"purgeMode,omitempty"`
 	// GracePeriodSeconds is the maximum waiting duration in seconds before
 	// application on the migrated cluster should be deleted.
-	// Required only when PurgeMode is "Graciously" and defaults to 600s.
+	// Required only when PurgeMode is "Gracefully" and defaults to 600s.
 	// If the application on the new cluster cannot reach a Healthy state,
 	// Karmada will delete the application after GracePeriodSeconds is reached.
 	// Value must be positive integer.

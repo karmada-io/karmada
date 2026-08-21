@@ -68,13 +68,14 @@ func Test_clusterEventHandler(t *testing.T) {
 			wantQLen: 0,
 		},
 		{
-			name: "update event: equal cluster condition",
+			name: "update event: equal cluster condition and equivalent empty remedy actions",
 			args: args{
 				operation: "Update",
 				q:         &controllertest.TypedQueue[controllerruntime.Request]{TypedInterface: workqueue.NewTyped[controllerruntime.Request]()},
 				obj: &clusterv1alpha1.Cluster{
 					ObjectMeta: metav1.ObjectMeta{Name: "member1"},
 					Status: clusterv1alpha1.ClusterStatus{
+						RemedyActions: []string{},
 						Conditions: []metav1.Condition{
 							{
 								Type:   "Ready",
@@ -96,6 +97,69 @@ func Test_clusterEventHandler(t *testing.T) {
 				},
 			},
 			wantQLen: 0,
+		},
+		{
+			name: "update event: equal cluster condition and equal non-empty remedy actions",
+			args: args{
+				operation: "Update",
+				q:         &controllertest.TypedQueue[controllerruntime.Request]{TypedInterface: workqueue.NewTyped[controllerruntime.Request]()},
+				obj: &clusterv1alpha1.Cluster{
+					ObjectMeta: metav1.ObjectMeta{Name: "member1"},
+					Status: clusterv1alpha1.ClusterStatus{
+						RemedyActions: []string{string(remedyv1alpha1.TrafficControl)},
+						Conditions: []metav1.Condition{
+							{
+								Type:   "Ready",
+								Status: metav1.ConditionFalse,
+							},
+						},
+					},
+				},
+				oldObj: &clusterv1alpha1.Cluster{
+					ObjectMeta: metav1.ObjectMeta{Name: "member1"},
+					Status: clusterv1alpha1.ClusterStatus{
+						RemedyActions: []string{string(remedyv1alpha1.TrafficControl)},
+						Conditions: []metav1.Condition{
+							{
+								Type:   "Ready",
+								Status: metav1.ConditionFalse,
+							},
+						},
+					},
+				},
+			},
+			wantQLen: 0,
+		},
+		{
+			name: "update event: equal cluster condition but different remedy actions",
+			args: args{
+				operation: "Update",
+				q:         &controllertest.TypedQueue[controllerruntime.Request]{TypedInterface: workqueue.NewTyped[controllerruntime.Request]()},
+				obj: &clusterv1alpha1.Cluster{
+					ObjectMeta: metav1.ObjectMeta{Name: "member1"},
+					Status: clusterv1alpha1.ClusterStatus{
+						RemedyActions: []string{string(remedyv1alpha1.TrafficControl)},
+						Conditions: []metav1.Condition{
+							{
+								Type:   "Ready",
+								Status: metav1.ConditionFalse,
+							},
+						},
+					},
+				},
+				oldObj: &clusterv1alpha1.Cluster{
+					ObjectMeta: metav1.ObjectMeta{Name: "member1"},
+					Status: clusterv1alpha1.ClusterStatus{
+						Conditions: []metav1.Condition{
+							{
+								Type:   "Ready",
+								Status: metav1.ConditionFalse,
+							},
+						},
+					},
+				},
+			},
+			wantQLen: 1,
 		},
 		{
 			name: "update event: not equal cluster condition",

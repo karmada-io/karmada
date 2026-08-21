@@ -19441,12 +19441,12 @@
           "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.DecisionConditions"
         },
         "gracePeriodSeconds": {
-          "description": "GracePeriodSeconds is the maximum waiting duration in seconds before application on the migrated cluster should be deleted. Required only when PurgeMode is \"Graciously\" and defaults to 600s. If the application on the new cluster cannot reach a Healthy state, Karmada will delete the application after GracePeriodSeconds is reached. Value must be positive integer.",
+          "description": "GracePeriodSeconds is the maximum waiting duration in seconds before application on the migrated cluster should be deleted. Required only when PurgeMode is \"Gracefully\" and defaults to 600s. If the application on the new cluster cannot reach a Healthy state, Karmada will delete the application after GracePeriodSeconds is reached. Value must be positive integer.",
           "type": "integer",
           "format": "int32"
         },
         "purgeMode": {
-          "description": "PurgeMode represents how to deal with the legacy applications on the cluster from which the application is migrated. Valid options are \"Directly\", \"Gracefully\", \"Never\", \"Immediately\"(deprecated), and \"Graciously\"(deprecated). Defaults to \"Gracefully\".",
+          "description": "PurgeMode represents how to deal with the legacy applications on the cluster from which the application is migrated. Valid options are \"Directly\", \"Gracefully\", \"Never\". Defaults to \"Gracefully\".",
           "type": "string"
         },
         "statePreservation": {
@@ -20534,7 +20534,7 @@
           }
         },
         "schedulePriority": {
-          "description": "SchedulePriority defines how Karmada should resolve the priority and preemption policy for workload scheduling.\n\nThis setting is useful for controlling the scheduling behavior of offline workloads. By setting a higher or lower priority, users can control which workloads are scheduled first. Additionally, it allows specifying a preemption policy where higher-priority workloads can preempt lower-priority ones in scenarios of resource contention.\n\nNote: This feature is currently in the alpha stage. The priority-based scheduling functionality is controlled by the PriorityBasedScheduling feature gate, and preemption is controlled by the PriorityBasedPreemptiveScheduling feature gate. Currently, only priority-based scheduling is supported. Preemption functionality is not yet available and will be introduced in future releases as the feature matures.",
+          "description": "SchedulePriority defines how Karmada should resolve the priority and preemption policy for workload scheduling.\n\nThis setting is useful for controlling the scheduling behavior of offline workloads. By setting a higher or lower priority, users can control which workloads are scheduled first. Additionally, it allows specifying a preemption policy where higher-priority workloads can preempt lower-priority ones in scenarios of resource contention.\n\nNote: This feature is currently in the beta stage. The priority-based scheduling functionality is controlled by the PriorityBasedScheduling feature gate, and preemption is controlled by the PriorityBasedPreemptiveScheduling feature gate. Currently, only priority-based scheduling is supported. Preemption functionality is not yet available and will be introduced in future releases as the feature matures.",
           "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.SchedulePriority"
         },
         "schedulerName": {
@@ -21584,7 +21584,7 @@
           "default": ""
         },
         "purgeMode": {
-          "description": "PurgeMode represents how to deal with the legacy applications on the cluster from which the application is migrated. Valid options are \"Immediately\", \"Directly\", \"Graciously\", \"Gracefully\" and \"Never\".",
+          "description": "PurgeMode represents how to deal with the legacy applications on the cluster from which the application is migrated. Valid options are \"Directly\", \"Gracefully\" and \"Never\".",
           "type": "string"
         },
         "reason": {
@@ -21923,6 +21923,13 @@
         "name"
       ],
       "properties": {
+        "components": {
+          "description": "Components represents the per-component replica assignment in this cluster. It is populated only for workloads with multiple pod templates, and only when the MultiplePodTemplatesScheduling feature gate is enabled. Each entry corresponds to an entry in spec.Components by Name.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.TargetComponent"
+          }
+        },
         "name": {
           "description": "Name of target cluster.",
           "type": "string",
@@ -21932,6 +21939,27 @@
           "description": "Replicas in target cluster",
           "type": "integer",
           "format": "int32"
+        }
+      }
+    },
+    "com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.TargetComponent": {
+      "description": "TargetComponent represents the replica assignment of a component in a cluster.",
+      "type": "object",
+      "required": [
+        "name",
+        "replicas"
+      ],
+      "properties": {
+        "name": {
+          "description": "Name of the component, matching spec.components[*].name.",
+          "type": "string",
+          "default": ""
+        },
+        "replicas": {
+          "description": "Replicas of this component assigned to the cluster.",
+          "type": "integer",
+          "format": "int32",
+          "default": 0
         }
       }
     },

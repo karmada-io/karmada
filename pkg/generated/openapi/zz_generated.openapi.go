@@ -216,6 +216,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		v1alpha2.SchedulePriority{}.OpenAPIModelName():                                  schema_pkg_apis_work_v1alpha2_SchedulePriority(ref),
 		v1alpha2.Suspension{}.OpenAPIModelName():                                        schema_pkg_apis_work_v1alpha2_Suspension(ref),
 		v1alpha2.TargetCluster{}.OpenAPIModelName():                                     schema_pkg_apis_work_v1alpha2_TargetCluster(ref),
+		v1alpha2.TargetComponent{}.OpenAPIModelName():                                   schema_pkg_apis_work_v1alpha2_TargetComponent(ref),
 		v1alpha2.TaskOptions{}.OpenAPIModelName():                                       schema_pkg_apis_work_v1alpha2_TaskOptions(ref),
 		v1alpha2.WorkloadAffinityGroups{}.OpenAPIModelName():                            schema_pkg_apis_work_v1alpha2_WorkloadAffinityGroups(ref),
 		v1.ApplyConfiguration{}.OpenAPIModelName():                                      schema_k8sio_api_admissionregistration_v1_ApplyConfiguration(ref),
@@ -3560,14 +3561,14 @@ func schema_pkg_apis_policy_v1alpha1_ApplicationFailoverBehavior(ref common.Refe
 					},
 					"purgeMode": {
 						SchemaProps: spec.SchemaProps{
-							Description: "PurgeMode represents how to deal with the legacy applications on the cluster from which the application is migrated. Valid options are \"Directly\", \"Gracefully\", \"Never\", \"Immediately\"(deprecated), and \"Graciously\"(deprecated). Defaults to \"Gracefully\".",
+							Description: "PurgeMode represents how to deal with the legacy applications on the cluster from which the application is migrated. Valid options are \"Directly\", \"Gracefully\", \"Never\". Defaults to \"Gracefully\".",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"gracePeriodSeconds": {
 						SchemaProps: spec.SchemaProps{
-							Description: "GracePeriodSeconds is the maximum waiting duration in seconds before application on the migrated cluster should be deleted. Required only when PurgeMode is \"Graciously\" and defaults to 600s. If the application on the new cluster cannot reach a Healthy state, Karmada will delete the application after GracePeriodSeconds is reached. Value must be positive integer.",
+							Description: "GracePeriodSeconds is the maximum waiting duration in seconds before application on the migrated cluster should be deleted. Required only when PurgeMode is \"Gracefully\" and defaults to 600s. If the application on the new cluster cannot reach a Healthy state, Karmada will delete the application after GracePeriodSeconds is reached. Value must be positive integer.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -5350,7 +5351,7 @@ func schema_pkg_apis_policy_v1alpha1_PropagationSpec(ref common.ReferenceCallbac
 					},
 					"schedulePriority": {
 						SchemaProps: spec.SchemaProps{
-							Description: "SchedulePriority defines how Karmada should resolve the priority and preemption policy for workload scheduling.\n\nThis setting is useful for controlling the scheduling behavior of offline workloads. By setting a higher or lower priority, users can control which workloads are scheduled first. Additionally, it allows specifying a preemption policy where higher-priority workloads can preempt lower-priority ones in scenarios of resource contention.\n\nNote: This feature is currently in the alpha stage. The priority-based scheduling functionality is controlled by the PriorityBasedScheduling feature gate, and preemption is controlled by the PriorityBasedPreemptiveScheduling feature gate. Currently, only priority-based scheduling is supported. Preemption functionality is not yet available and will be introduced in future releases as the feature matures.",
+							Description: "SchedulePriority defines how Karmada should resolve the priority and preemption policy for workload scheduling.\n\nThis setting is useful for controlling the scheduling behavior of offline workloads. By setting a higher or lower priority, users can control which workloads are scheduled first. Additionally, it allows specifying a preemption policy where higher-priority workloads can preempt lower-priority ones in scenarios of resource contention.\n\nNote: This feature is currently in the beta stage. The priority-based scheduling functionality is controlled by the PriorityBasedScheduling feature gate, and preemption is controlled by the PriorityBasedPreemptiveScheduling feature gate. Currently, only priority-based scheduling is supported. Preemption functionality is not yet available and will be introduced in future releases as the feature matures.",
 							Ref:         ref(policyv1alpha1.SchedulePriority{}.OpenAPIModelName()),
 						},
 					},
@@ -7455,7 +7456,7 @@ func schema_pkg_apis_work_v1alpha2_GracefulEvictionTask(ref common.ReferenceCall
 					},
 					"purgeMode": {
 						SchemaProps: spec.SchemaProps{
-							Description: "PurgeMode represents how to deal with the legacy applications on the cluster from which the application is migrated. Valid options are \"Immediately\", \"Directly\", \"Graciously\", \"Gracefully\" and \"Never\".",
+							Description: "PurgeMode represents how to deal with the legacy applications on the cluster from which the application is migrated. Valid options are \"Directly\", \"Gracefully\" and \"Never\".",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -8094,8 +8095,53 @@ func schema_pkg_apis_work_v1alpha2_TargetCluster(ref common.ReferenceCallback) c
 							Format:      "int32",
 						},
 					},
+					"components": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Components represents the per-component replica assignment in this cluster. It is populated only for workloads with multiple pod templates, and only when the MultiplePodTemplatesScheduling feature gate is enabled. Each entry corresponds to an entry in spec.Components by Name.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref(v1alpha2.TargetComponent{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
 				},
 				Required: []string{"name"},
+			},
+		},
+		Dependencies: []string{
+			v1alpha2.TargetComponent{}.OpenAPIModelName()},
+	}
+}
+
+func schema_pkg_apis_work_v1alpha2_TargetComponent(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "TargetComponent represents the replica assignment of a component in a cluster.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name of the component, matching spec.components[*].name.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"replicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Replicas of this component assigned to the cluster.",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+				},
+				Required: []string{"name", "replicas"},
 			},
 		},
 	}
