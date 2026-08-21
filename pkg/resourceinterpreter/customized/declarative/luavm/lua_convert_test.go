@@ -21,12 +21,14 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/tidwall/gjson"
 	lua "github.com/yuin/gopher-lua"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/sets"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
 
 func TestConvertLuaResultToStruct(t *testing.T) {
@@ -518,6 +520,40 @@ func Test_convertEmptyObjectBackToEmptySlice(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("convertEmptySliceToEmptyStructPartly() got = %s, want %s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestConvertLuaResultToTargetClusters(t *testing.T) {
+	tests := []struct {
+		name     string
+		luaValue lua.LValue
+		expected []workv1alpha2.TargetCluster
+		hasError bool
+	}{
+		{
+			name:     "non-table value",
+			luaValue: lua.LString("not a table"),
+			expected: nil,
+			hasError: true,
+		},
+		{
+			name: "empty table",
+			luaValue: &lua.LTable{},
+			expected: []workv1alpha2.TargetCluster{},
+			hasError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := ConvertLuaResultToTargetClusters(tt.luaValue)
+			if tt.hasError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expected, result)
 			}
 		})
 	}
