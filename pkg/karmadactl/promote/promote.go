@@ -291,18 +291,18 @@ func (o *CommandPromoteOption) Run(f util.Factory, args []string) error {
 
 	mapper, err := restmapper.NewCachedRESTMapper(controlPlaneRestConfig, nil)
 	if err != nil {
-		return fmt.Errorf("failed to create restmapper: %v", err)
+		return fmt.Errorf("failed to create restmapper: %w", err)
 	}
 
 	gvr, err := restmapper.GetGroupVersionResource(mapper, o.gvk)
 	if err != nil {
-		return fmt.Errorf("failed to get gvr from %q: %v", o.gvk, err)
+		return fmt.Errorf("failed to get gvr from %q: %w", o.gvk, err)
 	}
 
 	if o.Deps {
 		err := o.promoteDeps(memberClusterFactory, obj, mapper, gvr, controlPlaneRestConfig)
 		if err != nil {
-			return fmt.Errorf("failed to promote dependencies of resource %q(%s/%s) automatically: %v", gvr, o.Namespace, o.name, err)
+			return fmt.Errorf("failed to promote dependencies of resource %q(%s/%s) automatically: %w", gvr, o.Namespace, o.name, err)
 		}
 	}
 
@@ -381,7 +381,7 @@ func (o *CommandPromoteOption) doPromoteDeps(memberClusterFactory cmdutil.Factor
 		depInfo, err := o.getObjInfo(memberClusterFactory, o.Cluster, []string{dep.Kind, dep.Name})
 		if err != nil {
 			o.revertPromotedDeps(memberClusterFactory, dependencies, mapper, controlPlaneDynamicClient, i)
-			return fmt.Errorf("failed to get dependency %q(%s/%s) in cluster(%s): %v", dep.Kind, dep.Namespace, dep.Name, o.Cluster, err)
+			return fmt.Errorf("failed to get dependency %q(%s/%s) in cluster(%s): %w", dep.Kind, dep.Namespace, dep.Name, o.Cluster, err)
 		}
 
 		depObj := depInfo.Info.Object.(*unstructured.Unstructured)
@@ -389,12 +389,12 @@ func (o *CommandPromoteOption) doPromoteDeps(memberClusterFactory cmdutil.Factor
 		depGvr, err := restmapper.GetGroupVersionResource(mapper, depGvk)
 		if err != nil {
 			o.revertPromotedDeps(memberClusterFactory, dependencies, mapper, controlPlaneDynamicClient, i)
-			return fmt.Errorf("failed to get dependency gvr from %q: %v", depGvk, err)
+			return fmt.Errorf("failed to get dependency gvr from %q: %w", depGvk, err)
 		}
 
 		if err := preprocessResource(depObj); err != nil {
 			o.revertPromotedDeps(memberClusterFactory, dependencies, mapper, controlPlaneDynamicClient, i)
-			return fmt.Errorf("failed to preprocess resource %q(%s/%s) in control plane: %v", depGvr, depObj.GetNamespace(), depObj.GetName(), err)
+			return fmt.Errorf("failed to preprocess resource %q(%s/%s) in control plane: %w", depGvr, depObj.GetNamespace(), depObj.GetName(), err)
 		}
 
 		if len(depObj.GetNamespace()) != 0 {
@@ -409,13 +409,13 @@ func (o *CommandPromoteOption) doPromoteDeps(memberClusterFactory cmdutil.Factor
 
 			if !apierrors.IsNotFound(err) {
 				o.revertPromotedDeps(memberClusterFactory, dependencies, mapper, controlPlaneDynamicClient, i)
-				return fmt.Errorf("failed to get dependency resource %q(%s/%s) in control plane: %v", depGvr, depObj.GetNamespace(), depObj.GetName(), err)
+				return fmt.Errorf("failed to get dependency resource %q(%s/%s) in control plane: %w", depGvr, depObj.GetNamespace(), depObj.GetName(), err)
 			}
 
 			_, err = controlPlaneDynamicClient.Resource(depGvr).Namespace(depObj.GetNamespace()).Create(context.TODO(), depObj, metav1.CreateOptions{})
 			if err != nil {
 				o.revertPromotedDeps(memberClusterFactory, dependencies, mapper, controlPlaneDynamicClient, i)
-				return fmt.Errorf("failed to create dependency resource %q(%s/%s) in control plane: %v", depGvr, depObj.GetNamespace(), depObj.GetName(), err)
+				return fmt.Errorf("failed to create dependency resource %q(%s/%s) in control plane: %w", depGvr, depObj.GetNamespace(), depObj.GetName(), err)
 			}
 
 			fmt.Printf("Dependency resource %q(%s/%s) is promoted successfully\n", depGvr, depObj.GetNamespace(), depObj.GetName())
@@ -431,13 +431,13 @@ func (o *CommandPromoteOption) doPromoteDeps(memberClusterFactory cmdutil.Factor
 
 			if !apierrors.IsNotFound(err) {
 				o.revertPromotedDeps(memberClusterFactory, dependencies, mapper, controlPlaneDynamicClient, i)
-				return fmt.Errorf("failed to get dependency resource %q(%s) in control plane: %v", depGvr, depObj.GetName(), err)
+				return fmt.Errorf("failed to get dependency resource %q(%s) in control plane: %w", depGvr, depObj.GetName(), err)
 			}
 
 			_, err = controlPlaneDynamicClient.Resource(depGvr).Create(context.TODO(), depObj, metav1.CreateOptions{})
 			if err != nil {
 				o.revertPromotedDeps(memberClusterFactory, dependencies, mapper, controlPlaneDynamicClient, i)
-				return fmt.Errorf("failed to create dependency resource %q(%s) in control plane: %v", depGvr, depObj.GetName(), err)
+				return fmt.Errorf("failed to create dependency resource %q(%s) in control plane: %w", depGvr, depObj.GetName(), err)
 			}
 
 			fmt.Printf("Dependency resource %q(%s) is promoted successfully\n", depGvr, depObj.GetName())
@@ -467,7 +467,7 @@ func (o *CommandPromoteOption) promoteDeps(memberClusterFactory cmdutil.Factory,
 	configurableInterpreter := declarative.NewConfigurableInterpreter(controlPlaneInformerManager)
 	customizedInterpreter, err := webhook.NewCustomizedInterpreter(controlPlaneInformerManager, serviceLister)
 	if err != nil {
-		return fmt.Errorf("failed to create customized interpreter: %v", err)
+		return fmt.Errorf("failed to create customized interpreter: %w", err)
 	}
 
 	controlPlaneInformerManager.Start()
@@ -488,7 +488,7 @@ func (o *CommandPromoteOption) promoteDeps(memberClusterFactory cmdutil.Factory,
 	// configurable interpreter has higher priority than customized interpreter
 	dependencies, hookEnabled, err := configurableInterpreter.GetDependencies(obj)
 	if err != nil {
-		return fmt.Errorf("configurable interpreter failed to get dependencies of resource %q(%s/%s): %v", gvr, obj.GetNamespace(), obj.GetName(), err)
+		return fmt.Errorf("configurable interpreter failed to get dependencies of resource %q(%s/%s): %w", gvr, obj.GetNamespace(), obj.GetName(), err)
 	}
 	if hookEnabled {
 		fmt.Println("use configurable interpreter")
@@ -502,7 +502,7 @@ func (o *CommandPromoteOption) promoteDeps(memberClusterFactory cmdutil.Factory,
 		Object:    obj,
 	})
 	if err != nil {
-		return fmt.Errorf("customized interpreter failed to get dependencies of resource %q(%s/%s): %v", gvr, obj.GetNamespace(), obj.GetName(), err)
+		return fmt.Errorf("customized interpreter failed to get dependencies of resource %q(%s/%s): %w", gvr, obj.GetNamespace(), obj.GetName(), err)
 	}
 	if hookEnabled {
 		fmt.Println("use customized interpreter")
@@ -513,7 +513,7 @@ func (o *CommandPromoteOption) promoteDeps(memberClusterFactory cmdutil.Factory,
 	// thirdparty interpreter has higher priority than default interpreter
 	dependencies, hookEnabled, err = thirdpartyInterpreter.GetDependencies(obj)
 	if err != nil {
-		return fmt.Errorf("third-party interpreter failed to get dependencies of resource %q(%s/%s): %v", gvr, obj.GetNamespace(), obj.GetName(), err)
+		return fmt.Errorf("third-party interpreter failed to get dependencies of resource %q(%s/%s): %w", gvr, obj.GetNamespace(), obj.GetName(), err)
 	}
 	if hookEnabled {
 		fmt.Println("use third-party interpreter")
@@ -524,7 +524,7 @@ func (o *CommandPromoteOption) promoteDeps(memberClusterFactory cmdutil.Factory,
 	// default interpreter
 	dependencies, err = defaultInterpreter.GetDependencies(obj)
 	if err != nil {
-		return fmt.Errorf("default interpreter failed to get dependencies of resource %q(%s/%s): %v", gvr, obj.GetNamespace(), obj.GetName(), err)
+		return fmt.Errorf("default interpreter failed to get dependencies of resource %q(%s/%s): %w", gvr, obj.GetNamespace(), obj.GetName(), err)
 	}
 	fmt.Println("use default interpreter")
 	err = o.doPromoteDeps(memberClusterFactory, dependencies, mapper, config)
@@ -533,7 +533,7 @@ func (o *CommandPromoteOption) promoteDeps(memberClusterFactory cmdutil.Factory,
 
 func (o *CommandPromoteOption) promote(controlPlaneRestConfig *rest.Config, obj *unstructured.Unstructured, gvr schema.GroupVersionResource) error {
 	if err := preprocessResource(obj); err != nil {
-		return fmt.Errorf("failed to preprocess resource %q(%s/%s) in control plane: %v", gvr, o.Namespace, o.name, err)
+		return fmt.Errorf("failed to preprocess resource %q(%s/%s) in control plane: %w", gvr, o.Namespace, o.name, err)
 	}
 
 	if o.OutputFormat != "" {
@@ -560,12 +560,12 @@ func (o *CommandPromoteOption) promote(controlPlaneRestConfig *rest.Config, obj 
 		}
 
 		if !apierrors.IsNotFound(err) {
-			return fmt.Errorf("failed to get resource %q(%s) in control plane: %v", gvr, o.name, err)
+			return fmt.Errorf("failed to get resource %q(%s) in control plane: %w", gvr, o.name, err)
 		}
 
 		_, err = controlPlaneDynamicClient.Resource(gvr).Create(context.TODO(), obj, metav1.CreateOptions{})
 		if err != nil {
-			return fmt.Errorf("failed to create resource %q(%s) in control plane: %v", gvr, o.name, err)
+			return fmt.Errorf("failed to create resource %q(%s) in control plane: %w", gvr, o.name, err)
 		}
 		fmt.Printf("ResourceTemplate (%s/%s) is created successfully\n", o.Namespace, o.name)
 
@@ -587,12 +587,12 @@ func (o *CommandPromoteOption) promote(controlPlaneRestConfig *rest.Config, obj 
 		}
 
 		if !apierrors.IsNotFound(err) {
-			return fmt.Errorf("failed to get resource %q(%s/%s) in control plane: %v", gvr, o.Namespace, o.name, err)
+			return fmt.Errorf("failed to get resource %q(%s/%s) in control plane: %w", gvr, o.Namespace, o.name, err)
 		}
 
 		_, err = controlPlaneDynamicClient.Resource(gvr).Namespace(o.Namespace).Create(context.TODO(), obj, metav1.CreateOptions{})
 		if err != nil {
-			return fmt.Errorf("failed to create resource %q(%s/%s) in control plane: %v", gvr, o.Namespace, o.name, err)
+			return fmt.Errorf("failed to create resource %q(%s/%s) in control plane: %w", gvr, o.Namespace, o.name, err)
 		}
 		fmt.Printf("ResourceTemplate (%s/%s) is created successfully\n", o.Namespace, o.name)
 
@@ -646,11 +646,11 @@ func (o *CommandPromoteOption) getObjInfo(f cmdutil.Factory, cluster string, arg
 func (o *CommandPromoteOption) printObjectAndPolicy(obj *unstructured.Unstructured, gvr schema.GroupVersionResource) error {
 	printer, err := o.Printer(nil, nil, false, false)
 	if err != nil {
-		return fmt.Errorf("failed to initialize k8s printer. err: %v", err)
+		return fmt.Errorf("failed to initialize k8s printer. err: %w", err)
 	}
 
 	if err = printer.PrintObj(obj, os.Stdout); err != nil {
-		return fmt.Errorf("failed to print the resource template. err: %v", err)
+		return fmt.Errorf("failed to print the resource template. err: %w", err)
 	}
 	if o.AutoCreatePolicy {
 		var policyName string
@@ -662,12 +662,12 @@ func (o *CommandPromoteOption) printObjectAndPolicy(obj *unstructured.Unstructur
 		if len(obj.GetNamespace()) == 0 {
 			cpp := buildClusterPropagationPolicy(o.name, policyName, o.Cluster, gvr, o.gvk, o.Deps)
 			if err = printer.PrintObj(cpp, os.Stdout); err != nil {
-				return fmt.Errorf("failed to print the ClusterPropagationPolicy. err: %v", err)
+				return fmt.Errorf("failed to print the ClusterPropagationPolicy. err: %w", err)
 			}
 		} else {
 			pp := buildPropagationPolicy(o.name, policyName, o.Namespace, o.Cluster, gvr, o.gvk, o.Deps)
 			if err = printer.PrintObj(pp, os.Stdout); err != nil {
-				return fmt.Errorf("failed to print the PropagationPolicy. err: %v", err)
+				return fmt.Errorf("failed to print the PropagationPolicy. err: %w", err)
 			}
 		}
 	}
@@ -688,11 +688,13 @@ func (o *CommandPromoteOption) createPropagationPolicy(karmadaClient karmadaclie
 	if err != nil && apierrors.IsNotFound(err) {
 		pp := buildPropagationPolicy(o.name, policyName, o.Namespace, o.Cluster, gvr, o.gvk, o.Deps)
 		_, err = karmadaClient.PolicyV1alpha1().PropagationPolicies(o.Namespace).Create(context.TODO(), pp, metav1.CreateOptions{})
-
-		return policyName, err
+		if err != nil {
+			return policyName, fmt.Errorf("failed to create PropagationPolicy(%s/%s) in control plane: %w", o.Namespace, policyName, err)
+		}
+		return policyName, nil
 	}
 	if err != nil {
-		return policyName, fmt.Errorf("failed to get PropagationPolicy(%s/%s) in control plane: %v", o.Namespace, policyName, err)
+		return policyName, fmt.Errorf("failed to get PropagationPolicy(%s/%s) in control plane: %w", o.Namespace, policyName, err)
 	}
 
 	// PropagationPolicy already exists, not to create it
@@ -712,11 +714,13 @@ func (o *CommandPromoteOption) createClusterPropagationPolicy(karmadaClient karm
 	if err != nil && apierrors.IsNotFound(err) {
 		cpp := buildClusterPropagationPolicy(o.name, policyName, o.Cluster, gvr, o.gvk, o.Deps)
 		_, err = karmadaClient.PolicyV1alpha1().ClusterPropagationPolicies().Create(context.TODO(), cpp, metav1.CreateOptions{})
-
-		return policyName, err
+		if err != nil {
+			return policyName, fmt.Errorf("failed to create ClusterPropagationPolicy(%s) in control plane: %w", policyName, err)
+		}
+		return policyName, nil
 	}
 	if err != nil {
-		return policyName, fmt.Errorf("failed to get ClusterPropagationPolicy(%s) in control plane: %v", policyName, err)
+		return policyName, fmt.Errorf("failed to get ClusterPropagationPolicy(%s) in control plane: %w", policyName, err)
 	}
 
 	// ClusterPropagationPolicy already exists, not to create it
