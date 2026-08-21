@@ -135,6 +135,9 @@ const (
 	// InterpreterOperationReviseReplica indicates that karmada request webhook to modify the replica.
 	InterpreterOperationReviseReplica InterpreterOperation = "ReviseReplica"
 
+	// InterpreterOperationReviseComponents indicates that karmada requests a webhook to modify component replicas.
+	InterpreterOperationReviseComponents InterpreterOperation = "ReviseComponents"
+
 	// InterpreterOperationInterpretStatus indicates that karmada want to figure out how to get the status.
 	// Only necessary for those resource types that define their status in a special path(not '.status').
 	InterpreterOperationInterpretStatus InterpreterOperation = "InterpretStatus"

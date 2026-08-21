@@ -41,7 +41,9 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/eventfilter"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 func BenchmarkEventFilterNoSkipNameSpaces(b *testing.B) {
@@ -1053,6 +1055,225 @@ func TestApplyPolicy(t *testing.T) {
 		})
 	}
 }
+
+func TestBuildBindingRecordsResourceTemplateSpecificationHash(t *testing.T) {
+	object := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "apps/v1",
+		"kind":       "Deployment",
+		"metadata": map[string]any{
+			"name":            "demo",
+			"namespace":       "default",
+			"uid":             "uid-1",
+			"resourceVersion": "7",
+		},
+		"spec": map[string]any{"replicas": int64(2)},
+	}}
+	object.SetGroupVersionKind(schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Deployment"})
+	wantHash, err := eventfilter.GenerateResourceTemplateSpecificationHash(object)
+	if err != nil {
+		t.Fatalf("GenerateResourceTemplateSpecificationHash() error = %v", err)
+	}
+
+	detector := &ResourceDetector{ResourceInterpreter: &mockResourceInterpreter{}}
+	policySpec := &policyv1alpha1.PropagationSpec{}
+
+	rb, err := detector.BuildResourceBinding(object, policySpec, "policy-id", metav1.ObjectMeta{}, func(metav1.Object, string, metav1.ObjectMeta) {})
+	if err != nil {
+		t.Fatalf("BuildResourceBinding() error = %v", err)
+	}
+	if got := rb.Annotations[util.ResourceTemplateSpecificationHashAnnotation]; got != wantHash {
+		t.Fatalf("ResourceBinding specification hash = %q, want %q", got, wantHash)
+	}
+
+	crbObject := object.DeepCopy()
+	crbObject.SetNamespace("")
+	wantCRBHash, err := eventfilter.GenerateResourceTemplateSpecificationHash(crbObject)
+	if err != nil {
+		t.Fatalf("GenerateResourceTemplateSpecificationHash() for cluster-scoped object error = %v", err)
+	}
+	crb, err := detector.BuildClusterResourceBinding(crbObject, policySpec, "policy-id", metav1.ObjectMeta{})
+	if err != nil {
+		t.Fatalf("BuildClusterResourceBinding() error = %v", err)
+	}
+	if got := crb.Annotations[util.ResourceTemplateSpecificationHashAnnotation]; got != wantCRBHash {
+		t.Fatalf("ClusterResourceBinding specification hash = %q, want %q", got, wantCRBHash)
+	}
+}
+
+func TestApplyPolicyBackfillsResourceTemplateSpecificationHash(t *testing.T) {
+	originalFeatureGates := features.FeatureGate.DeepCopy()
+	if err := features.FeatureGate.Set(fmt.Sprintf("%s=true", features.MultiplePodTemplatesScheduling)); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { features.FeatureGate = originalFeatureGates })
+
+	desiredComponents := []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 6}}
+	acceptedClusters := []workv1alpha2.TargetCluster{{Name: "member1", Components: []workv1alpha2.TargetComponent{
+		{Name: "jobmanager", Replicas: 1},
+		{Name: "taskmanager", Replicas: 4},
+	}}}
+	newDetector := func(c client.Client, scheme *runtime.Scheme) *ResourceDetector {
+		return &ResourceDetector{
+			Client:              c,
+			DynamicClient:       dynamicfake.NewSimpleDynamicClient(scheme),
+			EventRecorder:       record.NewFakeRecorder(10),
+			ResourceInterpreter: &mockResourceInterpreter{components: desiredComponents, componentHookEnabled: true},
+			RESTMapper:          &mockRESTMapper{},
+		}
+	}
+
+	t.Run("PropagationPolicy updates an existing ResourceBinding", func(t *testing.T) {
+		const policyID = "policy-id"
+		source := &unstructured.Unstructured{Object: map[string]any{
+			"apiVersion": "apps/v1",
+			"kind":       "Deployment",
+			"metadata": map[string]any{
+				"name":            "demo",
+				"namespace":       "default",
+				"uid":             "uid-1",
+				"resourceVersion": "2",
+				"labels": map[string]any{
+					policyv1alpha1.PropagationPolicyPermanentIDLabel: policyID,
+				},
+			},
+			"spec": map[string]any{"replicas": int64(6)},
+		}}
+		wantHash, err := eventfilter.GenerateResourceTemplateSpecificationHash(source)
+		if err != nil {
+			t.Fatal(err)
+		}
+		existing := &workv1alpha2.ResourceBinding{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        names.GenerateBindingName(source.GetKind(), source.GetName()),
+				Namespace:   source.GetNamespace(),
+				Annotations: map[string]string{"example.com/retained": "true"},
+			},
+			Spec: workv1alpha2.ResourceBindingSpec{
+				Resource:   workv1alpha2.ObjectReference{APIVersion: source.GetAPIVersion(), Kind: source.GetKind(), Namespace: source.GetNamespace(), Name: source.GetName(), UID: source.GetUID(), ResourceVersion: "1"},
+				Components: []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
+				Clusters:   acceptedClusters,
+			},
+		}
+		scheme := setupTestScheme()
+		fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(source, existing).Build()
+		detector := newDetector(fakeClient, scheme)
+		policy := &policyv1alpha1.PropagationPolicy{ObjectMeta: metav1.ObjectMeta{Name: "policy", Namespace: "default", Labels: map[string]string{policyv1alpha1.PropagationPolicyPermanentIDLabel: policyID}}}
+
+		if err := detector.ApplyPolicy(source, keys.ClusterWideKey{}, false, policy); err != nil {
+			t.Fatalf("ApplyPolicy() error = %v", err)
+		}
+		updated := &workv1alpha2.ResourceBinding{}
+		if err := fakeClient.Get(context.Background(), client.ObjectKeyFromObject(existing), updated); err != nil {
+			t.Fatalf("failed to get updated ResourceBinding: %v", err)
+		}
+		assert.Equal(t, wantHash, updated.Annotations[util.ResourceTemplateSpecificationHashAnnotation])
+		assert.Equal(t, "true", updated.Annotations["example.com/retained"])
+		assert.Equal(t, source.GetResourceVersion(), updated.Spec.Resource.ResourceVersion)
+		assert.Equal(t, desiredComponents, updated.Spec.Components)
+		assert.Equal(t, acceptedClusters, updated.Spec.Clusters)
+	})
+
+	t.Run("ClusterPropagationPolicy updates an existing ResourceBinding", func(t *testing.T) {
+		const policyID = "cluster-policy-id"
+		source := &unstructured.Unstructured{Object: map[string]any{
+			"apiVersion": "apps/v1",
+			"kind":       "Deployment",
+			"metadata": map[string]any{
+				"name":            "demo",
+				"namespace":       "default",
+				"uid":             "uid-2",
+				"resourceVersion": "2",
+				"labels": map[string]any{
+					policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: policyID,
+				},
+			},
+			"spec": map[string]any{"replicas": int64(6)},
+		}}
+		wantHash, err := eventfilter.GenerateResourceTemplateSpecificationHash(source)
+		if err != nil {
+			t.Fatal(err)
+		}
+		existing := &workv1alpha2.ResourceBinding{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        names.GenerateBindingName(source.GetKind(), source.GetName()),
+				Namespace:   source.GetNamespace(),
+				Annotations: map[string]string{"example.com/retained": "true"},
+			},
+			Spec: workv1alpha2.ResourceBindingSpec{
+				Resource:   workv1alpha2.ObjectReference{APIVersion: source.GetAPIVersion(), Kind: source.GetKind(), Namespace: source.GetNamespace(), Name: source.GetName(), UID: source.GetUID(), ResourceVersion: "1"},
+				Components: []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
+				Clusters:   acceptedClusters,
+			},
+		}
+		scheme := setupTestScheme()
+		fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(source, existing).Build()
+		detector := newDetector(fakeClient, scheme)
+		policy := &policyv1alpha1.ClusterPropagationPolicy{ObjectMeta: metav1.ObjectMeta{Name: "policy", Labels: map[string]string{policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: policyID}}}
+
+		if err := detector.ApplyClusterPolicy(source, keys.ClusterWideKey{}, false, policy); err != nil {
+			t.Fatalf("ApplyClusterPolicy() error = %v", err)
+		}
+		updated := &workv1alpha2.ResourceBinding{}
+		if err := fakeClient.Get(context.Background(), client.ObjectKeyFromObject(existing), updated); err != nil {
+			t.Fatalf("failed to get updated ResourceBinding: %v", err)
+		}
+		assert.Equal(t, wantHash, updated.Annotations[util.ResourceTemplateSpecificationHashAnnotation])
+		assert.Equal(t, "true", updated.Annotations["example.com/retained"])
+		assert.Equal(t, source.GetResourceVersion(), updated.Spec.Resource.ResourceVersion)
+		assert.Equal(t, desiredComponents, updated.Spec.Components)
+		assert.Equal(t, acceptedClusters, updated.Spec.Clusters)
+	})
+
+	t.Run("ClusterPropagationPolicy updates an existing ClusterResourceBinding", func(t *testing.T) {
+		const policyID = "cluster-policy-id"
+		source := &unstructured.Unstructured{Object: map[string]any{
+			"apiVersion": "rbac.authorization.k8s.io/v1",
+			"kind":       "ClusterRole",
+			"metadata": map[string]any{
+				"name":            "demo",
+				"uid":             "uid-2",
+				"resourceVersion": "2",
+				"labels": map[string]any{
+					policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: policyID,
+				},
+			},
+			"rules": []any{map[string]any{"verbs": []any{"get"}}},
+		}}
+		wantHash, err := eventfilter.GenerateResourceTemplateSpecificationHash(source)
+		if err != nil {
+			t.Fatal(err)
+		}
+		existing := &workv1alpha2.ClusterResourceBinding{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        names.GenerateBindingName(source.GetKind(), source.GetName()),
+				Annotations: map[string]string{"example.com/retained": "true"},
+			},
+			Spec: workv1alpha2.ResourceBindingSpec{
+				Resource:   workv1alpha2.ObjectReference{APIVersion: source.GetAPIVersion(), Kind: source.GetKind(), Name: source.GetName(), UID: source.GetUID(), ResourceVersion: "1"},
+				Components: []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
+				Clusters:   acceptedClusters,
+			},
+		}
+		scheme := setupTestScheme()
+		fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(source, existing).Build()
+		detector := newDetector(fakeClient, scheme)
+		policy := &policyv1alpha1.ClusterPropagationPolicy{ObjectMeta: metav1.ObjectMeta{Name: "policy", Labels: map[string]string{policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: policyID}}}
+
+		if err := detector.ApplyClusterPolicy(source, keys.ClusterWideKey{}, false, policy); err != nil {
+			t.Fatalf("ApplyClusterPolicy() error = %v", err)
+		}
+		updated := &workv1alpha2.ClusterResourceBinding{}
+		if err := fakeClient.Get(context.Background(), client.ObjectKeyFromObject(existing), updated); err != nil {
+			t.Fatalf("failed to get updated ClusterResourceBinding: %v", err)
+		}
+		assert.Equal(t, wantHash, updated.Annotations[util.ResourceTemplateSpecificationHashAnnotation])
+		assert.Equal(t, "true", updated.Annotations["example.com/retained"])
+		assert.Equal(t, source.GetResourceVersion(), updated.Spec.Resource.ResourceVersion)
+		assert.Equal(t, desiredComponents, updated.Spec.Components)
+		assert.Equal(t, acceptedClusters, updated.Spec.Clusters)
+	})
+}
+
 func TestApplyClusterPolicy(t *testing.T) {
 	tests := []struct {
 		name                    string
@@ -1341,18 +1562,21 @@ func (m *mockRESTMapper) ResourceSingularizer(resource string) (string, error) {
 }
 
 // mockResourceInterpreter is a mock implementation of the ResourceInterpreter interface
-type mockResourceInterpreter struct{}
+type mockResourceInterpreter struct {
+	components           []workv1alpha2.Component
+	componentHookEnabled bool
+}
 
 func (m *mockResourceInterpreter) GetComponents(_ *unstructured.Unstructured) ([]workv1alpha2.Component, error) {
-	return nil, nil
+	return append([]workv1alpha2.Component(nil), m.components...), nil
 }
 
 func (m *mockResourceInterpreter) Start(_ context.Context) error {
 	return nil
 }
 
-func (m *mockResourceInterpreter) HookEnabled(_ schema.GroupVersionKind, _ configv1alpha1.InterpreterOperation) bool {
-	return false
+func (m *mockResourceInterpreter) HookEnabled(_ schema.GroupVersionKind, operation configv1alpha1.InterpreterOperation) bool {
+	return m.componentHookEnabled && operation == configv1alpha1.InterpreterOperationInterpretComponent
 }
 
 func (m *mockResourceInterpreter) GetReplicas(_ *unstructured.Unstructured) (int32, *workv1alpha2.ReplicaRequirements, error) {
@@ -1360,6 +1584,10 @@ func (m *mockResourceInterpreter) GetReplicas(_ *unstructured.Unstructured) (int
 }
 
 func (m *mockResourceInterpreter) ReviseReplica(object *unstructured.Unstructured, _ int64) (*unstructured.Unstructured, error) {
+	return object, nil
+}
+
+func (m *mockResourceInterpreter) ReviseComponents(object *unstructured.Unstructured, _ []workv1alpha2.TargetComponent) (*unstructured.Unstructured, error) {
 	return object, nil
 }
 

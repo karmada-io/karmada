@@ -18,14 +18,17 @@ package scheduler
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
 	"testing"
 	"time"
 
+	jsonpatch "github.com/evanphx/json-patch/v5"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -34,13 +37,16 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/kubernetes/scheme"
 	clienttesting "k8s.io/client-go/testing"
+	toolscache "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/component-base/featuregate"
 
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/features"
 	karmadafake "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/fake"
+	clusterlister "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
 	workv1alpha2lister "github.com/karmada-io/karmada/pkg/generated/listers/work/v1alpha2"
 	schedulercache "github.com/karmada-io/karmada/pkg/scheduler/cache"
 	"github.com/karmada-io/karmada/pkg/scheduler/core"
@@ -60,6 +66,16 @@ func setFeatureGateDuringTest(tb testing.TB, gate featuregate.FeatureGate, f fea
 		if err := gate.(featuregate.MutableFeatureGate).Set(fmt.Sprintf("%s=%v", f, originalValue)); err != nil {
 			tb.Errorf("error restoring %s=%v: %v", f, originalValue, err)
 		}
+	}
+}
+
+func componentSchedulingAnnotations(t *testing.T, placement string, components []workv1alpha2.Component) map[string]string {
+	t.Helper()
+	hash, err := util.GenerateComponentRequirementsHash(components)
+	assert.NoError(t, err)
+	return map[string]string{
+		util.PolicyPlacementAnnotation:                   placement,
+		util.AcceptedComponentRequirementsHashAnnotation: hash,
 	}
 }
 
@@ -174,6 +190,51 @@ func TestDoSchedule(t *testing.T) {
 					assert.Equal(t, "cluster1", updated.Spec.Clusters[0].Name)
 				}
 			}
+		})
+	}
+}
+
+func TestDoScheduleSkipsStaleQueuedBindingsOutsideSchedulerOwnership(t *testing.T) {
+	suspended := true
+	tests := []struct {
+		name           string
+		resourceScoped bool
+		mutate         func(*workv1alpha2.ResourceBindingSpec)
+	}{
+		{name: "ResourceBinding custom scheduler", resourceScoped: true, mutate: func(spec *workv1alpha2.ResourceBindingSpec) { spec.SchedulerName = "custom-scheduler" }},
+		{name: "ResourceBinding scheduling suspended", resourceScoped: true, mutate: func(spec *workv1alpha2.ResourceBindingSpec) {
+			spec.Suspension = &workv1alpha2.Suspension{Scheduling: &suspended}
+		}},
+		{name: "ClusterResourceBinding custom scheduler", mutate: func(spec *workv1alpha2.ResourceBindingSpec) { spec.SchedulerName = "custom-scheduler" }},
+		{name: "ClusterResourceBinding scheduling suspended", mutate: func(spec *workv1alpha2.ResourceBindingSpec) {
+			spec.Suspension = &workv1alpha2.Suspension{Scheduling: &suspended}
+		}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			spec := workv1alpha2.ResourceBindingSpec{Placement: &policyv1alpha1.Placement{}}
+			tt.mutate(&spec)
+			algorithmCalls := 0
+			algorithm := &mockAlgorithm{scheduleFunc: func(_ context.Context, _ *workv1alpha2.ResourceBindingSpec, _ *workv1alpha2.ResourceBindingStatus, _ *core.ScheduleAlgorithmOption) (core.ScheduleResult, error) {
+				algorithmCalls++
+				return core.ScheduleResult{}, nil
+			}}
+
+			if tt.resourceScoped {
+				binding := &workv1alpha2.ResourceBinding{ObjectMeta: metav1.ObjectMeta{Name: "rb", Namespace: "default"}, Spec: spec}
+				client := karmadafake.NewClientset(binding)
+				s := &Scheduler{KarmadaClient: client, bindingLister: &fakeBindingLister{binding: binding}, Algorithm: algorithm}
+				assert.NoError(t, s.doScheduleBinding(binding.Namespace, binding.Name))
+				assert.Empty(t, client.Actions())
+			} else {
+				binding := &workv1alpha2.ClusterResourceBinding{ObjectMeta: metav1.ObjectMeta{Name: "crb"}, Spec: spec}
+				client := karmadafake.NewClientset(binding)
+				s := &Scheduler{KarmadaClient: client, clusterBindingLister: &fakeClusterBindingLister{binding: binding}, Algorithm: algorithm}
+				assert.NoError(t, s.doScheduleClusterBinding(binding.Name))
+				assert.Empty(t, client.Actions())
+			}
+			assert.Zero(t, algorithmCalls)
 		})
 	}
 }
@@ -914,6 +975,43 @@ func TestUpdatesAssumptions(t *testing.T) {
 		{Name: "taskmanager", Replicas: 2},
 	}
 
+	t.Run("component requirements baseline does not reserve an already running workload", func(t *testing.T) {
+		defer setFeatureGateDuringTest(t, features.FeatureGate, features.MultiplePodTemplatesScheduling, true)()
+		placement := &policyv1alpha1.Placement{SpreadConstraints: []policyv1alpha1.SpreadConstraint{{
+			SpreadByField: policyv1alpha1.SpreadByFieldCluster, MinGroups: 1, MaxGroups: 1,
+		}}}
+		placementJSON, err := json.Marshal(placement)
+		assert.NoError(t, err)
+		clusters := []workv1alpha2.TargetCluster{{Name: "cluster1", Components: []workv1alpha2.TargetComponent{
+			{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 2},
+		}}}
+		binding := &workv1alpha2.ResourceBinding{
+			ObjectMeta: metav1.ObjectMeta{Name: "test-binding", Namespace: "default", ResourceVersion: "7", Generation: 2, Annotations: map[string]string{util.PolicyPlacementAnnotation: string(placementJSON)}},
+			Spec: workv1alpha2.ResourceBindingSpec{
+				Resource: workv1alpha2.ObjectReference{Namespace: "work-ns"}, Placement: placement,
+				Components: multiTemplateComponents, Clusters: clusters,
+			},
+			Status: workv1alpha2.ResourceBindingStatus{
+				SchedulerObservedGeneration: 2,
+				Conditions:                  []metav1.Condition{util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonSuccess, successfulSchedulingMessage, metav1.ConditionTrue)},
+			},
+		}
+		cache := schedulercache.NewCache(nil, nil, 0)
+		client := karmadafake.NewClientset(binding)
+		algorithm := &mockAlgorithm{scheduleFunc: func(_ context.Context, _ *workv1alpha2.ResourceBindingSpec, _ *workv1alpha2.ResourceBindingStatus, _ *core.ScheduleAlgorithmOption) (core.ScheduleResult, error) {
+			t.Fatal("baseline backfill must not invoke the scheduling algorithm")
+			return core.ScheduleResult{}, nil
+		}}
+		s := &Scheduler{
+			KarmadaClient: client, schedulerCache: cache, bindingLister: &fakeBindingLister{binding: binding},
+			clusterLister: testClusterLister(t, "cluster1"), Algorithm: algorithm,
+		}
+
+		assert.NoError(t, s.doScheduleBinding(binding.Namespace, binding.Name))
+		assert.Empty(t, cache.AssigningResourceBindings().GetAssumedWorkloads("cluster1"))
+		assertScalePatches(t, client.Actions(), true, "7")
+	})
+
 	t.Run("multi-template: writes full components on first scheduling", func(t *testing.T) {
 		oldBinding := &workv1alpha2.ResourceBinding{
 			ObjectMeta: metav1.ObjectMeta{Name: "test-binding", Namespace: "default"},
@@ -1443,6 +1541,1402 @@ func TestScheduleClusterResourceBindingWithClusterAffinities(t *testing.T) {
 	}
 }
 
+func TestComponentScaleSchedulingPreservesAcceptedResult(t *testing.T) {
+	defer setFeatureGateDuringTest(t, features.FeatureGate, features.MultiplePodTemplatesScheduling, true)()
+
+	placement := &policyv1alpha1.Placement{SpreadConstraints: []policyv1alpha1.SpreadConstraint{{
+		SpreadByField: policyv1alpha1.SpreadByFieldCluster, MinGroups: 1, MaxGroups: 1,
+	}}}
+	placementJSON, err := json.Marshal(placement)
+	assert.NoError(t, err)
+	desired := []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 6}}
+	accepted := []workv1alpha2.TargetComponent{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}}
+	validResult := core.ScheduleResult{SuggestedClusters: []workv1alpha2.TargetCluster{{
+		Name: "cluster1", Components: []workv1alpha2.TargetComponent{{Name: "taskmanager", Replicas: 6}, {Name: "jobmanager", Replicas: 1}},
+	}}}
+
+	tests := []struct {
+		name        string
+		accepted    []workv1alpha2.TargetComponent
+		result      core.ScheduleResult
+		err         error
+		wantError   bool
+		wantPatched bool
+	}{
+		{name: "valid result", accepted: accepted, result: validResult, wantPatched: true},
+		{name: "fit error", accepted: accepted, err: &framework.FitError{}, wantError: true},
+		{name: "empty result", accepted: accepted, wantError: true},
+		{name: "different target", accepted: accepted, result: core.ScheduleResult{SuggestedClusters: []workv1alpha2.TargetCluster{{Name: "cluster2", Components: validResult.SuggestedClusters[0].Components}}}, wantError: true},
+		{name: "partial snapshot", accepted: accepted, result: core.ScheduleResult{SuggestedClusters: []workv1alpha2.TargetCluster{{Name: "cluster1", Components: []workv1alpha2.TargetComponent{{Name: "taskmanager", Replicas: 6}}}}}, wantError: true},
+	}
+
+	for _, resourceScoped := range []bool{true, false} {
+		for _, tt := range tests {
+			name := fmt.Sprintf("resourceScoped=%t/%s", resourceScoped, tt.name)
+			t.Run(name, func(t *testing.T) {
+				oldClusters := []workv1alpha2.TargetCluster{{Name: "cluster1", Components: tt.accepted}}
+				var option *core.ScheduleAlgorithmOption
+				algorithm := &mockAlgorithm{scheduleFunc: func(_ context.Context, _ *workv1alpha2.ResourceBindingSpec, _ *workv1alpha2.ResourceBindingStatus, got *core.ScheduleAlgorithmOption) (core.ScheduleResult, error) {
+					option = got
+					return tt.result, tt.err
+				}}
+				annotations := componentSchedulingAnnotations(t, string(placementJSON), desired)
+				if resourceScoped {
+					binding := &workv1alpha2.ResourceBinding{
+						ObjectMeta: metav1.ObjectMeta{Name: "rb", Namespace: "default", ResourceVersion: "7", Annotations: annotations},
+						Spec:       workv1alpha2.ResourceBindingSpec{Placement: placement, Components: desired, Clusters: oldClusters},
+					}
+					client := karmadafake.NewClientset(binding)
+					s := &Scheduler{KarmadaClient: client, Algorithm: algorithm, eventRecorder: record.NewFakeRecorder(10)}
+					err := s.scheduleResourceBindingWithOptions(binding, true)
+					assert.Equal(t, tt.wantError, err != nil)
+					assertScalePatches(t, client.Actions(), tt.wantPatched, "7")
+					updated, getErr := client.WorkV1alpha2().ResourceBindings(binding.Namespace).Get(context.Background(), binding.Name, metav1.GetOptions{})
+					assert.NoError(t, getErr)
+					if tt.wantPatched {
+						assert.Equal(t, validResult.SuggestedClusters, updated.Spec.Clusters)
+					} else {
+						assert.Equal(t, oldClusters, updated.Spec.Clusters)
+					}
+				} else {
+					binding := &workv1alpha2.ClusterResourceBinding{
+						ObjectMeta: metav1.ObjectMeta{Name: "crb", ResourceVersion: "7", Annotations: annotations},
+						Spec:       workv1alpha2.ResourceBindingSpec{Placement: placement, Components: desired, Clusters: oldClusters},
+					}
+					client := karmadafake.NewClientset(binding)
+					s := &Scheduler{KarmadaClient: client, Algorithm: algorithm, eventRecorder: record.NewFakeRecorder(10)}
+					err := s.scheduleClusterResourceBindingWithOptions(binding, true)
+					assert.Equal(t, tt.wantError, err != nil)
+					assertScalePatches(t, client.Actions(), tt.wantPatched, "7")
+					updated, getErr := client.WorkV1alpha2().ClusterResourceBindings().Get(context.Background(), binding.Name, metav1.GetOptions{})
+					assert.NoError(t, getErr)
+					if tt.wantPatched {
+						assert.Equal(t, validResult.SuggestedClusters, updated.Spec.Clusters)
+					} else {
+						assert.Equal(t, oldClusters, updated.Spec.Clusters)
+					}
+				}
+				assert.NotNil(t, option)
+				assert.True(t, option.IsMultiComponentScale)
+			})
+		}
+	}
+}
+
+func TestComponentRequirementsTransitionRouting(t *testing.T) {
+	defer setFeatureGateDuringTest(t, features.FeatureGate, features.MultiplePodTemplatesScheduling, true)()
+
+	placement := &policyv1alpha1.Placement{SpreadConstraints: []policyv1alpha1.SpreadConstraint{{
+		SpreadByField: policyv1alpha1.SpreadByFieldCluster, MinGroups: 1, MaxGroups: 1,
+	}}}
+	placementJSON, err := json.Marshal(placement)
+	assert.NoError(t, err)
+	acceptedRequirements := []workv1alpha2.Component{
+		{Name: "jobmanager", Replicas: 1},
+		{Name: "taskmanager", Replicas: 4, ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+			ResourceRequest: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("100m")},
+		}},
+	}
+	acceptedResult := []workv1alpha2.TargetCluster{{Name: "cluster1", Components: []workv1alpha2.TargetComponent{
+		{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4},
+	}}}
+	successCondition := util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonSuccess, successfulSchedulingMessage, metav1.ConditionTrue)
+
+	tests := []struct {
+		name            string
+		desiredReplicas int32
+		desiredCPU      string
+		includeHash     bool
+		observed        int64
+		statusSuccess   bool
+		divided         bool
+		wantMainPatch   bool
+		wantReason      string
+		wantEvents      int
+	}{
+		{name: "requirements-only change is rejected", desiredReplicas: 4, desiredCPU: "500m", includeHash: true, observed: 1, statusSuccess: true, wantReason: workv1alpha2.BindingReasonUnschedulable, wantEvents: 2},
+		{name: "replicas and requirements change is rejected", desiredReplicas: 6, desiredCPU: "500m", includeHash: true, observed: 1, statusSuccess: true, wantReason: workv1alpha2.BindingReasonUnschedulable, wantEvents: 2},
+		{name: "current successful complete result establishes missing hash", desiredReplicas: 4, desiredCPU: "100m", observed: 2, statusSuccess: true, wantMainPatch: true, wantReason: workv1alpha2.BindingReasonSuccess},
+		{name: "unobserved result cannot establish missing hash", desiredReplicas: 4, desiredCPU: "100m", observed: 1, statusSuccess: true, wantReason: workv1alpha2.BindingReasonUnschedulable, wantEvents: 2},
+		{name: "failed result cannot establish missing hash", desiredReplicas: 4, desiredCPU: "100m", observed: 2, wantReason: workv1alpha2.BindingReasonUnschedulable, wantEvents: 2},
+		{name: "divided result cannot establish missing hash", desiredReplicas: 4, desiredCPU: "100m", observed: 2, statusSuccess: true, divided: true, wantReason: workv1alpha2.BindingReasonUnschedulable, wantEvents: 2},
+		{name: "replica change with a missing hash is rejected", desiredReplicas: 6, desiredCPU: "100m", observed: 2, statusSuccess: true, wantReason: workv1alpha2.BindingReasonUnschedulable, wantEvents: 2},
+	}
+
+	for _, resourceScoped := range []bool{true, false} {
+		for _, tt := range tests {
+			t.Run(fmt.Sprintf("resourceScoped=%t/%s", resourceScoped, tt.name), func(t *testing.T) {
+				desired := []workv1alpha2.Component{
+					{Name: "jobmanager", Replicas: 1},
+					{Name: "taskmanager", Replicas: tt.desiredReplicas, ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+						ResourceRequest: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse(tt.desiredCPU)},
+					}},
+				}
+				annotations := map[string]string{util.PolicyPlacementAnnotation: string(placementJSON)}
+				acceptedHash, hashErr := util.GenerateComponentRequirementsHash(acceptedRequirements)
+				assert.NoError(t, hashErr)
+				if tt.includeHash {
+					annotations[util.AcceptedComponentRequirementsHashAnnotation] = acceptedHash
+				}
+
+				casePlacement := placement.DeepCopy()
+				if tt.divided {
+					casePlacement.ReplicaScheduling = &policyv1alpha1.ReplicaSchedulingStrategy{ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDivided}
+				}
+				algorithmCalls := 0
+				algorithm := &mockAlgorithm{scheduleFunc: func(_ context.Context, _ *workv1alpha2.ResourceBindingSpec, _ *workv1alpha2.ResourceBindingStatus, option *core.ScheduleAlgorithmOption) (core.ScheduleResult, error) {
+					algorithmCalls++
+					assert.True(t, option.IsMultiComponentScale)
+					return core.ScheduleResult{SuggestedClusters: acceptedResult}, nil
+				}}
+				recorder := record.NewFakeRecorder(10)
+				condition := metav1.Condition{Type: workv1alpha2.Scheduled, Status: metav1.ConditionFalse, Reason: workv1alpha2.BindingReasonNoClusterFit}
+				if tt.statusSuccess {
+					condition = successCondition
+				}
+				status := workv1alpha2.ResourceBindingStatus{SchedulerObservedGeneration: tt.observed, Conditions: []metav1.Condition{condition}}
+
+				var updatedAnnotations map[string]string
+				var updatedConditions []metav1.Condition
+				var actions []clienttesting.Action
+				if resourceScoped {
+					binding := &workv1alpha2.ResourceBinding{
+						ObjectMeta: metav1.ObjectMeta{Name: "rb", Namespace: "default", ResourceVersion: "7", Generation: 2, Annotations: annotations},
+						Spec:       workv1alpha2.ResourceBindingSpec{Placement: casePlacement, Components: desired, Clusters: acceptedResult},
+						Status:     status,
+					}
+					client := karmadafake.NewClientset(binding)
+					s := &Scheduler{KarmadaClient: client, bindingLister: &fakeBindingLister{binding: binding}, clusterLister: testClusterLister(t, "cluster1"), Algorithm: algorithm, eventRecorder: recorder}
+					scheduleErr := s.doScheduleBinding(binding.Namespace, binding.Name)
+					assert.NoError(t, scheduleErr)
+					updated, getErr := client.WorkV1alpha2().ResourceBindings(binding.Namespace).Get(context.Background(), binding.Name, metav1.GetOptions{})
+					assert.NoError(t, getErr)
+					assert.Equal(t, acceptedResult, updated.Spec.Clusters)
+					updatedAnnotations, updatedConditions, actions = updated.Annotations, updated.Status.Conditions, client.Actions()
+				} else {
+					binding := &workv1alpha2.ClusterResourceBinding{
+						ObjectMeta: metav1.ObjectMeta{Name: "crb", ResourceVersion: "7", Generation: 2, Annotations: annotations},
+						Spec:       workv1alpha2.ResourceBindingSpec{Placement: casePlacement, Components: desired, Clusters: acceptedResult},
+						Status:     status,
+					}
+					client := karmadafake.NewClientset(binding)
+					s := &Scheduler{KarmadaClient: client, clusterBindingLister: &fakeClusterBindingLister{binding: binding}, clusterLister: testClusterLister(t, "cluster1"), Algorithm: algorithm, eventRecorder: recorder}
+					scheduleErr := s.doScheduleClusterBinding(binding.Name)
+					assert.NoError(t, scheduleErr)
+					updated, getErr := client.WorkV1alpha2().ClusterResourceBindings().Get(context.Background(), binding.Name, metav1.GetOptions{})
+					assert.NoError(t, getErr)
+					assert.Equal(t, acceptedResult, updated.Spec.Clusters)
+					updatedAnnotations, updatedConditions, actions = updated.Annotations, updated.Status.Conditions, client.Actions()
+				}
+
+				assert.Zero(t, algorithmCalls)
+				assert.Equal(t, tt.wantMainPatch, len(filterMainResourcePatches(actions)) == 1)
+				if tt.wantMainPatch {
+					desiredHash, desiredHashErr := util.GenerateComponentRequirementsHash(desired)
+					assert.NoError(t, desiredHashErr)
+					assert.Equal(t, desiredHash, updatedAnnotations[util.AcceptedComponentRequirementsHashAnnotation])
+				} else {
+					assert.Equal(t, annotations[util.AcceptedComponentRequirementsHashAnnotation], updatedAnnotations[util.AcceptedComponentRequirementsHashAnnotation])
+				}
+				assert.NotEmpty(t, updatedConditions)
+				assert.Equal(t, tt.wantReason, updatedConditions[0].Reason)
+				assert.Equal(t, tt.wantReason == workv1alpha2.BindingReasonSuccess, updatedConditions[0].Status == metav1.ConditionTrue)
+				assert.Len(t, recorder.Events, tt.wantEvents)
+			})
+		}
+	}
+}
+
+func TestUnavailableComponentTargetPreservesResultUntilFailoverSucceeds(t *testing.T) {
+	defer setFeatureGateDuringTest(t, features.FeatureGate, features.MultiplePodTemplatesScheduling, true)()
+
+	placement := &policyv1alpha1.Placement{SpreadConstraints: []policyv1alpha1.SpreadConstraint{{
+		SpreadByField: policyv1alpha1.SpreadByFieldCluster, MinGroups: 1, MaxGroups: 1,
+	}}}
+	placementJSON, err := json.Marshal(placement)
+	assert.NoError(t, err)
+	components := []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}}
+	oldClusters := []workv1alpha2.TargetCluster{{Name: "cluster1", Components: []workv1alpha2.TargetComponent{
+		{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4},
+	}}}
+	newClusters := []workv1alpha2.TargetCluster{{Name: "cluster2", Components: []workv1alpha2.TargetComponent{
+		{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4},
+	}}}
+	successCondition := util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonSuccess, successfulSchedulingMessage, metav1.ConditionTrue)
+
+	tests := []struct {
+		name         string
+		includeHash  bool
+		hashMismatch bool
+		fitError     bool
+	}{
+		{name: "accepted result no fit", includeHash: true, fitError: true},
+		{name: "missing hash no fit", fitError: true},
+		{name: "missing hash feasible alternative"},
+		{name: "changed requirements feasible alternative", includeHash: true, hashMismatch: true},
+	}
+	for _, resourceScoped := range []bool{true, false} {
+		for _, tt := range tests {
+			t.Run(fmt.Sprintf("resourceScoped=%t/%s", resourceScoped, tt.name), func(t *testing.T) {
+				annotations := map[string]string{util.PolicyPlacementAnnotation: string(placementJSON)}
+				if tt.includeHash {
+					hashComponents := components
+					if tt.hashMismatch {
+						hashComponents = append([]workv1alpha2.Component(nil), components...)
+						hashComponents[1] = *components[1].DeepCopy()
+						hashComponents[1].ReplicaRequirements = &workv1alpha2.ComponentReplicaRequirements{PriorityClassName: "previous"}
+					}
+					hash, hashErr := util.GenerateComponentRequirementsHash(hashComponents)
+					assert.NoError(t, hashErr)
+					annotations[util.AcceptedComponentRequirementsHashAnnotation] = hash
+				}
+				algorithmCalls := 0
+				algorithm := &mockAlgorithm{scheduleFunc: func(_ context.Context, _ *workv1alpha2.ResourceBindingSpec, _ *workv1alpha2.ResourceBindingStatus, option *core.ScheduleAlgorithmOption) (core.ScheduleResult, error) {
+					algorithmCalls++
+					assert.False(t, option.IsMultiComponentScale)
+					if tt.fitError {
+						return core.ScheduleResult{}, &framework.FitError{}
+					}
+					return core.ScheduleResult{SuggestedClusters: newClusters}, nil
+				}}
+				recorder := record.NewFakeRecorder(10)
+				status := workv1alpha2.ResourceBindingStatus{SchedulerObservedGeneration: 2, Conditions: []metav1.Condition{successCondition}}
+
+				var gotClusters []workv1alpha2.TargetCluster
+				var gotAnnotations map[string]string
+				var gotConditions []metav1.Condition
+				var actions []clienttesting.Action
+				if resourceScoped {
+					binding := &workv1alpha2.ResourceBinding{ObjectMeta: metav1.ObjectMeta{Name: "rb", Namespace: "default", ResourceVersion: "7", Generation: 2, Annotations: annotations}, Spec: workv1alpha2.ResourceBindingSpec{Placement: placement, Components: components, Clusters: oldClusters}, Status: status}
+					client := karmadafake.NewClientset(binding)
+					s := &Scheduler{KarmadaClient: client, bindingLister: &fakeBindingLister{binding: binding}, clusterLister: testClusterLister(t), Algorithm: algorithm, eventRecorder: recorder}
+					scheduleErr := s.doScheduleBinding(binding.Namespace, binding.Name)
+					assert.Equal(t, tt.fitError, scheduleErr != nil)
+					updated, getErr := client.WorkV1alpha2().ResourceBindings(binding.Namespace).Get(context.Background(), binding.Name, metav1.GetOptions{})
+					assert.NoError(t, getErr)
+					gotClusters, gotAnnotations, gotConditions, actions = updated.Spec.Clusters, updated.Annotations, updated.Status.Conditions, client.Actions()
+				} else {
+					binding := &workv1alpha2.ClusterResourceBinding{ObjectMeta: metav1.ObjectMeta{Name: "crb", ResourceVersion: "7", Generation: 2, Annotations: annotations}, Spec: workv1alpha2.ResourceBindingSpec{Placement: placement, Components: components, Clusters: oldClusters}, Status: status}
+					client := karmadafake.NewClientset(binding)
+					s := &Scheduler{KarmadaClient: client, clusterBindingLister: &fakeClusterBindingLister{binding: binding}, clusterLister: testClusterLister(t), Algorithm: algorithm, eventRecorder: recorder}
+					scheduleErr := s.doScheduleClusterBinding(binding.Name)
+					assert.Equal(t, tt.fitError, scheduleErr != nil)
+					updated, getErr := client.WorkV1alpha2().ClusterResourceBindings().Get(context.Background(), binding.Name, metav1.GetOptions{})
+					assert.NoError(t, getErr)
+					gotClusters, gotAnnotations, gotConditions, actions = updated.Spec.Clusters, updated.Annotations, updated.Status.Conditions, client.Actions()
+				}
+
+				assert.Equal(t, 1, algorithmCalls)
+				if tt.fitError {
+					assert.Equal(t, oldClusters, gotClusters)
+					assert.Equal(t, annotations[util.AcceptedComponentRequirementsHashAnnotation], gotAnnotations[util.AcceptedComponentRequirementsHashAnnotation])
+					assert.Empty(t, filterMainResourcePatches(actions))
+					assert.Equal(t, workv1alpha2.BindingReasonNoClusterFit, gotConditions[0].Reason)
+					assert.Equal(t, metav1.ConditionFalse, gotConditions[0].Status)
+				} else {
+					assert.Equal(t, newClusters, gotClusters)
+					assertAcceptedComponentRequirementsHash(t, &workv1alpha2.ResourceBindingSpec{Placement: placement, Components: components, Clusters: gotClusters}, gotAnnotations, false)
+					assertScalePatches(t, actions, true, "7")
+					assert.Equal(t, metav1.ConditionTrue, gotConditions[0].Status)
+				}
+				assert.Len(t, recorder.Events, 2)
+			})
+		}
+	}
+}
+
+func TestUnsupportedComponentScaleErrorReturnedToRoutingCaller(t *testing.T) {
+	defer setFeatureGateDuringTest(t, features.FeatureGate, features.MultiplePodTemplatesScheduling, true)()
+
+	placement := &policyv1alpha1.Placement{SpreadConstraints: []policyv1alpha1.SpreadConstraint{{
+		SpreadByField: policyv1alpha1.SpreadByFieldCluster, MinGroups: 1, MaxGroups: 1,
+	}}}
+	desired := []workv1alpha2.Component{{Name: "jobmanager", Replicas: 2}, {Name: "taskmanager", Replicas: 3}}
+	accepted := []workv1alpha2.TargetCluster{{Name: "cluster1", Components: []workv1alpha2.TargetComponent{
+		{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4},
+	}}}
+	annotations := componentSchedulingAnnotations(t, "{}", desired)
+
+	for _, resourceScoped := range []bool{true, false} {
+		t.Run(fmt.Sprintf("resourceScoped=%t", resourceScoped), func(t *testing.T) {
+			recorder := record.NewFakeRecorder(10)
+			if resourceScoped {
+				binding := &workv1alpha2.ResourceBinding{ObjectMeta: metav1.ObjectMeta{Name: "rb", Namespace: "default", Annotations: annotations}, Spec: workv1alpha2.ResourceBindingSpec{Placement: placement, Components: desired, Clusters: accepted}}
+				client := karmadafake.NewClientset(binding)
+				s := &Scheduler{KarmadaClient: client, eventRecorder: recorder}
+				err := s.scheduleResourceBindingWithOptions(binding, true)
+				var unsupportedErr *unsupportedComponentScaleError
+				assert.ErrorAs(t, err, &unsupportedErr)
+			} else {
+				binding := &workv1alpha2.ClusterResourceBinding{ObjectMeta: metav1.ObjectMeta{Name: "crb", Annotations: annotations}, Spec: workv1alpha2.ResourceBindingSpec{Placement: placement, Components: desired, Clusters: accepted}}
+				client := karmadafake.NewClientset(binding)
+				s := &Scheduler{KarmadaClient: client, eventRecorder: recorder}
+				err := s.scheduleClusterResourceBindingWithOptions(binding, true)
+				var unsupportedErr *unsupportedComponentScaleError
+				assert.ErrorAs(t, err, &unsupportedErr)
+			}
+			assert.Len(t, recorder.Events, 2)
+		})
+	}
+}
+
+type componentScaleRoutingCase struct {
+	name               string
+	configure          func(*policyv1alpha1.Placement, *[]workv1alpha2.Component, *[]workv1alpha2.TargetComponent, *workv1alpha2.ResourceBindingStatus)
+	missingTarget      bool
+	placementMismatch  bool
+	legacyPlacement    bool
+	explicitReschedule bool
+	wantCalls          int
+	wantScale          bool
+	wantReuseAccepted  bool
+	wantSnapshot       bool
+	wantMainPatch      bool
+	wantMetadata       bool
+	wantFailed         bool
+	wantReason         string
+	fitError           bool
+	initial            bool
+}
+
+type componentScaleRoutingObservation struct {
+	algorithmCalls      int
+	scaleOption         bool
+	reuseAcceptedOption bool
+}
+
+func TestComponentScaleRouting(t *testing.T) {
+	defer setFeatureGateDuringTest(t, features.FeatureGate, features.MultiplePodTemplatesScheduling, true)()
+
+	basePlacement := &policyv1alpha1.Placement{SpreadConstraints: []policyv1alpha1.SpreadConstraint{{
+		SpreadByField: policyv1alpha1.SpreadByFieldCluster, MinGroups: 1, MaxGroups: 1,
+	}}}
+	baseDesired := []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 6}}
+	baseAccepted := []workv1alpha2.TargetComponent{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}}
+	tests := []componentScaleRoutingCase{
+		{name: "supported scale pins current target", wantCalls: 1, wantScale: true, wantSnapshot: true, wantMainPatch: true},
+		{name: "current successful duplicated legacy result is backfilled", configure: func(_ *policyv1alpha1.Placement, _ *[]workv1alpha2.Component, accepted *[]workv1alpha2.TargetComponent, status *workv1alpha2.ResourceBindingStatus) {
+			*accepted = nil
+			status.SchedulerObservedGeneration = 2
+			status.Conditions = []metav1.Condition{util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonSuccess, successfulSchedulingMessage, metav1.ConditionTrue)}
+		}, wantSnapshot: true, wantMainPatch: true, wantMetadata: true},
+		{name: "unobserved legacy result is rejected", configure: func(_ *policyv1alpha1.Placement, _ *[]workv1alpha2.Component, accepted *[]workv1alpha2.TargetComponent, _ *workv1alpha2.ResourceBindingStatus) {
+			*accepted = nil
+		}, wantFailed: true},
+		{name: "failed legacy result is rejected", configure: func(_ *policyv1alpha1.Placement, _ *[]workv1alpha2.Component, accepted *[]workv1alpha2.TargetComponent, status *workv1alpha2.ResourceBindingStatus) {
+			*accepted = nil
+			status.SchedulerObservedGeneration = 2
+			status.Conditions = []metav1.Condition{util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonNoClusterFit, "no cluster fit", metav1.ConditionFalse)}
+		}, wantFailed: true},
+		{name: "legacy result with changed placement is rejected", configure: func(_ *policyv1alpha1.Placement, _ *[]workv1alpha2.Component, accepted *[]workv1alpha2.TargetComponent, status *workv1alpha2.ResourceBindingStatus) {
+			*accepted = nil
+			status.SchedulerObservedGeneration = 2
+			status.Conditions = []metav1.Condition{util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonSuccess, successfulSchedulingMessage, metav1.ConditionTrue)}
+		}, placementMismatch: true, wantFailed: true},
+		{name: "current divided legacy result is rejected", configure: func(p *policyv1alpha1.Placement, _ *[]workv1alpha2.Component, accepted *[]workv1alpha2.TargetComponent, status *workv1alpha2.ResourceBindingStatus) {
+			*accepted = nil
+			p.ReplicaScheduling = &policyv1alpha1.ReplicaSchedulingStrategy{ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDivided}
+			status.SchedulerObservedGeneration = 2
+			status.Conditions = []metav1.Condition{util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonSuccess, successfulSchedulingMessage, metav1.ConditionTrue)}
+		}, wantFailed: true},
+		{name: "placement and components changed", placementMismatch: true, wantFailed: true},
+		{name: "placement-only change with accepted components uses ordinary scheduling", configure: func(_ *policyv1alpha1.Placement, desired *[]workv1alpha2.Component, accepted *[]workv1alpha2.TargetComponent, _ *workv1alpha2.ResourceBindingStatus) {
+			*desired = []workv1alpha2.Component{{Name: "jobmanager", Replicas: (*accepted)[0].Replicas}, {Name: "taskmanager", Replicas: (*accepted)[1].Replicas}}
+		}, placementMismatch: true, wantCalls: 1, wantSnapshot: true, wantMainPatch: true},
+		{name: "placement-only no-fit preserves accepted result", configure: func(_ *policyv1alpha1.Placement, desired *[]workv1alpha2.Component, accepted *[]workv1alpha2.TargetComponent, _ *workv1alpha2.ResourceBindingStatus) {
+			*desired = []workv1alpha2.Component{{Name: "jobmanager", Replicas: (*accepted)[0].Replicas}, {Name: "taskmanager", Replicas: (*accepted)[1].Replicas}}
+		}, placementMismatch: true, fitError: true, wantCalls: 1, wantFailed: true, wantReason: workv1alpha2.BindingReasonNoClusterFit},
+		{name: "new placement is no longer single-cluster applicable", configure: func(p *policyv1alpha1.Placement, _ *[]workv1alpha2.Component, _ *[]workv1alpha2.TargetComponent, _ *workv1alpha2.ResourceBindingStatus) {
+			p.SpreadConstraints[0].MaxGroups = 2
+		}, legacyPlacement: true, wantFailed: true},
+		{name: "explicit transition out of single-cluster applicability uses full recovery", configure: func(p *policyv1alpha1.Placement, _ *[]workv1alpha2.Component, _ *[]workv1alpha2.TargetComponent, status *workv1alpha2.ResourceBindingStatus) {
+			p.SpreadConstraints[0].MaxGroups = 2
+			lastScheduled := metav1.NewTime(time.Unix(1, 0))
+			status.LastScheduledTime = &lastScheduled
+		}, legacyPlacement: true, explicitReschedule: true, wantCalls: 1, wantMainPatch: true},
+		{name: "placement-only change cannot erase accepted result", configure: func(p *policyv1alpha1.Placement, desired *[]workv1alpha2.Component, accepted *[]workv1alpha2.TargetComponent, _ *workv1alpha2.ResourceBindingStatus) {
+			p.SpreadConstraints[0].MaxGroups = 2
+			*desired = []workv1alpha2.Component{{Name: "jobmanager", Replicas: (*accepted)[0].Replicas}, {Name: "taskmanager", Replicas: (*accepted)[1].Replicas}}
+		}, legacyPlacement: true, wantFailed: true},
+		{name: "ordered cluster affinities", configure: func(p *policyv1alpha1.Placement, _ *[]workv1alpha2.Component, _ *[]workv1alpha2.TargetComponent, status *workv1alpha2.ResourceBindingStatus) {
+			p.ClusterAffinities = []policyv1alpha1.ClusterAffinityTerm{{AffinityName: "primary"}}
+			status.SchedulerObservedAffinityName = "primary"
+		}, wantFailed: true},
+		{name: "mixed directions", configure: func(_ *policyv1alpha1.Placement, desired *[]workv1alpha2.Component, _ *[]workv1alpha2.TargetComponent, _ *workv1alpha2.ResourceBindingStatus) {
+			*desired = []workv1alpha2.Component{{Name: "jobmanager", Replicas: 2}, {Name: "taskmanager", Replicas: 3}}
+		}, wantFailed: true},
+		{name: "explicit reschedule and components changed uses full recovery", configure: func(_ *policyv1alpha1.Placement, _ *[]workv1alpha2.Component, _ *[]workv1alpha2.TargetComponent, status *workv1alpha2.ResourceBindingStatus) {
+			lastScheduled := metav1.NewTime(time.Unix(1, 0))
+			status.LastScheduledTime = &lastScheduled
+		}, explicitReschedule: true, wantCalls: 1, wantSnapshot: true, wantMainPatch: true},
+		{name: "explicit reschedule with mixed directions uses full recovery", configure: func(_ *policyv1alpha1.Placement, desired *[]workv1alpha2.Component, _ *[]workv1alpha2.TargetComponent, status *workv1alpha2.ResourceBindingStatus) {
+			*desired = []workv1alpha2.Component{{Name: "jobmanager", Replicas: 2}, {Name: "taskmanager", Replicas: 3}}
+			lastScheduled := metav1.NewTime(time.Unix(1, 0))
+			status.LastScheduledTime = &lastScheduled
+		}, explicitReschedule: true, wantCalls: 1, wantSnapshot: true, wantMainPatch: true},
+		{name: "explicit reschedule with component name change uses full recovery", configure: func(_ *policyv1alpha1.Placement, desired *[]workv1alpha2.Component, _ *[]workv1alpha2.TargetComponent, status *workv1alpha2.ResourceBindingStatus) {
+			*desired = []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "worker", Replicas: 4}}
+			lastScheduled := metav1.NewTime(time.Unix(1, 0))
+			status.LastScheduledTime = &lastScheduled
+		}, explicitReschedule: true, wantCalls: 1, wantSnapshot: true, wantMainPatch: true},
+		{name: "explicit reschedule with requirements change uses full recovery", configure: func(_ *policyv1alpha1.Placement, desired *[]workv1alpha2.Component, accepted *[]workv1alpha2.TargetComponent, status *workv1alpha2.ResourceBindingStatus) {
+			*desired = []workv1alpha2.Component{
+				{Name: "jobmanager", Replicas: (*accepted)[0].Replicas},
+				{Name: "taskmanager", Replicas: (*accepted)[1].Replicas, ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{PriorityClassName: "high-priority"}},
+			}
+			lastScheduled := metav1.NewTime(time.Unix(1, 0))
+			status.LastScheduledTime = &lastScheduled
+		}, explicitReschedule: true, wantCalls: 1, wantSnapshot: true, wantMainPatch: true},
+		{name: "explicit reschedule with accepted components uses ordinary scheduling", configure: func(_ *policyv1alpha1.Placement, desired *[]workv1alpha2.Component, accepted *[]workv1alpha2.TargetComponent, status *workv1alpha2.ResourceBindingStatus) {
+			*desired = []workv1alpha2.Component{{Name: "jobmanager", Replicas: (*accepted)[0].Replicas}, {Name: "taskmanager", Replicas: (*accepted)[1].Replicas}}
+			lastScheduled := metav1.NewTime(time.Unix(1, 0))
+			status.LastScheduledTime = &lastScheduled
+		}, explicitReschedule: true, wantCalls: 1, wantSnapshot: true, wantMainPatch: true},
+		{name: "explicit reschedule no-fit preserves accepted result", configure: func(_ *policyv1alpha1.Placement, desired *[]workv1alpha2.Component, accepted *[]workv1alpha2.TargetComponent, status *workv1alpha2.ResourceBindingStatus) {
+			*desired = []workv1alpha2.Component{{Name: "jobmanager", Replicas: (*accepted)[0].Replicas}, {Name: "taskmanager", Replicas: (*accepted)[1].Replicas}}
+			lastScheduled := metav1.NewTime(time.Unix(1, 0))
+			status.LastScheduledTime = &lastScheduled
+		}, explicitReschedule: true, fitError: true, wantCalls: 1, wantFailed: true, wantReason: workv1alpha2.BindingReasonNoClusterFit},
+		{name: "steady duplicated no-fit preserves accepted result", configure: func(_ *policyv1alpha1.Placement, desired *[]workv1alpha2.Component, accepted *[]workv1alpha2.TargetComponent, _ *workv1alpha2.ResourceBindingStatus) {
+			*desired = []workv1alpha2.Component{{Name: "jobmanager", Replicas: (*accepted)[0].Replicas}, {Name: "taskmanager", Replicas: (*accepted)[1].Replicas}}
+		}, fitError: true, wantCalls: 1, wantReuseAccepted: true, wantFailed: true, wantReason: workv1alpha2.BindingReasonNoClusterFit},
+		{name: "missing target uses ordinary failover", missingTarget: true, wantCalls: 1, wantMainPatch: true},
+		{name: "missing target takes precedence over compatible placement change", missingTarget: true, placementMismatch: true, wantCalls: 1, wantMainPatch: true},
+		{name: "initial scheduling remains ordinary", initial: true, wantCalls: 1, wantSnapshot: true, wantMainPatch: true},
+		{name: "accepted multi-component result to one component requires explicit recovery", configure: func(_ *policyv1alpha1.Placement, desired *[]workv1alpha2.Component, _ *[]workv1alpha2.TargetComponent, _ *workv1alpha2.ResourceBindingStatus) {
+			*desired = []workv1alpha2.Component{{Name: "worker", Replicas: 6}}
+		}, wantFailed: true},
+		{name: "accepted multi-component result to no components requires explicit recovery", configure: func(_ *policyv1alpha1.Placement, desired *[]workv1alpha2.Component, _ *[]workv1alpha2.TargetComponent, _ *workv1alpha2.ResourceBindingStatus) {
+			*desired = nil
+		}, wantFailed: true},
+	}
+
+	for _, resourceScoped := range []bool{true, false} {
+		for _, tt := range tests {
+			t.Run(fmt.Sprintf("resourceScoped=%t/%s", resourceScoped, tt.name), func(t *testing.T) {
+				runComponentScaleRoutingCase(t, tt, resourceScoped, basePlacement, baseDesired, baseAccepted)
+			})
+		}
+	}
+}
+
+type explicitPendingComponentResultRecoveryCase struct {
+	name           string
+	triggerUnix    int64
+	ordered        bool
+	divided        bool
+	completeResult bool
+	outcome        string
+	wantCalls      int
+	wantError      bool
+	wantMainPatch  bool
+	wantReason     string
+}
+
+type explicitPendingComponentResultRecoveryFixture struct {
+	basePlacement     *policyv1alpha1.Placement
+	desired           []workv1alpha2.Component
+	legacyClusters    []workv1alpha2.TargetCluster
+	recoveredClusters []workv1alpha2.TargetCluster
+}
+
+type explicitPendingComponentResultRecoveryResult struct {
+	spec        workv1alpha2.ResourceBindingSpec
+	annotations map[string]string
+	status      workv1alpha2.ResourceBindingStatus
+	generation  int64
+	actions     []clienttesting.Action
+	scheduleErr error
+}
+
+func TestExplicitPendingComponentResultRecovery(t *testing.T) {
+	defer setFeatureGateDuringTest(t, features.FeatureGate, features.MultiplePodTemplatesScheduling, true)()
+
+	fixture := explicitPendingComponentResultRecoveryFixture{
+		basePlacement: &policyv1alpha1.Placement{SpreadConstraints: []policyv1alpha1.SpreadConstraint{{
+			SpreadByField: policyv1alpha1.SpreadByFieldCluster, MinGroups: 1, MaxGroups: 1,
+		}}},
+		desired:        []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
+		legacyClusters: []workv1alpha2.TargetCluster{{Name: "cluster1"}},
+		recoveredClusters: []workv1alpha2.TargetCluster{{Name: "cluster2", Components: []workv1alpha2.TargetComponent{
+			{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4},
+		}}},
+	}
+
+	tests := []explicitPendingComponentResultRecoveryCase{
+		{name: "valid trigger recovers with full scheduling", triggerUnix: 2, outcome: "success", wantCalls: 1, wantMainPatch: true, wantReason: workv1alpha2.BindingReasonSuccess},
+		{name: "fit error preserves legacy result", triggerUnix: 2, outcome: "fit-error", wantCalls: 1, wantError: true, wantReason: workv1alpha2.BindingReasonNoClusterFit},
+		{name: "invalid result preserves legacy result", triggerUnix: 2, outcome: "invalid-result", wantCalls: 1, wantError: true, wantReason: workv1alpha2.BindingReasonSchedulerError},
+		{name: "divided legacy missing trigger remains fail closed", divided: true, wantReason: workv1alpha2.BindingReasonUnschedulable},
+		{name: "divided legacy stale trigger remains fail closed", triggerUnix: 1, divided: true, wantReason: workv1alpha2.BindingReasonUnschedulable},
+		{name: "ordered affinities with a persisted result remain fail closed", triggerUnix: 2, ordered: true, completeResult: true, wantReason: workv1alpha2.BindingReasonUnschedulable},
+		{name: "divided complete result with missing hash recovers", triggerUnix: 2, divided: true, completeResult: true, outcome: "success", wantCalls: 1, wantMainPatch: true, wantReason: workv1alpha2.BindingReasonSuccess},
+		{name: "divided complete result fit error is preserved", triggerUnix: 2, divided: true, completeResult: true, outcome: "fit-error", wantCalls: 1, wantError: true, wantReason: workv1alpha2.BindingReasonNoClusterFit},
+		{name: "divided complete result without trigger remains fail closed", divided: true, completeResult: true, wantReason: workv1alpha2.BindingReasonUnschedulable},
+	}
+
+	for _, resourceScoped := range []bool{true, false} {
+		for _, tt := range tests {
+			t.Run(fmt.Sprintf("resourceScoped=%t/%s", resourceScoped, tt.name), func(t *testing.T) {
+				runExplicitPendingComponentResultRecoveryCase(t, tt, resourceScoped, fixture)
+			})
+		}
+	}
+}
+
+func TestExplicitRecoveryLeavesMultiComponentResultShape(t *testing.T) {
+	defer setFeatureGateDuringTest(t, features.FeatureGate, features.MultiplePodTemplatesScheduling, true)()
+	placement := &policyv1alpha1.Placement{SpreadConstraints: []policyv1alpha1.SpreadConstraint{{
+		SpreadByField: policyv1alpha1.SpreadByFieldCluster,
+		MinGroups:     1,
+		MaxGroups:     1,
+	}}}
+	placementJSON, err := json.Marshal(placement)
+	assert.NoError(t, err)
+	acceptedDesired := []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}}
+	acceptedClusters := []workv1alpha2.TargetCluster{{Name: "cluster1", Components: []workv1alpha2.TargetComponent{
+		{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4},
+	}}}
+	lastScheduled := metav1.NewTime(time.Unix(1, 0))
+	triggeredAt := metav1.NewTime(time.Unix(2, 0))
+
+	for _, desired := range [][]workv1alpha2.Component{
+		{{Name: "worker", Replicas: 2}},
+		nil,
+	} {
+		for _, resourceScoped := range []bool{true, false} {
+			name := fmt.Sprintf("resourceScoped=%t/desiredComponents=%d", resourceScoped, len(desired))
+			t.Run(name, func(t *testing.T) {
+				annotations := componentSchedulingAnnotations(t, string(placementJSON), acceptedDesired)
+				annotations[acceptedComponentResultGenerationAnnotation] = "2"
+				annotations[acceptedComponentSchedulingSpecHashAnnotation] = "v1:sha256:accepted"
+				status := workv1alpha2.ResourceBindingStatus{
+					SchedulerObservedGeneration: 2,
+					LastScheduledTime:           &lastScheduled,
+					Conditions: []metav1.Condition{
+						util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonSuccess, successfulSchedulingMessage, metav1.ConditionTrue),
+					},
+				}
+				algorithmCalls := 0
+				algorithm := &mockAlgorithm{scheduleFunc: func(_ context.Context, _ *workv1alpha2.ResourceBindingSpec, _ *workv1alpha2.ResourceBindingStatus, option *core.ScheduleAlgorithmOption) (core.ScheduleResult, error) {
+					algorithmCalls++
+					assert.False(t, option.IsMultiComponentScale)
+					assert.False(t, option.ReuseAcceptedComponentTarget)
+					return core.ScheduleResult{SuggestedClusters: []workv1alpha2.TargetCluster{{Name: "cluster2"}}}, nil
+				}}
+				spec := workv1alpha2.ResourceBindingSpec{
+					Placement: placement, Components: desired, Clusters: acceptedClusters, RescheduleTriggeredAt: &triggeredAt,
+				}
+
+				var updatedSpec workv1alpha2.ResourceBindingSpec
+				var updatedAnnotations map[string]string
+				var actions []clienttesting.Action
+				if resourceScoped {
+					binding := &workv1alpha2.ResourceBinding{
+						ObjectMeta: metav1.ObjectMeta{Name: "rb", Namespace: "default", ResourceVersion: "7", Generation: 2, Annotations: annotations},
+						Spec:       spec,
+						Status:     status,
+					}
+					client := karmadafake.NewClientset(binding)
+					s := &Scheduler{KarmadaClient: client, bindingLister: &fakeBindingLister{binding: binding}, clusterLister: testClusterLister(t, "cluster1", "cluster2"), Algorithm: algorithm, eventRecorder: record.NewFakeRecorder(10)}
+					assert.NoError(t, s.doScheduleBinding(binding.Namespace, binding.Name))
+					updated, getErr := client.WorkV1alpha2().ResourceBindings(binding.Namespace).Get(context.Background(), binding.Name, metav1.GetOptions{})
+					assert.NoError(t, getErr)
+					updatedSpec, updatedAnnotations, actions = updated.Spec, updated.Annotations, client.Actions()
+				} else {
+					binding := &workv1alpha2.ClusterResourceBinding{
+						ObjectMeta: metav1.ObjectMeta{Name: "crb", ResourceVersion: "7", Generation: 2, Annotations: annotations},
+						Spec:       spec,
+						Status:     status,
+					}
+					client := karmadafake.NewClientset(binding)
+					s := &Scheduler{KarmadaClient: client, clusterBindingLister: &fakeClusterBindingLister{binding: binding}, clusterLister: testClusterLister(t, "cluster1", "cluster2"), Algorithm: algorithm, eventRecorder: record.NewFakeRecorder(10)}
+					assert.NoError(t, s.doScheduleClusterBinding(binding.Name))
+					updated, getErr := client.WorkV1alpha2().ClusterResourceBindings().Get(context.Background(), binding.Name, metav1.GetOptions{})
+					assert.NoError(t, getErr)
+					updatedSpec, updatedAnnotations, actions = updated.Spec, updated.Annotations, client.Actions()
+				}
+
+				assert.Equal(t, 1, algorithmCalls)
+				assert.Equal(t, []workv1alpha2.TargetCluster{{Name: "cluster2"}}, updatedSpec.Clusters)
+				assert.NotContains(t, updatedAnnotations, util.AcceptedComponentRequirementsHashAnnotation)
+				assert.NotContains(t, updatedAnnotations, acceptedComponentResultGenerationAnnotation)
+				assert.NotContains(t, updatedAnnotations, acceptedComponentSchedulingSpecHashAnnotation)
+				assert.Len(t, filterMainResourcePatches(actions), 1)
+			})
+		}
+	}
+}
+
+func runExplicitPendingComponentResultRecoveryCase(t *testing.T, tt explicitPendingComponentResultRecoveryCase, resourceScoped bool, fixture explicitPendingComponentResultRecoveryFixture) {
+	t.Helper()
+	placement, initialClusters, status, annotations, rescheduleTriggeredAt := prepareExplicitPendingComponentResultRecoveryCase(t, tt, fixture)
+	algorithmCalls := 0
+	algorithm := explicitPendingComponentResultRecoveryAlgorithm(t, tt, fixture.recoveredClusters, &algorithmCalls)
+	recorder := record.NewFakeRecorder(10)
+	result := runExplicitPendingComponentResultRecoveryScheduling(t, tt, resourceScoped, fixture.desired, placement, initialClusters, status, annotations, rescheduleTriggeredAt, algorithm, recorder)
+	assertExplicitPendingComponentResultRecovery(t, tt, fixture.recoveredClusters, initialClusters, algorithmCalls, recorder, result)
+}
+
+func prepareExplicitPendingComponentResultRecoveryCase(t *testing.T, tt explicitPendingComponentResultRecoveryCase, fixture explicitPendingComponentResultRecoveryFixture) (*policyv1alpha1.Placement, []workv1alpha2.TargetCluster, workv1alpha2.ResourceBindingStatus, map[string]string, *metav1.Time) {
+	t.Helper()
+	placement := fixture.basePlacement.DeepCopy()
+	initialClusters := fixture.legacyClusters
+	if tt.divided {
+		placement.ReplicaScheduling = &policyv1alpha1.ReplicaSchedulingStrategy{ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDivided}
+	}
+	if tt.completeResult {
+		initialClusters = []workv1alpha2.TargetCluster{{Name: "cluster1", Components: fixture.recoveredClusters[0].Components}}
+	}
+	lastScheduled := metav1.NewTime(time.Unix(1, 0))
+	status := workv1alpha2.ResourceBindingStatus{
+		SchedulerObservedGeneration: 2,
+		LastScheduledTime:           &lastScheduled,
+		Conditions: []metav1.Condition{
+			util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonSuccess, successfulSchedulingMessage, metav1.ConditionTrue),
+		},
+	}
+	if tt.ordered {
+		placement.ClusterAffinities = []policyv1alpha1.ClusterAffinityTerm{{AffinityName: "primary"}}
+		status.SchedulerObservedAffinityName = "primary"
+	}
+	placementJSON, err := json.Marshal(placement)
+	assert.NoError(t, err)
+	annotations := map[string]string{util.PolicyPlacementAnnotation: string(placementJSON)}
+	var rescheduleTriggeredAt *metav1.Time
+	if tt.triggerUnix != 0 {
+		triggeredAt := metav1.NewTime(time.Unix(tt.triggerUnix, 0))
+		rescheduleTriggeredAt = &triggeredAt
+	}
+	return placement, initialClusters, status, annotations, rescheduleTriggeredAt
+}
+
+func explicitPendingComponentResultRecoveryAlgorithm(t *testing.T, tt explicitPendingComponentResultRecoveryCase, recoveredClusters []workv1alpha2.TargetCluster, algorithmCalls *int) *mockAlgorithm {
+	t.Helper()
+	return &mockAlgorithm{scheduleFunc: func(_ context.Context, _ *workv1alpha2.ResourceBindingSpec, _ *workv1alpha2.ResourceBindingStatus, option *core.ScheduleAlgorithmOption) (core.ScheduleResult, error) {
+		(*algorithmCalls)++
+		if assert.NotNil(t, option) {
+			assert.False(t, option.IsMultiComponentScale)
+		}
+		switch tt.outcome {
+		case "success":
+			return core.ScheduleResult{SuggestedClusters: recoveredClusters}, nil
+		case "fit-error":
+			return core.ScheduleResult{}, &framework.FitError{}
+		case "invalid-result":
+			return core.ScheduleResult{SuggestedClusters: []workv1alpha2.TargetCluster{{
+				Name:       "cluster2",
+				Components: recoveredClusters[0].Components[:1],
+			}}}, nil
+		default:
+			t.Errorf("algorithm called for fail-closed case %q", tt.name)
+			return core.ScheduleResult{}, errors.New("unexpected algorithm call")
+		}
+	}}
+}
+
+func runExplicitPendingComponentResultRecoveryScheduling(t *testing.T, tt explicitPendingComponentResultRecoveryCase, resourceScoped bool, desired []workv1alpha2.Component, placement *policyv1alpha1.Placement, initialClusters []workv1alpha2.TargetCluster, status workv1alpha2.ResourceBindingStatus, annotations map[string]string, rescheduleTriggeredAt *metav1.Time, algorithm *mockAlgorithm, recorder *record.FakeRecorder) explicitPendingComponentResultRecoveryResult {
+	t.Helper()
+	if resourceScoped {
+		binding := &workv1alpha2.ResourceBinding{
+			ObjectMeta: metav1.ObjectMeta{Name: "rb", Namespace: "default", ResourceVersion: "7", Generation: 2, Annotations: annotations},
+			Spec: workv1alpha2.ResourceBindingSpec{
+				Placement: placement, Components: desired, Clusters: initialClusters, RescheduleTriggeredAt: rescheduleTriggeredAt,
+			},
+			Status: status,
+		}
+		client := karmadafake.NewClientset(binding)
+		if tt.wantMainPatch {
+			simulateGenerationIncrementOnMainPatch(client, "resourcebindings", 3, "8")
+		}
+		s := &Scheduler{KarmadaClient: client, bindingLister: &fakeBindingLister{binding: binding}, clusterLister: testClusterLister(t, "cluster1", "cluster2"), Algorithm: algorithm, eventRecorder: recorder}
+		scheduleErr := s.doScheduleBinding(binding.Namespace, binding.Name)
+		updated, getErr := client.WorkV1alpha2().ResourceBindings(binding.Namespace).Get(context.Background(), binding.Name, metav1.GetOptions{})
+		assert.NoError(t, getErr)
+		return explicitPendingComponentResultRecoveryResult{updated.Spec, updated.Annotations, updated.Status, updated.Generation, client.Actions(), scheduleErr}
+	}
+
+	binding := &workv1alpha2.ClusterResourceBinding{
+		ObjectMeta: metav1.ObjectMeta{Name: "crb", ResourceVersion: "7", Generation: 2, Annotations: annotations},
+		Spec: workv1alpha2.ResourceBindingSpec{
+			Placement: placement, Components: desired, Clusters: initialClusters, RescheduleTriggeredAt: rescheduleTriggeredAt,
+		},
+		Status: status,
+	}
+	client := karmadafake.NewClientset(binding)
+	if tt.wantMainPatch {
+		simulateGenerationIncrementOnMainPatch(client, "clusterresourcebindings", 3, "8")
+	}
+	s := &Scheduler{KarmadaClient: client, clusterBindingLister: &fakeClusterBindingLister{binding: binding}, clusterLister: testClusterLister(t, "cluster1", "cluster2"), Algorithm: algorithm, eventRecorder: recorder}
+	scheduleErr := s.doScheduleClusterBinding(binding.Name)
+	updated, getErr := client.WorkV1alpha2().ClusterResourceBindings().Get(context.Background(), binding.Name, metav1.GetOptions{})
+	assert.NoError(t, getErr)
+	return explicitPendingComponentResultRecoveryResult{updated.Spec, updated.Annotations, updated.Status, updated.Generation, client.Actions(), scheduleErr}
+}
+
+func assertExplicitPendingComponentResultRecovery(t *testing.T, tt explicitPendingComponentResultRecoveryCase, recoveredClusters, initialClusters []workv1alpha2.TargetCluster, algorithmCalls int, recorder *record.FakeRecorder, result explicitPendingComponentResultRecoveryResult) {
+	t.Helper()
+	assert.Equal(t, tt.wantCalls, algorithmCalls)
+	assert.Equal(t, tt.wantError, result.scheduleErr != nil)
+	patches := filterMainResourcePatches(result.actions)
+	assert.Equal(t, tt.wantMainPatch, len(patches) == 1)
+	if tt.wantMainPatch {
+		assert.Equal(t, recoveredClusters, result.spec.Clusters)
+		assert.Equal(t, int64(3), result.generation)
+		assert.Equal(t, int64(3), result.status.SchedulerObservedGeneration)
+		assertAcceptedComponentRequirementsHash(t, &result.spec, result.annotations, false)
+		assert.Equal(t, "3", result.annotations[acceptedComponentResultGenerationAnnotation])
+		assert.Regexp(t, `^v1:sha256:[0-9a-f]{64}$`, result.annotations[acceptedComponentSchedulingSpecHashAnnotation])
+		assert.True(t, isAcceptedComponentSchedulingSpecHashMatched(&result.spec, result.annotations))
+		assert.False(t, util.RescheduleRequired(result.spec.RescheduleTriggeredAt, result.status.LastScheduledTime))
+		assertPatchResourceVersion(t, patches[0], "7")
+	} else {
+		assert.Equal(t, initialClusters, result.spec.Clusters)
+		assert.Equal(t, int64(2), result.generation)
+		assert.Empty(t, result.annotations[util.AcceptedComponentRequirementsHashAnnotation])
+		assert.Empty(t, result.annotations[acceptedComponentResultGenerationAnnotation])
+		assert.Empty(t, result.annotations[acceptedComponentSchedulingSpecHashAnnotation])
+	}
+	if assert.NotEmpty(t, result.status.Conditions) {
+		assert.Equal(t, tt.wantReason, result.status.Conditions[0].Reason)
+		assert.Equal(t, tt.wantMainPatch, result.status.Conditions[0].Status == metav1.ConditionTrue)
+	}
+	assert.Len(t, recorder.Events, 2)
+}
+
+func runComponentScaleRoutingCase(t *testing.T, tt componentScaleRoutingCase, resourceScoped bool, basePlacement *policyv1alpha1.Placement, baseDesired []workv1alpha2.Component, baseAccepted []workv1alpha2.TargetComponent) {
+	t.Helper()
+	placement := basePlacement.DeepCopy()
+	desired := append([]workv1alpha2.Component(nil), baseDesired...)
+	accepted := append([]workv1alpha2.TargetComponent(nil), baseAccepted...)
+	status := workv1alpha2.ResourceBindingStatus{}
+	if tt.configure != nil {
+		tt.configure(placement, &desired, &accepted, &status)
+	}
+	rescheduleTriggeredAt, annotations, oldClusters := prepareComponentRoutingState(t, tt, placement, basePlacement, baseDesired, accepted)
+
+	observation := &componentScaleRoutingObservation{}
+	algorithm := newComponentScaleRoutingAlgorithm(tt, observation)
+	clusterLister := testClusterLister(t, "cluster1")
+	if tt.missingTarget {
+		clusterLister = testClusterLister(t)
+	}
+	recorder := record.NewFakeRecorder(10)
+	if resourceScoped {
+		binding := &workv1alpha2.ResourceBinding{ObjectMeta: metav1.ObjectMeta{Name: "rb", Namespace: "default", ResourceVersion: "7", Generation: 2, Annotations: annotations}, Spec: workv1alpha2.ResourceBindingSpec{Placement: placement, Components: desired, Clusters: oldClusters, RescheduleTriggeredAt: rescheduleTriggeredAt}, Status: status}
+		client := karmadafake.NewClientset(binding)
+		s := &Scheduler{KarmadaClient: client, bindingLister: &fakeBindingLister{binding: binding}, clusterLister: clusterLister, Algorithm: algorithm, eventRecorder: recorder}
+		scheduleErr := s.doScheduleBinding(binding.Namespace, binding.Name)
+		assert.Equal(t, tt.fitError, scheduleErr != nil)
+		updated, getErr := client.WorkV1alpha2().ResourceBindings(binding.Namespace).Get(context.Background(), binding.Name, metav1.GetOptions{})
+		assert.NoError(t, getErr)
+		assertComponentScaleRoutingResult(t, updated.Spec.Clusters, updated.Status.Conditions, oldClusters, desired, tt.wantFailed, tt.wantReason, tt.wantSnapshot, tt.missingTarget)
+		assertAcceptedComponentRequirementsHash(t, &updated.Spec, updated.Annotations, tt.wantFailed)
+		if tt.wantMetadata {
+			assert.NotEmpty(t, updated.Annotations[acceptedComponentResultGenerationAnnotation])
+			assert.True(t, isAcceptedComponentSchedulingSpecHashMatched(&updated.Spec, updated.Annotations))
+		}
+		assertComponentRoutingPatches(t, client.Actions(), tt.wantMainPatch)
+	} else {
+		binding := &workv1alpha2.ClusterResourceBinding{ObjectMeta: metav1.ObjectMeta{Name: "crb", ResourceVersion: "7", Generation: 2, Annotations: annotations}, Spec: workv1alpha2.ResourceBindingSpec{Placement: placement, Components: desired, Clusters: oldClusters, RescheduleTriggeredAt: rescheduleTriggeredAt}, Status: status}
+		client := karmadafake.NewClientset(binding)
+		s := &Scheduler{KarmadaClient: client, clusterBindingLister: &fakeClusterBindingLister{binding: binding}, clusterLister: clusterLister, Algorithm: algorithm, eventRecorder: recorder}
+		scheduleErr := s.doScheduleClusterBinding(binding.Name)
+		assert.Equal(t, tt.fitError, scheduleErr != nil)
+		updated, getErr := client.WorkV1alpha2().ClusterResourceBindings().Get(context.Background(), binding.Name, metav1.GetOptions{})
+		assert.NoError(t, getErr)
+		assertComponentScaleRoutingResult(t, updated.Spec.Clusters, updated.Status.Conditions, oldClusters, desired, tt.wantFailed, tt.wantReason, tt.wantSnapshot, tt.missingTarget)
+		assertAcceptedComponentRequirementsHash(t, &updated.Spec, updated.Annotations, tt.wantFailed)
+		if tt.wantMetadata {
+			assert.NotEmpty(t, updated.Annotations[acceptedComponentResultGenerationAnnotation])
+			assert.True(t, isAcceptedComponentSchedulingSpecHashMatched(&updated.Spec, updated.Annotations))
+		}
+		assertComponentRoutingPatches(t, client.Actions(), tt.wantMainPatch)
+	}
+	assert.Equal(t, tt.wantCalls, observation.algorithmCalls)
+	assert.Equal(t, tt.wantScale, observation.scaleOption)
+	assert.Equal(t, tt.wantReuseAccepted, observation.reuseAcceptedOption)
+	if tt.wantFailed {
+		assert.Len(t, recorder.Events, 2)
+		for range 2 {
+			assert.Contains(t, <-recorder.Events, "Warning ScheduleBindingFailed")
+		}
+	}
+}
+
+func newComponentScaleRoutingAlgorithm(tt componentScaleRoutingCase, observation *componentScaleRoutingObservation) *mockAlgorithm {
+	return &mockAlgorithm{scheduleFunc: func(_ context.Context, spec *workv1alpha2.ResourceBindingSpec, _ *workv1alpha2.ResourceBindingStatus, option *core.ScheduleAlgorithmOption) (core.ScheduleResult, error) {
+		observation.algorithmCalls++
+		observation.scaleOption = option.IsMultiComponentScale
+		observation.reuseAcceptedOption = option.ReuseAcceptedComponentTarget
+		if tt.fitError {
+			return core.ScheduleResult{}, &framework.FitError{}
+		}
+		components := make([]workv1alpha2.TargetComponent, len(spec.Components))
+		for i := range spec.Components {
+			components[i] = workv1alpha2.TargetComponent{Name: spec.Components[i].Name, Replicas: spec.Components[i].Replicas}
+		}
+		switch {
+		case tt.missingTarget:
+			return core.ScheduleResult{SuggestedClusters: []workv1alpha2.TargetCluster{{Name: "cluster2", Components: components}}}, nil
+		case tt.initial || option.IsMultiComponentScale || tt.explicitReschedule && util.IsMultiTemplateSchedulingApplicable(spec):
+			return core.ScheduleResult{SuggestedClusters: []workv1alpha2.TargetCluster{{Name: "cluster1", Components: components}}}, nil
+		case tt.explicitReschedule:
+			return core.ScheduleResult{SuggestedClusters: []workv1alpha2.TargetCluster{{Name: "cluster1"}}}, nil
+		default:
+			return core.ScheduleResult{SuggestedClusters: spec.Clusters}, nil
+		}
+	}}
+}
+
+func prepareComponentRoutingState(t *testing.T, tt componentScaleRoutingCase, placement, basePlacement *policyv1alpha1.Placement, baseDesired []workv1alpha2.Component, accepted []workv1alpha2.TargetComponent) (*metav1.Time, map[string]string, []workv1alpha2.TargetCluster) {
+	t.Helper()
+	var rescheduleTriggeredAt *metav1.Time
+	if tt.explicitReschedule {
+		triggeredAt := metav1.NewTime(time.Unix(2, 0))
+		rescheduleTriggeredAt = &triggeredAt
+	}
+	appliedPlacement := placement
+	if tt.placementMismatch {
+		appliedPlacement = &policyv1alpha1.Placement{}
+	} else if tt.legacyPlacement {
+		appliedPlacement = basePlacement.DeepCopy()
+	}
+	placementJSON, err := json.Marshal(appliedPlacement)
+	assert.NoError(t, err)
+	annotations := componentSchedulingAnnotations(t, string(placementJSON), baseDesired)
+	oldClusters := []workv1alpha2.TargetCluster{{Name: "cluster1", Components: accepted}}
+	if len(accepted) == 0 {
+		delete(annotations, util.AcceptedComponentRequirementsHashAnnotation)
+	}
+	if tt.initial {
+		oldClusters = nil
+		delete(annotations, util.AcceptedComponentRequirementsHashAnnotation)
+	}
+	return rescheduleTriggeredAt, annotations, oldClusters
+}
+
+func assertAcceptedComponentRequirementsHash(t *testing.T, spec *workv1alpha2.ResourceBindingSpec, annotations map[string]string, rejected bool) {
+	t.Helper()
+	if rejected || !util.IsBindingComponentsAccepted(spec) {
+		return
+	}
+	want, err := util.GenerateComponentRequirementsHash(spec.Components)
+	assert.NoError(t, err)
+	assert.Equal(t, want, annotations[util.AcceptedComponentRequirementsHashAnnotation])
+}
+
+func TestSetAcceptedComponentMetadataRemovesStaleValues(t *testing.T) {
+	defer setFeatureGateDuringTest(t, features.FeatureGate, features.MultiplePodTemplatesScheduling, true)()
+	spec := &workv1alpha2.ResourceBindingSpec{
+		Placement: &policyv1alpha1.Placement{SpreadConstraints: []policyv1alpha1.SpreadConstraint{{
+			SpreadByField: policyv1alpha1.SpreadByFieldCluster, MinGroups: 1, MaxGroups: 2,
+		}}},
+		Components: []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
+		Clusters:   []workv1alpha2.TargetCluster{{Name: "cluster1"}},
+	}
+	annotations := map[string]string{
+		util.AcceptedComponentRequirementsHashAnnotation: "v1:sha256:old-requirements",
+		acceptedComponentResultGenerationAnnotation:      "7",
+		acceptedComponentSchedulingSpecHashAnnotation:    "v1:sha256:old-spec",
+		util.ResourceTemplateSpecificationHashAnnotation: "v1:sha256:source",
+	}
+
+	assert.NoError(t, setAcceptedComponentRequirementsHash(spec, annotations))
+	assert.NoError(t, setAcceptedComponentResultMetadata(spec, annotations, 7, nil))
+	assert.NotContains(t, annotations, util.AcceptedComponentRequirementsHashAnnotation)
+	assert.NotContains(t, annotations, acceptedComponentResultGenerationAnnotation)
+	assert.NotContains(t, annotations, acceptedComponentSchedulingSpecHashAnnotation)
+	assert.Equal(t, "v1:sha256:source", annotations[util.ResourceTemplateSpecificationHashAnnotation])
+}
+
+func assertComponentRoutingPatches(t *testing.T, actions []clienttesting.Action, wantMainPatch bool) {
+	t.Helper()
+	patches := filterMainResourcePatches(actions)
+	if !assert.Equal(t, wantMainPatch, len(patches) == 1) {
+		return
+	}
+	if wantMainPatch && assert.NotEmpty(t, patches) {
+		assertPatchResourceVersion(t, patches[0], "7")
+	}
+}
+
+func assertComponentScaleRoutingResult(t *testing.T, gotClusters []workv1alpha2.TargetCluster, conditions []metav1.Condition, oldClusters []workv1alpha2.TargetCluster, desired []workv1alpha2.Component, wantFailed bool, wantReason string, wantSnapshot, missingTarget bool) {
+	t.Helper()
+	if wantFailed {
+		assert.Equal(t, oldClusters, gotClusters)
+		if assert.NotEmpty(t, conditions) {
+			assert.Equal(t, metav1.ConditionFalse, conditions[0].Status)
+			if wantReason == "" {
+				wantReason = workv1alpha2.BindingReasonUnschedulable
+			}
+			assert.Equal(t, wantReason, conditions[0].Reason)
+		}
+	}
+	if wantSnapshot {
+		if assert.Len(t, gotClusters, 1) {
+			assert.Equal(t, "cluster1", gotClusters[0].Name)
+			wantComponents := make([]workv1alpha2.TargetComponent, len(desired))
+			for i := range desired {
+				wantComponents[i] = workv1alpha2.TargetComponent{Name: desired[i].Name, Replicas: desired[i].Replicas}
+			}
+			assert.Equal(t, wantComponents, gotClusters[0].Components)
+		}
+	}
+	if missingTarget && assert.NotEmpty(t, gotClusters) {
+		assert.Equal(t, "cluster2", gotClusters[0].Name)
+	}
+}
+
+func TestStaleAcceptedComponentResultGenerationUsesNormalScheduling(t *testing.T) {
+	defer setFeatureGateDuringTest(t, features.FeatureGate, features.MultiplePodTemplatesScheduling, true)()
+	placement := &policyv1alpha1.Placement{SpreadConstraints: []policyv1alpha1.SpreadConstraint{{
+		SpreadByField: policyv1alpha1.SpreadByFieldCluster, MinGroups: 1, MaxGroups: 1,
+	}}}
+	placementJSON, err := json.Marshal(placement)
+	assert.NoError(t, err)
+	components := []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}}
+	clusters := []workv1alpha2.TargetCluster{{Name: "cluster1", Components: []workv1alpha2.TargetComponent{
+		{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4},
+	}}}
+
+	for _, resourceScoped := range []bool{true, false} {
+		t.Run(fmt.Sprintf("resourceScoped=%t", resourceScoped), func(t *testing.T) {
+			algorithmCalls := 0
+			algorithm := &mockAlgorithm{scheduleFunc: func(_ context.Context, spec *workv1alpha2.ResourceBindingSpec, _ *workv1alpha2.ResourceBindingStatus, _ *core.ScheduleAlgorithmOption) (core.ScheduleResult, error) {
+				algorithmCalls++
+				assert.Equal(t, "app=frontend", spec.WorkloadAffinityGroups.AffinityGroup)
+				return core.ScheduleResult{SuggestedClusters: spec.Clusters}, nil
+			}}
+			annotations := componentSchedulingAnnotations(t, string(placementJSON), components)
+			annotations[acceptedComponentResultGenerationAnnotation] = "1"
+			status := workv1alpha2.ResourceBindingStatus{
+				SchedulerObservedGeneration: 1,
+				Conditions: []metav1.Condition{
+					util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonSuccess, successfulSchedulingMessage, metav1.ConditionTrue),
+				},
+			}
+			spec := workv1alpha2.ResourceBindingSpec{
+				Placement:              placement,
+				Components:             components,
+				Clusters:               clusters,
+				WorkloadAffinityGroups: &workv1alpha2.WorkloadAffinityGroups{AffinityGroup: "app=frontend"},
+			}
+			acceptedSpec := spec.DeepCopy()
+			acceptedSpec.WorkloadAffinityGroups = nil
+			acceptedSpecHash, hashErr := generateAcceptedComponentSchedulingSpecHash(acceptedSpec)
+			assert.NoError(t, hashErr)
+			annotations[acceptedComponentSchedulingSpecHashAnnotation] = acceptedSpecHash
+			if resourceScoped {
+				binding := &workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{Name: "rb", Namespace: "default", Generation: 2, Annotations: annotations},
+					Spec:       spec,
+					Status:     status,
+				}
+				client := karmadafake.NewClientset(binding)
+				s := &Scheduler{KarmadaClient: client, bindingLister: &fakeBindingLister{binding: binding}, clusterLister: testClusterLister(t, "cluster1"), Algorithm: algorithm, eventRecorder: record.NewFakeRecorder(10)}
+				assert.NoError(t, s.doScheduleBinding(binding.Namespace, binding.Name))
+				updated, getErr := client.WorkV1alpha2().ResourceBindings(binding.Namespace).Get(context.Background(), binding.Name, metav1.GetOptions{})
+				assert.NoError(t, getErr)
+				assert.Equal(t, int64(2), updated.Status.SchedulerObservedGeneration)
+				assert.Equal(t, metav1.ConditionTrue, updated.Status.Conditions[0].Status)
+				assert.Equal(t, clusters, updated.Spec.Clusters)
+				assert.Equal(t, "2", updated.Annotations[acceptedComponentResultGenerationAnnotation])
+			} else {
+				binding := &workv1alpha2.ClusterResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{Name: "crb", Generation: 2, Annotations: annotations},
+					Spec:       spec,
+					Status:     status,
+				}
+				client := karmadafake.NewClientset(binding)
+				s := &Scheduler{KarmadaClient: client, clusterBindingLister: &fakeClusterBindingLister{binding: binding}, clusterLister: testClusterLister(t, "cluster1"), Algorithm: algorithm, eventRecorder: record.NewFakeRecorder(10)}
+				assert.NoError(t, s.doScheduleClusterBinding(binding.Name))
+				updated, getErr := client.WorkV1alpha2().ClusterResourceBindings().Get(context.Background(), binding.Name, metav1.GetOptions{})
+				assert.NoError(t, getErr)
+				assert.Equal(t, int64(2), updated.Status.SchedulerObservedGeneration)
+				assert.Equal(t, metav1.ConditionTrue, updated.Status.Conditions[0].Status)
+				assert.Equal(t, clusters, updated.Spec.Clusters)
+				assert.Equal(t, "2", updated.Annotations[acceptedComponentResultGenerationAnnotation])
+			}
+			assert.Equal(t, 1, algorithmCalls)
+		})
+	}
+}
+
+func TestAcceptedComponentStatusRetryUsesPersistedResultGeneration(t *testing.T) {
+	defer setFeatureGateDuringTest(t, features.FeatureGate, features.MultiplePodTemplatesScheduling, true)()
+	const (
+		initialGeneration = int64(2)
+		patchedGeneration = int64(3)
+	)
+	placement := &policyv1alpha1.Placement{SpreadConstraints: []policyv1alpha1.SpreadConstraint{{
+		SpreadByField: policyv1alpha1.SpreadByFieldCluster, MinGroups: 1, MaxGroups: 1,
+	}}}
+	placementJSON, err := json.Marshal(placement)
+	assert.NoError(t, err)
+	desired := []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 6}}
+	accepted := []workv1alpha2.TargetCluster{{Name: "cluster1", Components: []workv1alpha2.TargetComponent{
+		{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4},
+	}}}
+	scheduled := []workv1alpha2.TargetCluster{{Name: "cluster1", Components: []workv1alpha2.TargetComponent{
+		{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 6},
+	}}}
+
+	for _, resourceScoped := range []bool{true, false} {
+		t.Run(fmt.Sprintf("resourceScoped=%t", resourceScoped), func(t *testing.T) {
+			algorithmCalls := 0
+			algorithm := &mockAlgorithm{scheduleFunc: func(_ context.Context, _ *workv1alpha2.ResourceBindingSpec, _ *workv1alpha2.ResourceBindingStatus, _ *core.ScheduleAlgorithmOption) (core.ScheduleResult, error) {
+				algorithmCalls++
+				return core.ScheduleResult{SuggestedClusters: scheduled}, nil
+			}}
+			annotations := componentSchedulingAnnotations(t, string(placementJSON), desired)
+			annotations[acceptedComponentResultGenerationAnnotation] = "1"
+			status := workv1alpha2.ResourceBindingStatus{
+				SchedulerObservedGeneration: 1,
+				Conditions: []metav1.Condition{
+					util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonSuccess, successfulSchedulingMessage, metav1.ConditionTrue),
+				},
+			}
+			if resourceScoped {
+				binding := &workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{Name: "rb", Namespace: "default", ResourceVersion: "7", Generation: initialGeneration, Annotations: annotations},
+					Spec:       workv1alpha2.ResourceBindingSpec{Placement: placement, Components: desired, Clusters: accepted},
+					Status:     status,
+				}
+				client := karmadafake.NewClientset(binding)
+				simulateGenerationIncrementOnMainPatch(client, "resourcebindings", patchedGeneration, "8")
+				failNextStatusPatch(t, client, "resourcebindings", "8")
+				s := &Scheduler{KarmadaClient: client, bindingLister: &fakeBindingLister{binding: binding}, clusterLister: testClusterLister(t, "cluster1"), Algorithm: algorithm, eventRecorder: record.NewFakeRecorder(10)}
+				assert.EqualError(t, s.doScheduleBinding(binding.Namespace, binding.Name), "injected status patch failure")
+				persisted, getErr := client.WorkV1alpha2().ResourceBindings(binding.Namespace).Get(context.Background(), binding.Name, metav1.GetOptions{})
+				assert.NoError(t, getErr)
+				assert.Equal(t, patchedGeneration, persisted.Generation)
+				assert.Equal(t, "8", persisted.ResourceVersion)
+				assert.Equal(t, int64(1), persisted.Status.SchedulerObservedGeneration)
+				assert.Equal(t, "3", persisted.Annotations[acceptedComponentResultGenerationAnnotation])
+				assert.Equal(t, scheduled, persisted.Spec.Clusters)
+
+				s.bindingLister = &fakeBindingLister{binding: persisted}
+				assert.NoError(t, s.doScheduleBinding(binding.Namespace, binding.Name))
+				updated, getErr := client.WorkV1alpha2().ResourceBindings(binding.Namespace).Get(context.Background(), binding.Name, metav1.GetOptions{})
+				assert.NoError(t, getErr)
+				assert.Equal(t, patchedGeneration, updated.Status.SchedulerObservedGeneration)
+				assert.Equal(t, metav1.ConditionTrue, updated.Status.Conditions[0].Status)
+				assertScalePatches(t, client.Actions(), true, "7")
+			} else {
+				binding := &workv1alpha2.ClusterResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{Name: "crb", ResourceVersion: "7", Generation: initialGeneration, Annotations: annotations},
+					Spec:       workv1alpha2.ResourceBindingSpec{Placement: placement, Components: desired, Clusters: accepted},
+					Status:     status,
+				}
+				client := karmadafake.NewClientset(binding)
+				simulateGenerationIncrementOnMainPatch(client, "clusterresourcebindings", patchedGeneration, "8")
+				failNextStatusPatch(t, client, "clusterresourcebindings", "8")
+				s := &Scheduler{KarmadaClient: client, clusterBindingLister: &fakeClusterBindingLister{binding: binding}, clusterLister: testClusterLister(t, "cluster1"), Algorithm: algorithm, eventRecorder: record.NewFakeRecorder(10)}
+				assert.EqualError(t, s.doScheduleClusterBinding(binding.Name), "injected status patch failure")
+				persisted, getErr := client.WorkV1alpha2().ClusterResourceBindings().Get(context.Background(), binding.Name, metav1.GetOptions{})
+				assert.NoError(t, getErr)
+				assert.Equal(t, patchedGeneration, persisted.Generation)
+				assert.Equal(t, "8", persisted.ResourceVersion)
+				assert.Equal(t, int64(1), persisted.Status.SchedulerObservedGeneration)
+				assert.Equal(t, "3", persisted.Annotations[acceptedComponentResultGenerationAnnotation])
+				assert.Equal(t, scheduled, persisted.Spec.Clusters)
+
+				s.clusterBindingLister = &fakeClusterBindingLister{binding: persisted}
+				assert.NoError(t, s.doScheduleClusterBinding(binding.Name))
+				updated, getErr := client.WorkV1alpha2().ClusterResourceBindings().Get(context.Background(), binding.Name, metav1.GetOptions{})
+				assert.NoError(t, getErr)
+				assert.Equal(t, patchedGeneration, updated.Status.SchedulerObservedGeneration)
+				assert.Equal(t, metav1.ConditionTrue, updated.Status.Conditions[0].Status)
+				assertScalePatches(t, client.Actions(), true, "7")
+			}
+			assert.Equal(t, 1, algorithmCalls)
+		})
+	}
+}
+
+func TestAcceptedComponentStatusRepairAfterConfigOnlyGenerationChange(t *testing.T) {
+	defer setFeatureGateDuringTest(t, features.FeatureGate, features.MultiplePodTemplatesScheduling, true)()
+	placement := &policyv1alpha1.Placement{
+		ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDivided},
+		SpreadConstraints: []policyv1alpha1.SpreadConstraint{{
+			SpreadByField: policyv1alpha1.SpreadByFieldCluster, MinGroups: 1, MaxGroups: 1,
+		}},
+	}
+	placementJSON, err := json.Marshal(placement)
+	assert.NoError(t, err)
+	components := []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}}
+	scheduled := []workv1alpha2.TargetCluster{{Name: "cluster1", Components: []workv1alpha2.TargetComponent{
+		{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4},
+	}}}
+	failureCondition := util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonNoClusterFit, "failure from an earlier schedule", metav1.ConditionFalse)
+	tests := []struct {
+		name       string
+		conditions []metav1.Condition
+	}{
+		{name: "missing condition"},
+		{name: "unrelated old failure", conditions: []metav1.Condition{failureCondition}},
+	}
+
+	for _, resourceScoped := range []bool{true, false} {
+		for _, tt := range tests {
+			t.Run(fmt.Sprintf("resourceScoped=%t/%s", resourceScoped, tt.name), func(t *testing.T) {
+				algorithmCalls := 0
+				algorithm := &mockAlgorithm{scheduleFunc: func(_ context.Context, _ *workv1alpha2.ResourceBindingSpec, _ *workv1alpha2.ResourceBindingStatus, option *core.ScheduleAlgorithmOption) (core.ScheduleResult, error) {
+					algorithmCalls++
+					assert.False(t, option.IsMultiComponentScale)
+					return core.ScheduleResult{SuggestedClusters: scheduled}, nil
+				}}
+				annotations := map[string]string{util.PolicyPlacementAnnotation: string(placementJSON)}
+				status := workv1alpha2.ResourceBindingStatus{Conditions: append([]metav1.Condition(nil), tt.conditions...)}
+				spec := workv1alpha2.ResourceBindingSpec{
+					Resource:   workv1alpha2.ObjectReference{APIVersion: "flink.apache.org/v1beta1", Kind: "FlinkDeployment", Name: "flink", ResourceVersion: "workload-rv-1"},
+					Placement:  placement,
+					Components: components,
+				}
+
+				var (
+					actions []clienttesting.Action
+					updated workv1alpha2.ResourceBindingStatus
+				)
+				if resourceScoped {
+					binding := &workv1alpha2.ResourceBinding{
+						ObjectMeta: metav1.ObjectMeta{Name: "rb", Namespace: "default", ResourceVersion: "7", Generation: 2, Annotations: annotations},
+						Spec:       spec,
+						Status:     status,
+					}
+					client := karmadafake.NewClientset(binding)
+					simulateGenerationIncrementOnMainPatch(client, "resourcebindings", 3, "8")
+					simulateConcurrentConfigOnlyUpdateOnNextStatusPatch(t, client, "resourcebindings", "8", "9", 4)
+					s := &Scheduler{KarmadaClient: client, bindingLister: &fakeBindingLister{binding: binding}, clusterLister: testClusterLister(t, "cluster1"), Algorithm: algorithm, eventRecorder: record.NewFakeRecorder(10)}
+					firstErr := s.doScheduleBinding(binding.Namespace, binding.Name)
+					assert.True(t, apierrors.IsConflict(firstErr), "expected resourceVersion conflict, got %v", firstErr)
+					persisted, getErr := client.WorkV1alpha2().ResourceBindings(binding.Namespace).Get(context.Background(), binding.Name, metav1.GetOptions{})
+					assert.NoError(t, getErr)
+					assert.Equal(t, int64(4), persisted.Generation)
+					assert.Equal(t, "workload-rv-2", persisted.Spec.Resource.ResourceVersion)
+					assert.Equal(t, int64(0), persisted.Status.SchedulerObservedGeneration)
+					assert.Equal(t, tt.conditions, persisted.Status.Conditions)
+					assert.Equal(t, "3", persisted.Annotations[acceptedComponentResultGenerationAnnotation])
+					assert.True(t, isAcceptedComponentSchedulingSpecHashMatched(&persisted.Spec, persisted.Annotations))
+
+					s.bindingLister = &fakeBindingLister{binding: persisted}
+					assert.NoError(t, s.doScheduleBinding(binding.Namespace, binding.Name))
+					result, getErr := client.WorkV1alpha2().ResourceBindings(binding.Namespace).Get(context.Background(), binding.Name, metav1.GetOptions{})
+					assert.NoError(t, getErr)
+					updated, actions = result.Status, client.Actions()
+				} else {
+					binding := &workv1alpha2.ClusterResourceBinding{
+						ObjectMeta: metav1.ObjectMeta{Name: "crb", ResourceVersion: "7", Generation: 2, Annotations: annotations},
+						Spec:       spec,
+						Status:     status,
+					}
+					client := karmadafake.NewClientset(binding)
+					simulateGenerationIncrementOnMainPatch(client, "clusterresourcebindings", 3, "8")
+					simulateConcurrentConfigOnlyUpdateOnNextStatusPatch(t, client, "clusterresourcebindings", "8", "9", 4)
+					s := &Scheduler{KarmadaClient: client, clusterBindingLister: &fakeClusterBindingLister{binding: binding}, clusterLister: testClusterLister(t, "cluster1"), Algorithm: algorithm, eventRecorder: record.NewFakeRecorder(10)}
+					firstErr := s.doScheduleClusterBinding(binding.Name)
+					assert.True(t, apierrors.IsConflict(firstErr), "expected resourceVersion conflict, got %v", firstErr)
+					persisted, getErr := client.WorkV1alpha2().ClusterResourceBindings().Get(context.Background(), binding.Name, metav1.GetOptions{})
+					assert.NoError(t, getErr)
+					assert.Equal(t, int64(4), persisted.Generation)
+					assert.Equal(t, "workload-rv-2", persisted.Spec.Resource.ResourceVersion)
+					assert.Equal(t, int64(0), persisted.Status.SchedulerObservedGeneration)
+					assert.Equal(t, tt.conditions, persisted.Status.Conditions)
+					assert.Equal(t, "3", persisted.Annotations[acceptedComponentResultGenerationAnnotation])
+					assert.True(t, isAcceptedComponentSchedulingSpecHashMatched(&persisted.Spec, persisted.Annotations))
+
+					s.clusterBindingLister = &fakeClusterBindingLister{binding: persisted}
+					assert.NoError(t, s.doScheduleClusterBinding(binding.Name))
+					result, getErr := client.WorkV1alpha2().ClusterResourceBindings().Get(context.Background(), binding.Name, metav1.GetOptions{})
+					assert.NoError(t, getErr)
+					updated, actions = result.Status, client.Actions()
+				}
+
+				assert.Equal(t, 1, algorithmCalls)
+				assert.Equal(t, int64(4), updated.SchedulerObservedGeneration)
+				if assert.Len(t, updated.Conditions, 1) {
+					assert.Equal(t, metav1.ConditionTrue, updated.Conditions[0].Status)
+					assert.Equal(t, workv1alpha2.BindingReasonSuccess, updated.Conditions[0].Reason)
+				}
+				assertScalePatches(t, actions, true, "7")
+				statusPatches := filterStatusPatches(actions)
+				if assert.Len(t, statusPatches, 2) {
+					assertPatchResourceVersion(t, statusPatches[0], "8")
+					assertPatchResourceVersion(t, statusPatches[1], "9")
+				}
+			})
+		}
+	}
+}
+
+func TestAcceptedComponentStatusRepairConflictsWithConcurrentDetectorUpdate(t *testing.T) {
+	defer setFeatureGateDuringTest(t, features.FeatureGate, features.MultiplePodTemplatesScheduling, true)()
+	placement := &policyv1alpha1.Placement{SpreadConstraints: []policyv1alpha1.SpreadConstraint{{
+		SpreadByField: policyv1alpha1.SpreadByFieldCluster, MinGroups: 1, MaxGroups: 1,
+	}}}
+	placementJSON, err := json.Marshal(placement)
+	assert.NoError(t, err)
+	components := []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}}
+	clusters := []workv1alpha2.TargetCluster{{Name: "cluster1", Components: []workv1alpha2.TargetComponent{
+		{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4},
+	}}}
+	lastScheduled := metav1.NewTime(time.Unix(1, 0))
+	status := workv1alpha2.ResourceBindingStatus{
+		SchedulerObservedGeneration: 2,
+		LastScheduledTime:           &lastScheduled,
+		Conditions: []metav1.Condition{
+			util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonSuccess, successfulSchedulingMessage, metav1.ConditionTrue),
+		},
+	}
+
+	for _, resourceScoped := range []bool{true, false} {
+		t.Run(fmt.Sprintf("resourceScoped=%t", resourceScoped), func(t *testing.T) {
+			algorithmCalls := 0
+			algorithm := &mockAlgorithm{scheduleFunc: func(_ context.Context, spec *workv1alpha2.ResourceBindingSpec, _ *workv1alpha2.ResourceBindingStatus, _ *core.ScheduleAlgorithmOption) (core.ScheduleResult, error) {
+				algorithmCalls++
+				return core.ScheduleResult{SuggestedClusters: spec.Clusters}, nil
+			}}
+			annotations := componentSchedulingAnnotations(t, string(placementJSON), components)
+			annotations[acceptedComponentResultGenerationAnnotation] = "3"
+			spec := workv1alpha2.ResourceBindingSpec{Placement: placement, Components: components, Clusters: clusters}
+			acceptedSpecHash, hashErr := generateAcceptedComponentSchedulingSpecHash(&spec)
+			assert.NoError(t, hashErr)
+			annotations[acceptedComponentSchedulingSpecHashAnnotation] = acceptedSpecHash
+			if resourceScoped {
+				binding := &workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{Name: "rb", Namespace: "default", ResourceVersion: "8", Generation: 3, Annotations: annotations},
+					Spec:       spec,
+					Status:     status,
+				}
+				client := karmadafake.NewClientset(binding)
+				simulateConcurrentDetectorUpdateOnNextStatusPatch(t, client, "resourcebindings", "8", "9", 4)
+				s := &Scheduler{KarmadaClient: client, bindingLister: &fakeBindingLister{binding: binding}, clusterLister: testClusterLister(t, "cluster1"), Algorithm: algorithm, eventRecorder: record.NewFakeRecorder(10)}
+				firstErr := s.doScheduleBinding(binding.Namespace, binding.Name)
+				assert.True(t, apierrors.IsConflict(firstErr), "expected resourceVersion conflict, got %v", firstErr)
+				persisted, getErr := client.WorkV1alpha2().ResourceBindings(binding.Namespace).Get(context.Background(), binding.Name, metav1.GetOptions{})
+				assert.NoError(t, getErr)
+				assert.Equal(t, int64(4), persisted.Generation)
+				assert.Equal(t, int64(2), persisted.Status.SchedulerObservedGeneration)
+				assert.Equal(t, lastScheduled, *persisted.Status.LastScheduledTime)
+				assert.NotNil(t, persisted.Spec.RescheduleTriggeredAt)
+
+				s.bindingLister = &fakeBindingLister{binding: persisted}
+				assert.NoError(t, s.doScheduleBinding(binding.Namespace, binding.Name))
+				updated, getErr := client.WorkV1alpha2().ResourceBindings(binding.Namespace).Get(context.Background(), binding.Name, metav1.GetOptions{})
+				assert.NoError(t, getErr)
+				assert.Equal(t, int64(4), updated.Status.SchedulerObservedGeneration)
+				assert.Equal(t, "4", updated.Annotations[acceptedComponentResultGenerationAnnotation])
+				assertScalePatches(t, client.Actions(), true, "9")
+			} else {
+				binding := &workv1alpha2.ClusterResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{Name: "crb", ResourceVersion: "8", Generation: 3, Annotations: annotations},
+					Spec:       spec,
+					Status:     status,
+				}
+				client := karmadafake.NewClientset(binding)
+				simulateConcurrentDetectorUpdateOnNextStatusPatch(t, client, "clusterresourcebindings", "8", "9", 4)
+				s := &Scheduler{KarmadaClient: client, clusterBindingLister: &fakeClusterBindingLister{binding: binding}, clusterLister: testClusterLister(t, "cluster1"), Algorithm: algorithm, eventRecorder: record.NewFakeRecorder(10)}
+				firstErr := s.doScheduleClusterBinding(binding.Name)
+				assert.True(t, apierrors.IsConflict(firstErr), "expected resourceVersion conflict, got %v", firstErr)
+				persisted, getErr := client.WorkV1alpha2().ClusterResourceBindings().Get(context.Background(), binding.Name, metav1.GetOptions{})
+				assert.NoError(t, getErr)
+				assert.Equal(t, int64(4), persisted.Generation)
+				assert.Equal(t, int64(2), persisted.Status.SchedulerObservedGeneration)
+				assert.Equal(t, lastScheduled, *persisted.Status.LastScheduledTime)
+				assert.NotNil(t, persisted.Spec.RescheduleTriggeredAt)
+
+				s.clusterBindingLister = &fakeClusterBindingLister{binding: persisted}
+				assert.NoError(t, s.doScheduleClusterBinding(binding.Name))
+				updated, getErr := client.WorkV1alpha2().ClusterResourceBindings().Get(context.Background(), binding.Name, metav1.GetOptions{})
+				assert.NoError(t, getErr)
+				assert.Equal(t, int64(4), updated.Status.SchedulerObservedGeneration)
+				assert.Equal(t, "4", updated.Annotations[acceptedComponentResultGenerationAnnotation])
+				assertScalePatches(t, client.Actions(), true, "9")
+			}
+			assert.Equal(t, 1, algorithmCalls)
+		})
+	}
+}
+
+func TestAcceptedComponentRollbackRepairsFailedTransition(t *testing.T) {
+	defer setFeatureGateDuringTest(t, features.FeatureGate, features.MultiplePodTemplatesScheduling, true)()
+	placement := &policyv1alpha1.Placement{
+		ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDivided},
+		SpreadConstraints: []policyv1alpha1.SpreadConstraint{{
+			SpreadByField: policyv1alpha1.SpreadByFieldCluster, MinGroups: 1, MaxGroups: 1,
+		}},
+	}
+	placementJSON, err := json.Marshal(placement)
+	assert.NoError(t, err)
+	components := []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}}
+	clusters := []workv1alpha2.TargetCluster{{Name: "cluster1", Components: []workv1alpha2.TargetComponent{
+		{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4},
+	}}}
+	acceptedSpec := workv1alpha2.ResourceBindingSpec{
+		Resource:   workv1alpha2.ObjectReference{APIVersion: "flink.apache.org/v1beta1", Kind: "FlinkDeployment", Name: "flink", ResourceVersion: "accepted-rv"},
+		Placement:  placement,
+		Components: components,
+		Clusters:   clusters,
+	}
+	acceptedSpecHash, err := generateAcceptedComponentSchedulingSpecHash(&acceptedSpec)
+	assert.NoError(t, err)
+	rolledBackSpec := *acceptedSpec.DeepCopy()
+	rolledBackSpec.Resource.ResourceVersion = "rollback-rv"
+	rolledBackSpec.Components[0], rolledBackSpec.Components[1] = rolledBackSpec.Components[1], rolledBackSpec.Components[0]
+	rolledBackSpec.Clusters[0].Components[0], rolledBackSpec.Clusters[0].Components[1] = rolledBackSpec.Clusters[0].Components[1], rolledBackSpec.Clusters[0].Components[0]
+	failedCondition := util.NewCondition(
+		workv1alpha2.Scheduled,
+		workv1alpha2.BindingReasonNoClusterFit,
+		componentTransitionFailureMessagePrefix+"insufficient resources",
+		metav1.ConditionFalse,
+	)
+
+	for _, resourceScoped := range []bool{true, false} {
+		t.Run(fmt.Sprintf("resourceScoped=%t", resourceScoped), func(t *testing.T) {
+			algorithmCalls := 0
+			algorithm := &mockAlgorithm{scheduleFunc: func(_ context.Context, _ *workv1alpha2.ResourceBindingSpec, _ *workv1alpha2.ResourceBindingStatus, _ *core.ScheduleAlgorithmOption) (core.ScheduleResult, error) {
+				algorithmCalls++
+				return core.ScheduleResult{}, nil
+			}}
+			annotations := componentSchedulingAnnotations(t, string(placementJSON), components)
+			annotations[acceptedComponentResultGenerationAnnotation] = "1"
+			annotations[acceptedComponentSchedulingSpecHashAnnotation] = acceptedSpecHash
+			status := workv1alpha2.ResourceBindingStatus{SchedulerObservedGeneration: 1, Conditions: []metav1.Condition{failedCondition}}
+			if resourceScoped {
+				binding := &workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{Name: "rb", Namespace: "default", ResourceVersion: "7", Generation: 3, Annotations: annotations},
+					Spec:       rolledBackSpec,
+					Status:     status,
+				}
+				client := karmadafake.NewClientset(binding)
+				s := &Scheduler{KarmadaClient: client, bindingLister: &fakeBindingLister{binding: binding}, clusterLister: testClusterLister(t, "cluster1"), Algorithm: algorithm, eventRecorder: record.NewFakeRecorder(10)}
+				assert.NoError(t, s.doScheduleBinding(binding.Namespace, binding.Name))
+				updated, getErr := client.WorkV1alpha2().ResourceBindings(binding.Namespace).Get(context.Background(), binding.Name, metav1.GetOptions{})
+				assert.NoError(t, getErr)
+				assert.Equal(t, int64(3), updated.Status.SchedulerObservedGeneration)
+				assert.Equal(t, metav1.ConditionTrue, updated.Status.Conditions[0].Status)
+				assert.Empty(t, filterMainResourcePatches(client.Actions()))
+			} else {
+				binding := &workv1alpha2.ClusterResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{Name: "crb", ResourceVersion: "7", Generation: 3, Annotations: annotations},
+					Spec:       rolledBackSpec,
+					Status:     status,
+				}
+				client := karmadafake.NewClientset(binding)
+				s := &Scheduler{KarmadaClient: client, clusterBindingLister: &fakeClusterBindingLister{binding: binding}, clusterLister: testClusterLister(t, "cluster1"), Algorithm: algorithm, eventRecorder: record.NewFakeRecorder(10)}
+				assert.NoError(t, s.doScheduleClusterBinding(binding.Name))
+				updated, getErr := client.WorkV1alpha2().ClusterResourceBindings().Get(context.Background(), binding.Name, metav1.GetOptions{})
+				assert.NoError(t, getErr)
+				assert.Equal(t, int64(3), updated.Status.SchedulerObservedGeneration)
+				assert.Equal(t, metav1.ConditionTrue, updated.Status.Conditions[0].Status)
+				assert.Empty(t, filterMainResourcePatches(client.Actions()))
+			}
+			assert.Zero(t, algorithmCalls)
+		})
+	}
+}
+
 func TestWorkerAndScheduleNext(t *testing.T) {
 	testScheme := setupScheme()
 
@@ -1587,7 +3081,7 @@ func TestPlacementChanged(t *testing.T) {
 			},
 			appliedPlacementStr:  `invalid json`,
 			observedAffinityName: "",
-			want:                 false,
+			want:                 true,
 		},
 		{
 			name:                 "empty placement",
@@ -2449,6 +3943,178 @@ func filterPatchActions(actions []clienttesting.Action) []clienttesting.PatchAct
 		}
 	}
 	return patchActions
+}
+
+func filterMainResourcePatches(actions []clienttesting.Action) []clienttesting.PatchAction {
+	var patchActions []clienttesting.PatchAction
+	for _, action := range actions {
+		patch, ok := action.(clienttesting.PatchAction)
+		if ok && action.GetSubresource() == "" {
+			patchActions = append(patchActions, patch)
+		}
+	}
+	return patchActions
+}
+
+func filterStatusPatches(actions []clienttesting.Action) []clienttesting.PatchAction {
+	var patchActions []clienttesting.PatchAction
+	for _, action := range actions {
+		patch, ok := action.(clienttesting.PatchAction)
+		if ok && action.GetSubresource() == "status" {
+			patchActions = append(patchActions, patch)
+		}
+	}
+	return patchActions
+}
+
+func simulateGenerationIncrementOnMainPatch(client *karmadafake.Clientset, resource string, generation int64, resourceVersion string) {
+	client.PrependReactor("patch", resource, func(action clienttesting.Action) (bool, runtime.Object, error) {
+		if action.GetSubresource() != "" {
+			return false, nil, nil
+		}
+		patchAction, ok := action.(clienttesting.PatchAction)
+		if !ok {
+			return true, nil, fmt.Errorf("expected patch action, got %T", action)
+		}
+		object, err := client.Tracker().Get(action.GetResource(), action.GetNamespace(), patchAction.GetName())
+		if err != nil {
+			return true, nil, err
+		}
+		original, err := json.Marshal(object)
+		if err != nil {
+			return true, nil, err
+		}
+		patched, err := jsonpatch.MergePatch(original, patchAction.GetPatch())
+		if err != nil {
+			return true, nil, err
+		}
+		switch binding := object.(type) {
+		case *workv1alpha2.ResourceBinding:
+			updated := binding.DeepCopy()
+			if err := json.Unmarshal(patched, updated); err != nil {
+				return true, nil, err
+			}
+			updated.Generation = generation
+			updated.ResourceVersion = resourceVersion
+			object = updated
+		case *workv1alpha2.ClusterResourceBinding:
+			updated := binding.DeepCopy()
+			if err := json.Unmarshal(patched, updated); err != nil {
+				return true, nil, err
+			}
+			updated.Generation = generation
+			updated.ResourceVersion = resourceVersion
+			object = updated
+		default:
+			return true, nil, fmt.Errorf("unexpected object type %T", object)
+		}
+		if err := client.Tracker().Update(action.GetResource(), object, action.GetNamespace()); err != nil {
+			return true, nil, err
+		}
+		return true, object, nil
+	})
+}
+
+func failNextStatusPatch(t *testing.T, client *karmadafake.Clientset, resource, expectedResourceVersion string) {
+	t.Helper()
+	failed := false
+	client.PrependReactor("patch", resource, func(action clienttesting.Action) (bool, runtime.Object, error) {
+		if action.GetSubresource() != "status" || failed {
+			return false, nil, nil
+		}
+		failed = true
+		patchAction, ok := action.(clienttesting.PatchAction)
+		if !ok {
+			return true, nil, fmt.Errorf("expected patch action, got %T", action)
+		}
+		assertPatchResourceVersion(t, patchAction, expectedResourceVersion)
+		return true, nil, errors.New("injected status patch failure")
+	})
+}
+
+func simulateConcurrentDetectorUpdateOnNextStatusPatch(t *testing.T, client *karmadafake.Clientset, resource, expectedResourceVersion, updatedResourceVersion string, updatedGeneration int64) {
+	triggeredAt := metav1.NewTime(time.Unix(2, 0))
+	simulateConcurrentSpecUpdateOnNextStatusPatch(t, client, resource, expectedResourceVersion, updatedResourceVersion, updatedGeneration, func(spec *workv1alpha2.ResourceBindingSpec) {
+		spec.RescheduleTriggeredAt = &triggeredAt
+	})
+}
+
+func simulateConcurrentConfigOnlyUpdateOnNextStatusPatch(t *testing.T, client *karmadafake.Clientset, resource, expectedResourceVersion, updatedResourceVersion string, updatedGeneration int64) {
+	simulateConcurrentSpecUpdateOnNextStatusPatch(t, client, resource, expectedResourceVersion, updatedResourceVersion, updatedGeneration, func(spec *workv1alpha2.ResourceBindingSpec) {
+		spec.Resource.ResourceVersion = "workload-rv-2"
+	})
+}
+
+func simulateConcurrentSpecUpdateOnNextStatusPatch(t *testing.T, client *karmadafake.Clientset, resource, expectedResourceVersion, updatedResourceVersion string, updatedGeneration int64, updateSpec func(*workv1alpha2.ResourceBindingSpec)) {
+	t.Helper()
+	updatedOnce := false
+	client.PrependReactor("patch", resource, func(action clienttesting.Action) (bool, runtime.Object, error) {
+		if action.GetSubresource() != "status" || updatedOnce {
+			return false, nil, nil
+		}
+		updatedOnce = true
+		patchAction, ok := action.(clienttesting.PatchAction)
+		if !ok {
+			return true, nil, fmt.Errorf("expected patch action, got %T", action)
+		}
+		assertPatchResourceVersion(t, patchAction, expectedResourceVersion)
+		object, err := client.Tracker().Get(action.GetResource(), action.GetNamespace(), patchAction.GetName())
+		if err != nil {
+			return true, nil, err
+		}
+		switch binding := object.(type) {
+		case *workv1alpha2.ResourceBinding:
+			updated := binding.DeepCopy()
+			updated.Generation = updatedGeneration
+			updated.ResourceVersion = updatedResourceVersion
+			updateSpec(&updated.Spec)
+			object = updated
+		case *workv1alpha2.ClusterResourceBinding:
+			updated := binding.DeepCopy()
+			updated.Generation = updatedGeneration
+			updated.ResourceVersion = updatedResourceVersion
+			updateSpec(&updated.Spec)
+			object = updated
+		default:
+			return true, nil, fmt.Errorf("unexpected object type %T", object)
+		}
+		if err := client.Tracker().Update(action.GetResource(), object, action.GetNamespace()); err != nil {
+			return true, nil, err
+		}
+		return true, nil, apierrors.NewConflict(action.GetResource().GroupResource(), patchAction.GetName(), errors.New("concurrent detector update"))
+	})
+}
+
+func assertScalePatches(t *testing.T, actions []clienttesting.Action, wantPatched bool, resourceVersion string) {
+	t.Helper()
+	patches := filterMainResourcePatches(actions)
+	if !wantPatched {
+		assert.Empty(t, patches)
+		return
+	}
+	if assert.Len(t, patches, 1) {
+		assertPatchResourceVersion(t, patches[0], resourceVersion)
+	}
+}
+
+func assertPatchResourceVersion(t *testing.T, action clienttesting.PatchAction, want string) {
+	t.Helper()
+	var patch struct {
+		Metadata struct {
+			ResourceVersion string `json:"resourceVersion"`
+		} `json:"metadata"`
+	}
+	assert.NoError(t, json.Unmarshal(action.GetPatch(), &patch))
+	assert.Equal(t, want, patch.Metadata.ResourceVersion)
+}
+
+func testClusterLister(t *testing.T, names ...string) clusterlister.ClusterLister {
+	t.Helper()
+	indexer := toolscache.NewIndexer(toolscache.MetaNamespaceKeyFunc, toolscache.Indexers{})
+	for _, name := range names {
+		assert.NoError(t, indexer.Add(&clusterv1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: name}}))
+	}
+	return clusterlister.NewClusterLister(indexer)
 }
 
 // Mock Implementations

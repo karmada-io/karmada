@@ -122,6 +122,17 @@ func TestValidateRuleWithOperations(t *testing.T) {
 			expectedError:      "operations[0]: Unsupported value",
 		},
 		{
+			name: "revise components operation",
+			ruleWithOperations: &configv1alpha1.RuleWithOperations{
+				Operations: []configv1alpha1.InterpreterOperation{configv1alpha1.InterpreterOperationReviseComponents},
+				Rule: configv1alpha1.Rule{
+					APIGroups:   []string{"flink.apache.org"},
+					APIVersions: []string{"v1beta1"},
+					Kinds:       []string{"FlinkDeployment"},
+				},
+			},
+		},
+		{
 			name: "not validated rule",
 			ruleWithOperations: &configv1alpha1.RuleWithOperations{
 				Operations: []configv1alpha1.InterpreterOperation{

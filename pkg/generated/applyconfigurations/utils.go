@@ -108,6 +108,8 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		// Group=config.karmada.io, Version=v1alpha1
 	case configv1alpha1.SchemeGroupVersion.WithKind("ComponentResourceRequirement"):
 		return &applyconfigurationsconfigv1alpha1.ComponentResourceRequirementApplyConfiguration{}
+	case configv1alpha1.SchemeGroupVersion.WithKind("ComponentRevision"):
+		return &applyconfigurationsconfigv1alpha1.ComponentRevisionApplyConfiguration{}
 	case configv1alpha1.SchemeGroupVersion.WithKind("CustomizationRules"):
 		return &applyconfigurationsconfigv1alpha1.CustomizationRulesApplyConfiguration{}
 	case configv1alpha1.SchemeGroupVersion.WithKind("CustomizationTarget"):

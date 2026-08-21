@@ -33,6 +33,7 @@ var AllResourceInterpreterCustomizationRules = []Rule{
 	&replicaResourceRule{},
 	&componentResourceRule{},
 	&replicaRevisionRule{},
+	&componentRevisionRule{},
 	&statusReflectionRule{},
 	&statusAggregationRule{},
 	&healthInterpretationRule{},
@@ -248,6 +249,57 @@ func (r *replicaRevisionRule) Run(interpreter *declarative.ConfigurableInterpret
 		return newRuleResultWithError(err)
 	}
 	revised, enabled, err := interpreter.ReviseReplica(obj, args.Replica)
+	if err != nil {
+		return newRuleResultWithError(err)
+	}
+	if !enabled {
+		return newRuleResultWithError(fmt.Errorf("rule is not enabled"))
+	}
+	return newRuleResult().add("revised", revised)
+}
+
+type componentRevisionRule struct{}
+
+func (r *componentRevisionRule) Name() string {
+	return string(configv1alpha1.InterpreterOperationReviseComponents)
+}
+
+func (r *componentRevisionRule) Document() string {
+	return `This rule is used to revise component replicas in the desired specification.
+The script should implement a function as follows:
+function ReviseComponents(desiredObj, components)
+  for i = 1, #components do
+    -- Revise the replica field identified by components[i].name.
+  end
+  return desiredObj
+end`
+}
+
+func (r *componentRevisionRule) GetScript(c *configv1alpha1.ResourceInterpreterCustomization) string {
+	if c.Spec.Customizations.ComponentRevision != nil {
+		return c.Spec.Customizations.ComponentRevision.LuaScript
+	}
+	return ""
+}
+
+func (r *componentRevisionRule) SetScript(c *configv1alpha1.ResourceInterpreterCustomization, script string) {
+	if script == "" {
+		c.Spec.Customizations.ComponentRevision = nil
+		return
+	}
+
+	if c.Spec.Customizations.ComponentRevision == nil {
+		c.Spec.Customizations.ComponentRevision = &configv1alpha1.ComponentRevision{}
+	}
+	c.Spec.Customizations.ComponentRevision.LuaScript = script
+}
+
+func (r *componentRevisionRule) Run(interpreter *declarative.ConfigurableInterpreter, args RuleArgs) *RuleResult {
+	obj, err := args.getObjectOrError()
+	if err != nil {
+		return newRuleResultWithError(err)
+	}
+	revised, enabled, err := interpreter.ReviseComponents(obj, args.Components)
 	if err != nil {
 		return newRuleResultWithError(err)
 	}
@@ -525,10 +577,11 @@ func (r Rules) Get(name string) Rule {
 
 // RuleArgs rule execution args.
 type RuleArgs struct {
-	Desired  *unstructured.Unstructured
-	Observed *unstructured.Unstructured
-	Status   []workv1alpha2.AggregatedStatusItem
-	Replica  int64
+	Desired    *unstructured.Unstructured
+	Observed   *unstructured.Unstructured
+	Status     []workv1alpha2.AggregatedStatusItem
+	Replica    int64
+	Components []workv1alpha2.TargetComponent
 }
 
 func (r RuleArgs) getDesiredObjectOrError() (*unstructured.Unstructured, error) {

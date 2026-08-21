@@ -18,10 +18,13 @@ package scheduler
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -75,6 +78,39 @@ const (
 	// ScaleSchedule means the replicas of binding object has been changed.
 	ScaleSchedule ScheduleType = "ScaleSchedule"
 )
+
+type unsupportedComponentScaleError struct {
+	message string
+}
+
+type componentSchedulingOptions struct {
+	preserveResult      bool
+	pinCurrentTarget    bool
+	reuseAcceptedTarget bool
+	rejectUnsupported   bool
+}
+
+func (e *unsupportedComponentScaleError) Error() string {
+	return e.message
+}
+
+func ignoreUnsupportedComponentScaleError(err error) error {
+	var unsupportedScaleErr *unsupportedComponentScaleError
+	if errors.As(err, &unsupportedScaleErr) {
+		return nil
+	}
+	return err
+}
+
+const unsupportedComponentScaleMessage = "component name changes, mixed scale directions, component replica requirements changes, placement changes, ordered cluster affinities, and unverified legacy results are not supported during multi-component scale rescheduling"
+
+const acceptedComponentResultGenerationAnnotation = "scheduler.karmada.io/accepted-component-result-generation"
+
+const acceptedComponentSchedulingSpecHashAnnotation = "scheduler.karmada.io/accepted-component-scheduling-spec-hash"
+
+const acceptedComponentSchedulingSpecHashPrefix = "v1:sha256:"
+
+const componentTransitionFailureMessagePrefix = "multi-component transition failed: "
 
 const (
 	// DefaultScheduler defines the name of default scheduler.
@@ -408,6 +444,10 @@ func (s *Scheduler) doScheduleBinding(namespace, name string) (err error) {
 	}
 
 	rb = rb.DeepCopy()
+	if !s.handlesBinding(&rb.Spec) {
+		klog.V(4).InfoS("Skip ResourceBinding that is suspended or assigned to another scheduler", "ResourceBinding", klog.KObj(rb))
+		return nil
+	}
 
 	if rb.Spec.Placement == nil {
 		// never reach here
@@ -417,8 +457,15 @@ func (s *Scheduler) doScheduleBinding(namespace, name string) (err error) {
 	}
 
 	start := time.Now()
+	if handled, scheduleErr := s.schedulePendingComponentsForResourceBinding(rb, start); handled {
+		return ignoreUnsupportedComponentScaleError(scheduleErr)
+	}
+	if handled, repairErr := s.repairAcceptedComponentsForResourceBinding(rb, start); handled {
+		return repairErr
+	}
 	appliedPlacementStr := util.GetLabelValue(rb.Annotations, util.PolicyPlacementAnnotation)
-	if placementChanged(*rb.Spec.Placement, appliedPlacementStr, rb.Status.SchedulerObservedAffinityName) {
+	placementIsChanged := placementChanged(*rb.Spec.Placement, appliedPlacementStr, rb.Status.SchedulerObservedAffinityName)
+	if placementIsChanged {
 		// policy placement changed, need schedule
 		klog.Infof("Start to schedule ResourceBinding(%s/%s) as placement changed", namespace, name)
 		err = s.scheduleResourceBinding(rb)
@@ -444,7 +491,7 @@ func (s *Scheduler) doScheduleBinding(namespace, name string) (err error) {
 		// Duplicated resources should always be scheduled. Note: non-workload is considered as duplicated
 		// even if scheduling type is divided.
 		klog.V(3).Infof("Start to schedule ResourceBinding(%s/%s) as scheduling type is duplicated", namespace, name)
-		err = s.scheduleResourceBinding(rb)
+		err = s.scheduleResourceBindingForSteadyReconcile(rb)
 		metrics.BindingSchedule(string(ReconcileSchedule), utilmetrics.DurationInSeconds(start), err)
 		return err
 	}
@@ -484,6 +531,10 @@ func (s *Scheduler) doScheduleClusterBinding(name string) (err error) {
 	}
 
 	crb = crb.DeepCopy()
+	if !s.handlesBinding(&crb.Spec) {
+		klog.V(4).InfoS("Skip ClusterResourceBinding that is suspended or assigned to another scheduler", "ClusterResourceBinding", klog.KObj(crb))
+		return nil
+	}
 
 	if crb.Spec.Placement == nil {
 		// never reach here
@@ -493,8 +544,15 @@ func (s *Scheduler) doScheduleClusterBinding(name string) (err error) {
 	}
 
 	start := time.Now()
+	if handled, scheduleErr := s.schedulePendingComponentsForClusterResourceBinding(crb, start); handled {
+		return ignoreUnsupportedComponentScaleError(scheduleErr)
+	}
+	if handled, repairErr := s.repairAcceptedComponentsForClusterResourceBinding(crb, start); handled {
+		return repairErr
+	}
 	appliedPlacementStr := util.GetLabelValue(crb.Annotations, util.PolicyPlacementAnnotation)
-	if placementChanged(*crb.Spec.Placement, appliedPlacementStr, crb.Status.SchedulerObservedAffinityName) {
+	placementIsChanged := placementChanged(*crb.Spec.Placement, appliedPlacementStr, crb.Status.SchedulerObservedAffinityName)
+	if placementIsChanged {
 		// policy placement changed, need schedule
 		klog.Infof("Start to schedule ClusterResourceBinding(%s) as placement changed", name)
 		err = s.scheduleClusterResourceBinding(crb)
@@ -520,7 +578,7 @@ func (s *Scheduler) doScheduleClusterBinding(name string) (err error) {
 		// Duplicated resources should always be scheduled. Note: non-workload is considered as duplicated
 		// even if scheduling type is divided.
 		klog.V(3).Infof("Start to schedule ClusterResourceBinding(%s) as scheduling type is duplicated", name)
-		err = s.scheduleClusterResourceBinding(crb)
+		err = s.scheduleClusterResourceBindingForSteadyReconcile(crb)
 		metrics.BindingSchedule(string(ReconcileSchedule), utilmetrics.DurationInSeconds(start), err)
 		return err
 	}
@@ -542,6 +600,238 @@ func (s *Scheduler) doScheduleClusterBinding(name string) (err error) {
 		return patchClusterResourceBindingStatus(s.KarmadaClient, crb, updateCRB)
 	}
 	return nil
+}
+
+func (s *Scheduler) handlesBinding(spec *workv1alpha2.ResourceBindingSpec) bool {
+	schedulerName := s.schedulerName
+	if schedulerName == "" {
+		schedulerName = DefaultScheduler
+	}
+	return schedulerNameFilter(schedulerName, spec.SchedulerName) && !spec.SchedulingSuspended()
+}
+
+func hasLegacyComponentResult(bindingSpec *workv1alpha2.ResourceBindingSpec) bool {
+	return len(bindingSpec.Clusters) == 1 && len(bindingSpec.Clusters[0].Components) == 0
+}
+
+func hasPersistedComponentResult(bindingSpec *workv1alpha2.ResourceBindingSpec) bool {
+	return len(bindingSpec.Clusters) == 1 && len(bindingSpec.Clusters[0].Components) > 0
+}
+
+func componentResultTransitionPending(bindingSpec *workv1alpha2.ResourceBindingSpec, annotations map[string]string) bool {
+	if !features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) || len(bindingSpec.Clusters) == 0 {
+		return false
+	}
+	return util.IsBindingComponentResultPending(bindingSpec, annotations)
+}
+
+func (s *Scheduler) schedulePendingComponentsForResourceBinding(rb *workv1alpha2.ResourceBinding, start time.Time) (bool, error) {
+	if !componentResultTransitionPending(&rb.Spec, rb.Annotations) {
+		return false, nil
+	}
+	if s.hasUnavailableComponentTarget(&rb.Spec) && componentTransitionSupportsOrdinaryFailover(&rb.Spec) {
+		klog.Infof("Reschedule ResourceBinding(%s/%s) as a component target cluster is unavailable", rb.Namespace, rb.Name)
+		err := s.scheduleResourceBindingForComponentFailover(rb)
+		metrics.BindingSchedule(string(ReconcileSchedule), utilmetrics.DurationInSeconds(start), err)
+		return true, err
+	}
+	if canRecoverPendingComponentResult(&rb.Spec, &rb.Status, rb.Annotations) {
+		klog.Infof("Reschedule ResourceBinding(%s/%s) as explicitly triggered recovery of a pending component result", rb.Namespace, rb.Name)
+		err := s.scheduleResourceBindingForComponentFailover(rb)
+		metrics.BindingSchedule(string(ReconcileSchedule), utilmetrics.DurationInSeconds(start), err)
+		return true, err
+	}
+	if canBackfillLegacyComponentResult(&rb.Spec, &rb.Status, rb.Generation, rb.Annotations) {
+		result := legacyComponentResult(&rb.Spec)
+		err := s.patchScheduleResultForResourceBindingWithoutCacheUpdate(rb, util.GetLabelValue(rb.Annotations, util.PolicyPlacementAnnotation), result)
+		s.recordScheduleResultEventForResourceBinding(rb, result, err)
+		metrics.BindingSchedule(string(ReconcileSchedule), utilmetrics.DurationInSeconds(start), err)
+		return true, err
+	}
+	if canBackfillAcceptedComponentRequirements(&rb.Spec, &rb.Status, rb.Annotations, rb.Generation) {
+		klog.Infof("Record the accepted component requirements for ResourceBinding(%s/%s)", rb.Namespace, rb.Name)
+		err := s.backfillAcceptedComponentRequirementsForResourceBinding(rb)
+		metrics.BindingSchedule(string(ReconcileSchedule), utilmetrics.DurationInSeconds(start), err)
+		return true, err
+	}
+	if componentScaleTransitionConflicts(&rb.Spec, &rb.Status, rb.Annotations) {
+		err := s.scheduleResourceBindingWithOptions(rb, true)
+		metrics.BindingSchedule(string(ScaleSchedule), utilmetrics.DurationInSeconds(start), err)
+		return true, err
+	}
+	klog.Infof("Reschedule ResourceBinding(%s/%s) as component replicas changed", rb.Namespace, rb.Name)
+	err := s.scheduleResourceBindingWithOptions(rb, true)
+	metrics.BindingSchedule(string(ScaleSchedule), utilmetrics.DurationInSeconds(start), err)
+	return true, err
+}
+
+func (s *Scheduler) schedulePendingComponentsForClusterResourceBinding(crb *workv1alpha2.ClusterResourceBinding, start time.Time) (bool, error) {
+	if !componentResultTransitionPending(&crb.Spec, crb.Annotations) {
+		return false, nil
+	}
+	if s.hasUnavailableComponentTarget(&crb.Spec) && componentTransitionSupportsOrdinaryFailover(&crb.Spec) {
+		klog.Infof("Reschedule ClusterResourceBinding(%s) as a component target cluster is unavailable", crb.Name)
+		err := s.scheduleClusterResourceBindingForComponentFailover(crb)
+		metrics.BindingSchedule(string(ReconcileSchedule), utilmetrics.DurationInSeconds(start), err)
+		return true, err
+	}
+	if canRecoverPendingComponentResult(&crb.Spec, &crb.Status, crb.Annotations) {
+		klog.Infof("Reschedule ClusterResourceBinding(%s) as explicitly triggered recovery of a pending component result", crb.Name)
+		err := s.scheduleClusterResourceBindingForComponentFailover(crb)
+		metrics.BindingSchedule(string(ReconcileSchedule), utilmetrics.DurationInSeconds(start), err)
+		return true, err
+	}
+	if canBackfillLegacyComponentResult(&crb.Spec, &crb.Status, crb.Generation, crb.Annotations) {
+		result := legacyComponentResult(&crb.Spec)
+		err := s.patchScheduleResultForClusterResourceBinding(crb, util.GetLabelValue(crb.Annotations, util.PolicyPlacementAnnotation), result)
+		s.recordScheduleResultEventForClusterResourceBinding(crb, result, err)
+		metrics.BindingSchedule(string(ReconcileSchedule), utilmetrics.DurationInSeconds(start), err)
+		return true, err
+	}
+	if canBackfillAcceptedComponentRequirements(&crb.Spec, &crb.Status, crb.Annotations, crb.Generation) {
+		klog.Infof("Record the accepted component requirements for ClusterResourceBinding(%s)", crb.Name)
+		err := s.backfillAcceptedComponentRequirementsForClusterResourceBinding(crb)
+		metrics.BindingSchedule(string(ReconcileSchedule), utilmetrics.DurationInSeconds(start), err)
+		return true, err
+	}
+	if componentScaleTransitionConflicts(&crb.Spec, &crb.Status, crb.Annotations) {
+		err := s.scheduleClusterResourceBindingWithOptions(crb, true)
+		metrics.BindingSchedule(string(ScaleSchedule), utilmetrics.DurationInSeconds(start), err)
+		return true, err
+	}
+	klog.Infof("Reschedule ClusterResourceBinding(%s) as component replicas changed", crb.Name)
+	err := s.scheduleClusterResourceBindingWithOptions(crb, true)
+	metrics.BindingSchedule(string(ScaleSchedule), utilmetrics.DurationInSeconds(start), err)
+	return true, err
+}
+
+func componentScaleTransitionConflicts(spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus, annotations map[string]string) bool {
+	return placementChanged(*spec.Placement, util.GetLabelValue(annotations, util.PolicyPlacementAnnotation), status.SchedulerObservedAffinityName) ||
+		util.RescheduleRequired(spec.RescheduleTriggeredAt, status.LastScheduledTime) ||
+		(hasPersistedComponentResult(spec) && !util.IsBindingComponentRequirementsHashMatched(spec.Components, annotations)) ||
+		!util.IsBindingComponentScaleSupported(spec)
+}
+
+func componentTransitionSupportsOrdinaryFailover(spec *workv1alpha2.ResourceBindingSpec) bool {
+	return spec.Placement.ClusterAffinities == nil &&
+		(util.IsBindingComponentsAccepted(spec) || util.IsBindingComponentScaleSupported(spec))
+}
+
+func canRecoverPendingComponentResult(spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus, annotations map[string]string) bool {
+	return util.IsBindingComponentResultPending(spec, annotations) &&
+		len(spec.Clusters) > 0 && spec.Placement.ClusterAffinities == nil &&
+		util.RescheduleRequired(spec.RescheduleTriggeredAt, status.LastScheduledTime) &&
+		(util.HasBindingComponentResult(spec) || hasLegacyComponentResult(spec))
+}
+
+func canBackfillLegacyComponentResult(spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus, generation int64, annotations map[string]string) bool {
+	return hasLegacyComponentResult(spec) && generation == status.SchedulerObservedGeneration &&
+		meta.IsStatusConditionTrue(status.Conditions, workv1alpha2.Scheduled) &&
+		spec.Placement.ReplicaSchedulingType() == policyv1alpha1.ReplicaSchedulingTypeDuplicated &&
+		spec.Placement.ClusterAffinities == nil &&
+		!placementChanged(*spec.Placement, util.GetLabelValue(annotations, util.PolicyPlacementAnnotation), status.SchedulerObservedAffinityName) &&
+		!util.RescheduleRequired(spec.RescheduleTriggeredAt, status.LastScheduledTime) &&
+		legacyComponentResultIsComplete(spec)
+}
+
+func legacyComponentResultIsComplete(spec *workv1alpha2.ResourceBindingSpec) bool {
+	if spec == nil || !util.IsMultiTemplateSchedulingApplicable(spec) || len(spec.Clusters) != 1 || len(spec.Clusters[0].Components) != 0 {
+		return false
+	}
+	backfilled := spec.DeepCopy()
+	backfilled.Clusters = legacyComponentResult(spec)
+	return util.IsBindingComponentsAccepted(backfilled)
+}
+
+func legacyComponentResult(spec *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster {
+	result := make([]workv1alpha2.TargetCluster, len(spec.Clusters))
+	copy(result, spec.Clusters)
+	result[0].Components = make([]workv1alpha2.TargetComponent, len(spec.Components))
+	for i := range spec.Components {
+		result[0].Components[i] = workv1alpha2.TargetComponent{Name: spec.Components[i].Name, Replicas: spec.Components[i].Replicas}
+	}
+	return result
+}
+
+// Before this change, the default scheduler fully scheduled Duplicated workloads on
+// every observed generation. A complete component result and current successful
+// status therefore prove that its requirements were accepted. Results without a
+// component snapshot, Divided results, and unobserved results remain pending.
+func canBackfillAcceptedComponentRequirements(spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus, annotations map[string]string, generation int64) bool {
+	return hasPersistedComponentResult(spec) && util.IsBindingComponentsAccepted(spec) &&
+		util.IsBindingComponentRequirementsHashMissing(annotations) &&
+		generation == status.SchedulerObservedGeneration && meta.IsStatusConditionTrue(status.Conditions, workv1alpha2.Scheduled) &&
+		spec.Placement.ReplicaSchedulingType() == policyv1alpha1.ReplicaSchedulingTypeDuplicated &&
+		spec.Placement.ClusterAffinities == nil &&
+		!placementChanged(*spec.Placement, util.GetLabelValue(annotations, util.PolicyPlacementAnnotation), status.SchedulerObservedAffinityName) &&
+		!util.RescheduleRequired(spec.RescheduleTriggeredAt, status.LastScheduledTime)
+}
+
+func (s *Scheduler) repairAcceptedComponentsForResourceBinding(rb *workv1alpha2.ResourceBinding, start time.Time) (bool, error) {
+	if rb.Spec.Placement.ClusterAffinities != nil || !util.IsBindingComponentsAccepted(&rb.Spec) ||
+		!util.IsBindingComponentRequirementsHashMatched(rb.Spec.Components, rb.Annotations) {
+		return false, nil
+	}
+	if s.hasUnavailableComponentTarget(&rb.Spec) {
+		klog.Infof("Reschedule ResourceBinding(%s/%s) as a component target cluster is unavailable", rb.Namespace, rb.Name)
+		err := s.scheduleResourceBindingForComponentFailover(rb)
+		metrics.BindingSchedule(string(ReconcileSchedule), utilmetrics.DurationInSeconds(start), err)
+		return true, err
+	}
+	if !canRepairAcceptedComponentStatus(&rb.Spec, &rb.Status, rb.Annotations, rb.Generation) {
+		return false, nil
+	}
+
+	condition := util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonSuccess, successfulSchedulingMessage, metav1.ConditionTrue)
+	return true, patchBindingStatusCondition(s.KarmadaClient, rb, condition)
+}
+
+func (s *Scheduler) repairAcceptedComponentsForClusterResourceBinding(crb *workv1alpha2.ClusterResourceBinding, start time.Time) (bool, error) {
+	if crb.Spec.Placement.ClusterAffinities != nil || !util.IsBindingComponentsAccepted(&crb.Spec) ||
+		!util.IsBindingComponentRequirementsHashMatched(crb.Spec.Components, crb.Annotations) {
+		return false, nil
+	}
+	if s.hasUnavailableComponentTarget(&crb.Spec) {
+		klog.Infof("Reschedule ClusterResourceBinding(%s) as a component target cluster is unavailable", crb.Name)
+		err := s.scheduleClusterResourceBindingForComponentFailover(crb)
+		metrics.BindingSchedule(string(ReconcileSchedule), utilmetrics.DurationInSeconds(start), err)
+		return true, err
+	}
+	if !canRepairAcceptedComponentStatus(&crb.Spec, &crb.Status, crb.Annotations, crb.Generation) {
+		return false, nil
+	}
+
+	condition := util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonSuccess, successfulSchedulingMessage, metav1.ConditionTrue)
+	return true, patchClusterBindingStatusCondition(s.KarmadaClient, crb, condition)
+}
+
+func canRepairAcceptedComponentStatus(spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus, annotations map[string]string, generation int64) bool {
+	if generation <= status.SchedulerObservedGeneration ||
+		placementChanged(*spec.Placement, util.GetLabelValue(annotations, util.PolicyPlacementAnnotation), status.SchedulerObservedAffinityName) {
+		return false
+	}
+	if annotations[acceptedComponentResultGenerationAnnotation] == strconv.FormatInt(generation, 10) {
+		return true
+	}
+	return !util.RescheduleRequired(spec.RescheduleTriggeredAt, status.LastScheduledTime) &&
+		isAcceptedComponentSchedulingSpecHashMatched(spec, annotations)
+}
+
+// hasUnavailableComponentTarget reports whether a component target is missing or terminating.
+func (s *Scheduler) hasUnavailableComponentTarget(bindingSpec *workv1alpha2.ResourceBindingSpec) bool {
+	for i := range bindingSpec.Clusters {
+		cluster, err := s.clusterLister.Get(bindingSpec.Clusters[i].Name)
+		if err != nil {
+			if !apierrors.IsNotFound(err) {
+				klog.Errorf("Failed to get target cluster %q: %v", bindingSpec.Clusters[i].Name, err)
+			}
+			return true
+		}
+		if !cluster.DeletionTimestamp.IsZero() {
+			return true
+		}
+	}
+	return false
 }
 
 // HasTerminatingTargetClusters checks whether any cluster in the ResourceBinding's target list
@@ -569,25 +859,82 @@ func (s *Scheduler) HasTerminatingTargetClusters(bindingSpec *workv1alpha2.Resou
 }
 
 func (s *Scheduler) scheduleResourceBinding(rb *workv1alpha2.ResourceBinding) (err error) {
+	options := componentSchedulingOptions{}
+	if features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) && util.HasBindingComponentResult(&rb.Spec) {
+		options.preserveResult = true
+	}
+	return s.scheduleResourceBindingWithComponentOptions(rb, options)
+}
+
+func (s *Scheduler) scheduleResourceBindingForSteadyReconcile(rb *workv1alpha2.ResourceBinding) error {
+	options := componentSchedulingOptions{}
+	if util.IsBindingComponentsAccepted(&rb.Spec) &&
+		util.IsBindingComponentRequirementsHashMatched(rb.Spec.Components, rb.Annotations) {
+		options = componentSchedulingOptions{preserveResult: true, reuseAcceptedTarget: true}
+	}
+	return s.scheduleResourceBindingWithComponentOptions(rb, options)
+}
+
+func (s *Scheduler) scheduleResourceBindingWithOptions(rb *workv1alpha2.ResourceBinding, isMultiComponentScale bool) (err error) {
+	options := componentSchedulingOptions{}
+	if isMultiComponentScale {
+		options = componentSchedulingOptions{preserveResult: true, pinCurrentTarget: true, rejectUnsupported: true}
+	}
+	return s.scheduleResourceBindingWithComponentOptions(rb, options)
+}
+
+func (s *Scheduler) scheduleResourceBindingForComponentFailover(rb *workv1alpha2.ResourceBinding) error {
+	return s.scheduleResourceBindingWithComponentOptions(rb, componentSchedulingOptions{preserveResult: true})
+}
+
+func (s *Scheduler) backfillAcceptedComponentRequirementsForResourceBinding(rb *workv1alpha2.ResourceBinding) error {
+	placement, err := json.Marshal(*rb.Spec.Placement)
+	if err != nil {
+		return fmt.Errorf("failed to marshal placement of ResourceBinding %s/%s: %w", rb.Namespace, rb.Name, err)
+	}
+	return s.patchScheduleResultForResourceBindingWithoutCacheUpdate(rb, string(placement), acceptedComponentResultForBackfill(&rb.Spec))
+}
+
+func (s *Scheduler) scheduleResourceBindingWithComponentOptions(rb *workv1alpha2.ResourceBinding, options componentSchedulingOptions) (err error) {
 	defer func() {
 		condition, ignoreErr := getConditionByError(err)
+		if err != nil && options.rejectUnsupported {
+			condition.Message = componentTransitionFailureMessagePrefix + condition.Message
+		}
 		if updateErr := patchBindingStatusCondition(s.KarmadaClient, rb, condition); updateErr != nil {
 			// if patch error occurs, just return patch error to reconcile again.
 			err = updateErr
 			klog.Errorf("Failed to patch schedule status to ResourceBinding(%s/%s): %v", rb.Namespace, rb.Name, err)
-		} else if ignoreErr && err != nil {
+		} else if ignoreErr && err != nil && !options.preserveResult {
 			// for finished schedule, we won't retry.
 			err = nil
 		}
 	}()
+	if options.rejectUnsupported && componentScaleRequiresRejection(&rb.Spec, &rb.Status, rb.Annotations) {
+		err := &unsupportedComponentScaleError{message: unsupportedComponentScaleMessage}
+		s.recordScheduleResultEventForResourceBinding(rb, nil, err)
+		return err
+	}
+	if options.preserveResult && rb.Spec.Placement.ClusterAffinities != nil {
+		err := &unsupportedComponentScaleError{message: "ordered cluster affinities are not supported while preserving an accepted component result"}
+		s.recordScheduleResultEventForResourceBinding(rb, nil, err)
+		return err
+	}
 
+	if options.preserveResult {
+		return s.scheduleResourceBindingWithClusterAffinityAndOptions(rb, options)
+	}
 	if rb.Spec.Placement.ClusterAffinities != nil {
 		return s.scheduleResourceBindingWithClusterAffinities(rb)
 	}
-	return s.scheduleResourceBindingWithClusterAffinity(rb)
+	return s.scheduleResourceBindingWithClusterAffinityAndOptions(rb, options)
 }
 
 func (s *Scheduler) scheduleResourceBindingWithClusterAffinity(rb *workv1alpha2.ResourceBinding) error {
+	return s.scheduleResourceBindingWithClusterAffinityAndOptions(rb, componentSchedulingOptions{})
+}
+
+func (s *Scheduler) scheduleResourceBindingWithClusterAffinityAndOptions(rb *workv1alpha2.ResourceBinding, options componentSchedulingOptions) error {
 	klog.V(4).InfoS("Begin scheduling ResourceBinding with ClusterAffinity", "ResourceBinding", klog.KObj(rb))
 	defer klog.V(4).InfoS("End scheduling ResourceBinding with ClusterAffinity", "ResourceBinding", klog.KObj(rb))
 
@@ -597,12 +944,25 @@ func (s *Scheduler) scheduleResourceBindingWithClusterAffinity(rb *workv1alpha2.
 		return fmt.Errorf("failed to marshal placement of ResourceBinding %s: %w", rb.GetName(), err)
 	}
 
-	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &rb.Spec, &rb.Status, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
+	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &rb.Spec, &rb.Status, &core.ScheduleAlgorithmOption{
+		EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation,
+		IsMultiComponentScale:          options.pinCurrentTarget,
+		ReuseAcceptedComponentTarget:   options.reuseAcceptedTarget,
+	})
 	var fitErr *framework.FitError
 	// in case of no cluster error, can not return but continue to patch(cleanup) the result.
 	if err != nil && !errors.As(err, &fitErr) {
 		s.recordScheduleResultEventForResourceBinding(rb, nil, err)
 		klog.Errorf("Failed scheduling ResourceBinding(%s/%s): %v", rb.Namespace, rb.Name, err)
+		return err
+	}
+	if options.preserveResult && err != nil {
+		s.recordScheduleResultEventForResourceBinding(rb, nil, err)
+		return err
+	}
+	if options.preserveResult && !isValidComponentTransitionResult(&rb.Spec, scheduleResult.SuggestedClusters, options.pinCurrentTarget) {
+		err = fmt.Errorf("component transition scheduling for ResourceBinding %s/%s produced an invalid result", rb.Namespace, rb.Name)
+		s.recordScheduleResultEventForResourceBinding(rb, nil, err)
 		return err
 	}
 
@@ -663,7 +1023,6 @@ func (s *Scheduler) scheduleResourceBindingWithClusterAffinities(rb *workv1alpha
 		if !errors.As(firstErr, &fitErr) {
 			return firstErr
 		}
-
 		klog.V(4).Infof("ResourceBinding(%s/%s) scheduled to clusters %v", rb.Namespace, rb.Name, nil)
 		patchErr := s.patchScheduleResultForResourceBinding(rb, string(placementBytes), nil)
 		if patchErr != nil {
@@ -674,7 +1033,6 @@ func (s *Scheduler) scheduleResourceBindingWithClusterAffinities(rb *workv1alpha
 		s.recordScheduleResultEventForResourceBinding(rb, nil, err)
 		return err
 	}
-
 	klog.V(4).Infof("ResourceBinding(%s/%s) scheduled to clusters %v", rb.Namespace, rb.Name, scheduleResult.SuggestedClusters)
 	patchErr := s.patchScheduleResultForResourceBinding(rb, string(placementBytes), scheduleResult.SuggestedClusters)
 	patchStatusErr := patchBindingStatusWithAffinityName(s.KarmadaClient, rb, updatedStatus.SchedulerObservedAffinityName)
@@ -684,32 +1042,60 @@ func (s *Scheduler) scheduleResourceBindingWithClusterAffinities(rb *workv1alpha
 }
 
 func (s *Scheduler) patchScheduleResultForResourceBinding(oldBinding *workv1alpha2.ResourceBinding, placement string, scheduleResult []workv1alpha2.TargetCluster) error {
+	return s.patchScheduleResultForResourceBindingWithCacheUpdate(oldBinding, placement, scheduleResult, true)
+}
+
+func (s *Scheduler) patchScheduleResultForResourceBindingWithoutCacheUpdate(oldBinding *workv1alpha2.ResourceBinding, placement string, scheduleResult []workv1alpha2.TargetCluster) error {
+	return s.patchScheduleResultForResourceBindingWithCacheUpdate(oldBinding, placement, scheduleResult, false)
+}
+
+func (s *Scheduler) patchScheduleResultForResourceBindingWithCacheUpdate(oldBinding *workv1alpha2.ResourceBinding, placement string, scheduleResult []workv1alpha2.TargetCluster, updateCache bool) error {
 	newBinding := oldBinding.DeepCopy()
 	if newBinding.Annotations == nil {
 		newBinding.Annotations = make(map[string]string)
 	}
 	newBinding.Annotations[util.PolicyPlacementAnnotation] = placement
 	newBinding.Spec.Clusters = scheduleResult
+	if err := setAcceptedComponentRequirementsHash(&newBinding.Spec, newBinding.Annotations); err != nil {
+		return err
+	}
 
 	patchBytes, err := helper.GenMergePatch(oldBinding, newBinding)
+	if err != nil {
+		return err
+	}
+	if err := setAcceptedComponentResultMetadata(&newBinding.Spec, newBinding.Annotations, oldBinding.Generation, patchBytes); err != nil {
+		return err
+	}
+	patchBytes, err = helper.GenMergePatch(oldBinding, newBinding)
 	if err != nil {
 		return err
 	}
 	if len(patchBytes) == 0 {
 		return nil
 	}
+	patchBytes, err = addResourceVersionPrecondition(patchBytes, oldBinding.ResourceVersion)
+	if err != nil {
+		return err
+	}
 
+	previousResourceVersion := oldBinding.ResourceVersion
 	result, err := s.KarmadaClient.WorkV1alpha2().ResourceBindings(newBinding.Namespace).Patch(context.TODO(), newBinding.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{})
 	if err != nil {
 		klog.Errorf("Failed to patch schedule to ResourceBinding(%s/%s): %v", oldBinding.Namespace, oldBinding.Name, err)
 		return err
 	}
-	if features.FeatureGate.Enabled(features.WorkloadAffinity) {
+	oldBinding.Generation = result.Generation
+	oldBinding.ResourceVersion = result.ResourceVersion
+	if err := validateAcceptedComponentResultGeneration(&result.Spec, result.Annotations, result.Generation, previousResourceVersion, result.ResourceVersion); err != nil {
+		return err
+	}
+	if updateCache && features.FeatureGate.Enabled(features.WorkloadAffinity) {
 		// TODO(@zhzhuang-zju): Consider race condition where Informer's event for 'result' arrives before this Add call,
 		// leading to a potential memory leak in AssigningResourceBindings cache if no further updates occur.
 		s.schedulerCache.AssigningResourceBindings().Add(result)
 	}
-	if features.FeatureGate.Enabled(features.SchedulingOvercommitProtection) {
+	if updateCache && features.FeatureGate.Enabled(features.SchedulingOvercommitProtection) {
 		s.updateAssumptionsCache(oldBinding, scheduleResult)
 	}
 
@@ -796,25 +1182,82 @@ func singleTemplateAsComponents(name string, replicas int32, reqs *workv1alpha2.
 }
 
 func (s *Scheduler) scheduleClusterResourceBinding(crb *workv1alpha2.ClusterResourceBinding) (err error) {
+	options := componentSchedulingOptions{}
+	if features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) && util.HasBindingComponentResult(&crb.Spec) {
+		options.preserveResult = true
+	}
+	return s.scheduleClusterResourceBindingWithComponentOptions(crb, options)
+}
+
+func (s *Scheduler) scheduleClusterResourceBindingForSteadyReconcile(crb *workv1alpha2.ClusterResourceBinding) error {
+	options := componentSchedulingOptions{}
+	if util.IsBindingComponentsAccepted(&crb.Spec) &&
+		util.IsBindingComponentRequirementsHashMatched(crb.Spec.Components, crb.Annotations) {
+		options = componentSchedulingOptions{preserveResult: true, reuseAcceptedTarget: true}
+	}
+	return s.scheduleClusterResourceBindingWithComponentOptions(crb, options)
+}
+
+func (s *Scheduler) scheduleClusterResourceBindingWithOptions(crb *workv1alpha2.ClusterResourceBinding, isMultiComponentScale bool) (err error) {
+	options := componentSchedulingOptions{}
+	if isMultiComponentScale {
+		options = componentSchedulingOptions{preserveResult: true, pinCurrentTarget: true, rejectUnsupported: true}
+	}
+	return s.scheduleClusterResourceBindingWithComponentOptions(crb, options)
+}
+
+func (s *Scheduler) scheduleClusterResourceBindingForComponentFailover(crb *workv1alpha2.ClusterResourceBinding) error {
+	return s.scheduleClusterResourceBindingWithComponentOptions(crb, componentSchedulingOptions{preserveResult: true})
+}
+
+func (s *Scheduler) backfillAcceptedComponentRequirementsForClusterResourceBinding(crb *workv1alpha2.ClusterResourceBinding) error {
+	placement, err := json.Marshal(*crb.Spec.Placement)
+	if err != nil {
+		return fmt.Errorf("failed to marshal placement of ClusterResourceBinding %s: %w", crb.Name, err)
+	}
+	return s.patchScheduleResultForClusterResourceBinding(crb, string(placement), acceptedComponentResultForBackfill(&crb.Spec))
+}
+
+func (s *Scheduler) scheduleClusterResourceBindingWithComponentOptions(crb *workv1alpha2.ClusterResourceBinding, options componentSchedulingOptions) (err error) {
 	defer func() {
 		condition, ignoreErr := getConditionByError(err)
+		if err != nil && options.rejectUnsupported {
+			condition.Message = componentTransitionFailureMessagePrefix + condition.Message
+		}
 		if updateErr := patchClusterBindingStatusCondition(s.KarmadaClient, crb, condition); updateErr != nil {
 			// if patch error occurs, just return patch error to reconcile again.
 			err = updateErr
 			klog.Errorf("Failed to patch schedule status to ClusterResourceBinding(%s): %v", crb.Name, err)
-		} else if ignoreErr && err != nil {
+		} else if ignoreErr && err != nil && !options.preserveResult {
 			// for finished schedule, we won't retry.
 			err = nil
 		}
 	}()
+	if options.rejectUnsupported && componentScaleRequiresRejection(&crb.Spec, &crb.Status, crb.Annotations) {
+		err := &unsupportedComponentScaleError{message: unsupportedComponentScaleMessage}
+		s.recordScheduleResultEventForClusterResourceBinding(crb, nil, err)
+		return err
+	}
+	if options.preserveResult && crb.Spec.Placement.ClusterAffinities != nil {
+		err := &unsupportedComponentScaleError{message: "ordered cluster affinities are not supported while preserving an accepted component result"}
+		s.recordScheduleResultEventForClusterResourceBinding(crb, nil, err)
+		return err
+	}
 
+	if options.preserveResult {
+		return s.scheduleClusterResourceBindingWithClusterAffinityAndOptions(crb, options)
+	}
 	if crb.Spec.Placement.ClusterAffinities != nil {
 		return s.scheduleClusterResourceBindingWithClusterAffinities(crb)
 	}
-	return s.scheduleClusterResourceBindingWithClusterAffinity(crb)
+	return s.scheduleClusterResourceBindingWithClusterAffinityAndOptions(crb, options)
 }
 
 func (s *Scheduler) scheduleClusterResourceBindingWithClusterAffinity(crb *workv1alpha2.ClusterResourceBinding) error {
+	return s.scheduleClusterResourceBindingWithClusterAffinityAndOptions(crb, componentSchedulingOptions{})
+}
+
+func (s *Scheduler) scheduleClusterResourceBindingWithClusterAffinityAndOptions(crb *workv1alpha2.ClusterResourceBinding, options componentSchedulingOptions) error {
 	klog.V(4).InfoS("Begin scheduling ClusterResourceBinding with ClusterAffinity", "ClusterResourceBinding", klog.KObj(crb))
 	defer klog.V(4).InfoS("End scheduling ClusterResourceBinding with ClusterAffinity", "ClusterResourceBinding", klog.KObj(crb))
 
@@ -824,12 +1267,25 @@ func (s *Scheduler) scheduleClusterResourceBindingWithClusterAffinity(crb *workv
 		return fmt.Errorf("failed to marshal placement of ClusterResourceBinding %s: %w", crb.GetName(), err)
 	}
 
-	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &crb.Spec, &crb.Status, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
+	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &crb.Spec, &crb.Status, &core.ScheduleAlgorithmOption{
+		EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation,
+		IsMultiComponentScale:          options.pinCurrentTarget,
+		ReuseAcceptedComponentTarget:   options.reuseAcceptedTarget,
+	})
 	var fitErr *framework.FitError
 	// in case of no cluster error, can not return but continue to patch(cleanup) the result.
 	if err != nil && !errors.As(err, &fitErr) {
 		s.recordScheduleResultEventForClusterResourceBinding(crb, nil, err)
 		klog.Errorf("Failed scheduling clusterResourceBinding(%s): %v", crb.Name, err)
+		return err
+	}
+	if options.preserveResult && err != nil {
+		s.recordScheduleResultEventForClusterResourceBinding(crb, nil, err)
+		return err
+	}
+	if options.preserveResult && !isValidComponentTransitionResult(&crb.Spec, scheduleResult.SuggestedClusters, options.pinCurrentTarget) {
+		err = fmt.Errorf("component transition scheduling for ClusterResourceBinding %s produced an invalid result", crb.Name)
+		s.recordScheduleResultEventForClusterResourceBinding(crb, nil, err)
 		return err
 	}
 
@@ -890,7 +1346,6 @@ func (s *Scheduler) scheduleClusterResourceBindingWithClusterAffinities(crb *wor
 		if !errors.As(firstErr, &fitErr) {
 			return firstErr
 		}
-
 		klog.V(4).Infof("ClusterResourceBinding(%s) scheduled to clusters %v", crb.Name, nil)
 		patchErr := s.patchScheduleResultForClusterResourceBinding(crb, string(placementBytes), nil)
 		if patchErr != nil {
@@ -901,7 +1356,6 @@ func (s *Scheduler) scheduleClusterResourceBindingWithClusterAffinities(crb *wor
 		s.recordScheduleResultEventForClusterResourceBinding(crb, nil, err)
 		return err
 	}
-
 	klog.V(4).Infof("ClusterResourceBinding(%s) scheduled to clusters %v", crb.Name, scheduleResult.SuggestedClusters)
 	patchErr := s.patchScheduleResultForClusterResourceBinding(crb, string(placementBytes), scheduleResult.SuggestedClusters)
 	patchStatusErr := patchClusterBindingStatusWithAffinityName(s.KarmadaClient, crb, updatedStatus.SchedulerObservedAffinityName)
@@ -917,23 +1371,185 @@ func (s *Scheduler) patchScheduleResultForClusterResourceBinding(oldBinding *wor
 	}
 	newBinding.Annotations[util.PolicyPlacementAnnotation] = placement
 	newBinding.Spec.Clusters = scheduleResult
+	if err := setAcceptedComponentRequirementsHash(&newBinding.Spec, newBinding.Annotations); err != nil {
+		return err
+	}
 
 	patchBytes, err := helper.GenMergePatch(oldBinding, newBinding)
+	if err != nil {
+		return err
+	}
+	if err := setAcceptedComponentResultMetadata(&newBinding.Spec, newBinding.Annotations, oldBinding.Generation, patchBytes); err != nil {
+		return err
+	}
+	patchBytes, err = helper.GenMergePatch(oldBinding, newBinding)
 	if err != nil {
 		return err
 	}
 	if len(patchBytes) == 0 {
 		return nil
 	}
+	patchBytes, err = addResourceVersionPrecondition(patchBytes, oldBinding.ResourceVersion)
+	if err != nil {
+		return err
+	}
 
-	_, err = s.KarmadaClient.WorkV1alpha2().ClusterResourceBindings().Patch(context.TODO(), newBinding.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{})
+	previousResourceVersion := oldBinding.ResourceVersion
+	result, err := s.KarmadaClient.WorkV1alpha2().ClusterResourceBindings().Patch(context.TODO(), newBinding.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{})
 	if err != nil {
 		klog.Errorf("Failed to patch schedule to ClusterResourceBinding(%s): %v", oldBinding.Name, err)
+		return err
+	}
+	oldBinding.Generation = result.Generation
+	oldBinding.ResourceVersion = result.ResourceVersion
+	if err := validateAcceptedComponentResultGeneration(&result.Spec, result.Annotations, result.Generation, previousResourceVersion, result.ResourceVersion); err != nil {
 		return err
 	}
 
 	klog.V(4).Infof("Patch schedule to ClusterResourceBinding(%s) succeed", oldBinding.Name)
 	return nil
+}
+
+func setAcceptedComponentRequirementsHash(spec *workv1alpha2.ResourceBindingSpec, annotations map[string]string) error {
+	if !util.IsBindingComponentsAccepted(spec) {
+		delete(annotations, util.AcceptedComponentRequirementsHashAnnotation)
+		return nil
+	}
+	hash, err := util.GenerateComponentRequirementsHash(spec.Components)
+	if err != nil {
+		return fmt.Errorf("failed to hash accepted component requirements: %w", err)
+	}
+	annotations[util.AcceptedComponentRequirementsHashAnnotation] = hash
+	return nil
+}
+
+func setAcceptedComponentResultMetadata(spec *workv1alpha2.ResourceBindingSpec, annotations map[string]string, generation int64, preliminaryPatch []byte) error {
+	if !util.IsBindingComponentsAccepted(spec) {
+		delete(annotations, acceptedComponentResultGenerationAnnotation)
+		delete(annotations, acceptedComponentSchedulingSpecHashAnnotation)
+		return nil
+	}
+
+	var patchFields map[string]json.RawMessage
+	if len(preliminaryPatch) > 0 {
+		if err := json.Unmarshal(preliminaryPatch, &patchFields); err != nil {
+			return fmt.Errorf("failed to inspect schedule result patch: %w", err)
+		}
+	}
+	if _, changesSpec := patchFields["spec"]; changesSpec {
+		generation++
+	}
+	specHash, err := generateAcceptedComponentSchedulingSpecHash(spec)
+	if err != nil {
+		return err
+	}
+	annotations[acceptedComponentResultGenerationAnnotation] = strconv.FormatInt(generation, 10)
+	annotations[acceptedComponentSchedulingSpecHashAnnotation] = specHash
+	return nil
+}
+
+func generateAcceptedComponentSchedulingSpecHash(spec *workv1alpha2.ResourceBindingSpec) (string, error) {
+	normalized := spec.DeepCopy()
+	normalized.Resource.ResourceVersion = ""
+	sort.SliceStable(normalized.Components, func(i, j int) bool {
+		return normalized.Components[i].Name < normalized.Components[j].Name
+	})
+	for i := range normalized.Clusters {
+		sort.SliceStable(normalized.Clusters[i].Components, func(a, b int) bool {
+			return normalized.Clusters[i].Components[a].Name < normalized.Clusters[i].Components[b].Name
+		})
+	}
+	data, err := json.Marshal(normalized)
+	if err != nil {
+		return "", fmt.Errorf("failed to hash accepted component scheduling spec: %w", err)
+	}
+	return fmt.Sprintf("%s%x", acceptedComponentSchedulingSpecHashPrefix, sha256.Sum256(data)), nil
+}
+
+func isAcceptedComponentSchedulingSpecHashMatched(spec *workv1alpha2.ResourceBindingSpec, annotations map[string]string) bool {
+	acceptedHash := annotations[acceptedComponentSchedulingSpecHashAnnotation]
+	if acceptedHash == "" {
+		return false
+	}
+	currentHash, err := generateAcceptedComponentSchedulingSpecHash(spec)
+	return err == nil && acceptedHash == currentHash
+}
+
+func validateAcceptedComponentResultGeneration(spec *workv1alpha2.ResourceBindingSpec, annotations map[string]string, generation int64, previousResourceVersion, resourceVersion string) error {
+	if !util.IsBindingComponentsAccepted(spec) || resourceVersion == previousResourceVersion {
+		return nil
+	}
+	expected := annotations[acceptedComponentResultGenerationAnnotation]
+	if expected != strconv.FormatInt(generation, 10) {
+		return fmt.Errorf("accepted component result generation token %q does not match API generation %d", expected, generation)
+	}
+	return nil
+}
+
+func acceptedComponentResultForBackfill(spec *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster {
+	result := make([]workv1alpha2.TargetCluster, len(spec.Clusters))
+	copy(result, spec.Clusters)
+	result[0].Components = append([]workv1alpha2.TargetComponent(nil), spec.Clusters[0].Components...)
+	return result
+}
+
+func isValidComponentTransitionResult(spec *workv1alpha2.ResourceBindingSpec, result []workv1alpha2.TargetCluster, pinCurrentTarget bool) bool {
+	if !util.IsMultiTemplateSchedulingApplicable(spec) {
+		for i := range result {
+			if len(result[i].Components) != 0 {
+				return false
+			}
+		}
+		return !pinCurrentTarget
+	}
+	if len(result) != 1 || len(result[0].Components) != len(spec.Components) {
+		return false
+	}
+	if pinCurrentTarget && (len(spec.Clusters) != 1 || result[0].Name != spec.Clusters[0].Name) {
+		return false
+	}
+
+	desired := make(map[string]int32, len(spec.Components))
+	for i := range spec.Components {
+		if _, exists := desired[spec.Components[i].Name]; exists {
+			return false
+		}
+		desired[spec.Components[i].Name] = spec.Components[i].Replicas
+	}
+	seen := make(map[string]struct{}, len(result[0].Components))
+	for i := range result[0].Components {
+		component := result[0].Components[i]
+		if _, exists := seen[component.Name]; exists {
+			return false
+		}
+		seen[component.Name] = struct{}{}
+		if replicas, exists := desired[component.Name]; !exists || replicas != component.Replicas {
+			return false
+		}
+	}
+	return true
+}
+
+func componentScaleRequiresRejection(spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus, annotations map[string]string) bool {
+	return hasLegacyComponentResult(spec) || componentScaleTransitionConflicts(spec, status, annotations)
+}
+
+func addResourceVersionPrecondition(patchBytes []byte, resourceVersion string) ([]byte, error) {
+	if resourceVersion == "" {
+		return patchBytes, nil
+	}
+
+	var patch map[string]any
+	if err := json.Unmarshal(patchBytes, &patch); err != nil {
+		return nil, fmt.Errorf("failed to decode schedule result patch: %w", err)
+	}
+	metadata, ok := patch["metadata"].(map[string]any)
+	if !ok {
+		metadata = make(map[string]any)
+		patch["metadata"] = metadata
+	}
+	metadata["resourceVersion"] = resourceVersion
+	return json.Marshal(patch)
 }
 
 func (s *Scheduler) handleErr(err error, bindingInfo *internalqueue.QueuedBindingInfo) {
@@ -1047,12 +1663,17 @@ func patchBindingStatus(karmadaClient karmadaclientset.Interface, rb, updateRB *
 	if len(patchBytes) == 0 {
 		return nil
 	}
+	patchBytes, err = addResourceVersionPrecondition(patchBytes, rb.ResourceVersion)
+	if err != nil {
+		return err
+	}
 
-	_, err = karmadaClient.WorkV1alpha2().ResourceBindings(rb.Namespace).Patch(context.TODO(), rb.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}, "status")
+	result, err := karmadaClient.WorkV1alpha2().ResourceBindings(rb.Namespace).Patch(context.TODO(), rb.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}, "status")
 	if err != nil {
 		klog.Errorf("Failed to patch schedule status ResourceBinding(%s/%s): %v", rb.Namespace, rb.Name, err)
 		return err
 	}
+	rb.ResourceVersion = result.ResourceVersion
 
 	klog.V(4).Infof("Patch schedule status to ResourceBinding(%s/%s) succeed", rb.Namespace, rb.Name)
 	return nil
@@ -1098,12 +1719,17 @@ func patchClusterResourceBindingStatus(karmadaClient karmadaclientset.Interface,
 	if len(patchBytes) == 0 {
 		return nil
 	}
+	patchBytes, err = addResourceVersionPrecondition(patchBytes, crb.ResourceVersion)
+	if err != nil {
+		return err
+	}
 
-	_, err = karmadaClient.WorkV1alpha2().ClusterResourceBindings().Patch(context.TODO(), crb.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}, "status")
+	result, err := karmadaClient.WorkV1alpha2().ClusterResourceBindings().Patch(context.TODO(), crb.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}, "status")
 	if err != nil {
 		klog.Errorf("Failed to patch schedule status to ClusterResourceBinding(%s): %v", crb.Name, err)
 		return err
 	}
+	crb.ResourceVersion = result.ResourceVersion
 
 	klog.V(4).Infof("Patch schedule status to ClusterResourceBinding(%s) succeed", crb.Name)
 	return nil

@@ -393,6 +393,11 @@ func Test_needConsideredPlacementChanged(t *testing.T) {
 			}
 		})
 	}
+	t.Run("malformed applied placement is treated as changed", func(t *testing.T) {
+		if !placementChanged(policyv1alpha1.Placement{}, "{", "") {
+			t.Error("placementChanged() = false, want true")
+		}
+	})
 }
 
 func Test_getAffinityIndex(t *testing.T) {
@@ -493,6 +498,18 @@ func Test_getConditionByError(t *testing.T) {
 			err:               fmt.Errorf("failed to assign replicas: %w", fmt.Errorf("failed to scale up: %w", &framework.UnschedulableError{Message: "insufficient replicas"})),
 			expectedCondition: metav1.Condition{Type: workv1alpha2.Scheduled, Reason: workv1alpha2.BindingReasonUnschedulable, Status: metav1.ConditionFalse},
 			ignoreErr:         false,
+		},
+		{
+			name:              "unsupported component scale",
+			err:               &unsupportedComponentScaleError{message: "unsupported transition"},
+			expectedCondition: metav1.Condition{Type: workv1alpha2.Scheduled, Reason: workv1alpha2.BindingReasonUnschedulable, Status: metav1.ConditionFalse},
+			ignoreErr:         true,
+		},
+		{
+			name:              "wrapped unsupported component scale",
+			err:               fmt.Errorf("component scale rejected: %w", &unsupportedComponentScaleError{message: "unsupported transition"}),
+			expectedCondition: metav1.Condition{Type: workv1alpha2.Scheduled, Reason: workv1alpha2.BindingReasonUnschedulable, Status: metav1.ConditionFalse},
+			ignoreErr:         true,
 		},
 	}
 	for _, tt := range tests {

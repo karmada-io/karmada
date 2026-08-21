@@ -25,6 +25,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter/customized/declarative"
 )
 
 func TestRetentionRule_Name(t *testing.T) {
@@ -416,6 +418,54 @@ func TestReplicaRevisionRule_SetScript(t *testing.T) {
 			t.Errorf("Expected ReplicaRevision.LuaScript to be %s, but got %s", script, c.Spec.Customizations.ReplicaRevision.LuaScript)
 		}
 	})
+}
+
+func TestComponentRevisionRule(t *testing.T) {
+	rule := &componentRevisionRule{}
+	if got, want := rule.Name(), string(configv1alpha1.InterpreterOperationReviseComponents); got != want {
+		t.Fatalf("Name() = %q, want %q", got, want)
+	}
+
+	customization := &configv1alpha1.ResourceInterpreterCustomization{}
+	rule.SetScript(customization, "test script")
+	if got := rule.GetScript(customization); got != "test script" {
+		t.Fatalf("GetScript() = %q, want test script", got)
+	}
+	rule.SetScript(customization, "")
+	if customization.Spec.Customizations.ComponentRevision != nil {
+		t.Fatalf("SetScript(empty) left ComponentRevision = %#v", customization.Spec.Customizations.ComponentRevision)
+	}
+
+	customization.Spec.Target = configv1alpha1.CustomizationTarget{
+		APIVersion: "testing.karmada.io/v1alpha1",
+		Kind:       "MultiComponentWorkload",
+	}
+	rule.SetScript(customization, `
+function ReviseComponents(desiredObj, components)
+  for i = 1, #components do
+    desiredObj.spec[components[i].name].replicas = components[i].replicas
+  end
+  return desiredObj
+end`)
+	interpreter := declarative.NewConfigurableInterpreter(nil)
+	interpreter.LoadConfig([]*configv1alpha1.ResourceInterpreterCustomization{customization})
+	result := rule.Run(interpreter, RuleArgs{
+		Desired: &unstructured.Unstructured{Object: map[string]any{
+			"apiVersion": "testing.karmada.io/v1alpha1",
+			"kind":       "MultiComponentWorkload",
+			"spec": map[string]any{
+				"worker": map[string]any{"replicas": int64(1)},
+			},
+		}},
+		Components: []workv1alpha2.TargetComponent{{Name: "worker", Replicas: 3}},
+	})
+	if result.Err != nil {
+		t.Fatalf("Run() error = %v", result.Err)
+	}
+	revised := result.Results[0].Value.(*unstructured.Unstructured)
+	if replicas, _, _ := unstructured.NestedInt64(revised.Object, "spec", "worker", "replicas"); replicas != 3 {
+		t.Fatalf("Run() worker replicas = %d, want 3", replicas)
+	}
 }
 
 func TestStatusReflectionRule_Name(t *testing.T) {

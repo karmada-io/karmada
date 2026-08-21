@@ -18,6 +18,7 @@ package core
 
 import (
 	"fmt"
+	"maps"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -26,6 +27,7 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	estimatorclient "github.com/karmada-io/karmada/pkg/estimator/client"
 	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/scheduler/core/spreadconstraint"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
@@ -153,7 +155,7 @@ func TestSelectClusters(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.spec.Placement = tt.placement
-			result, err := SelectClusters(tt.clustersScore, tt.placement, tt.spec, tt.status, nil)
+			result, err := SelectClusters(tt.clustersScore, tt.placement, tt.spec, tt.status, nil, false, false)
 
 			if tt.expectedError {
 				assert.Error(t, err)
@@ -173,6 +175,66 @@ func TestSelectClusters(t *testing.T) {
 
 				assert.ElementsMatch(t, expectedNames, actualNames)
 			}
+		})
+	}
+}
+
+func TestSelectClustersForComponentScaleRequiresCapacity(t *testing.T) {
+	originalFeatureGates := features.FeatureGate.DeepCopy()
+	if err := features.FeatureGate.Set(fmt.Sprintf("%s=true", features.MultiplePodTemplatesScheduling)); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { features.FeatureGate = originalFeatureGates })
+
+	originalEstimators := make(map[string]estimatorclient.ReplicaEstimator, len(estimatorclient.GetReplicaEstimators()))
+	for name, estimator := range estimatorclient.GetReplicaEstimators() {
+		originalEstimators[name] = estimator
+		delete(estimatorclient.GetReplicaEstimators(), name)
+	}
+	t.Cleanup(func() {
+		for name := range estimatorclient.GetReplicaEstimators() {
+			delete(estimatorclient.GetReplicaEstimators(), name)
+		}
+		maps.Copy(estimatorclient.GetReplicaEstimators(), originalEstimators)
+	})
+
+	placement := &policyv1alpha1.Placement{SpreadConstraints: []policyv1alpha1.SpreadConstraint{
+		{SpreadByField: policyv1alpha1.SpreadByFieldCluster, MinGroups: 1, MaxGroups: 1},
+		{SpreadByField: policyv1alpha1.SpreadByFieldRegion, MinGroups: 1, MaxGroups: 1},
+	}}
+	spec := &workv1alpha2.ResourceBindingSpec{
+		Placement: placement,
+		Resource:  workv1alpha2.ObjectReference{Namespace: "default", Name: "flink"},
+		Components: []workv1alpha2.Component{
+			{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 6},
+		},
+		Clusters: []workv1alpha2.TargetCluster{{Name: ClusterMember1, Components: []workv1alpha2.TargetComponent{
+			{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4},
+		}}},
+	}
+	cluster := helper.NewCluster(ClusterMember1)
+	cluster.Spec.Region = "region1"
+	clustersScore := framework.ClusterScoreList{{Cluster: cluster}}
+
+	for _, available := range []int32{0, 1} {
+		t.Run(fmt.Sprintf("available-%d", available), func(t *testing.T) {
+			estimator := &mockReplicaEstimator{
+				maxAvailableComponentSetsResponse: []estimatorclient.ComponentSetEstimationResponse{{Name: ClusterMember1, Sets: available}},
+			}
+			estimatorclient.GetReplicaEstimators()["test"] = estimator
+			t.Cleanup(func() { delete(estimatorclient.GetReplicaEstimators(), "test") })
+
+			got, err := SelectClusters(clustersScore, placement, spec, &workv1alpha2.ResourceBindingStatus{}, nil, true, false)
+			if available == 0 {
+				assert.Error(t, err)
+				var unschedulableErr *framework.UnschedulableError
+				assert.ErrorAs(t, err, &unschedulableErr)
+				assert.Empty(t, got)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Len(t, got, 1)
+			assert.Equal(t, ClusterMember1, got[0].Name)
 		})
 	}
 }
@@ -224,6 +286,19 @@ func TestAssignComponentSchedulingResults(t *testing.T) {
 			spec: &workv1alpha2.ResourceBindingSpec{
 				Components: []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
 				Placement:  &policyv1alpha1.Placement{},
+			},
+			want: []workv1alpha2.TargetCluster{{Name: ClusterMember1}},
+		},
+		{
+			name:        "ordered cluster affinities stay outside component result protocol",
+			featureGate: true,
+			clusters:    []spreadconstraint.ClusterDetailInfo{{Name: ClusterMember1, Cluster: helper.NewCluster(ClusterMember1)}},
+			spec: &workv1alpha2.ResourceBindingSpec{
+				Components: []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
+				Placement: &policyv1alpha1.Placement{
+					SpreadConstraints: applicablePlacement.SpreadConstraints,
+					ClusterAffinities: []policyv1alpha1.ClusterAffinityTerm{{AffinityName: "primary"}},
+				},
 			},
 			want: []workv1alpha2.TargetCluster{{Name: ClusterMember1}},
 		},

@@ -31,6 +31,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/runtime"
 	"github.com/karmada-io/karmada/pkg/scheduler/metrics"
+	"github.com/karmada-io/karmada/pkg/util"
 )
 
 // ScheduleAlgorithm is the interface that should be implemented to schedule a resource to the target clusters.
@@ -41,6 +42,10 @@ type ScheduleAlgorithm interface {
 // ScheduleAlgorithmOption represents the option for ScheduleAlgorithm.
 type ScheduleAlgorithmOption struct {
 	EnableEmptyWorkloadPropagation bool
+	IsMultiComponentScale          bool
+	// ReuseAcceptedComponentTarget is set only after the caller proves that the
+	// persisted target matches the desired replicas and accepted requirements.
+	ReuseAcceptedComponentTarget bool
 }
 
 // ScheduleResult includes the clusters selected.
@@ -79,6 +84,9 @@ func (g *genericScheduler) Schedule(
 	if err != nil {
 		return result, fmt.Errorf("failed to find fit clusters: %w", err)
 	}
+	if scheduleAlgorithmOption != nil && scheduleAlgorithmOption.IsMultiComponentScale {
+		feasibleClusters = retainScheduledClusters(feasibleClusters, spec.Clusters)
+	}
 
 	// Short path for case no cluster fit.
 	if len(feasibleClusters) == 0 {
@@ -89,15 +97,23 @@ func (g *genericScheduler) Schedule(
 	}
 	klog.V(4).Infof("Feasible clusters found: %v", feasibleClusters)
 
-	clustersScore, err := g.prioritizeClusters(ctx, g.scheduleFramework, spec, feasibleClusters)
+	selectedClusters, fallbackClusters, reusedAcceptedTarget, err := g.selectAcceptedComponentTarget(ctx, feasibleClusters, spec, status, scheduleAlgorithmOption)
 	if err != nil {
-		return result, fmt.Errorf("failed to prioritize clusters: %w", err)
+		return result, err
 	}
-	klog.V(4).Infof("Feasible clusters scores: %v", clustersScore)
+	if !reusedAcceptedTarget {
+		feasibleClusters = fallbackClusters
+		clustersScore, err := g.prioritizeClusters(ctx, g.scheduleFramework, spec, feasibleClusters)
+		if err != nil {
+			return result, fmt.Errorf("failed to prioritize clusters: %w", err)
+		}
+		klog.V(4).Infof("Feasible clusters scores: %v", clustersScore)
 
-	selectedClusters, err := g.selectClusters(clustersScore, spec.Placement, spec, status)
-	if err != nil {
-		return result, fmt.Errorf("failed to select clusters: %w", err)
+		selectedClusters, err = g.selectClusters(clustersScore, spec.Placement, spec, status,
+			scheduleAlgorithmOption != nil && scheduleAlgorithmOption.IsMultiComponentScale, false)
+		if err != nil {
+			return result, fmt.Errorf("failed to select clusters: %w", err)
+		}
 	}
 	klog.V(4).Infof("Selected clusters: %v", selectedClusters)
 
@@ -107,12 +123,71 @@ func (g *genericScheduler) Schedule(
 	}
 	klog.V(4).Infof("Assigned Replicas: %v", clustersWithReplicas)
 
-	if scheduleAlgorithmOption.EnableEmptyWorkloadPropagation {
+	if scheduleAlgorithmOption != nil && scheduleAlgorithmOption.EnableEmptyWorkloadPropagation {
 		clustersWithReplicas = attachZeroReplicasCluster(selectedClusters, clustersWithReplicas)
 	}
 	result.SuggestedClusters = clustersWithReplicas
 
 	return result, nil
+}
+
+// selectAcceptedComponentTarget reuses a complete accepted target only after it
+// passes the normal filter, score, and spread-selection stages. Capacity is not
+// re-estimated because the target already runs that exact accepted footprint.
+func (g *genericScheduler) selectAcceptedComponentTarget(
+	ctx context.Context,
+	feasibleClusters []*clusterv1alpha1.Cluster,
+	spec *workv1alpha2.ResourceBindingSpec,
+	status *workv1alpha2.ResourceBindingStatus,
+	option *ScheduleAlgorithmOption,
+) ([]spreadconstraint.ClusterDetailInfo, []*clusterv1alpha1.Cluster, bool, error) {
+	if option == nil || option.IsMultiComponentScale || !option.ReuseAcceptedComponentTarget ||
+		!util.IsBindingComponentsAccepted(spec) {
+		return nil, feasibleClusters, false, nil
+	}
+	fallbackClusters := make([]*clusterv1alpha1.Cluster, 0, len(feasibleClusters))
+	var acceptedTarget *clusterv1alpha1.Cluster
+	for _, cluster := range feasibleClusters {
+		if cluster.Name == spec.Clusters[0].Name {
+			acceptedTarget = cluster
+			continue
+		}
+		fallbackClusters = append(fallbackClusters, cluster)
+	}
+	if acceptedTarget == nil {
+		return nil, feasibleClusters, false, nil
+	}
+
+	clustersScore, err := g.prioritizeClusters(ctx, g.scheduleFramework, spec, []*clusterv1alpha1.Cluster{acceptedTarget})
+	if err != nil {
+		return nil, nil, false, fmt.Errorf("failed to prioritize accepted component target: %w", err)
+	}
+	selected, err := g.selectClusters(clustersScore, spec.Placement, spec, status, false, true)
+	if err == nil && len(selected) == 1 && selected[0].Name == acceptedTarget.Name {
+		return selected, nil, true, nil
+	}
+	if len(fallbackClusters) == 0 {
+		if err != nil {
+			return nil, nil, false, fmt.Errorf("accepted component target no longer satisfies placement: %w", err)
+		}
+		return nil, nil, false, fmt.Errorf("accepted component target no longer satisfies placement")
+	}
+	return nil, fallbackClusters, false, nil
+}
+
+func retainScheduledClusters(feasibleClusters []*clusterv1alpha1.Cluster, scheduledClusters []workv1alpha2.TargetCluster) []*clusterv1alpha1.Cluster {
+	targets := make(map[string]struct{}, len(scheduledClusters))
+	for i := range scheduledClusters {
+		targets[scheduledClusters[i].Name] = struct{}{}
+	}
+
+	retained := make([]*clusterv1alpha1.Cluster, 0, len(feasibleClusters))
+	for _, cluster := range feasibleClusters {
+		if _, exists := targets[cluster.Name]; exists {
+			retained = append(retained, cluster)
+		}
+	}
+	return retained
 }
 
 // findClustersThatFit finds the clusters that are fit for the placement based on running the filter plugins.
@@ -194,8 +269,9 @@ func (g *genericScheduler) prioritizeClusters(
 }
 
 func (g *genericScheduler) selectClusters(clustersScore framework.ClusterScoreList,
-	placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus) ([]spreadconstraint.ClusterDetailInfo, error) {
-	return SelectClusters(clustersScore, placement, spec, status, g.schedulerCache.AssigningResourceBindings())
+	placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus,
+	isMultiComponentScale, reuseAcceptedComponentTarget bool) ([]spreadconstraint.ClusterDetailInfo, error) {
+	return SelectClusters(clustersScore, placement, spec, status, g.schedulerCache.AssigningResourceBindings(), isMultiComponentScale, reuseAcceptedComponentTarget)
 }
 
 func (g *genericScheduler) assignReplicas(clusters []spreadconstraint.ClusterDetailInfo, spec *workv1alpha2.ResourceBindingSpec,

@@ -17,6 +17,8 @@ limitations under the License.
 package binding
 
 import (
+	"context"
+	"encoding/json"
 	"reflect"
 	"sort"
 	"testing"
@@ -24,10 +26,323 @@ import (
 	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter/default/thirdparty"
+	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/eventfilter"
+	"github.com/karmada-io/karmada/pkg/util/names"
+	"github.com/karmada-io/karmada/pkg/util/overridemanager"
 )
+
+type replicaRevisionInterpreter struct {
+	resourceinterpreter.ResourceInterpreter
+	enabled                 map[configv1alpha1.InterpreterOperation]bool
+	components              []workv1alpha2.Component
+	revisedComponents       []workv1alpha2.TargetComponent
+	revisedReplica          int64
+	getComponentsInvoked    bool
+	reviseComponentsInvoked bool
+	reviseReplicaInvoked    bool
+	reviseComponentsFunc    func(*unstructured.Unstructured, []workv1alpha2.TargetComponent) (*unstructured.Unstructured, error)
+}
+
+type thirdPartyComponentInterpreter struct {
+	resourceinterpreter.ResourceInterpreter
+	interpreter *thirdparty.ConfigurableInterpreter
+}
+
+func TestResourceTemplateMatchesBindingSnapshot(t *testing.T) {
+	enableMultiplePodTemplatesScheduling(t)
+
+	components := []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}}
+	spec := workv1alpha2.ResourceBindingSpec{
+		Resource:   workv1alpha2.ObjectReference{UID: "source-uid", ResourceVersion: "1"},
+		Placement:  singleClusterComponentPlacement(),
+		Components: components,
+		Clusters: []workv1alpha2.TargetCluster{{Name: "member1", Components: []workv1alpha2.TargetComponent{
+			{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4},
+		}}},
+	}
+	workload := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "apps/v1",
+		"kind":       "Deployment",
+		"metadata": map[string]any{
+			"name": "demo", "namespace": "default", "uid": "source-uid", "resourceVersion": "2",
+		},
+		"spec": map[string]any{"replicas": int64(4)},
+	}}
+	sourceHash, err := eventfilter.GenerateResourceTemplateSpecificationHash(workload)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name        string
+		mutateSpec  func(*workv1alpha2.ResourceBindingSpec)
+		mutateWork  func(*unstructured.Unstructured)
+		annotations map[string]string
+		want        bool
+	}{
+		{name: "exact resource version is a positive witness", mutateSpec: func(spec *workv1alpha2.ResourceBindingSpec) {
+			spec.Resource.ResourceVersion = "2"
+		}, want: true},
+		{name: "status-only resource version change uses specification hash", annotations: map[string]string{
+			util.ResourceTemplateSpecificationHashAnnotation: sourceHash,
+		}, want: true},
+		{name: "missing specification hash freezes", want: false},
+		{name: "changed specification freezes", annotations: map[string]string{
+			util.ResourceTemplateSpecificationHashAnnotation: "v1:sha256:stale",
+		}, want: false},
+		{name: "recreated source freezes even when hash matches", mutateWork: func(workload *unstructured.Unstructured) {
+			workload.SetUID("new-source-uid")
+		}, annotations: map[string]string{util.ResourceTemplateSpecificationHashAnnotation: sourceHash}, want: false},
+		{name: "custom scheduler remains outside protocol", mutateSpec: func(spec *workv1alpha2.ResourceBindingSpec) {
+			spec.SchedulerName = "custom-scheduler"
+		}, want: true},
+		{name: "binding without owned component result remains outside protocol", mutateSpec: func(spec *workv1alpha2.ResourceBindingSpec) {
+			spec.Clusters[0].Components = nil
+		}, want: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotSpec := spec.DeepCopy()
+			gotWorkload := workload.DeepCopy()
+			if tt.mutateSpec != nil {
+				tt.mutateSpec(gotSpec)
+			}
+			if tt.mutateWork != nil {
+				tt.mutateWork(gotWorkload)
+			}
+			got, err := resourceTemplateMatchesBindingSnapshot(gotSpec, tt.annotations, gotWorkload)
+			if err != nil {
+				t.Fatalf("resourceTemplateMatchesBindingSnapshot() error = %v", err)
+			}
+			if got != tt.want {
+				t.Fatalf("resourceTemplateMatchesBindingSnapshot() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func (i *thirdPartyComponentInterpreter) HookEnabled(gvk schema.GroupVersionKind, operation configv1alpha1.InterpreterOperation) bool {
+	return i.interpreter.HookEnabled(gvk, operation)
+}
+
+func (i *thirdPartyComponentInterpreter) GetComponents(object *unstructured.Unstructured) ([]workv1alpha2.Component, error) {
+	components, _, err := i.interpreter.GetComponents(object)
+	return components, err
+}
+
+func (i *replicaRevisionInterpreter) HookEnabled(_ schema.GroupVersionKind, operation configv1alpha1.InterpreterOperation) bool {
+	return i.enabled[operation]
+}
+
+func (i *replicaRevisionInterpreter) ReviseComponents(object *unstructured.Unstructured, components []workv1alpha2.TargetComponent) (*unstructured.Unstructured, error) {
+	i.reviseComponentsInvoked = true
+	i.revisedComponents = append([]workv1alpha2.TargetComponent(nil), components...)
+	if i.reviseComponentsFunc != nil {
+		return i.reviseComponentsFunc(object, components)
+	}
+	return object, nil
+}
+
+type noOpOverrideManager struct{}
+
+func (noOpOverrideManager) ApplyOverridePolicies(_ *unstructured.Unstructured, _ string) (*overridemanager.AppliedOverrides, *overridemanager.AppliedOverrides, error) {
+	return nil, nil, nil
+}
+
+func newComponentRevisionInterpreter(components []workv1alpha2.Component) resourceinterpreter.ResourceInterpreter {
+	return &replicaRevisionInterpreter{enabled: map[configv1alpha1.InterpreterOperation]bool{
+		configv1alpha1.InterpreterOperationInterpretComponent: true,
+		configv1alpha1.InterpreterOperationReviseComponents:   true,
+	}, components: components}
+}
+
+func snapshotWorks(t *testing.T, c client.Client) []workv1alpha1.Work {
+	t.Helper()
+	workList := &workv1alpha1.WorkList{}
+	if err := c.List(context.Background(), workList); err != nil {
+		t.Fatal(err)
+	}
+	works := make([]workv1alpha1.Work, len(workList.Items))
+	for i := range workList.Items {
+		works[i] = *workList.Items[i].DeepCopy()
+	}
+	sort.Slice(works, func(i, j int) bool {
+		if works[i].Namespace == works[j].Namespace {
+			return works[i].Name < works[j].Name
+		}
+		return works[i].Namespace < works[j].Namespace
+	})
+	return works
+}
+
+func workloadFromWork(t *testing.T, work *workv1alpha1.Work) *unstructured.Unstructured {
+	t.Helper()
+	if len(work.Spec.Workload.Manifests) != 1 {
+		t.Fatalf("Work manifests = %d, want 1", len(work.Spec.Workload.Manifests))
+	}
+	object := make(map[string]any)
+	if err := json.Unmarshal(work.Spec.Workload.Manifests[0].Raw, &object); err != nil {
+		t.Fatalf("failed to decode Work manifest: %v", err)
+	}
+	return &unstructured.Unstructured{Object: object}
+}
+
+func (i *replicaRevisionInterpreter) ReviseReplica(object *unstructured.Unstructured, replica int64) (*unstructured.Unstructured, error) {
+	i.reviseReplicaInvoked = true
+	i.revisedReplica = replica
+	return object, nil
+}
+
+func (i *replicaRevisionInterpreter) GetComponents(_ *unstructured.Unstructured) ([]workv1alpha2.Component, error) {
+	i.getComponentsInvoked = true
+	return i.components, nil
+}
+
+func TestReviseWorkloadReplicas(t *testing.T) {
+	workload := &unstructured.Unstructured{}
+	workload.SetGroupVersionKind(schema.GroupVersionKind{Group: "example.io", Version: "v1", Kind: "MultiComponentWorkload"})
+
+	t.Run("component result uses component revision", func(t *testing.T) {
+		interpreter := &replicaRevisionInterpreter{enabled: map[configv1alpha1.InterpreterOperation]bool{
+			configv1alpha1.InterpreterOperationReviseComponents: true,
+			configv1alpha1.InterpreterOperationReviseReplica:    true,
+		}}
+		components := []workv1alpha2.TargetComponent{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 3}}
+
+		_, err := reviseWorkloadReplicas(interpreter, workload, workv1alpha2.TargetCluster{Replicas: 99, Components: components}, nil)
+		if err != nil {
+			t.Fatalf("reviseWorkloadReplicas() error = %v", err)
+		}
+		if !interpreter.reviseComponentsInvoked || interpreter.reviseReplicaInvoked {
+			t.Fatalf("expected component revision only, got component=%t replica=%t", interpreter.reviseComponentsInvoked, interpreter.reviseReplicaInvoked)
+		}
+		if !reflect.DeepEqual(interpreter.revisedComponents, components) {
+			t.Fatalf("revised components = %v, want %v", interpreter.revisedComponents, components)
+		}
+	})
+
+	t.Run("multiple components without hook fail closed", func(t *testing.T) {
+		interpreter := &replicaRevisionInterpreter{enabled: map[configv1alpha1.InterpreterOperation]bool{}}
+
+		_, err := reviseWorkloadReplicas(interpreter, workload, workv1alpha2.TargetCluster{Components: []workv1alpha2.TargetComponent{
+			{Name: "jobmanager", Replicas: 1},
+			{Name: "taskmanager", Replicas: 3},
+		}}, nil)
+		if err == nil {
+			t.Fatal("reviseWorkloadReplicas() error = nil, want missing hook error")
+		}
+	})
+
+	t.Run("legacy result uses replica revision", func(t *testing.T) {
+		interpreter := &replicaRevisionInterpreter{enabled: map[configv1alpha1.InterpreterOperation]bool{
+			configv1alpha1.InterpreterOperationReviseReplica: true,
+		}}
+
+		_, err := reviseWorkloadReplicas(interpreter, workload, workv1alpha2.TargetCluster{Replicas: 4}, nil)
+		if err != nil {
+			t.Fatalf("reviseWorkloadReplicas() error = %v", err)
+		}
+		if !interpreter.reviseReplicaInvoked || interpreter.revisedReplica != 4 {
+			t.Fatalf("revised replica = %d, invoked=%t, want 4", interpreter.revisedReplica, interpreter.reviseReplicaInvoked)
+		}
+	})
+
+	t.Run("multi-component workload waits for a component result", func(t *testing.T) {
+		interpreter := &replicaRevisionInterpreter{enabled: map[configv1alpha1.InterpreterOperation]bool{
+			configv1alpha1.InterpreterOperationReviseReplica: true,
+		}}
+		desired := []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}}
+
+		if _, err := reviseWorkloadReplicas(interpreter, workload, workv1alpha2.TargetCluster{Replicas: 4}, desired); err == nil {
+			t.Fatal("reviseWorkloadReplicas() error = nil, want pending component result error")
+		}
+		if interpreter.reviseReplicaInvoked {
+			t.Fatal("legacy scalar revision must not run before the component result is available")
+		}
+	})
+}
+
+func TestReviseWorkloadReplicasWithComponentInterpretation(t *testing.T) {
+	workload := &unstructured.Unstructured{}
+	workload.SetGroupVersionKind(schema.GroupVersionKind{Group: "example.io", Version: "v1", Kind: "MultiComponentWorkload"})
+	targetCluster := workv1alpha2.TargetCluster{Components: []workv1alpha2.TargetComponent{
+		{Name: "jobmanager", Replicas: 1},
+		{Name: "taskmanager", Replicas: 3},
+	}}
+
+	t.Run("matching source components do not require revision", func(t *testing.T) {
+		interpreter := &replicaRevisionInterpreter{
+			enabled: map[configv1alpha1.InterpreterOperation]bool{
+				configv1alpha1.InterpreterOperationInterpretComponent: true,
+			},
+			components: []workv1alpha2.Component{
+				{Name: "taskmanager", Replicas: 3},
+				{Name: "jobmanager", Replicas: 1},
+			},
+		}
+
+		got, err := reviseWorkloadReplicas(interpreter, workload, targetCluster, nil)
+		if err != nil {
+			t.Fatalf("reviseWorkloadReplicas() error = %v", err)
+		}
+		if got != workload || !interpreter.getComponentsInvoked {
+			t.Fatalf("matching source was not reused, got=%p want=%p interpreted=%t", got, workload, interpreter.getComponentsInvoked)
+		}
+	})
+
+	t.Run("mismatched source components fail closed", func(t *testing.T) {
+		interpreter := &replicaRevisionInterpreter{
+			enabled: map[configv1alpha1.InterpreterOperation]bool{
+				configv1alpha1.InterpreterOperationInterpretComponent: true,
+			},
+			components: []workv1alpha2.Component{
+				{Name: "jobmanager", Replicas: 1},
+				{Name: "taskmanager", Replicas: 4},
+			},
+		}
+
+		if _, err := reviseWorkloadReplicas(interpreter, workload, targetCluster, nil); err == nil {
+			t.Fatal("reviseWorkloadReplicas() error = nil, want mismatched components to fail closed")
+		}
+	})
+}
+
+func TestReviseWorkloadReplicasWithBuiltInVolcanoInterpreter(t *testing.T) {
+	workload := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "batch.volcano.sh/v1alpha1",
+		"kind":       "Job",
+		"spec": map[string]any{
+			"tasks": []any{
+				map[string]any{"name": "job-nginx1", "minAvailable": int64(1), "template": map[string]any{}},
+				map[string]any{"name": "job-nginx2", "minAvailable": int64(2), "template": map[string]any{}},
+			},
+		},
+	}}
+	interpreter := &thirdPartyComponentInterpreter{interpreter: thirdparty.NewConfigurableInterpreter()}
+	got, err := reviseWorkloadReplicas(interpreter, workload, workv1alpha2.TargetCluster{Components: []workv1alpha2.TargetComponent{
+		{Name: "job-nginx1", Replicas: 1},
+		{Name: "job-nginx2", Replicas: 2},
+	}}, nil)
+	if err != nil {
+		t.Fatalf("reviseWorkloadReplicas() error = %v", err)
+	}
+	if got != workload {
+		t.Fatalf("matching VolcanoJob source was not reused, got=%p want=%p", got, workload)
+	}
+}
 
 func Test_mergeTargetClusters(t *testing.T) {
 	tests := []struct {
@@ -90,6 +405,50 @@ func Test_mergeTargetClusters(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "keep owned components and discard foreign component results",
+			targetClusters: []workv1alpha2.TargetCluster{
+				{
+					Name:     "foo",
+					Replicas: 1,
+					Components: []workv1alpha2.TargetComponent{
+						{Name: "jobmanager", Replicas: 1},
+						{Name: "taskmanager", Replicas: 2},
+					},
+				},
+			},
+			requiredByBindingSnapshot: []workv1alpha2.BindingSnapshot{
+				{
+					Clusters: []workv1alpha2.TargetCluster{
+						{
+							Name:     "foo",
+							Replicas: 9,
+							Components: []workv1alpha2.TargetComponent{
+								{Name: "parent-worker", Replicas: 9},
+							},
+						},
+						{
+							Name:     "bar",
+							Replicas: 7,
+							Components: []workv1alpha2.TargetComponent{
+								{Name: "parent-worker", Replicas: 7},
+							},
+						},
+					},
+				},
+			},
+			want: []workv1alpha2.TargetCluster{
+				{
+					Name:     "foo",
+					Replicas: 1,
+					Components: []workv1alpha2.TargetComponent{
+						{Name: "jobmanager", Replicas: 1},
+						{Name: "taskmanager", Replicas: 2},
+					},
+				},
+				{Name: "bar", Replicas: 7},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -97,6 +456,158 @@ func Test_mergeTargetClusters(t *testing.T) {
 				t.Errorf("mergeTargetClusters() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestRequiredByComponentsAreNotAppliedToDependency(t *testing.T) {
+	desiredComponents := []workv1alpha2.Component{{Name: "dependency-worker", Replicas: 2}}
+	ownedComponents := []workv1alpha2.TargetComponent{{Name: "dependency-worker", Replicas: 2}}
+	foreignComponents := []workv1alpha2.TargetComponent{{Name: "parent-worker", Replicas: 7}}
+	merged := mergeTargetClusters(
+		[]workv1alpha2.TargetCluster{{Name: "member1", Components: ownedComponents}},
+		[]workv1alpha2.BindingSnapshot{{Clusters: []workv1alpha2.TargetCluster{{
+			Name:       "member2",
+			Replicas:   7,
+			Components: foreignComponents,
+		}}}},
+	)
+	if len(merged) != 2 || len(merged[1].Components) != 0 {
+		t.Fatalf("merged targets = %#v, want foreign target without component assignments", merged)
+	}
+
+	interpreter := &replicaRevisionInterpreter{enabled: map[configv1alpha1.InterpreterOperation]bool{
+		configv1alpha1.InterpreterOperationReviseComponents: true,
+	}}
+	workload := &unstructured.Unstructured{}
+	workload.SetGroupVersionKind(schema.GroupVersionKind{Group: "example.io", Version: "v1", Kind: "Dependency"})
+	got, err := reviseWorkloadReplicas(interpreter, workload, merged[1], desiredComponents)
+	if err != nil {
+		t.Fatalf("reviseWorkloadReplicas() error = %v", err)
+	}
+	if got != workload || interpreter.reviseComponentsInvoked {
+		t.Fatalf("foreign component assignments were applied to the dependency: got=%p revised=%t", got, interpreter.reviseComponentsInvoked)
+	}
+}
+
+func TestEnsureWorkAppliesOnlyOwnedComponentResults(t *testing.T) {
+	enableMultiplePodTemplatesScheduling(t)
+
+	ctx := context.Background()
+	scheme := runtime.NewScheme()
+	if err := workv1alpha1.Install(scheme); err != nil {
+		t.Fatalf("failed to install Work API: %v", err)
+	}
+	karmadaClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+
+	workload := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "example.io/v1",
+		"kind":       "MultiComponentWorkload",
+		"metadata": map[string]any{
+			"name":      "example",
+			"namespace": "default",
+		},
+		"spec": map[string]any{
+			"jobmanager":    map[string]any{"replicas": int64(1)},
+			"taskmanager":   map[string]any{"replicas": int64(1)},
+			"parent-worker": map[string]any{"replicas": int64(1)},
+		},
+	}}
+	ownedComponents := []workv1alpha2.TargetComponent{
+		{Name: "jobmanager", Replicas: 2},
+		{Name: "taskmanager", Replicas: 4},
+	}
+	binding := &workv1alpha2.ResourceBinding{
+		ObjectMeta: metav1.ObjectMeta{Name: "example-binding", Namespace: "default"},
+		Spec: workv1alpha2.ResourceBindingSpec{
+			Components: []workv1alpha2.Component{
+				{Name: "jobmanager", Replicas: 1},
+				{Name: "taskmanager", Replicas: 1},
+			},
+			Clusters: []workv1alpha2.TargetCluster{{Name: "member1", Components: ownedComponents}},
+			RequiredBy: []workv1alpha2.BindingSnapshot{{
+				Namespace: "parent",
+				Name:      "parent-binding",
+				Clusters: []workv1alpha2.TargetCluster{{
+					Name:       "member2",
+					Components: []workv1alpha2.TargetComponent{{Name: "parent-worker", Replicas: 7}},
+				}},
+			}},
+		},
+	}
+	interpreter := &replicaRevisionInterpreter{
+		enabled: map[configv1alpha1.InterpreterOperation]bool{
+			configv1alpha1.InterpreterOperationReviseComponents: true,
+		},
+		reviseComponentsFunc: func(object *unstructured.Unstructured, components []workv1alpha2.TargetComponent) (*unstructured.Unstructured, error) {
+			for _, component := range components {
+				if err := unstructured.SetNestedField(object.Object, int64(component.Replicas), "spec", component.Name, "replicas"); err != nil {
+					return nil, err
+				}
+			}
+			return object, nil
+		},
+	}
+
+	if err := ensureWork(ctx, karmadaClient, interpreter, workload, noOpOverrideManager{}, binding, v1.NamespaceScoped); err != nil {
+		t.Fatalf("ensureWork() error = %v", err)
+	}
+
+	readManifest := func(cluster string) *unstructured.Unstructured {
+		t.Helper()
+		work := &workv1alpha1.Work{}
+		key := client.ObjectKey{
+			Namespace: names.GenerateExecutionSpaceName(cluster),
+			Name:      names.GenerateWorkName(workload.GetKind(), workload.GetName(), workload.GetNamespace()),
+		}
+		if err := karmadaClient.Get(ctx, key, work); err != nil {
+			t.Fatalf("failed to get Work for %s: %v", cluster, err)
+		}
+		if len(work.Spec.Workload.Manifests) != 1 {
+			t.Fatalf("Work manifests for %s = %d, want 1", cluster, len(work.Spec.Workload.Manifests))
+		}
+		manifest := &unstructured.Unstructured{}
+		if err := manifest.UnmarshalJSON(work.Spec.Workload.Manifests[0].Raw); err != nil {
+			t.Fatalf("failed to decode Work manifest for %s: %v", cluster, err)
+		}
+		return manifest
+	}
+	assertReplica := func(object *unstructured.Unstructured, component string, want int64) {
+		t.Helper()
+		got, found, err := unstructured.NestedInt64(object.Object, "spec", component, "replicas")
+		if err != nil || !found || got != want {
+			t.Fatalf("component %s replicas = (%d, found=%t, err=%v), want %d", component, got, found, err, want)
+		}
+	}
+
+	member1 := readManifest("member1")
+	assertReplica(member1, "jobmanager", 2)
+	assertReplica(member1, "taskmanager", 4)
+
+	member2 := readManifest("member2")
+	assertReplica(member2, "jobmanager", 1)
+	assertReplica(member2, "taskmanager", 1)
+	assertReplica(member2, "parent-worker", 1)
+
+	if !reflect.DeepEqual(interpreter.revisedComponents, ownedComponents) {
+		t.Fatalf("revised components = %#v, want %#v", interpreter.revisedComponents, ownedComponents)
+	}
+}
+
+func TestTargetClusterForWorkloadRevisionIgnoresDefaultSchedulerComponentResultWhenFeatureDisabled(t *testing.T) {
+	target := workv1alpha2.TargetCluster{
+		Name:       "member1",
+		Replicas:   3,
+		Components: []workv1alpha2.TargetComponent{{Name: "worker", Replicas: 4}},
+	}
+
+	got := targetClusterForWorkloadRevision(&workv1alpha2.ResourceBindingSpec{}, target)
+	if len(got.Components) != 0 || got.Replicas != target.Replicas {
+		t.Fatalf("targetClusterForWorkloadRevision() = %#v, want legacy scalar result without components", got)
+	}
+
+	custom := targetClusterForWorkloadRevision(&workv1alpha2.ResourceBindingSpec{SchedulerName: "custom-scheduler"}, target)
+	if !reflect.DeepEqual(custom, target) {
+		t.Fatalf("custom scheduler result = %#v, want %#v", custom, target)
 	}
 }
 

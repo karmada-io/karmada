@@ -18744,6 +18744,20 @@
         }
       }
     },
+    "com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.ComponentRevision": {
+      "description": "ComponentRevision holds the script for revising component replicas.",
+      "type": "object",
+      "required": [
+        "luaScript"
+      ],
+      "properties": {
+        "luaScript": {
+          "description": "LuaScript holds the Lua script that is used to revise component replicas in the desired specification. The script should implement a function as follows:\n\n```\n  luaScript: \u003e\n      function ReviseComponents(desiredObj, components)\n          for i = 1, #components do\n              -- Revise the replica field identified by components[i].name.\n          end\n          return desiredObj\n      end\n```\n\nThe parameters will be supplied by the system:\n  - desiredObj: the object represents the configuration to be applied\n      to the member cluster.\n  - components: the per-component replica assignment to apply.\n\nThe returned object should be a revised configuration which will be applied to member cluster eventually.",
+          "type": "string",
+          "default": ""
+        }
+      }
+    },
     "com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.CustomizationRules": {
       "description": "CustomizationRules describes the interpretation rules.",
       "type": "object",
@@ -18751,6 +18765,10 @@
         "componentResource": {
           "description": "ComponentResource describes the rules for Karmada to discover the resource requirements for multiple components from the given object. This is designed for CRDs with multiple components (e.g., FlinkDeployment), but can also be used for single-component resources like Deployment. If implemented, the controller will use this to obtain per-component replica and resource requirements, and will not call ReplicaResource. If not implemented, the controller will fall back to ReplicaResource for backward compatibility. This will only be used when the feature gate 'MultiplePodTemplatesScheduling' is enabled.",
           "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.ComponentResourceRequirement"
+        },
+        "componentRevision": {
+          "description": "ComponentRevision describes the rules for Karmada to revise component replicas.",
+          "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.ComponentRevision"
         },
         "dependencyInterpretation": {
           "description": "DependencyInterpretation describes the rules for Karmada to analyze the dependent resources. Karmada provides built-in rules for several standard Kubernetes types, see: https://karmada.io/docs/userguide/globalview/customizing-resource-interpreter/#interpretdependency If DependencyInterpretation is set, the built-in rules will be ignored.",

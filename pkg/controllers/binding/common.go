@@ -23,6 +23,7 @@ import (
 	"strconv"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -39,6 +40,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/eventfilter"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
@@ -48,6 +50,58 @@ const (
 	// requeueIntervalForDirectlyPurge is the requeue interval for binding when there are works in clusters with PurgeMode 'Directly'.
 	requeueIntervalForDirectlyPurge = 5 * time.Second
 )
+
+func componentSchedulingManagedByDefaultScheduler(bindingSpec *workv1alpha2.ResourceBindingSpec) bool {
+	if bindingSpec == nil {
+		return false
+	}
+	schedulerName := bindingSpec.SchedulerName
+	if schedulerName == "" {
+		schedulerName = corev1.DefaultSchedulerName
+	}
+	return schedulerName == corev1.DefaultSchedulerName
+}
+
+func shouldWaitForComponentScheduleResult(bindingSpec *workv1alpha2.ResourceBindingSpec, annotations map[string]string) bool {
+	return componentSchedulingManagedByDefaultScheduler(bindingSpec) && util.IsBindingComponentResultPending(bindingSpec, annotations)
+}
+
+func componentsRequiringAcceptedResult(bindingSpec *workv1alpha2.ResourceBindingSpec, targetCluster workv1alpha2.TargetCluster) []workv1alpha2.Component {
+	if !features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) || !componentSchedulingManagedByDefaultScheduler(bindingSpec) ||
+		len(targetCluster.Components) == 0 {
+		return nil
+	}
+	return bindingSpec.Components
+}
+
+func targetClusterForWorkloadRevision(bindingSpec *workv1alpha2.ResourceBindingSpec, targetCluster workv1alpha2.TargetCluster) workv1alpha2.TargetCluster {
+	if !features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) && componentSchedulingManagedByDefaultScheduler(bindingSpec) {
+		targetCluster.Components = nil
+	}
+	return targetCluster
+}
+
+func resourceTemplateMatchesBindingSnapshot(bindingSpec *workv1alpha2.ResourceBindingSpec, annotations map[string]string, workload *unstructured.Unstructured) (bool, error) {
+	if !features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) ||
+		!componentSchedulingManagedByDefaultScheduler(bindingSpec) || !util.HasBindingComponentResult(bindingSpec) {
+		return true, nil
+	}
+	if bindingSpec.Resource.UID == "" || workload.GetUID() == "" || bindingSpec.Resource.UID != workload.GetUID() {
+		return false, nil
+	}
+	if bindingSpec.Resource.ResourceVersion != "" && bindingSpec.Resource.ResourceVersion == workload.GetResourceVersion() {
+		return true, nil
+	}
+	snapshotHash := annotations[util.ResourceTemplateSpecificationHashAnnotation]
+	if snapshotHash == "" {
+		return false, nil
+	}
+	currentHash, err := eventfilter.GenerateResourceTemplateSpecificationHash(workload)
+	if err != nil {
+		return false, err
+	}
+	return snapshotHash == currentHash, nil
+}
 
 // ensureWork ensure Work to be created or updated.
 func ensureWork(
@@ -84,14 +138,13 @@ func ensureWork(
 		// Failing to do so could allow workloads to bypass the quota checks performed by the scheduler
 		// (especially during scale-up operations) or skip queue validation when scheduling is suspended.
 		if bindingSpec.IsWorkload() {
-			if resourceInterpreter.HookEnabled(clonedWorkload.GroupVersionKind(), configv1alpha1.InterpreterOperationReviseReplica) {
-				clonedWorkload, err = resourceInterpreter.ReviseReplica(clonedWorkload, int64(targetCluster.Replicas))
-				if err != nil {
-					klog.ErrorS(err, "Failed to revise replica for workload in cluster.", "workloadKind", workload.GetKind(),
-						"workloadNamespace", workload.GetNamespace(), "workloadName", workload.GetName(), "cluster", targetCluster.Name)
-					errs = append(errs, err)
-					continue
-				}
+			targetCluster = targetClusterForWorkloadRevision(&bindingSpec, targetCluster)
+			clonedWorkload, err = reviseWorkloadReplicas(resourceInterpreter, clonedWorkload, targetCluster, componentsRequiringAcceptedResult(&bindingSpec, targetCluster))
+			if err != nil {
+				klog.ErrorS(err, "Failed to revise replicas for workload in cluster.", "workloadKind", workload.GetKind(),
+					"workloadNamespace", workload.GetNamespace(), "workloadName", workload.GetName(), "cluster", targetCluster.Name)
+				errs = append(errs, err)
+				continue
 			}
 		}
 
@@ -153,6 +206,60 @@ func ensureWork(
 	}
 
 	return errors.NewAggregate(errs)
+}
+
+func reviseWorkloadReplicas(resourceInterpreter resourceinterpreter.ResourceInterpreter, workload *unstructured.Unstructured, targetCluster workv1alpha2.TargetCluster, desiredComponents []workv1alpha2.Component) (*unstructured.Unstructured, error) {
+	if len(desiredComponents) > 1 && len(targetCluster.Components) == 0 {
+		return nil, fmt.Errorf("component scheduling result is not available for %s", workload.GroupVersionKind())
+	}
+	if len(targetCluster.Components) > 0 {
+		if resourceInterpreter.HookEnabled(workload.GroupVersionKind(), configv1alpha1.InterpreterOperationReviseComponents) {
+			return resourceInterpreter.ReviseComponents(workload, targetCluster.Components)
+		}
+		// Existing component interpreters can deliver an initial result without a revision hook when
+		// the source template already represents that exact replica result. Any later mismatch remains fail-closed.
+		if resourceInterpreter.HookEnabled(workload.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretComponent) {
+			components, err := resourceInterpreter.GetComponents(workload)
+			if err != nil {
+				return nil, err
+			}
+			if componentReplicasMatch(targetCluster.Components, components) {
+				return workload, nil
+			}
+		}
+		return nil, fmt.Errorf("%s interpreter is not configured for %s", configv1alpha1.InterpreterOperationReviseComponents, workload.GroupVersionKind())
+	}
+
+	if resourceInterpreter.HookEnabled(workload.GroupVersionKind(), configv1alpha1.InterpreterOperationReviseReplica) {
+		return resourceInterpreter.ReviseReplica(workload, int64(targetCluster.Replicas))
+	}
+	return workload, nil
+}
+
+func componentReplicasMatch(targetComponents []workv1alpha2.TargetComponent, components []workv1alpha2.Component) bool {
+	if len(targetComponents) != len(components) {
+		return false
+	}
+
+	replicasByName := make(map[string]int32, len(components))
+	for _, component := range components {
+		if _, exists := replicasByName[component.Name]; exists {
+			return false
+		}
+		replicasByName[component.Name] = component.Replicas
+	}
+
+	seen := make(map[string]struct{}, len(targetComponents))
+	for _, component := range targetComponents {
+		if _, exists := seen[component.Name]; exists {
+			return false
+		}
+		seen[component.Name] = struct{}{}
+		if replicas, exists := replicasByName[component.Name]; !exists || replicas != component.Replicas {
+			return false
+		}
+	}
+	return true
 }
 
 // buildJobCompletionsMap converts a TargetCluster slice into a cluster-name-keyed
@@ -239,18 +346,32 @@ func mergeTargetClusters(targetClusters []workv1alpha2.TargetCluster, requiredBy
 		return targetClusters
 	}
 
-	scheduledClusterNames := util.ConvertToClusterNames(targetClusters)
+	merged := make([]workv1alpha2.TargetCluster, len(targetClusters))
+	for i := range targetClusters {
+		targetClusters[i].DeepCopyInto(&merged[i])
+	}
+	clusterIndexes := make(map[string]int, len(merged))
+	for i := range merged {
+		clusterIndexes[merged[i].Name] = i
+	}
 
 	for _, requiredByBinding := range requiredByBindingSnapshot {
 		for _, targetCluster := range requiredByBinding.Clusters {
-			if !scheduledClusterNames.Has(targetCluster.Name) {
-				scheduledClusterNames.Insert(targetCluster.Name)
-				targetClusters = append(targetClusters, targetCluster)
+			if _, exists := clusterIndexes[targetCluster.Name]; exists {
+				continue
 			}
+
+			// RequiredBy contains another binding's scheduling result. Its clusters determine
+			// where the dependency must be propagated, but its component assignments must not
+			// be applied to the dependency object.
+			additionalTarget := targetCluster.DeepCopy()
+			additionalTarget.Components = nil
+			merged = append(merged, *additionalTarget)
+			clusterIndexes[targetCluster.Name] = len(merged) - 1
 		}
 	}
 
-	return targetClusters
+	return merged
 }
 
 func mergeLabel(workload *unstructured.Unstructured, binding metav1.Object, scope apiextensionsv1.ResourceScope) map[string]string {

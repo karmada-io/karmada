@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/uuid"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util/interpreter/validation"
 )
 
@@ -46,23 +47,30 @@ func CreateResourceInterpreterContext(versions []string, attributes *Attributes)
 
 // CreateV1alpha1ResourceInterpreterContext creates an ResourceInterpreterContext for the provided RequestAttributes.
 func CreateV1alpha1ResourceInterpreterContext(uid types.UID, attributes *Attributes) *configv1alpha1.ResourceInterpreterContext {
-	r := &configv1alpha1.ResourceInterpreterContext{
-		Request: &configv1alpha1.ResourceInterpreterRequest{
-			UID: uid,
-			Kind: metav1.GroupVersionKind{
-				Group:   attributes.Object.GroupVersionKind().Group,
-				Version: attributes.Object.GroupVersionKind().Version,
-				Kind:    attributes.Object.GetKind(),
-			},
-			Name:      attributes.Object.GetName(),
-			Namespace: attributes.Object.GetNamespace(),
-			Operation: attributes.Operation,
-			Object: runtime.RawExtension{
-				Object: attributes.Object.DeepCopyObject(),
-			},
-			DesiredReplicas:  &attributes.ReplicasSet,
-			AggregatedStatus: attributes.AggregatedStatus,
+	request := &configv1alpha1.ResourceInterpreterRequest{
+		UID: uid,
+		Kind: metav1.GroupVersionKind{
+			Group:   attributes.Object.GroupVersionKind().Group,
+			Version: attributes.Object.GroupVersionKind().Version,
+			Kind:    attributes.Object.GetKind(),
 		},
+		Name:      attributes.Object.GetName(),
+		Namespace: attributes.Object.GetNamespace(),
+		Operation: attributes.Operation,
+		Object: runtime.RawExtension{
+			Object: attributes.Object.DeepCopyObject(),
+		},
+		DesiredReplicas:  &attributes.ReplicasSet,
+		AggregatedStatus: attributes.AggregatedStatus,
+	}
+
+	if attributes.Operation == configv1alpha1.InterpreterOperationReviseComponents {
+		request.DesiredReplicas = nil
+		request.DesiredComponents = append([]workv1alpha2.TargetComponent(nil), attributes.ComponentsSet...)
+	}
+
+	r := &configv1alpha1.ResourceInterpreterContext{
+		Request: request,
 	}
 
 	if attributes.ObservedObj != nil {
@@ -125,6 +133,7 @@ func verifyResourceInterpreterContext(operation configv1alpha1.InterpreterOperat
 		res.Dependencies = response.Dependencies
 		return res, nil
 	case configv1alpha1.InterpreterOperationPrune, configv1alpha1.InterpreterOperationReviseReplica,
+		configv1alpha1.InterpreterOperationReviseComponents,
 		configv1alpha1.InterpreterOperationRetain, configv1alpha1.InterpreterOperationAggregateStatus:
 		err := verifyResourceInterpreterContextWithPatch(response)
 		if err != nil {

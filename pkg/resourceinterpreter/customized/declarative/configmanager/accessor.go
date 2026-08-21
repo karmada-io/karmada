@@ -33,6 +33,7 @@ type LuaScriptAccessor interface {
 	GetReplicaResourceLuaScript() string
 	GetComponentResourceLuaScript() string
 	GetReplicaRevisionLuaScript() string
+	GetComponentRevisionLuaScript() string
 	GetStatusReflectionLuaScript() string
 	GetStatusAggregationLuaScript() string
 	GetHealthInterpretationLuaScript() string
@@ -49,6 +50,7 @@ type resourceCustomAccessor struct {
 	replicaResource           *configv1alpha1.ReplicaResourceRequirement
 	componentResource         *configv1alpha1.ComponentResourceRequirement
 	replicaRevision           *configv1alpha1.ReplicaRevision
+	componentRevision         *configv1alpha1.ComponentRevision
 	statusReflection          *configv1alpha1.StatusReflection
 	statusAggregation         *configv1alpha1.StatusAggregation
 	healthInterpretation      *configv1alpha1.HealthInterpretation
@@ -73,6 +75,9 @@ func (a *resourceCustomAccessor) Merge(rules configv1alpha1.CustomizationRules) 
 	}
 	if rules.ReplicaRevision != nil {
 		a.setReplicaRevision(rules.ReplicaRevision)
+	}
+	if rules.ComponentRevision != nil {
+		a.setComponentRevision(rules.ComponentRevision)
 	}
 	if rules.StatusReflection != nil {
 		a.setStatusReflection(rules.StatusReflection)
@@ -114,6 +119,13 @@ func (a *resourceCustomAccessor) GetReplicaRevisionLuaScript() string {
 		return ""
 	}
 	return a.replicaRevision.LuaScript
+}
+
+func (a *resourceCustomAccessor) GetComponentRevisionLuaScript() string {
+	if a.componentRevision == nil {
+		return ""
+	}
+	return a.componentRevision.LuaScript
 }
 
 func (a *resourceCustomAccessor) GetStatusReflectionLuaScript() string {
@@ -192,6 +204,17 @@ func (a *resourceCustomAccessor) setReplicaRevision(replicaRevision *configv1alp
 
 	if replicaRevision.LuaScript != "" && a.replicaRevision.LuaScript == "" {
 		a.replicaRevision.LuaScript = replicaRevision.LuaScript
+	}
+}
+
+func (a *resourceCustomAccessor) setComponentRevision(componentRevision *configv1alpha1.ComponentRevision) {
+	if a.componentRevision == nil {
+		a.componentRevision = componentRevision
+		return
+	}
+
+	if componentRevision.LuaScript != "" && a.componentRevision.LuaScript == "" {
+		a.componentRevision.LuaScript = componentRevision.LuaScript
 	}
 }
 

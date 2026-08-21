@@ -111,6 +111,11 @@ func (e *DefaultInterpreter) ReviseReplica(object *unstructured.Unstructured, re
 	return handler(object, replica)
 }
 
+// ReviseComponents reports that native component revision is not implemented.
+func (e *DefaultInterpreter) ReviseComponents(object *unstructured.Unstructured, _ []workv1alpha2.TargetComponent) (*unstructured.Unstructured, error) {
+	return nil, fmt.Errorf("default %s interpreter for %q not found", configv1alpha1.InterpreterOperationReviseComponents, object.GroupVersionKind())
+}
+
 // GetComponents returns the resource requirements for multiple components from the given object.
 func (e *DefaultInterpreter) GetComponents(_ *unstructured.Unstructured) ([]workv1alpha2.Component, error) {
 	return nil, errors.New("no plan to implement this method yet")

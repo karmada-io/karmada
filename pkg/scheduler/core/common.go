@@ -28,18 +28,32 @@ import (
 	"github.com/karmada-io/karmada/pkg/scheduler/core/spreadconstraint"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 	"github.com/karmada-io/karmada/pkg/scheduler/metrics"
+	"github.com/karmada-io/karmada/pkg/util"
 )
 
 // SelectClusters selects clusters based on the placement and resource binding spec.
-func SelectClusters(clustersScore framework.ClusterScoreList, placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus, assigningCache *schedulercache.AssigningResourceBindingCache) ([]spreadconstraint.ClusterDetailInfo, error) {
+func SelectClusters(clustersScore framework.ClusterScoreList, placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus, assigningCache *schedulercache.AssigningResourceBindingCache, isMultiComponentScale, reuseAcceptedComponentTarget bool) ([]spreadconstraint.ClusterDetailInfo, error) {
 	startTime := time.Now()
 	defer metrics.ScheduleStep(metrics.ScheduleStepSelect, startTime)
 
 	calAvailableReplicasFunc := func(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec) []workv1alpha2.TargetCluster {
-		return calAvailableReplicas(clusters, spec, assigningCache)
+		if reuseAcceptedComponentTarget {
+			result := make([]workv1alpha2.TargetCluster, len(clusters))
+			for i := range clusters {
+				result[i] = workv1alpha2.TargetCluster{Name: clusters[i].Name, Replicas: minimumAvailableComponentSets}
+			}
+			return result
+		}
+		return calAvailableReplicas(clusters, spec, assigningCache, isMultiComponentScale)
 	}
 	groupClustersInfo := spreadconstraint.GroupClustersWithScore(clustersScore, placement, spec, status, calAvailableReplicasFunc)
-	if features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) && isMultiTemplateSchedulingApplicable(spec) {
+	if isMultiComponentScale {
+		if len(groupClustersInfo.Clusters) != 1 || groupClustersInfo.Clusters[0].AvailableReplicas < 1 {
+			return nil, &framework.UnschedulableError{Message: "the current target cluster has insufficient resource for component scale"}
+		}
+		return groupClustersInfo.Clusters, nil
+	}
+	if features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) && util.IsMultiTemplateSchedulingApplicable(spec) {
 		// For multi-component workloads, they are scheduled as a whole and do not support replica division.
 		// The scheduling unit is 1 (i.e., 1 instance of the multi-component template), so we require 1 available replica.
 		return spreadconstraint.SelectBestClusters(placement, groupClustersInfo, 1)
@@ -72,7 +86,7 @@ func AssignReplicas(clusters []spreadconstraint.ClusterDetailInfo, spec *workv1a
 	// For non-workloads (e.g., Service, Config) and multi-component workloads (e.g., FlinkDeployment), propagate to all candidate clusters.
 	targetClusters := make([]workv1alpha2.TargetCluster, len(clusters))
 	recordComponentResult := features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) &&
-		len(spec.Components) > 1 && isMultiTemplateSchedulingApplicable(spec)
+		len(spec.Components) > 1 && util.IsMultiTemplateSchedulingApplicable(spec)
 	for i, cluster := range clusters {
 		targetClusters[i] = workv1alpha2.TargetCluster{Name: cluster.Cluster.Name}
 		if recordComponentResult {

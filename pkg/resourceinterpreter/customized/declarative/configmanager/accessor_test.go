@@ -141,6 +141,33 @@ func TestGetReplicaRevisionLuaScript(t *testing.T) {
 	}
 }
 
+func TestGetComponentRevisionLuaScript(t *testing.T) {
+	tests := []struct {
+		name     string
+		accessor *resourceCustomAccessor
+		want     string
+	}{
+		{
+			name:     "nil component revision",
+			accessor: &resourceCustomAccessor{},
+			want:     "",
+		},
+		{
+			name: "with script",
+			accessor: &resourceCustomAccessor{
+				componentRevision: &configv1alpha1.ComponentRevision{LuaScript: "test-script"},
+			},
+			want: "test-script",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.accessor.GetComponentRevisionLuaScript())
+		})
+	}
+}
+
 func TestGetStatusReflectionLuaScript(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -567,6 +594,45 @@ func TestSetReplicaRevision(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.initial.setReplicaRevision(tt.input)
 			assert.Equal(t, tt.want, tt.initial.GetReplicaRevisionLuaScript())
+		})
+	}
+}
+
+func TestSetComponentRevision(t *testing.T) {
+	tests := []struct {
+		name    string
+		initial *resourceCustomAccessor
+		input   *configv1alpha1.ComponentRevision
+		want    string
+	}{
+		{
+			name:    "set on nil field",
+			initial: &resourceCustomAccessor{},
+			input:   &configv1alpha1.ComponentRevision{LuaScript: "script1"},
+			want:    "script1",
+		},
+		{
+			name: "set on empty script",
+			initial: &resourceCustomAccessor{
+				componentRevision: &configv1alpha1.ComponentRevision{},
+			},
+			input: &configv1alpha1.ComponentRevision{LuaScript: "script1"},
+			want:  "script1",
+		},
+		{
+			name: "preserve existing script",
+			initial: &resourceCustomAccessor{
+				componentRevision: &configv1alpha1.ComponentRevision{LuaScript: "existing"},
+			},
+			input: &configv1alpha1.ComponentRevision{LuaScript: "script1"},
+			want:  "existing",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.initial.setComponentRevision(tt.input)
+			assert.Equal(t, tt.want, tt.initial.GetComponentRevisionLuaScript())
 		})
 	}
 }

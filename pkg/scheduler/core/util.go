@@ -54,7 +54,7 @@ func getDefaultWeightPreference(clusters []spreadconstraint.ClusterDetailInfo) *
 	}
 }
 
-func calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec, assigningCache *schedulercache.AssigningResourceBindingCache) []workv1alpha2.TargetCluster {
+func calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec, assigningCache *schedulercache.AssigningResourceBindingCache, isMultiComponentScale bool) []workv1alpha2.TargetCluster {
 	availableTargetClusters := make([]workv1alpha2.TargetCluster, len(clusters))
 
 	// Set the boundary.
@@ -70,6 +70,13 @@ func calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha
 		klog.V(4).Infof("Do not calculate available replicas for non-workload(%s, kind=%s, %s).", spec.Resource.APIVersion,
 			spec.Resource.Kind, namespacedKey)
 		return availableTargetClusters
+	}
+	// A pure component scale-down cannot require additional capacity. Resolve it
+	// before dispatching estimators so the result does not depend on registry state.
+	if isMultiComponentScale && len(clusters) == 1 && len(spec.Clusters) == 1 &&
+		clusters[0].Name == spec.Clusters[0].Name &&
+		util.ClassifyComponentReplicaTransition(spec.Components, spec.Clusters[0].Components) == util.ComponentScaleDown {
+		return []workv1alpha2.TargetCluster{{Name: clusters[0].Name, Replicas: minimumAvailableComponentSets}}
 	}
 
 	// Get the minimum value of MaxAvailableReplicas in terms of all estimators.
@@ -90,6 +97,7 @@ func calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha
 			clusters:         clusters,
 			spec:             spec,
 			assumedWorkloads: assumedWorkloads,
+			componentScale:   isMultiComponentScale,
 		})
 		if err != nil {
 			continue
@@ -111,7 +119,7 @@ func calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha
 
 // runReplicaEstimator dispatches to the multi-template or single-template estimation path.
 func runReplicaEstimator(ctx context.Context, in replicaEstimationContext) ([]workv1alpha2.TargetCluster, error) {
-	if features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) && isMultiTemplateSchedulingApplicable(in.spec) {
+	if features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) && util.IsMultiTemplateSchedulingApplicable(in.spec) {
 		return runMultiTemplateEstimator(ctx, in)
 	}
 	return runSingleTemplateEstimator(ctx, in)
@@ -124,17 +132,22 @@ type replicaEstimationContext struct {
 	clusters         []*clusterv1alpha1.Cluster
 	spec             *workv1alpha2.ResourceBindingSpec
 	assumedWorkloads map[string][]estimatorclient.AssumedWorkload
+	componentScale   bool
 }
 
 // runMultiTemplateEstimator handles estimation for workloads with multiple pod templates.
 func runMultiTemplateEstimator(ctx context.Context, in replicaEstimationContext) ([]workv1alpha2.TargetCluster, error) {
-	return calculateMultiTemplateAvailableSets(ctx, multiTemplateEstimationContext{
+	estCtx := multiTemplateEstimationContext{
 		estimator:        in.estimator,
 		estimatorName:    in.estimatorName,
 		clusters:         in.clusters,
 		spec:             in.spec,
 		assumedWorkloads: in.assumedWorkloads,
-	})
+	}
+	if in.componentScale {
+		return calculateMultiTemplateAvailableSetsForScale(ctx, estCtx)
+	}
+	return calculateMultiTemplateAvailableSets(ctx, estCtx)
 }
 
 // runSingleTemplateEstimator handles estimation for workloads with a single pod template.

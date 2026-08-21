@@ -36,6 +36,7 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -47,6 +48,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/indexregistry"
+	"github.com/karmada-io/karmada/pkg/util/names"
 	testingutil "github.com/karmada-io/karmada/pkg/util/testing"
 	"github.com/karmada-io/karmada/test/helper"
 )
@@ -71,7 +73,9 @@ func makeFakeCRBCByResource(rs *workv1alpha2.ObjectReference) (*ClusterResourceB
 	var src string
 	switch rs.Kind {
 	case "Namespace":
-		obj = &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Namespace: "", Name: rs.Name}}
+		obj = &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+			Name: rs.Name, UID: rs.UID, ResourceVersion: rs.ResourceVersion,
+		}}
 		src = "namespaces"
 	default:
 		return nil, fmt.Errorf("%s not support yet, pls add for it", rs.Kind)
@@ -324,6 +328,303 @@ func TestClusterResourceBindingController_syncBinding(t *testing.T) {
 				t.Fatalf("expected at least %d %q events, got %d (%v)", expectedSyncSucceedEventCount, events.EventReasonSyncWorkSucceed, succeedEvents, eventsFound)
 			}
 		})
+	}
+}
+
+type pendingComponentRequirementsCRBFixture struct {
+	controller   *ClusterResourceBindingController
+	ctx          context.Context
+	binding      *workv1alpha2.ClusterResourceBinding
+	assigned     *workv1alpha1.Work
+	reference    workv1alpha2.ObjectReference
+	acceptedHash string
+	worksBefore  []workv1alpha1.Work
+	request      controllerruntime.Request
+}
+
+func newPendingComponentRequirementsCRBFixture(t *testing.T) *pendingComponentRequirementsCRBFixture {
+	t.Helper()
+	const bindingID = "cluster-resource-binding-id"
+	reference := workv1alpha2.ObjectReference{
+		APIVersion: "v1", Kind: "Namespace", Name: "test",
+		UID: "source-uid", ResourceVersion: "1",
+	}
+	components := []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}}
+	hash, err := util.GenerateComponentRequirementsHash(components)
+	if err != nil {
+		t.Fatal(err)
+	}
+	binding := &workv1alpha2.ClusterResourceBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       "test-crb",
+			Generation: 7,
+			Labels:     map[string]string{workv1alpha2.ClusterResourceBindingPermanentIDLabel: bindingID},
+		},
+		Spec: workv1alpha2.ResourceBindingSpec{
+			Resource:      reference,
+			SchedulerName: corev1.DefaultSchedulerName,
+			Placement: &policyv1alpha1.Placement{SpreadConstraints: []policyv1alpha1.SpreadConstraint{{
+				SpreadByField: policyv1alpha1.SpreadByFieldCluster, MinGroups: 1, MaxGroups: 1,
+			}}},
+			Components: components,
+			Clusters: []workv1alpha2.TargetCluster{{Name: "member1", Components: []workv1alpha2.TargetComponent{
+				{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4},
+			}}},
+		},
+	}
+	assigned := &workv1alpha1.Work{ObjectMeta: metav1.ObjectMeta{
+		Name:      names.GenerateWorkName(reference.Kind, reference.Name, reference.Namespace),
+		Namespace: names.GenerateExecutionSpaceName("member1"),
+		Labels:    map[string]string{workv1alpha2.ClusterResourceBindingPermanentIDLabel: bindingID},
+		Annotations: map[string]string{
+			"test.karmada.io/content": "assigned-before-acceptance",
+		},
+	}}
+	orphan := &workv1alpha1.Work{ObjectMeta: metav1.ObjectMeta{
+		Name:      "existing-work",
+		Namespace: names.GenerateExecutionSpaceName("member2"),
+		Labels:    map[string]string{workv1alpha2.ClusterResourceBindingPermanentIDLabel: bindingID},
+		Annotations: map[string]string{
+			"test.karmada.io/content": "orphan-before-acceptance",
+		},
+	}}
+	c, err := makeFakeCRBCByResource(&reference)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.OverrideManager = noOpOverrideManager{}
+	c.ResourceInterpreter = newComponentRevisionInterpreter(components)
+	ctx := context.Background()
+	for _, object := range []client.Object{binding, assigned, orphan} {
+		if err := c.Client.Create(ctx, object); err != nil {
+			t.Fatal(err)
+		}
+	}
+	worksBefore := snapshotWorks(t, c.Client)
+	if len(worksBefore) != 2 {
+		t.Fatalf("initial Work count = %d, want 2", len(worksBefore))
+	}
+	return &pendingComponentRequirementsCRBFixture{
+		controller:   c,
+		ctx:          ctx,
+		binding:      binding,
+		assigned:     assigned,
+		reference:    reference,
+		acceptedHash: hash,
+		worksBefore:  worksBefore,
+		request:      controllerruntime.Request{NamespacedName: client.ObjectKeyFromObject(binding)},
+	}
+}
+
+func assertCRBPreservesWorksWhileComponentRequirementsPending(t *testing.T, fixture *pendingComponentRequirementsCRBFixture) {
+	t.Helper()
+	if _, err := fixture.controller.Reconcile(fixture.ctx, fixture.request); err != nil {
+		t.Fatalf("Reconcile() while pending error = %v", err)
+	}
+	if after := snapshotWorks(t, fixture.controller.Client); !reflect.DeepEqual(after, fixture.worksBefore) {
+		t.Fatalf("pending component result mutated the Work set: got %#v, want %#v", after, fixture.worksBefore)
+	}
+}
+
+func acceptCRBComponentRequirements(t *testing.T, fixture *pendingComponentRequirementsCRBFixture) {
+	t.Helper()
+	current := &workv1alpha2.ClusterResourceBinding{}
+	if err := fixture.controller.Client.Get(fixture.ctx, client.ObjectKeyFromObject(fixture.binding), current); err != nil {
+		t.Fatal(err)
+	}
+	old := current.DeepCopy()
+	current.Annotations = map[string]string{util.AcceptedComponentRequirementsHashAnnotation: fixture.acceptedHash}
+	if err := fixture.controller.Client.Update(fixture.ctx, current); err != nil {
+		t.Fatal(err)
+	}
+	if current.Generation != old.Generation {
+		t.Fatalf("annotation-only acceptance changed generation from %d to %d", old.Generation, current.Generation)
+	}
+	if !bindingEventPredicate().Update(event.UpdateEvent{ObjectOld: old, ObjectNew: current}) {
+		t.Fatal("accepted requirements annotation update should trigger reconciliation")
+	}
+}
+
+func assertCRBWorksRecoveredAfterComponentRequirementsAcceptance(t *testing.T, fixture *pendingComponentRequirementsCRBFixture) {
+	t.Helper()
+	if _, err := fixture.controller.Reconcile(fixture.ctx, fixture.request); err != nil {
+		t.Fatalf("Reconcile() after acceptance error = %v", err)
+	}
+	works := snapshotWorks(t, fixture.controller.Client)
+	if len(works) != 1 {
+		t.Fatalf("recovered Work count = %d, want 1: %#v", len(works), works)
+	}
+	if works[0].Name != fixture.assigned.Name || works[0].Namespace != fixture.assigned.Namespace {
+		t.Fatalf("recovered Work = %s/%s, want %s/%s", works[0].Namespace, works[0].Name, fixture.assigned.Namespace, fixture.assigned.Name)
+	}
+	if reflect.DeepEqual(works[0], *fixture.assigned) {
+		t.Fatal("accepted requirements should update the assigned Work")
+	}
+	workload := workloadFromWork(t, &works[0])
+	if workload.GetKind() != fixture.reference.Kind || workload.GetName() != fixture.reference.Name || workload.GetNamespace() != fixture.reference.Namespace {
+		t.Fatalf("recovered Work manifest = %s %s/%s, want %s %s/%s",
+			workload.GetKind(), workload.GetNamespace(), workload.GetName(), fixture.reference.Kind, fixture.reference.Namespace, fixture.reference.Name)
+	}
+}
+
+func TestClusterResourceBindingControllerSyncBindingPreservesWorksWhileComponentRequirementsPending(t *testing.T) {
+	enableMultiplePodTemplatesScheduling(t)
+	fixture := newPendingComponentRequirementsCRBFixture(t)
+
+	assertCRBPreservesWorksWhileComponentRequirementsPending(t, fixture)
+	acceptCRBComponentRequirements(t, fixture)
+	assertCRBWorksRecoveredAfterComponentRequirementsAcceptance(t, fixture)
+}
+
+func TestClusterResourceBindingControllerSyncBindingBypassesMissingHashFence(t *testing.T) {
+	enableMultiplePodTemplatesScheduling(t)
+
+	tests := []struct {
+		name         string
+		legacyResult bool
+		mutate       func(*workv1alpha2.ResourceBindingSpec)
+	}{
+		{
+			name: "custom scheduler",
+			mutate: func(spec *workv1alpha2.ResourceBindingSpec) {
+				spec.SchedulerName = "custom-scheduler"
+			},
+		},
+		{
+			name:         "custom scheduler with legacy scalar result",
+			legacyResult: true,
+			mutate: func(spec *workv1alpha2.ResourceBindingSpec) {
+				spec.SchedulerName = "custom-scheduler"
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			const bindingID = "cluster-resource-binding-id"
+			reference := workv1alpha2.ObjectReference{
+				APIVersion: "v1", Kind: "Namespace", Name: "test",
+				UID: "source-uid", ResourceVersion: "1",
+			}
+			components := []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}}
+			binding := &workv1alpha2.ClusterResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:   "test-crb",
+					Labels: map[string]string{workv1alpha2.ClusterResourceBindingPermanentIDLabel: bindingID},
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Resource: reference, SchedulerName: corev1.DefaultSchedulerName,
+					Placement: &policyv1alpha1.Placement{SpreadConstraints: []policyv1alpha1.SpreadConstraint{{
+						SpreadByField: policyv1alpha1.SpreadByFieldCluster, MinGroups: 1, MaxGroups: 1,
+					}}},
+					Components: components,
+					Clusters: []workv1alpha2.TargetCluster{{Name: "member1", Components: []workv1alpha2.TargetComponent{
+						{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4},
+					}}},
+				},
+			}
+			tt.mutate(&binding.Spec)
+			if tt.legacyResult {
+				binding.Spec.Clusters[0].Components = nil
+				binding.Spec.Clusters[0].Replicas = 4
+			}
+			if !util.IsBindingComponentResultPending(&binding.Spec, nil) {
+				t.Fatal("test setup must require the missing-hash fence for an active default-scheduler binding")
+			}
+
+			assigned := &workv1alpha1.Work{ObjectMeta: metav1.ObjectMeta{
+				Name: names.GenerateWorkName(reference.Kind, reference.Name, reference.Namespace), Namespace: names.GenerateExecutionSpaceName("member1"),
+				Labels: map[string]string{workv1alpha2.ClusterResourceBindingPermanentIDLabel: bindingID},
+			}}
+			orphan := &workv1alpha1.Work{ObjectMeta: metav1.ObjectMeta{
+				Name: "existing-work", Namespace: names.GenerateExecutionSpaceName("member2"),
+				Labels: map[string]string{workv1alpha2.ClusterResourceBindingPermanentIDLabel: bindingID},
+			}}
+			c, err := makeFakeCRBCByResource(&reference)
+			if err != nil {
+				t.Fatal(err)
+			}
+			c.OverrideManager = noOpOverrideManager{}
+			c.ResourceInterpreter = newComponentRevisionInterpreter(components)
+			ctx := context.Background()
+			for _, object := range []client.Object{binding, assigned, orphan} {
+				if err := c.Client.Create(ctx, object); err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			req := controllerruntime.Request{NamespacedName: client.ObjectKeyFromObject(binding)}
+			if _, err := c.Reconcile(ctx, req); err != nil {
+				t.Fatalf("Reconcile() error = %v", err)
+			}
+			works := snapshotWorks(t, c.Client)
+			if len(works) != 1 {
+				t.Fatalf("Work count = %d, want 1: %#v", len(works), works)
+			}
+			if works[0].Name != assigned.Name || works[0].Namespace != assigned.Namespace {
+				t.Fatalf("remaining Work = %s/%s, want %s/%s", works[0].Namespace, works[0].Name, assigned.Namespace, assigned.Name)
+			}
+			workload := workloadFromWork(t, &works[0])
+			if workload.GetKind() != reference.Kind || workload.GetName() != reference.Name {
+				t.Fatalf("Work manifest = %s/%s, want %s/%s", workload.GetKind(), workload.GetName(), reference.Kind, reference.Name)
+			}
+		})
+	}
+}
+
+func TestClusterResourceBindingControllerSyncBindingPreservesWorksForStaleSourceSnapshot(t *testing.T) {
+	enableMultiplePodTemplatesScheduling(t)
+
+	const bindingID = "cluster-resource-binding-id"
+	sourceReference := workv1alpha2.ObjectReference{
+		APIVersion: "v1", Kind: "Namespace", Name: "test", UID: "source-uid", ResourceVersion: "2",
+	}
+	components := []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}}
+	acceptedHash, err := util.GenerateComponentRequirementsHash(components)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bindingReference := sourceReference
+	bindingReference.ResourceVersion = "1"
+	binding := &workv1alpha2.ClusterResourceBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   "test-crb",
+			Labels: map[string]string{workv1alpha2.ClusterResourceBindingPermanentIDLabel: bindingID},
+			Annotations: map[string]string{
+				util.AcceptedComponentRequirementsHashAnnotation: acceptedHash,
+				util.ResourceTemplateSpecificationHashAnnotation: "v1:sha256:stale",
+			},
+		},
+		Spec: workv1alpha2.ResourceBindingSpec{
+			Resource: bindingReference, Placement: singleClusterComponentPlacement(), Components: components,
+			Clusters: []workv1alpha2.TargetCluster{{Name: "member1", Components: []workv1alpha2.TargetComponent{
+				{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4},
+			}}},
+		},
+	}
+	orphan := &workv1alpha1.Work{ObjectMeta: metav1.ObjectMeta{
+		Name: "existing-work", Namespace: names.GenerateExecutionSpaceName("member2"),
+		Labels: map[string]string{workv1alpha2.ClusterResourceBindingPermanentIDLabel: bindingID},
+	}}
+	controller, err := makeFakeCRBCByResource(&sourceReference)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	if err := controller.Client.Create(ctx, orphan); err != nil {
+		t.Fatal(err)
+	}
+	before := snapshotWorks(t, controller.Client)
+
+	result, err := controller.syncBinding(ctx, binding)
+	if err != nil {
+		t.Fatalf("syncBinding() error = %v", err)
+	}
+	if result != (controllerruntime.Result{}) {
+		t.Fatalf("syncBinding() = %v, want empty result", result)
+	}
+	if after := snapshotWorks(t, controller.Client); !reflect.DeepEqual(after, before) {
+		t.Fatalf("stale source snapshot mutated Works: got %#v, want %#v", after, before)
 	}
 }
 
