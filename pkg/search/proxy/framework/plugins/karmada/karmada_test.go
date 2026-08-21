@@ -20,9 +20,13 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 	"time"
 
+	authenticationv1 "k8s.io/api/authentication/v1"
+	"k8s.io/apiserver/pkg/authentication/user"
+	"k8s.io/apiserver/pkg/endpoints/request"
 	restclient "k8s.io/client-go/rest"
 
 	"github.com/karmada-io/karmada/pkg/search/proxy/framework"
@@ -43,7 +47,9 @@ func Test_karmadaProxy(t *testing.T) {
 	}
 
 	type want struct {
-		path string
+		path          string
+		requestGroups []string
+		wantGroups    []string
 	}
 
 	tests := []struct {
@@ -58,7 +64,9 @@ func Test_karmadaProxy(t *testing.T) {
 				path: "proxy",
 			},
 			want: want{
-				path: "/proxy",
+				path:          "/proxy",
+				requestGroups: []string{"team-a", "system:authenticated"},
+				wantGroups:    []string{"team-a"},
 			},
 		},
 		{
@@ -68,7 +76,9 @@ func Test_karmadaProxy(t *testing.T) {
 				path: "proxy",
 			},
 			want: want{
-				path: "/api/proxy",
+				path:          "/api/proxy",
+				requestGroups: []string{"team-a", "system:authenticated"},
+				wantGroups:    []string{"team-a"},
 			},
 		},
 	}
@@ -99,12 +109,14 @@ func Test_karmadaProxy(t *testing.T) {
 				return
 			}
 
-			request, err := http.NewRequest(http.MethodGet, "http://localhost", nil)
+			httpRequest, err := http.NewRequest(http.MethodGet, "http://localhost", nil)
 			if err != nil {
 				t.Error(err)
 				return
 			}
-			h.ServeHTTP(response, request)
+			requester := &user.DefaultInfo{Name: "test-user", Groups: tt.want.requestGroups}
+			httpRequest = httpRequest.WithContext(request.WithUser(httpRequest.Context(), requester))
+			h.ServeHTTP(response, httpRequest)
 
 			if t.Failed() {
 				return
@@ -119,6 +131,41 @@ func Test_karmadaProxy(t *testing.T) {
 				t.Errorf("path got = %v, want = %v", gotRequest.URL.Path, tt.want.path)
 				return
 			}
+
+			if got := gotRequest.Header.Get(authenticationv1.ImpersonateUserHeader); got != requester.GetName() {
+				t.Errorf("impersonate user header got = %v, want = %v", got, requester.GetName())
+			}
+
+			if got := gotRequest.Header.Values(authenticationv1.ImpersonateGroupHeader); !reflect.DeepEqual(got, tt.want.wantGroups) {
+				t.Errorf("impersonate group header got = %v, want = %v", got, tt.want.wantGroups)
+			}
 		})
+	}
+}
+
+func Test_karmadaProxy_NoUser(t *testing.T) {
+	restConfig := &restclient.Config{Host: "http://localhost", Timeout: time.Second}
+	p, err := New(pluginruntime.PluginDependency{RestConfig: restConfig})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	response := httptest.NewRecorder()
+	h, err := p.Connect(context.TODO(), framework.ProxyRequest{
+		ProxyPath: "proxy",
+		Responder: utiltest.NewResponder(response),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	httpRequest, err := http.NewRequest(http.MethodGet, "http://localhost", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.ServeHTTP(response, httpRequest)
+
+	if response.Code != http.StatusInternalServerError {
+		t.Errorf("status code got = %v, want = %v", response.Code, http.StatusInternalServerError)
 	}
 }
