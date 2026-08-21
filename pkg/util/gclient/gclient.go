@@ -17,6 +17,7 @@ limitations under the License.
 package gclient
 
 import (
+	"fmt"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -70,10 +71,13 @@ func NewForConfig(config *rest.Config) (client.Client, error) {
 
 // NewForConfigOrDie creates a new client for the given config and
 // panics if there is an error in the config.
+// Note: This function is kept for backward compatibility but should be avoided in new code.
+// Use NewForConfig instead for proper error handling.
 func NewForConfigOrDie(config *rest.Config) client.Client {
 	c, err := NewForConfig(config)
 	if err != nil {
-		panic(err)
+		// Log the error before panicking for better debugging
+		panic(fmt.Sprintf("failed to create client: %v", err))
 	}
 	return c
 }
