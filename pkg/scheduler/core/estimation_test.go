@@ -33,13 +33,15 @@ import (
 
 // mockReplicaEstimator is a mock implementation of ReplicaEstimator for testing
 type mockReplicaEstimator struct {
+	maxAvailableReplicasResponse      []workv1alpha2.TargetCluster
+	maxAvailableReplicasError         error
 	maxAvailableComponentSetsResponse []estimatorclient.ComponentSetEstimationResponse
 	maxAvailableComponentSetsError    error
 	lastComponentSetRequest           estimatorclient.ComponentSetEstimationRequest
 }
 
 func (m *mockReplicaEstimator) MaxAvailableReplicas(_ context.Context, _ estimatorclient.ReplicaEstimationRequest) ([]workv1alpha2.TargetCluster, error) {
-	return nil, nil
+	return m.maxAvailableReplicasResponse, m.maxAvailableReplicasError
 }
 
 func (m *mockReplicaEstimator) MaxAvailableComponentSets(_ context.Context, req estimatorclient.ComponentSetEstimationRequest) ([]estimatorclient.ComponentSetEstimationResponse, error) {
@@ -290,11 +292,25 @@ func Test_calculateMultiTemplateAvailableSets(t *testing.T) {
 			},
 		},
 		{
-			name:           "estimator error — returns nil result",
+			name:           "estimator error with no results — returns empty result and propagates error",
 			mockResponse:   nil,
 			mockError:      errors.New("estimator error"),
-			expectedResult: nil,
+			expectedResult: []workv1alpha2.TargetCluster{},
 			expectedError:  true,
+		},
+		{
+			name: "partial failure — successful clusters returned, failed cluster skipped, error propagated",
+			mockResponse: []estimatorclient.ComponentSetEstimationResponse{
+				{Name: "cluster1", Sets: 50},
+				{Name: "cluster2", Sets: estimatorclient.UnauthenticReplica},
+				{Name: "cluster3", Sets: 250},
+			},
+			mockError: errors.New("cluster2: estimator unavailable"),
+			expectedResult: []workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: 50},
+				{Name: "cluster3", Replicas: 250},
+			},
+			expectedError: true,
 		},
 		{
 			name:           "empty estimator response — returns empty result",
@@ -325,6 +341,100 @@ func Test_calculateMultiTemplateAvailableSets(t *testing.T) {
 			}
 
 			assert.Equal(t, tt.expectedResult, result)
+		})
+	}
+}
+
+func Test_runSingleTemplateEstimator_partialFailure(t *testing.T) {
+	clusters := []*clusterv1alpha1.Cluster{
+		helper.NewCluster("cluster1"),
+		helper.NewCluster("cluster2"),
+	}
+	spec := &workv1alpha2.ResourceBindingSpec{
+		Resource: workv1alpha2.ObjectReference{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+			Namespace:  "default",
+			Name:       "test-deployment",
+		},
+		Replicas: 1,
+	}
+
+	// cluster2 failed (UnauthenticReplica) and an error is returned; the path must still
+	// surface the partial result rather than discarding it.
+	partial := []workv1alpha2.TargetCluster{
+		{Name: "cluster1", Replicas: 5},
+		{Name: "cluster2", Replicas: estimatorclient.UnauthenticReplica},
+	}
+	mockEstimator := &mockReplicaEstimator{
+		maxAvailableReplicasResponse: partial,
+		maxAvailableReplicasError:    errors.New("cluster2: estimator unavailable"),
+	}
+
+	res, err := runSingleTemplateEstimator(context.Background(), replicaEstimationContext{
+		estimatorName: "test-estimator",
+		estimator:     mockEstimator,
+		clusters:      clusters,
+		spec:          spec,
+	})
+
+	assert.Error(t, err)
+	assert.Equal(t, partial, res)
+}
+
+func Test_mergeReplicaResults(t *testing.T) {
+	tests := []struct {
+		name      string
+		available []workv1alpha2.TargetCluster
+		res       []workv1alpha2.TargetCluster
+		want      []workv1alpha2.TargetCluster
+	}{
+		{
+			name: "takes the minimum replicas per cluster",
+			available: []workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: 10},
+				{Name: "cluster2", Replicas: 10},
+			},
+			res: []workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: 4},
+				{Name: "cluster2", Replicas: 20},
+			},
+			want: []workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: 4},
+				{Name: "cluster2", Replicas: 10},
+			},
+		},
+		{
+			name: "skips clusters marked UnauthenticReplica so a partial failure does not corrupt them",
+			available: []workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: 10},
+				{Name: "cluster2", Replicas: 10},
+			},
+			res: []workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: 4},
+				{Name: "cluster2", Replicas: estimatorclient.UnauthenticReplica},
+			},
+			want: []workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: 4},
+				{Name: "cluster2", Replicas: 10},
+			},
+		},
+		{
+			name: "nil result leaves available unchanged",
+			available: []workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: 10},
+			},
+			res: nil,
+			want: []workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: 10},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := mergeReplicaResults(tt.available, tt.res)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
