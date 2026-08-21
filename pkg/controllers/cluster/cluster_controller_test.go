@@ -24,6 +24,8 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
@@ -38,6 +40,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/indexregistry"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 func newClusterController() *Controller {
@@ -301,6 +304,58 @@ func TestController_Reconcile(t *testing.T) {
 	}
 }
 
+func TestController_Reconcile_AddsFinalizerBeforeCreatingPullResources(t *testing.T) {
+	ctx := context.Background()
+	clusterName := "pull-member"
+	req := controllerruntime.Request{NamespacedName: types.NamespacedName{Name: clusterName}}
+
+	c := newClusterController()
+	cluster := &clusterv1alpha1.Cluster{
+		ObjectMeta: metav1.ObjectMeta{Name: clusterName},
+		Spec: clusterv1alpha1.ClusterSpec{
+			SyncMode: clusterv1alpha1.Pull,
+		},
+	}
+	if err := c.Create(ctx, cluster, &client.CreateOptions{}); err != nil {
+		t.Fatalf("failed to create cluster: %v", err)
+	}
+
+	if _, err := c.Reconcile(ctx, req); err != nil {
+		t.Fatalf("first reconcile failed: %v", err)
+	}
+
+	reconciledCluster := &clusterv1alpha1.Cluster{}
+	if err := c.Get(ctx, types.NamespacedName{Name: clusterName}, reconciledCluster); err != nil {
+		t.Fatalf("failed to get cluster after first reconcile: %v", err)
+	}
+	if !containsString(reconciledCluster.Finalizers, util.ClusterControllerFinalizer) {
+		t.Fatalf("expected finalizer %q to be added before sync resources", util.ClusterControllerFinalizer)
+	}
+
+	executionSpace := &corev1.Namespace{}
+	err := c.Get(ctx, types.NamespacedName{Name: names.GenerateExecutionSpaceName(clusterName)}, executionSpace)
+	if !apierrors.IsNotFound(err) {
+		t.Fatalf("expected execution space to be absent before second reconcile, got err=%v", err)
+	}
+
+	agentClusterRole := &rbacv1.ClusterRole{}
+	err = c.Get(ctx, types.NamespacedName{Name: util.GenerateAgentClusterRole(clusterName).Name}, agentClusterRole)
+	if !apierrors.IsNotFound(err) {
+		t.Fatalf("expected agent ClusterRole to be absent before second reconcile, got err=%v", err)
+	}
+
+	if _, err := c.Reconcile(ctx, req); err != nil {
+		t.Fatalf("second reconcile failed: %v", err)
+	}
+
+	if err := c.Get(ctx, types.NamespacedName{Name: names.GenerateExecutionSpaceName(clusterName)}, executionSpace); err != nil {
+		t.Fatalf("expected execution space to exist after second reconcile: %v", err)
+	}
+	if err := c.Get(ctx, types.NamespacedName{Name: util.GenerateAgentClusterRole(clusterName).Name}, agentClusterRole); err != nil {
+		t.Fatalf("expected agent ClusterRole to exist after second reconcile: %v", err)
+	}
+}
+
 func TestController_monitorClusterHealth(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -429,4 +484,13 @@ func cleanUpCluster(c *clusterv1alpha1.Cluster) {
 		cond = append(cond, condition)
 	}
 	c.Status.Conditions = cond
+}
+
+func containsString(items []string, target string) bool {
+	for _, item := range items {
+		if item == target {
+			return true
+		}
+	}
+	return false
 }
