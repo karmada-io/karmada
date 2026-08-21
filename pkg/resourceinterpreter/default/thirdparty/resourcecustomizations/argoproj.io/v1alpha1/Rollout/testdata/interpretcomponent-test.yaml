@@ -1,0 +1,430 @@
+# Test cases for interpreting components of Argo Rollout.
+#
+# case1. Canary strategy: both stableTemplate and canaryTemplate are set.
+# case2. Canary strategy: stableTemplate is nil, falls back to root template.
+# case3. Canary strategy: canaryReplicas is explicitly set.
+# case4. Blue-green strategy: both activeTemplate and previewTemplate are set.
+# case5. Blue-green strategy: activeTemplate is nil, falls back to root template.
+# case6. Rollout with no strategy (returns empty components).
+# case7. Canary strategy with nodeSelector, tolerations, and priorityClassName.
+# case8. Blue-green strategy with nil previewTemplate (graceful handling).
+
+name: "Rollout canary strategy with both stableTemplate and canaryTemplate"
+description: "Test interpreting components of a canary Rollout with both templates set"
+observedObj:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Rollout
+  metadata:
+    name: canary-example
+    namespace: default
+  spec:
+    replicas: 3
+    strategy:
+      canary:
+        canaryReplicas: 1
+        stableTemplate:
+          metadata:
+            labels:
+              app: myapp
+          spec:
+            containers:
+              - name: main
+                image: myapp:stable
+                resources:
+                  requests:
+                    cpu: "1"
+                    memory: 512Mi
+        canaryTemplate:
+          metadata:
+            labels:
+              app: myapp
+          spec:
+            containers:
+              - name: main
+                image: myapp:canary
+                resources:
+                  requests:
+                    cpu: "2"
+                    memory: 1Gi
+operation: InterpretComponent
+output:
+  components:
+    - name: stable
+      replicas: 3
+      replicaRequirements:
+        resourceRequest:
+          cpu: "1"
+          memory: 512Mi
+    - name: canary
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          cpu: "2"
+          memory: 1Gi
+
+---
+name: "Rollout canary strategy with nil stableTemplate (falls back to root template)"
+description: "Test that stableTemplate defaults to the Rollout root template when not set"
+observedObj:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Rollout
+  metadata:
+    name: canary-fallback
+    namespace: production
+  spec:
+    replicas: 5
+    template:
+      metadata:
+        labels:
+          app: myapp
+      spec:
+        containers:
+          - name: myapp
+            image: myapp:v1
+            resources:
+              requests:
+                cpu: "1"
+                memory: 1Gi
+    strategy:
+      canary:
+        canaryReplicas: 2
+        canaryTemplate:
+          spec:
+            containers:
+              - name: myapp
+                image: myapp:v2
+                resources:
+                  requests:
+                    cpu: "2"
+                    memory: 2Gi
+operation: InterpretComponent
+output:
+  components:
+    - name: stable
+      replicas: 5
+      replicaRequirements:
+        resourceRequest:
+          cpu: "1"
+          memory: 1Gi
+    - name: canary
+      replicas: 2
+      replicaRequirements:
+        resourceRequest:
+          cpu: "2"
+          memory: 2Gi
+
+---
+name: "Rollout canary strategy with default canaryReplicas (1)"
+description: "Test that canaryReplicas defaults to 1 when not explicitly set"
+observedObj:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Rollout
+  metadata:
+    name: canary-default-replicas
+    namespace: default
+  spec:
+    replicas: 4
+    strategy:
+      canary:
+        canaryTemplate:
+          spec:
+            containers:
+              - name: myapp
+                image: myapp:canary
+                resources:
+                  requests:
+                    cpu: "500m"
+                    memory: 256Mi
+        stableTemplate:
+          spec:
+            containers:
+              - name: myapp
+                image: myapp:stable
+                resources:
+                  requests:
+                    cpu: "500m"
+                    memory: 256Mi
+operation: InterpretComponent
+output:
+  components:
+    - name: stable
+      replicas: 4
+      replicaRequirements:
+        resourceRequest:
+          cpu: "500m"
+          memory: 256Mi
+    - name: canary
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          cpu: "500m"
+          memory: 256Mi
+
+---
+name: "Rollout blue-green strategy with both activeTemplate and previewTemplate"
+description: "Test interpreting components of a blue-green Rollout with both templates set"
+observedObj:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Rollout
+  metadata:
+    name: bluegreen-example
+    namespace: default
+  spec:
+    replicas: 2
+    strategy:
+      blueGreen:
+        activeTemplate:
+          metadata:
+            labels:
+              app: myapp
+          spec:
+            containers:
+              - name: myapp
+                image: myapp:v1
+                resources:
+                  requests:
+                    cpu: "1"
+                    memory: 512Mi
+        previewTemplate:
+          metadata:
+            labels:
+              app: myapp
+          spec:
+            containers:
+              - name: myapp
+                image: myapp:v2
+                resources:
+                  requests:
+                    cpu: "2"
+                    memory: 1Gi
+operation: InterpretComponent
+output:
+  components:
+    - name: active
+      replicas: 2
+      replicaRequirements:
+        resourceRequest:
+          cpu: "1"
+          memory: 512Mi
+    - name: preview
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          cpu: "2"
+          memory: 1Gi
+
+---
+name: "Rollout blue-green strategy with nil activeTemplate (falls back to root template)"
+description: "Test that activeTemplate defaults to the Rollout root template when not set"
+observedObj:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Rollout
+  metadata:
+    name: bluegreen-fallback
+    namespace: staging
+  spec:
+    replicas: 3
+    template:
+      metadata:
+        labels:
+          app: myapp
+      spec:
+        containers:
+          - name: myapp
+            image: myapp:stable
+            resources:
+              requests:
+                cpu: "1"
+                memory: 1Gi
+    strategy:
+      blueGreen:
+        previewTemplate:
+          spec:
+            containers:
+              - name: myapp
+                image: myapp:preview
+                resources:
+                  requests:
+                    cpu: "2"
+                    memory: 2Gi
+operation: InterpretComponent
+output:
+  components:
+    - name: active
+      replicas: 3
+      replicaRequirements:
+        resourceRequest:
+          cpu: "1"
+          memory: 1Gi
+    - name: preview
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          cpu: "2"
+          memory: 2Gi
+
+---
+name: "Rollout with no strategy (returns empty components)"
+description: "Test that a Rollout with no strategy returns an empty component list"
+observedObj:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Rollout
+  metadata:
+    name: no-strategy
+    namespace: default
+  spec:
+    replicas: 1
+    template:
+      spec:
+        containers:
+          - name: myapp
+            image: myapp:latest
+operation: InterpretComponent
+output:
+  components: []
+
+---
+name: "Rollout canary strategy with nodeSelector, tolerations, and priorityClassName"
+description: "Test interpreting components with pod topology spread constraints"
+observedObj:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Rollout
+  metadata:
+    name: canary-topology
+    namespace: default
+  spec:
+    replicas: 2
+    strategy:
+      canary:
+        canaryReplicas: 1
+        stableTemplate:
+          spec:
+            nodeSelector:
+              disktype: ssd
+              region: us-west
+            tolerations:
+              - key: "nvidia.com/gpu"
+                operator: "Exists"
+                effect: "NoSchedule"
+            priorityClassName: high-priority
+            containers:
+              - name: myapp
+                image: myapp:stable
+                resources:
+                  requests:
+                    cpu: "1"
+                    memory: 1Gi
+        canaryTemplate:
+          spec:
+            nodeSelector:
+              disktype: ssd
+            containers:
+              - name: myapp
+                image: myapp:canary
+                resources:
+                  requests:
+                    cpu: "2"
+                    memory: 2Gi
+operation: InterpretComponent
+output:
+  components:
+    - name: stable
+      replicas: 2
+      replicaRequirements:
+        resourceRequest:
+          cpu: "1"
+          memory: 1Gi
+        nodeClaim:
+          nodeSelector:
+            disktype: ssd
+            region: us-west
+          tolerations:
+            - key: "nvidia.com/gpu"
+              operator: "Exists"
+              effect: "NoSchedule"
+        priorityClassName: high-priority
+    - name: canary
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          cpu: "2"
+          memory: 2Gi
+        nodeClaim:
+          nodeSelector:
+            disktype: ssd
+
+---
+name: "Rollout blue-green strategy with nil previewTemplate"
+description: "Test that blue-green gracefully handles a nil previewTemplate"
+observedObj:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Rollout
+  metadata:
+    name: bluegreen-nil-preview
+    namespace: default
+  spec:
+    replicas: 2
+    strategy:
+      blueGreen:
+        activeTemplate:
+          spec:
+            containers:
+              - name: myapp
+                image: myapp:v1
+                resources:
+                  requests:
+                    cpu: "1"
+                    memory: 512Mi
+operation: InterpretComponent
+output:
+  components:
+    - name: active
+      replicas: 2
+      replicaRequirements:
+        resourceRequest:
+          cpu: "1"
+          memory: 512Mi
+    - name: preview
+      replicas: 1
+
+---
+name: "Rollout with default replicas (nil replicas defaults to 1)"
+description: "Test that nil replicas defaults to 1 on both canary and stable"
+observedObj:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Rollout
+  metadata:
+    name: canary-default-replicas-count
+    namespace: default
+  spec:
+    strategy:
+      canary:
+        canaryTemplate:
+          spec:
+            containers:
+              - name: myapp
+                image: myapp:canary
+                resources:
+                  requests:
+                    cpu: "500m"
+        stableTemplate:
+          spec:
+            containers:
+              - name: myapp
+                image: myapp:stable
+                resources:
+                  requests:
+                    cpu: "500m"
+operation: InterpretComponent
+output:
+  components:
+    - name: stable
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          cpu: "500m"
+    - name: canary
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          cpu: "500m"
