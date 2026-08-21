@@ -193,9 +193,9 @@ func (c *ConfigurableInterpreter) GetDependencies(object *unstructured.Unstructu
 	klog.V(4).Infof("Running operation %s for object: %v %s/%s with configurable interpreter.",
 		configv1alpha1.InterpreterOperationInterpretDependency, object.GroupVersionKind(), object.GetNamespace(), object.GetName())
 	refs := sets.New[configv1alpha1.DependentObjectReference]()
-	for _, luaScript := range scripts {
+	for i, luaScript := range scripts {
 		var references []configv1alpha1.DependentObjectReference
-		references, err = c.luaVM.GetDependencies(object, luaScript)
+		references, err = c.luaVM.GetDependencies(object, luaScript, i)
 		if err != nil {
 			klog.Errorf("Failed to get DependentObjectReferences from object: %v %s/%s, error: %v",
 				object.GroupVersionKind(), object.GetNamespace(), object.GetName(), err)
