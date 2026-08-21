@@ -139,18 +139,44 @@ func (c *CertRotationController) SetupWithManager(mgr controllerruntime.Manager)
 		Complete(c)
 }
 
+// resolveCurrentAuthInfo returns the name of the user referenced by the kubeconfig's
+// current context, along with that user's entry.
+//
+// Contexts and AuthInfos are maps of pointers, so a name with no matching entry yields
+// a nil pointer rather than a zero value. clientcmd.Load does not check that
+// current-context names an existing context, or that a context names an existing user,
+// so both are looked up explicitly here.
+func resolveCurrentAuthInfo(config *clientcmdapi.Config) (string, *clientcmdapi.AuthInfo, error) {
+	currentContext, ok := config.Contexts[config.CurrentContext]
+	if !ok {
+		return "", nil, fmt.Errorf("the current context %q is not present in the karmada-agent kubeconfig", config.CurrentContext)
+	}
+
+	clusterName := currentContext.AuthInfo
+	if clusterName == "" {
+		return "", nil, fmt.Errorf("failed to get cluster name, the current context is %s", config.CurrentContext)
+	}
+
+	authInfo, ok := config.AuthInfos[clusterName]
+	if !ok {
+		return "", nil, fmt.Errorf("the user %q referenced by context %q is not present in the karmada-agent kubeconfig", clusterName, config.CurrentContext)
+	}
+
+	return clusterName, authInfo, nil
+}
+
 func (c *CertRotationController) syncCertRotation(ctx context.Context, secret *corev1.Secret) error {
 	karmadaKubeconfig, err := getKubeconfigFromSecret(secret)
 	if err != nil {
 		return err
 	}
 
-	clusterName := karmadaKubeconfig.Contexts[karmadaKubeconfig.CurrentContext].AuthInfo
-	if clusterName == "" {
-		return fmt.Errorf("failed to get cluster name, the current context is %s", karmadaKubeconfig.CurrentContext)
+	clusterName, authInfo, err := resolveCurrentAuthInfo(karmadaKubeconfig)
+	if err != nil {
+		return err
 	}
 
-	oldCertData := karmadaKubeconfig.AuthInfos[clusterName].ClientCertificateData
+	oldCertData := authInfo.ClientCertificateData
 
 	shouldRotate, err := c.shouldRotateCert(oldCertData)
 	if err != nil {
@@ -202,8 +228,8 @@ func (c *CertRotationController) syncCertRotation(ctx context.Context, secret *c
 		return err
 	}
 
-	karmadaKubeconfig.AuthInfos[clusterName].ClientCertificateData = newCertData
-	karmadaKubeconfig.AuthInfos[clusterName].ClientKeyData = keyData
+	authInfo.ClientCertificateData = newCertData
+	authInfo.ClientKeyData = keyData
 
 	karmadaKubeconfigBytes, err := clientcmd.Write(*karmadaKubeconfig)
 	if err != nil {
