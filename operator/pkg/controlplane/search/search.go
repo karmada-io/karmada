@@ -79,7 +79,7 @@ func installKarmadaSearch(client clientset.Interface, cfg *operatorv1alpha1.Karm
 		WithTolerations(cfg.CommonSettings.Tolerations).WithAffinity(cfg.CommonSettings.Affinity).ForDeployment(searchDeployment)
 
 	if searchDeployment, err = apiclient.CreateOrUpdateDeployment(client, searchDeployment); err != nil {
-		return fmt.Errorf("error when creating deployment for %s, err: %w", searchDeployment.Name, err)
+		return fmt.Errorf("error when creating deployment for %s, err: %w", util.KarmadaSearchName(name), err)
 	}
 
 	ownerRef := *metav1.NewControllerRef(searchDeployment, apiserver.DeploymentGVK)
