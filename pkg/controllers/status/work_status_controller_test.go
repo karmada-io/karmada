@@ -50,6 +50,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/default/native"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -105,7 +106,7 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 						ObjectMeta: metav1.ObjectMeta{Namespace: "ns1", Name: "secret1"},
 						Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token"), clusterv1alpha1.SecretCADataKey: testCA},
 					}).Build(),
-				InformerManager:             genericmanager.NewMultiClusterInformerManager(context.Background()),
+				InformerManager:             genericmanager.NewMultiClusterInformerManager(context.Background(), fedinformer.StripUnusedFields),
 				WorkPredicateFunc:           helper.NewClusterPredicateOnAgent("test"),
 				ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSet,
 				RateLimiterOptions:          ratelimiterflag.Options{},
@@ -132,7 +133,7 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 			name: "work not exists",
 			c: &WorkStatusController{
 				Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)).Build(),
-				InformerManager:             genericmanager.NewMultiClusterInformerManager(context.Background()),
+				InformerManager:             genericmanager.NewMultiClusterInformerManager(context.Background(), fedinformer.StripUnusedFields),
 				WorkPredicateFunc:           helper.NewClusterPredicateOnAgent("test"),
 				ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
 				RateLimiterOptions:          ratelimiterflag.Options{},
@@ -159,7 +160,7 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 			name: "work's DeletionTimestamp isn't zero",
 			c: &WorkStatusController{
 				Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)).Build(),
-				InformerManager:             genericmanager.NewMultiClusterInformerManager(context.Background()),
+				InformerManager:             genericmanager.NewMultiClusterInformerManager(context.Background(), fedinformer.StripUnusedFields),
 				WorkPredicateFunc:           helper.NewClusterPredicateOnAgent("test"),
 				ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
 				RateLimiterOptions:          ratelimiterflag.Options{},
@@ -188,7 +189,7 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 			name: "work's status is not applied",
 			c: &WorkStatusController{
 				Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)).Build(),
-				InformerManager:             genericmanager.NewMultiClusterInformerManager(context.Background()),
+				InformerManager:             genericmanager.NewMultiClusterInformerManager(context.Background(), fedinformer.StripUnusedFields),
 				WorkPredicateFunc:           helper.NewClusterPredicateOnAgent("test"),
 				ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
 				RateLimiterOptions:          ratelimiterflag.Options{},
@@ -215,7 +216,7 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 			name: "failed to get cluster name",
 			c: &WorkStatusController{
 				Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)).Build(),
-				InformerManager:             genericmanager.NewMultiClusterInformerManager(context.Background()),
+				InformerManager:             genericmanager.NewMultiClusterInformerManager(context.Background(), fedinformer.StripUnusedFields),
 				WorkPredicateFunc:           helper.NewClusterPredicateOnAgent("test"),
 				ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
 				RateLimiterOptions:          ratelimiterflag.Options{},
@@ -242,7 +243,7 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 			name: "failed to get cluster",
 			c: &WorkStatusController{
 				Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(newCluster("cluster1", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)).Build(),
-				InformerManager:             genericmanager.NewMultiClusterInformerManager(context.Background()),
+				InformerManager:             genericmanager.NewMultiClusterInformerManager(context.Background(), fedinformer.StripUnusedFields),
 				WorkPredicateFunc:           helper.NewClusterPredicateOnAgent("test"),
 				ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
 				RateLimiterOptions:          ratelimiterflag.Options{},
@@ -269,7 +270,7 @@ func TestWorkStatusController_Reconcile(t *testing.T) {
 			name: "cluster is not ready",
 			c: &WorkStatusController{
 				Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse)).Build(),
-				InformerManager:             genericmanager.NewMultiClusterInformerManager(context.Background()),
+				InformerManager:             genericmanager.NewMultiClusterInformerManager(context.Background(), fedinformer.StripUnusedFields),
 				WorkPredicateFunc:           helper.NewClusterPredicateOnAgent("test"),
 				ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
 				RateLimiterOptions:          ratelimiterflag.Options{},
@@ -338,7 +339,7 @@ func TestWorkStatusController_getEventHandler(t *testing.T) {
 
 	c := WorkStatusController{
 		Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse)).Build(),
-		InformerManager:             genericmanager.NewMultiClusterInformerManager(context.Background()),
+		InformerManager:             genericmanager.NewMultiClusterInformerManager(context.Background(), fedinformer.StripUnusedFields),
 		WorkPredicateFunc:           helper.NewClusterPredicateOnAgent("test"),
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
 		RateLimiterOptions:          ratelimiterflag.Options{},
@@ -353,7 +354,7 @@ func TestWorkStatusController_getEventHandler(t *testing.T) {
 func TestWorkStatusController_RunWorkQueue(_ *testing.T) {
 	c := WorkStatusController{
 		Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse)).Build(),
-		InformerManager:             genericmanager.NewMultiClusterInformerManager(context.Background()),
+		InformerManager:             genericmanager.NewMultiClusterInformerManager(context.Background(), fedinformer.StripUnusedFields),
 		WorkPredicateFunc:           helper.NewClusterPredicateOnAgent("test"),
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
 		RateLimiterOptions:          ratelimiterflag.Options{},
@@ -780,7 +781,7 @@ func TestWorkStatusController_buildResourceInformers(t *testing.T) {
 func newWorkStatusController(cluster *clusterv1alpha1.Cluster, dynamicClientSets ...*dynamicfake.FakeDynamicClient) *WorkStatusController {
 	c := &WorkStatusController{
 		Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(cluster).WithStatusSubresource(&workv1alpha1.Work{}).Build(),
-		InformerManager:             genericmanager.NewMultiClusterInformerManager(context.Background()),
+		InformerManager:             genericmanager.NewMultiClusterInformerManager(context.Background(), fedinformer.StripUnusedFields),
 		WorkPredicateFunc:           helper.NewClusterPredicateOnAgent("test"),
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
 		RateLimiterOptions:          ratelimiterflag.Options{},
@@ -810,7 +811,7 @@ func newWorkStatusController(cluster *clusterv1alpha1.Cluster, dynamicClientSets
 		// Generate ResourceInterpreter and ObjectWatcher
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		m := genericmanager.NewMultiClusterInformerManager(ctx)
+		m := genericmanager.NewMultiClusterInformerManager(ctx, fedinformer.StripUnusedFields)
 		m.ForCluster(clusterName, dynamicClientSet, 0).Lister(corev1.SchemeGroupVersion.WithResource("pods")) // register pod informer
 		m.Start(clusterName)
 		m.WaitForCacheSync(clusterName)
@@ -823,7 +824,7 @@ func newWorkStatusController(cluster *clusterv1alpha1.Cluster, dynamicClientSets
 func TestWorkStatusController_buildStatusIdentifier(t *testing.T) {
 	c := WorkStatusController{
 		Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)).Build(),
-		InformerManager:             genericmanager.NewMultiClusterInformerManager(context.Background()),
+		InformerManager:             genericmanager.NewMultiClusterInformerManager(context.Background(), fedinformer.StripUnusedFields),
 		WorkPredicateFunc:           helper.NewClusterPredicateOnAgent("test"),
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
 		RateLimiterOptions:          ratelimiterflag.Options{},
@@ -883,7 +884,7 @@ func TestWorkStatusController_buildStatusIdentifier(t *testing.T) {
 func TestWorkStatusController_mergeStatus(t *testing.T) {
 	c := WorkStatusController{
 		Client:                      fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)).Build(),
-		InformerManager:             genericmanager.NewMultiClusterInformerManager(context.Background()),
+		InformerManager:             genericmanager.NewMultiClusterInformerManager(context.Background(), fedinformer.StripUnusedFields),
 		WorkPredicateFunc:           helper.NewClusterPredicateOnAgent("test"),
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
 		RateLimiterOptions:          ratelimiterflag.Options{},
