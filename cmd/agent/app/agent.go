@@ -349,7 +349,7 @@ func startExecutionController(ctx controllerscontext.Context) (bool, error) {
 		EventRecorder:        ctx.Mgr.GetEventRecorderFor(execution.ControllerName), //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
 		RESTMapper:           ctx.Mgr.GetRESTMapper(),
 		ObjectWatcher:        ctx.ObjectWatcher,
-		InformerManager:      genericmanager.GetInstance(),
+		InformerManager:      genericmanager.NewMultiClusterInformerManager(ctx.Context, fedinformer.NewWorkMappingTransformFunc(ctx.Mgr.GetClient())),
 		RateLimiterOptions:   ctx.Opts.RateLimiterOptions,
 		ClusterClientSetFunc: util.NewClusterDynamicClientSetForAgent,
 		ClusterClientOption:  ctx.ClusterClientOption,
@@ -365,7 +365,7 @@ func startWorkStatusController(ctx controllerscontext.Context) (bool, error) {
 		Client:                      ctx.Mgr.GetClient(),
 		EventRecorder:               ctx.Mgr.GetEventRecorderFor(status.WorkStatusControllerName), //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
 		RESTMapper:                  ctx.Mgr.GetRESTMapper(),
-		InformerManager:             genericmanager.GetInstance(),
+		InformerManager:             genericmanager.NewMultiClusterInformerManager(ctx.Context, fedinformer.NewWorkMappingTransformFunc(ctx.Mgr.GetClient())),
 		Context:                     ctx.Context,
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSetForAgent,
 		ClusterClientOption:         ctx.ClusterClientOption,

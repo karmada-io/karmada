@@ -23,8 +23,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/util/gclient"
 )
 
 func TestStripUnusedFields(t *testing.T) {
@@ -89,6 +93,37 @@ func TestStripUnusedFields(t *testing.T) {
 				t.Errorf("StripUnusedFields: got %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestRetainMetadataFields(t *testing.T) {
+	obj := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "v1",
+		"kind":       "Pod",
+		"metadata": map[string]any{
+			"namespace": "default",
+			"name":      "pod",
+			"labels":    map[string]any{"app": "demo"},
+		},
+		"spec": map[string]any{"nodeName": "node1"},
+	}}
+
+	got, err := RetainMetadataFields(obj)
+	if err != nil {
+		t.Fatalf("RetainMetadataFields() error = %v", err)
+	}
+	gotObj, ok := got.(*unstructured.Unstructured)
+	if !ok {
+		t.Fatalf("expected *unstructured.Unstructured, got %T", got)
+	}
+	if gotObj.GetAPIVersion() != "v1" || gotObj.GetKind() != "Pod" {
+		t.Fatalf("type metadata was not retained: %#v", gotObj.Object)
+	}
+	if gotObj.GetNamespace() != "default" || gotObj.GetName() != "pod" || gotObj.GetLabels()["app"] != "demo" {
+		t.Fatalf("metadata was not retained: %#v", gotObj.Object)
+	}
+	if _, found, err := unstructured.NestedFieldNoCopy(gotObj.Object, "spec"); err != nil || found {
+		t.Fatalf("spec should not be retained, found=%v err=%v", found, err)
 	}
 }
 
@@ -274,4 +309,52 @@ func TestPodTransformFunc(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNewWorkStatusTransformFunc(t *testing.T) {
+	controlPlaneClient := fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(
+		&workv1alpha1.Work{ObjectMeta: metav1.ObjectMeta{Namespace: "work-ns", Name: "work-name"}},
+	).Build()
+	transform := NewWorkMappingTransformFunc(controlPlaneClient)
+
+	newObject := func(workName string) *unstructured.Unstructured {
+		return &unstructured.Unstructured{Object: map[string]any{
+			"apiVersion": "apps/v1",
+			"kind":       "Deployment",
+			"metadata": map[string]any{
+				"namespace": "default",
+				"name":      "demo",
+				"annotations": map[string]any{
+					workv1alpha2.WorkNamespaceAnnotation: "work-ns",
+					workv1alpha2.WorkNameAnnotation:      workName,
+				},
+			},
+			"spec": map[string]any{"replicas": int64(1)},
+		}}
+	}
+
+	t.Run("retain full object mapped to an existing Work", func(t *testing.T) {
+		got, err := transform(newObject("work-name"))
+		if err != nil {
+			t.Fatalf("transform() error = %v", err)
+		}
+		gotObj := got.(*unstructured.Unstructured)
+		if _, found, err := unstructured.NestedFieldNoCopy(gotObj.Object, "spec"); err != nil || !found {
+			t.Fatalf("spec should be retained, found=%v err=%v", found, err)
+		}
+	})
+
+	t.Run("retain metadata only when Work does not exist", func(t *testing.T) {
+		got, err := transform(newObject("missing"))
+		if err != nil {
+			t.Fatalf("transform() error = %v", err)
+		}
+		gotObj := got.(*unstructured.Unstructured)
+		if gotObj.GetName() != "demo" {
+			t.Fatalf("metadata was not retained: %#v", gotObj.Object)
+		}
+		if _, found, err := unstructured.NestedFieldNoCopy(gotObj.Object, "spec"); err != nil || found {
+			t.Fatalf("spec should not be retained, found=%v err=%v", found, err)
+		}
+	})
 }
