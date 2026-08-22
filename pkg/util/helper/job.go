@@ -97,8 +97,8 @@ func ParsingJobStatus(obj *batchv1.Job, status []workv1alpha2.AggregatedStatusIt
 		failedMessage := fmt.Sprintf("Job executed failed in member clusters %s", strings.Join(jobFailed, ","))
 
 		// Kubernetes (>= v1.31) rejects a Failed=True update unless the FailureTarget
-		// condition is already present. Member clusters running Kubernetes < 1.31 never
-		// set FailureTarget natively, so synthesize it here whenever we aggregate a
+		// condition is already present. Member clusters running Kubernetes < 1.31 may
+		// not set FailureTarget natively, so synthesize it here whenever we aggregate a
 		// failure, instead of only carrying it through when a member already reported it.
 		newStatus.Conditions = append(newStatus.Conditions, batchv1.JobCondition{
 			Type:               batchv1.JobFailureTarget,
