@@ -100,6 +100,15 @@ func TestParsingJobStatus(t *testing.T) {
 		"conditions":     []batchv1.JobCondition{{Type: batchv1.JobFailed, Status: corev1.ConditionTrue}},
 	}
 	rawJobFailed, _ := BuildStatusRawExtension(statusMapWithJobfailed)
+	statusMapWithJobFailureTarget := map[string]any{
+		"active":         0,
+		"succeeded":      0,
+		"startTime":      testV1time,
+		"completionTime": testV1time,
+		"failed":         1,
+		"conditions":     []batchv1.JobCondition{{Type: batchv1.JobFailureTarget, Status: corev1.ConditionTrue}, {Type: batchv1.JobFailed, Status: corev1.ConditionTrue}},
+	}
+	rawJobFailureTarget, _ := BuildStatusRawExtension(statusMapWithJobFailureTarget)
 	tests := []struct {
 		name                  string
 		job                   *batchv1.Job
@@ -141,7 +150,7 @@ func TestParsingJobStatus(t *testing.T) {
 			},
 		},
 		{
-			name: "",
+			name: "FailureTarget=true is synthesized even when no member reported it",
 			job: &batchv1.Job{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "foo",
@@ -155,6 +164,48 @@ func TestParsingJobStatus(t *testing.T) {
 			expectedJobStatus: &batchv1.JobStatus{
 				Failed: 2,
 				Conditions: []batchv1.JobCondition{
+					{
+						Type:               batchv1.JobFailureTarget,
+						Status:             corev1.ConditionTrue,
+						LastProbeTime:      testV1time,
+						LastTransitionTime: testV1time,
+						Reason:             "JobFailed",
+						Message:            "Job executed failed in member clusters memberA,memberB",
+					},
+					{
+						Type:               batchv1.JobFailed,
+						Status:             corev1.ConditionTrue,
+						LastProbeTime:      testV1time,
+						LastTransitionTime: testV1time,
+						Reason:             "JobFailed",
+						Message:            "Job executed failed in member clusters memberA,memberB",
+					},
+				},
+			},
+		},
+		{
+			name: "member clusters reporting FailureTarget=true carries the condition through",
+			job: &batchv1.Job{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "bar",
+				},
+			},
+			aggregatedStatusItems: []workv1alpha2.AggregatedStatusItem{
+				{ClusterName: "memberA", Status: rawJobFailureTarget},
+				{ClusterName: "memberB", Status: rawJobFailureTarget},
+			},
+			expectedJobStatus: &batchv1.JobStatus{
+				Failed: 2,
+				Conditions: []batchv1.JobCondition{
+					{
+						Type:               batchv1.JobFailureTarget,
+						Status:             corev1.ConditionTrue,
+						LastProbeTime:      testV1time,
+						LastTransitionTime: testV1time,
+						Reason:             "JobFailed",
+						Message:            "Job executed failed in member clusters memberA,memberB",
+					},
 					{
 						Type:               batchv1.JobFailed,
 						Status:             corev1.ConditionTrue,
