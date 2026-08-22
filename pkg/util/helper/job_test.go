@@ -150,7 +150,7 @@ func TestParsingJobStatus(t *testing.T) {
 			},
 		},
 		{
-			name: "",
+			name: "FailureTarget=true is synthesized even when no member reported it",
 			job: &batchv1.Job{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "foo",
@@ -164,6 +164,14 @@ func TestParsingJobStatus(t *testing.T) {
 			expectedJobStatus: &batchv1.JobStatus{
 				Failed: 2,
 				Conditions: []batchv1.JobCondition{
+					{
+						Type:               batchv1.JobFailureTarget,
+						Status:             corev1.ConditionTrue,
+						LastProbeTime:      testV1time,
+						LastTransitionTime: testV1time,
+						Reason:             "JobFailed",
+						Message:            "Job executed failed in member clusters memberA,memberB",
+					},
 					{
 						Type:               batchv1.JobFailed,
 						Status:             corev1.ConditionTrue,

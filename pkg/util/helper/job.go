@@ -38,8 +38,6 @@ func ParsingJobStatus(obj *batchv1.Job, status []workv1alpha2.AggregatedStatusIt
 	successfulJobs, startJobs, completionJobs := 0, 0, 0
 	// Track how many member clusters already reported SuccessCriteriaMet=true
 	successCriteriaMetClusters := 0
-	// Track how many member clusters already reported FailureTarget=true
-	failureTargetClusters := 0
 	newStatus := &batchv1.JobStatus{}
 	for _, item := range status {
 		if item.Status == nil {
@@ -64,24 +62,18 @@ func ParsingJobStatus(obj *batchv1.Job, status []workv1alpha2.AggregatedStatusIt
 			jobFailed = append(jobFailed, item.ClusterName)
 		}
 
-		// Count clusters that already set SuccessCriteriaMet=true or FailureTarget=true
-		hasSuccessCriteriaMet, hasFailureTarget := false, false
+		// Count clusters that already set SuccessCriteriaMet=true
+		hasSuccessCriteriaMet := false
 		for _, c := range temp.Conditions {
 			if c.Status != corev1.ConditionTrue {
 				continue
 			}
-			switch c.Type {
-			case batchv1.JobSuccessCriteriaMet:
+			if c.Type == batchv1.JobSuccessCriteriaMet {
 				hasSuccessCriteriaMet = true
-			case batchv1.JobFailureTarget:
-				hasFailureTarget = true
 			}
 		}
 		if hasSuccessCriteriaMet {
 			successCriteriaMetClusters++
-		}
-		if hasFailureTarget {
-			failureTargetClusters++
 		}
 
 		// StartTime
@@ -105,18 +97,17 @@ func ParsingJobStatus(obj *batchv1.Job, status []workv1alpha2.AggregatedStatusIt
 		failedMessage := fmt.Sprintf("Job executed failed in member clusters %s", strings.Join(jobFailed, ","))
 
 		// Kubernetes (>= v1.31) rejects a Failed=True update unless the FailureTarget
-		// condition is already present, so surface it first when a member cluster
-		// reported it, mirroring the JobSuccessCriteriaMet handling below.
-		if failureTargetClusters > 0 {
-			newStatus.Conditions = append(newStatus.Conditions, batchv1.JobCondition{
-				Type:               batchv1.JobFailureTarget,
-				Status:             corev1.ConditionTrue,
-				LastProbeTime:      now,
-				LastTransitionTime: now,
-				Reason:             "JobFailed",
-				Message:            failedMessage,
-			})
-		}
+		// condition is already present. Member clusters running Kubernetes < 1.31 never
+		// set FailureTarget natively, so synthesize it here whenever we aggregate a
+		// failure, instead of only carrying it through when a member already reported it.
+		newStatus.Conditions = append(newStatus.Conditions, batchv1.JobCondition{
+			Type:               batchv1.JobFailureTarget,
+			Status:             corev1.ConditionTrue,
+			LastProbeTime:      now,
+			LastTransitionTime: now,
+			Reason:             "JobFailed",
+			Message:            failedMessage,
+		})
 
 		newStatus.Conditions = append(newStatus.Conditions, batchv1.JobCondition{
 			Type:               batchv1.JobFailed,
