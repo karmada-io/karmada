@@ -109,14 +109,20 @@ func ParsingJobStatus(obj *batchv1.Job, status []workv1alpha2.AggregatedStatusIt
 			Message:            failedMessage,
 		})
 
-		newStatus.Conditions = append(newStatus.Conditions, batchv1.JobCondition{
-			Type:               batchv1.JobFailed,
-			Status:             corev1.ConditionTrue,
-			LastProbeTime:      now,
-			LastTransitionTime: now,
-			Reason:             "JobFailed",
-			Message:            failedMessage,
-		})
+		// A finished Job (Failed=True) must report Active == 0, or the API server
+		// rejects the update. When another member cluster is still active, keep
+		// FailureTarget=True as the interim aggregate condition and defer Failed=True
+		// until all reflected members are inactive.
+		if newStatus.Active == 0 {
+			newStatus.Conditions = append(newStatus.Conditions, batchv1.JobCondition{
+				Type:               batchv1.JobFailed,
+				Status:             corev1.ConditionTrue,
+				LastProbeTime:      now,
+				LastTransitionTime: now,
+				Reason:             "JobFailed",
+				Message:            failedMessage,
+			})
+		}
 	}
 
 	// aggregated status can be empty when the binding is just created

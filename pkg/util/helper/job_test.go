@@ -109,6 +109,14 @@ func TestParsingJobStatus(t *testing.T) {
 		"conditions":     []batchv1.JobCondition{{Type: batchv1.JobFailureTarget, Status: corev1.ConditionTrue}, {Type: batchv1.JobFailed, Status: corev1.ConditionTrue}},
 	}
 	rawJobFailureTarget, _ := BuildStatusRawExtension(statusMapWithJobFailureTarget)
+	statusMapWithJobActive := map[string]any{
+		"active":     1,
+		"succeeded":  0,
+		"startTime":  testV1time,
+		"failed":     0,
+		"conditions": []batchv1.JobCondition{},
+	}
+	rawJobActive, _ := BuildStatusRawExtension(statusMapWithJobActive)
 	tests := []struct {
 		name                  string
 		job                   *batchv1.Job
@@ -213,6 +221,33 @@ func TestParsingJobStatus(t *testing.T) {
 						LastTransitionTime: testV1time,
 						Reason:             "JobFailed",
 						Message:            "Job executed failed in member clusters memberA,memberB",
+					},
+				},
+			},
+		},
+		{
+			name: "Failed=true is deferred while another member cluster is still active",
+			job: &batchv1.Job{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "bar",
+				},
+			},
+			aggregatedStatusItems: []workv1alpha2.AggregatedStatusItem{
+				{ClusterName: "memberA", Status: rawJobFailed},
+				{ClusterName: "memberB", Status: rawJobActive},
+			},
+			expectedJobStatus: &batchv1.JobStatus{
+				Active: 1,
+				Failed: 1,
+				Conditions: []batchv1.JobCondition{
+					{
+						Type:               batchv1.JobFailureTarget,
+						Status:             corev1.ConditionTrue,
+						LastProbeTime:      testV1time,
+						LastTransitionTime: testV1time,
+						Reason:             "JobFailed",
+						Message:            "Job executed failed in member clusters memberA",
 					},
 				},
 			},
