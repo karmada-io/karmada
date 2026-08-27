@@ -423,6 +423,7 @@ func Test_calculateMultiTemplateAvailableSetsForScale(t *testing.T) {
 		wantResult     []workv1alpha2.TargetCluster
 		wantError      string
 		wantCalls      int
+		estimatorError error
 	}{
 		{
 			name: "scale up estimates only the positive delta",
@@ -431,7 +432,7 @@ func Test_calculateMultiTemplateAvailableSetsForScale(t *testing.T) {
 					{Name: "jobmanager", Replicas: 1},
 					{Name: "taskmanager", Replicas: 6, ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{PriorityClassName: "high-priority"}},
 				},
-				[]workv1alpha2.TargetComponent{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
+				[]workv1alpha2.TargetComponent{{Name: "taskmanager", Replicas: 4}, {Name: "jobmanager", Replicas: 1}},
 			),
 			wantComponents: []workv1alpha2.Component{{
 				Name:                "taskmanager",
@@ -447,7 +448,28 @@ func Test_calculateMultiTemplateAvailableSetsForScale(t *testing.T) {
 				[]workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 2}},
 				[]workv1alpha2.TargetComponent{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
 			),
-			wantResult: []workv1alpha2.TargetCluster{{Name: "cluster1", Replicas: scaleDownAvailableComponentSets}},
+			wantResult: []workv1alpha2.TargetCluster{{Name: "cluster1", Replicas: minimumAvailableComponentSets}},
+		},
+		{
+			name: "all components scale up by their positive delta",
+			spec: newSpec(
+				[]workv1alpha2.Component{{Name: "jobmanager", Replicas: 2}, {Name: "taskmanager", Replicas: 6}},
+				[]workv1alpha2.TargetComponent{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
+			),
+			wantComponents: []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 2}},
+			wantResult:     []workv1alpha2.TargetCluster{{Name: "cluster1", Replicas: 1}},
+			wantCalls:      1,
+		},
+		{
+			name: "scale up returns estimator error",
+			spec: newSpec(
+				[]workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 6}},
+				[]workv1alpha2.TargetComponent{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
+			),
+			wantComponents: []workv1alpha2.Component{{Name: "taskmanager", Replicas: 2}},
+			wantError:      "estimator failed",
+			wantCalls:      1,
+			estimatorError: errors.New("estimator failed"),
 		},
 		{
 			name: "existing target without accepted snapshot is unknown",
@@ -502,6 +524,17 @@ func Test_calculateMultiTemplateAvailableSetsForScale(t *testing.T) {
 			spec:      newSpec(nil, nil),
 			wantError: "unique, non-empty names",
 		},
+		{
+			name: "candidate without accepted result is rejected",
+			spec: &workv1alpha2.ResourceBindingSpec{
+				Resource:   workv1alpha2.ObjectReference{Namespace: "default", Name: "flink"},
+				Components: []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 6}},
+				Clusters: []workv1alpha2.TargetCluster{{Name: "cluster2", Components: []workv1alpha2.TargetComponent{
+					{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4},
+				}}},
+			},
+			wantError: "requires exactly one accepted target cluster",
+		},
 	}
 
 	for _, tt := range tests {
@@ -510,6 +543,9 @@ func Test_calculateMultiTemplateAvailableSetsForScale(t *testing.T) {
 			estimator.maxAvailableComponentSetsFunc = func(req estimatorclient.ComponentSetEstimationRequest) ([]estimatorclient.ComponentSetEstimationResponse, error) {
 				assert.Equal(t, clusters, req.Clusters)
 				assert.Equal(t, tt.wantComponents, req.Components)
+				if tt.estimatorError != nil {
+					return nil, tt.estimatorError
+				}
 				return []estimatorclient.ComponentSetEstimationResponse{{Name: "cluster1", Sets: 1}}, nil
 			}
 
@@ -532,47 +568,8 @@ func Test_calculateMultiTemplateAvailableSetsForScale(t *testing.T) {
 	}
 }
 
-func Test_calculateMultiTemplateAvailableSetsForScaleUsesFullDesiredOnlyForNewCandidates(t *testing.T) {
-	desired := []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 5}}
-	clusters := []*clusterv1alpha1.Cluster{helper.NewCluster("cluster1"), helper.NewCluster("cluster2")}
-	estimator := &mockReplicaEstimator{}
-	estimator.maxAvailableComponentSetsFunc = func(req estimatorclient.ComponentSetEstimationRequest) ([]estimatorclient.ComponentSetEstimationResponse, error) {
-		switch req.Clusters[0].Name {
-		case "cluster2":
-			assert.Equal(t, []*clusterv1alpha1.Cluster{clusters[1]}, req.Clusters)
-			assert.Equal(t, []workv1alpha2.Component{{Name: "taskmanager", Replicas: 2}}, req.Components)
-		case "cluster1":
-			assert.Equal(t, []*clusterv1alpha1.Cluster{clusters[0]}, req.Clusters)
-			assert.Equal(t, desired, req.Components)
-		default:
-			t.Fatalf("unexpected cluster request: %s", req.Clusters[0].Name)
-		}
-		return []estimatorclient.ComponentSetEstimationResponse{{Name: req.Clusters[0].Name, Sets: 1}}, nil
-	}
-	spec := &workv1alpha2.ResourceBindingSpec{
-		Resource:   workv1alpha2.ObjectReference{Namespace: "default", Name: "flink"},
-		Components: desired,
-		Clusters: []workv1alpha2.TargetCluster{{
-			Name: "cluster2",
-			Components: []workv1alpha2.TargetComponent{
-				{Name: "jobmanager", Replicas: 1},
-				{Name: "taskmanager", Replicas: 3},
-			},
-		}},
-	}
-
-	got, err := calculateMultiTemplateAvailableSetsForScale(context.Background(), multiTemplateEstimationContext{
-		estimator: estimator,
-		clusters:  clusters,
-		spec:      spec,
-	})
-	assert.NoError(t, err)
-	assert.Equal(t, []workv1alpha2.TargetCluster{{Name: "cluster1", Replicas: 1}, {Name: "cluster2", Replicas: 1}}, got)
-	assert.Len(t, estimator.componentSetRequests, 2)
-}
-
 func Test_calculateMultiTemplateAvailableSetsForScaleRejectsBeforeCallingEstimator(t *testing.T) {
-	clusters := []*clusterv1alpha1.Cluster{helper.NewCluster("cluster1"), helper.NewCluster("cluster2")}
+	clusters := []*clusterv1alpha1.Cluster{helper.NewCluster("cluster1")}
 	estimator := &mockReplicaEstimator{}
 	estimator.maxAvailableComponentSetsFunc = func(estimatorclient.ComponentSetEstimationRequest) ([]estimatorclient.ComponentSetEstimationResponse, error) {
 		t.Fatal("estimator must not be called before every transition is classified")
@@ -584,22 +581,13 @@ func Test_calculateMultiTemplateAvailableSetsForScaleRejectsBeforeCallingEstimat
 			{Name: "jobmanager", Replicas: 1},
 			{Name: "taskmanager", Replicas: 6},
 		},
-		Clusters: []workv1alpha2.TargetCluster{
-			{
-				Name: "cluster1",
-				Components: []workv1alpha2.TargetComponent{
-					{Name: "jobmanager", Replicas: 1},
-					{Name: "taskmanager", Replicas: 4},
-				},
+		Clusters: []workv1alpha2.TargetCluster{{
+			Name: "cluster1",
+			Components: []workv1alpha2.TargetComponent{
+				{Name: "jobmanager", Replicas: 2},
+				{Name: "taskmanager", Replicas: 4},
 			},
-			{
-				Name: "cluster2",
-				Components: []workv1alpha2.TargetComponent{
-					{Name: "jobmanager", Replicas: 2},
-					{Name: "taskmanager", Replicas: 4},
-				},
-			},
-		},
+		}},
 	}
 
 	got, err := calculateMultiTemplateAvailableSetsForScale(context.Background(), multiTemplateEstimationContext{
