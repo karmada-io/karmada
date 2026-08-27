@@ -46,9 +46,11 @@ func IsBindingReplicasChanged(bindingSpec *workv1alpha2.ResourceBindingSpec, str
 		if len(bindingSpec.Clusters) == 0 {
 			return true
 		}
-		if len(bindingSpec.Components) > 1 && len(bindingSpec.Clusters) == 1 &&
-			isComponentReplicasChanged(bindingSpec.Components, bindingSpec.Clusters[0].Components) {
-			return true
+		if len(bindingSpec.Components) > 1 && len(bindingSpec.Clusters) == 1 {
+			equal, comparable := ComponentReplicasEqual(bindingSpec.Components, bindingSpec.Clusters[0].Components)
+			if comparable && !equal {
+				return true
+			}
 		}
 	}
 
@@ -67,18 +69,20 @@ func IsBindingReplicasChanged(bindingSpec *workv1alpha2.ResourceBindingSpec, str
 	return false
 }
 
-func isComponentReplicasChanged(desired []workv1alpha2.Component, accepted []workv1alpha2.TargetComponent) bool {
+// ComponentReplicasEqual compares desired component replicas with an accepted snapshot by name.
+// The second return value reports whether both snapshots are complete and comparable.
+func ComponentReplicasEqual(desired []workv1alpha2.Component, accepted []workv1alpha2.TargetComponent) (bool, bool) {
 	if len(accepted) == 0 || len(desired) != len(accepted) {
-		return false
+		return false, false
 	}
 
 	acceptedReplicas := make(map[string]int32, len(accepted))
 	for i := range accepted {
 		if accepted[i].Name == "" {
-			return false
+			return false, false
 		}
 		if _, exists := acceptedReplicas[accepted[i].Name]; exists {
-			return false
+			return false, false
 		}
 		acceptedReplicas[accepted[i].Name] = accepted[i].Replicas
 	}
@@ -87,22 +91,22 @@ func isComponentReplicasChanged(desired []workv1alpha2.Component, accepted []wor
 	changed := false
 	for i := range desired {
 		if desired[i].Name == "" {
-			return false
+			return false, false
 		}
 		if _, exists := seen[desired[i].Name]; exists {
-			return false
+			return false, false
 		}
 		seen[desired[i].Name] = struct{}{}
 
 		replicas, exists := acceptedReplicas[desired[i].Name]
 		if !exists {
-			return false
+			return false, false
 		}
 		if desired[i].Replicas != replicas {
 			changed = true
 		}
 	}
-	return changed
+	return !changed, true
 }
 
 // GetSumOfReplicas will get the sum of replicas in target clusters

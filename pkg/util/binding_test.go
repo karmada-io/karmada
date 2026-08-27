@@ -357,6 +357,53 @@ func TestIsBindingReplicasChanged(t *testing.T) {
 	}
 }
 
+func TestComponentReplicasEqual(t *testing.T) {
+	tests := []struct {
+		name       string
+		desired    []workv1alpha2.Component
+		accepted   []workv1alpha2.TargetComponent
+		equal      bool
+		comparable bool
+	}{
+		{
+			name:       "equal snapshots ignore order",
+			desired:    []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
+			accepted:   []workv1alpha2.TargetComponent{{Name: "taskmanager", Replicas: 4}, {Name: "jobmanager", Replicas: 1}},
+			equal:      true,
+			comparable: true,
+		},
+		{
+			name:       "replicas changed",
+			desired:    []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 6}},
+			accepted:   []workv1alpha2.TargetComponent{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
+			comparable: true,
+		},
+		{
+			name:    "accepted snapshot missing",
+			desired: []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}},
+		},
+		{
+			name:     "component names differ",
+			desired:  []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
+			accepted: []workv1alpha2.TargetComponent{{Name: "jobmanager", Replicas: 1}, {Name: "worker", Replicas: 4}},
+		},
+		{
+			name:     "accepted names duplicated",
+			desired:  []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
+			accepted: []workv1alpha2.TargetComponent{{Name: "jobmanager", Replicas: 1}, {Name: "jobmanager", Replicas: 4}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			equal, comparable := ComponentReplicasEqual(tt.desired, tt.accepted)
+			if equal != tt.equal || comparable != tt.comparable {
+				t.Fatalf("ComponentReplicasEqual() = (%t, %t), want (%t, %t)", equal, comparable, tt.equal, tt.comparable)
+			}
+		})
+	}
+}
+
 func TestGetSumOfReplicas(t *testing.T) {
 	tests := []struct {
 		name     string
