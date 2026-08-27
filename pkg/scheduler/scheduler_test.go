@@ -186,6 +186,7 @@ func TestDoScheduleBinding(t *testing.T) {
 		expectError      bool
 		expectedClusters []workv1alpha2.TargetCluster
 		expectedEvent    string
+		enableComponents bool
 	}{
 		{
 			name: "binding with changed placement",
@@ -259,10 +260,43 @@ func TestDoScheduleBinding(t *testing.T) {
 			},
 			expectedEvent: "Normal ScheduleBindingSucceed",
 		},
+		{
+			name: "binding with component replicas changed",
+			binding: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{Name: "test-binding-components", Namespace: "default"},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Components: []workv1alpha2.Component{
+						{Name: "jobmanager", Replicas: 1},
+						{Name: "taskmanager", Replicas: 6},
+					},
+					Clusters: []workv1alpha2.TargetCluster{{
+						Name: "cluster1",
+						Components: []workv1alpha2.TargetComponent{
+							{Name: "jobmanager", Replicas: 1},
+							{Name: "taskmanager", Replicas: 4},
+						},
+					}},
+					Placement: &policyv1alpha1.Placement{ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+						ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDivided,
+					}},
+				},
+			},
+			expectSchedule: true,
+			expectedClusters: []workv1alpha2.TargetCluster{{
+				Name: "cluster1",
+				Components: []workv1alpha2.TargetComponent{
+					{Name: "jobmanager", Replicas: 1},
+					{Name: "taskmanager", Replicas: 6},
+				},
+			}},
+			expectedEvent:    "Normal ScheduleBindingSucceed",
+			enableComponents: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			defer setFeatureGateDuringTest(t, features.FeatureGate, features.MultiplePodTemplatesScheduling, tt.enableComponents)()
 			fakeClient := karmadafake.NewClientset(tt.binding)
 			fakeRecorder := record.NewFakeRecorder(10)
 			mockAlgorithm := &mockAlgorithm{
@@ -315,6 +349,7 @@ func TestDoScheduleClusterBinding(t *testing.T) {
 		expectError      bool
 		expectedClusters []workv1alpha2.TargetCluster
 		expectedEvent    string
+		enableComponents bool
 	}{
 		{
 			name: "cluster binding with changed placement",
@@ -385,10 +420,43 @@ func TestDoScheduleClusterBinding(t *testing.T) {
 			},
 			expectedEvent: "Normal ScheduleBindingSucceed",
 		},
+		{
+			name: "cluster binding with component replicas changed",
+			binding: &workv1alpha2.ClusterResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{Name: "test-cluster-binding-components"},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Components: []workv1alpha2.Component{
+						{Name: "jobmanager", Replicas: 1},
+						{Name: "taskmanager", Replicas: 6},
+					},
+					Clusters: []workv1alpha2.TargetCluster{{
+						Name: "cluster1",
+						Components: []workv1alpha2.TargetComponent{
+							{Name: "jobmanager", Replicas: 1},
+							{Name: "taskmanager", Replicas: 4},
+						},
+					}},
+					Placement: &policyv1alpha1.Placement{ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+						ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDivided,
+					}},
+				},
+			},
+			expectSchedule: true,
+			expectedClusters: []workv1alpha2.TargetCluster{{
+				Name: "cluster1",
+				Components: []workv1alpha2.TargetComponent{
+					{Name: "jobmanager", Replicas: 1},
+					{Name: "taskmanager", Replicas: 6},
+				},
+			}},
+			expectedEvent:    "Normal ScheduleBindingSucceed",
+			enableComponents: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			defer setFeatureGateDuringTest(t, features.FeatureGate, features.MultiplePodTemplatesScheduling, tt.enableComponents)()
 			fakeClient := karmadafake.NewClientset(tt.binding)
 			fakeRecorder := record.NewFakeRecorder(10)
 			mockAlgorithm := &mockAlgorithm{
