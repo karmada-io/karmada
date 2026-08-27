@@ -263,7 +263,13 @@ func TestDoScheduleBinding(t *testing.T) {
 		{
 			name: "binding with component replicas changed",
 			binding: &workv1alpha2.ResourceBinding{
-				ObjectMeta: metav1.ObjectMeta{Name: "test-binding-components", Namespace: "default"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-binding-components",
+					Namespace: "default",
+					Annotations: map[string]string{
+						util.PolicyPlacementAnnotation: `{"replicaScheduling":{"replicaSchedulingType":"Divided"}}`,
+					},
+				},
 				Spec: workv1alpha2.ResourceBindingSpec{
 					Components: []workv1alpha2.Component{
 						{Name: "jobmanager", Replicas: 1},
@@ -423,7 +429,12 @@ func TestDoScheduleClusterBinding(t *testing.T) {
 		{
 			name: "cluster binding with component replicas changed",
 			binding: &workv1alpha2.ClusterResourceBinding{
-				ObjectMeta: metav1.ObjectMeta{Name: "test-cluster-binding-components"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-cluster-binding-components",
+					Annotations: map[string]string{
+						util.PolicyPlacementAnnotation: `{"replicaScheduling":{"replicaSchedulingType":"Divided"}}`,
+					},
+				},
 				Spec: workv1alpha2.ResourceBindingSpec{
 					Components: []workv1alpha2.Component{
 						{Name: "jobmanager", Replicas: 1},
