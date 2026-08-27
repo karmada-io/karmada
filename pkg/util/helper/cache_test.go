@@ -70,7 +70,7 @@ func TestRegisterInformerHandlerAndCheckSynced(t *testing.T) {
 			name: "returns synced when handler exists and informer synced",
 			manager: func(ctx context.Context) genericmanager.MultiClusterInformerManager {
 				m := genericmanager.NewMultiClusterInformerManager(ctx)
-				m.ForCluster(cluster.Name, dynamicClient, 0).ForResource(gvr, handler)
+				_ = m.ForCluster(cluster.Name, dynamicClient, 0).ForResource(gvr, handler)
 				m.Start(cluster.Name)
 				m.WaitForCacheSync(cluster.Name)
 				return m
@@ -233,7 +233,7 @@ func TestGetObjectFromCache(t *testing.T) {
 				}(),
 				manager: func(ctx context.Context) genericmanager.MultiClusterInformerManager {
 					m := genericmanager.NewMultiClusterInformerManager(ctx)
-					m.ForCluster("cluster", fake.NewSimpleDynamicClient(scheme.Scheme), 0).
+					_, _ = m.ForCluster("cluster", fake.NewSimpleDynamicClient(scheme.Scheme), 0).
 						Lister(corev1.SchemeGroupVersion.WithResource("pods")) // register pod informer
 					m.Start("cluster")
 					m.WaitForCacheSync("cluster")
@@ -256,7 +256,7 @@ func TestGetObjectFromCache(t *testing.T) {
 				}(),
 				manager: func(ctx context.Context) genericmanager.MultiClusterInformerManager {
 					m := genericmanager.NewMultiClusterInformerManager(ctx)
-					m.ForCluster("cluster", fake.NewSimpleDynamicClient(scheme.Scheme,
+					_, _ = m.ForCluster("cluster", fake.NewSimpleDynamicClient(scheme.Scheme,
 						&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default"}},
 					), 0).Lister(corev1.SchemeGroupVersion.WithResource("pods")) // register pod informer
 					m.Start("cluster")
@@ -364,7 +364,7 @@ func TestGetObjectFromSingleClusterCache(t *testing.T) {
 				}(),
 				manager: func(ctx context.Context) genericmanager.SingleClusterInformerManager {
 					m := genericmanager.NewSingleClusterInformerManager(ctx, fake.NewSimpleDynamicClient(scheme.Scheme), 0)
-					m.Lister(corev1.SchemeGroupVersion.WithResource("pods")) // register pod informer
+					_, _ = m.Lister(corev1.SchemeGroupVersion.WithResource("pods")) // register pod informer
 					m.Start()
 					m.WaitForCacheSync()
 					return m
@@ -385,7 +385,7 @@ func TestGetObjectFromSingleClusterCache(t *testing.T) {
 				manager: func(ctx context.Context) genericmanager.SingleClusterInformerManager {
 					c := fake.NewSimpleDynamicClient(scheme.Scheme, &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default"}})
 					m := genericmanager.NewSingleClusterInformerManager(ctx, c, 0)
-					m.Lister(corev1.SchemeGroupVersion.WithResource("pods")) // register pod informer
+					_, _ = m.Lister(corev1.SchemeGroupVersion.WithResource("pods")) // register pod informer
 					m.Start()
 					m.WaitForCacheSync()
 					return m

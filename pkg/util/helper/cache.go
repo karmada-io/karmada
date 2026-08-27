@@ -74,7 +74,10 @@ func RegisterInformerHandlerAndCheckSynced(
 	for _, gvr := range gvrTargets {
 		if !singleClusterInformerManager.IsHandlerExist(gvr, handler) {
 			allSynced = false
-			singleClusterInformerManager.ForResource(gvr, handler)
+			if err := singleClusterInformerManager.ForResource(gvr, handler); err != nil {
+				klog.ErrorS(err, "Failed to register handler for resource", "resource", gvr.String())
+				return false, err
+			}
 			continue
 		}
 
@@ -137,7 +140,11 @@ func GetObjectFromCache(
 	}
 
 	var obj runtime.Object
-	lister := singleClusterManager.Lister(gvr)
+	lister, err := singleClusterManager.Lister(gvr)
+	if err != nil {
+		klog.Errorf("Failed to get lister for %s from cluster(%s). error: %v.", gvr.String(), fedKey.Cluster, err)
+		return nil, err
+	}
 	obj, err = lister.Get(fedKey.NamespaceKey())
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -165,7 +172,11 @@ func GetObjectFromSingleClusterCache(restMapper meta.RESTMapper, manager generic
 		return getObjectFromSingleCluster(gvr, cwk, manager.GetClient())
 	}
 
-	lister := manager.Lister(gvr)
+	lister, err := manager.Lister(gvr)
+	if err != nil {
+		klog.Errorf("Failed to get lister for %s. error: %v.", gvr.String(), err)
+		return nil, err
+	}
 	obj, err := lister.Get(cwk.NamespaceKey())
 	if err != nil {
 		if apierrors.IsNotFound(err) {

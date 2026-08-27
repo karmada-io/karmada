@@ -31,7 +31,7 @@ import (
 func NewSingleClusterInformerManagerByRS(src string, obj runtime.Object) genericmanager.SingleClusterInformerManager {
 	c := fakedynamic.NewSimpleDynamicClient(scheme.Scheme, obj)
 	m := genericmanager.NewSingleClusterInformerManager(context.TODO(), c, 0)
-	m.Lister(corev1.SchemeGroupVersion.WithResource(src))
+	_, _ = m.Lister(corev1.SchemeGroupVersion.WithResource(src))
 	m.Start()
 	m.WaitForCacheSync()
 	return m

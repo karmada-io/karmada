@@ -73,9 +73,14 @@ func (m *interpreterConfigManager) HasSynced() bool {
 }
 
 // NewExploreConfigManager return a new interpreterConfigManager with resourceinterpreterwebhookconfigurations handlers.
-func NewExploreConfigManager(inform genericmanager.SingleClusterInformerManager) ConfigManager {
+func NewExploreConfigManager(inform genericmanager.SingleClusterInformerManager) (ConfigManager, error) {
+	lister, err := inform.Lister(util.ResourceInterpreterWebhookConfigurationsGVR)
+	if err != nil {
+		klog.ErrorS(err, "Failed to get lister for ResourceInterpreterWebhookConfiguration")
+		return nil, err
+	}
 	manager := &interpreterConfigManager{
-		lister: inform.Lister(util.ResourceInterpreterWebhookConfigurationsGVR),
+		lister: lister,
 	}
 
 	manager.configuration.Store([]WebhookAccessor{})
@@ -85,9 +90,12 @@ func NewExploreConfigManager(inform genericmanager.SingleClusterInformerManager)
 		func(_ any, _ bool) { _ = manager.updateConfiguration() },
 		func(_, _ any) { _ = manager.updateConfiguration() },
 		func(_ any) { _ = manager.updateConfiguration() })
-	inform.ForResource(util.ResourceInterpreterWebhookConfigurationsGVR, configHandlers)
+	if err := inform.ForResource(util.ResourceInterpreterWebhookConfigurationsGVR, configHandlers); err != nil {
+		klog.ErrorS(err, "Failed to register handler for ResourceInterpreterWebhookConfiguration")
+		return nil, err
+	}
 
-	return manager
+	return manager, nil
 }
 
 // updateConfiguration is used as the event handler for the ResourceInterpreterWebhookConfiguration resource.

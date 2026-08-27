@@ -406,6 +406,19 @@ func (c *Controller) doCacheCluster(cluster string) error {
 	}
 
 	sci := c.InformerManager.GetSingleClusterManager(cluster)
+	if err := c.registerResourceInformers(sci, cls, cr, handler); err != nil {
+		return err
+	}
+	klog.Infof("Start informer for %s", cluster)
+	sci.Start()
+	_ = sci.WaitForCacheSync()
+	klog.Infof("Start informer for %s done", cluster)
+
+	return nil
+}
+
+func (c *Controller) registerResourceInformers(sci genericmanager.SingleClusterInformerManager, cls *clusterv1alpha1.Cluster,
+	cr *clusterRegistry, handler cache.ResourceEventHandler) error {
 	for gvr := range cr.resources {
 		gvk, err := c.restMapper.KindFor(gvr)
 		if err != nil {
@@ -413,17 +426,14 @@ func (c *Controller) doCacheCluster(cluster string) error {
 			continue
 		}
 		if cls.APIEnablement(gvk) == clusterv1alpha1.APIDisabled {
-			klog.Warningf("Resource %s is not enabled for cluster %s", gvr.String(), cluster)
+			klog.Warningf("Resource %s is not enabled for cluster %s", gvr.String(), cls.Name)
 			continue
 		}
-		klog.Infof("Add informer for %s, %v", cluster, gvr)
-		sci.ForResource(gvr, handler)
+		klog.Infof("Add informer for %s, %v", cls.Name, gvr)
+		if err := sci.ForResource(gvr, handler); err != nil {
+			return err
+		}
 	}
-	klog.Infof("Start informer for %s", cluster)
-	sci.Start()
-	_ = sci.WaitForCacheSync()
-	klog.Infof("Start informer for %s done", cluster)
-
 	return nil
 }
 

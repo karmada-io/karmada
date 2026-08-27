@@ -450,7 +450,7 @@ func newController(work *workv1alpha1.Work, recorder *record.FakeRecorder) Contr
 		Build()
 	dynamicClientSet := dynamicfake.NewSimpleDynamicClient(scheme.Scheme, pod)
 	informerManager := genericmanager.NewMultiClusterInformerManager(context.Background())
-	informerManager.ForCluster(cluster.Name, dynamicClientSet, 0).Lister(corev1.SchemeGroupVersion.WithResource("pods"))
+	_, _ = informerManager.ForCluster(cluster.Name, dynamicClientSet, 0).Lister(corev1.SchemeGroupVersion.WithResource("pods"))
 	informerManager.Start(cluster.Name)
 	informerManager.WaitForCacheSync(cluster.Name)
 	clusterClientSetFunc := func(string, client.Client, *util.ClientOption) (*util.DynamicClusterClient, error) {

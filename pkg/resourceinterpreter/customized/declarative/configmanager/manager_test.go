@@ -129,7 +129,10 @@ func Test_interpreterConfigManager_LuaScriptAccessors(t *testing.T) {
 
 			client := fake.NewSimpleDynamicClient(gclient.NewSchema(), tt.args.customizations...)
 			informer := genericmanager.NewSingleClusterInformerManager(ctx, client, 0)
-			configManager := NewInterpreterConfigManager(informer)
+			configManager, err := NewInterpreterConfigManager(informer)
+			if err != nil {
+				t.Fatalf("NewInterpreterConfigManager() returned an unexpected error: %v", err)
+			}
 
 			informer.Start()
 			defer informer.Stop()
@@ -464,11 +467,12 @@ func (m *mockSingleClusterInformerManager) IsInformerSynced(_ schema.GroupVersio
 	return m.isSynced
 }
 
-func (m *mockSingleClusterInformerManager) Lister(_ schema.GroupVersionResource) cache.GenericLister {
-	return nil
+func (m *mockSingleClusterInformerManager) Lister(_ schema.GroupVersionResource) (cache.GenericLister, error) {
+	return nil, nil
 }
 
-func (m *mockSingleClusterInformerManager) ForResource(_ schema.GroupVersionResource, _ cache.ResourceEventHandler) {
+func (m *mockSingleClusterInformerManager) ForResource(_ schema.GroupVersionResource, _ cache.ResourceEventHandler) error {
+	return nil
 }
 
 func (m *mockSingleClusterInformerManager) Start() {

@@ -18,6 +18,7 @@ package helper
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"testing"
 
@@ -34,6 +35,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -56,6 +58,14 @@ const (
 	evenUID        = "4858ca61-3ff8-4095-8267-f3d059d8074c"
 	oddUID         = "d43fdeeb-d750-4e2b-bee3-64eb94534f4c"
 )
+
+type listerErrorInformerManager struct {
+	genericmanager.SingleClusterInformerManager
+}
+
+func (m *listerErrorInformerManager) Lister(_ schema.GroupVersionResource) (cache.GenericLister, error) {
+	return nil, errors.New("lister initialization failed")
+}
 
 func Test_dispenser_AllocateByWeight(t *testing.T) {
 	tests := []struct {
@@ -1037,6 +1047,29 @@ func TestFetchWorkload(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "lister initialization error fails fast",
+			args: args{
+				dynamicClient: dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
+					&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default"}}),
+				informerManager: func(context.Context) genericmanager.SingleClusterInformerManager {
+					return &listerErrorInformerManager{}
+				},
+				restMapper: func() meta.RESTMapper {
+					m := meta.NewDefaultRESTMapper([]schema.GroupVersion{corev1.SchemeGroupVersion})
+					m.Add(corev1.SchemeGroupVersion.WithKind("Pod"), meta.RESTScopeNamespace)
+					return m
+				}(),
+				resource: workv1alpha2.ObjectReference{
+					APIVersion: "v1",
+					Kind:       "Pod",
+					Namespace:  "default",
+					Name:       "pod",
+				},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
 			name: "namespace scope: get from client",
 			args: args{
 				dynamicClient: dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
@@ -1074,7 +1107,7 @@ func TestFetchWorkload(t *testing.T) {
 					c := dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 						&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default"}})
 					m := genericmanager.NewSingleClusterInformerManager(ctx, c, 0)
-					m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
+					_, _ = m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
 					m.Start()
 					m.WaitForCacheSync()
 					return m
@@ -1137,7 +1170,7 @@ func TestFetchWorkload(t *testing.T) {
 					c := dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 						&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node"}})
 					m := genericmanager.NewSingleClusterInformerManager(ctx, c, 0)
-					m.Lister(corev1.SchemeGroupVersion.WithResource("nodes"))
+					_, _ = m.Lister(corev1.SchemeGroupVersion.WithResource("nodes"))
 					m.Start()
 					m.WaitForCacheSync()
 					return m
@@ -1212,6 +1245,34 @@ func TestFetchWorkloadByLabelSelector(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "lister initialization error fails fast",
+			args: args{
+				dynamicClient: dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
+					&corev1.Pod{ObjectMeta: metav1.ObjectMeta{
+						Name:      "pod",
+						Namespace: "default",
+						Labels:    map[string]string{"foo": "foo"},
+					}}),
+				informerManager: func(context.Context) genericmanager.SingleClusterInformerManager {
+					return &listerErrorInformerManager{}
+				},
+				restMapper: func() meta.RESTMapper {
+					m := meta.NewDefaultRESTMapper([]schema.GroupVersion{corev1.SchemeGroupVersion})
+					m.Add(corev1.SchemeGroupVersion.WithKind("Pod"), meta.RESTScopeNamespace)
+					return m
+				}(),
+				resource: workv1alpha2.ObjectReference{
+					APIVersion: "v1",
+					Kind:       "Pod",
+					Namespace:  "default",
+					Name:       "pod",
+				},
+				selector: &metav1.LabelSelector{MatchLabels: map[string]string{"foo": "foo"}},
+			},
+			want:    0,
+			wantErr: true,
+		},
+		{
 			name: "namespace scope: get from client",
 			args: args{
 				dynamicClient: dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
@@ -1242,7 +1303,7 @@ func TestFetchWorkloadByLabelSelector(t *testing.T) {
 					c := dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 						&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default", Labels: map[string]string{"bar": "foo"}}})
 					m := genericmanager.NewSingleClusterInformerManager(ctx, c, 0)
-					m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
+					_, _ = m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
 					m.Start()
 					m.WaitForCacheSync()
 					return m
@@ -1294,7 +1355,7 @@ func TestFetchWorkloadByLabelSelector(t *testing.T) {
 					c := dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 						&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node", Labels: map[string]string{"bar": "foo"}}})
 					m := genericmanager.NewSingleClusterInformerManager(ctx, c, 0)
-					m.Lister(corev1.SchemeGroupVersion.WithResource("nodes"))
+					_, _ = m.Lister(corev1.SchemeGroupVersion.WithResource("nodes"))
 					m.Start()
 					m.WaitForCacheSync()
 					return m

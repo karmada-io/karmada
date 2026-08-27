@@ -298,12 +298,16 @@ func FetchResourceTemplate(
 	}
 
 	var object runtime.Object
-
+	lister, err := informerManager.Lister(gvr)
+	if err != nil {
+		klog.Errorf("Failed to get lister for %s, Error: %v", gvr.String(), err)
+		return nil, err
+	}
 	if len(resource.Namespace) == 0 {
 		// cluster-scoped resource
-		object, err = informerManager.Lister(gvr).Get(resource.Name)
+		object, err = lister.Get(resource.Name)
 	} else {
-		object, err = informerManager.Lister(gvr).ByNamespace(resource.Namespace).Get(resource.Name)
+		object, err = lister.ByNamespace(resource.Namespace).Get(resource.Name)
 	}
 	if err != nil {
 		// fall back to call api server in case the cache has not been synchronized yet
@@ -344,11 +348,16 @@ func FetchResourceTemplatesByLabelSelector(
 		return nil, err
 	}
 	var objectList []runtime.Object
+	lister, err := informerManager.Lister(gvr)
+	if err != nil {
+		klog.Errorf("Failed to get lister for %s, Error: %v", gvr.String(), err)
+		return nil, err
+	}
 	if len(resource.Namespace) == 0 {
 		// cluster-scoped resource
-		objectList, err = informerManager.Lister(gvr).List(selector)
+		objectList, err = lister.List(selector)
 	} else {
-		objectList, err = informerManager.Lister(gvr).ByNamespace(resource.Namespace).List(selector)
+		objectList, err = lister.ByNamespace(resource.Namespace).List(selector)
 	}
 	var objects []*unstructured.Unstructured
 	if err != nil || len(objectList) == 0 {

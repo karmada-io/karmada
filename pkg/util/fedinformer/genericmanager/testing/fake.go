@@ -50,15 +50,16 @@ func (m *FakeSingleClusterManager) IsInformerSynced(_ schema.GroupVersionResourc
 }
 
 // Lister returns the lister for the given GVR.
-func (m *FakeSingleClusterManager) Lister(gvr schema.GroupVersionResource) cache.GenericLister {
+func (m *FakeSingleClusterManager) Lister(gvr schema.GroupVersionResource) (cache.GenericLister, error) {
 	if m.listerFunc != nil {
-		return m.listerFunc(gvr)
+		return m.listerFunc(gvr), nil
 	}
-	return nil
+	return nil, nil
 }
 
 // ForResource adds a resource event handler to the informer.
-func (m *FakeSingleClusterManager) ForResource(_ schema.GroupVersionResource, _ cache.ResourceEventHandler) {
+func (m *FakeSingleClusterManager) ForResource(_ schema.GroupVersionResource, _ cache.ResourceEventHandler) error {
+	return nil
 }
 
 // Start starts the informer.

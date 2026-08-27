@@ -18,13 +18,15 @@ package genericmanager
 
 import (
 	"context"
-	"slices"
+	"fmt"
+	"reflect"
 	"sync"
 	"time"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
+	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 )
@@ -34,8 +36,8 @@ import (
 type SingleClusterInformerManager interface {
 	// ForResource builds a dynamic shared informer for 'resource' then set event handler.
 	// If the informer already exist, the event handler will be appended to the informer.
-	// The handler should not be nil.
-	ForResource(resource schema.GroupVersionResource, handler cache.ResourceEventHandler)
+	// The handler must be a non-nil pointer.
+	ForResource(resource schema.GroupVersionResource, handler cache.ResourceEventHandler) error
 
 	// IsInformerSynced checks if the resource's informer is synced.
 	// An informer is synced means:
@@ -49,7 +51,7 @@ type SingleClusterInformerManager interface {
 
 	// Lister returns a generic lister used to get 'resource' from informer's store.
 	// The informer for 'resource' will be created if not exist, but without any event handler.
-	Lister(resource schema.GroupVersionResource) cache.GenericLister
+	Lister(resource schema.GroupVersionResource) (cache.GenericLister, error)
 
 	// Start will run all informers, the informers will keep running until the channel closed.
 	// It is intended to be called after create new informer(s), and it's safe to call multi times.
@@ -78,8 +80,6 @@ func NewSingleClusterInformerManager(ctx context.Context, client dynamic.Interfa
 	ctx, cancel := context.WithCancel(ctx)
 	return &singleClusterInformerManagerImpl{
 		informerFactory: dynamicinformer.NewDynamicSharedInformerFactory(client, defaultResync),
-		handlers:        make(map[schema.GroupVersionResource][]cache.ResourceEventHandler),
-		syncedInformers: make(map[schema.GroupVersionResource]struct{}),
 		ctx:             ctx,
 		cancel:          cancel,
 		client:          client,
@@ -92,70 +92,120 @@ type singleClusterInformerManagerImpl struct {
 
 	informerFactory dynamicinformer.DynamicSharedInformerFactory
 
-	syncedInformers map[schema.GroupVersionResource]struct{}
-
-	handlers map[schema.GroupVersionResource][]cache.ResourceEventHandler
+	// initializedInformers contains informers that have been initialized. It also keeps steady-state
+	// informer lookups from taking informerFactory's lock for an already known resource.
+	initializedInformers sync.Map
+	syncedInformers      sync.Map
+	handlers             sync.Map
 
 	client dynamic.Interface
 
-	lock sync.RWMutex
+	lock sync.Mutex
 }
 
-func (s *singleClusterInformerManagerImpl) ForResource(resource schema.GroupVersionResource, handler cache.ResourceEventHandler) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
+func (s *singleClusterInformerManagerImpl) ForResource(resource schema.GroupVersionResource, handler cache.ResourceEventHandler) error {
+	if err := validateResourceEventHandler(handler); err != nil {
+		return err
+	}
 
 	// if handler already exist, just return, nothing changed.
 	if s.isHandlerExist(resource, handler) {
-		return
+		return nil
 	}
 
-	_, err := s.informerFactory.ForResource(resource).Informer().AddEventHandler(handler)
+	resourceInformer, err := s.informerForResource(resource)
+	if err != nil {
+		klog.ErrorS(err, "Failed to initialize informer", "resource", resource.String())
+		return err
+	}
+
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	// check again, if handler already exist, just return, nothing changed.
+	if s.isHandlerExist(resource, handler) {
+		return nil
+	}
+
+	_, err = resourceInformer.Informer().AddEventHandler(handler)
 	if err != nil {
 		klog.Errorf("Failed to add handler for resource(%s): %v", resource.String(), err)
-		return
+		return err
 	}
 
 	s.appendHandler(resource, handler)
+	return nil
 }
 
 func (s *singleClusterInformerManagerImpl) IsInformerSynced(resource schema.GroupVersionResource) bool {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
-
-	_, exist := s.syncedInformers[resource]
+	_, exist := s.syncedInformers.Load(resource)
 	return exist
 }
 
 func (s *singleClusterInformerManagerImpl) IsHandlerExist(resource schema.GroupVersionResource, handler cache.ResourceEventHandler) bool {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
-
+	if validateResourceEventHandler(handler) != nil {
+		return false
+	}
 	return s.isHandlerExist(resource, handler)
 }
 
-func (s *singleClusterInformerManagerImpl) isHandlerExist(resource schema.GroupVersionResource, handler cache.ResourceEventHandler) bool {
-	handlers, exist := s.handlers[resource]
-	if !exist {
-		return false
+func validateResourceEventHandler(handler cache.ResourceEventHandler) error {
+	handlerValue := reflect.ValueOf(handler)
+	if handlerValue.Kind() != reflect.Pointer || handlerValue.IsNil() {
+		return fmt.Errorf("resource event handler must be a non-nil pointer, got %T", handler)
 	}
-
-	return slices.Contains(handlers, handler)
+	return nil
 }
 
-func (s *singleClusterInformerManagerImpl) Lister(resource schema.GroupVersionResource) cache.GenericLister {
-	return s.informerFactory.ForResource(resource).Lister()
+func (s *singleClusterInformerManagerImpl) isHandlerExist(resource schema.GroupVersionResource, handler cache.ResourceEventHandler) bool {
+	handlers, ok := s.handlers.Load(resource)
+	if !ok {
+		return false
+	}
+	_, ok = handlers.(*sync.Map).Load(handler)
+	return ok
+}
+
+func (s *singleClusterInformerManagerImpl) Lister(resource schema.GroupVersionResource) (cache.GenericLister, error) {
+	resourceInformer, err := s.informerForResource(resource)
+	if err != nil {
+		klog.ErrorS(err, "Failed to initialize informer", "resource", resource.String())
+		return nil, err
+	}
+	return resourceInformer.Lister(), nil
 }
 
 func (s *singleClusterInformerManagerImpl) appendHandler(resource schema.GroupVersionResource, handler cache.ResourceEventHandler) {
-	// assume the handler list exist, caller should ensure for that.
-	handlers := s.handlers[resource]
+	handlers, _ := s.handlers.LoadOrStore(resource, &sync.Map{})
+	handlers.(*sync.Map).Store(handler, struct{}{})
+}
 
-	// assume the handler not exist in it, caller should ensure for that.
-	s.handlers[resource] = append(handlers, handler)
+func (s *singleClusterInformerManagerImpl) informerForResource(resource schema.GroupVersionResource) (informers.GenericInformer, error) {
+	if resourceInformer, exists := s.initializedInformers.Load(resource); exists {
+		return resourceInformer.(informers.GenericInformer), nil
+	}
+	return s.informerForResourceSlowPath(resource)
+}
+
+// informerForResourceSlowPath handles the cache-miss path. It rechecks initializedInformers after acquiring
+// lock because another caller may have initialized the informer while this caller was waiting.
+func (s *singleClusterInformerManagerImpl) informerForResourceSlowPath(resource schema.GroupVersionResource) (informers.GenericInformer, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	if resourceInformer, exists := s.initializedInformers.Load(resource); exists {
+		return resourceInformer.(informers.GenericInformer), nil
+	}
+
+	resourceInformer := s.informerFactory.ForResource(resource)
+	s.initializedInformers.Store(resource, resourceInformer)
+	return resourceInformer, nil
 }
 
 func (s *singleClusterInformerManagerImpl) Start() {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
 	s.informerFactory.Start(s.ctx.Done())
 }
 
@@ -178,26 +228,21 @@ func (s *singleClusterInformerManagerImpl) waitForCacheSync(ctx context.Context)
 	res := s.informerFactory.WaitForCacheSync(ctx.Done())
 
 	var newlySynced []schema.GroupVersionResource
-
-	s.lock.RLock()
 	for resource, synced := range res {
 		if !synced {
 			continue
 		}
-		if _, exists := s.syncedInformers[resource]; !exists {
+		if _, ok := s.syncedInformers.Load(resource); !ok {
 			newlySynced = append(newlySynced, resource)
 		}
 	}
-	s.lock.RUnlock()
 
 	if len(newlySynced) == 0 {
 		return res
 	}
 
-	s.lock.Lock()
-	defer s.lock.Unlock()
 	for _, resource := range newlySynced {
-		s.syncedInformers[resource] = struct{}{}
+		s.syncedInformers.Store(resource, struct{}{})
 	}
 	return res
 }

@@ -192,7 +192,9 @@ func (d *ResourceDetector) discoverResources(ctx context.Context, period time.Du
 				continue
 			}
 			klog.Infof("Setup informer for %s", r.String())
-			d.InformerManager.ForResource(r, d.EventHandler)
+			if err := d.InformerManager.ForResource(r, d.EventHandler); err != nil {
+				klog.ErrorS(err, "Failed to setup informer", "resource", r.String())
+			}
 		}
 		d.InformerManager.Start()
 	}, period, ctx.Done())
@@ -673,7 +675,12 @@ func (d *ResourceDetector) GetUnstructuredObject(objectKey keys.ClusterWideKey) 
 		return nil, err
 	}
 
-	object, err := d.InformerManager.Lister(objectGVR).Get(objectKey.NamespaceKey())
+	lister, err := d.InformerManager.Lister(objectGVR)
+	if err != nil {
+		klog.Errorf("Failed to get lister for object: %s, error: %v", objectKey, err)
+		return nil, err
+	}
+	object, err := lister.Get(objectKey.NamespaceKey())
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			// If the target object is not found in the informer cache,

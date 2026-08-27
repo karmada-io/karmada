@@ -450,25 +450,16 @@ func (o *CommandPromoteOption) promoteDeps(memberClusterFactory cmdutil.Factory,
 	if o.DryRun {
 		return nil
 	}
-	// create resource interpreter
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	dynamicClientSet := dynamicClientBuilder(config)
-
-	controlPlaneInformerManager := genericmanager.NewSingleClusterInformerManager(ctx, dynamicClientSet, 0)
-	controlPlaneKubeClientSet := kubeClientBuilder(config)
-	sharedFactory := informers.NewSharedInformerFactory(controlPlaneKubeClientSet, 0)
-	serviceLister := sharedFactory.Core().V1().Services().Lister()
-	sharedFactory.Start(ctx.Done())
-	sharedFactory.WaitForCacheSync(ctx.Done())
+	controlPlaneInformerManager, configurableInterpreter, customizedInterpreter, err := newDependencyInterpreters(ctx, config)
+	if err != nil {
+		return err
+	}
 
 	defaultInterpreter := native.NewDefaultInterpreter()
 	thirdpartyInterpreter := thirdparty.NewConfigurableInterpreter()
-	configurableInterpreter := declarative.NewConfigurableInterpreter(controlPlaneInformerManager)
-	customizedInterpreter, err := webhook.NewCustomizedInterpreter(controlPlaneInformerManager, serviceLister)
-	if err != nil {
-		return fmt.Errorf("failed to create customized interpreter: %v", err)
-	}
 
 	controlPlaneInformerManager.Start()
 	if syncs := controlPlaneInformerManager.WaitForCacheSync(); len(syncs) == 0 {
@@ -529,6 +520,26 @@ func (o *CommandPromoteOption) promoteDeps(memberClusterFactory cmdutil.Factory,
 	fmt.Println("use default interpreter")
 	err = o.doPromoteDeps(memberClusterFactory, dependencies, mapper, config)
 	return err
+}
+
+func newDependencyInterpreters(ctx context.Context, config *rest.Config) (genericmanager.SingleClusterInformerManager,
+	*declarative.ConfigurableInterpreter, *webhook.CustomizedInterpreter, error) {
+	dynamicClientSet := dynamicClientBuilder(config)
+	controlPlaneInformerManager := genericmanager.NewSingleClusterInformerManager(ctx, dynamicClientSet, 0)
+	sharedFactory := informers.NewSharedInformerFactory(kubeClientBuilder(config), 0)
+	serviceLister := sharedFactory.Core().V1().Services().Lister()
+	sharedFactory.Start(ctx.Done())
+	sharedFactory.WaitForCacheSync(ctx.Done())
+
+	configurableInterpreter, err := declarative.NewConfigurableInterpreter(controlPlaneInformerManager)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	customizedInterpreter, err := webhook.NewCustomizedInterpreter(controlPlaneInformerManager, serviceLister)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return controlPlaneInformerManager, configurableInterpreter, customizedInterpreter, nil
 }
 
 func (o *CommandPromoteOption) promote(controlPlaneRestConfig *rest.Config, obj *unstructured.Unstructured, gvr schema.GroupVersionResource) error {

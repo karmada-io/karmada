@@ -84,22 +84,13 @@ func TestMultiClusterInformerManager(t *testing.T) {
 	t.Run("WaitForCacheSync", func(t *testing.T) {
 		cluster := "test-cluster-3"
 		client := fake.NewClientset()
-		resync := 10 * time.Millisecond
-		singleManager := manager.ForCluster(cluster, client, resync)
+		singleManager := manager.ForCluster(cluster, client, 0)
+		registerPodAndNodeInformers(t, singleManager)
 		manager.Start(cluster)
 
-		_, _ = singleManager.Lister(podGVR)
-		_, _ = singleManager.Lister(nodeGVR)
-
-		time.Sleep(100 * time.Millisecond)
-
 		result := manager.WaitForCacheSync(cluster)
-		if result == nil {
-			t.Fatalf("WaitForCacheSync() returned nil result")
-		}
-
-		for gvr, synced := range result {
-			t.Logf("Resource %v synced: %v", gvr, synced)
+		if !result[podGVR] || !result[nodeGVR] {
+			t.Fatalf("WaitForCacheSync() result = %v, want Pod and Node synced", result)
 		}
 
 		manager.Stop(cluster)
@@ -108,21 +99,13 @@ func TestMultiClusterInformerManager(t *testing.T) {
 	t.Run("WaitForCacheSyncWithTimeout", func(t *testing.T) {
 		cluster := "test-cluster-4"
 		client := fake.NewClientset()
-		resync := 10 * time.Millisecond
-		singleManager := manager.ForCluster(cluster, client, resync)
+		singleManager := manager.ForCluster(cluster, client, 0)
+		registerPodAndNodeInformers(t, singleManager)
 		manager.Start(cluster)
 
-		_, _ = singleManager.Lister(podGVR)
-		_, _ = singleManager.Lister(nodeGVR)
-
-		timeout := 100 * time.Millisecond
-		result := manager.WaitForCacheSyncWithTimeout(cluster, timeout)
-		if result == nil {
-			t.Fatalf("WaitForCacheSyncWithTimeout() returned nil result")
-		}
-
-		for gvr, synced := range result {
-			t.Logf("Resource %v synced: %v", gvr, synced)
+		result := manager.WaitForCacheSyncWithTimeout(cluster, 5*time.Second)
+		if !result[podGVR] || !result[nodeGVR] {
+			t.Fatalf("WaitForCacheSyncWithTimeout() result = %v, want Pod and Node synced", result)
 		}
 
 		manager.Stop(cluster)
@@ -141,6 +124,16 @@ func TestMultiClusterInformerManager(t *testing.T) {
 			t.Fatalf("WaitForCacheSyncWithTimeout() returned non-nil for non-existent cluster")
 		}
 	})
+}
+
+func registerPodAndNodeInformers(t *testing.T, manager SingleClusterInformerManager) {
+	t.Helper()
+	if _, err := manager.Lister(podGVR); err != nil {
+		t.Fatalf("failed to create Pod informer: %v", err)
+	}
+	if _, err := manager.Lister(nodeGVR); err != nil {
+		t.Fatalf("failed to create Node informer: %v", err)
+	}
 }
 
 func TestGetInstance(t *testing.T) {
