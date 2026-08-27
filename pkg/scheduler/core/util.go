@@ -55,13 +55,7 @@ func getDefaultWeightPreference(clusters []spreadconstraint.ClusterDetailInfo) *
 }
 
 func calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec, assigningCache *schedulercache.AssigningResourceBindingCache, componentScale bool) []workv1alpha2.TargetCluster {
-	availableTargetClusters := make([]workv1alpha2.TargetCluster, len(clusters))
-
-	// Set the boundary.
-	for i := range availableTargetClusters {
-		availableTargetClusters[i].Name = clusters[i].Name
-		availableTargetClusters[i].Replicas = math.MaxInt32
-	}
+	availableTargetClusters := targetClustersWithReplicas(clusters, math.MaxInt32)
 
 	// For non-workload, like ServiceAccount, ConfigMap, Secret and etc, it's unnecessary to calculate available replicas in member clusters.
 	// See issue: https://github.com/karmada-io/karmada/issues/3743.
@@ -72,20 +66,8 @@ func calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha
 		return availableTargetClusters
 	}
 	if componentScale {
-		if len(clusters) != 1 || len(spec.Clusters) != 1 || clusters[0].Name != spec.Clusters[0].Name {
-			for i := range availableTargetClusters {
-				availableTargetClusters[i].Replicas = 0
-			}
-			return availableTargetClusters
-		}
-		switch componentReplicaScaleDirection(spec.Components, spec.Clusters[0].Components) {
-		case componentScaleDown:
-			return []workv1alpha2.TargetCluster{{Name: clusters[0].Name, Replicas: minimumAvailableComponentSets}}
-		case componentScaleUp:
-			// Scale-up capacity is calculated by the component-scale planner below.
-		default:
-			availableTargetClusters[0].Replicas = 0
-			return availableTargetClusters
+		if result, resolved := resolveComponentScaleWithoutEstimator(clusters, spec); resolved {
+			return result
 		}
 	}
 
@@ -117,18 +99,41 @@ func calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha
 
 	// In most cases, the target cluster max available replicas should not be MaxInt32 unless the workload is best-effort
 	// and the scheduler-estimator has not been enabled. So we set the replicas to spec.Replicas for avoiding overflow.
+	fallbackReplicas := spec.Replicas
+	if componentScale {
+		fallbackReplicas = 0
+	}
 	for i := range availableTargetClusters {
 		if availableTargetClusters[i].Replicas == math.MaxInt32 {
-			if componentScale {
-				availableTargetClusters[i].Replicas = 0
-			} else {
-				availableTargetClusters[i].Replicas = spec.Replicas
-			}
+			availableTargetClusters[i].Replicas = fallbackReplicas
 		}
 	}
 
 	klog.V(4).Infof("Target cluster calculated by estimators (available cluster && maxAvailableReplicas): %v", availableTargetClusters)
 	return availableTargetClusters
+}
+
+func resolveComponentScaleWithoutEstimator(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha2.ResourceBindingSpec) ([]workv1alpha2.TargetCluster, bool) {
+	if len(clusters) != 1 || len(spec.Clusters) != 1 || clusters[0].Name != spec.Clusters[0].Name {
+		return targetClustersWithReplicas(clusters, 0), true
+	}
+
+	switch componentReplicaScaleDirection(spec.Components, spec.Clusters[0].Components) {
+	case componentScaleDown:
+		return targetClustersWithReplicas(clusters, minimumAvailableComponentSets), true
+	case componentScaleUp:
+		return nil, false
+	default:
+		return targetClustersWithReplicas(clusters, 0), true
+	}
+}
+
+func targetClustersWithReplicas(clusters []*clusterv1alpha1.Cluster, replicas int32) []workv1alpha2.TargetCluster {
+	result := make([]workv1alpha2.TargetCluster, len(clusters))
+	for i := range clusters {
+		result[i] = workv1alpha2.TargetCluster{Name: clusters[i].Name, Replicas: replicas}
+	}
+	return result
 }
 
 // runReplicaEstimator dispatches to the multi-template or single-template estimation path.
