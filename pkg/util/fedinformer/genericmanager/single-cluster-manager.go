@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
+	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 )
@@ -78,8 +79,6 @@ func NewSingleClusterInformerManager(ctx context.Context, client dynamic.Interfa
 	ctx, cancel := context.WithCancel(ctx)
 	return &singleClusterInformerManagerImpl{
 		informerFactory: dynamicinformer.NewDynamicSharedInformerFactory(client, defaultResync),
-		handlers:        make(map[schema.GroupVersionResource][]cache.ResourceEventHandler),
-		syncedInformers: make(map[schema.GroupVersionResource]struct{}),
 		ctx:             ctx,
 		cancel:          cancel,
 		client:          client,
@@ -92,25 +91,44 @@ type singleClusterInformerManagerImpl struct {
 
 	informerFactory dynamicinformer.DynamicSharedInformerFactory
 
-	syncedInformers map[schema.GroupVersionResource]struct{}
+	// initializedInformers caches the informers that have been created by the
+	// informer factory, used to avoid the lock contention in the informer factory
+	// when getting an informer for a resource.
+	// The key is schema.GroupVersionResource, and the value is informers.GenericInformer.
+	initializedInformers sync.Map
 
-	handlers map[schema.GroupVersionResource][]cache.ResourceEventHandler
+	// syncedInformers records the resources whose informer caches have been synced,
+	// used to quickly answer IsInformerSynced without waiting for cache sync again.
+	// The key is schema.GroupVersionResource, and the value is struct{}{} (a placeholder).
+	syncedInformers sync.Map
+
+	// handlers records the event handlers that have been added to each resource's
+	// informer, used to prevent the same handler from being added more than once.
+	// The key is schema.GroupVersionResource, and the value is []cache.ResourceEventHandler.
+	handlers sync.Map
 
 	client dynamic.Interface
 
-	lock sync.RWMutex
+	lock sync.Mutex
 }
 
 func (s *singleClusterInformerManagerImpl) ForResource(resource schema.GroupVersionResource, handler cache.ResourceEventHandler) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
 	// if handler already exist, just return, nothing changed.
 	if s.isHandlerExist(resource, handler) {
 		return
 	}
 
-	_, err := s.informerFactory.ForResource(resource).Informer().AddEventHandler(handler)
+	resourceInformer := s.getOrCreateInformer(resource)
+
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	// check again, if handler already exist, just return, nothing changed.
+	if s.isHandlerExist(resource, handler) {
+		return
+	}
+
+	_, err := resourceInformer.Informer().AddEventHandler(handler)
 	if err != nil {
 		klog.Errorf("Failed to add handler for resource(%s): %v", resource.String(), err)
 		return
@@ -120,42 +138,66 @@ func (s *singleClusterInformerManagerImpl) ForResource(resource schema.GroupVers
 }
 
 func (s *singleClusterInformerManagerImpl) IsInformerSynced(resource schema.GroupVersionResource) bool {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
-
-	_, exist := s.syncedInformers[resource]
+	_, exist := s.syncedInformers.Load(resource)
 	return exist
 }
 
 func (s *singleClusterInformerManagerImpl) IsHandlerExist(resource schema.GroupVersionResource, handler cache.ResourceEventHandler) bool {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
-
 	return s.isHandlerExist(resource, handler)
 }
 
 func (s *singleClusterInformerManagerImpl) isHandlerExist(resource schema.GroupVersionResource, handler cache.ResourceEventHandler) bool {
-	handlers, exist := s.handlers[resource]
-	if !exist {
+	handlers, ok := s.handlers.Load(resource)
+	if !ok {
 		return false
 	}
-
-	return slices.Contains(handlers, handler)
+	return slices.Contains(handlers.([]cache.ResourceEventHandler), handler)
 }
 
 func (s *singleClusterInformerManagerImpl) Lister(resource schema.GroupVersionResource) cache.GenericLister {
-	return s.informerFactory.ForResource(resource).Lister()
+	return s.getOrCreateInformer(resource).Lister()
 }
 
 func (s *singleClusterInformerManagerImpl) appendHandler(resource schema.GroupVersionResource, handler cache.ResourceEventHandler) {
-	// assume the handler list exist, caller should ensure for that.
-	handlers := s.handlers[resource]
+	var handlers []cache.ResourceEventHandler
+	if currentHandlers, ok := s.handlers.Load(resource); ok {
+		handlers = currentHandlers.([]cache.ResourceEventHandler)
+	}
+	// Publish a new slice so concurrent lock-free readers never observe a slice being modified.
+	s.handlers.Store(resource, append(slices.Clone(handlers), handler))
+}
 
-	// assume the handler not exist in it, caller should ensure for that.
-	s.handlers[resource] = append(handlers, handler)
+// getOrCreateInformer returns the informer for the given resource, creating it
+// if it doesn't exist yet. It first tries a lock-free lookup in initializedInformers,
+// and creates the informer if not found.
+func (s *singleClusterInformerManagerImpl) getOrCreateInformer(resource schema.GroupVersionResource) informers.GenericInformer {
+	if resourceInformer, exists := s.initializedInformers.Load(resource); exists {
+		return resourceInformer.(informers.GenericInformer)
+	}
+	return s.createInformer(resource)
+}
+
+// createInformer creates the informer for the given resource and records it
+// in initializedInformers.
+func (s *singleClusterInformerManagerImpl) createInformer(resource schema.GroupVersionResource) informers.GenericInformer {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	// Recheck after acquiring the lock, as another caller may have created
+	// the informer while this caller was waiting for the lock.
+	if resourceInformer, exists := s.initializedInformers.Load(resource); exists {
+		return resourceInformer.(informers.GenericInformer)
+	}
+
+	resourceInformer := s.informerFactory.ForResource(resource)
+	s.initializedInformers.Store(resource, resourceInformer)
+	return resourceInformer
 }
 
 func (s *singleClusterInformerManagerImpl) Start() {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
 	s.informerFactory.Start(s.ctx.Done())
 }
 
@@ -178,26 +220,21 @@ func (s *singleClusterInformerManagerImpl) waitForCacheSync(ctx context.Context)
 	res := s.informerFactory.WaitForCacheSync(ctx.Done())
 
 	var newlySynced []schema.GroupVersionResource
-
-	s.lock.RLock()
 	for resource, synced := range res {
 		if !synced {
 			continue
 		}
-		if _, exists := s.syncedInformers[resource]; !exists {
+		if _, ok := s.syncedInformers.Load(resource); !ok {
 			newlySynced = append(newlySynced, resource)
 		}
 	}
-	s.lock.RUnlock()
 
 	if len(newlySynced) == 0 {
 		return res
 	}
 
-	s.lock.Lock()
-	defer s.lock.Unlock()
 	for _, resource := range newlySynced {
-		s.syncedInformers[resource] = struct{}{}
+		s.syncedInformers.Store(resource, struct{}{})
 	}
 	return res
 }
