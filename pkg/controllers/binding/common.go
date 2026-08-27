@@ -47,7 +47,23 @@ import (
 const (
 	// requeueIntervalForDirectlyPurge is the requeue interval for binding when there are works in clusters with PurgeMode 'Directly'.
 	requeueIntervalForDirectlyPurge = 5 * time.Second
+	defaultSchedulerName            = "default-scheduler"
 )
+
+func shouldWaitForComponentScheduleResult(resourceInterpreter resourceinterpreter.ResourceInterpreter, workload *unstructured.Unstructured, bindingSpec *workv1alpha2.ResourceBindingSpec) (bool, error) {
+	if !features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) || len(bindingSpec.Components) <= 1 ||
+		(bindingSpec.SchedulerName != "" && bindingSpec.SchedulerName != defaultSchedulerName) ||
+		len(bindingSpec.Clusters) != 1 || len(bindingSpec.Clusters[0].Components) == 0 {
+		return false, nil
+	}
+
+	components, err := resourceInterpreter.GetComponents(workload)
+	if err != nil {
+		return false, fmt.Errorf("failed to get components from source workload: %w", err)
+	}
+	equal, comparable := util.ComponentReplicasEqual(components, bindingSpec.Clusters[0].Components)
+	return !comparable || !equal, nil
+}
 
 // ensureWork ensure Work to be created or updated.
 func ensureWork(

@@ -39,6 +39,7 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/features"
 	testing2 "github.com/karmada-io/karmada/pkg/search/proxy/testing"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
@@ -216,6 +217,69 @@ func TestResourceBindingController_syncBinding(t *testing.T) {
 				t.Errorf("syncBinding() got = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestResourceBindingControllerPreservesWorkWhileComponentResultPending(t *testing.T) {
+	originalFeatureGates := features.FeatureGate.DeepCopy()
+	if err := features.FeatureGate.Set(fmt.Sprintf("%s=true", features.MultiplePodTemplatesScheduling)); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { features.FeatureGate = originalFeatureGates })
+
+	resource := workv1alpha2.ObjectReference{APIVersion: "v1", Kind: "Pod", Namespace: "default", Name: "pod"}
+	controller, err := makeFakeRBCByResource(&resource)
+	if err != nil {
+		t.Fatal(err)
+	}
+	controller.ResourceInterpreter = &componentTestInterpreter{components: []workv1alpha2.Component{
+		{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 6},
+	}}
+	controller.OverrideManager = &componentTestOverrideManager{}
+
+	const bindingID = "binding-id"
+	binding := &workv1alpha2.ResourceBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-rb",
+			Namespace: "default",
+			Labels:    map[string]string{workv1alpha2.ResourceBindingPermanentIDLabel: bindingID},
+		},
+		Spec: workv1alpha2.ResourceBindingSpec{
+			Resource:   resource,
+			Components: []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 6}},
+			Clusters: []workv1alpha2.TargetCluster{{Name: "member1", Components: []workv1alpha2.TargetComponent{
+				{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4},
+			}}},
+		},
+	}
+	work := newComponentTestWork(workv1alpha2.ResourceBindingPermanentIDLabel, bindingID, resource.Kind, resource.Name, resource.Namespace)
+	if err := controller.Client.Create(context.Background(), work); err != nil {
+		t.Fatal(err)
+	}
+	want := work.Spec.DeepCopy()
+
+	if _, err := controller.syncBinding(context.Background(), binding); err != nil {
+		t.Fatal(err)
+	}
+	got := &workv1alpha1.Work{}
+	if err := controller.Client.Get(context.Background(), client.ObjectKeyFromObject(work), got); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(want, &got.Spec) {
+		t.Fatalf("Work spec changed while component result was pending: got %#v, want %#v", got.Spec, *want)
+	}
+
+	binding.Spec.Clusters[0].Components = []workv1alpha2.TargetComponent{
+		{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 6},
+	}
+	if _, err := controller.syncBinding(context.Background(), binding); err != nil {
+		t.Fatal(err)
+	}
+	if err := controller.Client.Get(context.Background(), client.ObjectKeyFromObject(work), got); err != nil {
+		t.Fatal(err)
+	}
+	if reflect.DeepEqual(want, &got.Spec) {
+		t.Fatal("Work spec was not updated after component replicas were accepted")
 	}
 }
 

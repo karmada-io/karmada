@@ -134,6 +134,14 @@ func (c *ResourceBindingController) syncBinding(ctx context.Context, binding *wo
 		klog.ErrorS(err, "Failed to fetch workload for ResourceBinding", "namespace", binding.GetNamespace(), "binding", binding.GetName())
 		return controllerruntime.Result{}, err
 	}
+	wait, err := shouldWaitForComponentScheduleResult(c.ResourceInterpreter, workload, &binding.Spec)
+	if err != nil {
+		return controllerruntime.Result{}, err
+	}
+	if wait {
+		klog.V(4).InfoS("Skip syncing Work until component replicas are accepted", "namespace", binding.GetNamespace(), "binding", binding.GetName())
+		return controllerruntime.Result{}, nil
+	}
 	start := time.Now()
 	err = ensureWork(ctx, c.Client, c.ResourceInterpreter, workload, c.OverrideManager, binding, apiextensionsv1.NamespaceScoped)
 	metrics.ObserveSyncWorkLatency(err, start)
