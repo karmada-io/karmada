@@ -25,6 +25,7 @@ import (
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -138,6 +139,7 @@ var _ = ginkgo.Describe("[ScheduleMultiTemplate] schedule multi template resourc
 			ctx := context.Background()
 			flinkDeploymentNamespace = "karmadatest-flink-scale-" + rand.String(RandomStrLength)
 			flinkDeploymentName = fmt.Sprintf("flinkdeployment-%s", rand.String(RandomStrLength))
+			const quotaName = "flink-component-scale"
 
 			ginkgo.By("create an isolated namespace and component-scale CPU quota", func() {
 				gomega.Expect(setupTestNamespace(flinkDeploymentNamespace, kubeClient)).Should(gomega.Succeed())
@@ -146,7 +148,6 @@ var _ = ginkgo.Describe("[ScheduleMultiTemplate] schedule multi template resourc
 				})
 				framework.WaitNamespacePresentOnClusters(framework.ClusterNames(), flinkDeploymentNamespace)
 
-				const quotaName = "flink-component-scale"
 				expectedCPU := resource.MustParse("300m")
 				for _, clusterName := range framework.ClusterNames() {
 					clusterClient := framework.GetClusterClient(clusterName)
@@ -280,6 +281,7 @@ var _ = ginkgo.Describe("[ScheduleMultiTemplate] schedule multi template resourc
 			})
 
 			workName := names.GenerateWorkName(flinkDeploymentObj.GetKind(), flinkDeploymentName, flinkDeploymentNamespace)
+			var alternateClusterName string
 			updateTaskManagerReplicas := func(replicas int64) {
 				gomega.Expect(retry.RetryOnConflict(retry.DefaultRetry, func() error {
 					current, err := dynamicClient.Resource(flinkDeploymentGVR).Namespace(flinkDeploymentNamespace).
@@ -341,6 +343,17 @@ var _ = ginkgo.Describe("[ScheduleMultiTemplate] schedule multi template resourc
 				g.Expect(taskManagerReplicas(g, member)).Should(gomega.Equal(int64(deliveredReplicas)))
 				return deliveredRevision{workGeneration: work.Generation, memberGeneration: member.GetGeneration()}
 			}
+			assertNotMigrated := func(g gomega.Gomega) {
+				_, err := karmadaClient.WorkV1alpha1().Works(names.GenerateExecutionSpaceName(alternateClusterName)).
+					Get(ctx, workName, metav1.GetOptions{})
+				g.Expect(apierrors.IsNotFound(err)).Should(gomega.BeTrue(), "Work should not be created in alternate cluster %s: %v", alternateClusterName, err)
+
+				alternateDynamicClient := framework.GetClusterDynamicClient(alternateClusterName)
+				g.Expect(alternateDynamicClient).ShouldNot(gomega.BeNil())
+				_, err = alternateDynamicClient.Resource(flinkDeploymentGVR).
+					Namespace(flinkDeploymentNamespace).Get(ctx, flinkDeploymentName, metav1.GetOptions{})
+				g.Expect(apierrors.IsNotFound(err)).Should(gomega.BeTrue(), "FlinkDeployment should not migrate to alternate cluster %s: %v", alternateClusterName, err)
+			}
 			waitForScaleState := func(desiredReplicas, acceptedReplicas, deliveredReplicas int32, scheduled metav1.ConditionStatus) deliveredRevision {
 				var revision deliveredRevision
 				gomega.Eventually(func(g gomega.Gomega) {
@@ -360,13 +373,48 @@ var _ = ginkgo.Describe("[ScheduleMultiTemplate] schedule multi template resourc
 				updateTaskManagerReplicas(1)
 				waitForScaleState(1, 1, 1, metav1.ConditionTrue)
 			})
-			ginkgo.By("preserve accepted snapshot and Work when scale-up cannot fit", func() {
+			ginkgo.By("make a non-target cluster able to fit the complete scaled workload", func() {
+				for _, clusterName := range framework.ClusterNames() {
+					if clusterName != targetClusterName {
+						alternateClusterName = clusterName
+						break
+					}
+				}
+				gomega.Expect(alternateClusterName).ShouldNot(gomega.BeEmpty())
+				alternateClient := framework.GetClusterClient(alternateClusterName)
+				gomega.Expect(alternateClient).ShouldNot(gomega.BeNil())
+				alternateCPU := resource.MustParse("1")
+				gomega.Expect(retry.RetryOnConflict(retry.DefaultRetry, func() error {
+					quota, err := alternateClient.CoreV1().ResourceQuotas(flinkDeploymentNamespace).Get(ctx, quotaName, metav1.GetOptions{})
+					if err != nil {
+						return err
+					}
+					quota.Spec.Hard[corev1.ResourceCPU] = alternateCPU
+					_, err = alternateClient.CoreV1().ResourceQuotas(flinkDeploymentNamespace).Update(ctx, quota, metav1.UpdateOptions{})
+					return err
+				})).Should(gomega.Succeed())
+
+				requiredCPU := resource.MustParse("450m") // jobmanager 50m + 4 taskmanagers * 100m
+				gomega.Eventually(func(g gomega.Gomega) {
+					quota, err := alternateClient.CoreV1().ResourceQuotas(flinkDeploymentNamespace).Get(ctx, quotaName, metav1.GetOptions{})
+					g.Expect(err).ShouldNot(gomega.HaveOccurred())
+					hardCPU, found := quota.Status.Hard[corev1.ResourceCPU]
+					g.Expect(found).Should(gomega.BeTrue())
+					usedCPU := quota.Status.Used[corev1.ResourceCPU]
+					availableCPU := hardCPU.DeepCopy()
+					availableCPU.Sub(usedCPU)
+					g.Expect(availableCPU.Cmp(requiredCPU)).Should(gomega.BeNumerically(">=", 0))
+				}, framework.PollTimeout, framework.PollInterval).Should(gomega.Succeed())
+				assertNotMigrated(gomega.Default)
+			})
+			ginkgo.By("preserve accepted state instead of migrating when the target cannot fit", func() {
 				acceptedRevision := waitForScaleState(1, 1, 1, metav1.ConditionTrue)
 				updateTaskManagerReplicas(4)
 				waitForScaleState(4, 1, 1, metav1.ConditionFalse)
 				gomega.Consistently(func(g gomega.Gomega) {
 					current := assertScaleState(g, 4, 1, 1, metav1.ConditionFalse)
 					g.Expect(current).Should(gomega.Equal(acceptedRevision))
+					assertNotMigrated(g)
 				}, 3*framework.PollInterval, framework.PollInterval).Should(gomega.Succeed())
 			})
 		})
