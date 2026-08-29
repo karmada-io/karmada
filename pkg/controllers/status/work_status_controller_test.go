@@ -811,7 +811,7 @@ func newWorkStatusController(cluster *clusterv1alpha1.Cluster, dynamicClientSets
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		m := genericmanager.NewMultiClusterInformerManager(ctx)
-		m.ForCluster(clusterName, dynamicClientSet, 0).Lister(corev1.SchemeGroupVersion.WithResource("pods")) // register pod informer
+		_, _ = m.ForCluster(clusterName, dynamicClientSet, 0).Lister(corev1.SchemeGroupVersion.WithResource("pods")) // register pod informer
 		m.Start(clusterName)
 		m.WaitForCacheSync(clusterName)
 		c.InformerManager = m

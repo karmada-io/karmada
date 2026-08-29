@@ -129,7 +129,9 @@ func NewEstimatorServer(
 
 	es.informerManager = genericmanager.NewSingleClusterInformerManager(ctx, dynamicClient, 0)
 	for _, gvr := range supportedGVRs {
-		es.informerManager.Lister(gvr)
+		if _, err := es.informerManager.Lister(gvr); err != nil {
+			return nil, err
+		}
 	}
 
 	registry := frameworkplugins.NewInTreeRegistry()

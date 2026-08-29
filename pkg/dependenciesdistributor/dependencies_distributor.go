@@ -414,8 +414,11 @@ func (d *DependenciesDistributor) syncScheduleResultToAttachedBindings(ctx conte
 			continue
 		}
 		if !d.InformerManager.IsHandlerExist(gvr, d.eventHandler) {
-			d.InformerManager.ForResource(gvr, d.eventHandler)
-			startInformerManager = true
+			if err := d.InformerManager.ForResource(gvr, d.eventHandler); err != nil {
+				errs = append(errs, err)
+			} else {
+				startInformerManager = true
+			}
 		}
 		errs = append(errs, d.handleDependentResource(ctx, independentBinding, dependent))
 	}

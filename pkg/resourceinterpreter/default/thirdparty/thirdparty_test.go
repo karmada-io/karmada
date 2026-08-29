@@ -78,13 +78,15 @@ type IndividualTest struct {
 }
 
 func checkInterpretationRule(t *testing.T, path string, configs []*configv1alpha1.ResourceInterpreterCustomization) {
-	ipt := declarative.NewConfigurableInterpreter(nil)
+	ipt, err := declarative.NewConfigurableInterpreter(nil)
+	if err != nil {
+		t.Fatalf("NewConfigurableInterpreter() returned an unexpected error: %v", err)
+	}
 	ipt.LoadConfig(configs)
 
 	dir := filepath.Dir(path)
 	testDataDir := filepath.Join(dir, "testdata")
 
-	var err error
 	for _, customization := range configs {
 		for _, input := range getAllTestCases(t, testDataDir).Tests {
 			t.Run(fmt.Sprintf("[%s/%s]:%s", customization.Name, input.Operation, input.Name), func(t *testing.T) {

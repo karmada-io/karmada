@@ -109,7 +109,10 @@ func (i *customResourceInterpreterImpl) Start(_ context.Context) (err error) {
 	if err != nil {
 		return err
 	}
-	i.configurableInterpreter = declarative.NewConfigurableInterpreter(i.informer)
+	i.configurableInterpreter, err = declarative.NewConfigurableInterpreter(i.informer)
+	if err != nil {
+		return err
+	}
 
 	i.thirdpartyInterpreter = thirdparty.NewConfigurableInterpreter()
 	i.defaultInterpreter = native.NewDefaultInterpreter()
@@ -401,7 +404,12 @@ func (i *customResourceInterpreterImpl) InterpretHealth(object *unstructured.Uns
 // ResourceInterpreterWebhookConfiguration configurations into the cache. It avoids resource interpreter
 // parsing errors when the resource interpreter starts and the cache is not synchronized.
 func (i *customResourceInterpreterImpl) loadConfig() error {
-	customizations, err := i.informer.Lister(util.ResourceInterpreterCustomizationsGVR).List(labels.Everything())
+	customizationsLister, err := i.informer.Lister(util.ResourceInterpreterCustomizationsGVR)
+	if err != nil {
+		klog.Errorf("Failed to get lister for resourceinterpretercustomizations: %v", err)
+		return err
+	}
+	customizations, err := customizationsLister.List(labels.Everything())
 	if err != nil {
 		klog.Errorf("Failed to list resourceinterpretercustomizations: %v", err)
 		return err
@@ -419,7 +427,12 @@ func (i *customResourceInterpreterImpl) loadConfig() error {
 	}
 	i.configurableInterpreter.LoadConfig(declareConfigs)
 
-	webhooks, err := i.informer.Lister(util.ResourceInterpreterWebhookConfigurationsGVR).List(labels.Everything())
+	webhooksLister, err := i.informer.Lister(util.ResourceInterpreterWebhookConfigurationsGVR)
+	if err != nil {
+		klog.Errorf("Failed to get lister for resourceinterpreterwebhookconfigurations: %v", err)
+		return err
+	}
+	webhooks, err := webhooksLister.List(labels.Everything())
 	if err != nil {
 		klog.Errorf("Failed to list resourceinterpreterwebhookconfigurations: %v", err)
 		return err

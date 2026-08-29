@@ -91,7 +91,9 @@ func (d *ClusterDetector) discoveryCluster() {
 	for _, gvr := range clusterGVRs {
 		if !d.InformerManager.IsHandlerExist(gvr, d.EventHandler) {
 			klog.Infof("Setup informer fo %s", gvr.String())
-			d.InformerManager.ForResource(gvr, d.EventHandler)
+			if err := d.InformerManager.ForResource(gvr, d.EventHandler); err != nil {
+				klog.ErrorS(err, "Failed to setup informer", "resource", gvr.String())
+			}
 		}
 	}
 
@@ -165,7 +167,12 @@ func (d *ClusterDetector) GetUnstructuredObject(objectKey keys.ClusterWideKey) (
 		Resource: resourceCluster,
 	}
 
-	object, err := d.InformerManager.Lister(objectGVR).Get(objectKey.NamespaceKey())
+	lister, err := d.InformerManager.Lister(objectGVR)
+	if err != nil {
+		klog.Errorf("Failed to get lister for object(%s), error: %v", objectKey, err)
+		return nil, err
+	}
+	object, err := lister.Get(objectKey.NamespaceKey())
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			klog.Errorf("Failed to get object(%s), error: %v", objectKey, err)

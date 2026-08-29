@@ -1234,7 +1234,7 @@ func Test_removeOrphanAttachedBindings(t *testing.T) {
 					c := dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 						&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default", Labels: map[string]string{"resourcebinding.karmada.io/depended-by-5dbb6dc9c8": "93162d3c-ee8e-4995-9034-05f4d5d2c2b9"}}})
 					m := genericmanager.NewSingleClusterInformerManager(context.TODO(), c, 0)
-					m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
+					_, _ = m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
 					m.Start()
 					m.WaitForCacheSync()
 					return m
@@ -1380,7 +1380,7 @@ func Test_handleDependentResource(t *testing.T) {
 					c := dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 						&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default", Labels: map[string]string{"resourcebinding.karmada.io/depended-by-5dbb6dc9c8": "93162d3c-ee8e-4995-9034-05f4d5d2c2b9"}}})
 					m := genericmanager.NewSingleClusterInformerManager(context.TODO(), c, 0)
-					m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
+					_, _ = m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
 					m.Start()
 					m.WaitForCacheSync()
 					return m
@@ -1488,7 +1488,7 @@ func Test_handleDependentResource(t *testing.T) {
 					c := dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 						&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default", Labels: map[string]string{"resourcebinding.karmada.io/depended-by-5dbb6dc9c8": "93162d3c-ee8e-4995-9034-05f4d5d2c2b9"}}})
 					m := genericmanager.NewSingleClusterInformerManager(context.TODO(), c, 0)
-					m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
+					_, _ = m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
 					m.Start()
 					m.WaitForCacheSync()
 					return m
@@ -1567,7 +1567,7 @@ func Test_handleDependentResource(t *testing.T) {
 					c := dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 						&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default", Labels: map[string]string{"resourcebinding.karmada.io/depended-by-5dbb6dc9c8": "93162d3c-ee8e-4995-9034-05f4d5d2c2b9"}}})
 					m := genericmanager.NewSingleClusterInformerManager(context.TODO(), c, 0)
-					m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
+					_, _ = m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
 					m.Start()
 					m.WaitForCacheSync()
 					return m
@@ -1937,7 +1937,7 @@ func Test_syncScheduleResultToAttachedBindings_doesNotWaitForInformerCacheSync(t
 		&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default"}},
 	)
 	baseInformerManager := genericmanager.NewSingleClusterInformerManager(context.TODO(), dynamicClient, 0)
-	baseInformerManager.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
+	_, _ = baseInformerManager.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
 	trackingManager := &trackingInformerManager{SingleClusterInformerManager: baseInformerManager}
 
 	restMapper := meta.NewDefaultRESTMapper([]schema.GroupVersion{appsv1.SchemeGroupVersion, corev1.SchemeGroupVersion})
@@ -2026,7 +2026,7 @@ func Test_findOrphanAttachedBindings(t *testing.T) {
 					c := dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 						&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default", Labels: map[string]string{"resourcebinding.karmada.io/depended-by-5dbb6dc9c8": "93162d3c-ee8e-4995-9034-05f4d5d2c2b9"}}})
 					m := genericmanager.NewSingleClusterInformerManager(context.TODO(), c, 0)
-					m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
+					_, _ = m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
 					m.Start()
 					m.WaitForCacheSync()
 					return m
@@ -2123,7 +2123,7 @@ func Test_findOrphanAttachedBindings(t *testing.T) {
 					c := dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 						&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default", Labels: map[string]string{"resourcebinding.karmada.io/depended-by-5dbb6dc9c8": "93162d3c-ee8e-4995-9034-05f4d5d2c2b9"}}})
 					m := genericmanager.NewSingleClusterInformerManager(context.TODO(), c, 0)
-					m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
+					_, _ = m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
 					m.Start()
 					m.WaitForCacheSync()
 					return m
@@ -2232,7 +2232,7 @@ func TestDependenciesDistributor_findOrphanAttachedBindingsByDependencies(t *tes
 					c := dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 						&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default", Labels: map[string]string{"bar": "bar"}}})
 					m := genericmanager.NewSingleClusterInformerManager(context.TODO(), c, 0)
-					m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
+					_, _ = m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
 					m.Start()
 					m.WaitForCacheSync()
 					return m
@@ -2283,7 +2283,7 @@ func TestDependenciesDistributor_findOrphanAttachedBindingsByDependencies(t *tes
 					c := dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 						&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default", Labels: map[string]string{"bar": "foo"}}})
 					m := genericmanager.NewSingleClusterInformerManager(context.TODO(), c, 0)
-					m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
+					_, _ = m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
 					m.Start()
 					m.WaitForCacheSync()
 					return m

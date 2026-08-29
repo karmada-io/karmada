@@ -74,22 +74,30 @@ func (configManager *interpreterConfigManager) HasSynced() bool {
 
 // NewInterpreterConfigManager watches ResourceInterpreterCustomization and organizes
 // the configurations in the cache.
-func NewInterpreterConfigManager(informer genericmanager.SingleClusterInformerManager) ConfigManager {
+func NewInterpreterConfigManager(informer genericmanager.SingleClusterInformerManager) (ConfigManager, error) {
 	manager := &interpreterConfigManager{}
 	manager.configuration.Store(make(map[schema.GroupVersionKind]CustomAccessor))
 
 	// In interpret command, rules are not loaded from server, so we don't start informer for it.
 	if informer != nil {
 		manager.informer = informer
-		manager.lister = informer.Lister(util.ResourceInterpreterCustomizationsGVR)
+		lister, err := informer.Lister(util.ResourceInterpreterCustomizationsGVR)
+		if err != nil {
+			klog.ErrorS(err, "Failed to get lister for ResourceInterpreterCustomization")
+			return nil, err
+		}
+		manager.lister = lister
 		configHandlers := fedinformer.NewHandlerOnEvents(
 			func(_ any, _ bool) { _ = manager.updateConfiguration() },
 			func(_, _ any) { _ = manager.updateConfiguration() },
 			func(_ any) { _ = manager.updateConfiguration() })
-		informer.ForResource(util.ResourceInterpreterCustomizationsGVR, configHandlers)
+		if err := informer.ForResource(util.ResourceInterpreterCustomizationsGVR, configHandlers); err != nil {
+			klog.ErrorS(err, "Failed to register handler for ResourceInterpreterCustomization")
+			return nil, err
+		}
 	}
 
-	return manager
+	return manager, nil
 }
 
 // updateConfiguration is used as the event handler for the ResourceInterpreterCustomization resource.

@@ -204,7 +204,10 @@ func (c *EndpointSliceCollectController) registerInformersAndStart(cluster *clus
 	for _, gvr := range gvrTargets {
 		if !singleClusterInformerManager.IsInformerSynced(gvr) || !singleClusterInformerManager.IsHandlerExist(gvr, c.getEventHandler(cluster.Name)) {
 			allSynced = false
-			singleClusterInformerManager.ForResource(gvr, c.getEventHandler(cluster.Name))
+			if err := singleClusterInformerManager.ForResource(gvr, c.getEventHandler(cluster.Name)); err != nil {
+				klog.ErrorS(err, "Failed to register handler for resource", "cluster", cluster.Name, "resource", gvr.String())
+				return err
+			}
 		}
 	}
 	if allSynced {
@@ -351,7 +354,12 @@ func (c *EndpointSliceCollectController) collectTargetEndpointSlice(ctx context.
 	selector := labels.SelectorFromSet(labels.Set{
 		discoveryv1.LabelServiceName: svcName,
 	})
-	epsList, err := manager.Lister(discoveryv1.SchemeGroupVersion.WithResource("endpointslices")).ByNamespace(svcNamespace).List(selector)
+	epsLister, err := manager.Lister(discoveryv1.SchemeGroupVersion.WithResource("endpointslices"))
+	if err != nil {
+		klog.ErrorS(err, "Failed to get lister for EndpointSlice", "cluster", clusterName)
+		return err
+	}
+	epsList, err := epsLister.ByNamespace(svcNamespace).List(selector)
 	if err != nil {
 		klog.ErrorS(err, "Failed to list EndpointSlice for Service in a cluster", "namespace", svcNamespace, "name", svcName, "cluster", clusterName)
 		return err

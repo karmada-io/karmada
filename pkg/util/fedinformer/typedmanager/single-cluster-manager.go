@@ -18,8 +18,8 @@ package typedmanager
 
 import (
 	"context"
+	"fmt"
 	"reflect"
-	"slices"
 	"sync"
 	"time"
 
@@ -45,7 +45,7 @@ var (
 type SingleClusterInformerManager interface {
 	// ForResource builds a typed shared informer for 'resource' then set event handler.
 	// If the informer already exist, the event handler will be appended to the informer.
-	// The handler should not be nil.
+	// The handler must be a non-nil pointer.
 	ForResource(resource schema.GroupVersionResource, handler cache.ResourceEventHandler) error
 
 	// IsInformerSynced checks if the resource's informer is synced.
@@ -88,15 +88,11 @@ type SingleClusterInformerManager interface {
 func NewSingleClusterInformerManager(ctx context.Context, client kubernetes.Interface, defaultResync time.Duration, transformFuncs map[schema.GroupVersionResource]cache.TransformFunc) SingleClusterInformerManager {
 	ctx, cancel := context.WithCancel(ctx)
 	return &singleClusterInformerManagerImpl{
-		informerFactory:  informers.NewSharedInformerFactory(client, defaultResync),
-		handlers:         make(map[schema.GroupVersionResource][]cache.ResourceEventHandler),
-		syncedInformers:  make(map[schema.GroupVersionResource]struct{}),
-		informers:        make(map[schema.GroupVersionResource]struct{}),
-		startedInformers: make(map[schema.GroupVersionResource]struct{}),
-		transformFuncs:   transformFuncs,
-		ctx:              ctx,
-		cancel:           cancel,
-		client:           client,
+		informerFactory: informers.NewSharedInformerFactory(client, defaultResync),
+		transformFuncs:  transformFuncs,
+		ctx:             ctx,
+		cancel:          cancel,
+		client:          client,
 	}
 }
 
@@ -106,44 +102,41 @@ type singleClusterInformerManagerImpl struct {
 
 	informerFactory informers.SharedInformerFactory
 
-	syncedInformers map[schema.GroupVersionResource]struct{}
-
-	informers map[schema.GroupVersionResource]struct{}
-
-	startedInformers map[schema.GroupVersionResource]struct{}
-
-	handlers map[schema.GroupVersionResource][]cache.ResourceEventHandler
-
 	transformFuncs map[schema.GroupVersionResource]cache.TransformFunc
+
+	// initializedInformers contains informers whose transform has been installed. It also keeps
+	// steady-state informer lookups from taking informerFactory's lock for an already known resource.
+	initializedInformers sync.Map
+	syncedInformers      sync.Map
+	handlers             sync.Map
 
 	client kubernetes.Interface
 
-	lock sync.RWMutex
+	lock sync.Mutex
 }
 
 func (s *singleClusterInformerManagerImpl) ForResource(resource schema.GroupVersionResource, handler cache.ResourceEventHandler) error {
-	s.lock.Lock()
-	defer s.lock.Unlock()
+	if err := validateResourceEventHandler(handler); err != nil {
+		return err
+	}
 
 	// if handler already exist, just return, nothing changed.
 	if s.isHandlerExist(resource, handler) {
 		return nil
 	}
 
-	resourceInformer, err := s.informerFactory.ForResource(resource)
+	resourceInformer, err := s.informerForResource(resource)
 	if err != nil {
+		klog.ErrorS(err, "Failed to initialize informer", "resource", resource.String())
 		return err
 	}
 
-	if _, exist := s.informers[resource]; !exist {
-		s.informers[resource] = struct{}{}
-	}
+	s.lock.Lock()
+	defer s.lock.Unlock()
 
-	if resourceTransformFunc, ok := s.transformFuncs[resource]; ok && !s.isInformerStarted(resource) {
-		err = resourceInformer.Informer().SetTransform(resourceTransformFunc)
-		if err != nil {
-			return err
-		}
+	// check again, if handler already exist, just return, nothing changed.
+	if s.isHandlerExist(resource, handler) {
+		return nil
 	}
 
 	_, err = resourceInformer.Informer().AddEventHandler(handler)
@@ -157,53 +150,38 @@ func (s *singleClusterInformerManagerImpl) ForResource(resource schema.GroupVers
 }
 
 func (s *singleClusterInformerManagerImpl) IsInformerSynced(resource schema.GroupVersionResource) bool {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
-
-	_, exist := s.syncedInformers[resource]
-	return exist
-}
-
-func (s *singleClusterInformerManagerImpl) isInformerStarted(resource schema.GroupVersionResource) bool {
-	_, exist := s.startedInformers[resource]
+	_, exist := s.syncedInformers.Load(resource)
 	return exist
 }
 
 func (s *singleClusterInformerManagerImpl) IsHandlerExist(resource schema.GroupVersionResource, handler cache.ResourceEventHandler) bool {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
-
+	if validateResourceEventHandler(handler) != nil {
+		return false
+	}
 	return s.isHandlerExist(resource, handler)
 }
 
+func validateResourceEventHandler(handler cache.ResourceEventHandler) error {
+	handlerValue := reflect.ValueOf(handler)
+	if handlerValue.Kind() != reflect.Pointer || handlerValue.IsNil() {
+		return fmt.Errorf("resource event handler must be a non-nil pointer, got %T", handler)
+	}
+	return nil
+}
+
 func (s *singleClusterInformerManagerImpl) isHandlerExist(resource schema.GroupVersionResource, handler cache.ResourceEventHandler) bool {
-	handlers, exist := s.handlers[resource]
-	if !exist {
+	handlers, ok := s.handlers.Load(resource)
+	if !ok {
 		return false
 	}
-
-	return slices.Contains(handlers, handler)
+	_, ok = handlers.(*sync.Map).Load(handler)
+	return ok
 }
 
 func (s *singleClusterInformerManagerImpl) Lister(resource schema.GroupVersionResource) (any, error) {
-	resourceInformer, err := s.informerFactory.ForResource(resource)
+	resourceInformer, err := s.informerForResource(resource)
 	if err != nil {
 		return nil, err
-	}
-
-	s.lock.Lock()
-	if _, exist := s.informers[resource]; !exist {
-		s.informers[resource] = struct{}{}
-	}
-	s.lock.Unlock()
-
-	s.lock.RLock()
-	defer s.lock.RUnlock()
-	if resourceTransformFunc, ok := s.transformFuncs[resource]; ok && !s.isInformerStarted(resource) {
-		err = resourceInformer.Informer().SetTransform(resourceTransformFunc)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	if resource == nodeGVR {
@@ -217,22 +195,46 @@ func (s *singleClusterInformerManagerImpl) Lister(resource schema.GroupVersionRe
 }
 
 func (s *singleClusterInformerManagerImpl) appendHandler(resource schema.GroupVersionResource, handler cache.ResourceEventHandler) {
-	// assume the handler list exist, caller should ensure for that.
-	handlers := s.handlers[resource]
+	handlers, _ := s.handlers.LoadOrStore(resource, &sync.Map{})
+	handlers.(*sync.Map).Store(handler, struct{}{})
+}
 
-	// assume the handler not exist in it, caller should ensure for that.
-	s.handlers[resource] = append(handlers, handler)
+func (s *singleClusterInformerManagerImpl) informerForResource(resource schema.GroupVersionResource) (informers.GenericInformer, error) {
+	if resourceInformer, exists := s.initializedInformers.Load(resource); exists {
+		return resourceInformer.(informers.GenericInformer), nil
+	}
+	return s.informerForResourceSlowPath(resource)
+}
+
+// informerForResourceSlowPath handles the cache-miss path. It rechecks initializedInformers after acquiring
+// lock because another caller may have initialized the informer while this caller was waiting.
+func (s *singleClusterInformerManagerImpl) informerForResourceSlowPath(resource schema.GroupVersionResource) (informers.GenericInformer, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	if resourceInformer, exists := s.initializedInformers.Load(resource); exists {
+		return resourceInformer.(informers.GenericInformer), nil
+	}
+
+	resourceInformer, err := s.informerFactory.ForResource(resource)
+	if err != nil {
+		return nil, err
+	}
+	if resourceTransformFunc, ok := s.transformFuncs[resource]; ok {
+		if err := resourceInformer.Informer().SetTransform(resourceTransformFunc); err != nil {
+			return resourceInformer, fmt.Errorf("failed to set transform for resource %s: %w", resource.String(), err)
+		}
+	}
+
+	s.initializedInformers.Store(resource, resourceInformer)
+	return resourceInformer, nil
 }
 
 func (s *singleClusterInformerManagerImpl) Start() {
 	s.lock.Lock()
 	defer s.lock.Unlock()
+
 	s.informerFactory.Start(s.ctx.Done())
-	for resource := range s.informers {
-		if _, exist := s.startedInformers[resource]; !exist {
-			s.startedInformers[resource] = struct{}{}
-		}
-	}
 }
 
 func (s *singleClusterInformerManagerImpl) Stop() {
@@ -251,15 +253,13 @@ func (s *singleClusterInformerManagerImpl) WaitForCacheSyncWithTimeout(cacheSync
 }
 
 func (s *singleClusterInformerManagerImpl) waitForCacheSync(ctx context.Context) map[schema.GroupVersionResource]bool {
-	s.lock.Lock()
-	defer s.lock.Unlock()
 	res := s.informerFactory.WaitForCacheSync(ctx.Done())
 	m := make(map[schema.GroupVersionResource]bool)
 	for resource, synced := range res {
 		if gvr, exist := gvrTypeMap[resource]; exist {
 			m[gvr] = synced
-			if _, exist = s.syncedInformers[gvr]; !exist && synced {
-				s.syncedInformers[gvr] = struct{}{}
+			if synced {
+				s.syncedInformers.Store(gvr, struct{}{})
 			}
 		}
 	}

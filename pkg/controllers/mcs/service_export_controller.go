@@ -279,7 +279,10 @@ func (c *ServiceExportController) registerInformersAndStart(cluster *clusterv1al
 	for _, gvr := range gvrTargets {
 		if !singleClusterInformerManager.IsInformerSynced(gvr) || !singleClusterInformerManager.IsHandlerExist(gvr, c.getEventHandler(cluster.Name)) {
 			allSynced = false
-			singleClusterInformerManager.ForResource(gvr, c.getEventHandler(cluster.Name))
+			if err := singleClusterInformerManager.ForResource(gvr, c.getEventHandler(cluster.Name)); err != nil {
+				klog.ErrorS(err, "Failed to register handler for resource", "cluster", cluster.Name, "resource", gvr.String())
+				return err
+			}
 		}
 	}
 	if allSynced {
@@ -441,7 +444,11 @@ func (c *ServiceExportController) reportEndpointSliceWithServiceExportCreate(ctx
 		return fmt.Errorf("the informer for cluster %s has not been synced, wait a retry at the next time", serviceExportKey.Cluster)
 	}
 
-	endpointSliceLister := singleClusterManager.Lister(endpointSliceGVR)
+	endpointSliceLister, err := singleClusterManager.Lister(endpointSliceGVR)
+	if err != nil {
+		klog.ErrorS(err, "Failed to get lister for EndpointSlice", "cluster", serviceExportKey.Cluster)
+		return err
+	}
 	if endpointSliceObjects, err = endpointSliceLister.ByNamespace(serviceExportKey.Namespace).List(labels.SelectorFromSet(labels.Set{
 		discoveryv1.LabelServiceName: serviceExportKey.Name,
 	})); err != nil {
@@ -546,8 +553,12 @@ func (c *ServiceExportController) reportEndpointSliceWithEndpointSliceCreateOrUp
 		return fmt.Errorf("the informer for cluster %s has not been synced, wait a retry at the next time", clusterName)
 	}
 
-	serviceExportLister := singleClusterManager.Lister(serviceExportGVR)
-	_, err := serviceExportLister.ByNamespace(endpointSlice.GetNamespace()).Get(relatedServiceName)
+	serviceExportLister, err := singleClusterManager.Lister(serviceExportGVR)
+	if err != nil {
+		klog.ErrorS(err, "Failed to get lister for ServiceExport", "cluster", clusterName)
+		return err
+	}
+	_, err = serviceExportLister.ByNamespace(endpointSlice.GetNamespace()).Get(relatedServiceName)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil

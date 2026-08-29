@@ -48,7 +48,7 @@ func generateRBStatusController() *RBStatusController {
 	dynamicClient := dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 		&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod1", Namespace: "default"}})
 	m := genericmanager.NewSingleClusterInformerManager(ctx, dynamicClient, 0)
-	m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
+	_, _ = m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
 	m.Start()
 	m.WaitForCacheSync()
 

@@ -71,8 +71,13 @@ func NewCustomizedInterpreter(informer genericmanager.SingleClusterInformerManag
 	cm.SetAuthenticationInfoResolver(authInfoResolver)
 	cm.SetServiceResolver(NewServiceResolver(serviceLister))
 
+	hookManager, err := configmanager.NewExploreConfigManager(informer)
+	if err != nil {
+		return nil, err
+	}
+
 	return &CustomizedInterpreter{
-		hookManager:   configmanager.NewExploreConfigManager(informer),
+		hookManager:   hookManager,
 		clientManager: &cm,
 	}, nil
 }

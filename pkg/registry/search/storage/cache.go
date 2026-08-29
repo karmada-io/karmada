@@ -122,7 +122,12 @@ func (r *SearchREST) getObjectItemsFromClusters(
 		}
 
 		var err error
-		objLister := singleClusterManger.Lister(objGVR)
+		objLister, err := singleClusterManger.Lister(objGVR)
+		if err != nil {
+			klog.Errorf("Failed to get lister for %s from cluster(%s)'s informer cache: %v",
+				objGVR, cluster.Name, err)
+			continue
+		}
 		if len(name) > 0 {
 			var resourceObject runtime.Object
 			if len(namespace) > 0 {

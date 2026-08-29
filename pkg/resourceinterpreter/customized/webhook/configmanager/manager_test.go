@@ -62,7 +62,10 @@ func TestNewExploreConfigManager(t *testing.T) {
 			informerManager := &mockInformerManager{
 				lister: &mockLister{items: tt.initObjs},
 			}
-			manager := NewExploreConfigManager(informerManager)
+			manager, err := NewExploreConfigManager(informerManager)
+			if err != nil {
+				t.Fatalf("NewExploreConfigManager() returned an unexpected error: %v", err)
+			}
 
 			assert.NotNil(t, manager, "Manager should not be nil")
 			assert.NotNil(t, manager.HookAccessors(), "Accessors should be initialized")
@@ -328,11 +331,12 @@ func (m *mockSingleClusterInformerManager) IsInformerSynced(_ schema.GroupVersio
 	return m.isSynced
 }
 
-func (m *mockSingleClusterInformerManager) Lister(_ schema.GroupVersionResource) cache.GenericLister {
-	return nil
+func (m *mockSingleClusterInformerManager) Lister(_ schema.GroupVersionResource) (cache.GenericLister, error) {
+	return nil, nil
 }
 
-func (m *mockSingleClusterInformerManager) ForResource(_ schema.GroupVersionResource, _ cache.ResourceEventHandler) {
+func (m *mockSingleClusterInformerManager) ForResource(_ schema.GroupVersionResource, _ cache.ResourceEventHandler) error {
+	return nil
 }
 
 func (m *mockSingleClusterInformerManager) Start() {
@@ -386,9 +390,10 @@ type mockInformerManager struct {
 	lister cache.GenericLister
 }
 
-func (m *mockInformerManager) Lister(_ schema.GroupVersionResource) cache.GenericLister {
-	return m.lister
+func (m *mockInformerManager) Lister(_ schema.GroupVersionResource) (cache.GenericLister, error) {
+	return m.lister, nil
 }
 
-func (m *mockInformerManager) ForResource(_ schema.GroupVersionResource, _ cache.ResourceEventHandler) {
+func (m *mockInformerManager) ForResource(_ schema.GroupVersionResource, _ cache.ResourceEventHandler) error {
+	return nil
 }
