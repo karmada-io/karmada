@@ -41,6 +41,7 @@ import (
 	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 	"github.com/karmada-io/karmada/pkg/search/backendstore"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 )
 
@@ -589,7 +590,7 @@ func createController(ctx context.Context, restConfig *rest.Config, factory info
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new controller, got: %v", err)
 	}
-	newController.InformerManager = genericmanager.NewMultiClusterInformerManager(ctx)
+	newController.InformerManager = genericmanager.NewMultiClusterInformerManager(ctx, fedinformer.StripUnusedFields)
 	return newController, nil
 }
 

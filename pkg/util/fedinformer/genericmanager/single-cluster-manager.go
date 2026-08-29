@@ -18,6 +18,7 @@ package genericmanager
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"sync"
 	"time"
@@ -25,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
+	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 )
@@ -74,12 +76,13 @@ type SingleClusterInformerManager interface {
 
 // NewSingleClusterInformerManager constructs a new instance of singleClusterInformerManagerImpl.
 // defaultResync with value '0' means no re-sync.
-func NewSingleClusterInformerManager(ctx context.Context, client dynamic.Interface, defaultResync time.Duration) SingleClusterInformerManager {
+func NewSingleClusterInformerManager(ctx context.Context, client dynamic.Interface, defaultResync time.Duration, transformFunc cache.TransformFunc) SingleClusterInformerManager {
 	ctx, cancel := context.WithCancel(ctx)
 	return &singleClusterInformerManagerImpl{
 		informerFactory: dynamicinformer.NewDynamicSharedInformerFactory(client, defaultResync),
 		handlers:        make(map[schema.GroupVersionResource][]cache.ResourceEventHandler),
 		syncedInformers: make(map[schema.GroupVersionResource]struct{}),
+		transformFunc:   transformFunc,
 		ctx:             ctx,
 		cancel:          cancel,
 		client:          client,
@@ -96,6 +99,16 @@ type singleClusterInformerManagerImpl struct {
 
 	handlers map[schema.GroupVersionResource][]cache.ResourceEventHandler
 
+	transformFunc cache.TransformFunc
+
+	// initializedInformers contains GenericInformers whose transform has been installed. It also keeps
+	// steady-state informer lookups from taking informerFactory's lock for an already known resource.
+	initializedInformers sync.Map
+
+	// informerLifecycleLock serializes the first initialization of an informer with Start.
+	// Cache hits in initializedInformers do not take this lock.
+	informerLifecycleLock sync.Mutex
+
 	client dynamic.Interface
 
 	lock sync.RWMutex
@@ -110,7 +123,12 @@ func (s *singleClusterInformerManagerImpl) ForResource(resource schema.GroupVers
 		return
 	}
 
-	_, err := s.informerFactory.ForResource(resource).Informer().AddEventHandler(handler)
+	resourceInformer, err := s.informerForResource(resource)
+	if err != nil {
+		klog.ErrorS(err, "Failed to initialize informer", "resource", resource.String())
+	}
+
+	_, err = resourceInformer.Informer().AddEventHandler(handler)
 	if err != nil {
 		klog.Errorf("Failed to add handler for resource(%s): %v", resource.String(), err)
 		return
@@ -144,7 +162,11 @@ func (s *singleClusterInformerManagerImpl) isHandlerExist(resource schema.GroupV
 }
 
 func (s *singleClusterInformerManagerImpl) Lister(resource schema.GroupVersionResource) cache.GenericLister {
-	return s.informerFactory.ForResource(resource).Lister()
+	resourceInformer, err := s.informerForResource(resource)
+	if err != nil {
+		klog.ErrorS(err, "Failed to initialize informer", "resource", resource.String())
+	}
+	return resourceInformer.Lister()
 }
 
 func (s *singleClusterInformerManagerImpl) appendHandler(resource schema.GroupVersionResource, handler cache.ResourceEventHandler) {
@@ -155,7 +177,39 @@ func (s *singleClusterInformerManagerImpl) appendHandler(resource schema.GroupVe
 	s.handlers[resource] = append(handlers, handler)
 }
 
+func (s *singleClusterInformerManagerImpl) informerForResource(resource schema.GroupVersionResource) (informers.GenericInformer, error) {
+	if resourceInformer, exists := s.initializedInformers.Load(resource); exists {
+		return resourceInformer.(informers.GenericInformer), nil
+	}
+	return s.informerForResourceSlowPath(resource)
+}
+
+// informerForResourceSlowPath handles the cache-miss path. It rechecks initializedInformers after acquiring
+// informerLifecycleLock because another caller may have initialized the informer while this caller was waiting.
+func (s *singleClusterInformerManagerImpl) informerForResourceSlowPath(resource schema.GroupVersionResource) (informers.GenericInformer, error) {
+	s.informerLifecycleLock.Lock()
+	defer s.informerLifecycleLock.Unlock()
+
+	if resourceInformer, exists := s.initializedInformers.Load(resource); exists {
+		return resourceInformer.(informers.GenericInformer), nil
+	}
+
+	resourceInformer := s.informerFactory.ForResource(resource)
+	informer := resourceInformer.Informer()
+	if s.transformFunc != nil {
+		if err := informer.SetTransform(s.transformFunc); err != nil {
+			return resourceInformer, fmt.Errorf("failed to set transform for resource %s: %w", resource.String(), err)
+		}
+	}
+
+	s.initializedInformers.Store(resource, resourceInformer)
+	return resourceInformer, nil
+}
+
 func (s *singleClusterInformerManagerImpl) Start() {
+	s.informerLifecycleLock.Lock()
+	defer s.informerLifecycleLock.Unlock()
+
 	s.informerFactory.Start(s.ctx.Done())
 }
 

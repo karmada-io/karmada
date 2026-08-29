@@ -36,6 +36,7 @@ import (
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/default/native"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/indexregistry"
@@ -46,7 +47,7 @@ func generateCRBStatusController() *CRBStatusController {
 	defer cancel()
 	dynamicClient := dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 		&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "ns1"}})
-	m := genericmanager.NewSingleClusterInformerManager(ctx, dynamicClient, 0)
+	m := genericmanager.NewSingleClusterInformerManager(ctx, dynamicClient, 0, fedinformer.StripUnusedFields)
 	m.Lister(corev1.SchemeGroupVersion.WithResource("namespaces"))
 	m.Start()
 	m.WaitForCacheSync()

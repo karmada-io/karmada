@@ -40,6 +40,7 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
@@ -1006,7 +1007,7 @@ func TestFetchWorkload(t *testing.T) {
 			args: args{
 				dynamicClient: dynamicfake.NewSimpleDynamicClient(scheme.Scheme),
 				informerManager: func(ctx context.Context) genericmanager.SingleClusterInformerManager {
-					return genericmanager.NewSingleClusterInformerManager(ctx, dynamicfake.NewSimpleDynamicClient(scheme.Scheme), 0)
+					return genericmanager.NewSingleClusterInformerManager(ctx, dynamicfake.NewSimpleDynamicClient(scheme.Scheme), 0, fedinformer.StripUnusedFields)
 				},
 				restMapper: meta.NewDefaultRESTMapper(nil),
 				resource:   workv1alpha2.ObjectReference{APIVersion: "v1", Kind: "Pod"},
@@ -1019,7 +1020,7 @@ func TestFetchWorkload(t *testing.T) {
 			args: args{
 				dynamicClient: dynamicfake.NewSimpleDynamicClient(scheme.Scheme),
 				informerManager: func(ctx context.Context) genericmanager.SingleClusterInformerManager {
-					return genericmanager.NewSingleClusterInformerManager(ctx, dynamicfake.NewSimpleDynamicClient(scheme.Scheme), 0)
+					return genericmanager.NewSingleClusterInformerManager(ctx, dynamicfake.NewSimpleDynamicClient(scheme.Scheme), 0, fedinformer.StripUnusedFields)
 				},
 				restMapper: func() meta.RESTMapper {
 					m := meta.NewDefaultRESTMapper([]schema.GroupVersion{corev1.SchemeGroupVersion})
@@ -1042,7 +1043,7 @@ func TestFetchWorkload(t *testing.T) {
 				dynamicClient: dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 					&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default"}}),
 				informerManager: func(ctx context.Context) genericmanager.SingleClusterInformerManager {
-					return genericmanager.NewSingleClusterInformerManager(ctx, dynamicfake.NewSimpleDynamicClient(scheme.Scheme), 0)
+					return genericmanager.NewSingleClusterInformerManager(ctx, dynamicfake.NewSimpleDynamicClient(scheme.Scheme), 0, fedinformer.StripUnusedFields)
 				},
 				restMapper: func() meta.RESTMapper {
 					m := meta.NewDefaultRESTMapper([]schema.GroupVersion{corev1.SchemeGroupVersion})
@@ -1073,7 +1074,7 @@ func TestFetchWorkload(t *testing.T) {
 				informerManager: func(ctx context.Context) genericmanager.SingleClusterInformerManager {
 					c := dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 						&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default"}})
-					m := genericmanager.NewSingleClusterInformerManager(ctx, c, 0)
+					m := genericmanager.NewSingleClusterInformerManager(ctx, c, 0, fedinformer.StripUnusedFields)
 					m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
 					m.Start()
 					m.WaitForCacheSync()
@@ -1107,7 +1108,7 @@ func TestFetchWorkload(t *testing.T) {
 				dynamicClient: dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node"}}),
 				informerManager: func(ctx context.Context) genericmanager.SingleClusterInformerManager {
-					return genericmanager.NewSingleClusterInformerManager(ctx, dynamicfake.NewSimpleDynamicClient(scheme.Scheme), 0)
+					return genericmanager.NewSingleClusterInformerManager(ctx, dynamicfake.NewSimpleDynamicClient(scheme.Scheme), 0, fedinformer.StripUnusedFields)
 				},
 				restMapper: func() meta.RESTMapper {
 					m := meta.NewDefaultRESTMapper([]schema.GroupVersion{corev1.SchemeGroupVersion})
@@ -1136,7 +1137,7 @@ func TestFetchWorkload(t *testing.T) {
 				informerManager: func(ctx context.Context) genericmanager.SingleClusterInformerManager {
 					c := dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 						&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node"}})
-					m := genericmanager.NewSingleClusterInformerManager(ctx, c, 0)
+					m := genericmanager.NewSingleClusterInformerManager(ctx, c, 0, fedinformer.StripUnusedFields)
 					m.Lister(corev1.SchemeGroupVersion.WithResource("nodes"))
 					m.Start()
 					m.WaitForCacheSync()
@@ -1203,7 +1204,7 @@ func TestFetchWorkloadByLabelSelector(t *testing.T) {
 			args: args{
 				dynamicClient: dynamicfake.NewSimpleDynamicClient(scheme.Scheme),
 				informerManager: func(ctx context.Context) genericmanager.SingleClusterInformerManager {
-					return genericmanager.NewSingleClusterInformerManager(ctx, dynamicfake.NewSimpleDynamicClient(scheme.Scheme), 0)
+					return genericmanager.NewSingleClusterInformerManager(ctx, dynamicfake.NewSimpleDynamicClient(scheme.Scheme), 0, fedinformer.StripUnusedFields)
 				},
 				restMapper: meta.NewDefaultRESTMapper(nil),
 				resource:   workv1alpha2.ObjectReference{APIVersion: "v1", Kind: "Pod"},
@@ -1217,7 +1218,7 @@ func TestFetchWorkloadByLabelSelector(t *testing.T) {
 				dynamicClient: dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 					&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default", Labels: map[string]string{"foo": "foo"}}}),
 				informerManager: func(ctx context.Context) genericmanager.SingleClusterInformerManager {
-					return genericmanager.NewSingleClusterInformerManager(ctx, dynamicfake.NewSimpleDynamicClient(scheme.Scheme), 0)
+					return genericmanager.NewSingleClusterInformerManager(ctx, dynamicfake.NewSimpleDynamicClient(scheme.Scheme), 0, fedinformer.StripUnusedFields)
 				},
 				restMapper: func() meta.RESTMapper {
 					m := meta.NewDefaultRESTMapper([]schema.GroupVersion{corev1.SchemeGroupVersion})
@@ -1241,7 +1242,7 @@ func TestFetchWorkloadByLabelSelector(t *testing.T) {
 				informerManager: func(ctx context.Context) genericmanager.SingleClusterInformerManager {
 					c := dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 						&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default", Labels: map[string]string{"bar": "foo"}}})
-					m := genericmanager.NewSingleClusterInformerManager(ctx, c, 0)
+					m := genericmanager.NewSingleClusterInformerManager(ctx, c, 0, fedinformer.StripUnusedFields)
 					m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
 					m.Start()
 					m.WaitForCacheSync()
@@ -1269,7 +1270,7 @@ func TestFetchWorkloadByLabelSelector(t *testing.T) {
 				dynamicClient: dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node", Labels: map[string]string{"bar": "bar"}}}),
 				informerManager: func(ctx context.Context) genericmanager.SingleClusterInformerManager {
-					return genericmanager.NewSingleClusterInformerManager(ctx, dynamicfake.NewSimpleDynamicClient(scheme.Scheme), 0)
+					return genericmanager.NewSingleClusterInformerManager(ctx, dynamicfake.NewSimpleDynamicClient(scheme.Scheme), 0, fedinformer.StripUnusedFields)
 				},
 				restMapper: func() meta.RESTMapper {
 					m := meta.NewDefaultRESTMapper([]schema.GroupVersion{corev1.SchemeGroupVersion})
@@ -1293,7 +1294,7 @@ func TestFetchWorkloadByLabelSelector(t *testing.T) {
 				informerManager: func(ctx context.Context) genericmanager.SingleClusterInformerManager {
 					c := dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 						&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node", Labels: map[string]string{"bar": "foo"}}})
-					m := genericmanager.NewSingleClusterInformerManager(ctx, c, 0)
+					m := genericmanager.NewSingleClusterInformerManager(ctx, c, 0, fedinformer.StripUnusedFields)
 					m.Lister(corev1.SchemeGroupVersion.WithResource("nodes"))
 					m.Start()
 					m.WaitForCacheSync()

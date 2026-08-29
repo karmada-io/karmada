@@ -461,7 +461,7 @@ func startExecutionController(ctx controllerscontext.Context) (enabled bool, err
 		RESTMapper:           ctx.Mgr.GetRESTMapper(),
 		ObjectWatcher:        ctx.ObjectWatcher,
 		WorkPredicateFunc:    helper.WorkWithinPushClusterPredicate(ctx.Mgr),
-		InformerManager:      genericmanager.GetInstance(),
+		InformerManager:      genericmanager.NewMultiClusterInformerManager(ctx.Context, fedinformer.NewWorkMappingTransformFunc(ctx.Mgr.GetClient())),
 		RateLimiterOptions:   ctx.Opts.RateLimiterOptions,
 		ClusterClientSetFunc: util.NewClusterDynamicClientSet,
 		ClusterClientOption:  ctx.ClusterClientOption,
@@ -473,17 +473,16 @@ func startExecutionController(ctx controllerscontext.Context) (enabled bool, err
 }
 
 func startWorkStatusController(ctx controllerscontext.Context) (enabled bool, err error) {
-	opts := ctx.Opts
 	workStatusController := &status.WorkStatusController{
 		Client:                      ctx.Mgr.GetClient(),
 		EventRecorder:               ctx.Mgr.GetEventRecorderFor(status.WorkStatusControllerName), //nolint:staticcheck // Note: GetEventRecorderFor is deprecated in controller-runtime v0.23.0 in favor of GetEventRecorder. This changes event API from v1 events to events.k8s.io. We need to migrate carefully, especially considering the impact on users and RBAC permission changes in installation/deployment tools.
 		RESTMapper:                  ctx.Mgr.GetRESTMapper(),
-		InformerManager:             genericmanager.GetInstance(),
+		InformerManager:             genericmanager.NewMultiClusterInformerManager(ctx.Context, fedinformer.NewWorkMappingTransformFunc(ctx.Mgr.GetClient())),
 		Context:                     ctx.Context,
 		WorkPredicateFunc:           helper.WorkWithinPushClusterPredicate(ctx.Mgr),
 		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSet,
 		ClusterClientOption:         ctx.ClusterClientOption,
-		ConcurrentWorkStatusSyncs:   opts.ConcurrentWorkSyncs,
+		ConcurrentWorkStatusSyncs:   ctx.Opts.ConcurrentWorkSyncs,
 		RateLimiterOptions:          ctx.Opts.RateLimiterOptions,
 		ResourceInterpreter:         ctx.ResourceInterpreter,
 	}
@@ -853,7 +852,7 @@ func setupControllers(ctx context.Context, mgr controllerruntime.Manager, opts *
 		return
 	}
 
-	controlPlaneInformerManager := genericmanager.NewSingleClusterInformerManager(ctx, dynamicClientSet, opts.ResyncPeriod.Duration)
+	controlPlaneInformerManager := genericmanager.NewSingleClusterInformerManager(ctx, dynamicClientSet, opts.ResyncPeriod.Duration, fedinformer.StripUnusedFields)
 	// We need a service lister to build a resource interpreter with `ClusterIPServiceResolver`
 	// witch allows connection to the customized interpreter webhook without a cluster DNS service.
 	sharedFactory := informers.NewSharedInformerFactory(kubeClientSet, opts.ResyncPeriod.Duration)
@@ -969,7 +968,7 @@ func setupClusterAPIClusterDetector(ctx context.Context, mgr controllerruntime.M
 		ControllerPlaneConfig: mgr.GetConfig(),
 		ClusterAPIConfig:      clusterAPIRestConfig,
 		ClusterAPIClient:      clusterAPIClient,
-		InformerManager:       genericmanager.NewSingleClusterInformerManager(ctx, dynamic.NewForConfigOrDie(clusterAPIRestConfig), 0),
+		InformerManager:       genericmanager.NewSingleClusterInformerManager(ctx, dynamic.NewForConfigOrDie(clusterAPIRestConfig), 0, fedinformer.StripUnusedFields),
 		ConcurrentReconciles:  3,
 	}
 	if err := mgr.Add(clusterAPIClusterDetector); err != nil {

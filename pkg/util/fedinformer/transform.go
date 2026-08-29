@@ -17,13 +17,20 @@ limitations under the License.
 package fedinformer
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/tools/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
 
 // StripUnusedFields is the transform function for shared informers,
@@ -41,6 +48,28 @@ func StripUnusedFields(obj any) (any, error) {
 	// ManagedFields is large and we never use it
 	accessor.SetManagedFields(nil)
 	return obj, nil
+}
+
+// RetainMetadataFields keeps only type and object metadata on informer objects.
+func RetainMetadataFields(obj any) (any, error) {
+	if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+		obj = tombstone.Obj
+	}
+
+	unstructuredObj, ok := obj.(*unstructured.Unstructured)
+	if !ok {
+		return obj, nil
+	}
+	return metadataOnlyUnstructured(unstructuredObj), nil
+}
+
+func metadataOnlyUnstructured(obj *unstructured.Unstructured) *unstructured.Unstructured {
+	obj.Object = map[string]any{
+		"apiVersion": obj.GetAPIVersion(),
+		"kind":       obj.GetKind(),
+		"metadata":   obj.Object["metadata"],
+	}
+	return obj
 }
 
 // NodeTransformFunc is the dedicated transform function for Node objects.
@@ -117,4 +146,53 @@ func PodTransformFunc(obj any) (any, error) {
 		},
 	}
 	return aggregatedPod, nil
+}
+
+// NewWorkMappingTransformFunc keeps complete member-cluster objects only when
+// they are associated with an existing Work; unrelated objects retain metadata only.
+func NewWorkMappingTransformFunc(controlPlaneClient client.Reader) cache.TransformFunc {
+	return func(obj any) (any, error) {
+		if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+			obj = tombstone.Obj
+		}
+
+		accessor, err := meta.Accessor(obj)
+		if err != nil {
+			// shouldn't happen
+			return obj, nil
+		}
+		// ManagedFields is large and we never use it
+		accessor.SetManagedFields(nil)
+
+		mappedToWork, err := mapsToWork(controlPlaneClient, obj)
+		if err != nil {
+			return obj, err
+		}
+		if mappedToWork {
+			return obj, nil
+		}
+		return RetainMetadataFields(obj)
+	}
+}
+
+func mapsToWork(controlPlaneClient client.Reader, obj any) (bool, error) {
+	resource, err := meta.Accessor(obj)
+	if err != nil {
+		return false, nil
+	}
+	annotations := resource.GetAnnotations()
+	workNamespace, namespaceExists := annotations[workv1alpha2.WorkNamespaceAnnotation]
+	workName, nameExists := annotations[workv1alpha2.WorkNameAnnotation]
+	if !namespaceExists || !nameExists {
+		return false, nil
+	}
+
+	work := &workv1alpha1.Work{}
+	if err := controlPlaneClient.Get(context.Background(), client.ObjectKey{Namespace: workNamespace, Name: workName}, work); err != nil {
+		if !apierrors.IsNotFound(err) {
+			return false, err
+		}
+		return false, nil
+	}
+	return true, nil
 }
