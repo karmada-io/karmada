@@ -52,6 +52,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/default/native"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
@@ -354,7 +355,7 @@ func TestExecutionController_NewGVRInformerRequeuesWorkForMemberResourceChangedB
 		return false, nil, nil
 	})
 
-	informerManager := genericmanager.NewMultiClusterInformerManager(ctx)
+	informerManager := genericmanager.NewMultiClusterInformerManager(ctx, fedinformer.StripUnusedFields)
 	clusterClientSetFunc := func(string, client.Client, *util.ClientOption) (*util.DynamicClusterClient, error) {
 		return &util.DynamicClusterClient{
 			ClusterName:      clusterName,
@@ -449,7 +450,7 @@ func newController(work *workv1alpha1.Work, recorder *record.FakeRecorder) Contr
 		WithInterceptorFuncs(withGVKInterceptor(clientScheme)).
 		Build()
 	dynamicClientSet := dynamicfake.NewSimpleDynamicClient(scheme.Scheme, pod)
-	informerManager := genericmanager.NewMultiClusterInformerManager(context.Background())
+	informerManager := genericmanager.NewMultiClusterInformerManager(context.Background(), fedinformer.StripUnusedFields)
 	informerManager.ForCluster(cluster.Name, dynamicClientSet, 0).Lister(corev1.SchemeGroupVersion.WithResource("pods"))
 	informerManager.Start(cluster.Name)
 	informerManager.WaitForCacheSync(cluster.Name)

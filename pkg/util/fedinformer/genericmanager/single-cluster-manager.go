@@ -75,10 +75,11 @@ type SingleClusterInformerManager interface {
 
 // NewSingleClusterInformerManager constructs a new instance of singleClusterInformerManagerImpl.
 // defaultResync with value '0' means no re-sync.
-func NewSingleClusterInformerManager(ctx context.Context, client dynamic.Interface, defaultResync time.Duration) SingleClusterInformerManager {
+func NewSingleClusterInformerManager(ctx context.Context, client dynamic.Interface, defaultResync time.Duration, transformFunc cache.TransformFunc) SingleClusterInformerManager {
 	ctx, cancel := context.WithCancel(ctx)
 	return &singleClusterInformerManagerImpl{
 		informerFactory: dynamicinformer.NewDynamicSharedInformerFactory(client, defaultResync),
+		transformFunc:   transformFunc,
 		ctx:             ctx,
 		cancel:          cancel,
 		client:          client,
@@ -90,6 +91,11 @@ type singleClusterInformerManagerImpl struct {
 	cancel context.CancelFunc
 
 	informerFactory dynamicinformer.DynamicSharedInformerFactory
+
+	// transformFunc is applied to every newly created informer via SetTransform
+	// before the informer starts, mutating each object before it is stored in
+	// the cache (e.g. to strip unneeded fields and reduce memory usage).
+	transformFunc cache.TransformFunc
 
 	// initializedInformers caches the informers that have been created by the
 	// informer factory, used to avoid the lock contention in the informer factory
@@ -163,8 +169,7 @@ func (s *singleClusterInformerManagerImpl) appendHandler(resource schema.GroupVe
 	if currentHandlers, ok := s.handlers.Load(resource); ok {
 		handlers = currentHandlers.([]cache.ResourceEventHandler)
 	}
-	// Publish a new slice so concurrent lock-free readers never observe a slice being modified.
-	s.handlers.Store(resource, append(slices.Clone(handlers), handler))
+	s.handlers.Store(resource, append(handlers, handler))
 }
 
 // getOrCreateInformer returns the informer for the given resource, creating it
@@ -190,6 +195,15 @@ func (s *singleClusterInformerManagerImpl) createInformer(resource schema.GroupV
 	}
 
 	resourceInformer := s.informerFactory.ForResource(resource)
+	if s.transformFunc != nil {
+		// SetTransform returns an error only if the informer has already started.
+		// Since createInformer and Start are serialized by s.lock, the newly created informer
+		// cannot have started at this point, so the error is not expected here.
+		if err := resourceInformer.Informer().SetTransform(s.transformFunc); err != nil {
+			klog.ErrorS(err, "Failed to set transform", "resource", resource.String())
+			return resourceInformer
+		}
+	}
 	s.initializedInformers.Store(resource, resourceInformer)
 	return resourceInformer
 }
