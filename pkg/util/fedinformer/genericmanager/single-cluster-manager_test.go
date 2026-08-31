@@ -18,13 +18,19 @@ package genericmanager
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic/dynamicinformer"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
 )
@@ -35,11 +41,79 @@ var testResourceGVR = schema.GroupVersionResource{
 	Resource: "widgets",
 }
 
+func TestSingleClusterInformerManagerAppliesTransform(t *testing.T) {
+	tests := []struct {
+		name          string
+		observeObject func(t *testing.T, manager SingleClusterInformerManager) *unstructured.Unstructured
+	}{
+		{
+			name: "ForResource",
+			observeObject: func(t *testing.T, manager SingleClusterInformerManager) *unstructured.Unstructured {
+				observed := make(chan any, 1)
+				manager.ForResource(testResourceGVR, cache.ResourceEventHandlerFuncs{
+					AddFunc: func(obj any) {
+						observed <- obj
+					},
+				})
+				manager.Start()
+				waitForTestInformerSync(t, manager)
+
+				select {
+				case obj := <-observed:
+					resource, ok := obj.(*unstructured.Unstructured)
+					if !ok {
+						t.Fatalf("got object type %T, want *unstructured.Unstructured", obj)
+					}
+					return resource
+				case <-time.After(5 * time.Second):
+					t.Fatal("timed out waiting for informer add event")
+					return nil
+				}
+			},
+		},
+		{
+			name: "Lister",
+			observeObject: func(t *testing.T, manager SingleClusterInformerManager) *unstructured.Unstructured {
+				lister := manager.Lister(testResourceGVR)
+				if lister == nil {
+					t.Fatal("expected a lister")
+				}
+				manager.Start()
+				waitForTestInformerSync(t, manager)
+
+				obj, err := lister.ByNamespace("default").Get("widget")
+				if err != nil {
+					t.Fatalf("failed to get object from informer cache: %v", err)
+				}
+				resource, ok := obj.(*unstructured.Unstructured)
+				if !ok {
+					t.Fatalf("got object type %T, want *unstructured.Unstructured", obj)
+				}
+				return resource
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(
+				runtime.NewScheme(),
+				map[schema.GroupVersionResource]string{testResourceGVR: "WidgetList"},
+				newTransformTestObject(),
+			)
+			manager := NewSingleClusterInformerManager(t.Context(), client, 0, stripManagedFields)
+			t.Cleanup(manager.Stop)
+
+			assertTransformedTestObject(t, tt.observeObject(t, manager))
+		})
+	}
+}
+
 func TestSingleClusterInformerManagerCreateInformerRechecksInitializedInformer(t *testing.T) {
 	cachedInformer := newRecordingGenericInformer()
 	factoryInformer := newRecordingGenericInformer()
 	factory := &recordingDynamicInformerFactory{informer: factoryInformer}
-	manager := newTestSingleClusterInformerManager(t, factory)
+	manager := newTestSingleClusterInformerManager(t, factory, stripManagedFields)
 	manager.initializedInformers.Store(testResourceGVR, cachedInformer)
 
 	got := manager.createInformer(testResourceGVR)
@@ -49,12 +123,15 @@ func TestSingleClusterInformerManagerCreateInformerRechecksInitializedInformer(t
 	if got := factory.forResourceCalls.Load(); got != 0 {
 		t.Fatalf("factory.ForResource() called %d times, want 0", got)
 	}
+	if got := factoryInformer.informer.setTransformCalls.Load(); got != 0 {
+		t.Fatalf("SetTransform() called %d times, want 0", got)
+	}
 }
 
 func TestSingleClusterInformerManagerCachedLookupSkipsLock(t *testing.T) {
 	genericInformer := newRecordingGenericInformer()
 	factory := &recordingDynamicInformerFactory{informer: genericInformer}
-	manager := newTestSingleClusterInformerManager(t, factory)
+	manager := newTestSingleClusterInformerManager(t, factory, stripManagedFields)
 
 	got := manager.Lister(testResourceGVR)
 	if got != genericInformer.lister {
@@ -91,12 +168,15 @@ func TestSingleClusterInformerManagerCachedLookupSkipsLock(t *testing.T) {
 	if got := factory.forResourceCalls.Load(); got != 1 {
 		t.Fatalf("factory.ForResource() called %d times, want 1", got)
 	}
+	if got := genericInformer.informer.setTransformCalls.Load(); got != 1 {
+		t.Fatalf("SetTransform() called %d times, want 1", got)
+	}
 }
 
 func TestSingleClusterInformerManagerConcurrentHandlerRegistration(t *testing.T) {
 	genericInformer := newRecordingGenericInformer()
 	factory := &recordingDynamicInformerFactory{informer: genericInformer}
-	manager := newTestSingleClusterInformerManager(t, factory)
+	manager := newTestSingleClusterInformerManager(t, factory, nil)
 	handler := &testResourceEventHandler{}
 
 	const goroutines = 32
@@ -134,7 +214,7 @@ func TestSingleClusterInformerManagerConcurrentHandlerRegistration(t *testing.T)
 func TestSingleClusterInformerManagerSerializesInitializationWithStart(t *testing.T) {
 	genericInformer := newRecordingGenericInformer()
 	factory := &recordingDynamicInformerFactory{informer: genericInformer}
-	manager := newTestSingleClusterInformerManager(t, factory)
+	manager := newTestSingleClusterInformerManager(t, factory, stripManagedFields)
 
 	factoryEntered := make(chan struct{})
 	releaseFactory := make(chan struct{})
@@ -152,8 +232,17 @@ func TestSingleClusterInformerManagerSerializesInitializationWithStart(t *testin
 	genericInformer.onInformer = func() {
 		assertMutexHeld(t, &manager.lock, "GenericInformer.Informer")
 	}
+	var transformInstalled atomic.Bool
+	genericInformer.informer.onSetTransform = func() {
+		assertMutexHeld(t, &manager.lock, "SetTransform")
+		transformInstalled.Store(true)
+	}
+	var startBeforeTransform atomic.Bool
 	var startBeforeInformerPublished atomic.Bool
 	factory.onStart = func() {
+		if !transformInstalled.Load() {
+			startBeforeTransform.Store(true)
+		}
 		if _, exists := manager.initializedInformers.Load(testResourceGVR); !exists {
 			startBeforeInformerPublished.Store(true)
 		}
@@ -191,6 +280,9 @@ func TestSingleClusterInformerManagerSerializesInitializationWithStart(t *testin
 	if startReturnedBeforeInitialization {
 		t.Fatal("Start returned before informer initialization completed")
 	}
+	if startBeforeTransform.Load() {
+		t.Fatal("factory.Start() ran before SetTransform() completed")
+	}
 	if startBeforeInformerPublished.Load() {
 		t.Fatal("factory.Start() ran before the initialized informer was published")
 	}
@@ -201,7 +293,7 @@ func TestSingleClusterInformerManagerSerializesInitializationWithStart(t *testin
 
 func TestSingleClusterInformerManagerStartUsesLifecycleLock(t *testing.T) {
 	factory := &recordingDynamicInformerFactory{informer: newRecordingGenericInformer()}
-	manager := newTestSingleClusterInformerManager(t, factory)
+	manager := newTestSingleClusterInformerManager(t, factory, nil)
 	factory.onStart = func() {
 		assertMutexHeld(t, &manager.lock, "factory.Start")
 	}
@@ -213,9 +305,136 @@ func TestSingleClusterInformerManagerStartUsesLifecycleLock(t *testing.T) {
 	}
 }
 
+func TestSingleClusterInformerManagerPublishesInformerAfterTransform(t *testing.T) {
+	genericInformer := newRecordingGenericInformer()
+	factory := &recordingDynamicInformerFactory{informer: genericInformer}
+	manager := newTestSingleClusterInformerManager(t, factory, stripManagedFields)
+
+	transformEntered := make(chan struct{})
+	releaseTransform := make(chan struct{})
+	var releaseTransformOnce sync.Once
+	release := func() {
+		releaseTransformOnce.Do(func() { close(releaseTransform) })
+	}
+	t.Cleanup(release)
+	genericInformer.informer.onSetTransform = func() {
+		close(transformEntered)
+		<-releaseTransform
+	}
+
+	initializationDone := make(chan informers.GenericInformer, 1)
+	go func() {
+		initializationDone <- manager.getOrCreateInformer(testResourceGVR)
+	}()
+	waitForTestSignal(t, transformEntered, "SetTransform")
+
+	_, publishedBeforeTransform := manager.initializedInformers.Load(testResourceGVR)
+	release()
+	resourceInformer := waitForTestValue(t, initializationDone, "informer initialization")
+	if publishedBeforeTransform {
+		t.Fatal("informer was published before SetTransform() completed")
+	}
+	if resourceInformer != genericInformer {
+		t.Fatal("getOrCreateInformer() returned a different GenericInformer")
+	}
+	initializedInformer, exists := manager.initializedInformers.Load(testResourceGVR)
+	if !exists {
+		t.Fatal("informer was not published after SetTransform() completed")
+	}
+	if initializedInformer != genericInformer {
+		t.Fatal("initializedInformers contains a different GenericInformer")
+	}
+}
+
+func TestSingleClusterInformerManagerRetriesFailedTransformWithoutPublishing(t *testing.T) {
+	wantErr := errors.New("failed to install transform")
+	genericInformer := newRecordingGenericInformer()
+	genericInformer.informer.setTransformErr = wantErr
+	factory := &recordingDynamicInformerFactory{informer: genericInformer}
+	manager := newTestSingleClusterInformerManager(t, factory, stripManagedFields)
+
+	if resourceInformer := manager.getOrCreateInformer(testResourceGVR); resourceInformer != genericInformer {
+		t.Fatal("failed transform should still return the underlying GenericInformer")
+	}
+	if _, exists := manager.initializedInformers.Load(testResourceGVR); exists {
+		t.Fatal("failed transform must not publish an initialized informer")
+	}
+
+	if got := manager.Lister(testResourceGVR); got != genericInformer.lister {
+		t.Fatal("Lister() should preserve access to the underlying informer after a transform failure")
+	}
+	handler := &testResourceEventHandler{}
+	manager.ForResource(testResourceGVR, handler)
+	if !manager.IsHandlerExist(testResourceGVR, handler) {
+		t.Fatal("ForResource() should still register the handler after a transform failure")
+	}
+	if got := factory.forResourceCalls.Load(); got != 3 {
+		t.Fatalf("factory.ForResource() called %d times, want 3", got)
+	}
+	if got := genericInformer.informer.setTransformCalls.Load(); got != 3 {
+		t.Fatalf("SetTransform() called %d times, want 3", got)
+	}
+	if got := genericInformer.informer.addEventHandlerCalls.Load(); got != 1 {
+		t.Fatalf("AddEventHandler() called %d times, want 1", got)
+	}
+	if _, exists := manager.initializedInformers.Load(testResourceGVR); exists {
+		t.Fatal("failed transform must not publish an initialized informer after retries")
+	}
+}
+
+func newTransformTestObject() *unstructured.Unstructured {
+	obj := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "example.io/v1",
+		"kind":       "Widget",
+		"metadata": map[string]any{
+			"namespace": "default",
+			"name":      "widget",
+		},
+		"spec":   map[string]any{"value": "keep-spec"},
+		"status": map[string]any{"value": "keep-status"},
+	}}
+	obj.SetManagedFields([]metav1.ManagedFieldsEntry{{
+		Manager:    "test-manager",
+		Operation:  metav1.ManagedFieldsOperationUpdate,
+		APIVersion: "example.io/v1",
+		FieldsType: "FieldsV1",
+	}})
+	return obj
+}
+
+func stripManagedFields(obj any) (any, error) {
+	accessor, err := meta.Accessor(obj)
+	if err != nil {
+		return nil, err
+	}
+	accessor.SetManagedFields(nil)
+	return obj, nil
+}
+
+func assertTransformedTestObject(t *testing.T, obj *unstructured.Unstructured) {
+	t.Helper()
+	if len(obj.GetManagedFields()) != 0 {
+		t.Fatalf("managedFields were not stripped: %v", obj.GetManagedFields())
+	}
+	if got, _, _ := unstructured.NestedString(obj.Object, "spec", "value"); got != "keep-spec" {
+		t.Fatalf("spec value = %q, want %q", got, "keep-spec")
+	}
+	if got, _, _ := unstructured.NestedString(obj.Object, "status", "value"); got != "keep-status" {
+		t.Fatalf("status value = %q, want %q", got, "keep-status")
+	}
+}
+
+func waitForTestInformerSync(t *testing.T, manager SingleClusterInformerManager) {
+	t.Helper()
+	if synced := manager.WaitForCacheSyncWithTimeout(5 * time.Second); !synced[testResourceGVR] {
+		t.Fatalf("informer failed to sync: %v", synced)
+	}
+}
+
 func newTestSingleClusterInformerManager(
 	t *testing.T,
 	factory dynamicinformer.DynamicSharedInformerFactory,
+	transform cache.TransformFunc,
 ) *singleClusterInformerManagerImpl {
 	t.Helper()
 	ctx, cancel := context.WithCancel(t.Context())
@@ -224,6 +443,7 @@ func newTestSingleClusterInformerManager(
 		ctx:             ctx,
 		cancel:          cancel,
 		informerFactory: factory,
+		transformFunc:   transform,
 	}
 }
 
@@ -286,7 +506,10 @@ func (i *recordingGenericInformer) Lister() cache.GenericLister {
 type recordingSharedIndexInformer struct {
 	cache.SharedIndexInformer
 
+	setTransformCalls    atomic.Int64
 	addEventHandlerCalls atomic.Int64
+	setTransformErr      error
+	onSetTransform       func()
 }
 
 type testResourceEventHandler struct{}
@@ -294,6 +517,14 @@ type testResourceEventHandler struct{}
 func (*testResourceEventHandler) OnAdd(_ any, _ bool) {}
 func (*testResourceEventHandler) OnUpdate(_, _ any)   {}
 func (*testResourceEventHandler) OnDelete(_ any)      {}
+
+func (i *recordingSharedIndexInformer) SetTransform(_ cache.TransformFunc) error {
+	i.setTransformCalls.Add(1)
+	if i.onSetTransform != nil {
+		i.onSetTransform()
+	}
+	return i.setTransformErr
+}
 
 func (i *recordingSharedIndexInformer) AddEventHandler(_ cache.ResourceEventHandler) (cache.ResourceEventHandlerRegistration, error) {
 	i.addEventHandlerCalls.Add(1)
