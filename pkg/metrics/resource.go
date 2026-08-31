@@ -73,7 +73,7 @@ var (
 
 	createResourceWhenSyncWork = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: createResourceToCluster,
-		Help: "Number of creation operations against a target member cluster. The 'result' label indicates outcome ('success' or 'error'), 'recreate' indicates whether the operation is recreated (true/false). Labels 'apiversion', 'kind', and 'member_cluster' specify the resource type, API version, and target cluster respectively.",
+		Help: "Number of creation operations against a target member cluster. The 'result' label indicates outcome ('success' or 'error'), 'recreate' indicates whether the operation is recreated (true/false); the 'recreate' label is deprecated since v1.19, always reports 'false' now that resource recreation is handled through the execution controller's normal reconciliation path, and will be removed in a future release. Labels 'apiversion', 'kind', and 'member_cluster' specify the resource type, API version, and target cluster respectively.",
 	}, []string{"result", "apiversion", "kind", memberClusterLabel, "recreate"})
 
 	updateResourceWhenSyncWork = prometheus.NewCounterVec(prometheus.CounterOpts{
