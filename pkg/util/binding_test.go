@@ -278,6 +278,24 @@ func TestIsBindingReplicasChanged(t *testing.T) {
 			expected: true,
 		},
 		{
+			name: "mixed multi-component scale should trigger rescheduling",
+			bindingSpec: &workv1alpha2.ResourceBindingSpec{
+				Components: []workv1alpha2.Component{
+					{Name: "jobmanager", Replicas: 2},
+					{Name: "taskmanager", Replicas: 4},
+				},
+				Clusters: []workv1alpha2.TargetCluster{{
+					Name: ClusterMember1,
+					Components: []workv1alpha2.TargetComponent{
+						{Name: "jobmanager", Replicas: 1},
+						{Name: "taskmanager", Replicas: 6},
+					},
+				}},
+			},
+			strategy: &policyv1alpha1.ReplicaSchedulingStrategy{ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDivided},
+			expected: true,
+		},
+		{
 			name: "equal multi-component replicas should not trigger rescheduling",
 			bindingSpec: &workv1alpha2.ResourceBindingSpec{
 				Components: []workv1alpha2.Component{
@@ -296,7 +314,7 @@ func TestIsBindingReplicasChanged(t *testing.T) {
 			expected: false,
 		},
 		{
-			name: "missing accepted component snapshot should not trigger scale rescheduling",
+			name: "missing scheduled component snapshot should not trigger scale rescheduling",
 			bindingSpec: &workv1alpha2.ResourceBindingSpec{
 				Components: []workv1alpha2.Component{
 					{Name: "jobmanager", Replicas: 1},
@@ -313,6 +331,25 @@ func TestIsBindingReplicasChanged(t *testing.T) {
 				Components: []workv1alpha2.Component{
 					{Name: "jobmanager", Replicas: 2},
 					{Name: "worker", Replicas: 4},
+				},
+				Clusters: []workv1alpha2.TargetCluster{{
+					Name: ClusterMember1,
+					Components: []workv1alpha2.TargetComponent{
+						{Name: "jobmanager", Replicas: 1},
+						{Name: "taskmanager", Replicas: 4},
+					},
+				}},
+			},
+			strategy: &policyv1alpha1.ReplicaSchedulingStrategy{ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDivided},
+			expected: false,
+		},
+		{
+			name: "component count change should not trigger replica scale rescheduling",
+			bindingSpec: &workv1alpha2.ResourceBindingSpec{
+				Components: []workv1alpha2.Component{
+					{Name: "jobmanager", Replicas: 1},
+					{Name: "taskmanager", Replicas: 4},
+					{Name: "sidecar", Replicas: 1},
 				},
 				Clusters: []workv1alpha2.TargetCluster{{
 					Name: ClusterMember1,
@@ -357,48 +394,94 @@ func TestIsBindingReplicasChanged(t *testing.T) {
 	}
 }
 
-func TestComponentReplicasEqual(t *testing.T) {
+func TestClassifyComponentScale(t *testing.T) {
 	tests := []struct {
-		name       string
-		desired    []workv1alpha2.Component
-		accepted   []workv1alpha2.TargetComponent
-		equal      bool
-		comparable bool
+		name      string
+		desired   []workv1alpha2.Component
+		scheduled []workv1alpha2.TargetComponent
+		want      ComponentScale
 	}{
 		{
-			name:       "equal snapshots ignore order",
-			desired:    []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
-			accepted:   []workv1alpha2.TargetComponent{{Name: "taskmanager", Replicas: 4}, {Name: "jobmanager", Replicas: 1}},
-			equal:      true,
-			comparable: true,
+			name:      "equal snapshots ignore order",
+			desired:   []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
+			scheduled: []workv1alpha2.TargetComponent{{Name: "taskmanager", Replicas: 4}, {Name: "jobmanager", Replicas: 1}},
+			want:      ComponentScaleNone,
 		},
 		{
-			name:       "replicas changed",
-			desired:    []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 6}},
-			accepted:   []workv1alpha2.TargetComponent{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
-			comparable: true,
+			name:      "pure scale up",
+			desired:   []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 6}},
+			scheduled: []workv1alpha2.TargetComponent{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
+			want:      ComponentScaleUp,
 		},
 		{
-			name:    "accepted snapshot missing",
+			name:      "all components scale up",
+			desired:   []workv1alpha2.Component{{Name: "jobmanager", Replicas: 2}, {Name: "taskmanager", Replicas: 6}},
+			scheduled: []workv1alpha2.TargetComponent{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
+			want:      ComponentScaleUp,
+		},
+		{
+			name:      "pure scale down",
+			desired:   []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 2}},
+			scheduled: []workv1alpha2.TargetComponent{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
+			want:      ComponentScaleDown,
+		},
+		{
+			name:      "mixed scale",
+			desired:   []workv1alpha2.Component{{Name: "jobmanager", Replicas: 2}, {Name: "taskmanager", Replicas: 2}},
+			scheduled: []workv1alpha2.TargetComponent{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
+			want:      ComponentScaleMixed,
+		},
+		{
+			name:    "scheduled snapshot missing",
 			desired: []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}},
+			want:    ComponentScaleUnknown,
 		},
 		{
-			name:     "component names differ",
-			desired:  []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
-			accepted: []workv1alpha2.TargetComponent{{Name: "jobmanager", Replicas: 1}, {Name: "worker", Replicas: 4}},
+			name:      "component counts differ",
+			desired:   []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
+			scheduled: []workv1alpha2.TargetComponent{{Name: "jobmanager", Replicas: 1}},
+			want:      ComponentScaleUnknown,
 		},
 		{
-			name:     "accepted names duplicated",
-			desired:  []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
-			accepted: []workv1alpha2.TargetComponent{{Name: "jobmanager", Replicas: 1}, {Name: "jobmanager", Replicas: 4}},
+			name:      "component names differ",
+			desired:   []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
+			scheduled: []workv1alpha2.TargetComponent{{Name: "jobmanager", Replicas: 1}, {Name: "worker", Replicas: 4}},
+			want:      ComponentScaleUnknown,
+		},
+		{
+			name:      "scheduled names duplicated",
+			desired:   []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
+			scheduled: []workv1alpha2.TargetComponent{{Name: "jobmanager", Replicas: 1}, {Name: "jobmanager", Replicas: 4}},
+			want:      ComponentScaleUnknown,
+		},
+		{
+			name:      "desired names duplicated",
+			desired:   []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "jobmanager", Replicas: 4}},
+			scheduled: []workv1alpha2.TargetComponent{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
+			want:      ComponentScaleUnknown,
+		},
+		{
+			name:      "desired name empty",
+			desired:   []workv1alpha2.Component{{Name: "", Replicas: 1}},
+			scheduled: []workv1alpha2.TargetComponent{{Name: "jobmanager", Replicas: 1}},
+			want:      ComponentScaleUnknown,
+		},
+		{
+			name:      "scheduled name empty",
+			desired:   []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}},
+			scheduled: []workv1alpha2.TargetComponent{{Name: "", Replicas: 1}},
+			want:      ComponentScaleUnknown,
+		},
+		{
+			name: "empty snapshots",
+			want: ComponentScaleUnknown,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			equal, comparable := ComponentReplicasEqual(tt.desired, tt.accepted)
-			if equal != tt.equal || comparable != tt.comparable {
-				t.Fatalf("ComponentReplicasEqual() = (%t, %t), want (%t, %t)", equal, comparable, tt.equal, tt.comparable)
+			if got := ClassifyComponentScale(tt.desired, tt.scheduled); got != tt.want {
+				t.Fatalf("ClassifyComponentScale() = %v, want %v", got, tt.want)
 			}
 		})
 	}

@@ -34,21 +34,37 @@ func GetBindingClusterNames(spec *workv1alpha2.ResourceBindingSpec) []string {
 	return clusterNames
 }
 
-// IsBindingReplicasChanged reports whether the desired scalar or per-component replicas differ from the accepted result.
+// ComponentScale describes how desired component replicas differ from the scheduled result.
+type ComponentScale int
+
+const (
+	// ComponentScaleUnknown indicates that the desired and scheduled snapshots cannot be compared safely.
+	ComponentScaleUnknown ComponentScale = iota
+	// ComponentScaleNone indicates that all component replicas are unchanged.
+	ComponentScaleNone
+	// ComponentScaleUp indicates that at least one component scaled up and none scaled down.
+	ComponentScaleUp
+	// ComponentScaleDown indicates that at least one component scaled down and none scaled up.
+	ComponentScaleDown
+	// ComponentScaleMixed indicates that some components scaled up while others scaled down.
+	ComponentScaleMixed
+)
+
+// IsBindingReplicasChanged reports whether the desired replicas differ from the scheduled result.
 func IsBindingReplicasChanged(bindingSpec *workv1alpha2.ResourceBindingSpec, strategy *policyv1alpha1.ReplicaSchedulingStrategy) bool {
 	if strategy == nil {
 		return false
 	}
 
 	// Component-based workloads also need rescheduling after eviction. For multi-component workloads,
-	// compare the desired replicas with the component snapshot accepted by the scheduler.
+	// classify the desired replicas against the component snapshot produced by the scheduler.
 	if features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) && len(bindingSpec.Components) > 0 {
 		if len(bindingSpec.Clusters) == 0 {
 			return true
 		}
 		if len(bindingSpec.Components) > 1 && len(bindingSpec.Clusters) == 1 {
-			equal, comparable := ComponentReplicasEqual(bindingSpec.Components, bindingSpec.Clusters[0].Components)
-			if comparable && !equal {
+			scale := ClassifyComponentScale(bindingSpec.Components, bindingSpec.Clusters[0].Components)
+			if scale == ComponentScaleUp || scale == ComponentScaleDown || scale == ComponentScaleMixed {
 				return true
 			}
 		}
@@ -69,44 +85,64 @@ func IsBindingReplicasChanged(bindingSpec *workv1alpha2.ResourceBindingSpec, str
 	return false
 }
 
-// ComponentReplicasEqual compares desired component replicas with an accepted snapshot by name.
-// The second return value reports whether both snapshots are complete and comparable.
-func ComponentReplicasEqual(desired []workv1alpha2.Component, accepted []workv1alpha2.TargetComponent) (bool, bool) {
-	if len(accepted) == 0 || len(desired) != len(accepted) {
-		return false, false
+// ClassifyComponentScale compares desired component replicas with the scheduled result by name.
+func ClassifyComponentScale(desired []workv1alpha2.Component, scheduled []workv1alpha2.TargetComponent) ComponentScale {
+	if len(desired) == 0 || len(desired) != len(scheduled) {
+		return ComponentScaleUnknown
 	}
 
-	acceptedReplicas := make(map[string]int32, len(accepted))
-	for i := range accepted {
-		if accepted[i].Name == "" {
-			return false, false
-		}
-		if _, exists := acceptedReplicas[accepted[i].Name]; exists {
-			return false, false
-		}
-		acceptedReplicas[accepted[i].Name] = accepted[i].Replicas
+	scheduledReplicas, valid := scheduledComponentReplicas(scheduled)
+	if !valid {
+		return ComponentScaleUnknown
 	}
 
 	seen := make(map[string]struct{}, len(desired))
-	changed := false
+	var scaleUp, scaleDown bool
 	for i := range desired {
 		if desired[i].Name == "" {
-			return false, false
+			return ComponentScaleUnknown
 		}
 		if _, exists := seen[desired[i].Name]; exists {
-			return false, false
+			return ComponentScaleUnknown
 		}
 		seen[desired[i].Name] = struct{}{}
 
-		replicas, exists := acceptedReplicas[desired[i].Name]
+		replicas, exists := scheduledReplicas[desired[i].Name]
 		if !exists {
-			return false, false
+			return ComponentScaleUnknown
 		}
-		if desired[i].Replicas != replicas {
-			changed = true
+		switch {
+		case desired[i].Replicas > replicas:
+			scaleUp = true
+		case desired[i].Replicas < replicas:
+			scaleDown = true
 		}
 	}
-	return !changed, true
+
+	switch {
+	case scaleUp && scaleDown:
+		return ComponentScaleMixed
+	case scaleUp:
+		return ComponentScaleUp
+	case scaleDown:
+		return ComponentScaleDown
+	default:
+		return ComponentScaleNone
+	}
+}
+
+func scheduledComponentReplicas(scheduled []workv1alpha2.TargetComponent) (replicasByName map[string]int32, valid bool) {
+	replicasByName = make(map[string]int32, len(scheduled))
+	for i := range scheduled {
+		if scheduled[i].Name == "" {
+			return nil, false
+		}
+		if _, exists := replicasByName[scheduled[i].Name]; exists {
+			return nil, false
+		}
+		replicasByName[scheduled[i].Name] = scheduled[i].Replicas
+	}
+	return replicasByName, true
 }
 
 // GetSumOfReplicas will get the sum of replicas in target clusters
