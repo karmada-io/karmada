@@ -86,27 +86,19 @@ func IsBindingReplicasChanged(bindingSpec *workv1alpha2.ResourceBindingSpec, str
 }
 
 // ClassifyComponentScale compares desired component replicas with the scheduled result by name.
+// Desired component names are expected to be non-empty and unique, as enforced by admission.
 func ClassifyComponentScale(desired []workv1alpha2.Component, scheduled []workv1alpha2.TargetComponent) ComponentScale {
 	if len(desired) == 0 || len(desired) != len(scheduled) {
 		return ComponentScaleUnknown
 	}
 
-	scheduledReplicas, valid := scheduledComponentReplicas(scheduled)
-	if !valid {
-		return ComponentScaleUnknown
+	scheduledReplicas := make(map[string]int32, len(scheduled))
+	for i := range scheduled {
+		scheduledReplicas[scheduled[i].Name] = scheduled[i].Replicas
 	}
 
-	seen := make(map[string]struct{}, len(desired))
 	var scaleUp, scaleDown bool
 	for i := range desired {
-		if desired[i].Name == "" {
-			return ComponentScaleUnknown
-		}
-		if _, exists := seen[desired[i].Name]; exists {
-			return ComponentScaleUnknown
-		}
-		seen[desired[i].Name] = struct{}{}
-
 		replicas, exists := scheduledReplicas[desired[i].Name]
 		if !exists {
 			return ComponentScaleUnknown
@@ -129,20 +121,6 @@ func ClassifyComponentScale(desired []workv1alpha2.Component, scheduled []workv1
 	default:
 		return ComponentScaleNone
 	}
-}
-
-func scheduledComponentReplicas(scheduled []workv1alpha2.TargetComponent) (replicasByName map[string]int32, valid bool) {
-	replicasByName = make(map[string]int32, len(scheduled))
-	for i := range scheduled {
-		if scheduled[i].Name == "" {
-			return nil, false
-		}
-		if _, exists := replicasByName[scheduled[i].Name]; exists {
-			return nil, false
-		}
-		replicasByName[scheduled[i].Name] = scheduled[i].Replicas
-	}
-	return replicasByName, true
 }
 
 // GetSumOfReplicas will get the sum of replicas in target clusters

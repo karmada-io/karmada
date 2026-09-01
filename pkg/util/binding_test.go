@@ -455,18 +455,6 @@ func TestClassifyComponentScale(t *testing.T) {
 			want:      ComponentScaleUnknown,
 		},
 		{
-			name:      "desired names duplicated",
-			desired:   []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "jobmanager", Replicas: 4}},
-			scheduled: []workv1alpha2.TargetComponent{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
-			want:      ComponentScaleUnknown,
-		},
-		{
-			name:      "desired name empty",
-			desired:   []workv1alpha2.Component{{Name: "", Replicas: 1}},
-			scheduled: []workv1alpha2.TargetComponent{{Name: "jobmanager", Replicas: 1}},
-			want:      ComponentScaleUnknown,
-		},
-		{
 			name:      "scheduled name empty",
 			desired:   []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}},
 			scheduled: []workv1alpha2.TargetComponent{{Name: "", Replicas: 1}},
