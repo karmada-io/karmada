@@ -30,11 +30,12 @@ type ModifyOptions func(option *Options)
 // New an Options with default parameters
 func New(modifyOptions ModifyOptions) Options {
 	option := Options{
-		SkippedPropagatingAPIs:       "cluster.karmada.io;policy.karmada.io;work.karmada.io",
-		ClusterStatusUpdateFrequency: metav1.Duration{Duration: 10 * time.Second},
-		ClusterMonitorPeriod:         metav1.Duration{Duration: 10 * time.Second},
-		ClusterMonitorGracePeriod:    metav1.Duration{Duration: 10 * time.Second},
-		ClusterStartupGracePeriod:    metav1.Duration{Duration: 10 * time.Second},
+		SkippedPropagatingAPIs:         "cluster.karmada.io;policy.karmada.io;work.karmada.io",
+		ClusterStatusUpdateFrequency:   metav1.Duration{Duration: 10 * time.Second},
+		ClusterMonitorPeriod:           metav1.Duration{Duration: 10 * time.Second},
+		ClusterMonitorGracePeriod:      metav1.Duration{Duration: 10 * time.Second},
+		ClusterStartupGracePeriod:      metav1.Duration{Duration: 10 * time.Second},
+		ConcurrentBindingEvictionSyncs: 5,
 		FederatedResourceQuotaOptions: FederatedResourceQuotaOptions{
 			ResourceQuotaSyncPeriod: metav1.Duration{
 				Duration: 10 * time.Second,
@@ -93,6 +94,12 @@ func TestValidateControllerManagerConfiguration(t *testing.T) {
 				options.ClusterStartupGracePeriod.Duration = 0 * time.Second
 			}),
 			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("ClusterStartupGracePeriod"), metav1.Duration{Duration: 0 * time.Second}, "must be greater than 0")},
+		},
+		"invalid ConcurrentBindingEvictionSyncs": {
+			opt: New(func(options *Options) {
+				options.ConcurrentBindingEvictionSyncs = 0
+			}),
+			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("ConcurrentBindingEvictionSyncs"), 0, "must be greater than 0")},
 		},
 		"invalid ClusterFailoverOptions": {
 			opt: New(func(options *Options) {
