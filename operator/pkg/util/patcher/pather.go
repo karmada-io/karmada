@@ -150,26 +150,28 @@ func (p *Patcher) ForDeployment(deployment *appsv1.Deployment) {
 	if len(p.extraArgs) != 0 || len(p.featureGates) != 0 {
 		// It's considered the first container is the karmada component by default.
 		baseArguments := deployment.Spec.Template.Spec.Containers[0].Command
-		argsMap := parseArgumentListToMap(baseArguments)
+		if len(baseArguments) != 0 {
+			argsMap := parseArgumentListToMap(baseArguments)
 
-		overrideArgs := map[string]string{}
+			overrideArgs := map[string]string{}
 
-		// merge featureGates and build to an argument.
-		if len(p.featureGates) != 0 {
-			baseFeatureGates := map[string]bool{}
+			// merge featureGates and build to an argument.
+			if len(p.featureGates) != 0 {
+				baseFeatureGates := map[string]bool{}
 
-			if argument, ok := argsMap["feature-gates"]; ok {
-				baseFeatureGates = parseFeatrueGatesArgumentToMap(argument)
+				if argument, ok := argsMap["feature-gates"]; ok {
+					baseFeatureGates = parseFeatrueGatesArgumentToMap(argument)
+				}
+				overrideArgs["feature-gates"] = buildFeatureGatesArgumentFromMap(baseFeatureGates, p.featureGates)
 			}
-			overrideArgs["feature-gates"] = buildFeatureGatesArgumentFromMap(baseFeatureGates, p.featureGates)
+
+			maps.Copy(overrideArgs, p.extraArgs)
+
+			// the first argument is most often the binary name
+			command := []string{baseArguments[0]}
+			command = append(command, buildArgumentListFromMap(argsMap, overrideArgs)...)
+			deployment.Spec.Template.Spec.Containers[0].Command = command
 		}
-
-		maps.Copy(overrideArgs, p.extraArgs)
-
-		// the first argument is most often the binary name
-		command := []string{baseArguments[0]}
-		command = append(command, buildArgumentListFromMap(argsMap, overrideArgs)...)
-		deployment.Spec.Template.Spec.Containers[0].Command = command
 	}
 	deployment.Spec.Template.Spec.Containers = append(deployment.Spec.Template.Spec.Containers, p.sidecarContainers...)
 	// Add extra volumes and volume mounts
