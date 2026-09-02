@@ -17,7 +17,7 @@ spec:
   groupPriorityMinimum: 2000
   service:
     name: {{ $name }}-aggregated-apiserver
-    namespace: {{ $systemNamespace }}
+    namespace: {{ include "karmada.namespace" . }}
   version: v1alpha1
   versionPriority: 10
 ---
@@ -48,7 +48,7 @@ spec:
   groupPriorityMinimum: 100
   service:
     name: {{ $name }}-metrics-adapter
-    namespace: {{ $systemNamespace }}
+    namespace: {{ include "karmada.namespace" . }}
   version: v1beta1
   versionPriority: 200
 ---
@@ -65,7 +65,7 @@ spec:
   groupPriorityMinimum: 100
   service:
     name: {{ $name }}-metrics-adapter
-    namespace: {{ $systemNamespace }}
+    namespace: {{ include "karmada.namespace" . }}
   version: v1beta2
   versionPriority: 200
 ---
@@ -82,7 +82,7 @@ spec:
   groupPriorityMinimum: 100
   service:
     name: {{ $name }}-metrics-adapter
-    namespace: {{ $systemNamespace }}
+    namespace: {{ include "karmada.namespace" . }}
   version: v1beta1
   versionPriority: 200
 ---
@@ -111,7 +111,7 @@ spec:
   groupPriorityMinimum: 2000
   service:
     name: {{ $name }}-search
-    namespace: {{ $systemNamespace }}
+    namespace: {{ include "karmada.namespace" . }}
   version: v1alpha1
   versionPriority: 10
 ---
