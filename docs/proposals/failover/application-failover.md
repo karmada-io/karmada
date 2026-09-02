@@ -107,6 +107,8 @@ The previous configurations(yamls) could be applied to the new version of Karmad
 
 ## Design Details
 
+![application-failover](statics/application-failover.png)
+
 Users are able to define the behavior of failover by defining policies.
 The configuration of failover behavior includes:
 
