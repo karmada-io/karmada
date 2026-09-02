@@ -33,7 +33,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/rand"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -242,7 +241,6 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 		})
 
 		ginkgo.It("NodePort service apply status collection testing", func() {
-			nodePorts := sets.NewInt32()
 			// collect the NodePort of the service in member clusters.
 			ginkgo.By("Update service status in member clusters", func() {
 
@@ -253,14 +251,11 @@ var _ = ginkgo.Describe("[resource-status collection] resource status collection
 						memberSvc, err := clusterClient.CoreV1().Services(serviceNamespace).Get(context.TODO(), serviceName, metav1.GetOptions{})
 						g.Expect(err).NotTo(gomega.HaveOccurred())
 						for _, servicePort := range memberSvc.Spec.Ports {
-							nodePorts.Insert(servicePort.NodePort)
+							g.Expect(servicePort.NodePort).To(gomega.BeNumerically(">", 0))
 						}
 					}, pollTimeout, pollInterval).Should(gomega.Succeed())
 				}
-				// check service nodePort
-				gomega.Expect(nodePorts.Len() == 1).Should(gomega.BeTrue())
 			})
-			klog.Infof("svcNodePort: %v", nodePorts.List()[0])
 
 			ginkgo.By("check service ResourceBindings apply status ", func() {
 				gomega.Eventually(func(g gomega.Gomega) (metav1.ConditionStatus, error) {

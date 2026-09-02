@@ -114,6 +114,104 @@ func TestRemoveIrrelevantField(t *testing.T) {
 			},
 		},
 		{
+			name: "remove service nodePort from spec.ports[*] with multiple ports",
+			workload: &unstructured.Unstructured{
+				Object: map[string]any{
+					"kind": util.ServiceKind,
+					"spec": map[string]any{
+						"type":       "NodePort",
+						"clusterIP":  "10.10.10.10",
+						"clusterIPs": []string{"10.10.10.10"},
+						"ports": []any{
+							map[string]any{
+								"name":       "http",
+								"protocol":   "TCP",
+								"port":       int64(80),
+								"targetPort": int64(80),
+								"nodePort":   int64(32410),
+							},
+							map[string]any{
+								"name":       "https",
+								"protocol":   "TCP",
+								"port":       int64(443),
+								"targetPort": int64(443),
+								"nodePort":   int64(32412),
+							},
+						},
+					},
+				},
+			},
+			unexpectedFields: []field{
+				{"spec", "ports"},
+			},
+			unexpectedResource: "nodePort",
+			shouldNotRemoveFields: []field{
+				{"spec", "ports"},
+			},
+			shouldNotRemoveResource: "name",
+			containsFunc:            portContainsField,
+		},
+		{
+			name: "remove service nodePort from spec.ports[*] with single port",
+			workload: &unstructured.Unstructured{
+				Object: map[string]any{
+					"kind": util.ServiceKind,
+					"spec": map[string]any{
+						"type":       "NodePort",
+						"clusterIP":  "10.10.10.10",
+						"clusterIPs": []string{"10.10.10.10"},
+						"ports": []any{
+							map[string]any{
+								"name":       "http",
+								"protocol":   "TCP",
+								"port":       int64(80),
+								"targetPort": int64(80),
+								"nodePort":   int64(30080),
+							},
+						},
+					},
+				},
+			},
+			unexpectedFields: []field{
+				{"spec", "ports"},
+			},
+			unexpectedResource: "nodePort",
+			shouldNotRemoveFields: []field{
+				{"spec", "ports"},
+			},
+			shouldNotRemoveResource: "name",
+			containsFunc:            portContainsField,
+		},
+		{
+			name: "headless service preserved when stripping nodePort",
+			workload: &unstructured.Unstructured{
+				Object: map[string]any{
+					"kind": util.ServiceKind,
+					"spec": map[string]any{
+						"type":      "ClusterIP",
+						"clusterIP": "None",
+						"ports": []any{
+							map[string]any{
+								"name":       "http",
+								"protocol":   "TCP",
+								"port":       int64(80),
+								"targetPort": int64(80),
+							},
+						},
+					},
+				},
+			},
+			unexpectedFields: []field{
+				{"spec", "ports"},
+			},
+			unexpectedResource: "nodePort",
+			shouldNotRemoveFields: []field{
+				{"spec", "ports"},
+			},
+			shouldNotRemoveResource: "name",
+			containsFunc:            portContainsField,
+		},
+		{
 			name: "remove job irrelevant fields",
 			workload: &unstructured.Unstructured{
 				Object: map[string]any{
@@ -173,16 +271,7 @@ func TestRemoveIrrelevantField(t *testing.T) {
 			unexpectedResource:      "foo-token-6pgxf",
 			shouldNotRemoveFields:   []field{{"secrets"}},
 			shouldNotRemoveResource: "foo-dockercfg-zdr2j",
-			containsFunc: func(obj any, resource string) bool {
-				maps, _ := obj.([]any)
-
-				for _, m := range maps {
-					if m.(map[string]any)["name"] == resource {
-						return true
-					}
-				}
-				return false
-			},
+			containsFunc:            namedEntryContains,
 		},
 		{
 			name: "remove service-account token secret irrelevant fields",
@@ -332,4 +421,34 @@ func getShouldNotRemoveFields(t *test) ([]field, error) {
 		}
 	}
 	return shouldNotRemoveFields, nil
+}
+
+// portContainsField reports whether obj is a slice of port-maps and at least
+// one of them has the given resource as a key. Used by the Service nodePort
+// cases to check that a field was (or was not) stripped from spec.ports[*].
+func portContainsField(obj any, resource string) bool {
+	ports, ok := obj.([]any)
+	if !ok {
+		return false
+	}
+	for _, p := range ports {
+		m, _ := p.(map[string]any)
+		if _, ok := m[resource]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+// namedEntryContains reports whether obj is a slice of maps and at least one
+// has its "name" field equal to resource. Used by the ServiceAccount case to
+// check that a specific named entry was (or was not) removed from .secrets.
+func namedEntryContains(obj any, resource string) bool {
+	entries, _ := obj.([]any)
+	for _, e := range entries {
+		if m, ok := e.(map[string]any); ok && m["name"] == resource {
+			return true
+		}
+	}
+	return false
 }
