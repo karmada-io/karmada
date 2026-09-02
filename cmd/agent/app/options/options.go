@@ -78,6 +78,11 @@ type Options struct {
 	// KubeAPIBurst is the burst to allow while talking with karmada-apiserver.
 	KubeAPIBurst int
 
+	// ConfigurableInterpreterLuaVMPoolSize is the size of the pool for the configurable interpreter lua vm.
+	ConfigurableInterpreterLuaVMPoolSize int
+	// ThirdPartyInterpreterLuaVMPoolSize is the size of the pool for the third party interpreter lua vm.
+	ThirdPartyInterpreterLuaVMPoolSize int
+
 	ClusterCacheSyncTimeout metav1.Duration
 	// ResyncPeriod is the base frequency the informers are resynced.
 	// Defaults to 0, which means the created informer will never do resyncs.
@@ -211,6 +216,8 @@ func (o *Options) AddFlags(fs *pflag.FlagSet, allControllers []string) {
 	fs.DurationVar(&o.CertRotationCheckingInterval, "cert-rotation-checking-interval", 5*time.Minute, "The interval of checking if the certificate need to be rotated. This is only applicable if cert rotation is enabled")
 	fs.Float64Var(&o.CertRotationRemainingTimeThreshold, "cert-rotation-remaining-time-threshold", 0.2, "The threshold of remaining time of the valid certificate. This is only applicable if cert rotation is enabled.")
 	fs.StringVar(&o.KarmadaKubeconfigNamespace, "karmada-kubeconfig-namespace", "karmada-system", "Namespace of the secret containing karmada-agent certificate. This is only applicable if cert rotation is enabled.")
+	fs.IntVar(&o.ConfigurableInterpreterLuaVMPoolSize, "configurable-interpreter-lua-vm-pool-size", 10, "The size of the pool for the configurable interpreter lua vm.")
+	fs.IntVar(&o.ThirdPartyInterpreterLuaVMPoolSize, "third-party-interpreter-lua-vm-pool-size", 10, "The size of the pool for the third party interpreter lua vm.")
 	o.RateLimiterOpts.AddFlags(fs)
 	features.FeatureGate.AddFlag(fs)
 	o.ProfileOpts.AddFlags(fs)
