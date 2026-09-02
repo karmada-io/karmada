@@ -18,26 +18,28 @@ package util
 
 import (
 	"fmt"
-	"os"
 	"strings"
 )
 
-// DeleteConfirmation delete karmada resource confirmation
-func DeleteConfirmation() bool {
-	fmt.Print("Please type (y)es or (n)o and then press enter:")
-	var response string
-	_, err := fmt.Scanln(&response)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
+// DeleteConfirmation prompts the user for a yes/no confirmation.
+// It returns true if the user confirms with "y" or "yes", false on "n" or "no",
+// and an error if stdin cannot be read (e.g. non-interactive environment).
+func DeleteConfirmation() (bool, error) {
+	for {
+		fmt.Print("Please type (y)es or (n)o and then press enter:")
+		var response string
+		_, err := fmt.Scanln(&response)
+		if err != nil {
+			return false, fmt.Errorf("failed to read user confirmation: %w", err)
+		}
 
-	switch strings.ToLower(response) {
-	case "y", "yes":
-		return true
-	case "n", "no":
-		return false
-	default:
-		return DeleteConfirmation()
+		switch strings.ToLower(response) {
+		case "y", "yes":
+			return true, nil
+		case "n", "no":
+			return false, nil
+		default:
+			fmt.Println("invalid input, please type (y)es or (n)o")
+		}
 	}
 }

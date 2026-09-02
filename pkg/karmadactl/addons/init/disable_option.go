@@ -68,8 +68,14 @@ func (o *CommandAddonsDisableOption) Validate(args []string) error {
 // Run start disable Karmada addons
 func (o *CommandAddonsDisableOption) Run(args []string) error {
 	fmt.Printf("Disable Karmada addon %s\n", args)
-	if !o.Force && !cmdutil.DeleteConfirmation() {
-		return nil
+	if !o.Force {
+		confirmed, err := cmdutil.DeleteConfirmation()
+		if err != nil {
+			return fmt.Errorf("failed to get user confirmation: %w", err)
+		}
+		if !confirmed {
+			return nil
+		}
 	}
 
 	var disableAddons = map[string]*Addon{}
