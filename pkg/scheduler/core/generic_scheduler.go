@@ -41,6 +41,7 @@ type ScheduleAlgorithm interface {
 // ScheduleAlgorithmOption represents the option for ScheduleAlgorithm.
 type ScheduleAlgorithmOption struct {
 	EnableEmptyWorkloadPropagation bool
+	IsMultiComponentScale          bool
 }
 
 // ScheduleResult includes the clusters selected.
@@ -79,6 +80,10 @@ func (g *genericScheduler) Schedule(
 	if err != nil {
 		return result, fmt.Errorf("failed to find fit clusters: %w", err)
 	}
+	componentScale := scheduleAlgorithmOption != nil && scheduleAlgorithmOption.IsMultiComponentScale
+	if componentScale {
+		feasibleClusters = retainScheduledClusters(feasibleClusters, spec.Clusters)
+	}
 
 	// Short path for case no cluster fit.
 	if len(feasibleClusters) == 0 {
@@ -95,7 +100,7 @@ func (g *genericScheduler) Schedule(
 	}
 	klog.V(4).Infof("Feasible clusters scores: %v", clustersScore)
 
-	selectedClusters, err := g.selectClusters(clustersScore, spec.Placement, spec, status)
+	selectedClusters, err := g.selectClusters(clustersScore, spec.Placement, spec, status, componentScale)
 	if err != nil {
 		return result, fmt.Errorf("failed to select clusters: %w", err)
 	}
@@ -194,8 +199,24 @@ func (g *genericScheduler) prioritizeClusters(
 }
 
 func (g *genericScheduler) selectClusters(clustersScore framework.ClusterScoreList,
-	placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus) ([]spreadconstraint.ClusterDetailInfo, error) {
-	return SelectClusters(clustersScore, placement, spec, status, g.schedulerCache.AssigningResourceBindings())
+	placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec, status *workv1alpha2.ResourceBindingStatus,
+	componentScale bool) ([]spreadconstraint.ClusterDetailInfo, error) {
+	return SelectClusters(clustersScore, placement, spec, status, g.schedulerCache.AssigningResourceBindings(), componentScale)
+}
+
+func retainScheduledClusters(feasibleClusters []*clusterv1alpha1.Cluster, scheduledClusters []workv1alpha2.TargetCluster) []*clusterv1alpha1.Cluster {
+	targets := make(map[string]struct{}, len(scheduledClusters))
+	for i := range scheduledClusters {
+		targets[scheduledClusters[i].Name] = struct{}{}
+	}
+
+	retained := make([]*clusterv1alpha1.Cluster, 0, len(feasibleClusters))
+	for _, cluster := range feasibleClusters {
+		if _, exists := targets[cluster.Name]; exists {
+			retained = append(retained, cluster)
+		}
+	}
+	return retained
 }
 
 func (g *genericScheduler) assignReplicas(clusters []spreadconstraint.ClusterDetailInfo, spec *workv1alpha2.ResourceBindingSpec,

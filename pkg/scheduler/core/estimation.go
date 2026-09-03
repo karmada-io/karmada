@@ -18,6 +18,7 @@ package core
 
 import (
 	"context"
+	"fmt"
 
 	"k8s.io/klog/v2"
 
@@ -75,9 +76,44 @@ type multiTemplateEstimationContext struct {
 // calculateMultiTemplateAvailableSets calculates available sets for multi-template scheduling.
 // It uses MaxAvailableComponentSets to estimate capacity for workloads with multiple pod templates.
 func calculateMultiTemplateAvailableSets(ctx context.Context, estCtx multiTemplateEstimationContext) ([]workv1alpha2.TargetCluster, error) {
+	return estimateMultiTemplateAvailableSets(ctx, estCtx, estCtx.clusters, estCtx.spec.Components)
+}
+
+// calculateMultiTemplateAvailableSetsForScale calculates capacity for a component replica
+// scale on the current accepted target. It does not define result retention on failure.
+func calculateMultiTemplateAvailableSetsForScale(ctx context.Context, estCtx multiTemplateEstimationContext) ([]workv1alpha2.TargetCluster, error) {
+	if !componentNamesAreValidAndUnique(estCtx.spec.Components) {
+		return nil, fmt.Errorf("component scale planning requires desired components to have unique, non-empty names")
+	}
+	if len(estCtx.clusters) != 1 || len(estCtx.spec.Clusters) != 1 ||
+		estCtx.clusters[0].Name != estCtx.spec.Clusters[0].Name {
+		return nil, fmt.Errorf("component scale planning requires exactly one accepted target cluster")
+	}
+
+	cluster := estCtx.clusters[0]
+	accepted := estCtx.spec.Clusters[0].Components
+	direction := componentReplicaScaleDirection(estCtx.spec.Components, accepted)
+	switch direction {
+	case componentScaleUnknown:
+		return nil, fmt.Errorf("component scale planning for cluster %q requires a comparable accepted component snapshot", cluster.Name)
+	case componentScaleEqual:
+		return nil, fmt.Errorf("component scale planning for cluster %q requires a replica change", cluster.Name)
+	case componentScaleMixed:
+		return nil, fmt.Errorf("mixed component scaling is not supported for cluster %q", cluster.Name)
+	case componentScaleDown:
+		return []workv1alpha2.TargetCluster{{Name: cluster.Name, Replicas: minimumAvailableComponentSets}}, nil
+	case componentScaleUp:
+		delta := positiveComponentDelta(estCtx.spec.Components, accepted)
+		return estimateMultiTemplateAvailableSets(ctx, estCtx, estCtx.clusters, delta)
+	default:
+		return nil, fmt.Errorf("component scale planning for cluster %q has an unsupported transition", cluster.Name)
+	}
+}
+
+func estimateMultiTemplateAvailableSets(ctx context.Context, estCtx multiTemplateEstimationContext, clusters []*clusterv1alpha1.Cluster, components []workv1alpha2.Component) ([]workv1alpha2.TargetCluster, error) {
 	req := estimatorclient.ComponentSetEstimationRequest{
-		Clusters:         estCtx.clusters,
-		Components:       estCtx.spec.Components,
+		Clusters:         clusters,
+		Components:       components,
 		Namespace:        estCtx.spec.Resource.Namespace,
 		AssumedWorkloads: estCtx.assumedWorkloads,
 	}
@@ -99,8 +135,8 @@ func calculateMultiTemplateAvailableSets(ctx context.Context, estCtx multiTempla
 		resMap[resp[i].Name] = resp[i].Sets
 	}
 
-	result := make([]workv1alpha2.TargetCluster, 0, len(estCtx.clusters))
-	for _, cluster := range estCtx.clusters {
+	result := make([]workv1alpha2.TargetCluster, 0, len(clusters))
+	for _, cluster := range clusters {
 		sets, ok := resMap[cluster.Name]
 		if !ok {
 			klog.Warningf("The estimator(%s) missed estimation from cluster(%s) when estimating for workload(%s, kind=%s, %s).",
@@ -110,6 +146,94 @@ func calculateMultiTemplateAvailableSets(ctx context.Context, estCtx multiTempla
 		result = append(result, workv1alpha2.TargetCluster{Name: cluster.Name, Replicas: sets})
 	}
 	return result, nil
+}
+
+func positiveComponentDelta(desired []workv1alpha2.Component, accepted []workv1alpha2.TargetComponent) []workv1alpha2.Component {
+	acceptedReplicas := make(map[string]int32, len(accepted))
+	for i := range accepted {
+		acceptedReplicas[accepted[i].Name] = accepted[i].Replicas
+	}
+
+	delta := make([]workv1alpha2.Component, 0, len(desired))
+	for i := range desired {
+		replicas := desired[i].Replicas - acceptedReplicas[desired[i].Name]
+		if replicas <= 0 {
+			continue
+		}
+		component := desired[i]
+		component.Replicas = replicas
+		delta = append(delta, component)
+	}
+	return delta
+}
+
+type componentScaleDirection int
+
+const (
+	componentScaleUnknown componentScaleDirection = iota
+	componentScaleEqual
+	componentScaleUp
+	componentScaleDown
+	componentScaleMixed
+)
+
+// minimumAvailableComponentSets is capacity evidence that one atomic component
+// set can use the current target. AssignReplicas constructs the final assignment.
+const minimumAvailableComponentSets int32 = 1
+
+func componentReplicaScaleDirection(desired []workv1alpha2.Component, accepted []workv1alpha2.TargetComponent) componentScaleDirection {
+	if len(desired) != len(accepted) || !componentNamesAreValidAndUnique(desired) {
+		return componentScaleUnknown
+	}
+
+	acceptedReplicas := make(map[string]int32, len(accepted))
+	for i := range accepted {
+		if _, exists := acceptedReplicas[accepted[i].Name]; exists {
+			return componentScaleUnknown
+		}
+		acceptedReplicas[accepted[i].Name] = accepted[i].Replicas
+	}
+	var scaleUp, scaleDown bool
+	for i := range desired {
+		replicas, exists := acceptedReplicas[desired[i].Name]
+		if !exists {
+			return componentScaleUnknown
+		}
+		switch {
+		case desired[i].Replicas > replicas:
+			scaleUp = true
+		case desired[i].Replicas < replicas:
+			scaleDown = true
+		}
+	}
+	switch {
+	case scaleUp && scaleDown:
+		return componentScaleMixed
+	case scaleUp:
+		return componentScaleUp
+	case scaleDown:
+		return componentScaleDown
+	default:
+		return componentScaleEqual
+	}
+}
+
+func componentNamesAreValidAndUnique(components []workv1alpha2.Component) bool {
+	if len(components) == 0 {
+		return false
+	}
+
+	names := make(map[string]struct{}, len(components))
+	for i := range components {
+		if components[i].Name == "" {
+			return false
+		}
+		if _, exists := names[components[i].Name]; exists {
+			return false
+		}
+		names[components[i].Name] = struct{}{}
+	}
+	return true
 }
 
 // buildAssumedWorkloadsByCluster builds a map of assumed workloads for each cluster based on the assigning cache.

@@ -17,6 +17,8 @@ limitations under the License.
 package binding
 
 import (
+	"errors"
+	"fmt"
 	"reflect"
 	"sort"
 	"testing"
@@ -24,10 +26,162 @@ import (
 	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
+	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/features"
+	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
+	"github.com/karmada-io/karmada/pkg/util/names"
+	"github.com/karmada-io/karmada/pkg/util/overridemanager"
 )
+
+type componentTestInterpreter struct {
+	resourceinterpreter.ResourceInterpreter
+	components []workv1alpha2.Component
+	err        error
+}
+
+func (i *componentTestInterpreter) GetComponents(*unstructured.Unstructured) ([]workv1alpha2.Component, error) {
+	return i.components, i.err
+}
+
+func (i *componentTestInterpreter) HookEnabled(schema.GroupVersionKind, configv1alpha1.InterpreterOperation) bool {
+	return false
+}
+
+type componentTestOverrideManager struct {
+	overridemanager.OverrideManager
+}
+
+func (*componentTestOverrideManager) ApplyOverridePolicies(*unstructured.Unstructured, string) (*overridemanager.AppliedOverrides, *overridemanager.AppliedOverrides, error) {
+	return nil, nil, nil
+}
+
+func newComponentTestWork(bindingLabel, bindingID, kind, name, namespace string) *workv1alpha1.Work {
+	return &workv1alpha1.Work{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      names.GenerateWorkName(kind, name, namespace),
+			Namespace: names.GenerateExecutionSpaceName("member1"),
+			Labels:    map[string]string{bindingLabel: bindingID},
+		},
+		Spec: workv1alpha1.WorkSpec{Workload: workv1alpha1.WorkloadTemplate{Manifests: []workv1alpha1.Manifest{{
+			RawExtension: runtime.RawExtension{Raw: []byte(`{"accepted":"tm4"}`)},
+		}}}},
+	}
+}
+
+func TestShouldWaitForComponentScheduleResult(t *testing.T) {
+	accepted := []workv1alpha2.TargetComponent{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}}
+	baseSpec := func() *workv1alpha2.ResourceBindingSpec {
+		return &workv1alpha2.ResourceBindingSpec{
+			Components: []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}},
+			Clusters:   []workv1alpha2.TargetCluster{{Name: "member1", Components: accepted}},
+		}
+	}
+	tests := []struct {
+		name       string
+		feature    bool
+		spec       *workv1alpha2.ResourceBindingSpec
+		components []workv1alpha2.Component
+		getErr     error
+		wantWait   bool
+		wantErr    bool
+	}{
+		{
+			name:       "equal source is accepted regardless of order",
+			feature:    true,
+			spec:       baseSpec(),
+			components: []workv1alpha2.Component{{Name: "taskmanager", Replicas: 4}, {Name: "jobmanager", Replicas: 1}},
+		},
+		{
+			name:       "source scale up waits",
+			feature:    true,
+			spec:       baseSpec(),
+			components: []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 6}},
+			wantWait:   true,
+		},
+		{
+			name:       "source scale down waits",
+			feature:    true,
+			spec:       baseSpec(),
+			components: []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 2}},
+			wantWait:   true,
+		},
+		{
+			name:       "incomparable source waits",
+			feature:    true,
+			spec:       baseSpec(),
+			components: []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "worker", Replicas: 4}},
+			wantWait:   true,
+		},
+		{
+			name:       "feature disabled keeps old behavior",
+			spec:       baseSpec(),
+			components: []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 6}},
+		},
+		{
+			name:    "single template keeps old behavior",
+			feature: true,
+			spec: &workv1alpha2.ResourceBindingSpec{
+				Components: []workv1alpha2.Component{{Name: "workload", Replicas: 2}},
+				Clusters: []workv1alpha2.TargetCluster{{Name: "member1", Components: []workv1alpha2.TargetComponent{
+					{Name: "workload", Replicas: 1},
+				}}},
+			},
+			components: []workv1alpha2.Component{{Name: "workload", Replicas: 2}},
+		},
+		{
+			name:    "custom scheduler keeps old behavior",
+			feature: true,
+			spec: func() *workv1alpha2.ResourceBindingSpec {
+				spec := baseSpec()
+				spec.SchedulerName = "custom-scheduler"
+				return spec
+			}(),
+			components: []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 6}},
+		},
+		{
+			name:    "missing accepted snapshot keeps old behavior",
+			feature: true,
+			spec: &workv1alpha2.ResourceBindingSpec{
+				Components: []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 6}},
+				Clusters:   []workv1alpha2.TargetCluster{{Name: "member1"}},
+			},
+			components: []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 6}},
+		},
+		{
+			name:       "interpreter error stops synchronization",
+			feature:    true,
+			spec:       baseSpec(),
+			getErr:     errors.New("interpretation failed"),
+			wantErr:    true,
+			components: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			originalFeatureGates := features.FeatureGate.DeepCopy()
+			if err := features.FeatureGate.Set(fmt.Sprintf("%s=%t", features.MultiplePodTemplatesScheduling, tt.feature)); err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { features.FeatureGate = originalFeatureGates })
+
+			wait, err := shouldWaitForComponentScheduleResult(
+				&componentTestInterpreter{components: tt.components, err: tt.getErr},
+				&unstructured.Unstructured{},
+				tt.spec,
+			)
+			if (err != nil) != tt.wantErr || wait != tt.wantWait {
+				t.Fatalf("shouldWaitForComponentScheduleResult() = (%t, %v), want (%t, error=%t)", wait, err, tt.wantWait, tt.wantErr)
+			}
+		})
+	}
+}
 
 func Test_mergeTargetClusters(t *testing.T) {
 	tests := []struct {
