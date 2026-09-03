@@ -18,6 +18,7 @@ package karmada
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 
@@ -32,6 +33,9 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/lifted"
 )
 
+// ErrInvalidCRDsRemoteURL is returned when the CRD tarball HTTP source URL is not a valid URL.
+var ErrInvalidCRDsRemoteURL = errors.New("invalid CRDs remote URL")
+
 func validateCRDTarball(crdTarball *operatorv1alpha1.CRDTarball, fldPath *field.Path) (errs field.ErrorList) {
 	// A custom CRD tarball download config is optional, and given that an HTTP source is the only possible option, we
 	// only have to validate the config if an HTTP source is set.
@@ -41,7 +45,7 @@ func validateCRDTarball(crdTarball *operatorv1alpha1.CRDTarball, fldPath *field.
 
 	// Since the server URL is required when an HTTP source is set, we'll verify that the URL is valid.
 	if _, err := url.ParseRequestURI(crdTarball.HTTPSource.URL); err != nil {
-		errs = append(errs, field.Invalid(fldPath.Child("httpSource").Child("url"), crdTarball.HTTPSource.URL, "invalid CRDs remote URL"))
+		errs = append(errs, field.Invalid(fldPath.Child("httpSource").Child("url"), crdTarball.HTTPSource.URL, ErrInvalidCRDsRemoteURL.Error()))
 	}
 
 	// Since the Proxy URL is required when a proxy config is set, we'll verify that the URL is valid.
