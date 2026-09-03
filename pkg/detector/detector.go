@@ -92,10 +92,12 @@ type ResourceDetector struct {
 
 	RESTMapper meta.RESTMapper
 
-	// waitingObjects tracks of objects which haven't been propagated yet as lack of appropriate policies.
-	waitingObjects map[keys.ClusterWideKey]struct{}
-	// waitingLock is the lock for waitingObjects operation.
-	waitingLock sync.RWMutex
+	// waitingStore tracks objects that have not been propagated because no policy currently matches them.
+	// It keeps lightweight identity and label snapshots so policy reconciliation does not need to fetch and
+	// deep-copy every waiting object while looking for matches.
+	waitingStore *waitingObjectStore
+	// waitingStoreOnce allows detector helpers to initialize the store safely even before Start is called in tests.
+	waitingStoreOnce sync.Once
 	// ConcurrentPropagationPolicySyncs is the number of PropagationPolicy that are allowed to sync concurrently.
 	ConcurrentPropagationPolicySyncs int
 	// ConcurrentClusterPropagationPolicySyncs is the number of ClusterPropagationPolicy that are allowed to sync concurrently.
@@ -112,7 +114,7 @@ type ResourceDetector struct {
 // Start runs the detector, never stop until context canceled.
 func (d *ResourceDetector) Start(ctx context.Context) error {
 	klog.Infof("Starting resource detector.")
-	d.waitingObjects = make(map[keys.ClusterWideKey]struct{})
+	d.getWaitingStore()
 
 	// setup policy reconcile worker
 	policyWorkerOptions := util.Options{
@@ -934,53 +936,37 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 
 // isWaiting indicates if the object is in waiting list.
 func (d *ResourceDetector) isWaiting(objectKey keys.ClusterWideKey) bool {
-	d.waitingLock.RLock()
-	_, ok := d.waitingObjects[objectKey]
-	d.waitingLock.RUnlock()
-	return ok
+	return d.getWaitingStore().Contains(objectKey)
 }
 
-// AddWaiting adds object's key to waiting list.
-func (d *ResourceDetector) AddWaiting(objectKey keys.ClusterWideKey) {
-	d.waitingLock.Lock()
-	defer d.waitingLock.Unlock()
-
-	d.waitingObjects[objectKey] = struct{}{}
-	klog.V(1).Infof("Add object(%s) to waiting list, length of list is: %d", objectKey.String(), len(d.waitingObjects))
+// AddWaiting adds an object's key to the waiting store or refreshes its labels.
+// It returns whether the object should be retried after the store changed.
+func (d *ResourceDetector) AddWaiting(objectKey keys.ClusterWideKey, objectLabels map[string]string) bool {
+	store := d.getWaitingStore()
+	inserted, labelsChanged := store.Upsert(objectKey, objectLabels)
+	if inserted {
+		klog.V(1).Infof("Add object(%s) to waiting list, length of list is: %d", objectKey.String(), store.Len())
+	}
+	return inserted || labelsChanged
 }
 
 // RemoveWaiting removes object's key from waiting list.
 func (d *ResourceDetector) RemoveWaiting(objectKey keys.ClusterWideKey) {
-	d.waitingLock.Lock()
-	defer d.waitingLock.Unlock()
-
-	delete(d.waitingObjects, objectKey)
+	d.getWaitingStore().Delete(objectKey)
 }
 
-// GetMatching gets objects keys in waiting list that matches one of resource selectors.
+// GetMatching returns the keys of waiting objects matched by at least one resource selector.
+// Matching is performed against the waiting store's indexes and label snapshots, avoiding informer object fetches.
 func (d *ResourceDetector) GetMatching(resourceSelectors []policyv1alpha1.ResourceSelector) []keys.ClusterWideKey {
-	d.waitingLock.RLock()
-	defer d.waitingLock.RUnlock()
+	return d.getWaitingStore().Match(resourceSelectors)
+}
 
-	var matchedResult []keys.ClusterWideKey
-
-	for waitKey := range d.waitingObjects {
-		waitObj, err := d.GetUnstructuredObject(waitKey)
-		if err != nil {
-			// all object in waiting list should exist. Just print a log to trace.
-			klog.Errorf("Failed to get object(%s), error: %v", waitKey.String(), err)
-			continue
-		}
-
-		for _, rs := range resourceSelectors {
-			if util.ResourceMatches(waitObj, rs) {
-				matchedResult = append(matchedResult, waitKey)
-				break
-			}
-		}
-	}
-
-	return matchedResult
+// getWaitingStore lazily initializes the store because some detector code paths and unit tests can use it before Start.
+func (d *ResourceDetector) getWaitingStore() *waitingObjectStore {
+	d.waitingStoreOnce.Do(func() {
+		d.waitingStore = newWaitingObjectStore()
+	})
+	return d.waitingStore
 }
 
 // OnPropagationPolicyAdd handles object add event and push the object to queue.
@@ -1029,7 +1015,7 @@ func (d *ResourceDetector) OnPropagationPolicyUpdate(oldObj, newObj any) {
 }
 
 // ReconcilePropagationPolicy handles PropagationPolicy resource changes.
-// When adding a PropagationPolicy, the detector will pick the objects in waitingObjects list that matches the policy and
+// When adding a PropagationPolicy, the detector will pick the objects in the waiting store that match the policy and
 // put the object to queue.
 // When removing a PropagationPolicy, the relevant ResourceBinding will be removed and
 // the relevant objects will be put into queue again to try another policy.
@@ -1117,7 +1103,7 @@ func (d *ResourceDetector) OnClusterPropagationPolicyUpdate(oldObj, newObj any) 
 }
 
 // ReconcileClusterPropagationPolicy handles ClusterPropagationPolicy resource changes.
-// When adding a ClusterPropagationPolicy, the detector will pick the objects in waitingObjects list that matches the policy and
+// When adding a ClusterPropagationPolicy, the detector will pick the objects in the waiting store that match the policy and
 // put the object to queue.
 // When removing a ClusterPropagationPolicy, the relevant ClusterResourceBinding will be removed and
 // the relevant objects will be put into queue again to try another policy.
