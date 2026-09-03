@@ -32,14 +32,14 @@ func TestCountCreateResourceToCluster(t *testing.T) {
 	apiVersion := "v1"
 	kind := "Pod"
 
-	CountCreateResourceToCluster(nil, apiVersion, kind, cluster, true)
-	CountCreateResourceToCluster(fmt.Errorf("boom"), apiVersion, kind, cluster, false)
+	CountCreateResourceToCluster(nil, apiVersion, kind, cluster)
+	CountCreateResourceToCluster(fmt.Errorf("boom"), apiVersion, kind, cluster)
 
 	want := `
-# HELP create_resource_to_cluster Number of creation operations against a target member cluster. The 'result' label indicates outcome ('success' or 'error'), 'recreate' indicates whether the operation is recreated (true/false); the 'recreate' label is deprecated since v1.19, always reports 'false' now that resource recreation is handled through the execution controller's normal reconciliation path, and will be removed in a future release. Labels 'apiversion', 'kind', and 'member_cluster' specify the resource type, API version, and target cluster respectively.
+# HELP create_resource_to_cluster Number of creation operations against a target member cluster. The 'result' label indicates the outcome ('success' or 'error'). Labels 'apiversion', 'kind', and 'member_cluster' specify the API version, resource kind, and target cluster respectively.
 # TYPE create_resource_to_cluster counter
-create_resource_to_cluster{apiversion="v1",kind="Pod",member_cluster="member-1",recreate="false",result="error"} 1
-create_resource_to_cluster{apiversion="v1",kind="Pod",member_cluster="member-1",recreate="true",result="success"} 1
+create_resource_to_cluster{apiversion="v1",kind="Pod",member_cluster="member-1",result="error"} 1
+create_resource_to_cluster{apiversion="v1",kind="Pod",member_cluster="member-1",result="success"} 1
 `
 	if err := promtestutil.CollectAndCompare(createResourceWhenSyncWork, strings.NewReader(want), createResourceToCluster); err != nil {
 		t.Fatalf("unexpected collecting result:\n%s", err)

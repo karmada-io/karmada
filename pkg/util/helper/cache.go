@@ -41,15 +41,7 @@ import (
 // RegisterInformerHandlerAndCheckSynced registers the handler with the member-cluster informers
 // for the given resources, creating the informers if necessary. It returns whether those informers
 // have already synced without waiting.
-func RegisterInformerHandlerAndCheckSynced(
-	cluster *clusterv1alpha1.Cluster,
-	gvrTargets []schema.GroupVersionResource,
-	handler cache.ResourceEventHandler,
-	manager genericmanager.MultiClusterInformerManager,
-	clusterClientSetFunc util.NewClusterDynamicClientSetFunc,
-	kubeClientSet client.Client,
-	clusterClientOption *util.ClientOption,
-) (bool, error) {
+func RegisterInformerHandlerAndCheckSynced(cluster *clusterv1alpha1.Cluster, gvrTargets []schema.GroupVersionResource, handler cache.ResourceEventHandler, manager genericmanager.MultiClusterInformerManager, clusterClientSetFunc util.NewClusterDynamicClientSetFunc, kubeClientSet client.Client, clusterClientOption *util.ClientOption) (bool, error) {
 	singleClusterInformerManager, err := getSingleClusterManager(cluster, manager, clusterClientSetFunc, kubeClientSet, clusterClientOption)
 	if err != nil {
 		return false, err
@@ -90,13 +82,7 @@ func RegisterInformerHandlerAndCheckSynced(
 	return false, nil
 }
 
-func getSingleClusterManager(
-	cluster *clusterv1alpha1.Cluster,
-	manager genericmanager.MultiClusterInformerManager,
-	clusterClientSetFunc util.NewClusterDynamicClientSetFunc,
-	kubeClientSet client.Client,
-	clusterClientOption *util.ClientOption,
-) (genericmanager.SingleClusterInformerManager, error) {
+func getSingleClusterManager(cluster *clusterv1alpha1.Cluster, manager genericmanager.MultiClusterInformerManager, clusterClientSetFunc util.NewClusterDynamicClientSetFunc, kubeClientSet client.Client, clusterClientOption *util.ClientOption) (genericmanager.SingleClusterInformerManager, error) {
 	singleClusterInformerManager := manager.GetSingleClusterManager(cluster.Name)
 	if singleClusterInformerManager != nil {
 		return singleClusterInformerManager, nil
@@ -111,11 +97,7 @@ func getSingleClusterManager(
 }
 
 // GetObjectFromCache gets full object information from cache by key in worker queue.
-func GetObjectFromCache(
-	restMapper meta.RESTMapper,
-	manager genericmanager.MultiClusterInformerManager,
-	fedKey keys.FederatedKey,
-) (*unstructured.Unstructured, error) {
+func GetObjectFromCache(restMapper meta.RESTMapper, manager genericmanager.MultiClusterInformerManager, fedKey keys.FederatedKey) (*unstructured.Unstructured, error) {
 	gvr, err := restmapper.GetGroupVersionResource(restMapper, fedKey.GroupVersionKind())
 	if err != nil {
 		klog.Errorf("Failed to get GVR from GVK %s. Error: %v", fedKey.GroupVersionKind(), err)
@@ -152,8 +134,7 @@ func GetObjectFromCache(
 }
 
 // GetObjectFromSingleClusterCache gets full object information from single cluster cache by key in worker queue.
-func GetObjectFromSingleClusterCache(restMapper meta.RESTMapper, manager genericmanager.SingleClusterInformerManager,
-	cwk *keys.ClusterWideKey) (*unstructured.Unstructured, error) {
+func GetObjectFromSingleClusterCache(restMapper meta.RESTMapper, manager genericmanager.SingleClusterInformerManager, cwk *keys.ClusterWideKey) (*unstructured.Unstructured, error) {
 	gvr, err := restmapper.GetGroupVersionResource(restMapper, cwk.GroupVersionKind())
 	if err != nil {
 		klog.Errorf("Failed to get GVR from GVK %s. Error: %v", cwk.GroupVersionKind(), err)
@@ -181,11 +162,7 @@ func GetObjectFromSingleClusterCache(restMapper meta.RESTMapper, manager generic
 }
 
 // getObjectFromSingleCluster will try to get resource from single cluster by DynamicClientSet.
-func getObjectFromSingleCluster(
-	gvr schema.GroupVersionResource,
-	cwk *keys.ClusterWideKey,
-	dynamicClient dynamic.Interface,
-) (*unstructured.Unstructured, error) {
+func getObjectFromSingleCluster(gvr schema.GroupVersionResource, cwk *keys.ClusterWideKey, dynamicClient dynamic.Interface) (*unstructured.Unstructured, error) {
 	obj, err := dynamicClient.Resource(gvr).Namespace(cwk.Namespace).Get(context.TODO(), cwk.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
