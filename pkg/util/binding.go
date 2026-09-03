@@ -34,22 +34,39 @@ func GetBindingClusterNames(spec *workv1alpha2.ResourceBindingSpec) []string {
 	return clusterNames
 }
 
-// IsBindingReplicasChanged will check if the sum of replicas is different from the replicas of object
+// ComponentScale describes how desired component replicas differ from the scheduled result.
+type ComponentScale int
+
+const (
+	// ComponentScaleUnknown indicates that the desired and scheduled snapshots cannot be compared safely.
+	ComponentScaleUnknown ComponentScale = iota
+	// ComponentScaleNone indicates that all component replicas are unchanged.
+	ComponentScaleNone
+	// ComponentScaleUp indicates that at least one component scaled up and none scaled down.
+	ComponentScaleUp
+	// ComponentScaleDown indicates that at least one component scaled down and none scaled up.
+	ComponentScaleDown
+	// ComponentScaleMixed indicates that some components scaled up while others scaled down.
+	ComponentScaleMixed
+)
+
+// IsBindingReplicasChanged reports whether the desired replicas differ from the scheduled result.
 func IsBindingReplicasChanged(bindingSpec *workv1alpha2.ResourceBindingSpec, strategy *policyv1alpha1.ReplicaSchedulingStrategy) bool {
 	if strategy == nil {
 		return false
 	}
 
-	// For component-based workloads, trigger rescheduling when clusters are empty (e.g., after eviction).
-	// This is a temporary fix to ensure cluster failover works correctly.
-	// Limitation: This only handles the failover scenario where clusters are cleared.
-	// It does not detect component replica changes (e.g., scale up/down) or replica swaps between components.
-	// A complete solution requires changing how scheduling results are stored to support multi-template workloads,
-	// likely by extending TargetCluster to include per-component replica information.
-	// The comprehensive solution is tracked by: https://github.com/karmada-io/karmada/issues/6998
+	// Component-based workloads also need rescheduling after eviction. For multi-component workloads,
+	// classify the desired replicas against the component snapshot produced by the scheduler.
 	if features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) && len(bindingSpec.Components) > 0 {
 		if len(bindingSpec.Clusters) == 0 {
 			return true
+		}
+		if len(bindingSpec.Components) > 1 && len(bindingSpec.Clusters) == 1 {
+			scale := ClassifyComponentScale(bindingSpec.Components, bindingSpec.Clusters[0].Components)
+			if scale == ComponentScaleUp || scale == ComponentScaleDown || scale == ComponentScaleMixed {
+				return true
+			}
 		}
 	}
 
@@ -66,6 +83,44 @@ func IsBindingReplicasChanged(bindingSpec *workv1alpha2.ResourceBindingSpec, str
 		return replicasSum != bindingSpec.Replicas
 	}
 	return false
+}
+
+// ClassifyComponentScale compares desired component replicas with the scheduled result by name.
+// Desired component names are expected to be non-empty and unique, as enforced by admission.
+func ClassifyComponentScale(desired []workv1alpha2.Component, scheduled []workv1alpha2.TargetComponent) ComponentScale {
+	if len(desired) == 0 || len(desired) != len(scheduled) {
+		return ComponentScaleUnknown
+	}
+
+	scheduledReplicas := make(map[string]int32, len(scheduled))
+	for i := range scheduled {
+		scheduledReplicas[scheduled[i].Name] = scheduled[i].Replicas
+	}
+
+	var scaleUp, scaleDown bool
+	for i := range desired {
+		replicas, exists := scheduledReplicas[desired[i].Name]
+		if !exists {
+			return ComponentScaleUnknown
+		}
+		switch {
+		case desired[i].Replicas > replicas:
+			scaleUp = true
+		case desired[i].Replicas < replicas:
+			scaleDown = true
+		}
+	}
+
+	switch {
+	case scaleUp && scaleDown:
+		return ComponentScaleMixed
+	case scaleUp:
+		return ComponentScaleUp
+	case scaleDown:
+		return ComponentScaleDown
+	default:
+		return ComponentScaleNone
+	}
 }
 
 // GetSumOfReplicas will get the sum of replicas in target clusters
