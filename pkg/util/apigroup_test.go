@@ -360,22 +360,22 @@ func TestParseSingle(t *testing.T) {
 func TestParseSingleInvalidToken(t *testing.T) {
 	tests := []struct {
 		name  string
-		token string
+		input string
 	}{
 		{
 			name:  "comma separated group versions",
-			token: "apps/v1,batch/v1",
+			input: "apps/v1,batch/v1",
 		},
 		{
 			name:  "group version followed by comma separated group version",
-			token: "networking.k8s.io/v1,apps/v1",
+			input: "networking.k8s.io/v1,apps/v1",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := NewSkippedResourceConfig()
-			if err := r.parseSingle(tt.token); err == nil {
-				t.Errorf("parseSingle(%q) expects an error, but got nil", tt.token)
+			if err := r.parseSingle(tt.input); err == nil {
+				t.Errorf("parseSingle(%q) expects an error, but got nil", tt.input)
 			}
 		})
 	}
