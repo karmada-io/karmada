@@ -29,6 +29,8 @@ import (
 	"k8s.io/apimachinery/pkg/conversion"
 	"k8s.io/apimachinery/pkg/util/sets"
 	luajson "layeh.com/gopher-json"
+
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
 
 // ConvertLuaResultInto convert lua result to obj
@@ -260,4 +262,39 @@ func ConvertLuaResultToBool(luaResult lua.LValue) (bool, error) {
 		return false, fmt.Errorf("result type %#v is not bool", luaResult.Type())
 	}
 	return bool(luaResult.(lua.LBool)), nil
+}
+
+// ConvertLuaResultToTargetClusters convert lua result to []workv1alpha2.TargetCluster.
+func ConvertLuaResultToTargetClusters(luaResult lua.LValue) ([]workv1alpha2.TargetCluster, error) {
+	if luaResult.Type() != lua.LTTable {
+		return nil, fmt.Errorf("result type %#v is not table", luaResult.Type())
+	}
+
+	table := luaResult.(*lua.LTable)
+	result := make([]workv1alpha2.TargetCluster, 0)
+
+	table.ForEach(func(key lua.LValue, value lua.LValue) {
+		if value.Type() == lua.LTTable {
+			clusterTable := value.(*lua.LTable)
+			cluster := workv1alpha2.TargetCluster{}
+
+			clusterTable.ForEach(func(k lua.LValue, v lua.LValue) {
+				keyStr := k.String()
+				switch keyStr {
+				case "name":
+					if v.Type() == lua.LTString {
+						cluster.Name = v.String()
+					}
+				case "replicas":
+					if v.Type() == lua.LTNumber {
+						cluster.Replicas = int32(v.(lua.LNumber))
+					}
+				}
+			})
+
+			result = append(result, cluster)
+		}
+	})
+
+	return result, nil
 }
