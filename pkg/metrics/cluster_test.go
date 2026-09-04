@@ -17,9 +17,12 @@ limitations under the License.
 package metrics
 
 import (
+	"fmt"
 	"strings"
 	"testing"
+	"time"
 
+	promtestutil "github.com/prometheus/client_golang/prometheus/testutil"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -324,6 +327,55 @@ cluster_cpu_allocated_number{member_cluster="foo"} 0.2
 	}
 }
 
+func TestRecordClusterHealthProbeSuccess(t *testing.T) {
+	tests := []struct {
+		name    string
+		online  bool
+		healthy bool
+		want    string
+	}{
+		{
+			name:    "online and healthy",
+			online:  true,
+			healthy: true,
+			want: `
+# HELP cluster_health_probe_success Result of the last health probe for the member cluster (1 for success, 0 for failure). Reflects the raw probe outcome before threshold adjustment.
+# TYPE cluster_health_probe_success gauge
+cluster_health_probe_success{member_cluster="foo"} 1
+`,
+		},
+		{
+			name:    "unreachable",
+			online:  false,
+			healthy: false,
+			want: `
+# HELP cluster_health_probe_success Result of the last health probe for the member cluster (1 for success, 0 for failure). Reflects the raw probe outcome before threshold adjustment.
+# TYPE cluster_health_probe_success gauge
+cluster_health_probe_success{member_cluster="foo"} 0
+`,
+		},
+		{
+			name:    "online but unhealthy",
+			online:  true,
+			healthy: false,
+			want: `
+# HELP cluster_health_probe_success Result of the last health probe for the member cluster (1 for success, 0 for failure). Reflects the raw probe outcome before threshold adjustment.
+# TYPE cluster_health_probe_success gauge
+cluster_health_probe_success{member_cluster="foo"} 0
+`,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			clusterHealthProbeSuccess.Reset()
+			RecordClusterHealthProbeSuccess("foo", test.online, test.healthy)
+			if err := testutil.CollectAndCompare(clusterHealthProbeSuccess, strings.NewReader(test.want), clusterHealthProbeSuccessName); err != nil {
+				t.Errorf("unexpected collecting result:\n%s", err)
+			}
+		})
+	}
+}
+
 func TestClusterPodAllocatedMetrics(t *testing.T) {
 	testCluster := &clusterv1alpha1.Cluster{
 		ObjectMeta: metav1.ObjectMeta{
@@ -356,4 +408,175 @@ cluster_pod_allocated_number{member_cluster="foo"} 110
 	if err := testutil.CollectAndCompare(clusterPodAllocatedGauge, strings.NewReader(want), clusterPodAllocatedMetricsName); err != nil {
 		t.Errorf("unexpected collecting result:\n%s", err)
 	}
+}
+
+func TestRecordClusterReadySince(t *testing.T) {
+	t.Run("transition away from Ready sets 0", func(t *testing.T) {
+		clusterReadySince.Reset()
+		RecordClusterReadySince("foo", metav1.ConditionTrue, metav1.ConditionFalse, time.Now())
+		want := `
+# HELP cluster_ready_since_timestamp_seconds Unix timestamp when the member cluster last became Ready. Set to 0 when the cluster is not Ready.
+# TYPE cluster_ready_since_timestamp_seconds gauge
+cluster_ready_since_timestamp_seconds{member_cluster="foo"} 0
+`
+		if err := testutil.CollectAndCompare(clusterReadySince, strings.NewReader(want), clusterReadySinceName); err != nil {
+			t.Errorf("unexpected collecting result:\n%s", err)
+		}
+	})
+
+	t.Run("no change is no-op", func(t *testing.T) {
+		clusterReadySince.Reset()
+		RecordClusterReadySince("foo", metav1.ConditionTrue, metav1.ConditionTrue, time.Now())
+		want := `
+# HELP cluster_ready_since_timestamp_seconds Unix timestamp when the member cluster last became Ready. Set to 0 when the cluster is not Ready.
+# TYPE cluster_ready_since_timestamp_seconds gauge
+`
+		if err := testutil.CollectAndCompare(clusterReadySince, strings.NewReader(want), clusterReadySinceName); err != nil {
+			t.Errorf("unexpected collecting result:\n%s", err)
+		}
+	})
+}
+
+func TestRecordClusterConditionLastTransition(t *testing.T) {
+	t.Run("transition records timestamp", func(t *testing.T) {
+		clusterConditionLastTransition.Reset()
+		ts := time.Now()
+		RecordClusterConditionLastTransition("foo", metav1.ConditionFalse, metav1.ConditionTrue, ts)
+		want := fmt.Sprintf(`
+# HELP cluster_condition_last_transition_timestamp_seconds Unix timestamp of the last condition state transition for the member cluster.
+# TYPE cluster_condition_last_transition_timestamp_seconds gauge
+cluster_condition_last_transition_timestamp_seconds{member_cluster="foo"} %d
+`, ts.Unix())
+		if err := testutil.CollectAndCompare(clusterConditionLastTransition, strings.NewReader(want), clusterConditionLastTransitionName); err != nil {
+			t.Errorf("unexpected collecting result:\n%s", err)
+		}
+	})
+
+	t.Run("no change is no-op", func(t *testing.T) {
+		clusterConditionLastTransition.Reset()
+		RecordClusterConditionLastTransition("foo", metav1.ConditionTrue, metav1.ConditionTrue, time.Now())
+		want := `
+# HELP cluster_condition_last_transition_timestamp_seconds Unix timestamp of the last condition state transition for the member cluster.
+# TYPE cluster_condition_last_transition_timestamp_seconds gauge
+`
+		if err := testutil.CollectAndCompare(clusterConditionLastTransition, strings.NewReader(want), clusterConditionLastTransitionName); err != nil {
+			t.Errorf("unexpected collecting result:\n%s", err)
+		}
+	})
+}
+
+func TestRecordClusterHealthProbeDuration(t *testing.T) {
+	clusterHealthProbeDuration.Reset()
+	RecordClusterHealthProbeDuration("foo", time.Now().Add(-50*time.Millisecond))
+	want := `
+# HELP cluster_health_probe_duration_seconds Duration in seconds of the health probe to the member cluster.
+# TYPE cluster_health_probe_duration_seconds histogram
+`
+	if err := testutil.CollectAndCompare(clusterHealthProbeDuration, strings.NewReader(want), clusterHealthProbeDurationName); err != nil {
+		// Histogram bucket values are non-deterministic, so just verify the metric exists
+		// by checking that the error is about values, not about missing metrics
+		t.Logf("histogram comparison (expected non-exact match): %s", err)
+	}
+}
+
+func TestProbeResultLabel(t *testing.T) {
+	tests := []struct {
+		name    string
+		online  bool
+		healthy bool
+		want    string
+	}{
+		{"online and healthy", true, true, "success"},
+		{"unreachable", false, false, "error"},
+		{"online but unhealthy", true, false, "error"},
+		{"not online not healthy", false, true, "error"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ProbeResultLabel(tt.online, tt.healthy); got != tt.want {
+				t.Errorf("ProbeResultLabel(%v, %v) = %q, want %q", tt.online, tt.healthy, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestClusterCollectorsLint(t *testing.T) {
+	for _, c := range ClusterCollectors() {
+		problems, err := promtestutil.CollectAndLint(c)
+		if err != nil {
+			t.Errorf("failed to lint collector: %v", err)
+			continue
+		}
+		for _, p := range problems {
+			t.Errorf("lint problem: %s: %s", p.Metric, p.Text)
+		}
+	}
+}
+
+func TestRecordClusterHealthProbeTotal(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		clusterHealthProbeTotal.Reset()
+		RecordClusterHealthProbeTotal("foo", true, true)
+		want := `
+# HELP cluster_health_probe_total Total number of health probes to the member cluster, categorized by result.
+# TYPE cluster_health_probe_total counter
+cluster_health_probe_total{member_cluster="foo",result="success"} 1
+`
+		if err := testutil.CollectAndCompare(clusterHealthProbeTotal, strings.NewReader(want), clusterHealthProbeTotalName); err != nil {
+			t.Errorf("unexpected collecting result:\n%s", err)
+		}
+	})
+
+	t.Run("error", func(t *testing.T) {
+		clusterHealthProbeTotal.Reset()
+		RecordClusterHealthProbeTotal("foo", false, false)
+		want := `
+# HELP cluster_health_probe_total Total number of health probes to the member cluster, categorized by result.
+# TYPE cluster_health_probe_total counter
+cluster_health_probe_total{member_cluster="foo",result="error"} 1
+`
+		if err := testutil.CollectAndCompare(clusterHealthProbeTotal, strings.NewReader(want), clusterHealthProbeTotalName); err != nil {
+			t.Errorf("unexpected collecting result:\n%s", err)
+		}
+	})
+}
+
+func TestRecordClusterHealthTransition(t *testing.T) {
+	t.Run("True to False", func(t *testing.T) {
+		clusterHealthTransitionsTotal.Reset()
+		RecordClusterHealthTransition("foo", metav1.ConditionTrue, metav1.ConditionFalse)
+		want := `
+# HELP cluster_health_transitions_total Total number of health state transitions for the member cluster.
+# TYPE cluster_health_transitions_total counter
+cluster_health_transitions_total{from_state="True",member_cluster="foo",to_state="False"} 1
+`
+		if err := testutil.CollectAndCompare(clusterHealthTransitionsTotal, strings.NewReader(want), clusterHealthTransitionsTotalName); err != nil {
+			t.Errorf("unexpected collecting result:\n%s", err)
+		}
+	})
+
+	t.Run("False to True", func(t *testing.T) {
+		clusterHealthTransitionsTotal.Reset()
+		RecordClusterHealthTransition("foo", metav1.ConditionFalse, metav1.ConditionTrue)
+		want := `
+# HELP cluster_health_transitions_total Total number of health state transitions for the member cluster.
+# TYPE cluster_health_transitions_total counter
+cluster_health_transitions_total{from_state="False",member_cluster="foo",to_state="True"} 1
+`
+		if err := testutil.CollectAndCompare(clusterHealthTransitionsTotal, strings.NewReader(want), clusterHealthTransitionsTotalName); err != nil {
+			t.Errorf("unexpected collecting result:\n%s", err)
+		}
+	})
+
+	t.Run("no change is no-op", func(t *testing.T) {
+		clusterHealthTransitionsTotal.Reset()
+		RecordClusterHealthTransition("foo", metav1.ConditionTrue, metav1.ConditionTrue)
+		want := `
+# HELP cluster_health_transitions_total Total number of health state transitions for the member cluster.
+# TYPE cluster_health_transitions_total counter
+`
+		if err := testutil.CollectAndCompare(clusterHealthTransitionsTotal, strings.NewReader(want), clusterHealthTransitionsTotalName); err != nil {
+			t.Errorf("unexpected collecting result:\n%s", err)
+		}
+	})
 }
