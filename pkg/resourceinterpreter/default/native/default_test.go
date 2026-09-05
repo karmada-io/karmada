@@ -69,6 +69,15 @@ func TestHookEnabled(t *testing.T) {
 			operationType: configv1alpha1.InterpreterOperationRetain,
 			want:          true,
 		}, {
+			name: "statefulset with retain operation enabled",
+			kind: schema.GroupVersionKind{
+				Group:   "apps",
+				Version: "v1",
+				Kind:    "StatefulSet",
+			},
+			operationType: configv1alpha1.InterpreterOperationRetain,
+			want:          true,
+		}, {
 			name: "ingress with aggregatestatus operation enabled",
 			kind: schema.GroupVersionKind{
 				Group:   "networking.k8s.io",
