@@ -87,7 +87,7 @@ func newResourceCache(clusterName string, gvr schema.GroupVersionResource, gvk s
 				GroupResource: gvr.GroupResource(),
 			},
 			ResourcePrefix: gvr.Group + "/" + gvr.Resource,
-			Decorator:      storageWithCacher(gvr, multiNS, newClientFunc, defaultVersioner),
+			Decorator:      storageWithCacher(gvr, namespaced, multiNS, newClientFunc, defaultVersioner),
 		},
 		AttrFunc: getAttrsFunc(namespaced),
 	})
@@ -103,7 +103,7 @@ func newResourceCache(clusterName string, gvr schema.GroupVersionResource, gvk s
 	}, nil
 }
 
-func storageWithCacher(gvr schema.GroupVersionResource, multiNS *MultiNamespace, newClientFunc func() (dynamic.NamespaceableResourceInterface, error), versioner storage.Versioner) generic.StorageDecorator {
+func storageWithCacher(gvr schema.GroupVersionResource, namespaced bool, multiNS *MultiNamespace, newClientFunc func() (dynamic.NamespaceableResourceInterface, error), versioner storage.Versioner) generic.StorageDecorator {
 	return func(
 		storageConfig *storagebackend.ConfigForResource,
 		resourcePrefix string,
@@ -113,7 +113,7 @@ func storageWithCacher(gvr schema.GroupVersionResource, multiNS *MultiNamespace,
 		getAttrsFunc storage.AttrFunc,
 		_ storage.IndexerFuncs,
 		indexers *cache.Indexers) (storage.Interface, factory.DestroyFunc, error) {
-		s := newStore(gvr, multiNS, newClientFunc, versioner, resourcePrefix)
+		s := newStore(gvr, namespaced, multiNS, newClientFunc, versioner, resourcePrefix)
 		cacherConfig := cacherstorage.Config{
 			Storage:             s,
 			Versioner:           versioner,
