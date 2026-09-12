@@ -83,15 +83,16 @@ func (c *Components) FullRepository() string {
 	return c.hostname + "/" + c.repository
 }
 
-// String returns the full name of the image, including repository and tag(or digest).
+// String returns the full name of the image, including its tag and digest if present.
 func (c Components) String() string {
+	image := c.FullRepository()
 	if c.tag != "" {
-		return c.FullRepository() + ":" + c.tag
-	} else if c.digest != "" {
-		return c.FullRepository() + "@" + c.digest
+		image += ":" + c.tag
 	}
-
-	return c.FullRepository()
+	if c.digest != "" {
+		image += "@" + c.digest
+	}
+	return image
 }
 
 // Tag returns the tag.
@@ -147,14 +148,10 @@ func (c *Components) SetTagOrDigest(input string) {
 	}
 }
 
-// RemoveTagOrDigest removes tag or digest.
-// Since tag and digest don't co-exist, so remove tag if tag not empty, otherwise remove digest.
+// RemoveTagOrDigest removes both the tag and digest.
 func (c *Components) RemoveTagOrDigest() {
-	if c.tag != "" {
-		c.tag = ""
-	} else if c.digest != "" {
-		c.digest = ""
-	}
+	c.tag = ""
+	c.digest = ""
 }
 
 // Parse returns a Components of the given image.
@@ -171,7 +168,8 @@ func Parse(image string) (*Components, error) {
 
 	if tagged, ok := ref.(reference.Tagged); ok {
 		comp.tag = tagged.Tag()
-	} else if digested, ok := ref.(reference.Digested); ok {
+	}
+	if digested, ok := ref.(reference.Digested); ok {
 		comp.digest = digested.Digest().String()
 	}
 
