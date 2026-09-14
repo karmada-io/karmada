@@ -409,7 +409,13 @@ the previously known-good version via `Work.spec.suspendDispatching`.
   is not rejected.
 - **Interaction with `Failover`** — v1 does not pause failover during
   a rollout; failover to a still-suspended later-stage cluster is a
-  documented limitation.
+  documented limitation. If failover, reschedule, or any other cause
+  reduces the current stage's cluster set (intersected with
+  `spec.clusters`) to empty, `pkg/rollout.Compute` enters
+  `phase = Failed` immediately with reason `EmptyStageAfterReschedule`
+  (bypassing `Gate.Timeout`) — this prevents unverified promotion to
+  any later-stage cluster when the current stage never had a chance to
+  gate.
 
 ### Test Plan
 
@@ -440,11 +446,6 @@ fight rollout progression — proves we do not write to PP spec).
   GitOps drift (Argo CD / Flux would fight the rollout), fan out through
   the detector on every stage transition, and collide with
   user-declared static suspension in the same field.
-- **External orchestrator only (Argo Workflows / Flagger).** Rejected
-  as the *only* option; retained as complementary. Every team otherwise
-  reinvents the same health-gate / bake-time / condition-check state
-  machine; bringing those into Karmada also enables `kubectl rollout
-  status pp/<name>` as first-class UX.
 - **Dedicated `karmada-rollout` controller.** Rejected for v1: the only
   output (`RB.spec.suspension.rollout`) is consumed by the binding
   controller on its own reconcile — an unnecessary inter-controller
