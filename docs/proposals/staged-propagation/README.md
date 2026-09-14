@@ -3,8 +3,10 @@ title: Staged propagation for PropagationPolicy and ClusterPropagationPolicy
 authors:
 - "@zzklachlan"
 reviewers:
+- "@RainbowMango"
 - "@jabellard"
 - "@mszacillo"
+- "@zhzhuang-zju"
 approvers:
 - TBD
 
