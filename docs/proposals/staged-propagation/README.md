@@ -30,7 +30,7 @@ observable state machine.
 This proposal introduces an opt-in `rolloutStrategy` field on
 `PropagationSpec` and a `pkg/rollout/` library invoked from the existing
 binding controllers. Users declare *what* the staged rollout looks like
-(ordered stages; health / condition / bake / timeout gates; failure
+(ordered stages; health / condition / duration / timeout gates; failure
 policy); Karmada drives the state machine. No new controller; the
 feature layers on the existing suspension primitive and reuses the full
 binding → Work → member-cluster data path.
@@ -61,10 +61,10 @@ proposal picks up that non-goal as its central goal.
 - Declare an ordered, health-gated staged rollout across the clusters
   selected by a single PP or CPP.
 - Verification gate with four dials — `RequireHealthy`,
-  `RequiredConditions`, `MinBakeTime`, `Timeout` — covering health-only
+  `RequiredConditions`, `MinSuccessTime`, `Timeout` — covering health-only
   auto-advance, condition-based validation (workload conditions or
   custom validator signals surfaced via the workload's status),
-  bake-time, and auto-abort on stall.
+  min-success duration, and auto-abort on stall.
 - Declared, testable failure policy (`Pause | Continue`) so failed stages
   do not silently roll forward.
 - Reuse existing primitives (`spec.suspension.dispatchingOnClusters`,
@@ -104,8 +104,8 @@ supported symmetrically on `PropagationPolicy` and
 
 As a service owner running the same HA workload across DC1 and DC2, I
 want a config change to roll out to DC1 first, hold until DC1 has been
-healthy for a bake period, then proceed to DC2 — so DC2 keeps serving
-while DC1 restarts.
+continuously healthy for a minimum period, then proceed to DC2 — so DC2
+keeps serving while DC1 restarts.
 
 ```yaml
 kind: PropagationPolicy
@@ -117,10 +117,10 @@ spec:
       stages:
         - name: dc1
           clusterNames: [member-east]
-          gate: {requireHealthy: true, minBakeTime: 60s, timeout: 10m}
+          gate: {requireHealthy: true, minSuccessTime: 60s, timeout: 10m}
         - name: dc2
           clusterNames: [member-west]
-          gate: {requireHealthy: true, minBakeTime: 60s, timeout: 10m}
+          gate: {requireHealthy: true, minSuccessTime: 60s, timeout: 10m}
       onFailure: {action: Pause}
 ```
 
@@ -169,8 +169,8 @@ resource template is git-controlled.
   Cross-RB synchronization is a v2 extension.
 - **Stages are atomic.** Every cluster in a stage must simultaneously
   satisfy the full gate (`RequireHealthy` if set, AND every
-  `RequiredConditions` entry) for the entire `MinBakeTime` window; any
-  flap resets the bake clock. A stage never partially advances.
+  `RequiredConditions` entry) for the entire `MinSuccessTime` window; any
+  flap resets the clock. A stage never partially advances.
 
 ### Risks and Mitigations
 
@@ -221,7 +221,7 @@ type RolloutStage struct {
 type RolloutStageGate struct {
     RequireHealthy     *bool                  `json:"requireHealthy,omitempty"`     // default true
     RequiredConditions []ConditionRequirement `json:"requiredConditions,omitempty"` // default nil (no extra conditions)
-    MinBakeTime        *metav1.Duration       `json:"minBakeTime,omitempty"`        // default 0
+    MinSuccessTime     *metav1.Duration       `json:"minSuccessTime,omitempty"`     // default 0
     Timeout            *metav1.Duration       `json:"timeout,omitempty"`            // default 30m
 }
 
@@ -240,7 +240,7 @@ type ConditionRequirement struct {
 
 Multiple `RequiredConditions` entries AND together with `RequireHealthy`;
 a stage advances only when every cluster satisfies the full gate for
-the entire `MinBakeTime` window (see Notes/Caveats for flap semantics).
+the entire `MinSuccessTime` window (see Notes/Caveats for flap semantics).
 
 Add `Rollout` to `workv1alpha2.Suspension` (per-binding, controller-owned):
 
@@ -307,7 +307,7 @@ type RolloutStageStatus struct {
 
     // GateSatisfiedSince is when every cluster first continuously
     // satisfied the full gate (RequireHealthy AND RequiredConditions).
-    // Reset to nil on flap so MinBakeTime survives controller restart.
+    // Reset to nil on flap so MinSuccessTime survives controller restart.
     GateSatisfiedSince *metav1.Time `json:"gateSatisfiedSince,omitempty"`
 
     StartedAt   *metav1.Time `json:"startedAt,omitempty"`   // used for Gate.Timeout
@@ -340,7 +340,7 @@ data path).
 stateDiagram-v2
     [*] --> Pending: spec.rolloutStrategy set
     Pending --> Progressing: begin first stage\n(suspend all but stage 1)
-    Progressing --> NextStage: gate satisfied\n(Healthy AND RequiredConditions)\nfor MinBakeTime
+    Progressing --> NextStage: gate satisfied\n(Healthy AND RequiredConditions)\nfor MinSuccessTime
     Progressing --> Failed: Gate.Timeout exceeded\n(OnFailure=Pause)
     state NextStage <<choice>>
     NextStage --> Progressing: more stages remain\n(unsuspend next stage)
@@ -390,7 +390,7 @@ the previously known-good version via `Work.spec.suspendDispatching`.
 - When `spec.rolloutStrategy` is unset, existing behavior is preserved
   verbatim; the binding controllers skip `pkg/rollout/` entirely.
 - Defaults: `RolloutStrategy.Type=AllAtOnce`, `Gate.RequireHealthy=true`,
-  `Gate.RequiredConditions=nil`, `Gate.MinBakeTime=0`,
+  `Gate.RequiredConditions=nil`, `Gate.MinSuccessTime=0`,
   `Gate.Timeout=30m`, `OnFailure.Action=Pause`.
 
 ### Corner cases
