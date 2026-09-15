@@ -32,7 +32,7 @@ This proposal introduces an opt-in `rolloutStrategy` field on
 binding controllers. In v1, `Staged` mode rolls the workload out one
 cluster at a time in deterministic (alphabetical) order; users declare
 a single gate (health / condition / min-success) that every cluster
-must pass before the next one is unsuspended, plus a whole-rollout
+must pass before the next one is unsuspended, plus a per-cluster
 timeout and failure policy. Karmada drives the state machine. No new
 controller; the feature layers on the existing suspension primitive
 and reuses the full binding → Work → member-cluster data path.
