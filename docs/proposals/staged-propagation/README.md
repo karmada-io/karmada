@@ -29,11 +29,13 @@ observable state machine.
 
 This proposal introduces an opt-in `rolloutStrategy` field on
 `PropagationSpec` and a `pkg/rollout/` library invoked from the existing
-binding controllers. Users declare *what* the staged rollout looks like
-(ordered stages; health / condition / duration / timeout gates; failure
-policy); Karmada drives the state machine. No new controller; the
-feature layers on the existing suspension primitive and reuses the full
-binding → Work → member-cluster data path.
+binding controllers. In v1, `Staged` mode rolls the workload out one
+cluster at a time in deterministic (alphabetical) order; users declare
+a single gate (health / condition / min-success) that every cluster
+must pass before the next one is unsuspended, plus a whole-rollout
+timeout and failure policy. Karmada drives the state machine. No new
+controller; the feature layers on the existing suspension primitive
+and reuses the full binding → Work → member-cluster data path.
 
 ## Motivation
 
@@ -59,14 +61,17 @@ proposal picks up that non-goal as its central goal.
 ### Goals
 
 - Declare an ordered, health-gated staged rollout across the clusters
-  selected by a single PP or CPP.
-- Verification gate with four dials — `RequireHealthy`,
-  `RequiredConditions`, `MinSuccessTime`, `Timeout` — covering health-only
+  selected by a single PP or CPP. Order is deterministic (sorted by
+  cluster name); one cluster at a time.
+- Verification gate with three dials — `RequireHealthy`,
+  `RequiredConditions`, `MinSuccessTime` — covering health-only
   auto-advance, condition-based validation (workload conditions or
-  custom validator signals surfaced via the workload's status),
-  min-success duration, and auto-abort on stall.
-- Declared, testable failure policy (`Pause | Continue`) so failed stages
-  do not silently roll forward.
+  custom validator signals surfaced via the workload's status), and
+  min-success duration. A separate per-cluster `Timeout` (same value
+  applied to every cluster; clock reset per cluster) bounds each
+  cluster's wall-clock budget.
+- Declared, testable failure policy (`Pause | Continue`) so a failing
+  cluster does not silently let the rollout roll forward.
 - Reuse existing primitives (`spec.suspension.dispatchingOnClusters`,
   `Work.spec.suspendDispatching`, `AggregatedStatusItem.Health`); no new
   data plane, only a new control loop.
@@ -90,68 +95,72 @@ proposal picks up that non-goal as its central goal.
 
 The core primitive is `PropagationSpec.rolloutStrategy`. Setting it to
 `Staged` switches propagation from all-at-once dispatch to a
-controller-driven state machine that unlocks one stage's clusters at a
-time by writing per-cluster suspension onto the associated
-`ResourceBinding` / `ClusterResourceBinding`. All other propagation
-semantics — scheduling, placement, override policies, work generation,
-execution, status aggregation — are unchanged. `rolloutStrategy` is
-supported symmetrically on `PropagationPolicy` and
-`ClusterPropagationPolicy` from v1.
+controller-driven state machine that unlocks one cluster at a time in
+deterministic sorted order by writing per-cluster suspension onto the
+associated `ResourceBinding` / `ClusterResourceBinding`. All other
+propagation semantics — scheduling, placement, override policies, work
+generation, execution, status aggregation — are unchanged.
+`rolloutStrategy` is supported symmetrically on `PropagationPolicy`
+and `ClusterPropagationPolicy` from v1. v1 intentionally has no
+grouping / batching / user-specified ordering; those are v2 extensions
+if requested.
 
 ### User Stories
 
-#### Story 1: Sequential multi-DC rollout with health gating
+#### Story 1: Sequential cluster-by-cluster rollout with health gating
 
-As a service owner running the same HA workload across DC1 and DC2, I
-want a config change to roll out to DC1 first, hold until DC1 has been
-continuously healthy for a minimum period, then proceed to DC2 — so DC2
-keeps serving while DC1 restarts.
+As a service owner running the same HA workload across multiple
+clusters, I want a config change to roll out one cluster at a time,
+holding each cluster until it has been continuously healthy for a
+minimum period — so surviving clusters keep serving while any single
+cluster restarts.
 
 ```yaml
 kind: PropagationPolicy
 spec:
-  # ... resourceSelectors, placement ...
+  # ... resourceSelectors, placement (selects member-east, member-west, ...) ...
   rolloutStrategy:
     type: Staged
     staged:
-      stages:
-        - name: dc1
-          clusterNames: [member-east]
-          gate: {requireHealthy: true, minSuccessTime: 60s, timeout: 10m}
-        - name: dc2
-          clusterNames: [member-west]
-          gate: {requireHealthy: true, minSuccessTime: 60s, timeout: 10m}
+      gate: {requireHealthy: true, minSuccessTime: 60s}
+      timeout: 30m           # each cluster has its own 30m budget
       onFailure: {action: Pause}
 ```
 
-#### Story 2: Tenant-driven validation between stages
+Clusters are visited in `spec.clusters` sorted order (deterministic:
+`member-east` before `member-west`). Each cluster must stay Healthy
+for a continuous 60s before the next one is unsuspended.
+
+#### Story 2: Tenant-driven validation between clusters
 
 As a service owner, I do not trust "reports Healthy" as sufficient
-signal to promote. I want the rollout to hold DC2 until DC1 is healthy
-*and* my smoke-test controller writes a `SmokeTestsPassed=True`
-condition onto the workload — read by the gate via the resource's
-existing `.status.conditions[]` (see API changes).
+signal to promote. I want the rollout to hold on each cluster until
+the workload is healthy *and* my smoke-test controller writes a
+`SmokeTestsPassed=True` condition onto the workload — read by the
+gate via the resource's existing `.status.conditions[]` (see API
+changes).
 
 ```yaml
-stages:
-  - name: dc1
-    clusterNames: [member-east]
-    gate:
-      requireHealthy: true
-      requiredConditions:
-        - {type: SmokeTestsPassed, status: "True"}
-  - name: dc2
-    clusterNames: [member-west]
-    gate: {requireHealthy: true}
+staged:
+  gate:
+    requireHealthy: true
+    requiredConditions:
+      - {type: SmokeTestsPassed, status: "True"}
+  timeout: 1h
 ```
 
-#### Story 3: Automatic pause on failed stage, protecting later clusters
+The gate applies identically to every cluster in sorted order. The
+smoke-test controller in each cluster writes `SmokeTestsPassed=True`
+onto the workload's own `.status.conditions[]`; the gate reads it
+via `AggregatedStatusItem.Status`.
 
-If DC1 fails its gate (timeout without reaching `Healthy`, or required
-conditions never becoming `True`), I want the rollout to *pause*
-without propagating to DC2, so DC2 stays on the previous known-good
-version until I intervene. No automatic workload-level revert — my
-resource template is git-controlled.
+#### Story 3: Automatic pause on failure, protecting remaining clusters
+
+If any cluster fails its gate (rollout timeout without reaching
+`Healthy`, or required conditions never becoming `True`), I want the
+rollout to *pause* without propagating to the remaining clusters, so
+they stay on the previous known-good version until I intervene. No
+automatic workload-level revert — my resource template is git-controlled.
 
 ### Notes/Constraints/Caveats
 
@@ -163,14 +172,18 @@ resource template is git-controlled.
 - **Suspension is a union.** The dispatch decision is the union of
   user-declared (`Dispatching`, `DispatchingOnClusters`) and
   controller-managed (`Rollout.SuspendedClusters`) suspension; a
-  user-suspended cluster is never un-suspended by a rollout stage.
+  user-suspended cluster is never un-suspended by rollout progress.
 - **Rollout state is per-workload.** One PP selecting N resource
   templates produces N ResourceBindings, each advancing independently.
   Cross-RB synchronization is a v2 extension.
-- **Stages are atomic.** Every cluster in a stage must simultaneously
-  satisfy the full gate (`RequireHealthy` if set, AND every
-  `RequiredConditions` entry) for the entire `MinSuccessTime` window; any
-  flap resets the clock. A stage never partially advances.
+- **Per-cluster gate is atomic.** The current cluster must satisfy
+  the full gate (`RequireHealthy` if set, AND every
+  `RequiredConditions` entry) for the entire `MinSuccessTime` window
+  before the next cluster is unsuspended; any flap resets the clock.
+- **Ordering is deterministic.** Clusters are visited in `spec.clusters`
+  alphabetically-sorted order at each reconcile. Reschedules that add
+  or remove clusters mid-rollout are handled explicitly (see
+  Reschedule mid-rollout).
 
 ### Risks and Mitigations
 
@@ -178,11 +191,20 @@ resource template is git-controlled.
 |---|---|
 | Binding controller and detector race on `RB.spec.suspension` | Separate controller-owned field (`Suspension.Rollout`); the detector's `MergePolicySuspension` only overwrites the embedded user-declared part. |
 | Rollout stalls on unreachable cluster | `Unknown` is treated as "not yet Healthy"; `Timeout` bounds the wait; `OnFailure: Pause` prevents cascading. |
-| User edits resource template mid-rollout | Generation change marks the rollout `Superseded` and restarts from stage 1 (Deployment precedent). |
+| User edits resource template mid-rollout | Generation change flips `Phase` to `Superseded`, clears `CompletedClusters`, and restarts from the first cluster in sort order on the next reconcile (Deployment precedent). |
 | `Health == Healthy` is a weak signal | Users needing stronger validation set `RequiredConditions` (e.g. `Available=True`, `Ready=True`, or a custom `SmokeTestsPassed=True` condition written by an in-cluster validator). Karmada observes; it does not run the tests. |
 | Binding controller crashes mid-rollout | `pkg/rollout/` is a pure function; state is fully recovered from `status.rollout` + `spec.suspension.rollout` on the next reconcile. |
 
 ## Design Details
+
+The design follows the standard Kubernetes spec-declares / status-progresses
+pattern, split across two objects: the `PropagationPolicy` carries the
+user-authored rollout *declaration* (`spec.rolloutStrategy` — strategy
+type, gate criteria, failure policy), and the `ResourceBinding` carries
+the per-workload *actuation state* (`spec.suspension.rollout`) and
+*observed progress* (`status.rollout`). This is the same relationship
+that `Deployment` has with `ReplicaSet`: policy on the parent,
+per-instance progression on the child.
 
 ### API changes
 
@@ -195,6 +217,15 @@ type PropagationSpec struct {
     RolloutStrategy *RolloutStrategy `json:"rolloutStrategy,omitempty"`
 }
 
+// RolloutStrategyType selects the rollout mode. AllAtOnce preserves
+// existing behavior; Staged activates the pkg/rollout/ state machine.
+type RolloutStrategyType string
+
+const (
+    RolloutStrategyAllAtOnce RolloutStrategyType = "AllAtOnce"
+    RolloutStrategyStaged    RolloutStrategyType = "Staged"
+)
+
 type RolloutStrategy struct {
     // +kubebuilder:validation:Enum=AllAtOnce;Staged
     // +kubebuilder:default=AllAtOnce
@@ -202,31 +233,33 @@ type RolloutStrategy struct {
     Staged *StagedRollout      `json:"staged,omitempty"` // required when Type=Staged
 }
 
+// StagedRollout rolls the workload out one cluster at a time.
+// Order is deterministic: `spec.clusters` sorted alphabetically by
+// cluster name at each reconcile. A cluster must satisfy `Gate` before
+// the next cluster is unsuspended. `Timeout` is a per-cluster budget
+// (same value applied to every cluster): each cluster has its own
+// fresh clock that starts when it becomes `CurrentCluster`. Exceeding
+// it fails the rollout on that cluster (subject to `OnFailure`). One
+// cluster's slow bakes never eat into another's budget.
+//
+// v1 intentionally exposes no grouping / batching / per-cluster stages;
+// see Alternatives for the "explicit stages" shape we deferred.
 type StagedRollout struct {
-    // +kubebuilder:validation:MinItems=1
-    Stages    []RolloutStage        `json:"stages"`
+    Gate      *RolloutGate          `json:"gate,omitempty"`      // if unset, advance on Applied=true only
+    Timeout   *metav1.Duration      `json:"timeout,omitempty"`   // per-cluster budget; default 30m
     OnFailure *RolloutFailurePolicy `json:"onFailure,omitempty"` // default {Action: Pause}
 }
 
-type RolloutStage struct {
-    // +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`
-    Name string `json:"name"`
-    // ClusterNames must be a subset of spec.placement's selection at
-    // reconcile time; unknown names are ignored and reported in status.
-    // +kubebuilder:validation:MinItems=1
-    ClusterNames []string          `json:"clusterNames"`
-    Gate         *RolloutStageGate `json:"gate,omitempty"` // if unset, advance on Applied=true
-}
-
-type RolloutStageGate struct {
+// RolloutGate is the per-cluster criterion for advancing the rollout.
+// Applied identically to every cluster; there are no per-cluster overrides.
+type RolloutGate struct {
     RequireHealthy     *bool                  `json:"requireHealthy,omitempty"`     // default true
     RequiredConditions []ConditionRequirement `json:"requiredConditions,omitempty"` // default nil (no extra conditions)
     MinSuccessTime     *metav1.Duration       `json:"minSuccessTime,omitempty"`     // default 0
-    Timeout            *metav1.Duration       `json:"timeout,omitempty"`            // default 30m
 }
 
-// ConditionRequirement gates a stage on a Condition present in the
-// workload's own status.conditions[], surfaced per cluster via
+// ConditionRequirement gates a cluster on a Condition present in the
+// workload's own status.conditions[], surfaced via
 // AggregatedStatusItem.Status. Missing conditions count as Unknown.
 type ConditionRequirement struct {
     Type   string                 `json:"type"`             // e.g. "Available", "SmokeTestsPassed"
@@ -235,12 +268,33 @@ type ConditionRequirement struct {
     Status metav1.ConditionStatus `json:"status,omitempty"` // default "True"
 }
 
-// RolloutFailurePolicy.Action is Pause | Continue (default Pause).
+// RolloutFailureAction selects what a per-cluster gate failure (or a
+// whole-rollout Timeout) does to the rollout.
+type RolloutFailureAction string
+
+const (
+    RolloutFailureActionPause    RolloutFailureAction = "Pause"
+    RolloutFailureActionContinue RolloutFailureAction = "Continue"
+)
+
+type RolloutFailurePolicy struct {
+    // +kubebuilder:validation:Enum=Pause;Continue
+    // +kubebuilder:default=Pause
+    Action RolloutFailureAction `json:"action"`
+}
 ```
 
 Multiple `RequiredConditions` entries AND together with `RequireHealthy`;
-a stage advances only when every cluster satisfies the full gate for
-the entire `MinSuccessTime` window (see Notes/Caveats for flap semantics).
+the rollout advances to the next cluster only when the current cluster
+satisfies the full gate for the entire `MinSuccessTime` window (see
+Notes/Caveats for flap semantics). `StagedRollout.Timeout` is
+independent of `MinSuccessTime` — each cluster has its own `Timeout`
+clock that starts when it becomes `CurrentCluster` and is reset (not
+carried over) when the next cluster begins. Exceeding it triggers
+`OnFailure` (default `Pause`) on the cluster whose clock ran out.
+Worst-case total wall-clock time is `N × Timeout` for `N` scheduled
+clusters — pick `Timeout` for a single cluster's expected bake, not
+for the fleet.
 
 Add `Rollout` to `workv1alpha2.Suspension` (per-binding, controller-owned):
 
@@ -253,7 +307,12 @@ type Suspension struct {
 }
 
 type RolloutSuspension struct {
-    ActiveStage       string   `json:"activeStage,omitempty"`
+    // CurrentCluster is the single cluster the rollout is currently
+    // gating on. Empty when the rollout is Pending (before first
+    // cluster is picked) or Succeeded (after last cluster passed).
+    CurrentCluster    string   `json:"currentCluster,omitempty"`
+    // SuspendedClusters is every cluster in the sorted target list
+    // that is neither CurrentCluster nor already-completed.
     SuspendedClusters []string `json:"suspendedClusters,omitempty"`
 }
 ```
@@ -277,15 +336,43 @@ type ResourceBindingStatus struct {
 }
 
 type RolloutStatus struct {
-    // Mismatch with metadata.generation triggers a stage-1 restart.
+    // ObservedGeneration is the workload template revision this rollout
+    // is driving toward. Mismatch with the current template generation
+    // triggers a restart from the first cluster in sorted order.
+    // (See Group C in the review comments for the full revision-tracking
+    // contract; this is the identity of "the current template.")
     ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 
-    // +kubebuilder:validation:Enum=Pending;Progressing;Succeeded;Failed
-    Phase        RolloutPhase         `json:"phase"`
-    CurrentStage string               `json:"currentStage,omitempty"` // empty when Pending/Succeeded
-    Stages       []RolloutStageStatus `json:"stages,omitempty"`       // ordered to match spec
+    // +kubebuilder:validation:Enum=Pending;Progressing;Succeeded;Failed;Superseded
+    Phase RolloutPhase `json:"phase"`
+
+    // CurrentCluster is the single cluster the rollout is currently
+    // gating on. Empty when Phase is Pending or Succeeded. When
+    // Phase is Failed, this is the cluster whose gate failed.
+    CurrentCluster string `json:"currentCluster,omitempty"`
+
+    // CompletedClusters is the list of clusters that have already
+    // passed the gate for ObservedGeneration, in the order they passed.
+    CompletedClusters []string `json:"completedClusters,omitempty"`
+
+    // GateSatisfiedSince is when CurrentCluster first continuously
+    // satisfied the full gate (RequireHealthy AND RequiredConditions).
+    // Reset to nil on flap so MinSuccessTime survives controller restart.
+    GateSatisfiedSince *metav1.Time `json:"gateSatisfiedSince,omitempty"`
+
+    // StartedAt is when the whole rollout began (first cluster
+    // became CurrentCluster). Informational only.
+    StartedAt *metav1.Time `json:"startedAt,omitempty"`
+    // CurrentClusterStartedAt is when the CurrentCluster became the
+    // current target. Reset every time CurrentCluster changes.
+    // Used to enforce StagedRollout.Timeout on the current cluster.
+    CurrentClusterStartedAt *metav1.Time `json:"currentClusterStartedAt,omitempty"`
+    CompletedAt *metav1.Time `json:"completedAt,omitempty"`
+
     // Well-known Condition types: "Progressing", "Healthy", "ConditionsMet".
-    Conditions   []metav1.Condition   `json:"conditions,omitempty"`
+    Conditions []metav1.Condition `json:"conditions,omitempty"`
+
+    Message string `json:"message,omitempty"` // human-readable, populated on transition
 }
 
 type RolloutPhase string
@@ -295,25 +382,12 @@ const (
     RolloutPhaseProgressing RolloutPhase = "Progressing"
     RolloutPhaseSucceeded   RolloutPhase = "Succeeded"
     RolloutPhaseFailed      RolloutPhase = "Failed"
+    // Superseded is set when the workload template generation changes
+    // mid-rollout; the rollout resets to the first cluster on the next
+    // reconcile. Kept as a distinct phase so dashboards can distinguish
+    // "template changed" from "genuinely failed."
+    RolloutPhaseSuperseded  RolloutPhase = "Superseded"
 )
-
-type RolloutStageStatus struct {
-    Name  string       `json:"name"`
-    // +kubebuilder:validation:Enum=Pending;Progressing;Succeeded;Failed
-    Phase RolloutPhase `json:"phase"`
-
-    HealthyClusters   []string `json:"healthyClusters,omitempty"`   // Health == Healthy
-    UnhealthyClusters []string `json:"unhealthyClusters,omitempty"` // Unhealthy or Unknown
-
-    // GateSatisfiedSince is when every cluster first continuously
-    // satisfied the full gate (RequireHealthy AND RequiredConditions).
-    // Reset to nil on flap so MinSuccessTime survives controller restart.
-    GateSatisfiedSince *metav1.Time `json:"gateSatisfiedSince,omitempty"`
-
-    StartedAt   *metav1.Time `json:"startedAt,omitempty"`   // used for Gate.Timeout
-    CompletedAt *metav1.Time `json:"completedAt,omitempty"`
-    Message     string       `json:"message,omitempty"`     // human-readable, populated on transition
-}
 ```
 
 `ClusterResourceBinding` embeds `ResourceBindingSpec` /
@@ -328,7 +402,10 @@ of user-declared and controller-managed suspension;
 
 **No new controller.** The state machine lives as a `pkg/rollout/`
 library of pure functions invoked from the existing binding controllers
-whenever `spec.rolloutStrategy != nil`. It exposes a single
+whenever `spec.rolloutStrategy != nil && spec.rolloutStrategy.Type ==
+Staged`. `Type: AllAtOnce` (the default) is a documented no-op label:
+the library is not invoked and the existing all-at-once dispatch path
+runs unchanged. It exposes a single
 `Compute(strategy, prevStatus, aggregatedStatus, scheduledClusters, now)`
 returning the suspended-cluster set, a new `RolloutStatus`, and a
 `requeueAfter` duration. The binding controller writes
@@ -336,23 +413,34 @@ returning the suspended-cluster set, a new `RolloutStatus`, and a
 reads the updated `Suspension` via `shouldSuspendDispatching` (unchanged
 data path).
 
+**Cluster ordering.** `Compute` sorts the effective target set (the
+same `mergeTargetClusters(spec.Clusters, spec.RequiredBy)` set that
+`ensureWork` uses) alphabetically by cluster name; this ordering is
+stable across reconciles and reschedules. `CurrentCluster` is the
+first cluster in that sorted list that is not in `CompletedClusters`.
+
 ```mermaid
 stateDiagram-v2
-    [*] --> Pending: spec.rolloutStrategy set
-    Pending --> Progressing: begin first stage\n(suspend all but stage 1)
-    Progressing --> NextStage: gate satisfied\n(Healthy AND RequiredConditions)\nfor MinSuccessTime
-    Progressing --> Failed: Gate.Timeout exceeded\n(OnFailure=Pause)
-    state NextStage <<choice>>
-    NextStage --> Progressing: more stages remain\n(unsuspend next stage)
-    NextStage --> Succeeded: last stage passed\n(clear all suspension)
+    [*] --> Pending: spec.rolloutStrategy=Staged\nspec.clusters not yet scheduled
+    Pending --> Progressing: scheduler populated spec.clusters\n(pick first cluster; suspend the rest)
+    Progressing --> Advance: gate satisfied on CurrentCluster\n(Healthy AND RequiredConditions)\nfor MinSuccessTime
+    Progressing --> Failed: Timeout on CurrentCluster\n(clock reset per cluster; OnFailure=Pause)
+    Progressing --> Superseded: workload generation changed
+    state Advance <<choice>>
+    Advance --> Progressing: more clusters remain\n(move CurrentCluster to CompletedClusters;\npick next; unsuspend it)
+    Advance --> Succeeded: all clusters passed\n(clear all suspension)
+    Superseded --> Pending: reset CompletedClusters,\nadvance ObservedGeneration
     Succeeded --> [*]
     Failed --> [*]
 ```
 
-`suspendedClusters` on each entry: `Pending` / `Progressing (stage N)`
-— every scheduled cluster except those in stage N; `Succeeded` — empty;
-`Failed (stage N)` — every cluster in later stages (they stay on the
-known-good version).
+`suspendedClusters` on each entry:
+
+- **Pending** — every scheduled cluster (rollout has not picked a target yet).
+- **Progressing** — every scheduled cluster except `CurrentCluster` and `CompletedClusters`.
+- **Succeeded** — empty (all clusters released).
+- **Failed** — every cluster after `CurrentCluster` in sort order (they stay on the previous known-good version); `CompletedClusters` stay released.
+- **Superseded** — same as Pending on the next reconcile after `ObservedGeneration` advances.
 
 **Reconcile trigger.** Binding controllers get a rollout-aware
 predicate that also wakes on aggregated-status changes; the execution
@@ -361,92 +449,118 @@ controller needs no changes since `Suspension.Rollout` writes bump
 
 ### Reschedule mid-rollout
 
-The scheduler owns `RB.spec.clusters` and can update it any time. On each
-reconcile, `pkg/rollout/` computes the expected suspended set as
-`union(clusters in later stages) ∪ (unreached clusters in the current
-stage)`, intersected with the current `spec.clusters`. Clusters that
-appear in `spec.clusters` but no stage are left unsuspended and produce a
-`Warning` event; clusters removed mid-stage no longer block the gate.
+The scheduler owns `RB.spec.clusters` and can update it any time. On
+each reconcile, `pkg/rollout/` recomputes the sorted target list from
+scratch and picks a new `CurrentCluster` as "the first cluster in sort
+order that is not in `CompletedClusters`." No stage-set arithmetic is
+needed. Three sub-cases:
+
+- **New cluster added.** It slots into sort order like any other. If
+  it sorts *after* `CurrentCluster`, it joins the suspended tail and
+  will be visited eventually. If it sorts *before* `CurrentCluster`
+  and is not in `CompletedClusters`, `Compute` makes it the new
+  `CurrentCluster` (fresh gate) — protecting the invariant that no
+  cluster is released without passing the gate for the current
+  `ObservedGeneration`.
+- **`CurrentCluster` removed.** Rollout advances to the next
+  still-scheduled cluster in sort order; the removed cluster is
+  dropped from `CompletedClusters` if present. No failure is raised —
+  a rescheduled-away cluster is a legitimate scheduling decision, and
+  keeping the previously-verified prefix released is safe.
+- **All clusters removed.** Rollout enters `Pending` and waits for
+  scheduling; this is the same behavior as a brand-new binding.
 
 ### Failure handling
 
 `OnFailure.Action`:
 
-- **Pause** (default) — set `phase = Failed`, keep later stages'
-  clusters suspended, emit `RolloutStageFailed`, stop requeuing.
-  `Failed` is terminal; recovery is either (a) any generation bump on
-  the resource template (restarts from stage 1), or (b) removing
-  `spec.rolloutStrategy` to fall back to all-at-once.
-- **Continue** — advance despite failure. Emits a `Warning` event. Rare.
+- **Pause** (default) — set `phase = Failed`, keep all remaining
+  clusters (every cluster after `CurrentCluster` in sort order)
+  suspended, emit `RolloutClusterFailed`, stop requeuing. `Failed` is
+  terminal; recovery is either (a) any generation bump on the resource
+  template (flips to `Superseded` → restart from the first cluster),
+  or (b) removing `spec.rolloutStrategy` to fall back to all-at-once.
+- **Continue** — advance despite the current cluster failing its gate.
+  Adds it to `CompletedClusters` and moves on. Emits a `Warning`
+  event. Rare.
 
 No automatic workload-level rollback in v1 — reverting `spec.resource`
-is a GitOps concern. What v1 guarantees is that later stages stay on
-the previously known-good version via `Work.spec.suspendDispatching`.
+is a GitOps concern. What v1 guarantees is that not-yet-reached
+clusters stay on the previously known-good version via
+`Work.spec.suspendDispatching`.
 
 ### Feature gate and defaulting
 
 - Feature gate `StagedPropagation` (alpha in v1). When disabled, the
-  webhook rejects any policy with `spec.rolloutStrategy != nil`.
-- When `spec.rolloutStrategy` is unset, existing behavior is preserved
-  verbatim; the binding controllers skip `pkg/rollout/` entirely.
-- Defaults: `RolloutStrategy.Type=AllAtOnce`, `Gate.RequireHealthy=true`,
-  `Gate.RequiredConditions=nil`, `Gate.MinSuccessTime=0`,
-  `Gate.Timeout=30m`, `OnFailure.Action=Pause`.
+  webhook rejects any policy with `spec.rolloutStrategy != nil &&
+  spec.rolloutStrategy.Type == Staged`; `Type: AllAtOnce` remains
+  accepted (it matches existing behavior).
+- When `spec.rolloutStrategy` is unset or `Type: AllAtOnce`, existing
+  behavior is preserved verbatim; the binding controllers skip
+  `pkg/rollout/` entirely.
+- Defaults: `RolloutStrategy.Type=AllAtOnce`,
+  `StagedRollout.Timeout=30m`, `StagedRollout.OnFailure.Action=Pause`,
+  `Gate.RequireHealthy=true`, `Gate.RequiredConditions=nil`,
+  `Gate.MinSuccessTime=0`. An omitted `Gate` (`gate: nil`) is
+  synthesized as `&RolloutGate{}` before per-field defaulting, so
+  `gate: nil` and `gate: {}` are equivalent post-defaulting.
 
 ### Corner cases
 
-- **Spec change mid-rollout** — generation bump resets
-  `status.rollout.stages` and restarts from stage 1 (Deployment
-  precedent).
+- **Spec change mid-rollout** — generation bump flips `Phase` to
+  `Superseded` and restarts from the first cluster in sort order
+  (Deployment precedent).
 - **Cluster unreachable / missing condition** — treated as `Unknown`;
-  the stage eventually fails via `Timeout`. For CRDs, missing
-  `.status.conditions[]` in aggregated status is usually a
-  `ResourceInterpreterCustomization` gap — the status message calls
-  this out explicitly.
+  the current cluster's `Timeout` fires eventually. Later clusters are
+  unaffected because their clocks haven't started.
 - **Deletion during rollout** — `Work` deletion is not blocked by
   `spec.suspendDispatching`; the binding controller clears
   `spec.suspension.rollout` on the deletion-triggered reconcile.
 - **Overlap with user-declared static suspension** — static suspension
   wins (union semantics); a validation warning is emitted, the policy
   is not rejected.
-- **Interaction with `Failover`** — v1 does not pause failover during
-  a rollout; failover to a still-suspended later-stage cluster is a
-  documented limitation. If failover, reschedule, or any other cause
-  reduces the current stage's cluster set (intersected with
-  `spec.clusters`) to empty, `pkg/rollout.Compute` enters
-  `phase = Failed` immediately with reason `EmptyStageAfterReschedule`
-  (bypassing `Gate.Timeout`) — this prevents unverified promotion to
-  any later-stage cluster when the current stage never had a chance to
-  gate.
+- **Interaction with `Failover`** — v1 does not pause failover.
+  `Compute` recomputes on the new `spec.clusters`: if the failover
+  target sorts before `CurrentCluster` and isn't already completed, it
+  becomes the new `CurrentCluster` and gates fresh (preserving the
+  "no unverified promotion" invariant); if `spec.clusters` empties,
+  the rollout returns to `Pending` and waits for scheduling.
 
 ### Test Plan
 
-**Unit:** validation (`type=Staged` requires `staged`, stage-name
-uniqueness, non-empty `clusterNames`, duration bounds; each
-`RequiredConditions` entry has a non-empty `Type`);
-`pkg/rollout/Compute` transitions (Pending → Progressing → Succeeded;
-Progressing → Failed on `Timeout`; `RequiredConditions` evaluated
-per-cluster with missing condition treated as `Unknown`; regeneration
-restarts from stage 1; scheduler-driven `spec.clusters` changes
-reconcile cleanly); widened watch predicate;
-`shouldSuspendDispatching` union semantics.
+**Unit** (`pkg/rollout/Compute` + validation webhook):
 
-**Integration & E2E:** three-stage Deployment rollout across three
-clusters verifying per-stage `Work.spec.suspendDispatching` toggling;
-`OnFailure: Pause` with a stuck-Unhealthy workload (later clusters stay
-suspended); condition-driven promotion — deploy a workload whose
-operator publishes `Available=True` and confirm a stage with
-`RequiredConditions: [{type: Available, status: True}]` advances only
-after the condition flips (and does *not* advance when the condition is
-missing entirely); CPP path with mixed namespaced + cluster-scoped
-targets; GitOps interaction (fluxcd/argocd sync of the PP does not
-fight rollout progression — proves we do not write to PP spec).
+- Strategy / gate validation — `type=Staged` requires `staged`;
+  non-empty `Type` on each `RequiredConditions`; duration bounds.
+- State-machine transitions — `Pending → Progressing → Succeeded`
+  across an N-cluster set in sort order; `Progressing → Failed` on
+  `Timeout` elapsed; `Superseded → Progressing` restart on template
+  generation change.
+- `RequiredConditions` per-cluster evaluation with missing condition
+  treated as `Unknown`.
+- Reschedule handling — `spec.clusters` add / remove / reorder
+  preserves the "no unverified promotion" invariant.
+- `shouldSuspendDispatching` union semantics.
+
+**Integration & E2E:**
+
+- N-cluster Deployment rollout — per-cluster
+  `Work.spec.suspendDispatching` toggles in sort order.
+- `OnFailure: Pause` — stuck-Unhealthy workload; remaining clusters
+  stay suspended.
+- Condition-driven promotion — advance only after `Available=True`
+  flips; do not advance when the condition is missing.
+- CPP path with mixed namespaced + cluster-scoped targets.
+- GitOps interaction — Argo CD / Flux sync of the PP does not fight
+  rollout progression (proves we do not write to PP spec).
+- Mid-rollout reschedule — new cluster inserted ahead of
+  `CurrentCluster` gates fresh.
 
 ## Alternatives
 
 - **Suspension on PP / CPP spec, not RB / CRB.** Rejected: would cause
   GitOps drift (Argo CD / Flux would fight the rollout), fan out through
-  the detector on every stage transition, and collide with
+  the detector on every rollout transition, and collide with
   user-declared static suspension in the same field.
 - **Dedicated `karmada-rollout` controller.** Rejected for v1: the only
   output (`RB.spec.suspension.rollout`) is consumed by the binding
