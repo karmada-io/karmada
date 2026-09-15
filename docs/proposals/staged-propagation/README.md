@@ -419,20 +419,7 @@ same `mergeTargetClusters(spec.Clusters, spec.RequiredBy)` set that
 stable across reconciles and reschedules. `CurrentCluster` is the
 first cluster in that sorted list that is not in `CompletedClusters`.
 
-```mermaid
-stateDiagram-v2
-    [*] --> Pending: spec.rolloutStrategy=Staged\nspec.clusters not yet scheduled
-    Pending --> Progressing: scheduler populated spec.clusters\n(pick first cluster; suspend the rest)
-    Progressing --> Advance: gate satisfied on CurrentCluster\n(Healthy AND RequiredConditions)\nfor MinSuccessTime
-    Progressing --> Failed: Timeout on CurrentCluster\n(clock reset per cluster; OnFailure=Pause)
-    Progressing --> Superseded: workload generation changed
-    state Advance <<choice>>
-    Advance --> Progressing: more clusters remain\n(move CurrentCluster to CompletedClusters;\npick next; unsuspend it)
-    Advance --> Succeeded: all clusters passed\n(clear all suspension)
-    Superseded --> Pending: reset CompletedClusters,\nadvance ObservedGeneration
-    Succeeded --> [*]
-    Failed --> [*]
-```
+![State machine](<staged rollout.png>)
 
 `suspendedClusters` on each entry:
 
