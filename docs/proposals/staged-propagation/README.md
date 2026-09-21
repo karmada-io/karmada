@@ -152,7 +152,9 @@ staged:
 The gate applies identically to every cluster in sorted order. The
 smoke-test controller in each cluster writes `SmokeTestsPassed=True`
 onto the workload's own `.status.conditions[]`; the gate reads it
-via `AggregatedStatusItem.Status`.
+via `AggregatedStatusItem.Status`. (Requires the resource interpreter
+to preserve `.status.conditions[]`; see "Interpreter contract for
+`RequiredConditions`".)
 
 #### Story 3: Automatic pause on failure, protecting remaining clusters
 
@@ -179,7 +181,10 @@ automatic workload-level revert — my resource template is git-controlled.
 - **Per-cluster gate is atomic.** The current cluster must satisfy
   the full gate (`RequireHealthy` if set, AND every
   `RequiredConditions` entry) for the entire `MinSuccessTime` window
-  before the next cluster is unsuspended; any flap resets the clock.
+  before the next cluster is unsuspended. The gate compares condition
+  `type + status` only, so heartbeat updates are not flaps; any
+  observable transition off the required status resets
+  `GateSatisfiedSince`.
 - **Ordering is deterministic.** Clusters are visited in `spec.clusters`
   alphabetically-sorted order at each reconcile. Reschedules that add
   or remove clusters mid-rollout are handled explicitly (see
@@ -193,6 +198,7 @@ automatic workload-level revert — my resource template is git-controlled.
 | Rollout stalls on unreachable cluster | `Unknown` is treated as "not yet Healthy"; `Timeout` bounds the wait; `OnFailure: Pause` prevents cascading. |
 | User edits resource template mid-rollout | Generation change flips `Phase` to `Superseded`, clears `CompletedClusters`, and restarts from the first cluster in sort order on the next reconcile (Deployment precedent). |
 | `Health == Healthy` is a weak signal | Users needing stronger validation set `RequiredConditions` (e.g. `Available=True`, `Ready=True`, or a custom `SmokeTestsPassed=True` condition written by an in-cluster validator). Karmada observes; it does not run the tests. |
+| `RequiredConditions` never fires because member-cluster `.status.conditions[]` is dropped by the resource interpreter | Extend the four replica-based native reflectors to preserve `Conditions`. See "Interpreter contract for `RequiredConditions`". |
 | Binding controller crashes mid-rollout | `pkg/rollout/` is a pure function; state is fully recovered from `status.rollout` + `spec.suspension.rollout` on the next reconcile. |
 
 ## Design Details
@@ -398,6 +404,26 @@ Rollout suspension is written onto the RB / CRB, never onto PP / CPP
 of user-declared and controller-managed suspension;
 `util.MergePolicySuspension` is unchanged.
 
+### Interpreter contract for `RequiredConditions`
+
+`RequiredConditions` reads the member workload's `.status.conditions[]`
+via `AggregatedStatusItem.Status`, so the resource interpreter's
+`InterpretStatus` output has to preserve `Conditions`. Today's native
+reflectors do for `Job` / `Ingress` (and any CRD falling through
+`reflectWholeStatus`) but drop them for the replica-based kinds
+(`Deployment`, `DaemonSet`, `StatefulSet`, `ReplicaSet`).
+
+Fix: extend `Wrapped{Deployment,DaemonSet,StatefulSet,ReplicaSet}Status`
+and their `reflect*Status` functions to include `Conditions`
+(`LastUpdateTime` stripped so heartbeat updates don't churn
+`Work.Status`). Aggregation is unaffected — the aggregators only read
+replica/generation fields, so the federated resource's
+`.status.conditions[]` is not modified. Users overriding
+`InterpretStatus` via `ResourceInterpreterCustomization` or a webhook
+are responsible for preserving `Conditions` themselves; failures show
+up as `RolloutStatus.Conditions[ConditionsMet]=False` with
+`Reason=ConditionsMissing` after `Timeout` fires.
+
 ### Rollout reconciliation
 
 **No new controller.** The state machine lives as a `pkg/rollout/`
@@ -528,6 +554,9 @@ clusters stay on the previously known-good version via
 - Reschedule handling — `spec.clusters` add / remove / reorder
   preserves the "no unverified promotion" invariant.
 - `shouldSuspendDispatching` union semantics.
+- Native reflector round-trips `Conditions` (with `LastUpdateTime`
+  stripped) for the four replica-based kinds; aggregators do not
+  propagate `Conditions` to the federated resource's `.status`.
 
 **Integration & E2E:**
 
@@ -535,8 +564,10 @@ clusters stay on the previously known-good version via
   `Work.spec.suspendDispatching` toggles in sort order.
 - `OnFailure: Pause` — stuck-Unhealthy workload; remaining clusters
   stay suspended.
-- Condition-driven promotion — advance only after `Available=True`
-  flips; do not advance when the condition is missing.
+- Condition-driven promotion on a Deployment (proves the reflector
+  extension end-to-end): rollout advances when
+  `.status.conditions[Available]` transitions `False → True`, and
+  Story 2's `SmokeTestsPassed=True` variant.
 - CPP path with mixed namespaced + cluster-scoped targets.
 - GitOps interaction — Argo CD / Flux sync of the PP does not fight
   rollout progression (proves we do not write to PP spec).
