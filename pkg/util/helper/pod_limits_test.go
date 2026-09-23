@@ -83,6 +83,17 @@ func TestPodTemplateLimitsOverheadAndPodLevel(t *testing.T) {
 	assertLimit(t, PodTemplateLimits(template), corev1.ResourceCPU, "1050m")
 }
 
+func TestPodTemplateLimitsPodLevelIndependent(t *testing.T) {
+	template := &corev1.PodTemplateSpec{Spec: corev1.PodSpec{
+		Resources: &corev1.ResourceRequirements{Limits: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("9223372036854775808")}},
+	}}
+	got := PodTemplateLimits(template)
+	quantity := got[corev1.ResourceCPU]
+	quantity.Add(resource.MustParse("1"))
+	got[corev1.ResourceCPU] = quantity
+	assertLimit(t, template.Spec.Resources.Limits, corev1.ResourceCPU, "9223372036854775808")
+}
+
 func TestPodTemplateLimitsExactAndIndependent(t *testing.T) {
 	template := &corev1.PodTemplateSpec{Spec: corev1.PodSpec{Containers: []corev1.Container{
 		{Resources: corev1.ResourceRequirements{Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("9007199254740992")}}},
