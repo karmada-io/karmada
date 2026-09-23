@@ -29,5 +29,9 @@ func PodTemplateLimits(template *corev1.PodTemplateSpec) corev1.ResourceList {
 		return nil
 	}
 	pod := &corev1.Pod{Spec: *template.Spec.DeepCopy()}
-	return resourcehelper.PodLimits(pod, resourcehelper.PodResourcesOptions{}).DeepCopy()
+	limits := resourcehelper.PodLimits(pod, resourcehelper.PodResourcesOptions{})
+	if len(limits) == 0 {
+		return nil
+	}
+	return limits.DeepCopy()
 }

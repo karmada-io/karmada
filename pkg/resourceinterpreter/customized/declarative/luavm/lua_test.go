@@ -96,6 +96,10 @@ end`,
 					corev1.ResourceCPU:    resource.MustParse("1.3"),
 					corev1.ResourceMemory: resource.MustParse("1.3G"),
 				},
+				ResourceLimits: corev1.ResourceList{
+					corev1.ResourceCPU:    resource.MustParse("1.3"),
+					corev1.ResourceMemory: resource.MustParse("1.3G"),
+				},
 			},
 		},
 		{
@@ -178,8 +182,15 @@ end`,
 			if got, want := requires.ResourceRequest.Memory(), tt.wantRequires.ResourceRequest.Memory(); !got.Equal(*want) {
 				t.Errorf("GetReplicas() got Memory = %s, want %s", got, want)
 			}
+			if got, want := requires.ResourceLimits.Cpu(), tt.wantRequires.ResourceLimits.Cpu(); !got.Equal(*want) {
+				t.Errorf("GetReplicas() got CPU limit = %s, want %s", got, want)
+			}
+			if got, want := requires.ResourceLimits.Memory(), tt.wantRequires.ResourceLimits.Memory(); !got.Equal(*want) {
+				t.Errorf("GetReplicas() got memory limit = %s, want %s", got, want)
+			}
 
 			requires.ResourceRequest, tt.wantRequires.ResourceRequest = nil, nil
+			requires.ResourceLimits, tt.wantRequires.ResourceLimits = nil, nil
 			if !reflect.DeepEqual(requires, tt.wantRequires) {
 				t.Errorf("GetReplicas() got = %v, want %v", requires, tt.wantRequires)
 			}
