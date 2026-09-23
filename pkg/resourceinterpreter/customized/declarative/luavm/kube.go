@@ -95,6 +95,12 @@ func accuratePodRequirements(ls *lua.LState) int {
 	}
 
 	requirements := helper.GenerateReplicaRequirements(pod)
+	if requirements != nil {
+		requirements.ResourceLimits = nil // Existing scripts opt in through accuratePodLimits.
+		if requirements.NodeClaim == nil && requirements.ResourceRequest == nil {
+			requirements = nil
+		}
+	}
 	retValue, err := decodeValue(ls, requirements)
 	if err != nil {
 		ls.RaiseError("fail to convert %#v to Lua value: %v", requirements, err)

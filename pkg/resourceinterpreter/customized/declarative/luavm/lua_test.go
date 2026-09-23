@@ -48,7 +48,7 @@ func TestGetReplicas(t *testing.T) {
 		wantRequires *workv1alpha2.ReplicaRequirements
 	}{
 		{
-			name: "Test GetReplica with kube.accuratePodRequirements",
+			name: "Test GetReplica with kube.accuratePodRequirements and kube.accuratePodLimits",
 			deploy: &appsv1.Deployment{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "Deployment",
@@ -84,6 +84,7 @@ local kube = require("kube")
 function GetReplicas(desiredObj)
 	replica = desiredObj.spec.replicas
 	requires = kube.accuratePodRequirements(desiredObj.spec.template)
+	requires.resourceLimits = kube.accuratePodLimits(desiredObj.spec.template)
 	return replica, requires 
 end`,
 			wantReplica: 1,
