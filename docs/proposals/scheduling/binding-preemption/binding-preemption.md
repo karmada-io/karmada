@@ -25,8 +25,8 @@ creation-date: 2026-03-22
 - [Design Overview](#design-overview)
 - [How to Enable Preemption](#how-to-enable-preemption)
 - [API Changes](#api-changes)
-- [Phase 1: Summary-Based Preemption](#phase-1-summary-based-preemption)
-- [Phase 2: Estimator-Based Preemption](#phase-2-estimator-based-preemption)
+- [Preemption Framework](#preemption-framework)
+- [Estimator-Based Preemption](#estimator-based-preemption)
 - [Why ClusterAffinities Is Excluded](#why-clusteraffinities-is-excluded)
 - [Alternative Designs Considered](#alternative-designs-considered)
 - [Risks and Limitations](#risks-and-limitations)
@@ -41,15 +41,13 @@ creation-date: 2026-03-22
 
 This proposal introduces **binding-level preemption** to the Karmada scheduler, scoped to **single-cluster scheduling scenarios**. When a high-priority ResourceBinding cannot be scheduled on its target cluster due to insufficient resources, the scheduler may evict lower-priority bindings from that cluster to make room.
 
-The proposal is phased:
-- **Phase 1**: Summary-based preemption using aggregate replica arithmetic for victim selection.
-- **Phase 2**: Estimator-based preemption with node-level simulation for precise victim selection.
+Victim selection uses node-level simulation from the scheduler-estimator. Aggregate `ResourceSummary` data is not used for victim selection. If the scheduler-estimator is unavailable, preemption is not attempted.
 
 Priority is sourced from the existing `SchedulePriority` mechanism in `PropagationPolicy`, resolved via Kubernetes `PriorityClass`, and propagated to `ResourceBindingSpec.SchedulePriority.Priority`.
 
 ## Motivation
 
-Karmada v1.13 introduced priority-based scheduling (`PriorityBasedScheduling` feature gate), which orders the scheduling queue by priority. However, a high-priority binding that arrives after cluster resources are consumed by low-priority bindings will remain pending indefinitely. This is especially painful for batch/AI workloads where GPU resources are scarce. Binding preemption closes this gap.
+Karmada v1.13 introduced priority-based scheduling (`PriorityBasedScheduling` feature gate), which orders the scheduling queue by priority. The feature was promoted to beta and enabled by default in v1.19. However, a high-priority binding that arrives after cluster resources are consumed by low-priority bindings will remain pending indefinitely. This is especially painful for batch/AI workloads where GPU resources are scarce. Binding preemption closes this gap.
 
 ### Example: GPU Training Preemption
 
@@ -67,16 +65,33 @@ Total used: 8/8 GPUs. No capacity remaining.
 **A high-priority training job arrives**:
 
 ```yaml
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: critical-training
+value: 1000
+globalDefault: false
+preemptionPolicy: PreemptLowerPriority
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: training-job
 spec:
   replicas: 2
+  selector:
+    matchLabels:
+      app: training-job
   template:
+    metadata:
+      labels:
+        app: training-job
     spec:
       containers:
-      - resources:
+      - name: trainer
+        image: busybox:1.36.0
+        command: ["/bin/sh", "-c", "while true; do sleep 30; done"]
+        resources:
           requests:
             nvidia.com/gpu: 2
 ---
@@ -92,8 +107,11 @@ spec:
     clusterAffinity:
       clusterNames: [gpu-cluster]
     spreadConstraints:
-    - spreadByField: Cluster
+    - spreadByField: cluster
       maxGroups: 1
+    replicaScheduling:
+      replicaSchedulingType: Divided
+      replicaDivisionPreference: Aggregated
   resourceSelectors:
   - apiVersion: apps/v1
     kind: Deployment
@@ -108,7 +126,7 @@ spec:
 
 **With preemption (this proposal)**:
 
-1. Scheduler detects `assignReplicas` failure for `training-job` (priority 1000).
+1. Cluster selection reports insufficient capacity for `training-job` (priority 1000).
 2. Scheduler finds lower-priority bindings on `gpu-cluster`: `batch-job-1` (100), `batch-job-2` (100).
 3. `training-job` needs 4 GPUs. Either batch job alone frees 4 GPUs — sufficient. The reprieve loop keeps the older job (`batch-job-1`) and selects `batch-job-2` as the victim.
 4. Scheduler evicts `batch-job-2` from `gpu-cluster` via GracefulEviction and records a claim.
@@ -120,16 +138,16 @@ spec:
 1. Define the preemption model for Karmada bindings in single-cluster scenarios.
 2. Reuse the existing `SchedulePriority` / `PriorityClass` mechanism for preemption ordering.
 3. Add a `PreemptionPolicy` field to `ResourceBindingSpec.SchedulePriority`.
-4. Implement preemption inside `Schedule()` when replica assignment fails.
+4. Implement preemption inside `Schedule()` when cluster selection reports insufficient capacity.
 5. Integrate with GracefulEviction for victim eviction.
 6. Gate behind `PriorityBasedPreemptiveScheduling` (alpha, default off).
 
 ### Non-Goals
 
 1. **Multi-cluster preemption**: Coordinated victim eviction across multiple clusters. Requires iterative recalculation.
-2. **Duplicated mode preemption**: `assignByDuplicatedStrategy` assigns full replicas to all candidates and never returns an error. The preemption trigger is unreachable.
-3. **StaticWeight preemption**: Divides by weight ratio without capacity checks. Never returns an error.
-4. **Component scheduling preemption**: Multi-component workloads (`len(Components) > 1`) bypass `assignFunc` in `AssignReplicas` entirely. Supporting them as preemptors requires a different trigger mechanism. See [Component Scheduling Path](#component-scheduling-path) for the future extension path.
+2. **Duplicated mode preemption**: Cluster selection ignores available resources for Duplicated mode, so it does not return an insufficient-capacity result.
+3. **StaticWeight preemption**: StaticWeight placement does not check available capacity, so it does not return an insufficient-capacity result.
+4. **Component scheduling preemption**: Multi-component workloads are supported as victims, but supporting them as preemptors requires component-set feasibility and claim accounting. See [Component Scheduling Path](#component-scheduling-path) for the future extension path.
 5. Preemption for ClusterResourceBinding.
 6. Gang preemption.
 7. Cross-scheduler preemption coordination.
@@ -148,18 +166,7 @@ ResourceBinding enqueued → Pop (priority-ordered) → findClustersThatFit (Fil
 
 There is no preemption phase. If scheduling fails, the binding enters `backoffQ` or `unschedulableBindings`.
 
-**Where capacity is checked**: Filter plugins do **not** check resource capacity. Capacity is first evaluated in `selectClusters` via `calAvailableReplicas` (which queries the general-estimator and/or scheduler-estimator for `AllocatableReplicas`), then checked again in `assignReplicas` via `dynamicDivideReplicas`.
-
-### Assignment Strategies and Error Behavior
-
-| Strategy | Checks capacity? | Returns `UnschedulableError`? |
-|---|---|---|
-| **Aggregated** | Yes (via `dynamicDivideReplicas`) | Yes |
-| **DynamicWeight** | Yes (via `dynamicDivideReplicas`) | Yes |
-| **StaticWeight** | No — divides by weight ratio | Never |
-| **Duplicated** | No — assigns full replicas to all | Never |
-
-`dynamicDivideReplicas` is the **only place** in the assignment flow that returns `UnschedulableError`. This is the preemption trigger point.
+**Where capacity is checked**: Filter plugins do **not** check resource capacity. Capacity is first evaluated in `selectClusters` via `calAvailableReplicas` (which queries the general-estimator and/or scheduler-estimator for `AllocatableReplicas`). Since #6597, `assignReplicas` no longer needs to be the authoritative capacity check. Cluster selection will return a typed `InsufficientCapacityError` when clusters pass non-capacity filters and placement constraints but do not have enough capacity. Affinity, taint, spread, and other non-capacity failures do not trigger preemption.
 
 ### Existing Priority Scheduling
 
@@ -180,24 +187,22 @@ Related proposals: [Binding Priority and Preemption](../binding-priority-preempt
 ## Design Overview
 
 ```
-High-priority binding cannot schedule (assignReplicas fails)
+High-priority binding cannot schedule (insufficient capacity)
         │
         ▼
 ┌─── Preemption Trigger ───────────────────────────────────────────────┐
 │  Is preemption applicable?                                           │
 │  (workload? single-component? ClusterAffinity? MaxGroups==1?         │
 │   PreemptLowerPriority? feature gates enabled?)                      │
+│  Did cluster selection return InsufficientCapacityError?             │
 └───────────────────────┬──────────────────────────────────────────────┘
                         │ yes
                         ▼
 ┌─── Victim Selection ─────────────────────────────────────────────────┐
 │  1. Find lower-priority bindings on target cluster (via index)       │
-│  2. Check: evicting all candidates frees enough resources?           │
+│  2. Scheduler-estimator simulates Pod removal on its node snapshot   │
 │  3. Reprieve highest-priority candidates first (minimum victim set)  │
-│                                                                      │
-│  Phase 1: Aggregate replica arithmetic                               │
-│  Phase 2: Estimator gRPC → node-level simulation (preferred)         │
-│           Falls back to Phase 1 if estimator unavailable             │
+│  4. Estimator absence or error returns no victims                    │
 └───────────────────────┬──────────────────────────────────────────────┘
                         │ victims found
                         ▼
@@ -218,11 +223,11 @@ High-priority binding cannot schedule (assignReplicas fails)
 
 **Key concepts**:
 
-- **Preemption trigger**: `assignReplicas` failure (only Aggregated/DynamicWeight can fail).
+- **Preemption trigger**: a typed insufficient-capacity result from cluster selection. Non-capacity failures never trigger preemption.
 - **Victim selection**: "Remove all, then reprieve" greedy heuristic (same as Kubernetes `SelectVictimsOnNode`).
 - **Preemption claims**: In-memory capacity reservation (equivalent to Kubernetes' in-memory pod nominator).
 - **Preemption execution**: Existing GracefulEviction mechanism. Per-cluster, all-or-nothing (consistent with Kubernetes per-pod preemption).
-- **Cross-kind, cross-namespace**: Preemption is purely priority-based with no kind or namespace restrictions, consistent with Kubernetes.
+- **Victim scope**: Cross-kind preemption is supported. Victims are limited to the preemptor's namespace by default; cluster administrators may explicitly enable all-namespace selection.
 
 ## How to Enable Preemption
 
@@ -230,6 +235,8 @@ High-priority binding cannot schedule (assignReplicas fails)
 2. **Create PriorityClasses** with `preemptionPolicy: PreemptLowerPriority` (for preemptors) or `preemptionPolicy: Never` (for non-preemptors). Note: Kubernetes defaults `preemptionPolicy` to `PreemptLowerPriority` when unset, so omitting the field enables preemption.
 3. **Reference the PriorityClass** in PropagationPolicy via `schedulePriority.priorityClassSource: KubePriorityClass`.
 4. **Declare single-cluster intent** with `maxGroups: 1` in `placement.spreadConstraints`.
+
+Victim selection uses the preemptor's namespace by default. Cluster administrators can set `--binding-preemption-victim-scope=all-namespaces` to allow cross-namespace victims. The default keeps tenants from disrupting workloads in another namespace. Installations with shared capacity and centrally managed PriorityClasses can enable cluster-wide selection. Before enabling it, operators must use identity-aware admission to restrict who may reference PriorityClasses that resolve to `PreemptLowerPriority`; the scheduler does not retain submission identity and cannot enforce that policy itself.
 
 ## API Changes
 
@@ -286,17 +293,17 @@ type VictimBinding struct {
 }
 ```
 
-## Phase 1: Summary-Based Preemption
+## Preemption Framework
 
 ### Scope and Applicability
 
 Preemption is attempted only when **all** of the following hold:
 
 1. The binding is a workload (`IsWorkload() == true`).
-2. The binding is single-component (`len(Components) <= 1`). Multi-component workloads bypass `assignFunc` in `AssignReplicas` entirely — they cannot reach the preemption trigger. This is a **Phase 1 limitation**, not a permanent design constraint. See [Component Scheduling Path](#component-scheduling-path) for the extension path.
+2. The binding is single-component (`len(Components) <= 1`). Multi-component bindings can be victims, but component-set preemptors are deferred. See [Component Scheduling Path](#component-scheduling-path).
 3. The binding uses `ClusterAffinity`, not `ClusterAffinities`. See [Why ClusterAffinities Is Excluded](#why-clusteraffinities-is-excluded).
 4. The binding explicitly targets one cluster via `SpreadConstraints` (`MaxGroups == 1`).
-5. `assignReplicas` returns an error. The primary target is Aggregated mode with single-cluster scheduling. DynamicWeight also uses `dynamicDivideReplicas` internally, but with `MaxGroups == 1` it behaves identically to Aggregated.
+5. Cluster selection returns a typed `InsufficientCapacityError` after non-capacity filters and placement constraints have passed.
 
 ```go
 func isPreemptionApplicable(spec *workv1alpha2.ResourceBindingSpec) bool {
@@ -318,7 +325,7 @@ The full preemption gate (`preemptionEnabled`) combines feature gates + `Preempt
 
 ### Modified Schedule() Flow
 
-Preemption is placed inside `genericScheduler.Schedule()` because the trigger is `assignReplicas` failure, and selected clusters with per-cluster capacity are local to `Schedule()`. The `ScheduleAlgorithm` interface is unchanged.
+Preemption is placed inside `genericScheduler.Schedule()` because the trigger is cluster selection failure, and otherwise feasible clusters with per-cluster capacity are local to `Schedule()`. The `ScheduleAlgorithm` interface is unchanged.
 
 ```
 function Schedule(spec):
@@ -333,34 +340,25 @@ function Schedule(spec):
     // Step 1: Normal cluster selection (with capacity check)
     selectedClusters, err = SelectBestClusters(spec.Placement, groupClustersInfo, spec.Replicas)
 
-    if err AND preemptionEnabled(spec):
-        // All clusters have insufficient capacity. Retry without capacity
-        // filtering so that assignReplicas is reached and can trigger preemption.
-        // InvalidReplicas is a sentinel value that tells SelectBestClusters to
-        // skip the capacity check while still enforcing MaxGroups and spread constraints.
-        selectedClusters, err = SelectBestClusters(spec.Placement, groupClustersInfo, InvalidReplicas)
-
-    if err: return error
-
-    // Step 2: Assign replicas
-    clustersWithReplicas, err = assignReplicas(selectedClusters, spec, status)
-
-    if err is UnschedulableError AND preemptionEnabled(spec):
-        // Only trigger preemption on capacity-related failures (UnschedulableError
-        // from dynamicDivideReplicas). Other errors (internal, status reconciliation)
-        // should not cause evictions.
-        targetCluster = selectedClusters[0]
-        if NOT preemptionClaims.hasClaimOnCluster(bindingKey, targetCluster):
-            victims, ok = selectVictims(targetCluster, spec, ...)
+    if err is InsufficientCapacityError AND preemptionEnabled(spec):
+        for targetCluster in err.otherwiseFeasibleClusters:
+            victims, ok = selectVictimsWithEstimator(targetCluster, spec, ...)
             if ok:
                 preemptionClaims.set(bindingKey, claim)
                 return {PreemptionResult: {targetCluster, victims}}
-            else:
-                preemptionClaims.clearBinding(bindingKey)
-        return error  // preemption not feasible or already claimed
+
+        return err  // no preemption; estimator unavailable, infeasible, or no eligible victims
+
+    if err: return err
+
+    // Step 2: Assign replicas
+    clustersWithReplicas, err = assignReplicas(selectedClusters, spec, status)
+    if err: return err
 
     return {SuggestedClusters: clustersWithReplicas}
 ```
+
+`InsufficientCapacityError` is returned only when clusters passed non-capacity filters and placement constraints but lack capacity. Affinity, taint, spread, and other filter failures do not enter preemption. Ordinary scheduling continues to use its existing capacity-estimation path.
 
 **After `Schedule()` returns** (in the scheduler main loop):
 
@@ -369,52 +367,11 @@ function Schedule(spec):
 
 ### Victim Selection Algorithm
 
-The algorithm uses the **"remove all, then reprieve"** pattern from Kubernetes:
+The algorithm uses the **"remove all, then reprieve"** pattern from Kubernetes. The scheduler sends the estimator only candidates that are assigned to the target cluster, have lower effective priority than the preemptor, are not suspended, and are not already in graceful eviction.
 
-```
-function selectVictims(targetCluster, preemptorSpec, clusterAvailableReplicas):
-    // Step 1: Find candidates (shared between Phase 1 and Phase 2)
-    candidates = filterPreemptionCandidates(targetCluster, preemptorSpec)
-        // Filters: lower priority, not in graceful eviction, not suspended,
-        //          has replicas on cluster, has ReplicaRequirements (Phase 1 only)
+A binding with `SchedulePriority == nil` has effective priority `0`. It can be a victim when its priority is lower than the preemptor, but it cannot initiate preemption because it has not opted into `PreemptLowerPriority`. Victim eligibility depends on relative priority, not on the victim's own preemption policy.
 
-    // Step 2: Try Phase 2 (estimator) first.
-    if estimator available for cluster:
-        victims, ok, fallback = selectVictimsWithEstimator(candidates, preemptorSpec)
-        if NOT fallback:
-            return victims, ok  // Estimator gave a definitive answer — trust it
-        // Estimator unavailable (gRPC error) — fall through to Phase 1
-
-    // Phase 1 fallback (aggregate replica arithmetic).
-    return selectVictimsByReplicaCount(candidates, preemptorSpec, clusterAvailableReplicas)
-
-function selectVictimsByReplicaCount(candidates, preemptorSpec, clusterAvailableReplicas):
-    // "deficit" = how many preemptor replicas exceed current cluster capacity.
-    // Example: preemptor needs 10 replicas, cluster has room for 6 → deficit = 4.
-    deficit = preemptorSpec.Replicas - clusterAvailableReplicas
-    if deficit <= 0: return nil, false  // Cluster has room; no preemption needed
-
-    // Feasibility check: can freed resources cover the gap?
-    // (clusterAvailableReplicas already accounts for existing spare capacity;
-    //  deficit is the gap between what the cluster offers and what the preemptor needs.)
-    totalFreedResources = sum(c.ReplicaRequirements * c.replicas for each candidate)
-    if calculateFittingReplicas(totalFreedResources, preemptorSpec.ReplicaRequirements) < deficit:
-        return nil, false  // Even evicting all candidates is insufficient
-
-    // Reprieve highest-priority candidates first (greedy minimum victim set).
-    // Start with all candidates removed, then try adding each one back.
-    sort(candidates, by: priority DESC, then creationTime ASC)
-    currentFreed = totalFreedResources
-    reprieved = [false] * len(candidates)
-    for i, candidate in candidates:
-        tentativeFreed = currentFreed - candidate.resources
-        if calculateFittingReplicas(tentativeFreed, preemptorSpec.ReplicaRequirements) >= deficit:
-            reprieved[i] = true       // This candidate is not needed as victim
-            currentFreed = tentativeFreed  // Update freed resources for next iteration
-
-    victims = candidates where reprieved[i] == false
-    return victims, true
-```
+Candidates are limited to the preemptor's namespace by default. With `--binding-preemption-victim-scope=all-namespaces`, the scheduler may consider eligible namespaced bindings from any namespace.
 
 ### Preemption Execution
 
@@ -435,7 +392,7 @@ If all victim patches fail, the claim is cleared immediately.
 **Preemptor**: After preemption succeeds, the preemptor enters the `unschedulableBindings` queue with its claim active (TTL 10 min). It waits for victim resources to be freed:
 1. Victim eviction begins (30-second grace period via GracefulEviction).
 2. When the victim's cluster assignment is removed and `ResourceSummary` updates, the preemptor is moved to `activeQ` (via companion [PR #7369](https://github.com/karmada-io/karmada/pull/7369)). Without that PR, the preemptor waits for the 5-minute `unschedulableBindings` flush interval.
-3. On retry: `assignReplicas` succeeds with the freed capacity → preemptor schedules → claim cleared.
+3. On retry: cluster selection observes the freed capacity → preemptor schedules → claim cleared.
 4. If the claim expires (10 min) without success, the preemptor retries normally (may re-preempt if victims have returned).
 
 **Victim**: After eviction, the victim's cluster assignment is removed and a `GracefulEvictionTask` is created. The binding controller re-queues the victim for scheduling:
@@ -469,7 +426,7 @@ The store is dual-indexed: `byBinding` ensures one claim per preemptor (replacem
 
 #### Problems and Solutions
 
-**Problem 1 — Preventing repeated preemption**: After preemption, the preemptor waits in `unschedulableBindings`. On retry, if resources aren't freed yet, `assignReplicas` fails again. The claim blocks re-preemption on the same cluster while active.
+**Problem 1 — Preventing repeated preemption**: After preemption, the preemptor waits in `unschedulableBindings`. On retry, if resources aren't freed yet, cluster selection reports insufficient capacity again. The claim blocks re-preemption on the same cluster while active.
 
 **Problem 2 — Reserving cluster capacity**: The evicted victim is re-queued and could schedule back to the same cluster before the preemptor retries. Claims are injected into `calAvailableReplicas` via `withClaimDeductions`:
 
@@ -501,49 +458,31 @@ The `>=` (not `>`) comparison is intentional: equal-priority bindings must also 
 
 **Why in-memory, not API-backed**: Kubernetes' correctness depends on the in-memory nominator, not `pod.Status.NominatedNodeName`. We follow the same pattern. On scheduler restart, claims are lost; the preemptor may re-preempt once. The system is self-healing.
 
-## Phase 2: Estimator-Based Preemption
+## Estimator-Based Preemption
 
-Phase 2 replaces summary-based victim selection with node-level simulation via the scheduler estimator. The preemption trigger, scope, claims, and execution mechanisms remain unchanged from Phase 1.
+Estimator-based preemption uses node-level simulation via the scheduler estimator. The scope, claims, and execution mechanisms remain unchanged.
 
 ### Why Estimator-Based Preemption Is Needed
 
-Phase 1 preemption uses aggregate capacity data (derived from `ResourceSummary` via `calAvailableReplicas`) and cannot detect node-level constraints:
+Aggregate capacity data from `ResourceSummary` cannot detect node-level constraints:
 
 - Preemptor needs 8 CPU with node affinity to `gpu-pool` nodes.
 - Victim A: 4 CPU on Node1 (gpu-pool). Victim B: 4 CPU on Node2 (cpu-pool).
 - Summary says "8 CPU freed" → preemption appears feasible.
 - Reality: only 4 CPU freed on gpu-pool nodes → preemptor still cannot schedule.
 
-The estimator has a per-node snapshot and can simulate pod removal to accurately determine feasibility.
-
-### What Changes from Phase 1
-
-| Component | Phase 1 | Phase 2 | Change |
-|---|---|---|---|
-| Preemption trigger | `assignReplicas` failure | Same | None |
-| Applicability checks | Same | Same | None |
-| Candidate filtering | Shared | Shared | None |
-| Candidate ordering | Shared | Shared | None |
-| **Feasibility + reprieve** | Aggregate replica arithmetic | **Estimator RPC** | **Replace** |
-| **Victim filter: `ReplicaRequirements`** | Required (for replica math) | **Relaxed** (estimator knows pod resources) | **Relax** |
-| Claim mechanism | Same | Same | None |
-| Claim deductions | Same | Same | None |
-| Victim eviction | Same | Same | None |
-
-Phase 2 replaces **only** the feasibility and reprieve logic inside `selectVictims`. The shared components — candidate filtering, ordering, claims, eviction — are reused unchanged.
-
-**Dual-mode fallback**: When the estimator is unavailable (not deployed, gRPC error, timeout), `selectVictims` falls back to Phase 1 aggregate arithmetic. When the estimator returns `feasible: false`, the scheduler trusts this definitive answer and does **not** fall back to Phase 1 — the estimator has strictly more information (node-level) than Phase 1 (aggregate), so a Phase 1 override would risk unnecessary evictions. During the transition period after enabling the feature, some candidates may lack `ResourceBindingPermanentIDLabel` on their pods. If any candidates are missing the label, `selectVictimsWithEstimator` falls back to Phase 1 rather than sending a partial candidate set to the estimator.
+The estimator has a per-node snapshot and can simulate pod removal to accurately determine feasibility. If the estimator is unavailable, times out, returns an error, or cannot map a candidate's pods to its binding, victim selection returns no victims. There is no aggregate fallback.
 
 ### Flow
 
 ```
-Scheduler detects assignReplicas failure
-  → Scheduler pre-filters candidates (shared)
-  → Scheduler orders candidates by reprieve priority (shared)
+Cluster selection returns InsufficientCapacityError
+  → Scheduler pre-filters candidates
+  → Scheduler orders candidates by reprieve priority
   → Scheduler sends ordered candidate list to estimator via SelectVictims RPC
   → Estimator runs node-level "remove all, then reprieve" on cloned snapshot
   → Estimator returns minimum victim set
-  → Scheduler evicts victims via GracefulEviction (shared)
+  → Scheduler evicts victims via GracefulEviction
 ```
 
 The scheduler handles **policy** (who is eligible, what reprieve order). The estimator handles **feasibility** (does the preemptor fit after removing victims, which victims can be reprieved).
@@ -620,7 +559,7 @@ The `estimateReplicas` function reuses the existing estimation framework (`RunEs
 
 ### Pod-to-Binding Mapping (Prerequisite)
 
-The binding controller injects `ResourceBindingPermanentIDLabel` into the workload's top-level metadata. For Phase 2, this label must also appear on the **pods** so the estimator can map pods to bindings.
+The binding controller injects `ResourceBindingPermanentIDLabel` into the workload's top-level metadata. For estimator-based preemption, this label must also appear on the **pods** so the estimator can map pods to bindings.
 
 A new Resource Interpreter operation, `RevisePodTemplate`, injects the binding permanent-id label into `.spec.template.metadata.labels` before the workload is applied to member clusters. The binding controller calls `RevisePodTemplate` in `ensureWork()` when `PriorityBasedPreemptiveScheduling` is enabled.
 
@@ -631,15 +570,9 @@ For custom resources, users implement the operation via the webhook interpreter 
 
 ### Component Scheduling Path
 
-Multi-component preemptors (`len(Components) > 1`) bypass `assignFunc` in `AssignReplicas` entirely — they are propagated to all candidate clusters without replica division. Since preemption is triggered by `assignReplicas` failure, multi-component workloads cannot reach the trigger. This is a **Phase 1 limitation**, not a permanent design constraint.
+Since v1.19, scheduling results for multi-component workloads are recorded in `spec.clusters[*].components`. Multi-component workloads can be victims because the estimator selects victims from their Pods instead of relying on `spec.clusters[*].replicas`.
 
-The preemption infrastructure (claims, victim selection, eviction) is designed to be reusable. The Phase 2 estimator path operates at the pod level, which naturally handles multi-component workloads. Extending preemption to multi-component requires:
-
-1. **A new trigger**: Extend `AssignReplicas` or add a pre-check to call `MaxAvailableComponentSets` (which already exists in `pkg/scheduler/core/estimation.go`) for multi-component workloads, returning an error when the cluster lacks capacity.
-2. **Relax the component check**: Remove `len(Components) > 1` guard in `isPreemptionApplicable`.
-3. **Extend claims**: Track per-component resources in `preemptionClaim.resourceNeed` for accurate claim deductions.
-
-Multi-component workloads can already be **victims** in Phase 2 — the estimator knows their actual pod-level resource consumption. In Phase 1, they are filtered out because their `Spec.Clusters` entries lack `Replicas`.
+Multi-component preemptors remain out of scope. Supporting them requires the estimator to simulate complete component sets and preemption claims to reserve per-component capacity.
 
 ## Why ClusterAffinities Is Excluded
 
@@ -649,23 +582,19 @@ Multi-component workloads can already be **victims** in Phase 2 — the estimato
 2. **Claim consistency**: Each term calls `Schedule()`, which overwrites the previous claim. The claim state may point to the wrong cluster.
 3. **Nil-clusters bug**: `Schedule()` returns `(result, nil)` on preemption with `SuggestedClusters == nil`. Without a `PreemptionResult` check, the ClusterAffinities success path would patch the binding with nil clusters.
 
-These issues require deliberate design (e.g., two-phase preemption, multi-claim support, or "try all terms before preempting"). The `isPreemptionApplicable` check returns `false` when `ClusterAffinities != nil`, cleanly excluding this case. This is a Phase 1 limitation deferred to a future proposal.
+These issues require deliberate design (e.g., two-phase preemption, multi-claim support, or "try all terms before preempting"). The `isPreemptionApplicable` check returns `false` when `ClusterAffinities != nil`, cleanly excluding this case. This limitation is deferred to a future proposal.
 
 ## Alternative Designs Considered
 
 | Alternative | Verdict |
 |---|---|
 | Multi-cluster preemption from start | Deferred. Cross-cluster coordination requires iterative recalculation. |
-| Estimator-only preemption (skip summary-based) | Deferred. Requires estimator on every cluster. Summary-based is sufficient for Phase 1. |
+| Fall back to `ResourceSummary` when the estimator is unavailable | Rejected. Aggregate data cannot prove node-level feasibility, so using it for a disruptive decision could evict workloads without making the preemptor schedulable. |
 | Preempt entire bindings across all clusters | Rejected. Massive blast radius. Per-cluster preemption minimizes disruption. |
 | NominatedCluster (persistent on binding) | Rejected. Informer cache lag creates race conditions. In-memory claims provide equivalent functionality without API changes. |
 | Cooldown-only (no resource accounting) | Rejected. Does not prevent victims from consuming resources reserved for the preemptor. |
 
 ## Risks and Limitations
-
-### Summary-based precision (Phase 1)
-
-Summary-based preemption cannot detect node fragmentation, affinity constraints, or resource quotas. Phase 2 addresses this via estimator node-level simulation.
 
 ### Preemption delay
 
@@ -677,11 +606,11 @@ Preemption chains (P1→V1→V2→V3) are possible, bounded by the number of dis
 
 ### Optimistic locking
 
-Phase 1 uses `GenMergePatch` for victim patches without conflict retry. Concurrent modifications by other controllers could be overwritten. A retry loop on `409 Conflict` is tracked as a follow-up improvement before beta promotion.
+Preemption uses `GenMergePatch` for victim patches without conflict retry. Concurrent modifications by other controllers could be overwritten. A retry loop on `409 Conflict` is tracked as a follow-up improvement before beta promotion.
 
 ### Cross-namespace preemption
 
-Preemption is cross-namespace, consistent with Kubernetes (PriorityClass is cluster-scoped). Multi-tenancy protection should be enforced via admission webhooks restricting PriorityClass access per namespace.
+Victim selection is limited to the preemptor's namespace by default. Operators may explicitly enable all-namespace selection with `--binding-preemption-victim-scope=all-namespaces`; doing so requires identity-aware admission that restricts who may use preempting PriorityClasses.
 
 ### Informer cache lag
 
@@ -701,7 +630,7 @@ The preemption claim store is in-memory and not replicated. This is safe because
 
 ### Performance impact
 
-When the feature gate is enabled but no preemption is occurring (common case), the overhead is minimal. `withClaimDeductions` wraps `calAvailableReplicas` and iterates over claims on each cluster; when the claim store is empty, this loop executes zero iterations per cluster. The cluster-to-bindings index is populated by the existing informer and adds no extra API calls. During preemption, `filterPreemptionCandidates` performs one index lookup (O(bindings on cluster)) plus a sort (O(n log n)) and a single reprieve pass (O(n)) for Phase 1. Phase 2 adds one gRPC round-trip to the estimator (10-second timeout). These costs are incurred only on the preemption path, which is triggered by `assignReplicas` failure — a path that already terminates the scheduling cycle with an error.
+When the feature gate is enabled but no preemption is occurring (common case), the overhead is minimal. `withClaimDeductions` wraps `calAvailableReplicas` and iterates over claims on each cluster; when the claim store is empty, this loop executes zero iterations per cluster. The cluster-to-bindings index is populated by the existing informer and adds no extra API calls. During preemption, `filterPreemptionCandidates` performs one index lookup (O(bindings on cluster)) plus a sort (O(n log n)), and victim selection adds one gRPC round-trip to the estimator (10-second timeout). These costs are incurred only after cluster selection returns a typed insufficient-capacity result.
 
 ## Backward Compatibility
 
@@ -715,31 +644,35 @@ When the feature gate is enabled but no preemption is occurring (common case), t
 
 | Phase | Release | Scope | Feature Gate |
 |---|---|---|---|
-| 0 | v1.13 (done) | Priority-based scheduling (queue ordering) | `PriorityBasedScheduling` (alpha) |
-| 1 | v1.19 | Summary-based single-cluster preemption | `PriorityBasedPreemptiveScheduling` (alpha) |
-| 2 | v1.20 | Estimator-based preemption (node-level victim selection) | `PriorityBasedPreemptiveScheduling` (alpha) |
-| 3 | v1.21+ | Harden, promote to beta | `PriorityBasedPreemptiveScheduling` (beta) |
+| 0 | v1.13 (done) | Priority-based scheduling (queue ordering) | `PriorityBasedScheduling` (beta, default on since v1.19) |
+| 1 | v1.20 | Estimator-based single-cluster preemption | `PriorityBasedPreemptiveScheduling` (alpha, default off) |
 
 ## Test Plan
 
 ### Unit Tests
 - Victim selection: minimum victims, priority ordering, reprieve correctness.
+- Priority handling: nil victim priority is treated as `0`; a binding without `PreemptLowerPriority` cannot initiate preemption.
 - `PreemptionPolicy` resolution: feature gate disabled → unset, explicit opt-in.
-- Applicability checks: `MaxGroups == 1`, non-workload, component scheduling, ClusterAffinities exclusions.
-- Cluster selection retry: when all clusters lack capacity and preemption is enabled, retry without capacity filtering to reach `assignReplicas`.
+- Trigger handling: typed insufficient-capacity results trigger preemption; affinity, taint, spread, and other failures do not.
+- Applicability checks: `MaxGroups == 1`, non-workload, multi-component preemptor, ClusterAffinities exclusions.
+- Victim scope: same namespace by default; all namespaces only when explicitly configured.
+- Estimator failure: absence, timeout, error, infeasibility, or incomplete Pod-to-binding mapping produces no victims.
 - Claim store: set, hasClaimOnCluster, ClearBinding, TTL expiry, claim replacement.
 - `withClaimDeductions`: claim-adjusted AllocatableReplicas, self-exception, priority filtering.
 
 ### Integration Tests
 - End-to-end: high-priority binding preempts low-priority binding on single cluster.
 - No preemption when PreemptionPolicy is unset or feature gate disabled.
+- Multi-component bindings can be selected as victims.
+- Cross-namespace victims require all-namespace scope; same-namespace behavior remains the default.
 - Preempted binding reschedules to another cluster.
 - Claim prevents victim from returning to claimed cluster.
 
 ### E2E Tests
 - Fill a cluster with low-priority bindings, submit high-priority binding, verify preemption.
 - Verify events on both preemptor and victim.
-- Verify no preemption for Duplicated, StaticWeight, component scheduling, ClusterAffinities, multi-cluster.
+- Verify estimator failure causes no eviction.
+- Verify no preemption for Duplicated, StaticWeight, multi-component preemptors, ClusterAffinities, multi-cluster.
 
 ## Observability
 
@@ -748,7 +681,7 @@ When the feature gate is enabled but no preemption is occurring (common case), t
 | Target | Type | Reason | Message |
 |---|---|---|---|
 | Preemptor | Normal | `PreemptionInitiated` | "Initiated preemption of N binding(s) on cluster C" |
-| Victim | Warning | `Preempted` | "Preempted by binding ns/name (priority=N) from cluster C" |
+| Victim | Warning | `Preempted` | "Preempted by {kind} {namespace}/{name} (priority=N) from cluster C" |
 | Preemptor | Normal | `ScheduleBindingSucceed` | Standard scheduling success |
 
 ### Metrics
