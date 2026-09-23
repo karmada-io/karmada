@@ -303,6 +303,64 @@ var _ = ginkgo.Describe("FederatedResourceQuota enforcement testing", func() {
 		clusterNames = framework.ClusterNames()[:1]
 	})
 
+	ginkgo.It("accounts default interpreter pod limits in binding and quota status", func() {
+		name := deploymentNamePrefix + rand.String(RandomStrLength)
+		overall := corev1.ResourceList{
+			corev1.ResourceCPU:                   resource.MustParse("10"),
+			corev1.ResourceMemory:                resource.MustParse("10Gi"),
+			corev1.ResourceName("limits.cpu"):    resource.MustParse("3"),
+			corev1.ResourceName("limits.memory"): resource.MustParse("1Gi"),
+		}
+		frq := helper.NewFederatedResourceQuotaWithOverall(frqNamespace, frqName, overall)
+		framework.CreateFederatedResourceQuota(karmadaClient, frq)
+		ginkgo.DeferCleanup(func() { framework.RemoveFederatedResourceQuota(karmadaClient, frqNamespace, frqName) })
+		framework.WaitFederatedResourceQuotaFitWith(karmadaClient, frqNamespace, frqName, func(current *policyv1alpha1.FederatedResourceQuota) bool {
+			return checker.DeepEqual(current.Status.Overall, overall)
+		})
+
+		deployment := helper.NewDeployment(deployNamespace, name)
+		deployment.Spec.Replicas = ptr.To[int32](2)
+		image := deployment.Spec.Template.Spec.Containers[0].Image
+		resources := func(requestCPU, requestMemory, limitCPU, limitMemory string) corev1.ResourceRequirements {
+			return corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse(requestCPU), corev1.ResourceMemory: resource.MustParse(requestMemory)},
+				Limits:   corev1.ResourceList{corev1.ResourceCPU: resource.MustParse(limitCPU), corev1.ResourceMemory: resource.MustParse(limitMemory)},
+			}
+		}
+		deployment.Spec.Template.Spec.Containers[0].Resources = resources("100m", "64Mi", "250m", "128Mi")
+		deployment.Spec.Template.Spec.Containers = append(deployment.Spec.Template.Spec.Containers,
+			corev1.Container{Name: "second", Image: image, Resources: resources("200m", "64Mi", "500m", "128Mi")})
+		deployment.Spec.Template.Spec.InitContainers = []corev1.Container{
+			{Name: "init-cpu", Image: image, Command: []string{"/bin/true"}, Resources: resources("100m", "32Mi", "1500m", "192Mi")},
+			{Name: "init-memory", Image: image, Command: []string{"/bin/true"}, Resources: resources("100m", "32Mi", "750m", "512Mi")},
+		}
+		policy := helper.NewPropagationPolicy(deployNamespace, name, []policyv1alpha1.ResourceSelector{{
+			APIVersion: deployment.APIVersion, Kind: deployment.Kind, Name: name,
+		}}, policyv1alpha1.Placement{ClusterAffinity: &policyv1alpha1.ClusterAffinity{ClusterNames: clusterNames}})
+		framework.CreateDeployment(kubeClient, deployment)
+		ginkgo.DeferCleanup(func() { framework.RemoveDeployment(kubeClient, deployNamespace, name) })
+		framework.CreatePropagationPolicy(karmadaClient, policy)
+		ginkgo.DeferCleanup(func() { framework.RemovePropagationPolicy(karmadaClient, deployNamespace, name) })
+
+		rbName := names.GenerateBindingName(deployment.Kind, name)
+		framework.WaitResourceBindingFitWith(karmadaClient, deployNamespace, rbName, func(rb *workv1alpha2.ResourceBinding) bool {
+			reqs := rb.Spec.ReplicaRequirements
+			return reqs != nil && len(rb.Spec.Clusters) == 1 && rb.Spec.Clusters[0].Replicas == 2 &&
+				reqs.ResourceRequest.Cpu().Cmp(resource.MustParse("300m")) == 0 &&
+				reqs.ResourceLimits.Cpu().Cmp(resource.MustParse("1500m")) == 0 &&
+				reqs.ResourceLimits.Memory().Cmp(resource.MustParse("512Mi")) == 0
+		})
+		framework.WaitFederatedResourceQuotaFitWith(karmadaClient, frqNamespace, frqName, func(current *policyv1alpha1.FederatedResourceQuota) bool {
+			used := current.Status.OverallUsed
+			usedLimitCPU := used[corev1.ResourceName("limits.cpu")]
+			usedLimitMemory := used[corev1.ResourceName("limits.memory")]
+			return used.Cpu().Cmp(resource.MustParse("600m")) == 0 &&
+				used.Memory().Cmp(resource.MustParse("256Mi")) == 0 &&
+				usedLimitCPU.Cmp(resource.MustParse("3")) == 0 &&
+				usedLimitMemory.Cmp(resource.MustParse("1Gi")) == 0
+		})
+	})
+
 	ginkgo.Context("[Compute resource] FederatedResourceQuota should be enforced correctly", func() {
 		var policyNamespace, policyName string
 		var deploymentNamespace, deploymentName string
