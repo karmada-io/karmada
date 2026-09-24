@@ -200,7 +200,7 @@ func (j *CommandUnjoinOption) RunUnJoinCluster(controlPlaneRestConfig, clusterCo
 
 	target, err := controlPlaneKarmadaClient.ClusterV1alpha1().Clusters().Get(context.TODO(), j.ClusterName, metav1.GetOptions{})
 	if apierrors.IsNotFound(err) {
-		return fmt.Errorf("no cluster object %s found in karmada control Plane", j.ClusterName)
+		return nil
 	}
 	if err != nil {
 		klog.Errorf("Failed to get cluster object. cluster name: %s, error: %v", j.ClusterName, err)
