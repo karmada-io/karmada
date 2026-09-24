@@ -207,7 +207,8 @@ func (d *ClusterDetector) joinClusterAPICluster(clusterWideKey keys.ClusterWideK
 
 	clusterRestConfig, err := apiclient.RestConfig("", kubeconfigPath)
 	if err != nil {
-		klog.Fatalf("Failed to get cluster-api management cluster rest config. kubeconfig: %s, err: %v", kubeconfigPath, err)
+		klog.Errorf("Failed to get cluster-api management cluster rest config. kubeconfig: %s, err: %v", kubeconfigPath, err)
+		return err
 	}
 	opts := join.CommandJoinOption{
 		DryRun:           false,
