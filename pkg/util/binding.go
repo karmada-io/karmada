@@ -34,22 +34,23 @@ func GetBindingClusterNames(spec *workv1alpha2.ResourceBindingSpec) []string {
 	return clusterNames
 }
 
-// IsBindingReplicasChanged will check if the sum of replicas is different from the replicas of object
+// IsBindingReplicasChanged reports whether the desired scalar or per-component replicas differ from the accepted result.
 func IsBindingReplicasChanged(bindingSpec *workv1alpha2.ResourceBindingSpec, strategy *policyv1alpha1.ReplicaSchedulingStrategy) bool {
 	if strategy == nil {
 		return false
 	}
 
-	// For component-based workloads, trigger rescheduling when clusters are empty (e.g., after eviction).
-	// This is a temporary fix to ensure cluster failover works correctly.
-	// Limitation: This only handles the failover scenario where clusters are cleared.
-	// It does not detect component replica changes (e.g., scale up/down) or replica swaps between components.
-	// A complete solution requires changing how scheduling results are stored to support multi-template workloads,
-	// likely by extending TargetCluster to include per-component replica information.
-	// The comprehensive solution is tracked by: https://github.com/karmada-io/karmada/issues/6998
+	// Component-based workloads also need rescheduling after eviction. For multi-component workloads,
+	// compare the desired replicas with the component snapshot accepted by the scheduler.
 	if features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) && len(bindingSpec.Components) > 0 {
 		if len(bindingSpec.Clusters) == 0 {
 			return true
+		}
+		if len(bindingSpec.Components) > 1 && len(bindingSpec.Clusters) == 1 {
+			equal, comparable := ComponentReplicasEqual(bindingSpec.Components, bindingSpec.Clusters[0].Components)
+			if comparable && !equal {
+				return true
+			}
 		}
 	}
 
@@ -66,6 +67,46 @@ func IsBindingReplicasChanged(bindingSpec *workv1alpha2.ResourceBindingSpec, str
 		return replicasSum != bindingSpec.Replicas
 	}
 	return false
+}
+
+// ComponentReplicasEqual compares desired component replicas with an accepted snapshot by name.
+// The second return value reports whether both snapshots are complete and comparable.
+func ComponentReplicasEqual(desired []workv1alpha2.Component, accepted []workv1alpha2.TargetComponent) (bool, bool) {
+	if len(accepted) == 0 || len(desired) != len(accepted) {
+		return false, false
+	}
+
+	acceptedReplicas := make(map[string]int32, len(accepted))
+	for i := range accepted {
+		if accepted[i].Name == "" {
+			return false, false
+		}
+		if _, exists := acceptedReplicas[accepted[i].Name]; exists {
+			return false, false
+		}
+		acceptedReplicas[accepted[i].Name] = accepted[i].Replicas
+	}
+
+	seen := make(map[string]struct{}, len(desired))
+	changed := false
+	for i := range desired {
+		if desired[i].Name == "" {
+			return false, false
+		}
+		if _, exists := seen[desired[i].Name]; exists {
+			return false, false
+		}
+		seen[desired[i].Name] = struct{}{}
+
+		replicas, exists := acceptedReplicas[desired[i].Name]
+		if !exists {
+			return false, false
+		}
+		if desired[i].Replicas != replicas {
+			changed = true
+		}
+	}
+	return !changed, true
 }
 
 // GetSumOfReplicas will get the sum of replicas in target clusters
