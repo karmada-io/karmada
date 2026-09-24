@@ -18,7 +18,11 @@ package base
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/onsi/ginkgo/v2"
@@ -26,17 +30,28 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/rand"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/component-base/metrics/testutil"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
 
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/karmadactl/join"
+	"github.com/karmada-io/karmada/pkg/karmadactl/options"
+	"github.com/karmada-io/karmada/pkg/karmadactl/unjoin"
+	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/test/e2e/framework"
@@ -379,10 +394,113 @@ var _ = framework.SerialDescribe("[EstimatorAssumption] ResourceQuota plugin ass
 	})
 })
 
-var _ = framework.SerialDescribe("[EstimatorAssumption] NodeResource plugin assumption testing", func() {
-	const targetCluster = "member1"
+var _ = framework.SerialDescribe("[EstimatorAssumption] NodeResource plugin assumption testing", ginkgo.Labels{NeedCreateCluster}, func() {
+	var (
+		targetCluster       string
+		memberKubeClient    kubernetes.Interface
+		memberDynamicClient dynamic.Interface
+		flinkCRD            apiextensionsv1.CustomResourceDefinition
+	)
 
-	var flinkCRD apiextensionsv1.CustomResourceDefinition
+	ginkgo.BeforeEach(func() {
+		targetCluster = "member-e2e-" + rand.String(RandomStrLength)
+		memberKubeConfigPath := filepath.Join(os.Getenv("HOME"), ".kube", targetCluster+".config")
+		clusterContext := "kind-" + targetCluster
+		controlPlane := targetCluster + "-control-plane"
+
+		defaultConfigFlags := genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag().WithDiscoveryBurst(300).WithDiscoveryQPS(50.0)
+		defaultConfigFlags.Context = &karmadaContext
+		factory := cmdutil.NewFactory(defaultConfigFlags)
+
+		ginkgo.DeferCleanup(func() {
+			ginkgo.By(fmt.Sprintf("deleting dedicated member cluster: %s", targetCluster), func() {
+				err := deleteCluster(targetCluster, memberKubeConfigPath)
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				err = os.Remove(memberKubeConfigPath)
+				if !os.IsNotExist(err) {
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				}
+			})
+		})
+		ginkgo.By(fmt.Sprintf("creating dedicated member cluster: %s", targetCluster), func() {
+			err := createCluster(targetCluster, memberKubeConfigPath, controlPlane, clusterContext)
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		})
+
+		ginkgo.By("adding the estimator cluster name as a kubeconfig context", func() {
+			err := addKubeconfigContextAlias(memberKubeConfigPath, clusterContext, targetCluster)
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		})
+
+		ginkgo.DeferCleanup(func() {
+			removeSchedulerEstimator(hostKubeClient, targetCluster)
+		})
+		ginkgo.By(fmt.Sprintf("deploying scheduler-estimator for cluster: %s", targetCluster), func() {
+			err := deploySchedulerEstimator(kubeconfig, hostContext, memberKubeConfigPath, targetCluster)
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			estimatorName := names.GenerateEstimatorDeploymentName(targetCluster)
+			framework.WaitDeploymentGetByClientFitWith(hostKubeClient, names.NamespaceKarmadaSystem, estimatorName, func(deployment *appsv1.Deployment) bool {
+				return framework.CheckDeploymentReadyStatus(deployment, 2)
+			})
+		})
+
+		ginkgo.DeferCleanup(func() {
+			ginkgo.By(fmt.Sprintf("unjoining dedicated member cluster: %s", targetCluster), func() {
+				var cleanupErrors []error
+				_, err := karmadaClient.ClusterV1alpha1().Clusters().Get(context.TODO(), targetCluster, metav1.GetOptions{})
+				switch {
+				case err == nil:
+					opts := unjoin.CommandUnjoinOption{
+						DryRun:            false,
+						ClusterNamespace:  options.DefaultKarmadaClusterNamespace,
+						ClusterName:       targetCluster,
+						ClusterContext:    targetCluster,
+						ClusterKubeConfig: memberKubeConfigPath,
+						Wait:              5 * options.DefaultKarmadactlCommandDuration,
+					}
+					if err = opts.Run(factory); err != nil {
+						cleanupErrors = append(cleanupErrors, err)
+					}
+				case !apierrors.IsNotFound(err):
+					cleanupErrors = append(cleanupErrors, err)
+				}
+
+				for _, secretName := range []string{targetCluster, names.GenerateImpersonationSecretName(targetCluster)} {
+					if err = util.DeleteSecret(kubeClient, options.DefaultKarmadaClusterNamespace, secretName); err != nil {
+						cleanupErrors = append(cleanupErrors, err)
+					}
+				}
+				gomega.Expect(errors.Join(cleanupErrors...)).ShouldNot(gomega.HaveOccurred())
+			})
+		})
+		ginkgo.By(fmt.Sprintf("joining dedicated member cluster: %s", targetCluster), func() {
+			opts := join.CommandJoinOption{
+				DryRun:            false,
+				ClusterNamespace:  options.DefaultKarmadaClusterNamespace,
+				ClusterName:       targetCluster,
+				ClusterContext:    targetCluster,
+				ClusterKubeConfig: memberKubeConfigPath,
+			}
+			err := opts.Run(factory)
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		})
+
+		framework.WaitClusterFitWith(controlPlaneClient, targetCluster, func(cluster *clusterv1alpha1.Cluster) bool {
+			return meta.IsStatusConditionPresentAndEqual(cluster.Status.Conditions, clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue)
+		})
+		waitSchedulerEstimatorConnection(hostKubeClient, targetCluster)
+
+		memberClusterClient, err := util.NewClusterClientSet(targetCluster, controlPlaneClient, nil)
+		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		gomega.Expect(memberClusterClient.KubeClient).ShouldNot(gomega.BeNil())
+		memberKubeClient = memberClusterClient.KubeClient
+		framework.WaitNamespacePresentOnClusterByClient(memberKubeClient, testNamespace)
+
+		dynamicClusterClient, err := util.NewClusterDynamicClientSet(targetCluster, controlPlaneClient, nil)
+		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		gomega.Expect(dynamicClusterClient.DynamicClientSet).ShouldNot(gomega.BeNil())
+		memberDynamicClient = dynamicClusterClient.DynamicClientSet
+	})
 
 	ginkgo.BeforeEach(func() {
 		ginkgo.By("creating FlinkDeployment CRD on karmada control plane", func() {
@@ -393,7 +511,7 @@ var _ = framework.SerialDescribe("[EstimatorAssumption] NodeResource plugin assu
 			ginkgo.DeferCleanup(func() {
 				framework.RemoveCRD(dynamicClient, flinkCRD.Name)
 				framework.WaitCRDDisappeared(dynamicClient, flinkCRD.Name)
-				framework.WaitCRDDisappearedOnClusters([]string{targetCluster}, flinkCRD.Name)
+				waitCRDDisappearedOnCluster(memberDynamicClient, targetCluster, flinkCRD.Name)
 				framework.WaitCRDDisappearedFromClusterStatus(karmadaClient, []string{targetCluster},
 					fmt.Sprintf("%s/%s", flinkCRD.Spec.Group, "v1beta1"), flinkCRD.Spec.Names.Kind)
 			})
@@ -401,7 +519,7 @@ var _ = framework.SerialDescribe("[EstimatorAssumption] NodeResource plugin assu
 	})
 
 	ginkgo.BeforeEach(func() {
-		ginkgo.By("propagating FlinkDeployment CRD to member1", func() {
+		ginkgo.By(fmt.Sprintf("propagating FlinkDeployment CRD to dedicated cluster: %s", targetCluster), func() {
 			cpp := helper.NewClusterPropagationPolicy(cppNamePrefix+rand.String(RandomStrLength),
 				[]policyv1alpha1.ResourceSelector{{
 					APIVersion: flinkCRD.APIVersion,
@@ -423,7 +541,7 @@ var _ = framework.SerialDescribe("[EstimatorAssumption] NodeResource plugin assu
 	})
 
 	ginkgo.It("FlinkDeployment should be unschedulable when assumed workloads exhaust cluster resources", func(ctx context.Context) {
-		targetNodeName, targetNodeHostname, availableMilliCPU := mostAvailableSchedulableNodeCPU(ctx, targetCluster)
+		targetNodeName, targetNodeHostname, availableMilliCPU := mostAvailableSchedulableNodeCPU(ctx, memberKubeClient, targetCluster)
 		targetNodeSelector := map[string]string{corev1.LabelHostname: targetNodeHostname}
 		const (
 			// A FlinkDeployment reserves CPU for one JobManager and one TaskManager.
@@ -504,7 +622,7 @@ var _ = framework.SerialDescribe("[EstimatorAssumption] NodeResource plugin assu
 		ginkgo.By(fmt.Sprintf("creating FlinkDeployments one by one (up to %d) until assumption exhausts cluster resources", maxFlinkCount), func() {
 			assumptionExhausted := false
 			scheduledCount := 0
-			for range maxFlinkCount {
+			for index := range maxFlinkCount {
 				bindingName := createFlinkDeployment()
 				// Wait for a definitive scheduling result before creating the next one,
 				// ensuring the assumption is recorded before the next workload is evaluated.
@@ -525,18 +643,21 @@ var _ = framework.SerialDescribe("[EstimatorAssumption] NodeResource plugin assu
 						}
 						return false
 					})
+				if index == 0 {
+					waitForSuccessfulMaxAvailableComponentSetsRequest(ctx, hostKubeClient, targetCluster)
+				}
 				if assumptionExhausted {
 					break
 				}
 			}
 			gomega.Expect(scheduledCount).Should(gomega.BeNumerically(">", 0),
-				"expected at least one FlinkDeployment to schedule before assumptions exhaust node resources")
+				"expected the dedicated scheduler-estimator to schedule at least one FlinkDeployment before assumptions exhaust node resources")
 			gomega.Expect(assumptionExhausted).Should(gomega.BeTrue(),
 				"expected assumption to exhaust cluster resources within %d FlinkDeployments", maxFlinkCount)
 		})
 
 		// At this point the assumption cache has less than one FlinkDeployment's total CPU request
-		// remaining on member1. A single-template Deployment with that total request should also fail
+		// remaining on the dedicated cluster. A single-template Deployment with that total request should also fail
 		// to schedule, verifying that the assumption cache protects against over-scheduling of
 		// single-template workloads as well.
 		ginkgo.By("verifying a single-template Deployment is also unschedulable due to assumed workloads", func() {
@@ -548,10 +669,7 @@ var _ = framework.SerialDescribe("[EstimatorAssumption] NodeResource plugin assu
 // mostAvailableSchedulableNodeCPU finds the Ready, schedulable node with the most
 // CPU remaining after subtracting requests from non-terminal pods. It returns the
 // node's name, hostname, and remaining CPU in millicores.
-func mostAvailableSchedulableNodeCPU(ctx context.Context, cluster string) (string, string, int64) {
-	clusterClient := framework.GetClusterClient(cluster)
-	gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
-
+func mostAvailableSchedulableNodeCPU(ctx context.Context, clusterClient kubernetes.Interface, cluster string) (string, string, int64) {
 	nodeList, err := clusterClient.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	podList, err := clusterClient.CoreV1().Pods(metav1.NamespaceAll).List(ctx, metav1.ListOptions{})
@@ -610,6 +728,162 @@ func nodeSchedulableByDefault(node *corev1.Node) bool {
 		}
 	}
 	return true
+}
+
+func waitSchedulerEstimatorConnection(client kubernetes.Interface, clusterName string) {
+	expectedLog := fmt.Sprintf("of cluster(%s) has been established.", clusterName)
+	ginkgo.By(fmt.Sprintf("waiting for scheduler to connect to the estimator for cluster: %s", clusterName), func() {
+		gomega.Eventually(func() (bool, error) {
+			pods, err := podsForDeployment(context.TODO(), client, names.NamespaceKarmadaSystem, names.KarmadaSchedulerComponentName)
+			if err != nil {
+				return false, err
+			}
+			var logErrors []error
+			for i := range pods.Items {
+				logs, err := podLogs(context.TODO(), client, names.NamespaceKarmadaSystem, pods.Items[i].Name)
+				if err != nil {
+					logErrors = append(logErrors, err)
+					continue
+				}
+				if strings.Contains(logs, expectedLog) {
+					return true, nil
+				}
+			}
+			if len(logErrors) == len(pods.Items) {
+				return false, errors.Join(logErrors...)
+			}
+			return false, nil
+		}, pollTimeout, pollInterval).Should(gomega.BeTrue(),
+			"expected scheduler to establish the estimator connection for cluster %q", clusterName)
+	})
+}
+
+func waitForSuccessfulMaxAvailableComponentSetsRequest(ctx context.Context, client kubernetes.Interface, clusterName string) {
+	ginkgo.By(fmt.Sprintf("verifying scheduler used the estimator for cluster: %s", clusterName), func() {
+		gomega.Eventually(func() (bool, error) {
+			estimatorName := names.GenerateEstimatorDeploymentName(clusterName)
+			pods, err := podsForDeployment(ctx, client, names.NamespaceKarmadaSystem, estimatorName)
+			if err != nil {
+				return false, err
+			}
+
+			var metricsErrors []error
+			for i := range pods.Items {
+				output, err := framework.GetMetricsFromPod(ctx, client, pods.Items[i].Name, names.NamespaceKarmadaSystem, 8080)
+				if err != nil {
+					metricsErrors = append(metricsErrors, err)
+					continue
+				}
+				podMetrics := testutil.Metrics{}
+				if err = testutil.ParseMetrics(output, &podMetrics); err != nil {
+					metricsErrors = append(metricsErrors, err)
+					continue
+				}
+				for _, sample := range podMetrics["karmada_scheduler_estimator_estimating_request_total"] {
+					if sample.Metric[testutil.LabelName("result")] == testutil.LabelValue("success") &&
+						sample.Metric[testutil.LabelName("type")] == testutil.LabelValue("MaxAvailableComponentSets") &&
+						sample.Value > 0 {
+						return true, nil
+					}
+				}
+			}
+			if len(metricsErrors) == len(pods.Items) {
+				return false, errors.Join(metricsErrors...)
+			}
+			return false, nil
+		}, pollTimeout, pollInterval).Should(gomega.BeTrue(),
+			"expected a successful MaxAvailableComponentSets request on the estimator for cluster %q", clusterName)
+	})
+}
+
+func podsForDeployment(ctx context.Context, client kubernetes.Interface, namespace, deploymentName string) (*corev1.PodList, error) {
+	deployment, err := client.AppsV1().Deployments(namespace).Get(ctx, deploymentName, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	selector, err := metav1.LabelSelectorAsSelector(deployment.Spec.Selector)
+	if err != nil {
+		return nil, err
+	}
+	return client.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{LabelSelector: selector.String()})
+}
+
+func addKubeconfigContextAlias(kubeConfigPath, sourceContext, alias string) error {
+	config, err := clientcmd.LoadFromFile(kubeConfigPath)
+	if err != nil {
+		return err
+	}
+
+	contextConfig, exists := config.Contexts[sourceContext]
+	if !exists {
+		return fmt.Errorf("context %q not found in kubeconfig %q", sourceContext, kubeConfigPath)
+	}
+	contextCopy := *contextConfig
+	config.Contexts[alias] = &contextCopy
+	config.CurrentContext = alias
+	return clientcmd.WriteToFile(*config, kubeConfigPath)
+}
+
+func deploySchedulerEstimator(hostKubeConfig, hostClusterContext, memberKubeConfig, memberClusterName string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), pollTimeout)
+	defer cancel()
+
+	// The command is a fixed repository script; all values from the E2E setup are passed as arguments without shell expansion.
+	cmd := exec.CommandContext(ctx, "../../../../hack/deploy-scheduler-estimator.sh", hostKubeConfig, hostClusterContext, memberKubeConfig, memberClusterName) //nolint:gosec
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("deploy scheduler-estimator for cluster %q: %w: %s", memberClusterName, err, strings.TrimSpace(string(output)))
+	}
+	return nil
+}
+
+func removeSchedulerEstimator(client kubernetes.Interface, clusterName string) {
+	estimatorName := names.GenerateEstimatorDeploymentName(clusterName)
+	ginkgo.By(fmt.Sprintf("removing scheduler-estimator for cluster: %s", clusterName), func() {
+		err := client.AppsV1().Deployments(names.NamespaceKarmadaSystem).Delete(context.TODO(), estimatorName, metav1.DeleteOptions{})
+		gomega.Expect(ignoreNotFound(err)).ShouldNot(gomega.HaveOccurred())
+		gomega.Eventually(func() bool {
+			_, err := client.AppsV1().Deployments(names.NamespaceKarmadaSystem).Get(context.TODO(), estimatorName, metav1.GetOptions{})
+			return apierrors.IsNotFound(err)
+		}, pollTimeout, pollInterval).Should(gomega.BeTrue())
+
+		err = client.CoreV1().Services(names.NamespaceKarmadaSystem).Delete(context.TODO(), estimatorName, metav1.DeleteOptions{})
+		gomega.Expect(ignoreNotFound(err)).ShouldNot(gomega.HaveOccurred())
+		gomega.Eventually(func() bool {
+			_, err := client.CoreV1().Services(names.NamespaceKarmadaSystem).Get(context.TODO(), estimatorName, metav1.GetOptions{})
+			return apierrors.IsNotFound(err)
+		}, pollTimeout, pollInterval).Should(gomega.BeTrue())
+
+		err = client.CoreV1().Secrets(names.NamespaceKarmadaSystem).Delete(context.TODO(), clusterName+"-kubeconfig", metav1.DeleteOptions{})
+		gomega.Expect(ignoreNotFound(err)).ShouldNot(gomega.HaveOccurred())
+		gomega.Eventually(func() bool {
+			_, err := client.CoreV1().Secrets(names.NamespaceKarmadaSystem).Get(context.TODO(), clusterName+"-kubeconfig", metav1.GetOptions{})
+			return apierrors.IsNotFound(err)
+		}, pollTimeout, pollInterval).Should(gomega.BeTrue())
+	})
+}
+
+func ignoreNotFound(err error) error {
+	if apierrors.IsNotFound(err) {
+		return nil
+	}
+	return err
+}
+
+func waitCRDDisappearedOnCluster(client dynamic.Interface, clusterName, crdName string) {
+	ginkgo.By(fmt.Sprintf("waiting for CRD(%s) to disappear on cluster(%s)", crdName, clusterName), func() {
+		crdGVR := apiextensionsv1.SchemeGroupVersion.WithResource("customresourcedefinitions")
+		gomega.Eventually(func() error {
+			_, err := client.Resource(crdGVR).Get(context.TODO(), crdName, metav1.GetOptions{})
+			if apierrors.IsNotFound(err) {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+			return fmt.Errorf("CRD %q still exists on cluster %q", crdName, clusterName)
+		}, pollTimeout, pollInterval).Should(gomega.Succeed())
+	})
 }
 
 // assertSingleTemplateDeploymentUnschedulable creates a single-replica Deployment requesting
