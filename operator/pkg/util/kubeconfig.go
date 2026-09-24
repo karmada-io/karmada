@@ -104,3 +104,76 @@ func newClientSetForConfig(kubeconfig []byte) (clientset.Interface, error) {
 
 	return client, nil
 }
+
+// GetKubeConfigProxyURLFromSecretRef fetches secret by given LocalSecretReference, extracts kubeconfig data,
+// then parses and returns proxy-url from the kubeconfig's current context cluster.
+// client: Kubernetes clientset for accessing Secret resources
+// ref: Reference to the secret storing kubeconfig data
+// return: proxy-url string if exists, empty string when no proxy configured; error occurs on secret access or kubeconfig parse failure
+func GetKubeConfigProxyURLFromSecretRef(client clientset.Interface, ref *operatorv1alpha1.LocalSecretReference) (string, error) {
+	secret, err := client.CoreV1().Secrets(ref.Namespace).Get(context.TODO(), ref.Name, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+
+	kubeconfigBytes, ok := secret.Data["kubeconfig"]
+	if !ok {
+		return "", fmt.Errorf("the kubeconfig or data key 'kubeconfig' is not found, please check the secret %s/%s", secret.Namespace, secret.Name)
+	}
+
+	return GetKubeConfigProxyURL(kubeconfigBytes)
+}
+
+// GetKubeConfigProxyURL loads kubeconfig and returns the proxy-url from the cluster config of the current context
+// clusterProxy: Returns proxy address if proxy exists, returns empty string if no proxy configured
+// err: Only returns error when failing to parse kubeconfig or build client config; missing proxy is not treated as an error
+func GetKubeConfigProxyURL(kubeConfig []byte) (clusterProxy string, err error) {
+	rawCfg, err := clientcmd.Load(kubeConfig)
+	if err != nil {
+		return "", fmt.Errorf("parse kubeconfig yaml failed: %w", err)
+	}
+
+	clientCfg := clientcmd.NewDefaultClientConfig(*rawCfg, &clientcmd.ConfigOverrides{})
+	restCfg, err := clientCfg.ClientConfig()
+	if err != nil {
+		return "", fmt.Errorf("generate rest config from kubeconfig failed: %w", err)
+	}
+
+	if restCfg.Proxy == nil {
+		return "", nil
+	}
+
+	proxy, err := restCfg.Proxy(nil)
+	if err != nil {
+		return "", fmt.Errorf("resolve proxy url from rest config failed: %w", err)
+	}
+
+	if proxy == nil {
+		return "", nil
+	}
+
+	clusterProxy = proxy.String()
+	return clusterProxy, nil
+}
+
+// SetKubeConfigProxyURL takes raw kubeconfig yaml bytes and proxy URL, sets the proxy-url field, and returns the modified kubeconfig as []byte
+// rawKubeConfigYaml: Raw yaml content of the original kubeconfig
+// proxyURL: Proxy address, e.g. http://127.0.0.1:8080
+func SetKubeConfigProxyURL(rawKubeConfigYaml []byte, proxyURL string) ([]byte, error) {
+	config, err := clientcmd.Load(rawKubeConfigYaml)
+	if err != nil {
+		return nil, fmt.Errorf("load raw kubeconfig failed: %w", err)
+	}
+
+	for clusterName, cluster := range config.Clusters {
+		cluster.ProxyURL = proxyURL
+		config.Clusters[clusterName] = cluster
+	}
+
+	buf, err := clientcmd.Write(*config)
+	if err != nil {
+		return nil, fmt.Errorf("marshal kubeconfig to yaml failed: %w", err)
+	}
+
+	return buf, nil
+}
