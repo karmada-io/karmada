@@ -3,6 +3,7 @@ title: Binding Preemption for Karmada Scheduler
 
 authors:
 - "@seanlaii"
+- "@asarj"
 
 reviewers:
 - "@RainbowMango"
@@ -228,7 +229,7 @@ High-priority binding cannot schedule (insufficient capacity)
 - **Victim selection**: "Remove all, then reprieve" greedy heuristic (same as Kubernetes `SelectVictimsOnNode`).
 - **Preemption claims**: In-memory capacity reservation (equivalent to Kubernetes' in-memory pod nominator).
 - **Preemption execution**: Existing GracefulEviction mechanism. Per-cluster, all-or-nothing (consistent with Kubernetes per-pod preemption).
-- **Victim scope**: Cross-kind preemption is supported. Victims are limited to the preemptor's namespace by default; cluster administrators may explicitly enable all-namespace selection.
+- **Victim scope**: Cross-kind preemption is supported. Victims are limited to the preemptor's namespace by default; cluster administrators may explicitly enable cross-namespace preemption.
 
 ## How to Enable Preemption
 
@@ -237,7 +238,7 @@ High-priority binding cannot schedule (insufficient capacity)
 3. **Reference the PriorityClass** in PropagationPolicy via `schedulePriority.priorityClassSource: KubePriorityClass`.
 4. **Declare single-cluster intent** with `maxGroups: 1` in `placement.spreadConstraints`.
 
-Victim selection uses the preemptor's namespace by default. Cluster administrators can set `--binding-preemption-victim-scope=all-namespaces` to allow cross-namespace victims. The default keeps tenants from disrupting workloads in another namespace. Installations with shared capacity and centrally managed PriorityClasses can enable cluster-wide selection. Before enabling it, operators must use identity-aware admission to restrict who may reference PriorityClasses that resolve to `PreemptLowerPriority`; the scheduler does not retain submission identity and cannot enforce that policy itself.
+Victim selection uses the preemptor's namespace by default. The `--enable-cross-namespace-preemption` flag defaults to `false`; cluster administrators can set it to `true` to allow cross-namespace victims. The default keeps tenants from disrupting workloads in another namespace. Installations with shared capacity and centrally managed PriorityClasses can enable cluster-wide selection. Before enabling it, operators must use identity-aware admission to restrict who may reference PriorityClasses that resolve to `PreemptLowerPriority`; the scheduler does not retain submission identity and cannot enforce that policy itself.
 
 ## API Changes
 
@@ -372,7 +373,7 @@ The algorithm uses the **"remove all, then reprieve"** pattern from Kubernetes. 
 
 A binding with `SchedulePriority == nil` has effective priority `0`. It can be a victim when its priority is lower than the preemptor, but it cannot initiate preemption because it has not opted into `PreemptLowerPriority`. Victim eligibility depends on relative priority, not on the victim's own preemption policy.
 
-Candidates are limited to the preemptor's namespace by default. With `--binding-preemption-victim-scope=all-namespaces`, the scheduler may consider eligible namespaced bindings from any namespace.
+Candidates are limited to the preemptor's namespace by default. With `--enable-cross-namespace-preemption=true`, the scheduler may consider eligible namespaced bindings from any namespace.
 
 ### Preemption Execution
 
@@ -611,7 +612,7 @@ Preemption uses `GenMergePatch` for victim patches without conflict retry. Concu
 
 ### Cross-namespace preemption
 
-Victim selection is limited to the preemptor's namespace by default. Operators may explicitly enable all-namespace selection with `--binding-preemption-victim-scope=all-namespaces`; doing so requires identity-aware admission that restricts who may use preempting PriorityClasses.
+Victim selection is limited to the preemptor's namespace by default. Operators may explicitly enable cross-namespace preemption with `--enable-cross-namespace-preemption=true`; doing so requires identity-aware admission that restricts who may use preempting PriorityClasses.
 
 ### Informer cache lag
 
@@ -656,7 +657,7 @@ When the feature gate is enabled but no preemption is occurring (common case), t
 - `PreemptionPolicy` resolution: feature gate disabled → unset, explicit opt-in.
 - Trigger handling: typed insufficient-capacity results trigger preemption; affinity, taint, spread, and other failures do not.
 - Applicability checks: `MaxGroups == 1`, non-workload, multi-component preemptor, ClusterAffinities exclusions.
-- Victim scope: same namespace by default; all namespaces only when explicitly configured.
+- Victim scope: same namespace by default; cross-namespace victims require `--enable-cross-namespace-preemption=true`.
 - Estimator failure: absence, timeout, error, infeasibility, or incomplete Pod-to-binding mapping produces no victims.
 - Claim store: set, hasClaimOnCluster, ClearBinding, TTL expiry, claim replacement.
 - `withClaimDeductions`: claim-adjusted AllocatableReplicas, self-exception, priority filtering.
@@ -665,7 +666,7 @@ When the feature gate is enabled but no preemption is occurring (common case), t
 - End-to-end: high-priority binding preempts low-priority binding on single cluster.
 - No preemption when PreemptionPolicy is unset or feature gate disabled.
 - Multi-component bindings can be selected as victims.
-- Cross-namespace victims require all-namespace scope; same-namespace behavior remains the default.
+- Cross-namespace victims require `--enable-cross-namespace-preemption=true`; same-namespace behavior remains the default.
 - Preempted binding reschedules to another cluster.
 - Claim prevents victim from returning to claimed cluster.
 
