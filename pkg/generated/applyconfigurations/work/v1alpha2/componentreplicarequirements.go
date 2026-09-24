@@ -31,6 +31,9 @@ type ComponentReplicaRequirementsApplyConfiguration struct {
 	NodeClaim *NodeClaimApplyConfiguration `json:"nodeClaim,omitempty"`
 	// ResourceRequest represents the resources required by each replica.
 	ResourceRequest *v1.ResourceList `json:"resourceRequest,omitempty"`
+	// ResourceLimits contains the effective raw limits of one replica for quota accounting.
+	// It is not a scheduling resource request.
+	ResourceLimits *v1.ResourceList `json:"resourceLimits,omitempty"`
 	// PriorityClassName represents the resources priorityClassName
 	PriorityClassName *string `json:"priorityClassName,omitempty"`
 }
@@ -54,6 +57,14 @@ func (b *ComponentReplicaRequirementsApplyConfiguration) WithNodeClaim(value *No
 // If called multiple times, the ResourceRequest field is set to the value of the last call.
 func (b *ComponentReplicaRequirementsApplyConfiguration) WithResourceRequest(value v1.ResourceList) *ComponentReplicaRequirementsApplyConfiguration {
 	b.ResourceRequest = &value
+	return b
+}
+
+// WithResourceLimits sets the ResourceLimits field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the ResourceLimits field is set to the value of the last call.
+func (b *ComponentReplicaRequirementsApplyConfiguration) WithResourceLimits(value v1.ResourceList) *ComponentReplicaRequirementsApplyConfiguration {
+	b.ResourceLimits = &value
 	return b
 }
 

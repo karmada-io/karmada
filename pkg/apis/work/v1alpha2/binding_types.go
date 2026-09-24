@@ -224,6 +224,11 @@ type ReplicaRequirements struct {
 	// +optional
 	ResourceRequest corev1.ResourceList `json:"resourceRequest,omitempty"`
 
+	// ResourceLimits contains the effective raw limits of one replica for quota accounting.
+	// It is not a scheduling resource request.
+	// +optional
+	ResourceLimits corev1.ResourceList `json:"resourceLimits,omitempty"`
+
 	// Namespace represents the resources namespaces
 	// +optional
 	Namespace string `json:"namespace,omitempty"`
@@ -260,6 +265,11 @@ type ComponentReplicaRequirements struct {
 	// ResourceRequest represents the resources required by each replica.
 	// +optional
 	ResourceRequest corev1.ResourceList `json:"resourceRequest,omitempty"`
+
+	// ResourceLimits contains the effective raw limits of one replica for quota accounting.
+	// It is not a scheduling resource request.
+	// +optional
+	ResourceLimits corev1.ResourceList `json:"resourceLimits,omitempty"`
 
 	// PriorityClassName represents the resources priorityClassName
 	// +optional

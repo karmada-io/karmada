@@ -402,6 +402,9 @@ func isQuotaRelevantFieldChanged(oldRB, newRB *workv1alpha2.ResourceBinding) boo
 	if isResourceRequestChanged(oldRB, newRB) {
 		return true
 	}
+	if isResourceLimitsChanged(oldRB, newRB) {
+		return true
+	}
 	if isScheduledReplicasChanged(oldRB, newRB) {
 		return true
 	}
@@ -421,6 +424,17 @@ func isResourceRequestChanged(oldRB, newRB *workv1alpha2.ResourceBinding) bool {
 		newReq = newRB.Spec.ReplicaRequirements.ResourceRequest
 	}
 	return !areResourceListsEqual(oldReq, newReq)
+}
+
+func isResourceLimitsChanged(oldRB, newRB *workv1alpha2.ResourceBinding) bool {
+	var oldLimits, newLimits corev1.ResourceList
+	if oldRB.Spec.ReplicaRequirements != nil {
+		oldLimits = oldRB.Spec.ReplicaRequirements.ResourceLimits
+	}
+	if newRB.Spec.ReplicaRequirements != nil {
+		newLimits = newRB.Spec.ReplicaRequirements.ResourceLimits
+	}
+	return !areResourceListsEqual(oldLimits, newLimits)
 }
 
 func isScheduledReplicasChanged(oldRB, newRB *workv1alpha2.ResourceBinding) bool {
@@ -466,8 +480,11 @@ func isComponentsChanged(oldRB, newRB *workv1alpha2.ResourceBinding) bool {
 			return true
 		}
 
-		if oldComponent.ReplicaRequirements != nil && newComponent.ReplicaRequirements != nil && !areResourceListsEqual(oldComponent.ReplicaRequirements.ResourceRequest, newComponent.ReplicaRequirements.ResourceRequest) {
-			return true
+		if oldComponent.ReplicaRequirements != nil && newComponent.ReplicaRequirements != nil {
+			if !areResourceListsEqual(oldComponent.ReplicaRequirements.ResourceRequest, newComponent.ReplicaRequirements.ResourceRequest) ||
+				!areResourceListsEqual(oldComponent.ReplicaRequirements.ResourceLimits, newComponent.ReplicaRequirements.ResourceLimits) {
+				return true
+			}
 		}
 	}
 	return false

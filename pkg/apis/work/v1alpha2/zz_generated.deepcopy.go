@@ -169,6 +169,13 @@ func (in *ComponentReplicaRequirements) DeepCopyInto(out *ComponentReplicaRequir
 			(*out)[key] = val.DeepCopy()
 		}
 	}
+	if in.ResourceLimits != nil {
+		in, out := &in.ResourceLimits, &out.ResourceLimits
+		*out = make(v1.ResourceList, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val.DeepCopy()
+		}
+	}
 	return
 }
 
@@ -290,6 +297,13 @@ func (in *ReplicaRequirements) DeepCopyInto(out *ReplicaRequirements) {
 	}
 	if in.ResourceRequest != nil {
 		in, out := &in.ResourceRequest, &out.ResourceRequest
+		*out = make(v1.ResourceList, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val.DeepCopy()
+		}
+	}
+	if in.ResourceLimits != nil {
+		in, out := &in.ResourceLimits, &out.ResourceLimits
 		*out = make(v1.ResourceList, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val.DeepCopy()

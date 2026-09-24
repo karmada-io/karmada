@@ -23,6 +23,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
@@ -30,6 +31,55 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
+
+func TestDefaultPodAndDeploymentLimits(t *testing.T) {
+	resources := func(cpu, memory string) corev1.ResourceList {
+		return corev1.ResourceList{corev1.ResourceCPU: resource.MustParse(cpu), corev1.ResourceMemory: resource.MustParse(memory)}
+	}
+	template := corev1.PodTemplateSpec{Spec: corev1.PodSpec{
+		Containers: []corev1.Container{
+			{Resources: corev1.ResourceRequirements{Requests: resources("100m", "64Mi"), Limits: resources("250m", "128Mi")}},
+			{Resources: corev1.ResourceRequirements{Requests: resources("200m", "64Mi"), Limits: resources("500m", "128Mi")}},
+		},
+		InitContainers: []corev1.Container{
+			{Resources: corev1.ResourceRequirements{Requests: resources("100m", "32Mi"), Limits: resources("1500m", "192Mi")}},
+			{Resources: corev1.ResourceRequirements{Requests: resources("100m", "32Mi"), Limits: resources("750m", "512Mi")}},
+		},
+	}}
+	deployment, err := helper.ToUnstructured(&appsv1.Deployment{Spec: appsv1.DeploymentSpec{Replicas: ptr.To[int32](2), Template: template}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pod, err := helper.ToUnstructured(&corev1.Pod{Spec: template.Spec})
+	if err != nil {
+		t.Fatal(err)
+	}
+	depReplicas, depRequirements, err := deployReplica(deployment)
+	if err != nil || depReplicas != 2 {
+		t.Fatalf("Deployment interpretation: replicas=%d, err=%v", depReplicas, err)
+	}
+	podReplicas, podRequirements, err := podReplica(pod)
+	if err != nil || podReplicas != 1 {
+		t.Fatalf("Pod interpretation: replicas=%d, err=%v", podReplicas, err)
+	}
+	for _, requirements := range []*workv1alpha2.ReplicaRequirements{depRequirements, podRequirements} {
+		for _, check := range []struct {
+			resources corev1.ResourceList
+			name      corev1.ResourceName
+			want      string
+		}{
+			{requirements.ResourceRequest, corev1.ResourceCPU, "300m"},
+			{requirements.ResourceRequest, corev1.ResourceMemory, "128Mi"},
+			{requirements.ResourceLimits, corev1.ResourceCPU, "1500m"},
+			{requirements.ResourceLimits, corev1.ResourceMemory, "512Mi"},
+		} {
+			got := check.resources[check.name]
+			if got.Cmp(resource.MustParse(check.want)) != 0 {
+				t.Fatalf("%s: got %s, want %s", check.name, got.String(), check.want)
+			}
+		}
+	}
+}
 
 func Test_getAllDefaultReplicaInterpreter(t *testing.T) {
 	expectedKinds := []schema.GroupVersionKind{

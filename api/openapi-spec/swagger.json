@@ -21528,6 +21528,13 @@
           "description": "PriorityClassName represents the resources priorityClassName",
           "type": "string"
         },
+        "resourceLimits": {
+          "description": "ResourceLimits contains the effective raw limits of one replica for quota accounting. It is not a scheduling resource request.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/io.k8s.apimachinery.pkg.api.resource.Quantity"
+          }
+        },
         "resourceRequest": {
           "description": "ResourceRequest represents the resources required by each replica.",
           "type": "object",
@@ -21680,6 +21687,13 @@
         "priorityClassName": {
           "description": "PriorityClassName represents the resources priorityClassName",
           "type": "string"
+        },
+        "resourceLimits": {
+          "description": "ResourceLimits contains the effective raw limits of one replica for quota accounting. It is not a scheduling resource request.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/io.k8s.apimachinery.pkg.api.resource.Quantity"
+          }
         },
         "resourceRequest": {
           "description": "ResourceRequest represents the resources required by each replica.",

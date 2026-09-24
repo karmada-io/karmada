@@ -457,6 +457,17 @@ spec:
                           description: PriorityClassName represents the resources
                             priorityClassName
                           type: string
+                        resourceLimits:
+                          additionalProperties:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
+                          description: |-
+                            ResourceLimits contains the effective raw limits of one replica for quota accounting.
+                            It is not a scheduling resource request.
+                          type: object
                         resourceRequest:
                           additionalProperties:
                             anyOf:
@@ -1650,6 +1661,17 @@ spec:
                   priorityClassName:
                     description: PriorityClassName represents the resources priorityClassName
                     type: string
+                  resourceLimits:
+                    additionalProperties:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                      x-kubernetes-int-or-string: true
+                    description: |-
+                      ResourceLimits contains the effective raw limits of one replica for quota accounting.
+                      It is not a scheduling resource request.
+                    type: object
                   resourceRequest:
                     additionalProperties:
                       anyOf:
