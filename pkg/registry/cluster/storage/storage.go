@@ -23,8 +23,10 @@ import (
 	"net/url"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apiserver/pkg/registry/generic"
 	genericregistry "k8s.io/apiserver/pkg/registry/generic/registry"
 	"k8s.io/apiserver/pkg/registry/rest"
@@ -34,6 +36,7 @@ import (
 	"sigs.k8s.io/structured-merge-diff/v6/fieldpath"
 
 	clusterapis "github.com/karmada-io/karmada/pkg/apis/cluster"
+	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/printers"
 	printersinternal "github.com/karmada-io/karmada/pkg/printers/internalversion"
 	printerstorage "github.com/karmada-io/karmada/pkg/printers/storage"
@@ -103,8 +106,49 @@ type REST struct {
 	*genericregistry.Store
 }
 
-// Implement Redirector.
-var _ = rest.Redirector(&REST{})
+const deletionProtectionErrorMessage = "This resource is protected, please make sure to remove the label: %s"
+
+var _ rest.GracefulDeleter = &REST{}
+var _ rest.Redirector = &REST{}
+
+// Delete deletes a Cluster after verifying that it is not protected from deletion.
+func (r *REST) Delete(ctx context.Context, name string, deleteValidation rest.ValidateObjectFunc, options *metav1.DeleteOptions) (runtime.Object, bool, error) {
+	return r.Store.Delete(ctx, name, composeDeleteValidations(validateDeletionProtection, deleteValidation), options)
+}
+
+// validateDeletionProtection checks whether a Cluster is protected from deletion.
+func validateDeletionProtection(_ context.Context, obj runtime.Object) error {
+	cluster, ok := obj.(*clusterapis.Cluster)
+	if !ok || cluster == nil {
+		return fmt.Errorf("expected non-nil *cluster.Cluster, got %T", obj)
+	}
+
+	if cluster.ObjectMeta.Labels[workv1alpha2.DeletionProtectionLabelKey] != workv1alpha2.DeletionProtectionAlways {
+		return nil
+	}
+
+	return apierrors.NewForbidden(
+		schema.GroupResource{Group: clusterapis.GroupName, Resource: "clusters"},
+		cluster.ObjectMeta.Name,
+		//nolint:staticcheck // Preserve the established webhook error wording for a consistent user-facing response.
+		fmt.Errorf(deletionProtectionErrorMessage, workv1alpha2.DeletionProtectionLabelKey),
+	)
+}
+
+// composeDeleteValidations combines multiple validators into one validator.
+func composeDeleteValidations(validations ...rest.ValidateObjectFunc) rest.ValidateObjectFunc {
+	return func(ctx context.Context, obj runtime.Object) error {
+		for _, validation := range validations {
+			if validation == nil {
+				continue
+			}
+			if err := validation(ctx, obj); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+}
 
 // ResourceLocation returns a URL to which one can send traffic for the specified cluster.
 func (r *REST) ResourceLocation(ctx context.Context, name string) (*url.URL, http.RoundTripper, error) {
