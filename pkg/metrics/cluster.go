@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -37,6 +38,12 @@ const (
 	clusterCPUAllocatedMetricsName       = "cluster_cpu_allocated_number"
 	clusterPodAllocatedMetricsName       = "cluster_pod_allocated_number"
 	clusterSyncStatusDurationMetricsName = "cluster_sync_status_duration_seconds"
+	clusterHealthProbeSuccessName        = "cluster_health_probe_success"
+	clusterHealthProbeDurationName       = "cluster_health_probe_duration_seconds"
+	clusterHealthProbeTotalName          = "cluster_health_probe_total"
+	clusterReadySinceName                = "cluster_ready_since_timestamp_seconds"
+	clusterConditionLastTransitionName   = "cluster_condition_last_transition_timestamp_seconds"
+	clusterHealthTransitionsTotalName    = "cluster_health_transitions_total"
 	evictionQueueDepthMetricsName        = "eviction_queue_depth"
 	evictionKindTotalMetricsName         = "eviction_kind_total"
 	evictionProcessingLatencyMetricsName = "eviction_processing_latency_seconds"
@@ -44,6 +51,11 @@ const (
 
 	// Canonical label for Karmada member clusters.
 	memberClusterLabel = "member_cluster"
+
+	// HealthStateSuccess indicates the cluster is online and healthy.
+	HealthStateSuccess = "success"
+	// HealthStateError indicates the cluster is not healthy or not reachable.
+	HealthStateError = "error"
 )
 
 var (
@@ -107,6 +119,46 @@ var (
 		Help: "Duration in seconds for syncing the status of the cluster once.",
 	}, []string{memberClusterLabel})
 
+	// clusterHealthProbeSuccess reports the raw health probe result before threshold adjustment.
+	clusterHealthProbeSuccess = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: clusterHealthProbeSuccessName,
+		Help: "Result of the last health probe for the member cluster (1 for success, 0 for failure). " +
+			"Reflects the raw probe outcome before threshold adjustment.",
+	}, []string{memberClusterLabel})
+
+	// clusterHealthProbeDuration reports the duration of the health probe HTTP call only.
+	clusterHealthProbeDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    clusterHealthProbeDurationName,
+		Help:    "Duration in seconds of the health probe to the member cluster.",
+		Buckets: []float64{0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10},
+	}, []string{memberClusterLabel})
+
+	// clusterHealthProbeTotal counts probes by result type.
+	clusterHealthProbeTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: clusterHealthProbeTotalName,
+		Help: "Total number of health probes to the member cluster, categorized by result.",
+	}, []string{memberClusterLabel, "result"})
+
+	// clusterReadySince records the unix timestamp when the cluster last became Ready.
+	// Set to 0 when the cluster is not Ready.
+	clusterReadySince = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: clusterReadySinceName,
+		Help: "Unix timestamp when the member cluster last became Ready. " +
+			"Set to 0 when the cluster is not Ready.",
+	}, []string{memberClusterLabel})
+
+	// clusterConditionLastTransition records the unix timestamp of the last condition state transition.
+	clusterConditionLastTransition = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: clusterConditionLastTransitionName,
+		Help: "Unix timestamp of the last condition state transition for the member cluster.",
+	}, []string{memberClusterLabel})
+
+	// clusterHealthTransitionsTotal counts health state transitions.
+	clusterHealthTransitionsTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: clusterHealthTransitionsTotalName,
+		Help: "Total number of health state transitions for the member cluster.",
+	}, []string{memberClusterLabel, "from_state", "to_state"})
+
 	evictionQueueMetrics = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: evictionQueueDepthMetricsName,
 		Help: "Current depth of the eviction queue",
@@ -160,6 +212,65 @@ func RecordClusterStatus(cluster *v1alpha1.Cluster) {
 	}
 }
 
+// RecordClusterHealthProbeSuccess records the raw health probe result before threshold adjustment.
+func RecordClusterHealthProbeSuccess(clusterName string, online, healthy bool) {
+	val := float64(0)
+	if online && healthy {
+		val = 1
+	}
+	clusterHealthProbeSuccess.WithLabelValues(clusterName).Set(val)
+}
+
+// ProbeResultLabel returns the result label for a health probe.
+func ProbeResultLabel(online, healthy bool) string {
+	if online && healthy {
+		return HealthStateSuccess
+	}
+	return HealthStateError
+}
+
+// RecordClusterHealthProbeTotal increments the probe counter with the appropriate result label.
+func RecordClusterHealthProbeTotal(clusterName string, online, healthy bool) {
+	clusterHealthProbeTotal.WithLabelValues(clusterName, ProbeResultLabel(online, healthy)).Inc()
+}
+
+// RecordClusterHealthProbeDuration records the duration of the health probe HTTP call.
+func RecordClusterHealthProbeDuration(clusterName string, startTime time.Time) {
+	clusterHealthProbeDuration.WithLabelValues(clusterName).Observe(utilmetrics.DurationInSeconds(startTime))
+}
+
+// RecordClusterReadySince updates the ready-since timestamp based on the threshold-adjusted condition.
+// On transition to Ready, sets the timestamp to the provided time. On transition away from Ready, sets to 0.
+// No-op when the status hasn't changed.
+func RecordClusterReadySince(clusterName string, prevStatus, currentStatus metav1.ConditionStatus, timestamp time.Time) {
+	if prevStatus == currentStatus {
+		return
+	}
+	if currentStatus == metav1.ConditionTrue {
+		clusterReadySince.WithLabelValues(clusterName).Set(float64(timestamp.Unix()))
+	} else {
+		clusterReadySince.WithLabelValues(clusterName).Set(0)
+	}
+}
+
+// RecordClusterConditionLastTransition records the timestamp of a condition state transition.
+// No-op when the status hasn't changed.
+func RecordClusterConditionLastTransition(clusterName string, prevStatus, currentStatus metav1.ConditionStatus, timestamp time.Time) {
+	if prevStatus == currentStatus {
+		return
+	}
+	clusterConditionLastTransition.WithLabelValues(clusterName).Set(float64(timestamp.Unix()))
+}
+
+// RecordClusterHealthTransition increments the transition counter when the raw probe state changes.
+// No-op when the state hasn't changed.
+func RecordClusterHealthTransition(clusterName string, fromState, toState metav1.ConditionStatus) {
+	if fromState == toState {
+		return
+	}
+	clusterHealthTransitionsTotal.WithLabelValues(clusterName, string(fromState), string(toState)).Inc()
+}
+
 // RecordClusterSyncStatusDuration records the duration of the given cluster syncing status
 func RecordClusterSyncStatusDuration(cluster *v1alpha1.Cluster, startTime time.Time) {
 	labels := []string{cluster.Name}
@@ -180,6 +291,12 @@ func CleanupMetricsForCluster(clusterName string) {
 	clusterCPUAllocatedGauge.DeleteLabelValues(labels...)
 	clusterPodAllocatedGauge.DeleteLabelValues(labels...)
 	clusterSyncStatusDuration.DeleteLabelValues(labels...)
+	clusterHealthProbeSuccess.DeleteLabelValues(labels...)
+	clusterHealthProbeDuration.DeleteLabelValues(labels...)
+	clusterHealthProbeTotal.DeletePartialMatch(prometheus.Labels{memberClusterLabel: clusterName})
+	clusterReadySince.DeleteLabelValues(labels...)
+	clusterConditionLastTransition.DeleteLabelValues(labels...)
+	clusterHealthTransitionsTotal.DeletePartialMatch(prometheus.Labels{memberClusterLabel: clusterName})
 }
 
 // RecordEvictionQueueMetrics record the depth Of the EvictionQueue
@@ -224,6 +341,12 @@ func ClusterCollectors() []prometheus.Collector {
 		clusterCPUAllocatedGauge,
 		clusterPodAllocatedGauge,
 		clusterSyncStatusDuration,
+		clusterHealthProbeSuccess,
+		clusterHealthProbeDuration,
+		clusterHealthProbeTotal,
+		clusterReadySince,
+		clusterConditionLastTransition,
+		clusterHealthTransitionsTotal,
 		evictionQueueMetrics,
 		evictionKindTotalMetrics,
 		evictionProcessingLatency,
