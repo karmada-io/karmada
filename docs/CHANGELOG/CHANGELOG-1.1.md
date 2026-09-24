@@ -1,3 +1,20 @@
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
+
+- [What's New](#whats-new)
+  - [Multi-Cluster Ingress](#multi-cluster-ingress)
+  - [Federated ResourceQuota](#federated-resourcequota)
+  - [Configurability improvement for performance tuning](#configurability-improvement-for-performance-tuning)
+  - [Resource Interpreter Webhook Enhancement](#resource-interpreter-webhook-enhancement)
+- [Other Notable Changes](#other-notable-changes)
+  - [Bug Fixes](#bug-fixes)
+  - [Features & Enhancements](#features--enhancements)
+  - [Instrumentation (Metrics and Events)](#instrumentation-metrics-and-events)
+  - [Deprecation](#deprecation)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 # What's New
 ## Multi-Cluster Ingress
 The newly introduced [MultiClusterIngress](https://github.com/karmada-io/karmada/blob/d6355ec85296daa46ed344cade6ef10a9bee58dc/pkg/apis/networking/v1alpha1/ingress_types.go#L16) 
