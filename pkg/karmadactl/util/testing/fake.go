@@ -21,6 +21,7 @@ import (
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 
 	"github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
+	"github.com/karmada-io/karmada/pkg/generated/clientset/versioned/fake"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 )
 
@@ -40,12 +41,13 @@ func NewTestFactory() *TestFactory {
 
 // KarmadaClientSet returns a karmada clientset
 func (t *TestFactory) KarmadaClientSet() (versioned.Interface, error) {
-	// TODO implement me
-	panic("implement me")
+	// Return a fake clientset for testing purposes
+	return fake.NewSimpleClientset(), nil
 }
 
 // FactoryForMemberCluster returns a cmdutil.Factory for the member cluster
 func (t *TestFactory) FactoryForMemberCluster(_ string) (cmdutil.Factory, error) {
-	// TODO implement me
-	panic("implement me")
+	// Return a new test factory for the member cluster
+	// This creates a separate factory instance for testing member cluster operations
+	return cmdtesting.NewTestFactory(), nil
 }
