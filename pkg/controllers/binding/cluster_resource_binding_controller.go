@@ -132,6 +132,14 @@ func (c *ClusterResourceBindingController) syncBinding(ctx context.Context, bind
 		klog.ErrorS(err, "Failed to fetch workload for ClusterResourceBinding.", "ClusterResourceBinding", binding.Name)
 		return controllerruntime.Result{}, err
 	}
+	wait, err := shouldWaitForComponentScheduleResult(c.ResourceInterpreter, workload, &binding.Spec)
+	if err != nil {
+		return controllerruntime.Result{}, err
+	}
+	if wait {
+		klog.V(4).InfoS("Skip syncing Work until component replicas are accepted", "binding", binding.GetName())
+		return controllerruntime.Result{}, nil
+	}
 
 	start := time.Now()
 	err = ensureWork(ctx, c.Client, c.ResourceInterpreter, workload, c.OverrideManager, binding, apiextensionsv1.ClusterScoped)
