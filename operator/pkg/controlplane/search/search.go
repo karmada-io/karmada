@@ -76,7 +76,8 @@ func installKarmadaSearch(client clientset.Interface, cfg *operatorv1alpha1.Karm
 	patcher.NewPatcher().WithAnnotations(cfg.Annotations).WithLabels(cfg.Labels).
 		WithPriorityClassName(cfg.CommonSettings.PriorityClassName).
 		WithExtraArgs(cfg.ExtraArgs).WithResources(cfg.Resources).
-		WithTolerations(cfg.CommonSettings.Tolerations).WithAffinity(cfg.CommonSettings.Affinity).ForDeployment(searchDeployment)
+		WithTolerations(cfg.CommonSettings.Tolerations).WithAffinity(cfg.CommonSettings.Affinity).
+		WithTopologySpreadConstraints(cfg.CommonSettings.TopologySpreadConstraints).ForDeployment(searchDeployment)
 
 	if searchDeployment, err = apiclient.CreateOrUpdateDeployment(client, searchDeployment); err != nil {
 		return fmt.Errorf("error when creating deployment for %s, err: %w", searchDeployment.Name, err)

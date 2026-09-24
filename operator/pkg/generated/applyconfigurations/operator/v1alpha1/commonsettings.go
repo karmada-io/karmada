@@ -59,6 +59,8 @@ type CommonSettingsApplyConfiguration struct {
 	Tolerations []corev1.TolerationApplyConfiguration `json:"tolerations,omitempty"`
 	// Affinity to apply to the pods for this component.
 	Affinity *corev1.AffinityApplyConfiguration `json:"affinity,omitempty"`
+	// TopologySpreadConstraints describes the topology spread constraints to apply to the pods for this component.
+	TopologySpreadConstraints []corev1.TopologySpreadConstraintApplyConfiguration `json:"topologySpreadConstraints,omitempty"`
 }
 
 // CommonSettingsApplyConfiguration constructs a declarative configuration of the CommonSettings type for use with
@@ -169,5 +171,18 @@ func (b *CommonSettingsApplyConfiguration) WithTolerations(values ...*corev1.Tol
 // If called multiple times, the Affinity field is set to the value of the last call.
 func (b *CommonSettingsApplyConfiguration) WithAffinity(value *corev1.AffinityApplyConfiguration) *CommonSettingsApplyConfiguration {
 	b.Affinity = value
+	return b
+}
+
+// WithTopologySpreadConstraints adds the given value to the TopologySpreadConstraints field in the declarative configuration
+// and returns the receiver, so that objects can be build by chaining "With" function invocations.
+// If called multiple times, values provided by each call will be appended to the TopologySpreadConstraints field.
+func (b *CommonSettingsApplyConfiguration) WithTopologySpreadConstraints(values ...*corev1.TopologySpreadConstraintApplyConfiguration) *CommonSettingsApplyConfiguration {
+	for i := range values {
+		if values[i] == nil {
+			panic("nil value passed to WithTopologySpreadConstraints")
+		}
+		b.TopologySpreadConstraints = append(b.TopologySpreadConstraints, *values[i])
+	}
 	return b
 }
