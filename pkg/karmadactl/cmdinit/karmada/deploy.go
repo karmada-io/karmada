@@ -153,8 +153,8 @@ func createExtraResources(clientSet *kubernetes.Clientset, dir string) error {
 		return fmt.Errorf("error creating clusterinfo RBAC rules: %v", err)
 	}
 
-	// grant access permission to 'karmada-agent-rbac-generator'
-	if err := grantAccessPermissionToAgentRBACGenerator(clientSet); err != nil {
+	// grant the minimal permission required before the cluster controller generates per-cluster RBAC
+	if err := grantClusterCreatePermissionToAgents(clientSet); err != nil {
 		return err
 	}
 
