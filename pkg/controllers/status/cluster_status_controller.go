@@ -32,6 +32,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientset "k8s.io/client-go/kubernetes"
 	v1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/record"
@@ -419,13 +420,14 @@ func (c *ClusterStatusController) initLeaseController(cluster *clusterv1alpha1.C
 
 	// start syncing lease
 	go func() {
+		defer utilruntime.HandleCrash()
+		defer c.ClusterLeaseControllers.Delete(cluster.Name)
 		klog.InfoS("Starting syncing lease for cluster", "cluster", cluster.Name)
 
 		// lease controller will keep running until the stop channel is closed(context is canceled)
 		clusterLeaseController.Run(ctx)
 
 		klog.InfoS("Stop syncing lease for cluster", "cluster", cluster.Name)
-		c.ClusterLeaseControllers.Delete(cluster.Name) // ensure the cache is clean
 	}()
 }
 
