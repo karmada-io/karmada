@@ -226,6 +226,8 @@ type CommandInitOption struct {
 	CaCertFile                string
 	CaKeyFile                 string
 	KarmadaInitFilePath       string
+
+	componentSettings map[string]initConfig.CommonSettings
 }
 
 func (i *CommandInitOption) validateLocalEtcd(parentCommand string) error {
@@ -598,6 +600,7 @@ func (i *CommandInitOption) initKarmadaAPIServer() error {
 		}
 		klog.Info("Create etcd StatefulSets")
 		etcdStatefulSet := i.makeETCDStatefulSet()
+		i.applyCommonSettings(etcdStatefulSet.Name, &etcdStatefulSet.Spec.Template.Spec)
 		if _, err := i.KubeClientSet.AppsV1().StatefulSets(i.Namespace).Create(context.TODO(), etcdStatefulSet, metav1.CreateOptions{}); err != nil {
 			klog.Warning(err)
 		}
@@ -611,6 +614,7 @@ func (i *CommandInitOption) initKarmadaAPIServer() error {
 	}
 
 	karmadaAPIServerDeployment := i.makeKarmadaAPIServerDeployment()
+	i.applyCommonSettings(karmadaAPIServerDeployment.Name, &karmadaAPIServerDeployment.Spec.Template.Spec)
 	if err := utils.CreateDeployAndWait(i.KubeClientSet, karmadaAPIServerDeployment, i.WaitComponentReadyTimeout); err != nil {
 		return err
 	}
@@ -622,6 +626,7 @@ func (i *CommandInitOption) initKarmadaAPIServer() error {
 		klog.Exitln(err)
 	}
 	karmadaAggregatedAPIServerDeployment := i.makeKarmadaAggregatedAPIServerDeployment()
+	i.applyCommonSettings(karmadaAggregatedAPIServerDeployment.Name, &karmadaAggregatedAPIServerDeployment.Spec.Template.Spec)
 	if err := utils.CreateDeployAndWait(i.KubeClientSet, karmadaAggregatedAPIServerDeployment, i.WaitComponentReadyTimeout); err != nil {
 		klog.Warning(err)
 	}
@@ -637,6 +642,7 @@ func (i *CommandInitOption) initKarmadaComponent() error {
 	}
 
 	karmadaKubeControllerManagerDeployment := i.makeKarmadaKubeControllerManagerDeployment()
+	i.applyCommonSettings(karmadaKubeControllerManagerDeployment.Name, &karmadaKubeControllerManagerDeployment.Spec.Template.Spec)
 	if err := utils.CreateDeployAndWait(i.KubeClientSet, karmadaKubeControllerManagerDeployment, i.WaitComponentReadyTimeout); err != nil {
 		klog.Warning(err)
 	}
@@ -645,6 +651,7 @@ func (i *CommandInitOption) initKarmadaComponent() error {
 	// https://github.com/karmada-io/karmada/blob/master/artifacts/deploy/karmada-scheduler.yaml
 	klog.Info("Create karmada scheduler Deployment")
 	karmadaSchedulerDeployment := i.makeKarmadaSchedulerDeployment()
+	i.applyCommonSettings(karmadaSchedulerDeployment.Name, &karmadaSchedulerDeployment.Spec.Template.Spec)
 	if err := utils.CreateDeployAndWait(i.KubeClientSet, karmadaSchedulerDeployment, i.WaitComponentReadyTimeout); err != nil {
 		klog.Warning(err)
 	}
@@ -653,6 +660,7 @@ func (i *CommandInitOption) initKarmadaComponent() error {
 	// https://github.com/karmada-io/karmada/blob/master/artifacts/deploy/karmada-controller-manager.yaml
 	klog.Info("Create karmada controller manager Deployment")
 	karmadaControllerManagerDeployment := i.makeKarmadaControllerManagerDeployment()
+	i.applyCommonSettings(karmadaControllerManagerDeployment.Name, &karmadaControllerManagerDeployment.Spec.Template.Spec)
 	if err := utils.CreateDeployAndWait(i.KubeClientSet, karmadaControllerManagerDeployment, i.WaitComponentReadyTimeout); err != nil {
 		klog.Warning(err)
 	}
@@ -664,6 +672,7 @@ func (i *CommandInitOption) initKarmadaComponent() error {
 		klog.Exitln(err)
 	}
 	karmadaWebhookDeployment := i.makeKarmadaWebhookDeployment()
+	i.applyCommonSettings(karmadaWebhookDeployment.Name, &karmadaWebhookDeployment.Spec.Template.Spec)
 	if err := utils.CreateDeployAndWait(i.KubeClientSet, karmadaWebhookDeployment, i.WaitComponentReadyTimeout); err != nil {
 		klog.Warning(err)
 	}
@@ -917,6 +926,7 @@ func (i *CommandInitOption) parseEtcdNodeSelectorLabelsMap() error {
 // such as certificates, etcd, and control plane components.
 func (i *CommandInitOption) parseInitConfig(cfg *initConfig.KarmadaInitConfig) error {
 	spec := cfg.Spec
+	i.componentSettings = make(map[string]initConfig.CommonSettings)
 
 	i.parseGeneralConfig(spec)
 	i.parseCertificateConfig(spec.Certificates)
@@ -994,6 +1004,9 @@ func (i *CommandInitOption) parseLocalEtcdConfig(localEtcd *initConfig.LocalEtcd
 	setIfNotEmpty(&i.EtcdHostDataPath, localEtcd.DataPath)
 	setIfNotEmpty(&i.EtcdPersistentVolumeSize, localEtcd.PVCSize)
 
+	if len(localEtcd.NodeSelector) != 0 {
+		i.EtcdNodeSelectorLabels = mapToString(localEtcd.NodeSelector)
+	}
 	if len(localEtcd.NodeSelectorLabels) != 0 {
 		i.EtcdNodeSelectorLabels = mapToString(localEtcd.NodeSelectorLabels)
 	}
@@ -1001,6 +1014,13 @@ func (i *CommandInitOption) parseLocalEtcdConfig(localEtcd *initConfig.LocalEtcd
 	setIfNotEmpty(&i.EtcdStorageMode, localEtcd.StorageMode)
 	setIfNotEmpty(&i.StorageClassesName, localEtcd.StorageClassesName)
 	setIfNotZeroInt32(&i.EtcdReplicas, localEtcd.Replicas)
+
+	settings := localEtcd.CommonSettings
+	if i.EtcdStorageMode == etcdStorageModeHostPath {
+		// The existing hostPath flow owns node selection, including its fallback.
+		settings.NodeSelector = nil
+	}
+	i.componentSettings[etcdStatefulSetAndServiceName] = settings
 
 	if localEtcd.ExtraArgs != nil {
 		var err error
@@ -1046,6 +1066,7 @@ func (i *CommandInitOption) parseControlPlaneConfig(components initConfig.Karmad
 // including image and replica settings, as well as advertise address.
 func (i *CommandInitOption) parseKarmadaAPIServerConfig(apiServer *initConfig.KarmadaAPIServer) error {
 	if apiServer != nil {
+		i.componentSettings[karmadaAPIServerDeploymentAndServiceName] = apiServer.CommonSettings
 		setIfNotZeroInt32(&i.KarmadaAPIServerNodePort, apiServer.Networking.Port)
 		setIfNotEmpty(&i.Namespace, apiServer.Networking.Namespace)
 		setIfNotEmpty(&i.KarmadaAPIServerImage, apiServer.CommonSettings.Image.GetImage())
@@ -1065,6 +1086,7 @@ func (i *CommandInitOption) parseKarmadaAPIServerConfig(apiServer *initConfig.Ka
 // including image and replica settings.
 func (i *CommandInitOption) parseKarmadaControllerManagerConfig(manager *initConfig.KarmadaControllerManager) error {
 	if manager != nil {
+		i.componentSettings[controllerManagerDeploymentAndServiceName] = manager.CommonSettings
 		setIfNotEmpty(&i.KarmadaControllerManagerImage, manager.CommonSettings.Image.GetImage())
 		setIfNotZeroInt32(&i.KarmadaControllerManagerReplicas, manager.CommonSettings.Replicas)
 
@@ -1081,6 +1103,7 @@ func (i *CommandInitOption) parseKarmadaControllerManagerConfig(manager *initCon
 // including image and replica settings.
 func (i *CommandInitOption) parseKarmadaSchedulerConfig(scheduler *initConfig.KarmadaScheduler) error {
 	if scheduler != nil {
+		i.componentSettings[schedulerDeploymentNameAndServiceAccountName] = scheduler.CommonSettings
 		setIfNotEmpty(&i.KarmadaSchedulerImage, scheduler.CommonSettings.Image.GetImage())
 		setIfNotZeroInt32(&i.KarmadaSchedulerReplicas, scheduler.CommonSettings.Replicas)
 
@@ -1097,6 +1120,7 @@ func (i *CommandInitOption) parseKarmadaSchedulerConfig(scheduler *initConfig.Ka
 // including image and replica settings.
 func (i *CommandInitOption) parseKarmadaWebhookConfig(webhook *initConfig.KarmadaWebhook) error {
 	if webhook != nil {
+		i.componentSettings[webhookDeploymentAndServiceAccountAndServiceName] = webhook.CommonSettings
 		setIfNotEmpty(&i.KarmadaWebhookImage, webhook.CommonSettings.Image.GetImage())
 		setIfNotZeroInt32(&i.KarmadaWebhookReplicas, webhook.CommonSettings.Replicas)
 
@@ -1113,6 +1137,7 @@ func (i *CommandInitOption) parseKarmadaWebhookConfig(webhook *initConfig.Karmad
 // including image and replica settings.
 func (i *CommandInitOption) parseKarmadaAggregatedAPIServerConfig(aggregatedAPIServer *initConfig.KarmadaAggregatedAPIServer) error {
 	if aggregatedAPIServer != nil {
+		i.componentSettings[karmadaAggregatedAPIServerDeploymentAndServiceName] = aggregatedAPIServer.CommonSettings
 		setIfNotEmpty(&i.KarmadaAggregatedAPIServerImage, aggregatedAPIServer.CommonSettings.Image.GetImage())
 		setIfNotZeroInt32(&i.KarmadaAggregatedAPIServerReplicas, aggregatedAPIServer.CommonSettings.Replicas)
 
@@ -1129,6 +1154,7 @@ func (i *CommandInitOption) parseKarmadaAggregatedAPIServerConfig(aggregatedAPIS
 // including image and replica settings.
 func (i *CommandInitOption) parseKubeControllerManagerConfig(manager *initConfig.KubeControllerManager) error {
 	if manager != nil {
+		i.componentSettings[kubeControllerManagerClusterRoleAndDeploymentAndServiceName] = manager.CommonSettings
 		setIfNotEmpty(&i.KubeControllerManagerImage, manager.CommonSettings.Image.GetImage())
 		setIfNotZeroInt32(&i.KubeControllerManagerReplicas, manager.CommonSettings.Replicas)
 
@@ -1177,4 +1203,21 @@ func setIfNotZeroInt32(dest *int32, src int32) {
 // joinStringSlice joins a slice of strings into a single string separated by commas.
 func joinStringSlice(slice []string) string {
 	return strings.Join(slice, ",")
+}
+
+// applyCommonSettings overlays configured fields on a component's default PodSpec.
+func (i *CommandInitOption) applyCommonSettings(component string, podSpec *corev1.PodSpec) {
+	settings := i.componentSettings[component]
+	if len(settings.Resources.Requests) > 0 || len(settings.Resources.Limits) > 0 || len(settings.Resources.Claims) > 0 {
+		podSpec.Containers[0].Resources = settings.Resources
+	}
+	if settings.NodeSelector != nil {
+		podSpec.NodeSelector = settings.NodeSelector
+	}
+	if settings.Tolerations != nil {
+		podSpec.Tolerations = settings.Tolerations
+	}
+	if settings.Affinity != nil {
+		podSpec.Affinity = settings.Affinity
+	}
 }
