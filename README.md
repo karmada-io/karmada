@@ -9,7 +9,6 @@
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/5301/badge)](https://bestpractices.coreinfrastructure.org/projects/5301)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/karmada-io/karmada/badge)](https://securityscorecards.dev/viewer/?uri=github.com/karmada-io/karmada)
 ![build](https://github.com/karmada-io/karmada/actions/workflows/ci.yml/badge.svg)
-[![Go Report Card](https://goreportcard.com/badge/github.com/karmada-io/karmada)](https://goreportcard.com/report/github.com/karmada-io/karmada)
 [![codecov](https://codecov.io/gh/karmada-io/karmada/branch/master/graph/badge.svg?token=ROM8CMPXZ6)](https://codecov.io/gh/karmada-io/karmada)
 [![FOSSA Status](https://app.fossa.com/api/projects/custom%2B28176%2Fgithub.com%2Fkarmada-io%2Fkarmada.svg?type=shield)](https://app.fossa.com/projects/custom%2B28176%2Fgithub.com%2Fkarmada-io%2Fkarmada?ref=badge_shield)
 [![Artifact HUB](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/karmada)](https://artifacthub.io/packages/krew/krew-index/karmada)
@@ -24,7 +23,7 @@ with key features such as centralized multi-cloud management, high availability,
 
 ![cncf_logo](docs/images/cncf-logo.png)
 
-Karmada is an incubation project of the [Cloud Native Computing Foundation](https://cncf.io/) (CNCF).
+Karmada is a graduated project of the [Cloud Native Computing Foundation](https://cncf.io/) (CNCF).
 
 ## Why Karmada:
 - __K8s Native API Compatible__
@@ -189,14 +188,14 @@ nginx   2/2     2            2           20s
 Karmada is compatible with a wide range of Kubernetes versions. For detailed compatibility instructions, 
 please refer to the [Kubernetes Compatibility](https://karmada.io/docs/administrator/compatibility/). 
 
-The following table shows the compatibility test results against the latest 10 Kubernetes versions:
+The following table shows compatibility test results for each Karmada version against 10 Kubernetes versions:
 
-|                       | Kubernetes 1.36 | Kubernetes 1.35 | Kubernetes 1.34 | Kubernetes 1.33 | Kubernetes 1.32 | Kubernetes 1.31 | Kubernetes 1.30 | Kubernetes 1.29 | Kubernetes 1.28 | Kubernetes 1.27 | Kubernetes 1.26 | Kubernetes 1.25 |
-|-----------------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|
-| Karmada v1.16         |                 |                 | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               |
-| Karmada v1.17         |                 | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               |                 |
-| Karmada v1.18         |                 | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               |                 |
-| Karmada HEAD (master) | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               |                 |                 |
+|                       | Kubernetes 1.36 | Kubernetes 1.35 | Kubernetes 1.34 | Kubernetes 1.33 | Kubernetes 1.32 | Kubernetes 1.31 | Kubernetes 1.30 | Kubernetes 1.29 | Kubernetes 1.28 | Kubernetes 1.27 | Kubernetes 1.26 |
+|-----------------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|
+| Karmada v1.17         |                 | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               |
+| Karmada v1.18         |                 | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               |
+| Karmada v1.19         | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               |                 |
+| Karmada HEAD (master) | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               | ✓               |                 |
 
 Key:
 * `✓` Karmada and the Kubernetes version are exactly compatible.

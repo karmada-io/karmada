@@ -127,7 +127,7 @@ func NewEstimatorServer(
 	_ = informerFactory.Core().V1().Pods().Informer().SetTransform(fedinformer.StripUnusedFields)
 	_ = informerFactory.Apps().V1().ReplicaSets().Informer().SetTransform(fedinformer.StripUnusedFields)
 
-	es.informerManager = genericmanager.NewSingleClusterInformerManager(ctx, dynamicClient, 0)
+	es.informerManager = genericmanager.NewSingleClusterInformerManager(ctx, dynamicClient, 0, fedinformer.StripUnusedFields)
 	for _, gvr := range supportedGVRs {
 		es.informerManager.Lister(gvr)
 	}

@@ -27,7 +27,7 @@ jobs:
           - karmada-search
           - karmada-operator
           - karmada-metrics-adapter
-        karmada-version: [ release-1.18, release-1.17, release-1.16 ]
+        karmada-version: [ release-1.19, release-1.18, release-1.17 ]
     steps:
       - name: checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -69,7 +69,7 @@ jobs:
           cache: false
           vuln-type: 'os,library'
       - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4.37.7
+        uses: github/codeql-action/upload-sarif@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
         with:
           sarif_file: '${{ matrix.target }}:${{ matrix.karmada-version }}.trivy-results.sarif'
           ref: ${{steps.gen_git_info.outputs.ref}}

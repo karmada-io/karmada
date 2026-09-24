@@ -20,16 +20,16 @@ jobs:
       fail-fast: false
       matrix:
         kubeapiserver-version: [ v1.27.3, v1.28.0, v1.29.0, v1.30.0, v1.31.0, v1.32.0, v1.33.0, v1.34.0, v1.35.0, v1.36.1 ]
-        karmada-version: [ master, release-1.18, release-1.17, release-1.16 ]
+        karmada-version: [ master, release-1.19, release-1.18, release-1.17 ]
     env:
       KARMADA_APISERVER_VERSION: ${{ matrix.kubeapiserver-version }}
     steps:
       # Free up disk space on Ubuntu
       - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+        uses: jlumbroso/free-disk-space@ceedf095f4ec1a097402bc6bd80831f2e1a6fde6 # v2.0.0
         with:
           # this might remove tools that are actually needed, if set to "true" but frees about 6 GB
-          tool-cache: false
+          preinstalled-runtimes: false
           # all of these default to true, but feel free to set to "false" if necessary for your workflow
           android: true
           dotnet: true

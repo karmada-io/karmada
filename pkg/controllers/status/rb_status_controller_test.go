@@ -37,6 +37,7 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/default/native"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/indexregistry"
@@ -47,7 +48,7 @@ func generateRBStatusController() *RBStatusController {
 	defer cancel()
 	dynamicClient := dynamicfake.NewSimpleDynamicClient(scheme.Scheme,
 		&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod1", Namespace: "default"}})
-	m := genericmanager.NewSingleClusterInformerManager(ctx, dynamicClient, 0)
+	m := genericmanager.NewSingleClusterInformerManager(ctx, dynamicClient, 0, fedinformer.StripUnusedFields)
 	m.Lister(corev1.SchemeGroupVersion.WithResource("pods"))
 	m.Start()
 	m.WaitForCacheSync()

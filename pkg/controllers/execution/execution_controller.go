@@ -360,7 +360,7 @@ func (c *Controller) tryCreateOrUpdateWorkload(ctx context.Context, clusterName 
 			return err
 		}
 		err = c.ObjectWatcher.Create(ctx, clusterName, workload)
-		metrics.CountCreateResourceToCluster(err, workload.GetAPIVersion(), workload.GetKind(), clusterName, false)
+		metrics.CountCreateResourceToCluster(err, workload.GetAPIVersion(), workload.GetKind(), clusterName)
 		if err != nil {
 			return err
 		}

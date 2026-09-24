@@ -55,6 +55,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/default/native/prune"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/default/thirdparty"
 	u "github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/names"
@@ -455,7 +456,7 @@ func (o *CommandPromoteOption) promoteDeps(memberClusterFactory cmdutil.Factory,
 	defer cancel()
 	dynamicClientSet := dynamicClientBuilder(config)
 
-	controlPlaneInformerManager := genericmanager.NewSingleClusterInformerManager(ctx, dynamicClientSet, 0)
+	controlPlaneInformerManager := genericmanager.NewSingleClusterInformerManager(ctx, dynamicClientSet, 0, fedinformer.StripUnusedFields)
 	controlPlaneKubeClientSet := kubeClientBuilder(config)
 	sharedFactory := informers.NewSharedInformerFactory(controlPlaneKubeClientSet, 0)
 	serviceLister := sharedFactory.Core().V1().Services().Lister()

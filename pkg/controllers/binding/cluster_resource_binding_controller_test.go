@@ -44,6 +44,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/events"
 	testing2 "github.com/karmada-io/karmada/pkg/search/proxy/testing"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/indexregistry"
@@ -62,7 +63,7 @@ func makeFakeCRBCByResource(rs *workv1alpha2.ObjectReference) (*ClusterResourceB
 		return &ClusterResourceBindingController{
 			Client:          c,
 			RESTMapper:      testing2.RestMapper,
-			InformerManager: genericmanager.NewSingleClusterInformerManager(context.TODO(), tempDyClient, 0),
+			InformerManager: genericmanager.NewSingleClusterInformerManager(context.TODO(), tempDyClient, 0, fedinformer.StripUnusedFields),
 			DynamicClient:   tempDyClient,
 		}, nil
 	}

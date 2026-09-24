@@ -35,6 +35,7 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 )
 
@@ -345,7 +346,7 @@ func TestHandleDeprioritizedPropagationPolicy(t *testing.T) {
 			fakeClient := tt.setupClient().Build()
 			ctx := t.Context()
 			fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme, tt.objects...)
-			genMgr := genericmanager.NewSingleClusterInformerManager(ctx, fakeDynamicClient, 0)
+			genMgr := genericmanager.NewSingleClusterInformerManager(ctx, fakeDynamicClient, 0, fedinformer.StripUnusedFields)
 			resourceDetector := &ResourceDetector{
 				Client:          fakeClient,
 				DynamicClient:   fakeDynamicClient,
@@ -626,7 +627,7 @@ func TestHandleDeprioritizedClusterPropagationPolicy(t *testing.T) {
 			fakeClient := tt.setupClient().Build()
 			ctx := t.Context()
 			fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme, tt.objects...)
-			genMgr := genericmanager.NewSingleClusterInformerManager(ctx, fakeDynamicClient, 0)
+			genMgr := genericmanager.NewSingleClusterInformerManager(ctx, fakeDynamicClient, 0, fedinformer.StripUnusedFields)
 			resourceDetector := &ResourceDetector{
 				Client:          fakeClient,
 				DynamicClient:   fakeDynamicClient,

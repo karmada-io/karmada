@@ -91,7 +91,7 @@ jobs:
         # Prevent running from the forked repository that doesn't need to upload coverage.
         # In addition, running on the forked repository would fail as missing the necessary secret.
         if: ${{ github.repository == 'karmada-io/karmada' }}
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           # Even though token upload token is not required for public repos,
           # but adding a token might increase successful uploads as per:
@@ -115,10 +115,10 @@ jobs:
     steps:
       # Free up disk space on Ubuntu
       - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+        uses: jlumbroso/free-disk-space@ceedf095f4ec1a097402bc6bd80831f2e1a6fde6 # v2.0.0
         with:
           # this might remove tools that are actually needed, if set to "true" but frees about 6 GB
-          tool-cache: false
+          preinstalled-runtimes: false
           # all of these default to true, but feel free to set to "false" if necessary for your workflow
           android: true
           dotnet: true
