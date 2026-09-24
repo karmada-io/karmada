@@ -71,7 +71,7 @@ func (v *ValidatingAdmission) Handle(_ context.Context, req admission.Request) a
 func validateMCIUpdate(oldMci, newMci *networkingv1alpha1.MultiClusterIngress) field.ErrorList {
 	allErrs := apimachineryvalidation.ValidateObjectMetaUpdate(&newMci.ObjectMeta, &oldMci.ObjectMeta, field.NewPath("metadata"))
 	allErrs = append(allErrs, validateMCI(newMci)...)
-	allErrs = append(allErrs, lifted.ValidateIngressLoadBalancerStatus(&newMci.Status.LoadBalancer, field.NewPath("status", "loadBalancer"))...)
+	allErrs = append(allErrs, lifted.ValidateIngressLoadBalancerStatus(&newMci.Status.LoadBalancer, &oldMci.Status.LoadBalancer, field.NewPath("status", "loadBalancer"))...)
 	return allErrs
 }
 
