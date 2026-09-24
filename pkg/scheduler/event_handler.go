@@ -321,6 +321,9 @@ func (s *Scheduler) addCluster(obj any) {
 	if s.enableSchedulerEstimator {
 		s.schedulerEstimatorWorker.Add(cluster.Name)
 	}
+	if s.priorityQueue != nil {
+		s.priorityQueue.MoveAllToActiveQ()
+	}
 }
 
 func (s *Scheduler) updateCluster(oldObj, newObj any) {
@@ -350,6 +353,25 @@ func (s *Scheduler) updateCluster(oldObj, newObj any) {
 		// to the worker. Therefore, call Add func instead of Enqueue func.
 		s.clusterReconcileWorker.Add(oldCluster)
 		s.clusterReconcileWorker.Add(newCluster)
+	// Cluster status changes that may unblock previously unschedulable bindings:
+	//   - Ready condition transitions: a newly-Ready cluster becomes a scheduling
+	//     candidate; a cluster losing Ready may need its bindings re-evaluated.
+	//   - APIEnablements list changes while CompleteAPIEnablements is True: the
+	//     cluster's supported API set has shifted (e.g. a new CRD installed), so
+	//     bindings whose resource kind was previously unsupported may now fit.
+	//     The True guard avoids reacting to in-progress discovery snapshots.
+	//   - ResourceSummary changes: the cluster's allocatable resource pool moved,
+	//     so bindings that previously exceeded capacity may now fit.
+	// MoveAllToActiveQ flushes the unschedulable map back to the active queue
+	// without a full ResourceBinding scan; each binding is re-evaluated when
+	// popped from the active queue.
+	case util.ClusterConditionStatusChanged(oldCluster, newCluster, clusterv1alpha1.ClusterConditionReady) ||
+		(!equality.Semantic.DeepEqual(oldCluster.Status.APIEnablements, newCluster.Status.APIEnablements) &&
+			meta.IsStatusConditionTrue(newCluster.Status.Conditions, clusterv1alpha1.ClusterConditionCompleteAPIEnablements)) ||
+		!equality.Semantic.DeepEqual(oldCluster.Status.ResourceSummary, newCluster.Status.ResourceSummary):
+		if s.priorityQueue != nil {
+			s.priorityQueue.MoveAllToActiveQ()
+		}
 	}
 }
 
