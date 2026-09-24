@@ -1206,3 +1206,68 @@ func TestAreResourceListsEqual(t *testing.T) {
 		})
 	}
 }
+
+func TestAddResourceLists(t *testing.T) {
+	tests := []struct {
+		name   string
+		list1  corev1.ResourceList
+		list2  corev1.ResourceList
+		expect corev1.ResourceList
+	}{
+		{
+			name:   "both nil should return empty",
+			list1:  nil,
+			list2:  nil,
+			expect: corev1.ResourceList{},
+		},
+		{
+			name: "known resource names are summed",
+			list1: corev1.ResourceList{
+				corev1.ResourceCPU: resource.MustParse("100m"),
+			},
+			list2: corev1.ResourceList{
+				corev1.ResourceCPU: resource.MustParse("50m"),
+			},
+			expect: corev1.ResourceList{
+				corev1.ResourceCPU: resource.MustParse("150m"),
+			},
+		},
+		{
+			name: "limits and requests resource names are preserved and summed",
+			list1: corev1.ResourceList{
+				corev1.ResourceName("limits.cpu"):      resource.MustParse("200m"),
+				corev1.ResourceName("requests.memory"): resource.MustParse("64Mi"),
+			},
+			list2: corev1.ResourceList{
+				corev1.ResourceName("limits.cpu"):      resource.MustParse("400m"),
+				corev1.ResourceName("requests.memory"): resource.MustParse("128Mi"),
+			},
+			expect: corev1.ResourceList{
+				corev1.ResourceName("limits.cpu"):      resource.MustParse("600m"),
+				corev1.ResourceName("requests.memory"): resource.MustParse("192Mi"),
+			},
+		},
+		{
+			name: "keys only present in one list are kept as-is",
+			list1: corev1.ResourceList{
+				corev1.ResourceName("limits.cpu"): resource.MustParse("200m"),
+			},
+			list2: corev1.ResourceList{
+				corev1.ResourceName("requests.cpu"): resource.MustParse("100m"),
+			},
+			expect: corev1.ResourceList{
+				corev1.ResourceName("limits.cpu"):   resource.MustParse("200m"),
+				corev1.ResourceName("requests.cpu"): resource.MustParse("100m"),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := addResourceLists(tt.list1, tt.list2)
+			if !areResourceListsEqual(got, tt.expect) {
+				t.Errorf("addResourceLists() = %v, want %v", got, tt.expect)
+			}
+		})
+	}
+}

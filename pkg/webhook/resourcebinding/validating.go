@@ -515,12 +515,21 @@ func calculateDelta(newUsage, oldUsage corev1.ResourceList) corev1.ResourceList 
 	return delta
 }
 
+// addResourceLists sums two ResourceLists on a per-key basis, preserving every
+// resource name (including limits.*/requests.* quota keys) rather than routing
+// through util.Resource, which only tracks a fixed set of known fields.
 func addResourceLists(list1, list2 corev1.ResourceList) corev1.ResourceList {
-	resUtil := util.NewResource(list1)
-	resUtil.Add(list2)
-	result := resUtil.ResourceList()
-	if result == nil {
-		return corev1.ResourceList{}
+	result := corev1.ResourceList{}
+	for name, quantity := range list1 {
+		result[name] = quantity.DeepCopy()
+	}
+	for name, quantity := range list2 {
+		if existing, ok := result[name]; ok {
+			existing.Add(quantity)
+			result[name] = existing
+		} else {
+			result[name] = quantity.DeepCopy()
+		}
 	}
 	return result
 }
