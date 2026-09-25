@@ -50,13 +50,17 @@ func validateGVK(reference *workv1alpha2.ObjectReference) bool {
 }
 
 func validatePlacement(binding *workv1alpha2.ResourceBinding) bool {
-	placement, err := helper.GetAppliedPlacement(binding.Annotations)
-	if err != nil {
-		klog.ErrorS(err, "Failed to get applied placement when validating", "ResourceBinding", klog.KObj(binding))
-		return false
-	}
+	var err error
+	placement := binding.Spec.Placement
 	if placement == nil {
-		return false
+		placement, err = helper.GetAppliedPlacement(binding.Annotations)
+		if err != nil {
+			klog.ErrorS(err, "Failed to get applied placement when validating", "ResourceBinding", klog.KObj(binding))
+			return false
+		}
+		if placement == nil {
+			return false
+		}
 	}
 	return helper.IsReplicaDynamicDivided(placement)
 }
