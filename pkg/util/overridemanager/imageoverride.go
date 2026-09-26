@@ -141,7 +141,14 @@ func obtainImageValue(rawObj *unstructured.Unstructured, predicatePath string) (
 			if err != nil {
 				return "", fmt.Errorf("path(%s) of rawObj's is not number", pathSegments[index+1])
 			}
-			currentObj = tmpSlice[sliceIndex].(map[string]any)
+			if sliceIndex < 0 || sliceIndex >= int64(len(tmpSlice)) {
+				return "", fmt.Errorf("index(%s) of path(%s) is out of range", pathSegments[index+1], predicatePath)
+			}
+			sliceItem, ok := tmpSlice[sliceIndex].(map[string]any)
+			if !ok {
+				return "", fmt.Errorf("path(%s) of rawObj's type is not map[string]interface{}", pathSegments[index+1])
+			}
+			currentObj = sliceItem
 			index++
 		default:
 			return "", fmt.Errorf("path(%s) of rawObj's type is not map[string]interface{} and []interface{}", pathSegments[index])
