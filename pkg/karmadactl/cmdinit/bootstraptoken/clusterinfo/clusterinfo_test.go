@@ -111,6 +111,37 @@ users:
 			},
 			wantErr: false,
 		},
+		{
+			// Config.Contexts is a map of pointers, so a current-context that names
+			// no entry yields a nil *api.Context.
+			name:    "CreateBootstrapConfigMapIfNotExists_CurrentContextNotPresent_FailedToResolveContext",
+			client:  fakeclientset.NewClientset(),
+			cfgFile: filepath.Join(os.TempDir(), "config-missing-context.txt"),
+			prep: func(cfgFile string) error {
+				return os.WriteFile(cfgFile, []byte(kubeConfigMissingCurrentContext), 0600)
+			},
+			cleanup: func(cfgFile string) error {
+				return os.Remove(cfgFile)
+			},
+			verify:  func(kubernetes.Interface) error { return nil },
+			wantErr: true,
+			errMsg:  "is not present in the admin kubeconfig",
+		},
+		{
+			// Likewise, the context may name a cluster that "clusters" does not define.
+			name:    "CreateBootstrapConfigMapIfNotExists_ClusterNotPresent_FailedToResolveCluster",
+			client:  fakeclientset.NewClientset(),
+			cfgFile: filepath.Join(os.TempDir(), "config-missing-cluster.txt"),
+			prep: func(cfgFile string) error {
+				return os.WriteFile(cfgFile, []byte(kubeConfigMissingCluster), 0600)
+			},
+			cleanup: func(cfgFile string) error {
+				return os.Remove(cfgFile)
+			},
+			verify:  func(kubernetes.Interface) error { return nil },
+			wantErr: true,
+			errMsg:  "is not present in the admin kubeconfig",
+		},
 		// TODO: Update ConfigMap if it exists.
 	}
 	for _, test := range tests {
@@ -206,3 +237,41 @@ func verifyKubeAdminKubeConfig(client kubernetes.Interface) error {
 	}
 	return nil
 }
+
+// kubeConfigMissingCurrentContext has a current-context that names no entry in contexts.
+const kubeConfigMissingCurrentContext = `apiVersion: v1
+clusters:
+- cluster:
+    server: https://test-cluster:6443
+  name: test-cluster
+contexts:
+- context:
+    cluster: test-cluster
+    user: test-user
+  name: test-context
+current-context: does-not-exist
+kind: Config
+preferences: {}
+users:
+- name: test-user
+  user: {}
+`
+
+// kubeConfigMissingCluster has a context referencing a cluster that is not defined.
+const kubeConfigMissingCluster = `apiVersion: v1
+clusters:
+- cluster:
+    server: https://test-cluster:6443
+  name: test-cluster
+contexts:
+- context:
+    cluster: not-a-cluster
+    user: test-user
+  name: test-context
+current-context: test-context
+kind: Config
+preferences: {}
+users:
+- name: test-user
+  user: {}
+`
