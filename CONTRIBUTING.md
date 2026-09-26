@@ -14,7 +14,6 @@ Welcome to Karmada!
 -   [Contributor Workflow](#contributor-workflow)
     -   [Creating Pull Requests](#creating-pull-requests)
     -   [Code Review](#code-review)
-    -   [Testing](#testing)
 
 # Before you get started
 
@@ -60,7 +59,7 @@ labels for issues that should not need deep knowledge of the system.
 We can help new contributors who wish to work on such issues.
 
 Another good way to contribute is to find a documentation improvement, such as a missing/broken link.
-Please see [Contributing](#contributing) below for the workflow.
+Please see [Contributor Workflow](#contributor-workflow) below for the workflow.
 
 #### Work on an issue
 
