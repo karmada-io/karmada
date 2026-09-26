@@ -219,3 +219,26 @@ spec:
 
           return status
         end
+    dependencyInterpretation:
+      luaScript: >
+        local kube = require("kube")
+        function GetDependencies(desiredObj)
+          local refs = {}
+
+          if desiredObj.spec == nil or desiredObj.spec.mpiReplicaSpecs == nil then
+            return refs
+          end
+
+          for _, spec in pairs(desiredObj.spec.mpiReplicaSpecs) do
+            if spec ~= nil and spec.template ~= nil then
+              local deps = kube.getPodDependencies(spec.template, desiredObj.metadata.namespace)
+              if deps ~= nil then
+                for _, dep in ipairs(deps) do
+                  table.insert(refs, dep)
+                end
+              end
+            end
+          end
+
+          return refs
+        end
