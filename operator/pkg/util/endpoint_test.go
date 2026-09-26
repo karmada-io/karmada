@@ -83,6 +83,20 @@ func TestGetAPIServiceIP(t *testing.T) {
 			errMsg:  "there are no nodes in cluster",
 		},
 		{
+			name:   "GetAPIServiceIP_WithNoNodeAddresses_FailedToGetAPIServiceIP",
+			client: fakeclientset.NewClientset(),
+			prep: func(client clientset.Interface) error {
+				_, err := client.CoreV1().Nodes().Create(context.TODO(), &corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node-1",
+					},
+				}, metav1.CreateOptions{})
+				return err
+			},
+			wantErr: true,
+			errMsg:  "there are no valid node IPs in cluster",
+		},
+		{
 			name:   "GetAPIServiceIP_WithoutMasterNode_WorkerNodeAPIServiceIPReturned",
 			client: fakeclientset.NewClientset(),
 			prep: func(client clientset.Interface) error {
