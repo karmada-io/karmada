@@ -1,0 +1,63 @@
+name: CI Workflow operator
+on:
+  pull_request:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.actor }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+jobs:
+  build:
+    name: compile
+    runs-on: ubuntu-22.04
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: install Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.20.6
+      - name: compile
+        run: make all
+  e2e:
+    name: e2e test
+    needs: build
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        # Here support the latest three minor releases of Kubernetes, this can be considered to be roughly
+        # the same as the End of Life of the Kubernetes release: https://kubernetes.io/releases/
+        # Please remember to update the CI Schedule Workflow when we add a new version.
+        k8s: [ v1.27.3 ]
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: install Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.20.6
+      - name: setup e2e test environment
+        run: |
+          export CLUSTER_VERSION=kindest/node:${{ matrix.k8s }}
+          hack/operator-testing-environment.sh
+      - name: run e2e
+        env:
+          GINKGO_PARAM: ${{ matrix.test }}
+        run: |
+          export KUBECONFIG=${HOME}/karmada/karmada-host.config
+          GO111MODULE=on go install github.com/onsi/ginkgo/v2/ginkgo
+          ginkgo -v --race --trace -p   ./test/e2e_operator/
+      - name: upload logs
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: karmada_e2e_log_${{ matrix.k8s }}
+          path: ${{ github.workspace }}/karmada-e2e-logs/${{ matrix.k8s }}/
+      - name: upload kind logs
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: karmada_kind_log_${{ matrix.k8s }}
+          path: /tmp/karmada/
