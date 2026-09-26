@@ -54,6 +54,7 @@ spec:
           local readyReplicas = 0
           local availableReplicas = 0
           local unavailableReplicas = 0
+          local labelSelector = ''
 
           -- Use a map to merge conditions by type
           local conditionsMap = {}
@@ -69,6 +70,9 @@ spec:
               readyReplicas = readyReplicas + (itemStatus.readyReplicas or 0)
               availableReplicas = availableReplicas + (itemStatus.availableReplicas or 0)
               unavailableReplicas = unavailableReplicas + (itemStatus.unavailableReplicas or 0)
+              if itemStatus.labelSelector ~= nil and itemStatus.labelSelector ~= '' then
+                labelSelector = itemStatus.labelSelector
+              end
 
               -- Merge conditions from all clusters using a map
               if itemStatus.conditions ~= nil then
@@ -105,6 +109,7 @@ spec:
           desiredObj.status.readyReplicas = readyReplicas
           desiredObj.status.availableReplicas = availableReplicas
           desiredObj.status.unavailableReplicas = unavailableReplicas
+          desiredObj.status.labelSelector = labelSelector
 
           if #conditions > 0 then
             desiredObj.status.conditions = conditions
@@ -125,6 +130,7 @@ spec:
           status.readyReplicas = observedObj.status.readyReplicas
           status.availableReplicas = observedObj.status.availableReplicas
           status.unavailableReplicas = observedObj.status.unavailableReplicas
+          status.labelSelector = observedObj.status.labelSelector
           status.observedGeneration = observedObj.status.observedGeneration
           status.conditions = observedObj.status.conditions
 

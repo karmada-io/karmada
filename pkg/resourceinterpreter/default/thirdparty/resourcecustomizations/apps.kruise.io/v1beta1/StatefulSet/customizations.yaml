@@ -89,6 +89,9 @@ spec:
             if statusItems[i].status ~= nil and statusItems[i].status.currentRevision ~= nil and statusItems[i].status.currentRevision ~= '' then
               currentRevision = statusItems[i].status.currentRevision
             end
+            if statusItems[i].status ~= nil and statusItems[i].status.labelSelector ~= nil and statusItems[i].status.labelSelector ~= '' then
+              labelSelector = statusItems[i].status.labelSelector
+            end
           
             -- Check if the member's status is updated to the latest generation
             local resourceTemplateGeneration = 0
@@ -123,6 +126,7 @@ spec:
           desiredObj.status.updatedReadyReplicas = updatedReadyReplicas
           desiredObj.status.updateRevision = updateRevision
           desiredObj.status.currentRevision = currentRevision
+          desiredObj.status.labelSelector = labelSelector
           return desiredObj
         end
     statusReflection:
@@ -141,6 +145,7 @@ spec:
           status.currentRevision = observedObj.status.currentRevision
           status.updatedReadyReplicas = observedObj.status.updatedReadyReplicas
           status.observedGeneration = observedObj.status.observedGeneration
+          status.labelSelector = observedObj.status.labelSelector
           
           -- handle resource generation report
           if observedObj.metadata == nil then
