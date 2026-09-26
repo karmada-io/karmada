@@ -17,6 +17,7 @@ limitations under the License.
 package tasks
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -29,6 +30,10 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	crdsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
+	bootstrapapi "k8s.io/cluster-bootstrap/token/api"
 	"k8s.io/klog/v2"
 
 	"github.com/karmada-io/karmada/operator/pkg/constants"
@@ -37,6 +42,7 @@ import (
 	"github.com/karmada-io/karmada/operator/pkg/util"
 	"github.com/karmada-io/karmada/operator/pkg/util/apiclient"
 	"github.com/karmada-io/karmada/operator/pkg/workflow"
+	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
 )
 
 // NewKarmadaResourcesTask init KarmadaResources task
@@ -61,6 +67,10 @@ func NewKarmadaResourcesTask() workflow.Task {
 			{
 				Name: "APIService",
 				Run:  runAPIService,
+			},
+			{
+				Name: "BootstrapConfigMap",
+				Run:  runBootstrapConfigMap,
 			},
 		},
 	}
@@ -233,6 +243,55 @@ func runAPIService(r workflow.RunData) error {
 
 	klog.V(2).InfoS("[APIService] Aggregated APIService status is ready ", "karmada", klog.KObj(data))
 	return nil
+}
+
+func runBootstrapConfigMap(r workflow.RunData) error {
+	data, ok := r.(InitData)
+	if !ok {
+		return errors.New("BootstrapConfigMap task invoked with an invalid data struct")
+	}
+
+	clientSet, err := kubernetes.NewForConfig(data.ControlplaneConfig())
+	if err != nil {
+		return err
+	}
+
+	adminConfigSecret, err := data.RemoteClient().CoreV1().Secrets(data.GetNamespace()).Get(context.Background(), util.AdminKarmadaConfigSecretName(data.GetName()), metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	adminConfig, err := clientcmd.Load(adminConfigSecret.Data[constants.KarmadaConfigKey])
+	if err != nil {
+		return err
+	}
+
+	if err = clientcmdapi.FlattenConfig(adminConfig); err != nil {
+		return err
+	}
+
+	adminCluster := adminConfig.Contexts[adminConfig.CurrentContext].Cluster
+	// Copy the cluster to the bootstrap kubeconfig, contains the CA cert and the server URL
+	bootstrapConfig := &clientcmdapi.Config{
+		Clusters: map[string]*clientcmdapi.Cluster{
+			"": adminConfig.Clusters[adminCluster],
+		},
+	}
+	bootstrapBytes, err := clientcmd.Write(*bootstrapConfig)
+	if err != nil {
+		return err
+	}
+
+	// Create or update the ConfigMap in the kube-public namespace
+	return cmdutil.CreateOrUpdateConfigMap(clientSet, &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      bootstrapapi.ConfigMapClusterInfo,
+			Namespace: metav1.NamespacePublic,
+		},
+		Data: map[string]string{
+			bootstrapapi.KubeConfigKey: string(bootstrapBytes),
+		},
+	})
 }
 
 func splitToCrdNameFormFile(file string, start, end string) string {
