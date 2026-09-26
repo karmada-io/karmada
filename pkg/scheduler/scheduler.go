@@ -108,6 +108,9 @@ type Scheduler struct {
 	Algorithm      core.ScheduleAlgorithm
 	schedulerCache schedulercache.Cache
 
+	// bindingUpdateDebounce, see WithBindingUpdateDebounce.
+	bindingUpdateDebounce time.Duration
+
 	eventRecorder record.EventRecorder
 
 	enableSchedulerEstimator            bool
@@ -143,6 +146,10 @@ type schedulerOptions struct {
 	plugins []string
 	// contains the options for rate limiter.
 	RateLimiterOptions ratelimiterflag.Options
+	// bindingUpdateDebounce delays scheduling after a ResourceBinding spec update,
+	// so that several updates arriving in quick succession are collapsed into a
+	// single scheduling pass. Zero disables the delay (previous behaviour).
+	bindingUpdateDebounce metav1.Duration
 	// schedulerEstimatorClientConfig contains the configuration of GRPC.
 	schedulerEstimatorClientConfig *grpcconnection.ClientConfig
 }
@@ -227,6 +234,26 @@ func WithOutOfTreeRegistry(registry runtime.Registry) Option {
 	}
 }
 
+// WithBindingUpdateDebounce sets how long to wait after a ResourceBinding spec
+// update before scheduling it.
+//
+// A workload's replica count and its placement live on two different objects
+// (e.g. Deployment/ReplicaSet and PropagationPolicy). GitOps tools apply those
+// objects in separate requests, so the detector may briefly observe a new
+// replica count alongside a stale placement (or vice versa) and write that
+// inconsistent pair into the ResourceBinding. Scheduling it immediately turns
+// the transient pair into real replica churn in member clusters.
+//
+// Delaying the scheduling pass lets those updates collapse: the queue keeps the
+// earliest ready time for a key, and the worker re-reads the binding from the
+// lister, so it observes the settled state. Set to a value comfortably above the
+// interval between the GitOps tool's individual apply calls.
+func WithBindingUpdateDebounce(d metav1.Duration) Option {
+	return func(o *schedulerOptions) {
+		o.bindingUpdateDebounce = d
+	}
+}
+
 // WithRateLimiterOptions sets the rateLimiterOptions for scheduler
 func WithRateLimiterOptions(rateLimiterOptions ratelimiterflag.Options) Option {
 	return func(o *schedulerOptions) {
@@ -266,17 +293,18 @@ func NewScheduler(dynamicClient dynamic.Interface, karmadaClient karmadaclientse
 	}
 
 	sched := &Scheduler{
-		DynamicClient:        dynamicClient,
-		KarmadaClient:        karmadaClient,
-		KubeClient:           kubeClient,
-		bindingLister:        bindingLister,
-		clusterBindingLister: clusterBindingLister,
-		clusterLister:        clusterLister,
-		informerFactory:      factory,
-		queue:                legacyQueue,
-		priorityQueue:        priorityQueue,
-		Algorithm:            algorithm,
-		schedulerCache:       schedulerCache,
+		DynamicClient:         dynamicClient,
+		KarmadaClient:         karmadaClient,
+		KubeClient:            kubeClient,
+		bindingLister:         bindingLister,
+		clusterBindingLister:  clusterBindingLister,
+		clusterLister:         clusterLister,
+		informerFactory:       factory,
+		queue:                 legacyQueue,
+		priorityQueue:         priorityQueue,
+		Algorithm:             algorithm,
+		schedulerCache:        schedulerCache,
+		bindingUpdateDebounce: options.bindingUpdateDebounce.Duration,
 	}
 
 	sched.clusterReconcileWorker = util.NewAsyncWorker(util.Options{
