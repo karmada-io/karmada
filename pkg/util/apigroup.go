@@ -137,6 +137,9 @@ func (r *SkippedResourceConfig) parseSingle(token string) error {
 		for k := range strings.SplitSeq(token, ",") {
 			if strings.Contains(k, "/") {
 				s := strings.Split(k, "/")
+				if len(s) != 3 {
+					return fmt.Errorf("invalid token: %s", token)
+				}
 				g = s[0]
 				v = s[1]
 				kinds = append(kinds, s[2])
