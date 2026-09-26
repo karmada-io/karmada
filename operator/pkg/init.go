@@ -165,6 +165,11 @@ func newRunData(opt *InitOptions) (*initData, error) {
 		}
 	}
 
+	var hostClusterDNSDomain string
+	if opt.Karmada.Spec.HostCluster != nil && opt.Karmada.Spec.HostCluster.Networking != nil && opt.Karmada.Spec.HostCluster.Networking.DNSDomain != nil {
+		hostClusterDNSDomain = *opt.Karmada.Spec.HostCluster.Networking.DNSDomain
+	}
+
 	return &initData{
 		name:                    opt.Name,
 		namespace:               opt.Namespace,
@@ -177,7 +182,7 @@ func newRunData(opt *InitOptions) (*initData, error) {
 		privateRegistry:         privateRegistry,
 		components:              opt.Karmada.Spec.Components,
 		featureGates:            opt.Karmada.Spec.FeatureGates,
-		dnsDomain:               *opt.Karmada.Spec.HostCluster.Networking.DNSDomain,
+		dnsDomain:               hostClusterDNSDomain,
 		CertStore:               certs.NewCertStore(),
 	}, nil
 }
