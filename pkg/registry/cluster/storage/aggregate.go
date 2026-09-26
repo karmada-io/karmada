@@ -257,6 +257,7 @@ func requestWithoutResourceNameHandlerFunc(
 					klog.Errorf("failed to do request for cluster %s: %v", cluster.Name, err)
 					return
 				}
+				defer resp.Body.Close()
 				if resp.StatusCode != http.StatusOK {
 					klog.Warningf("get resource not ok with cluster %s: %d", cluster.Name, resp.StatusCode)
 					return
@@ -273,7 +274,6 @@ func requestWithoutResourceNameHandlerFunc(
 					responseHeader: resp.Header,
 				})
 				locker.Unlock()
-				_ = resp.Body.Close()
 			}(&cluster)
 		}
 		wg.Wait()
