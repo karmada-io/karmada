@@ -219,3 +219,55 @@ func makeClusterRoleBinding(name string) *rbacv1.ClusterRoleBinding {
 		},
 	}
 }
+
+func TestBuildRoleBindingSubjects(t *testing.T) {
+	tests := []struct {
+		name               string
+		serviceAccountName string
+		serviceAccountNS   string
+		want               []rbacv1.Subject
+	}{
+		{
+			name:               "returns single ServiceAccount subject",
+			serviceAccountName: "my-sa",
+			serviceAccountNS:   "my-ns",
+			want: []rbacv1.Subject{
+				{Kind: rbacv1.ServiceAccountKind, Name: "my-sa", Namespace: "my-ns"},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := BuildRoleBindingSubjects(tt.serviceAccountName, tt.serviceAccountNS)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("BuildRoleBindingSubjects() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBuildClusterRoleReference(t *testing.T) {
+	tests := []struct {
+		name     string
+		roleName string
+		want     rbacv1.RoleRef
+	}{
+		{
+			name:     "returns ClusterRole RoleRef",
+			roleName: "my-role",
+			want: rbacv1.RoleRef{
+				APIGroup: rbacv1.GroupName,
+				Kind:     "ClusterRole",
+				Name:     "my-role",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := BuildClusterRoleReference(tt.roleName)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("BuildClusterRoleReference() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
