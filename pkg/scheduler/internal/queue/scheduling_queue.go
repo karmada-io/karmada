@@ -332,6 +332,7 @@ func (bq *prioritySchedulingQueue) PushUnschedulableIfNotPresent(bindingInfo *Qu
 		return
 	}
 
+	bindingInfo.Timestamp = bq.clock.Now()
 	bq.unschedulableBindings.addOrUpdate(bindingInfo)
 	klog.V(4).InfoS("Binding moved to an internal scheduling queue", "binding", bindingInfo.NamespacedKey, "queue", unschedulableBindings)
 }
@@ -344,6 +345,7 @@ func (bq *prioritySchedulingQueue) PushBackoffIfNotPresent(bindingInfo *QueuedBi
 		return
 	}
 
+	bindingInfo.Timestamp = bq.clock.Now()
 	bq.backoffQ.AddOrUpdate(bindingInfo)
 	klog.V(4).InfoS("Binding moved to an internal scheduling queue", "binding", bindingInfo.NamespacedKey, "queue", backoffQ)
 }

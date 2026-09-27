@@ -321,3 +321,49 @@ func TestFlushUnschedulableBindingsLeftoverPriorityOrder(t *testing.T) {
 	assert.NotNil(t, bq.unschedulableBindings.get("fresh"), "binding within the timeout should remain in unschedulableBindings")
 	assert.Nil(t, bq.unschedulableBindings.get("high"), "moved binding should be removed from unschedulableBindings")
 }
+
+// TestRequeueAfterFailureCountsFromFailure verifies that a binding requeued after a failed attempt
+// waits out its backoff or unschedulable timeout from the failure, not from its last activeQ push.
+func TestRequeueAfterFailureCountsFromFailure(t *testing.T) {
+	newQueue := func() (*prioritySchedulingQueue, *testingclock.FakeClock, *recordingActiveQueue) {
+		fakeClock := testingclock.NewFakeClock(time.Now())
+		activeQ := &recordingActiveQueue{}
+		bq := &prioritySchedulingQueue{
+			clock:                         fakeClock,
+			bindingInitialBackoffDuration: DefaultBindingInitialBackoffDuration,
+			bindingMaxBackoffDuration:     DefaultBindingMaxBackoffDuration,
+			bindingMaxInUnschedulableBindingsDuration: DefaultBindingMaxInUnschedulableBindingsDuration,
+			activeQ:               activeQ,
+			unschedulableBindings: newUnschedulableBindings(metrics.NewUnschedulableBindingsRecorder()),
+		}
+		bq.backoffQ = heap.NewWithRecorder(BindingKeyFunc, bq.lessBackoffCompletedWithPriority, metrics.NewBackoffBindingsRecorder())
+		return bq, fakeClock, activeQ
+	}
+
+	t.Run("backoff", func(t *testing.T) {
+		bq, fakeClock, activeQ := newQueue()
+		bInfo := &QueuedBindingInfo{NamespacedKey: "rb", Attempts: 1, Timestamp: fakeClock.Now().Add(-30 * time.Second)}
+		bq.PushBackoffIfNotPresent(bInfo)
+
+		bq.flushBackoffQCompleted()
+		assert.Empty(t, activeQ.pushedKeys(), "binding should still be backing off right after the failure")
+
+		fakeClock.Step(DefaultBindingInitialBackoffDuration + time.Second)
+		bq.flushBackoffQCompleted()
+		assert.Equal(t, []string{"rb"}, activeQ.pushedKeys())
+	})
+
+	t.Run("unschedulable", func(t *testing.T) {
+		bq, fakeClock, activeQ := newQueue()
+		waited := DefaultBindingMaxInUnschedulableBindingsDuration + time.Minute
+		bInfo := &QueuedBindingInfo{NamespacedKey: "rb", Attempts: 1, Timestamp: fakeClock.Now().Add(-waited)}
+		bq.PushUnschedulableIfNotPresent(bInfo)
+
+		bq.flushUnschedulableBindingsLeftover()
+		assert.Empty(t, activeQ.pushedKeys(), "binding should stay unschedulable right after the failure")
+
+		fakeClock.Step(DefaultBindingMaxInUnschedulableBindingsDuration + time.Second)
+		bq.flushUnschedulableBindingsLeftover()
+		assert.Equal(t, []string{"rb"}, activeQ.pushedKeys())
+	})
+}
