@@ -94,6 +94,9 @@ type ResourceDetector struct {
 
 	// waitingObjects tracks of objects which haven't been propagated yet as lack of appropriate policies.
 	waitingObjects map[keys.ClusterWideKey]struct{}
+	// waitingObjectsByGVK is a secondary index from GVK string to waiting object keys,
+	// enabling GetMatching to quickly narrow candidates by GVK without scanning all waiting objects.
+	waitingObjectsByGVK map[string]map[keys.ClusterWideKey]struct{}
 	// waitingLock is the lock for waitingObjects operation.
 	waitingLock sync.RWMutex
 	// ConcurrentPropagationPolicySyncs is the number of PropagationPolicy that are allowed to sync concurrently.
@@ -113,6 +116,7 @@ type ResourceDetector struct {
 func (d *ResourceDetector) Start(ctx context.Context) error {
 	klog.Infof("Starting resource detector.")
 	d.waitingObjects = make(map[keys.ClusterWideKey]struct{})
+	d.waitingObjectsByGVK = make(map[string]map[keys.ClusterWideKey]struct{})
 
 	// setup policy reconcile worker
 	policyWorkerOptions := util.Options{
@@ -946,6 +950,11 @@ func (d *ResourceDetector) AddWaiting(objectKey keys.ClusterWideKey) {
 	defer d.waitingLock.Unlock()
 
 	d.waitingObjects[objectKey] = struct{}{}
+	gvk := objectKey.GroupVersionKind().String()
+	if d.waitingObjectsByGVK[gvk] == nil {
+		d.waitingObjectsByGVK[gvk] = make(map[keys.ClusterWideKey]struct{})
+	}
+	d.waitingObjectsByGVK[gvk][objectKey] = struct{}{}
 	klog.V(1).Infof("Add object(%s) to waiting list, length of list is: %d", objectKey.String(), len(d.waitingObjects))
 }
 
@@ -955,6 +964,13 @@ func (d *ResourceDetector) RemoveWaiting(objectKey keys.ClusterWideKey) {
 	defer d.waitingLock.Unlock()
 
 	delete(d.waitingObjects, objectKey)
+	gvk := objectKey.GroupVersionKind().String()
+	if keys, ok := d.waitingObjectsByGVK[gvk]; ok {
+		delete(keys, objectKey)
+		if len(keys) == 0 {
+			delete(d.waitingObjectsByGVK, gvk)
+		}
+	}
 }
 
 // GetMatching gets objects keys in waiting list that matches one of resource selectors.
@@ -963,19 +979,58 @@ func (d *ResourceDetector) GetMatching(resourceSelectors []policyv1alpha1.Resour
 	defer d.waitingLock.RUnlock()
 
 	var matchedResult []keys.ClusterWideKey
+	seen := make(map[keys.ClusterWideKey]struct{})
+	fetchFailed := make(map[keys.ClusterWideKey]struct{})
 
-	for waitKey := range d.waitingObjects {
-		waitObj, err := d.GetUnstructuredObject(waitKey)
-		if err != nil {
-			// all object in waiting list should exist. Just print a log to trace.
-			klog.Errorf("Failed to get object(%s), error: %v", waitKey.String(), err)
+	for _, rs := range resourceSelectors {
+		rsGVK := schema.FromAPIVersionAndKind(rs.APIVersion, rs.Kind).String()
+
+		// Only iterate over waiting objects with matching GVK.
+		candidateKeys, ok := d.waitingObjectsByGVK[rsGVK]
+		if !ok {
 			continue
 		}
 
-		for _, rs := range resourceSelectors {
+		for waitKey := range candidateKeys {
+			// Skip if already matched by a previous selector.
+			if _, exists := seen[waitKey]; exists {
+				continue
+			}
+			// Skip if a previous fetch attempt failed for this key.
+			if _, failed := fetchFailed[waitKey]; failed {
+				continue
+			}
+
+			// Pre-filter: namespace and name checks (no API call needed).
+			if len(rs.Namespace) > 0 && rs.Namespace != waitKey.Namespace {
+				continue
+			}
+			if len(rs.Name) > 0 && rs.Name != waitKey.Name {
+				continue
+			}
+
+			// Fetch the object to verify existence and get labels if needed.
+			// This preserves the original error semantics: if the fetch fails,
+			// the object is not returned by any selector.
+			waitObj, err := d.GetUnstructuredObject(waitKey)
+			if err != nil {
+				// all object in waiting list should exist. Just print a log to trace.
+				klog.Errorf("Failed to get object(%s), error: %v", waitKey.String(), err)
+				fetchFailed[waitKey] = struct{}{}
+				continue
+			}
+
+			// If no label selector, key-level match is sufficient.
+			if rs.LabelSelector == nil {
+				matchedResult = append(matchedResult, waitKey)
+				seen[waitKey] = struct{}{}
+				continue
+			}
+
+			// Label selector present: check labels.
 			if util.ResourceMatches(waitObj, rs) {
 				matchedResult = append(matchedResult, waitKey)
-				break
+				seen[waitKey] = struct{}{}
 			}
 		}
 	}
