@@ -377,10 +377,10 @@ func TestPushUnschedulableIfNotPresent_NotImmediatelyFlushed(t *testing.T) {
 	fakeClock := testingclock.NewFakeClock(time.Now())
 	activeQ := &recordingActiveQueue{}
 	bq := &prioritySchedulingQueue{
-		clock:                                     fakeClock,
+		clock: fakeClock,
 		bindingMaxInUnschedulableBindingsDuration: DefaultBindingMaxInUnschedulableBindingsDuration,
-		activeQ:                                   activeQ,
-		unschedulableBindings:                     newUnschedulableBindings(metrics.NewUnschedulableBindingsRecorder()),
+		activeQ:               activeQ,
+		unschedulableBindings: newUnschedulableBindings(metrics.NewUnschedulableBindingsRecorder()),
 	}
 	bq.backoffQ = heap.NewWithRecorder(BindingKeyFunc, bq.lessBackoffCompletedWithPriority, metrics.NewBackoffBindingsRecorder())
 
