@@ -220,8 +220,6 @@ func ObtainClustersWithPurgeModeDirectly(bindingSpec workv1alpha2.ResourceBindin
 	return clusterNames
 }
 
-
-
 // FindOrphanWorks retrieves all works that labeled with current binding(ResourceBinding or ClusterResourceBinding) objects,
 // then pick the works that not meet current binding declaration.
 func FindOrphanWorks(ctx context.Context, c client.Client, bindingNamespace, bindingName, bindingID string, expectClusters sets.Set[string]) ([]workv1alpha1.Work, error) {
@@ -439,11 +437,27 @@ func DeleteWorks(
 	}
 
 	// 2. Fallback: Bounded Authoritative Lookup
+	missedErrs := deleteMissedWorks(ctx, c, apiReader, bindingID, expectedWorkName, deletedWorks, coveredNamespaces)
+	errs = append(errs, missedErrs...)
+
+	return errors.NewAggregate(errs)
+}
+
+func deleteMissedWorks(
+	ctx context.Context,
+	c client.Client,
+	apiReader client.Reader,
+	bindingID, expectedWorkName string,
+	deletedWorks sets.Set[types.UID],
+	coveredNamespaces sets.Set[string],
+) []error {
+	var errs []error
+
 	clusterList := &clusterv1alpha1.ClusterList{}
 	if err := c.List(ctx, clusterList); err != nil {
 		klog.Errorf("Failed to list clusters for bounded authoritative lookup: %v", err)
 		errs = append(errs, err)
-		return errors.NewAggregate(errs)
+		return errs
 	}
 
 	for _, cluster := range clusterList.Items {
@@ -481,7 +495,7 @@ func DeleteWorks(
 		}
 	}
 
-	return errors.NewAggregate(errs)
+	return errs
 }
 
 // GenerateNodeClaimByPodSpec will return a NodeClaim from PodSpec.

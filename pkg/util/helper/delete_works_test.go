@@ -1,3 +1,19 @@
+/*
+Copyright 2021 The Karmada Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package helper
 
 import (
@@ -127,9 +143,9 @@ func TestDeleteWorks(t *testing.T) {
 			expectWork2Deleted: false,
 		},
 		{
-			name:               "APIReader finds Work with different permanent ID -> it is NOT deleted",
-			cachedClusters:     []client.Object{cluster1, cluster2},
-			cachedWorks:        []client.Object{work1},
+			name:           "APIReader finds Work with different permanent ID -> it is NOT deleted",
+			cachedClusters: []client.Object{cluster1, cluster2},
+			cachedWorks:    []client.Object{work1},
 			apiWorks: []client.Object{work1, &workv1alpha1.Work{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      expectedWorkName,
@@ -152,9 +168,9 @@ func TestDeleteWorks(t *testing.T) {
 			expectWork2Deleted: false, // member2 is not in cache, so we skip reading it
 		},
 		{
-			name:  "ClusterResourceBinding checks its own label",
-			isCRB: true,
-			cachedClusters:     []client.Object{cluster1, cluster2},
+			name:           "ClusterResourceBinding checks its own label",
+			isCRB:          true,
+			cachedClusters: []client.Object{cluster1, cluster2},
 			cachedWorks: []client.Object{
 				&workv1alpha1.Work{
 					ObjectMeta: metav1.ObjectMeta{
@@ -242,7 +258,7 @@ func TestDeleteWorks(t *testing.T) {
 				},
 			}
 			if tt.apiReaderError != nil {
-				funcs.Get = func(ctx context.Context, client client.WithWatch, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+				funcs.Get = func(_ context.Context, _ client.WithWatch, _ client.ObjectKey, _ client.Object, _ ...client.GetOption) error {
 					return tt.apiReaderError
 				}
 			}
