@@ -294,6 +294,64 @@ func Test_interpretStatefulSetHealth(t *testing.T) {
 			want:    false,
 			wantErr: false,
 		},
+		{
+			name: "partitioned rolling update with the old pods down",
+			object: &unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "apps/v1",
+					"kind":       "StatefulSet",
+					"metadata": map[string]any{
+						"name":       "fake-statefulSet",
+						"generation": 1,
+					},
+					"spec": map[string]any{
+						"replicas": 3,
+						"updateStrategy": map[string]any{
+							"type": "RollingUpdate",
+							"rollingUpdate": map[string]any{
+								"partition": 2,
+							},
+						},
+					},
+					"status": map[string]any{
+						"availableReplicas":  1,
+						"updatedReplicas":    1,
+						"observedGeneration": 1,
+					},
+				},
+			},
+			want:    false,
+			wantErr: false,
+		},
+		{
+			name: "partition covering every pod with all pods down",
+			object: &unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "apps/v1",
+					"kind":       "StatefulSet",
+					"metadata": map[string]any{
+						"name":       "fake-statefulSet",
+						"generation": 1,
+					},
+					"spec": map[string]any{
+						"replicas": 3,
+						"updateStrategy": map[string]any{
+							"type": "RollingUpdate",
+							"rollingUpdate": map[string]any{
+								"partition": 3,
+							},
+						},
+					},
+					"status": map[string]any{
+						"availableReplicas":  0,
+						"updatedReplicas":    0,
+						"observedGeneration": 1,
+					},
+				},
+			},
+			want:    false,
+			wantErr: false,
+		},
 	}
 	for i := range tests {
 		tt := tests[i]

@@ -83,6 +83,10 @@ func interpretStatefulSetHealth(object *unstructured.Unstructured) (bool, error)
 		if statefulSet.Status.UpdatedReplicas < wantUpdated {
 			return false, nil
 		}
+		// Like kubectl rollout status, every pod has to be up, not only the updated ones.
+		if statefulSet.Status.AvailableReplicas < *statefulSet.Spec.Replicas {
+			return false, nil
+		}
 	}
 	if statefulSet.Status.AvailableReplicas < statefulSet.Status.UpdatedReplicas {
 		return false, nil
