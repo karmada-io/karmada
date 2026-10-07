@@ -180,14 +180,14 @@ type Remedy struct {
 // RemedySpec represents the desired behavior of Remedy.
 type RemedySpec struct {
 	// ClusterAffinity specifies the clusters that Remedy needs to pay attention to. 
-	// For clusters that meet the DecisionConditions, Actions will be preformed.    
+	// For clusters that meet the DecisionConditions, Actions will be performed.    
 	// If empty, all clusters will be selected.    
 	// +optional
 	ClusterAffinity *ClusterAffinity `json:"clusterAffinity,omitempty"`
 	
 	// DecisionControls indicates the decision matches of triggering 
 	// the remedy system to perform the actions. 
-	// As long as any one DecisionControl matches, the Actions will be preformed.
+	// As long as any one DecisionControl matches, the Actions will be performed.
 	// If empty, the Actions will be performed immediately.	
 	// +optional
 	DecisionMatches []DecisionMatch `json:"decisionMatches,omitempty"`
@@ -242,7 +242,7 @@ type ClusterAffinity struct {
 	ClusterNames []string `json:"clusterNames,omitempty"`
 }
 
-// RemedyAction represents the action type the remedy system needs to preform.
+// RemedyAction represents the action type the remedy system needs to perform.
 type RemedyAction string
 
 const (

@@ -286,7 +286,7 @@ None
 ### GA Graduation
 
 - Scalability and performance testing;
-- All konwn functional bugs have been fixe;
+- All known functional bugs have been fixed;
 - Deprecated Feature Gate `StatefulFailoverInjection`;
 
 ## Notes/Constraints/Caveats
