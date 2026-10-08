@@ -73,8 +73,20 @@ func interpretStatefulSetHealth(object *unstructured.Unstructured) (bool, error)
 	if statefulSet.Status.ObservedGeneration != statefulSet.Generation {
 		return false, nil
 	}
-	if (statefulSet.Spec.Replicas != nil) && statefulSet.Status.UpdatedReplicas < *statefulSet.Spec.Replicas {
-		return false, nil
+	if statefulSet.Spec.Replicas != nil {
+		// A partitioned rolling update only updates the pods with an ordinal >= partition,
+		// so it is complete once those are updated, the same way kubectl rollout status sees it.
+		wantUpdated := *statefulSet.Spec.Replicas
+		if rollingUpdate := statefulSet.Spec.UpdateStrategy.RollingUpdate; rollingUpdate != nil && rollingUpdate.Partition != nil {
+			wantUpdated -= *rollingUpdate.Partition
+		}
+		if statefulSet.Status.UpdatedReplicas < wantUpdated {
+			return false, nil
+		}
+		// Like kubectl rollout status, every pod has to be up, not only the updated ones.
+		if statefulSet.Status.AvailableReplicas < *statefulSet.Spec.Replicas {
+			return false, nil
+		}
 	}
 	if statefulSet.Status.AvailableReplicas < statefulSet.Status.UpdatedReplicas {
 		return false, nil
