@@ -92,6 +92,10 @@ var _ = ginkgo.Describe("ClusterResourceBinding test", func() {
 
 				return workList != nil && len(workList.Items) == len(framework.ClusterNames())
 			})
+
+			framework.WaitClusterRolePresentOnClustersFitWith(framework.ClusterNames(), clusterRole.Name, func(_ *rbacv1.ClusterRole) bool {
+				return true
+			})
 		})
 
 		ginkgo.It("propagates resource with permanent ID label", func() {
