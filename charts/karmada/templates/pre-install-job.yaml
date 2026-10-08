@@ -290,7 +290,7 @@ metadata:
   name: {{ $name }}-config
   namespace: {{ $namespace }}
   annotations:
-    "helm.sh/hook": pre-install
+    "helm.sh/hook": pre-install,pre-upgrade
     "helm.sh/hook-weight": "2"
   {{- if "karmada.preInstallJob.labels" }}
   labels:
@@ -397,7 +397,7 @@ metadata:
   annotations:
     # This is what defines this resource as a hook. Without this line, the
     # job is considered part of the release.
-    "helm.sh/hook": pre-install
+    "helm.sh/hook": pre-install,pre-upgrade
     "helm.sh/hook-weight": "3"
     "helm.sh/hook-delete-policy": {{ .Values.preInstallJob.hookDeletePolicy }}
   {{- if "karmada.preInstallJob.labels" }}
@@ -484,7 +484,22 @@ spec:
         - |
           bash <<'EOF'
           set -ex
+          {{- if .Release.IsUpgrade }}
+          # Only mint certs on upgrade when they are missing, so an existing CA is never rotated.
+          # A standalone assignment so a failed lookup aborts the Job instead of reading as missing.
+          cert_secret=$(kubectl get secret {{ $name }}-cert -n {{ $namespace }} --ignore-not-found -o name)
+          if [ -n "$cert_secret" ]; then
+            echo "secret {{ $name }}-cert already exists, skipping cert generation"
+            exit 0
+          fi
+          # Apply only the cert secrets by name. Everything else in /opt/configs is install-only,
+          # and the static-resources and crds-patches ConfigMaps are handled by the pre-upgrade job.
+          # karmada-cert goes last so a partial failure leaves it missing and the next attempt regenerates all three.
+          kubectl apply --server-side -f /opt/configs/kubeconfig.yaml -f /opt/configs/webhook-cert.yaml
+          kubectl apply --server-side -f /opt/configs/cert.yaml
+          {{- else }}
           kubectl apply --server-side -f /opt/configs/
+          {{- end }}
           EOF
         volumeMounts:
         - name: mount
