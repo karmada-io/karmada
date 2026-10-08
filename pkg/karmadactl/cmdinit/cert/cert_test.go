@@ -146,6 +146,50 @@ func TestGenCerts(t *testing.T) {
 	}
 }
 
+func TestLoadCertAndKeyPEM(t *testing.T) {
+	caCert, caKey, err := NewCACertAndKey("test-ca")
+	if err != nil {
+		t.Fatal(err)
+	}
+	caKeyPEM, err := EncodePrivateKeyPEM(*caKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	loadedCert, loadedKey, err := LoadCertAndKeyPEM(EncodeCertPEM(caCert), caKeyPEM)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loadedCert.Subject.CommonName != caCert.Subject.CommonName {
+		t.Fatalf("LoadCertAndKeyPEM() CommonName = %s, want %s", loadedCert.Subject.CommonName, caCert.Subject.CommonName)
+	}
+
+	notAfter := time.Now().Add(Duration365d).UTC()
+	leafConfig := NewCertConfig("leaf", nil, certutil.AltNames{}, &notAfter)
+	leafCert, _, err := NewCertAndKey(loadedCert, loadedKey, leafConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := leafCert.CheckSignatureFrom(loadedCert); err != nil {
+		t.Fatalf("rotated leaf certificate is not signed by the loaded CA: %v", err)
+	}
+}
+
+func TestLoadCertAndKeyPEMRejectsInvalidData(t *testing.T) {
+	if _, _, err := LoadCertAndKeyPEM([]byte("invalid cert"), []byte("invalid key")); err == nil {
+		t.Fatal("LoadCertAndKeyPEM() expected an error for invalid PEM data")
+	}
+	if _, err := LoadCertificatePEM([]byte("invalid cert")); err == nil {
+		t.Fatal("LoadCertificatePEM() expected an error for invalid PEM data")
+	}
+}
+
+func TestEncodePrivateKeyPEMRejectsNilKey(t *testing.T) {
+	if _, err := EncodePrivateKeyPEM(nil); err == nil {
+		t.Fatal("EncodePrivateKeyPEM() expected an error for nil key")
+	}
+}
+
 func checkCertFiles(path string, files []string) error {
 	for _, file := range files {
 		filePath := filepath.Join(path, file)
