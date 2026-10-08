@@ -74,7 +74,7 @@ func installKarmadaWebhook(client clientset.Interface, cfg *operatorv1alpha1.Kar
 		WithTolerations(cfg.CommonSettings.Tolerations).WithAffinity(cfg.CommonSettings.Affinity).ForDeployment(webhookDeployment)
 
 	if webhookDeployment, err = apiclient.CreateOrUpdateDeployment(client, webhookDeployment); err != nil {
-		return fmt.Errorf("error when creating deployment for %s, err: %w", webhookDeployment.Name, err)
+		return fmt.Errorf("error when creating deployment for %s, err: %w", util.KarmadaWebhookName(name), err)
 	}
 
 	ownerRef := *metav1.NewControllerRef(webhookDeployment, apiserver.DeploymentGVK)
