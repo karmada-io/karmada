@@ -36,6 +36,7 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -402,7 +403,12 @@ func GetResourceBindingsByNamespace(c client.Client, namespace string) (*workv1a
 }
 
 // DeleteWorks will delete all Work objects by labels.
-func DeleteWorks(ctx context.Context, c client.Client, namespace, name, bindingID string) error {
+func DeleteWorks(
+	ctx context.Context,
+	c client.Client,
+	apiReader client.Reader,
+	namespace, name, bindingID, expectedWorkName string,
+) error {
 	workList, err := GetWorksByBindingID(ctx, c, bindingID, namespace != "")
 	if err != nil {
 		klog.Errorf("Failed to get works by (Cluster)ResourceBinding(%s/%s) : %v", namespace, name, err)
@@ -410,16 +416,86 @@ func DeleteWorks(ctx context.Context, c client.Client, namespace, name, bindingI
 	}
 
 	var errs []error
+	deletedWorks := sets.New[types.UID]()
+	coveredNamespaces := sets.New[string]()
+
+	// 1. Delete whatever the cache found
 	for index, work := range workList.Items {
+		if work.Name == expectedWorkName {
+			coveredNamespaces.Insert(work.Namespace)
+		}
+
 		if err := c.Delete(ctx, &workList.Items[index]); err != nil {
 			if apierrors.IsNotFound(err) {
 				continue
 			}
 			klog.Errorf("Failed to delete work(%s/%s): %v", work.Namespace, work.Name, err)
 			errs = append(errs, err)
+		} else {
+			deletedWorks.Insert(work.UID)
 		}
 	}
+
+	// 2. Fallback: Bounded Authoritative Lookup
+	missedErrs := deleteMissedWorks(ctx, c, apiReader, bindingID, expectedWorkName, deletedWorks, coveredNamespaces)
+	errs = append(errs, missedErrs...)
+
 	return errors.NewAggregate(errs)
+}
+
+func deleteMissedWorks(
+	ctx context.Context,
+	c client.Client,
+	apiReader client.Reader,
+	bindingID, expectedWorkName string,
+	deletedWorks sets.Set[types.UID],
+	coveredNamespaces sets.Set[string],
+) []error {
+	var errs []error
+
+	clusterList := &clusterv1alpha1.ClusterList{}
+	if err := c.List(ctx, clusterList); err != nil {
+		klog.Errorf("Failed to list clusters for bounded authoritative lookup: %v", err)
+		errs = append(errs, err)
+		return errs
+	}
+
+	for _, cluster := range clusterList.Items {
+		workNamespace := names.GenerateExecutionSpaceName(cluster.Name)
+		if coveredNamespaces.Has(workNamespace) {
+			continue
+		}
+
+		work := &workv1alpha1.Work{}
+
+		err := apiReader.Get(ctx, types.NamespacedName{Namespace: workNamespace, Name: expectedWorkName}, work)
+		if err != nil {
+			if !apierrors.IsNotFound(err) {
+				klog.Errorf("Failed to get orphaned work(%s/%s) via API server: %v", workNamespace, expectedWorkName, err)
+				errs = append(errs, err)
+			}
+			continue
+		}
+
+		if deletedWorks.Has(work.UID) || !work.DeletionTimestamp.IsZero() {
+			continue
+		}
+
+		if work.Labels[workv1alpha2.ResourceBindingPermanentIDLabel] != bindingID &&
+			work.Labels[workv1alpha2.ClusterResourceBindingPermanentIDLabel] != bindingID {
+			continue
+		}
+
+		if err := c.Delete(ctx, work); err != nil {
+			if apierrors.IsNotFound(err) {
+				continue
+			}
+			klog.Errorf("Failed to delete orphaned work(%s/%s) found via API server: %v", work.Namespace, work.Name, err)
+			errs = append(errs, err)
+		}
+	}
+
+	return errs
 }
 
 // GenerateNodeClaimByPodSpec will return a NodeClaim from PodSpec.
