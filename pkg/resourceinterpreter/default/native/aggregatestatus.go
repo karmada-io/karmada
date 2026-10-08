@@ -398,10 +398,10 @@ func aggregateStatefulSetStatus(object *unstructured.Unstructured, aggregatedSta
 			statefulSet.Namespace, statefulSet.Name, item.ClusterName, member.AvailableReplicas, member.CurrentReplicas, member.ReadyReplicas, member.Replicas, member.UpdatedReplicas)
 
 		// `memberStatus.ObservedGeneration >= memberStatus.Generation` means the member's status corresponds the latest spec revision of the member statefulset.
-		// `memberStatus.ResourceTemplateGeneration >= deploy.Generation` means the member statefulset has been aligned with the latest spec revision of federated statefulset.
+		// `memberStatus.ResourceTemplateGeneration >= statefulSet.Generation` means the member statefulset has been aligned with the latest spec revision of federated statefulset.
 		// If both conditions are met, we consider the member's status corresponds the latest spec revision of federated statefulset.
 		if member.ObservedGeneration >= member.Generation &&
-			member.ResourceTemplateGeneration >= member.Generation {
+			member.ResourceTemplateGeneration >= statefulSet.Generation {
 			observedLatestResourceTemplateGenerationCount++
 		}
 

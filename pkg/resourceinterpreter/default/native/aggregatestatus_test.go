@@ -29,6 +29,7 @@ import (
 	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -408,6 +409,59 @@ func TestAggregateStatefulSetStatus(t *testing.T) {
 	for _, tt := range tests {
 		actualObj, _ := aggregateStatefulSetStatus(tt.curObj, tt.aggregatedStatusItems)
 		assert.Equal(t, tt.expectedObj, actualObj)
+	}
+}
+
+func TestAggregateStatefulSetStatusObservedGeneration(t *testing.T) {
+	// memberStatus builds a member's status as reflectStatefulSetStatus grabs it: the member
+	// object's own generation plus the generation of the resource template it was applied from.
+	memberStatus := func(generation, observedGeneration, resourceTemplateGeneration int64) *runtime.RawExtension {
+		raw, _ := helper.BuildStatusRawExtension(map[string]any{
+			"replicas":                   1,
+			"generation":                 generation,
+			"observedGeneration":         observedGeneration,
+			"resourceTemplateGeneration": resourceTemplateGeneration,
+		})
+		return raw
+	}
+	federated := func(generation, observedGeneration int64) *unstructured.Unstructured {
+		obj, _ := helper.ToUnstructured(&appsv1.StatefulSet{
+			TypeMeta:   metav1.TypeMeta{Kind: "StatefulSet", APIVersion: appsv1.SchemeGroupVersion.String()},
+			ObjectMeta: metav1.ObjectMeta{Generation: generation},
+			Status:     appsv1.StatefulSetStatus{ObservedGeneration: observedGeneration},
+		})
+		return obj
+	}
+
+	tests := []struct {
+		name                   string
+		curObj                 *unstructured.Unstructured
+		member                 *runtime.RawExtension
+		wantObservedGeneration int64
+	}{
+		{
+			// Re-dividing replicas bumps the member's generation past the template's.
+			name:                   "member generation is ahead of the template generation",
+			curObj:                 federated(2, 1),
+			member:                 memberStatus(5, 5, 2),
+			wantObservedGeneration: 2,
+		},
+		{
+			name:                   "member has not received the latest template",
+			curObj:                 federated(3, 2),
+			member:                 memberStatus(1, 1, 2),
+			wantObservedGeneration: 2,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			items := []workv1alpha2.AggregatedStatusItem{{ClusterName: "member1", Status: tt.member, Applied: true}}
+			actualObj, err := aggregateStatefulSetStatus(tt.curObj, items)
+			assert.NoError(t, err)
+			actual := &appsv1.StatefulSet{}
+			assert.NoError(t, helper.ConvertToTypedObject(actualObj, actual))
+			assert.Equal(t, tt.wantObservedGeneration, actual.Status.ObservedGeneration)
+		})
 	}
 }
 
