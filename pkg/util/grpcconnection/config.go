@@ -71,7 +71,7 @@ type ClientConfig struct {
 // started to accept requests yet.
 func (s *ServerConfig) NewServer() (*grpc.Server, error) {
 	if s.CertFile == "" || s.KeyFile == "" {
-		return grpc.NewServer(), nil
+		return nil, fmt.Errorf("TLS credentials are required: both CertFile and KeyFile must be specified for secure gRPC server")
 	}
 
 	cert, err := tls.LoadX509KeyPair(s.CertFile, s.KeyFile)
