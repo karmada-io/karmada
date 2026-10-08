@@ -25,12 +25,14 @@ import (
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/rand"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/yaml"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -57,6 +59,14 @@ var (
 var _ = ginkgo.Describe("[ScheduleMultiTemplate] schedule multi template resource", func() {
 	// Helper function to find component by name
 	findComponent := func(components []workv1alpha2.Component, name string) *workv1alpha2.Component {
+		for i := range components {
+			if components[i].Name == name {
+				return &components[i]
+			}
+		}
+		return nil
+	}
+	findTargetComponent := func(components []workv1alpha2.TargetComponent, name string) *workv1alpha2.TargetComponent {
 		for i := range components {
 			if components[i].Name == name {
 				return &components[i]
@@ -125,9 +135,40 @@ var _ = ginkgo.Describe("[ScheduleMultiTemplate] schedule multi template resourc
 			})
 		})
 
-		ginkgo.It("base case: propagate FlinkDeployment to one cluster", func() {
-			flinkDeploymentNamespace = testNamespace
+		ginkgo.It("reschedule FlinkDeployment component replicas on one cluster", func() {
+			ctx := context.Background()
+			flinkDeploymentNamespace = "karmadatest-flink-scale-" + rand.String(RandomStrLength)
 			flinkDeploymentName = fmt.Sprintf("flinkdeployment-%s", rand.String(RandomStrLength))
+			const quotaName = "flink-component-scale"
+
+			ginkgo.By("create an isolated namespace and component-scale CPU quota", func() {
+				gomega.Expect(setupTestNamespace(flinkDeploymentNamespace, kubeClient)).Should(gomega.Succeed())
+				ginkgo.DeferCleanup(func() {
+					gomega.Expect(cleanupTestNamespace(flinkDeploymentNamespace, kubeClient)).Should(gomega.Succeed())
+				})
+				framework.WaitNamespacePresentOnClusters(framework.ClusterNames(), flinkDeploymentNamespace)
+
+				expectedCPU := resource.MustParse("300m")
+				for _, clusterName := range framework.ClusterNames() {
+					clusterClient := framework.GetClusterClient(clusterName)
+					gomega.Expect(clusterClient).ShouldNot(gomega.BeNil())
+					framework.CreateResourceQuota(clusterClient, &corev1.ResourceQuota{
+						ObjectMeta: metav1.ObjectMeta{Name: quotaName, Namespace: flinkDeploymentNamespace},
+						Spec:       corev1.ResourceQuotaSpec{Hard: corev1.ResourceList{corev1.ResourceCPU: expectedCPU}},
+					})
+					currentCluster := clusterName
+					ginkgo.DeferCleanup(func() {
+						framework.RemoveResourceQuota(framework.GetClusterClient(currentCluster), flinkDeploymentNamespace, quotaName)
+					})
+					gomega.Eventually(func(g gomega.Gomega) {
+						quota, err := clusterClient.CoreV1().ResourceQuotas(flinkDeploymentNamespace).Get(ctx, quotaName, metav1.GetOptions{})
+						g.Expect(err).ShouldNot(gomega.HaveOccurred())
+						actual, found := quota.Status.Hard[corev1.ResourceCPU]
+						g.Expect(found).Should(gomega.BeTrue())
+						g.Expect(actual.Cmp(expectedCPU)).Should(gomega.Equal(0))
+					}, framework.PollTimeout, framework.PollInterval).Should(gomega.Succeed())
+				}
+			})
 
 			ginkgo.By("create FlinkDeployment on karmada control plane", func() {
 				flinkDeploymentObj = &unstructured.Unstructured{}
@@ -144,11 +185,11 @@ var _ = ginkgo.Describe("[ScheduleMultiTemplate] schedule multi template resourc
 				}
 
 				_, err = dynamicClient.Resource(flinkDeploymentGVR).Namespace(flinkDeploymentNamespace).
-					Create(context.Background(), flinkDeploymentObj, metav1.CreateOptions{})
+					Create(ctx, flinkDeploymentObj, metav1.CreateOptions{})
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 				ginkgo.DeferCleanup(func() {
 					err := dynamicClient.Resource(flinkDeploymentGVR).Namespace(flinkDeploymentNamespace).
-						Delete(context.Background(), flinkDeploymentName, metav1.DeleteOptions{})
+						Delete(ctx, flinkDeploymentName, metav1.DeleteOptions{})
 					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 				})
 			})
@@ -237,6 +278,144 @@ var _ = ginkgo.Describe("[ScheduleMultiTemplate] schedule multi template resourc
 						Get(context.Background(), flinkDeploymentName, metav1.GetOptions{})
 					g.Expect(err).ShouldNot(gomega.HaveOccurred(), "FlinkDeployment should be present on cluster %s", targetClusterName)
 				}, framework.PollTimeout, framework.PollInterval).Should(gomega.Succeed())
+			})
+
+			workName := names.GenerateWorkName(flinkDeploymentObj.GetKind(), flinkDeploymentName, flinkDeploymentNamespace)
+			var alternateClusterName string
+			updateTaskManagerReplicas := func(replicas int64) {
+				gomega.Expect(retry.RetryOnConflict(retry.DefaultRetry, func() error {
+					current, err := dynamicClient.Resource(flinkDeploymentGVR).Namespace(flinkDeploymentNamespace).
+						Get(ctx, flinkDeploymentName, metav1.GetOptions{})
+					if err != nil {
+						return err
+					}
+					if err := unstructured.SetNestedField(current.Object, replicas, "spec", "taskManager", "replicas"); err != nil {
+						return err
+					}
+					_, err = dynamicClient.Resource(flinkDeploymentGVR).Namespace(flinkDeploymentNamespace).
+						Update(ctx, current, metav1.UpdateOptions{})
+					return err
+				})).Should(gomega.Succeed())
+			}
+			taskManagerReplicas := func(g gomega.Gomega, object *unstructured.Unstructured) int64 {
+				replicas, found, err := unstructured.NestedInt64(object.Object, "spec", "taskManager", "replicas")
+				g.Expect(err).ShouldNot(gomega.HaveOccurred())
+				if !found {
+					return 1
+				}
+				return replicas
+			}
+			type deliveredRevision struct {
+				workGeneration   int64
+				memberGeneration int64
+			}
+			assertScaleState := func(g gomega.Gomega, desiredReplicas, acceptedReplicas, deliveredReplicas int32, scheduled metav1.ConditionStatus) deliveredRevision {
+				binding, err := karmadaClient.WorkV1alpha2().ResourceBindings(flinkDeploymentNamespace).
+					Get(ctx, bindingName, metav1.GetOptions{})
+				g.Expect(err).ShouldNot(gomega.HaveOccurred())
+				desired := findComponent(binding.Spec.Components, "taskmanager")
+				g.Expect(desired).ShouldNot(gomega.BeNil())
+				g.Expect(desired.Replicas).Should(gomega.Equal(desiredReplicas))
+				g.Expect(binding.Spec.Clusters).Should(gomega.HaveLen(1))
+				g.Expect(binding.Spec.Clusters[0].Name).Should(gomega.Equal(targetClusterName))
+				accepted := findTargetComponent(binding.Spec.Clusters[0].Components, "taskmanager")
+				g.Expect(accepted).ShouldNot(gomega.BeNil())
+				g.Expect(accepted.Replicas).Should(gomega.Equal(acceptedReplicas))
+				condition := meta.FindStatusCondition(binding.Status.Conditions, workv1alpha2.Scheduled)
+				g.Expect(condition).ShouldNot(gomega.BeNil())
+				g.Expect(condition.Status).Should(gomega.Equal(scheduled))
+				if scheduled == metav1.ConditionFalse {
+					g.Expect(condition.Reason).Should(gomega.Equal(workv1alpha2.BindingReasonUnschedulable))
+					g.Expect(condition.Message).Should(gomega.ContainSubstring("insufficient resources for component scale"))
+				}
+
+				work, err := karmadaClient.WorkV1alpha1().Works(names.GenerateExecutionSpaceName(targetClusterName)).
+					Get(ctx, workName, metav1.GetOptions{})
+				g.Expect(err).ShouldNot(gomega.HaveOccurred())
+				g.Expect(work.Spec.Workload.Manifests).Should(gomega.HaveLen(1))
+				workload := &unstructured.Unstructured{}
+				g.Expect(workload.UnmarshalJSON(work.Spec.Workload.Manifests[0].Raw)).Should(gomega.Succeed())
+				g.Expect(taskManagerReplicas(g, workload)).Should(gomega.Equal(int64(deliveredReplicas)))
+
+				member, err := framework.GetClusterDynamicClient(targetClusterName).Resource(flinkDeploymentGVR).
+					Namespace(flinkDeploymentNamespace).Get(ctx, flinkDeploymentName, metav1.GetOptions{})
+				g.Expect(err).ShouldNot(gomega.HaveOccurred())
+				g.Expect(taskManagerReplicas(g, member)).Should(gomega.Equal(int64(deliveredReplicas)))
+				return deliveredRevision{workGeneration: work.Generation, memberGeneration: member.GetGeneration()}
+			}
+			assertNotMigrated := func(g gomega.Gomega) {
+				_, err := karmadaClient.WorkV1alpha1().Works(names.GenerateExecutionSpaceName(alternateClusterName)).
+					Get(ctx, workName, metav1.GetOptions{})
+				g.Expect(apierrors.IsNotFound(err)).Should(gomega.BeTrue(), "Work should not be created in alternate cluster %s: %v", alternateClusterName, err)
+
+				alternateDynamicClient := framework.GetClusterDynamicClient(alternateClusterName)
+				g.Expect(alternateDynamicClient).ShouldNot(gomega.BeNil())
+				_, err = alternateDynamicClient.Resource(flinkDeploymentGVR).
+					Namespace(flinkDeploymentNamespace).Get(ctx, flinkDeploymentName, metav1.GetOptions{})
+				g.Expect(apierrors.IsNotFound(err)).Should(gomega.BeTrue(), "FlinkDeployment should not migrate to alternate cluster %s: %v", alternateClusterName, err)
+			}
+			waitForScaleState := func(desiredReplicas, acceptedReplicas, deliveredReplicas int32, scheduled metav1.ConditionStatus) deliveredRevision {
+				var revision deliveredRevision
+				gomega.Eventually(func(g gomega.Gomega) {
+					revision = assertScaleState(g, desiredReplicas, acceptedReplicas, deliveredReplicas, scheduled)
+				}, framework.PollTimeout, framework.PollInterval).Should(gomega.Succeed())
+				return revision
+			}
+
+			ginkgo.By("verify the initial accepted snapshot and delivery", func() {
+				waitForScaleState(1, 1, 1, metav1.ConditionTrue)
+			})
+			ginkgo.By("scale taskmanager up using only incremental capacity", func() {
+				updateTaskManagerReplicas(2)
+				waitForScaleState(2, 2, 2, metav1.ConditionTrue)
+			})
+			ginkgo.By("scale taskmanager down without capacity estimation", func() {
+				updateTaskManagerReplicas(1)
+				waitForScaleState(1, 1, 1, metav1.ConditionTrue)
+			})
+			ginkgo.By("make a non-target cluster able to fit the complete scaled workload", func() {
+				for _, clusterName := range framework.ClusterNames() {
+					if clusterName != targetClusterName {
+						alternateClusterName = clusterName
+						break
+					}
+				}
+				gomega.Expect(alternateClusterName).ShouldNot(gomega.BeEmpty())
+				alternateClient := framework.GetClusterClient(alternateClusterName)
+				gomega.Expect(alternateClient).ShouldNot(gomega.BeNil())
+				alternateCPU := resource.MustParse("1")
+				gomega.Expect(retry.RetryOnConflict(retry.DefaultRetry, func() error {
+					quota, err := alternateClient.CoreV1().ResourceQuotas(flinkDeploymentNamespace).Get(ctx, quotaName, metav1.GetOptions{})
+					if err != nil {
+						return err
+					}
+					quota.Spec.Hard[corev1.ResourceCPU] = alternateCPU
+					_, err = alternateClient.CoreV1().ResourceQuotas(flinkDeploymentNamespace).Update(ctx, quota, metav1.UpdateOptions{})
+					return err
+				})).Should(gomega.Succeed())
+
+				requiredCPU := resource.MustParse("450m") // jobmanager 50m + 4 taskmanagers * 100m
+				gomega.Eventually(func(g gomega.Gomega) {
+					quota, err := alternateClient.CoreV1().ResourceQuotas(flinkDeploymentNamespace).Get(ctx, quotaName, metav1.GetOptions{})
+					g.Expect(err).ShouldNot(gomega.HaveOccurred())
+					hardCPU, found := quota.Status.Hard[corev1.ResourceCPU]
+					g.Expect(found).Should(gomega.BeTrue())
+					usedCPU := quota.Status.Used[corev1.ResourceCPU]
+					availableCPU := hardCPU.DeepCopy()
+					availableCPU.Sub(usedCPU)
+					g.Expect(availableCPU.Cmp(requiredCPU)).Should(gomega.BeNumerically(">=", 0))
+				}, framework.PollTimeout, framework.PollInterval).Should(gomega.Succeed())
+				assertNotMigrated(gomega.Default)
+			})
+			ginkgo.By("preserve accepted state instead of migrating when the target cannot fit", func() {
+				acceptedRevision := waitForScaleState(1, 1, 1, metav1.ConditionTrue)
+				updateTaskManagerReplicas(4)
+				waitForScaleState(4, 1, 1, metav1.ConditionFalse)
+				gomega.Consistently(func(g gomega.Gomega) {
+					current := assertScaleState(g, 4, 1, 1, metav1.ConditionFalse)
+					g.Expect(current).Should(gomega.Equal(acceptedRevision))
+					assertNotMigrated(g)
+				}, 3*framework.PollInterval, framework.PollInterval).Should(gomega.Succeed())
 			})
 		})
 	})
