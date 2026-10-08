@@ -96,7 +96,7 @@ func (o *Options) runExecute() error {
 		Replica:  int64(o.DesiredReplica),
 	}
 
-	configurableInterpreter := declarative.NewConfigurableInterpreter(nil)
+	configurableInterpreter := declarative.NewConfigurableInterpreter(nil, 10)
 	configurableInterpreter.LoadConfig(customizations)
 
 	r := o.Rules.GetByOperation(o.Operation)
