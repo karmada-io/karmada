@@ -7,7 +7,7 @@
 [![Releases](https://img.shields.io/github/v/release/karmada-io/karmada)](https://github.com/karmada-io/karmada/releases/latest)
 [![Slack](https://img.shields.io/badge/slack-join-brightgreen)](https://slack.cncf.io)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/5301/badge)](https://bestpractices.coreinfrastructure.org/projects/5301)
-[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/karmada-io/karmada/badge)](https://securityscorecards.dev/viewer/?uri=github.com/karmada-io/karmada)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/karmada-io/karmada/badge)](https://scorecard.dev/viewer/?uri=github.com/karmada-io/karmada)
 ![build](https://github.com/karmada-io/karmada/actions/workflows/ci.yml/badge.svg)
 [![codecov](https://codecov.io/gh/karmada-io/karmada/branch/master/graph/badge.svg?token=ROM8CMPXZ6)](https://codecov.io/gh/karmada-io/karmada)
 [![FOSSA Status](https://app.fossa.com/api/projects/custom%2B28176%2Fgithub.com%2Fkarmada-io%2Fkarmada.svg?type=shield)](https://app.fossa.com/projects/custom%2B28176%2Fgithub.com%2Fkarmada-io%2Fkarmada?ref=badge_shield)
