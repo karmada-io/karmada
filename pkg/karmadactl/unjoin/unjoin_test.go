@@ -112,6 +112,26 @@ func TestRunUnJoinCluster(t *testing.T) {
 		errMsg                                string
 	}{
 		{
+			name:                   "RunUnJoinCluster_ClusterObjectNotFound_AlreadyUnjoined",
+			unjoinOpts:             &CommandUnjoinOption{ClusterName: "member1"},
+			controlPlaneRestConfig: &rest.Config{},
+			controlKubeClient:      fakeclientset.NewClientset(),
+			karmadaClient:          fakekarmadaclient.NewClientset(),
+			prep: func(controlKubeClient kubeclient.Interface, _ kubeclient.Interface, karmadaClient karmadaclientset.Interface, _ *CommandUnjoinOption) error {
+				controlPlaneKarmadaClientBuilder = func(*rest.Config) karmadaclientset.Interface {
+					return karmadaClient
+				}
+				controlPlaneKubeClientBuilder = func(*rest.Config) kubeclient.Interface {
+					return controlKubeClient
+				}
+				return nil
+			},
+			verify: func(kubeclient.Interface, kubeclient.Interface, karmadaclientset.Interface, *CommandUnjoinOption) error {
+				return nil
+			},
+			wantErr: false,
+		},
+		{
 			name:                   "RunUnJoinCluster_DeleteClusterObject_PullModeMemberCluster",
 			unjoinOpts:             &CommandUnjoinOption{ClusterName: "member1"},
 			controlPlaneRestConfig: &rest.Config{},

@@ -152,7 +152,10 @@ func CreateClusterObject(controlPlaneClient karmadaclientset.Interface, clusterO
 	}
 
 	if exist {
-		return cluster, fmt.Errorf("cluster(%s) already exist", clusterObj.Name)
+		if clusterObj.Spec.ID != "" && cluster.Spec.ID == clusterObj.Spec.ID {
+			return cluster, nil
+		}
+		return cluster, fmt.Errorf("cluster(%s) already exists with a different ID", clusterObj.Name)
 	}
 
 	if cluster, err = createCluster(controlPlaneClient, clusterObj); err != nil {
@@ -174,7 +177,7 @@ func CreateOrUpdateClusterObject(controlPlaneClient karmadaclientset.Interface, 
 		clusterCopy := cluster.DeepCopy()
 		mutate(cluster)
 		if reflect.DeepEqual(clusterCopy.Spec, cluster.Spec) {
-			klog.Warningf("Cluster(%s) already exist and newest", clusterObj.Name)
+			klog.Warningf("Cluster(%s) already exists and is up to date", clusterObj.Name)
 			return cluster, nil
 		}
 
@@ -212,6 +215,16 @@ func GetClusterWithKarmadaClient(client karmadaclientset.Interface, name string)
 func createCluster(controlPlaneClient karmadaclientset.Interface, cluster *clusterv1alpha1.Cluster) (*clusterv1alpha1.Cluster, error) {
 	newCluster, err := controlPlaneClient.ClusterV1alpha1().Clusters().Create(context.TODO(), cluster, metav1.CreateOptions{})
 	if err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			existingCluster, getErr := controlPlaneClient.ClusterV1alpha1().Clusters().Get(context.TODO(), cluster.Name, metav1.GetOptions{})
+			if getErr != nil {
+				return nil, getErr
+			}
+			if cluster.Spec.ID != "" && existingCluster.Spec.ID == cluster.Spec.ID {
+				return existingCluster, nil
+			}
+			return nil, fmt.Errorf("cluster(%s) already exists with a different ID", cluster.Name)
+		}
 		klog.Warningf("Failed to create cluster(%s). error: %v", cluster.Name, err)
 		return nil, err
 	}

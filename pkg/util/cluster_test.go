@@ -53,6 +53,11 @@ func withSyncMode(cluster *clusterv1alpha1.Cluster, syncMode clusterv1alpha1.Clu
 	return cluster
 }
 
+func withClusterID(cluster *clusterv1alpha1.Cluster, id string) *clusterv1alpha1.Cluster {
+	cluster.Spec.ID = id
+	return cluster
+}
+
 func TestCreateOrUpdateClusterObject(t *testing.T) {
 	type args struct {
 		controlPlaneClient karmadaclientset.Interface
@@ -404,12 +409,21 @@ func TestCreateClusterObject(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "cluster exits, and return error",
+			name: "cluster exists with same id, and return existing cluster",
 			args: args{
-				controlPlaneClient: karmadaclientsetfake.NewClientset(newCluster("test")),
-				clusterObj:         newCluster("test"),
+				controlPlaneClient: karmadaclientsetfake.NewClientset(withClusterID(newCluster("test"), "test-id")),
+				clusterObj:         withClusterID(newCluster("test"), "test-id"),
 			},
-			want:    newCluster("test"),
+			want:    withClusterID(newCluster("test"), "test-id"),
+			wantErr: false,
+		},
+		{
+			name: "cluster exists with different id, and return error",
+			args: args{
+				controlPlaneClient: karmadaclientsetfake.NewClientset(withClusterID(newCluster("test"), "existing-id")),
+				clusterObj:         withClusterID(newCluster("test"), "new-id"),
+			},
+			want:    withClusterID(newCluster("test"), "existing-id"),
 			wantErr: true,
 		},
 		{
