@@ -174,3 +174,150 @@ func TestDedupeAndSortServiceLoadBalancerIngress(t *testing.T) {
 		})
 	}
 }
+
+func TestSortServicePortStatus(t *testing.T) {
+	tests := []struct {
+		name  string
+		ports []corev1.PortStatus
+		want  []corev1.PortStatus
+	}{
+		{
+			name: "sort by port number",
+			ports: []corev1.PortStatus{
+				{Port: 82, Protocol: "TCP"},
+				{Port: 80, Protocol: "TCP"},
+				{Port: 81, Protocol: "TCP"},
+			},
+			want: []corev1.PortStatus{
+				{Port: 80, Protocol: "TCP"},
+				{Port: 81, Protocol: "TCP"},
+				{Port: 82, Protocol: "TCP"},
+			},
+		},
+		{
+			name: "same port, sort by protocol",
+			ports: []corev1.PortStatus{
+				{Port: 80, Protocol: "UDP"},
+				{Port: 80, Protocol: "SCTP"},
+				{Port: 80, Protocol: "TCP"},
+			},
+			want: []corev1.PortStatus{
+				{Port: 80, Protocol: "SCTP"},
+				{Port: 80, Protocol: "TCP"},
+				{Port: 80, Protocol: "UDP"},
+			},
+		},
+		{
+			name: "same port and protocol, nil error sorts first",
+			ports: []corev1.PortStatus{
+				{Port: 80, Protocol: "TCP", Error: new("some-error")},
+				{Port: 80, Protocol: "TCP"},
+			},
+			want: []corev1.PortStatus{
+				{Port: 80, Protocol: "TCP"},
+				{Port: 80, Protocol: "TCP", Error: new("some-error")},
+			},
+		},
+		{
+			name: "same port and protocol, sort by error string",
+			ports: []corev1.PortStatus{
+				{Port: 80, Protocol: "TCP", Error: new("error-2")},
+				{Port: 80, Protocol: "TCP", Error: new("error-1")},
+			},
+			want: []corev1.PortStatus{
+				{Port: 80, Protocol: "TCP", Error: new("error-1")},
+				{Port: 80, Protocol: "TCP", Error: new("error-2")},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for range 1000 { // eliminate randomness in sorting
+				sortServicePortStatus(tt.ports)
+				pass := assert.Equalf(t, tt.want, tt.ports, "sortServicePortStatus(%v)", tt.ports)
+				if !pass {
+					break
+				}
+			}
+		})
+	}
+}
+
+func TestSortServiceLoadBalancerIngress(t *testing.T) {
+	tests := []struct {
+		name      string
+		ingresses []corev1.LoadBalancerIngress
+		want      []corev1.LoadBalancerIngress
+	}{
+		{
+			name: "non-empty hostname sorts before empty hostname",
+			ingresses: []corev1.LoadBalancerIngress{
+				{IP: "1.1.1.1"},
+				{Hostname: "hostname-1"},
+			},
+			want: []corev1.LoadBalancerIngress{
+				{Hostname: "hostname-1"},
+				{IP: "1.1.1.1"},
+			},
+		},
+		{
+			name: "sort hostnames alphabetically",
+			ingresses: []corev1.LoadBalancerIngress{
+				{Hostname: "hostname-c"},
+				{Hostname: "hostname-a"},
+				{Hostname: "hostname-b"},
+			},
+			want: []corev1.LoadBalancerIngress{
+				{Hostname: "hostname-a"},
+				{Hostname: "hostname-b"},
+				{Hostname: "hostname-c"},
+			},
+		},
+		{
+			name: "same hostname, sort by IP",
+			ingresses: []corev1.LoadBalancerIngress{
+				{Hostname: "hostname-1", IP: "3.3.3.3"},
+				{Hostname: "hostname-1", IP: "1.1.1.1"},
+				{Hostname: "hostname-1", IP: "2.2.2.2"},
+			},
+			want: []corev1.LoadBalancerIngress{
+				{Hostname: "hostname-1", IP: "1.1.1.1"},
+				{Hostname: "hostname-1", IP: "2.2.2.2"},
+				{Hostname: "hostname-1", IP: "3.3.3.3"},
+			},
+		},
+		{
+			name: "same hostname and IP, non-nil IPMode sorts before nil",
+			ingresses: []corev1.LoadBalancerIngress{
+				{Hostname: "hostname-1", IP: "1.1.1.1"},
+				{Hostname: "hostname-1", IP: "1.1.1.1", IPMode: ptr.To(corev1.LoadBalancerIPModeVIP)},
+			},
+			want: []corev1.LoadBalancerIngress{
+				{Hostname: "hostname-1", IP: "1.1.1.1", IPMode: ptr.To(corev1.LoadBalancerIPModeVIP)},
+				{Hostname: "hostname-1", IP: "1.1.1.1"},
+			},
+		},
+		{
+			name: "same hostname and IP, sort by IPMode value",
+			ingresses: []corev1.LoadBalancerIngress{
+				{Hostname: "hostname-1", IP: "1.1.1.1", IPMode: ptr.To(corev1.LoadBalancerIPModeVIP)},
+				{Hostname: "hostname-1", IP: "1.1.1.1", IPMode: ptr.To(corev1.LoadBalancerIPModeProxy)},
+			},
+			want: []corev1.LoadBalancerIngress{
+				{Hostname: "hostname-1", IP: "1.1.1.1", IPMode: ptr.To(corev1.LoadBalancerIPModeProxy)},
+				{Hostname: "hostname-1", IP: "1.1.1.1", IPMode: ptr.To(corev1.LoadBalancerIPModeVIP)},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for range 1000 { // eliminate randomness in sorting
+				sortServiceLoadBalancerIngress(tt.ingresses)
+				pass := assert.Equalf(t, tt.want, tt.ingresses, "sortServiceLoadBalancerIngress(%v)", tt.ingresses)
+				if !pass {
+					break
+				}
+			}
+		})
+	}
+}
