@@ -21,11 +21,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strings"
+	"sync"
 	"time"
 
 	lua "github.com/yuin/gopher-lua"
+	"github.com/yuin/gopher-lua/parse"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog/v2"
 	luajson "layeh.com/gopher-json"
 
@@ -35,11 +39,24 @@ import (
 	lualifted "github.com/karmada-io/karmada/pkg/util/lifted/lua"
 )
 
+// ScriptCacheKey identifies a Lua interpreter script slot for cache lookups.
+type ScriptCacheKey struct {
+	GVK             schema.GroupVersionKind
+	Operation       configv1alpha1.InterpreterOperation
+	DependencyIndex int
+}
+
+type scriptCacheEntry struct {
+	script string
+	proto  *lua.FunctionProto
+}
+
 // VM Defines a struct that implements the luaVM.
 type VM struct {
 	// UseOpenLibs flag to enable open libraries. Libraries are disabled by default while running, but enabled during testing to allow the use of print statements.
 	UseOpenLibs bool
 	Pool        *fixedpool.FixedPool
+	funcCache   sync.Map // map[ScriptCacheKey]*scriptCacheEntry
 }
 
 // New creates a manager for lua VM
@@ -53,6 +70,30 @@ func New(useOpenLibs bool, poolSize int) *VM {
 		func(a any) { a.(*lua.LState).Close() },
 		poolSize)
 	return vm
+}
+
+// loadOrCompileScript returns a cached FunctionProto for the given key and script,
+// compiling it on first use or when the script content changes.
+func (vm *VM) loadOrCompileScript(key ScriptCacheKey, script string) (*lua.FunctionProto, error) {
+	if value, ok := vm.funcCache.Load(key); ok {
+		entry := value.(*scriptCacheEntry)
+		if entry.script == script {
+			return entry.proto, nil
+		}
+	}
+
+	chunk, err := parse.Parse(strings.NewReader(script), "<string>")
+	if err != nil {
+		return nil, err
+	}
+
+	proto, err := lua.Compile(chunk, "<string>")
+	if err != nil {
+		return nil, err
+	}
+
+	vm.funcCache.Store(key, &scriptCacheEntry{script: script, proto: proto})
+	return proto, nil
 }
 
 // NewLuaState creates a new lua state.
@@ -71,7 +112,7 @@ func (vm *VM) NewLuaState() (*lua.LState, error) {
 }
 
 // RunScript got a lua vm from pool, and execute script with given arguments.
-func (vm *VM) RunScript(script string, fnName string, nRets int, args ...any) ([]lua.LValue, error) {
+func (vm *VM) RunScript(key ScriptCacheKey, script string, fnName string, nRets int, args ...any) ([]lua.LValue, error) {
 	a, err := vm.Pool.Get()
 	if err != nil {
 		return nil, err
@@ -85,8 +126,14 @@ func (vm *VM) RunScript(script string, fnName string, nRets int, args ...any) ([
 	defer cancel()
 	l.SetContext(ctx)
 
-	err = l.DoString(script)
+	proto, err := vm.loadOrCompileScript(key, script)
 	if err != nil {
+		return nil, err
+	}
+
+	chunkFn := l.NewFunctionFromProto(proto)
+	l.Push(chunkFn)
+	if err := l.PCall(0, lua.MultRet, nil); err != nil {
 		return nil, err
 	}
 
@@ -127,7 +174,8 @@ func (vm *VM) RunScript(script string, fnName string, nRets int, args ...any) ([
 
 // GetReplicas returns the desired replicas of the object as well as the requirements of each replica by lua script.
 func (vm *VM) GetReplicas(obj *unstructured.Unstructured, script string) (replica int32, requires *workv1alpha2.ReplicaRequirements, err error) {
-	results, err := vm.RunScript(script, "GetReplicas", 2, obj)
+	key := ScriptCacheKey{GVK: obj.GroupVersionKind(), Operation: configv1alpha1.InterpreterOperationInterpretReplica}
+	results, err := vm.RunScript(key, script, "GetReplicas", 2, obj)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -156,7 +204,8 @@ func (vm *VM) GetReplicas(obj *unstructured.Unstructured, script string) (replic
 
 // GetComponents returns the desired components of the object by executing a Lua script.
 func (vm *VM) GetComponents(obj *unstructured.Unstructured, script string) ([]workv1alpha2.Component, error) {
-	results, err := vm.RunScript(script, "GetComponents", 1, obj)
+	key := ScriptCacheKey{GVK: obj.GroupVersionKind(), Operation: configv1alpha1.InterpreterOperationInterpretComponent}
+	results, err := vm.RunScript(key, script, "GetComponents", 1, obj)
 	if err != nil {
 		return nil, fmt.Errorf("failed to run 'GetComponents' script: %w", err)
 	}
@@ -183,7 +232,8 @@ func (vm *VM) GetComponents(obj *unstructured.Unstructured, script string) ([]wo
 
 // ReviseReplica revises the replica of the given object by lua.
 func (vm *VM) ReviseReplica(object *unstructured.Unstructured, replica int64, script string) (*unstructured.Unstructured, error) {
-	results, err := vm.RunScript(script, "ReviseReplica", 1, object, replica)
+	key := ScriptCacheKey{GVK: object.GroupVersionKind(), Operation: configv1alpha1.InterpreterOperationReviseReplica}
+	results, err := vm.RunScript(key, script, "ReviseReplica", 1, object, replica)
 	if err != nil {
 		return nil, err
 	}
@@ -256,7 +306,8 @@ func (vm *VM) setLib(l *lua.LState) error {
 
 // Retain returns the objects that based on the "desired" object but with values retained from the "observed" object by lua.
 func (vm *VM) Retain(desired *unstructured.Unstructured, observed *unstructured.Unstructured, script string) (retained *unstructured.Unstructured, err error) {
-	results, err := vm.RunScript(script, "Retain", 1, desired, observed)
+	key := ScriptCacheKey{GVK: desired.GroupVersionKind(), Operation: configv1alpha1.InterpreterOperationRetain}
+	results, err := vm.RunScript(key, script, "Retain", 1, desired, observed)
 	if err != nil {
 		return nil, err
 	}
@@ -275,7 +326,8 @@ func (vm *VM) Retain(desired *unstructured.Unstructured, observed *unstructured.
 
 // AggregateStatus returns the objects that based on the 'object' but with status aggregated by lua.
 func (vm *VM) AggregateStatus(object *unstructured.Unstructured, items []workv1alpha2.AggregatedStatusItem, script string) (*unstructured.Unstructured, error) {
-	results, err := vm.RunScript(script, "AggregateStatus", 1, object, items)
+	key := ScriptCacheKey{GVK: object.GroupVersionKind(), Operation: configv1alpha1.InterpreterOperationAggregateStatus}
+	results, err := vm.RunScript(key, script, "AggregateStatus", 1, object, items)
 	if err != nil {
 		return nil, err
 	}
@@ -294,7 +346,8 @@ func (vm *VM) AggregateStatus(object *unstructured.Unstructured, items []workv1a
 
 // InterpretHealth returns the health state of the object by lua.
 func (vm *VM) InterpretHealth(object *unstructured.Unstructured, script string) (bool, error) {
-	results, err := vm.RunScript(script, "InterpretHealth", 1, object)
+	key := ScriptCacheKey{GVK: object.GroupVersionKind(), Operation: configv1alpha1.InterpreterOperationInterpretHealth}
+	results, err := vm.RunScript(key, script, "InterpretHealth", 1, object)
 	if err != nil {
 		return false, err
 	}
@@ -309,7 +362,8 @@ func (vm *VM) InterpretHealth(object *unstructured.Unstructured, script string) 
 
 // ReflectStatus returns the status of the object by lua.
 func (vm *VM) ReflectStatus(object *unstructured.Unstructured, script string) (status *runtime.RawExtension, err error) {
-	results, err := vm.RunScript(script, "ReflectStatus", 1, object)
+	key := ScriptCacheKey{GVK: object.GroupVersionKind(), Operation: configv1alpha1.InterpreterOperationInterpretStatus}
+	results, err := vm.RunScript(key, script, "ReflectStatus", 1, object)
 	if err != nil {
 		return nil, err
 	}
@@ -325,8 +379,13 @@ func (vm *VM) ReflectStatus(object *unstructured.Unstructured, script string) (s
 }
 
 // GetDependencies returns the dependent resources of the given object by lua.
-func (vm *VM) GetDependencies(object *unstructured.Unstructured, script string) (dependencies []configv1alpha1.DependentObjectReference, err error) {
-	results, err := vm.RunScript(script, "GetDependencies", 1, object)
+func (vm *VM) GetDependencies(object *unstructured.Unstructured, script string, dependencyIndex int) (dependencies []configv1alpha1.DependentObjectReference, err error) {
+	key := ScriptCacheKey{
+		GVK:             object.GroupVersionKind(),
+		Operation:       configv1alpha1.InterpreterOperationInterpretDependency,
+		DependencyIndex: dependencyIndex,
+	}
+	results, err := vm.RunScript(key, script, "GetDependencies", 1, object)
 	if err != nil {
 		return nil, err
 	}

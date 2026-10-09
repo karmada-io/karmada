@@ -187,6 +187,131 @@ end`,
 	}
 }
 
+func TestLoadOrCompileScriptCaching(t *testing.T) {
+	vm := New(false, 1)
+	script := `function TestFunc(obj) return 42 end`
+	key := ScriptCacheKey{
+		GVK:       schema.GroupVersionKind{Group: "test", Version: "v1", Kind: "Test"},
+		Operation: configv1alpha1.InterpreterOperationInterpretHealth,
+	}
+
+	proto1, err := vm.loadOrCompileScript(key, script)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	proto2, err := vm.loadOrCompileScript(key, script)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if proto1 != proto2 {
+		t.Fatalf("expected cached proto pointer to be reused")
+	}
+
+	count := 0
+	vm.funcCache.Range(func(_, _ any) bool {
+		count++
+		return true
+	})
+	if count != 1 {
+		t.Fatalf("expected 1 entry in funcCache, got %d", count)
+	}
+}
+
+func TestLoadOrCompileScriptRecompileOnChange(t *testing.T) {
+	vm := New(false, 1)
+	key := ScriptCacheKey{
+		GVK:       schema.GroupVersionKind{Group: "test", Version: "v1", Kind: "Test"},
+		Operation: configv1alpha1.InterpreterOperationInterpretHealth,
+	}
+	scriptV1 := `function TestFunc(obj) return 42 end`
+	scriptV2 := `function TestFunc(obj) return 43 end`
+
+	proto1, err := vm.loadOrCompileScript(key, scriptV1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	proto2, err := vm.loadOrCompileScript(key, scriptV2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if proto1 == proto2 {
+		t.Fatalf("expected a new proto after script change")
+	}
+
+	entry, ok := vm.funcCache.Load(key)
+	if !ok {
+		t.Fatal("expected cache entry to exist")
+	}
+	cached := entry.(*scriptCacheEntry)
+	if cached.script != scriptV2 {
+		t.Fatalf("expected cached script to be updated, got %q", cached.script)
+	}
+	if cached.proto != proto2 {
+		t.Fatalf("expected cached proto to match latest compile")
+	}
+
+	count := 0
+	vm.funcCache.Range(func(_, _ any) bool {
+		count++
+		return true
+	})
+	if count != 1 {
+		t.Fatalf("expected 1 entry in funcCache after script update, got %d", count)
+	}
+}
+
+func TestRunScriptCaching(t *testing.T) {
+	vm := New(false, 1)
+	script := `function TestFunc() return 42 end`
+	key := ScriptCacheKey{
+		GVK:       schema.GroupVersionKind{Group: "test", Version: "v1", Kind: "Test"},
+		Operation: configv1alpha1.InterpreterOperationInterpretHealth,
+	}
+
+	results1, err := vm.RunScript(key, script, "TestFunc", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results1) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results1))
+	}
+	value1, ok := results1[0].(lua.LNumber)
+	if !ok {
+		t.Fatalf("expected lua.LNumber, got %T", results1[0])
+	}
+	if value1 != 42 {
+		t.Fatalf("expected 42, got %v", value1)
+	}
+
+	results2, err := vm.RunScript(key, script, "TestFunc", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results2) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results2))
+	}
+	value2, ok := results2[0].(lua.LNumber)
+	if !ok {
+		t.Fatalf("expected lua.LNumber, got %T", results2[0])
+	}
+	if value2 != 42 {
+		t.Fatalf("expected 42, got %v", value2)
+	}
+
+	count := 0
+	vm.funcCache.Range(func(_, _ any) bool {
+		count++
+		return true
+	})
+	if count != 1 {
+		t.Fatalf("expected 1 entry in funcCache after repeated RunScript calls, got %d", count)
+	}
+}
+
 // MockMultiPodTemplateWorkload simulates a CRD with multiple pod templates,
 // mirroring the structure of a real-world Kubernetes object.
 type MockMultiPodTemplateWorkload struct {
@@ -829,7 +954,7 @@ func TestGetDeployPodDependencies(t *testing.T) {
 	vm := New(false, 1)
 
 	for _, tt := range tests {
-		res, err := vm.GetDependencies(tt.curObj, tt.luaScript)
+		res, err := vm.GetDependencies(tt.curObj, tt.luaScript, 0)
 		if err != nil {
 			t.Errorf("GetDependencies err %v", err)
 		}
