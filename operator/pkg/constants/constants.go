@@ -126,6 +126,9 @@ const (
 	AppNameLabel = "app.kubernetes.io/name"
 	// AppInstanceLabel defines the recommended label for identifying an application instance.
 	AppInstanceLabel = "app.kubernetes.io/instance"
+
+	// KarmadaConfigKey is the key name to store karmadaconfig in secret
+	KarmadaConfigKey = "karmada.config"
 )
 
 var (
