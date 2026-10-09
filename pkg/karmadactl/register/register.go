@@ -36,6 +36,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	k8srand "k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/wait"
 	kubeclient "k8s.io/client-go/kubernetes"
@@ -49,6 +50,7 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/karmada-io/karmada/pkg/apis/cluster/validation"
+	"github.com/karmada-io/karmada/pkg/features"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
@@ -198,7 +200,7 @@ func NewCmdRegister(parentCommand string) *cobra.Command {
 	flags.Int32Var(&opts.CertExpirationSeconds, "cert-expiration-seconds", DefaultCertExpirationSeconds, "The expiration time of certificate.")
 	flags.BoolVar(&opts.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
 	flags.StringVar(&opts.ProxyServerAddress, "proxy-server-address", "", "Address of the proxy server that is used to proxy to the cluster.")
-
+	flags.StringVar(&opts.FeatureGates, "feature-gates", "", "Comma-separated list of key=value pairs that describe feature gates for alpha/experimental features of karmada-agent. More info: https://github.com/karmada-io/karmada/blob/master/pkg/features/features.go")
 	return cmd
 }
 
@@ -256,6 +258,9 @@ type CommandRegisterOption struct {
 	memberClusterEndpoint string
 	memberClusterClient   *kubeclient.Clientset
 
+	// FeatureGates for alpha/experimental features of karmada-agent.
+	FeatureGates string
+
 	// rbacResources contains RBAC resources that grant the necessary permissions for pull mode cluster to access to Karmada control plane.
 	rbacResources *RBACResources
 }
@@ -310,6 +315,15 @@ func (o *CommandRegisterOption) Validate() error {
 
 	if !o.BootstrapToken.UnsafeSkipCAVerification && len(o.BootstrapToken.CACertHashes) == 0 {
 		return fmt.Errorf("need to verify CACertHashes, or set --discovery-token-unsafe-skip-ca-verification=true")
+	}
+
+	if len(o.FeatureGates) != 0 {
+		if err := features.FeatureGate.Set(o.FeatureGates); err != nil {
+			return fmt.Errorf("parse flag --feature-gates failed, %s", err.Error())
+		}
+		if errs := features.FeatureGate.Validate(); len(errs) != 0 {
+			return fmt.Errorf("invalid feature gates(%s): %s", o.FeatureGates, utilerrors.NewAggregate(errs).Error())
+		}
 	}
 
 	return nil
@@ -1039,6 +1053,7 @@ func (o *CommandRegisterOption) makeKarmadaAgentDeployment() *appsv1.Deployment 
 					fmt.Sprintf("--proxy-server-address=%s", o.ProxyServerAddress),
 					fmt.Sprintf("--leader-elect-resource-namespace=%s", o.Namespace),
 					fmt.Sprintf("--cluster-namespace=%s", o.ClusterNamespace),
+					fmt.Sprintf("--feature-gates=%s", o.FeatureGates),
 					"--cluster-status-update-frequency=10s",
 					"--metrics-bind-address=:8080",
 					"--health-probe-bind-address=0.0.0.0:10357",
