@@ -30,8 +30,11 @@ import (
 
 const defaultHTTPGetAttempts int = 3
 
+// defaultNewFunc builds the object that a document is decoded into when the caller
+// does not supply one through Constructor. It must return a pointer, since the
+// decoding in mapper.infoForData goes through json.Unmarshal.
 var defaultNewFunc = func() any {
-	return map[string]any{}
+	return &map[string]any{}
 }
 
 var errMissingResource = fmt.Errorf(`you must provide one or more resources`)
