@@ -636,6 +636,7 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 				bindingCopy.Spec.ReplicaRequirements = binding.Spec.ReplicaRequirements
 				bindingCopy.Spec.Replicas = binding.Spec.Replicas
 				bindingCopy.Spec.Components = binding.Spec.Components
+				bindingCopy.Spec.PropagateDeps = binding.Spec.PropagateDeps
 				bindingCopy.Spec.SchedulerName = binding.Spec.SchedulerName
 				bindingCopy.Spec.Placement = binding.Spec.Placement
 				bindingCopy.Spec.Failover = binding.Spec.Failover
