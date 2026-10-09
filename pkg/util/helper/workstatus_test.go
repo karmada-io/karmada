@@ -18,6 +18,7 @@ package helper
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -25,10 +26,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -247,6 +250,157 @@ func TestAggregateResourceBindingWorkStatus(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+type conflictFakeClient struct {
+	client.Client
+	conflictReturned bool
+	onUpdateHook     func()
+}
+
+func (c *conflictFakeClient) Status() client.SubResourceWriter {
+	return &conflictFakeStatusWriter{
+		SubResourceWriter: c.Client.Status(),
+		client:            c,
+	}
+}
+
+type conflictFakeStatusWriter struct {
+	client.SubResourceWriter
+	client *conflictFakeClient
+}
+
+func (w *conflictFakeStatusWriter) Update(ctx context.Context, obj client.Object, opts ...client.SubResourceUpdateOption) error {
+	if !w.client.conflictReturned {
+		w.client.conflictReturned = true
+		if w.client.onUpdateHook != nil {
+			w.client.onUpdateHook()
+		}
+		return apierrors.NewConflict(schema.GroupResource{Group: "work.karmada.io", Resource: "resourcebindings"}, obj.GetName(), fmt.Errorf("conflict"))
+	}
+	return w.SubResourceWriter.Update(ctx, obj, opts...)
+}
+
+func (w *conflictFakeStatusWriter) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.SubResourcePatchOption) error {
+	return w.SubResourceWriter.Patch(ctx, obj, patch, opts...)
+}
+
+func TestAggregateResourceBindingWorkStatusRetryOnConflict(t *testing.T) {
+	scheme := setupScheme()
+
+	bindingID := "test-conflict-id"
+	// Initial binding targeting member1
+	binding := &workv1alpha2.ResourceBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "default",
+			Name:      "binding-conflict",
+			Labels: map[string]string{
+				workv1alpha2.ResourceBindingPermanentIDLabel: bindingID,
+			},
+		},
+		Spec: workv1alpha2.ResourceBindingSpec{
+			Resource: workv1alpha2.ObjectReference{
+				APIVersion: "apps/v1",
+				Kind:       "Deployment",
+				Name:       "test-deployment",
+				Namespace:  "default",
+			},
+			Clusters: []workv1alpha2.TargetCluster{
+				{Name: "member1"},
+			},
+		},
+	}
+
+	// Work for member1 applied successfully
+	work1 := &workv1alpha1.Work{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "karmada-es-member1",
+			Name:      "work-1",
+			Labels: map[string]string{
+				workv1alpha2.ResourceBindingPermanentIDLabel: bindingID,
+			},
+		},
+		Spec: workv1alpha1.WorkSpec{
+			Workload: workv1alpha1.WorkloadTemplate{
+				Manifests: []workv1alpha1.Manifest{
+					{
+						RawExtension: runtime.RawExtension{
+							Raw: []byte(`{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"name":"test-deployment","namespace":"default"}}`),
+						},
+					},
+				},
+			},
+		},
+		Status: workv1alpha1.WorkStatus{
+			Conditions: []metav1.Condition{
+				{
+					Type:   workv1alpha1.WorkApplied,
+					Status: metav1.ConditionTrue,
+				},
+			},
+			ManifestStatuses: []workv1alpha1.ManifestStatus{
+				{
+					Identifier: workv1alpha1.ResourceIdentifier{
+						Group:     "apps",
+						Version:   "v1",
+						Kind:      "Deployment",
+						Name:      "test-deployment",
+						Namespace: "default",
+					},
+					Status: &runtime.RawExtension{Raw: []byte(`{"replicas": 3}`)},
+					Health: "Healthy",
+				},
+			},
+		},
+	}
+
+	innerClient := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithIndex(
+			&workv1alpha1.Work{},
+			indexregistry.WorkIndexByLabelResourceBindingID,
+			indexregistry.GenLabelIndexerFunc(workv1alpha2.ResourceBindingPermanentIDLabel),
+		).
+		WithObjects(binding, work1).
+		WithStatusSubresource(binding).
+		Build()
+
+	conflictClient := &conflictFakeClient{
+		Client: innerClient,
+		onUpdateHook: func() {
+			// Concurrent schedule update: add member2 target cluster
+			updatedBinding := &workv1alpha2.ResourceBinding{}
+			err := innerClient.Get(context.TODO(), client.ObjectKey{Namespace: "default", Name: "binding-conflict"}, updatedBinding)
+			if err != nil {
+				t.Fatalf("failed to get binding: %v", err)
+			}
+			updatedBinding.Spec.Clusters = append(updatedBinding.Spec.Clusters, workv1alpha2.TargetCluster{Name: "member2"})
+			err = innerClient.Update(context.TODO(), updatedBinding)
+			if err != nil {
+				t.Fatalf("failed to update binding: %v", err)
+			}
+		},
+	}
+
+	recorder := record.NewFakeRecorder(10)
+
+	err := AggregateResourceBindingWorkStatus(context.TODO(), conflictClient, binding, recorder)
+	assert.NoError(t, err)
+
+	// Verify updated binding after retry
+	finalBinding := &workv1alpha2.ResourceBinding{}
+	err = innerClient.Get(context.TODO(), client.ObjectKey{Namespace: "default", Name: "binding-conflict"}, finalBinding)
+	assert.NoError(t, err)
+
+	// The binding now targets member1 and member2
+	assert.Len(t, finalBinding.Spec.Clusters, 2)
+
+	// Since work for member2 does not exist, FullyApplied condition must be False
+	fullyAppliedCond := meta.FindStatusCondition(finalBinding.Status.Conditions, workv1alpha2.FullyApplied)
+	if assert.NotNil(t, fullyAppliedCond) {
+		assert.Equal(t, metav1.ConditionFalse, fullyAppliedCond.Status)
+		assert.Equal(t, FullyAppliedFailedReason, fullyAppliedCond.Reason)
 	}
 }
 
