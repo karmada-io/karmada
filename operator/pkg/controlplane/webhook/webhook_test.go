@@ -20,6 +20,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	fakeclientset "k8s.io/client-go/kubernetes/fake"
 	coretesting "k8s.io/client-go/testing"
 
@@ -138,6 +139,80 @@ func TestInstallKarmadaWebhook(t *testing.T) {
 	// Verify deployment details
 	if err := verifyDeploymentDetails(deployment, replicas, imagePullPolicy, featureGates, extraArgs, name, namespace, image, imageTag, priorityClassName); err != nil {
 		t.Fatalf("failed to verify deployment details: %v", err)
+	}
+}
+
+func TestInstallKarmadaWebhookWithTopologySpreadConstraints(t *testing.T) {
+	var replicas int32 = 2
+	image, imageTag := "docker.io/karmada/karmada-webhook", "latest"
+	name := "karmada-demo"
+	namespace := "test"
+	imagePullPolicy := corev1.PullIfNotPresent
+	annotations := map[string]string{"annotationKey": "annotationValue"}
+	labels := map[string]string{"labelKey": "labelValue"}
+	extraArgs := map[string]string{"cmd1": "arg1", "cmd2": "arg2"}
+	priorityClassName := "system-cluster-critical"
+
+	topologySpreadConstraints := []corev1.TopologySpreadConstraint{
+		{
+			MaxSkew:           1,
+			TopologyKey:       "topology.kubernetes.io/zone",
+			WhenUnsatisfiable: corev1.DoNotSchedule,
+			LabelSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": "karmada-webhook",
+				},
+			},
+		},
+	}
+
+	cfg := &operatorv1alpha1.KarmadaWebhook{
+		CommonSettings: operatorv1alpha1.CommonSettings{
+			Image: operatorv1alpha1.Image{
+				ImageRepository: image,
+				ImageTag:        imageTag,
+			},
+			Replicas:                  ptr.To[int32](replicas),
+			Annotations:               annotations,
+			Labels:                    labels,
+			Resources:                 corev1.ResourceRequirements{},
+			ImagePullPolicy:           imagePullPolicy,
+			PriorityClassName:         priorityClassName,
+			TopologySpreadConstraints: topologySpreadConstraints,
+		},
+		ExtraArgs: extraArgs,
+	}
+
+	// Create fake clientset.
+	fakeClient := fakeclientset.NewClientset()
+
+	featureGates := map[string]bool{"FeatureA": true}
+
+	err := installKarmadaWebhook(fakeClient, cfg, name, namespace, featureGates)
+	if err != nil {
+		t.Fatalf("failed to install karmada webhook: %v", err)
+	}
+
+	deployment, err := verifyDeploymentCreation(fakeClient)
+	if err != nil {
+		t.Fatalf("failed to verify karmada webhook deployment creation: %v", err)
+	}
+
+	got := deployment.Spec.Template.Spec.TopologySpreadConstraints
+	if len(got) != 1 {
+		t.Fatalf("expected 1 topology spread constraint, but got %d", len(got))
+	}
+	if got[0].MaxSkew != 1 {
+		t.Errorf("expected maxSkew %d, but got %d", 1, got[0].MaxSkew)
+	}
+	if got[0].TopologyKey != "topology.kubernetes.io/zone" {
+		t.Errorf("expected topology key 'topology.kubernetes.io/zone', but got '%s'", got[0].TopologyKey)
+	}
+	if got[0].WhenUnsatisfiable != corev1.DoNotSchedule {
+		t.Errorf("expected whenUnsatisfiable %q, but got %q", corev1.DoNotSchedule, got[0].WhenUnsatisfiable)
+	}
+	if got[0].LabelSelector == nil || got[0].LabelSelector.MatchLabels["app"] != "karmada-webhook" {
+		t.Errorf("expected topology spread labelSelector to match karmada-webhook, but got %#v", got[0].LabelSelector)
 	}
 }
 
