@@ -41,6 +41,8 @@ installMode: "host"
 ## @param clusterDomain default domain for karmada
 clusterDomain: "cluster.local"
 
+## @param systemNamespace the namespace used for system resources
+## This can be different from the namespace where Karmada components are deployed
 systemNamespace: "karmada-system"
 
 ## @param components component list
