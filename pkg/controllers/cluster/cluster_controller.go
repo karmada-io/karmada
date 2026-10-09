@@ -25,6 +25,7 @@ import (
 
 	coordinationv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -200,10 +201,21 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 }
 
 func (c *Controller) syncCluster(ctx context.Context, cluster *clusterv1alpha1.Cluster) (controllerruntime.Result, error) {
+	// Persist the finalizer before creating any cleanup-required resources.
+	// This avoids orphaning execution space / RBAC if the Cluster is deleted
+	// during the initial bootstrap window.
+	if !controllerutil.ContainsFinalizer(cluster, util.ClusterControllerFinalizer) {
+		return c.ensureFinalizer(ctx, cluster)
+	}
+
 	// create execution space
 	err := c.createExecutionSpace(ctx, cluster)
 	if err != nil {
 		c.EventRecorder.Event(cluster, corev1.EventTypeWarning, events.EventReasonCreateExecutionSpaceFailed, err.Error())
+		return controllerruntime.Result{}, err
+	}
+
+	if err = c.syncAgentRBAC(ctx, cluster); err != nil {
 		return controllerruntime.Result{}, err
 	}
 
@@ -213,8 +225,7 @@ func (c *Controller) syncCluster(ctx context.Context, cluster *clusterv1alpha1.C
 		return controllerruntime.Result{}, err
 	}
 
-	// ensure finalizer
-	return c.ensureFinalizer(ctx, cluster)
+	return controllerruntime.Result{}, nil
 }
 
 func (c *Controller) removeCluster(ctx context.Context, cluster *clusterv1alpha1.Cluster) (controllerruntime.Result, error) {
@@ -244,6 +255,11 @@ func (c *Controller) removeCluster(ctx context.Context, cluster *clusterv1alpha1
 	} else if !done {
 		klog.InfoS("The cluster is still waiting to be removed from all bindings, will try again later", "cluster", cluster.Name)
 		return controllerruntime.Result{RequeueAfter: c.CleanupCheckInterval}, nil
+	}
+
+	if err := c.cleanupAgentRBAC(ctx, cluster); err != nil {
+		klog.ErrorS(err, "Failed to clean up control plane RBAC for pull mode cluster", "cluster", cluster.Name)
+		return controllerruntime.Result{}, err
 	}
 
 	return c.removeFinalizer(ctx, cluster)
@@ -410,6 +426,148 @@ func (c *Controller) createExecutionSpace(ctx context.Context, cluster *clusterv
 	}
 
 	return nil
+}
+
+func (c *Controller) syncAgentRBAC(ctx context.Context, cluster *clusterv1alpha1.Cluster) error {
+	if cluster.Spec.SyncMode != clusterv1alpha1.Pull {
+		return nil
+	}
+
+	clusterNamespace := util.GetClusterNamespace(cluster)
+	if err := c.ensureNamespaceWithSystemLabel(ctx, clusterNamespace); err != nil {
+		return err
+	}
+
+	resources := util.GenerateAgentRBACResources(cluster.Name, clusterNamespace)
+	for i := range resources.ClusterRoles {
+		if err := c.createOrUpdateClusterRole(ctx, resources.ClusterRoles[i]); err != nil {
+			return err
+		}
+	}
+	for i := range resources.ClusterRoleBindings {
+		if err := c.createOrUpdateClusterRoleBinding(ctx, resources.ClusterRoleBindings[i]); err != nil {
+			return err
+		}
+	}
+	for i := range resources.Roles {
+		if err := c.createOrUpdateRole(ctx, resources.Roles[i]); err != nil {
+			return err
+		}
+	}
+	for i := range resources.RoleBindings {
+		if err := c.createOrUpdateRoleBinding(ctx, resources.RoleBindings[i]); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *Controller) cleanupAgentRBAC(ctx context.Context, cluster *clusterv1alpha1.Cluster) error {
+	if cluster.Spec.SyncMode != clusterv1alpha1.Pull {
+		return nil
+	}
+
+	resources := util.GenerateAgentRBACResources(cluster.Name, util.GetClusterNamespace(cluster))
+	var errs []error
+
+	for i := range resources.ClusterRoleBindings {
+		errs = append(errs, client.IgnoreNotFound(c.Delete(ctx, &rbacv1.ClusterRoleBinding{
+			ObjectMeta: metav1.ObjectMeta{Name: resources.ClusterRoleBindings[i].Name},
+		})))
+	}
+	for i := range resources.ClusterRoles {
+		errs = append(errs, client.IgnoreNotFound(c.Delete(ctx, &rbacv1.ClusterRole{
+			ObjectMeta: metav1.ObjectMeta{Name: resources.ClusterRoles[i].Name},
+		})))
+	}
+	for i := range resources.RoleBindings {
+		errs = append(errs, client.IgnoreNotFound(c.Delete(ctx, &rbacv1.RoleBinding{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: resources.RoleBindings[i].Namespace,
+				Name:      resources.RoleBindings[i].Name,
+			},
+		})))
+	}
+	for i := range resources.Roles {
+		errs = append(errs, client.IgnoreNotFound(c.Delete(ctx, &rbacv1.Role{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: resources.Roles[i].Namespace,
+				Name:      resources.Roles[i].Name,
+			},
+		})))
+	}
+
+	return utilerrors.NewAggregate(errs)
+}
+
+func (c *Controller) ensureNamespaceWithSystemLabel(ctx context.Context, namespace string) error {
+	if namespace == "" {
+		return nil
+	}
+
+	ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
+	_, err := controllerutil.CreateOrUpdate(ctx, c.Client, ns, func() error {
+		labels := ns.GetLabels()
+		if labels == nil {
+			labels = make(map[string]string)
+		}
+		labels[util.KarmadaSystemLabel] = util.KarmadaSystemLabelValue
+		ns.SetLabels(labels)
+		return nil
+	})
+	return err
+}
+
+func (c *Controller) createOrUpdateClusterRole(ctx context.Context, desired *rbacv1.ClusterRole) error {
+	clusterRole := &rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: desired.Name}}
+	_, err := controllerutil.CreateOrUpdate(ctx, c.Client, clusterRole, func() error {
+		setSystemLabel(clusterRole)
+		clusterRole.Rules = desired.Rules
+		return nil
+	})
+	return err
+}
+
+func (c *Controller) createOrUpdateClusterRoleBinding(ctx context.Context, desired *rbacv1.ClusterRoleBinding) error {
+	clusterRoleBinding := &rbacv1.ClusterRoleBinding{ObjectMeta: metav1.ObjectMeta{Name: desired.Name}}
+	_, err := controllerutil.CreateOrUpdate(ctx, c.Client, clusterRoleBinding, func() error {
+		setSystemLabel(clusterRoleBinding)
+		clusterRoleBinding.Subjects = desired.Subjects
+		clusterRoleBinding.RoleRef = desired.RoleRef
+		return nil
+	})
+	return err
+}
+
+func (c *Controller) createOrUpdateRole(ctx context.Context, desired *rbacv1.Role) error {
+	role := &rbacv1.Role{ObjectMeta: metav1.ObjectMeta{Namespace: desired.Namespace, Name: desired.Name}}
+	_, err := controllerutil.CreateOrUpdate(ctx, c.Client, role, func() error {
+		setSystemLabel(role)
+		role.Rules = desired.Rules
+		return nil
+	})
+	return err
+}
+
+func (c *Controller) createOrUpdateRoleBinding(ctx context.Context, desired *rbacv1.RoleBinding) error {
+	roleBinding := &rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{Namespace: desired.Namespace, Name: desired.Name}}
+	_, err := controllerutil.CreateOrUpdate(ctx, c.Client, roleBinding, func() error {
+		setSystemLabel(roleBinding)
+		roleBinding.Subjects = desired.Subjects
+		roleBinding.RoleRef = desired.RoleRef
+		return nil
+	})
+	return err
+}
+
+func setSystemLabel(obj metav1.Object) {
+	labels := obj.GetLabels()
+	if labels == nil {
+		labels = make(map[string]string)
+	}
+	labels[util.KarmadaSystemLabel] = util.KarmadaSystemLabelValue
+	obj.SetLabels(labels)
 }
 
 func (c *Controller) monitorClusterHealth(ctx context.Context) (err error) {

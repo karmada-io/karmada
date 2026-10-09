@@ -58,6 +58,23 @@ subjects:
   name: system:anonymous
 ---
 apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: system:karmada:agent-bootstrapper
+  {{- if "karmada.commonLabels" }}
+  labels:
+    {{- include "karmada.commonLabels" . | nindent 4 }}
+  {{- end }}
+rules:
+- apiGroups:
+  - certificates.k8s.io
+  resources:
+  - certificatesigningrequests
+  verbs:
+  - create
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: system:karmada:agent-bootstrap
@@ -68,7 +85,7 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: system:node-bootstrapper
+  name: system:karmada:agent-bootstrapper
 subjects:
 - apiGroup: rbac.authorization.k8s.io
   kind: Group
@@ -143,23 +160,25 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: system:karmada:agent-rbac-generator
+  name: system:karmada:agents-cluster-creator
   {{- if "karmada.commonLabels" }}
   labels:
     {{- include "karmada.commonLabels" . | nindent 4 }}
   {{- end }}
 rules:
 - apiGroups:
-  - "*"
+  - cluster.karmada.io
   resources:
-  - "*"
+  - clusters
   verbs:
-  - "*"
+  - get
+  - list
+  - create
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: system:karmada:agent-rbac-generator
+  name: system:karmada:agents-cluster-creator
   {{- if "karmada.commonLabels" }}
   labels:
     {{- include "karmada.commonLabels" . | nindent 4 }}
@@ -167,9 +186,9 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: system:karmada:agent-rbac-generator
+  name: system:karmada:agents-cluster-creator
 subjects:
 - apiGroup: rbac.authorization.k8s.io
-  kind: User
-  name: system:karmada:agent:rbac-generator
+  kind: Group
+  name: system:karmada:agents
 {{- end -}}
