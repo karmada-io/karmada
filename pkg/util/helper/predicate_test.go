@@ -632,3 +632,246 @@ type fakeManager struct {
 func (f *fakeManager) GetClient() client.Client {
 	return f.client
 }
+func TestNewPredicateForEndpointSliceCollectController(t *testing.T) {
+	type args struct {
+		mgr controllerruntime.Manager
+		obj client.Object
+	}
+	type want struct {
+		create, update, delete, generic bool
+	}
+	tests := []struct {
+		name string
+		args args
+		want want
+	}{
+		{
+			name: "get cluster name error",
+			args: args{
+				mgr: &fakeManager{client: fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(
+					&clusterv1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
+						Spec:       clusterv1alpha1.ClusterSpec{SyncMode: clusterv1alpha1.Push},
+					},
+				).Build()},
+				obj: &workv1alpha1.Work{
+					ObjectMeta: metav1.ObjectMeta{Name: "work", Namespace: "cluster"},
+				},
+			},
+			want: want{create: false, update: false, delete: false, generic: false},
+		},
+		{
+			name: "cluster not found",
+			args: args{
+				mgr: &fakeManager{client: fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects().Build()},
+				obj: &workv1alpha1.Work{
+					ObjectMeta: metav1.ObjectMeta{Name: "work", Namespace: names.ExecutionSpacePrefix + "cluster"},
+				},
+			},
+			want: want{create: false, update: false, delete: false, generic: false},
+		},
+		{
+			name: "cluster is pull mode",
+			args: args{
+				mgr: &fakeManager{client: fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(
+					&clusterv1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
+						Spec:       clusterv1alpha1.ClusterSpec{SyncMode: clusterv1alpha1.Pull},
+					},
+				).Build()},
+				obj: &workv1alpha1.Work{
+					ObjectMeta: metav1.ObjectMeta{Name: "work", Namespace: names.ExecutionSpacePrefix + "cluster"},
+				},
+			},
+			want: want{create: false, update: false, delete: false, generic: false},
+		},
+		{
+			name: "matched",
+			args: args{
+				mgr: &fakeManager{client: fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(
+					&clusterv1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
+						Spec:       clusterv1alpha1.ClusterSpec{SyncMode: clusterv1alpha1.Push},
+					},
+				).Build()},
+				obj: &workv1alpha1.Work{
+					ObjectMeta: metav1.ObjectMeta{Name: "work", Namespace: names.ExecutionSpacePrefix + "cluster"},
+				},
+			},
+			want: want{create: true, update: true, delete: true, generic: false},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pred := NewPredicateForEndpointSliceCollectController(tt.args.mgr)
+			if got := pred.Create(event.CreateEvent{Object: tt.args.obj}); got != tt.want.create {
+				t.Errorf("Create() got = %v, want %v", got, tt.want.create)
+				return
+			}
+			if got := pred.Update(event.UpdateEvent{ObjectOld: tt.args.obj, ObjectNew: tt.args.obj}); got != tt.want.update {
+				t.Errorf("Update() got = %v, want %v", got, tt.want.update)
+				return
+			}
+			if got := pred.Delete(event.DeleteEvent{Object: tt.args.obj}); got != tt.want.delete {
+				t.Errorf("Delete() got = %v, want %v", got, tt.want.delete)
+				return
+			}
+			if got := pred.Generic(event.GenericEvent{Object: tt.args.obj}); got != tt.want.generic {
+				t.Errorf("Generic() got = %v, want %v", got, tt.want.generic)
+				return
+			}
+		})
+	}
+}
+
+func TestNewPredicateForEndpointSliceCollectController_Update(t *testing.T) {
+	mgr := &fakeManager{client: fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(
+		&clusterv1alpha1.Cluster{
+			ObjectMeta: metav1.ObjectMeta{Name: "cluster1"},
+			Spec:       clusterv1alpha1.ClusterSpec{SyncMode: clusterv1alpha1.Pull},
+		},
+		&clusterv1alpha1.Cluster{
+			ObjectMeta: metav1.ObjectMeta{Name: "cluster2"},
+			Spec:       clusterv1alpha1.ClusterSpec{SyncMode: clusterv1alpha1.Push},
+		},
+	).Build()}
+	unmatched := &workv1alpha1.Work{
+		ObjectMeta: metav1.ObjectMeta{Name: "work", Namespace: names.ExecutionSpacePrefix + "cluster1"},
+	}
+	matched := &workv1alpha1.Work{
+		ObjectMeta: metav1.ObjectMeta{Name: "work", Namespace: names.ExecutionSpacePrefix + "cluster2"},
+	}
+
+	tests := []struct {
+		name  string
+		event event.UpdateEvent
+		want  bool
+	}{
+		{
+			name:  "both old and new are unmatched",
+			event: event.UpdateEvent{ObjectOld: unmatched, ObjectNew: unmatched},
+			want:  false,
+		},
+		{
+			name:  "old is unmatched, new is matched",
+			event: event.UpdateEvent{ObjectOld: unmatched, ObjectNew: matched},
+			want:  true,
+		},
+		{
+			name:  "old is matched, new is unmatched",
+			event: event.UpdateEvent{ObjectOld: matched, ObjectNew: unmatched},
+			want:  true,
+		},
+		{
+			name:  "both old and new are matched",
+			event: event.UpdateEvent{ObjectOld: matched, ObjectNew: matched},
+			want:  true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pred := NewPredicateForEndpointSliceCollectController(mgr)
+			if got := pred.Update(tt.event); got != tt.want {
+				t.Errorf("Update() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestNewPredicateForEndpointSliceCollectControllerOnAgent(t *testing.T) {
+	pred := NewPredicateForEndpointSliceCollectControllerOnAgent("cluster")
+	type want struct {
+		create, update, delete, generic bool
+	}
+	tests := []struct {
+		name string
+		obj  client.Object
+		want want
+	}{
+		{
+			name: "get cluster name error",
+			obj: &workv1alpha1.Work{ObjectMeta: metav1.ObjectMeta{
+				Name: "work", Namespace: "cluster",
+			}},
+			want: want{create: false, update: false, delete: false, generic: false},
+		},
+		{
+			name: "cluster name unmatched",
+			obj: &workv1alpha1.Work{ObjectMeta: metav1.ObjectMeta{
+				Name: "work", Namespace: names.ExecutionSpacePrefix + "unmatched",
+			}},
+			want: want{create: false, update: false, delete: false, generic: false},
+		},
+		{
+			name: "matched",
+			obj: &workv1alpha1.Work{ObjectMeta: metav1.ObjectMeta{
+				Name: "work", Namespace: names.ExecutionSpacePrefix + "cluster",
+			}},
+			want: want{create: true, update: true, delete: true, generic: false},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := pred.Create(event.CreateEvent{Object: tt.obj}); got != tt.want.create {
+				t.Errorf("Create() got = %v, want %v", got, tt.want.create)
+				return
+			}
+			if got := pred.Update(event.UpdateEvent{ObjectOld: tt.obj, ObjectNew: tt.obj}); got != tt.want.update {
+				t.Errorf("Update() got = %v, want %v", got, tt.want.update)
+				return
+			}
+			if got := pred.Delete(event.DeleteEvent{Object: tt.obj}); got != tt.want.delete {
+				t.Errorf("Delete() got = %v, want %v", got, tt.want.delete)
+				return
+			}
+			if got := pred.Generic(event.GenericEvent{Object: tt.obj}); got != tt.want.generic {
+				t.Errorf("Generic() got = %v, want %v", got, tt.want.generic)
+				return
+			}
+		})
+	}
+}
+
+func TestNewPredicateForEndpointSliceCollectControllerOnAgent_Update(t *testing.T) {
+	unmatched := &workv1alpha1.Work{
+		ObjectMeta: metav1.ObjectMeta{Name: "work", Namespace: names.ExecutionSpacePrefix + "other"},
+	}
+	matched := &workv1alpha1.Work{
+		ObjectMeta: metav1.ObjectMeta{Name: "work", Namespace: names.ExecutionSpacePrefix + "cluster"},
+	}
+
+	tests := []struct {
+		name  string
+		event event.UpdateEvent
+		want  bool
+	}{
+		{
+			name:  "both old and new are unmatched",
+			event: event.UpdateEvent{ObjectOld: unmatched, ObjectNew: unmatched},
+			want:  false,
+		},
+		{
+			name:  "old is unmatched, new is matched",
+			event: event.UpdateEvent{ObjectOld: unmatched, ObjectNew: matched},
+			want:  true,
+		},
+		{
+			name:  "old is matched, new is unmatched",
+			event: event.UpdateEvent{ObjectOld: matched, ObjectNew: unmatched},
+			want:  true,
+		},
+		{
+			name:  "both old and new are matched",
+			event: event.UpdateEvent{ObjectOld: matched, ObjectNew: matched},
+			want:  true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pred := NewPredicateForEndpointSliceCollectControllerOnAgent("cluster")
+			if got := pred.Update(tt.event); got != tt.want {
+				t.Errorf("Update() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
