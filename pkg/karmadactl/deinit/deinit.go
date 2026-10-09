@@ -255,9 +255,15 @@ func removeLabels(node *corev1.Node, removesLabel string) {
 // Run start delete
 func (o *CommandDeInitOption) Run() error {
 	fmt.Println("removes Karmada from Kubernetes")
-	// delete confirmation,exit the delete action when false.
-	if !o.Force && !util.DeleteConfirmation() {
-		return nil
+	// delete confirmation, exit the delete action when user declines or input fails.
+	if !o.Force {
+		confirmed, err := util.DeleteConfirmation()
+		if err != nil {
+			return fmt.Errorf("failed to get user confirmation: %w", err)
+		}
+		if !confirmed {
+			return nil
+		}
 	}
 
 	if err := o.delete(); err != nil {
