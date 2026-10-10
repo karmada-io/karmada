@@ -40,6 +40,7 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/lifted/selectors"
 )
 
@@ -359,6 +360,49 @@ func TestGetTargetCluster(t *testing.T) {
 			for _, targetCluster := range tt.binding.Spec.Clusters {
 				mockClient.AssertCalled(t, "Get", ctx, types.NamespacedName{Name: targetCluster.Name}, mock.AnythingOfType("*v1alpha1.Cluster"), mock.Anything)
 			}
+		})
+	}
+}
+
+// TestScaleForTargetClusterError verifies that scaleForTargetCluster reports the real reason
+// when no replicas can be collected from the target clusters.
+func TestScaleForTargetClusterError(t *testing.T) {
+	tests := []struct {
+		name          string
+		clusters      []string
+		clientErr     error
+		expectedError string
+	}{
+		{
+			name:          "No ready target clusters",
+			clusters:      nil,
+			expectedError: "failed to get replicas because none of the target clusters is ready",
+		},
+		{
+			name:          "Failed to get client of every target cluster",
+			clusters:      []string{"member1", "member2"},
+			clientErr:     errors.New("cluster secret not found"),
+			expectedError: "failed to get replicas from target clusters [member1 member2]: [cluster member1: failed to get cluster client: cluster secret not found, cluster member2: failed to get cluster client: cluster secret not found]",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			controller := &FHPAController{
+				ClusterScaleClientSetFunc: func(string, client.Client) (*util.ClusterScaleClient, error) {
+					return nil, tt.clientErr
+				},
+			}
+			hpa := &autoscalingv1alpha1.FederatedHPA{
+				ObjectMeta: metav1.ObjectMeta{Name: "test-hpa", Namespace: "default"},
+			}
+			mapping := &meta.RESTMapping{Resource: schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}}
+
+			scale, pods, err := controller.scaleForTargetCluster(context.Background(), tt.clusters, hpa, mapping)
+
+			assert.Nil(t, scale)
+			assert.Nil(t, pods)
+			assert.EqualError(t, err, tt.expectedError)
 		})
 	}
 }
