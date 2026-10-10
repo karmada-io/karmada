@@ -238,7 +238,7 @@ func (c *FHPAController) reconcileAutoscaler(ctx context.Context, hpa *autoscali
 		return fmt.Errorf("failed to get scale target reference: %v ", err)
 	}
 
-	binding, err := c.getBindingByLabel(ctx, targetResource.GetLabels(), hpa.Spec.ScaleTargetRef)
+	binding, err := c.getBindingByLabel(ctx, hpa.Namespace, targetResource.GetLabels(), hpa.Spec.ScaleTargetRef)
 	if err != nil {
 		c.EventRecorder.Event(hpa, corev1.EventTypeWarning, "FailedGetBindings", err.Error())
 		setCondition(hpa, autoscalingv2.AbleToScale, corev1.ConditionFalse, "FailedGetBinding", "the HPA controller was unable to get the binding by scaleTargetRef: %v", err)
@@ -405,7 +405,7 @@ func (c *FHPAController) reconcileAutoscaler(ctx context.Context, hpa *autoscali
 	return retErr
 }
 
-func (c *FHPAController) getBindingByLabel(ctx context.Context, resourceLabel map[string]string, resourceRef autoscalingv2.CrossVersionObjectReference) (*workv1alpha2.ResourceBinding, error) {
+func (c *FHPAController) getBindingByLabel(ctx context.Context, namespace string, resourceLabel map[string]string, resourceRef autoscalingv2.CrossVersionObjectReference) (*workv1alpha2.ResourceBinding, error) {
 	if len(resourceLabel) == 0 {
 		return nil, errors.New("target resource has no label")
 	}
@@ -425,7 +425,9 @@ func (c *FHPAController) getBindingByLabel(ctx context.Context, resourceLabel ma
 
 	binding := &workv1alpha2.ResourceBinding{}
 	bindingList := &workv1alpha2.ResourceBindingList{}
-	err := c.Client.List(ctx, bindingList, &client.ListOptions{LabelSelector: selector})
+	// Bindings of the same ClusterPropagationPolicy share the policy permanent-id label across namespaces,
+	// so the list must be restricted to the namespace of the FederatedHPA.
+	err := c.Client.List(ctx, bindingList, &client.ListOptions{Namespace: namespace, LabelSelector: selector})
 	if err != nil {
 		return nil, err
 	}
@@ -435,7 +437,7 @@ func (c *FHPAController) getBindingByLabel(ctx context.Context, resourceLabel ma
 
 	found := false
 	for i, b := range bindingList.Items {
-		if b.Spec.Resource.Name == resourceRef.Name && b.Spec.Resource.APIVersion == resourceRef.APIVersion && b.Spec.Resource.Kind == resourceRef.Kind {
+		if b.Namespace == namespace && b.Spec.Resource.Name == resourceRef.Name && b.Spec.Resource.APIVersion == resourceRef.APIVersion && b.Spec.Resource.Kind == resourceRef.Kind {
 			found = true
 			binding = &bindingList.Items[i]
 			break
