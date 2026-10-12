@@ -37,6 +37,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	listcorev1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/record"
@@ -479,24 +480,30 @@ func (c *FHPAController) scaleForTargetCluster(ctx context.Context, clusters []s
 	}
 
 	var multiClusterPodList []*corev1.Pod
+	// errs records why the replicas could not be collected from a cluster, so that the final error
+	// tells the real cause instead of guessing.
+	var errs []error
 
 	targetGR := mapping.Resource.GroupResource()
 	for _, cluster := range clusters {
 		clusterClient, err := c.ClusterScaleClientSetFunc(cluster, c.Client)
 		if err != nil {
 			klog.ErrorS(err, "Failed to get cluster client of cluster", "cluster", cluster)
+			errs = append(errs, fmt.Errorf("cluster %s: failed to get cluster client: %w", cluster, err))
 			continue
 		}
 
 		clusterInformerManager, err := c.buildPodInformerForCluster(clusterClient)
 		if err != nil {
 			klog.ErrorS(err, "Failed to get or create informer for cluster", "cluster", cluster)
+			errs = append(errs, fmt.Errorf("cluster %s: failed to sync pod informer: %w", cluster, err))
 			continue
 		}
 
 		scale, err := clusterClient.ScaleClient.Scales(hpa.Namespace).Get(ctx, targetGR, hpa.Spec.ScaleTargetRef.Name, metav1.GetOptions{})
 		if err != nil {
 			klog.ErrorS(err, "Failed to get scale subResource of resource in cluster", "resource", hpa.Spec.ScaleTargetRef.Name, "cluster", cluster)
+			errs = append(errs, fmt.Errorf("cluster %s: failed to get scale subresource: %w", cluster, err))
 			continue
 		}
 
@@ -543,7 +550,14 @@ func (c *FHPAController) scaleForTargetCluster(ctx context.Context, clusters []s
 	}
 
 	if multiClusterScale.Spec.Replicas == 0 {
-		return nil, nil, fmt.Errorf("failed to get replicas in any of clusters, possibly because all of clusters are not ready")
+		switch {
+		case len(clusters) == 0:
+			return nil, nil, fmt.Errorf("failed to get replicas because none of the target clusters is ready")
+		case len(errs) > 0:
+			return nil, nil, fmt.Errorf("failed to get replicas from target clusters %v: %w", clusters, utilerrors.NewAggregate(errs))
+		default:
+			return nil, nil, fmt.Errorf("the replicas of the scale target are zero in all of target clusters %v", clusters)
+		}
 	}
 
 	return multiClusterScale, multiClusterPodList, nil
