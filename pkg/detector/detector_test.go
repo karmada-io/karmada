@@ -41,6 +41,8 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 )
 
@@ -1256,6 +1258,329 @@ func TestEnqueueResourceKeyWithActivationPref(t *testing.T) {
 			<-ctx.Done()
 		})
 	}
+}
+
+func TestAddWaiting(t *testing.T) {
+	d := &ResourceDetector{
+		waitingObjects:      make(map[keys.ClusterWideKey]struct{}),
+		waitingObjectsByGVK: make(map[string]map[keys.ClusterWideKey]struct{}),
+	}
+
+	key1 := keys.ClusterWideKey{Group: "apps", Version: "v1", Kind: "Deployment", Namespace: "default", Name: "test-deploy"}
+	key2 := keys.ClusterWideKey{Group: "apps", Version: "v1", Kind: "Deployment", Namespace: "kube-system", Name: "another-deploy"}
+	key3 := keys.ClusterWideKey{Group: "", Version: "v1", Kind: "ConfigMap", Namespace: "default", Name: "test-cm"}
+
+	d.AddWaiting(key1)
+	assert.Equal(t, 1, len(d.waitingObjects))
+	assert.Equal(t, 1, len(d.waitingObjectsByGVK))
+	assert.Contains(t, d.waitingObjects, key1)
+
+	d.AddWaiting(key2)
+	assert.Equal(t, 2, len(d.waitingObjects))
+	assert.Equal(t, 1, len(d.waitingObjectsByGVK)) // same GVK bucket
+	assert.Contains(t, d.waitingObjectsByGVK["apps/v1, Kind=Deployment"], key2)
+
+	d.AddWaiting(key3)
+	assert.Equal(t, 3, len(d.waitingObjects))
+	assert.Equal(t, 2, len(d.waitingObjectsByGVK)) // new GVK bucket
+	assert.Contains(t, d.waitingObjectsByGVK[key3.GroupVersionKind().String()], key3)
+}
+
+func TestRemoveWaiting(t *testing.T) {
+	d := &ResourceDetector{
+		waitingObjects:      make(map[keys.ClusterWideKey]struct{}),
+		waitingObjectsByGVK: make(map[string]map[keys.ClusterWideKey]struct{}),
+	}
+
+	key1 := keys.ClusterWideKey{Group: "apps", Version: "v1", Kind: "Deployment", Namespace: "default", Name: "test-deploy"}
+	key2 := keys.ClusterWideKey{Group: "apps", Version: "v1", Kind: "Deployment", Namespace: "kube-system", Name: "another-deploy"}
+	key3 := keys.ClusterWideKey{Group: "", Version: "v1", Kind: "ConfigMap", Namespace: "default", Name: "test-cm"}
+
+	d.AddWaiting(key1)
+	d.AddWaiting(key2)
+	d.AddWaiting(key3)
+
+	d.RemoveWaiting(key1)
+	assert.Equal(t, 2, len(d.waitingObjects))
+	assert.NotContains(t, d.waitingObjects, key1)
+	assert.NotContains(t, d.waitingObjectsByGVK["apps/v1, Kind=Deployment"], key1)
+	// key2 still in the same GVK bucket
+	assert.Contains(t, d.waitingObjectsByGVK["apps/v1, Kind=Deployment"], key2)
+
+	d.RemoveWaiting(key2)
+	assert.Equal(t, 1, len(d.waitingObjects))
+	// GVK bucket should be empty and cleaned up
+	assert.NotContains(t, d.waitingObjectsByGVK, "apps/v1, Kind=Deployment")
+
+	d.RemoveWaiting(key3)
+	assert.Equal(t, 0, len(d.waitingObjects))
+	assert.NotContains(t, d.waitingObjectsByGVK, "v1, Kind=ConfigMap")
+}
+
+func TestIsWaiting(t *testing.T) {
+	d := &ResourceDetector{
+		waitingObjects:      make(map[keys.ClusterWideKey]struct{}),
+		waitingObjectsByGVK: make(map[string]map[keys.ClusterWideKey]struct{}),
+	}
+
+	key := keys.ClusterWideKey{Group: "apps", Version: "v1", Kind: "Deployment", Namespace: "default", Name: "test-deploy"}
+	assert.False(t, d.isWaiting(key))
+
+	d.AddWaiting(key)
+	assert.True(t, d.isWaiting(key))
+
+	d.RemoveWaiting(key)
+	assert.False(t, d.isWaiting(key))
+}
+
+func TestGetMatching(t *testing.T) {
+	scheme := setupTestScheme()
+	restMapper := meta.NewDefaultRESTMapper([]schema.GroupVersion{
+		{Group: "apps", Version: "v1"},
+		{Group: "", Version: "v1"},
+	})
+	restMapper.Add(schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Deployment"}, meta.RESTScopeNamespace)
+	restMapper.Add(schema.GroupVersionKind{Group: "", Version: "v1", Kind: "ConfigMap"}, meta.RESTScopeNamespace)
+
+	deployObj := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "apps/v1",
+			"kind":       "Deployment",
+			"metadata": map[string]any{
+				"name":      "test-deploy",
+				"namespace": "default",
+				"labels":    map[string]any{"app": "nginx"},
+			},
+		},
+	}
+	otherDeployObj := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "apps/v1",
+			"kind":       "Deployment",
+			"metadata": map[string]any{
+				"name":      "other-deploy",
+				"namespace": "kube-system",
+			},
+		},
+	}
+	cmObj := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "v1",
+			"kind":       "ConfigMap",
+			"metadata": map[string]any{
+				"name":      "test-cm",
+				"namespace": "default",
+			},
+		},
+	}
+
+	fakeClient := dynamicfake.NewSimpleDynamicClient(scheme, deployObj, otherDeployObj, cmObj)
+	genMgr := genericmanager.NewSingleClusterInformerManager(t.Context(), fakeClient, 0, fedinformer.StripUnusedFields)
+
+	d := &ResourceDetector{
+		DynamicClient:       fakeClient,
+		RESTMapper:          restMapper,
+		InformerManager:     genMgr,
+		waitingObjects:      make(map[keys.ClusterWideKey]struct{}),
+		waitingObjectsByGVK: make(map[string]map[keys.ClusterWideKey]struct{}),
+	}
+
+	deployKey := keys.ClusterWideKey{Group: "apps", Version: "v1", Kind: "Deployment", Namespace: "default", Name: "test-deploy"}
+	cmKey := keys.ClusterWideKey{Group: "", Version: "v1", Kind: "ConfigMap", Namespace: "default", Name: "test-cm"}
+	otherDeployKey := keys.ClusterWideKey{Group: "apps", Version: "v1", Kind: "Deployment", Namespace: "kube-system", Name: "other-deploy"}
+
+	d.AddWaiting(deployKey)
+	d.AddWaiting(cmKey)
+	d.AddWaiting(otherDeployKey)
+
+	tests := []struct {
+		name              string
+		resourceSelectors []policyv1alpha1.ResourceSelector
+		expectedKeys      []keys.ClusterWideKey
+	}{
+		{
+			name: "match by GVK only - no namespace or name filter",
+			resourceSelectors: []policyv1alpha1.ResourceSelector{
+				{APIVersion: "apps/v1", Kind: "Deployment"},
+			},
+			expectedKeys: []keys.ClusterWideKey{deployKey, otherDeployKey},
+		},
+		{
+			name: "match by GVK and namespace",
+			resourceSelectors: []policyv1alpha1.ResourceSelector{
+				{APIVersion: "apps/v1", Kind: "Deployment", Namespace: "default"},
+			},
+			expectedKeys: []keys.ClusterWideKey{deployKey},
+		},
+		{
+			name: "match by GVK, namespace and name",
+			resourceSelectors: []policyv1alpha1.ResourceSelector{
+				{APIVersion: "apps/v1", Kind: "Deployment", Namespace: "default", Name: "test-deploy"},
+			},
+			expectedKeys: []keys.ClusterWideKey{deployKey},
+		},
+		{
+			name: "match by GVK and name only",
+			resourceSelectors: []policyv1alpha1.ResourceSelector{
+				{APIVersion: "apps/v1", Kind: "Deployment", Name: "test-deploy"},
+			},
+			expectedKeys: []keys.ClusterWideKey{deployKey},
+		},
+		{
+			name: "no match - different GVK",
+			resourceSelectors: []policyv1alpha1.ResourceSelector{
+				{APIVersion: "v1", Kind: "Pod"},
+			},
+			expectedKeys: nil,
+		},
+		{
+			name: "no match - different namespace",
+			resourceSelectors: []policyv1alpha1.ResourceSelector{
+				{APIVersion: "apps/v1", Kind: "Deployment", Namespace: "nonexistent"},
+			},
+			expectedKeys: nil,
+		},
+		{
+			name: "no match - different name",
+			resourceSelectors: []policyv1alpha1.ResourceSelector{
+				{APIVersion: "apps/v1", Kind: "Deployment", Name: "nonexistent"},
+			},
+			expectedKeys: nil,
+		},
+		{
+			name: "match ConfigMap by GVK",
+			resourceSelectors: []policyv1alpha1.ResourceSelector{
+				{APIVersion: "v1", Kind: "ConfigMap"},
+			},
+			expectedKeys: []keys.ClusterWideKey{cmKey},
+		},
+		{
+			name: "match with label selector",
+			resourceSelectors: []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion:    "apps/v1",
+					Kind:          "Deployment",
+					LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "nginx"}},
+				},
+			},
+			expectedKeys: []keys.ClusterWideKey{deployKey},
+		},
+		{
+			name: "no match - label selector mismatch",
+			resourceSelectors: []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion:    "apps/v1",
+					Kind:          "Deployment",
+					LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "apache"}},
+				},
+			},
+			expectedKeys: nil,
+		},
+		{
+			name: "multiple selectors - different GVKs",
+			resourceSelectors: []policyv1alpha1.ResourceSelector{
+				{APIVersion: "apps/v1", Kind: "Deployment", Namespace: "default"},
+				{APIVersion: "v1", Kind: "ConfigMap", Namespace: "default"},
+			},
+			expectedKeys: []keys.ClusterWideKey{deployKey, cmKey},
+		},
+		{
+			name: "multiple selectors - same GVK different namespaces",
+			resourceSelectors: []policyv1alpha1.ResourceSelector{
+				{APIVersion: "apps/v1", Kind: "Deployment", Namespace: "default"},
+				{APIVersion: "apps/v1", Kind: "Deployment", Namespace: "kube-system"},
+			},
+			expectedKeys: []keys.ClusterWideKey{deployKey, otherDeployKey},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := d.GetMatching(tt.resourceSelectors)
+			assert.ElementsMatch(t, tt.expectedKeys, result)
+		})
+	}
+}
+
+func TestGetMatchingEmptyWaitingList(t *testing.T) {
+	d := &ResourceDetector{
+		waitingObjects:      make(map[keys.ClusterWideKey]struct{}),
+		waitingObjectsByGVK: make(map[string]map[keys.ClusterWideKey]struct{}),
+	}
+
+	result := d.GetMatching([]policyv1alpha1.ResourceSelector{
+		{APIVersion: "apps/v1", Kind: "Deployment"},
+	})
+	assert.Nil(t, result)
+}
+
+func TestGetMatchingNoDuplicates(t *testing.T) {
+	scheme := setupTestScheme()
+	restMapper := meta.NewDefaultRESTMapper([]schema.GroupVersion{{Group: "apps", Version: "v1"}})
+	restMapper.Add(schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Deployment"}, meta.RESTScopeNamespace)
+
+	deployObj := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "apps/v1",
+			"kind":       "Deployment",
+			"metadata": map[string]any{
+				"name":      "test-deploy",
+				"namespace": "default",
+			},
+		},
+	}
+
+	fakeClient := dynamicfake.NewSimpleDynamicClient(scheme, deployObj)
+	genMgr := genericmanager.NewSingleClusterInformerManager(t.Context(), fakeClient, 0, fedinformer.StripUnusedFields)
+
+	d := &ResourceDetector{
+		DynamicClient:       fakeClient,
+		RESTMapper:          restMapper,
+		InformerManager:     genMgr,
+		waitingObjects:      make(map[keys.ClusterWideKey]struct{}),
+		waitingObjectsByGVK: make(map[string]map[keys.ClusterWideKey]struct{}),
+	}
+
+	key := keys.ClusterWideKey{Group: "apps", Version: "v1", Kind: "Deployment", Namespace: "default", Name: "test-deploy"}
+	d.AddWaiting(key)
+
+	// Two selectors with the same GVK that both match the same object
+	result := d.GetMatching([]policyv1alpha1.ResourceSelector{
+		{APIVersion: "apps/v1", Kind: "Deployment", Namespace: "default"},
+		{APIVersion: "apps/v1", Kind: "Deployment", Name: "test-deploy"},
+	})
+	assert.Equal(t, 1, len(result), "same object should not be duplicated in result")
+	assert.Contains(t, result, key)
+}
+
+func TestGetMatchingFetchFailure(t *testing.T) {
+	scheme := setupTestScheme()
+	restMapper := meta.NewDefaultRESTMapper([]schema.GroupVersion{{Group: "apps", Version: "v1"}})
+	deploymentGVK := schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Deployment"}
+	restMapper.Add(deploymentGVK, meta.RESTScopeNamespace)
+
+	// Create a fake client with NO objects — GetUnstructuredObject will fail
+	fakeClient := dynamicfake.NewSimpleDynamicClient(scheme)
+	genMgr := genericmanager.NewSingleClusterInformerManager(t.Context(), fakeClient, 0, fedinformer.StripUnusedFields)
+
+	d := &ResourceDetector{
+		DynamicClient:       fakeClient,
+		RESTMapper:          restMapper,
+		InformerManager:     genMgr,
+		waitingObjects:      make(map[keys.ClusterWideKey]struct{}),
+		waitingObjectsByGVK: make(map[string]map[keys.ClusterWideKey]struct{}),
+	}
+
+	// Add a key for an object that doesn't exist in the fake client
+	key := keys.ClusterWideKey{Group: "apps", Version: "v1", Kind: "Deployment", Namespace: "default", Name: "nonexistent"}
+	d.AddWaiting(key)
+
+	// Even with a selector that would match by key-level (no LabelSelector),
+	// the object should NOT be returned because GetUnstructuredObject fails.
+	result := d.GetMatching([]policyv1alpha1.ResourceSelector{
+		{APIVersion: "apps/v1", Kind: "Deployment", Namespace: "default"},
+	})
+	assert.Nil(t, result, "object should not be returned when fetch fails")
 }
 
 // Helper Functions
