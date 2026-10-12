@@ -321,3 +321,90 @@ func TestFlushUnschedulableBindingsLeftoverPriorityOrder(t *testing.T) {
 	assert.NotNil(t, bq.unschedulableBindings.get("fresh"), "binding within the timeout should remain in unschedulableBindings")
 	assert.Nil(t, bq.unschedulableBindings.get("high"), "moved binding should be removed from unschedulableBindings")
 }
+
+// TestPushBackoffIfNotPresent_BackoffNotSkipped verifies issue #7911:
+// When a binding has waited in activeQ longer than its configured backoff duration,
+// calling PushBackoffIfNotPresent must refresh its timestamp to the current time so that
+// the binding does not immediately skip its backoff period.
+func TestPushBackoffIfNotPresent_BackoffNotSkipped(t *testing.T) {
+	fakeClock := testingclock.NewFakeClock(time.Now())
+	activeQ := &recordingActiveQueue{}
+	bq := &prioritySchedulingQueue{
+		clock:                         fakeClock,
+		bindingInitialBackoffDuration: DefaultBindingInitialBackoffDuration,
+		bindingMaxBackoffDuration:     DefaultBindingMaxBackoffDuration,
+		activeQ:                       activeQ,
+		unschedulableBindings:         newUnschedulableBindings(metrics.NewUnschedulableBindingsRecorder()),
+	}
+	bq.backoffQ = heap.NewWithRecorder(BindingKeyFunc, bq.lessBackoffCompletedWithPriority, metrics.NewBackoffBindingsRecorder())
+
+	// Simulate that the binding was originally enqueued 10 seconds ago (longer than the 1s initial backoff).
+	oldTimestamp := fakeClock.Now().Add(-10 * time.Second)
+	bindingInfo := &QueuedBindingInfo{
+		NamespacedKey: "test-binding",
+		Priority:      1,
+		Timestamp:     oldTimestamp,
+		Attempts:      1, // 1s backoff
+	}
+
+	bq.PushBackoffIfNotPresent(bindingInfo)
+
+	// The timestamp should be refreshed to fakeClock.Now()
+	assert.Equal(t, fakeClock.Now(), bindingInfo.Timestamp, "timestamp should be refreshed to current time")
+
+	// The binding must still be backing off rather than skipping backoff immediately.
+	assert.True(t, bq.isBindingBackingoff(bindingInfo), "binding should still be in backoff period despite waiting in activeQ")
+
+	// Flushing completed backoff items should not move it to activeQ.
+	bq.flushBackoffQCompleted()
+	assert.Empty(t, activeQ.pushedKeys(), "binding should remain in backoffQ during backoff period")
+	assert.True(t, bq.backoffQ.Has(bindingInfo))
+
+	// After advancing time past the backoff duration, backoff is completed.
+	fakeClock.Step(2 * time.Second)
+	assert.False(t, bq.isBindingBackingoff(bindingInfo), "binding should complete backoff after duration expires")
+
+	bq.flushBackoffQCompleted()
+	assert.Equal(t, []string{"test-binding"}, activeQ.pushedKeys(), "binding should be moved to activeQ once backoff completes")
+	assert.False(t, bq.backoffQ.Has(bindingInfo))
+}
+
+// TestPushUnschedulableIfNotPresent_NotImmediatelyFlushed verifies issue #7911:
+// When a binding has an old timestamp (e.g., from earlier activeQ wait or attempts),
+// calling PushUnschedulableIfNotPresent must refresh its timestamp to the current time so that
+// it is not immediately treated as leftover and flushed to activeQ.
+func TestPushUnschedulableIfNotPresent_NotImmediatelyFlushed(t *testing.T) {
+	fakeClock := testingclock.NewFakeClock(time.Now())
+	activeQ := &recordingActiveQueue{}
+	bq := &prioritySchedulingQueue{
+		clock: fakeClock,
+		bindingMaxInUnschedulableBindingsDuration: DefaultBindingMaxInUnschedulableBindingsDuration,
+		activeQ:               activeQ,
+		unschedulableBindings: newUnschedulableBindings(metrics.NewUnschedulableBindingsRecorder()),
+	}
+	bq.backoffQ = heap.NewWithRecorder(BindingKeyFunc, bq.lessBackoffCompletedWithPriority, metrics.NewBackoffBindingsRecorder())
+
+	// Simulate that the binding had an old timestamp that exceeded the 5-minute unschedulable timeout.
+	oldTimestamp := fakeClock.Now().Add(-10 * time.Minute)
+	bindingInfo := &QueuedBindingInfo{
+		NamespacedKey: "test-unschedulable",
+		Priority:      1,
+		Timestamp:     oldTimestamp,
+	}
+
+	bq.PushUnschedulableIfNotPresent(bindingInfo)
+
+	// The timestamp should be refreshed to fakeClock.Now()
+	assert.Equal(t, fakeClock.Now(), bindingInfo.Timestamp, "timestamp should be refreshed to current time")
+
+	// The binding should not be immediately flushed as leftover.
+	bq.flushUnschedulableBindingsLeftover()
+	assert.Empty(t, activeQ.pushedKeys(), "binding should not be flushed immediately to activeQ")
+	assert.NotNil(t, bq.unschedulableBindings.get("test-unschedulable"))
+
+	// After advancing time past the max unschedulable duration, it should be flushed.
+	fakeClock.Step(6 * time.Minute)
+	bq.flushUnschedulableBindingsLeftover()
+	assert.Equal(t, []string{"test-unschedulable"}, activeQ.pushedKeys(), "binding should be flushed to activeQ after timeout")
+	assert.Nil(t, bq.unschedulableBindings.get("test-unschedulable"))
+}
