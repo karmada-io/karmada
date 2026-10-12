@@ -62,6 +62,7 @@ func makeFakeCRBCByResource(rs *workv1alpha2.ObjectReference) (*ClusterResourceB
 	if rs == nil {
 		return &ClusterResourceBindingController{
 			Client:          c,
+			APIReader:       c,
 			RESTMapper:      testing2.RestMapper,
 			InformerManager: genericmanager.NewSingleClusterInformerManager(context.TODO(), tempDyClient, 0, fedinformer.StripUnusedFields),
 			DynamicClient:   tempDyClient,
@@ -89,6 +90,7 @@ func makeFakeCRBCByResource(rs *workv1alpha2.ObjectReference) (*ClusterResourceB
 
 	return &ClusterResourceBindingController{
 		Client:          c,
+		APIReader:       c,
 		RESTMapper:      helper.NewGroupRESTMapper(rs.Kind, meta.RESTScopeNamespace),
 		InformerManager: testingutil.NewSingleClusterInformerManagerByRS(src, obj),
 		DynamicClient:   tempDyClient,

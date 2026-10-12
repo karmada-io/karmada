@@ -1418,7 +1418,8 @@ func TestDeleteWorkByRBNamespaceAndName(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := DeleteWorks(context.Background(), tt.args.c, tt.args.namespace, tt.args.name, tt.args.bindingID); (err != nil) != tt.wantErr {
+			apiReader := fake.NewClientBuilder().WithScheme(gclient.NewSchema()).Build()
+			if err := DeleteWorks(context.Background(), tt.args.c, apiReader, tt.args.namespace, tt.args.name, tt.args.bindingID, "test-work"); (err != nil) != tt.wantErr {
 				t.Errorf("DeleteWorks() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			list := &workv1alpha1.WorkList{}
