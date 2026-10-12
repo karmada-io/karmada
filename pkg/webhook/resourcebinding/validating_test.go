@@ -793,6 +793,30 @@ func TestIsQuotaRelevantFieldChanged(t *testing.T) {
 			expect: true,
 		},
 		{
+			name: "limits-only update should return true",
+			oldRB: &workv1alpha2.ResourceBinding{Spec: workv1alpha2.ResourceBindingSpec{
+				ReplicaRequirements: &workv1alpha2.ReplicaRequirements{ResourceLimits: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1")}},
+			}},
+			newRB: &workv1alpha2.ResourceBinding{Spec: workv1alpha2.ResourceBindingSpec{
+				ReplicaRequirements: &workv1alpha2.ReplicaRequirements{ResourceLimits: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("2")}},
+			}},
+			expect: true,
+		},
+		{
+			name: "component limits-only update should return true",
+			oldRB: &workv1alpha2.ResourceBinding{Spec: workv1alpha2.ResourceBindingSpec{
+				Components: []workv1alpha2.Component{{Name: "worker", Replicas: 1, ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+					ResourceLimits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("1Gi")},
+				}}},
+			}},
+			newRB: &workv1alpha2.ResourceBinding{Spec: workv1alpha2.ResourceBindingSpec{
+				Components: []workv1alpha2.Component{{Name: "worker", Replicas: 1, ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+					ResourceLimits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("2Gi")},
+				}}},
+			}},
+			expect: true,
+		},
+		{
 			name: "scheduled replicas changed should return true",
 			oldRB: makeTestRB("default", "test",
 				WithClusters([]workv1alpha2.TargetCluster{{Name: "c1", Replicas: 1}}),

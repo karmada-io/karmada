@@ -1495,6 +1495,9 @@ func TestGenerateReplicaRequirements(t *testing.T) {
 				ResourceRequest: map[corev1.ResourceName]resource.Quantity{
 					"cpu": *resource.NewMilliQuantity(200, resource.DecimalSI),
 				},
+				ResourceLimits: corev1.ResourceList{
+					corev1.ResourceCPU: *resource.NewMilliQuantity(200, resource.DecimalSI),
+				},
 			},
 		},
 	}
@@ -1592,6 +1595,42 @@ func TestCalculateResourceUsage(t *testing.T) {
 		rb       *workv1alpha2.ResourceBinding
 		expected corev1.ResourceList
 	}{
+		{
+			name: "limits are quota dimensions, requests remain scheduling resources",
+			rb: &workv1alpha2.ResourceBinding{Spec: workv1alpha2.ResourceBindingSpec{
+				Clusters: []workv1alpha2.TargetCluster{{Name: "cluster1", Replicas: 2}},
+				ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
+					ResourceRequest: corev1.ResourceList{
+						corev1.ResourceCPU:                    resource.MustParse("300m"),
+						corev1.ResourceName("nvidia.com/gpu"): resource.MustParse("1"),
+					},
+					ResourceLimits: corev1.ResourceList{
+						corev1.ResourceCPU:                    resource.MustParse("1500m"),
+						corev1.ResourceMemory:                 resource.MustParse("512Mi"),
+						corev1.ResourceName("nvidia.com/gpu"): resource.MustParse("1"),
+					},
+				},
+			}},
+			expected: corev1.ResourceList{
+				corev1.ResourceCPU:                    resource.MustParse("600m"),
+				corev1.ResourceName("nvidia.com/gpu"): resource.MustParse("2"),
+				corev1.ResourceName("limits.cpu"):     resource.MustParse("3"),
+				corev1.ResourceName("limits.memory"):  resource.MustParse("1Gi"),
+			},
+		},
+		{
+			name: "component limits are counted once per component and cluster",
+			rb: &workv1alpha2.ResourceBinding{Spec: workv1alpha2.ResourceBindingSpec{
+				Clusters: []workv1alpha2.TargetCluster{{Name: "cluster1"}, {Name: "cluster2"}},
+				Components: []workv1alpha2.Component{{
+					Replicas: 2,
+					ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+						ResourceLimits: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("500m")},
+					},
+				}},
+			}},
+			expected: corev1.ResourceList{corev1.ResourceName("limits.cpu"): resource.MustParse("2")},
+		},
 		{
 			name: "Calculate usage with components",
 			rb: &workv1alpha2.ResourceBinding{

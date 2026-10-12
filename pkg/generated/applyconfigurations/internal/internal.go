@@ -2064,6 +2064,11 @@ var schemaYAML = typed.YAMLObject(`types:
     - name: priorityClassName
       type:
         scalar: string
+    - name: resourceLimits
+      type:
+        map:
+          elementType:
+            namedType: io.k8s.apimachinery.pkg.api.resource.Quantity
     - name: resourceRequest
       type:
         map:
@@ -2166,6 +2171,11 @@ var schemaYAML = typed.YAMLObject(`types:
     - name: priorityClassName
       type:
         scalar: string
+    - name: resourceLimits
+      type:
+        map:
+          elementType:
+            namedType: io.k8s.apimachinery.pkg.api.resource.Quantity
     - name: resourceRequest
       type:
         map:
