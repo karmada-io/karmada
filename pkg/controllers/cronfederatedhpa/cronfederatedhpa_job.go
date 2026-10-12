@@ -166,6 +166,13 @@ func (c *ScalingJob) ScaleFHPA(cronFHPA *autoscalingv1alpha1.CronFederatedHPA) e
 
 // ScaleWorkloads scales workload's replicas directly
 func (c *ScalingJob) ScaleWorkloads(cronFHPA *autoscalingv1alpha1.CronFederatedHPA) error {
+	// targetReplicas is required for direct workload scaling. Validate before
+	// any API calls so that a missing field never causes a nil-pointer panic.
+	if c.rule.TargetReplicas == nil {
+		return fmt.Errorf("targetReplicas is required for scaling %s/%s but got nil",
+			cronFHPA.Spec.ScaleTargetRef.APIVersion, cronFHPA.Spec.ScaleTargetRef.Kind)
+	}
+
 	ctx := context.Background()
 
 	scaleClient := c.client.SubResource("scale")
