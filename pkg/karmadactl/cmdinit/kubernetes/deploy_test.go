@@ -25,9 +25,13 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
+	clienttesting "k8s.io/client-go/testing"
 
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/config"
 	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
@@ -720,4 +724,102 @@ func parseDuration(durationStr string) time.Duration {
 		return 0
 	}
 	return duration
+}
+
+func TestInitComponentPodSettings(t *testing.T) {
+	configured := config.CommonSettings{
+		Resources:    corev1.ResourceRequirements{Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("500m")}},
+		NodeSelector: map[string]string{"role": "control-plane"},
+		Tolerations:  []corev1.Toleration{{Key: "dedicated", Operator: corev1.TolerationOpExists, Effect: corev1.TaintEffectNoSchedule}},
+		Affinity:     &corev1.Affinity{PodAntiAffinity: &corev1.PodAntiAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{{Weight: 50, PodAffinityTerm: corev1.PodAffinityTerm{TopologyKey: "kubernetes.io/hostname"}}}}},
+	}
+	for _, tc := range []struct {
+		name     string
+		settings config.CommonSettings
+	}{
+		{"defaults", config.CommonSettings{}},
+		{"configured", configured},
+		{"explicit empty", config.CommonSettings{Affinity: &corev1.Affinity{}, Tolerations: []corev1.Toleration{}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			settings := tc.settings
+			settings.Replicas = 1
+			cfg := &config.KarmadaInitConfig{Spec: config.KarmadaInitSpec{
+				Etcd: config.Etcd{Local: &config.LocalEtcd{CommonSettings: settings, StorageMode: "emptyDir"}},
+				Components: config.KarmadaComponents{
+					KarmadaAPIServer:           &config.KarmadaAPIServer{CommonSettings: settings},
+					KarmadaAggregatedAPIServer: &config.KarmadaAggregatedAPIServer{CommonSettings: settings},
+					KubeControllerManager:      &config.KubeControllerManager{CommonSettings: settings},
+					KarmadaControllerManager:   &config.KarmadaControllerManager{CommonSettings: settings},
+					KarmadaScheduler:           &config.KarmadaScheduler{CommonSettings: settings},
+					KarmadaWebhook:             &config.KarmadaWebhook{CommonSettings: settings},
+				},
+			}}
+			client := fake.NewClientset()
+			pods := map[string]corev1.PodSpec{}
+			// Capture actual create payloads; mark fixtures available to bypass rollout waits.
+			client.PrependReactor("create", "*", func(action clienttesting.Action) (bool, runtime.Object, error) {
+				switch obj := action.(clienttesting.CreateAction).GetObject().(type) {
+				case *appsv1.Deployment:
+					pods[obj.Name] = obj.Spec.Template.Spec
+					obj.Status = appsv1.DeploymentStatus{ObservedGeneration: obj.Generation, UpdatedReplicas: *obj.Spec.Replicas, AvailableReplicas: *obj.Spec.Replicas}
+				case *appsv1.StatefulSet:
+					pods[obj.Name] = obj.Spec.Template.Spec
+					obj.Status = appsv1.StatefulSetStatus{ObservedGeneration: obj.Generation, UpdatedReplicas: *obj.Spec.Replicas, AvailableReplicas: *obj.Spec.Replicas}
+				}
+				return false, nil, nil
+			})
+			opt := CommandInitOption{KubeClientSet: client, Namespace: "test", WaitComponentReadyTimeout: 1}
+			assert.NoError(t, opt.parseInitConfig(cfg))
+			assert.NoError(t, opt.initKarmadaAPIServer())
+			assert.NoError(t, opt.initKarmadaComponent())
+			assert.Len(t, pods, 7)
+			for name, pod := range pods {
+				wantResources := settings.Resources
+				if name == karmadaAggregatedAPIServerDeploymentAndServiceName && tc.name != "configured" {
+					wantResources.Requests = corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("100m")}
+				}
+				assert.Equal(t, wantResources, pod.Containers[0].Resources, name)
+				assert.Equal(t, settings.NodeSelector, pod.NodeSelector, name)
+				wantTolerations := settings.Tolerations
+				if wantTolerations == nil && name != etcdStatefulSetAndServiceName {
+					wantTolerations = []corev1.Toleration{{Effect: corev1.TaintEffectNoExecute, Operator: corev1.TolerationOpExists}}
+				}
+				assert.Equal(t, wantTolerations, pod.Tolerations, name)
+				if settings.Affinity != nil {
+					assert.Equal(t, settings.Affinity, pod.Affinity, name)
+				} else if name == etcdStatefulSetAndServiceName {
+					assert.Len(t, pod.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution, 1)
+				} else {
+					assert.Len(t, pod.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution, 1)
+				}
+			}
+		})
+	}
+}
+
+func TestInitEtcdSelectorPrecedence(t *testing.T) {
+	for _, tc := range []struct {
+		name, flag, mode     string
+		common, legacy, want map[string]string
+	}{
+		{"config overrides flag", "role=old", "hostPath", map[string]string{"role": "new"}, nil, map[string]string{"role": "new"}},
+		{"config overrides invalid flag", "bad in (", "hostPath", map[string]string{"role": "new"}, nil, map[string]string{"role": "new"}},
+		{"legacy YAML retained", "role=flag", "hostPath", map[string]string{"role": "new"}, map[string]string{"role": "legacy"}, map[string]string{"role": "legacy"}},
+		{"flag retained", "role=flag", "hostPath", nil, nil, map[string]string{"role": "flag"}},
+		{"empty retains fallback", "", "hostPath", map[string]string{}, nil, map[string]string{"karmada.io/etcd": ""}},
+		{"PVC common selector", "", "PVC", map[string]string{"role": "new"}, nil, map[string]string{"role": "new"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := &config.KarmadaInitConfig{Spec: config.KarmadaInitSpec{Etcd: config.Etcd{Local: &config.LocalEtcd{
+				CommonSettings: config.CommonSettings{NodeSelector: tc.common}, NodeSelectorLabels: tc.legacy, StorageMode: tc.mode,
+			}}}}
+			opt := CommandInitOption{EtcdNodeSelectorLabels: tc.flag, EtcdPersistentVolumeSize: "1Gi"}
+			assert.NoError(t, opt.parseInitConfig(cfg))
+			assert.NoError(t, opt.handleEtcdNodeSelectorLabels())
+			sts := opt.makeETCDStatefulSet()
+			opt.applyCommonSettings(sts.Name, &sts.Spec.Template.Spec)
+			assert.Equal(t, tc.want, sts.Spec.Template.Spec.NodeSelector)
+		})
+	}
 }
