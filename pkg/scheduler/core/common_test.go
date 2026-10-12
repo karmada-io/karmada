@@ -153,7 +153,7 @@ func TestSelectClusters(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.spec.Placement = tt.placement
-			result, err := SelectClusters(tt.clustersScore, tt.placement, tt.spec, tt.status, nil)
+			result, err := SelectClusters(tt.clustersScore, tt.placement, tt.spec, tt.status, nil, false)
 
 			if tt.expectedError {
 				assert.Error(t, err)
@@ -175,6 +175,77 @@ func TestSelectClusters(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSelectClustersForComponentScale(t *testing.T) {
+	originalFeatureGates := features.FeatureGate.DeepCopy()
+	if err := features.FeatureGate.Set(fmt.Sprintf("%s=true", features.MultiplePodTemplatesScheduling)); err != nil {
+		t.Fatalf("failed to enable feature gate %s: %v", features.MultiplePodTemplatesScheduling, err)
+	}
+	t.Cleanup(func() { features.FeatureGate = originalFeatureGates })
+
+	placement := &policyv1alpha1.Placement{
+		SpreadConstraints: []policyv1alpha1.SpreadConstraint{{
+			SpreadByField: policyv1alpha1.SpreadByFieldCluster,
+			MinGroups:     1,
+			MaxGroups:     1,
+		}},
+		ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+			ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDivided,
+		},
+	}
+	cluster := helper.NewCluster(ClusterMember1)
+	clustersScore := framework.ClusterScoreList{{Cluster: cluster}}
+	accepted := []workv1alpha2.TargetComponent{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4}}
+
+	t.Run("scale down skips estimation and does not persist the capacity sentinel", func(t *testing.T) {
+		desired := []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 2}}
+		spec := &workv1alpha2.ResourceBindingSpec{
+			Placement:  placement,
+			Components: desired,
+			Clusters:   []workv1alpha2.TargetCluster{{Name: ClusterMember1, Components: accepted}},
+		}
+
+		selected, err := SelectClusters(clustersScore, placement, spec, &workv1alpha2.ResourceBindingStatus{}, nil, true)
+		assert.NoError(t, err)
+		if assert.Len(t, selected, 1) {
+			assert.Equal(t, int64(minimumAvailableComponentSets), selected[0].AvailableReplicas)
+		}
+
+		result, err := AssignReplicas(selected, spec, &workv1alpha2.ResourceBindingStatus{})
+		assert.NoError(t, err)
+		assert.Equal(t, []workv1alpha2.TargetCluster{{
+			Name: ClusterMember1,
+			Components: []workv1alpha2.TargetComponent{
+				{Name: "jobmanager", Replicas: 1},
+				{Name: "taskmanager", Replicas: 2},
+			},
+		}}, result)
+	})
+
+	t.Run("scale up without estimator capacity is unschedulable", func(t *testing.T) {
+		spec := &workv1alpha2.ResourceBindingSpec{
+			Placement:  placement,
+			Components: []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 6}},
+			Clusters:   []workv1alpha2.TargetCluster{{Name: ClusterMember1, Components: accepted}},
+		}
+
+		selected, err := SelectClusters(clustersScore, placement, spec, &workv1alpha2.ResourceBindingStatus{}, nil, true)
+		assert.Error(t, err)
+		assert.Nil(t, selected)
+	})
+
+	t.Run("mixed component scaling is unschedulable", func(t *testing.T) {
+		spec := &workv1alpha2.ResourceBindingSpec{
+			Placement:  placement,
+			Components: []workv1alpha2.Component{{Name: "jobmanager", Replicas: 0}, {Name: "taskmanager", Replicas: 6}},
+			Clusters:   []workv1alpha2.TargetCluster{{Name: ClusterMember1, Components: accepted}},
+		}
+
+		selected, err := SelectClusters(clustersScore, placement, spec, &workv1alpha2.ResourceBindingStatus{}, nil, true)
+		assert.Error(t, err)
+		assert.Nil(t, selected)
+	})
 }
 
 func TestAssignComponentSchedulingResults(t *testing.T) {

@@ -20,11 +20,26 @@ import (
 	"reflect"
 	"testing"
 
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/scheduler/core/spreadconstraint"
 	"github.com/karmada-io/karmada/test/helper"
 )
+
+func TestRetainScheduledClusters(t *testing.T) {
+	cluster1 := helper.NewCluster(ClusterMember1)
+	cluster2 := helper.NewCluster(ClusterMember2)
+
+	got := retainScheduledClusters(
+		[]*clusterv1alpha1.Cluster{cluster1, cluster2},
+		[]workv1alpha2.TargetCluster{{Name: ClusterMember2}},
+	)
+
+	if !reflect.DeepEqual(got, []*clusterv1alpha1.Cluster{cluster2}) {
+		t.Fatalf("retainScheduledClusters() = %v, want only %s", got, ClusterMember2)
+	}
+}
 
 type testcase struct {
 	name     string
