@@ -104,14 +104,12 @@ kind create cluster --name "${CLUSTER_NAME}" --kubeconfig="${KUBECONFIG}" --imag
 )
 rm -rf "${kind_log}"
 
-# Kind cluster's context name contains a "kind-" prefix by default.
-# Change context name to cluster name.
-kubectl config rename-context "kind-${CLUSTER_NAME}" "${CLUSTER_NAME}" --kubeconfig="${KUBECONFIG}"
-
-# Kind cluster uses `127.0.0.1` as kube-apiserver endpoint by default, thus kind clusters can't reach each other.
-# So we need to update endpoint with container IP.
-container_ip=$(docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${CLUSTER_NAME}-control-plane")
-kubectl config set-cluster "kind-${CLUSTER_NAME}" --server="https://${container_ip}:6443" --kubeconfig="${KUBECONFIG}"
+# Kind cluster's context name contains a "kind-" prefix by default. Change context
+# name to cluster name, and update the endpoint address in kubeconfig, since the
+# container's native IP is not routable from the host on macOS/WSL2 (Docker Desktop
+# runs containers inside a VM), while kind's default `127.0.0.1` endpoint is only
+# reachable from the host, not from other containers.
+util::check_clusters_ready "${KUBECONFIG}" "${CLUSTER_NAME}"
 
 echo "cluster \"${CLUSTER_NAME}\" is created successfully!"
 echo "You can now use your cluster with:"
