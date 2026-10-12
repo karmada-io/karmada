@@ -84,8 +84,8 @@ Generic flags:
       --leader-elect-retry-period duration             The duration the clients should wait between attempting acquisition and renewal of a leadership. This is only applicable if leader election is enabled. (default 2s)
       --master string                                  The address of the Kubernetes API server. Overrides any value in KubeConfig. Only required if out-of-cluster.
       --metrics-bind-address string                    The TCP address that the server should bind to for serving prometheus metrics(e.g. 127.0.0.1:8080, :8080). It can be set to "0" to disable the metrics serving. Defaults to 0.0.0.0:8080. (default ":8080")
-      --plugins strings                                A list of plugins to enable. '*' enables all build-in and customized plugins, 'foo' enables the plugin named 'foo', '*,-foo' disables the plugin named 'foo'.
-                                                       All build-in plugins: APIEnablement,ClusterAffinity,ClusterEviction,ClusterLocality,SpreadConstraint,TaintToleration. (default [*])
+      --plugins strings                                A list of plugins to enable. '*' enables all built-in and customized plugins, 'foo' enables the plugin named 'foo', '*,-foo' disables the plugin named 'foo'.
+                                                       All built-in plugins: APIEnablement,ClusterAffinity,ClusterEviction,ClusterLocality,SpreadConstraint,TaintToleration. (default [*])
       --profiling-bind-address string                  The TCP address for serving profiling(e.g. 127.0.0.1:6060, :6060). This is only applicable if profiling is enabled. (default ":6060")
       --rate-limiter-base-delay duration               The base delay for rate limiter. (default 5ms)
       --rate-limiter-bucket-size int                   The bucket size for rate limier. (default 100)
