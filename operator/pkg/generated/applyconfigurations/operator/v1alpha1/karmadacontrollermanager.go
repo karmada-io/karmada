@@ -176,6 +176,19 @@ func (b *KarmadaControllerManagerApplyConfiguration) WithAffinity(value *corev1.
 	return b
 }
 
+// WithTopologySpreadConstraints adds the given value to the TopologySpreadConstraints field in the declarative configuration
+// and returns the receiver, so that objects can be build by chaining "With" function invocations.
+// If called multiple times, values provided by each call will be appended to the TopologySpreadConstraints field.
+func (b *KarmadaControllerManagerApplyConfiguration) WithTopologySpreadConstraints(values ...*corev1.TopologySpreadConstraintApplyConfiguration) *KarmadaControllerManagerApplyConfiguration {
+	for i := range values {
+		if values[i] == nil {
+			panic("nil value passed to WithTopologySpreadConstraints")
+		}
+		b.CommonSettingsApplyConfiguration.TopologySpreadConstraints = append(b.CommonSettingsApplyConfiguration.TopologySpreadConstraints, *values[i])
+	}
+	return b
+}
+
 // WithControllers adds the given value to the Controllers field in the declarative configuration
 // and returns the receiver, so that objects can be build by chaining "With" function invocations.
 // If called multiple times, values provided by each call will be appended to the Controllers field.

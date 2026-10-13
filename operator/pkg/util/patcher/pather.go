@@ -36,18 +36,19 @@ import (
 
 // Patcher defines multiple variables that need to be patched.
 type Patcher struct {
-	priorityClassName string
-	labels            map[string]string
-	annotations       map[string]string
-	extraArgs         map[string]string
-	extraVolumes      []corev1.Volume
-	extraVolumeMounts []corev1.VolumeMount
-	sidecarContainers []corev1.Container
-	featureGates      map[string]bool
-	volume            *operatorv1alpha1.VolumeData
-	resources         corev1.ResourceRequirements
-	tolerations       []corev1.Toleration
-	affinity          *corev1.Affinity
+	priorityClassName         string
+	labels                    map[string]string
+	annotations               map[string]string
+	extraArgs                 map[string]string
+	extraVolumes              []corev1.Volume
+	extraVolumeMounts         []corev1.VolumeMount
+	sidecarContainers         []corev1.Container
+	featureGates              map[string]bool
+	volume                    *operatorv1alpha1.VolumeData
+	resources                 corev1.ResourceRequirements
+	tolerations               []corev1.Toleration
+	affinity                  *corev1.Affinity
+	topologySpreadConstraints []corev1.TopologySpreadConstraint
 }
 
 // NewPatcher returns a patcher.
@@ -127,6 +128,12 @@ func (p *Patcher) WithAffinity(affinity *corev1.Affinity) *Patcher {
 	return p
 }
 
+// WithTopologySpreadConstraints sets topology spread constraints to the patcher.
+func (p *Patcher) WithTopologySpreadConstraints(constraints []corev1.TopologySpreadConstraint) *Patcher {
+	p.topologySpreadConstraints = constraints
+	return p
+}
+
 // ForDeployment patches the deployment manifest.
 func (p *Patcher) ForDeployment(deployment *appsv1.Deployment) {
 	deployment.Labels = labels.Merge(deployment.Labels, p.labels)
@@ -141,6 +148,9 @@ func (p *Patcher) ForDeployment(deployment *appsv1.Deployment) {
 	}
 	if len(p.tolerations) > 0 {
 		deployment.Spec.Template.Spec.Tolerations = p.tolerations
+	}
+	if len(p.topologySpreadConstraints) > 0 {
+		deployment.Spec.Template.Spec.TopologySpreadConstraints = p.topologySpreadConstraints
 	}
 
 	if p.resources.Size() > 0 {
@@ -192,6 +202,9 @@ func (p *Patcher) ForStatefulSet(sts *appsv1.StatefulSet) {
 	}
 	if len(p.tolerations) > 0 {
 		sts.Spec.Template.Spec.Tolerations = p.tolerations
+	}
+	if len(p.topologySpreadConstraints) > 0 {
+		sts.Spec.Template.Spec.TopologySpreadConstraints = p.topologySpreadConstraints
 	}
 
 	if p.volume != nil {
