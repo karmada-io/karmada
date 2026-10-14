@@ -199,7 +199,8 @@ func aggregatedStatusFormWorks(works []workv1alpha1.Work) ([]policyv1alpha1.Clus
 			case metav1.ConditionFalse:
 				applied = false
 			default: // should not happen unless the condition api changed.
-				panic("unexpected status")
+				klog.Errorf("Unexpected condition status: %v", cond.Status)
+				return nil, fmt.Errorf("unexpected condition status: %v", cond.Status)
 			}
 		}
 		if !applied {
