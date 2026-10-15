@@ -74,6 +74,10 @@ type Options struct {
 	ClusterName string
 	// ConcurrentWorkSyncs is the number of Works that are allowed to sync concurrently.
 	ConcurrentWorkSyncs int
+	// ConcurrentBindingEvictionSyncs is the number of taint-manager binding-eviction
+	// reconciles (covering both ResourceBinding and ClusterResourceBinding queues)
+	// that are allowed to run concurrently.
+	ConcurrentBindingEvictionSyncs int
 	// RateLimiterOptions contains the options for rate limiter.
 	RateLimiterOptions ratelimiterflag.Options
 	// If set to true enables NoExecute Taints and will evict all not-tolerating
