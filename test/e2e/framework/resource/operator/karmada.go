@@ -43,7 +43,7 @@ func WaitKarmadaReady(client operator.Interface, namespace, name string, lastTra
 			karmada, err := client.OperatorV1alpha1().Karmadas(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 			g.Expect(err).NotTo(gomega.HaveOccurred())
 			for _, condition := range karmada.Status.Conditions {
-				if condition.Type == "Ready" && condition.Status == "True" && condition.LastTransitionTime.After(lastTransitionTime) {
+				if condition.Type == "Ready" && condition.Status == "True" && !condition.LastTransitionTime.Time.Before(lastTransitionTime.Truncate(time.Second).Add(time.Second)) {
 					return true
 				}
 			}
