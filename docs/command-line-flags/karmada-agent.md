@@ -108,6 +108,7 @@ Generic flags:
       --rate-limiter-bucket-size int                   The bucket size for rate limier. (default 100)
       --rate-limiter-max-delay duration                The max delay for rate limiter. (default 16m40s)
       --rate-limiter-qps int                           The QPS for rate limier. (default 10)
+      --register-cluster                               Whether to register the member cluster with the Karmada control plane on startup. Set to false when the cluster is pre-registered by an external process; the agent will then only validate the existing Pull-mode registration and run its controllers. (default true)
       --report-secrets strings                         The secrets that are allowed to be reported to the Karmada control plane during registering. Valid values are 'KubeCredentials', 'KubeImpersonator' and 'None'. e.g 'KubeCredentials,KubeImpersonator' or 'None'. (default [KubeCredentials,KubeImpersonator])
       --resync-period duration                         Base frequency the informers are resynced.
 ```

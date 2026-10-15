@@ -140,6 +140,10 @@ type Options struct {
 	CertRotationRemainingTimeThreshold float64
 	// KarmadaKubeconfigNamespace is the namespace of the secret containing karmada-agent certificate.
 	KarmadaKubeconfigNamespace string
+	// RegisterCluster indicates whether the agent should register the member cluster with the
+	// Karmada control plane on startup. When false, the cluster must already be registered in
+	// Pull mode and the agent only validates the existing registration before running its controllers.
+	RegisterCluster bool
 }
 
 // NewOptions builds an default scheduler options.
@@ -211,6 +215,7 @@ func (o *Options) AddFlags(fs *pflag.FlagSet, allControllers []string) {
 	fs.DurationVar(&o.CertRotationCheckingInterval, "cert-rotation-checking-interval", 5*time.Minute, "The interval of checking if the certificate need to be rotated. This is only applicable if cert rotation is enabled")
 	fs.Float64Var(&o.CertRotationRemainingTimeThreshold, "cert-rotation-remaining-time-threshold", 0.2, "The threshold of remaining time of the valid certificate. This is only applicable if cert rotation is enabled.")
 	fs.StringVar(&o.KarmadaKubeconfigNamespace, "karmada-kubeconfig-namespace", "karmada-system", "Namespace of the secret containing karmada-agent certificate. This is only applicable if cert rotation is enabled.")
+	fs.BoolVar(&o.RegisterCluster, "register-cluster", true, "Whether to register the member cluster with the Karmada control plane on startup. Set to false when the cluster is pre-registered by an external process; the agent will then only validate the existing Pull-mode registration and run its controllers.")
 	o.RateLimiterOpts.AddFlags(fs)
 	features.FeatureGate.AddFlag(fs)
 	o.ProfileOpts.AddFlags(fs)
