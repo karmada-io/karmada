@@ -167,8 +167,29 @@ func TestFileToBytes(t *testing.T) {
 			want:    []byte("hello, world"),
 			wantErr: false,
 		},
+		{
+			// Regression test: FileToBytes must read the entire file rather than
+			// relying on a single Read call to fill the buffer, since io.Reader
+			// does not guarantee that. A multi-megabyte file exercises this path.
+			name:      "large content is read in full, not truncated",
+			createtmp: true,
+			args: args{
+				path: "a-not-exits-path-" + randString(),
+				name: "a-not-exit-file-" + randString() + ".txt",
+			},
+			wantErr: false,
+		},
 	}
-	for _, tt := range tests {
+	for i := range tests {
+		tt := &tests[i]
+		if tt.name == "large content is read in full, not truncated" {
+			content := make([]byte, 5*1024*1024)
+			for j := range content {
+				content[j] = byte(j % 251)
+			}
+			tt.tempcontent = string(content)
+			tt.want = content
+		}
 		if tt.createtmp {
 			err := os.Mkdir(tt.args.path, 0755)
 			if err != nil {
@@ -193,7 +214,16 @@ func TestFileToBytes(t *testing.T) {
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("FileToBytes() = %v, want %v", got, tt.want)
+				if len(got) != len(tt.want) {
+					t.Errorf("FileToBytes() length = %d, want length %d", len(got), len(tt.want))
+					return
+				}
+				for j := range got {
+					if got[j] != tt.want[j] {
+						t.Errorf("FileToBytes() content mismatch at byte %d: got %d, want %d (lengths match at %d, so this is not a truncation)", j, got[j], tt.want[j], len(got))
+						return
+					}
+				}
 			}
 		})
 		if tt.createtmp {
