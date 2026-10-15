@@ -1,3 +1,23 @@
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
+
+- [What's New](#whats-new)
+  - [Aggregated Kubernetes API Endpoint](#aggregated-kubernetes-api-endpoint)
+  - [Promoting Workloads from Legacy Clusters to Karmada](#promoting-workloads-from-legacy-clusters-to-karmada)
+  - [Verified Integration with Ecosystem](#verified-integration-with-ecosystem)
+  - [OverridePolicy Improvements](#overridepolicy-improvements)
+  - [Karmada Installation Improvements](#karmada-installation-improvements)
+  - [Configuring Karmada Controllers](#configuring-karmada-controllers)
+  - [Resource Interpreter Webhook Enhancement](#resource-interpreter-webhook-enhancement)
+- [Other Notable Changes](#other-notable-changes)
+  - [Bug Fixes](#bug-fixes)
+  - [Features & Enhancements](#features--enhancements)
+  - [Instrumentation (Metrics and Events)](#instrumentation-metrics-and-events)
+  - [Deprecation](#deprecation)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 # What's New
 ## Aggregated Kubernetes API Endpoint
 The newly introduced `karmada-aggregated-apiserver` component aggregates all registered clusters and allows users to 
