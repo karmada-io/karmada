@@ -307,6 +307,21 @@ func (vm *VM) InterpretHealth(object *unstructured.Unstructured, script string) 
 	return health, nil
 }
 
+// InterpretSchedulingResult customizes the scheduling result by lua script.
+func (vm *VM) InterpretSchedulingResult(object *unstructured.Unstructured, schedulingResult []workv1alpha2.TargetCluster, script string) ([]workv1alpha2.TargetCluster, error) {
+	results, err := vm.RunScript(script, "InterpretSchedulingResult", 1, object, schedulingResult)
+	if err != nil {
+		return nil, err
+	}
+
+	var result []workv1alpha2.TargetCluster
+	result, err = ConvertLuaResultToTargetClusters(results[0])
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
 // ReflectStatus returns the status of the object by lua.
 func (vm *VM) ReflectStatus(object *unstructured.Unstructured, script string) (status *runtime.RawExtension, err error) {
 	results, err := vm.RunScript(script, "ReflectStatus", 1, object)

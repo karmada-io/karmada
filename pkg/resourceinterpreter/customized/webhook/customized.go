@@ -381,6 +381,22 @@ func (e *CustomizedInterpreter) InterpretHealth(ctx context.Context, attributes 
 	return response.Healthy, matched, nil
 }
 
+// InterpretSchedulingResult allows customizing the scheduling result for distributing replicas among clusters.
+func (e *CustomizedInterpreter) InterpretSchedulingResult(ctx context.Context, attributes *request.Attributes) (schedulingResult []workv1alpha2.TargetCluster, matched bool, err error) {
+	klog.V(4).Infof("Interpret scheduling result for object: %v %s/%s with webhook interpreter.",
+		attributes.Object.GroupVersionKind(), attributes.Object.GetNamespace(), attributes.Object.GetName())
+	var response *request.ResponseAttributes
+	response, matched, err = e.interpret(ctx, attributes)
+	if err != nil {
+		return
+	}
+	if !matched {
+		return
+	}
+
+	return response.SchedulingResult, matched, nil
+}
+
 // LoadConfig loads the webhook configurations.
 func (e *CustomizedInterpreter) LoadConfig(webhookConfigurations []*configv1alpha1.ResourceInterpreterWebhookConfiguration) {
 	e.hookManager.LoadConfig(webhookConfigurations)

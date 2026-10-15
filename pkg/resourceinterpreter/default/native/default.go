@@ -173,3 +173,10 @@ func (e *DefaultInterpreter) InterpretHealth(object *unstructured.Unstructured) 
 
 	return false, fmt.Errorf("default %s interpreter for %q not found", configv1alpha1.InterpreterOperationInterpretHealth, object.GroupVersionKind())
 }
+
+// InterpretSchedulingResult returns the scheduling result unchanged for default behavior.
+func (e *DefaultInterpreter) InterpretSchedulingResult(object *unstructured.Unstructured, schedulingResult []workv1alpha2.TargetCluster) ([]workv1alpha2.TargetCluster, error) {
+	klog.V(4).Infof("Interpret scheduling result for object: %v %s/%s with build-in interpreter.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
+	// Default implementation returns the scheduling result unchanged
+	return schedulingResult, nil
+}
