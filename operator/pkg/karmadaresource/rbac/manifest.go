@@ -195,4 +195,214 @@ subjects:
   - kind: User
     name: "system:admin"
 `
+
+	// ClusterInfoRole defines a role with permission to get the cluster-info configmap
+	ClusterInfoRole = `
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    karmada.io/bootstrapping: rbac-defaults
+  name: system:karmada:bootstrap-signer-clusterinfo
+  namespace: kube-public
+rules:
+- apiGroups:
+  - ""
+  resourceNames:
+  - cluster-info
+  resources:
+  - configmaps
+  verbs:
+  - get
+`
+
+	// ClusterInfoRoleBinding authorizes system:anonymous to get the cluster-info configmap
+	ClusterInfoRoleBinding = `
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    karmada.io/bootstrapping: rbac-defaults
+  name: system:karmada:bootstrap-signer-clusterinfo
+  namespace: kube-public
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: system:karmada:bootstrap-signer-clusterinfo
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: User
+  name: system:anonymous
+`
+
+	// CSRAutoApproverClusterRole defines a ClusterRole with permissions to automatically approve the agent CSRs when the agentcsrapproving controller is enabled by karmada-controller-manager
+	CSRAutoApproverClusterRole = `
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    karmada.io/bootstrapping: rbac-defaults
+  name: system:karmada:certificatesigningrequest:autoapprover
+rules:
+  - apiGroups:
+      - certificates.k8s.io
+    resources:
+      - certificatesigningrequests/clusteragent
+    verbs:
+      - create
+`
+
+	// CSRAutoApproverClusterRoleBinding authorizes Group system:bootstrappers:karmada:default-cluster-token to auto approve the agent CSRs
+	CSRAutoApproverClusterRoleBinding = `
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    karmada.io/bootstrapping: rbac-defaults
+  name: system:karmada:agent-autoapprove-bootstrap
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:karmada:certificatesigningrequest:autoapprover
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: Group
+  name: system:bootstrappers:karmada:default-cluster-token
+`
+	// AgentBootstrapClusterRole defines a ClusterRole with permissions to create and get CSRs.
+	AgentBootstrapClusterRole = `
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    karmada.io/bootstrapping: rbac-defaults
+  name: system:karmada:cluster-bootstrapper
+rules:
+  - apiGroups:
+      - certificates.k8s.io
+    resources:
+      - certificatesigningrequests
+    verbs:
+      - create
+      - get
+`
+
+	// AgentBootstrapClusterRoleBinding authorizes Group system:bootstrappers:karmada:default-cluster-token to obtain the CSRs.
+	AgentBootstrapClusterRoleBinding = `
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    karmada.io/bootstrapping: rbac-defaults
+  name: system:karmada:agent-bootstrap
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:karmada:cluster-bootstrapper
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: Group
+  name: system:bootstrappers:karmada:default-cluster-token
+`
+
+	// CSRSelfAutoApproverClusterRole defines a ClusterRole with permissions to automatically approve the agent CSRs
+	CSRSelfAutoApproverClusterRole = `
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    karmada.io/bootstrapping: rbac-defaults
+  name: system:karmada:certificatesigningrequest:selfautoapprover
+rules:
+  - apiGroups:
+      - certificates.k8s.io
+    resources:
+      - certificatesigningrequests/selfclusteragent
+    verbs:
+      - create
+`
+
+	// CSRSelfAutoApproverClusterRoleBinding authorizes Group system:karmada:agents to automatically approve the agent CSRs
+	CSRSelfAutoApproverClusterRoleBinding = `
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    karmada.io/bootstrapping: rbac-defaults
+  name: system:karmada:agent-autoapprove-certificate-rotation
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:karmada:certificatesigningrequest:selfautoapprover
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: Group
+  name: system:karmada:agents
+`
+
+	// AgentRBACGeneratorClusterRole is not used for the connection between the karmada-agent and the control plane,
+	// but is used by karmadactl register to generate the RBAC resources required by the karmada-agent.
+	AgentRBACGeneratorClusterRole = `
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    karmada.io/bootstrapping: rbac-defaults
+  name: system:karmada:agent-rbac-generator
+rules:
+  - apiGroups: ["cluster.karmada.io"]
+    resources: ["clusters"]
+    verbs: ["get", "create", "delete", "list", "watch"]
+  - apiGroups: ["cluster.karmada.io"]
+    resources: ["clusters/status"]
+    verbs: ["update"]
+  - apiGroups: ["config.karmada.io"]
+    resources: ["resourceinterpreterwebhookconfigurations", "resourceinterpretercustomizations"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "create"]
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "create", "patch"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "create", "update"]
+  - apiGroups: ["certificates.k8s.io"]
+    resources: ["certificatesigningrequests"]
+    verbs: ["get", "create", "delete"]
+  - apiGroups: ["work.karmada.io"]
+    resources: ["works"]
+    verbs: ["get", "create", "list", "watch", "update", "delete"]
+  - apiGroups: ["work.karmada.io"]
+    resources: ["works/status"]
+    verbs: ["update", "patch"]
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["roles", "rolebindings", "clusterroles", "clusterrolebindings"]
+    verbs: ["create", "delete"]
+`
+
+	// AgentRBACGeneratorClusterRoleBinding User `system:karmada:agent:rbac-generator` is specifically used during the `karmadactl register` process to generate restricted RBAC resources for the `karmada-agent`
+	AgentRBACGeneratorClusterRoleBinding = `
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    karmada.io/bootstrapping: rbac-defaults
+  name: system:karmada:agent-rbac-generator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:karmada:agent-rbac-generator
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: User
+    name: system:karmada:agent:rbac-generator
+`
 )

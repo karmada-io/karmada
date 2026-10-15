@@ -84,8 +84,8 @@ func TestRunRBAC(t *testing.T) {
 
 				client := rd.(*TestInitData).KarmadaClient()
 				actions := client.(*fakeclientset.Clientset).Actions()
-				if len(actions) != 4 {
-					return fmt.Errorf("expected 4 actions, but got %d", len(actions))
+				if len(actions) != 14 {
+					return fmt.Errorf("expected 14 actions, but got %d", len(actions))
 				}
 
 				rolesToCheck := []string{"cluster-proxy-admin", "karmada-edit", "karmada-view"}
