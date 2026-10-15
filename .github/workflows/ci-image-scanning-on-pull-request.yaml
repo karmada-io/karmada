@@ -1,0 +1,72 @@
+name: image-scanning
+on:
+  pull_request:
+jobs:
+  use-trivy-to-scan-image:
+    name: image scannning
+    # prevent job running from forked repository
+    if: ${{ github.repository == 'karmada-io/karmada' }}
+    runs-on: ubuntu-22.04
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v3
+      - name: install Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.20.11
+      - name: Image scan
+        run: |
+          hack/scan-image-vuln.sh -f table
+      - name: collect vulnerability data
+        id: Collect_vulnerability_data
+        run: |
+          vulns_on_pr=$(hack/scan-image-vuln.sh -s -f json)
+          echo "pkgName_arr=($(echo "${vulns_on_pr}" | grep PkgName | awk '{print $2}' | tr ',\n' '\0' | xargs -0))" >> "$GITHUB_OUTPUT"
+          echo "cve_arr=($(echo "${vulns_on_pr}" | grep VulnerabilityID | awk '{print $2}' | tr ',\n' '\0' | xargs -0))" >> "$GITHUB_OUTPUT"
+          echo "fixedVersion_arr=($(echo "${vulns_on_pr}" | grep FixedVersion | awk '{print $2}' | tr ',\n' '\0' | xargs -0))" >> "$GITHUB_OUTPUT"
+      - name: chekcout to base code
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+      - name: collect base branch vulnerability data
+        id: Collect_base_branch_vulnerability_data
+        run: |
+          vulns_on_base=$(hack/scan-image-vuln.sh -f json)
+          echo "pkgName_base_arr=($(echo "${vulns_on_base}" | grep PkgName | awk '{print $2}' | tr ',\n' '\0' | xargs -0))" >> "$GITHUB_OUTPUT"
+          echo "cve_base_arr=($(echo "${vulns_on_base}" | grep VulnerabilityID | awk '{print $2}' | tr ',\n' '\0' | xargs -0))" >> "$GITHUB_OUTPUT"
+      - name: Vulnerability analysis
+        run: |
+          pkgName_arr=${{steps.Collect_vulnerability_data.outputs.pkgName_arr}}
+          cve_arr=${{steps.Collect_vulnerability_data.outputs.cve_arr}}
+          fixedVersion_arr=${{steps.Collect_vulnerability_data.outputs.fixedVersion_arr}}
+          # Assemble the vulnerability information scanned from PR into a map.
+          declare -A prVulnMap
+          for ((i=0; i<${#cve_arr[@]}; i++));
+          do 
+            prVulnMap["Library:${pkgName_arr[$i]} Vulnerability:${cve_arr[$i]}"]="FixedVersion:${fixedVersion_arr[$i]}"
+          done  
+          
+          pkgName_base_arr=${{steps.Collect_base_branch_vulnerability_data.outputs.pkgName_base_arr}}
+          cve_base_arr=${{steps.Collect_base_branch_vulnerability_data.outputs.cve_base_arr}}
+          # Assemble the vulnerability information scanned from Baseline branch into a map.
+          declare -A baseVulnMap
+          for ((i=0; i<${#cve_base_arr[@]}; i++));
+          do 
+            baseVulnMap["Library:${pkgName_base_arr[$i]} Vulnerability:${cve_base_arr[$i]}"]=" "
+          done  
+          
+          echo "============= The vulnerabilities fixed by this PR are as follows: ============="
+          for key in "${!baseVulnMap[@]}";
+          do 
+            if [[ ! -v prVulnMap[$key] ]]; then
+              echo "<<${key}>> has been fixed in this pr"
+            fi
+          done
+          
+          echo "============= warn: The vulnerabilities introduced by this PR are as follows: ============="
+          for key in "${!prVulnMap[@]}";
+          do 
+            if [[ ! -v baseVulnMap[$key] ]]; then
+              echo "This PR introduces a new security vulnerability: <<${key}>>, which can be resolved by bumping to ${prVulnMap[${key}]}."
+            fi
+          done
