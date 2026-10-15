@@ -127,7 +127,7 @@ func (c *CRBApplicationFailoverController) syncBinding(ctx context.Context, bind
 		allClusters.Insert(cluster.Name)
 	}
 
-	unhealthyClusters, others := distinguishUnhealthyClustersWithOthers(binding.Status.AggregatedStatus, binding.Spec)
+	unhealthyClusters, healthyClusters := distinguishUnhealthyClustersWithOthers(binding.Status.AggregatedStatus, binding.Spec)
 	duration, needEvictClusters := c.detectFailure(unhealthyClusters, tolerationSeconds, key)
 
 	err := c.evictBinding(binding, needEvictClusters)
@@ -143,7 +143,7 @@ func (c *CRBApplicationFailoverController) syncBinding(ctx context.Context, bind
 	}
 
 	// Cleanup clusters on which the application status is not unhealthy and clusters that have been evicted or removed in the workloadUnhealthyMap.
-	c.workloadUnhealthyMap.deleteIrrelevantClusters(key, allClusters, others)
+	c.workloadUnhealthyMap.deleteIrrelevantClusters(key, allClusters, healthyClusters)
 
 	return time.Duration(duration) * time.Second, nil
 }
