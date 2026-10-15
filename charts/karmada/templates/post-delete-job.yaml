@@ -47,7 +47,11 @@ spec:
               set -ex
               kubectl delete -f /opt/mount/ --ignore-not-found=true
               kubectl delete -f /opt/crds/ --ignore-not-found=true -R
-              kubectl delete -f /opt/static-resources/ --ignore-not-found=true -R
+              for file in /opt/static-resources/*; do
+                if [ "$(basename "$file")" != "system-namespace.yaml" ]; then
+                  kubectl delete -f "$file" --ignore-not-found=true -R || true
+                fi
+              done
               kubectl delete cm/{{ $name }}-config -n {{ $namespace }} --ignore-not-found=true
               kubectl delete deployment/{{ $name }}-controller-manager -n {{ $namespace }} --ignore-not-found=true
               EOF
