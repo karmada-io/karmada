@@ -464,8 +464,8 @@ func (o *CommandPromoteOption) promoteDeps(memberClusterFactory cmdutil.Factory,
 	sharedFactory.WaitForCacheSync(ctx.Done())
 
 	defaultInterpreter := native.NewDefaultInterpreter()
-	thirdpartyInterpreter := thirdparty.NewConfigurableInterpreter()
-	configurableInterpreter := declarative.NewConfigurableInterpreter(controlPlaneInformerManager)
+	thirdpartyInterpreter := thirdparty.NewConfigurableInterpreter(10)
+	configurableInterpreter := declarative.NewConfigurableInterpreter(controlPlaneInformerManager, 10)
 	customizedInterpreter, err := webhook.NewCustomizedInterpreter(controlPlaneInformerManager, serviceLister)
 	if err != nil {
 		return fmt.Errorf("failed to create customized interpreter: %v", err)
