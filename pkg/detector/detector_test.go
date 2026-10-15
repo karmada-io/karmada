@@ -42,6 +42,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
+	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
 func BenchmarkEventFilterNoSkipNameSpaces(b *testing.B) {
@@ -1191,6 +1192,56 @@ func TestApplyClusterPolicy(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestApplyClusterPolicyClusterScopedResourceSyncsPropagateDeps(t *testing.T) {
+	scheme := setupTestScheme()
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+	fakeRecorder := record.NewFakeRecorder(10)
+	fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(scheme)
+
+	d := &ResourceDetector{
+		Client:              fakeClient,
+		DynamicClient:       fakeDynamicClient,
+		EventRecorder:       fakeRecorder,
+		ResourceInterpreter: &mockResourceInterpreter{},
+		RESTMapper:          &mockRESTMapper{},
+	}
+
+	object := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "rbac.authorization.k8s.io/v1",
+		"kind":       "ClusterRole",
+		"metadata": map[string]any{
+			"name": "test-cluster-role",
+			"uid":  "test-uid",
+		},
+	}}
+
+	policy := &policyv1alpha1.ClusterPropagationPolicy{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-cluster-policy"},
+		Spec: policyv1alpha1.PropagationSpec{
+			PropagateDeps: false,
+		},
+	}
+
+	err := d.ApplyClusterPolicy(object, keys.ClusterWideKey{}, false, policy)
+	assert.NoError(t, err)
+
+	bindingName := names.GenerateBindingName(object.GetKind(), object.GetName())
+	createdBinding := &workv1alpha2.ClusterResourceBinding{}
+	err = fakeClient.Get(context.TODO(), client.ObjectKey{Name: bindingName}, createdBinding)
+	assert.NoError(t, err)
+	assert.False(t, createdBinding.Spec.PropagateDeps)
+
+	policy.Spec.PropagateDeps = true
+
+	err = d.ApplyClusterPolicy(object, keys.ClusterWideKey{}, false, policy)
+	assert.NoError(t, err)
+
+	updatedBinding := &workv1alpha2.ClusterResourceBinding{}
+	err = fakeClient.Get(context.TODO(), client.ObjectKey{Name: bindingName}, updatedBinding)
+	assert.NoError(t, err)
+	assert.True(t, updatedBinding.Spec.PropagateDeps)
 }
 
 func TestEnqueueResourceKeyWithActivationPref(t *testing.T) {
