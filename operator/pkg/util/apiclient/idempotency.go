@@ -418,15 +418,16 @@ func containsLabels(object metav1.ObjectMeta, ls labels.Set) bool {
 func CreateOrUpdatePodDisruptionBudget(client clientset.Interface, pdb *policyv1.PodDisruptionBudget) error {
 	existing, errGet := client.PolicyV1().PodDisruptionBudgets(pdb.GetNamespace()).Get(context.TODO(), pdb.GetName(), metav1.GetOptions{})
 	if errGet != nil {
-		if apierrors.IsNotFound(errGet) {
-			_, errC := client.PolicyV1().PodDisruptionBudgets(pdb.GetNamespace()).Create(context.TODO(), pdb, metav1.CreateOptions{})
-			if errC != nil {
-				return errC
-			}
-			klog.V(5).InfoS("Successfully created PodDisruptionBudget", "PodDisruptionBudget", pdb.GetName())
+		if !apierrors.IsNotFound(errGet) {
+			return errGet
 		}
 
-		return errGet
+		_, errC := client.PolicyV1().PodDisruptionBudgets(pdb.GetNamespace()).Create(context.TODO(), pdb, metav1.CreateOptions{})
+		if errC != nil {
+			return errC
+		}
+		klog.V(5).InfoS("Successfully created PodDisruptionBudget", "PodDisruptionBudget", pdb.GetName())
+		return nil
 	}
 
 	pdb.ResourceVersion = existing.ResourceVersion
