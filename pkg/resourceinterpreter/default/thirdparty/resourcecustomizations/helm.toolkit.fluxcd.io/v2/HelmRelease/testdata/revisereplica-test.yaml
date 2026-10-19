@@ -1,0 +1,56 @@
+# test case for revising replica of HelmRelease
+# case1. HelmRelease with values.replicaCount should be revised
+# case2. HelmRelease without values.replicaCount should not be modified
+
+name: "HelmRelease with values.replicaCount should be revised"
+description: "Test revising values.replicaCount of HelmRelease"
+desiredObj:
+  apiVersion: helm.toolkit.fluxcd.io/v2
+  kind: HelmRelease
+  metadata:
+    name: podinfo
+    namespace: default
+  spec:
+    interval: 5m
+    values:
+      replicaCount: 4
+      image:
+        tag: 6.5.0
+inputReplicas: 1
+operation: ReviseReplica
+output:
+  revised:
+    apiVersion: helm.toolkit.fluxcd.io/v2
+    kind: HelmRelease
+    metadata:
+      name: podinfo
+      namespace: default
+    spec:
+      interval: 5m
+      values:
+        replicaCount: 1
+        image:
+          tag: 6.5.0
+
+---
+name: "HelmRelease without values.replicaCount should not be modified"
+description: "Test revising replica of HelmRelease that does not set values.replicaCount"
+desiredObj:
+  apiVersion: helm.toolkit.fluxcd.io/v2
+  kind: HelmRelease
+  metadata:
+    name: podinfo
+    namespace: default
+  spec:
+    interval: 5m
+inputReplicas: 2
+operation: ReviseReplica
+output:
+  revised:
+    apiVersion: helm.toolkit.fluxcd.io/v2
+    kind: HelmRelease
+    metadata:
+      name: podinfo
+      namespace: default
+    spec:
+      interval: 5m
