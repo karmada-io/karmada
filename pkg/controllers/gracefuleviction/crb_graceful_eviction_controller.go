@@ -23,7 +23,9 @@ import (
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -54,20 +56,11 @@ type CRBGracefulEvictionController struct {
 func (c *CRBGracefulEvictionController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
 	klog.V(4).InfoS("Reconciling ClusterResourceBinding", "name", req.NamespacedName.String())
 
-	binding := &workv1alpha2.ClusterResourceBinding{}
-	if err := c.Client.Get(ctx, req.NamespacedName, binding); err != nil {
+	retryDuration, err := c.syncBinding(ctx, req.NamespacedName)
+	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil
 		}
-		return controllerruntime.Result{}, err
-	}
-
-	if !binding.DeletionTimestamp.IsZero() {
-		return controllerruntime.Result{}, nil
-	}
-
-	retryDuration, err := c.syncBinding(ctx, binding)
-	if err != nil {
 		return controllerruntime.Result{}, err
 	}
 	if retryDuration > 0 {
@@ -77,31 +70,64 @@ func (c *CRBGracefulEvictionController) Reconcile(ctx context.Context, req contr
 	return controllerruntime.Result{}, nil
 }
 
-func (c *CRBGracefulEvictionController) syncBinding(ctx context.Context, binding *workv1alpha2.ClusterResourceBinding) (time.Duration, error) {
-	keptTask, evictedClusters := assessEvictionTasks(binding.Spec.GracefulEvictionTasks, metav1.Now(), assessmentOption{
-		timeout:        c.GracefulEvictionTimeout,
-		scheduleResult: binding.Spec.Clusters,
-		observedStatus: binding.Status.AggregatedStatus,
-		hasScheduled:   binding.Status.SchedulerObservedGeneration == binding.Generation,
-	})
-	if reflect.DeepEqual(binding.Spec.GracefulEvictionTasks, keptTask) {
-		return nextRetry(keptTask, c.GracefulEvictionTimeout, metav1.Now().Time), nil
-	}
+// syncBinding wraps the read-modify-patch in retry.RetryOnConflict so
+// optimistic-lock collisions with the taint-manager's
+// cluster-binding-eviction worker (which also writes
+// Spec.GracefulEvictionTasks via Update) get a tight inline refetch+retry
+// instead of bouncing through the controller's exponential workqueue
+// backoff.
+func (c *CRBGracefulEvictionController) syncBinding(ctx context.Context, name types.NamespacedName) (time.Duration, error) {
+	var (
+		retryAfter      time.Duration
+		evictedClusters []string
+		bindingForEvent *workv1alpha2.ClusterResourceBinding
+	)
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		binding := &workv1alpha2.ClusterResourceBinding{}
+		if getErr := c.Client.Get(ctx, name, binding); getErr != nil {
+			return getErr
+		}
+		if !binding.DeletionTimestamp.IsZero() {
+			retryAfter = 0
+			evictedClusters = nil
+			bindingForEvent = nil
+			return nil
+		}
 
-	objPatch := client.MergeFromWithOptions(binding, client.MergeFromWithOptimisticLock{})
-	modifiedObj := binding.DeepCopy()
-	modifiedObj.Spec.GracefulEvictionTasks = keptTask
-	err := c.Client.Patch(ctx, modifiedObj, objPatch)
+		keptTask, evictedCluster := assessEvictionTasks(binding.Spec.GracefulEvictionTasks, metav1.Now(), assessmentOption{
+			timeout:        c.GracefulEvictionTimeout,
+			scheduleResult: binding.Spec.Clusters,
+			observedStatus: binding.Status.AggregatedStatus,
+			hasScheduled:   binding.Status.SchedulerObservedGeneration == binding.Generation,
+		})
+		if reflect.DeepEqual(binding.Spec.GracefulEvictionTasks, keptTask) {
+			retryAfter = nextRetry(keptTask, c.GracefulEvictionTimeout, metav1.Now().Time)
+			evictedClusters = nil
+			bindingForEvent = nil
+			return nil
+		}
+
+		objPatch := client.MergeFromWithOptions(binding, client.MergeFromWithOptimisticLock{})
+		modifiedObj := binding.DeepCopy()
+		modifiedObj.Spec.GracefulEvictionTasks = keptTask
+		if patchErr := c.Client.Patch(ctx, modifiedObj, objPatch); patchErr != nil {
+			return patchErr
+		}
+		evictedClusters = evictedCluster
+		bindingForEvent = modifiedObj
+		retryAfter = nextRetry(keptTask, c.GracefulEvictionTimeout, metav1.Now().Time)
+		return nil
+	})
 	if err != nil {
 		return 0, err
 	}
 
 	for _, cluster := range evictedClusters {
 		klog.V(2).InfoS("Evicted cluster from ClusterResourceBinding gracefulEvictionTasks",
-			"cluster", cluster, "name", binding.Name)
-		helper.EmitClusterEvictionEventForClusterResourceBinding(binding, cluster, c.EventRecorder, err)
+			"cluster", cluster, "name", bindingForEvent.Name)
+		helper.EmitClusterEvictionEventForClusterResourceBinding(bindingForEvent, cluster, c.EventRecorder, nil)
 	}
-	return nextRetry(keptTask, c.GracefulEvictionTimeout, metav1.Now().Time), nil
+	return retryAfter, nil
 }
 
 // SetupWithManager creates a controller and register to controller manager.
