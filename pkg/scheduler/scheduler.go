@@ -428,7 +428,11 @@ func (s *Scheduler) doScheduleBinding(namespace, name string) (err error) {
 	if util.IsBindingReplicasChanged(&rb.Spec, rb.Spec.Placement.ReplicaScheduling) {
 		// binding replicas changed, need reschedule
 		klog.Infof("Reschedule ResourceBinding(%s/%s) as replicas scaled down or scaled up", namespace, name)
-		err = s.scheduleResourceBinding(rb)
+		if isMultiComponentScale(&rb.Spec) {
+			err = s.scheduleResourceBindingForComponentScale(rb)
+		} else {
+			err = s.scheduleResourceBinding(rb)
+		}
 		metrics.BindingSchedule(string(ScaleSchedule), utilmetrics.DurationInSeconds(start), err)
 		return err
 	}
@@ -504,7 +508,11 @@ func (s *Scheduler) doScheduleClusterBinding(name string) (err error) {
 	if util.IsBindingReplicasChanged(&crb.Spec, crb.Spec.Placement.ReplicaScheduling) {
 		// binding replicas changed, need reschedule
 		klog.Infof("Reschedule ClusterResourceBinding(%s) as replicas scaled down or scaled up", name)
-		err = s.scheduleClusterResourceBinding(crb)
+		if isMultiComponentScale(&crb.Spec) {
+			err = s.scheduleClusterResourceBindingForComponentScale(crb)
+		} else {
+			err = s.scheduleClusterResourceBinding(crb)
+		}
 		metrics.BindingSchedule(string(ScaleSchedule), utilmetrics.DurationInSeconds(start), err)
 		return err
 	}
@@ -568,7 +576,21 @@ func (s *Scheduler) HasTerminatingTargetClusters(bindingSpec *workv1alpha2.Resou
 	return false
 }
 
-func (s *Scheduler) scheduleResourceBinding(rb *workv1alpha2.ResourceBinding) (err error) {
+func isMultiComponentScale(spec *workv1alpha2.ResourceBindingSpec) bool {
+	return features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) && len(spec.Components) > 1 &&
+		(spec.SchedulerName == "" || spec.SchedulerName == DefaultScheduler) &&
+		len(spec.Clusters) == 1 && len(spec.Clusters[0].Components) > 0
+}
+
+func (s *Scheduler) scheduleResourceBinding(rb *workv1alpha2.ResourceBinding) error {
+	return s.scheduleResourceBindingWithOptions(rb, false)
+}
+
+func (s *Scheduler) scheduleResourceBindingForComponentScale(rb *workv1alpha2.ResourceBinding) error {
+	return s.scheduleResourceBindingWithOptions(rb, true)
+}
+
+func (s *Scheduler) scheduleResourceBindingWithOptions(rb *workv1alpha2.ResourceBinding, componentScale bool) (err error) {
 	defer func() {
 		condition, ignoreErr := getConditionByError(err)
 		if updateErr := patchBindingStatusCondition(s.KarmadaClient, rb, condition); updateErr != nil {
@@ -580,14 +602,20 @@ func (s *Scheduler) scheduleResourceBinding(rb *workv1alpha2.ResourceBinding) (e
 			err = nil
 		}
 	}()
-
 	if rb.Spec.Placement.ClusterAffinities != nil {
+		if componentScale {
+			return s.scheduleResourceBindingWithClusterAffinityAndOptions(rb, true)
+		}
 		return s.scheduleResourceBindingWithClusterAffinities(rb)
 	}
-	return s.scheduleResourceBindingWithClusterAffinity(rb)
+	return s.scheduleResourceBindingWithClusterAffinityAndOptions(rb, componentScale)
 }
 
 func (s *Scheduler) scheduleResourceBindingWithClusterAffinity(rb *workv1alpha2.ResourceBinding) error {
+	return s.scheduleResourceBindingWithClusterAffinityAndOptions(rb, false)
+}
+
+func (s *Scheduler) scheduleResourceBindingWithClusterAffinityAndOptions(rb *workv1alpha2.ResourceBinding, componentScale bool) error {
 	klog.V(4).InfoS("Begin scheduling ResourceBinding with ClusterAffinity", "ResourceBinding", klog.KObj(rb))
 	defer klog.V(4).InfoS("End scheduling ResourceBinding with ClusterAffinity", "ResourceBinding", klog.KObj(rb))
 
@@ -597,7 +625,14 @@ func (s *Scheduler) scheduleResourceBindingWithClusterAffinity(rb *workv1alpha2.
 		return fmt.Errorf("failed to marshal placement of ResourceBinding %s: %w", rb.GetName(), err)
 	}
 
-	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &rb.Spec, &rb.Status, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
+	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &rb.Spec, &rb.Status, &core.ScheduleAlgorithmOption{
+		EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation,
+		IsMultiComponentScale:          componentScale,
+	})
+	if componentScale && err != nil {
+		s.recordScheduleResultEventForResourceBinding(rb, nil, err)
+		return err
+	}
 	var fitErr *framework.FitError
 	// in case of no cluster error, can not return but continue to patch(cleanup) the result.
 	if err != nil && !errors.As(err, &fitErr) {
@@ -795,7 +830,15 @@ func singleTemplateAsComponents(name string, replicas int32, reqs *workv1alpha2.
 	return []workv1alpha2.Component{c}
 }
 
-func (s *Scheduler) scheduleClusterResourceBinding(crb *workv1alpha2.ClusterResourceBinding) (err error) {
+func (s *Scheduler) scheduleClusterResourceBinding(crb *workv1alpha2.ClusterResourceBinding) error {
+	return s.scheduleClusterResourceBindingWithOptions(crb, false)
+}
+
+func (s *Scheduler) scheduleClusterResourceBindingForComponentScale(crb *workv1alpha2.ClusterResourceBinding) error {
+	return s.scheduleClusterResourceBindingWithOptions(crb, true)
+}
+
+func (s *Scheduler) scheduleClusterResourceBindingWithOptions(crb *workv1alpha2.ClusterResourceBinding, componentScale bool) (err error) {
 	defer func() {
 		condition, ignoreErr := getConditionByError(err)
 		if updateErr := patchClusterBindingStatusCondition(s.KarmadaClient, crb, condition); updateErr != nil {
@@ -807,14 +850,20 @@ func (s *Scheduler) scheduleClusterResourceBinding(crb *workv1alpha2.ClusterReso
 			err = nil
 		}
 	}()
-
 	if crb.Spec.Placement.ClusterAffinities != nil {
+		if componentScale {
+			return s.scheduleClusterResourceBindingWithClusterAffinityAndOptions(crb, true)
+		}
 		return s.scheduleClusterResourceBindingWithClusterAffinities(crb)
 	}
-	return s.scheduleClusterResourceBindingWithClusterAffinity(crb)
+	return s.scheduleClusterResourceBindingWithClusterAffinityAndOptions(crb, componentScale)
 }
 
 func (s *Scheduler) scheduleClusterResourceBindingWithClusterAffinity(crb *workv1alpha2.ClusterResourceBinding) error {
+	return s.scheduleClusterResourceBindingWithClusterAffinityAndOptions(crb, false)
+}
+
+func (s *Scheduler) scheduleClusterResourceBindingWithClusterAffinityAndOptions(crb *workv1alpha2.ClusterResourceBinding, componentScale bool) error {
 	klog.V(4).InfoS("Begin scheduling ClusterResourceBinding with ClusterAffinity", "ClusterResourceBinding", klog.KObj(crb))
 	defer klog.V(4).InfoS("End scheduling ClusterResourceBinding with ClusterAffinity", "ClusterResourceBinding", klog.KObj(crb))
 
@@ -824,7 +873,14 @@ func (s *Scheduler) scheduleClusterResourceBindingWithClusterAffinity(crb *workv
 		return fmt.Errorf("failed to marshal placement of ClusterResourceBinding %s: %w", crb.GetName(), err)
 	}
 
-	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &crb.Spec, &crb.Status, &core.ScheduleAlgorithmOption{EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation})
+	scheduleResult, err := s.Algorithm.Schedule(context.TODO(), &crb.Spec, &crb.Status, &core.ScheduleAlgorithmOption{
+		EnableEmptyWorkloadPropagation: s.enableEmptyWorkloadPropagation,
+		IsMultiComponentScale:          componentScale,
+	})
+	if componentScale && err != nil {
+		s.recordScheduleResultEventForClusterResourceBinding(crb, nil, err)
+		return err
+	}
 	var fitErr *framework.FitError
 	// in case of no cluster error, can not return but continue to patch(cleanup) the result.
 	if err != nil && !errors.As(err, &fitErr) {

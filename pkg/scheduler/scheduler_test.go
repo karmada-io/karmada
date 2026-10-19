@@ -186,6 +186,8 @@ func TestDoScheduleBinding(t *testing.T) {
 		expectError      bool
 		expectedClusters []workv1alpha2.TargetCluster
 		expectedEvent    string
+		enableComponents bool
+		componentScale   bool
 	}{
 		{
 			name: "binding with changed placement",
@@ -259,14 +261,55 @@ func TestDoScheduleBinding(t *testing.T) {
 			},
 			expectedEvent: "Normal ScheduleBindingSucceed",
 		},
+		{
+			name: "binding with component replicas changed",
+			binding: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-binding-components",
+					Namespace: "default",
+					Annotations: map[string]string{
+						util.PolicyPlacementAnnotation: `{"replicaScheduling":{"replicaSchedulingType":"Divided"}}`,
+					},
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Components: []workv1alpha2.Component{
+						{Name: "jobmanager", Replicas: 1},
+						{Name: "taskmanager", Replicas: 6},
+					},
+					Clusters: []workv1alpha2.TargetCluster{{
+						Name: "cluster1",
+						Components: []workv1alpha2.TargetComponent{
+							{Name: "jobmanager", Replicas: 1},
+							{Name: "taskmanager", Replicas: 4},
+						},
+					}},
+					Placement: &policyv1alpha1.Placement{ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+						ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDivided,
+					}},
+				},
+			},
+			expectSchedule: true,
+			expectedClusters: []workv1alpha2.TargetCluster{{
+				Name: "cluster1",
+				Components: []workv1alpha2.TargetComponent{
+					{Name: "jobmanager", Replicas: 1},
+					{Name: "taskmanager", Replicas: 6},
+				},
+			}},
+			expectedEvent:    "Normal ScheduleBindingSucceed",
+			enableComponents: true,
+			componentScale:   true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			defer setFeatureGateDuringTest(t, features.FeatureGate, features.MultiplePodTemplatesScheduling, tt.enableComponents)()
 			fakeClient := karmadafake.NewClientset(tt.binding)
 			fakeRecorder := record.NewFakeRecorder(10)
 			mockAlgorithm := &mockAlgorithm{
-				scheduleFunc: func(context.Context, *workv1alpha2.ResourceBindingSpec, *workv1alpha2.ResourceBindingStatus, *core.ScheduleAlgorithmOption) (core.ScheduleResult, error) {
+				scheduleFunc: func(_ context.Context, _ *workv1alpha2.ResourceBindingSpec, _ *workv1alpha2.ResourceBindingStatus, option *core.ScheduleAlgorithmOption) (core.ScheduleResult, error) {
+					assert.Equal(t, tt.componentScale, option.IsMultiComponentScale)
 					return core.ScheduleResult{SuggestedClusters: tt.expectedClusters}, nil
 				},
 			}
@@ -315,6 +358,8 @@ func TestDoScheduleClusterBinding(t *testing.T) {
 		expectError      bool
 		expectedClusters []workv1alpha2.TargetCluster
 		expectedEvent    string
+		enableComponents bool
+		componentScale   bool
 	}{
 		{
 			name: "cluster binding with changed placement",
@@ -385,14 +430,54 @@ func TestDoScheduleClusterBinding(t *testing.T) {
 			},
 			expectedEvent: "Normal ScheduleBindingSucceed",
 		},
+		{
+			name: "cluster binding with component replicas changed",
+			binding: &workv1alpha2.ClusterResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-cluster-binding-components",
+					Annotations: map[string]string{
+						util.PolicyPlacementAnnotation: `{"replicaScheduling":{"replicaSchedulingType":"Divided"}}`,
+					},
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Components: []workv1alpha2.Component{
+						{Name: "jobmanager", Replicas: 1},
+						{Name: "taskmanager", Replicas: 6},
+					},
+					Clusters: []workv1alpha2.TargetCluster{{
+						Name: "cluster1",
+						Components: []workv1alpha2.TargetComponent{
+							{Name: "jobmanager", Replicas: 1},
+							{Name: "taskmanager", Replicas: 4},
+						},
+					}},
+					Placement: &policyv1alpha1.Placement{ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+						ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDivided,
+					}},
+				},
+			},
+			expectSchedule: true,
+			expectedClusters: []workv1alpha2.TargetCluster{{
+				Name: "cluster1",
+				Components: []workv1alpha2.TargetComponent{
+					{Name: "jobmanager", Replicas: 1},
+					{Name: "taskmanager", Replicas: 6},
+				},
+			}},
+			expectedEvent:    "Normal ScheduleBindingSucceed",
+			enableComponents: true,
+			componentScale:   true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			defer setFeatureGateDuringTest(t, features.FeatureGate, features.MultiplePodTemplatesScheduling, tt.enableComponents)()
 			fakeClient := karmadafake.NewClientset(tt.binding)
 			fakeRecorder := record.NewFakeRecorder(10)
 			mockAlgorithm := &mockAlgorithm{
-				scheduleFunc: func(context.Context, *workv1alpha2.ResourceBindingSpec, *workv1alpha2.ResourceBindingStatus, *core.ScheduleAlgorithmOption) (core.ScheduleResult, error) {
+				scheduleFunc: func(_ context.Context, _ *workv1alpha2.ResourceBindingSpec, _ *workv1alpha2.ResourceBindingStatus, option *core.ScheduleAlgorithmOption) (core.ScheduleResult, error) {
+					assert.Equal(t, tt.componentScale, option.IsMultiComponentScale)
 					return core.ScheduleResult{SuggestedClusters: tt.expectedClusters}, nil
 				},
 			}
@@ -429,6 +514,40 @@ func TestDoScheduleClusterBinding(t *testing.T) {
 			default:
 				t.Errorf("Expected an event to be recorded")
 			}
+		})
+	}
+}
+
+func TestIsMultiComponentScale(t *testing.T) {
+	newSpec := func() *workv1alpha2.ResourceBindingSpec {
+		return &workv1alpha2.ResourceBindingSpec{
+			Components: []workv1alpha2.Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 6}},
+			Clusters: []workv1alpha2.TargetCluster{{Name: "cluster1", Components: []workv1alpha2.TargetComponent{
+				{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4},
+			}}},
+		}
+	}
+	tests := []struct {
+		name     string
+		feature  bool
+		mutate   func(*workv1alpha2.ResourceBindingSpec)
+		expected bool
+	}{
+		{name: "default scheduler", feature: true, expected: true},
+		{name: "explicit default scheduler", feature: true, mutate: func(spec *workv1alpha2.ResourceBindingSpec) { spec.SchedulerName = DefaultScheduler }, expected: true},
+		{name: "custom scheduler keeps old routing", feature: true, mutate: func(spec *workv1alpha2.ResourceBindingSpec) { spec.SchedulerName = "custom-scheduler" }},
+		{name: "feature disabled", expected: false},
+		{name: "missing accepted snapshot", feature: true, mutate: func(spec *workv1alpha2.ResourceBindingSpec) { spec.Clusters[0].Components = nil }},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defer setFeatureGateDuringTest(t, features.FeatureGate, features.MultiplePodTemplatesScheduling, tt.feature)()
+			spec := newSpec()
+			if tt.mutate != nil {
+				tt.mutate(spec)
+			}
+			assert.Equal(t, tt.expected, isMultiComponentScale(spec))
 		})
 	}
 }
@@ -532,6 +651,104 @@ func TestScheduleResourceBindingWithClusterAffinity(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestComponentScaleSchedulingCommitsOnlySuccessfulResult(t *testing.T) {
+	accepted := []workv1alpha2.TargetCluster{{Name: "cluster1", Components: []workv1alpha2.TargetComponent{
+		{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 4},
+	}}}
+	desired := []workv1alpha2.TargetCluster{{Name: "cluster1", Components: []workv1alpha2.TargetComponent{
+		{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 6},
+	}}}
+
+	t.Run("ResourceBinding", func(t *testing.T) {
+		tests := []struct {
+			name           string
+			componentScale bool
+			placement      *policyv1alpha1.Placement
+			result         core.ScheduleResult
+			err            error
+			want           []workv1alpha2.TargetCluster
+		}{
+			{name: "success commits desired snapshot", componentScale: true, result: core.ScheduleResult{SuggestedClusters: desired}, want: desired},
+			{
+				name:           "ordered affinities use pinned component scale without fallback",
+				componentScale: true,
+				placement: &policyv1alpha1.Placement{ClusterAffinities: []policyv1alpha1.ClusterAffinityTerm{{
+					AffinityName: "primary",
+				}}},
+				result: core.ScheduleResult{SuggestedClusters: desired},
+				want:   desired,
+			},
+			{name: "FitError preserves accepted snapshot", componentScale: true, err: &framework.FitError{}, want: accepted},
+			{name: "ordinary FitError keeps legacy cleanup", err: &framework.FitError{}, want: nil},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				placement := tt.placement
+				if placement == nil {
+					placement = &policyv1alpha1.Placement{}
+				}
+				binding := &workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{Name: "test-binding", Namespace: "default"},
+					Spec: workv1alpha2.ResourceBindingSpec{
+						Placement: placement,
+						Clusters:  accepted,
+					},
+				}
+				client := karmadafake.NewClientset(binding)
+				scheduler := &Scheduler{
+					KarmadaClient: client,
+					eventRecorder: record.NewFakeRecorder(10),
+					Algorithm: &mockAlgorithm{scheduleFunc: func(_ context.Context, _ *workv1alpha2.ResourceBindingSpec, _ *workv1alpha2.ResourceBindingStatus, option *core.ScheduleAlgorithmOption) (core.ScheduleResult, error) {
+						assert.Equal(t, tt.componentScale, option.IsMultiComponentScale)
+						return tt.result, tt.err
+					}},
+				}
+
+				_ = scheduler.scheduleResourceBindingWithOptions(binding, tt.componentScale)
+				got, err := client.WorkV1alpha2().ResourceBindings(binding.Namespace).Get(context.Background(), binding.Name, metav1.GetOptions{})
+				assert.NoError(t, err)
+				assert.Equal(t, tt.want, got.Spec.Clusters)
+			})
+		}
+	})
+
+	t.Run("ClusterResourceBinding", func(t *testing.T) {
+		for _, tt := range []struct {
+			name   string
+			result core.ScheduleResult
+			err    error
+			want   []workv1alpha2.TargetCluster
+		}{
+			{name: "success commits desired snapshot", result: core.ScheduleResult{SuggestedClusters: desired}, want: desired},
+			{name: "FitError preserves accepted snapshot", err: &framework.FitError{}, want: accepted},
+		} {
+			t.Run(tt.name, func(t *testing.T) {
+				binding := &workv1alpha2.ClusterResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{Name: "test-cluster-binding"},
+					Spec: workv1alpha2.ResourceBindingSpec{
+						Placement: &policyv1alpha1.Placement{},
+						Clusters:  accepted,
+					},
+				}
+				client := karmadafake.NewClientset(binding)
+				scheduler := &Scheduler{
+					KarmadaClient: client,
+					eventRecorder: record.NewFakeRecorder(10),
+					Algorithm: &mockAlgorithm{scheduleFunc: func(_ context.Context, _ *workv1alpha2.ResourceBindingSpec, _ *workv1alpha2.ResourceBindingStatus, option *core.ScheduleAlgorithmOption) (core.ScheduleResult, error) {
+						assert.True(t, option.IsMultiComponentScale)
+						return tt.result, tt.err
+					}},
+				}
+
+				_ = scheduler.scheduleClusterResourceBindingWithOptions(binding, true)
+				got, err := client.WorkV1alpha2().ClusterResourceBindings().Get(context.Background(), binding.Name, metav1.GetOptions{})
+				assert.NoError(t, err)
+				assert.Equal(t, tt.want, got.Spec.Clusters)
+			})
+		}
+	})
 }
 
 func TestScheduleResourceBindingWithClusterAffinities(t *testing.T) {
