@@ -34,21 +34,20 @@ func GetBindingClusterNames(spec *workv1alpha2.ResourceBindingSpec) []string {
 	return clusterNames
 }
 
-// IsBindingReplicasChanged will check if the sum of replicas is different from the replicas of object
+// IsBindingReplicasChanged reports whether the desired replicas differ from the scheduled result.
 func IsBindingReplicasChanged(bindingSpec *workv1alpha2.ResourceBindingSpec, strategy *policyv1alpha1.ReplicaSchedulingStrategy) bool {
 	if strategy == nil {
 		return false
 	}
 
-	// For component-based workloads, trigger rescheduling when clusters are empty (e.g., after eviction).
-	// This is a temporary fix to ensure cluster failover works correctly.
-	// Limitation: This only handles the failover scenario where clusters are cleared.
-	// It does not detect component replica changes (e.g., scale up/down) or replica swaps between components.
-	// A complete solution requires changing how scheduling results are stored to support multi-template workloads,
-	// likely by extending TargetCluster to include per-component replica information.
-	// The comprehensive solution is tracked by: https://github.com/karmada-io/karmada/issues/6998
+	// For component-based workloads, trigger rescheduling when clusters are empty (e.g., after eviction),
+	// or when the per-component replicas recorded in any target cluster differ from the desired ones
+	// (e.g., scale up/down, component added/removed).
 	if features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) && len(bindingSpec.Components) > 0 {
 		if len(bindingSpec.Clusters) == 0 {
+			return true
+		}
+		if isComponentReplicasChanged(bindingSpec.Components, bindingSpec.Clusters) {
 			return true
 		}
 	}
@@ -64,6 +63,36 @@ func IsBindingReplicasChanged(bindingSpec *workv1alpha2.ResourceBindingSpec, str
 	if strategy.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDivided {
 		replicasSum := GetSumOfReplicas(bindingSpec.Clusters)
 		return replicasSum != bindingSpec.Replicas
+	}
+	return false
+}
+
+// isComponentReplicasChanged checks whether the per-component replicas recorded in target clusters
+// differ from the desired components. Multi-component workloads are scheduled as a whole, so every
+// target cluster is expected to hold the full replicas of every component.
+// Clusters without recorded component results are skipped, because the scheduler only records them for
+// multi-component workloads that are applicable to multi-template scheduling (see AssignReplicas in
+// pkg/scheduler/core). Single-component workloads, or results produced before the feature gate was
+// enabled, carry no component results and still rely on the legacy replica checks.
+func isComponentReplicasChanged(components []workv1alpha2.Component, clusters []workv1alpha2.TargetCluster) bool {
+	desired := make(map[string]int32, len(components))
+	for _, component := range components {
+		desired[component.Name] = component.Replicas
+	}
+
+	for _, cluster := range clusters {
+		if len(cluster.Components) == 0 {
+			continue
+		}
+		if len(cluster.Components) != len(desired) {
+			return true
+		}
+		for _, targetComponent := range cluster.Components {
+			replicas, ok := desired[targetComponent.Name]
+			if !ok || replicas != targetComponent.Replicas {
+				return true
+			}
+		}
 	}
 	return false
 }
