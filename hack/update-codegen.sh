@@ -43,6 +43,9 @@ cleanup
 
 source "${REPO_ROOT}"/hack/util.sh
 util:create_gopath_tree "${REPO_ROOT}" "${go_path}"
+# Keep the module cache (and any auto-downloaded toolchain) out of the
+# temporary GOPATH so cleanup() can always remove it.
+export GOMODCACHE="$(go env GOMODCACHE)"
 export GOPATH="${go_path}"
 
 echo "Generating with deepcopy-gen"
