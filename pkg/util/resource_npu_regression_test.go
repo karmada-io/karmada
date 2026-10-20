@@ -41,7 +41,7 @@ func TestAddPodRequestNPUAccumulationRegression(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			total := EmptyResource()
 
-			for i := 0; i < 3; i++ {
+			for range 3 {
 				container := corev1.Container{
 					Name: "runner",
 					Resources: corev1.ResourceRequirements{
