@@ -61,6 +61,7 @@ spec:
             {{- with (include "karmada.webhook.featureGates" .) }}
             - {{ . }}
             {{- end }}
+            {{- include "karmada.webhook.extraCommandArgs" . | nindent 12 }}
           ports:
             - containerPort: 8443
             - containerPort: 8080

@@ -317,6 +317,8 @@ webhook:
   priorityClassName: "system-node-critical"
   ## @param webhook.featureGates A set of key=value pairs that describe feature gates for karmada-webhook
   featureGates: {}
+  ## @param webhook.extraCommandArgs extra command args of the karmada-webhook
+  extraCommandArgs: {}
 
 ## controller manager config
 controllerManager:

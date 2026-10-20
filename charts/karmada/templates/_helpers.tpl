@@ -655,6 +655,14 @@ If none are set, outputs nothing.
 {{- end }}
 {{- end -}}
 
+{{- define "karmada.webhook.extraCommandArgs" -}}
+{{- if .Values.webhook.extraCommandArgs }}
+{{- range $key, $value := .Values.webhook.extraCommandArgs }}
+- --{{ $key }}={{ $value }}
+{{- end }}
+{{- end }}
+{{- end -}}
+
 {{- define "karmada.initContainer.waitEtcd" -}}
 - name: wait
   image: {{ include "karmada.cfssl.image" . }}
