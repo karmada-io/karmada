@@ -22,6 +22,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	resourcehelper "k8s.io/component-helpers/resource"
 
 	"github.com/karmada-io/karmada/pkg/util/lifted"
 )
@@ -282,23 +283,13 @@ func (r *Resource) AddPodTemplateRequest(podSpec *corev1.PodSpec) *Resource {
 	return r.AddPodRequest(podSpec)
 }
 
-// AddPodRequest add the effective request resource of a pod to the origin resource.
-// The Pod's effective request is the higher of:
-// - the sum of all app containers(spec.Containers) request for a resource.
-// - the effective init containers(spec.InitContainers) request for a resource.
-// The effective init containers request is the highest request on all init containers.
+// AddPodRequest adds a Pod's effective resource requests to the accumulator.
+// Kubernetes PodRequests accounts for regular containers, init containers,
+// restartable init sidecars, and Pod overhead.
+// Pod-level resource requests are excluded.
 func (r *Resource) AddPodRequest(podSpec *corev1.PodSpec) *Resource {
-	for _, container := range podSpec.Containers {
-		r.Add(container.Resources.Requests)
-	}
-	for _, container := range podSpec.InitContainers {
-		r.SetMaxResource(container.Resources.Requests)
-	}
-	// If Overhead is being utilized, add to the total requests for the pod.
-	// We assume the EnablePodOverhead feature gate of member cluster is set (it is on by default since 1.18).
-	if podSpec.Overhead != nil {
-		r.Add(podSpec.Overhead)
-	}
+	requests := resourcehelper.PodRequests(&corev1.Pod{Spec: *podSpec}, resourcehelper.PodResourcesOptions{SkipPodLevelResources: true})
+	r.Add(requests)
 	return r
 }
 
