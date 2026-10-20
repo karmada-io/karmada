@@ -17,26 +17,24 @@ limitations under the License.
 package metrics
 
 import (
-	"k8s.io/component-base/metrics"
-	"k8s.io/component-base/metrics/legacyregistry"
+	"github.com/prometheus/client_golang/prometheus"
+	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
 const (
 	// SchedulerSubsystem - subsystem name used by scheduler.
-	SchedulerSubsystem = "scheduler"
+	SchedulerSubsystem = "karmada_scheduler"
 )
 
-// All the histogram based metrics have 1ms as size for the smallest bucket.
 var (
-	pendingBindings = metrics.NewGaugeVec(
-		&metrics.GaugeOpts{
-			Subsystem:      SchedulerSubsystem,
-			Name:           "pending_bindings",
-			Help:           "Number of pending bindings, by the queue type. 'active' means number of bindings in activeQ; 'backoff' means number of bindings in backoffQ; 'unschedulable' means number of bindings in unschedulableBindings that the scheduler attempted to schedule and failed.",
-			StabilityLevel: metrics.ALPHA,
+	pendingBindings = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Subsystem: SchedulerSubsystem,
+			Name:      "pending_bindings",
+			Help:      "Number of pending bindings, by the queue type. 'active' means number of bindings in activeQ; 'backoff' means number of bindings in backoffQ; 'unschedulable' means number of bindings in unschedulableBindings that the scheduler attempted to schedule and failed.",
 		}, []string{"queue"})
 
-	metricsList = []metrics.Registerable{
+	metricsList = []prometheus.Collector{
 		pendingBindings,
 	}
 )
@@ -46,27 +44,27 @@ func init() {
 	RegisterMetrics(metricsList...)
 }
 
-// RegisterMetrics registers a list of metrics.
+// RegisterMetrics registers a list of metrics with the registry served on the scheduler's /metrics endpoint.
 // This function is exported because it is intended to be used by out-of-tree plugins to register their custom metrics.
-func RegisterMetrics(extraMetrics ...metrics.Registerable) {
+func RegisterMetrics(extraMetrics ...prometheus.Collector) {
 	for _, metric := range extraMetrics {
-		legacyregistry.MustRegister(metric)
+		ctrlmetrics.Registry.MustRegister(metric)
 	}
 }
 
 // ActiveBindings returns the pending bindings metrics with the label active
-func ActiveBindings() metrics.GaugeMetric {
-	return pendingBindings.With(metrics.Labels{"queue": "active"})
+func ActiveBindings() prometheus.Gauge {
+	return pendingBindings.With(prometheus.Labels{"queue": "active"})
 }
 
 // BackoffBindings returns the pending bindings metrics with the label backoff
-func BackoffBindings() metrics.GaugeMetric {
-	return pendingBindings.With(metrics.Labels{"queue": "backoff"})
+func BackoffBindings() prometheus.Gauge {
+	return pendingBindings.With(prometheus.Labels{"queue": "backoff"})
 }
 
 // UnschedulableBindings returns the pending bindings metrics with the label unschedulable
-func UnschedulableBindings() metrics.GaugeMetric {
-	return pendingBindings.With(metrics.Labels{"queue": "unschedulable"})
+func UnschedulableBindings() prometheus.Gauge {
+	return pendingBindings.With(prometheus.Labels{"queue": "unschedulable"})
 }
 
 // MetricRecorder represents a metric recorder which takes action when the
@@ -81,7 +79,7 @@ var _ MetricRecorder = &PendingBindingsRecorder{}
 
 // PendingBindingsRecorder is an implementation of MetricRecorder
 type PendingBindingsRecorder struct {
-	recorder metrics.GaugeMetric
+	recorder prometheus.Gauge
 }
 
 // NewActiveBindingsRecorder returns ActiveBindings in a Prometheus metric fashion
