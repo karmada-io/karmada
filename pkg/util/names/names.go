@@ -19,6 +19,7 @@ package names
 import (
 	"fmt"
 	"hash/fnv"
+	"regexp"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/util/rand"
@@ -130,6 +131,74 @@ func GenerateBindingReferenceKey(namespace, name string) string {
 	return rand.SafeEncodeString(fmt.Sprint(hash.Sum32()))
 }
 
+var (
+	splitterPattern = regexp.MustCompile(`[._\-]`)
+)
+
+const (
+	maxNameLength = 52 // plus hex suffix -0123456789 goes to 63, value length limit of label is 63
+)
+
+func ShortName(name string, splitter *regexp.Regexp, maxLength int) string {
+	if len(name) <= maxLength {
+		return name
+	}
+	parts := splitter.Split(name, -1)
+	var length, index, trim int
+	for i, part := range parts {
+		if length+len(part)+i < maxLength {
+			length += len(part)
+			continue
+		}
+		if i == 0 {
+			index = i
+			break
+		}
+		for j := i; j > 0; j-- {
+			trim = maxLength - length - len(parts)
+			if trim >= 0 && len(parts[j]) > trim {
+				index = j
+				break
+			}
+			length -= len(parts[j-1])
+		}
+		if index != 0 {
+			break
+		}
+	}
+	if index == 0 {
+		return name[:maxLength]
+	}
+	buffer := new(strings.Builder)
+	if trim == 0 {
+		buffer.WriteString(parts[index][:1])
+	}
+	for _, part := range parts[index+1:] {
+		buffer.WriteString(part[:1])
+	}
+	if trim > 0 {
+		parts = append(parts[:index], parts[index][:trim])
+	} else {
+		parts = parts[:index]
+	}
+	if rest := buffer.String(); len(rest) > 0 {
+		parts = append(parts, rest)
+	}
+	return strings.Join(parts, "-")
+}
+
+// ShortNameLabelValue will truncate name to let length of name not to reach max length.
+// This method is inspired by java spring, for example there is a class full name
+// com.company.departure.business.module.abc.SomeClass, this will log as
+// ccdbma.SomeClass, keep the last part of class name, the prefix parts only keep
+// the first alphabet.
+// This method tries best to keep prefix. e.g.
+// input: lala.134-ab_abc-adfja2edklfja3rqdkfjasfa-1234567890123-a-b
+// output: lala-134-ab-abc-adfja2edklfja3rqdkfjasfa-12345678-ab
+func ShortNameLabelValue(name string) string {
+	return ShortName(name, splitterPattern, maxNameLength)
+}
+
 // GenerateWorkName will generate work name by its name and the hash of its namespace, kind and name.
 func GenerateWorkName(kind, name, namespace string) string {
 	// The name of resources, like 'Role'/'ClusterRole'/'RoleBinding'/'ClusterRoleBinding',
@@ -152,7 +221,7 @@ func GenerateWorkName(kind, name, namespace string) string {
 	}
 	hash := fnv.New32a()
 	hashutil.DeepHashObject(hash, workName)
-	return fmt.Sprintf("%s-%s", name, rand.SafeEncodeString(fmt.Sprint(hash.Sum32())))
+	return fmt.Sprintf("%s-%s", ShortNameLabelValue(name), rand.SafeEncodeString(fmt.Sprint(hash.Sum32())))
 }
 
 // GenerateServiceAccountName generates the name of a ServiceAccount.
