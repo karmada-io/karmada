@@ -413,6 +413,15 @@ type Suspension struct {
 	Scheduling *bool `json:"scheduling,omitempty"`
 }
 
+// PreemptionPolicy describes whether a binding may preempt lower-priority bindings.
+type PreemptionPolicy string
+
+const (
+	// PreemptLowerPriority means the binding may preempt lower-priority bindings
+	// when it cannot be scheduled due to insufficient capacity.
+	PreemptLowerPriority PreemptionPolicy = "PreemptLowerPriority"
+)
+
 // SchedulePriority represents the scheduling priority assigned to workloads.
 type SchedulePriority struct {
 	// Priority specifies the scheduling priority for the binding.
@@ -421,6 +430,13 @@ type SchedulePriority struct {
 	// +kubebuilder:default=0
 	// +optional
 	Priority int32 `json:"priority,omitempty"`
+
+	// PreemptionPolicy specifies whether the binding may preempt lower-priority bindings.
+	// Only PreemptLowerPriority enables preemption. If not set, the binding never preempts.
+	// It is populated from the preemptionPolicy of the referenced PriorityClass.
+	// +kubebuilder:validation:Enum=PreemptLowerPriority
+	// +optional
+	PreemptionPolicy *PreemptionPolicy `json:"preemptionPolicy,omitempty"`
 }
 
 // WorkloadAffinityGroups stores the instantiated affinity and anti-affinity group names.

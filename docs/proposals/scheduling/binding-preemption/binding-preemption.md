@@ -244,7 +244,7 @@ Victim selection uses the preemptor's namespace by default. The `--enable-cross-
 
 ## API Changes
 
-### Add `PreemptionPolicy` to `SchedulePriority`
+### Add `PreemptionPolicy` to `ResourceBinding.Spec.SchedulePriority`
 
 ```go
 type PreemptionPolicy string
@@ -254,13 +254,13 @@ const (
 )
 
 type SchedulePriority struct {
-    Priority         int32            `json:"priority,omitempty"`
-    PreemptionPolicy PreemptionPolicy `json:"preemptionPolicy,omitempty"`
+    Priority         int32             `json:"priority,omitempty"`
+    PreemptionPolicy *PreemptionPolicy `json:"preemptionPolicy,omitempty"`
 }
 ```
 
-- Defaults to unset (empty string), meaning the binding never preempts. No explicit "Never" constant is needed — the zero value naturally means "no preemption."
-- The ResourceDetector maps `PreemptionPolicy` from the PriorityClass's `preemptionPolicy` field when `PriorityBasedPreemptiveScheduling` is enabled. Kubernetes defaults `preemptionPolicy` to `PreemptLowerPriority` when unset, so any PriorityClass without explicit `preemptionPolicy: Never` enables preemption at the binding level. The feature gate (alpha, default off) provides the primary opt-in control.
+- `nil` means the binding never preempts; only `PreemptLowerPriority` enables preemption. No `Never` constant is needed: unlike Kubernetes, ResourceBinding does not default this field, so leaving it unset already means "no preemption".
+- The ResourceDetector sets `PreemptionPolicy` to `PreemptLowerPriority` when the PriorityClass's `preemptionPolicy` is `PreemptLowerPriority` and `PriorityBasedPreemptiveScheduling` is enabled; otherwise it leaves the field `nil`. 
 
 ### New Constants and Feature Gate
 
@@ -337,7 +337,7 @@ func isPreemptionApplicable(spec *workv1alpha2.ResourceBindingSpec) bool {
 }
 ```
 
-The full preemption gate (`preemptionEnabled`) combines feature gates + `PreemptionPolicy == PreemptLowerPriority` + `isPreemptionApplicable`.
+The full preemption gate (`preemptionEnabled`) combines feature gates + `PreemptionPolicy != nil && *PreemptionPolicy == PreemptLowerPriority` + `isPreemptionApplicable`.
 
 ### Modified Schedule() Flow
 
@@ -672,7 +672,7 @@ When the feature gate is enabled but no preemption is occurring (common case), t
 ### Unit Tests
 - Victim selection: minimum victims, priority ordering, reprieve correctness.
 - Priority handling: nil victim priority is treated as `0`; a binding without `PreemptLowerPriority` cannot initiate preemption.
-- `PreemptionPolicy` resolution: feature gate disabled → unset, explicit opt-in.
+- `PreemptionPolicy` resolution: feature gate disabled → `nil`; PriorityClass `PreemptLowerPriority` → set; PriorityClass `Never` or `nil` → `nil`.
 - Trigger handling: typed insufficient-capacity results trigger preemption; affinity, taint, spread, and other failures do not.
 - Applicability checks: `MaxGroups == 1`, non-workload, multi-component preemptor, ClusterAffinities exclusions.
 - Victim scope: same namespace by default; cross-namespace victims require `--enable-cross-namespace-preemption=true`.
@@ -683,7 +683,7 @@ When the feature gate is enabled but no preemption is occurring (common case), t
 
 ### Integration Tests
 - End-to-end: high-priority binding preempts low-priority binding on single cluster.
-- No preemption when PreemptionPolicy is unset or feature gate disabled.
+- No preemption when PreemptionPolicy is `nil` or when the feature gate is disabled.
 - With `MultiplePodTemplatesScheduling` enabled, multi-component bindings can be selected as victims.
 - Cross-namespace victims require `--enable-cross-namespace-preemption=true`; same-namespace behavior remains the default.
 - Preempted binding reschedules to another cluster.
