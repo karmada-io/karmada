@@ -84,9 +84,9 @@ func (c *ResourceBindingController) Reconcile(ctx context.Context, req controlle
 
 	if !binding.DeletionTimestamp.IsZero() {
 		klog.V(4).InfoS("Begin deleting works owned by ResourceBinding", "binding", req.NamespacedName.String())
-
 		expectedWorkName := names.GenerateWorkName(binding.Spec.Resource.Kind, binding.Spec.Resource.Name, binding.Spec.Resource.Namespace)
-		if err := helper.DeleteWorks(ctx, c.Client, c.APIReader, req.Namespace, req.Name, binding.Labels[workv1alpha2.ResourceBindingPermanentIDLabel], expectedWorkName); err != nil {
+		candidateClusters := helper.ObtainBindingClustersMayHoldWorks(binding.Spec, binding.Status)
+		if err := helper.DeleteWorks(ctx, c.Client, c.APIReader, req.Namespace, req.Name, binding.Labels[workv1alpha2.ResourceBindingPermanentIDLabel], expectedWorkName, candidateClusters); err != nil {
 			klog.ErrorS(err, "Failed deleting works owned by ResourceBinding", "namespace", binding.GetNamespace(), "binding", binding.GetName())
 			return controllerruntime.Result{}, err
 		}

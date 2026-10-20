@@ -26,6 +26,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -36,6 +37,7 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -48,6 +50,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/indexregistry"
+	"github.com/karmada-io/karmada/pkg/util/names"
 	testingutil "github.com/karmada-io/karmada/pkg/util/testing"
 	"github.com/karmada-io/karmada/test/helper"
 )
@@ -188,6 +191,55 @@ func TestClusterResourceBindingController_Reconcile(t *testing.T) {
 				t.Errorf("ClusterResourceBindingController.Reconcile() = %v, want %v", result, tt.want)
 			}
 		})
+	}
+}
+
+func TestClusterResourceBindingController_Reconcile_DeleteWorkMissedByCache(t *testing.T) {
+	ctx := context.Background()
+	crb := &workv1alpha2.ClusterResourceBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       "test-crb",
+			Labels:     map[string]string{workv1alpha2.ClusterResourceBindingPermanentIDLabel: "crb-id"},
+			Finalizers: []string{util.ClusterResourceBindingControllerFinalizer},
+		},
+		Spec: workv1alpha2.ResourceBindingSpec{
+			Resource: workv1alpha2.ObjectReference{APIVersion: "v1", Kind: "Namespace", Name: "test-ns"},
+		},
+		Status: workv1alpha2.ResourceBindingStatus{
+			AggregatedStatus: []workv1alpha2.AggregatedStatusItem{{ClusterName: "member1"}},
+		},
+	}
+	work := &workv1alpha1.Work{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      names.GenerateWorkName("Namespace", "test-ns", ""),
+			Namespace: names.GenerateExecutionSpaceName("member1"),
+			Labels:    map[string]string{workv1alpha2.ClusterResourceBindingPermanentIDLabel: "crb-id"},
+		},
+	}
+
+	apiClient := fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(crb, work).Build()
+	if err := apiClient.Delete(ctx, crb); err != nil {
+		t.Fatalf("Failed to mark crb as deleting: %v", err)
+	}
+	// The stale cache has not observed the Work yet; all other requests reach the API server.
+	cacheClient := interceptor.NewClient(apiClient, interceptor.Funcs{
+		List: func(ctx context.Context, c client.WithWatch, list client.ObjectList, opts ...client.ListOption) error {
+			if _, ok := list.(*workv1alpha1.WorkList); ok {
+				return nil
+			}
+			return c.List(ctx, list, opts...)
+		},
+	})
+	c := &ClusterResourceBindingController{Client: cacheClient, APIReader: apiClient, EventRecorder: record.NewFakeRecorder(1024)}
+
+	if _, err := c.Reconcile(ctx, controllerruntime.Request{NamespacedName: client.ObjectKeyFromObject(crb)}); err != nil {
+		t.Fatalf("Reconcile() unexpected error: %v", err)
+	}
+	if err := apiClient.Get(ctx, client.ObjectKeyFromObject(work), &workv1alpha1.Work{}); !apierrors.IsNotFound(err) {
+		t.Errorf("Expected Work missed by the cache to be deleted, got err: %v", err)
+	}
+	if err := apiClient.Get(ctx, client.ObjectKeyFromObject(crb), &workv1alpha2.ClusterResourceBinding{}); !apierrors.IsNotFound(err) {
+		t.Errorf("Expected crb to be gone after its finalizer was removed, got err: %v", err)
 	}
 }
 

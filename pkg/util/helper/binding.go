@@ -36,7 +36,6 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -216,6 +215,17 @@ func ObtainClustersWithPurgeModeDirectly(bindingSpec workv1alpha2.ResourceBindin
 		if task.PurgeMode == policyv1alpha1.PurgeModeDirectly {
 			clusterNames.Insert(task.FromCluster)
 		}
+	}
+	return clusterNames
+}
+
+// ObtainBindingClustersMayHoldWorks will obtain the cluster slice on which the binding may still hold Works,
+// including clusters evicted with PurgeModeDirectly and clusters still reported in the aggregated status.
+func ObtainBindingClustersMayHoldWorks(bindingSpec workv1alpha2.ResourceBindingSpec, bindingStatus workv1alpha2.ResourceBindingStatus) sets.Set[string] {
+	clusterNames := ObtainBindingSpecExistingClusters(bindingSpec)
+	clusterNames.Insert(ObtainClustersWithPurgeModeDirectly(bindingSpec).UnsortedList()...)
+	for _, item := range bindingStatus.AggregatedStatus {
+		clusterNames.Insert(item.ClusterName)
 	}
 	return clusterNames
 }
@@ -403,11 +413,13 @@ func GetResourceBindingsByNamespace(c client.Client, namespace string) (*workv1a
 }
 
 // DeleteWorks will delete all Work objects by labels.
+// Works on candidateClusters that are missing from the cache are looked up via apiReader.
 func DeleteWorks(
 	ctx context.Context,
 	c client.Client,
 	apiReader client.Reader,
 	namespace, name, bindingID, expectedWorkName string,
+	candidateClusters sets.Set[string],
 ) error {
 	workList, err := GetWorksByBindingID(ctx, c, bindingID, namespace != "")
 	if err != nil {
@@ -416,7 +428,6 @@ func DeleteWorks(
 	}
 
 	var errs []error
-	deletedWorks := sets.New[types.UID]()
 	coveredNamespaces := sets.New[string]()
 
 	// 1. Delete whatever the cache found
@@ -431,13 +442,11 @@ func DeleteWorks(
 			}
 			klog.Errorf("Failed to delete work(%s/%s): %v", work.Namespace, work.Name, err)
 			errs = append(errs, err)
-		} else {
-			deletedWorks.Insert(work.UID)
 		}
 	}
 
-	// 2. Fallback: Bounded Authoritative Lookup
-	missedErrs := deleteMissedWorks(ctx, c, apiReader, bindingID, expectedWorkName, deletedWorks, coveredNamespaces)
+	// 2. Fallback: Authoritative lookup on candidate clusters not covered by the cache
+	missedErrs := deleteMissedWorks(ctx, c, apiReader, bindingID, expectedWorkName, candidateClusters, coveredNamespaces)
 	errs = append(errs, missedErrs...)
 
 	return errors.NewAggregate(errs)
@@ -448,20 +457,13 @@ func deleteMissedWorks(
 	c client.Client,
 	apiReader client.Reader,
 	bindingID, expectedWorkName string,
-	deletedWorks sets.Set[types.UID],
+	candidateClusters sets.Set[string],
 	coveredNamespaces sets.Set[string],
 ) []error {
 	var errs []error
 
-	clusterList := &clusterv1alpha1.ClusterList{}
-	if err := c.List(ctx, clusterList); err != nil {
-		klog.Errorf("Failed to list clusters for bounded authoritative lookup: %v", err)
-		errs = append(errs, err)
-		return errs
-	}
-
-	for _, cluster := range clusterList.Items {
-		workNamespace := names.GenerateExecutionSpaceName(cluster.Name)
+	for _, clusterName := range sets.List(candidateClusters) {
+		workNamespace := names.GenerateExecutionSpaceName(clusterName)
 		if coveredNamespaces.Has(workNamespace) {
 			continue
 		}
@@ -477,7 +479,7 @@ func deleteMissedWorks(
 			continue
 		}
 
-		if deletedWorks.Has(work.UID) || !work.DeletionTimestamp.IsZero() {
+		if !work.DeletionTimestamp.IsZero() {
 			continue
 		}
 

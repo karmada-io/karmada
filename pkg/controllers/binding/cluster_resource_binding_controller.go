@@ -84,9 +84,9 @@ func (c *ClusterResourceBindingController) Reconcile(ctx context.Context, req co
 
 	if !clusterResourceBinding.DeletionTimestamp.IsZero() {
 		klog.V(4).InfoS("Begin to delete works owned by ClusterResourceBinding.", "ClusterResourceBinding", clusterResourceBinding.Name)
-
 		expectedWorkName := names.GenerateWorkName(clusterResourceBinding.Spec.Resource.Kind, clusterResourceBinding.Spec.Resource.Name, clusterResourceBinding.Spec.Resource.Namespace)
-		if err := helper.DeleteWorks(ctx, c.Client, c.APIReader, "", req.Name, clusterResourceBinding.Labels[workv1alpha2.ClusterResourceBindingPermanentIDLabel], expectedWorkName); err != nil {
+		candidateClusters := helper.ObtainBindingClustersMayHoldWorks(clusterResourceBinding.Spec, clusterResourceBinding.Status)
+		if err := helper.DeleteWorks(ctx, c.Client, c.APIReader, "", req.Name, clusterResourceBinding.Labels[workv1alpha2.ClusterResourceBindingPermanentIDLabel], expectedWorkName, candidateClusters); err != nil {
 			klog.ErrorS(err, "Failed to delete works related to ClusterResourceBinding.", "ClusterResourceBinding", clusterResourceBinding.Name)
 			return controllerruntime.Result{}, err
 		}
