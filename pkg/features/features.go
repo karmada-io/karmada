@@ -75,6 +75,15 @@ const (
 	// beta: v1.19
 	PriorityBasedScheduling featuregate.Feature = "PriorityBasedScheduling"
 
+	// PriorityBasedPreemptiveScheduling controls whether the scheduler can preempt
+	// lower-priority bindings for a higher-priority binding.
+	// This feature depends on PriorityBasedScheduling and only takes effect when
+	// both feature gates are enabled.
+	//
+	// owner: @seanlaii, @asarj
+	// alpha: v1.20
+	PriorityBasedPreemptiveScheduling featuregate.Feature = "PriorityBasedPreemptiveScheduling"
+
 	// FederatedQuotaEnforcement controls whether the existing FederatedResourceQuota enhancement feature is enabled.
 	// When enabled, the existing FederatedResourceQuota can impose namespaced resource limits directly on the Karmada control-plane level
 	//
@@ -174,6 +183,7 @@ var (
 		ResourceQuotaEstimate:             {Default: false, PreRelease: featuregate.Alpha},
 		StatefulFailoverInjection:         {Default: false, PreRelease: featuregate.Alpha},
 		PriorityBasedScheduling:           {Default: true, PreRelease: featuregate.Beta},
+		PriorityBasedPreemptiveScheduling: {Default: false, PreRelease: featuregate.Alpha},
 		FederatedQuotaEnforcement:         {Default: false, PreRelease: featuregate.Alpha},
 		LoggingAlphaOptions:               {Default: false, PreRelease: featuregate.Alpha},
 		LoggingBetaOptions:                {Default: true, PreRelease: featuregate.Beta},
@@ -187,4 +197,9 @@ var (
 
 func init() {
 	runtime.Must(FeatureGate.Add(DefaultFeatureGates))
+}
+
+// PriorityBasedPreemptiveSchedulingEnabled reports whether priority-based preemptive scheduling is enabled.
+func PriorityBasedPreemptiveSchedulingEnabled() bool {
+	return FeatureGate.Enabled(PriorityBasedScheduling) && FeatureGate.Enabled(PriorityBasedPreemptiveScheduling)
 }
