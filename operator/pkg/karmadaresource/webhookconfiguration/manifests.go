@@ -334,5 +334,19 @@ webhooks:
     sideEffects: NoneOnDryRun
     admissionReviewVersions: ["v1"]
     timeoutSeconds: 3
+  - name: clustertaintpolicy.karmada.io
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["policy.karmada.io"]
+        apiVersions: ["*"]
+        resources: ["clustertaintpolicies"]
+        scope: "Cluster"
+    clientConfig:
+      url: https://{{ .Service }}.{{ .Namespace }}.svc:443/validate-clustertaintpolicy
+      caBundle: {{ .CaBundle }}
+    failurePolicy: Fail
+    sideEffects: None
+    admissionReviewVersions: ["v1"]
+    timeoutSeconds: 3
 `
 )
