@@ -9,6 +9,7 @@
 # case8. MPIJob with multiple containers
 # case9. MPIJob with nodeSelector and tolerations
 # case10. MPIJob with resources only in limits (no requests)
+# case11. MPIJob with extra replica spec keys (Launcher, Worker, then others sorted by name)
 
 name: "MPIJob with both Launcher and Worker replicas"
 description: "Test interpreting component of MPIJob when both Launcher and Worker are present"
@@ -500,3 +501,77 @@ output:
           cpu: 2
           memory: 1Gi
 
+---
+name: "MPIJob with extra replica spec keys"
+description: "Test that components are returned in a fixed order: Launcher, Worker, then other keys sorted by name"
+observedObj:
+  apiVersion: kubeflow.org/v2beta1
+  kind: MPIJob
+  metadata:
+    name: mpijob-extra-keys
+    namespace: default
+  spec:
+    mpiReplicaSpecs:
+      Zeta:
+        replicas: 1
+        template:
+          spec:
+            containers:
+              - name: c
+                image: c:latest
+                resources:
+                  requests:
+                    cpu: 100m
+      Worker:
+        replicas: 2
+        template:
+          spec:
+            containers:
+              - name: c
+                image: c:latest
+                resources:
+                  requests:
+                    cpu: 2
+      Alpha:
+        replicas: 1
+        template:
+          spec:
+            containers:
+              - name: c
+                image: c:latest
+                resources:
+                  requests:
+                    cpu: 200m
+      Launcher:
+        replicas: 1
+        template:
+          spec:
+            containers:
+              - name: c
+                image: c:latest
+                resources:
+                  requests:
+                    cpu: 1
+operation: InterpretComponent
+output:
+  components:
+    - name: Launcher
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          cpu: 1
+    - name: Worker
+      replicas: 2
+      replicaRequirements:
+        resourceRequest:
+          cpu: 2
+    - name: Alpha
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          cpu: 200m
+    - name: Zeta
+      replicas: 1
+      replicaRequirements:
+        resourceRequest:
+          cpu: 100m
