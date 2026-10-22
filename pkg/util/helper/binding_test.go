@@ -569,6 +569,54 @@ func TestObtainBindingSpecExistingClusters(t *testing.T) {
 	}
 }
 
+func TestObtainBindingClustersMayHoldWorks(t *testing.T) {
+	tests := []struct {
+		name          string
+		bindingSpec   workv1alpha2.ResourceBindingSpec
+		bindingStatus workv1alpha2.ResourceBindingStatus
+		want          sets.Set[string]
+	}{
+		{
+			name: "empty spec and status",
+			want: sets.New[string](),
+		},
+		{
+			name: "spec clusters, requiredBy clusters and eviction tasks of all purge modes",
+			bindingSpec: workv1alpha2.ResourceBindingSpec{
+				Clusters: []workv1alpha2.TargetCluster{{Name: "member1"}},
+				RequiredBy: []workv1alpha2.BindingSnapshot{
+					{Clusters: []workv1alpha2.TargetCluster{{Name: "member2"}}},
+				},
+				GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{
+					{FromCluster: "member3", PurgeMode: policyv1alpha1.PurgeModeDirectly},
+					{FromCluster: "member4", PurgeMode: policyv1alpha1.PurgeModeGracefully},
+				},
+			},
+			want: sets.New("member1", "member2", "member3", "member4"),
+		},
+		{
+			name: "clusters only reported in aggregated status",
+			bindingSpec: workv1alpha2.ResourceBindingSpec{
+				Clusters: []workv1alpha2.TargetCluster{{Name: "member1"}},
+			},
+			bindingStatus: workv1alpha2.ResourceBindingStatus{
+				AggregatedStatus: []workv1alpha2.AggregatedStatusItem{
+					{ClusterName: "member1"},
+					{ClusterName: "member5"},
+				},
+			},
+			want: sets.New("member1", "member5"),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ObtainBindingClustersMayHoldWorks(tt.bindingSpec, tt.bindingStatus); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ObtainBindingClustersMayHoldWorks() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestFindOrphanWorks(t *testing.T) {
 	type args struct {
 		c                client.Client
@@ -1418,7 +1466,8 @@ func TestDeleteWorkByRBNamespaceAndName(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := DeleteWorks(context.Background(), tt.args.c, tt.args.namespace, tt.args.name, tt.args.bindingID); (err != nil) != tt.wantErr {
+			apiReader := fake.NewClientBuilder().WithScheme(gclient.NewSchema()).Build()
+			if err := DeleteWorks(context.Background(), tt.args.c, apiReader, tt.args.namespace, tt.args.name, tt.args.bindingID, "test-work", nil); (err != nil) != tt.wantErr {
 				t.Errorf("DeleteWorks() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			list := &workv1alpha1.WorkList{}
