@@ -131,13 +131,15 @@ func deductAssumedWorkloadsFromSummary(resourceSummary *clusterv1alpha1.Resource
 			for resName, qty := range comp.ReplicaRequirements.ResourceRequest {
 				// Use MilliValue only for CPU (millicores are its natural unit).
 				// For all other resources (memory, extended resources, etc.) use Value() to
-				// avoid the ×1000 amplification that MilliValue introduces, which can overflow
-				// int64 for large quantities (e.g. 1Ti memory × 10000 replicas).
+				// avoid the ×1000 amplification that MilliValue introduces.
+				// The multiplication is clamped to math.MaxInt64 instead of being left to wrap,
+				// since a wrapped negative total would make Allocating understate demand and let
+				// getMaximumReplicasBasedOnClusterSummary report more capacity than actually exists.
 				var total resource.Quantity
 				if resName == corev1.ResourceCPU {
-					total = *resource.NewMilliQuantity(qty.MilliValue()*replicas, qty.Format)
+					total = *resource.NewMilliQuantity(saturatingMulInt64(qty.MilliValue(), replicas), qty.Format)
 				} else {
-					total = *resource.NewQuantity(qty.Value()*replicas, qty.Format)
+					total = *resource.NewQuantity(saturatingMulInt64(qty.Value(), replicas), qty.Format)
 				}
 				if existing, ok := resourceSummary.Allocating[resName]; ok {
 					existing.Add(total)
@@ -419,6 +421,19 @@ func availableResourceMap(resourceSummary *clusterv1alpha1.ResourceSummary) map[
 		available[key] = quantityAsInt64(a)
 	}
 	return available
+}
+
+// saturatingMulInt64 multiplies two non-negative int64 values, returning math.MaxInt64
+// instead of wrapping if the exact product would overflow int64.
+func saturatingMulInt64(a, b int64) int64 {
+	if a == 0 || b == 0 {
+		return 0
+	}
+	result := a * b
+	if result/b != a {
+		return math.MaxInt64
+	}
+	return result
 }
 
 // Converts quantity into an int representation depending on format
