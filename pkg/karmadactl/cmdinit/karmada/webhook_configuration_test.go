@@ -18,9 +18,14 @@ package karmada
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	"k8s.io/client-go/kubernetes/fake"
+
+	"github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 )
 
 func Test_createOrUpdateValidatingWebhookConfiguration(t *testing.T) {
@@ -42,5 +47,45 @@ func Test_createOrUpdateMutatingWebhookConfiguration(t *testing.T) {
 	}
 	if err := createOrUpdateMutatingWebhookConfiguration(client, cfg); err != nil {
 		t.Errorf("createOrUpdateMutatingWebhookConfiguration() return = %v, want no error", err)
+	}
+}
+
+func TestValidatingConfigClusterTaintPolicyWebhook(t *testing.T) {
+	cfg := validatingConfig(base64.StdEncoding.EncodeToString([]byte("foo")), "bar")
+	obj := admissionregistrationv1.ValidatingWebhookConfiguration{}
+	if err := json.Unmarshal(utils.StaticYamlToJSONByte(cfg), &obj); err != nil {
+		t.Fatalf("failed to decode validatingConfig() output: %v", err)
+	}
+
+	var got *admissionregistrationv1.ValidatingWebhook
+	for i := range obj.Webhooks {
+		if obj.Webhooks[i].Name == "clustertaintpolicy.karmada.io" {
+			got = &obj.Webhooks[i]
+			break
+		}
+	}
+	if got == nil {
+		t.Fatalf("validatingConfig() is missing the clustertaintpolicy.karmada.io webhook")
+	}
+
+	want := &admissionregistrationv1.ValidatingWebhook{
+		Name:         "clustertaintpolicy.karmada.io",
+		ClientConfig: admissionregistrationv1.WebhookClientConfig{URL: new("https://karmada-webhook.bar.svc:443/validate-clustertaintpolicy"), CABundle: []byte("foo")},
+		Rules: []admissionregistrationv1.RuleWithOperations{{
+			Operations: []admissionregistrationv1.OperationType{admissionregistrationv1.Create, admissionregistrationv1.Update},
+			Rule: admissionregistrationv1.Rule{
+				APIGroups:   []string{"policy.karmada.io"},
+				APIVersions: []string{"*"},
+				Resources:   []string{"clustertaintpolicies"},
+				Scope:       new(admissionregistrationv1.ClusterScope),
+			},
+		}},
+		FailurePolicy:           new(admissionregistrationv1.Fail),
+		SideEffects:             new(admissionregistrationv1.SideEffectClassNone),
+		TimeoutSeconds:          new(int32(3)),
+		AdmissionReviewVersions: []string{"v1"},
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("clustertaintpolicy.karmada.io webhook mismatch (-want +got):\n%s", diff)
 	}
 }

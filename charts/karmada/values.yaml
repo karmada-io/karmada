@@ -317,6 +317,9 @@ webhook:
   priorityClassName: "system-node-critical"
   ## @param webhook.featureGates A set of key=value pairs that describe feature gates for karmada-webhook
   featureGates: {}
+  ## To allow NoExecute taints in a ClusterTaintPolicy, set:
+  ##   extraCommandArgs:
+  ##     allow-no-execute-taint-policy: true
   ## @param webhook.extraCommandArgs extra command args of the karmada-webhook
   extraCommandArgs: {}
 

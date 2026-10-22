@@ -22,6 +22,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	fakeclientset "k8s.io/client-go/kubernetes/fake"
 	coretesting "k8s.io/client-go/testing"
@@ -126,5 +127,62 @@ func TestValidatingWebhookConfiguration(t *testing.T) {
 		if string(webhook.ClientConfig.CABundle) != caTestData {
 			t.Fatalf("expected webhook client config caBundle %s, but got %s", caTestData, string(webhook.ClientConfig.CABundle))
 		}
+	}
+}
+
+func TestValidatingWebhookConfigurationClusterTaintPolicy(t *testing.T) {
+	name, namespace := "karmada-demo", "test"
+
+	caTestData := "test-ca-data"
+	caBundle := base64.StdEncoding.EncodeToString([]byte(caTestData))
+
+	fakeClient := fakeclientset.NewClientset()
+	err := validatingWebhookConfiguration(fakeClient, namespace, name, caBundle)
+	if err != nil {
+		t.Fatalf("error creating the validating webhook configuration: %v", err)
+	}
+
+	actions := fakeClient.Actions()
+	if len(actions) != 1 {
+		t.Fatalf("expected 1 action, but got %d", len(actions))
+	}
+
+	createAction, ok := actions[0].(coretesting.CreateAction)
+	if !ok {
+		t.Fatalf("expected CreateAction, but got %T", actions[0])
+	}
+
+	validatingWebhookConfig := createAction.GetObject().(*admissionregistrationv1.ValidatingWebhookConfiguration)
+
+	var got *admissionregistrationv1.ValidatingWebhook
+	for i := range validatingWebhookConfig.Webhooks {
+		if validatingWebhookConfig.Webhooks[i].Name == "clustertaintpolicy.karmada.io" {
+			got = &validatingWebhookConfig.Webhooks[i]
+			break
+		}
+	}
+	if got == nil {
+		t.Fatalf("validating webhook configuration is missing the clustertaintpolicy.karmada.io webhook")
+	}
+
+	want := &admissionregistrationv1.ValidatingWebhook{
+		Name:         "clustertaintpolicy.karmada.io",
+		ClientConfig: admissionregistrationv1.WebhookClientConfig{URL: new(fmt.Sprintf("https://%s.%s.svc:443/validate-clustertaintpolicy", util.KarmadaWebhookName(name), namespace)), CABundle: []byte(caTestData)},
+		Rules: []admissionregistrationv1.RuleWithOperations{{
+			Operations: []admissionregistrationv1.OperationType{admissionregistrationv1.Create, admissionregistrationv1.Update},
+			Rule: admissionregistrationv1.Rule{
+				APIGroups:   []string{"policy.karmada.io"},
+				APIVersions: []string{"*"},
+				Resources:   []string{"clustertaintpolicies"},
+				Scope:       new(admissionregistrationv1.ClusterScope),
+			},
+		}},
+		FailurePolicy:           new(admissionregistrationv1.Fail),
+		SideEffects:             new(admissionregistrationv1.SideEffectClassNone),
+		TimeoutSeconds:          new(int32(3)),
+		AdmissionReviewVersions: []string{"v1"},
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("clustertaintpolicy.karmada.io webhook mismatch (-want +got):\n%s", diff)
 	}
 }
