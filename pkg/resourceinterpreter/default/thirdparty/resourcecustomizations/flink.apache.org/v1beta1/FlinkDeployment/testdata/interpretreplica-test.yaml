@@ -8,6 +8,7 @@
 # case7. FlinkDeployment with taskManager having higher memory than jobManager
 # case8. FlinkDeployment with spec.jobManager missing, should default jobManager replicas to 1 and use only taskManager resources
 # case9. FlinkDeployment with taskmanager.numberOfTaskSlots set to 0, should avoid division by zero and default to 1
+# case10. FlinkDeployment with memory specified in g unit
 
 name: "FlinkDeployment with taskManager.replicas set to 1"
 description: "Test interpreting replica of FlinkDeployment when taskManager.replicas is set"
@@ -44,7 +45,7 @@ output:
   requires:
     resourceRequest:
       "cpu": "1"
-      "memory": "2048m"
+      "memory": "2048Mi"
     namespace: "test-namespace"
 
 ---
@@ -81,7 +82,7 @@ output:
   requires:
     resourceRequest:
       "cpu": "1"
-      "memory": "2048m"
+      "memory": "2048Mi"
     namespace: "test-namespace"
 
 ---
@@ -125,7 +126,7 @@ output:
   requires:
     resourceRequest:
       "cpu": "1"
-      "memory": "2048m"
+      "memory": "2048Mi"
     nodeClaim:
       nodeSelector:
         disktype: ssd
@@ -167,7 +168,7 @@ output:
   requires:
     resourceRequest:
       "cpu": "1"
-      "memory": "2048m"
+      "memory": "2048Mi"
     namespace: "test-namespace"
 
 ---
@@ -199,7 +200,7 @@ output:
   requires:
     resourceRequest:
       "cpu": "1"
-      "memory": "2048m"
+      "memory": "2048Mi"
     namespace: "test-namespace"
 
 ---
@@ -232,7 +233,7 @@ output:
   requires:
     resourceRequest:
       "cpu": "2"
-      "memory": "4096m"
+      "memory": "4096Mi"
     namespace: "test-namespace"
 
 ---
@@ -265,7 +266,7 @@ output:
   requires:
     resourceRequest:
       "cpu": "2"
-      "memory": "8192m"
+      "memory": "8192Mi"
     namespace: "test-namespace"
 
 ---
@@ -293,7 +294,7 @@ output:
   requires:
     resourceRequest:
       "cpu": "1"
-      "memory": "2048m"
+      "memory": "2048Mi"
     namespace: "test-namespace"
 
 ---
@@ -329,6 +330,39 @@ output:
   requires:
     resourceRequest:
       "cpu": "1"
-      "memory": "2048m"
+      "memory": "2048Mi"
+    namespace: "test-namespace"
+
+---
+name: "FlinkDeployment with memory specified in g unit"
+description: "Test interpreting replica of FlinkDeployment when memory uses g unit"
+desiredObj:
+  apiVersion: flink.apache.org/v1beta1
+  kind: FlinkDeployment
+  metadata:
+    name: basic-example
+    namespace: test-namespace
+  spec:
+    flinkConfiguration:
+      taskmanager.numberOfTaskSlots: "2"
+    flinkVersion: v1_17
+    image: flink:1.17
+    jobManager:
+      replicas: 1
+      resource:
+        cpu: 1
+        memory: 2g
+    taskManager:
+      replicas: 1
+      resource:
+        cpu: 1
+        memory: 2g
+operation: InterpretReplica
+output:
+  replica: 2
+  requires:
+    resourceRequest:
+      "cpu": "1"
+      "memory": "2Gi"
     namespace: "test-namespace"
 
