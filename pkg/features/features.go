@@ -75,8 +75,9 @@ const (
 	// beta: v1.19
 	PriorityBasedScheduling featuregate.Feature = "PriorityBasedScheduling"
 
-	// PriorityBasedPreemptiveScheduling controls whether the scheduler can preempt
-	// lower-priority bindings for a higher-priority binding.
+	// PriorityBasedPreemptiveScheduling controls whether the scheduler may preempt
+	// lower-priority bindings when the target cluster lacks sufficient resources
+	// to schedule a higher-priority binding.
 	// This feature depends on PriorityBasedScheduling and only takes effect when
 	// both feature gates are enabled.
 	//
