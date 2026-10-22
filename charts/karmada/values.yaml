@@ -255,6 +255,11 @@ scheduler:
   enableEmptyWorkloadPropagation: false
   ## @param scheduler.featureGates A set of key=value pairs that describe feature gates for karmada-scheduler
   featureGates: {}
+  ## @param scheduler.extraCommandArgs A set of key=value pairs that describe extra command line arguments for the scheduler.
+  ## They are rendered as --key=value after built-in and dedicated flags.
+  ## Duplicate single-value flags will override earlier values (last value wins).
+  ## Multi-value flags (like --feature-gates or --controllers) may not behave as simple overrides.
+  extraCommandArgs: {}
 
 ## webhook config
 webhook:
@@ -320,7 +325,10 @@ webhook:
   ## To allow NoExecute taints in a ClusterTaintPolicy, set:
   ##   extraCommandArgs:
   ##     allow-no-execute-taint-policy: true
-  ## @param webhook.extraCommandArgs extra command args of the karmada-webhook
+  ## @param webhook.extraCommandArgs A set of key=value pairs that describe extra command line arguments for the webhook.
+  ## They are rendered as --key=value after built-in and dedicated flags.
+  ## Duplicate single-value flags will override earlier values (last value wins).
+  ## Multi-value flags (like --feature-gates or --controllers) may not behave as simple overrides.
   extraCommandArgs: {}
 
 ## controller manager config
@@ -504,6 +512,11 @@ apiServer:
       key: "encryption-config.yaml"
     ## @param apiServer.encryptionAtRest.configFile path where the encryption config file will be mounted in the container
     configFile: "/etc/karmada/encryption/encryption-config.yaml"
+  ## @param apiServer.extraCommandArgs A set of key=value pairs that describe extra command line arguments for the apiServer.
+  ## They are rendered as --key=value after built-in and dedicated flags.
+  ## Duplicate single-value flags will override earlier values (last value wins).
+  ## Multi-value flags (like --feature-gates or --controllers) may not behave as simple overrides.
+  extraCommandArgs: {}
 
 ## karmada aggregated apiserver config
 aggregatedApiServer:
@@ -566,6 +579,11 @@ aggregatedApiServer:
   podDisruptionBudget: *podDisruptionBudget
   ## @param aggregatedApiServer.priorityClassName the priority class name for the karmada-aggregated-apiserver.
   priorityClassName: "system-node-critical"
+  ## @param aggregatedApiServer.extraCommandArgs A set of key=value pairs that describe extra command line arguments for the aggregatedApiServer.
+  ## They are rendered as --key=value after built-in and dedicated flags.
+  ## Duplicate single-value flags will override earlier values (last value wins).
+  ## Multi-value flags (like --feature-gates or --controllers) may not behave as simple overrides.
+  extraCommandArgs: {}
 
 ## karmada metrics adapter config
 metricsAdapter:
@@ -628,6 +646,11 @@ metricsAdapter:
   podDisruptionBudget: *podDisruptionBudget
   ## @param metricsAadpter.priorityClassName the priority class name for the karmada-mertics-adapter
   priorityClassName: "system-node-critical"
+  ## @param metricsAdapter.extraCommandArgs A set of key=value pairs that describe extra command line arguments for the metricsAdapter.
+  ## They are rendered as --key=value after built-in and dedicated flags.
+  ## Duplicate single-value flags will override earlier values (last value wins).
+  ## Multi-value flags (like --feature-gates or --controllers) may not behave as simple overrides.
+  extraCommandArgs: {}
 
 ## kubernetes controller manager config
 kubeControllerManager:
@@ -864,6 +887,11 @@ agent:
   podDisruptionBudget: *podDisruptionBudget
   ## @param agent.priorityClassName the priority class name for the karmada-agent
   priorityClassName: "system-node-critical"
+  ## @param agent.extraCommandArgs A set of key=value pairs that describe extra command line arguments for the agent.
+  ## They are rendered as --key=value after built-in and dedicated flags.
+  ## Duplicate single-value flags will override earlier values (last value wins).
+  ## Multi-value flags (like --feature-gates or --controllers) may not behave as simple overrides.
+  extraCommandArgs: {}
 
 ## karmada scheduler estimator
 schedulerEstimator:
@@ -952,6 +980,11 @@ schedulerEstimator:
   priorityClassName: "system-node-critical"
   ## @param schedulerEstimator.certs certs of the scheduler-estimator, only used when installMode is not "host"
   certs: karmada-cert
+  ## @param schedulerEstimator.extraCommandArgs A set of key=value pairs that describe extra command line arguments for the schedulerEstimator.
+  ## They are rendered as --key=value after built-in and dedicated flags.
+  ## Duplicate single-value flags will override earlier values (last value wins).
+  ## Multi-value flags (like --feature-gates or --controllers) may not behave as simple overrides.
+  extraCommandArgs: {}
 
 ## descheduler config
 descheduler:
@@ -1014,6 +1047,11 @@ descheduler:
   podDisruptionBudget: *podDisruptionBudget
   ## @param descheduler.priorityClassName the priority class name for the descheduler
   priorityClassName: "system-node-critical"
+  ## @param descheduler.extraCommandArgs A set of key=value pairs that describe extra command line arguments for the descheduler.
+  ## They are rendered as --key=value after built-in and dedicated flags.
+  ## Duplicate single-value flags will override earlier values (last value wins).
+  ## Multi-value flags (like --feature-gates or --controllers) may not behave as simple overrides.
+  extraCommandArgs: {}
 
 ## karmada-search config
 search:
@@ -1078,3 +1116,8 @@ search:
   podDisruptionBudget: *podDisruptionBudget
   ## @param search.priorityClassName the priority class name for the karmada-search
   priorityClassName: "system-node-critical"
+  ## @param search.extraCommandArgs A set of key=value pairs that describe extra command line arguments for the search.
+  ## They are rendered as --key=value after built-in and dedicated flags.
+  ## Duplicate single-value flags will override earlier values (last value wins).
+  ## Multi-value flags (like --feature-gates or --controllers) may not behave as simple overrides.
+  extraCommandArgs: {}

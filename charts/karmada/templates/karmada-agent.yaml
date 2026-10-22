@@ -115,6 +115,7 @@ spec:
             - --metrics-bind-address=$(POD_IP):8080
             - --health-probe-bind-address=$(POD_IP):10357
             - --v={{ .Values.agent.logVerbosity }}
+            {{- include "karmada.agent.extraCommandArgs" . | nindent 12 }}
           livenessProbe:
             httpGet:
               path: /healthz
