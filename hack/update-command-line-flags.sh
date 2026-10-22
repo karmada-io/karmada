@@ -22,6 +22,11 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+# Pin the locale so the generated docs are identical regardless of the
+# developer's environment. kubectl's i18n package translates command
+# descriptions based on LC_ALL/LC_MESSAGES/LANG.
+export LC_ALL=C
+
 SCRIPT_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 # shellcheck source=hack/util.sh
 source "${SCRIPT_ROOT}/hack/util.sh"
