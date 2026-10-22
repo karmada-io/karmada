@@ -1,0 +1,51 @@
+# test case for interpreting dependencies of HelmRelease
+# case1. HelmRelease with valuesFrom, kubeConfig and serviceAccountName
+# case2. HelmRelease without dependencies
+
+name: "HelmRelease with valuesFrom, kubeConfig and serviceAccountName"
+description: "Test interpreting dependencies of HelmRelease referencing a ConfigMap, a Secret and a ServiceAccount"
+desiredObj:
+  apiVersion: helm.toolkit.fluxcd.io/v2
+  kind: HelmRelease
+  metadata:
+    name: podinfo
+    namespace: default
+  spec:
+    interval: 5m
+    serviceAccountName: helm-sa
+    kubeConfig:
+      secretRef:
+        name: kubeconfig-secret
+    valuesFrom:
+      - kind: ConfigMap
+        name: podinfo-values
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: Secret
+      name: kubeconfig-secret
+      namespace: default
+    - apiVersion: v1
+      kind: ServiceAccount
+      name: helm-sa
+      namespace: default
+    - apiVersion: v1
+      kind: ConfigMap
+      name: podinfo-values
+      namespace: default
+
+---
+name: "HelmRelease without dependencies"
+description: "Test interpreting dependencies of HelmRelease that references nothing"
+desiredObj:
+  apiVersion: helm.toolkit.fluxcd.io/v2
+  kind: HelmRelease
+  metadata:
+    name: podinfo
+    namespace: default
+  spec:
+    interval: 5m
+operation: InterpretDependency
+output:
+  dependencies: []

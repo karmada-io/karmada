@@ -1,0 +1,46 @@
+# test case for interpreting replica of HelmRelease
+# case1. HelmRelease with values.replicaCount set to 4
+# case2. HelmRelease without values.replicaCount
+
+name: "HelmRelease with values.replicaCount set to 4"
+description: "Test interpreting replica of HelmRelease from values.replicaCount"
+desiredObj:
+  apiVersion: helm.toolkit.fluxcd.io/v2
+  kind: HelmRelease
+  metadata:
+    name: podinfo
+    namespace: default
+  spec:
+    interval: 5m
+    chart:
+      spec:
+        chart: podinfo
+        sourceRef:
+          kind: HelmRepository
+          name: podinfo
+    values:
+      replicaCount: 4
+operation: InterpretReplica
+output:
+  replica: 4
+
+---
+name: "HelmRelease without values.replicaCount"
+description: "Test interpreting replica of HelmRelease that does not set values.replicaCount"
+desiredObj:
+  apiVersion: helm.toolkit.fluxcd.io/v2
+  kind: HelmRelease
+  metadata:
+    name: podinfo
+    namespace: default
+  spec:
+    interval: 5m
+    chart:
+      spec:
+        chart: podinfo
+        sourceRef:
+          kind: HelmRepository
+          name: podinfo
+operation: InterpretReplica
+output:
+  replica: 0

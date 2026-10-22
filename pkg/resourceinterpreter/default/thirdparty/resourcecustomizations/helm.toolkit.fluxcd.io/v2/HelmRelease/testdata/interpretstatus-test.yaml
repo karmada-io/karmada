@@ -1,0 +1,67 @@
+# test case for interpreting status of HelmRelease
+# case1. HelmRelease with full status and resource template generation annotation
+# case2. HelmRelease without status
+
+name: "HelmRelease with full status"
+description: "Test reflecting status of HelmRelease"
+observedObj:
+  apiVersion: helm.toolkit.fluxcd.io/v2
+  kind: HelmRelease
+  metadata:
+    name: podinfo
+    namespace: default
+    generation: 2
+    annotations:
+      resourcetemplate.karmada.io/generation: "3"
+  status:
+    observedGeneration: 2
+    helmChart: default-podinfo
+    storageNamespace: default
+    lastAttemptedGeneration: 2
+    lastAttemptedRevision: 6.5.0
+    lastAttemptedConfigDigest: sha256:abc
+    lastAttemptedReleaseAction: upgrade
+    failures: 1
+    installFailures: 0
+    upgradeFailures: 1
+    history:
+      - name: podinfo
+        version: 2
+    conditions:
+      - type: Ready
+        status: "True"
+        reason: UpgradeSucceeded
+        message: Helm upgrade succeeded
+operation: InterpretStatus
+output:
+  status:
+    observedGeneration: 2
+    helmChart: default-podinfo
+    storageNamespace: default
+    lastAttemptedGeneration: 2
+    lastAttemptedRevision: 6.5.0
+    lastAttemptedConfigDigest: sha256:abc
+    lastAttemptedReleaseAction: upgrade
+    failures: 1
+    installFailures: 0
+    upgradeFailures: 1
+    generation: 2
+    resourceTemplateGeneration: 3
+    conditions:
+      - type: Ready
+        status: "True"
+        reason: UpgradeSucceeded
+        message: Helm upgrade succeeded
+
+---
+name: "HelmRelease without status"
+description: "Test reflecting status of HelmRelease without status"
+observedObj:
+  apiVersion: helm.toolkit.fluxcd.io/v2
+  kind: HelmRelease
+  metadata:
+    name: podinfo
+    namespace: default
+operation: InterpretStatus
+output:
+  status: {}
