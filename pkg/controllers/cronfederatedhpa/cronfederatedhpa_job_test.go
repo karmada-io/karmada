@@ -189,6 +189,69 @@ func TestScaleFHPA(t *testing.T) {
 	}
 }
 
+// TestScaleWorkloads_NilTargetReplicas is a regression test for
+// https://github.com/karmada-io/karmada/issues/7726.
+// ScaleWorkloads must return a clear error (not panic) when TargetReplicas is nil.
+func TestScaleWorkloads_NilTargetReplicas(t *testing.T) {
+	tests := []struct {
+		name            string
+		targetReplicas  *int32
+		expectErrSubstr string
+	}{
+		{
+			name:            "nil TargetReplicas returns error, not panic",
+			targetReplicas:  nil,
+			expectErrSubstr: "targetReplicas is required for scaling",
+		},
+		{
+			name:           "non-nil TargetReplicas passes nil check",
+			targetReplicas: func() *int32 { v := int32(3); return &v }(),
+			// Fake client has no Deployment registered, so Get returns "not
+			// found". That is past the nil-check — the guard did not fire.
+			expectErrSubstr: "not found",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			scheme := runtime.NewScheme()
+			_ = autoscalingv1alpha1.Install(scheme)
+			fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+
+			cronFHPA := &autoscalingv1alpha1.CronFederatedHPA{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-cron-fhpa",
+					Namespace: "default",
+				},
+				Spec: autoscalingv1alpha1.CronFederatedHPASpec{
+					ScaleTargetRef: autoscalingv2.CrossVersionObjectReference{
+						APIVersion: "apps/v1",
+						Kind:       "Deployment",
+						Name:       "test-deploy",
+					},
+				},
+			}
+
+			job := &ScalingJob{
+				client: fakeClient,
+				rule: autoscalingv1alpha1.CronFederatedHPARule{
+					Name:           "test-rule",
+					TargetReplicas: tt.targetReplicas,
+				},
+				namespaceName: types.NamespacedName{
+					Name:      cronFHPA.Name,
+					Namespace: cronFHPA.Namespace,
+				},
+			}
+
+			err := job.ScaleWorkloads(cronFHPA)
+
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), tt.expectErrSubstr)
+		})
+	}
+}
+
 func TestFindExecutionHistory(t *testing.T) {
 	tests := []struct {
 		name          string
