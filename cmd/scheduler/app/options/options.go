@@ -161,7 +161,7 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	fs.BoolVar(&o.InsecureSkipEstimatorVerify, "insecure-skip-estimator-verify", false, "Controls whether verifies the scheduler estimator's certificate chain and host name.")
 	fs.BoolVar(&o.EnableEmptyWorkloadPropagation, "enable-empty-workload-propagation", false, "Enable workload with replicas 0 to be propagated to member clusters.")
 	fs.StringSliceVar(&o.Plugins, "plugins", []string{"*"},
-		fmt.Sprintf("A list of plugins to enable. '*' enables all build-in and customized plugins, 'foo' enables the plugin named 'foo', '*,-foo' disables the plugin named 'foo'.\nAll build-in plugins: %s.", strings.Join(frameworkplugins.NewInTreeRegistry().FactoryNames(), ",")))
+		fmt.Sprintf("A list of plugins to enable. '*' enables all built-in and customized plugins, 'foo' enables the plugin named 'foo', '*,-foo' disables the plugin named 'foo'.\nAll built-in plugins: %s.", strings.Join(frameworkplugins.NewInTreeRegistry().FactoryNames(), ",")))
 	fs.StringVar(&o.SchedulerName, "scheduler-name", scheduler.DefaultScheduler, "SchedulerName represents the name of the scheduler. default is 'default-scheduler'.")
 	features.FeatureGate.AddFlag(fs)
 	o.ProfileOpts.AddFlags(fs)
