@@ -53,7 +53,28 @@ spec:
             return components
           end
 
-          for taskName, spec in pairs(replicaSpecs) do
+          -- pairs() order is not stable, so use a fixed order:
+          -- Launcher, Worker, then any other keys sorted by name.
+          local taskNames = {}
+          local others = {}
+          for taskName, _ in pairs(replicaSpecs) do
+            if taskName ~= "Launcher" and taskName ~= "Worker" then
+              table.insert(others, taskName)
+            end
+          end
+          table.sort(others)
+          if replicaSpecs["Launcher"] ~= nil then
+            table.insert(taskNames, "Launcher")
+          end
+          if replicaSpecs["Worker"] ~= nil then
+            table.insert(taskNames, "Worker")
+          end
+          for _, taskName in ipairs(others) do
+            table.insert(taskNames, taskName)
+          end
+
+          for _, taskName in ipairs(taskNames) do
+            local spec = replicaSpecs[taskName]
             if spec ~= nil and spec.template ~= nil then
               local default_replicas = 1
               if string.lower(taskName) == "worker" then
