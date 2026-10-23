@@ -25,7 +25,7 @@ import (
 // Interface provides access to all the informers in this group version.
 type Interface interface {
 	// Karmadas returns a KarmadaInformer.
-	Karmadas() KarmadaInformer
+	Karmadas() TypedKarmadaInformer
 }
 
 type version struct {
@@ -39,7 +39,7 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
-// Karmadas returns a KarmadaInformer.
-func (v *version) Karmadas() KarmadaInformer {
+// Karmadas returns a TypedKarmadaInformer.
+func (v *version) Karmadas() TypedKarmadaInformer {
 	return &karmadaInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

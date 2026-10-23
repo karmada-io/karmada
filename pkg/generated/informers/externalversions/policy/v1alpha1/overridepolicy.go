@@ -34,11 +34,39 @@ import (
 )
 
 // OverridePolicyInformer provides access to a shared informer and lister for
-// OverridePolicies.
+// OverridePolicies. Prefer using the type-safe variant (see [TypedOverridePolicyInformer]).
 type OverridePolicyInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() policyv1alpha1.OverridePolicyLister
 }
+
+// TypedOverridePolicyInformer provides access to a shared informer and lister for
+// OverridePolicies, including the type-safe TypedInformer variant.
+// It is a superset of OverridePolicyInformer.
+type TypedOverridePolicyInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() OverridePolicyIndexInformer
+	Lister() policyv1alpha1.OverridePolicyLister
+}
+
+// OverridePolicyIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type OverridePolicyIndexInformer cache.TypedSharedIndexInformer[*apispolicyv1alpha1.OverridePolicy]
+
+// OverridePolicyHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for OverridePolicy.
+type OverridePolicyHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apispolicyv1alpha1.OverridePolicy]
+
+// OverridePolicyDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for OverridePolicy.
+type OverridePolicyDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apispolicyv1alpha1.OverridePolicy]
+
+// OverridePolicyFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for OverridePolicy.
+type OverridePolicyFilteringHandler = cache.TypedFilteringResourceEventHandler[*apispolicyv1alpha1.OverridePolicy]
+
+// OverridePolicyIndexers is a specialization of [cache.TypedIndexers] for OverridePolicy.
+type OverridePolicyIndexers = cache.TypedIndexers[*apispolicyv1alpha1.OverridePolicy]
+
+// DeletedOverridePolicy is a specialization of [cache.DeletedObject] for OverridePolicy.
+type DeletedOverridePolicy = cache.DeletedObject[*apispolicyv1alpha1.OverridePolicy]
 
 type overridePolicyInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -49,25 +77,49 @@ type overridePolicyInformer struct {
 // NewOverridePolicyInformer constructs a new informer for OverridePolicy type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedOverridePolicyInformer]).
 func NewOverridePolicyInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewOverridePolicyInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedOverridePolicyInformer constructs a new informer for OverridePolicy type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedOverridePolicyInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers OverridePolicyIndexers) OverridePolicyIndexInformer {
+	return NewTypedOverridePolicyInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredOverridePolicyInformer constructs a new informer for OverridePolicy type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredOverridePolicyInformer]).
 func NewFilteredOverridePolicyInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewOverridePolicyInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+	return NewTypedOverridePolicyInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredOverridePolicyInformer constructs a new informer for OverridePolicy type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredOverridePolicyInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers OverridePolicyIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) OverridePolicyIndexInformer {
+	return NewTypedOverridePolicyInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
 }
 
 // NewOverridePolicyInformerWithOptions constructs a new informer for OverridePolicy type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedOverridePolicyInformerWithOptions]).
 func NewOverridePolicyInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedOverridePolicyInformerWithOptions(client, namespace, options)
+}
+
+// NewTypedOverridePolicyInformerWithOptions constructs a new informer for OverridePolicy type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedOverridePolicyInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) OverridePolicyIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "policy.karmada.io", Version: "v1alpha1", Resource: "overridepolicys"}
 	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
-	return cache.NewSharedIndexInformerWithOptions(
+	return cache.NewTypedSharedIndexInformer[*apispolicyv1alpha1.OverridePolicy](cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
@@ -100,17 +152,57 @@ func NewOverridePolicyInformerWithOptions(client versioned.Interface, namespace 
 			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
-	)
+	))
 }
 
 func (f *overridePolicyInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewOverridePolicyInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
+	return NewTypedOverridePolicyInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *overridePolicyInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apispolicyv1alpha1.OverridePolicy{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *overridePolicyInformer) TypedInformer() OverridePolicyIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apispolicyv1alpha1.OverridePolicy](f.factory.InformerFor(&apispolicyv1alpha1.OverridePolicy{}, f.defaultInformer))
 }
 
 func (f *overridePolicyInformer) Lister() policyv1alpha1.OverridePolicyLister {
 	return policyv1alpha1.NewOverridePolicyLister(f.Informer().GetIndexer())
+}
+
+// ToTypedOverridePolicyInformer converts an untyped informer into a TypedOverridePolicyInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *OverridePolicy. If that is not the case, calling type-safe methods of the returned
+// TypedOverridePolicyInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedOverridePolicyInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedOverridePolicyInformer(informer OverridePolicyInformer) TypedOverridePolicyInformer {
+	if informer, ok := informer.(TypedOverridePolicyInformer); ok {
+		return informer
+	}
+	return &overridePolicyTypedInformerAdapter{informer}
+}
+
+type overridePolicyTypedInformerAdapter struct {
+	OverridePolicyInformer
+}
+
+func (a *overridePolicyTypedInformerAdapter) TypedInformer() OverridePolicyIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apispolicyv1alpha1.OverridePolicy](a.Informer())
+}
+
+// ToOverridePolicyIndexInformer converts an untyped informer into a OverridePolicyIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *OverridePolicy. If that is not the case, calling type-safe methods of the returned
+// OverridePolicyIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a OverridePolicyIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToOverridePolicyIndexInformer(informer cache.SharedIndexInformer) OverridePolicyIndexInformer {
+	if informer, ok := informer.(OverridePolicyIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*apispolicyv1alpha1.OverridePolicy](informer)
 }

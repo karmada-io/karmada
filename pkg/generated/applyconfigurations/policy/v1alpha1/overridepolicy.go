@@ -32,7 +32,7 @@ import (
 //
 // OverridePolicy represents the policy that overrides a group of resources to one or more clusters.
 type OverridePolicyApplyConfiguration struct {
-	v1.TypeMetaApplyConfiguration    `json:",inline"`
+	v1.TypeMetaApplyConfiguration    `json:""`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
 	// Spec represents the desired behavior of OverridePolicy.
 	Spec *OverrideSpecApplyConfiguration `json:"spec,omitempty"`

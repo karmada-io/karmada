@@ -33,7 +33,7 @@ import (
 // ResourceInterpreterWebhookConfiguration describes the configuration of webhooks which take the responsibility to
 // tell karmada the details of the resource object, especially for custom resources.
 type ResourceInterpreterWebhookConfigurationApplyConfiguration struct {
-	v1.TypeMetaApplyConfiguration    `json:",inline"`
+	v1.TypeMetaApplyConfiguration    `json:""`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
 	// Webhooks is a list of webhooks and the affected resources and operations.
 	Webhooks []ResourceInterpreterWebhookApplyConfiguration `json:"webhooks,omitempty"`

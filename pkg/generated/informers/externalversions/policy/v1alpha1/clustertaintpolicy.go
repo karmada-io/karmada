@@ -34,11 +34,39 @@ import (
 )
 
 // ClusterTaintPolicyInformer provides access to a shared informer and lister for
-// ClusterTaintPolicies.
+// ClusterTaintPolicies. Prefer using the type-safe variant (see [TypedClusterTaintPolicyInformer]).
 type ClusterTaintPolicyInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() policyv1alpha1.ClusterTaintPolicyLister
 }
+
+// TypedClusterTaintPolicyInformer provides access to a shared informer and lister for
+// ClusterTaintPolicies, including the type-safe TypedInformer variant.
+// It is a superset of ClusterTaintPolicyInformer.
+type TypedClusterTaintPolicyInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() ClusterTaintPolicyIndexInformer
+	Lister() policyv1alpha1.ClusterTaintPolicyLister
+}
+
+// ClusterTaintPolicyIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type ClusterTaintPolicyIndexInformer cache.TypedSharedIndexInformer[*apispolicyv1alpha1.ClusterTaintPolicy]
+
+// ClusterTaintPolicyHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for ClusterTaintPolicy.
+type ClusterTaintPolicyHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apispolicyv1alpha1.ClusterTaintPolicy]
+
+// ClusterTaintPolicyDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for ClusterTaintPolicy.
+type ClusterTaintPolicyDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apispolicyv1alpha1.ClusterTaintPolicy]
+
+// ClusterTaintPolicyFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for ClusterTaintPolicy.
+type ClusterTaintPolicyFilteringHandler = cache.TypedFilteringResourceEventHandler[*apispolicyv1alpha1.ClusterTaintPolicy]
+
+// ClusterTaintPolicyIndexers is a specialization of [cache.TypedIndexers] for ClusterTaintPolicy.
+type ClusterTaintPolicyIndexers = cache.TypedIndexers[*apispolicyv1alpha1.ClusterTaintPolicy]
+
+// DeletedClusterTaintPolicy is a specialization of [cache.DeletedObject] for ClusterTaintPolicy.
+type DeletedClusterTaintPolicy = cache.DeletedObject[*apispolicyv1alpha1.ClusterTaintPolicy]
 
 type clusterTaintPolicyInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -48,25 +76,49 @@ type clusterTaintPolicyInformer struct {
 // NewClusterTaintPolicyInformer constructs a new informer for ClusterTaintPolicy type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedClusterTaintPolicyInformer]).
 func NewClusterTaintPolicyInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewClusterTaintPolicyInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedClusterTaintPolicyInformer constructs a new informer for ClusterTaintPolicy type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedClusterTaintPolicyInformer(client versioned.Interface, resyncPeriod time.Duration, indexers ClusterTaintPolicyIndexers) ClusterTaintPolicyIndexInformer {
+	return NewTypedClusterTaintPolicyInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredClusterTaintPolicyInformer constructs a new informer for ClusterTaintPolicy type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredClusterTaintPolicyInformer]).
 func NewFilteredClusterTaintPolicyInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewClusterTaintPolicyInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+	return NewTypedClusterTaintPolicyInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredClusterTaintPolicyInformer constructs a new informer for ClusterTaintPolicy type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredClusterTaintPolicyInformer(client versioned.Interface, resyncPeriod time.Duration, indexers ClusterTaintPolicyIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) ClusterTaintPolicyIndexInformer {
+	return NewTypedClusterTaintPolicyInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
 }
 
 // NewClusterTaintPolicyInformerWithOptions constructs a new informer for ClusterTaintPolicy type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedClusterTaintPolicyInformerWithOptions]).
 func NewClusterTaintPolicyInformerWithOptions(client versioned.Interface, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedClusterTaintPolicyInformerWithOptions(client, options)
+}
+
+// NewTypedClusterTaintPolicyInformerWithOptions constructs a new informer for ClusterTaintPolicy type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedClusterTaintPolicyInformerWithOptions(client versioned.Interface, options internalinterfaces.InformerOptions) ClusterTaintPolicyIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "policy.karmada.io", Version: "v1alpha1", Resource: "clustertaintpolicys"}
 	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
-	return cache.NewSharedIndexInformerWithOptions(
+	return cache.NewTypedSharedIndexInformer[*apispolicyv1alpha1.ClusterTaintPolicy](cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
@@ -99,17 +151,57 @@ func NewClusterTaintPolicyInformerWithOptions(client versioned.Interface, option
 			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
-	)
+	))
 }
 
 func (f *clusterTaintPolicyInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewClusterTaintPolicyInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
+	return NewTypedClusterTaintPolicyInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *clusterTaintPolicyInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apispolicyv1alpha1.ClusterTaintPolicy{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *clusterTaintPolicyInformer) TypedInformer() ClusterTaintPolicyIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apispolicyv1alpha1.ClusterTaintPolicy](f.factory.InformerFor(&apispolicyv1alpha1.ClusterTaintPolicy{}, f.defaultInformer))
 }
 
 func (f *clusterTaintPolicyInformer) Lister() policyv1alpha1.ClusterTaintPolicyLister {
 	return policyv1alpha1.NewClusterTaintPolicyLister(f.Informer().GetIndexer())
+}
+
+// ToTypedClusterTaintPolicyInformer converts an untyped informer into a TypedClusterTaintPolicyInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *ClusterTaintPolicy. If that is not the case, calling type-safe methods of the returned
+// TypedClusterTaintPolicyInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedClusterTaintPolicyInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedClusterTaintPolicyInformer(informer ClusterTaintPolicyInformer) TypedClusterTaintPolicyInformer {
+	if informer, ok := informer.(TypedClusterTaintPolicyInformer); ok {
+		return informer
+	}
+	return &clusterTaintPolicyTypedInformerAdapter{informer}
+}
+
+type clusterTaintPolicyTypedInformerAdapter struct {
+	ClusterTaintPolicyInformer
+}
+
+func (a *clusterTaintPolicyTypedInformerAdapter) TypedInformer() ClusterTaintPolicyIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apispolicyv1alpha1.ClusterTaintPolicy](a.Informer())
+}
+
+// ToClusterTaintPolicyIndexInformer converts an untyped informer into a ClusterTaintPolicyIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *ClusterTaintPolicy. If that is not the case, calling type-safe methods of the returned
+// ClusterTaintPolicyIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a ClusterTaintPolicyIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToClusterTaintPolicyIndexInformer(informer cache.SharedIndexInformer) ClusterTaintPolicyIndexInformer {
+	if informer, ok := informer.(ClusterTaintPolicyIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*apispolicyv1alpha1.ClusterTaintPolicy](informer)
 }

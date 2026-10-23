@@ -30,7 +30,7 @@ import (
 type ClusterQuotaStatusApplyConfiguration struct {
 	// ClusterName is the name of the cluster the limits enforce to.
 	ClusterName                              *string `json:"clusterName,omitempty"`
-	v1.ResourceQuotaStatusApplyConfiguration `json:",inline"`
+	v1.ResourceQuotaStatusApplyConfiguration `json:""`
 }
 
 // ClusterQuotaStatusApplyConfiguration constructs a declarative configuration of the ClusterQuotaStatus type for use with

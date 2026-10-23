@@ -29,7 +29,7 @@ import (
 type OverflowClusterAffinityApplyConfiguration struct {
 	// AffinityName is the name of the cluster group.
 	AffinityName                      *string `json:"affinityName,omitempty"`
-	ClusterAffinityApplyConfiguration `json:",inline"`
+	ClusterAffinityApplyConfiguration `json:""`
 }
 
 // OverflowClusterAffinityApplyConfiguration constructs a declarative configuration of the OverflowClusterAffinity type for use with

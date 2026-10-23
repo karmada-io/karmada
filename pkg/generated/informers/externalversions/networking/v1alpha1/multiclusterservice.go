@@ -34,11 +34,39 @@ import (
 )
 
 // MultiClusterServiceInformer provides access to a shared informer and lister for
-// MultiClusterServices.
+// MultiClusterServices. Prefer using the type-safe variant (see [TypedMultiClusterServiceInformer]).
 type MultiClusterServiceInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() networkingv1alpha1.MultiClusterServiceLister
 }
+
+// TypedMultiClusterServiceInformer provides access to a shared informer and lister for
+// MultiClusterServices, including the type-safe TypedInformer variant.
+// It is a superset of MultiClusterServiceInformer.
+type TypedMultiClusterServiceInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() MultiClusterServiceIndexInformer
+	Lister() networkingv1alpha1.MultiClusterServiceLister
+}
+
+// MultiClusterServiceIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type MultiClusterServiceIndexInformer cache.TypedSharedIndexInformer[*apisnetworkingv1alpha1.MultiClusterService]
+
+// MultiClusterServiceHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for MultiClusterService.
+type MultiClusterServiceHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apisnetworkingv1alpha1.MultiClusterService]
+
+// MultiClusterServiceDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for MultiClusterService.
+type MultiClusterServiceDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apisnetworkingv1alpha1.MultiClusterService]
+
+// MultiClusterServiceFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for MultiClusterService.
+type MultiClusterServiceFilteringHandler = cache.TypedFilteringResourceEventHandler[*apisnetworkingv1alpha1.MultiClusterService]
+
+// MultiClusterServiceIndexers is a specialization of [cache.TypedIndexers] for MultiClusterService.
+type MultiClusterServiceIndexers = cache.TypedIndexers[*apisnetworkingv1alpha1.MultiClusterService]
+
+// DeletedMultiClusterService is a specialization of [cache.DeletedObject] for MultiClusterService.
+type DeletedMultiClusterService = cache.DeletedObject[*apisnetworkingv1alpha1.MultiClusterService]
 
 type multiClusterServiceInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -49,25 +77,49 @@ type multiClusterServiceInformer struct {
 // NewMultiClusterServiceInformer constructs a new informer for MultiClusterService type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedMultiClusterServiceInformer]).
 func NewMultiClusterServiceInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewMultiClusterServiceInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedMultiClusterServiceInformer constructs a new informer for MultiClusterService type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedMultiClusterServiceInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers MultiClusterServiceIndexers) MultiClusterServiceIndexInformer {
+	return NewTypedMultiClusterServiceInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredMultiClusterServiceInformer constructs a new informer for MultiClusterService type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredMultiClusterServiceInformer]).
 func NewFilteredMultiClusterServiceInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewMultiClusterServiceInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+	return NewTypedMultiClusterServiceInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredMultiClusterServiceInformer constructs a new informer for MultiClusterService type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredMultiClusterServiceInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers MultiClusterServiceIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) MultiClusterServiceIndexInformer {
+	return NewTypedMultiClusterServiceInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
 }
 
 // NewMultiClusterServiceInformerWithOptions constructs a new informer for MultiClusterService type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedMultiClusterServiceInformerWithOptions]).
 func NewMultiClusterServiceInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedMultiClusterServiceInformerWithOptions(client, namespace, options)
+}
+
+// NewTypedMultiClusterServiceInformerWithOptions constructs a new informer for MultiClusterService type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedMultiClusterServiceInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) MultiClusterServiceIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "networking.karmada.io", Version: "v1alpha1", Resource: "multiclusterservices"}
 	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
-	return cache.NewSharedIndexInformerWithOptions(
+	return cache.NewTypedSharedIndexInformer[*apisnetworkingv1alpha1.MultiClusterService](cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
@@ -100,17 +152,57 @@ func NewMultiClusterServiceInformerWithOptions(client versioned.Interface, names
 			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
-	)
+	))
 }
 
 func (f *multiClusterServiceInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewMultiClusterServiceInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
+	return NewTypedMultiClusterServiceInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *multiClusterServiceInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apisnetworkingv1alpha1.MultiClusterService{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *multiClusterServiceInformer) TypedInformer() MultiClusterServiceIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apisnetworkingv1alpha1.MultiClusterService](f.factory.InformerFor(&apisnetworkingv1alpha1.MultiClusterService{}, f.defaultInformer))
 }
 
 func (f *multiClusterServiceInformer) Lister() networkingv1alpha1.MultiClusterServiceLister {
 	return networkingv1alpha1.NewMultiClusterServiceLister(f.Informer().GetIndexer())
+}
+
+// ToTypedMultiClusterServiceInformer converts an untyped informer into a TypedMultiClusterServiceInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *MultiClusterService. If that is not the case, calling type-safe methods of the returned
+// TypedMultiClusterServiceInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedMultiClusterServiceInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedMultiClusterServiceInformer(informer MultiClusterServiceInformer) TypedMultiClusterServiceInformer {
+	if informer, ok := informer.(TypedMultiClusterServiceInformer); ok {
+		return informer
+	}
+	return &multiClusterServiceTypedInformerAdapter{informer}
+}
+
+type multiClusterServiceTypedInformerAdapter struct {
+	MultiClusterServiceInformer
+}
+
+func (a *multiClusterServiceTypedInformerAdapter) TypedInformer() MultiClusterServiceIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apisnetworkingv1alpha1.MultiClusterService](a.Informer())
+}
+
+// ToMultiClusterServiceIndexInformer converts an untyped informer into a MultiClusterServiceIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *MultiClusterService. If that is not the case, calling type-safe methods of the returned
+// MultiClusterServiceIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a MultiClusterServiceIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToMultiClusterServiceIndexInformer(informer cache.SharedIndexInformer) MultiClusterServiceIndexInformer {
+	if informer, ok := informer.(MultiClusterServiceIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*apisnetworkingv1alpha1.MultiClusterService](informer)
 }

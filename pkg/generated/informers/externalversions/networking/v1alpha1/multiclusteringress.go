@@ -34,11 +34,39 @@ import (
 )
 
 // MultiClusterIngressInformer provides access to a shared informer and lister for
-// MultiClusterIngresses.
+// MultiClusterIngresses. Prefer using the type-safe variant (see [TypedMultiClusterIngressInformer]).
 type MultiClusterIngressInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() networkingv1alpha1.MultiClusterIngressLister
 }
+
+// TypedMultiClusterIngressInformer provides access to a shared informer and lister for
+// MultiClusterIngresses, including the type-safe TypedInformer variant.
+// It is a superset of MultiClusterIngressInformer.
+type TypedMultiClusterIngressInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() MultiClusterIngressIndexInformer
+	Lister() networkingv1alpha1.MultiClusterIngressLister
+}
+
+// MultiClusterIngressIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type MultiClusterIngressIndexInformer cache.TypedSharedIndexInformer[*apisnetworkingv1alpha1.MultiClusterIngress]
+
+// MultiClusterIngressHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for MultiClusterIngress.
+type MultiClusterIngressHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apisnetworkingv1alpha1.MultiClusterIngress]
+
+// MultiClusterIngressDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for MultiClusterIngress.
+type MultiClusterIngressDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apisnetworkingv1alpha1.MultiClusterIngress]
+
+// MultiClusterIngressFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for MultiClusterIngress.
+type MultiClusterIngressFilteringHandler = cache.TypedFilteringResourceEventHandler[*apisnetworkingv1alpha1.MultiClusterIngress]
+
+// MultiClusterIngressIndexers is a specialization of [cache.TypedIndexers] for MultiClusterIngress.
+type MultiClusterIngressIndexers = cache.TypedIndexers[*apisnetworkingv1alpha1.MultiClusterIngress]
+
+// DeletedMultiClusterIngress is a specialization of [cache.DeletedObject] for MultiClusterIngress.
+type DeletedMultiClusterIngress = cache.DeletedObject[*apisnetworkingv1alpha1.MultiClusterIngress]
 
 type multiClusterIngressInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -49,25 +77,49 @@ type multiClusterIngressInformer struct {
 // NewMultiClusterIngressInformer constructs a new informer for MultiClusterIngress type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedMultiClusterIngressInformer]).
 func NewMultiClusterIngressInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewMultiClusterIngressInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedMultiClusterIngressInformer constructs a new informer for MultiClusterIngress type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedMultiClusterIngressInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers MultiClusterIngressIndexers) MultiClusterIngressIndexInformer {
+	return NewTypedMultiClusterIngressInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredMultiClusterIngressInformer constructs a new informer for MultiClusterIngress type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredMultiClusterIngressInformer]).
 func NewFilteredMultiClusterIngressInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewMultiClusterIngressInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+	return NewTypedMultiClusterIngressInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredMultiClusterIngressInformer constructs a new informer for MultiClusterIngress type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredMultiClusterIngressInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers MultiClusterIngressIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) MultiClusterIngressIndexInformer {
+	return NewTypedMultiClusterIngressInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
 }
 
 // NewMultiClusterIngressInformerWithOptions constructs a new informer for MultiClusterIngress type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedMultiClusterIngressInformerWithOptions]).
 func NewMultiClusterIngressInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedMultiClusterIngressInformerWithOptions(client, namespace, options)
+}
+
+// NewTypedMultiClusterIngressInformerWithOptions constructs a new informer for MultiClusterIngress type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedMultiClusterIngressInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) MultiClusterIngressIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "networking.karmada.io", Version: "v1alpha1", Resource: "multiclusteringresss"}
 	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
-	return cache.NewSharedIndexInformerWithOptions(
+	return cache.NewTypedSharedIndexInformer[*apisnetworkingv1alpha1.MultiClusterIngress](cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
@@ -100,17 +152,57 @@ func NewMultiClusterIngressInformerWithOptions(client versioned.Interface, names
 			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
-	)
+	))
 }
 
 func (f *multiClusterIngressInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewMultiClusterIngressInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
+	return NewTypedMultiClusterIngressInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *multiClusterIngressInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apisnetworkingv1alpha1.MultiClusterIngress{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *multiClusterIngressInformer) TypedInformer() MultiClusterIngressIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apisnetworkingv1alpha1.MultiClusterIngress](f.factory.InformerFor(&apisnetworkingv1alpha1.MultiClusterIngress{}, f.defaultInformer))
 }
 
 func (f *multiClusterIngressInformer) Lister() networkingv1alpha1.MultiClusterIngressLister {
 	return networkingv1alpha1.NewMultiClusterIngressLister(f.Informer().GetIndexer())
+}
+
+// ToTypedMultiClusterIngressInformer converts an untyped informer into a TypedMultiClusterIngressInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *MultiClusterIngress. If that is not the case, calling type-safe methods of the returned
+// TypedMultiClusterIngressInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedMultiClusterIngressInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedMultiClusterIngressInformer(informer MultiClusterIngressInformer) TypedMultiClusterIngressInformer {
+	if informer, ok := informer.(TypedMultiClusterIngressInformer); ok {
+		return informer
+	}
+	return &multiClusterIngressTypedInformerAdapter{informer}
+}
+
+type multiClusterIngressTypedInformerAdapter struct {
+	MultiClusterIngressInformer
+}
+
+func (a *multiClusterIngressTypedInformerAdapter) TypedInformer() MultiClusterIngressIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apisnetworkingv1alpha1.MultiClusterIngress](a.Informer())
+}
+
+// ToMultiClusterIngressIndexInformer converts an untyped informer into a MultiClusterIngressIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *MultiClusterIngress. If that is not the case, calling type-safe methods of the returned
+// MultiClusterIngressIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a MultiClusterIngressIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToMultiClusterIngressIndexInformer(informer cache.SharedIndexInformer) MultiClusterIngressIndexInformer {
+	if informer, ok := informer.(MultiClusterIngressIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*apisnetworkingv1alpha1.MultiClusterIngress](informer)
 }

@@ -29,7 +29,7 @@ import (
 // KarmadaAggregatedAPIServer holds settings to karmada-aggregated-apiserver component of the karmada.
 type KarmadaAggregatedAPIServerApplyConfiguration struct {
 	// CommonSettings holds common settings to karmada apiServer.
-	CommonSettingsApplyConfiguration `json:",inline"`
+	CommonSettingsApplyConfiguration `json:""`
 	// ExtraArgs is an extra set of flags to pass to the karmada-aggregated-apiserver component or
 	// override. A key in this map is the flag name as it appears on the command line except
 	// without leading dash(es).

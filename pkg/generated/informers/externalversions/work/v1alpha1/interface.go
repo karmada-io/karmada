@@ -25,11 +25,11 @@ import (
 // Interface provides access to all the informers in this group version.
 type Interface interface {
 	// ClusterResourceBindings returns a ClusterResourceBindingInformer.
-	ClusterResourceBindings() ClusterResourceBindingInformer
+	ClusterResourceBindings() TypedClusterResourceBindingInformer
 	// ResourceBindings returns a ResourceBindingInformer.
-	ResourceBindings() ResourceBindingInformer
+	ResourceBindings() TypedResourceBindingInformer
 	// Works returns a WorkInformer.
-	Works() WorkInformer
+	Works() TypedWorkInformer
 }
 
 type version struct {
@@ -43,17 +43,17 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
-// ClusterResourceBindings returns a ClusterResourceBindingInformer.
-func (v *version) ClusterResourceBindings() ClusterResourceBindingInformer {
+// ClusterResourceBindings returns a TypedClusterResourceBindingInformer.
+func (v *version) ClusterResourceBindings() TypedClusterResourceBindingInformer {
 	return &clusterResourceBindingInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }
 
-// ResourceBindings returns a ResourceBindingInformer.
-func (v *version) ResourceBindings() ResourceBindingInformer {
+// ResourceBindings returns a TypedResourceBindingInformer.
+func (v *version) ResourceBindings() TypedResourceBindingInformer {
 	return &resourceBindingInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
-// Works returns a WorkInformer.
-func (v *version) Works() WorkInformer {
+// Works returns a TypedWorkInformer.
+func (v *version) Works() TypedWorkInformer {
 	return &workInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

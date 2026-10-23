@@ -32,7 +32,7 @@ import (
 //
 // PropagationPolicy represents the policy that propagates a group of resources to one or more clusters.
 type PropagationPolicyApplyConfiguration struct {
-	v1.TypeMetaApplyConfiguration    `json:",inline"`
+	v1.TypeMetaApplyConfiguration    `json:""`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
 	// Spec represents the desired behavior of PropagationPolicy.
 	Spec *PropagationSpecApplyConfiguration `json:"spec,omitempty"`

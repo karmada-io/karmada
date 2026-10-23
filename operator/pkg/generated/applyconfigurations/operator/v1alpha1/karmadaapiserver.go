@@ -30,7 +30,7 @@ import (
 // Karmada uses it as its own apiserver in order to provide Kubernetes-native APIs.
 type KarmadaAPIServerApplyConfiguration struct {
 	// CommonSettings holds common settings to kubernetes api server.
-	CommonSettingsApplyConfiguration `json:",inline"`
+	CommonSettingsApplyConfiguration `json:""`
 	// ServiceSubnet is the subnet used by k8s services. Defaults to "10.96.0.0/12".
 	ServiceSubnet *string `json:"serviceSubnet,omitempty"`
 	// ServiceType represents the service type of Karmada API server.

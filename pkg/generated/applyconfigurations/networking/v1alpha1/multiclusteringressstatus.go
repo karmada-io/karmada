@@ -27,7 +27,7 @@ import (
 //
 // MultiClusterIngressStatus is the current state of the MultiClusterIngress.
 type MultiClusterIngressStatusApplyConfiguration struct {
-	v1.IngressStatusApplyConfiguration `json:",inline"`
+	v1.IngressStatusApplyConfiguration `json:""`
 	// TrafficBlockClusters records the cluster name list that needs to perform traffic block.
 	// When the cloud provider implements its multicluster-cloud-provider and refreshes
 	// the service backend address to the LoadBalancer Service, it needs to filter out

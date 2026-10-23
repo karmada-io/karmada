@@ -34,11 +34,39 @@ import (
 )
 
 // WorkloadRebalancerInformer provides access to a shared informer and lister for
-// WorkloadRebalancers.
+// WorkloadRebalancers. Prefer using the type-safe variant (see [TypedWorkloadRebalancerInformer]).
 type WorkloadRebalancerInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() appsv1alpha1.WorkloadRebalancerLister
 }
+
+// TypedWorkloadRebalancerInformer provides access to a shared informer and lister for
+// WorkloadRebalancers, including the type-safe TypedInformer variant.
+// It is a superset of WorkloadRebalancerInformer.
+type TypedWorkloadRebalancerInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() WorkloadRebalancerIndexInformer
+	Lister() appsv1alpha1.WorkloadRebalancerLister
+}
+
+// WorkloadRebalancerIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type WorkloadRebalancerIndexInformer cache.TypedSharedIndexInformer[*apisappsv1alpha1.WorkloadRebalancer]
+
+// WorkloadRebalancerHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for WorkloadRebalancer.
+type WorkloadRebalancerHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apisappsv1alpha1.WorkloadRebalancer]
+
+// WorkloadRebalancerDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for WorkloadRebalancer.
+type WorkloadRebalancerDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apisappsv1alpha1.WorkloadRebalancer]
+
+// WorkloadRebalancerFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for WorkloadRebalancer.
+type WorkloadRebalancerFilteringHandler = cache.TypedFilteringResourceEventHandler[*apisappsv1alpha1.WorkloadRebalancer]
+
+// WorkloadRebalancerIndexers is a specialization of [cache.TypedIndexers] for WorkloadRebalancer.
+type WorkloadRebalancerIndexers = cache.TypedIndexers[*apisappsv1alpha1.WorkloadRebalancer]
+
+// DeletedWorkloadRebalancer is a specialization of [cache.DeletedObject] for WorkloadRebalancer.
+type DeletedWorkloadRebalancer = cache.DeletedObject[*apisappsv1alpha1.WorkloadRebalancer]
 
 type workloadRebalancerInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -48,25 +76,49 @@ type workloadRebalancerInformer struct {
 // NewWorkloadRebalancerInformer constructs a new informer for WorkloadRebalancer type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedWorkloadRebalancerInformer]).
 func NewWorkloadRebalancerInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewWorkloadRebalancerInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedWorkloadRebalancerInformer constructs a new informer for WorkloadRebalancer type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedWorkloadRebalancerInformer(client versioned.Interface, resyncPeriod time.Duration, indexers WorkloadRebalancerIndexers) WorkloadRebalancerIndexInformer {
+	return NewTypedWorkloadRebalancerInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredWorkloadRebalancerInformer constructs a new informer for WorkloadRebalancer type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredWorkloadRebalancerInformer]).
 func NewFilteredWorkloadRebalancerInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewWorkloadRebalancerInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+	return NewTypedWorkloadRebalancerInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredWorkloadRebalancerInformer constructs a new informer for WorkloadRebalancer type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredWorkloadRebalancerInformer(client versioned.Interface, resyncPeriod time.Duration, indexers WorkloadRebalancerIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) WorkloadRebalancerIndexInformer {
+	return NewTypedWorkloadRebalancerInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
 }
 
 // NewWorkloadRebalancerInformerWithOptions constructs a new informer for WorkloadRebalancer type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedWorkloadRebalancerInformerWithOptions]).
 func NewWorkloadRebalancerInformerWithOptions(client versioned.Interface, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedWorkloadRebalancerInformerWithOptions(client, options)
+}
+
+// NewTypedWorkloadRebalancerInformerWithOptions constructs a new informer for WorkloadRebalancer type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedWorkloadRebalancerInformerWithOptions(client versioned.Interface, options internalinterfaces.InformerOptions) WorkloadRebalancerIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "apps.karmada.io", Version: "v1alpha1", Resource: "workloadrebalancers"}
 	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
-	return cache.NewSharedIndexInformerWithOptions(
+	return cache.NewTypedSharedIndexInformer[*apisappsv1alpha1.WorkloadRebalancer](cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
@@ -99,17 +151,57 @@ func NewWorkloadRebalancerInformerWithOptions(client versioned.Interface, option
 			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
-	)
+	))
 }
 
 func (f *workloadRebalancerInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewWorkloadRebalancerInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
+	return NewTypedWorkloadRebalancerInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *workloadRebalancerInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apisappsv1alpha1.WorkloadRebalancer{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *workloadRebalancerInformer) TypedInformer() WorkloadRebalancerIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apisappsv1alpha1.WorkloadRebalancer](f.factory.InformerFor(&apisappsv1alpha1.WorkloadRebalancer{}, f.defaultInformer))
 }
 
 func (f *workloadRebalancerInformer) Lister() appsv1alpha1.WorkloadRebalancerLister {
 	return appsv1alpha1.NewWorkloadRebalancerLister(f.Informer().GetIndexer())
+}
+
+// ToTypedWorkloadRebalancerInformer converts an untyped informer into a TypedWorkloadRebalancerInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *WorkloadRebalancer. If that is not the case, calling type-safe methods of the returned
+// TypedWorkloadRebalancerInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedWorkloadRebalancerInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedWorkloadRebalancerInformer(informer WorkloadRebalancerInformer) TypedWorkloadRebalancerInformer {
+	if informer, ok := informer.(TypedWorkloadRebalancerInformer); ok {
+		return informer
+	}
+	return &workloadRebalancerTypedInformerAdapter{informer}
+}
+
+type workloadRebalancerTypedInformerAdapter struct {
+	WorkloadRebalancerInformer
+}
+
+func (a *workloadRebalancerTypedInformerAdapter) TypedInformer() WorkloadRebalancerIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apisappsv1alpha1.WorkloadRebalancer](a.Informer())
+}
+
+// ToWorkloadRebalancerIndexInformer converts an untyped informer into a WorkloadRebalancerIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *WorkloadRebalancer. If that is not the case, calling type-safe methods of the returned
+// WorkloadRebalancerIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a WorkloadRebalancerIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToWorkloadRebalancerIndexInformer(informer cache.SharedIndexInformer) WorkloadRebalancerIndexInformer {
+	if informer, ok := informer.(WorkloadRebalancerIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*apisappsv1alpha1.WorkloadRebalancer](informer)
 }

@@ -27,7 +27,7 @@ import (
 //
 // Suspension defines the policy for suspending dispatching and scheduling.
 type SuspensionApplyConfiguration struct {
-	v1alpha1.SuspensionApplyConfiguration `json:",inline"`
+	v1alpha1.SuspensionApplyConfiguration `json:""`
 	// Scheduling controls whether scheduling should be suspended, the scheduler will pause scheduling and not
 	// process resource binding when the value is true and resume scheduling when it's false or nil.
 	// This is designed for third-party systems to temporarily pause the scheduling of applications, which enabling

@@ -32,7 +32,7 @@ import (
 //
 // FederatedResourceQuota sets aggregate quota restrictions enforced per namespace across all clusters.
 type FederatedResourceQuotaApplyConfiguration struct {
-	v1.TypeMetaApplyConfiguration    `json:",inline"`
+	v1.TypeMetaApplyConfiguration    `json:""`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
 	// Spec defines the desired quota.
 	Spec *FederatedResourceQuotaSpecApplyConfiguration `json:"spec,omitempty"`

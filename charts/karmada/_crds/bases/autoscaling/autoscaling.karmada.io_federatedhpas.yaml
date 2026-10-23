@@ -139,9 +139,6 @@ spec:
                           For example, if autoscaling is configured with a memory consumption target of 100Mi,
                           and scale-down and scale-up tolerances of 5% and 1% respectively, scaling will be
                           triggered when the actual consumption falls below 95Mi or exceeds 101Mi.
-
-                          This is an beta field and requires the HPAConfigurableTolerance feature
-                          gate to be enabled.
                         pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                         x-kubernetes-int-or-string: true
                     type: object
@@ -213,9 +210,6 @@ spec:
                           For example, if autoscaling is configured with a memory consumption target of 100Mi,
                           and scale-down and scale-up tolerances of 5% and 1% respectively, scaling will be
                           triggered when the actual consumption falls below 95Mi or exceeds 101Mi.
-
-                          This is an beta field and requires the HPAConfigurableTolerance feature
-                          gate to be enabled.
                         pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                         x-kubernetes-int-or-string: true
                     type: object
@@ -747,6 +741,13 @@ spec:
                         message is a human-readable explanation containing details about
                         the transition
                       type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      type: integer
                     reason:
                       description: reason is the reason for the condition's last transition.
                       type: string
@@ -774,7 +775,7 @@ spec:
                   properties:
                     containerResource:
                       description: |-
-                        container resource refers to a resource metric (such as those specified in
+                        containerResource refers to a resource metric (such as those specified in
                         requests and limits) known to Kubernetes describing a single container in each pod in the
                         current scale target (e.g. CPU or memory). Such metrics are built in to
                         Kubernetes, and have special scaling options on top of those available
@@ -790,7 +791,7 @@ spec:
                           properties:
                             averageUtilization:
                               description: |-
-                                currentAverageUtilization is the current value of the average of the
+                                averageUtilization is the current value of the average of the
                                 resource metric across all relevant pods, represented as a percentage of
                                 the requested value of the resource for the pods.
                               format: int32
@@ -835,7 +836,7 @@ spec:
                           properties:
                             averageUtilization:
                               description: |-
-                                currentAverageUtilization is the current value of the average of the
+                                averageUtilization is the current value of the average of the
                                 resource metric across all relevant pods, represented as a percentage of
                                 the requested value of the resource for the pods.
                               format: int32
@@ -932,7 +933,7 @@ spec:
                           properties:
                             averageUtilization:
                               description: |-
-                                currentAverageUtilization is the current value of the average of the
+                                averageUtilization is the current value of the average of the
                                 resource metric across all relevant pods, represented as a percentage of
                                 the requested value of the resource for the pods.
                               format: int32
@@ -956,7 +957,7 @@ spec:
                               x-kubernetes-int-or-string: true
                           type: object
                         describedObject:
-                          description: DescribedObject specifies the descriptions
+                          description: describedObject specifies the descriptions
                             of a object,such as kind,name apiVersion
                           properties:
                             apiVersion:
@@ -1050,7 +1051,7 @@ spec:
                           properties:
                             averageUtilization:
                               description: |-
-                                currentAverageUtilization is the current value of the average of the
+                                averageUtilization is the current value of the average of the
                                 resource metric across all relevant pods, represented as a percentage of
                                 the requested value of the resource for the pods.
                               format: int32
@@ -1150,7 +1151,7 @@ spec:
                           properties:
                             averageUtilization:
                               description: |-
-                                currentAverageUtilization is the current value of the average of the
+                                averageUtilization is the current value of the average of the
                                 resource metric across all relevant pods, represented as a percentage of
                                 the requested value of the resource for the pods.
                               format: int32

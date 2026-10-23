@@ -34,11 +34,39 @@ import (
 )
 
 // CronFederatedHPAInformer provides access to a shared informer and lister for
-// CronFederatedHPAs.
+// CronFederatedHPAs. Prefer using the type-safe variant (see [TypedCronFederatedHPAInformer]).
 type CronFederatedHPAInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() autoscalingv1alpha1.CronFederatedHPALister
 }
+
+// TypedCronFederatedHPAInformer provides access to a shared informer and lister for
+// CronFederatedHPAs, including the type-safe TypedInformer variant.
+// It is a superset of CronFederatedHPAInformer.
+type TypedCronFederatedHPAInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() CronFederatedHPAIndexInformer
+	Lister() autoscalingv1alpha1.CronFederatedHPALister
+}
+
+// CronFederatedHPAIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type CronFederatedHPAIndexInformer cache.TypedSharedIndexInformer[*apisautoscalingv1alpha1.CronFederatedHPA]
+
+// CronFederatedHPAHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for CronFederatedHPA.
+type CronFederatedHPAHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apisautoscalingv1alpha1.CronFederatedHPA]
+
+// CronFederatedHPADetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for CronFederatedHPA.
+type CronFederatedHPADetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apisautoscalingv1alpha1.CronFederatedHPA]
+
+// CronFederatedHPAFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for CronFederatedHPA.
+type CronFederatedHPAFilteringHandler = cache.TypedFilteringResourceEventHandler[*apisautoscalingv1alpha1.CronFederatedHPA]
+
+// CronFederatedHPAIndexers is a specialization of [cache.TypedIndexers] for CronFederatedHPA.
+type CronFederatedHPAIndexers = cache.TypedIndexers[*apisautoscalingv1alpha1.CronFederatedHPA]
+
+// DeletedCronFederatedHPA is a specialization of [cache.DeletedObject] for CronFederatedHPA.
+type DeletedCronFederatedHPA = cache.DeletedObject[*apisautoscalingv1alpha1.CronFederatedHPA]
 
 type cronFederatedHPAInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -49,25 +77,49 @@ type cronFederatedHPAInformer struct {
 // NewCronFederatedHPAInformer constructs a new informer for CronFederatedHPA type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedCronFederatedHPAInformer]).
 func NewCronFederatedHPAInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewCronFederatedHPAInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedCronFederatedHPAInformer constructs a new informer for CronFederatedHPA type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedCronFederatedHPAInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers CronFederatedHPAIndexers) CronFederatedHPAIndexInformer {
+	return NewTypedCronFederatedHPAInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredCronFederatedHPAInformer constructs a new informer for CronFederatedHPA type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredCronFederatedHPAInformer]).
 func NewFilteredCronFederatedHPAInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewCronFederatedHPAInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+	return NewTypedCronFederatedHPAInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredCronFederatedHPAInformer constructs a new informer for CronFederatedHPA type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredCronFederatedHPAInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers CronFederatedHPAIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) CronFederatedHPAIndexInformer {
+	return NewTypedCronFederatedHPAInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
 }
 
 // NewCronFederatedHPAInformerWithOptions constructs a new informer for CronFederatedHPA type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedCronFederatedHPAInformerWithOptions]).
 func NewCronFederatedHPAInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedCronFederatedHPAInformerWithOptions(client, namespace, options)
+}
+
+// NewTypedCronFederatedHPAInformerWithOptions constructs a new informer for CronFederatedHPA type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedCronFederatedHPAInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) CronFederatedHPAIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "autoscaling.karmada.io", Version: "v1alpha1", Resource: "cronfederatedhpas"}
 	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
-	return cache.NewSharedIndexInformerWithOptions(
+	return cache.NewTypedSharedIndexInformer[*apisautoscalingv1alpha1.CronFederatedHPA](cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
@@ -100,17 +152,57 @@ func NewCronFederatedHPAInformerWithOptions(client versioned.Interface, namespac
 			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
-	)
+	))
 }
 
 func (f *cronFederatedHPAInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewCronFederatedHPAInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
+	return NewTypedCronFederatedHPAInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *cronFederatedHPAInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apisautoscalingv1alpha1.CronFederatedHPA{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *cronFederatedHPAInformer) TypedInformer() CronFederatedHPAIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apisautoscalingv1alpha1.CronFederatedHPA](f.factory.InformerFor(&apisautoscalingv1alpha1.CronFederatedHPA{}, f.defaultInformer))
 }
 
 func (f *cronFederatedHPAInformer) Lister() autoscalingv1alpha1.CronFederatedHPALister {
 	return autoscalingv1alpha1.NewCronFederatedHPALister(f.Informer().GetIndexer())
+}
+
+// ToTypedCronFederatedHPAInformer converts an untyped informer into a TypedCronFederatedHPAInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *CronFederatedHPA. If that is not the case, calling type-safe methods of the returned
+// TypedCronFederatedHPAInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedCronFederatedHPAInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedCronFederatedHPAInformer(informer CronFederatedHPAInformer) TypedCronFederatedHPAInformer {
+	if informer, ok := informer.(TypedCronFederatedHPAInformer); ok {
+		return informer
+	}
+	return &cronFederatedHPATypedInformerAdapter{informer}
+}
+
+type cronFederatedHPATypedInformerAdapter struct {
+	CronFederatedHPAInformer
+}
+
+func (a *cronFederatedHPATypedInformerAdapter) TypedInformer() CronFederatedHPAIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apisautoscalingv1alpha1.CronFederatedHPA](a.Informer())
+}
+
+// ToCronFederatedHPAIndexInformer converts an untyped informer into a CronFederatedHPAIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *CronFederatedHPA. If that is not the case, calling type-safe methods of the returned
+// CronFederatedHPAIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a CronFederatedHPAIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToCronFederatedHPAIndexInformer(informer cache.SharedIndexInformer) CronFederatedHPAIndexInformer {
+	if informer, ok := informer.(CronFederatedHPAIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*apisautoscalingv1alpha1.CronFederatedHPA](informer)
 }

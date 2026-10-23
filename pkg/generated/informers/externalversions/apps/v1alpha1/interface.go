@@ -25,7 +25,7 @@ import (
 // Interface provides access to all the informers in this group version.
 type Interface interface {
 	// WorkloadRebalancers returns a WorkloadRebalancerInformer.
-	WorkloadRebalancers() WorkloadRebalancerInformer
+	WorkloadRebalancers() TypedWorkloadRebalancerInformer
 }
 
 type version struct {
@@ -39,7 +39,7 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
-// WorkloadRebalancers returns a WorkloadRebalancerInformer.
-func (v *version) WorkloadRebalancers() WorkloadRebalancerInformer {
+// WorkloadRebalancers returns a TypedWorkloadRebalancerInformer.
+func (v *version) WorkloadRebalancers() TypedWorkloadRebalancerInformer {
 	return &workloadRebalancerInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }
