@@ -640,3 +640,82 @@ func TestResource_Clone(t *testing.T) {
 		})
 	}
 }
+
+func TestResource_AddPodRequest(t *testing.T) {
+	const accelerator corev1.ResourceName = "example.com/accelerator"
+	always := corev1.ContainerRestartPolicyAlways
+	requests := func(cpuMilli int64, acc int64) corev1.ResourceRequirements {
+		rl := corev1.ResourceList{corev1.ResourceCPU: *resource.NewMilliQuantity(cpuMilli, resource.DecimalSI)}
+		if acc > 0 {
+			rl[accelerator] = *resource.NewQuantity(acc, resource.DecimalSI)
+		}
+		return corev1.ResourceRequirements{Requests: rl}
+	}
+
+	tests := []struct {
+		name     string
+		podSpecs []*corev1.PodSpec
+		want     *Resource
+	}{
+		{
+			name: "init container request is calculated per pod instead of against the accumulated total",
+			podSpecs: []*corev1.PodSpec{
+				{
+					Containers:     []corev1.Container{{Resources: requests(100, 0)}},
+					InitContainers: []corev1.Container{{Resources: requests(0, 1)}},
+				},
+				{
+					Containers:     []corev1.Container{{Resources: requests(100, 0)}},
+					InitContainers: []corev1.Container{{Resources: requests(0, 1)}},
+				},
+				{
+					Containers:     []corev1.Container{{Resources: requests(100, 0)}},
+					InitContainers: []corev1.Container{{Resources: requests(0, 1)}},
+				},
+			},
+			want: &Resource{MilliCPU: 300, ScalarResources: map[corev1.ResourceName]int64{accelerator: 3}},
+		},
+		{
+			name: "restartable init containers are added to the app containers request",
+			podSpecs: []*corev1.PodSpec{
+				{
+					Containers: []corev1.Container{{Resources: requests(100, 0)}},
+					InitContainers: []corev1.Container{
+						{Resources: requests(50, 1), RestartPolicy: &always},
+					},
+				},
+				{
+					Containers: []corev1.Container{{Resources: requests(100, 0)}},
+					InitContainers: []corev1.Container{
+						{Resources: requests(50, 1), RestartPolicy: &always},
+					},
+				},
+			},
+			want: &Resource{MilliCPU: 300, ScalarResources: map[corev1.ResourceName]int64{accelerator: 2}},
+		},
+		{
+			name: "regular init container runs alongside previously started restartable init containers",
+			podSpecs: []*corev1.PodSpec{
+				{
+					Containers: []corev1.Container{{Resources: requests(10, 0)}},
+					InitContainers: []corev1.Container{
+						{Resources: requests(100, 0), RestartPolicy: &always},
+						{Resources: requests(500, 0)},
+					},
+				},
+			},
+			want: &Resource{MilliCPU: 600},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := EmptyResource()
+			for _, spec := range tt.podSpecs {
+				r.AddPodRequest(spec)
+			}
+			if !reflect.DeepEqual(r, tt.want) {
+				t.Errorf("AddPodRequest() = %v, want %v", r, tt.want)
+			}
+		})
+	}
+}
