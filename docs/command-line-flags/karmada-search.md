@@ -100,7 +100,7 @@ Generic flags:
       --emulated-version strings                                The versions different components emulate their capabilities (APIs, features, ...) of.
                                                                 If set, the component will emulate the behavior of this version instead of the underlying binary version.
                                                                 Version format could only be major.minor, for example: '--emulated-version=wardle=1.2,kube=1.31'.
-                                                                Options are: kube=1.33..1.36(default:1.36)
+                                                                Options are: kube=1.34..1.37(default:1.37)
                                                                 If the component is not specified, defaults to "kube"
       --emulation-forward-compatible                            If true, for any beta+ APIs enabled by default or by --runtime-config at the emulation version, their future versions with higher priority/stability will be auto enabled even if they introduced after the emulation version. Can only be set to true if the emulation version is lower than the binary version.
       --enable-garbage-collector                                Enables the generic garbage collector. MUST be synced with the corresponding flag of the kube-controller-manager. (default true)
@@ -124,15 +124,17 @@ Generic flags:
                                                                 If the component is not specified, defaults to "kube". This flag can be repeatedly invoked. For example: --feature-gates 'wardle:featureA=true,wardle:featureB=false' --feature-gates 'kube:featureC=true'Options are:
                                                                 kube:APIResponseCompression=true|false (BETA - default=true)
                                                                 kube:APIServerIdentity=true|false (BETA - default=true)
+                                                                kube:APIServerWebhookAuthenticationToken=true|false (ALPHA - default=false)
                                                                 kube:APIServingWithRoutine=true|false (ALPHA - default=false)
                                                                 kube:AllAlpha=true|false (ALPHA - default=false)
                                                                 kube:AllBeta=true|false (BETA - default=false)
                                                                 kube:AllowParsingUserUIDFromCertAuth=true|false (BETA - default=true)
-                                                                kube:AllowUnsafeMalformedObjectDeletion=true|false (ALPHA - default=false)
+                                                                kube:AllowUnsafeMalformedObjectDeletion=true|false (BETA - default=true)
                                                                 kube:CBORServingAndStorage=true|false (ALPHA - default=false)
                                                                 kube:ComponentFlagz=true|false (BETA - default=true)
                                                                 kube:ComponentStatusz=true|false (BETA - default=true)
-                                                                kube:ConcurrentWatchObjectDecode=true|false (BETA - default=false)
+                                                                kube:ConcurrentWatchObjectDecode=true|false (BETA - default=true)
+                                                                kube:ConsistentListFromCacheSkipTimeoutFallback=true|false (ALPHA - default=false)
                                                                 kube:ConstrainedImpersonation=true|false (BETA - default=true)
                                                                 kube:ContextualLogging=true|false (BETA - default=true)
                                                                 kube:ControllerPriorityQueue=true|false (BETA - default=true)
@@ -140,16 +142,18 @@ Generic flags:
                                                                 kube:CustomizedClusterResourceModeling=true|false (BETA - default=true)
                                                                 kube:DeclarativeValidationBeta=true|false (BETA - default=true)
                                                                 kube:DetectCacheInconsistency=true|false (BETA - default=true)
+                                                                kube:EtcdRangeStream=true|false (BETA - default=true)
+                                                                kube:ExcludeAdmissionWebhookVirtualResources=true|false (BETA - default=true)
                                                                 kube:Failover=true|false (BETA - default=false)
                                                                 kube:FederatedQuotaEnforcement=true|false (ALPHA - default=false)
                                                                 kube:GracefulEviction=true|false (BETA - default=true)
                                                                 kube:ListFromCacheSnapshot=true|false (BETA - default=true)
                                                                 kube:LoggingAlphaOptions=true|false (ALPHA - default=false)
                                                                 kube:LoggingBetaOptions=true|false (BETA - default=true)
-                                                                kube:ManifestBasedAdmissionControlConfig=true|false (ALPHA - default=false)
+                                                                kube:ManifestBasedAdmissionControlConfig=true|false (BETA - default=true)
                                                                 kube:MultiClusterService=true|false (ALPHA - default=false)
                                                                 kube:MultiplePodTemplatesScheduling=true|false (ALPHA - default=false)
-                                                                kube:NativeHistograms=true|false (ALPHA - default=false)
+                                                                kube:NativeHistograms=true|false (BETA - default=true)
                                                                 kube:OpenAPIEnums=true|false (BETA - default=true)
                                                                 kube:PriorityBasedPreemptiveScheduling=true|false (ALPHA - default=false)
                                                                 kube:PriorityBasedScheduling=true|false (BETA - default=true)
@@ -168,8 +172,9 @@ Generic flags:
                                                                 kube:TokenRequestServiceAccountUIDValidation=true|false (BETA - default=true)
                                                                 kube:UnauthenticatedHTTP2DOSMitigation=true|false (BETA - default=true)
                                                                 kube:UnknownVersionInteroperabilityProxy=true|false (BETA - default=true)
-                                                                kube:WatchCacheInitializationPostStartHook=true|false (BETA - default=true)
                                                                 kube:WatchList=true|false (BETA - default=true)
+                                                                kube:WatchListCompression=true|false (BETA - default=true)
+                                                                kube:WebhookRoundTripLoadBalancing=true|false (BETA - default=true)
                                                                 kube:WorkloadAffinity=true|false (ALPHA - default=false)
       --goaway-chance float                                     To prevent HTTP/2 clients from getting stuck on a single apiserver, randomly close a connection (GOAWAY). The client's other in-flight requests won't be affected, and the client will reconnect, likely landing on a different apiserver after going through the load balancer again. This argument sets the fraction of requests that will be sent a GOAWAY. Clusters with single apiservers, or which don't use a load balancer, should NOT enable this. Min is 0 (off), Max is .02 (1/50 requests); .001 (1/1000) is a recommended starting point.
       --http2-max-streams-per-connection int                    The limit that the server gives to clients for the maximum number of streams in an HTTP/2 connection. Zero means to use golang's default.
@@ -182,7 +187,7 @@ Generic flags:
       --max-requests-inflight int                               This and --max-mutating-requests-inflight are summed to determine the server's total concurrency limit (which must be positive) if --enable-priority-and-fairness is true. Otherwise, this flag limits the maximum number of non-mutating requests in flight, or a zero value disables the limit completely. (default 400)
       --min-compatibility-version strings                       The min version of control plane components the server should be compatible with.
                                                                 Must be less or equal to the emulated-version. Version format could only be major.minor, for example: '--min-compatibility-version=wardle=1.2,kube=1.31'.
-                                                                Options are: kube=1.33..1.36(default:1.35)
+                                                                Options are: kube=1.34..1.37(default:1.36)
                                                                 If the component is not specified, defaults to "kube"
       --min-request-timeout int                                 An optional field indicating the minimum number of seconds a handler must keep a request open before timing it out. Currently only honored by the watch request handler, which picks a randomized value above this number as the connection timeout, to spread out load. (default 1800)
       --permit-address-sharing                                  If true, SO_REUSEADDR will be used when binding the port. This allows binding to wildcard IPs like 0.0.0.0 and specific IPs in parallel, and it avoids waiting for the kernel to release sockets in TIME_WAIT state. [default=false]

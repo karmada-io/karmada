@@ -45,10 +45,11 @@ karmadactl explain TYPE [--recursive=FALSE|TRUE] [--api-version=api-version-grou
   -h, --help                             help for explain
       --karmada-context string           The name of the kubeconfig context to use
       --kubeconfig string                Path to the kubeconfig file to use for CLI requests.
+      --max-depth int                    Maximum recursion depth when printing nested fields with --recursive. 0 means no limit. Requires --recursive when greater than 0.
   -n, --namespace string                 If present, the namespace scope for this CLI request.
   -s, --operation-scope operationScope   Used to control the operation scope of the command. The optional values are karmada and members. Defaults to karmada. (default karmada)
   -o, --output string                    Format in which to render the schema (plaintext, plaintext-openapiv2) (default "plaintext")
-  -R, --recursive                        Print the fields of fields (Currently only 1 level deep)
+  -R, --recursive                        Print the fields of fields. Use --max-depth to cap the recursion depth.
 ```
 
 ### Options inherited from parent commands

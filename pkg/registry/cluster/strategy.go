@@ -131,14 +131,14 @@ func (Strategy) Validate(_ context.Context, obj runtime.Object) field.ErrorList 
 func (Strategy) WarningsOnCreate(_ context.Context, _ runtime.Object) []string { return nil }
 
 // AllowCreateOnUpdate returns true if the object can be created by a PUT.
-func (Strategy) AllowCreateOnUpdate() bool {
+func (Strategy) AllowCreateOnUpdate(context.Context) bool {
 	return false
 }
 
 // AllowUnconditionalUpdate returns true if the object can be updated
 // unconditionally (irrespective of the latest resource version), when
 // there is no resource version specified in the object.
-func (Strategy) AllowUnconditionalUpdate() bool {
+func (Strategy) AllowUnconditionalUpdate(context.Context) bool {
 	return true
 }
 
