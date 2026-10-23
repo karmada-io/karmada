@@ -217,15 +217,14 @@ func (j *CommandJoinOption) RunJoinCluster(controlPlaneRestConfig, clusterConfig
 	klog.V(1).Infof("Joining cluster config. endpoint: %s", clusterConfig.Host)
 
 	registerOption := util.ClusterRegisterOption{
-		ClusterNamespace:   j.ClusterNamespace,
-		ClusterName:        j.ClusterName,
-		ReportSecrets:      []string{util.KubeCredentials, util.KubeImpersonator},
-		ClusterProvider:    j.ClusterProvider,
-		ClusterRegion:      j.ClusterRegion,
-		ClusterZones:       j.ClusterZones,
-		DryRun:             j.DryRun,
-		ControlPlaneConfig: controlPlaneRestConfig,
-		ClusterConfig:      clusterConfig,
+		ClusterNamespace: j.ClusterNamespace,
+		ClusterName:      j.ClusterName,
+		ReportSecrets:    []string{util.KubeCredentials, util.KubeImpersonator},
+		ClusterProvider:  j.ClusterProvider,
+		ClusterRegion:    j.ClusterRegion,
+		ClusterZones:     j.ClusterZones,
+		DryRun:           j.DryRun,
+		ClusterConfig:    clusterConfig,
 	}
 
 	registerOption.ClusterID, err = util.ObtainClusterID(clusterKubeClient)
@@ -247,7 +246,7 @@ func (j *CommandJoinOption) RunJoinCluster(controlPlaneRestConfig, clusterConfig
 	}
 	registerOption.Secret = *clusterSecret
 	registerOption.ImpersonatorSecret = *impersonatorSecret
-	err = util.RegisterClusterInControllerPlane(registerOption, controlPlaneKubeClient, generateClusterInControllerPlane)
+	err = util.RegisterClusterInControllerPlane(registerOption, controlPlaneKubeClient, karmadaClient, generateClusterInControllerPlane)
 	if err != nil {
 		return err
 	}
@@ -293,11 +292,5 @@ func generateClusterInControllerPlane(opts util.ClusterRegisterOption) (*cluster
 		clusterObj.Spec.ProxyURL = url.String()
 	}
 
-	controlPlaneKarmadaClient := karmadaClientBuilder(opts.ControlPlaneConfig)
-	cluster, err := util.CreateClusterObject(controlPlaneKarmadaClient, clusterObj)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create cluster(%s) object. error: %v", opts.ClusterName, err)
-	}
-
-	return cluster, nil
+	return clusterObj, nil
 }
