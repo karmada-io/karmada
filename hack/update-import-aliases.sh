@@ -23,6 +23,7 @@ cd "${SCRIPT_ROOT}"
 ROOT_PATH=$(pwd)
 
 GO111MODULE=on go install "golang.org/x/tools/cmd/goimports"
+export PATH=$PATH:$(go env GOPATH)/bin
 
 IMPORT_ALIASES_PATH="${ROOT_PATH}/hack/.import-aliases"
 INCLUDE_PATH="(${ROOT_PATH}/cmd|${ROOT_PATH}/test/e2e|${ROOT_PATH}/test/helper|\
