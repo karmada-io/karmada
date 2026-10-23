@@ -7424,6 +7424,20 @@ func schema_pkg_apis_work_v1alpha2_ComponentReplicaRequirements(ref common.Refer
 							},
 						},
 					},
+					"resourceLimits": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ResourceLimits contains the effective raw limits of one replica for quota accounting. It is not a scheduling resource request.",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref(resource.Quantity{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
 					"priorityClassName": {
 						SchemaProps: spec.SchemaProps{
 							Description: "PriorityClassName represents the resources priorityClassName",
@@ -7673,6 +7687,20 @@ func schema_pkg_apis_work_v1alpha2_ReplicaRequirements(ref common.ReferenceCallb
 					"resourceRequest": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ResourceRequest represents the resources required by each replica.",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref(resource.Quantity{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+					"resourceLimits": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ResourceLimits contains the effective raw limits of one replica for quota accounting. It is not a scheduling resource request.",
 							Type:        []string{"object"},
 							AdditionalProperties: &spec.SchemaOrBool{
 								Allows: true,
