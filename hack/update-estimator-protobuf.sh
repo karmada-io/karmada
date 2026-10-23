@@ -131,6 +131,9 @@ setup_protoc
 
 source "${KARMADA_ROOT}"/hack/util.sh
 util:create_gopath_tree "${KARMADA_ROOT}" "${go_path}"
+# Keep the module cache (and any auto-downloaded toolchain) out of the
+# temporary GOPATH so cleanup() can always remove it.
+export GOMODCACHE="$(go env GOMODCACHE)"
 export GOPATH="${go_path}"
 
 # https://github.com/kubernetes/kubernetes/blob/release-1.23/hack/update-generated-protobuf-dockerized.sh

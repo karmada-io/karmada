@@ -2286,6 +2286,9 @@ var schemaYAML = typed.YAMLObject(`types:
 - name: com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.SchedulePriority
   map:
     fields:
+    - name: preemptionPolicy
+      type:
+        scalar: string
     - name: priority
       type:
         scalar: numeric
