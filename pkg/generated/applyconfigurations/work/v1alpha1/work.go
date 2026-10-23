@@ -32,7 +32,7 @@ import (
 //
 // Work defines a list of resources to be deployed on the member cluster.
 type WorkApplyConfiguration struct {
-	v1.TypeMetaApplyConfiguration    `json:",inline"`
+	v1.TypeMetaApplyConfiguration    `json:""`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
 	// Spec represents the desired behavior of Work.
 	Spec *WorkSpecApplyConfiguration `json:"spec,omitempty"`

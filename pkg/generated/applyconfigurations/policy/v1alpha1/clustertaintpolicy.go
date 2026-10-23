@@ -37,7 +37,7 @@ import (
 // AddOnConditions are evaluated before RemoveOnConditions.
 // Taints are NEVER automatically removed when the ClusterTaintPolicy is deleted.
 type ClusterTaintPolicyApplyConfiguration struct {
-	v1.TypeMetaApplyConfiguration    `json:",inline"`
+	v1.TypeMetaApplyConfiguration    `json:""`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
 	// Spec represents the desired behavior of ClusterTaintPolicy.
 	Spec *ClusterTaintPolicySpecApplyConfiguration `json:"spec,omitempty"`

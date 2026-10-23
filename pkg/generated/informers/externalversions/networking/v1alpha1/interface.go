@@ -25,9 +25,9 @@ import (
 // Interface provides access to all the informers in this group version.
 type Interface interface {
 	// MultiClusterIngresses returns a MultiClusterIngressInformer.
-	MultiClusterIngresses() MultiClusterIngressInformer
+	MultiClusterIngresses() TypedMultiClusterIngressInformer
 	// MultiClusterServices returns a MultiClusterServiceInformer.
-	MultiClusterServices() MultiClusterServiceInformer
+	MultiClusterServices() TypedMultiClusterServiceInformer
 }
 
 type version struct {
@@ -41,12 +41,12 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
-// MultiClusterIngresses returns a MultiClusterIngressInformer.
-func (v *version) MultiClusterIngresses() MultiClusterIngressInformer {
+// MultiClusterIngresses returns a TypedMultiClusterIngressInformer.
+func (v *version) MultiClusterIngresses() TypedMultiClusterIngressInformer {
 	return &multiClusterIngressInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
-// MultiClusterServices returns a MultiClusterServiceInformer.
-func (v *version) MultiClusterServices() MultiClusterServiceInformer {
+// MultiClusterServices returns a TypedMultiClusterServiceInformer.
+func (v *version) MultiClusterServices() TypedMultiClusterServiceInformer {
 	return &multiClusterServiceInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

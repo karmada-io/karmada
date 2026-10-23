@@ -34,7 +34,7 @@ import (
 // replica number of a specific workload. It can scale any resource implementing
 // the scale subresource as well as FederatedHPA.
 type CronFederatedHPAApplyConfiguration struct {
-	v1.TypeMetaApplyConfiguration    `json:",inline"`
+	v1.TypeMetaApplyConfiguration    `json:""`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
 	// Spec is the specification of the CronFederatedHPA.
 	Spec *CronFederatedHPASpecApplyConfiguration `json:"spec,omitempty"`

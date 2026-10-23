@@ -33,7 +33,7 @@ import (
 // ResourceRegistry represents the configuration of the cache scope, mainly describes which resources in
 // which clusters should be cached.
 type ResourceRegistryApplyConfiguration struct {
-	v1.TypeMetaApplyConfiguration    `json:",inline"`
+	v1.TypeMetaApplyConfiguration    `json:""`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
 	// Spec represents the desired behavior of ResourceRegistry.
 	Spec *ResourceRegistrySpecApplyConfiguration `json:"spec,omitempty"`

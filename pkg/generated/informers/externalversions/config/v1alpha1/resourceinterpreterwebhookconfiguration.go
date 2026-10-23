@@ -34,11 +34,39 @@ import (
 )
 
 // ResourceInterpreterWebhookConfigurationInformer provides access to a shared informer and lister for
-// ResourceInterpreterWebhookConfigurations.
+// ResourceInterpreterWebhookConfigurations. Prefer using the type-safe variant (see [TypedResourceInterpreterWebhookConfigurationInformer]).
 type ResourceInterpreterWebhookConfigurationInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() configv1alpha1.ResourceInterpreterWebhookConfigurationLister
 }
+
+// TypedResourceInterpreterWebhookConfigurationInformer provides access to a shared informer and lister for
+// ResourceInterpreterWebhookConfigurations, including the type-safe TypedInformer variant.
+// It is a superset of ResourceInterpreterWebhookConfigurationInformer.
+type TypedResourceInterpreterWebhookConfigurationInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() ResourceInterpreterWebhookConfigurationIndexInformer
+	Lister() configv1alpha1.ResourceInterpreterWebhookConfigurationLister
+}
+
+// ResourceInterpreterWebhookConfigurationIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type ResourceInterpreterWebhookConfigurationIndexInformer cache.TypedSharedIndexInformer[*apisconfigv1alpha1.ResourceInterpreterWebhookConfiguration]
+
+// ResourceInterpreterWebhookConfigurationHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for ResourceInterpreterWebhookConfiguration.
+type ResourceInterpreterWebhookConfigurationHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apisconfigv1alpha1.ResourceInterpreterWebhookConfiguration]
+
+// ResourceInterpreterWebhookConfigurationDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for ResourceInterpreterWebhookConfiguration.
+type ResourceInterpreterWebhookConfigurationDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apisconfigv1alpha1.ResourceInterpreterWebhookConfiguration]
+
+// ResourceInterpreterWebhookConfigurationFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for ResourceInterpreterWebhookConfiguration.
+type ResourceInterpreterWebhookConfigurationFilteringHandler = cache.TypedFilteringResourceEventHandler[*apisconfigv1alpha1.ResourceInterpreterWebhookConfiguration]
+
+// ResourceInterpreterWebhookConfigurationIndexers is a specialization of [cache.TypedIndexers] for ResourceInterpreterWebhookConfiguration.
+type ResourceInterpreterWebhookConfigurationIndexers = cache.TypedIndexers[*apisconfigv1alpha1.ResourceInterpreterWebhookConfiguration]
+
+// DeletedResourceInterpreterWebhookConfiguration is a specialization of [cache.DeletedObject] for ResourceInterpreterWebhookConfiguration.
+type DeletedResourceInterpreterWebhookConfiguration = cache.DeletedObject[*apisconfigv1alpha1.ResourceInterpreterWebhookConfiguration]
 
 type resourceInterpreterWebhookConfigurationInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -48,25 +76,49 @@ type resourceInterpreterWebhookConfigurationInformer struct {
 // NewResourceInterpreterWebhookConfigurationInformer constructs a new informer for ResourceInterpreterWebhookConfiguration type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedResourceInterpreterWebhookConfigurationInformer]).
 func NewResourceInterpreterWebhookConfigurationInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewResourceInterpreterWebhookConfigurationInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedResourceInterpreterWebhookConfigurationInformer constructs a new informer for ResourceInterpreterWebhookConfiguration type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedResourceInterpreterWebhookConfigurationInformer(client versioned.Interface, resyncPeriod time.Duration, indexers ResourceInterpreterWebhookConfigurationIndexers) ResourceInterpreterWebhookConfigurationIndexInformer {
+	return NewTypedResourceInterpreterWebhookConfigurationInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredResourceInterpreterWebhookConfigurationInformer constructs a new informer for ResourceInterpreterWebhookConfiguration type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredResourceInterpreterWebhookConfigurationInformer]).
 func NewFilteredResourceInterpreterWebhookConfigurationInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewResourceInterpreterWebhookConfigurationInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+	return NewTypedResourceInterpreterWebhookConfigurationInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredResourceInterpreterWebhookConfigurationInformer constructs a new informer for ResourceInterpreterWebhookConfiguration type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredResourceInterpreterWebhookConfigurationInformer(client versioned.Interface, resyncPeriod time.Duration, indexers ResourceInterpreterWebhookConfigurationIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) ResourceInterpreterWebhookConfigurationIndexInformer {
+	return NewTypedResourceInterpreterWebhookConfigurationInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
 }
 
 // NewResourceInterpreterWebhookConfigurationInformerWithOptions constructs a new informer for ResourceInterpreterWebhookConfiguration type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedResourceInterpreterWebhookConfigurationInformerWithOptions]).
 func NewResourceInterpreterWebhookConfigurationInformerWithOptions(client versioned.Interface, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedResourceInterpreterWebhookConfigurationInformerWithOptions(client, options)
+}
+
+// NewTypedResourceInterpreterWebhookConfigurationInformerWithOptions constructs a new informer for ResourceInterpreterWebhookConfiguration type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedResourceInterpreterWebhookConfigurationInformerWithOptions(client versioned.Interface, options internalinterfaces.InformerOptions) ResourceInterpreterWebhookConfigurationIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "config.karmada.io", Version: "v1alpha1", Resource: "resourceinterpreterwebhookconfigurations"}
 	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
-	return cache.NewSharedIndexInformerWithOptions(
+	return cache.NewTypedSharedIndexInformer[*apisconfigv1alpha1.ResourceInterpreterWebhookConfiguration](cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
@@ -99,17 +151,57 @@ func NewResourceInterpreterWebhookConfigurationInformerWithOptions(client versio
 			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
-	)
+	))
 }
 
 func (f *resourceInterpreterWebhookConfigurationInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewResourceInterpreterWebhookConfigurationInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
+	return NewTypedResourceInterpreterWebhookConfigurationInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *resourceInterpreterWebhookConfigurationInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apisconfigv1alpha1.ResourceInterpreterWebhookConfiguration{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *resourceInterpreterWebhookConfigurationInformer) TypedInformer() ResourceInterpreterWebhookConfigurationIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apisconfigv1alpha1.ResourceInterpreterWebhookConfiguration](f.factory.InformerFor(&apisconfigv1alpha1.ResourceInterpreterWebhookConfiguration{}, f.defaultInformer))
 }
 
 func (f *resourceInterpreterWebhookConfigurationInformer) Lister() configv1alpha1.ResourceInterpreterWebhookConfigurationLister {
 	return configv1alpha1.NewResourceInterpreterWebhookConfigurationLister(f.Informer().GetIndexer())
+}
+
+// ToTypedResourceInterpreterWebhookConfigurationInformer converts an untyped informer into a TypedResourceInterpreterWebhookConfigurationInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *ResourceInterpreterWebhookConfiguration. If that is not the case, calling type-safe methods of the returned
+// TypedResourceInterpreterWebhookConfigurationInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedResourceInterpreterWebhookConfigurationInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedResourceInterpreterWebhookConfigurationInformer(informer ResourceInterpreterWebhookConfigurationInformer) TypedResourceInterpreterWebhookConfigurationInformer {
+	if informer, ok := informer.(TypedResourceInterpreterWebhookConfigurationInformer); ok {
+		return informer
+	}
+	return &resourceInterpreterWebhookConfigurationTypedInformerAdapter{informer}
+}
+
+type resourceInterpreterWebhookConfigurationTypedInformerAdapter struct {
+	ResourceInterpreterWebhookConfigurationInformer
+}
+
+func (a *resourceInterpreterWebhookConfigurationTypedInformerAdapter) TypedInformer() ResourceInterpreterWebhookConfigurationIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apisconfigv1alpha1.ResourceInterpreterWebhookConfiguration](a.Informer())
+}
+
+// ToResourceInterpreterWebhookConfigurationIndexInformer converts an untyped informer into a ResourceInterpreterWebhookConfigurationIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *ResourceInterpreterWebhookConfiguration. If that is not the case, calling type-safe methods of the returned
+// ResourceInterpreterWebhookConfigurationIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a ResourceInterpreterWebhookConfigurationIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToResourceInterpreterWebhookConfigurationIndexInformer(informer cache.SharedIndexInformer) ResourceInterpreterWebhookConfigurationIndexInformer {
+	if informer, ok := informer.(ResourceInterpreterWebhookConfigurationIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*apisconfigv1alpha1.ResourceInterpreterWebhookConfiguration](informer)
 }

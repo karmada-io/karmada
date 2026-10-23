@@ -32,7 +32,7 @@ import (
 //
 // Karmada enables declarative installation of karmada.
 type KarmadaApplyConfiguration struct {
-	v1.TypeMetaApplyConfiguration `json:",inline"`
+	v1.TypeMetaApplyConfiguration `json:""`
 	// Standard object's metadata.
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
 	// Spec defines the desired behavior of the Karmada.

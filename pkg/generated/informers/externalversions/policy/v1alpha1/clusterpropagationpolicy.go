@@ -34,11 +34,39 @@ import (
 )
 
 // ClusterPropagationPolicyInformer provides access to a shared informer and lister for
-// ClusterPropagationPolicies.
+// ClusterPropagationPolicies. Prefer using the type-safe variant (see [TypedClusterPropagationPolicyInformer]).
 type ClusterPropagationPolicyInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() policyv1alpha1.ClusterPropagationPolicyLister
 }
+
+// TypedClusterPropagationPolicyInformer provides access to a shared informer and lister for
+// ClusterPropagationPolicies, including the type-safe TypedInformer variant.
+// It is a superset of ClusterPropagationPolicyInformer.
+type TypedClusterPropagationPolicyInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() ClusterPropagationPolicyIndexInformer
+	Lister() policyv1alpha1.ClusterPropagationPolicyLister
+}
+
+// ClusterPropagationPolicyIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type ClusterPropagationPolicyIndexInformer cache.TypedSharedIndexInformer[*apispolicyv1alpha1.ClusterPropagationPolicy]
+
+// ClusterPropagationPolicyHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for ClusterPropagationPolicy.
+type ClusterPropagationPolicyHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apispolicyv1alpha1.ClusterPropagationPolicy]
+
+// ClusterPropagationPolicyDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for ClusterPropagationPolicy.
+type ClusterPropagationPolicyDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apispolicyv1alpha1.ClusterPropagationPolicy]
+
+// ClusterPropagationPolicyFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for ClusterPropagationPolicy.
+type ClusterPropagationPolicyFilteringHandler = cache.TypedFilteringResourceEventHandler[*apispolicyv1alpha1.ClusterPropagationPolicy]
+
+// ClusterPropagationPolicyIndexers is a specialization of [cache.TypedIndexers] for ClusterPropagationPolicy.
+type ClusterPropagationPolicyIndexers = cache.TypedIndexers[*apispolicyv1alpha1.ClusterPropagationPolicy]
+
+// DeletedClusterPropagationPolicy is a specialization of [cache.DeletedObject] for ClusterPropagationPolicy.
+type DeletedClusterPropagationPolicy = cache.DeletedObject[*apispolicyv1alpha1.ClusterPropagationPolicy]
 
 type clusterPropagationPolicyInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -48,25 +76,49 @@ type clusterPropagationPolicyInformer struct {
 // NewClusterPropagationPolicyInformer constructs a new informer for ClusterPropagationPolicy type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedClusterPropagationPolicyInformer]).
 func NewClusterPropagationPolicyInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewClusterPropagationPolicyInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedClusterPropagationPolicyInformer constructs a new informer for ClusterPropagationPolicy type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedClusterPropagationPolicyInformer(client versioned.Interface, resyncPeriod time.Duration, indexers ClusterPropagationPolicyIndexers) ClusterPropagationPolicyIndexInformer {
+	return NewTypedClusterPropagationPolicyInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredClusterPropagationPolicyInformer constructs a new informer for ClusterPropagationPolicy type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredClusterPropagationPolicyInformer]).
 func NewFilteredClusterPropagationPolicyInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewClusterPropagationPolicyInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+	return NewTypedClusterPropagationPolicyInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredClusterPropagationPolicyInformer constructs a new informer for ClusterPropagationPolicy type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredClusterPropagationPolicyInformer(client versioned.Interface, resyncPeriod time.Duration, indexers ClusterPropagationPolicyIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) ClusterPropagationPolicyIndexInformer {
+	return NewTypedClusterPropagationPolicyInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
 }
 
 // NewClusterPropagationPolicyInformerWithOptions constructs a new informer for ClusterPropagationPolicy type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedClusterPropagationPolicyInformerWithOptions]).
 func NewClusterPropagationPolicyInformerWithOptions(client versioned.Interface, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedClusterPropagationPolicyInformerWithOptions(client, options)
+}
+
+// NewTypedClusterPropagationPolicyInformerWithOptions constructs a new informer for ClusterPropagationPolicy type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedClusterPropagationPolicyInformerWithOptions(client versioned.Interface, options internalinterfaces.InformerOptions) ClusterPropagationPolicyIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "policy.karmada.io", Version: "v1alpha1", Resource: "clusterpropagationpolicys"}
 	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
-	return cache.NewSharedIndexInformerWithOptions(
+	return cache.NewTypedSharedIndexInformer[*apispolicyv1alpha1.ClusterPropagationPolicy](cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
@@ -99,17 +151,57 @@ func NewClusterPropagationPolicyInformerWithOptions(client versioned.Interface, 
 			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
-	)
+	))
 }
 
 func (f *clusterPropagationPolicyInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewClusterPropagationPolicyInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
+	return NewTypedClusterPropagationPolicyInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *clusterPropagationPolicyInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apispolicyv1alpha1.ClusterPropagationPolicy{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *clusterPropagationPolicyInformer) TypedInformer() ClusterPropagationPolicyIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apispolicyv1alpha1.ClusterPropagationPolicy](f.factory.InformerFor(&apispolicyv1alpha1.ClusterPropagationPolicy{}, f.defaultInformer))
 }
 
 func (f *clusterPropagationPolicyInformer) Lister() policyv1alpha1.ClusterPropagationPolicyLister {
 	return policyv1alpha1.NewClusterPropagationPolicyLister(f.Informer().GetIndexer())
+}
+
+// ToTypedClusterPropagationPolicyInformer converts an untyped informer into a TypedClusterPropagationPolicyInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *ClusterPropagationPolicy. If that is not the case, calling type-safe methods of the returned
+// TypedClusterPropagationPolicyInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedClusterPropagationPolicyInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedClusterPropagationPolicyInformer(informer ClusterPropagationPolicyInformer) TypedClusterPropagationPolicyInformer {
+	if informer, ok := informer.(TypedClusterPropagationPolicyInformer); ok {
+		return informer
+	}
+	return &clusterPropagationPolicyTypedInformerAdapter{informer}
+}
+
+type clusterPropagationPolicyTypedInformerAdapter struct {
+	ClusterPropagationPolicyInformer
+}
+
+func (a *clusterPropagationPolicyTypedInformerAdapter) TypedInformer() ClusterPropagationPolicyIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apispolicyv1alpha1.ClusterPropagationPolicy](a.Informer())
+}
+
+// ToClusterPropagationPolicyIndexInformer converts an untyped informer into a ClusterPropagationPolicyIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *ClusterPropagationPolicy. If that is not the case, calling type-safe methods of the returned
+// ClusterPropagationPolicyIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a ClusterPropagationPolicyIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToClusterPropagationPolicyIndexInformer(informer cache.SharedIndexInformer) ClusterPropagationPolicyIndexInformer {
+	if informer, ok := informer.(ClusterPropagationPolicyIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*apispolicyv1alpha1.ClusterPropagationPolicy](informer)
 }

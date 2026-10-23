@@ -29,7 +29,7 @@ import (
 // KarmadaScheduler holds settings to karmada-scheduler component of the karmada.
 type KarmadaSchedulerApplyConfiguration struct {
 	// CommonSettings holds common settings to karmada scheduler.
-	CommonSettingsApplyConfiguration `json:",inline"`
+	CommonSettingsApplyConfiguration `json:""`
 	// ExtraArgs is an extra set of flags to pass to the karmada-scheduler component or override.
 	// A key in this map is the flag name as it appears on the command line except without
 	// leading dash(es).

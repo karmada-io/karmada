@@ -25,17 +25,17 @@ import (
 // Interface provides access to all the informers in this group version.
 type Interface interface {
 	// ClusterOverridePolicies returns a ClusterOverridePolicyInformer.
-	ClusterOverridePolicies() ClusterOverridePolicyInformer
+	ClusterOverridePolicies() TypedClusterOverridePolicyInformer
 	// ClusterPropagationPolicies returns a ClusterPropagationPolicyInformer.
-	ClusterPropagationPolicies() ClusterPropagationPolicyInformer
+	ClusterPropagationPolicies() TypedClusterPropagationPolicyInformer
 	// ClusterTaintPolicies returns a ClusterTaintPolicyInformer.
-	ClusterTaintPolicies() ClusterTaintPolicyInformer
+	ClusterTaintPolicies() TypedClusterTaintPolicyInformer
 	// FederatedResourceQuotas returns a FederatedResourceQuotaInformer.
-	FederatedResourceQuotas() FederatedResourceQuotaInformer
+	FederatedResourceQuotas() TypedFederatedResourceQuotaInformer
 	// OverridePolicies returns a OverridePolicyInformer.
-	OverridePolicies() OverridePolicyInformer
+	OverridePolicies() TypedOverridePolicyInformer
 	// PropagationPolicies returns a PropagationPolicyInformer.
-	PropagationPolicies() PropagationPolicyInformer
+	PropagationPolicies() TypedPropagationPolicyInformer
 }
 
 type version struct {
@@ -49,32 +49,32 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
-// ClusterOverridePolicies returns a ClusterOverridePolicyInformer.
-func (v *version) ClusterOverridePolicies() ClusterOverridePolicyInformer {
+// ClusterOverridePolicies returns a TypedClusterOverridePolicyInformer.
+func (v *version) ClusterOverridePolicies() TypedClusterOverridePolicyInformer {
 	return &clusterOverridePolicyInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }
 
-// ClusterPropagationPolicies returns a ClusterPropagationPolicyInformer.
-func (v *version) ClusterPropagationPolicies() ClusterPropagationPolicyInformer {
+// ClusterPropagationPolicies returns a TypedClusterPropagationPolicyInformer.
+func (v *version) ClusterPropagationPolicies() TypedClusterPropagationPolicyInformer {
 	return &clusterPropagationPolicyInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }
 
-// ClusterTaintPolicies returns a ClusterTaintPolicyInformer.
-func (v *version) ClusterTaintPolicies() ClusterTaintPolicyInformer {
+// ClusterTaintPolicies returns a TypedClusterTaintPolicyInformer.
+func (v *version) ClusterTaintPolicies() TypedClusterTaintPolicyInformer {
 	return &clusterTaintPolicyInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }
 
-// FederatedResourceQuotas returns a FederatedResourceQuotaInformer.
-func (v *version) FederatedResourceQuotas() FederatedResourceQuotaInformer {
+// FederatedResourceQuotas returns a TypedFederatedResourceQuotaInformer.
+func (v *version) FederatedResourceQuotas() TypedFederatedResourceQuotaInformer {
 	return &federatedResourceQuotaInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
-// OverridePolicies returns a OverridePolicyInformer.
-func (v *version) OverridePolicies() OverridePolicyInformer {
+// OverridePolicies returns a TypedOverridePolicyInformer.
+func (v *version) OverridePolicies() TypedOverridePolicyInformer {
 	return &overridePolicyInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
-// PropagationPolicies returns a PropagationPolicyInformer.
-func (v *version) PropagationPolicies() PropagationPolicyInformer {
+// PropagationPolicies returns a TypedPropagationPolicyInformer.
+func (v *version) PropagationPolicies() TypedPropagationPolicyInformer {
 	return &propagationPolicyInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

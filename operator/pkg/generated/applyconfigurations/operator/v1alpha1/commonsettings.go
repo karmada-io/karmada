@@ -29,7 +29,7 @@ import (
 // CommonSettings describes the common settings of all karmada Components.
 type CommonSettingsApplyConfiguration struct {
 	// Image allows to customize the image used for the component.
-	ImageApplyConfiguration `json:",inline"`
+	ImageApplyConfiguration `json:""`
 	// ImagePullPolicy defines the policy for pulling the container image.
 	// If not specified, it defaults to IfNotPresent.
 	ImagePullPolicy *v1.PullPolicy `json:"imagePullPolicy,omitempty"`

@@ -17,6 +17,7 @@ limitations under the License.
 package cluster
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"reflect"
@@ -310,14 +311,14 @@ func TestStrategy_WarningsOnCreate(t *testing.T) {
 
 func TestStrategy_AllowCreateOnUpdate(t *testing.T) {
 	clusterStrategy := NewStrategy(clusterscheme.Scheme)
-	if clusterStrategy.AllowCreateOnUpdate() {
+	if clusterStrategy.AllowCreateOnUpdate(context.TODO()) {
 		t.Errorf("Cluster do not allow create on update")
 	}
 }
 
 func TestStrategy_AllowUnconditionalUpdate(t *testing.T) {
 	clusterStrategy := NewStrategy(clusterscheme.Scheme)
-	if !clusterStrategy.AllowUnconditionalUpdate() {
+	if !clusterStrategy.AllowUnconditionalUpdate(context.TODO()) {
 		t.Errorf("Cluster can be updated unconditionally on update")
 	}
 }

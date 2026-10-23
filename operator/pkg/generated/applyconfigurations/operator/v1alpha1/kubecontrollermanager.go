@@ -31,7 +31,7 @@ import (
 // collection of the orphan resources in your karmada.
 type KubeControllerManagerApplyConfiguration struct {
 	// CommonSettings holds common settings to kubernetes controller manager.
-	CommonSettingsApplyConfiguration `json:",inline"`
+	CommonSettingsApplyConfiguration `json:""`
 	// A list of controllers to enable. '*' enables all on-by-default controllers,
 	// 'foo' enables the controller named 'foo', '-foo' disables the controller named
 	// 'foo'.

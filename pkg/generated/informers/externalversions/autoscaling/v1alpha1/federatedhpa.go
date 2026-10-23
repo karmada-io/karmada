@@ -34,11 +34,39 @@ import (
 )
 
 // FederatedHPAInformer provides access to a shared informer and lister for
-// FederatedHPAs.
+// FederatedHPAs. Prefer using the type-safe variant (see [TypedFederatedHPAInformer]).
 type FederatedHPAInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() autoscalingv1alpha1.FederatedHPALister
 }
+
+// TypedFederatedHPAInformer provides access to a shared informer and lister for
+// FederatedHPAs, including the type-safe TypedInformer variant.
+// It is a superset of FederatedHPAInformer.
+type TypedFederatedHPAInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() FederatedHPAIndexInformer
+	Lister() autoscalingv1alpha1.FederatedHPALister
+}
+
+// FederatedHPAIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type FederatedHPAIndexInformer cache.TypedSharedIndexInformer[*apisautoscalingv1alpha1.FederatedHPA]
+
+// FederatedHPAHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for FederatedHPA.
+type FederatedHPAHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apisautoscalingv1alpha1.FederatedHPA]
+
+// FederatedHPADetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for FederatedHPA.
+type FederatedHPADetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apisautoscalingv1alpha1.FederatedHPA]
+
+// FederatedHPAFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for FederatedHPA.
+type FederatedHPAFilteringHandler = cache.TypedFilteringResourceEventHandler[*apisautoscalingv1alpha1.FederatedHPA]
+
+// FederatedHPAIndexers is a specialization of [cache.TypedIndexers] for FederatedHPA.
+type FederatedHPAIndexers = cache.TypedIndexers[*apisautoscalingv1alpha1.FederatedHPA]
+
+// DeletedFederatedHPA is a specialization of [cache.DeletedObject] for FederatedHPA.
+type DeletedFederatedHPA = cache.DeletedObject[*apisautoscalingv1alpha1.FederatedHPA]
 
 type federatedHPAInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -49,25 +77,49 @@ type federatedHPAInformer struct {
 // NewFederatedHPAInformer constructs a new informer for FederatedHPA type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFederatedHPAInformer]).
 func NewFederatedHPAInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewFederatedHPAInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedFederatedHPAInformer constructs a new informer for FederatedHPA type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFederatedHPAInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers FederatedHPAIndexers) FederatedHPAIndexInformer {
+	return NewTypedFederatedHPAInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredFederatedHPAInformer constructs a new informer for FederatedHPA type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredFederatedHPAInformer]).
 func NewFilteredFederatedHPAInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewFederatedHPAInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+	return NewTypedFederatedHPAInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredFederatedHPAInformer constructs a new informer for FederatedHPA type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredFederatedHPAInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers FederatedHPAIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) FederatedHPAIndexInformer {
+	return NewTypedFederatedHPAInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
 }
 
 // NewFederatedHPAInformerWithOptions constructs a new informer for FederatedHPA type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFederatedHPAInformerWithOptions]).
 func NewFederatedHPAInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedFederatedHPAInformerWithOptions(client, namespace, options)
+}
+
+// NewTypedFederatedHPAInformerWithOptions constructs a new informer for FederatedHPA type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFederatedHPAInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) FederatedHPAIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "autoscaling.karmada.io", Version: "v1alpha1", Resource: "federatedhpas"}
 	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
-	return cache.NewSharedIndexInformerWithOptions(
+	return cache.NewTypedSharedIndexInformer[*apisautoscalingv1alpha1.FederatedHPA](cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
@@ -100,17 +152,57 @@ func NewFederatedHPAInformerWithOptions(client versioned.Interface, namespace st
 			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
-	)
+	))
 }
 
 func (f *federatedHPAInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFederatedHPAInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
+	return NewTypedFederatedHPAInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *federatedHPAInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apisautoscalingv1alpha1.FederatedHPA{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *federatedHPAInformer) TypedInformer() FederatedHPAIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apisautoscalingv1alpha1.FederatedHPA](f.factory.InformerFor(&apisautoscalingv1alpha1.FederatedHPA{}, f.defaultInformer))
 }
 
 func (f *federatedHPAInformer) Lister() autoscalingv1alpha1.FederatedHPALister {
 	return autoscalingv1alpha1.NewFederatedHPALister(f.Informer().GetIndexer())
+}
+
+// ToTypedFederatedHPAInformer converts an untyped informer into a TypedFederatedHPAInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *FederatedHPA. If that is not the case, calling type-safe methods of the returned
+// TypedFederatedHPAInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedFederatedHPAInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedFederatedHPAInformer(informer FederatedHPAInformer) TypedFederatedHPAInformer {
+	if informer, ok := informer.(TypedFederatedHPAInformer); ok {
+		return informer
+	}
+	return &federatedHPATypedInformerAdapter{informer}
+}
+
+type federatedHPATypedInformerAdapter struct {
+	FederatedHPAInformer
+}
+
+func (a *federatedHPATypedInformerAdapter) TypedInformer() FederatedHPAIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apisautoscalingv1alpha1.FederatedHPA](a.Informer())
+}
+
+// ToFederatedHPAIndexInformer converts an untyped informer into a FederatedHPAIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *FederatedHPA. If that is not the case, calling type-safe methods of the returned
+// FederatedHPAIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a FederatedHPAIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToFederatedHPAIndexInformer(informer cache.SharedIndexInformer) FederatedHPAIndexInformer {
+	if informer, ok := informer.(FederatedHPAIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*apisautoscalingv1alpha1.FederatedHPA](informer)
 }

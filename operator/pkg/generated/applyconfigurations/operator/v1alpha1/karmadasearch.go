@@ -29,7 +29,7 @@ import (
 // KarmadaSearch holds settings to karmada-search component of the karmada.
 type KarmadaSearchApplyConfiguration struct {
 	// CommonSettings holds common settings to karmada search.
-	CommonSettingsApplyConfiguration `json:",inline"`
+	CommonSettingsApplyConfiguration `json:""`
 	// ExtraArgs is an extra set of flags to pass to the karmada-search component or override.
 	// A key in this map is the flag name as it appears on the command line except without
 	// leading dash(es).

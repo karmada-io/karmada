@@ -34,15 +34,15 @@ type MockK8SRESTClient struct {
 }
 
 // Discovery returns a mocked discovery interface.
-func (m *MockK8SRESTClient) Discovery() discovery.DiscoveryInterface {
+func (m *MockK8SRESTClient) Discovery() discovery.DiscoveryInterfaces {
 	return &MockDiscovery{
 		RESTClientConnector: m.RESTClientConnector,
 	}
 }
 
-// MockDiscovery is a mock implementation of DiscoveryInterface.
+// MockDiscovery is a mock implementation of DiscoveryInterfaces.
 type MockDiscovery struct {
-	discovery.DiscoveryInterface
+	discovery.DiscoveryInterfaces
 	RESTClientConnector rest.Interface
 }
 
