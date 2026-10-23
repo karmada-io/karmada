@@ -18,11 +18,13 @@ package helper
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,6 +38,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
@@ -1418,7 +1421,7 @@ func TestDeleteWorkByRBNamespaceAndName(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := DeleteWorks(context.Background(), tt.args.c, tt.args.namespace, tt.args.name, tt.args.bindingID); (err != nil) != tt.wantErr {
+			if err := DeleteWorks(context.Background(), tt.args.c, tt.args.c, tt.args.namespace, tt.args.name, tt.args.bindingID); (err != nil) != tt.wantErr {
 				t.Errorf("DeleteWorks() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			list := &workv1alpha1.WorkList{}
@@ -1429,6 +1432,137 @@ func TestDeleteWorkByRBNamespaceAndName(t *testing.T) {
 			if got := list.Items; !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("DeleteWorks() got = %v, want %v", got, tt.want)
 			}
+		})
+	}
+}
+
+func TestDeleteWorksWithStaleCache(t *testing.T) {
+	const bindingID = "3617252f-b1bb-43b0-98a1-c7de833c472c"
+
+	work1 := &workv1alpha1.Work{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "w1",
+			Namespace: names.ExecutionSpacePrefix + ClusterMember1,
+			Labels: map[string]string{
+				workv1alpha2.ResourceBindingPermanentIDLabel: bindingID,
+			},
+		},
+	}
+	work2 := &workv1alpha1.Work{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "w2",
+			Namespace: names.ExecutionSpacePrefix + ClusterMember2,
+			Labels: map[string]string{
+				workv1alpha2.ResourceBindingPermanentIDLabel: bindingID,
+			},
+		},
+	}
+	unrelatedWork := &workv1alpha1.Work{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "unrelated",
+			Namespace: names.ExecutionSpacePrefix + ClusterMember3,
+			Labels: map[string]string{
+				workv1alpha2.ResourceBindingPermanentIDLabel: "another-binding-id",
+			},
+		},
+	}
+
+	// Simulate the controller-runtime cached client seeing only one of the two Works associated with the binding.
+	cacheClient := fake.NewClientBuilder().
+		WithScheme(gclient.NewSchema()).
+		WithObjects(work1, work2, unrelatedWork).
+		WithIndex(
+			&workv1alpha1.Work{},
+			indexregistry.WorkIndexByLabelResourceBindingID,
+			indexregistry.GenLabelIndexerFunc(workv1alpha2.ResourceBindingPermanentIDLabel),
+		).
+		WithInterceptorFuncs(interceptor.Funcs{
+			List: func(ctx context.Context, c client.WithWatch, list client.ObjectList, opts ...client.ListOption) error {
+				if err := c.List(ctx, list, opts...); err != nil {
+					return err
+				}
+				works, ok := list.(*workv1alpha1.WorkList)
+				if !ok {
+					return nil
+				}
+				works.Items = []workv1alpha1.Work{*work1.DeepCopy()}
+				return nil
+			},
+		}).
+		Build()
+	apiReader := fake.NewClientBuilder().
+		WithScheme(gclient.NewSchema()).
+		WithObjects(work1.DeepCopy(), work2.DeepCopy(), unrelatedWork.DeepCopy()).
+		Build()
+
+	err := DeleteWorks(context.Background(), cacheClient, apiReader, "default", "foo", bindingID)
+	assert.NoError(t, err)
+
+	for _, work := range []*workv1alpha1.Work{work1, work2} {
+		err = cacheClient.Get(context.Background(), client.ObjectKeyFromObject(work), &workv1alpha1.Work{})
+		assert.True(t, apierrors.IsNotFound(err), "expected Work %s/%s to be deleted", work.Namespace, work.Name)
+	}
+	assert.NoError(t, cacheClient.Get(context.Background(), client.ObjectKeyFromObject(unrelatedWork), &workv1alpha1.Work{}))
+}
+
+func TestDeleteWorksFailure(t *testing.T) {
+	const bindingID = "3617252f-b1bb-43b0-98a1-c7de833c472c"
+
+	work := &workv1alpha1.Work{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "w1",
+			Namespace: names.ExecutionSpacePrefix + ClusterMember1,
+			Labels: map[string]string{
+				workv1alpha2.ResourceBindingPermanentIDLabel: bindingID,
+			},
+		},
+	}
+	tests := []struct {
+		name      string
+		listErr   error
+		deleteErr error
+	}{
+		{
+			name:      "authoritative list failure is returned",
+			listErr:   errors.New("api server list failed"),
+			deleteErr: nil,
+		},
+		{
+			name:      "work deletion failure is returned",
+			deleteErr: errors.New("work deletion failed"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			writeClient := fake.NewClientBuilder().
+				WithScheme(gclient.NewSchema()).
+				WithObjects(work.DeepCopy()).
+				WithInterceptorFuncs(interceptor.Funcs{
+					Delete: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.DeleteOption) error {
+						if tt.deleteErr != nil {
+							return tt.deleteErr
+						}
+						return c.Delete(ctx, obj, opts...)
+					},
+				}).
+				Build()
+			apiReader := fake.NewClientBuilder().
+				WithScheme(gclient.NewSchema()).
+				WithObjects(work.DeepCopy()).
+				WithInterceptorFuncs(interceptor.Funcs{
+					List: func(ctx context.Context, c client.WithWatch, list client.ObjectList, opts ...client.ListOption) error {
+						if tt.listErr != nil {
+							return tt.listErr
+						}
+						return c.List(ctx, list, opts...)
+					},
+				}).
+				Build()
+
+			err := DeleteWorks(context.Background(), writeClient, apiReader, "default", "foo", bindingID)
+			assert.Error(t, err)
+			assert.NoError(t, writeClient.Get(context.Background(), client.ObjectKeyFromObject(work), &workv1alpha1.Work{}))
 		})
 	}
 }
