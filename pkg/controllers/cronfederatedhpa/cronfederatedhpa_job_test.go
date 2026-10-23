@@ -189,6 +189,81 @@ func TestScaleFHPA(t *testing.T) {
 	}
 }
 
+func TestAddFailedExecutionHistory(t *testing.T) {
+	existingFailedExecutions := []autoscalingv1alpha1.FailedExecution{
+		{Message: "old-1"},
+		{Message: "old-2"},
+	}
+
+	tests := []struct {
+		name               string
+		failedHistoryLimit *int32
+		expectedMessages   []string
+	}{
+		{
+			name:               "limit 0 keeps no failed history",
+			failedHistoryLimit: new(int32(0)),
+			expectedMessages:   nil,
+		},
+		{
+			name:               "limit 1 keeps only the newest failed history",
+			failedHistoryLimit: new(int32(1)),
+			expectedMessages:   []string{"new"},
+		},
+		{
+			name:               "default limit keeps up to 3 failed histories",
+			failedHistoryLimit: nil,
+			expectedMessages:   []string{"new", "old-1", "old-2"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cronFHPA := &autoscalingv1alpha1.CronFederatedHPA{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-cron-fhpa",
+					Namespace: "default",
+				},
+				Status: autoscalingv1alpha1.CronFederatedHPAStatus{
+					ExecutionHistories: []autoscalingv1alpha1.ExecutionHistory{
+						{
+							RuleName:         "test-rule",
+							FailedExecutions: append([]autoscalingv1alpha1.FailedExecution{}, existingFailedExecutions...),
+						},
+					},
+				},
+			}
+
+			scheme := runtime.NewScheme()
+			_ = autoscalingv1alpha1.Install(scheme)
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(cronFHPA).WithStatusSubresource(cronFHPA).Build()
+
+			job := &ScalingJob{
+				client:    client,
+				scheduler: gocron.NewScheduler(time.UTC),
+				rule: autoscalingv1alpha1.CronFederatedHPARule{
+					Name:               "test-rule",
+					FailedHistoryLimit: tt.failedHistoryLimit,
+				},
+			}
+
+			assert.NotPanics(t, func() {
+				assert.NoError(t, job.addFailedExecutionHistory(cronFHPA, "new"))
+			})
+
+			updated := &autoscalingv1alpha1.CronFederatedHPA{}
+			assert.NoError(t, client.Get(context.TODO(), types.NamespacedName{Name: cronFHPA.Name, Namespace: cronFHPA.Namespace}, updated))
+			assert.Len(t, updated.Status.ExecutionHistories, 1)
+
+			var messages []string
+			for _, failedExecution := range updated.Status.ExecutionHistories[0].FailedExecutions {
+				messages = append(messages, failedExecution.Message)
+			}
+			assert.Equal(t, tt.expectedMessages, messages)
+		})
+	}
+}
+
 func TestFindExecutionHistory(t *testing.T) {
 	tests := []struct {
 		name          string
