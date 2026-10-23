@@ -255,23 +255,53 @@ func (c *Controller) isTargetClusterRemoved(ctx context.Context, cluster *cluste
 	if err := c.List(ctx, rbList, client.MatchingFieldsSelector{
 		Selector: fields.OneTermEqualSelector(indexregistry.ResourceBindingIndexByFieldCluster, cluster.Name),
 	}); err != nil {
-		klog.ErrorS(err, "Failed to list ResourceBindings", "cluster", cluster.Name)
-		return false, err
+		// If index query fails (e.g., index not registered), fallback to listing all ResourceBindings
+		// and filter manually to ensure cluster deletion can proceed even if index is missing.
+		klog.V(1).ErrorS(err, "Failed to list ResourceBindings using index, falling back to full list", "cluster", cluster.Name)
+		if err := c.List(ctx, rbList); err != nil {
+			klog.ErrorS(err, "Failed to list ResourceBindings", "cluster", cluster.Name)
+			return false, err
+		}
+		// Filter ResourceBindings that reference this cluster
+		for i := range rbList.Items {
+			for _, targetCluster := range rbList.Items[i].Spec.Clusters {
+				if targetCluster.Name == cluster.Name {
+					return false, nil
+				}
+			}
+		}
+	} else {
+		if len(rbList.Items) != 0 {
+			return false, nil
+		}
 	}
-	if len(rbList.Items) != 0 {
-		return false, nil
-	}
+
 	// List all ClusterResourceBindings which are assigned to this cluster.
 	crbList := &workv1alpha2.ClusterResourceBindingList{}
 	if err := c.List(ctx, crbList, client.MatchingFieldsSelector{
 		Selector: fields.OneTermEqualSelector(indexregistry.ClusterResourceBindingIndexByFieldCluster, cluster.Name),
 	}); err != nil {
-		klog.ErrorS(err, "Failed to list ClusterResourceBindings", "cluster", cluster.Name)
-		return false, err
+		// If index query fails (e.g., index not registered), fallback to listing all ClusterResourceBindings
+		// and filter manually to ensure cluster deletion can proceed even if index is missing.
+		klog.V(1).ErrorS(err, "Failed to list ClusterResourceBindings using index, falling back to full list", "cluster", cluster.Name)
+		if err := c.List(ctx, crbList); err != nil {
+			klog.ErrorS(err, "Failed to list ClusterResourceBindings", "cluster", cluster.Name)
+			return false, err
+		}
+		// Filter ClusterResourceBindings that reference this cluster
+		for i := range crbList.Items {
+			for _, targetCluster := range crbList.Items[i].Spec.Clusters {
+				if targetCluster.Name == cluster.Name {
+					return false, nil
+				}
+			}
+		}
+	} else {
+		if len(crbList.Items) != 0 {
+			return false, nil
+		}
 	}
-	if len(crbList.Items) != 0 {
-		return false, nil
-	}
+
 	return true, nil
 }
 
