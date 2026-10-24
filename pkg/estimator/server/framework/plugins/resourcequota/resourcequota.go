@@ -43,6 +43,9 @@ const (
 	resourceRequestsPrefix = "requests."
 	resourceLimitsPrefix   = "limits."
 
+	// resourceCountPods is the object count quota name for pods, equivalent to corev1.ResourcePods.
+	resourceCountPods corev1.ResourceName = "count/pods"
+
 	// noQuotaConstraint represents the value when there is no quota constraint.
 	noQuotaConstraint = math.MaxInt32
 )
@@ -52,7 +55,7 @@ const (
 // It is categorized into 3 types:
 // 1) compute resource including cpu, memory, hugepages-<size> and extended resource like gpu
 // 2) storage including pvc, ephemeral-storage etc.
-// 3) object count including count/services, count/secrets etc.
+// 3) object count including pods, count/pods, count/services, count/secrets etc.
 // ResourceQuota supports 6 scopes:
 // 1) Terminating
 // 2) NotTerminating
@@ -60,10 +63,10 @@ const (
 // 4) NotBestEffort
 // 5) PriorityClass
 // 6) CrossNamespacePodAffinity
-// For now, we only support ComputeResource (cpu, memory and extended resource) and PriorityClass scope. The reasons are:
+// For now, we only support ComputeResource (cpu, memory and extended resource), pod count (pods and count/pods)
+// and PriorityClass scope. The reasons are:
 // 1) pb.ReplicaRequirements only contains requested resources currently, we cannot determine its QoS (BestEffort or not)
-// 2) Storage and object count quotas do not support scope selector
-// 3) Pod quota is not included in this iteration to keep the initial implementation focused on compute resources
+// 2) Storage and other object count quotas do not support scope selector
 // TODO (@wengyao04): we can extend the resourceQuotaEstimator support if further requirements are needed
 type resourceQuotaEstimator struct {
 	enabled  bool
@@ -119,6 +122,7 @@ func (pl *resourceQuotaEstimator) Estimate(_ context.Context, estCtx framework.R
 	if err != nil {
 		return 0, framework.AsResult(err)
 	}
+	requirements = withPodRequirement(requirements, 1)
 
 	// Flatten all assumed workload components for this namespace once, then filter per-quota.
 	assumedComponents := flattenAssumedWorkloadComponents(estCtx.AssumedWorkloads, namespace)
@@ -352,6 +356,8 @@ func (pl *resourceQuotaEstimator) aggregateComponentRequirements(components []*p
 		}
 
 		replicas := int64(component.Replicas)
+		// Each replica of a component consumes one pod.
+		resourceRequirements[corev1.ResourcePods] += replicas
 		for resourceName, perReplicaQuantity := range requirements {
 			// Only process supported compute resources (CPU, Memory) and extended resources (GPU, etc.)
 			if !isSupportedResource(resourceName) {
@@ -384,12 +390,8 @@ func (pl *resourceQuotaEstimator) evaluateResourcesAgainstQuota(
 		return noQuotaConstraint
 	}
 
-	// Create a Resource object with available quota
-	availableResource := util.NewResource(availableResources)
-	availableResource.AllowedPodNumber = math.MaxInt64 // Pod quota not supported yet
-
 	// Calculate how many sets can fit using resource-agnostic division
-	allowed := availableResource.MaxDivided(filtered)
+	allowed := maxDivided(availableResources, filtered)
 
 	// Handle integer overflow: treat very large numbers as no constraint
 	if allowed > math.MaxInt32 {
@@ -456,18 +458,8 @@ func (pl *resourceQuotaEstimator) evaluateReplicasAgainstQuota(
 		return noQuotaConstraint, nil
 	}
 
-	// Create a Resource object with available quota.
-	availableResource := util.NewResource(availableResources)
-
-	// Pod quota is not supported in the current implementation.
-	// To add pod quota support in the future:
-	// 1. Include pod count in aggregateComponentRequirements()
-	// 2. Remove this line to let AllowedPodNumber be calculated from availableResources
-	// 3. Add test cases for pod quota constraints
-	availableResource.AllowedPodNumber = math.MaxInt64
-
 	// Calculate how many replicas can fit within the quota.
-	allowed := availableResource.MaxDivided(filteredRequirements)
+	allowed := maxDivided(availableResources, filteredRequirements)
 
 	// Handle integer overflow: treat very large numbers as no constraint for this quota.
 	if allowed > math.MaxInt32 {
@@ -475,6 +467,34 @@ func (pl *resourceQuotaEstimator) evaluateReplicasAgainstQuota(
 	}
 
 	return int32(allowed), nil // #nosec G115: integer overflow conversion int64 -> int32
+}
+
+// maxDivided calculates how many times the requirements fit within the available resources.
+// util.Resource.MaxDivided caps the result by AllowedPodNumber as if every unit were a single pod,
+// so pods are divided separately here to account for component sets that consist of several pods.
+func maxDivided(availableResources, requirements corev1.ResourceList) int64 {
+	availableResource := util.NewResource(availableResources)
+	availableResource.AllowedPodNumber = math.MaxInt64
+	allowed := availableResource.MaxDivided(requirements)
+
+	freePods, constrained := availableResources[corev1.ResourcePods]
+	requiredPods := requirements[corev1.ResourcePods]
+	if constrained && requiredPods.Value() > 0 {
+		allowed = min(allowed, freePods.Value()/requiredPods.Value())
+	}
+
+	// Used may exceed Hard when the quota is lowered below the current usage.
+	return max(allowed, 0)
+}
+
+// withPodRequirement returns a copy of requirements that additionally requests the given number of pods.
+func withPodRequirement(requirements corev1.ResourceList, pods int64) corev1.ResourceList {
+	result := make(corev1.ResourceList, len(requirements)+1)
+	for resourceName, quantity := range requirements {
+		result[resourceName] = quantity
+	}
+	result[corev1.ResourcePods] = *resource.NewQuantity(pods, resource.DecimalSI)
+	return result
 }
 
 // filterConstrainedResources returns only the resources from requirements that are actually
@@ -513,7 +533,7 @@ func isSupportedResource(resourceName corev1.ResourceName) bool {
 }
 
 // convertToResourceList converts a map of int64 values to a ResourceList with appropriate formats.
-// Only handles supported compute resources: CPU (milli-units), Memory (bytes), and Extended Resources (GPU, etc.).
+// Only handles supported resources: CPU (milli-units), Memory (bytes), Pods and Extended Resources (GPU, etc.).
 func convertToResourceList(resourceRequirements map[corev1.ResourceName]int64) corev1.ResourceList {
 	result := corev1.ResourceList{}
 	for resourceName, totalAmount := range resourceRequirements {
@@ -525,7 +545,7 @@ func convertToResourceList(resourceRequirements map[corev1.ResourceName]int64) c
 			// Memory uses binary units (Ki, Mi, Gi)
 			result[resourceName] = *resource.NewQuantity(totalAmount, resource.BinarySI)
 		default:
-			// All other supported resources are extended resources (GPU, etc.) using decimal format
+			// All other supported resources are pods and extended resources (GPU, etc.) using decimal format
 			result[resourceName] = *resource.NewQuantity(totalAmount, resource.DecimalSI)
 		}
 	}
@@ -535,8 +555,7 @@ func convertToResourceList(resourceRequirements map[corev1.ResourceName]int64) c
 // calculateFreeResources calculates the free resources from the input ResourceQuota.
 // It only calculates the free resources that are present in resourceNames.
 func calculateFreeResources(rq *corev1.ResourceQuota, resourceNames []corev1.ResourceName) corev1.ResourceList {
-	hardResourceList := corev1.ResourceList{}
-	usedResourceList := corev1.ResourceList{}
+	freeResourceList := corev1.ResourceList{}
 	for _, resourceName := range resourceNames {
 		rNameStr := string(resourceName)
 		// skip limits because pb.ReplicaRequirements only supports requested resources
@@ -545,23 +564,23 @@ func calculateFreeResources(rq *corev1.ResourceQuota, resourceNames []corev1.Res
 		}
 		// requests.cpu is same as cpu
 		// requests.memory is same as memory
+		// count/pods is same as pods
 		// we merge them together
 		trimmedResourceName := corev1.ResourceName(strings.TrimPrefix(rNameStr, resourceRequestsPrefix))
-		hardResource, hardResourceOk := rq.Status.Hard[resourceName]
-		usedResource, usedResourceOk := rq.Status.Used[resourceName]
+		if trimmedResourceName == resourceCountPods {
+			trimmedResourceName = corev1.ResourcePods
+		}
+		hard, hardResourceOk := rq.Status.Hard[resourceName]
+		used, usedResourceOk := rq.Status.Used[resourceName]
 		if !hardResourceOk || !usedResourceOk {
 			continue
 		}
-		hardResourceList[trimmedResourceName] = hardResource
-		usedResourceList[trimmedResourceName] = usedResource
-	}
-
-	freeResourceList := corev1.ResourceList{}
-	for resourceName, hard := range hardResourceList {
-		if used, ok := usedResourceList[resourceName]; ok {
-			hard.Sub(used)
-			freeResourceList[resourceName] = hard
+		hard.Sub(used)
+		// When both forms are specified, the tighter one wins.
+		if existing, ok := freeResourceList[trimmedResourceName]; ok && existing.Cmp(hard) <= 0 {
+			continue
 		}
+		freeResourceList[trimmedResourceName] = hard
 	}
 	return freeResourceList
 }
@@ -659,7 +678,8 @@ func scopedResourceSelectorRequirementsAsSelector(ssr corev1.ScopedResourceSelec
 // computeResources are the set of standard compute resources managed by quota associated with pods.
 // This includes CPU and Memory in their base and prefixed (requests./limits.) forms.
 // Extended resources (e.g., nvidia.com/gpu) are handled separately via IsExtendedResourceName check.
-// Storage resources (ephemeral-storage, PVC) and object count quotas are not supported.
+// Pod count is included since every replica consumes one pod.
+// Storage resources (ephemeral-storage, PVC) and other object count quotas are not supported.
 var computeResources = []corev1.ResourceName{
 	corev1.ResourceCPU,
 	corev1.ResourceMemory,
@@ -667,6 +687,8 @@ var computeResources = []corev1.ResourceName{
 	corev1.ResourceRequestsMemory,
 	corev1.ResourceLimitsCPU,
 	corev1.ResourceLimitsMemory,
+	corev1.ResourcePods,
+	resourceCountPods,
 }
 
 // matchingResources takes the input specified list of resources and returns the set of resources it matches.
