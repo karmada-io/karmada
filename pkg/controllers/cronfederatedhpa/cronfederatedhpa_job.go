@@ -230,11 +230,16 @@ func (c *ScalingJob) addFailedExecutionHistory(
 			Message:       errMsg,
 		}
 		historyLimits := helper.GetCronFederatedHPAFailedHistoryLimits(c.rule)
-		if len(cronFHPA.Status.ExecutionHistories[index].FailedExecutions) > historyLimits-1 {
-			cronFHPA.Status.ExecutionHistories[index].FailedExecutions = cronFHPA.Status.ExecutionHistories[index].FailedExecutions[:historyLimits-1]
+		if historyLimits <= 0 {
+			// No failed history should be kept.
+			cronFHPA.Status.ExecutionHistories[index].FailedExecutions = nil
+		} else {
+			if len(cronFHPA.Status.ExecutionHistories[index].FailedExecutions) > historyLimits-1 {
+				cronFHPA.Status.ExecutionHistories[index].FailedExecutions = cronFHPA.Status.ExecutionHistories[index].FailedExecutions[:historyLimits-1]
+			}
+			cronFHPA.Status.ExecutionHistories[index].FailedExecutions =
+				append([]autoscalingv1alpha1.FailedExecution{failedExecution}, cronFHPA.Status.ExecutionHistories[index].FailedExecutions...)
 		}
-		cronFHPA.Status.ExecutionHistories[index].FailedExecutions =
-			append([]autoscalingv1alpha1.FailedExecution{failedExecution}, cronFHPA.Status.ExecutionHistories[index].FailedExecutions...)
 		cronFHPA.Status.ExecutionHistories[index].NextExecutionTime = &metav1.Time{Time: nextExecutionTime}
 	}
 
