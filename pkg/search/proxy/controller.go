@@ -307,7 +307,7 @@ func (ctl *Controller) Connect(ctx context.Context, proxyPath string, responder 
 		}
 
 		h = metrics.InstrumentHandlerFunc(requestInfo.Verb, requestInfo.APIGroup, requestInfo.APIVersion, requestInfo.Resource, requestInfo.Subresource,
-			"", names.KarmadaSearchComponentName, false, "", h.ServeHTTP)
+			metrics.CleanScope(requestInfo), names.KarmadaSearchComponentName, false, "", h.ServeHTTP)
 		h.ServeHTTP(rw, newReq)
 	}), nil
 }
