@@ -229,7 +229,6 @@ func TestCommandUnregisterOption_RunUnregisterCluster(t *testing.T) {
 			}
 			j.ControlPlaneClient = fakekarmadaclient.NewClientset(tt.clusterObject...)
 			j.MemberClusterClient = fake.NewClientset(tt.clusterResources...)
-			j.rbacResources = register.GenerateRBACResources(j.ClusterName, j.ClusterNamespace)
 			err := j.RunUnregisterCluster()
 			if (err == nil && tt.wantErr) || (err != nil && !tt.wantErr) {
 				t.Errorf("RunUnregisterCluster() error = %v, wantErr %v", err, tt.wantErr)

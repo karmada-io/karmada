@@ -26,8 +26,8 @@ import (
 )
 
 const (
-	// KarmadaAgentBootstrapperClusterRoleName defines the name of the auto-bootstrapped ClusterRole for letting someone post a CSR
-	KarmadaAgentBootstrapperClusterRoleName = "system:node-bootstrapper"
+	// KarmadaAgentBootstrapperClusterRoleName defines the name of the ClusterRole that lets a bootstrap token submit and poll its CSR.
+	KarmadaAgentBootstrapperClusterRoleName = "system:karmada:agent-bootstrapper"
 	// KarmadaAgentBootstrap defines the name of the ClusterRoleBinding that lets Karmada Agent post CSRs
 	KarmadaAgentBootstrap = "system:karmada:agent-bootstrap"
 	// KarmadaAgentGroup defines the group of Karmada Agent
@@ -46,7 +46,18 @@ const (
 
 // AllowBootstrapTokensToPostCSRs creates RBAC rules in a way the makes Karmada Agent Bootstrap Tokens able to post CSRs
 func AllowBootstrapTokensToPostCSRs(clientSet kubernetes.Interface) error {
-	klog.Infoln("[bootstrap-token] configured RBAC rules to allow Karmada Agent Bootstrap tokens to post CSRs in order for agent to get long term certificate credentials")
+	klog.Infoln("[bootstrap-token] configured RBAC rules to allow Karmada Agent Bootstrap tokens to create and get CSRs in order for agent to get long term certificate credentials")
+
+	clusterRole := utils.ClusterRoleFromRules(KarmadaAgentBootstrapperClusterRoleName, []rbacv1.PolicyRule{
+		{
+			APIGroups: []string{"certificates.k8s.io"},
+			Resources: []string{"certificatesigningrequests"},
+			Verbs:     []string{"create", "get"},
+		},
+	}, nil, nil)
+	if err := cmdutil.CreateOrUpdateClusterRole(clientSet, clusterRole); err != nil {
+		return err
+	}
 
 	clusterRoleBinding := utils.ClusterRoleBindingFromSubjects(KarmadaAgentBootstrap, KarmadaAgentBootstrapperClusterRoleName,
 		[]rbacv1.Subject{

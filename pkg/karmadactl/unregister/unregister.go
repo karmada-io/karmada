@@ -136,9 +136,6 @@ type CommandUnregisterOption struct {
 
 	// MemberClusterClient member cluster client set
 	MemberClusterClient kubeclient.Interface
-
-	// rbacResources contains RBAC resources that grant the necessary permissions for the unregistering cluster to access to Karmada control plane.
-	rbacResources *register.RBACResources
 }
 
 // AddFlags adds flags to the specified FlagSet.
@@ -161,8 +158,6 @@ func (j *CommandUnregisterOption) Complete(args []string) error {
 	if len(args) > 0 {
 		j.ClusterName = args[0]
 	}
-
-	j.rbacResources = register.GenerateRBACResources(j.ClusterName, j.ClusterNamespace)
 	return nil
 }
 
@@ -207,7 +202,6 @@ func (j *CommandUnregisterOption) Run() error {
 
 	return j.RunUnregisterCluster()
 }
-
 func (j *CommandUnregisterOption) buildClusterClientSet() error {
 	restConfig, err := apiclient.RestConfig(j.ClusterContext, j.ClusterKubeConfig)
 	if err != nil {
@@ -323,6 +317,8 @@ func (j *CommandUnregisterOption) RunUnregisterCluster() error {
 		return fmt.Errorf("cluster %s is a %s mode member cluster, please use command `unjoin` if you want to continue unjoining the cluster", j.ClusterName, target.Spec.SyncMode)
 	}
 
+	j.ClusterNamespace = util.GetClusterNamespace(target)
+
 	if j.DryRun {
 		return nil
 	}
@@ -344,16 +340,6 @@ func (j *CommandUnregisterOption) RunUnregisterCluster() error {
 		return err
 	}
 	klog.Infof("Successfully delete cluster object (%s) from control plane.", j.ClusterName)
-
-	if j.KarmadaConfig != "" {
-		if err = j.rbacResources.Delete(j.ControlPlaneKubeClient); err != nil {
-			klog.Errorf("Failed to delete karmada-agent RBAC resources from control plane. cluster name: %s, error: %v", j.ClusterName, err)
-			return err
-		}
-		klog.Infof("Successfully delete karmada-agent RBAC resources from control plane. cluster name: %s", j.ClusterName)
-	} else {
-		klog.Warningf("The RBAC resources on the control plane need to be manually cleaned up, including the following resources:\n%s", j.rbacResources.ToString())
-	}
 
 	// 3. delete resource created by karmada in member cluster
 	if err = j.cleanupMemberClusterResources(); err != nil {
