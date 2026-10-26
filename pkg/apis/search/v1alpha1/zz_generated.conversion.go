@@ -25,7 +25,6 @@ import (
 	unsafe "unsafe"
 
 	search "github.com/karmada-io/karmada/pkg/apis/search"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	conversion "k8s.io/apimachinery/pkg/conversion"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
@@ -131,7 +130,7 @@ func RegisterConversions(s *runtime.Scheme) error {
 }
 
 func autoConvert_v1alpha1_BackendStoreConfig_To_search_BackendStoreConfig(in *BackendStoreConfig, out *search.BackendStoreConfig, s conversion.Scope) error {
-	out.OpenSearch = (*search.OpenSearchConfig)(unsafe.Pointer(in.OpenSearch))
+	*out = *(*search.BackendStoreConfig)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -141,7 +140,7 @@ func Convert_v1alpha1_BackendStoreConfig_To_search_BackendStoreConfig(in *Backen
 }
 
 func autoConvert_search_BackendStoreConfig_To_v1alpha1_BackendStoreConfig(in *search.BackendStoreConfig, out *BackendStoreConfig, s conversion.Scope) error {
-	out.OpenSearch = (*OpenSearchConfig)(unsafe.Pointer(in.OpenSearch))
+	*out = *(*BackendStoreConfig)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -151,8 +150,7 @@ func Convert_search_BackendStoreConfig_To_v1alpha1_BackendStoreConfig(in *search
 }
 
 func autoConvert_v1alpha1_OpenSearchConfig_To_search_OpenSearchConfig(in *OpenSearchConfig, out *search.OpenSearchConfig, s conversion.Scope) error {
-	out.Addresses = *(*[]string)(unsafe.Pointer(&in.Addresses))
-	out.SecretRef = in.SecretRef
+	*out = *(*search.OpenSearchConfig)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -162,8 +160,7 @@ func Convert_v1alpha1_OpenSearchConfig_To_search_OpenSearchConfig(in *OpenSearch
 }
 
 func autoConvert_search_OpenSearchConfig_To_v1alpha1_OpenSearchConfig(in *search.OpenSearchConfig, out *OpenSearchConfig, s conversion.Scope) error {
-	out.Addresses = *(*[]string)(unsafe.Pointer(&in.Addresses))
-	out.SecretRef = in.SecretRef
+	*out = *(*OpenSearchConfig)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -245,9 +242,7 @@ func Convert_search_ResourceRegistryList_To_v1alpha1_ResourceRegistryList(in *se
 }
 
 func autoConvert_v1alpha1_ResourceRegistrySpec_To_search_ResourceRegistrySpec(in *ResourceRegistrySpec, out *search.ResourceRegistrySpec, s conversion.Scope) error {
-	out.TargetCluster = in.TargetCluster
-	out.ResourceSelectors = *(*[]search.ResourceSelector)(unsafe.Pointer(&in.ResourceSelectors))
-	out.BackendStore = (*search.BackendStoreConfig)(unsafe.Pointer(in.BackendStore))
+	*out = *(*search.ResourceRegistrySpec)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -257,9 +252,7 @@ func Convert_v1alpha1_ResourceRegistrySpec_To_search_ResourceRegistrySpec(in *Re
 }
 
 func autoConvert_search_ResourceRegistrySpec_To_v1alpha1_ResourceRegistrySpec(in *search.ResourceRegistrySpec, out *ResourceRegistrySpec, s conversion.Scope) error {
-	out.TargetCluster = in.TargetCluster
-	out.ResourceSelectors = *(*[]ResourceSelector)(unsafe.Pointer(&in.ResourceSelectors))
-	out.BackendStore = (*BackendStoreConfig)(unsafe.Pointer(in.BackendStore))
+	*out = *(*ResourceRegistrySpec)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -269,7 +262,7 @@ func Convert_search_ResourceRegistrySpec_To_v1alpha1_ResourceRegistrySpec(in *se
 }
 
 func autoConvert_v1alpha1_ResourceRegistryStatus_To_search_ResourceRegistryStatus(in *ResourceRegistryStatus, out *search.ResourceRegistryStatus, s conversion.Scope) error {
-	out.Conditions = *(*[]v1.Condition)(unsafe.Pointer(&in.Conditions))
+	*out = *(*search.ResourceRegistryStatus)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -279,7 +272,7 @@ func Convert_v1alpha1_ResourceRegistryStatus_To_search_ResourceRegistryStatus(in
 }
 
 func autoConvert_search_ResourceRegistryStatus_To_v1alpha1_ResourceRegistryStatus(in *search.ResourceRegistryStatus, out *ResourceRegistryStatus, s conversion.Scope) error {
-	out.Conditions = *(*[]v1.Condition)(unsafe.Pointer(&in.Conditions))
+	*out = *(*ResourceRegistryStatus)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -289,9 +282,7 @@ func Convert_search_ResourceRegistryStatus_To_v1alpha1_ResourceRegistryStatus(in
 }
 
 func autoConvert_v1alpha1_ResourceSelector_To_search_ResourceSelector(in *ResourceSelector, out *search.ResourceSelector, s conversion.Scope) error {
-	out.APIVersion = in.APIVersion
-	out.Kind = in.Kind
-	out.Namespace = in.Namespace
+	*out = *(*search.ResourceSelector)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -301,9 +292,7 @@ func Convert_v1alpha1_ResourceSelector_To_search_ResourceSelector(in *ResourceSe
 }
 
 func autoConvert_search_ResourceSelector_To_v1alpha1_ResourceSelector(in *search.ResourceSelector, out *ResourceSelector, s conversion.Scope) error {
-	out.APIVersion = in.APIVersion
-	out.Kind = in.Kind
-	out.Namespace = in.Namespace
+	*out = *(*ResourceSelector)(unsafe.Pointer(in))
 	return nil
 }
 

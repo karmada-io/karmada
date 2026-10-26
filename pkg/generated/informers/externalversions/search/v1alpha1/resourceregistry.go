@@ -34,11 +34,39 @@ import (
 )
 
 // ResourceRegistryInformer provides access to a shared informer and lister for
-// ResourceRegistries.
+// ResourceRegistries. Prefer using the type-safe variant (see [TypedResourceRegistryInformer]).
 type ResourceRegistryInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() searchv1alpha1.ResourceRegistryLister
 }
+
+// TypedResourceRegistryInformer provides access to a shared informer and lister for
+// ResourceRegistries, including the type-safe TypedInformer variant.
+// It is a superset of ResourceRegistryInformer.
+type TypedResourceRegistryInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() ResourceRegistryIndexInformer
+	Lister() searchv1alpha1.ResourceRegistryLister
+}
+
+// ResourceRegistryIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type ResourceRegistryIndexInformer cache.TypedSharedIndexInformer[*apissearchv1alpha1.ResourceRegistry]
+
+// ResourceRegistryHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for ResourceRegistry.
+type ResourceRegistryHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apissearchv1alpha1.ResourceRegistry]
+
+// ResourceRegistryDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for ResourceRegistry.
+type ResourceRegistryDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apissearchv1alpha1.ResourceRegistry]
+
+// ResourceRegistryFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for ResourceRegistry.
+type ResourceRegistryFilteringHandler = cache.TypedFilteringResourceEventHandler[*apissearchv1alpha1.ResourceRegistry]
+
+// ResourceRegistryIndexers is a specialization of [cache.TypedIndexers] for ResourceRegistry.
+type ResourceRegistryIndexers = cache.TypedIndexers[*apissearchv1alpha1.ResourceRegistry]
+
+// DeletedResourceRegistry is a specialization of [cache.DeletedObject] for ResourceRegistry.
+type DeletedResourceRegistry = cache.DeletedObject[*apissearchv1alpha1.ResourceRegistry]
 
 type resourceRegistryInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -48,25 +76,49 @@ type resourceRegistryInformer struct {
 // NewResourceRegistryInformer constructs a new informer for ResourceRegistry type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedResourceRegistryInformer]).
 func NewResourceRegistryInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewResourceRegistryInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedResourceRegistryInformer constructs a new informer for ResourceRegistry type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedResourceRegistryInformer(client versioned.Interface, resyncPeriod time.Duration, indexers ResourceRegistryIndexers) ResourceRegistryIndexInformer {
+	return NewTypedResourceRegistryInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredResourceRegistryInformer constructs a new informer for ResourceRegistry type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredResourceRegistryInformer]).
 func NewFilteredResourceRegistryInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewResourceRegistryInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+	return NewTypedResourceRegistryInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredResourceRegistryInformer constructs a new informer for ResourceRegistry type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredResourceRegistryInformer(client versioned.Interface, resyncPeriod time.Duration, indexers ResourceRegistryIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) ResourceRegistryIndexInformer {
+	return NewTypedResourceRegistryInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
 }
 
 // NewResourceRegistryInformerWithOptions constructs a new informer for ResourceRegistry type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedResourceRegistryInformerWithOptions]).
 func NewResourceRegistryInformerWithOptions(client versioned.Interface, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedResourceRegistryInformerWithOptions(client, options)
+}
+
+// NewTypedResourceRegistryInformerWithOptions constructs a new informer for ResourceRegistry type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedResourceRegistryInformerWithOptions(client versioned.Interface, options internalinterfaces.InformerOptions) ResourceRegistryIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "search.karmada.io", Version: "v1alpha1", Resource: "resourceregistrys"}
 	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
-	return cache.NewSharedIndexInformerWithOptions(
+	return cache.NewTypedSharedIndexInformer[*apissearchv1alpha1.ResourceRegistry](cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
@@ -99,17 +151,57 @@ func NewResourceRegistryInformerWithOptions(client versioned.Interface, options 
 			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
-	)
+	))
 }
 
 func (f *resourceRegistryInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewResourceRegistryInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
+	return NewTypedResourceRegistryInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *resourceRegistryInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apissearchv1alpha1.ResourceRegistry{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *resourceRegistryInformer) TypedInformer() ResourceRegistryIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apissearchv1alpha1.ResourceRegistry](f.factory.InformerFor(&apissearchv1alpha1.ResourceRegistry{}, f.defaultInformer))
 }
 
 func (f *resourceRegistryInformer) Lister() searchv1alpha1.ResourceRegistryLister {
 	return searchv1alpha1.NewResourceRegistryLister(f.Informer().GetIndexer())
+}
+
+// ToTypedResourceRegistryInformer converts an untyped informer into a TypedResourceRegistryInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *ResourceRegistry. If that is not the case, calling type-safe methods of the returned
+// TypedResourceRegistryInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedResourceRegistryInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedResourceRegistryInformer(informer ResourceRegistryInformer) TypedResourceRegistryInformer {
+	if informer, ok := informer.(TypedResourceRegistryInformer); ok {
+		return informer
+	}
+	return &resourceRegistryTypedInformerAdapter{informer}
+}
+
+type resourceRegistryTypedInformerAdapter struct {
+	ResourceRegistryInformer
+}
+
+func (a *resourceRegistryTypedInformerAdapter) TypedInformer() ResourceRegistryIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apissearchv1alpha1.ResourceRegistry](a.Informer())
+}
+
+// ToResourceRegistryIndexInformer converts an untyped informer into a ResourceRegistryIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *ResourceRegistry. If that is not the case, calling type-safe methods of the returned
+// ResourceRegistryIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a ResourceRegistryIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToResourceRegistryIndexInformer(informer cache.SharedIndexInformer) ResourceRegistryIndexInformer {
+	if informer, ok := informer.(ResourceRegistryIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*apissearchv1alpha1.ResourceRegistry](informer)
 }

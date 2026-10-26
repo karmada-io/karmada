@@ -34,11 +34,39 @@ import (
 )
 
 // WorkInformer provides access to a shared informer and lister for
-// Works.
+// Works. Prefer using the type-safe variant (see [TypedWorkInformer]).
 type WorkInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() workv1alpha1.WorkLister
 }
+
+// TypedWorkInformer provides access to a shared informer and lister for
+// Works, including the type-safe TypedInformer variant.
+// It is a superset of WorkInformer.
+type TypedWorkInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() WorkIndexInformer
+	Lister() workv1alpha1.WorkLister
+}
+
+// WorkIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type WorkIndexInformer cache.TypedSharedIndexInformer[*apisworkv1alpha1.Work]
+
+// WorkHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for Work.
+type WorkHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apisworkv1alpha1.Work]
+
+// WorkDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for Work.
+type WorkDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apisworkv1alpha1.Work]
+
+// WorkFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for Work.
+type WorkFilteringHandler = cache.TypedFilteringResourceEventHandler[*apisworkv1alpha1.Work]
+
+// WorkIndexers is a specialization of [cache.TypedIndexers] for Work.
+type WorkIndexers = cache.TypedIndexers[*apisworkv1alpha1.Work]
+
+// DeletedWork is a specialization of [cache.DeletedObject] for Work.
+type DeletedWork = cache.DeletedObject[*apisworkv1alpha1.Work]
 
 type workInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -49,25 +77,49 @@ type workInformer struct {
 // NewWorkInformer constructs a new informer for Work type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedWorkInformer]).
 func NewWorkInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewWorkInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedWorkInformer constructs a new informer for Work type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedWorkInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers WorkIndexers) WorkIndexInformer {
+	return NewTypedWorkInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredWorkInformer constructs a new informer for Work type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredWorkInformer]).
 func NewFilteredWorkInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewWorkInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+	return NewTypedWorkInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredWorkInformer constructs a new informer for Work type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredWorkInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers WorkIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) WorkIndexInformer {
+	return NewTypedWorkInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
 }
 
 // NewWorkInformerWithOptions constructs a new informer for Work type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedWorkInformerWithOptions]).
 func NewWorkInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedWorkInformerWithOptions(client, namespace, options)
+}
+
+// NewTypedWorkInformerWithOptions constructs a new informer for Work type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedWorkInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) WorkIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "work.karmada.io", Version: "v1alpha1", Resource: "works"}
 	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
-	return cache.NewSharedIndexInformerWithOptions(
+	return cache.NewTypedSharedIndexInformer[*apisworkv1alpha1.Work](cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
@@ -100,17 +152,57 @@ func NewWorkInformerWithOptions(client versioned.Interface, namespace string, op
 			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
-	)
+	))
 }
 
 func (f *workInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewWorkInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
+	return NewTypedWorkInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *workInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apisworkv1alpha1.Work{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *workInformer) TypedInformer() WorkIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apisworkv1alpha1.Work](f.factory.InformerFor(&apisworkv1alpha1.Work{}, f.defaultInformer))
 }
 
 func (f *workInformer) Lister() workv1alpha1.WorkLister {
 	return workv1alpha1.NewWorkLister(f.Informer().GetIndexer())
+}
+
+// ToTypedWorkInformer converts an untyped informer into a TypedWorkInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *Work. If that is not the case, calling type-safe methods of the returned
+// TypedWorkInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedWorkInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedWorkInformer(informer WorkInformer) TypedWorkInformer {
+	if informer, ok := informer.(TypedWorkInformer); ok {
+		return informer
+	}
+	return &workTypedInformerAdapter{informer}
+}
+
+type workTypedInformerAdapter struct {
+	WorkInformer
+}
+
+func (a *workTypedInformerAdapter) TypedInformer() WorkIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apisworkv1alpha1.Work](a.Informer())
+}
+
+// ToWorkIndexInformer converts an untyped informer into a WorkIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *Work. If that is not the case, calling type-safe methods of the returned
+// WorkIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a WorkIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToWorkIndexInformer(informer cache.SharedIndexInformer) WorkIndexInformer {
+	if informer, ok := informer.(WorkIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*apisworkv1alpha1.Work](informer)
 }

@@ -25,9 +25,9 @@ import (
 // Interface provides access to all the informers in this group version.
 type Interface interface {
 	// CronFederatedHPAs returns a CronFederatedHPAInformer.
-	CronFederatedHPAs() CronFederatedHPAInformer
+	CronFederatedHPAs() TypedCronFederatedHPAInformer
 	// FederatedHPAs returns a FederatedHPAInformer.
-	FederatedHPAs() FederatedHPAInformer
+	FederatedHPAs() TypedFederatedHPAInformer
 }
 
 type version struct {
@@ -41,12 +41,12 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
-// CronFederatedHPAs returns a CronFederatedHPAInformer.
-func (v *version) CronFederatedHPAs() CronFederatedHPAInformer {
+// CronFederatedHPAs returns a TypedCronFederatedHPAInformer.
+func (v *version) CronFederatedHPAs() TypedCronFederatedHPAInformer {
 	return &cronFederatedHPAInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
-// FederatedHPAs returns a FederatedHPAInformer.
-func (v *version) FederatedHPAs() FederatedHPAInformer {
+// FederatedHPAs returns a TypedFederatedHPAInformer.
+func (v *version) FederatedHPAs() TypedFederatedHPAInformer {
 	return &federatedHPAInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

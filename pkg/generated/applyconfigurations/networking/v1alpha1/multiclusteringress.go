@@ -35,7 +35,7 @@ import (
 // endpoints defined by a backend. The structure of MultiClusterIngress is same as Ingress,
 // indicates the Ingress in multi-clusters.
 type MultiClusterIngressApplyConfiguration struct {
-	v1.TypeMetaApplyConfiguration    `json:",inline"`
+	v1.TypeMetaApplyConfiguration    `json:""`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
 	// Spec is the desired state of the MultiClusterIngress.
 	Spec *networkingv1.IngressSpecApplyConfiguration `json:"spec,omitempty"`

@@ -33,7 +33,7 @@ type RuleWithOperationsApplyConfiguration struct {
 	Operations []configv1alpha1.InterpreterOperation `json:"operations,omitempty"`
 	// Rule is embedded, it describes other criteria of the rule, like
 	// APIGroups, APIVersions, Kinds, etc.
-	RuleApplyConfiguration `json:",inline"`
+	RuleApplyConfiguration `json:""`
 }
 
 // RuleWithOperationsApplyConfiguration constructs a declarative configuration of the RuleWithOperations type for use with

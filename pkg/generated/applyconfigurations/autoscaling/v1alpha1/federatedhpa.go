@@ -36,7 +36,7 @@ import (
 // When the system load decreases, it will query the metrics from multiple clusters and scales down the replicas.
 // After the replicas are scaled up/down, karmada-scheduler will schedule the replicas based on the policy.
 type FederatedHPAApplyConfiguration struct {
-	v1.TypeMetaApplyConfiguration    `json:",inline"`
+	v1.TypeMetaApplyConfiguration    `json:""`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
 	// Spec is the specification of the FederatedHPA.
 	Spec *FederatedHPASpecApplyConfiguration `json:"spec,omitempty"`

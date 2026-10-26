@@ -34,11 +34,39 @@ import (
 )
 
 // FederatedResourceQuotaInformer provides access to a shared informer and lister for
-// FederatedResourceQuotas.
+// FederatedResourceQuotas. Prefer using the type-safe variant (see [TypedFederatedResourceQuotaInformer]).
 type FederatedResourceQuotaInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() policyv1alpha1.FederatedResourceQuotaLister
 }
+
+// TypedFederatedResourceQuotaInformer provides access to a shared informer and lister for
+// FederatedResourceQuotas, including the type-safe TypedInformer variant.
+// It is a superset of FederatedResourceQuotaInformer.
+type TypedFederatedResourceQuotaInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() FederatedResourceQuotaIndexInformer
+	Lister() policyv1alpha1.FederatedResourceQuotaLister
+}
+
+// FederatedResourceQuotaIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type FederatedResourceQuotaIndexInformer cache.TypedSharedIndexInformer[*apispolicyv1alpha1.FederatedResourceQuota]
+
+// FederatedResourceQuotaHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for FederatedResourceQuota.
+type FederatedResourceQuotaHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apispolicyv1alpha1.FederatedResourceQuota]
+
+// FederatedResourceQuotaDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for FederatedResourceQuota.
+type FederatedResourceQuotaDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apispolicyv1alpha1.FederatedResourceQuota]
+
+// FederatedResourceQuotaFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for FederatedResourceQuota.
+type FederatedResourceQuotaFilteringHandler = cache.TypedFilteringResourceEventHandler[*apispolicyv1alpha1.FederatedResourceQuota]
+
+// FederatedResourceQuotaIndexers is a specialization of [cache.TypedIndexers] for FederatedResourceQuota.
+type FederatedResourceQuotaIndexers = cache.TypedIndexers[*apispolicyv1alpha1.FederatedResourceQuota]
+
+// DeletedFederatedResourceQuota is a specialization of [cache.DeletedObject] for FederatedResourceQuota.
+type DeletedFederatedResourceQuota = cache.DeletedObject[*apispolicyv1alpha1.FederatedResourceQuota]
 
 type federatedResourceQuotaInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -49,25 +77,49 @@ type federatedResourceQuotaInformer struct {
 // NewFederatedResourceQuotaInformer constructs a new informer for FederatedResourceQuota type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFederatedResourceQuotaInformer]).
 func NewFederatedResourceQuotaInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewFederatedResourceQuotaInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedFederatedResourceQuotaInformer constructs a new informer for FederatedResourceQuota type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFederatedResourceQuotaInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers FederatedResourceQuotaIndexers) FederatedResourceQuotaIndexInformer {
+	return NewTypedFederatedResourceQuotaInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredFederatedResourceQuotaInformer constructs a new informer for FederatedResourceQuota type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredFederatedResourceQuotaInformer]).
 func NewFilteredFederatedResourceQuotaInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewFederatedResourceQuotaInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+	return NewTypedFederatedResourceQuotaInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredFederatedResourceQuotaInformer constructs a new informer for FederatedResourceQuota type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredFederatedResourceQuotaInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers FederatedResourceQuotaIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) FederatedResourceQuotaIndexInformer {
+	return NewTypedFederatedResourceQuotaInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
 }
 
 // NewFederatedResourceQuotaInformerWithOptions constructs a new informer for FederatedResourceQuota type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFederatedResourceQuotaInformerWithOptions]).
 func NewFederatedResourceQuotaInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedFederatedResourceQuotaInformerWithOptions(client, namespace, options)
+}
+
+// NewTypedFederatedResourceQuotaInformerWithOptions constructs a new informer for FederatedResourceQuota type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFederatedResourceQuotaInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) FederatedResourceQuotaIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "policy.karmada.io", Version: "v1alpha1", Resource: "federatedresourcequotas"}
 	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
-	return cache.NewSharedIndexInformerWithOptions(
+	return cache.NewTypedSharedIndexInformer[*apispolicyv1alpha1.FederatedResourceQuota](cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
@@ -100,17 +152,57 @@ func NewFederatedResourceQuotaInformerWithOptions(client versioned.Interface, na
 			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
-	)
+	))
 }
 
 func (f *federatedResourceQuotaInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFederatedResourceQuotaInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
+	return NewTypedFederatedResourceQuotaInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *federatedResourceQuotaInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apispolicyv1alpha1.FederatedResourceQuota{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *federatedResourceQuotaInformer) TypedInformer() FederatedResourceQuotaIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apispolicyv1alpha1.FederatedResourceQuota](f.factory.InformerFor(&apispolicyv1alpha1.FederatedResourceQuota{}, f.defaultInformer))
 }
 
 func (f *federatedResourceQuotaInformer) Lister() policyv1alpha1.FederatedResourceQuotaLister {
 	return policyv1alpha1.NewFederatedResourceQuotaLister(f.Informer().GetIndexer())
+}
+
+// ToTypedFederatedResourceQuotaInformer converts an untyped informer into a TypedFederatedResourceQuotaInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *FederatedResourceQuota. If that is not the case, calling type-safe methods of the returned
+// TypedFederatedResourceQuotaInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedFederatedResourceQuotaInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedFederatedResourceQuotaInformer(informer FederatedResourceQuotaInformer) TypedFederatedResourceQuotaInformer {
+	if informer, ok := informer.(TypedFederatedResourceQuotaInformer); ok {
+		return informer
+	}
+	return &federatedResourceQuotaTypedInformerAdapter{informer}
+}
+
+type federatedResourceQuotaTypedInformerAdapter struct {
+	FederatedResourceQuotaInformer
+}
+
+func (a *federatedResourceQuotaTypedInformerAdapter) TypedInformer() FederatedResourceQuotaIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apispolicyv1alpha1.FederatedResourceQuota](a.Informer())
+}
+
+// ToFederatedResourceQuotaIndexInformer converts an untyped informer into a FederatedResourceQuotaIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *FederatedResourceQuota. If that is not the case, calling type-safe methods of the returned
+// FederatedResourceQuotaIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a FederatedResourceQuotaIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToFederatedResourceQuotaIndexInformer(informer cache.SharedIndexInformer) FederatedResourceQuotaIndexInformer {
+	if informer, ok := informer.(FederatedResourceQuotaIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*apispolicyv1alpha1.FederatedResourceQuota](informer)
 }

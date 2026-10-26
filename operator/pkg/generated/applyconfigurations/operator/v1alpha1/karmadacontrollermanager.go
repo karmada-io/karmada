@@ -29,7 +29,7 @@ import (
 // KarmadaControllerManager holds settings to the karmada-controller-manager component of the karmada.
 type KarmadaControllerManagerApplyConfiguration struct {
 	// CommonSettings holds common settings to karmada controller manager.
-	CommonSettingsApplyConfiguration `json:",inline"`
+	CommonSettingsApplyConfiguration `json:""`
 	// A list of controllers to enable. '*' enables all on-by-default controllers,
 	// 'foo' enables the controller named 'foo', '-foo' disables the controller named
 	// 'foo'.

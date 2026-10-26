@@ -25,7 +25,7 @@ import (
 // Interface provides access to all the informers in this group version.
 type Interface interface {
 	// ResourceRegistries returns a ResourceRegistryInformer.
-	ResourceRegistries() ResourceRegistryInformer
+	ResourceRegistries() TypedResourceRegistryInformer
 }
 
 type version struct {
@@ -39,7 +39,7 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
-// ResourceRegistries returns a ResourceRegistryInformer.
-func (v *version) ResourceRegistries() ResourceRegistryInformer {
+// ResourceRegistries returns a TypedResourceRegistryInformer.
+func (v *version) ResourceRegistries() TypedResourceRegistryInformer {
 	return &resourceRegistryInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }

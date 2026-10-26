@@ -38,7 +38,7 @@ import (
 // MultiClusterService can control the exposure of services to outside multiple
 // clusters, and also enable service discovery between clusters.
 type MultiClusterServiceApplyConfiguration struct {
-	v1.TypeMetaApplyConfiguration    `json:",inline"`
+	v1.TypeMetaApplyConfiguration    `json:""`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
 	// Spec is the desired state of the MultiClusterService.
 	Spec *MultiClusterServiceSpecApplyConfiguration `json:"spec,omitempty"`

@@ -32,7 +32,7 @@ import (
 //
 // WorkloadRebalancer represents the desired behavior and status of a job which can enforces a resource rebalance.
 type WorkloadRebalancerApplyConfiguration struct {
-	v1.TypeMetaApplyConfiguration    `json:",inline"`
+	v1.TypeMetaApplyConfiguration    `json:""`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
 	// Spec represents the specification of the desired behavior of WorkloadRebalancer.
 	Spec *WorkloadRebalancerSpecApplyConfiguration `json:"spec,omitempty"`

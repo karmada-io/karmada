@@ -29,7 +29,7 @@ import (
 // LocalEtcd describes that operator should run an etcd cluster in a host cluster.
 type LocalEtcdApplyConfiguration struct {
 	// CommonSettings holds common settings to etcd.
-	CommonSettingsApplyConfiguration `json:",inline"`
+	CommonSettingsApplyConfiguration `json:""`
 	// VolumeData describes the settings of etcd data store.
 	// We will support 3 modes: emptyDir, hostPath, PVC. default by hostPath.
 	VolumeData *VolumeDataApplyConfiguration `json:"volumeData,omitempty"`

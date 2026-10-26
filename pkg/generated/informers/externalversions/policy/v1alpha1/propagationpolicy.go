@@ -34,11 +34,39 @@ import (
 )
 
 // PropagationPolicyInformer provides access to a shared informer and lister for
-// PropagationPolicies.
+// PropagationPolicies. Prefer using the type-safe variant (see [TypedPropagationPolicyInformer]).
 type PropagationPolicyInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() policyv1alpha1.PropagationPolicyLister
 }
+
+// TypedPropagationPolicyInformer provides access to a shared informer and lister for
+// PropagationPolicies, including the type-safe TypedInformer variant.
+// It is a superset of PropagationPolicyInformer.
+type TypedPropagationPolicyInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() PropagationPolicyIndexInformer
+	Lister() policyv1alpha1.PropagationPolicyLister
+}
+
+// PropagationPolicyIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type PropagationPolicyIndexInformer cache.TypedSharedIndexInformer[*apispolicyv1alpha1.PropagationPolicy]
+
+// PropagationPolicyHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for PropagationPolicy.
+type PropagationPolicyHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apispolicyv1alpha1.PropagationPolicy]
+
+// PropagationPolicyDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for PropagationPolicy.
+type PropagationPolicyDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apispolicyv1alpha1.PropagationPolicy]
+
+// PropagationPolicyFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for PropagationPolicy.
+type PropagationPolicyFilteringHandler = cache.TypedFilteringResourceEventHandler[*apispolicyv1alpha1.PropagationPolicy]
+
+// PropagationPolicyIndexers is a specialization of [cache.TypedIndexers] for PropagationPolicy.
+type PropagationPolicyIndexers = cache.TypedIndexers[*apispolicyv1alpha1.PropagationPolicy]
+
+// DeletedPropagationPolicy is a specialization of [cache.DeletedObject] for PropagationPolicy.
+type DeletedPropagationPolicy = cache.DeletedObject[*apispolicyv1alpha1.PropagationPolicy]
 
 type propagationPolicyInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -49,25 +77,49 @@ type propagationPolicyInformer struct {
 // NewPropagationPolicyInformer constructs a new informer for PropagationPolicy type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedPropagationPolicyInformer]).
 func NewPropagationPolicyInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewPropagationPolicyInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedPropagationPolicyInformer constructs a new informer for PropagationPolicy type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedPropagationPolicyInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers PropagationPolicyIndexers) PropagationPolicyIndexInformer {
+	return NewTypedPropagationPolicyInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredPropagationPolicyInformer constructs a new informer for PropagationPolicy type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredPropagationPolicyInformer]).
 func NewFilteredPropagationPolicyInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewPropagationPolicyInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+	return NewTypedPropagationPolicyInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredPropagationPolicyInformer constructs a new informer for PropagationPolicy type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredPropagationPolicyInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers PropagationPolicyIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) PropagationPolicyIndexInformer {
+	return NewTypedPropagationPolicyInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
 }
 
 // NewPropagationPolicyInformerWithOptions constructs a new informer for PropagationPolicy type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedPropagationPolicyInformerWithOptions]).
 func NewPropagationPolicyInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedPropagationPolicyInformerWithOptions(client, namespace, options)
+}
+
+// NewTypedPropagationPolicyInformerWithOptions constructs a new informer for PropagationPolicy type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedPropagationPolicyInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) PropagationPolicyIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "policy.karmada.io", Version: "v1alpha1", Resource: "propagationpolicys"}
 	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
-	return cache.NewSharedIndexInformerWithOptions(
+	return cache.NewTypedSharedIndexInformer[*apispolicyv1alpha1.PropagationPolicy](cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
@@ -100,17 +152,57 @@ func NewPropagationPolicyInformerWithOptions(client versioned.Interface, namespa
 			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
-	)
+	))
 }
 
 func (f *propagationPolicyInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewPropagationPolicyInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
+	return NewTypedPropagationPolicyInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *propagationPolicyInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apispolicyv1alpha1.PropagationPolicy{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *propagationPolicyInformer) TypedInformer() PropagationPolicyIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apispolicyv1alpha1.PropagationPolicy](f.factory.InformerFor(&apispolicyv1alpha1.PropagationPolicy{}, f.defaultInformer))
 }
 
 func (f *propagationPolicyInformer) Lister() policyv1alpha1.PropagationPolicyLister {
 	return policyv1alpha1.NewPropagationPolicyLister(f.Informer().GetIndexer())
+}
+
+// ToTypedPropagationPolicyInformer converts an untyped informer into a TypedPropagationPolicyInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *PropagationPolicy. If that is not the case, calling type-safe methods of the returned
+// TypedPropagationPolicyInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedPropagationPolicyInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedPropagationPolicyInformer(informer PropagationPolicyInformer) TypedPropagationPolicyInformer {
+	if informer, ok := informer.(TypedPropagationPolicyInformer); ok {
+		return informer
+	}
+	return &propagationPolicyTypedInformerAdapter{informer}
+}
+
+type propagationPolicyTypedInformerAdapter struct {
+	PropagationPolicyInformer
+}
+
+func (a *propagationPolicyTypedInformerAdapter) TypedInformer() PropagationPolicyIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apispolicyv1alpha1.PropagationPolicy](a.Informer())
+}
+
+// ToPropagationPolicyIndexInformer converts an untyped informer into a PropagationPolicyIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *PropagationPolicy. If that is not the case, calling type-safe methods of the returned
+// PropagationPolicyIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a PropagationPolicyIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToPropagationPolicyIndexInformer(informer cache.SharedIndexInformer) PropagationPolicyIndexInformer {
+	if informer, ok := informer.(PropagationPolicyIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*apispolicyv1alpha1.PropagationPolicy](informer)
 }

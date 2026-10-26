@@ -34,11 +34,39 @@ import (
 )
 
 // ResourceBindingInformer provides access to a shared informer and lister for
-// ResourceBindings.
+// ResourceBindings. Prefer using the type-safe variant (see [TypedResourceBindingInformer]).
 type ResourceBindingInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() workv1alpha2.ResourceBindingLister
 }
+
+// TypedResourceBindingInformer provides access to a shared informer and lister for
+// ResourceBindings, including the type-safe TypedInformer variant.
+// It is a superset of ResourceBindingInformer.
+type TypedResourceBindingInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() ResourceBindingIndexInformer
+	Lister() workv1alpha2.ResourceBindingLister
+}
+
+// ResourceBindingIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type ResourceBindingIndexInformer cache.TypedSharedIndexInformer[*apisworkv1alpha2.ResourceBinding]
+
+// ResourceBindingHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for ResourceBinding.
+type ResourceBindingHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apisworkv1alpha2.ResourceBinding]
+
+// ResourceBindingDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for ResourceBinding.
+type ResourceBindingDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apisworkv1alpha2.ResourceBinding]
+
+// ResourceBindingFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for ResourceBinding.
+type ResourceBindingFilteringHandler = cache.TypedFilteringResourceEventHandler[*apisworkv1alpha2.ResourceBinding]
+
+// ResourceBindingIndexers is a specialization of [cache.TypedIndexers] for ResourceBinding.
+type ResourceBindingIndexers = cache.TypedIndexers[*apisworkv1alpha2.ResourceBinding]
+
+// DeletedResourceBinding is a specialization of [cache.DeletedObject] for ResourceBinding.
+type DeletedResourceBinding = cache.DeletedObject[*apisworkv1alpha2.ResourceBinding]
 
 type resourceBindingInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -49,25 +77,49 @@ type resourceBindingInformer struct {
 // NewResourceBindingInformer constructs a new informer for ResourceBinding type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedResourceBindingInformer]).
 func NewResourceBindingInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewResourceBindingInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedResourceBindingInformer constructs a new informer for ResourceBinding type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedResourceBindingInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers ResourceBindingIndexers) ResourceBindingIndexInformer {
+	return NewTypedResourceBindingInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredResourceBindingInformer constructs a new informer for ResourceBinding type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredResourceBindingInformer]).
 func NewFilteredResourceBindingInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewResourceBindingInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+	return NewTypedResourceBindingInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredResourceBindingInformer constructs a new informer for ResourceBinding type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredResourceBindingInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers ResourceBindingIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) ResourceBindingIndexInformer {
+	return NewTypedResourceBindingInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
 }
 
 // NewResourceBindingInformerWithOptions constructs a new informer for ResourceBinding type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedResourceBindingInformerWithOptions]).
 func NewResourceBindingInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedResourceBindingInformerWithOptions(client, namespace, options)
+}
+
+// NewTypedResourceBindingInformerWithOptions constructs a new informer for ResourceBinding type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedResourceBindingInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) ResourceBindingIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "work.karmada.io", Version: "v1alpha2", Resource: "resourcebindings"}
 	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
-	return cache.NewSharedIndexInformerWithOptions(
+	return cache.NewTypedSharedIndexInformer[*apisworkv1alpha2.ResourceBinding](cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
@@ -100,17 +152,57 @@ func NewResourceBindingInformerWithOptions(client versioned.Interface, namespace
 			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
-	)
+	))
 }
 
 func (f *resourceBindingInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewResourceBindingInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
+	return NewTypedResourceBindingInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *resourceBindingInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apisworkv1alpha2.ResourceBinding{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *resourceBindingInformer) TypedInformer() ResourceBindingIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apisworkv1alpha2.ResourceBinding](f.factory.InformerFor(&apisworkv1alpha2.ResourceBinding{}, f.defaultInformer))
 }
 
 func (f *resourceBindingInformer) Lister() workv1alpha2.ResourceBindingLister {
 	return workv1alpha2.NewResourceBindingLister(f.Informer().GetIndexer())
+}
+
+// ToTypedResourceBindingInformer converts an untyped informer into a TypedResourceBindingInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *ResourceBinding. If that is not the case, calling type-safe methods of the returned
+// TypedResourceBindingInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedResourceBindingInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedResourceBindingInformer(informer ResourceBindingInformer) TypedResourceBindingInformer {
+	if informer, ok := informer.(TypedResourceBindingInformer); ok {
+		return informer
+	}
+	return &resourceBindingTypedInformerAdapter{informer}
+}
+
+type resourceBindingTypedInformerAdapter struct {
+	ResourceBindingInformer
+}
+
+func (a *resourceBindingTypedInformerAdapter) TypedInformer() ResourceBindingIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apisworkv1alpha2.ResourceBinding](a.Informer())
+}
+
+// ToResourceBindingIndexInformer converts an untyped informer into a ResourceBindingIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *ResourceBinding. If that is not the case, calling type-safe methods of the returned
+// ResourceBindingIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a ResourceBindingIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToResourceBindingIndexInformer(informer cache.SharedIndexInformer) ResourceBindingIndexInformer {
+	if informer, ok := informer.(ResourceBindingIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*apisworkv1alpha2.ResourceBinding](informer)
 }

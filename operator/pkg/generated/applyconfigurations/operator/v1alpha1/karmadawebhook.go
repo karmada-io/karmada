@@ -29,7 +29,7 @@ import (
 // KarmadaWebhook holds settings to karmada-webhook component of the karmada.
 type KarmadaWebhookApplyConfiguration struct {
 	// CommonSettings holds common settings to karmada webhook.
-	CommonSettingsApplyConfiguration `json:",inline"`
+	CommonSettingsApplyConfiguration `json:""`
 	// ExtraArgs is an extra set of flags to pass to the karmada-webhook component or
 	// override. A key in this map is the flag name as it appears on the command line except
 	// without leading dash(es).

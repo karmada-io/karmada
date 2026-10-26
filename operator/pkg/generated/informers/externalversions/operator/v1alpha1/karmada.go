@@ -34,11 +34,39 @@ import (
 )
 
 // KarmadaInformer provides access to a shared informer and lister for
-// Karmadas.
+// Karmadas. Prefer using the type-safe variant (see [TypedKarmadaInformer]).
 type KarmadaInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() operatorv1alpha1.KarmadaLister
 }
+
+// TypedKarmadaInformer provides access to a shared informer and lister for
+// Karmadas, including the type-safe TypedInformer variant.
+// It is a superset of KarmadaInformer.
+type TypedKarmadaInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() KarmadaIndexInformer
+	Lister() operatorv1alpha1.KarmadaLister
+}
+
+// KarmadaIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type KarmadaIndexInformer cache.TypedSharedIndexInformer[*apisoperatorv1alpha1.Karmada]
+
+// KarmadaHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for Karmada.
+type KarmadaHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apisoperatorv1alpha1.Karmada]
+
+// KarmadaDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for Karmada.
+type KarmadaDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apisoperatorv1alpha1.Karmada]
+
+// KarmadaFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for Karmada.
+type KarmadaFilteringHandler = cache.TypedFilteringResourceEventHandler[*apisoperatorv1alpha1.Karmada]
+
+// KarmadaIndexers is a specialization of [cache.TypedIndexers] for Karmada.
+type KarmadaIndexers = cache.TypedIndexers[*apisoperatorv1alpha1.Karmada]
+
+// DeletedKarmada is a specialization of [cache.DeletedObject] for Karmada.
+type DeletedKarmada = cache.DeletedObject[*apisoperatorv1alpha1.Karmada]
 
 type karmadaInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -49,25 +77,49 @@ type karmadaInformer struct {
 // NewKarmadaInformer constructs a new informer for Karmada type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedKarmadaInformer]).
 func NewKarmadaInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewKarmadaInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedKarmadaInformer constructs a new informer for Karmada type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedKarmadaInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers KarmadaIndexers) KarmadaIndexInformer {
+	return NewTypedKarmadaInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredKarmadaInformer constructs a new informer for Karmada type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredKarmadaInformer]).
 func NewFilteredKarmadaInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewKarmadaInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+	return NewTypedKarmadaInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredKarmadaInformer constructs a new informer for Karmada type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredKarmadaInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers KarmadaIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) KarmadaIndexInformer {
+	return NewTypedKarmadaInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
 }
 
 // NewKarmadaInformerWithOptions constructs a new informer for Karmada type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedKarmadaInformerWithOptions]).
 func NewKarmadaInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedKarmadaInformerWithOptions(client, namespace, options)
+}
+
+// NewTypedKarmadaInformerWithOptions constructs a new informer for Karmada type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedKarmadaInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) KarmadaIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "operator.karmada.io", Version: "v1alpha1", Resource: "karmadas"}
 	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
-	return cache.NewSharedIndexInformerWithOptions(
+	return cache.NewTypedSharedIndexInformer[*apisoperatorv1alpha1.Karmada](cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
@@ -100,17 +152,57 @@ func NewKarmadaInformerWithOptions(client versioned.Interface, namespace string,
 			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
-	)
+	))
 }
 
 func (f *karmadaInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewKarmadaInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
+	return NewTypedKarmadaInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *karmadaInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apisoperatorv1alpha1.Karmada{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *karmadaInformer) TypedInformer() KarmadaIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apisoperatorv1alpha1.Karmada](f.factory.InformerFor(&apisoperatorv1alpha1.Karmada{}, f.defaultInformer))
 }
 
 func (f *karmadaInformer) Lister() operatorv1alpha1.KarmadaLister {
 	return operatorv1alpha1.NewKarmadaLister(f.Informer().GetIndexer())
+}
+
+// ToTypedKarmadaInformer converts an untyped informer into a TypedKarmadaInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *Karmada. If that is not the case, calling type-safe methods of the returned
+// TypedKarmadaInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedKarmadaInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedKarmadaInformer(informer KarmadaInformer) TypedKarmadaInformer {
+	if informer, ok := informer.(TypedKarmadaInformer); ok {
+		return informer
+	}
+	return &karmadaTypedInformerAdapter{informer}
+}
+
+type karmadaTypedInformerAdapter struct {
+	KarmadaInformer
+}
+
+func (a *karmadaTypedInformerAdapter) TypedInformer() KarmadaIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apisoperatorv1alpha1.Karmada](a.Informer())
+}
+
+// ToKarmadaIndexInformer converts an untyped informer into a KarmadaIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *Karmada. If that is not the case, calling type-safe methods of the returned
+// KarmadaIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a KarmadaIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToKarmadaIndexInformer(informer cache.SharedIndexInformer) KarmadaIndexInformer {
+	if informer, ok := informer.(KarmadaIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*apisoperatorv1alpha1.Karmada](informer)
 }

@@ -34,11 +34,39 @@ import (
 )
 
 // ClusterResourceBindingInformer provides access to a shared informer and lister for
-// ClusterResourceBindings.
+// ClusterResourceBindings. Prefer using the type-safe variant (see [TypedClusterResourceBindingInformer]).
 type ClusterResourceBindingInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() workv1alpha2.ClusterResourceBindingLister
 }
+
+// TypedClusterResourceBindingInformer provides access to a shared informer and lister for
+// ClusterResourceBindings, including the type-safe TypedInformer variant.
+// It is a superset of ClusterResourceBindingInformer.
+type TypedClusterResourceBindingInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() ClusterResourceBindingIndexInformer
+	Lister() workv1alpha2.ClusterResourceBindingLister
+}
+
+// ClusterResourceBindingIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type ClusterResourceBindingIndexInformer cache.TypedSharedIndexInformer[*apisworkv1alpha2.ClusterResourceBinding]
+
+// ClusterResourceBindingHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for ClusterResourceBinding.
+type ClusterResourceBindingHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apisworkv1alpha2.ClusterResourceBinding]
+
+// ClusterResourceBindingDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for ClusterResourceBinding.
+type ClusterResourceBindingDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apisworkv1alpha2.ClusterResourceBinding]
+
+// ClusterResourceBindingFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for ClusterResourceBinding.
+type ClusterResourceBindingFilteringHandler = cache.TypedFilteringResourceEventHandler[*apisworkv1alpha2.ClusterResourceBinding]
+
+// ClusterResourceBindingIndexers is a specialization of [cache.TypedIndexers] for ClusterResourceBinding.
+type ClusterResourceBindingIndexers = cache.TypedIndexers[*apisworkv1alpha2.ClusterResourceBinding]
+
+// DeletedClusterResourceBinding is a specialization of [cache.DeletedObject] for ClusterResourceBinding.
+type DeletedClusterResourceBinding = cache.DeletedObject[*apisworkv1alpha2.ClusterResourceBinding]
 
 type clusterResourceBindingInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -48,25 +76,49 @@ type clusterResourceBindingInformer struct {
 // NewClusterResourceBindingInformer constructs a new informer for ClusterResourceBinding type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedClusterResourceBindingInformer]).
 func NewClusterResourceBindingInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewClusterResourceBindingInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedClusterResourceBindingInformer constructs a new informer for ClusterResourceBinding type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedClusterResourceBindingInformer(client versioned.Interface, resyncPeriod time.Duration, indexers ClusterResourceBindingIndexers) ClusterResourceBindingIndexInformer {
+	return NewTypedClusterResourceBindingInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredClusterResourceBindingInformer constructs a new informer for ClusterResourceBinding type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredClusterResourceBindingInformer]).
 func NewFilteredClusterResourceBindingInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewClusterResourceBindingInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+	return NewTypedClusterResourceBindingInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredClusterResourceBindingInformer constructs a new informer for ClusterResourceBinding type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredClusterResourceBindingInformer(client versioned.Interface, resyncPeriod time.Duration, indexers ClusterResourceBindingIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) ClusterResourceBindingIndexInformer {
+	return NewTypedClusterResourceBindingInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
 }
 
 // NewClusterResourceBindingInformerWithOptions constructs a new informer for ClusterResourceBinding type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedClusterResourceBindingInformerWithOptions]).
 func NewClusterResourceBindingInformerWithOptions(client versioned.Interface, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedClusterResourceBindingInformerWithOptions(client, options)
+}
+
+// NewTypedClusterResourceBindingInformerWithOptions constructs a new informer for ClusterResourceBinding type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedClusterResourceBindingInformerWithOptions(client versioned.Interface, options internalinterfaces.InformerOptions) ClusterResourceBindingIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "work.karmada.io", Version: "v1alpha2", Resource: "clusterresourcebindings"}
 	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
-	return cache.NewSharedIndexInformerWithOptions(
+	return cache.NewTypedSharedIndexInformer[*apisworkv1alpha2.ClusterResourceBinding](cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
@@ -99,17 +151,57 @@ func NewClusterResourceBindingInformerWithOptions(client versioned.Interface, op
 			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
-	)
+	))
 }
 
 func (f *clusterResourceBindingInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewClusterResourceBindingInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
+	return NewTypedClusterResourceBindingInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *clusterResourceBindingInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apisworkv1alpha2.ClusterResourceBinding{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *clusterResourceBindingInformer) TypedInformer() ClusterResourceBindingIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apisworkv1alpha2.ClusterResourceBinding](f.factory.InformerFor(&apisworkv1alpha2.ClusterResourceBinding{}, f.defaultInformer))
 }
 
 func (f *clusterResourceBindingInformer) Lister() workv1alpha2.ClusterResourceBindingLister {
 	return workv1alpha2.NewClusterResourceBindingLister(f.Informer().GetIndexer())
+}
+
+// ToTypedClusterResourceBindingInformer converts an untyped informer into a TypedClusterResourceBindingInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *ClusterResourceBinding. If that is not the case, calling type-safe methods of the returned
+// TypedClusterResourceBindingInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedClusterResourceBindingInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedClusterResourceBindingInformer(informer ClusterResourceBindingInformer) TypedClusterResourceBindingInformer {
+	if informer, ok := informer.(TypedClusterResourceBindingInformer); ok {
+		return informer
+	}
+	return &clusterResourceBindingTypedInformerAdapter{informer}
+}
+
+type clusterResourceBindingTypedInformerAdapter struct {
+	ClusterResourceBindingInformer
+}
+
+func (a *clusterResourceBindingTypedInformerAdapter) TypedInformer() ClusterResourceBindingIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apisworkv1alpha2.ClusterResourceBinding](a.Informer())
+}
+
+// ToClusterResourceBindingIndexInformer converts an untyped informer into a ClusterResourceBindingIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *ClusterResourceBinding. If that is not the case, calling type-safe methods of the returned
+// ClusterResourceBindingIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a ClusterResourceBindingIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToClusterResourceBindingIndexInformer(informer cache.SharedIndexInformer) ClusterResourceBindingIndexInformer {
+	if informer, ok := informer.(ClusterResourceBindingIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*apisworkv1alpha2.ClusterResourceBinding](informer)
 }

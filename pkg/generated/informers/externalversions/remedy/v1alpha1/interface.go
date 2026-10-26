@@ -25,7 +25,7 @@ import (
 // Interface provides access to all the informers in this group version.
 type Interface interface {
 	// Remedies returns a RemedyInformer.
-	Remedies() RemedyInformer
+	Remedies() TypedRemedyInformer
 }
 
 type version struct {
@@ -39,7 +39,7 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
-// Remedies returns a RemedyInformer.
-func (v *version) Remedies() RemedyInformer {
+// Remedies returns a TypedRemedyInformer.
+func (v *version) Remedies() TypedRemedyInformer {
 	return &remedyInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }

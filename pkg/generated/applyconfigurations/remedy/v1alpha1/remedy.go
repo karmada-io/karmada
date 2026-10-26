@@ -32,7 +32,7 @@ import (
 //
 // Remedy represents the cluster-level management strategies based on cluster conditions.
 type RemedyApplyConfiguration struct {
-	v1.TypeMetaApplyConfiguration    `json:",inline"`
+	v1.TypeMetaApplyConfiguration    `json:""`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
 	// Spec represents the desired behavior of Remedy.
 	Spec *RemedySpecApplyConfiguration `json:"spec,omitempty"`

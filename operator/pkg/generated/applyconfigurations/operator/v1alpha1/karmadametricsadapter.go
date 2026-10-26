@@ -29,7 +29,7 @@ import (
 // KarmadaMetricsAdapter holds settings to karmada-metrics-adapter component of the karmada.
 type KarmadaMetricsAdapterApplyConfiguration struct {
 	// CommonSettings holds common settings to karmada metrics adapter.
-	CommonSettingsApplyConfiguration `json:",inline"`
+	CommonSettingsApplyConfiguration `json:""`
 	// ExtraArgs is an extra set of flags to pass to the karmada-metrics-adapter component or override.
 	// A key in this map is the flag name as it appears on the command line except without
 	// leading dash(es).

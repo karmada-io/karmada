@@ -29,7 +29,7 @@ import (
 type ClusterAffinityTermApplyConfiguration struct {
 	// AffinityName is the name of the cluster group.
 	AffinityName                      *string `json:"affinityName,omitempty"`
-	ClusterAffinityApplyConfiguration `json:",inline"`
+	ClusterAffinityApplyConfiguration `json:""`
 	// OverflowAffinities defines additional cluster groups that the scheduler
 	// can progressively include when the primary group (defined by the inline
 	// ClusterAffinity) has insufficient resources. Groups are expanded in order

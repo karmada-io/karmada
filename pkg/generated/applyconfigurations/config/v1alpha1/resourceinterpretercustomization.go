@@ -35,7 +35,7 @@ import (
 // It has higher precedence than the default interpreter and the interpreter
 // webhook.
 type ResourceInterpreterCustomizationApplyConfiguration struct {
-	v1.TypeMetaApplyConfiguration    `json:",inline"`
+	v1.TypeMetaApplyConfiguration    `json:""`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
 	// Spec describes the configuration in detail.
 	Spec *ResourceInterpreterCustomizationSpecApplyConfiguration `json:"spec,omitempty"`

@@ -45,7 +45,7 @@ karmadactl apply (-f FILENAME | -k DIRECTORY)
   -C, --cluster strings                 If present, propagates a group of resources to specified clusters.
       --dry-run string[="unchanged"]    Must be "none", "server", or "client". If client strategy, only print the object that would be sent, without sending it. If server strategy, submit server-side request without persisting the resource. (default "none")
       --field-manager string            Name of the manager used to track field ownership. (default "kubectl-client-side-apply")
-  -f, --filename strings                The files that contain the configurations to apply.
+  -f, --filename strings                The files, directories or URLs that contain the configurations to apply.
       --force                           If true, immediately remove resources from API and bypass graceful deletion. Note that immediate deletion of some resources may result in inconsistency or data loss and requires confirmation.
       --force-conflicts                 If true, server-side apply will force the changes against conflicts.
       --grace-period int                Period of time in seconds given to the resource to terminate gracefully. Ignored if negative. Set to 1 for immediate shutdown. Can only be set to 0 when --force is true (force deletion). (default -1)
