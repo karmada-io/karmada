@@ -398,8 +398,9 @@ func (r *mockPlugin) SupportRequest(_ framework.ProxyRequest) bool {
 }
 
 func (r *mockPlugin) Connect(_ context.Context, _ framework.ProxyRequest) (http.Handler, error) {
-	return http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+	return http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) {
 		r.Called = true
+		rw.WriteHeader(http.StatusOK)
 	}), nil
 }
 
