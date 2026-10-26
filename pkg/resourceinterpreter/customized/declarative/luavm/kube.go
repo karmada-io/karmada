@@ -46,6 +46,9 @@ const (
 //   - function accuratePodRequirements(pod) requirements
 //     accurate total resource requirements for pod. Example:
 //     requirements = kube.accuratePodRequirements(pod)
+//   - function accuratePodLimits(pod) limits
+//     effective raw limits for one pod template. Example:
+//     limits = kube.accuratePodLimits(pod)
 //   - function getPodDependencies(podTemplate, namespace) dependencies
 //     get total dependencies from podTemplate and namespace. Example:
 //     dependencies = kube.getPodDependencies(podTemplate, namespace)
@@ -58,6 +61,7 @@ func KubeLoader(ls *lua.LState) int {
 var kubeFuncs = map[string]lua.LGFunction{
 	"resourceAdd":             resourceAdd,
 	"accuratePodRequirements": accuratePodRequirements,
+	"accuratePodLimits":       accuratePodLimits,
 	"getPodDependencies":      getPodDependencies,
 	"getResourceQuantity":     getResourceQuantity,
 }
@@ -91,12 +95,41 @@ func accuratePodRequirements(ls *lua.LState) int {
 	}
 
 	requirements := helper.GenerateReplicaRequirements(pod)
+	if requirements != nil {
+		requirements.ResourceLimits = nil // Existing scripts opt in through accuratePodLimits.
+		if requirements.NodeClaim == nil && requirements.ResourceRequest == nil {
+			requirements = nil
+		}
+	}
 	retValue, err := decodeValue(ls, requirements)
 	if err != nil {
 		ls.RaiseError("fail to convert %#v to Lua value: %v", requirements, err)
 		return 0
 	}
 
+	ls.Push(retValue)
+	return 1
+}
+
+func accuratePodLimits(ls *lua.LState) int {
+	if ls.GetTop() != 1 {
+		ls.RaiseError("accuratePodLimits accepts one argument")
+		return 0
+	}
+
+	v := ls.CheckTable(1)
+	template := &corev1.PodTemplateSpec{}
+	if err := ConvertLuaResultInto(v, template); err != nil {
+		ls.RaiseError("invalid PodTemplateSpec: %v", err)
+		return 0
+	}
+
+	limits := helper.PodTemplateLimits(template)
+	retValue, err := decodeValue(ls, limits)
+	if err != nil {
+		ls.RaiseError("failed to convert pod limits to Lua: %v", err)
+		return 0
+	}
 	ls.Push(retValue)
 	return 1
 }

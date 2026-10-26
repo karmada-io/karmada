@@ -442,11 +442,13 @@ func GenerateNodeClaimByPodSpec(podSpec *corev1.PodSpec) *workv1alpha2.NodeClaim
 func GenerateReplicaRequirements(podTemplate *corev1.PodTemplateSpec) *workv1alpha2.ReplicaRequirements {
 	nodeClaim := GenerateNodeClaimByPodSpec(&podTemplate.Spec)
 	resourceRequest := util.EmptyResource().AddPodTemplateRequest(&podTemplate.Spec).ResourceList()
+	resourceLimits := PodTemplateLimits(podTemplate)
 
-	if nodeClaim != nil || resourceRequest != nil {
+	if nodeClaim != nil || resourceRequest != nil || len(resourceLimits) != 0 {
 		replicaRequirements := &workv1alpha2.ReplicaRequirements{
 			NodeClaim:       nodeClaim,
 			ResourceRequest: resourceRequest,
+			ResourceLimits:  resourceLimits,
 		}
 		if features.FeatureGate.Enabled(features.ResourceQuotaEstimate) {
 			// PriorityClassName is set from podTemplate
@@ -562,7 +564,7 @@ func CalculateResourceUsage(rb *workv1alpha2.ResourceBinding) corev1.ResourceLis
 	}
 
 	// if Components is not set, calculate the resource usage based on ReplicaRequirements.
-	if rb.Spec.ReplicaRequirements != nil && len(rb.Spec.ReplicaRequirements.ResourceRequest) > 0 {
+	if rb.Spec.ReplicaRequirements != nil {
 		totalReplicas := int32(0)
 		for _, cluster := range rb.Spec.Clusters {
 			totalReplicas += cluster.Replicas
@@ -572,7 +574,8 @@ func CalculateResourceUsage(rb *workv1alpha2.ResourceBinding) corev1.ResourceLis
 		}
 		replicaCount := int64(totalReplicas)
 
-		for resourceName, quantityPerReplica := range rb.Spec.ReplicaRequirements.ResourceRequest {
+		perReplica := quotaResourceList(rb.Spec.ReplicaRequirements.ResourceRequest, rb.Spec.ReplicaRequirements.ResourceLimits)
+		for resourceName, quantityPerReplica := range perReplica {
 			if quantityPerReplica.IsZero() {
 				continue
 			}
@@ -592,7 +595,7 @@ func CalculateResourceUsage(rb *workv1alpha2.ResourceBinding) corev1.ResourceLis
 func aggregateComponentResources(components []workv1alpha2.Component) corev1.ResourceList {
 	aggregatedResources := corev1.ResourceList{}
 	for _, component := range components {
-		if component.ReplicaRequirements == nil || len(component.ReplicaRequirements.ResourceRequest) == 0 {
+		if component.ReplicaRequirements == nil {
 			continue
 		}
 
@@ -601,7 +604,8 @@ func aggregateComponentResources(components []workv1alpha2.Component) corev1.Res
 			continue
 		}
 
-		for resourceName, quantity := range component.ReplicaRequirements.ResourceRequest {
+		perReplica := quotaResourceList(component.ReplicaRequirements.ResourceRequest, component.ReplicaRequirements.ResourceLimits)
+		for resourceName, quantity := range perReplica {
 			if quantity.IsZero() {
 				continue
 			}
@@ -619,6 +623,19 @@ func aggregateComponentResources(components []workv1alpha2.Component) corev1.Res
 		}
 	}
 	return aggregatedResources
+}
+
+func quotaResourceList(requests, limits corev1.ResourceList) corev1.ResourceList {
+	result := requests.DeepCopy()
+	if result == nil {
+		result = corev1.ResourceList{}
+	}
+	for _, name := range []corev1.ResourceName{corev1.ResourceCPU, corev1.ResourceMemory, corev1.ResourceEphemeralStorage} {
+		if quantity, found := limits[name]; found {
+			result[corev1.ResourceName("limits."+string(name))] = quantity.DeepCopy()
+		}
+	}
+	return result
 }
 
 // FindTargetStatusItemByCluster finds the AggregatedStatusItem by cluster name.
