@@ -26,6 +26,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	schedulingv1 "k8s.io/api/scheduling/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -1193,6 +1194,148 @@ func TestApplyClusterPolicy(t *testing.T) {
 	}
 }
 
+func TestBuildResourceBindingWithSchedulePriorityPreemptionPolicy(t *testing.T) {
+	originalFeatureGate := features.FeatureGate.DeepCopy()
+	t.Cleanup(func() {
+		features.FeatureGate = originalFeatureGate
+	})
+
+	preemptLowerPriority := corev1.PreemptLowerPriority
+	preemptNever := corev1.PreemptNever
+	unknownPreemptionPolicy := corev1.PreemptionPolicy("Unknown")
+	wantPreemptLowerPriority := workv1alpha2.PreemptLowerPriority
+
+	tests := []struct {
+		name                           string
+		priorityBasedSchedulingEnabled bool
+		preemptiveSchedulingEnabled    bool
+		priorityClassPreemptionPolicy  *corev1.PreemptionPolicy
+		priorityClassExists            bool
+		wantSchedulePriority           bool
+		wantBindingPreemptionPolicy    *workv1alpha2.PreemptionPolicy
+		wantErr                        bool
+	}{
+		{
+			name:                           "API-defaulted or explicit preempt lower priority maps when both feature gates are enabled",
+			priorityBasedSchedulingEnabled: true,
+			preemptiveSchedulingEnabled:    true,
+			priorityClassPreemptionPolicy:  &preemptLowerPriority,
+			priorityClassExists:            true,
+			wantSchedulePriority:           true,
+			wantBindingPreemptionPolicy:    &wantPreemptLowerPriority,
+		},
+		{
+			name:                           "never leaves binding preemption policy unset",
+			priorityBasedSchedulingEnabled: true,
+			preemptiveSchedulingEnabled:    true,
+			priorityClassPreemptionPolicy:  &preemptNever,
+			priorityClassExists:            true,
+			wantSchedulePriority:           true,
+		},
+		{
+			name:                           "nil priority class preemption policy leaves binding policy unset",
+			priorityBasedSchedulingEnabled: true,
+			preemptiveSchedulingEnabled:    true,
+			priorityClassExists:            true,
+			wantSchedulePriority:           true,
+		},
+		{
+			name:                           "unknown priority class preemption policy leaves binding policy unset",
+			priorityBasedSchedulingEnabled: true,
+			preemptiveSchedulingEnabled:    true,
+			priorityClassPreemptionPolicy:  &unknownPreemptionPolicy,
+			priorityClassExists:            true,
+			wantSchedulePriority:           true,
+		},
+		{
+			name:                           "disabled preemptive scheduling leaves binding policy unset",
+			priorityBasedSchedulingEnabled: true,
+			priorityClassPreemptionPolicy:  &preemptLowerPriority,
+			priorityClassExists:            true,
+			wantSchedulePriority:           true,
+		},
+		{
+			name:                          "disabled priority based scheduling leaves schedule priority unset",
+			preemptiveSchedulingEnabled:   true,
+			priorityClassPreemptionPolicy: &preemptLowerPriority,
+			priorityClassExists:           true,
+		},
+		{
+			name:                           "missing priority class returns an error",
+			priorityBasedSchedulingEnabled: true,
+			preemptiveSchedulingEnabled:    true,
+			wantErr:                        true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if err := features.FeatureGate.Set(fmt.Sprintf("%s=%t,%s=%t",
+				features.PriorityBasedScheduling,
+				test.priorityBasedSchedulingEnabled,
+				features.PriorityBasedPreemptiveScheduling,
+				test.preemptiveSchedulingEnabled,
+			)); err != nil {
+				t.Fatalf("failed to set feature gates: %v", err)
+			}
+
+			const priorityClassName = "high-priority"
+			scheme := setupTestScheme()
+			clientBuilder := fake.NewClientBuilder().WithScheme(scheme)
+			if test.priorityClassExists {
+				clientBuilder = clientBuilder.WithObjects(&schedulingv1.PriorityClass{
+					ObjectMeta:       metav1.ObjectMeta{Name: priorityClassName},
+					Value:            1000,
+					PreemptionPolicy: test.priorityClassPreemptionPolicy,
+				})
+			}
+
+			detector := &ResourceDetector{
+				Client:              clientBuilder.Build(),
+				EventRecorder:       record.NewFakeRecorder(10),
+				ResourceInterpreter: &mockResourceInterpreter{},
+			}
+			object := &unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]any{
+						"name":      "test-deployment",
+						"namespace": "default",
+						"uid":       "test-uid",
+					},
+				},
+			}
+			policySpec := &policyv1alpha1.PropagationSpec{
+				SchedulePriority: &policyv1alpha1.SchedulePriority{
+					PriorityClassSource: policyv1alpha1.KubePriorityClass,
+					PriorityClassName:   priorityClassName,
+				},
+			}
+
+			binding, err := detector.BuildResourceBinding(object, policySpec, "policy-id", metav1.ObjectMeta{}, func(_ metav1.Object, _ string, _ metav1.ObjectMeta) {})
+			if test.wantErr {
+				assert.Error(t, err)
+				assert.Nil(t, binding)
+				return
+			}
+
+			if !assert.NoError(t, err) || !assert.NotNil(t, binding) {
+				return
+			}
+			if !test.wantSchedulePriority {
+				assert.Nil(t, binding.Spec.SchedulePriority)
+				return
+			}
+
+			if assert.NotNil(t, binding.Spec.SchedulePriority) {
+				assert.Equal(t, int32(1000), binding.Spec.SchedulePriority.Priority)
+				assert.Equal(t, test.wantBindingPreemptionPolicy, binding.Spec.SchedulePriority.PreemptionPolicy)
+			}
+		})
+	}
+}
+
 func TestEnqueueResourceKeyWithActivationPref(t *testing.T) {
 	testClusterWideKey := keys.ClusterWideKey{
 		Group:     "foo",
@@ -1265,6 +1408,7 @@ func setupTestScheme() *runtime.Scheme {
 	scheme := runtime.NewScheme()
 	_ = workv1alpha2.Install(scheme)
 	_ = corev1.AddToScheme(scheme)
+	_ = schedulingv1.AddToScheme(scheme)
 	_ = policyv1alpha1.Install(scheme)
 	return scheme
 }

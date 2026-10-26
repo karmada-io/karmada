@@ -875,8 +875,10 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 			}
 			bindingSchedulePriority = &workv1alpha2.SchedulePriority{
 				Priority: kubePriorityClass.Value,
-				// TODO add preemptionpolicy
-				// PreemptionPolicy: kubePriorityClass.PreemptionPolicy,
+			}
+			if features.PriorityBasedPreemptiveSchedulingEnabled() && kubePriorityClass.PreemptionPolicy != nil &&
+				*kubePriorityClass.PreemptionPolicy == corev1.PreemptLowerPriority {
+				bindingSchedulePriority.PreemptionPolicy = ptr.To(workv1alpha2.PreemptLowerPriority)
 			}
 		case policyv1alpha1.PodPriorityClass:
 			return nil, fmt.Errorf("priority class source is PodPriorityClass, but PodPriorityClass is not supported yet")
