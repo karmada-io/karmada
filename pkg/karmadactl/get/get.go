@@ -19,6 +19,7 @@ package get
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"sort"
@@ -35,6 +36,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
@@ -231,6 +233,10 @@ func (g *CommandGetOptions) Complete(f util.Factory, cmd *cobra.Command) error {
 		g.IsHumanReadablePrinter = true
 	}
 
+	if g.PrintFlags.NoHeaders != nil {
+		g.NoHeaders = *g.PrintFlags.NoHeaders
+	}
+
 	g.ToPrinter = g.getResourcePrinter()
 	karmadaClient, err := f.KarmadaClientSet()
 	if err != nil {
@@ -374,7 +380,16 @@ func (g *CommandGetOptions) Run(f util.Factory, args []string) error {
 	}
 
 	if g.Watch || g.WatchOnly {
-		return g.watch(watchObjs)
+		if len(watchObjs) == 0 {
+			if len(allErrs) > 0 {
+				return utilerrors.NewAggregate(allErrs)
+			}
+			return fmt.Errorf("not to find obj that is watched")
+		}
+		if err := g.watch(watchObjs); err != nil {
+			allErrs = append(allErrs, err)
+		}
+		return utilerrors.NewAggregate(allErrs)
 	}
 
 	if !g.IsHumanReadablePrinter {
@@ -516,7 +531,7 @@ func (g *CommandGetOptions) getObjInfo(mux *sync.Mutex, f cmdutil.Factory,
 		}
 	}
 
-	r := f.NewBuilder().
+	b := f.NewBuilder().
 		Unstructured().
 		NamespaceParam(g.Namespace).DefaultNamespace().AllNamespaces(g.AllNamespaces).
 		FilenameParam(g.ExplicitNamespace, &g.FilenameOptions).
@@ -526,9 +541,15 @@ func (g *CommandGetOptions) getObjInfo(mux *sync.Mutex, f cmdutil.Factory,
 		ResourceTypeOrNameArgs(true, args...).
 		ContinueOnError().
 		Latest().
-		Flatten().
-		TransformRequests(g.transformRequests).
-		Do()
+		TransformRequests(g.transformRequests)
+
+	if g.Watch || g.WatchOnly {
+		b = b.SingleResourceType()
+	} else {
+		b = b.Flatten()
+	}
+
+	r := b.Do()
 
 	if g.IgnoreNotFound {
 		r.IgnoreErrors(apierrors.IsNotFound)
@@ -666,25 +687,29 @@ func (g *CommandGetOptions) reconstructObj(obj runtime.Object, mapping *meta.RES
 
 // watch starts a client-side watch of one or more resources.
 func (g *CommandGetOptions) watch(watchObjs []WatchObj) error {
-	if len(watchObjs) <= 0 {
+	if len(watchObjs) == 0 {
 		return fmt.Errorf("not to find obj that is watched")
 	}
-	infos, err := watchObjs[0].r.Infos()
+	firstWatchObj := watchObjs[0]
+	infos, err := firstWatchObj.r.Infos()
 	if err != nil {
 		return err
 	}
 
+	firstCluster := firstWatchObj.Cluster
 	var objs []Obj
 	for ix := range infos {
-		objs = append(objs, Obj{Cluster: watchObjs[0].Cluster, Info: infos[ix]})
+		objs = append(objs, Obj{Cluster: firstCluster, Info: infos[ix]})
 	}
 
 	if multipleGVKsRequested(objs) {
 		return fmt.Errorf("watch is only supported on individual resources and resource collections - more than 1 resource was found")
 	}
 
-	info := infos[0]
-	mapping := info.ResourceMapping()
+	mapping, err := g.getWatchMapping(watchObjs, infos)
+	if err != nil {
+		return err
+	}
 	outputObjects := new(!g.WatchOnly)
 
 	printer, err := g.ToPrinter(mapping, outputObjects, g.AllNamespaces, false)
@@ -693,17 +718,33 @@ func (g *CommandGetOptions) watch(watchObjs []WatchObj) error {
 	}
 	writer := printers.GetNewTabWriter(g.Out)
 
-	// print the current object
-	for idx := range watchObjs {
-		var objsToPrint []runtime.Object
-		obj, err := watchObjs[idx].r.Object()
+	printed, err := g.printInitialObjects(watchObjs, mapping, printer, writer)
+	if err != nil {
+		return err
+	}
+
+	if !printed {
+		watchPrinter, err := g.emitEmptyWatchHeader(watchObjs, mapping, outputObjects, writer)
 		if err != nil {
 			return err
 		}
+		printer = watchPrinter
+	}
+	writer.Flush()
 
-		isList := meta.IsListType(obj)
+	return g.watchMultiClusterObj(watchObjs, mapping, outputObjects, printer)
+}
 
-		if isList {
+func (g *CommandGetOptions) printInitialObjects(watchObjs []WatchObj, mapping *meta.RESTMapping, printer printers.ResourcePrinterFunc, writer io.Writer) (bool, error) {
+	var printed bool
+	for idx, watchObj := range watchObjs {
+		obj, err := watchObj.r.Object()
+		if err != nil {
+			return false, err
+		}
+
+		var objsToPrint []runtime.Object
+		if meta.IsListType(obj) {
 			tmpObj, _ := meta.ExtractList(obj)
 			objsToPrint = append(objsToPrint, tmpObj...)
 		} else {
@@ -711,9 +752,9 @@ func (g *CommandGetOptions) watch(watchObjs []WatchObj) error {
 		}
 
 		for _, objToPrint := range objsToPrint {
-			objrow, err := g.reconstructObj(objToPrint, mapping, watchObjs[idx].Cluster, string(watch.Added))
+			objrow, err := g.reconstructObj(objToPrint, mapping, watchObj.Cluster, string(watch.Added))
 			if err != nil {
-				return err
+				return false, err
 			}
 
 			if idx > 0 {
@@ -723,89 +764,196 @@ func (g *CommandGetOptions) watch(watchObjs []WatchObj) error {
 
 			printObj, err := helper.ToUnstructured(objrow)
 			if err != nil {
-				return err
+				return false, err
 			}
 
 			if err := printer.PrintObj(printObj, writer); err != nil {
-				return fmt.Errorf("unable to output the provided object: %v", err)
+				return false, fmt.Errorf("unable to output the provided object: %w", err)
+			}
+			if len(objrow.Rows) > 0 {
+				printed = true
 			}
 		}
 	}
-	writer.Flush()
+	return printed, nil
+}
 
-	g.watchMultiClusterObj(watchObjs, mapping, outputObjects, printer)
+func (g *CommandGetOptions) buildEmptyWatchTable(watchObjs []WatchObj, mapping *meta.RESTMapping) *metav1.Table {
+	emptyTable := &metav1.Table{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: metav1.SchemeGroupVersion.String(),
+			Kind:       "Table",
+		},
+	}
+	if len(watchObjs) > 0 && watchObjs[0].r != nil {
+		if firstObj, err := watchObjs[0].r.Object(); err == nil {
+			if unstr, ok := firstObj.(*unstructured.Unstructured); ok && unstr.GetKind() == "Table" {
+				_ = runtime.DefaultUnstructuredConverter.FromUnstructured(unstr.Object, emptyTable)
+			}
+		}
+	}
+	if len(emptyTable.ColumnDefinitions) == 0 {
+		emptyTable.ColumnDefinitions = []metav1.TableColumnDefinition{
+			{Name: "Name", Type: "string", Format: "name"},
+		}
+	}
+	emptyTable.Rows = nil
+	emptyTable.APIVersion = metav1.SchemeGroupVersion.String()
+	emptyTable.Kind = "Table"
+	setNoAdoption(mapping)
+	g.setColumnDefinition(emptyTable)
+	return emptyTable
+}
 
-	return nil
+func (g *CommandGetOptions) emitEmptyWatchHeader(watchObjs []WatchObj, mapping *meta.RESTMapping, outputObjects *bool, writer io.Writer) (printers.ResourcePrinterFunc, error) {
+	noHeaders := g.NoHeaders || (g.PrintFlags.NoHeaders != nil && *g.PrintFlags.NoHeaders)
+	if !g.IsHumanReadablePrinter || g.WatchOnly || noHeaders {
+		if g.ToPrinter == nil {
+			return nil, nil
+		}
+		return g.ToPrinter(mapping, outputObjects, g.AllNamespaces, false)
+	}
+
+	emptyTable := g.buildEmptyWatchTable(watchObjs, mapping)
+	var headers []string
+	isWide := g.PrintFlags.OutputFormat != nil && *g.PrintFlags.OutputFormat == "wide"
+	for _, column := range emptyTable.ColumnDefinitions {
+		if column.Priority == 0 || isWide {
+			headers = append(headers, strings.ToUpper(column.Name))
+		}
+	}
+	if len(headers) > 0 {
+		if _, err := fmt.Fprintln(writer, strings.Join(headers, "\t")); err != nil {
+			return nil, fmt.Errorf("unable to output table headers: %w", err)
+		}
+	}
+
+	// Keep the printer's header state consistent with the manually emitted header
+	// so that subsequent watch events do not emit duplicate headers.
+	trueVal := true
+	g.PrintFlags.NoHeaders = &trueVal
+	g.NoHeaders = true
+	if g.ToPrinter == nil {
+		return nil, nil
+	}
+	return g.ToPrinter(mapping, outputObjects, g.AllNamespaces, false)
+}
+
+// getWatchMapping returns the RESTMapping for the resource being watched.
+func (g *CommandGetOptions) getWatchMapping(watchObjs []WatchObj, infos []*resource.Info) (*meta.RESTMapping, error) {
+	if len(infos) > 0 {
+		return infos[0].ResourceMapping(), nil
+	}
+	for _, watchObj := range watchObjs {
+		if watchObj.r != nil {
+			mapping, err := watchObj.r.ResourceMapping()
+			if err != nil {
+				return nil, fmt.Errorf("failed to get resource mapping: %w", err)
+			}
+			return mapping, nil
+		}
+	}
+	return nil, fmt.Errorf("no resource mapping found")
 }
 
 // watchMultiClusterObj watch objects in multi clusters by goroutines
-func (g *CommandGetOptions) watchMultiClusterObj(watchObjs []WatchObj, mapping *meta.RESTMapping, outputObjects *bool, printer printers.ResourcePrinterFunc) {
+func (g *CommandGetOptions) watchMultiClusterObj(watchObjs []WatchObj, mapping *meta.RESTMapping, outputObjects *bool, printer printers.ResourcePrinterFunc) error {
 	var wg sync.WaitGroup
+	var errMux sync.Mutex
+	var allErrs []error
 
 	writer := printers.GetNewTabWriter(g.Out)
 
 	wg.Add(len(watchObjs))
 	for _, watchObj := range watchObjs {
 		go func(watchObj WatchObj) {
-			obj, err := watchObj.r.Object()
-			if err != nil {
-				panic(err)
+			defer wg.Done()
+			if err := g.watchCluster(watchObj, mapping, outputObjects, printer, writer); err != nil {
+				klog.Errorf("Failed to watch cluster(%s): %v", watchObj.Cluster, err)
+				errMux.Lock()
+				allErrs = append(allErrs, fmt.Errorf("failed to watch in cluster(%s): %w", watchObj.Cluster, err))
+				errMux.Unlock()
 			}
-
-			rv := "0"
-			isList := meta.IsListType(obj)
-			if isList {
-				// the resourceVersion of list objects is ~now but won't return
-				// an initial watch event
-				rv, err = meta.NewAccessor().ResourceVersion(obj)
-				if err != nil {
-					panic(err)
-				}
-				// we can start outputting objects now, watches started from lists don't emit synthetic added events
-				*outputObjects = true
-			} else {
-				// suppress output, since watches started for individual items emit a synthetic ADDED event first
-				*outputObjects = false
-			}
-
-			// print watched changes
-			w, err := watchObj.r.Watch(rv)
-			if err != nil {
-				panic(err)
-			}
-
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-			intr := interrupt.New(nil, cancel)
-			_ = intr.Run(func() error {
-				_, err := watchtools.UntilWithoutRetry(ctx, w, func(e watch.Event) (bool, error) {
-					objToPrint := e.Object
-
-					objrow, err := g.reconstructObj(objToPrint, mapping, watchObj.Cluster, string(e.Type))
-					if err != nil {
-						return false, err
-					}
-					// not need to print ColumnDefinitions
-					objrow.ColumnDefinitions = nil
-
-					printObj, err := helper.ToUnstructured(objrow)
-					if err != nil {
-						return false, err
-					}
-
-					if err := printer.PrintObj(printObj, writer); err != nil {
-						return false, err
-					}
-					writer.Flush()
-					// after processing at least one event, start outputting objects
-					*outputObjects = true
-					return false, nil
-				})
-				return err
-			})
 		}(watchObj)
 	}
 	wg.Wait()
+	return utilerrors.NewAggregate(allErrs)
+}
+
+func getWatchResourceVersion(watchObj WatchObj, obj runtime.Object) (string, error) {
+	if !meta.IsListType(obj) {
+		return "0", nil
+	}
+	rv, err := meta.NewAccessor().ResourceVersion(obj)
+	if err != nil {
+		return "", err
+	}
+	if rv == "" {
+		if infos, err := watchObj.r.Infos(); err == nil && len(infos) > 0 {
+			rv = infos[0].ResourceVersion
+		}
+	}
+	return rv, nil
+}
+
+func (g *CommandGetOptions) watchCluster(watchObj WatchObj, mapping *meta.RESTMapping, outputObjects *bool, printer printers.ResourcePrinterFunc, writer io.Writer) error {
+	obj, err := watchObj.r.Object()
+	if err != nil {
+		return fmt.Errorf("failed to get object: %w", err)
+	}
+
+	rv, err := getWatchResourceVersion(watchObj, obj)
+	if err != nil {
+		return fmt.Errorf("failed to get resourceVersion: %w", err)
+	}
+
+	if meta.IsListType(obj) {
+		*outputObjects = true
+	} else {
+		*outputObjects = false
+	}
+
+	w, err := watchObj.r.Watch(rv)
+	if err != nil {
+		return fmt.Errorf("failed to watch: %w", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	intr := interrupt.New(nil, cancel)
+	err = intr.Run(func() error {
+		_, err := watchtools.UntilWithoutRetry(ctx, w, func(e watch.Event) (bool, error) {
+			objrow, err := g.reconstructObj(e.Object, mapping, watchObj.Cluster, string(e.Type))
+			if err != nil {
+				return false, err
+			}
+
+			// Only omit ColumnDefinitions when NoHeaders is false; when NoHeaders is true,
+			// ColumnDefinitions are required by printTable to render row cells without printing headers.
+			if !g.NoHeaders {
+				objrow.ColumnDefinitions = nil
+			}
+
+			printObj, err := helper.ToUnstructured(objrow)
+			if err != nil {
+				return false, err
+			}
+
+			if err := printer.PrintObj(printObj, writer); err != nil {
+				return false, err
+			}
+			if flusher, ok := writer.(interface{ Flush() error }); ok {
+				_ = flusher.Flush()
+			}
+			*outputObjects = true
+			return false, nil
+		})
+		return err
+	})
+	if err != nil && !errors.Is(err, watchtools.ErrWatchClosed) && !wait.Interrupted(err) {
+		return err
+	}
+	return nil
 }
 
 func (g *CommandGetOptions) printGeneric(r *resource.Result) error {
