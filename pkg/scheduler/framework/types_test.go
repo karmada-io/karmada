@@ -181,3 +181,26 @@ func TestUnschedulableError_Error(t *testing.T) {
 		})
 	}
 }
+
+func TestInsufficientCapacityError_Error(t *testing.T) {
+	testCases := []struct {
+		name    string
+		message string
+	}{
+		{
+			name:    "non-empty message",
+			message: "insufficient capacity",
+		},
+		{
+			name:    "empty message",
+			message: "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			insufficientCapacityErr := InsufficientCapacityError{Message: tc.message}
+			assert.Equal(t, tc.message, insufficientCapacityErr.Error())
+		})
+	}
+}

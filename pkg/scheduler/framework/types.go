@@ -97,3 +97,14 @@ type UnschedulableError struct {
 func (u *UnschedulableError) Error() string {
 	return u.Message
 }
+
+// InsufficientCapacityError indicates that otherwise feasible clusters lack
+// enough capacity. Clusters are ordered by scheduler preference.
+type InsufficientCapacityError struct {
+	Message  string
+	Clusters []*clusterv1alpha1.Cluster
+}
+
+func (i *InsufficientCapacityError) Error() string {
+	return i.Message
+}

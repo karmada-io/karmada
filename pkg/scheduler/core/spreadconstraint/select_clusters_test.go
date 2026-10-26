@@ -17,6 +17,7 @@ limitations under the License.
 package spreadconstraint
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"testing"
@@ -25,6 +26,7 @@ import (
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 )
 
 // NewClusterWithTopology will build a Cluster with topology.
@@ -245,6 +247,89 @@ func TestSelectBestClusters(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("SelectBestClusters() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSelectBestClustersReturnsInsufficientCapacityError(t *testing.T) {
+	clusterInfos := generateClusterInfo()
+	placement := &policyv1alpha1.Placement{
+		SpreadConstraints: []policyv1alpha1.SpreadConstraint{
+			{
+				SpreadByField: policyv1alpha1.SpreadByFieldCluster,
+				MaxGroups:     2,
+				MinGroups:     1,
+			},
+		},
+		ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+			ReplicaSchedulingType: policyv1alpha1.ReplicaSchedulingTypeDivided,
+		},
+	}
+	wantClusters := []*clusterv1alpha1.Cluster{
+		clusterInfos[0].Cluster,
+		clusterInfos[1].Cluster,
+		clusterInfos[2].Cluster,
+		clusterInfos[3].Cluster,
+	}
+
+	_, err := SelectBestClusters(placement, &GroupClustersInfo{Clusters: clusterInfos}, 200)
+	err = fmt.Errorf("failed to select clusters: %w", err)
+	var capacityErr *framework.InsufficientCapacityError
+	if !errors.As(err, &capacityErr) {
+		t.Fatalf("SelectBestClusters() error = %v, want *framework.InsufficientCapacityError", err)
+	}
+
+	if !reflect.DeepEqual(capacityErr.Clusters, wantClusters) {
+		t.Errorf("InsufficientCapacityError.Clusters = %v, want %v", capacityErr.Clusters, wantClusters)
+	}
+	if want := "no enough resource when selecting 2 clusters"; capacityErr.Error() != want {
+		t.Errorf("InsufficientCapacityError.Error() = %q, want %q", capacityErr.Error(), want)
+	}
+}
+
+func TestSelectBestClustersDoesNotReturnInsufficientCapacityErrorForNonCapacityFailure(t *testing.T) {
+	clusterInfos := generateClusterInfo()
+	tests := []struct {
+		name      string
+		placement *policyv1alpha1.Placement
+	}{
+		{
+			name: "insufficient feasible clusters",
+			placement: &policyv1alpha1.Placement{
+				SpreadConstraints: []policyv1alpha1.SpreadConstraint{
+					{
+						SpreadByField: policyv1alpha1.SpreadByFieldCluster,
+						MaxGroups:     7,
+						MinGroups:     7,
+					},
+				},
+			},
+		},
+		{
+			name: "unsupported spread topology",
+			placement: &policyv1alpha1.Placement{
+				SpreadConstraints: []policyv1alpha1.SpreadConstraint{
+					{
+						SpreadByField: policyv1alpha1.SpreadByFieldProvider,
+						MaxGroups:     1,
+						MinGroups:     1,
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := SelectBestClusters(tt.placement, &GroupClustersInfo{Clusters: clusterInfos}, 200)
+			if err == nil {
+				t.Fatal("SelectBestClusters() error = nil, want non-capacity error")
+			}
+
+			var capacityErr *framework.InsufficientCapacityError
+			if errors.As(err, &capacityErr) {
+				t.Fatalf("SelectBestClusters() error = %v, do not want *framework.InsufficientCapacityError", err)
 			}
 		})
 	}
