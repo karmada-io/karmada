@@ -1,3 +1,13 @@
+## 2.32.2
+
+### Fixes
+- fix bug where ginkgo -race -p was taking extra long to exit [c6792b0]
+
+## 2.32.1
+
+### Fixes
+- Defer AfterAll until repeated spec completes [e647b3b]
+
 ## 2.32.0
 
 `-fd` generate RSpec-style documentation output.  Thank @woodie !
