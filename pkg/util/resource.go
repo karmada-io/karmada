@@ -286,7 +286,6 @@ func (r *Resource) AddPodTemplateRequest(podSpec *corev1.PodSpec) *Resource {
 // AddPodRequest adds a Pod's effective resource requests to the accumulator.
 // Kubernetes PodRequests accounts for regular containers, init containers,
 // restartable init sidecars, and Pod overhead.
-// Pod-level resource requests are excluded.
 func (r *Resource) AddPodRequest(podSpec *corev1.PodSpec) *Resource {
 	requests := resourcehelper.PodRequests(&corev1.Pod{Spec: *podSpec}, resourcehelper.PodResourcesOptions{SkipPodLevelResources: true})
 	r.Add(requests)
