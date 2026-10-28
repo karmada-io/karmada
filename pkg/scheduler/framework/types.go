@@ -98,11 +98,13 @@ func (u *UnschedulableError) Error() string {
 	return u.Message
 }
 
-// InsufficientCapacityError indicates that otherwise feasible clusters lack
-// enough capacity. Clusters are ordered by scheduler preference.
+// InsufficientCapacityError indicates that otherwise feasible clusters lack enough capacity.
 type InsufficientCapacityError struct {
-	Message  string
-	Clusters []*clusterv1alpha1.Cluster
+	Message string
+	// CandidateClusters are the clusters that satisfy every scheduling
+	// constraint except capacity, ordered by scheduler preference (score
+	// descending). They are the scope where preemption could free resources.
+	CandidateClusters []*clusterv1alpha1.Cluster
 }
 
 func (i *InsufficientCapacityError) Error() string {

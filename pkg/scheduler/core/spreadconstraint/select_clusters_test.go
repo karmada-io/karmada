@@ -252,6 +252,35 @@ func TestSelectBestClusters(t *testing.T) {
 	}
 }
 
+func TestSelectClustersByAvailableResourceDoesNotMutateCandidates(t *testing.T) {
+	tests := []struct {
+		name         string
+		needReplicas int32
+	}{
+		{
+			name:         "replacement succeeds",
+			needReplicas: 120,
+		},
+		{
+			name:         "capacity is insufficient",
+			needReplicas: 200,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			candidates := generateClusterInfo()
+			wantCandidates := append([]ClusterDetailInfo(nil), candidates...)
+
+			selectClustersByAvailableResource(candidates, 2, tt.needReplicas)
+
+			if !reflect.DeepEqual(candidates, wantCandidates) {
+				t.Errorf("selectClustersByAvailableResource() mutated candidates = %v, want %v", candidates, wantCandidates)
+			}
+		})
+	}
+}
+
 func TestSelectBestClustersReturnsInsufficientCapacityError(t *testing.T) {
 	clusterInfos := generateClusterInfo()
 	placement := &policyv1alpha1.Placement{
@@ -280,8 +309,8 @@ func TestSelectBestClustersReturnsInsufficientCapacityError(t *testing.T) {
 		t.Fatalf("SelectBestClusters() error = %v, want *framework.InsufficientCapacityError", err)
 	}
 
-	if !reflect.DeepEqual(capacityErr.Clusters, wantClusters) {
-		t.Errorf("InsufficientCapacityError.Clusters = %v, want %v", capacityErr.Clusters, wantClusters)
+	if !reflect.DeepEqual(capacityErr.CandidateClusters, wantClusters) {
+		t.Errorf("InsufficientCapacityError.CandidateClusters = %v, want %v", capacityErr.CandidateClusters, wantClusters)
 	}
 	if want := "no enough resource when selecting 2 clusters"; capacityErr.Error() != want {
 		t.Errorf("InsufficientCapacityError.Error() = %q, want %q", capacityErr.Error(), want)
