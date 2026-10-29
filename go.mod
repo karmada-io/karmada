@@ -59,7 +59,7 @@ require (
 	sigs.k8s.io/cluster-api v1.7.1
 	sigs.k8s.io/controller-runtime v0.25.2
 	sigs.k8s.io/custom-metrics-apiserver v1.37.0
-	sigs.k8s.io/kind v0.32.0
+	sigs.k8s.io/kind v0.33.0
 	sigs.k8s.io/mcs-api v0.1.0
 	sigs.k8s.io/metrics-server v0.8.1-0.20260616071526-90cba4cbcf82
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.2
