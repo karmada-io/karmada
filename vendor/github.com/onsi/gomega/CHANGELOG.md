@@ -1,3 +1,13 @@
+## 1.43.0
+
+### Features
+
+Add gomock adaptor extension for using Gomega matchers with gomock
+
+## 1.42.1
+
+Bump Dependencies
+
 ## 1.42.0
 
 Add a set of Claude skill as a marketplace plugin
