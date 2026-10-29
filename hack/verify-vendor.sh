@@ -40,11 +40,11 @@ bash "${SCRIPT_ROOT}/hack/update-vendor.sh"
 echo "diffing ${DIFFROOT} against freshly generated files"
 
 govendor=0
-diff -Naupr "${DIFFROOT}" "${TMP_DIFFROOT}" || govendor=$?
+diff -Naupr "${TMP_DIFFROOT}" "${DIFFROOT}" || govendor=$?
 gomod=0
-diff -Naupr "${SCRIPT_ROOT}"/go.mod "${_tmp}"/go.mod || gomod=$?
+diff -Naupr "${_tmp}"/go.mod "${SCRIPT_ROOT}"/go.mod || gomod=$?
 gosum=0
-diff -Naupr "${SCRIPT_ROOT}"/go.sum "${_tmp}"/go.sum || gosum=$?
+diff -Naupr "${_tmp}"/go.sum "${SCRIPT_ROOT}"/go.sum || gosum=$?
 
 cp -a "${TMP_DIFFROOT}"/* "${DIFFROOT}"
 cp "${_tmp}"/go.mod "${SCRIPT_ROOT}"/go.mod

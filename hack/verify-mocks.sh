@@ -37,7 +37,7 @@ cp -a "${DIFFROOT}"/* "${TMP_DIFFROOT}"
 bash "${SCRIPT_ROOT}/hack/update-mocks.sh"
 echo "diffing ${DIFFROOT} against freshly mock codegen"
 ret=0
-diff -Naupr "${DIFFROOT}" "${TMP_DIFFROOT}" || ret=$?
+diff -Naupr "${TMP_DIFFROOT}" "${DIFFROOT}" || ret=$?
 cp -a "${TMP_DIFFROOT}"/* "${DIFFROOT}"
 if [[ $ret -eq 0 ]]
 then

@@ -38,7 +38,7 @@ source "$KARMADA_ROOT/hack/update-estimator-protobuf.sh"
 
 echo "diffing ${ESTIMATORPB} against freshly generated estimator protobuf"
 ret=0
-diff -Naupr "${KARMADA_ROOT}/${ESTIMATORPB}" "${_tmp}/${ESTIMATORPB}" || ret=$?
+diff -Naupr "${_tmp}/${ESTIMATORPB}" "${KARMADA_ROOT}/${ESTIMATORPB}" || ret=$?
 cp -a "${_tmp}/${ESTIMATORPB}"/* "${KARMADA_ROOT}/${ESTIMATORPB}/"
 if [[ $ret -eq 0 ]]; then
   echo "${ESTIMATORPB} is up to date."
