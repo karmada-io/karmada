@@ -39,7 +39,7 @@ echo "diffing ${DIFFROOT} against freshly generated files"
 
 ret=0
 
-diff -Naupr "${DIFFROOT}" "${TMP_DIFFROOT}" || ret=$?
+diff -Naupr "${TMP_DIFFROOT}" "${DIFFROOT}" || ret=$?
 cp -a "${TMP_DIFFROOT}"/* "${DIFFROOT}"
 if [[ $ret -eq 0 ]]
 then

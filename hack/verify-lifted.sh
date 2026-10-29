@@ -39,7 +39,7 @@ echo "diffing ${DIFFFILE} against freshly generated files"
 
 ret=0
 
-diff -Naupr "${DIFFFILE}" "${TMP_DIFFFILE}" || ret=$?
+diff -Naupr "${TMP_DIFFFILE}" "${DIFFFILE}" || ret=$?
 cp "${TMP_DIFFFILE}" "${DIFFFILE}"
 if [[ $ret -eq 0 ]]
 then

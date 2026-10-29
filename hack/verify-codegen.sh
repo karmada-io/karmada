@@ -47,7 +47,7 @@ cp -a "${DIFFOPERATOR}"/* "${TMP_DIFFOPERATOR}"
 bash "${SCRIPT_ROOT}/hack/update-codegen.sh"
 echo "diffing ${DIFFROOT} against freshly generated codegen"
 ret=0
-diff -Naupr "${DIFFROOT}" "${TMP_DIFFROOT}" || ret=$?
+diff -Naupr "${TMP_DIFFROOT}" "${DIFFROOT}" || ret=$?
 cp -a "${TMP_DIFFROOT}"/* "${DIFFROOT}"
 if [[ $ret -eq 0 ]]
 then
@@ -59,7 +59,7 @@ fi
 
 echo "diffing ${DIFFEXAMPLES} against freshly generated codegen"
 ret=0
-diff -Naupr "${DIFFEXAMPLES}" "${TMP_DIFFEXAMPLES}" || ret=$?
+diff -Naupr "${TMP_DIFFEXAMPLES}" "${DIFFEXAMPLES}" || ret=$?
 cp -a "${TMP_DIFFEXAMPLES}"/* "${DIFFEXAMPLES}"
 if [[ $ret -eq 0 ]]
 then
@@ -71,7 +71,7 @@ fi
 
 echo "diffing ${DIFFOPERATOR} against freshly generated codegen"
 ret=0
-diff -Naupr "${DIFFOPERATOR}" "${TMP_DIFFOPERATOR}" || ret=$?
+diff -Naupr "${TMP_DIFFOPERATOR}" "${DIFFOPERATOR}" || ret=$?
 cp -a "${TMP_DIFFOPERATOR}"/* "${DIFFOPERATOR}"
 if [[ $ret -eq 0 ]]
 then

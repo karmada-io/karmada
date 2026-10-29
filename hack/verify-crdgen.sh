@@ -49,7 +49,7 @@ echo "diffing ${DIFFROOT} against freshly generated files"
 
 ret=0
 
-diff -Naupr "${DIFFROOT}" "${TMP_DIFFROOT}" || ret=$?
+diff -Naupr "${TMP_DIFFROOT}" "${DIFFROOT}" || ret=$?
 cp -a "${TMP_DIFFROOT}"/* "${DIFFROOT}"
 if [[ $ret -eq 0 ]]
 then
@@ -63,7 +63,7 @@ echo "diffing ${DIFFEXAMPLES} against freshly generated files"
 
 ret=0
 
-diff -Naupr "${DIFFEXAMPLES}" "${TMP_DIFFEXAMPLES}" || ret=$?
+diff -Naupr "${TMP_DIFFEXAMPLES}" "${DIFFEXAMPLES}" || ret=$?
 cp -a "${TMP_DIFFEXAMPLES}"/* "${DIFFEXAMPLES}"
 if [[ $ret -eq 0 ]]
 then
@@ -73,7 +73,7 @@ else
   exit 1
 fi
 
-diff -Naupr "${DIFFOPERATOR}" "${TMP_DIFFOPERATOR}" || ret=$?
+diff -Naupr "${TMP_DIFFOPERATOR}" "${DIFFOPERATOR}" || ret=$?
 cp -a "${TMP_DIFFOPERATOR}" "${DIFFOPERATOR}"
 if [[ $ret -eq 0 ]]
 then
