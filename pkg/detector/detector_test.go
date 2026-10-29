@@ -21,10 +21,13 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -33,6 +36,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -41,7 +45,9 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/features"
+	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 )
 
@@ -404,7 +410,7 @@ func TestOnAdd(t *testing.T) {
 			obj: &unstructured.Unstructured{
 				Object: map[string]any{},
 			},
-			expectedEnqueue: true, // The function doesn't check for validity, so it will still enqueue
+			expectedEnqueue: false,
 		},
 		{
 			name:            "non-runtime object",
@@ -414,6 +420,7 @@ func TestOnAdd(t *testing.T) {
 		{
 			name: "core v1 object",
 			obj: &corev1.Pod{
+				TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "Pod"},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-pod",
 					Namespace: "default",
@@ -431,9 +438,12 @@ func TestOnAdd(t *testing.T) {
 			d.OnAdd(tt.obj, tt.isInInitialList)
 			if tt.expectedEnqueue {
 				assert.Equal(t, 1, mockProcessor.enqueueCount, "Object should be enqueued")
-				assert.IsType(t, ResourceItem{}, mockProcessor.lastEnqueued, "Enqueued item should be of type ResourceItem")
-				enqueued := mockProcessor.lastEnqueued.(ResourceItem)
-				assert.Equal(t, tt.obj, enqueued.Obj, "Enqueued object should match the input object")
+				key, err := keys.ClusterWideKeyFunc(tt.obj)
+				assert.NoError(t, err)
+				assert.Equal(t, key, mockProcessor.lastEnqueued, "Object should be enqueued by its key")
+				byKarmada, pending := d.takeResourceChange(key)
+				assert.True(t, pending)
+				assert.False(t, byKarmada, "Object additions require propagation")
 			} else {
 				assert.Equal(t, 0, mockProcessor.enqueueCount, "Object should not be enqueued")
 			}
@@ -442,11 +452,38 @@ func TestOnAdd(t *testing.T) {
 }
 
 func TestOnUpdate(t *testing.T) {
+	// newClaimedObject builds a resource template claimed by the given policy. "generation" is bumped by
+	// Karmada, while "replicas" is the spec set by users.
+	newClaimedObject := func(policyName string, generation, replicas int64) *unstructured.Unstructured {
+		return &unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": "apps/v1",
+				"kind":       "Deployment",
+				"metadata": map[string]any{
+					"namespace":  "default",
+					"name":       "test-deployment",
+					"generation": generation,
+					"annotations": map[string]any{
+						policyv1alpha1.PropagationPolicyNamespaceAnnotation: "default",
+						policyv1alpha1.PropagationPolicyNameAnnotation:      policyName,
+					},
+					"labels": map[string]any{
+						policyv1alpha1.PropagationPolicyPermanentIDLabel: "test-policy-id",
+					},
+				},
+				"spec": map[string]any{
+					"replicas": replicas,
+				},
+			},
+		}
+	}
+
 	tests := []struct {
 		name                      string
 		oldObj                    any
 		newObj                    any
 		expectedEnqueue           bool
+		expectChangeByKarmada     bool
 		expectToUnstructuredError bool
 	}{
 		{
@@ -572,12 +609,32 @@ func TestOnUpdate(t *testing.T) {
 			},
 			expectedEnqueue: true,
 		},
+		{
+			name:                  "lazy policy, only the fields changed by Karmada are changed",
+			oldObj:                newClaimedObject("lazy-policy", 1, 2),
+			newObj:                newClaimedObject("lazy-policy", 2, 2),
+			expectedEnqueue:       true,
+			expectChangeByKarmada: true,
+		},
+		{
+			name:                  "lazy policy, specification is changed by users",
+			oldObj:                newClaimedObject("lazy-policy", 1, 2),
+			newObj:                newClaimedObject("lazy-policy", 2, 3),
+			expectedEnqueue:       true,
+			expectChangeByKarmada: false,
+		},
+	}
+
+	lazyPolicy := &policyv1alpha1.PropagationPolicy{
+		ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "lazy-policy"},
+		Spec:       policyv1alpha1.PropagationSpec{ActivationPreference: policyv1alpha1.LazyActivation},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockProcessor := &mockAsyncWorker{}
 			d := &ResourceDetector{
+				Client:    fake.NewClientBuilder().WithScheme(setupTestScheme()).WithObjects(lazyPolicy).Build(),
 				Processor: mockProcessor,
 			}
 
@@ -585,9 +642,12 @@ func TestOnUpdate(t *testing.T) {
 
 			if tt.expectedEnqueue {
 				assert.Equal(t, 1, mockProcessor.enqueueCount, "Object should be enqueued")
-				assert.IsType(t, ResourceItem{}, mockProcessor.lastEnqueued, "Enqueued item should be of type ResourceItem")
-				enqueued := mockProcessor.lastEnqueued.(ResourceItem)
-				assert.Equal(t, tt.newObj, enqueued.Obj, "Enqueued object should match the new object")
+				key, err := keys.ClusterWideKeyFunc(tt.newObj)
+				assert.NoError(t, err)
+				assert.Equal(t, key, mockProcessor.lastEnqueued, "Object should be enqueued by its key")
+				byKarmada, pending := d.takeResourceChange(key)
+				assert.True(t, pending)
+				assert.Equal(t, tt.expectChangeByKarmada, byKarmada, "Unexpected changed-by-Karmada mark")
 			} else {
 				assert.Equal(t, 0, mockProcessor.enqueueCount, "Object should not be enqueued")
 			}
@@ -620,7 +680,7 @@ func TestOnDelete(t *testing.T) {
 			obj: &unstructured.Unstructured{
 				Object: map[string]any{},
 			},
-			expectedEnqueue: true, // The function doesn't check for validity, so it will still enqueue
+			expectedEnqueue: false,
 		},
 	}
 
@@ -635,11 +695,84 @@ func TestOnDelete(t *testing.T) {
 
 			if tt.expectedEnqueue {
 				assert.Equal(t, 1, mockProcessor.enqueueCount, "Object should be enqueued")
+				key, err := keys.ClusterWideKeyFunc(tt.obj)
+				assert.NoError(t, err)
+				byKarmada, pending := d.takeResourceChange(key)
+				assert.True(t, pending)
+				assert.False(t, byKarmada, "Object deletions require reconciliation")
 			} else {
 				assert.Equal(t, 0, mockProcessor.enqueueCount, "Object should not be enqueued")
 			}
 		})
 	}
+}
+
+func TestReconcileConsumesChangedByKarmadaMark(t *testing.T) {
+	key := keys.ClusterWideKey{
+		Group:     "apps",
+		Version:   "v1",
+		Kind:      "Deployment",
+		Namespace: "default",
+		Name:      "test-deployment",
+	}
+
+	t.Run("the mark is cleared once consumed", func(t *testing.T) {
+		detector := &ResourceDetector{}
+		detector.markResourceChange(key, true)
+
+		byKarmada, pending := detector.takeResourceChange(key)
+		assert.True(t, pending)
+		assert.True(t, byKarmada)
+		_, pending = detector.takeResourceChange(key)
+		assert.False(t, pending, "The mark should only be consumed once")
+	})
+
+	t.Run("the mark is restored for the retry when the reconciliation fails", func(t *testing.T) {
+		detector := &ResourceDetector{RESTMapper: &failingRESTMapper{}}
+		detector.markResourceChange(key, true)
+
+		if err := detector.Reconcile(key); err == nil {
+			t.Fatal("Reconcile() error = nil, want error as the object can't be retrieved")
+		}
+
+		// The flag used to be part of the queue key and was therefore kept across retries.
+		if mark, loaded := detector.resourceChangeMarks.Load(key); !loaded || mark != true {
+			t.Errorf("Reconcile() mark = %v, loaded = %v, want the changed-by-Karmada mark to be restored", mark, loaded)
+		}
+	})
+
+	t.Run("the user change is restored for the retry", func(t *testing.T) {
+		detector := &ResourceDetector{RESTMapper: &failingRESTMapper{}}
+		detector.markResourceChange(key, false)
+
+		if err := detector.Reconcile(key); err == nil {
+			t.Fatal("Reconcile() error = nil, want error as the object can't be retrieved")
+		}
+
+		if mark, loaded := detector.resourceChangeMarks.Load(key); !loaded || mark != false {
+			t.Errorf("Reconcile() mark = %v, loaded = %v, want the user change to be restored", mark, loaded)
+		}
+	})
+
+	t.Run("no pending change", func(t *testing.T) {
+		// No dependencies are needed when a stale retry has no changes left to process.
+		detector := &ResourceDetector{}
+		assert.NoError(t, detector.Reconcile(key))
+	})
+
+	t.Run("invalid key", func(t *testing.T) {
+		detector := &ResourceDetector{RESTMapper: &failingRESTMapper{}}
+		detector.markResourceChange(key, true)
+
+		if err := detector.Reconcile("invalid key"); err == nil {
+			t.Fatal("Reconcile() error = nil, want error for an invalid key")
+		}
+
+		// Only the reconciliation of the resource itself is allowed to consume its mark.
+		if _, loaded := detector.resourceChangeMarks.Load(key); !loaded {
+			t.Error("Reconcile() consumed the mark for an invalid key")
+		}
+	})
 }
 
 func TestLookForMatchedPolicy(t *testing.T) {
@@ -1336,7 +1469,7 @@ func TestBuildResourceBindingWithSchedulePriorityPreemptionPolicy(t *testing.T) 
 	}
 }
 
-func TestEnqueueResourceKeyWithActivationPref(t *testing.T) {
+func TestEnqueueResourceTemplateForPolicyChange(t *testing.T) {
 	testClusterWideKey := keys.ClusterWideKey{
 		Group:     "foo",
 		Version:   "foo",
@@ -1345,58 +1478,33 @@ func TestEnqueueResourceKeyWithActivationPref(t *testing.T) {
 		Name:      "foo",
 	}
 	tests := []struct {
-		name string
-		key  keys.ClusterWideKey
-		pref policyv1alpha1.ActivationPreference
-		want keys.ClusterWideKeyWithConfig
+		name       string
+		pref       policyv1alpha1.ActivationPreference
+		expectMark bool
 	}{
 		{
-			name: "lazy pp and resourceChangeByKarmada is true",
-			key:  testClusterWideKey,
-			pref: policyv1alpha1.LazyActivation,
-			want: keys.ClusterWideKeyWithConfig{
-				ClusterWideKey:          testClusterWideKey,
-				ResourceChangeByKarmada: true,
-			},
+			name:       "lazy policy marks the change as made by Karmada",
+			pref:       policyv1alpha1.LazyActivation,
+			expectMark: true,
 		},
 		{
-			name: "non-lazy ignores ResourceChangeByKarmada",
-			key:  testClusterWideKey,
-			pref: "",
-			want: keys.ClusterWideKeyWithConfig{
-				ClusterWideKey:          testClusterWideKey,
-				ResourceChangeByKarmada: false,
-			},
+			name:       "non-lazy policy doesn't mark the change as made by Karmada",
+			pref:       "",
+			expectMark: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
-			detector := ResourceDetector{
-				Processor: util.NewAsyncWorker(util.Options{
-					Name:    "resource detector",
-					KeyFunc: ResourceItemKeyFunc,
-					ReconcileFunc: func(key util.QueueKey) (err error) {
-						defer cancel()
-						defer func() {
-							assert.NoError(t, err)
-						}()
-						clusterWideKeyWithConfig, ok := key.(keys.ClusterWideKeyWithConfig)
-						if !ok {
-							err = fmt.Errorf("invalid key")
-							return err
-						}
-						if clusterWideKeyWithConfig != tt.want {
-							err = fmt.Errorf("unexpected key. want:%+v, got:%+v", tt.want, clusterWideKeyWithConfig)
-							return err
-						}
-						return nil
-					},
-				}),
-			}
-			detector.Processor.Run(ctx, 1)
-			detector.enqueueResourceTemplateForPolicyChange(tt.key, tt.pref)
-			<-ctx.Done()
+			mockProcessor := &mockAsyncWorker{}
+			detector := &ResourceDetector{Processor: mockProcessor}
+
+			detector.enqueueResourceTemplateForPolicyChange(testClusterWideKey, tt.pref)
+
+			assert.Equal(t, 1, mockProcessor.enqueueCount, "Resource template should be enqueued")
+			assert.Equal(t, testClusterWideKey, mockProcessor.lastEnqueued, "Resource template should be enqueued by its own key")
+			byKarmada, pending := detector.takeResourceChange(testClusterWideKey)
+			assert.True(t, pending)
+			assert.Equal(t, tt.expectMark, byKarmada, "Unexpected changed-by-Karmada mark")
 		})
 	}
 }
@@ -1415,7 +1523,7 @@ func setupTestScheme() *runtime.Scheme {
 
 // Mock implementations
 
-// mockAsyncWorker is a mock implementation of util.AsyncWorker
+// mockAsyncWorker is a mock implementation of util.AsyncPriorityWorker
 type mockAsyncWorker struct {
 	enqueueCount int
 	lastEnqueued any
@@ -1426,8 +1534,9 @@ func (m *mockAsyncWorker) Enqueue(item any) {
 	m.lastEnqueued = item
 }
 
-func (m *mockAsyncWorker) Add(_ any) {
+func (m *mockAsyncWorker) Add(item any) {
 	m.enqueueCount++
+	m.lastEnqueued = item
 }
 func (m *mockAsyncWorker) AddAfter(_ any, _ time.Duration) {}
 func (m *mockAsyncWorker) AddWithOpts(_ util.AddOpts, items ...any) {
@@ -1525,4 +1634,369 @@ func (m *mockResourceInterpreter) ReflectStatus(_ *unstructured.Unstructured) (*
 
 func (m *mockResourceInterpreter) InterpretHealth(_ *unstructured.Unstructured) (bool, error) {
 	return true, nil
+}
+
+// failingRESTMapper is a mock RESTMapper whose RESTMapping always fails.
+type failingRESTMapper struct {
+	mockRESTMapper
+}
+
+func (f *failingRESTMapper) RESTMapping(_ schema.GroupKind, _ ...string) (*meta.RESTMapping, error) {
+	return nil, fmt.Errorf("fake error")
+}
+
+func TestResourceChangeMerging(t *testing.T) {
+	for _, marks := range [][]bool{nil, {true}, {false}, {true, true}, {false, true}, {true, false}} {
+		t.Run(fmt.Sprint(marks), func(t *testing.T) {
+			d := &ResourceDetector{}
+			key := keys.ClusterWideKey{Name: "test"}
+			wantByKarmada := len(marks) > 0
+			for _, mark := range marks {
+				d.markResourceChange(key, mark)
+				wantByKarmada = wantByKarmada && mark
+			}
+			byKarmada, pending := d.takeResourceChange(key)
+			assert.Equal(t, len(marks) > 0, pending)
+			assert.Equal(t, wantByKarmada, byKarmada)
+			_, pending = d.takeResourceChange(key)
+			assert.False(t, pending)
+		})
+	}
+}
+
+func TestReconcileSkipsLazyBindingForKarmadaChange(t *testing.T) {
+	d, _, key, bindingKey := newResourceChangeTestDetector(t)
+	d.addResourceTemplate(key, true, util.AddOpts{})
+
+	require.NoError(t, d.Reconcile(key))
+	assertResourceChangeBinding(t, d, bindingKey, false)
+	_, pending := d.takeResourceChange(key)
+	assert.False(t, pending, "The pending mark should be consumed by the reconciliation")
+}
+
+func TestResourceChangeConcurrentMarks(t *testing.T) {
+	const writers = 64
+	key := keys.ClusterWideKey{Name: "test"}
+
+	t.Run("a user change wins", func(t *testing.T) {
+		d := &ResourceDetector{}
+		start := make(chan struct{})
+		var wg sync.WaitGroup
+		for i := range writers {
+			wg.Add(1)
+			go func(byKarmada bool) {
+				defer wg.Done()
+				<-start
+				d.markResourceChange(key, byKarmada)
+			}(i > 0) // The first writer marks a user change, the others mark Karmada changes.
+		}
+		close(start)
+		wg.Wait()
+
+		mark, pending := d.takeResourceChange(key)
+		assert.True(t, pending)
+		assert.False(t, mark, "A user change must not be hidden by concurrent changes made by Karmada")
+	})
+
+	t.Run("all changes made by Karmada", func(t *testing.T) {
+		d := &ResourceDetector{}
+		start := make(chan struct{})
+		var wg sync.WaitGroup
+		for range writers {
+			wg.Go(func() {
+				<-start
+				d.markResourceChange(key, true)
+			})
+		}
+		close(start)
+		wg.Wait()
+
+		mark, pending := d.takeResourceChange(key)
+		assert.True(t, pending)
+		assert.True(t, mark)
+	})
+}
+
+func TestResourceChangeDuringFailedReconcile(t *testing.T) {
+	for _, initialByKarmada := range []bool{false, true} {
+		for _, newByKarmada := range []bool{false, true} {
+			t.Run(fmt.Sprintf("initial=%t,new=%t", initialByKarmada, newByKarmada), func(t *testing.T) {
+				d, _, key, bindingKey := newResourceChangeTestDetector(t)
+				d.addResourceTemplate(key, initialByKarmada, util.AddOpts{})
+				d.RESTMapper = &resourceChangeRESTMapper{
+					RESTMapper: &mockRESTMapper{},
+					beforeMapping: func() error {
+						d.addResourceTemplate(key, newByKarmada, util.AddOpts{})
+						return fmt.Errorf("temporary mapping failure")
+					},
+				}
+				require.Error(t, d.Reconcile(key))
+				mark, pending := d.resourceChangeMarks.Load(key)
+				require.True(t, pending, "Failed changes must remain pending")
+				assert.Equal(t, initialByKarmada && newByKarmada, mark)
+
+				d.RESTMapper = &mockRESTMapper{}
+				require.NoError(t, d.Reconcile(key))
+				assertResourceChangeBinding(t, d, bindingKey, !initialByKarmada || !newByKarmada)
+				_, pending = d.takeResourceChange(key)
+				assert.False(t, pending)
+			})
+		}
+	}
+}
+
+func TestResourceChangeArrivesDuringReconcile(t *testing.T) {
+	d, obj, key, bindingKey := newResourceChangeTestDetector(t)
+	indexer := d.InformerManager.(*resourceChangeInformerManager).indexer
+
+	// The pending change is made by Karmada, so the lazy binding is expected to be left untouched.
+	d.addResourceTemplate(key, true, util.AddOpts{})
+
+	var injected bool
+	d.RESTMapper = &resourceChangeRESTMapper{
+		RESTMapper: &mockRESTMapper{},
+		beforeMapping: func() error {
+			if injected {
+				return nil
+			}
+			injected = true
+			// A user change arrives after the pending mark was consumed but before this reconciliation finishes.
+			updated := obj.DeepCopy()
+			updated.SetResourceVersion("3")
+			if err := unstructured.SetNestedField(updated.Object, int64(3), "spec", "replicas"); err != nil {
+				return err
+			}
+			if err := indexer.Update(updated); err != nil {
+				return err
+			}
+			d.OnUpdate(obj, updated)
+			return nil
+		},
+	}
+
+	require.NoError(t, d.Reconcile(key))
+	binding := &workv1alpha2.ResourceBinding{}
+	require.NoError(t, d.Client.Get(t.Context(), bindingKey, binding))
+	assert.Equal(t, "1", binding.Spec.Resource.ResourceVersion, "The change made by Karmada must not refresh the lazy binding")
+	mark, pending := d.resourceChangeMarks.Load(key)
+	require.True(t, pending, "The change arriving during the reconciliation must stay pending")
+	assert.Equal(t, false, mark)
+	assert.Equal(t, 2, d.Processor.(*mockAsyncWorker).enqueueCount, "The change arriving during the reconciliation must be enqueued")
+
+	require.NoError(t, d.Reconcile(key))
+	require.NoError(t, d.Client.Get(t.Context(), bindingKey, binding))
+	assert.Equal(t, "3", binding.Spec.Resource.ResourceVersion)
+	assert.Equal(t, []string{"new-cluster"}, binding.Spec.Placement.ClusterAffinity.ClusterNames)
+	_, pending = d.takeResourceChange(key)
+	assert.False(t, pending)
+}
+
+func TestResourceChangeOnAddAndDelete(t *testing.T) {
+	for _, event := range []string{"add", "delete"} {
+		for _, policyFirst := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s,policyFirst=%t", event, policyFirst), func(t *testing.T) {
+				d, obj, key, bindingKey := newResourceChangeTestDetector(t)
+				if policyFirst {
+					d.enqueueResourceTemplateForPolicyChange(key, policyv1alpha1.LazyActivation)
+				}
+				if event == "add" {
+					d.OnAdd(obj, true)
+				} else {
+					d.OnDelete(obj)
+				}
+				if !policyFirst {
+					d.enqueueResourceTemplateForPolicyChange(key, policyv1alpha1.LazyActivation)
+				}
+				require.NoError(t, d.Reconcile(key))
+				assertResourceChangeBinding(t, d, bindingKey, true)
+			})
+		}
+	}
+}
+
+func TestResourceChangeDelayedRetry(t *testing.T) {
+	d, _, key, bindingKey := newResourceChangeTestDetector(t)
+	results := make(chan error, 3)
+	first := true
+	d.Processor = util.NewAsyncWorker(util.Options{
+		Name:               "resource-change-retry-test",
+		KeyFunc:            ClusterWideKeyFunc,
+		RateLimiterOptions: ratelimiterflag.Options{RateLimiterBaseDelay: 500 * time.Millisecond},
+		ReconcileFunc: func(k util.QueueKey) error {
+			if first {
+				first = false
+				d.RESTMapper = &failingRESTMapper{}
+			} else {
+				d.RESTMapper = &mockRESTMapper{}
+			}
+			err := d.Reconcile(k)
+			results <- err
+			return err
+		},
+	})
+	d.Processor.Run(t.Context(), 1)
+	d.enqueueResourceTemplateForPolicyChange(key, policyv1alpha1.LazyActivation)
+	require.Error(t, waitResourceChangeResult(t, results))
+
+	// A new event consumes the restored mark before the ordinary queue's delayed retry arrives.
+	d.enqueueResourceTemplateForPolicyChange(key, policyv1alpha1.LazyActivation)
+	require.NoError(t, waitResourceChangeResult(t, results))
+	require.NoError(t, waitResourceChangeResult(t, results))
+	assertResourceChangeBinding(t, d, bindingKey, false)
+}
+
+func TestResourceChangeSerialReconcile(t *testing.T) {
+	for _, usePriorityQueue := range []bool{false, true} {
+		t.Run(fmt.Sprintf("priorityQueue=%t", usePriorityQueue), func(t *testing.T) {
+			d, obj, key, bindingKey := newResourceChangeTestDetector(t)
+			ctx, cancel := context.WithCancel(t.Context())
+			t.Cleanup(cancel)
+			started, release := make(chan struct{}), make(chan struct{})
+			var first atomic.Bool
+			d.RESTMapper = &resourceChangeRESTMapper{
+				RESTMapper: &mockRESTMapper{},
+				beforeMapping: func() error {
+					if first.CompareAndSwap(false, true) {
+						close(started)
+						select {
+						case <-release:
+						case <-ctx.Done():
+							return ctx.Err()
+						}
+					}
+					return nil
+				},
+			}
+			other := obj.DeepCopy()
+			other.SetName("other")
+			other.SetLabels(map[string]string{util.ResourceTemplateClaimedByLabel: "other-controller"})
+			require.NoError(t, d.InformerManager.(*resourceChangeInformerManager).indexer.Add(other))
+			otherKey, err := keys.ClusterWideKeyFunc(other)
+			require.NoError(t, err)
+			results, otherResults := make(chan error, 3), make(chan error, 1)
+			var active atomic.Int32
+			d.Processor = util.NewAsyncWorker(util.Options{
+				Name:             "resource-change-serial-test",
+				KeyFunc:          ClusterWideKeyFunc,
+				UsePriorityQueue: usePriorityQueue,
+				ReconcileFunc: func(k util.QueueKey) error {
+					if k == otherKey {
+						err := d.Reconcile(k)
+						otherResults <- err
+						return err
+					}
+					assert.Equal(t, int32(1), active.Add(1), "The same resource must not reconcile concurrently")
+					err := d.Reconcile(k)
+					active.Add(-1)
+					results <- err
+					return err
+				},
+			})
+			d.Processor.Run(ctx, 2)
+			d.enqueueResourceTemplateForPolicyChange(key, policyv1alpha1.LazyActivation)
+			select {
+			case <-started:
+			case <-time.After(10 * time.Second):
+				t.Fatal("Timed out waiting for the first reconciliation")
+			}
+
+			// Both origins arrive while this resource is processing. Another resource can still proceed.
+			old := obj.DeepCopy()
+			require.NoError(t, unstructured.SetNestedField(old.Object, int64(1), "spec", "replicas"))
+			d.OnUpdate(old, obj)
+			d.enqueueResourceTemplateForPolicyChange(key, policyv1alpha1.LazyActivation)
+			d.OnAdd(other, false)
+			require.NoError(t, waitResourceChangeResult(t, otherResults))
+			close(release)
+			require.NoError(t, waitResourceChangeResult(t, results))
+			require.NoError(t, waitResourceChangeResult(t, results))
+			assertResourceChangeBinding(t, d, bindingKey, true)
+		})
+	}
+}
+
+func newResourceChangeTestDetector(t *testing.T) (*ResourceDetector, *unstructured.Unstructured, keys.ClusterWideKey, client.ObjectKey) {
+	t.Helper()
+	policy := &policyv1alpha1.PropagationPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "default", Name: "lazy-policy",
+			Labels: map[string]string{policyv1alpha1.PropagationPolicyPermanentIDLabel: "policy-id"},
+		},
+		Spec: policyv1alpha1.PropagationSpec{
+			ActivationPreference: policyv1alpha1.LazyActivation,
+			ResourceSelectors:    []policyv1alpha1.ResourceSelector{{APIVersion: "apps/v1", Kind: "Deployment", Name: "demo"}},
+			Placement: policyv1alpha1.Placement{
+				ClusterAffinity: &policyv1alpha1.ClusterAffinity{ClusterNames: []string{"new-cluster"}},
+			},
+		},
+	}
+	obj := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "apps/v1", "kind": "Deployment",
+		"metadata": map[string]any{"namespace": "default", "name": "demo", "uid": "uid", "resourceVersion": "2"},
+		"spec":     map[string]any{"replicas": int64(2)},
+	}}
+	AddPPClaimMetadata(obj, "policy-id", policy.ObjectMeta)
+	key, err := keys.ClusterWideKeyFunc(obj)
+	require.NoError(t, err)
+	indexer := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{})
+	require.NoError(t, indexer.Add(obj))
+	d := &ResourceDetector{
+		RESTMapper:          &mockRESTMapper{},
+		InformerManager:     &resourceChangeInformerManager{indexer: indexer},
+		Processor:           &mockAsyncWorker{},
+		ResourceInterpreter: &mockResourceInterpreter{},
+		EventRecorder:       record.NewFakeRecorder(20),
+	}
+	old := obj.DeepCopy()
+	old.SetResourceVersion("1")
+	oldPolicy := policy.DeepCopy()
+	oldPolicy.Spec.Placement.ClusterAffinity.ClusterNames = []string{"old-cluster"}
+	binding, err := d.BuildResourceBinding(old, &oldPolicy.Spec, "policy-id", policy.ObjectMeta, AddPPClaimMetadata)
+	require.NoError(t, err)
+	d.Client = fake.NewClientBuilder().WithScheme(setupTestScheme()).WithObjects(policy, binding).Build()
+	return d, obj, key, client.ObjectKeyFromObject(binding)
+}
+
+func assertResourceChangeBinding(t *testing.T, d *ResourceDetector, key client.ObjectKey, updated bool) {
+	t.Helper()
+	binding := &workv1alpha2.ResourceBinding{}
+	require.NoError(t, d.Client.Get(t.Context(), key, binding))
+	version, cluster := "1", "old-cluster"
+	if updated {
+		version, cluster = "2", "new-cluster"
+	}
+	assert.Equal(t, version, binding.Spec.Resource.ResourceVersion)
+	assert.Equal(t, []string{cluster}, binding.Spec.Placement.ClusterAffinity.ClusterNames)
+}
+
+func waitResourceChangeResult(t *testing.T, results <-chan error) error {
+	t.Helper()
+	select {
+	case err := <-results:
+		return err
+	case <-time.After(10 * time.Second):
+		t.Fatal("Timed out waiting for reconciliation")
+		return nil
+	}
+}
+
+type resourceChangeInformerManager struct {
+	genericmanager.SingleClusterInformerManager
+	indexer cache.Indexer
+}
+
+func (m *resourceChangeInformerManager) Lister(gvr schema.GroupVersionResource) cache.GenericLister {
+	return cache.NewGenericLister(m.indexer, gvr.GroupResource())
+}
+
+type resourceChangeRESTMapper struct {
+	meta.RESTMapper
+	beforeMapping func() error
+}
+
+func (m *resourceChangeRESTMapper) RESTMapping(gk schema.GroupKind, versions ...string) (*meta.RESTMapping, error) {
+	if err := m.beforeMapping(); err != nil {
+		return nil, err
+	}
+	return m.RESTMapper.RESTMapping(gk, versions...)
 }

@@ -107,6 +107,10 @@ type ResourceDetector struct {
 	// RateLimiterOptions is the configuration for rate limiter which may significantly influence the performance of
 	// the controller.
 	RateLimiterOptions ratelimiterflag.Options
+
+	// resourceChangeMarks records whether all pending changes of a resource template are made by Karmada.
+	// A false mark means at least one change requires propagation; an absent mark means no pending change.
+	resourceChangeMarks sync.Map
 }
 
 // Start runs the detector, never stop until context canceled.
@@ -136,7 +140,7 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 
 	detectorWorkerOptions := util.Options{
 		Name:               "resource detector",
-		KeyFunc:            ResourceItemKeyFunc,
+		KeyFunc:            ClusterWideKeyFunc,
 		ReconcileFunc:      d.Reconcile,
 		RateLimiterOptions: d.RateLimiterOptions,
 		UsePriorityQueue:   features.FeatureGate.Enabled(features.ControllerPriorityQueue),
@@ -229,14 +233,22 @@ func (d *ResourceDetector) NeedLeaderElection() bool {
 // Reconcile performs a full reconciliation for the object referred to by the key.
 // The key will be re-queued if an error is non-nil.
 func (d *ResourceDetector) Reconcile(key util.QueueKey) error {
-	clusterWideKeyWithConfig, ok := key.(keys.ClusterWideKeyWithConfig)
+	clusterWideKey, ok := key.(keys.ClusterWideKey)
 	if !ok {
 		klog.Error("Invalid key")
 		return fmt.Errorf("invalid key")
 	}
 
-	clusterWideKey := clusterWideKeyWithConfig.ClusterWideKey
-	resourceChangeByKarmada := clusterWideKeyWithConfig.ResourceChangeByKarmada
+	// Consume only the pending changes at the start of this attempt. Events arriving during reconciliation
+	// are kept for the next attempt, and failed changes are merged back before retrying.
+	resourceChangeByKarmada, pending := d.takeResourceChange(clusterWideKey)
+	if !pending {
+		// Without the priority queue, a delayed retry stays separate from later adds (the priority queue
+		// merges them per key), so it may arrive after another item already reconciled its change.
+		// Continuing would fall back to resourceChangeByKarmada=false and refresh a lazy binding.
+		return nil
+	}
+
 	klog.Infof("Reconciling object: %s", clusterWideKey)
 
 	object, err := d.GetUnstructuredObject(clusterWideKey)
@@ -249,7 +261,8 @@ func (d *ResourceDetector) Reconcile(key util.QueueKey) error {
 			// currently we do that by setting owner reference to derived objects.
 			return nil
 		}
-		klog.Errorf("Failed to get unstructured object(%s), error: %v", clusterWideKeyWithConfig, err)
+		klog.Errorf("Failed to get unstructured object(%s), error: %v", clusterWideKey, err)
+		d.markResourceChange(clusterWideKey, resourceChangeByKarmada)
 		return err
 	}
 
@@ -261,7 +274,11 @@ func (d *ResourceDetector) Reconcile(key util.QueueKey) error {
 		return nil
 	}
 
-	return d.propagateResource(object, clusterWideKey, resourceChangeByKarmada)
+	err = d.propagateResource(object, clusterWideKey, resourceChangeByKarmada)
+	if err != nil {
+		d.markResourceChange(clusterWideKey, resourceChangeByKarmada)
+	}
+	return err
 }
 
 // EventFilter tells if an object should be taken care of.
@@ -307,14 +324,49 @@ func (d *ResourceDetector) EventFilter(obj any) bool {
 	return true
 }
 
+// markResourceChange records whether the pending change of the resource template is made by Karmada.
+// Once a pending change needs propagation, the mark stays false, so a later change made by Karmada
+// can't hide it.
+func (d *ResourceDetector) markResourceChange(key keys.ClusterWideKey, resourceChangeByKarmada bool) {
+	if !resourceChangeByKarmada {
+		d.resourceChangeMarks.Store(key, false)
+		return
+	}
+
+	// Keep an existing "false" mark, which takes precedence over this "true" one.
+	d.resourceChangeMarks.LoadOrStore(key, true)
+}
+
+// takeResourceChange consumes the pending changes, reporting their origin and whether any were pending.
+func (d *ResourceDetector) takeResourceChange(key keys.ClusterWideKey) (resourceChangeByKarmada, pending bool) {
+	mark, loaded := d.resourceChangeMarks.LoadAndDelete(key)
+	if !loaded {
+		return false, false
+	}
+
+	return mark.(bool), true
+}
+
+// addResourceTemplate records the change before queuing the resource key. Keeping the origin out of
+// the key ensures that all changes of the same resource are reconciled serially.
+func (d *ResourceDetector) addResourceTemplate(key keys.ClusterWideKey, resourceChangeByKarmada bool, opts util.AddOpts) {
+	d.markResourceChange(key, resourceChangeByKarmada)
+	d.Processor.AddWithOpts(opts, key)
+}
+
 // OnAdd handles object add event and push the object to queue.
 func (d *ResourceDetector) OnAdd(obj any, isInInitialList bool) {
 	runtimeObj, ok := obj.(runtime.Object)
 	if !ok {
 		return
 	}
+	key, err := keys.ClusterWideKeyFunc(runtimeObj)
+	if err != nil {
+		klog.Errorf("Failed to generate key for object: %v", err)
+		return
+	}
 	priority := util.ItemPriorityIfInInitialList(isInInitialList)
-	d.Processor.EnqueueWithOpts(util.AddOpts{Priority: priority}, ResourceItem{Obj: runtimeObj})
+	d.addResourceTemplate(key, false, util.AddOpts{Priority: priority})
 }
 
 // OnUpdate handles object update event and push the object to queue.
@@ -348,21 +400,18 @@ func (d *ResourceDetector) OnUpdate(oldObj, newObj any) {
 		klog.Errorf("Failed to check if the object (kind=%s, %s/%s) is bound by lazy policy. err: %v", unstructuredNewObj.GetKind(), unstructuredNewObj.GetNamespace(), unstructuredNewObj.GetName(), err)
 	}
 
-	if isLazyActivation {
-		resourceItem := ResourceItem{
-			Obj:                     newRuntimeObj,
-			ResourceChangeByKarmada: eventfilter.ResourceChangeByKarmada(unstructuredOldObj, unstructuredNewObj),
-		}
+	// The flag is only meaningful for the resources claimed by a lazy policy.
+	resourceChangeByKarmada := isLazyActivation && eventfilter.ResourceChangeByKarmada(unstructuredOldObj, unstructuredNewObj)
 
-		d.Processor.Enqueue(resourceItem)
+	// Keep the flag out of the queue key, otherwise the same resource template would be enqueued as two
+	// different items and reconciled concurrently, see https://github.com/karmada-io/karmada/issues/5996.
+	key, err := keys.ClusterWideKeyFunc(newRuntimeObj)
+	if err != nil {
+		klog.Errorf("Failed to generate key for object: %v", err)
 		return
 	}
 
-	// For non-lazy policies, it is no need to distinguish whether the change is from Karmada or not.
-	resourceItem := ResourceItem{
-		Obj: newRuntimeObj,
-	}
-	d.Processor.Enqueue(resourceItem)
+	d.addResourceTemplate(key, resourceChangeByKarmada, util.AddOpts{})
 }
 
 // OnDelete handles object delete event and push the object to queue.
@@ -1540,16 +1589,12 @@ func (d *ResourceDetector) applyReplicaInterpretation(object *unstructured.Unstr
 
 // enqueueResourceTemplateForPolicyChange enqueues a resource template key for reconciliation in response to a
 // PropagationPolicy or ClusterPropagationPolicy change. If the policy's ActivationPreference is set to Lazy,
-// the ResourceChangeByKarmada flag is set to true, indicating that the resource template is being enqueued
-// due to a policy change and should not be propagated to member clusters. For non-lazy policies, this flag
-// is omitted as the distinction is unnecessary.
+// the "changed by Karmada" flag is set to true, indicating that the resource template is being enqueued
+// due to a policy change and should not be propagated to member clusters. For non-lazy policies, the flag
+// is recorded as false as the distinction is unnecessary.
 //
-// Note: Setting ResourceChangeByKarmada changes the effective queue key. Mixing both true/false for the same
-// resource may result in two different queue keys being processed concurrently, which can cause race conditions.
-// Therefore, only set ResourceChangeByKarmada in lazy activation mode.
 // For more details, see: https://github.com/karmada-io/karmada/issues/5996.
 func (d *ResourceDetector) enqueueResourceTemplateForPolicyChange(key keys.ClusterWideKey, pref policyv1alpha1.ActivationPreference) {
-	enqueueKey := keys.ClusterWideKeyWithConfig{ClusterWideKey: key, ResourceChangeByKarmada: util.IsLazyActivationEnabled(pref)}
 	// Use of low priority here is based on the following reasons:
 	//
 	// 1. The purpose of using low priority is to ensure that user-triggered changes
@@ -1566,5 +1611,5 @@ func (d *ResourceDetector) enqueueResourceTemplateForPolicyChange(key keys.Clust
 	//    In other words, when all resourceTemplates already need to be queued for processing,
 	//    this allows user-triggered modifications to resourceTemplates
 	//    to be prioritized for handling.
-	d.Processor.AddWithOpts(util.AddOpts{Priority: ptr.To(util.LowPriority)}, enqueueKey)
+	d.addResourceTemplate(key, util.IsLazyActivationEnabled(pref), util.AddOpts{Priority: ptr.To(util.LowPriority)})
 }
