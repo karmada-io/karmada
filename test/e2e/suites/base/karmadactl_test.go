@@ -58,6 +58,8 @@ import (
 const (
 	karmadactlTimeout        = time.Second * 10
 	PropagationPolicyPattern = `propagationpolicy\.policy\.karmada\.io\/([a-zA-Z0-9\-]+)`
+	// metricsCreationDelay defines the maximum time metrics not yet available for pod.
+	metricsCreationDelay = 2 * time.Minute
 )
 
 var _ = ginkgo.Describe("Karmadactl promote testing", func() {
@@ -605,40 +607,60 @@ var _ = ginkgo.Describe("Karmadactl top testing", func() {
 				framework.RemovePod(kubeClient, pod.Namespace, pod.Name)
 			})
 
-			// wait for pod and metrics ready
+			// wait for pod ready
 			framework.WaitPodPresentOnClustersFitWith(framework.ClusterNames(), pod.Namespace, pod.Name,
 				func(pod *corev1.Pod) bool {
 					return khelper.IsPodReady(pod)
 				})
-			for _, cluster := range framework.ClusterNames() {
-				framework.WaitPodMetricsReady(kubeClient, karmadaClient, cluster, pod.Namespace, pod.Name)
-			}
 		})
 
 		ginkgo.It("Karmadactl top existing pod", func() {
 			ginkgo.By("Karmadactl top existing pod", func() {
-				for _, clusterName := range framework.ClusterNames() {
-					cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, pod.Namespace, karmadactlTimeout, "top", "pod", pod.Name, "-n", pod.Namespace, "-C", clusterName)
-					_, err := cmd.ExecOrDie()
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				}
+				gomega.Eventually(func() error {
+					for _, clusterName := range framework.ClusterNames() {
+						cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, pod.Namespace, karmadactlTimeout, "top", "pod", pod.Name, "-n", pod.Namespace, "-C", clusterName)
+						_, err := cmd.ExecOrDie()
+						if err != nil {
+							klog.Infof("Karmadactl top pod(%s/%s) on cluster(%s) failed: %v", pod.Namespace, pod.Name, clusterName, err)
+							return err
+						}
+					}
+					return nil
+				}, metricsCreationDelay, pollInterval).Should(gomega.Succeed())
 			})
 
 			ginkgo.By("Karmadactl top existing pod without setting cluster flag", func() {
-				cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, pod.Namespace, karmadactlTimeout, "top", "pod", pod.Name, "-n", pod.Namespace)
-				_, err := cmd.ExecOrDie()
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				gomega.Eventually(func() error {
+					cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, pod.Namespace, karmadactlTimeout, "top", "pod", pod.Name, "-n", pod.Namespace)
+					_, err := cmd.ExecOrDie()
+					if err != nil {
+						klog.Infof("Karmadactl top pod(%s/%s) across all clusters failed: %v", pod.Namespace, pod.Name, err)
+					}
+					return err
+				}, metricsCreationDelay, pollInterval).Should(gomega.Succeed())
 			})
 
 			ginkgo.By("Karmadactl top pod without specific podName", func() {
-				cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, pod.Namespace, karmadactlTimeout, "top", "pod", "-A")
-				_, err := cmd.ExecOrDie()
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				for _, clusterName := range framework.ClusterNames() {
-					cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, pod.Namespace, karmadactlTimeout, "top", "pod", "-A", "-C", clusterName)
+				gomega.Eventually(func() error {
+					cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, pod.Namespace, karmadactlTimeout, "top", "pod", "-A")
 					_, err := cmd.ExecOrDie()
-					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				}
+					if err != nil {
+						klog.Infof("Karmadactl top pod -A across all clusters failed: %v", err)
+					}
+					return err
+				}, metricsCreationDelay, pollInterval).Should(gomega.Succeed())
+
+				gomega.Eventually(func() error {
+					for _, clusterName := range framework.ClusterNames() {
+						cmd := framework.NewKarmadactlCommand(kubeconfig, karmadaContext, karmadactlPath, pod.Namespace, karmadactlTimeout, "top", "pod", "-A", "-C", clusterName)
+						_, err := cmd.ExecOrDie()
+						if err != nil {
+							klog.Infof("Karmadactl top pod -A on cluster(%s) failed: %v", clusterName, err)
+							return err
+						}
+					}
+					return nil
+				}, metricsCreationDelay, pollInterval).Should(gomega.Succeed())
 			})
 		})
 	})
