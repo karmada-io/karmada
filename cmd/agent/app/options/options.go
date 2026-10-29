@@ -140,6 +140,15 @@ type Options struct {
 	CertRotationRemainingTimeThreshold float64
 	// KarmadaKubeconfigNamespace is the namespace of the secret containing karmada-agent certificate.
 	KarmadaKubeconfigNamespace string
+	// EnableClusterRegistration indicates whether the agent registers the member cluster
+	// with the Karmada control plane on startup, including creating the Cluster object,
+	// reporting credentials, and keeping registration-related spec fields up to date.
+	// Set it to false when registration is handled by an external system. In that case,
+	// the Cluster object must already exist in Pull mode with spec.id set, the karmada-cluster
+	// namespace must exist in the control plane, and the agent only validates them before
+	// starting controllers.
+	// Defaults to true.
+	EnableClusterRegistration bool
 }
 
 // NewOptions builds an default scheduler options.
@@ -211,6 +220,16 @@ func (o *Options) AddFlags(fs *pflag.FlagSet, allControllers []string) {
 	fs.DurationVar(&o.CertRotationCheckingInterval, "cert-rotation-checking-interval", 5*time.Minute, "The interval of checking if the certificate need to be rotated. This is only applicable if cert rotation is enabled")
 	fs.Float64Var(&o.CertRotationRemainingTimeThreshold, "cert-rotation-remaining-time-threshold", 0.2, "The threshold of remaining time of the valid certificate. This is only applicable if cert rotation is enabled.")
 	fs.StringVar(&o.KarmadaKubeconfigNamespace, "karmada-kubeconfig-namespace", "karmada-system", "Namespace of the secret containing karmada-agent certificate. This is only applicable if cert rotation is enabled.")
+	fs.BoolVar(&o.EnableClusterRegistration, "enable-cluster-registration", true,
+		"Enable means the agent registers the member cluster with the Karmada control plane on startup, "+
+			"including creating the Cluster object and reporting credentials. "+
+			"Disable it when the cluster is registered by an external system; the Cluster object must already exist in Pull mode "+
+			"with spec.id set to the member cluster ID (the UID of its kube-system namespace), "+
+			"the karmada-cluster namespace must exist in the control plane, "+
+			"and the agent only validates them before starting controllers. "+
+			"Disabling it also makes the registration-related flags ineffective, so the agent refuses to start if any of them is set: "+
+			"--cluster-api-endpoint, --proxy-server-address, --cluster-provider, --cluster-region, --cluster-zones, "+
+			"--report-secrets, --cluster-namespace.")
 	o.RateLimiterOpts.AddFlags(fs)
 	features.FeatureGate.AddFlag(fs)
 	o.ProfileOpts.AddFlags(fs)

@@ -101,9 +101,9 @@ cluster and manifests to the Karmada control plane.`,
 			logs.InitLogs()
 			return nil
 		},
-		RunE: func(_ *cobra.Command, _ []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			// validate options
-			if errs := opts.Validate(); len(errs) != 0 {
+			if errs := opts.Validate(cmd.Flags()); len(errs) != 0 {
 				return errs.ToAggregate()
 			}
 			if err := run(ctx, opts); err != nil {
@@ -159,46 +159,54 @@ func run(ctx context.Context, opts *options.Options) error {
 	if err != nil {
 		return fmt.Errorf("error building kubeconfig of member cluster: %w", err)
 	}
-	clusterKubeClient := kubeclientset.NewForConfigOrDie(clusterConfig)
-	controlPlaneKubeClient := kubeclientset.NewForConfigOrDie(controlPlaneRestConfig)
-	karmadaClient := karmadaclientset.NewForConfigOrDie(controlPlaneRestConfig)
+	if opts.EnableClusterRegistration {
+		memberKubeClient := kubeclientset.NewForConfigOrDie(clusterConfig)
+		controlPlaneKubeClient := kubeclientset.NewForConfigOrDie(controlPlaneRestConfig)
+		karmadaClient := karmadaclientset.NewForConfigOrDie(controlPlaneRestConfig)
 
-	registerOption := util.ClusterRegisterOption{
-		ClusterNamespace:   opts.ClusterNamespace,
-		ClusterName:        opts.ClusterName,
-		ReportSecrets:      opts.ReportSecrets,
-		ClusterAPIEndpoint: opts.ClusterAPIEndpoint,
-		ProxyServerAddress: opts.ProxyServerAddress,
-		ClusterProvider:    opts.ClusterProvider,
-		ClusterRegion:      opts.ClusterRegion,
-		ClusterZones:       opts.ClusterZones,
-		DryRun:             false,
-		ControlPlaneConfig: controlPlaneRestConfig,
-		ClusterConfig:      clusterConfig,
-	}
+		registerOption := util.ClusterRegisterOption{
+			ClusterNamespace:   opts.ClusterNamespace,
+			ClusterName:        opts.ClusterName,
+			ReportSecrets:      opts.ReportSecrets,
+			ClusterAPIEndpoint: opts.ClusterAPIEndpoint,
+			ProxyServerAddress: opts.ProxyServerAddress,
+			ClusterProvider:    opts.ClusterProvider,
+			ClusterRegion:      opts.ClusterRegion,
+			ClusterZones:       opts.ClusterZones,
+			DryRun:             false,
+			ControlPlaneConfig: controlPlaneRestConfig,
+			ClusterConfig:      clusterConfig,
+		}
 
-	registerOption.ClusterID, err = util.ObtainClusterID(clusterKubeClient)
-	if err != nil {
-		return err
-	}
+		registerOption.ClusterID, err = util.ObtainClusterID(memberKubeClient)
+		if err != nil {
+			return err
+		}
 
-	if err = registerOption.Validate(karmadaClient, true); err != nil {
-		return err
-	}
+		if err = registerOption.Validate(karmadaClient, true); err != nil {
+			return err
+		}
 
-	clusterSecret, impersonatorSecret, err := util.ObtainCredentialsFromMemberCluster(clusterKubeClient, registerOption)
-	if err != nil {
-		return err
-	}
-	if clusterSecret != nil {
-		registerOption.Secret = *clusterSecret
-	}
-	if impersonatorSecret != nil {
-		registerOption.ImpersonatorSecret = *impersonatorSecret
-	}
-	err = util.RegisterClusterInControllerPlane(registerOption, controlPlaneKubeClient, generateClusterInControllerPlane)
-	if err != nil {
-		return fmt.Errorf("failed to register with karmada control plane: %w", err)
+		clusterSecret, impersonatorSecret, err := util.ObtainCredentialsFromMemberCluster(memberKubeClient, registerOption)
+		if err != nil {
+			return err
+		}
+		if clusterSecret != nil {
+			registerOption.Secret = *clusterSecret
+		}
+		if impersonatorSecret != nil {
+			registerOption.ImpersonatorSecret = *impersonatorSecret
+		}
+		if err = util.RegisterClusterInControllerPlane(registerOption, controlPlaneKubeClient, generateClusterInControllerPlane); err != nil {
+			return fmt.Errorf("failed to register with karmada control plane: %w", err)
+		}
+	} else {
+		karmadaClient := karmadaclientset.NewForConfigOrDie(controlPlaneRestConfig)
+		controlPlaneKubeClient := kubeclientset.NewForConfigOrDie(controlPlaneRestConfig)
+		memberKubeClient := kubeclientset.NewForConfigOrDie(clusterConfig)
+		if err = validateExternallyRegisteredCluster(ctx, opts, karmadaClient, controlPlaneKubeClient, memberKubeClient); err != nil {
+			return err
+		}
 	}
 
 	executionSpace := names.GenerateExecutionSpaceName(opts.ClusterName)
