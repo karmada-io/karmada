@@ -20,6 +20,10 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/testutil"
+	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
 var _ MetricRecorder = &fakeBindingsRecorder{}
@@ -100,4 +104,61 @@ func TestClear(t *testing.T) {
 	if fakeRecorder.counter != int64(0) {
 		t.Errorf("Expected %v, got %v", 0, fakeRecorder.counter)
 	}
+}
+
+func TestPendingBindingsRecorder(t *testing.T) {
+	tests := []struct {
+		name     string
+		recorder *PendingBindingsRecorder
+		gauge    prometheus.Gauge
+	}{
+		{name: "active", recorder: NewActiveBindingsRecorder(), gauge: ActiveBindings()},
+		{name: "backoff", recorder: NewBackoffBindingsRecorder(), gauge: BackoffBindings()},
+		{name: "unschedulable", recorder: NewUnschedulableBindingsRecorder(), gauge: UnschedulableBindings()},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.recorder.Clear()
+			tt.recorder.Inc()
+			tt.recorder.Inc()
+			tt.recorder.Dec()
+			if got := testutil.ToFloat64(tt.gauge); got != 1 {
+				t.Errorf("after Inc, Inc, Dec: expected 1, got %v", got)
+			}
+			tt.recorder.Clear()
+			if got := testutil.ToFloat64(tt.gauge); got != 0 {
+				t.Errorf("after Clear: expected 0, got %v", got)
+			}
+		})
+	}
+}
+
+// TestPendingBindingsServedByControllerRuntimeRegistry guards against registering the
+// queue metrics in a registry that the scheduler's /metrics endpoint does not serve.
+func TestPendingBindingsServedByControllerRuntimeRegistry(t *testing.T) {
+	recorder := NewActiveBindingsRecorder()
+	recorder.Clear()
+	recorder.Inc()
+	defer recorder.Clear()
+
+	families, err := ctrlmetrics.Registry.Gather()
+	if err != nil {
+		t.Fatalf("failed to gather metrics from controller-runtime registry: %v", err)
+	}
+	for _, family := range families {
+		if family.GetName() != "karmada_scheduler_pending_bindings" {
+			continue
+		}
+		for _, metric := range family.GetMetric() {
+			for _, label := range metric.GetLabel() {
+				if label.GetName() == "queue" && label.GetValue() == "active" {
+					if got := metric.GetGauge().GetValue(); got != 1 {
+						t.Errorf("expected karmada_scheduler_pending_bindings{queue=\"active\"} to be 1, got %v", got)
+					}
+					return
+				}
+			}
+		}
+	}
+	t.Fatalf("karmada_scheduler_pending_bindings{queue=\"active\"} not found in controller-runtime registry")
 }
