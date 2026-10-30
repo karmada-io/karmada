@@ -56,6 +56,7 @@ type TestInitData struct {
 	ComponentsUnits         *operatorv1alpha1.KarmadaComponents
 	FeatureGatesOptions     map[string]bool
 	RemoteClientConnector   clientset.Interface
+	proxyURL                string
 	KarmadaClientConnector  clientset.Interface
 	ControlplaneAddr        string
 	Certs                   []*certs.KarmadaCert
@@ -92,6 +93,11 @@ func (t *TestInitData) ControlplaneAddress() string {
 // RemoteClient returns the Kubernetes client for remote interactions.
 func (t *TestInitData) RemoteClient() clientset.Interface {
 	return t.RemoteClientConnector
+}
+
+// GetProxyURL returns the proxyURL of kubeconfig
+func (t *TestInitData) GetProxyURL() string {
+	return t.proxyURL
 }
 
 // KarmadaClient returns the Kubernetes client for interacting with Karmada.
