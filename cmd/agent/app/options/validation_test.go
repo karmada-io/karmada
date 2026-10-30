@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/spf13/pflag"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	componentbaseconfig "k8s.io/component-base/config"
@@ -38,6 +39,7 @@ func New(modifyOptions ModifyOptions) Options {
 		ClusterStatusUpdateFrequency:      metav1.Duration{Duration: 10 * time.Second},
 		ClusterLeaseDuration:              metav1.Duration{Duration: 40 * time.Second},
 		ClusterLeaseRenewIntervalFraction: 0.25,
+		EnableClusterRegistration:         true,
 	}
 
 	if modifyOptions != nil {
@@ -55,7 +57,7 @@ func TestValidateKarmadaAgentConfiguration(t *testing.T) {
 	}
 
 	for _, successCase := range successCases {
-		if errs := successCase.Validate(); len(errs) != 0 {
+		if errs := successCase.Validate(pflag.NewFlagSet("test", pflag.ContinueOnError)); len(errs) != 0 {
 			t.Errorf("expected success: %v", errs)
 		}
 	}
@@ -98,7 +100,7 @@ func TestValidateKarmadaAgentConfiguration(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
-		errs := testCase.opt.Validate()
+		errs := testCase.opt.Validate(pflag.NewFlagSet("test", pflag.ContinueOnError))
 		if len(testCase.expectedErrs) != len(errs) {
 			t.Fatalf("Expected %d errors, got %d errors: %v", len(testCase.expectedErrs), len(errs), errs)
 		}
@@ -107,5 +109,70 @@ func TestValidateKarmadaAgentConfiguration(t *testing.T) {
 				t.Fatalf("Expected error: %s, got %s", testCase.expectedErrs[i], err.Error())
 			}
 		}
+	}
+}
+
+func TestValidateClusterRegistrationFlags(t *testing.T) {
+	newPath := field.NewPath("Options")
+	forbidden := func(fieldName string) *field.Error {
+		return field.Forbidden(newPath.Child(fieldName), "must not be set when --enable-cluster-registration=false")
+	}
+	registrationFlags := []string{
+		"--cluster-api-endpoint=https://10.0.0.1:6443",
+		"--proxy-server-address=http://10.0.0.2:8080",
+		"--cluster-provider=aws",
+		"--cluster-region=us-east-1",
+		"--cluster-zones=us-east-1a,us-east-1b",
+		"--report-secrets=None",
+		"--cluster-namespace=karmada-cluster",
+	}
+
+	testCases := map[string]struct {
+		args         []string
+		expectedErrs field.ErrorList
+	}{
+		"registration enabled by default, registration flags allowed": {
+			args: registrationFlags,
+		},
+		"registration disabled, no registration flags set": {
+			args: []string{"--enable-cluster-registration=false"},
+		},
+		"registration disabled, registration flags set": {
+			args: append([]string{"--enable-cluster-registration=false"}, registrationFlags...),
+			expectedErrs: field.ErrorList{
+				forbidden("ClusterAPIEndpoint"),
+				forbidden("ProxyServerAddress"),
+				forbidden("ClusterProvider"),
+				forbidden("ClusterRegion"),
+				forbidden("ClusterZones"),
+				forbidden("ReportSecrets"),
+				forbidden("ClusterNamespace"),
+			},
+		},
+		"registration disabled, registration flag set to an empty value": {
+			args:         []string{"--enable-cluster-registration=false", "--cluster-provider="},
+			expectedErrs: field.ErrorList{forbidden("ClusterProvider")},
+		},
+	}
+
+	for name, testCase := range testCases {
+		t.Run(name, func(t *testing.T) {
+			opts := NewOptions()
+			fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
+			opts.AddFlags(fs, nil)
+			if err := fs.Parse(append([]string{"--cluster-name=member1"}, testCase.args...)); err != nil {
+				t.Fatalf("failed to parse flags: %v", err)
+			}
+
+			errs := opts.Validate(fs)
+			if len(testCase.expectedErrs) != len(errs) {
+				t.Fatalf("Expected %d errors, got %d errors: %v", len(testCase.expectedErrs), len(errs), errs)
+			}
+			for i, err := range errs {
+				if err.Error() != testCase.expectedErrs[i].Error() {
+					t.Fatalf("Expected error: %s, got %s", testCase.expectedErrs[i], err.Error())
+				}
+			}
+		})
 	}
 }
