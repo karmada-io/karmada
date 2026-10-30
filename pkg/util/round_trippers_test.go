@@ -230,6 +230,90 @@ func TestParseProxyHeaders(t *testing.T) {
 	}
 }
 
+func TestProxyHeaderRoundTripper_ConnectionPoolPreserved(t *testing.T) {
+	headers := map[string]string{
+		"Proxy-Authorization": "Basic cluster-token",
+		"X-Proxy-Header":      "val1,val2",
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	baseTransport := &http.Transport{}
+	wrapper := NewProxyHeaderRoundTripperWrapperConstructor(nil, headers)
+	rt := wrapper(baseTransport)
+
+	phrt, ok := rt.(*proxyHeaderRoundTripper)
+	assert.True(t, ok)
+
+	firstTransport := phrt.roundTripper
+	for range 5 {
+		req, err := http.NewRequest(http.MethodGet, server.URL, nil)
+		assert.NoError(t, err)
+
+		resp, err := rt.RoundTrip(req)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		_ = resp.Body.Close()
+
+		assert.Same(t, firstTransport, phrt.roundTripper)
+	}
+}
+
+func TestProxyHeaderRoundTripper_OwnedTransportCloning(t *testing.T) {
+	baseTransport := &http.Transport{}
+
+	clusterAHeaders := map[string]string{
+		"Proxy-Authorization": "Basic cluster-A-creds",
+	}
+	clusterBHeaders := map[string]string{
+		"Proxy-Authorization": "Basic cluster-B-creds",
+	}
+
+	wrapperA := NewProxyHeaderRoundTripperWrapperConstructor(nil, clusterAHeaders)
+	wrapperB := NewProxyHeaderRoundTripperWrapperConstructor(nil, clusterBHeaders)
+
+	rtA := wrapperA(baseTransport)
+	rtB := wrapperB(baseTransport)
+
+	phrtA, okA := rtA.(*proxyHeaderRoundTripper)
+	phrtB, okB := rtB.(*proxyHeaderRoundTripper)
+	assert.True(t, okA)
+	assert.True(t, okB)
+
+	trA, okA := phrtA.roundTripper.(*http.Transport)
+	trB, okB := phrtB.roundTripper.(*http.Transport)
+	assert.True(t, okA)
+	assert.True(t, okB)
+
+	assert.Nil(t, baseTransport.ProxyConnectHeader)
+	assert.NotSame(t, trA, trB)
+	assert.NotSame(t, baseTransport, trA)
+	assert.NotSame(t, baseTransport, trB)
+	assert.Equal(t, []string{"Basic cluster-A-creds"}, trA.ProxyConnectHeader["Proxy-Authorization"])
+	assert.Equal(t, []string{"Basic cluster-B-creds"}, trB.ProxyConnectHeader["Proxy-Authorization"])
+}
+
+func TestProxyHeaderRoundTripper_WrappedTransport(t *testing.T) {
+	headers := map[string]string{
+		"Proxy-Authorization": "Basic token",
+	}
+
+	baseTransport := &http.Transport{}
+	wrappedRT := &mockWrapperRoundTripper{inner: baseTransport}
+	wrapper := NewProxyHeaderRoundTripperWrapperConstructor(nil, headers)
+
+	rt := wrapper(wrappedRT)
+	phrt, ok := rt.(*proxyHeaderRoundTripper)
+	assert.True(t, ok)
+
+	assert.Equal(t, []string{"Basic token"}, baseTransport.ProxyConnectHeader["Proxy-Authorization"])
+	assert.Same(t, wrappedRT, phrt.WrappedRoundTripper())
+	assert.Same(t, wrappedRT, phrt.Unwrap())
+}
+
 // Mock Implementations
 
 type mockRoundTripper struct {
@@ -239,4 +323,20 @@ type mockRoundTripper struct {
 
 func (m *mockRoundTripper) RoundTrip(_ *http.Request) (*http.Response, error) {
 	return m.response, m.err
+}
+
+type mockWrapperRoundTripper struct {
+	inner http.RoundTripper
+}
+
+func (m *mockWrapperRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	return m.inner.RoundTrip(req)
+}
+
+func (m *mockWrapperRoundTripper) WrappedRoundTripper() http.RoundTripper {
+	return m.inner
+}
+
+func (m *mockWrapperRoundTripper) Unwrap() http.RoundTripper {
+	return m.inner
 }
