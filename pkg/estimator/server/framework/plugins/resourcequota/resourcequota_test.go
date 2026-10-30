@@ -1489,3 +1489,231 @@ func TestResourceQuotaEstimator_EstimateComponents(t *testing.T) {
 		})
 	}
 }
+
+func newPodQuota(name string, hard, used corev1.ResourceList) *corev1.ResourceQuota {
+	return &corev1.ResourceQuota{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: fooNamespace,
+		},
+		Spec: corev1.ResourceQuotaSpec{
+			Hard: hard,
+		},
+		Status: corev1.ResourceQuotaStatus{
+			Hard: hard,
+			Used: used,
+		},
+	}
+}
+
+func TestResourceQuotaEstimator_PodQuota(t *testing.T) {
+	cpuRequirements := (&pb.ReplicaRequirements{
+		Namespace: fooNamespace,
+	}).MustSetResourceRequest(corev1.ResourceList{
+		corev1.ResourceCPU: *resource.NewMilliQuantity(100, resource.DecimalSI),
+	})
+
+	tests := map[string]struct {
+		replicaRequirements *pb.ReplicaRequirements
+		resourceQuotaList   []*corev1.ResourceQuota
+		assumedWorkloads    []*pb.AssumedWorkload
+		expect              expect
+	}{
+		"pods-quota-only": {
+			replicaRequirements: cpuRequirements,
+			resourceQuotaList: []*corev1.ResourceQuota{
+				newPodQuota("pods", corev1.ResourceList{
+					corev1.ResourcePods: *resource.NewQuantity(10, resource.DecimalSI),
+				}, corev1.ResourceList{
+					corev1.ResourcePods: *resource.NewQuantity(4, resource.DecimalSI),
+				}),
+			},
+			expect: expect{
+				replica: 6,
+				ret:     framework.NewResult(framework.Success),
+			},
+		},
+		"pods-quota-without-resource-request": {
+			replicaRequirements: &pb.ReplicaRequirements{Namespace: fooNamespace},
+			resourceQuotaList: []*corev1.ResourceQuota{
+				newPodQuota("pods", corev1.ResourceList{
+					corev1.ResourcePods: *resource.NewQuantity(10, resource.DecimalSI),
+				}, corev1.ResourceList{
+					corev1.ResourcePods: *resource.NewQuantity(1, resource.DecimalSI),
+				}),
+			},
+			expect: expect{
+				replica: 9,
+				ret:     framework.NewResult(framework.Success),
+			},
+		},
+		"count-pods-quota-exhausted": {
+			replicaRequirements: cpuRequirements,
+			resourceQuotaList: []*corev1.ResourceQuota{
+				newPodQuota("count-pods", corev1.ResourceList{
+					resourceCountPods: *resource.NewQuantity(5, resource.DecimalSI),
+				}, corev1.ResourceList{
+					resourceCountPods: *resource.NewQuantity(5, resource.DecimalSI),
+				}),
+			},
+			expect: expect{
+				replica: 0,
+				ret:     framework.NewResult(framework.Unschedulable, "zero replica is estimated by ResourceQuotaEstimator"),
+			},
+		},
+		"pods-quota-used-exceeds-hard": {
+			replicaRequirements: cpuRequirements,
+			resourceQuotaList: []*corev1.ResourceQuota{
+				newPodQuota("pods", corev1.ResourceList{
+					corev1.ResourcePods: *resource.NewQuantity(2, resource.DecimalSI),
+				}, corev1.ResourceList{
+					corev1.ResourcePods: *resource.NewQuantity(5, resource.DecimalSI),
+				}),
+			},
+			expect: expect{
+				replica: 0,
+				ret:     framework.NewResult(framework.Unschedulable, "zero replica is estimated by ResourceQuotaEstimator"),
+			},
+		},
+		"pods-and-count-pods-tighter-wins": {
+			replicaRequirements: cpuRequirements,
+			resourceQuotaList: []*corev1.ResourceQuota{
+				newPodQuota("pods", corev1.ResourceList{
+					corev1.ResourcePods: *resource.NewQuantity(10, resource.DecimalSI),
+					resourceCountPods:   *resource.NewQuantity(5, resource.DecimalSI),
+				}, corev1.ResourceList{
+					corev1.ResourcePods: *resource.NewQuantity(2, resource.DecimalSI),
+					resourceCountPods:   *resource.NewQuantity(2, resource.DecimalSI),
+				}),
+			},
+			expect: expect{
+				replica: 3,
+				ret:     framework.NewResult(framework.Success),
+			},
+		},
+		"pods-quota-tighter-than-cpu-quota": {
+			replicaRequirements: cpuRequirements,
+			resourceQuotaList: []*corev1.ResourceQuota{
+				newPodQuota("cpu-and-pods", corev1.ResourceList{
+					corev1.ResourceCPU:  *resource.NewQuantity(1, resource.DecimalSI),
+					corev1.ResourcePods: *resource.NewQuantity(10, resource.DecimalSI),
+				}, corev1.ResourceList{
+					corev1.ResourceCPU:  *resource.NewMilliQuantity(200, resource.DecimalSI),
+					corev1.ResourcePods: *resource.NewQuantity(7, resource.DecimalSI),
+				}),
+			},
+			expect: expect{
+				// cpu allows 800m/100m = 8 replicas, pods allow 10-7 = 3 replicas.
+				replica: 3,
+				ret:     framework.NewResult(framework.Success),
+			},
+		},
+		"pods-quota-deducts-assumed-workloads": {
+			replicaRequirements: cpuRequirements,
+			resourceQuotaList: []*corev1.ResourceQuota{
+				newPodQuota("pods", corev1.ResourceList{
+					corev1.ResourcePods: *resource.NewQuantity(10, resource.DecimalSI),
+				}, corev1.ResourceList{
+					corev1.ResourcePods: *resource.NewQuantity(2, resource.DecimalSI),
+				}),
+			},
+			assumedWorkloads: []*pb.AssumedWorkload{
+				{
+					Namespace: fooNamespace,
+					Components: []*pb.Component{
+						{
+							Name:                "in-flight-app",
+							ReplicaRequirements: &pb.ComponentReplicaRequirements{},
+							Replicas:            5,
+						},
+					},
+				},
+			},
+			expect: expect{
+				replica: 3,
+				ret:     framework.NewResult(framework.Success),
+			},
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			testCtx := setup(t, tt.resourceQuotaList, true)
+			replica, ret := testCtx.p.Estimate(testCtx.ctx, framework.ReplicaEstimationContext{
+				ReplicaRequirements: tt.replicaRequirements,
+				AssumedWorkloads:    tt.assumedWorkloads,
+			})
+
+			require.Equal(t, tt.expect.ret.Code(), ret.Code())
+			assert.ElementsMatch(t, tt.expect.ret.Reasons(), ret.Reasons())
+			require.Equal(t, tt.expect.replica, replica)
+		})
+	}
+}
+
+func TestResourceQuotaEstimator_EstimateComponentsPodQuota(t *testing.T) {
+	components := []*pb.Component{
+		{
+			Name: "web",
+			ReplicaRequirements: (&pb.ComponentReplicaRequirements{}).MustSetResourceRequest(corev1.ResourceList{
+				corev1.ResourceCPU: *resource.NewMilliQuantity(100, resource.DecimalSI),
+			}),
+			Replicas: 2,
+		},
+		{
+			Name:                "db",
+			ReplicaRequirements: &pb.ComponentReplicaRequirements{},
+			Replicas:            1,
+		},
+	}
+	podQuota := newPodQuota("pods", corev1.ResourceList{
+		corev1.ResourcePods: *resource.NewQuantity(10, resource.DecimalSI),
+	}, corev1.ResourceList{
+		corev1.ResourcePods: *resource.NewQuantity(3, resource.DecimalSI),
+	})
+
+	tests := map[string]struct {
+		assumedWorkloads []*pb.AssumedWorkload
+		expect           expect
+	}{
+		"pods-quota-divides-by-pods-per-set": {
+			expect: expect{
+				// 7 free pods, 3 pods per set.
+				replica: 2,
+				ret:     framework.NewResult(framework.Success),
+			},
+		},
+		"pods-quota-deducts-assumed-workloads": {
+			assumedWorkloads: []*pb.AssumedWorkload{
+				{
+					Namespace: fooNamespace,
+					Components: []*pb.Component{
+						{
+							Name:                "in-flight-app",
+							ReplicaRequirements: &pb.ComponentReplicaRequirements{},
+							Replicas:            5,
+						},
+					},
+				},
+			},
+			expect: expect{
+				// 7 - 5 = 2 free pods, 3 pods per set.
+				replica: 0,
+				ret:     framework.NewResult(framework.Unschedulable, "zero component sets estimated by ResourceQuotaEstimator"),
+			},
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			testCtx := setup(t, []*corev1.ResourceQuota{podQuota}, true)
+			sets, ret := testCtx.p.EstimateComponents(testCtx.ctx, framework.ComponentEstimationContext{
+				Namespace:        fooNamespace,
+				Components:       components,
+				AssumedWorkloads: tt.assumedWorkloads,
+			})
+
+			require.Equal(t, tt.expect.ret.Code(), ret.Code())
+			assert.ElementsMatch(t, tt.expect.ret.Reasons(), ret.Reasons())
+			require.Equal(t, tt.expect.replica, sets)
+		})
+	}
+}
