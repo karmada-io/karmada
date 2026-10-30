@@ -27,8 +27,6 @@ const (
 	PollInterval = 5 * time.Second
 	// PollTimeout defines the time after which the poll operation times out.
 	PollTimeout = 420 * time.Second
-	// metricsCreationDelay defines the maximum time metrics not yet available for pod.
-	metricsCreationDelay = 2 * time.Minute
 )
 
 const (
