@@ -17,10 +17,12 @@ limitations under the License.
 package util
 
 import (
+	"maps"
 	"net/http"
 	"net/textproto"
 	"strings"
 
+	utilnet "k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/client-go/transport"
 )
 
@@ -30,15 +32,24 @@ type proxyHeaderRoundTripper struct {
 }
 
 var _ http.RoundTripper = &proxyHeaderRoundTripper{}
+var _ utilnet.RoundTripperWrapper = &proxyHeaderRoundTripper{}
 
 // NewProxyHeaderRoundTripperWrapperConstructor returns a RoundTripper wrapper that's usable within restConfig.WrapTransport.
 func NewProxyHeaderRoundTripperWrapperConstructor(wt transport.WrapperFunc, headers map[string]string) transport.WrapperFunc {
 	return func(rt http.RoundTripper) http.RoundTripper {
+		proxyHeaders := parseProxyHeaders(headers)
+		if len(proxyHeaders) > 0 {
+			if tr := extractTransport(rt); tr != nil {
+				ownedTransport := tr.Clone()
+				setProxyConnectHeader(ownedTransport, proxyHeaders)
+				rt = replaceTransport(rt, tr, ownedTransport)
+			}
+		}
 		if wt != nil {
 			rt = wt(rt)
 		}
 		return &proxyHeaderRoundTripper{
-			proxyHeaders: parseProxyHeaders(headers),
+			proxyHeaders: proxyHeaders,
 			roundTripper: rt,
 		}
 	}
@@ -46,12 +57,57 @@ func NewProxyHeaderRoundTripperWrapperConstructor(wt transport.WrapperFunc, head
 
 // RoundTrip implements the http.RoundTripper interface.
 func (r *proxyHeaderRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	if tr, ok := r.roundTripper.(*http.Transport); ok {
-		tr = tr.Clone()
-		tr.ProxyConnectHeader = r.proxyHeaders
-		return tr.RoundTrip(req)
-	}
 	return r.roundTripper.RoundTrip(req)
+}
+
+// WrappedRoundTripper returns the wrapped http.RoundTripper, implementing utilnet.RoundTripperWrapper.
+func (r *proxyHeaderRoundTripper) WrappedRoundTripper() http.RoundTripper {
+	return r.roundTripper
+}
+
+// Unwrap returns the wrapped http.RoundTripper.
+func (r *proxyHeaderRoundTripper) Unwrap() http.RoundTripper {
+	return r.roundTripper
+}
+
+// extractTransport unwraps supported RoundTrippers to locate the underlying *http.Transport.
+func extractTransport(rt http.RoundTripper) *http.Transport {
+	for rt != nil {
+		switch t := rt.(type) {
+		case *http.Transport:
+			return t
+		case utilnet.RoundTripperWrapper:
+			rt = t.WrappedRoundTripper()
+		case interface{ Unwrap() http.RoundTripper }:
+			rt = t.Unwrap()
+		default:
+			return nil
+		}
+	}
+	return nil
+}
+
+// replaceTransport replaces oldTr with newTr in rt if rt is oldTr or if rt supports replacing wrapped transports.
+func replaceTransport(rt http.RoundTripper, oldTr, newTr *http.Transport) http.RoundTripper {
+	if rt == oldTr {
+		return newTr
+	}
+	if s, ok := rt.(interface{ SetWrappedRoundTripper(http.RoundTripper) }); ok {
+		s.SetWrappedRoundTripper(newTr)
+		return rt
+	}
+	return rt
+}
+
+func setProxyConnectHeader(tr *http.Transport, proxyHeaders http.Header) {
+	if len(proxyHeaders) == 0 {
+		return
+	}
+	if tr.ProxyConnectHeader == nil {
+		tr.ProxyConnectHeader = proxyHeaders.Clone()
+		return
+	}
+	maps.Copy(tr.ProxyConnectHeader, proxyHeaders)
 }
 
 func parseProxyHeaders(headers map[string]string) http.Header {
