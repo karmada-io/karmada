@@ -437,6 +437,9 @@ func emptyOverrides(overriders policyv1alpha1.Overriders) bool {
 	if len(overriders.AnnotationsOverrider) != 0 {
 		return false
 	}
+	if len(overriders.FieldOverrider) != 0 {
+		return false
+	}
 	return true
 }
 
