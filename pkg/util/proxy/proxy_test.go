@@ -18,6 +18,7 @@ package proxy
 
 import (
 	"context"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"net/http"
@@ -233,6 +234,64 @@ func TestConnectCluster(t *testing.T) {
 			}
 			if got := string(body); got != tt.want {
 				t.Errorf("Connect() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetTLSConfigForCluster(t *testing.T) {
+	s := httptest.NewTLSServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	defer s.Close()
+	validCA := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: s.Certificate().Raw})
+
+	newCluster := func() *clusterapis.Cluster {
+		return &clusterapis.Cluster{
+			ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
+			Spec: clusterapis.ClusterSpec{
+				SecretRef: &clusterapis.LocalSecretReference{Namespace: "ns", Name: "secret"},
+			},
+		}
+	}
+	secretGetterWith := func(data map[string][]byte) SecretGetterFunc {
+		return func(context.Context, string, string) (*corev1.Secret, error) {
+			return &corev1.Secret{Data: data}, nil
+		}
+	}
+
+	tests := []struct {
+		name         string
+		data         map[string][]byte
+		wantErr      bool
+		wantSubjects int
+	}{
+		{
+			name:         "valid CA bundle",
+			data:         map[string][]byte{clusterapis.SecretCADataKey: validCA},
+			wantSubjects: 1,
+		},
+		{
+			name:         "CA bundle not set",
+			data:         map[string][]byte{},
+			wantSubjects: 0,
+		},
+		{
+			name:    "CA bundle without a valid PEM certificate",
+			data:    map[string][]byte{clusterapis.SecretCADataKey: []byte("not a certificate")},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := GetTLSConfigForCluster(context.TODO(), newCluster(), secretGetterWith(tt.data))
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("GetTLSConfigForCluster() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if tt.wantErr {
+				return
+			}
+			//nolint:staticcheck // Subjects is fine for counting the certificates added to a custom pool.
+			if n := len(got.RootCAs.Subjects()); n != tt.wantSubjects {
+				t.Errorf("RootCAs has %d certificates, want %d", n, tt.wantSubjects)
 			}
 		})
 	}
