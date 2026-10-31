@@ -18,8 +18,11 @@ package spreadconstraint
 
 import (
 	"fmt"
+	"slices"
 
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 )
 
 func selectBestClustersByCluster(spreadConstraint policyv1alpha1.SpreadConstraint, groupClustersInfo *GroupClustersInfo,
@@ -37,7 +40,14 @@ func selectBestClustersByCluster(spreadConstraint policyv1alpha1.SpreadConstrain
 	} else {
 		selectedClusters = selectClustersByAvailableResource(groupClustersInfo.Clusters, int32(needCnt), needReplicas) // #nosec G115: integer overflow conversion int -> int32
 		if len(selectedClusters) == 0 {
-			return nil, fmt.Errorf("no enough resource when selecting %d clusters", needCnt)
+			candidateClusters := make([]*clusterv1alpha1.Cluster, len(groupClustersInfo.Clusters))
+			for i := range groupClustersInfo.Clusters {
+				candidateClusters[i] = groupClustersInfo.Clusters[i].Cluster
+			}
+			return nil, &framework.InsufficientCapacityError{
+				Message:           fmt.Sprintf("no enough resource when selecting %d clusters", needCnt),
+				CandidateClusters: candidateClusters,
+			}
 		}
 	}
 	return selectedClusters, nil
@@ -54,6 +64,12 @@ func selectBestClustersByCluster(spreadConstraint policyv1alpha1.SpreadConstrain
 // |------------------------------------------------|
 func selectClustersByAvailableResource(candidateClusters []ClusterDetailInfo, needClusterCount, needReplicas int32) []ClusterDetailInfo {
 	retClusters := candidateClusters[:needClusterCount]
+	if checkAvailableResource(retClusters, needReplicas) {
+		return retClusters
+	}
+
+	candidateClusters = slices.Clone(candidateClusters)
+	retClusters = candidateClusters[:needClusterCount]
 	restClusters := candidateClusters[needClusterCount:]
 
 	// the retClusters is sorted by cluster.Score descending. when the total AvailableReplicas of retClusters is less than needReplicas,
