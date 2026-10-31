@@ -2,6 +2,12 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
+- [v1.19.1](#v1191)
+  - [Downloads for v1.19.1](#downloads-for-v1191)
+  - [Changelog since v1.19.0](#changelog-since-v1190)
+    - [Changes by Kind](#changes-by-kind)
+    - [Bug Fixes](#bug-fixes)
+    - [Others](#others)
 - [v1.19.0](#v1190)
   - [Downloads for v1.19.0](#downloads-for-v1190)
   - [Urgent Update Notes](#urgent-update-notes)
@@ -14,7 +20,7 @@
     - [API Changes](#api-changes)
     - [Features & Enhancements](#features--enhancements)
     - [Deprecation](#deprecation)
-    - [Bug Fixes](#bug-fixes)
+    - [Bug Fixes](#bug-fixes-1)
     - [Security](#security)
   - [Other](#other)
     - [Dependencies](#dependencies)
@@ -26,11 +32,11 @@
   - [Downloads for v1.19.0-rc.0](#downloads-for-v1190-rc0)
   - [Changelog since v1.19.0-beta.0](#changelog-since-v1190-beta0)
   - [Urgent Update Notes](#urgent-update-notes-1)
-  - [Changes by Kind](#changes-by-kind)
+  - [Changes by Kind](#changes-by-kind-1)
     - [API Changes](#api-changes-1)
     - [Features & Enhancements](#features--enhancements-1)
     - [Deprecation](#deprecation-1)
-    - [Bug Fixes](#bug-fixes-1)
+    - [Bug Fixes](#bug-fixes-2)
     - [Security](#security-1)
   - [Other](#other-1)
     - [Dependencies](#dependencies-1)
@@ -41,11 +47,11 @@
   - [Downloads for v1.19.0-beta.0](#downloads-for-v1190-beta0)
   - [Changelog since v1.19.0-alpha.1](#changelog-since-v1190-alpha1)
   - [Urgent Update Notes](#urgent-update-notes-2)
-  - [Changes by Kind](#changes-by-kind-1)
+  - [Changes by Kind](#changes-by-kind-2)
     - [API Changes](#api-changes-2)
     - [Features & Enhancements](#features--enhancements-2)
     - [Deprecation](#deprecation-2)
-    - [Bug Fixes](#bug-fixes-2)
+    - [Bug Fixes](#bug-fixes-3)
     - [Security](#security-2)
   - [Other](#other-2)
     - [Dependencies](#dependencies-2)
@@ -56,11 +62,11 @@
   - [Downloads for v1.19.0-alpha.1](#downloads-for-v1190-alpha1)
   - [Changelog since v1.19.0-alpha.0](#changelog-since-v1190-alpha0)
   - [Urgent Update Notes](#urgent-update-notes-3)
-  - [Changes by Kind](#changes-by-kind-2)
+  - [Changes by Kind](#changes-by-kind-3)
     - [API Changes](#api-changes-3)
     - [Features & Enhancements](#features--enhancements-3)
     - [Deprecation](#deprecation-3)
-    - [Bug Fixes](#bug-fixes-3)
+    - [Bug Fixes](#bug-fixes-4)
     - [Security](#security-3)
   - [Other](#other-3)
     - [Dependencies](#dependencies-3)
@@ -69,6 +75,21 @@
     - [Performance](#performance-3)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# v1.19.1
+## Downloads for v1.19.1
+
+Download v1.19.1 in the [v1.19.1 release page](https://github.com/karmada-io/karmada/releases/tag/v1.19.1).
+
+## Changelog since v1.19.0
+
+### Changes by Kind
+
+### Bug Fixes
+None.
+
+### Others
+- `Karmada`: Upgraded the Alpine base image from `alpine:3.24.1` to `alpine:3.24.2` to address security concerns. ([#7916](https://github.com/karmada-io/karmada/pull/7916), @dependabot)
 
 # v1.19.0
 ## Downloads for v1.19.0
