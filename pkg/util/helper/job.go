@@ -63,11 +63,17 @@ func ParsingJobStatus(obj *batchv1.Job, status []workv1alpha2.AggregatedStatusIt
 		}
 
 		// Count clusters that already set SuccessCriteriaMet=true
+		hasSuccessCriteriaMet := false
 		for _, c := range temp.Conditions {
-			if c.Type == batchv1.JobSuccessCriteriaMet && c.Status == corev1.ConditionTrue {
-				successCriteriaMetClusters++
-				break
+			if c.Status != corev1.ConditionTrue {
+				continue
 			}
+			if c.Type == batchv1.JobSuccessCriteriaMet {
+				hasSuccessCriteriaMet = true
+			}
+		}
+		if hasSuccessCriteriaMet {
+			successCriteriaMetClusters++
 		}
 
 		// StartTime
@@ -87,14 +93,36 @@ func ParsingJobStatus(obj *batchv1.Job, status []workv1alpha2.AggregatedStatusIt
 	}
 
 	if len(jobFailed) != 0 {
+		now := metav1.Now()
+		failedMessage := fmt.Sprintf("Job executed failed in member clusters %s", strings.Join(jobFailed, ","))
+
+		// Kubernetes (>= v1.31) rejects a Failed=True update unless the FailureTarget
+		// condition is already present. Member clusters running Kubernetes < 1.31 may
+		// not set FailureTarget natively, so synthesize it here whenever we aggregate a
+		// failure, instead of only carrying it through when a member already reported it.
 		newStatus.Conditions = append(newStatus.Conditions, batchv1.JobCondition{
-			Type:               batchv1.JobFailed,
+			Type:               batchv1.JobFailureTarget,
 			Status:             corev1.ConditionTrue,
-			LastProbeTime:      metav1.Now(),
-			LastTransitionTime: metav1.Now(),
+			LastProbeTime:      now,
+			LastTransitionTime: now,
 			Reason:             "JobFailed",
-			Message:            fmt.Sprintf("Job executed failed in member clusters %s", strings.Join(jobFailed, ",")),
+			Message:            failedMessage,
 		})
+
+		// A finished Job (Failed=True) must report Active == 0, or the API server
+		// rejects the update. When another member cluster is still active, keep
+		// FailureTarget=True as the interim aggregate condition and defer Failed=True
+		// until all reflected members are inactive.
+		if newStatus.Active == 0 {
+			newStatus.Conditions = append(newStatus.Conditions, batchv1.JobCondition{
+				Type:               batchv1.JobFailed,
+				Status:             corev1.ConditionTrue,
+				LastProbeTime:      now,
+				LastTransitionTime: now,
+				Reason:             "JobFailed",
+				Message:            failedMessage,
+			})
+		}
 	}
 
 	// aggregated status can be empty when the binding is just created
