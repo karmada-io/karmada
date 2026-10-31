@@ -33,3 +33,16 @@ func Test_initExample(t *testing.T) {
 		t.Errorf("initExample() want return not nil, but return nil")
 	}
 }
+
+func TestNewCmdInit_KubeImageTagDefault(t *testing.T) {
+	cmd := NewCmdInit("karmadactl")
+
+	flag := cmd.Flags().Lookup("kube-image-tag")
+	if flag == nil {
+		t.Fatal("kube-image-tag flag not found")
+	}
+
+	if got, want := flag.DefValue, "v1.37.1"; got != want {
+		t.Errorf("kube-image-tag default = %q, want %q", got, want)
+	}
+}
