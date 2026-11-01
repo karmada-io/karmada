@@ -305,7 +305,7 @@ kubectl --kubeconfig $HOME/.kube/karmada.config --context karmada-apiserver appl
 You can get `ResourceBinding` to check if the `replicas` field is interpreted successfully.
 
 ```bash
-kubectl get rb nginx-workload -o yaml
+kubectl --kubeconfig $HOME/.kube/karmada.config --context karmada-apiserver get rb nginx-workload -o yaml
 ```
 
 #### ReviseReplica
@@ -335,8 +335,8 @@ There is no `Workload` controller deployed on member clusters, so in order to si
 we will manually update `status.readyReplicas` of `Workload` object in member1 cluster to 1. 
 
 ```bash
-kubectl proxy --port=8001 &
-curl  http://127.0.0.1:8001/apis/workload.example.io/v1alpha1/namespaces/default/workloads/nginx/status  -XPATCH -d'{"status":{"readyReplicas": 1}}' -H "Content-Type: application/merge-patch+json
+kubectl --kubeconfig $HOME/.kube/members.config --context member1 proxy --port=8001 &
+curl  http://127.0.0.1:8001/apis/workload.example.io/v1alpha1/namespaces/default/workloads/nginx/status  -XPATCH -d'{"status":{"readyReplicas": 1}}' -H "Content-Type: application/merge-patch+json"
 ```
 
 Then you can get `ResourceBinding` to check if the `status.aggregatedStatus[x].status` field is interpreted successfully.
