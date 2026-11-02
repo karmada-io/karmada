@@ -1,0 +1,33 @@
+name: Update Krew Index
+on:
+  workflow_run:
+    workflows: [Release CLI]
+    types: [completed]
+permissions:
+  contents: read
+jobs:
+  update-krew-index:
+    # Prevent updates from forks and only follow a successful CLI release.
+    if: ${{ github.repository == 'karmada-io/karmada' && github.event.workflow_run.conclusion == 'success' }}
+    name: Update krew-index
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ github.event.workflow_run.head_branch }}
+    steps:
+      - name: get latest tag
+        id: get-latest-tag
+        run: |
+          export LATEST_TAG=`gh api repos/karmada-io/karmada/releases/latest | jq -r '.tag_name'`
+          echo "Got the latest tag:$LATEST_TAG"
+          echo "event.tag:$RELEASE_TAG"
+          echo "latestTag=$LATEST_TAG" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.get-latest-tag.outputs.latestTag == env.RELEASE_TAG
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - name: Update new version in krew-index
+        if: steps.get-latest-tag.outputs.latestTag == env.RELEASE_TAG
+        uses: rajatjindal/krew-release-bot@c970b8a8f6dbc2f2285a26e3ae160903b87002c3 # v0.0.51
+        with:
+          krew_plugin_release_tag: ${{ env.RELEASE_TAG }}

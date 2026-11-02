@@ -1,0 +1,47 @@
+on:
+  release:
+    types:
+    - published
+name: Release Charts
+permissions:
+  contents: read
+jobs:
+  release-charts:
+    permissions:
+      contents: write  # for softprops/action-gh-release to create GitHub release
+    name: Release charts
+    outputs:
+      hashes: ${{ steps.hash.outputs.hashes }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Making helm charts
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: make package-chart
+      - name: Uploading assets...
+        if: ${{ !env.ACT }}
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        with:
+          files: |
+            _output/charts/karmada-chart-${{ github.ref_name }}.tgz
+            _output/charts/karmada-chart-${{ github.ref_name }}.tgz.sha256
+            _output/charts/karmada-operator-chart-${{ github.ref_name }}.tgz
+            _output/charts/karmada-operator-chart-${{ github.ref_name }}.tgz.sha256
+      - name: generate charts hash
+        id: hash
+        run: |
+          cd _output/charts
+          echo "hashes=$(sha256sum *.tgz|base64 -w0)" >> "$GITHUB_OUTPUT"
+  charts-provenance:
+    needs: [release-charts]
+    permissions:
+      actions: read # for detecting the Github Actions environment
+      id-token: write # Needed for provenance signing and ID
+      contents: write #  Needed for release uploads
+    # Must be referenced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+    with:
+      base64-subjects: "${{ needs.release-charts.outputs.hashes }}"
+      provenance-name: "karmada-charts.intoto.jsonl"
+      upload-assets: true

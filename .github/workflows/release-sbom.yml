@@ -1,0 +1,51 @@
+on:
+  release:
+    types:
+    - published
+name: Release SBOM
+permissions:
+  contents: read
+jobs:
+  sbom-assests:
+    permissions:
+      contents: write  # for softprops/action-gh-release to create GitHub release
+    name: Release sbom
+    outputs:
+      hashes: ${{ steps.sbom-hash.outputs.hashes}}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Generate sbom for karmada file system
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: 'fs'
+          format: 'spdx'
+          output: 'sbom-karmada.spdx'
+          scan-ref: "${{ github.workspace }}/"
+      - name: Tar the sbom files
+        run: |
+          tar -zcf sbom.tar.gz *.spdx
+      - name: Generate SBOM hash
+        shell: bash
+        id: sbom-hash
+        run: |
+          # sha256sum generates sha256 hash for sbom.
+          # base64 -w0 encodes to base64 and outputs on a single line.
+          echo "hashes=$(sha256sum sbom.tar.gz | base64 -w0)" >> "$GITHUB_OUTPUT"
+      - name: Uploading sbom assets...
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        with:
+          files: |
+            sbom.tar.gz
+  sbom-provenance:
+    needs: [sbom-assests]
+    permissions:
+      actions: read # for detecting the Github Actions environment
+      id-token: write # Needed for provenance signing and ID
+      contents: write #  Needed for release uploads
+    # Must be referenced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+    with:
+      base64-subjects: "${{ needs.sbom-assests.outputs.hashes }}"
+      provenance-name: "karmada-sbom.intoto.jsonl"
+      upload-assets: true

@@ -1,0 +1,45 @@
+on:
+  release:
+    types:
+    - published
+name: Release CRDs
+permissions:
+  contents: read
+jobs:
+  release-crds-assests:
+    permissions:
+      contents: write  # for softprops/action-gh-release to create GitHub release
+    name: release crds
+    outputs:
+      hashes: ${{ steps.hash.outputs.hashes }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Rename the crds directory
+        run: |
+          mv ./charts/karmada/_crds ./charts/karmada/crds
+      - name: Tar the crds
+        run: tar -czf crds.tar.gz -C ./charts/karmada crds
+      - name: generate crds hash
+        id: hash
+        run: |
+          # sha256sum generates sha256 hash for crds.
+          # base64 -w0 encodes to base64 and outputs on a single line.
+          echo "hashes=$(sha256sum crds.tar.gz | base64 -w0)" >> "$GITHUB_OUTPUT"
+      - name: Uploading crd assets...
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        with:
+          files: |
+            crds.tar.gz
+  crds-provenance:
+    needs: [release-crds-assests]
+    permissions:
+      actions: read # for detecting the Github Actions environment
+      id-token: write # Needed for provenance signing and ID
+      contents: write #  Needed for release uploads
+    # Must be referenced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+    with:
+      base64-subjects: "${{ needs.release-crds-assests.outputs.hashes }}"
+      provenance-name: "karmada-crds.intoto.jsonl"
+      upload-assets: true
