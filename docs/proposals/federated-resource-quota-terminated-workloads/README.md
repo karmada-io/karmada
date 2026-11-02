@@ -465,7 +465,13 @@ The event is emitted from the aggregation and not from a controller predicate. T
 
 #### Webhook
 
-`pkg/webhook/resourcebinding/validating.go` needs no logic changes beyond the shared `CalculateResourceUsage`. Because the binding status aggregation lowers FRQ `status.overallUsed` as soon as termination is observed, the next binding admission sees the freed quota. Its FRQ status update logic is factored into the shared delta helper described above.
+`pkg/webhook/resourcebinding/validating.go` changes in one place: on updates, it always computes the usage delta instead of first filtering with `isQuotaRelevantFieldChanged`.
+
+Today, `isQuotaRelevantFieldChanged` skips quota validation when the resource requests, the total scheduled replicas and the components are unchanged. It compares the set of scheduled clusters only for bindings with components. Once usage depends on which scheduled clusters have terminated, that filter is no longer enough. For example, a reschedule that moves a replica-based binding from a terminated cluster to a new one, `[member1: 3, terminated]` → `[member2: 3]`, keeps the same total and would skip validation, so the 3 replicas now running on `member2` would not be counted until the next full recomputation.
+
+Instead, `validateFederatedResourceQuota` computes `delta = CalculateResourceUsage(newRB) - CalculateResourceUsage(oldRB)` for every update, and returns early only when the delta is zero, as it already does after the filter today. In the example above the delta is `+3` replicas, so the update is checked against the quota. This stays cheap: `CalculateResourceUsage` is pure computation on the two objects in the request, and FRQs are only listed and updated when the delta is non-zero.
+
+Because the binding status aggregation lowers FRQ `status.overallUsed` as soon as termination is observed, the next binding admission sees the freed quota. The webhook's FRQ status update logic is factored into the shared delta helper described above.
 
 ### Feature gate
 
@@ -490,7 +496,7 @@ No new feature gate is proposed:
   - `assembleWorkStatus` / condition computation: all, partial, none, unapplied clusters, and no hook (nil `terminated`, no condition).
   - `CalculateResourceUsage`: replica path and components path, partial termination, stale items for unscheduled clusters, no hook.
   - FRQ delta on status aggregation: release and reactivation deltas, no delta when only `spec.clusters` drops a terminated cluster, write ordering on failure, no delta when `FederatedQuotaEnforcement` is disabled, `TerminatedWorkloadReactivated` event on `true` → `false` only.
-  - RB webhook: delta with terminated clusters on spec update, create.
+  - RB webhook: delta with terminated clusters on spec update and create; a reschedule from a terminated cluster to a new cluster with the same total replicas is validated against the quota.
 - **E2E tests** (`test/e2e/suites/base/federatedresourcequota_test.go`)
   - The reproduction from #7931: FRQ `cpu: 2`, run a 1-CPU Job to completion, verify `overallUsed.cpu` drops to `0`, then admit two more Jobs.
   - Divided Job across two clusters, one finishing first: verify partial release.
