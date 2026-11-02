@@ -18,92 +18,42 @@ creation-date: 2026-10-13
 
 ## Summary
 
-When `FederatedQuotaEnforcement` is enabled, `FederatedResourceQuota` (FRQ) computes usage by
-summing the resource requests recorded in the spec of every `ResourceBinding` in the namespace.
-It does not know whether the workload behind a binding is still running. For batch workloads
-(Job, SparkApplication, Volcano Job, RayJob, PyTorchJob, MPIJob, Argo Workflow, ...), the resource
-template usually stays around after the job finishes, so its binding keeps holding quota until
-someone deletes the template. In batch-heavy namespaces, finished jobs fill the quota and every
-new job is rejected while the member clusters sit idle.
+When `FederatedQuotaEnforcement` is enabled, `FederatedResourceQuota` (FRQ) computes usage by summing the resource requests recorded in the spec of every `ResourceBinding` in the namespace. It does not know whether the workload behind a binding is still running. For batch workloads (Job, SparkApplication, Volcano Job, RayJob, PyTorchJob, MPIJob, Argo Workflow, ...), the resource template usually stays around after the job finishes, so its binding keeps holding quota until someone deletes the template. In batch-heavy namespaces, finished jobs fill the quota and every new job is rejected while the member clusters sit idle.
 
-This proposal makes FRQ behave like the Kubernetes native `ResourceQuota`, which stops counting
-pods once they reach a terminal phase (`Succeeded`/`Failed`). It has three parts:
+This proposal makes FRQ behave like the Kubernetes native `ResourceQuota`, which stops counting pods once they reach a terminal phase (`Succeeded`/`Failed`). It has three parts:
 
-1. **A new resource interpreter operation, `InterpretTermination`.** It tells Karmada whether
-   an object observed on a member cluster has reached a terminal state. It is available through
-   all interpreter layers: built-in (native), third-party, declarative
-   (`ResourceInterpreterCustomization`) and webhook.
-2. **Record the terminal state on `ResourceBinding`.** The terminal state is evaluated per member
-   cluster, next to the existing `health` assessment, and flows
-   `Work.status.manifestStatuses[].terminated` → `ResourceBinding.status.aggregatedStatus[].terminated`.
-   A summary condition `Terminated` is added to the binding.
-3. **FRQ skips terminated workloads.** `helper.CalculateResourceUsage` (shared by the FRQ
-   enforcement controller and the ResourceBinding validating webhook) does not count clusters
-   whose workload has terminated. When a binding's terminal state changes, the component that
-   writes the binding status applies the usage delta to the affected FRQs, the same way the
-   ResourceBinding webhook applies deltas for spec changes.
+1. **A new resource interpreter operation, `InterpretTermination`.** It tells Karmada whether an object observed on a member cluster has reached a terminal state. It is available through all interpreter layers: built-in, declarative (`ResourceInterpreterCustomization`) and webhook.
+2. **Record the terminal state on `ResourceBinding`.** The terminal state is evaluated per member cluster, next to the existing `health` assessment, and flows `Work.status.manifestStatuses[].terminated` → `ResourceBinding.status.aggregatedStatus[].terminated`. A summary condition `Terminated` is added to the binding.
+3. **FRQ skips terminated workloads.** `helper.CalculateResourceUsage` (shared by the FRQ enforcement controller and the ResourceBinding validating webhook) does not count clusters whose workload has terminated. When a binding's terminal state changes, the component that writes the binding status applies the usage delta to the affected FRQs, the same way the ResourceBinding webhook applies deltas for spec changes.
 
 ## Motivation
 
-`FederatedResourceQuota` is meant to limit the resources a namespace consumes across member
-clusters. For long-running workloads such as Deployments, the requests recorded on a binding are
-a good measure of that. For batch workloads they are not. A Job, SparkApplication, Volcano Job,
-RayJob or PyTorchJob runs for a limited time and then reaches a terminal state, but its resource
-template is usually kept afterwards so users can inspect status, logs and history.
+`FederatedResourceQuota` is meant to limit the resources a namespace consumes across member clusters. For long-running workloads such as Deployments, the requests recorded on a binding are a good measure of that. For batch workloads they are not. A Job, SparkApplication, Volcano Job, RayJob or PyTorchJob runs for a limited time and then reaches a terminal state, but its resource template is usually kept afterwards so users can inspect status, logs and history.
 
-Because FRQ counts every binding regardless of the workload's state, a finished job keeps
-holding its quota until its resource template is deleted. In namespaces that run many
-short-lived jobs, finished jobs eventually fill the quota and every new job is rejected with
-`QuotaExceeded`, even though the member clusters have free capacity. Users are left with two
-poor options: delete finished jobs and lose their history, or size the FRQ for all jobs ever
-run instead of the jobs currently running, which defeats the purpose of the quota.
+Because FRQ counts every binding regardless of the workload's state, a finished job keeps holding its quota until its resource template is deleted. In namespaces that run many short-lived jobs, finished jobs eventually fill the quota and every new job is rejected with `QuotaExceeded`, even though the member clusters have free capacity. Users are left with two poor options: delete finished jobs and lose their history, or size the FRQ for all jobs ever run instead of the jobs currently running, which defeats the purpose of the quota.
 
-Kubernetes solved this for a single cluster long ago: `ResourceQuota` stops counting pods once
-they reach a terminal phase (`Succeeded`/`Failed`). Users reasonably expect FRQ to behave the
-same way. See [#7931](https://github.com/karmada-io/karmada/issues/7931) for a production report
-and a reproduction with a native `batch/v1` Job.
+Kubernetes solved this for a single cluster long ago: `ResourceQuota` stops counting pods once they reach a terminal phase (`Succeeded`/`Failed`). Users reasonably expect FRQ to behave the same way. See [#7931](https://github.com/karmada-io/karmada/issues/7931) for a production report and a reproduction with a native `batch/v1` Job.
 
 ### Why not reuse existing hooks
 
-- **Return zero replicas/components from `GetReplicas`/`GetComponents` once the job finishes.**
-  We tried this first. It is fragile because those hooks describe *how an application is
-  composed*, and the result should not depend on runtime state (see
-  [this comment](https://github.com/karmada-io/karmada/issues/7931#issuecomment-6122561940) by
-  @RainbowMango). It also does not work today, because a status-only change on the resource
-  template never triggers re-interpretation: the detector filters it out with
-  `SpecificationChanged`.
-- **Overload `InterpretHealth`.** Health and termination are orthogonal. A failed job is
-  terminated but unhealthy. A completed job is terminated and healthy. A running job can be
-  either healthy or unhealthy. Health is also used by failover (`application failover` treats
-  unhealthy as a trigger), so changing its meaning has side effects.
+- **Return zero replicas/components from `GetReplicas`/`GetComponents` once the job finishes.** We tried this first. It is fragile because those hooks describe *how an application is composed*, and the result should not depend on runtime state (see [this comment](https://github.com/karmada-io/karmada/issues/7931#issuecomment-6122561940) by @RainbowMango). It also does not work today, because a status-only change on the resource template never triggers re-interpretation: the detector filters it out with `SpecificationChanged`.
+- **Overload `InterpretHealth`.** Health and termination are orthogonal. A failed job is terminated but unhealthy. A completed job is terminated and healthy. A running job can be either healthy or unhealthy. Health is also used by failover (`application failover` treats unhealthy as a trigger), so changing its meaning has side effects.
 
-A dedicated operation keeps existing semantics unchanged and makes "terminated" an explicit
-concept that other components (scheduler, estimator, failover) can use later.
+A dedicated operation keeps existing semantics unchanged and makes "terminated" an explicit concept that other components (scheduler, estimator, failover) can use later.
 
 ### Goals
 
-- Add an `InterpretTermination` interpreter operation that reports whether a member-cluster
-  object is in a terminal state. Support it through all interpreter layers.
-- Record the terminal state per member cluster on `ResourceBinding` (and `ClusterResourceBinding`,
-  since they share `AggregatedStatusItem`), plus a binding-level summary condition.
-- Exclude terminated workloads from FRQ `overallUsed`, both in the enforcement controller and
-  in the admission webhook. A finished job's quota should be released within seconds, without
-  touching the resource template.
-- Provide built-in termination rules for common batch kinds: native `batch/v1` `Job` and `v1`
-  `Pod`, plus the third-party customizations Karmada already ships for batch CRDs.
-- Keep `GetReplicas`/`GetComponents` state-independent, and leave the detector's event
-  filtering as it is.
+- Add an `InterpretTermination` interpreter operation that reports whether a member-cluster object is in a terminal state. Support it through all interpreter layers.
+- Record the terminal state per member cluster on `ResourceBinding` (and `ClusterResourceBinding`, since they share `AggregatedStatusItem`), plus a binding-level summary condition.
+- Exclude terminated workloads from FRQ `overallUsed`, both in the enforcement controller and in the admission webhook. A finished job's quota should be released within seconds, without touching the resource template.
+- Provide built-in termination rules for common batch kinds: native `batch/v1` `Job` and `v1` `Pod`, plus the third-party customizations Karmada already ships for batch CRDs.
+- Keep `GetReplicas`/`GetComponents` state-independent, and leave the detector's event filtering as it is.
 
 ### Non-Goals
 
-- Changing scheduling, rescheduling or failover behavior for terminated bindings. Today, a
-  cluster failover can reschedule a finished Job and run it again on the new cluster. Skipping
-  failover and eviction for bindings with `Terminated=True` would fix this, and the condition
-  defined here is meant to support it, but that change will be a follow-up proposal.
-- Accounting for suspended workloads (e.g. `Job.spec.suspend: true`). The same mechanism could
-  be extended later.
-- Adding FRQ `scopes`/`scopeSelector` (e.g. a `Terminating`/`NotTerminating` scope like native
-  `ResourceQuota`). This could be a follow-up enhancement.
+- Changing scheduling, rescheduling or failover behavior for terminated bindings. Today, a cluster failover can reschedule a finished Job and run it again on the new cluster. Skipping failover and eviction for bindings with `Terminated=True` would fix this, and the condition defined here is meant to support it, but that change will be a follow-up proposal.
+- Accounting for suspended workloads (e.g. `Job.spec.suspend: true`). The same mechanism could be extended later.
+- Adding FRQ `scopes`/`scopeSelector` (e.g. a `Terminating`/`NotTerminating` scope like native `ResourceQuota`). This could be a follow-up enhancement.
 - Garbage-collecting finished resource templates.
 
 ## Proposal
@@ -112,13 +62,9 @@ concept that other components (scheduler, estimator, failover) can use later.
 
 #### Story 1: Spark batch platform
 
-As a platform owner running hundreds of short-lived `SparkJob`s per day per namespace, I want the
-CPU/memory requested by a job to go back to the namespace FRQ as soon as the job reaches `Done`
-or `Failed`. That way the next job can be admitted, and I can still keep the finished
-`SparkJob` objects for history and debugging.
+As a platform owner running hundreds of short-lived `SparkJob`s per day per namespace, I want the CPU/memory requested by a job to go back to the namespace FRQ as soon as the job reaches `Done` or `Failed`. That way the next job can be admitted, and I can still keep the finished `SparkJob` objects for history and debugging.
 
-I add a `terminationInterpretation` to the `ResourceInterpreterCustomization` I already have
-for `SparkJob`:
+I add a `terminationInterpretation` to the `ResourceInterpreterCustomization` I already have for `SparkJob`:
 
 ```yaml
 apiVersion: config.karmada.io/v1alpha1
@@ -145,41 +91,19 @@ spec:
 
 #### Story 2: Native Kubernetes Jobs
 
-As a user propagating `batch/v1` `Job`s with `FederatedQuotaEnforcement` enabled, I expect a
-completed or failed Job to stop counting against the FRQ, the same way its pods stop counting
-against the member cluster's `ResourceQuota`. This works without any customization, because
-Karmada ships a built-in `InterpretTermination` for `Job`.
+As a user propagating `batch/v1` `Job`s with `FederatedQuotaEnforcement` enabled, I expect a completed or failed Job to stop counting against the FRQ, the same way its pods stop counting against the member cluster's `ResourceQuota`. This works without any customization, because Karmada ships a built-in `InterpretTermination` for `Job`.
 
 #### Story 3: Divided Job across clusters
 
-As a user whose Job is divided across `member1` (3 replicas) and `member2` (2 replicas), I
-expect the replicas on `member1` to stop counting once the Job reaches a terminal state there,
-even if `member2` is still running. Quota is released per cluster.
+As a user whose Job is divided across `member1` (3 replicas) and `member2` (2 replicas), I expect the replicas on `member1` to stop counting once the Job reaches a terminal state there, even if `member2` is still running. Quota is released per cluster.
 
 ### Notes/Constraints/Caveats
 
-- **Terminal state is evaluated on the member-cluster object, not on the resource template.**
-  This mirrors `InterpretHealth`. It does not depend on `AggregateStatus` being implemented for
-  the kind, it gives per-cluster granularity (Story 3), and it follows a status path that already
-  exists (`Work` → `ResourceBinding`). The template and the detector are not involved, so the
-  detector's `SpecificationChanged` filter stays as it is.
-- **Terminal should mean final, with resources released.** Native `ResourceQuota` can safely ignore
-  terminal pods because a pod phase never leaves `Succeeded`/`Failed` and a terminal pod no longer
-  runs containers. Interpreter authors should only return `true` for states the workload will not
-  leave on its own and in which it no longer holds resources on the member cluster. For example, a `SparkApplication` in `FAILED`
-  with an `OnFailure` restart policy will move to `PENDING_RERUN`, so it is not terminal. See
-  [Risks and Mitigations](#risks-and-mitigations) for what happens if a workload leaves a
-  terminal state anyway.
-- **Quota is released per cluster, not per pod.** Native `ResourceQuota` stops counting each pod
-  as soon as it terminates. FRQ accounts at the binding level, so the replicas on a cluster are
-  released only when the workload as a whole reaches a terminal state on that cluster. For
-  example, a Job with 5 replicas on one cluster keeps holding all 5 until the Job is `Complete`
-  or `Failed`, even if 4 of its pods have already succeeded.
-- **Kinds without the hook are never treated as terminated.** The default is to count usage, so
-  existing behavior is unchanged for those kinds.
-- **Quota is released only after Karmada observes termination.** In practice this takes a few
-  seconds: member status reflection, then Work status, then binding status aggregation, which
-  also applies the usage delta to the FRQ.
+- **Terminal state is evaluated on the member-cluster object, not on the resource template.** This mirrors `InterpretHealth`. It does not depend on `AggregateStatus` being implemented for the kind, it gives per-cluster granularity (Story 3), and it follows a status path that already exists (`Work` → `ResourceBinding`). The template and the detector are not involved, so the detector's `SpecificationChanged` filter stays as it is.
+- **Terminal should mean final, with resources released.** Native `ResourceQuota` can safely ignore terminal pods because a pod phase never leaves `Succeeded`/`Failed` and a terminal pod no longer runs containers. Interpreter authors should only return `true` for states the workload will not leave on its own and in which it no longer holds resources on the member cluster. For example, a `SparkApplication` in `FAILED` with an `OnFailure` restart policy will move to `PENDING_RERUN`, so it is not terminal. See [Risks and Mitigations](#risks-and-mitigations) for what happens if a workload leaves a terminal state anyway.
+- **Quota is released per cluster, not per pod.** Native `ResourceQuota` stops counting each pod as soon as it terminates. FRQ accounts at the binding level, so the replicas on a cluster are released only when the workload as a whole reaches a terminal state on that cluster. For example, a Job with 5 replicas on one cluster keeps holding all 5 until the Job is `Complete` or `Failed`, even if 4 of its pods have already succeeded.
+- **Kinds without the hook are never treated as terminated.** The default is to count usage, so existing behavior is unchanged for those kinds.
+- **Quota is released only after Karmada observes termination.** In practice this takes a few seconds: member status reflection, then Work status, then binding status aggregation, which also applies the usage delta to the FRQ.
 
 ### Risks and Mitigations
 
@@ -221,18 +145,11 @@ WorkStatusController.reflectStatus()
 
 ### API changes
 
-The new concept is called *termination* and is modeled as an optional bool, following the
-`InterpretHealth` / `healthInterpretation` / `health` pattern:
+The new concept is called *termination* and is modeled as an optional bool, following the `InterpretHealth` / `healthInterpretation` / `health` pattern:
 
-- "Terminated" covers both success and failure. A failed job must release quota as well, so a
-  name like "completed" would be misleading. It also matches Kubernetes' own wording for pods in
-  `Succeeded`/`Failed` ("terminal phase").
-- A bool rather than a `phase` enum keeps the contract simple: terminal means final. States a
-  workload can come back from, such as suspension, do not fit that contract and should be
-  modeled separately if they are ever needed.
-- The status fields are `*bool`, so "not evaluated" (no hook for the kind, or the interpreter
-  failed) can be told apart from "evaluated as not terminated". Both are counted toward quota,
-  but only the latter means the kind supports termination (see the `Terminated` condition below).
+- "Terminated" covers both success and failure. A failed job must release quota as well, so a name like "completed" would be misleading. It also matches Kubernetes' own wording for pods in `Succeeded`/`Failed` ("terminal phase").
+- A bool rather than a `phase` enum keeps the contract simple: terminal means final. States a workload can come back from, such as suspension, do not fit that contract and should be modeled separately if they are ever needed.
+- The status fields are `*bool`, so "not evaluated" (no hook for the kind, or the interpreter failed) can be told apart from "evaluated as not terminated". Both are counted toward quota, but only the latter means the kind supports termination (see the `Terminated` condition below).
 
 #### 1. New interpreter operation
 
@@ -358,24 +275,13 @@ const (
 )
 ```
 
-The condition is only set when at least one scheduled cluster has a non-nil
-`aggregatedStatus[].terminated`, i.e. when the kind has an `InterpretTermination` hook. Bindings
-of other kinds do not get a meaningless `Terminated=False`, and the binding status aggregation
-does not need access to the resource interpreter to decide this. The per-cluster
-`aggregatedStatus[].terminated` is the source of truth for quota accounting. The condition is a
-summary for users and for other components. It is exposed as a new `TERMINATED` print column on
-both `ResourceBinding` and `ClusterResourceBinding`, next to the existing `SCHEDULED` and
-`FULLYAPPLIED` columns:
+The condition is only set when at least one scheduled cluster has a non-nil `aggregatedStatus[].terminated`, i.e. when the kind has an `InterpretTermination` hook. Bindings of other kinds do not get a meaningless `Terminated=False`, and the binding status aggregation does not need access to the resource interpreter to decide this. The per-cluster `aggregatedStatus[].terminated` is the source of truth for quota accounting. The condition is a summary for users and for other components. It is exposed as a new `TERMINATED` print column on both `ResourceBinding` and `ClusterResourceBinding`, next to the existing `SCHEDULED` and `FULLYAPPLIED` columns:
 
 ```go
 // +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="Terminated")].status`,name="TERMINATED",type=string
 ```
 
-`Terminated=True` has a fixed meaning: the workload has reached a final state on every
-scheduled cluster. Future consumers can rely on that. For example, failover could skip such
-bindings instead of rerunning a finished job on another cluster (see [Non-Goals](#non-goals)).
-The scheduler estimator does not need this signal, because a finished job's pods are already
-gone from member cluster capacity.
+`Terminated=True` has a fixed meaning: the workload has reached a final state on every scheduled cluster. Future consumers can rely on that. For example, failover could skip such bindings instead of rerunning a finished job on another cluster (see [Non-Goals](#non-goals)). The scheduler estimator does not need this signal, because a finished job's pods are already gone from member cluster capacity.
 
 Example:
 
@@ -428,8 +334,7 @@ type ResourceInterpreter interface {
 }
 ```
 
-The usual precedence applies: declarative (`ResourceInterpreterCustomization`) → webhook →
-third-party → native. The work needed in each layer:
+The usual precedence applies: declarative (`ResourceInterpreterCustomization`) → webhook → third-party → native. The work needed in each layer:
 
 | Layer | Change |
 |---|---|
@@ -450,8 +355,7 @@ Built-in rules proposed for the shipped third-party customizations:
 | `argoproj.io/v1alpha1 Workflow` | `status.phase` ∈ {`Succeeded`, `Failed`, `Error`} |
 | `apps.kruise.io/v1alpha1 BroadcastJob` | `status.phase` ∈ {`completed`, `failed`} |
 
-Long-running kinds (Deployment, StatefulSet, FlinkDeployment, RayCluster, ...) get no termination
-rule and are never treated as terminated.
+Long-running kinds (Deployment, StatefulSet, FlinkDeployment, RayCluster, ...) get no termination rule and are never treated as terminated.
 
 ### Status collection changes
 
@@ -475,26 +379,17 @@ and set `ManifestStatus.Terminated`.
 
 `pkg/util/helper/workstatus.go`:
 
-- `assembleWorkStatus` copies `ManifestStatus.Terminated` into `AggregatedStatusItem.Terminated`.
-  It stays nil for items that are not applied.
-- `AggregateResourceBindingWorkStatus` / `AggregateClusterResourceBindingWorkStatus` set the
-  `Terminated` condition (computed against `spec.clusters`) next to `FullyApplied`, when at least
-  one scheduled cluster has a non-nil `terminated`.
-- `AggregateResourceBindingWorkStatus` also applies the FRQ usage delta and records the
-  `TerminatedWorkloadReactivated` event when the scheduled terminated cluster set changes (see
-  [Applying termination transitions to FRQ usage](#applying-termination-transitions-to-frq-usage)).
-  `ClusterResourceBinding` is not counted by FRQ, so the cluster-scoped path does not do this.
+- `assembleWorkStatus` copies `ManifestStatus.Terminated` into `AggregatedStatusItem.Terminated`. It stays nil for items that are not applied.
+- `AggregateResourceBindingWorkStatus` / `AggregateClusterResourceBindingWorkStatus` set the `Terminated` condition (computed against `spec.clusters`) next to `FullyApplied`, when at least one scheduled cluster has a non-nil `terminated`.
+- `AggregateResourceBindingWorkStatus` also applies the FRQ usage delta and records the `TerminatedWorkloadReactivated` event when the scheduled terminated cluster set changes (see [Applying termination transitions to FRQ usage](#applying-termination-transitions-to-frq-usage)). `ClusterResourceBinding` is not counted by FRQ, so the cluster-scoped path does not do this.
 
-Because these are status-only writes, they do not go through the ResourceBinding validating
-webhook (it only matches the `resourcebindings` resource, not `resourcebindings/status`), and
-they do not affect the detector.
+Because these are status-only writes, they do not go through the ResourceBinding validating webhook (it only matches the `resourcebindings` resource, not `resourcebindings/status`), and they do not affect the detector.
 
 ### FederatedResourceQuota changes
 
 #### Usage calculation
 
-`helper.CalculateResourceUsage` is the single place both the controller and the webhook use to
-compute a binding's usage. It changes to skip terminated clusters:
+`helper.CalculateResourceUsage` is the single place both the controller and the webhook use to compute a binding's usage. It changes to skip terminated clusters:
 
 ```go
 // terminatedClusters returns the set of scheduled clusters on which the workload has
@@ -533,38 +428,22 @@ func CalculateResourceUsage(rb *workv1alpha2.ResourceBinding) corev1.ResourceLis
 
 Notes:
 
-- The calculation is driven by `spec.clusters`. A stale `aggregatedStatus` item for a cluster
-  that is no longer scheduled has no effect. A newly scheduled cluster has no item yet, so it is
-  counted. This is the conservative choice.
-- On the webhook path, `newRB.status` equals `oldRB.status` for main-resource updates (the status
-  subresource is enabled), so the delta calculation stays consistent. Example: a spec update
-  that does not change replicas on a terminated binding produces a zero delta, as it does today.
+- The calculation is driven by `spec.clusters`. A stale `aggregatedStatus` item for a cluster that is no longer scheduled has no effect. A newly scheduled cluster has no item yet, so it is counted. This is the conservative choice.
+- On the webhook path, `newRB.status` equals `oldRB.status` for main-resource updates (the status subresource is enabled), so the delta calculation stays consistent. Example: a spec update that does not change replicas on a terminated binding produces a zero delta, as it does today.
 - On create, a binding has no aggregated status, so it is counted in full. Nothing changes here.
 
 #### Applying termination transitions to FRQ usage
 
 `FRQ.status.overallUsed` already has two writers:
 
-- The ResourceBinding webhook adds `CalculateResourceUsage(newRB) - CalculateResourceUsage(oldRB)`
-  to every matching FRQ at admission time (`updateFRQStatusesWithRetrySignal` in
-  `pkg/webhook/resourcebinding/validating.go`).
-- The FRQ enforcement controller overwrites it with a full recomputation over the bindings in its
-  informer cache (`collectQuotaStatus`). It does this on FRQ changes, binding deletion and the
-  periodic resync.
+- The ResourceBinding webhook adds `CalculateResourceUsage(newRB) - CalculateResourceUsage(oldRB)` to every matching FRQ at admission time (`updateFRQStatusesWithRetrySignal` in `pkg/webhook/resourcebinding/validating.go`).
+- The FRQ enforcement controller overwrites it with a full recomputation over the bindings in its informer cache (`collectQuotaStatus`). It does this on FRQ changes, binding deletion and the periodic resync.
 
-Termination changes a binding's usage through a status update, which the webhook does not see.
-Triggering a full recomputation for each transition would be the simplest fix, but it races with
-the webhook. If the controller recomputes after the webhook admitted a new binding and before
-that binding reaches the controller's cache, the new binding's usage is dropped from
-`overallUsed` and more bindings than the quota allows can be admitted. In batch namespaces, jobs
-finish while new ones are being submitted, so this would happen often.
+Termination changes a binding's usage through a status update, which the webhook does not see. Triggering a full recomputation for each transition would be the simplest fix, but it races with the webhook. If the controller recomputes after the webhook admitted a new binding and before that binding reaches the controller's cache, the new binding's usage is dropped from `overallUsed` and more bindings than the quota allows can be admitted. In batch namespaces, jobs finish while new ones are being submitted, so this would happen often.
 
-Instead, termination transitions are applied as **deltas**, the same way the webhook applies
-spec changes:
+Instead, termination transitions are applied as **deltas**, the same way the webhook applies spec changes:
 
-1. `AggregateResourceBindingWorkStatus` computes the new `aggregatedStatus`. Inside the
-   conflict-retry update function, it compares the scheduled terminated cluster set of the
-   binding being replaced with that of the new status:
+1. `AggregateResourceBindingWorkStatus` computes the new `aggregatedStatus`. Inside the conflict-retry update function, it compares the scheduled terminated cluster set of the binding being replaced with that of the new status:
 
    ```go
    // scheduledTerminatedClusters returns the clusters in spec.clusters whose
@@ -572,100 +451,50 @@ spec changes:
    func scheduledTerminatedClusters(rb *workv1alpha2.ResourceBinding) sets.Set[string]
    ```
 
-2. If the set changed and `FederatedQuotaEnforcement` is enabled, it computes
-   `delta = CalculateResourceUsage(new) - CalculateResourceUsage(old)`, where `old` and `new`
-   share the same spec and differ only in status.
-3. It applies the delta to every FRQ in the namespace through a helper shared with the webhook,
-   e.g. `helper.ApplyFederatedResourceQuotaDelta(ctx, client, namespace, delta)`. The helper
-   filters the delta by each FRQ's `spec.overall` keys, adds it to `overallUsed` and updates the
-   FRQ status with optimistic concurrency, retrying on conflict. Unlike the webhook, it never
-   denies: the status change has already happened on the member cluster.
+2. If the set changed and `FederatedQuotaEnforcement` is enabled, it computes `delta = CalculateResourceUsage(new) - CalculateResourceUsage(old)`, where `old` and `new` share the same spec and differ only in status.
+3. It applies the delta to every FRQ in the namespace through a helper shared with the webhook, e.g. `helper.ApplyFederatedResourceQuotaDelta(ctx, client, namespace, delta)`. The helper filters the delta by each FRQ's `spec.overall` keys, adds it to `overallUsed` and updates the FRQ status with optimistic concurrency, retrying on conflict. Unlike the webhook, it never denies: the status change has already happened on the member cluster.
 
-The order of the two writes is chosen so that a failure between them overcounts rather than
-undercounts:
+The order of the two writes is chosen so that a failure between them overcounts rather than undercounts:
 
-- **Release** (a cluster becomes terminated, negative delta): the binding status is written
-  first, then the FRQ. If the FRQ write fails, usage stays too high until the next periodic
-  resync.
-- **Reactivation** (a cluster leaves the terminated state, positive delta): the FRQ is written
-  first, then the binding status. If the binding status write fails and is retried, the delta can
-  be applied twice. Usage is then too high until the next periodic resync. In this case the
-  aggregation also records a `TerminatedWorkloadReactivated` warning event on the binding and
-  the FRQ (see [Risks and Mitigations](#risks-and-mitigations)).
+- **Release** (a cluster becomes terminated, negative delta): the binding status is written first, then the FRQ. If the FRQ write fails, usage stays too high until the next periodic resync.
+- **Reactivation** (a cluster leaves the terminated state, positive delta): the FRQ is written first, then the binding status. If the binding status write fails and is retried, the delta can be applied twice. Usage is then too high until the next periodic resync. In this case the aggregation also records a `TerminatedWorkloadReactivated` warning event on the binding and the FRQ (see [Risks and Mitigations](#risks-and-mitigations)).
 
-The event is emitted from the aggregation and not from a controller predicate. There the
-per-cluster `true` → `false` flip is visible directly, so a terminated cluster that is simply
-removed from `spec.clusters` by rescheduling is not reported as a reactivation.
+The event is emitted from the aggregation and not from a controller predicate. There the per-cluster `true` → `false` flip is visible directly, so a terminated cluster that is simply removed from `spec.clusters` by rescheduling is not reported as a reactivation.
 
-`resourceBindingPredicate` in
-`pkg/controllers/federatedresourcequota/federated_resource_quota_enforcement_controller.go` is
-unchanged and keeps ignoring binding updates. `collectQuotaStatus` already uses
-`CalculateResourceUsage`, so full recomputations exclude terminated clusters without further
-changes. The periodic resync (`--federated-resource-quota-sync-period`) remains as a safety net
-for missed or failed delta updates.
+`resourceBindingPredicate` in `pkg/controllers/federatedresourcequota/federated_resource_quota_enforcement_controller.go` is unchanged and keeps ignoring binding updates. `collectQuotaStatus` already uses `CalculateResourceUsage`, so full recomputations exclude terminated clusters without further changes. The periodic resync (`--federated-resource-quota-sync-period`) remains as a safety net for missed or failed delta updates.
 
 #### Webhook
 
-`pkg/webhook/resourcebinding/validating.go` needs no logic changes beyond the shared
-`CalculateResourceUsage`. Because the binding status aggregation lowers FRQ `status.overallUsed`
-as soon as termination is observed, the next binding admission sees the freed quota. Its
-FRQ status update logic is factored into the shared delta helper described above.
+`pkg/webhook/resourcebinding/validating.go` needs no logic changes beyond the shared `CalculateResourceUsage`. Because the binding status aggregation lowers FRQ `status.overallUsed` as soon as termination is observed, the next binding admission sees the freed quota. Its FRQ status update logic is factored into the shared delta helper described above.
 
 ### Feature gate
 
 No new feature gate is proposed:
 
-- `FederatedQuotaEnforcement` is Alpha and off by default, and @RainbowMango
-  [agreed](https://github.com/karmada-io/karmada/issues/7931#issuecomment-6122561940) that FRQ should ignore finished
-  workloads by default. Making this the behavior of `FederatedQuotaEnforcement` is consistent
-  with native `ResourceQuota`.
-- `InterpretTermination` and the new status fields only record information, so they are not
-  gated. With `FederatedQuotaEnforcement` off, nothing consumes them.
-- A separate gate for the quota filtering alone would only add a combination to test, with no
-  user-facing benefit while the parent feature is still Alpha.
+- `FederatedQuotaEnforcement` is Alpha and off by default, and @RainbowMango [agreed](https://github.com/karmada-io/karmada/issues/7931#issuecomment-6122561940) that FRQ should ignore finished workloads by default. Making this the behavior of `FederatedQuotaEnforcement` is consistent with native `ResourceQuota`.
+- `InterpretTermination` and the new status fields only record information, so they are not gated. With `FederatedQuotaEnforcement` off, nothing consumes them.
+- A separate gate for the quota filtering alone would only add a combination to test, with no user-facing benefit while the parent feature is still Alpha.
 
 ### Compatibility
 
-- **API.** All new fields are optional and additive. Old controllers ignore them, and new
-  controllers treat a missing field as "not terminated".
-- **Webhook interpreters.** Existing `ResourceInterpreterWebhookConfiguration`s that match
-  `"*"` operations will start receiving `InterpretTermination` requests. Webhooks that do not
-  recognize the operation should return an error or omit `terminated`. Either way the object is
-  treated as not terminated and an event is recorded, so behavior is unchanged.
-  Webhook authors can opt in by adding the operation to their rules and returning `terminated`.
-- **Upgrade.** After upgrade, existing finished workloads are picked up the next time their
-  member status is reflected. For a workload that has already finished, its member object
-  usually no longer changes, so in practice this happens when karmada-controller-manager
-  restarts: the member informers re-list and `WorkStatusController.onAdd` enqueues every object.
-  Informer resyncs do not help, because `WorkStatusController.onUpdate` drops events whose old and
-  new objects are equal. Upgrading karmada-controller-manager restarts it anyway, so finished
-  workloads are released shortly after the upgrade.
+- **API.** All new fields are optional and additive. Old controllers ignore them, and new controllers treat a missing field as "not terminated".
+- **Webhook interpreters.** Existing `ResourceInterpreterWebhookConfiguration`s that match `"*"` operations will start receiving `InterpretTermination` requests. Webhooks that do not recognize the operation should return an error or omit `terminated`. Either way the object is treated as not terminated and an event is recorded, so behavior is unchanged. Webhook authors can opt in by adding the operation to their rules and returning `terminated`.
+- **Upgrade.** After upgrade, existing finished workloads are picked up the next time their member status is reflected. For a workload that has already finished, its member object usually no longer changes, so in practice this happens when karmada-controller-manager restarts: the member informers re-list and `WorkStatusController.onAdd` enqueues every object. Informer resyncs do not help, because `WorkStatusController.onUpdate` drops events whose old and new objects are equal. Upgrading karmada-controller-manager restarts it anyway, so finished workloads are released shortly after the upgrade.
 
 ### Test Plan
 
 - **Unit tests**
-  - Native `InterpretTermination` for `Job` (complete, failed, running, suspended) and `Pod` (all
-    phases).
-  - Third-party customization test data for each kind in the table above, using the existing
-    `customizations_tests.yaml` framework.
-  - Declarative Lua VM and webhook interpreter for the new operation, including response
-    verification.
-  - `assembleWorkStatus` / condition computation: all, partial, none, unapplied clusters, and
-    no hook (nil `terminated`, no condition).
-  - `CalculateResourceUsage`: replica path and components path, partial termination, stale
-    items for unscheduled clusters, no hook.
-  - FRQ delta on status aggregation: release and reactivation deltas, no delta when only
-    `spec.clusters` drops a terminated cluster, write ordering on failure, no delta when
-    `FederatedQuotaEnforcement` is disabled, `TerminatedWorkloadReactivated` event on
-    `true` → `false` only.
+  - Native `InterpretTermination` for `Job` (complete, failed, running, suspended) and `Pod` (all phases).
+  - Third-party customization test data for each kind in the table above, using the existing `customizations_tests.yaml` framework.
+  - Declarative Lua VM and webhook interpreter for the new operation, including response verification.
+  - `assembleWorkStatus` / condition computation: all, partial, none, unapplied clusters, and no hook (nil `terminated`, no condition).
+  - `CalculateResourceUsage`: replica path and components path, partial termination, stale items for unscheduled clusters, no hook.
+  - FRQ delta on status aggregation: release and reactivation deltas, no delta when only `spec.clusters` drops a terminated cluster, write ordering on failure, no delta when `FederatedQuotaEnforcement` is disabled, `TerminatedWorkloadReactivated` event on `true` → `false` only.
   - RB webhook: delta with terminated clusters on spec update, create.
 - **E2E tests** (`test/e2e/suites/base/federatedresourcequota_test.go`)
-  - The reproduction from #7931: FRQ `cpu: 2`, run a 1-CPU Job to completion, verify
-    `overallUsed.cpu` drops to `0`, then admit two more Jobs.
+  - The reproduction from #7931: FRQ `cpu: 2`, run a 1-CPU Job to completion, verify `overallUsed.cpu` drops to `0`, then admit two more Jobs.
   - Divided Job across two clusters, one finishing first: verify partial release.
-  - Submit new Jobs while others finish: verify `overallUsed` matches the full recomputation
-    and never exceeds `spec.overall`.
+  - Submit new Jobs while others finish: verify `overallUsed` matches the full recomputation and never exceeds `spec.overall`.
   - Declarative customization for a CRD with `terminationInterpretation`.
   - A Deployment is never excluded.
-- **Production validation.** We will validate with Spark batch workloads in our QA and
-  production control planes.
+- **Production validation.** We will validate with Spark batch workloads in our QA and production control planes.
