@@ -18,7 +18,7 @@ creation-date: 2026-10-13
 
 ## Summary
 
-When `FederatedQuotaEnforcement` is enabled, `FederatedResourceQuota` (FRQ) computes usage by summing the resource requests recorded in the spec of every `ResourceBinding` in the namespace. It does not know whether the workload behind a binding is still running. For batch workloads (Job, SparkApplication, Volcano Job, RayJob, PyTorchJob, MPIJob, Argo Workflow, ...), the resource template usually stays around after the job finishes, so its binding keeps holding quota until someone deletes the template. In batch-heavy namespaces, finished jobs fill the quota and every new job is rejected while the member clusters sit idle.
+When `FederatedQuotaEnforcement` is enabled, `FederatedResourceQuota` (FRQ) computes usage by summing the resource requests recorded in the spec of every `ResourceBinding` in the namespace. It does not know whether the workload behind a binding is still running. For batch workloads (Job, SparkApplication, Volcano Job, PyTorchJob, MPIJob, RayJob, Argo Workflow, ...), the resource template usually stays around after the job finishes, so its binding keeps holding quota until someone deletes the template. In batch-heavy namespaces, finished jobs fill the quota and every new job is rejected while the member clusters sit idle.
 
 This proposal makes FRQ behave like the Kubernetes native `ResourceQuota`, which stops counting pods once they reach a terminal phase (`Succeeded`/`Failed`). It has three parts:
 
@@ -46,13 +46,13 @@ A dedicated operation keeps existing semantics unchanged and makes "terminated" 
 - Add an `InterpretTermination` interpreter operation that reports whether a member-cluster object is in a terminal state. Support it through all interpreter layers.
 - Record the terminal state per member cluster on `ResourceBinding` (and `ClusterResourceBinding`, since they share `AggregatedStatusItem`).
 - Exclude terminated workloads from FRQ `overallUsed`, both in the enforcement controller and in the admission webhook. A finished job's quota should be released within seconds, without touching the resource template.
-- Provide built-in termination rules for common batch kinds: native `batch/v1` `Job` and `v1` `Pod`, plus the third-party customizations Karmada already ships for batch CRDs.
+- Provide conservative built-in termination rules for batch kinds Karmada already supports: native `batch/v1` `Job` and `v1` `Pod`, plus the third-party customizations Karmada already ships for batch CRDs (see [Built-in termination rules](#built-in-termination-rules)).
 - Keep `GetReplicas`/`GetComponents` state-independent, and leave the detector's event filtering as it is.
 
 ### Non-Goals
 
 - Changing scheduling, rescheduling or failover behavior for terminated bindings. Today, a cluster failover can reschedule a finished Job and run it again on the new cluster. Skipping failover and eviction for bindings whose workload has terminated on every scheduled cluster would fix this. The per-cluster terminal state recorded here makes that possible, but the change, and any binding-level condition it needs, will be a follow-up proposal.
-- Accounting for suspended workloads (e.g. `Job.spec.suspend: true`). The same mechanism could be extended later.
+- Releasing quota for suspended workloads (e.g. `Job.spec.suspend: true`). A suspended workload has no running pods, but it can be resumed, so it is not terminated and keeps counting. Resuming is a spec change on the resource template that does not change any quota-relevant field of the binding, so excluding suspended workloads would let them resume without a quota check. Supporting this needs resuming to be gated on quota, which is left to a future proposal.
 - Adding FRQ `scopes`/`scopeSelector` (e.g. a `Terminating`/`NotTerminating` scope like native `ResourceQuota`). This could be a follow-up enhancement.
 - Garbage-collecting finished resource templates.
 
@@ -100,18 +100,20 @@ As a user whose Job is divided across `member1` (3 replicas) and `member2` (2 re
 ### Notes/Constraints/Caveats
 
 - **Terminal state is evaluated on the member-cluster object, not on the resource template.** This mirrors `InterpretHealth`. It does not depend on `AggregateStatus` being implemented for the kind, it gives per-cluster granularity (Story 3), and it follows a status path that already exists (`Work` → `ResourceBinding`). The template and the detector are not involved, so the detector's `SpecificationChanged` filter stays as it is.
-- **Terminal should mean final, with resources released.** Native `ResourceQuota` can safely ignore terminal pods because a pod phase never leaves `Succeeded`/`Failed` and a terminal pod no longer runs containers. Interpreter authors should only return `true` for states the workload will not leave on its own and in which it no longer holds resources on the member cluster. For example, a `SparkApplication` in `FAILED` with an `OnFailure` restart policy will move to `PENDING_RERUN`, so it is not terminal. See [Risks and Mitigations](#risks-and-mitigations) for what happens if a workload leaves a terminal state anyway.
+- **Terminal should mean final, with resources released.** Native `ResourceQuota` can safely ignore terminal pods because a pod phase never leaves `Succeeded`/`Failed` and a terminal pod no longer runs containers. Interpreter authors should only return `true` for states the workload will not leave on its own and in which it no longer holds resources on the member cluster. For example, a Kubeflow `PyTorchJob` with the default `cleanPodPolicy` (`None`) can reach `Succeeded` while workers that have not finished keep running, so it is not treated as terminated. See [Risks and Mitigations](#risks-and-mitigations) for what happens if a workload leaves a terminal state anyway.
+- **Built-in rules return `false` when unsure.** A built-in rule applies to every user of a kind, and a wrong `true` undercounts usage without anyone noticing, while a wrong `false` only keeps counting. Built-in rules therefore return `true` only when the observed object proves the workload is final and its pods are gone. Users whose workloads need a different trade-off override the built-in rule with their own `terminationInterpretation`, which takes precedence.
 - **Quota is released per cluster, not per pod.** Native `ResourceQuota` stops counting each pod as soon as it terminates. FRQ accounts at the binding level, so the replicas on a cluster are released only when the workload as a whole reaches a terminal state on that cluster. For example, a Job with 5 replicas on one cluster keeps holding all 5 until the Job is `Complete` or `Failed`, even if 4 of its pods have already succeeded.
-- **Kinds without the hook are never treated as terminated.** The default is to count usage, so existing behavior is unchanged for those kinds.
+- **Kinds without a rule are never treated as terminated.** Karmada ships built-in rules only for kinds it already supports (see [Built-in termination rules](#built-in-termination-rules)). Workloads of any other kind, including custom CRDs, keep counting toward quota unless the user provides a `terminationInterpretation`. Existing behavior is unchanged for those kinds.
+- **A terminal status can be reported shortly before all pods are gone.** Several operators write the final status first and delete the remaining pods afterwards, and pod deletion honors the termination grace period. Where the observed object exposes pod counts, the built-in rule checks them (for example Volcano `Job`). Otherwise quota can be released up to about one grace period early. This is accepted as a short, bounded undercount.
 - **Quota is released only after Karmada observes termination.** In practice this takes a few seconds: member status reflection, then Work status, then binding status aggregation, which also applies the usage delta to the FRQ.
 
 ### Risks and Mitigations
 
 | Risk | Mitigation |
 |---|---|
-| **A workload leaves a terminal state** (restart, rerun, or a misbehaving interpreter). Usage goes back up through a *status* update, which the ResourceBinding webhook does not intercept, so FRQ can end up over its limit. | (1) The hook contract states that terminal means final (see [Notes](#notesconstraintscaveats)), and the built-in rules follow it. (2) The binding status aggregation applies the positive usage delta to the FRQ on the transition (see [Applying termination transitions to FRQ usage](#applying-termination-transitions-to-frq-usage)), so `overallUsed` reflects reality and **new** bindings are rejected until usage drops. This is the same behavior as lowering `spec.overall` below current usage, and the same as native `ResourceQuota` when its limit is reduced. (3) The binding status aggregation records a `TerminatedWorkloadReactivated` event on the binding and the FRQ when a cluster's `terminated` flips from `true` to `false`, so the overrun can be observed. Blocking the reactivation is deliberately not done: it would require either rejecting binding status updates, which would break status reporting, or having Karmada suspend the workload, which is intrusive and not supported by every kind. |
+| **A workload leaves a terminal state.** This is rare: for the built-in kinds, a final state is only left through an explicit action. For example, any spec change on a `COMPLETED` or `FAILED` `SparkApplication` moves it to `INVALIDATING` and it runs again, which can happen when Karmada propagates a changed resource template to the member cluster. `argo retry` moves a `Failed` or `Error` Argo `Workflow` back to running on the same object. A user-provided interpreter that returns `true` too early has the same effect. Usage goes back up through a *status* update, which the ResourceBinding webhook does not intercept, so FRQ can end up over its limit. | (1) The hook contract states that terminal means final (see [Notes](#notesconstraintscaveats)), and the built-in rules follow it. (2) The binding status aggregation applies the positive usage delta to the FRQ on the transition (see [Applying termination transitions to FRQ usage](#applying-termination-transitions-to-frq-usage)), so `overallUsed` reflects reality and **new** bindings are rejected until usage drops. This is the same behavior as lowering `spec.overall` below current usage, and the same as native `ResourceQuota` when its limit is reduced. (3) The binding status aggregation records a `TerminatedWorkloadReactivated` event on the binding and the FRQ when a cluster's `terminated` flips from `true` to `false`, so the overrun can be observed. Blocking the reactivation is deliberately not done: it would require either rejecting binding status updates, which would break status reporting, or having Karmada suspend the workload, which is intrusive and not supported by every kind. |
 | **The member object disappears after termination** (e.g. manual deletion on the member cluster). | No extra handling is needed. When the member object is deleted, `WorkStatusController.syncWorkStatus` gets `NotFound` and returns without touching `Work.status`, so the last reflected `terminated: true` is kept. If Karmada later recreates the object from the Work, the workload really runs again, so counting it again is correct. For native Jobs, `ttlSecondsAfterFinished` is not a concern either, because Karmada prunes it before propagation (`prune.RemoveJobTTLSeconds`). |
-| **Terminal does not imply that resources are released.** Some workloads reach a final state while their pods keep running or can still be restarted. Examples: a `RayJob` in `Complete` with `shutdownAfterJobFinishes: false` (the default) keeps its RayCluster running; a Kubeflow job in `Failed` with `cleanPodPolicy: None` can leave worker pods running; a `SparkApplication` with `restartPolicy: Always` is rerun after `COMPLETED`, and `SUBMISSION_FAILED` is retried when `onSubmissionFailureRetries` is set. Releasing quota in these cases would undercount usage. | The hook contract requires `true` only for states that are final **and** no longer hold resources on the member cluster (see [Notes](#notesconstraintscaveats)). The built-in rules check the relevant fields (for example `shutdownAfterJobFinishes`, `cleanPodPolicy`, restart policy and remaining retries) and return `false` when they cannot be sure. Users whose workloads behave differently can override a built-in rule with their own `terminationInterpretation`. |
+| **Terminal does not imply that resources are released.** Some workloads reach a final state while their pods keep running or can still be restarted. Examples: a `RayJob` in `Complete` with `shutdownAfterJobFinishes: false` (the default) keeps its RayCluster running; a Kubeflow job or `MPIJob` in `Succeeded` or `Failed` with the default `cleanPodPolicy` (`None`) can leave worker pods running. Releasing quota in these cases would undercount usage. | The hook contract requires `true` only for states that are final **and** no longer hold resources on the member cluster (see [Notes](#notesconstraintscaveats)). The built-in rules check the relevant fields (for example `cleanPodPolicy`) and return `false` when they cannot be sure (see [Built-in termination rules](#built-in-termination-rules)). Users whose workloads behave differently can override a built-in rule with their own `terminationInterpretation`. |
 | **Interpreter errors.** | If `InterpretTermination` fails, `terminated` is left unset, which is treated as not terminated (the conservative choice: keep counting), and an `InterpretTerminationFailed` event is recorded on the Work, matching how `InterpretHealth` failures are handled. |
 | **Spoofing through the main resource.** A client could try to send a fake `status.aggregatedStatus[].terminated` together with a spec update so that the webhook sees lower usage. | `ResourceBinding` has the status subresource enabled, so the apiserver resets `status` to the stored value before admission on main-resource updates. Only components with `resourcebindings/status` RBAC (karmada-controller-manager) can set it. |
 
@@ -301,23 +303,119 @@ The usual precedence applies: declarative (`ResourceInterpreterCustomization`) �
 | Layer | Change |
 |---|---|
 | Native (`pkg/resourceinterpreter/default/native`) | New `termination.go` with `getAllDefaultTerminationInterpreter()`: `batch/v1 Job` (condition `Complete` or `Failed` is `True`), `v1 Pod` (`status.phase` is `Succeeded` or `Failed`). |
-| Third-party (`pkg/resourceinterpreter/default/thirdparty/resourcecustomizations`) | Add `terminationInterpretation` plus test cases to the batch customizations listed below. |
+| Third-party (`pkg/resourceinterpreter/default/thirdparty/resourcecustomizations`) | Add `terminationInterpretation` plus test cases to the batch customizations listed in [Built-in termination rules](#built-in-termination-rules). |
 | Declarative (`customized/declarative`, `luavm`) | Load and run `InterpretTermination(observedObj)`. Validate in the RIC validating webhook. |
 | Webhook (`customized/webhook`) | Support the new operation in `RuleWithOperations`. Require `response.terminated` for this operation in response verification. |
 | `karmadactl interpret` (`pkg/util/interpreter/rule.go`) | Add `terminationInterpretationRule` so users can test their scripts locally. |
 
-Built-in rules proposed for the shipped third-party customizations:
+#### Built-in termination rules
 
-| Kind | Terminal when |
-|---|---|
-| `batch.volcano.sh/v1alpha1 Job` | `status.state.phase` ∈ {`Completed`, `Failed`, `Terminated`} (not `Aborted`, which can be resumed) |
-| `sparkoperator.k8s.io/v1beta2 SparkApplication` | `status.applicationState.state` ∈ {`COMPLETED`, `SUBMISSION_FAILED`}, or `FAILED` when `spec.restartPolicy.type` is `Never` / retries are exhausted |
-| `kubeflow.org/v1 PyTorchJob`, `TFJob`; `kubeflow.org/v2beta1 MPIJob` | condition `Succeeded` or `Failed` is `True` |
-| `ray.io/v1 RayJob` | `status.jobDeploymentStatus` ∈ {`Complete`, `Failed`} |
-| `argoproj.io/v1alpha1 Workflow` | `status.phase` ∈ {`Succeeded`, `Failed`, `Error`} |
-| `apps.kruise.io/v1alpha1 BroadcastJob` | `status.phase` ∈ {`completed`, `failed`} |
+Built-in rules follow the "return `false` when unsure" principle (see [Notes](#notesconstraintscaveats)).
 
-Long-running kinds (Deployment, StatefulSet, FlinkDeployment, RayCluster, ...) get no termination rule and are never treated as terminated.
+The native rules (`Job`, `Pod`) are part of this proposal. The third-party rules are reference rules: each was checked against the source of the operator version listed and shows that the kind can be supported under the contract above. The final rule for each kind is reviewed in its implementation PR together with its test data, and may be refined there, for example for newer operator versions. Whatever is refined, a rule must keep returning `false` when it cannot be sure.
+
+| Kind | Terminated when | Notes |
+|---|---|---|
+| `batch/v1 Job` (native) | condition `Complete` or `Failed` is `True` | Both are final. A suspended Job is not terminated. |
+| `v1 Pod` (native) | `status.phase` is `Succeeded` or `Failed` | Same as native `ResourceQuota`. |
+| `batch.volcano.sh/v1alpha1 Job` (Volcano v1.16.0) | `status.state.phase` is `Completed`, `Failed` or `Terminated`, and `status.pending`, `status.running` and `status.terminating` are all 0 | `Aborted` can be resumed, so it is not terminated. `Completed` can be set once `minSuccess` is reached while remaining pods are still being killed, hence the pod counts. |
+| `sparkoperator.k8s.io/v1beta2 SparkApplication` (spark-operator v2.5.2) | `status.applicationState.state` is `COMPLETED` or `FAILED`, and no executor in `status.executorState` is still pending, running or unknown | Retries are decided in `SUCCEEDING`, `FAILING` and `SUBMISSION_FAILED`, before these states are reached, so `restartPolicy` does not need to be checked. |
+| `kubeflow.org/v1 PyTorchJob`, `TFJob` (training-operator v1.9.4) | condition `Succeeded` or `Failed` is `True`, `spec.runPolicy.cleanPodPolicy` is `All` or `Running`, and `spec.runPolicy.managedBy` is unset or the training operator | The default `cleanPodPolicy` is `None` and is not persisted, so a missing field means `None`. With `None`, replicas that have not finished keep running, so the job keeps counting. |
+| `kubeflow.org/v2beta1 MPIJob` (mpi-operator v0.8.2) | as above, plus `status.completionTime` is set | Same `cleanPodPolicy` default as above; workers run sshd and never exit on their own. `Failed` caused by a worker eviction is set without `completionTime` and can still become `Succeeded`. |
+| `argoproj.io/v1alpha1 Workflow` (argo-workflows v4.1.6) | `status.phase` is `Succeeded`, `Failed` or `Error`, `status.finishedAt` is set, the label `workflows.argoproj.io/completed` is `true`, and no node of type `Pod` in `status.nodes` is `Pending` or `Running` | `Error` can be set after a controller error while sibling pods keep running, hence the node check. When node statuses are compressed or offloaded and `status.nodes` is empty, an `Error` workflow is not treated as terminated. `argo retry` moves a finished workflow back to running on the same object, see [Risks and Mitigations](#risks-and-mitigations). |
+| `apps.kruise.io/v1alpha1 BroadcastJob` (OpenKruise v1.9.2) | `status.phase` is `completed` with condition `Complete` `True`, or `failed` with condition `Failed` `True`; `status.completionTime` is set; `status.active` is 0; for `completed`, `spec.completionPolicy.type` is not `Never`; for `failed`, the pod template's `restartPolicy` is `Never` | With `restartPolicy: OnFailure`, a pod over its restart limit is counted as failed but not deleted, so it can keep running after the job is `failed`. The spec is mutable: changing a `completed` job's `completionPolicy` to `Never` makes the controller create pods again. |
+| `ray.io/v1 RayJob` (KubeRay v1.7.1) | no built-in rule | KubeRay deletes the RayCluster after the job finishes without recording it in status, so the observed object cannot prove the pods are gone. With the default `shutdownAfterJobFinishes: false`, the cluster keeps running. Users can override, see the example below. |
+
+Other kinds Karmada ships customizations for can get rules the same way later. Until then they keep counting unless the user provides a rule. Long-running kinds (Deployment, StatefulSet, FlinkDeployment, RayCluster, ...) get no termination rule and are never treated as terminated.
+
+The full rules and their test data (`testdata/interprettermination-test.yaml`) ship with the implementation. Three examples show the different patterns.
+
+**Final state plus pod counts (Volcano `Job`).** The status reports how many pods are still alive, so the rule can wait for them:
+
+```lua
+function InterpretTermination(observedObj)
+  if observedObj.status == nil or observedObj.status.state == nil then
+    return false
+  end
+  local status = observedObj.status
+  local phase = status.state.phase
+  -- Aborted is not terminal: an aborted job can be resumed.
+  if phase ~= 'Completed' and phase ~= 'Failed' and phase ~= 'Terminated' then
+    return false
+  end
+  -- Completed can be set (e.g. once minSuccess is reached) while the remaining
+  -- pods are still being killed.
+  if (status.pending or 0) > 0 or (status.running or 0) > 0 or (status.terminating or 0) > 0 then
+    return false
+  end
+  return true
+end
+```
+
+**Final state only when cleanup is configured (`PyTorchJob`).** Whether pods are gone depends on a spec field with an unpersisted default:
+
+```lua
+function InterpretTermination(observedObj)
+  if observedObj.status == nil or observedObj.status.conditions == nil then
+    return false
+  end
+  local finished = false
+  for _, condition in ipairs(observedObj.status.conditions) do
+    if (condition.type == 'Succeeded' or condition.type == 'Failed') and condition.status == 'True' then
+      finished = true
+    end
+  end
+  if not finished then
+    return false
+  end
+  -- The training operator defaults cleanPodPolicy to None in memory only, so a
+  -- missing field means None. With None, replicas that have not finished keep
+  -- running after the job finishes.
+  if observedObj.spec == nil or observedObj.spec.runPolicy == nil then
+    return false
+  end
+  local runPolicy = observedObj.spec.runPolicy
+  -- Jobs managed by another controller (e.g. MultiKueue) are not cleaned up by
+  -- the training operator.
+  if runPolicy.managedBy ~= nil and runPolicy.managedBy ~= '' and runPolicy.managedBy ~= 'kubeflow.org/training-operator' then
+    return false
+  end
+  return runPolicy.cleanPodPolicy == 'All' or runPolicy.cleanPodPolicy == 'Running'
+end
+```
+
+**User override when the status cannot prove release (`RayJob`).** There is no built-in rule. A user who runs RayJobs with `shutdownAfterJobFinishes: true` and accepts releasing quota while the RayCluster shuts down can provide:
+
+```yaml
+apiVersion: config.karmada.io/v1alpha1
+kind: ResourceInterpreterCustomization
+metadata:
+  name: rayjob-termination
+spec:
+  target:
+    apiVersion: ray.io/v1
+    kind: RayJob
+  customizations:
+    terminationInterpretation:
+      luaScript: |
+        function InterpretTermination(observedObj)
+          if observedObj.spec == nil or observedObj.status == nil then
+            return false
+          end
+          local spec = observedObj.spec
+          local status = observedObj.status.jobDeploymentStatus
+          if status ~= 'Complete' and status ~= 'Failed' then
+            return false
+          end
+          -- Treat the job as terminated once KubeRay has been asked to delete the
+          -- RayCluster right away. The status does not record when the deletion has
+          -- finished, so quota is released while the cluster's pods shut down.
+          if spec.shutdownAfterJobFinishes ~= true or spec.deletionStrategy ~= nil then
+            return false
+          end
+          return spec.ttlSecondsAfterFinished == nil or spec.ttlSecondsAfterFinished == 0
+        end
+```
 
 ### Status collection changes
 
@@ -448,11 +546,16 @@ No new feature gate is proposed:
 - **Webhook interpreters.** Existing `ResourceInterpreterWebhookConfiguration`s that match `"*"` operations will start receiving `InterpretTermination` requests. Webhooks that do not recognize the operation should return an error or omit `terminated`. Either way the object is treated as not terminated and an event is recorded, so behavior is unchanged. Webhook authors can opt in by adding the operation to their rules and returning `terminated`.
 - **Upgrade.** After upgrade, existing finished workloads are picked up the next time their member status is reflected. For a workload that has already finished, its member object usually no longer changes, so in practice this happens when karmada-controller-manager restarts: the member informers re-list and `WorkStatusController.onAdd` enqueues every object. Informer resyncs do not help, because `WorkStatusController.onUpdate` drops events whose old and new objects are equal. Upgrading karmada-controller-manager restarts it anyway, so finished workloads are released shortly after the upgrade.
 
+### Implementation Plan
+
+- **Core**: the API changes, the interpreter operation in all layers, status collection, the FRQ delta updates and the webhook change, plus the native `Job` and `Pod` rules. The third-party loading path is covered by unit tests.
+- **Remaining built-in rules**: one PR per kind, tracked in an umbrella issue with one item each, starting from the reference rules in [Built-in termination rules](#built-in-termination-rules).
+
 ### Test Plan
 
 - **Unit tests**
   - Native `InterpretTermination` for `Job` (complete, failed, running, suspended) and `Pod` (all phases).
-  - Third-party customization test data for each kind in the table above, using the existing `customizations_tests.yaml` framework.
+  - Third-party customization test data for each kind with a built-in rule, in `testdata/interprettermination-test.yaml` next to the existing per-operation test files.
   - Declarative Lua VM and webhook interpreter for the new operation, including response verification.
   - `assembleWorkStatus`: terminated, not terminated, unapplied clusters, and no hook (nil `terminated`).
   - `CalculateResourceUsage`: replica path and components path, partial termination, stale items for unscheduled clusters, no hook.
