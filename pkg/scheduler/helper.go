@@ -116,7 +116,8 @@ func getConditionByError(err error) (metav1.Condition, bool) {
 	}
 
 	var unschedulableErr *framework.UnschedulableError
-	if errors.As(err, &unschedulableErr) {
+	var insufficientCapacityErr *framework.InsufficientCapacityError
+	if errors.As(err, &unschedulableErr) || errors.As(err, &insufficientCapacityErr) {
 		return util.NewCondition(workv1alpha2.Scheduled, workv1alpha2.BindingReasonUnschedulable, err.Error(), metav1.ConditionFalse), false
 	}
 
