@@ -243,6 +243,34 @@ webhooks:
     sideEffects: None
     admissionReviewVersions: ["v1"]
     timeoutSeconds: 3
+  - name: federatedhpa.karmada.io
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["autoscaling.karmada.io"]
+        apiVersions: ["*"]
+        resources: ["federatedhpas"]
+        scope: "Namespaced"
+    clientConfig:
+      url: https://{{ $name }}-webhook.{{ $namespace }}.svc:443/validate-federatedhpa
+      {{- include "karmada.webhook.caBundle" . | nindent 6 }}
+    failurePolicy: Fail
+    sideEffects: None
+    admissionReviewVersions: [ "v1" ]
+    timeoutSeconds: 3
+  - name: cronfederatedhpa.karmada.io
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["autoscaling.karmada.io"]
+        apiVersions: ["*"]
+        resources: ["cronfederatedhpas"]
+        scope: "Namespaced"
+    clientConfig:
+      url: https://{{ $name }}-webhook.{{ $namespace }}.svc:443/validate-cronfederatedhpa
+      {{- include "karmada.webhook.caBundle" . | nindent 6 }}
+    failurePolicy: Fail
+    sideEffects: None
+    admissionReviewVersions: [ "v1" ]
+    timeoutSeconds: 3
   - name: multiclusterservice.karmada.io
     rules:
       - operations: ["CREATE", "UPDATE"]
