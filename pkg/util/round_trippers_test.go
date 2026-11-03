@@ -340,3 +340,38 @@ func (m *mockWrapperRoundTripper) WrappedRoundTripper() http.RoundTripper {
 func (m *mockWrapperRoundTripper) Unwrap() http.RoundTripper {
 	return m.inner
 }
+
+func TestProxyHeaderRoundTripper_WrappedTransportExistingHeaders(t *testing.T) {
+	baseTransport := &http.Transport{
+		ProxyConnectHeader: http.Header{
+			"Existing-Key": []string{"existing-val"},
+		},
+	}
+	wrappedRT := &mockWrapperRoundTripper{inner: baseTransport}
+	wrapper := NewProxyHeaderRoundTripperWrapperConstructor(nil, map[string]string{
+		"New-Key": "new-val",
+	})
+	rt := wrapper(wrappedRT)
+	assert.NotNil(t, rt)
+	assert.Equal(t, []string{"existing-val"}, baseTransport.ProxyConnectHeader["Existing-Key"])
+	assert.Equal(t, []string{"new-val"}, baseTransport.ProxyConnectHeader["New-Key"])
+}
+
+type mockOnlyUnwrapper struct {
+	inner http.RoundTripper
+}
+
+func (m *mockOnlyUnwrapper) RoundTrip(req *http.Request) (*http.Response, error) {
+	return m.inner.RoundTrip(req)
+}
+
+func (m *mockOnlyUnwrapper) Unwrap() http.RoundTripper {
+	return m.inner
+}
+
+func TestExtractTransport(t *testing.T) {
+	baseTransport := &http.Transport{}
+	unwrapper := &mockOnlyUnwrapper{inner: baseTransport}
+	assert.Same(t, baseTransport, extractTransport(unwrapper))
+	assert.Nil(t, extractTransport(&mockRoundTripper{}))
+}

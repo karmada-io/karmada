@@ -719,3 +719,35 @@ func getCACertFromGTestServer(t *testing.T, s *httptest.Server) []byte {
 	assert.NoError(t, err)
 	return testCA.Bytes()
 }
+
+func TestBuildClusterConfig_WithProxyHeader(t *testing.T) {
+	cluster := &clusterv1alpha1.Cluster{
+		ObjectMeta: metav1.ObjectMeta{Name: "member1"},
+		Spec: clusterv1alpha1.ClusterSpec{
+			APIEndpoint:                 "https://127.0.0.1:6443",
+			InsecureSkipTLSVerification: true,
+			SecretRef: &clusterv1alpha1.LocalSecretReference{
+				Namespace: "karmada-system",
+				Name:      "member1-secret",
+			},
+			ProxyURL: "http://127.0.0.1:8080",
+			ProxyHeader: map[string]string{
+				"Proxy-Authorization": "Basic token",
+			},
+		},
+	}
+	secret := &corev1.Secret{
+		Data: map[string][]byte{
+			clusterv1alpha1.SecretTokenKey: []byte("test-token"),
+		},
+	}
+
+	cfg, err := BuildClusterConfig(
+		"member1",
+		func(_ string) (*clusterv1alpha1.Cluster, error) { return cluster, nil },
+		func(_, _ string) (*corev1.Secret, error) { return secret, nil },
+	)
+	assert.NoError(t, err)
+	assert.NotNil(t, cfg)
+	assert.NotNil(t, cfg.WrapTransport)
+}
