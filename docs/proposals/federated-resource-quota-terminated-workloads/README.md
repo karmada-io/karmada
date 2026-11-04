@@ -273,6 +273,34 @@ status:
 
 FRQ usage for this binding: `2 × 1 CPU = 2 CPU` (member1's 3 replicas are excluded).
 
+#### 4. FederatedResourceQuota status
+
+`pkg/apis/policy/v1alpha1/federatedresourcequota_types.go`: a new field in the existing `FederatedResourceQuotaStatus`, and a new type for its items. See [In-flight admissions](#in-flight-admissions) for how they are used.
+
+```go
+	// PendingAdmissions records ResourceBinding changes that the ResourceBinding webhook
+	// has admitted and added to OverallUsed, but that the quota controller may not see yet.
+	// +optional
+	PendingAdmissions []PendingAdmission `json:"pendingAdmissions,omitempty"`
+```
+
+```go
+// PendingAdmission is a ResourceBinding change admitted by the ResourceBinding webhook.
+type PendingAdmission struct {
+	// BindingName is the name of the admitted ResourceBinding.
+	// +required
+	BindingName string `json:"bindingName"`
+
+	// Usage is the usage of the ResourceBinding as admitted, limited to the resources in Overall.
+	// +required
+	Usage corev1.ResourceList `json:"usage"`
+
+	// AdmittedAt is the time the change was admitted.
+	// +required
+	AdmittedAt metav1.Time `json:"admittedAt"`
+}
+```
+
 ### Resource interpreter changes
 
 `pkg/resourceinterpreter/interpreter.go`:
@@ -502,7 +530,35 @@ UpdateFunc: func(e event.UpdateEvent) bool {
 
 `collectQuotaStatus` already uses `CalculateResourceUsage`, so recomputations exclude terminated clusters without further changes.
 
-The periodic resync (`--federated-resource-quota-sync-period`) remains as a safety net.
+**Writing the result.** Today `collectQuotaStatus` writes through `helper.UpdateStatus`, which reads the latest FRQ right before writing and replaces its status with the total computed earlier. If the webhook admitted a binding after the bindings were listed, that admission is overwritten without a conflict. Since termination changes make recomputations more frequent, the write changes to follow the Kubernetes `ResourceQuota` controller: `collectQuotaStatus` reads the FRQ from the informer cache before listing bindings, and writes the recomputed status on top of that copy, so the update carries its `resourceVersion`. If the webhook updated the FRQ in between, the write fails with a conflict and the recomputation is retried with fresh data.
+
+The periodic resync (`--federated-resource-quota-sync-period`) remains as a safety net. An admitted binding that the controller cannot see yet is handled in [In-flight admissions](#in-flight-admissions).
+
+#### In-flight admissions
+
+The webhook updates `overallUsed` before the admitted binding is stored. A recomputation that runs after that update, but before the binding reaches the controller's informer cache, does not see the binding. Its usage is then missing until the next recomputation, and more bindings than the quota allows can be admitted in the meantime. The optimistic concurrency above does not help here, because the webhook's update happened before the recomputation read the FRQ. For example, with a quota of 3 CPU and two running 1-CPU bindings A and B:
+
+```
+          ResourceBinding webhook          FRQ.status.overallUsed     FRQ controller
+  time
+   │      admit binding C (+1 CPU) ──────►  2 → 3
+   │                                                                   A terminates → recompute
+   │                                                                   list bindings: only B
+   │                                                                   (C not in the cache yet)
+   │                                        3 → 1  ◄────────────────── write total
+   │      C is stored, reaches the cache
+   │                                        1, but B + C use 2         until the next recomputation
+   │      admit binding D (+2 CPU) ──────►  1 → 3                      real usage: 4 > 3
+   ▼
+```
+
+This already applies to recomputations triggered today by binding deletion and the periodic resync, and the Kubernetes `ResourceQuota` controller has the same behavior. Termination changes make recomputations more frequent, so it becomes more likely in namespaces where jobs finish while new ones are being submitted. To close it, the webhook records what it admits in `status.pendingAdmissions` (see [API changes](#4-federatedresourcequota-status)), so a recomputation can count admissions it cannot see yet:
+
+1. When the webhook admits a binding change with a non-zero delta, it updates `overallUsed` as today and, in the same status update, sets the binding's entry to its admitted usage and the current time. An existing entry for the same binding is replaced.
+2. During a recomputation, if a binding's usage in the snapshot equals its entry, the change is visible and the entry is removed. Otherwise the entry's usage is counted instead of the snapshot usage, and the entry is kept. In the example above, the recomputation counts C from its entry and writes 2.
+3. Entries older than a fixed timeout, for example when the admitted change was never stored, and entries of deleted bindings, are removed.
+
+The list only holds changes admitted in the last few seconds, so it stays small. If a binding's usage changes again before its entry is removed, for example because it terminates right after admission, the entry keeps it counted until the timeout, which errs on the side of overcounting.
 
 #### Webhook
 
@@ -531,7 +587,7 @@ No new feature gate is proposed:
 
 ### Implementation Plan
 
-- **Core**: the API changes, the interpreter operation in all layers, status collection, the FRQ recomputation trigger and the webhook change, plus the native `Job` and `Pod` rules. The third-party loading path is covered by unit tests.
+- **Core**: the API changes, the interpreter operation in all layers, status collection, the FRQ recomputation trigger and its write with optimistic concurrency, in-flight admissions, and the webhook change, plus the native `Job` and `Pod` rules. The third-party loading path is covered by unit tests.
 - **Remaining built-in rules**: one PR per kind, tracked in an umbrella issue with one item each, starting from the reference rules in [Built-in termination rules](#built-in-termination-rules).
 
 ### Test Plan
@@ -547,6 +603,8 @@ No new feature gate is proposed:
   - `CalculateResourceUsage`: replica path and components path, partial termination, stale items for unscheduled clusters, no hook.
   - FRQ controller predicate: enqueue only when the set of terminated scheduled clusters changes.
   - A binding's termination is stored while a recomputation is running: the release is counted exactly once.
+  - A binding is admitted between the recomputation's binding list and its FRQ write: the write fails with a conflict, the recomputation is retried, and the admission is kept.
+  - In-flight admissions: an entry is added by the webhook, counted while the binding is not visible, removed once it is visible, removed after the timeout, and removed when the binding is deleted.
   - `TerminatedWorkloadReactivated` event on `true` → `false` only, not when a terminated cluster is removed from `spec.clusters`.
   - RB webhook: delta with terminated clusters on spec update and create; a reschedule from a terminated cluster to a new cluster with the same total replicas is validated against the quota.
 - **E2E tests** (`test/e2e/suites/base/federatedresourcequota_test.go`)
