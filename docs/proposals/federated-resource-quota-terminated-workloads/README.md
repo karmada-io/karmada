@@ -34,13 +34,6 @@ Because FRQ counts every binding regardless of the workload's state, a finished 
 
 Kubernetes solved this for a single cluster long ago: `ResourceQuota` stops counting pods once they reach a terminal phase (`Succeeded`/`Failed`). Users reasonably expect FRQ to behave the same way. See [#7931](https://github.com/karmada-io/karmada/issues/7931) for a production report and a reproduction with a native `batch/v1` Job.
 
-### Why not reuse existing hooks
-
-- **Return zero replicas/components from `GetReplicas`/`GetComponents` once the job finishes.** We tried this first. It is fragile because those hooks describe *how an application is composed*, and the result should not depend on runtime state (see [this comment](https://github.com/karmada-io/karmada/issues/7931#issuecomment-6122561940) by @RainbowMango). It also does not work today, because a status-only change on the resource template never triggers re-interpretation: the detector filters it out with `SpecificationChanged`.
-- **Overload `InterpretHealth`.** Health and termination are orthogonal. A failed job is terminated but unhealthy. A completed job is terminated and healthy. A running job can be either healthy or unhealthy. Health is also used by failover (`application failover` treats unhealthy as a trigger), so changing its meaning has side effects.
-
-A dedicated operation keeps existing semantics unchanged and makes "terminated" an explicit concept that other components (such as scheduling and failover) can use later.
-
 ### Goals
 
 - Add an `InterpretTermination` interpreter operation that reports whether a member-cluster object is in a terminal state. Support it through all interpreter layers.
@@ -60,38 +53,33 @@ A dedicated operation keeps existing semantics unchanged and makes "terminated" 
 
 ### User Stories
 
-#### Story 1: Spark batch platform
+#### Story 1: Native Kubernetes Jobs
 
-As a platform owner running hundreds of short-lived `SparkJob`s per day per namespace, I want the CPU/memory requested by a job to go back to the namespace FRQ as soon as the job reaches `Done` or `Failed`. That way the next job can be admitted, and I can still keep the finished `SparkJob` objects for history and debugging.
+As a user propagating `batch/v1` `Job`s with `FederatedQuotaEnforcement` enabled, I expect a completed or failed Job to stop counting against the FRQ, the same way its pods stop counting against the member cluster's `ResourceQuota`. This works without any customization.
 
-I add a `terminationInterpretation` to the `ResourceInterpreterCustomization` I already have for `SparkJob`:
+#### Story 2: Batch workloads defined by CRDs
+
+As a platform owner running many short-lived jobs defined by a CRD, I want the resources requested by a job to go back to the namespace FRQ once the job finishes, so the next job can be admitted while the finished job is kept for history and debugging. If Karmada has a built-in rule for the kind, this works out of the box. Otherwise, I describe the kind's terminal states in a `terminationInterpretation`:
 
 ```yaml
 apiVersion: config.karmada.io/v1alpha1
 kind: ResourceInterpreterCustomization
 metadata:
-  name: sparkjob
+  name: batchjob
 spec:
   target:
     apiVersion: example.com/v1
-    kind: SparkJob
+    kind: BatchJob
   customizations:
-    componentResource:
-      luaScript: ... # unchanged, state-independent
     terminationInterpretation:
       luaScript: >
         function InterpretTermination(observedObj)
-          if observedObj.status == nil or observedObj.status.state == nil then
+          if observedObj.status == nil then
             return false
           end
-          local state = observedObj.status.state
-          return state == 'Done' or state == 'Failed'
+          return observedObj.status.phase == 'Succeeded' or observedObj.status.phase == 'Failed'
         end
 ```
-
-#### Story 2: Native Kubernetes Jobs
-
-As a user propagating `batch/v1` `Job`s with `FederatedQuotaEnforcement` enabled, I expect a completed or failed Job to stop counting against the FRQ, the same way its pods stop counting against the member cluster's `ResourceQuota`. This works without any customization, because Karmada ships a built-in `InterpretTermination` for `Job`.
 
 #### Story 3: Divided Job across clusters
 
@@ -305,7 +293,7 @@ The usual precedence applies: declarative (`ResourceInterpreterCustomization`) â
 | Native (`pkg/resourceinterpreter/default/native`) | New `termination.go` with `getAllDefaultTerminationInterpreter()`: `batch/v1 Job` (condition `Complete` or `Failed` is `True`), `v1 Pod` (`status.phase` is `Succeeded` or `Failed`). |
 | Third-party (`pkg/resourceinterpreter/default/thirdparty/resourcecustomizations`) | Add `terminationInterpretation` plus test cases to the batch customizations listed in [Built-in termination rules](#built-in-termination-rules). |
 | Declarative (`customized/declarative`, `luavm`) | Load and run `InterpretTermination(observedObj)`. Validate in the RIC validating webhook. |
-| Webhook (`customized/webhook`) | Support the new operation in `RuleWithOperations`. Require `response.terminated` for this operation in response verification. |
+| Webhook (`customized/webhook`) | Support the new operation in `RuleWithOperations`. Only webhooks whose rules list `InterpretTermination` explicitly receive it; `"*"` does not include it, so existing wildcard webhooks are unaffected. A response without `terminated` is treated as not evaluated, not as an error. |
 | `karmadactl interpret` (`pkg/util/interpreter/rule.go`) | Add `terminationInterpretationRule` so users can test their scripts locally. |
 
 #### Built-in termination rules
@@ -435,7 +423,9 @@ func (c *WorkStatusController) interpretTermination(clusterObj *unstructured.Uns
 }
 ```
 
-and set `ManifestStatus.Terminated`. If interpretation fails, `reflectStatus` still writes the status with `terminated` unset, then returns the error so the worker requeues the object with rate-limited backoff and interpretation is retried. A finished object may never change again, and `WorkStatusController.onUpdate` drops informer resyncs whose old and new objects are equal, so without the requeue a transient failure (for example an interpreter webhook outage) would keep the workload counted until the controller restarts.
+and set `ManifestStatus.Terminated`. If interpretation fails, `reflectStatus` still writes the status with `terminated` unset. When `FederatedQuotaEnforcement` is enabled, it then returns the error so the worker requeues the object with rate-limited backoff and interpretation is retried. When it is disabled, nothing consumes the result, so the error is only recorded as an event. A finished object may never change again, and `WorkStatusController.onUpdate` drops informer resyncs whose old and new objects are equal, so without the requeue a transient failure (for example an interpreter webhook outage) would keep the workload counted until the controller restarts.
+
+**Rule changes.** Adding, changing or removing a termination rule (a `terminationInterpretation` in a `ResourceInterpreterCustomization`, or `InterpretTermination` in a `ResourceInterpreterWebhookConfiguration`) does not change any member object, so it would not be picked up for workloads that already finished. When such a rule changes for a kind, the work status controller requeues the member objects of that kind, so termination is evaluated again with the new rule. A removed rule leaves `terminated` unset again, so the workloads count again. This runs wherever status is reflected: in karmada-controller-manager for `Push` clusters and in karmada-agent for `Pull` clusters. Built-in rules only change with an upgrade, which restarts these components.
 
 `pkg/util/helper/workstatus.go`:
 
@@ -535,7 +525,7 @@ No new feature gate is proposed:
 ### Compatibility
 
 - **API.** All new fields are optional and additive. Old controllers ignore them, and new controllers treat a missing field as "not terminated".
-- **Webhook interpreters.** Existing `ResourceInterpreterWebhookConfiguration`s that match `"*"` operations will start receiving `InterpretTermination` requests. Webhooks that do not recognize the operation should return an error or omit `terminated`. Either way the object is treated as not terminated and an event is recorded, so behavior is unchanged. Webhook authors can opt in by adding the operation to their rules and returning `terminated`.
+- **Webhook interpreters.** Existing `ResourceInterpreterWebhookConfiguration`s are unaffected, including those that match `"*"` operations: `InterpretTermination` is only sent to webhooks that list it explicitly. Webhook authors opt in by adding the operation to their rules and returning `terminated`.
 - **Upgrade.** After upgrade, existing finished workloads are picked up the next time their member status is reflected. For a workload that has already finished, its member object usually no longer changes, so in practice this happens when karmada-controller-manager restarts: the member informers re-list and `WorkStatusController.onAdd` enqueues every object. Informer resyncs do not help, because `WorkStatusController.onUpdate` drops events whose old and new objects are equal. Upgrading karmada-controller-manager restarts it anyway, so finished workloads are released shortly after the upgrade.
 - **Pull-mode clusters.** Termination is evaluated where status is reflected: by karmada-controller-manager for `Push` clusters, and by karmada-agent for `Pull` clusters. karmada-agent must be upgraded and restarted too. Until then, it leaves `terminated` unset, so workloads on `Pull` clusters keep counting toward quota.
 
@@ -548,7 +538,9 @@ No new feature gate is proposed:
 
 - **Unit tests**
   - Native `InterpretTermination` for `Job` (complete, failed, running, suspended) and `Pod` (all phases).
-  - Work status controller: a failed interpretation reflects status with `terminated` unset and requeues the object; the retry sets `terminated`.
+  - Work status controller: a failed interpretation reflects status with `terminated` unset and requeues the object when `FederatedQuotaEnforcement` is enabled, but not when it is disabled; the retry sets `terminated`.
+  - Rule changes: adding, changing and removing a termination rule re-evaluates finished objects of that kind without touching them.
+  - Webhook interpreter: a webhook matching `"*"` does not receive `InterpretTermination`; a response without `terminated` is treated as not evaluated.
   - Third-party customization test data for each kind with a built-in rule, in `testdata/interprettermination-test.yaml` next to the existing per-operation test files.
   - Declarative Lua VM and webhook interpreter for the new operation, including response verification.
   - `assembleWorkStatus`: terminated, not terminated, unapplied clusters, and no hook (nil `terminated`).
@@ -563,4 +555,4 @@ No new feature gate is proposed:
   - Submit new Jobs while others finish: verify `overallUsed` matches the full recomputation.
   - Declarative customization for a CRD with `terminationInterpretation`.
   - A Deployment is never excluded.
-- **Production validation.** We will validate with Spark batch workloads in our QA and production control planes.
+- **Production validation.** We will validate with batch workloads in our production control planes.
