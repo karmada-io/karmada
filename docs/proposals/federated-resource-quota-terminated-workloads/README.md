@@ -156,6 +156,16 @@ const (
 )
 ```
 
+The wildcard no longer matches every operation. Its comment changes accordingly, so existing webhooks that match `"*"` do not start receiving `InterpretTermination`:
+
+```go
+	// InterpreterOperationAll indicates matching all InterpreterOperation except
+	// InterpreterOperationInterpretTermination, which must be listed explicitly.
+	InterpreterOperationAll InterpreterOperation = "*"
+```
+
+`HookEnabled` uses the same matching rule as webhook dispatch, so a wildcard webhook is not reported as a termination hook.
+
 `pkg/apis/config/v1alpha1/interpretercontext_types.go`, `ResourceInterpreterResponse`:
 
 ```go
@@ -294,6 +304,10 @@ type PendingAdmission struct {
 	// Usage is the usage of the ResourceBinding as admitted, limited to the resources in Overall.
 	// +required
 	Usage corev1.ResourceList `json:"usage"`
+
+	// Generation is the metadata.generation of the ResourceBinding as admitted.
+	// +required
+	Generation int64 `json:"generation"`
 
 	// AdmittedAt is the time the change was admitted.
 	// +required
@@ -451,9 +465,9 @@ func (c *WorkStatusController) interpretTermination(clusterObj *unstructured.Uns
 }
 ```
 
-and set `ManifestStatus.Terminated`. If interpretation fails, `reflectStatus` still writes the status with `terminated` unset. When `FederatedQuotaEnforcement` is enabled, it then returns the error so the worker requeues the object with rate-limited backoff and interpretation is retried. When it is disabled, nothing consumes the result, so the error is only recorded as an event. A finished object may never change again, and `WorkStatusController.onUpdate` drops informer resyncs whose old and new objects are equal, so without the requeue a transient failure (for example an interpreter webhook outage) would keep the workload counted until the controller restarts.
+and set `ManifestStatus.Terminated`. If interpretation fails, `reflectStatus` still writes the status with `terminated` unset. When `FederatedQuotaEnforcement` is enabled, it then returns the error so the worker requeues the object with rate-limited backoff and interpretation is retried. When it is disabled, nothing consumes the result, so the error is only recorded as an event. A permanent failure, such as a broken Lua script, keeps being retried with backoff for every object of that kind. This is accepted, since fixing the rule triggers re-evaluation (see Rule changes below). A finished object may never change again, and `WorkStatusController.onUpdate` drops informer resyncs whose old and new objects are equal, so without the requeue a transient failure (for example an interpreter webhook outage) would keep the workload counted until the controller restarts.
 
-**Rule changes.** Adding, changing or removing a termination rule (a `terminationInterpretation` in a `ResourceInterpreterCustomization`, or `InterpretTermination` in a `ResourceInterpreterWebhookConfiguration`) does not change any member object, so it would not be picked up for workloads that already finished. When such a rule changes for a kind, the work status controller requeues the member objects of that kind, so termination is evaluated again with the new rule. A removed rule leaves `terminated` unset again, so the workloads count again. This runs wherever status is reflected: in karmada-controller-manager for `Push` clusters and in karmada-agent for `Pull` clusters. Built-in rules only change with an upgrade, which restarts these components.
+**Rule changes.** Adding, changing or removing a termination rule (a `terminationInterpretation` in a `ResourceInterpreterCustomization`, or `InterpretTermination` in a `ResourceInterpreterWebhookConfiguration`) does not change any member object, so it would not be picked up for workloads that already finished. When such a rule changes for a kind, the work status controller requeues the member objects of that kind, so termination is evaluated again with whichever rule now applies. Removing a user rule falls back to the built-in rule if there is one, and leaves `terminated` unset otherwise. If a `ResourceInterpreterCustomization`'s target changes, both the old and the new kind are requeued. The requeue can be large, for example every `Pod` in every member cluster for a `v1 Pod` rule, but it only happens on rule changes, and objects whose result does not change are not written again. This runs wherever status is reflected: in karmada-controller-manager for `Push` clusters and in karmada-agent for `Pull` clusters. Built-in rules only change with an upgrade, which restarts these components.
 
 `pkg/util/helper/workstatus.go`:
 
@@ -554,11 +568,11 @@ The webhook updates `overallUsed` before the admitted binding is stored. A recom
 
 This already applies to recomputations triggered today by binding deletion and the periodic resync, and the Kubernetes `ResourceQuota` controller has the same behavior. Termination changes make recomputations more frequent, so it becomes more likely in namespaces where jobs finish while new ones are being submitted. To close it, the webhook records what it admits in `status.pendingAdmissions` (see [API changes](#4-federatedresourcequota-status)), so a recomputation can count admissions it cannot see yet:
 
-1. When the webhook admits a binding change with a non-zero delta, it updates `overallUsed` as today and, in the same status update, sets the binding's entry to its admitted usage and the current time. An existing entry for the same binding is replaced.
-2. During a recomputation, if a binding's usage in the snapshot equals its entry, the change is visible and the entry is removed. Otherwise the entry's usage is counted instead of the snapshot usage, and the entry is kept. In the example above, the recomputation counts C from its entry and writes 2.
-3. Entries older than a fixed timeout, for example when the admitted change was never stored, and entries of deleted bindings, are removed.
+1. When the webhook admits a binding change with a non-zero delta, it updates `overallUsed` as today and, in the same status update, sets the binding's entry to its admitted usage, its `metadata.generation` and the current time. An existing entry for the same binding is replaced. The generation is the one the binding will have once it is stored.
+2. During a recomputation, an entry whose binding is in the snapshot with a generation at least the entry's is visible and is removed. Otherwise the entry's usage is counted instead of the binding's snapshot usage (zero if the binding is not in the snapshot yet), and the entry is kept. In the example above, the recomputation counts C from its entry and writes 2. Status changes, such as termination, do not change the generation, so they do not keep an entry alive.
+3. Entries are also removed after a timeout (for example 1 minute), both by the webhook whenever it writes the FRQ status and by recomputations, and when their binding is deleted. Since visibility is decided by generation, the timeout only cleans up admissions that were never stored.
 
-The list only holds changes admitted in the last few seconds, so it stays small. If a binding's usage changes again before its entry is removed, for example because it terminates right after admission, the entry keeps it counted until the timeout, which errs on the side of overcounting.
+Because expired entries are dropped on every webhook write, the list holds at most the admissions within the timeout that no recomputation has seen yet.
 
 #### Webhook
 
@@ -595,8 +609,8 @@ No new feature gate is proposed:
 - **Unit tests**
   - Native `InterpretTermination` for `Job` (complete, failed, running, suspended) and `Pod` (all phases).
   - Work status controller: a failed interpretation reflects status with `terminated` unset and requeues the object when `FederatedQuotaEnforcement` is enabled, but not when it is disabled; the retry sets `terminated`.
-  - Rule changes: adding, changing and removing a termination rule re-evaluates finished objects of that kind without touching them.
-  - Webhook interpreter: a webhook matching `"*"` does not receive `InterpretTermination`; a response without `terminated` is treated as not evaluated.
+  - Rule changes: adding, changing and removing a termination rule re-evaluates finished objects of that kind without touching them; removing a user override falls back to the built-in rule; changing a customization's target requeues both kinds.
+  - Webhook interpreter: a webhook matching `"*"` does not receive `InterpretTermination` and is not reported by `HookEnabled`; a response without `terminated` is treated as not evaluated.
   - Third-party customization test data for each kind with a built-in rule, in `testdata/interprettermination-test.yaml` next to the existing per-operation test files.
   - Declarative Lua VM and webhook interpreter for the new operation, including response verification.
   - `assembleWorkStatus`: terminated, not terminated, unapplied clusters, and no hook (nil `terminated`).
@@ -604,7 +618,7 @@ No new feature gate is proposed:
   - FRQ controller predicate: enqueue only when the set of terminated scheduled clusters changes.
   - A binding's termination is stored while a recomputation is running: the release is counted exactly once.
   - A binding is admitted between the recomputation's binding list and its FRQ write: the write fails with a conflict, the recomputation is retried, and the admission is kept.
-  - In-flight admissions: an entry is added by the webhook, counted while the binding is not visible, removed once it is visible, removed after the timeout, and removed when the binding is deleted.
+  - In-flight admissions: an entry is counted until the cached binding reaches its generation, is not kept alive by a status change, and is removed after the timeout or when the binding is deleted.
   - `TerminatedWorkloadReactivated` event on `true` → `false` only, not when a terminated cluster is removed from `spec.clusters`.
   - RB webhook: delta with terminated clusters on spec update and create; a reschedule from a terminated cluster to a new cluster with the same total replicas is validated against the quota.
 - **E2E tests** (`test/e2e/suites/base/federatedresourcequota_test.go`)
