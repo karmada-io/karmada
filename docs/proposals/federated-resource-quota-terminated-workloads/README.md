@@ -283,7 +283,9 @@ type ResourceInterpreter interface {
 	// ...existing methods...
 
 	// InterpretTermination returns whether the object has reached a terminal state.
-	InterpretTermination(object *unstructured.Unstructured) (terminated bool, err error)
+	// It returns nil if the object was not evaluated: no layer has a rule for its kind,
+	// or the matching webhook declined and no lower layer has a rule.
+	InterpretTermination(object *unstructured.Unstructured) (terminated *bool, err error)
 }
 ```
 
@@ -294,7 +296,7 @@ The usual precedence applies: declarative (`ResourceInterpreterCustomization`) â
 | Native (`pkg/resourceinterpreter/default/native`) | New `termination.go` with `getAllDefaultTerminationInterpreter()`: `batch/v1 Job` (condition `Complete` or `Failed` is `True`), `v1 Pod` (`status.phase` is `Succeeded` or `Failed`). |
 | Third-party (`pkg/resourceinterpreter/default/thirdparty/resourcecustomizations`) | Add `terminationInterpretation` plus test cases to the batch customizations listed in [Built-in termination rules](#built-in-termination-rules). |
 | Declarative (`customized/declarative`, `luavm`) | Load and run `InterpretTermination(observedObj)`. Validate in the RIC validating webhook. |
-| Webhook (`customized/webhook`) | Support the new operation in `RuleWithOperations`. Like other operations, it is matched by `"*"`. A webhook that answers that it does not support the operation is treated as if no webhook matched, not as an error: evaluation falls through to the third-party and native layers, so a built-in rule for the kind still applies. A response without `terminated` always counts as such an answer. For `successful: false`, the match type decides: a webhook matched only by `"*"` never agreed to handle termination, so any `successful: false` means not supported; a webhook that lists `InterpretTermination` explicitly is not supported only with status code `400`, `404` or `501`, and any other code, such as `429` or `503`, is a failure and is retried. Today `callHook` turns every `successful: false` answer into `ErrCallingWebhook` for all operations. For `InterpretTermination`, it returns the status code instead, together with whether the hook matched only through `"*"`, so the caller can classify the answer. |
+| Webhook (`customized/webhook`) | Support the new operation in `RuleWithOperations`. Like other operations, it is matched by `"*"`. A webhook that answers that it does not support the operation is treated as if no webhook matched, not as an error: evaluation falls through to the third-party and native layers, so a built-in rule for the kind still applies. A `successful: true` reply without `terminated` counts as such an answer. A `successful: false` reply is classified first by match type and status code: a webhook matched only by `"*"` never agreed to handle termination, so any `successful: false` means not supported; a webhook that lists `InterpretTermination` explicitly is not supported only with status code `400`, `404` or `501`, and any other code, such as `429` or `503`, is a failure and is retried. Today `callHook` turns every `successful: false` answer into `ErrCallingWebhook` for all operations. For `InterpretTermination`, it returns the status code instead, together with whether the hook matched only through `"*"`, so the caller can classify the answer. |
 | `karmadactl interpret` (`pkg/util/interpreter/rule.go`) | Add `terminationInterpretationRule` so users can test their scripts locally. |
 
 #### Built-in termination rules
@@ -412,19 +414,17 @@ spec:
 
 ```go
 func (c *WorkStatusController) interpretTermination(clusterObj *unstructured.Unstructured, work *workv1alpha1.Work) (*bool, error) {
-	if !c.ResourceInterpreter.HookEnabled(clusterObj.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretTermination) {
-		return nil, nil
-	}
 	terminated, err := c.ResourceInterpreter.InterpretTermination(clusterObj)
 	if err != nil {
 		c.EventRecorder.Eventf(work, corev1.EventTypeWarning, events.EventReasonInterpretTerminationFailed, ...)
 		return nil, err
 	}
-	return &terminated, nil
+	// nil means not evaluated and is stored as an unset field.
+	return terminated, nil
 }
 ```
 
-and set `ManifestStatus.Terminated`. If no answer can be obtained, for example a webhook timeout, a connection error, an invalid response or a Lua error, `reflectStatus` still writes the status with `terminated` unset. When `FederatedQuotaEnforcement` is enabled, it then returns the error so the worker requeues the object with rate-limited backoff and interpretation is retried. The same applies to a webhook answer with `successful: false`, unless it means the operation is not supported (see the webhook row in [Resource interpreter changes](#resource-interpreter-changes)): that answer is not a failure. Evaluation falls through to the next layer, and if no layer has a rule for the kind, `terminated` stays unset. The object is neither retried nor reported with an event. A failure does not fall through: a lower-layer rule should not replace a webhook that may implement termination but is temporarily unavailable. When it is disabled, nothing consumes the result, so the error is only recorded as an event. A permanent failure, such as a broken Lua script, keeps being retried with backoff for every object of that kind. This is accepted, since fixing the rule triggers re-evaluation (see Rule changes below). A finished object may never change again, and `WorkStatusController.onUpdate` drops informer resyncs whose old and new objects are equal, so without the requeue a transient failure (for example an interpreter webhook outage) would keep the workload counted until the controller restarts.
+and set `ManifestStatus.Terminated`. If no answer can be obtained, for example a webhook timeout, a connection error, an invalid response or a Lua error, `reflectStatus` still writes the status with `terminated` unset. It then returns the error so the worker requeues the object with rate-limited backoff and interpretation is retried. Retries do not depend on the `FederatedQuotaEnforcement` gate, which is set separately in each component and defaults to off in karmada-agent. The same applies to a webhook answer with `successful: false`, unless it means the operation is not supported (see the webhook row in [Resource interpreter changes](#resource-interpreter-changes)): that answer is not a failure. Evaluation falls through to the next layer, and if no layer has a rule for the kind, `terminated` stays unset. The object is neither retried nor reported with an event. A failure does not fall through: a lower-layer rule should not replace a webhook that may implement termination but is temporarily unavailable. A permanent failure, such as a broken Lua script, keeps being retried with backoff for every object of that kind. This is accepted, since fixing the rule triggers re-evaluation (see Rule changes below). A finished object may never change again, and `WorkStatusController.onUpdate` drops informer resyncs whose old and new objects are equal, so without the requeue a transient failure (for example an interpreter webhook outage) would keep the workload counted until the controller restarts.
 
 **Rule changes.** Adding, changing or removing a termination rule (a `terminationInterpretation` in a `ResourceInterpreterCustomization`, or `InterpretTermination` in a `ResourceInterpreterWebhookConfiguration`) does not change any member object, so it would not be picked up for workloads that already finished. When such a rule changes for a kind, the work status controller requeues the member objects of that kind, so termination is evaluated again with whichever rule now applies. Removing a user rule falls back to the built-in rule if there is one, and leaves `terminated` unset otherwise. If a `ResourceInterpreterCustomization`'s target changes, both the old and the new kind are requeued. The requeue can be large, for example every `Pod` in every member cluster for a `v1 Pod` rule, but it only happens on rule changes, and objects whose result does not change are not written again. This runs wherever status is reflected: in karmada-controller-manager for `Push` clusters and in karmada-agent for `Pull` clusters. Built-in rules only change with an upgrade, which restarts these components.
 
@@ -561,9 +561,9 @@ No new feature gate is proposed:
 
 - **Unit tests**
   - Native `InterpretTermination` for `Job` (complete, failed, running, suspended) and `Pod` (all phases).
-  - Work status controller: a failed interpretation reflects status with `terminated` unset and requeues the object when `FederatedQuotaEnforcement` is enabled, but not when it is disabled; the retry sets `terminated`.
+  - Work status controller: a failed interpretation reflects status with `terminated` unset and requeues the object; the retry sets `terminated`.
   - Rule changes: adding, changing and removing a termination rule re-evaluates finished objects of that kind without touching them; removing a user override falls back to the built-in rule; changing a customization's target requeues both kinds.
-  - Webhook interpreter: a legacy webhook matched only by `"*"` that rejects `InterpretTermination` with `successful: false` and any code, including `500`, or omits `terminated`, is treated as not evaluated, with no retry and no event. A webhook that lists `InterpretTermination` explicitly is not evaluated for codes `400`, `404` and `501`, and is retried for other codes such as `429` or `503`. A webhook timeout is retried in both cases when `FederatedQuotaEnforcement` is enabled. A `"*"` webhook for a kind with a built-in rule (for example `SparkApplication`) that answers "not supported" falls through, and the built-in rule decides.
+  - Webhook interpreter: a legacy webhook matched only by `"*"` that rejects `InterpretTermination` with `successful: false` and any code, including `500`, or omits `terminated`, is treated as not evaluated, with no retry and no event. A webhook that lists `InterpretTermination` explicitly is not evaluated for codes `400`, `404` and `501`, and is retried for other codes such as `429` or `503`. A webhook timeout, and `successful: false` with code `503` and no `terminated` from an explicit webhook, are retried. A `"*"` webhook for a kind with a built-in rule (for example `SparkApplication`) that answers "not supported" falls through, and the built-in rule decides.
   - Third-party customization test data for each kind with a built-in rule, in `testdata/interprettermination-test.yaml` next to the existing per-operation test files.
   - Declarative Lua VM and webhook interpreter for the new operation, including response verification.
   - `assembleWorkStatus`: terminated, not terminated, unapplied clusters, and no hook (nil `terminated`).
