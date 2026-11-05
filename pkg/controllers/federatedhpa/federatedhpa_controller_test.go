@@ -26,6 +26,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -33,6 +34,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	kubernetesfake "k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/scale"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -40,6 +43,8 @@ import (
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/typedmanager"
 	"github.com/karmada-io/karmada/pkg/util/lifted/selectors"
 )
 
@@ -361,6 +366,99 @@ func TestGetTargetCluster(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestScaleForTargetClusterError verifies that scaleForTargetCluster reports the real reason
+// when no replicas can be collected from the target clusters.
+func TestScaleForTargetClusterError(t *testing.T) {
+	tests := []struct {
+		name          string
+		clusters      []string
+		clientErr     error
+		expectedError string
+	}{
+		{
+			name:          "No ready target clusters",
+			clusters:      nil,
+			expectedError: "failed to get replicas because none of the target clusters is ready",
+		},
+		{
+			name:          "Failed to get client of every target cluster",
+			clusters:      []string{"member1", "member2"},
+			clientErr:     errors.New("cluster secret not found"),
+			expectedError: "failed to get replicas from target clusters [member1 member2]: [cluster member1: failed to get cluster client: cluster secret not found, cluster member2: failed to get cluster client: cluster secret not found]",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			controller := &FHPAController{
+				ClusterScaleClientSetFunc: func(string, client.Client) (*util.ClusterScaleClient, error) {
+					return nil, tt.clientErr
+				},
+			}
+			hpa := &autoscalingv1alpha1.FederatedHPA{
+				ObjectMeta: metav1.ObjectMeta{Name: "test-hpa", Namespace: "default"},
+			}
+			mapping := &meta.RESTMapping{Resource: schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}}
+
+			scale, pods, err := controller.scaleForTargetCluster(context.Background(), tt.clusters, hpa, mapping)
+
+			assert.Nil(t, scale)
+			assert.Nil(t, pods)
+			assert.EqualError(t, err, tt.expectedError)
+		})
+	}
+}
+
+// zeroReplicasScales is a scale client that reports zero replicas for every scale target.
+type zeroReplicasScales struct{}
+
+var _ scale.ScalesGetter = zeroReplicasScales{}
+var _ scale.ScaleInterface = zeroReplicasScales{}
+
+func (s zeroReplicasScales) Scales(string) scale.ScaleInterface {
+	return s
+}
+
+func (zeroReplicasScales) Get(context.Context, schema.GroupResource, string, metav1.GetOptions) (*autoscalingv1.Scale, error) {
+	return &autoscalingv1.Scale{Status: autoscalingv1.ScaleStatus{Selector: "app=test"}}, nil
+}
+
+func (zeroReplicasScales) Update(context.Context, schema.GroupResource, *autoscalingv1.Scale, metav1.UpdateOptions) (*autoscalingv1.Scale, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (zeroReplicasScales) Patch(context.Context, schema.GroupVersionResource, string, types.PatchType, []byte, metav1.PatchOptions) (*autoscalingv1.Scale, error) {
+	return nil, errors.New("not implemented")
+}
+
+// TestScaleForTargetClusterZeroReplicas verifies that scaleForTargetCluster reports zero replicas,
+// instead of a cluster failure, when every target cluster returns a scale with zero replicas.
+func TestScaleForTargetClusterZeroReplicas(t *testing.T) {
+	ctx := t.Context()
+
+	informerManager := typedmanager.NewMultiClusterInformerManager(ctx, nil)
+	informerManager.ForCluster("member1", kubernetesfake.NewClientset(), 0)
+	defer informerManager.Stop("member1")
+
+	controller := &FHPAController{
+		TypedInformerManager:    informerManager,
+		ClusterCacheSyncTimeout: metav1.Duration{Duration: 10 * time.Second},
+		ClusterScaleClientSetFunc: func(cluster string, _ client.Client) (*util.ClusterScaleClient, error) {
+			return &util.ClusterScaleClient{ScaleClient: zeroReplicasScales{}, ClusterName: cluster}, nil
+		},
+	}
+	hpa := &autoscalingv1alpha1.FederatedHPA{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-hpa", Namespace: "default"},
+	}
+	mapping := &meta.RESTMapping{Resource: schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}}
+
+	gotScale, pods, err := controller.scaleForTargetCluster(ctx, []string{"member1"}, hpa, mapping)
+
+	assert.Nil(t, gotScale)
+	assert.Nil(t, pods)
+	assert.EqualError(t, err, "the replicas of the scale target are zero in all of target clusters [member1]")
 }
 
 // TestValidateAndParseSelector ensures proper parsing and validation of selectors
