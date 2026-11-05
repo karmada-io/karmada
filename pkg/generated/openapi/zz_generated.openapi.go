@@ -7858,6 +7858,19 @@ func schema_pkg_apis_work_v1alpha2_ResourceBindingSpec(ref common.ReferenceCallb
 							},
 						},
 					},
+					"podSelectors": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PodSelectors contains label selectors used to find the Pods belonging to this binding when evaluating it as a preemption victim. A Pod matches if it satisfies any one of the selectors.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref(metav1.LabelSelector{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
 					"clusters": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Clusters represents target member clusters where the resource to be deployed.",
@@ -7959,7 +7972,7 @@ func schema_pkg_apis_work_v1alpha2_ResourceBindingSpec(ref common.ReferenceCallb
 			},
 		},
 		Dependencies: []string{
-			policyv1alpha1.FailoverBehavior{}.OpenAPIModelName(), policyv1alpha1.Placement{}.OpenAPIModelName(), v1alpha2.BindingSnapshot{}.OpenAPIModelName(), v1alpha2.Component{}.OpenAPIModelName(), v1alpha2.GracefulEvictionTask{}.OpenAPIModelName(), v1alpha2.ObjectReference{}.OpenAPIModelName(), v1alpha2.ReplicaRequirements{}.OpenAPIModelName(), v1alpha2.SchedulePriority{}.OpenAPIModelName(), v1alpha2.Suspension{}.OpenAPIModelName(), v1alpha2.TargetCluster{}.OpenAPIModelName(), v1alpha2.WorkloadAffinityGroups{}.OpenAPIModelName(), metav1.Time{}.OpenAPIModelName()},
+			policyv1alpha1.FailoverBehavior{}.OpenAPIModelName(), policyv1alpha1.Placement{}.OpenAPIModelName(), v1alpha2.BindingSnapshot{}.OpenAPIModelName(), v1alpha2.Component{}.OpenAPIModelName(), v1alpha2.GracefulEvictionTask{}.OpenAPIModelName(), v1alpha2.ObjectReference{}.OpenAPIModelName(), v1alpha2.ReplicaRequirements{}.OpenAPIModelName(), v1alpha2.SchedulePriority{}.OpenAPIModelName(), v1alpha2.Suspension{}.OpenAPIModelName(), v1alpha2.TargetCluster{}.OpenAPIModelName(), v1alpha2.WorkloadAffinityGroups{}.OpenAPIModelName(), metav1.LabelSelector{}.OpenAPIModelName(), metav1.Time{}.OpenAPIModelName()},
 	}
 }
 

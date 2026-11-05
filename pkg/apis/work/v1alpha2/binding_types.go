@@ -97,6 +97,12 @@ type ResourceBindingSpec struct {
 	// +optional
 	Components []Component `json:"components,omitempty"`
 
+	// PodSelectors contains label selectors used to find the Pods belonging to
+	// this binding when evaluating it as a preemption victim.
+	// A Pod matches if it satisfies any one of the selectors.
+	// +optional
+	PodSelectors []metav1.LabelSelector `json:"podSelectors,omitempty"`
+
 	// Clusters represents target member clusters where the resource to be deployed.
 	// +optional
 	Clusters []TargetCluster `json:"clusters,omitempty"`

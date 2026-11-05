@@ -2222,6 +2222,12 @@ var schemaYAML = typed.YAMLObject(`types:
     - name: placement
       type:
         namedType: com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.Placement
+    - name: podSelectors
+      type:
+        list:
+          elementType:
+            namedType: io.k8s.apimachinery.pkg.apis.meta.v1.LabelSelector
+          elementRelationship: atomic
     - name: preserveResourcesOnDeletion
       type:
         scalar: boolean

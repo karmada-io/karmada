@@ -385,6 +385,13 @@ func (in *ResourceBindingSpec) DeepCopyInto(out *ResourceBindingSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.PodSelectors != nil {
+		in, out := &in.PodSelectors, &out.PodSelectors
+		*out = make([]metav1.LabelSelector, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	if in.Clusters != nil {
 		in, out := &in.Clusters, &out.Clusters
 		*out = make([]TargetCluster, len(*in))
