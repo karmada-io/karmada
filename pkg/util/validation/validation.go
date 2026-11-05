@@ -55,13 +55,14 @@ func ValidatePropagationSpec(spec policyv1alpha1.PropagationSpec, policyNamespac
 
 // validateResourceSelectors validates ResourceSelectors before creation or update.
 func validateResourceSelectors(selectors []policyv1alpha1.ResourceSelector, policyNamespace string, fldPath *field.Path) field.ErrorList {
-	if len(policyNamespace) == 0 {
-		return nil
-	}
-
 	var allErrs field.ErrorList
 	for index, selector := range selectors {
-		if selector.Namespace != policyNamespace {
+		allErrs = append(allErrs, metav1validation.ValidateLabelSelector(selector.LabelSelector, metav1validation.LabelSelectorValidationOptions{
+			AllowInvalidLabelValueInSelector: false,
+		}, fldPath.Index(index).Child("labelSelector"))...)
+
+		// A cluster-scoped policy (empty policyNamespace) has no namespace to compare against.
+		if len(policyNamespace) != 0 && selector.Namespace != policyNamespace {
 			allErrs = append(allErrs, field.Invalid(fldPath.Index(index).Child("namespace"), selector.Namespace, "namespace of resource selector must be the same as the namespace of the policy"))
 		}
 	}
@@ -175,6 +176,9 @@ func ValidateClusterAffinity(affinity *policyv1alpha1.ClusterAffinity, fldPath *
 	}
 
 	var allErrs field.ErrorList
+	allErrs = append(allErrs, metav1validation.ValidateLabelSelector(affinity.LabelSelector, metav1validation.LabelSelectorValidationOptions{
+		AllowInvalidLabelValueInSelector: false,
+	}, fldPath.Child("labelSelector"))...)
 	err := ValidatePolicyFieldSelector(affinity.FieldSelector)
 	if err != nil {
 		allErrs = append(allErrs, field.Invalid(fldPath.Child("fieldSelector"), affinity.FieldSelector, err.Error()))

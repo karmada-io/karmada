@@ -24,6 +24,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/utils/ptr"
 
@@ -1625,6 +1626,237 @@ func TestValidateOverflowAffinities(t *testing.T) {
 				for _, expected := range tt.expectedErrStrings {
 					assert.Contains(t, errStr, expected)
 				}
+			}
+		})
+	}
+}
+
+func TestValidateResourceSelectors(t *testing.T) {
+	tests := []struct {
+		name        string
+		selectors   []policyv1alpha1.ResourceSelector
+		namespace   string
+		expectedErr string
+	}{
+		{
+			name: "valid label selector",
+			selectors: []policyv1alpha1.ResourceSelector{{
+				APIVersion: "apps/v1",
+				Kind:       "Deployment",
+				Namespace:  "default",
+				LabelSelector: &metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{
+						{Key: "app", Operator: metav1.LabelSelectorOpIn, Values: []string{"nginx"}},
+					},
+				},
+			}},
+			namespace:   "default",
+			expectedErr: "",
+		},
+		{
+			name: "nil label selector is valid",
+			selectors: []policyv1alpha1.ResourceSelector{{
+				APIVersion: "apps/v1",
+				Kind:       "Deployment",
+				Namespace:  "default",
+				Name:       "nginx",
+			}},
+			namespace:   "default",
+			expectedErr: "",
+		},
+		{
+			name: "label selector with lowercase operator is invalid",
+			selectors: []policyv1alpha1.ResourceSelector{{
+				APIVersion: "apps/v1",
+				Kind:       "Deployment",
+				Namespace:  "default",
+				LabelSelector: &metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{
+						{Key: "app", Operator: "in", Values: []string{"nginx"}},
+					},
+				},
+			}},
+			namespace:   "default",
+			expectedErr: "spec.resourceSelectors[0].labelSelector.matchExpressions[0].operator",
+		},
+		{
+			name: "label selector with In operator and no values is invalid",
+			selectors: []policyv1alpha1.ResourceSelector{{
+				APIVersion: "apps/v1",
+				Kind:       "Deployment",
+				Namespace:  "default",
+				LabelSelector: &metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{
+						{Key: "app", Operator: metav1.LabelSelectorOpIn},
+					},
+				},
+			}},
+			namespace:   "default",
+			expectedErr: "spec.resourceSelectors[0].labelSelector.matchExpressions[0].values",
+		},
+		{
+			name: "label selector with invalid key is invalid",
+			selectors: []policyv1alpha1.ResourceSelector{{
+				APIVersion: "apps/v1",
+				Kind:       "Deployment",
+				Namespace:  "default",
+				LabelSelector: &metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{
+						{Key: "INVALID KEY!", Operator: metav1.LabelSelectorOpExists},
+					},
+				},
+			}},
+			namespace:   "default",
+			expectedErr: "spec.resourceSelectors[0].labelSelector.matchExpressions[0].key",
+		},
+		{
+			name: "invalid label selector is rejected for cluster-scoped policy",
+			selectors: []policyv1alpha1.ResourceSelector{{
+				APIVersion: "apps/v1",
+				Kind:       "Deployment",
+				LabelSelector: &metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{
+						{Key: "app", Operator: "in", Values: []string{"nginx"}},
+					},
+				},
+			}},
+			namespace:   "",
+			expectedErr: "spec.resourceSelectors[0].labelSelector.matchExpressions[0].operator",
+		},
+		{
+			name: "valid label selector is accepted for cluster-scoped policy",
+			selectors: []policyv1alpha1.ResourceSelector{{
+				APIVersion: "apps/v1",
+				Kind:       "Deployment",
+				LabelSelector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{"app": "nginx"},
+				},
+			}},
+			namespace:   "",
+			expectedErr: "",
+		},
+		{
+			name: "namespace mismatch is still reported",
+			selectors: []policyv1alpha1.ResourceSelector{{
+				APIVersion: "apps/v1",
+				Kind:       "Deployment",
+				Namespace:  "other",
+			}},
+			namespace:   "default",
+			expectedErr: "namespace of resource selector must be the same as the namespace of the policy",
+		},
+		{
+			name: "only the invalid selector in the list is reported with its index",
+			selectors: []policyv1alpha1.ResourceSelector{
+				{
+					APIVersion:    "apps/v1",
+					Kind:          "Deployment",
+					Namespace:     "default",
+					LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "nginx"}},
+				},
+				{
+					APIVersion: "v1",
+					Kind:       "Service",
+					Namespace:  "default",
+					LabelSelector: &metav1.LabelSelector{
+						MatchExpressions: []metav1.LabelSelectorRequirement{
+							{Key: "app", Operator: "in", Values: []string{"nginx"}},
+						},
+					},
+				},
+			},
+			namespace:   "default",
+			expectedErr: "spec.resourceSelectors[1].labelSelector.matchExpressions[0].operator",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := validateResourceSelectors(tt.selectors, tt.namespace, field.NewPath("spec").Child("resourceSelectors"))
+			err := errs.ToAggregate()
+			if tt.expectedErr == "" {
+				assert.NoError(t, err)
+				return
+			}
+			if assert.Error(t, err) {
+				assert.Contains(t, err.Error(), tt.expectedErr)
+			}
+		})
+	}
+}
+
+func TestValidateClusterAffinityLabelSelector(t *testing.T) {
+	tests := []struct {
+		name        string
+		affinity    *policyv1alpha1.ClusterAffinity
+		expectedErr string
+	}{
+		{
+			name:        "nil cluster affinity is valid",
+			affinity:    nil,
+			expectedErr: "",
+		},
+		{
+			name: "valid label selector",
+			affinity: &policyv1alpha1.ClusterAffinity{
+				LabelSelector: &metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{
+						{Key: "region", Operator: metav1.LabelSelectorOpIn, Values: []string{"us"}},
+					},
+				},
+			},
+			expectedErr: "",
+		},
+		{
+			name: "label selector with lowercase operator is invalid",
+			affinity: &policyv1alpha1.ClusterAffinity{
+				LabelSelector: &metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{
+						{Key: "region", Operator: "in", Values: []string{"us"}},
+					},
+				},
+			},
+			expectedErr: "spec.placement.clusterAffinity.labelSelector.matchExpressions[0].operator",
+		},
+		{
+			name: "label selector with In operator and no values is invalid",
+			affinity: &policyv1alpha1.ClusterAffinity{
+				LabelSelector: &metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{
+						{Key: "region", Operator: metav1.LabelSelectorOpIn},
+					},
+				},
+			},
+			expectedErr: "spec.placement.clusterAffinity.labelSelector.matchExpressions[0].values",
+		},
+		{
+			name: "invalid fieldSelector is still reported alongside the label selector check",
+			affinity: &policyv1alpha1.ClusterAffinity{
+				LabelSelector: &metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{
+						{Key: "region", Operator: "in", Values: []string{"us"}},
+					},
+				},
+				FieldSelector: &policyv1alpha1.FieldSelector{
+					MatchExpressions: []corev1.NodeSelectorRequirement{
+						{Key: "unsupported", Operator: corev1.NodeSelectorOpIn, Values: []string{"x"}},
+					},
+				},
+			},
+			expectedErr: "spec.placement.clusterAffinity.fieldSelector",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := ValidateClusterAffinity(tt.affinity, field.NewPath("spec").Child("placement").Child("clusterAffinity"))
+			err := errs.ToAggregate()
+			if tt.expectedErr == "" {
+				assert.NoError(t, err)
+				return
+			}
+			if assert.Error(t, err) {
+				assert.Contains(t, err.Error(), tt.expectedErr)
 			}
 		})
 	}
