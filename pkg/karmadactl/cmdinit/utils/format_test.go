@@ -18,10 +18,13 @@ package utils
 
 import (
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"reflect"
 	"slices"
 	"testing"
+	"time"
 )
 
 func stringInslice(target string, strArray []string) bool {
@@ -123,13 +126,52 @@ func TestFlagsDNS(t *testing.T) {
 }
 
 func TestInternetIP(t *testing.T) {
-	got, err := InternetIP()
-	if got == nil {
-		t.Errorf("InternetIP() want return not nil, but return nil")
-	}
-	if err != nil {
-		t.Errorf("InternetIP() want return not error, but return error")
-	}
+	t.Run("returns IP from server response", func(t *testing.T) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = w.Write([]byte("1.2.3.4"))
+		}))
+		defer srv.Close()
+
+		orig := getInternetIPUrl
+		getInternetIPUrl = srv.URL
+		defer func() { getInternetIPUrl = orig }()
+
+		got, err := InternetIP()
+		if err != nil {
+			t.Fatalf("InternetIP() unexpected error: %v", err)
+		}
+		if got == nil {
+			t.Fatal("InternetIP() returned nil IP")
+		}
+		if !got.Equal(net.ParseIP("1.2.3.4")) {
+			t.Errorf("InternetIP() = %v, want 1.2.3.4", got)
+		}
+	})
+
+	t.Run("respects timeout and returns error when server hangs", func(t *testing.T) {
+		hang := make(chan struct{})
+		srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+			<-hang
+		}))
+		defer func() {
+			close(hang)
+			srv.Close()
+		}()
+
+		orig := getInternetIPUrl
+		origTimeout := InternetIPTimeout
+		getInternetIPUrl = srv.URL
+		InternetIPTimeout = 100 * time.Millisecond
+		defer func() {
+			getInternetIPUrl = orig
+			InternetIPTimeout = origTimeout
+		}()
+
+		_, err := InternetIP()
+		if err == nil {
+			t.Error("InternetIP() expected timeout error, got nil")
+		}
+	})
 }
 
 func TestFileToBytes(t *testing.T) {
