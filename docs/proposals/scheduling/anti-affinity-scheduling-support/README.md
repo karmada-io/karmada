@@ -44,7 +44,7 @@ Karmada's PropagationPolicy API already provides pretty fine-grained scheduling 
 
 As a user of Apache Flink, there may be cases where my data pipeline is has a very low tolerance for downtime (e.g. the job cannot stop processing data for more than a couple seconds). In cases like this I cannot rely on Karmada's cluster failover feature alone since by the time Karmada is able to reschedule my application, the downstream consumers will already have gaps in their data. The solution is to run two duplicate processing pipelines for HA purposes, allowing time for Karmada to schedule the impacted application while the other continues processing.
 
-Karmada should support being able to schedule these types of duplicate pipelines, by making sure that the applications are never scheduled to the same cluster (which would break HA gaurantees).
+Karmada should support being able to schedule these types of duplicate pipelines, by making sure that the applications are never scheduled to the same cluster (which would break HA guarantees).
 
 In the picture below, we can see two workloads which represent two duplicate pipelines scheduled for HA purposes. Karmada will make sure that during the scheduling phase, it will not schedule the application to a cluster if a workload with a `karmada.io/group` label and matching key exists:
 
