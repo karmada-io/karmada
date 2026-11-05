@@ -269,7 +269,7 @@ func TestAggregateJobStatus(t *testing.T) {
 
 	newJobWithJobFailed := &batchv1.Job{
 		TypeMeta: metav1.TypeMeta{Kind: "Job", APIVersion: batchv1.SchemeGroupVersion.String()},
-		Status:   batchv1.JobStatus{Active: 0, Succeeded: 1, Failed: 1, StartTime: &startTime, CompletionTime: &completionTime, Conditions: []batchv1.JobCondition{{Type: batchv1.JobFailed, Status: corev1.ConditionTrue, Reason: "JobFailed", Message: "Job executed failed in member clusters member2"}}},
+		Status:   batchv1.JobStatus{Active: 0, Succeeded: 1, Failed: 1, StartTime: &startTime, CompletionTime: &completionTime, Conditions: []batchv1.JobCondition{{Type: batchv1.JobFailureTarget, Status: corev1.ConditionTrue, Reason: "JobFailed", Message: "Job executed failed in member clusters member2"}, {Type: batchv1.JobFailed, Status: corev1.ConditionTrue, Reason: "JobFailed", Message: "Job executed failed in member clusters member2"}}},
 	}
 	newObjWithJobFailed, _ := helper.ToUnstructured(newJobWithJobFailed)
 
