@@ -73,7 +73,7 @@ func installKarmadaMetricAdapter(client clientset.Interface, cfg *operatorv1alph
 		WithTolerations(cfg.CommonSettings.Tolerations).WithAffinity(cfg.CommonSettings.Affinity).ForDeployment(metricAdapter)
 
 	if metricAdapter, err = apiclient.CreateOrUpdateDeployment(client, metricAdapter); err != nil {
-		return fmt.Errorf("error when creating deployment for %s, err: %w", metricAdapter.Name, err)
+		return fmt.Errorf("error when creating deployment for %s, err: %w", util.KarmadaMetricsAdapterName(name), err)
 	}
 
 	ownerRef := *metav1.NewControllerRef(metricAdapter, apiserver.DeploymentGVK)
