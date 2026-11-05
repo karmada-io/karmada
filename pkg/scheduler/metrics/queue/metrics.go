@@ -46,7 +46,8 @@ func init() {
 func RegisterMetrics(extraMetrics ...metrics.Registerable) {
 	for _, metric := range extraMetrics {
 		// Create initializes the lazily-constructed component-base metric, as legacyregistry
-		// did before registering. It returns false if the metric is hidden.
+		// did before registering. Passing nil skips version-based deprecation checks, which
+		// never applied in karmada since the component-base build version is not set.
 		if metric.Create(nil) {
 			ctrlmetrics.Registry.MustRegister(metric)
 		}
