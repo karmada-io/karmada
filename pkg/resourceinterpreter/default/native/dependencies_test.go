@@ -1159,6 +1159,39 @@ func Test_getIngressDependencies(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "ingress with a tls entry without secretName",
+			object: &unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "networking.k8s.io/v1",
+					"kind":       "Ingress",
+					"metadata": map[string]any{
+						"name":      "test-ingress",
+						"namespace": namespace,
+					},
+					"spec": map[string]any{
+						"tls": []any{
+							map[string]any{
+								"hosts": []any{"foo1.bar.com"},
+							},
+							map[string]any{
+								"hosts":      []any{"foo2.bar.com"},
+								"secretName": "test-secret",
+							},
+						},
+					},
+				},
+			},
+			want: []configv1alpha1.DependentObjectReference{
+				{
+					APIVersion: "v1",
+					Kind:       "Secret",
+					Namespace:  namespace,
+					Name:       "test-secret",
+				},
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

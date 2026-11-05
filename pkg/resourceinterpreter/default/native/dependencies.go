@@ -188,6 +188,11 @@ func getIngressDependencies(object *unstructured.Unstructured) ([]configv1alpha1
 	}
 	var dependentObjectRefs []configv1alpha1.DependentObjectReference
 	for _, tls := range ingressObj.Spec.TLS {
+		// secretName is optional, an entry without it relies on the
+		// ingress controller's default certificate, so there is no Secret to propagate.
+		if tls.SecretName == "" {
+			continue
+		}
 		dependentObjectRefs = append(dependentObjectRefs, configv1alpha1.DependentObjectReference{
 			APIVersion: "v1",
 			Kind:       "Secret",
