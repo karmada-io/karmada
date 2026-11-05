@@ -23,6 +23,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
+	"k8s.io/component-base/metrics"
 	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
@@ -161,4 +162,25 @@ func TestPendingBindingsServedByControllerRuntimeRegistry(t *testing.T) {
 		}
 	}
 	t.Fatalf("karmada_scheduler_pending_bindings{queue=\"active\"} not found in controller-runtime registry")
+}
+
+// TestRegisterMetricsWithComponentBaseMetric guards against registering component-base metrics
+// without initializing them first, which panics in the Prometheus registry.
+func TestRegisterMetricsWithComponentBaseMetric(t *testing.T) {
+	gauge := metrics.NewGaugeVec(&metrics.GaugeOpts{
+		Name: "test_out_of_tree_plugin_items",
+		Help: "Test metric registered the way an out-of-tree plugin would.",
+	}, []string{"type"})
+	RegisterMetrics(gauge)
+	defer ctrlmetrics.Registry.Unregister(gauge)
+
+	gauge.WithLabelValues("foo").Set(1)
+
+	count, err := testutil.GatherAndCount(ctrlmetrics.Registry, "test_out_of_tree_plugin_items")
+	if err != nil {
+		t.Fatalf("failed to gather metrics from controller-runtime registry: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("expected 1 series of test_out_of_tree_plugin_items, got %d", count)
+	}
 }

@@ -18,6 +18,7 @@ package metrics
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
+	"k8s.io/component-base/metrics"
 	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
@@ -33,22 +34,22 @@ var (
 			Name:      "pending_bindings",
 			Help:      "Number of pending bindings, by the queue type. 'active' means number of bindings in activeQ; 'backoff' means number of bindings in backoffQ; 'unschedulable' means number of bindings in unschedulableBindings that the scheduler attempted to schedule and failed.",
 		}, []string{"queue"})
-
-	metricsList = []prometheus.Collector{
-		pendingBindings,
-	}
 )
 
 func init() {
 	// Register the metrics.
-	RegisterMetrics(metricsList...)
+	ctrlmetrics.Registry.MustRegister(pendingBindings)
 }
 
 // RegisterMetrics registers a list of metrics with the registry served on the scheduler's /metrics endpoint.
 // This function is exported because it is intended to be used by out-of-tree plugins to register their custom metrics.
-func RegisterMetrics(extraMetrics ...prometheus.Collector) {
+func RegisterMetrics(extraMetrics ...metrics.Registerable) {
 	for _, metric := range extraMetrics {
-		ctrlmetrics.Registry.MustRegister(metric)
+		// Create initializes the lazily-constructed component-base metric, as legacyregistry
+		// did before registering. It returns false if the metric is hidden.
+		if metric.Create(nil) {
+			ctrlmetrics.Registry.MustRegister(metric)
+		}
 	}
 }
 
