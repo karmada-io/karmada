@@ -33,6 +33,7 @@ type InitData interface {
 	ControlplaneConfig() *rest.Config
 	ControlplaneAddress() string
 	RemoteClient() clientset.Interface
+	GetProxyURL() string
 	KarmadaClient() clientset.Interface
 	DataDir() string
 	CrdTarball() operatorv1alpha1.CRDTarball
